@@ -1,0 +1,563 @@
+<template>
+  <div class="map-page">
+    <div class="map-header">
+      <div class="header-top">
+        <div class="form-item">
+          <label class="form-label">洗图方法</label>
+          <el-select v-model="mapConfig.method" placeholder="请选择" class="form-select">
+            <el-option label="点金石" value="alchemy" />
+            <el-option label="混沌石" value="chaos" />
+          </el-select>
+        </div>
+        
+        <div class="form-item">
+          <label class="form-label">开始</label>
+          <el-input v-model="shortcuts.mapStart" placeholder="Alt+2" class="form-input-short" @change="updateShortcuts" />
+        </div>
+
+        <div class="form-item">
+          <label class="form-label">结束</label>
+          <el-input v-model="shortcuts.end" placeholder="Alt+3" class="form-input-short" @change="updateShortcuts" />
+        </div>
+
+        <div class="form-item">
+          <label class="form-label">预设</label>
+          <PresetSelector type="map" />
+        </div>
+      </div>
+
+      <div class="header-bottom">
+        <el-checkbox v-model="mapConfig.chisel.enabled" label="制图钉" size="large">
+          <template #default>
+            <div class="checkbox-label">
+              <img :src="chiselIcon" alt="制图钉" class="icon-image" />
+              制图钉
+            </div>
+          </template>
+        </el-checkbox>
+        <el-checkbox v-model="mapConfig.vaal.enabled" label="瓦尔宝珠" size="large">
+           <template #default>
+            <div class="checkbox-label">
+              <img :src="vaalIcon" alt="瓦尔宝珠" class="icon-image" />
+              瓦尔宝珠
+            </div>
+          </template>
+        </el-checkbox>
+        <el-checkbox v-model="mapConfig.autoStash" label="符合条件存仓" size="large">
+           <template #default>
+            <div class="checkbox-label">
+              符合条件存仓
+              <el-tooltip content="当地图满足配置条件时，自动存入仓库" placement="top">
+                <el-icon class="help-icon"><QuestionFilled /></el-icon>
+              </el-tooltip>
+            </div>
+          </template>
+        </el-checkbox>
+      </div>
+    </div>
+    
+    <div class="map-content">
+      <!-- Map Base Section -->
+      <el-card class="section-card">
+        <template #header>
+          <div class="card-header">
+            <span class="title">地图基底</span>
+             <el-tooltip content="设置地图的基本属性要求" placement="top">
+               <el-icon class="help-icon"><QuestionFilled /></el-icon>
+             </el-tooltip>
+             <div class="header-right">
+                <el-radio-group v-model="mapTypeMode" size="small" @change="handleMapTypeChange">
+                  <el-radio-button label="normal">普通地图</el-radio-button>
+                  <el-radio-button label="t17">高级地图</el-radio-button>
+                </el-radio-group>
+             </div>
+          </div>
+        </template>
+        
+        <div class="base-content">
+          <div class="base-column">
+            <div class="column-header">
+              <span>必选基底</span>
+               <el-tooltip content="必须满足所有勾选的条件" placement="top">
+                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
+               </el-tooltip>
+            </div>
+            <div class="conditions-list">
+              <div class="condition-row" v-for="(key, label) in mandatoryStatKeys" :key="key">
+                <el-checkbox v-model="getMandatoryStat(key).enabled">{{ label }}</el-checkbox>
+                <span class="separator">>=</span>
+                <el-input-number v-model="getMandatoryStat(key).value" :min="0" controls-position="right" class="number-input" />
+              </div>
+            </div>
+          </div>
+
+          <div class="base-column">
+             <div class="column-header">
+              <span>挑选基底</span>
+               <el-tooltip content="满足其中N项即可" placement="top">
+                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
+               </el-tooltip>
+               <div class="count-select">
+                 <span>包含数</span>
+                 <el-input-number v-model="mapConfig.match.selectedCount" :min="1" :max="6" controls-position="right" size="small" style="width: 60px;" />
+               </div>
+            </div>
+             <div class="conditions-list">
+               <div class="condition-row" v-for="(key, label) in optionalStatKeys" :key="key">
+                <el-checkbox v-model="getOptionalStat(key).enabled">{{ label }}</el-checkbox>
+                <span class="separator">>=</span>
+                <el-input-number v-model="getOptionalStat(key).value" :min="0" controls-position="right" class="number-input" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- Modifiers Section -->
+      <div class="modifiers-section">
+        <!-- Blacklist -->
+        <el-card class="section-card modifier-card">
+           <template #header>
+            <div class="card-header">
+              <span class="title">黑名单词缀</span>
+               <el-tooltip content="遇到这些词缀会重洗" placement="top">
+                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
+               </el-tooltip>
+            </div>
+          </template>
+          <div class="modifier-list">
+             <div v-for="(mod, index) in mapConfig.match.blacklist" :key="index" class="modifier-item">
+               <el-input v-model="mapConfig.match.blacklist[index]" placeholder="请输入词缀" />
+               <el-button type="danger" link @click="removeModifier('blacklist', index)">
+                 <el-icon><Delete /></el-icon>
+               </el-button>
+             </div>
+             <el-button class="add-btn" text type="primary" @click="addModifier('blacklist')">
+               <el-icon><Plus /></el-icon> 添加词缀
+             </el-button>
+          </div>
+        </el-card>
+
+        <!-- Whitelist -->
+        <el-card class="section-card modifier-card">
+           <template #header>
+            <div class="card-header">
+              <span class="title">白名单词缀</span>
+               <el-tooltip content="必须包含这些词缀" placement="top">
+                 <el-icon class="help-icon"><QuestionFilled /></el-icon>
+               </el-tooltip>
+            </div>
+          </template>
+           <div class="modifier-list">
+             <div v-for="(mod, index) in mapConfig.match.whitelist" :key="index" class="modifier-item">
+               <el-input v-model="mapConfig.match.whitelist[index]" placeholder="暴击伤害" />
+               <el-button type="danger" link @click="removeModifier('whitelist', index)">
+                 <el-icon><Delete /></el-icon>
+               </el-button>
+             </div>
+             <el-button class="add-btn" text type="primary" @click="addModifier('whitelist')">
+               <el-icon><Plus /></el-icon> 添加词缀
+             </el-button>
+          </div>
+        </el-card>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, watch, onMounted } from 'vue'
+import { QuestionFilled, Delete, Plus } from '@element-plus/icons-vue'
+import { useSettingsStore } from '../settings/settingsStore'
+import { usePresetStore } from '../../stores/preset'
+import PresetSelector from '@/components/common/PresetSelector.vue'
+import chiselIcon from '@/assets/images/制图钉.png'
+import vaalIcon from '@/assets/images/瓦尔宝珠.png'
+
+const settingsStore = useSettingsStore()
+const presetStore = usePresetStore()
+
+// Shortcuts binding
+const shortcuts = computed(() => settingsStore.globalShortcuts)
+const updateShortcuts = () => settingsStore.saveSettings()
+
+// Current Preset Config Accessor
+const mapConfig = computed(() => {
+  const preset = presetStore.currentMapPreset
+  
+  if (!preset.map) {
+    preset.map = {
+        method: 'alchemy',
+        strategy: 'normal',
+        chisel: { enabled: true },
+        vaal: { enabled: true, checkAfter: false },
+        autoStash: true,
+        grid: { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 },
+        match: { blacklist: [], whitelist: [], mandatoryStats: {}, optionalStats: {} },
+        tiers: { t16_5: false, t17: false }
+    }
+  }
+  
+  // 确保 autoStash 字段存在（兼容旧数据）
+  if (preset.map.autoStash === undefined) {
+    preset.map.autoStash = true
+  }
+  
+  // Ensure critical nested objects exist
+  if (!preset.map.grid) {
+    preset.map.grid = { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 }
+  }
+  if (!preset.map.match) {
+    preset.map.match = { blacklist: [], whitelist: [], mandatoryStats: {}, optionalStats: {} }
+  }
+
+  return preset.map
+})
+
+const mapTypeMode = computed({
+  get: () => mapConfig.value.tiers.t17 ? 't17' : 'normal',
+  set: (val) => {
+    mapConfig.value.tiers.t17 = (val === 't17')
+    if (val === 't17') {
+      // T17 specific logic if needed
+    }
+  }
+})
+
+// Helper for dynamic stat binding
+const getMandatoryStat = (key) => {
+  if (!mapConfig.value.match.mandatoryStats[key]) {
+    mapConfig.value.match.mandatoryStats[key] = { enabled: false, value: 0 }
+  }
+  return mapConfig.value.match.mandatoryStats[key]
+}
+
+const getOptionalStat = (key) => {
+  if (!mapConfig.value.match.optionalStats[key]) {
+    mapConfig.value.match.optionalStats[key] = { enabled: false, value: 0 }
+  }
+  return mapConfig.value.match.optionalStats[key]
+}
+
+// Stats Definitions
+const baseStatsMapNormal = {
+  '物品数量': 'quantityNormal',
+  '物品稀有度': 'rarityNormal',
+  '怪物群大小': 'packSizeNormal'
+}
+
+const baseStatsMapT17 = {
+  '物品数量': 'quantityT17',
+  '物品稀有度': 'rarityT17',
+  '怪物群大小': 'packSizeT17'
+}
+
+const t17StatsMap = {
+  '更多地图': 'moreMaps',
+  '更多圣甲虫': 'moreScarabs',
+  '更多通货': 'moreCurrency'
+}
+
+const mandatoryStatKeys = computed(() => {
+  return mapTypeMode.value === 't17' ? { ...baseStatsMapT17, ...t17StatsMap } : baseStatsMapNormal
+})
+
+const optionalStatKeys = computed(() => {
+  return mapTypeMode.value === 't17' ? { ...baseStatsMapT17, ...t17StatsMap } : baseStatsMapNormal
+})
+
+
+function addModifier(type) {
+  if (!mapConfig.value.match[type]) mapConfig.value.match[type] = []
+  mapConfig.value.match[type].push('')
+}
+
+function removeModifier(type, index) {
+  mapConfig.value.match[type].splice(index, 1)
+}
+
+function handleMapTypeChange() {
+  // Logic if needed when map type changes
+}
+
+// Watch for changes to save
+watch(() => presetStore.currentMapPreset, () => {
+  presetStore.savePresets()
+}, { deep: true })
+
+/**
+ * Purpose: 迁移旧版本的基础统计数据格式到新格式
+ * 将旧的 quantity/rarity/packSize 键迁移到 quantityNormal/quantityT17 等新键
+ */
+function migrateBaseStats() {
+  const m = mapConfig.value.match
+  m.mandatoryStats = m.mandatoryStats || {}
+  m.optionalStats = m.optionalStats || {}
+  const ms = m.mandatoryStats
+  const os = m.optionalStats
+  
+  // 旧的没有后缀的key列表
+  const oldKeys = ['quantity', 'rarity', 'packSize']
+  
+  // 迁移函数：复制数据到新key，然后删除旧key
+  const copy = (oldKey, newKey) => {
+    if (ms[oldKey] && !ms[newKey]) {
+      ms[newKey] = { enabled: !!ms[oldKey].enabled, value: ms[oldKey].value || 0 }
+    }
+    if (os[oldKey] && !os[newKey]) {
+      os[newKey] = { enabled: !!os[oldKey].enabled, value: os[oldKey].value || 0 }
+    }
+  }
+  
+  // 执行迁移
+  copy('quantity', 'quantityNormal')
+  copy('quantity', 'quantityT17')
+  copy('rarity', 'rarityNormal')
+  copy('rarity', 'rarityT17')
+  copy('packSize', 'packSizeNormal')
+  copy('packSize', 'packSizeT17')
+  
+  // 迁移完成后，删除旧的没有后缀的key（避免干扰匹配逻辑）
+  oldKeys.forEach(key => {
+    if (ms[key]) delete ms[key]
+    if (os[key]) delete os[key]
+  })
+}
+
+onMounted(() => {
+  migrateBaseStats()
+})
+
+</script>
+
+<style scoped lang="less">
+.map-page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: var(--bg-secondary);
+
+  .map-header {
+    background-color: var(--bg-primary);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+
+      .form-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .form-label {
+          font-size: 14px;
+          color: var(--text-primary);
+          white-space: nowrap;
+        }
+
+        .form-select {
+          width: 120px;
+        }
+
+        .form-input-short {
+          width: 80px;
+        }
+      }
+    }
+
+    .header-bottom {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        
+        .icon-image {
+          width: 18px;
+          height: 18px;
+          display: inline-block;
+          object-fit: contain;
+        }
+        
+        .help-icon {
+          color: var(--text-secondary);
+          margin-left: 4px;
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  .map-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+    .section-card {
+      border: none;
+      box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+      border-radius: 8px;
+      
+      :deep(.el-card__header) {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-lighter);
+      }
+      
+      :deep(.el-card__body) {
+        padding: 20px;
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .title {
+          font-weight: 500;
+          font-size: 16px;
+          color: var(--text-primary);
+        }
+
+        .help-icon {
+          color: var(--text-secondary);
+          cursor: help;
+        }
+
+        .header-right {
+          margin-left: auto;
+        }
+      }
+
+      .grid-content {
+        .form-row {
+          display: flex;
+          gap: 20px;
+          flex-wrap: wrap;
+
+          .grid-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            
+            label {
+               font-size: 14px;
+               color: var(--text-secondary);
+            }
+
+            :deep(.el-input-number) {
+              width: 100px;
+            }
+          }
+        }
+      }
+    }
+
+    .base-content {
+      display: flex;
+      gap: 20px;
+
+      .base-column {
+        flex: 1;
+        background-color: var(--bg-secondary);
+        border-radius: 4px;
+        padding: 16px;
+
+        .column-header {
+           display: flex;
+           align-items: center;
+           gap: 8px;
+           margin-bottom: 16px;
+           font-weight: 500;
+           color: var(--text-primary);
+           
+           .help-icon {
+             color: var(--text-secondary);
+             font-size: 14px;
+           }
+
+           .count-select {
+             margin-left: auto;
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             font-size: 12px;
+             font-weight: normal;
+           }
+        }
+
+        .conditions-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+
+          .condition-row {
+            display: flex;
+            align-items: center;
+            
+            :deep(.el-checkbox) {
+               margin-right: 0;
+               flex: 1;
+            }
+
+            .separator {
+              margin: 0 12px;
+              color: var(--text-secondary);
+              font-size: 12px;
+            }
+
+            .number-input {
+              width: 100px;
+            }
+          }
+        }
+      }
+    }
+
+    .modifiers-section {
+      display: flex;
+      gap: 20px;
+      
+      .modifier-card {
+        flex: 1;
+      }
+
+      .modifier-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .modifier-item, .input-placeholder {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background-color: var(--bg-secondary);
+          padding: 4px 8px;
+          border-radius: 4px;
+          
+          :deep(.el-input__wrapper) {
+            box-shadow: none;
+            background: transparent;
+          }
+        }
+
+        .add-btn {
+          margin-top: 8px;
+          justify-content: flex-start;
+          padding-left: 0;
+        }
+      }
+    }
+  }
+}
+</style>

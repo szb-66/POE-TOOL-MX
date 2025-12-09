@@ -1,0 +1,30 @@
+@import './variables.less';
+
+/* Element Plus 样式覆盖 */
+:root {
+  --el-color-primary: @brand-color;
+}
+
+.el-button {
+  font-weight: 500;
+}
+
+.el-card {
+  border-radius: 8px;
+  border: 1px solid @border-lighter;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.el-input__wrapper,
+.el-textarea__inner {
+  box-shadow: 0 0 0 1px @border-base inset;
+  
+  &:hover {
+    box-shadow: 0 0 0 1px @text-secondary inset;
+  }
+  
+  &.is-focus {
+    box-shadow: 0 0 0 1px @brand-color inset !important;
+  }
+}
+

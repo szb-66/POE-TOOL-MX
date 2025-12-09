@@ -1,0 +1,51 @@
+{
+  "name": "流放助手",
+  "version": "1.0.0",
+  "description": "流放之路物品制作助手工具",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "node scripts/dev.js",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "electron .",
+    "electron:build": "electron-builder"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "element-plus": "^2.6.3",
+    "pinia": "^2.1.7",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "less": "^4.4.2",
+    "vite": "^5.1.4"
+  },
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.exilehelper.app",
+    "productName": "流放助手",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "scripts/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "requestedExecutionLevel": "requireAdministrator",
+      "icon": "src/assets/images/LOGO.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,58 @@
+// 变量定义
+@bg-primary: #ffffff;
+@bg-secondary: #f5f7fa;
+@text-primary: #303133;
+@text-regular: #606266;
+@text-secondary: #909399;
+@border-base: #dcdfe6;
+@border-lighter: #ebeef5;
+@border-radius-sm: 6px;
+@border-radius-md: 8px;
+@brand-color: #409eff;
+@primary-color: @brand-color;
+@success-color: #67c23a;
+@warning-color: #e6a23c;
+@danger-color: #f56c6c;
+@warning-bg: #fff7e6;
+
+@font-size-xs: 12px;
+@font-size-base: 14px;
+@font-size-sm: 14px; // Adjusted from 12px to 14px for body text
+@font-size-md: 16px; // Adjusted for titles
+@font-size-lg: 18px;
+
+@spacing-xs: 8px;
+@spacing-sm: 12px;
+@spacing-md: 16px;
+@spacing-lg: 24px;
+@spacing-xl: 32px;
+
+// CSS 变量映射 (为了兼容现有代码中的 var(--xxx) 使用)
+:root {
+  --bg-primary: @bg-primary;
+  --bg-secondary: @bg-secondary;
+  --text-primary: @text-primary;
+  --text-regular: @text-regular;
+  --text-secondary: @text-secondary;
+  --border-base: @border-base;
+  --border-lighter: @border-lighter;
+  --border-radius-sm: @border-radius-sm;
+  --border-radius-md: @border-radius-md;
+  --brand-color: @brand-color;
+  --primary-color: @primary-color;
+  --success-color: @success-color;
+  --warning-color: @warning-color;
+  --warning-bg: @warning-bg;
+  --danger-color: @danger-color;
+  --font-size-xs: @font-size-xs;
+  --font-size-base: @font-size-base;
+  --font-size-sm: @font-size-sm;
+  --font-size-md: @font-size-md;
+  --font-size-lg: @font-size-lg;
+  --spacing-xs: @spacing-xs;
+  --spacing-sm: @spacing-sm;
+  --spacing-md: @spacing-md;
+  --spacing-lg: @spacing-lg;
+  --spacing-xl: @spacing-xl;
+}
+
