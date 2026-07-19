@@ -56,6 +56,7 @@ export const useSettingsStore = defineStore('settings', () => {
   })
 
   const dpiScale = ref(1.0)
+  const debugMode = ref(false)
 
   // 覆盖层设置
   const overlaySettings = ref({
@@ -145,6 +146,7 @@ export const useSettingsStore = defineStore('settings', () => {
         delays: delays.value,
         itemPosition: itemPosition.value,
         dpiScale: dpiScale.value,
+        debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
         backgroundHistory: backgroundHistory.value
       }))
@@ -180,6 +182,9 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         if (data.dpiScale) {
           dpiScale.value = data.dpiScale
+        }
+        if (typeof data.debugMode === 'boolean') {
+          debugMode.value = data.debugMode
         }
         if (data.overlaySettings) {
           overlaySettings.value = { ...overlaySettings.value, ...data.overlaySettings }
@@ -244,6 +249,7 @@ export const useSettingsStore = defineStore('settings', () => {
     inventory.value = { ...defaultInventory }
     delays.value = { ...defaultDelays }
     itemPosition.value = { ...defaultItemPosition }
+    debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     backgroundHistory.value = []
     saveSettings()
@@ -252,6 +258,12 @@ export const useSettingsStore = defineStore('settings', () => {
       // 使用 JSON.parse(JSON.stringify()) 去除 Proxy 包装，确保 IPC 通信正常
       electronApi.overlay.updateSettings(JSON.parse(JSON.stringify(overlaySettings.value)))
     }
+    electronApi.window.setDevToolsVisible(false)
+  }
+
+  function updateDebugMode(enabled) {
+    debugMode.value = Boolean(enabled)
+    saveSettings()
   }
 
   // 初始化时加载
@@ -264,6 +276,7 @@ export const useSettingsStore = defineStore('settings', () => {
     delays,
     itemPosition,
     dpiScale,
+    debugMode,
     overlaySettings,
     backgroundHistory,
     updateGlobalShortcuts,
@@ -272,6 +285,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDelays,
     updateItemPosition,
     updateDpiScale,
+    updateDebugMode,
     updateOverlaySettings,
     removeHistoryItem,
     saveSettings,

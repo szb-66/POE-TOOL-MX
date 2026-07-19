@@ -60,7 +60,6 @@
                     <el-input-number
                       v-model="inventory.startPos.x"
                       placeholder="X"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handleInventoryChange"
@@ -69,10 +68,18 @@
                     <el-input-number
                       v-model="inventory.startPos.y"
                       placeholder="Y"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handleInventoryChange"
+                    />
+                    <el-button
+                      class="pick-position-button"
+                      :icon="Aim"
+                      circle
+                      title="点击选取坐标"
+                      :loading="coordinatePickingTarget === 'inventory'"
+                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'inventory'"
+                      @click="handlePickCoordinate('inventory')"
                     />
                   </div>
                   <div class="hint-text">背包第一个格子（左上角）的中心坐标</div>
@@ -119,7 +126,6 @@
                     <el-input-number
                       v-model="positions[key].x"
                       placeholder="X"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handlePositionChange(key)"
@@ -128,10 +134,18 @@
                     <el-input-number
                       v-model="positions[key].y"
                       placeholder="Y"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handlePositionChange(key)"
+                    />
+                    <el-button
+                      class="pick-position-button"
+                      :icon="Aim"
+                      circle
+                      title="点击选取坐标"
+                      :loading="coordinatePickingTarget === `currency:${key}`"
+                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== `currency:${key}`"
+                      @click="handlePickCoordinate('currency', key)"
                     />
                   </div>
                 </el-form-item>
@@ -153,7 +167,6 @@
                     <el-input-number
                       v-model="itemPosition.x"
                       placeholder="X"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handleItemPositionChange"
@@ -162,10 +175,18 @@
                     <el-input-number
                       v-model="itemPosition.y"
                       placeholder="Y"
-                      :min="0"
                       :controls="false"
                       style="width: 80px"
                       @change="handleItemPositionChange"
+                    />
+                    <el-button
+                      class="pick-position-button"
+                      :icon="Aim"
+                      circle
+                      title="点击选取坐标"
+                      :loading="coordinatePickingTarget === 'item'"
+                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'item'"
+                      @click="handlePickCoordinate('item')"
                     />
                   </div>
                 </el-form-item>
@@ -193,6 +214,17 @@
                   @change="handleDpiScaleChange"
                 />
                 <span class="hint-text">如果不准确，请设置缩放比例 (如150%填1.5)</span>
+              </div>
+            </el-form-item>
+            <el-form-item label="调试模式">
+              <div class="dpi-input">
+                <el-switch
+                  v-model="debugMode"
+                  active-text="显示控制台"
+                  inactive-text="关闭"
+                  @change="handleDebugModeChange"
+                />
+                <span class="hint-text">显示应用的 Chromium DevTools Console 调试面板</span>
               </div>
             </el-form-item>
           </el-form>
@@ -364,7 +396,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Close } from '@element-plus/icons-vue'
+import { Refresh, Close, Aim } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES, DELAY_PRESETS } from '../../utils/constants'
@@ -383,10 +415,12 @@ const inventory = ref({ ...settingsStore.inventory })
 const delays = ref({ ...settingsStore.delays })
 const itemPosition = ref({ ...settingsStore.itemPosition })
 const dpiScale = ref(settingsStore.dpiScale || 1.0)
+const debugMode = ref(settingsStore.debugMode)
 const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const delayPresets = DELAY_PRESETS
+const coordinatePickingTarget = ref('')
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
 watch(() => settingsStore.globalShortcuts, (val) => {
@@ -406,6 +440,9 @@ watch(() => settingsStore.itemPosition, (val) => {
 }, { deep: true })
 watch(() => settingsStore.dpiScale, (val) => {
   dpiScale.value = val
+})
+watch(() => settingsStore.debugMode, (val) => {
+  debugMode.value = val
 })
 watch(() => settingsStore.overlaySettings, (val) => {
   overlaySettings.value = { ...val }
@@ -480,8 +517,48 @@ function handleItemPositionChange() {
   })
 }
 
+async function handlePickCoordinate(type, currency = '') {
+  if (coordinatePickingTarget.value) return
+
+  coordinatePickingTarget.value = type === 'currency' ? `currency:${currency}` : type
+  try {
+    const result = await electronApi.window.pickScreenCoordinate()
+    if (!result || result.canceled) return
+
+    const point = { x: result.x, y: result.y }
+    if (type === 'inventory') {
+      inventory.value.startPos = point
+      handleInventoryChange()
+    } else if (type === 'currency') {
+      positions.value[currency] = point
+      handlePositionChange(currency)
+    } else if (type === 'item') {
+      itemPosition.value = point
+      handleItemPositionChange()
+    }
+    ElMessage.success(`已选取坐标 (${point.x}, ${point.y})`)
+  } catch (error) {
+    ElMessage.error('选取坐标失败')
+  } finally {
+    coordinatePickingTarget.value = ''
+  }
+}
+
 function handleDpiScaleChange() {
   settingsStore.updateDpiScale(dpiScale.value)
+}
+
+async function handleDebugModeChange(enabled) {
+  settingsStore.updateDebugMode(enabled)
+  try {
+    const result = await electronApi.window.setDevToolsVisible(enabled)
+    if (result && typeof result.visible === 'boolean') {
+      settingsStore.updateDebugMode(result.visible)
+    }
+  } catch (error) {
+    debugMode.value = settingsStore.debugMode
+    ElMessage.error('切换调试模式失败')
+  }
 }
 
 function handleDelaysChange() {
@@ -611,6 +688,7 @@ async function handleReset() {
     delays.value = { ...settingsStore.delays }
     itemPosition.value = { ...settingsStore.itemPosition }
     dpiScale.value = settingsStore.dpiScale
+    debugMode.value = settingsStore.debugMode
     overlaySettings.value = { ...settingsStore.overlaySettings }
     backgroundHistory.value = []
 
@@ -712,6 +790,11 @@ async function handleReset() {
       .separator {
         margin: 0 8px;
         color: var(--text-secondary);
+      }
+
+      .pick-position-button {
+        margin-left: 8px;
+        flex: none;
       }
     }
     

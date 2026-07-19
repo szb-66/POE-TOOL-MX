@@ -1,5 +1,7 @@
 <template>
   <div class="items-page">
+    <SupportedFormatPanel :guidance="ITEM_FORMAT_GUIDANCE" />
+
     <!-- 模块一：快捷键和预设 -->
     <div class="module-section">
       <ModuleOne />
@@ -21,6 +23,8 @@
 import ModuleOne from './components/ModuleOne.vue'
 import ModuleTwo from './components/ModuleTwo.vue'
 import ModuleThree from './components/ModuleThree.vue'
+import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
+import { ITEM_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 </script>
 
 <style scoped lang="less">

@@ -21,8 +21,6 @@ export const validateCraftingConfig = (config) => {
   // 如果 x=0, y=0，视为未配置
   if (!itemPosition || (itemPosition.x === 0 && itemPosition.y === 0)) {
     errors.push('物品位置未配置，请先在设置中抓取物品坐标')
-  } else if (itemPosition.x < 0 || itemPosition.y < 0) {
-    errors.push('物品位置坐标无效 (不能为负数)')
   }
   
   // 2. 验证模块配置

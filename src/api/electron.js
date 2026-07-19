@@ -39,6 +39,12 @@ const mockApi = {
     openDebugOverlay: () => Promise.resolve({ success: true }),
     closeDebugOverlay: () => Promise.resolve({ success: true }),
     updateDebugOverlay: () => Promise.resolve({ success: true }),
+    setDevToolsVisible: (visible) => Promise.resolve({ visible: Boolean(visible) }),
+    getDevToolsVisible: () => Promise.resolve({ visible: false }),
+    onDevToolsVisibilityChanged: () => () => { },
+    pickScreenCoordinate: () => Promise.resolve({ canceled: true }),
+    submitScreenCoordinate: () => { },
+    cancelScreenCoordinatePicker: () => { },
   },
   events: {
     onPythonOutput: () => { },
@@ -104,7 +110,13 @@ export const electronApi = isElectron ? {
     move: (x, y) => window.electronAPI.moveWindow(x, y),
     openDebugOverlay: () => window.electronAPI.openDebugOverlay?.(),
     closeDebugOverlay: () => window.electronAPI.closeDebugOverlay?.(),
-    updateDebugOverlay: (data) => window.electronAPI.updateDebugOverlay?.(data)
+    updateDebugOverlay: (data) => window.electronAPI.updateDebugOverlay?.(data),
+    setDevToolsVisible: (visible) => window.electronAPI.setDevToolsVisible?.(visible),
+    getDevToolsVisible: () => window.electronAPI.getDevToolsVisible?.(),
+    onDevToolsVisibilityChanged: (callback) => window.electronAPI.onDevToolsVisibilityChanged?.(callback),
+    pickScreenCoordinate: () => window.electronAPI.pickScreenCoordinate?.(),
+    submitScreenCoordinate: (point) => window.electronAPI.submitScreenCoordinate?.(point),
+    cancelScreenCoordinatePicker: () => window.electronAPI.cancelScreenCoordinatePicker?.()
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
 
@@ -136,5 +148,3 @@ export const electronApi = isElectron ? {
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
   }
 } : mockApi
-
-

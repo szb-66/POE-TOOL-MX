@@ -50,6 +50,14 @@ const routes = [
     meta: {
       noLayout: true
     }
+  },
+  {
+    path: '/coordinate-picker',
+    name: 'CoordinatePicker',
+    component: () => import('../domains/settings/CoordinatePickerView.vue'),
+    meta: {
+      noLayout: true
+    }
   }
 ]
 

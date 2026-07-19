@@ -6,7 +6,7 @@
  * Edge cases: 多实例由外层配置处理；快捷键注册失败当前未兜底（TODO 可加入失败日志）。
  */
 import { app, BrowserWindow, Menu, globalShortcut } from 'electron'
-import { createMainWindow, getMainWindow } from './modules/window/manager.js'
+import { createMainWindow, getMainWindow, toggleDevTools } from './modules/window/manager.js'
 import { registerIpcHandlers } from './modules/ipc/index.js'
 
 // 导入各模块
@@ -51,25 +51,11 @@ app.whenReady().then(() => {
 
   // 注册全局快捷键打开/关闭开发者工具（F12 与 Ctrl/Cmd+Shift+I）
   globalShortcut.register('F12', () => {
-    const mainWindow = getMainWindow()
-    if (mainWindow) {
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools()
-      } else {
-        mainWindow.webContents.openDevTools()
-      }
-    }
+    toggleDevTools()
   })
 
   globalShortcut.register('CommandOrControl+Shift+I', () => {
-    const mainWindow = getMainWindow()
-    if (mainWindow) {
-      if (mainWindow.webContents.isDevToolsOpened()) {
-        mainWindow.webContents.closeDevTools()
-      } else {
-        mainWindow.webContents.openDevTools()
-      }
-    }
+    toggleDevTools()
   })
 
   app.on('activate', () => {
@@ -90,6 +76,7 @@ app.on('before-quit', async (event) => {
   fileWatcher.stopFileWatcher()
   shortcutManager.unregisterAll()
   windowManager.closeOverlayWindow()
+  windowManager.cancelCoordinatePicker()
   
   // 如果被阻止了，现在重新调用退出
   if (event.defaultPrevented) {

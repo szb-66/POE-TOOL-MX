@@ -71,6 +71,7 @@ except ImportError as e:
 
 # Windows API鼠标控制（用于解决DPI缩放问题）
 use_windows_api = False
+dpi_scale = 1.0
 try:
     if sys.platform == 'win32':
         import ctypes
@@ -160,14 +161,9 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 # Windows API鼠标控制函数
 def move_mouse_windows_api(x, y):
-    """使用Windows API移动鼠标（处理DPI缩放）"""
+    """使用Windows API按物理屏幕像素移动鼠标"""
     try:
-        # 将逻辑坐标转换为物理坐标
-        physical_x = int(x * dpi_scale)
-        physical_y = int(y * dpi_scale)
-
-        # 使用Windows API移动鼠标
-        user32.SetCursorPos(physical_x, physical_y)
+        user32.SetCursorPos(int(x), int(y))
         return True
     except Exception as e:
         print(f"[错误] Windows API鼠标移动失败: {e}")
@@ -200,7 +196,7 @@ class MouseController:
             if use_windows_api:
                 return move_mouse_windows_api(x, y)
             else:
-                self.controller.position = (x, y)
+                self.controller.position = (int(x / dpi_scale), int(y / dpi_scale))
                 time.sleep(0.05)  # 鼠标移动延迟
                 return True
         except Exception as e:

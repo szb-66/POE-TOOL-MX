@@ -11,6 +11,7 @@ import { BrowserWindow, screen, nativeImage } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWindowState, saveWindowState } from './state.js'
+import { toGlobalDipPoint } from './coordinates.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -54,6 +55,15 @@ export function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow(options)
+
+  const notifyDevToolsVisibility = (visible) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('devtools-visibility-changed', visible)
+    }
+  }
+
+  mainWindow.webContents.on('devtools-opened', () => notifyDevToolsVisibility(true))
+  mainWindow.webContents.on('devtools-closed', () => notifyDevToolsVisibility(false))
 
   // 恢复状态
   if (state.isMaximized) {
@@ -205,6 +215,145 @@ export function getMainWindow() {
 
 export function getOverlayWindow() {
   return overlayWindow
+}
+
+function tryShowConsolePanel() {
+  const devTools = mainWindow?.webContents.devToolsWebContents
+  if (!devTools || devTools.isDestroyed()) return
+
+  devTools.executeJavaScript(`
+    (() => {
+      const inspectorView = globalThis.UI?.InspectorView?.InspectorView?.instance?.()
+      return inspectorView?.showPanel?.('console')
+    })()
+  `).catch(() => {})
+}
+
+export function setDevToolsVisible(visible) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false
+  }
+
+  if (visible) {
+    if (!mainWindow.webContents.isDevToolsOpened()) {
+      mainWindow.webContents.openDevTools({ mode: 'right', activate: true })
+    }
+    setTimeout(tryShowConsolePanel, 100)
+  } else if (mainWindow.webContents.isDevToolsOpened()) {
+    mainWindow.webContents.closeDevTools()
+  }
+
+  return mainWindow.webContents.isDevToolsOpened()
+}
+
+export function getDevToolsVisible() {
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.isDevToolsOpened())
+}
+
+export function toggleDevTools() {
+  return setDevToolsVisible(!getDevToolsVisible())
+}
+
+let coordinatePickerSession = null
+
+function settleCoordinatePicker(result) {
+  const session = coordinatePickerSession
+  if (!session || session.settled) return
+
+  session.settled = true
+  coordinatePickerSession = null
+
+  session.windows.forEach(win => {
+    if (!win.isDestroyed()) win.close()
+  })
+  session.resolve(result)
+}
+
+export function pickScreenCoordinate() {
+  if (coordinatePickerSession) {
+    return coordinatePickerSession.promise
+  }
+
+  let resolveSession
+  const promise = new Promise(resolve => {
+    resolveSession = resolve
+  })
+
+  coordinatePickerSession = {
+    promise,
+    resolve: resolveSession,
+    windows: [],
+    settled: false
+  }
+
+  try {
+    const displays = screen.getAllDisplays()
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL
+
+    displays.forEach(display => {
+      const pickerWindow = new BrowserWindow({
+        ...display.bounds,
+        frame: false,
+        transparent: true,
+        backgroundColor: '#22000000',
+        alwaysOnTop: true,
+        skipTaskbar: true,
+        focusable: true,
+        resizable: false,
+        movable: false,
+        fullscreenable: false,
+        show: false,
+        webPreferences: {
+          preload: path.join(__dirname, '../../preload.cjs'),
+          nodeIntegration: false,
+          contextIsolation: true,
+          webSecurity: false
+        }
+      })
+
+      coordinatePickerSession.windows.push(pickerWindow)
+      pickerWindow.setAlwaysOnTop(true, 'screen-saver')
+      pickerWindow.once('ready-to-show', () => {
+        if (!pickerWindow.isDestroyed()) pickerWindow.show()
+      })
+      pickerWindow.webContents.once('did-fail-load', () => settleCoordinatePicker({ canceled: true }))
+      pickerWindow.on('closed', () => settleCoordinatePicker({ canceled: true }))
+
+      if (process.env.NODE_ENV === 'development' && devServerUrl) {
+        pickerWindow.loadURL(`${devServerUrl}#/coordinate-picker`)
+      } else {
+        pickerWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/coordinate-picker' })
+      }
+    })
+  } catch (error) {
+    settleCoordinatePicker({ canceled: true, error: error.message })
+  }
+
+  return promise
+}
+
+export function submitCoordinatePickerPoint(sender, clientPoint) {
+  const session = coordinatePickerSession
+  if (!session) return false
+
+  const pickerWindow = BrowserWindow.fromWebContents(sender)
+  if (!pickerWindow || !session.windows.includes(pickerWindow)) return false
+
+  const globalDipPoint = toGlobalDipPoint(pickerWindow.getBounds(), clientPoint)
+  const physicalPoint = process.platform === 'win32'
+    ? screen.dipToScreenPoint(globalDipPoint)
+    : globalDipPoint
+
+  settleCoordinatePicker({
+    canceled: false,
+    x: physicalPoint.x,
+    y: physicalPoint.y
+  })
+  return true
+}
+
+export function cancelCoordinatePicker() {
+  settleCoordinatePicker({ canceled: true })
 }
 
 let debugWindow = null

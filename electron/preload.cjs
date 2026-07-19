@@ -81,6 +81,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeOverlayWindow: () => ipcRenderer.invoke('close-overlay-window'),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('window-toggle-always-on-top'),
   isAlwaysOnTop: () => ipcRenderer.invoke('window-is-always-on-top'),
+  setDevToolsVisible: (visible) => ipcRenderer.invoke('set-devtools-visible', visible),
+  getDevToolsVisible: () => ipcRenderer.invoke('get-devtools-visible'),
+  onDevToolsVisibilityChanged: (callback) => {
+    const listener = (event, visible) => callback(visible)
+    ipcRenderer.on('devtools-visibility-changed', listener)
+    return () => ipcRenderer.removeListener('devtools-visibility-changed', listener)
+  },
+  pickScreenCoordinate: () => ipcRenderer.invoke('pick-screen-coordinate'),
+  submitScreenCoordinate: (point) => ipcRenderer.send('coordinate-picker-select', point),
+  cancelScreenCoordinatePicker: () => ipcRenderer.send('coordinate-picker-cancel'),
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
   moveWindow: (x, y) => ipcRenderer.send('window-move', { x, y }),
   onWindowMaximized: (callback) => {

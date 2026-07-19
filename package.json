@@ -4,6 +4,7 @@
   "description": "流放之路物品制作助手工具",
   "type": "module",
   "scripts": {
+    "test": "node --test",
     "dev": "vite",
     "dev:electron": "node scripts/dev.js",
     "build": "vite build",

@@ -59,6 +59,26 @@ export function registerWindowHandlers(window) {
     return false
   })
 
+  ipcMain.handle('set-devtools-visible', (event, visible) => {
+    return { visible: window.setDevToolsVisible(Boolean(visible)) }
+  })
+
+  ipcMain.handle('get-devtools-visible', () => {
+    return { visible: window.getDevToolsVisible() }
+  })
+
+  ipcMain.handle('pick-screen-coordinate', () => {
+    return window.pickScreenCoordinate()
+  })
+
+  ipcMain.on('coordinate-picker-select', (event, point) => {
+    window.submitCoordinatePickerPoint(event.sender, point)
+  })
+
+  ipcMain.on('coordinate-picker-cancel', () => {
+    window.cancelCoordinatePicker()
+  })
+
   // 移动窗口
   ipcMain.on('window-move', (event, { x, y }) => {
     const win = BrowserWindow.fromWebContents(event.sender)

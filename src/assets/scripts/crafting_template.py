@@ -423,11 +423,7 @@ def move_mouse(x, y):
         y = int(y)
         # print(f"[调试] 转换后的坐标: x={x}, y={y}")
         
-        if x < 0 or y < 0:
-            print(f"[错误] 无效的坐标: ({x}, {y})")
-            return False
-        
-        if x > 10000 or y > 10000:
+        if abs(x) > 10000 or abs(y) > 10000:
             print(f"[警告] 坐标值异常大: ({x}, {y})，可能配置错误")
         
         # 获取当前鼠标位置（使用Windows API或pynput）
@@ -577,11 +573,6 @@ def left_click_item():
     
     if item_position['x'] == 0 and item_position['y'] == 0:
         print("[错误] 物品位置未配置！")
-        return False
-    
-    # 验证坐标
-    if item_position['x'] < 0 or item_position['y'] < 0:
-        print(f"[错误] 物品位置坐标无效: ({item_position['x']}, {item_position['y']})")
         return False
     
     # 确保坐标是整数

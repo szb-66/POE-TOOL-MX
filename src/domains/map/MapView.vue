@@ -1,5 +1,7 @@
 <template>
   <div class="map-page">
+    <SupportedFormatPanel :guidance="MAP_FORMAT_GUIDANCE" />
+
     <div class="map-header">
       <div class="header-top">
         <div class="form-item">
@@ -164,6 +166,8 @@ import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
+import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
+import { MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()

@@ -18,18 +18,28 @@ import { useRoute } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
 import { initShortcuts } from './utils/scriptService'
+import { useSettingsStore } from './domains/settings/settingsStore'
+import { electronApi } from './api/electron'
 
 const route = useRoute()
+const settingsStore = useSettingsStore()
 let initShortcutsHandler = null
+let removeDevToolsListener = null
 
 onMounted(() => {
   // 初始化快捷键
   if (window.electronAPI) {
     initShortcuts()
   }
+
+  removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
+    settingsStore.updateDebugMode(visible)
+  })
+  electronApi.window.setDevToolsVisible(settingsStore.debugMode)
 })
 
 onUnmounted(() => {
+  removeDevToolsListener?.()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {
     window.electronAPI.removeAllListeners('init-shortcuts')
