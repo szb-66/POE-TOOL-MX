@@ -246,6 +246,10 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         currentOverlayWindow = window.createOverlayWindow()
       }
 
+      if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
+        currentOverlayWindow.webContents.send('update-overlay', { reset: true })
+      }
+
       // 执行脚本
       const pythonPath = detectPythonPath()
       if (!pythonPath) {

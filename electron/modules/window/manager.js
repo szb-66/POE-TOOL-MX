@@ -19,11 +19,11 @@ let overlayWindow = null
 
 export function createMainWindow() {
   const state = loadWindowState()
-  
+
   // 设置应用图标
   const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO.png')
   const icon = nativeImage.createFromPath(iconPath)
-  
+
   const options = {
     width: state.width || 1200,
     height: state.height || 800,
@@ -44,9 +44,9 @@ export function createMainWindow() {
     const isVisible = displays.some(display => {
       const bounds = display.bounds
       return state.x >= bounds.x && state.x < bounds.x + bounds.width &&
-             state.y >= bounds.y && state.y < bounds.y + bounds.height
+        state.y >= bounds.y && state.y < bounds.y + bounds.height
     })
-    
+
     if (isVisible) {
       options.x = state.x
       options.y = state.y
@@ -70,12 +70,12 @@ export function createMainWindow() {
   let resizeTimeout
   const saveState = () => {
     if (!mainWindow) return
-    
+
     try {
       const isMaximized = mainWindow.isMaximized()
       const isFullScreen = mainWindow.isFullScreen()
       const bounds = mainWindow.getBounds()
-      
+
       const newState = {
         isMaximized,
         isFullScreen,
@@ -141,11 +141,11 @@ export function createOverlayWindow() {
   if (overlayWindow) return overlayWindow
 
   const { width } = screen.getPrimaryDisplay().workAreaSize
-  
+
   // 设置应用图标
   const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO.png')
   const icon = nativeImage.createFromPath(iconPath)
-  
+
   overlayWindow = new BrowserWindow({
     width: 300,
     height: 400,
@@ -170,9 +170,9 @@ export function createOverlayWindow() {
   // 加载覆盖层路由
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
   if (process.env.NODE_ENV === 'development' && devServerUrl) {
-    overlayWindow.loadURL(`${devServerUrl}/overlay`)
+    overlayWindow.loadURL(`${devServerUrl}#/overlay`)
   } else {
-    overlayWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: 'overlay' })
+    overlayWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/overlay' })
   }
 
   overlayWindow.setIgnoreMouseEvents(true, { forward: true }) // 允许鼠标事件转发，实现部分区域可交互
@@ -207,3 +207,60 @@ export function getOverlayWindow() {
   return overlayWindow
 }
 
+let debugWindow = null
+
+export function createDebugWindow() {
+  if (debugWindow) return debugWindow
+
+  // 获取主屏幕尺寸
+  const { width, height } = screen.getPrimaryDisplay().bounds
+
+  debugWindow = new BrowserWindow({
+    width,
+    height,
+    x: 0,
+    y: 0,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, '../../preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false
+    }
+  })
+
+  // 加载路由
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL
+  if (process.env.NODE_ENV === 'development' && devServerUrl) {
+    debugWindow.loadURL(`${devServerUrl}#/debug-overlay`)
+  } else {
+    debugWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/debug-overlay' })
+  }
+
+  // 忽略鼠标事件，允许点击穿透
+  debugWindow.setIgnoreMouseEvents(true, { forward: true })
+
+  debugWindow.on('closed', () => {
+    debugWindow = null
+  })
+
+  return debugWindow
+}
+
+export function closeDebugWindow() {
+  if (debugWindow) {
+    debugWindow.close()
+    debugWindow = null
+  }
+}
+
+export function getDebugWindow() {
+  return debugWindow
+}

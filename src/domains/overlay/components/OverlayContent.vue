@@ -309,13 +309,17 @@ watch(() => props.isStopped, (v) => {
   }
 })
 
-const hasContent = computed(() => {
-  return props.itemInfo && (props.itemInfo.name || props.itemInfo.baseName)
-})
-
 // 判断是否为地图制作模式
 const isMapMode = computed(() => {
-  return props.itemInfo?.category === '异界地图' || props.mapStats !== null
+  return ['异界地图', '地图'].includes(props.itemInfo?.category) || props.mapStats !== null
+})
+
+const hasContent = computed(() => {
+  if (isMapMode.value) {
+    return Boolean(props.itemInfo?.category || props.itemInfo?.name || props.itemInfo?.baseName || props.mapStats)
+  }
+
+  return Boolean(props.itemInfo && (props.itemInfo.name || props.itemInfo.baseName))
 })
 
 // 地图统计信息（优先使用props传入的，否则使用itemInfo中的）

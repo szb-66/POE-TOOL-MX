@@ -87,6 +87,50 @@ export const validateCraftingConfig = (config) => {
   }
 }
 
+export const validateMapRollingConfig = (config) => {
+  const errors = []
+  const { inventory, currencyPositions, mapConfig } = config
+
+  if (!mapConfig) {
+    errors.push('未找到地图配置')
+    return { isValid: false, errors }
+  }
+
+  if (!inventory?.startPos || (inventory.startPos.x === 0 && inventory.startPos.y === 0)) {
+    errors.push('背包首格坐标未配置，请先在设置中填写')
+  }
+
+  if (!inventory?.slotSize || inventory.slotSize.w <= 0 || inventory.slotSize.h <= 0) {
+    errors.push('背包单格宽高未配置，请先在设置中填写')
+  }
+
+  const checkCurrency = (name, label) => {
+    if (!currencyPositions?.[name] || (currencyPositions[name].x === 0 && currencyPositions[name].y === 0)) {
+      errors.push(`未配置 ${label} (${name}) 的坐标`)
+    }
+  }
+
+  const method = mapConfig.method || 'alchemy'
+  if (method === 'alchemy') {
+    checkCurrency('alchemy', '点金石')
+    checkCurrency('scouring', '重铸石')
+  } else if (method === 'chaos') {
+    checkCurrency('alchemy', '点金石')
+    checkCurrency('scouring', '重铸石')
+    checkCurrency('chaos', '混沌石')
+  } else {
+    errors.push(`未知的地图制作方式: ${method}`)
+  }
+
+  if (mapConfig.vaal?.enabled) {
+    checkCurrency('vaal', '瓦尔宝珠')
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  }
+}
 
 
 

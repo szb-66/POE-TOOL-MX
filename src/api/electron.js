@@ -26,27 +26,43 @@ const mockApi = {
     initFromSettings: () => Promise.resolve(true),
     register: () => Promise.resolve(true),
     unregister: () => Promise.resolve(true),
-    onTriggered: () => {},
-    onInit: () => {},
+    onTriggered: () => { },
+    onInit: () => { },
   },
   window: {
-    minimize: () => {},
-    maximize: () => {},
-    close: () => {},
+    minimize: () => { },
+    maximize: () => { },
+    close: () => { },
     toggleAlwaysOnTop: () => Promise.resolve(false),
     isAlwaysOnTop: () => Promise.resolve(false),
-    onMaximized: () => {},
+    onMaximized: () => { },
+    openDebugOverlay: () => Promise.resolve({ success: true }),
+    closeDebugOverlay: () => Promise.resolve({ success: true }),
+    updateDebugOverlay: () => Promise.resolve({ success: true }),
   },
   events: {
-    onPythonOutput: () => {},
-    onUpdateOverlay: () => {},
-    onUpdateOverlaySettings: () => {},
-    onScriptStopped: () => {},
+    onPythonOutput: () => { },
+    onUpdateOverlay: () => { },
+    onUpdateOverlaySettings: () => { },
+    onScriptStopped: () => { },
+    onBagDetectionMatch: () => { },
+    onBagStashProgress: () => { },
+    onBagStashCompleted: () => { },
+    onBagStashStopped: () => { },
+    onBagDetectionStopped: () => { },
+    onUpdateDebugOverlay: () => { },
   },
   selectFile: () => Promise.resolve({ canceled: true, filePaths: [] }),
   copyFileToProject: () => Promise.resolve({ success: false }),
   overlay: {
     updateSettings: () => Promise.resolve({ success: true }),
+  },
+  bag: {
+    startDetection: () => Promise.reject(new Error('非 Electron 环境')),
+    stopDetection: () => Promise.resolve({ success: true }),
+    startStash: () => Promise.reject(new Error('非 Electron 环境')),
+    stopStash: () => Promise.resolve({ success: true }),
+    uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
   }
 }
 
@@ -58,7 +74,7 @@ export const electronApi = isElectron ? {
     getStatus: () => window.electronAPI.getScriptStatus(),
     detectPythonPath: () => window.electronAPI.detectPythonPath(),
   },
-  
+
   file: {
     save: (path, content) => window.electronAPI.saveFile(path, content),
     read: (path) => window.electronAPI.readFile(path),
@@ -68,7 +84,7 @@ export const electronApi = isElectron ? {
       stop: () => window.electronAPI.stopFileWatcher(),
     }
   },
-  
+
   shortcut: {
     initFromSettings: (shortcuts) => window.electronAPI.initShortcutsFromSettings(shortcuts),
     register: (accelerator, callback) => window.electronAPI.registerGlobalShortcut(accelerator, callback),
@@ -76,7 +92,7 @@ export const electronApi = isElectron ? {
     onTriggered: (callback) => window.electronAPI.onShortcutTriggered(callback),
     onInit: (callback) => window.electronAPI.onInitShortcuts(callback),
   },
-  
+
   window: {
     minimize: () => window.electronAPI.minimizeWindow(),
     maximize: () => window.electronAPI.maximizeWindow(),
@@ -85,7 +101,10 @@ export const electronApi = isElectron ? {
     toggleAlwaysOnTop: () => window.electronAPI.toggleAlwaysOnTop(),
     isAlwaysOnTop: () => window.electronAPI.isAlwaysOnTop(),
     onMaximized: (callback) => window.electronAPI.onWindowMaximized(callback),
-    move: (x, y) => window.electronAPI.moveWindow(x, y)
+    move: (x, y) => window.electronAPI.moveWindow(x, y),
+    openDebugOverlay: () => window.electronAPI.openDebugOverlay?.(),
+    closeDebugOverlay: () => window.electronAPI.closeDebugOverlay?.(),
+    updateDebugOverlay: (data) => window.electronAPI.updateDebugOverlay?.(data)
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
 
@@ -94,6 +113,12 @@ export const electronApi = isElectron ? {
     onUpdateOverlay: (callback) => window.electronAPI.onUpdateOverlay(callback),
     onUpdateOverlaySettings: (callback) => window.electronAPI.onUpdateOverlaySettings(callback),
     onScriptStopped: (callback) => window.electronAPI.onScriptStopped(callback),
+    onBagDetectionMatch: (callback) => window.electronAPI.onBagDetectionMatch?.(callback),
+    onBagStashProgress: (callback) => window.electronAPI.onBagStashProgress?.(callback),
+    onBagStashCompleted: (callback) => window.electronAPI.onBagStashCompleted?.(callback),
+    onBagStashStopped: (callback) => window.electronAPI.onBagStashStopped?.(callback),
+    onBagDetectionStopped: (callback) => window.electronAPI.onBagDetectionStopped?.(callback),
+    onUpdateDebugOverlay: (callback) => window.electronAPI.onUpdateDebugOverlay?.(callback),
   },
 
   selectFile: () => window.electronAPI.selectFile(),
@@ -101,6 +126,15 @@ export const electronApi = isElectron ? {
 
   overlay: {
     updateSettings: (settings) => window.electronAPI.updateOverlaySettings(settings),
+  },
+
+  bag: {
+    startDetection: (config) => window.electronAPI.startBagDetection?.(config),
+    stopDetection: () => window.electronAPI.stopBagDetection?.(),
+    startStash: (config) => window.electronAPI.startBagStash?.(config),
+    stopStash: () => window.electronAPI.stopBagStash?.(),
+    uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
   }
 } : mockApi
+
 

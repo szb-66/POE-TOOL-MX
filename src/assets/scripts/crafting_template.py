@@ -178,8 +178,9 @@ mouse_move_delay = {{DELAY_MOUSE_MOVE}}
 mouse_click_delay = {{DELAY_MOUSE_CLICK}}
 key_press_delay = {{DELAY_KEY_PRESS}}
 clipboard_read_delay = {{DELAY_CLIPBOARD}}
-currency_right_click_delay = 0.04
-item_left_click_delay = 0.04
+# 关键操作额外缓冲：确保通货成功挂到鼠标上，避免左键直接拾取物品
+currency_right_click_delay = max(mouse_click_delay * 3, 0.08)
+item_left_click_delay = max(mouse_click_delay * 2.5, 0.06)
 
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
@@ -397,6 +398,7 @@ def apply_currency(currency_type):
         
         # 3. 左键点击应用 (Apply)
         # 不需要按下Shift
+        time.sleep(item_left_click_delay)
         click_mouse("left")
             
         # 点击后的延迟
@@ -593,6 +595,7 @@ def left_click_item():
         return False
     time.sleep(item_left_click_delay)
     click_mouse("left")
+    time.sleep(item_left_click_delay)
     return True
 
 def send_copy_command():
@@ -750,4 +753,3 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         sys.exit(1)
-

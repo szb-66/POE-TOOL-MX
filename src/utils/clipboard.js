@@ -29,6 +29,9 @@ export function parseItemInfo(clipboardText) {
       blue: 0
     },
     links: 0,               // 最大连接数
+    mapTier: 0,             // 地图阶级
+    isCorrupted: false,     // 是否已腐化
+    isUnidentified: false,  // 是否未鉴定
     implicitMods: [],      // 固有词缀
     explicitMods: [],      // 显性词缀
     craftedMods: []         // 工艺词缀
@@ -38,6 +41,71 @@ export function parseItemInfo(clipboardText) {
   let socketLine = ''
   let nameFound = false
   let baseNameFound = false
+  const ignorePatterns = [
+    '点击右键',
+    '在私人地图装置',
+    '放入一个物品',
+    '出售获得通货',
+    '已腐化',
+    '裂界者物品',
+    '塑界者物品',
+    '圣战者物品',
+    '救赎者物品',
+    '狩猎者物品',
+    '督军物品',
+    '只能使用',
+    '无法使用',
+    '无法拥有',
+    '地图阶级:',
+    '物品数量:',
+    '物品稀有度:',
+    '怪物群大小:',
+    '更多地图:',
+    '更多圣甲虫:',
+    '更多通货:',
+    '怪物等级:',
+    '品质:',
+    '护甲:',
+    '闪避值:',
+    '能量护盾:',
+    '结界:',
+    '格挡几率:',
+    '攻击暴击率:',
+    '每秒攻击次数:',
+    '武器范围:',
+    '物理伤害:',
+    '元素伤害:',
+    '火焰伤害:',
+    '冰霜伤害:',
+    '闪电伤害:',
+    '混沌伤害:',
+    '回忆束丝:',
+    '需求:',
+    '等级:',
+    '力量:',
+    '敏捷:',
+    '智慧:',
+    '--------'
+  ]
+  const isMapCategory = (category) => category === '异界地图' || category === '地图'
+  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern))
+  const extractMapTier = (text) => {
+    if (!text) return 0
+
+    const tierPatterns = [
+      /地图阶级:\s*(\d+)/,
+      /地图[（(]\s*(\d+)\s*阶[）)]/
+    ]
+
+    for (const pattern of tierPatterns) {
+      const match = text.match(pattern)
+      if (match) {
+        return parseInt(match[1])
+      }
+    }
+
+    return 0
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -62,10 +130,26 @@ export function parseItemInfo(clipboardText) {
         itemInfo.rarity = rarity
       }
     }
+    else if (line === '已腐化' || line.includes('已腐化')) {
+      itemInfo.isCorrupted = true
+    }
+    else if (line === '未鉴定' || line.includes('未鉴定')) {
+      itemInfo.isUnidentified = true
+    }
+    else if (isMapCategory(itemInfo.category) && extractMapTier(line) > 0) {
+      if (!itemInfo.mapTier) {
+        itemInfo.mapTier = extractMapTier(line)
+      }
+      if (!baseNameFound) {
+        itemInfo.baseName = line
+        baseNameFound = true
+      }
+    }
     // 物品名称（在稀有度之后的第一行非空行，且不是分隔线，不是属性行）
     else if (itemInfo.rarity && !nameFound && line && 
              !line.includes('--------') && 
              !line.includes(':') &&
+             !isIgnoredTextLine(line) &&
              !line.match(/^需求:|^等级:|^力量:|^敏捷:|^智慧:|^护甲:|^物理伤害:|^攻击暴击率:|^每秒攻击次数:|^品质:|^物品等级:|^插槽:/)) {
       itemInfo.name = line
       nameFound = true
@@ -74,6 +158,7 @@ export function parseItemInfo(clipboardText) {
     else if (nameFound && !baseNameFound && line && 
              !line.includes('--------') && 
              !line.includes(':') &&
+             !isIgnoredTextLine(line) &&
              !line.match(/^需求:|^等级:|^力量:|^敏捷:|^智慧:|^护甲:|^物理伤害:|^攻击暴击率:|^每秒攻击次数:|^品质:|^物品等级:|^插槽:/)) {
       itemInfo.baseName = line
       baseNameFound = true
@@ -246,4 +331,6 @@ export function matchSockets(itemInfo, socketConfig, linkConfig, colorConfig) {
 
   return true
 }
-
+    else if (extractMapTier(line) > 0) {
+      itemInfo.mapTier = extractMapTier(line)
+    }

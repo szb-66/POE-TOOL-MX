@@ -75,6 +75,7 @@
                       @change="handleInventoryChange"
                     />
                   </div>
+                  <div class="hint-text">背包第一个格子（左上角）的中心坐标</div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -98,6 +99,7 @@
                       @change="handleInventoryChange"
                     />
                   </div>
+                  <div class="hint-text">单个背包格子的宽度和高度</div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -201,6 +203,18 @@
           <h3 class="section-title">操作延迟</h3>
         </div>
         <el-card class="section-card">
+          <div class="delay-preset-row">
+            <div
+              v-for="(preset, key) in delayPresets"
+              :key="key"
+              class="delay-preset-card"
+              :class="{ active: activeDelayPreset === key }"
+              @click="applyDelayPreset(key)"
+            >
+              <div class="delay-preset-title">{{ preset.label }}</div>
+              <div class="delay-preset-desc">{{ preset.description }}</div>
+            </div>
+          </div>
           <el-form :model="delays" label-width="180px" label-position="left">
             <el-row :gutter="40">
               <el-col :span="12" :lg="8">
@@ -218,9 +232,9 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12" :lg="8">
-                <el-form-item label="鼠标点击延迟">
+                <el-form-item label="操作间隔">
                   <el-input-number
-                    v-model="delays.mouseClick"
+                    v-model="delays.action"
                     :min="0"
                     :max="1000"
                     controls-position="right"
@@ -229,24 +243,11 @@
                   >
                     <template #suffix>ms</template>
                   </el-input-number>
+                  <div class="hint-text">统一控制点击和按键节奏</div>
                 </el-form-item>
               </el-col>
               <el-col :span="12" :lg="8">
-                <el-form-item label="按键延迟">
-                  <el-input-number
-                    v-model="delays.keyPress"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12" :lg="8">
-                <el-form-item label="读取剪切板延迟">
+                <el-form-item label="剪切板等待">
                   <el-input-number
                     v-model="delays.clipboardRead"
                     :min="0"
@@ -257,34 +258,7 @@
                   >
                     <template #suffix>ms</template>
                   </el-input-number>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12" :lg="8">
-                <el-form-item label="右键通货延迟">
-                  <el-input-number
-                    v-model="delays.currencyRightClick"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12" :lg="8">
-                <el-form-item label="左键物品延迟">
-                  <el-input-number
-                    v-model="delays.itemLeftClick"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
+                  <div class="hint-text">复制物品信息后等待游戏写入剪切板</div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -392,7 +366,8 @@ import { ref, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Close } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
-import { CURRENCY_NAMES } from '../../utils/constants'
+import { useBagStore } from '@/stores/bag'
+import { CURRENCY_NAMES, DELAY_PRESETS } from '../../utils/constants'
 import { updateShortcuts } from '../../utils/scriptService'
 import { validateShortcuts } from '../../utils/shortcutValidator'
 import { electronApi } from '@/api/electron'
@@ -400,6 +375,7 @@ import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
 import { generateRandomItem } from '@/utils/mockItem'
 
 const settingsStore = useSettingsStore()
+const bagStore = useBagStore()
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const positions = ref({ ...settingsStore.currencyPositions })
@@ -409,6 +385,8 @@ const itemPosition = ref({ ...settingsStore.itemPosition })
 const dpiScale = ref(settingsStore.dpiScale || 1.0)
 const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
+const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
+const delayPresets = DELAY_PRESETS
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
 watch(() => settingsStore.globalShortcuts, (val) => {
@@ -435,9 +413,21 @@ watch(() => settingsStore.overlaySettings, (val) => {
 watch(() => settingsStore.backgroundHistory, (val) => {
   backgroundHistory.value = [...val]
 }, { deep: true })
+watch(() => bagStore.moduleEnabled, (val) => {
+  bagAutoStashEnabled.value = val
+})
 
 function getCurrencyName(key) {
   return CURRENCY_NAMES[key] || key
+}
+
+function handleBagAutoStashToggle(enabled) {
+  bagStore.setModuleEnabled(enabled)
+  if (enabled) {
+    ElMessage.success('一键入库功能已启用，请前往"背包"页面进行配置')
+  } else {
+    ElMessage.info('一键入库功能已关闭')
+  }
 }
 
 async function handleShortcutsChange() {
@@ -497,13 +487,37 @@ function handleDpiScaleChange() {
 function handleDelaysChange() {
   settingsStore.updateDelays({
     mouseMove: delays.value.mouseMove,
-    mouseClick: delays.value.mouseClick,
-    keyPress: delays.value.keyPress,
-    clipboardRead: delays.value.clipboardRead,
-    currencyRightClick: delays.value.currencyRightClick,
-    itemLeftClick: delays.value.itemLeftClick
+    action: delays.value.action,
+    clipboardRead: delays.value.clipboardRead
   })
 }
+
+function getActiveDelayPreset() {
+  const current = JSON.stringify({
+    mouseMove: delays.value.mouseMove,
+    action: delays.value.action,
+    clipboardRead: delays.value.clipboardRead
+  })
+
+  return Object.entries(delayPresets).find(([, preset]) => {
+    return JSON.stringify(preset.values) === current
+  })?.[0] || ''
+}
+
+function applyDelayPreset(key) {
+  const preset = delayPresets[key]
+  if (!preset) return
+
+  delays.value = { ...preset.values }
+  handleDelaysChange()
+  ElMessage.success(`已切换为${preset.label}预设`)
+}
+
+const activeDelayPreset = ref(getActiveDelayPreset())
+
+watch(delays, () => {
+  activeDelayPreset.value = getActiveDelayPreset()
+}, { deep: true })
 
 function isVideo(path) {
   if (!path) return false
@@ -652,6 +666,45 @@ async function handleReset() {
       margin-bottom: var(--spacing-lg);
     }
 
+    .delay-preset-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .delay-preset-card {
+      padding: 14px 16px;
+      border: 1px solid var(--border-base);
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      cursor: pointer;
+      transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+
+      &:hover {
+        border-color: var(--el-color-primary-light-5);
+        transform: translateY(-1px);
+      }
+
+      &.active {
+        border-color: var(--el-color-primary);
+        background: var(--el-color-primary-light-9);
+      }
+    }
+
+    .delay-preset-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .delay-preset-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
     .position-input {
       display: flex;
       align-items: center;
@@ -755,6 +808,12 @@ async function handleReset() {
         border-radius: 8px;
         overflow: hidden;
       }
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
     }
   }
 

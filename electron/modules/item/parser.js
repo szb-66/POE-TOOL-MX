@@ -45,6 +45,24 @@ export function parseItemInfo(clipboardText) {
   }
 
   let socketLine = ''
+  const isMapCategory = (category) => category === '异界地图' || category === '地图'
+  const extractMapTier = (text) => {
+    if (!text) return 0
+
+    const tierPatterns = [
+      /地图阶级:\s*(\d+)/,
+      /地图[（(]\s*(\d+)\s*阶[）)]/
+    ]
+
+    for (const pattern of tierPatterns) {
+      const match = text.match(pattern)
+      if (match) {
+        return parseInt(match[1])
+      }
+    }
+
+    return 0
+  }
   
   // 物品解析状态标记
   let hasItemLevel = false;
@@ -107,6 +125,7 @@ export function parseItemInfo(clipboardText) {
     '智慧:',
     '--------'
   ];
+  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern))
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -148,10 +167,25 @@ export function parseItemInfo(clipboardText) {
     else if (line.startsWith('稀 有 度:') || line.startsWith('稀有度:')) {
       itemInfo.rarity = line.replace(/稀\s*有\s*度:/, '').trim()
     }
-    else if (!itemInfo.name && line && !line.includes('--------') && !line.includes(':')) {
+    else if (line === '已腐化' || line.includes('已腐化')) {
+      itemInfo.isCorrupted = true
+    }
+    else if (line === '未鉴定' || line.includes('未鉴定')) {
+      itemInfo.isUnidentified = true
+    }
+    else if (isMapCategory(itemInfo.category) && extractMapTier(line) > 0) {
+      itemInfo.mapTier = extractMapTier(line)
+      if (itemInfo.name && !itemInfo.baseName) {
+        itemInfo.baseName = line
+      } else if (!itemInfo.name && !itemInfo.baseName) {
+        itemInfo.baseName = line
+      }
+      continue
+    }
+    else if (!itemInfo.name && line && !line.includes('--------') && !line.includes(':') && !isIgnoredTextLine(line)) {
       itemInfo.name = line
     }
-    else if (itemInfo.name && !itemInfo.baseName && line && !line.includes('--------')) {
+    else if (itemInfo.name && !itemInfo.baseName && line && !line.includes('--------') && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line
     }
     else if (line.includes('品质:')) {
@@ -212,17 +246,8 @@ export function parseItemInfo(clipboardText) {
       }
       continue // 解析后跳过，避免被其他逻辑处理
     }
-    else if (line.includes('地图阶级:')) {
-      const match = line.match(/地图阶级:\s*(\d+)/)
-      if (match) {
-        itemInfo.mapTier = parseInt(match[1])
-      }
-    }
-    else if (line === '已腐化' || line.includes('已腐化')) {
-      itemInfo.isCorrupted = true
-    }
-    else if (line === '未鉴定' || line.includes('未鉴定')) {
-      itemInfo.isUnidentified = true
+    else if (extractMapTier(line) > 0) {
+      itemInfo.mapTier = extractMapTier(line)
     }
     else if (line.includes('(implicit)')) {
       const mod = line.replace(/\s*\(implicit\)\s*$/, '').trim()
@@ -244,12 +269,7 @@ export function parseItemInfo(clipboardText) {
       
       // 检查是否包含在忽略列表中
       let shouldIgnore = false;
-      for (const pattern of ignorePatterns) {
-        if (line.includes(pattern)) {
-          shouldIgnore = true;
-          break;
-        }
-      }
+      shouldIgnore = isIgnoredTextLine(line)
       if (shouldIgnore) continue;
 
       // 如果检测到有物品等级行，则严格执行：显式词缀必须出现在物品等级之后

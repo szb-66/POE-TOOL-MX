@@ -20,7 +20,6 @@ export const CURRENCY_TYPES = {
   JEWELLERS: 'jewellers',         // 工匠石
   FUSING: 'fusing',               // 链结石
   CHROMIC: 'chromic',             // 幻色石
-  CHISEL: 'chisel',               // 制图钉
   VAAL: 'vaal',                   // 瓦尔宝珠
   WISDOM: 'wisdom'                // 知识卷轴
 }
@@ -38,7 +37,6 @@ export const CURRENCY_NAMES = {
   [CURRENCY_TYPES.JEWELLERS]: '工匠石',
   [CURRENCY_TYPES.FUSING]: '链结石',
   [CURRENCY_TYPES.CHROMIC]: '幻色石',
-  [CURRENCY_TYPES.CHISEL]: '制图钉',
   [CURRENCY_TYPES.VAAL]: '瓦尔宝珠',
   [CURRENCY_TYPES.WISDOM]: '知识卷轴'
 }
@@ -72,3 +70,33 @@ export const SOCKET_COLORS = {
   BLUE: 'B'
 }
 
+// 延迟预设
+export const DELAY_PRESETS = {
+  fast: {
+    label: '极速',
+    description: '适合高帧率和稳定环境，速度优先',
+    values: {
+      mouseMove: 220,
+      action: 60,
+      clipboardRead: 90
+    }
+  },
+  balanced: {
+    label: '均衡',
+    description: '默认推荐，兼顾速度和稳定性',
+    values: {
+      mouseMove: 340,
+      action: 100,
+      clipboardRead: 130
+    }
+  },
+  stable: {
+    label: '稳妥',
+    description: '适合卡顿或高延迟环境，稳定优先',
+    values: {
+      mouseMove: 520,
+      action: 180,
+      clipboardRead: 220
+    }
+  }
+}

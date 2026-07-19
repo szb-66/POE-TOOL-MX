@@ -756,8 +756,8 @@ def craft_colors(target_red, target_green, target_blue):
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': ((delays.mouseMove || 100) * 0.05 / 1000.0).toFixed(4),
-    '{{DELAY_MOUSE_CLICK}}': ((delays.mouseClick || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_KEY_PRESS}}': ((delays.keyPress || 50) * 0.2 / 1000.0).toFixed(4),
+    '{{DELAY_MOUSE_CLICK}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
+    '{{DELAY_KEY_PRESS}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
     '{{DELAY_CLIPBOARD}}': ((delays.clipboardRead || 100) * 0.2).toFixed(4),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
@@ -860,8 +860,8 @@ export function generateMapRollingScript(config) {
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': ((delays.mouseMove || 100) * 0.05 / 1000.0).toFixed(4),
-    '{{DELAY_MOUSE_CLICK}}': ((delays.mouseClick || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_KEY_PRESS}}': ((delays.keyPress || 50) * 0.2 / 1000.0).toFixed(4),
+    '{{DELAY_MOUSE_CLICK}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
+    '{{DELAY_KEY_PRESS}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
     '{{DELAY_CLIPBOARD}}': ((delays.clipboardRead || 100) * 0.2).toFixed(4),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
@@ -885,4 +885,3 @@ export function generateMapRollingScript(config) {
 export async function savePythonScript(scriptContent, filePath) {
   return electronApi.file.save(filePath, scriptContent)
 }
-

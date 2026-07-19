@@ -16,6 +16,23 @@
                 inactive-text="关闭"
               />
             </el-form-item>
+            <el-form-item label="显示红框">
+              <el-switch
+                v-model="showDebugOverlay"
+                active-text="显示"
+                inactive-text="隐藏"
+              />
+              <span class="hint-text" style="margin-left: 10px">在屏幕上显示当前配置的检测区域</span>
+            </el-form-item>
+            <el-form-item label="入库快捷键">
+              <el-input
+                v-model="stashShortcut"
+                placeholder="例如: Alt+4"
+                style="width: 200px"
+                @change="handleShortcutChange"
+              />
+              <span class="hint-text" style="margin-left: 10px">点击输入框修改，按回车确认</span>
+            </el-form-item>
             <el-form-item label="检测状态">
               <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
             </el-form-item>
@@ -27,6 +44,16 @@
                 :stroke-width="20"
               />
             </el-form-item>
+            <el-form-item v-if="moduleEnabled && isMatched && !isStashing">
+              <el-button type="primary" @click="handleStartStash" :icon="Upload">
+                开始入库
+              </el-button>
+            </el-form-item>
+            <el-form-item v-if="isStashing">
+              <el-button type="danger" @click="handleStopStash" :icon="VideoPause">
+                停止入库
+              </el-button>
+            </el-form-item>
           </el-form>
         </el-card>
 
@@ -36,6 +63,8 @@
         </div>
         <el-card class="section-card">
           <el-form :model="templates" label-width="120px" label-position="left">
+<!-- ... (rest of the file until script) ... -->
+<!-- Script setup section changes -->
             <el-row :gutter="40">
               <el-col :span="12">
                 <el-form-item label="仓库标题模板">
@@ -61,35 +90,48 @@
                   </el-upload>
                   <div class="region-config">
                     <div class="region-title">仓库标题匹配区域：</div>
-                    <div class="position-input">
-                      <el-input-number
-                        v-model="templates.stashRegion.left"
-                        placeholder="左上X"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.stashRegion.top"
-                        placeholder="左上Y"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.stashRegion.right"
-                        placeholder="右下X"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.stashRegion.bottom"
-                        placeholder="右下Y"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
+                    <div class="region-inputs">
+                      <div class="coordinate-group">
+                        <span class="coordinate-label">左上</span>
+                        <el-input-number
+                          v-model="templates.stashRegion.left"
+                          placeholder="X"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                        <span class="separator">,</span>
+                        <el-input-number
+                          v-model="templates.stashRegion.top"
+                          placeholder="Y"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                      </div>
+                      <span class="separator">-</span>
+                      <div class="coordinate-group">
+                        <span class="coordinate-label">右下</span>
+                        <el-input-number
+                          v-model="templates.stashRegion.right"
+                          placeholder="X"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                        <span class="separator">,</span>
+                        <el-input-number
+                          v-model="templates.stashRegion.bottom"
+                          placeholder="Y"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                      </div>
                     </div>
                   </div>
                 </el-form-item>
@@ -118,35 +160,48 @@
                   </el-upload>
                   <div class="region-config">
                     <div class="region-title">道具标题匹配区域：</div>
-                    <div class="position-input">
-                      <el-input-number
-                        v-model="templates.inventoryRegion.left"
-                        placeholder="左上X"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.inventoryRegion.top"
-                        placeholder="左上Y"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.inventoryRegion.right"
-                        placeholder="右下X"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
-                      <el-input-number
-                        v-model="templates.inventoryRegion.bottom"
-                        placeholder="右下Y"
-                        :min="0"
-                        :max="9999"
-                        controls-position="right"
-                      />
+                    <div class="region-inputs">
+                      <div class="coordinate-group">
+                        <span class="coordinate-label">左上</span>
+                        <el-input-number
+                          v-model="templates.inventoryRegion.left"
+                          placeholder="X"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                        <span class="separator">,</span>
+                        <el-input-number
+                          v-model="templates.inventoryRegion.top"
+                          placeholder="Y"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                      </div>
+                      <span class="separator">-</span>
+                      <div class="coordinate-group">
+                        <span class="coordinate-label">右下</span>
+                        <el-input-number
+                          v-model="templates.inventoryRegion.right"
+                          placeholder="X"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                        <span class="separator">,</span>
+                        <el-input-number
+                          v-model="templates.inventoryRegion.bottom"
+                          placeholder="Y"
+                          :min="0"
+                          :max="9999"
+                          :controls="false"
+                          style="width: 100px"
+                        />
+                      </div>
                     </div>
                   </div>
                 </el-form-item>
@@ -212,23 +267,79 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useBagStore } from '@/stores/bag'
+import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { electronApi } from '@/api/electron'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
 
 const bagStore = useBagStore()
+const settingsStore = useSettingsStore()
 
 // 响应式数据
 const moduleEnabled = ref(bagStore.moduleEnabled)
 const templates = ref({ ...bagStore.templates })
 const matchThreshold = ref(bagStore.matchThreshold)
 const buttonPosition = ref({ ...bagStore.buttonPosition })
-const isStashing = ref(false)
-const stashProgress = ref(0)
-const matchRegion = ref({ ...bagStore.templates.stashRegion })
-const stashConfig = ref({ startPos: { x: 2658, y: 1199 }, slotSize: { w: 100, h: 100 } })
+const isMatched = ref(bagStore.isMatched)
+const isStashing = ref(bagStore.isStashing)
+const stashProgress = ref(bagStore.stashProgress)
+const stashShortcut = ref(bagStore.stashShortcut)
+const showDebugOverlay = ref(false)
+
+// 更新调试覆盖层
+const updateDebugOverlay = () => {
+  if (!showDebugOverlay.value) return
+
+  const rects = []
+  if (templates.value.stashRegion) {
+    rects.push({
+      left: Number(templates.value.stashRegion.left || 0),
+      top: Number(templates.value.stashRegion.top || 0),
+      right: Number(templates.value.stashRegion.right || 0),
+      bottom: Number(templates.value.stashRegion.bottom || 0),
+      label: '仓库标题区域',
+      color: 'red'
+    })
+  }
+  if (templates.value.inventoryRegion) {
+    rects.push({
+      left: Number(templates.value.inventoryRegion.left || 0),
+      top: Number(templates.value.inventoryRegion.top || 0),
+      right: Number(templates.value.inventoryRegion.right || 0),
+      bottom: Number(templates.value.inventoryRegion.bottom || 0),
+      label: '道具标题区域',
+      color: 'blue'
+    })
+  }
+
+  electronApi.window.updateDebugOverlay({ rectangles: rects })
+}
+
+// 监听开关变化
+
+watch(showDebugOverlay, (val) => {
+  if (val) {
+    electronApi.window.openDebugOverlay()
+    setTimeout(updateDebugOverlay, 500) // 等待窗口创建
+  } else {
+    electronApi.window.closeDebugOverlay()
+  }
+})
+
+// 监听区域变化自动更新
+watch(templates, () => {
+  if (showDebugOverlay.value) {
+    updateDebugOverlay()
+  }
+}, { deep: true })
+
+onUnmounted(() => {
+  if (showDebugOverlay.value) {
+    electronApi.window.closeDebugOverlay()
+  }
+})
 
 // 计算属性
 const detectionStatus = computed(() => {
@@ -266,34 +377,28 @@ async function handleModuleToggle(enabled) {
         moduleEnabled.value = false
         return
       }
-      if (!matchRegion.value.left && !matchRegion.value.top && !matchRegion.value.right && !matchRegion.value.bottom) {
-        ElMessage.warning('请先配置匹配区域')
-        moduleEnabled.value = false
-        return
-      }
-      if (!stashConfig.value.startPos.x || !stashConfig.value.startPos.y) {
-        ElMessage.warning('请先配置仓库首格位置')
-        moduleEnabled.value = false
-        return
-      }
 
       const detectionConfig = {
         templates: {
-          stashTitle: templates.value.stashTitle || '',
-          inventoryTitle: templates.value.inventoryTitle || ''
+          stashTitle: String(templates.value.stashTitle || ''),
+          inventoryTitle: String(templates.value.inventoryTitle || ''),
+          stashRegion: {
+            left: Number(templates.value.stashRegion?.left || 0),
+            top: Number(templates.value.stashRegion?.top || 0),
+            right: Number(templates.value.stashRegion?.right || 1920),
+            bottom: Number(templates.value.stashRegion?.bottom || 1080)
+          },
+          inventoryRegion: {
+            left: Number(templates.value.inventoryRegion?.left || 0),
+            top: Number(templates.value.inventoryRegion?.top || 0),
+            right: Number(templates.value.inventoryRegion?.right || 1920),
+            bottom: Number(templates.value.inventoryRegion?.bottom || 1080)
+          }
         },
-        matchRegion: {
-          x: matchRegion.value.left,
-          y: matchRegion.value.top,
-          width: matchRegion.value.right - matchRegion.value.left,
-          height: matchRegion.value.bottom - matchRegion.value.top
-        },
-        matchThreshold: matchThreshold.value
+        matchThreshold: Number(matchThreshold.value)
       }
 
-      console.log('传递给 electronApi 的配置:', JSON.stringify(detectionConfig, null, 2))
-      console.log('matchRegion 原始值:', JSON.stringify(matchRegion.value, null, 2))
-      console.log('templates 原始值:', JSON.stringify(templates.value, null, 2))
+      console.log('[检测配置]', JSON.stringify(detectionConfig, null, 2))
 
       await electronApi.bag.startDetection(detectionConfig)
       ElMessage.success('背包检测已启动')
@@ -306,6 +411,18 @@ async function handleModuleToggle(enabled) {
   } catch (error) {
     ElMessage.error('操作失败: ' + error.message)
     moduleEnabled.value = !enabled
+  }
+}
+
+async function handleShortcutChange(val) {
+  const oldVal = bagStore.stashShortcut
+  if (oldVal && oldVal !== val) {
+    await electronApi.shortcut.unregister(oldVal)
+  }
+  if (val) {
+    await electronApi.shortcut.register(val, 'stashStart')
+    bagStore.setStashShortcut(val)
+    ElMessage.success(`快捷键已更新为: ${val}`)
   }
 }
 
@@ -363,20 +480,121 @@ function getTemplatePreview(path) {
   return ''
 }
 
+// 一键入库处理
+async function handleStartStash() {
+  try {
+    // 从 settingsStore 读取背包参数
+    const inventory = {
+      startPos: {
+        x: Number(settingsStore.inventory.startPos?.x || 2658),
+        y: Number(settingsStore.inventory.startPos?.y || 1199)
+      },
+      slotSize: {
+        w: Number(settingsStore.inventory.slotSize?.w || 100),
+        h: Number(settingsStore.inventory.slotSize?.h || 100)
+      }
+    }
+
+    const stashConfig = {
+      templates: {
+        stashTitle: String(templates.value.stashTitle || ''),
+        inventoryTitle: String(templates.value.inventoryTitle || '')
+      },
+      inventory: inventory
+    }
+
+    console.log('[一键入库] 配置:', JSON.stringify(stashConfig, null, 2))
+
+    const result = await electronApi.bag.startStash(stashConfig)
+    if (result.success) {
+      bagStore.setStashingStatus(true, 0)
+      ElMessage.success('开始自动入库')
+    } else {
+      ElMessage.error('启动入库失败: ' + result.error)
+    }
+  } catch (error) {
+    ElMessage.error('启动入库失败: ' + error.message)
+  }
+}
+
+async function handleStopStash() {
+  try {
+    await electronApi.bag.stopStash()
+    bagStore.setStashingStatus(false, 0)
+    ElMessage.info('已停止入库')
+  } catch (error) {
+    ElMessage.error('停止入库失败: ' + error.message)
+  }
+}
+
 // 监听状态变化
-onMounted(() => {
+onMounted(async () => {
+    // 注册当前快捷键
+  if (stashShortcut.value) {
+    await electronApi.shortcut.register(stashShortcut.value, 'stashStart')
+  }
+
+  // 监听快捷键触发
+  electronApi.shortcut.onTriggered((id) => {
+    if (id === 'stashStart') {
+      if (!isStashing.value) {
+          // 直接开始入库
+          handleStartStash()
+      }
+    }
+  })
+
   // 监听检测状态变化
   bagStore.$subscribe((mutation, state) => {
     moduleEnabled.value = state.moduleEnabled
     templates.value = { ...state.templates }
     matchThreshold.value = state.matchThreshold
     buttonPosition.value = { ...state.buttonPosition }
+    stashShortcut.value = state.stashShortcut
+    isMatched.value = state.isMatched
+    isStashing.value = state.isStashing
+    stashProgress.value = state.stashProgress
   })
 
-  // 监听入库状态
-  electronApi.events.onBagStashStatus?.((status) => {
-    isStashing.value = status.isRunning
-    stashProgress.value = status.progress || 0
+  // 监听检测匹配结果
+  electronApi.events.onBagDetectionMatch?.((data) => {
+    console.log('[检测] 匹配结果:', data)
+    bagStore.setMatchedStatus(data.matched)
+    isMatched.value = data.matched
+    if (data.matched) {
+      bagStore.setDetectionStatus(true)
+    }
+  })
+
+  // 监听入库进度
+  electronApi.events.onBagStashProgress?.((data) => {
+    console.log('[入库] 进度:', data.progress)
+    bagStore.setStashingStatus(true, data.progress)
+    stashProgress.value = data.progress
+  })
+
+  // 监听入库完成
+  electronApi.events.onBagStashCompleted?.(() => {
+    console.log('[入库] 完成')
+    bagStore.setStashingStatus(false, 100)
+    ElMessage.success('自动入库完成！')
+    setTimeout(() => {
+      stashProgress.value = 0
+    }, 2000)
+  })
+
+  // 监听入库停止
+  electronApi.events.onBagStashStopped?.((data) => {
+    console.log('[入库] 停止:', data)
+    bagStore.setStashingStatus(false, 0)
+  })
+
+  // 监听检测停止
+  electronApi.events.onBagDetectionStopped?.((data) => {
+    console.log('[检测] 停止:', data)
+    bagStore.setDetectionStatus(false)
+    bagStore.setMatchedStatus(false)
+    isMatched.value = false
   })
 })
 
@@ -475,6 +693,42 @@ onUnmounted(() => {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+      }
+    }
+
+    .region-config {
+      margin-top: 12px;
+
+      .region-title {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .region-inputs {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+
+        .coordinate-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+
+          .coordinate-label {
+            font-size: 13px;
+            color: var(--text-primary);
+            font-weight: 500;
+            min-width: 32px;
+          }
+        }
+
+        .separator {
+          margin: 0 4px;
+          color: var(--text-secondary);
+          font-weight: bold;
         }
       }
     }

@@ -79,7 +79,7 @@ export function registerWindowHandlers(window) {
         { name: 'All Files', extensions: ['*'] }
       ]
     })
-    
+
     // 如果用户选择了文件，复制到项目目录
     if (!result.canceled && result.filePaths.length > 0) {
       const sourcePath = result.filePaths[0]
@@ -89,17 +89,17 @@ export function registerWindowHandlers(window) {
         if (!fs.existsSync(backgroundsDir)) {
           fs.mkdirSync(backgroundsDir, { recursive: true })
         }
-        
+
         // 生成唯一文件名（使用时间戳和原始文件名）
         const ext = path.extname(sourcePath)
         const baseName = path.basename(sourcePath, ext)
         const timestamp = Date.now()
         const fileName = `${baseName}_${timestamp}${ext}`
         const destPath = path.join(backgroundsDir, fileName)
-        
+
         // 复制文件
         fs.copyFileSync(sourcePath, destPath)
-        
+
         // 返回项目内的相对路径（用于存储和显示）
         // 使用 userData 目录的相对路径标识
         return {
@@ -112,7 +112,7 @@ export function registerWindowHandlers(window) {
         return result
       }
     }
-    
+
     return result
   })
 
@@ -121,6 +121,27 @@ export function registerWindowHandlers(window) {
     const overlayWindow = getOverlayWindow()
     if (overlayWindow && !overlayWindow.isDestroyed()) {
       overlayWindow.webContents.send('update-overlay-settings', settings)
+    }
+    return { success: true }
+  })
+
+  // 调试覆盖层控制
+  const { createDebugWindow, closeDebugWindow, getDebugWindow } = window
+
+  ipcMain.handle('open-debug-overlay', () => {
+    createDebugWindow()
+    return { success: true }
+  })
+
+  ipcMain.handle('close-debug-overlay', () => {
+    closeDebugWindow()
+    return { success: true }
+  })
+
+  ipcMain.handle('update-debug-overlay', (event, data) => {
+    const debugWindow = getDebugWindow()
+    if (debugWindow && !debugWindow.isDestroyed()) {
+      debugWindow.webContents.send('update-debug-overlay', data)
     }
     return { success: true }
   })

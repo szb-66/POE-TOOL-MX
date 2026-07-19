@@ -5,23 +5,23 @@ export const useBagStore = defineStore('bag', () => {
   // 模块开关
   const moduleEnabled = ref(false)
 
-// 模板配置
-const templates = ref({
-  stashTitle: '',        // 仓库标题模板路径
-  inventoryTitle: '',    // 背包道具标题模板路径
-  stashRegion: {         // 仓库标题匹配区域
-    left: 0,
-    top: 0,
-    right: 1920,
-    bottom: 1080
-  },
-  inventoryRegion: {     // 道具标题匹配区域
-    left: 0,
-    top: 0,
-    right: 1920,
-    bottom: 1080
-  }
-})
+  // 模板配置
+  const templates = ref({
+    stashTitle: '',        // 仓库标题模板路径
+    inventoryTitle: '',    // 背包道具标题模板路径
+    stashRegion: {         // 仓库标题匹配区域
+      left: 0,
+      top: 0,
+      right: 1920,
+      bottom: 1080
+    },
+    inventoryRegion: {     // 道具标题匹配区域
+      left: 0,
+      top: 0,
+      right: 1920,
+      bottom: 1080
+    }
+  })
 
   // 匹配阈值
   const matchThreshold = ref(0.8)
@@ -33,8 +33,12 @@ const templates = ref({
     y: 1000
   })
 
+  // 快捷键配置
+  const stashShortcut = ref('Alt+4')
+
   // 运行状态
   const isDetecting = ref(false)
+  const isMatched = ref(false)  // 检测是否匹配成功
   const isStashing = ref(false)
   const stashProgress = ref(0)
 
@@ -54,19 +58,23 @@ const templates = ref({
     saveSettings()
   }
 
-function setTemplateRegion(type, region) {
-  templates.value[`${type}Region`] = { ...region }
-  saveSettings()
-}
+  function setTemplateRegion(type, region) {
+    templates.value[`${type}Region`] = { ...region }
+    saveSettings()
+  }
 
   function setMatchThreshold(threshold) {
     matchThreshold.value = threshold
     saveSettings()
   }
 
-
   function setButtonPosition(position) {
     buttonPosition.value = { ...buttonPosition.value, ...position }
+    saveSettings()
+  }
+
+  function setStashShortcut(shortcut) {
+    stashShortcut.value = shortcut
     saveSettings()
   }
 
@@ -74,25 +82,37 @@ function setTemplateRegion(type, region) {
     isDetecting.value = status
   }
 
+  function setMatchedStatus(status) {
+    isMatched.value = status
+  }
+
   function setStashingStatus(status, progress = 0) {
     isStashing.value = status
     stashProgress.value = progress
   }
 
-function saveSettings() {
-  try {
-    const settings = {
-      moduleEnabled: moduleEnabled.value,
-      templates: templates.value,
-      matchThreshold: matchThreshold.value,
-      buttonPosition: buttonPosition.value
-    }
-    localStorage.setItem('bagSettings', JSON.stringify(settings))
-  } catch (error) {
-    // 保存设置失败
-    console.error('保存背包设置失败:', error)
+  function resetStates() {
+    isDetecting.value = false
+    isMatched.value = false
+    isStashing.value = false
+    stashProgress.value = 0
   }
-}
+
+  function saveSettings() {
+    try {
+      const settings = {
+        moduleEnabled: moduleEnabled.value,
+        templates: templates.value,
+        matchThreshold: matchThreshold.value,
+        buttonPosition: buttonPosition.value,
+        stashShortcut: stashShortcut.value
+      }
+      localStorage.setItem('bagSettings', JSON.stringify(settings))
+    } catch (error) {
+      // 保存设置失败
+      console.error('保存背包设置失败:', error)
+    }
+  }
 
   function loadSettings() {
     try {
@@ -111,6 +131,9 @@ function saveSettings() {
         if (data.buttonPosition) {
           buttonPosition.value = { ...buttonPosition.value, ...data.buttonPosition }
         }
+        if (data.stashShortcut) {
+          stashShortcut.value = data.stashShortcut
+        }
       }
     } catch (error) {
       // 加载设置失败
@@ -119,41 +142,43 @@ function saveSettings() {
   }
 
   // 默认值（用于重置）
-const defaultSettings = {
-  moduleEnabled: false,
-  templates: {
-    stashTitle: '',
-    inventoryTitle: '',
-    stashRegion: {
-      left: 0,
-      top: 0,
-      right: 1920,
-      bottom: 1080
+  const defaultSettings = {
+    moduleEnabled: false,
+    templates: {
+      stashTitle: '',
+      inventoryTitle: '',
+      stashRegion: {
+        left: 0,
+        top: 0,
+        right: 1920,
+        bottom: 1080
+      },
+      inventoryRegion: {
+        left: 0,
+        top: 0,
+        right: 1920,
+        bottom: 1080
+      }
     },
-    inventoryRegion: {
-      left: 0,
-      top: 0,
-      right: 1920,
-      bottom: 1080
-    }
-  },
-  matchThreshold: 0.8,
-  buttonPosition: {
-    x: 3600,
-    y: 1000
+    matchThreshold: 0.8,
+    buttonPosition: {
+      x: 3600,
+      y: 1000
+    },
+    stashShortcut: 'Alt+4'
   }
-}
 
-function resetSettings() {
-  moduleEnabled.value = defaultSettings.moduleEnabled
-  templates.value = { ...defaultSettings.templates }
-  matchThreshold.value = defaultSettings.matchThreshold
-  buttonPosition.value = { ...defaultSettings.buttonPosition }
-  isDetecting.value = false
-  isStashing.value = false
-  stashProgress.value = 0
-  saveSettings()
-}
+  function resetSettings() {
+    moduleEnabled.value = defaultSettings.moduleEnabled
+    templates.value = { ...defaultSettings.templates }
+    matchThreshold.value = defaultSettings.matchThreshold
+    buttonPosition.value = { ...defaultSettings.buttonPosition }
+    stashShortcut.value = defaultSettings.stashShortcut
+    isDetecting.value = false
+    isStashing.value = false
+    stashProgress.value = 0
+    saveSettings()
+  }
 
   // 初始化时加载设置
   loadSettings()
@@ -164,19 +189,24 @@ function resetSettings() {
     templates,
     matchThreshold,
     buttonPosition,
+    stashShortcut,
     isDetecting,
+    isMatched,
     isStashing,
     stashProgress,
 
-// 方法
-setModuleEnabled,
-setTemplate,
-setTemplates,
-setTemplateRegion,
-setMatchThreshold,
-setButtonPosition,
+    // 方法
+    setModuleEnabled,
+    setTemplate,
+    setTemplates,
+    setTemplateRegion,
+    setMatchThreshold,
+    setButtonPosition,
+    setStashShortcut,
     setDetectionStatus,
+    setMatchedStatus,
     setStashingStatus,
+    resetStates,
     saveSettings,
     loadSettings,
     resetSettings

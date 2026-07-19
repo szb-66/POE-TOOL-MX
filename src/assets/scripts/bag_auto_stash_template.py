@@ -37,13 +37,13 @@ print("[启动] 正在导入依赖包...")
 
 # 尝试导入必要的包
 try:
-import time
-import json
-import os
-import signal
-import threading
-import argparse
-import traceback
+    import time
+    import json
+    import os
+    import signal
+    import threading
+    import argparse
+    import traceback
     print("[启动] 基础模块导入成功")
 except ImportError as e:
     print(f"[错误] 基础模块导入失败: {e}")
@@ -124,14 +124,7 @@ stash_thread = None
 default_config = {
     'templates': {
         'stash_title': '',
-        'inventory_title': '',
         'stash_region': {
-            'left': 0,
-            'top': 0,
-            'right': 1920,
-            'bottom': 1080
-        },
-        'inventory_region': {
             'left': 0,
             'top': 0,
             'right': 1920,
@@ -267,7 +260,7 @@ class TemplateMatcher:
         """加载模板图片"""
         try:
             stash_path = self.config['templates']['stash_title']
-            inventory_path = self.config['templates']['inventory_title']
+            # inventory_path = self.config['templates']['inventory_title']
 
             if os.path.exists(stash_path):
                 self.templates['stash'] = cv2.imread(stash_path, cv2.IMREAD_COLOR)
@@ -275,13 +268,6 @@ class TemplateMatcher:
                 print(f"[模板] 模板尺寸: {self.templates['stash'].shape}")
             else:
                 print(f"[错误] 仓库标题模板不存在: {stash_path}")
-
-            if os.path.exists(inventory_path):
-                self.templates['inventory'] = cv2.imread(inventory_path, cv2.IMREAD_COLOR)
-                print(f"[模板] 背包道具标题模板已加载: {inventory_path}")
-                print(f"[模板] 模板尺寸: {self.templates['inventory'].shape}")
-            else:
-                print(f"[错误] 背包道具标题模板不存在: {inventory_path}")
 
         except Exception as e:
             print(f"[错误] 加载模板失败: {e}")
@@ -372,22 +358,7 @@ class TemplateMatcher:
                     print(f"[调试] 仓库匹配结果: {stash_result}, 类型: {type(stash_result)}")
                     # print(f"[调试] 仓库模板匹配值: {stash_val:.3f}")
 
-            # 检查背包道具标题
-            inventory_matched = False
-            if 'inventory' in self.templates and self.config['templates']['inventory_region']:
-                inventory_region = self.config['templates']['inventory_region']
-                inventory_screen = self.capture_screen_region(inventory_region)
-                if inventory_screen is not None:
-                    inventory_result = self.match_template(inventory_screen, self.templates['inventory'])
-                    raw_inventory_matched, _, inv_val = inventory_result
-                    if isinstance(raw_inventory_matched, np.ndarray):
-                        inventory_matched = bool(np.any(raw_inventory_matched))
-                    else:
-                        inventory_matched = bool(raw_inventory_matched)
-                    print(f"[调试] 道具匹配结果: {inventory_result}, 类型: {type(inventory_result)}")
-                    # print(f"[调试] 道具模板匹配值: {inv_val:.3f}")
-
-            return bool(stash_matched) and bool(inventory_matched)
+            return bool(stash_matched)
 
         except Exception as e:
             print(f"[错误] 界面检测失败: {e}")
@@ -451,8 +422,9 @@ class StashController:
 
         completed_count = 0
 
-        for row in range(rows):
-            for col in range(cols):
+        # 按列处理：从左到右，每列从上到下
+        for col in range(cols):
+            for row in range(rows):
                 if not is_running:
                     print("[停止] 入库被用户中断")
                     return
@@ -461,7 +433,7 @@ class StashController:
                 x = start_x + col * slot_width + slot_width // 2
                 y = start_y + row * slot_height + slot_height // 2
 
-                slot_index = row * cols + col + 1
+                slot_index = col * rows + row + 1
 
                 print(f"[入库] 处理第 {slot_index}/{total_slots} 格: ({x}, {y})")
 
@@ -487,7 +459,7 @@ def detection_worker(matcher):
     """模板匹配检测工作线程"""
     print("[开始] 模板匹配检测")
 
-    if not matcher.templates.get('stash') or not matcher.templates.get('inventory'):
+    if not matcher.templates.get('stash'):
         print("[错误] 模板加载失败，无法开始检测")
         return
 
@@ -515,10 +487,10 @@ def detection_worker(matcher):
 
     print("[结束] 模板匹配检测")
 
-def stash_worker(controller):
+def stash_worker(controller, inventory_config):
     """自动入库工作线程"""
     try:
-        controller.stash_items()
+        controller.stash_items(inventory_config)
     except Exception as e:
         print(f"[错误] 入库线程异常: {e}")
 
@@ -553,8 +525,9 @@ def main():
             print(f"[警告] 加载配置文件失败: {e}")
 
     print(f"[配置] 运行模式: {args.mode}")
-    print(f"[配置] 匹配区域: {config['match_region']}")
-    print(f"[配置] 匹配阈值: {config['match_threshold']}")
+    print(f"[配置] 匹配阈值: {config.get('match_threshold', 0.8)}")
+    if 'templates' in config:
+        print(f"[配置] 模板配置已加载")
 
     if args.mode == 'detect':
         # 检测模式
@@ -573,7 +546,11 @@ def main():
     elif args.mode == 'stash':
         # 入库模式
         controller = StashController(config)
-        stash_thread = threading.Thread(target=stash_worker, args=(controller,))
+        inventory_config = config.get('inventory', {
+            'startPos': {'x': 2658, 'y': 1199},
+            'slotSize': {'w': 100, 'h': 100}
+        })
+        stash_thread = threading.Thread(target=stash_worker, args=(controller, inventory_config))
         stash_thread.daemon = True
         stash_thread.start()
 

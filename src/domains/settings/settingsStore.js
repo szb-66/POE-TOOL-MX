@@ -2,7 +2,24 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { electronApi } from '@/api/electron'
 
+function sanitizeCurrencyPositions(positions = {}) {
+  const { chisel, ...rest } = positions
+  return rest
+}
+
 export const useSettingsStore = defineStore('settings', () => {
+  const normalizeDelays = (raw = {}) => {
+    const mouseMove = raw.mouseMove ?? 260
+    const action = raw.action ?? Math.max(raw.mouseClick ?? 0, raw.keyPress ?? 0, 65)
+    const clipboardRead = raw.clipboardRead ?? 100
+
+    return {
+      mouseMove,
+      action,
+      clipboardRead
+    }
+  }
+
   const globalShortcuts = ref({
     itemStart: 'Alt+1',    // 物品开始快捷键
     mapStart: 'Alt+2',     // 地图开始快捷键
@@ -21,7 +38,6 @@ export const useSettingsStore = defineStore('settings', () => {
     jewellers: { x: 209, y: 797 },       // 工匠石
     fusing: { x: 323, y: 797 },          // 链结石
     chromic: { x: 428, y: 798 },         // 幻色石
-    chisel: { x: 1158, y: 426 },         // 制图钉
     vaal: { x: 1158, y: 1017 },          // 瓦尔宝珠
     wisdom: { x: 210, y: 430 }           // 知识卷轴
   })
@@ -32,14 +48,7 @@ export const useSettingsStore = defineStore('settings', () => {
     slotSize: { w: 100, h: 100 }         // 单格宽高
   })
 
-  const delays = ref({
-    mouseMove: 300,        // 鼠标移动延迟（毫秒）
-    mouseClick: 80,        // 鼠标点击延迟
-    keyPress: 50,          // 按键延迟
-    clipboardRead: 50,    // 读取剪切板延迟
-    currencyRightClick: 300, // 右键通货延迟
-    itemLeftClick: 300     // 左键物品延迟
-  })
+  const delays = ref(normalizeDelays())
 
   const itemPosition = ref({
     x: 636,
@@ -74,7 +83,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function updateDelays(newDelays) {
-    delays.value = { ...delays.value, ...newDelays }
+    delays.value = normalizeDelays({ ...delays.value, ...newDelays })
     saveSettings()
   }
 
@@ -131,7 +140,7 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       localStorage.setItem('settings', JSON.stringify({
         globalShortcuts: globalShortcuts.value,
-        currencyPositions: currencyPositions.value,
+        currencyPositions: sanitizeCurrencyPositions(currencyPositions.value),
         inventory: inventory.value,
         delays: delays.value,
         itemPosition: itemPosition.value,
@@ -153,13 +162,18 @@ export const useSettingsStore = defineStore('settings', () => {
           globalShortcuts.value = data.globalShortcuts
         }
         if (data.currencyPositions) {
-          currencyPositions.value = { ...currencyPositions.value, ...data.currencyPositions }
+          currencyPositions.value = {
+            ...currencyPositions.value,
+            ...sanitizeCurrencyPositions(data.currencyPositions)
+          }
+        } else {
+          currencyPositions.value = sanitizeCurrencyPositions(currencyPositions.value)
         }
         if (data.inventory) {
           inventory.value = { ...inventory.value, ...data.inventory }
         }
         if (data.delays) {
-          delays.value = { ...delays.value, ...data.delays }
+          delays.value = normalizeDelays(data.delays)
         }
         if (data.itemPosition) {
           itemPosition.value = { ...data.itemPosition }
@@ -202,7 +216,6 @@ export const useSettingsStore = defineStore('settings', () => {
     jewellers: { x: 209, y: 797 },
     fusing: { x: 323, y: 797 },
     chromic: { x: 428, y: 798 },
-    chisel: { x: 1158, y: 426 },
     vaal: { x: 1158, y: 1017 },
     wisdom: { x: 210, y: 430 }
   }
@@ -212,14 +225,7 @@ export const useSettingsStore = defineStore('settings', () => {
     slotSize: { w: 100, h: 100 }
   }
 
-  const defaultDelays = {
-    mouseMove: 300,
-    mouseClick: 80,
-    keyPress: 50,
-    clipboardRead: 50,
-    currencyRightClick: 300,
-    itemLeftClick: 300
-  }
+  const defaultDelays = normalizeDelays()
 
   const defaultItemPosition = {
     x: 636,

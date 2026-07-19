@@ -36,7 +36,7 @@ export function registerShortcutHandlers(shortcut, window) {
   // IPC: 初始化快捷键（从设置中读取）
   ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts) => {
     const mainWindow = getMainWindow()
-    
+
     // 注销所有已注册的快捷键
     const registeredShortcuts = shortcut.getRegisteredShortcuts()
     registeredShortcuts.forEach((callback, accelerator) => {
@@ -56,6 +56,14 @@ export function registerShortcutHandlers(shortcut, window) {
       registerGlobalShortcut(shortcuts.mapStart, () => {
         if (mainWindow) {
           mainWindow.webContents.send('shortcut-triggered', 'mapStart')
+        }
+      })
+    }
+
+    if (shortcuts.stashStart) {
+      registerGlobalShortcut(shortcuts.stashStart, () => {
+        if (mainWindow) {
+          mainWindow.webContents.send('shortcut-triggered', 'stashStart')
         }
       })
     }

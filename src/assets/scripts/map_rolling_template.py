@@ -152,13 +152,14 @@ mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
 mouse_click_delay = float({{DELAY_MOUSE_CLICK}})  # type: ignore
 key_press_delay = float({{DELAY_KEY_PRESS}})  # type: ignore
 clipboard_read_delay = float({{DELAY_CLIPBOARD}})  # type: ignore
-currency_right_click_delay = 0.04
-item_left_click_delay = 0.04
+# 关键操作额外缓冲：确保通货成功挂到鼠标上，避免左键直接拾取地图
+currency_right_click_delay = max(mouse_click_delay * 3, 0.08)
+item_left_click_delay = max(mouse_click_delay * 2.5, 0.06)
 
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
-map_config = {{MAP_CONFIG}}   # {method, chisel, vaal, match, tiers}  # type: ignore
+map_config = {{MAP_CONFIG}}   # {method, vaal, match, tiers}  # type: ignore
 
 # 创建控制器
 mouse_controller = mouse.Controller()
@@ -233,7 +234,6 @@ def right_click_currency(currency):
         "jewellers": "工匠石",
         "fusing": "链结石",
         "chromic": "幻色石",
-        "chisel": "制图钉",
         "vaal": "瓦尔宝珠",
         "wisdom": "知识卷轴"
     }
@@ -255,6 +255,7 @@ def apply_currency(currency_type, target_x, target_y):
         release_shift_if_held()
         if not right_click_currency(currency_type): return False
         if not move_mouse(target_x, target_y): return False
+        time.sleep(item_left_click_delay)
         click_mouse("left")
         time.sleep(item_left_click_delay)
         return True
@@ -507,8 +508,8 @@ def start_map_rolling():
         
         # 6. 检查是否是地图
         category = result.get("category", "") or result.get("itemClass", "")
-        if category != "异界地图":
-            print(f"[提示] 不是异界地图 (类别: {category})，跳过")
+        if category not in ["异界地图", "地图"]:
+            print(f"[提示] 不是地图 (类别: {category})，跳过")
             # 移动到下一个格子
             current_row += 1
             if current_row >= grid_config['rows']:
@@ -663,72 +664,7 @@ def process_single_map(initial_result, slot_x, slot_y):
         rarity = current_result.get("rarity", "普通").replace(" ", "")
         quality = int(current_result.get("quality", 0))
 
-        # 2. 制图钉逻辑 - 循环打到20品质
-        # 用户逻辑：T1-T5 一次20%, T6-T10 一次10%需要两次, T11-T17 一次5%需要4次
-        # 只要勾选，且品质 < 20，就循环打
-        # 注意：已腐化的地图不能打制图钉（已在前面检查过）
-        
-        # 安全检查：确保 chisel 配置存在
-        chisel_enabled = False
-        if 'chisel' in map_config and map_config['chisel']:
-            chisel_enabled = map_config['chisel'].get('enabled', False)
-        else:
-            print(f"  > [警告] chisel配置不存在或格式错误: {map_config.get('chisel', 'None')}")
-        
-        print(f"  > [制图钉检查] 启用状态: {chisel_enabled}, 当前品质: {quality}%, 稀有度: {rarity}, 方法: {method}, Tier: {tier}, 腐化: {is_corrupted}")
-        
-        # 制图钉逻辑：除了腐化状态，其他品质都可以打制图钉
-        if chisel_enabled and quality < 20 and not is_corrupted:
-            # 所有非腐化品质都可以打制图钉
-            print(f"  > [制图钉] {rarity}品质，可以打制图钉")
-            
-            # 根据tier计算需要打几次
-            chisel_count = 0
-            if tier <= 5:
-                chisel_count = 1  # T1-T5 一次打满
-            elif tier <= 10:
-                chisel_count = 2  # T6-T10 需要两次
-            else:
-                chisel_count = 4  # T11-T17 需要4次
-            
-            print(f"  > [操作] 开始打制图钉 (T{tier}需要{chisel_count}次，当前品质: {quality}%)")
-            for i in range(chisel_count):
-                if quality >= 20:
-                    print(f"  > [制图钉] 品质已达到20%，停止打制图钉")
-                    break
-                print(f"  > [操作] 使用制图钉 ({i+1}/{chisel_count})")
-                if not apply_currency("chisel", slot_x, slot_y):
-                    print(f"  > [错误] 使用制图钉失败")
-                    return False
-                # 重新读取
-                if not read_and_parse(slot_x, slot_y): 
-                    print(f"  > [错误] 读取物品信息失败")
-                    return False
-                current_result = wait_for_parse_result()
-                if current_result.get("error"):
-                    print("  > [错误] 解析物品信息失败")
-                    return False
-                quality = int(current_result.get("quality", 0))
-                print(f"  > [状态] 当前品质: {quality}%")
-            
-            if quality < 20:
-                print(f"  > [警告] 制图钉后品质仍未达到20% (当前: {quality}%)")
-            else:
-                print(f"  > [完成] 制图钉完成，品质: {quality}%")
-            
-            # 更新状态后继续
-            rarity = current_result.get("rarity", "普通").replace(" ", "")
-            continue
-        elif chisel_enabled and quality >= 20:
-            print(f"  > [制图钉] 跳过：品质已达到20%")
-        elif not chisel_enabled:
-            print(f"  > [制图钉] 跳过：制图钉选项未启用")
-        elif is_corrupted:
-            print(f"  > [制图钉] 跳过：地图已腐化，无法打制图钉")
-        else:
-            print(f"  > [制图钉] 跳过：未知原因 (品质: {quality}%, 启用: {chisel_enabled}, 腐化: {is_corrupted})")
-        
-        # 3. 制作/洗练 (Rolling)
+        # 2. 制作/洗练 (Rolling)
         
         if method == 'alchemy':
             # 此时应该是普通品质 (或已满足条件的稀有，但已在上面check过，如果到这里说明不满足)

@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 const routes = [
   {
@@ -9,6 +9,11 @@ const routes = [
     path: '/items',
     name: 'Items',
     component: () => import('../domains/items/ItemsView.vue')
+  },
+  {
+    path: '/bag',
+    name: 'Bag',
+    component: () => import('../domains/bag/BagView.vue')
   },
   {
     path: '/map',
@@ -37,13 +42,20 @@ const routes = [
     meta: {
       noLayout: true
     }
+  },
+  {
+    path: '/debug-overlay',
+    name: 'DebugOverlay',
+    component: () => import('../domains/overlay/DebugOverlay.vue'),
+    meta: {
+      noLayout: true
+    }
   }
 ]
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHashHistory(),
   routes
 })
 
 export default router
-

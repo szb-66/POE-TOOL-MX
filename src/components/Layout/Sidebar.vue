@@ -10,6 +10,10 @@
       <el-icon><Box /></el-icon>
       <span>物品</span>
     </el-menu-item>
+    <el-menu-item index="/bag">
+      <el-icon><Briefcase /></el-icon>
+      <span>背包</span>
+    </el-menu-item>
     <el-menu-item index="/map">
       <el-icon><MapLocation /></el-icon>
       <span>地图</span>
@@ -32,7 +36,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, MapLocation, ShoppingBag, Setting, QuestionFilled } from '@element-plus/icons-vue'
+import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

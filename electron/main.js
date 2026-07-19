@@ -18,6 +18,9 @@ import * as itemParser from './modules/item/parser.js'
 import * as itemMatcher from './modules/item/matcher.js'
 import * as shortcutManager from './modules/shortcuts/manager.js'
 
+// 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
+app.commandLine.appendSwitch('log-level', '3')
+
 // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
 registerIpcHandlers({
   window: windowManager,

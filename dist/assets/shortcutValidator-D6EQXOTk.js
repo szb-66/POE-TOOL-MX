@@ -1,0 +1,1 @@
+function a(e){const t=[e.itemStart,e.mapStart,e.end].filter(r=>r&&r.trim()),i=new Set(t);return t.length!==i.size?{isValid:!1,error:"不同功能的快捷键不能重复，请修改"}:{isValid:!0}}function u(e,t,i){if(!e||!e.trim())return!1;for(const[r,n]of Object.entries(t))if(r!==i&&n===e)return!0;return!1}export{u as i,a as v};

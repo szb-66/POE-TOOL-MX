@@ -15,6 +15,7 @@ import { matchAffixes, matchSockets, matchMapRequirements } from '../item/matche
 export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window) {
   const { getOverlayWindow } = window
   const { getFilePaths } = fileWatcher
+  const isMapCategory = (category) => category === '异界地图' || category === '地图'
 
   // IPC: 保存文件
   ipcMain.handle('save-file', async (event, filePath, content) => {
@@ -104,7 +105,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
 
       // 匹配地图（地图制作）- 仅用于判断，统计完全由脚本负责
       let mapMatchResult = { isMatch: false }
-      if (config && config.map && itemInfo.category === '异界地图') {
+      if (config && config.map && isMapCategory(itemInfo.category)) {
         mapMatchResult = matchMapRequirements(itemInfo, config.map)
       }
 
@@ -170,7 +171,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         socketMatch,
         isLegendary,
         iteration: currentIteration,
-        mapStats: itemInfo.category === '异界地图' ? {
+        mapStats: isMapCategory(itemInfo.category) ? {
           processedCount: scriptProcessedCount !== null && scriptProcessedCount !== undefined 
             ? scriptProcessedCount 
             : 0,
@@ -211,7 +212,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
     if (hasMapStats) {
       // 如果 result 中没有 category，但 config 中有地图配置，则认为是地图模式
       // 或者如果 result 中已经有 category 为异界地图，也认为是地图模式
-      const isMapMode = result.category === '异界地图' || config?.map
+      const isMapMode = isMapCategory(result.category) || config?.map
       
       if (isMapMode) {
         result.mapStats = {
@@ -230,7 +231,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         }
         // 确保 category 存在，以便前端正确识别为地图模式
         if (!result.category) {
-          result.category = '异界地图'
+          result.category = '地图'
         }
       }
     }

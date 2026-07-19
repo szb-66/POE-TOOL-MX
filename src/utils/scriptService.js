@@ -8,7 +8,7 @@
  */
 
 import { generatePythonScript, generateMapRollingScript } from './python.js'
-import { validateCraftingConfig } from './validation.js'
+import { validateCraftingConfig, validateMapRollingConfig } from './validation.js'
 import { electronApi } from '../api/electron.js'
 import { usePresetStore } from '../stores/preset'
 import { useSettingsStore } from '../domains/settings/settingsStore'
@@ -159,12 +159,14 @@ export async function startMapRolling() {
   }
 
   // 验证背包首格坐标（从全局设置中读取）
-  const inventoryStartPos = settingsStore.inventory.startPos
-  if (!inventoryStartPos || 
-      inventoryStartPos.x === undefined || inventoryStartPos.x === null ||
-      inventoryStartPos.y === undefined || inventoryStartPos.y === null ||
-      (inventoryStartPos.x === 0 && inventoryStartPos.y === 0)) {
-    ElMessage.warning('请先在设置中配置背包首格坐标')
+  const validation = validateMapRollingConfig({
+    inventory: settingsStore.inventory,
+    currencyPositions: settingsStore.currencyPositions,
+    mapConfig
+  })
+
+  if (!validation.isValid) {
+    ElMessage.error(validation.errors[0])
     return
   }
 
@@ -236,4 +238,3 @@ export async function updateShortcuts() {
     end: shortcuts.end
   })
 }
-

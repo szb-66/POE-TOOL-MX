@@ -43,7 +43,6 @@ export const usePresetStore = defineStore('preset', () => {
       map: {
         method: 'alchemy',
         strategy: 'normal',
-        chisel: { enabled: true },
         vaal: { enabled: true, checkAfter: false },
         autoStash: true,
         match: {
@@ -105,7 +104,6 @@ export const usePresetStore = defineStore('preset', () => {
       map: {
         method: 'alchemy',
         strategy: 'normal',
-        chisel: { enabled: true },
         vaal: { enabled: true, checkAfter: false },
         autoStash: true,
         match: {
@@ -237,7 +235,7 @@ export const usePresetStore = defineStore('preset', () => {
           const map = preset.map
           if (!map.method) map.method = 'alchemy'
           if (!map.strategy) map.strategy = 'normal'
-          if (!map.chisel) map.chisel = { enabled: true }
+          if (map.chisel) delete map.chisel
           if (!map.vaal) map.vaal = { enabled: true, checkAfter: false }
           if (map.autoStash === undefined) map.autoStash = true
           if (!map.grid) map.grid = { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 }
@@ -287,4 +285,3 @@ export const usePresetStore = defineStore('preset', () => {
     loadPresets
   }
 })
-

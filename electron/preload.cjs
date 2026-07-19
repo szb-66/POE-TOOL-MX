@@ -87,5 +87,45 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window-maximized', (event, isMaximized) => {
       callback(isMaximized)
     })
+  },
+  // 调试覆盖层
+  openDebugOverlay: () => ipcRenderer.invoke('open-debug-overlay'),
+  closeDebugOverlay: () => ipcRenderer.invoke('close-debug-overlay'),
+  updateDebugOverlay: (data) => ipcRenderer.invoke('update-debug-overlay', data),
+  onUpdateDebugOverlay: (callback) => {
+    ipcRenderer.on('update-debug-overlay', (event, data) => {
+      callback(data)
+    })
+  },
+  // 背包自动入库
+  startBagDetection: (config) => ipcRenderer.invoke('start-bag-detection', config),
+  stopBagDetection: () => ipcRenderer.invoke('stop-bag-detection'),
+  startBagStash: (config) => ipcRenderer.invoke('start-bag-stash', config),
+  stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
+  uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
+  onBagDetectionMatch: (callback) => {
+    ipcRenderer.on('bag-detection-match', (event, data) => {
+      callback(data)
+    })
+  },
+  onBagStashProgress: (callback) => {
+    ipcRenderer.on('bag-stash-progress', (event, data) => {
+      callback(data)
+    })
+  },
+  onBagStashCompleted: (callback) => {
+    ipcRenderer.on('bag-stash-completed', (event, data) => {
+      callback(data)
+    })
+  },
+  onBagStashStopped: (callback) => {
+    ipcRenderer.on('bag-stash-stopped', (event, data) => {
+      callback(data)
+    })
+  },
+  onBagDetectionStopped: (callback) => {
+    ipcRenderer.on('bag-detection-stopped', (event, data) => {
+      callback(data)
+    })
   }
 })

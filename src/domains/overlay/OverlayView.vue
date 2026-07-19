@@ -31,6 +31,35 @@ const recentLogs = ref([]) // 最近的日志
 const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
 const mapStats = ref(null) // 地图统计信息
+const isMapCategory = (category) => category === '异界地图' || category === '地图'
+
+function mergeMapStats(previousStats, incomingStats) {
+  if (!incomingStats) {
+    return previousStats
+  }
+
+  return {
+    processedCount: Math.max(previousStats?.processedCount || 0, incomingStats.processedCount || 0),
+    qualifiedCount: Math.max(previousStats?.qualifiedCount || 0, incomingStats.qualifiedCount || 0),
+    blacklistStats: {
+      ...(previousStats?.blacklistStats || {}),
+      ...(incomingStats.blacklistStats || {})
+    },
+    whitelistStats: {
+      ...(previousStats?.whitelistStats || {}),
+      ...(incomingStats.whitelistStats || {})
+    }
+  }
+}
+
+function resetOverlayState() {
+  itemInfo.value = null
+  scriptIteration.value = 0
+  recentLogs.value = []
+  isCompleted.value = false
+  isStopped.value = false
+  mapStats.value = null
+}
 
 // 监听控制台日志以提取循环次数
 const handleScriptOutput = (data) => {
@@ -42,7 +71,7 @@ const handleScriptOutput = (data) => {
     }
     
     // 判断是否为地图制作模式
-    const isMapMode = mapStats.value !== null || itemInfo.value?.category === '异界地图'
+    const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category)
     
     // 匹配完成信号
     // 对于地图制作模式，只有整个流程结束（包含"地图洗练结束"）才设置完成状态
@@ -62,11 +91,7 @@ const handleScriptOutput = (data) => {
     
     // 匹配开始信号，重置状态
     if (data.data.includes('[开始]')) {
-      isCompleted.value = false
-      isStopped.value = false
-      scriptIteration.value = 0
-      recentLogs.value = [] // 可选：清空日志
-      mapStats.value = null // 重置地图统计信息
+      resetOverlayState()
     }
     
     // 更新日志
@@ -92,18 +117,30 @@ function handleClose() {
 onMounted(() => {
   // 监听主进程发来的物品更新事件
   electronApi.events.onUpdateOverlay((data) => {
-    // 如果数据中有物品信息，更新 itemInfo
-    if (data.name || data.baseName || data.category) {
-      itemInfo.value = data
+    if (data.reset) {
+      resetOverlayState()
+      return
     }
-    // 如果只有统计信息更新，也要更新 mapStats
+
     if (data.mapStats) {
-      mapStats.value = data.mapStats
-      // 如果是地图模式但 itemInfo 为空，设置一个基本的 itemInfo
-      if (!itemInfo.value && data.category === '异界地图') {
-        itemInfo.value = { category: '异界地图' }
+      mapStats.value = mergeMapStats(mapStats.value, data.mapStats)
+    }
+
+    // 仅有 category/mapStats 的增量消息不能覆盖掉现有地图信息
+    if (data.name || data.baseName) {
+      itemInfo.value = {
+        ...(itemInfo.value || {}),
+        ...data,
+        mapStats: mapStats.value || data.mapStats || itemInfo.value?.mapStats || null
+      }
+    } else if (data.category) {
+      itemInfo.value = {
+        ...(itemInfo.value || {}),
+        category: data.category,
+        mapStats: mapStats.value || data.mapStats || itemInfo.value?.mapStats || null
       }
     }
+
     if (data.iteration) {
       scriptIteration.value = data.iteration
     }
@@ -113,7 +150,7 @@ onMounted(() => {
   if (electronApi.events.onScriptStopped) {
     electronApi.events.onScriptStopped((data) => {
       // 判断是否是地图制作模式
-      const isMapMode = mapStats.value !== null || itemInfo.value?.category === '异界地图' || data.mapStats !== null
+      const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category) || data.mapStats !== null
       
       if (isMapMode) {
         // 地图制作模式：如果已完成，保持完成状态；如果未完成，标记为已停止
@@ -139,7 +176,13 @@ onMounted(() => {
       }
       
       if (data.mapStats) {
-        mapStats.value = data.mapStats
+        mapStats.value = mergeMapStats(mapStats.value, data.mapStats)
+        if (itemInfo.value) {
+          itemInfo.value = {
+            ...itemInfo.value,
+            mapStats: mapStats.value
+          }
+        }
       }
     })
   }

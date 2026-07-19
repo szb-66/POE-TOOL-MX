@@ -27,14 +27,6 @@
       </div>
 
       <div class="header-bottom">
-        <el-checkbox v-model="mapConfig.chisel.enabled" label="制图钉" size="large">
-          <template #default>
-            <div class="checkbox-label">
-              <img :src="chiselIcon" alt="制图钉" class="icon-image" />
-              制图钉
-            </div>
-          </template>
-        </el-checkbox>
         <el-checkbox v-model="mapConfig.vaal.enabled" label="瓦尔宝珠" size="large">
            <template #default>
             <div class="checkbox-label">
@@ -171,7 +163,6 @@ import { QuestionFilled, Delete, Plus } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
-import chiselIcon from '@/assets/images/制图钉.png'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
 
 const settingsStore = useSettingsStore()
@@ -189,7 +180,6 @@ const mapConfig = computed(() => {
     preset.map = {
         method: 'alchemy',
         strategy: 'normal',
-        chisel: { enabled: true },
         vaal: { enabled: true, checkAfter: false },
         autoStash: true,
         grid: { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 },

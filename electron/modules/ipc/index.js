@@ -11,13 +11,15 @@ import { registerWindowHandlers } from './window.js'
 import { registerPythonHandlers } from './python.js'
 import { registerFileHandlers } from './file.js'
 import { registerShortcutHandlers } from './shortcut.js'
+import { registerBagHandlers } from './bag.js'
 
 export function registerIpcHandlers(dependencies) {
   const { window, python, fileWatcher, itemParser, itemMatcher, shortcut } = dependencies
-  
+
   registerWindowHandlers(window)
   registerPythonHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window)
   registerShortcutHandlers(shortcut, window)
+  registerBagHandlers(python, window, fileWatcher)
 }
 
