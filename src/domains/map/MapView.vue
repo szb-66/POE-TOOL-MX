@@ -59,12 +59,6 @@
              <el-tooltip content="设置地图的基本属性要求" placement="top">
                <el-icon class="help-icon"><QuestionFilled /></el-icon>
              </el-tooltip>
-             <div class="header-right">
-                <el-radio-group v-model="mapTypeMode" size="small" @change="handleMapTypeChange">
-                  <el-radio-button label="normal">普通地图</el-radio-button>
-                  <el-radio-button label="t17">高级地图</el-radio-button>
-                </el-radio-group>
-             </div>
           </div>
         </template>
         
@@ -160,7 +154,7 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted } from 'vue'
+import { computed, watch } from 'vue'
 import { QuestionFilled, Delete, Plus } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
@@ -168,6 +162,7 @@ import PresetSelector from '@/components/common/PresetSelector.vue'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
 import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
 import { MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
+import { MAP_BASE_STATS, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
@@ -181,15 +176,7 @@ const mapConfig = computed(() => {
   const preset = presetStore.currentMapPreset
   
   if (!preset.map) {
-    preset.map = {
-        method: 'alchemy',
-        strategy: 'normal',
-        vaal: { enabled: true, checkAfter: false },
-        autoStash: true,
-        grid: { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 },
-        match: { blacklist: [], whitelist: [], mandatoryStats: {}, optionalStats: {} },
-        tiers: { t16_5: false, t17: false }
-    }
+    preset.map = createDefaultMapConfig()
   }
   
   // 确保 autoStash 字段存在（兼容旧数据）
@@ -208,16 +195,6 @@ const mapConfig = computed(() => {
   return preset.map
 })
 
-const mapTypeMode = computed({
-  get: () => mapConfig.value.tiers.t17 ? 't17' : 'normal',
-  set: (val) => {
-    mapConfig.value.tiers.t17 = (val === 't17')
-    if (val === 't17') {
-      // T17 specific logic if needed
-    }
-  }
-})
-
 // Helper for dynamic stat binding
 const getMandatoryStat = (key) => {
   if (!mapConfig.value.match.mandatoryStats[key]) {
@@ -234,31 +211,8 @@ const getOptionalStat = (key) => {
 }
 
 // Stats Definitions
-const baseStatsMapNormal = {
-  '物品数量': 'quantityNormal',
-  '物品稀有度': 'rarityNormal',
-  '怪物群大小': 'packSizeNormal'
-}
-
-const baseStatsMapT17 = {
-  '物品数量': 'quantityT17',
-  '物品稀有度': 'rarityT17',
-  '怪物群大小': 'packSizeT17'
-}
-
-const t17StatsMap = {
-  '更多地图': 'moreMaps',
-  '更多圣甲虫': 'moreScarabs',
-  '更多通货': 'moreCurrency'
-}
-
-const mandatoryStatKeys = computed(() => {
-  return mapTypeMode.value === 't17' ? { ...baseStatsMapT17, ...t17StatsMap } : baseStatsMapNormal
-})
-
-const optionalStatKeys = computed(() => {
-  return mapTypeMode.value === 't17' ? { ...baseStatsMapT17, ...t17StatsMap } : baseStatsMapNormal
-})
+const mandatoryStatKeys = MAP_BASE_STATS
+const optionalStatKeys = MAP_BASE_STATS
 
 
 function addModifier(type) {
@@ -270,57 +224,10 @@ function removeModifier(type, index) {
   mapConfig.value.match[type].splice(index, 1)
 }
 
-function handleMapTypeChange() {
-  // Logic if needed when map type changes
-}
-
 // Watch for changes to save
 watch(() => presetStore.currentMapPreset, () => {
   presetStore.savePresets()
 }, { deep: true })
-
-/**
- * Purpose: 迁移旧版本的基础统计数据格式到新格式
- * 将旧的 quantity/rarity/packSize 键迁移到 quantityNormal/quantityT17 等新键
- */
-function migrateBaseStats() {
-  const m = mapConfig.value.match
-  m.mandatoryStats = m.mandatoryStats || {}
-  m.optionalStats = m.optionalStats || {}
-  const ms = m.mandatoryStats
-  const os = m.optionalStats
-  
-  // 旧的没有后缀的key列表
-  const oldKeys = ['quantity', 'rarity', 'packSize']
-  
-  // 迁移函数：复制数据到新key，然后删除旧key
-  const copy = (oldKey, newKey) => {
-    if (ms[oldKey] && !ms[newKey]) {
-      ms[newKey] = { enabled: !!ms[oldKey].enabled, value: ms[oldKey].value || 0 }
-    }
-    if (os[oldKey] && !os[newKey]) {
-      os[newKey] = { enabled: !!os[oldKey].enabled, value: os[oldKey].value || 0 }
-    }
-  }
-  
-  // 执行迁移
-  copy('quantity', 'quantityNormal')
-  copy('quantity', 'quantityT17')
-  copy('rarity', 'rarityNormal')
-  copy('rarity', 'rarityT17')
-  copy('packSize', 'packSizeNormal')
-  copy('packSize', 'packSizeT17')
-  
-  // 迁移完成后，删除旧的没有后缀的key（避免干扰匹配逻辑）
-  oldKeys.forEach(key => {
-    if (ms[key]) delete ms[key]
-    if (os[key]) delete os[key]
-  })
-}
-
-onMounted(() => {
-  migrateBaseStats()
-})
 
 </script>
 

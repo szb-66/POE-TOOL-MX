@@ -14,6 +14,9 @@ print("=" * 60)
 import sys
 import io
 
+
+{{DPI_AWARENESS}}
+
 try:
     if sys.version_info >= (3, 7):
         sys.stdout.reconfigure(encoding='utf-8')
@@ -110,12 +113,6 @@ try:
         try:
             try:
                 shcore = ctypes.windll.shcore
-                shcore.SetProcessDpiAwareness(2)
-            except Exception:
-                user32.SetProcessDPIAware()
-            
-            try:
-                shcore = ctypes.windll.shcore
                 GetDpiForSystem = shcore.GetDpiForSystem
                 GetDpiForSystem.restype = ctypes.c_uint
                 dpi = GetDpiForSystem()
@@ -159,7 +156,7 @@ item_left_click_delay = max(mouse_click_delay * 2.5, 0.06)
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
-map_config = {{MAP_CONFIG}}   # {method, vaal, match, tiers}  # type: ignore
+map_config = {{MAP_CONFIG}}   # {method, vaal, match}  # type: ignore
 
 # 创建控制器
 mouse_controller = mouse.Controller()
@@ -566,6 +563,7 @@ def process_single_map(initial_result, slot_x, slot_y):
         
         # 基本信息提取
         is_corrupted = current_result.get("isCorrupted", False)
+        is_unmodifiable = current_result.get("isUnmodifiable", False)
         rarity = current_result.get("rarity", "普通").replace(" ", "")
         tier = int(current_result.get("mapTier", 0))
         quality = int(current_result.get("quality", 0))
@@ -576,6 +574,10 @@ def process_single_map(initial_result, slot_x, slot_y):
         # 0. 传奇地图跳过
         if is_legendary:
             print("  > [跳过] 传奇地图")
+            return True
+
+        if is_unmodifiable:
+            print("  > [跳过] 地图不可改变，无法使用通货")
             return True
 
         # 0.1 T17 + 点金模式 检查
@@ -842,45 +844,21 @@ def read_and_parse(x, y):
     return read_clipboard_to_file()
 
 def check_map_base(item_data):
-    """Purpose: 校验地图基底（数量/包大小/稀有度增益等）是否满足必选或挑选条件。
-    Inputs: item_data(解析结果); 依赖 map_config.match 的 mandatoryStats/optionalStats、tiers 选择。
+    """Purpose: 使用统一六项配置校验地图基底。
+    Inputs: item_data(解析结果); 依赖 map_config.match 的 mandatoryStats/optionalStats。
     Outputs: bool -> 是否通过；同时打印调试信息。
-    Preconditions: map_config.match 已包含有效 key；用户 tab 选择决定 T17/Normal 规则。
-    Edge cases: 旧配置 key 会被过滤；必选与挑选冲突时取较大值并禁用挑选项。
+    Edge cases: 缺失属性按零处理；必选与挑选冲突时取较大值且不重复计数。
     """
     match_config = map_config['match']
-    
-    # 判断是否使用T17匹配条件：完全由用户选择的tab决定
-    user_selected_t17 = False
-    if 'tiers' in map_config and map_config['tiers']:
-        user_selected_t17 = map_config['tiers'].get('t17', False)
-    
-    is_t17 = user_selected_t17
-    
-    if is_t17:
-        print(f"  > [匹配] 用户选择了高级地图 tab，使用高级地图匹配条件")
-    else:
-        print(f"  > [匹配] 用户选择了普通地图 tab，使用普通地图匹配条件")
-    
-    # 准备基底检查数据
-    mandatory = match_config.get('mandatoryStats', {}).copy() # 浅拷贝
-    optional = match_config.get('optionalStats', {}).copy()
-    
-    # 过滤掉没有后缀的旧key（quantity, rarity, packSize等），只保留带后缀的key
-    # 这样可以避免旧配置干扰
-    def is_valid_key(key):
-        # 有效的key应该以高级地图或Normal结尾，或者是高级地图特有的属性
-        if key.endswith('T17') or key.endswith('Normal'):
-            return True
-        if key in ('moreMaps', 'moreScarabs', 'moreCurrency'):
-            return True
-        # 没有后缀的旧key（quantity, rarity, packSize）应该被忽略
-        return False
-    
-    # 过滤mandatory和optional，只保留有效的key
-    mandatory = {k: v for k, v in mandatory.items() if is_valid_key(k)}
-    optional = {k: v for k, v in optional.items() if is_valid_key(k)}
-
+    valid_keys = ('quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency')
+    mandatory = {
+        key: dict(value) for key, value in match_config.get('mandatoryStats', {}).items()
+        if key in valid_keys
+    }
+    optional = {
+        key: dict(value) for key, value in match_config.get('optionalStats', {}).items()
+        if key in valid_keys
+    }
     
     # 解决冲突：如果必选和挑选有相同key，取最大值作为必选，并从挑选移除
     conflict_keys = set(mandatory.keys()) & set(optional.keys())
@@ -893,33 +871,11 @@ def check_map_base(item_data):
             # 禁用optional中的该项，避免重复计算
             optional[key]['enabled'] = False
             
-    # 检查必选基底
-    def key_relevant_for_type(key):
-        if key.endswith('T17'):
-            return is_t17
-        if key.endswith('Normal'):
-            return not is_t17
-        if key in ('moreMaps','moreScarabs','moreCurrency'):
-            return is_t17
-        # 不应该到这里，因为已经过滤了无效key
-        return False
-
-    def base_key(key):
-        if key.endswith('T17'):
-            return key.replace('T17','')
-        if key.endswith('Normal'):
-            return key.replace('Normal','')
-        return key
-
     for key, config in mandatory.items():
-        # 只检查enabled为True的配置
         if not config.get('enabled'):
             continue
-        # 检查key是否与当前地图类型相关
-        if not key_relevant_for_type(key):
-            continue
         target_val = config.get('value', 0)
-        current_val = get_stat_value(item_data, base_key(key))
+        current_val = get_stat_value(item_data, key)
         print(f"  > [基底检查] {key}: 当前值={current_val}, 要求值={target_val}, enabled={config.get('enabled')}")
         if current_val < target_val:
             print(f"  > [基底检查] {key} 不满足要求")
@@ -933,15 +889,12 @@ def check_map_base(item_data):
     
     if active_options:
         for key in active_options:
-            # 检查key是否与当前地图类型相关
-            if not key_relevant_for_type(key):
-                continue
             config = optional[key]
             # 再次确认enabled状态（虽然active_options已经过滤了，但为了安全）
             if not config.get('enabled'):
                 continue
             target_val = config.get('value', 0)
-            current_val = get_stat_value(item_data, base_key(key))
+            current_val = get_stat_value(item_data, key)
             print(f"  > [基底检查] {key}: 当前值={current_val}, 要求值={target_val}, enabled={config.get('enabled')}")
             if current_val >= target_val:
                 match_count += 1
@@ -1020,19 +973,11 @@ def check_map_requirements(item_data):
 def get_stat_value(item_data, key):
     # 从item_data中提取属性值
     # key映射: quantity -> itemQuantity, rarity -> itemRarity, packSize -> monsterPackSize
-    # 高级地图 keys: moreMaps, moreScarabs, moreCurrency (需要在解析器中支持，或者从implicitMods/explicitMods中正则提取)
-    # 目前假设后端解析器返回了这些字段，或者我们需要自己解析
-    
     val = 0
     # 尝试直接从顶层属性获取 (解析器可能已经解析好)
     if key in item_data and isinstance(item_data[key], (int, float)):
         return int(item_data[key])
         
-    # 处理带Normal后缀的key（普通地图）
-    if key.endswith('Normal'):
-        base_key_name = key.replace('Normal', '')
-        return get_stat_value(item_data, base_key_name)
-    
     if key == 'quantity':
         val = int(item_data.get('itemQuantity', 0))
         # 兼容旧的解析字段名
@@ -1044,7 +989,6 @@ def get_stat_value(item_data, key):
         val = int(item_data.get('monsterPackSize', 0))
         if val == 0: val = int(item_data.get('packSize', 0))
     elif key == 'moreMaps':
-        # 高级地图属性：更多地图
         # 优先从顶层属性获取（解析器已解析）
         val = int(item_data.get('moreMaps', 0))
         print(f"  > [属性提取] moreMaps: 从item_data获取={val}")
@@ -1059,7 +1003,6 @@ def get_stat_value(item_data, key):
                     print(f"  > [属性提取] moreMaps: 从词缀'{mod}'提取={extracted}")
         print(f"  > [属性提取] moreMaps: 最终值={val}")
     elif key == 'moreScarabs':
-        # 高级地图属性：更多圣甲虫
         val = int(item_data.get('moreScarabs', 0))
         print(f"  > [属性提取] moreScarabs: 从item_data获取={val}")
         if val == 0:
@@ -1072,7 +1015,6 @@ def get_stat_value(item_data, key):
                         print(f"  > [属性提取] moreScarabs: 从词缀'{mod}'提取={extracted}")
         print(f"  > [属性提取] moreScarabs: 最终值={val}")
     elif key == 'moreCurrency':
-        # 高级地图属性：更多通货
         val = int(item_data.get('moreCurrency', 0))
         print(f"  > [属性提取] moreCurrency: 从item_data获取={val}")
         if val == 0:

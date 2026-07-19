@@ -12,6 +12,7 @@ import { registerPythonHandlers } from './python.js'
 import { registerFileHandlers } from './file.js'
 import { registerShortcutHandlers } from './shortcut.js'
 import { registerBagHandlers } from './bag.js'
+import { registerCombatHandlers } from './combat.js'
 
 export function registerIpcHandlers(dependencies) {
   const { window, python, fileWatcher, itemParser, itemMatcher, shortcut } = dependencies
@@ -21,5 +22,5 @@ export function registerIpcHandlers(dependencies) {
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window)
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher)
+  registerCombatHandlers(python, window, fileWatcher)
 }
-

@@ -16,6 +16,31 @@ print("=" * 60)
 import sys
 import io
 
+
+def enable_per_monitor_dpi_awareness():
+    """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
+    if sys.platform != 'win32':
+        return False
+    import ctypes
+    user32 = ctypes.windll.user32
+    try:
+        user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
+        if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return True
+    except Exception:
+        pass
+    try:
+        return ctypes.windll.shcore.SetProcessDpiAwareness(2) == 0
+    except Exception:
+        try:
+            return bool(user32.SetProcessDPIAware())
+        except Exception:
+            return False
+
+
+enable_per_monitor_dpi_awareness()
+
 # 设置标准输出为UTF-8编码，避免Windows GBK编码问题
 # 强制所有平台使用UTF-8，确保一致性
 try:

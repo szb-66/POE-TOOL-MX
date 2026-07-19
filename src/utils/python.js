@@ -11,6 +11,31 @@ import craftingTemplate from '@/assets/scripts/crafting_template.py?raw'
 import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
 
+const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
+    """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
+    if sys.platform != 'win32':
+        return False
+    import ctypes
+    user32 = ctypes.windll.user32
+    try:
+        user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
+        if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return True
+    except Exception:
+        pass
+    try:
+        return ctypes.windll.shcore.SetProcessDpiAwareness(2) == 0
+    except Exception:
+        try:
+            return bool(user32.SetProcessDPIAware())
+        except Exception:
+            return False
+
+
+enable_per_monitor_dpi_awareness()
+`
+
 /**
  * Purpose: 执行Python脚本
  * Inputs: scriptPath (string) - 脚本路径，args (Array) - 脚本参数
@@ -766,7 +791,8 @@ def craft_colors(target_red, target_green, target_blue):
     '{{ENABLE_AFFIX}}': preset.moduleTwo?.enabled ? 'True' : 'False',
     '{{ENABLE_SOCKET}}': preset.moduleThree?.enabled ? 'True' : 'False',
     '{{AFFIX_CRAFTING_FUNC}}': generateAffixMatchingLogic(),
-    '{{SOCKET_CRAFTING_FUNC}}': generateSocketCraftingLogic()
+    '{{SOCKET_CRAFTING_FUNC}}': generateSocketCraftingLogic(),
+    '{{DPI_AWARENESS}}': DPI_AWARENESS
   }
 
   // 执行替换
@@ -867,7 +893,8 @@ export function generateMapRollingScript(config) {
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
     '{{STOP_SHORTCUT}}': stopShortcut,
-    '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut
+    '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
+    '{{DPI_AWARENESS}}': DPI_AWARENESS
   }
 
   for (const [key, value] of Object.entries(replacements)) {

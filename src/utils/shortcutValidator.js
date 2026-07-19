@@ -2,10 +2,12 @@
  * Purpose: 快捷键验证工具，检查快捷键是否重复或冲突
  * Inputs: shortcuts (object) - 快捷键对象
  * Outputs: { isValid: boolean, error: string } - 验证结果
- * Preconditions: shortcuts 必须包含 itemStart, mapStart, end 字段
+ * Preconditions: shortcuts 为功能名到 Electron accelerator 的映射
  * Edge cases: 空快捷键视为有效；重复时返回错误
  * Errors: 验证失败返回错误信息，不抛出异常
- */
+*/
+
+import { toElectronAccelerator } from './electronAccelerator.js'
 
 /**
  * Purpose: 验证快捷键是否重复
@@ -13,15 +15,21 @@
  * Outputs: { isValid: boolean, error: string } - 验证结果
  */
 export function validateShortcuts(shortcuts) {
-  const shortcutValues = [
-    shortcuts.itemStart,
-    shortcuts.mapStart,
-    shortcuts.end
-  ].filter(s => s && s.trim())
+  const shortcutValues = Object.values(shortcuts).filter(value => typeof value === 'string' && value.trim())
+  const normalizedValues = shortcutValues.map(value => toElectronAccelerator(value).toLowerCase())
 
-  const uniqueShortcuts = new Set(shortcutValues)
+  const acceleratorPattern = /^(?:(?:ctrl|control|alt|shift|commandorcontrol|cmdorctrl|meta)\+)*(?:[a-z0-9]|f(?:[1-9]|1[0-2])|num(?:pad)?[0-9]|space|enter|return|esc|escape|tab|up|down|left|right)$/i
+  const invalid = shortcutValues.find(value => !acceleratorPattern.test(value.trim()))
+  if (invalid) {
+    return {
+      isValid: false,
+      error: `快捷键格式无效：${invalid}`
+    }
+  }
 
-  if (shortcutValues.length !== uniqueShortcuts.size) {
+  const uniqueShortcuts = new Set(normalizedValues)
+
+  if (normalizedValues.length !== uniqueShortcuts.size) {
     return {
       isValid: false,
       error: '不同功能的快捷键不能重复，请修改'

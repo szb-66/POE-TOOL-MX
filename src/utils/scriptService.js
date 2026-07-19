@@ -14,10 +14,15 @@ import { usePresetStore } from '../stores/preset'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { useScriptStore } from '../stores/script'
 import { ElMessage } from 'element-plus'
+import { executePortalAssist, startPotionAssist, stopPotionAssist } from './combatService.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
 let pythonOutputListenerRegistered = false
+
+function formatShortcutError(result) {
+  return result?.failed?.map(item => item.accelerator).join('、') || '未知快捷键'
+}
 
 /**
  * 初始化快捷键注册
@@ -29,13 +34,20 @@ export async function initShortcuts() {
 
   // 从设置中初始化快捷键
   try {
-    await electronApi.shortcut.initFromSettings({
+    const result = await electronApi.shortcut.initFromSettings({
       itemStart: shortcuts.itemStart,
       mapStart: shortcuts.mapStart,
-      end: shortcuts.end
+      end: shortcuts.end,
+      potionStart: shortcuts.potionStart,
+      potionStop: shortcuts.potionStop,
+      portal: shortcuts.portal
     })
+    if (!result?.success) {
+      const names = formatShortcutError(result)
+      ElMessage.error(`全局快捷键注册失败：${names}`)
+    }
   } catch (err) {
-    // 快捷键注册失败
+    ElMessage.error(`全局快捷键初始化失败：${err.message}`)
   }
 
   // 监听快捷键触发事件
@@ -47,6 +59,12 @@ export async function initShortcuts() {
         startMapRolling()
       } else if (accelerator === 'end') {
         stopCrafting()
+      } else if (accelerator === 'potionStart') {
+        startPotionAssist()
+      } else if (accelerator === 'potionStop') {
+        stopPotionAssist()
+      } else if (accelerator === 'portal') {
+        executePortalAssist()
       }
     })
     shortcutListenerRegistered = true
@@ -232,9 +250,17 @@ export async function updateShortcuts() {
   const shortcuts = settingsStore.globalShortcuts
 
   // 从设置中重新初始化快捷键
-  await electronApi.shortcut.initFromSettings({
+  const result = await electronApi.shortcut.initFromSettings({
     itemStart: shortcuts.itemStart,
     mapStart: shortcuts.mapStart,
-    end: shortcuts.end
+    end: shortcuts.end,
+    potionStart: shortcuts.potionStart,
+    potionStop: shortcuts.potionStop,
+    portal: shortcuts.portal
   })
+  if (!result?.success) {
+    const names = formatShortcutError(result)
+    throw new Error(`全局快捷键注册失败：${names}`)
+  }
+  return result
 }

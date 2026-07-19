@@ -69,6 +69,14 @@ const mockApi = {
     startStash: () => Promise.reject(new Error('非 Electron 环境')),
     stopStash: () => Promise.resolve({ success: true }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
+  },
+  combat: {
+    startPotion: () => Promise.reject(new Error('非 Electron 环境')),
+    stopPotion: () => Promise.resolve({ success: true }),
+    getPotionStatus: () => Promise.resolve({ running: false, processId: null }),
+    samplePixel: () => Promise.reject(new Error('非 Electron 环境')),
+    executePortal: () => Promise.reject(new Error('非 Electron 环境')),
+    onStatus: () => () => {}
   }
 }
 
@@ -146,5 +154,14 @@ export const electronApi = isElectron ? {
     startStash: (config) => window.electronAPI.startBagStash?.(config),
     stopStash: () => window.electronAPI.stopBagStash?.(),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
+  },
+
+  combat: {
+    startPotion: (payload) => window.electronAPI.startPotionAssist?.(payload),
+    stopPotion: () => window.electronAPI.stopPotionAssist?.(),
+    getPotionStatus: () => window.electronAPI.getPotionAssistStatus?.(),
+    samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
+    executePortal: (payload) => window.electronAPI.executePortalAssist?.(payload),
+    onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})
   }
 } : mockApi

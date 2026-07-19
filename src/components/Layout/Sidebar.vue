@@ -18,6 +18,10 @@
       <el-icon><MapLocation /></el-icon>
       <span>地图</span>
     </el-menu-item>
+    <el-menu-item index="/combat">
+      <el-icon><FirstAidKit /></el-icon>
+      <span>战斗</span>
+    </el-menu-item>
     <el-menu-item index="/shop">
       <el-icon><ShoppingBag /></el-icon>
       <span>商城</span>
@@ -36,7 +40,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled } from '@element-plus/icons-vue'
+import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -85,4 +89,3 @@ const activeMenu = computed(() => route.path)
   }
 }
 </style>
-

@@ -21,6 +21,11 @@ const routes = [
     component: () => import('../domains/map/MapView.vue')
   },
   {
+    path: '/combat',
+    name: 'Combat',
+    component: () => import('../domains/combat/CombatView.vue')
+  },
+  {
     path: '/shop',
     name: 'Shop',
     component: () => import('../domains/shop/ShopView.vue')

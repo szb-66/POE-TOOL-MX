@@ -43,40 +43,16 @@ export function registerShortcutHandlers(shortcut, window) {
       unregisterGlobalShortcut(accelerator)
     })
 
-    // 注册新的快捷键
-    if (shortcuts.itemStart) {
-      registerGlobalShortcut(shortcuts.itemStart, () => {
-        if (mainWindow) {
-          mainWindow.webContents.send('shortcut-triggered', 'itemStart')
-        }
+    const failed = []
+    for (const [key, accelerator] of Object.entries(shortcuts)) {
+      if (!accelerator) continue
+      const success = registerGlobalShortcut(accelerator, () => {
+        if (mainWindow) mainWindow.webContents.send('shortcut-triggered', key)
       })
+      if (!success) failed.push({ key, accelerator })
     }
 
-    if (shortcuts.mapStart) {
-      registerGlobalShortcut(shortcuts.mapStart, () => {
-        if (mainWindow) {
-          mainWindow.webContents.send('shortcut-triggered', 'mapStart')
-        }
-      })
-    }
-
-    if (shortcuts.stashStart) {
-      registerGlobalShortcut(shortcuts.stashStart, () => {
-        if (mainWindow) {
-          mainWindow.webContents.send('shortcut-triggered', 'stashStart')
-        }
-      })
-    }
-
-    if (shortcuts.end) {
-      registerGlobalShortcut(shortcuts.end, () => {
-        if (mainWindow) {
-          mainWindow.webContents.send('shortcut-triggered', 'end')
-        }
-      })
-    }
-
-    return { success: true }
+    return { success: failed.length === 0, failed }
   })
 
   // 监听快捷键触发事件

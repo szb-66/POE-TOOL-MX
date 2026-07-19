@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { electronApi } from '@/api/electron'
+import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -23,8 +24,13 @@ export const useSettingsStore = defineStore('settings', () => {
   const globalShortcuts = ref({
     itemStart: 'Alt+1',    // 物品开始快捷键
     mapStart: 'Alt+2',     // 地图开始快捷键
-    end: 'Alt+3'           // 结束快捷键（全局）
+    end: 'Alt+3',          // 结束快捷键（制作/洗图）
+    potionStart: 'Numpad7',
+    potionStop: 'Numpad8',
+    portal: 'Numpad2'
   })
+
+  const combatAssist = ref(createDefaultCombatAssist())
 
   const currencyPositions = ref({
     alteration: { x: 210, y: 561 },      // 改造石
@@ -88,6 +94,11 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
+  function updateCombatAssist(config) {
+    combatAssist.value = normalizeCombatAssist(config)
+    saveSettings()
+  }
+
   function updateItemPosition(position) {
     itemPosition.value = { ...position }
     saveSettings()
@@ -148,7 +159,8 @@ export const useSettingsStore = defineStore('settings', () => {
         dpiScale: dpiScale.value,
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
-        backgroundHistory: backgroundHistory.value
+        backgroundHistory: backgroundHistory.value,
+        combatAssist: combatAssist.value
       }))
     } catch (error) {
       // 保存设置失败
@@ -161,7 +173,12 @@ export const useSettingsStore = defineStore('settings', () => {
       if (saved) {
         const data = JSON.parse(saved)
         if (data.globalShortcuts) {
-          globalShortcuts.value = data.globalShortcuts
+          const validKeys = Object.keys(defaultGlobalShortcuts)
+          const filtered = {}
+          for (const [k, v] of Object.entries(data.globalShortcuts)) {
+            if (validKeys.includes(k)) filtered[k] = v
+          }
+          globalShortcuts.value = { ...globalShortcuts.value, ...filtered }
         }
         if (data.currencyPositions) {
           currencyPositions.value = {
@@ -196,6 +213,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.backgroundHistory) {
           backgroundHistory.value = data.backgroundHistory
         }
+        combatAssist.value = normalizeCombatAssist(data.combatAssist)
       }
     } catch (error) {
       // 加载设置失败
@@ -206,7 +224,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const defaultGlobalShortcuts = {
     itemStart: 'Alt+1',
     mapStart: 'Alt+2',
-    end: 'Alt+3'
+    end: 'Alt+3',
+    potionStart: 'Numpad7',
+    potionStop: 'Numpad8',
+    portal: 'Numpad2'
   }
 
   const defaultCurrencyPositions = {
@@ -252,6 +273,7 @@ export const useSettingsStore = defineStore('settings', () => {
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     backgroundHistory.value = []
+    combatAssist.value = createDefaultCombatAssist()
     saveSettings()
     // 同步重置后的设置
     if (electronApi && electronApi.overlay && electronApi.overlay.updateSettings) {
@@ -271,6 +293,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     globalShortcuts,
+    combatAssist,
     currencyPositions,
     inventory,
     delays,
@@ -280,6 +303,7 @@ export const useSettingsStore = defineStore('settings', () => {
     overlaySettings,
     backgroundHistory,
     updateGlobalShortcuts,
+    updateCombatAssist,
     updateCurrencyPosition,
     updateInventorySettings,
     updateDelays,

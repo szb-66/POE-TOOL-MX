@@ -137,5 +137,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('bag-detection-stopped', (event, data) => {
       callback(data)
     })
+  },
+  // 战斗辅助
+  startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),
+  stopPotionAssist: () => ipcRenderer.invoke('combat-stop-potion'),
+  getPotionAssistStatus: () => ipcRenderer.invoke('combat-get-potion-status'),
+  sampleCombatPixel: (payload) => ipcRenderer.invoke('combat-sample-pixel', payload),
+  executePortalAssist: (payload) => ipcRenderer.invoke('combat-execute-portal', payload),
+  onCombatStatus: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('combat-status', listener)
+    return () => ipcRenderer.removeListener('combat-status', listener)
   }
 })

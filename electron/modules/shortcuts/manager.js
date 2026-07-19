@@ -8,28 +8,30 @@
  */
 
 import { globalShortcut } from 'electron'
+import { toElectronAccelerator } from '../../../src/utils/electronAccelerator.js'
 
 // 注册的快捷键
 const registeredShortcuts = new Map()
 
 export function registerGlobalShortcut(accelerator, callback) {
-  if (registeredShortcuts.has(accelerator)) {
-    globalShortcut.unregister(accelerator)
+  const normalized = toElectronAccelerator(accelerator)
+  if (registeredShortcuts.has(normalized)) {
+    globalShortcut.unregister(normalized)
   }
-  
-  const success = globalShortcut.register(accelerator, callback)
-  if (success) {
-    registeredShortcuts.set(accelerator, callback)
+  try {
+    const success = globalShortcut.register(normalized, callback)
+    if (success) registeredShortcuts.set(normalized, callback)
+    return success
+  } catch {
+    return false
   }
-  return success
 }
 
 export function unregisterGlobalShortcut(accelerator) {
-  const success = globalShortcut.unregister(accelerator)
-  if (success) {
-    registeredShortcuts.delete(accelerator)
-  }
-  return success
+  const normalized = toElectronAccelerator(accelerator)
+  globalShortcut.unregister(normalized)
+  registeredShortcuts.delete(normalized)
+  return true
 }
 
 export function unregisterAll() {

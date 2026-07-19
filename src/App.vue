@@ -20,6 +20,7 @@ import TitleBar from './components/Layout/TitleBar.vue'
 import { initShortcuts } from './utils/scriptService'
 import { useSettingsStore } from './domains/settings/settingsStore'
 import { electronApi } from './api/electron'
+import { initCombatAssist } from './utils/combatService'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
@@ -30,6 +31,7 @@ onMounted(() => {
   // 初始化快捷键
   if (window.electronAPI) {
     initShortcuts()
+    initCombatAssist()
   }
 
   removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {

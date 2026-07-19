@@ -15,6 +15,9 @@ print("=" * 60)
 import sys
 import io
 
+
+{{DPI_AWARENESS}}
+
 # 设置标准输出为UTF-8编码，避免Windows GBK编码问题
 # 强制所有平台使用UTF-8，确保一致性
 try:
@@ -116,20 +119,6 @@ try:
         
         # 检测DPI缩放
         try:
-            # 尝试设置进程DPI感知，这通常能解决坐标偏移问题
-            try:
-                shcore = ctypes.windll.shcore
-                # PROCESS_PER_MONITOR_DPI_AWARE = 2
-                shcore.SetProcessDpiAwareness(2)
-                print("[DPI] 已设置 ProcessDpiAwareness = 2 (Per Monitor DPI Aware)")
-            except Exception:
-                try:
-                    # 回退到旧版API
-                    user32.SetProcessDPIAware()
-                    print("[DPI] 已设置 SetProcessDPIAware (System DPI Aware)")
-                except Exception:
-                    print("[DPI] 无法设置进程DPI感知")
-
             # 获取DPI缩放比例 (仅作参考，或用于pynput修正)
             try:
                 shcore = ctypes.windll.shcore

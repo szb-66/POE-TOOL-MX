@@ -41,7 +41,11 @@ export function parseItemInfo(clipboardText) {
     implicitMods: [],
     explicitMods: [],
     craftedMods: [],
-    detailedMods: [] // 详细词缀信息
+    detailedMods: [],
+    modifiers: [],
+    influences: [],
+    isUnmodifiable: false,
+    isLegendary: false
   }
 
   let socketLine = ''
@@ -67,7 +71,38 @@ export function parseItemInfo(clipboardText) {
   // 物品解析状态标记
   let hasItemLevel = false;
   let seenItemLevel = false;
-  let lastAffixHeader = null; // 记录上一个词缀头信息
+  let activeModifier = null;
+
+  const cleanModifierLine = (text) => text
+    .replace(/(-?\d+(?:\.\d+)?)\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '$1')
+    .replace(/\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '')
+    .trim()
+
+  const flushModifier = () => {
+    if (!activeModifier || activeModifier.lines.length === 0) {
+      activeModifier = null
+      return
+    }
+    const modifier = {
+      type: activeModifier.type,
+      name: activeModifier.name,
+      tier: activeModifier.tier,
+      tags: activeModifier.tags,
+      lines: [...activeModifier.lines],
+      text: activeModifier.lines.join('\n'),
+      originalLines: [...activeModifier.originalLines]
+    }
+    itemInfo.modifiers.push(modifier)
+    if (modifier.type === 'prefix' || modifier.type === 'suffix') {
+      itemInfo.detailedMods.push(modifier)
+      itemInfo.explicitMods.push(...modifier.lines)
+    } else if (modifier.type === 'base' || modifier.type === 'implicit') {
+      itemInfo.implicitMods.push(...modifier.lines)
+    } else if (modifier.type === 'crafted') {
+      itemInfo.craftedMods.push(...modifier.lines)
+    }
+    activeModifier = null
+  }
   
   // 预扫描：检查是否存在物品等级行
   // 注意：这要求用户在游戏内开启"显示详细属性" (Alt)
@@ -84,6 +119,11 @@ export function parseItemInfo(clipboardText) {
     '在私人地图装置',
     '放入一个物品',
     '出售获得通货',
+    '奖励:',
+    '掉落的地图有几率转换为',
+    '产生的区域不受你的异界天赋树影响',
+    '只能被使用一次',
+    '不可改变',
     '已腐化',
     '裂界者物品',
     '塑界者物品',
@@ -126,6 +166,17 @@ export function parseItemInfo(clipboardText) {
     '--------'
   ];
   const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern))
+  const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
+  const influenceLabels = {
+    '塑界之器': 'shaper',
+    '塑界者物品': 'shaper',
+    '裂界者物品': 'elder',
+    '圣战者物品': 'crusader',
+    '救赎者物品': 'redeemer',
+    '狩猎者物品': 'hunter',
+    '督军物品': 'warlord',
+    '忆境物品': 'synthesised'
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -134,9 +185,14 @@ export function parseItemInfo(clipboardText) {
     // 示例: { 前缀属性 "韧炼的" (等阶：4) — 伤害, 物理, 攻击 }
     // 示例: { 基底属性 — 伤害, 召唤生物 }
     if (line.startsWith('{') && line.endsWith('}')) {
-      if (line.includes('前缀属性') || line.includes('后缀属性')) {
+      flushModifier()
+      const typeEntry = [
+        ['前缀属性', 'prefix'], ['后缀属性', 'suffix'], ['基底属性', 'base'],
+        ['传奇属性', 'unique'], ['工艺属性', 'crafted'], ['附魔属性', 'enchant']
+      ].find(([label]) => line.includes(label))
+      if (typeEntry) {
         try {
-          const type = line.includes('前缀属性') ? 'prefix' : 'suffix';
+          const type = typeEntry[1];
           const nameMatch = line.match(/"([^"]+)"/);
           const name = nameMatch ? nameMatch[1] : '';
           
@@ -146,12 +202,14 @@ export function parseItemInfo(clipboardText) {
           const tagsPart = line.split('—')[1];
           const tags = tagsPart ? tagsPart.replace('}', '').trim().split(',').map(t => t.trim()) : [];
           
-          lastAffixHeader = {
+          activeModifier = {
             type,
             name,
             tier,
             tags,
-            lineIndex: i
+            lineIndex: i,
+            lines: [],
+            originalLines: []
           };
         } catch (e) {
           // 解析词缀头信息失败
@@ -159,6 +217,22 @@ export function parseItemInfo(clipboardText) {
       }
       // 所有的 {...} 行都跳过，避免被误识别为词缀
       continue;
+    }
+
+    if (activeModifier) {
+      if (line === '--------') {
+        flushModifier()
+        continue
+      }
+      if (isExplanationLine(line)) continue
+      const boundary = isIgnoredTextLine(line) || line === '未鉴定' || line.includes('已腐化') ||
+        line.includes('(implicit)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
+      if (!boundary) {
+        activeModifier.originalLines.push(line)
+        activeModifier.lines.push(cleanModifierLine(line))
+        continue
+      }
+      flushModifier()
     }
 
     if (line.startsWith('物品类别:')) {
@@ -170,8 +244,14 @@ export function parseItemInfo(clipboardText) {
     else if (line === '已腐化' || line.includes('已腐化')) {
       itemInfo.isCorrupted = true
     }
+    else if (line === '不可改变') {
+      itemInfo.isUnmodifiable = true
+    }
     else if (line === '未鉴定' || line.includes('未鉴定')) {
       itemInfo.isUnidentified = true
+    }
+    else if (influenceLabels[line]) {
+      if (!itemInfo.influences.includes(influenceLabels[line])) itemInfo.influences.push(influenceLabels[line])
     }
     else if (isMapCategory(itemInfo.category) && extractMapTier(line) > 0) {
       itemInfo.mapTier = extractMapTier(line)
@@ -282,26 +362,15 @@ export function parseItemInfo(clipboardText) {
       
       // 额外的正则过滤（作为最后一道防线）
       if (!line.match(/^需求:|^等级:|^力量:|^敏捷:|^智慧:|^护甲:|^物理伤害:|^攻击暴击率:|^每秒攻击次数:/)) {
-        // 如果有上一个词缀头信息，说明这是详细词缀的文本行
-        if (lastAffixHeader) {
-          // 清理词缀文本，移除数值范围 (例如: 13(13-18) -> 13)
-          // 匹配模式: 数字(数字-数字) -> 数字
-          const cleanLine = line.replace(/(\d+)\(\d+-\d+\)/g, '$1').replace(/\(\d+-\d+\)/g, '');
-          
-          itemInfo.detailedMods.push({
-            ...lastAffixHeader,
-            text: cleanLine,
-            originalText: line
-          });
-          
-          itemInfo.explicitMods.push(cleanLine);
-          lastAffixHeader = null; // 重置头信息
-        } else {
+        if (!isExplanationLine(line)) {
           itemInfo.explicitMods.push(line)
         }
       }
     }
   }
+
+  flushModifier()
+  itemInfo.isLegendary = itemInfo.rarity.replace(/\s/g, '') === '传奇'
 
   return itemInfo
 }
