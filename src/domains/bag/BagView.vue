@@ -25,13 +25,7 @@
               <span class="hint-text" style="margin-left: 10px">在屏幕上显示当前配置的检测区域</span>
             </el-form-item>
             <el-form-item label="入库快捷键">
-              <el-input
-                v-model="stashShortcut"
-                placeholder="例如: Alt+4"
-                style="width: 200px"
-                @change="handleShortcutChange"
-              />
-              <span class="hint-text" style="margin-left: 10px">点击输入框修改，按回车确认</span>
+              <KeyCaptureInput :model-value="settingsStore.globalShortcuts.stashStart" @change="saveStashShortcut" />
             </el-form-item>
             <el-form-item label="检测状态">
               <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
@@ -273,6 +267,9 @@ import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { electronApi } from '@/api/electron'
 import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
+import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
+import { commitGlobalShortcut } from '@/utils/scriptService'
+import { startBagStash as handleStartStash } from '@/utils/bagService'
 
 const bagStore = useBagStore()
 const settingsStore = useSettingsStore()
@@ -285,7 +282,6 @@ const buttonPosition = ref({ ...bagStore.buttonPosition })
 const isMatched = ref(bagStore.isMatched)
 const isStashing = ref(bagStore.isStashing)
 const stashProgress = ref(bagStore.stashProgress)
-const stashShortcut = ref(bagStore.stashShortcut)
 const showDebugOverlay = ref(false)
 
 // 更新调试覆盖层
@@ -414,15 +410,12 @@ async function handleModuleToggle(enabled) {
   }
 }
 
-async function handleShortcutChange(val) {
-  const oldVal = bagStore.stashShortcut
-  if (oldVal && oldVal !== val) {
-    await electronApi.shortcut.unregister(oldVal)
-  }
-  if (val) {
-    await electronApi.shortcut.register(val, 'stashStart')
-    bagStore.setStashShortcut(val)
-    ElMessage.success(`快捷键已更新为: ${val}`)
+async function saveStashShortcut(value) {
+  try {
+    await commitGlobalShortcut('stashStart', value)
+    ElMessage.success(`快捷键已更新为: ${value}`)
+  } catch (error) {
+    ElMessage.error(error.message)
   }
 }
 
@@ -480,43 +473,6 @@ function getTemplatePreview(path) {
   return ''
 }
 
-// 一键入库处理
-async function handleStartStash() {
-  try {
-    // 从 settingsStore 读取背包参数
-    const inventory = {
-      startPos: {
-        x: Number(settingsStore.inventory.startPos?.x || 2658),
-        y: Number(settingsStore.inventory.startPos?.y || 1199)
-      },
-      slotSize: {
-        w: Number(settingsStore.inventory.slotSize?.w || 100),
-        h: Number(settingsStore.inventory.slotSize?.h || 100)
-      }
-    }
-
-    const stashConfig = {
-      templates: {
-        stashTitle: String(templates.value.stashTitle || ''),
-        inventoryTitle: String(templates.value.inventoryTitle || '')
-      },
-      inventory: inventory
-    }
-
-    console.log('[一键入库] 配置:', JSON.stringify(stashConfig, null, 2))
-
-    const result = await electronApi.bag.startStash(stashConfig)
-    if (result.success) {
-      bagStore.setStashingStatus(true, 0)
-      ElMessage.success('开始自动入库')
-    } else {
-      ElMessage.error('启动入库失败: ' + result.error)
-    }
-  } catch (error) {
-    ElMessage.error('启动入库失败: ' + error.message)
-  }
-}
-
 async function handleStopStash() {
   try {
     await electronApi.bag.stopStash()
@@ -529,28 +485,12 @@ async function handleStopStash() {
 
 // 监听状态变化
 onMounted(async () => {
-    // 注册当前快捷键
-  if (stashShortcut.value) {
-    await electronApi.shortcut.register(stashShortcut.value, 'stashStart')
-  }
-
-  // 监听快捷键触发
-  electronApi.shortcut.onTriggered((id) => {
-    if (id === 'stashStart') {
-      if (!isStashing.value) {
-          // 直接开始入库
-          handleStartStash()
-      }
-    }
-  })
-
   // 监听检测状态变化
   bagStore.$subscribe((mutation, state) => {
     moduleEnabled.value = state.moduleEnabled
     templates.value = { ...state.templates }
     matchThreshold.value = state.matchThreshold
     buttonPosition.value = { ...state.buttonPosition }
-    stashShortcut.value = state.stashShortcut
     isMatched.value = state.isMatched
     isStashing.value = state.isStashing
     stashProgress.value = state.stashProgress

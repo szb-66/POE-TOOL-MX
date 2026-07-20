@@ -12,6 +12,7 @@ import { ipcMain } from 'electron'
 export function registerShortcutHandlers(shortcut, window) {
   const { registerGlobalShortcut, unregisterGlobalShortcut } = shortcut
   const { getMainWindow } = window
+  let suspendedShortcuts = null
 
   // IPC: 注册全局快捷键
   ipcMain.handle('register-global-shortcut', async (event, accelerator, callbackId) => {
@@ -36,6 +37,7 @@ export function registerShortcutHandlers(shortcut, window) {
   // IPC: 初始化快捷键（从设置中读取）
   ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts) => {
     const mainWindow = getMainWindow()
+    const previousShortcuts = new Map(shortcut.getRegisteredShortcuts())
 
     // 注销所有已注册的快捷键
     const registeredShortcuts = shortcut.getRegisteredShortcuts()
@@ -52,6 +54,29 @@ export function registerShortcutHandlers(shortcut, window) {
       if (!success) failed.push({ key, accelerator })
     }
 
+    if (failed.length) {
+      const currentShortcuts = shortcut.getRegisteredShortcuts()
+      currentShortcuts.forEach((callback, accelerator) => unregisterGlobalShortcut(accelerator))
+      previousShortcuts.forEach((callback, accelerator) => registerGlobalShortcut(accelerator, callback))
+    }
+
+    return { success: failed.length === 0, failed, rolledBack: failed.length > 0 }
+  })
+
+  ipcMain.handle('begin-shortcut-capture', () => {
+    if (suspendedShortcuts) return { success: true }
+    suspendedShortcuts = new Map(shortcut.getRegisteredShortcuts())
+    suspendedShortcuts.forEach((_callback, accelerator) => unregisterGlobalShortcut(accelerator))
+    return { success: true }
+  })
+
+  ipcMain.handle('end-shortcut-capture', () => {
+    if (!suspendedShortcuts) return { success: true, failed: [] }
+    const failed = []
+    suspendedShortcuts.forEach((callback, accelerator) => {
+      if (!registerGlobalShortcut(accelerator, callback)) failed.push(accelerator)
+    })
+    suspendedShortcuts = null
     return { success: failed.length === 0, failed }
   })
 

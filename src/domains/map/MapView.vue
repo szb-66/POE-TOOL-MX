@@ -14,12 +14,12 @@
         
         <div class="form-item">
           <label class="form-label">开始</label>
-          <el-input v-model="shortcuts.mapStart" placeholder="Alt+2" class="form-input-short" @change="updateShortcuts" />
+          <KeyCaptureInput :model-value="shortcuts.mapStart" class="form-input-short" @change="saveShortcut('mapStart', $event)" />
         </div>
 
         <div class="form-item">
           <label class="form-label">结束</label>
-          <el-input v-model="shortcuts.end" placeholder="Alt+3" class="form-input-short" @change="updateShortcuts" />
+          <KeyCaptureInput :model-value="shortcuts.end" class="form-input-short" @change="saveShortcut('end', $event)" />
         </div>
 
         <div class="form-item">
@@ -163,13 +163,22 @@ import vaalIcon from '@/assets/images/瓦尔宝珠.png'
 import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
 import { MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 import { MAP_BASE_STATS, createDefaultMapConfig } from '@/utils/mapPresetMigration'
+import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
+import { commitGlobalShortcut } from '@/utils/scriptService'
+import { ElMessage } from 'element-plus'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
 
 // Shortcuts binding
 const shortcuts = computed(() => settingsStore.globalShortcuts)
-const updateShortcuts = () => settingsStore.saveSettings()
+async function saveShortcut(key, value) {
+  try {
+    await commitGlobalShortcut(key, value)
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
 
 // Current Preset Config Accessor
 const mapConfig = computed(() => {

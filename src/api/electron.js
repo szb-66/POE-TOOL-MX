@@ -23,9 +23,11 @@ const mockApi = {
     }
   },
   shortcut: {
-    initFromSettings: () => Promise.resolve(true),
-    register: () => Promise.resolve(true),
-    unregister: () => Promise.resolve(true),
+    initFromSettings: () => Promise.resolve({ success: true, failed: [] }),
+    register: () => Promise.resolve({ success: true }),
+    unregister: () => Promise.resolve({ success: true }),
+    beginCapture: () => Promise.resolve({ success: true }),
+    endCapture: () => Promise.resolve({ success: true, failed: [] }),
     onTriggered: () => { },
     onInit: () => { },
   },
@@ -77,6 +79,14 @@ const mockApi = {
     samplePixel: () => Promise.reject(new Error('非 Electron 环境')),
     executePortal: () => Promise.reject(new Error('非 Electron 环境')),
     onStatus: () => () => {}
+  },
+  storyOverlay: {
+    open: () => Promise.resolve({ success: true }),
+    close: () => Promise.resolve({ success: true }),
+    update: () => Promise.resolve({ success: true }),
+    getState: () => Promise.resolve(null),
+    resize: () => Promise.resolve({ success: true }),
+    onState: () => () => {}
   }
 }
 
@@ -103,6 +113,8 @@ export const electronApi = isElectron ? {
     initFromSettings: (shortcuts) => window.electronAPI.initShortcutsFromSettings(shortcuts),
     register: (accelerator, callback) => window.electronAPI.registerGlobalShortcut(accelerator, callback),
     unregister: (accelerator) => window.electronAPI.unregisterGlobalShortcut(accelerator),
+    beginCapture: () => window.electronAPI.beginShortcutCapture?.(),
+    endCapture: () => window.electronAPI.endShortcutCapture?.(),
     onTriggered: (callback) => window.electronAPI.onShortcutTriggered(callback),
     onInit: (callback) => window.electronAPI.onInitShortcuts(callback),
   },
@@ -163,5 +175,14 @@ export const electronApi = isElectron ? {
     samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
     executePortal: (payload) => window.electronAPI.executePortalAssist?.(payload),
     onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})
+  },
+
+  storyOverlay: {
+    open: (snapshot) => window.electronAPI.openStoryOverlay?.(snapshot),
+    close: () => window.electronAPI.closeStoryOverlay?.(),
+    update: (snapshot) => window.electronAPI.updateStoryOverlay?.(snapshot),
+    getState: () => window.electronAPI.getStoryOverlayState?.(),
+    resize: (height) => window.electronAPI.resizeStoryOverlay?.(height),
+    onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {})
   }
 } : mockApi

@@ -28,6 +28,7 @@ let initShortcutsHandler = null
 let removeDevToolsListener = null
 
 onMounted(() => {
+  if (route.meta.noLayout) return
   // 初始化快捷键
   if (window.electronAPI) {
     initShortcuts()

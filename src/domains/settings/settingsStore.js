@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
+import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -21,14 +22,7 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
-  const globalShortcuts = ref({
-    itemStart: 'Alt+1',    // 物品开始快捷键
-    mapStart: 'Alt+2',     // 地图开始快捷键
-    end: 'Alt+3',          // 结束快捷键（制作/洗图）
-    potionStart: 'Numpad7',
-    potionStop: 'Numpad8',
-    portal: 'Numpad2'
-  })
+  const globalShortcuts = ref({ ...DEFAULT_GLOBAL_SHORTCUTS })
 
   const combatAssist = ref(createDefaultCombatAssist())
 
@@ -173,12 +167,17 @@ export const useSettingsStore = defineStore('settings', () => {
       if (saved) {
         const data = JSON.parse(saved)
         if (data.globalShortcuts) {
-          const validKeys = Object.keys(defaultGlobalShortcuts)
-          const filtered = {}
-          for (const [k, v] of Object.entries(data.globalShortcuts)) {
-            if (validKeys.includes(k)) filtered[k] = v
-          }
-          globalShortcuts.value = { ...globalShortcuts.value, ...filtered }
+          let legacyBag = {}
+          try {
+            legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
+          } catch {}
+          globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts, legacyBag)
+        } else {
+          let legacyBag = {}
+          try {
+            legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
+          } catch {}
+          globalShortcuts.value = mergeGlobalShortcutSettings({}, legacyBag)
         }
         if (data.currencyPositions) {
           currencyPositions.value = {
@@ -214,6 +213,12 @@ export const useSettingsStore = defineStore('settings', () => {
           backgroundHistory.value = data.backgroundHistory
         }
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
+      } else {
+        let legacyBag = {}
+        try {
+          legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
+        } catch {}
+        globalShortcuts.value = mergeGlobalShortcutSettings({}, legacyBag)
       }
     } catch (error) {
       // 加载设置失败
@@ -221,14 +226,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   // 默认值（用于重置）
-  const defaultGlobalShortcuts = {
-    itemStart: 'Alt+1',
-    mapStart: 'Alt+2',
-    end: 'Alt+3',
-    potionStart: 'Numpad7',
-    potionStop: 'Numpad8',
-    portal: 'Numpad2'
-  }
+  const defaultGlobalShortcuts = DEFAULT_GLOBAL_SHORTCUTS
 
   const defaultCurrencyPositions = {
     alteration: { x: 210, y: 561 },

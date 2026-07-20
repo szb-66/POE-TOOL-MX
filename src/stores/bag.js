@@ -33,9 +33,6 @@ export const useBagStore = defineStore('bag', () => {
     y: 1000
   })
 
-  // 快捷键配置
-  const stashShortcut = ref('Alt+4')
-
   // 运行状态
   const isDetecting = ref(false)
   const isMatched = ref(false)  // 检测是否匹配成功
@@ -73,11 +70,6 @@ export const useBagStore = defineStore('bag', () => {
     saveSettings()
   }
 
-  function setStashShortcut(shortcut) {
-    stashShortcut.value = shortcut
-    saveSettings()
-  }
-
   function setDetectionStatus(status) {
     isDetecting.value = status
   }
@@ -100,13 +92,17 @@ export const useBagStore = defineStore('bag', () => {
 
   function saveSettings() {
     try {
+      let legacyShortcut
+      try {
+        legacyShortcut = JSON.parse(localStorage.getItem('bagSettings') || '{}').stashShortcut
+      } catch {}
       const settings = {
         moduleEnabled: moduleEnabled.value,
         templates: templates.value,
         matchThreshold: matchThreshold.value,
-        buttonPosition: buttonPosition.value,
-        stashShortcut: stashShortcut.value
+        buttonPosition: buttonPosition.value
       }
+      if (legacyShortcut) settings.stashShortcut = legacyShortcut
       localStorage.setItem('bagSettings', JSON.stringify(settings))
     } catch (error) {
       // 保存设置失败
@@ -130,9 +126,6 @@ export const useBagStore = defineStore('bag', () => {
         }
         if (data.buttonPosition) {
           buttonPosition.value = { ...buttonPosition.value, ...data.buttonPosition }
-        }
-        if (data.stashShortcut) {
-          stashShortcut.value = data.stashShortcut
         }
       }
     } catch (error) {
@@ -164,8 +157,7 @@ export const useBagStore = defineStore('bag', () => {
     buttonPosition: {
       x: 3600,
       y: 1000
-    },
-    stashShortcut: 'Alt+4'
+    }
   }
 
   function resetSettings() {
@@ -173,7 +165,6 @@ export const useBagStore = defineStore('bag', () => {
     templates.value = { ...defaultSettings.templates }
     matchThreshold.value = defaultSettings.matchThreshold
     buttonPosition.value = { ...defaultSettings.buttonPosition }
-    stashShortcut.value = defaultSettings.stashShortcut
     isDetecting.value = false
     isStashing.value = false
     stashProgress.value = 0
@@ -189,7 +180,6 @@ export const useBagStore = defineStore('bag', () => {
     templates,
     matchThreshold,
     buttonPosition,
-    stashShortcut,
     isDetecting,
     isMatched,
     isStashing,
@@ -202,7 +192,6 @@ export const useBagStore = defineStore('bag', () => {
     setTemplateRegion,
     setMatchThreshold,
     setButtonPosition,
-    setStashShortcut,
     setDetectionStatus,
     setMatchedStatus,
     setStashingStatus,

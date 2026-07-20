@@ -18,29 +18,17 @@
             <el-row :gutter="40">
               <el-col :span="8">
                 <el-form-item label="物品开始">
-                  <el-input
-                    v-model="shortcuts.itemStart"
-                    placeholder="例如：Alt+1"
-                    @blur="handleShortcutsChange"
-                  />
+                  <KeyCaptureInput :model-value="shortcuts.itemStart" @change="handleShortcutsChange('itemStart', $event)" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="地图开始">
-                  <el-input
-                    v-model="shortcuts.mapStart"
-                    placeholder="例如：Alt+2"
-                    @blur="handleShortcutsChange"
-                  />
+                  <KeyCaptureInput :model-value="shortcuts.mapStart" @change="handleShortcutsChange('mapStart', $event)" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="结束">
-                  <el-input
-                    v-model="shortcuts.end"
-                    placeholder="例如：Alt+3"
-                    @blur="handleShortcutsChange"
-                  />
+                  <KeyCaptureInput :model-value="shortcuts.end" @change="handleShortcutsChange('end', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -400,11 +388,11 @@ import { Refresh, Close, Aim } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES, DELAY_PRESETS } from '../../utils/constants'
-import { updateShortcuts } from '../../utils/scriptService'
-import { validateShortcuts } from '../../utils/shortcutValidator'
+import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
 import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
 import { generateRandomItem } from '@/utils/mockItem'
+import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
@@ -467,32 +455,13 @@ function handleBagAutoStashToggle(enabled) {
   }
 }
 
-async function handleShortcutsChange() {
-  // 使用工具函数验证快捷键
-  const validation = validateShortcuts(shortcuts.value)
-  if (!validation.isValid) {
-    ElMessage.error(validation.error)
-    // 恢复原值
+async function handleShortcutsChange(key, value) {
+  try {
+    await commitGlobalShortcut(key, value)
+    ElMessage.success('快捷键已保存并注册')
+  } catch (error) {
     shortcuts.value = { ...settingsStore.globalShortcuts }
-    return
-  }
-
-  settingsStore.updateGlobalShortcuts({
-    itemStart: shortcuts.value.itemStart,
-    mapStart: shortcuts.value.mapStart,
-    end: shortcuts.value.end
-  })
-  
-  // 更新快捷键注册
-  if (window.electronAPI) {
-    try {
-      await updateShortcuts()
-      ElMessage.success('快捷键已保存并注册')
-    } catch (error) {
-      ElMessage.warning('快捷键已保存，但注册失败')
-    }
-  } else {
-    ElMessage.success('快捷键已保存')
+    ElMessage.error(error.message)
   }
 }
 

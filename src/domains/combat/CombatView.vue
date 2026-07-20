@@ -26,7 +26,7 @@
       <el-card v-for="item in shortcutFields" :key="item.key" shadow="never">
         <div class="shortcut-field">
           <span>{{ item.label }}</span>
-          <el-input v-model="shortcuts[item.key]" @blur="saveShortcuts" />
+          <KeyCaptureInput :model-value="shortcuts[item.key]" @change="saveShortcut(item.key, $event)" />
         </div>
       </el-card>
     </div>
@@ -61,11 +61,7 @@
             <span class="hint">检测分量低于该值时触发</span>
           </el-form-item>
           <el-form-item label="触发按键">
-            <el-input
-              :model-value="config.potion[resource.key].keys.join(', ')"
-              placeholder="例如：1, 2, w"
-              @input="updateKeys(resource.key, $event)"
-            />
+            <KeySequenceCapture v-model="config.potion[resource.key].keys" @change="saveCombatConfig" />
           </el-form-item>
           <el-form-item label="回复模式">
             <el-radio-group v-model="config.potion[resource.key].recoveryMode">
@@ -125,7 +121,7 @@
       </template>
       <el-form label-width="150px" label-position="left">
         <el-form-item label="游戏内开启传送门键">
-          <el-input v-model="config.portal.openKey" class="short-input" />
+          <KeyCaptureInput v-model="config.portal.openKey" mode="action" class="short-input" @change="saveCombatConfig" />
         </el-form-item>
         <el-form-item label="传送门点击位置">
           <div class="position-row">
@@ -157,8 +153,9 @@ import { ElMessage } from 'element-plus'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
-import { validateShortcuts } from '@/utils/shortcutValidator'
-import { updateShortcuts } from '@/utils/scriptService'
+import { commitGlobalShortcut } from '@/utils/scriptService'
+import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
+import KeySequenceCapture from '@/components/common/KeySequenceCapture.vue'
 import {
   executePortalAssist,
   sampleCombatPixel,
@@ -195,10 +192,6 @@ function saveCombatConfig() {
   settingsStore.saveSettings()
 }
 
-function updateKeys(resource, value) {
-  config.value.potion[resource].keys = String(value).split(/[,，\s]+/).map(key => key.trim()).filter(Boolean)
-}
-
 async function pickCoordinate(target) {
   if (pickingTarget.value) return
   pickingTarget.value = target
@@ -233,16 +226,9 @@ async function samplePixel(resource) {
   }
 }
 
-async function saveShortcuts() {
-  const validation = validateShortcuts(shortcuts.value)
-  if (!validation.isValid) {
-    ElMessage.error(validation.error)
-    return
-  }
-  clearTimeout(saveTimer)
-  settingsStore.saveSettings()
+async function saveShortcut(key, value) {
   try {
-    await updateShortcuts()
+    await commitGlobalShortcut(key, value)
     ElMessage.success('战斗辅助快捷键已更新')
   } catch (error) {
     ElMessage.error(error.message)

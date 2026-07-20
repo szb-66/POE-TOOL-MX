@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unregisterGlobalShortcut: (accelerator) => {
     return ipcRenderer.invoke('unregister-global-shortcut', accelerator)
   },
+  beginShortcutCapture: () => ipcRenderer.invoke('begin-shortcut-capture'),
+  endShortcutCapture: () => ipcRenderer.invoke('end-shortcut-capture'),
   generateAndExecuteScript: (config) => {
     return ipcRenderer.invoke('generate-and-execute-script', config)
   },
@@ -148,5 +150,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('combat-status', listener)
     return () => ipcRenderer.removeListener('combat-status', listener)
+  },
+  openStoryOverlay: (snapshot) => ipcRenderer.invoke('open-story-overlay', snapshot),
+  closeStoryOverlay: () => ipcRenderer.invoke('close-story-overlay'),
+  updateStoryOverlay: (snapshot) => ipcRenderer.invoke('update-story-overlay', snapshot),
+  getStoryOverlayState: () => ipcRenderer.invoke('get-story-overlay-state'),
+  resizeStoryOverlay: (height) => ipcRenderer.invoke('resize-story-overlay', height),
+  onStoryOverlayState: (callback) => {
+    const listener = (_event, snapshot) => callback(snapshot)
+    ipcRenderer.on('story-overlay-state', listener)
+    return () => ipcRenderer.removeListener('story-overlay-state', listener)
   }
 })

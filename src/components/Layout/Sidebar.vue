@@ -22,6 +22,10 @@
       <el-icon><FirstAidKit /></el-icon>
       <span>战斗</span>
     </el-menu-item>
+    <el-menu-item index="/story">
+      <el-icon><Notebook /></el-icon>
+      <span>剧情</span>
+    </el-menu-item>
     <el-menu-item index="/shop">
       <el-icon><ShoppingBag /></el-icon>
       <span>商城</span>
@@ -40,7 +44,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit } from '@element-plus/icons-vue'
+import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

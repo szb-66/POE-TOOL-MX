@@ -78,6 +78,7 @@ app.on('before-quit', async (event) => {
   fileWatcher.stopFileWatcher()
   shortcutManager.unregisterAll()
   windowManager.closeOverlayWindow()
+  windowManager.closeStoryOverlayWindow()
   windowManager.cancelCoordinatePicker()
   
   // 如果被阻止了，现在重新调用退出

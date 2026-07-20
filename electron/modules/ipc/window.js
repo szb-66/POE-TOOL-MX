@@ -145,6 +145,27 @@ export function registerWindowHandlers(window) {
     return { success: true }
   })
 
+  ipcMain.handle('open-story-overlay', (event, snapshot) => {
+    window.createStoryOverlayWindow(snapshot)
+    return { success: true }
+  })
+
+  ipcMain.handle('close-story-overlay', () => {
+    window.closeStoryOverlayWindow()
+    return { success: true }
+  })
+
+  ipcMain.handle('update-story-overlay', (event, snapshot) => {
+    window.updateStoryOverlay(snapshot)
+    return { success: true }
+  })
+
+  ipcMain.handle('get-story-overlay-state', () => window.getStoryOverlaySnapshot())
+
+  ipcMain.handle('resize-story-overlay', (event, height) => ({
+    success: window.resizeStoryOverlay(height)
+  }))
+
   // 调试覆盖层控制
   const { createDebugWindow, closeDebugWindow, getDebugWindow } = window
 

@@ -26,6 +26,11 @@ const routes = [
     component: () => import('../domains/combat/CombatView.vue')
   },
   {
+    path: '/story',
+    name: 'Story',
+    component: () => import('../domains/story/StoryView.vue')
+  },
+  {
     path: '/shop',
     name: 'Shop',
     component: () => import('../domains/shop/ShopView.vue')
@@ -52,6 +57,14 @@ const routes = [
     path: '/debug-overlay',
     name: 'DebugOverlay',
     component: () => import('../domains/overlay/DebugOverlay.vue'),
+    meta: {
+      noLayout: true
+    }
+  },
+  {
+    path: '/story-overlay',
+    name: 'StoryOverlay',
+    component: () => import('../domains/story/StoryOverlayView.vue'),
     meta: {
       noLayout: true
     }

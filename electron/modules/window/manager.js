@@ -17,6 +17,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let mainWindow = null
 let overlayWindow = null
+let storyOverlayWindow = null
+let storyOverlaySnapshot = null
 
 export function createMainWindow() {
   const state = loadWindowState()
@@ -142,6 +144,8 @@ export function createMainWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    closeOverlayWindow()
+    closeStoryOverlayWindow()
   })
 
   return mainWindow
@@ -215,6 +219,119 @@ export function getMainWindow() {
 
 export function getOverlayWindow() {
   return overlayWindow
+}
+
+function getStoryOverlayBounds(width, height) {
+  const saved = loadWindowState().storyOverlayBounds
+  const displays = screen.getAllDisplays()
+  if (saved && displays.some(display => {
+    const bounds = display.workArea
+    return saved.x + 80 >= bounds.x && saved.x < bounds.x + bounds.width &&
+      saved.y + 40 >= bounds.y && saved.y < bounds.y + bounds.height
+  })) {
+    return { x: Math.round(saved.x), y: Math.round(saved.y), width, height }
+  }
+  const primary = screen.getPrimaryDisplay().workArea
+  return {
+    x: Math.round(primary.x + (primary.width - width) / 2),
+    y: primary.y + 20,
+    width,
+    height
+  }
+}
+
+export function createStoryOverlayWindow(initialSnapshot = null) {
+  if (initialSnapshot) storyOverlaySnapshot = initialSnapshot
+  if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
+    storyOverlayWindow.showInactive()
+    if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
+    return storyOverlayWindow
+  }
+
+  const width = 560
+  const height = 360
+  storyOverlayWindow = new BrowserWindow({
+    ...getStoryOverlayBounds(width, height),
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, '../../preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false
+    }
+  })
+
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL
+  if (process.env.NODE_ENV === 'development' && devServerUrl) {
+    storyOverlayWindow.loadURL(`${devServerUrl}#/story-overlay`)
+  } else {
+    storyOverlayWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/story-overlay' })
+  }
+
+  storyOverlayWindow.setIgnoreMouseEvents(true, { forward: true })
+  storyOverlayWindow.webContents.on('ipc-message', (event, channel, ...args) => {
+    if (channel === 'set-ignore-mouse-events' && storyOverlayWindow) {
+      storyOverlayWindow.setIgnoreMouseEvents(Boolean(args[0]), { forward: true })
+    }
+  })
+  storyOverlayWindow.webContents.once('did-finish-load', () => {
+    if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
+    if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
+    storyOverlayWindow.showInactive()
+  })
+
+  let saveTimer
+  storyOverlayWindow.on('move', () => {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
+      const { x, y } = storyOverlayWindow.getBounds()
+      saveWindowState({ storyOverlayBounds: { x, y } })
+    }, 250)
+  })
+  storyOverlayWindow.on('closed', () => {
+    clearTimeout(saveTimer)
+    storyOverlayWindow = null
+  })
+  return storyOverlayWindow
+}
+
+export function resizeStoryOverlay(height) {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return false
+  const display = screen.getDisplayMatching(storyOverlayWindow.getBounds())
+  const maxHeight = Math.max(260, Math.floor(display.workArea.height * 0.7))
+  const nextHeight = Math.max(240, Math.min(maxHeight, Math.round(Number(height) || 360)))
+  const bounds = storyOverlayWindow.getBounds()
+  storyOverlayWindow.setBounds({ ...bounds, height: nextHeight })
+  return true
+}
+
+export function updateStoryOverlay(snapshot) {
+  storyOverlaySnapshot = snapshot || null
+  if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
+    storyOverlayWindow.webContents.send('story-overlay-state', storyOverlaySnapshot)
+  }
+  return true
+}
+
+export function getStoryOverlaySnapshot() {
+  return storyOverlaySnapshot
+}
+
+export function closeStoryOverlayWindow() {
+  if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) storyOverlayWindow.close()
+  storyOverlayWindow = null
+}
+
+export function getStoryOverlayWindow() {
+  return storyOverlayWindow
 }
 
 function tryShowConsolePanel() {

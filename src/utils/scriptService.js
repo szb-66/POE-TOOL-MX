@@ -15,6 +15,10 @@ import { useSettingsStore } from '../domains/settings/settingsStore'
 import { useScriptStore } from '../stores/script'
 import { ElMessage } from 'element-plus'
 import { executePortalAssist, startPotionAssist, stopPotionAssist } from './combatService.js'
+import { startBagStash } from './bagService.js'
+import { useStoryStore } from '../stores/story'
+import { validateShortcuts } from './shortcutValidator.js'
+import { dispatchShortcutAction } from './shortcutConfig.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -34,14 +38,7 @@ export async function initShortcuts() {
 
   // 从设置中初始化快捷键
   try {
-    const result = await electronApi.shortcut.initFromSettings({
-      itemStart: shortcuts.itemStart,
-      mapStart: shortcuts.mapStart,
-      end: shortcuts.end,
-      potionStart: shortcuts.potionStart,
-      potionStop: shortcuts.potionStop,
-      portal: shortcuts.portal
-    })
+    const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
     if (!result?.success) {
       const names = formatShortcutError(result)
       ElMessage.error(`全局快捷键注册失败：${names}`)
@@ -53,19 +50,17 @@ export async function initShortcuts() {
   // 监听快捷键触发事件
   if (!shortcutListenerRegistered) {
     electronApi.shortcut.onTriggered((accelerator) => {
-      if (accelerator === 'itemStart') {
-        startCrafting()
-      } else if (accelerator === 'mapStart') {
-        startMapRolling()
-      } else if (accelerator === 'end') {
-        stopCrafting()
-      } else if (accelerator === 'potionStart') {
-        startPotionAssist()
-      } else if (accelerator === 'potionStop') {
-        stopPotionAssist()
-      } else if (accelerator === 'portal') {
-        executePortalAssist()
-      }
+      dispatchShortcutAction(accelerator, {
+        itemStart: startCrafting,
+        mapStart: startMapRolling,
+        end: stopCrafting,
+        potionStart: startPotionAssist,
+        potionStop: stopPotionAssist,
+        portal: executePortalAssist,
+        stashStart: startBagStash,
+        storyPrevious: () => useStoryStore().previous(),
+        storyNext: () => useStoryStore().next()
+      })
     })
     shortcutListenerRegistered = true
   }
@@ -245,22 +240,26 @@ export async function stopCrafting() {
 /**
  * 更新快捷键注册
  */
-export async function updateShortcuts() {
+export async function updateShortcuts(candidateShortcuts = null) {
   const settingsStore = useSettingsStore()
-  const shortcuts = settingsStore.globalShortcuts
+  const shortcuts = candidateShortcuts || settingsStore.globalShortcuts
+
+  const validation = validateShortcuts(shortcuts)
+  if (!validation.isValid) throw new Error(validation.error)
 
   // 从设置中重新初始化快捷键
-  const result = await electronApi.shortcut.initFromSettings({
-    itemStart: shortcuts.itemStart,
-    mapStart: shortcuts.mapStart,
-    end: shortcuts.end,
-    potionStart: shortcuts.potionStart,
-    potionStop: shortcuts.potionStop,
-    portal: shortcuts.portal
-  })
+  const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
   if (!result?.success) {
     const names = formatShortcutError(result)
     throw new Error(`全局快捷键注册失败：${names}`)
   }
   return result
+}
+
+export async function commitGlobalShortcut(key, value) {
+  const settingsStore = useSettingsStore()
+  const candidate = { ...settingsStore.globalShortcuts, [key]: value }
+  await updateShortcuts(candidate)
+  settingsStore.updateGlobalShortcuts({ [key]: value })
+  return value
 }

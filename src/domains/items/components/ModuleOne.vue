@@ -4,12 +4,7 @@
       <div class="form-row">
         <div class="form-item">
           <label class="form-label">物品开始</label>
-          <el-input
-            v-model="form.itemStart"
-            placeholder="例如：Alt+1"
-            class="form-input"
-            @blur="handleSave"
-          />
+          <KeyCaptureInput :model-value="form.itemStart" class="form-input" @change="handleSave" />
         </div>
         <div class="form-item">
           <label class="form-label">预设</label>
@@ -25,8 +20,9 @@ import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePresetStore } from '../../../stores/preset'
 import { useSettingsStore } from '../../settings/settingsStore'
-import { isShortcutConflict } from '../../../utils/shortcutValidator'
 import PresetSelector from '../../../components/common/PresetSelector.vue'
+import KeyCaptureInput from '../../../components/common/KeyCaptureInput.vue'
+import { commitGlobalShortcut } from '../../../utils/scriptService'
 
 const presetStore = usePresetStore()
 const settingsStore = useSettingsStore()
@@ -40,20 +36,13 @@ watch(() => settingsStore.globalShortcuts.itemStart, (val) => {
   form.value.itemStart = val || 'Alt+1'
 })
 
-function handleSave() {
-  const newItemStart = form.value.itemStart?.trim()
-  
-  // 使用工具函数检查冲突
-  if (isShortcutConflict(newItemStart, settingsStore.globalShortcuts, 'itemStart')) {
-    ElMessage.error('物品开始快捷键不能与其他快捷键重复')
-    // 恢复原值
+async function handleSave(value) {
+  try {
+    await commitGlobalShortcut('itemStart', value)
+  } catch (error) {
     form.value.itemStart = settingsStore.globalShortcuts.itemStart
-    return
+    ElMessage.error(error.message)
   }
-
-  settingsStore.updateGlobalShortcuts({
-    itemStart: form.value.itemStart
-  })
 }
 </script>
 

@@ -18,12 +18,20 @@ export function validateShortcuts(shortcuts) {
   const shortcutValues = Object.values(shortcuts).filter(value => typeof value === 'string' && value.trim())
   const normalizedValues = shortcutValues.map(value => toElectronAccelerator(value).toLowerCase())
 
-  const acceleratorPattern = /^(?:(?:ctrl|control|alt|shift|commandorcontrol|cmdorctrl|meta)\+)*(?:[a-z0-9]|f(?:[1-9]|1[0-2])|num(?:pad)?[0-9]|space|enter|return|esc|escape|tab|up|down|left|right)$/i
+  const acceleratorPattern = /^(?:(?:ctrl|control|alt|shift|commandorcontrol|cmdorctrl|meta)\+)*(?:[a-z0-9]|f(?:[1-9]|1[0-9]|2[0-4])|num(?:pad)?[0-9]|space|enter|return|esc|escape|tab|up|down|left|right|pageup|pagedown|home|end|insert)$/i
   const invalid = shortcutValues.find(value => !acceleratorPattern.test(value.trim()))
   if (invalid) {
     return {
       isValid: false,
       error: `快捷键格式无效：${invalid}`
+    }
+  }
+
+  const reservedIndex = normalizedValues.findIndex(value => value === 'f12' || value === 'ctrl+shift+i' || value === 'control+shift+i' || value === 'commandorcontrol+shift+i')
+  if (reservedIndex !== -1) {
+    return {
+      isValid: false,
+      error: `快捷键 ${shortcutValues[reservedIndex]} 为应用保留快捷键`
     }
   }
 
@@ -52,7 +60,7 @@ export function isShortcutConflict(shortcut, allShortcuts, excludeKey) {
   }
 
   for (const [key, value] of Object.entries(allShortcuts)) {
-    if (key !== excludeKey && value === shortcut) {
+    if (key !== excludeKey && typeof value === 'string' && toElectronAccelerator(value).toLowerCase() === toElectronAccelerator(shortcut).toLowerCase()) {
       return true
     }
   }
