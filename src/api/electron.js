@@ -95,6 +95,22 @@ const mockApi = {
     getState: () => Promise.resolve(null),
     resize: () => Promise.resolve({ success: true }),
     onState: () => () => {}
+  },
+  crafting: {
+    getStatus: () => Promise.resolve({ source: 'builtin', manifest: null }),
+    listCategories: () => Promise.resolve([]),
+    searchBases: () => Promise.resolve({ items: [], total: 0 }),
+    searchModifiers: () => Promise.resolve({ items: [], total: 0 }),
+    updateData: () => Promise.reject(new Error('仅 Electron 客户端支持数据更新')),
+    cancelUpdate: () => Promise.resolve({ success: true }),
+    getPrices: () => Promise.resolve({ records: [], overrides: {}, health: 'unavailable' }),
+    refreshPrices: () => Promise.reject(new Error('仅 Electron 客户端支持价格更新')),
+    setPriceOverride: () => Promise.resolve({ success: true }),
+    removePriceOverride: () => Promise.resolve({ success: true }),
+    startPlan: () => Promise.reject(new Error('仅 Electron 客户端支持做装计算')),
+    cancelPlan: () => Promise.resolve({ success: true }),
+    onUpdateProgress: () => () => {},
+    onPlanEvent: () => () => {}
   }
 }
 
@@ -201,5 +217,22 @@ export const electronApi = isElectron ? {
     getState: () => window.electronAPI.getStoryOverlayState?.(),
     resize: (height) => window.electronAPI.resizeStoryOverlay?.(height),
     onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {})
+  },
+
+  crafting: {
+    getStatus: () => window.electronAPI.getCraftingStatus?.(),
+    listCategories: () => window.electronAPI.listCraftingCategories?.(),
+    searchBases: (input) => window.electronAPI.searchCraftingBases?.(input),
+    searchModifiers: (input) => window.electronAPI.searchCraftingModifiers?.(input),
+    updateData: () => window.electronAPI.updateCraftingData?.(),
+    cancelUpdate: () => window.electronAPI.cancelCraftingUpdate?.(),
+    getPrices: () => window.electronAPI.getCraftingPrices?.(),
+    refreshPrices: (force = false) => window.electronAPI.refreshCraftingPrices?.(force),
+    setPriceOverride: (resourceId, value) => window.electronAPI.setCraftingPriceOverride?.(resourceId, value),
+    removePriceOverride: (resourceId) => window.electronAPI.removeCraftingPriceOverride?.(resourceId),
+    startPlan: (request, options) => window.electronAPI.startCraftingPlan?.(request, options),
+    cancelPlan: (taskId) => window.electronAPI.cancelCraftingPlan?.(taskId),
+    onUpdateProgress: (callback) => window.electronAPI.onCraftingUpdateProgress?.(callback) || (() => {}),
+    onPlanEvent: (callback) => window.electronAPI.onCraftingPlanEvent?.(callback) || (() => {})
   }
 } : mockApi

@@ -30,6 +30,10 @@
       <el-icon><ShoppingBag /></el-icon>
       <span>商城</span>
     </el-menu-item>
+    <el-menu-item index="/craft-planner">
+      <el-icon><Tools /></el-icon>
+      <span>做装</span>
+    </el-menu-item>
     <el-menu-item index="/settings">
       <el-icon><Setting /></el-icon>
       <span>设置</span>
@@ -44,7 +48,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

@@ -24,6 +24,16 @@
         </div>
       </div>
 
+      <div class="info-section">
+        <h3 class="section-title">POE1 做装规划说明</h3>
+        <div class="crafting-help">
+          <p>底材、词缀、工艺台和花园工艺来自 POEDB 简体中文页面，可在“做装”页手动更新；更新只有在全部下载与校验成功后才会生效。</p>
+          <p>耗材价格来自 poecurrency.top 公开 POE1 API 的卖方均价。该数据由 OCR 生成，异常、非正数或超过 24 小时的价格会被拒用，也可在本机覆盖。</p>
+          <p>当前只比较普通通货、工艺台/元工艺和显式词缀相关花园工艺。结果表示“在当前支持的工艺与候选策略中最优”，不是所有游戏机制的全局最优；底材成本不计入。</p>
+          <p>本功能仅供个人、非商业参考，与 Grinding Gear Games、POEDB、poecurrency.top 无官方关联。</p>
+        </div>
+      </div>
+
       <!-- 作者信息 -->
       <div class="info-section">
         <h3 class="section-title">作者信息</h3>
@@ -112,6 +122,13 @@ import { WarningFilled } from '@element-plus/icons-vue'
             }
           }
         }
+      }
+
+      .crafting-help {
+        padding: 0 var(--spacing-sm);
+        color: var(--text-regular);
+        line-height: 1.7;
+        p { margin: 0 0 var(--spacing-sm); }
       }
     }
   }

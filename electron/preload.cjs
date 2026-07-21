@@ -164,5 +164,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, snapshot) => callback(snapshot)
     ipcRenderer.on('story-overlay-state', listener)
     return () => ipcRenderer.removeListener('story-overlay-state', listener)
+  },
+  // POE1 做装规划器
+  getCraftingStatus: () => ipcRenderer.invoke('crafting-get-status'),
+  listCraftingCategories: () => ipcRenderer.invoke('crafting-list-categories'),
+  searchCraftingBases: (input) => ipcRenderer.invoke('crafting-search-bases', input),
+  searchCraftingModifiers: (input) => ipcRenderer.invoke('crafting-search-modifiers', input),
+  updateCraftingData: () => ipcRenderer.invoke('crafting-update-data'),
+  cancelCraftingUpdate: () => ipcRenderer.invoke('crafting-cancel-update'),
+  getCraftingPrices: () => ipcRenderer.invoke('crafting-get-prices'),
+  refreshCraftingPrices: (force) => ipcRenderer.invoke('crafting-refresh-prices', force),
+  setCraftingPriceOverride: (resourceId, value) => ipcRenderer.invoke('crafting-set-price-override', resourceId, value),
+  removeCraftingPriceOverride: (resourceId) => ipcRenderer.invoke('crafting-remove-price-override', resourceId),
+  startCraftingPlan: (request, options) => ipcRenderer.invoke('crafting-start-plan', request, options),
+  cancelCraftingPlan: (taskId) => ipcRenderer.invoke('crafting-cancel-plan', taskId),
+  onCraftingUpdateProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress)
+    ipcRenderer.on('crafting-update-progress', listener)
+    return () => ipcRenderer.removeListener('crafting-update-progress', listener)
+  },
+  onCraftingPlanEvent: (callback) => {
+    const listener = (_event, message) => callback(message)
+    ipcRenderer.on('crafting-plan-event', listener)
+    return () => ipcRenderer.removeListener('crafting-plan-event', listener)
   }
 })

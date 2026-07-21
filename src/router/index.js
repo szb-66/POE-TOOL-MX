@@ -36,6 +36,11 @@ const routes = [
     component: () => import('../domains/shop/ShopView.vue')
   },
   {
+    path: '/craft-planner',
+    name: 'CraftPlanner',
+    component: () => import('../domains/crafting/CraftPlannerView.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../domains/settings/SettingsView.vue')
