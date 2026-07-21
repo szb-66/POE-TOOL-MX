@@ -13,6 +13,7 @@ import { registerFileHandlers } from './file.js'
 import { registerShortcutHandlers } from './shortcut.js'
 import { registerBagHandlers } from './bag.js'
 import { registerCombatHandlers } from './combat.js'
+import { registerClipboardHandlers } from './clipboard.js'
 
 export function registerIpcHandlers(dependencies) {
   const { window, python, fileWatcher, itemParser, itemMatcher, shortcut } = dependencies
@@ -23,4 +24,5 @@ export function registerIpcHandlers(dependencies) {
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher)
   registerCombatHandlers(python, window, fileWatcher)
+  registerClipboardHandlers()
 }

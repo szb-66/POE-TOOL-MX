@@ -10,6 +10,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { cleanMigratedMapConfig, createDefaultMapConfig } from '../utils/mapPresetMigration.js'
+import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
 
 export const usePresetStore = defineStore('preset', () => {
   // 物品预设
@@ -44,9 +45,12 @@ export const usePresetStore = defineStore('preset', () => {
       map: createDefaultMapConfig()
     }
   ])
+
+  const shopPresets = ref([createDefaultShopPreset()])
   
   const currentItemPresetId = ref('default')
   const currentMapPresetId = ref('default')
+  const currentShopPresetId = ref('default')
 
   const currentItemPreset = computed(() => {
     return itemPresets.value.find(p => p.id === currentItemPresetId.value) || itemPresets.value[0]
@@ -54,6 +58,10 @@ export const usePresetStore = defineStore('preset', () => {
 
   const currentMapPreset = computed(() => {
     return mapPresets.value.find(p => p.id === currentMapPresetId.value) || mapPresets.value[0]
+  })
+
+  const currentShopPreset = computed(() => {
+    return shopPresets.value.find(p => p.id === currentShopPresetId.value) || shopPresets.value[0]
   })
 
   // 统一的 currentPreset 访问器 (为了保持部分向后兼容性或根据上下文切换)
@@ -98,6 +106,14 @@ export const usePresetStore = defineStore('preset', () => {
     return newPreset
   }
 
+  function addShopPreset(name) {
+    const newPreset = createDefaultShopPreset(`shop_preset_${Date.now()}`, name || `预设${shopPresets.value.length}`)
+    shopPresets.value.push(newPreset)
+    currentShopPresetId.value = newPreset.id
+    savePresets()
+    return newPreset
+  }
+
   function deleteItemPreset(id) {
     if (id === 'default') return false
     const index = itemPresets.value.findIndex(p => p.id === id)
@@ -126,6 +142,18 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
+  function deleteShopPreset(id) {
+    if (id === 'default') return false
+    const index = shopPresets.value.findIndex(p => p.id === id)
+    if (index > -1) {
+      shopPresets.value.splice(index, 1)
+      if (currentShopPresetId.value === id) currentShopPresetId.value = 'default'
+      savePresets()
+      return true
+    }
+    return false
+  }
+
   function switchItemPreset(id) {
     const preset = itemPresets.value.find(p => p.id === id)
     if (preset) {
@@ -146,6 +174,14 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
+  function switchShopPreset(id) {
+    const preset = shopPresets.value.find(p => p.id === id)
+    if (!preset) return false
+    currentShopPresetId.value = id
+    savePresets()
+    return true
+  }
+
   function updateCurrentItemPreset(data) {
     const preset = currentItemPreset.value
     if (preset) {
@@ -162,12 +198,22 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
+  function updateCurrentShopPreset(data) {
+    const preset = currentShopPreset.value
+    if (preset) {
+      Object.assign(preset, data)
+      savePresets()
+    }
+  }
+
   function savePresets() {
     try {
       localStorage.setItem('itemPresets', JSON.stringify(itemPresets.value))
       localStorage.setItem('currentItemPresetId', currentItemPresetId.value)
       localStorage.setItem('mapPresets', JSON.stringify(mapPresets.value))
       localStorage.setItem('currentMapPresetId', currentMapPresetId.value)
+      localStorage.setItem('shopPresets', JSON.stringify(shopPresets.value))
+      localStorage.setItem('currentShopPresetId', currentShopPresetId.value)
     } catch (error) {
       // 保存预设失败
     }
@@ -222,16 +268,34 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
+  function loadShopPresets() {
+    try {
+      const savedPresets = localStorage.getItem('shopPresets')
+      const savedCurrentId = localStorage.getItem('currentShopPresetId')
+      shopPresets.value = savedPresets ? cleanShopPresets(JSON.parse(savedPresets)) : [createDefaultShopPreset()]
+      currentShopPresetId.value = shopPresets.value.some(preset => preset.id === savedCurrentId)
+        ? savedCurrentId
+        : 'default'
+    } catch (error) {
+      shopPresets.value = [createDefaultShopPreset()]
+      currentShopPresetId.value = 'default'
+    }
+  }
+
   // 初始化时加载
   loadPresets()
+  loadShopPresets()
 
   return {
     itemPresets,
     mapPresets,
+    shopPresets,
     currentItemPresetId,
     currentMapPresetId,
+    currentShopPresetId,
     currentItemPreset,
     currentMapPreset,
+    currentShopPreset,
     // 兼容旧代码的别名，逐步替换
     presets: itemPresets,
     currentPresetId: currentItemPresetId,
@@ -244,13 +308,18 @@ export const usePresetStore = defineStore('preset', () => {
     // 新方法
     addItemPreset,
     addMapPreset,
+    addShopPreset,
     deleteItemPreset,
     deleteMapPreset,
+    deleteShopPreset,
     switchItemPreset,
     switchMapPreset,
+    switchShopPreset,
     updateCurrentItemPreset,
     updateCurrentMapPreset,
+    updateCurrentShopPreset,
     savePresets,
-    loadPresets
+    loadPresets,
+    loadShopPresets
   }
 })

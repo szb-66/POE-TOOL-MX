@@ -3,6 +3,8 @@
  * 统一管理 IPC 调用，提供语义化接口
  */
 
+import { writeTextToClipboard } from '../utils/clipboardWriter.js'
+
 const isElectron = typeof window !== 'undefined' && !!window.electronAPI
 
 const mockApi = {
@@ -21,6 +23,9 @@ const mockApi = {
       start: () => Promise.resolve(true),
       stop: () => Promise.resolve(true),
     }
+  },
+  clipboard: {
+    writeText: (text) => writeTextToClipboard(text),
   },
   shortcut: {
     initFromSettings: () => Promise.resolve({ success: true, failed: [] }),
@@ -110,6 +115,12 @@ export const electronApi = isElectron ? {
       start: (config) => window.electronAPI.startFileWatcher(config),
       stop: () => window.electronAPI.stopFileWatcher(),
     }
+  },
+
+  clipboard: {
+    writeText: (text) => writeTextToClipboard(text, {
+      electronWrite: window.electronAPI.writeClipboardText
+    }),
   },
 
   shortcut: {

@@ -49,34 +49,57 @@ import { usePresetStore } from '../../stores/preset'
 const props = defineProps({
   type: {
     type: String,
-    default: 'item', // 'item' or 'map'
-    validator: (value) => ['item', 'map'].includes(value)
+    default: 'item',
+    validator: (value) => ['item', 'map', 'shop'].includes(value)
   }
 })
 
 const presetStore = usePresetStore()
 
-const presets = computed(() => {
-  return props.type === 'map' ? presetStore.mapPresets : presetStore.itemPresets
-})
+const presetAccess = computed(() => ({
+  item: {
+    presets: presetStore.itemPresets,
+    currentId: presetStore.currentItemPresetId,
+    current: presetStore.currentItemPreset,
+    add: presetStore.addItemPreset,
+    remove: presetStore.deleteItemPreset,
+    switchTo: presetStore.switchItemPreset,
+    update: presetStore.updateCurrentItemPreset
+  },
+  map: {
+    presets: presetStore.mapPresets,
+    currentId: presetStore.currentMapPresetId,
+    current: presetStore.currentMapPreset,
+    add: presetStore.addMapPreset,
+    remove: presetStore.deleteMapPreset,
+    switchTo: presetStore.switchMapPreset,
+    update: presetStore.updateCurrentMapPreset
+  },
+  shop: {
+    presets: presetStore.shopPresets,
+    currentId: presetStore.currentShopPresetId,
+    current: presetStore.currentShopPreset,
+    add: presetStore.addShopPreset,
+    remove: presetStore.deleteShopPreset,
+    switchTo: presetStore.switchShopPreset,
+    update: presetStore.updateCurrentShopPreset
+  }
+})[props.type])
+
+const presets = computed(() => presetAccess.value.presets)
 
 const currentPresetId = computed({
-  get: () => props.type === 'map' ? presetStore.currentMapPresetId : presetStore.currentItemPresetId,
+  get: () => presetAccess.value.currentId,
   set: (val) => {
-    const success = props.type === 'map' 
-      ? presetStore.switchMapPreset(val)
-      : presetStore.switchItemPreset(val)
+    const success = presetAccess.value.switchTo(val)
       
     if (success) {
-      const preset = props.type === 'map' ? presetStore.currentMapPreset : presetStore.currentItemPreset
-      ElMessage.success(`已切换到：${preset.name}`)
+      ElMessage.success(`已切换到：${presetAccess.value.current.name}`)
     }
   }
 })
 
-const currentPreset = computed(() => {
-  return props.type === 'map' ? presetStore.currentMapPreset : presetStore.currentItemPreset
-})
+const currentPreset = computed(() => presetAccess.value.current)
 
 function handlePresetChange() {
   // 切换逻辑已通过 computed setter 处理
@@ -89,9 +112,7 @@ function handleAddPreset() {
     inputPattern: /.+/,
     inputErrorMessage: '预设名称不能为空'
   }).then(({ value }) => {
-    const newPreset = props.type === 'map' 
-      ? presetStore.addMapPreset(value)
-      : presetStore.addItemPreset(value)
+    const newPreset = presetAccess.value.add(value)
     ElMessage.success(`预设"${newPreset.name}"创建成功`)
   }).catch(() => {})
 }
@@ -106,11 +127,7 @@ function handleEditPresetName() {
   }).then(({ value }) => {
     if (value === currentPreset.value.name) return
     
-    if (props.type === 'map') {
-      presetStore.updateCurrentMapPreset({ name: value })
-    } else {
-      presetStore.updateCurrentItemPreset({ name: value })
-    }
+    presetAccess.value.update({ name: value })
     ElMessage.success(`预设已重命名为"${value}"`)
   }).catch(() => {})
 }
@@ -131,9 +148,7 @@ function handleDeletePreset() {
     }
   ).then(() => {
     const deletedName = currentPreset.value.name
-    const success = props.type === 'map'
-      ? presetStore.deleteMapPreset(currentPresetId.value)
-      : presetStore.deleteItemPreset(currentPresetId.value)
+    const success = presetAccess.value.remove(currentPresetId.value)
       
     if (success) {
       ElMessage.success(`预设"${deletedName}"已删除`)
@@ -146,5 +161,11 @@ function handleDeletePreset() {
 .preset-selector {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  :deep(.el-button) {
+    margin-left: 0 !important;
+  }
 }
 </style>

@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   selectFile: () => ipcRenderer.invoke('select-file'),
   copyFileToProject: (sourcePath) => ipcRenderer.invoke('copy-file-to-project', sourcePath),
+  writeClipboardText: (text) => ipcRenderer.invoke('clipboard-write-text', text),
   updateOverlaySettings: (settings) => ipcRenderer.invoke('update-overlay-settings', settings),
   // 窗口控制
   minimizeWindow: () => ipcRenderer.invoke('window-minimize'),
