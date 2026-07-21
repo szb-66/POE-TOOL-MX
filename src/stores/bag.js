@@ -1,203 +1,117 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { captureKeyForTemplate, createDefaultBagSettings, normalizeBagBlacklist, normalizeBagSettings } from '@/utils/bagConfig'
+
+const emptyStats = () => ({
+  scannedSlots: 0,
+  stashedSlots: 0,
+  blacklistedSlots: 0,
+  emptySlots: 0,
+  unreadableSlots: 0,
+  progress: 0
+})
 
 export const useBagStore = defineStore('bag', () => {
-  // 模块开关
-  const moduleEnabled = ref(false)
-
-  // 模板配置
-  const templates = ref({
-    stashTitle: '',        // 仓库标题模板路径
-    inventoryTitle: '',    // 背包道具标题模板路径
-    stashRegion: {         // 仓库标题匹配区域
-      left: 0,
-      top: 0,
-      right: 1920,
-      bottom: 1080
-    },
-    inventoryRegion: {     // 道具标题匹配区域
-      left: 0,
-      top: 0,
-      right: 1920,
-      bottom: 1080
-    }
-  })
-
-  // 匹配阈值
-  const matchThreshold = ref(0.8)
-
-
-  // 按钮位置配置
-  const buttonPosition = ref({
-    x: 3600,
-    y: 1000
-  })
-
-  // 运行状态
+  const defaults = createDefaultBagSettings()
+  const moduleEnabled = ref(defaults.moduleEnabled)
+  const templates = ref(defaults.templates)
+  const matchThreshold = ref(defaults.matchThreshold)
+  const blacklist = ref(defaults.blacklist)
   const isDetecting = ref(false)
-  const isMatched = ref(false)  // 检测是否匹配成功
+  const isMatched = ref(false)
   const isStashing = ref(false)
   const stashProgress = ref(0)
-
-  // 操作方法
-  function setModuleEnabled(enabled) {
-    moduleEnabled.value = enabled
-    saveSettings()
-  }
-
-  function setTemplate(type, path) {
-    templates.value[type] = path
-    saveSettings()
-  }
-
-  function setTemplates(newTemplates) {
-    templates.value = { ...templates.value, ...newTemplates }
-    saveSettings()
-  }
-
-  function setTemplateRegion(type, region) {
-    templates.value[`${type}Region`] = { ...region }
-    saveSettings()
-  }
-
-  function setMatchThreshold(threshold) {
-    matchThreshold.value = threshold
-    saveSettings()
-  }
-
-  function setButtonPosition(position) {
-    buttonPosition.value = { ...buttonPosition.value, ...position }
-    saveSettings()
-  }
-
-  function setDetectionStatus(status) {
-    isDetecting.value = status
-  }
-
-  function setMatchedStatus(status) {
-    isMatched.value = status
-  }
-
-  function setStashingStatus(status, progress = 0) {
-    isStashing.value = status
-    stashProgress.value = progress
-  }
-
-  function resetStates() {
-    isDetecting.value = false
-    isMatched.value = false
-    isStashing.value = false
-    stashProgress.value = 0
-  }
+  const stashStats = ref(emptyStats())
+  const lastStopReason = ref('')
 
   function saveSettings() {
     try {
-      let legacyShortcut
-      try {
-        legacyShortcut = JSON.parse(localStorage.getItem('bagSettings') || '{}').stashShortcut
-      } catch {}
-      const settings = {
+      localStorage.setItem('bagSettings', JSON.stringify({
         moduleEnabled: moduleEnabled.value,
         templates: templates.value,
         matchThreshold: matchThreshold.value,
-        buttonPosition: buttonPosition.value
-      }
-      if (legacyShortcut) settings.stashShortcut = legacyShortcut
-      localStorage.setItem('bagSettings', JSON.stringify(settings))
+        blacklist: blacklist.value
+      }))
     } catch (error) {
-      // 保存设置失败
       console.error('保存背包设置失败:', error)
     }
   }
 
+  function applySettings(raw) {
+    const normalized = normalizeBagSettings(raw)
+    moduleEnabled.value = normalized.moduleEnabled
+    templates.value = normalized.templates
+    matchThreshold.value = normalized.matchThreshold
+    blacklist.value = normalized.blacklist
+  }
+
   function loadSettings() {
     try {
-      const saved = localStorage.getItem('bagSettings')
-      if (saved) {
-        const data = JSON.parse(saved)
-        if (data.moduleEnabled !== undefined) {
-          moduleEnabled.value = data.moduleEnabled
-        }
-        if (data.templates) {
-          templates.value = { ...templates.value, ...data.templates }
-        }
-        if (data.matchThreshold !== undefined) {
-          matchThreshold.value = data.matchThreshold
-        }
-        if (data.buttonPosition) {
-          buttonPosition.value = { ...buttonPosition.value, ...data.buttonPosition }
-        }
-      }
+      applySettings(JSON.parse(localStorage.getItem('bagSettings') || '{}'))
     } catch (error) {
-      // 加载设置失败
+      applySettings({})
       console.error('加载背包设置失败:', error)
     }
   }
 
-  // 默认值（用于重置）
-  const defaultSettings = {
-    moduleEnabled: false,
-    templates: {
-      stashTitle: '',
-      inventoryTitle: '',
-      stashRegion: {
-        left: 0,
-        top: 0,
-        right: 1920,
-        bottom: 1080
-      },
-      inventoryRegion: {
-        left: 0,
-        top: 0,
-        right: 1920,
-        bottom: 1080
-      }
-    },
-    matchThreshold: 0.8,
-    buttonPosition: {
-      x: 3600,
-      y: 1000
-    }
-  }
-
-  function resetSettings() {
-    moduleEnabled.value = defaultSettings.moduleEnabled
-    templates.value = { ...defaultSettings.templates }
-    matchThreshold.value = defaultSettings.matchThreshold
-    buttonPosition.value = { ...defaultSettings.buttonPosition }
-    isDetecting.value = false
-    isStashing.value = false
-    stashProgress.value = 0
+  function setModuleEnabled(enabled) { moduleEnabled.value = Boolean(enabled); saveSettings() }
+  function clearCaptureMetadata(type) { templates.value[captureKeyForTemplate(type)] = null }
+  function setTemplate(type, path) {
+    templates.value[type] = String(path || '')
+    clearCaptureMetadata(type)
     saveSettings()
   }
+  function setTemplateRegion(type, region) {
+    templates.value[`${type.replace('Title', '')}Region`] = { ...region }
+    clearCaptureMetadata(type)
+    saveSettings()
+  }
+  function applyTemplateCapture(type, result) {
+    const regionKey = `${type.replace('Title', '')}Region`
+    templates.value = {
+      ...templates.value,
+      [type]: String(result.path || ''),
+      [regionKey]: { ...result.region },
+      [captureKeyForTemplate(type)]: result.metadata ? { ...result.metadata } : null
+    }
+    saveSettings()
+  }
+  function setMatchThreshold(value) { matchThreshold.value = Number(value); saveSettings() }
+  function setBlacklist(rules) { blacklist.value = normalizeBagBlacklist(rules); saveSettings() }
+  function setDetectionStatus(status) { isDetecting.value = Boolean(status) }
+  function setMatchedStatus(status) { isMatched.value = Boolean(status) }
+  function setStashingStatus(status, payload = {}) {
+    isStashing.value = Boolean(status)
+    if (typeof payload === 'number') stashProgress.value = payload
+    else {
+      stashStats.value = {
+        scannedSlots: Number(payload.scannedSlots ?? stashStats.value.scannedSlots),
+        stashedSlots: Number(payload.stashedSlots ?? stashStats.value.stashedSlots),
+        blacklistedSlots: Number(payload.blacklistedSlots ?? stashStats.value.blacklistedSlots),
+        emptySlots: Number(payload.emptySlots ?? stashStats.value.emptySlots),
+        unreadableSlots: Number(payload.unreadableSlots ?? stashStats.value.unreadableSlots),
+        progress: Number(payload.progress ?? stashStats.value.progress)
+      }
+      stashProgress.value = Number(payload.progress ?? stashProgress.value)
+    }
+  }
+  function setStopReason(reason = '') { lastStopReason.value = String(reason) }
+  function resetRunStats() { stashProgress.value = 0; stashStats.value = emptyStats(); lastStopReason.value = '' }
+  function resetStates() {
+    isDetecting.value = false
+    isMatched.value = false
+    isStashing.value = false
+    resetRunStats()
+  }
+  function resetSettings() { applySettings(defaults); resetStates(); saveSettings() }
 
-  // 初始化时加载设置
   loadSettings()
 
   return {
-    // 状态
-    moduleEnabled,
-    templates,
-    matchThreshold,
-    buttonPosition,
-    isDetecting,
-    isMatched,
-    isStashing,
-    stashProgress,
-
-    // 方法
-    setModuleEnabled,
-    setTemplate,
-    setTemplates,
-    setTemplateRegion,
-    setMatchThreshold,
-    setButtonPosition,
-    setDetectionStatus,
-    setMatchedStatus,
-    setStashingStatus,
-    resetStates,
-    saveSettings,
-    loadSettings,
-    resetSettings
+    moduleEnabled, templates, matchThreshold, blacklist,
+    isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason,
+    setModuleEnabled, setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist,
+    setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,
+    resetRunStats, resetStates, saveSettings, loadSettings, resetSettings
   }
 })

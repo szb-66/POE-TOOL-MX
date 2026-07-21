@@ -91,7 +91,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('devtools-visibility-changed', listener)
   },
   pickScreenCoordinate: () => ipcRenderer.invoke('pick-screen-coordinate'),
+  getScreenPickerContext: () => ipcRenderer.invoke('screen-picker-context'),
   submitScreenCoordinate: (point) => ipcRenderer.send('coordinate-picker-select', point),
+  submitScreenRegion: (rectangle) => ipcRenderer.send('screen-picker-region-select', rectangle),
   cancelScreenCoordinatePicker: () => ipcRenderer.send('coordinate-picker-cancel'),
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
   moveWindow: (x, y) => ipcRenderer.send('window-move', { x, y }),
@@ -112,33 +114,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 背包自动入库
   startBagDetection: (config) => ipcRenderer.invoke('start-bag-detection', config),
   stopBagDetection: () => ipcRenderer.invoke('stop-bag-detection'),
-  startBagStash: (config) => ipcRenderer.invoke('start-bag-stash', config),
+  startBagStash: () => ipcRenderer.invoke('start-bag-stash'),
   stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
+  captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
   onBagDetectionMatch: (callback) => {
-    ipcRenderer.on('bag-detection-match', (event, data) => {
-      callback(data)
-    })
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-detection-match', listener)
+    return () => ipcRenderer.removeListener('bag-detection-match', listener)
   },
   onBagStashProgress: (callback) => {
-    ipcRenderer.on('bag-stash-progress', (event, data) => {
-      callback(data)
-    })
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-stash-progress', listener)
+    return () => ipcRenderer.removeListener('bag-stash-progress', listener)
   },
   onBagStashCompleted: (callback) => {
-    ipcRenderer.on('bag-stash-completed', (event, data) => {
-      callback(data)
-    })
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-stash-completed', listener)
+    return () => ipcRenderer.removeListener('bag-stash-completed', listener)
   },
   onBagStashStopped: (callback) => {
-    ipcRenderer.on('bag-stash-stopped', (event, data) => {
-      callback(data)
-    })
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-stash-stopped', listener)
+    return () => ipcRenderer.removeListener('bag-stash-stopped', listener)
   },
   onBagDetectionStopped: (callback) => {
-    ipcRenderer.on('bag-detection-stopped', (event, data) => {
-      callback(data)
-    })
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-detection-stopped', listener)
+    return () => ipcRenderer.removeListener('bag-detection-stopped', listener)
   },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),

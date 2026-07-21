@@ -45,7 +45,9 @@ const mockApi = {
     getDevToolsVisible: () => Promise.resolve({ visible: false }),
     onDevToolsVisibilityChanged: () => () => { },
     pickScreenCoordinate: () => Promise.resolve({ canceled: true }),
+    getScreenPickerContext: () => Promise.resolve({ mode: 'point' }),
     submitScreenCoordinate: () => { },
+    submitScreenRegion: () => { },
     cancelScreenCoordinatePicker: () => { },
   },
   events: {
@@ -53,11 +55,11 @@ const mockApi = {
     onUpdateOverlay: () => { },
     onUpdateOverlaySettings: () => { },
     onScriptStopped: () => { },
-    onBagDetectionMatch: () => { },
-    onBagStashProgress: () => { },
-    onBagStashCompleted: () => { },
-    onBagStashStopped: () => { },
-    onBagDetectionStopped: () => { },
+    onBagDetectionMatch: () => () => { },
+    onBagStashProgress: () => () => { },
+    onBagStashCompleted: () => () => { },
+    onBagStashStopped: () => () => { },
+    onBagDetectionStopped: () => () => { },
     onUpdateDebugOverlay: () => { },
   },
   selectFile: () => Promise.resolve({ canceled: true, filePaths: [] }),
@@ -71,6 +73,7 @@ const mockApi = {
     startStash: () => Promise.reject(new Error('非 Electron 环境')),
     stopStash: () => Promise.resolve({ success: true }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
+    captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
   },
   combat: {
     startPotion: () => Promise.reject(new Error('非 Electron 环境')),
@@ -135,7 +138,9 @@ export const electronApi = isElectron ? {
     getDevToolsVisible: () => window.electronAPI.getDevToolsVisible?.(),
     onDevToolsVisibilityChanged: (callback) => window.electronAPI.onDevToolsVisibilityChanged?.(callback),
     pickScreenCoordinate: () => window.electronAPI.pickScreenCoordinate?.(),
+    getScreenPickerContext: () => window.electronAPI.getScreenPickerContext?.(),
     submitScreenCoordinate: (point) => window.electronAPI.submitScreenCoordinate?.(point),
+    submitScreenRegion: (rectangle) => window.electronAPI.submitScreenRegion?.(rectangle),
     cancelScreenCoordinatePicker: () => window.electronAPI.cancelScreenCoordinatePicker?.()
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
@@ -163,9 +168,10 @@ export const electronApi = isElectron ? {
   bag: {
     startDetection: (config) => window.electronAPI.startBagDetection?.(config),
     stopDetection: () => window.electronAPI.stopBagDetection?.(),
-    startStash: (config) => window.electronAPI.startBagStash?.(config),
+    startStash: () => window.electronAPI.startBagStash?.(),
     stopStash: () => window.electronAPI.stopBagStash?.(),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
+    captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
   },
 
   combat: {

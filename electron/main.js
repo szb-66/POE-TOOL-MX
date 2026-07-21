@@ -18,6 +18,7 @@ import * as itemParser from './modules/item/parser.js'
 import * as itemMatcher from './modules/item/matcher.js'
 import * as shortcutManager from './modules/shortcuts/manager.js'
 import { cleanupCombatProcesses } from './modules/ipc/combat.js'
+import { cleanupBagProcesses } from './modules/ipc/bag.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -74,6 +75,7 @@ app.on('before-quit', async (event) => {
   
   // 清理资源（调用各模块的清理方法）；若失败当前策略为上抛退出
   await cleanupCombatProcesses()
+  await cleanupBagProcesses()
   await pythonManager.cleanup()
   fileWatcher.stopFileWatcher()
   shortcutManager.unregisterAll()

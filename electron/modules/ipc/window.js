@@ -71,8 +71,16 @@ export function registerWindowHandlers(window) {
     return window.pickScreenCoordinate()
   })
 
+  ipcMain.handle('screen-picker-context', (event) => {
+    return window.getScreenPickerContext(event.sender)
+  })
+
   ipcMain.on('coordinate-picker-select', (event, point) => {
     window.submitCoordinatePickerPoint(event.sender, point)
+  })
+
+  ipcMain.on('screen-picker-region-select', (event, rectangle) => {
+    window.submitScreenPickerRegion(event.sender, rectangle)
   })
 
   ipcMain.on('coordinate-picker-cancel', () => {

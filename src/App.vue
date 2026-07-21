@@ -21,6 +21,7 @@ import { initShortcuts } from './utils/scriptService'
 import { useSettingsStore } from './domains/settings/settingsStore'
 import { electronApi } from './api/electron'
 import { initCombatAssist } from './utils/combatService'
+import { disposeBagAutomation, initBagAutomation } from './utils/bagService'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
@@ -33,6 +34,7 @@ onMounted(() => {
   if (window.electronAPI) {
     initShortcuts()
     initCombatAssist()
+    initBagAutomation()
   }
 
   removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
@@ -43,6 +45,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   removeDevToolsListener?.()
+  disposeBagAutomation()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {
     window.electronAPI.removeAllListeners('init-shortcuts')

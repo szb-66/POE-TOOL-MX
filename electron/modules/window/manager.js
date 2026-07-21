@@ -7,11 +7,18 @@
  * Errors: 窗口创建失败时抛出异常
  */
 
-import { BrowserWindow, screen, nativeImage } from 'electron'
+import { BrowserWindow, screen, nativeImage, desktopCapturer } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWindowState, saveWindowState } from './state.js'
-import { toGlobalDipPoint } from './coordinates.js'
+import {
+  dipRectangleToPhysical,
+  getRectangleSize,
+  hasUsefulPixelVariance,
+  isRegionLargeEnough,
+  physicalRectangleToImageCrop,
+  toGlobalDipPoint
+} from './coordinates.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -371,24 +378,53 @@ export function toggleDevTools() {
   return setDevToolsVisible(!getDevToolsVisible())
 }
 
-let coordinatePickerSession = null
+let screenPickerSession = null
 
-function settleCoordinatePicker(result) {
-  const session = coordinatePickerSession
+function settleScreenPicker(result) {
+  const session = screenPickerSession
   if (!session || session.settled) return
 
   session.settled = true
-  coordinatePickerSession = null
+  screenPickerSession = null
 
   session.windows.forEach(win => {
     if (!win.isDestroyed()) win.close()
   })
+  session.screenshots.clear()
   session.resolve(result)
 }
 
-export function pickScreenCoordinate() {
-  if (coordinatePickerSession) {
-    return coordinatePickerSession.promise
+function physicalDisplayBounds(display) {
+  if (process.platform !== 'win32') return { ...display.bounds }
+  const topLeft = screen.dipToScreenPoint({ x: display.bounds.x, y: display.bounds.y })
+  return {
+    x: topLeft.x,
+    y: topLeft.y,
+    width: Math.round(display.bounds.width * display.scaleFactor),
+    height: Math.round(display.bounds.height * display.scaleFactor)
+  }
+}
+
+async function captureDisplays(displays) {
+  const maximum = displays.reduce((size, display) => {
+    const physical = physicalDisplayBounds(display)
+    return { width: Math.max(size.width, physical.width), height: Math.max(size.height, physical.height) }
+  }, { width: 1, height: 1 })
+  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: maximum })
+  const screenshots = new Map()
+  displays.forEach((display) => {
+    const source = sources.find(item => String(item.display_id) === String(display.id))
+    if (!source || source.thumbnail.isEmpty()) throw new Error(`无法捕获显示器 ${display.id} 的画面`)
+    screenshots.set(String(display.id), source.thumbnail)
+  })
+  return screenshots
+}
+
+function createScreenPickerSession(mode, screenshots = new Map()) {
+  if (screenPickerSession) {
+    return mode === screenPickerSession.mode
+      ? screenPickerSession.promise
+      : Promise.resolve({ canceled: true, error: '已有其他屏幕选取会话正在进行' })
   }
 
   let resolveSession
@@ -396,15 +432,24 @@ export function pickScreenCoordinate() {
     resolveSession = resolve
   })
 
-  coordinatePickerSession = {
+  screenPickerSession = {
+    mode,
     promise,
     resolve: resolveSession,
     windows: [],
+    contexts: new Map(),
+    screenshots,
     settled: false
   }
 
+  return promise
+}
+
+function openScreenPickerWindows(mode, displays) {
+  const session = screenPickerSession
+  if (!session || session.mode !== mode) return
+
   try {
-    const displays = screen.getAllDisplays()
     const devServerUrl = process.env.VITE_DEV_SERVER_URL
 
     displays.forEach(display => {
@@ -428,13 +473,22 @@ export function pickScreenCoordinate() {
         }
       })
 
-      coordinatePickerSession.windows.push(pickerWindow)
+      session.windows.push(pickerWindow)
+      const physicalBounds = physicalDisplayBounds(display)
+      session.contexts.set(pickerWindow.webContents.id, {
+        mode,
+        displayId: String(display.id),
+        scaleFactor: display.scaleFactor,
+        displayDipBounds: display.bounds,
+        displayPhysicalBounds: physicalBounds,
+        minimumSize: { width: 20, height: 10 }
+      })
       pickerWindow.setAlwaysOnTop(true, 'screen-saver')
       pickerWindow.once('ready-to-show', () => {
         if (!pickerWindow.isDestroyed()) pickerWindow.show()
       })
-      pickerWindow.webContents.once('did-fail-load', () => settleCoordinatePicker({ canceled: true }))
-      pickerWindow.on('closed', () => settleCoordinatePicker({ canceled: true }))
+      pickerWindow.webContents.once('did-fail-load', () => settleScreenPicker({ canceled: true }))
+      pickerWindow.on('closed', () => settleScreenPicker({ canceled: true }))
 
       if (process.env.NODE_ENV === 'development' && devServerUrl) {
         pickerWindow.loadURL(`${devServerUrl}#/coordinate-picker`)
@@ -443,15 +497,38 @@ export function pickScreenCoordinate() {
       }
     })
   } catch (error) {
-    settleCoordinatePicker({ canceled: true, error: error.message })
+    settleScreenPicker({ canceled: true, error: error.message })
   }
+}
 
+export function pickScreenCoordinate() {
+  if (screenPickerSession) return createScreenPickerSession('point')
+  const promise = createScreenPickerSession('point')
+  openScreenPickerWindows('point', screen.getAllDisplays())
   return promise
 }
 
+export async function pickScreenRegion() {
+  if (screenPickerSession) return createScreenPickerSession('region')
+  const displays = screen.getAllDisplays()
+  let screenshots
+  try {
+    screenshots = await captureDisplays(displays)
+  } catch (error) {
+    return { canceled: true, error: error.message }
+  }
+  const promise = createScreenPickerSession('region', screenshots)
+  openScreenPickerWindows('region', displays)
+  return promise
+}
+
+export function getScreenPickerContext(sender) {
+  return screenPickerSession?.contexts.get(sender.id) || null
+}
+
 export function submitCoordinatePickerPoint(sender, clientPoint) {
-  const session = coordinatePickerSession
-  if (!session) return false
+  const session = screenPickerSession
+  if (!session || session.mode !== 'point') return false
 
   const pickerWindow = BrowserWindow.fromWebContents(sender)
   if (!pickerWindow || !session.windows.includes(pickerWindow)) return false
@@ -461,7 +538,7 @@ export function submitCoordinatePickerPoint(sender, clientPoint) {
     ? screen.dipToScreenPoint(globalDipPoint)
     : globalDipPoint
 
-  settleCoordinatePicker({
+  settleScreenPicker({
     canceled: false,
     x: physicalPoint.x,
     y: physicalPoint.y
@@ -469,8 +546,44 @@ export function submitCoordinatePickerPoint(sender, clientPoint) {
   return true
 }
 
+export function submitScreenPickerRegion(sender, clientRectangle) {
+  const session = screenPickerSession
+  if (!session || session.mode !== 'region') return false
+  const pickerWindow = BrowserWindow.fromWebContents(sender)
+  const context = session.contexts.get(sender.id)
+  if (!pickerWindow || !context || !session.windows.includes(pickerWindow)) return false
+  const convert = process.platform === 'win32' ? (point) => screen.dipToScreenPoint(point) : (point) => point
+  const selectedRegion = dipRectangleToPhysical(pickerWindow.getBounds(), clientRectangle, convert)
+  if (!isRegionLargeEnough(selectedRegion)) return false
+  const screenshot = session.screenshots.get(context.displayId)
+  try {
+    if (!screenshot || screenshot.isEmpty()) throw new Error('选区截图不可用')
+    const imageSize = screenshot.getSize()
+    const crop = physicalRectangleToImageCrop(selectedRegion, context.displayPhysicalBounds, imageSize)
+    let template = screenshot.crop({ x: crop.x, y: crop.y, width: crop.width, height: crop.height })
+    if (template.isEmpty()) throw new Error('选区截图为空')
+    if (crop.width !== crop.targetSize.width || crop.height !== crop.targetSize.height) {
+      template = template.resize({ ...crop.targetSize, quality: 'best' })
+    }
+    if (!hasUsefulPixelVariance(template.getBitmap())) throw new Error('选区图像信息过少，请框选包含清晰文字的区域')
+    const size = getRectangleSize(selectedRegion)
+    settleScreenPicker({
+      canceled: false,
+      displayId: context.displayId,
+      scaleFactor: context.scaleFactor,
+      displayPhysicalBounds: context.displayPhysicalBounds,
+      selectedRegion,
+      templateSize: size,
+      png: template.toPNG()
+    })
+  } catch (error) {
+    settleScreenPicker({ canceled: true, error: error.message })
+  }
+  return true
+}
+
 export function cancelCoordinatePicker() {
-  settleCoordinatePicker({ canceled: true })
+  settleScreenPicker({ canceled: true })
 }
 
 let debugWindow = null

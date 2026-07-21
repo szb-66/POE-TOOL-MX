@@ -2,32 +2,129 @@ import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
 import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
+import { buildBagRuntimeConfig, validateBagRuntimeConfig } from './bagConfig.js'
+
+let initialized = false
+let disposers = []
+
+function currentConfig() {
+  const bagStore = useBagStore()
+  const settingsStore = useSettingsStore()
+  return buildBagRuntimeConfig({
+    moduleEnabled: bagStore.moduleEnabled,
+    templates: bagStore.templates,
+    matchThreshold: bagStore.matchThreshold,
+    blacklist: bagStore.blacklist
+  }, settingsStore)
+}
+
+export async function startBagDetection({ silent = false } = {}) {
+  const bagStore = useBagStore()
+  const config = currentConfig()
+  const error = validateBagRuntimeConfig(config)
+  if (error) {
+    if (!silent) ElMessage.warning(error)
+    return { success: false, error }
+  }
+  const result = await electronApi.bag.startDetection(config)
+  if (result?.success) bagStore.setDetectionStatus(true)
+  else if (!silent) ElMessage.error(`启动背包检测失败：${result?.error || '未知错误'}`)
+  if (result?.success && result.warnings?.length && !silent) ElMessage.warning(result.warnings.join('；'))
+  return result
+}
+
+export async function setBagModuleEnabled(enabled) {
+  const bagStore = useBagStore()
+  if (enabled) {
+    const result = await startBagDetection()
+    if (!result?.success) return false
+    bagStore.setModuleEnabled(true)
+    ElMessage.success('背包安全自动入库已启用')
+    return true
+  }
+  await electronApi.bag.stopDetection()
+  bagStore.setModuleEnabled(false)
+  bagStore.resetStates()
+  ElMessage.success('背包安全自动入库已关闭')
+  return true
+}
 
 export async function startBagStash() {
   const bagStore = useBagStore()
-  if (bagStore.isStashing) return
-  const settingsStore = useSettingsStore()
+  if (bagStore.isStashing) return { success: false, error: '入库正在进行中' }
   try {
-    const result = await electronApi.bag.startStash({
-      templates: {
-        stashTitle: String(bagStore.templates.stashTitle || ''),
-        inventoryTitle: String(bagStore.templates.inventoryTitle || '')
-      },
-      inventory: {
-        startPos: {
-          x: Number(settingsStore.inventory.startPos?.x || 2658),
-          y: Number(settingsStore.inventory.startPos?.y || 1199)
-        },
-        slotSize: {
-          w: Number(settingsStore.inventory.slotSize?.w || 100),
-          h: Number(settingsStore.inventory.slotSize?.h || 100)
-        }
+    const result = await electronApi.bag.startStash()
+    if (!result?.success) throw new Error(result?.error || '未知错误')
+    bagStore.resetRunStats()
+    bagStore.setStashingStatus(true)
+    ElMessage.success('开始手动补扫')
+    return result
+  } catch (error) {
+    ElMessage.error(`启动入库失败：${error.message}`)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function stopBagStash() {
+  const result = await electronApi.bag.stopStash()
+  if (result?.success) useBagStore().setStashingStatus(false)
+  return result
+}
+
+export async function initBagAutomation() {
+  if (initialized) return
+  initialized = true
+  const bagStore = useBagStore()
+  disposers = [
+    electronApi.events.onBagDetectionMatch((data) => {
+      bagStore.setMatchedStatus(Boolean(data.matched))
+    }),
+    electronApi.events.onBagDetectionStopped((data) => {
+      bagStore.setDetectionStatus(false)
+      bagStore.setMatchedStatus(false)
+      if (data?.reason && data.reason !== 'process-ended') bagStore.setStopReason(data.reason)
+    }),
+    electronApi.events.onBagStashProgress((data) => {
+      if (data.progress === 0) bagStore.resetRunStats()
+      bagStore.setStashingStatus(true, data)
+    }),
+    electronApi.events.onBagStashCompleted((data) => {
+      bagStore.setStashingStatus(false, data)
+      bagStore.setStopReason('')
+      ElMessage.success(`自动入库完成：入库 ${data.stashedSlots || 0} 格，黑名单保留 ${data.blacklistedSlots || 0} 格`)
+    }),
+    electronApi.events.onBagStashStopped((data) => {
+      bagStore.setStashingStatus(false, data)
+      bagStore.setStopReason(data?.reason || '未知原因')
+      if (data?.reason && data.reason !== 'user-stopped' && data.reason !== 'process-ended') {
+        ElMessage.warning(`入库已停止：${formatBagStopReason(data.reason)}`)
       }
     })
-    if (!result?.success) throw new Error(result?.error || '未知错误')
-    bagStore.setStashingStatus(true, 0)
-    ElMessage.success('开始自动入库')
-  } catch (error) {
-    ElMessage.error(`启动入库失败: ${error.message}`)
+  ].filter(Boolean)
+
+  if (bagStore.moduleEnabled) {
+    try {
+      await startBagDetection({ silent: true })
+    } catch (error) {
+      bagStore.setDetectionStatus(false)
+      bagStore.setStopReason(error.message)
+    }
   }
+}
+
+export function disposeBagAutomation() {
+  disposers.forEach((dispose) => dispose?.())
+  disposers = []
+  initialized = false
+}
+
+export function formatBagStopReason(reason) {
+  const labels = {
+    'game-not-foreground': '游戏窗口不在前台',
+    'interface-lost': '仓库或背包界面已关闭',
+    'user-stopped': '用户停止',
+    'process-exited': '进程异常退出',
+    'process-ended': '进程已结束'
+  }
+  return labels[reason] || String(reason || '未知原因')
 }

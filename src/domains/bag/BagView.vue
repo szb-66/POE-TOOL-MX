@@ -2,257 +2,118 @@
   <div class="bag-page">
     <el-scrollbar>
       <div class="bag-content">
-        <!-- 模块开关 -->
-        <div class="section-header">
-          <h3 class="section-title">背包自动入库</h3>
-        </div>
+        <div class="section-header"><h3 class="section-title">背包安全自动入库</h3></div>
         <el-card class="section-card">
           <el-form label-width="120px" label-position="left">
             <el-form-item label="启用模块">
-              <el-switch
-                v-model="moduleEnabled"
-                @change="handleModuleToggle"
-                active-text="开启"
-                inactive-text="关闭"
-              />
+              <el-switch :model-value="bagStore.moduleEnabled" active-text="开启" inactive-text="关闭" @change="handleModuleToggle" />
+              <span class="hint-text inline-hint">同一次打开仓库会话只自动执行一轮</span>
             </el-form-item>
-            <el-form-item label="显示红框">
-              <el-switch
-                v-model="showDebugOverlay"
-                active-text="显示"
-                inactive-text="隐藏"
-              />
-              <span class="hint-text" style="margin-left: 10px">在屏幕上显示当前配置的检测区域</span>
+            <el-form-item label="显示检测区域">
+              <el-switch v-model="showDebugOverlay" active-text="显示" inactive-text="隐藏" />
             </el-form-item>
-            <el-form-item label="入库快捷键">
+            <el-form-item label="手动补扫快捷键">
               <KeyCaptureInput :model-value="settingsStore.globalShortcuts.stashStart" @change="saveStashShortcut" />
             </el-form-item>
             <el-form-item label="检测状态">
               <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
             </el-form-item>
-            <el-form-item label="入库状态" v-if="isStashing">
-              <el-progress
-                :percentage="stashProgress"
-                :status="stashProgress === 100 ? 'success' : undefined"
-                :text-inside="true"
-                :stroke-width="20"
-              />
+            <el-form-item v-if="bagStore.isStashing" label="扫描进度">
+              <el-progress :percentage="bagStore.stashProgress" :text-inside="true" :stroke-width="20" />
             </el-form-item>
-            <el-form-item v-if="moduleEnabled && isMatched && !isStashing">
-              <el-button type="primary" @click="handleStartStash" :icon="Upload">
-                开始入库
-              </el-button>
+            <el-form-item v-if="hasRunStats" label="本轮统计">
+              <div class="stats-row">
+                <el-tag type="success">已入库 {{ bagStore.stashStats.stashedSlots }}</el-tag>
+                <el-tag type="warning">黑名单 {{ bagStore.stashStats.blacklistedSlots }}</el-tag>
+                <el-tag type="info">空格 {{ bagStore.stashStats.emptySlots }}</el-tag>
+                <el-tag type="danger">未识别 {{ bagStore.stashStats.unreadableSlots }}</el-tag>
+              </div>
             </el-form-item>
-            <el-form-item v-if="isStashing">
-              <el-button type="danger" @click="handleStopStash" :icon="VideoPause">
-                停止入库
-              </el-button>
+            <el-form-item v-if="bagStore.lastStopReason" label="停止原因">
+              <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
+            </el-form-item>
+            <el-form-item v-if="bagStore.moduleEnabled && bagStore.isMatched && !bagStore.isStashing">
+              <el-button type="primary" :icon="Upload" @click="startBagStash">手动补扫</el-button>
+            </el-form-item>
+            <el-form-item v-if="bagStore.isStashing">
+              <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
             </el-form-item>
           </el-form>
         </el-card>
 
-        <!-- 模板配置 -->
-        <div class="section-header">
-          <h3 class="section-title">模板配置</h3>
-        </div>
+        <div class="section-header"><h3 class="section-title">物品黑名单</h3></div>
         <el-card class="section-card">
-          <el-form :model="templates" label-width="120px" label-position="left">
-<!-- ... (rest of the file until script) ... -->
-<!-- Script setup section changes -->
-            <el-row :gutter="40">
-              <el-col :span="12">
-                <el-form-item label="仓库标题模板">
-                  <el-upload
-                    class="template-upload"
-                    :auto-upload="false"
-                    :show-file-list="false"
-                    :on-change="(file) => handleTemplateUpload(file, 'stashTitle')"
-                    accept="image/*"
-                  >
-                    <template #trigger>
-                      <div class="upload-area">
-                        <div v-if="templates.stashTitle && typeof templates.stashTitle === 'string'">
-                          <img :src="getTemplatePreview(templates.stashTitle)" class="template-preview" />
-                          <div class="template-path">{{ getFileName(templates.stashTitle) }}</div>
-                        </div>
-                        <div v-else class="upload-placeholder">
-                          <el-icon><Plus /></el-icon>
-                          <div>点击上传模板图片</div>
-                        </div>
-                      </div>
-                    </template>
-                  </el-upload>
-                  <div class="region-config">
-                    <div class="region-title">仓库标题匹配区域：</div>
-                    <div class="region-inputs">
-                      <div class="coordinate-group">
-                        <span class="coordinate-label">左上</span>
-                        <el-input-number
-                          v-model="templates.stashRegion.left"
-                          placeholder="X"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                        <span class="separator">,</span>
-                        <el-input-number
-                          v-model="templates.stashRegion.top"
-                          placeholder="Y"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                      </div>
-                      <span class="separator">-</span>
-                      <div class="coordinate-group">
-                        <span class="coordinate-label">右下</span>
-                        <el-input-number
-                          v-model="templates.stashRegion.right"
-                          placeholder="X"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                        <span class="separator">,</span>
-                        <el-input-number
-                          v-model="templates.stashRegion.bottom"
-                          placeholder="Y"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="背包道具标题模板">
-                  <el-upload
-                    class="template-upload"
-                    :auto-upload="false"
-                    :show-file-list="false"
-                    :on-change="(file) => handleTemplateUpload(file, 'inventoryTitle')"
-                    accept="image/*"
-                  >
-                    <template #trigger>
-                      <div class="upload-area">
-                        <div v-if="templates.inventoryTitle && typeof templates.inventoryTitle === 'string'">
-                          <img :src="getTemplatePreview(templates.inventoryTitle)" class="template-preview" />
-                          <div class="template-path">{{ getFileName(templates.inventoryTitle) }}</div>
-                        </div>
-                        <div v-else class="upload-placeholder">
-                          <el-icon><Plus /></el-icon>
-                          <div>点击上传模板图片</div>
-                        </div>
-                      </div>
-                    </template>
-                  </el-upload>
-                  <div class="region-config">
-                    <div class="region-title">道具标题匹配区域：</div>
-                    <div class="region-inputs">
-                      <div class="coordinate-group">
-                        <span class="coordinate-label">左上</span>
-                        <el-input-number
-                          v-model="templates.inventoryRegion.left"
-                          placeholder="X"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                        <span class="separator">,</span>
-                        <el-input-number
-                          v-model="templates.inventoryRegion.top"
-                          placeholder="Y"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                      </div>
-                      <span class="separator">-</span>
-                      <div class="coordinate-group">
-                        <span class="coordinate-label">右下</span>
-                        <el-input-number
-                          v-model="templates.inventoryRegion.right"
-                          placeholder="X"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                        <span class="separator">,</span>
-                        <el-input-number
-                          v-model="templates.inventoryRegion.bottom"
-                          placeholder="Y"
-                          :min="0"
-                          :max="9999"
-                          :controls="false"
-                          style="width: 100px"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="40">
-              <el-col :span="12">
-                <el-form-item label="匹配阈值">
-                  <el-slider
-                    v-model="matchThreshold"
-                    :min="0.1"
-                    :max="1.0"
-                    :step="0.05"
-                    :show-input="true"
-                    :input-size="'small'"
-                    @change="handleMatchThresholdChange"
-                  />
-                  <div class="hint-text">推荐值：0.7-0.9，越高越精确但可能匹配失败</div>
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
+          <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
+          <div class="rule-editor">
+            <el-select v-model="draftRule.field" style="width: 150px" :disabled="bagStore.moduleEnabled">
+              <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
+            </el-select>
+            <el-input v-model="draftRule.keyword" placeholder="输入包含关键词" clearable :disabled="bagStore.moduleEnabled" @keyup.enter="addBlacklistRule" />
+            <el-button type="primary" :disabled="bagStore.moduleEnabled" @click="addBlacklistRule">添加</el-button>
+          </div>
+          <div v-if="bagStore.moduleEnabled" class="hint-text">请先关闭模块再修改黑名单，重新启用后新规则生效。</div>
+          <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
+            <el-table-column label="匹配字段" width="160">
+              <template #default="scope">{{ BAG_BLACKLIST_FIELD_LABELS[scope.row.field] }}</template>
+            </el-table-column>
+            <el-table-column prop="keyword" label="包含关键词" />
+            <el-table-column label="操作" width="100">
+              <template #default="scope">
+                <el-button link type="danger" :disabled="bagStore.moduleEnabled" @click="removeBlacklistRule(scope.$index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="暂无黑名单规则" :image-size="60" />
         </el-card>
 
-
-        <!-- 按钮位置配置 -->
-        <div class="section-header">
-          <h3 class="section-title">按钮位置配置</h3>
-        </div>
+        <div class="section-header"><h3 class="section-title">模板配置</h3></div>
         <el-card class="section-card">
-          <el-form :model="buttonPosition" label-width="120px" label-position="left">
-            <el-row :gutter="40">
-              <el-col :span="12">
-                <el-form-item label="一键入库按钮位置">
-                  <div class="position-input">
-                    <el-input-number
-                      v-model="buttonPosition.x"
-                      placeholder="X"
-                      :min="0"
-                      :controls="false"
-                      style="width: 80px"
-                      @change="handleButtonPositionChange"
-                    />
-                    <span class="separator">,</span>
-                    <el-input-number
-                      v-model="buttonPosition.y"
-                      placeholder="Y"
-                      :min="0"
-                      :controls="false"
-                      style="width: 80px"
-                      @change="handleButtonPositionChange"
-                    />
-                  </div>
-                  <div class="hint-text">按钮将在 overlay 窗口中显示，默认位置 3600, 1000</div>
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <el-alert v-if="bagStore.moduleEnabled" title="模板与匹配参数在模块运行期间锁定，请关闭模块后修改。" type="warning" :closable="false" />
+          <div class="template-grid">
+            <div v-for="definition in templateDefinitions" :key="definition.type" class="capture-card">
+              <div class="capture-card__header">
+                <strong>{{ definition.label }}</strong>
+                <el-button type="primary" :loading="capturingType === definition.type" :disabled="bagStore.moduleEnabled || Boolean(capturingType)"
+                  @click="captureTemplate(definition)">框选{{ definition.shortLabel }}</el-button>
+              </div>
+              <div class="capture-card__body">
+                <img v-if="bagStore.templates[definition.type]" :src="getTemplatePreview(bagStore.templates[definition.type])" class="template-preview" />
+                <div v-else class="upload-placeholder"><el-icon><Plus /></el-icon><span>尚未配置模板</span></div>
+              </div>
+              <div class="template-meta">
+                <span>模板尺寸：{{ templateSizeText(definition) }}</span>
+                <span>搜索区域：{{ regionText(bagStore.templates[definition.region]) }}</span>
+              </div>
+              <el-alert v-if="bagStore.templates[definition.type] && !bagStore.templates[definition.capture]"
+                title="这是旧配置，可继续使用；建议重新框选以提高匹配稳定性。" type="warning" :closable="false" show-icon />
+            </div>
+          </div>
+          <el-collapse v-model="advancedSections" class="advanced-settings">
+            <el-collapse-item title="高级设置：上传模板与手工区域" name="templates">
+              <el-alert title="高级修改会清除对应模板的采集环境记录。" type="info" :closable="false" />
+              <el-form label-width="140px" label-position="left" class="template-form">
+                <template v-for="definition in templateDefinitions" :key="definition.type">
+                  <el-form-item :label="`${definition.shortLabel}模板`">
+                    <el-upload :auto-upload="false" :show-file-list="false" accept="image/*"
+                      :disabled="bagStore.moduleEnabled" :on-change="(file) => handleTemplateUpload(file, definition.type)">
+                      <el-button :disabled="bagStore.moduleEnabled"><el-icon><Plus /></el-icon>上传图片</el-button>
+                    </el-upload>
+                  </el-form-item>
+                  <el-form-item :label="`${definition.shortLabel}匹配区域`">
+                    <div class="region-inputs">
+                      <el-input-number v-for="key in regionKeys" :key="key" v-model="bagStore.templates[definition.region][key]"
+                        :disabled="bagStore.moduleEnabled" :controls="false" :placeholder="key" @change="saveRegion(definition.type)" />
+                    </div>
+                  </el-form-item>
+                </template>
+              </el-form>
+            </el-collapse-item>
+          </el-collapse>
+          <el-form label-width="140px" label-position="left" class="template-form">
+            <el-form-item label="匹配阈值">
+              <el-slider :model-value="bagStore.matchThreshold" :min="0.1" :max="1" :step="0.05" show-input
+                :disabled="bagStore.moduleEnabled" @change="bagStore.setMatchThreshold" />
+            </el-form-item>
           </el-form>
         </el-card>
       </div>
@@ -261,431 +122,163 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { electronApi } from '@/api/electron'
-import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
-import { startBagStash as handleStartStash } from '@/utils/bagService'
+import { formatBagStopReason, setBagModuleEnabled, startBagStash, stopBagStash } from '@/utils/bagService'
+import { BAG_BLACKLIST_FIELDS, BAG_BLACKLIST_FIELD_LABELS } from '@/utils/bagConfig'
 
 const bagStore = useBagStore()
 const settingsStore = useSettingsStore()
-
-// 响应式数据
-const moduleEnabled = ref(bagStore.moduleEnabled)
-const templates = ref({ ...bagStore.templates })
-const matchThreshold = ref(bagStore.matchThreshold)
-const buttonPosition = ref({ ...bagStore.buttonPosition })
-const isMatched = ref(bagStore.isMatched)
-const isStashing = ref(bagStore.isStashing)
-const stashProgress = ref(bagStore.stashProgress)
 const showDebugOverlay = ref(false)
+const capturingType = ref('')
+const advancedSections = ref([])
+const draftRule = ref({ field: 'name', keyword: '' })
+const regionKeys = ['left', 'top', 'right', 'bottom']
+const templateDefinitions = [
+  { type: 'stashTitle', region: 'stashRegion', capture: 'stashCapture', label: '仓库标题模板', shortLabel: '仓库标题' },
+  { type: 'inventoryTitle', region: 'inventoryRegion', capture: 'inventoryCapture', label: '背包标题模板', shortLabel: '背包标题' }
+]
 
-// 更新调试覆盖层
-const updateDebugOverlay = () => {
-  if (!showDebugOverlay.value) return
-
-  const rects = []
-  if (templates.value.stashRegion) {
-    rects.push({
-      left: Number(templates.value.stashRegion.left || 0),
-      top: Number(templates.value.stashRegion.top || 0),
-      right: Number(templates.value.stashRegion.right || 0),
-      bottom: Number(templates.value.stashRegion.bottom || 0),
-      label: '仓库标题区域',
-      color: 'red'
-    })
-  }
-  if (templates.value.inventoryRegion) {
-    rects.push({
-      left: Number(templates.value.inventoryRegion.left || 0),
-      top: Number(templates.value.inventoryRegion.top || 0),
-      right: Number(templates.value.inventoryRegion.right || 0),
-      bottom: Number(templates.value.inventoryRegion.bottom || 0),
-      label: '道具标题区域',
-      color: 'blue'
-    })
-  }
-
-  electronApi.window.updateDebugOverlay({ rectangles: rects })
-}
-
-// 监听开关变化
-
-watch(showDebugOverlay, (val) => {
-  if (val) {
-    electronApi.window.openDebugOverlay()
-    setTimeout(updateDebugOverlay, 500) // 等待窗口创建
-  } else {
-    electronApi.window.closeDebugOverlay()
-  }
-})
-
-// 监听区域变化自动更新
-watch(templates, () => {
-  if (showDebugOverlay.value) {
-    updateDebugOverlay()
-  }
-}, { deep: true })
-
-onUnmounted(() => {
-  if (showDebugOverlay.value) {
-    electronApi.window.closeDebugOverlay()
-  }
-})
-
-// 计算属性
 const detectionStatus = computed(() => {
-  if (!moduleEnabled.value) {
-    return { type: 'info', text: '模块未启用' }
-  }
-  return bagStore.isDetecting
-    ? { type: 'success', text: '检测中...' }
-    : { type: 'warning', text: '等待检测' }
+  if (!bagStore.moduleEnabled) return { type: 'info', text: '模块未启用' }
+  if (bagStore.isMatched) return { type: 'success', text: '仓库与背包已就绪' }
+  return bagStore.isDetecting ? { type: 'warning', text: '等待仓库与背包同时打开' } : { type: 'danger', text: '检测已停止' }
 })
+const hasRunStats = computed(() => bagStore.stashStats.scannedSlots > 0)
 
-// 事件处理
 async function handleModuleToggle(enabled) {
   try {
-    if (enabled) {
-      // 检查配置是否完整
-      if (!templates.value.stashTitle || !templates.value.inventoryTitle) {
-        ElMessage.warning('请先配置模板图片')
-        moduleEnabled.value = false
-        return
-      }
-
-      // 调试输出：查看模板的当前值
-      console.log('stashTitle:', templates.value.stashTitle, 'type:', typeof templates.value.stashTitle)
-      console.log('inventoryTitle:', templates.value.inventoryTitle, 'type:', typeof templates.value.inventoryTitle)
-
-      // 检查模板路径是否为有效字符串
-      if (typeof templates.value.stashTitle !== 'string' || templates.value.stashTitle.includes('error')) {
-        ElMessage.warning('仓库标题模板无效，请重新上传')
-        moduleEnabled.value = false
-        return
-      }
-      if (typeof templates.value.inventoryTitle !== 'string' || templates.value.inventoryTitle.includes('error')) {
-        ElMessage.warning('背包道具标题模板无效，请重新上传')
-        moduleEnabled.value = false
-        return
-      }
-
-      const detectionConfig = {
-        templates: {
-          stashTitle: String(templates.value.stashTitle || ''),
-          inventoryTitle: String(templates.value.inventoryTitle || ''),
-          stashRegion: {
-            left: Number(templates.value.stashRegion?.left || 0),
-            top: Number(templates.value.stashRegion?.top || 0),
-            right: Number(templates.value.stashRegion?.right || 1920),
-            bottom: Number(templates.value.stashRegion?.bottom || 1080)
-          },
-          inventoryRegion: {
-            left: Number(templates.value.inventoryRegion?.left || 0),
-            top: Number(templates.value.inventoryRegion?.top || 0),
-            right: Number(templates.value.inventoryRegion?.right || 1920),
-            bottom: Number(templates.value.inventoryRegion?.bottom || 1080)
-          }
-        },
-        matchThreshold: Number(matchThreshold.value)
-      }
-
-      console.log('[检测配置]', JSON.stringify(detectionConfig, null, 2))
-
-      await electronApi.bag.startDetection(detectionConfig)
-      ElMessage.success('背包检测已启动')
-    } else {
-      await electronApi.bag.stopDetection()
-      ElMessage.success('背包检测已停止')
-    }
-
-    bagStore.setModuleEnabled(enabled)
+    await setBagModuleEnabled(enabled)
   } catch (error) {
-    ElMessage.error('操作失败: ' + error.message)
-    moduleEnabled.value = !enabled
+    ElMessage.error(`操作失败：${error.message}`)
   }
 }
 
 async function saveStashShortcut(value) {
   try {
     await commitGlobalShortcut('stashStart', value)
-    ElMessage.success(`快捷键已更新为: ${value}`)
+    ElMessage.success(`快捷键已更新为：${value}`)
   } catch (error) {
     ElMessage.error(error.message)
   }
 }
 
-// 模板上传处理
 async function handleTemplateUpload(file, type) {
   try {
-    const templatePath = await electronApi.bag.uploadTemplate(file.raw.path, type)
-    
-    console.log('uploadTemplate 返回值:', templatePath, 'type:', typeof templatePath)
-    
-    if (templatePath.success === false) {
-      ElMessage.error(`上传失败: ${templatePath.error}`)
-      return
-    }
-
-    if (type === 'stashTitle') {
-      templates.value.stashTitle = templatePath.path
-      bagStore.setTemplate('stashTitle', templatePath.path)
-    } else if (type === 'inventoryTitle') {
-      templates.value.inventoryTitle = templatePath.path
-      bagStore.setTemplate('inventoryTitle', templatePath.path)
-    }
-
+    const result = await electronApi.bag.uploadTemplate(file.raw.path, type)
+    if (!result?.success) return ElMessage.error(`上传失败：${result?.error || '未知错误'}`)
+    bagStore.setTemplate(type, result.path)
     ElMessage.success('模板图片已上传')
   } catch (error) {
-    ElMessage.error('上传失败: ' + error.message)
+    ElMessage.error(`上传失败：${error.message}`)
   }
 }
 
-function handleTemplateRegionChange(type) {
-  bagStore.setTemplateRegion(type, templates.value[`${type}Region`])
-}
-
-function handleMatchThresholdChange() {
-  bagStore.setMatchThreshold(matchThreshold.value)
-}
-
-function handleButtonPositionChange() {
-  bagStore.setButtonPosition(buttonPosition.value)
-}
-
-// 获取文件名
-function getFileName(path) {
-  if (!path || typeof path !== 'string') return ''
-  return path.split(/[\\/]/).pop()
-}
-
-// 获取模板预览图（如果是本地文件路径）
-function getTemplatePreview(path) {
-  if (!path || typeof path !== 'string') return ''
-  // 如果是本地文件路径，直接返回（Electron 中可以显示本地文件）
-  if (path.startsWith('/') || path.includes(':')) {
-    return path
+async function captureTemplate(definition) {
+  if (bagStore.moduleEnabled) return ElMessage.warning('请先关闭背包模块再框选')
+  capturingType.value = definition.type
+  try {
+    const result = await electronApi.bag.captureTemplate(definition.type)
+    if (result?.canceled) {
+      if (result.error) ElMessage.warning(result.error)
+      return
+    }
+    if (!result?.success) return ElMessage.error(`框选失败：${result?.error || '未知错误'}`)
+    bagStore.applyTemplateCapture(definition.type, result)
+    ElMessage.success(`${definition.shortLabel}模板已更新`)
+  } catch (error) {
+    ElMessage.error(`框选失败：${error.message}`)
+  } finally {
+    capturingType.value = ''
   }
-  return ''
+}
+
+function saveRegion(type) {
+  bagStore.clearCaptureMetadata(type)
+  bagStore.saveSettings()
+}
+
+function templateSizeText(definition) {
+  const size = bagStore.templates[definition.capture]?.templateSize
+  return size ? `${size.width} × ${size.height}px` : '未知'
+}
+
+function regionText(region) {
+  return `${region.left}, ${region.top} → ${region.right}, ${region.bottom}`
+}
+
+function addBlacklistRule() {
+  const keyword = draftRule.value.keyword.trim()
+  if (!keyword) return ElMessage.warning('请输入黑名单关键词')
+  bagStore.setBlacklist([...bagStore.blacklist, { field: draftRule.value.field, keyword }])
+  draftRule.value.keyword = ''
+}
+
+function removeBlacklistRule(index) {
+  bagStore.setBlacklist(bagStore.blacklist.filter((_rule, ruleIndex) => ruleIndex !== index))
 }
 
 async function handleStopStash() {
   try {
-    await electronApi.bag.stopStash()
-    bagStore.setStashingStatus(false, 0)
+    await stopBagStash()
     ElMessage.info('已停止入库')
   } catch (error) {
-    ElMessage.error('停止入库失败: ' + error.message)
+    ElMessage.error(`停止入库失败：${error.message}`)
   }
 }
 
-// 监听状态变化
-onMounted(async () => {
-  // 监听检测状态变化
-  bagStore.$subscribe((mutation, state) => {
-    moduleEnabled.value = state.moduleEnabled
-    templates.value = { ...state.templates }
-    matchThreshold.value = state.matchThreshold
-    buttonPosition.value = { ...state.buttonPosition }
-    isMatched.value = state.isMatched
-    isStashing.value = state.isStashing
-    stashProgress.value = state.stashProgress
-  })
+function updateDebugOverlay() {
+  if (!showDebugOverlay.value) return
+  electronApi.window.updateDebugOverlay({ rectangles: [
+    { ...bagStore.templates.stashRegion, label: '仓库标题区域', color: 'red' },
+    { ...bagStore.templates.inventoryRegion, label: '背包标题区域', color: 'blue' }
+  ] })
+}
 
-  // 监听检测匹配结果
-  electronApi.events.onBagDetectionMatch?.((data) => {
-    console.log('[检测] 匹配结果:', data)
-    bagStore.setMatchedStatus(data.matched)
-    isMatched.value = data.matched
-    if (data.matched) {
-      bagStore.setDetectionStatus(true)
-    }
-  })
-
-  // 监听入库进度
-  electronApi.events.onBagStashProgress?.((data) => {
-    console.log('[入库] 进度:', data.progress)
-    bagStore.setStashingStatus(true, data.progress)
-    stashProgress.value = data.progress
-  })
-
-  // 监听入库完成
-  electronApi.events.onBagStashCompleted?.(() => {
-    console.log('[入库] 完成')
-    bagStore.setStashingStatus(false, 100)
-    ElMessage.success('自动入库完成！')
-    setTimeout(() => {
-      stashProgress.value = 0
-    }, 2000)
-  })
-
-  // 监听入库停止
-  electronApi.events.onBagStashStopped?.((data) => {
-    console.log('[入库] 停止:', data)
-    bagStore.setStashingStatus(false, 0)
-  })
-
-  // 监听检测停止
-  electronApi.events.onBagDetectionStopped?.((data) => {
-    console.log('[检测] 停止:', data)
-    bagStore.setDetectionStatus(false)
-    bagStore.setMatchedStatus(false)
-    isMatched.value = false
-  })
+watch(showDebugOverlay, async (visible) => {
+  if (visible) {
+    await electronApi.window.openDebugOverlay()
+    updateDebugOverlay()
+  } else await electronApi.window.closeDebugOverlay()
 })
+watch(() => bagStore.templates, updateDebugOverlay, { deep: true })
+onUnmounted(() => { if (showDebugOverlay.value) electronApi.window.closeDebugOverlay() })
 
-onUnmounted(() => {
-  // 清理监听器
-})
+function getTemplatePreview(imagePath) {
+  if (!imagePath) return ''
+  return imagePath.startsWith('file:') ? imagePath : `file:///${imagePath.replace(/\\/g, '/')}`
+}
 </script>
 
 <style scoped lang="less">
-.bag-page {
-  height: 100%;
-  background-color: var(--bg-secondary);
-
-  .bag-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
-
-    .section-header {
-      margin-bottom: var(--spacing-sm);
-      padding-left: var(--spacing-xs);
-
-      .section-title {
-        font-size: var(--font-size-md);
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-      }
-    }
-
-    .section-card {
-      margin-bottom: var(--spacing-lg);
-    }
-
-    .position-input {
-      display: flex;
-      align-items: center;
-
-      .separator {
-        margin: 0 8px;
-        color: var(--text-secondary);
-      }
-    }
-
-    .file-input {
-      width: 100%;
-    }
-
-    .hint-text {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-top: 4px;
-    }
-
-    .template-upload {
-      width: 100%;
-      .upload-area {
-        width: 100%;
-        height: 150px;
-        border: 1px dashed var(--border-base);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        position: relative;
-
-        &:hover {
-          border-color: var(--primary-color);
-        }
-
-        .upload-placeholder {
-          text-align: center;
-          color: var(--text-secondary);
-          font-size: 14px;
-        }
-
-        .template-preview {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          border-radius: 8px;
-        }
-
-        .template-path {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          background-color: rgba(0, 0, 0, 0.5);
-          color: white;
-          font-size: 12px;
-          padding: 4px 8px;
-          border-bottom-left-radius: 8px;
-          border-bottom-right-radius: 8px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-    }
-
-    .region-config {
-      margin-top: 12px;
-
-      .region-title {
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin-bottom: 8px;
-      }
-
-      .region-inputs {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-
-        .coordinate-group {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-
-          .coordinate-label {
-            font-size: 13px;
-            color: var(--text-primary);
-            font-weight: 500;
-            min-width: 32px;
-          }
-        }
-
-        .separator {
-          margin: 0 4px;
-          color: var(--text-secondary);
-          font-weight: bold;
-        }
-      }
-    }
-  }
-
-  :deep(.section-card) {
-    box-shadow: none !important;
-    border-radius: 8px !important;
-    border: 1px solid var(--border-base) !important;
-  }
-
-  :deep(.el-form-item) {
-    margin-bottom: 24px;
-  }
-
-  :deep(.el-card__body) {
-    padding: 24px;
-  }
-}
+.bag-page { height: 100%; background: var(--bg-secondary); }
+.bag-content { max-width: 1100px; margin: 0 auto; padding: 20px; }
+.section-header { margin: 0 0 var(--spacing-sm) var(--spacing-xs); }
+.section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
+.section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
+.inline-hint { margin-left: 12px; }
+.hint-text { margin-top: 6px; color: var(--text-secondary); font-size: 12px; }
+.stats-row, .rule-editor, .region-inputs { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.rule-editor { margin-top: 16px; }
+.rule-editor .el-input { flex: 1; min-width: 220px; }
+.rule-table { margin-top: 16px; }
+.template-form { margin-top: 16px; }
+.template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.capture-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--border-base); border-radius: 8px; }
+.capture-card__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.capture-card__body { height: 100px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg-secondary); border-radius: 6px; }
+.template-meta { display: flex; flex-direction: column; gap: 4px; color: var(--text-secondary); font-size: 12px; }
+.advanced-settings { margin-top: 16px; }
+.region-inputs .el-input-number { width: 130px; }
+.upload-area { width: 260px; height: 100px; border: 1px dashed var(--border-base); border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+.upload-area:hover { border-color: var(--primary-color); }
+.template-preview { width: 100%; height: 100%; object-fit: contain; }
+.upload-placeholder { display: flex; gap: 8px; align-items: center; color: var(--text-secondary); }
+@media (max-width: 800px) { .template-grid { grid-template-columns: 1fr; } }
 </style>

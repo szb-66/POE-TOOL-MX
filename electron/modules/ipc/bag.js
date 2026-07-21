@@ -1,308 +1,288 @@
-/**
- * Purpose: 背包模块 IPC 处理器，负责模板匹配检测和自动入库功能
- * Inputs: python (object) - Python 管理模块，window (object) - 窗口管理模块，fileWatcher (object) - 文件监听模块
- * Outputs: 注册 IPC 处理器，无返回值
- * Preconditions: Python 环境已配置，窗口已创建
- * Edge cases: 模板图片不存在时返回错误；检测线程已运行时返回警告
- * Errors: 模板匹配失败时返回错误；入库操作失败时返回错误
- */
+/** 背包模块 IPC：双界面检测、单会话自动触发及安全入库进程编排。 */
 
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, nativeImage, screen } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import { app } from 'electron'
+import { BagSessionController, createEventLineParser } from '../bag/orchestrator.js'
+import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
+import { expandSearchRegion } from '../window/coordinates.js'
+import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 
-let detectionProcess = null // 模板匹配检测进程
-let stashProcess = null     // 自动入库进程
+let detectionProcess = null
+let stashProcess = null
+let latestConfig = null
+let getMainWindowRef = null
+const session = new BagSessionController()
+
+function send(channel, payload = {}) {
+  const mainWindow = getMainWindowRef?.()
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
+}
+
+function runtimeConfig(config = {}) {
+  return {
+    templates: {
+      stash_title: String(config.templates?.stashTitle || ''),
+      inventory_title: String(config.templates?.inventoryTitle || ''),
+      stash_region: config.templates?.stashRegion || {},
+      inventory_region: config.templates?.inventoryRegion || {}
+    },
+    match_threshold: Number(config.matchThreshold ?? 0.8),
+    inventory: config.inventory || {},
+    blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
+    delays: {
+      mouse_move: Number(config.delays?.mouseMove ?? 260),
+      action: Number(config.delays?.action ?? 65),
+      clipboard_read: Number(config.delays?.clipboardRead ?? 100)
+    }
+  }
+}
+
+function validateConfig(config) {
+  if (!config?.templates?.stash_title || !config?.templates?.inventory_title) return '请先配置仓库和背包标题模板'
+  if (!config.inventory?.startPos || !config.inventory?.slotSize) return '背包网格配置不完整'
+  return ''
+}
+
+function currentDisplays() {
+  return screen.getAllDisplays().map((display) => ({
+    id: String(display.id),
+    scaleFactor: display.scaleFactor,
+    physicalSize: {
+      width: Math.round(display.bounds.width * display.scaleFactor),
+      height: Math.round(display.bounds.height * display.scaleFactor)
+    }
+  }))
+}
+
+function validateCaptureConfig(config) {
+  const displays = currentDisplays()
+  const warnings = []
+  const definitions = [
+    ['仓库标题', 'stashTitle', 'stashRegion', 'stashCapture'],
+    ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture']
+  ]
+  for (const [label, pathKey, regionKey, captureKey] of definitions) {
+    const result = validateTemplateCaptureEnvironment(label, config.templates?.[pathKey], config.templates?.[regionKey], config.templates?.[captureKey], displays)
+    if (result.error) return { error: result.error, warnings }
+    if (result.legacyWarning) warnings.push(result.legacyWarning)
+    const metadata = config.templates?.[captureKey]
+    if (metadata) {
+      const image = nativeImage.createFromPath(String(config.templates[pathKey] || ''))
+      const size = image.getSize()
+      if (image.isEmpty() || size.width !== metadata.templateSize.width || size.height !== metadata.templateSize.height) {
+        return { error: `${label}的模板尺寸与采集记录不一致，请重新框选`, warnings }
+      }
+    }
+  }
+  return { error: '', warnings }
+}
+
+function stopChild(child) {
+  if (!child || child.killed) return
+  child.kill('SIGTERM')
+  setTimeout(() => {
+    if (child.exitCode === null) child.kill('SIGKILL')
+  }, 2000)
+}
+
+function writeConfig(fileWatcher, name, config) {
+  const configPath = path.join(fileWatcher.getFilePaths().tempDir, name)
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
+  return configPath
+}
+
+function spawnPython(python, mode, configPath) {
+  const pythonPath = python.detectPythonPath()
+  if (!pythonPath) throw new Error('未找到Python可执行文件')
+  const scriptPath = path.join(process.cwd(), 'src/assets/scripts/bag_auto_stash_template.py')
+  if (!fs.existsSync(scriptPath)) throw new Error(`模板脚本不存在: ${scriptPath}`)
+  return spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
+    shell: false,
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+  })
+}
+
+function bindCommonProcessLogging(child, label) {
+  child.stderr.setEncoding('utf8')
+  child.stderr.on('data', (data) => console.error(`[${label}]`, String(data).trim()))
+  child.on('error', (error) => console.error(`[${label}] 进程错误:`, error))
+}
+
+function startStashProcess(python, fileWatcher, mode) {
+  const gate = mode === 'auto' ? session.beginAutomatic() : session.beginManual()
+  if (!gate.success) return gate
+  if (!latestConfig) {
+    session.finishStash()
+    return { success: false, error: '背包模块尚未配置' }
+  }
+  const error = validateConfig(latestConfig)
+  if (error) {
+    session.finishStash()
+    return { success: false, error }
+  }
+
+  let child
+  try {
+    const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', latestConfig)
+    child = spawnPython(python, 'stash', configPath)
+    stashProcess = child
+  } catch (error_) {
+    session.finishStash()
+    return { success: false, error: error_.message }
+  }
+
+  let terminalEventSent = false
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', createEventLineParser((event) => {
+    if (event.event === 'stash-progress') send('bag-stash-progress', event)
+    else if (event.event === 'stash-completed') {
+      terminalEventSent = true
+      send('bag-stash-completed', event)
+    } else if (event.event === 'stash-aborted' || event.event === 'stash-error') {
+      terminalEventSent = true
+      send('bag-stash-stopped', event)
+    }
+  }, (line) => console.log('[自动入库]', line)))
+  bindCommonProcessLogging(child, '自动入库')
+  send('bag-stash-progress', {
+    event: 'stash-progress', scannedSlots: 0, stashedSlots: 0,
+    blacklistedSlots: 0, emptySlots: 0, unreadableSlots: 0, progress: 0
+  })
+  child.on('close', (code) => {
+    const wasCurrent = stashProcess === child
+    if (wasCurrent) stashProcess = null
+    if (wasCurrent) {
+      session.finishStash()
+      if (!terminalEventSent) send('bag-stash-stopped', { reason: code === 0 ? 'process-ended' : 'process-exited', code })
+    }
+  })
+  return { success: true, processId: child.pid, mode }
+}
+
+function startDetectionProcess(python, fileWatcher) {
+  const configPath = writeConfig(fileWatcher, 'bag_detection_config.json', latestConfig)
+  const child = spawnPython(python, 'detect', configPath)
+  detectionProcess = child
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', createEventLineParser((event) => {
+    if (event.event === 'detection-state') {
+      const shouldAutoStart = session.setReady(event.ready, event.foreground)
+      send('bag-detection-match', { matched: session.ready && session.foreground, ...event })
+      if (shouldAutoStart) {
+        const result = startStashProcess(python, fileWatcher, 'auto')
+        if (!result.success) send('bag-stash-stopped', { reason: result.error })
+      }
+    } else if (event.event === 'detection-error') {
+      send('bag-detection-stopped', event)
+    }
+  }, (line) => console.log('[背包检测]', line)))
+  bindCommonProcessLogging(child, '背包检测')
+  child.on('close', (code) => {
+    const wasCurrent = detectionProcess === child
+    if (wasCurrent) detectionProcess = null
+    if (wasCurrent) {
+      session.setReady(false, false)
+      send('bag-detection-stopped', { code, reason: code === 0 ? 'process-ended' : 'process-exited' })
+    }
+  })
+  return child
+}
 
 export function registerBagHandlers(python, window, fileWatcher) {
-  const { detectPythonPath } = python
-  const { getMainWindow, getAppDataPath } = window
-  const { getFilePaths } = fileWatcher
+  getMainWindowRef = window.getMainWindow
 
-  // IPC: 启动背包检测
-  ipcMain.handle('start-bag-detection', async (event, config) => {
+  ipcMain.handle('start-bag-detection', async (_event, config) => {
     try {
-      console.log('[背包检测] 收到启动请求, config =', JSON.stringify(config))
-      // 检查是否已有检测进程在运行
-      if (detectionProcess) {
-        return { success: false, error: '检测进程已在运行中' }
-      }
-
-      // 验证配置
-      if (!config.templates.stashTitle || !config.templates.inventoryTitle) {
-        console.log('[背包检测] 校验失败: 模板未配置')
-        return { success: false, error: '请先配置模板图片' }
-      }
-
-      // 准备 Python 脚本参数
-      const pythonPath = detectPythonPath()
-      if (!pythonPath) {
-        return { success: false, error: '未找到Python可执行文件' }
-      }
-
-      // 使用模板文件路径
-      const templateScriptPath = path.join(process.cwd(), 'src/assets/scripts/bag_auto_stash_template.py')
-      if (!fs.existsSync(templateScriptPath)) {
-        return { success: false, error: '模板脚本不存在: ' + templateScriptPath }
-      }
-
-      // 准备配置 - 为检测模式
-      const detectionConfig = {
-        templates: {
-          stash_title: config.templates.stashTitle,
-          inventory_title: config.templates.inventoryTitle,
-          stash_region: config.templates.stashRegion || {
-            left: 0, top: 0, right: 1920, bottom: 1080
-          },
-          inventory_region: config.templates.inventoryRegion || {
-            left: 0, top: 0, right: 1920, bottom: 1080
-          }
-        },
-        match_threshold: config.matchThreshold || 0.8
-      }
-
-      // 将配置写入临时文件
-      const configPath = path.join(getFilePaths().tempDir, 'bag_detection_config.json')
-      fs.writeFileSync(configPath, JSON.stringify(detectionConfig, null, 2), 'utf8')
-      console.log('[背包检测] 配置已写入:', configPath)
-
-      // 启动检测进程，传递模式和配置文件路径
-      detectionProcess = spawn(pythonPath, [templateScriptPath, '--mode', 'detect', '--config', configPath], {
-        shell: true,
-        env: {
-          ...process.env,
-          PYTHONIOENCODING: 'utf-8'
-        }
-      })
-      detectionProcess.stdout.setEncoding('utf8')
-      detectionProcess.stderr.setEncoding('utf8')
-
-      // 监听进程错误
-      detectionProcess.on('error', (error) => {
-        console.error('[背包检测] 进程启动错误:', error)
-        detectionProcess = null
-      })
-
-      // 监听进程退出
-      detectionProcess.on('close', (code) => {
-        console.log('[背包检测] 进程退出，代码:', code)
-        detectionProcess = null
-
-        // 通知前端检测已停止
-        const mainWindow = getMainWindow()
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('bag-detection-stopped', { code })
-        }
-      })
-
-      // 监听标准错误输出
-      detectionProcess.stderr.on('data', (data) => {
-        const errorOutput = data.toString('utf8')
-        console.error('[背包检测] 错误输出:', errorOutput)
-      })
-
-      // 监听检测结果
-      detectionProcess.stdout.on('data', (data) => {
-        const output = data.toString('utf8')
-        console.log('[背包检测] 输出:', output)
-
-        // 解析检测结果
-        if (output.includes('MATCH_SUCCESS')) {
-          // 模板匹配成功，通知前端
-          const mainWindow = getMainWindow()
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('bag-detection-match', { matched: true })
-          }
-        } else if (output.includes('MATCH_FAILED')) {
-          // 模板匹配失败，通知前端
-          const mainWindow = getMainWindow()
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('bag-detection-match', { matched: false })
-          }
-        }
-      })
-
-      return { success: true, processId: detectionProcess.pid }
+      if (detectionProcess) return { success: false, error: '检测进程已在运行中' }
+      const captureValidation = validateCaptureConfig(config || {})
+      if (captureValidation.error) return { success: false, error: captureValidation.error }
+      latestConfig = runtimeConfig(config)
+      const error = validateConfig(latestConfig)
+      if (error) return { success: false, error }
+      session.reset()
+      const child = startDetectionProcess(python, fileWatcher)
+      return { success: true, processId: child.pid, warnings: captureValidation.warnings }
     } catch (error) {
       return { success: false, error: error.message }
     }
   })
 
-  // IPC: 停止背包检测
   ipcMain.handle('stop-bag-detection', async () => {
-    try {
-      if (detectionProcess) {
-        // 强制终止检测进程
-        detectionProcess.kill('SIGTERM')
-
-        // 等待一段时间后强制终止
-        setTimeout(() => {
-          if (detectionProcess) {
-            detectionProcess.kill('SIGKILL')
-          }
-        }, 2000)
-
-        detectionProcess = null
-      }
-
-      // 停止入库进程（如果正在运行）
-      if (stashProcess) {
-        stashProcess.kill('SIGTERM')
-        setTimeout(() => {
-          if (stashProcess) {
-            stashProcess.kill('SIGKILL')
-          }
-        }, 2000)
-        stashProcess = null
-      }
-
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error.message }
-    }
+    const detecting = detectionProcess
+    const stashing = stashProcess
+    detectionProcess = null
+    stashProcess = null
+    stopChild(detecting)
+    stopChild(stashing)
+    session.reset()
+    send('bag-detection-match', { matched: false, ready: false })
+    return { success: true }
   })
 
-  // IPC: 启动自动入库
-  ipcMain.handle('start-bag-stash', async (event, config) => {
-    try {
-      console.log('[自动入库] 收到启动请求, config =', JSON.stringify(config))
+  ipcMain.handle('start-bag-stash', async () => startStashProcess(python, fileWatcher, 'manual'))
 
-      // 检查是否已有入库进程在运行
-      if (stashProcess) {
-        return { success: false, error: '入库进程已在运行中' }
-      }
-
-      const pythonPath = detectPythonPath()
-      if (!pythonPath) {
-        return { success: false, error: '未找到Python可执行文件' }
-      }
-
-      // 使用模板文件路径
-      const templateScriptPath = path.join(process.cwd(), 'src/assets/scripts/bag_auto_stash_template.py')
-      if (!fs.existsSync(templateScriptPath)) {
-        return { success: false, error: '模板脚本不存在: ' + templateScriptPath }
-      }
-
-      // 准备配置 - 为入库模式，包含背包参数
-      const stashConfig = {
-        templates: {
-          stash_title: config.templates?.stashTitle || '',
-          inventory_title: config.templates?.inventoryTitle || ''
-        },
-        inventory: config.inventory || {
-          startPos: { x: 2658, y: 1199 },
-          slotSize: { w: 100, h: 100 }
-        }
-      }
-
-      // 将配置写入临时文件
-      const configPath = path.join(getFilePaths().tempDir, 'bag_stash_config.json')
-      fs.writeFileSync(configPath, JSON.stringify(stashConfig, null, 2), 'utf8')
-      console.log('[自动入库] 配置已写入:', configPath)
-
-      // 启动入库进程
-      stashProcess = spawn(pythonPath, [templateScriptPath, '--mode', 'stash', '--config', configPath], {
-        shell: true,
-        env: {
-          ...process.env,
-          PYTHONIOENCODING: 'utf-8'
-        }
-      })
-      stashProcess.stdout.setEncoding('utf8')
-      stashProcess.stderr.setEncoding('utf8')
-
-      // 监听入库进度
-      stashProcess.stdout.on('data', (data) => {
-        const output = data.toString('utf8')
-        console.log('[自动入库]', output)
-
-        // 解析进度信息
-        const progressMatch = output.match(/PROGRESS:(\d+)/)
-        if (progressMatch) {
-          const progress = parseInt(progressMatch[1])
-          const mainWindow = getMainWindow()
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('bag-stash-progress', { progress })
-          }
-        }
-
-        // 入库完成
-        if (output.includes('STASH_COMPLETED')) {
-          const mainWindow = getMainWindow()
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('bag-stash-completed')
-          }
-        }
-      })
-
-      stashProcess.stderr.on('data', (data) => {
-        console.error('[自动入库错误]', data.toString('utf8'))
-      })
-
-      stashProcess.on('close', (code) => {
-        console.log(`[自动入库进程退出] 代码: ${code}`)
-        stashProcess = null
-
-        // 通知前端入库已停止
-        const mainWindow = getMainWindow()
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('bag-stash-stopped', { code })
-        }
-      })
-
-      stashProcess.on('error', (error) => {
-        console.error('[自动入库] 进程错误:', error)
-        stashProcess = null
-      })
-
-      return { success: true, processId: stashProcess.pid }
-    } catch (error) {
-      return { success: false, error: error.message }
-    }
-  })
-
-  // IPC: 停止自动入库
   ipcMain.handle('stop-bag-stash', async () => {
-    try {
-      if (stashProcess) {
-        stashProcess.kill('SIGTERM')
-        setTimeout(() => {
-          if (stashProcess) {
-            stashProcess.kill('SIGKILL')
-          }
-        }, 2000)
-        stashProcess = null
-      }
-
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error.message }
-    }
+    const child = stashProcess
+    stashProcess = null
+    stopChild(child)
+    session.finishStash()
+    return { success: true }
   })
 
-  // IPC: 上传模板图片
-  ipcMain.handle('upload-bag-template', async (event, sourcePath, type) => {
+  ipcMain.handle('upload-bag-template', async (_event, sourcePath, type) => {
     try {
-      // 确保模板目录存在
-      const userDataPath = app.getPath('userData')
-      const templateDir = path.join(userDataPath, 'templates')
-      if (!fs.existsSync(templateDir)) {
-        fs.mkdirSync(templateDir, { recursive: true })
-      }
-
-      // 生成目标文件名
+      assertBagTemplateTarget(type)
+      const templateDir = path.join(app.getPath('userData'), 'templates')
+      if (!fs.existsSync(templateDir)) fs.mkdirSync(templateDir, { recursive: true })
       const ext = path.extname(sourcePath)
       const fileName = type === 'stashTitle' ? `stash_title${ext}` : `inventory_title${ext}`
       const targetPath = path.join(templateDir, fileName)
-
-      // 复制文件
       fs.copyFileSync(sourcePath, targetPath)
-
       return { success: true, path: targetPath }
     } catch (error) {
       return { success: false, error: error.message }
     }
   })
+
+  ipcMain.handle('capture-bag-template', async (_event, type) => {
+    try {
+      assertBagTemplateTarget(type)
+      const result = await window.pickScreenRegion()
+      if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
+      const templateDir = path.join(app.getPath('userData'), 'templates')
+      const targetPath = savePngAtomically(templateDir, type, result.png)
+      const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)
+      return {
+        success: true,
+        path: targetPath,
+        region,
+        metadata: {
+          displayId: result.displayId,
+          scaleFactor: result.scaleFactor,
+          displayPhysicalSize: {
+            width: result.displayPhysicalBounds.width,
+            height: result.displayPhysicalBounds.height
+          },
+          templateSize: result.templateSize,
+          selectedRegion: result.selectedRegion,
+          capturedAt: new Date().toISOString()
+        }
+      }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
+}
+
+export async function cleanupBagProcesses() {
+  const detecting = detectionProcess
+  const stashing = stashProcess
+  detectionProcess = null
+  stashProcess = null
+  stopChild(detecting)
+  stopChild(stashing)
+  session.reset()
 }
