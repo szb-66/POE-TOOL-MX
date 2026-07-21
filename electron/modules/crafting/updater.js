@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto'
 import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createCoreCurrencyCrafts, parsePoedbBases, parsePoedbCrafts, parsePoedbModifiers } from './poedbParser.js'
-import { normalizeCraftingDataset, stableCraftingId } from './model.js'
-import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES } from './poedbSources.js'
+import { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, mergeModifierGoals, parsePoedbBases, parsePoedbCrafts, parsePoedbModifiers } from './poedbParser.js'
+import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from './model.js'
+import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from './poedbSources.js'
 
 async function fetchOrThrow(fetchImpl, url, signal) {
   let lastError
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
       const response = await fetchImpl(url, { signal, headers: { 'user-agent': 'ExileHelper/1.0 personal-data-refresh' } })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -15,7 +15,7 @@ async function fetchOrThrow(fetchImpl, url, signal) {
     } catch (error) {
       if (signal.aborted) throw error
       lastError = error
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 600))
+      if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, attempt * 1500))
     }
   }
   throw new Error(`${url} 获取失败：${lastError?.message || '网络错误'}`, { cause: lastError })
@@ -59,7 +59,7 @@ export class CraftingDataUpdater {
       for (let index = 0; index < POEDB_MODIFIER_PAGES.length; index += 1) {
         const page = POEDB_MODIFIER_PAGES[index]
         const url = `https://poedb.tw/cn/${page}`
-        const modifiers = parsePoedbModifiers(await (await fetchOrThrow(this.fetchImpl, url, signal)).text())
+        const modifiers = parsePoedbModifiers(await (await fetchOrThrow(this.fetchImpl, url, signal)).text(), { profileId: page })
         if (!modifiers.length) throw new Error(`${page} 词缀解析结果为空`)
         modifierResults.push({ url, modifiers })
         onProgress({ phase: 'modifiers', completed: index + 1, total: POEDB_MODIFIER_PAGES.length, label: page })
@@ -68,8 +68,7 @@ export class CraftingDataUpdater {
         fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Crafting_Bench', signal).then((response) => response.text()),
         fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Horticrafting', signal).then((response) => response.text())
       ])
-      const bases = [...new Map(pageResults.flatMap((entry) => entry.bases).map((entry) => [entry.id, entry])).values()]
-      const modifiers = [...new Map(modifierResults.flatMap((entry) => entry.modifiers).map((entry) => [entry.id, entry])).values()]
+      const bases = finalizePoedbBases(pageResults.flatMap((entry) => entry.bases), SPECIAL_MODIFIER_PROFILES)
       // ponytail: merge+dedup — createCoreCurrencyCrafts() generates canonical costs,
       // prior-dataset staticCrafts may carry additional info; Map keeps last-write-wins
       const staticCrafts = this.repository.getDataset().crafts.filter((craft) => craft.provider === 'currency' || ['lock_prefixes', 'lock_suffixes', 'cannot_roll_attack', 'cannot_roll_caster', 'multimod'].includes(craft.effectKind))
@@ -77,6 +76,7 @@ export class CraftingDataUpdater {
         ...createCoreCurrencyCrafts(), ...staticCrafts,
         ...parsePoedbCrafts(benchHtml, { provider: 'bench' }), ...parsePoedbCrafts(harvestHtml, { provider: 'harvest' })
       ].map((entry) => [entry.id, entry])).values()]
+      const modifierFamilies = groupModifierFamilies(mergeModifierGoals(modifierResults.flatMap((entry) => entry.modifiers), crafts))
       const images = { placeholder: 'images/placeholder.svg' }
       bases.forEach((base) => { base.imageId = 'placeholder'; delete base.imageUrl })
       onProgress({ phase: 'text-only', completed: bases.length, total: bases.length, skippedImages: bases.length })
@@ -84,11 +84,11 @@ export class CraftingDataUpdater {
       const firstHtml = pageResults[0]?.html || ''
       const dataset = {
         manifest: {
-          schemaVersion: 1, game: 'poe1', locale: 'zh-CN', league: detectLeague(firstHtml), patch: 'current',
+          schemaVersion: CRAFTING_SCHEMA_VERSION, game: 'poe1', locale: 'zh-CN', league: detectLeague(firstHtml), patch: 'current',
           generatedAt: new Date().toISOString(), checksum: 'pending',
           sources: [...new Set([...pageResults, ...modifierResults].map((entry) => entry.url).concat(['https://poedb.tw/cn/Crafting_Bench', 'https://poedb.tw/cn/Horticrafting']))]
             .map((url) => ({ id: stableCraftingId('source', url), url }))
-        }, bases, modifiers, crafts, images
+        }, bases, modifierFamilies, crafts, images
       }
       const checksumInput = JSON.stringify({ ...dataset, manifest: { ...dataset.manifest, checksum: '' } })
       dataset.manifest.checksum = createHash('sha256').update(checksumInput).digest('hex')

@@ -3,7 +3,7 @@ import { access, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promis
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeCraftingDataset } from './model.js'
-import { legalModifierTiers, modifierCanSpawn, validateBaseVariant } from './variantRules.js'
+import { modifierMatchesBase, validateBaseVariant } from './variantRules.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_BUILTIN_ROOT = path.resolve(dirname, '../../assets/crafting-data')
@@ -74,23 +74,31 @@ export class CraftingDataRepository {
       source: root === this.builtinRoot ? 'builtin' : 'updated',
       stale: dataset.manifest.league === 'current' || dataset.manifest.league === 'Fixture',
       warning: this.lastError,
-      counts: { bases: dataset.bases.length, modifiers: dataset.modifiers.length, crafts: dataset.crafts.length }
+      counts: { bases: dataset.bases.length, modifiers: dataset.modifierFamilies.length, modifierEntries: dataset.modifiers.length, crafts: dataset.crafts.length }
     }
   }
 
   listCategories() {
-    const categories = new Map()
+    const roots = new Map()
     this.getDataset().bases.forEach((base) => {
-      if (!categories.has(base.category)) categories.set(base.category, new Map())
-      const classes = categories.get(base.category)
-      classes.set(base.itemClass, (classes.get(base.itemClass) ?? 0) + 1)
+      let level = roots
+      base.categoryPath.forEach((segment, index) => {
+        const isLeaf = index === base.categoryPath.length - 1
+        const key = isLeaf ? `${segment}\u0000${base.modifierProfileId}` : segment
+        const node = level.get(key) ?? { name: segment || ITEM_CLASS_LABELS[base.itemClass] || base.itemClass, count: 0, childrenMap: new Map() }
+        node.count += 1
+        if (isLeaf) node.itemClass = base.modifierProfileId
+        level.set(key, node)
+        level = node.childrenMap
+      })
     })
-    return [...categories].map(([name, classes]) => ({
-      name,
-      count: [...classes.values()].reduce((sum, count) => sum + count, 0),
-      children: [...classes].map(([itemClass, count]) => ({ itemClass, name: ITEM_CLASS_LABELS[itemClass] || itemClass, count }))
-        .sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    const serialize = (nodes) => [...nodes.values()].map((node) => ({
+      name: node.name,
+      count: node.count,
+      ...(node.itemClass ? { itemClass: node.itemClass } : {}),
+      ...(node.childrenMap.size ? { children: serialize(node.childrenMap) } : {})
     })).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+    return serialize(roots)
   }
 
   searchBases({ query = '', category = '', itemClass = '', page = 1, pageSize = 30 } = {}) {
@@ -98,22 +106,37 @@ export class CraftingDataRepository {
     const size = Math.max(1, Math.min(100, Number(pageSize) || 30))
     const currentPage = Math.max(1, Number(page) || 1)
     const filtered = this.getDataset().bases.filter((base) => {
-      return (!category || base.category === category) && (!itemClass || base.itemClass === itemClass) && (!needle || `${base.name} ${base.sourceId}`.toLocaleLowerCase('zh-CN').includes(needle))
+      return (!category || base.categoryPath[0] === category) && (!itemClass || base.modifierProfileId === itemClass) && (!needle || `${base.name} ${base.displayName} ${base.sourceId}`.toLocaleLowerCase('zh-CN').includes(needle))
     }).sort((a, b) => a.requiredLevel - b.requiredLevel || a.name.localeCompare(b.name, 'zh-CN'))
     const offset = (currentPage - 1) * size
     return { items: filtered.slice(offset, offset + size).map((base) => ({ ...base, imageUrl: `crafting-image://snapshot/${encodeURIComponent(base.imageId)}` })), total: filtered.length, page: currentPage, pageSize: size }
   }
 
-  searchModifiers({ baseId, itemLevel = 100, variant = { kind: 'normal' }, query = '', sourcePolicy = 'either', affixType = '', page = 1, pageSize = 50 } = {}) {
+  searchModifiers({ baseId, itemLevel = 100, variant = { kind: 'normal' }, query = '', affixType = '', page = 1, pageSize = 50 } = {}) {
     const base = this.getDataset().bases.find((entry) => entry.id === baseId)
     if (!base) throw new Error('底材不存在')
     const validity = validateBaseVariant(base, variant)
     if (!validity.valid) return { items: [], total: 0, errors: validity.errors }
     const needle = String(query).trim().toLocaleLowerCase('zh-CN')
-    const allowedSources = sourcePolicy === 'either' ? new Set(['natural', 'crafted', 'fractured']) : new Set([sourcePolicy])
-    const filtered = this.getDataset().modifiers.filter((modifier) => {
-      return (!affixType || modifier.affixType === affixType) && allowedSources.has(modifier.source) && modifierCanSpawn(modifier, base, itemLevel, variant) && (!needle || `${modifier.name} ${modifier.tiers.map((tier) => tier.text).join(' ')}`.toLocaleLowerCase('zh-CN').includes(needle))
-    }).map((modifier) => ({ ...modifier, tiers: legalModifierTiers(modifier, itemLevel) })).filter((modifier) => modifier.tiers.length)
+    const filtered = this.getDataset().modifierFamilies.map((family) => {
+      const entries = family.entries.filter((modifier) => modifierMatchesBase(modifier, base, variant)).map((modifier) => ({
+        ...modifier,
+        tiers: modifier.tiers.map((tier) => {
+          const craftedClassAllowed = !tier.itemClasses?.length || tier.itemClasses.some((itemClass) => base.categoryPath.includes(itemClass) || itemClass === base.itemClass)
+          const available = tier.requiredLevel <= itemLevel && (tier.weight > 0 || (modifier.source === 'crafted' && craftedClassAllowed))
+          return { ...tier, available, unavailableReason: available ? '' : tier.requiredLevel > itemLevel ? `需要物品等级 ${tier.requiredLevel}` : '不参与天然生成' }
+        })
+      }))
+      const searchable = `${family.name} ${entries.flatMap((entry) => [entry.name, ...entry.tiers.map((tier) => tier.text), ...entry.displayTags.map((tag) => tag.label)]).join(' ')}`.toLocaleLowerCase('zh-CN')
+      const totalWeight = entries.flatMap((entry) => entry.tiers).filter((tier) => tier.available).reduce((sum, tier) => sum + tier.weight, 0)
+      const hasAvailable = entries.some((entry) => entry.tiers.some((tier) => tier.available))
+      const displayTags = [...new Map(entries.flatMap((entry) => [
+        ...(entry.displayTags ?? []),
+        ...entry.tiers.flatMap((tier) => tier.displayTags ?? [])
+      ]).map((tag) => [tag.id, tag])).values()]
+      return { ...family, entries, displayTags, subitemCount: entries.reduce((sum, entry) => sum + entry.tiers.length, 0), totalWeight, hasAvailable, searchable }
+    }).filter((family) => family.entries.length && (!affixType || family.affixType === affixType) && (!needle || family.searchable.includes(needle)))
+      .map(({ searchable, ...family }) => family)
     const size = Math.max(1, Math.min(100, Number(pageSize) || 50))
     const currentPage = Math.max(1, Number(page) || 1)
     const offset = (currentPage - 1) * size

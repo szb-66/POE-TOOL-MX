@@ -4,12 +4,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   createCoreCurrencyCrafts,
+  finalizePoedbBases,
+  groupModifierFamilies,
+  mergeModifierGoals,
   parsePoedbBases,
   parsePoedbCrafts,
   parsePoedbModifiers
 } from '../electron/modules/crafting/poedbParser.js'
-import { normalizeCraftingDataset, stableCraftingId } from '../electron/modules/crafting/model.js'
-import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES } from '../electron/modules/crafting/poedbSources.js'
+import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from '../electron/modules/crafting/model.js'
+import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from '../electron/modules/crafting/poedbSources.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(dirname, '..')
@@ -18,14 +21,16 @@ const fixtureRoot = path.join(projectRoot, 'test', 'fixtures', 'crafting')
 
 async function fetchText(url) {
   let lastError
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let attempt = 1; attempt <= 8; attempt += 1) {
     try {
       const response = await fetch(url, { headers: { 'user-agent': 'ExileHelper/1.0 personal-data-refresh' } })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      return await response.text()
+      const text = await response.text()
+      await new Promise((resolve) => setTimeout(resolve, 1800))
+      return text
     } catch (error) {
       lastError = error
-      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 600))
+      if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, Math.min(30000, attempt * 5000)))
     }
   }
   throw new Error(`${url} 获取失败：${lastError?.message || '网络错误'}`, { cause: lastError })
@@ -64,23 +69,24 @@ async function loadFixtureDataset() {
     readFile(path.join(fixtureRoot, 'items.html'), 'utf8'), readFile(path.join(fixtureRoot, 'modifiers.html'), 'utf8'),
     readFile(path.join(fixtureRoot, 'bench.html'), 'utf8'), readFile(path.join(fixtureRoot, 'harvest.html'), 'utf8')
   ])
+  const crafts = [...createCoreCurrencyCrafts(), ...createMetaCrafts(), ...parsePoedbCrafts(bench, { provider: 'bench' }), ...parsePoedbCrafts(harvest, { provider: 'harvest' })]
   return {
-    bases: parsePoedbBases(items, { category: '首饰与珠宝' }),
-    modifiers: parsePoedbModifiers(modifiers),
-    crafts: [...createCoreCurrencyCrafts(), ...createMetaCrafts(), ...parsePoedbCrafts(bench, { provider: 'bench' }), ...parsePoedbCrafts(harvest, { provider: 'harvest' })]
+    bases: finalizePoedbBases(parsePoedbBases(items, { category: '首饰与珠宝' }), SPECIAL_MODIFIER_PROFILES),
+    modifierFamilies: groupModifierFamilies(mergeModifierGoals(parsePoedbModifiers(modifiers, { profileId: 'fixture' }), crafts)),
+    crafts
   }
 }
 
 async function loadLiveDataset() {
-  const pages = await mapLimited(POEDB_BASE_PAGES, 3, async ([page, category]) => {
+  const pages = await mapLimited(POEDB_BASE_PAGES, 1, async ([page, category]) => {
     const url = `https://poedb.tw/cn/${page}`
     const html = await fetchText(url)
     process.stdout.write(`已解析 ${page}\n`)
     return { url, bases: parsePoedbBases(html, { category }) }
   })
-  const modifierPages = await mapLimited(POEDB_MODIFIER_PAGES, 3, async (page) => {
+  const modifierPages = await mapLimited(POEDB_MODIFIER_PAGES, 1, async (page) => {
     const url = `https://poedb.tw/cn/${page}`
-    const modifiers = parsePoedbModifiers(await fetchText(url))
+    const modifiers = parsePoedbModifiers(await fetchText(url), { profileId: page })
     if (!modifiers.length) throw new Error(`${page} 词缀解析结果为空`)
     process.stdout.write(`已解析词缀 ${page}\n`)
     return { url, modifiers }
@@ -89,14 +95,15 @@ async function loadLiveDataset() {
     fetchText('https://poedb.tw/cn/Crafting_Bench'),
     fetchText('https://poedb.tw/cn/Horticrafting')
   ])
-  return {
-    bases: [...new Map(pages.flatMap((page) => page.bases).map((entry) => [entry.id, entry])).values()],
-    modifiers: [...new Map(modifierPages.flatMap((page) => page.modifiers).map((entry) => [entry.id, entry])).values()],
-    crafts: [
+  const crafts = [
       ...createCoreCurrencyCrafts(), ...createMetaCrafts(),
       ...parsePoedbCrafts(benchHtml, { provider: 'bench' }),
       ...parsePoedbCrafts(harvestHtml, { provider: 'harvest' })
-    ],
+    ]
+  return {
+    bases: finalizePoedbBases(pages.flatMap((page) => page.bases), SPECIAL_MODIFIER_PROFILES),
+    modifierFamilies: groupModifierFamilies(mergeModifierGoals(modifierPages.flatMap((page) => page.modifiers), crafts)),
+    crafts,
     sources: [...pages, ...modifierPages].map((page) => page.url)
   }
 }
@@ -129,7 +136,7 @@ async function cacheImages(bases, live, targetRoot) {
 async function main() {
   const live = process.argv.includes('--live')
   const loaded = live ? await loadLiveDataset() : await loadFixtureDataset()
-  if (!loaded.bases.length || !loaded.modifiers.length) throw new Error('解析结果为空，拒绝生成快照')
+  if (!loaded.bases.length || !loaded.modifierFamilies.length) throw new Error('解析结果为空，拒绝生成快照')
   const stagingRoot = path.join(path.dirname(outputRoot), `.crafting-data-staging-${process.pid}`)
   const backupRoot = path.join(path.dirname(outputRoot), `.crafting-data-backup-${process.pid}`)
   await rm(stagingRoot, { recursive: true, force: true })
@@ -142,12 +149,12 @@ async function main() {
   ])]
   const dataset = {
     manifest: {
-      schemaVersion: 1, game: 'poe1', locale: 'zh-CN', league: live ? 'current' : 'Fixture',
+      schemaVersion: CRAFTING_SCHEMA_VERSION, game: 'poe1', locale: 'zh-CN', league: live ? 'current' : 'Fixture',
       patch: live ? 'current' : 'test', generatedAt: new Date().toISOString(), checksum: 'pending',
       sources: sourceUrls.map((url) => ({ id: stableCraftingId('source', url), url }))
     },
     bases: loaded.bases,
-    modifiers: loaded.modifiers,
+    modifierFamilies: loaded.modifierFamilies,
     crafts: [...new Map(loaded.crafts.map((entry) => [entry.id, entry])).values()],
     images
   }
@@ -168,7 +175,7 @@ async function main() {
     await rm(stagingRoot, { recursive: true, force: true })
     throw error
   }
-  process.stdout.write(`已生成 ${dataset.bases.length} 个底材、${dataset.modifiers.length} 个词缀族、${dataset.crafts.length} 个工艺。\n`)
+  process.stdout.write(`已生成 ${dataset.bases.length} 个底材、${dataset.modifierFamilies.length} 个词缀项、${dataset.crafts.length} 个工艺。\n`)
 }
 
 main().catch(async (error) => {

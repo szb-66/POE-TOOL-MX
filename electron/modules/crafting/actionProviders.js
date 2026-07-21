@@ -35,6 +35,18 @@ export function pickWeighted(entries, rng = Math.random) {
   return entries.at(-1)
 }
 
+export function bucketModifierFamilies(entries) {
+  const families = new Map()
+  entries.forEach((entry) => {
+    const familyId = entry.modifier.familyId || `${entry.modifier.modifierProfileId}:${entry.modifier.affixType}:${entry.modifier.groupId}`
+    const bucket = families.get(familyId) ?? { id: familyId, weight: 0, entries: [] }
+    bucket.weight += Math.max(0, Number(entry.weight) || 0)
+    bucket.entries.push(entry)
+    families.set(familyId, bucket)
+  })
+  return [...families.values()]
+}
+
 function canAdd(state, base, affixType) {
   const key = affixType === 'prefix' ? 'prefixes' : 'suffixes'
   return state[key].length < base.maxAffixes[affixType]
@@ -48,9 +60,11 @@ function addRandomAffix(context, { tag = null, forcedType = null } = {}) {
   let pool = eligibleModifierTiers(dataset, base, request.itemLevel, request.variant, state, { source: 'natural', tag, affixType })
   if (state.meta.cannotRollAttack) pool = pool.filter((entry) => !entry.modifier.tags.includes('attack') && !entry.modifier.tags.includes('攻击'))
   if (state.meta.cannotRollCaster) pool = pool.filter((entry) => !entry.modifier.tags.includes('caster') && !entry.modifier.tags.includes('法术'))
-  const selected = pickWeighted(pool, rng)
+  const selectedFamily = pickWeighted(bucketModifierFamilies(pool), rng)
+  const selected = selectedFamily ? pickWeighted(selectedFamily.entries, rng) : null
   if (!selected) return false
   state[affixType === 'prefix' ? 'prefixes' : 'suffixes'].push({
+    goalId: selected.modifier.goalId,
     modifierId: selected.modifier.id, tierId: selected.tier.id, groupId: selected.modifier.groupId,
     source: 'natural', fractured: false
   })
@@ -113,9 +127,9 @@ export function createBenchProviders() {
     metaProvider('multimod', '可以拥有多个工艺词缀', 'multimod'),
     {
       id: 'bench:add-crafted', name: '添加工艺词缀', category: 'bench',
-      canApply: ({ state, base, modifier }) => modifier?.source === 'crafted' && canAdd(state, base, modifier.affixType),
-      apply: ({ state, modifier, tier }) => {
-        state[modifier.affixType === 'prefix' ? 'prefixes' : 'suffixes'].push({ modifierId: modifier.id, tierId: tier.id, groupId: modifier.groupId, source: 'crafted', fractured: false })
+      canApply: ({ state, base, modifier, option }) => Boolean(option) && canAdd(state, base, modifier.affixType),
+      apply: ({ state, modifier, option }) => {
+        state[modifier.affixType === 'prefix' ? 'prefixes' : 'suffixes'].push({ goalId: modifier.goalId, modifierId: modifier.id, optionId: option.optionId, tierId: option.id, groupId: modifier.groupId, source: 'crafted', fractured: false })
         return state
       }
     }

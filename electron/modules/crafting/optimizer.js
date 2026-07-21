@@ -1,5 +1,5 @@
 import { stableCraftingId } from './model.js'
-import { allTargetsSatisfied, createInitialCraftState, validateCraftRequest } from './craftState.js'
+import { allTargetsSatisfied, createInitialCraftState, qualifyingCraftedOptions, validateCraftRequest } from './craftState.js'
 import { createDefaultActionRegistry, rollItem } from './actionProviders.js'
 
 export function createSeededRandom(seed = 0x9e3779b9) {
@@ -64,7 +64,7 @@ function harvestFallback(tag) {
 }
 
 function targetTags(request, dataset) {
-  return [...new Set(request.targets.flatMap((target) => dataset.modifiers.find((entry) => entry.id === target.modifierId)?.tags ?? []))]
+  return [...new Set(request.targets.flatMap((target) => dataset.modifiers.find((entry) => entry.goalId === target.goalId)?.tags ?? []))]
     .filter((tag) => !['damage', 'attack', 'caster', 'default'].includes(tag))
 }
 
@@ -80,10 +80,11 @@ function buildCandidate({ id, name, steps, costs, setupCosts = [], run }) {
 export function generateStrategyCandidates(request, dataset, registry = createDefaultActionRegistry()) {
   const validation = validateCraftRequest(request, dataset)
   if (!validation.valid) return { validation, candidates: [] }
+  request = validation.request
   const { base, initialState } = validation
-  const naturalTargets = request.targets.filter((target) => dataset.modifiers.find((entry) => entry.id === target.modifierId)?.source !== 'crafted')
+  const naturalTargets = request.targets.filter((target) => dataset.modifiers.find((entry) => entry.goalId === target.goalId)?.source !== 'crafted')
   const targetsByType = naturalTargets.reduce((counts, target) => {
-    const modifier = dataset.modifiers.find((entry) => entry.id === target.modifierId)
+    const modifier = dataset.modifiers.find((entry) => entry.goalId === target.goalId)
     counts[modifier.affixType] += 1
     return counts
   }, { prefix: 0, suffix: 0 })
@@ -140,24 +141,27 @@ export function generateStrategyCandidates(request, dataset, registry = createDe
     }))
   }
 
-  const craftedTargets = request.targets.filter((target) => dataset.modifiers.find((entry) => entry.id === target.modifierId)?.source === 'crafted')
+  const craftedTargets = request.targets.map((target) => {
+    const modifier = dataset.modifiers.find((entry) => entry.goalId === target.goalId)
+    const requiredTier = modifier?.tiers.find((tier) => tier.id === target.minTierId)
+    const option = requiredTier ? qualifyingCraftedOptions(modifier, requiredTier, base, request.itemLevel)[0] : null
+    return option ? { target, modifier, option } : null
+  }).filter(Boolean)
   if (craftedTargets.length && craftedTargets.length <= 3) {
     const needsMultimod = craftedTargets.length > 1
     candidates.push(buildCandidate({
       id: 'bench-finish', name: craftedTargets.length > 1 ? '多大师工艺收尾' : '工艺台收尾',
       steps: [
         ...(needsMultimod ? [{ name: '工艺台添加“可以拥有多个工艺词缀”', success: '允许继续添加多个工艺词缀', failure: '没有空后缀则不可执行' }] : []),
-        ...craftedTargets.map((target) => ({ name: `工艺台添加 ${dataset.modifiers.find((entry) => entry.id === target.modifierId)?.name}`, success: '添加目标工艺词缀', failure: '词缀位不足则不可执行' }))
+        ...craftedTargets.map(({ modifier, option }) => ({ name: `工艺台添加 ${option.text || modifier.name}`, success: '添加目标工艺词缀', failure: '词缀位不足则不可执行' }))
       ],
-      costs: sumCosts([needsMultimod ? coreCost('divine', '神圣石', 2) : [], craftedTargets.flatMap(() => coreCost('chaos', '混沌石', 4))]),
+      costs: sumCosts([needsMultimod ? coreCost('divine', '神圣石', 2) : [], craftedTargets.flatMap(({ option }) => option.cost)]),
       run: () => {
         const state = structuredClone(initialState)
         state.rarity = 'rare'
         if (needsMultimod) registry.apply('bench:multimod', context(state, () => 0))
-        craftedTargets.forEach((target) => {
-          const modifier = dataset.modifiers.find((entry) => entry.id === target.modifierId)
-          const tier = modifier.tiers.find((entry) => entry.tier <= target.minTier)
-          try { registry.apply('bench:add-crafted', { ...context(state, () => 0), modifier, tier }) } catch {}
+        craftedTargets.forEach(({ modifier, option }) => {
+          try { registry.apply('bench:add-crafted', { ...context(state, () => 0), modifier, option }) } catch {}
         })
         return state
       }

@@ -37,7 +37,7 @@
             <el-form-item label="搜索底材" class="wide">
               <el-select v-model="form.baseId" filterable remote clearable placeholder="输入中文名称" :remote-method="searchBaseByName" @change="selectBase">
                 <el-option v-for="base in store.bases" :key="base.id" :label="base.name" :value="base.id">
-                  <span>{{ base.name }}</span><small>{{ itemClassName(base.itemClass) }}</small>
+                  <span>{{ base.displayName || base.name }}</span><small>{{ (base.categoryPath || []).join(' / ') }}</small>
                 </el-option>
               </el-select>
             </el-form-item>
@@ -65,41 +65,68 @@
             </el-form-item>
           </div>
           <div v-if="selectedBase" class="selected-base">
-            <div><strong>{{ selectedBase.category }} / {{ itemClassName(selectedBase.itemClass) }} / {{ selectedBase.name }}</strong><span>需求等级 {{ selectedBase.requiredLevel }}</span></div>
+            <div><strong>{{ [...(selectedBase.categoryPath || [selectedBase.category, itemClassName(selectedBase.itemClass)]), selectedBase.displayName || selectedBase.name].join(' / ') }}</strong><span>需求等级 {{ selectedBase.requiredLevel }}</span></div>
           </div>
         </el-card>
 
         <el-card>
           <template #header><b>2. 添加目标词缀</b></template>
-          <div class="modifier-search">
-            <el-input v-model="modifierQuery" :disabled="!form.baseId" clearable placeholder="输入词缀名称或效果" @input="debouncedLoadModifiers" />
-            <el-select v-model="modifierSource" :disabled="!form.baseId" @change="loadModifiers">
-              <el-option label="天然或工艺" value="either" /><el-option label="仅天然" value="natural" /><el-option label="仅工艺台" value="crafted" />
-            </el-select>
-          </div>
-          <el-tabs v-model="modifierAffixType" class="affix-tabs" @tab-change="loadModifiers">
-            <el-tab-pane label="前缀" name="prefix" />
-            <el-tab-pane label="后缀" name="suffix" />
-          </el-tabs>
-          <div class="modifier-options">
-            <button v-for="modifier in store.modifiers" :key="modifier.id" type="button" @click="addTarget(modifier)">
-              <span><el-tag size="small" :type="modifier.affixType === 'prefix' ? 'success' : 'warning'">{{ modifier.affixType === 'prefix' ? '前' : '后' }}</el-tag> {{ modifier.name }}</span>
-              <small>{{ modifier.tiers[0]?.text }}</small>
-            </button>
-            <el-empty v-if="form.baseId && !store.modifiers.length" description="没有符合当前底材、等级与状态的词缀" :image-size="50" />
-          </div>
-
-          <div class="target-list">
-            <div v-for="(target, index) in targets" :key="target.modifier.id" class="target-row">
-              <div><strong>{{ target.modifier.name }}</strong><small>{{ target.modifier.affixType === 'prefix' ? '前缀' : '后缀' }}</small></div>
-              <el-select v-model="target.minTier" title="最低阶级">
-                <el-option v-for="tier in target.modifier.tiers" :key="tier.id" :label="`T${tier.tier} · ${tier.text}`" :value="tier.tier" />
-              </el-select>
-              <el-select v-model="target.sourcePolicy" title="来源">
-                <el-option label="任一来源" value="either" /><el-option label="天然" value="natural" /><el-option label="工艺台" value="crafted" />
-              </el-select>
-              <el-button text type="danger" @click="targets.splice(index, 1)">删除</el-button>
-            </div>
+          <div class="modifier-workspace">
+            <section class="selected-targets">
+              <h4>已选词缀</h4>
+              <div class="target-list">
+                <div v-for="(target, index) in targets" :key="target.modifier.goalId || target.modifier.id" class="target-row">
+                  <div class="target-summary">
+                    <strong>{{ target.modifier.name }}</strong>
+                    <span class="tag-list"><el-tag v-for="tag in target.modifier.displayTags" :key="tag.id" size="small">{{ tag.label }}</el-tag></span>
+                  </div>
+                  <el-select v-model="target.minTierId" title="最低阶级">
+                    <el-option v-for="tier in target.modifier.tiers" :key="tier.id" :value="tier.id" :disabled="!tierAvailable(tier, target.modifier)" :label="`T${tier.tier} · ${tier.text} · iLv${tier.requiredLevel} · 权重 ${tier.weight}`">
+                      <span>T{{ tier.tier }} · {{ tier.text }}</span><small>iLv {{ tier.requiredLevel }} · 权重 {{ tier.weight }} · {{ tier.displayTags.map((tag) => tag.label).join(' / ') }}</small>
+                    </el-option>
+                  </el-select>
+                  <el-button text type="danger" @click="targets.splice(index, 1)">删除</el-button>
+                </div>
+                <el-empty v-if="!targets.length" description="尚未添加目标词缀" :image-size="45" />
+              </div>
+            </section>
+            <section class="available-targets">
+              <h4>待选词缀</h4>
+              <div class="modifier-search">
+                <el-input v-model="modifierQuery" :disabled="!form.baseId" clearable placeholder="输入词缀名称、效果或标签" @input="debouncedLoadModifiers" />
+              </div>
+              <el-tabs v-model="modifierAffixType" class="affix-tabs" @tab-change="loadModifiers">
+                <el-tab-pane label="前缀" name="prefix" />
+                <el-tab-pane label="后缀" name="suffix" />
+              </el-tabs>
+              <div class="modifier-options">
+                <el-collapse>
+                  <el-collapse-item v-for="family in store.modifiers" :key="family.id" :name="family.id" class="modifier-family" :class="{ unavailable: !family.hasAvailable }">
+                    <template #title>
+                      <div class="family-title">
+                        <span class="family-name">
+                          <el-tag size="small" :type="family.affixType === 'prefix' ? 'success' : 'warning'">{{ family.affixType === 'prefix' ? '前' : '后' }}</el-tag>
+                          <strong>{{ family.name }}</strong>
+                          <span class="family-tags"><el-tag v-for="tag in family.displayTags" :key="tag.id" size="small">{{ tag.label }}</el-tag></span>
+                        </span>
+                        <span class="family-metrics"><el-tag size="small" type="success">{{ family.subitemCount }} 小项</el-tag><el-tag size="small" type="danger">总权重 {{ family.totalWeight }}</el-tag></span>
+                      </div>
+                    </template>
+                    <template v-for="modifier in family.entries" :key="modifier.goalId">
+                      <div v-for="tier in modifier.tiers" :key="tier.id" class="tier-row" :class="{ disabled: !tier.available }" :title="tier.unavailableReason">
+                        <div class="tier-effect">
+                          <strong>T{{ tier.tier }}</strong><span>· {{ tier.text }}</span>
+                          <span class="tag-list"><el-tag v-for="tag in tier.displayTags" :key="tag.id" size="small">{{ tag.label }}</el-tag></span>
+                        </div>
+                        <small>iLv {{ tier.requiredLevel }} · 权重 {{ tier.weight }}</small>
+                        <el-button size="small" type="primary" :disabled="!tier.available" @click.stop="addTarget(modifier, tier)">添加目标</el-button>
+                      </div>
+                    </template>
+                  </el-collapse-item>
+                </el-collapse>
+                <el-empty v-if="form.baseId && !store.modifiers.length" description="没有符合当前底材、等级与状态的词缀" :image-size="50" />
+              </div>
+            </section>
           </div>
           <el-alert v-if="targetWarning" :title="targetWarning" type="error" :closable="false" show-icon />
         </el-card>
@@ -108,7 +135,7 @@
       <aside class="results-column">
         <el-card class="results-card">
           <template #header>
-            <div class="result-title"><b>推荐路径</b><el-tag v-if="store.planPhase !== 'idle'">{{ phaseLabel }}</el-tag></div>
+            <div class="result-title"><b>3. 推荐路径</b><el-tag v-if="store.planPhase !== 'idle'">{{ phaseLabel }}</el-tag></div>
           </template>
           <el-progress v-if="store.planning" :percentage="planPercent" :indeterminate="!store.planProgress?.total" />
           <el-alert v-if="store.planError" :title="store.planError" type="warning" :closable="false" />
@@ -139,7 +166,7 @@
     </div>
 
     <el-drawer v-model="priceDrawer" title="耗材价格（混沌石）" size="600px">
-      <el-alert title="优先使用 poecurrency.top 卖方均价；卖方为 0 时回退买方均价。API 完全缺失、异常或过期的价格需手动覆盖。底材成本恒为 0。" type="warning" :closable="false" />
+      <el-alert title="优先使用 poecurrency.top 今日卖方/买方均价；今日均价缺失时回退 48 小时内的昨日均价。异常、过期或 API 未提供的价格需手动覆盖。底材成本恒为 0。" type="warning" :closable="false" />
       <div v-if="missingPlanResources.length" class="manual-price">
         <b>本次路径缺价资源</b>
         <div v-for="resource in missingPlanResources" :key="resource.resourceId">
@@ -150,7 +177,7 @@
       </div>
       <div v-if="!store.prices.records?.length" class="drawer-empty"><el-empty description="尚无价格缓存，请点击刷新物价" /></div>
       <div v-for="record in store.prices.records" :key="record.resourceId" class="price-row">
-        <div><strong>{{ record.itemName }}</strong><small :class="{ invalid: !record.valid }">{{ record.valid ? `${number(record.chaosValue)} C · ${priceSourceLabel(record.source)}` : record.reason }}</small></div>
+        <div><strong>{{ record.itemName }}</strong><small :class="{ invalid: !record.valid, warning: record.valid && record.warning }">{{ priceDisplayText(record) }}</small></div>
         <el-input-number v-model="priceInputs[record.resourceId]" :min="0.0001" :precision="4" :controls="false" placeholder="覆盖价" />
         <div class="price-actions">
           <el-button size="small" @click="savePrice(record.resourceId)">保存</el-button>
@@ -173,7 +200,6 @@ const targets = reactive([])
 const baseQuery = reactive({ category: '', itemClass: '', query: '' })
 const baseCategoryPath = ref([])
 const modifierQuery = ref('')
-const modifierSource = ref('either')
 const modifierAffixType = ref('prefix')
 const priceDrawer = ref(false)
 const refreshingPrices = ref(false)
@@ -192,6 +218,8 @@ const targetWarning = computed(() => {
   if (prefixCount > selectedBase.value.maxAffixes.prefix || suffixCount > selectedBase.value.maxAffixes.suffix) return '目标词缀超过该底材的前缀或后缀容量。'
   const groups = targets.map((entry) => entry.modifier.groupId)
   if (new Set(groups).size !== groups.length) return '目标词缀存在 Mod Group 冲突，无法同时生成。'
+  const unavailable = targets.find((target) => !tierAvailable(target.modifier.tiers.find((tier) => tier.id === target.minTierId), target.modifier))
+  if (unavailable) return `${unavailable.modifier.name} 的所选等级无法在当前物品等级生成。`
   if (form.variant.kind === 'fractured' && !form.variant.fracturedTierId) return '破裂底材必须指定一条破裂词缀。'
   return ''
 })
@@ -206,11 +234,12 @@ const planPercent = computed(() => {
 })
 const phaseLabel = computed(() => ({ starting: '准备中', quick: '快速估算', refined: '精算', complete: '已完成', cancelled: '已取消', error: '失败' }[store.planPhase] || store.planPhase))
 const fractureOptions = computed(() => targets.flatMap((target) => target.modifier.tiers.map((tier) => ({ value: tier.id, label: `${target.modifier.name} · T${tier.tier} · ${tier.text}` }))))
-const baseCategoryOptions = computed(() => store.categories.map((category) => ({
-  value: category.name,
-  label: `${category.name} (${category.count})`,
-  children: category.children?.map((item) => ({ value: item.itemClass, label: `${item.name} (${item.count})` })) || []
-})))
+const categoryOptions = (items = []) => items.map((item) => ({
+  value: item.itemClass || item.name,
+  label: `${item.name} (${item.count})`,
+  ...(item.children?.length ? { children: categoryOptions(item.children) } : {})
+}))
+const baseCategoryOptions = computed(() => categoryOptions(store.categories))
 const missingPlanResources = computed(() => {
   const resources = new Map()
   store.unpriced.flatMap((entry) => entry.missingPrices || []).forEach((resource) => {
@@ -227,13 +256,14 @@ onBeforeUnmount(() => { clearTimeout(modifierTimer); store.dispose() })
 watch([() => form.itemLevel, () => form.variant.kind, () => form.variant.influences.join(','), targets], () => {
   if (store.planning) store.cancelPlan()
 }, { deep: true })
+watch(() => form.itemLevel, () => { if (form.baseId) loadModifiers() })
 
 async function loadBases() {
   await store.searchBases({ query: String(baseQuery.query || ''), category: String(baseQuery.category || ''), itemClass: String(baseQuery.itemClass || ''), page: 1, pageSize: 50 })
 }
 async function categoryChanged(path = []) {
   baseQuery.category = String(path?.[0] || '')
-  baseQuery.itemClass = String(path?.[1] || '')
+  baseQuery.itemClass = String(path?.length > 1 ? path.at(-1) : '')
   form.baseId = ''
   selectedBase.value = null
   targets.splice(0)
@@ -251,20 +281,26 @@ async function loadModifiers() {
   if (!form.baseId) return
   try {
     const variant = plainVariant(form.variant.kind === 'fractured' && !form.variant.fracturedTierId ? 'pending' : form.variant.fracturedTierId)
-    await store.searchModifiers({ baseId: String(form.baseId), itemLevel: Number(form.itemLevel), variant, query: String(modifierQuery.value || ''), sourcePolicy: String(modifierSource.value), affixType: modifierAffixType.value, page: 1, pageSize: 100 })
+    await store.searchModifiers({ baseId: String(form.baseId), itemLevel: Number(form.itemLevel), variant, query: String(modifierQuery.value || ''), affixType: modifierAffixType.value, page: 1, pageSize: 100 })
   } catch (error) { pageError.value = error?.message || '词缀查询失败' }
 }
-function addTarget(modifier) {
-  if (targets.some((entry) => entry.modifier.id === modifier.id)) return ElMessage.info('该词缀已添加')
-  targets.push({ modifier, minTier: modifier.tiers[0]?.tier || 1, sourcePolicy: modifierSource.value })
-  if (form.variant.kind === 'fractured' && !form.variant.fracturedTierId) form.variant.fracturedTierId = modifier.tiers[0]?.id || null
+function addTarget(modifier, tier) {
+  if (targets.some((entry) => (entry.modifier.goalId || entry.modifier.id) === (modifier.goalId || modifier.id))) return ElMessage.info('该词缀已添加')
+  if (!tierAvailable(tier, modifier)) return ElMessage.warning('该等级在当前物品等级不可生成')
+  targets.push({ modifier, minTierId: tier.id })
+  if (form.variant.kind === 'fractured' && !form.variant.fracturedTierId) form.variant.fracturedTierId = tier.id
+}
+function tierAvailable(tier, modifier) {
+  if (!tier || tier.requiredLevel > form.itemLevel) return false
+  if (modifier.source === 'crafted') return tier.available !== false
+  return tier.weight > 0
 }
 async function calculate() {
   if (!canPlan.value) return
   try {
     await store.startPlan({
       baseId: String(form.baseId), itemLevel: Number(form.itemLevel), variant: plainVariant(),
-      targets: targets.map((entry) => ({ modifierId: entry.modifier.id, minTier: entry.minTier, sourcePolicy: entry.sourcePolicy }))
+      targets: targets.map((entry) => ({ goalId: entry.modifier.goalId || entry.modifier.id, minTierId: entry.minTierId }))
     })
   } catch (error) { store.planning = false; pageError.value = error?.message || '无法启动计算' }
 }
@@ -292,10 +328,9 @@ async function savePrice(resourceId) {
 }
 async function removePrice(resourceId) { await store.removePriceOverride(resourceId); delete priceInputs[resourceId] }
 function itemClassName(itemClass) {
-  for (const category of store.categories) {
-    const item = category.children?.find((entry) => entry.itemClass === itemClass)
-    if (item) return item.name
-  }
+  const find = (items = []) => { for (const item of items) { if (item.itemClass === itemClass) return item.name; const nested = find(item.children); if (nested) return nested } return '' }
+  const found = find(store.categories)
+  if (found) return found
   return itemClass
 }
 function resourceName(resourceId) {
@@ -306,9 +341,20 @@ function resourceName(resourceId) {
     'currency:annulment': '剥离石'
   })[resourceId] || resourceId
 }
-function priceSourceLabel(source) { return ({ override: '本地覆盖', 'remote-buy-fallback': '公开买方均价回退', remote: '公开卖方均价' })[source] || '公开价格' }
+function priceSourceLabel(source) { return ({ override: '本地覆盖', 'fixed-chaos': '固定基准价', 'remote-buy-fallback': '公开买方均价回退', 'remote-yesterday-sell': '昨日卖方均价', 'remote-yesterday-buy': '昨日买方均价', 'remote-latest-sell': '最新卖一', 'remote-latest-buy': '最新买一', remote: '公开卖方均价' })[source] || '公开价格' }
+function priceDisplayText(record) {
+  if (!record.valid) return Number(record.chaosValue) > 0 ? `${number(record.chaosValue)} C · ${priceSourceLabel(record.source)} · ⚠ ${record.reason}` : record.reason
+  const price = `${number(record.chaosValue)} C · ${priceSourceLabel(record.source)}`
+  return record.warning ? `${price} · ⚠ ${record.warning}` : price
+}
 function formatDate(value) { return value ? new Date(value).toLocaleString('zh-CN') : '暂无更新时间' }
-function number(value) { return Number.isFinite(Number(value)) ? Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '—' }
+function number(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '—'
+  if (numeric !== 0 && Math.abs(numeric) < 0.00000001) return numeric.toExponential(4)
+  const maximumFractionDigits = Math.abs(numeric) < 0.01 ? 8 : Math.abs(numeric) < 1 ? 6 : 2
+  return numeric.toLocaleString('zh-CN', { maximumFractionDigits })
+}
 function percent(value) { return Number.isFinite(Number(value)) ? `${(Number(value) * 100).toFixed(2)}%` : '—' }
 </script>
 
@@ -317,17 +363,28 @@ function percent(value) { return Number.isFinite(Number(value)) ? `${(Number(val
 .page-heading, .status-strip, .result-title, .plan-heading, .modifier-search, .selected-base { display: flex; align-items: center; }
 .page-heading { justify-content: space-between; gap: 20px; margin-bottom: 14px; h2 { margin: 0 0 5px; font-size: 22px; } p { margin: 0; color: var(--text-secondary); } }
 .status-strip { margin: 12px 0; padding: 10px 14px; gap: 9px; background: var(--el-fill-color-light); border-radius: 8px; div:first-child { min-width: 0; flex: 1; display: flex; flex-direction: column; } span { color: var(--text-secondary); font-size: 12px; } }
-.workspace-grid { display: grid; grid-template-columns: minmax(560px, 1.1fr) minmax(400px, .9fr); gap: 16px; margin-top: 14px; align-items: start; }
+.workspace-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 14px; align-items: start; }
 .config-column { display: grid; gap: 16px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; .wide { grid-column: 1 / -1; } :deep(.el-select), :deep(.el-input-number) { width: 100%; } }
 :deep(.el-select-dropdown__item small) { float: right; color: var(--text-secondary); }
 .selected-base { gap: 12px; padding: 10px; border: 1px solid var(--el-border-color); border-radius: 8px; div { display: flex; flex-direction: column; } }
-.modifier-search { gap: 10px; .el-input { flex: 1; } .el-select { width: 140px; } }
+.modifier-workspace { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; h4 { margin: 0 0 10px; } }
+.selected-targets, .available-targets { min-width: 0; padding: 10px; border: 1px solid var(--el-border-color-lighter); border-radius: 8px; }
+.modifier-search { gap: 10px; .el-input { flex: 1; } }
 .affix-tabs { margin-top: 8px; :deep(.el-tabs__header) { margin-bottom: 6px; } }
-.modifier-options { max-height: 235px; overflow: auto; margin: 12px 0; display: grid; gap: 6px; button { border: 1px solid var(--el-border-color); background: transparent; color: inherit; text-align: left; padding: 8px; border-radius: 6px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; &:hover { border-color: var(--el-color-primary); } small { color: var(--text-secondary); } } }
+.modifier-options { max-height: 420px; overflow: auto; margin: 12px 0; }
+.modifier-family { :deep(.el-collapse-item__header) { min-height: 48px; height: auto; padding: 6px 8px; } &.unavailable .family-title { opacity: .65; } }
+.family-title, .family-name, .family-tags, .family-metrics { display: flex; align-items: center; gap: 7px; }
+.family-title { width: 100%; justify-content: space-between; gap: 12px; padding-right: 8px; }
+.family-name, .family-tags { min-width: 0; flex-wrap: wrap; justify-content: flex-start; }
+.family-metrics { flex-shrink: 0; }
+.tier-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--el-border-color-lighter); font-size: 13px; small { flex-shrink: 0; color: var(--text-secondary); } &.disabled { opacity: .42; background: var(--el-fill-color-light); text-decoration: line-through; cursor: not-allowed; } }
+.tier-effect { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0; }
 .target-list { display: grid; gap: 8px; }
-.target-row { display: grid; grid-template-columns: minmax(150px, 1fr) 190px 110px auto; gap: 8px; align-items: center; padding: 9px; background: var(--el-fill-color-light); border-radius: 6px; > div { display: flex; flex-direction: column; } small { color: var(--text-secondary); } }
-.results-column { position: sticky; top: 12px; }
+.target-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 1.2fr) auto; gap: 8px; align-items: center; padding: 9px; background: var(--el-fill-color-light); border-radius: 6px; small { color: var(--text-secondary); } }
+.target-summary { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.results-column { position: static; }
 .result-title, .plan-heading { justify-content: space-between; gap: 10px; }
 .plan-card { margin-top: 12px; padding: 13px; border: 1px solid var(--el-border-color); border-radius: 8px; &.recommended { border-color: var(--el-color-success); } }
 .plan-heading > div { display: flex; gap: 7px; align-items: center; }
@@ -336,8 +393,9 @@ function percent(value) { return Number.isFinite(Number(value)) ? `${(Number(val
 .resources { display: flex; flex-wrap: wrap; gap: 7px; span { padding: 4px 7px; background: var(--el-fill-color); border-radius: 4px; } }
 ol { padding-left: 22px; li { margin: 9px 0; } small { color: var(--text-secondary); } }
 .cancel-plan { width: 100%; margin-top: 12px; }
-.price-row { display: grid; grid-template-columns: minmax(180px, 1fr) 120px 115px; gap: 9px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--el-border-color-lighter); > div:first-child { display: flex; flex-direction: column; min-width: 0; } small { color: var(--el-color-success); &.invalid { color: var(--el-color-danger); } } }
+.price-row { display: grid; grid-template-columns: minmax(180px, 1fr) 120px 115px; gap: 9px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--el-border-color-lighter); > div:first-child { display: flex; flex-direction: column; min-width: 0; } small { color: var(--el-color-success); &.warning { color: var(--el-color-warning); } &.invalid { color: var(--el-color-danger); } } }
 .price-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; }
 .manual-price { margin: 14px 0; padding: 10px; background: var(--el-fill-color-light); border-radius: 7px; > div { display: grid; grid-template-columns: minmax(180px, 1fr) 120px 60px; gap: 9px; align-items: center; margin-top: 8px; } span { display: flex; flex-direction: column; min-width: 0; } code { overflow-wrap: anywhere; color: var(--text-secondary); font-size: 11px; } }
-@media (max-width: 1100px) { .workspace-grid { grid-template-columns: 1fr; } .results-column { position: static; } }
+@media (max-width: 1100px) { .workspace-grid { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .modifier-workspace { grid-template-columns: 1fr; } .target-row { grid-template-columns: 1fr auto; } .target-row .el-select { grid-column: 1 / -1; grid-row: 2; } }
 </style>

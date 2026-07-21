@@ -1,35 +1,39 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createDefaultActionRegistry, pickWeighted } from '../electron/modules/crafting/actionProviders.js'
-import { createInitialCraftState, validateCraftRequest } from '../electron/modules/crafting/craftState.js'
+import { bucketModifierFamilies, createDefaultActionRegistry, pickWeighted } from '../electron/modules/crafting/actionProviders.js'
+import { allTargetsSatisfied, createInitialCraftState, qualifyingCraftedOptions, validateCraftRequest, valuesMeetThreshold } from '../electron/modules/crafting/craftState.js'
 import { normalizeCraftingDataset } from '../electron/modules/crafting/model.js'
 import { createSeededRandom, generateStrategyCandidates, optimizeCrafting, weightedTargetProbability, wilsonInterval } from '../electron/modules/crafting/optimizer.js'
 
 const makeModifier = (id, groupId, name, affixType, weight, tags = [], source = 'natural') => ({
-  id, sourceId: id, groupId, name, affixType, source, tags, spawnTags: ['ring'], influences: [],
+  id, sourceId: id, modifierProfileId: 'Ring', groupId, name, affixType, source, tags, spawnTags: ['ring'], influences: [],
   tiers: [{ id: `${id}:t1`, tier: 1, name: 'T1', requiredLevel: 1, weight, text: name, values: [{ min: 1, max: 1 }] }]
 })
 
+const family = (modifier) => ({ id: `family:${modifier.id}`, modifierProfileId: 'Ring', groupId: modifier.groupId, name: modifier.name, affixType: modifier.affixType, source: modifier.source, influences: modifier.influences, entries: [modifier] })
+
+const modifierEntries = [
+  makeModifier('mod:life', 'life', '生命', 'prefix', 1, ['life']),
+  makeModifier('mod:mana', 'mana', '魔力', 'prefix', 9, ['mana']),
+  makeModifier('mod:fire', 'fire', '火焰抗性', 'suffix', 1, ['fire']),
+  makeModifier('mod:cold', 'cold', '冰霜抗性', 'suffix', 9, ['cold']),
+  makeModifier('mod:crafted-life', 'crafted-life', '工艺生命', 'prefix', 0, ['life'], 'crafted')
+]
+
 const dataset = normalizeCraftingDataset({
-  manifest: { schemaVersion: 1, game: 'poe1', locale: 'zh-CN', league: 'Test', patch: 'test', generatedAt: '2026-07-21T00:00:00Z', checksum: 'test', sources: [] },
-  bases: [{ id: 'base:ring', sourceId: 'Ring', name: '测试戒指', category: '首饰', itemClass: '戒指', imageId: 'placeholder', requiredLevel: 1, tags: ['ring'], maxAffixes: { prefix: 3, suffix: 3 }, allowedVariants: ['normal', 'fractured', 'influenced', 'synthesized', 'eldritch'] }],
-  modifiers: [
-    makeModifier('mod:life', 'life', '生命', 'prefix', 1, ['life']),
-    makeModifier('mod:mana', 'mana', '魔力', 'prefix', 9, ['mana']),
-    makeModifier('mod:fire', 'fire', '火焰抗性', 'suffix', 1, ['fire']),
-    makeModifier('mod:cold', 'cold', '冰霜抗性', 'suffix', 9, ['cold']),
-    makeModifier('mod:crafted-life', 'crafted-life', '工艺生命', 'prefix', 0, ['life'], 'crafted')
-  ],
+  manifest: { schemaVersion: 3, game: 'poe1', locale: 'zh-CN', league: 'Test', patch: 'test', generatedAt: '2026-07-21T00:00:00Z', checksum: 'test', sources: [] },
+  bases: [{ id: 'base:ring', sourceId: 'Ring', name: '测试戒指', category: '首饰', itemClass: '戒指', modifierProfileId: 'Ring', imageId: 'placeholder', requiredLevel: 1, tags: ['ring'], maxAffixes: { prefix: 3, suffix: 3 }, allowedVariants: ['normal', 'fractured', 'influenced', 'synthesized', 'eldritch'] }],
+  modifierFamilies: modifierEntries.map(family),
   crafts: [], images: { placeholder: 'images/placeholder.svg' }
 })
 
-const request = { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ modifierId: 'mod:life', minTier: 1, sourcePolicy: 'natural' }] }
+const request = { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ goalId: 'mod:life', minTierId: 'mod:life:t1' }] }
 
 test('请求校验检测 Mod Group 冲突、容量和破裂参数', () => {
   assert.equal(validateCraftRequest(request, dataset).valid, true)
   const conflictDataset = structuredClone(dataset)
   conflictDataset.modifiers[1].groupId = 'life'
-  const conflict = validateCraftRequest({ ...request, targets: [...request.targets, { modifierId: 'mod:mana', minTier: 1, sourcePolicy: 'natural' }] }, conflictDataset)
+  const conflict = validateCraftRequest({ ...request, targets: [...request.targets, { goalId: 'mod:mana', minTierId: 'mod:mana:t1' }] }, conflictDataset)
   assert.equal(conflict.valid, false)
   assert.ok(conflict.errors.some((entry) => entry.code === 'mod_group_conflict'))
   const fractured = validateCraftRequest({ ...request, variant: { kind: 'fractured' } }, dataset)
@@ -55,8 +59,37 @@ test('加权概率、随机数与置信区间可复现', () => {
   const second = createSeededRandom(42)
   assert.deepEqual([first(), first(), first()], [second(), second(), second()])
   assert.equal(pickWeighted(entries, () => 0).id, 'a')
+  const buckets = bucketModifierFamilies([
+    { modifier: { familyId: 'family:caster' }, weight: 1500 },
+    { modifier: { familyId: 'family:caster' }, weight: 12 },
+    { modifier: { familyId: 'family:mana' }, weight: 1000 }
+  ])
+  assert.deepEqual(buckets.map(({ id, weight }) => ({ id, weight })), [{ id: 'family:caster', weight: 1512 }, { id: 'family:mana', weight: 1000 }])
   const interval = wilsonInterval(100, 1000)
   assert.ok(interval.low < 0.1 && interval.high > 0.1)
+})
+
+test('工艺选项按全部数值分量的最低值满足目标', () => {
+  const required = { values: [{ min: 40, max: 50 }, { min: 20, max: 30 }] }
+  assert.equal(valuesMeetThreshold([{ min: 40, max: 41 }, { min: 20, max: 21 }], required.values), true)
+  assert.equal(valuesMeetThreshold([{ min: 39, max: 60 }, { min: 20, max: 21 }], required.values), false)
+  assert.equal(valuesMeetThreshold([{ min: 40, max: 60 }, { min: 19, max: 40 }], required.values), false)
+  const goal = { craftedOptions: [
+    { id: 'ok', requiredLevel: 1, values: [{ min: 40, max: 45 }, { min: 20, max: 25 }], itemClasses: [] },
+    { id: 'high-roll-only', requiredLevel: 1, values: [{ min: 39, max: 60 }, { min: 20, max: 25 }], itemClasses: [] }
+  ] }
+  assert.deepEqual(qualifyingCraftedOptions(goal, required, null, 84).map((entry) => entry.id), ['ok'])
+})
+
+test('统一目标自动生成使用真实成本的工艺台收尾方案', () => {
+  const benchDataset = structuredClone(dataset)
+  const goal = benchDataset.modifiers.find((entry) => entry.id === 'mod:life')
+  goal.craftedOptions = [{ id: 'crafted:life', optionId: 'crafted:life', craftId: 'craft:life', tier: 1, name: '工艺', requiredLevel: 1, weight: 0, text: '+10 最大生命', values: [{ min: 10, max: 10 }], displayTags: [{ id: 'life', label: '生命' }], itemClasses: [], cost: [{ resourceId: 'currency:alchemy', resourceName: '点金石', amount: 2 }], unlock: '' }]
+  const result = generateStrategyCandidates(request, benchDataset)
+  const bench = result.candidates.find((candidate) => candidate.id === 'bench-finish')
+  assert.ok(bench)
+  assert.deepEqual(bench.costs, [{ resourceId: 'currency:alchemy', resourceName: '点金石', amount: 2 }])
+  assert.equal(allTargetsSatisfied(result.validation.request, bench.run(() => 0), benchDataset), true)
 })
 
 test('优化器发布快速和精算结果并按期望成本排序', async () => {

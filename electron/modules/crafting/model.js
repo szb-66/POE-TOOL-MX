@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto'
 
-export const CRAFTING_SCHEMA_VERSION = 1
+export const CRAFTING_SCHEMA_VERSION = 3
 export const AFFIX_TYPES = new Set(['prefix', 'suffix'])
-export const TARGET_SOURCES = new Set(['natural', 'crafted', 'either'])
 export const BASE_VARIANTS = new Set(['normal', 'influenced', 'fractured', 'synthesized', 'eldritch'])
 export const CRAFT_PROVIDERS = new Set(['currency', 'bench', 'harvest'])
 
@@ -43,6 +42,17 @@ function stringArray(value, path) {
   if (value == null) return []
   if (!Array.isArray(value)) fail(path, '必须是数组')
   return [...new Set(value.map((entry, index) => string(entry, `${path}[${index}]`)))]
+}
+
+function normalizeDisplayTags(value, path) {
+  if (value == null) return []
+  if (!Array.isArray(value)) fail(path, '必须是数组')
+  const tags = value.map((entry, index) => {
+    if (typeof entry === 'string') return { id: string(entry, `${path}[${index}]`), label: string(entry, `${path}[${index}]`) }
+    const item = object(entry, `${path}[${index}]`)
+    return { id: string(item.id, `${path}[${index}].id`), label: string(item.label, `${path}[${index}].label`, item.id) }
+  })
+  return [...new Map(tags.map((tag) => [tag.id, tag])).values()]
 }
 
 export function stableCraftingId(namespace, value) {
@@ -86,8 +96,11 @@ export function normalizeBaseItem(input, index = 0) {
     id: string(value.id, `bases[${index}].id`),
     sourceId: string(value.sourceId, `bases[${index}].sourceId`, value.id),
     name: string(value.name, `bases[${index}].name`),
+    displayName: string(value.displayName, `bases[${index}].displayName`, value.name),
     category: string(value.category, `bases[${index}].category`),
+    categoryPath: stringArray(value.categoryPath ?? [value.category, value.itemClass], `bases[${index}].categoryPath`),
     itemClass: string(value.itemClass, `bases[${index}].itemClass`),
+    modifierProfileId: string(value.modifierProfileId, `bases[${index}].modifierProfileId`, value.itemClass),
     imageId: string(value.imageId, `bases[${index}].imageId`, 'placeholder'),
     requiredLevel: integer(value.requiredLevel ?? 1, `bases[${index}].requiredLevel`, { min: 1, max: 100 }),
     tags,
@@ -112,6 +125,7 @@ export function normalizeModifierTier(input, path = 'tier') {
     requiredLevel: integer(value.requiredLevel ?? 1, `${path}.requiredLevel`, { min: 1, max: 100 }),
     weight: number(value.weight, `${path}.weight`, { min: 0 }),
     text: string(value.text, `${path}.text`),
+    displayTags: normalizeDisplayTags(value.displayTags ?? value.tags, `${path}.displayTags`),
     values: Array.isArray(value.values) ? value.values.map((range, index) => {
       const item = object(range, `${path}.values[${index}]`)
       return {
@@ -122,8 +136,8 @@ export function normalizeModifierTier(input, path = 'tier') {
   }
 }
 
-export function normalizeModifierFamily(input, index = 0) {
-  const path = `modifiers[${index}]`
+export function normalizeModifierFamily(input, index = 0, root = 'modifiers') {
+  const path = `${root}[${index}]`
   const value = object(input, path)
   const affixType = string(value.affixType, `${path}.affixType`)
   if (!AFFIX_TYPES.has(affixType)) fail(`${path}.affixType`, '必须是 prefix 或 suffix')
@@ -138,17 +152,63 @@ export function normalizeModifierFamily(input, index = 0) {
   })
   return {
     id: string(value.id, `${path}.id`),
+    goalId: string(value.goalId, `${path}.goalId`, value.id),
     sourceId: string(value.sourceId, `${path}.sourceId`, value.id),
+    effectKey: string(value.effectKey, `${path}.effectKey`, value.sourceId ?? value.id),
+    modifierProfileId: string(value.modifierProfileId, `${path}.modifierProfileId`, value.itemClasses?.[0] ?? 'default'),
     groupId: string(value.groupId, `${path}.groupId`),
     name: string(value.name, `${path}.name`),
     affixType,
     source: string(value.source, `${path}.source`, 'natural'),
     tags: stringArray(value.tags, `${path}.tags`),
+    displayTags: normalizeDisplayTags(value.displayTags ?? value.tags, `${path}.displayTags`),
     spawnTags: stringArray(value.spawnTags, `${path}.spawnTags`),
     requiredTags: stringArray(value.requiredTags, `${path}.requiredTags`),
     itemClasses: stringArray(value.itemClasses, `${path}.itemClasses`),
     influences: stringArray(value.influences, `${path}.influences`),
-    tiers: tiers.sort((a, b) => a.tier - b.tier)
+    tiers: tiers.sort((a, b) => a.tier - b.tier),
+    craftedOptions: (Array.isArray(value.craftedOptions) ? value.craftedOptions : []).map((option, optionIndex) => {
+      const optionPath = `${path}.craftedOptions[${optionIndex}]`
+      const normalized = normalizeModifierTier(option, optionPath)
+      return {
+        ...normalized,
+        optionId: string(option.optionId, `${optionPath}.optionId`, option.id),
+        craftId: string(option.craftId, `${optionPath}.craftId`),
+        itemClasses: stringArray(option.itemClasses, `${optionPath}.itemClasses`),
+        cost: Array.isArray(option.cost) ? option.cost.map((entry, costIndex) => {
+          const item = object(entry, `${optionPath}.cost[${costIndex}]`)
+          return {
+            resourceId: string(item.resourceId, `${optionPath}.cost[${costIndex}].resourceId`),
+            resourceName: string(item.resourceName, `${optionPath}.cost[${costIndex}].resourceName`, item.resourceId),
+            amount: number(item.amount, `${optionPath}.cost[${costIndex}].amount`, { min: 0 })
+          }
+        }) : [],
+        unlock: String(option.unlock ?? '').trim()
+      }
+    })
+  }
+}
+
+export function normalizeModifierFamilyGroup(input, index = 0) {
+  const path = `modifierFamilies[${index}]`
+  const value = object(input, path)
+  const affixType = string(value.affixType, `${path}.affixType`)
+  if (!AFFIX_TYPES.has(affixType)) fail(`${path}.affixType`, '必须是 prefix 或 suffix')
+  const entries = (Array.isArray(value.entries) ? value.entries : fail(`${path}.entries`, '必须是数组'))
+    .map((entry, entryIndex) => normalizeModifierFamily(entry, entryIndex, `${path}.entries`))
+  if (!entries.length) fail(`${path}.entries`, '至少需要一个属性分支')
+  if (entries.some((entry) => entry.groupId !== value.groupId || entry.affixType !== affixType || entry.modifierProfileId !== value.modifierProfileId)) {
+    fail(`${path}.entries`, '内部分支必须与父项的配置、Mod Family 和前后缀一致')
+  }
+  return {
+    id: string(value.id, `${path}.id`),
+    modifierProfileId: string(value.modifierProfileId, `${path}.modifierProfileId`),
+    groupId: string(value.groupId, `${path}.groupId`),
+    name: string(value.name, `${path}.name`),
+    affixType,
+    source: string(value.source, `${path}.source`, 'natural'),
+    influences: stringArray(value.influences, `${path}.influences`),
+    entries
   }
 }
 
@@ -209,12 +269,9 @@ export function normalizeCraftRequest(input) {
     },
     targets: value.targets.map((target, index) => {
       const item = object(target, `request.targets[${index}]`)
-      const sourcePolicy = string(item.sourcePolicy, `request.targets[${index}].sourcePolicy`, 'either')
-      if (!TARGET_SOURCES.has(sourcePolicy)) fail(`request.targets[${index}].sourcePolicy`, `未知来源 ${sourcePolicy}`)
       return {
-        modifierId: string(item.modifierId, `request.targets[${index}].modifierId`),
-        minTier: integer(item.minTier, `request.targets[${index}].minTier`, { min: 1, max: 99 }),
-        sourcePolicy
+        goalId: string(item.goalId, `request.targets[${index}].goalId`),
+        minTierId: string(item.minTierId, `request.targets[${index}].minTierId`)
       }
     })
   }
@@ -227,7 +284,9 @@ export function normalizeCraftState(input = {}) {
   const normalizeAffixes = (entries, type) => (Array.isArray(entries) ? entries : []).map((entry, index) => {
     const item = object(entry, `state.${type}[${index}]`)
     return {
+      goalId: string(item.goalId ?? item.modifierId, `state.${type}[${index}].goalId`),
       modifierId: string(item.modifierId, `state.${type}[${index}].modifierId`),
+      optionId: item.optionId ? string(item.optionId, `state.${type}[${index}].optionId`) : null,
       tierId: string(item.tierId, `state.${type}[${index}].tierId`),
       groupId: string(item.groupId, `state.${type}[${index}].groupId`),
       source: string(item.source, `state.${type}[${index}].source`, 'natural'),
@@ -278,7 +337,8 @@ export function normalizeCraftingDataset(input) {
     fail('manifest.schemaVersion', `不支持的 schema ${manifest.schemaVersion}`)
   }
   const bases = (Array.isArray(value.bases) ? value.bases : fail('dataset.bases', '必须是数组')).map(normalizeBaseItem)
-  const modifiers = (Array.isArray(value.modifiers) ? value.modifiers : fail('dataset.modifiers', '必须是数组')).map(normalizeModifierFamily)
+  const modifierFamilies = (Array.isArray(value.modifierFamilies) ? value.modifierFamilies : fail('dataset.modifierFamilies', '必须是数组')).map(normalizeModifierFamilyGroup)
+  const modifiers = modifierFamilies.flatMap((family) => family.entries.map((entry) => ({ ...entry, familyId: family.id })))
   const crafts = (Array.isArray(value.crafts) ? value.crafts : fail('dataset.crafts', '必须是数组')).map(normalizeCraftDefinition)
   const unique = (entries, path) => {
     const ids = new Set()
@@ -288,8 +348,18 @@ export function normalizeCraftingDataset(input) {
     })
   }
   unique(bases, 'dataset.bases')
-  unique(modifiers, 'dataset.modifiers')
+  unique(modifierFamilies, 'dataset.modifierFamilies')
+  unique(modifiers, 'dataset.modifierFamilies.entries')
   unique(crafts, 'dataset.crafts')
+  const goalIds = new Set(modifiers.map((modifier) => modifier.goalId))
+  const craftIds = new Set(crafts.map((craft) => craft.id))
+  modifiers.forEach((modifier) => modifier.craftedOptions.forEach((option) => {
+    if (!craftIds.has(option.craftId)) fail(`modifier.${modifier.id}.craftedOptions.${option.optionId}.craftId`, '引用的工艺不存在')
+    if (!option.cost.length) fail(`modifier.${modifier.id}.craftedOptions.${option.optionId}.cost`, '工艺成本不能为空')
+  }))
+  crafts.forEach((craft) => {
+    if (craft.params?.goalId && !goalIds.has(craft.params.goalId)) fail(`craft.${craft.id}.params.goalId`, '引用的目标效果不存在')
+  })
   const imageIds = new Set(Object.keys(value.images ?? {}))
   bases.forEach((base) => {
     if (!imageIds.has(base.imageId)) fail(`base.${base.id}.imageId`, `图片 ${base.imageId} 不存在`)
@@ -297,6 +367,7 @@ export function normalizeCraftingDataset(input) {
   return {
     manifest,
     bases,
+    modifierFamilies,
     modifiers,
     crafts,
     images: structuredClone(value.images ?? {})

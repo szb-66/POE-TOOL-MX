@@ -6,6 +6,16 @@ export const POEDB_BASE_PAGES = [
   ['Helmets', '护甲'], ['Amulets', '首饰'], ['Rings', '首饰'], ['Belts', '首饰'], ['Jewels', '珠宝'], ['Abyss_Jewels', '珠宝']
 ]
 
+export const SPECIAL_MODIFIER_PROFILES = [
+  { page: 'Unset_Ring', sourceIds: ['Unset_Ring'], categoryPath: ['特殊', '潜能之戒'] },
+  { page: 'Bone_Ring', sourceIds: ['Bone_Ring'], categoryPath: ['特殊', '骨环'] },
+  { page: 'Convoking_Wand', sourceIds: ['Convening_Wand', 'Convoking_Wand'], categoryPath: ['特殊', '召集法杖'] },
+  { page: 'Bone_Spirit_Shield', sourceIds: ['Bone_Spirit_Shield'], categoryPath: ['特殊', '骨制魔盾'] },
+  { page: 'Runic_Crown', sourceIds: ['Runic_Crown'], categoryPath: ['特殊', '符文王冠'] },
+  { page: 'Runic_Sabatons', sourceIds: ['Runic_Sabatons'], categoryPath: ['特殊', '符文战靴'] },
+  { page: 'Runic_Gauntlets', sourceIds: ['Runic_Gauntlets'], categoryPath: ['特殊', '符文手甲'] }
+]
+
 const ARMOUR_VARIANTS = {
   Gloves: ['str', 'dex', 'int', 'str_dex', 'str_int', 'dex_int'],
   Boots: ['str', 'dex', 'int', 'str_dex', 'str_int', 'dex_int'],
@@ -24,5 +34,6 @@ const JEWEL_MODIFIER_PAGES = [
 export const POEDB_MODIFIER_PAGES = [
   ...DIRECT_MODIFIER_PAGES,
   ...Object.entries(ARMOUR_VARIANTS).flatMap(([page, variants]) => variants.map((variant) => `${page}_${variant}`)),
-  ...JEWEL_MODIFIER_PAGES
+  ...JEWEL_MODIFIER_PAGES,
+  ...SPECIAL_MODIFIER_PROFILES.map((profile) => profile.page)
 ]

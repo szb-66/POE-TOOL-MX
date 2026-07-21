@@ -8,7 +8,17 @@ function cleanText(value) {
 }
 
 function htmlText(fragment) {
-  return cleanText(load(`<div id="root">${fragment ?? ''}</div>`)('#root').text())
+  const $ = load(`<div id="root">${fragment ?? ''}</div>`)
+  $('#root br').replaceWith('\n')
+  return $('#root').text().split('\n').map(cleanText).filter(Boolean).join('\n')
+}
+
+export function modifierEffectKey(fragment) {
+  return htmlText(fragment)
+    .replace(/\(?[+\-]?\d+(?:\.\d+)?\s*[—-]\s*[+\-]?\d+(?:\.\d+)?\)?/g, '#')
+    .replace(/[+\-]?\d+(?:\.\d+)?/g, '#')
+    .replace(/#+/g, '#')
+    .trim()
 }
 
 function numberRanges(text) {
@@ -165,7 +175,58 @@ function tagsFromModRecord(record) {
   return [...tags]
 }
 
-function parseStructuredModifiers($) {
+const PROFILE_BY_ITEM_CLASS = {
+  Claw: 'Claws', Dagger: 'Daggers', RuneDagger: 'Rune_Daggers', Wand: 'Wands', OneHandSword: 'One_Hand_Swords',
+  ThrustingOneHandSword: 'Thrusting_One_Hand_Swords', OneHandAxe: 'One_Hand_Axes', OneHandMace: 'One_Hand_Maces', Sceptre: 'Sceptres',
+  Bow: 'Bows', Staff: 'Staves', Warstaff: 'Warstaves', TwoHandSword: 'Two_Hand_Swords', TwoHandAxe: 'Two_Hand_Axes',
+  TwoHandMace: 'Two_Hand_Maces', Quiver: 'Quivers', Amulet: 'Amulets', Ring: 'Rings', Belt: 'Belts'
+}
+
+const CATEGORY_LABEL_BY_ITEM_CLASS = {
+  Claw: '爪', Dagger: '匕首', RuneDagger: '符文匕首', Wand: '法杖', OneHandSword: '单手剑', ThrustingOneHandSword: '细剑',
+  OneHandAxe: '单手斧', OneHandMace: '单手锤', Sceptre: '短杖', Bow: '弓', Staff: '长杖', Warstaff: '战杖', TwoHandSword: '双手剑',
+  TwoHandAxe: '双手斧', TwoHandMace: '双手锤', Quiver: '箭袋', Shield: '盾牌', Gloves: '手套', Boots: '鞋子', BodyArmour: '胸甲',
+  Helmet: '头盔', Amulet: '项链', Ring: '戒指', Belt: '腰带', Jewel: '珠宝', AbyssJewel: '深渊珠宝'
+}
+
+export function finalizePoedbBases(entries, specialProfiles = []) {
+  const specialBySource = new Map(specialProfiles.flatMap((profile) => profile.sourceIds.map((sourceId) => [sourceId, profile])))
+  const filtered = entries.filter((base) => !/^(Royale_|Test|Metadata)/i.test(base.sourceId) && !/(Placeholder|Test)/i.test(base.name))
+  for (const base of filtered) {
+    const special = specialBySource.get(base.sourceId)
+    const armourStem = { Gloves: 'Gloves', Boots: 'Boots', BodyArmour: 'Body_Armours', Helmet: 'Helmets', Shield: 'Shields' }[base.itemClass]
+    const armourTag = base.tags.find((tag) => /^(?:str|dex|int)(?:_(?:str|dex|int))*_(?:armour|shield)$/.test(tag))
+    const armourVariant = armourTag?.replace(/_(?:armour|shield)$/, '')
+    const jewelProfile = [
+      ['expansion_jewel_large', 'Large_Cluster_Jewel'], ['expansion_jewel_medium', 'Medium_Cluster_Jewel'], ['expansion_jewel_small', 'Small_Cluster_Jewel'],
+      ['abyss_jewel_melee', 'Murderous_Eye_Jewel'], ['abyss_jewel_ranged', 'Searching_Eye_Jewel'], ['abyss_jewel_caster', 'Hypnotic_Eye_Jewel'], ['abyss_jewel_summoner', 'Ghastly_Eye_Jewel']
+    ].find(([tag]) => base.tags.includes(tag))?.[1]
+    base.modifierProfileId = special?.page || jewelProfile || (armourStem && armourVariant ? `${armourStem}_${armourVariant}` : PROFILE_BY_ITEM_CLASS[base.itemClass] || base.itemClass)
+    const armourVariantLabels = {
+      str: '力量', dex: '敏捷', int: '智慧', str_dex: '力量敏捷', str_int: '力量智慧',
+      dex_int: '敏捷智慧', str_dex_int: '力量敏捷智慧'
+    }
+    const normalPath = [base.category, CATEGORY_LABEL_BY_ITEM_CLASS[base.itemClass] || base.itemClass]
+    if (armourVariant && armourVariantLabels[armourVariant]) normalPath.push(armourVariantLabels[armourVariant])
+    base.categoryPath = special?.categoryPath || normalPath
+    if (special) base.category = '特殊'
+  }
+  const collisions = new Map()
+  filtered.forEach((base) => collisions.set(base.name, (collisions.get(base.name) ?? 0) + 1))
+  filtered.forEach((base) => { base.displayName = collisions.get(base.name) > 1 ? `${base.name}（需求等级 ${base.requiredLevel}）` : base.name })
+  return [...new Map(filtered.map((base) => [base.id, base])).values()]
+}
+
+function displayTagsFromModRecord(record) {
+  return [...new Map((record.mod_no ?? []).map((badge) => {
+    const $ = load(badge)
+    const id = $('[data-tag]').attr('data-tag')
+    const label = cleanText($('[data-tag]').text())
+    return id ? [id, { id, label: label || id }] : null
+  }).filter(Boolean)).values()]
+}
+
+function parseStructuredModifiers($, profileId = 'structured') {
   return $('[data-modifier]').map((_, element) => {
     const node = $(element)
     const sourceId = node.attr('data-source-id') || node.attr('data-modifier')
@@ -180,17 +241,22 @@ function parseStructuredModifiers($) {
         requiredLevel: Number(tierNode.attr('data-level') || 1),
         weight: Number(tierNode.attr('data-weight') || 0),
         text,
+        displayTags: cleanText(tierNode.attr('data-tags')).split(' ').filter(Boolean).map((id) => ({ id, label: id })),
         values: numberRanges(text)
       }
     }).get()
     return {
-      id: stableCraftingId('modifier', sourceId),
+      id: stableCraftingId('modifier', `${profileId}:${sourceId}`),
+      goalId: stableCraftingId('goal', `${profileId}:${node.attr('data-affix') || 'prefix'}:${groupId}:${sourceId}`),
       sourceId,
+      effectKey: sourceId,
+      modifierProfileId: profileId,
       groupId,
       name: cleanText(node.find('[data-name]').first().text() || node.attr('data-name')),
       affixType: node.attr('data-affix') || 'prefix',
       source: node.attr('data-source') || 'natural',
       tags: cleanText(node.attr('data-tags')).split(' ').filter(Boolean),
+      displayTags: cleanText(node.attr('data-tags')).split(' ').filter(Boolean).map((id) => ({ id, label: id })),
       spawnTags: cleanText(node.attr('data-spawn-tags')).split(' ').filter(Boolean),
       requiredTags: cleanText(node.attr('data-required-tags')).split(' ').filter(Boolean),
       itemClasses: cleanText(node.attr('data-item-classes')).split(' ').filter(Boolean),
@@ -200,9 +266,9 @@ function parseStructuredModifiers($) {
   }).get()
 }
 
-export function parsePoedbModifiers(html) {
+export function parsePoedbModifiers(html, { profileId = '' } = {}) {
   const $ = load(html)
-  const structured = parseStructuredModifiers($)
+  const structured = parseStructuredModifiers($, profileId || 'structured')
   if (structured.length) return structured
   const payload = extractModsViewPayload(html)
   if (!payload) return []
@@ -215,13 +281,14 @@ export function parsePoedbModifiers(html) {
     ['hypnotic eye jewel', 'abyss_jewel_caster'], ['ghastly eye jewel', 'abyss_jewel_summoner']
   ]
   baseScopeTags.forEach(([needle, tag]) => { if (baseItemName.toLowerCase() === needle) requiredTags.push(tag) })
+  const resolvedProfileId = profileId || cleanText(payload.opt?.BaseItemName || payload.baseitem?.href || itemClassCode)
   const itemClassScope = [itemClassCode, baseItemName, ...requiredTags].filter(Boolean).join(':')
   const groups = new Map()
   for (const [sourceKey, records] of Object.entries(payload)) {
     if (!Array.isArray(records)) continue
     const influence = SUPPORTED_INFLUENCES.has(sourceKey) ? sourceKey : null
-    const source = sourceKey === 'crafted' ? 'crafted' : sourceKey === 'fractured' ? 'fractured' : 'natural'
-    if (!['normal', 'crafted', 'fractured'].includes(sourceKey) && !influence) continue
+    const source = sourceKey === 'master' ? 'crafted' : sourceKey === 'fractured' ? 'fractured' : 'natural'
+    if (!['normal', 'master', 'fractured'].includes(sourceKey) && !influence) continue
     records.forEach((record) => {
       const generation = Number(record.ModGenerationTypeID)
       if (![1, 2].includes(generation)) return
@@ -229,10 +296,14 @@ export function parsePoedbModifiers(html) {
       if (!family || !record.str) return
       // 同一个 ModFamily 在不同物品类别上可能拥有完全不同的阶级、范围和权重，
       // 因此类别编码必须进入稳定 ID，不能只按 family 全局去重。
-      const key = `${itemClassScope}:${sourceKey}:${generation}:${family}`
+      const effectKey = modifierEffectKey(record.str)
+      const key = `${itemClassScope}:${sourceKey}:${generation}:${family}:${effectKey}`
       if (!groups.has(key)) {
         groups.set(key, {
           sourceId: key,
+          effectKey,
+          modifierProfileId: resolvedProfileId,
+          targetScope: influence || 'base',
           groupId: family,
           affixType: generation === 1 ? 'prefix' : 'suffix',
           source,
@@ -256,12 +327,16 @@ export function parsePoedbModifiers(html) {
     const name = bestText.replace(/[+\-]?[\d().—%]+/g, '#').replace(/#+/g, '#').trim()
     return {
       id: stableCraftingId('modifier', group.sourceId),
+      goalId: stableCraftingId('goal', `${group.modifierProfileId}:${group.targetScope}:${group.affixType}:${group.groupId}:${group.effectKey}`),
       sourceId: group.sourceId,
+      effectKey: group.effectKey,
+      modifierProfileId: group.modifierProfileId,
       groupId: group.groupId,
       name: name || cleanText(sorted[0].Name) || group.groupId,
       affixType: group.affixType,
       source: group.source,
       tags: [...group.tags],
+      displayTags: [...new Map(group.records.flatMap(displayTagsFromModRecord).map((tag) => [tag.id, tag])).values()],
       spawnTags: [...group.spawnTags],
       requiredTags: group.requiredTags,
       itemClasses: [itemClassCode],
@@ -275,6 +350,8 @@ export function parsePoedbModifiers(html) {
           requiredLevel: Number(record.Level) || 1,
           weight: Math.max(0, Number(record.DropChance) || 0),
           text,
+          displayTags: displayTagsFromModRecord(record),
+          hover: cleanText(record.hover),
           values: numberRanges(text)
         }
       })
@@ -294,6 +371,97 @@ function parseCost(text) {
       amount
     }
   }).filter((entry) => entry.amount > 0 && entry.resourceName)
+}
+
+export function mergeModifierGoals(modifiers, crafts = []) {
+  const craftByHover = new Map(crafts.filter((craft) => craft.params?.hover).map((craft) => [craft.params.hover, craft]))
+  const grouped = new Map()
+  for (const modifier of modifiers) {
+    const key = `${modifier.goalId || stableCraftingId('goal', `${modifier.modifierProfileId}:${modifier.affixType}:${modifier.groupId}:${modifier.effectKey}`)}`
+    const current = grouped.get(key) ?? {
+      ...modifier,
+      id: key,
+      goalId: key,
+      source: 'natural',
+      tiers: [],
+      craftedOptions: [],
+      tags: [],
+      displayTags: []
+    }
+    current.tags = [...new Set([...current.tags, ...(modifier.tags ?? [])])]
+    current.displayTags = [...new Map([...current.displayTags, ...(modifier.displayTags ?? [])].map((tag) => [tag.id, tag])).values()]
+    if (modifier.source === 'crafted') {
+      for (const tier of modifier.tiers) {
+        const craft = craftByHover.get(tier.hover)
+        if (!craft) continue
+        current.craftedOptions.push({
+          ...tier,
+          optionId: tier.id,
+          craftId: craft.id,
+          itemClasses: craft.itemClasses,
+          cost: craft.cost,
+          unlock: craft.params?.unlock || ''
+        })
+      }
+    } else {
+      current.tiers.push(...modifier.tiers)
+      current.influences = modifier.influences
+      current.source = modifier.source
+    }
+    grouped.set(key, current)
+  }
+  return [...grouped.values()].map((goal) => {
+    goal.tiers.sort((a, b) => b.requiredLevel - a.requiredLevel || b.values[0]?.min - a.values[0]?.min)
+    goal.tiers = goal.tiers.map((tier, index) => ({ ...tier, tier: index + 1, name: `T${index + 1} ${String(tier.name).replace(/^T\d+\s*/, '')}`.trim() }))
+    goal.craftedOptions.sort((a, b) => (b.values[0]?.min ?? 0) - (a.values[0]?.min ?? 0))
+    if (!goal.tiers.length && goal.craftedOptions.length) {
+      goal.source = 'crafted'
+      goal.tiers = goal.craftedOptions.map((option, index) => ({ ...option, id: `goal-tier:${option.id}`, tier: index + 1, name: `T${index + 1}` }))
+    }
+    return goal
+  }).filter((goal) => goal.tiers.length)
+}
+
+function modifierEffectSummary(value) {
+  return cleanText(value)
+    .replace(/[+\-]?#(?:\s*[—–~-]\s*[+\-]?#)?%?/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^该装备附加\s*/, '附加')
+    .trim()
+}
+
+export function familySummary(entries) {
+  const labels = [...new Set(entries.map((entry) => modifierEffectSummary(entry.name)).filter(Boolean))]
+  if (labels.length <= 1) return labels[0] || entries[0]?.groupId || '词缀'
+  const suffix = labels.every((label) => label.endsWith('伤害提高')) ? '伤害提高' : ''
+  const shortened = suffix ? labels.map((label) => label.slice(0, -suffix.length)) : labels
+  return `${shortened.join(' / ')}${suffix}`
+}
+
+export function groupModifierFamilies(goals) {
+  const families = new Map()
+  for (const goal of goals) {
+    const influenceScope = [...(goal.influences ?? [])].sort().join(',') || 'base'
+    const sourceScope = goal.source === 'crafted' ? 'crafted' : goal.source === 'fractured' ? 'fractured' : influenceScope
+    const key = `${goal.modifierProfileId}:${sourceScope}:${goal.affixType}:${goal.groupId}`
+    const current = families.get(key) ?? {
+      id: stableCraftingId('family', key),
+      modifierProfileId: goal.modifierProfileId,
+      groupId: goal.groupId,
+      affixType: goal.affixType,
+      source: goal.source,
+      influences: [...(goal.influences ?? [])],
+      name: '',
+      entries: []
+    }
+    current.entries.push(goal)
+    families.set(key, current)
+  }
+  return [...families.values()].map((family) => ({
+    ...family,
+    name: familySummary(family.entries),
+    entries: family.entries.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  }))
 }
 
 export function inferCraftEffectKind(name, provider) {
@@ -331,12 +499,13 @@ export function parsePoedbCrafts(html, { provider }) {
   }).get()
   if (structured.length) return structured
 
-  const rows = $('table tr').map((_, element) => {
+  const rows = $('table').first().find('tr').map((_, element) => {
     const cells = $(element).find('td')
     if (cells.length < 2) return null
     const name = cleanText(cells.first().text())
     const costText = cleanText(cells.eq(1).text())
     if (!name || /词缀|描述/.test(name)) return null
+    if (provider === 'bench' && !cells.first().find('.explicitMod').length) return null
     const effectKind = inferCraftEffectKind(name, provider)
     if (effectKind === 'unsupported') return null
     const sourceId = `${name}:${costText}`
@@ -345,9 +514,12 @@ export function parsePoedbCrafts(html, { provider }) {
       provider,
       name,
       effectKind,
-      itemClasses: [],
+      itemClasses: cleanText(cells.eq(2).text()).split('·').map(cleanText).filter(Boolean),
       cost: parseCost(costText),
-      params: {}
+      params: {
+        hover: cleanText(cells.first().find('[data-hover]').first().attr('data-hover')),
+        unlock: cleanText(cells.eq(3).text())
+      }
     }
   }).get().filter(Boolean)
   return [...new Map(rows.map((craft) => [craft.id, craft])).values()]

@@ -43,11 +43,11 @@ test('手动更新只请求文字数据，并在核心页面失败时保留活�
 })
 
 const workerDataset = {
-  manifest: { schemaVersion: 1, game: 'poe1', locale: 'zh-CN', league: 'Test', patch: 'worker', generatedAt: '2026-07-21T00:00:00Z', checksum: 'test', sources: [] },
-  bases: [{ id: 'base:ring', sourceId: 'Ring', name: '测试戒指', category: '首饰', itemClass: '戒指', imageId: 'placeholder', requiredLevel: 1, tags: ['ring'], maxAffixes: { prefix: 3, suffix: 3 }, allowedVariants: ['normal'] }],
-  modifiers: [
-    { id: 'mod:life', sourceId: 'Life', groupId: 'life', name: '生命', affixType: 'prefix', source: 'natural', tags: ['life'], spawnTags: ['ring'], influences: [], tiers: [{ id: 'mod:life:t1', tier: 1, name: 'T1', requiredLevel: 1, weight: 1, text: '+10 最大生命', values: [] }] },
-    { id: 'mod:mana', sourceId: 'Mana', groupId: 'mana', name: '魔力', affixType: 'prefix', source: 'natural', tags: ['mana'], spawnTags: ['ring'], influences: [], tiers: [{ id: 'mod:mana:t1', tier: 1, name: 'T1', requiredLevel: 1, weight: 9, text: '+10 最大魔力', values: [] }] }
+  manifest: { schemaVersion: 3, game: 'poe1', locale: 'zh-CN', league: 'Test', patch: 'worker', generatedAt: '2026-07-21T00:00:00Z', checksum: 'test', sources: [] },
+  bases: [{ id: 'base:ring', sourceId: 'Ring', name: '测试戒指', category: '首饰', itemClass: '戒指', modifierProfileId: 'Ring', imageId: 'placeholder', requiredLevel: 1, tags: ['ring'], maxAffixes: { prefix: 3, suffix: 3 }, allowedVariants: ['normal'] }],
+  modifierFamilies: [
+    { id: 'family:life', modifierProfileId: 'Ring', groupId: 'life', name: '生命', affixType: 'prefix', source: 'natural', influences: [], entries: [{ id: 'mod:life', sourceId: 'Life', modifierProfileId: 'Ring', groupId: 'life', name: '生命', affixType: 'prefix', source: 'natural', tags: ['life'], spawnTags: ['ring'], influences: [], tiers: [{ id: 'mod:life:t1', tier: 1, name: 'T1', requiredLevel: 1, weight: 1, text: '+10 最大生命', values: [] }] }] },
+    { id: 'family:mana', modifierProfileId: 'Ring', groupId: 'mana', name: '魔力', affixType: 'prefix', source: 'natural', influences: [], entries: [{ id: 'mod:mana', sourceId: 'Mana', modifierProfileId: 'Ring', groupId: 'mana', name: '魔力', affixType: 'prefix', source: 'natural', tags: ['mana'], spawnTags: ['ring'], influences: [], tiers: [{ id: 'mod:mana:t1', tier: 1, name: 'T1', requiredLevel: 1, weight: 9, text: '+10 最大魔力', values: [] }] }] }
   ],
   crafts: [], images: { placeholder: 'images/placeholder.svg' }
 }
@@ -57,7 +57,7 @@ test('Worker 按任务 ID 发布快速/精算结果并可清理', async () => {
   const events = []
   const complete = new Promise((resolve, reject) => {
     manager.start({
-      request: { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ modifierId: 'mod:life', minTier: 1, sourcePolicy: 'natural' }] },
+      request: { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ goalId: 'mod:life', minTierId: 'mod:life:t1' }] },
       dataset: workerDataset,
       priceMap: { 'currency:transmutation': 0.1, 'currency:alteration': 0.2, 'currency:chaos': 1, 'currency:alchemy': 0.2, 'currency:scouring': 0.5, 'currency:exalted': 10 },
       priceTime: 'test', options: { quickSamples: 100, refineMinimum: 100, refineMaximum: 100 },
@@ -78,7 +78,7 @@ test('取消任务立即发布 cancelled 且丢弃后续 Worker 事件', async (
   const manager = new CraftingTaskManager()
   const events = []
   const taskId = manager.start({
-    request: { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ modifierId: 'mod:life', minTier: 1, sourcePolicy: 'natural' }] },
+    request: { baseId: 'base:ring', itemLevel: 84, variant: { kind: 'normal' }, targets: [{ goalId: 'mod:life', minTierId: 'mod:life:t1' }] },
     dataset: workerDataset, priceMap: {}, priceTime: 'test', options: { quickSamples: 500000 },
     onEvent: (message) => events.push(message)
   })

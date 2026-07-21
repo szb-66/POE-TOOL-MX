@@ -4,6 +4,7 @@ import { normalizePriceRecord, stableCraftingId } from './model.js'
 
 const CACHE_TTL_MS = 60 * 60 * 1000
 const STALE_MS = 24 * 60 * 60 * 1000
+const YESTERDAY_STALE_MS = 48 * 60 * 60 * 1000
 
 function parseTimestamp(raw) {
   const first = Date.parse(raw)
@@ -37,12 +38,13 @@ function resourceIdFor(item) {
 }
 
 export function priceHealth(record, now = Date.now()) {
-  if (record.error) return { valid: false, reason: record.errorInfo || 'API 标记为 OCR 异常' }
+  if (record.validationError) return { valid: false, reason: record.validationError }
   if (!(record.sellAverage > 0)) return { valid: false, reason: '买卖双方均价均缺失或非正数' }
   const observed = parseTimestamp(record.observedAt)
   if (!Number.isFinite(observed)) return { valid: false, reason: '价格时间格式无效' }
-  if (now - observed > STALE_MS) return { valid: false, reason: '价格超过 24 小时' }
-  return { valid: true, reason: '' }
+  const staleAfter = String(record.source || '').startsWith('remote-yesterday-') ? YESTERDAY_STALE_MS : STALE_MS
+  if (now - observed > staleAfter) return { valid: false, reason: `价格超过 ${staleAfter / 60 / 60 / 1000} 小时` }
+  return { valid: true, reason: '', warning: record.warning || (record.error ? record.errorInfo || 'API 标记为 OCR 异常' : '') }
 }
 
 export function normalizeSummaryPrices(payload) {
@@ -50,24 +52,47 @@ export function normalizeSummaryPrices(payload) {
     const observedAt = item.latest_datetime ?? item.observedAt
     const sellAverage = Number(item.sell_avg ?? item.sellAverage)
     const buyAverage = Number(item.buy_avg ?? item.buyAverage)
+    const yesterdaySellAverage = Number(item.sell_avg_yesterday ?? item.yesterdaySellAverage)
+    const yesterdayBuyAverage = Number(item.buy_avg_yesterday ?? item.yesterdayBuyAverage)
+    const latestSell = Number(item.latest_sell1 ?? item.latestSell)
+    const latestBuy = Number(item.latest_buy1 ?? item.latestBuy)
     const useSellAverage = Number.isFinite(sellAverage) && sellAverage > 0
     const useBuyAverage = !useSellAverage && Number.isFinite(buyAverage) && buyAverage > 0
-    const selectedAverage = useSellAverage ? sellAverage : (useBuyAverage ? buyAverage : 0)
+    const useYesterdaySellAverage = !useSellAverage && !useBuyAverage && Number.isFinite(yesterdaySellAverage) && yesterdaySellAverage > 0
+    const useYesterdayBuyAverage = !useSellAverage && !useBuyAverage && !useYesterdaySellAverage && Number.isFinite(yesterdayBuyAverage) && yesterdayBuyAverage > 0
+    const useLatestSell = !useSellAverage && !useBuyAverage && !useYesterdaySellAverage && !useYesterdayBuyAverage && Number.isFinite(latestSell) && latestSell > 0
+    const useLatestBuy = !useSellAverage && !useBuyAverage && !useYesterdaySellAverage && !useYesterdayBuyAverage && !useLatestSell && Number.isFinite(latestBuy) && latestBuy > 0
+    const selectedAverage = useSellAverage
+      ? sellAverage
+      : useBuyAverage
+        ? buyAverage
+        : useYesterdaySellAverage
+          ? yesterdaySellAverage
+          : useYesterdayBuyAverage
+            ? yesterdayBuyAverage
+            : useLatestSell ? latestSell : useLatestBuy ? latestBuy : 0
+    const source = useBuyAverage
+      ? 'remote-buy-fallback'
+      : useYesterdaySellAverage
+        ? 'remote-yesterday-sell'
+        : useYesterdayBuyAverage
+          ? 'remote-yesterday-buy'
+          : useLatestSell ? 'remote-latest-sell' : useLatestBuy ? 'remote-latest-buy' : 'remote'
     const rawUnit = String(item.currency_unit ?? item.currencyUnit ?? 'c').toLowerCase()
     const invalidReasons = []
     if (!observedAt) invalidReasons.push('价格时间缺失')
     if (!(selectedAverage > 0)) invalidReasons.push('买卖双方均价均缺失或非正数')
     if (!['c', 'd', 'e'].includes(rawUnit)) invalidReasons.push(`未知计价单位 ${rawUnit}`)
-    return normalizePriceRecord({
+    return { ...normalizePriceRecord({
       resourceId: resourceIdFor(item),
       itemName: item.item_name ?? item.itemName ?? item.engname,
       sellAverage: selectedAverage,
-      priceField: useBuyAverage ? 'buy_avg' : 'sell_avg',
+      priceField: useBuyAverage || useYesterdayBuyAverage || useLatestBuy ? 'buy_avg' : 'sell_avg',
       currencyUnit: ['c', 'd', 'e'].includes(rawUnit) ? rawUnit : 'c',
       observedAt: observedAt || 'invalid',
       error: Boolean(item.error) || invalidReasons.length > 0,
       errorInfo: item.error_info || item.errorInfo || invalidReasons.join('；')
-    }, index)
+    }, index), source, validationError: invalidReasons.join('；'), warning: item.error ? item.error_info || item.errorInfo || 'API 标记为 OCR 异常' : '' }
   })
 }
 
@@ -81,14 +106,24 @@ export function convertPricesToChaos(records, overrides = {}) {
   return records.map((record) => {
     const override = Number(overrides[record.resourceId])
     if (override > 0) return { ...record, chaosValue: override, valid: true, reason: '', source: 'override' }
+    if (record.resourceId === 'currency:chaos') return { ...record, sellAverage: 1, chaosValue: 1, valid: true, reason: '', source: 'fixed-chaos' }
     const health = priceHealth(record)
     let multiplier = 1
     if (record.currencyUnit === 'd') multiplier = divineInChaos
     if (record.currencyUnit === 'e') multiplier = exaltedInChaos
-    if (!health.valid) return { ...record, chaosValue: null, valid: false, reason: health.reason, source: 'remote' }
+    if (!health.valid) {
+      const displayValue = record.sellAverage > 0 && multiplier > 0 && !String(health.reason).includes('未知计价单位')
+        ? record.sellAverage * multiplier
+        : null
+      return { ...record, chaosValue: displayValue, valid: false, reason: health.reason, source: record.source || 'remote' }
+    }
     if (!(multiplier > 0)) return { ...record, chaosValue: null, valid: false, reason: `缺少 ${record.currencyUnit} 基准通货混沌价`, source: 'remote' }
-    return { ...record, chaosValue: record.sellAverage * multiplier, valid: true, reason: '', source: record.priceField === 'buy_avg' ? 'remote-buy-fallback' : 'remote' }
+    return { ...record, chaosValue: record.sellAverage * multiplier, valid: true, reason: '', warning: health.warning || '', source: record.source || (record.priceField === 'buy_avg' ? 'remote-buy-fallback' : 'remote') }
   })
+}
+
+function usableRemoteCount(records) {
+  return convertPricesToChaos(records).filter((record) => record.valid && record.source !== 'fixed-chaos').length
 }
 
 export function estimateResources(resources, prices, overrides = {}) {
@@ -122,7 +157,7 @@ export class CraftingPriceService {
     await mkdir(this.storageRoot, { recursive: true })
     try {
       const cached = JSON.parse(await readFile(this.cacheFile, 'utf8'))
-      this.records = cached.records.map(normalizePriceRecord)
+      this.records = cached.records.map((record, index) => ({ ...normalizePriceRecord(record, index), source: record.source, validationError: record.validationError || '', warning: record.warning || '' }))
       this.fetchedAt = Number(cached.fetchedAt) || 0
     } catch {}
     try { this.overrides = JSON.parse(await readFile(this.overrideFile, 'utf8')) } catch {}
@@ -136,7 +171,15 @@ export class CraftingPriceService {
     try {
       const response = await this.fetchImpl('https://poecurrency.top/api/summary?version=1', { signal: controller.signal })
       if (!response.ok) throw new Error(`价格服务返回 HTTP ${response.status}`)
-      this.records = normalizeSummaryPrices(await response.json())
+      const nextRecords = normalizeSummaryPrices(await response.json())
+      const previousValid = usableRemoteCount(this.records)
+      const nextValid = usableRemoteCount(nextRecords)
+      const suspiciousThreshold = Math.max(1, Math.floor(previousValid * 0.3))
+      if (previousValid > 0 && nextValid < previousValid && nextValid <= suspiciousThreshold) {
+        throw new Error(`价格服务有效价格异常（${previousValid} → ${nextValid}），已保留上次有效缓存`)
+      }
+      if (!nextRecords.length || nextValid === 0) throw new Error('价格服务没有返回有效价格，已保留上次有效缓存')
+      this.records = nextRecords
       this.fetchedAt = this.now()
       await writeFile(this.cacheFile, JSON.stringify({ fetchedAt: this.fetchedAt, records: this.records }, null, 2))
       return this.getSnapshot()

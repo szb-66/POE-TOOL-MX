@@ -28,7 +28,8 @@ export function validateBaseVariant(base, variant = { kind: 'normal' }) {
   return { valid: errors.length === 0, errors }
 }
 
-export function modifierCanSpawn(modifier, base, itemLevel, variant = { kind: 'normal' }) {
+export function modifierMatchesBase(modifier, base, variant = { kind: 'normal' }) {
+  if (modifier.modifierProfileId && modifier.modifierProfileId !== 'default' && base.modifierProfileId && modifier.modifierProfileId !== base.modifierProfileId) return false
   const classKey = (value) => String(value).replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
   if (modifier.itemClasses?.length && !modifier.itemClasses.some((itemClass) => classKey(itemClass) === classKey(base.itemClass))) return false
   const baseTags = new Set(base.tags)
@@ -36,13 +37,19 @@ export function modifierCanSpawn(modifier, base, itemLevel, variant = { kind: 'n
   const specificSpawnTags = modifier.spawnTags.filter((tag) => tag !== 'default')
   const hasSpawnTag = !specificSpawnTags.length || specificSpawnTags.some((tag) => baseTags.has(tag))
   if (!hasSpawnTag) return false
-  if (!modifier.tiers.some((tier) => tier.requiredLevel <= itemLevel && tier.weight > 0)) return false
   if (modifier.influences.length) {
     if (variant.kind !== 'influenced') return false
     if (!modifier.influences.some((influence) => variant.influences?.includes(influence))) return false
   }
   if (modifier.source === 'fractured' && variant.kind !== 'fractured') return false
   return true
+}
+
+export function modifierCanSpawn(modifier, base, itemLevel, variant = { kind: 'normal' }) {
+  if (!modifierMatchesBase(modifier, base, variant)) return false
+  const hasNaturalTier = modifier.tiers.some((tier) => tier.requiredLevel <= itemLevel && tier.weight > 0)
+  const hasCraftedTier = modifier.craftedOptions?.some((tier) => tier.requiredLevel <= itemLevel && (!tier.itemClasses?.length || tier.itemClasses.some((itemClass) => base.categoryPath.includes(itemClass) || itemClass === base.itemClass)))
+  return hasNaturalTier || hasCraftedTier
 }
 
 export function legalModifierTiers(modifier, itemLevel) {
