@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto'
+import { NON_TAINTED_CATALYST_TYPES } from './catalystRules.js'
+import { inferBaseDefencePercentile } from './equipmentPropertyRules.js'
 
-export const CRAFTING_SCHEMA_VERSION = 3
+export const CRAFTING_SCHEMA_VERSION = 8
 export const AFFIX_TYPES = new Set(['prefix', 'suffix'])
 export const BASE_VARIANTS = new Set(['normal', 'influenced', 'fractured', 'synthesized', 'eldritch'])
-export const CRAFT_PROVIDERS = new Set(['currency', 'bench', 'harvest'])
+export const CRAFT_PROVIDERS = new Set(['currency', 'bench', 'harvest', 'fossil'])
 
 function fail(path, message) {
   throw new TypeError(`${path}: ${message}`)
@@ -92,6 +94,29 @@ export function normalizeBaseItem(input, index = 0) {
     ['hypnotic_eye_jewel', 'abyss_jewel_caster'], ['ghastly_eye_jewel', 'abyss_jewel_summoner']
   ]
   inferredTags.forEach(([needle, tag]) => { if (sourceKey.includes(needle) && !tags.includes(tag)) tags.push(tag) })
+  const requirements = object(value.requirements, `bases[${index}].requirements`)
+  const requiredLevel = integer(requirements.level, `bases[${index}].requirements.level`, { min: 1, max: 100 })
+  if (value.requiredLevel != null && Number(value.requiredLevel) !== requiredLevel) fail(`bases[${index}].requiredLevel`, '必须与 requirements.level 一致')
+  const qualityType = string(value.qualityType, `bases[${index}].qualityType`)
+  if (!['weapon', 'armour', 'none'].includes(qualityType)) fail(`bases[${index}].qualityType`, '必须是 weapon、armour 或 none')
+  const normalizeRanges = (entries, path) => (Array.isArray(entries) ? entries : fail(path, '必须是数组')).map((range, rangeIndex) => {
+    const item = object(range, `${path}[${rangeIndex}]`)
+    const min = number(item.min, `${path}[${rangeIndex}].min`)
+    const max = number(item.max, `${path}[${rangeIndex}].max`)
+    if (max < min) fail(`${path}[${rangeIndex}]`, 'max 不能小于 min')
+    return { min, max }
+  })
+  const normalizeBaseValues = (entries, path) => (Array.isArray(entries) ? entries : fail(path, '必须是数组')).map((entry, entryIndex) => {
+    const item = object(entry, `${path}[${entryIndex}]`)
+    return {
+      id: string(item.id, `${path}[${entryIndex}].id`),
+      label: string(item.label, `${path}[${entryIndex}].label`, item.text),
+      kind: string(item.kind, `${path}[${entryIndex}].kind`, 'property'),
+      text: string(item.text, `${path}[${entryIndex}].text`),
+      values: normalizeRanges(item.values, `${path}[${entryIndex}].values`),
+      displayTags: normalizeDisplayTags(item.displayTags, `${path}[${entryIndex}].displayTags`)
+    }
+  })
   return {
     id: string(value.id, `bases[${index}].id`),
     sourceId: string(value.sourceId, `bases[${index}].sourceId`, value.id),
@@ -102,7 +127,17 @@ export function normalizeBaseItem(input, index = 0) {
     itemClass: string(value.itemClass, `bases[${index}].itemClass`),
     modifierProfileId: string(value.modifierProfileId, `bases[${index}].modifierProfileId`, value.itemClass),
     imageId: string(value.imageId, `bases[${index}].imageId`, 'placeholder'),
-    requiredLevel: integer(value.requiredLevel ?? 1, `bases[${index}].requiredLevel`, { min: 1, max: 100 }),
+    requiredLevel,
+    requirements: {
+      level: requiredLevel,
+      strength: integer(requirements.strength ?? 0, `bases[${index}].requirements.strength`, { min: 0, max: 1000 }),
+      dexterity: integer(requirements.dexterity ?? 0, `bases[${index}].requirements.dexterity`, { min: 0, max: 1000 }),
+      intelligence: integer(requirements.intelligence ?? 0, `bases[${index}].requirements.intelligence`, { min: 0, max: 1000 })
+    },
+    qualityType,
+    socketLimit: integer(value.socketLimit, `bases[${index}].socketLimit`, { min: 0, max: 6 }),
+    baseStats: normalizeBaseValues(value.baseStats, `bases[${index}].baseStats`),
+    implicitModifiers: normalizeBaseValues(value.implicitModifiers, `bases[${index}].implicitModifiers`),
     tags,
     maxAffixes: {
       prefix: integer(maxAffixes.prefix, `bases[${index}].maxAffixes.prefix`, { min: 0, max: 3 }),
@@ -118,6 +153,7 @@ export function normalizeBaseItem(input, index = 0) {
 export function normalizeModifierTier(input, path = 'tier') {
   const value = object(input, path)
   const tier = integer(value.tier, `${path}.tier`, { min: 1, max: 99 })
+  const sourceItem = value.sourceItem == null ? null : object(value.sourceItem, `${path}.sourceItem`)
   return {
     id: string(value.id, `${path}.id`),
     tier,
@@ -132,7 +168,15 @@ export function normalizeModifierTier(input, path = 'tier') {
         min: number(item.min, `${path}.values[${index}].min`),
         max: number(item.max, `${path}.values[${index}].max`)
       }
-    }) : []
+    }) : [],
+    ...(sourceItem ? { sourceItem: {
+      id: string(sourceItem.id, `${path}.sourceItem.id`),
+      name: string(sourceItem.name, `${path}.sourceItem.name`),
+      tier: integer(sourceItem.tier, `${path}.sourceItem.tier`, { min: 1, max: 99 }),
+      minimumItemLevel: integer(sourceItem.minimumItemLevel ?? 1, `${path}.sourceItem.minimumItemLevel`, { min: 1, max: 100 }),
+      randomModifierLevelCap: sourceItem.randomModifierLevelCap == null ? null : integer(sourceItem.randomModifierLevelCap, `${path}.sourceItem.randomModifierLevelCap`, { min: 1, max: 100 }),
+      canReforgeRare: Boolean(sourceItem.canReforgeRare)
+    } } : {})
   }
 }
 
@@ -235,6 +279,87 @@ export function normalizeCraftDefinition(input, index = 0) {
   }
 }
 
+export function normalizeEldritchImplicitFamily(input, index = 0) {
+  const path = `eldritchImplicitFamilies[${index}]`
+  const value = object(input, path)
+  const source = string(value.source, `${path}.source`)
+  if (!['exarch', 'eater'].includes(source)) fail(`${path}.source`, '必须是 exarch 或 eater')
+  const itemClasses = stringArray(value.itemClasses, `${path}.itemClasses`)
+  const allowedClasses = new Set(['Helmet', 'Gloves', 'Boots', 'BodyArmour'])
+  if (!itemClasses.length || itemClasses.some((entry) => !allowedClasses.has(entry))) fail(`${path}.itemClasses`, '必须包含受支持的护甲类别')
+  const tiers = (Array.isArray(value.tiers) ? value.tiers : fail(`${path}.tiers`, '必须是数组')).map((tier, tierIndex) => {
+    const tierPath = `${path}.tiers[${tierIndex}]`
+    const item = object(tier, tierPath)
+    const rank = integer(item.tier, `${tierPath}.tier`, { min: 1, max: 6 })
+    const weights = {}
+    for (const itemClass of itemClasses) {
+      const weight = number(item.weights?.[itemClass] ?? 0, `${tierPath}.weights.${itemClass}`, { min: 0 })
+      weights[itemClass] = weight
+    }
+    if (!Object.keys(weights).length) fail(`${tierPath}.weights`, '至少需要一个受支持的护甲类别')
+    return {
+      id: string(item.id, `${tierPath}.id`), tier: rank,
+      name: string(item.name, `${tierPath}.name`, `T${rank}`),
+      requiredLevel: integer(item.requiredLevel ?? 1, `${tierPath}.requiredLevel`, { min: 1, max: 100 }),
+      text: string(item.text, `${tierPath}.text`),
+      displayTags: normalizeDisplayTags(item.displayTags ?? value.displayTags ?? value.tags, `${tierPath}.displayTags`),
+      values: Array.isArray(item.values) ? item.values.map((range, rangeIndex) => {
+        const entry = object(range, `${tierPath}.values[${rangeIndex}]`)
+        return { min: number(entry.min, `${tierPath}.values[${rangeIndex}].min`), max: number(entry.max, `${tierPath}.values[${rangeIndex}].max`) }
+      }) : [],
+      weights
+    }
+  }).sort((a, b) => a.tier - b.tier)
+  if (!tiers.length || new Set(tiers.map((tier) => tier.tier)).size !== tiers.length) fail(`${path}.tiers`, '至少需要一个且阶级不能重复')
+  if (tiers.length !== 6 || tiers.some((tier, index) => tier.tier !== index + 1)) fail(`${path}.tiers`, '必须包含连续的 T1–T6')
+  if (!tiers.some((tier) => Object.values(tier.weights).some((weight) => weight > 0))) fail(`${path}.tiers`, '家族至少需要一个正权重候选')
+  return {
+    id: string(value.id, `${path}.id`), source,
+    effectKey: string(value.effectKey, `${path}.effectKey`, value.id),
+    name: string(value.name, `${path}.name`), itemClasses,
+    tags: stringArray(value.tags, `${path}.tags`),
+    displayTags: normalizeDisplayTags(value.displayTags ?? value.tags, `${path}.displayTags`),
+    tiers
+  }
+}
+
+export function normalizeCorruptedImplicitFamily(input, index = 0) {
+  const path = `corruptedImplicitFamilies[${index}]`
+  const value = object(input, path)
+  const source = string(value.source, `${path}.source`, 'vaal')
+  if (source !== 'vaal') fail(`${path}.source`, '必须是 vaal')
+  const allowedClasses = new Set(['Amulet', 'Belt', 'BodyArmour', 'Boots', 'Bow', 'Claw', 'Dagger', 'Gloves', 'Helmet', 'OneHandAxe', 'OneHandMace', 'OneHandSword', 'Quiver', 'Ring', 'RuneDagger', 'Sceptre', 'Shield', 'Staff', 'ThrustingOneHandSword', 'TwoHandAxe', 'TwoHandMace', 'TwoHandSword', 'Wand', 'Warstaff'])
+  const itemClasses = stringArray(value.itemClasses, `${path}.itemClasses`)
+  if (!itemClasses.length || itemClasses.some((entry) => !allowedClasses.has(entry))) fail(`${path}.itemClasses`, '包含不受支持的腐化装备类别')
+  const tiers = (Array.isArray(value.tiers) ? value.tiers : fail(`${path}.tiers`, '必须是数组')).map((tier, tierIndex) => {
+    const tierPath = `${path}.tiers[${tierIndex}]`
+    const item = object(tier, tierPath)
+    const weights = {}
+    for (const itemClass of itemClasses) weights[itemClass] = number(item.weights?.[itemClass] ?? 0, `${tierPath}.weights.${itemClass}`, { min: 0 })
+    return {
+      id: string(item.id, `${tierPath}.id`), tier: integer(item.tier, `${tierPath}.tier`, { min: 1 }),
+      name: string(item.name, `${tierPath}.name`, `T${tierIndex + 1}`),
+      requiredLevel: integer(item.requiredLevel ?? 1, `${tierPath}.requiredLevel`, { min: 1, max: 100 }),
+      text: string(item.text, `${tierPath}.text`),
+      displayTags: normalizeDisplayTags(item.displayTags ?? value.displayTags ?? value.tags, `${tierPath}.displayTags`),
+      values: Array.isArray(item.values) ? item.values.map((range, rangeIndex) => {
+        const entry = object(range, `${tierPath}.values[${rangeIndex}]`)
+        return { min: number(entry.min, `${tierPath}.values[${rangeIndex}].min`), max: number(entry.max, `${tierPath}.values[${rangeIndex}].max`) }
+      }) : [],
+      weights
+    }
+  }).sort((a, b) => a.tier - b.tier)
+  if (!tiers.length || new Set(tiers.map((tier) => tier.tier)).size !== tiers.length) fail(`${path}.tiers`, '至少需要一个且阶级不能重复')
+  if (!tiers.some((tier) => Object.values(tier.weights).some((weight) => weight > 0))) fail(`${path}.tiers`, '家族至少需要一个正权重候选')
+  return {
+    id: string(value.id, `${path}.id`), source,
+    effectKey: string(value.effectKey, `${path}.effectKey`, value.id),
+    name: string(value.name, `${path}.name`), itemClasses,
+    tags: stringArray(value.tags, `${path}.tags`),
+    displayTags: normalizeDisplayTags(value.displayTags ?? value.tags, `${path}.displayTags`), tiers
+  }
+}
+
 export function normalizePriceRecord(input, index = 0) {
   const path = `prices[${index}]`
   const value = object(input, path)
@@ -290,15 +415,139 @@ export function normalizeCraftState(input = {}) {
       tierId: string(item.tierId, `state.${type}[${index}].tierId`),
       groupId: string(item.groupId, `state.${type}[${index}].groupId`),
       source: string(item.source, `state.${type}[${index}].source`, 'natural'),
-      fractured: boolean(item.fractured)
+      sourceItemId: item.sourceItemId ? string(item.sourceItemId, `state.${type}[${index}].sourceItemId`) : null,
+      sourceItemName: item.sourceItemName ? string(item.sourceItemName, `state.${type}[${index}].sourceItemName`) : '',
+      fractured: boolean(item.fractured),
+      veiled: boolean(item.veiled),
+      affixType: string(item.affixType, `state.${type}[${index}].affixType`, type === 'prefixes' ? 'prefix' : 'suffix'),
+      name: string(item.name, `state.${type}[${index}].name`, ''),
+      tierName: string(item.tierName, `state.${type}[${index}].tierName`, ''),
+      text: string(item.text, `state.${type}[${index}].text`, ''),
+      rolledText: string(item.rolledText, `state.${type}[${index}].rolledText`, item.text || ''),
+      valueRanges: Array.isArray(item.valueRanges) ? item.valueRanges.map((range) => ({ min: Number(range.min), max: Number(range.max) })) : [],
+      rolledValues: Array.isArray(item.rolledValues) ? item.rolledValues.map(Number) : [],
+      displayTags: Array.isArray(item.displayTags) ? structuredClone(item.displayTags) : [],
+      weight: Math.max(0, Number(item.weight) || 0),
+      metaCraft: boolean(item.metaCraft)
     }
   })
+  const normalizeEldritchInstance = (entry, source) => {
+    if (entry == null) return null
+    const path = `state.eldritchImplicits.${source}`
+    const item = object(entry, path)
+    const tier = integer(item.tier, `${path}.tier`, { min: 1, max: 6 })
+    return {
+      source, familyId: string(item.familyId, `${path}.familyId`), tierId: string(item.tierId, `${path}.tierId`), tier,
+      name: string(item.name, `${path}.name`, `T${tier}`), text: string(item.text, `${path}.text`),
+      rolledText: string(item.rolledText, `${path}.rolledText`, item.text),
+      valueRanges: Array.isArray(item.valueRanges) ? item.valueRanges.map((range) => ({ min: Number(range.min), max: Number(range.max) })) : [],
+      rolledValues: Array.isArray(item.rolledValues) ? item.rolledValues.map(Number) : [],
+      displayTags: normalizeDisplayTags(item.displayTags, `${path}.displayTags`),
+      weight: Math.max(0, Number(item.weight) || 0)
+    }
+  }
+  const normalizeVaalImplicit = (entry) => {
+    if (entry == null) return null
+    const path = 'state.vaalImplicit'
+    const item = object(entry, path)
+    const tier = integer(item.tier, `${path}.tier`, { min: 1 })
+    return {
+      source: 'vaal', familyId: string(item.familyId, `${path}.familyId`), tierId: string(item.tierId, `${path}.tierId`), tier,
+      name: string(item.name, `${path}.name`, `T${tier}`), text: string(item.text, `${path}.text`),
+      rolledText: string(item.rolledText, `${path}.rolledText`, item.text),
+      valueRanges: Array.isArray(item.valueRanges) ? item.valueRanges.map((range) => ({ min: Number(range.min), max: Number(range.max) })) : [],
+      rolledValues: Array.isArray(item.rolledValues) ? item.rolledValues.map(Number) : [],
+      displayTags: normalizeDisplayTags(item.displayTags, `${path}.displayTags`),
+      weight: Math.max(0, Number(item.weight) || 0)
+    }
+  }
+  const normalizeBaseInstances = (entries, key) => (Array.isArray(entries) ? entries : []).map((entry, index) => {
+    const path = `state.${key}[${index}]`
+    const item = object(entry, path)
+    const valueRanges = Array.isArray(item.valueRanges) ? item.valueRanges.map((range, rangeIndex) => {
+      const min = number(range.min, `${path}.valueRanges[${rangeIndex}].min`)
+      const max = number(range.max, `${path}.valueRanges[${rangeIndex}].max`)
+      if (max < min) fail(`${path}.valueRanges[${rangeIndex}]`, 'max 不能小于 min')
+      return { min, max }
+    }) : []
+    const rolledValues = Array.isArray(item.rolledValues) ? item.rolledValues.map((entryValue, valueIndex) => number(entryValue, `${path}.rolledValues[${valueIndex}]`)) : []
+    if (rolledValues.length !== valueRanges.length) fail(path, 'rolledValues 必须与 valueRanges 一一对应')
+    return {
+      id: string(item.id, `${path}.id`), label: string(item.label, `${path}.label`, item.text),
+      kind: string(item.kind, `${path}.kind`, key === 'baseImplicits' ? 'implicit' : 'property'),
+      text: string(item.text, `${path}.text`), valueRanges, rolledValues,
+      displayTags: normalizeDisplayTags(item.displayTags, `${path}.displayTags`),
+      rolledText: string(item.rolledText, `${path}.rolledText`, item.text)
+    }
+  })
+  const baseStats = normalizeBaseInstances(value.baseStats, 'baseStats')
+  const inferredBaseDefencePercentile = inferBaseDefencePercentile(baseStats)
+  const sockets = (Array.isArray(value.sockets) ? value.sockets : []).map((entry, index) => {
+    const path = `state.sockets[${index}]`
+    const item = object(entry, path)
+    const color = string(item.color, `${path}.color`)
+    if (!['R', 'G', 'B', 'W'].includes(color)) fail(`${path}.color`, '必须是 R、G、B 或 W')
+    return { id: string(item.id, `${path}.id`, `socket:${index + 1}`), color }
+  })
+  if (new Set(sockets.map((entry) => entry.id)).size !== sockets.length) fail('state.sockets', '插槽 ID 不能重复')
+  const socketIndexes = new Map(sockets.map((entry, index) => [entry.id, index]))
+  const usedSocketIds = new Set()
+  const links = (Array.isArray(value.links) ? value.links : sockets.map((entry) => [entry.id])).map((group, groupIndex) => {
+    if (!Array.isArray(group) || !group.length) fail(`state.links[${groupIndex}]`, '连接组不能为空')
+    const ids = group.map((id, index) => string(id, `state.links[${groupIndex}][${index}]`))
+    const indexes = ids.map((id) => socketIndexes.get(id))
+    if (indexes.some((index) => index == null)) fail(`state.links[${groupIndex}]`, '连接组引用了不存在的插槽')
+    if (ids.some((id) => usedSocketIds.has(id))) fail(`state.links[${groupIndex}]`, '同一插槽不能出现在多个连接组')
+    const sorted = [...indexes].sort((a, b) => a - b)
+    if (sorted.some((index, position) => position && index !== sorted[position - 1] + 1)) fail(`state.links[${groupIndex}]`, '连接组必须由连续插槽组成')
+    ids.forEach((id) => usedSocketIds.add(id))
+    return ids
+  })
+  if (usedSocketIds.size !== sockets.length) fail('state.links', '每个插槽必须属于一个连接组')
   return {
     rarity,
+    corrupted: boolean(value.corrupted),
+    mirrored: boolean(value.mirrored),
+    enchanted: boolean(value.enchanted || String(value.qualityEffect ?? '').trim()),
+    split: boolean(value.split),
+    quality: integer(value.quality ?? 0, 'state.quality', { min: 0, max: 200 }),
+    catalystQuality: (() => {
+      const quality = value.catalystQuality && typeof value.catalystQuality === 'object' ? value.catalystQuality : {}
+      const type = quality.type == null || quality.type === '' ? null : string(quality.type, 'state.catalystQuality.type')
+      const amount = integer(quality.amount ?? 0, 'state.catalystQuality.amount', { min: 0, max: 20 })
+      if (!type && amount) fail('state.catalystQuality', '没有类型时品质必须为 0')
+      if (type && !NON_TAINTED_CATALYST_TYPES.includes(type)) fail('state.catalystQuality.type', `未知催化剂品质 ${type}`)
+      return { type, amount }
+    })(),
+    baseDefencePercentile: value.baseDefencePercentile == null
+      ? inferredBaseDefencePercentile
+      : integer(value.baseDefencePercentile, 'state.baseDefencePercentile', { min: 0, max: 100 }),
+    baseStats,
+    baseImplicits: normalizeBaseInstances(value.baseImplicits, 'baseImplicits'),
+    sockets,
+    links,
     prefixes: normalizeAffixes(value.prefixes, 'prefixes'),
     suffixes: normalizeAffixes(value.suffixes, 'suffixes'),
     influences: stringArray(value.influences, 'state.influences'),
     implicits: stringArray(value.implicits, 'state.implicits'),
+    eldritchImplicits: {
+      exarch: normalizeEldritchInstance(value.eldritchImplicits?.exarch, 'exarch'),
+      eater: normalizeEldritchInstance(value.eldritchImplicits?.eater, 'eater')
+    },
+    vaalImplicit: normalizeVaalImplicit(value.vaalImplicit),
+    corruptionOutcome: value.corruptionOutcome == null || value.corruptionOutcome === '' ? null : (() => {
+      const outcome = string(value.corruptionOutcome, 'state.corruptionOutcome')
+      if (!['implicit', 'white-sockets', 'rare-reforge', 'no-change'].includes(outcome)) fail('state.corruptionOutcome', '未知瓦尔腐化结果')
+      return outcome
+    })(),
+    corruptionReplacedImplicit: value.corruptionReplacedImplicit && typeof value.corruptionReplacedImplicit === 'object'
+      ? {
+          source: string(value.corruptionReplacedImplicit.source, 'state.corruptionReplacedImplicit.source'),
+          id: string(value.corruptionReplacedImplicit.id, 'state.corruptionReplacedImplicit.id'),
+          text: string(value.corruptionReplacedImplicit.text, 'state.corruptionReplacedImplicit.text')
+        }
+      : null,
+    qualityEffect: String(value.qualityEffect ?? '').trim(),
     meta: {
       prefixesLocked: boolean(value.meta?.prefixesLocked),
       suffixesLocked: boolean(value.meta?.suffixesLocked),
@@ -340,6 +589,8 @@ export function normalizeCraftingDataset(input) {
   const modifierFamilies = (Array.isArray(value.modifierFamilies) ? value.modifierFamilies : fail('dataset.modifierFamilies', '必须是数组')).map(normalizeModifierFamilyGroup)
   const modifiers = modifierFamilies.flatMap((family) => family.entries.map((entry) => ({ ...entry, familyId: family.id })))
   const crafts = (Array.isArray(value.crafts) ? value.crafts : fail('dataset.crafts', '必须是数组')).map(normalizeCraftDefinition)
+  const eldritchImplicitFamilies = (Array.isArray(value.eldritchImplicitFamilies) ? value.eldritchImplicitFamilies : []).map(normalizeEldritchImplicitFamily)
+  const corruptedImplicitFamilies = (Array.isArray(value.corruptedImplicitFamilies) ? value.corruptedImplicitFamilies : []).map(normalizeCorruptedImplicitFamily)
   const unique = (entries, path) => {
     const ids = new Set()
     entries.forEach((entry) => {
@@ -351,6 +602,8 @@ export function normalizeCraftingDataset(input) {
   unique(modifierFamilies, 'dataset.modifierFamilies')
   unique(modifiers, 'dataset.modifierFamilies.entries')
   unique(crafts, 'dataset.crafts')
+  unique(eldritchImplicitFamilies, 'dataset.eldritchImplicitFamilies')
+  unique(corruptedImplicitFamilies, 'dataset.corruptedImplicitFamilies')
   const goalIds = new Set(modifiers.map((modifier) => modifier.goalId))
   const craftIds = new Set(crafts.map((craft) => craft.id))
   modifiers.forEach((modifier) => modifier.craftedOptions.forEach((option) => {
@@ -370,6 +623,8 @@ export function normalizeCraftingDataset(input) {
     modifierFamilies,
     modifiers,
     crafts,
+    eldritchImplicitFamilies,
+    corruptedImplicitFamilies,
     images: structuredClone(value.images ?? {})
   }
 }

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "crafting:data": "node scripts/generateCraftingData.js --live",
+    "crafting:data": "node scripts/generateCraftingData.js",
+    "crafting:data:missing": "node scripts/generateCraftingData.js --fetch-missing",
+    "crafting:data:refresh": "node scripts/generateCraftingData.js --live",
     "dev": "vite",
     "dev:electron": "node scripts/dev.js",
     "build": "vite build",

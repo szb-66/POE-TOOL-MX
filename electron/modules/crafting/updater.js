@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto'
 import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, mergeModifierGoals, parsePoedbBases, parsePoedbCrafts, parsePoedbModifiers } from './poedbParser.js'
+import { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, mergeModifierGoals, parsePoedbBases, parsePoedbCrafts, parsePoedbEldritchImplicits, parsePoedbModifiers } from './poedbParser.js'
 import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from './model.js'
 import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from './poedbSources.js'
+import { createFossilCrafts } from './fossilRules.js'
 
 async function fetchOrThrow(fetchImpl, url, signal) {
   let lastError
@@ -64,16 +65,19 @@ export class CraftingDataUpdater {
         modifierResults.push({ url, modifiers })
         onProgress({ phase: 'modifiers', completed: index + 1, total: POEDB_MODIFIER_PAGES.length, label: page })
       }
-      const [benchHtml, harvestHtml] = await Promise.all([
+      const [benchHtml, harvestHtml, eldritchHtml] = await Promise.all([
         fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Crafting_Bench', signal).then((response) => response.text()),
-        fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Horticrafting', signal).then((response) => response.text())
+        fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Horticrafting', signal).then((response) => response.text()),
+        fetchOrThrow(this.fetchImpl, 'https://poedb.tw/cn/Eldritch_implicit', signal).then((response) => response.text())
       ])
+      const eldritchImplicitFamilies = parsePoedbEldritchImplicits(eldritchHtml)
+      if (!eldritchImplicitFamilies.length || !['exarch', 'eater'].every((source) => eldritchImplicitFamilies.some((family) => family.source === source))) throw new Error('古灵隐式两侧解析结果不完整')
       const bases = finalizePoedbBases(pageResults.flatMap((entry) => entry.bases), SPECIAL_MODIFIER_PROFILES)
       // ponytail: merge+dedup — createCoreCurrencyCrafts() generates canonical costs,
       // prior-dataset staticCrafts may carry additional info; Map keeps last-write-wins
       const staticCrafts = this.repository.getDataset().crafts.filter((craft) => craft.provider === 'currency' || ['lock_prefixes', 'lock_suffixes', 'cannot_roll_attack', 'cannot_roll_caster', 'multimod'].includes(craft.effectKind))
       const crafts = [...new Map([
-        ...createCoreCurrencyCrafts(), ...staticCrafts,
+        ...createCoreCurrencyCrafts(), ...createFossilCrafts(), ...staticCrafts,
         ...parsePoedbCrafts(benchHtml, { provider: 'bench' }), ...parsePoedbCrafts(harvestHtml, { provider: 'harvest' })
       ].map((entry) => [entry.id, entry])).values()]
       const modifierFamilies = groupModifierFamilies(mergeModifierGoals(modifierResults.flatMap((entry) => entry.modifiers), crafts))
@@ -86,9 +90,9 @@ export class CraftingDataUpdater {
         manifest: {
           schemaVersion: CRAFTING_SCHEMA_VERSION, game: 'poe1', locale: 'zh-CN', league: detectLeague(firstHtml), patch: 'current',
           generatedAt: new Date().toISOString(), checksum: 'pending',
-          sources: [...new Set([...pageResults, ...modifierResults].map((entry) => entry.url).concat(['https://poedb.tw/cn/Crafting_Bench', 'https://poedb.tw/cn/Horticrafting']))]
+          sources: [...new Set([...pageResults, ...modifierResults].map((entry) => entry.url).concat(['https://poedb.tw/cn/Crafting_Bench', 'https://poedb.tw/cn/Horticrafting', 'https://poedb.tw/cn/Fossil', 'https://poedb.tw/cn/Eldritch_implicit']))]
             .map((url) => ({ id: stableCraftingId('source', url), url }))
-        }, bases, modifierFamilies, crafts, images
+        }, bases, modifierFamilies, crafts, eldritchImplicitFamilies, images
       }
       const checksumInput = JSON.stringify({ ...dataset, manifest: { ...dataset.manifest, checksum: '' } })
       dataset.manifest.checksum = createHash('sha256').update(checksumInput).digest('hex')

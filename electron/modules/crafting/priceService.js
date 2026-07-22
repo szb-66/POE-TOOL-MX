@@ -37,6 +37,17 @@ function resourceIdFor(item) {
   return known?.[1] || stableCraftingId('resource', english || name)
 }
 
+function comparableResourceName(value) {
+  return String(value || '').replace(/\s+x\s*\d+(?:\.\d+)?\s*$/i, '').replace(/\s+/g, '').trim()
+}
+
+export function filterCraftingPrices(records, resources = []) {
+  if (!Array.isArray(resources) || !resources.length) return records
+  const ids = new Set(resources.map((resource) => resource?.resourceId).filter(Boolean))
+  const names = new Set(resources.map((resource) => comparableResourceName(resource?.resourceName)).filter(Boolean))
+  return records.filter((record) => ids.has(record.resourceId) || names.has(comparableResourceName(record.itemName)))
+}
+
 export function priceHealth(record, now = Date.now()) {
   if (record.validationError) return { valid: false, reason: record.validationError }
   if (!(record.sellAverage > 0)) return { valid: false, reason: '买卖双方均价均缺失或非正数' }
@@ -96,18 +107,18 @@ export function normalizeSummaryPrices(payload) {
   })
 }
 
-function findBenchmark(records, names) {
-  return records.find((record) => names.includes(record.itemName) && record.currencyUnit === 'c' && priceHealth(record).valid)?.sellAverage
+function findBenchmark(records, names, now) {
+  return records.find((record) => names.includes(record.itemName) && record.currencyUnit === 'c' && priceHealth(record, now).valid)?.sellAverage
 }
 
-export function convertPricesToChaos(records, overrides = {}) {
-  const divineInChaos = Number(overrides['currency:divine']) || findBenchmark(records, ['神圣石', 'Divine Orb'])
-  const exaltedInChaos = Number(overrides['currency:exalted']) || findBenchmark(records, ['崇高石', 'Exalted Orb'])
+export function convertPricesToChaos(records, overrides = {}, now = Date.now()) {
+  const divineInChaos = Number(overrides['currency:divine']) || findBenchmark(records, ['神圣石', 'Divine Orb'], now)
+  const exaltedInChaos = Number(overrides['currency:exalted']) || findBenchmark(records, ['崇高石', 'Exalted Orb'], now)
   return records.map((record) => {
     const override = Number(overrides[record.resourceId])
     if (override > 0) return { ...record, chaosValue: override, valid: true, reason: '', source: 'override' }
     if (record.resourceId === 'currency:chaos') return { ...record, sellAverage: 1, chaosValue: 1, valid: true, reason: '', source: 'fixed-chaos' }
-    const health = priceHealth(record)
+    const health = priceHealth(record, now)
     let multiplier = 1
     if (record.currencyUnit === 'd') multiplier = divineInChaos
     if (record.currencyUnit === 'e') multiplier = exaltedInChaos
@@ -122,8 +133,8 @@ export function convertPricesToChaos(records, overrides = {}) {
   })
 }
 
-function usableRemoteCount(records) {
-  return convertPricesToChaos(records).filter((record) => record.valid && record.source !== 'fixed-chaos').length
+function usableRemoteCount(records, now) {
+  return convertPricesToChaos(records, {}, now).filter((record) => record.valid && record.source !== 'fixed-chaos').length
 }
 
 export function estimateResources(resources, prices, overrides = {}) {
@@ -141,10 +152,11 @@ export function estimateResources(resources, prices, overrides = {}) {
 }
 
 export class CraftingPriceService {
-  constructor({ storageRoot, fetchImpl = fetch, now = () => Date.now() }) {
+  constructor({ storageRoot, fetchImpl = fetch, now = () => Date.now(), getRequiredResources = () => [] }) {
     this.storageRoot = storageRoot
     this.fetchImpl = fetchImpl
     this.now = now
+    this.getRequiredResources = getRequiredResources
     this.records = []
     this.fetchedAt = 0
     this.overrides = {}
@@ -152,6 +164,10 @@ export class CraftingPriceService {
 
   get cacheFile() { return path.join(this.storageRoot, 'prices.json') }
   get overrideFile() { return path.join(this.storageRoot, 'price-overrides.json') }
+
+  relevantRecords(records = this.records) {
+    return filterCraftingPrices(records, this.getRequiredResources())
+  }
 
   async initialize() {
     await mkdir(this.storageRoot, { recursive: true })
@@ -165,15 +181,15 @@ export class CraftingPriceService {
   }
 
   async refresh({ force = false } = {}) {
-    if (!force && this.records.length && this.now() - this.fetchedAt < CACHE_TTL_MS) return this.getSnapshot()
+    if (!force && this.relevantRecords().length && this.now() - this.fetchedAt < CACHE_TTL_MS) return this.getSnapshot()
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 12000)
     try {
       const response = await this.fetchImpl('https://poecurrency.top/api/summary?version=1', { signal: controller.signal })
       if (!response.ok) throw new Error(`价格服务返回 HTTP ${response.status}`)
-      const nextRecords = normalizeSummaryPrices(await response.json())
-      const previousValid = usableRemoteCount(this.records)
-      const nextValid = usableRemoteCount(nextRecords)
+      const nextRecords = filterCraftingPrices(normalizeSummaryPrices(await response.json()), this.getRequiredResources())
+      const previousValid = usableRemoteCount(this.relevantRecords(), this.now())
+      const nextValid = usableRemoteCount(nextRecords, this.now())
       const suspiciousThreshold = Math.max(1, Math.floor(previousValid * 0.3))
       if (previousValid > 0 && nextValid < previousValid && nextValid <= suspiciousThreshold) {
         throw new Error(`价格服务有效价格异常（${previousValid} → ${nextValid}），已保留上次有效缓存`)
@@ -202,6 +218,6 @@ export class CraftingPriceService {
   }
 
   getSnapshot() {
-    return { fetchedAt: this.fetchedAt, records: convertPricesToChaos(this.records, this.overrides), overrides: { ...this.overrides }, warning: '公开价格为 OCR 数据，仅供个人非商业使用；底材成本未计入。' }
+    return { fetchedAt: this.fetchedAt, records: convertPricesToChaos(this.relevantRecords(), this.overrides, this.now()), overrides: { ...this.overrides }, warning: '公开价格为 OCR 数据，仅供个人非商业使用；底材成本未计入。' }
   }
 }

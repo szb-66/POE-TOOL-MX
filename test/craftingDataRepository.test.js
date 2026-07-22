@@ -11,6 +11,9 @@ const builtinRoot = path.resolve('electron/assets/crafting-data')
 test('内置快照可离线查询底材、分类和合法词缀', async () => {
   const repository = new CraftingDataRepository({ builtinRoot })
   const status = await repository.initialize()
+  assert.equal(status.patch, '3.28')
+  assert.equal(status.league, 'Mirage')
+  assert.equal(status.stale, false)
   assert.ok(status.counts.bases > 0)
   const categories = repository.listCategories()
   assert.ok(categories.length > 0)
@@ -28,6 +31,12 @@ test('内置快照可离线查询底材、分类和合法词缀', async () => {
   assert.ok(status.counts.modifiers > 0)
   assert.ok(status.counts.modifierEntries >= 1900)
   assert.equal(status.sources.length, new Set(status.sources.map((source) => source.id)).size)
+  assert.ok(status.sources.some((source) => source.url === 'https://www.poewiki.net/wiki/Version_history'))
+  const ironHat = repository.getDataset().bases.find((base) => base.name === '粗铁盔')
+  assert.deepEqual(ironHat.requirements, { level: 1, strength: 9, dexterity: 0, intelligence: 0 })
+  assert.equal(ironHat.qualityType, 'armour')
+  assert.equal(ironHat.socketLimit, 4)
+  assert.ok(ironHat.baseStats.some((entry) => entry.label === '护甲'))
 })
 
 test('护甲属性、深渊类型和星团尺寸使用隔离的词缀候选池', async () => {
@@ -76,20 +85,20 @@ test('活动指针越界或损坏时回退内置快照', async () => {
   assert.match(status.warning, /越界/)
 })
 
-test('schema v2 活动快照回退内置 v3 且保留旧目录', async () => {
+test('旧 schema 活动快照回退内置当前版本且保留旧目录', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'crafting-schema-v1-'))
   const legacyDir = path.join(root, 'version-old')
   await mkdir(legacyDir)
   const legacy = JSON.parse(await readFile(path.join(builtinRoot, 'dataset.json'), 'utf8'))
-  legacy.manifest.schemaVersion = 2
+  legacy.manifest.schemaVersion = 4
   legacy.manifest.checksum = 'test'
   await writeFile(path.join(legacyDir, 'dataset.json'), JSON.stringify(legacy))
   await writeFile(path.join(root, 'active.json'), JSON.stringify({ directory: 'version-old' }))
   const repository = new CraftingDataRepository({ builtinRoot, userDataRoot: root })
   const status = await repository.initialize()
   assert.equal(status.source, 'builtin')
-  assert.match(status.warning, /schema 2/)
-  assert.equal(JSON.parse(await readFile(path.join(legacyDir, 'dataset.json'), 'utf8')).manifest.schemaVersion, 2)
+  assert.match(status.warning, /schema 4/)
+  assert.equal(JSON.parse(await readFile(path.join(legacyDir, 'dataset.json'), 'utf8')).manifest.schemaVersion, 4)
 })
 
 test('特殊底材状态互斥并要求必要参数', async () => {
@@ -99,4 +108,24 @@ test('特殊底材状态互斥并要求必要参数', async () => {
   assert.equal(validateBaseVariant(base, { kind: 'fractured' }).valid, false)
   assert.equal(validateBaseVariant(base, { kind: 'fractured', fracturedTierId: 'tier:test' }).valid, true)
   assert.equal(validateBaseVariant(base, { kind: 'normal', influences: ['shaper'] }).valid, false)
+})
+
+test('三级词缀目录固定返回十二种来源并审计缺失覆盖', async () => {
+  const repository = new CraftingDataRepository({ builtinRoot })
+  await repository.initialize()
+  const base = repository.getDataset().bases.find((entry) => entry.modifierProfileId === 'Wands')
+  const result = repository.searchModifierCatalog({ baseId: base.id, itemLevel: 80 })
+  assert.equal(result.groups.length, 12)
+  assert.deepEqual(result.groups.map((entry) => entry.label), ['基础', '塑界者', '裂界者', '圣战', '救赎者', '狩猎者', '督军', '地心探险', '穿越', '隐匿', '工艺台', '精华'])
+  const baseGroup = result.groups[0]
+  assert.equal(baseGroup.covered, true)
+  assert.ok([...baseGroup.prefix, ...baseGroup.suffix].every((family) => family.subitemCount >= family.availableCount && family.tiers.every((tier) => 'modifierName' in tier && 'sourceDomain' in tier)))
+  const essenceGroup = result.groups.find((entry) => entry.id === 'essence')
+  const essenceTiers = [...essenceGroup.prefix, ...essenceGroup.suffix].flatMap((family) => family.tiers)
+  assert.ok(essenceTiers.some((tier) => tier.available && tier.sourceItem?.id === 'Deafening_Essence_of_Woe'))
+  assert.ok(essenceTiers.every((tier) => !/[<>]/.test(tier.name) && tier.sourceItem?.name && !/[<>]/.test(tier.sourceItem.name)))
+  assert.ok(essenceTiers.every((tier) => tier.tier === tier.sourceItem.tier && tier.name.startsWith(`T${tier.sourceItem.tier} `)))
+  assert.ok(result.groups.slice(1, 7).every((entry) => entry.covered), '六种势力词缀都应在法杖目录中有覆盖')
+  const missing = result.groups.find((entry) => !entry.covered)
+  if (missing) assert.equal(missing.coverageMessage, '当前数据快照未覆盖此来源')
 })

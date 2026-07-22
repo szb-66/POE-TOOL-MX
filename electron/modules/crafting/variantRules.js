@@ -1,6 +1,30 @@
 import { BASE_VARIANTS } from './model.js'
 
-const INFLUENCES = new Set(['shaper', 'elder', 'crusader', 'redeemer', 'hunter', 'warlord'])
+export const INFLUENCE_SPAWN_TAGS = Object.freeze({
+  shaper: 'shaper',
+  elder: 'elder',
+  crusader: 'crusader',
+  redeemer: 'eyrie',
+  hunter: 'basilisk',
+  warlord: 'adjudicator'
+})
+const INFLUENCES = new Set(Object.keys(INFLUENCE_SPAWN_TAGS))
+const BENCH_CLASS_GROUPS = {
+  Claw: '单手近战', Dagger: '单手近战', RuneDagger: '单手近战', OneHandSword: '单手近战',
+  ThrustingOneHandSword: '单手近战', OneHandAxe: '单手近战', OneHandMace: '单手近战', Sceptre: '单手近战',
+  Wand: '单手远程', TwoHandSword: '双手近战', TwoHandAxe: '双手近战', TwoHandMace: '双手近战',
+  Staff: '双手近战', Warstaff: '双手近战', Bow: '双手远程', BodyArmour: '护甲', Gloves: '手套',
+  Boots: '鞋子', Helmet: '头盔', Shield: '盾', Ring: '戒指', Amulet: '项链', Belt: '腰带', Quiver: '箭袋'
+}
+export const BENCH_SUPPORTED_ITEM_CLASSES = [...new Set(Object.values(BENCH_CLASS_GROUPS))]
+export const EQUIPMENT_ITEM_CLASSES = Object.freeze(Object.keys(BENCH_CLASS_GROUPS))
+export const HOLLOW_FOSSIL_ITEM_CLASSES = Object.freeze(EQUIPMENT_ITEM_CLASSES.filter((itemClass) => !['Shield', 'Ring', 'Amulet', 'Belt', 'Quiver'].includes(itemClass)))
+
+export function craftedOptionMatchesBase(option, base) {
+  if (!option.itemClasses?.length) return true
+  const group = BENCH_CLASS_GROUPS[base.itemClass]
+  return Boolean(group && option.itemClasses.includes(group))
+}
 
 export function validateBaseVariant(base, variant = { kind: 'normal' }) {
   const errors = []
@@ -33,7 +57,18 @@ export function modifierMatchesBase(modifier, base, variant = { kind: 'normal' }
   const classKey = (value) => String(value).replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
   if (modifier.itemClasses?.length && !modifier.itemClasses.some((itemClass) => classKey(itemClass) === classKey(base.itemClass))) return false
   const baseTags = new Set(base.tags)
-  if (modifier.requiredTags?.length && !modifier.requiredTags.every((tag) => baseTags.has(tag))) return false
+  // POEDB 的智慧盾词缀仍以 int_armour/focus 标识，底材页则使用 int_shield。
+  if (baseTags.has('int_shield')) baseTags.add('int_armour')
+  // 势力词缀的 Spawn Weight 使用 ring_shaper、str_armour_hunter 等组合标签。
+  // 底材页只提供 ring、str_armour 等基础标签，因此按当前势力补齐组合标签。
+  if (variant.kind === 'influenced') {
+    const plainTags = [...baseTags]
+    for (const influence of variant.influences ?? []) {
+      const spawnTag = INFLUENCE_SPAWN_TAGS[influence] ?? influence
+      for (const tag of plainTags) baseTags.add(`${tag}_${spawnTag}`)
+    }
+  }
+  if (modifier.requiredTags?.length && !modifier.requiredTags.every((group) => String(group).split(',').some((tag) => baseTags.has(tag.trim())))) return false
   const specificSpawnTags = modifier.spawnTags.filter((tag) => tag !== 'default')
   const hasSpawnTag = !specificSpawnTags.length || specificSpawnTags.some((tag) => baseTags.has(tag))
   if (!hasSpawnTag) return false
@@ -48,7 +83,7 @@ export function modifierMatchesBase(modifier, base, variant = { kind: 'normal' }
 export function modifierCanSpawn(modifier, base, itemLevel, variant = { kind: 'normal' }) {
   if (!modifierMatchesBase(modifier, base, variant)) return false
   const hasNaturalTier = modifier.tiers.some((tier) => tier.requiredLevel <= itemLevel && tier.weight > 0)
-  const hasCraftedTier = modifier.craftedOptions?.some((tier) => tier.requiredLevel <= itemLevel && (!tier.itemClasses?.length || tier.itemClasses.some((itemClass) => base.categoryPath.includes(itemClass) || itemClass === base.itemClass)))
+  const hasCraftedTier = modifier.craftedOptions?.some((tier) => tier.requiredLevel <= itemLevel && craftedOptionMatchesBase(tier, base))
   return hasNaturalTier || hasCraftedTier
 }
 

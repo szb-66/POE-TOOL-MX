@@ -13,12 +13,12 @@ export class CraftingTaskManager {
     const task = { worker, onEvent }
     this.tasks.set(taskId, task)
     worker.on('message', (message) => {
-      if (message.taskId !== taskId || !this.tasks.has(taskId)) return
+      if (message.taskId !== taskId || !this.tasks.has(taskId) || task.cancelled) return
       onEvent?.(message)
       if (['complete', 'error', 'cancelled'].includes(message.type)) this.finish(taskId)
     })
     worker.on('error', (error) => {
-      if (!this.tasks.has(taskId)) return
+      if (!this.tasks.has(taskId) || task.cancelled) return
       onEvent?.({ type: 'error', taskId, error: error.message })
       this.finish(taskId)
     })
@@ -37,6 +37,7 @@ export class CraftingTaskManager {
   cancel(taskId) {
     const task = this.tasks.get(taskId)
     if (!task) return false
+    task.cancelled = true
     task.worker.postMessage({ type: 'cancel', taskId })
     setTimeout(() => this.finish(taskId), 250)
     task.onEvent?.({ type: 'cancelled', taskId })

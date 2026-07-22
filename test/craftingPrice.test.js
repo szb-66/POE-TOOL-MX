@@ -7,6 +7,7 @@ import {
   CraftingPriceService,
   convertPricesToChaos,
   estimateResources,
+  filterCraftingPrices,
   normalizeSummaryPrices,
   priceHealth
 } from '../electron/modules/crafting/priceService.js'
@@ -19,9 +20,32 @@ const payload = [{ category_label: '通货', items: [
   { item_name: '异常资源', engname: 'Broken', sell_avg: 10, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00', error: true, error_info: 'OCR 故障' }
 ]}]
 
+test('做装价格只保留实际工艺会消耗的物品', () => {
+  const records = normalizeSummaryPrices([
+    ...payload,
+    { category_label: '圣甲虫', items: [{ item_name: '丰沛之仪式圣甲虫', sell_avg: 2, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' }] },
+    { category_label: '文身', items: [{ item_name: '好战者的文身', sell_avg: 3, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' }] },
+    { category_label: '碎片仓库', items: [{ item_name: '奉献碎片', sell_avg: 4, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' }] }
+  ])
+  const filtered = filterCraftingPrices(records, [
+    { resourceId: 'currency:chaos', resourceName: '混沌石' },
+    { resourceId: 'currency:divine', resourceName: '神圣石' }
+  ])
+  assert.deepEqual(filtered.map((record) => record.itemName), ['混沌石', '神圣石'])
+})
+
+test('工艺数据中的非核心耗材按名称保留并兼容成本文本的 x1 后缀', () => {
+  const records = normalizeSummaryPrices([{ category_label: '通货仓库', items: [
+    { item_name: '神圣白晶命能', engname: 'Sacred Crystallised Lifeforce', sell_avg: 20, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' },
+    { item_name: '原始蓝晶命能', engname: 'Primal Crystallised Lifeforce', sell_avg: 1, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' }
+  ] }])
+  const filtered = filterCraftingPrices(records, [{ resourceId: 'resource:test', resourceName: '神圣白晶命能 x1' }])
+  assert.deepEqual(filtered.map((record) => record.itemName), ['神圣白晶命能'])
+})
+
 test('公开 sell_avg 和 d 单位统一换算为混沌石', () => {
   const records = normalizeSummaryPrices(payload)
-  const converted = convertPricesToChaos(records)
+  const converted = convertPricesToChaos(records, {}, now)
   assert.equal(converted.find((entry) => entry.itemName === '高价资源').chaosValue, 300)
   const abnormal = converted.find((entry) => entry.itemName === '异常资源')
   assert.equal(abnormal.valid, true)
@@ -53,7 +77,7 @@ test('缺失均价和未知单位同样只拒用单条记录', () => {
     { item_name: '正常资源', sell_avg: 1, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' },
     { item_name: '格式损坏资源', sell_avg: null, currency_unit: 'x', latest_datetime: '2026-07-21 11:00:00' }
   ] }])
-  const converted = convertPricesToChaos(records)
+  const converted = convertPricesToChaos(records, {}, now)
   assert.equal(converted.find((entry) => entry.itemName === '正常资源').valid, true)
   assert.equal(converted.find((entry) => entry.itemName === '格式损坏资源').valid, false)
 })
@@ -62,7 +86,7 @@ test('卖方均价为 0 时回退到正数买方均价并标记来源', () => {
   const records = normalizeSummaryPrices([{ items: [
     { item_name: '增幅石', engname: 'Orb of Augmentation', sell_avg: 0, buy_avg: 0.08, currency_unit: 'c', latest_datetime: '2026-07-21 11:00:00' }
   ] }])
-  const converted = convertPricesToChaos(records)
+  const converted = convertPricesToChaos(records, {}, now)
   assert.equal(converted[0].valid, true)
   assert.equal(converted[0].chaosValue, 0.08)
   assert.equal(converted[0].source, 'remote-buy-fallback')

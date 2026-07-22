@@ -3,7 +3,8 @@ import { access, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promis
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeCraftingDataset } from './model.js'
-import { modifierMatchesBase, validateBaseVariant } from './variantRules.js'
+import { craftedOptionMatchesBase, modifierMatchesBase, validateBaseVariant } from './variantRules.js'
+import { MANUAL_SOURCE_GROUPS } from './manualCrafting.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_BUILTIN_ROOT = path.resolve(dirname, '../../assets/crafting-data')
@@ -74,7 +75,7 @@ export class CraftingDataRepository {
       source: root === this.builtinRoot ? 'builtin' : 'updated',
       stale: dataset.manifest.league === 'current' || dataset.manifest.league === 'Fixture',
       warning: this.lastError,
-      counts: { bases: dataset.bases.length, modifiers: dataset.modifierFamilies.length, modifierEntries: dataset.modifiers.length, crafts: dataset.crafts.length }
+      counts: { bases: dataset.bases.length, modifiers: dataset.modifierFamilies.length, modifierEntries: dataset.modifiers.length, crafts: dataset.crafts.length, eldritchImplicitFamilies: dataset.eldritchImplicitFamilies.length }
     }
   }
 
@@ -119,10 +120,10 @@ export class CraftingDataRepository {
     if (!validity.valid) return { items: [], total: 0, errors: validity.errors }
     const needle = String(query).trim().toLocaleLowerCase('zh-CN')
     const filtered = this.getDataset().modifierFamilies.map((family) => {
-      const entries = family.entries.filter((modifier) => modifierMatchesBase(modifier, base, variant)).map((modifier) => ({
+      const entries = family.entries.filter((modifier) => ['natural', 'crafted', 'fractured'].includes(modifier.source) && modifierMatchesBase(modifier, base, variant)).map((modifier) => ({
         ...modifier,
         tiers: modifier.tiers.map((tier) => {
-          const craftedClassAllowed = !tier.itemClasses?.length || tier.itemClasses.some((itemClass) => base.categoryPath.includes(itemClass) || itemClass === base.itemClass)
+          const craftedClassAllowed = craftedOptionMatchesBase(tier, base)
           const available = tier.requiredLevel <= itemLevel && (tier.weight > 0 || (modifier.source === 'crafted' && craftedClassAllowed))
           return { ...tier, available, unavailableReason: available ? '' : tier.requiredLevel > itemLevel ? `需要物品等级 ${tier.requiredLevel}` : '不参与天然生成' }
         })
@@ -141,6 +142,78 @@ export class CraftingDataRepository {
     const currentPage = Math.max(1, Number(page) || 1)
     const offset = (currentPage - 1) * size
     return { items: filtered.slice(offset, offset + size), total: filtered.length, page: currentPage, pageSize: size, errors: [] }
+  }
+
+  searchModifierCatalog({ baseId, itemLevel = 100, query = '' } = {}) {
+    const dataset = this.getDataset()
+    const base = dataset.bases.find((entry) => entry.id === baseId)
+    if (!base) throw new Error('底材不存在')
+    const needle = String(query).trim().toLocaleLowerCase('zh-CN')
+    const influenceIds = new Set(MANUAL_SOURCE_GROUPS.slice(1, 7).map((entry) => entry.id))
+    const sourceDomain = (modifier) => modifier.influences?.[0] || (modifier.source === 'natural' ? 'base' : modifier.source)
+    const variantFor = (domain) => influenceIds.has(domain)
+      ? { kind: 'influenced', influences: [domain], fracturedTierId: null, implicits: [] }
+      : { kind: 'normal', influences: [], fracturedTierId: null, implicits: [] }
+    const familyRows = []
+    dataset.modifierFamilies.forEach((family) => {
+      const byDomain = new Map()
+      family.entries.forEach((modifier) => {
+        const domain = sourceDomain(modifier)
+        if (modifierMatchesBase(modifier, base, variantFor(domain))) {
+          const tiers = modifier.tiers.map((tier) => {
+            const essenceAvailable = domain === 'essence' && tier.sourceItem && itemLevel >= tier.sourceItem.minimumItemLevel
+            const available = domain === 'essence' ? Boolean(essenceAvailable) : tier.requiredLevel <= itemLevel && tier.weight > 0
+            const unavailableReason = available ? '' : domain === 'essence'
+              ? !tier.sourceItem ? '精华来源无法识别' : `该精华要求装备物品等级至少为 ${tier.sourceItem.minimumItemLevel}`
+              : tier.requiredLevel > itemLevel ? `需要物品等级 ${tier.requiredLevel}` : '不参与该来源的随机生成'
+            return {
+              ...tier, modifierId: modifier.id, goalId: modifier.goalId, modifierName: modifier.name,
+              affixType: modifier.affixType, sourceDomain: domain, available, unavailableReason
+            }
+          })
+          const entries = byDomain.get(domain) ?? []
+          entries.push({ ...modifier, sourceDomain: domain, tiers })
+          byDomain.set(domain, entries)
+        }
+        if (modifier.craftedOptions?.length) {
+          const tiers = modifier.craftedOptions.map((tier) => {
+            const available = tier.requiredLevel <= itemLevel && craftedOptionMatchesBase(tier, base)
+            return {
+              ...tier, modifierId: modifier.id, goalId: modifier.goalId, modifierName: modifier.name,
+              affixType: modifier.affixType, sourceDomain: 'crafted', available,
+              unavailableReason: available ? '' : tier.requiredLevel > itemLevel ? `需要物品等级 ${tier.requiredLevel}` : '该底材不能使用此工艺'
+            }
+          })
+          const entries = byDomain.get('crafted') ?? []
+          entries.push({ ...modifier, source: 'crafted', sourceDomain: 'crafted', tiers })
+          byDomain.set('crafted', entries)
+        }
+      })
+      byDomain.forEach((entries, domain) => {
+        const searchable = `${family.name} ${entries.flatMap((entry) => [entry.name, ...entry.tiers.map((tier) => `${tier.name} ${tier.text}`)]).join(' ')}`.toLocaleLowerCase('zh-CN')
+        if (needle && !searchable.includes(needle)) return
+        const tiers = entries.flatMap((entry) => entry.tiers)
+        const displayTags = [...new Map(entries.flatMap((entry) => [...(entry.displayTags ?? []), ...entry.tiers.flatMap((tier) => tier.displayTags ?? [])]).map((tag) => [tag.id, tag])).values()]
+        familyRows.push({
+          id: `${family.id}:${domain}`, familyId: family.id, name: family.name, groupId: family.groupId,
+          affixType: family.affixType, sourceDomain: domain, entries, tiers, displayTags,
+          subitemCount: tiers.length,
+          availableCount: tiers.filter((tier) => tier.available).length,
+          totalWeight: tiers.filter((tier) => tier.available).reduce((sum, tier) => sum + Number(tier.weight || 0), 0)
+        })
+      })
+    })
+    const groups = MANUAL_SOURCE_GROUPS.map((source) => {
+      const families = familyRows.filter((family) => family.sourceDomain === source.id)
+      return {
+        ...source,
+        covered: families.length > 0,
+        coverageMessage: families.length ? '' : '当前数据快照未覆盖此来源',
+        prefix: families.filter((family) => family.affixType === 'prefix'),
+        suffix: families.filter((family) => family.affixType === 'suffix')
+      }
+    })
+    return { groups, sourceCoverage: Object.fromEntries(groups.map((group) => [group.id, group.covered])), totalFamilies: familyRows.length }
   }
 
   resolveImage(imageId) {

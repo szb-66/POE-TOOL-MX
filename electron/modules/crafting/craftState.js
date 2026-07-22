@@ -1,5 +1,5 @@
 import { normalizeCraftRequest, normalizeCraftState } from './model.js'
-import { legalModifierTiers, modifierCanSpawn, validateBaseVariant } from './variantRules.js'
+import { craftedOptionMatchesBase, legalModifierTiers, modifierCanSpawn, validateBaseVariant } from './variantRules.js'
 
 export function createInitialCraftState(requestInput, dataset) {
   const request = normalizeCraftRequest(requestInput)
@@ -54,12 +54,35 @@ export function qualifyingCraftedOptions(modifier, requiredTier, base = null, it
   return (modifier.craftedOptions ?? []).filter((option) => {
     if (option.requiredLevel > itemLevel || !valuesMeetThreshold(option.values, requiredTier.values)) return false
     if (!base || !option.itemClasses?.length) return true
-    return option.itemClasses.some((itemClass) => base.categoryPath.includes(itemClass) || itemClass === base.itemClass)
+    return craftedOptionMatchesBase(option, base)
   })
 }
 
 export function allTargetsSatisfied(request, state, dataset) {
   return request.targets.every((target) => targetSatisfied(target, state, dataset))
+}
+
+export function createTargetMatcher(request, dataset) {
+  const modifiersByGoalId = new Map()
+  dataset.modifiers.forEach((modifier) => {
+    if (!modifiersByGoalId.has(modifier.goalId)) modifiersByGoalId.set(modifier.goalId, modifier)
+  })
+  const targets = request.targets.map((target) => {
+    const modifier = modifiersByGoalId.get(target.goalId)
+    const requiredTier = modifier?.tiers.find((tier) => tier.id === target.minTierId)
+    const tiersById = new Map()
+    ;(modifier?.tiers ?? []).forEach((tier) => tiersById.set(tier.id, tier))
+    return { modifier, requiredTier, tiersById, craftedOptions: modifier?.craftedOptions ?? [] }
+  })
+  return (state) => targets.every(({ modifier, requiredTier, tiersById, craftedOptions }) => {
+    if (!modifier || !requiredTier) return false
+    const entries = modifier.affixType === 'prefix' ? state.prefixes : state.suffixes
+    return entries.some((affix) => {
+      if ((affix.goalId ?? affix.modifierId) !== modifier.goalId) return false
+      const tier = tiersById.get(affix.tierId) ?? craftedOptions.find((entry) => entry.id === affix.tierId || entry.optionId === affix.optionId)
+      return tier && valuesMeetThreshold(tier.values, requiredTier.values)
+    })
+  })
 }
 
 export function validateCraftRequest(requestInput, dataset) {
@@ -99,19 +122,49 @@ export function validateCraftRequest(requestInput, dataset) {
   return { valid: errors.length === 0, request, base, initialState, errors }
 }
 
-export function eligibleModifierTiers(dataset, base, itemLevel, variant, state, { source = 'natural', tag = null, affixType = null } = {}) {
+export function eligibleModifierTiers(dataset, base, itemLevel, variant, state, { source = 'natural', sources = null, tag = null, affixType = null, poolTransform = null } = {}) {
+  const allowedSources = new Set(sources ?? [source])
   const occupiedGroups = new Set([...state.prefixes, ...state.suffixes].map((affix) => affix.groupId))
   const pools = []
   dataset.modifiers.forEach((modifier) => {
-    if (modifier.source !== source || occupiedGroups.has(modifier.groupId)) return
+    if (!allowedSources.has(modifier.source) || occupiedGroups.has(modifier.groupId)) return
     if (affixType && modifier.affixType !== affixType) return
     if (tag && !modifier.tiers.some((tier) => tier.displayTags.some((entry) => entry.id === tag))) return
     if (!modifierCanSpawn(modifier, base, itemLevel, variant)) return
     legalModifierTiers(modifier, itemLevel).forEach((tier) => {
-      if ((tier.weight > 0 || source === 'crafted') && (!tag || tier.displayTags.some((entry) => entry.id === tag))) pools.push({ modifier, tier, weight: Math.max(1, tier.weight) })
+      if ((tier.weight > 0 || modifier.source === 'crafted') && (!tag || tier.displayTags.some((entry) => entry.id === tag))) pools.push({ modifier, tier, weight: Math.max(1, tier.weight) })
     })
   })
-  return pools
+  return poolTransform ? poolTransform(pools) : pools
+}
+
+export function createEligibleModifierTierResolver(dataset, base, itemLevel, variant) {
+  const basePool = []
+  dataset.modifiers.forEach((modifier) => {
+    if (!modifierCanSpawn(modifier, base, itemLevel, variant)) return
+    legalModifierTiers(modifier, itemLevel).forEach((tier) => {
+      if (tier.weight > 0 || modifier.source === 'crafted') {
+        basePool.push({ modifier, tier, weight: Math.max(1, tier.weight) })
+      }
+    })
+  })
+  const staticPools = new Map()
+  return (state, { source = 'natural', sources = null, tag = null, affixType = null, poolTransform = null } = {}) => {
+    const allowedSources = sources ?? [source]
+    const key = JSON.stringify([allowedSources, tag, affixType])
+    let staticPool = staticPools.get(key)
+    if (!staticPool) {
+      staticPool = basePool.filter(({ modifier, tier }) => {
+        if (!allowedSources.includes(modifier.source)) return false
+        if (affixType && modifier.affixType !== affixType) return false
+        return !tag || tier.displayTags.some((entry) => entry.id === tag)
+      })
+      staticPools.set(key, staticPool)
+    }
+    const occupiedGroups = new Set([...state.prefixes, ...state.suffixes].map((affix) => affix.groupId))
+    const available = occupiedGroups.size ? staticPool.filter(({ modifier }) => !occupiedGroups.has(modifier.groupId)) : staticPool
+    return poolTransform ? poolTransform(available) : available
+  }
 }
 
 export function mutableAffixes(state, { respectMeta = true } = {}) {
