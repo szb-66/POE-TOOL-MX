@@ -86,7 +86,7 @@
             <el-tab-pane label="基础通货">
               <p class="section-note">点击可用的核心通货、破溃宝珠或污秽通货即可应用；机制已知但概率不足的项保留说明并禁用，不生成猜测结果。</p>
               <div class="currency-grid">
-                <button v-for="currency in store.currencies" :key="currency.id" class="currency-card" :class="{ disabled: !currency.canApply, destructive: currency.destructive }" :disabled="!currency.canApply || store.applying" @click="useCurrency(currency)">
+                <button v-for="currency in sortedCurrencies" :key="currency.id" class="currency-card" :class="{ disabled: !currency.canApply, destructive: currency.destructive }" :disabled="!currency.canApply || store.applying" @click="useCurrency(currency)">
                   <strong>{{ currency.name }} <i v-if="currency.supportLevel && currency.supportLevel !== 'supported'">仅说明</i></strong><span>{{ currency.description }}</span><small><b>条件：</b>{{ currency.requirements }}</small><small><b>结果：</b>{{ currency.consequences }}</small><small v-if="currency.cost?.length"><b>消耗：</b>{{ formatCosts(currency.cost) }}</small><small v-if="currency.probabilityModel"><b>概率模型：</b>{{ currency.probabilityModel }}（社区经验值，非官方精确表）</small><em v-if="!currency.canApply">{{ currency.unavailableReason }}</em>
                   <div v-if="currency.preview" class="currency-preview"><b>希内科拉预览</b><small v-if="currency.preview.state.corruptionOutcome">瓦尔结果：{{ vaalOutcomeLabel(currency.preview.state.corruptionOutcome) }}</small><small v-if="currency.preview.state.vaalImplicit">瓦尔隐式：{{ currency.preview.state.vaalImplicit.rolledText }}</small><small v-if="currency.preview.state.catalystQuality?.type">{{ catalystLabel(currency.preview.state.catalystQuality.type) }}品质 {{ currency.preview.state.catalystQuality.amount }}%</small><small>孔位：{{ currency.preview.state.sockets.map((socket) => socket.color).join('-') || '无孔' }} · 连接 {{ currency.preview.state.links.map((group) => group.length).join('+') || '无' }}</small><small>{{ currency.preview.state.rarity === 'rare' ? '稀有' : currency.preview.state.rarity === 'magic' ? '魔法' : '普通' }} · {{ [...currency.preview.state.prefixes, ...currency.preview.state.suffixes].map(affixText).join('；') || '无显式词缀' }}</small></div>
                 </button>
@@ -157,7 +157,7 @@
               <el-alert :title="`当前：${store.eldritch.dominance.label}，可执行 ${store.eldritch.executableCount} / ${store.eldritch.total} 种通货。冲突石概率为社区实测估计，非官方公布常数。`" type="info" :closable="false" />
               <div class="eldritch-help"><b>元工艺边界</b><span>古灵混沌忽略前/后缀锁；古灵崇高遵守无法骰出攻击/法术；古灵无效同时遵守位置锁和标签保护。</span></div>
               <div class="eldritch-grid">
-                <button v-for="craft in store.eldritch.items" :key="craft.id" class="currency-card eldritch-card" :class="{ disabled: !craft.canApply }" :disabled="!craft.canApply || store.applying" @click="useEldritchCraft(craft)">
+                <button v-for="craft in sortedEldritch" :key="craft.id" class="currency-card eldritch-card" :class="{ disabled: !craft.canApply }" :disabled="!craft.canApply || store.applying" @click="useEldritchCraft(craft)">
                   <strong>{{ craft.name }} <i>{{ craft.kind === 'implicit' ? `${eldritchSourceLabel(craft.source)} T${craft.tier}` : craft.kind === 'conflict' ? '升降阶' : craft.targetAffixType === 'prefix' ? '前缀' : craft.targetAffixType === 'suffix' ? '后缀' : '需支配' }}</i></strong>
                   <span>{{ craft.description }}</span><small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small><b>条件：</b>{{ craft.requirements }}</small><small><b>候选：</b>{{ craft.candidateCount }}</small><small><b>结果：</b>{{ craft.consequences }}</small>
                   <small v-if="craft.conflictProbabilities"><b>估计升级概率：</b>焊界 {{ formatPercent(craft.conflictProbabilities.exarch) }} / 灭界 {{ formatPercent(craft.conflictProbabilities.eater) }}</small>
@@ -170,7 +170,7 @@
               <el-alert :title="`当前可执行 ${store.veiled.executableCount} / ${store.veiled.total} 种加密通货。三选一按真实权重生成，并实时应用 ModGroup 阻断。`" type="info" :closable="false" />
               <div class="veiled-help"><b>元工艺边界</b><span>加密崇高石的移除遵守前/后缀无法改变，但忽略无法骰出攻击/施法；加密混沌石保留锁定侧，普通重铸遵守生成标签限制；揭露选项始终忽略攻击/施法限制。</span></div>
               <div class="veiled-grid">
-                <button v-for="craft in store.veiled.items" :key="craft.id" class="currency-card veiled-card" :class="{ disabled: !craft.canApply, destructive: craft.destructive }" :disabled="!craft.canApply || store.applying" @click="useVeiledCraft(craft)">
+                <button v-for="craft in sortedVeiled" :key="craft.id" class="currency-card veiled-card" :class="{ disabled: !craft.canApply, destructive: craft.destructive }" :disabled="!craft.canApply || store.applying" @click="useVeiledCraft(craft)">
                   <strong>{{ craft.name }} <i>{{ craft.kind === 'exalted' ? '移除并添加' : '重铸并保证' }}</i></strong>
                   <span>{{ craft.description }}</span><small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small><b>条件：</b>{{ craft.requirements }}</small><small><b>候选结果：</b>{{ craft.candidateCount }}</small><small><b>结果：</b>{{ craft.consequences }}</small>
                   <em v-if="!craft.canApply">{{ craft.unavailableReason }}</em>
@@ -195,7 +195,7 @@
               <el-alert :title="`当前可执行 ${store.influence.executableCount} / ${store.influence.total} 种势力通货。候选按底材、物品等级、ModGroup、槽位及元属性实时过滤。`" type="info" :closable="false" />
               <div class="influence-help"><b>重要边界</b><span>势力崇高石遵守“无法骰出攻击/法术”；统御宝珠不会影响受前后缀锁保护的词缀；觉醒者之石忽略全部元属性并重骰其他显式词缀。</span></div>
               <div class="influence-grid">
-                <button v-for="craft in store.influence.items" :key="craft.id" class="currency-card influence-card" :class="{ disabled: !craft.canApply }" :disabled="!craft.canApply || store.applying" @click="useInfluenceCraft(craft)">
+                <button v-for="craft in sortedInfluence" :key="craft.id" class="currency-card influence-card" :class="{ disabled: !craft.canApply }" :disabled="!craft.canApply || store.applying" @click="useInfluenceCraft(craft)">
                   <strong>{{ craft.name }} <i>{{ craft.kind === 'exalted' ? influenceLabel(craft.influence) : craft.kind === 'dominance' ? '移除并升阶' : '双装备合并' }}</i></strong>
                   <span>{{ craft.description }}</span><small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small><b>条件：</b>{{ craft.requirements }}</small><small><b>当前候选：</b>{{ craft.candidateCount }}</small><small><b>结果：</b>{{ craft.consequences }}</small>
                   <em v-if="!craft.canApply">{{ craft.unavailableReason }}</em>
@@ -222,7 +222,7 @@
               <div class="beast-heading"><div><p class="section-note">装备相关野兽工艺以 POE1 {{ store.beastcraft.ruleset?.patch || '3.28' }} 为规则基线；缺少准确结果池的配方保留说明但不会伪模拟。</p><small>增删前后缀的新增池使用主野兽等级，而不是装备物品等级。</small></div><el-input-number v-model="beastLevel" :min="68" :max="100" controls-position="right" @change="reloadBeastcrafts" /></div>
               <el-alert :title="`当前可执行 ${store.beastcraft.executableCount} / ${store.beastcraft.total} 条装备配方；主野兽等级 ${store.beastcraft.beastLevel}。`" type="info" :closable="false" />
               <div class="beast-grid">
-                <button v-for="craft in store.beastcraft.items" :key="craft.id" class="currency-card beast-card" :class="{ disabled: !craft.canApply, unsupported: !craft.supported }" :disabled="!craft.canApply || store.applying" @click="useBeastcraft(craft)">
+                <button v-for="craft in sortedBeastcraft" :key="craft.id" class="currency-card beast-card" :class="{ disabled: !craft.canApply, unsupported: !craft.supported }" :disabled="!craft.canApply || store.applying" @click="useBeastcraft(craft)">
                   <strong>{{ craft.name }} <i>{{ beastCategoryLabel(craft.category) }}</i></strong><span>{{ craft.description }}</span><small><b>主要野兽：</b>{{ craft.beast }}<template v-if="craft.secondaryBeast"> + {{ craft.secondaryBeast }}</template></small><small><b>结果：</b>{{ craft.consequences }}</small><em v-if="!craft.canApply">{{ craft.unavailableReason }}</em>
                 </button>
               </div>
@@ -318,6 +318,18 @@ const donorTierKey = ref('')
 const beastLevel = ref(83)
 let catalogTimer = null
 
+// ponytail: 用 reason 文案判定"不适用此物品"，后端没有显式字段；升级路径是在 manualCrafting 给每条打 appliesToBase 标记。
+const PERMANENT_UNAVAILABLE_PATTERNS = ['只能用于武器', '只能用于护甲', '不能用于该底材', '不能用于当前底材', '该底材不能拥有', '该底材不能生成', '该底材不能使用', '该底材不支持', '不适用于当前底材', '不适用于该底材', '该配方不能用于当前底材', '不能在本装备模拟器中执行']
+function craftAvailabilityTier(item) {
+  if (item?.canApply ?? item?.selectable) return 0
+  if (item?.supported === false) return 2
+  if (item?.supportLevel && item.supportLevel !== 'supported') return 2
+  const reason = String(item?.unavailableReason || '')
+  if (reason && PERMANENT_UNAVAILABLE_PATTERNS.some((pattern) => reason.includes(pattern))) return 2
+  return 1
+}
+function byAvailability(items) { return [...items].sort((a, b) => craftAvailabilityTier(a) - craftAvailabilityTier(b)) }
+
 const versionUnconfirmed = computed(() => store.status?.stale || ['current', 'unknown'].includes(String(store.status?.patch || '').toLowerCase()))
 const updatePercent = computed(() => store.updateProgress?.total ? Math.min(100, Math.round(store.updateProgress.completed / store.updateProgress.total * 100)) : 0)
 const rarityLabel = computed(() => ({ normal: '普通', magic: '魔法', rare: '稀有' })[store.currentState?.rarity] || '普通')
@@ -365,20 +377,29 @@ const totalSpent = computed(() => {
 const donorAffixes = computed(() => store.session?.awakenerDonor ? [...store.session.awakenerDonor.state.prefixes, ...store.session.awakenerDonor.state.suffixes] : [])
 const filteredEssences = computed(() => {
   const needle = essenceQuery.value.trim().toLocaleLowerCase('zh-CN')
-  return store.essences.items.filter((entry) => (!essenceTierFilter.value || entry.essenceTier === essenceTierFilter.value) && (!needle || `${entry.name} ${entry.guaranteedModifier.text}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  const list = store.essences.items.filter((entry) => (!essenceTierFilter.value || entry.essenceTier === essenceTierFilter.value) && (!needle || `${entry.name} ${entry.guaranteedModifier.text}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  return byAvailability(list)
 })
 const filteredBenchCrafts = computed(() => {
   const needle = benchQuery.value.trim().toLocaleLowerCase('zh-CN')
-  return store.benchCrafts.items.filter((entry) => (!benchAffixFilter.value || entry.affixType === benchAffixFilter.value) && (!benchKindFilter.value || entry.kind === benchKindFilter.value) && (!needle || `${entry.name} ${entry.effect} ${entry.unlock} ${entry.displayTags.map((tag) => tag.label).join(' ')}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  const list = store.benchCrafts.items.filter((entry) => (!benchAffixFilter.value || entry.affixType === benchAffixFilter.value) && (!benchKindFilter.value || entry.kind === benchKindFilter.value) && (!needle || `${entry.name} ${entry.effect} ${entry.unlock} ${entry.displayTags.map((tag) => tag.label).join(' ')}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  return byAvailability(list)
 })
 const filteredFossils = computed(() => {
   const needle = fossilQuery.value.trim().toLocaleLowerCase('zh-CN')
-  return store.fossils.items.filter((entry) => !needle || `${entry.name} ${entry.description} ${entry.consequences}`.toLocaleLowerCase('zh-CN').includes(needle))
+  const list = store.fossils.items.filter((entry) => !needle || `${entry.name} ${entry.description} ${entry.consequences}`.toLocaleLowerCase('zh-CN').includes(needle))
+  return byAvailability(list)
 })
 const filteredHarvest = computed(() => {
   const needle = harvestQuery.value.trim().toLocaleLowerCase('zh-CN')
-  return store.harvest.items.filter((entry) => (!harvestCategory.value || entry.category === harvestCategory.value) && (!harvestAvailableOnly.value || entry.canApply) && (!needle || `${entry.name} ${entry.categoryLabel} ${entry.tagLabel} ${entry.consequences}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  const list = store.harvest.items.filter((entry) => (!harvestCategory.value || entry.category === harvestCategory.value) && (!harvestAvailableOnly.value || entry.canApply) && (!needle || `${entry.name} ${entry.categoryLabel} ${entry.tagLabel} ${entry.consequences}`.toLocaleLowerCase('zh-CN').includes(needle)))
+  return byAvailability(list)
 })
+const sortedCurrencies = computed(() => byAvailability(store.currencies))
+const sortedEldritch = computed(() => byAvailability(store.eldritch.items))
+const sortedInfluence = computed(() => byAvailability(store.influence.items))
+const sortedVeiled = computed(() => byAvailability(store.veiled.items))
+const sortedBeastcraft = computed(() => byAvailability(store.beastcraft.items))
 const selectedFossils = computed(() => selectedFossilIds.value.map((id) => store.fossils.items.find((entry) => entry.id === id)).filter(Boolean))
 const selectedTargets = computed(() => [...selectedTierSnapshots.value.values()])
 const selectedResonator = computed(() => store.fossils.resonators.find((entry) => entry.sockets === resonatorSockets.value))
