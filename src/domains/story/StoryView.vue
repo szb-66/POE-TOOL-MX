@@ -45,7 +45,6 @@
           <template #header>
             <div class="panel-header">
               <el-input v-model="story.currentChapter.name" maxlength="40" placeholder="章节名称" />
-              <el-button type="primary" size="small" :icon="Plus" @click="story.addStep(story.currentChapter.id)">步骤</el-button>
             </div>
           </template>
           <el-empty v-if="!story.currentChapter.steps.length" description="添加本章的第一个步骤" :image-size="72" />
@@ -71,9 +70,13 @@
                 :rows="3"
                 resize="vertical"
                 placeholder="输入这一阶段需要执行的操作"
+                :ref="el => { if (el) stepInputRefs[step.id] = el }"
                 @focus="story.selectStep(story.currentChapter.id, step.id)"
               />
             </div>
+          </div>
+          <div class="add-step-row">
+            <el-button type="primary" :icon="Plus" @click="addStepAndFocus">添加步骤</el-button>
           </div>
         </el-card>
 
@@ -117,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick } from 'vue'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStoryStore } from '@/stores/story'
@@ -132,6 +135,13 @@ const draggingChapterId = ref(null)
 const dragOverChapterId = ref(null)
 const draggingStepId = ref(null)
 const dragOverStepId = ref(null)
+const stepInputRefs = {}
+
+function addStepAndFocus() {
+  const step = story.addStep(story.currentChapter.id)
+  if (!step) return
+  nextTick(() => stepInputRefs[step.id]?.focus())
+}
 
 function prepareDrag(event, id) {
   event.dataTransfer.effectAllowed = 'move'
@@ -218,7 +228,9 @@ async function confirmDeleteGroup(group) {
 .chapter-panel, .steps-panel, .skills-panel, .empty-editor { min-height: 280px; }
 .chapter-list, .step-list, .skill-groups, .skills-list { display: flex; flex-direction: column; gap: 10px; }
 .chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; }
-.chapter-item.active, .step-item.active { border-color: var(--primary-color); background: var(--primary-light-9); }
+.step-item.active { border-color: var(--primary-color); background: var(--primary-light-9); }
+.chapter-item.active { border-color: var(--primary-color); background: var(--el-color-primary-light-8); box-shadow: inset 3px 0 0 var(--primary-color); }
+.chapter-item.active .chapter-name { font-weight: 700; }
 .chapter-order { flex: 0 0 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; background: var(--fill-color-light); }
 .chapter-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drag-handle { flex: 0 0 auto; color: var(--text-placeholder); cursor: grab; user-select: none; font-weight: 700; letter-spacing: -3px; padding: 3px 5px 3px 1px; }
@@ -227,11 +239,13 @@ async function confirmDeleteGroup(group) {
 .chapter-item.drag-over, .step-item.drag-over { border-color: var(--primary-color); box-shadow: 0 2px 0 var(--primary-color); }
 .step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
 .step-title { justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.step-title > span:first-child { flex: 1; font-weight: 600; }
+.step-title > span:nth-child(2) { flex: 1; font-weight: 600; }
 .group-header { gap: 8px; margin-bottom: 10px; }
 .skill-row { gap: 8px; }
 .color-select { width: 92px; flex: 0 0 92px; }
 .empty-group { color: var(--text-placeholder); font-size: 13px; text-align: center; padding: 8px; }
 .empty-editor { grid-column: 2 / 4; }
+.add-step-row { margin-top: 10px; }
+.add-step-row :deep(.el-button) { width: 100%; }
 @media (max-width: 1050px) { .story-workspace { grid-template-columns: 200px 1fr; } .skills-panel { grid-column: 2; } }
 </style>

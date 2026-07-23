@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="less">
-.story-overlay { width: 100%; max-height: 70vh; overflow-y: auto; box-sizing: border-box; padding: 10px; color: #f5f7fa; background: linear-gradient(145deg, rgba(14, 18, 27, .94), rgba(31, 38, 52, .92)); border: 1px solid rgba(130, 170, 255, .36); border-radius: 14px; box-shadow: 0 12px 34px rgba(0, 0, 0, .45); font-family: "Microsoft YaHei", sans-serif; }
+.story-overlay { width: 100%; box-sizing: border-box; padding: 10px; color: #f5f7fa; background: linear-gradient(145deg, rgba(14, 18, 27, .94), rgba(31, 38, 52, .92)); border: 1px solid rgba(130, 170, 255, .36); border-radius: 14px; box-shadow: 0 12px 34px rgba(0, 0, 0, .45); font-family: "Microsoft YaHei", sans-serif; }
 .drag-handle { -webkit-app-region: drag; cursor: move; display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 10px; font-weight: 700; color: #a9c7ff; }
 .drag-tip { font-size: 10px; font-weight: 400; opacity: .42; }
 .steps { display: flex; flex-direction: column; gap: 7px; }
