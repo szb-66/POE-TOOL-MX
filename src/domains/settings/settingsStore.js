@@ -1,8 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
+import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
+import {
+  DPI_MODE_AUTO,
+  DPI_MODE_MANUAL,
+  loadDpiSettings,
+  normalizeDpiScale,
+  resolveEffectiveDpi
+} from '@/utils/dpiSettings'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -10,18 +18,6 @@ function sanitizeCurrencyPositions(positions = {}) {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  const normalizeDelays = (raw = {}) => {
-    const mouseMove = raw.mouseMove ?? 260
-    const action = raw.action ?? 65
-    const clipboardRead = raw.clipboardRead ?? 100
-
-    return {
-      mouseMove,
-      action,
-      clipboardRead
-    }
-  }
-
   const globalShortcuts = ref({ ...DEFAULT_GLOBAL_SHORTCUTS })
 
   const combatAssist = ref(createDefaultCombatAssist())
@@ -48,14 +44,30 @@ export const useSettingsStore = defineStore('settings', () => {
     slotSize: { w: 100, h: 100 }         // 单格宽高
   })
 
-  const delays = ref(normalizeDelays())
+  const operationDelayMs = ref(OPERATION_DELAY.default)
 
   const itemPosition = ref({
     x: 636,
     y: 930
   })
 
-  const dpiScale = ref(1.0)
+  const dpiMode = ref(DPI_MODE_AUTO)
+  const manualDpiScale = ref(1)
+  const lastDetectedDpiScale = ref(null)
+  const detectedDpiScale = ref(null)
+  const primaryDpiScale = ref(1)
+  const dpiDetectionStatus = ref('idle')
+  const dpiWindowTitle = ref('')
+  const dpiDetectionError = ref('')
+  const effectiveDpi = computed(() => resolveEffectiveDpi({
+    mode: dpiMode.value,
+    manualScale: manualDpiScale.value,
+    detectedScale: detectedDpiScale.value,
+    lastDetectedScale: lastDetectedDpiScale.value,
+    primaryScale: primaryDpiScale.value
+  }))
+  const dpiScale = computed(() => effectiveDpi.value.scaleFactor)
+  const dpiSource = computed(() => effectiveDpi.value.source)
   const debugMode = ref(false)
 
   // 覆盖层设置
@@ -84,9 +96,11 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
-  function updateDelays(newDelays) {
-    delays.value = normalizeDelays({ ...delays.value, ...newDelays })
+  function updateOperationDelay(value) {
+    operationDelayMs.value = normalizeOperationDelay(value)
     saveSettings()
+    electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
+    return operationDelayMs.value
   }
 
   function updateCombatAssist(config) {
@@ -99,9 +113,51 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
-  function updateDpiScale(scale) {
-    dpiScale.value = scale
+  function updateManualDpiScale(scale) {
+    manualDpiScale.value = normalizeDpiScale(scale, manualDpiScale.value)
     saveSettings()
+  }
+
+  function updateDpiMode(mode) {
+    dpiMode.value = mode === DPI_MODE_MANUAL ? DPI_MODE_MANUAL : DPI_MODE_AUTO
+    if (dpiMode.value === DPI_MODE_MANUAL) {
+      detectedDpiScale.value = null
+      dpiDetectionStatus.value = 'idle'
+      dpiDetectionError.value = ''
+    }
+    saveSettings()
+  }
+
+  async function refreshDpiScale() {
+    if (dpiMode.value !== DPI_MODE_AUTO) {
+      return { success: true, skipped: true, scaleFactor: dpiScale.value, source: dpiSource.value }
+    }
+    dpiDetectionStatus.value = 'detecting'
+    dpiDetectionError.value = ''
+    try {
+      const result = await electronApi.system.detectGameDpi()
+      primaryDpiScale.value = normalizeDpiScale(result?.primaryScaleFactor, primaryDpiScale.value)
+      const detected = result?.found ? normalizeDpiScale(result.scaleFactor, null) : null
+      if (detected != null) {
+        detectedDpiScale.value = detected
+        lastDetectedDpiScale.value = detected
+        dpiWindowTitle.value = String(result.windowTitle || '')
+        dpiDetectionStatus.value = 'success'
+        saveSettings()
+        return { success: true, scaleFactor: dpiScale.value, source: dpiSource.value, windowTitle: dpiWindowTitle.value }
+      }
+      detectedDpiScale.value = null
+      dpiWindowTitle.value = ''
+      dpiDetectionStatus.value = 'error'
+      dpiDetectionError.value = result?.error || '未找到游戏窗口'
+    } catch (error) {
+      detectedDpiScale.value = null
+      dpiWindowTitle.value = ''
+      dpiDetectionStatus.value = 'error'
+      dpiDetectionError.value = error?.message || '识别游戏 DPI 失败'
+    }
+    saveSettings()
+    return { success: false, scaleFactor: dpiScale.value, source: dpiSource.value, error: dpiDetectionError.value }
   }
 
   function updateOverlaySettings(settings) {
@@ -149,9 +205,12 @@ export const useSettingsStore = defineStore('settings', () => {
         globalShortcuts: globalShortcuts.value,
         currencyPositions: sanitizeCurrencyPositions(currencyPositions.value),
         inventory: inventory.value,
-        delays: delays.value,
+        operationDelayMs: operationDelayMs.value,
         itemPosition: itemPosition.value,
         dpiScale: dpiScale.value,
+        dpiMode: dpiMode.value,
+        manualDpiScale: manualDpiScale.value,
+        lastDetectedDpiScale: lastDetectedDpiScale.value,
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
@@ -166,8 +225,11 @@ export const useSettingsStore = defineStore('settings', () => {
   function loadSettings() {
     try {
       const saved = localStorage.getItem('settings')
+      const data = saved ? JSON.parse(saved) : {}
+      let legacyBagSettings = {}
+      try { legacyBagSettings = JSON.parse(localStorage.getItem('bagSettings') || '{}') } catch (_error) { /* ignore invalid legacy data */ }
+      operationDelayMs.value = migrateOperationDelay(data, legacyBagSettings)
       if (saved) {
-        const data = JSON.parse(saved)
         if (data.globalShortcuts) {
           globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts)
         } else {
@@ -184,15 +246,13 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.inventory) {
           inventory.value = { ...inventory.value, ...data.inventory }
         }
-        if (data.delays) {
-          delays.value = normalizeDelays(data.delays)
-        }
         if (data.itemPosition) {
           itemPosition.value = { ...data.itemPosition }
         }
-        if (data.dpiScale) {
-          dpiScale.value = data.dpiScale
-        }
+        const dpiSettings = loadDpiSettings(data)
+        dpiMode.value = dpiSettings.mode
+        manualDpiScale.value = dpiSettings.manualScale
+        lastDetectedDpiScale.value = dpiSettings.lastDetectedScale
         if (typeof data.debugMode === 'boolean') {
           debugMode.value = data.debugMode
         }
@@ -242,8 +302,6 @@ export const useSettingsStore = defineStore('settings', () => {
     slotSize: { w: 100, h: 100 }
   }
 
-  const defaultDelays = normalizeDelays()
-
   const defaultItemPosition = {
     x: 636,
     y: 930
@@ -259,14 +317,23 @@ export const useSettingsStore = defineStore('settings', () => {
     globalShortcuts.value = { ...defaultGlobalShortcuts }
     currencyPositions.value = { ...defaultCurrencyPositions }
     inventory.value = { ...defaultInventory }
-    delays.value = { ...defaultDelays }
+    operationDelayMs.value = OPERATION_DELAY.default
     itemPosition.value = { ...defaultItemPosition }
+    dpiMode.value = DPI_MODE_AUTO
+    manualDpiScale.value = 1
+    lastDetectedDpiScale.value = null
+    detectedDpiScale.value = null
+    primaryDpiScale.value = 1
+    dpiDetectionStatus.value = 'idle'
+    dpiWindowTitle.value = ''
+    dpiDetectionError.value = ''
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = 560
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
     saveSettings()
+    electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     // 同步重置后的设置
     if (electronApi && electronApi.overlay && electronApi.overlay.updateSettings) {
       // 使用 JSON.parse(JSON.stringify()) 去除 Proxy 包装，确保 IPC 通信正常
@@ -288,9 +355,18 @@ export const useSettingsStore = defineStore('settings', () => {
     combatAssist,
     currencyPositions,
     inventory,
-    delays,
+    operationDelayMs,
     itemPosition,
     dpiScale,
+    dpiMode,
+    manualDpiScale,
+    lastDetectedDpiScale,
+    detectedDpiScale,
+    primaryDpiScale,
+    dpiSource,
+    dpiDetectionStatus,
+    dpiWindowTitle,
+    dpiDetectionError,
     debugMode,
     overlaySettings,
     storyOverlayWidth,
@@ -299,9 +375,11 @@ export const useSettingsStore = defineStore('settings', () => {
     updateCombatAssist,
     updateCurrencyPosition,
     updateInventorySettings,
-    updateDelays,
+    updateOperationDelay,
     updateItemPosition,
-    updateDpiScale,
+    updateManualDpiScale,
+    updateDpiMode,
+    refreshDpiScale,
     updateDebugMode,
     updateOverlaySettings,
     updateStoryOverlayWidth,

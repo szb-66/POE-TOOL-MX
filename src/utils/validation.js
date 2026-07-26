@@ -1,6 +1,6 @@
 /**
  * Purpose: 配置数据验证工具，验证物品制作配置的有效性
- * Inputs: config (object) - 包含 itemPosition, currencyPositions, preset, delays 等
+ * Inputs: config (object) - 包含 itemPosition、currencyPositions 和 preset 等
  * Outputs: { isValid: boolean, errors: string[] } - 验证结果
  * Preconditions: config 必须包含必要的字段
  * Edge cases: 配置缺失时返回错误列表；坐标为 0 时视为未配置
@@ -9,7 +9,7 @@
 
 /**
  * Purpose: 验证制作配置
- * Inputs: config (object) - 包含 itemPosition, currencyPositions, preset, delays 等
+ * Inputs: config (object) - 包含 itemPosition、currencyPositions 和 preset 等
  * Outputs: { isValid: boolean, errors: string[] } - 验证结果
  */
 export const validateCraftingConfig = (config) => {

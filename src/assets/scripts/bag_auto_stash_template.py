@@ -6,6 +6,7 @@ import argparse
 import ctypes
 import io
 import json
+import math
 import os
 import signal
 import sys
@@ -61,7 +62,10 @@ except ImportError as exc:
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
-BAG_STASH_DELAY_LIMITS_MS = {"mouse_move": 15, "action": 15, "clipboard_read": 50}
+OPERATION_DELAY_DEFAULT_MS = 80
+OPERATION_DELAY_MIN_MS = 20
+OPERATION_DELAY_MAX_MS = 500
+COPY_ATTEMPTS = 2
 INPUT_EVENT_DELAY_SECONDS = 0.01
 is_running = True
 
@@ -74,18 +78,14 @@ def error_event(mode):
     return "detection-error" if mode == "detect" else "stash-error"
 
 
-def normalize_stash_delays(delays=None):
-    delays = delays or {}
-    return {
-        name: max(0.0, min(float(delays.get(name, limit)), float(limit)))
-        for name, limit in BAG_STASH_DELAY_LIMITS_MS.items()
-    }
-
-
-def maximum_slot_wait_ms(delays=None):
-    normalized = normalize_stash_delays(delays)
-    input_wait_ms = INPUT_EVENT_DELAY_SECONDS * 1000
-    return (normalized["mouse_move"] + normalized["clipboard_read"] + normalized["action"] + input_wait_ms * 4)
+def normalize_operation_delay(value=None):
+    try:
+        delay = float(OPERATION_DELAY_DEFAULT_MS if value is None else value)
+        if not math.isfinite(delay):
+            delay = OPERATION_DELAY_DEFAULT_MS
+    except (TypeError, ValueError):
+        delay = OPERATION_DELAY_DEFAULT_MS
+    return max(OPERATION_DELAY_MIN_MS, min(delay, OPERATION_DELAY_MAX_MS))
 
 
 def advance_empty_streak(current, copy_status):
@@ -247,10 +247,10 @@ class InputController:
         self.config = config
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
-        delays = normalize_stash_delays(config.get("delays", {}))
-        self.mouse_move_delay = delays["mouse_move"] / 1000.0
-        self.action_delay = delays["action"] / 1000.0
-        self.clipboard_delay = delays["clipboard_read"] / 1000.0
+        operation_delay = normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0
+        self.mouse_move_delay = operation_delay
+        self.action_delay = operation_delay
+        self.clipboard_delay = operation_delay
 
     def release_all(self):
         for key in (Key.ctrl, Key.alt, Key.shift):
@@ -286,7 +286,7 @@ class InputController:
             self.release_all()
             return False
 
-    def copy_item_text(self):
+    def _copy_item_text_once(self):
         try:
             before_seq = clipboard_sequence_number()
             before_text = str(pyperclip.paste() or "")
@@ -300,10 +300,17 @@ class InputController:
                 if changed:
                     return ("copied", current_text) if current_text.strip() else ("empty", "")
                 time.sleep(0.01)
-            return "empty", ""
+            return "no-response", ""
         except Exception:
             self.release_all()
             return "unreadable", ""
+
+    def copy_item_text(self):
+        for _attempt in range(COPY_ATTEMPTS):
+            status, text = self._copy_item_text_once()
+            if status != "no-response":
+                return status, text
+        return "empty", ""
 
     def ctrl_click(self):
         try:
@@ -399,7 +406,7 @@ def run_stash(config):
                 else:
                     copy_status, text = controller.copy_item_text()
                     if copy_status == "empty":
-                        stats["emptySlots"] += 1
+                        pass
                     elif copy_status != "copied":
                         stats["unreadableSlots"] += 1
                     else:
@@ -412,12 +419,19 @@ def run_stash(config):
                             stats["stashedSlots"] += 1
                         else:
                             stats["unreadableSlots"] += 1
-                consecutive_empty_slots = advance_empty_streak(consecutive_empty_slots, copy_status)
+                if copy_status == "empty":
+                    consecutive_empty_slots = advance_empty_streak(consecutive_empty_slots, copy_status)
+                else:
+                    stats["unreadableSlots"] += consecutive_empty_slots
+                    consecutive_empty_slots = 0
                 stats["scannedSlots"] += 1
-                emit_progress(stats)
                 if consecutive_empty_slots >= 3:
+                    stats["emptySlots"] += consecutive_empty_slots
+                    emit_progress(stats)
                     emit("stash-completed", reason="three-consecutive-empty", **stats)
                     return 0
+                emit_progress(stats)
+        stats["emptySlots"] += consecutive_empty_slots
         emit("stash-completed", **stats)
         return 0
     except Exception as exc:

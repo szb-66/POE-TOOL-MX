@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectPythonPath: () => {
     return ipcRenderer.invoke('detect-python-path')
   },
+  detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
   startFileWatcher: (config) => {
     return ipcRenderer.invoke('start-file-watcher', config)
   },
@@ -117,6 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopBagDetection: () => ipcRenderer.invoke('stop-bag-detection'),
   startBagStash: () => ipcRenderer.invoke('start-bag-stash'),
   stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
+  updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
   onBagDetectionMatch: (callback) => {

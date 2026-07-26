@@ -32,6 +32,7 @@ onMounted(() => {
   if (route.meta.noLayout) return
   // 初始化快捷键
   if (window.electronAPI) {
+    void settingsStore.refreshDpiScale()
     initShortcuts()
     initCombatAssist()
     initBagAutomation()

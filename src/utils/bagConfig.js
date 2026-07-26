@@ -1,3 +1,5 @@
+import { normalizeOperationDelay } from './operationDelay.js'
+
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
 
 export const BAG_BLACKLIST_FIELD_LABELS = Object.freeze({
@@ -121,26 +123,13 @@ export function findBagBlacklistMatch(item, rules = []) {
   return null
 }
 
-export const BAG_STASH_DELAY_LIMITS = Object.freeze({
-  mouseMove: 15,
-  action: 15,
-  clipboardRead: 50
-})
-
-export function normalizeBagStashDelays(delays = {}) {
-  return {
-    mouseMove: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.mouseMove, finiteNumber(delays.mouseMove, BAG_STASH_DELAY_LIMITS.mouseMove))),
-    action: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.action, finiteNumber(delays.action, BAG_STASH_DELAY_LIMITS.action))),
-    clipboardRead: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.clipboardRead, finiteNumber(delays.clipboardRead, BAG_STASH_DELAY_LIMITS.clipboardRead)))
-  }
-}
-
 export function buildBagRuntimeConfig(bagSettings, settings) {
   const bag = normalizeBagSettings(bagSettings)
   return {
     templates: bag.templates,
     matchThreshold: bag.matchThreshold,
     blacklist: bag.blacklist,
+    operationDelayMs: normalizeOperationDelay(settings?.operationDelayMs),
     inventory: {
       startPos: {
         x: finiteNumber(settings?.inventory?.startPos?.x, 2658),
@@ -150,8 +139,7 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
         w: finiteNumber(settings?.inventory?.slotSize?.w, 100),
         h: finiteNumber(settings?.inventory?.slotSize?.h, 100)
       }
-    },
-    delays: normalizeBagStashDelays(settings?.delays)
+    }
   }
 }
 

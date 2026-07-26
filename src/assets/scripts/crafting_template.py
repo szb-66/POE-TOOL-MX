@@ -95,6 +95,7 @@ def play_success_sound():
 
 # Windows API鼠标控制（用于解决DPI缩放问题）
 use_windows_api = False
+dpi_scale_factor = {{DPI_SCALE_FACTOR}}
 try:
     if sys.platform == 'win32':
         import ctypes
@@ -117,19 +118,9 @@ try:
         GetCursorPos.argtypes = [ctypes.POINTER(WinCursorPoint)]
         GetCursorPos.restype = wintypes.BOOL
         
-        # 检测DPI缩放
+        # Windows API 主路径使用物理像素；该倍率仅供 pynput 回退路径换算。
         try:
-            # 获取DPI缩放比例 (仅作参考，或用于pynput修正)
-            try:
-                shcore = ctypes.windll.shcore
-                GetDpiForSystem = shcore.GetDpiForSystem
-                GetDpiForSystem.restype = ctypes.c_uint
-                dpi = GetDpiForSystem()
-                dpi_scale_factor = dpi / 96.0
-                print(f"[DPI] 系统DPI: {dpi} (缩放: {dpi_scale_factor * 100:.0f}%)")
-            except Exception:
-                dpi_scale_factor = 1.0
-                print("[DPI] 无法检测系统DPI，假设为100%")
+            print(f"[DPI] 当前有效缩放: {dpi_scale_factor * 100:.0f}%")
             
             use_windows_api = True
             print("[Windows API] 已启用Windows API鼠标控制")
@@ -162,14 +153,10 @@ except:
 item_info_file = r"{{ITEM_INFO_FILE}}"
 item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 
-# 延迟配置（毫秒转秒） - 极速模式
+# 自动操作等待（生成脚本时已将毫秒转换为秒）
 mouse_move_delay = {{DELAY_MOUSE_MOVE}}
 mouse_click_delay = {{DELAY_MOUSE_CLICK}}
-key_press_delay = {{DELAY_KEY_PRESS}}
 clipboard_read_delay = {{DELAY_CLIPBOARD}}
-# 关键操作额外缓冲：确保通货成功挂到鼠标上，避免左键直接拾取物品
-currency_right_click_delay = max(mouse_click_delay * 3, 0.08)
-item_left_click_delay = max(mouse_click_delay * 2.5, 0.06)
 
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
@@ -387,11 +374,7 @@ def apply_currency(currency_type):
         
         # 3. 左键点击应用 (Apply)
         # 不需要按下Shift
-        time.sleep(item_left_click_delay)
         click_mouse("left")
-            
-        # 点击后的延迟
-        time.sleep(item_left_click_delay)
         return True
         
     except Exception as e:
@@ -549,7 +532,6 @@ def right_click_currency(currency):
         return False
         
     click_mouse("right")
-    time.sleep(currency_right_click_delay)
     return True
 
 def left_click_item():
@@ -573,9 +555,7 @@ def left_click_item():
     if not move_mouse(target_x, target_y):
         print("[错误] 移动到物品位置失败")
         return False
-    time.sleep(item_left_click_delay)
     click_mouse("left")
-    time.sleep(item_left_click_delay)
     return True
 
 def send_copy_command():

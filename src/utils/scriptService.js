@@ -28,6 +28,13 @@ function formatShortcutError(result) {
   return result?.failed?.map(item => item.accelerator).join('、') || '未知快捷键'
 }
 
+async function refreshDpiForAutomation(settingsStore) {
+  const result = await settingsStore.refreshDpiScale()
+  if (result.success || result.skipped) return
+  const sourceText = result.source === 'history' ? '上次识别值' : '主屏倍率'
+  ElMessage.warning(`未能识别游戏窗口 DPI，正在使用${sourceText} ${result.scaleFactor}`)
+}
+
 /**
  * 初始化快捷键注册
  */
@@ -102,8 +109,7 @@ export async function startCrafting() {
   const validation = validateCraftingConfig({
     itemPosition: settingsStore.itemPosition,
     currencyPositions: settingsStore.currencyPositions,
-    preset: currentPreset,
-    delays: settingsStore.delays
+    preset: currentPreset
   })
 
   if (!validation.isValid) {
@@ -112,6 +118,7 @@ export async function startCrafting() {
   }
 
   try {
+    await refreshDpiForAutomation(settingsStore)
     // 获取文件路径
     const filePaths = await electronApi.file.getPaths()
 
@@ -119,7 +126,7 @@ export async function startCrafting() {
     const scriptContent = generatePythonScript({
       globalShortcuts: settingsStore.globalShortcuts,
       currencyPositions: settingsStore.currencyPositions,
-      delays: settingsStore.delays,
+      operationDelayMs: settingsStore.operationDelayMs,
       itemPosition: settingsStore.itemPosition,
       dpiScale: settingsStore.dpiScale,
       preset: currentPreset,
@@ -184,6 +191,7 @@ export async function startMapRolling() {
   }
 
   try {
+    await refreshDpiForAutomation(settingsStore)
     // 获取文件路径
     const filePaths = await electronApi.file.getPaths()
 
@@ -192,7 +200,7 @@ export async function startMapRolling() {
       globalShortcuts: settingsStore.globalShortcuts,
       currencyPositions: settingsStore.currencyPositions,
       inventory: settingsStore.inventory,
-      delays: settingsStore.delays,
+      operationDelayMs: settingsStore.operationDelayMs,
       mapConfig: mapConfig,
       dpiScale: settingsStore.dpiScale,
       filePaths

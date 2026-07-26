@@ -190,9 +190,24 @@
         <el-card class="section-card">
           <el-form label-width="120px" label-position="left">
             <el-form-item label="屏幕DPI缩放">
-              <div class="dpi-input">
+              <div class="dpi-settings">
+                <el-radio-group :model-value="settingsStore.dpiMode" @change="handleDpiModeChange">
+                  <el-radio-button value="auto">自动识别</el-radio-button>
+                  <el-radio-button value="manual">手动设置</el-radio-button>
+                </el-radio-group>
+                <div v-if="settingsStore.dpiMode === 'auto'" class="dpi-input">
+                  <el-tag :type="settingsStore.dpiDetectionStatus === 'success' ? 'success' : 'info'">
+                    {{ Math.round(settingsStore.dpiScale * 100) }}% · {{ getDpiSourceText() }}
+                  </el-tag>
+                  <el-button
+                    :icon="Refresh"
+                    :loading="settingsStore.dpiDetectionStatus === 'detecting'"
+                    @click="handleRefreshDpi"
+                  >重新识别</el-button>
+                </div>
+                <div v-else class="dpi-input">
                 <el-input-number
-                  v-model="dpiScale"
+                  v-model="manualDpiScale"
                   :min="1.0"
                   :max="3.0"
                   :step="0.25"
@@ -201,7 +216,11 @@
                   style="width: 120px"
                   @change="handleDpiScaleChange"
                 />
-                <span class="hint-text">如果不准确，请设置缩放比例 (如150%填1.5)</span>
+                  <span class="hint-text">例如 Windows 150% 缩放填写 1.5</span>
+                </div>
+                <span v-if="settingsStore.dpiMode === 'auto'" class="hint-text">
+                  {{ getDpiStatusText() }}
+                </span>
               </div>
             </el-form-item>
             <el-form-item label="调试模式">
@@ -223,65 +242,21 @@
           <h3 class="section-title">操作延迟</h3>
         </div>
         <el-card class="section-card">
-          <div class="delay-preset-row">
-            <div
-              v-for="(preset, key) in delayPresets"
-              :key="key"
-              class="delay-preset-card"
-              :class="{ active: activeDelayPreset === key }"
-              @click="applyDelayPreset(key)"
-            >
-              <div class="delay-preset-title">{{ preset.label }}</div>
-              <div class="delay-preset-desc">{{ preset.description }}</div>
-            </div>
-          </div>
-          <el-form :model="delays" label-width="180px" label-position="left">
-            <el-row :gutter="40">
-              <el-col :span="12" :lg="8">
-                <el-form-item label="鼠标移动延迟">
-                  <el-input-number
-                    v-model="delays.mouseMove"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12" :lg="8">
-                <el-form-item label="操作间隔">
-                  <el-input-number
-                    v-model="delays.action"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
-                  <div class="hint-text">统一控制点击和按键节奏</div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12" :lg="8">
-                <el-form-item label="剪切板等待">
-                  <el-input-number
-                    v-model="delays.clipboardRead"
-                    :min="0"
-                    :max="1000"
-                    controls-position="right"
-                    style="width: 100%"
-                    @change="handleDelaysChange"
-                  >
-                    <template #suffix>ms</template>
-                  </el-input-number>
-                  <div class="hint-text">复制物品信息后等待游戏写入剪切板</div>
-                </el-form-item>
-              </el-col>
-            </el-row>
+          <el-form label-width="180px" label-position="left">
+            <el-form-item label="自动操作等待">
+              <el-input-number
+                v-model="operationDelayMs"
+                :min="OPERATION_DELAY.min"
+                :max="OPERATION_DELAY.max"
+                :step="10"
+                controls-position="right"
+                style="width: 240px"
+                @change="handleOperationDelayChange"
+              >
+                <template #suffix>ms</template>
+              </el-input-number>
+              <div class="hint-text">鼠标到达目标后、点击完成后和读取剪贴板时使用的真实等待时间</div>
+            </el-form-item>
           </el-form>
         </el-card>
 
@@ -387,7 +362,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Close, Aim } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
-import { CURRENCY_NAMES, DELAY_PRESETS } from '../../utils/constants'
+import { CURRENCY_NAMES } from '../../utils/constants'
+import { OPERATION_DELAY } from '../../utils/operationDelay'
 import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
 import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
@@ -400,14 +376,13 @@ const bagStore = useBagStore()
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const positions = ref({ ...settingsStore.currencyPositions })
 const inventory = ref({ ...settingsStore.inventory })
-const delays = ref({ ...settingsStore.delays })
+const operationDelayMs = ref(settingsStore.operationDelayMs)
 const itemPosition = ref({ ...settingsStore.itemPosition })
-const dpiScale = ref(settingsStore.dpiScale || 1.0)
+const manualDpiScale = ref(settingsStore.manualDpiScale || 1.0)
 const debugMode = ref(settingsStore.debugMode)
 const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
-const delayPresets = DELAY_PRESETS
 const coordinatePickingTarget = ref('')
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
@@ -420,14 +395,14 @@ watch(() => settingsStore.currencyPositions, (val) => {
 watch(() => settingsStore.inventory, (val) => {
   inventory.value = { ...val }
 }, { deep: true })
-watch(() => settingsStore.delays, (val) => {
-  delays.value = { ...val }
-}, { deep: true })
+watch(() => settingsStore.operationDelayMs, (val) => {
+  operationDelayMs.value = val
+})
 watch(() => settingsStore.itemPosition, (val) => {
   itemPosition.value = { ...val }
 }, { deep: true })
-watch(() => settingsStore.dpiScale, (val) => {
-  dpiScale.value = val
+watch(() => settingsStore.manualDpiScale, (val) => {
+  manualDpiScale.value = val
 })
 watch(() => settingsStore.debugMode, (val) => {
   debugMode.value = val
@@ -514,7 +489,38 @@ async function handlePickCoordinate(type, currency = '') {
 }
 
 function handleDpiScaleChange() {
-  settingsStore.updateDpiScale(dpiScale.value)
+  settingsStore.updateManualDpiScale(manualDpiScale.value)
+}
+
+async function handleDpiModeChange(mode) {
+  settingsStore.updateDpiMode(mode)
+  if (mode === 'auto') await handleRefreshDpi()
+}
+
+function getDpiSourceText() {
+  return {
+    game: '游戏窗口',
+    history: '上次识别值',
+    primary: '主屏倍率',
+    manual: '手动设置'
+  }[settingsStore.dpiSource] || '等待识别'
+}
+
+function getDpiStatusText() {
+  if (settingsStore.dpiDetectionStatus === 'detecting') return '正在识别《流放之路》窗口所在显示器…'
+  if (settingsStore.dpiDetectionStatus === 'success') {
+    return settingsStore.dpiWindowTitle ? `已从“${settingsStore.dpiWindowTitle}”识别` : '已识别游戏窗口 DPI'
+  }
+  if (settingsStore.dpiDetectionStatus === 'error') {
+    return `${settingsStore.dpiDetectionError}，当前使用${getDpiSourceText()}`
+  }
+  return `当前使用${getDpiSourceText()}，应用启动后会自动识别`
+}
+
+async function handleRefreshDpi() {
+  const result = await settingsStore.refreshDpiScale()
+  if (result.success) ElMessage.success(`已识别游戏 DPI：${Math.round(result.scaleFactor * 100)}%`)
+  else ElMessage.warning(`${result.error}，继续使用${getDpiSourceText()} ${result.scaleFactor}`)
 }
 
 async function handleDebugModeChange(enabled) {
@@ -530,40 +536,9 @@ async function handleDebugModeChange(enabled) {
   }
 }
 
-function handleDelaysChange() {
-  settingsStore.updateDelays({
-    mouseMove: delays.value.mouseMove,
-    action: delays.value.action,
-    clipboardRead: delays.value.clipboardRead
-  })
+function handleOperationDelayChange(value) {
+  settingsStore.updateOperationDelay(value)
 }
-
-function getActiveDelayPreset() {
-  const current = JSON.stringify({
-    mouseMove: delays.value.mouseMove,
-    action: delays.value.action,
-    clipboardRead: delays.value.clipboardRead
-  })
-
-  return Object.entries(delayPresets).find(([, preset]) => {
-    return JSON.stringify(preset.values) === current
-  })?.[0] || ''
-}
-
-function applyDelayPreset(key) {
-  const preset = delayPresets[key]
-  if (!preset) return
-
-  delays.value = { ...preset.values }
-  handleDelaysChange()
-  ElMessage.success(`已切换为${preset.label}预设`)
-}
-
-const activeDelayPreset = ref(getActiveDelayPreset())
-
-watch(delays, () => {
-  activeDelayPreset.value = getActiveDelayPreset()
-}, { deep: true })
 
 function isVideo(path) {
   if (!path) return false
@@ -654,9 +629,9 @@ async function handleReset() {
     // 同步本地 ref
     shortcuts.value = { ...settingsStore.globalShortcuts }
     positions.value = { ...settingsStore.currencyPositions }
-    delays.value = { ...settingsStore.delays }
+    operationDelayMs.value = settingsStore.operationDelayMs
     itemPosition.value = { ...settingsStore.itemPosition }
-    dpiScale.value = settingsStore.dpiScale
+    manualDpiScale.value = settingsStore.manualDpiScale
     debugMode.value = settingsStore.debugMode
     overlaySettings.value = { ...settingsStore.overlaySettings }
     backgroundHistory.value = []
@@ -711,45 +686,6 @@ async function handleReset() {
 
     .section-card {
       margin-bottom: var(--spacing-lg);
-    }
-
-    .delay-preset-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .delay-preset-card {
-      padding: 14px 16px;
-      border: 1px solid var(--border-base);
-      border-radius: 10px;
-      background: var(--bg-secondary);
-      cursor: pointer;
-      transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
-
-      &:hover {
-        border-color: var(--el-color-primary-light-5);
-        transform: translateY(-1px);
-      }
-
-      &.active {
-        border-color: var(--el-color-primary);
-        background: var(--el-color-primary-light-9);
-      }
-    }
-
-    .delay-preset-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 4px;
-    }
-
-    .delay-preset-desc {
-      font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.5;
     }
 
     .position-input {
@@ -866,6 +802,20 @@ async function handleReset() {
       font-size: 12px;
       color: var(--text-secondary);
       margin-top: 4px;
+    }
+
+    .dpi-settings {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .dpi-input {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
   }
 

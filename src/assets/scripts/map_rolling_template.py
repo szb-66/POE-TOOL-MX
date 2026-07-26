@@ -82,6 +82,7 @@ def play_success_sound():
 
 # Windows API鼠标控制
 use_windows_api = False
+dpi_scale_factor = {{DPI_SCALE_FACTOR}}
 GetClipboardSequenceNumber = None
 try:
     if sys.platform == 'win32':
@@ -111,15 +112,7 @@ try:
             GetClipboardSequenceNumber = None
         
         try:
-            try:
-                shcore = ctypes.windll.shcore
-                GetDpiForSystem = shcore.GetDpiForSystem
-                GetDpiForSystem.restype = ctypes.c_uint
-                dpi = GetDpiForSystem()
-                dpi_scale_factor = dpi / 96.0
-            except Exception:
-                dpi_scale_factor = 1.0
-            
+            # Windows API 主路径使用物理像素；该倍率仅供 pynput 回退路径换算。
             use_windows_api = True
             print("[Windows API] 已启用Windows API鼠标控制")
         except Exception:
@@ -147,11 +140,7 @@ item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 # 延迟配置
 mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
 mouse_click_delay = float({{DELAY_MOUSE_CLICK}})  # type: ignore
-key_press_delay = float({{DELAY_KEY_PRESS}})  # type: ignore
 clipboard_read_delay = float({{DELAY_CLIPBOARD}})  # type: ignore
-# 关键操作额外缓冲：确保通货成功挂到鼠标上，避免左键直接拾取地图
-currency_right_click_delay = max(mouse_click_delay * 3, 0.08)
-item_left_click_delay = max(mouse_click_delay * 2.5, 0.06)
 
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
@@ -244,7 +233,6 @@ def right_click_currency(currency):
         return False
         
     click_mouse("right")
-    time.sleep(currency_right_click_delay)
     return True
 
 def apply_currency(currency_type, target_x, target_y):
@@ -252,9 +240,7 @@ def apply_currency(currency_type, target_x, target_y):
         release_shift_if_held()
         if not right_click_currency(currency_type): return False
         if not move_mouse(target_x, target_y): return False
-        time.sleep(item_left_click_delay)
         click_mouse("left")
-        time.sleep(item_left_click_delay)
         return True
     except Exception as e:
         print(f"[错误] 应用通货失败: {e}")

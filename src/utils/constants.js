@@ -69,34 +69,3 @@ export const SOCKET_COLORS = {
   GREEN: 'G',
   BLUE: 'B'
 }
-
-// 延迟预设
-export const DELAY_PRESETS = {
-  fast: {
-    label: '极速',
-    description: '适合高帧率和稳定环境，速度优先',
-    values: {
-      mouseMove: 220,
-      action: 60,
-      clipboardRead: 90
-    }
-  },
-  balanced: {
-    label: '均衡',
-    description: '默认推荐，兼顾速度和稳定性',
-    values: {
-      mouseMove: 340,
-      action: 100,
-      clipboardRead: 130
-    }
-  },
-  stable: {
-    label: '稳妥',
-    description: '适合卡顿或高延迟环境，稳定优先',
-    values: {
-      mouseMove: 520,
-      action: 180,
-      clipboardRead: 220
-    }
-  }
-}

@@ -10,6 +10,7 @@
 import craftingTemplate from '@/assets/scripts/crafting_template.py?raw'
 import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
+import { normalizeOperationDelay } from '@/utils/operationDelay.js'
 
 const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -57,7 +58,7 @@ export function generatePythonScript(config) {
   const {
     globalShortcuts,
     currencyPositions,
-    delays,
+    operationDelayMs,
     itemPosition,
     preset,
     filePaths,
@@ -66,6 +67,8 @@ export function generatePythonScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
+  const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
+  const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
 
   // 转义文件路径中的反斜杠（Python使用原始字符串）
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
@@ -780,12 +783,12 @@ def craft_colors(target_red, target_green, target_blue):
     '{{GEN_DATE}}': new Date().toLocaleString(),
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
-    '{{DELAY_MOUSE_MOVE}}': ((delays.mouseMove || 100) * 0.05 / 1000.0).toFixed(4),
-    '{{DELAY_MOUSE_CLICK}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_KEY_PRESS}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_CLIPBOARD}}': ((delays.clipboardRead || 100) * 0.2).toFixed(4),
+    '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
+    '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
+    '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
+    '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
     '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
     '{{ENABLE_AFFIX}}': preset.moduleTwo?.enabled ? 'True' : 'False',
@@ -814,7 +817,7 @@ export function generateMapRollingScript(config) {
     globalShortcuts,
     currencyPositions,
     inventory,
-    delays,
+    operationDelayMs,
     mapConfig,
     filePaths,
     dpiScale = 1.0
@@ -822,6 +825,8 @@ export function generateMapRollingScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
+  const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
+  const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
 
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
 
@@ -885,13 +890,13 @@ export function generateMapRollingScript(config) {
     '{{GEN_DATE}}': new Date().toLocaleString(),
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
-    '{{DELAY_MOUSE_MOVE}}': ((delays.mouseMove || 100) * 0.05 / 1000.0).toFixed(4),
-    '{{DELAY_MOUSE_CLICK}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_KEY_PRESS}}': ((delays.action || 50) * 0.2 / 1000.0).toFixed(4),
-    '{{DELAY_CLIPBOARD}}': ((delays.clipboardRead || 100) * 0.2).toFixed(4),
+    '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
+    '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
+    '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
+    '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
     '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
     '{{DPI_AWARENESS}}': DPI_AWARENESS

@@ -15,6 +15,7 @@ import {
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
 import { expandSearchRegion } from '../window/coordinates.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
+import { normalizeOperationDelay } from '../../../src/utils/operationDelay.js'
 
 let detectionProcess = null
 let stashProcess = null
@@ -39,11 +40,7 @@ function runtimeConfig(config = {}) {
     match_threshold: Number(config.matchThreshold ?? 0.8),
     inventory: config.inventory || {},
     blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
-    delays: {
-      mouse_move: Number(config.delays?.mouseMove ?? 260),
-      action: Number(config.delays?.action ?? 65),
-      clipboard_read: Number(config.delays?.clipboardRead ?? 100)
-    }
+    operation_delay_ms: normalizeOperationDelay(config.operationDelayMs)
   }
 }
 
@@ -303,6 +300,12 @@ export function registerBagHandlers(python, window, fileWatcher) {
   })
 
   ipcMain.handle('start-bag-stash', async () => startStashProcess(python, fileWatcher, 'manual'))
+
+  ipcMain.handle('update-bag-operation-delay', async (_event, value) => {
+    const operationDelayMs = normalizeOperationDelay(value)
+    if (latestConfig) latestConfig.operation_delay_ms = operationDelayMs
+    return { success: true, operationDelayMs }
+  })
 
   ipcMain.handle('stop-bag-stash', async () => {
     const child = stashProcess

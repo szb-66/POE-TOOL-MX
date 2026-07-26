@@ -16,6 +16,9 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  system: {
+    detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
+  },
   script: {
     executePython: () => Promise.reject(new Error('非 Electron 环境')),
     generateAndExecute: () => Promise.reject(new Error('非 Electron 环境')),
@@ -85,6 +88,7 @@ const mockApi = {
     stopDetection: () => Promise.resolve({ success: true }),
     startStash: () => Promise.reject(new Error('非 Electron 环境')),
     stopStash: () => Promise.resolve({ success: true }),
+    updateOperationDelay: () => Promise.resolve({ success: true }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
   },
@@ -151,6 +155,9 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  system: {
+    detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
+  },
   script: {
     executePython: (path, args) => window.electronAPI.executePython(path, args),
     generateAndExecute: (config) => window.electronAPI.generateAndExecuteScript(config),
@@ -233,6 +240,7 @@ export const electronApi = isElectron ? {
     stopDetection: () => window.electronAPI.stopBagDetection?.(),
     startStash: () => window.electronAPI.startBagStash?.(),
     stopStash: () => window.electronAPI.stopBagStash?.(),
+    updateOperationDelay: (operationDelayMs) => window.electronAPI.updateBagOperationDelay?.(operationDelayMs),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
     captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
   },

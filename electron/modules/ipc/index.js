@@ -15,6 +15,7 @@ import { registerBagHandlers } from './bag.js'
 import { registerCombatHandlers } from './combat.js'
 import { registerClipboardHandlers } from './clipboard.js'
 import { registerCraftingHandlers } from './crafting.js'
+import { registerSystemHandlers } from './system.js'
 
 export function registerIpcHandlers(dependencies) {
   const { window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting } = dependencies
@@ -26,5 +27,6 @@ export function registerIpcHandlers(dependencies) {
   registerBagHandlers(python, window, fileWatcher)
   registerCombatHandlers(python, window, fileWatcher)
   registerClipboardHandlers()
+  registerSystemHandlers(python)
   if (crafting) registerCraftingHandlers(crafting)
 }

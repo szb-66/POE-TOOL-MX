@@ -5,14 +5,13 @@ import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import {
-  BAG_STASH_DELAY_LIMITS,
   buildBagRuntimeConfig,
   findBagBlacklistMatch,
   normalizeBagBlacklist,
   normalizeBagSettings,
-  normalizeBagStashDelays,
   parseBagItemHeader
 } from '../src/utils/bagConfig.js'
+import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '../src/utils/operationDelay.js'
 import {
   BagSessionController,
   createEventLineParser,
@@ -31,6 +30,7 @@ test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
     templates: { stashTitle: 'stash.png', inventoryTitle: 'inventory.png' }
   })
   assert.equal(settings.moduleEnabled, true)
+  assert.equal('transferDelayMs' in settings, false)
   assert.deepEqual(settings.blacklist, [])
   assert.equal('buttonPosition' in settings, false)
   assert.equal(settings.templates.stashTitle, 'stash.png')
@@ -67,7 +67,7 @@ test('黑名单按指定字段做不区分大小写的包含匹配', () => {
   assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'category', keyword: 'CURRENCY' }]), { field: 'category', keyword: 'CURRENCY' })
 })
 
-test('运行配置包含模板区域、网格、黑名单并限制背包逐格延迟', () => {
+test('运行配置包含模板区域、网格、黑名单和全局自动操作等待', () => {
   const config = buildBagRuntimeConfig({
     templates: {
       stashTitle: 's.png', inventoryTitle: 'i.png',
@@ -77,15 +77,29 @@ test('运行配置包含模板区域、网格、黑名单并限制背包逐格�
     blacklist: [{ field: 'category', keyword: '通货' }]
   }, {
     inventory: { startPos: { x: 10, y: 20 }, slotSize: { w: 30, h: 40 } },
-    delays: { mouseMove: 50, action: 60, clipboardRead: 70 }
+    operationDelayMs: 180
   })
   assert.equal(config.templates.inventoryRegion.left, 5)
   assert.deepEqual(config.inventory.slotSize, { w: 30, h: 40 })
   assert.equal(config.blacklist[0].keyword, '通货')
-  assert.deepEqual(config.delays, BAG_STASH_DELAY_LIMITS)
-  assert.deepEqual(normalizeBagStashDelays({ mouseMove: 5, action: 6, clipboardRead: 7 }), {
-    mouseMove: 5, action: 6, clipboardRead: 7
-  })
+  assert.equal(config.operationDelayMs, 180)
+  assert.equal('delays' in config, false)
+})
+
+test('自动操作等待补齐默认值、钳制并按优先级迁移旧配置', () => {
+  assert.equal(normalizeOperationDelay(undefined), 80)
+  assert.equal(normalizeOperationDelay('invalid'), 80)
+  assert.equal(normalizeOperationDelay(null), 80)
+  assert.equal(normalizeOperationDelay('  '), 80)
+  assert.equal(normalizeOperationDelay(0), 20)
+  assert.equal(normalizeOperationDelay(900), 500)
+  assert.equal(normalizeOperationDelay(125), 125)
+  assert.deepEqual(OPERATION_DELAY, { default: 80, min: 20, max: 500 })
+  assert.equal(migrateOperationDelay({ operationDelayMs: 120 }, { transferDelayMs: 200 }), 120)
+  assert.equal(migrateOperationDelay({}, { transferDelayMs: 200 }), 200)
+  assert.equal(migrateOperationDelay({ delays: { mouseMove: 2000, action: 50, clipboardRead: 100 } }), 100)
+  assert.equal(migrateOperationDelay({ delays: { mouseMove: 100, action: 50, clipboardRead: 100 } }), 80)
+  assert.equal(migrateOperationDelay({}, {}), 80)
 })
 
 test('结构化事件解析器支持跨 chunk 行并忽略普通日志', () => {
@@ -186,30 +200,77 @@ with tempfile.TemporaryDirectory(prefix="背包模板-") as root:
   assert.deepEqual(JSON.parse(result.stdout), { valid: true, shapes: [[8, 12], [8, 12]] })
 })
 
-test('Python 背包单格最坏内置等待预算不超过 120ms', () => {
+test('Python 独立规范化全局自动操作等待', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-print(json.dumps({"delays": module.normalize_stash_delays({"mouse_move": 500, "action": 500, "clipboard_read": 500}), "budget": module.maximum_slot_wait_ms({"mouse_move": 500, "action": 500, "clipboard_read": 500})}))
+print(json.dumps([module.normalize_operation_delay(None), module.normalize_operation_delay(0), module.normalize_operation_delay(900), module.normalize_operation_delay("bad")]))
 `
   const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
-  const measured = JSON.parse(result.stdout)
-  assert.deepEqual(measured.delays, { mouse_move: 15, action: 15, clipboard_read: 50 })
-  assert.ok(measured.budget <= 120, `内置等待预算为 ${measured.budget}ms`)
+  assert.deepEqual(JSON.parse(result.stdout), [80, 20, 500, 80])
 })
 
-test('Python 连续三个明确空格后正常完成，非空格会重置计数', () => {
+test('Python 全局自动操作等待同时覆盖移入稳定、剪贴板响应和点击后等待', () => {
+  const code = `
+import importlib.util, json, sys, types
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.mouse = types.SimpleNamespace(Controller=lambda: object())
+module.keyboard = types.SimpleNamespace(Controller=lambda: object())
+controller = module.InputController({"operation_delay_ms": 180})
+print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.action_delay]))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.18, 0.18])
+})
+
+test('Python Ctrl+C 首次无响应时重试，连续无响应才判为空格', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+text = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+def run(responses):
+    controller = module.InputController.__new__(module.InputController)
+    values = iter(responses)
+    calls = {"count": 0}
+    def attempt():
+        calls["count"] += 1
+        return next(values)
+    controller._copy_item_text_once = attempt
+    return [*controller.copy_item_text(), calls["count"]]
+print(json.dumps([
+    run([("no-response", ""), ("copied", text)]),
+    run([("no-response", ""), ("no-response", "")]),
+    run([("empty", "")])
+]))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), [
+    ['copied', 'Item Class: Currency\nRarity: Currency\nChaos Orb\n--------', 2],
+    ['empty', '', 2],
+    ['empty', '', 1]
+  ])
+})
+
+test('Python 只确认末尾连续三个空格，零散无响应改记为未识别', () => {
   const code = `
 import importlib.util, sys
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-statuses = iter(["empty", "empty", "copied", "empty", "empty", "empty", "copied"])
+statuses = iter(["empty", "empty", "copied", "empty", "empty", "empty", "empty"])
 class Matcher:
     valid = True
     def __init__(self, config): pass
@@ -234,7 +295,10 @@ raise SystemExit(module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "
   assert.equal(completed.event, 'stash-completed')
   assert.equal(completed.reason, 'three-consecutive-empty')
   assert.equal(completed.scannedSlots, 6)
-  assert.equal(completed.emptySlots, 5)
+  assert.equal(completed.emptySlots, 3)
+  assert.equal(completed.unreadableSlots, 2)
+  assert.equal(completed.stashedSlots, 1)
+  assert.equal('failedSlots' in completed, false)
   assert.equal(events.filter((event) => event.event === 'stash-progress').length, 6)
 })
 
@@ -286,11 +350,61 @@ test('Python 入库对空格、无效文本和安全门禁采用失败关闭策�
   assert.match(source, /clipboard_sequence_number\(\)/)
   assert.match(source, /copy_status == "empty"[\s\S]*emptySlots/)
   assert.match(source, /item is None:[\s\S]*unreadableSlots/)
+  assert.match(source, /elif controller\.ctrl_click\(\):[\s\S]*stashedSlots/)
+  assert.doesNotMatch(source, /transfer_item|same_item|failedSlots/)
   assert.match(source, /if not is_game_foreground\(\):[\s\S]*game-not-foreground/)
   assert.match(source, /if not interface_ready:[\s\S]*interface-lost/)
   assert.match(source, /finally:[\s\S]*controller\.release_all\(\)/)
   assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('elif controller.ctrl_click():'))
   assert.ok(source.indexOf('if not interface_ready:') < source.indexOf('elif controller.ctrl_click():'))
+})
+
+test('Python 每个安全物品只 Ctrl+点击一次且点击后不再复制确认', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+text = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+statuses = iter([("copied", text), ("empty", ""), ("empty", ""), ("empty", "")])
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    clicks = 0
+    def __init__(self, config): pass
+    def move(self, x, y): return True
+    def copy_item_text(self): return next(statuses)
+    def ctrl_click(self): Controller.clicks += 1; return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+code = module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}}})
+print(json.dumps({"code": code, "clicks": Controller.clicks}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const lines = result.stdout.trim().split(/\r?\n/)
+  const summary = JSON.parse(lines.pop())
+  const completed = JSON.parse(lines.at(-1).slice(6))
+  assert.deepEqual(summary, { code: 0, clicks: 1 })
+  assert.equal('failedSlots' in completed, false)
+  assert.equal(completed.stashedSlots, 1)
+})
+
+test('全局操作等待同步接口只更新下一轮运行配置，不重启检测器或重置会话', () => {
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
+  const handler = ipcSource.match(/ipcMain\.handle\('update-bag-operation-delay'[\s\S]*?\n  \}\)/)?.[0] || ''
+  assert.match(handler, /normalizeOperationDelay\(value\)/)
+  assert.match(handler, /latestConfig\.operation_delay_ms = operationDelayMs/)
+  assert.doesNotMatch(handler, /startDetectionProcess|reloadDetection|session\.reset/)
+  assert.match(preloadSource, /updateBagOperationDelay/)
+  assert.match(apiSource, /updateOperationDelay/)
 })
 
 test('正式包携带背包脚本并从稳定路径解析', () => {

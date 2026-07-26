@@ -260,6 +260,7 @@ function getTemplatePreview(imagePath, version = '') {
   const url = imagePath.startsWith('file:') ? imagePath : `file:///${imagePath.replace(/\\/g, '/')}`
   return version ? `${url}?v=${encodeURIComponent(version)}` : url
 }
+
 </script>
 
 <style scoped lang="less">
