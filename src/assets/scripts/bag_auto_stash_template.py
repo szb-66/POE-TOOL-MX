@@ -398,8 +398,8 @@ def run_stash(config):
                 interface_ready, _scores = matcher.check_interface()
                 if not interface_ready:
                     return abort("interface-lost", stats)
-                x = start_x + column * width + width // 2
-                y = start_y + row * height + height // 2
+                x = start_x + column * width
+                y = start_y + row * height
                 copy_status = "unreadable"
                 if not controller.move(x, y):
                     stats["unreadableSlots"] += 1

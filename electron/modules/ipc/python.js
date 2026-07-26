@@ -11,6 +11,7 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
+import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
 
 export function registerPythonHandlers(python, window, fileWatcher) {
   const { 
@@ -207,7 +208,6 @@ export function registerPythonHandlers(python, window, fileWatcher) {
     try {
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
-      const overlayWindow = getOverlayWindow()
       
       // 如果已有脚本在运行，先停止
       const currentScriptProcess = getCurrentScriptProcess()
@@ -229,8 +229,17 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       }
 
       // 接收渲染进程传递的脚本内容
-      const scriptContent = config.scriptContent
+      const scriptContent = config?.scriptContent
+      if (typeof scriptContent !== 'string' || !scriptContent.trim()) {
+        return { success: false, error: '生成的制作脚本为空，无法启动' }
+      }
       const scriptPath = config.scriptPath || path.join(filePaths.tempDir, 'crafting.py')
+
+      // 制作脚本同时依赖 pynput 与 pyperclip，不能回退到仅能执行 Python 的解释器。
+      const pythonPath = resolveCraftingPython(python)
+      if (!pythonPath) {
+        return { success: false, error: '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
+      }
 
       // 保存脚本到文件
       fs.writeFileSync(scriptPath, scriptContent, 'utf8')
@@ -240,34 +249,8 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         fileWatcher.startFileWatcher(config.preset)
       }
 
-      // 创建并显示覆盖层
-      let currentOverlayWindow = getOverlayWindow()
-      if (!currentOverlayWindow) {
-        currentOverlayWindow = window.createOverlayWindow()
-      }
-
-      if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
-        currentOverlayWindow.webContents.send('update-overlay', { reset: true })
-      }
-
-      // 执行脚本
-      const pythonPath = detectPythonPath()
-      if (!pythonPath) {
-        return { success: false, error: '未找到Python可执行文件，请确保已安装Python 3' }
-      }
-
-      // 设置环境变量强制Python无缓冲输出
-      const env = {
-        ...process.env,
-        PYTHONUNBUFFERED: '1',
-        PYTHONIOENCODING: 'utf-8'
-      }
-      
-      const pythonProcess = spawn(pythonPath, [scriptPath], {
-        shell: true,
-        env: env,
-        stdio: ['ignore', 'pipe', 'pipe'] // 明确指定stdio配置
-      })
+      const launch = createPythonProcess({ pythonPath, scriptPath })
+      const pythonProcess = launch.process
 
       setCurrentScriptProcess(pythonProcess)
 
@@ -315,6 +298,8 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       pythonProcess.on('error', (err) => {
         const errorMsg = `[错误] Python进程启动失败: ${err.message}`
         stderr += errorMsg
+        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
+        fileWatcher.stopFileWatcher()
         
         // 发送错误到渲染进程
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -326,7 +311,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       })
 
       pythonProcess.on('close', (code) => {
-        clearCurrentScriptProcess()
+        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
         
         // 发送脚本停止事件到overlay（用于地图制作）
@@ -405,8 +390,28 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         }
       })
 
+      try {
+        await launch.started
+      } catch (error) {
+        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
+        fileWatcher.stopFileWatcher()
+        return { success: false, error: `Python进程启动失败: ${error.message}` }
+      }
+
+      // 进程已由操作系统确认创建后，再显示覆盖层并向 renderer 报告成功。
+      let currentOverlayWindow = getOverlayWindow()
+      if (!currentOverlayWindow) {
+        currentOverlayWindow = window.createOverlayWindow()
+      }
+
+      if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
+        currentOverlayWindow.webContents.send('update-overlay', { reset: true })
+      }
+
       return { success: true, processId: pythonProcess.pid }
     } catch (error) {
+      fileWatcher.stopFileWatcher()
+      clearCurrentScriptProcess()
       return { success: false, error: error.message }
     }
   })

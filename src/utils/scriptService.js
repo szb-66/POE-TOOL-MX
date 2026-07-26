@@ -19,6 +19,7 @@ import { startBagStash } from './bagService.js'
 import { useStoryStore } from '../stores/story'
 import { validateShortcuts } from './shortcutValidator.js'
 import { dispatchShortcutAction } from './shortcutConfig.js'
+import { isSuccessfulScriptStart } from './scriptStartResult.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -142,12 +143,12 @@ export async function startCrafting() {
       preset: plainPreset
     })
 
-    if (result.success) {
+    if (isSuccessfulScriptStart(result)) {
       scriptStore.setRunning(true)
       scriptStore.setProcessId(result.processId)
       ElMessage.success('脚本执行成功')
     } else {
-      ElMessage.error('脚本执行失败: ' + result.error)
+      ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
@@ -215,12 +216,12 @@ export async function startMapRolling() {
       preset: plainPreset
     })
 
-    if (result.success) {
+    if (isSuccessfulScriptStart(result)) {
       scriptStore.setRunning(true)
       scriptStore.setProcessId(result.processId)
       ElMessage.success('地图洗练脚本执行成功')
     } else {
-      ElMessage.error('脚本执行失败: ' + result.error)
+      ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
