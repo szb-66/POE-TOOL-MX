@@ -5,7 +5,7 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 多实例由外层配置处理；快捷键注册失败当前未兜底（TODO 可加入失败日志）。
  */
-import { app, BrowserWindow, Menu, globalShortcut, protocol, net } from 'electron'
+import { app, BrowserWindow, Menu, globalShortcut, protocol, net, shell } from 'electron'
 import path from 'node:path'
 import { createMainWindow, getMainWindow, toggleDevTools } from './modules/window/manager.js'
 import { registerIpcHandlers } from './modules/ipc/index.js'
@@ -21,10 +21,13 @@ import * as shortcutManager from './modules/shortcuts/manager.js'
 import { cleanupCombatProcesses } from './modules/ipc/combat.js'
 import { cleanupBagProcesses } from './modules/ipc/bag.js'
 import { CraftingService } from './modules/crafting/service.js'
+import { resolveUserDataPath } from './modules/storage/userDataPath.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
 protocol.registerSchemesAsPrivileged([{ scheme: 'crafting-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
+
+app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
 
 let craftingService = null
 
@@ -32,6 +35,20 @@ let craftingService = null
 app.whenReady().then(async () => {
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
+
+  // 所有 Electron 页面统一把网页外链交给系统默认浏览器；应用内 hash 路由不受影响。
+  app.on('web-contents-created', (_event, contents) => {
+    const openExternal = (target) => {
+      try {
+        const url = new URL(target)
+        if (url.protocol === 'http:' || url.protocol === 'https:') shell.openExternal(url.toString())
+      } catch { /* 非绝对网页地址交给应用自身处理 */ }
+    }
+    contents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' } })
+    contents.on('will-navigate', (event, url) => {
+      if (/^https?:\/\//i.test(url)) { event.preventDefault(); openExternal(url) }
+    })
+  })
 
   craftingService = new CraftingService({
     storageRoot: path.join(app.getPath('userData'), 'crafting'),

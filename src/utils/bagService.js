@@ -27,7 +27,10 @@ export async function startBagDetection({ silent = false } = {}) {
     return { success: false, error }
   }
   const result = await electronApi.bag.startDetection(config)
-  if (result?.success) bagStore.setDetectionStatus(true)
+  if (result?.success) {
+    bagStore.setDetectionStatus(true)
+    bagStore.setStopReason('')
+  }
   else if (!silent) ElMessage.error(`启动背包检测失败：${result?.error || '未知错误'}`)
   if (result?.success && result.warnings?.length && !silent) ElMessage.warning(result.warnings.join('；'))
   return result

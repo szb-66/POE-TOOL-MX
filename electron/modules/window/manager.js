@@ -12,6 +12,11 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWindowState, saveWindowState } from './state.js'
 import {
+  STORY_GRIP_HTML,
+  getStoryGripBounds,
+  getStoryOverlayBoundsFromGrip
+} from './storyGrip.js'
+import {
   dipRectangleToPhysical,
   getRectangleSize,
   hasUsefulPixelVariance,
@@ -25,7 +30,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow = null
 let overlayWindow = null
 let storyOverlayWindow = null
+let storyOverlayGripWindow = null
 let storyOverlaySnapshot = null
+let storyOverlaySize = { width: 560, height: 360 }
 
 export function createMainWindow() {
   const state = loadWindowState()
@@ -247,16 +254,70 @@ function getStoryOverlayBounds(width, height) {
   }
 }
 
-export function createStoryOverlayWindow(initialSnapshot = null) {
+function syncStoryGripToOverlay() {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed() || !storyOverlayGripWindow || storyOverlayGripWindow.isDestroyed()) return
+  const expected = getStoryGripBounds({ ...storyOverlayWindow.getBounds(), ...storyOverlaySize })
+  const current = storyOverlayGripWindow.getBounds()
+  if (current.x !== expected.x || current.y !== expected.y || current.width !== expected.width || current.height !== expected.height) {
+    storyOverlayGripWindow.setBounds(expected)
+  }
+}
+
+function createStoryGripWindow() {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
+  if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) return storyOverlayGripWindow
+
+  storyOverlayGripWindow = new BrowserWindow({
+    ...getStoryGripBounds(storyOverlayWindow.getBounds()),
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    movable: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  })
+  storyOverlayGripWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(STORY_GRIP_HTML)}`)
+  storyOverlayGripWindow.setAlwaysOnTop(true, 'screen-saver')
+  storyOverlayGripWindow.once('ready-to-show', () => {
+    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed() && storyOverlayWindow?.isVisible()) {
+      storyOverlayGripWindow.showInactive()
+    }
+  })
+  storyOverlayGripWindow.on('move', () => {
+    if (!storyOverlayWindow || storyOverlayWindow.isDestroyed() || !storyOverlayGripWindow || storyOverlayGripWindow.isDestroyed()) return
+    const overlayBounds = storyOverlayWindow.getBounds()
+    const gripBounds = storyOverlayGripWindow.getBounds()
+    const next = getStoryOverlayBoundsFromGrip(gripBounds, overlayBounds, storyOverlaySize)
+    if (overlayBounds.x !== next.x || overlayBounds.y !== next.y) {
+      storyOverlayWindow.setBounds(next)
+    }
+  })
+  storyOverlayGripWindow.on('closed', () => { storyOverlayGripWindow = null })
+  return storyOverlayGripWindow
+}
+
+export function createStoryOverlayWindow(initialSnapshot = null, configuredWidth = 560) {
   if (initialSnapshot) storyOverlaySnapshot = initialSnapshot
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
+    resizeStoryOverlay({ width: configuredWidth })
     storyOverlayWindow.showInactive()
+    createStoryGripWindow()?.showInactive()
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
     return storyOverlayWindow
   }
 
-  const width = 560
+  const width = Math.max(360, Math.min(1200, Math.round(Number(configuredWidth) || 560)))
   const height = 360
+  storyOverlaySize = { width, height }
   storyOverlayWindow = new BrowserWindow({
     ...getStoryOverlayBounds(width, height),
     frame: false,
@@ -274,7 +335,6 @@ export function createStoryOverlayWindow(initialSnapshot = null) {
       webSecurity: false
     }
   })
-
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
   if (process.env.NODE_ENV === 'development' && devServerUrl) {
     storyOverlayWindow.loadURL(`${devServerUrl}#/story-overlay`)
@@ -283,15 +343,13 @@ export function createStoryOverlayWindow(initialSnapshot = null) {
   }
 
   storyOverlayWindow.setIgnoreMouseEvents(true, { forward: true })
-  storyOverlayWindow.webContents.on('ipc-message', (event, channel, ...args) => {
-    if (channel === 'set-ignore-mouse-events' && storyOverlayWindow) {
-      storyOverlayWindow.setIgnoreMouseEvents(Boolean(args[0]), { forward: true })
-    }
-  })
+  createStoryGripWindow()
   storyOverlayWindow.webContents.once('did-finish-load', () => {
     if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
     storyOverlayWindow.showInactive()
+    syncStoryGripToOverlay()
+    storyOverlayGripWindow?.showInactive()
   })
 
   let saveTimer
@@ -305,18 +363,28 @@ export function createStoryOverlayWindow(initialSnapshot = null) {
   })
   storyOverlayWindow.on('closed', () => {
     clearTimeout(saveTimer)
+    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
+    storyOverlayGripWindow = null
     storyOverlayWindow = null
   })
   return storyOverlayWindow
 }
 
-export function resizeStoryOverlay(height) {
+export function resizeStoryOverlay(size) {
   if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return false
   const display = screen.getDisplayMatching(storyOverlayWindow.getBounds())
   const maxHeight = Math.max(260, Math.floor(display.workArea.height * 0.7))
-  const nextHeight = Math.max(240, Math.min(maxHeight, Math.round(Number(height) || 360)))
   const bounds = storyOverlayWindow.getBounds()
-  storyOverlayWindow.setBounds({ ...bounds, height: nextHeight })
+  const requestedHeight = typeof size === 'object' ? size?.height : size
+  const requestedWidth = typeof size === 'object' ? size?.width : null
+  const nextHeight = requestedHeight == null ? storyOverlaySize.height : Math.max(240, Math.min(maxHeight, Math.round(Number(requestedHeight) || 360)))
+  const maxWidth = Math.max(360, display.workArea.width)
+  const nextWidth = requestedWidth == null ? storyOverlaySize.width : Math.max(360, Math.min(maxWidth, Math.round(Number(requestedWidth) || 560)))
+  storyOverlaySize = { width: nextWidth, height: nextHeight }
+  const maxX = display.workArea.x + display.workArea.width - nextWidth
+  const nextX = Math.max(display.workArea.x, Math.min(maxX, bounds.x))
+  storyOverlayWindow.setBounds({ ...bounds, x: nextX, width: nextWidth, height: nextHeight })
+  syncStoryGripToOverlay()
   return true
 }
 
@@ -333,12 +401,18 @@ export function getStoryOverlaySnapshot() {
 }
 
 export function closeStoryOverlayWindow() {
+  if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
+  storyOverlayGripWindow = null
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) storyOverlayWindow.close()
   storyOverlayWindow = null
 }
 
 export function getStoryOverlayWindow() {
   return storyOverlayWindow
+}
+
+export function getStoryOverlayGripWindow() {
+  return storyOverlayGripWindow
 }
 
 function tryShowConsolePanel() {
@@ -592,13 +666,13 @@ export function createDebugWindow() {
   if (debugWindow) return debugWindow
 
   // 获取主屏幕尺寸
-  const { width, height } = screen.getPrimaryDisplay().bounds
+  const { x, y, width, height } = screen.getPrimaryDisplay().bounds
 
   debugWindow = new BrowserWindow({
     width,
     height,
-    x: 0,
-    y: 0,
+    x,
+    y,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',

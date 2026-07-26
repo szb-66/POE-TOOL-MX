@@ -191,7 +191,6 @@ export class CraftingDataRepository {
       })
       byDomain.forEach((entries, domain) => {
         const searchable = `${family.name} ${entries.flatMap((entry) => [entry.name, ...entry.tiers.map((tier) => `${tier.name} ${tier.text}`)]).join(' ')}`.toLocaleLowerCase('zh-CN')
-        if (needle && !searchable.includes(needle)) return
         const tiers = entries.flatMap((entry) => entry.tiers)
         const displayTags = [...new Map(entries.flatMap((entry) => [...(entry.displayTags ?? []), ...entry.tiers.flatMap((tier) => tier.displayTags ?? [])]).map((tag) => [tag.id, tag])).values()]
         familyRows.push({
@@ -199,12 +198,34 @@ export class CraftingDataRepository {
           affixType: family.affixType, sourceDomain: domain, entries, tiers, displayTags,
           subitemCount: tiers.length,
           availableCount: tiers.filter((tier) => tier.available).length,
-          totalWeight: tiers.filter((tier) => tier.available).reduce((sum, tier) => sum + Number(tier.weight || 0), 0)
+          totalWeight: tiers.reduce((sum, tier) => sum + Number(tier.weight || 0), 0),
+          searchable
         })
       })
     })
+    const poolTotals = new Map()
+    for (const family of familyRows) {
+      const poolKey = `${family.sourceDomain}:${family.affixType}`
+      poolTotals.set(poolKey, (poolTotals.get(poolKey) ?? 0) + family.totalWeight)
+    }
+    for (const family of familyRows) {
+      const globalTotalWeight = poolTotals.get(`${family.sourceDomain}:${family.affixType}`) ?? 0
+      family.globalTotalWeight = globalTotalWeight
+      family.probability = globalTotalWeight > 0 ? family.totalWeight / globalTotalWeight : 0
+      family.tiers = family.tiers.map((tier) => ({
+        ...tier,
+        probability: globalTotalWeight > 0 ? Number(tier.weight || 0) / globalTotalWeight : 0
+      }))
+      const tierById = new Map(family.tiers.map((tier) => [tier.id, tier]))
+      family.entries = family.entries.map((entry) => ({
+        ...entry,
+        tiers: entry.tiers.map((tier) => tierById.get(tier.id) ?? tier)
+      }))
+    }
+    const visibleFamilyRows = familyRows.filter((family) => !needle || family.searchable.includes(needle))
+      .map(({ searchable, ...family }) => family)
     const groups = MANUAL_SOURCE_GROUPS.map((source) => {
-      const families = familyRows.filter((family) => family.sourceDomain === source.id)
+      const families = visibleFamilyRows.filter((family) => family.sourceDomain === source.id)
       return {
         ...source,
         covered: families.length > 0,
@@ -213,7 +234,7 @@ export class CraftingDataRepository {
         suffix: families.filter((family) => family.affixType === 'suffix')
       }
     })
-    return { groups, sourceCoverage: Object.fromEntries(groups.map((group) => [group.id, group.covered])), totalFamilies: familyRows.length }
+    return { groups, sourceCoverage: Object.fromEntries(groups.map((group) => [group.id, group.covered])), totalFamilies: visibleFamilyRows.length }
   }
 
   resolveImage(imageId) {

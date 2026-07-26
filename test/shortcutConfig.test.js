@@ -9,10 +9,10 @@ test('全局快捷键默认包含背包与剧情导航', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyNext, 'PageDown')
 })
 
-test('仅在统一字段缺失时迁移旧背包快捷键', () => {
-  assert.equal(mergeGlobalShortcutSettings({}, { stashShortcut: 'F6' }).stashStart, 'F6')
-  assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }, { stashShortcut: 'F6' }).stashStart, 'F7')
-  assert.equal(mergeGlobalShortcutSettings({ unknown: 'F9' }, {}).unknown, undefined)
+test('全局快捷键只接受当前格式字段', () => {
+  assert.equal(mergeGlobalShortcutSettings({ stashShortcut: 'F6' }).stashStart, 'Alt+4')
+  assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }).stashStart, 'F7')
+  assert.equal(mergeGlobalShortcutSettings({ unknown: 'F9' }).unknown, undefined)
 })
 
 test('统一分发器对一次触发仅执行一个对应动作', () => {

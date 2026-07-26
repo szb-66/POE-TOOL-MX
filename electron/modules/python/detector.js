@@ -7,13 +7,54 @@
  * Errors: 检测失败返回 null，不抛出异常
  */
 
-import { execSync } from 'child_process'
+import { execFileSync, execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
 // Python路径缓存
 let cachedPythonPath = null
+const compatiblePythonPathCache = new Map()
+
+const commonPythonPaths = () => {
+  const paths = [
+    'C:\\Python3\\python.exe',
+    'C:\\Python39\\python.exe',
+    'C:\\Python310\\python.exe',
+    'C:\\Python311\\python.exe',
+    'C:\\Python312\\python.exe',
+    'C:\\Python313\\python.exe',
+    'C:\\Python314\\python.exe',
+    'C:\\Program Files\\Python3\\python.exe',
+    'C:\\Program Files (x86)\\Python3\\python.exe'
+  ]
+  const userRoot = path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Python')
+  try {
+    const installed = fs.readdirSync(userRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && /^Python\d+$/i.test(entry.name))
+      .sort((left, right) => right.name.localeCompare(left.name, undefined, { numeric: true }))
+      .map((entry) => path.join(userRoot, entry.name, 'python.exe'))
+    paths.push(...installed)
+  } catch { /* 用户目录下没有独立 Python 安装 */ }
+  return [...new Set(paths)]
+}
+
+const pythonCandidates = () => ['python3', 'python', ...commonPythonPaths()]
+
+export const detectPythonPathWithModules = (requiredModules = []) => {
+  const modules = [...new Set(requiredModules.map((name) => String(name).trim()).filter(Boolean))]
+  const cacheKey = modules.slice().sort().join(',')
+  if (compatiblePythonPathCache.has(cacheKey)) return compatiblePythonPathCache.get(cacheKey)
+  const probe = modules.map((name) => `import ${name}`).join('; ') || 'import sys'
+  for (const candidate of pythonCandidates()) {
+    try {
+      execFileSync(candidate, ['-c', probe], { stdio: 'ignore', windowsHide: true, timeout: 5000 })
+      compatiblePythonPathCache.set(cacheKey, candidate)
+      return candidate
+    } catch { /* 继续查找具备全部依赖的解释器 */ }
+  }
+  return null
+}
 
 /**
  * Purpose: 检测Python可执行文件路径
@@ -23,7 +64,7 @@ let cachedPythonPath = null
  * Edge cases: 多版本时返回第一个找到的；使用缓存避免重复检测
  * Errors: 检测失败返回 null，不抛出异常
  */
-export function detectPythonPath() {
+export const detectPythonPath = () => {
   if (cachedPythonPath) {
     return cachedPythonPath
   }
@@ -32,20 +73,7 @@ export function detectPythonPath() {
   const possibleCommands = ['python3', 'python']
   
   // Windows常见安装路径
-  const possiblePaths = [
-    'C:\\Python3\\python.exe',
-    'C:\\Python39\\python.exe',
-    'C:\\Python310\\python.exe',
-    'C:\\Python311\\python.exe',
-    'C:\\Python312\\python.exe',
-    'C:\\Program Files\\Python3\\python.exe',
-    'C:\\Program Files (x86)\\Python3\\python.exe',
-    path.join(os.homedir(), 'AppData\\Local\\Programs\\Python\\Python3\\python.exe'),
-    path.join(os.homedir(), 'AppData\\Local\\Programs\\Python\\Python39\\python.exe'),
-    path.join(os.homedir(), 'AppData\\Local\\Programs\\Python\\Python310\\python.exe'),
-    path.join(os.homedir(), 'AppData\\Local\\Programs\\Python\\Python311\\python.exe'),
-    path.join(os.homedir(), 'AppData\\Local\\Programs\\Python\\Python312\\python.exe')
-  ]
+  const possiblePaths = commonPythonPaths()
 
   // 先尝试在PATH中查找命令（跨平台兼容）
   for (const cmd of possibleCommands) {

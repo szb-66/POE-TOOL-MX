@@ -169,8 +169,8 @@ export const useStoryStore = defineStore('story', () => {
   const previous = () => move(-1)
   const next = () => move(1)
 
-  async function showOverlay() {
-    const result = await electronApi.storyOverlay.open(JSON.parse(JSON.stringify(snapshot.value)))
+  async function showOverlay(width) {
+    const result = await electronApi.storyOverlay.open(JSON.parse(JSON.stringify(snapshot.value)), width)
     overlayVisible.value = result?.success !== false
     return result
   }

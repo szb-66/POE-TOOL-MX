@@ -61,11 +61,35 @@ except ImportError as exc:
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
+BAG_STASH_DELAY_LIMITS_MS = {"mouse_move": 15, "action": 15, "clipboard_read": 50}
+INPUT_EVENT_DELAY_SECONDS = 0.01
 is_running = True
 
 
 def emit(event, **payload):
     print("EVENT " + json.dumps({"event": event, **payload}, ensure_ascii=False), flush=True)
+
+
+def error_event(mode):
+    return "detection-error" if mode == "detect" else "stash-error"
+
+
+def normalize_stash_delays(delays=None):
+    delays = delays or {}
+    return {
+        name: max(0.0, min(float(delays.get(name, limit)), float(limit)))
+        for name, limit in BAG_STASH_DELAY_LIMITS_MS.items()
+    }
+
+
+def maximum_slot_wait_ms(delays=None):
+    normalized = normalize_stash_delays(delays)
+    input_wait_ms = INPUT_EVENT_DELAY_SECONDS * 1000
+    return (normalized["mouse_move"] + normalized["clipboard_read"] + normalized["action"] + input_wait_ms * 4)
+
+
+def advance_empty_streak(current, copy_status):
+    return current + 1 if copy_status == "empty" else 0
 
 
 def signal_handler(_signum, _frame):
@@ -155,6 +179,18 @@ def clipboard_sequence_number():
         return None
 
 
+def load_grayscale_image(image_path):
+    """Load an image without relying on OpenCV's Windows path handling."""
+    try:
+        encoded = np.fromfile(image_path, dtype=np.uint8)
+        if not encoded.size:
+            return None
+        image = cv2.imdecode(encoded, cv2.IMREAD_GRAYSCALE)
+        return image if image is not None and image.size else None
+    except (OSError, ValueError, cv2.error):
+        return None
+
+
 class InterfaceMatcher:
     def __init__(self, config):
         self.config = config
@@ -168,8 +204,8 @@ class InterfaceMatcher:
         }
         for name, image_path in definitions.items():
             if image_path and os.path.exists(image_path):
-                image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-                if image is not None and image.size:
+                image = load_grayscale_image(image_path)
+                if image is not None:
                     self.templates[name] = image
 
     @property
@@ -211,10 +247,10 @@ class InputController:
         self.config = config
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
-        delays = config.get("delays", {})
-        self.mouse_move_delay = max(0, float(delays.get("mouse_move", 260))) / 1000.0
-        self.action_delay = max(0, float(delays.get("action", 65))) / 1000.0
-        self.clipboard_delay = max(50, float(delays.get("clipboard_read", 100))) / 1000.0
+        delays = normalize_stash_delays(config.get("delays", {}))
+        self.mouse_move_delay = delays["mouse_move"] / 1000.0
+        self.action_delay = delays["action"] / 1000.0
+        self.clipboard_delay = delays["clipboard_read"] / 1000.0
 
     def release_all(self):
         for key in (Key.ctrl, Key.alt, Key.shift):
@@ -240,9 +276,9 @@ class InputController:
     def _send_copy(self):
         try:
             self.keyboard.press(Key.ctrl)
-            time.sleep(0.02)
+            time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.keyboard.press("c")
-            time.sleep(0.02)
+            time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.keyboard.release("c")
             self.keyboard.release(Key.ctrl)
             return True
@@ -272,9 +308,9 @@ class InputController:
     def ctrl_click(self):
         try:
             self.keyboard.press(Key.ctrl)
-            time.sleep(0.02)
+            time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.mouse.press(Button.left)
-            time.sleep(0.02)
+            time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.mouse.release(Button.left)
             self.keyboard.release(Key.ctrl)
             time.sleep(self.action_delay)
@@ -344,6 +380,7 @@ def run_stash(config):
     start_x, start_y = int(start.get("x", 0)), int(start.get("y", 0))
     width, height = int(slot.get("w", 0)), int(slot.get("h", 0))
     rules = config.get("blacklist", [])
+    consecutive_empty_slots = 0
     try:
         for column in range(12):
             for row in range(5):
@@ -356,6 +393,7 @@ def run_stash(config):
                     return abort("interface-lost", stats)
                 x = start_x + column * width + width // 2
                 y = start_y + row * height + height // 2
+                copy_status = "unreadable"
                 if not controller.move(x, y):
                     stats["unreadableSlots"] += 1
                 else:
@@ -374,8 +412,12 @@ def run_stash(config):
                             stats["stashedSlots"] += 1
                         else:
                             stats["unreadableSlots"] += 1
+                consecutive_empty_slots = advance_empty_streak(consecutive_empty_slots, copy_status)
                 stats["scannedSlots"] += 1
                 emit_progress(stats)
+                if consecutive_empty_slots >= 3:
+                    emit("stash-completed", reason="three-consecutive-empty", **stats)
+                    return 0
         emit("stash-completed", **stats)
         return 0
     except Exception as exc:
@@ -397,13 +439,13 @@ def main():
     parser.add_argument("--mode", choices=("detect", "stash"), required=True)
     args = parser.parse_args()
     if DEPENDENCY_ERROR:
-        emit(f"{args.mode}-error", reason=f"Python 依赖缺失: {DEPENDENCY_ERROR}")
+        emit(error_event(args.mode), reason=f"Python 依赖缺失: {DEPENDENCY_ERROR}")
         return 2
     try:
         config = load_config(args.config)
         return run_detection(config) if args.mode == "detect" else run_stash(config)
     except Exception as exc:
-        emit(f"{args.mode}-error", reason=str(exc))
+        emit(error_event(args.mode), reason=str(exc))
         return 2
 
 

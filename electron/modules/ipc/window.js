@@ -153,8 +153,8 @@ export function registerWindowHandlers(window) {
     return { success: true }
   })
 
-  ipcMain.handle('open-story-overlay', (event, snapshot) => {
-    window.createStoryOverlayWindow(snapshot)
+  ipcMain.handle('open-story-overlay', (event, snapshot, width) => {
+    window.createStoryOverlayWindow(snapshot, width)
     return { success: true }
   })
 
@@ -170,8 +170,8 @@ export function registerWindowHandlers(window) {
 
   ipcMain.handle('get-story-overlay-state', () => window.getStoryOverlaySnapshot())
 
-  ipcMain.handle('resize-story-overlay', (event, height) => ({
-    success: window.resizeStoryOverlay(height)
+  ipcMain.handle('resize-story-overlay', (event, size) => ({
+    success: window.resizeStoryOverlay(size)
   }))
 
   // 调试覆盖层控制
@@ -190,7 +190,11 @@ export function registerWindowHandlers(window) {
   ipcMain.handle('update-debug-overlay', (event, data) => {
     const debugWindow = getDebugWindow()
     if (debugWindow && !debugWindow.isDestroyed()) {
-      debugWindow.webContents.send('update-debug-overlay', data)
+      const publish = () => {
+        if (!debugWindow.isDestroyed()) debugWindow.webContents.send('update-debug-overlay', data)
+      }
+      if (debugWindow.webContents.isLoadingMainFrame()) debugWindow.webContents.once('did-finish-load', publish)
+      else publish()
     }
     return { success: true }
   })

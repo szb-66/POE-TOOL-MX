@@ -86,7 +86,7 @@ test('模板保存只接受白名单目标，并在替换失败时恢复旧文�
   }
 })
 
-test('旧配置迁移采集元数据，环境变化、区域过小与 legacy warning 可区分', () => {
+test('当前采集元数据可校验环境变化与区域尺寸，手动模板返回明确提示', () => {
   const metadata = {
     displayId: '2', scaleFactor: 1.5,
     displayPhysicalSize: { width: 1920, height: 1080 },
@@ -94,9 +94,9 @@ test('旧配置迁移采集元数据，环境变化、区域过小与 legacy war
     selectedRegion: { left: -500, top: 20, right: -380, bottom: 50 },
     capturedAt: '2026-07-21T00:00:00.000Z'
   }
-  const settings = normalizeBagSettings({ templates: { stashTitle: 's.png', stashMetadata: metadata } })
+  const settings = normalizeBagSettings({ templates: { stashTitle: 's.png', stashCapture: metadata } })
   assert.deepEqual(settings.templates.stashCapture, metadata)
-  assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', settings.templates.stashRegion, null, []).legacyWarning, /旧模板/)
+  assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', settings.templates.stashRegion, null, []).warning, /手动上传模板/)
   assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', { left: 0, top: 0, right: 100, bottom: 20 }, metadata, [
     { id: '2', scaleFactor: 1.5, physicalSize: { width: 1920, height: 1080 } }
   ]).error, /小于模板尺寸/)

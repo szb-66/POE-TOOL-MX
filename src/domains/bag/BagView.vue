@@ -68,16 +68,16 @@
 
         <div class="section-header"><h3 class="section-title">模板配置</h3></div>
         <el-card class="section-card">
-          <el-alert v-if="bagStore.moduleEnabled" title="模板与匹配参数在模块运行期间锁定，请关闭模块后修改。" type="warning" :closable="false" />
+          <el-alert v-if="bagStore.moduleEnabled" title="模板可在检测运行时更新并自动重载；匹配参数仍需关闭模块后修改。" type="warning" :closable="false" />
           <div class="template-grid">
             <div v-for="definition in templateDefinitions" :key="definition.type" class="capture-card">
               <div class="capture-card__header">
                 <strong>{{ definition.label }}</strong>
-                <el-button type="primary" :loading="capturingType === definition.type" :disabled="bagStore.moduleEnabled || Boolean(capturingType)"
+                <el-button type="primary" :loading="capturingType === definition.type" :disabled="bagStore.isStashing || Boolean(capturingType)"
                   @click="captureTemplate(definition)">框选{{ definition.shortLabel }}</el-button>
               </div>
               <div class="capture-card__body">
-                <img v-if="bagStore.templates[definition.type]" :src="getTemplatePreview(bagStore.templates[definition.type])" class="template-preview" />
+                <img v-if="bagStore.templates[definition.type]" :src="getTemplatePreview(bagStore.templates[definition.type], templatePreviewVersions[definition.type] || bagStore.templates[definition.capture]?.capturedAt)" class="template-preview" />
                 <div v-else class="upload-placeholder"><el-icon><Plus /></el-icon><span>尚未配置模板</span></div>
               </div>
               <div class="template-meta">
@@ -95,8 +95,8 @@
                 <template v-for="definition in templateDefinitions" :key="definition.type">
                   <el-form-item :label="`${definition.shortLabel}模板`">
                     <el-upload :auto-upload="false" :show-file-list="false" accept="image/*"
-                      :disabled="bagStore.moduleEnabled" :on-change="(file) => handleTemplateUpload(file, definition.type)">
-                      <el-button :disabled="bagStore.moduleEnabled"><el-icon><Plus /></el-icon>上传图片</el-button>
+                      :disabled="bagStore.isStashing" :on-change="(file) => handleTemplateUpload(file, definition.type)">
+                      <el-button :disabled="bagStore.isStashing"><el-icon><Plus /></el-icon>上传图片</el-button>
                     </el-upload>
                   </el-form-item>
                   <el-form-item :label="`${definition.shortLabel}匹配区域`">
@@ -137,6 +137,7 @@ const bagStore = useBagStore()
 const settingsStore = useSettingsStore()
 const showDebugOverlay = ref(false)
 const capturingType = ref('')
+const templatePreviewVersions = ref({})
 const advancedSections = ref([])
 const draftRule = ref({ field: 'name', keyword: '' })
 const regionKeys = ['left', 'top', 'right', 'bottom']
@@ -174,14 +175,16 @@ async function handleTemplateUpload(file, type) {
     const result = await electronApi.bag.uploadTemplate(file.raw.path, type)
     if (!result?.success) return ElMessage.error(`上传失败：${result?.error || '未知错误'}`)
     bagStore.setTemplate(type, result.path)
-    ElMessage.success('模板图片已上传')
+    templatePreviewVersions.value = { ...templatePreviewVersions.value, [type]: result.version || Date.now() }
+    if (result.reloadError) ElMessage.warning(`模板图片已上传，但检测器重载失败：${result.reloadError}`)
+    else ElMessage.success(result.reloaded ? '模板图片已上传，检测器已重载' : '模板图片已上传')
   } catch (error) {
     ElMessage.error(`上传失败：${error.message}`)
   }
 }
 
 async function captureTemplate(definition) {
-  if (bagStore.moduleEnabled) return ElMessage.warning('请先关闭背包模块再框选')
+  if (bagStore.isStashing) return ElMessage.warning('入库进行中，暂时不能替换模板')
   capturingType.value = definition.type
   try {
     const result = await electronApi.bag.captureTemplate(definition.type)
@@ -191,7 +194,9 @@ async function captureTemplate(definition) {
     }
     if (!result?.success) return ElMessage.error(`框选失败：${result?.error || '未知错误'}`)
     bagStore.applyTemplateCapture(definition.type, result)
-    ElMessage.success(`${definition.shortLabel}模板已更新`)
+    templatePreviewVersions.value = { ...templatePreviewVersions.value, [definition.type]: result.version || Date.now() }
+    if (result.reloadError) ElMessage.warning(`${definition.shortLabel}模板已更新，但检测器重载失败：${result.reloadError}`)
+    else ElMessage.success(result.reloaded ? `${definition.shortLabel}模板已更新，检测器已重载` : `${definition.shortLabel}模板已更新`)
   } catch (error) {
     ElMessage.error(`框选失败：${error.message}`)
   } finally {
@@ -250,9 +255,10 @@ watch(showDebugOverlay, async (visible) => {
 watch(() => bagStore.templates, updateDebugOverlay, { deep: true })
 onUnmounted(() => { if (showDebugOverlay.value) electronApi.window.closeDebugOverlay() })
 
-function getTemplatePreview(imagePath) {
+function getTemplatePreview(imagePath, version = '') {
   if (!imagePath) return ''
-  return imagePath.startsWith('file:') ? imagePath : `file:///${imagePath.replace(/\\/g, '/')}`
+  const url = imagePath.startsWith('file:') ? imagePath : `file:///${imagePath.replace(/\\/g, '/')}`
+  return version ? `${url}?v=${encodeURIComponent(version)}` : url
 }
 </script>
 

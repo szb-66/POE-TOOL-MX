@@ -82,8 +82,8 @@ export function normalizeBagSettings(raw = {}) {
       inventoryTitle: String(raw.templates?.inventoryTitle || ''),
       stashRegion: normalizeRegion(raw.templates?.stashRegion),
       inventoryRegion: normalizeRegion(raw.templates?.inventoryRegion),
-      stashCapture: normalizeCaptureMetadata(raw.templates?.stashCapture || raw.templates?.stashMetadata),
-      inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture || raw.templates?.inventoryMetadata)
+      stashCapture: normalizeCaptureMetadata(raw.templates?.stashCapture),
+      inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture)
     },
     matchThreshold: Number.isFinite(threshold) ? Math.min(1, Math.max(0.1, threshold)) : defaults.matchThreshold,
     blacklist: normalizeBagBlacklist(raw.blacklist)
@@ -121,6 +121,20 @@ export function findBagBlacklistMatch(item, rules = []) {
   return null
 }
 
+export const BAG_STASH_DELAY_LIMITS = Object.freeze({
+  mouseMove: 15,
+  action: 15,
+  clipboardRead: 50
+})
+
+export function normalizeBagStashDelays(delays = {}) {
+  return {
+    mouseMove: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.mouseMove, finiteNumber(delays.mouseMove, BAG_STASH_DELAY_LIMITS.mouseMove))),
+    action: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.action, finiteNumber(delays.action, BAG_STASH_DELAY_LIMITS.action))),
+    clipboardRead: Math.max(0, Math.min(BAG_STASH_DELAY_LIMITS.clipboardRead, finiteNumber(delays.clipboardRead, BAG_STASH_DELAY_LIMITS.clipboardRead)))
+  }
+}
+
 export function buildBagRuntimeConfig(bagSettings, settings) {
   const bag = normalizeBagSettings(bagSettings)
   return {
@@ -137,11 +151,7 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
         h: finiteNumber(settings?.inventory?.slotSize?.h, 100)
       }
     },
-    delays: {
-      mouseMove: finiteNumber(settings?.delays?.mouseMove, 260),
-      action: finiteNumber(settings?.delays?.action, 65),
-      clipboardRead: finiteNumber(settings?.delays?.clipboardRead, 100)
-    }
+    delays: normalizeBagStashDelays(settings?.delays)
   }
 }
 
@@ -163,19 +173,19 @@ export function captureKeyForTemplate(type) {
 }
 
 export function validateTemplateCaptureEnvironment(label, templatePath, region, metadata, displays = []) {
-  if (!metadata) return templatePath ? { error: '', legacyWarning: `${label}仍使用旧模板，建议重新框选` } : { error: '', legacyWarning: '' }
+  if (!metadata) return templatePath ? { error: '', warning: `${label}使用手动上传模板，无法校验采集显示环境` } : { error: '', warning: '' }
   const display = displays.find((item) => String(item.id) === String(metadata.displayId))
-  if (!display) return { error: `${label}的采集显示器已不存在，请重新框选`, legacyWarning: '' }
+  if (!display) return { error: `${label}的采集显示器已不存在，请重新框选`, warning: '' }
   const physicalSize = display.physicalSize || display.displayPhysicalSize
   if (Number(display.scaleFactor) !== Number(metadata.scaleFactor) ||
       Number(physicalSize?.width) !== Number(metadata.displayPhysicalSize.width) ||
       Number(physicalSize?.height) !== Number(metadata.displayPhysicalSize.height)) {
-    return { error: `${label}的显示环境已变化，请重新框选`, legacyWarning: '' }
+    return { error: `${label}的显示环境已变化，请重新框选`, warning: '' }
   }
   const regionWidth = Number(region?.right) - Number(region?.left)
   const regionHeight = Number(region?.bottom) - Number(region?.top)
   if (regionWidth < metadata.templateSize.width || regionHeight < metadata.templateSize.height) {
-    return { error: `${label}的搜索区域小于模板尺寸，请重新框选或修正高级区域`, legacyWarning: '' }
+    return { error: `${label}的搜索区域小于模板尺寸，请重新框选或修正高级区域`, warning: '' }
   }
-  return { error: '', legacyWarning: '' }
+  return { error: '', warning: '' }
 }

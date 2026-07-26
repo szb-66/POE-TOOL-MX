@@ -85,20 +85,20 @@ test('活动指针越界或损坏时回退内置快照', async () => {
   assert.match(status.warning, /越界/)
 })
 
-test('旧 schema 活动快照回退内置当前版本且保留旧目录', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'crafting-schema-v1-'))
-  const legacyDir = path.join(root, 'version-old')
-  await mkdir(legacyDir)
-  const legacy = JSON.parse(await readFile(path.join(builtinRoot, 'dataset.json'), 'utf8'))
-  legacy.manifest.schemaVersion = 4
-  legacy.manifest.checksum = 'test'
-  await writeFile(path.join(legacyDir, 'dataset.json'), JSON.stringify(legacy))
-  await writeFile(path.join(root, 'active.json'), JSON.stringify({ directory: 'version-old' }))
+test('不受支持的 schema 快照回退到内置当前版本且不改写来源', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'crafting-schema-unsupported-'))
+  const unsupportedDir = path.join(root, 'version-unsupported')
+  await mkdir(unsupportedDir)
+  const unsupported = JSON.parse(await readFile(path.join(builtinRoot, 'dataset.json'), 'utf8'))
+  unsupported.manifest.schemaVersion = 4
+  unsupported.manifest.checksum = 'test'
+  await writeFile(path.join(unsupportedDir, 'dataset.json'), JSON.stringify(unsupported))
+  await writeFile(path.join(root, 'active.json'), JSON.stringify({ directory: 'version-unsupported' }))
   const repository = new CraftingDataRepository({ builtinRoot, userDataRoot: root })
   const status = await repository.initialize()
   assert.equal(status.source, 'builtin')
   assert.match(status.warning, /schema 4/)
-  assert.equal(JSON.parse(await readFile(path.join(legacyDir, 'dataset.json'), 'utf8')).manifest.schemaVersion, 4)
+  assert.equal(JSON.parse(await readFile(path.join(unsupportedDir, 'dataset.json'), 'utf8')).manifest.schemaVersion, 4)
 })
 
 test('特殊底材状态互斥并要求必要参数', async () => {
@@ -128,4 +128,26 @@ test('三级词缀目录固定返回十二种来源并审计缺失覆盖', async
   assert.ok(result.groups.slice(1, 7).every((entry) => entry.covered), '六种势力词缀都应在法杖目录中有覆盖')
   const missing = result.groups.find((entry) => !entry.covered)
   if (missing) assert.equal(missing.coverageMessage, '当前数据快照未覆盖此来源')
+})
+
+test('召集法杖保留全部技能石词缀并以全局池计算概率', async () => {
+  const repository = new CraftingDataRepository({ builtinRoot })
+  await repository.initialize()
+  const base = repository.getDataset().bases.find((entry) => entry.modifierProfileId === 'Convoking_Wand')
+  const catalog = repository.searchModifierCatalog({ baseId: base.id, itemLevel: 100 })
+  const families = catalog.groups.flatMap((group) => [...group.prefix, ...group.suffix])
+  const family = families.find((entry) => entry.name.includes('所有火焰法术主动技能石等级') && entry.sourceDomain === 'base')
+  assert.ok(family)
+  assert.equal(family.entries.length, 6)
+  assert.ok(family.entries.some((entry) => entry.name.includes('召唤生物主动技能石等级')))
+  assert.equal(family.globalTotalWeight, 99131)
+  assert.equal(catalog.groups.find((entry) => entry.id === 'base').suffix[0].globalTotalWeight, 135092)
+  assert.equal(family.probability, family.totalWeight / family.globalTotalWeight)
+  assert.ok(family.tiers.every((tier) => tier.probability === tier.weight / family.globalTotalWeight))
+
+  const searched = repository.searchModifierCatalog({ baseId: base.id, itemLevel: 60, query: '召唤生物主动技能石等级' })
+  const searchedFamily = searched.groups.flatMap((group) => [...group.prefix, ...group.suffix])
+    .find((entry) => entry.familyId === family.familyId && entry.sourceDomain === family.sourceDomain)
+  assert.equal(searchedFamily.globalTotalWeight, family.globalTotalWeight, '搜索与物品等级不得改变 POEDB 页面全局分母')
+  assert.equal(searchedFamily.totalWeight, family.totalWeight)
 })

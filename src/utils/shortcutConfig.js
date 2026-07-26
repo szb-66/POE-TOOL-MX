@@ -10,18 +10,15 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   storyNext: 'PageDown'
 })
 
-export function mergeGlobalShortcutSettings(saved = {}, legacyBag = {}) {
+export const mergeGlobalShortcutSettings = (saved = {}) => {
   const filtered = {}
   for (const key of Object.keys(DEFAULT_GLOBAL_SHORTCUTS)) {
     if (typeof saved?.[key] === 'string') filtered[key] = saved[key]
   }
-  if (!Object.prototype.hasOwnProperty.call(filtered, 'stashStart') && typeof legacyBag?.stashShortcut === 'string') {
-    filtered.stashStart = legacyBag.stashShortcut
-  }
   return { ...DEFAULT_GLOBAL_SHORTCUTS, ...filtered }
 }
 
-export function dispatchShortcutAction(id, handlers) {
+export const dispatchShortcutAction = (id, handlers) => {
   const handler = handlers?.[id]
   if (typeof handler !== 'function') return false
   handler()

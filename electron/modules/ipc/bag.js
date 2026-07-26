@@ -5,7 +5,13 @@ import path from 'path'
 import fs from 'fs'
 import { spawn } from 'child_process'
 import { app } from 'electron'
-import { BagSessionController, createEventLineParser } from '../bag/orchestrator.js'
+import { fileURLToPath } from 'node:url'
+import {
+  BagSessionController,
+  createEventLineParser,
+  describeDetectionExit,
+  waitForDetectionStartup
+} from '../bag/orchestrator.js'
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
 import { expandSearchRegion } from '../window/coordinates.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
@@ -15,6 +21,7 @@ let stashProcess = null
 let latestConfig = null
 let getMainWindowRef = null
 const session = new BagSessionController()
+const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
 function send(channel, payload = {}) {
   const mainWindow = getMainWindowRef?.()
@@ -67,7 +74,7 @@ function validateCaptureConfig(config) {
   for (const [label, pathKey, regionKey, captureKey] of definitions) {
     const result = validateTemplateCaptureEnvironment(label, config.templates?.[pathKey], config.templates?.[regionKey], config.templates?.[captureKey], displays)
     if (result.error) return { error: result.error, warnings }
-    if (result.legacyWarning) warnings.push(result.legacyWarning)
+    if (result.warning) warnings.push(result.warning)
     const metadata = config.templates?.[captureKey]
     if (metadata) {
       const image = nativeImage.createFromPath(String(config.templates[pathKey] || ''))
@@ -94,11 +101,24 @@ function writeConfig(fileWatcher, name, config) {
   return configPath
 }
 
+function resolveBagScriptPath() {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, 'bag_auto_stash_template.py')]
+    : [
+        path.resolve(moduleDir, '../../../src/assets/scripts/bag_auto_stash_template.py'),
+        path.join(app.getAppPath(), 'src/assets/scripts/bag_auto_stash_template.py'),
+        path.resolve(app.getAppPath(), '../src/assets/scripts/bag_auto_stash_template.py')
+      ]
+  const scriptPath = candidates.find((candidate) => fs.existsSync(candidate))
+  if (!scriptPath) throw new Error(`模板脚本不存在，已检查: ${candidates.join('；')}`)
+  return scriptPath
+}
+
 function spawnPython(python, mode, configPath) {
-  const pythonPath = python.detectPythonPath()
+  const requiredModules = ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
+  const pythonPath = python.detectPythonPathWithModules?.(requiredModules) || python.detectPythonPath()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
-  const scriptPath = path.join(process.cwd(), 'src/assets/scripts/bag_auto_stash_template.py')
-  if (!fs.existsSync(scriptPath)) throw new Error(`模板脚本不存在: ${scriptPath}`)
+  const scriptPath = resolveBagScriptPath()
   return spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
     shell: false,
     env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
@@ -106,9 +126,14 @@ function spawnPython(python, mode, configPath) {
 }
 
 function bindCommonProcessLogging(child, label) {
+  const diagnostics = { stderr: '', spawnError: '' }
   child.stderr.setEncoding('utf8')
-  child.stderr.on('data', (data) => console.error(`[${label}]`, String(data).trim()))
-  child.on('error', (error) => console.error(`[${label}] 进程错误:`, error))
+  child.stderr.on('data', (data) => {
+    diagnostics.stderr = `${diagnostics.stderr}${String(data)}`.slice(-4000)
+    console.error(`[${label}]`, String(data).trim())
+  })
+  child.on('error', (error) => { diagnostics.spawnError = error.message; console.error(`[${label}] 进程错误:`, error) })
+  return diagnostics
 }
 
 function startStashProcess(python, fileWatcher, mode) {
@@ -167,7 +192,9 @@ function startDetectionProcess(python, fileWatcher) {
   const child = spawnPython(python, 'detect', configPath)
   detectionProcess = child
   child.stdout.setEncoding('utf8')
+  let terminalReason = ''
   child.stdout.on('data', createEventLineParser((event) => {
+    if (detectionProcess !== child) return
     if (event.event === 'detection-state') {
       const shouldAutoStart = session.setReady(event.ready, event.foreground)
       send('bag-detection-match', { matched: session.ready && session.foreground, ...event })
@@ -176,19 +203,65 @@ function startDetectionProcess(python, fileWatcher) {
         if (!result.success) send('bag-stash-stopped', { reason: result.error })
       }
     } else if (event.event === 'detection-error') {
+      terminalReason = event.reason || '检测器报告错误'
       send('bag-detection-stopped', event)
     }
   }, (line) => console.log('[背包检测]', line)))
-  bindCommonProcessLogging(child, '背包检测')
+  const diagnostics = bindCommonProcessLogging(child, '背包检测')
   child.on('close', (code) => {
     const wasCurrent = detectionProcess === child
     if (wasCurrent) detectionProcess = null
     if (wasCurrent) {
       session.setReady(false, false)
-      send('bag-detection-stopped', { code, reason: code === 0 ? 'process-ended' : 'process-exited' })
+      if (!terminalReason) send('bag-detection-stopped', {
+        code,
+        reason: describeDetectionExit({ code, stderr: diagnostics.stderr, spawnError: diagnostics.spawnError })
+      })
     }
   })
-  return child
+  return {
+    child,
+    startup: waitForDetectionStartup(child, {
+      getFailureReason: (code) => describeDetectionExit({
+        code,
+        terminalReason,
+        stderr: diagnostics.stderr,
+        spawnError: diagnostics.spawnError
+      })
+    })
+  }
+}
+
+const templateRuntimeKeys = (type) => type === 'stashTitle'
+  ? { path: 'stash_title', region: 'stash_region' }
+  : { path: 'inventory_title', region: 'inventory_region' }
+
+const updateRuntimeTemplate = (type, templatePath, region) => {
+  if (!latestConfig?.templates) return
+  const keys = templateRuntimeKeys(type)
+  latestConfig.templates[keys.path] = templatePath
+  if (region) latestConfig.templates[keys.region] = region
+}
+
+const reloadDetectionForTemplateChange = async (python, fileWatcher) => {
+  if (!detectionProcess) return false
+  const previous = detectionProcess
+  detectionProcess = null
+  stopChild(previous)
+  session.reset()
+  send('bag-detection-match', { matched: false, ready: false, reloading: true })
+  const { child, startup } = startDetectionProcess(python, fileWatcher)
+  try {
+    await startup
+    return true
+  } catch (error) {
+    if (detectionProcess === child) {
+      detectionProcess = null
+      stopChild(child)
+    }
+    session.reset()
+    throw error
+  }
 }
 
 export function registerBagHandlers(python, window, fileWatcher) {
@@ -203,9 +276,16 @@ export function registerBagHandlers(python, window, fileWatcher) {
       const error = validateConfig(latestConfig)
       if (error) return { success: false, error }
       session.reset()
-      const child = startDetectionProcess(python, fileWatcher)
+      const { child, startup } = startDetectionProcess(python, fileWatcher)
+      await startup
       return { success: true, processId: child.pid, warnings: captureValidation.warnings }
     } catch (error) {
+      if (detectionProcess) {
+        const child = detectionProcess
+        detectionProcess = null
+        stopChild(child)
+      }
+      session.reset()
       return { success: false, error: error.message }
     }
   })
@@ -234,6 +314,7 @@ export function registerBagHandlers(python, window, fileWatcher) {
 
   ipcMain.handle('upload-bag-template', async (_event, sourcePath, type) => {
     try {
+      if (stashProcess) throw new Error('入库进行中，暂时不能替换模板')
       assertBagTemplateTarget(type)
       const templateDir = path.join(app.getPath('userData'), 'templates')
       if (!fs.existsSync(templateDir)) fs.mkdirSync(templateDir, { recursive: true })
@@ -241,7 +322,11 @@ export function registerBagHandlers(python, window, fileWatcher) {
       const fileName = type === 'stashTitle' ? `stash_title${ext}` : `inventory_title${ext}`
       const targetPath = path.join(templateDir, fileName)
       fs.copyFileSync(sourcePath, targetPath)
-      return { success: true, path: targetPath }
+      updateRuntimeTemplate(type, targetPath)
+      let reloaded = false
+      let reloadError = ''
+      try { reloaded = await reloadDetectionForTemplateChange(python, fileWatcher) } catch (error) { reloadError = error.message }
+      return { success: true, path: targetPath, version: Date.now(), reloaded, reloadError }
     } catch (error) {
       return { success: false, error: error.message }
     }
@@ -249,15 +334,23 @@ export function registerBagHandlers(python, window, fileWatcher) {
 
   ipcMain.handle('capture-bag-template', async (_event, type) => {
     try {
+      if (stashProcess) throw new Error('入库进行中，暂时不能替换模板')
       assertBagTemplateTarget(type)
       const result = await window.pickScreenRegion()
       if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
       const templateDir = path.join(app.getPath('userData'), 'templates')
       const targetPath = savePngAtomically(templateDir, type, result.png)
       const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)
+      updateRuntimeTemplate(type, targetPath, region)
+      let reloaded = false
+      let reloadError = ''
+      try { reloaded = await reloadDetectionForTemplateChange(python, fileWatcher) } catch (error) { reloadError = error.message }
       return {
         success: true,
         path: targetPath,
+        version: Date.now(),
+        reloaded,
+        reloadError,
         region,
         metadata: {
           displayId: result.displayId,

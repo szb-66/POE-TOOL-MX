@@ -64,10 +64,10 @@ npm install
 确保已安装 Python 3，然后安装以下依赖包：
 
 ```bash
-pip install pynput pyperclip
+pip install opencv-python mss numpy pynput pyperclip
 ```
 
-**注意**：pynput 在 Windows 上可能需要管理员权限才能正常工作
+应用会优先选择已安装上述全部依赖的 Python 解释器。**注意**：pynput 在 Windows 上可能需要管理员权限才能正常工作。
 
 ## 开发运行
 

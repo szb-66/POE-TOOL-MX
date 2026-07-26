@@ -155,11 +155,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('combat-status', listener)
     return () => ipcRenderer.removeListener('combat-status', listener)
   },
-  openStoryOverlay: (snapshot) => ipcRenderer.invoke('open-story-overlay', snapshot),
+  openStoryOverlay: (snapshot, width) => ipcRenderer.invoke('open-story-overlay', snapshot, width),
   closeStoryOverlay: () => ipcRenderer.invoke('close-story-overlay'),
   updateStoryOverlay: (snapshot) => ipcRenderer.invoke('update-story-overlay', snapshot),
   getStoryOverlayState: () => ipcRenderer.invoke('get-story-overlay-state'),
-  resizeStoryOverlay: (height) => ipcRenderer.invoke('resize-story-overlay', height),
+  resizeStoryOverlay: (size) => ipcRenderer.invoke('resize-story-overlay', size),
   onStoryOverlayState: (callback) => {
     const listener = (_event, snapshot) => callback(snapshot)
     ipcRenderer.on('story-overlay-state', listener)

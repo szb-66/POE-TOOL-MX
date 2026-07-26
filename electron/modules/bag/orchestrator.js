@@ -46,7 +46,7 @@ export class BagSessionController {
   }
 }
 
-export function createEventLineParser(onEvent, onLog = () => {}) {
+export const createEventLineParser = (onEvent, onLog = () => {}) => {
   let buffer = ''
   return (chunk) => {
     buffer += String(chunk)
@@ -64,4 +64,39 @@ export function createEventLineParser(onEvent, onLog = () => {}) {
       }
     }
   }
+}
+
+export const describeDetectionExit = ({ code, terminalReason = '', stderr = '', spawnError = '' } = {}) => {
+  const detail = String(terminalReason || spawnError || stderr || '').trim()
+  if (detail) return detail
+  if (code === 0) return 'process-ended'
+  return Number.isInteger(code) ? `检测进程异常退出（退出码 ${code}）` : '检测进程异常退出'
+}
+
+export const waitForDetectionStartup = (child, { timeoutMs = 5000, getFailureReason = () => '' } = {}) => {
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      child.stdout?.removeListener('data', parseStartupEvent)
+      child.removeListener('error', handleError)
+      child.removeListener('close', handleClose)
+      if (error) reject(error)
+      else resolve()
+    }
+    const parser = createEventLineParser((event) => {
+      if (event.event === 'detection-state') finish()
+      else if (event.event === 'detection-error') finish(new Error(event.reason || '检测器启动失败'))
+    })
+    const parseStartupEvent = (chunk) => parser(chunk)
+    const handleError = (error) => finish(new Error(error?.message || '检测进程启动失败'))
+    const handleClose = (code) => finish(new Error(getFailureReason(code) || describeDetectionExit({ code })))
+    const timer = setTimeout(() => finish(new Error('检测进程启动超时，未收到运行状态')), timeoutMs)
+
+    child.stdout?.on('data', parseStartupEvent)
+    child.once('error', handleError)
+    child.once('close', handleClose)
+  })
 }

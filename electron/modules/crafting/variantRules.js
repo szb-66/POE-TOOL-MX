@@ -69,9 +69,10 @@ export function modifierMatchesBase(modifier, base, variant = { kind: 'normal' }
     }
   }
   if (modifier.requiredTags?.length && !modifier.requiredTags.every((group) => String(group).split(',').some((tag) => baseTags.has(tag.trim())))) return false
-  const specificSpawnTags = modifier.spawnTags.filter((tag) => tag !== 'default')
-  const hasSpawnTag = !specificSpawnTags.length || specificSpawnTags.some((tag) => baseTags.has(tag))
-  if (!hasSpawnTag) return false
+  // POEDB payload 中的 spawn_no 表示物品已获得某标签后该词缀禁止继续生成，
+  // 不是底材必须具备的正向 Spawn Weight 标签。底材适用范围已经由
+  // modifierProfileId、itemClasses 和页面 requiredTags 限定，不能再用
+  // spawn_no 过滤目录，否则会漏掉页面中的合法词缀并缩小概率分母。
   if (modifier.influences.length) {
     if (variant.kind !== 'influenced') return false
     if (!modifier.influences.some((influence) => variant.influences?.includes(influence))) return false

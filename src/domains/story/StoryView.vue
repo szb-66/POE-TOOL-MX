@@ -8,6 +8,7 @@
       <div class="overlay-toggle">
         <label>上一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyPrevious" @change="saveShortcut('storyPrevious', $event)" /></label>
         <label>下一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyNext" @change="saveShortcut('storyNext', $event)" /></label>
+        <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="360" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
         <span>游戏浮窗</span>
         <el-switch :model-value="story.overlayVisible" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
       </div>
@@ -187,7 +188,7 @@ watch(() => story.chapters, () => {
 
 async function toggleOverlay(visible) {
   try {
-    if (visible) await story.showOverlay()
+    if (visible) await story.showOverlay(settings.storyOverlayWidth)
     else await story.hideOverlay()
   } catch (error) {
     ElMessage.error(`剧情浮窗操作失败：${error.message}`)

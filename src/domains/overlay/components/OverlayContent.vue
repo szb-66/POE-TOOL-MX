@@ -1,5 +1,9 @@
 <template>
   <div class="overlay-container" :class="{ 'has-content': hasContent }">
+    <div v-if="allowDrag" class="overlay-drag-handle" title="拖动浮窗"
+      @mouseenter="activateDragHandle" @mouseleave="deactivateDragHandle">
+      <span></span><span></span><span></span>
+    </div>
     <!-- 背景层 -->
     <div class="background-layer" :style="backgroundStyle">
       <!-- 根据文件路径后缀判断是否为视频 -->
@@ -11,10 +15,8 @@
     <div class="mask-layer" :style="maskStyle"></div>
 
     <!-- 地图制作模式：显示统计信息 -->
-    <div v-if="isMapMode && hasContent" class="overlay-content" @mouseenter="handleMouseEnter"
-      @mouseleave="handleMouseLeave">
-      <div class="item-header" :class="{ 'drag-handle': allowDrag }" @mouseenter="handleMouseEnter"
-        @mouseleave="handleMouseLeave" @mousedown="handleMouseDown">
+    <div v-if="isMapMode && hasContent" class="overlay-content">
+      <div class="item-header">
         <span>地图概览</span>
       </div>
 
@@ -67,9 +69,8 @@
     </div>
 
     <!-- 物品制作模式：显示物品信息 -->
-    <div v-else-if="hasContent" class="overlay-content" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
-      <div class="item-header" :class="{ 'drag-handle': allowDrag }" @mouseenter="handleMouseEnter"
-        @mouseleave="handleMouseLeave" @mousedown="handleMouseDown">
+    <div v-else-if="hasContent" class="overlay-content">
+      <div class="item-header">
         <span :class="rarityClass">{{ itemInfo.name }}</span>
         <div class="item-subheader">
           <span class="item-base">
@@ -125,7 +126,7 @@
         </el-button>
       </div>
     </div>
-    <div v-else class="overlay-placeholder" @mouseenter="handleMouseEnter" @mouseleave="handleMouseLeave">
+    <div v-else class="overlay-placeholder">
       <span class="placeholder-text">等待物品信息...</span>
       <div class="placeholder-actions">
         <el-button type="danger" circle size="small" @click="$emit('close')" title="关闭">
@@ -145,7 +146,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 // 导入默认背景图，以防用户未设置
 import defaultBg from '@/assets/images/遮罩背景.png'
@@ -193,110 +194,26 @@ const props = defineProps({
 const emit = defineEmits(['confirm', 'close'])
 
 // 鼠标事件穿透控制
-function setIgnoreMouseEvents(ignore, forward) {
+function setIgnoreMouseEvents(ignore, forward = true) {
+  const options = { forward: Boolean(typeof forward === 'object' ? forward.forward : forward) }
   if (electronApi && electronApi.setIgnoreMouseEvents) {
-    electronApi.setIgnoreMouseEvents(ignore, { forward })
+    electronApi.setIgnoreMouseEvents(ignore, options)
   } else if (window.electronAPI && window.electronAPI.setIgnoreMouseEvents) {
-    window.electronAPI.setIgnoreMouseEvents(ignore, { forward })
+    window.electronAPI.setIgnoreMouseEvents(ignore, options)
   } else if (window.ipcRenderer) {
-    window.ipcRenderer.send('set-ignore-mouse-events', ignore, { forward })
+    window.ipcRenderer.send('set-ignore-mouse-events', ignore, options)
   }
 }
 
-// 拖动逻辑
-const isDragging = ref(false)
-// 记录拖动开始时的初始位置
-const dragStart = ref({
-  mouseX: 0,
-  mouseY: 0,
-  winX: 0,
-  winY: 0
-})
-
-// 鼠标进入/离开区域控制穿透
-const handleMouseEnter = () => {
-  if (!props.allowDrag || isDragging.value) return
-  setIgnoreMouseEvents(false, { forward: false })
+const activateDragHandle = () => setIgnoreMouseEvents(false, false)
+const deactivateDragHandle = () => {
+  if (!props.isCompleted && !props.isStopped) setIgnoreMouseEvents(true, true)
 }
-
-const handleMouseLeave = () => {
-  if (!props.allowDrag || isDragging.value) return
-  setIgnoreMouseEvents(true, { forward: true })
-}
-
-// 拖动处理函数
-const handleMouseDown = (e) => {
-  if (!props.allowDrag) return
-  
-  isDragging.value = true
-  setIgnoreMouseEvents(false, { forward: false })
-  
-  // 记录初始位置
-  dragStart.value.mouseX = e.clientX
-  dragStart.value.mouseY = e.clientY
-  
-  // 获取窗口当前位置
-  if (electronApi && electronApi.getWindowPosition) {
-    const pos = electronApi.getWindowPosition()
-    dragStart.value.winX = pos.x
-    dragStart.value.winY = pos.y
-  } else if (window.electronAPI && window.electronAPI.getWindowPosition) {
-    const pos = window.electronAPI.getWindowPosition()
-    dragStart.value.winX = pos.x
-    dragStart.value.winY = pos.y
-  }
-  
-  // 添加全局事件监听
-  window.addEventListener('mousemove', handleMouseMove)
-  window.addEventListener('mouseup', handleMouseUp)
-}
-
-const handleMouseMove = (e) => {
-  if (!isDragging.value) return
-  
-  // 计算鼠标移动距离
-  const deltaX = e.clientX - dragStart.value.mouseX
-  const deltaY = e.clientY - dragStart.value.mouseY
-  
-  // 计算新窗口位置
-  const newX = dragStart.value.winX + deltaX
-  const newY = dragStart.value.winY + deltaY
-  
-  // 移动窗口
-  if (electronApi && electronApi.setWindowPosition) {
-    electronApi.setWindowPosition(newX, newY)
-  } else if (window.electronAPI && window.electronAPI.setWindowPosition) {
-    window.electronAPI.setWindowPosition(newX, newY)
-  } else if (window.ipcRenderer) {
-    window.ipcRenderer.send('set-window-position', newX, newY)
-  }
-}
-
-const handleMouseUp = () => {
-  if (!isDragging.value) return
-  
-  isDragging.value = false
-  
-  // 移除全局事件监听
-  window.removeEventListener('mousemove', handleMouseMove)
-  window.removeEventListener('mouseup', handleMouseUp)
-  
-  // 恢复鼠标穿透
-  if (!props.isCompleted && !props.isStopped) {
-    setIgnoreMouseEvents(true, { forward: true })
-  }
-}
-
-// 清理事件监听
-onUnmounted(() => {
-  window.removeEventListener('mousemove', handleMouseMove)
-  window.removeEventListener('mouseup', handleMouseUp)
-})
 
 watch(() => props.isCompleted, (v) => {
   if (v) {
     setIgnoreMouseEvents(false, { forward: false })
-  } else if (!isDragging.value && !props.isStopped) {
+  } else if (!props.isStopped) {
     setIgnoreMouseEvents(true, { forward: true })
   }
 })
@@ -304,7 +221,7 @@ watch(() => props.isCompleted, (v) => {
 watch(() => props.isStopped, (v) => {
   if (v) {
     setIgnoreMouseEvents(false, { forward: false })
-  } else if (!isDragging.value && !props.isCompleted) {
+  } else if (!props.isCompleted) {
     setIgnoreMouseEvents(true, { forward: true })
   }
 })
@@ -478,6 +395,33 @@ function isModMatched(mod) {
   }
 }
 
+.overlay-drag-handle {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 8px;
+  background: rgba(12, 16, 22, 0.78);
+  cursor: move;
+  pointer-events: auto;
+  -webkit-app-region: drag;
+  z-index: 100;
+
+  span {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.82);
+  }
+}
+
 .overlay-content {
   display: flex;
   flex-direction: column;
@@ -492,12 +436,6 @@ function isModMatched(mod) {
   font-weight: bold;
   border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   padding-bottom: 4px;
-
-  &.drag-handle {
-    cursor: move;
-    /* 鼠标样式为移动十字 */
-    -webkit-app-region: drag;
-  }
 
   .rarity-normal {
     color: #c8c8c8;

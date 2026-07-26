@@ -10,7 +10,7 @@ const isElectron = typeof window !== 'undefined' && !!window.electronAPI
 // Vue/Pinia expose nested state as Proxy objects. Electron's context bridge
 // cannot clone those values, so every crafting payload must cross the bridge
 // as plain data instead of leaking renderer reactivity into IPC.
-function craftingIpcPayload(value) {
+const craftingIpcPayload = (value) => {
   if (value === null || typeof value !== 'object') return value
   return JSON.parse(JSON.stringify(value))
 }
@@ -247,11 +247,11 @@ export const electronApi = isElectron ? {
   },
 
   storyOverlay: {
-    open: (snapshot) => window.electronAPI.openStoryOverlay?.(snapshot),
+    open: (snapshot, width) => window.electronAPI.openStoryOverlay?.(snapshot, width),
     close: () => window.electronAPI.closeStoryOverlay?.(),
     update: (snapshot) => window.electronAPI.updateStoryOverlay?.(snapshot),
     getState: () => window.electronAPI.getStoryOverlayState?.(),
-    resize: (height) => window.electronAPI.resizeStoryOverlay?.(height),
+    resize: (size) => window.electronAPI.resizeStoryOverlay?.(size),
     onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {})
   },
 

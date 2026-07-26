@@ -97,13 +97,50 @@ The system SHALL provide a story overlay independent of the existing crafting ov
 - **WHEN** no navigable step exists
 - **THEN** the overlay displays a clear empty-state message rather than stale content
 
+### Requirement: 浮窗步骤和技能左右排列
+系统 SHALL 在游戏剧情浮窗宽度允许时将步骤上下文和当前章节技能左右排列，以减少浮窗高度。
+
+#### Scenario: 标准浮窗宽度
+- **WHEN** 当前章节同时有步骤和技能且浮窗宽度足够
+- **THEN** 步骤位于左栏、技能位于右栏
+
+#### Scenario: 内容或宽度受限
+- **WHEN** 可用宽度不足以保证内容可读
+- **THEN** 布局可回退为上下排列且内容不溢出
+
+### Requirement: 浮窗宽度可配置
+系统 SHALL 允许用户输入剧情浮窗宽度并持久化，在浮窗已显示时立即应用，在下次打开时继续使用。
+
+#### Scenario: 输入浮窗宽度
+- **WHEN** 用户输入有效宽度
+- **THEN** 游戏剧情浮窗立即调整为该宽度且重启应用后仍保留
+
+### Requirement: 同组技能水平排列
+系统 MUST 将同一个技能组内的技能按从左到右排列，不得把同组技能改为上下列表。
+
+#### Scenario: 一个技能组包含多个技能
+- **WHEN** 浮窗展示包含多个技能的技能组
+- **THEN** 这些技能在同一水平行中从左到右排列
+
 ### Requirement: Position the story overlay
-The system SHALL initially place the story overlay at the top center, allow it to be dragged, persist its last position, and keep the restored bounds within an available display.
+The system SHALL initially place the story overlay at the top center, provide a separate always-visible native three-dot grip that can reliably receive mouse input while the content window remains click-through, move the content window as the grip is dragged, persist its last position, and keep the restored bounds within an available display.
+
+#### Scenario: Drag through the native grip
+- **WHEN** the user presses and drags the three-dot grip
+- **THEN** the grip and story content move together while the remaining content area continues passing mouse input through to the game
+
+#### Scenario: Preserve overlay size while dragging
+- **WHEN** the user moves the story overlay repeatedly through the native grip
+- **THEN** the content window keeps its configured width and measured height without cumulative resizing
 
 #### Scenario: Restore a valid saved position
 - **WHEN** the overlay is reopened and its saved bounds remain on an active display
-- **THEN** the overlay opens at the saved position
+- **THEN** the overlay and its grip open at the saved position
 
 #### Scenario: Recover from display changes
 - **WHEN** saved bounds are outside all active displays
-- **THEN** the overlay returns to a visible top-center position on the primary display
+- **THEN** the overlay and its grip return to a visible top-center position on the primary display
+
+#### Scenario: Close the overlay
+- **WHEN** the user hides or closes the story overlay
+- **THEN** both the content window and the native grip window are closed without leaving an interactive invisible region

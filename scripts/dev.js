@@ -7,7 +7,13 @@ import { createRequire } from 'module'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-async function start() {
+const DEV_SERVER_PORT = 3000
+const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
+const isDevelopmentPortConflict = (error) => (
+  error?.code === 'EADDRINUSE' || error?.message === `Port ${DEV_SERVER_PORT} is already in use`
+)
+
+const start = async () => {
   // 1. 创建并启动 Vite 开发服务器
   const server = await createServer({
     configFile: 'vite.config.js',
@@ -16,12 +22,7 @@ async function start() {
 
   await server.listen()
   
-  // 获取实际监听的端口（避免端口冲突）
-  const address = server.httpServer.address()
-  const port = address.port
-  const url = `http://localhost:${port}`
-  
-  console.log(`Vite server running at: ${url}`)
+  console.log(`Vite server running at: ${DEV_SERVER_URL}`)
 
   // 2. 获取 electron 可执行文件路径
   const electronPath = require('electron')
@@ -33,16 +34,23 @@ async function start() {
     env: { 
       ...process.env, 
       NODE_ENV: 'development',
-      VITE_DEV_SERVER_URL: url
+      VITE_DEV_SERVER_URL: DEV_SERVER_URL
     },
     stdio: 'inherit'
   })
 
   // 4. 监听 Electron 关闭事件
-  electronProcess.on('close', () => {
-    server.close()
-    process.exit()
+  electronProcess.on('close', async (code) => {
+    await server.close()
+    process.exit(code ?? 0)
   })
 }
 
-start()
+start().catch((error) => {
+  if (isDevelopmentPortConflict(error)) {
+    console.error(`开发端口 ${DEV_SERVER_PORT} 已被占用。请关闭旧的开发进程后重试，应用不会切换端口以免读取到另一份本地数据。`)
+  } else {
+    console.error(error)
+  }
+  process.exit(1)
+})

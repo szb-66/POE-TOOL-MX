@@ -12,7 +12,7 @@ function sanitizeCurrencyPositions(positions = {}) {
 export const useSettingsStore = defineStore('settings', () => {
   const normalizeDelays = (raw = {}) => {
     const mouseMove = raw.mouseMove ?? 260
-    const action = raw.action ?? Math.max(raw.mouseClick ?? 0, raw.keyPress ?? 0, 65)
+    const action = raw.action ?? 65
     const clipboardRead = raw.clipboardRead ?? 100
 
     return {
@@ -64,6 +64,7 @@ export const useSettingsStore = defineStore('settings', () => {
     blur: 4,                 // 模糊像素
     maskOpacity: 0.5         // 遮罩透明度 (0-1)
   })
+  const storyOverlayWidth = ref(560)
 
   // 背景历史记录
   const backgroundHistory = ref([])
@@ -153,6 +154,7 @@ export const useSettingsStore = defineStore('settings', () => {
         dpiScale: dpiScale.value,
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
+        storyOverlayWidth: storyOverlayWidth.value,
         backgroundHistory: backgroundHistory.value,
         combatAssist: combatAssist.value
       }))
@@ -167,17 +169,9 @@ export const useSettingsStore = defineStore('settings', () => {
       if (saved) {
         const data = JSON.parse(saved)
         if (data.globalShortcuts) {
-          let legacyBag = {}
-          try {
-            legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
-          } catch {}
-          globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts, legacyBag)
+          globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts)
         } else {
-          let legacyBag = {}
-          try {
-            legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
-          } catch {}
-          globalShortcuts.value = mergeGlobalShortcutSettings({}, legacyBag)
+          globalShortcuts.value = mergeGlobalShortcutSettings()
         }
         if (data.currencyPositions) {
           currencyPositions.value = {
@@ -204,21 +198,14 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         if (data.overlaySettings) {
           overlaySettings.value = { ...overlaySettings.value, ...data.overlaySettings }
-          // 移除旧数据中的 backgroundType（如果存在）
-          if (overlaySettings.value.backgroundType) {
-            delete overlaySettings.value.backgroundType
-          }
         }
         if (data.backgroundHistory) {
           backgroundHistory.value = data.backgroundHistory
         }
+        if (data.storyOverlayWidth != null) {
+          storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(data.storyOverlayWidth) || 560)))
+        }
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
-      } else {
-        let legacyBag = {}
-        try {
-          legacyBag = JSON.parse(localStorage.getItem('bagSettings') || '{}')
-        } catch {}
-        globalShortcuts.value = mergeGlobalShortcutSettings({}, legacyBag)
       }
     } catch (error) {
       // 加载设置失败
@@ -242,6 +229,12 @@ export const useSettingsStore = defineStore('settings', () => {
     chromic: { x: 428, y: 798 },
     vaal: { x: 1158, y: 1017 },
     wisdom: { x: 210, y: 430 }
+  }
+
+  const updateStoryOverlayWidth = (width) => {
+    storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(width) || 560)))
+    saveSettings()
+    electronApi.storyOverlay.resize({ width: storyOverlayWidth.value })
   }
 
   const defaultInventory = {
@@ -270,6 +263,7 @@ export const useSettingsStore = defineStore('settings', () => {
     itemPosition.value = { ...defaultItemPosition }
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
+    storyOverlayWidth.value = 560
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
     saveSettings()
@@ -299,6 +293,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiScale,
     debugMode,
     overlaySettings,
+    storyOverlayWidth,
     backgroundHistory,
     updateGlobalShortcuts,
     updateCombatAssist,
@@ -309,6 +304,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDpiScale,
     updateDebugMode,
     updateOverlaySettings,
+    updateStoryOverlayWidth,
     removeHistoryItem,
     saveSettings,
     loadSettings,

@@ -2,20 +2,29 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import {
+  BAG_STASH_DELAY_LIMITS,
   buildBagRuntimeConfig,
   findBagBlacklistMatch,
   normalizeBagBlacklist,
   normalizeBagSettings,
+  normalizeBagStashDelays,
   parseBagItemHeader
 } from '../src/utils/bagConfig.js'
-import { BagSessionController, createEventLineParser } from '../electron/modules/bag/orchestrator.js'
+import {
+  BagSessionController,
+  createEventLineParser,
+  describeDetectionExit,
+  waitForDetectionStartup
+} from '../electron/modules/bag/orchestrator.js'
+import { detectPythonPathWithModules } from '../electron/modules/python/detector.js'
 
 const scriptUrl = new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
 
-test('旧背包设置补齐空黑名单并忽略废弃按钮位置', () => {
+test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
   const settings = normalizeBagSettings({
     moduleEnabled: true,
     buttonPosition: { x: 1, y: 2 },
@@ -58,7 +67,7 @@ test('黑名单按指定字段做不区分大小写的包含匹配', () => {
   assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'category', keyword: 'CURRENCY' }]), { field: 'category', keyword: 'CURRENCY' })
 })
 
-test('运行配置包含模板区域、网格、黑名单和三类延迟', () => {
+test('运行配置包含模板区域、网格、黑名单并限制背包逐格延迟', () => {
   const config = buildBagRuntimeConfig({
     templates: {
       stashTitle: 's.png', inventoryTitle: 'i.png',
@@ -73,7 +82,10 @@ test('运行配置包含模板区域、网格、黑名单和三类延迟', () =>
   assert.equal(config.templates.inventoryRegion.left, 5)
   assert.deepEqual(config.inventory.slotSize, { w: 30, h: 40 })
   assert.equal(config.blacklist[0].keyword, '通货')
-  assert.deepEqual(config.delays, { mouseMove: 50, action: 60, clipboardRead: 70 })
+  assert.deepEqual(config.delays, BAG_STASH_DELAY_LIMITS)
+  assert.deepEqual(normalizeBagStashDelays({ mouseMove: 5, action: 6, clipboardRead: 7 }), {
+    mouseMove: 5, action: 6, clipboardRead: 7
+  })
 })
 
 test('结构化事件解析器支持跨 chunk 行并忽略普通日志', () => {
@@ -134,6 +146,141 @@ print(json.dumps(changes))
   ])
 })
 
+test('Python 检测模式使用 Electron 约定的错误事件名', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+print(json.dumps([module.error_event("detect"), module.error_event("stash")]))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), ['detection-error', 'stash-error'])
+})
+
+test('Python 可从中文路径加载仓库和背包标题模板', () => {
+  const pythonPath = detectPythonPathWithModules(['cv2', 'numpy'])
+  assert.ok(pythonPath, '应找到具备 cv2 和 numpy 的 Python')
+  const code = `
+import cv2, importlib.util, json, os, sys, tempfile
+import numpy as np
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+with tempfile.TemporaryDirectory(prefix="背包模板-") as root:
+    template_dir = os.path.join(root, "标题截图")
+    os.makedirs(template_dir)
+    paths = [os.path.join(template_dir, "仓库标题.png"), os.path.join(template_dir, "背包标题.png")]
+    encoded = cv2.imencode(".png", np.full((8, 12), 127, dtype=np.uint8))[1].tobytes()
+    for image_path in paths:
+        with open(image_path, "wb") as image_file:
+            image_file.write(encoded)
+    matcher = module.InterfaceMatcher({"templates": {"stash_title": paths[0], "inventory_title": paths[1]}})
+    print(json.dumps({"valid": matcher.valid, "shapes": [list(matcher.templates[name].shape) for name in ("stash", "inventory")]}))
+`
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { valid: true, shapes: [[8, 12], [8, 12]] })
+})
+
+test('Python 背包单格最坏内置等待预算不超过 120ms', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+print(json.dumps({"delays": module.normalize_stash_delays({"mouse_move": 500, "action": 500, "clipboard_read": 500}), "budget": module.maximum_slot_wait_ms({"mouse_move": 500, "action": 500, "clipboard_read": 500})}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const measured = JSON.parse(result.stdout)
+  assert.deepEqual(measured.delays, { mouse_move: 15, action: 15, clipboard_read: 50 })
+  assert.ok(measured.budget <= 120, `内置等待预算为 ${measured.budget}ms`)
+})
+
+test('Python 连续三个明确空格后正常完成，非空格会重置计数', () => {
+  const code = `
+import importlib.util, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+statuses = iter(["empty", "empty", "copied", "empty", "empty", "empty", "copied"])
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    def __init__(self, config): pass
+    def move(self, x, y): return True
+    def copy_item_text(self):
+        status = next(statuses)
+        return (status, "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------" if status == "copied" else "")
+    def ctrl_click(self): return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+raise SystemExit(module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}}}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const events = result.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line.slice(6)))
+  const completed = events.at(-1)
+  assert.equal(completed.event, 'stash-completed')
+  assert.equal(completed.reason, 'three-consecutive-empty')
+  assert.equal(completed.scannedSlots, 6)
+  assert.equal(completed.emptySlots, 5)
+  assert.equal(events.filter((event) => event.event === 'stash-progress').length, 6)
+})
+
+function fakeDetectionChild() {
+  const child = new EventEmitter()
+  child.stdout = new EventEmitter()
+  return child
+}
+
+test('检测进程收到首个状态后才确认启动成功', async () => {
+  const child = fakeDetectionChild()
+  const startup = waitForDetectionStartup(child, { timeoutMs: 100 })
+  child.stdout.emit('data', 'EVENT {"event":"detection-state","ready":false}\n')
+  await startup
+})
+
+test('检测进程启动阶段保留结构化错误和真实退出信息', async () => {
+  const structured = fakeDetectionChild()
+  const structuredStartup = waitForDetectionStartup(structured, { timeoutMs: 100 })
+  structured.stdout.emit('data', 'EVENT {"event":"detection-error","reason":"Python 依赖缺失: cv2"}\n')
+  await assert.rejects(structuredStartup, /Python 依赖缺失: cv2/)
+
+  const exited = fakeDetectionChild()
+  const exitedStartup = waitForDetectionStartup(exited, {
+    timeoutMs: 100,
+    getFailureReason: (code) => describeDetectionExit({ code, stderr: 'import failed' })
+  })
+  exited.emit('close', 2)
+  await assert.rejects(exitedStartup, /import failed/)
+  assert.equal(describeDetectionExit({ code: 3 }), '检测进程异常退出（退出码 3）')
+  assert.equal(describeDetectionExit({ code: 0 }), 'process-ended')
+})
+
+test('Python 探测器选择满足指定模块的解释器并缓存结果', () => {
+  const pythonPath = detectPythonPathWithModules(['sys', 'json'])
+  assert.ok(pythonPath, '应找到具备标准库的 Python')
+  assert.equal(detectPythonPathWithModules(['sys', 'json']), pythonPath)
+  const result = spawnSync(pythonPath, ['-c', 'import sys, json'], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+})
+
+test('检测成功后清除历史停止原因', () => {
+  const source = readFileSync(new URL('../src/utils/bagService.js', import.meta.url), 'utf8')
+  assert.match(source, /setDetectionStatus\(true\)[\s\S]*setStopReason\(''\)/)
+})
+
 test('Python 入库对空格、无效文本和安全门禁采用失败关闭策略', () => {
   const source = readFileSync(scriptUrl, 'utf8')
   assert.match(source, /clipboard_sequence_number\(\)/)
@@ -144,4 +291,34 @@ test('Python 入库对空格、无效文本和安全门禁采用失败关闭策�
   assert.match(source, /finally:[\s\S]*controller\.release_all\(\)/)
   assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('elif controller.ctrl_click():'))
   assert.ok(source.indexOf('if not interface_ready:') < source.indexOf('elif controller.ctrl_click():'))
+})
+
+test('正式包携带背包脚本并从稳定路径解析', () => {
+  const packageConfig = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.ok(packageConfig.build.extraResources.some((entry) => entry.to === 'bag_auto_stash_template.py'))
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  assert.match(ipcSource, /process\.resourcesPath/)
+  assert.match(ipcSource, /path\.resolve\(moduleDir, '\.\.\/\.\.\/\.\.\/src\/assets\/scripts\/bag_auto_stash_template\.py'\)/)
+  assert.match(ipcSource, /candidates\.find\(\(candidate\) => fs\.existsSync\(candidate\)\)/)
+})
+
+test('穿透浮窗只使用独立原生抓手拖动', () => {
+  const source = readFileSync(new URL('../src/domains/overlay/components/OverlayContent.vue', import.meta.url), 'utf8')
+  assert.match(source, /class="overlay-drag-handle"/)
+  assert.match(source, /@mouseenter="activateDragHandle" @mouseleave="deactivateDragHandle"/)
+  assert.match(source, /-webkit-app-region: drag/)
+  assert.doesNotMatch(source, /getWindowPosition|setWindowPosition|handleMouseDown/)
+  assert.doesNotMatch(source, /class="overlay-content"[^>]*@mouseenter/)
+})
+
+test('模板替换允许运行态更新并重载检测器', () => {
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const viewSource = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  assert.match(ipcSource, /reloadDetectionForTemplateChange/)
+  assert.match(ipcSource, /updateRuntimeTemplate\(type, targetPath/)
+  assert.match(ipcSource, /detectionProcess = null[\s\S]*stopChild\(previous\)[\s\S]*startDetectionProcess/)
+  assert.match(ipcSource, /if \(detectionProcess !== child\) return/)
+  assert.match(ipcSource, /reloadError/)
+  assert.doesNotMatch(viewSource, /bagStore\.moduleEnabled\) return ElMessage\.warning\('请先关闭背包模块再框选'/)
+  assert.match(viewSource, /bagStore\.isStashing/)
 })

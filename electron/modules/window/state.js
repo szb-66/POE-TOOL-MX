@@ -11,10 +11,11 @@ import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
-const windowStateFile = path.join(app.getPath('userData'), 'window-state.json')
+const getWindowStateFile = () => path.join(app.getPath('userData'), 'window-state.json')
 
 export function loadWindowState() {
   try {
+    const windowStateFile = getWindowStateFile()
     if (fs.existsSync(windowStateFile)) {
       const state = JSON.parse(fs.readFileSync(windowStateFile, 'utf8'))
       // 简单的校验，防止无效数据
@@ -36,6 +37,7 @@ export function loadWindowState() {
 
 export function saveWindowState(state) {
   try {
+    const windowStateFile = getWindowStateFile()
     const currentState = loadWindowState()
     const newState = { ...currentState, ...state }
     fs.writeFileSync(windowStateFile, JSON.stringify(newState), 'utf8')

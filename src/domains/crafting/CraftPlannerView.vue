@@ -43,15 +43,15 @@
               <div v-for="stat in displayedBaseStats" :key="stat.id" class="item-property"><b>{{ stat.label }}：</b><span>{{ stat.displayValues.join('—') }}</span></div>
               <div v-if="requirementText" class="item-requirements"><b>需求</b><span>{{ requirementText }}</span></div>
               <div v-if="socketRows.length" class="socket-row" :aria-label="`插槽 ${socketRows.map((socket) => socket.color).join('-')}，连接 ${store.currentState.links.map((group) => group.length).join('+')}`"><template v-for="socket in socketRows" :key="socket.id"><i class="socket" :class="`socket-${socket.color.toLowerCase()}`">{{ socket.color }}</i><i v-if="socket.linkedToNext" class="socket-link" /></template></div>
-              <div v-for="implicit in displayedBaseImplicits" :key="implicit.id" class="implicit-row" :class="{ catalysed: implicit.catalystMatched }">{{ implicit.displayText || implicit.rolledText || implicit.text }}</div>
+              <div v-for="implicit in displayedBaseImplicits" :key="implicit.id" class="implicit-row" :class="{ catalysed: implicit.catalystMatched }">{{ rolledTextWithRanges(implicit) }}</div>
               <div v-if="displayedVaalImplicit" class="implicit-row vaal-implicit"><b>瓦尔隐式 · T{{ displayedVaalImplicit.tier }}</b><span>{{ displayedVaalImplicit.displayText || displayedVaalImplicit.rolledText || displayedVaalImplicit.text }}</span><small>{{ displayedVaalImplicit.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div>
               <div v-for="implicit in store.currentState.implicits" :key="implicit" class="implicit-row">{{ implicit }}</div>
               <div v-for="implicit in displayedEldritchImplicits" :key="implicit.source" class="implicit-row eldritch-implicit" :class="[implicit.source, { catalysed: implicit.catalystMatched }]"><b>{{ implicit.source === 'exarch' ? '焊界者' : '灭界者' }} · T{{ implicit.tier }}</b><span>{{ implicit.displayText || implicit.rolledText || implicit.text }}</span><small>{{ implicit.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div>
               <div v-if="eldritchImplicits.length" class="dominance-row"><b>{{ store.eldritch.dominance.label }}</b><span>{{ store.eldritch.dominance.affixType === 'prefix' ? '支配通货将目标前缀' : store.eldritch.dominance.affixType === 'suffix' ? '支配通货将目标后缀' : '两侧同阶，支配通货不生效' }}</span></div>
               <div v-if="store.currentState.qualityEffect" class="quality-effect-row"><b>品质效果</b><span>{{ store.currentState.qualityEffect }}</span></div>
               <div v-if="!allAffixes.length" class="empty-affixes">无显式词缀</div>
-              <div v-for="affix in displayedPrefixes" :key="affixKey(affix)" class="affix-row prefix" :class="{ 'veiled-pending': affix.veiled, fractured: affix.fractured, catalysed: affix.catalystMatched }"><span class="affix-kind">前缀</span><div><b>{{ affix.veiled ? affix.name : (affix.tierName || affix.name) }} <em v-if="affix.fractured" class="fractured-badge">破裂</em><em v-if="affix.veiled" class="veiled-badge">未揭露</em><em v-if="affix.source === 'essence' && affix.sourceItemId" class="essence-guaranteed">精华保证</em><em v-if="affix.source === 'crafted'" class="crafted-mod">{{ affix.metaCraft ? '元工艺' : '工艺台' }}</em></b><p>{{ affix.displayText || affix.rolledText || affix.text }}</p><small>{{ sourceLabel(affix) }} · {{ affix.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div></div>
-              <div v-for="affix in displayedSuffixes" :key="affixKey(affix)" class="affix-row suffix" :class="{ 'veiled-pending': affix.veiled, fractured: affix.fractured, catalysed: affix.catalystMatched }"><span class="affix-kind">后缀</span><div><b>{{ affix.veiled ? affix.name : (affix.tierName || affix.name) }} <em v-if="affix.fractured" class="fractured-badge">破裂</em><em v-if="affix.veiled" class="veiled-badge">未揭露</em><em v-if="affix.source === 'essence' && affix.sourceItemId" class="essence-guaranteed">精华保证</em><em v-if="affix.source === 'crafted'" class="crafted-mod">{{ affix.metaCraft ? '元工艺' : '工艺台' }}</em></b><p>{{ affix.displayText || affix.rolledText || affix.text }}</p><small>{{ sourceLabel(affix) }} · {{ affix.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div></div>
+              <div v-for="affix in displayedPrefixes" :key="affixKey(affix)" class="affix-row prefix" :class="{ 'veiled-pending': affix.veiled, fractured: affix.fractured, catalysed: affix.catalystMatched }"><span class="affix-kind">前缀</span><div class="affix-effects"><p v-for="(line, index) in effectLines(affix)" :key="index">{{ line }}</p><small>{{ sourceLabel(affix) }} · {{ affix.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div><div class="affix-tier"><b>{{ affixTierSummary(affix) }}</b><span><em v-if="affix.fractured" class="fractured-badge">破裂</em><em v-if="affix.veiled" class="veiled-badge">未揭露</em><em v-if="affix.source === 'essence' && affix.sourceItemId" class="essence-guaranteed">精华保证</em><em v-if="affix.source === 'crafted'" class="crafted-mod">{{ affix.metaCraft ? '元工艺' : '工艺台' }}</em></span></div></div>
+              <div v-for="affix in displayedSuffixes" :key="affixKey(affix)" class="affix-row suffix" :class="{ 'veiled-pending': affix.veiled, fractured: affix.fractured, catalysed: affix.catalystMatched }"><span class="affix-kind">后缀</span><div class="affix-effects"><p v-for="(line, index) in effectLines(affix)" :key="index">{{ line }}</p><small>{{ sourceLabel(affix) }} · {{ affix.displayTags.map((tag) => tag.label).join(' / ') || '无标签' }}</small></div><div class="affix-tier"><b>{{ affixTierSummary(affix) }}</b><span><em v-if="affix.fractured" class="fractured-badge">破裂</em><em v-if="affix.veiled" class="veiled-badge">未揭露</em><em v-if="affix.source === 'essence' && affix.sourceItemId" class="essence-guaranteed">精华保证</em><em v-if="affix.source === 'crafted'" class="crafted-mod">{{ affix.metaCraft ? '元工艺' : '工艺台' }}</em></span></div></div>
             </article>
             <el-alert v-if="store.lastEvent" :title="store.lastEvent.summary" type="success" :closable="false" />
             <div v-if="store.lastEvent?.removedEnchantment" class="enchantment-result"><b>已移除附魔</b><span>{{ store.lastEvent.removedEnchantment }}</span><small>品质数值和装备其他属性保持不变</small></div>
@@ -80,8 +80,8 @@
           </el-card>
         </section>
 
-        <el-card class="currency-panel">
-            <template #header><b>3. 手动使用通货、精华、工艺台、化石、花园、古灵、势力与加密工艺</b></template>
+        <el-card class="currency-panel" :class="{ 'details-hidden': !showCraftDetails }">
+            <template #header><div class="card-heading"><b>3. 手动使用通货、精华、工艺台、化石、花园、古灵、势力与加密工艺</b><el-switch v-model="showCraftDetails" active-text="详细信息显示" /></div></template>
           <el-tabs>
             <el-tab-pane label="基础通货">
               <p class="section-note">点击可用的核心通货、破溃宝珠或污秽通货即可应用；机制已知但概率不足的项保留说明并禁用，不生成猜测结果。</p>
@@ -113,9 +113,9 @@
                 <button v-for="craft in filteredBenchCrafts" :key="craft.id" class="currency-card bench-card" :class="{ disabled: !craft.canApply, meta: craft.isMeta, remove: craft.kind === 'remove' }" :disabled="!craft.canApply || store.applying" @click="useBenchCraft(craft)">
                   <strong>{{ craft.name }} <i>{{ benchKindLabel(craft) }}</i></strong>
                   <span class="guaranteed-effect">{{ craft.effect }}</span>
-                  <small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small v-if="craft.replacesExisting"><b>替换：</b>{{ craft.replacedAffix?.text || craft.replacedAffix?.name }}（额外 1 重铸石）</small>
+                  <template v-if="showCraftDetails"><small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small v-if="craft.replacesExisting"><b>替换：</b>{{ craft.replacedAffix?.text || craft.replacedAffix?.name }}（额外 1 重铸石）</small>
                   <small v-if="craft.requiredLevel > 1"><b>物品等级：</b>{{ craft.requiredLevel }}</small><small><b>解锁：</b>{{ craft.unlock }}</small>
-                  <small><b>结果：</b>{{ craft.consequences }}</small><span class="tags"><i v-for="tag in craft.displayTags" :key="tag.id">{{ tag.label }}</i></span>
+                  <small><b>结果：</b>{{ craft.consequences }}</small><span class="tags"><i v-for="tag in craft.displayTags" :key="tag.id">{{ tag.label }}</i></span></template>
                   <em v-if="!craft.canApply">{{ craft.unavailableReason }}</em>
                 </button>
               </div>
@@ -146,7 +146,7 @@
               <div v-if="filteredHarvest.length" class="harvest-grid">
                 <button v-for="craft in filteredHarvest" :key="craft.id" class="currency-card harvest-card" :class="{ disabled: !craft.canApply }" :disabled="!craft.canApply || store.applying" @click="useHarvestCraft(craft)">
                   <strong>{{ craft.name }} <i>{{ craft.categoryLabel }}</i></strong>
-                  <small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small v-if="craft.tagLabel"><b>保证标签：</b>{{ craft.tagLabel }}</small><small><b>当前候选：</b>{{ craft.candidateCount }}</small><small><b>结果：</b>{{ craft.consequences }}</small>
+                  <span class="core-function">{{ craft.consequences }}</span><small><b>消耗：</b>{{ formatCosts(craft.cost) }}</small><small v-if="craft.tagLabel"><b>保证标签：</b>{{ craft.tagLabel }}</small><small><b>当前候选：</b>{{ craft.candidateCount }}</small>
                   <em v-if="!craft.canApply">{{ craft.unavailableReason }}</em>
                 </button>
               </div>
@@ -258,7 +258,7 @@
                 <div v-if="group[affixType].length" class="family-list">
                   <div v-for="family in group[affixType]" :key="family.id" class="family-row">
                     <el-checkbox :model-value="familyChecked(family)" :indeterminate="familyIndeterminate(family)" @change="toggleFamily(family, $event)" />
-                    <button class="family-main" @click="openFamily(family)"><span class="family-name"><strong>{{ family.name }}</strong><span class="tags"><i v-for="tag in family.displayTags" :key="tag.id">{{ tag.label }}</i></span></span><span class="family-metrics"><em>{{ family.availableCount }}/{{ family.subitemCount }} 项</em><em>总权重 {{ family.totalWeight }}</em></span></button>
+                    <button class="family-main" @click="openFamily(family)"><span class="family-name"><strong>{{ family.name }}</strong><span class="tags"><i v-for="tag in family.displayTags" :key="tag.id">{{ tag.label }}</i></span></span><span class="family-metrics"><em>{{ family.availableCount }}/{{ family.subitemCount }} 项</em><em>总权重 {{ family.totalWeight }} · {{ formatProbability(family.probability) }}</em></span></button>
                   </div>
                 </div>
                 <el-empty v-else :description="group.coverageMessage || '没有此类词缀'" :image-size="42" />
@@ -276,7 +276,7 @@
           <el-table-column prop="requiredLevel" label="出现等级" width="92" />
           <el-table-column label="具体效果" min-width="250"><template #default="{ row }"><span :class="{ unavailable: !row.available }">{{ row.text }}</span><small v-if="!row.available">{{ row.unavailableReason }}</small></template></el-table-column>
           <el-table-column label="标签" min-width="150"><template #default="{ row }"><span class="tags"><i v-for="tag in row.displayTags" :key="tag.id">{{ tag.label }}</i></span></template></el-table-column>
-          <el-table-column prop="weight" label="单项权重" width="105" />
+          <el-table-column label="单项权重" width="150"><template #default="{ row }">{{ row.weight }} · {{ formatProbability(row.probability) }}</template></el-table-column>
         </el-table>
       </el-dialog>
     </template>
@@ -290,6 +290,7 @@ import { useCraftingStore } from './craftingStore.js'
 import { familySelectionState, selectableFamilyTiers, tierSelectionKey, toggleFamilySelection, toggleTierSelection } from './modSelection.js'
 import { CATALYST_LABELS, displayedCatalystEntry } from '../../../electron/modules/crafting/catalystRules.js'
 import { VAAL_OUTCOME_LABELS } from '../../../electron/modules/crafting/vaalRules.js'
+import { affixTierSummary, effectLines, formatProbability, rolledTextWithRanges } from './displayFormat.js'
 
 const store = useCraftingStore()
 const pageError = ref('')
@@ -298,6 +299,7 @@ const baseCategoryPath = ref([])
 const baseQuery = reactive({ category: '', itemClass: '', query: '' })
 const form = reactive({ baseId: '', itemLevel: 86, seed: 20260722, variant: { kind: 'normal', influences: [], fracturedTierId: null, implicits: [] } })
 const catalogQuery = ref('')
+const showCraftDetails = ref(localStorage.getItem('crafting:show-details') !== 'false')
 const essenceQuery = ref('')
 const essenceTierFilter = ref(0)
 const benchQuery = ref('')
@@ -416,6 +418,7 @@ onMounted(async () => { try { await store.initialize(); await loadBases() } catc
 onBeforeUnmount(() => { clearTimeout(catalogTimer); store.dispose() })
 watch(resonatorSockets, (count) => { selectedFossilIds.value = selectedFossilIds.value.slice(0, count) })
 watch(() => store.currentState?.influences?.join('|'), () => { if (store.session) prepareDonorOptions() })
+watch(showCraftDetails, (value) => localStorage.setItem('crafting:show-details', String(value)))
 
 async function loadBases() { await store.searchBases({ ...baseQuery, page: 1, pageSize: 100 }) }
 async function categoryChanged(path = []) { baseQuery.category = String(path?.[0] || ''); baseQuery.itemClass = String(path?.length > 1 ? path.at(-1) : ''); form.baseId = ''; selectedBase.value = null; await loadBases() }
@@ -514,7 +517,9 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .dominance-row { display: flex; justify-content: space-between; gap: 8px; padding: 7px 12px; border-bottom: 1px solid #444; color: #d2c087; font-size: 11px; }
 .quality-effect-row { display: grid; gap: 3px; padding: 8px 12px; border-bottom: 1px solid #444; color: #b6a3df; text-align: center; b { color: #8e78bd; font-size: 11px; } }
 .empty-affixes { padding: 28px; color: #777; text-align: center; }
-.affix-row { display: grid; grid-template-columns: 45px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #292929; .affix-kind { color: #8aa; } p { margin: 3px 0; color: #b9b9ff; white-space: pre-line; } small { color: #888; } &.suffix .affix-kind { color: #c99; } }
+.affix-row { display: grid; grid-template-columns: 45px minmax(0, 1fr) minmax(150px, auto); gap: 10px; padding: 9px 12px; border-bottom: 1px solid #292929; .affix-kind { color: #8aa; } p { margin: 3px 0; color: #b9b9ff; } small { color: #888; } &.suffix .affix-kind { color: #c99; } }
+.affix-effects { min-width: 0; }
+.affix-tier { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 5px; color: #c69b53; text-align: right; }
 .essence-guaranteed { padding: 1px 4px; border: 1px solid #c79a43; border-radius: 3px; color: #e2bd72; font-size: 10px; font-style: normal; }
 .crafted-mod { margin-left: 4px; padding: 1px 4px; border: 1px solid #6aa17a; border-radius: 3px; color: #8fd0a0; font-size: 10px; font-style: normal; }
 .veiled-badge { margin-left: 4px; padding: 1px 4px; border: 1px solid #a283cf; border-radius: 3px; color: #cbb1f0; font-size: 10px; font-style: normal; }
@@ -522,6 +527,7 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .affix-row.fractured { background: linear-gradient(90deg, rgba(151, 116, 45, .18), transparent); }
 .affix-row.veiled-pending { background: linear-gradient(90deg, rgba(114, 74, 153, .2), transparent); p { color: #bda6d8; font-style: italic; } }
 .currency-panel { position: sticky; top: 10px; }
+.currency-panel.details-hidden { .currency-card > small, .currency-card > em, .currency-card > .tags, .currency-preview { display: none; } .core-function { display: block; } }
 .section-note { margin-top: 0; color: var(--text-secondary); }
 .currency-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .essence-filters { display: grid; grid-template-columns: 1fr 150px; gap: 8px; margin-bottom: 10px; }

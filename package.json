@@ -43,6 +43,12 @@
       "scripts/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "src/assets/scripts/bag_auto_stash_template.py",
+        "to": "bag_auto_stash_template.py"
+      }
+    ],
     "win": {
       "target": "nsis",
       "requestedExecutionLevel": "requireAdministrator",
