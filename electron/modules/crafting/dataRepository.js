@@ -15,7 +15,49 @@ const ITEM_CLASS_LABELS = {
   OneHandMace: '单手锤', Sceptre: '短杖', Bow: '弓', Staff: '长杖', Warstaff: '战杖',
   TwoHandSword: '双手剑', TwoHandAxe: '双手斧', TwoHandMace: '双手锤',
   Quiver: '箭袋', Shield: '盾牌', Gloves: '手套', Boots: '鞋子', BodyArmour: '胸甲',
-  Helmet: '头盔', Amulet: '项链', Ring: '戒指', Belt: '腰带', Jewel: '珠宝', AbyssJewel: '深渊珠宝'
+  Helmet: '头盔', Amulet: '项链', Ring: '戒指', Belt: '腰带', Jewel: '珠宝', AbyssJewel: '深渊珠宝',
+  Flask: '药剂'
+}
+
+const PROFILE_LABELS = {
+  Life_Flasks: '生命药剂 / 复合药剂',
+  Mana_Flasks: '魔力药剂 / 复合药剂',
+  Hybrid_Flasks: '复合药剂',
+  Utility_Flasks: '功能药剂',
+  Crimson_Jewel: '赤红珠宝',
+  Viridian_Jewel: '翠绿珠宝',
+  Cobalt_Jewel: '钴蓝珠宝',
+  Prismatic_Jewel: '三相珠宝',
+  Murderous_Eye_Jewel: '凶残之凝珠宝',
+  Searching_Eye_Jewel: '锐利之凝珠宝',
+  Hypnotic_Eye_Jewel: '安睡之凝珠宝',
+  Ghastly_Eye_Jewel: '苍白之凝珠宝',
+  Large_Cluster_Jewel: '大型星团珠宝',
+  Medium_Cluster_Jewel: '中型星团珠宝',
+  Small_Cluster_Jewel: '小型星团珠宝'
+}
+
+const AFFIX_SOURCE_LABELS = {
+  natural: '基础',
+  crafted: '工艺台',
+  essence: '精华',
+  delve: '地心探险',
+  incursion: '穿越',
+  veiled: '隐匿',
+  shaper: '塑界者',
+  elder: '裂界者',
+  crusader: '圣战',
+  redeemer: '救赎者',
+  hunter: '狩猎者',
+  warlord: '督军'
+}
+
+function effectPattern(text = '') {
+  return String(text)
+    .replace(/\(?[+\-]?\d+(?:\.\d+)?\s*[—–-]\s*[+\-]?\d+(?:\.\d+)?\)?/g, '#')
+    .replace(/[+\-]?\d+(?:\.\d+)?/g, '#')
+    .replace(/#+/g, '#')
+    .trim()
 }
 
 async function exists(target) {
@@ -142,6 +184,79 @@ export class CraftingDataRepository {
     const currentPage = Math.max(1, Number(page) || 1)
     const offset = (currentPage - 1) * size
     return { items: filtered.slice(offset, offset + size), total: filtered.length, page: currentPage, pageSize: size, errors: [] }
+  }
+
+  searchAffixSuggestions({ query = '', limit = 50 } = {}) {
+    const dataset = this.getDataset()
+    const needle = String(query).trim().toLocaleLowerCase('zh-CN')
+    const profileLabels = new Map()
+    dataset.bases.forEach((base) => {
+      const label = base.categoryPath?.join(' / ') || ITEM_CLASS_LABELS[base.itemClass] || base.itemClass
+      if (!profileLabels.has(base.modifierProfileId)) profileLabels.set(base.modifierProfileId, label)
+    })
+    Object.entries(PROFILE_LABELS).forEach(([profile, label]) => profileLabels.set(profile, label))
+
+    const rows = []
+    const addRow = (modifier, tiers, source, suffix = '') => {
+      if (!tiers.length) return
+      const pattern = effectPattern(modifier.effectKey || modifier.name || tiers[0]?.text)
+      if (!pattern) return
+      const sourceDomain = modifier.influences?.[0] || source
+      const applicableLabel = profileLabels.get(modifier.modifierProfileId)
+        || modifier.itemClasses?.map((itemClass) => ITEM_CLASS_LABELS[itemClass] || itemClass).join(' / ')
+        || modifier.modifierProfileId
+      const normalizedTiers = [...new Map(tiers.map((tier) => [Number(tier.tier), {
+        tier: Number(tier.tier),
+        name: tier.name,
+        requiredLevel: Number(tier.requiredLevel) || 1,
+        text: tier.text
+      }])).values()].filter((tier) => tier.tier > 0).sort((a, b) => a.tier - b.tier)
+      const displayName = modifier.name || pattern.replaceAll('#', '').replace(/\s+/g, ' ').trim()
+      const searchable = [
+        displayName, pattern, ...tiers.map((tier) => `${tier.name} ${tier.text}`),
+        ...(modifier.displayTags ?? []).map((tag) => tag.label),
+        AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain, applicableLabel
+      ].join(' ').toLocaleLowerCase('zh-CN')
+      if (needle && !searchable.includes(needle)) return
+      rows.push({
+        id: `${modifier.id}:${sourceDomain}${suffix}`,
+        modifierId: modifier.id,
+        displayName,
+        effectPattern: pattern,
+        exampleText: tiers[0]?.text || pattern,
+        affixType: modifier.affixType,
+        source: sourceDomain,
+        sourceLabel: AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain,
+        profileId: modifier.modifierProfileId,
+        applicableLabel,
+        tiers: normalizedTiers
+      })
+    }
+
+    dataset.modifiers.forEach((modifier) => {
+      addRow(modifier, modifier.tiers ?? [], modifier.source)
+      if (modifier.craftedOptions?.length) addRow(modifier, modifier.craftedOptions, 'crafted', ':crafted')
+    })
+    const merged = new Map()
+    rows.forEach((row) => {
+      const tierSignature = row.tiers.map((tier) => `${tier.tier}:${tier.requiredLevel}:${effectPattern(tier.text)}`).join('|')
+      const key = `${row.effectPattern}\u0000${row.affixType}\u0000${row.source}\u0000${tierSignature}`
+      const current = merged.get(key)
+      if (!current) {
+        merged.set(key, row)
+        return
+      }
+      const labels = new Set(`${current.applicableLabel} / ${row.applicableLabel}`.split(' / ').filter(Boolean))
+      current.applicableLabel = [...labels].join(' / ')
+    })
+    const suggestions = [...merged.values()]
+    suggestions.sort((a, b) => {
+      const aStarts = needle && `${a.displayName} ${a.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
+      const bStarts = needle && `${b.displayName} ${b.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
+      return aStarts - bStarts || a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN')
+    })
+    const size = Math.max(1, Math.min(100, Number(limit) || 50))
+    return { items: suggestions.slice(0, size), total: suggestions.length }
   }
 
   searchModifierCatalog({ baseId, itemLevel = 100, query = '' } = {}) {

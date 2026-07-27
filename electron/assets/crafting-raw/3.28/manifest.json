@@ -786,6 +786,42 @@
       "file": "pages/modifier_Small_Cluster_Jewel-8ba40ce974fc7697.html.gz"
     },
     {
+      "id": "modifier:Life_Flasks",
+      "url": "https://poedb.tw/cn/Life_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-07-27T17:06:57.061Z",
+      "sha256": "0de2ac4376d84f7aec0c73d7014b8691f48be49695be296319c4c24117c4de10",
+      "file": "pages/modifier_Life_Flasks-37ce4ee7037db404.html.gz"
+    },
+    {
+      "id": "modifier:Mana_Flasks",
+      "url": "https://poedb.tw/cn/Mana_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-07-27T17:07:07.688Z",
+      "sha256": "f599704c2b9379c452310500209b210ed2e0282180775f18fa12053be08643e3",
+      "file": "pages/modifier_Mana_Flasks-8d5cb88ba10f20e2.html.gz"
+    },
+    {
+      "id": "modifier:Hybrid_Flasks",
+      "url": "https://poedb.tw/cn/Hybrid_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-07-27T17:06:57.507Z",
+      "sha256": "f7d4e18a02de69ca824653862e85f57649f88d88a10fb5bd6c6186321fcb438b",
+      "file": "pages/modifier_Hybrid_Flasks-428f43a6a54cd0de.html.gz"
+    },
+    {
+      "id": "modifier:Utility_Flasks",
+      "url": "https://poedb.tw/cn/Utility_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-07-27T17:07:05.705Z",
+      "sha256": "d7fa48d53f56546ac3f6b0db1194812b252c6406187a006320fe736090a44045",
+      "file": "pages/modifier_Utility_Flasks-da8427570df50877.html.gz"
+    },
+    {
       "id": "modifier:Unset_Ring",
       "url": "https://poedb.tw/cn/Unset_Ring",
       "category": "modifier",

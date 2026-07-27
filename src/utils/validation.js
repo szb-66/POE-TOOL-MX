@@ -6,6 +6,7 @@
  * Edge cases: 配置缺失时返回错误列表；坐标为 0 时视为未配置
  * Errors: 验证失败返回错误列表，不抛出异常
  */
+import { hasEffectiveAffixGroups } from '../domains/items/affixConfig.js'
 
 /**
  * Purpose: 验证制作配置
@@ -38,6 +39,9 @@ export const validateCraftingConfig = (config) => {
     
     // 验证词缀模块所需的通货坐标
     if (affixEnabled) {
+      if (!hasEffectiveAffixGroups(preset.moduleTwo)) {
+        errors.push('词缀制作至少需要配置一个有效的达标组合')
+      }
       const mode = preset.moduleTwo.mode || 'alteration'
       const { currencyPositions } = config
       

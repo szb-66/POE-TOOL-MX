@@ -7,83 +7,134 @@
  * Errors: 匹配失败返回不匹配结果，不抛出异常
  */
 
-export function matchAffixes(itemInfo, requiredAffixes, selectedAffixes, selectedCount) {
-  if (!itemInfo) return { isMatch: false, requiredAllMatched: false, matchedSelectedCount: 0, matchedModTexts: [] }
+function cleanEffectText(value = '') {
+  return String(value).split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')
+}
 
-  const allMods = [
-    ...itemInfo.implicitMods,
-    ...itemInfo.explicitMods,
-    ...itemInfo.craftedMods,
-    ...(itemInfo.detailedMods ? itemInfo.detailedMods.map(m => m.name) : []) // 添加详细词缀名称
-  ]
+function effectPatternRegex(pattern) {
+  const numeric = '[+\\-]?\\d+(?:\\.\\d+)?'
+  const source = cleanEffectText(pattern).split('#')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join(numeric)
+  return new RegExp(`^${source}$`, 'u')
+}
 
-  const matchedModTexts = []
-
-  // Helper to collect matched texts
-  const collectMatches = (criteria) => {
-    let count = 0
-    criteria.forEach(crit => {
-      let found = false
-      
-      // Check all sources
-      const sources = [
-        itemInfo.implicitMods,
-        itemInfo.explicitMods,
-        itemInfo.craftedMods
-      ]
-      
-      sources.forEach(list => {
-        list.forEach(mod => {
-          if (mod.includes(crit)) {
-            matchedModTexts.push(mod)
-            found = true
-          }
-        })
-      })
-
-      if (itemInfo.detailedMods) {
-        itemInfo.detailedMods.forEach(m => {
-          if ((m.name && m.name.includes(crit)) || (m.text && m.text.includes(crit))) {
-            if (m.text) matchedModTexts.push(m.text)
-            if (m.name) matchedModTexts.push(m.name)
-            found = true
-          }
-        })
-      }
-
-      if (found) count++
-    })
-    return count
-  }
-
-  let requiredAllMatched = true
-  if (requiredAffixes && requiredAffixes.length > 0) {
-    const required = requiredAffixes.filter(affix => affix && affix.trim())
-    if (required.length > 0) {
-      const matchedCount = collectMatches(required)
-      if (matchedCount !== required.length) {
-        requiredAllMatched = false
-      }
-    }
-  }
-
-  let matchedSelectedCount = 0
-  let selectedMatch = true
-  if (selectedAffixes && selectedAffixes.length > 0 && selectedCount > 0) {
-    const selected = selectedAffixes.filter(affix => affix && affix.trim())
-    if (selected.length > 0) {
-      matchedSelectedCount = collectMatches(selected)
-      if (matchedSelectedCount < selectedCount) {
-        selectedMatch = false
-      }
-    }
-  }
-
+function conditionValue(condition) {
+  if (typeof condition === 'string') return { kind: 'keyword', keyword: condition.trim(), minTier: null }
+  if (!condition || typeof condition !== 'object') return null
+  const effectPattern = String(condition.effectPattern || '').trim()
+  const keyword = String(condition.keyword || condition.displayName || effectPattern).trim()
+  if (!keyword && !effectPattern) return null
+  const tier = Math.trunc(Number(condition.minTier))
   return {
-    isMatch: requiredAllMatched && selectedMatch,
-    requiredAllMatched,
-    matchedSelectedCount,
-    matchedModTexts: [...new Set(matchedModTexts)] // De-duplicate
+    ...condition,
+    kind: condition.kind === 'catalog' && effectPattern ? 'catalog' : 'keyword',
+    keyword,
+    effectPattern,
+    minTier: tier > 0 ? tier : null
+  }
+}
+
+function candidateModifiers(itemInfo) {
+  const structured = Array.isArray(itemInfo.modifiers) && itemInfo.modifiers.length
+    ? itemInfo.modifiers
+    : (itemInfo.detailedMods ?? [])
+  const candidates = structured.map((modifier) => ({
+    name: String(modifier.name || ''),
+    text: cleanEffectText(modifier.text || modifier.lines?.join('\n') || ''),
+    tier: Math.trunc(Number(modifier.tier)) || 0
+  }))
+  const existingTexts = new Set(candidates.map((modifier) => modifier.text))
+  for (const text of [...(itemInfo.implicitMods ?? []), ...(itemInfo.explicitMods ?? []), ...(itemInfo.craftedMods ?? [])]) {
+    const normalized = cleanEffectText(text)
+    if (normalized && !existingTexts.has(normalized)) {
+      candidates.push({ name: '', text: normalized, tier: 0 })
+      existingTexts.add(normalized)
+    }
+  }
+  return candidates
+}
+
+function matchCondition(conditionInput, candidates) {
+  const condition = conditionValue(conditionInput)
+  if (!condition) return null
+  const pattern = condition.kind === 'catalog' ? effectPatternRegex(condition.effectPattern) : null
+  const candidate = candidates.find((modifier) => {
+    const effectMatches = condition.kind === 'catalog'
+      ? pattern.test(modifier.text)
+      : modifier.name.includes(condition.keyword) || modifier.text.includes(condition.keyword)
+    if (!effectMatches) return false
+    return condition.minTier === null || (modifier.tier > 0 && modifier.tier <= condition.minTier)
+  })
+  return candidate ? { condition, candidate } : null
+}
+
+function legacyGroup(requiredAffixes, selectedAffixes, selectedCount) {
+  return [{
+    id: 'affix_group_1',
+    name: '组合 1',
+    requiredAffixes: requiredAffixes ?? [],
+    selectedAffixes: selectedAffixes ?? [],
+    selectedCount: selectedCount ?? 1
+  }]
+}
+
+export function matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, selectedCount) {
+  const empty = {
+    isMatch: false,
+    requiredAllMatched: false,
+    matchedSelectedCount: 0,
+    matchedModTexts: [],
+    matchedGroupId: null,
+    matchedGroupName: '',
+    groupResults: []
+  }
+  if (!itemInfo) return empty
+  const groups = Array.isArray(affixGroupsOrRequired)
+    && affixGroupsOrRequired.some((entry) => entry && typeof entry === 'object' && ('requiredAffixes' in entry || 'selectedAffixes' in entry))
+    ? affixGroupsOrRequired
+    : legacyGroup(affixGroupsOrRequired, selectedAffixes, selectedCount)
+  const candidates = candidateModifiers(itemInfo)
+  const groupResults = groups.map((group, index) => {
+    const required = (group.requiredAffixes ?? []).map(conditionValue).filter(Boolean)
+    const selected = (group.selectedAffixes ?? []).map(conditionValue).filter(Boolean)
+    if (!required.length && !selected.length) return null
+    const requiredMatches = required.map((condition) => matchCondition(condition, candidates))
+    const selectedMatches = selected.map((condition) => matchCondition(condition, candidates))
+    const requiredAllMatched = requiredMatches.every(Boolean)
+    const requiredSelectedCount = selected.length
+      ? Math.max(1, Math.min(selected.length, Math.trunc(Number(group.selectedCount)) || 1))
+      : 0
+    const matchedSelectedCount = selectedMatches.filter(Boolean).length
+    const matchedTexts = [...new Set([...requiredMatches, ...selectedMatches].filter(Boolean)
+      .flatMap(({ candidate }) => [candidate.text, candidate.name]).filter(Boolean))]
+    return {
+      id: String(group.id || `affix_group_${index + 1}`),
+      name: String(group.name || `组合 ${index + 1}`),
+      isMatch: requiredAllMatched && matchedSelectedCount >= requiredSelectedCount,
+      requiredAllMatched,
+      matchedRequiredCount: requiredMatches.filter(Boolean).length,
+      requiredCount: required.length,
+      matchedSelectedCount,
+      selectedCount: requiredSelectedCount,
+      matchedModTexts: matchedTexts
+    }
+  }).filter(Boolean)
+  if (!groupResults.length) return empty
+  const matched = groupResults.find((group) => group.isMatch)
+  const representative = matched ?? [...groupResults].sort((a, b) => {
+    const aScore = a.matchedRequiredCount + a.matchedSelectedCount
+    const bScore = b.matchedRequiredCount + b.matchedSelectedCount
+    return bScore - aScore
+  })[0]
+  return {
+    isMatch: Boolean(matched),
+    requiredAllMatched: representative.requiredAllMatched,
+    matchedSelectedCount: representative.matchedSelectedCount,
+    matchedModTexts: representative.matchedModTexts,
+    matchedGroupId: matched?.id ?? null,
+    matchedGroupName: matched?.name ?? '',
+    groupResults
   }
 }
 

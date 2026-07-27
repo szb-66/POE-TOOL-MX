@@ -41,6 +41,10 @@ export function registerCraftingHandlers(service) {
     await service.initialize()
     return service.repository.searchModifierCatalog({ baseId: safeId(input.baseId), itemLevel: input.itemLevel, query: safeQuery(input.query) })
   })
+  ipcMain.handle('crafting-search-affix-suggestions', async (_event, input = {}) => {
+    await service.initialize()
+    return service.repository.searchAffixSuggestions({ query: safeQuery(input.query), limit: Math.min(100, Number(input.limit) || 50) })
+  })
   ipcMain.handle('crafting-create-manual-session', async (_event, input = {}) => { await service.initialize(); return service.createManualSession(input) })
   ipcMain.handle('crafting-apply-manual-currency', async (_event, session, actionId) => { await service.initialize(); return service.applyManualCurrency(session, safeId(actionId)) })
   ipcMain.handle('crafting-list-manual-essences', async (_event, session) => { await service.initialize(); return service.listManualEssences(session) })

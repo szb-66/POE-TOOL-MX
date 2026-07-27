@@ -82,14 +82,24 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       }
 
       // 匹配词缀（物品制作）
-      let affixMatchResult = { isMatch: false, requiredAllMatched: false, matchedSelectedCount: 0 }
+      let affixMatchResult = {
+        isMatch: false,
+        requiredAllMatched: false,
+        matchedSelectedCount: 0,
+        matchedModTexts: [],
+        matchedGroupId: null,
+        matchedGroupName: '',
+        groupResults: []
+      }
       if (config && config.moduleTwo && config.moduleTwo.enabled) {
-        affixMatchResult = matchAffixes(
-          itemInfo,
-          config.moduleTwo.requiredAffixes || [],
-          config.moduleTwo.selectedAffixes || [],
-          config.moduleTwo.selectedCount || 1
-        )
+        affixMatchResult = Array.isArray(config.moduleTwo.affixGroups)
+          ? matchAffixes(itemInfo, config.moduleTwo.affixGroups)
+          : matchAffixes(
+              itemInfo,
+              config.moduleTwo.requiredAffixes || [],
+              config.moduleTwo.selectedAffixes || [],
+              config.moduleTwo.selectedCount || 1
+            )
       }
 
       // 匹配插槽
@@ -165,6 +175,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         requiredAllMatched: affixMatchResult.requiredAllMatched,
         matchedSelectedCount: affixMatchResult.matchedSelectedCount,
         matchedModTexts: affixMatchResult.matchedModTexts,
+        matchedGroupId: affixMatchResult.matchedGroupId,
+        matchedGroupName: affixMatchResult.matchedGroupName,
+        affixGroupResults: affixMatchResult.groupResults,
         mapMatch: mapMatchResult.isMatch,
         explicitMods: itemInfo.explicitMods,
         detailedMods: itemInfo.detailedMods,

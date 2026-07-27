@@ -367,9 +367,11 @@ export function parsePoedbModifiers(html, { profileId = '' } = {}) {
   ]
   baseScopeTags.forEach(([needle, tag]) => { if (baseItemName.toLowerCase() === needle) requiredTags.push(tag) })
   const resolvedProfileId = profileId || cleanText(payload.opt?.BaseItemName || payload.baseitem?.href || itemClassCode)
+  const flaskReferenceProfile = /_Flasks$/.test(resolvedProfileId)
   const itemClassScope = [itemClassCode, baseItemName, ...requiredTags].filter(Boolean).join(':')
   const groups = new Map()
   for (const [sourceKey, sourceRecords] of Object.entries(payload)) {
+    if (flaskReferenceProfile && sourceKey !== 'normal') continue
     const records = Array.isArray(sourceRecords)
       ? sourceRecords
       : sourceRecords && typeof sourceRecords === 'object' && (SUPPORTED_INFLUENCES.has(sourceKey) || SUPPORTED_SPECIAL_SOURCES.has(sourceKey))

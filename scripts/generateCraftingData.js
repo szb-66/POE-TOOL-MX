@@ -18,7 +18,7 @@ import {
 import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from '../electron/modules/crafting/model.js'
 import { BENCH_META_CRAFTS } from '../electron/modules/crafting/actionProviders.js'
 import { createFossilCrafts } from '../electron/modules/crafting/fossilRules.js'
-import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from '../electron/modules/crafting/poedbSources.js'
+import { FLASK_MODIFIER_PAGES, POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from '../electron/modules/crafting/poedbSources.js'
 import { synchronizeRawSnapshot } from './craftingRawSnapshot.js'
 import { CATALYST_DEFINITIONS } from '../electron/modules/crafting/catalystRules.js'
 
@@ -59,6 +59,12 @@ function assertSnapshotSentinels(loaded, live) {
   if (!live) return
   if (loaded.bases.length < 900) throw new Error(`正式底材仅解析到 ${loaded.bases.length} 个，低于 900 哨兵`)
   if (loaded.modifierFamilies.length < 100) throw new Error(`正式词缀家族仅解析到 ${loaded.modifierFamilies.length} 个，低于 100 哨兵`)
+  for (const profileId of FLASK_MODIFIER_PAGES.filter((profile) => profile !== 'Hybrid_Flasks')) {
+    const families = loaded.modifierFamilies.filter((family) => family.modifierProfileId === profileId)
+    if (!families.length || !families.some((family) => ['prefix', 'suffix'].includes(family.affixType))) {
+      throw new Error(`正式快照缺少 ${profileId} 药剂普通前后缀哨兵`)
+    }
+  }
   const ironHat = loaded.bases.find((base) => base.name === '粗铁盔')
   if (!ironHat) throw new Error('正式快照缺少粗铁盔哨兵')
   if (ironHat.requirements.level !== 1 || ironHat.requirements.strength !== 9 || ironHat.requiredLevel !== 1) {
@@ -157,8 +163,13 @@ async function loadSnapshotDataset(rawSnapshot, sources) {
   })
   const modifierPages = POEDB_MODIFIER_PAGES.map((page) => {
     const source = sourceById.get(`modifier:${page}`)
-    const modifiers = parsePoedbModifiers(rawSnapshot.texts.get(source.id), { profileId: page })
-    if (!modifiers.length) throw new Error(`${page} 词缀解析结果为空`)
+    const html = rawSnapshot.texts.get(source.id)
+    const modifiers = parsePoedbModifiers(html, { profileId: page })
+    if (page === 'Hybrid_Flasks') {
+      if (!/复合药剂\s*物品\s*\/\s*\d+/.test(html)) throw new Error('Hybrid_Flasks 页面缺少复合药剂底材哨兵')
+    } else if (!modifiers.length) {
+      throw new Error(`${page} 词缀解析结果为空`)
+    }
     process.stdout.write(`已解析词缀 ${page}\n`)
     return { url: source.url, modifiers }
   })

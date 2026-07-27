@@ -11,6 +11,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { cleanMigratedMapConfig, createDefaultMapConfig } from '../utils/mapPresetMigration.js'
 import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
+import { createDefaultModuleTwo, normalizeModuleTwo } from '../domains/items/affixConfig.js'
 
 export const usePresetStore = defineStore('preset', () => {
   // 物品预设
@@ -18,16 +19,7 @@ export const usePresetStore = defineStore('preset', () => {
     {
       id: 'default',
       name: '默认预设',
-      moduleTwo: {
-        enabled: true,
-        mode: 'alteration', // alteration, chaos, alchemy
-        requiredAffixes: [],
-        selectedAffixes: [],
-        selectedCount: 1,
-        enableAugmentation: false,
-        enableRegal: false,
-        enableExalted: false
-      },
+      moduleTwo: createDefaultModuleTwo(),
       moduleThree: {
         enabled: false,
         socket: { enabled: false, count: 0 },
@@ -71,16 +63,7 @@ export const usePresetStore = defineStore('preset', () => {
     const newPreset = {
       id: `preset_${Date.now()}`,
       name: name || `预设${itemPresets.value.length}`,
-      moduleTwo: {
-        enabled: true,
-        mode: 'alteration',
-        requiredAffixes: [],
-        selectedAffixes: [],
-        selectedCount: 1,
-        enableAugmentation: false,
-        enableRegal: false,
-        enableExalted: false
-      },
+      moduleTwo: createDefaultModuleTwo(),
       moduleThree: {
         enabled: false,
         socket: { enabled: false, count: 0 },
@@ -185,6 +168,7 @@ export const usePresetStore = defineStore('preset', () => {
   function updateCurrentItemPreset(data) {
     const preset = currentItemPreset.value
     if (preset) {
+      if (data.moduleTwo) data = { ...data, moduleTwo: normalizeModuleTwo(data.moduleTwo) }
       Object.assign(preset, data)
       savePresets()
     }
@@ -243,6 +227,16 @@ export const usePresetStore = defineStore('preset', () => {
         })
         itemPresets.value = loaded
       }
+      itemPresets.value = itemPresets.value.map((preset) => ({
+        ...preset,
+        moduleTwo: normalizeModuleTwo(preset.moduleTwo),
+        moduleThree: preset.moduleThree || {
+          enabled: false,
+          socket: { enabled: false, count: 0 },
+          link: { enabled: false, count: 0 },
+          color: { enabled: false, red: 0, green: 0, blue: 0 }
+        }
+      }))
 
       if (savedCurrentItemId) {
         currentItemPresetId.value = savedCurrentItemId

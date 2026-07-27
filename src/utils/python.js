@@ -400,19 +400,23 @@ export function generatePythonScript(config) {
             affix_match = result.get("affixMatch", False)
             required_all_matched = result.get("requiredAllMatched", False)
             matched_selected_count = result.get("matchedSelectedCount", 0)
+            matched_group_name = result.get("matchedGroupName", "")
             explicit_mods = result.get("explicitMods", [])
             detailed_mods = result.get("detailedMods", [])
             print(f"[调试] 第 {iteration} 次 - 词缀匹配检查:")
             print(f"  - affixMatch: {affix_match}")
             print(f"  - requiredAllMatched: {required_all_matched}")
             print(f"  - matchedSelectedCount: {matched_selected_count}")
+            if matched_group_name:
+                print(f"  - 命中组合: {matched_group_name}")
             print(f"  - explicitMods数量: {len(explicit_mods) if explicit_mods else 0}")
             if explicit_mods:
                 print(f"  - explicitMods: {explicit_mods[:3]}...")  # 只显示前3个
             if detailed_mods:
                 print(f"  - detailedMods数量: {len(detailed_mods)}")
             if affix_match:
-                print(f"[成功] 词缀匹配成功！(第 {iteration} 次)")
+                group_suffix = f" · {matched_group_name}" if matched_group_name else ""
+                print(f"[成功] 词缀匹配成功{group_suffix}！(第 {iteration} 次)")
 `
 
     if (mode === 'alteration') {

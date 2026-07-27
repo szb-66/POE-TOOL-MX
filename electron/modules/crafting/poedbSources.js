@@ -31,9 +31,14 @@ const JEWEL_MODIFIER_PAGES = [
   'Large_Cluster_Jewel', 'Medium_Cluster_Jewel', 'Small_Cluster_Jewel'
 ]
 
+export const FLASK_MODIFIER_PAGES = [
+  'Life_Flasks', 'Mana_Flasks', 'Hybrid_Flasks', 'Utility_Flasks'
+]
+
 export const POEDB_MODIFIER_PAGES = [
   ...DIRECT_MODIFIER_PAGES,
   ...Object.entries(ARMOUR_VARIANTS).flatMap(([page, variants]) => variants.map((variant) => `${page}_${variant}`)),
   ...JEWEL_MODIFIER_PAGES,
+  ...FLASK_MODIFIER_PAGES,
   ...SPECIAL_MODIFIER_PROFILES.map((profile) => profile.page)
 ]

@@ -185,6 +185,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchCraftingBases: (input) => ipcRenderer.invoke('crafting-search-bases', input),
   searchCraftingModifiers: (input) => ipcRenderer.invoke('crafting-search-modifiers', input),
   searchCraftingModifierCatalog: (input) => ipcRenderer.invoke('crafting-search-modifier-catalog', input),
+  searchCraftingAffixSuggestions: (input) => ipcRenderer.invoke('crafting-search-affix-suggestions', input),
   createManualCraftingSession: (input) => ipcRenderer.invoke('crafting-create-manual-session', input),
   applyManualCraftingCurrency: (session, actionId) => ipcRenderer.invoke('crafting-apply-manual-currency', session, actionId),
   listManualCraftingEssences: (session) => ipcRenderer.invoke('crafting-list-manual-essences', session),
