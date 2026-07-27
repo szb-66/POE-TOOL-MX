@@ -7,13 +7,28 @@
           <el-form label-width="120px" label-position="left">
             <el-form-item label="启用模块">
               <el-switch :model-value="bagStore.moduleEnabled" active-text="开启" inactive-text="关闭" @change="handleModuleToggle" />
-              <span class="hint-text inline-hint">同一次打开仓库会话只自动执行一轮</span>
+              <span class="hint-text inline-hint">持续检测仓库与背包，并提供游戏内入库按钮</span>
+            </el-form-item>
+            <el-form-item label="立即执行入库">
+              <el-switch
+                :model-value="bagStore.immediateStash"
+                active-text="开启"
+                inactive-text="关闭"
+                @change="(value) => handlePreferenceChange('immediateStash', value)"
+              />
+              <span class="hint-text inline-hint">开启后每次打开仓库会话自动执行一轮；关闭后点击浮层执行</span>
+            </el-form-item>
+            <el-form-item label="满足条件显示">
+              <el-switch
+                :model-value="bagStore.showStashButtonOnlyWhenReady"
+                active-text="开启"
+                inactive-text="关闭"
+                @change="(value) => handlePreferenceChange('showStashButtonOnlyWhenReady', value)"
+              />
+              <span class="hint-text inline-hint">关闭后模块运行期间始终显示浮层，未就绪时按钮禁用</span>
             </el-form-item>
             <el-form-item label="显示检测区域">
               <el-switch v-model="showDebugOverlay" active-text="显示" inactive-text="隐藏" />
-            </el-form-item>
-            <el-form-item label="手动补扫快捷键">
-              <KeyCaptureInput :model-value="settingsStore.globalShortcuts.stashStart" @change="saveStashShortcut" />
             </el-form-item>
             <el-form-item label="检测状态">
               <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
@@ -31,9 +46,6 @@
             </el-form-item>
             <el-form-item v-if="bagStore.lastStopReason" label="停止原因">
               <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
-            </el-form-item>
-            <el-form-item v-if="bagStore.moduleEnabled && bagStore.isMatched && !bagStore.isStashing">
-              <el-button type="primary" :icon="Upload" @click="startBagStash">手动补扫</el-button>
             </el-form-item>
             <el-form-item v-if="bagStore.isStashing">
               <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
@@ -58,7 +70,7 @@
               <el-input-number
                 :model-value="bagStore.inventoryLayout.extraColumns"
                 :min="1"
-                :max="5"
+                :max="INVENTORY_LAYOUT.maxExtraColumns"
                 :step="1"
                 :disabled="bagStore.moduleEnabled || !bagStore.inventoryLayout.extraEnabled"
                 @change="setExtraInventoryColumns"
@@ -210,17 +222,13 @@
 
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
+import { Plus, VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
-import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { electronApi } from '@/api/electron'
-import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
-import { commitGlobalShortcut } from '@/utils/scriptService'
-import { formatBagStopReason, setBagModuleEnabled, startBagStash, stopBagStash } from '@/utils/bagService'
+import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences } from '@/utils/bagService'
 import { BAG_BLACKLIST_FIELDS, BAG_BLACKLIST_FIELD_LABELS, INVENTORY_LAYOUT } from '@/utils/bagConfig'
 
 const bagStore = useBagStore()
-const settingsStore = useSettingsStore()
 const showDebugOverlay = ref(false)
 const capturingType = ref('')
 const templatePreviewVersions = ref({})
@@ -257,12 +265,12 @@ async function handleModuleToggle(enabled) {
   }
 }
 
-async function saveStashShortcut(value) {
+async function handlePreferenceChange(key, value) {
   try {
-    await commitGlobalShortcut('stashStart', value)
-    ElMessage.success(`快捷键已更新为：${value}`)
+    const result = await updateBagPreferences({ [key]: value })
+    if (!result?.success) throw new Error(result?.error || '更新设置失败')
   } catch (error) {
-    ElMessage.error(error.message)
+    ElMessage.error(`更新设置失败：${error.message}`)
   }
 }
 

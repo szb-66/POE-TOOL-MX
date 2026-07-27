@@ -67,6 +67,7 @@ OPERATION_DELAY_MIN_MS = 20
 OPERATION_DELAY_MAX_MS = 500
 COPY_ATTEMPTS = 2
 INPUT_EVENT_DELAY_SECONDS = 0.01
+EXTRA_INVENTORY_MAX_COLUMNS = 6
 is_running = True
 
 
@@ -348,7 +349,8 @@ def build_scan_phases(inventory):
     layout = inventory.get("layout", {}) if isinstance(inventory, dict) else {}
     extra_enabled = bool(layout.get("extraEnabled", False))
     try:
-        extra_columns = max(1, min(5, int(layout.get("extraColumns", 1))))
+        extra_columns = max(1, min(
+            EXTRA_INVENTORY_MAX_COLUMNS, int(layout.get("extraColumns", 1))))
     except (TypeError, ValueError):
         extra_columns = 1
     excluded = set()
@@ -360,7 +362,8 @@ def build_scan_phases(inventory):
             column, row = slot.get("column"), slot.get("row")
             if isinstance(column, int) and not isinstance(column, bool) and \
                     isinstance(row, int) and not isinstance(row, bool) and \
-                    ((0 <= column < 12) or (-5 <= column <= -1)) and 0 <= row < 5:
+                    ((0 <= column < 12) or
+                     (-EXTRA_INVENTORY_MAX_COLUMNS <= column <= -1)) and 0 <= row < 5:
                 excluded.add((column, row))
 
     native = [{"column": column, "row": row, "excluded": (column, row) in excluded}

@@ -89,8 +89,11 @@ const mockApi = {
     startStash: () => Promise.reject(new Error('非 Electron 环境')),
     stopStash: () => Promise.resolve({ success: true }),
     updateOperationDelay: () => Promise.resolve({ success: true }),
+    updatePreferences: () => Promise.resolve({ success: true }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
+    getOverlayState: () => Promise.resolve(null),
+    onOverlayState: () => () => {},
   },
   combat: {
     startPotion: () => Promise.reject(new Error('非 Electron 环境')),
@@ -241,8 +244,11 @@ export const electronApi = isElectron ? {
     startStash: () => window.electronAPI.startBagStash?.(),
     stopStash: () => window.electronAPI.stopBagStash?.(),
     updateOperationDelay: (operationDelayMs) => window.electronAPI.updateBagOperationDelay?.(operationDelayMs),
+    updatePreferences: (preferences) => window.electronAPI.updateBagPreferences?.(preferences),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
     captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
+    getOverlayState: () => window.electronAPI.getBagStashOverlayState?.(),
+    onOverlayState: (callback) => window.electronAPI.onBagStashOverlayState?.(callback) || (() => {}),
   },
 
   combat: {

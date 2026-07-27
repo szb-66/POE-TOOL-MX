@@ -12,11 +12,26 @@ function currentConfig() {
   const settingsStore = useSettingsStore()
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
+    immediateStash: bagStore.immediateStash,
+    showStashButtonOnlyWhenReady: bagStore.showStashButtonOnlyWhenReady,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
     blacklist: bagStore.blacklist,
     inventoryLayout: bagStore.inventoryLayout
   }, settingsStore)
+}
+
+export async function updateBagPreferences(preferences = {}) {
+  const bagStore = useBagStore()
+  if ('immediateStash' in preferences) bagStore.setImmediateStash(preferences.immediateStash)
+  if ('showStashButtonOnlyWhenReady' in preferences) {
+    bagStore.setShowStashButtonOnlyWhenReady(preferences.showStashButtonOnlyWhenReady)
+  }
+  if (!bagStore.moduleEnabled) return { success: true }
+  return electronApi.bag.updatePreferences({
+    immediateStash: bagStore.immediateStash,
+    showStashButtonOnlyWhenReady: bagStore.showStashButtonOnlyWhenReady
+  })
 }
 
 export async function startBagDetection({ silent = false } = {}) {
@@ -61,7 +76,7 @@ export async function startBagStash() {
     if (!result?.success) throw new Error(result?.error || '未知错误')
     bagStore.resetRunStats()
     bagStore.setStashingStatus(true)
-    ElMessage.success('开始手动补扫')
+    ElMessage.success('开始自动入库')
     return result
   } catch (error) {
     ElMessage.error(`启动入库失败：${error.message}`)

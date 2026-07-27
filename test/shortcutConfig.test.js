@@ -3,15 +3,15 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import { DEFAULT_GLOBAL_SHORTCUTS, dispatchShortcutAction, mergeGlobalShortcutSettings } from '../src/utils/shortcutConfig.js'
 
-test('全局快捷键默认包含背包与剧情导航', () => {
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, 'Alt+4')
+test('全局快捷键不再包含背包补扫，但保留剧情导航', () => {
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyPrevious, 'PageUp')
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyNext, 'PageDown')
 })
 
 test('全局快捷键只接受当前格式字段', () => {
-  assert.equal(mergeGlobalShortcutSettings({ stashShortcut: 'F6' }).stashStart, 'Alt+4')
-  assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }).stashStart, 'F7')
+  assert.equal(mergeGlobalShortcutSettings({ stashShortcut: 'F6' }).stashStart, undefined)
+  assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }).stashStart, undefined)
   assert.equal(mergeGlobalShortcutSettings({ unknown: 'F9' }).unknown, undefined)
 })
 

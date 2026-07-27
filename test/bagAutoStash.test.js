@@ -31,6 +31,8 @@ test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
     templates: { stashTitle: 'stash.png', inventoryTitle: 'inventory.png' }
   })
   assert.equal(settings.moduleEnabled, true)
+  assert.equal(settings.immediateStash, true)
+  assert.equal(settings.showStashButtonOnlyWhenReady, true)
   assert.equal('transferDelayMs' in settings, false)
   assert.deepEqual(settings.blacklist, [])
   assert.equal('buttonPosition' in settings, false)
@@ -49,16 +51,16 @@ test('背包布局限制额外列数并去重合法格子，同时保留隐藏�
     excludedSlots: [
       { column: 0, row: 0 },
       { column: 0, row: 0 },
-      { column: -5, row: 4 },
-      { column: -6, row: 0 },
+      { column: -6, row: 4 },
+      { column: -7, row: 0 },
       { column: 12, row: 0 },
       { column: 1.5, row: 2 },
       { column: 1, row: 5 }
     ]
   }), {
     extraEnabled: false,
-    extraColumns: 5,
-    excludedSlots: [{ column: 0, row: 0 }, { column: -5, row: 4 }]
+    extraColumns: 6,
+    excludedSlots: [{ column: 0, row: 0 }, { column: -6, row: 4 }]
   })
   assert.equal(normalizeInventoryLayout({ extraColumns: 0 }).extraColumns, 1)
   assert.equal(normalizeInventoryLayout({ extraColumns: 'invalid' }).extraColumns, 1)
@@ -97,6 +99,8 @@ test('黑名单按指定字段做不区分大小写的包含匹配', () => {
 
 test('运行配置包含模板区域、网格、黑名单和全局自动操作等待', () => {
   const config = buildBagRuntimeConfig({
+    immediateStash: false,
+    showStashButtonOnlyWhenReady: false,
     templates: {
       stashTitle: 's.png', inventoryTitle: 'i.png',
       stashRegion: { left: 1, top: 2, right: 3, bottom: 4 },
@@ -121,6 +125,8 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   })
   assert.equal(config.blacklist[0].keyword, '通货')
   assert.equal(config.operationDelayMs, 180)
+  assert.equal(config.immediateStash, false)
+  assert.equal(config.showStashButtonOnlyWhenReady, false)
   assert.equal('delays' in config, false)
 })
 
@@ -185,6 +191,16 @@ test('失去前台不会解锁当前界面会话，返回前台也不会重复�
   assert.equal(state.setReady(true, true), false)
   state.setReady(false, false)
   assert.equal(state.setReady(true, true), true)
+})
+
+test('关闭立即执行时就绪不会锁定会话，仍可手动入库', () => {
+  const state = new BagSessionController()
+  assert.equal(state.setReady(true, true, false), false)
+  assert.equal(state.locked, false)
+  assert.equal(state.beginManual().success, true)
+  state.finishStash()
+  assert.equal(state.setReady(false, false, false), false)
+  assert.equal(state.setReady(true, true, true), true)
 })
 
 test('Python 检测状态需要连续三次命中或丢失才切换', () => {
@@ -361,8 +377,8 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 phases = module.build_scan_phases({"layout": {
     "extraEnabled": True,
-    "extraColumns": 2,
-    "excludedSlots": [{"column": 0, "row": 0}, {"column": -2, "row": 4}]
+    "extraColumns": 6,
+    "excludedSlots": [{"column": 0, "row": 0}, {"column": -6, "row": 4}]
 }})
 print(json.dumps({
     "sizes": [len(phase) for phase in phases],
@@ -374,9 +390,9 @@ print(json.dumps({
   const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
-    sizes: [60, 10],
+    sizes: [60, 30],
     native: [[0, 0], [11, 4]],
-    extra: [[-2, 0], [-1, 4]],
+    extra: [[-6, 0], [-1, 4]],
     excluded: [true, true]
   })
 })
@@ -499,7 +515,7 @@ module.InputController = Controller
 module.is_game_foreground = lambda: True
 module.run_stash({"inventory": {
     "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
-    "layout": {"extraEnabled": True, "extraColumns": 5}
+    "layout": {"extraEnabled": True, "extraColumns": 6}
 }})
 print(json.dumps(Controller.moves))
 `

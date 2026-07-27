@@ -12,6 +12,7 @@ import {
   describeDetectionExit,
   waitForDetectionStartup
 } from '../bag/orchestrator.js'
+import { createBagOverlaySnapshot } from '../bag/overlayState.js'
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
 import { expandSearchRegion } from '../window/coordinates.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
@@ -21,6 +22,8 @@ let detectionProcess = null
 let stashProcess = null
 let latestConfig = null
 let getMainWindowRef = null
+let bagWindowApi = null
+let moduleRunning = false
 const session = new BagSessionController()
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -29,8 +32,29 @@ function send(channel, payload = {}) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload)
 }
 
+function currentOverlaySnapshot() {
+  return createBagOverlaySnapshot({
+    moduleEnabled: moduleRunning,
+    ready: session.ready,
+    foreground: session.foreground,
+    stashing: session.stashing,
+    showOnlyWhenReady: latestConfig?.showStashButtonOnlyWhenReady !== false
+  })
+}
+
+function syncBagOverlay() {
+  if (!bagWindowApi) return
+  if (!moduleRunning) {
+    bagWindowApi.closeBagStashOverlayWindow()
+    return
+  }
+  bagWindowApi.updateBagStashOverlay(currentOverlaySnapshot())
+}
+
 function runtimeConfig(config = {}) {
   return {
+    immediateStash: config.immediateStash !== false,
+    showStashButtonOnlyWhenReady: config.showStashButtonOnlyWhenReady !== false,
     templates: {
       stash_title: String(config.templates?.stashTitle || ''),
       inventory_title: String(config.templates?.inventoryTitle || ''),
@@ -154,6 +178,7 @@ function startStashProcess(python, fileWatcher, mode) {
     const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', latestConfig)
     child = spawnPython(python, 'stash', configPath)
     stashProcess = child
+    syncBagOverlay()
   } catch (error_) {
     session.finishStash()
     return { success: false, error: error_.message }
@@ -181,6 +206,7 @@ function startStashProcess(python, fileWatcher, mode) {
     if (wasCurrent) stashProcess = null
     if (wasCurrent) {
       session.finishStash()
+      syncBagOverlay()
       if (!terminalEventSent) send('bag-stash-stopped', { reason: code === 0 ? 'process-ended' : 'process-exited', code })
     }
   })
@@ -196,8 +222,9 @@ function startDetectionProcess(python, fileWatcher) {
   child.stdout.on('data', createEventLineParser((event) => {
     if (detectionProcess !== child) return
     if (event.event === 'detection-state') {
-      const shouldAutoStart = session.setReady(event.ready, event.foreground)
+      const shouldAutoStart = session.setReady(event.ready, event.foreground, latestConfig?.immediateStash !== false)
       send('bag-detection-match', { matched: session.ready && session.foreground, ...event })
+      syncBagOverlay()
       if (shouldAutoStart) {
         const result = startStashProcess(python, fileWatcher, 'auto')
         if (!result.success) send('bag-stash-stopped', { reason: result.error })
@@ -212,7 +239,9 @@ function startDetectionProcess(python, fileWatcher) {
     const wasCurrent = detectionProcess === child
     if (wasCurrent) detectionProcess = null
     if (wasCurrent) {
+      moduleRunning = false
       session.setReady(false, false)
+      syncBagOverlay()
       if (!terminalReason) send('bag-detection-stopped', {
         code,
         reason: describeDetectionExit({ code, stderr: diagnostics.stderr, spawnError: diagnostics.spawnError })
@@ -249,6 +278,7 @@ const reloadDetectionForTemplateChange = async (python, fileWatcher) => {
   detectionProcess = null
   stopChild(previous)
   session.reset()
+  syncBagOverlay()
   send('bag-detection-match', { matched: false, ready: false, reloading: true })
   const { child, startup } = startDetectionProcess(python, fileWatcher)
   try {
@@ -266,6 +296,7 @@ const reloadDetectionForTemplateChange = async (python, fileWatcher) => {
 
 export function registerBagHandlers(python, window, fileWatcher) {
   getMainWindowRef = window.getMainWindow
+  bagWindowApi = window
 
   ipcMain.handle('start-bag-detection', async (_event, config) => {
     try {
@@ -278,6 +309,8 @@ export function registerBagHandlers(python, window, fileWatcher) {
       session.reset()
       const { child, startup } = startDetectionProcess(python, fileWatcher)
       await startup
+      moduleRunning = true
+      syncBagOverlay()
       return { success: true, processId: child.pid, warnings: captureValidation.warnings }
     } catch (error) {
       if (detectionProcess) {
@@ -286,6 +319,8 @@ export function registerBagHandlers(python, window, fileWatcher) {
         stopChild(child)
       }
       session.reset()
+      moduleRunning = false
+      syncBagOverlay()
       return { success: false, error: error.message }
     }
   })
@@ -295,9 +330,11 @@ export function registerBagHandlers(python, window, fileWatcher) {
     const stashing = stashProcess
     detectionProcess = null
     stashProcess = null
+    moduleRunning = false
     stopChild(detecting)
     stopChild(stashing)
     session.reset()
+    syncBagOverlay()
     send('bag-detection-match', { matched: false, ready: false })
     return { success: true }
   })
@@ -310,11 +347,33 @@ export function registerBagHandlers(python, window, fileWatcher) {
     return { success: true, operationDelayMs }
   })
 
+  ipcMain.handle('update-bag-preferences', async (_event, preferences = {}) => {
+    const wasImmediate = latestConfig?.immediateStash !== false
+    if (latestConfig) {
+      latestConfig.immediateStash = preferences.immediateStash !== false
+      latestConfig.showStashButtonOnlyWhenReady = preferences.showStashButtonOnlyWhenReady !== false
+    }
+    syncBagOverlay()
+    if (moduleRunning && !wasImmediate && latestConfig?.immediateStash &&
+        session.setReady(session.ready, session.foreground, true)) {
+      const result = startStashProcess(python, fileWatcher, 'auto')
+      if (!result.success) send('bag-stash-stopped', { reason: result.error })
+    }
+    return {
+      success: true,
+      immediateStash: latestConfig?.immediateStash ?? true,
+      showStashButtonOnlyWhenReady: latestConfig?.showStashButtonOnlyWhenReady ?? true
+    }
+  })
+
+  ipcMain.handle('get-bag-stash-overlay-state', async () => currentOverlaySnapshot())
+
   ipcMain.handle('stop-bag-stash', async () => {
     const child = stashProcess
     stashProcess = null
     stopChild(child)
     session.finishStash()
+    syncBagOverlay()
     return { success: true }
   })
 
@@ -381,7 +440,9 @@ export async function cleanupBagProcesses() {
   const stashing = stashProcess
   detectionProcess = null
   stashProcess = null
+  moduleRunning = false
   stopChild(detecting)
   stopChild(stashing)
   session.reset()
+  syncBagOverlay()
 }

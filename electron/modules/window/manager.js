@@ -16,6 +16,7 @@ import {
   getStoryGripBounds,
   getStoryOverlayBoundsFromGrip
 } from './storyGrip.js'
+import { getBagOverlayBounds } from './bagOverlay.js'
 import {
   dipRectangleToPhysical,
   getRectangleSize,
@@ -31,6 +32,8 @@ let mainWindow = null
 let overlayWindow = null
 let storyOverlayWindow = null
 let storyOverlayGripWindow = null
+let bagStashOverlayWindow = null
+let bagStashOverlaySnapshot = null
 let storyOverlaySnapshot = null
 let storyOverlaySize = { width: 560, height: 360 }
 
@@ -160,6 +163,7 @@ export function createMainWindow() {
     mainWindow = null
     closeOverlayWindow()
     closeStoryOverlayWindow()
+    closeBagStashOverlayWindow()
   })
 
   return mainWindow
@@ -233,6 +237,90 @@ export function getMainWindow() {
 
 export function getOverlayWindow() {
   return overlayWindow
+}
+
+function publishBagStashOverlayState() {
+  if (!bagStashOverlayWindow || bagStashOverlayWindow.isDestroyed() || !bagStashOverlaySnapshot) return
+  bagStashOverlayWindow.webContents.send('bag-stash-overlay-state', bagStashOverlaySnapshot)
+}
+
+export function createBagStashOverlayWindow(initialSnapshot = null) {
+  if (initialSnapshot) bagStashOverlaySnapshot = initialSnapshot
+  if (bagStashOverlayWindow && !bagStashOverlayWindow.isDestroyed()) {
+    publishBagStashOverlayState()
+    return bagStashOverlayWindow
+  }
+
+  const displays = screen.getAllDisplays().map((display) => ({
+    ...display,
+    primary: display.id === screen.getPrimaryDisplay().id
+  }))
+  const bounds = getBagOverlayBounds(loadWindowState().bagStashOverlayBounds, displays)
+  bagStashOverlayWindow = new BrowserWindow({
+    ...bounds,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    movable: true,
+    show: false,
+    hasShadow: false,
+    webPreferences: {
+      preload: path.join(__dirname, '../../preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      webSecurity: false
+    }
+  })
+  bagStashOverlayWindow.setAlwaysOnTop(true, 'screen-saver')
+
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL
+  if (process.env.NODE_ENV === 'development' && devServerUrl) {
+    bagStashOverlayWindow.loadURL(`${devServerUrl}#/bag-stash-overlay`)
+  } else {
+    bagStashOverlayWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/bag-stash-overlay' })
+  }
+
+  bagStashOverlayWindow.webContents.once('did-finish-load', () => {
+    if (!bagStashOverlayWindow || bagStashOverlayWindow.isDestroyed()) return
+    publishBagStashOverlayState()
+    if (bagStashOverlaySnapshot?.visible) bagStashOverlayWindow.showInactive()
+  })
+
+  let saveTimer
+  bagStashOverlayWindow.on('move', () => {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      if (!bagStashOverlayWindow || bagStashOverlayWindow.isDestroyed()) return
+      const { x, y } = bagStashOverlayWindow.getBounds()
+      saveWindowState({ bagStashOverlayBounds: { x, y } })
+    }, 250)
+  })
+  bagStashOverlayWindow.on('closed', () => {
+    clearTimeout(saveTimer)
+    bagStashOverlayWindow = null
+  })
+  return bagStashOverlayWindow
+}
+
+export function updateBagStashOverlay(snapshot) {
+  bagStashOverlaySnapshot = snapshot ? { ...snapshot } : null
+  if (!snapshot) return false
+  const overlay = createBagStashOverlayWindow(snapshot)
+  if (overlay.webContents.isLoadingMainFrame()) return true
+  publishBagStashOverlayState()
+  if (snapshot.visible) overlay.showInactive()
+  else overlay.hide()
+  return true
+}
+
+export function closeBagStashOverlayWindow() {
+  bagStashOverlaySnapshot = null
+  if (bagStashOverlayWindow && !bagStashOverlayWindow.isDestroyed()) bagStashOverlayWindow.close()
+  bagStashOverlayWindow = null
 }
 
 function getStoryOverlayBounds(width, height) {

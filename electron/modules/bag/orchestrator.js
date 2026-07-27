@@ -6,7 +6,7 @@ export class BagSessionController {
     this.stashing = false
   }
 
-  setReady(ready, foreground = true) {
+  setReady(ready, foreground = true, immediateStash = true) {
     this.ready = Boolean(ready)
     this.foreground = Boolean(foreground)
     if (!this.ready) {
@@ -15,6 +15,7 @@ export class BagSessionController {
     }
     if (!this.foreground) return false
     if (this.locked || this.stashing) return false
+    if (!immediateStash) return false
     this.locked = true
     return true
   }

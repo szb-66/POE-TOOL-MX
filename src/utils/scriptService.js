@@ -15,7 +15,6 @@ import { useSettingsStore } from '../domains/settings/settingsStore'
 import { useScriptStore } from '../stores/script'
 import { ElMessage } from 'element-plus'
 import { executePortalAssist, startPotionAssist, stopPotionAssist } from './combatService.js'
-import { startBagStash } from './bagService.js'
 import { useStoryStore } from '../stores/story'
 import { validateShortcuts } from './shortcutValidator.js'
 import { dispatchShortcutAction } from './shortcutConfig.js'
@@ -65,7 +64,6 @@ export async function initShortcuts() {
         potionStart: startPotionAssist,
         potionStop: stopPotionAssist,
         portal: executePortalAssist,
-        stashStart: startBagStash,
         storyPrevious: () => useStoryStore().previous(),
         storyNext: () => useStoryStore().next()
       })

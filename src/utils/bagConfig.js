@@ -13,7 +13,7 @@ export const INVENTORY_LAYOUT = Object.freeze({
   nativeColumns: 12,
   rows: 5,
   minExtraColumns: 1,
-  maxExtraColumns: 5
+  maxExtraColumns: 6
 })
 
 function finiteNumber(value, fallback) {
@@ -62,6 +62,8 @@ export function normalizeInventoryLayout(layout = {}) {
 export function createDefaultBagSettings() {
   return {
     moduleEnabled: false,
+    immediateStash: true,
+    showStashButtonOnlyWhenReady: true,
     templates: {
       stashTitle: '',
       inventoryTitle: '',
@@ -114,6 +116,8 @@ export function normalizeBagSettings(raw = {}) {
   const threshold = Number(raw.matchThreshold)
   return {
     moduleEnabled: Boolean(raw.moduleEnabled),
+    immediateStash: raw.immediateStash !== false,
+    showStashButtonOnlyWhenReady: raw.showStashButtonOnlyWhenReady !== false,
     templates: {
       stashTitle: String(raw.templates?.stashTitle || ''),
       inventoryTitle: String(raw.templates?.inventoryTitle || ''),
@@ -162,6 +166,8 @@ export function findBagBlacklistMatch(item, rules = []) {
 export function buildBagRuntimeConfig(bagSettings, settings) {
   const bag = normalizeBagSettings(bagSettings)
   return {
+    immediateStash: bag.immediateStash,
+    showStashButtonOnlyWhenReady: bag.showStashButtonOnlyWhenReady,
     templates: bag.templates,
     matchThreshold: bag.matchThreshold,
     blacklist: bag.blacklist,

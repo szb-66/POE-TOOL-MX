@@ -112,6 +112,7 @@ app.on('before-quit', async (event) => {
   shortcutManager.unregisterAll()
   windowManager.closeOverlayWindow()
   windowManager.closeStoryOverlayWindow()
+  windowManager.closeBagStashOverlayWindow()
   windowManager.cancelCoordinatePicker()
   craftingService?.cleanup()
   

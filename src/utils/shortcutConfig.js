@@ -2,7 +2,6 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   itemStart: 'Alt+1',
   mapStart: 'Alt+2',
   end: 'Alt+3',
-  stashStart: 'Alt+4',
   potionStart: 'Numpad7',
   potionStop: 'Numpad8',
   portal: 'Numpad2',

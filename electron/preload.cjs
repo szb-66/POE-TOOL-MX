@@ -119,6 +119,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startBagStash: () => ipcRenderer.invoke('start-bag-stash'),
   stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
   updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
+  updateBagPreferences: (preferences) => ipcRenderer.invoke('update-bag-preferences', preferences),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
   onBagDetectionMatch: (callback) => {
@@ -145,6 +146,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('bag-detection-stopped', listener)
     return () => ipcRenderer.removeListener('bag-detection-stopped', listener)
+  },
+  getBagStashOverlayState: () => ipcRenderer.invoke('get-bag-stash-overlay-state'),
+  onBagStashOverlayState: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('bag-stash-overlay-state', listener)
+    return () => ipcRenderer.removeListener('bag-stash-overlay-state', listener)
   },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),

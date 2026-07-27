@@ -20,6 +20,8 @@ const emptyStats = () => ({
 export const useBagStore = defineStore('bag', () => {
   const defaults = createDefaultBagSettings()
   const moduleEnabled = ref(defaults.moduleEnabled)
+  const immediateStash = ref(defaults.immediateStash)
+  const showStashButtonOnlyWhenReady = ref(defaults.showStashButtonOnlyWhenReady)
   const templates = ref(defaults.templates)
   const matchThreshold = ref(defaults.matchThreshold)
   const blacklist = ref(defaults.blacklist)
@@ -35,6 +37,8 @@ export const useBagStore = defineStore('bag', () => {
     try {
       localStorage.setItem('bagSettings', JSON.stringify({
         moduleEnabled: moduleEnabled.value,
+        immediateStash: immediateStash.value,
+        showStashButtonOnlyWhenReady: showStashButtonOnlyWhenReady.value,
         templates: templates.value,
         matchThreshold: matchThreshold.value,
         blacklist: blacklist.value,
@@ -48,6 +52,8 @@ export const useBagStore = defineStore('bag', () => {
   function applySettings(raw) {
     const normalized = normalizeBagSettings(raw)
     moduleEnabled.value = normalized.moduleEnabled
+    immediateStash.value = normalized.immediateStash
+    showStashButtonOnlyWhenReady.value = normalized.showStashButtonOnlyWhenReady
     templates.value = normalized.templates
     matchThreshold.value = normalized.matchThreshold
     blacklist.value = normalized.blacklist
@@ -64,6 +70,8 @@ export const useBagStore = defineStore('bag', () => {
   }
 
   function setModuleEnabled(enabled) { moduleEnabled.value = Boolean(enabled); saveSettings() }
+  function setImmediateStash(enabled) { immediateStash.value = Boolean(enabled); saveSettings() }
+  function setShowStashButtonOnlyWhenReady(enabled) { showStashButtonOnlyWhenReady.value = Boolean(enabled); saveSettings() }
   function clearCaptureMetadata(type) { templates.value[captureKeyForTemplate(type)] = null }
   function setTemplate(type, path) {
     templates.value[type] = String(path || '')
@@ -121,9 +129,10 @@ export const useBagStore = defineStore('bag', () => {
   loadSettings()
 
   return {
-    moduleEnabled, templates, matchThreshold, blacklist, inventoryLayout,
+    moduleEnabled, immediateStash, showStashButtonOnlyWhenReady, templates, matchThreshold, blacklist, inventoryLayout,
     isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason,
-    setModuleEnabled, setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
+    setModuleEnabled, setImmediateStash, setShowStashButtonOnlyWhenReady,
+    setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
     setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,
     resetRunStats, resetStates, saveSettings, loadSettings, resetSettings
   }

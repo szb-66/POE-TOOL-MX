@@ -75,6 +75,14 @@ const routes = [
     }
   },
   {
+    path: '/bag-stash-overlay',
+    name: 'BagStashOverlay',
+    component: () => import('../domains/bag/BagStashOverlayView.vue'),
+    meta: {
+      noLayout: true
+    }
+  },
+  {
     path: '/coordinate-picker',
     name: 'CoordinatePicker',
     component: () => import('../domains/settings/CoordinatePickerView.vue'),
