@@ -109,6 +109,18 @@ test('剧情章节和步骤界面通过稳定 ID 调用拖动排序', () => {
   assert.match(store, /reorderItemsById\(chapter\.steps/)
 })
 
+test('剧情技能编辑器使用离线联想并将等级开关限制在编辑页', () => {
+  const storyView = source('../src/domains/story/StoryView.vue')
+  const overlayView = source('../src/domains/story/StoryOverlayView.vue')
+  assert.match(storyView, /<el-autocomplete/)
+  assert.match(storyView, /fetchSkillSuggestions/)
+  assert.match(storyView, /skillCatalog\.skills/)
+  assert.match(storyView, /显示最低购买等级/)
+  assert.match(storyView, /settings\.storyShowSkillRequiredLevel/)
+  assert.match(storyView, /skillSuggestionLabel\(skill\)/)
+  assert.doesNotMatch(overlayView, /requiredLevel|最低购买等级/)
+})
+
 test('组合键捕获期间挂起全局快捷键并在提交前恢复', () => {
   const ipc = source('../electron/modules/ipc/shortcut.js')
   const preload = source('../electron/preload.cjs')

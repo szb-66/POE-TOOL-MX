@@ -24,6 +24,7 @@ const mockApi = {
     generateAndExecute: () => Promise.reject(new Error('非 Electron 环境')),
     stop: () => Promise.resolve({ success: true }),
     getStatus: () => Promise.resolve({ isRunning: false }),
+    onStatusChanged: () => () => {},
     detectPythonPath: () => Promise.resolve(null),
   },
   file: {
@@ -166,6 +167,7 @@ export const electronApi = isElectron ? {
     generateAndExecute: (config) => window.electronAPI.generateAndExecuteScript(config),
     stop: () => window.electronAPI.stopScript(),
     getStatus: () => window.electronAPI.getScriptStatus(),
+    onStatusChanged: (callback) => window.electronAPI.onScriptStatusChanged?.(callback) || (() => {}),
     detectPythonPath: () => window.electronAPI.detectPythonPath(),
   },
 

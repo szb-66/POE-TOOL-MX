@@ -40,11 +40,22 @@ function normalizeStep(raw) {
 }
 
 function normalizeSkill(raw) {
-  return {
+  const skill = {
     id: typeof raw?.id === 'string' && raw.id ? raw.id : createStoryId('skill'),
     name: typeof raw?.name === 'string' ? raw.name : '',
     color: SKILL_COLORS.includes(raw?.color) ? raw.color : 'red'
   }
+  const requiredLevel = Number(raw?.requiredLevel)
+  if (
+    typeof raw?.gemId === 'string' && raw.gemId
+    && Number.isInteger(requiredLevel) && requiredLevel >= 1 && requiredLevel <= 100
+    && ['active', 'support'].includes(raw?.kind)
+  ) {
+    skill.gemId = raw.gemId
+    skill.requiredLevel = requiredLevel
+    skill.kind = raw.kind
+  }
+  return skill
 }
 
 function normalizeSkillGroup(raw) {
@@ -158,7 +169,9 @@ export function buildStorySnapshot(chapters, currentStepId) {
       skillGroups: currentChapter.skillGroups.map(group => ({
         id: group.id,
         name: group.name,
-        skills: group.skills.filter(skill => skill.name.trim()).map(skill => ({ ...skill }))
+        skills: group.skills
+          .filter(skill => skill.name.trim())
+          .map(skill => ({ id: skill.id, name: skill.name, color: skill.color }))
       })).filter(group => group.skills.length)
     } : null
   }

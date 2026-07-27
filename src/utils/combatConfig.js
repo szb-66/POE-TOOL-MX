@@ -80,3 +80,26 @@ export function normalizeCombatAssist(raw = {}) {
     }
   }
 }
+
+export function validateCombatAssist(config = {}) {
+  const errors = []
+  const resources = [
+    ['health', '生命药剂'],
+    ['mana', '魔力药剂']
+  ]
+  const enabledResources = resources.filter(([key]) => config.potion?.[key]?.enabled)
+
+  if (!enabledResources.length) errors.push('请至少启用一项生命或魔力检测')
+
+  for (const [key, label] of enabledResources) {
+    const resource = config.potion[key]
+    if (!resource.point || (Number(resource.point.x) === 0 && Number(resource.point.y) === 0)) {
+      errors.push(`${label}检测坐标未配置`)
+    }
+    if (!Array.isArray(resource.keys) || resource.keys.length === 0) {
+      errors.push(`${label}按键序列未配置`)
+    }
+  }
+
+  return { isValid: errors.length === 0, errors }
+}

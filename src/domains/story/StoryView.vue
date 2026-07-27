@@ -85,7 +85,16 @@
           <template #header>
             <div class="panel-header">
               <strong>本章技能</strong>
-              <el-button type="primary" size="small" :icon="Plus" @click="story.addSkillGroup(story.currentChapter.id)">技能组</el-button>
+              <div class="skill-panel-actions">
+                <label class="level-toggle">
+                  <span>显示最低购买等级</span>
+                  <el-switch
+                    :model-value="settings.storyShowSkillRequiredLevel"
+                    @change="settings.updateStoryShowSkillRequiredLevel"
+                  />
+                </label>
+                <el-button type="primary" size="small" :icon="Plus" @click="story.addSkillGroup(story.currentChapter.id)">技能组</el-button>
+              </div>
             </div>
           </template>
           <el-empty v-if="!story.currentChapter.skillGroups.length" description="本章未配置技能" :image-size="72" />
@@ -98,7 +107,26 @@
               </div>
               <div v-if="group.skills.length" class="skills-list">
                 <div v-for="skill in group.skills" :key="skill.id" class="skill-row">
-                  <el-input v-model="skill.name" placeholder="技能名称" />
+                  <el-autocomplete
+                    class="skill-autocomplete"
+                    :model-value="skillDisplayValue(skill)"
+                    :fetch-suggestions="fetchSkillSuggestions"
+                    :trigger-on-focus="false"
+                    clearable
+                    placeholder="输入技能名称，如：劈"
+                    @input="updateSkillName(skill, $event)"
+                    @select="selectSkillSuggestion(skill, $event)"
+                  >
+                    <template #default="{ item }">
+                      <div class="skill-suggestion">
+                        <span class="suggestion-name">{{ item.value }}</span>
+                        <span class="suggestion-meta">
+                          <i class="color-dot" :class="item.color"></i>
+                          {{ skillKindLabel(item.kind) }} · {{ skillColorLabel(item.color) }}
+                        </span>
+                      </div>
+                    </template>
+                  </el-autocomplete>
                   <el-select v-model="skill.color" class="color-select">
                     <el-option label="红色" value="red" />
                     <el-option label="绿色" value="green" />
@@ -127,6 +155,15 @@ import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
+import skillCatalog from './skillCatalog.json'
+import {
+  applySkillCatalogSelection,
+  searchSkillCatalog,
+  SKILL_COLOR_LABELS,
+  SKILL_KIND_LABELS,
+  skillSuggestionLabel,
+  updateSkillFreeText
+} from './skillCatalog'
 
 const story = useStoryStore()
 const settings = useSettingsStore()
@@ -136,6 +173,33 @@ const dragOverChapterId = ref(null)
 const draggingStepId = ref(null)
 const dragOverStepId = ref(null)
 const stepInputRefs = {}
+
+function fetchSkillSuggestions(query, callback) {
+  callback(searchSkillCatalog(skillCatalog.skills, query))
+}
+
+function selectSkillSuggestion(skill, selected) {
+  applySkillCatalogSelection(skill, selected)
+}
+
+function updateSkillName(skill, value) {
+  updateSkillFreeText(skill, value)
+}
+
+function skillDisplayValue(skill) {
+  if (settings.storyShowSkillRequiredLevel && skill.gemId && Number.isInteger(skill.requiredLevel)) {
+    return skillSuggestionLabel(skill)
+  }
+  return skill.name
+}
+
+function skillKindLabel(kind) {
+  return SKILL_KIND_LABELS[kind] || '技能'
+}
+
+function skillColorLabel(color) {
+  return SKILL_COLOR_LABELS[color] || color
+}
 
 function addStepAndFocus() {
   const step = story.addStep(story.currentChapter.id)
@@ -219,12 +283,14 @@ async function confirmDeleteGroup(group) {
 
 <style scoped lang="less">
 .story-page { height: 100%; overflow: auto; padding: 20px; background: var(--bg-secondary); box-sizing: border-box; }
-.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title { display: flex; align-items: center; }
+.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .skill-panel-actions, .level-toggle { display: flex; align-items: center; }
 .page-header { justify-content: space-between; gap: 20px; margin-bottom: 18px; h2 { margin: 0 0 6px; } p { margin: 0; color: var(--text-secondary); } }
 .overlay-toggle { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .overlay-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .story-workspace { display: grid; grid-template-columns: 220px minmax(340px, 1.35fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
 .panel-header { justify-content: space-between; gap: 10px; }
+.skill-panel-actions { gap: 12px; }
+.level-toggle { gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
 .chapter-panel, .steps-panel, .skills-panel, .empty-editor { min-height: 280px; }
 .chapter-list, .step-list, .skill-groups, .skills-list { display: flex; flex-direction: column; gap: 10px; }
 .chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; }
@@ -242,6 +308,14 @@ async function confirmDeleteGroup(group) {
 .step-title > span:nth-child(2) { flex: 1; font-weight: 600; }
 .group-header { gap: 8px; margin-bottom: 10px; }
 .skill-row { gap: 8px; }
+.skill-autocomplete { min-width: 0; flex: 1; }
+.skill-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 280px; }
+.suggestion-name { color: var(--text-primary); }
+.suggestion-meta { display: flex; align-items: center; flex: 0 0 auto; color: var(--text-secondary); font-size: 12px; }
+.color-dot { width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.color-dot.red { background: #e95a5a; }
+.color-dot.green { background: #49b86a; }
+.color-dot.blue { background: #4f8fdf; }
 .color-select { width: 92px; flex: 0 0 92px; }
 .empty-group { color: var(--text-placeholder); font-size: 13px; text-align: center; padding: 8px; }
 .empty-editor { grid-column: 2 / 4; }

@@ -17,6 +17,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getScriptStatus: () => {
     return ipcRenderer.invoke('get-script-status')
   },
+  onScriptStatusChanged: (callback) => {
+    const listener = (_event, status) => callback(status)
+    ipcRenderer.on('script-status-changed', listener)
+    return () => ipcRenderer.removeListener('script-status-changed', listener)
+  },
   detectPythonPath: () => {
     return ipcRenderer.invoke('detect-python-path')
   },

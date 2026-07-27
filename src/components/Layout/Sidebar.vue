@@ -6,6 +6,10 @@
     :collapse="false"
     mode="vertical"
   >
+    <el-menu-item index="/">
+      <el-icon><HomeFilled /></el-icon>
+      <span>首页</span>
+    </el-menu-item>
     <el-menu-item index="/items">
       <el-icon><Box /></el-icon>
       <span>物品</span>
@@ -48,7 +52,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
+import { Box, Briefcase, HomeFilled, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
 
 const route = useRoute()
 
@@ -59,6 +63,8 @@ const activeMenu = computed(() => route.path)
 .sidebar-menu {
   border-right: none;
   height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: var(--spacing-xs);
   background-color: transparent;
 

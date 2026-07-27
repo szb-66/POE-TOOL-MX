@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
+import { validateCombatAssist } from './combatConfig.js'
 
 let statusListenerRegistered = false
 
@@ -19,6 +20,11 @@ export async function initCombatAssist() {
 export async function startPotionAssist() {
   const settings = useSettingsStore()
   const store = useCombatStore()
+  const validation = validateCombatAssist(settings.combatAssist)
+  if (!validation.isValid) {
+    ElMessage.warning(validation.errors[0])
+    return false
+  }
   const result = await electronApi.combat.startPotion({
     scriptContent: combatAssistTemplate,
     config: JSON.parse(JSON.stringify(settings.combatAssist))

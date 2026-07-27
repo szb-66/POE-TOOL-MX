@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { createDefaultCombatAssist, normalizeCombatAssist } from '../src/utils/combatConfig.js'
+import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '../src/utils/combatConfig.js'
 
 const scriptUrl = new URL('../src/assets/scripts/combat_assist_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
@@ -28,6 +28,23 @@ test('战斗辅助旧设置加载时补齐默认值并约束非法数值', () =>
   assert.equal(config.potion.health.recoveryMode, 'instant')
   assert.deepEqual(config.potion.health.keys, ['1', 'w'])
   assert.equal(config.portal.waitMs, 500)
+})
+
+test('战斗辅助启动校验要求启用检测项、坐标和按键序列', () => {
+  const valid = createDefaultCombatAssist()
+  assert.equal(validateCombatAssist(valid).isValid, true)
+
+  const invalid = createDefaultCombatAssist()
+  invalid.potion.health.enabled = false
+  invalid.potion.mana.point = { x: 0, y: 0 }
+  invalid.potion.mana.keys = []
+  assert.deepEqual(validateCombatAssist(invalid).errors, [
+    '魔力药剂检测坐标未配置',
+    '魔力药剂按键序列未配置'
+  ])
+
+  invalid.potion.mana.enabled = false
+  assert.match(validateCombatAssist(invalid).errors[0], /至少启用一项/)
 })
 
 test('自动喝药核心逻辑覆盖阈值、两种回复模式和频率保护', () => {

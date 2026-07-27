@@ -1,0 +1,6526 @@
+{
+  "schemaVersion": 1,
+  "patch": "3.28",
+  "locale": "zh-CN",
+  "generatedAt": "2026-07-27T09:10:14.722Z",
+  "sources": [
+    {
+      "id": "gem:active",
+      "url": "https://poedb.tw/cn/Skill_Gems",
+      "fetchedAt": "2026-07-27T09:10:14.722Z",
+      "sha256": "18dbea1d7ce4770a526bde98dbce2084e67b966e781be777e2259758b124a6f8"
+    },
+    {
+      "id": "gem:support",
+      "url": "https://poedb.tw/cn/Support_Gems",
+      "fetchedAt": "2026-07-27T09:10:14.119Z",
+      "sha256": "085910d85186ffb53682641daf2711c926d05273b9863cf977189eaad2fd0759"
+    }
+  ],
+  "skills": [
+    {
+      "id": "gem:c779187d7ea2b393",
+      "name": "暗影迷踪",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Old_Phase_Run"
+    },
+    {
+      "id": "gem:77922994df622b4b",
+      "name": "暗影印记",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Assassins_Mark"
+    },
+    {
+      "id": "gem:d644350a685e383b",
+      "name": "奥法烙印",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Arcanist_Brand"
+    },
+    {
+      "id": "gem:eeb30cb57626d533",
+      "name": "奥术斗篷",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Arcane_Cloak"
+    },
+    {
+      "id": "gem:1831118bf7363ab8",
+      "name": "霸气之击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Dominating_Blow"
+    },
+    {
+      "id": "gem:7ec325f252910ff3",
+      "name": "白骨尖塔（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Bonespire_Support"
+    },
+    {
+      "id": "gem:64f07e42f7dd9831",
+      "name": "孢子迸发之毒雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Toxic_Rain_of_Sporeburst"
+    },
+    {
+      "id": "gem:de1603b2bb184ab3",
+      "name": "饱和之箭雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Rain_of_Arrows_of_Saturation"
+    },
+    {
+      "id": "gem:5dac4d28d2a57a89",
+      "name": "暴风之盾",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Tempest_Shield"
+    },
+    {
+      "id": "gem:8ffd0969feca61a5",
+      "name": "暴击获得暴击球(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Power_Charge_On_Critical_Support"
+    },
+    {
+      "id": "gem:4527875ce8bbb127",
+      "name": "暴击时施放(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_On_Critical_Strike_Support"
+    },
+    {
+      "id": "gem:ac1b127aebcd0745",
+      "name": "暴击时施放（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Cast_On_Critical_Strike_Support"
+    },
+    {
+      "id": "gem:e4a8e28444af4e52",
+      "name": "暴食（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Gluttony_Support"
+    },
+    {
+      "id": "gem:67aa4ae491238703",
+      "name": "暴雨箭",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Rain"
+    },
+    {
+      "id": "gem:1d97341c5068323c",
+      "name": "爆裂箭雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blast_Rain"
+    },
+    {
+      "id": "gem:2d4badebeee3873f",
+      "name": "爆灵术",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Detonate_Dead"
+    },
+    {
+      "id": "gem:dc13e29a7d66d487",
+      "name": "爆破灵药",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Concoction"
+    },
+    {
+      "id": "gem:7a0a3e99545f6772",
+      "name": "爆燃之怒焰奔腾",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Surge_of_Combusting"
+    },
+    {
+      "id": "gem:51b71be95e974ee4",
+      "name": "爆炸箭矢",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Arrow"
+    },
+    {
+      "id": "gem:0244e6f0e98ec30e",
+      "name": "爆炸陷阱",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Trap"
+    },
+    {
+      "id": "gem:20b63904cc810228",
+      "name": "备弹之分裂钢刃",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Splitting_Steel_of_Ammunition"
+    },
+    {
+      "id": "gem:89097c9332761dba",
+      "name": "备弹之破碎铁刃",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Shattering_Steel_of_Ammunition"
+    },
+    {
+      "id": "gem:f91cd2c65ac9d46f",
+      "name": "悖论之魔蛊爆炸",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Hexblast_of_Contradiction"
+    },
+    {
+      "id": "gem:2318c3d7abce8a38",
+      "name": "冰爆之冰霜闪现",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frostblink_of_Wintry_Blast"
+    },
+    {
+      "id": "gem:4063f2c09c040119",
+      "name": "冰川盾袭",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Glacial_Shield_Swipe"
+    },
+    {
+      "id": "gem:035ba05ccc8a0464",
+      "name": "冰川之刺",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Glacial_Cascade"
+    },
+    {
+      "id": "gem:3285ad9f4467a8a7",
+      "name": "冰冻陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Trap"
+    },
+    {
+      "id": "gem:34d67dc55cf164cd",
+      "name": "冰封军团",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Frozen_Legion"
+    },
+    {
+      "id": "gem:c0c2e757b88ad43a",
+      "name": "冰冽连接（辅）",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Frigid_Bond_Support"
+    },
+    {
+      "id": "gem:987049500305a680",
+      "name": "冰矛",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Spear"
+    },
+    {
+      "id": "gem:04b957193df66a00",
+      "name": "冰墙",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Wall"
+    },
+    {
+      "id": "gem:0474e88491e12d54",
+      "name": "冰霜穿透(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cold_Penetration_Support"
+    },
+    {
+      "id": "gem:6b3ff07d5b8042c8",
+      "name": "冰霜穿透（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Cold_Penetration_Support"
+    },
+    {
+      "id": "gem:0454832e5a65d03e",
+      "name": "冰霜护盾",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Shield"
+    },
+    {
+      "id": "gem:28a3efcff1afee20",
+      "name": "冰霜净化",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Purity_of_Ice"
+    },
+    {
+      "id": "gem:e9f5f6652f5e036d",
+      "name": "冰霜脉冲",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Freezing_Pulse"
+    },
+    {
+      "id": "gem:555fd0eda030241e",
+      "name": "冰霜闪现",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frostblink"
+    },
+    {
+      "id": "gem:b030dcdd8e147259",
+      "name": "冰霜射击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Shot"
+    },
+    {
+      "id": "gem:69f8a61fc959948a",
+      "name": "冰霜新星",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Nova"
+    },
+    {
+      "id": "gem:353f74b152852d96",
+      "name": "冰霜之锤",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Glacial_Hammer"
+    },
+    {
+      "id": "gem:d1768d245b9a2776",
+      "name": "冰霜之刃",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Blades"
+    },
+    {
+      "id": "gem:fc904c3313335f72",
+      "name": "冰锥地雷",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Icicle_Mine"
+    },
+    {
+      "id": "gem:b3608b5581be9ef3",
+      "name": "捕熊陷阱",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bear_Trap"
+    },
+    {
+      "id": "gem:e7c03ae230c80620",
+      "name": "不坏之七伤破",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Boneshatter_of_Carnage"
+    },
+    {
+      "id": "gem:481b4b04ced00e00",
+      "name": "不洁三体（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Unholy_Trinity_Support"
+    },
+    {
+      "id": "gem:c586cd82bf572ad9",
+      "name": "不朽怒嚎",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Immortal_Call"
+    },
+    {
+      "id": "gem:c472c3b0c7466e38",
+      "name": "残暴(辅)",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Brutality_Support"
+    },
+    {
+      "id": "gem:54baaa2982774100",
+      "name": "残暴（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Brutality_Support"
+    },
+    {
+      "id": "gem:dfe3d4ab49d823b8",
+      "name": "残破（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Rupture_Support"
+    },
+    {
+      "id": "gem:5c8bf0332004c15c",
+      "name": "苍穹之闪电通道",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Conduit_of_the_Heavens"
+    },
+    {
+      "id": "gem:978dbf3c257363f4",
+      "name": "忏悔烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Penance_Brand"
+    },
+    {
+      "id": "gem:2850caa36bd9c61e",
+      "name": "超能增助（辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Overexertion_Support"
+    },
+    {
+      "id": "gem:0238b130295858dd",
+      "name": "超载之电塔陷阱",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Spire_Trap_of_Overloading"
+    },
+    {
+      "id": "gem:7f882ee6c2c55cec",
+      "name": "彻骨（辅）",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Bonechill_Support"
+    },
+    {
+      "id": "gem:fd6f0a3da8371649",
+      "name": "惩击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Smite"
+    },
+    {
+      "id": "gem:eb19cdc3476583a9",
+      "name": "惩击之幻化守卫",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Animate_Guardian_of_Smiting"
+    },
+    {
+      "id": "gem:87c2fbcc21794367",
+      "name": "惩戒",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Punishment"
+    },
+    {
+      "id": "gem:6cf91c427d573374",
+      "name": "持续时间缩短(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Less_Duration_Support"
+    },
+    {
+      "id": "gem:649969723ffd5a62",
+      "name": "持续时间总增（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/More_Duration_Support"
+    },
+    {
+      "id": "gem:fb172443a019b0bc",
+      "name": "赤炼（辅）",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Lifetap_Support"
+    },
+    {
+      "id": "gem:49e34e4addb12b90",
+      "name": "赤炼魔光",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Exsanguinate"
+    },
+    {
+      "id": "gem:7337310426fd6ff8",
+      "name": "赤嚣（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Arrogance_Support"
+    },
+    {
+      "id": "gem:3aedd81afebe7161",
+      "name": "赤血凝结",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Petrified_Blood"
+    },
+    {
+      "id": "gem:aa5c419976282aa3",
+      "name": "充能打击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Static_Strike"
+    },
+    {
+      "id": "gem:cfb0cd5d2b88abce",
+      "name": "充能地雷（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Charged_Mines_Support"
+    },
+    {
+      "id": "gem:449424900c58c56d",
+      "name": "充能陷阱（辅）",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Charged_Traps_Support"
+    },
+    {
+      "id": "gem:e7b1bd98a9123b65",
+      "name": "冲刺",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Dash"
+    },
+    {
+      "id": "gem:27b55e76d72305b0",
+      "name": "冲击波",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Reave"
+    },
+    {
+      "id": "gem:550d74acc7c746f9",
+      "name": "冲击之念动之雨",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Rain_of_Impact"
+    },
+    {
+      "id": "gem:f196321cb2f85259",
+      "name": "穿刺",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Impale_Support"
+    },
+    {
+      "id": "gem:b401d634b1d81f6d",
+      "name": "穿刺之双重打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Double_Strike_of_Impaling"
+    },
+    {
+      "id": "gem:35e8777f0b4b46ca",
+      "name": "穿刺之虚空刀雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bladefall_of_Impaling"
+    },
+    {
+      "id": "gem:30dccde215a1ed65",
+      "name": "穿透(辅)",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Pierce_Support"
+    },
+    {
+      "id": "gem:f7f05046e519adba",
+      "name": "穿云之龙卷射击",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Tornado_Shot_of_Cloudburst"
+    },
+    {
+      "id": "gem:6589b0d9659f1d42",
+      "name": "传导之忏悔烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Penance_Brand_of_Conduction"
+    },
+    {
+      "id": "gem:e795bc4ac3c33c55",
+      "name": "传染之枯萎",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Blight_of_Contagion"
+    },
+    {
+      "id": "gem:bf8a36e770fb5d13",
+      "name": "传输之赤炼魔光",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Exsanguinate_of_Transmission"
+    },
+    {
+      "id": "gem:cb0ba4ea3c3d91d7",
+      "name": "传送之缚雷之纹",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Stormbind_of_Teleportation"
+    },
+    {
+      "id": "gem:9aca57acf48ff981",
+      "name": "垂钓之钩链攻击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Chain_Hook_of_Angling"
+    },
+    {
+      "id": "gem:ae69722762d44bf1",
+      "name": "纯净之捷",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Herald_of_Purity"
+    },
+    {
+      "id": "gem:884e2b2b169c38e5",
+      "name": "脆弱",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vulnerability"
+    },
+    {
+      "id": "gem:4a557760d6bae239",
+      "name": "脆弱之尖刺战吼",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Earthshatter_of_Fragility"
+    },
+    {
+      "id": "gem:c3cace9ac778fe21",
+      "name": "错落之寒冰冲击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Crash_of_Cadence"
+    },
+    {
+      "id": "gem:cc269cbd2cf4f5ec",
+      "name": "大地震击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Sunder"
+    },
+    {
+      "id": "gem:cbbbb527bebe472c",
+      "name": "大法师（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Archmage_Support"
+    },
+    {
+      "id": "gem:2bde0faba77924ee",
+      "name": "大法师之力量抽取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Power_Siphon_of_the_Archmage"
+    },
+    {
+      "id": "gem:7df099fec9e08018",
+      "name": "弹幕",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Barrage"
+    },
+    {
+      "id": "gem:1564e7b2f8f85112",
+      "name": "弹幕（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Barrage_Support"
+    },
+    {
+      "id": "gem:d51ec6182398195f",
+      "name": "弹跃之毒爆灵药",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Poisonous_Concoction_of_Bouncing"
+    },
+    {
+      "id": "gem:1441a65344b749e6",
+      "name": "刀刃乱舞",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Flurry"
+    },
+    {
+      "id": "gem:bcd8901fbdcef92d",
+      "name": "导电",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Conductivity"
+    },
+    {
+      "id": "gem:c2a59469b5ff5f3d",
+      "name": "盗猎者印记",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Poachers_Mark"
+    },
+    {
+      "id": "gem:f4f4e953d98131d2",
+      "name": "地雷网(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Minefield_Support"
+    },
+    {
+      "id": "gem:4c201ffe623b16ef",
+      "name": "低阶毒化(辅)",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Chance_to_Poison_Support"
+    },
+    {
+      "id": "gem:0a9abba678622019",
+      "name": "点燃扩散(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Ignite_Proliferation_Support"
+    },
+    {
+      "id": "gem:210d263ab25a43c8",
+      "name": "电光寒霜",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Creeping_Frost"
+    },
+    {
+      "id": "gem:fb723d8e12eea753",
+      "name": "电光箭",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Galvanic_Arrow"
+    },
+    {
+      "id": "gem:fd0ce5f0949ae6d1",
+      "name": "电弧",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Arc"
+    },
+    {
+      "id": "gem:cb4c11a3fa82ad9e",
+      "name": "电殛之闪电箭矢",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Arrow_of_Electrocution"
+    },
+    {
+      "id": "gem:8a5950f01536dc08",
+      "name": "电流场",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Galvanic_Field"
+    },
+    {
+      "id": "gem:6081b483f1efbc7a",
+      "name": "电能释放",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Tendrils"
+    },
+    {
+      "id": "gem:6d9b60aed74fe5b7",
+      "name": "电球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Spark"
+    },
+    {
+      "id": "gem:1c0f04424029c497",
+      "name": "电塔陷阱",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Spire_Trap"
+    },
+    {
+      "id": "gem:d5e6a396afac7434",
+      "name": "凋零步",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Withering_Step"
+    },
+    {
+      "id": "gem:a9ada551793d8654",
+      "name": "凋零之触（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Withering_Touch_Support"
+    },
+    {
+      "id": "gem:f2b92791c6d9e8a6",
+      "name": "凋零之毒雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Toxic_Rain_of_Withering"
+    },
+    {
+      "id": "gem:4930e87c238d7546",
+      "name": "喋血之凿击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Perforate_of_Bloodshed"
+    },
+    {
+      "id": "gem:265ce5ac15e868d7",
+      "name": "钉刺之捕熊陷阱",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bear_Trap_of_Skewers"
+    },
+    {
+      "id": "gem:ff74e0ddb1bc699c",
+      "name": "定罪波",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wave_of_Conviction"
+    },
+    {
+      "id": "gem:fd4c12e9ea4a920a",
+      "name": "定罪之召唤圣物",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Holy_Relic_of_Conviction"
+    },
+    {
+      "id": "gem:3b103574ddb7f178",
+      "name": "冬潮烙印",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wintertide_Brand"
+    },
+    {
+      "id": "gem:db198ca78c257976",
+      "name": "动荡之寒霜爆",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Bomb_of_Instability"
+    },
+    {
+      "id": "gem:db010e82aeaa51ce",
+      "name": "动量（辅）",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Momentum_Support"
+    },
+    {
+      "id": "gem:63fa18aea14ffff3",
+      "name": "动量之双重打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Double_Strike_of_Momentum"
+    },
+    {
+      "id": "gem:711800a63cebfae9",
+      "name": "冻伤",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frostbite"
+    },
+    {
+      "id": "gem:2d9474b592b1303f",
+      "name": "督军印记",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Warlords_Mark"
+    },
+    {
+      "id": "gem:3b19a10580576301",
+      "name": "毒爆灵药",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Poisonous_Concoction"
+    },
+    {
+      "id": "gem:bf969a15f53e3d6d",
+      "name": "毒化(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Critical_Strike_Affliction_Support"
+    },
+    {
+      "id": "gem:f2f810b16cc89b87",
+      "name": "毒蛇鞭击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cobra_Lash"
+    },
+    {
+      "id": "gem:2707f9cb82f273c3",
+      "name": "毒蛇打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Viper_Strike"
+    },
+    {
+      "id": "gem:5a08625d447de0ce",
+      "name": "毒雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Toxic_Rain"
+    },
+    {
+      "id": "gem:a64a175a4a6afb38",
+      "name": "渎神（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Blasphemy_Support"
+    },
+    {
+      "id": "gem:c2a3b3281f82f72a",
+      "name": "断金之刃",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lancing_Steel"
+    },
+    {
+      "id": "gem:95b5e712b37289ad",
+      "name": "对偶之凿击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Perforate_of_Duality"
+    },
+    {
+      "id": "gem:32afb62293051dc7",
+      "name": "盾牌碾压",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shield_Crush"
+    },
+    {
+      "id": "gem:7099fdf463a25936",
+      "name": "多重打击(辅)",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Multistrike_Support"
+    },
+    {
+      "id": "gem:b81dffda02ca83fb",
+      "name": "多重打击（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Multistrike_Support"
+    },
+    {
+      "id": "gem:978f6335380c3af0",
+      "name": "多重范围施法(辅)",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:9fb5da1e3558fb22",
+      "name": "多重范围施法（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:6a4c56fcb0dd17ba",
+      "name": "多重投射(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:f435dffc46e27ce4",
+      "name": "多重图腾（辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Multiple_Totems_Support"
+    },
+    {
+      "id": "gem:b5dfe141a909e80e",
+      "name": "多重陷阱(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Multiple_Traps_Support"
+    },
+    {
+      "id": "gem:ad9dce945677dd7a",
+      "name": "额外命中(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Additional_Accuracy_Support"
+    },
+    {
+      "id": "gem:160d72f752c3f27d",
+      "name": "发明（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Invention_Support"
+    },
+    {
+      "id": "gem:17be7cb2cd033e43",
+      "name": "法师之召唤魔侍",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Skeletons_of_Mages"
+    },
+    {
+      "id": "gem:2f37c5b5d4b7b37b",
+      "name": "法术节魔",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Spellslinger"
+    },
+    {
+      "id": "gem:cce6f277fb1e68d5",
+      "name": "法术凝聚（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Intensify_Support"
+    },
+    {
+      "id": "gem:87f5c3256e824870",
+      "name": "法术图腾(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Spell_Totem_Support"
+    },
+    {
+      "id": "gem:f0f0ea37b8dfa31f",
+      "name": "法铸箭矢（辅）",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Manaforged_Arrows_Support"
+    },
+    {
+      "id": "gem:1e2220fa11507ee9",
+      "name": "防御羁绊",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Protective_Link"
+    },
+    {
+      "id": "gem:4c957b056bf3a186",
+      "name": "放血",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Puncture"
+    },
+    {
+      "id": "gem:32959313464001d3",
+      "name": "飞刃风暴",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Vortex"
+    },
+    {
+      "id": "gem:e288d3c92818d7fa",
+      "name": "飞射之断金之刃",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lancing_Steel_of_Spraying"
+    },
+    {
+      "id": "gem:9ffdf1e0f550521e",
+      "name": "沸燃之灵体火球",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Volatile_Dead_of_Seething"
+    },
+    {
+      "id": "gem:4db77ebb095dac48",
+      "name": "分叉之攻城炮台",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Siege_Ballista_of_Splintering"
+    },
+    {
+      "id": "gem:d5a3b31d7bd9e3a8",
+      "name": "分叉之霹雳长枪",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Crackling_Lance_of_Branching"
+    },
+    {
+      "id": "gem:ff9504f209f7ab82",
+      "name": "分裂(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Fork_Support"
+    },
+    {
+      "id": "gem:b61a56a416b533c2",
+      "name": "分裂（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Fork_Support"
+    },
+    {
+      "id": "gem:44d5b6bed75d1a50",
+      "name": "分裂钢刃",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Splitting_Steel"
+    },
+    {
+      "id": "gem:c968de59d788910d",
+      "name": "分裂箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Split_Arrow"
+    },
+    {
+      "id": "gem:ad81b963f01c5b7d",
+      "name": "分裂之冰矛",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Spear_of_Splitting"
+    },
+    {
+      "id": "gem:ec3c47316ee97274",
+      "name": "分裂之分裂箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Split_Arrow_of_Splitting"
+    },
+    {
+      "id": "gem:f2047bbc800f4c5a",
+      "name": "焚灭之灼热光线",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Scorching_Ray_of_Immolation"
+    },
+    {
+      "id": "gem:47b85913cdf0f24b",
+      "name": "焚木烈火（辅）",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Flamewood_Support"
+    },
+    {
+      "id": "gem:23827e0ec0d1240c",
+      "name": "粉碎（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Pulverise_Support"
+    },
+    {
+      "id": "gem:4c24be5c398fab10",
+      "name": "粉碎重拳",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Crushing_Fist"
+    },
+    {
+      "id": "gem:70826663d4e13fd2",
+      "name": "奋发之霸气之击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Dominating_Blow_of_Inspiring"
+    },
+    {
+      "id": "gem:93cb08376cea56c9",
+      "name": "奋发之赦罪",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Absolution_of_Inspiring"
+    },
+    {
+      "id": "gem:48d2f92a16bbd07d",
+      "name": "奋锐光环",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Zealotry"
+    },
+    {
+      "id": "gem:e9e15f5630c146c9",
+      "name": "愤怒",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Anger"
+    },
+    {
+      "id": "gem:29de1afec540c369",
+      "name": "风暴呼唤",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Call"
+    },
+    {
+      "id": "gem:339e44983667b760",
+      "name": "风暴烙印",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Brand"
+    },
+    {
+      "id": "gem:a18927a1cfb26513",
+      "name": "风暴漩涡",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Orb_of_Storms"
+    },
+    {
+      "id": "gem:7f2fbae07910be27",
+      "name": "风爆术（辅）",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Windburst_Support"
+    },
+    {
+      "id": "gem:a70d38c751dcc7e0",
+      "name": "奉献之路",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Consecrated_Path"
+    },
+    {
+      "id": "gem:a5d3b8ac6785bbb5",
+      "name": "伏击",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ambush"
+    },
+    {
+      "id": "gem:1c0e579359e3416f",
+      "name": "浮冰之电光寒霜",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Creeping_Frost_of_Floes"
+    },
+    {
+      "id": "gem:896d6882d0f6d1a4",
+      "name": "辐照之忏悔烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Penance_Brand_of_Dissipation"
+    },
+    {
+      "id": "gem:e68f732654341b1f",
+      "name": "腐化战吼（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Corrupting_Cry_Support"
+    },
+    {
+      "id": "gem:34068d75a7e77677",
+      "name": "腐蚀(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Decay_Support"
+    },
+    {
+      "id": "gem:36490a0a17eb380c",
+      "name": "腐蚀箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Caustic_Arrow"
+    },
+    {
+      "id": "gem:300bd3e31d286b3e",
+      "name": "腐灼热瘟",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Corrupting_Fever"
+    },
+    {
+      "id": "gem:4e503517a2a84f8f",
+      "name": "附加冰霜伤害(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Added_Cold_Damage_Support"
+    },
+    {
+      "id": "gem:ac54a00d48f2ca04",
+      "name": "附加冰霜伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Added_Cold_Damage_Support"
+    },
+    {
+      "id": "gem:d300240963ecad47",
+      "name": "附加混沌伤害(辅)",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Added_Chaos_Damage_Support"
+    },
+    {
+      "id": "gem:550f138a304e3bea",
+      "name": "附加混沌伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Added_Chaos_Damage_Support"
+    },
+    {
+      "id": "gem:b395677ff4c8ce6c",
+      "name": "附加火焰伤害(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Added_Fire_Damage_Support"
+    },
+    {
+      "id": "gem:9bb4d328398aef20",
+      "name": "附加火焰伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Added_Fire_Damage_Support"
+    },
+    {
+      "id": "gem:4cd05abfc9692ece",
+      "name": "附加闪电伤害(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Added_Lightning_Damage_Support"
+    },
+    {
+      "id": "gem:c6ce295eff142576",
+      "name": "附加闪电伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Added_Lightning_Damage_Support"
+    },
+    {
+      "id": "gem:1afbab5b66197714",
+      "name": "复仇咆哮",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vengeful_Cry"
+    },
+    {
+      "id": "gem:4956c1a01d009d4b",
+      "name": "赋予(辅)",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Empower_Support"
+    },
+    {
+      "id": "gem:91c43bcc27e3a667",
+      "name": "赋予（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Empower_Support"
+    },
+    {
+      "id": "gem:3c626a6102d9aaa6",
+      "name": "缚雷之纹",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Stormbind"
+    },
+    {
+      "id": "gem:ec3fc9f78ecd270d",
+      "name": "缚魔电场",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Manabond"
+    },
+    {
+      "id": "gem:582c0fb2322b606d",
+      "name": "刚刃之散射弩炮",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Shrapnel_Ballista_of_Steel"
+    },
+    {
+      "id": "gem:de47a102749bd931",
+      "name": "钢铁意志(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Iron_Will_Support"
+    },
+    {
+      "id": "gem:069d1f0a2fbef5b8",
+      "name": "钢铁之肤",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Steelskin"
+    },
+    {
+      "id": "gem:803b464774d94812",
+      "name": "钢铁之握(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Iron_Grip_Support"
+    },
+    {
+      "id": "gem:c5a88badba90f1a0",
+      "name": "高爆地雷（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/High-Impact_Mine_Support"
+    },
+    {
+      "id": "gem:f5d5b3735e51cd35",
+      "name": "高阶多重打击（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Multistrike_Support"
+    },
+    {
+      "id": "gem:792e84f4b2f1df2f",
+      "name": "高阶多重施法范围（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:2927b8bfe76f5763",
+      "name": "高阶多重投射(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:ed1bdfce5b0c674b",
+      "name": "高阶多重投射（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Greater_Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:73fdda6d7c401683",
+      "name": "高阶分裂（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Fork_Support"
+    },
+    {
+      "id": "gem:aee6389b6c2b0d61",
+      "name": "高阶连锁（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Chain_Support"
+    },
+    {
+      "id": "gem:9f5f74d41516c6ac",
+      "name": "高阶念动失稳（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Kinetic_Instability_Support"
+    },
+    {
+      "id": "gem:2662e702bd11f595",
+      "name": "高阶齐射（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Volley_Support"
+    },
+    {
+      "id": "gem:854577b1845eafea",
+      "name": "高阶施法回响（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Spell_Echo_Support"
+    },
+    {
+      "id": "gem:8c13e3912676560b",
+      "name": "高阶释出（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Unleash_Support"
+    },
+    {
+      "id": "gem:038efc76eb106452",
+      "name": "高阶吞噬（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Devour_Support"
+    },
+    {
+      "id": "gem:37119f6665bfb5c0",
+      "name": "高阶先祖召唤（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Greater_Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:a52fd1b8663feece",
+      "name": "割痕之刀刃乱舞",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Flurry_of_Incision"
+    },
+    {
+      "id": "gem:db54f64ae3211544",
+      "name": "割碎之放血",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Puncture_of_Shanking"
+    },
+    {
+      "id": "gem:c7cc0da2eecedd98",
+      "name": "攻城炮台",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Siege_Ballista"
+    },
+    {
+      "id": "gem:2de2d3c1034e9e96",
+      "name": "钩链攻击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Chain_Hook"
+    },
+    {
+      "id": "gem:d342184858a8959d",
+      "name": "古神亵渎（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Eldritch_Blasphemy_Support"
+    },
+    {
+      "id": "gem:7b3919fa13fd7183",
+      "name": "蛊咒（辅）",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Hextouch_Support"
+    },
+    {
+      "id": "gem:0d0a0147fdbfa7f5",
+      "name": "蛊咒【强辅】",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Hextouch_Support"
+    },
+    {
+      "id": "gem:8aa49ba703077747",
+      "name": "痼疾之瘟疫",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Contagion_of_Subsiding"
+    },
+    {
+      "id": "gem:5f401c426fd5b240",
+      "name": "贯穿之冰霜射击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Shot_of_Penetration"
+    },
+    {
+      "id": "gem:b1e1e8dc6ef8db0d",
+      "name": "灌能吟唱(辅)",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Infused_Channelling_Support"
+    },
+    {
+      "id": "gem:484d21e2e0c8659a",
+      "name": "光辉之神圣冲击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Blast_of_Radiance"
+    },
+    {
+      "id": "gem:e5433ed4eba2fed2",
+      "name": "光明之盾",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shield_of_Light"
+    },
+    {
+      "id": "gem:c07d95cf8f2dd7af",
+      "name": "光谱之元素打击",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Elemental_Hit_of_the_Spectrum"
+    },
+    {
+      "id": "gem:68a7f23bf5caff73",
+      "name": "归返之烈焰冲刺",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Dash_of_Return"
+    },
+    {
+      "id": "gem:b87bfc4cfa491a08",
+      "name": "诡诈阴谋（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Machinations_Support"
+    },
+    {
+      "id": "gem:ca1480cff63c6493",
+      "name": "过热（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Overheat_Support"
+    },
+    {
+      "id": "gem:3fe0df5046c2db27",
+      "name": "过载（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Overcharge_Support"
+    },
+    {
+      "id": "gem:fec5c422791b89f9",
+      "name": "过载强度（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Overloaded_Intensity_Support"
+    },
+    {
+      "id": "gem:787a1e954c622a10",
+      "name": "寒冰冲击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Crash"
+    },
+    {
+      "id": "gem:4ad11f9400cb5338",
+      "name": "寒冰弹",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frostbolt"
+    },
+    {
+      "id": "gem:e8d52ca829292e81",
+      "name": "寒冰弹之冰霜新星",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Nova_of_Frostbolts"
+    },
+    {
+      "id": "gem:54524002b5c70c70",
+      "name": "寒冰之捷",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Herald_of_Ice"
+    },
+    {
+      "id": "gem:eb8eb4b75fa980f6",
+      "name": "寒冰转烈焰(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Cold_to_Fire_Support"
+    },
+    {
+      "id": "gem:a0b8cbced8e259bf",
+      "name": "寒冬宝珠",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Winter_Orb"
+    },
+    {
+      "id": "gem:319e678c768c1b8f",
+      "name": "寒霜爆",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Bomb"
+    },
+    {
+      "id": "gem:42ff7d02acd6b7b3",
+      "name": "寒霜法师（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Frostmage_Support"
+    },
+    {
+      "id": "gem:d5e33271304646b1",
+      "name": "浩劫之魔蛊爆炸",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Hexblast_of_Havoc"
+    },
+    {
+      "id": "gem:4c9c8bb777e3a8f4",
+      "name": "和平主义（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Pacifism_Support"
+    },
+    {
+      "id": "gem:1df0377fb83ceb68",
+      "name": "和善(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Generosity_Support"
+    },
+    {
+      "id": "gem:2725b293b504e680",
+      "name": "和善（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Generosity_Support"
+    },
+    {
+      "id": "gem:8305c02ee38624ea",
+      "name": "核心地雷（辅）",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Locus_Mine_Support"
+    },
+    {
+      "id": "gem:455e9b03b76f8738",
+      "name": "黑暗交易",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Dark_Bargain"
+    },
+    {
+      "id": "gem:e34a0b6474bf3116",
+      "name": "轰匕之乱剑穿心",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Blast_of_Dagger_Detonation"
+    },
+    {
+      "id": "gem:6610f313916bfe30",
+      "name": "轰炸复制体之魅影射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Mirror_Arrow_of_Bombarding_Clones"
+    },
+    {
+      "id": "gem:2472a28bb3d1f5fd",
+      "name": "轰炸复制体之闪现射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blink_Arrow_of_Bombarding_Clones"
+    },
+    {
+      "id": "gem:10ba35b8211fb5da",
+      "name": "虹吸陷阱",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Siphoning_Trap"
+    },
+    {
+      "id": "gem:5c3b4de78f7b34c3",
+      "name": "弧光之闪电打击",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Strike_of_Arcing"
+    },
+    {
+      "id": "gem:d004cb436f4b5d0e",
+      "name": "护体(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Fortify_Support"
+    },
+    {
+      "id": "gem:4455fd03ba9c203d",
+      "name": "幻化守卫",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Animate_Guardian"
+    },
+    {
+      "id": "gem:2c5e2d25288aaaa3",
+      "name": "幻化武器",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Animate_Weapon"
+    },
+    {
+      "id": "gem:b87e578042a01d8f",
+      "name": "幻影射手(辅)",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Mirage_Archer_Support"
+    },
+    {
+      "id": "gem:061f2f9b8a0b1f2e",
+      "name": "灰烬之捷",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Herald_of_Ash"
+    },
+    {
+      "id": "gem:02d42a91d67e843e",
+      "name": "回春图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Rejuvenation_Totem"
+    },
+    {
+      "id": "gem:3c5f137e28050b9d",
+      "name": "回溯之末日烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Armageddon_Brand_of_Recall"
+    },
+    {
+      "id": "gem:c380e4ef7ea2ccbb",
+      "name": "回旋之刃",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Whirling_Blades"
+    },
+    {
+      "id": "gem:6fe500f417145f86",
+      "name": "毁灭羁绊",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Destructive_Link"
+    },
+    {
+      "id": "gem:7338c1864608c1a0",
+      "name": "毁灭之爆破灵药",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Concoction_of_Destruction"
+    },
+    {
+      "id": "gem:4222e2dd3ba276d0",
+      "name": "会心一击（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Pinpoint_Support"
+    },
+    {
+      "id": "gem:6037c0825ce5e2a2",
+      "name": "混沌之毒",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Bane"
+    },
+    {
+      "id": "gem:0f84f81ab567e08e",
+      "name": "混渊之召唤混沌魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Chaos_Golem_of_the_Maelstr%C3%B6m"
+    },
+    {
+      "id": "gem:03093c607cb5a028",
+      "name": "活力",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vitality"
+    },
+    {
+      "id": "gem:d1a186f32ac924e1",
+      "name": "活体闪电（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Living_Lightning_Support"
+    },
+    {
+      "id": "gem:edc92d43204d6f87",
+      "name": "火花之闪电陷阱",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Trap_of_Sparking"
+    },
+    {
+      "id": "gem:02bc4aac0c8d004c",
+      "name": "火力弩炮",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Artillery_Ballista"
+    },
+    {
+      "id": "gem:7f10f461cc93b5b1",
+      "name": "火球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Fireball"
+    },
+    {
+      "id": "gem:a1c8411fbb83e720",
+      "name": "火山裂缝",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Volcanic_Fissure"
+    },
+    {
+      "id": "gem:fc9670f4b6258370",
+      "name": "火山之火葬",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cremation_of_the_Volcano"
+    },
+    {
+      "id": "gem:3963271deb84715b",
+      "name": "火屑地雷",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Pyroclast_Mine"
+    },
+    {
+      "id": "gem:dd04bfa05a4ca057",
+      "name": "火焰穿透(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Fire_Penetration_Support"
+    },
+    {
+      "id": "gem:a090131e888c9c2b",
+      "name": "火焰穿透（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Fire_Penetration_Support"
+    },
+    {
+      "id": "gem:b870eda43bc788ef",
+      "name": "火焰净化",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Purity_of_Fire"
+    },
+    {
+      "id": "gem:d69de65364f27521",
+      "name": "火焰陷阱",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Fire_Trap"
+    },
+    {
+      "id": "gem:3b03d6c5bdc374f3",
+      "name": "火葬",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cremation"
+    },
+    {
+      "id": "gem:84ae57c464985fae",
+      "name": "击退(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Knockback_Support"
+    },
+    {
+      "id": "gem:ae13932a066811d7",
+      "name": "击晕(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Stun_Support"
+    },
+    {
+      "id": "gem:4481e8f00c621075",
+      "name": "击中生命回复(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Life_Gain_on_Hit_Support"
+    },
+    {
+      "id": "gem:87daddb53e92d0bd",
+      "name": "击中时施加印记（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Mark_On_Hit_Support"
+    },
+    {
+      "id": "gem:1024d60bf16fddc2",
+      "name": "激励战吼",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Rallying_Cry"
+    },
+    {
+      "id": "gem:0bc6dc1059f7ae3e",
+      "name": "激涌之电弧",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Arc_of_Surging"
+    },
+    {
+      "id": "gem:8c7a091904b0f54b",
+      "name": "极地装甲",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Old_Arctic_Armour"
+    },
+    {
+      "id": "gem:e18bd0c7147f1e28",
+      "name": "极速腐化(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Swift_Affliction_Support"
+    },
+    {
+      "id": "gem:58bc172e9d55a9c8",
+      "name": "极速腐化（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Swift_Affliction_Support"
+    },
+    {
+      "id": "gem:aea10ed69b938863",
+      "name": "极限之野性打击",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Wild_Strike_of_Extremes"
+    },
+    {
+      "id": "gem:34483c1714bc638c",
+      "name": "急冻(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Hypothermia_Support"
+    },
+    {
+      "id": "gem:2fbea8964cd5cf8c",
+      "name": "集结之冰封军团",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Frozen_Legion_of_Rallying"
+    },
+    {
+      "id": "gem:33e0cfa4293f6285",
+      "name": "集束之力量爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Blast_of_Clustering"
+    },
+    {
+      "id": "gem:dc74ad1f5672da36",
+      "name": "集中效应(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Concentrated_Effect_Support"
+    },
+    {
+      "id": "gem:ca8fa53df6ab6e23",
+      "name": "几率点燃(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Combustion_Support"
+    },
+    {
+      "id": "gem:7a9726989f1d145e",
+      "name": "几率流血(辅)",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Chance_to_Bleed_Support"
+    },
+    {
+      "id": "gem:432f15ed1778e919",
+      "name": "几率逃跑(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Chance_to_Flee_Support"
+    },
+    {
+      "id": "gem:7532e821da912a94",
+      "name": "纪律",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Discipline"
+    },
+    {
+      "id": "gem:3bb95c0887a224c9",
+      "name": "祭魂之禁断典仪",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Forbidden_Rite_of_Soul_Sacrifice"
+    },
+    {
+      "id": "gem:9a44d979db7d6733",
+      "name": "加护之闪电新星",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Shock_Nova_of_Procession"
+    },
+    {
+      "id": "gem:d433cee7d8d8af4e",
+      "name": "尖刺战吼",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Earthshatter"
+    },
+    {
+      "id": "gem:dd8511d6cb6f9914",
+      "name": "坚定",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Determination"
+    },
+    {
+      "id": "gem:7b5cfa764841f807",
+      "name": "坚决战吼",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Enduring_Cry"
+    },
+    {
+      "id": "gem:44ae5d3a37e536a0",
+      "name": "减少格挡几率(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Block_Chance_Reduction_Support"
+    },
+    {
+      "id": "gem:aa4842916f97443a",
+      "name": "剑刃风暴",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Bladestorm"
+    },
+    {
+      "id": "gem:da317473751839b1",
+      "name": "剑刃陷阱",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Trap"
+    },
+    {
+      "id": "gem:a8b6eaf8d947e0ca",
+      "name": "箭雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Rain_of_Arrows"
+    },
+    {
+      "id": "gem:2e029e0047eac4d9",
+      "name": "箭之新星（辅）",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Arrow_Nova_Support"
+    },
+    {
+      "id": "gem:1c5ccd5697a92367",
+      "name": "箭之新星（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Arrow_Nova_Support"
+    },
+    {
+      "id": "gem:2d5319174095ad0e",
+      "name": "将军之吼",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Generals_Cry"
+    },
+    {
+      "id": "gem:c0c9b43d8aeb00e7",
+      "name": "交叉扫射之火力弩炮",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Artillery_Ballista_of_Cross_Strafe"
+    },
+    {
+      "id": "gem:8d2b3402dd0ad193",
+      "name": "结界破碎时释放（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_on_Ward_Break_Support"
+    },
+    {
+      "id": "gem:6ba7195229578eb3",
+      "name": "结群之召唤腐化魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Carrion_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:fc58507a5e00eeb1",
+      "name": "结群之召唤寒冰魔像",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Ice_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:b911308755b7543f",
+      "name": "结群之召唤混沌魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Chaos_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:dedfe0ef833acf28",
+      "name": "结群之召唤巨石魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Stone_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:dad524a17c1c2aa3",
+      "name": "结群之召唤烈焰魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Flame_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:62bb2f6361be9c3a",
+      "name": "结群之召唤闪电魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Lightning_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:c46b029a06b44646",
+      "name": "解放",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Discharge"
+    },
+    {
+      "id": "gem:e0c5b31e3cab9fd7",
+      "name": "戒备打击",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vigilant_Strike"
+    },
+    {
+      "id": "gem:e17419bc347e6a05",
+      "name": "紧急号令（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Urgent_Orders_Support"
+    },
+    {
+      "id": "gem:142239bd0c09c801",
+      "name": "近战（辅）",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Close_Combat_Support"
+    },
+    {
+      "id": "gem:39bcce54123f544b",
+      "name": "近战击败时施放(辅)",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_on_Melee_Kill_Support"
+    },
+    {
+      "id": "gem:d04048eb39c6a98f",
+      "name": "近战击晕获得耐力球(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Endurance_Charge_on_Melee_Stun_Support"
+    },
+    {
+      "id": "gem:2e9d6d0841de0973",
+      "name": "近战伤害扩散(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Melee_Splash_Support"
+    },
+    {
+      "id": "gem:04868034088d5533",
+      "name": "近战伤害扩散（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Melee_Splash_Support"
+    },
+    {
+      "id": "gem:29ca84597373ed11",
+      "name": "近战物理伤害(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Melee_Physical_Damage_Support"
+    },
+    {
+      "id": "gem:77af0d96a67c89c3",
+      "name": "近战物理伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Melee_Physical_Damage_Support"
+    },
+    {
+      "id": "gem:5c091c11aaa7d438",
+      "name": "禁断典仪",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Forbidden_Rite"
+    },
+    {
+      "id": "gem:f93581f66d83a853",
+      "name": "精华吸取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Essence_Drain"
+    },
+    {
+      "id": "gem:c291a69488ee9868",
+      "name": "精准",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Precision"
+    },
+    {
+      "id": "gem:7c96657698c1b93f",
+      "name": "精准炽炎（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Controlled_Blaze_Support"
+    },
+    {
+      "id": "gem:3e192610561a9a71",
+      "name": "精准破坏(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Controlled_Destruction_Support"
+    },
+    {
+      "id": "gem:de3eb7725d83241c",
+      "name": "精准破坏（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Controlled_Destruction_Support"
+    },
+    {
+      "id": "gem:accee8ef7292963c",
+      "name": "净化烈焰",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Purifying_Flame"
+    },
+    {
+      "id": "gem:cb6ed882eec45135",
+      "name": "静滞之天雷之珠",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ball_Lightning_of_Static"
+    },
+    {
+      "id": "gem:3121dbd5d58d2ad5",
+      "name": "拘束之灵体火球",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Volatile_Dead_of_Confinement"
+    },
+    {
+      "id": "gem:4823d25773ed1281",
+      "name": "狙击",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Snipe"
+    },
+    {
+      "id": "gem:fd3a3a7a7c683723",
+      "name": "狙击印记",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Snipers_Mark"
+    },
+    {
+      "id": "gem:a0379fdd1fd93777",
+      "name": "巨剑之剑刃陷阱",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Trap_of_Greatswords"
+    },
+    {
+      "id": "gem:d9de745a62e228e2",
+      "name": "巨镰之飞刃风暴",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Vortex_of_the_Scythe"
+    },
+    {
+      "id": "gem:5264af9d50577c52",
+      "name": "具化之灵体投掷",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Throw_of_Materialising"
+    },
+    {
+      "id": "gem:fb7906f3c3d93f66",
+      "name": "剧毒旋风",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Venom_Gyre"
+    },
+    {
+      "id": "gem:b8f3960f0e9be6fe",
+      "name": "剧毒之腐蚀箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Caustic_Arrow_of_Poison"
+    },
+    {
+      "id": "gem:bdabe83e207473ae",
+      "name": "剧烈之爆炸陷阱",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Trap_of_Magnitude"
+    },
+    {
+      "id": "gem:79e1cd66d33f2082",
+      "name": "剧烈之电流场",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Galvanic_Field_of_Intensity"
+    },
+    {
+      "id": "gem:0b33b10a5e01f448",
+      "name": "聚火之烈焰爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flameblast_of_Contraction"
+    },
+    {
+      "id": "gem:3d9555c967a19627",
+      "name": "聚雷之充能打击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Static_Strike_of_Gathering_Lightning"
+    },
+    {
+      "id": "gem:c2b7704451f32372",
+      "name": "聚能之电光箭",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Galvanic_Arrow_of_Energy"
+    },
+    {
+      "id": "gem:3f2c690096363dca",
+      "name": "绝命之镰",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Reap"
+    },
+    {
+      "id": "gem:e50177ca08eff2ba",
+      "name": "绝望",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Despair"
+    },
+    {
+      "id": "gem:4ca214c10863c7fc",
+      "name": "绝望之灵魂吸取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Essence_Drain_of_Desperation"
+    },
+    {
+      "id": "gem:1e314e1e8a4e9432",
+      "name": "掘灭之火葬",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cremation_of_Exhuming"
+    },
+    {
+      "id": "gem:7c0744e54fef38ee",
+      "name": "抗拒之裂风雷球",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Burst_of_Repulsion"
+    },
+    {
+      "id": "gem:2cd9b1398bff60aa",
+      "name": "抗争之旗",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Defiance_Banner"
+    },
+    {
+      "id": "gem:fda00471df0bb8bc",
+      "name": "空洞之冰冻陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Trap_of_Hollowness"
+    },
+    {
+      "id": "gem:c70b10c2b4923ffb",
+      "name": "恐怖之旗",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Dread_Banner"
+    },
+    {
+      "id": "gem:72b3f21daca03e68",
+      "name": "枯萎",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Blight"
+    },
+    {
+      "id": "gem:849f43b7c94716f2",
+      "name": "苦难之解放",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Discharge_of_Misery"
+    },
+    {
+      "id": "gem:f04814f8a5d22b10",
+      "name": "苦痛之捷",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Herald_of_Agony"
+    },
+    {
+      "id": "gem:a3866dbb1a5dee63",
+      "name": "快速攻击(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Faster_Attacks_Support"
+    },
+    {
+      "id": "gem:565d00f2edb200a4",
+      "name": "快速施法(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Faster_Casting_Support"
+    },
+    {
+      "id": "gem:782a4b90d32b34b8",
+      "name": "快速投射(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Faster_Projectiles_Support"
+    },
+    {
+      "id": "gem:29a427f868de3ddd",
+      "name": "狂暴之怒火漩涡",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Rage_Vortex_of_Berserking"
+    },
+    {
+      "id": "gem:4757e3854f1b5acf",
+      "name": "狂风之风暴旋涡",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Orb_of_Storms_of_Squalls"
+    },
+    {
+      "id": "gem:7d45b7edc20b0190",
+      "name": "狂戮之虚空匕首",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ethereal_Knives_of_the_Massacre"
+    },
+    {
+      "id": "gem:4c1038fd43f39ee1",
+      "name": "狂怒",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Frenzy"
+    },
+    {
+      "id": "gem:0c13617ad9cb10b5",
+      "name": "狂噬（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Feeding_Frenzy_Support"
+    },
+    {
+      "id": "gem:50a978265bedef22",
+      "name": "狂野怒火",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blood_Rage"
+    },
+    {
+      "id": "gem:41b892e7b5de1d85",
+      "name": "扩散之冰锥地雷",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Icicle_Mine_of_Fanning"
+    },
+    {
+      "id": "gem:d232ad4cb9cea383",
+      "name": "浪涌之电光箭",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Galvanic_Arrow_of_Surging"
+    },
+    {
+      "id": "gem:ec9722296cec4650",
+      "name": "烙印召回",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Brand_Recall"
+    },
+    {
+      "id": "gem:1378c15a5be710ae",
+      "name": "雷暴地雷",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Stormblast_Mine"
+    },
+    {
+      "id": "gem:e26a34bc5ee64f4a",
+      "name": "雷电魔爆",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Voltaxic_Burst"
+    },
+    {
+      "id": "gem:c60ccc8a48286f79",
+      "name": "雷霆",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wrath"
+    },
+    {
+      "id": "gem:722a8ec011d5afc6",
+      "name": "雷霆风暴",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Thunderstorm"
+    },
+    {
+      "id": "gem:7f57d9e48079dd60",
+      "name": "棱光复制体之魅影射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Mirror_Arrow_of_Prismatic_Clones"
+    },
+    {
+      "id": "gem:5525fcb60ebf808a",
+      "name": "棱光复制体之闪现射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blink_Arrow_of_Prismatic_Clones"
+    },
+    {
+      "id": "gem:c2d2025d02f3617c",
+      "name": "棱光魔爆（辅）",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Prismatic_Burst_Support"
+    },
+    {
+      "id": "gem:ad21b0cc291dd8dc",
+      "name": "冷却回复（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Cooldown_Recovery_Support"
+    },
+    {
+      "id": "gem:224a80d9dce6a330",
+      "name": "离心之电能释放",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Tendrils_of_Eccentricity"
+    },
+    {
+      "id": "gem:f6dfc66875371f0c",
+      "name": "力场之墙",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wall_of_Force"
+    },
+    {
+      "id": "gem:c754a3a7513dc19b",
+      "name": "力量爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Blast"
+    },
+    {
+      "id": "gem:b46e58ba1bd3620f",
+      "name": "力量抽取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Power_Siphon"
+    },
+    {
+      "id": "gem:bd0a0d754aa61d73",
+      "name": "连绵之虚空刀雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bladefall_of_Volleys"
+    },
+    {
+      "id": "gem:a3b0e4043d1668fc",
+      "name": "连锁(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Chain_Support"
+    },
+    {
+      "id": "gem:43f2be134ce6502a",
+      "name": "连锁（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Chain_Support"
+    },
+    {
+      "id": "gem:0404e0bb0d8916ea",
+      "name": "连锁之爆灵术",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Detonate_Dead_of_Chain_Reaction"
+    },
+    {
+      "id": "gem:f085ee78f4b37f2b",
+      "name": "敛骸之召唤腐化魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Carrion_Golem_of_Scavenging"
+    },
+    {
+      "id": "gem:196a07749f134b86",
+      "name": "炼金师印记",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Alchemists_Mark"
+    },
+    {
+      "id": "gem:77f4e57390342f52",
+      "name": "炼狱战吼",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Infernal_Cry"
+    },
+    {
+      "id": "gem:0511ff51245c93c7",
+      "name": "炼狱之击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Infernal_Blow"
+    },
+    {
+      "id": "gem:a7c6b5734dc504a2",
+      "name": "链爆地雷（辅）",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Blastchain_Mine_Support"
+    },
+    {
+      "id": "gem:d339eca604768a78",
+      "name": "烈炎风暴",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Firestorm"
+    },
+    {
+      "id": "gem:e2c8c2556b633698",
+      "name": "烈炎羁绊",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Link"
+    },
+    {
+      "id": "gem:ce9ccbb68f6a4498",
+      "name": "烈焰爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flameblast"
+    },
+    {
+      "id": "gem:c6abcac94f1e24e9",
+      "name": "烈焰冲刺",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Dash"
+    },
+    {
+      "id": "gem:55c7e26f238c227e",
+      "name": "烈焰之墙",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Wall"
+    },
+    {
+      "id": "gem:a5526a8a75869ce2",
+      "name": "裂地之大地震击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Sunder_of_Earthbreaking"
+    },
+    {
+      "id": "gem:ff61e6c6c1bb24c6",
+      "name": "裂地之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ground_Slam"
+    },
+    {
+      "id": "gem:727db7b74ebf5c55",
+      "name": "裂地之灵（辅）",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Earthbreaker_Support"
+    },
+    {
+      "id": "gem:0953400f73c3ab8b",
+      "name": "裂风雷球",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Burst"
+    },
+    {
+      "id": "gem:406289736812c055",
+      "name": "裂缝（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Fissure_Support"
+    },
+    {
+      "id": "gem:8bb142cd0cfc1eda",
+      "name": "裂骨之召唤追命死灵",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Reaper_of_Eviscerating"
+    },
+    {
+      "id": "gem:af455057edafeb45",
+      "name": "裂魂术",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Soulrend"
+    },
+    {
+      "id": "gem:d4b51759ba8d132d",
+      "name": "裂伤之剑刃陷阱",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Trap_of_Laceration"
+    },
+    {
+      "id": "gem:40c1f48f22006b1c",
+      "name": "裂隙虫群（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Hiveborn_Support"
+    },
+    {
+      "id": "gem:ef2f8c14865d6b7b",
+      "name": "裂隙之冰川之刺",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Glacial_Cascade_of_the_Fissure"
+    },
+    {
+      "id": "gem:30dc17d24ac9a147",
+      "name": "凛冬之眼",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Eye_of_Winter"
+    },
+    {
+      "id": "gem:7b2384d24486cf18",
+      "name": "灵盾投掷",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Shield_Throw"
+    },
+    {
+      "id": "gem:e70c7979661d8868",
+      "name": "灵幻旋斩",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Helix"
+    },
+    {
+      "id": "gem:ef513297ec72d428",
+      "name": "灵魂奉献",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Spirit_Offering"
+    },
+    {
+      "id": "gem:9182b85a7e6f60e5",
+      "name": "灵魂羁绊",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Soul_Link"
+    },
+    {
+      "id": "gem:706ed35f82ad777a",
+      "name": "灵体火球",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Volatile_Dead"
+    },
+    {
+      "id": "gem:fc967ec0a2d78f30",
+      "name": "灵体投掷",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Throw"
+    },
+    {
+      "id": "gem:d692d749fb1322cf",
+      "name": "灵体转换",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Bodyswap"
+    },
+    {
+      "id": "gem:10e62dd9c5b7b2d5",
+      "name": "凌厉（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Cruelty_Support"
+    },
+    {
+      "id": "gem:474c5c07760d53ca",
+      "name": "凌虐（辅）",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Sadism_Support"
+    },
+    {
+      "id": "gem:a2a72eb4de5448d1",
+      "name": "零点射击(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Point_Blank_Support"
+    },
+    {
+      "id": "gem:7bf3f0f36af2d333",
+      "name": "龙卷射击",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Tornado_Shot"
+    },
+    {
+      "id": "gem:eeb7c7df84c3f3ff",
+      "name": "龙卷旋风",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Tornado"
+    },
+    {
+      "id": "gem:6a06799fd3b27348",
+      "name": "乱剑穿心",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Blast"
+    },
+    {
+      "id": "gem:6a784f4a4500e64f",
+      "name": "掠命之爆灵术",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Detonate_Dead_of_Scavenging"
+    },
+    {
+      "id": "gem:2ae9d41cf28dbdfa",
+      "name": "掠食（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Predator_Support"
+    },
+    {
+      "id": "gem:d302798e42c2083d",
+      "name": "螺旋之裂魂术",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Soulrend_of_the_Spiral"
+    },
+    {
+      "id": "gem:5a44750f00c8fd94",
+      "name": "螺旋之神圣之锤",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Hammers_of_Spirals"
+    },
+    {
+      "id": "gem:8d2c893e427c6af4",
+      "name": "落锤之神圣横扫",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Sweep_of_Hammerfalls"
+    },
+    {
+      "id": "gem:1a2ee6cb3da26ac0",
+      "name": "落刃风暴",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Swordstorm"
+    },
+    {
+      "id": "gem:1be53c63b704aac0",
+      "name": "满血伤害（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Damage_on_Full_Life_Support"
+    },
+    {
+      "id": "gem:b1991e5c19ce46ea",
+      "name": "曼巴之毒蛇打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Viper_Strike_of_the_Mamba"
+    },
+    {
+      "id": "gem:80c50d573e4f8918",
+      "name": "蔓延之烧毁",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Incinerate_of_Expanse"
+    },
+    {
+      "id": "gem:d139e5fda3c851f7",
+      "name": "魅影射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Mirror_Arrow"
+    },
+    {
+      "id": "gem:c25a4e729267a7e1",
+      "name": "猛毒(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Vile_Toxins_Support"
+    },
+    {
+      "id": "gem:a6e736fd2c635bc6",
+      "name": "猛攻之狂怒",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Frenzy_of_Onslaught"
+    },
+    {
+      "id": "gem:bd0b4bf1bcc57aca",
+      "name": "猛击之魔卫复苏",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Raise_Zombie_of_Slamming"
+    },
+    {
+      "id": "gem:338b7ec3422bbc09",
+      "name": "迷魅陷阱",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Conversion_Trap"
+    },
+    {
+      "id": "gem:be418e04b65a286b",
+      "name": "秘术增强(辅)",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Arcane_Surge_Support"
+    },
+    {
+      "id": "gem:4ef8852c2cda0e49",
+      "name": "蔑视使者（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Scornful_Herald_Support"
+    },
+    {
+      "id": "gem:3811e436c52228fe",
+      "name": "敏捷之烈焰爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flameblast_of_Celerity"
+    },
+    {
+      "id": "gem:423c1d5d1af62296",
+      "name": "冥域之冰霜之刃",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Blades_of_Katabasis"
+    },
+    {
+      "id": "gem:de02a8197eeb1fda",
+      "name": "魔蛊爆炸",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Hexblast"
+    },
+    {
+      "id": "gem:49343996d37dc4e4",
+      "name": "魔蛊蟾蜍（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Hextoad_Support"
+    },
+    {
+      "id": "gem:20f7584e5c8eafb0",
+      "name": "魔蛊通道（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Hexpass_Support"
+    },
+    {
+      "id": "gem:b0345adafbd43924",
+      "name": "魔蛊绽放辅助",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Hex_Bloom_Support"
+    },
+    {
+      "id": "gem:5722fbea91e298d9",
+      "name": "魔力偷取(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Mana_Leech_Support"
+    },
+    {
+      "id": "gem:a3c1c732e076fdeb",
+      "name": "魔卫复苏",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Raise_Zombie"
+    },
+    {
+      "id": "gem:b5111a9ef571048d",
+      "name": "魔武战号",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Battlemages_Cry"
+    },
+    {
+      "id": "gem:b2fff780f1e8d596",
+      "name": "抹灭（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Annihilation_Support"
+    },
+    {
+      "id": "gem:fb6623ef9e395d39",
+      "name": "末日将至（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Impending_Doom_Support"
+    },
+    {
+      "id": "gem:ad28f8d8748ca4fd",
+      "name": "末日烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Armageddon_Brand"
+    },
+    {
+      "id": "gem:122112bfd3efe796",
+      "name": "暮冬之凛冬之眼",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Eye_of_Winter_of_Finality"
+    },
+    {
+      "id": "gem:c501d20a31cbed73",
+      "name": "内伤（辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Trauma_Support"
+    },
+    {
+      "id": "gem:5216238a807dbcaf",
+      "name": "能量偷取（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Energy_Leech_Support"
+    },
+    {
+      "id": "gem:bea75c6aa5e89e05",
+      "name": "能量之刃",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Energy_Blade"
+    },
+    {
+      "id": "gem:0c2a4ce17412048d",
+      "name": "逆转规则（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Invert_the_Rules_Support"
+    },
+    {
+      "id": "gem:b90da5d8936aa766",
+      "name": "念动壁垒",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Somatic_Shell"
+    },
+    {
+      "id": "gem:7f6a5b5a981fa811",
+      "name": "念动飞箭",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Bolt"
+    },
+    {
+      "id": "gem:ceba5cfc55ff5334",
+      "name": "念动齐射",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Fusillade"
+    },
+    {
+      "id": "gem:5e7f516b093584f5",
+      "name": "念动失稳（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Kinetic_Instability_Support"
+    },
+    {
+      "id": "gem:429dec1c41f870cf",
+      "name": "念动之雨",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Rain"
+    },
+    {
+      "id": "gem:78a50e264f3246b5",
+      "name": "弩炮集火（辅）",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Focused_Ballista_Support"
+    },
+    {
+      "id": "gem:4e7cf765c8ee3ea4",
+      "name": "弩炮图腾（辅）",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Ballista_Totem_Support"
+    },
+    {
+      "id": "gem:804588e15d107b63",
+      "name": "怒火（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Rage_Support"
+    },
+    {
+      "id": "gem:0714a33d7c6e3356",
+      "name": "怒火漩涡",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Rage_Vortex"
+    },
+    {
+      "id": "gem:616072bad0c510ab",
+      "name": "怒火之劈砍",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Cleave_of_Rage"
+    },
+    {
+      "id": "gem:4dce1f7811fec963",
+      "name": "怒炎穿心",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Blazing_Salvo"
+    },
+    {
+      "id": "gem:28ea846470bc128a",
+      "name": "怒焰奔腾",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flame_Surge"
+    },
+    {
+      "id": "gem:e3a82b0000cab060",
+      "name": "怒焰之圣焰图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Flame_Totem_of_Ire"
+    },
+    {
+      "id": "gem:7d671f6a4eb56154",
+      "name": "徘徊之虚空匕首",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ethereal_Knives_of_Lingering_Blades"
+    },
+    {
+      "id": "gem:a83b887ef373b43e",
+      "name": "炮击之箭雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Rain_of_Arrows_of_Artillery"
+    },
+    {
+      "id": "gem:b5e5bf5969bdaf8b",
+      "name": "膨胀之震波陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Seismic_Trap_of_Swells"
+    },
+    {
+      "id": "gem:38031c04e372626b",
+      "name": "劈砍",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Cleave"
+    },
+    {
+      "id": "gem:fb4fb7b9d397ea44",
+      "name": "霹雳长枪",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Crackling_Lance"
+    },
+    {
+      "id": "gem:9ea298519ac3ac53",
+      "name": "破釜一击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Tectonic_Slam"
+    },
+    {
+      "id": "gem:797ab65695e96dd1",
+      "name": "破坏之冰锥地雷",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Icicle_Mine_of_Sabotage"
+    },
+    {
+      "id": "gem:702cfeea175d84d4",
+      "name": "破坏之火屑地雷",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Pyroclast_Mine_of_Sabotage"
+    },
+    {
+      "id": "gem:ad15456f2b5edd14",
+      "name": "破空斩",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lacerate"
+    },
+    {
+      "id": "gem:265f6cf46e6e4d52",
+      "name": "破片之爆炸陷阱",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Explosive_Trap_of_Shrapnel"
+    },
+    {
+      "id": "gem:ffddf6f9f36bbce7",
+      "name": "破碎铁刃",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Shattering_Steel"
+    },
+    {
+      "id": "gem:033683edb46ee5d6",
+      "name": "破土之震地跃击",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Leap_Slam_of_Groundbreaking"
+    },
+    {
+      "id": "gem:b58eab8e8870c939",
+      "name": "七伤破",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Boneshatter"
+    },
+    {
+      "id": "gem:ea2000ac788a9dc5",
+      "name": "齐发之弹幕",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Barrage_of_Volley_Fire"
+    },
+    {
+      "id": "gem:213f5e27f99e6c36",
+      "name": "齐射(辅)",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Volley_Support"
+    },
+    {
+      "id": "gem:0696811d6a08c0f8",
+      "name": "启迪（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Inspiration_Support"
+    },
+    {
+      "id": "gem:56aabb1d7b0c9a98",
+      "name": "启蒙(辅)",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Enlighten_Support"
+    },
+    {
+      "id": "gem:a586309046e49654",
+      "name": "启蒙（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Enlighten_Support"
+    },
+    {
+      "id": "gem:13b5bb0aa60658d4",
+      "name": "启示之净化烈焰",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Purifying_Flame_of_Revelations"
+    },
+    {
+      "id": "gem:b1d0dbcf375b88f5",
+      "name": "气焰之燃烧箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Burning_Arrow_of_Vigour"
+    },
+    {
+      "id": "gem:3631395812463c3d",
+      "name": "强能之闪现打击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Flicker_Strike_of_Power"
+    },
+    {
+      "id": "gem:ce97bfd54255aa27",
+      "name": "强能之霜暴",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Cold_Snap_of_Power"
+    },
+    {
+      "id": "gem:b7836afa0deaba2d",
+      "name": "强韧之奉献之路",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Consecrated_Path_of_Endurance"
+    },
+    {
+      "id": "gem:5cfaca680b944f67",
+      "name": "巧手之双持打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Dual_Strike_of_Ambidexterity"
+    },
+    {
+      "id": "gem:6c33c51a207ee5e0",
+      "name": "侵袭之冰墙",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Wall_of_Encroachment"
+    },
+    {
+      "id": "gem:bd3f7571efc3cd69",
+      "name": "倾泻之乱剑穿心",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blade_Blast_of_Unloading"
+    },
+    {
+      "id": "gem:6b1c28f8d2e2a47e",
+      "name": "清晰",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Clarity"
+    },
+    {
+      "id": "gem:9ff7bfe2090f5d5f",
+      "name": "酋长之盾牌碾压",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shield_Crush_of_the_Chieftain"
+    },
+    {
+      "id": "gem:7578ed5b2ff26b04",
+      "name": "燃火箭雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Conflagration"
+    },
+    {
+      "id": "gem:493427e723c728c1",
+      "name": "燃烧箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Burning_Arrow"
+    },
+    {
+      "id": "gem:d4aee4225ab1f2dc",
+      "name": "燃焰（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Pyre_Support"
+    },
+    {
+      "id": "gem:5838909a18b76082",
+      "name": "熔岩奔涌",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Rolling_Magma"
+    },
+    {
+      "id": "gem:6226ac529241541d",
+      "name": "熔岩护盾",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Molten_Shell"
+    },
+    {
+      "id": "gem:1dd4df4082c9e82c",
+      "name": "熔岩之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Molten_Strike"
+    },
+    {
+      "id": "gem:9c862fd4f85e7af0",
+      "name": "肉盾（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Meat_Shield_Support"
+    },
+    {
+      "id": "gem:d04ce9336c806a9d",
+      "name": "弱肉强食（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cull_the_Weak_Support"
+    },
+    {
+      "id": "gem:45000fb18760bfa4",
+      "name": "三位一体（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Trinity_Support"
+    },
+    {
+      "id": "gem:f1748a0f9fa8ddad",
+      "name": "散弹陷阱(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cluster_Traps_Support"
+    },
+    {
+      "id": "gem:1341e08f10d2d646",
+      "name": "散射弩炮",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Shrapnel_Ballista"
+    },
+    {
+      "id": "gem:5d35d83b392e25f7",
+      "name": "闪电穿透(辅)",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Lightning_Penetration_Support"
+    },
+    {
+      "id": "gem:bb3b354ad82a9a6e",
+      "name": "闪电穿透（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Lightning_Penetration_Support"
+    },
+    {
+      "id": "gem:8a69e41b328f28fe",
+      "name": "闪电传送",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Warp"
+    },
+    {
+      "id": "gem:e0d5c6777bbd0648",
+      "name": "闪电打击",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Strike"
+    },
+    {
+      "id": "gem:3af3a93137cb9ea6",
+      "name": "闪电箭矢",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Arrow"
+    },
+    {
+      "id": "gem:783536d4b8c18724",
+      "name": "闪电净化",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Purity_of_Lightning"
+    },
+    {
+      "id": "gem:41f75c175d926554",
+      "name": "闪电通道",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Conduit"
+    },
+    {
+      "id": "gem:8b45e222633286fb",
+      "name": "闪电陷阱",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Trap"
+    },
+    {
+      "id": "gem:af62ed0de4afb24e",
+      "name": "闪电新星",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Shock_Nova"
+    },
+    {
+      "id": "gem:60288900dc651f83",
+      "name": "闪电之捷",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Herald_of_Thunder"
+    },
+    {
+      "id": "gem:7f9e4a9436a64f3c",
+      "name": "闪电支配(辅)",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Innervate_Support"
+    },
+    {
+      "id": "gem:c8f0887a16d28780",
+      "name": "闪现打击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Flicker_Strike"
+    },
+    {
+      "id": "gem:98429e057c2cdb29",
+      "name": "闪现射击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blink_Arrow"
+    },
+    {
+      "id": "gem:d0aca9b024b14b28",
+      "name": "烧毁",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Incinerate"
+    },
+    {
+      "id": "gem:8218305ca8554746",
+      "name": "射手之召唤魔侍",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Skeletons_of_Archers"
+    },
+    {
+      "id": "gem:9cf96ac9e2cfc005",
+      "name": "赦罪",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Absolution"
+    },
+    {
+      "id": "gem:4f7b28e12bf4bf6b",
+      "name": "深寒之冰霜新星",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ice_Nova_of_Deep_Freeze"
+    },
+    {
+      "id": "gem:dddefb55bd2d5c8e",
+      "name": "神雷之圣怨",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Ire_of_Holy_Lightning"
+    },
+    {
+      "id": "gem:f59d4ba166f50783",
+      "name": "神圣报应",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Retribution"
+    },
+    {
+      "id": "gem:9b9110f2e0857d35",
+      "name": "神圣冲击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Blast"
+    },
+    {
+      "id": "gem:1c885e57bebc787b",
+      "name": "神圣打击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Strike"
+    },
+    {
+      "id": "gem:753e8d77bcf9123d",
+      "name": "神圣横扫",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Sweep"
+    },
+    {
+      "id": "gem:c2500b92b1ebe424",
+      "name": "神圣驱逐(辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Excommunicate_Support"
+    },
+    {
+      "id": "gem:584bac6b1aeb8326",
+      "name": "神圣哨兵（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Divine_Sentinel_Support"
+    },
+    {
+      "id": "gem:31ebf8fe58ef1e9a",
+      "name": "神圣之锤",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Hammers"
+    },
+    {
+      "id": "gem:fc001c614e6b4242",
+      "name": "神圣祝福（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Divine_Blessing_Support"
+    },
+    {
+      "id": "gem:38b6710a6c1ba280",
+      "name": "神圣宗派（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Communion_Support"
+    },
+    {
+      "id": "gem:1d1b77ac37be531e",
+      "name": "渗透（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Transfusion_Support"
+    },
+    {
+      "id": "gem:3caeec37359584f3",
+      "name": "生命偷取(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Life_Leech_Support"
+    },
+    {
+      "id": "gem:9f5abba95982912c",
+      "name": "圣裁之惩击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Smite_of_Divine_Judgement"
+    },
+    {
+      "id": "gem:2240f3297f48fb02",
+      "name": "圣化（辅）",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Hallow_Support"
+    },
+    {
+      "id": "gem:1193022c0b2d1f0e",
+      "name": "圣洁鬼灵（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Sacred_Wisps_Support"
+    },
+    {
+      "id": "gem:9a4dd90a6dac402f",
+      "name": "圣焰图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Holy_Flame_Totem"
+    },
+    {
+      "id": "gem:6e30f5cdbce0a47b",
+      "name": "圣怨",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Ire"
+    },
+    {
+      "id": "gem:27c9649eae853a26",
+      "name": "盛怒",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Berserk"
+    },
+    {
+      "id": "gem:773e85a9bfbbdb53",
+      "name": "施法回响(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Spell_Echo_Support"
+    },
+    {
+      "id": "gem:5f77dc09035f1969",
+      "name": "施法回响（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Spell_Echo_Support"
+    },
+    {
+      "id": "gem:4f08e6dc39c6814b",
+      "name": "时空裂隙",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Temporal_Rift"
+    },
+    {
+      "id": "gem:e0f2b694950fe0df",
+      "name": "时空锁链",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Temporal_Chains"
+    },
+    {
+      "id": "gem:00ce2b7181d22dc1",
+      "name": "释出（辅）",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Unleash_Support"
+    },
+    {
+      "id": "gem:7e7fd1f16c77cebf",
+      "name": "释出（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Unleash_Support"
+    },
+    {
+      "id": "gem:bbb41e1b485a9da0",
+      "name": "收割之裂魂术",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Soulrend_of_Reaping"
+    },
+    {
+      "id": "gem:c197757a64e4f25a",
+      "name": "守卫祝福（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Guardians_Blessing_Support"
+    },
+    {
+      "id": "gem:f5b7c3b85af5de04",
+      "name": "受伤时施放(辅)",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_when_Damage_Taken_Support"
+    },
+    {
+      "id": "gem:d492bf756d1f9e72",
+      "name": "衰弱",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Enfeeble"
+    },
+    {
+      "id": "gem:c0b9b7a0cf17b91d",
+      "name": "双持打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Dual_Strike"
+    },
+    {
+      "id": "gem:499c3fb30f48a70b",
+      "name": "双重打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Double_Strike"
+    },
+    {
+      "id": "gem:f081fb57a8455880",
+      "name": "霜暴",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Cold_Snap"
+    },
+    {
+      "id": "gem:4f5249f8b250f4e2",
+      "name": "霜咬(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Ice_Bite_Support"
+    },
+    {
+      "id": "gem:20235179fd5f9747",
+      "name": "水源法球",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Hydrosphere"
+    },
+    {
+      "id": "gem:4422db9a5580b1ac",
+      "name": "瞬息之凛冬之眼",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Eye_of_Winter_of_Transience"
+    },
+    {
+      "id": "gem:fedf53a1e607f7c0",
+      "name": "瞬息之召唤灵体",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Raise_Spectre_of_Transience"
+    },
+    {
+      "id": "gem:48b819c79e52c15c",
+      "name": "撕碎之虚空法球",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Void_Sphere_of_Rending"
+    },
+    {
+      "id": "gem:65d9f27c070defa9",
+      "name": "死亡凋零",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wither"
+    },
+    {
+      "id": "gem:b663b50e7671e583",
+      "name": "死亡时施放(辅)",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_on_Death_Support"
+    },
+    {
+      "id": "gem:834e7ff885a1717a",
+      "name": "碎冰之冰霜之锤",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Glacial_Hammer_of_Shattering"
+    },
+    {
+      "id": "gem:9e348b3d1634f906",
+      "name": "碎冰之召唤寒冰魔像",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Ice_Golem_of_Shattering"
+    },
+    {
+      "id": "gem:eb63d000e4d29585",
+      "name": "碎裂之灵盾投掷",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Shield_Throw_of_Shattering"
+    },
+    {
+      "id": "gem:56dafd2574db912c",
+      "name": "碎裂之念动飞箭",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Bolt_of_Fragmentation"
+    },
+    {
+      "id": "gem:007fef76512ccc68",
+      "name": "碎焰之烈炎风暴",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Firestorm_of_Pelting"
+    },
+    {
+      "id": "gem:14d049a1fc3859a8",
+      "name": "碎影魔刃（辅）",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Spellblade_Support"
+    },
+    {
+      "id": "gem:5d4e713a300c5034",
+      "name": "锁定打击之火力弩炮",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Artillery_Ballista_of_Focus_Fire"
+    },
+    {
+      "id": "gem:a0921b646678ee60",
+      "name": "瘫痪(辅)",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Maim_Support"
+    },
+    {
+      "id": "gem:27b79d9197264fb1",
+      "name": "特拉特斯之爆裂箭雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Blast_Rain_of_Trarthus"
+    },
+    {
+      "id": "gem:886fc367117b5902",
+      "name": "特拉特斯之定罪波",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Wave_of_Conviction_of_Trarthus"
+    },
+    {
+      "id": "gem:fa57266ae4ff766d",
+      "name": "特拉特斯之风暴呼唤",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Call_of_Trarthus"
+    },
+    {
+      "id": "gem:2c6c51cd0a362ef2",
+      "name": "特拉特斯之攻城炮台",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Siege_Ballista_of_Trarthus"
+    },
+    {
+      "id": "gem:aced636fbe45beed",
+      "name": "特拉特斯之钩链攻击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Chain_Hook_of_Trarthus"
+    },
+    {
+      "id": "gem:32c6f2e16f5a0f3f",
+      "name": "特拉特斯之黑暗交易",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Dark_Bargain_of_Trarthus"
+    },
+    {
+      "id": "gem:fb37aa9e8011edfb",
+      "name": "特拉特斯之灵盾投掷",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Shield_Throw_of_Trarthus"
+    },
+    {
+      "id": "gem:350c8a5bfe2ba4e3",
+      "name": "特拉特斯之灵幻旋斩",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Helix_of_Trarthus"
+    },
+    {
+      "id": "gem:91008bd54c8dd37c",
+      "name": "特拉特斯之灵体投掷",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Spectral_Throw_of_Trarthus"
+    },
+    {
+      "id": "gem:4feff49e7e2ec635",
+      "name": "特拉特斯之虚空刀雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bladefall_of_Trarthus"
+    },
+    {
+      "id": "gem:6bb0cbf5749fd749",
+      "name": "特拉特斯之震击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Sunder_of_Trarthus"
+    },
+    {
+      "id": "gem:f3136b2cbd6ef964",
+      "name": "特拉特斯之重击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Heavy_Strike_of_Trarthus"
+    },
+    {
+      "id": "gem:eed1570ad3336175",
+      "name": "剔骨",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Eviscerate"
+    },
+    {
+      "id": "gem:f373728d33df3763",
+      "name": "提高暴击几率(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Increased_Critical_Strikes_Support"
+    },
+    {
+      "id": "gem:d65877ddfba8bff7",
+      "name": "提高暴击伤害(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Increased_Critical_Damage_Support"
+    },
+    {
+      "id": "gem:11ec6c21627bf678",
+      "name": "天顶之熔岩之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Molten_Strike_of_the_Zenith"
+    },
+    {
+      "id": "gem:1aea40cc4cbd00b1",
+      "name": "天雷之珠",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ball_Lightning"
+    },
+    {
+      "id": "gem:3a9ed805ecc16012",
+      "name": "天灾之箭",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Scourge_Arrow"
+    },
+    {
+      "id": "gem:4edda2cae1c4129e",
+      "name": "统御之震波图腾",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shockwave_Totem_of_Authority"
+    },
+    {
+      "id": "gem:b24db007965b3591",
+      "name": "痛苦之虹吸陷阱",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Siphoning_Trap_of_Pain"
+    },
+    {
+      "id": "gem:0bca8c3b8c8d63af",
+      "name": "痛宰之破空斩",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lacerate_of_Butchering"
+    },
+    {
+      "id": "gem:45987ac01ac9e7d2",
+      "name": "投射物归返（辅）",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Returning_Projectiles_Support"
+    },
+    {
+      "id": "gem:6d954960d97d1cbf",
+      "name": "投射物减速(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Slower_Projectiles_Support"
+    },
+    {
+      "id": "gem:abf43040b0809243",
+      "name": "投射之蓄力疾风闪",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Charged_Dash_of_Projection"
+    },
+    {
+      "id": "gem:ef8d84d52d23d811",
+      "name": "投射之漩涡",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vortex_of_Projection"
+    },
+    {
+      "id": "gem:e916667959c8251d",
+      "name": "屠戮之赤炼收割",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Reap_of_Butchery"
+    },
+    {
+      "id": "gem:3859561feeb0a134",
+      "name": "吞噬（辅）",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Devour_Support"
+    },
+    {
+      "id": "gem:1f646571231ab51f",
+      "name": "吞噬图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Devouring_Totem"
+    },
+    {
+      "id": "gem:fdc14c1f7b2521b9",
+      "name": "瓦尔：霸气之击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Domination"
+    },
+    {
+      "id": "gem:7234d5da558312db",
+      "name": "瓦尔：爆灵术",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Detonate_Dead"
+    },
+    {
+      "id": "gem:b9b5741a25ad2ade",
+      "name": "瓦尔：冰霜射击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Ice_Shot"
+    },
+    {
+      "id": "gem:d5c21775e6ce2463",
+      "name": "瓦尔：冰霜新星",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Ice_Nova"
+    },
+    {
+      "id": "gem:3801e042559cba17",
+      "name": "瓦尔：冰霜之锤",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Glacial_Hammer"
+    },
+    {
+      "id": "gem:b6033ef98894eabc",
+      "name": "瓦尔：不净之冰",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Impurity_of_Ice"
+    },
+    {
+      "id": "gem:8f1a79d30f2cc477",
+      "name": "瓦尔：不净之火",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Impurity_of_Fire"
+    },
+    {
+      "id": "gem:143d537f5483eaab",
+      "name": "瓦尔：不净之雷",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Impurity_of_Lightning"
+    },
+    {
+      "id": "gem:fbe0e4fc8740c1dc",
+      "name": "瓦尔：不朽怒嚎",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Immortal_Call"
+    },
+    {
+      "id": "gem:383b4664b7a2854b",
+      "name": "瓦尔：惩击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Smite"
+    },
+    {
+      "id": "gem:e71d81b9279cf77c",
+      "name": "瓦尔：冲击波",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Reave"
+    },
+    {
+      "id": "gem:21a6d7d40be372cd",
+      "name": "瓦尔：刀刃乱舞",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Blade_Flurry"
+    },
+    {
+      "id": "gem:bde8cb0ff68d9210",
+      "name": "瓦尔：电弧",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Arc"
+    },
+    {
+      "id": "gem:537bf921e41709ec",
+      "name": "瓦尔：电球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Spark"
+    },
+    {
+      "id": "gem:8ee25fcfdbf344bc",
+      "name": "瓦尔：飞刃风暴",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Blade_Vortex"
+    },
+    {
+      "id": "gem:b20d483dbb2703a0",
+      "name": "瓦尔：风暴呼唤",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Storm_Call"
+    },
+    {
+      "id": "gem:8d93766160c9e285",
+      "name": "瓦尔：腐蚀箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Caustic_Arrow"
+    },
+    {
+      "id": "gem:1bca4bf330bc5eb6",
+      "name": "瓦尔：幻化武器",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Animate_Weapon"
+    },
+    {
+      "id": "gem:f5960eb94facbb89",
+      "name": "瓦尔：回春图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Rejuvenation_Totem"
+    },
+    {
+      "id": "gem:edeac04a4d9f66f0",
+      "name": "瓦尔：火球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Fireball"
+    },
+    {
+      "id": "gem:efb0e14b536a0d33",
+      "name": "瓦尔：火山裂缝",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Volcanic_Fissure"
+    },
+    {
+      "id": "gem:50ef09e7013e1d84",
+      "name": "瓦尔：极地装甲",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Arctic_Armour"
+    },
+    {
+      "id": "gem:d2772fd122b33c83",
+      "name": "瓦尔：纪律",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Discipline"
+    },
+    {
+      "id": "gem:41d85af202056fcd",
+      "name": "瓦尔：箭雨",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Rain_of_Arrows"
+    },
+    {
+      "id": "gem:db8897decd2aa7f1",
+      "name": "瓦尔：剧毒旋风",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Venom_Gyre"
+    },
+    {
+      "id": "gem:ba838561bccd89bc",
+      "name": "瓦尔：绝命之镰",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Reap"
+    },
+    {
+      "id": "gem:c61b064908853660",
+      "name": "瓦尔：枯萎",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Blight"
+    },
+    {
+      "id": "gem:874b7084a07b9d6f",
+      "name": "瓦尔：力量抽取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Power_Siphon"
+    },
+    {
+      "id": "gem:8f6f9e685b75a599",
+      "name": "瓦尔：烈炎风暴",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Firestorm"
+    },
+    {
+      "id": "gem:f03396e832b23eff",
+      "name": "瓦尔：烈焰爆破",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Flameblast"
+    },
+    {
+      "id": "gem:800c146c9b32de6d",
+      "name": "瓦尔：裂地之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Ground_Slam"
+    },
+    {
+      "id": "gem:c2adcb0d45e7056b",
+      "name": "瓦尔：灵体投掷",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Spectral_Throw"
+    },
+    {
+      "id": "gem:15388b09ab2388f3",
+      "name": "瓦尔：劈砍",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Cleave"
+    },
+    {
+      "id": "gem:3b12b09a08428132",
+      "name": "瓦尔：清晰",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Clarity"
+    },
+    {
+      "id": "gem:3c00091860237c00",
+      "name": "瓦尔：燃烧箭矢",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Burning_Arrow"
+    },
+    {
+      "id": "gem:293b2ef43824b5eb",
+      "name": "瓦尔：熔岩护盾",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Molten_Shell"
+    },
+    {
+      "id": "gem:787baadabfe3e65d",
+      "name": "瓦尔：熔岩之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Molten_Strike"
+    },
+    {
+      "id": "gem:49c24f36b07bc56b",
+      "name": "瓦尔：闪电传送",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Lightning_Warp"
+    },
+    {
+      "id": "gem:7707d3e2865754f6",
+      "name": "瓦尔：闪电打击",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Lightning_Strike"
+    },
+    {
+      "id": "gem:f2969b7fd56b508f",
+      "name": "瓦尔：闪电箭矢",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Lightning_Arrow"
+    },
+    {
+      "id": "gem:dcb78a2484b2f35a",
+      "name": "瓦尔：闪电陷阱",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Lightning_Trap"
+    },
+    {
+      "id": "gem:865503f267126df2",
+      "name": "瓦尔：闪现打击",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Flicker_Strike"
+    },
+    {
+      "id": "gem:b8286901ec4956fa",
+      "name": "瓦尔：赦罪",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Absolution"
+    },
+    {
+      "id": "gem:260432a848d64cd9",
+      "name": "瓦尔：双重打击",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Double_Strike"
+    },
+    {
+      "id": "gem:14bd82022681f616",
+      "name": "瓦尔：霜暴",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Cold_Snap"
+    },
+    {
+      "id": "gem:7d37b22086e0730f",
+      "name": "瓦尔：先祖战士长",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Ancestral_Warchief"
+    },
+    {
+      "id": "gem:91e9cf65a5467c68",
+      "name": "瓦尔：旋风斩",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Cyclone"
+    },
+    {
+      "id": "gem:262ea926df8763b9",
+      "name": "瓦尔：迅捷",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Haste"
+    },
+    {
+      "id": "gem:4c0c0f270f937b70",
+      "name": "瓦尔：优雅",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Grace"
+    },
+    {
+      "id": "gem:c11582bd6f1a7eda",
+      "name": "瓦尔：召唤魔侍",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Summon_Skeletons"
+    },
+    {
+      "id": "gem:ea46d4aaf6bb8989",
+      "name": "瓦尔：震地",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Earthquake"
+    },
+    {
+      "id": "gem:74954cf37252d777",
+      "name": "瓦尔：正义之火",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vaal_Righteous_Fire"
+    },
+    {
+      "id": "gem:344539c26f3d87da",
+      "name": "瓦尔献祭（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Vaal_Sacrifice_Support"
+    },
+    {
+      "id": "gem:1a65a0e44de71e32",
+      "name": "瓦尔诱惑（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Vaal_Temptation_Support"
+    },
+    {
+      "id": "gem:a4f5c7b1a8aa2add",
+      "name": "瓦解之霹雳长枪",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Crackling_Lance_of_Disintegration"
+    },
+    {
+      "id": "gem:aeeb1cd8bfa131dc",
+      "name": "瓦解之圣怨",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Divine_Ire_of_Disintegration"
+    },
+    {
+      "id": "gem:bc8879b69b858fdf",
+      "name": "蜿蜒之火山裂缝",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Volcanic_Fissure_of_Snaking"
+    },
+    {
+      "id": "gem:1d2cdc0633dc87e5",
+      "name": "顽疾",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Contagion"
+    },
+    {
+      "id": "gem:aa712f1cb71ffa29",
+      "name": "亡魂之召唤追命死灵",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Reaper_of_Revenants"
+    },
+    {
+      "id": "gem:c7e40c64f45d26b7",
+      "name": "亡灵大军（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Congregation_Support"
+    },
+    {
+      "id": "gem:ef13baf309360089",
+      "name": "威能法印",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Sigil_of_Power"
+    },
+    {
+      "id": "gem:42e74d87bebc65f0",
+      "name": "威吓战吼",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Intimidating_Cry"
+    },
+    {
+      "id": "gem:6a1e2ebebacd4492",
+      "name": "威胁之天灾之箭",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Scourge_Arrow_of_Menace"
+    },
+    {
+      "id": "gem:8428f2922ff70010",
+      "name": "萎缩之枯萎",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Blight_of_Atrophy"
+    },
+    {
+      "id": "gem:b3404261d7afea05",
+      "name": "卫护之召唤巨石魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Stone_Golem_of_Safeguarding"
+    },
+    {
+      "id": "gem:4ce0f1bc21dbe7a7",
+      "name": "稳定之掷火陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Flamethrower_Trap_of_Stability"
+    },
+    {
+      "id": "gem:89e69bd985319873",
+      "name": "无常（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Volatility_Support"
+    },
+    {
+      "id": "gem:b31a93974533fd38",
+      "name": "无常之电球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Spark_of_Unpredictability"
+    },
+    {
+      "id": "gem:1950bad89a064e18",
+      "name": "无常之末日烙印",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Armageddon_Brand_of_Volatility"
+    },
+    {
+      "id": "gem:47c0db27938dcbba",
+      "name": "无定之风暴烙印",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Brand_of_Indecision"
+    },
+    {
+      "id": "gem:6d1af2436251fb04",
+      "name": "无定之剑刃风暴",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Bladestorm_of_Uncertainty"
+    },
+    {
+      "id": "gem:85a6ae99699df2b9",
+      "name": "无情(辅)",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Ruthless_Support"
+    },
+    {
+      "id": "gem:b98fa1b18917e601",
+      "name": "武器元素伤害(辅)",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Elemental_Damage_with_Attacks_Support"
+    },
+    {
+      "id": "gem:e75e9ab582af4d16",
+      "name": "武器元素伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Elemental_Damage_with_Attacks_Support"
+    },
+    {
+      "id": "gem:fa35f42e6ee40636",
+      "name": "物理转闪电(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Physical_to_Lightning_Support"
+    },
+    {
+      "id": "gem:b56cc296ba4095b5",
+      "name": "物品稀有度增幅(辅)",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Item_Rarity_Support"
+    },
+    {
+      "id": "gem:20d103315061991f",
+      "name": "牺牲（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Sacrifice_Support"
+    },
+    {
+      "id": "gem:65fd009dbfed1d3f",
+      "name": "牺牲之灵体转换",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Bodyswap_of_Sacrifice"
+    },
+    {
+      "id": "gem:caf0e76d39b020eb",
+      "name": "先祖卫士",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ancestral_Protector"
+    },
+    {
+      "id": "gem:9f14e1362177047f",
+      "name": "先祖战吼",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ancestral_Cry"
+    },
+    {
+      "id": "gem:128d48a8844f8792",
+      "name": "先祖战士长",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ancestral_Warchief"
+    },
+    {
+      "id": "gem:322d9eef8ff18109",
+      "name": "先祖召唤(辅)",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:d59923bbc231968b",
+      "name": "先祖召唤（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:425612257c9b06bd",
+      "name": "鲜肉（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Fresh_Meat_Support"
+    },
+    {
+      "id": "gem:8d94157204d42d61",
+      "name": "陷阱(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Trap_Support"
+    },
+    {
+      "id": "gem:1d7f19546877c8e2",
+      "name": "陷阱及地雷伤害(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Trap_and_Mine_Damage_Support"
+    },
+    {
+      "id": "gem:8d33f59fa5c27d7f",
+      "name": "陷阱冷却(辅)",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Advanced_Traps_Support"
+    },
+    {
+      "id": "gem:319612b0c7de2b3c",
+      "name": "献祭(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Immolate_Support"
+    },
+    {
+      "id": "gem:58ad4c5ddea63b87",
+      "name": "献祭之炼狱之击",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Infernal_Blow_of_Immolation"
+    },
+    {
+      "id": "gem:d63b42d846590099",
+      "name": "嚣狂之旋风斩",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cyclone_of_Tumult"
+    },
+    {
+      "id": "gem:879072b7b55df951",
+      "name": "效能(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Efficacy_Support"
+    },
+    {
+      "id": "gem:49fcf91762c9cb1f",
+      "name": "邪恶投掷(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Vicious_Projectiles_Support"
+    },
+    {
+      "id": "gem:47bb7b254821f268",
+      "name": "邪恶投掷（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Vicious_Projectiles_Support"
+    },
+    {
+      "id": "gem:5e42031d94840d54",
+      "name": "邪秽之握（辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Foulgrasp_Support"
+    },
+    {
+      "id": "gem:dfc43552d2a71d18",
+      "name": "邪门之灵魂吸取",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Essence_Drain_of_Wickedness"
+    },
+    {
+      "id": "gem:d91659ea5ae7c5e7",
+      "name": "泄火之烧毁",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Incinerate_of_Venting"
+    },
+    {
+      "id": "gem:64063ba90d432386",
+      "name": "亵渎",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Desecrate"
+    },
+    {
+      "id": "gem:580d37819c6b0463",
+      "name": "亵渎之矛",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Unearth"
+    },
+    {
+      "id": "gem:70cb4f76a9bf42a8",
+      "name": "新星之电球",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Spark_of_the_Nova"
+    },
+    {
+      "id": "gem:bbc70cec855f8091",
+      "name": "凶恶之召唤愤怒狂灵",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Raging_Spirit_of_Enormity"
+    },
+    {
+      "id": "gem:120ec4cec86c92d7",
+      "name": "虚空匕首",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ethereal_Knives"
+    },
+    {
+      "id": "gem:4ead6ca0000ba998",
+      "name": "虚空操纵(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Void_Manipulation_Support"
+    },
+    {
+      "id": "gem:104b3a37883447e3",
+      "name": "虚空操纵（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Void_Manipulation_Support"
+    },
+    {
+      "id": "gem:5915dc71a8fbec68",
+      "name": "虚空刀雨",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Bladefall"
+    },
+    {
+      "id": "gem:45955dd60655e85a",
+      "name": "虚空法球",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Void_Sphere"
+    },
+    {
+      "id": "gem:86f82912f8ff51e9",
+      "name": "虚空风暴（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Voidstorm_Support"
+    },
+    {
+      "id": "gem:5ab39563c7f2895e",
+      "name": "虚空震波（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Void_Shockwave_Support"
+    },
+    {
+      "id": "gem:cb2f883dfcfbc482",
+      "name": "蓄力疾风闪",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Charged_Dash"
+    },
+    {
+      "id": "gem:3a804083d01b67b9",
+      "name": "旋风斩",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Cyclone"
+    },
+    {
+      "id": "gem:00917905a0e0bb28",
+      "name": "漩涡",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Vortex"
+    },
+    {
+      "id": "gem:ce03baf674bcc347",
+      "name": "血灵羁绊",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Vampiric_Link"
+    },
+    {
+      "id": "gem:bd64a90e1b1e8a7f",
+      "name": "血怒（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Bloodlust_Support"
+    },
+    {
+      "id": "gem:3d85a03f56cfda56",
+      "name": "血气（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Bloodthirst_Support"
+    },
+    {
+      "id": "gem:76e544e87ddb817e",
+      "name": "血染旗帜（辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Bloodsoaked_Banner_Support"
+    },
+    {
+      "id": "gem:e9c6aebe78052541",
+      "name": "血肉奉献",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flesh_Offering"
+    },
+    {
+      "id": "gem:55ea8540f0718a33",
+      "name": "血肉与岩石",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Flesh_and_Stone"
+    },
+    {
+      "id": "gem:e26b436af8d5cbbf",
+      "name": "血涌之破空斩",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Lacerate_of_Haemorrhage"
+    },
+    {
+      "id": "gem:99bca949851f349c",
+      "name": "血与沙",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Blood_and_Sand"
+    },
+    {
+      "id": "gem:33c5e9cd50082a90",
+      "name": "迅捷",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Haste"
+    },
+    {
+      "id": "gem:bbce1a56d2d180d3",
+      "name": "迅猛烙印（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Swiftbrand_Support"
+    },
+    {
+      "id": "gem:4c7ba6930a7be9c7",
+      "name": "迅整（辅）",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Swift_Assembly_Support"
+    },
+    {
+      "id": "gem:c8a3371d463ab908",
+      "name": "烟雾地雷",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Smoke_Mine"
+    },
+    {
+      "id": "gem:c51e30ef5505f274",
+      "name": "延时之寒霜爆",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Frost_Bomb_of_Forthcoming"
+    },
+    {
+      "id": "gem:0d1fd0705eaa81b4",
+      "name": "炎军（辅）",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Infernal_Legion_Support"
+    },
+    {
+      "id": "gem:0a118042a06fdea4",
+      "name": "野性打击",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Wild_Strike"
+    },
+    {
+      "id": "gem:c59aeece98a3187d",
+      "name": "夜刃（辅）",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Nightblade_Support"
+    },
+    {
+      "id": "gem:cdc03e168c73c7e4",
+      "name": "异常爆发(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Unbound_Ailments_Support"
+    },
+    {
+      "id": "gem:d42c5572a2adb776",
+      "name": "异常爆发（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Unbound_Ailments_Support"
+    },
+    {
+      "id": "gem:04bfade6cfe58006",
+      "name": "易燃",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Flammability"
+    },
+    {
+      "id": "gem:ea087f0b2ac755bb",
+      "name": "吟唱时施放(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_while_Channelling_Support"
+    },
+    {
+      "id": "gem:75a00de2c1fc424c",
+      "name": "吟唱时施放（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Cast_While_Channelling_Support"
+    },
+    {
+      "id": "gem:bb69f86dba88b58a",
+      "name": "引爆之念动齐射",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Kinetic_Fusillade_of_Detonation"
+    },
+    {
+      "id": "gem:ebfafd44998c741b",
+      "name": "引爆之灼热连接",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Searing_Bond_of_Detonation"
+    },
+    {
+      "id": "gem:ca5419e5bba468fc",
+      "name": "引雷之暴雨箭",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Rain_of_the_Conduit"
+    },
+    {
+      "id": "gem:4ee65c70d88202e4",
+      "name": "英勇典范（辅）",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Exemplar_Support"
+    },
+    {
+      "id": "gem:213c3ab6b4cecf16",
+      "name": "永恒祝福 （辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Eternal_Blessing_Support"
+    },
+    {
+      "id": "gem:3f548160ae08594c",
+      "name": "涌升之尖刺战吼",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Earthshatter_of_Prominence"
+    },
+    {
+      "id": "gem:c48f69e97f8ac08f",
+      "name": "优雅",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Grace"
+    },
+    {
+      "id": "gem:a43c260f5fefc094",
+      "name": "诱捕之箭",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Ensnaring_Arrow"
+    },
+    {
+      "id": "gem:b709f19e2540c87f",
+      "name": "诱饵图腾",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Decoy_Totem"
+    },
+    {
+      "id": "gem:ce49b476a119f15b",
+      "name": "元素穿透（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Elemental_Penetration_Support"
+    },
+    {
+      "id": "gem:e73ec6d969aa7967",
+      "name": "元素打击",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Elemental_Hit"
+    },
+    {
+      "id": "gem:4c7549ce943d3f9b",
+      "name": "元素大军（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Elemental_Army_Support"
+    },
+    {
+      "id": "gem:30f8dee0750931b8",
+      "name": "元素激变之龙卷旋风",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Tornado_of_Elemental_Turbulence"
+    },
+    {
+      "id": "gem:a927e2af126f0f97",
+      "name": "元素集中(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Elemental_Focus_Support"
+    },
+    {
+      "id": "gem:ec604d7c6817e7fb",
+      "name": "元素集中（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Elemental_Focus_Support"
+    },
+    {
+      "id": "gem:3214cf724b1b6c5b",
+      "name": "元素净化",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Purity_of_Elements"
+    },
+    {
+      "id": "gem:954d2399a5c4ec77",
+      "name": "元素扩散(辅)",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Elemental_Proliferation_Support"
+    },
+    {
+      "id": "gem:734867ee2c1aaeeb",
+      "name": "元素要害",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Elemental_Weakness"
+    },
+    {
+      "id": "gem:2e4dd4cfe1ccf466",
+      "name": "远程之幻化武器",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Animate_Weapon_of_Ranged_Arms"
+    },
+    {
+      "id": "gem:b465582577a13c4f",
+      "name": "怨毒光环",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Malevolence"
+    },
+    {
+      "id": "gem:0f94c4c32ce4208c",
+      "name": "跃击",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Leap_Slam"
+    },
+    {
+      "id": "gem:5e6872b924844bb2",
+      "name": "晕眩时施放(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Cast_when_Stunned_Support"
+    },
+    {
+      "id": "gem:3d7c1a9ca82d12f6",
+      "name": "陨星之烈炎风暴",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Firestorm_of_Meteors"
+    },
+    {
+      "id": "gem:a394a2c88074d0ce",
+      "name": "陨星之召唤烈焰魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Flame_Golem_of_the_Meteor"
+    },
+    {
+      "id": "gem:dc1dc57df6718b2c",
+      "name": "殒命之魔卫复苏",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Raise_Zombie_of_Falling"
+    },
+    {
+      "id": "gem:7021144aa60e60e8",
+      "name": "灾变之破釜一击",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Tectonic_Slam_of_Cataclysm"
+    },
+    {
+      "id": "gem:3de2162add27b76f",
+      "name": "灾难使徒",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Plague_Bearer"
+    },
+    {
+      "id": "gem:009d51a38af9ca0a",
+      "name": "凿击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Perforate"
+    },
+    {
+      "id": "gem:0581674eff421e9a",
+      "name": "增大范围(辅)",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Increased_Area_of_Effect_Support"
+    },
+    {
+      "id": "gem:8f75324d1ca55188",
+      "name": "增大范围（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Increased_Area_of_Effect_Support"
+    },
+    {
+      "id": "gem:20dd504acfcb530b",
+      "name": "增幅(辅)",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Enhance_Support"
+    },
+    {
+      "id": "gem:320663ecf2da05d1",
+      "name": "增幅（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Enhance_Support"
+    },
+    {
+      "id": "gem:3f51b55240c522a8",
+      "name": "增幅之地震",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Earthquake_of_Amplification"
+    },
+    {
+      "id": "gem:aded40b3366e31c6",
+      "name": "增幅之电能释放",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Tendrils_of_Escalation"
+    },
+    {
+      "id": "gem:37e6b59688533c54",
+      "name": "增加燃烧伤害(辅)",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Burning_Damage_Support"
+    },
+    {
+      "id": "gem:86e4cf7f5cfaac77",
+      "name": "增加燃烧伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Burning_Damage_Support"
+    },
+    {
+      "id": "gem:78939eab7ff18229",
+      "name": "憎恨",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Hatred"
+    },
+    {
+      "id": "gem:43bfbd9baed5b2bb",
+      "name": "栅篱之暴雨箭",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Storm_Rain_of_the_Fence"
+    },
+    {
+      "id": "gem:30a6fa7d8df12da5",
+      "name": "斩首（辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Behead_Support"
+    },
+    {
+      "id": "gem:65cd0b1cdf540b68",
+      "name": "战旗",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/War_Banner"
+    },
+    {
+      "id": "gem:92910232559b98fa",
+      "name": "战争铁拳（辅）",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Fist_of_War_Support"
+    },
+    {
+      "id": "gem:1e65bc46305aba5a",
+      "name": "召唤飞掠者",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Skitterbots"
+    },
+    {
+      "id": "gem:b1d66bc9e34801cf",
+      "name": "召唤愤怒狂灵",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Raging_Spirit"
+    },
+    {
+      "id": "gem:1ebf064f48cf032d",
+      "name": "召唤腐化魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Carrion_Golem"
+    },
+    {
+      "id": "gem:6c5747490008a6f0",
+      "name": "召唤寒冰魔像",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Ice_Golem"
+    },
+    {
+      "id": "gem:20665610c8148dab",
+      "name": "召唤幻影（辅）",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Summon_Phantasm_Support"
+    },
+    {
+      "id": "gem:d293dc2ef495140d",
+      "name": "召唤混沌魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Chaos_Golem"
+    },
+    {
+      "id": "gem:e1d4d4ef721a4d80",
+      "name": "召唤巨石魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Stone_Golem"
+    },
+    {
+      "id": "gem:851d524b24e6dd70",
+      "name": "召唤烈焰魔像",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Flame_Golem"
+    },
+    {
+      "id": "gem:8a1eac60a87e3f17",
+      "name": "召唤灵体",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Raise_Spectre"
+    },
+    {
+      "id": "gem:fee2ad47947851cc",
+      "name": "召唤魔侍",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Skeletons"
+    },
+    {
+      "id": "gem:c1da77cf71aeb49c",
+      "name": "召唤闪电魔像",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Lightning_Golem"
+    },
+    {
+      "id": "gem:0f6e536c76b35368",
+      "name": "召唤生物伤害(辅)",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Minion_Damage_Support"
+    },
+    {
+      "id": "gem:730c50a337d81885",
+      "name": "召唤生物伤害（强辅）",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Minion_Damage_Support"
+    },
+    {
+      "id": "gem:2cb57109659de189",
+      "name": "召唤生物生命(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Minion_Life_Support"
+    },
+    {
+      "id": "gem:76a535cd410a98b0",
+      "name": "召唤生物速度(辅)",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Minion_Speed_Support"
+    },
+    {
+      "id": "gem:23711c633c9ac98f",
+      "name": "召唤圣物",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Holy_Relic"
+    },
+    {
+      "id": "gem:f7ffec601430034f",
+      "name": "召唤追命死灵",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Summon_Reaper"
+    },
+    {
+      "id": "gem:e1eacd55c3b3a36c",
+      "name": "折射之冲击波",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Reave_of_Refraction"
+    },
+    {
+      "id": "gem:c2b17acadd22a5e2",
+      "name": "震爆之火焰陷阱",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Fire_Trap_of_Blasting"
+    },
+    {
+      "id": "gem:6ce9fe1898556fe8",
+      "name": "震波（辅）",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Shockwave_Support"
+    },
+    {
+      "id": "gem:66e7b23c8d94bcb2",
+      "name": "震波图腾",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shockwave_Totem"
+    },
+    {
+      "id": "gem:7da4e6f3d96149ae",
+      "name": "震波陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Seismic_Trap"
+    },
+    {
+      "id": "gem:8e8c4d49110d8008",
+      "name": "震荡之电弧",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Arc_of_Oscillating"
+    },
+    {
+      "id": "gem:85e7432742a199ac",
+      "name": "震荡之电塔陷阱",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Lightning_Spire_Trap_of_Zapping"
+    },
+    {
+      "id": "gem:3a304206d08a7df0",
+      "name": "震地",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Earthquake"
+    },
+    {
+      "id": "gem:171ac48ccf8399e4",
+      "name": "震地战吼",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Seismic_Cry"
+    },
+    {
+      "id": "gem:18cc44ead0c41dc2",
+      "name": "震地之裂地之击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Ground_Slam_of_Earthshaking"
+    },
+    {
+      "id": "gem:d433ed56d8539c5e",
+      "name": "正义之火",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Righteous_Fire"
+    },
+    {
+      "id": "gem:4249427e127c82de",
+      "name": "直觉羁绊",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Intuitive_Link"
+    },
+    {
+      "id": "gem:c52605e7f6747beb",
+      "name": "致盲(辅)",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Blind_Support"
+    },
+    {
+      "id": "gem:789fb0a2b9e062bb",
+      "name": "致命异常状态(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Deadly_Ailments_Support"
+    },
+    {
+      "id": "gem:df418b2d50f42532",
+      "name": "致命异常状态（强辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Awakened_Deadly_Ailments_Support"
+    },
+    {
+      "id": "gem:bf45d46e0bd8dd8c",
+      "name": "致死剂量（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Lethal_Dose_Support"
+    },
+    {
+      "id": "gem:e5fd2affc7d34e37",
+      "name": "致疫打击",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Pestilent_Strike"
+    },
+    {
+      "id": "gem:d3b5439b9f172fd6",
+      "name": "掷火陷阱",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Flamethrower_Trap"
+    },
+    {
+      "id": "gem:d8c673db03815234",
+      "name": "忠诚伙伴（辅）",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Companionship_Support"
+    },
+    {
+      "id": "gem:7d62728b6c14aa89",
+      "name": "终结(辅)",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Culling_Strike_Support"
+    },
+    {
+      "id": "gem:c1d0c929b6c397a9",
+      "name": "重创之七伤破",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Boneshatter_of_Complex_Trauma"
+    },
+    {
+      "id": "gem:8a6ccd55b95550bd",
+      "name": "重盾冲锋",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Shield_Charge"
+    },
+    {
+      "id": "gem:5042bb95d5f66b91",
+      "name": "重击",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Heavy_Strike"
+    },
+    {
+      "id": "gem:1017a1f590217c1c",
+      "name": "周转之天雷之珠",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Ball_Lightning_of_Orbiting"
+    },
+    {
+      "id": "gem:68a00b5e99a2eab0",
+      "name": "助力之风（辅）",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/cn/Second_Wind_Support"
+    },
+    {
+      "id": "gem:a4667fbf954414ee",
+      "name": "注魔长杖",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Mana-Infused_Staff"
+    },
+    {
+      "id": "gem:132f619e2d62deb2",
+      "name": "祝福呼唤（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Blessed_Call_Support"
+    },
+    {
+      "id": "gem:bd972d7557bad11b",
+      "name": "专擅反击（辅）",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/cn/Expert_Retaliation_Support"
+    },
+    {
+      "id": "gem:1bd0d511462ef77a",
+      "name": "专注吟唱（辅）",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Focused_Channelling_Support"
+    },
+    {
+      "id": "gem:7f3878a3424d6070",
+      "name": "转移之瘟疫",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Contagion_of_Transference"
+    },
+    {
+      "id": "gem:fc8f91ddbc7d7d2a",
+      "name": "装甲奉献",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Bone_Offering"
+    },
+    {
+      "id": "gem:b3cbda624ff241c4",
+      "name": "灼热光线",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Scorching_Ray"
+    },
+    {
+      "id": "gem:ac58202d7c015226",
+      "name": "灼热连接",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Searing_Bond"
+    },
+    {
+      "id": "gem:8d116b82844f50fb",
+      "name": "自动化",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Automation"
+    },
+    {
+      "id": "gem:0679c2fc85d17d5b",
+      "name": "自动增助",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Autoexertion"
+    },
+    {
+      "id": "gem:445a051346968d65",
+      "name": "自省之幻化武器",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/cn/Animate_Weapon_of_Self_Reflection"
+    },
+    {
+      "id": "gem:87f561da18476395",
+      "name": "诅咒光环(辅)",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Blasphemy_Support"
+    },
+    {
+      "id": "gem:0ecc3d6e469fa2fa",
+      "name": "诅咒之地辅助",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/cn/Cursed_Ground_Support"
+    },
+    {
+      "id": "gem:1c4ace0149d61865",
+      "name": "罪罚之混沌之毒",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Bane_of_Condemnation"
+    },
+    {
+      "id": "gem:776ef7f6f07d7e72",
+      "name": "尊法之正义之火",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/cn/Righteous_Fire_of_Arcane_Devotion"
+    },
+    {
+      "id": "gem:6b1564e6c45009d3",
+      "name": "尊严",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/cn/Pride"
+    }
+  ]
+}

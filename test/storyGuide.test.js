@@ -29,6 +29,29 @@ test('剧情数据规范化补齐结构、修复进度并约束技能颜色', ()
   assert.equal(data.currentStepId, data.chapters[0].steps[0].id)
 })
 
+test('剧情数据保留完整目录字段并兼容旧技能和无效目录元数据', () => {
+  const data = normalizeStoryData({
+    version: 1,
+    chapters: [{
+      name: '章节',
+      steps: ['说明'],
+      skillGroups: [{ skills: [
+        { name: '劈砍', color: 'red', gemId: 'gem:cleave', requiredLevel: 1, kind: 'active' },
+        { name: '旧技能', color: 'green' },
+        { name: '损坏关联', color: 'blue', gemId: 'gem:bad', requiredLevel: 0, kind: 'active' }
+      ] }]
+    }]
+  })
+  const [catalogSkill, legacySkill, invalidSkill] = data.chapters[0].skillGroups[0].skills
+  assert.equal(data.version, 1)
+  assert.deepEqual(
+    { gemId: catalogSkill.gemId, requiredLevel: catalogSkill.requiredLevel, kind: catalogSkill.kind },
+    { gemId: 'gem:cleave', requiredLevel: 1, kind: 'active' }
+  )
+  assert.equal('gemId' in legacySkill, false)
+  assert.equal('gemId' in invalidSkill, false)
+})
+
 test('连续剧情导航跨章、跳过空章并在首尾停留', () => {
   assert.deepEqual(buildStoryFlow(chapters).map(item => item.step.id), ['s1', 's2', 's3'])
   assert.equal(moveStoryStep(chapters, 's2', 1).step.id, 's3')
@@ -40,7 +63,7 @@ test('连续剧情导航跨章、跳过空章并在首尾停留', () => {
 test('浮窗快照包含三步上下文和当前章节的有效技能', () => {
   const source = structuredClone(chapters)
   source[0].skillGroups = [{ id: 'g1', name: '位移', skills: [
-    { id: 'a', name: '冲刺', color: 'green' },
+    { id: 'a', name: '冲刺', color: 'green', gemId: 'gem:dash', requiredLevel: 4, kind: 'active' },
     { id: 'b', name: ' ', color: 'red' }
   ] }]
   const snapshot = buildStorySnapshot(source, 's2')
@@ -48,6 +71,7 @@ test('浮窗快照包含三步上下文和当前章节的有效技能', () => {
   assert.equal(snapshot.current.text, '二步')
   assert.equal(snapshot.next.text, '三步')
   assert.deepEqual(snapshot.chapter.skillGroups[0].skills.map(skill => skill.name), ['冲刺'])
+  assert.deepEqual(snapshot.chapter.skillGroups[0].skills[0], { id: 'a', name: '冲刺', color: 'green' })
 })
 
 test('删除当前步骤后优先选择后继，无后继时选择前驱', () => {

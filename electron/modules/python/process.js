@@ -13,6 +13,7 @@ import { promisify } from 'util'
 const execAsync = promisify(exec)
 
 let currentScriptProcess = null
+let currentScriptMode = null
 
 /**
  * Purpose: 强制终止Python进程及其所有子进程
@@ -89,13 +90,18 @@ export function getCurrentScriptProcess() {
   return currentScriptProcess
 }
 
+export function getCurrentScriptMode() {
+  return currentScriptMode
+}
+
 /**
  * Purpose: 设置当前正在执行的脚本进程
  * Inputs: process (Process) - 进程对象
  * Outputs: 无
  */
-export function setCurrentScriptProcess(process) {
+export function setCurrentScriptProcess(process, mode = null) {
   currentScriptProcess = process
+  currentScriptMode = mode === 'items' || mode === 'map' ? mode : null
 }
 
 /**
@@ -105,6 +111,7 @@ export function setCurrentScriptProcess(process) {
  */
 export function clearCurrentScriptProcess() {
   currentScriptProcess = null
+  currentScriptMode = null
 }
 
 /**
@@ -124,7 +131,7 @@ export async function cleanup() {
     } catch (e) {
       // 终止脚本进程失败
     }
-    currentScriptProcess = null
+    clearCurrentScriptProcess()
   }
   
   // 清理所有Python进程（防止残留）

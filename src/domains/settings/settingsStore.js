@@ -5,6 +5,10 @@ import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combat
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
 import {
+  DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
+  normalizeStoryShowSkillRequiredLevel
+} from './storySkillSettings'
+import {
   DPI_MODE_AUTO,
   DPI_MODE_MANUAL,
   loadDpiSettings,
@@ -19,6 +23,7 @@ function sanitizeCurrencyPositions(positions = {}) {
 
 export const useSettingsStore = defineStore('settings', () => {
   const globalShortcuts = ref({ ...DEFAULT_GLOBAL_SHORTCUTS })
+  const shortcutHealth = ref({ status: 'pending', error: '', failed: [] })
 
   const combatAssist = ref(createDefaultCombatAssist())
 
@@ -77,6 +82,7 @@ export const useSettingsStore = defineStore('settings', () => {
     maskOpacity: 0.5         // 遮罩透明度 (0-1)
   })
   const storyOverlayWidth = ref(560)
+  const storyShowSkillRequiredLevel = ref(DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL)
 
   // 背景历史记录
   const backgroundHistory = ref([])
@@ -94,6 +100,14 @@ export const useSettingsStore = defineStore('settings', () => {
   function updateInventorySettings(settings) {
     inventory.value = { ...inventory.value, ...settings }
     saveSettings()
+  }
+
+  function updateShortcutHealth(result = {}) {
+    shortcutHealth.value = {
+      status: result.success === true ? 'ready' : 'error',
+      error: String(result.error || ''),
+      failed: Array.isArray(result.failed) ? result.failed : []
+    }
   }
 
   function updateOperationDelay(value) {
@@ -214,6 +228,7 @@ export const useSettingsStore = defineStore('settings', () => {
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
+        storyShowSkillRequiredLevel: storyShowSkillRequiredLevel.value,
         backgroundHistory: backgroundHistory.value,
         combatAssist: combatAssist.value
       }))
@@ -265,6 +280,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.storyOverlayWidth != null) {
           storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(data.storyOverlayWidth) || 560)))
         }
+        storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
       }
     } catch (error) {
@@ -295,6 +311,11 @@ export const useSettingsStore = defineStore('settings', () => {
     storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(width) || 560)))
     saveSettings()
     electronApi.storyOverlay.resize({ width: storyOverlayWidth.value })
+  }
+
+  const updateStoryShowSkillRequiredLevel = (visible) => {
+    storyShowSkillRequiredLevel.value = Boolean(visible)
+    saveSettings()
   }
 
   const defaultInventory = {
@@ -330,6 +351,7 @@ export const useSettingsStore = defineStore('settings', () => {
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = 560
+    storyShowSkillRequiredLevel.value = DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
     saveSettings()
@@ -352,6 +374,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     globalShortcuts,
+    shortcutHealth,
     combatAssist,
     currencyPositions,
     inventory,
@@ -370,8 +393,10 @@ export const useSettingsStore = defineStore('settings', () => {
     debugMode,
     overlaySettings,
     storyOverlayWidth,
+    storyShowSkillRequiredLevel,
     backgroundHistory,
     updateGlobalShortcuts,
+    updateShortcutHealth,
     updateCombatAssist,
     updateCurrencyPosition,
     updateInventorySettings,
@@ -383,6 +408,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDebugMode,
     updateOverlaySettings,
     updateStoryOverlayWidth,
+    updateStoryShowSkillRequiredLevel,
     removeHistoryItem,
     saveSettings,
     loadSettings,

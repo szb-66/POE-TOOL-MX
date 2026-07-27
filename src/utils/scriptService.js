@@ -23,6 +23,7 @@ import { isSuccessfulScriptStart } from './scriptStartResult.js'
 // 监听器注册标志
 let shortcutListenerRegistered = false
 let pythonOutputListenerRegistered = false
+let scriptStatusListenerRegistered = false
 
 function formatShortcutError(result) {
   return result?.failed?.map(item => item.accelerator).join('、') || '未知快捷键'
@@ -48,9 +49,13 @@ export async function initShortcuts() {
     const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
     if (!result?.success) {
       const names = formatShortcutError(result)
+      settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })
       ElMessage.error(`全局快捷键注册失败：${names}`)
+    } else {
+      settingsStore.updateShortcutHealth(result)
     }
   } catch (err) {
+    settingsStore.updateShortcutHealth({ success: false, error: err.message })
     ElMessage.error(`全局快捷键初始化失败：${err.message}`)
   }
 
@@ -83,6 +88,14 @@ export async function initShortcuts() {
     pythonOutputListenerRegistered = true
   }
 
+  if (!scriptStatusListenerRegistered) {
+    electronApi.script.onStatusChanged((status) => useScriptStore().applyStatus(status))
+    scriptStatusListenerRegistered = true
+  }
+
+  const currentStatus = await electronApi.script.getStatus()
+  useScriptStore().applyStatus(currentStatus)
+
   // 注意：快捷键更新应该在设置页面手动触发，避免频繁注册
 }
 
@@ -96,6 +109,7 @@ export async function startCrafting() {
 
   // 检查是否已有脚本在运行
   const status = await electronApi.script.getStatus()
+  scriptStore.applyStatus(status)
   if (status.isRunning) {
     ElMessage.warning('脚本已在运行中')
     return
@@ -138,12 +152,12 @@ export async function startCrafting() {
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
-      preset: plainPreset
+      preset: plainPreset,
+      mode: 'items'
     })
 
     if (isSuccessfulScriptStart(result)) {
-      scriptStore.setRunning(true)
-      scriptStore.setProcessId(result.processId)
+      scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('脚本执行成功')
     } else {
       ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
@@ -163,6 +177,7 @@ export async function startMapRolling() {
 
   // 检查是否已有脚本在运行
   const status = await electronApi.script.getStatus()
+  scriptStore.applyStatus(status)
   if (status.isRunning) {
     ElMessage.warning('脚本已在运行中')
     return
@@ -211,12 +226,12 @@ export async function startMapRolling() {
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
-      preset: plainPreset
+      preset: plainPreset,
+      mode: 'map'
     })
 
     if (isSuccessfulScriptStart(result)) {
-      scriptStore.setRunning(true)
-      scriptStore.setProcessId(result.processId)
+      scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('地图洗练脚本执行成功')
     } else {
       ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
@@ -258,8 +273,10 @@ export async function updateShortcuts(candidateShortcuts = null) {
   const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
   if (!result?.success) {
     const names = formatShortcutError(result)
+    settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })
     throw new Error(`全局快捷键注册失败：${names}`)
   }
+  settingsStore.updateShortcutHealth(result)
   return result
 }
 

@@ -18,10 +18,18 @@ export function registerPythonHandlers(python, window, fileWatcher) {
     detectPythonPath, 
     killPythonProcessTree, 
     getCurrentScriptProcess, 
+    getCurrentScriptMode,
     setCurrentScriptProcess, 
     clearCurrentScriptProcess 
   } = python
   const { getMainWindow, getOverlayWindow } = window
+  const intentionallyStopped = new WeakSet()
+
+  const sendScriptStatus = (payload) => {
+    const mainWindow = getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    mainWindow.webContents.send('script-status-changed', payload)
+  }
 
   // IPC: 执行Python脚本
   ipcMain.handle('execute-python', async (event, scriptPath, args) => {
@@ -76,6 +84,8 @@ export function registerPythonHandlers(python, window, fileWatcher) {
     if (currentScriptProcess) {
       try {
         const pid = currentScriptProcess.pid
+        const mode = getCurrentScriptMode()
+        intentionallyStopped.add(currentScriptProcess)
         
         // 使用进程树终止函数
         const success = await killPythonProcessTree(pid)
@@ -143,19 +153,35 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         
         clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
+        sendScriptStatus({
+          status: 'stopped',
+          mode,
+          processId: pid,
+          exitCode: null
+        })
         return { success: true }
       } catch (error) {
+        const mode = getCurrentScriptMode()
+        const processId = currentScriptProcess.pid
         clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
+        sendScriptStatus({
+          status: 'error',
+          mode,
+          processId,
+          exitCode: null,
+          error: error.message
+        })
         return { success: false, error: error.message }
       }
     }
-    return { success: true, message: '没有正在执行的脚本' }
+    return { success: true, message: '没有正在执行的脚本', isRunning: false, processId: null, mode: null }
   })
 
   // 获取脚本执行状态
   ipcMain.handle('get-script-status', async () => {
     const currentScriptProcess = getCurrentScriptProcess()
+    const mode = getCurrentScriptMode()
     // 检查进程是否真正存活
     if (currentScriptProcess) {
       // 检查进程是否已被终止
@@ -164,7 +190,8 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         fileWatcher.stopFileWatcher()
         return {
           isRunning: false,
-          processId: null
+          processId: null,
+          mode: null
         }
       }
       
@@ -178,19 +205,22 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         fileWatcher.stopFileWatcher()
         return {
           isRunning: false,
-          processId: null
+          processId: null,
+          mode: null
         }
       }
       
       return {
         isRunning: true,
-        processId: currentScriptProcess.pid
+        processId: currentScriptProcess.pid,
+        mode
       }
     }
     
     return {
       isRunning: false,
-      processId: null
+      processId: null,
+      mode: null
     }
   })
 
@@ -208,10 +238,14 @@ export function registerPythonHandlers(python, window, fileWatcher) {
     try {
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
+      const mode = config?.mode === 'items' || config?.mode === 'map' ? config.mode : null
       
       // 如果已有脚本在运行，先停止
       const currentScriptProcess = getCurrentScriptProcess()
       if (currentScriptProcess) {
+        const previousMode = getCurrentScriptMode()
+        const previousProcessId = currentScriptProcess.pid
+        intentionallyStopped.add(currentScriptProcess)
         try {
           // 使用进程树终止函数确保完全终止
           const pid = currentScriptProcess.pid
@@ -226,6 +260,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         }
         clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
+        sendScriptStatus({
+          status: 'stopped',
+          mode: previousMode,
+          processId: previousProcessId,
+          exitCode: null
+        })
       }
 
       // 接收渲染进程传递的脚本内容
@@ -252,7 +292,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       const launch = createPythonProcess({ pythonPath, scriptPath })
       const pythonProcess = launch.process
 
-      setCurrentScriptProcess(pythonProcess)
+      setCurrentScriptProcess(pythonProcess, mode)
 
       // 捕获标准输出
       let stdout = ''
@@ -298,8 +338,18 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       pythonProcess.on('error', (err) => {
         const errorMsg = `[错误] Python进程启动失败: ${err.message}`
         stderr += errorMsg
-        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
+        const wasCurrent = getCurrentScriptProcess() === pythonProcess
+        if (wasCurrent) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
+        if (wasCurrent && !intentionallyStopped.has(pythonProcess)) {
+          sendScriptStatus({
+            status: 'error',
+            mode,
+            processId: pythonProcess.pid ?? null,
+            exitCode: null,
+            error: err.message
+          })
+        }
         
         // 发送错误到渲染进程
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -311,8 +361,18 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       })
 
       pythonProcess.on('close', (code) => {
-        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
+        const wasCurrent = getCurrentScriptProcess() === pythonProcess
+        if (wasCurrent) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
+        if (wasCurrent && !intentionallyStopped.has(pythonProcess)) {
+          sendScriptStatus({
+            status: code === 0 ? 'stopped' : 'error',
+            mode,
+            processId: pythonProcess.pid ?? null,
+            exitCode: code,
+            error: code === 0 ? undefined : (stderr.trim() || `脚本异常退出，退出代码: ${code}`)
+          })
+        }
         
         // 发送脚本停止事件到overlay（用于地图制作）
         const currentOverlayWindow = getOverlayWindow()
@@ -398,6 +458,13 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         return { success: false, error: `Python进程启动失败: ${error.message}` }
       }
 
+      sendScriptStatus({
+        status: 'running',
+        mode,
+        processId: pythonProcess.pid,
+        exitCode: null
+      })
+
       // 进程已由操作系统确认创建后，再显示覆盖层并向 renderer 报告成功。
       let currentOverlayWindow = getOverlayWindow()
       if (!currentOverlayWindow) {
@@ -408,7 +475,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         currentOverlayWindow.webContents.send('update-overlay', { reset: true })
       }
 
-      return { success: true, processId: pythonProcess.pid }
+      return { success: true, processId: pythonProcess.pid, mode }
     } catch (error) {
       fileWatcher.stopFileWatcher()
       clearCurrentScriptProcess()
