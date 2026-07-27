@@ -1,1 +1,15 @@
 node_modules
+dist/
+dist-electron/
+
+# 本地 AI / 编辑器工作流配置
+.claude/
+.codex/
+.cursor/
+.opencode/
+
+# OpenSpec 需求实施历史（主规格 openspec/specs 继续跟踪）
+openspec/changes/
+
+# 误生成的 Windows 系统缓存路径
+%SystemDrive%/

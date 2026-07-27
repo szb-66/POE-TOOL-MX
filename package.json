@@ -44,6 +44,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/assets/crafting-raw/**/*",
+      "!electron/assets/skill-raw/**/*",
       "scripts/**/*",
       "package.json"
     ],
