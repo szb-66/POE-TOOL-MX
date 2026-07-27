@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { captureKeyForTemplate, createDefaultBagSettings, normalizeBagBlacklist, normalizeBagSettings } from '@/utils/bagConfig'
+import {
+  captureKeyForTemplate,
+  createDefaultBagSettings,
+  normalizeBagBlacklist,
+  normalizeBagSettings,
+  normalizeInventoryLayout
+} from '@/utils/bagConfig'
 
 const emptyStats = () => ({
   scannedSlots: 0,
@@ -17,6 +23,7 @@ export const useBagStore = defineStore('bag', () => {
   const templates = ref(defaults.templates)
   const matchThreshold = ref(defaults.matchThreshold)
   const blacklist = ref(defaults.blacklist)
+  const inventoryLayout = ref(defaults.inventoryLayout)
   const isDetecting = ref(false)
   const isMatched = ref(false)
   const isStashing = ref(false)
@@ -30,7 +37,8 @@ export const useBagStore = defineStore('bag', () => {
         moduleEnabled: moduleEnabled.value,
         templates: templates.value,
         matchThreshold: matchThreshold.value,
-        blacklist: blacklist.value
+        blacklist: blacklist.value,
+        inventoryLayout: inventoryLayout.value
       }))
     } catch (error) {
       console.error('保存背包设置失败:', error)
@@ -43,6 +51,7 @@ export const useBagStore = defineStore('bag', () => {
     templates.value = normalized.templates
     matchThreshold.value = normalized.matchThreshold
     blacklist.value = normalized.blacklist
+    inventoryLayout.value = normalized.inventoryLayout
   }
 
   function loadSettings() {
@@ -78,6 +87,10 @@ export const useBagStore = defineStore('bag', () => {
   }
   function setMatchThreshold(value) { matchThreshold.value = Number(value); saveSettings() }
   function setBlacklist(rules) { blacklist.value = normalizeBagBlacklist(rules); saveSettings() }
+  function setInventoryLayout(layout) {
+    inventoryLayout.value = normalizeInventoryLayout({ ...inventoryLayout.value, ...layout })
+    saveSettings()
+  }
   function setDetectionStatus(status) { isDetecting.value = Boolean(status) }
   function setMatchedStatus(status) { isMatched.value = Boolean(status) }
   function setStashingStatus(status, payload = {}) {
@@ -108,9 +121,9 @@ export const useBagStore = defineStore('bag', () => {
   loadSettings()
 
   return {
-    moduleEnabled, templates, matchThreshold, blacklist,
+    moduleEnabled, templates, matchThreshold, blacklist, inventoryLayout,
     isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason,
-    setModuleEnabled, setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist,
+    setModuleEnabled, setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
     setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,
     resetRunStats, resetStates, saveSettings, loadSettings, resetSettings
   }

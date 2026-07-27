@@ -135,7 +135,6 @@
 
 <script setup>
 import { computed, defineComponent, h, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { CopyDocument, RefreshLeft } from '@element-plus/icons-vue'
 import PresetSelector from '../../components/common/PresetSelector.vue'
 import { electronApi } from '../../api/electron.js'

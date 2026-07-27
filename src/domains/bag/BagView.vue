@@ -41,6 +41,93 @@
           </el-form>
         </el-card>
 
+        <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
+        <el-card class="section-card inventory-layout-card">
+          <el-alert title="点击格子可切换是否执行自动入库；模块启用后布局将锁定。" type="info" :closable="false" />
+          <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
+            <el-form-item label="额外背包">
+              <el-switch
+                :model-value="bagStore.inventoryLayout.extraEnabled"
+                active-text="开启"
+                inactive-text="关闭"
+                :disabled="bagStore.moduleEnabled"
+                @change="setExtraInventoryEnabled"
+              />
+            </el-form-item>
+            <el-form-item label="额外列数">
+              <el-input-number
+                :model-value="bagStore.inventoryLayout.extraColumns"
+                :min="1"
+                :max="5"
+                :step="1"
+                :disabled="bagStore.moduleEnabled || !bagStore.inventoryLayout.extraEnabled"
+                @change="setExtraInventoryColumns"
+              />
+            </el-form-item>
+          </el-form>
+
+          <div class="inventory-layout-scroll">
+            <div class="inventory-layout">
+              <div v-if="extraColumns.length" class="inventory-region inventory-region--extra">
+                <div class="inventory-region__label">额外背包</div>
+                <div class="inventory-columns">
+                  <div v-for="column in extraColumns" :key="column" class="inventory-column">
+                    <button
+                      v-for="row in inventoryRows"
+                      :key="slotKey(column, row)"
+                      type="button"
+                      class="inventory-slot inventory-slot--extra"
+                      :class="{ 'is-excluded': isSlotExcluded(column, row) }"
+                      :disabled="bagStore.moduleEnabled"
+                      :aria-label="slotAriaLabel(column, row)"
+                      :aria-pressed="isSlotExcluded(column, row)"
+                      @click="toggleExcludedSlot(column, row)"
+                    >
+                      <span v-if="isSlotExcluded(column, row)">×</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="inventory-region inventory-region--native">
+                <div class="inventory-region__label">原生背包</div>
+                <div class="inventory-columns">
+                  <div v-for="column in nativeColumns" :key="column" class="inventory-column">
+                    <button
+                      v-for="row in inventoryRows"
+                      :key="slotKey(column, row)"
+                      type="button"
+                      class="inventory-slot"
+                      :class="{ 'is-excluded': isSlotExcluded(column, row) }"
+                      :disabled="bagStore.moduleEnabled"
+                      :aria-label="slotAriaLabel(column, row)"
+                      :aria-pressed="isSlotExcluded(column, row)"
+                      @click="toggleExcludedSlot(column, row)"
+                    >
+                      <span v-if="isSlotExcluded(column, row)">×</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="inventory-layout-footer">
+            <div class="inventory-legend">
+              <span><i class="legend-swatch"></i>自动入库</span>
+              <span><i class="legend-swatch is-excluded"></i>不执行入库</span>
+              <span>已禁用 {{ bagStore.inventoryLayout.excludedSlots.length }} 格</span>
+            </div>
+            <el-button
+              type="danger"
+              plain
+              :disabled="bagStore.moduleEnabled || bagStore.inventoryLayout.excludedSlots.length === 0"
+              @click="clearExcludedSlots"
+            >
+              清空选择
+            </el-button>
+          </div>
+        </el-card>
+
         <div class="section-header"><h3 class="section-title">物品黑名单</h3></div>
         <el-card class="section-card">
           <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
@@ -123,7 +210,6 @@
 
 <script setup>
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { Plus, Upload, VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -131,7 +217,7 @@ import { electronApi } from '@/api/electron'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
 import { formatBagStopReason, setBagModuleEnabled, startBagStash, stopBagStash } from '@/utils/bagService'
-import { BAG_BLACKLIST_FIELDS, BAG_BLACKLIST_FIELD_LABELS } from '@/utils/bagConfig'
+import { BAG_BLACKLIST_FIELDS, BAG_BLACKLIST_FIELD_LABELS, INVENTORY_LAYOUT } from '@/utils/bagConfig'
 
 const bagStore = useBagStore()
 const settingsStore = useSettingsStore()
@@ -145,6 +231,16 @@ const templateDefinitions = [
   { type: 'stashTitle', region: 'stashRegion', capture: 'stashCapture', label: '仓库标题模板', shortLabel: '仓库标题' },
   { type: 'inventoryTitle', region: 'inventoryRegion', capture: 'inventoryCapture', label: '背包标题模板', shortLabel: '背包标题' }
 ]
+const nativeColumns = Array.from({ length: INVENTORY_LAYOUT.nativeColumns }, (_value, index) => index)
+const inventoryRows = Array.from({ length: INVENTORY_LAYOUT.rows }, (_value, index) => index)
+const extraColumns = computed(() => {
+  if (!bagStore.inventoryLayout.extraEnabled) return []
+  const count = bagStore.inventoryLayout.extraColumns
+  return Array.from({ length: count }, (_value, index) => index - count)
+})
+const excludedSlotKeys = computed(() => new Set(
+  bagStore.inventoryLayout.excludedSlots.map((slot) => slotKey(slot.column, slot.row))
+))
 
 const detectionStatus = computed(() => {
   if (!bagStore.moduleEnabled) return { type: 'info', text: '模块未启用' }
@@ -229,6 +325,41 @@ function removeBlacklistRule(index) {
   bagStore.setBlacklist(bagStore.blacklist.filter((_rule, ruleIndex) => ruleIndex !== index))
 }
 
+function slotKey(column, row) {
+  return `${column}:${row}`
+}
+
+function isSlotExcluded(column, row) {
+  return excludedSlotKeys.value.has(slotKey(column, row))
+}
+
+function slotAriaLabel(column, row) {
+  const region = column < 0 ? '额外背包' : '原生背包'
+  const displayColumn = column < 0 ? column + bagStore.inventoryLayout.extraColumns + 1 : column + 1
+  return `${region}第 ${displayColumn} 列第 ${row + 1} 行，${isSlotExcluded(column, row) ? '不执行入库' : '自动入库'}`
+}
+
+function setExtraInventoryEnabled(extraEnabled) {
+  bagStore.setInventoryLayout({ extraEnabled })
+}
+
+function setExtraInventoryColumns(extraColumns) {
+  bagStore.setInventoryLayout({ extraColumns })
+}
+
+function toggleExcludedSlot(column, row) {
+  if (bagStore.moduleEnabled) return
+  const key = slotKey(column, row)
+  const excludedSlots = bagStore.inventoryLayout.excludedSlots.filter((slot) => slotKey(slot.column, slot.row) !== key)
+  if (excludedSlots.length === bagStore.inventoryLayout.excludedSlots.length) excludedSlots.push({ column, row })
+  bagStore.setInventoryLayout({ excludedSlots })
+}
+
+function clearExcludedSlots() {
+  if (bagStore.moduleEnabled) return
+  bagStore.setInventoryLayout({ excludedSlots: [] })
+}
+
 async function handleStopStash() {
   try {
     await stopBagStash()
@@ -275,6 +406,26 @@ function getTemplatePreview(imagePath, version = '') {
 .rule-editor { margin-top: 16px; }
 .rule-editor .el-input { flex: 1; min-width: 220px; }
 .rule-table { margin-top: 16px; }
+.inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
+.inventory-layout-settings :deep(.el-form-item) { margin-bottom: 8px; }
+.inventory-layout-scroll { overflow-x: auto; padding: 12px 2px 4px; }
+.inventory-layout { display: inline-flex; align-items: flex-end; min-width: max-content; }
+.inventory-region { padding: 10px; border: 1px solid var(--border-base); border-radius: 8px; background: var(--bg-primary); }
+.inventory-region--extra { margin-right: 8px; background: color-mix(in srgb, var(--primary-color) 7%, var(--bg-primary)); border-right: 2px solid var(--primary-color); }
+.inventory-region--native { border-left: 2px solid var(--text-secondary); }
+.inventory-region__label { margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; font-weight: 600; text-align: center; }
+.inventory-columns { display: flex; gap: 3px; }
+.inventory-column { display: grid; grid-template-rows: repeat(5, 30px); gap: 3px; }
+.inventory-slot { width: 30px; height: 30px; padding: 0; border: 1px solid var(--text-secondary); border-radius: 4px; background: var(--bg-primary); color: var(--danger-color); font-size: 22px; line-height: 1; cursor: pointer; }
+.inventory-slot--extra { background: color-mix(in srgb, var(--primary-color) 5%, var(--bg-primary)); }
+.inventory-slot:hover:not(:disabled) { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); }
+.inventory-slot.is-excluded { border-color: var(--danger-color); background: color-mix(in srgb, var(--danger-color) 14%, var(--bg-primary)); }
+.inventory-slot:disabled { cursor: not-allowed; opacity: 0.72; }
+.inventory-layout-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 14px; }
+.inventory-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; color: var(--text-secondary); font-size: 12px; }
+.inventory-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 16px; height: 16px; border: 1px solid var(--text-secondary); border-radius: 3px; background: var(--bg-primary); }
+.legend-swatch.is-excluded { border-color: var(--danger-color); background: color-mix(in srgb, var(--danger-color) 14%, var(--bg-primary)); }
 .template-form { margin-top: 16px; }
 .template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
 .capture-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--border-base); border-radius: 8px; }

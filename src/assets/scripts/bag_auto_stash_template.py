@@ -338,9 +338,40 @@ def empty_stats():
     }
 
 
-def emit_progress(stats):
-    stats["progress"] = int(stats["scannedSlots"] * 100 / 60)
+def emit_progress(stats, total_slots=60):
+    stats["progress"] = 100 if total_slots <= 0 else min(
+        100, int(stats["scannedSlots"] * 100 / total_slots))
     emit("stash-progress", **stats)
+
+
+def build_scan_phases(inventory):
+    layout = inventory.get("layout", {}) if isinstance(inventory, dict) else {}
+    extra_enabled = bool(layout.get("extraEnabled", False))
+    try:
+        extra_columns = max(1, min(5, int(layout.get("extraColumns", 1))))
+    except (TypeError, ValueError):
+        extra_columns = 1
+    excluded = set()
+    raw_excluded = layout.get("excludedSlots", [])
+    if isinstance(raw_excluded, list):
+        for slot in raw_excluded:
+            if not isinstance(slot, dict):
+                continue
+            column, row = slot.get("column"), slot.get("row")
+            if isinstance(column, int) and not isinstance(column, bool) and \
+                    isinstance(row, int) and not isinstance(row, bool) and \
+                    ((0 <= column < 12) or (-5 <= column <= -1)) and 0 <= row < 5:
+                excluded.add((column, row))
+
+    native = [{"column": column, "row": row, "excluded": (column, row) in excluded}
+              for column in range(12) for row in range(5)]
+    phases = [native]
+    if extra_enabled:
+        phases.append([
+            {"column": column, "row": row, "excluded": (column, row) in excluded}
+            for column in range(-extra_columns, 0) for row in range(5)
+        ])
+    return phases
 
 
 def run_detection(config):
@@ -387,10 +418,19 @@ def run_stash(config):
     start_x, start_y = int(start.get("x", 0)), int(start.get("y", 0))
     width, height = int(slot.get("w", 0)), int(slot.get("h", 0))
     rules = config.get("blacklist", [])
+    scan_phases = build_scan_phases(inventory)
+    total_slots = sum(1 for phase in scan_phases for target in phase if not target["excluded"])
     consecutive_empty_slots = 0
     try:
-        for column in range(12):
-            for row in range(5):
+        for phase_index, phase in enumerate(scan_phases):
+            if phase_index > 0:
+                stats["unreadableSlots"] += consecutive_empty_slots
+                consecutive_empty_slots = 0
+            for target in phase:
+                if target["excluded"]:
+                    stats["unreadableSlots"] += consecutive_empty_slots
+                    consecutive_empty_slots = 0
+                    continue
                 if not is_running:
                     return abort("user-stopped", stats)
                 if not is_game_foreground():
@@ -398,6 +438,7 @@ def run_stash(config):
                 interface_ready, _scores = matcher.check_interface()
                 if not interface_ready:
                     return abort("interface-lost", stats)
+                column, row = target["column"], target["row"]
                 x = start_x + column * width
                 y = start_y + row * height
                 copy_status = "unreadable"
@@ -427,11 +468,12 @@ def run_stash(config):
                 stats["scannedSlots"] += 1
                 if consecutive_empty_slots >= 3:
                     stats["emptySlots"] += consecutive_empty_slots
-                    emit_progress(stats)
+                    emit_progress(stats, total_slots)
                     emit("stash-completed", reason="three-consecutive-empty", **stats)
                     return 0
-                emit_progress(stats)
+                emit_progress(stats, total_slots)
         stats["emptySlots"] += consecutive_empty_slots
+        stats["progress"] = 100
         emit("stash-completed", **stats)
         return 0
     except Exception as exc:

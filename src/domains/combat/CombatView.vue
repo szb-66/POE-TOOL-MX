@@ -149,7 +149,6 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Aim } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'

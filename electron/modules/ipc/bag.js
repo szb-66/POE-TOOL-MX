@@ -38,7 +38,10 @@ function runtimeConfig(config = {}) {
       inventory_region: config.templates?.inventoryRegion || {}
     },
     match_threshold: Number(config.matchThreshold ?? 0.8),
-    inventory: config.inventory || {},
+    inventory: {
+      ...(config.inventory || {}),
+      layout: config.inventory?.layout || {}
+    },
     blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
     operation_delay_ms: normalizeOperationDelay(config.operationDelayMs)
   }

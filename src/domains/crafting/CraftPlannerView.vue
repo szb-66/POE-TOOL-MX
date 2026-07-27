@@ -285,7 +285,6 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useCraftingStore } from './craftingStore.js'
 import { familySelectionState, selectableFamilyTiers, tierSelectionKey, toggleFamilySelection, toggleTierSelection } from './modSelection.js'
 import { CATALYST_LABELS, displayedCatalystEntry } from '../../../electron/modules/crafting/catalystRules.js'

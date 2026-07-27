@@ -123,7 +123,6 @@
 
 <script setup>
 import { ref, watch, computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { usePresetStore } from '../../../stores/preset'
 

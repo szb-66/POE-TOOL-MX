@@ -14,7 +14,8 @@ function currentConfig() {
     moduleEnabled: bagStore.moduleEnabled,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
-    blacklist: bagStore.blacklist
+    blacklist: bagStore.blacklist,
+    inventoryLayout: bagStore.inventoryLayout
   }, settingsStore)
 }
 

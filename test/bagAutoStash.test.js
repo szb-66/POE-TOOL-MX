@@ -8,6 +8,7 @@ import {
   buildBagRuntimeConfig,
   findBagBlacklistMatch,
   normalizeBagBlacklist,
+  normalizeInventoryLayout,
   normalizeBagSettings,
   parseBagItemHeader
 } from '../src/utils/bagConfig.js'
@@ -34,6 +35,33 @@ test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
   assert.deepEqual(settings.blacklist, [])
   assert.equal('buttonPosition' in settings, false)
   assert.equal(settings.templates.stashTitle, 'stash.png')
+  assert.deepEqual(settings.inventoryLayout, {
+    extraEnabled: false,
+    extraColumns: 1,
+    excludedSlots: []
+  })
+})
+
+test('背包布局限制额外列数并去重合法格子，同时保留隐藏额外列选择', () => {
+  assert.deepEqual(normalizeInventoryLayout({
+    extraEnabled: false,
+    extraColumns: 99,
+    excludedSlots: [
+      { column: 0, row: 0 },
+      { column: 0, row: 0 },
+      { column: -5, row: 4 },
+      { column: -6, row: 0 },
+      { column: 12, row: 0 },
+      { column: 1.5, row: 2 },
+      { column: 1, row: 5 }
+    ]
+  }), {
+    extraEnabled: false,
+    extraColumns: 5,
+    excludedSlots: [{ column: 0, row: 0 }, { column: -5, row: 4 }]
+  })
+  assert.equal(normalizeInventoryLayout({ extraColumns: 0 }).extraColumns, 1)
+  assert.equal(normalizeInventoryLayout({ extraColumns: 'invalid' }).extraColumns, 1)
 })
 
 test('黑名单规范化仅保留名称、基底和类别的非空规则', () => {
@@ -74,16 +102,38 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
       stashRegion: { left: 1, top: 2, right: 3, bottom: 4 },
       inventoryRegion: { left: 5, top: 6, right: 7, bottom: 8 }
     },
-    blacklist: [{ field: 'category', keyword: '通货' }]
+    blacklist: [{ field: 'category', keyword: '通货' }],
+    inventoryLayout: {
+      extraEnabled: true,
+      extraColumns: 2,
+      excludedSlots: [{ column: -2, row: 3 }]
+    }
   }, {
     inventory: { startPos: { x: 10, y: 20 }, slotSize: { w: 30, h: 40 } },
     operationDelayMs: 180
   })
   assert.equal(config.templates.inventoryRegion.left, 5)
   assert.deepEqual(config.inventory.slotSize, { w: 30, h: 40 })
+  assert.deepEqual(config.inventory.layout, {
+    extraEnabled: true,
+    extraColumns: 2,
+    excludedSlots: [{ column: -2, row: 3 }]
+  })
   assert.equal(config.blacklist[0].keyword, '通货')
   assert.equal(config.operationDelayMs, 180)
   assert.equal('delays' in config, false)
+})
+
+test('背包页面提供额外背包与逐格禁用布局，并在模块启用后锁定编辑', () => {
+  const source = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  assert.match(source, /背包格子布局/)
+  assert.match(source, /inventory-region--extra/)
+  assert.match(source, /v-for="column in extraColumns"/)
+  assert.match(source, /v-for="column in nativeColumns"/)
+  assert.match(source, /toggleExcludedSlot\(column, row\)/)
+  assert.match(source, /清空选择/)
+  assert.match(source, /:disabled="bagStore\.moduleEnabled"/)
+  assert.match(source, /extraColumns[\s\S]*index - count/)
 })
 
 test('自动操作等待补齐默认值、钳制并按优先级迁移旧配置', () => {
@@ -300,6 +350,167 @@ raise SystemExit(module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "
   assert.equal(completed.stashedSlots, 1)
   assert.equal('failedSlots' in completed, false)
   assert.equal(events.filter((event) => event.event === 'stash-progress').length, 6)
+})
+
+test('Python 扫描计划先原生后额外，并从最左额外列向原生方向排列', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+phases = module.build_scan_phases({"layout": {
+    "extraEnabled": True,
+    "extraColumns": 2,
+    "excludedSlots": [{"column": 0, "row": 0}, {"column": -2, "row": 4}]
+}})
+print(json.dumps({
+    "sizes": [len(phase) for phase in phases],
+    "native": [[phases[0][0]["column"], phases[0][0]["row"]], [phases[0][-1]["column"], phases[0][-1]["row"]]],
+    "extra": [[phases[1][0]["column"], phases[1][0]["row"]], [phases[1][-1]["column"], phases[1][-1]["row"]]],
+    "excluded": [phases[0][0]["excluded"], phases[1][4]["excluded"]]
+}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    sizes: [60, 10],
+    native: [[0, 0], [11, 4]],
+    extra: [[-2, 0], [-1, 4]],
+    excluded: [true, true]
+  })
+})
+
+test('Python 原生完整扫描后按负列坐标扫描额外背包', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+text = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    moves = []
+    def __init__(self, config): pass
+    def move(self, x, y): Controller.moves.append([x, y]); return True
+    def copy_item_text(self): return "copied", text
+    def ctrl_click(self): return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+module.run_stash({"inventory": {
+    "startPos": {"x": 100, "y": 200},
+    "slotSize": {"w": 10, "h": 20},
+    "layout": {"extraEnabled": True, "extraColumns": 2, "excludedSlots": []}
+}})
+print(json.dumps({
+    "count": len(Controller.moves),
+    "points": [Controller.moves[0], Controller.moves[59], Controller.moves[60], Controller.moves[-1]]
+}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const summary = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  assert.deepEqual(summary, {
+    count: 70,
+    points: [[100, 200], [210, 280], [80, 200], [90, 280]]
+  })
+})
+
+test('Python 禁用格零操作并中断空格计数，阶段边界也重置候选空格', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+text = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    moves = []
+    calls = 0
+    statuses = []
+    def __init__(self, config): pass
+    def move(self, x, y): Controller.moves.append([x, y]); return True
+    def copy_item_text(self):
+        status = Controller.statuses[Controller.calls] if Controller.calls < len(Controller.statuses) else "copied"
+        Controller.calls += 1
+        return status, text if status == "copied" else ""
+    def ctrl_click(self): return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+
+Controller.statuses = ["empty", "empty", "empty", "copied"]
+module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "layout": {"excludedSlots": [{"column": 0, "row": 2}]}
+}})
+excluded_case = {"moves": len(Controller.moves), "containsExcluded": [0, 2] in Controller.moves}
+
+Controller.moves = []
+Controller.calls = 0
+Controller.statuses = ["copied"] * 58 + ["empty", "empty", "empty", "copied"]
+module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "layout": {"extraEnabled": True, "extraColumns": 2}
+}})
+boundary_case = {"moves": len(Controller.moves), "extraFirst": Controller.moves[60]}
+print(json.dumps({"excluded": excluded_case, "boundary": boundary_case}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const summary = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  assert.deepEqual(summary, {
+    excluded: { moves: 59, containsExcluded: false },
+    boundary: { moves: 70, extraFirst: [-2, 0] }
+  })
+})
+
+test('原生阶段连续三个空格时不进入额外背包', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    moves = []
+    def __init__(self, config): pass
+    def move(self, x, y): Controller.moves.append([x, y]); return True
+    def copy_item_text(self): return "empty", ""
+    def ctrl_click(self): return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "layout": {"extraEnabled": True, "extraColumns": 5}
+}})
+print(json.dumps(Controller.moves))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), [[0, 0], [0, 1], [0, 2]])
+})
+
+test('Electron 运行配置显式透传背包布局', () => {
+  const source = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  assert.match(source, /inventory:[\s\S]*layout: config\.inventory\?\.layout \|\| \{\}/)
 })
 
 function fakeDetectionChild() {

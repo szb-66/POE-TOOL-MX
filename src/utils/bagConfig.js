@@ -9,6 +9,12 @@ export const BAG_BLACKLIST_FIELD_LABELS = Object.freeze({
 })
 
 const DEFAULT_REGION = Object.freeze({ left: 0, top: 0, right: 1920, bottom: 1080 })
+export const INVENTORY_LAYOUT = Object.freeze({
+  nativeColumns: 12,
+  rows: 5,
+  minExtraColumns: 1,
+  maxExtraColumns: 5
+})
 
 function finiteNumber(value, fallback) {
   const number = Number(value)
@@ -25,6 +31,34 @@ export function normalizeBagBlacklist(rules = []) {
     .filter((rule) => BAG_BLACKLIST_FIELDS.includes(rule.field) && rule.keyword.length > 0)
 }
 
+export function normalizeInventoryLayout(layout = {}) {
+  const rawColumns = Number(layout.extraColumns)
+  const extraColumns = Number.isFinite(rawColumns)
+    ? Math.min(INVENTORY_LAYOUT.maxExtraColumns, Math.max(INVENTORY_LAYOUT.minExtraColumns, Math.trunc(rawColumns)))
+    : INVENTORY_LAYOUT.minExtraColumns
+  const excludedSlots = []
+  const seen = new Set()
+  if (Array.isArray(layout.excludedSlots)) {
+    for (const slot of layout.excludedSlots) {
+      const column = Number(slot?.column)
+      const row = Number(slot?.row)
+      if (!Number.isInteger(column) || !Number.isInteger(row)) continue
+      const validColumn = (column >= 0 && column < INVENTORY_LAYOUT.nativeColumns) ||
+        (column <= -1 && column >= -INVENTORY_LAYOUT.maxExtraColumns)
+      if (!validColumn || row < 0 || row >= INVENTORY_LAYOUT.rows) continue
+      const key = `${column}:${row}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      excludedSlots.push({ column, row })
+    }
+  }
+  return {
+    extraEnabled: Boolean(layout.extraEnabled),
+    extraColumns,
+    excludedSlots
+  }
+}
+
 export function createDefaultBagSettings() {
   return {
     moduleEnabled: false,
@@ -37,7 +71,8 @@ export function createDefaultBagSettings() {
       inventoryCapture: null
     },
     matchThreshold: 0.8,
-    blacklist: []
+    blacklist: [],
+    inventoryLayout: normalizeInventoryLayout()
   }
 }
 
@@ -88,7 +123,8 @@ export function normalizeBagSettings(raw = {}) {
       inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture)
     },
     matchThreshold: Number.isFinite(threshold) ? Math.min(1, Math.max(0.1, threshold)) : defaults.matchThreshold,
-    blacklist: normalizeBagBlacklist(raw.blacklist)
+    blacklist: normalizeBagBlacklist(raw.blacklist),
+    inventoryLayout: normalizeInventoryLayout(raw.inventoryLayout)
   }
 }
 
@@ -138,7 +174,8 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
       slotSize: {
         w: finiteNumber(settings?.inventory?.slotSize?.w, 100),
         h: finiteNumber(settings?.inventory?.slotSize?.h, 100)
-      }
+      },
+      layout: bag.inventoryLayout
     }
   }
 }

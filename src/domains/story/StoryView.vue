@@ -123,7 +123,6 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 import { Delete, Plus } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'

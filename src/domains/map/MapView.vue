@@ -165,7 +165,6 @@ import { MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 import { MAP_BASE_STATS, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
-import { ElMessage } from 'element-plus'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()

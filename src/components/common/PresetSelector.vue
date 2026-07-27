@@ -42,7 +42,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { usePresetStore } from '../../stores/preset'
 

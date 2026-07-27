@@ -17,7 +17,6 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { usePresetStore } from '../../../stores/preset'
 import { useSettingsStore } from '../../settings/settingsStore'
 import PresetSelector from '../../../components/common/PresetSelector.vue'
