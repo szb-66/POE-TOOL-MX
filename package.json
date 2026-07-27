@@ -9,10 +9,9 @@
     "crafting:data:missing": "node scripts/generateCraftingData.js --fetch-missing",
     "crafting:data:refresh": "node scripts/generateCraftingData.js --live",
     "dev": "vite",
-    "dev:electron": "node scripts/dev.js",
+    "electron:dev": "node scripts/dev.js",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "electron .",
     "electron:build": "electron-builder"
   },
   "dependencies": {
