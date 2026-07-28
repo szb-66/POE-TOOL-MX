@@ -153,8 +153,8 @@ export function registerWindowHandlers(window) {
     return { success: true }
   })
 
-  ipcMain.handle('open-story-overlay', (event, snapshot, width) => {
-    window.createStoryOverlayWindow(snapshot, width)
+  ipcMain.handle('open-story-overlay', (event, snapshot, options) => {
+    window.createStoryOverlayWindow(snapshot, options)
     return { success: true }
   })
 
@@ -172,6 +172,14 @@ export function registerWindowHandlers(window) {
 
   ipcMain.handle('resize-story-overlay', (event, size) => ({
     success: window.resizeStoryOverlay(size)
+  }))
+
+  ipcMain.handle('set-story-overlay-opacity', (event, opacity) => ({
+    success: window.setStoryOverlayOpacity(opacity)
+  }))
+
+  ipcMain.handle('update-story-overlay-layout', (event, layout) => ({
+    success: window.updateStoryOverlayLayout(layout)
   }))
 
   // 调试覆盖层控制

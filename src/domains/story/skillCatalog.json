@@ -179,6 +179,14 @@
       "sourcePath": "/cn/Explosive_Trap"
     },
     {
+      "id": "gem:3da02d4997e15e5b",
+      "name": "贝达特契约",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Pact_of_Beidat"
+    },
+    {
       "id": "gem:20b63904cc810228",
       "name": "备弹之分裂钢刃",
       "requiredLevel": 1,
@@ -1667,6 +1675,14 @@
       "sourcePath": "/cn/Chain_Hook"
     },
     {
+      "id": "gem:8984e1a42ca585bf",
+      "name": "咕尔契约",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Pact_of_Ghorr"
+    },
+    {
       "id": "gem:d342184858a8959d",
       "name": "古神亵渎（辅）",
       "requiredLevel": 72,
@@ -1841,6 +1857,14 @@
       "color": "blue",
       "kind": "support",
       "sourcePath": "/cn/Frostmage_Support"
+    },
+    {
+      "id": "gem:a5e5edc675502bf6",
+      "name": "号召",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Convocation"
     },
     {
       "id": "gem:d5e33271304646b1",
@@ -2225,6 +2249,14 @@
       "color": "green",
       "kind": "support",
       "sourcePath": "/cn/Hypothermia_Support"
+    },
+    {
+      "id": "gem:431a33c88bbbc8b9",
+      "name": "疾步",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Quickstep"
     },
     {
       "id": "gem:2fbea8964cd5cf8c",
@@ -2739,6 +2771,14 @@
       "sourcePath": "/cn/Defiance_Banner"
     },
     {
+      "id": "gem:19e32b57e138f8c1",
+      "name": "科塔席契约",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Pact_of_KTash"
+    },
+    {
       "id": "gem:fda00471df0bb8bc",
       "name": "空洞之冰冻陷阱",
       "requiredLevel": 28,
@@ -2969,6 +3009,14 @@
       "color": "blue",
       "kind": "active",
       "sourcePath": "/cn/Power_Siphon"
+    },
+    {
+      "id": "gem:0061551093f883a2",
+      "name": "莉西娅契约",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Pact_of_Lycia"
     },
     {
       "id": "gem:bd0a0d754aa61d73",
@@ -4265,6 +4313,14 @@
       "color": "green",
       "kind": "active",
       "sourcePath": "/cn/Temporal_Chains"
+    },
+    {
+      "id": "gem:4a87f3d4abd1fdde",
+      "name": "时空之门",
+      "requiredLevel": 10,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Portal"
     },
     {
       "id": "gem:00ce2b7181d22dc1",
@@ -5731,6 +5787,14 @@
       "sourcePath": "/cn/Awakened_Cast_While_Channelling_Support"
     },
     {
+      "id": "gem:984c5ed87d1d452d",
+      "name": "引爆地雷",
+      "requiredLevel": 8,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/cn/Detonate_Mines"
+    },
+    {
       "id": "gem:bb69f86dba88b58a",
       "name": "引爆之念动齐射",
       "requiredLevel": 12,
@@ -5889,6 +5953,14 @@
       "color": "blue",
       "kind": "active",
       "sourcePath": "/cn/Malevolence"
+    },
+    {
+      "id": "gem:e79d6e25f6756d12",
+      "name": "月蚀（辅）",
+      "requiredLevel": 72,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/cn/Eclipse_Support"
     },
     {
       "id": "gem:0f94c4c32ce4208c",

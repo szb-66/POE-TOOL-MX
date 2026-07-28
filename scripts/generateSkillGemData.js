@@ -42,6 +42,10 @@ function assertCatalog(catalog) {
   }
   const support = catalog.skills.find(skill => skill.name.includes('无情') && skill.kind === 'support')
   if (!support) throw new Error('技能目录缺少“无情”辅助宝石哨兵')
+  const convocation = catalog.skills.find(skill => skill.name === '号召' && skill.kind === 'active')
+  if (!convocation || convocation.requiredLevel !== 24 || convocation.color !== 'white') {
+    throw new Error('技能目录缺少“号召 / 24 / 白色”哨兵')
+  }
 }
 
 async function main() {

@@ -15,6 +15,10 @@ const row = ({ color, path, name, level }) => `
   <tr><td><a class="gem_${color}" href="${path}"><img></a></td>
   <td><a class="gem_${color}" href="${path}">${name}</a> (${level})<div class="gem_tags">标签</div></td></tr>
 `
+const whiteRow = ({ path, name, level }) => `
+  <tr><td><a class="gemitem" href="${path}"><img alt="${name}White"></a></td>
+  <td><a class="gemitem" href="${path}">${name}</a> (${level})<div class="gem_tags">标签</div></td></tr>
+`
 
 test('技能页面解析名称、等级、颜色、类型并忽略无效行和重复项', () => {
   const cleave = row({ color: 'red', path: '/cn/Cleave', name: '劈砍', level: 1 })
@@ -44,6 +48,17 @@ test('规范化目录合并主动与辅助宝石并保留元数据', () => {
   assert.equal(catalog.schemaVersion, 1)
   assert.equal(catalog.locale, 'zh-CN')
   assert.deepEqual(new Set(catalog.skills.map(skill => skill.kind)), new Set(['active', 'support']))
+})
+
+test('白色技能按稳定来源去重并保留最低需求等级', () => {
+  const parsed = parseSkillGemPage(page(`
+    ${whiteRow({ path: '/cn/Convocation', name: '号召', level: 31 })}
+    ${whiteRow({ path: '/cn/Convocation', name: '号召', level: 24 })}
+  `), { kind: 'active' })
+  assert.equal(parsed.length, 1)
+  assert.equal(parsed[0].name, '号召')
+  assert.equal(parsed[0].color, 'white')
+  assert.equal(parsed[0].requiredLevel, 24)
 })
 
 test('联想支持中文和不区分大小写的英文子串并始终生成等级标签', () => {

@@ -5,7 +5,9 @@ import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combat
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
 import {
+  DEFAULT_STORY_OVERLAY_OPACITY,
   DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
+  normalizeStoryOverlayOpacity,
   normalizeStoryShowSkillRequiredLevel
 } from './storySkillSettings'
 import {
@@ -82,6 +84,7 @@ export const useSettingsStore = defineStore('settings', () => {
     maskOpacity: 0.5         // 遮罩透明度 (0-1)
   })
   const storyOverlayWidth = ref(560)
+  const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
   const storyShowSkillRequiredLevel = ref(DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL)
 
   // 背景历史记录
@@ -228,6 +231,7 @@ export const useSettingsStore = defineStore('settings', () => {
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
+        storyOverlayOpacity: storyOverlayOpacity.value,
         storyShowSkillRequiredLevel: storyShowSkillRequiredLevel.value,
         backgroundHistory: backgroundHistory.value,
         combatAssist: combatAssist.value
@@ -280,6 +284,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.storyOverlayWidth != null) {
           storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(data.storyOverlayWidth) || 560)))
         }
+        storyOverlayOpacity.value = normalizeStoryOverlayOpacity(data.storyOverlayOpacity)
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
       }
@@ -318,6 +323,12 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
+  const updateStoryOverlayOpacity = (opacity) => {
+    storyOverlayOpacity.value = normalizeStoryOverlayOpacity(opacity)
+    saveSettings()
+    electronApi.storyOverlay.setOpacity(storyOverlayOpacity.value)
+  }
+
   const defaultInventory = {
     startPos: { x: 2658, y: 1199 },
     slotSize: { w: 100, h: 100 }
@@ -351,6 +362,7 @@ export const useSettingsStore = defineStore('settings', () => {
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = 560
+    storyOverlayOpacity.value = DEFAULT_STORY_OVERLAY_OPACITY
     storyShowSkillRequiredLevel.value = DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
@@ -393,6 +405,7 @@ export const useSettingsStore = defineStore('settings', () => {
     debugMode,
     overlaySettings,
     storyOverlayWidth,
+    storyOverlayOpacity,
     storyShowSkillRequiredLevel,
     backgroundHistory,
     updateGlobalShortcuts,
@@ -408,6 +421,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDebugMode,
     updateOverlaySettings,
     updateStoryOverlayWidth,
+    updateStoryOverlayOpacity,
     updateStoryShowSkillRequiredLevel,
     removeHistoryItem,
     saveSettings,

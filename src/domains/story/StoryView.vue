@@ -3,12 +3,13 @@
     <div class="page-header">
       <div>
         <h2>剧情攻略</h2>
-        <p>章节按顺序连接；越过章末时会自动进入下一章。</p>
+        <p>剧情路线与技能方案可独立切换，并按章节顺序组合。</p>
       </div>
       <div class="overlay-toggle">
         <label>上一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyPrevious" @change="saveShortcut('storyPrevious', $event)" /></label>
         <label>下一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyNext" @change="saveShortcut('storyNext', $event)" /></label>
         <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="360" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
+        <label>透明度 <el-input-number :model-value="settings.storyOverlayOpacity" :min="0" :max="100" :step="5" controls-position="right" @change="settings.updateStoryOverlayOpacity" />%</label>
         <span>游戏浮窗</span>
         <el-switch :model-value="story.overlayVisible" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
       </div>
@@ -17,9 +18,19 @@
     <div class="story-workspace">
       <el-card class="chapter-panel" shadow="never">
         <template #header>
-          <div class="panel-header">
-            <strong>章节</strong>
-            <el-button type="primary" size="small" :icon="Plus" @click="story.addChapter">添加</el-button>
+          <div class="preset-panel-header">
+            <div class="panel-header">
+              <strong>章节</strong>
+              <el-button type="primary" size="small" :icon="Plus" @click="story.addChapter">添加</el-button>
+            </div>
+            <div class="preset-bar">
+              <el-select :model-value="story.currentStoryPresetId" size="small" @change="switchPreset('story', $event)">
+                <el-option v-for="preset in story.storyPresets" :key="preset.id" :label="preset.name" :value="preset.id" />
+              </el-select>
+              <el-button size="small" :icon="Plus" circle title="新建剧情预设" @click="createPreset('story')" />
+              <el-button size="small" :icon="Edit" circle title="重命名剧情预设" @click="renamePreset('story')" />
+              <el-button size="small" :icon="Delete" circle type="danger" title="删除剧情预设" :disabled="story.currentStoryPresetId === 'default'" @click="deletePreset('story')" />
+            </div>
           </div>
         </template>
         <el-empty v-if="!story.chapters.length" description="还没有章节" :image-size="72" />
@@ -83,24 +94,40 @@
 
         <el-card class="skills-panel" shadow="never">
           <template #header>
-            <div class="panel-header">
-              <strong>本章技能</strong>
-              <div class="skill-panel-actions">
+            <div class="preset-panel-header">
+              <div class="preset-bar">
+                <strong>技能方案</strong>
+                <el-select :model-value="story.currentSkillPresetId" size="small" @change="switchPreset('skill', $event)">
+                  <el-option v-for="preset in story.skillPresets" :key="preset.id" :label="preset.name" :value="preset.id" />
+                </el-select>
+                <el-button size="small" :icon="Plus" circle title="新建技能预设" @click="createPreset('skill')" />
+                <el-button size="small" :icon="Edit" circle title="重命名技能预设" @click="renamePreset('skill')" />
+                <el-button size="small" :icon="Delete" circle type="danger" title="删除技能预设" :disabled="story.currentSkillPresetId === 'default'" @click="deletePreset('skill')" />
+              </div>
+              <div class="panel-header">
                 <label class="level-toggle">
                   <span>显示最低购买等级</span>
-                  <el-switch
-                    :model-value="settings.storyShowSkillRequiredLevel"
-                    @change="settings.updateStoryShowSkillRequiredLevel"
-                  />
+                  <el-switch :model-value="settings.storyShowSkillRequiredLevel" @change="settings.updateStoryShowSkillRequiredLevel" />
                 </label>
-                <el-button type="primary" size="small" :icon="Plus" @click="story.addSkillGroup(story.currentChapter.id)">技能组</el-button>
+                <div class="skill-panel-actions">
+                  <el-button size="small" :icon="CopyDocument" :disabled="!story.canCopySkillsToNextChapter" @click="copySkillsToNext">复制到下一章</el-button>
+                  <el-button type="primary" size="small" :icon="Plus" @click="story.addSkillGroup(story.currentChapter.id)">技能组</el-button>
+                </div>
               </div>
             </div>
           </template>
-          <el-empty v-if="!story.currentChapter.skillGroups.length" description="本章未配置技能" :image-size="72" />
+          <el-empty v-if="!story.currentSkillGroups.length" description="本章未配置技能" :image-size="72" />
           <div v-else class="skill-groups">
-            <div v-for="group in story.currentChapter.skillGroups" :key="group.id" class="skill-group">
+            <div
+              v-for="group in story.currentSkillGroups"
+              :key="group.id"
+              class="skill-group"
+              :class="{ dragging: group.id === draggingSkillGroupId, 'drag-over': group.id === dragOverSkillGroupId && group.id !== draggingSkillGroupId }"
+              @dragover.prevent="dragOverSkillGroupId = group.id"
+              @drop.prevent="dropSkillGroup(group.id)"
+            >
               <div class="group-header">
+                <span class="drag-handle" draggable="true" title="拖动技能组排序" @dragstart.stop="startSkillGroupDrag($event, group.id)" @dragend="clearSkillGroupDrag">⋮⋮</span>
                 <el-input v-model="group.name" maxlength="30" placeholder="技能组名称" />
                 <el-button :icon="Plus" circle @click="story.addSkill(story.currentChapter.id, group.id)" />
                 <el-button :icon="Delete" circle type="danger" @click="confirmDeleteGroup(group)" />
@@ -131,6 +158,7 @@
                     <el-option label="红色" value="red" />
                     <el-option label="绿色" value="green" />
                     <el-option label="蓝色" value="blue" />
+                    <el-option label="白色" value="white" />
                   </el-select>
                   <el-button text type="danger" :icon="Delete" @click="story.deleteSkill(story.currentChapter.id, group.id, skill.id)" />
                 </div>
@@ -149,8 +177,8 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
-import { Delete, Plus } from '@element-plus/icons-vue'
+import { nextTick, ref, watch } from 'vue'
+import { CopyDocument, Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
@@ -172,6 +200,8 @@ const draggingChapterId = ref(null)
 const dragOverChapterId = ref(null)
 const draggingStepId = ref(null)
 const dragOverStepId = ref(null)
+const draggingSkillGroupId = ref(null)
+const dragOverSkillGroupId = ref(null)
 const stepInputRefs = {}
 
 function fetchSkillSuggestions(query, callback) {
@@ -180,6 +210,7 @@ function fetchSkillSuggestions(query, callback) {
 
 function selectSkillSuggestion(skill, selected) {
   applySkillCatalogSelection(skill, selected)
+  story.save()
 }
 
 function updateSkillName(skill, value) {
@@ -244,14 +275,101 @@ function dropStep(targetStepId) {
   clearStepDrag()
 }
 
-watch(() => story.chapters, () => {
+function startSkillGroupDrag(event, groupId) {
+  draggingSkillGroupId.value = groupId
+  prepareDrag(event, groupId)
+}
+
+function clearSkillGroupDrag() {
+  draggingSkillGroupId.value = null
+  dragOverSkillGroupId.value = null
+}
+
+function dropSkillGroup(targetGroupId) {
+  if (draggingSkillGroupId.value && story.currentChapter) {
+    story.reorderSkillGroup(story.currentChapter.id, draggingSkillGroupId.value, targetGroupId)
+  }
+  clearSkillGroupDrag()
+}
+
+function currentPreset(type) {
+  return type === 'story' ? story.currentStoryPreset : story.currentSkillPreset
+}
+
+async function createPreset(type) {
+  try {
+    const label = type === 'story' ? '剧情' : '技能'
+    const { value } = await ElMessageBox.prompt(`输入${label}预设名称`, `新建${label}预设`, {
+      inputPattern: /\S+/,
+      inputErrorMessage: '预设名称不能为空'
+    })
+    let copyCurrent = false
+    try {
+      await ElMessageBox.confirm('请选择新预设的初始内容', '初始内容', {
+        confirmButtonText: '复制当前',
+        cancelButtonText: '创建空白',
+        distinguishCancelAndClose: true
+      })
+      copyCurrent = true
+    } catch (action) {
+      if (action !== 'cancel') return
+    }
+    const preset = type === 'story'
+      ? story.addStoryPreset(value, copyCurrent)
+      : story.addSkillPreset(value, copyCurrent)
+    ElMessage.success(`已创建“${preset.name}”`)
+  } catch {}
+}
+
+async function renamePreset(type) {
+  const preset = currentPreset(type)
+  if (!preset) return
+  try {
+    const { value } = await ElMessageBox.prompt('输入新的预设名称', '重命名预设', {
+      inputValue: preset.name,
+      inputPattern: /\S+/,
+      inputErrorMessage: '预设名称不能为空'
+    })
+    if (type === 'story') story.renameStoryPreset(preset.id, value)
+    else story.renameSkillPreset(preset.id, value)
+  } catch {}
+}
+
+async function deletePreset(type) {
+  const preset = currentPreset(type)
+  if (!preset || preset.id === 'default') return
+  try {
+    await ElMessageBox.confirm(`删除预设“${preset.name}”？`, '删除预设', { type: 'warning' })
+    if (type === 'story') story.deleteStoryPreset(preset.id)
+    else story.deleteSkillPreset(preset.id)
+  } catch {}
+}
+
+function switchPreset(type, id) {
+  const switched = type === 'story' ? story.switchStoryPreset(id) : story.switchSkillPreset(id)
+  if (switched) ElMessage.success(`已切换到：${currentPreset(type).name}`)
+}
+
+async function copySkillsToNext() {
+  if (!story.canCopySkillsToNextChapter) return
+  const targetGroups = story.currentSkillPreset.chapterSkills[story.currentChapterIndex + 1]?.skillGroups || []
+  try {
+    if (targetGroups.length) {
+      await ElMessageBox.confirm('下一章已有技能配置，确认完整覆盖？', '复制章节技能', { type: 'warning' })
+    }
+    story.copyCurrentChapterSkillsToNext()
+    ElMessage.success('已复制到下一章')
+  } catch {}
+}
+
+watch([() => story.storyPresets, () => story.skillPresets], () => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => story.save(), 180)
 }, { deep: true })
 
 async function toggleOverlay(visible) {
   try {
-    if (visible) await story.showOverlay(settings.storyOverlayWidth)
+    if (visible) await story.showOverlay(settings.storyOverlayWidth, settings.storyOverlayOpacity)
     else await story.hideOverlay()
   } catch (error) {
     ElMessage.error(`剧情浮窗操作失败：${error.message}`)
@@ -268,7 +386,7 @@ async function saveShortcut(key, value) {
 
 async function confirmDeleteChapter(chapter) {
   try {
-    await ElMessageBox.confirm(`删除“${chapter.name || '未命名章节'}”及其全部步骤和技能？`, '删除章节', { type: 'warning' })
+    await ElMessageBox.confirm(`删除“${chapter.name || '未命名章节'}”及其全部步骤？技能预设槽位会保留。`, '删除章节', { type: 'warning' })
     story.deleteChapter(chapter.id)
   } catch {}
 }
@@ -283,13 +401,18 @@ async function confirmDeleteGroup(group) {
 
 <style scoped lang="less">
 .story-page { height: 100%; overflow: auto; padding: 20px; background: var(--bg-secondary); box-sizing: border-box; }
-.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .skill-panel-actions, .level-toggle { display: flex; align-items: center; }
+.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .skill-panel-actions, .level-toggle, .preset-bar { display: flex; align-items: center; }
 .page-header { justify-content: space-between; gap: 20px; margin-bottom: 18px; h2 { margin: 0 0 6px; } p { margin: 0; color: var(--text-secondary); } }
 .overlay-toggle { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .overlay-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.story-workspace { display: grid; grid-template-columns: 220px minmax(340px, 1.35fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+.overlay-toggle :deep(.el-input-number) { width: 118px; }
+.story-workspace { display: grid; grid-template-columns: 240px minmax(340px, 1.35fr) minmax(340px, 1fr); gap: 16px; align-items: start; }
+.preset-panel-header { display: grid; gap: 9px; }
 .panel-header { justify-content: space-between; gap: 10px; }
-.skill-panel-actions { gap: 12px; }
+.preset-bar { gap: 6px; min-width: 0; }
+.preset-bar strong { margin-right: auto; white-space: nowrap; }
+.preset-bar :deep(.el-select) { min-width: 0; flex: 1; }
+.skill-panel-actions { gap: 8px; }
 .level-toggle { gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
 .chapter-panel, .steps-panel, .skills-panel, .empty-editor { min-height: 280px; }
 .chapter-list, .step-list, .skill-groups, .skills-list { display: flex; flex-direction: column; gap: 10px; }
@@ -301,8 +424,8 @@ async function confirmDeleteGroup(group) {
 .chapter-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drag-handle { flex: 0 0 auto; color: var(--text-placeholder); cursor: grab; user-select: none; font-weight: 700; letter-spacing: -3px; padding: 3px 5px 3px 1px; }
 .drag-handle:active { cursor: grabbing; }
-.chapter-item.dragging, .step-item.dragging { opacity: .45; }
-.chapter-item.drag-over, .step-item.drag-over { border-color: var(--primary-color); box-shadow: 0 2px 0 var(--primary-color); }
+.chapter-item.dragging, .step-item.dragging, .skill-group.dragging { opacity: .45; }
+.chapter-item.drag-over, .step-item.drag-over, .skill-group.drag-over { border-color: var(--primary-color); box-shadow: 0 2px 0 var(--primary-color); }
 .step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
 .step-title { justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .step-title > span:nth-child(2) { flex: 1; font-weight: 600; }
@@ -312,14 +435,15 @@ async function confirmDeleteGroup(group) {
 .skill-suggestion { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 280px; }
 .suggestion-name { color: var(--text-primary); }
 .suggestion-meta { display: flex; align-items: center; flex: 0 0 auto; color: var(--text-secondary); font-size: 12px; }
-.color-dot { width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+.color-dot { width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; border: 1px solid rgba(128, 128, 128, .5); }
 .color-dot.red { background: #e95a5a; }
 .color-dot.green { background: #49b86a; }
 .color-dot.blue { background: #4f8fdf; }
+.color-dot.white { background: #f5f5f5; }
 .color-select { width: 92px; flex: 0 0 92px; }
 .empty-group { color: var(--text-placeholder); font-size: 13px; text-align: center; padding: 8px; }
 .empty-editor { grid-column: 2 / 4; }
 .add-step-row { margin-top: 10px; }
 .add-step-row :deep(.el-button) { width: 100%; }
-@media (max-width: 1050px) { .story-workspace { grid-template-columns: 200px 1fr; } .skills-panel { grid-column: 2; } }
+@media (max-width: 1100px) { .story-workspace { grid-template-columns: 220px 1fr; } .skills-panel { grid-column: 2; } }
 </style>

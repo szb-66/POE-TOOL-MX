@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
+  STORY_DIVIDER_GRIP_HTML,
   STORY_GRIP_HTML,
+  getStoryDividerGripBounds,
+  getStoryDividerRatioFromGrip,
   getStoryGripBounds,
   getStoryOverlayBoundsFromGrip,
   getStoryOverlayPositionFromGrip
@@ -90,14 +93,15 @@ test('Windows DPI 取整后的原生尺寸不会反馈进下一次拖动', () =>
   )
 })
 
-test('剧情浮窗宽度可输入并持久化，同组技能保持水平排列', () => {
+test('剧情浮窗宽度可输入并持久化，同组技能空间不足时换行', () => {
   const view = source('../src/domains/story/StoryView.vue')
   const overlay = source('../src/domains/story/StoryOverlayView.vue')
   const settings = source('../src/domains/settings/settingsStore.js')
   assert.match(view, /浮窗宽度/)
   assert.match(view, /settings\.storyOverlayWidth/)
   assert.match(settings, /storyOverlayWidth: storyOverlayWidth\.value/)
-  assert.match(overlay, /\.skill-tags \{ display: flex; flex-wrap: nowrap;/)
+  assert.match(overlay, /\.skill-tags \{[^}]*flex-wrap: wrap;/)
+  assert.doesNotMatch(overlay, /overflow-x: auto/)
 })
 
 test('剧情章节和步骤界面通过稳定 ID 调用拖动排序', () => {
@@ -109,7 +113,7 @@ test('剧情章节和步骤界面通过稳定 ID 调用拖动排序', () => {
   assert.match(store, /reorderItemsById\(chapter\.steps/)
 })
 
-test('剧情技能编辑器使用离线联想并将等级开关限制在编辑页', () => {
+test('剧情技能编辑器使用离线联想并将等级设置同步到浮层', () => {
   const storyView = source('../src/domains/story/StoryView.vue')
   const overlayView = source('../src/domains/story/StoryOverlayView.vue')
   assert.match(storyView, /<el-autocomplete/)
@@ -118,7 +122,57 @@ test('剧情技能编辑器使用离线联想并将等级开关限制在编辑�
   assert.match(storyView, /显示最低购买等级/)
   assert.match(storyView, /settings\.storyShowSkillRequiredLevel/)
   assert.match(storyView, /skillSuggestionLabel\(skill\)/)
-  assert.doesNotMatch(overlayView, /requiredLevel|最低购买等级/)
+  assert.match(overlayView, /skill\.requiredLevel/)
+})
+
+test('剧情和技能预设独立管理并支持技能组排序与整章复制', () => {
+  const view = source('../src/domains/story/StoryView.vue')
+  const store = source('../src/stores/story.js')
+  assert.match(view, /story\.currentStoryPresetId/)
+  assert.match(view, /story\.currentSkillPresetId/)
+  assert.match(view, /复制当前/)
+  assert.match(view, /创建空白/)
+  assert.match(view, /startSkillGroupDrag/)
+  assert.match(view, /复制到下一章/)
+  assert.match(store, /reorderSkillGroup/)
+  assert.match(store, /replaceChapterSkillGroups/)
+})
+
+test('原生分割抓手按规范布局计算比例并限制边界', () => {
+  const overlay = { x: 100, y: 50, width: 560, height: 260 }
+  const layout = { stacked: false, left: 10, top: 50, width: 540, height: 180 }
+  assert.deepEqual(getStoryDividerGripBounds(overlay, layout, 0.64), {
+    x: 449, y: 100, width: 14, height: 180
+  })
+  assert.equal(getStoryDividerGripBounds(overlay, { ...layout, stacked: true }, 0.64), null)
+  assert.equal(getStoryDividerRatioFromGrip({ x: 0, y: 0, width: 14, height: 180 }, overlay, layout), 0.4)
+  assert.equal(getStoryDividerRatioFromGrip({ x: 1000, y: 0, width: 14, height: 180 }, overlay, layout), 0.75)
+})
+
+test('分割抓手保持内容穿透并覆盖完整窗口生命周期', () => {
+  const manager = source('../electron/modules/window/manager.js')
+  const preload = source('../electron/preload.cjs')
+  assert.match(STORY_DIVIDER_GRIP_HTML, /-webkit-app-region:drag/)
+  assert.match(STORY_DIVIDER_GRIP_HTML, /cursor:col-resize/)
+  assert.match(manager, /let storyOverlayDividerWindow = null/)
+  assert.match(manager, /createStoryDividerWindow/)
+  assert.match(manager, /getStoryDividerRatioFromGrip/)
+  assert.match(manager, /storyOverlayDividerWindow\.close\(\)/)
+  assert.match(manager, /storyOverlayOpacity === 0/)
+  assert.match(preload, /updateStoryOverlayLayout/)
+  assert.match(preload, /onStoryOverlayDividerRatio/)
+})
+
+test('浮层透明度以 0 到 100 数值持久化并实时同步', () => {
+  const view = source('../src/domains/story/StoryView.vue')
+  const settings = source('../src/domains/settings/settingsStore.js')
+  const manager = source('../electron/modules/window/manager.js')
+  assert.match(view, /透明度/)
+  assert.match(view, /:min="0"/)
+  assert.match(view, /:max="100"/)
+  assert.match(settings, /storyOverlayOpacity: storyOverlayOpacity\.value/)
+  assert.match(settings, /electronApi\.storyOverlay\.setOpacity/)
+  assert.match(manager, /window\.setOpacity\(nativeOpacity\)/)
 })
 
 test('组合键捕获期间挂起全局快捷键并在提交前恢复', () => {

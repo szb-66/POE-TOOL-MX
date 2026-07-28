@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import * as cheerio from 'cheerio'
 
 export const SKILL_CATALOG_SCHEMA_VERSION = 1
-export const SKILL_GEM_COLORS = ['red', 'green', 'blue']
+export const SKILL_GEM_COLORS = ['red', 'green', 'blue', 'white']
 export const SKILL_GEM_KINDS = ['active', 'support']
 
 function cleanText(value) {
@@ -14,7 +14,7 @@ function stableSkillId(kind, sourcePath) {
 }
 
 function colorFromLink(link) {
-  return SKILL_GEM_COLORS.find((color) => link.hasClass(`gem_${color}`)) || null
+  return SKILL_GEM_COLORS.slice(0, 3).find((color) => link.hasClass(`gem_${color}`)) || 'white'
 }
 
 export function parseSkillGemPage(html, { kind }) {
@@ -25,16 +25,17 @@ export function parseSkillGemPage(html, { kind }) {
   $('table.filters tbody tr').each((_index, row) => {
     const cells = $(row).find('td')
     const nameCell = cells.last()
-    const link = nameCell.find('a[href]').filter((_linkIndex, item) => colorFromLink($(item)) != null).first()
+    const link = nameCell.find('a[href]').filter((_linkIndex, item) => cleanText($(item).text())).first()
     const color = colorFromLink(link)
     const name = cleanText(link.text())
     const sourcePath = String(link.attr('href') || '').trim()
+    const hasImage = $(row).find('img').length > 0
     const cellCopy = nameCell.clone()
     cellCopy.find('.gem_tags, img').remove()
     const levelMatch = cleanText(cellCopy.text()).match(/\((\d+)\)/)
     const requiredLevel = Number(levelMatch?.[1])
 
-    if (!name || !color || !/^\/cn\/[^/?#]+$/.test(sourcePath)) return
+    if (!name || !hasImage || !/^\/cn\/[^/?#]+$/.test(sourcePath)) return
     if (!Number.isInteger(requiredLevel) || requiredLevel < 1 || requiredLevel > 100) return
     records.push({
       id: stableSkillId(kind, sourcePath),
@@ -48,8 +49,8 @@ export function parseSkillGemPage(html, { kind }) {
 
   const unique = new Map()
   for (const record of records) {
-    const key = `${record.kind}\u0000${record.sourcePath}\u0000${record.name}\u0000${record.requiredLevel}\u0000${record.color}`
-    if (!unique.has(key)) unique.set(key, record)
+    const existing = unique.get(record.id)
+    if (!existing || record.requiredLevel < existing.requiredLevel) unique.set(record.id, record)
   }
   return [...unique.values()].sort((left, right) =>
     left.requiredLevel - right.requiredLevel
@@ -73,10 +74,15 @@ export function buildSkillGemCatalog({
   const unique = new Map()
   for (const skill of skills) {
     const existing = unique.get(skill.id)
-    if (existing && JSON.stringify(existing) !== JSON.stringify(skill)) {
+    if (existing && (
+      existing.name !== skill.name
+      || existing.color !== skill.color
+      || existing.kind !== skill.kind
+      || existing.sourcePath !== skill.sourcePath
+    )) {
       throw new Error(`技能稳定 ID 冲突：${skill.id}`)
     }
-    unique.set(skill.id, skill)
+    if (!existing || skill.requiredLevel < existing.requiredLevel) unique.set(skill.id, skill)
   }
   return {
     schemaVersion: SKILL_CATALOG_SCHEMA_VERSION,

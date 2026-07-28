@@ -12,9 +12,14 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWindowState, saveWindowState } from './state.js'
 import {
+  DEFAULT_STORY_DIVIDER_RATIO,
+  STORY_DIVIDER_GRIP_HTML,
   STORY_GRIP_HTML,
+  getStoryDividerGripBounds,
+  getStoryDividerRatioFromGrip,
   getStoryGripBounds,
-  getStoryOverlayBoundsFromGrip
+  getStoryOverlayBoundsFromGrip,
+  normalizeStoryDividerRatio
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
 import {
@@ -32,10 +37,14 @@ let mainWindow = null
 let overlayWindow = null
 let storyOverlayWindow = null
 let storyOverlayGripWindow = null
+let storyOverlayDividerWindow = null
 let bagStashOverlayWindow = null
 let bagStashOverlaySnapshot = null
 let storyOverlaySnapshot = null
 let storyOverlaySize = { width: 560, height: 360 }
+let storyOverlayLayout = null
+let storyOverlayDividerRatio = DEFAULT_STORY_DIVIDER_RATIO
+let storyOverlayOpacity = 100
 
 export function createMainWindow() {
   const state = loadWindowState()
@@ -351,6 +360,71 @@ function syncStoryGripToOverlay() {
   }
 }
 
+function storyOverlayIsInteractive() {
+  return storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible()
+}
+
+function publishStoryDividerRatio() {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
+  storyOverlayWindow.webContents.send('story-overlay-divider-ratio', storyOverlayDividerRatio)
+}
+
+function syncStoryDividerToOverlay() {
+  if (!storyOverlayDividerWindow || storyOverlayDividerWindow.isDestroyed() || !storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
+  const expected = getStoryDividerGripBounds(storyOverlayWindow.getBounds(), storyOverlayLayout, storyOverlayDividerRatio)
+  if (!expected || !storyOverlayIsInteractive()) {
+    storyOverlayDividerWindow.hide()
+    return
+  }
+  const current = storyOverlayDividerWindow.getBounds()
+  if (current.x !== expected.x || current.y !== expected.y || current.width !== expected.width || current.height !== expected.height) {
+    storyOverlayDividerWindow.setBounds(expected)
+  }
+  storyOverlayDividerWindow.showInactive()
+}
+
+function createStoryDividerWindow() {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
+  if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) return storyOverlayDividerWindow
+  const initialBounds = getStoryDividerGripBounds(storyOverlayWindow.getBounds(), storyOverlayLayout, storyOverlayDividerRatio)
+    || { x: storyOverlayWindow.getBounds().x, y: storyOverlayWindow.getBounds().y, width: 14, height: 1 }
+  storyOverlayDividerWindow = new BrowserWindow({
+    ...initialBounds,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    resizable: false,
+    movable: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  })
+  storyOverlayDividerWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(STORY_DIVIDER_GRIP_HTML)}`)
+  storyOverlayDividerWindow.setAlwaysOnTop(true, 'screen-saver')
+  storyOverlayDividerWindow.setOpacity(storyOverlayOpacity / 100)
+  storyOverlayDividerWindow.once('ready-to-show', syncStoryDividerToOverlay)
+  storyOverlayDividerWindow.on('move', () => {
+    if (!storyOverlayDividerWindow || storyOverlayDividerWindow.isDestroyed() || !storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
+    storyOverlayDividerRatio = getStoryDividerRatioFromGrip(
+      storyOverlayDividerWindow.getBounds(),
+      storyOverlayWindow.getBounds(),
+      storyOverlayLayout
+    )
+    saveWindowState({ storyOverlayDividerRatio })
+    publishStoryDividerRatio()
+    syncStoryDividerToOverlay()
+  })
+  storyOverlayDividerWindow.on('closed', () => { storyOverlayDividerWindow = null })
+  return storyOverlayDividerWindow
+}
+
 function createStoryGripWindow() {
   if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
   if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) return storyOverlayGripWindow
@@ -375,8 +449,9 @@ function createStoryGripWindow() {
   })
   storyOverlayGripWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(STORY_GRIP_HTML)}`)
   storyOverlayGripWindow.setAlwaysOnTop(true, 'screen-saver')
+  storyOverlayGripWindow.setOpacity(storyOverlayOpacity / 100)
   storyOverlayGripWindow.once('ready-to-show', () => {
-    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed() && storyOverlayWindow?.isVisible()) {
+    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed() && storyOverlayIsInteractive()) {
       storyOverlayGripWindow.showInactive()
     }
   })
@@ -387,19 +462,31 @@ function createStoryGripWindow() {
     const next = getStoryOverlayBoundsFromGrip(gripBounds, overlayBounds, storyOverlaySize)
     if (overlayBounds.x !== next.x || overlayBounds.y !== next.y) {
       storyOverlayWindow.setBounds(next)
+      syncStoryDividerToOverlay()
     }
   })
   storyOverlayGripWindow.on('closed', () => { storyOverlayGripWindow = null })
   return storyOverlayGripWindow
 }
 
-export function createStoryOverlayWindow(initialSnapshot = null, configuredWidth = 560) {
+export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
+  const configuredWidth = typeof options === 'object' ? options?.width : options
+  const requestedOpacity = typeof options === 'object' ? options?.opacity : storyOverlayOpacity
+  if (requestedOpacity != null) {
+    const number = Number(requestedOpacity)
+    storyOverlayOpacity = Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100
+  }
+  storyOverlayDividerRatio = normalizeStoryDividerRatio(loadWindowState().storyOverlayDividerRatio)
   if (initialSnapshot) storyOverlaySnapshot = initialSnapshot
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
     resizeStoryOverlay({ width: configuredWidth })
+    setStoryOverlayOpacity(storyOverlayOpacity)
     storyOverlayWindow.showInactive()
-    createStoryGripWindow()?.showInactive()
+    if (storyOverlayOpacity > 0) createStoryGripWindow()?.showInactive()
+    createStoryDividerWindow()
+    syncStoryDividerToOverlay()
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
+    publishStoryDividerRatio()
     return storyOverlayWindow
   }
 
@@ -431,13 +518,17 @@ export function createStoryOverlayWindow(initialSnapshot = null, configuredWidth
   }
 
   storyOverlayWindow.setIgnoreMouseEvents(true, { forward: true })
+  storyOverlayWindow.setOpacity(storyOverlayOpacity / 100)
   createStoryGripWindow()
+  createStoryDividerWindow()
   storyOverlayWindow.webContents.once('did-finish-load', () => {
     if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
     storyOverlayWindow.showInactive()
     syncStoryGripToOverlay()
-    storyOverlayGripWindow?.showInactive()
+    publishStoryDividerRatio()
+    if (storyOverlayOpacity > 0) storyOverlayGripWindow?.showInactive()
+    syncStoryDividerToOverlay()
   })
 
   let saveTimer
@@ -447,12 +538,15 @@ export function createStoryOverlayWindow(initialSnapshot = null, configuredWidth
       if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
       const { x, y } = storyOverlayWindow.getBounds()
       saveWindowState({ storyOverlayBounds: { x, y } })
+      syncStoryDividerToOverlay()
     }, 250)
   })
   storyOverlayWindow.on('closed', () => {
     clearTimeout(saveTimer)
     if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
+    if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) storyOverlayDividerWindow.close()
     storyOverlayGripWindow = null
+    storyOverlayDividerWindow = null
     storyOverlayWindow = null
   })
   return storyOverlayWindow
@@ -473,6 +567,39 @@ export function resizeStoryOverlay(size) {
   const nextX = Math.max(display.workArea.x, Math.min(maxX, bounds.x))
   storyOverlayWindow.setBounds({ ...bounds, x: nextX, width: nextWidth, height: nextHeight })
   syncStoryGripToOverlay()
+  syncStoryDividerToOverlay()
+  return true
+}
+
+export function setStoryOverlayOpacity(opacity) {
+  const number = Number(opacity)
+  storyOverlayOpacity = Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100
+  const nativeOpacity = storyOverlayOpacity / 100
+  for (const window of [storyOverlayWindow, storyOverlayGripWindow, storyOverlayDividerWindow]) {
+    if (window && !window.isDestroyed()) window.setOpacity(nativeOpacity)
+  }
+  if (storyOverlayOpacity === 0) {
+    storyOverlayGripWindow?.hide()
+    storyOverlayDividerWindow?.hide()
+  } else if (storyOverlayWindow?.isVisible()) {
+    storyOverlayGripWindow?.showInactive()
+    syncStoryDividerToOverlay()
+  }
+  return true
+}
+
+export function updateStoryOverlayLayout(layout) {
+  const numeric = key => Math.max(0, Number(layout?.[key]) || 0)
+  storyOverlayLayout = {
+    stacked: Boolean(layout?.stacked),
+    left: numeric('left'),
+    top: numeric('top'),
+    width: numeric('width'),
+    height: numeric('height')
+  }
+  createStoryDividerWindow()
+  publishStoryDividerRatio()
+  syncStoryDividerToOverlay()
   return true
 }
 
@@ -489,6 +616,8 @@ export function getStoryOverlaySnapshot() {
 }
 
 export function closeStoryOverlayWindow() {
+  if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) storyOverlayDividerWindow.close()
+  storyOverlayDividerWindow = null
   if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
   storyOverlayGripWindow = null
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) storyOverlayWindow.close()
@@ -501,6 +630,10 @@ export function getStoryOverlayWindow() {
 
 export function getStoryOverlayGripWindow() {
   return storyOverlayGripWindow
+}
+
+export function getStoryOverlayDividerWindow() {
+  return storyOverlayDividerWindow
 }
 
 function tryShowConsolePanel() {

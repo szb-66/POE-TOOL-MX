@@ -169,15 +169,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('combat-status', listener)
     return () => ipcRenderer.removeListener('combat-status', listener)
   },
-  openStoryOverlay: (snapshot, width) => ipcRenderer.invoke('open-story-overlay', snapshot, width),
+  openStoryOverlay: (snapshot, options) => ipcRenderer.invoke('open-story-overlay', snapshot, options),
   closeStoryOverlay: () => ipcRenderer.invoke('close-story-overlay'),
   updateStoryOverlay: (snapshot) => ipcRenderer.invoke('update-story-overlay', snapshot),
   getStoryOverlayState: () => ipcRenderer.invoke('get-story-overlay-state'),
   resizeStoryOverlay: (size) => ipcRenderer.invoke('resize-story-overlay', size),
+  setStoryOverlayOpacity: (opacity) => ipcRenderer.invoke('set-story-overlay-opacity', opacity),
+  updateStoryOverlayLayout: (layout) => ipcRenderer.invoke('update-story-overlay-layout', layout),
   onStoryOverlayState: (callback) => {
     const listener = (_event, snapshot) => callback(snapshot)
     ipcRenderer.on('story-overlay-state', listener)
     return () => ipcRenderer.removeListener('story-overlay-state', listener)
+  },
+  onStoryOverlayDividerRatio: (callback) => {
+    const listener = (_event, ratio) => callback(ratio)
+    ipcRenderer.on('story-overlay-divider-ratio', listener)
+    return () => ipcRenderer.removeListener('story-overlay-divider-ratio', listener)
   },
   // POE1 做装规划器
   getCraftingStatus: () => ipcRenderer.invoke('crafting-get-status'),

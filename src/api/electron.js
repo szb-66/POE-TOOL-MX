@@ -110,7 +110,10 @@ const mockApi = {
     update: () => Promise.resolve({ success: true }),
     getState: () => Promise.resolve(null),
     resize: () => Promise.resolve({ success: true }),
-    onState: () => () => {}
+    setOpacity: () => Promise.resolve({ success: true }),
+    updateLayout: () => Promise.resolve({ success: true }),
+    onState: () => () => {},
+    onDividerRatio: () => () => {}
   },
   crafting: {
     getStatus: () => Promise.resolve({ source: 'builtin', manifest: null }),
@@ -264,12 +267,15 @@ export const electronApi = isElectron ? {
   },
 
   storyOverlay: {
-    open: (snapshot, width) => window.electronAPI.openStoryOverlay?.(snapshot, width),
+    open: (snapshot, options) => window.electronAPI.openStoryOverlay?.(snapshot, options),
     close: () => window.electronAPI.closeStoryOverlay?.(),
     update: (snapshot) => window.electronAPI.updateStoryOverlay?.(snapshot),
     getState: () => window.electronAPI.getStoryOverlayState?.(),
     resize: (size) => window.electronAPI.resizeStoryOverlay?.(size),
-    onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {})
+    setOpacity: (opacity) => window.electronAPI.setStoryOverlayOpacity?.(opacity),
+    updateLayout: (layout) => window.electronAPI.updateStoryOverlayLayout?.(layout),
+    onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {}),
+    onDividerRatio: (callback) => window.electronAPI.onStoryOverlayDividerRatio?.(callback) || (() => {})
   },
 
   crafting: {

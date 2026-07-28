@@ -6,7 +6,8 @@ export const SKILL_KIND_LABELS = Object.freeze({
 export const SKILL_COLOR_LABELS = Object.freeze({
   red: '红色',
   green: '绿色',
-  blue: '蓝色'
+  blue: '蓝色',
+  white: '白色'
 })
 
 export function skillSuggestionLabel(skill) {
