@@ -19,6 +19,11 @@ import { useStoryStore } from '../stores/story'
 import { validateShortcuts } from './shortcutValidator.js'
 import { dispatchShortcutAction } from './shortcutConfig.js'
 import { isSuccessfulScriptStart } from './scriptStartResult.js'
+import {
+  startChaosRecipePicking,
+  stopChaosRecipePicking,
+  toggleChaosRecipePicking
+} from './chaosRecipeService.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -70,7 +75,10 @@ export async function initShortcuts() {
         potionStop: stopPotionAssist,
         portal: executePortalAssist,
         storyPrevious: () => useStoryStore().previous(),
-        storyNext: () => useStoryStore().next()
+        storyNext: () => useStoryStore().next(),
+        chaosRecipeStart: startChaosRecipePicking,
+        chaosRecipePause: toggleChaosRecipePicking,
+        chaosRecipeStop: stopChaosRecipePicking
       })
     })
     shortcutListenerRegistered = true

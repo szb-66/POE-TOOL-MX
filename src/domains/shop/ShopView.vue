@@ -1,5 +1,10 @@
 <template>
   <div class="shop-page">
+    <el-tabs v-model="activeTool" class="shop-tabs">
+      <el-tab-pane label="商店正则" name="vendor" />
+      <el-tab-pane label="混沌配方" name="chaos" />
+    </el-tabs>
+    <template v-if="activeTool === 'vendor'">
     <div class="page-heading">
       <div>
         <h2>商城 Vendor 正则</h2>
@@ -130,11 +135,13 @@
         </el-card>
       </aside>
     </div>
+    </template>
+    <ChaosRecipePanel v-else />
   </div>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, watch } from 'vue'
+import { computed, defineComponent, h, ref, watch } from 'vue'
 import { CopyDocument, RefreshLeft } from '@element-plus/icons-vue'
 import PresetSelector from '../../components/common/PresetSelector.vue'
 import { electronApi } from '../../api/electron.js'
@@ -142,6 +149,7 @@ import { usePresetStore } from '../../stores/preset.js'
 import { createDefaultVendorConfig } from './vendorConfig.js'
 import { VENDOR_DATA_META, VENDOR_OPTION_GROUPS } from './vendorData.js'
 import { generateVendorRegex } from './vendorRegex.js'
+import ChaosRecipePanel from './ChaosRecipePanel.vue'
 
 const FilterGroup = defineComponent({
   props: { title: { type: String, required: true } },
@@ -154,6 +162,7 @@ const FilterGroup = defineComponent({
 })
 
 const presetStore = usePresetStore()
+const activeTool = ref(localStorage.getItem('shopActiveTool') === 'chaos' ? 'chaos' : 'vendor')
 const groups = VENDOR_OPTION_GROUPS
 const meta = VENDOR_DATA_META
 const vendor = computed(() => presetStore.currentShopPreset.vendor)
@@ -164,6 +173,7 @@ watch(vendor, () => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => presetStore.savePresets(), 300)
 }, { deep: true })
+watch(activeTool, (value) => localStorage.setItem('shopActiveTool', value))
 
 async function resetCurrentPreset() {
   try {
@@ -196,6 +206,7 @@ async function copyRegex() {
   padding: 20px;
   color: var(--text-primary);
 }
+.shop-tabs { margin-bottom: 14px; }
 
 .page-heading,
 .result-header,

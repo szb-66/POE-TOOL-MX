@@ -329,7 +329,7 @@ print(json.dumps([
   ])
 })
 
-test('Python 只确认末尾连续三个空格，零散无响应改记为未识别', () => {
+test('Python 只确认达到配置阈值的末尾连续空格，零散无响应改记为未识别', () => {
   const code = `
 import importlib.util, sys
 sys.dont_write_bytecode = True
@@ -352,20 +352,22 @@ class Controller:
 module.InterfaceMatcher = Matcher
 module.InputController = Controller
 module.is_game_foreground = lambda: True
-raise SystemExit(module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}}}))
+raise SystemExit(module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}, "emptySlotThreshold": 4
+}}))
 `
   const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
   const events = result.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line.slice(6)))
   const completed = events.at(-1)
   assert.equal(completed.event, 'stash-completed')
-  assert.equal(completed.reason, 'three-consecutive-empty')
-  assert.equal(completed.scannedSlots, 6)
-  assert.equal(completed.emptySlots, 3)
+  assert.equal(completed.reason, 'consecutive-empty-threshold')
+  assert.equal(completed.scannedSlots, 7)
+  assert.equal(completed.emptySlots, 4)
   assert.equal(completed.unreadableSlots, 2)
   assert.equal(completed.stashedSlots, 1)
   assert.equal('failedSlots' in completed, false)
-  assert.equal(events.filter((event) => event.event === 'stash-progress').length, 6)
+  assert.equal(events.filter((event) => event.event === 'stash-progress').length, 7)
 })
 
 test('Python 扫描计划先原生后额外，并从最左额外列向原生方向排列', () => {
@@ -492,7 +494,7 @@ print(json.dumps({"excluded": excluded_case, "boundary": boundary_case}))
   })
 })
 
-test('原生阶段连续三个空格时不进入额外背包', () => {
+test('原生阶段连续空格达到配置阈值时不进入额外背包', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -515,13 +517,14 @@ module.InputController = Controller
 module.is_game_foreground = lambda: True
 module.run_stash({"inventory": {
     "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "emptySlotThreshold": 4,
     "layout": {"extraEnabled": True, "extraColumns": 6}
 }})
 print(json.dumps(Controller.moves))
 `
   const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), [[0, 0], [0, 1], [0, 2]])
+  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), [[0, 0], [0, 1], [0, 2], [0, 3]])
 })
 
 test('Electron 运行配置显式透传背包布局', () => {
@@ -637,6 +640,14 @@ test('全局操作等待同步接口只更新下一轮运行配置，不重启�
 test('正式包携带背包脚本并从稳定路径解析', () => {
   const packageConfig = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.ok(packageConfig.build.extraResources.some((entry) => entry.to === 'bag_auto_stash_template.py'))
+  for (const sharedModule of [
+    'src/utils/bagConfig.js',
+    'src/utils/electronAccelerator.js',
+    'src/utils/inventorySettings.js',
+    'src/utils/operationDelay.js'
+  ]) {
+    assert.ok(packageConfig.build.files.includes(sharedModule), `正式包缺少主进程依赖：${sharedModule}`)
+  }
   const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
   assert.match(ipcSource, /process\.resourcesPath/)
   assert.match(ipcSource, /path\.resolve\(moduleDir, '\.\.\/\.\.\/\.\.\/src\/assets\/scripts\/bag_auto_stash_template\.py'\)/)
@@ -654,12 +665,14 @@ test('穿透浮窗只使用独立原生抓手拖动', () => {
 
 test('模板替换允许运行态更新并重载检测器', () => {
   const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
-  const viewSource = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  const settingsSource = readFileSync(new URL('../src/domains/settings/InterfaceDetectionSettings.vue', import.meta.url), 'utf8')
+  const coordinatorSource = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
   assert.match(ipcSource, /reloadDetectionForTemplateChange/)
   assert.match(ipcSource, /updateRuntimeTemplate\(type, targetPath/)
-  assert.match(ipcSource, /detectionProcess = null[\s\S]*stopChild\(previous\)[\s\S]*startDetectionProcess/)
-  assert.match(ipcSource, /if \(detectionProcess !== child\) return/)
+  assert.match(ipcSource, /interfaceDetection\.updateConfig\(latestConfig\)/)
+  assert.match(coordinatorSource, /async restart\(\)[\s\S]*stopChild\(previous\)[\s\S]*return this\.start\(\)/)
+  assert.match(coordinatorSource, /if \(this\.child !== child\) return/)
   assert.match(ipcSource, /reloadError/)
-  assert.doesNotMatch(viewSource, /bagStore\.moduleEnabled\) return ElMessage\.warning\('请先关闭背包模块再框选'/)
-  assert.match(viewSource, /bagStore\.isStashing/)
+  assert.match(settingsSource, /captureTemplate\(definition\)/)
+  assert.match(settingsSource, /游戏界面检测/)
 })

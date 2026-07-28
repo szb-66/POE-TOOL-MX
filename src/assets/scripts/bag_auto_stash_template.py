@@ -4,6 +4,7 @@
 
 import argparse
 import ctypes
+from ctypes import wintypes
 import io
 import json
 import math
@@ -169,6 +170,52 @@ def is_game_foreground():
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
     return any(expected.casefold() in buffer.value.casefold() for expected in GAME_WINDOW_TITLES)
+
+
+def get_game_client_bounds():
+    if sys.platform != "win32":
+        return None
+    user32 = ctypes.windll.user32
+    foreground = user32.GetForegroundWindow()
+    candidates = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    @callback_type
+    def visit(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        title = buffer.value
+        if not any(expected.casefold() in title.casefold() for expected in GAME_WINDOW_TITLES):
+            return True
+        rect = wintypes.RECT()
+        origin = wintypes.POINT(0, 0)
+        if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
+            return True
+        if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+            return True
+        width = max(0, int(rect.right - rect.left))
+        height = max(0, int(rect.bottom - rect.top))
+        if width and height:
+            candidates.append((hwnd == foreground, width * height, {
+                "left": int(origin.x),
+                "top": int(origin.y),
+                "right": int(origin.x + width),
+                "bottom": int(origin.y + height),
+                "width": width,
+                "height": height
+            }))
+        return True
+
+    user32.EnumWindows(visit, 0)
+    if not candidates:
+        return None
+    candidates.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
+    return candidates[0][2]
 
 
 def clipboard_sequence_number():
@@ -384,18 +431,23 @@ def run_detection(config):
         return 2
     ready = False
     last_foreground = is_game_foreground()
+    last_game_bounds = get_game_client_bounds()
     matched_count = 0
     missed_count = 0
-    emit("detection-state", ready=False, foreground=last_foreground)
+    emit("detection-state", ready=False, foreground=last_foreground,
+         gameBounds=last_game_bounds)
     while is_running:
         try:
             matched, scores = matcher.check_interface()
             foreground = is_game_foreground()
+            game_bounds = get_game_client_bounds()
             ready, matched_count, missed_count, changed = advance_detection_state(
                 ready, matched_count, missed_count, matched)
-            if changed or foreground != last_foreground:
-                emit("detection-state", ready=ready, foreground=foreground, **scores)
+            if changed or foreground != last_foreground or game_bounds != last_game_bounds:
+                emit("detection-state", ready=ready, foreground=foreground,
+                     gameBounds=game_bounds, **scores)
             last_foreground = foreground
+            last_game_bounds = game_bounds
             time.sleep(0.2)
         except Exception as exc:
             emit("detection-error", reason=str(exc))
@@ -423,6 +475,7 @@ def run_stash(config):
     rules = config.get("blacklist", [])
     scan_phases = build_scan_phases(inventory)
     total_slots = sum(1 for phase in scan_phases for target in phase if not target["excluded"])
+    empty_slot_threshold = max(1, min(60, int(inventory.get("emptySlotThreshold", 3))))
     consecutive_empty_slots = 0
     try:
         for phase_index, phase in enumerate(scan_phases):
@@ -469,10 +522,10 @@ def run_stash(config):
                     stats["unreadableSlots"] += consecutive_empty_slots
                     consecutive_empty_slots = 0
                 stats["scannedSlots"] += 1
-                if consecutive_empty_slots >= 3:
+                if consecutive_empty_slots >= empty_slot_threshold:
                     stats["emptySlots"] += consecutive_empty_slots
                     emit_progress(stats, total_slots)
-                    emit("stash-completed", reason="three-consecutive-empty", **stats)
+                    emit("stash-completed", reason="consecutive-empty-threshold", **stats)
                     return 0
                 emit_progress(stats, total_slots)
         stats["emptySlots"] += consecutive_empty_slots

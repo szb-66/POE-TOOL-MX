@@ -8,23 +8,26 @@ import { app } from 'electron'
 import { fileURLToPath } from 'node:url'
 import {
   BagSessionController,
-  createEventLineParser,
-  describeDetectionExit,
-  waitForDetectionStartup
+  createEventLineParser
 } from '../bag/orchestrator.js'
 import { createBagOverlaySnapshot } from '../bag/overlayState.js'
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
 import { expandSearchRegion } from '../window/coordinates.js'
+import { OverlayDragSession } from '../window/overlayDrag.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { normalizeOperationDelay } from '../../../src/utils/operationDelay.js'
+import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 
-let detectionProcess = null
 let stashProcess = null
 let latestConfig = null
 let getMainWindowRef = null
 let bagWindowApi = null
+let interfaceDetection = null
+let automationLock = null
+let disposeDetectionState = null
 let moduleRunning = false
 const session = new BagSessionController()
+const bagOverlayDrag = new OverlayDragSession()
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
 function send(channel, payload = {}) {
@@ -64,6 +67,7 @@ function runtimeConfig(config = {}) {
     match_threshold: Number(config.matchThreshold ?? 0.8),
     inventory: {
       ...(config.inventory || {}),
+      emptySlotThreshold: normalizeEmptySlotThreshold(config.inventory?.emptySlotThreshold),
       layout: config.inventory?.layout || {}
     },
     blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
@@ -163,13 +167,20 @@ function bindCommonProcessLogging(child, label) {
 function startStashProcess(python, fileWatcher, mode) {
   const gate = mode === 'auto' ? session.beginAutomatic() : session.beginManual()
   if (!gate.success) return gate
+  const automationGate = automationLock?.acquire('自动入库') || { success: true }
+  if (!automationGate.success) {
+    session.finishStash()
+    return automationGate
+  }
   if (!latestConfig) {
     session.finishStash()
+    automationLock?.release('自动入库')
     return { success: false, error: '背包模块尚未配置' }
   }
   const error = validateConfig(latestConfig)
   if (error) {
     session.finishStash()
+    automationLock?.release('自动入库')
     return { success: false, error }
   }
 
@@ -181,6 +192,7 @@ function startStashProcess(python, fileWatcher, mode) {
     syncBagOverlay()
   } catch (error_) {
     session.finishStash()
+    automationLock?.release('自动入库')
     return { success: false, error: error_.message }
   }
 
@@ -206,59 +218,12 @@ function startStashProcess(python, fileWatcher, mode) {
     if (wasCurrent) stashProcess = null
     if (wasCurrent) {
       session.finishStash()
+      automationLock?.release('自动入库')
       syncBagOverlay()
       if (!terminalEventSent) send('bag-stash-stopped', { reason: code === 0 ? 'process-ended' : 'process-exited', code })
     }
   })
   return { success: true, processId: child.pid, mode }
-}
-
-function startDetectionProcess(python, fileWatcher) {
-  const configPath = writeConfig(fileWatcher, 'bag_detection_config.json', latestConfig)
-  const child = spawnPython(python, 'detect', configPath)
-  detectionProcess = child
-  child.stdout.setEncoding('utf8')
-  let terminalReason = ''
-  child.stdout.on('data', createEventLineParser((event) => {
-    if (detectionProcess !== child) return
-    if (event.event === 'detection-state') {
-      const shouldAutoStart = session.setReady(event.ready, event.foreground, latestConfig?.immediateStash !== false)
-      send('bag-detection-match', { matched: session.ready && session.foreground, ...event })
-      syncBagOverlay()
-      if (shouldAutoStart) {
-        const result = startStashProcess(python, fileWatcher, 'auto')
-        if (!result.success) send('bag-stash-stopped', { reason: result.error })
-      }
-    } else if (event.event === 'detection-error') {
-      terminalReason = event.reason || '检测器报告错误'
-      send('bag-detection-stopped', event)
-    }
-  }, (line) => console.log('[背包检测]', line)))
-  const diagnostics = bindCommonProcessLogging(child, '背包检测')
-  child.on('close', (code) => {
-    const wasCurrent = detectionProcess === child
-    if (wasCurrent) detectionProcess = null
-    if (wasCurrent) {
-      moduleRunning = false
-      session.setReady(false, false)
-      syncBagOverlay()
-      if (!terminalReason) send('bag-detection-stopped', {
-        code,
-        reason: describeDetectionExit({ code, stderr: diagnostics.stderr, spawnError: diagnostics.spawnError })
-      })
-    }
-  })
-  return {
-    child,
-    startup: waitForDetectionStartup(child, {
-      getFailureReason: (code) => describeDetectionExit({
-        code,
-        terminalReason,
-        stderr: diagnostics.stderr,
-        spawnError: diagnostics.spawnError
-      })
-    })
-  }
 }
 
 const templateRuntimeKeys = (type) => type === 'stashTitle'
@@ -273,51 +238,50 @@ const updateRuntimeTemplate = (type, templatePath, region) => {
 }
 
 const reloadDetectionForTemplateChange = async (python, fileWatcher) => {
-  if (!detectionProcess) return false
-  const previous = detectionProcess
-  detectionProcess = null
-  stopChild(previous)
+  if (!moduleRunning || !interfaceDetection) return false
   session.reset()
   syncBagOverlay()
   send('bag-detection-match', { matched: false, ready: false, reloading: true })
-  const { child, startup } = startDetectionProcess(python, fileWatcher)
-  try {
-    await startup
-    return true
-  } catch (error) {
-    if (detectionProcess === child) {
-      detectionProcess = null
-      stopChild(child)
-    }
-    session.reset()
-    throw error
-  }
+  await interfaceDetection.updateConfig(latestConfig)
+  return true
 }
 
-export function registerBagHandlers(python, window, fileWatcher) {
+export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   getMainWindowRef = window.getMainWindow
   bagWindowApi = window
+  interfaceDetection = shared.interfaceDetection
+  automationLock = shared.automationLock
+  disposeDetectionState?.()
+  disposeDetectionState = interfaceDetection?.subscribe((state) => {
+    if (!moduleRunning) return
+    const shouldAutoStart = session.setReady(state.ready, state.foreground, latestConfig?.immediateStash !== false)
+    send('bag-detection-match', { matched: session.ready && session.foreground, ...state })
+    syncBagOverlay()
+    if (!state.running && !state.reloading && state.reason) {
+      send('bag-detection-stopped', { reason: state.reason })
+    }
+    if (shouldAutoStart) {
+      const result = startStashProcess(python, fileWatcher, 'auto')
+      if (!result.success) send('bag-stash-stopped', { reason: result.error })
+    }
+  })
 
   ipcMain.handle('start-bag-detection', async (_event, config) => {
     try {
-      if (detectionProcess) return { success: false, error: '检测进程已在运行中' }
+      if (moduleRunning) return { success: true, shared: true }
       const captureValidation = validateCaptureConfig(config || {})
       if (captureValidation.error) return { success: false, error: captureValidation.error }
       latestConfig = runtimeConfig(config)
       const error = validateConfig(latestConfig)
       if (error) return { success: false, error }
       session.reset()
-      const { child, startup } = startDetectionProcess(python, fileWatcher)
-      await startup
+      if (!interfaceDetection) throw new Error('公共界面检测服务未初始化')
+      await interfaceDetection.registerConsumer('bag', latestConfig)
       moduleRunning = true
       syncBagOverlay()
-      return { success: true, processId: child.pid, warnings: captureValidation.warnings }
+      return { success: true, shared: true, warnings: captureValidation.warnings }
     } catch (error) {
-      if (detectionProcess) {
-        const child = detectionProcess
-        detectionProcess = null
-        stopChild(child)
-      }
+      interfaceDetection?.unregisterConsumer('bag')
       session.reset()
       moduleRunning = false
       syncBagOverlay()
@@ -326,13 +290,12 @@ export function registerBagHandlers(python, window, fileWatcher) {
   })
 
   ipcMain.handle('stop-bag-detection', async () => {
-    const detecting = detectionProcess
     const stashing = stashProcess
-    detectionProcess = null
     stashProcess = null
     moduleRunning = false
-    stopChild(detecting)
+    interfaceDetection?.unregisterConsumer('bag')
     stopChild(stashing)
+    automationLock?.release('自动入库')
     session.reset()
     syncBagOverlay()
     send('bag-detection-match', { matched: false, ready: false })
@@ -345,6 +308,12 @@ export function registerBagHandlers(python, window, fileWatcher) {
     const operationDelayMs = normalizeOperationDelay(value)
     if (latestConfig) latestConfig.operation_delay_ms = operationDelayMs
     return { success: true, operationDelayMs }
+  })
+
+  ipcMain.handle('update-bag-empty-slot-threshold', async (_event, value) => {
+    const emptySlotThreshold = normalizeEmptySlotThreshold(value)
+    if (latestConfig) latestConfig.inventory.emptySlotThreshold = emptySlotThreshold
+    return { success: true, emptySlotThreshold }
   })
 
   ipcMain.handle('update-bag-preferences', async (_event, preferences = {}) => {
@@ -366,13 +335,49 @@ export function registerBagHandlers(python, window, fileWatcher) {
     }
   })
 
+  ipcMain.handle('update-bag-interface-config', async (_event, config = {}) => {
+    if (latestConfig) {
+      latestConfig.templates = {
+        stash_title: String(config.templates?.stashTitle || ''),
+        inventory_title: String(config.templates?.inventoryTitle || ''),
+        stash_region: config.templates?.stashRegion || {},
+        inventory_region: config.templates?.inventoryRegion || {}
+      }
+      latestConfig.match_threshold = Number(config.matchThreshold ?? 0.8)
+    }
+    return { success: true }
+  })
+
   ipcMain.handle('get-bag-stash-overlay-state', async () => currentOverlaySnapshot())
+  ipcMain.on('bag-stash-overlay-move', (event, point = {}) => {
+    const overlay = bagWindowApi?.getBagStashOverlayWindow?.()
+    if (!overlay || overlay.isDestroyed() || overlay.webContents !== event.sender) return
+    if (point.phase === 'start') {
+      bagOverlayDrag.begin(event.sender.id, point, overlay.getBounds())
+      return
+    }
+    if (point.phase === 'end') {
+      bagOverlayDrag.end(event.sender.id)
+      return
+    }
+    if (point.phase !== 'move') return
+    const requested = bagOverlayDrag.move(event.sender.id, point)
+    if (!requested) return
+    const current = overlay.getBounds()
+    const workArea = screen.getDisplayNearestPoint(requested).workArea
+    overlay.setPosition(
+      Math.max(workArea.x, Math.min(workArea.x + workArea.width - current.width, requested.x)),
+      Math.max(workArea.y, Math.min(workArea.y + workArea.height - current.height, requested.y)),
+      false
+    )
+  })
 
   ipcMain.handle('stop-bag-stash', async () => {
     const child = stashProcess
     stashProcess = null
     stopChild(child)
     session.finishStash()
+    automationLock?.release('自动入库')
     syncBagOverlay()
     return { success: true }
   })
@@ -436,13 +441,12 @@ export function registerBagHandlers(python, window, fileWatcher) {
 }
 
 export async function cleanupBagProcesses() {
-  const detecting = detectionProcess
   const stashing = stashProcess
-  detectionProcess = null
   stashProcess = null
   moduleRunning = false
-  stopChild(detecting)
+  interfaceDetection?.unregisterConsumer('bag')
   stopChild(stashing)
+  automationLock?.release('自动入库')
   session.reset()
   syncBagOverlay()
 }

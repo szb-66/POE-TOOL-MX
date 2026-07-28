@@ -6,7 +6,10 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   potionStop: 'Numpad8',
   portal: 'Numpad2',
   storyPrevious: 'PageUp',
-  storyNext: 'PageDown'
+  storyNext: 'PageDown',
+  chaosRecipeStart: 'Alt+4',
+  chaosRecipePause: 'Alt+5',
+  chaosRecipeStop: 'Alt+6'
 })
 
 export const mergeGlobalShortcutSettings = (saved = {}) => {

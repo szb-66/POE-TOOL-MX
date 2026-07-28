@@ -22,11 +22,13 @@ import { useSettingsStore } from './domains/settings/settingsStore'
 import { electronApi } from './api/electron'
 import { initCombatAssist } from './utils/combatService'
 import { disposeBagAutomation, initBagAutomation } from './utils/bagService'
+import { useChaosRecipeStore } from './stores/chaosRecipe'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
 let initShortcutsHandler = null
 let removeDevToolsListener = null
+let removeChaosAutomationListener = null
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -36,6 +38,9 @@ onMounted(() => {
     initShortcuts()
     initCombatAssist()
     initBagAutomation()
+    const chaosStore = useChaosRecipeStore()
+    removeChaosAutomationListener = chaosStore.listenAutomation()
+    void chaosStore.initializeRuntime()
   }
 
   removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
@@ -46,6 +51,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   removeDevToolsListener?.()
+  removeChaosAutomationListener?.()
   disposeBagAutomation()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {

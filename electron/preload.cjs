@@ -124,6 +124,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startBagStash: () => ipcRenderer.invoke('start-bag-stash'),
   stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
   updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
+  updateBagEmptySlotThreshold: (emptySlotThreshold) => ipcRenderer.invoke('update-bag-empty-slot-threshold', emptySlotThreshold),
   updateBagPreferences: (preferences) => ipcRenderer.invoke('update-bag-preferences', preferences),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
@@ -157,6 +158,61 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('bag-stash-overlay-state', listener)
     return () => ipcRenderer.removeListener('bag-stash-overlay-state', listener)
+  },
+  moveBagStashOverlay: (drag) => ipcRenderer.send('bag-stash-overlay-move', drag),
+  updateBagInterfaceConfig: (config) => ipcRenderer.invoke('update-bag-interface-config', config),
+  // 国服混沌配方
+  getChaosRecipeAuthStatus: () => ipcRenderer.invoke('chaos-recipe-auth-status'),
+  restoreChaosRecipeAuth: () => ipcRenderer.invoke('chaos-recipe-auth-restore'),
+  openChaosRecipeWebLogin: () => ipcRenderer.invoke('chaos-recipe-auth-open-web'),
+  completeChaosRecipeWebLogin: () => ipcRenderer.invoke('chaos-recipe-auth-complete-web'),
+  setChaosRecipeSessionToken: (token) => ipcRenderer.invoke('chaos-recipe-auth-token', token),
+  logoutChaosRecipe: () => ipcRenderer.invoke('chaos-recipe-auth-logout'),
+  listChaosRecipeLeagues: () => ipcRenderer.invoke('chaos-recipe-list-leagues'),
+  listChaosRecipeTabs: (league) => ipcRenderer.invoke('chaos-recipe-list-tabs', league),
+  refreshChaosRecipe: (request) => ipcRenderer.invoke('chaos-recipe-refresh', request),
+  getChaosRecipeSnapshot: () => ipcRenderer.invoke('chaos-recipe-get-snapshot'),
+  pickChaosRecipeGridRegion: () => ipcRenderer.invoke('chaos-recipe-pick-grid-region'),
+  openChaosRecipeOverlay: (setCount, calibration) => ipcRenderer.invoke('chaos-recipe-open-overlay', setCount, calibration),
+  closeChaosRecipeOverlay: () => ipcRenderer.invoke('chaos-recipe-close-overlay'),
+  getChaosRecipeOverlayState: () => ipcRenderer.invoke('chaos-recipe-overlay-state'),
+  startChaosRecipeAutomation: (request) => ipcRenderer.invoke('chaos-recipe-automation-start', request),
+  pauseChaosRecipeAutomation: () => ipcRenderer.invoke('chaos-recipe-automation-pause'),
+  resumeChaosRecipeAutomation: () => ipcRenderer.invoke('chaos-recipe-automation-resume'),
+  stopChaosRecipeAutomation: () => ipcRenderer.invoke('chaos-recipe-automation-stop'),
+  getChaosRecipeAutomationStatus: () => ipcRenderer.invoke('chaos-recipe-automation-status'),
+  updateChaosRecipeRuntime: (runtime) => ipcRenderer.invoke('chaos-recipe-runtime-update', runtime),
+  getChaosRecipeControlState: () => ipcRenderer.invoke('chaos-recipe-control-state'),
+  refreshChaosRecipeFromControl: () => ipcRenderer.invoke('chaos-recipe-control-refresh'),
+  previewChaosRecipeFromControl: () => ipcRenderer.invoke('chaos-recipe-control-preview'),
+  runChaosRecipeControlAction: () => ipcRenderer.invoke('chaos-recipe-control-action'),
+  moveChaosRecipeControl: (drag) => ipcRenderer.send('chaos-recipe-control-move', drag),
+  getInterfaceDetectionState: () => ipcRenderer.invoke('interface-detection-state'),
+  updateInterfaceDetectionConfig: (runtime) => ipcRenderer.invoke('interface-detection-update-config', runtime),
+  onChaosRecipeAutomationEvent: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chaos-recipe-automation-event', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-automation-event', listener)
+  },
+  onChaosRecipeOverlayState: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chaos-recipe-overlay-state', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-overlay-state', listener)
+  },
+  onChaosRecipeControlState: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chaos-recipe-control-state', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-control-state', listener)
+  },
+  onChaosRecipeControlOffset: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chaos-recipe-control-offset', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-control-offset', listener)
+  },
+  onChaosRecipeSnapshotUpdated: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chaos-recipe-snapshot-updated', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-snapshot-updated', listener)
   },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),

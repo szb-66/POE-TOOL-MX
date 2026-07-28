@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
-  captureKeyForTemplate,
   createDefaultBagSettings,
   normalizeBagBlacklist,
   normalizeBagSettings,
   normalizeInventoryLayout
 } from '@/utils/bagConfig'
+import { useInterfaceDetectionStore } from './interfaceDetection.js'
 
 const emptyStats = () => ({
   scannedSlots: 0,
@@ -19,11 +19,12 @@ const emptyStats = () => ({
 
 export const useBagStore = defineStore('bag', () => {
   const defaults = createDefaultBagSettings()
+  const interfaceDetectionStore = useInterfaceDetectionStore()
   const moduleEnabled = ref(defaults.moduleEnabled)
   const immediateStash = ref(defaults.immediateStash)
   const showStashButtonOnlyWhenReady = ref(defaults.showStashButtonOnlyWhenReady)
-  const templates = ref(defaults.templates)
-  const matchThreshold = ref(defaults.matchThreshold)
+  const templates = computed(() => interfaceDetectionStore.templates)
+  const matchThreshold = computed(() => interfaceDetectionStore.matchThreshold)
   const blacklist = ref(defaults.blacklist)
   const inventoryLayout = ref(defaults.inventoryLayout)
   const isDetecting = ref(false)
@@ -39,8 +40,6 @@ export const useBagStore = defineStore('bag', () => {
         moduleEnabled: moduleEnabled.value,
         immediateStash: immediateStash.value,
         showStashButtonOnlyWhenReady: showStashButtonOnlyWhenReady.value,
-        templates: templates.value,
-        matchThreshold: matchThreshold.value,
         blacklist: blacklist.value,
         inventoryLayout: inventoryLayout.value
       }))
@@ -54,8 +53,6 @@ export const useBagStore = defineStore('bag', () => {
     moduleEnabled.value = normalized.moduleEnabled
     immediateStash.value = normalized.immediateStash
     showStashButtonOnlyWhenReady.value = normalized.showStashButtonOnlyWhenReady
-    templates.value = normalized.templates
-    matchThreshold.value = normalized.matchThreshold
     blacklist.value = normalized.blacklist
     inventoryLayout.value = normalized.inventoryLayout
   }
@@ -72,28 +69,17 @@ export const useBagStore = defineStore('bag', () => {
   function setModuleEnabled(enabled) { moduleEnabled.value = Boolean(enabled); saveSettings() }
   function setImmediateStash(enabled) { immediateStash.value = Boolean(enabled); saveSettings() }
   function setShowStashButtonOnlyWhenReady(enabled) { showStashButtonOnlyWhenReady.value = Boolean(enabled); saveSettings() }
-  function clearCaptureMetadata(type) { templates.value[captureKeyForTemplate(type)] = null }
+  function clearCaptureMetadata(type) { interfaceDetectionStore.clearCaptureMetadata(type) }
   function setTemplate(type, path) {
-    templates.value[type] = String(path || '')
-    clearCaptureMetadata(type)
-    saveSettings()
+    interfaceDetectionStore.setTemplate(type, path)
   }
   function setTemplateRegion(type, region) {
-    templates.value[`${type.replace('Title', '')}Region`] = { ...region }
-    clearCaptureMetadata(type)
-    saveSettings()
+    interfaceDetectionStore.setTemplateRegion(type, region)
   }
   function applyTemplateCapture(type, result) {
-    const regionKey = `${type.replace('Title', '')}Region`
-    templates.value = {
-      ...templates.value,
-      [type]: String(result.path || ''),
-      [regionKey]: { ...result.region },
-      [captureKeyForTemplate(type)]: result.metadata ? { ...result.metadata } : null
-    }
-    saveSettings()
+    interfaceDetectionStore.applyTemplateCapture(type, result)
   }
-  function setMatchThreshold(value) { matchThreshold.value = Number(value); saveSettings() }
+  function setMatchThreshold(value) { interfaceDetectionStore.setMatchThreshold(value) }
   function setBlacklist(rules) { blacklist.value = normalizeBagBlacklist(rules); saveSettings() }
   function setInventoryLayout(layout) {
     inventoryLayout.value = normalizeInventoryLayout({ ...inventoryLayout.value, ...layout })
@@ -127,6 +113,7 @@ export const useBagStore = defineStore('bag', () => {
   function resetSettings() { applySettings(defaults); resetStates(); saveSettings() }
 
   loadSettings()
+  saveSettings()
 
   return {
     moduleEnabled, immediateStash, showStashButtonOnlyWhenReady, templates, matchThreshold, blacklist, inventoryLayout,

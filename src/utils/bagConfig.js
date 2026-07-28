@@ -1,4 +1,5 @@
 import { normalizeOperationDelay } from './operationDelay.js'
+import { normalizeEmptySlotThreshold } from './inventorySettings.js'
 
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
 
@@ -181,6 +182,7 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
         w: finiteNumber(settings?.inventory?.slotSize?.w, 100),
         h: finiteNumber(settings?.inventory?.slotSize?.h, 100)
       },
+      emptySlotThreshold: normalizeEmptySlotThreshold(settings?.inventory?.emptySlotThreshold),
       layout: bag.inventoryLayout
     }
   }

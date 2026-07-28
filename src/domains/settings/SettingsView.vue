@@ -9,6 +9,8 @@
           </el-button>
         </div>
 
+        <InterfaceDetectionSettings />
+
         <!-- 快捷键设置 -->
         <div class="section-header">
           <h3 class="section-title">快捷键设置</h3>
@@ -29,6 +31,23 @@
               <el-col :span="8">
                 <el-form-item label="结束">
                   <KeyCaptureInput :model-value="shortcuts.end" @change="handleShortcutsChange('end', $event)" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="40">
+              <el-col :span="8">
+                <el-form-item label="配方开始">
+                  <KeyCaptureInput :model-value="shortcuts.chaosRecipeStart" @change="handleShortcutsChange('chaosRecipeStart', $event)" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="配方暂停/继续">
+                  <KeyCaptureInput :model-value="shortcuts.chaosRecipePause" @change="handleShortcutsChange('chaosRecipePause', $event)" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="配方紧急停止">
+                  <KeyCaptureInput :model-value="shortcuts.chaosRecipeStop" @change="handleShortcutsChange('chaosRecipeStop', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -95,6 +114,23 @@
                     />
                   </div>
                   <div class="hint-text">单个背包格子的宽度和高度</div>
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="40">
+              <el-col :span="12">
+                <el-form-item label="连续空格停止数量">
+                  <el-input-number
+                    v-model="inventory.emptySlotThreshold"
+                    :min="EMPTY_SLOT_THRESHOLD.min"
+                    :max="EMPTY_SLOT_THRESHOLD.max"
+                    :step="1"
+                    step-strictly
+                    controls-position="right"
+                    style="width: 180px"
+                    @change="handleEmptySlotThresholdChange"
+                  />
+                  <div class="hint-text">扫描连续达到该数量的空格后，认为后续没有内容</div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -363,14 +399,18 @@ import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
 import { OPERATION_DELAY } from '../../utils/operationDelay'
+import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
 import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
 import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
 import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
+import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
+import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
+const interfaceDetectionStore = useInterfaceDetectionStore()
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const positions = ref({ ...settingsStore.currencyPositions })
@@ -451,6 +491,11 @@ function handleInventoryChange() {
     startPos: inventory.value.startPos,
     slotSize: inventory.value.slotSize
   })
+}
+
+function handleEmptySlotThresholdChange(value) {
+  const normalized = settingsStore.updateInventorySettings({ emptySlotThreshold: value })
+  inventory.value.emptySlotThreshold = normalized.emptySlotThreshold
 }
 
 function handleItemPositionChange() {
@@ -624,6 +669,7 @@ async function handleReset() {
 
     // 重置设置
     settingsStore.resetSettings()
+    interfaceDetectionStore.reset()
 
     // 同步本地 ref
     shortcuts.value = { ...settingsStore.globalShortcuts }

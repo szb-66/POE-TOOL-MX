@@ -326,6 +326,10 @@ export function updateBagStashOverlay(snapshot) {
   return true
 }
 
+export function getBagStashOverlayWindow() {
+  return bagStashOverlayWindow
+}
+
 export function closeBagStashOverlayWindow() {
   bagStashOverlaySnapshot = null
   if (bagStashOverlayWindow && !bagStashOverlayWindow.isDestroyed()) bagStashOverlayWindow.close()

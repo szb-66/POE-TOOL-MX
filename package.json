@@ -1,6 +1,7 @@
 {
-  "name": "流放助手",
+  "name": "poe-cn-helper",
   "version": "1.0.0",
+  "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
   "scripts": {
@@ -47,18 +48,29 @@
       "!electron/assets/crafting-raw/**/*",
       "!electron/assets/skill-raw/**/*",
       "scripts/**/*",
-      "package.json"
+      "src/assets/images/LOGO.png",
+      "src/utils/bagConfig.js",
+      "src/utils/electronAccelerator.js",
+      "src/utils/inventorySettings.js",
+      "src/utils/operationDelay.js",
+      "package.json",
+      "LICENSE.md",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "extraResources": [
       {
         "from": "src/assets/scripts/bag_auto_stash_template.py",
         "to": "bag_auto_stash_template.py"
+      },
+      {
+        "from": "src/assets/scripts/chaos_recipe_pick_template.py",
+        "to": "chaos_recipe_pick_template.py"
       }
     ],
     "win": {
       "target": "nsis",
       "requestedExecutionLevel": "requireAdministrator",
-      "icon": "src/assets/images/LOGO.png"
+      "icon": "src/assets/images/LOGO-512.png"
     },
     "nsis": {
       "oneClick": false,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createBagOverlaySnapshot } from '../electron/modules/bag/overlayState.js'
 import { BAG_OVERLAY_SIZE, getBagOverlayBounds } from '../electron/modules/window/bagOverlay.js'
+import { OverlayDragSession } from '../electron/modules/window/overlayDrag.js'
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
@@ -71,6 +72,16 @@ test('浮层恢复有效位置，失效位置回退到主屏工作区', () => {
   })
 })
 
+test('浮窗拖动始终从主进程固定起点计算且不累积窗口尺寸', () => {
+  const drag = new OverlayDragSession()
+  drag.begin(7, { screenX: 100, screenY: 200 }, { x: 300, y: 400, width: 188, height: 64 })
+  assert.deepEqual(drag.move(7, { screenX: 110, screenY: 220 }), { x: 310, y: 420 })
+  assert.deepEqual(drag.move(7, { screenX: 120, screenY: 240 }), { x: 320, y: 440 })
+  assert.equal(drag.move(8, { screenX: 130, screenY: 260 }), null)
+  drag.end(7)
+  assert.equal(drag.move(7, { screenX: 140, screenY: 280 }), null)
+})
+
 test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态', () => {
   const manager = source('../electron/modules/window/manager.js')
   const router = source('../src/router/index.js')
@@ -83,12 +94,21 @@ test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态
   assert.match(manager, /focusable: false/)
   assert.match(manager, /showInactive\(\)/)
   assert.match(manager, /bagStashOverlayBounds/)
+  assert.match(manager, /export function getBagStashOverlayWindow\(\)/)
   assert.match(router, /path: '\/bag-stash-overlay'/)
-  assert.match(view, /-webkit-app-region: drag/)
+  assert.match(view, /createOverlayDrag/)
+  assert.match(view, /@pointerdown="drag\.pointerDown"/)
+  assert.match(view, /@pointerdown\.stop\.prevent="startStashFromPointer"/)
+  assert.match(view, /grid-template-columns: 28px 1fr/)
   assert.match(view, /-webkit-app-region: no-drag/)
   assert.match(view, /electronApi\.bag\.startStash\(\)/)
   assert.match(ipc, /createBagOverlaySnapshot/)
   assert.match(ipc, /update-bag-preferences/)
+  assert.match(ipc, /bag-stash-overlay-move/)
+  assert.match(ipc, /getBagStashOverlayWindow/)
+  assert.match(ipc, /overlay\.setPosition\(/)
+  assert.doesNotMatch(ipc, /overlay\.setBounds\(/)
+  assert.match(ipc, /new OverlayDragSession\(\)/)
   assert.doesNotMatch(shortcuts, /stashStart:/)
   assert.doesNotMatch(bagPage, /手动补扫快捷键|>手动补扫</)
 })

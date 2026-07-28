@@ -459,5 +459,12 @@ npm run electron:build
 
 ## 许可证
 
-MIT License
+本项目以 [GNU General Public License v3.0 或更高版本](LICENSE.md) 发布。
+
+“混沌配方”功能基于
+[ChaosRecipeEnhancer](https://github.com/ChaosRecipeEnhancer/ChaosRecipeEnhancer)
+的配方组装思路重新实现。上游项目及其贡献者的版权与许可证信息见
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+分发本软件时须同时提供对应源代码和 GPL-3.0-or-later 许可证文本。
 

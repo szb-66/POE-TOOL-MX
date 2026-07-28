@@ -7,6 +7,9 @@ test('全局快捷键不再包含背包补扫，但保留剧情导航', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyPrevious, 'PageUp')
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyNext, 'PageDown')
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStart, 'Alt+4')
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipePause, 'Alt+5')
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStop, 'Alt+6')
 })
 
 test('全局快捷键只接受当前格式字段', () => {

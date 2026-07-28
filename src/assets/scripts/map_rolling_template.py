@@ -399,6 +399,8 @@ def start_map_rolling():
     whitelist_stats = {}  # 统计白名单词缀通过次数
     current_col = 0
     current_row = 0
+    consecutive_empty_slots = 0
+    empty_slot_threshold = max(1, min(60, int(grid_config.get('emptySlotThreshold', 3))))
     
     # 从第一个格子开始，按列优先顺序处理
     while is_running and current_col < grid_config['cols']:
@@ -409,6 +411,7 @@ def start_map_rolling():
         # 1. 移动鼠标到当前格子
         if not move_mouse(slot_x, slot_y):
             print("[错误] 鼠标移动失败，跳过")
+            consecutive_empty_slots = 0
             # 移动到下一个格子
             current_row += 1
             if current_row >= grid_config['rows']:
@@ -428,7 +431,11 @@ def start_map_rolling():
         # 3. 复制物品信息
         print(f"[操作] 复制物品信息 (Ctrl+Alt+C)")
         if not read_clipboard_to_file():
-            print("[提示] 复制失败")
+            consecutive_empty_slots += 1
+            print(f"[提示] 复制失败，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
+            if consecutive_empty_slots >= empty_slot_threshold:
+                print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
+                break
             # 移动到下一个格子
             current_row += 1
             if current_row >= grid_config['rows']:
@@ -451,11 +458,18 @@ def start_map_rolling():
                 print(f"[停止] 无法获取剪切板序列号 (before: {clipboard_seq_before}, after: {clipboard_seq_after})，停止流程")
                 is_running = False
                 break
-            # 如果序列号没有变化，说明没有复制到新内容，停止流程
+            # 如果序列号没有变化，说明当前格是空格候选
             if clipboard_seq_after == clipboard_seq_before:
-                print(f"[停止] 剪切板序列号未变化 ({clipboard_seq_before} -> {clipboard_seq_after})，说明没有复制到新内容，流程结束")
-                is_running = False
-                break
+                consecutive_empty_slots += 1
+                print(f"[提示] 剪切板序列号未变化 ({clipboard_seq_before} -> {clipboard_seq_after})，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
+                if consecutive_empty_slots >= empty_slot_threshold:
+                    print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
+                    break
+                current_row += 1
+                if current_row >= grid_config['rows']:
+                    current_row = 0
+                    current_col += 1
+                continue
             else:
                 print(f"[检测] 剪切板序列号已变化 ({clipboard_seq_before} -> {clipboard_seq_after})，检测到新内容")
         else:
@@ -464,15 +478,25 @@ def start_map_rolling():
             try:
                 clipboard_text = pyperclip.paste()
                 if not clipboard_text or len(clipboard_text.strip()) == 0:
-                    print("[停止] 剪切板内容为空，说明没有复制到新内容，流程结束")
-                    is_running = False
-                    break
+                    consecutive_empty_slots += 1
+                    print(f"[提示] 剪切板内容为空，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
+                    if consecutive_empty_slots >= empty_slot_threshold:
+                        print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
+                        break
+                    current_row += 1
+                    if current_row >= grid_config['rows']:
+                        current_row = 0
+                        current_col += 1
+                    continue
                 # 如果剪切板有内容，继续执行（无法判断是否是地图，交给后续解析判断）
                 print("[检测] 剪切板有内容，继续处理")
             except Exception as e:
                 print(f"[停止] 无法读取剪切板内容: {e}，流程结束")
                 is_running = False
                 break
+
+        # 已复制到新内容，解析结果无论成功与否都不是空格
+        consecutive_empty_slots = 0
         
         # 5. 等待解析结果
         result = wait_for_parse_result()

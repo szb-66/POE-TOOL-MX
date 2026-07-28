@@ -4,6 +4,7 @@ import { electronApi } from '@/api/electron'
 import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
+import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
 import {
   DEFAULT_STORY_OVERLAY_OPACITY,
   DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
@@ -48,7 +49,8 @@ export const useSettingsStore = defineStore('settings', () => {
   // 背包设置
   const inventory = ref({
     startPos: { x: 2658, y: 1199 },      // 首格坐标
-    slotSize: { w: 100, h: 100 }         // 单格宽高
+    slotSize: { w: 100, h: 100 },        // 单格宽高
+    emptySlotThreshold: EMPTY_SLOT_THRESHOLD.default
   })
 
   const operationDelayMs = ref(OPERATION_DELAY.default)
@@ -101,8 +103,18 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function updateInventorySettings(settings) {
-    inventory.value = { ...inventory.value, ...settings }
+    inventory.value = {
+      ...inventory.value,
+      ...settings,
+      emptySlotThreshold: normalizeEmptySlotThreshold(
+        settings?.emptySlotThreshold ?? inventory.value.emptySlotThreshold
+      )
+    }
     saveSettings()
+    if ('emptySlotThreshold' in (settings || {})) {
+      electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
+    }
+    return inventory.value
   }
 
   function updateShortcutHealth(result = {}) {
@@ -263,7 +275,11 @@ export const useSettingsStore = defineStore('settings', () => {
           currencyPositions.value = sanitizeCurrencyPositions(currencyPositions.value)
         }
         if (data.inventory) {
-          inventory.value = { ...inventory.value, ...data.inventory }
+          inventory.value = {
+            ...inventory.value,
+            ...data.inventory,
+            emptySlotThreshold: normalizeEmptySlotThreshold(data.inventory.emptySlotThreshold)
+          }
         }
         if (data.itemPosition) {
           itemPosition.value = { ...data.itemPosition }
@@ -331,7 +347,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const defaultInventory = {
     startPos: { x: 2658, y: 1199 },
-    slotSize: { w: 100, h: 100 }
+    slotSize: { w: 100, h: 100 },
+    emptySlotThreshold: EMPTY_SLOT_THRESHOLD.default
   }
 
   const defaultItemPosition = {
@@ -368,6 +385,7 @@ export const useSettingsStore = defineStore('settings', () => {
     combatAssist.value = createDefaultCombatAssist()
     saveSettings()
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
+    electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
     // 同步重置后的设置
     if (electronApi && electronApi.overlay && electronApi.overlay.updateSettings) {
       // 使用 JSON.parse(JSON.stringify()) 去除 Proxy 包装，确保 IPC 通信正常

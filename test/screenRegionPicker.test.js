@@ -117,7 +117,7 @@ test('point/region 共用互斥会话并对关闭、取消、加载失败统一�
 })
 
 test('高级上传和手工区域修改都会清除对应采集元数据', () => {
-  const store = readFileSync(new URL('../src/stores/bag.js', import.meta.url), 'utf8')
-  assert.match(store, /function setTemplate\([\s\S]*clearCaptureMetadata\(type\)[\s\S]*saveSettings/)
-  assert.match(store, /function setTemplateRegion\([\s\S]*clearCaptureMetadata\(type\)[\s\S]*saveSettings/)
+  const store = readFileSync(new URL('../src/stores/interfaceDetection.js', import.meta.url), 'utf8')
+  assert.match(store, /function setTemplate\([\s\S]*stashCapture[\s\S]*save\(\)/)
+  assert.match(store, /function setTemplateRegion\([\s\S]*inventoryCapture[\s\S]*save\(\)/)
 })

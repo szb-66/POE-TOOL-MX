@@ -49,39 +49,6 @@ export async function killPythonProcessTree(pid) {
 }
 
 /**
- * Purpose: 扫描并终止所有Python进程（用于清理残留进程）
- * Inputs: 无
- * Outputs: Promise<void> - 无返回值
- * Preconditions: 无
- * Edge cases: 没有找到 Python 进程时静默返回；跳过当前进程自身
- * Errors: 扫描失败时静默处理，不抛出异常
- */
-export async function killAllPythonProcesses() {
-  if (process.platform === 'win32') {
-    try {
-      // 查找所有python.exe进程
-      const { stdout } = await execAsync('tasklist /FI "IMAGENAME eq python.exe" /FO CSV /NH')
-      
-      if (!stdout) return
-
-      const lines = stdout.trim().split('\n').filter(line => line.trim())
-      
-      for (const line of lines) {
-        const match = line.match(/"python\.exe","(\d+)"/)
-        if (match) {
-          const pid = parseInt(match[1])
-          if (pid && pid !== process.pid) {
-            await killPythonProcessTree(pid)
-          }
-        }
-      }
-    } catch (error) {
-      // 如果没有找到Python进程，这是正常的
-    }
-  }
-}
-
-/**
  * Purpose: 获取当前正在执行的脚本进程
  * Inputs: 无
  * Outputs: Process 对象或 null
@@ -115,7 +82,7 @@ export function clearCurrentScriptProcess() {
 }
 
 /**
- * Purpose: 清理所有Python进程和资源
+ * Purpose: 清理本应用当前跟踪的 Python 进程和资源
  * Inputs: 无
  * Outputs: Promise<void> - 无返回值
  * Preconditions: 无
@@ -123,18 +90,15 @@ export function clearCurrentScriptProcess() {
  * Errors: 清理失败时静默处理，不抛出异常
  */
 export async function cleanup() {
-  if (currentScriptProcess) {
-    try {
-      const pid = currentScriptProcess.pid
-      await killPythonProcessTree(pid)
-      await new Promise(resolve => setTimeout(resolve, 500))
-    } catch (e) {
-      // 终止脚本进程失败
-    }
+  if (!currentScriptProcess) return
+
+  const pid = currentScriptProcess.pid
+  try {
+    const stopped = await killPythonProcessTree(pid)
+    if (!stopped) throw new Error(`无法终止 Python 进程树：${pid}`)
+    await new Promise(resolve => setTimeout(resolve, 500))
+  } finally {
     clearCurrentScriptProcess()
   }
-  
-  // 清理所有Python进程（防止残留）
-  await killAllPythonProcesses()
 }
 

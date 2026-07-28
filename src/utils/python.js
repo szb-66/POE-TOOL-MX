@@ -11,6 +11,7 @@ import craftingTemplate from '@/assets/scripts/crafting_template.py?raw'
 import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
 import { normalizeOperationDelay } from '@/utils/operationDelay.js'
+import { normalizeEmptySlotThreshold } from '@/utils/inventorySettings.js'
 
 const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -879,7 +880,8 @@ export function generateMapRollingScript(config) {
     startX: inventory?.startPos?.x || 0,
     startY: inventory?.startPos?.y || 0,
     offsetX: inventory?.slotSize?.w || 0,
-    offsetY: inventory?.slotSize?.h || 0
+    offsetY: inventory?.slotSize?.h || 0,
+    emptySlotThreshold: normalizeEmptySlotThreshold(inventory?.emptySlotThreshold)
   }
 
   // 填充模板

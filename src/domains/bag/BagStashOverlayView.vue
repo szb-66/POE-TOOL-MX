@@ -1,13 +1,20 @@
 <template>
   <div class="bag-overlay" :title="state.disabledReason || '点击执行自动入库'">
-    <div class="drag-handle" title="拖动浮层">
+    <div
+      class="drag-handle"
+      title="拖动浮层"
+      @pointerdown="drag.pointerDown"
+      @pointermove="drag.pointerMove"
+      @pointerup="drag.pointerUp"
+      @pointercancel="drag.pointerUp"
+    >
       <span></span><span></span><span></span>
     </div>
     <button
       type="button"
       :disabled="state.disabled || starting"
       :aria-label="state.disabledReason || state.label"
-      @click="startStash"
+      @pointerdown.stop.prevent="startStashFromPointer"
     >
       <span class="button-icon">{{ state.stashing || starting ? '…' : '⇧' }}</span>
       <span>{{ starting ? '启动中' : state.label }}</span>
@@ -18,6 +25,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
 import { electronApi } from '@/api/electron'
+import { createOverlayDrag } from '@/utils/useOverlayDrag'
 
 const state = ref({
   visible: false,
@@ -30,6 +38,7 @@ const state = ref({
 })
 const starting = ref(false)
 let disposeState
+const drag = createOverlayDrag((message) => electronApi.bag.moveOverlay(message))
 
 function applyState(snapshot) {
   if (snapshot) state.value = { ...state.value, ...snapshot }
@@ -52,6 +61,10 @@ async function startStash() {
   }
 }
 
+function startStashFromPointer(event) {
+  if (event.button === 0) void startStash()
+}
+
 onMounted(async () => {
   disposeState = electronApi.bag.onOverlayState(applyState)
   applyState(await electronApi.bag.getOverlayState())
@@ -69,6 +82,10 @@ onUnmounted(() => disposeState?.())
   background: transparent !important;
 }
 .bag-overlay {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 5px;
   box-sizing: border-box;
   width: 100%;
   height: 100%;
@@ -77,19 +94,14 @@ onUnmounted(() => disposeState?.())
   user-select: none;
 }
 .drag-handle {
-  position: absolute;
-  top: 4px;
-  left: 50%;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   gap: 3px;
-  width: 42px;
-  height: 11px;
   align-items: center;
   justify-content: center;
-  transform: translateX(-50%);
   cursor: move;
-  -webkit-app-region: drag;
+  touch-action: none;
 }
 .drag-handle span {
   width: 3px;
@@ -106,7 +118,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 18px 8px;
+  padding: 10px 12px;
   border: 1px solid rgba(132, 178, 255, .62);
   border-radius: 12px;
   color: #f4f8ff;

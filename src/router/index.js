@@ -84,6 +84,22 @@ const routes = [
     }
   },
   {
+    path: '/chaos-recipe-overlay',
+    name: 'ChaosRecipeOverlay',
+    component: () => import('../domains/shop/ChaosRecipeOverlayView.vue'),
+    meta: {
+      noLayout: true
+    }
+  },
+  {
+    path: '/chaos-recipe-control-overlay',
+    name: 'ChaosRecipeControlOverlay',
+    component: () => import('../domains/shop/ChaosRecipeControlOverlayView.vue'),
+    meta: {
+      noLayout: true
+    }
+  },
+  {
     path: '/coordinate-picker',
     name: 'CoordinatePicker',
     component: () => import('../domains/settings/CoordinatePickerView.vue'),
