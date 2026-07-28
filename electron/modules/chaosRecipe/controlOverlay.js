@@ -27,7 +27,7 @@ export class ChaosRecipeControlOverlay {
       selectedTabIds: [],
       includeIdentified: false,
       targetSetCount: 1,
-      calibration: { normal: null, quad: null, folderNormal: null, folderQuad: null },
+      calibration: { root: null, folder: null },
       templates: {},
       matchThreshold: 0.8,
       operationDelayMs: 80,

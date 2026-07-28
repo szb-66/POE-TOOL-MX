@@ -63,6 +63,7 @@ except ImportError as exc:
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
+VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
 OPERATION_DELAY_DEFAULT_MS = 80
 OPERATION_DELAY_MIN_MS = 20
 OPERATION_DELAY_MAX_MS = 500
@@ -131,15 +132,24 @@ def normalize_blacklist(rules):
     for rule in rules:
         field = str(rule.get("field", "")) if isinstance(rule, dict) else ""
         keyword = str(rule.get("keyword", "")).strip() if isinstance(rule, dict) else ""
+        match_mode = str(rule.get("matchMode", "")) if isinstance(rule, dict) else ""
+        if match_mode not in VALID_BLACKLIST_MATCH_MODES:
+            match_mode = "contains"
         if field in VALID_BLACKLIST_FIELDS and keyword:
-            normalized.append({"field": field, "keyword": keyword})
+            normalized.append({
+                "field": field,
+                "keyword": keyword,
+                "matchMode": match_mode
+            })
     return normalized
 
 
 def find_blacklist_match(item, rules):
     for rule in normalize_blacklist(rules):
         value = str(item.get(rule["field"], "")).strip().casefold()
-        if value and rule["keyword"].casefold() in value:
+        keyword = rule["keyword"].casefold()
+        matched = value == keyword if rule["matchMode"] == "exact" else keyword in value
+        if value and matched:
             return rule
     return None
 

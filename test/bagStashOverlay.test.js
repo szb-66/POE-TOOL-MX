@@ -2,7 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createBagOverlaySnapshot } from '../electron/modules/bag/overlayState.js'
-import { BAG_OVERLAY_SIZE, getBagOverlayBounds } from '../electron/modules/window/bagOverlay.js'
+import {
+  BAG_OVERLAY_SIZE,
+  getBagOverlayBounds,
+  getBagOverlayDragBounds
+} from '../electron/modules/window/bagOverlay.js'
 import { OverlayDragSession } from '../electron/modules/window/overlayDrag.js'
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -82,6 +86,38 @@ test('浮窗拖动始终从主进程固定起点计算且不累积窗口尺寸',
   assert.equal(drag.move(7, { screenX: 140, screenY: 280 }), null)
 })
 
+test('浮层水平、垂直及重复拖动始终恢复固定尺寸', () => {
+  const workArea = { x: 0, y: 0, width: 1920, height: 1080 }
+  const targets = [
+    { x: 450, y: 400 },
+    { x: 300, y: 620 },
+    { x: 700, y: 800 },
+    { x: 800, y: 900 }
+  ]
+  for (const target of targets) {
+    assert.deepEqual(getBagOverlayDragBounds(target, workArea), {
+      ...target,
+      ...BAG_OVERLAY_SIZE
+    })
+  }
+})
+
+test('浮层拖到工作区边缘时夹取位置而不改变固定尺寸', () => {
+  const workArea = { x: -1280, y: 0, width: 1280, height: 720 }
+  assert.deepEqual(getBagOverlayDragBounds({ x: -2000, y: -100 }, workArea), {
+    x: -1280, y: 0, ...BAG_OVERLAY_SIZE
+  })
+  assert.deepEqual(getBagOverlayDragBounds({ x: 100, y: 1000 }, workArea), {
+    x: -188, y: 656, ...BAG_OVERLAY_SIZE
+  })
+  assert.deepEqual(getBagOverlayDragBounds(
+    { x: 50, y: 50 },
+    { x: 10, y: 20, width: 100, height: 40 }
+  ), {
+    x: 10, y: 20, ...BAG_OVERLAY_SIZE
+  })
+})
+
 test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态', () => {
   const manager = source('../electron/modules/window/manager.js')
   const router = source('../src/router/index.js')
@@ -89,6 +125,11 @@ test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态
   const ipc = source('../electron/modules/ipc/bag.js')
   const shortcuts = source('../src/utils/scriptService.js')
   const bagPage = source('../src/domains/bag/BagView.vue')
+  const moveHandler = ipc.slice(
+    ipc.indexOf("ipcMain.on('bag-stash-overlay-move'"),
+    ipc.indexOf("ipcMain.handle('stop-bag-stash'")
+  )
+  const movePhase = moveHandler.slice(moveHandler.indexOf("if (point.phase !== 'move')"))
 
   assert.match(manager, /let bagStashOverlayWindow = null/)
   assert.match(manager, /focusable: false/)
@@ -106,8 +147,9 @@ test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态
   assert.match(ipc, /update-bag-preferences/)
   assert.match(ipc, /bag-stash-overlay-move/)
   assert.match(ipc, /getBagStashOverlayWindow/)
-  assert.match(ipc, /overlay\.setPosition\(/)
-  assert.doesNotMatch(ipc, /overlay\.setBounds\(/)
+  assert.match(movePhase, /overlay\.setBounds\(getBagOverlayDragBounds\(/)
+  assert.doesNotMatch(movePhase, /overlay\.getBounds\(\)/)
+  assert.doesNotMatch(movePhase, /overlay\.setPosition\(/)
   assert.match(ipc, /new OverlayDragSession\(\)/)
   assert.doesNotMatch(shortcuts, /stashStart:/)
   assert.doesNotMatch(bagPage, /手动补扫快捷键|>手动补扫</)

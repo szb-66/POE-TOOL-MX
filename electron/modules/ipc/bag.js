@@ -14,6 +14,7 @@ import { createBagOverlaySnapshot } from '../bag/overlayState.js'
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
 import { expandSearchRegion } from '../window/coordinates.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
+import { getBagOverlayDragBounds } from '../window/bagOverlay.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { normalizeOperationDelay } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
@@ -363,13 +364,8 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     if (point.phase !== 'move') return
     const requested = bagOverlayDrag.move(event.sender.id, point)
     if (!requested) return
-    const current = overlay.getBounds()
     const workArea = screen.getDisplayNearestPoint(requested).workArea
-    overlay.setPosition(
-      Math.max(workArea.x, Math.min(workArea.x + workArea.width - current.width, requested.x)),
-      Math.max(workArea.y, Math.min(workArea.y + workArea.height - current.height, requested.y)),
-      false
-    )
+    overlay.setBounds(getBagOverlayDragBounds(requested, workArea), false)
   })
 
   ipcMain.handle('stop-bag-stash', async () => {

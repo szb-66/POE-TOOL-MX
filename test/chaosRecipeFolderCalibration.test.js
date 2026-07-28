@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizeChaosRecipeSettings } from '../src/stores/chaosRecipe.js'
+import { applyManualFolderState } from '../electron/modules/chaosRecipe/service.js'
+import { stashCalibrationKey } from '../electron/modules/chaosRecipe/layout.js'
 
-test('旧混沌配方校准仅迁移为根目录校准', () => {
+test('旧四键混沌配方校准迁移为文件夹内外两套区域', () => {
   const normal = {
     left: 10,
     top: 20,
@@ -14,28 +16,56 @@ test('旧混沌配方校准仅迁移为根目录校准', () => {
     capturedAt: '2026-07-28T00:00:00.000Z'
   }
   const quad = { left: 30, top: 40, right: 2430, bottom: 2440 }
-  const settings = normalizeChaosRecipeSettings({ calibration: { normal, quad } })
+  const folderQuad = { left: 50, top: 60, right: 1250, bottom: 1260 }
+  const settings = normalizeChaosRecipeSettings({ calibration: { normal, quad, folderQuad } })
 
-  assert.deepEqual(settings.calibration.normal, normal)
-  assert.deepEqual(settings.calibration.quad, {
-    ...quad,
+  assert.deepEqual(settings.calibration.root, normal)
+  assert.deepEqual(settings.calibration.folder, {
+    ...folderQuad,
     displayId: '',
     scaleFactor: 1,
     capturedAt: ''
   })
-  assert.equal(settings.calibration.folderNormal, null)
-  assert.equal(settings.calibration.folderQuad, null)
+  assert.deepEqual(Object.keys(settings.calibration), ['root', 'folder'])
 })
 
-test('混沌配方页面提供四类校准和文件夹仓库标识', () => {
+test('仓库文件夹归属按赛季和仓库页持久化，默认位于文件夹外', () => {
+  const settings = normalizeChaosRecipeSettings({
+    tabOverrides: {
+      S29先祖再临: {
+        'tab-1': { name: '当前临时页', inFolder: true, folderName: '配方文件夹' }
+      },
+      damaged: []
+    }
+  })
+
+  assert.deepEqual(settings.tabFolderStates, {
+    S29先祖再临: {
+      'tab-1': true
+    }
+  })
+  const apiMarkedFolder = { id: 'tab-2', name: '临时', inFolder: true, parent: 'folder-id' }
+  assert.equal(applyManualFolderState(apiMarkedFolder).inFolder, false)
+  assert.equal(stashCalibrationKey(applyManualFolderState(apiMarkedFolder)), 'root')
+  assert.equal(stashCalibrationKey(applyManualFolderState(apiMarkedFolder, true)), 'folder')
+})
+
+test('混沌配方页面只提供文件夹内外两类校准和仓库标识', () => {
   const panel = readFileSync(
     new URL('../src/domains/shop/ChaosRecipePanel.vue', import.meta.url),
     'utf8'
   )
 
-  for (const key of ['normal', 'quad', 'folderNormal', 'folderQuad']) {
+  for (const key of ['root', 'folder']) {
     assert.match(panel, new RegExp(`key: '${key}'`))
   }
+  assert.doesNotMatch(panel, /key: '(?:normal|quad|folderNormal|folderQuad)'/)
+  assert.match(panel, /普通与大型共用/)
   assert.match(panel, /tab\.inFolder/)
+  assert.match(panel, /文件夹内/)
+  assert.match(panel, /tab\.type === 'quad' \? '大型' : '普通'/)
   assert.match(panel, /missingCalibrationLabels/)
+  assert.match(panel, /旧接口无法判断仓库页是否在文件夹内/)
+  assert.match(panel, /updateTabFolderState/)
+  assert.doesNotMatch(panel, /扫描当前游戏仓库页/)
 })

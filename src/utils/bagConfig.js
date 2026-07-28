@@ -2,11 +2,17 @@ import { normalizeOperationDelay } from './operationDelay.js'
 import { normalizeEmptySlotThreshold } from './inventorySettings.js'
 
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
+export const BAG_BLACKLIST_MATCH_MODES = Object.freeze(['contains', 'exact'])
 
 export const BAG_BLACKLIST_FIELD_LABELS = Object.freeze({
   name: '物品名称',
   baseName: '基底名称',
   category: '物品类别'
+})
+
+export const BAG_BLACKLIST_MATCH_MODE_LABELS = Object.freeze({
+  contains: '模糊匹配',
+  exact: '精确匹配'
 })
 
 const DEFAULT_REGION = Object.freeze({ left: 0, top: 0, right: 1920, bottom: 1080 })
@@ -27,7 +33,8 @@ export function normalizeBagBlacklist(rules = []) {
   return rules
     .map((rule) => ({
       field: String(rule?.field || ''),
-      keyword: String(rule?.keyword || '').trim()
+      keyword: String(rule?.keyword || '').trim(),
+      matchMode: BAG_BLACKLIST_MATCH_MODES.includes(rule?.matchMode) ? rule.matchMode : 'contains'
     }))
     .filter((rule) => BAG_BLACKLIST_FIELDS.includes(rule.field) && rule.keyword.length > 0)
 }
@@ -159,7 +166,8 @@ export function findBagBlacklistMatch(item, rules = []) {
   if (!item) return null
   for (const rule of normalizeBagBlacklist(rules)) {
     const value = String(item[rule.field] || '').trim().toLocaleLowerCase()
-    if (value && value.includes(rule.keyword.toLocaleLowerCase())) return rule
+    const keyword = rule.keyword.toLocaleLowerCase()
+    if (value && (rule.matchMode === 'exact' ? value === keyword : value.includes(keyword))) return rule
   }
   return null
 }

@@ -144,7 +144,15 @@
             <el-select v-model="draftRule.field" style="width: 150px" :disabled="bagStore.moduleEnabled">
               <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
             </el-select>
-            <el-input v-model="draftRule.keyword" placeholder="输入包含关键词" clearable :disabled="bagStore.moduleEnabled" @keyup.enter="addBlacklistRule" />
+            <el-select v-model="draftRule.matchMode" style="width: 130px" :disabled="bagStore.moduleEnabled">
+              <el-option
+                v-for="mode in BAG_BLACKLIST_MATCH_MODES"
+                :key="mode"
+                :label="BAG_BLACKLIST_MATCH_MODE_LABELS[mode]"
+                :value="mode"
+              />
+            </el-select>
+            <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable :disabled="bagStore.moduleEnabled" @keyup.enter="addBlacklistRule" />
             <el-button type="primary" :disabled="bagStore.moduleEnabled" @click="addBlacklistRule">添加</el-button>
           </div>
           <div v-if="bagStore.moduleEnabled" class="hint-text">请先关闭模块再修改黑名单，重新启用后新规则生效。</div>
@@ -152,7 +160,10 @@
             <el-table-column label="匹配字段" width="160">
               <template #default="scope">{{ BAG_BLACKLIST_FIELD_LABELS[scope.row.field] }}</template>
             </el-table-column>
-            <el-table-column prop="keyword" label="包含关键词" />
+            <el-table-column label="匹配方式" width="120">
+              <template #default="scope">{{ BAG_BLACKLIST_MATCH_MODE_LABELS[scope.row.matchMode] }}</template>
+            </el-table-column>
+            <el-table-column prop="keyword" label="匹配关键词" />
             <el-table-column label="操作" width="100">
               <template #default="scope">
                 <el-button link type="danger" :disabled="bagStore.moduleEnabled" @click="removeBlacklistRule(scope.$index)">删除</el-button>
@@ -177,10 +188,16 @@ import { computed, ref } from 'vue'
 import { VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences } from '@/utils/bagService'
-import { BAG_BLACKLIST_FIELDS, BAG_BLACKLIST_FIELD_LABELS, INVENTORY_LAYOUT } from '@/utils/bagConfig'
+import {
+  BAG_BLACKLIST_FIELDS,
+  BAG_BLACKLIST_FIELD_LABELS,
+  BAG_BLACKLIST_MATCH_MODES,
+  BAG_BLACKLIST_MATCH_MODE_LABELS,
+  INVENTORY_LAYOUT
+} from '@/utils/bagConfig'
 
 const bagStore = useBagStore()
-const draftRule = ref({ field: 'name', keyword: '' })
+const draftRule = ref({ field: 'name', keyword: '', matchMode: 'contains' })
 const nativeColumns = Array.from({ length: INVENTORY_LAYOUT.nativeColumns }, (_value, index) => index)
 const inventoryRows = Array.from({ length: INVENTORY_LAYOUT.rows }, (_value, index) => index)
 const extraColumns = computed(() => {
@@ -220,7 +237,11 @@ async function handlePreferenceChange(key, value) {
 function addBlacklistRule() {
   const keyword = draftRule.value.keyword.trim()
   if (!keyword) return ElMessage.warning('请输入黑名单关键词')
-  bagStore.setBlacklist([...bagStore.blacklist, { field: draftRule.value.field, keyword }])
+  bagStore.setBlacklist([...bagStore.blacklist, {
+    field: draftRule.value.field,
+    keyword,
+    matchMode: draftRule.value.matchMode
+  }])
   draftRule.value.keyword = ''
 }
 

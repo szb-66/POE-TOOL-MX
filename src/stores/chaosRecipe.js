@@ -19,7 +19,8 @@ const defaultSettings = () => ({
   targetSetCount: 1,
   operationDelayMs: 80,
   controlOverlayOffset: { x: 50, y: 1550 },
-  calibration: { normal: null, quad: null, folderNormal: null, folderQuad: null }
+  calibration: { root: null, folder: null },
+  tabFolderStates: {}
 })
 
 function normalizeRegion(value) {
@@ -37,6 +38,23 @@ function normalizeRegion(value) {
   }
 }
 
+function normalizeTabFolderStates(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const result = {}
+  for (const [league, tabs] of Object.entries(value)) {
+    if (!tabs || typeof tabs !== 'object' || Array.isArray(tabs)) continue
+    result[String(league)] = {}
+    for (const [tabId, override] of Object.entries(tabs)) {
+      if (typeof override !== 'boolean' &&
+          (!override || typeof override !== 'object' || Array.isArray(override))) continue
+      result[String(league)][String(tabId)] = Boolean(
+        typeof override === 'object' ? override.inFolder : override
+      )
+    }
+  }
+  return result
+}
+
 export function normalizeChaosRecipeSettings(raw = {}) {
   return {
     enabled: Boolean(raw.enabled),
@@ -45,15 +63,18 @@ export function normalizeChaosRecipeSettings(raw = {}) {
     includeIdentified: Boolean(raw.includeIdentified),
     targetSetCount: Math.max(1, Math.min(20, Math.trunc(Number(raw.targetSetCount) || 1))),
     operationDelayMs: normalizeOperationDelay(raw.operationDelayMs),
+    tabFolderStates: normalizeTabFolderStates(raw.tabFolderStates || raw.tabOverrides),
     controlOverlayOffset: {
       x: Number.isFinite(Number(raw.controlOverlayOffset?.x)) ? Math.round(Number(raw.controlOverlayOffset.x)) : 50,
       y: Number.isFinite(Number(raw.controlOverlayOffset?.y)) ? Math.round(Number(raw.controlOverlayOffset.y)) : 1550
     },
     calibration: {
-      normal: normalizeRegion(raw.calibration?.normal),
-      quad: normalizeRegion(raw.calibration?.quad),
-      folderNormal: normalizeRegion(raw.calibration?.folderNormal),
-      folderQuad: normalizeRegion(raw.calibration?.folderQuad)
+      root: normalizeRegion(raw.calibration?.root) ||
+        normalizeRegion(raw.calibration?.normal) ||
+        normalizeRegion(raw.calibration?.quad),
+      folder: normalizeRegion(raw.calibration?.folder) ||
+        normalizeRegion(raw.calibration?.folderNormal) ||
+        normalizeRegion(raw.calibration?.folderQuad)
     }
   }
 }
@@ -86,7 +107,16 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const busy = ref(false)
   const error = ref(null)
 
-  const supportedTabs = computed(() => tabs.value.filter((tab) => tab.supported))
+  const effectiveTabs = computed(() => {
+    const folderStates = settings.value.tabFolderStates[settings.value.league] || {}
+    return tabs.value.map((tab) => {
+      return {
+        ...tab,
+        inFolder: Boolean(folderStates[tab.id])
+      }
+    })
+  })
+  const supportedTabs = computed(() => effectiveTabs.value.filter((tab) => tab.supported))
   const selectedTabs = computed(() => supportedTabs.value.filter((tab) => settings.value.selectedTabIds.includes(tab.id)))
   const requiredCalibrations = computed(() => requiredCalibrationKeys(selectedTabs.value))
   const missingCalibrations = computed(() => missingCalibrationKeys(selectedTabs.value, settings.value.calibration))
@@ -221,8 +251,14 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       snapshot.value = unwrap(await electronApi.chaosRecipe.refresh({
         league: settings.value.league,
         selectedTabIds: settings.value.selectedTabIds,
-        includeIdentified: settings.value.includeIdentified
+        includeIdentified: settings.value.includeIdentified,
+        tabFolderStates: settings.value.tabFolderStates[settings.value.league] || {}
       }))
+      if (Array.isArray(snapshot.value.availableTabs)) {
+        tabs.value = snapshot.value.availableTabs
+        const available = new Set(tabs.value.filter((tab) => tab.supported).map((tab) => String(tab.id)))
+        settings.value.selectedTabIds = settings.value.selectedTabIds.filter((id) => available.has(String(id)))
+      }
       settings.value.targetSetCount = Math.min(
         Math.max(1, settings.value.targetSetCount),
         Math.max(1, snapshot.value.fullSetCount)
@@ -280,6 +316,25 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     if (settings.value.enabled) void syncRuntime().catch(setError)
   }
 
+  function updateTabFolderState(tabId, inFolder) {
+    const league = settings.value.league
+    if (!league || !tabId) return
+    const leagueStates = settings.value.tabFolderStates[league] || {}
+    settings.value.tabFolderStates = {
+      ...settings.value.tabFolderStates,
+      [league]: {
+        ...leagueStates,
+        [tabId]: Boolean(inFolder)
+      }
+    }
+    save()
+    if (settings.value.selectedTabIds.includes(String(tabId))) {
+      void refresh().catch(setError)
+    } else if (settings.value.enabled) {
+      void syncRuntime().catch(setError)
+    }
+  }
+
   function listenAutomation() {
     const disposeAutomation = electronApi.chaosRecipe.onAutomationEvent((event) => {
       automation.value = { ...automation.value, ...event }
@@ -310,6 +365,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     save, setError, restoreAuth, openWebLogin, completeWebLogin, loginWithToken, logout,
     loadLeagues, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,
-    updateSetting, listenAutomation, setEnabled, syncRuntime, initializeRuntime
+    updateSetting, updateTabFolderState, listenAutomation, setEnabled, syncRuntime, initializeRuntime
   }
 })

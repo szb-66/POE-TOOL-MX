@@ -108,7 +108,8 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     const snapshot = await service.refresh({
       league: runtime.league,
       selectedTabIds: runtime.selectedTabIds,
-      includeIdentified: runtime.includeIdentified
+      includeIdentified: runtime.includeIdentified,
+      tabFolderStates: runtime.tabFolderStates?.[runtime.league] || {}
     })
     control?.sync()
     const mainWindow = window.getMainWindow?.()

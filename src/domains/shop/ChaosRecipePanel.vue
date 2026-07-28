@@ -95,11 +95,25 @@
               >
                 <el-checkbox v-for="tab in store.supportedTabs" :key="tab.id" :value="tab.id">
                   {{ tab.name }}
-                  <el-tag v-if="tab.inFolder" size="small" type="warning">文件夹</el-tag>
+                  <el-tag v-if="tab.inFolder" size="small" type="warning">
+                    文件夹内
+                  </el-tag>
                   <el-tag size="small">{{ tab.type === 'quad' ? '大型' : '普通' }}</el-tag>
                 </el-checkbox>
               </el-checkbox-group>
               <span v-if="store.settings.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
+              <div v-for="tab in store.selectedTabs" :key="`override-${tab.id}`" class="tab-override-row">
+                <span class="tab-override-title">{{ tab.name }}</span>
+                <el-switch
+                  :model-value="tab.inFolder"
+                  active-text="位于文件夹内"
+                  inactive-text="位于文件夹外"
+                  @change="inFolder => store.updateTabFolderState(tab.id, inFolder)"
+                />
+              </div>
+              <p class="muted folder-hint">
+                旧接口无法判断仓库页是否在文件夹内，请按游戏中的实际位置手动选择；默认按文件夹外处理。
+              </p>
             </el-form-item>
             <el-form-item label="配方选项">
               <el-checkbox
@@ -122,7 +136,7 @@
 
         <el-card>
           <template #header><span>仓库网格校准</span></template>
-          <p class="muted">框选游戏中完整的物品格子区域，不包含标签页标题和仓库边框。</p>
+          <p class="muted">框选游戏中完整的物品格子区域，不包含标签页标题和仓库边框；普通与大型共用区域。</p>
           <div v-for="entry in calibrationOptions" :key="entry.key" class="calibration-row">
             <el-button @click="store.calibrate(entry.key)">框选{{ entry.label }} {{ entry.size }}</el-button>
             <el-tag :type="store.settings.calibration[entry.key] ? 'success' : 'info'">
@@ -234,12 +248,9 @@ import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
 const store = useChaosRecipeStore()
 const sessionToken = ref('')
 const calibrationOptions = [
-  { key: 'normal', label: '根目录普通仓库', size: '12×12' },
-  { key: 'quad', label: '根目录大型仓库', size: '24×24' },
-  { key: 'folderNormal', label: '文件夹普通仓库', size: '12×12' },
-  { key: 'folderQuad', label: '文件夹大型仓库', size: '24×24' }
+  { key: 'root', label: '文件夹外仓库', size: '普通/大型共用' },
+  { key: 'folder', label: '文件夹内仓库', size: '普通/大型共用' }
 ]
-
 const labels = {
   bodyArmour: '胸甲',
   helmet: '头盔',
@@ -267,10 +278,7 @@ const diagnosticWarning = computed(() => {
   const diagnostic = store.snapshot?.diagnostics
   if (!diagnostic) return ''
   if (!diagnostic.sourceArrayItemCount) {
-    const comparedBoth = diagnostic.tabs?.some((tab) => tab.comparedProviders)
-    return comparedBoth
-      ? '国服新版和旧版详情接口都返回了 0 件物品，并非前端漏解析。请在游戏中切换一次区域，等待仓库状态同步后再刷新。'
-      : '所选仓库页的详情接口返回了 0 件物品，请确认选择的是存放装备的普通或大型仓库页。'
+    return '国服旧接口返回了 0 件物品；请确认赛季、仓库页和账号正确，并在游戏中切换一次区域后重试。'
   }
   if (!diagnostic.receivedItemCount) return '接口返回了物品数组，但当前国服响应结构无法归一化。'
   if (!diagnostic.recognizedItemCount) return '仓库物品已读取，但装备类别全部无法识别。'
@@ -344,6 +352,15 @@ onMounted(() => {
 .config-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 16px; }
 .inline-button { margin-left: 10px; }
 .tab-list { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 8px 12px; width: 100%; }
+.tab-override-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+}
+.tab-override-title { color: var(--text-secondary); font-size: 13px; }
+.folder-hint { margin: 8px 0 0; }
 .calibration-row + .calibration-row { margin-top: 12px; }
 .calibration-warning { margin-top: 12px; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }

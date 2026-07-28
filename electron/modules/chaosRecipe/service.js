@@ -6,6 +6,16 @@ import {
 import { enrichPlanCoordinates } from './coordinates.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from './errors.js'
 
+export function applyManualFolderState(tab, inFolder = false) {
+  if (!tab) return tab
+  return {
+    ...tab,
+    parent: '',
+    folder: '',
+    inFolder: Boolean(inFolder)
+  }
+}
+
 export class ChaosRecipeService {
   constructor({ auth, stashClient, automation = null, overlay = null }) {
     this.auth = auth
@@ -34,15 +44,32 @@ export class ChaosRecipeService {
   listLeagues() { return this.stashClient.listLeagues() }
   listTabs(league) { return this.stashClient.listTabs(league) }
 
-  async refresh({ league, selectedTabIds, includeIdentified = false }) {
-    const results = await this.stashClient.fetchTabs(league, selectedTabIds)
+  applyFolderStates(results, folderStates = {}) {
+    return results.map((result) => {
+      const tab = applyManualFolderState(result.tab, folderStates[result.tab.id])
+      return {
+        ...result,
+        tab,
+        items: result.items.map((item) => ({
+          ...item,
+          tabName: tab.name,
+          inFolder: tab.inFolder
+        }))
+      }
+    })
+  }
+
+  setSnapshot({ league, results, availableTabs, includeIdentified, source = 'network' }) {
     const items = results.flatMap((result) => result.items)
     const recipe = calculateChaosRecipe(items, { includeIdentified })
     const pipeline = summarizeChaosItemPipeline(items, { includeIdentified })
-    this.latestRequest = { league, selectedTabIds: [...selectedTabIds], includeIdentified }
+    const selectedTabIds = results.map((result) => result.tab.id)
+    this.latestRequest = { league, selectedTabIds, includeIdentified }
     this.snapshot = {
       fetchedAt: new Date().toISOString(),
       league,
+      source,
+      availableTabs,
       tabs: results.map((result) => result.tab),
       diagnostics: {
         sourceArrayItemCount: results.reduce(
@@ -60,6 +87,14 @@ export class ChaosRecipeService {
     }
     this.control?.sync?.()
     return this.snapshot
+  }
+
+  async refresh({ league, selectedTabIds, includeIdentified = false, tabFolderStates = {} }) {
+    const rawResults = await this.stashClient.fetchTabs(league, selectedTabIds)
+    const results = this.applyFolderStates(rawResults, tabFolderStates)
+    const availableTabs = this.stashClient.getTabsSnapshot(league)
+      .map((tab) => applyManualFolderState(tab, tabFolderStates[tab.id]))
+    return this.setSnapshot({ league, results, availableTabs, includeIdentified })
   }
 
   getSnapshot() {

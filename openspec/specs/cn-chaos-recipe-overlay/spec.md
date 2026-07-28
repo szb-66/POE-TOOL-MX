@@ -56,11 +56,11 @@ TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose afte
 - **THEN** 系统保持关闭并提示前往设置页配置
 
 ### Requirement: 游戏内混沌配方控制组
-系统 SHALL 在游戏前台且仓库与背包同时打开时显示可交互控制组。
+系统 SHALL 在游戏前台且仓库与背包同时打开时显示可交互控制组，并使按钮原生交互状态与实际可执行状态一致。
 
 #### Scenario: 控制组就绪
-- **WHEN** 混沌配方已开启且公共检测状态就绪
-- **THEN** 系统显示刷新仓库、预览高亮和自动取件按钮
+- **WHEN** 混沌配方已开启、公共检测状态就绪且操作条件满足
+- **THEN** 系统显示可交互的刷新仓库、预览高亮和自动取件按钮，按钮不得呈现禁用光标或禁用属性
 
 #### Scenario: 取件状态变化
 - **WHEN** 取件正在运行或等待用户切换标签页
@@ -68,7 +68,11 @@ TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose afte
 
 #### Scenario: 操作条件不足
 - **WHEN** 用户未认证、未选择仓库、没有套装或缺少校准
-- **THEN** 控制组保持可见但禁用相应操作并显示原因
+- **THEN** 控制组保持可见但通过原生禁用属性禁用相应操作并显示原因
+
+#### Scenario: 操作正在处理
+- **WHEN** 任一控制组操作尚未完成
+- **THEN** 三个按钮均使用原生禁用状态阻止重复操作，完成后按各自业务条件恢复
 
 #### Scenario: 混合仓库布局
 - **WHEN** 取件计划同时包含根目录、文件夹、普通或大型仓库页

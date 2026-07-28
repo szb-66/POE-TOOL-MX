@@ -18,6 +18,11 @@ function fakeSession(fetchImpl) {
   }
 }
 
+const jsonResponse = (value, status = 200) => new Response(JSON.stringify(value), {
+  status,
+  headers: { 'content-type': 'application/json' }
+})
+
 test('国服请求将登录页、401 和 429 转成结构化错误', async () => {
   await assert.rejects(
     requestPoeCnJson(fakeSession(async () => new Response('<title>流放之路</title>', { status: 200 })), 'https://poe.game.qq.com/api/profile'),
@@ -67,24 +72,23 @@ test('手动 POESESSID 只写入独立 Session Cookie 并在验证失败后清�
   assert.equal(session.state.cacheCleared, 1)
 })
 
-test('新版仓库不兼容时回退旧版并缓存 Provider', async () => {
+test('仓库页列表始终使用旧接口且每次重新请求', async () => {
   const calls = []
   const session = fakeSession(async (url) => {
     calls.push(String(url))
-    if (String(url).includes('/api/stash/')) return new Response('{}', { status: 500 })
-    return new Response(JSON.stringify({
-      tabs: [{ n: '配方页', type: 'NormalStash', index: 2 }]
-    }), { status: 200, headers: { 'content-type': 'application/json' } })
+    return jsonResponse({ tabs: [{ id: 'tab-2', n: '配方页', type: 'NormalStash', index: 2 }] })
   })
   const client = new PoeCnStashClient({
     session,
     getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
   })
+
   const first = await client.listTabs('测试赛季')
   const second = await client.listTabs('测试赛季')
+
   assert.equal(first[0].name, '配方页')
   assert.equal(second[0].supported, true)
-  assert.equal(calls.filter((url) => url.includes('/api/stash/')).length, 1)
+  assert.equal(calls.filter((url) => url.includes('/api/stash/')).length, 0)
   assert.equal(calls.filter((url) => url.includes('get-stash-items')).length, 2)
 })
 
@@ -103,79 +107,91 @@ test('客户端在 Retry-After 期间不继续请求', async () => {
   assert.equal(calls, 1)
 })
 
-test('新版仓库子页使用父页和子页双 ID 请求详情', async () => {
+test('仓库页详情只使用旧接口并保留物品数据', async () => {
   const calls = []
+  const item = (id) => ({
+    id, x: 0, y: 0, ilvl: 70, frameType: 2, identified: false, category: 'Ring'
+  })
   const session = fakeSession(async (url) => {
     calls.push(String(url))
-    if (calls.length === 1) {
-      return new Response(JSON.stringify({
-        stashes: [{
-          id: 'parent-id',
-          name: '文件夹',
-          type: 'Folder',
-          children: [{ id: 'child-id', name: '2', type: 'NormalStash' }]
-        }]
-      }), { status: 200 })
+    if (String(url).includes('tabs=1')) {
+      return jsonResponse({ tabs: [{ id: 'tab-2', n: '2', type: 'NormalStash', index: 22 }] })
     }
-    return new Response(JSON.stringify({
-      stash: {
-        id: 'parent-id',
-        children: [{ id: 'child-id', items: [] }]
-      }
-    }), { status: 200 })
+    return jsonResponse({ items: [item('r1'), item('r2')] })
   })
   const client = new PoeCnStashClient({
     session,
     getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
   })
 
-  const tabs = await client.listTabs('S29先祖再临')
-  const child = tabs.find((tab) => tab.id === 'child-id')
-  await client.fetchTab('S29先祖再临', child)
-
-  assert.equal(child.parent, 'parent-id')
-  assert.match(calls[1], /\/api\/stash\/S29%E5%85%88%E7%A5%96%E5%86%8D%E4%B8%B4\/parent-id\/child-id$/)
-})
-
-test('新版详情少量且无装备时对照旧版并选择物品更多的响应', async () => {
-  const calls = []
-  const item = (id, category = '') => ({
-    id,
-    x: 0,
-    y: 0,
-    ilvl: 70,
-    frameType: 2,
-    identified: false,
-    category
-  })
-  const session = fakeSession(async (url) => {
-    calls.push(String(url))
-    if (calls.length === 1) {
-      return new Response(JSON.stringify({
-        stashes: [{ id: 'tab-2', name: '2', type: 'NormalStash', index: 22 }]
-      }), { status: 200 })
-    }
-    if (String(url).includes('/api/stash/')) {
-      return new Response(JSON.stringify({
-        stash: { items: [item('a'), item('b'), item('c')] }
-      }), { status: 200 })
-    }
-    return new Response(JSON.stringify({
-      items: [item('r1', 'Ring'), item('r2', 'Ring'), item('r3', 'Ring'), item('r4', 'Ring')]
-    }), { status: 200 })
-  })
-  const client = new PoeCnStashClient({
-    session,
-    getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
-  })
   const [tab] = await client.listTabs('S29先祖再临')
   const result = await client.fetchTab('S29先祖再临', tab)
 
-  assert.equal(result.items.length, 4)
-  assert.equal(result.diagnostics.provider, 'legacy-fallback')
-  assert.deepEqual(result.diagnostics.comparedProviders, {
-    modernItemCount: 3,
-    legacyItemCount: 4
+  assert.equal(result.items.length, 2)
+  assert.equal(result.diagnostics.provider, 'legacy')
+  assert.equal(calls.filter((url) => url.includes('/api/stash/')).length, 0)
+})
+
+test('刷新仓库物品前重新加载列表并使用最新仓库页名称', async () => {
+  let listCount = 0
+  const item = { id: 'r1', x: 0, y: 0, ilvl: 70, frameType: 2, identified: false, category: 'Ring' }
+  const session = fakeSession(async (url) => {
+    if (String(url).includes('tabs=1')) {
+      listCount += 1
+      return jsonResponse({
+        tabs: [{
+          id: 'tab-2',
+          n: listCount === 1 ? '很久以前的名称' : '当前名称',
+          type: 'NormalStash',
+          index: 22
+        }]
+      })
+    }
+    return jsonResponse({ items: [item] })
   })
-  assert.equal(calls.filter((url) => url.includes('get-stash-items')).length, 1)
+  const client = new PoeCnStashClient({
+    session,
+    getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
+  })
+
+  await client.listTabs('S29先祖再临')
+  const [result] = await client.fetchTabs('S29先祖再临', ['tab-2'])
+
+  assert.equal(result.tab.name, '当前名称')
+  assert.equal(listCount, 2)
+})
+
+test('清缓存会清除仓库页和账号归属', () => {
+  const client = new PoeCnStashClient({
+    session: fakeSession(async () => new Response('{}', { status: 200 })),
+    getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
+  })
+  client.tabsByLeague.set('S29先祖再临', [])
+  client.cacheAccountName = '匿名账号'
+
+  client.clearCache()
+
+  assert.equal(client.tabsByLeague.size, 0)
+  assert.equal(client.cacheAccountName, '')
+})
+
+test('账号变化时不复用上一账号的仓库缓存', async () => {
+  let accountName = '旧账号'
+  let calls = 0
+  const client = new PoeCnStashClient({
+    session: fakeSession(async () => {
+      calls += 1
+      return jsonResponse({
+        tabs: [{ id: 'tab-2', n: accountName, type: 'NormalStash', index: 2 }]
+      })
+    }),
+    getAuthStatus: () => ({ authenticated: true, accountName })
+  })
+
+  await client.listTabs('S29先祖再临')
+  accountName = '新账号'
+  const tabs = await client.listTabs('S29先祖再临')
+
+  assert.equal(tabs[0].name, '新账号')
+  assert.equal(calls, 2)
 })

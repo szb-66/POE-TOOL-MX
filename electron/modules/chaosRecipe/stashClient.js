@@ -3,7 +3,6 @@ import { requestPoeCnJson } from './http.js'
 import { normalizeStashContents, normalizeStashTabs } from './normalizer.js'
 
 const ORIGIN = 'https://poe.game.qq.com'
-const encode = encodeURIComponent
 
 function leagueNames(payload) {
   const list = Array.isArray(payload) ? payload : payload?.leagues
@@ -26,15 +25,25 @@ export class PoeCnStashClient {
   constructor({ session, getAuthStatus }) {
     this.session = session
     this.getAuthStatus = getAuthStatus
-    this.providerByLeague = new Map()
     this.tabsByLeague = new Map()
+    this.cacheAccountName = ''
     this.rateLimitedUntil = 0
   }
 
   clearCache() {
-    this.providerByLeague.clear()
     this.tabsByLeague.clear()
+    this.cacheAccountName = ''
     this.rateLimitedUntil = 0
+  }
+
+  useAccount(accountName) {
+    const name = String(accountName || '')
+    if (this.cacheAccountName && this.cacheAccountName !== name) this.clearCache()
+    this.cacheAccountName = name
+  }
+
+  getTabsSnapshot(league) {
+    return [...(this.tabsByLeague.get(String(league || '')) || [])]
   }
 
   assertAuthenticated() {
@@ -70,11 +79,6 @@ export class PoeCnStashClient {
     return leagues
   }
 
-  async tryModernTabs(league) {
-    const payload = await this.request(`${ORIGIN}/api/stash/${encode(league)}`)
-    return usableTabs(payload)
-  }
-
   async tryLegacyTabs(league, accountName) {
     const query = new URLSearchParams({
       accountName,
@@ -89,80 +93,23 @@ export class PoeCnStashClient {
 
   async listTabs(leagueInput) {
     const auth = this.assertAuthenticated()
+    this.useAccount(auth.accountName)
     const league = String(leagueInput || '').trim()
     if (!league) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '请选择国服赛季')
-    const knownProvider = this.providerByLeague.get(league)
-    let tabs
-    if (knownProvider === 'modern') tabs = await this.tryModernTabs(league)
-    else if (knownProvider === 'legacy') tabs = await this.tryLegacyTabs(league, auth.accountName)
-    else {
-      try {
-        tabs = await this.tryModernTabs(league)
-        this.providerByLeague.set(league, 'modern')
-      } catch (modernError) {
-        if (modernError.code === CHAOS_ERROR_CODES.SESSION_EXPIRED ||
-            modernError.code === CHAOS_ERROR_CODES.RATE_LIMITED) throw modernError
-        try {
-          tabs = await this.tryLegacyTabs(league, auth.accountName)
-          this.providerByLeague.set(league, 'legacy')
-        } catch (legacyError) {
-          if (legacyError.code === CHAOS_ERROR_CODES.SESSION_EXPIRED ||
-              legacyError.code === CHAOS_ERROR_CODES.RATE_LIMITED) throw legacyError
-          throw new ChaosRecipeError(
-            CHAOS_ERROR_CODES.API_INCOMPATIBLE,
-            '国服新版和旧版仓库接口均不兼容',
-            { modern: modernError.message, legacy: legacyError.message }
-          )
-        }
-      }
-    }
+    const tabs = await this.tryLegacyTabs(league, auth.accountName)
     this.tabsByLeague.set(league, tabs)
     return tabs
   }
 
   async fetchTab(league, tab) {
     const auth = this.assertAuthenticated()
+    this.useAccount(auth.accountName)
     if (!tab?.supported) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.UNSUPPORTED_TAB, `“${tab?.name || '未知仓库页'}”不是普通或大型仓库页`)
     }
-    const provider = this.providerByLeague.get(league)
-    let payload
-    if (provider === 'modern') {
-      const stashPath = tab.parent
-        ? `${encode(tab.parent)}/${encode(tab.id)}`
-        : encode(tab.id)
-      payload = await this.request(`${ORIGIN}/api/stash/${encode(league)}/${stashPath}`)
-      const modern = normalizeStashContents(payload, tab)
-      const sourceLength = Number(modern.diagnostics?.sourceArrayLength || 0)
-      const recognizedCount = Number(modern.diagnostics?.recognizedItemCount || 0)
-      const shouldCompareLegacy = sourceLength === 0 || (sourceLength <= 3 && recognizedCount === 0)
-      if (!shouldCompareLegacy) {
-        modern.diagnostics.provider = 'modern'
-        return modern
-      }
-      try {
-        const legacy = await this.fetchLegacyTab(league, tab, auth.accountName)
-        const legacyLength = Number(legacy.diagnostics?.sourceArrayLength || 0)
-        const selected = legacyLength > sourceLength ? legacy : modern
-        selected.diagnostics.provider = selected === legacy ? 'legacy-fallback' : 'modern'
-        selected.diagnostics.comparedProviders = {
-          modernItemCount: sourceLength,
-          legacyItemCount: legacyLength
-        }
-        return selected
-      } catch (error) {
-        if (error.code === CHAOS_ERROR_CODES.SESSION_EXPIRED) throw error
-        modern.diagnostics.provider = 'modern'
-        modern.diagnostics.legacyFallbackError = error.code || CHAOS_ERROR_CODES.API_INCOMPATIBLE
-        return modern
-      }
-    } else if (provider === 'legacy') {
-      const legacy = await this.fetchLegacyTab(league, tab, auth.accountName)
-      legacy.diagnostics.provider = 'legacy'
-      return legacy
-    } else {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '尚未确定国服仓库接口模式')
-    }
+    const legacy = await this.fetchLegacyTab(league, tab, auth.accountName)
+    legacy.diagnostics.provider = 'legacy'
+    return legacy
   }
 
   async fetchLegacyTab(league, tab, accountName) {
@@ -178,7 +125,7 @@ export class PoeCnStashClient {
   }
 
   async fetchTabs(league, selectedIds) {
-    const tabs = this.tabsByLeague.get(league) || await this.listTabs(league)
+    const tabs = await this.listTabs(league)
     const ids = new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String))
     const selected = tabs.filter((tab) => ids.has(tab.id))
     if (!selected.length) {

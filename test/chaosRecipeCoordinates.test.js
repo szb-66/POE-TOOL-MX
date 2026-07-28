@@ -13,23 +13,21 @@ test('普通仓库按 12x12 换算物品范围和点击中心', () => {
   )
 })
 
-test('大型仓库使用独立 24x24 校准', () => {
+test('大型仓库在共用区域内使用 24x24 网格', () => {
   const plan = enrichPlanCoordinates({
     tabs: [{
       tabType: 'quad',
       items: [{ x: 23, y: 23, width: 1, height: 1 }]
     }]
-  }, { quad: { left: 0, top: 0, right: 2400, bottom: 2400 } })
+  }, { root: { left: 0, top: 0, right: 2400, bottom: 2400 } })
   assert.equal(plan.tabs[0].items[0].screen.clickX, 2350)
   assert.equal(plan.tabs[0].items[0].screen.clickY, 2350)
 })
 
-test('根目录与文件夹内的普通和大型仓库分别选择四套校准', () => {
+test('普通和大型仓库按目录层级共用两套区域并保持各自网格密度', () => {
   const calibration = {
-    normal: { left: 0, top: 0, right: 1200, bottom: 1200 },
-    quad: { left: 100, top: 100, right: 2500, bottom: 2500 },
-    folderNormal: { left: 200, top: 200, right: 1400, bottom: 1400 },
-    folderQuad: { left: 300, top: 300, right: 2700, bottom: 2700 }
+    root: { left: 0, top: 0, right: 1200, bottom: 1200 },
+    folder: { left: 200, top: 200, right: 1400, bottom: 1400 }
   }
   const layouts = [
     resolveStashGridLayout({ type: 'normal', inFolder: false }, calibration),
@@ -41,10 +39,10 @@ test('根目录与文件夹内的普通和大型仓库分别选择四套校准',
   assert.deepEqual(layouts.map(({ calibrationKey, columns, region }) => [
     calibrationKey, columns, region.left
   ]), [
-    ['normal', 12, 0],
-    ['quad', 24, 100],
-    ['folderNormal', 12, 200],
-    ['folderQuad', 24, 300]
+    ['root', 12, 0],
+    ['root', 24, 0],
+    ['folder', 12, 200],
+    ['folder', 24, 200]
   ])
 })
 
@@ -54,8 +52,8 @@ test('混合仓库计划缺少任一对应校准时拒绝坐标换算', () => {
     { tabType: 'quad', inFolder: true }
   ]
   assert.deepEqual(missingCalibrationKeys(tabs, {
-    normal: { left: 0, top: 0, right: 1200, bottom: 1200 }
-  }), ['folderQuad'])
+    root: { left: 0, top: 0, right: 1200, bottom: 1200 }
+  }), ['folder'])
 
   assert.throws(() => enrichPlanCoordinates({
     tabs: [{
@@ -63,6 +61,6 @@ test('混合仓库计划缺少任一对应校准时拒绝坐标换算', () => {
       items: [{ x: 0, y: 0, width: 1, height: 1 }]
     }]
   }, {
-    normal: { left: 0, top: 0, right: 1200, bottom: 1200 }
+    root: { left: 0, top: 0, right: 1200, bottom: 1200 }
   }), { code: 'CALIBRATION_REQUIRED' })
 })

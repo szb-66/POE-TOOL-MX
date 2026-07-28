@@ -11,19 +11,19 @@
       <span></span><span></span><span></span>
     </div>
     <button
-      :disabled="!state.canRefresh || busy"
+      :disabled="!state.canRefresh || busy !== ''"
       :title="state.refreshReason || '重新读取已选择的仓库页'"
       @pointerdown.stop.prevent="runFromPointer('refresh', $event)"
     >{{ busy === 'refresh' ? '刷新中…' : state.refreshLabel }}</button>
     <button
-      :disabled="!state.canPreview || busy"
+      :disabled="!state.canPreview || busy !== ''"
       :title="state.previewReason || '在当前仓库页预览目标物品'"
       @pointerdown.stop.prevent="runFromPointer('preview', $event)"
     >{{ state.previewLabel }}</button>
     <button
       class="primary"
       :class="{ danger: state.automation?.status === 'running' }"
-      :disabled="!state.canRun || busy"
+      :disabled="!state.canRun || busy !== ''"
       :title="state.actionReason || state.message || state.actionLabel"
       @pointerdown.stop.prevent="runFromPointer('action', $event)"
     >{{ busy === 'action' ? '处理中…' : state.actionLabel }}</button>
@@ -131,15 +131,27 @@ button {
   border-radius: 8px;
   color: #edf4ff;
   background: linear-gradient(145deg, #3a659d, #294c78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 2px 6px rgba(0, 0, 0, .28);
   font: 700 14px/1 "Microsoft YaHei", sans-serif;
   cursor: pointer;
+  transition: filter .12s ease, transform .08s ease, box-shadow .12s ease;
 }
 button.primary { background: linear-gradient(145deg, #2f78cf, #24569a); }
 button.danger { background: linear-gradient(145deg, #c75252, #8e3030); }
+button:not(:disabled):hover {
+  filter: brightness(1.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 3px 9px rgba(0, 0, 0, .35);
+}
+button:not(:disabled):active {
+  filter: brightness(.94);
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, .28);
+}
 button:disabled {
   color: rgba(230, 235, 245, .45);
   border-color: rgba(120, 130, 148, .3);
   background: rgba(48, 53, 63, .9);
+  box-shadow: none;
   cursor: not-allowed;
 }
 .status-message {

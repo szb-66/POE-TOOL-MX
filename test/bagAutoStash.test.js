@@ -74,9 +74,9 @@ test('黑名单规范化仅保留名称、基底和类别的非空规则', () =>
     { field: 'rarity', keyword: '传奇' },
     { field: 'name', keyword: ' ' }
   ]), [
-    { field: 'name', keyword: '神圣石' },
-    { field: 'baseName', keyword: '戒指' },
-    { field: 'category', keyword: '通货' }
+    { field: 'name', keyword: '神圣石', matchMode: 'contains' },
+    { field: 'baseName', keyword: '戒指', matchMode: 'contains' },
+    { field: 'category', keyword: '通货', matchMode: 'contains' }
   ])
 })
 
@@ -90,11 +90,29 @@ test('物品头解析支持中文和英文复制格式', () => {
   assert.equal(parseBagItemHeader('普通剪贴板文本'), null)
 })
 
-test('黑名单按指定字段做不区分大小写的包含匹配', () => {
+test('黑名单按指定字段和模式做不区分大小写的匹配', () => {
   const item = { name: 'Chaos Orb', baseName: '', category: 'Stackable Currency' }
-  assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'name', keyword: ' chaos ' }]), { field: 'name', keyword: 'chaos' })
+  assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'name', keyword: ' chaos ' }]), {
+    field: 'name', keyword: 'chaos', matchMode: 'contains'
+  })
   assert.equal(findBagBlacklistMatch(item, [{ field: 'baseName', keyword: 'orb' }]), null)
-  assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'category', keyword: 'CURRENCY' }]), { field: 'category', keyword: 'CURRENCY' })
+  assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'category', keyword: 'CURRENCY' }]), {
+    field: 'category', keyword: 'CURRENCY', matchMode: 'contains'
+  })
+
+  const mapFragment = { name: '凡人的愤怒', baseName: '瓦尔碎片', category: '地图碎片' }
+  assert.equal(findBagBlacklistMatch(mapFragment, [
+    { field: 'category', keyword: '地图', matchMode: 'exact' }
+  ]), null)
+  assert.deepEqual(findBagBlacklistMatch({ ...mapFragment, category: ' 地图 ' }, [
+    { field: 'category', keyword: '地图', matchMode: 'exact' }
+  ]), { field: 'category', keyword: '地图', matchMode: 'exact' })
+  assert.ok(findBagBlacklistMatch(mapFragment, [
+    { field: 'category', keyword: '地图', matchMode: 'contains' }
+  ]))
+  assert.equal(normalizeBagBlacklist([
+    { field: 'category', keyword: '地图', matchMode: 'unknown' }
+  ])[0].matchMode, 'contains')
 })
 
 test('运行配置包含模板区域、网格、黑名单和全局自动操作等待', () => {
@@ -124,6 +142,7 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
     excludedSlots: [{ column: -2, row: 3 }]
   })
   assert.equal(config.blacklist[0].keyword, '通货')
+  assert.equal(config.blacklist[0].matchMode, 'contains')
   assert.equal(config.operationDelayMs, 180)
   assert.equal(config.immediateStash, false)
   assert.equal(config.showStashButtonOnlyWhenReady, false)
@@ -140,6 +159,32 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /清空选择/)
   assert.match(source, /:disabled="bagStore\.moduleEnabled"/)
   assert.match(source, /extraColumns[\s\S]*index - count/)
+  assert.match(source, /BAG_BLACKLIST_MATCH_MODES/)
+  assert.match(source, /BAG_BLACKLIST_MATCH_MODE_LABELS/)
+})
+
+test('Python 黑名单精确匹配不会把地图碎片当作地图', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+item = {"name": "凡人的愤怒", "baseName": "瓦尔碎片", "category": "地图碎片"}
+exact = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "exact"}])
+contains = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "contains"}])
+legacy = module.normalize_blacklist([{"field": "category", "keyword": "地图"}])
+invalid = module.normalize_blacklist([{"field": "category", "keyword": "地图", "matchMode": "unknown"}])
+print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "invalid": invalid}, ensure_ascii=False))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    exact: null,
+    contains: { field: 'category', keyword: '地图', matchMode: 'contains' },
+    legacy: [{ field: 'category', keyword: '地图', matchMode: 'contains' }],
+    invalid: [{ field: 'category', keyword: '地图', matchMode: 'contains' }]
+  })
 })
 
 test('自动操作等待补齐默认值、钳制并按优先级迁移旧配置', () => {

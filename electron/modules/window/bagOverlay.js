@@ -1,5 +1,12 @@
 export const BAG_OVERLAY_SIZE = Object.freeze({ width: 188, height: 64 })
 
+function normalizeSize(size) {
+  return {
+    width: Math.round(size.width),
+    height: Math.round(size.height)
+  }
+}
+
 function intersectsWorkArea(bounds, workArea) {
   return bounds.x + bounds.width > workArea.x &&
     bounds.x < workArea.x + workArea.width &&
@@ -8,8 +15,7 @@ function intersectsWorkArea(bounds, workArea) {
 }
 
 export function getBagOverlayBounds(savedBounds, displays, size = BAG_OVERLAY_SIZE) {
-  const width = Math.round(size.width)
-  const height = Math.round(size.height)
+  const { width, height } = normalizeSize(size)
   const normalizedSaved = savedBounds && {
     x: Math.round(Number(savedBounds.x)),
     y: Math.round(Number(savedBounds.y)),
@@ -26,6 +32,20 @@ export function getBagOverlayBounds(savedBounds, displays, size = BAG_OVERLAY_SI
   return {
     x: Math.round(workArea.x + workArea.width - width - 24),
     y: Math.round(workArea.y + workArea.height / 2 - height / 2),
+    width,
+    height
+  }
+}
+
+export function getBagOverlayDragBounds(point, workArea, size = BAG_OVERLAY_SIZE) {
+  const { width, height } = normalizeSize(size)
+  const minX = Math.round(workArea.x)
+  const minY = Math.round(workArea.y)
+  const maxX = Math.max(minX, Math.round(workArea.x + workArea.width - width))
+  const maxY = Math.max(minY, Math.round(workArea.y + workArea.height - height))
+  return {
+    x: Math.max(minX, Math.min(maxX, Math.round(point.x))),
+    y: Math.max(minY, Math.min(maxY, Math.round(point.y))),
     width,
     height
   }
