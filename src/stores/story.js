@@ -232,15 +232,15 @@ export const useStoryStore = defineStore('story', () => {
     }
   }
 
-  function reorderChapter(chapterId, targetChapterId) {
-    if (!reorderItemsById(chapters.value, chapterId, targetChapterId)) return false
+  function reorderChapter(chapterId, destinationIndex) {
+    if (!reorderItemsById(chapters.value, chapterId, destinationIndex)) return false
     save()
     return true
   }
 
-  function reorderStep(chapterId, stepId, targetStepId) {
+  function reorderStep(chapterId, stepId, destinationIndex) {
     const chapter = chapters.value.find(item => item.id === chapterId)
-    if (!chapter || !reorderItemsById(chapter.steps, stepId, targetStepId)) return false
+    if (!chapter || !reorderItemsById(chapter.steps, stepId, destinationIndex)) return false
     save()
     return true
   }
@@ -273,10 +273,10 @@ export const useStoryStore = defineStore('story', () => {
     return true
   }
 
-  function reorderSkillGroup(chapterId, groupId, targetGroupId) {
+  function reorderSkillGroup(chapterId, groupId, destinationIndex) {
     const chapterIndex = chapters.value.findIndex(item => item.id === chapterId)
     const groups = currentSkillPreset.value?.chapterSkills?.[chapterIndex]?.skillGroups
-    if (!groups || !reorderItemsById(groups, groupId, targetGroupId)) return false
+    if (!groups || !reorderItemsById(groups, groupId, destinationIndex)) return false
     save()
     return true
   }

@@ -37,6 +37,25 @@ The system SHALL provide a story management page where users can add, rename, se
 - **WHEN** the steps panel renders for the current chapter, whether the chapter has steps or is empty
 - **THEN** the system renders the add-step control as the last element of the step list area, below the last step or below the empty-state hint, and does not render an add-step control in the steps panel header
 
+### Requirement: Preview precise story editor sorting
+系统 SHALL 让用户通过拖拽抓手精确重排章节、当前章节内的步骤和当前章节位置的技能组。拖动过程中 MUST 根据指针位于目标卡片上半区或下半区实时展示最终顺序，成功放置时仅持久化一次，取消拖动时 MUST 保持原顺序。
+
+#### Scenario: Move an item to an exact position
+- **WHEN** 用户把章节、步骤或技能组拖到目标卡片的上半区或下半区
+- **THEN** 系统分别把拖动项预览在目标卡片之前或之后，并在放置后保持该准确位置
+
+#### Scenario: Preview without persisting
+- **WHEN** 用户拖动项目跨越列表中的多张卡片
+- **THEN** 卡片实时让位展示当前预期顺序，但系统在放置前不修改或保存 store 数据
+
+#### Scenario: Cancel a drag
+- **WHEN** 用户在列表外松手或以其他方式结束拖动而未成功放置
+- **THEN** 系统清除预览并恢复拖动开始前的顺序
+
+#### Scenario: Preserve editor interaction pointers
+- **WHEN** 用户将指针悬浮在章节、步骤或技能组卡片及其内部控件上
+- **THEN** 卡片显示 `pointer`，拖拽抓手显示 `grab` 或 `grabbing`，输入和按钮保留适合自身操作的指针
+
 ### Requirement: Navigate a continuous story flow
 The system SHALL treat ordered steps from all chapters as one continuous navigation flow, skipping chapters without steps and stopping at the first and last available steps.
 
@@ -68,11 +87,11 @@ The system SHALL persist normalized chapter data and the current chapter and ste
 - **THEN** the system selects the first available step or an empty progress state without failing
 
 ### Requirement: Configure chapter-local skill groups
-The system SHALL allow each chapter to independently contain an ordered collection of named skill groups, with addable and removable skills. Skills SHALL support either free-text names or selection from the offline skill gem catalog; catalog selection SHALL populate the canonical name, first-level requirement, gem type, and red, green, or blue color, while free-text skills SHALL remain valid.
+The system SHALL allow each chapter position in the active skill preset to independently contain an ordered collection of named skill groups, with addable and removable skills. Skills SHALL support either free-text names or selection from the offline skill gem catalog; catalog selection SHALL populate the canonical name, first-level requirement, gem type, and red, green, blue, or white color, while free-text skills SHALL remain valid.
 
 #### Scenario: Edit chapter skills
-- **WHEN** the user adds, renames, recolors, or deletes skills in the selected chapter
-- **THEN** the system persists the updated groups only on that chapter
+- **WHEN** the user adds, renames, recolors, reorders, or deletes skills or groups at the selected chapter position
+- **THEN** the system persists the updated groups only in that chapter slot of the active skill preset
 
 #### Scenario: Select a catalog skill
 - **WHEN** the user searches for and selects a skill gem suggestion
@@ -83,12 +102,12 @@ The system SHALL allow each chapter to independently contain an ordered collecti
 - **THEN** the system preserves the free-text name and color while removing stale catalog metadata
 
 #### Scenario: Reject invalid saved skill colors
-- **WHEN** persisted data contains a skill color outside red, green, and blue
+- **WHEN** persisted data contains a skill color outside red, green, blue, and white
 - **THEN** the system normalizes that skill to a supported default color
 
 #### Scenario: Restore legacy skills
 - **WHEN** persisted version 1 data contains only a skill name and color
-- **THEN** the system restores it without inventing catalog metadata or changing the storage version
+- **THEN** the system restores it without inventing catalog metadata
 
 ### Requirement: Search the offline skill gem catalog
 系统 SHALL 在剧情技能名称输入中按中文子串和不区分大小写的英文子串提供主动及辅助宝石候选，候选 MUST 始终显示 `名称(需求等级)`、类型和颜色。
@@ -102,19 +121,15 @@ The system SHALL allow each chapter to independently contain an ordered collecti
 - **THEN** 联想候选仍然显示各自需求等级
 
 ### Requirement: Configure selected skill level display
-系统 SHALL 提供默认开启且持久化的“显示最低购买等级”设置，该设置 MUST 只控制剧情编辑页中已选目录技能的等级后缀。
+系统 SHALL 提供默认开启且持久化的“显示最低购买等级”设置，该设置 MUST 同时控制剧情编辑页和剧情浮层中已选目录技能的等级后缀。
 
 #### Scenario: Display a selected skill level
 - **WHEN** 等级显示开启且已选技能具有目录需求等级
-- **THEN** 剧情编辑页将其显示为 `名称(需求等级)`
+- **THEN** 剧情编辑页和浮层均将其显示为 `名称(需求等级)`
 
 #### Scenario: Hide a selected skill level
 - **WHEN** 用户关闭等级显示
-- **THEN** 剧情编辑页仅显示技能名称且目录元数据保持不变
-
-#### Scenario: Keep overlay names unchanged
-- **WHEN** 任意等级显示设置下剧情浮窗展示章节技能
-- **THEN** 浮窗始终只显示技能名称和原有颜色
+- **THEN** 剧情编辑页和浮层仅显示技能名称且目录元数据保持不变
 
 ### Requirement: Display an independent story overlay
 The system SHALL provide a story overlay independent of the existing crafting overlay and SHALL display the previous, current, and next steps with the current step at higher visual priority.
@@ -154,11 +169,37 @@ The system SHALL provide a story overlay independent of the existing crafting ov
 - **THEN** 游戏剧情浮窗立即调整为该宽度且重启应用后仍保留
 
 ### Requirement: 同组技能水平排列
-系统 MUST 将同一个技能组内的技能按从左到右排列，不得把同组技能改为上下列表。
+系统 MUST 将同一个技能组内的技能按从左到右排列，并在空间不足时换到下一行，不得产生技能区域横向滚动条。
 
 #### Scenario: 一个技能组包含多个技能
-- **WHEN** 浮窗展示包含多个技能的技能组
-- **THEN** 这些技能在同一水平行中从左到右排列
+- **WHEN** 浮窗展示包含多个技能的技能组且当前行宽度不足
+- **THEN** 完整技能标签按顺序换到下一行，超长名称不会撑破浮层
+
+### Requirement: Configure story overlay opacity
+系统 SHALL 提供 0–100 的整数输入并全局持久化剧情浮层整体透明度，实时应用于内容窗口和所有原生抓手。
+
+#### Scenario: Change opacity while visible
+- **WHEN** 用户修改透明度且浮层已显示
+- **THEN** 内容、文字、标签和抓手立即使用新透明度
+
+#### Scenario: Set zero opacity
+- **WHEN** 透明度为 0
+- **THEN** 系统隐藏交互抓手且不留下不可见的鼠标拦截区域，用户可从主页面恢复数值
+
+### Requirement: Resize story overlay columns
+系统 SHALL 在双栏布局中提供独立原生分割线抓手，允许用户拖动调整步骤栏与技能栏比例，同时保持内容窗口其余区域鼠标穿透。
+
+#### Scenario: Drag the divider
+- **WHEN** 用户拖动分割线抓手
+- **THEN** 系统在安全范围内更新并持久化栏宽比例，不移动浮层或累计改变其尺寸
+
+#### Scenario: Synchronize divider geometry
+- **WHEN** 浮层移动、调整宽高、内容高度变化或系统使用非整数 DPI
+- **THEN** 分割线抓手从规范窗口尺寸和最新布局指标重新定位
+
+#### Scenario: Use stacked layout
+- **WHEN** 浮层宽度不足而采用上下布局
+- **THEN** 系统隐藏分割线抓手，并在恢复双栏布局后重新显示
 
 ### Requirement: Position the story overlay
 The system SHALL initially place the story overlay at the top center, provide a separate always-visible native three-dot grip that can reliably receive mouse input while the content window remains click-through, move the content window as the grip is dragged, persist its last position, and keep the restored bounds within an available display.

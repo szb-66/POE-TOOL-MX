@@ -137,11 +137,25 @@ test('剧情存储读写失败时安全降级并写入 v2', () => {
   assert.equal(writeStoryData({ chapters }, { setItem: () => { throw new Error('full') } }), false)
 })
 
-test('稳定 ID 排序可前移和后移且不替换对象', () => {
-  const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+test('稳定 ID 排序按最终索引精确前移和后移且不替换对象', () => {
+  const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }]
   const original = items[0]
-  assert.equal(reorderItemsById(items, 'a', 'c'), true)
-  assert.deepEqual(items.map(item => item.id), ['b', 'c', 'a'])
+
+  assert.equal(reorderItemsById(items, 'a', 1), true)
+  assert.deepEqual(items.map(item => item.id), ['b', 'a', 'c', 'd'])
+  assert.equal(items[1], original)
+
+  assert.equal(reorderItemsById(items, 'd', 1), true)
+  assert.deepEqual(items.map(item => item.id), ['b', 'd', 'a', 'c'])
+  assert.equal(reorderItemsById(items, 'd', 0), true)
+  assert.deepEqual(items.map(item => item.id), ['d', 'b', 'a', 'c'])
+  assert.equal(reorderItemsById(items, 'd', 3), true)
+  assert.deepEqual(items.map(item => item.id), ['b', 'a', 'c', 'd'])
+
+  assert.equal(reorderItemsById(items, 'a', 2), true)
+  assert.deepEqual(items.map(item => item.id), ['b', 'c', 'a', 'd'])
+  assert.equal(reorderItemsById(items, 'a', 2), false)
+  assert.equal(reorderItemsById(items, 'missing', 0), false)
+  assert.equal(reorderItemsById(items, 'a', Number.NaN), false)
   assert.equal(items[2], original)
-  assert.equal(reorderItemsById(items, 'a', 'missing'), false)
 })

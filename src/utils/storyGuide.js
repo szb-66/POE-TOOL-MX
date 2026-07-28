@@ -4,12 +4,13 @@ export const DEFAULT_STORY_PRESET_ID = 'default'
 export const DEFAULT_SKILL_PRESET_ID = 'default'
 export const SKILL_COLORS = ['red', 'green', 'blue', 'white']
 
-export function reorderItemsById(items, movedId, targetId) {
+export function reorderItemsById(items, movedId, destinationIndex) {
   const sourceIndex = items.findIndex(item => item.id === movedId)
-  const targetIndex = items.findIndex(item => item.id === targetId)
-  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return false
+  if (sourceIndex < 0 || !Number.isInteger(destinationIndex) || !items.length) return false
+  const finalIndex = Math.min(Math.max(destinationIndex, 0), items.length - 1)
+  if (sourceIndex === finalIndex) return false
   const [moved] = items.splice(sourceIndex, 1)
-  items.splice(targetIndex, 0, moved)
+  items.splice(finalIndex, 0, moved)
   return true
 }
 

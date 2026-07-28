@@ -36,15 +36,15 @@
         <el-empty v-if="!story.chapters.length" description="还没有章节" :image-size="72" />
         <div v-else class="chapter-list">
           <div
-            v-for="(chapter, index) in story.chapters"
+            v-for="(chapter, index) in displayedChapters"
             :key="chapter.id"
             class="chapter-item"
-            :class="{ active: chapter.id === story.currentChapterId, dragging: chapter.id === draggingChapterId, 'drag-over': chapter.id === dragOverChapterId && chapter.id !== draggingChapterId }"
+            :class="{ active: chapter.id === story.currentChapterId, dragging: isDragging('chapter', chapter.id) }"
             @click="story.selectChapter(chapter.id)"
-            @dragover.prevent="dragOverChapterId = chapter.id"
-            @drop.prevent="dropChapter(chapter.id)"
+            @dragover.prevent="previewDrag($event, 'chapter', chapter.id)"
+            @drop.prevent="dropDrag('chapter')"
           >
-            <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startChapterDrag($event, chapter.id)" @dragend="clearChapterDrag">⋮⋮</span>
+            <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'chapter', chapter.id)" @dragend="clearDrag">⋮⋮</span>
             <span class="chapter-order">{{ index + 1 }}</span>
             <span class="chapter-name">{{ chapter.name || '未命名章节' }}</span>
             <el-button text type="danger" :icon="Delete" @click.stop="confirmDeleteChapter(chapter)" />
@@ -62,16 +62,16 @@
           <el-empty v-if="!story.currentChapter.steps.length" description="添加本章的第一个步骤" :image-size="72" />
           <div v-else class="step-list">
             <div
-              v-for="(step, index) in story.currentChapter.steps"
+              v-for="(step, index) in displayedSteps"
               :key="step.id"
               class="step-item"
-              :class="{ active: step.id === story.currentStepId, dragging: step.id === draggingStepId, 'drag-over': step.id === dragOverStepId && step.id !== draggingStepId }"
+              :class="{ active: step.id === story.currentStepId, dragging: isDragging('step', step.id) }"
               @click="story.selectStep(story.currentChapter.id, step.id)"
-              @dragover.prevent="dragOverStepId = step.id"
-              @drop.prevent="dropStep(step.id)"
+              @dragover.prevent="previewDrag($event, 'step', step.id)"
+              @drop.prevent="dropDrag('step')"
             >
               <div class="step-title">
-                <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startStepDrag($event, step.id)" @dragend="clearStepDrag">⋮⋮</span>
+                <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'step', step.id)" @dragend="clearDrag">⋮⋮</span>
                 <span>步骤 {{ index + 1 }}</span>
                 <el-tag v-if="step.id === story.currentStepId" size="small" type="success">当前</el-tag>
                 <el-button text type="danger" :icon="Delete" @click.stop="story.deleteStep(story.currentChapter.id, step.id)" />
@@ -119,15 +119,15 @@
           <el-empty v-if="!story.currentSkillGroups.length" description="本章未配置技能" :image-size="72" />
           <div v-else class="skill-groups">
             <div
-              v-for="group in story.currentSkillGroups"
+              v-for="group in displayedSkillGroups"
               :key="group.id"
               class="skill-group"
-              :class="{ dragging: group.id === draggingSkillGroupId, 'drag-over': group.id === dragOverSkillGroupId && group.id !== draggingSkillGroupId }"
-              @dragover.prevent="dragOverSkillGroupId = group.id"
-              @drop.prevent="dropSkillGroup(group.id)"
+              :class="{ dragging: isDragging('skill-group', group.id) }"
+              @dragover.prevent="previewDrag($event, 'skill-group', group.id)"
+              @drop.prevent="dropDrag('skill-group')"
             >
               <div class="group-header">
-                <span class="drag-handle" draggable="true" title="拖动技能组排序" @dragstart.stop="startSkillGroupDrag($event, group.id)" @dragend="clearSkillGroupDrag">⋮⋮</span>
+                <span class="drag-handle" draggable="true" title="拖动技能组排序" @dragstart.stop="startDrag($event, 'skill-group', group.id)" @dragend="clearDrag">⋮⋮</span>
                 <el-input v-model="group.name" maxlength="30" placeholder="技能组名称" />
                 <el-button :icon="Plus" circle @click="story.addSkill(story.currentChapter.id, group.id)" />
                 <el-button :icon="Delete" circle type="danger" @click="confirmDeleteGroup(group)" />
@@ -177,7 +177,7 @@
 </template>
 
 <script setup>
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { CopyDocument, Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -196,13 +196,11 @@ import {
 const story = useStoryStore()
 const settings = useSettingsStore()
 let saveTimer = null
-const draggingChapterId = ref(null)
-const dragOverChapterId = ref(null)
-const draggingStepId = ref(null)
-const dragOverStepId = ref(null)
-const draggingSkillGroupId = ref(null)
-const dragOverSkillGroupId = ref(null)
+const dragPreview = ref(null)
 const stepInputRefs = {}
+const displayedChapters = computed(() => orderPreviewItems('chapter', story.chapters))
+const displayedSteps = computed(() => orderPreviewItems('step', story.currentChapter?.steps || []))
+const displayedSkillGroups = computed(() => orderPreviewItems('skill-group', story.currentSkillGroups))
 
 function fetchSkillSuggestions(query, callback) {
   callback(searchSkillCatalog(skillCatalog.skills, query))
@@ -243,53 +241,72 @@ function prepareDrag(event, id) {
   event.dataTransfer.setData('text/plain', id)
 }
 
-function startChapterDrag(event, chapterId) {
-  draggingChapterId.value = chapterId
-  prepareDrag(event, chapterId)
+function dragItems(type) {
+  if (type === 'chapter') return story.chapters
+  if (type === 'step') return story.currentChapter?.steps || []
+  return story.currentSkillGroups
 }
 
-function clearChapterDrag() {
-  draggingChapterId.value = null
-  dragOverChapterId.value = null
+function orderPreviewItems(type, items) {
+  const preview = dragPreview.value
+  if (!preview || preview.type !== type) return items
+  const itemsById = new Map(items.map(item => [item.id, item]))
+  const ordered = preview.ids.map(id => itemsById.get(id)).filter(Boolean)
+  const previewIds = new Set(preview.ids)
+  return ordered.concat(items.filter(item => !previewIds.has(item.id)))
 }
 
-function dropChapter(targetChapterId) {
-  if (draggingChapterId.value) story.reorderChapter(draggingChapterId.value, targetChapterId)
-  clearChapterDrag()
-}
-
-function startStepDrag(event, stepId) {
-  draggingStepId.value = stepId
-  prepareDrag(event, stepId)
-}
-
-function clearStepDrag() {
-  draggingStepId.value = null
-  dragOverStepId.value = null
-}
-
-function dropStep(targetStepId) {
-  if (draggingStepId.value && story.currentChapter) {
-    story.reorderStep(story.currentChapter.id, draggingStepId.value, targetStepId)
+function startDrag(event, type, movedId) {
+  const items = dragItems(type)
+  if (!items.some(item => item.id === movedId)) return
+  dragPreview.value = {
+    type,
+    movedId,
+    chapterId: type === 'chapter' ? null : story.currentChapter?.id,
+    ids: items.map(item => item.id)
   }
-  clearStepDrag()
+  prepareDrag(event, movedId)
 }
 
-function startSkillGroupDrag(event, groupId) {
-  draggingSkillGroupId.value = groupId
-  prepareDrag(event, groupId)
+function isDragging(type, id) {
+  return dragPreview.value?.type === type && dragPreview.value.movedId === id
 }
 
-function clearSkillGroupDrag() {
-  draggingSkillGroupId.value = null
-  dragOverSkillGroupId.value = null
+function previewDrag(event, type, targetId) {
+  const preview = dragPreview.value
+  if (!preview || preview.type !== type || preview.movedId === targetId) return
+  const target = event.currentTarget
+  const bounds = target.getBoundingClientRect()
+  const insertAfter = event.clientY >= bounds.top + bounds.height / 2
+  const idsWithoutMoved = preview.ids.filter(id => id !== preview.movedId)
+  const targetIndex = idsWithoutMoved.indexOf(targetId)
+  if (targetIndex < 0) return
+  const destinationIndex = targetIndex + (insertAfter ? 1 : 0)
+  const nextIds = [...idsWithoutMoved]
+  nextIds.splice(destinationIndex, 0, preview.movedId)
+  if (nextIds.every((id, index) => id === preview.ids[index])) return
+  dragPreview.value = { ...preview, ids: nextIds }
 }
 
-function dropSkillGroup(targetGroupId) {
-  if (draggingSkillGroupId.value && story.currentChapter) {
-    story.reorderSkillGroup(story.currentChapter.id, draggingSkillGroupId.value, targetGroupId)
+function dropDrag(type) {
+  const preview = dragPreview.value
+  if (!preview || preview.type !== type) return
+  const destinationIndex = preview.ids.indexOf(preview.movedId)
+  if (destinationIndex < 0) {
+    clearDrag()
+    return
   }
-  clearSkillGroupDrag()
+  if (type === 'chapter') story.reorderChapter(preview.movedId, destinationIndex)
+  else if (type === 'step' && preview.chapterId) {
+    story.reorderStep(preview.chapterId, preview.movedId, destinationIndex)
+  } else if (type === 'skill-group' && preview.chapterId) {
+    story.reorderSkillGroup(preview.chapterId, preview.movedId, destinationIndex)
+  }
+  clearDrag()
+}
+
+function clearDrag() {
+  dragPreview.value = null
 }
 
 function currentPreset(type) {
@@ -425,8 +442,8 @@ async function confirmDeleteGroup(group) {
 .drag-handle { flex: 0 0 auto; color: var(--text-placeholder); cursor: grab; user-select: none; font-weight: 700; letter-spacing: -3px; padding: 3px 5px 3px 1px; }
 .drag-handle:active { cursor: grabbing; }
 .chapter-item.dragging, .step-item.dragging, .skill-group.dragging { opacity: .45; }
-.chapter-item.drag-over, .step-item.drag-over, .skill-group.drag-over { border-color: var(--primary-color); box-shadow: 0 2px 0 var(--primary-color); }
-.step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
+.step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; }
+.step-item :deep(.el-textarea__inner), .skill-group :deep(.el-input__inner) { cursor: text; }
 .step-title { justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .step-title > span:nth-child(2) { flex: 1; font-weight: 600; }
 .group-header { gap: 8px; margin-bottom: 10px; }
