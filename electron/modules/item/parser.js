@@ -21,6 +21,7 @@ export function parseItemInfo(clipboardText) {
     baseName: '',
     quality: 0,
     level: 0,
+    gemLevel: 0,
     sockets: '',
     socketsCount: 0,
     socketsColors: {
@@ -32,11 +33,23 @@ export function parseItemInfo(clipboardText) {
     itemRarity: 0,
     monsterPackSize: 0,
     mapTier: 0,
+    armour: 0,
+    evasion: 0,
+    energyShield: 0,
+    ward: 0,
+    block: 0,
+    physicalDamage: null,
+    elementalDamages: [],
+    criticalStrikeChance: 0,
+    attacksPerSecond: 0,
     moreMaps: 0,
     moreScarabs: 0,
     moreCurrency: 0,
     isCorrupted: false,
     isUnidentified: false,
+    isMirrored: false,
+    isSplit: false,
+    isFractured: false,
     links: 0,
     implicitMods: [],
     explicitMods: [],
@@ -177,6 +190,11 @@ export function parseItemInfo(clipboardText) {
     '督军物品': 'warlord',
     '忆境物品': 'synthesised'
   }
+  const parseNumber = (value) => Number(String(value || '').replace(/[+,％%]/g, ''))
+  const parseRange = (line) => {
+    const match = line.match(/(-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)/)
+    return match ? { min: Number(match[1]), max: Number(match[2]) } : null
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -188,7 +206,8 @@ export function parseItemInfo(clipboardText) {
       flushModifier()
       const typeEntry = [
         ['前缀属性', 'prefix'], ['后缀属性', 'suffix'], ['基底属性', 'base'],
-        ['传奇属性', 'unique'], ['工艺属性', 'crafted'], ['附魔属性', 'enchant']
+        ['传奇属性', 'unique'], ['工艺属性', 'crafted'], ['附魔属性', 'enchant'],
+        ['破裂属性', 'fractured']
       ].find(([label]) => line.includes(label))
       if (typeEntry) {
         try {
@@ -235,6 +254,30 @@ export function parseItemInfo(clipboardText) {
       flushModifier()
     }
 
+    const scalarProperties = [
+      [/^护甲:\s*\+?([\d.]+)/, 'armour'],
+      [/^闪避(?:值)?:\s*\+?([\d.]+)/, 'evasion'],
+      [/^能量护盾:\s*\+?([\d.]+)/, 'energyShield'],
+      [/^结界:\s*\+?([\d.]+)/, 'ward'],
+      [/^格挡(?:几率)?:\s*\+?([\d.]+)%?/, 'block'],
+      [/^(?:攻击)?暴击率:\s*\+?([\d.]+)%?/, 'criticalStrikeChance'],
+      [/^每秒攻击次数:\s*\+?([\d.]+)/, 'attacksPerSecond']
+    ]
+    const scalar = scalarProperties.find(([pattern]) => pattern.test(line))
+    if (scalar) {
+      itemInfo[scalar[1]] = parseNumber(line.match(scalar[0])[1])
+      continue
+    }
+    if (/^物理伤害:/.test(line)) {
+      itemInfo.physicalDamage = parseRange(line)
+      continue
+    }
+    if (/^(?:元素|火焰|冰霜|闪电|混沌)伤害:/.test(line)) {
+      const ranges = [...line.matchAll(/(-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)/g)]
+      itemInfo.elementalDamages.push(...ranges.map((match) => ({ min: Number(match[1]), max: Number(match[2]) })))
+      continue
+    }
+
     if (line.startsWith('物品类别:')) {
       itemInfo.category = line.replace('物品类别:', '').trim()
     }
@@ -249,6 +292,12 @@ export function parseItemInfo(clipboardText) {
     }
     else if (line === '未鉴定' || line.includes('未鉴定')) {
       itemInfo.isUnidentified = true
+    }
+    else if (line === '已复制' || line.includes('镜像复制')) {
+      itemInfo.isMirrored = true
+    }
+    else if (line === '已分裂' || line.includes('分裂物品')) {
+      itemInfo.isSplit = true
     }
     else if (influenceLabels[line]) {
       if (!itemInfo.influences.includes(influenceLabels[line])) itemInfo.influences.push(influenceLabels[line])
@@ -272,6 +321,12 @@ export function parseItemInfo(clipboardText) {
       const qualityMatch = line.match(/品质:\s*\+?(\d+)%/)
       if (qualityMatch) {
         itemInfo.quality = parseInt(qualityMatch[1])
+      }
+    }
+    else if (itemInfo.category.includes('宝石') && line.startsWith('等级:')) {
+      const gemLevelMatch = line.match(/等级:\s*(\d+)/)
+      if (gemLevelMatch) {
+        itemInfo.gemLevel = parseInt(gemLevelMatch[1])
       }
     }
     else if (line.includes('物品等级:')) {
@@ -370,6 +425,15 @@ export function parseItemInfo(clipboardText) {
   }
 
   flushModifier()
+  itemInfo.isFractured = itemInfo.modifiers.some((modifier) => modifier.type === 'fractured')
+  const average = (range) => range ? (Number(range.min) + Number(range.max)) / 2 : 0
+  itemInfo.physicalDps = itemInfo.attacksPerSecond
+    ? Math.round(average(itemInfo.physicalDamage) * itemInfo.attacksPerSecond * 100) / 100
+    : 0
+  itemInfo.elementalDps = itemInfo.attacksPerSecond
+    ? Math.round(itemInfo.elementalDamages.reduce((sum, range) => sum + average(range), 0) * itemInfo.attacksPerSecond * 100) / 100
+    : 0
+  itemInfo.totalDps = Math.round((itemInfo.physicalDps + itemInfo.elementalDps) * 100) / 100
   itemInfo.isLegendary = itemInfo.rarity.replace(/\s/g, '') === '传奇'
 
   return itemInfo

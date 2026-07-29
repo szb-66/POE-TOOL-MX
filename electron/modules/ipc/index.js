@@ -17,10 +17,13 @@ import { registerClipboardHandlers } from './clipboard.js'
 import { registerCraftingHandlers } from './crafting.js'
 import { registerSystemHandlers } from './system.js'
 import { registerChaosRecipeHandlers } from './chaosRecipe.js'
+import { registerPriceCheckHandlers } from './priceCheck.js'
+import { registerPoeCnAccountHandlers } from './poeCnAccount.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
-    window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe,
+    window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
+    poeCnAccount,
     interfaceDetection, automationLock
   } = dependencies
 
@@ -34,4 +37,6 @@ export function registerIpcHandlers(dependencies) {
   registerSystemHandlers(python)
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })
+  if (priceCheck) registerPriceCheckHandlers(priceCheck)
+  if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
 }

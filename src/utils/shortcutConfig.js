@@ -9,7 +9,8 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   storyNext: 'PageDown',
   chaosRecipeStart: 'Alt+4',
   chaosRecipePause: 'Alt+5',
-  chaosRecipeStop: 'Alt+6'
+  chaosRecipeStop: 'Alt+6',
+  priceCheck: 'Ctrl+D'
 })
 
 export const mergeGlobalShortcutSettings = (saved = {}) => {

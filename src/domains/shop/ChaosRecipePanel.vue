@@ -45,29 +45,15 @@
     <el-card class="block">
       <template #header>
         <div class="card-header">
-          <span>国服账号</span>
+          <span>共享国服账号</span>
           <el-tag :type="store.auth.authenticated ? 'success' : 'info'">
             {{ store.auth.authenticated ? `已登录 · ${store.auth.accountName}` : '未登录' }}
           </el-tag>
         </div>
       </template>
-
-      <div v-if="!store.auth.authenticated" class="auth-actions">
-        <el-button type="primary" :loading="store.busy" @click="openLogin">打开网页登录</el-button>
-        <el-button :loading="store.busy" @click="completeLogin">我已完成网页登录</el-button>
-        <el-input
-          v-model="sessionToken"
-          type="password"
-          show-password
-          autocomplete="off"
-          placeholder="或手动输入国服 POESESSID"
-          @keyup.enter="loginToken"
-        />
-        <el-button :disabled="!sessionToken.trim()" :loading="store.busy" @click="loginToken">验证令牌</el-button>
-      </div>
-      <div v-else class="auth-actions">
-        <el-button @click="store.logout()">退出国服账号</el-button>
-        <span class="muted">会话 Cookie 仅保存在独立 Electron Session 中，不写入预设和日志。</span>
+      <div class="auth-actions">
+        <el-button type="primary" plain @click="$router.push('/settings')">前往账号设置</el-button>
+        <span class="muted">账号和赛季已收拢到设置页，商城正则本身不需要账号。</span>
       </div>
     </el-card>
 
@@ -77,15 +63,8 @@
           <template #header><span>仓库数据</span></template>
           <el-form label-width="92px">
             <el-form-item label="赛季">
-              <el-select
-                :model-value="store.settings.league"
-                filterable
-                placeholder="选择国服赛季"
-                @change="store.loadTabs"
-              >
-                <el-option v-for="league in store.leagues" :key="league.id" :label="league.name" :value="league.id" />
-              </el-select>
-              <el-button class="inline-button" :loading="store.busy" @click="store.loadLeagues()">刷新赛季</el-button>
+              <strong>{{ store.leagues.find(item => item.id === store.league)?.name || store.league || '未设置' }}</strong>
+              <el-button class="inline-button" @click="$router.push('/settings')">修改全局赛季</el-button>
             </el-form-item>
             <el-form-item label="仓库页">
               <el-checkbox-group
@@ -101,7 +80,7 @@
                   <el-tag size="small">{{ tab.type === 'quad' ? '大型' : '普通' }}</el-tag>
                 </el-checkbox>
               </el-checkbox-group>
-              <span v-if="store.settings.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
+              <span v-if="store.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
               <div v-for="tab in store.selectedTabs" :key="`override-${tab.id}`" class="tab-override-row">
                 <span class="tab-override-title">{{ tab.name }}</span>
                 <el-switch
@@ -126,7 +105,7 @@
             <el-button
               type="primary"
               :loading="store.busy"
-              :disabled="!store.settings.league || !store.settings.selectedTabIds.length"
+              :disabled="!store.league || !store.settings.selectedTabIds.length"
               @click="store.refresh"
             >
               刷新仓库并计算
@@ -282,12 +261,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
 import { VENDOR_RECIPE_CATALOG, VENDOR_RECIPE_IDS } from '../../../electron/modules/chaosRecipe/engine.js'
 
 const store = useChaosRecipeStore()
-const sessionToken = ref('')
 const calibrationOptions = [
   { key: 'root', label: '文件夹外仓库', size: '普通/大型共用' },
   { key: 'folder', label: '文件夹内仓库', size: '普通/大型共用' }
@@ -339,35 +317,6 @@ const diagnosticWarning = computed(() => {
 })
 
 const formatTime = (value) => value ? new Date(value).toLocaleTimeString() : ''
-
-async function openLogin() {
-  try {
-    await store.openWebLogin()
-    ElMessage.info('请在新窗口完成 QQ/国服登录，然后点击“我已完成网页登录”')
-  } catch (error) {
-    ElMessage.error(error.message)
-  }
-}
-
-async function completeLogin() {
-  try {
-    await store.completeWebLogin()
-    ElMessage.success('国服网页登录成功')
-  } catch (error) {
-    ElMessage.error(error.message)
-  }
-}
-
-async function loginToken() {
-  try {
-    await store.loginWithToken(sessionToken.value)
-    sessionToken.value = ''
-    ElMessage.success('国服会话验证成功')
-  } catch (error) {
-    sessionToken.value = ''
-    ElMessage.error(error.message)
-  }
-}
 
 async function toggleEnabled(enabled) {
   try {

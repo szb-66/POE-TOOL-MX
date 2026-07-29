@@ -24,6 +24,7 @@ import {
   stopChaosRecipePicking,
   toggleChaosRecipePicking
 } from './chaosRecipeService.js'
+import { usePriceCheckStore } from '../stores/priceCheck'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -48,10 +49,12 @@ export async function initShortcuts() {
   // 使用 electronApi 封装
   const settingsStore = useSettingsStore()
   const shortcuts = settingsStore.globalShortcuts
+  const registeredShortcuts = { ...shortcuts }
+  if (!usePriceCheckStore().settings.enabled) delete registeredShortcuts.priceCheck
 
   // 从设置中初始化快捷键
   try {
-    const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
+    const result = await electronApi.shortcut.initFromSettings(registeredShortcuts)
     if (!result?.success) {
       const names = formatShortcutError(result)
       settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })
@@ -78,7 +81,8 @@ export async function initShortcuts() {
         storyNext: () => useStoryStore().next(),
         chaosRecipeStart: startChaosRecipePicking,
         chaosRecipePause: toggleChaosRecipePicking,
-        chaosRecipeStop: stopChaosRecipePicking
+        chaosRecipeStop: stopChaosRecipePicking,
+        priceCheck: startPriceCheck
       })
     })
     shortcutListenerRegistered = true
@@ -105,6 +109,14 @@ export async function initShortcuts() {
   useScriptStore().applyStatus(currentStatus)
 
   // 注意：快捷键更新应该在设置页面手动触发，避免频繁注册
+}
+
+export async function startPriceCheck() {
+  try {
+    await usePriceCheckStore().checkHoveredItem()
+  } catch (error) {
+    ElMessage.error(error.message || '国服查价失败')
+  }
 }
 
 /**
@@ -278,7 +290,9 @@ export async function updateShortcuts(candidateShortcuts = null) {
   if (!validation.isValid) throw new Error(validation.error)
 
   // 从设置中重新初始化快捷键
-  const result = await electronApi.shortcut.initFromSettings({ ...shortcuts })
+  const registeredShortcuts = { ...shortcuts }
+  if (!usePriceCheckStore().settings.enabled) delete registeredShortcuts.priceCheck
+  const result = await electronApi.shortcut.initFromSettings(registeredShortcuts)
   if (!result?.success) {
     const names = formatShortcutError(result)
     settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })

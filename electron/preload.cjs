@@ -161,14 +161,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   moveBagStashOverlay: (drag) => ipcRenderer.send('bag-stash-overlay-move', drag),
   updateBagInterfaceConfig: (config) => ipcRenderer.invoke('update-bag-interface-config', config),
+  // 国服账号与全局赛季
+  getPoeCnAccountStatus: () => ipcRenderer.invoke('poe-cn-account-status'),
+  restorePoeCnAccount: () => ipcRenderer.invoke('poe-cn-account-restore'),
+  openPoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-open-web'),
+  completePoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-complete-web'),
+  setPoeCnAccountSessionToken: (token) => ipcRenderer.invoke('poe-cn-account-token', token),
+  logoutPoeCnAccount: () => ipcRenderer.invoke('poe-cn-account-logout'),
+  listPoeCnAccountLeagues: () => ipcRenderer.invoke('poe-cn-account-list-leagues'),
+  setPoeCnAccountLeague: (league) => ipcRenderer.invoke('poe-cn-account-set-league', league),
+  onPoeCnAccountStatusChanged: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('poe-cn-account-status-changed', listener)
+    return () => ipcRenderer.removeListener('poe-cn-account-status-changed', listener)
+  },
   // 国服混沌配方
-  getChaosRecipeAuthStatus: () => ipcRenderer.invoke('chaos-recipe-auth-status'),
-  restoreChaosRecipeAuth: () => ipcRenderer.invoke('chaos-recipe-auth-restore'),
-  openChaosRecipeWebLogin: () => ipcRenderer.invoke('chaos-recipe-auth-open-web'),
-  completeChaosRecipeWebLogin: () => ipcRenderer.invoke('chaos-recipe-auth-complete-web'),
-  setChaosRecipeSessionToken: (token) => ipcRenderer.invoke('chaos-recipe-auth-token', token),
-  logoutChaosRecipe: () => ipcRenderer.invoke('chaos-recipe-auth-logout'),
-  listChaosRecipeLeagues: () => ipcRenderer.invoke('chaos-recipe-list-leagues'),
   listChaosRecipeTabs: (league) => ipcRenderer.invoke('chaos-recipe-list-tabs', league),
   refreshChaosRecipe: (request) => ipcRenderer.invoke('chaos-recipe-refresh', request),
   getChaosRecipeSnapshot: () => ipcRenderer.invoke('chaos-recipe-get-snapshot'),
@@ -213,6 +220,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('chaos-recipe-snapshot-updated', listener)
     return () => ipcRenderer.removeListener('chaos-recipe-snapshot-updated', listener)
+  },
+  // 国服官方挂单查价
+  getPriceCheckStatus: () => ipcRenderer.invoke('price-check-status'),
+  updatePriceCheckRuntime: (runtime) => ipcRenderer.invoke('price-check-runtime-update', runtime),
+  capturePriceCheckItem: (request) => ipcRenderer.invoke('price-check-capture', request),
+  rerunPriceCheck: (request) => ipcRenderer.invoke('price-check-rerun', request),
+  loadMorePriceCheck: () => ipcRenderer.invoke('price-check-load-more'),
+  getPriceCheckOverlayState: () => ipcRenderer.invoke('price-check-overlay-state'),
+  closePriceCheckOverlay: () => ipcRenderer.invoke('price-check-overlay-close'),
+  openPriceCheckOfficial: () => ipcRenderer.invoke('price-check-open-official'),
+  onPriceCheckOverlayState: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('price-check-overlay-state', listener)
+    return () => ipcRenderer.removeListener('price-check-overlay-state', listener)
   },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),

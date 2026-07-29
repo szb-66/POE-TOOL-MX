@@ -5,7 +5,7 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
-import { app, BrowserWindow, Menu, globalShortcut, protocol, net, shell, session } from 'electron'
+import { app, BrowserWindow, Menu, clipboard, globalShortcut, protocol, net, shell, session } from 'electron'
 import path from 'node:path'
 import { createMainWindow, getMainWindow, toggleDevTools } from './modules/window/manager.js'
 import { installExternalLinkPolicy } from './modules/window/externalLinks.js'
@@ -33,6 +33,11 @@ import { AutomationLock } from './modules/automation/lock.js'
 import { ChaosRecipeControlOverlay } from './modules/chaosRecipe/controlOverlay.js'
 import { createShutdownController } from './modules/lifecycle/shutdown.js'
 import { acquireCrossProcessInstanceLock } from './modules/app/singleInstance.js'
+import { createOfficialTradeCatalog, loadTradeCatalog } from './modules/priceCheck/catalog.js'
+import { PoeCnTradeClient } from './modules/priceCheck/client.js'
+import { PriceCheckService } from './modules/priceCheck/service.js'
+import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
+import { capturePoeItemText, sendWindowsCopy } from './modules/priceCheck/clipboardCapture.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -58,6 +63,7 @@ let poeCnSession = null
 let interfaceDetection = null
 let automationLock = null
 let chaosControlOverlay = null
+let priceCheckService = null
 let crossProcessInstanceLock = null
 
 async function settleCleanupPhase(operations, errors) {
@@ -76,6 +82,7 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.automation?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
+    () => priceCheckService?.closeOverlay(),
     () => interfaceDetection?.cleanup(),
     () => craftingService?.cleanup(),
     async () => {
@@ -188,6 +195,31 @@ app.whenReady().then(async () => {
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
   await chaosRecipeService.restoreAuth()
+  const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
+  let tradeCatalogBundle = await loadTradeCatalog()
+  try {
+    tradeCatalogBundle = createOfficialTradeCatalog(tradeCatalogBundle.catalog, await priceCheckClient.getStats())
+  } catch (error) {
+    tradeCatalogBundle.status = {
+      ...tradeCatalogBundle.status,
+      provider: 'bundled',
+      degraded: true,
+      warning: `腾讯官方词缀目录不可用，已使用内置目录：${error.message}`
+    }
+  }
+  const priceCheckOverlay = new PriceCheckOverlayManager()
+  priceCheckService = new PriceCheckService({
+    auth: chaosAuth,
+    client: priceCheckClient,
+    catalog: tradeCatalogBundle.catalog,
+    catalogStatus: tradeCatalogBundle.status,
+    overlay: priceCheckOverlay,
+    shell,
+    captureClipboard: () => capturePoeItemText({
+      clipboard,
+      sendCopy: (options) => sendWindowsCopy(pythonDetector.detectPythonPath(), options)
+    })
+  })
 
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
   registerIpcHandlers({
@@ -199,6 +231,11 @@ app.whenReady().then(async () => {
     shortcut: shortcutManager,
     crafting: craftingService,
     chaosRecipe: chaosRecipeService,
+    priceCheck: priceCheckService,
+    poeCnAccount: {
+      auth: chaosAuth,
+      listLeagues: () => chaosStashClient.listLeagues()
+    },
     interfaceDetection,
     automationLock
   })

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "game": "poe1",
+  "locale": "zh-CN",
+  "gameVersion": "3.28",
+  "generatedAt": "2026-07-29T00:00:00.000Z",
+  "sources": [
+    "国服客户端简体中文物品文本",
+    "Awakened PoE Trade stat identifiers"
+  ],
+  "items": [],
+  "stats": [
+    {
+      "key": "maximum-life",
+      "label": "最大生命",
+      "matchers": ["# 最大生命"],
+      "ids": {
+        "explicit": "explicit.stat_3299347043",
+        "fractured": "fractured.stat_3299347043",
+        "crafted": "crafted.stat_3299347043",
+        "implicit": "implicit.stat_3299347043"
+      }
+    },
+    {
+      "key": "fire-resistance",
+      "label": "火焰抗性",
+      "matchers": ["#% 火焰抗性"],
+      "ids": {
+        "explicit": "explicit.stat_3372524247",
+        "fractured": "fractured.stat_3372524247",
+        "crafted": "crafted.stat_3372524247",
+        "implicit": "implicit.stat_3372524247"
+      }
+    },
+    {
+      "key": "cold-resistance",
+      "label": "冰霜抗性",
+      "matchers": ["#% 冰霜抗性"],
+      "ids": {
+        "explicit": "explicit.stat_4220027924",
+        "fractured": "fractured.stat_4220027924",
+        "crafted": "crafted.stat_4220027924",
+        "implicit": "implicit.stat_4220027924"
+      }
+    },
+    {
+      "key": "lightning-resistance",
+      "label": "闪电抗性",
+      "matchers": ["#% 闪电抗性"],
+      "ids": {
+        "explicit": "explicit.stat_1671376347",
+        "fractured": "fractured.stat_1671376347",
+        "crafted": "crafted.stat_1671376347",
+        "implicit": "implicit.stat_1671376347"
+      }
+    },
+    {
+      "key": "chaos-resistance",
+      "label": "混沌抗性",
+      "matchers": ["#% 混沌抗性"],
+      "ids": {
+        "explicit": "explicit.stat_2923486259",
+        "fractured": "fractured.stat_2923486259"
+      }
+    },
+    {
+      "key": "movement-speed",
+      "label": "移动速度",
+      "matchers": ["移动速度加快 #%"],
+      "ids": {
+        "explicit": "explicit.stat_2250533757",
+        "fractured": "fractured.stat_2250533757",
+        "crafted": "crafted.stat_2250533757",
+        "enchant": "enchant.stat_2250533757"
+      }
+    }
+  ]
+}

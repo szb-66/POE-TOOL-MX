@@ -42,6 +42,11 @@ const routes = [
     component: () => import('../domains/crafting/CraftPlannerView.vue')
   },
   {
+    path: '/price-check',
+    name: 'PriceCheck',
+    component: () => import('../domains/priceCheck/PriceCheckView.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../domains/settings/SettingsView.vue')
@@ -103,6 +108,14 @@ const routes = [
     path: '/coordinate-picker',
     name: 'CoordinatePicker',
     component: () => import('../domains/settings/CoordinatePickerView.vue'),
+    meta: {
+      noLayout: true
+    }
+  },
+  {
+    path: '/price-check-overlay',
+    name: 'PriceCheckOverlay',
+    component: () => import('../domains/priceCheck/PriceCheckOverlayView.vue'),
     meta: {
       noLayout: true
     }

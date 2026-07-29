@@ -23,24 +23,55 @@ export class PoeCnAuthService {
     this.parentWindow = parentWindow
     this.status = { authenticated: false, mode: null, accountName: '' }
     this.loginWindow = null
+    this.cacheClearers = new Set()
+    this.statusListeners = new Set()
   }
 
   getStatus() {
     return { ...this.status }
   }
 
+  setStatus(status) {
+    this.status = {
+      authenticated: Boolean(status?.authenticated),
+      mode: status?.mode || null,
+      accountName: String(status?.accountName || '')
+    }
+    const snapshot = this.getStatus()
+    for (const listener of this.statusListeners) {
+      try { listener(snapshot) } catch { /* account broadcasts must not block authentication */ }
+    }
+    return snapshot
+  }
+
+  subscribe(listener) {
+    if (typeof listener !== 'function') return () => {}
+    this.statusListeners.add(listener)
+    return () => this.statusListeners.delete(listener)
+  }
+
+  registerCacheClearer(clearer) {
+    if (typeof clearer !== 'function') return () => {}
+    this.cacheClearers.add(clearer)
+    return () => this.cacheClearers.delete(clearer)
+  }
+
+  clearFeatureCaches() {
+    for (const clearer of this.cacheClearers) {
+      try { clearer() } catch { /* cache cleanup must not block logout */ }
+    }
+  }
+
   async validate(mode = this.status.mode || 'session') {
     const profile = await requestPoeCnJson(this.session, PROFILE_URL)
-    this.status = profileSummary(profile, mode)
-    return this.getStatus()
+    return this.setStatus(profileSummary(profile, mode))
   }
 
   async restore() {
     try {
       return await this.validate('session')
     } catch {
-      this.status = { authenticated: false, mode: null, accountName: '' }
-      return this.getStatus()
+      return this.setStatus({ authenticated: false, mode: null, accountName: '' })
     }
   }
 
@@ -108,7 +139,8 @@ export class PoeCnAuthService {
   }
 
   async logout() {
-    this.status = { authenticated: false, mode: null, accountName: '' }
+    this.setStatus({ authenticated: false, mode: null, accountName: '' })
+    this.clearFeatureCaches()
     if (this.loginWindow && !this.loginWindow.isDestroyed()) this.loginWindow.close()
     await this.session.clearStorageData({
       origin: POE_CN_ORIGIN,
@@ -116,5 +148,9 @@ export class PoeCnAuthService {
     })
     await this.session.clearCache()
     return this.getStatus()
+  }
+
+  async expire() {
+    return this.logout()
   }
 }

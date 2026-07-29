@@ -37,17 +37,17 @@ test('应用级初始化恢复配方账号、元数据和运行时', async () =>
   setActivePinia(createPinia())
 
   const original = {
-    restoreAuth: electronApi.chaosRecipe.restoreAuth,
-    listLeagues: electronApi.chaosRecipe.listLeagues,
+    restore: electronApi.poeCnAccount.restore,
+    listLeagues: electronApi.poeCnAccount.listLeagues,
     listTabs: electronApi.chaosRecipe.listTabs,
     updateRuntime: electronApi.chaosRecipe.updateRuntime
   }
   const calls = []
-  electronApi.chaosRecipe.restoreAuth = async () => ({
+  electronApi.poeCnAccount.restore = async () => ({
     success: true,
     data: { authenticated: true, accountName: '测试账号' }
   })
-  electronApi.chaosRecipe.listLeagues = async () => ({
+  electronApi.poeCnAccount.listLeagues = async () => ({
     success: true,
     data: [{ id: 'S29', name: 'S29' }]
   })
@@ -68,7 +68,10 @@ test('应用级初始化恢复配方账号、元数据和运行时', async () =>
     assert.equal(store.supportedTabs.length, 1)
     assert.ok(calls.length >= 1)
   } finally {
-    Object.assign(electronApi.chaosRecipe, original)
+    electronApi.poeCnAccount.restore = original.restore
+    electronApi.poeCnAccount.listLeagues = original.listLeagues
+    electronApi.chaosRecipe.listTabs = original.listTabs
+    electronApi.chaosRecipe.updateRuntime = original.updateRuntime
   }
 })
 
@@ -103,7 +106,8 @@ test('商城配方页不再重复恢复账号', () => {
 
   assert.doesNotMatch(panel, /onMounted|store\.restoreAuth/)
   assert.match(app, /chaosStore\.initializeRuntime\(\)/)
-  assert.match(store, /async function initializeRuntime\(\)[\s\S]*await restoreAuth\(\)[\s\S]*await syncRuntime\(\)/)
+  assert.match(store, /async function initializeRuntime\(\)[\s\S]*await accountStore\.restore\(\)[\s\S]*await syncRuntime\(\)/)
+  assert.doesNotMatch(store, /async function (?:openWebLogin|completeWebLogin|loginWithToken|logout)/)
 })
 
 test('浮窗等待路由识别完成后再挂载，避免误执行主窗口初始化', () => {

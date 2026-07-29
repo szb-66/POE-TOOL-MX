@@ -195,3 +195,19 @@ test('账号变化时不复用上一账号的仓库缓存', async () => {
   assert.equal(tabs[0].name, '新账号')
   assert.equal(calls, 2)
 })
+
+test('共享认证登出会同步清除各功能缓存', async () => {
+  const session = fakeSession(async () => jsonResponse({ profile: { name: '测试账号' } }))
+  const auth = new PoeCnAuthService({ session, BrowserWindow: class {} })
+  let clears = 0
+  const unregister = auth.registerCacheClearer(() => { clears += 1 })
+  auth.registerCacheClearer(() => { clears += 10 })
+
+  await auth.validate()
+  await auth.logout()
+  assert.equal(clears, 11)
+
+  unregister()
+  await auth.logout()
+  assert.equal(clears, 21)
+})

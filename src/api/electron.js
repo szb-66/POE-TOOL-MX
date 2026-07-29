@@ -99,14 +99,18 @@ const mockApi = {
     moveOverlay: () => {},
     updateInterfaceConfig: () => Promise.resolve({ success: true }),
   },
-  chaosRecipe: {
-    getAuthStatus: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
-    restoreAuth: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
+  poeCnAccount: {
+    getStatus: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
+    restore: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
     openWebLogin: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持网页登录' } }),
     completeWebLogin: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持网页登录' } }),
     setSessionToken: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持会话认证' } }),
-    logout: () => Promise.resolve({ success: true, data: { authenticated: false } }),
+    logout: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
     listLeagues: () => Promise.resolve({ success: true, data: [] }),
+    setLeague: (league) => Promise.resolve({ success: true, data: { league: String(league || '') } }),
+    onStatusChanged: () => () => {}
+  },
+  chaosRecipe: {
     listTabs: () => Promise.resolve({ success: true, data: [] }),
     refresh: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持仓库读取' } }),
     getSnapshot: () => Promise.resolve({ success: false, error: { message: '暂无仓库快照' } }),
@@ -132,6 +136,17 @@ const mockApi = {
     onControlState: () => () => {},
     onControlOffset: () => () => {},
     onSnapshotUpdated: () => () => {}
+  },
+  priceCheck: {
+    getStatus: () => Promise.resolve({ success: true, data: { auth: { authenticated: false }, catalog: null } }),
+    updateRuntime: (runtime) => Promise.resolve({ success: true, data: { enabled: Boolean(runtime?.enabled) } }),
+    capture: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    rerun: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    loadMore: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    getOverlayState: () => Promise.resolve({ success: true, data: null }),
+    closeOverlay: () => Promise.resolve({ success: true }),
+    openOfficial: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    onOverlayState: () => () => {}
   },
   combat: {
     startPotion: () => Promise.reject(new Error('非 Electron 环境')),
@@ -296,14 +311,18 @@ export const electronApi = isElectron ? {
     moveOverlay: (drag) => window.electronAPI.moveBagStashOverlay?.(craftingIpcPayload(drag)),
     updateInterfaceConfig: (config) => window.electronAPI.updateBagInterfaceConfig?.(craftingIpcPayload(config)),
   },
+  poeCnAccount: {
+    getStatus: () => window.electronAPI.getPoeCnAccountStatus?.(),
+    restore: () => window.electronAPI.restorePoeCnAccount?.(),
+    openWebLogin: () => window.electronAPI.openPoeCnAccountWebLogin?.(),
+    completeWebLogin: () => window.electronAPI.completePoeCnAccountWebLogin?.(),
+    setSessionToken: (token) => window.electronAPI.setPoeCnAccountSessionToken?.(String(token || '')),
+    logout: () => window.electronAPI.logoutPoeCnAccount?.(),
+    listLeagues: () => window.electronAPI.listPoeCnAccountLeagues?.(),
+    setLeague: (league) => window.electronAPI.setPoeCnAccountLeague?.(String(league || '')),
+    onStatusChanged: (callback) => window.electronAPI.onPoeCnAccountStatusChanged?.(callback) || (() => {})
+  },
   chaosRecipe: {
-    getAuthStatus: () => window.electronAPI.getChaosRecipeAuthStatus?.(),
-    restoreAuth: () => window.electronAPI.restoreChaosRecipeAuth?.(),
-    openWebLogin: () => window.electronAPI.openChaosRecipeWebLogin?.(),
-    completeWebLogin: () => window.electronAPI.completeChaosRecipeWebLogin?.(),
-    setSessionToken: (token) => window.electronAPI.setChaosRecipeSessionToken?.(String(token || '')),
-    logout: () => window.electronAPI.logoutChaosRecipe?.(),
-    listLeagues: () => window.electronAPI.listChaosRecipeLeagues?.(),
     listTabs: (league) => window.electronAPI.listChaosRecipeTabs?.(String(league || '')),
     refresh: (request) => window.electronAPI.refreshChaosRecipe?.(craftingIpcPayload(request)),
     getSnapshot: () => window.electronAPI.getChaosRecipeSnapshot?.(),
@@ -332,6 +351,17 @@ export const electronApi = isElectron ? {
     onControlState: (callback) => window.electronAPI.onChaosRecipeControlState?.(callback) || (() => {}),
     onControlOffset: (callback) => window.electronAPI.onChaosRecipeControlOffset?.(callback) || (() => {}),
     onSnapshotUpdated: (callback) => window.electronAPI.onChaosRecipeSnapshotUpdated?.(callback) || (() => {})
+  },
+  priceCheck: {
+    getStatus: () => window.electronAPI.getPriceCheckStatus?.(),
+    updateRuntime: (runtime) => window.electronAPI.updatePriceCheckRuntime?.(craftingIpcPayload(runtime)),
+    capture: (request) => window.electronAPI.capturePriceCheckItem?.(craftingIpcPayload(request)),
+    rerun: (request) => window.electronAPI.rerunPriceCheck?.(craftingIpcPayload(request)),
+    loadMore: () => window.electronAPI.loadMorePriceCheck?.(),
+    getOverlayState: () => window.electronAPI.getPriceCheckOverlayState?.(),
+    closeOverlay: () => window.electronAPI.closePriceCheckOverlay?.(),
+    openOfficial: () => window.electronAPI.openPriceCheckOfficial?.(),
+    onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {})
   },
 
   combat: {

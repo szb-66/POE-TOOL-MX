@@ -28,10 +28,10 @@ The system SHALL configure every global shortcut through a focused keyboard-capt
 - **THEN** captured keyboard events do not trigger page actions or other shortcut handlers
 
 ### Requirement: Validate the complete global shortcut set
-The system SHALL validate shortcuts after normalization across every feature and SHALL reject duplicates, unsupported accelerators, F12, and Ctrl+Shift+I.
+The system SHALL validate shortcuts after normalization across every feature, including price check, and SHALL reject duplicates, unsupported accelerators, F12, and Ctrl+Shift+I.
 
 #### Scenario: Detect a cross-feature conflict
-- **WHEN** a proposed shortcut matches another configured shortcut regardless of case or display alias
+- **WHEN** a proposed price-check shortcut matches another configured shortcut regardless of case or display alias
 - **THEN** the system rejects the proposal and preserves the previous value
 
 #### Scenario: Accept supported navigation keys
@@ -43,7 +43,7 @@ The system SHALL register the complete shortcut collection at application scope 
 
 #### Scenario: Register shortcuts on startup
 - **WHEN** the application main renderer is ready
-- **THEN** item, map, stop, combat, portal, story, and chaos-recipe start/pause/stop shortcuts are registered without requiring their pages to be opened
+- **THEN** item, map, stop, combat, portal, story, chaos-recipe and price-check shortcuts are registered without requiring their pages to be opened
 
 #### Scenario: Update one shortcut
 - **WHEN** the user successfully changes one shortcut
@@ -82,3 +82,21 @@ The system SHALL use capture controls for single game action keys and an ordered
 #### Scenario: 紧急停止
 - **WHEN** 用户触发混沌配方停止快捷键
 - **THEN** 系统终止取件子进程并释放输入状态
+
+### Requirement: 国服查价快捷键
+系统 SHALL 为查价提供一个默认 `Ctrl+D` 且可配置的不冲突全局快捷键。
+
+#### Scenario: 触发查价
+- **WHEN** 用户在游戏中触发查价快捷键
+- **THEN** 系统读取当前物品剪贴板并打开或更新查价覆盖层
+
+### Requirement: 查价快捷键受模块开关控制
+系统 MUST 只在查价模块启用时注册其快捷键，并 SHALL 保持全局快捷键更新的事务回滚语义。
+
+#### Scenario: 关闭查价
+- **WHEN** 用户关闭查价模块
+- **THEN** 系统重新注册除查价外的快捷键并保证 `Ctrl+D` 不触发任何查价动作
+
+#### Scenario: 修改查价快捷键
+- **WHEN** 查价模块关闭且用户修改查价快捷键
+- **THEN** 系统保存新组合但不注册，直到模块再次开启

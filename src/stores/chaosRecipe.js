@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { normalizeOperationDelay } from '../utils/operationDelay.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
+import { usePoeCnAccountStore } from './poeCnAccount.js'
 import {
   CHAOS_GRID_LAYOUT_LABELS,
   missingCalibrationKeys,
@@ -17,7 +18,6 @@ const STORAGE_KEY = 'chaosRecipeSettings'
 
 const defaultSettings = () => ({
   enabled: false,
-  league: '',
   selectedTabIds: [],
   includeIdentified: false,
   activeRecipeId: 'chaos',
@@ -66,7 +66,6 @@ export function normalizeChaosRecipeSettings(raw = {}) {
     : 'chaos'
   return {
     enabled: Boolean(raw.enabled),
-    league: String(raw.league || ''),
     selectedTabIds: Array.isArray(raw.selectedTabIds) ? raw.selectedTabIds.map(String) : [],
     includeIdentified: Boolean(raw.includeIdentified),
     activeRecipeId,
@@ -106,9 +105,8 @@ function unwrap(response) {
 
 export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const interfaceDetectionStore = useInterfaceDetectionStore()
+  const accountStore = usePoeCnAccountStore()
   const initial = loadSettings()
-  const auth = ref({ authenticated: false, mode: null, accountName: '' })
-  const leagues = ref([])
   const tabs = ref([])
   const snapshot = ref(null)
   const singleSelections = ref(Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [id, []])))
@@ -116,9 +114,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const settings = ref(initial)
   const busy = ref(false)
   const error = ref(null)
+  const auth = computed(() => accountStore.status)
+  const leagues = computed(() => accountStore.leagues)
+  const league = computed(() => accountStore.settings.league)
 
   const effectiveTabs = computed(() => {
-    const folderStates = settings.value.tabFolderStates[settings.value.league] || {}
+    const folderStates = settings.value.tabFolderStates[league.value] || {}
     return tabs.value.map((tab) => {
       return {
         ...tab,
@@ -147,6 +148,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function runtimePayload(overrides = {}) {
     return {
       ...JSON.parse(JSON.stringify(settings.value)),
+      league: league.value,
       selectedItemIds: [...activeSelectedItemIds.value],
       ...interfaceDetectionStore.runtime(),
       ...overrides
@@ -192,7 +194,8 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   async function initializeRuntime() {
     try {
-      await restoreAuth()
+      await accountStore.restore()
+      if (accountStore.status.authenticated && league.value) await loadTabs()
       await syncRuntime()
     } catch (error) {
       if (settings.value.enabled) {
@@ -213,66 +216,13 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     try { return await action() } catch (reason) { setError(reason); throw reason } finally { busy.value = false }
   }
 
-  async function restoreAuth() {
-    auth.value = unwrap(await electronApi.chaosRecipe.restoreAuth())
-    if (auth.value.authenticated) {
-      await loadLeagues()
-      if (settings.value.league) await loadTabs(settings.value.league)
-    }
-    return auth.value
-  }
-
-  async function openWebLogin() {
-    return run(async () => unwrap(await electronApi.chaosRecipe.openWebLogin()))
-  }
-
-  async function completeWebLogin() {
-    return run(async () => {
-      auth.value = unwrap(await electronApi.chaosRecipe.completeWebLogin())
-      await loadLeagues()
-      return auth.value
-    })
-  }
-
-  async function loginWithToken(token) {
-    return run(async () => {
-      auth.value = unwrap(await electronApi.chaosRecipe.setSessionToken(token))
-      await loadLeagues()
-      return auth.value
-    })
-  }
-
-  async function logout() {
-    return run(async () => {
-      auth.value = unwrap(await electronApi.chaosRecipe.logout())
-      leagues.value = []
-      tabs.value = []
-      snapshot.value = null
-      resetSingleSelections(null)
-    })
-  }
-
-  async function loadLeagues() {
-    leagues.value = unwrap(await electronApi.chaosRecipe.listLeagues())
-    if (settings.value.league && !leagues.value.some((league) => league.id === settings.value.league)) {
-      settings.value.league = ''
-      settings.value.selectedTabIds = []
-      save()
-      if (settings.value.enabled) await syncRuntime()
-    }
-    return leagues.value
-  }
-
-  async function loadTabs(league = settings.value.league) {
-    const nextLeague = String(league || '')
-    if (settings.value.league !== nextLeague) settings.value.selectedTabIds = []
-    settings.value.league = nextLeague
-    save()
-    if (!settings.value.league) {
+  async function loadTabs(nextLeague = league.value) {
+    if (String(nextLeague || '') !== league.value) await accountStore.setLeague(nextLeague)
+    if (!league.value) {
       tabs.value = []
       return []
     }
-    tabs.value = unwrap(await electronApi.chaosRecipe.listTabs(settings.value.league))
+    tabs.value = unwrap(await electronApi.chaosRecipe.listTabs(league.value))
     const available = new Set(tabs.value.filter((tab) => tab.supported).map((tab) => String(tab.id)))
     settings.value.selectedTabIds = settings.value.selectedTabIds.filter((id) => available.has(String(id)))
     save()
@@ -283,10 +233,10 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   async function refresh() {
     return run(async () => {
       snapshot.value = unwrap(await electronApi.chaosRecipe.refresh({
-        league: settings.value.league,
+        league: league.value,
         selectedTabIds: settings.value.selectedTabIds,
         includeIdentified: settings.value.includeIdentified,
-        tabFolderStates: settings.value.tabFolderStates[settings.value.league] || {}
+        tabFolderStates: settings.value.tabFolderStates[league.value] || {}
       }))
       resetSingleSelections(snapshot.value)
       if (Array.isArray(snapshot.value.availableTabs)) {
@@ -375,12 +325,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   function updateTabFolderState(tabId, inFolder) {
-    const league = settings.value.league
-    if (!league || !tabId) return
-    const leagueStates = settings.value.tabFolderStates[league] || {}
+    const activeLeague = league.value
+    if (!activeLeague || !tabId) return
+    const leagueStates = settings.value.tabFolderStates[activeLeague] || {}
     settings.value.tabFolderStates = {
       ...settings.value.tabFolderStates,
-      [league]: {
+      [activeLeague]: {
         ...leagueStates,
         [tabId]: Boolean(inFolder)
       }
@@ -396,7 +346,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function listenAutomation() {
     const disposeAutomation = electronApi.chaosRecipe.onAutomationEvent((event) => {
       automation.value = { ...automation.value, ...event }
-      if (event.event === 'completed' && settings.value.league && settings.value.selectedTabIds.length) {
+      if (event.event === 'completed' && league.value && settings.value.selectedTabIds.length) {
         setTimeout(() => { void refresh().catch(() => {}) }, 1500)
       }
     })
@@ -419,12 +369,28 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     }
   }
 
+  accountStore.onLeagueChanged(async () => {
+    if (settings.value.enabled) await setEnabled(false)
+    settings.value.selectedTabIds = []
+    tabs.value = []
+    snapshot.value = null
+    resetSingleSelections(null)
+    save()
+    if (accountStore.status.authenticated && league.value) await loadTabs()
+  })
+  accountStore.onStatusChanged(async (nextStatus) => {
+    if (nextStatus.authenticated) return
+    if (settings.value.enabled) await setEnabled(false)
+    tabs.value = []
+    snapshot.value = null
+    resetSingleSelections(null)
+  })
+
   return {
-    auth, leagues, tabs, supportedTabs, selectedTabs, requiredCalibrations, missingCalibrations,
+    auth, leagues, league, tabs, supportedTabs, selectedTabs, requiredCalibrations, missingCalibrations,
     missingCalibrationLabels, snapshot, activeRecipe, activeSelectedItemIds,
     singleSelections, automation, settings, busy, error,
-    save, setError, restoreAuth, openWebLogin, completeWebLogin, loginWithToken, logout,
-    loadLeagues, loadTabs, refresh, calibrate, previewOverlay,
+    save, setError, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,
     updateSetting, setActiveRecipe, setSelectedItemIds, updateTabFolderState,
     listenAutomation, setEnabled, syncRuntime, initializeRuntime

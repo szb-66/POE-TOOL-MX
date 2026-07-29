@@ -23,12 +23,16 @@ import { electronApi } from './api/electron'
 import { initCombatAssist } from './utils/combatService'
 import { disposeBagAutomation, initBagAutomation } from './utils/bagService'
 import { useChaosRecipeStore } from './stores/chaosRecipe'
+import { usePriceCheckStore } from './stores/priceCheck'
+import { usePoeCnAccountStore } from './stores/poeCnAccount'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
 let initShortcutsHandler = null
 let removeDevToolsListener = null
 let removeChaosAutomationListener = null
+let removePriceCheckListener = null
+let removeAccountListener = null
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -38,9 +42,14 @@ onMounted(() => {
     initShortcuts()
     initCombatAssist()
     initBagAutomation()
+    const accountStore = usePoeCnAccountStore()
+    removeAccountListener = accountStore.listenStatus()
     const chaosStore = useChaosRecipeStore()
     removeChaosAutomationListener = chaosStore.listenAutomation()
     void chaosStore.initializeRuntime()
+    const priceCheckStore = usePriceCheckStore()
+    removePriceCheckListener = priceCheckStore.listenOverlay()
+    void priceCheckStore.syncRuntime().catch(() => priceCheckStore.refreshStatus())
   }
 
   removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
@@ -52,6 +61,8 @@ onMounted(() => {
 onUnmounted(() => {
   removeDevToolsListener?.()
   removeChaosAutomationListener?.()
+  removePriceCheckListener?.()
+  removeAccountListener?.()
   disposeBagAutomation()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {

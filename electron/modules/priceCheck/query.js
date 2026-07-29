@@ -1,0 +1,228 @@
+import { matchCatalogStat } from './catalog.js'
+import { createAwakenedTradeRequest } from './awakenedTrade.js'
+
+const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
+
+const safeText = (value, max = 180) => String(value || '').trim().slice(0, max)
+
+function numericMinimum(values, range = 'down20') {
+  if (!values?.length) return undefined
+  if (range === 'unlimited') return undefined
+  const factor = range === 'original' ? 1 : range === 'down10' ? 0.9 : 0.8
+  return Math.floor(Math.min(...values) * factor * 100) / 100
+}
+
+function tradeStatType(type) {
+  if (type === 'prefix' || type === 'suffix' || type === 'unique') return 'explicit'
+  if (type === 'base') return 'implicit'
+  return type
+}
+
+const PROPERTY_DEFINITIONS = Object.freeze([
+  ['totalDps', '总 DPS', 'weapon.dps'],
+  ['physicalDps', '物理 DPS', 'weapon.pdps'],
+  ['elementalDps', '元素 DPS', 'weapon.edps'],
+  ['criticalStrikeChance', '暴击率', 'weapon.crit'],
+  ['attacksPerSecond', '攻击速度', 'weapon.aps'],
+  ['armour', '护甲', 'armour.armour'],
+  ['evasion', '闪避', 'armour.evasion'],
+  ['energyShield', '能量护盾', 'armour.energyShield'],
+  ['ward', '结界', 'armour.ward'],
+  ['block', '格挡', 'armour.block'],
+  ['level', '物品等级', 'misc.itemLevel'],
+  ['quality', '品质', 'misc.quality'],
+  ['links', '连接数', 'socket.links'],
+  ['gemLevel', '宝石等级', 'misc.gemLevel'],
+  ['mapTier', '地图阶级', 'map.tier']
+])
+const PROPERTY_IDS = new Set(PROPERTY_DEFINITIONS.map(([, , id]) => id))
+const OPTION_VALUES = Object.freeze({
+  status: new Set(['available', 'instant', 'any']),
+  listed: new Set(['any', '1day', '3days', '1week', '2weeks', '1month', '2months']),
+  currency: new Set(['any', 'chaos', 'divine', 'chaos_divine']),
+  valueRange: new Set(['original', 'down10', 'down20', 'unlimited']),
+  initialSelection: new Set(['auto', 'all', 'none'])
+})
+const safeNumber = (value) => {
+  const number = Number(value)
+  return Number.isFinite(number) ? Math.max(-1_000_000_000, Math.min(1_000_000_000, number)) : undefined
+}
+
+export function sanitizePriceCheckOptions(value = {}) {
+  return {
+    status: OPTION_VALUES.status.has(value.status) ? value.status : 'available',
+    listed: OPTION_VALUES.listed.has(value.listed) ? value.listed : 'any',
+    currency: OPTION_VALUES.currency.has(value.currency) ? value.currency : 'any',
+    collapseListings: value.collapseListings === true,
+    valueRange: OPTION_VALUES.valueRange.has(value.valueRange) ? value.valueRange : 'down20',
+    initialSelection: OPTION_VALUES.initialSelection.has(value.initialSelection) ? value.initialSelection : 'auto'
+  }
+}
+
+export function createPriceCheckModel(item, catalog, options = {}) {
+  if (!item?.rarity || (!item.name && !item.baseName)) throw new Error('剪贴板中没有可识别的国服物品')
+  const rarity = item.rarity.replace(/\s/g, '')
+  const fixedIdentity = rarity === '传奇' ? item.name : ''
+  const baseType = item.baseName || item.name
+  const stats = []
+  const unknownStats = []
+  const modifiers = [...(item.modifiers || [])]
+  const detailedLines = new Set(modifiers.flatMap((modifier) => modifier.lines || [modifier.text]).filter(Boolean))
+  const addStandalone = (values, type) => {
+    for (const text of values || []) {
+      if (text && !detailedLines.has(text)) modifiers.push({ type, text })
+    }
+  }
+  addStandalone(item.implicitMods, 'implicit')
+  addStandalone(item.explicitMods, 'explicit')
+  addStandalone(item.craftedMods, 'crafted')
+  for (const modifier of modifiers) {
+    const type = tradeStatType(modifier.type)
+    const text = modifier.text || modifier.lines?.join('\n') || ''
+    const match = matchCatalogStat(catalog, text, type)
+    if (!match) {
+      if (text) unknownStats.push({
+        text,
+        type,
+        tier: Number(modifier.tier) || null,
+        tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
+        reason: '当前交易目录无法唯一映射'
+      })
+      continue
+    }
+    stats.push({
+      key: `${match.id}:${stats.length}`,
+      id: match.id,
+      label: modifier.name || match.label || text,
+      text,
+      type,
+      tier: Number(modifier.tier) || null,
+      tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
+      values: match.values,
+      enabled: options.initialSelection === 'all' || (
+        (options.initialSelection || 'auto') === 'auto' &&
+        ['prefix', 'suffix', 'fractured'].includes(modifier.type) &&
+        Number(modifier.tier) > 0 &&
+        Number(modifier.tier) <= 2
+      ),
+      min: numericMinimum(match.values, options.valueRange),
+      max: undefined
+    })
+  }
+  const properties = PROPERTY_DEFINITIONS.map(([field, label, id]) => {
+    const value = Number(item[field]) || 0
+    return value > 0
+      ? { id, label, value, enabled: false, min: numericMinimum([value], options.valueRange), max: undefined }
+      : null
+  }).filter(Boolean)
+  return {
+    item: {
+      category: safeText(item.category),
+      rarity,
+      name: safeText(item.name),
+      baseType: safeText(baseType),
+      itemLevel: Number(item.level) || 0,
+      gemLevel: Number(item.gemLevel) || 0,
+      quality: Number(item.quality) || 0,
+      links: Number(item.links) || 0,
+      mapTier: Number(item.mapTier) || 0,
+      corrupted: Boolean(item.isCorrupted),
+      unidentified: Boolean(item.isUnidentified),
+      mirrored: Boolean(item.isMirrored),
+      split: Boolean(item.isSplit),
+      fractured: Boolean(item.isFractured)
+    },
+    identity: { name: fixedIdentity, type: baseType },
+    flags: {
+      corrupted: Boolean(item.isCorrupted),
+      unidentified: Boolean(item.isUnidentified),
+      mirrored: Boolean(item.isMirrored),
+      split: Boolean(item.isSplit),
+      fractured: Boolean(item.isFractured)
+    },
+    properties,
+    stats,
+    unknownStats
+  }
+}
+
+export function buildOfficialTradeQuery(model, options = {}) {
+  if (!model?.item || !model?.identity) throw new Error('查价模型无效')
+  const category = safeText(model.item.category)
+  const isGem = category.includes('宝石')
+  const isFlask = category.includes('药剂') || category.includes('酊剂')
+  const filters = {
+    trade: {
+      offline: options.status === 'any',
+      merchantOnly: options.status === 'instant',
+      currency: options.currency && options.currency !== 'any' ? safeText(options.currency, 24) : undefined,
+      listed: options.listed && options.listed !== 'any' ? safeText(options.listed, 24) : undefined,
+      collapse: options.collapseListings === true
+    },
+    name: model.identity.name ? safeText(model.identity.name) : undefined,
+    baseType: model.identity.type ? safeText(model.identity.type) : undefined,
+    rarity: NON_UNIQUE_RARITIES.has(model.item.rarity) ? 'nonunique' : undefined,
+    corrupted: model.item.corrupted ? true : false,
+    unidentified: model.item.unidentified,
+    mirrored: model.item.mirrored,
+    split: model.item.split,
+    fractured: model.item.fractured,
+    gemLevel: isGem && model.item.gemLevel >= 20 ? model.item.gemLevel : undefined,
+    quality: (
+      (isGem && model.item.quality >= 16) ||
+      (isFlask && model.item.quality > 20) ||
+      (options.exact && model.item.quality > 20)
+    ) ? model.item.quality : undefined,
+    itemLevel: options.exact && model.item.itemLevel > 0 && !model.identity.name
+      ? Math.min(model.item.itemLevel, 86)
+      : undefined,
+    linkedSockets: model.item.links > 0 ? model.item.links : undefined,
+    mapTier: model.item.mapTier > 0 ? model.item.mapTier : undefined
+  }
+  for (const property of model.properties || []) {
+    if (!property.enabled || !PROPERTY_IDS.has(property.id)) continue
+    const [group, field] = property.id.split('.')
+    filters[group] ||= {}
+    filters[group][field] = {
+      min: Number.isFinite(Number(property.min)) ? Number(property.min) : undefined,
+      max: Number.isFinite(Number(property.max)) ? Number(property.max) : undefined
+    }
+  }
+  return createAwakenedTradeRequest(filters, model.stats || [])
+}
+
+export function sanitizePriceCheckModel(value) {
+  if (!value || typeof value !== 'object') throw new Error('查价请求无效')
+  const stats = Array.isArray(value.stats) ? value.stats.slice(0, 24).map((stat) => ({
+    key: safeText(stat.key, 120),
+    id: safeText(stat.id, 80),
+    label: safeText(stat.label),
+    text: safeText(stat.text, 500),
+    type: safeText(stat.type, 24),
+    tier: Number.isInteger(Number(stat.tier)) && Number(stat.tier) > 0 ? Number(stat.tier) : null,
+    tags: Array.isArray(stat.tags) ? stat.tags.slice(0, 12).map((tag) => safeText(tag, 40)).filter(Boolean) : [],
+    enabled: Boolean(stat.enabled),
+    min: safeNumber(stat.min),
+    max: safeNumber(stat.max)
+  })).filter((stat) => /^(explicit|implicit|fractured|crafted|enchant|pseudo)\./.test(stat.id)) : []
+  const properties = Array.isArray(value.properties) ? value.properties.slice(0, 24).map((property) => ({
+    id: safeText(property.id, 48),
+    label: safeText(property.label, 80),
+    value: safeNumber(property.value) || 0,
+    enabled: Boolean(property.enabled),
+    min: safeNumber(property.min),
+    max: safeNumber(property.max)
+  })).filter((property) => PROPERTY_IDS.has(property.id)) : []
+  const flags = Object.fromEntries(
+    ['corrupted', 'unidentified', 'mirrored', 'split', 'fractured']
+      .map((key) => [key, Boolean(value.flags?.[key] ?? value.item?.[key])])
+  )
+  return {
+    item: { ...(value.item || {}), ...flags },
+    identity: { name: safeText(value.identity?.name), type: safeText(value.identity?.type) },
+    flags,
+    properties,
+    stats,
+    unknownStats: []
+  }
+}

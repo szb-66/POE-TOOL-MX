@@ -10,6 +10,8 @@ import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCraftingStore } from '@/domains/crafting/craftingStore'
+import { usePriceCheckStore } from '@/stores/priceCheck'
+import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist } from '@/utils/combatConfig'
@@ -26,17 +28,14 @@ import {
   evaluateCraftingStatus,
   evaluateItemsStatus,
   evaluateMapStatus,
+  evaluatePriceCheckStatus,
   evaluateShopStatus,
   evaluateStoryStatus,
+  ITEM_CRAFTING_MODE_OPTIONS,
+  MAP_ROLLING_METHOD_OPTIONS,
+  RECOVERY_MODE_OPTIONS,
   summarizeModules
 } from './dashboardStatus'
-
-function itemModes(preset) {
-  const modes = []
-  if (preset?.moduleTwo?.enabled) modes.push('词缀')
-  if (preset?.moduleThree?.enabled) modes.push('插槽')
-  return modes
-}
 
 export function useDashboard() {
   const router = useRouter()
@@ -48,6 +47,8 @@ export function useDashboard() {
   const chaosRecipeStore = useChaosRecipeStore()
   const storyStore = useStoryStore()
   const craftingStore = useCraftingStore()
+  const priceCheckStore = usePriceCheckStore()
+  const accountStore = usePoeCnAccountStore()
   const pending = reactive({})
   const refreshing = ref(false)
   const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境' })
@@ -84,9 +85,7 @@ export function useDashboard() {
         scriptRunning: scriptStore.isRunning,
         scriptMode: scriptStore.mode,
         lastError: scriptStore.lastError,
-        lastMode: scriptStore.lastMode,
-        presetName: presetStore.currentItemPreset?.name,
-        enabledModes: itemModes(presetStore.currentItemPreset)
+        lastMode: scriptStore.lastMode
       }),
       evaluateBagStatus({
         configError: bagValidationError.value,
@@ -103,9 +102,7 @@ export function useDashboard() {
         scriptRunning: scriptStore.isRunning,
         scriptMode: scriptStore.mode,
         lastError: scriptStore.lastError,
-        lastMode: scriptStore.lastMode,
-        presetName: presetStore.currentMapPreset?.name,
-        method: presetStore.currentMapPreset?.map?.method
+        lastMode: scriptStore.lastMode
       }),
       evaluateCombatStatus({
         validation: combatValidation.value,
@@ -124,7 +121,7 @@ export function useDashboard() {
       }),
       evaluateShopStatus({
         authenticated: chaosRecipeStore.auth.authenticated,
-        league: chaosRecipeStore.settings.league,
+        league: chaosRecipeStore.league,
         selectedTabCount: chaosRecipeStore.settings.selectedTabIds.length,
         snapshot: chaosRecipeStore.snapshot,
         enabled: chaosRecipeStore.settings.enabled,
@@ -138,6 +135,15 @@ export function useDashboard() {
         candidateCount: activeRecipe?.candidateCount,
         rewardTotal: activeRecipe?.rewardTotal
       }),
+      evaluatePriceCheckStatus({
+        enabled: priceCheckStore.settings.enabled,
+        authenticated: accountStore.status.authenticated,
+        accountName: accountStore.status.accountName,
+        league: accountStore.settings.league,
+        catalog: priceCheckStore.catalog,
+        latest: priceCheckStore.status?.latest,
+        error: priceCheckStore.error
+      }),
       evaluateCraftingStatus({
         status: craftingStatus.value,
         updateError: craftingStatusError.value || craftingStore.updateError,
@@ -148,18 +154,7 @@ export function useDashboard() {
     return values.map(module => ({
       ...module,
       pending: Boolean(pending[module.id]),
-      selector: module.id === 'shop'
-        ? {
-            label: '自动取件配方',
-            value: activeRecipeId,
-            disabled: chaosRecipeStore.busy || Boolean(pending.shop),
-            options: VENDOR_RECIPE_IDS.map(id => ({
-              value: id,
-              label: VENDOR_RECIPE_CATALOG[id].label
-            })),
-            run: value => chaosRecipeStore.setActiveRecipe(value)
-          }
-        : null,
+      controls: controlsFor(module, activeRecipeId),
       actions: actionsFor(module)
     }))
   })
@@ -189,6 +184,133 @@ export function useDashboard() {
 
   function sharedScriptOccupied(moduleId) {
     return scriptStore.isRunning && scriptStore.mode !== moduleId
+  }
+
+  function selectOptions(presets) {
+    return presets.map(preset => ({ value: preset.id, label: preset.name }))
+  }
+
+  function updateCombatResource(resourceKey, field, value) {
+    const combatAssist = settingsStore.combatAssist
+    settingsStore.updateCombatAssist({
+      ...combatAssist,
+      potion: {
+        ...combatAssist.potion,
+        [resourceKey]: {
+          ...combatAssist.potion[resourceKey],
+          [field]: value
+        }
+      }
+    })
+  }
+
+  function controlsFor(module, activeRecipeId) {
+    const modulePending = Boolean(pending[module.id])
+    if (module.id === 'items') {
+      const disabled = modulePending || (scriptStore.isRunning && scriptStore.mode === 'items')
+      return [
+        {
+          id: 'item-preset',
+          type: 'select',
+          label: '物品预设',
+          value: presetStore.currentItemPresetId,
+          disabled,
+          options: selectOptions(presetStore.itemPresets),
+          run: value => presetStore.switchItemPreset(value)
+        },
+        {
+          id: 'item-mode',
+          type: 'select',
+          label: '制作方式',
+          value: presetStore.currentItemPreset?.moduleTwo?.mode || 'alteration',
+          disabled,
+          options: ITEM_CRAFTING_MODE_OPTIONS,
+          run: value => presetStore.updateCurrentItemPreset({
+            moduleTwo: { ...presetStore.currentItemPreset.moduleTwo, mode: value }
+          })
+        }
+      ]
+    }
+    if (module.id === 'map') {
+      const disabled = modulePending || (scriptStore.isRunning && scriptStore.mode === 'map')
+      return [
+        {
+          id: 'map-preset',
+          type: 'select',
+          label: '地图预设',
+          value: presetStore.currentMapPresetId,
+          disabled,
+          options: selectOptions(presetStore.mapPresets),
+          run: value => presetStore.switchMapPreset(value)
+        },
+        {
+          id: 'map-method',
+          type: 'select',
+          label: '洗图方式',
+          value: presetStore.currentMapPreset?.map?.method || 'alchemy',
+          disabled,
+          options: MAP_ROLLING_METHOD_OPTIONS,
+          run: value => presetStore.updateCurrentMapPreset({
+            map: { ...presetStore.currentMapPreset.map, method: value }
+          })
+        }
+      ]
+    }
+    if (module.id === 'combat') {
+      const disabled = modulePending || combatStore.running
+      const potion = settingsStore.combatAssist.potion
+      return [
+        {
+          id: 'health-mode',
+          type: 'select',
+          label: '生命回复',
+          value: potion.health.recoveryMode,
+          disabled,
+          options: RECOVERY_MODE_OPTIONS,
+          run: value => updateCombatResource('health', 'recoveryMode', value)
+        },
+        {
+          id: 'health-enabled',
+          type: 'switch',
+          label: '生命药剂',
+          value: potion.health.enabled,
+          disabled,
+          run: value => updateCombatResource('health', 'enabled', value)
+        },
+        {
+          id: 'mana-mode',
+          type: 'select',
+          label: '魔力回复',
+          value: potion.mana.recoveryMode,
+          disabled,
+          options: RECOVERY_MODE_OPTIONS,
+          run: value => updateCombatResource('mana', 'recoveryMode', value)
+        },
+        {
+          id: 'mana-enabled',
+          type: 'switch',
+          label: '魔力药剂',
+          value: potion.mana.enabled,
+          disabled,
+          run: value => updateCombatResource('mana', 'enabled', value)
+        }
+      ]
+    }
+    if (module.id === 'shop') {
+      return [{
+        id: 'active-recipe',
+        type: 'select',
+        label: '自动取件配方',
+        value: activeRecipeId,
+        disabled: chaosRecipeStore.busy || modulePending,
+        options: VENDOR_RECIPE_IDS.map(id => ({
+          value: id,
+          label: VENDOR_RECIPE_CATALOG[id].label
+        })),
+        run: value => chaosRecipeStore.setActiveRecipe(value)
+      }]
+    }
+    return []
   }
 
   function actionsFor(module) {
@@ -236,7 +358,7 @@ export function useDashboard() {
           type: 'default',
           disabled: chaosRecipeStore.busy ||
             !chaosRecipeStore.auth.authenticated ||
-            !chaosRecipeStore.settings.league ||
+            !chaosRecipeStore.league ||
             !chaosRecipeStore.settings.selectedTabIds.length,
           run: async () => {
             await chaosRecipeStore.refresh()
@@ -256,6 +378,19 @@ export function useDashboard() {
         }
       ]
     }
+    if (module.id === 'priceCheck') {
+      return [{
+        id: 'toggle',
+        label: priceCheckStore.settings.enabled ? '关闭查价' : '启用查价',
+        type: priceCheckStore.settings.enabled ? 'danger' : 'primary',
+        disabled: Boolean(pending.priceCheck),
+        run: async () => {
+          const enabled = !priceCheckStore.settings.enabled
+          await priceCheckStore.setEnabled(enabled)
+          ElMessage.success(enabled ? '国服查价器已启用' : '国服查价器已关闭')
+        }
+      }]
+    }
     return []
   }
 
@@ -271,11 +406,10 @@ export function useDashboard() {
     }
   }
 
-  async function selectModuleOption(module, value) {
-    const selector = module.selector
-    if (!selector || selector.disabled || pending[module.id]) return
+  async function changeModuleControl(module, control, value) {
+    if (!control || control.disabled || pending[module.id]) return
     try {
-      await selector.run(value)
+      await control.run(value)
     } catch (error) {
       ElMessage.error(error?.message || '切换失败')
     }
@@ -336,7 +470,7 @@ export function useDashboard() {
     refreshing,
     refresh,
     runAction,
-    selectModuleOption,
+    changeModuleControl,
     openModule,
     openSettings
   }

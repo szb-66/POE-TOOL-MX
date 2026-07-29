@@ -62,7 +62,7 @@
             :icon="moduleIcons[module.id]"
             @action="runAction"
             @open="openModule"
-            @select="selectModuleOption"
+            @control="changeModuleControl"
           />
         </div>
       </section>
@@ -76,6 +76,7 @@ import {
   Box,
   Briefcase,
   CircleCheck,
+  Coin,
   FirstAidKit,
   MapLocation,
   Monitor,
@@ -98,6 +99,7 @@ const moduleIcons = {
   combat: FirstAidKit,
   story: Notebook,
   shop: ShoppingBag,
+  priceCheck: Coin,
   crafting: Tools
 }
 const summaryItems = [
@@ -115,7 +117,7 @@ const {
   refreshing,
   refresh,
   runAction,
-  selectModuleOption,
+  changeModuleControl,
   openModule,
   openSettings
 } = useDashboard()
@@ -210,8 +212,11 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .section-title > div { gap: 9px; }
 .section-title h2 { margin: 0; font-size: 17px; }
 .section-title span, .section-title small { color: var(--text-secondary); font-size: 12px; }
-.module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 
+@media (max-width: 1100px) {
+  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 780px) {
   .dashboard-page { padding: 15px; }
   .page-heading { align-items: flex-start; }

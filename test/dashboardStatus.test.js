@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { createPinia, setActivePinia } from 'pinia'
+import { usePresetStore } from '../src/stores/preset.js'
 import {
   createModuleStatus,
   evaluateBagStatus,
@@ -8,8 +10,12 @@ import {
   evaluateCraftingStatus,
   evaluateItemsStatus,
   evaluateMapStatus,
+  evaluatePriceCheckStatus,
   evaluateShopStatus,
   evaluateStoryStatus,
+  ITEM_CRAFTING_MODE_OPTIONS,
+  MAP_ROLLING_METHOD_OPTIONS,
+  RECOVERY_MODE_OPTIONS,
   summarizeModules
 } from '../src/domains/dashboard/dashboardStatus.js'
 import {
@@ -35,20 +41,66 @@ test('物品和地图区分共享脚本归属并保留互斥占用说明', () =>
   const items = evaluateItemsStatus({
     validation,
     scriptRunning: true,
-    scriptMode: 'items',
-    presetName: '物品预设',
-    enabledModes: ['词缀']
+    scriptMode: 'items'
   })
   const map = evaluateMapStatus({
     validation,
     scriptRunning: true,
-    scriptMode: 'items',
-    presetName: '地图预设',
-    method: 'chaos'
+    scriptMode: 'items'
   })
   assert.equal(items.state, 'running')
   assert.equal(map.state, 'ready')
   assert.match(map.statusText, /物品模块占用/)
+})
+
+test('首页快捷配置使用真实制作方式和回复模式枚举', () => {
+  assert.deepEqual(ITEM_CRAFTING_MODE_OPTIONS, [
+    { value: 'alteration', label: '改造石模式' },
+    { value: 'chaos', label: '混沌石模式' },
+    { value: 'alchemy', label: '点金石模式' }
+  ])
+  assert.deepEqual(MAP_ROLLING_METHOD_OPTIONS, [
+    { value: 'alchemy', label: '点金石' },
+    { value: 'chaos', label: '混沌石' }
+  ])
+  assert.deepEqual(RECOVERY_MODE_OPTIONS, [
+    { value: 'duration', label: '持续回复' },
+    { value: 'instant', label: '立即回复' }
+  ])
+})
+
+test('首页切换物品和地图配置只修改当前预设并持久化', () => {
+  const values = new Map()
+  globalThis.localStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key)
+  }
+  setActivePinia(createPinia())
+  const store = usePresetStore()
+  const itemPreset = store.addItemPreset('点金装备')
+  const mapPreset = store.addMapPreset('混沌地图')
+
+  store.switchItemPreset(itemPreset.id)
+  store.updateCurrentItemPreset({
+    moduleTwo: { ...store.currentItemPreset.moduleTwo, mode: 'alchemy' }
+  })
+  store.switchMapPreset(mapPreset.id)
+  store.updateCurrentMapPreset({
+    map: { ...store.currentMapPreset.map, method: 'chaos' }
+  })
+
+  assert.equal(store.currentItemPreset.moduleTwo.mode, 'alchemy')
+  assert.equal(store.itemPresets.find(preset => preset.id === 'default').moduleTwo.mode, 'alteration')
+  assert.equal(store.currentMapPreset.map.method, 'chaos')
+  assert.equal(store.mapPresets.find(preset => preset.id === 'default').map.method, 'alchemy')
+
+  setActivePinia(createPinia())
+  const restored = usePresetStore()
+  assert.equal(restored.currentItemPresetId, itemPreset.id)
+  assert.equal(restored.currentItemPreset.moduleTwo.mode, 'alchemy')
+  assert.equal(restored.currentMapPresetId, mapPreset.id)
+  assert.equal(restored.currentMapPreset.map.method, 'chaos')
 })
 
 test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
@@ -127,21 +179,22 @@ test('商城配方状态覆盖配置、快照、运行和异常优先级', () =>
   }).statusText, '存在进行中的做装会话')
 })
 
-test('七模块汇总每张卡只计入一个类别', () => {
+test('八模块汇总每张卡只计入一个类别', () => {
   const modules = [
     createModuleStatus({ error: 'x' }),
     createModuleStatus({ running: true }),
     createModuleStatus({ issues: ['x'] }),
     createModuleStatus({}),
     createModuleStatus({}),
+    createModuleStatus({}),
     createModuleStatus({ running: true }),
     createModuleStatus({ issues: ['x'] })
   ]
-  assert.deepEqual(summarizeModules(modules), { error: 1, running: 2, attention: 2, ready: 2 })
+  assert.deepEqual(summarizeModules(modules), { error: 1, running: 2, attention: 2, ready: 3 })
 })
 
 test('首页按检测、制造、其他分组且每个模块只出现一次', () => {
-  const modules = ['items', 'bag', 'map', 'combat', 'story', 'shop', 'crafting']
+  const modules = ['items', 'bag', 'map', 'combat', 'story', 'shop', 'priceCheck', 'crafting']
     .map(id => ({ id }))
   const groups = groupDashboardModules(modules)
 
@@ -152,7 +205,7 @@ test('首页按检测、制造、其他分组且每个模块只出现一次', ()
   assert.deepEqual(
     groups.map(group => group.modules.map(module => module.id)),
     [
-      ['bag', 'combat', 'shop'],
+      ['bag', 'combat', 'shop', 'priceCheck'],
       ['map', 'items'],
       ['story', 'crafting']
     ]
@@ -184,7 +237,7 @@ test('首页路由、侧栏入口和脚本生命周期桥接已接入', () => {
   assert.match(ipc, /status: 'running'/)
 })
 
-test('首页商城卡片接入配方 store 且不再依赖商城正则', () => {
+test('首页通用快捷控件接入物品、地图、战斗与商城状态源', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
   const card = readFileSync(
     new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
@@ -196,7 +249,22 @@ test('首页商城卡片接入配方 store 且不再依赖商城正则', () => {
   assert.match(dashboard, /setActiveRecipe/)
   assert.match(dashboard, /chaosRecipeStore\.refresh/)
   assert.match(dashboard, /chaosRecipeStore\.setEnabled/)
+  assert.match(dashboard, /id: 'item-preset'/)
+  assert.match(dashboard, /id: 'item-mode'/)
+  assert.match(dashboard, /id: 'map-preset'/)
+  assert.match(dashboard, /id: 'map-method'/)
+  assert.match(dashboard, /id: 'health-mode'/)
+  assert.match(dashboard, /id: 'health-enabled'/)
+  assert.match(dashboard, /id: 'mana-mode'/)
+  assert.match(dashboard, /id: 'mana-enabled'/)
+  assert.match(dashboard, /settingsStore\.updateCombatAssist/)
+  assert.match(dashboard, /scriptStore\.mode === 'items'/)
+  assert.match(dashboard, /scriptStore\.mode === 'map'/)
+  assert.match(dashboard, /modulePending \|\| combatStore\.running/)
   assert.doesNotMatch(dashboard, /generateVendorRegex|复制正则|shopResult/)
-  assert.match(card, /module\.selector/)
-  assert.match(card, /@change="\$emit\('select'/)
+  assert.doesNotMatch(dashboard, /itemModes|enabledModes/)
+  assert.doesNotMatch(card, /module\.selector/)
+  assert.match(card, /module\.controls/)
+  assert.match(card, /control\.type === 'switch'/)
+  assert.match(card, /@change="\$emit\('control', module, control, \$event\)"/)
 })

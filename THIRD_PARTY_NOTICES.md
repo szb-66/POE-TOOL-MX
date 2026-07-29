@@ -9,3 +9,16 @@
 Copyright (c) ChaosRecipeEnhancer contributors.
 
 本项目保留上述来源和版权说明。完整 GPL 许可证见 [LICENSE.md](LICENSE.md)。
+
+## Awakened PoE Trade / Simplified Chinese fork
+
+- 上游项目：https://github.com/SnosMe/awakened-poe-trade
+- 国服参考分支：https://github.com/hongchenduzhe/Awakened-PoE-Trade-Simplified-Chinese
+- 上游许可证：MIT
+- 固定上游提交：`18a401efce4683a274978e3f41ce08ac8948732b`
+- 直接采用并适配的文件：`renderer/src/web/price-check/trade/pathofexile-trade.ts`、`renderer/src/web/price-check/filters/create-item-filters.ts`、`renderer/src/web/price-check/filters/create-stat-filters.ts`
+- 用途：国服查价的请求构造直接采用上游的在线状态、按需过滤组和宽松默认语义；本项目仅改为 JavaScript，并适配腾讯国服端点、简体中文物品模型和官方 stat identifier。
+
+Copyright (c) 2020 Alexander Drozdov.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, subject to inclusion of the above copyright notice and permission notice in substantial portions.

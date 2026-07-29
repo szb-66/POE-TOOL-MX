@@ -2,7 +2,7 @@ export const DASHBOARD_MODULE_GROUPS = Object.freeze([
   Object.freeze({
     id: 'detection',
     title: '检测',
-    moduleIds: Object.freeze(['bag', 'combat', 'shop'])
+    moduleIds: Object.freeze(['bag', 'combat', 'shop', 'priceCheck'])
   }),
   Object.freeze({
     id: 'manufacturing',

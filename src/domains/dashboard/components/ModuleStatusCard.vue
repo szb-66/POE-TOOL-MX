@@ -30,24 +30,34 @@
       </el-collapse-transition>
     </div>
 
-    <label v-if="module.selector" class="inline-selector">
-      <span>{{ module.selector.label }}</span>
-      <el-select
-        :model-value="module.selector.value"
-        :disabled="module.selector.disabled"
-        size="small"
-        @change="$emit('select', module, $event)"
-      >
-        <el-option
-          v-for="option in module.selector.options"
-          :key="option.value"
-          :label="option.label"
-          :value="option.value"
+    <div v-if="module.controls?.length" class="quick-controls">
+      <label v-for="control in module.controls" :key="control.id" class="quick-control">
+        <span>{{ control.label }}</span>
+        <el-switch
+          v-if="control.type === 'switch'"
+          :model-value="control.value"
+          :disabled="control.disabled"
+          size="small"
+          @change="$emit('control', module, control, $event)"
         />
-      </el-select>
-    </label>
+        <el-select
+          v-else
+          :model-value="control.value"
+          :disabled="control.disabled"
+          size="small"
+          @change="$emit('control', module, control, $event)"
+        >
+          <el-option
+            v-for="option in control.options"
+            :key="option.value"
+            :label="option.label"
+            :value="option.value"
+          />
+        </el-select>
+      </label>
+    </div>
 
-    <dl class="metrics">
+    <dl v-if="module.metrics.length" class="metrics">
       <div v-for="metric in module.metrics" :key="metric.label">
         <dt>{{ metric.label }}</dt>
         <dd>{{ metric.value }}</dd>
@@ -82,7 +92,7 @@ const props = defineProps({
   module: { type: Object, required: true },
   icon: { type: Object, required: true }
 })
-defineEmits(['action', 'open', 'select'])
+defineEmits(['action', 'open', 'control'])
 
 const showIssues = ref(false)
 const stateLabel = computed(() => ({
@@ -188,15 +198,26 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
   gap: 8px;
   margin: 12px 0;
 }
-.inline-selector {
+.quick-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.quick-control {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 9px;
-  margin-top: 10px;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--border-base);
+  border-radius: 7px;
   color: var(--text-secondary);
   font-size: 12px;
 }
-.inline-selector :deep(.el-select) { flex: 1; min-width: 0; }
+.quick-control > span { flex: 0 0 auto; white-space: nowrap; }
+.quick-control :deep(.el-select) { flex: 1; min-width: 0; }
 .metrics div { min-width: 0; padding: 8px 10px; border: 1px solid var(--border-base); border-radius: 7px; }
 .metrics dt { color: var(--text-secondary); font-size: 11px; }
 .metrics dd { overflow: hidden; margin: 3px 0 0; color: var(--text-primary); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -208,4 +229,8 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
   padding-top: 2px;
 }
 .card-actions :deep(.el-button + .el-button) { margin-left: 0; }
+
+@media (max-width: 560px) {
+  .quick-controls { grid-template-columns: 1fr; }
+}
 </style>

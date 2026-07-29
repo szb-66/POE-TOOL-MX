@@ -5,6 +5,22 @@ export const DASHBOARD_STATES = Object.freeze({
   READY: 'ready'
 })
 
+export const ITEM_CRAFTING_MODE_OPTIONS = Object.freeze([
+  { value: 'alteration', label: '改造石模式' },
+  { value: 'chaos', label: '混沌石模式' },
+  { value: 'alchemy', label: '点金石模式' }
+])
+
+export const MAP_ROLLING_METHOD_OPTIONS = Object.freeze([
+  { value: 'alchemy', label: '点金石' },
+  { value: 'chaos', label: '混沌石' }
+])
+
+export const RECOVERY_MODE_OPTIONS = Object.freeze([
+  { value: 'duration', label: '持续回复' },
+  { value: 'instant', label: '立即回复' }
+])
+
 const cleanIssues = (issues = []) => issues.map(item => String(item || '').trim()).filter(Boolean)
 
 export function createModuleStatus({
@@ -55,10 +71,7 @@ export function evaluateItemsStatus(input = {}) {
       ? (input.scriptMode === 'map' ? '共享脚本正被地图模块占用' : '共享脚本正在运行')
       : '配置完整，可启动',
     runningText: '物品制作脚本运行中',
-    metrics: [
-      { label: '当前预设', value: input.presetName || '未选择' },
-      { label: '制作方式', value: input.enabledModes?.length ? input.enabledModes.join('、') : '未启用' }
-    ]
+    metrics: []
   })
 }
 
@@ -76,10 +89,7 @@ export function evaluateMapStatus(input = {}) {
       ? (input.scriptMode === 'items' ? '共享脚本正被物品模块占用' : '共享脚本正在运行')
       : '配置完整，可启动',
     runningText: '地图洗练脚本运行中',
-    metrics: [
-      { label: '当前预设', value: input.presetName || '未选择' },
-      { label: '洗图方式', value: input.method === 'chaos' ? '混沌石' : '点金石' }
-    ]
+    metrics: []
   })
 }
 
@@ -192,6 +202,32 @@ export function evaluateShopStatus(input = {}) {
     metrics: [
       { label: '可取数量', value: available },
       { label: '预计奖励', value: input.snapshot ? (Number(input.rewardTotal) || 0) : '待刷新' }
+    ]
+  })
+}
+
+export function evaluatePriceCheckStatus(input = {}) {
+  const issues = []
+  if (!input.authenticated) issues.push('请在设置页登录国服账号')
+  if (!input.league) issues.push('请在设置页选择全局赛季')
+  if (!input.catalog) issues.push('交易目录尚未加载')
+  else if (input.catalog.degraded) issues.push('官方交易目录不可用，当前使用内置目录')
+
+  return createModuleStatus({
+    id: 'priceCheck',
+    title: '国服查价',
+    route: '/price-check',
+    description: '在游戏内按 Ctrl+D 查询腾讯官方市集挂单。',
+    error: input.error,
+    running: Boolean(input.enabled && !issues.length),
+    issues,
+    readyText: input.enabled ? '查价器等待物品' : '查价器已关闭',
+    runningText: input.latest ? '查价器已启用 · 最近查询完成' : '查价器已启用',
+    metrics: [
+      { label: '账号', value: input.authenticated ? (input.accountName || '已登录') : '未登录' },
+      { label: '全局赛季', value: input.league || '未设置' },
+      { label: '交易目录', value: !input.catalog ? '未加载' : input.catalog.degraded ? '内置降级' : '官方可用' },
+      { label: '最近查询', value: input.latest?.updatedAt ? new Date(input.latest.updatedAt).toLocaleTimeString() : '暂无' }
     ]
   })
 }

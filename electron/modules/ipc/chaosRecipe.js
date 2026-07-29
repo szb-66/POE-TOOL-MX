@@ -29,14 +29,6 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     }
   }
 
-  ipcMain.handle('chaos-recipe-auth-status', invoke(() => service.getAuthStatus()))
-  ipcMain.handle('chaos-recipe-auth-restore', invoke(() => service.restoreAuth()))
-  ipcMain.handle('chaos-recipe-auth-open-web', invoke(() => service.openWebLogin()))
-  ipcMain.handle('chaos-recipe-auth-complete-web', invoke(() => service.completeWebLogin()))
-  ipcMain.handle('chaos-recipe-auth-token', invoke((token) => service.setSessionToken(token)))
-  ipcMain.handle('chaos-recipe-auth-logout', invoke(() => service.logout()))
-
-  ipcMain.handle('chaos-recipe-list-leagues', invoke(() => service.listLeagues()))
   ipcMain.handle('chaos-recipe-list-tabs', invoke((league) => service.listTabs(league)))
   ipcMain.handle('chaos-recipe-refresh', invoke((request) => service.refresh(request || {})))
   ipcMain.handle('chaos-recipe-get-snapshot', invoke(() => service.getSnapshot()))

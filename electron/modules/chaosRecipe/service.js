@@ -24,6 +24,7 @@ export class ChaosRecipeService {
     this.overlay = overlay
     this.snapshot = null
     this.latestRequest = null
+    this.auth.registerCacheClearer?.(() => this.clear())
   }
 
   clear() {

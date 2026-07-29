@@ -9,6 +9,57 @@
           </el-button>
         </div>
 
+        <div class="section-header">
+          <h3 class="section-title">国服账号</h3>
+        </div>
+        <el-card class="section-card">
+          <el-form label-width="120px" label-position="left">
+            <el-form-item label="账号状态">
+              <el-tag :type="account.status.authenticated ? 'success' : 'info'">
+                {{ account.status.authenticated ? `已登录 · ${account.status.accountName}` : '未登录' }}
+              </el-tag>
+              <el-button v-if="account.status.authenticated" class="account-button" :loading="account.busy" @click="logoutAccount">
+                退出账号
+              </el-button>
+            </el-form-item>
+            <template v-if="!account.status.authenticated">
+              <el-form-item label="网页登录">
+                <el-button type="primary" :loading="account.busy" @click="openAccountLogin">打开网页登录</el-button>
+                <el-button :loading="account.busy" @click="completeAccountLogin">我已完成登录</el-button>
+              </el-form-item>
+              <el-form-item label="会话令牌">
+                <el-input
+                  v-model="accountToken"
+                  class="account-token"
+                  type="password"
+                  show-password
+                  autocomplete="off"
+                  placeholder="输入国服 POESESSID"
+                  @keyup.enter="loginAccountToken"
+                />
+                <el-button class="account-button" :disabled="!accountToken.trim()" :loading="account.busy" @click="loginAccountToken">
+                  验证令牌
+                </el-button>
+              </el-form-item>
+            </template>
+            <el-form-item label="全局赛季">
+              <el-select
+                :model-value="account.settings.league"
+                filterable
+                :disabled="!account.status.authenticated"
+                placeholder="选择商城配方与查价共用赛季"
+                @change="changeAccountLeague"
+              >
+                <el-option v-for="league in account.leagues" :key="league.id" :label="league.name" :value="league.id" />
+              </el-select>
+              <el-button class="account-button" :disabled="!account.status.authenticated" :loading="account.busy" @click="refreshAccountLeagues">
+                刷新赛季
+              </el-button>
+            </el-form-item>
+            <div class="hint-text">登录 Cookie 仅保存在独立 Electron Session 中；商城配方与国服查价共用这里的账号和赛季。</div>
+          </el-form>
+        </el-card>
+
         <InterfaceDetectionSettings />
 
         <!-- 快捷键设置 -->
@@ -48,6 +99,13 @@
               <el-col :span="8">
                 <el-form-item label="配方紧急停止">
                   <KeyCaptureInput :model-value="shortcuts.chaosRecipeStop" @change="handleShortcutsChange('chaosRecipeStop', $event)" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="40">
+              <el-col :span="8">
+                <el-form-item label="国服查价">
+                  <KeyCaptureInput :model-value="shortcuts.priceCheck" @change="handleShortcutsChange('priceCheck', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -407,10 +465,13 @@ import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
+import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
+const account = usePoeCnAccountStore()
+const accountToken = ref('')
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const positions = ref({ ...settingsStore.currencyPositions })
@@ -423,6 +484,48 @@ const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
+
+onMounted(() => {
+  void account.run(() => account.restore()).catch(() => {})
+})
+
+async function runAccountAction(action, successMessage = '') {
+  try {
+    await account.run(action)
+    if (successMessage) ElMessage.success(successMessage)
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
+
+function openAccountLogin() {
+  return runAccountAction(
+    () => account.openWebLogin(),
+    '请在新窗口完成 QQ/国服登录，然后点击“我已完成登录”'
+  )
+}
+
+function completeAccountLogin() {
+  return runAccountAction(() => account.completeWebLogin(), '国服网页登录成功')
+}
+
+async function loginAccountToken() {
+  const token = accountToken.value
+  accountToken.value = ''
+  return runAccountAction(() => account.setSessionToken(token), '国服会话验证成功')
+}
+
+function logoutAccount() {
+  return runAccountAction(() => account.logout(), '已退出国服账号')
+}
+
+function refreshAccountLeagues() {
+  return runAccountAction(() => account.loadLeagues())
+}
+
+function changeAccountLeague(league) {
+  return runAccountAction(() => account.setLeague(league), '全局赛季已更新')
+}
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
 watch(() => settingsStore.globalShortcuts, (val) => {
@@ -731,6 +834,14 @@ async function handleReset() {
 
     .section-card {
       margin-bottom: var(--spacing-lg);
+    }
+
+    .account-token {
+      max-width: 420px;
+    }
+
+    .account-button {
+      margin-left: 12px;
     }
 
     .position-input {
