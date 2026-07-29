@@ -4,6 +4,15 @@ import { resolveStashGridLayout } from '../chaosRecipe/layout.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
 
 const ok = (data = {}) => ({ success: true, data })
+const runtimePlanRequest = (runtime = {}) => ({
+  recipeId: runtime.activeRecipeId || runtime.recipeId || 'chaos',
+  setCount: runtime.targetSetCount ?? runtime.setCount ?? 1,
+  itemIds: runtime.selectedItemIds || runtime.itemIds || [],
+  calibration: runtime.calibration
+})
+const planMessage = (plan) => plan.kind === 'single'
+  ? `${plan.selectedItemCount} 件 · 预计 ${plan.rewardTotal} ${plan.recipeLabel}`
+  : `${plan.setCount} 套 · 预计 ${plan.rewardTotal} ${plan.recipeLabel}`
 
 export function registerChaosRecipeHandlers(service, window, shared = {}) {
   const interfaceDetection = shared.interfaceDetection
@@ -45,9 +54,12 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     }
   }))
 
-  ipcMain.handle('chaos-recipe-open-overlay', invoke((setCount, calibration) => {
-    const plan = service.createPlan(setCount, calibration)
+  ipcMain.handle('chaos-recipe-open-overlay', invoke((request, legacyCalibration) => {
+    const plan = service.createPlan(
+      typeof request === 'object' ? request : { setCount: request, calibration: legacyCalibration }
+    )
     const tab = plan.tabs[0]
+    const calibration = typeof request === 'object' ? request.calibration : legacyCalibration
     const { region } = resolveStashGridLayout(tab, calibration)
     service.overlay.create({
       region,
@@ -56,7 +68,9 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       columns: tab.columns,
       items: tab.items,
       status: 'preview',
-      message: `${plan.setCount} 套 · ${plan.itemCount} 件`
+      recipeId: plan.recipeId,
+      recipeLabel: plan.recipeLabel,
+      message: planMessage(plan)
     })
     return plan
   }))
@@ -67,7 +81,7 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
   ipcMain.handle('chaos-recipe-overlay-state', invoke(() => service.overlay.getState()))
 
   ipcMain.handle('chaos-recipe-automation-start', invoke((request = {}) => {
-    const plan = service.createPlan(request.setCount, request.calibration)
+    const plan = service.createPlan(request)
     return service.automation.start(plan, {
       calibration: request.calibration,
       templates: request.templates,
@@ -119,27 +133,37 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     return snapshot
   }))
   ipcMain.handle('chaos-recipe-control-preview', invoke(() => {
-    const runtime = control?.runtime || {}
-    const plan = service.createPlan(runtime.targetSetCount, runtime.calibration)
-    const tab = plan.tabs[0]
-    const { region } = resolveStashGridLayout(tab, runtime.calibration)
-    service.overlay.create({
-      region,
-      tabId: tab.tabId,
-      tabName: tab.tabName,
-      columns: tab.columns,
-      items: tab.items,
-      status: 'preview',
-      message: `${plan.setCount} 套 · ${plan.itemCount} 件`
-    })
-    return plan
+    try {
+      if (service.overlay.getState()?.status === 'preview') {
+        service.overlay.close()
+        return { closed: true }
+      }
+      const runtime = control?.runtime || {}
+      const plan = service.createPlan(runtimePlanRequest(runtime))
+      const tab = plan.tabs[0]
+      const { region } = resolveStashGridLayout(tab, runtime.calibration)
+      service.overlay.create({
+        region,
+        tabId: tab.tabId,
+        tabName: tab.tabName,
+        columns: tab.columns,
+        items: tab.items,
+        status: 'preview',
+        recipeId: plan.recipeId,
+        recipeLabel: plan.recipeLabel,
+        message: planMessage(plan)
+      })
+      return plan
+    } finally {
+      control?.sync()
+    }
   }))
   ipcMain.handle('chaos-recipe-control-action', invoke(() => {
     const status = service.automation.getStatus().status
     if (status === 'running') return service.automation.stop('overlay')
     if (status === 'paused') return service.automation.resume()
     const runtime = control?.runtime || {}
-    const plan = service.createPlan(runtime.targetSetCount, runtime.calibration)
+    const plan = service.createPlan(runtimePlanRequest(runtime))
     return service.automation.start(plan, {
       calibration: runtime.calibration,
       templates: runtime.templates,

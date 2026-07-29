@@ -1,5 +1,5 @@
 import {
-  calculateChaosRecipe,
+  calculateVendorRecipes,
   createPickingPlan,
   summarizeChaosItemPipeline
 } from './engine.js'
@@ -61,7 +61,7 @@ export class ChaosRecipeService {
 
   setSnapshot({ league, results, availableTabs, includeIdentified, source = 'network' }) {
     const items = results.flatMap((result) => result.items)
-    const recipe = calculateChaosRecipe(items, { includeIdentified })
+    const recipe = calculateVendorRecipes(items, { includeIdentified })
     const pipeline = summarizeChaosItemPipeline(items, { includeIdentified })
     const selectedTabIds = results.map((result) => result.tab.id)
     this.latestRequest = { league, selectedTabIds, includeIdentified }
@@ -106,8 +106,8 @@ export class ChaosRecipeService {
 
   consumeItem(itemId) {
     if (!this.snapshot || !itemId) return
-    const remaining = this.snapshot.candidates.filter((item) => item.id !== itemId)
-    const recipe = calculateChaosRecipe(remaining, {
+    const remaining = this.snapshot.items.filter((item) => item.id !== itemId)
+    const recipe = calculateVendorRecipes(remaining, {
       includeIdentified: this.latestRequest?.includeIdentified
     })
     this.snapshot = {
@@ -118,11 +118,17 @@ export class ChaosRecipeService {
     this.control?.sync?.()
   }
 
-  createPlan(setCount, calibration) {
-    const plan = createPickingPlan(this.getSnapshot(), setCount)
-    if (!plan.setCount) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可取出的完整混沌配方')
+  createPlan(request = 1, legacyCalibration) {
+    const normalized = typeof request === 'number'
+      ? { recipeId: 'chaos', setCount: request, calibration: legacyCalibration }
+      : { recipeId: 'chaos', ...(request || {}) }
+    const plan = createPickingPlan(this.getSnapshot(), normalized)
+    if (!plan.itemCount) {
+      throw new ChaosRecipeError(
+        CHAOS_ERROR_CODES.INVALID_REQUEST,
+        plan.kind === 'single' ? `没有选中可取出的${plan.recipeLabel}物品` : `没有可取出的${plan.recipeLabel}完整套装`
+      )
     }
-    return enrichPlanCoordinates(plan, calibration)
+    return enrichPlanCoordinates(plan, normalized.calibration)
   }
 }

@@ -11,5 +11,3 @@ dist-electron/
 # OpenSpec 需求实施历史（主规格 openspec/specs 继续跟踪）
 openspec/changes/
 
-# 误生成的 Windows 系统缓存路径
-%SystemDrive%/

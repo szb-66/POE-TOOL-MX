@@ -40,26 +40,38 @@
       </el-collapse-transition>
     </section>
 
-    <div class="section-title">
-      <div><h2>业务模块</h2><span>共 {{ modules.length }} 个模块</span></div>
-      <small>异常与配置问题会优先显示</small>
-    </div>
+    <section class="business-sections" aria-label="业务模块">
+      <section
+        v-for="group in moduleGroups"
+        :key="group.id"
+        class="module-section"
+        :aria-labelledby="`module-group-${group.id}`"
+      >
+        <div class="section-title">
+          <div>
+            <h2 :id="`module-group-${group.id}`">{{ group.title }}</h2>
+            <span>{{ group.modules.length }} 个模块</span>
+          </div>
+        </div>
 
-    <section class="module-grid">
-      <ModuleStatusCard
-        v-for="module in modules"
-        :key="module.id"
-        :module="module"
-        :icon="moduleIcons[module.id]"
-        @action="runAction"
-        @open="openModule"
-      />
+        <div class="module-grid">
+          <ModuleStatusCard
+            v-for="module in group.modules"
+            :key="module.id"
+            :module="module"
+            :icon="moduleIcons[module.id]"
+            @action="runAction"
+            @open="openModule"
+            @select="selectModuleOption"
+          />
+        </div>
+      </section>
     </section>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Box,
   Briefcase,
@@ -75,6 +87,7 @@ import {
   WarningFilled
 } from '@element-plus/icons-vue'
 import ModuleStatusCard from './components/ModuleStatusCard.vue'
+import { groupDashboardModules } from './dashboardGroups'
 import { useDashboard } from './useDashboard'
 
 const healthExpanded = ref(false)
@@ -102,9 +115,12 @@ const {
   refreshing,
   refresh,
   runAction,
+  selectModuleOption,
   openModule,
   openSettings
 } = useDashboard()
+
+const moduleGroups = computed(() => groupDashboardModules(modules.value))
 </script>
 
 <style scoped lang="less">
@@ -188,15 +204,14 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .health-dot.attention, .health-dot.pending { background: var(--el-color-warning); }
 .health-dot.error { background: var(--el-color-danger); }
 
+.business-sections { display: grid; gap: 22px; padding-bottom: 4px; }
+.module-section { min-width: 0; }
 .section-title { justify-content: space-between; gap: 12px; margin: 0 1px 11px; }
 .section-title > div { gap: 9px; }
 .section-title h2 { margin: 0; font-size: 17px; }
 .section-title span, .section-title small { color: var(--text-secondary); font-size: 12px; }
-.module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding-bottom: 4px; }
+.module-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
 
-@media (max-width: 1180px) {
-  .module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 780px) {
   .dashboard-page { padding: 15px; }
   .page-heading { align-items: flex-start; }
@@ -206,7 +221,5 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 @media (max-width: 500px) {
   .page-heading { flex-direction: column; }
   .summary-grid { grid-template-columns: 1fr; }
-  .section-title small { display: none; }
 }
 </style>
-

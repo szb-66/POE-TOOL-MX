@@ -71,8 +71,39 @@ test('归一化仓库物品保留配方和坐标字段', () => {
     name: '',
     baseType: '测试胸甲',
     typeLine: '测试胸甲',
-    icon: result.items[0].icon
+    icon: result.items[0].icon,
+    sockets: [],
+    influences: []
   })
+})
+
+test('归一化仓库物品保留插槽组和全部 truthy 势力键', () => {
+  const result = normalizeStashContents({
+    items: [{
+      id: 'socketed-influenced',
+      x: 0,
+      y: 0,
+      ilvl: 83,
+      frameType: 2,
+      typeLine: '测试胸甲',
+      icon: iconFor('Armours/BodyArmours/BodyStr1'),
+      sockets: [
+        { group: 0, attr: 'S', sColour: 'R' },
+        { group: 0, attr: 'D', sColour: 'G' },
+        { group: 1, attr: 'I', sColour: 'B' },
+        null,
+        { group: 'bad', attr: 'S', sColour: 'R' }
+      ],
+      influences: { shaper: true, elder: false, crusader: 1, searing: true }
+    }]
+  }, { id: 'tab-1', index: 0, name: '配方页', type: 'NormalStash' })
+
+  assert.deepEqual(result.items[0].sockets, [
+    { group: 0, attr: 'S', sColour: 'R' },
+    { group: 0, attr: 'D', sColour: 'G' },
+    { group: 1, attr: 'I', sColour: 'B' }
+  ])
+  assert.deepEqual(result.items[0].influences, ['crusader', 'searing', 'shaper'])
 })
 
 test('国服详情响应中的嵌套物品数组仍可被识别', () => {

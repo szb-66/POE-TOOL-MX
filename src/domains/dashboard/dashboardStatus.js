@@ -159,17 +159,39 @@ export function evaluateStoryStatus(input = {}) {
 }
 
 export function evaluateShopStatus(input = {}) {
-  const issues = input.regex ? [] : ['当前预设尚未选择商城筛选条件']
+  const issues = []
+  if (!input.authenticated) issues.push('请先在商城页登录国服账号')
+  if (!input.league) issues.push('请选择国服赛季')
+  if (!Number(input.selectedTabCount)) issues.push('请至少选择一个仓库页')
+  if (!input.snapshot) issues.push('尚未刷新商城配方仓库数据')
+
+  const automationRunning = ['running', 'paused'].includes(input.automationStatus)
+  const running = Boolean(input.enabled || automationRunning)
+  const error = input.error || (input.automationEvent === 'error' ? input.automationError : '')
+  const runningText = input.automationStatus === 'running'
+    ? `自动取件中 · ${input.activeRecipeLabel || '当前配方'}`
+    : input.automationStatus === 'paused'
+      ? `自动取件已暂停 · ${input.activeRecipeLabel || '当前配方'}`
+      : '游戏内商城配方控制已开启'
+  const available = !input.snapshot
+    ? '待刷新'
+    : input.activeRecipeKind === 'set'
+      ? `${Number(input.fullSetCount) || 0} 套`
+      : `${Number(input.candidateCount) || 0} 件`
+
   return createModuleStatus({
     id: 'shop',
-    title: '商城正则',
+    title: '商城配方',
     route: '/shop',
-    description: '生成可复制到游戏商城搜索框的 Vendor 正则。',
+    description: '计算七种商城配方并控制游戏内自动取件。',
+    error,
+    running,
     issues,
-    readyText: input.overLimit ? '正则可用，但已超过 50 字符' : '正则已生成，可复制',
+    readyText: '商城配方仓库数据已加载',
+    runningText,
     metrics: [
-      { label: '当前预设', value: input.presetName || '未选择' },
-      { label: '正则长度', value: `${Number(input.length) || 0} / 50` }
+      { label: '可取数量', value: available },
+      { label: '预计奖励', value: input.snapshot ? (Number(input.rewardTotal) || 0) : '待刷新' }
     ]
   })
 }

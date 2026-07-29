@@ -670,6 +670,158 @@ print(json.dumps({"code": code, "clicks": Controller.clicks}))
   assert.equal(completed.stashedSlots, 1)
 })
 
+test('Python 已知 2x3 物品入库后跳过剩余五格且保持逻辑进度', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+body = "Item Class: Body Armour\\nRarity: Rare\\nStorm Shell\\nAstral Plate\\n--------"
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    moves = []
+    clicks = 0
+    current = None
+    removed = False
+    def __init__(self, config): pass
+    def move(self, x, y):
+        Controller.current = (x, y)
+        Controller.moves.append([x, y])
+        return True
+    def copy_item_text(self):
+        if not Controller.removed and Controller.current in {(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)}:
+            return "copied", body
+        return "empty", ""
+    def ctrl_click(self):
+        Controller.clicks += 1
+        Controller.removed = True
+        return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+catalog = {"schemaVersion": 1, "items": {}, "categories": {
+    "body armour": {"key": "body armour", "width": 2, "height": 3, "source": "bundled"}
+}}
+module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "emptySlotThreshold": 60, "itemFootprints": catalog
+}})
+print(json.dumps({"moves": Controller.moves, "clicks": Controller.clicks}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const lines = result.stdout.trim().split(/\r?\n/)
+  const summary = JSON.parse(lines.pop())
+  const completed = JSON.parse(lines.at(-1).slice(6))
+  assert.equal(summary.clicks, 1)
+  assert.equal(summary.moves.length, 55)
+  for (const point of [[0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]) {
+    assert.equal(summary.moves.some((move) => move[0] === point[0] && move[1] === point[1]), false)
+  }
+  assert.equal(completed.scannedSlots, 60)
+  assert.equal(completed.stashedSlots, 1)
+  assert.equal(completed.skippedOccupiedSlots, 5)
+})
+
+test('Python 占位解析覆盖多尺寸并对未知、越界和更早排除格回退', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+phase = module.build_scan_phases({"layout": {}})[0]
+catalog = {"schemaVersion": 1, "items": {
+    module.footprint_key("", "双手剑"): {"width": 2, "height": 4},
+    module.footprint_key("", "单手剑"): {"width": 1, "height": 3},
+    module.footprint_key("", "药剂"): {"width": 1, "height": 2},
+    module.footprint_key("", "戒指"): {"width": 1, "height": 1}
+}, "categories": {}}
+def footprint(name):
+    return module.resolve_item_footprint({"category": "测试", "name": name, "baseName": ""}, catalog)
+target = {"column": 0, "row": 0, "excluded": False}
+result = {
+    "sizes": [footprint(name) for name in ["双手剑", "单手剑", "药剂", "戒指", "未知"]],
+    "twoHandSlots": len(module.resolved_footprint_slots(target, footprint("双手剑"), phase, set())),
+    "outOfBounds": len(module.resolved_footprint_slots(
+        {"column": 11, "row": 4, "excluded": False}, footprint("双手剑"), phase, set())),
+    "excludedBefore": len(module.resolved_footprint_slots(
+        {"column": 1, "row": 1, "excluded": False}, {"width": 2, "height": 2}, phase, {(0, 0)}))
+}
+print(json.dumps(result, ensure_ascii=False))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    sizes: [
+      { width: 2, height: 4 },
+      { width: 1, height: 3 },
+      { width: 1, height: 2 },
+      { width: 1, height: 1 },
+      null
+    ],
+    twoHandSlots: 8,
+    outOfBounds: 0,
+    excludedBefore: 0
+  })
+})
+
+test('Python 黑名单多格物品保留且只识别一次', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+flask = "Item Class: Flask\\nRarity: Magic\\nGranite Flask\\n--------"
+class Matcher:
+    valid = True
+    def __init__(self, config): pass
+    def check_interface(self): return True, {}
+class Controller:
+    current = None
+    moves = []
+    clicks = 0
+    def __init__(self, config): pass
+    def move(self, x, y):
+        Controller.current = (x, y)
+        Controller.moves.append([x, y])
+        return True
+    def copy_item_text(self):
+        return ("copied", flask) if Controller.current in {(0, 0), (0, 1)} else ("empty", "")
+    def ctrl_click(self): Controller.clicks += 1; return True
+    def release_all(self): pass
+module.InterfaceMatcher = Matcher
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+module.run_stash({
+    "blacklist": [{"field": "category", "keyword": "Flask", "matchMode": "exact"}],
+    "inventory": {
+        "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+        "emptySlotThreshold": 60,
+        "itemFootprints": {"schemaVersion": 1, "items": {}, "categories": {
+            "flask": {"width": 1, "height": 2}
+        }}
+    }
+})
+print(json.dumps({"moves": Controller.moves, "clicks": Controller.clicks}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const lines = result.stdout.trim().split(/\r?\n/)
+  const summary = JSON.parse(lines.pop())
+  const completed = JSON.parse(lines.at(-1).slice(6))
+  assert.equal(summary.clicks, 0)
+  assert.equal(summary.moves.some((move) => move[0] === 0 && move[1] === 1), false)
+  assert.equal(completed.blacklistedSlots, 1)
+  assert.equal(completed.skippedOccupiedSlots, 1)
+})
+
 test('全局操作等待同步接口只更新下一轮运行配置，不重启检测器或重置会话', () => {
   const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
   const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')

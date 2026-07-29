@@ -8,6 +8,7 @@ import io
 import json
 import math
 import os
+import re
 import signal
 import sys
 import time
@@ -265,6 +266,7 @@ def parse_item(text):
     item_level = None
     header = []
     rarity_index = -1
+    sockets = ""
     for index, line in enumerate(lines):
         compact = line.replace(" ", "")
         if compact.startswith("稀有度:") or line.startswith("Rarity:"):
@@ -275,21 +277,26 @@ def parse_item(text):
                 item_level = int(line.split(":", 1)[1].strip())
             except ValueError:
                 pass
+        if compact.startswith("插槽:") or line.startswith("Sockets:"):
+            value = line.split(":", 1)[1].upper()
+            sockets = " ".join(re.findall(r"[RGBW](?:-[RGBW])*", value))
     if rarity_index >= 0:
         for line in lines[rarity_index + 1:]:
             if line == "--------":
                 break
             if ":" not in line:
                 header.append(line)
-    return {"rarity": rarity, "itemLevel": item_level, "header": header}
+    return {"rarity": rarity, "itemLevel": item_level, "header": header, "socketSignature": sockets}
 
 
 def matches(item, expected):
-    rarity = str(item.get("rarity", "")).replace(" ", "").casefold()
-    if rarity not in ("稀有", "rare"):
-        return False, "目标位置不是稀有物品"
-    if item.get("itemLevel") != int(expected.get("itemLevel", -1)):
-        return False, "物品等级与仓库快照不一致"
+    verification_kind = str(expected.get("verificationKind", "set")).casefold()
+    if verification_kind == "set":
+        rarity = str(item.get("rarity", "")).replace(" ", "").casefold()
+        if rarity not in ("稀有", "rare"):
+            return False, "目标位置不是稀有物品"
+        if item.get("itemLevel") != int(expected.get("itemLevel", -1)):
+            return False, "物品等级与仓库快照不一致"
     expected_names = {
         str(expected.get("baseType", "")).strip().casefold(),
         str(expected.get("typeLine", "")).strip().casefold(),
@@ -299,6 +306,10 @@ def matches(item, expected):
     actual_names = {value.casefold() for value in item.get("header", [])}
     if expected_names and not expected_names.intersection(actual_names):
         return False, "物品名称或基底与仓库快照不一致"
+    if verification_kind == "socket":
+        expected_sockets = str(expected.get("socketSignature", "")).strip().upper()
+        if not expected_sockets or item.get("socketSignature") != expected_sockets:
+            return False, "插槽结构与仓库快照不一致"
     return True, ""
 
 

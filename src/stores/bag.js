@@ -11,6 +11,7 @@ import { useInterfaceDetectionStore } from './interfaceDetection.js'
 const emptyStats = () => ({
   scannedSlots: 0,
   stashedSlots: 0,
+  skippedOccupiedSlots: 0,
   blacklistedSlots: 0,
   emptySlots: 0,
   unreadableSlots: 0,
@@ -94,6 +95,7 @@ export const useBagStore = defineStore('bag', () => {
       stashStats.value = {
         scannedSlots: Number(payload.scannedSlots ?? stashStats.value.scannedSlots),
         stashedSlots: Number(payload.stashedSlots ?? stashStats.value.stashedSlots),
+        skippedOccupiedSlots: Number(payload.skippedOccupiedSlots ?? stashStats.value.skippedOccupiedSlots),
         blacklistedSlots: Number(payload.blacklistedSlots ?? stashStats.value.blacklistedSlots),
         emptySlots: Number(payload.emptySlots ?? stashStats.value.emptySlots),
         unreadableSlots: Number(payload.unreadableSlots ?? stashStats.value.unreadableSlots),

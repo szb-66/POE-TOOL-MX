@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    { "aliases": ["Body Armours", "Body Armour", "胸甲"], "width": 2, "height": 3 },
+    { "aliases": ["Helmets", "Helmet", "头盔"], "width": 2, "height": 2 },
+    { "aliases": ["Gloves", "Glove", "手套"], "width": 2, "height": 2 },
+    { "aliases": ["Boots", "Boot", "鞋子", "靴子"], "width": 2, "height": 2 },
+    { "aliases": ["Bows", "Bow", "弓"], "width": 2, "height": 4 },
+    { "aliases": ["Staves", "Staff", "Warstaves", "Warstaff", "长杖", "战杖"], "width": 2, "height": 4 },
+    { "aliases": ["Two Hand Axes", "Two Hand Axe", "双手斧"], "width": 2, "height": 4 },
+    { "aliases": ["Two Hand Maces", "Two Hand Mace", "双手锤"], "width": 2, "height": 4 },
+    { "aliases": ["Two Hand Swords", "Two Hand Sword", "双手剑"], "width": 2, "height": 4 },
+    { "aliases": ["Fishing Rods", "Fishing Rod", "鱼竿"], "width": 2, "height": 4 },
+    { "aliases": ["Quivers", "Quiver", "箭袋"], "width": 2, "height": 3 },
+    { "aliases": ["Life Flasks", "Mana Flasks", "Hybrid Flasks", "Utility Flasks", "Critical Utility Flasks", "Flask", "生命药剂", "魔力药剂", "复合药剂", "功能药剂"], "width": 1, "height": 2 },
+    { "aliases": ["Belts", "Belt", "腰带"], "width": 2, "height": 1 },
+    { "aliases": ["Rings", "Ring", "戒指", "Amulets", "Amulet", "项链"], "width": 1, "height": 1 }
+  ],
+  "items": []
+}

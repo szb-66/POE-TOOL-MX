@@ -4,6 +4,8 @@
  * Electron application and distributed under GPL-3.0-or-later.
  */
 
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
+
 const SUPPORTED_TAB_TYPES = new Set([
   'normalstash',
   'premiumstash',
@@ -167,9 +169,32 @@ export function normalizeStashTabs(payload) {
     })
 }
 
+export function normalizeItemSockets(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((socket) => socket && typeof socket === 'object' && Number.isFinite(Number(socket.group)))
+    .map((socket) => ({
+      group: Math.max(0, finiteInteger(socket.group)),
+      attr: String(socket.attr || '').trim().toUpperCase(),
+      sColour: String(socket.sColour || socket.scolour || '').trim().toUpperCase()
+    }))
+}
+
+export function normalizeItemInfluences(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((entry) => String(entry || '').trim().toLowerCase()).filter(Boolean))].sort()
+  }
+  if (!value || typeof value !== 'object') return []
+  return Object.entries(value)
+    .filter(([, enabled]) => Boolean(enabled))
+    .map(([key]) => String(key).trim().toLowerCase())
+    .filter(Boolean)
+    .sort()
+}
+
 export function normalizeStashItem(raw, tab) {
   const itemClass = resolveRecipeItemClass(raw)
-  return {
+  const item = {
     id: String(raw?.id || `${tab.id}:${raw?.x ?? 0}:${raw?.y ?? 0}:${raw?.typeLine || raw?.baseType || ''}`),
     tabId: tab.id,
     tabIndex: tab.index,
@@ -188,8 +213,12 @@ export function normalizeStashItem(raw, tab) {
     name: String(raw?.name || ''),
     baseType: String(raw?.baseType || raw?.typeLine || ''),
     typeLine: String(raw?.typeLine || raw?.baseType || ''),
-    icon: String(raw?.icon || '')
+    icon: String(raw?.icon || ''),
+    sockets: normalizeItemSockets(raw?.sockets),
+    influences: normalizeItemInfluences(raw?.influences)
   }
+  itemFootprintRegistry.registerStashItem(raw)
+  return item
 }
 
 function looksLikeStashItem(value) {

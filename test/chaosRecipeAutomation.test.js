@@ -30,6 +30,30 @@ print(json.dumps([
   assert.deepEqual(values[2], [false, '物品等级与仓库快照不一致'])
 })
 
+test('取件脚本允许任意稀有度插槽物品并校验中英文插槽结构', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("recipe", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+cn = module.parse_item("稀 有 度: 普通\\n简易之弓\\n--------\\n插槽: R-G-B R-G-B")
+en = module.parse_item("Rarity: Unique\\nTabula Rasa\\n--------\\nSockets: W-W-W-W-W-W")
+print(json.dumps([
+  module.matches(cn, {"verificationKind": "socket", "baseType": "简易之弓", "socketSignature": "R-G-B R-G-B"}),
+  module.matches(en, {"verificationKind": "socket", "baseType": "Tabula Rasa", "socketSignature": "W-W-W-W-W-W"}),
+  module.matches(cn, {"verificationKind": "socket", "baseType": "简易之弓", "socketSignature": "R-G-B"})
+], ensure_ascii=False))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), [
+    [true, ''],
+    [true, ''],
+    [false, '插槽结构与仓库快照不一致']
+  ])
+})
+
 test('取件脚本每件物品均先检查前台、界面、坐标和剪贴板再点击', () => {
   const source = readFileSync(scriptUrl, 'utf8')
   const loop = source.slice(source.indexOf('for index, expected'))

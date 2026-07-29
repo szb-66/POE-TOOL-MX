@@ -159,7 +159,6 @@ export function createMainWindow() {
   // 开发环境加载本地服务器，生产环境加载打包后的文件
   if (process.env.NODE_ENV === 'development' && devServerUrl) {
     mainWindow.loadURL(devServerUrl)
-    mainWindow.webContents.openDevTools()
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../../dist/index.html'))
   }

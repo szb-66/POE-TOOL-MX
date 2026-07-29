@@ -1,16 +1,17 @@
 <template>
   <div class="overlay-root">
     <div class="tracker" :class="state.status">
-      <strong>{{ state.tabName || '混沌配方' }}</strong>
+      <strong>{{ state.tabName || '商店配方' }} · {{ state.recipeLabel || '混沌石' }}</strong>
       <span>{{ state.message || `${state.items?.length || 0} 件待取` }}</span>
     </div>
     <div
       v-for="item in state.items || []"
       :key="item.id"
       class="item-box"
+      :class="`recipe-${item.recipeId || state.recipeId || 'chaos'}`"
       :style="boxStyle(item)"
     >
-      <span>{{ slotLabel(item.itemClass) }}</span>
+      <span>{{ slotLabel(item) }}</span>
     </div>
   </div>
 </template>
@@ -32,8 +33,9 @@ const labels = {
   amulet: '链',
   ring: '戒'
 }
+const recipeLabels = { chance: '机', chaos: '混', regal: '富', exalted: '崇', chromatic: '幻', jeweller: '孔', fusing: '连' }
 
-const slotLabel = (value) => labels[value] || ''
+const slotLabel = (item) => recipeLabels[item.recipeId] || labels[item.itemClass] || ''
 const boxStyle = (item) => {
   const columns = Number(state.columns || 12)
   return {
@@ -85,4 +87,10 @@ onUnmounted(() => removeListener?.())
   border: 3px solid #ffd04b;
   box-shadow: inset 0 0 12px rgba(255, 208, 75, .4), 0 0 8px rgba(255, 208, 75, .8);
 }
+.recipe-chance { border-color: #d6c47a; }
+.recipe-regal { border-color: #c6a6ff; }
+.recipe-exalted { border-color: #f4d35e; background: rgba(244, 211, 94, .24); }
+.recipe-chromatic { border-color: #ff7f7f; background: rgba(90, 190, 130, .24); }
+.recipe-jeweller { border-color: #8fd3ff; background: rgba(80, 150, 220, .24); }
+.recipe-fusing { border-color: #ff9f43; background: rgba(255, 159, 67, .24); }
 </style>

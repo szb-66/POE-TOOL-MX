@@ -3,9 +3,7 @@
 ## Purpose
 
 Define the dashboard home, unified module status, safe common actions, system health summary, and responsive presentation.
-
 ## Requirements
-
 ### Requirement: 数据看板作为应用首页
 系统 SHALL 在根路由展示数据看板，并在侧栏首项提供首页入口，同时保留所有现有业务路由。
 
@@ -18,7 +16,15 @@ Define the dashboard home, unified module status, safe common actions, system he
 - **THEN** 侧栏允许纵向滚动且所有导航项仍可访问
 
 ### Requirement: 七模块统一状态汇总
-系统 SHALL 展示物品、背包、地图、战斗、剧情、商城和做装七个模块，并将每个模块归入异常、运行中、需配置或可用中的唯一一种主状态。
+系统 SHALL 展示物品、背包、地图、战斗、剧情、商城和做装七个模块，将每个模块归入异常、运行中、需配置或可用中的唯一一种主状态，并按照检测、制造、其他三个业务类别分区展示。
+
+#### Scenario: 业务模块分类展示
+- **WHEN** 用户查看首页业务模块
+- **THEN** 系统从上到下依次展示检测、制造、其他三个横向分区
+- **AND** 检测分区从左到右展示背包入库、战斗辅助、商城配方
+- **AND** 制造分区从左到右展示地图洗练、物品制作
+- **AND** 其他分区从左到右展示剧情指引、手动做装
+- **AND** 每个模块只出现一次
 
 #### Scenario: 汇总互斥状态
 - **WHEN** 看板计算模块状态
@@ -38,22 +44,36 @@ Define the dashboard home, unified module status, safe common actions, system he
 - **WHEN** 模块通过看板、模块页、快捷键或后台生命周期事件改变状态
 - **THEN** 看板使用同一业务状态源显示最新结果
 
+#### Scenario: 商城配方状态
+- **WHEN** 用户查看首页商城卡片
+- **THEN** 系统从商城配方 Store 派生账号、配置、当前配方、快照和控制状态
+- **AND** 商城正则是否为空不影响首页状态
+
 #### Scenario: 非运行型模块
-- **WHEN** 商城生成有效正则或做装数据目录可用
+- **WHEN** 做装数据目录可用
 - **THEN** 对应模块显示为可用
 - **AND** 不显示虚假的启停控制
 
 ### Requirement: 安全的常用操作
-系统 SHALL 在看板提供物品和地图脚本启停、背包检测启停与停止入库、战斗自动喝药启停、剧情浮窗显隐、商城正则复制以及业务页跳转。
+系统 SHALL 在看板提供物品和地图脚本启停、背包检测启停与停止入库、战斗自动喝药启停、剧情浮窗显隐、商城配方选择、仓库刷新与游戏内控制启停，以及业务页跳转。
 
 #### Scenario: 执行模块操作
 - **WHEN** 用户点击可用的常用操作
 - **THEN** 系统调用与模块页或快捷键相同的公共业务服务
 - **AND** 操作完成前阻止该卡片重复提交
 
+#### Scenario: 首页切换商城配方
+- **WHEN** 用户在商城卡片选择七种配方之一
+- **THEN** 系统保存当前配方并更新数量和预计奖励摘要
+- **AND** 游戏内控制已开启时同步新的当前配方
+
+#### Scenario: 首页刷新商城配方
+- **WHEN** 用户已登录并选择赛季和至少一个仓库页
+- **THEN** 用户可以刷新仓库并更新当前配方摘要
+
 #### Scenario: 高影响操作
-- **WHEN** 用户查看战斗、做装或配置型卡片
-- **THEN** 首页不提供一键回城、数据更新、重置或详细参数编辑
+- **WHEN** 用户查看战斗、做装或商城配方卡片
+- **THEN** 首页不提供一键回城、做装数据更新、自动取件执行、校准、登录、重置或详细参数编辑
 
 #### Scenario: 共享脚本被占用
 - **WHEN** 物品脚本正在运行且用户查看地图卡片，或反之
@@ -81,4 +101,7 @@ Define the dashboard home, unified module status, safe common actions, system he
 
 #### Scenario: 窄窗口
 - **WHEN** 可用内容宽度不足以容纳多列卡片
-- **THEN** 模块卡片自动降为单列且操作仍可访问
+- **THEN** 每个业务分区内的模块卡片自动换行，并在窄窗口降为单列
+- **AND** 三个业务分区仍保持检测、制造、其他的纵向顺序
+- **AND** 模块操作仍可访问
+

@@ -13,6 +13,7 @@ import signal
 import sys
 import time
 import traceback
+import unicodedata
 
 
 def enable_per_monitor_dpi_awareness():
@@ -123,6 +124,68 @@ def parse_item_header(text):
     if not category or not header:
         return None
     return {"category": category, "name": header[0], "baseName": header[1] if len(header) > 1 else ""}
+
+
+def normalize_footprint_text(value):
+    return " ".join(unicodedata.normalize("NFKC", str(value or "")).strip().casefold().split())
+
+
+def footprint_key(category, name):
+    normalized_name = normalize_footprint_text(name)
+    if not normalized_name:
+        return ""
+    return "{}\x1f{}".format(normalize_footprint_text(category) or "*", normalized_name)
+
+
+def valid_footprint(value):
+    if not isinstance(value, dict):
+        return None
+    width, height = value.get("width"), value.get("height")
+    if isinstance(width, bool) or isinstance(height, bool):
+        return None
+    if not isinstance(width, int) or not isinstance(height, int):
+        return None
+    return {"width": width, "height": height} if 1 <= width <= 12 and 1 <= height <= 12 else None
+
+
+def resolve_item_footprint(item, catalog):
+    if not isinstance(item, dict) or not isinstance(catalog, dict) or catalog.get("schemaVersion") != 1:
+        return None
+    items = catalog.get("items", {})
+    categories = catalog.get("categories", {})
+    if not isinstance(items, dict) or not isinstance(categories, dict):
+        return None
+    category = item.get("category", "")
+    names = [item.get("baseName", ""), item.get("name", "")]
+    for name in names:
+        for key in (footprint_key(category, name), footprint_key("", name)):
+            footprint = valid_footprint(items.get(key))
+            if footprint:
+                return footprint
+    return valid_footprint(categories.get(normalize_footprint_text(category)))
+
+
+def resolved_footprint_slots(target, footprint, phase, ambiguous_slots):
+    if not footprint:
+        return set()
+    column, row = target["column"], target["row"]
+    phase_slots = {(entry["column"], entry["row"]) for entry in phase}
+    rectangle = {
+        (column + column_offset, row + row_offset)
+        for column_offset in range(footprint["width"])
+        for row_offset in range(footprint["height"])
+    }
+    if not rectangle.issubset(phase_slots):
+        return set()
+    possible_predecessors = {
+        (candidate_column, candidate_row)
+        for candidate_column in range(column - footprint["width"] + 1, column + 1)
+        for candidate_row in range(row - footprint["height"] + 1, row + 1)
+        if candidate_column < column or (candidate_column == column and candidate_row < row)
+    }
+    if possible_predecessors.intersection(ambiguous_slots):
+        return set()
+    return rectangle
 
 
 def normalize_blacklist(rules):
@@ -389,6 +452,7 @@ def empty_stats():
     return {
         "scannedSlots": 0,
         "stashedSlots": 0,
+        "skippedOccupiedSlots": 0,
         "blacklistedSlots": 0,
         "emptySlots": 0,
         "unreadableSlots": 0,
@@ -483,12 +547,17 @@ def run_stash(config):
     start_x, start_y = int(start.get("x", 0)), int(start.get("y", 0))
     width, height = int(slot.get("w", 0)), int(slot.get("h", 0))
     rules = config.get("blacklist", [])
+    item_footprints = inventory.get("itemFootprints", {})
     scan_phases = build_scan_phases(inventory)
     total_slots = sum(1 for phase in scan_phases for target in phase if not target["excluded"])
     empty_slot_threshold = max(1, min(60, int(inventory.get("emptySlotThreshold", 3))))
     consecutive_empty_slots = 0
     try:
         for phase_index, phase in enumerate(scan_phases):
+            resolved_slots = set()
+            ambiguous_slots = {
+                (entry["column"], entry["row"]) for entry in phase if entry["excluded"]
+            }
             if phase_index > 0:
                 stats["unreadableSlots"] += consecutive_empty_slots
                 consecutive_empty_slots = 0
@@ -505,27 +574,45 @@ def run_stash(config):
                 if not interface_ready:
                     return abort("interface-lost", stats)
                 column, row = target["column"], target["row"]
+                if (column, row) in resolved_slots:
+                    stats["unreadableSlots"] += consecutive_empty_slots
+                    consecutive_empty_slots = 0
+                    stats["skippedOccupiedSlots"] += 1
+                    stats["scannedSlots"] += 1
+                    emit_progress(stats, total_slots)
+                    continue
                 x = start_x + column * width
                 y = start_y + row * height
                 copy_status = "unreadable"
+                handled_item = None
                 if not controller.move(x, y):
                     stats["unreadableSlots"] += 1
+                    ambiguous_slots.add((column, row))
                 else:
                     copy_status, text = controller.copy_item_text()
                     if copy_status == "empty":
                         pass
                     elif copy_status != "copied":
                         stats["unreadableSlots"] += 1
+                        ambiguous_slots.add((column, row))
                     else:
                         item = parse_item_header(text)
                         if item is None:
                             stats["unreadableSlots"] += 1
+                            ambiguous_slots.add((column, row))
                         elif find_blacklist_match(item, rules):
                             stats["blacklistedSlots"] += 1
+                            handled_item = item
                         elif controller.ctrl_click():
                             stats["stashedSlots"] += 1
+                            handled_item = item
                         else:
                             stats["unreadableSlots"] += 1
+                            ambiguous_slots.add((column, row))
+                if handled_item:
+                    footprint = resolve_item_footprint(handled_item, item_footprints)
+                    resolved_slots.update(resolved_footprint_slots(
+                        target, footprint, phase, ambiguous_slots))
                 if copy_status == "empty":
                     consecutive_empty_slots = advance_empty_streak(consecutive_empty_slots, copy_status)
                 else:

@@ -173,7 +173,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   refreshChaosRecipe: (request) => ipcRenderer.invoke('chaos-recipe-refresh', request),
   getChaosRecipeSnapshot: () => ipcRenderer.invoke('chaos-recipe-get-snapshot'),
   pickChaosRecipeGridRegion: () => ipcRenderer.invoke('chaos-recipe-pick-grid-region'),
-  openChaosRecipeOverlay: (setCount, calibration) => ipcRenderer.invoke('chaos-recipe-open-overlay', setCount, calibration),
+  openChaosRecipeOverlay: (request, calibration) => ipcRenderer.invoke('chaos-recipe-open-overlay', request, calibration),
   closeChaosRecipeOverlay: () => ipcRenderer.invoke('chaos-recipe-close-overlay'),
   getChaosRecipeOverlayState: () => ipcRenderer.invoke('chaos-recipe-overlay-state'),
   startChaosRecipeAutomation: (request) => ipcRenderer.invoke('chaos-recipe-automation-start', request),

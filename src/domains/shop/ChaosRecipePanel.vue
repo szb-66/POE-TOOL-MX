@@ -8,7 +8,7 @@
     />
 
     <el-card class="block">
-      <template #header><span>游戏内混沌配方控制</span></template>
+      <template #header><span>游戏内商店配方控制</span></template>
       <el-form label-width="130px">
         <el-form-item label="是否开启">
           <el-switch
@@ -28,7 +28,7 @@
             controls-position="right"
             @change="value => store.updateSetting('operationDelayMs', value)"
           />
-          <span class="muted inline-hint">毫秒；仅影响混沌配方自动取件</span>
+          <span class="muted inline-hint">毫秒；仅影响商店配方自动取件</span>
         </el-form-item>
       </el-form>
     </el-card>
@@ -120,7 +120,7 @@
                 :model-value="store.settings.includeIdentified"
                 @change="value => store.updateSetting('includeIdentified', value)"
               >
-                允许已鉴定装备（每套仅 1 个混沌石）
+                允许已鉴定装备（完整套装可能只产出 1 个对应通货）
               </el-checkbox>
             </el-form-item>
             <el-button
@@ -157,17 +157,54 @@
       <el-card v-if="store.snapshot" class="block">
         <template #header>
           <div class="card-header">
-            <span>混沌配方状态</span>
+            <span>商店配方状态</span>
             <span class="muted">更新于 {{ formatTime(store.snapshot.fetchedAt) }}</span>
           </div>
         </template>
 
-        <div class="summary-grid">
-          <div class="summary-item primary"><strong>{{ store.snapshot.fullSetCount }}</strong><span>完整套装</span></div>
-          <div class="summary-item"><strong>{{ store.snapshot.rewardTotal }}</strong><span>预计混沌石</span></div>
+        <p class="muted">各配方独立预览，数量不可直接相加；每次只取当前选中的一种配方。</p>
+        <div class="recipe-grid">
+          <button
+            v-for="recipe in recipeCards"
+            :key="recipe.id"
+            type="button"
+            class="recipe-card"
+            :class="{ active: store.settings.activeRecipeId === recipe.id }"
+            @click="store.setActiveRecipe(recipe.id)"
+          >
+            <strong>{{ recipe.label }}</strong>
+            <span>{{ recipe.kind === 'set' ? `${recipe.fullSetCount} 套` : `${recipe.candidateCount} 件` }}</span>
+            <small>预计 {{ recipe.rewardTotal }}</small>
+          </button>
+        </div>
+
+        <div v-if="activeRecipe?.kind === 'set'" class="summary-grid block">
+          <div class="summary-item primary"><strong>{{ activeRecipe.fullSetCount }}</strong><span>完整套装</span></div>
+          <div class="summary-item"><strong>{{ activeRecipe.rewardTotal }}</strong><span>预计{{ activeRecipe.label }}</span></div>
           <div v-for="entry in countEntries" :key="entry.key" class="summary-item">
             <strong>{{ entry.count }}</strong><span>{{ entry.label }}</span>
           </div>
+        </div>
+
+        <div v-else-if="activeRecipe" class="single-section block">
+          <div class="card-header">
+            <span>候选物品（默认全选，可在取件前取消）</span>
+            <el-tag type="info">已选 {{ store.activeSelectedItemIds.length }} / {{ activeRecipe.candidateCount }}</el-tag>
+          </div>
+          <el-checkbox-group
+            :model-value="store.activeSelectedItemIds"
+            class="single-list"
+            @change="ids => store.setSelectedItemIds(store.settings.activeRecipeId, ids)"
+          >
+            <label v-for="item in activeRecipe.candidates" :key="item.id" class="single-row">
+              <el-checkbox :value="item.id" />
+              <span>{{ item.name || item.baseType || item.typeLine }}</span>
+              <span class="muted">{{ item.tabName }} · ({{ item.x }}, {{ item.y }})</span>
+              <code>{{ item.socketSignature }}</code>
+              <el-tag size="small">+{{ item.reward }} {{ activeRecipe.label }}</el-tag>
+            </label>
+          </el-checkbox-group>
+          <el-empty v-if="!activeRecipe.candidateCount" description="当前仓库没有匹配物品" :image-size="64" />
         </div>
 
         <p v-if="store.snapshot.diagnostics" class="diagnostic-line">
@@ -198,7 +235,7 @@
         />
 
         <el-alert
-          v-if="store.snapshot.needsLowLevel"
+          v-if="store.settings.activeRecipeId === 'chaos' && activeRecipe?.needsLowLevel"
           class="block"
           title="部位已齐，但缺少物品等级 60–74 的装备；当前组合会成为富豪石配方。"
           type="warning"
@@ -206,7 +243,7 @@
           show-icon
         />
 
-        <div class="missing-list block">
+        <div v-if="activeRecipe?.kind === 'set'" class="missing-list block">
           <span>下一套缺件：</span>
           <el-tag v-for="entry in missingEntries" :key="entry.key" type="danger">
             {{ entry.label }} × {{ entry.count }}
@@ -215,15 +252,18 @@
         </div>
 
         <div class="automation-controls block">
-          <label>
+          <label v-if="activeRecipe?.kind === 'set'">
             取出套数
             <el-input-number
               :model-value="store.settings.targetSetCount"
               :min="1"
-              :max="Math.max(1, store.snapshot.fullSetCount)"
+              :max="Math.max(1, activeRecipe?.fullSetCount || 0)"
               @change="value => store.updateSetting('targetSetCount', value)"
             />
           </label>
+          <span v-else-if="activeRecipe" class="muted">
+            将取出已勾选的 {{ store.activeSelectedItemIds.length }} 件{{ activeRecipe.label }}候选
+          </span>
           <el-button v-if="store.automation.status === 'running'" @click="store.pauseAutomation">暂停</el-button>
           <el-button v-if="store.automation.status === 'paused'" type="primary" @click="store.resumeAutomation">
             已切换到“{{ store.automation.tabName }}”，继续
@@ -242,8 +282,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
+import { VENDOR_RECIPE_CATALOG, VENDOR_RECIPE_IDS } from '../../../electron/modules/chaosRecipe/engine.js'
 
 const store = useChaosRecipeStore()
 const sessionToken = ref('')
@@ -262,13 +303,19 @@ const labels = {
   oneHandWeapon: '一手/盾',
   twoHandWeapon: '双手',
   weapon: '武器组合',
-  lowLevel: '60–74级装备'
+  lowLevel: '60–74级装备',
+  levelBand: '目标物等装备'
 }
 
-const countEntries = computed(() => Object.entries(store.snapshot?.counts || {}).map(([key, count]) => ({
+const activeRecipe = computed(() => store.activeRecipe)
+const recipeCards = computed(() => VENDOR_RECIPE_IDS.map((id) => ({
+  ...VENDOR_RECIPE_CATALOG[id],
+  ...(store.snapshot?.recipes?.[id] || { fullSetCount: 0, candidateCount: 0, rewardTotal: 0 })
+})))
+const countEntries = computed(() => Object.entries(activeRecipe.value?.counts || {}).map(([key, count]) => ({
   key, count, label: labels[key] || key
 })))
-const missingEntries = computed(() => Object.entries(store.snapshot?.missing || {})
+const missingEntries = computed(() => Object.entries(activeRecipe.value?.missing || {})
   .filter(([, count]) => count > 0)
   .map(([key, count]) => ({ key, count, label: labels[key] || key })))
 const automationProgress = computed(() => Math.min(100, Math.round(
@@ -325,15 +372,12 @@ async function loginToken() {
 async function toggleEnabled(enabled) {
   try {
     await store.setEnabled(enabled)
-    ElMessage.success(enabled ? '混沌配方游戏内控制已开启' : '混沌配方游戏内控制已关闭')
+    ElMessage.success(enabled ? '商店配方游戏内控制已开启' : '商店配方游戏内控制已关闭')
   } catch (error) {
     ElMessage.error(error.message)
   }
 }
 
-onMounted(() => {
-  void store.restoreAuth().catch(() => {})
-})
 </script>
 
 <style scoped lang="less">
@@ -364,6 +408,31 @@ onMounted(() => {
 .calibration-row + .calibration-row { margin-top: 12px; }
 .calibration-warning { margin-top: 12px; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
+.recipe-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 12px; }
+.recipe-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  color: var(--text-primary);
+  text-align: left;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+.recipe-card.active { color: var(--el-color-primary); border-color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
+.recipe-card span, .recipe-card small { color: var(--text-secondary); }
+.single-list { display: grid; gap: 8px; margin-top: 12px; }
+.single-row {
+  display: grid;
+  grid-template-columns: auto minmax(140px, 1fr) minmax(140px, auto) minmax(90px, auto) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+}
+.single-row code { color: var(--el-color-primary); }
 .summary-item { padding: 14px; border: 1px solid var(--border-light); border-radius: 8px; text-align: center; }
 .summary-item strong, .summary-item span { display: block; }
 .summary-item strong { font-size: 24px; }

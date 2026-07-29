@@ -94,13 +94,15 @@ export class ChaosRecipeAutomationManager {
       columns: tab.columns,
       items: remaining,
       status: this.status,
+      recipeId: this.plan?.recipeId,
+      recipeLabel: this.plan?.recipeLabel,
       message
     })
   }
 
   start(plan, config = {}) {
     if (this.status !== 'idle' && this.status !== 'stopped' && this.status !== 'completed') {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.AUTOMATION_RUNNING, '混沌配方取件正在运行')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.AUTOMATION_RUNNING, '商店配方取件正在运行')
     }
     const gate = this.automationLock?.acquire('混沌配方取件') || { success: true }
     if (!gate.success) {

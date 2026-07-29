@@ -36,6 +36,7 @@
             <el-form-item v-if="hasRunStats" label="本轮统计">
               <div class="stats-row">
                 <el-tag type="success">已入库 {{ bagStore.stashStats.stashedSlots }}</el-tag>
+                <el-tag>跳过占位 {{ bagStore.stashStats.skippedOccupiedSlots }}</el-tag>
                 <el-tag type="warning">黑名单 {{ bagStore.stashStats.blacklistedSlots }}</el-tag>
                 <el-tag type="info">空格 {{ bagStore.stashStats.emptySlots }}</el-tag>
                 <el-tag type="danger">未识别 {{ bagStore.stashStats.unreadableSlots }}</el-tag>

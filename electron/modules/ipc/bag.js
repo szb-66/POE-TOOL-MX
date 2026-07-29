@@ -18,6 +18,7 @@ import { getBagOverlayDragBounds } from '../window/bagOverlay.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { normalizeOperationDelay } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 let stashProcess = null
 let latestConfig = null
@@ -187,7 +188,9 @@ function startStashProcess(python, fileWatcher, mode) {
 
   let child
   try {
-    const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', latestConfig)
+    const frozenConfig = structuredClone(latestConfig)
+    frozenConfig.inventory.itemFootprints = itemFootprintRegistry.snapshot()
+    const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', frozenConfig)
     child = spawnPython(python, 'stash', configPath)
     stashProcess = child
     syncBagOverlay()
@@ -212,7 +215,7 @@ function startStashProcess(python, fileWatcher, mode) {
   bindCommonProcessLogging(child, '自动入库')
   send('bag-stash-progress', {
     event: 'stash-progress', scannedSlots: 0, stashedSlots: 0,
-    blacklistedSlots: 0, emptySlots: 0, unreadableSlots: 0, progress: 0
+    skippedOccupiedSlots: 0, blacklistedSlots: 0, emptySlots: 0, unreadableSlots: 0, progress: 0
   })
   child.on('close', (code) => {
     const wasCurrent = stashProcess === child

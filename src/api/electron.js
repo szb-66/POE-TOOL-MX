@@ -308,7 +308,10 @@ export const electronApi = isElectron ? {
     refresh: (request) => window.electronAPI.refreshChaosRecipe?.(craftingIpcPayload(request)),
     getSnapshot: () => window.electronAPI.getChaosRecipeSnapshot?.(),
     pickGridRegion: () => window.electronAPI.pickChaosRecipeGridRegion?.(),
-    openOverlay: (setCount, calibration) => window.electronAPI.openChaosRecipeOverlay?.(setCount, craftingIpcPayload(calibration)),
+    openOverlay: (request, calibration) => window.electronAPI.openChaosRecipeOverlay?.(
+      craftingIpcPayload(request),
+      craftingIpcPayload(calibration)
+    ),
     closeOverlay: () => window.electronAPI.closeChaosRecipeOverlay?.(),
     getOverlayState: () => window.electronAPI.getChaosRecipeOverlayState?.(),
     startAutomation: (request) => window.electronAPI.startChaosRecipeAutomation?.(craftingIpcPayload(request)),

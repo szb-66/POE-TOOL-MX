@@ -1,8 +1,8 @@
 <template>
   <div class="shop-page">
     <el-tabs v-model="activeTool" class="shop-tabs">
-      <el-tab-pane label="商店正则" name="vendor" />
-      <el-tab-pane label="混沌配方" name="chaos" />
+      <el-tab-pane label="商城配方" name="chaos" />
+      <el-tab-pane label="商城正则" name="vendor" />
     </el-tabs>
     <template v-if="activeTool === 'vendor'">
     <div class="page-heading">
@@ -162,7 +162,8 @@ const FilterGroup = defineComponent({
 })
 
 const presetStore = usePresetStore()
-const activeTool = ref(localStorage.getItem('shopActiveTool') === 'chaos' ? 'chaos' : 'vendor')
+const storedActiveTool = localStorage.getItem('shopActiveTool')
+const activeTool = ref(['chaos', 'vendor'].includes(storedActiveTool) ? storedActiveTool : 'chaos')
 const groups = VENDOR_OPTION_GROUPS
 const meta = VENDOR_DATA_META
 const vendor = computed(() => presetStore.currentShopPreset.vendor)

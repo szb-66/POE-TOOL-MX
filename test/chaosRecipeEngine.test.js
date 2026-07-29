@@ -1,7 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  calculateVendorRecipes,
   calculateChaosRecipe,
+  classifySocketRecipe,
   createPickingPlan,
   filterChaosCandidates,
   summarizeChaosItemPipeline
@@ -118,4 +120,90 @@ test('取件计划保留仓库页的文件夹属性', () => {
 
   assert.equal(plan.tabs[0].inFolder, true)
   assert.ok(plan.tabs[0].items.every((entry) => entry.inFolder))
+})
+
+test('机会、混沌和富豪套装按最低物等独立计算', () => {
+  const chance = fullSet({ lowSlot: 'helmet' }).map((entry, index) => ({
+    ...entry,
+    itemLevel: index === 0 ? 59 : 80
+  }))
+  const chaos = fullSet({ lowSlot: 'helmet', tabId: 'chaos' })
+  const regal = fullSet({ lowSlot: 'none', tabId: 'regal' })
+  const recipes = calculateVendorRecipes([...chance, ...chaos, ...regal]).recipes
+
+  assert.equal(recipes.chance.fullSetCount, 1)
+  assert.equal(recipes.chaos.fullSetCount, 1)
+  assert.equal(recipes.regal.fullSetCount, 2)
+  assert.equal(recipes.chance.rewardTotal, 2)
+})
+
+test('插槽配方按六连、六孔、三色顺序唯一归类并保护套装', () => {
+  const sockets = (groups, colours) => colours.map((sColour, index) => ({
+    group: groups[index], sColour, attr: ''
+  }))
+  const linked = item('bodyArmour', 70, { sockets: sockets([0, 0, 0, 0, 0, 0], ['R', 'G', 'B', 'R', 'G', 'B']) })
+  const sixSocket = item('helmet', 70, { sockets: sockets([0, 0, 0, 1, 1, 1], ['R', 'G', 'B', 'R', 'G', 'B']) })
+  const chromatic = item('gloves', 70, { sockets: sockets([0, 0, 0], ['B', 'R', 'G']) })
+  const recipes = calculateVendorRecipes([...fullSet(), linked, sixSocket, chromatic]).recipes
+
+  assert.equal(classifySocketRecipe(linked), 'fusing')
+  assert.equal(classifySocketRecipe(sixSocket), 'jeweller')
+  assert.equal(classifySocketRecipe(chromatic), 'chromatic')
+  assert.deepEqual([
+    recipes.fusing.candidateCount,
+    recipes.jeweller.candidateCount,
+    recipes.chromatic.candidateCount
+  ], [1, 1, 1])
+  assert.ok(recipes.chaos.candidates.every((entry) => ![linked.id, sixSocket.id, chromatic.id].includes(entry.id)))
+})
+
+test('经典势力装备只参与共享势力崇高套装', () => {
+  const shaperSet = fullSet({ lowSlot: 'none' }).map((entry) => ({
+    ...entry,
+    influences: ['shaper']
+  }))
+  const recipes = calculateVendorRecipes(shaperSet).recipes
+  assert.equal(recipes.exalted.fullSetCount, 1)
+  assert.equal(recipes.exalted.rewardTotal, 2)
+  assert.equal(recipes.regal.fullSetCount, 0)
+  assert.equal(recipes.chaos.fullSetCount, 0)
+  assert.equal(new Set(recipes.exalted.sets.flatMap((set) => set.items.map((entry) => entry.id))).size, 9)
+})
+
+test('崇高套装支持六种经典势力且不会重复分配双势力物品', () => {
+  const influences = ['shaper', 'elder', 'crusader', 'redeemer', 'hunter', 'warlord']
+  const values = influences.flatMap((influence, index) =>
+    fullSet({ lowSlot: 'none', tabId: influence, tabIndex: index }).map((entry) => ({
+      ...entry,
+      influences: [influence]
+    }))
+  )
+  values[0].influences = ['shaper', 'elder']
+  const exalted = calculateVendorRecipes(values).recipes.exalted
+  const selectedIds = exalted.sets.flatMap((set) => set.items.map((entry) => entry.id))
+
+  assert.equal(exalted.fullSetCount, 6)
+  assert.equal(new Set(selectedIds).size, selectedIds.length)
+  assert.deepEqual(new Set(exalted.sets.map((set) => set.influence)), new Set(influences))
+})
+
+test('允许已鉴定后混合完整套装奖励降为一个', () => {
+  const values = fullSet().map((entry, index) => ({ ...entry, identified: index === 0 }))
+  assert.equal(calculateVendorRecipes(values).recipes.chaos.fullSetCount, 0)
+  const chaos = calculateVendorRecipes(values, { includeIdentified: true }).recipes.chaos
+  assert.equal(chaos.fullSetCount, 1)
+  assert.equal(chaos.rewardTotal, 1)
+})
+
+test('单件取件计划只包含选中的候选', () => {
+  const sockets = ['R', 'G', 'B'].map((sColour) => ({ group: 0, sColour, attr: '' }))
+  const first = item('helmet', 10, { sockets })
+  const second = item('gloves', 10, { sockets, tabId: 'tab-2', tabIndex: 1 })
+  const snapshot = calculateVendorRecipes([first, second])
+  const plan = createPickingPlan(snapshot, { recipeId: 'chromatic', itemIds: [second.id] })
+
+  assert.equal(plan.recipeId, 'chromatic')
+  assert.equal(plan.selectedItemCount, 1)
+  assert.equal(plan.tabs[0].items[0].id, second.id)
+  assert.equal(plan.tabs[0].items[0].verificationKind, 'socket')
 })

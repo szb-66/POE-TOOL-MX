@@ -53,6 +53,7 @@
       "src/utils/electronAccelerator.js",
       "src/utils/inventorySettings.js",
       "src/utils/operationDelay.js",
+      "electron/assets/item-footprints.json",
       "package.json",
       "LICENSE.md",
       "THIRD_PARTY_NOTICES.md"

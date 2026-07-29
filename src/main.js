@@ -4,14 +4,15 @@ import router from './router'
 import App from './App.vue'
 import 'element-plus/es/components/message/style/css'
 import './styles/index.less'
-const bootstrap = () => {
+const bootstrap = async () => {
   const app = createApp(App)
   const pinia = createPinia()
 
   app.use(pinia)
   app.use(router)
+  await router.isReady()
   app.mount('#app')
 }
 
-bootstrap()
+void bootstrap()
 

@@ -13,6 +13,10 @@ import {
   summarizeModules
 } from '../src/domains/dashboard/dashboardStatus.js'
 import {
+  DASHBOARD_MODULE_GROUPS,
+  groupDashboardModules
+} from '../src/domains/dashboard/dashboardGroups.js'
+import {
   clearCurrentScriptProcess,
   getCurrentScriptMode,
   getCurrentScriptProcess,
@@ -75,9 +79,47 @@ test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
   }).state, 'running')
 })
 
-test('商城和做装使用可用性而不是虚假运行状态', () => {
-  assert.equal(evaluateShopStatus({ regex: '', length: 0 }).state, 'attention')
-  assert.equal(evaluateShopStatus({ regex: 'r-g-b', length: 5 }).state, 'ready')
+test('商城配方状态覆盖配置、快照、运行和异常优先级', () => {
+  const readyInput = {
+    authenticated: true,
+    league: 'S29',
+    selectedTabCount: 2,
+    snapshot: {},
+    activeRecipeLabel: '混沌石',
+    activeRecipeKind: 'set',
+    fullSetCount: 3,
+    rewardTotal: 6
+  }
+  const ready = evaluateShopStatus({ ...readyInput, regex: '' })
+  assert.equal(ready.state, 'ready')
+  assert.equal(ready.title, '商城配方')
+  assert.deepEqual(ready.metrics, [
+    { label: '可取数量', value: '3 套' },
+    { label: '预计奖励', value: 6 }
+  ])
+  assert.equal(evaluateShopStatus({}).state, 'attention')
+  assert.equal(evaluateShopStatus({ ...readyInput, snapshot: null }).statusText, '尚未刷新商城配方仓库数据')
+  assert.equal(evaluateShopStatus({ ...readyInput, enabled: true }).state, 'running')
+  assert.equal(evaluateShopStatus({
+    ...readyInput,
+    automationStatus: 'paused'
+  }).statusText, '自动取件已暂停 · 混沌石')
+  assert.equal(evaluateShopStatus({
+    ...readyInput,
+    enabled: true,
+    error: '运行时失败'
+  }).state, 'error')
+  assert.equal(evaluateShopStatus({
+    ...readyInput,
+    automationEvent: 'error',
+    automationError: '自动取件失败'
+  }).statusText, '自动取件失败')
+  assert.equal(evaluateShopStatus({
+    ...readyInput,
+    activeRecipeKind: 'single',
+    candidateCount: 4
+  }).metrics[0].value, '4 件')
+
   assert.equal(evaluateCraftingStatus({ status: null }).state, 'attention')
   assert.equal(evaluateCraftingStatus({
     status: { source: 'builtin', manifest: { patch: '3.28' } },
@@ -96,6 +138,26 @@ test('七模块汇总每张卡只计入一个类别', () => {
     createModuleStatus({ issues: ['x'] })
   ]
   assert.deepEqual(summarizeModules(modules), { error: 1, running: 2, attention: 2, ready: 2 })
+})
+
+test('首页按检测、制造、其他分组且每个模块只出现一次', () => {
+  const modules = ['items', 'bag', 'map', 'combat', 'story', 'shop', 'crafting']
+    .map(id => ({ id }))
+  const groups = groupDashboardModules(modules)
+
+  assert.deepEqual(
+    DASHBOARD_MODULE_GROUPS.map(group => group.title),
+    ['检测', '制造', '其他']
+  )
+  assert.deepEqual(
+    groups.map(group => group.modules.map(module => module.id)),
+    [
+      ['bag', 'combat', 'shop'],
+      ['map', 'items'],
+      ['story', 'crafting']
+    ]
+  )
+  assert.equal(new Set(groups.flatMap(group => group.modules)).size, modules.length)
 })
 
 test('共享脚本进程状态保存并清除运行类型', () => {
@@ -122,3 +184,19 @@ test('首页路由、侧栏入口和脚本生命周期桥接已接入', () => {
   assert.match(ipc, /status: 'running'/)
 })
 
+test('首页商城卡片接入配方 store 且不再依赖商城正则', () => {
+  const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
+  const card = readFileSync(
+    new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(dashboard, /useChaosRecipeStore/)
+  assert.match(dashboard, /VENDOR_RECIPE_IDS/)
+  assert.match(dashboard, /setActiveRecipe/)
+  assert.match(dashboard, /chaosRecipeStore\.refresh/)
+  assert.match(dashboard, /chaosRecipeStore\.setEnabled/)
+  assert.doesNotMatch(dashboard, /generateVendorRegex|复制正则|shopResult/)
+  assert.match(card, /module\.selector/)
+  assert.match(card, /@change="\$emit\('select'/)
+})

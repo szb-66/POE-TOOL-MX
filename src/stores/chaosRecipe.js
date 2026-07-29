@@ -8,6 +8,10 @@ import {
   missingCalibrationKeys,
   requiredCalibrationKeys
 } from '../../electron/modules/chaosRecipe/layout.js'
+import {
+  SINGLE_RECIPE_IDS,
+  VENDOR_RECIPE_IDS
+} from '../../electron/modules/chaosRecipe/engine.js'
 
 const STORAGE_KEY = 'chaosRecipeSettings'
 
@@ -16,6 +20,7 @@ const defaultSettings = () => ({
   league: '',
   selectedTabIds: [],
   includeIdentified: false,
+  activeRecipeId: 'chaos',
   targetSetCount: 1,
   operationDelayMs: 80,
   controlOverlayOffset: { x: 50, y: 1550 },
@@ -56,11 +61,15 @@ function normalizeTabFolderStates(value) {
 }
 
 export function normalizeChaosRecipeSettings(raw = {}) {
+  const activeRecipeId = VENDOR_RECIPE_IDS.includes(String(raw.activeRecipeId || ''))
+    ? String(raw.activeRecipeId)
+    : 'chaos'
   return {
     enabled: Boolean(raw.enabled),
     league: String(raw.league || ''),
     selectedTabIds: Array.isArray(raw.selectedTabIds) ? raw.selectedTabIds.map(String) : [],
     includeIdentified: Boolean(raw.includeIdentified),
+    activeRecipeId,
     targetSetCount: Math.max(1, Math.min(20, Math.trunc(Number(raw.targetSetCount) || 1))),
     operationDelayMs: normalizeOperationDelay(raw.operationDelayMs),
     tabFolderStates: normalizeTabFolderStates(raw.tabFolderStates || raw.tabOverrides),
@@ -89,7 +98,7 @@ function loadSettings() {
 
 function unwrap(response) {
   if (response?.success) return response.data
-  const error = new Error(response?.error?.message || '国服混沌配方操作失败')
+  const error = new Error(response?.error?.message || '国服商店配方操作失败')
   error.code = response?.error?.code || 'UNKNOWN'
   error.details = response?.error?.details || {}
   throw error
@@ -102,6 +111,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const leagues = ref([])
   const tabs = ref([])
   const snapshot = ref(null)
+  const singleSelections = ref(Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [id, []])))
   const automation = ref({ status: 'idle', completedItems: 0, totalItems: 0, tabName: '' })
   const settings = ref(initial)
   const busy = ref(false)
@@ -123,6 +133,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const missingCalibrationLabels = computed(() =>
     missingCalibrations.value.map((key) => CHAOS_GRID_LAYOUT_LABELS[key])
   )
+  const activeRecipe = computed(() =>
+    snapshot.value?.recipes?.[settings.value.activeRecipeId] || null
+  )
+  const activeSelectedItemIds = computed(() =>
+    singleSelections.value[settings.value.activeRecipeId] || []
+  )
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings.value))
@@ -131,8 +147,25 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function runtimePayload(overrides = {}) {
     return {
       ...JSON.parse(JSON.stringify(settings.value)),
+      selectedItemIds: [...activeSelectedItemIds.value],
       ...interfaceDetectionStore.runtime(),
       ...overrides
+    }
+  }
+
+  function resetSingleSelections(value = snapshot.value) {
+    singleSelections.value = Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [
+      id,
+      (value?.recipes?.[id]?.candidates || []).map((item) => String(item.id))
+    ]))
+  }
+
+  function currentPlanRequest() {
+    return {
+      recipeId: settings.value.activeRecipeId,
+      setCount: settings.value.targetSetCount,
+      itemIds: [...activeSelectedItemIds.value],
+      calibration: settings.value.calibration
     }
   }
 
@@ -159,7 +192,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   async function initializeRuntime() {
     try {
-      auth.value = unwrap(await electronApi.chaosRecipe.getAuthStatus())
+      await restoreAuth()
       await syncRuntime()
     } catch (error) {
       if (settings.value.enabled) {
@@ -215,6 +248,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       leagues.value = []
       tabs.value = []
       snapshot.value = null
+      resetSingleSelections(null)
     })
   }
 
@@ -254,14 +288,16 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
         includeIdentified: settings.value.includeIdentified,
         tabFolderStates: settings.value.tabFolderStates[settings.value.league] || {}
       }))
+      resetSingleSelections(snapshot.value)
       if (Array.isArray(snapshot.value.availableTabs)) {
         tabs.value = snapshot.value.availableTabs
         const available = new Set(tabs.value.filter((tab) => tab.supported).map((tab) => String(tab.id)))
         settings.value.selectedTabIds = settings.value.selectedTabIds.filter((id) => available.has(String(id)))
       }
+      const activeSetCount = snapshot.value.recipes?.[settings.value.activeRecipeId]?.fullSetCount || 0
       settings.value.targetSetCount = Math.min(
         Math.max(1, settings.value.targetSetCount),
-        Math.max(1, snapshot.value.fullSetCount)
+        Math.max(1, activeSetCount)
       )
       save()
       if (settings.value.enabled) await syncRuntime()
@@ -280,17 +316,13 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   async function previewOverlay() {
-    return run(async () => unwrap(await electronApi.chaosRecipe.openOverlay(
-      settings.value.targetSetCount,
-      settings.value.calibration
-    )))
+    return run(async () => unwrap(await electronApi.chaosRecipe.openOverlay(currentPlanRequest())))
   }
 
   async function startAutomation(runtime) {
     return run(async () => {
       const result = unwrap(await electronApi.chaosRecipe.startAutomation({
-        setCount: settings.value.targetSetCount,
-        calibration: settings.value.calibration,
+        ...currentPlanRequest(),
         ...runtime
       }))
       automation.value = { ...automation.value, ...result }
@@ -314,6 +346,32 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     settings.value[key] = key === 'operationDelayMs' ? normalizeOperationDelay(value) : value
     save()
     if (settings.value.enabled) void syncRuntime().catch(setError)
+  }
+
+  function setActiveRecipe(recipeId) {
+    settings.value.activeRecipeId = VENDOR_RECIPE_IDS.includes(String(recipeId)) ? String(recipeId) : 'chaos'
+    const recipe = snapshot.value?.recipes?.[settings.value.activeRecipeId]
+    if (recipe?.kind === 'set') {
+      settings.value.targetSetCount = Math.min(
+        Math.max(1, settings.value.targetSetCount),
+        Math.max(1, Number(recipe.fullSetCount) || 0)
+      )
+    }
+    save()
+    if (settings.value.enabled) void syncRuntime().catch(setError)
+  }
+
+  function setSelectedItemIds(recipeId, itemIds) {
+    if (!SINGLE_RECIPE_IDS.includes(String(recipeId))) return
+    const available = new Set((snapshot.value?.recipes?.[recipeId]?.candidates || []).map((item) => String(item.id)))
+    singleSelections.value = {
+      ...singleSelections.value,
+      [recipeId]: [...new Set((Array.isArray(itemIds) ? itemIds : []).map(String))]
+        .filter((id) => available.has(id))
+    }
+    if (settings.value.activeRecipeId === recipeId && settings.value.enabled) {
+      void syncRuntime().catch(setError)
+    }
   }
 
   function updateTabFolderState(tabId, inFolder) {
@@ -351,6 +409,8 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     })
     const disposeSnapshot = electronApi.chaosRecipe.onSnapshotUpdated((value) => {
       snapshot.value = value
+      resetSingleSelections(value)
+      if (settings.value.enabled) void syncRuntime().catch(setError)
     })
     return () => {
       disposeAutomation?.()
@@ -361,10 +421,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   return {
     auth, leagues, tabs, supportedTabs, selectedTabs, requiredCalibrations, missingCalibrations,
-    missingCalibrationLabels, snapshot, automation, settings, busy, error,
+    missingCalibrationLabels, snapshot, activeRecipe, activeSelectedItemIds,
+    singleSelections, automation, settings, busy, error,
     save, setError, restoreAuth, openWebLogin, completeWebLogin, loginWithToken, logout,
     loadLeagues, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,
-    updateSetting, updateTabFolderState, listenAutomation, setEnabled, syncRuntime, initializeRuntime
+    updateSetting, setActiveRecipe, setSelectedItemIds, updateTabFolderState,
+    listenAutomation, setEnabled, syncRuntime, initializeRuntime
   }
 })

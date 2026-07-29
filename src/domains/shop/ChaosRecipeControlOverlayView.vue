@@ -2,7 +2,7 @@
   <div class="control-shell">
     <div
       class="drag-handle"
-      title="拖动混沌配方按钮组"
+      title="拖动商店配方按钮组"
       @pointerdown="drag.pointerDown"
       @pointermove="drag.pointerMove"
       @pointerup="drag.pointerUp"
@@ -16,6 +16,7 @@
       @pointerdown.stop.prevent="runFromPointer('refresh', $event)"
     >{{ busy === 'refresh' ? '刷新中…' : state.refreshLabel }}</button>
     <button
+      :class="{ active: state.previewActive }"
       :disabled="!state.canPreview || busy !== ''"
       :title="state.previewReason || '在当前仓库页预览目标物品'"
       @pointerdown.stop.prevent="runFromPointer('preview', $event)"
@@ -28,7 +29,7 @@
       @pointerdown.stop.prevent="runFromPointer('action', $event)"
     >{{ busy === 'action' ? '处理中…' : state.actionLabel }}</button>
     <div class="status-message" :class="{ ready: state.canRun }">
-      {{ state.statusMessage || '正在同步混沌配方状态…' }}
+      {{ state.statusMessage || '正在同步商店配方状态…' }}
     </div>
   </div>
 </template>
@@ -45,8 +46,9 @@ const state = reactive({
   canRun: false,
   refreshLabel: '刷新仓库',
   previewLabel: '预览高亮',
+  previewActive: false,
   actionLabel: '自动取件',
-  statusMessage: '正在同步混沌配方状态…',
+  statusMessage: '正在同步商店配方状态…',
   automation: { status: 'idle' }
 })
 const busy = ref('')
@@ -137,6 +139,7 @@ button {
   transition: filter .12s ease, transform .08s ease, box-shadow .12s ease;
 }
 button.primary { background: linear-gradient(145deg, #2f78cf, #24569a); }
+button.active { background: linear-gradient(145deg, #d58a2f, #9a5d1f); }
 button.danger { background: linear-gradient(145deg, #c75252, #8e3030); }
 button:not(:disabled):hover {
   filter: brightness(1.18);

@@ -26,6 +26,8 @@ export class ChaosRecipeControlOverlay {
       league: '',
       selectedTabIds: [],
       includeIdentified: false,
+      activeRecipeId: 'chaos',
+      selectedItemIds: [],
       targetSetCount: 1,
       calibration: { root: null, folder: null },
       templates: {},
@@ -66,52 +68,69 @@ export class ChaosRecipeControlOverlay {
     const canRefresh = Boolean(auth.authenticated && this.runtime.league && selected)
     const missingCalibrations = missingCalibrationKeys(snapshot?.tabs, this.runtime.calibration)
     const calibrated = missingCalibrations.length === 0
-    const fullSetCount = Math.max(0, Number(snapshot?.fullSetCount) || 0)
+    const activeRecipeId = this.runtime.activeRecipeId || 'chaos'
+    const recipe = snapshot?.recipes?.[activeRecipeId] || (activeRecipeId === 'chaos' ? snapshot : null)
+    const recipeLabel = recipe?.label || '混沌石'
+    const isSingle = recipe?.kind === 'single'
+    const selectedIds = new Set((this.runtime.selectedItemIds || []).map(String))
+    const availableCount = isSingle
+      ? (recipe?.candidates || []).filter((item) => selectedIds.has(String(item.id))).length
+      : Math.max(0, Number(recipe?.fullSetCount) || 0)
+    const fullSetCount = isSingle ? 0 : availableCount
     const missingCalibrationMessage = missingCalibrations.length
       ? `缺少${missingCalibrations.map((key) => CHAOS_GRID_LAYOUT_LABELS[key]).join('、')}校准`
       : ''
-    const canPreview = Boolean(fullSetCount && calibrated)
     const lock = this.automationLock?.getState?.() || { locked: false, owner: '' }
     const occupiedByOther = lock.locked && lock.owner !== '混沌配方取件'
     const running = automation.status === 'running'
     const paused = automation.status === 'paused'
+    const previewActive = this.service?.overlay?.getState?.()?.status === 'preview'
+    const automationActive = running || paused
+    const canStartPreview = Boolean(availableCount && calibrated)
+    const canPreview = Boolean(!automationActive && !occupiedByOther && (previewActive || canStartPreview))
     let actionLabel = '自动取件'
     if (running) actionLabel = '停止取件'
     else if (paused) actionLabel = '继续取件'
     let actionReason = ''
     if (!running && !paused) {
-      if (!canPreview) actionReason = !snapshot
+      if (occupiedByOther) actionReason = `${lock.owner}正在运行`
+      else if (!canPreview) actionReason = !snapshot
         ? '请先刷新仓库'
-        : !fullSetCount
-          ? '当前快照没有完整套装'
+          : !availableCount
+            ? (isSingle ? `当前没有选中的${recipeLabel}物品` : `当前没有${recipeLabel}完整套装`)
           : missingCalibrationMessage
-      else if (occupiedByOther) actionReason = `${lock.owner}正在运行`
     }
     const refreshReason = canRefresh ? '' : (!auth.authenticated ? '国服账号未认证' : '请先选择赛季和仓库页')
-    const previewReason = canPreview
-      ? ''
-      : !snapshot
-        ? '请先刷新仓库'
-        : !fullSetCount
-          ? '当前快照完整套装为 0'
-          : missingCalibrationMessage
+    const previewReason = automationActive
+      ? '自动取件期间由取件流程管理高亮'
+      : occupiedByOther
+        ? `${lock.owner}正在运行`
+        : canPreview
+          ? ''
+          : !snapshot
+            ? '请先刷新仓库'
+            : !availableCount
+              ? (isSingle ? `当前没有选中的${recipeLabel}物品` : `当前${recipeLabel}套装为 0`)
+              : missingCalibrationMessage
     const refreshLabel = canRefresh ? '刷新仓库' : (!auth.authenticated ? '账号未认证' : '未选择仓库')
-    const previewLabel = canPreview
-      ? '预览高亮'
-      : fullSetCount && !calibrated
-        ? '需要校准'
-        : snapshot
-          ? '暂无套装'
-          : '先刷新仓库'
+    const previewLabel = previewActive
+      ? '取消高亮'
+      : canPreview
+        ? '预览高亮'
+        : availableCount && !calibrated
+          ? '需要校准'
+          : snapshot
+            ? (isSingle ? '暂无物品' : '暂无套装')
+            : '先刷新仓库'
     if (!running && !paused && actionReason) {
-      actionLabel = fullSetCount && !calibrated ? '需要校准' : (snapshot ? '无法取件' : '先刷新仓库')
+      actionLabel = availableCount && !calibrated ? '需要校准' : (snapshot ? '无法取件' : '先刷新仓库')
     }
     const statusMessage = running
       ? `正在取件：${automation.completedItems || 0}/${automation.totalItems || 0}`
       : paused && automation.tabName
         ? `请切换到“${automation.tabName}”后继续`
         : refreshReason || (snapshot
-            ? `完整套装 ${fullSetCount} · ${previewReason || actionReason || '操作已就绪'}`
+            ? `${recipeLabel}${isSingle ? ` ${availableCount} 件` : ` ${availableCount} 套`} · ${previewReason || actionReason || '操作已就绪'}`
             : previewReason || actionReason)
     return {
       visible: Boolean(this.enabled && this.detection.ready && this.detection.foreground && this.detection.gameBounds),
@@ -119,6 +138,10 @@ export class ChaosRecipeControlOverlay {
       ready: Boolean(this.detection.ready),
       foreground: Boolean(this.detection.foreground),
       refreshing: false,
+      activeRecipeId,
+      recipeLabel,
+      isSingle,
+      availableCount,
       fullSetCount,
       canRefresh,
       refreshReason,
@@ -126,6 +149,7 @@ export class ChaosRecipeControlOverlay {
       canPreview,
       previewReason,
       previewLabel,
+      previewActive,
       canRun: Boolean((running || paused) || (canPreview && !occupiedByOther)),
       actionLabel,
       actionReason,

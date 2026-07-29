@@ -6,16 +6,20 @@ import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
 import { useBagStore } from '@/stores/bag'
 import { useCombatStore } from '@/stores/combat'
+import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCraftingStore } from '@/domains/crafting/craftingStore'
 import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist } from '@/utils/combatConfig'
-import { generateVendorRegex } from '@/domains/shop/vendorRegex'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
 import { setBagModuleEnabled, stopBagStash } from '@/utils/bagService'
 import { startPotionAssist, stopPotionAssist } from '@/utils/combatService'
+import {
+  VENDOR_RECIPE_CATALOG,
+  VENDOR_RECIPE_IDS
+} from '../../../electron/modules/chaosRecipe/engine.js'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
@@ -41,6 +45,7 @@ export function useDashboard() {
   const settingsStore = useSettingsStore()
   const bagStore = useBagStore()
   const combatStore = useCombatStore()
+  const chaosRecipeStore = useChaosRecipeStore()
   const storyStore = useStoryStore()
   const craftingStore = useCraftingStore()
   const pending = reactive({})
@@ -69,9 +74,10 @@ export function useDashboard() {
     inventoryLayout: bagStore.inventoryLayout
   }, settingsStore)))
   const combatValidation = computed(() => validateCombatAssist(settingsStore.combatAssist))
-  const shopResult = computed(() => generateVendorRegex(presetStore.currentShopPreset.vendor))
-
   const modules = computed(() => {
+    const activeRecipeId = chaosRecipeStore.settings.activeRecipeId
+    const activeRecipe = chaosRecipeStore.activeRecipe
+    const activeRecipeDefinition = VENDOR_RECIPE_CATALOG[activeRecipeId] || {}
     const values = [
       evaluateItemsStatus({
         validation: itemValidation.value,
@@ -117,8 +123,20 @@ export function useDashboard() {
         overlayVisible: storyStore.overlayVisible
       }),
       evaluateShopStatus({
-        presetName: presetStore.currentShopPreset?.name,
-        ...shopResult.value
+        authenticated: chaosRecipeStore.auth.authenticated,
+        league: chaosRecipeStore.settings.league,
+        selectedTabCount: chaosRecipeStore.settings.selectedTabIds.length,
+        snapshot: chaosRecipeStore.snapshot,
+        enabled: chaosRecipeStore.settings.enabled,
+        automationStatus: chaosRecipeStore.automation.status,
+        automationEvent: chaosRecipeStore.automation.event,
+        automationError: chaosRecipeStore.automation.reason,
+        error: chaosRecipeStore.error?.message,
+        activeRecipeLabel: activeRecipeDefinition.label,
+        activeRecipeKind: activeRecipe?.kind || activeRecipeDefinition.kind,
+        fullSetCount: activeRecipe?.fullSetCount,
+        candidateCount: activeRecipe?.candidateCount,
+        rewardTotal: activeRecipe?.rewardTotal
       }),
       evaluateCraftingStatus({
         status: craftingStatus.value,
@@ -130,6 +148,18 @@ export function useDashboard() {
     return values.map(module => ({
       ...module,
       pending: Boolean(pending[module.id]),
+      selector: module.id === 'shop'
+        ? {
+            label: '自动取件配方',
+            value: activeRecipeId,
+            disabled: chaosRecipeStore.busy || Boolean(pending.shop),
+            options: VENDOR_RECIPE_IDS.map(id => ({
+              value: id,
+              label: VENDOR_RECIPE_CATALOG[id].label
+            })),
+            run: value => chaosRecipeStore.setActiveRecipe(value)
+          }
+        : null,
       actions: actionsFor(module)
     }))
   })
@@ -199,16 +229,32 @@ export function useDashboard() {
           }]
     }
     if (module.id === 'shop') {
-      return [{
-        id: 'copy',
-        label: '复制正则',
-        type: 'primary',
-        disabled: !shopResult.value.regex,
-        run: async () => {
-          await electronApi.clipboard.writeText(shopResult.value.regex)
-          ElMessage.success('商城正则已复制')
+      return [
+        {
+          id: 'refresh',
+          label: '刷新仓库',
+          type: 'default',
+          disabled: chaosRecipeStore.busy ||
+            !chaosRecipeStore.auth.authenticated ||
+            !chaosRecipeStore.settings.league ||
+            !chaosRecipeStore.settings.selectedTabIds.length,
+          run: async () => {
+            await chaosRecipeStore.refresh()
+            ElMessage.success('商城配方已刷新')
+          }
+        },
+        {
+          id: 'toggle',
+          label: chaosRecipeStore.settings.enabled ? '关闭控制' : '开启控制',
+          type: chaosRecipeStore.settings.enabled ? 'danger' : 'primary',
+          disabled: chaosRecipeStore.busy,
+          run: async () => {
+            const enabled = !chaosRecipeStore.settings.enabled
+            await chaosRecipeStore.setEnabled(enabled)
+            ElMessage.success(enabled ? '商城配方游戏内控制已开启' : '商城配方游戏内控制已关闭')
+          }
         }
-      }]
+      ]
     }
     return []
   }
@@ -222,6 +268,16 @@ export function useDashboard() {
       ElMessage.error(error?.message || '操作失败')
     } finally {
       pending[module.id] = false
+    }
+  }
+
+  async function selectModuleOption(module, value) {
+    const selector = module.selector
+    if (!selector || selector.disabled || pending[module.id]) return
+    try {
+      await selector.run(value)
+    } catch (error) {
+      ElMessage.error(error?.message || '切换失败')
     }
   }
 
@@ -280,6 +336,7 @@ export function useDashboard() {
     refreshing,
     refresh,
     runAction,
+    selectModuleOption,
     openModule,
     openSettings
   }

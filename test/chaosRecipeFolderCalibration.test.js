@@ -27,6 +27,9 @@ test('旧四键混沌配方校准迁移为文件夹内外两套区域', () => {
     capturedAt: ''
   })
   assert.deepEqual(Object.keys(settings.calibration), ['root', 'folder'])
+  assert.equal(settings.activeRecipeId, 'chaos')
+  assert.equal(normalizeChaosRecipeSettings({ activeRecipeId: 'fusing' }).activeRecipeId, 'fusing')
+  assert.equal(normalizeChaosRecipeSettings({ activeRecipeId: 'unknown' }).activeRecipeId, 'chaos')
 })
 
 test('仓库文件夹归属按赛季和仓库页持久化，默认位于文件夹外', () => {
@@ -68,4 +71,7 @@ test('混沌配方页面只提供文件夹内外两类校准和仓库标识', ()
   assert.match(panel, /旧接口无法判断仓库页是否在文件夹内/)
   assert.match(panel, /updateTabFolderState/)
   assert.doesNotMatch(panel, /扫描当前游戏仓库页/)
+  for (const text of ['商店配方状态', 'recipeCards', 'activeRecipeId', 'activeSelectedItemIds', '默认全选']) {
+    assert.match(panel, new RegExp(text))
+  }
 })
