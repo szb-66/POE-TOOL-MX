@@ -175,15 +175,54 @@ test('魔法药剂从完整名称恢复官方底材后生成查询', () => {
       { name: '魔力药剂', baseType: '魔力药剂', unique: false },
       { name: '不朽魔力药剂', baseType: '不朽魔力药剂', unique: false }
     ],
-    stats: []
+    stats: [
+      {
+        key: 'flask-recovery',
+        label: '回复量提高',
+        matchers: ['回复量提高 #%'],
+        ids: { explicit: 'explicit.stat_700317374' }
+      },
+      {
+        key: 'flask-instant-mana',
+        label: '魔力回复会在效果结束时立即开始',
+        matchers: ['魔力回复会在效果结束时立即开始'],
+        ids: { explicit: 'explicit.stat_4204954479' }
+      },
+      {
+        key: 'flask-hinder-immunity',
+        label: '缓速免疫',
+        matchers: ['缓速时使用可以在接下来 # 秒免疫缓速'],
+        ids: { explicit: 'explicit.stat_4003593289' }
+      },
+      {
+        key: 'flask-maim-immunity',
+        label: '瘫痪免疫',
+        matchers: ['瘫痪时使用可以在接下来 # 秒免疫瘫痪'],
+        ids: { explicit: 'explicit.stat_4232582040' }
+      }
+    ]
   }
 
   assert.equal(item.name, '预兆的自由之不朽魔力药剂')
   assert.equal(item.baseName, '')
-  const model = createPriceCheckModel(item, catalog)
+  const model = createPriceCheckModel(item, catalog, { initialSelection: 'none' })
   assert.equal(model.item.baseType, '不朽魔力药剂')
   assert.equal(model.identity.type, '不朽魔力药剂')
   assert.equal(buildOfficialTradeQuery(model).query.type, '不朽魔力药剂')
+  assert.deepEqual(model.stats.map(({ id, values, enabled }) => ({ id, values, enabled })), [
+    { id: 'explicit.stat_700317374', values: [66], enabled: false },
+    { id: 'explicit.stat_4204954479', values: [], enabled: false },
+    { id: 'explicit.stat_4003593289', values: [12], enabled: false },
+    { id: 'explicit.stat_4232582040', values: [13], enabled: false }
+  ])
+  assert.deepEqual(model.unknownStats, [])
+  assert.deepEqual(buildOfficialTradeQuery(model).query.stats[0].filters, [])
+
+  model.stats[2].enabled = true
+  const selectedFilters = buildOfficialTradeQuery(model).query.stats[0].filters
+  assert.equal(selectedFilters.length, 1)
+  assert.equal(selectedFilters[0].id, 'explicit.stat_4003593289')
+  assert.equal(selectedFilters[0].value.min, 9.6)
 })
 
 test('目录底材补全选择最长后缀且无法匹配时保留原身份', () => {
@@ -210,6 +249,44 @@ test('目录底材补全选择最长后缀且无法匹配时保留原身份', ()
 
   assert.equal(matched.identity.type, '不朽魔力药剂')
   assert.equal(unmatched.identity.type, '未知实验药剂')
+})
+
+test('多行词缀优先使用完整复合 matcher，仅在失败时逐行回退', () => {
+  const model = createPriceCheckModel({
+    category: '测试装备',
+    rarity: '稀有',
+    name: '测试物品',
+    baseName: '测试底材',
+    modifiers: [{
+      type: 'prefix',
+      name: '复合词缀',
+      tier: 3,
+      lines: ['效果甲 10', '效果乙 20'],
+      text: '效果甲 10\n效果乙 20'
+    }]
+  }, {
+    items: [],
+    stats: [
+      {
+        key: 'compound',
+        label: '复合效果',
+        matchers: ['效果甲 # 效果乙 #'],
+        ids: { explicit: 'explicit.stat_100001' }
+      },
+      {
+        key: 'single-a',
+        label: '效果甲',
+        matchers: ['效果甲 #'],
+        ids: { explicit: 'explicit.stat_100002' }
+      }
+    ]
+  }, { initialSelection: 'none' })
+
+  assert.deepEqual(model.stats.map(({ id, values }) => ({ id, values })), [{
+    id: 'explicit.stat_100001',
+    values: [10, 20]
+  }])
+  assert.deepEqual(model.unknownStats, [])
 })
 
 test('宝石等级和品质转换为官方 misc filters', async () => {

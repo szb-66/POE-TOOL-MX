@@ -8,6 +8,9 @@ import {
 const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
 
 const safeText = (value, max = 180) => String(value || '').trim().slice(0, max)
+const tradeStatText = (value) => String(value || '')
+  .replace(/\s*[—–]\s*数值不可调整\s*$/, '')
+  .trim()
 
 function resolveNonUniqueBaseType(item, catalog) {
   const fallback = safeText(item.baseName || item.name)
@@ -105,36 +108,45 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   addStandalone(item.craftedMods, 'crafted')
   for (const modifier of modifiers) {
     const type = tradeStatType(modifier.type)
-    const text = modifier.text || modifier.lines?.join('\n') || ''
-    const match = matchCatalogStat(catalog, text, type)
-    if (!match) {
-      if (text) unknownStats.push({
-        text,
+    const lines = Array.isArray(modifier.lines) ? modifier.lines.filter(Boolean) : []
+    const text = modifier.text || lines.join('\n') || ''
+    const combinedMatch = matchCatalogStat(catalog, tradeStatText(text), type)
+    const effects = combinedMatch
+      ? [{ text, match: combinedMatch }]
+      : (lines.length > 1 ? lines : [text]).map((effectText) => ({
+          text: effectText,
+          match: matchCatalogStat(catalog, tradeStatText(effectText), type)
+        }))
+    for (const effect of effects) {
+      if (!effect.match) {
+        if (effect.text) unknownStats.push({
+          text: effect.text,
+          type,
+          tier: Number(modifier.tier) || null,
+          tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
+          reason: '当前交易目录无法唯一映射'
+        })
+        continue
+      }
+      stats.push({
+        key: `${effect.match.id}:${stats.length}`,
+        id: effect.match.id,
+        label: modifier.name || effect.match.label || effect.text,
+        text: effect.text,
         type,
         tier: Number(modifier.tier) || null,
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
-        reason: '当前交易目录无法唯一映射'
+        values: effect.match.values,
+        enabled: options.initialSelection === 'all' || (
+          (options.initialSelection || 'auto') === 'auto' &&
+          ['prefix', 'suffix', 'fractured'].includes(modifier.type) &&
+          Number(modifier.tier) > 0 &&
+          Number(modifier.tier) <= 2
+        ),
+        min: numericMinimum(effect.match.values, options.valueRange),
+        max: undefined
       })
-      continue
     }
-    stats.push({
-      key: `${match.id}:${stats.length}`,
-      id: match.id,
-      label: modifier.name || match.label || text,
-      text,
-      type,
-      tier: Number(modifier.tier) || null,
-      tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
-      values: match.values,
-      enabled: options.initialSelection === 'all' || (
-        (options.initialSelection || 'auto') === 'auto' &&
-        ['prefix', 'suffix', 'fractured'].includes(modifier.type) &&
-        Number(modifier.tier) > 0 &&
-        Number(modifier.tier) <= 2
-      ),
-      min: numericMinimum(match.values, options.valueRange),
-      max: undefined
-    })
   }
   const properties = PROPERTY_DEFINITIONS.map(([field, label, id]) => {
     const value = Number(item[field]) || 0
