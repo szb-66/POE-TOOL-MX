@@ -1,9 +1,15 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js'
 
 const ok = (data = {}) => ({ success: true, data })
 
 export function registerPriceCheckHandlers(service) {
+  const broadcastSettings = (snapshot) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send('price-check-settings-changed', snapshot)
+    }
+    return snapshot
+  }
   const invoke = (handler) => async (_event, ...args) => {
     try {
       return ok(await handler(...args))
@@ -19,13 +25,24 @@ export function registerPriceCheckHandlers(service) {
   }
 
   ipcMain.handle('price-check-status', invoke(() => service.getStatus()))
-  ipcMain.handle('price-check-runtime-update', invoke((runtime) => service.updateRuntime(runtime || {})))
+  ipcMain.handle('price-check-runtime-update', invoke((runtime) => {
+    const status = service.updateRuntime(runtime || {})
+    broadcastSettings({
+      options: status.options,
+      settingsRevision: status.settingsRevision,
+      dcRate: status.dcRate
+    })
+    return status
+  }))
+  ipcMain.handle('price-check-settings-update', invoke((patch) => broadcastSettings(service.updateSettings(patch || {}))))
   ipcMain.handle('price-check-capture', invoke((request) => service.captureAndCheck({
     league: String(request?.league || ''),
     options: request?.options || {}
   })))
   ipcMain.handle('price-check-rerun', invoke((request) => service.rerun(request || {})))
   ipcMain.handle('price-check-load-more', invoke(() => service.loadMore()))
+  ipcMain.handle('price-check-load-distribution', invoke(() => service.loadDistribution()))
+  ipcMain.handle('price-check-resolve-identity', invoke((candidateKey) => service.resolveIdentity(candidateKey)))
   ipcMain.handle('price-check-overlay-state', invoke(() => service.getOverlayState()))
   ipcMain.handle('price-check-overlay-close', invoke(() => service.closeOverlay()))
   ipcMain.handle('price-check-open-official', invoke(() => service.openOfficial()))

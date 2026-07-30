@@ -5,7 +5,8 @@ export const DEFAULT_PRICE_CHECK_SETTINGS = Object.freeze({
   currency: 'any',
   collapseListings: false,
   valueRange: 'down20',
-  initialSelection: 'auto'
+  initialSelection: 'auto',
+  manualDcRate: 0
 })
 
 const allowed = {
@@ -20,7 +21,10 @@ export function normalizePriceCheckSettings(raw = {}) {
   const normalized = {
     ...DEFAULT_PRICE_CHECK_SETTINGS,
     enabled: raw.enabled === true,
-    collapseListings: raw.collapseListings === true
+    collapseListings: raw.collapseListings === true,
+    manualDcRate: Number.isFinite(Number(raw.manualDcRate))
+      ? Math.min(1_000_000, Math.max(0, Number(raw.manualDcRate)))
+      : 0
   }
   for (const key of Object.keys(allowed)) {
     if (allowed[key].has(raw[key])) normalized[key] = raw[key]

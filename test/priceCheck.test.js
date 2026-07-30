@@ -12,10 +12,15 @@ import {
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
+  resolveUnidentifiedUnique,
   sanitizePriceCheckModel
 } from '../electron/modules/priceCheck/query.js'
 import { PoeCnTradeClient } from '../electron/modules/priceCheck/client.js'
-import { PriceCheckService, summarizeListings } from '../electron/modules/priceCheck/service.js'
+import {
+  buildPriceDistribution,
+  PriceCheckService,
+  summarizeListings
+} from '../electron/modules/priceCheck/service.js'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
 import { generateTradeCatalog, parseNdjson } from '../scripts/generateTradeCatalog.js'
 import { captureFreshClipboardText, capturePoeItemText } from '../electron/modules/priceCheck/clipboardCapture.js'
@@ -110,6 +115,35 @@ test('普通复制文本也会把显式词缀加入查价模型', async () => {
   ])
 })
 
+test('普通白弓不会把分隔线后的物品类别误解析成底材', async () => {
+  const { catalog } = await loadTradeCatalog(catalogPath)
+  const item = parseItemInfo([
+    '物品类别: 弓',
+    '稀 有 度: 普通',
+    '短弓',
+    '--------',
+    '弓',
+    '物理伤害: 6-16',
+    '攻击暴击率: 5.00%',
+    '每秒攻击次数: 1.50',
+    '--------',
+    '需求:',
+    '等级: 5',
+    '敏捷: 26',
+    '--------',
+    '插槽: G-G-G-G-G-G',
+    '--------',
+    '物品等级: 50',
+    '--------',
+    '出售获得通货:非绑定'
+  ].join('\n'))
+  assert.equal(item.name, '短弓')
+  assert.equal(item.baseName, '')
+  const model = createPriceCheckModel(item, catalog)
+  assert.equal(model.identity.type, '短弓')
+  assert.equal(buildOfficialTradeQuery(model).query.type, '短弓')
+})
+
 test('宝石等级和品质转换为官方 misc filters', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = parseItemInfo([
@@ -156,7 +190,16 @@ test('腾讯官方 stat 元数据构建完整运行时目录', async () => {
       { id: 'explicit', entries },
       { id: 'pseudo', entries: [{ id: 'pseudo.lake_62572', text: '裂隙镜像 (难度 #)', type: 'pseudo' }] }
     ]
-  }, Date.parse('2026-07-29T01:00:00Z'))
+  }, Date.parse('2026-07-29T01:00:00Z'), {
+    result: [{
+      id: 'accessory',
+      entries: [
+        { name: '传奇甲', type: '星空珠宝', flags: { unique: true } },
+        { name: '传奇乙', type: '星空珠宝', flags: { unique: true } },
+        { name: '', type: '普通底材', flags: { unique: false } }
+      ]
+    }]
+  })
   assert.equal(status.provider, 'official')
   assert.equal(status.degraded, false)
   assert.ok(status.counts.stats >= 101)
@@ -164,6 +207,35 @@ test('腾讯官方 stat 元数据构建完整运行时目录', async () => {
   assert.equal(match.id, 'explicit.stat_100000')
   assert.deepEqual(match.values, [17])
   assert.equal(matchCatalogStat(catalog, '裂隙镜像 (难度 12)', 'pseudo').id, 'pseudo.lake_62572')
+  assert.equal(catalog.itemCoverage, 'all')
+  assert.deepEqual(catalog.items.map(({ name, baseType, unique }) => ({ name, baseType, unique })), [
+    { name: '传奇甲', baseType: '星空珠宝', unique: true },
+    { name: '传奇乙', baseType: '星空珠宝', unique: true },
+    { name: '普通底材', baseType: '普通底材', unique: false }
+  ])
+})
+
+test('未鉴定传奇按官方底材候选自动解析或要求手选', () => {
+  const baseModel = {
+    item: { rarity: '传奇', unidentified: true, baseType: '星空珠宝' },
+    identity: { name: '', type: '星空珠宝' }
+  }
+  const one = resolveUnidentifiedUnique(structuredClone(baseModel), {
+    items: [{ name: '传奇甲', baseType: '星空珠宝', unique: true }]
+  })
+  assert.equal(one.identity.name, '传奇甲')
+  assert.equal(one.identityResolution.required, false)
+
+  const many = resolveUnidentifiedUnique(structuredClone(baseModel), {
+    items: [
+      { name: '传奇甲', baseType: '星空珠宝', unique: true },
+      { name: '传奇乙', baseType: '星空珠宝', unique: true }
+    ]
+  })
+  assert.equal(many.identity.name, '')
+  assert.equal(many.identityResolution.required, true)
+  assert.deepEqual(many.identityResolution.candidates.map((entry) => entry.name), ['传奇甲', '传奇乙'])
+  assert.throws(() => buildOfficialTradeQuery(many), /请选择/)
 })
 
 test('快捷查价捕获新剪贴板文本，失败时恢复原剪贴板', async () => {
@@ -287,11 +359,11 @@ test('目录生成器可重复排序并拒绝损坏 NDJSON', () => {
   assert.throws(() => parseNdjson('{"ok":true}\n{broken}'), /第 2 行/)
 })
 
-function response(body, status = 200, contentType = 'application/json') {
+function response(body, status = 200, contentType = 'application/json', extraHeaders = {}) {
   return {
     status,
     ok: status >= 200 && status < 300,
-    headers: new Headers({ 'content-type': contentType }),
+    headers: new Headers({ 'content-type': contentType, ...extraHeaders }),
     text: async () => typeof body === 'string' ? body : JSON.stringify(body)
   }
 }
@@ -329,6 +401,70 @@ test('腾讯 Provider 在 HTTP 400 时保留官方错误原因', async () => {
   )
 })
 
+test('腾讯 Fetch 按实测 750ms 安全间隔调度', async () => {
+  let clock = 10_000
+  const waits = []
+  const client = new PoeCnTradeClient({
+    session: { fetch: async () => response({ result: [] }) },
+    now: () => clock,
+    sleep: async (ms) => {
+      waits.push(ms)
+      clock += ms
+    }
+  })
+  await client.fetch('query1', ['abc'])
+  await client.fetch('query1', ['def'])
+  assert.deepEqual(waits, [750])
+})
+
+test('腾讯 Fetch 根据账号和 IP 响应头自动提高安全间隔', async () => {
+  let clock = 10_000
+  const waits = []
+  const client = new PoeCnTradeClient({
+    session: {
+      fetch: async () => response(
+        { result: [] },
+        200,
+        'application/json',
+        { 'x-rate-limit-account': '4:4:10', 'x-rate-limit-ip': '12:4:60' }
+      )
+    },
+    now: () => clock,
+    sleep: async (ms) => {
+      waits.push(ms)
+      clock += ms
+    }
+  })
+  await client.fetch('query1', ['abc'])
+  await client.fetch('query1', ['def'])
+  assert.deepEqual(waits, [1050])
+})
+
+test('腾讯 Fetch 遇到 429 后按 Retry-After 冷却同组请求', async () => {
+  let clock = 10_000
+  let calls = 0
+  const waits = []
+  const client = new PoeCnTradeClient({
+    session: {
+      fetch: async () => {
+        calls += 1
+        return calls === 1
+          ? response({ error: { message: 'Rate limit exceeded' } }, 429, 'application/json', { 'retry-after': '2' })
+          : response({ result: [] })
+      }
+    },
+    now: () => clock,
+    sleep: async (ms) => {
+      waits.push(ms)
+      clock += ms
+    }
+  })
+  await assert.rejects(client.fetch('query1', ['abc']), /2 秒后重试/)
+  await client.fetch('query1', ['def'])
+  assert.deepEqual(waits, [2000])
+  assert.equal(calls, 2)
+})
+
 test('挂单汇总排除本人、无价格并按卖家去重', () => {
   const make = (id, account, amount, currency = 'chaos') => ({
     id,
@@ -343,6 +479,35 @@ test('挂单汇总排除本人、无价格并按卖家去重', () => {
   assert.equal(summary.disclaimer, '挂单参考，不代表成交价')
 })
 
+test('价格分布使用 DC 比合并神圣石和混沌石价位并标出最高占比', () => {
+  const make = (id, account, amount, currency) => ({
+    id,
+    listing: { account: { name: account }, price: { amount, currency } }
+  })
+  const distribution = buildPriceDistribution([
+    make('1', 'a', 1, 'divine'),
+    make('2', 'b', 1250, 'chaos'),
+    make('3', 'c', 1250, 'chaos'),
+    make('4', 'me', 1250, 'chaos'),
+    make('5', 'c', 1300, 'chaos')
+  ], 'me', { value: 1250 }, 100)
+  assert.equal(distribution.usable, 3)
+  assert.equal(distribution.converted, true)
+  assert.deepEqual(distribution.groups.map((group) => ({
+    amount: group.amount,
+    count: group.count,
+    chaosCount: group.chaosCount,
+    divineCount: group.divineCount,
+    highest: group.highest
+  })), [{
+    amount: 1250,
+    count: 3,
+    chaosCount: 2,
+    divineCount: 1,
+    highest: true
+  }])
+})
+
 test('查价服务通过共享认证完成纵向查询', async () => {
   const { catalog, status } = await loadTradeCatalog(catalogPath)
   const auth = { getStatus: () => ({ authenticated: true, accountName: 'me' }), registerCacheClearer: () => {} }
@@ -355,10 +520,98 @@ test('查价服务通过共享认证完成纵向查询', async () => {
   service.updateRuntime({ enabled: true })
   const result = await service.check({
     league: '测试赛季',
-    text: '物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------'
+    text: '物品类别: 弓\n稀 有 度: 稀有\n测试之弦\n粗制弓\n--------\n物品等级: 80'
   })
   assert.equal(result.result.queryId, 'q1')
   assert.equal(result.result.listings[0].amount, 2)
+})
+
+test('传奇弓底材被国服拒绝时保留名称并去掉 type 重试一次', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const auth = { getStatus: () => ({ authenticated: true, accountName: 'me' }), registerCacheClearer: () => {} }
+  const queries = []
+  const client = {
+    clearCache() {},
+    search: async (_league, query) => {
+      queries.push(structuredClone(query))
+      if (queries.length === 1) {
+        const error = new Error('国服交易接口返回 HTTP 400：Unknown item base type')
+        error.code = 'API_INCOMPATIBLE'
+        error.details = { status: 400, officialMessage: 'Unknown item base type' }
+        throw error
+      }
+      return { id: 'q-bow', total: 0, result: [] }
+    },
+    fetch: async () => ({ result: [] })
+  }
+  const service = new PriceCheckService({ auth, client, catalog, catalogStatus: status })
+  service.updateRuntime({ enabled: true })
+  const result = await service.check({
+    league: '测试赛季',
+    model: {
+      item: { category: '弓', rarity: '传奇', name: '测试传奇弓', baseType: '错误底材' },
+      identity: { name: '测试传奇弓', type: '错误底材' },
+      properties: [],
+      stats: []
+    }
+  })
+  assert.equal(queries.length, 2)
+  assert.equal(queries[0].query.type, '错误底材')
+  assert.equal(queries[1].query.name, '测试传奇弓')
+  assert.equal(queries[1].query.type, undefined)
+  assert.equal(result.query.query.name, '测试传奇弓')
+  assert.equal(result.query.query.type, undefined)
+})
+
+test('稀有弓底材被国服拒绝时停止请求并显示具体底材', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const auth = { getStatus: () => ({ authenticated: true, accountName: 'me' }), registerCacheClearer: () => {} }
+  let calls = 0
+  const client = {
+    clearCache() {},
+    search: async () => {
+      calls += 1
+      const error = new Error('国服交易接口返回 HTTP 400：Unknown item base type')
+      error.code = 'API_INCOMPATIBLE'
+      error.details = { status: 400, officialMessage: 'Unknown item base type' }
+      throw error
+    }
+  }
+  const service = new PriceCheckService({ auth, client, catalog, catalogStatus: status })
+  service.updateRuntime({ enabled: true })
+  await assert.rejects(service.check({
+    league: '测试赛季',
+    model: {
+      item: { category: '弓', rarity: '稀有', name: '测试弓', baseType: '错误弓底材' },
+      identity: { name: '', type: '错误弓底材' },
+      properties: [],
+      stats: []
+    }
+  }), (error) => error.code === 'INVALID_REQUEST' && /错误弓底材/.test(error.message))
+  assert.equal(calls, 1)
+})
+
+test('DC 行情一小时内只刷新一次并在自动源失效时使用手动值', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  let calls = 0
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }), registerCacheClearer: () => {} },
+    client: { clearCache() {} },
+    catalog,
+    catalogStatus: status,
+    dcRateProvider: async () => {
+      calls += 1
+      return { valid: true, chaosValue: 1248, observedAt: '2026-07-30T01:00:00Z' }
+    }
+  })
+  service.updateRuntime({ enabled: true, options: { manualDcRate: 1250 } })
+  assert.equal(service.currentDcRate().value, 1250)
+  assert.equal(service.currentDcRate().source, 'manual')
+  await service.refreshDcRate()
+  await service.refreshDcRate()
+  assert.equal(calls, 1)
+  assert.equal(service.currentDcRate().value, 1248)
+  assert.equal(service.currentDcRate().source, 'poecurrency.top')
 })
 
 test('查价服务关闭时拒绝查询并清理浮层与缓存', async () => {
@@ -410,6 +663,12 @@ test('查价分页只使用服务端保存的结果 ID 并限制为 50 条', asy
   for (let index = 0; index < 5; index += 1) await service.loadMore()
   assert.deepEqual(fetchBatches.map((batch) => batch.length), [10, 10, 10, 10, 10])
   assert.equal(service.latest.result.listings.length, 50)
+  assert.equal(service.latest.remainingResultIds.length, 15)
+  await service.loadDistribution()
+  assert.deepEqual(fetchBatches.map((batch) => batch.length), [10, 10, 10, 10, 10, 10, 5])
+  assert.equal(service.latest.result.listings.length, 50)
+  assert.equal(service.latest.result.distribution.fetched, 65)
+  assert.equal(service.latest.result.distribution.complete, true)
   assert.equal(service.latest.remainingResultIds.length, 0)
 })
 

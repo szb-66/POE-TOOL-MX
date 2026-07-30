@@ -198,7 +198,11 @@ app.whenReady().then(async () => {
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
   let tradeCatalogBundle = await loadTradeCatalog()
   try {
-    tradeCatalogBundle = createOfficialTradeCatalog(tradeCatalogBundle.catalog, await priceCheckClient.getStats())
+    const [officialStats, officialItems] = await Promise.all([
+      priceCheckClient.getStats(),
+      priceCheckClient.getItems()
+    ])
+    tradeCatalogBundle = createOfficialTradeCatalog(tradeCatalogBundle.catalog, officialStats, Date.now(), officialItems)
   } catch (error) {
     tradeCatalogBundle.status = {
       ...tradeCatalogBundle.status,
@@ -213,6 +217,11 @@ app.whenReady().then(async () => {
     client: priceCheckClient,
     catalog: tradeCatalogBundle.catalog,
     catalogStatus: tradeCatalogBundle.status,
+    dcRateProvider: async () => {
+      await craftingService.initializePrices()
+      const snapshot = await craftingService.prices.refresh()
+      return snapshot.records.find((record) => record.resourceId === 'currency:divine') || null
+    },
     overlay: priceCheckOverlay,
     shell,
     captureClipboard: () => capturePoeItemText({

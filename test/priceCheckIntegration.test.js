@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import {
+  cursorInsideBounds,
+  getPriceCheckOverlayBounds,
+  hasLeftPriceCheckIntent
+} from '../electron/modules/priceCheck/overlayPosition.js'
 
 const source = (file) => readFile(file, 'utf8')
 
@@ -16,6 +21,10 @@ test('查价 IPC、preload 和渲染层 API 使用同一组具名通道', async 
     'price-check-capture',
     'price-check-rerun',
     'price-check-load-more',
+    'price-check-load-distribution',
+    'price-check-resolve-identity',
+    'price-check-settings-update',
+    'price-check-settings-changed',
     'price-check-overlay-state',
     'price-check-overlay-close',
     'price-check-open-official'
@@ -24,7 +33,7 @@ test('查价 IPC、preload 和渲染层 API 使用同一组具名通道', async 
     assert.match(ipc, new RegExp(channel))
     assert.match(preload, new RegExp(channel))
   }
-  for (const method of ['getStatus', 'updateRuntime', 'capture', 'rerun', 'loadMore', 'getOverlayState', 'closeOverlay', 'openOfficial']) {
+  for (const method of ['getStatus', 'updateRuntime', 'updateSettings', 'capture', 'rerun', 'loadMore', 'loadDistribution', 'resolveIdentity', 'getOverlayState', 'closeOverlay', 'openOfficial', 'onSettingsChanged']) {
     assert.match(api, new RegExp(`${method}:`))
   }
   assert.doesNotMatch(ipc, /['"]price-check-(?:parse|run|list-leagues)['"]/)
@@ -48,6 +57,33 @@ test('查价覆盖层保持单实例、安全隔离并支持状态推送', async
   assert.match(overlay, /this\.window\.on\('blur'/)
   assert.match(overlay, /preserveForExternalAction/)
   assert.match(overlay, /Math\.min\(640,[\s\S]*Math\.min\(760,/)
+  assert.match(overlay, /screen\.getCursorScreenPoint\(\)/)
+  assert.match(overlay, /screen\.getDisplayNearestPoint\(cursor\)/)
+})
+
+test('查价浮窗靠近鼠标定位、边缘翻转并支持负坐标显示器', () => {
+  assert.deepEqual(
+    getPriceCheckOverlayBounds({ x: 300, y: 200 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600, 700),
+    { x: 318, y: 218, width: 600, height: 700 }
+  )
+  assert.deepEqual(
+    getPriceCheckOverlayBounds({ x: 1850, y: 1000 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600, 700),
+    { x: 1232, y: 282, width: 600, height: 700 }
+  )
+  assert.deepEqual(
+    getPriceCheckOverlayBounds({ x: -100, y: 40 }, { x: -1280, y: 0, width: 1280, height: 1024 }, 520, 760),
+    { x: -638, y: 58, width: 520, height: 760 }
+  )
+})
+
+test('查价浮窗根据鼠标离开锚点或窗口判断关闭意图', () => {
+  const anchor = { x: 100, y: 100 }
+  const bounds = { x: 118, y: 118, width: 600, height: 700 }
+  assert.equal(cursorInsideBounds({ x: 120, y: 120 }, bounds), true)
+  assert.equal(hasLeftPriceCheckIntent({ x: 120, y: 120 }, anchor, bounds, false), false)
+  assert.equal(hasLeftPriceCheckIntent({ x: 130, y: 100 }, anchor, bounds, false), false)
+  assert.equal(hasLeftPriceCheckIntent({ x: 20, y: 100 }, anchor, bounds, false), true)
+  assert.equal(hasLeftPriceCheckIntent({ x: 100, y: 100 }, anchor, bounds, true), true)
 })
 
 test('查价浮层默认紧凑并折叠低频设置', async () => {
@@ -67,6 +103,24 @@ test('查价属性与词缀使用单行整行选择且数值输入不误触发',
   assert.match(view, /\.filter-row \{[\s\S]*height: 32px;/)
   assert.doesNotMatch(view, /v-model="(?:property|stat)\.enabled" type="checkbox"/)
   assert.doesNotMatch(view, /content: "属性"/)
+})
+
+test('查价设置跨页面双向同步并提供价格分布和候选选择', async () => {
+  const [store, page, overlay] = await Promise.all([
+    source('src/stores/priceCheck.js'),
+    source('src/domains/priceCheck/PriceCheckView.vue'),
+    source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  ])
+  assert.match(page, />查询设置</)
+  assert.doesNotMatch(page, />默认查询设置</)
+  assert.match(store, /onSettingsChanged[\s\S]*normalizePriceCheckSettings[\s\S]*saveSettings\(\)/)
+  assert.match(overlay, /syncSetting\('status'\)/)
+  assert.match(overlay, /syncSetting\('collapseListings'\)/)
+  assert.match(overlay, /1D ≈ \$\{rate\}C/)
+  assert.match(overlay, /showDistribution[\s\S]*loadDistribution/)
+  assert.match(overlay, /identity-required[\s\S]*resolveIdentity/)
+  assert.match(overlay, /\.filter-row:not\(\.unknown\):hover/)
+  assert.match(overlay, /\.filter-row:focus-visible/)
 })
 
 test('首页业务模块每行最多展示三个', async () => {

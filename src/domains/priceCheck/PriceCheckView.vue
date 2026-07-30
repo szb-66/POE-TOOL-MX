@@ -43,7 +43,7 @@
     </el-card>
 
     <el-card>
-      <template #header><strong>默认查询设置</strong></template>
+      <template #header><strong>查询设置</strong></template>
       <el-form label-width="140px">
         <el-form-item label="在线状态">
           <el-select :model-value="store.settings.status" @change="value => store.updateSetting('status', value)">
@@ -85,6 +85,16 @@
             <el-option label="全部" value="all" />
             <el-option label="无" value="none" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="手动 DC 参考值">
+          <el-input-number
+            :model-value="store.settings.manualDcRate"
+            :min="0"
+            :max="1000000"
+            :step="10"
+            @change="value => store.updateSetting('manualDcRate', value)"
+          />
+          <span class="inline-hint">仅在第三方行情不可用时使用，0 表示不启用</span>
         </el-form-item>
         <el-form-item label="合并重复挂单">
           <el-switch
@@ -149,6 +159,7 @@ onMounted(() => store.refreshStatus().catch(() => {}))
 .status-grid span { color: var(--el-text-color-secondary); font-size: 13px; }
 .catalog-warning, .settings-link { margin-top: 16px; }
 .el-select { width: 280px; }
+.inline-hint { margin-left: 10px; color: var(--el-text-color-secondary); font-size: 12px; }
 .instructions { margin: 0 0 16px; padding-left: 22px; line-height: 1.9; }
 @media (max-width: 850px) { .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

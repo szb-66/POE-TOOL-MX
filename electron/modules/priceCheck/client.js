@@ -2,12 +2,43 @@ import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 
 const ORIGIN = 'https://poe.game.qq.com'
 const LOGIN_HTML_PATTERN = /<title>流放之路<\/title>|需要登录|\/login\?redir=/i
-const REQUEST_INTERVAL_MS = 5000
+const DEFAULT_REQUEST_INTERVAL_MS = 5000
+const FETCH_REQUEST_INTERVAL_MS = 750
 const CACHE_TTL_MS = 15_000
+
+function delay(ms, signal) {
+  if (!(ms > 0)) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('查询已取消', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    if (signal?.aborted) onAbort()
+    else signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
 
 function retryAfterSeconds(headers) {
   const seconds = Number(headers?.get?.('retry-after'))
   return Number.isFinite(seconds) && seconds >= 0 ? seconds : 60
+}
+
+function rateLimitInterval(headers) {
+  const rules = [
+    headers?.get?.('x-rate-limit-account'),
+    headers?.get?.('x-rate-limit-ip')
+  ].filter(Boolean).flatMap((value) => String(value).split(','))
+  const intervals = rules.map((rule) => {
+    const [limit, windowSeconds] = rule.split(':').map(Number)
+    return limit > 0 && windowSeconds > 0
+      ? Math.ceil((windowSeconds * 1000) / limit) + 50
+      : 0
+  })
+  return Math.min(60_000, Math.max(0, ...intervals))
 }
 
 async function parseJsonResponse(response) {
@@ -40,26 +71,28 @@ async function parseJsonResponse(response) {
 }
 
 export class PoeCnTradeClient {
-  constructor({ session, now = () => Date.now() }) {
+  constructor({ session, now = () => Date.now(), sleep = delay }) {
     this.session = session
     this.now = now
+    this.sleep = sleep
     this.cache = new Map()
     this.lastRequestAt = new Map()
+    this.blockedUntil = new Map()
+    this.requestIntervals = new Map()
     this.queue = Promise.resolve()
   }
 
   clearCache() { this.cache.clear() }
 
   async throttle(group, signal) {
-    const wait = Math.max(0, (this.lastRequestAt.get(group) || 0) + REQUEST_INTERVAL_MS - this.now())
-    if (!wait) return
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(resolve, wait)
-      signal?.addEventListener('abort', () => {
-        clearTimeout(timer)
-        reject(new DOMException('查询已取消', 'AbortError'))
-      }, { once: true })
-    })
+    const defaultInterval = group === 'fetch' ? FETCH_REQUEST_INTERVAL_MS : DEFAULT_REQUEST_INTERVAL_MS
+    const interval = Math.max(defaultInterval, this.requestIntervals.get(group) || 0)
+    const nextRequestAt = Math.max(
+      (this.lastRequestAt.get(group) || 0) + interval,
+      this.blockedUntil.get(group) || 0
+    )
+    const wait = Math.max(0, nextRequestAt - this.now())
+    if (wait > 0) await this.sleep(wait, signal)
   }
 
   async request(path, { method = 'GET', body, signal } = {}) {
@@ -86,7 +119,17 @@ export class PoeCnTradeClient {
         if (error?.name === 'AbortError') throw error
         throw new ChaosRecipeError(CHAOS_ERROR_CODES.NETWORK_ERROR, `无法连接国服交易接口：${error.message}`)
       }
-      return parseJsonResponse(response)
+      const observedInterval = rateLimitInterval(response.headers)
+      if (observedInterval > 0) this.requestIntervals.set(group, observedInterval)
+      try {
+        return await parseJsonResponse(response)
+      } catch (error) {
+        if (error?.code === CHAOS_ERROR_CODES.RATE_LIMITED) {
+          const retryAfter = Number(error.details?.retryAfter)
+          this.blockedUntil.set(group, this.now() + (Number.isFinite(retryAfter) ? retryAfter : 60) * 1000)
+        }
+        throw error
+      }
     }
     const pending = this.queue.then(execute, execute)
     this.queue = pending.catch(() => {})
@@ -111,6 +154,14 @@ export class PoeCnTradeClient {
     const value = await this.request('/api/trade/data/stats', { signal })
     if (!Array.isArray(value?.result)) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服官方词缀目录响应结构不兼容')
+    }
+    return value
+  }
+
+  async getItems({ signal } = {}) {
+    const value = await this.request('/api/trade/data/items', { signal })
+    if (!Array.isArray(value?.result)) {
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服官方物品目录响应结构不兼容')
     }
     return value
   }

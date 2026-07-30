@@ -85,6 +85,7 @@ export function parseItemInfo(clipboardText) {
   let hasItemLevel = false;
   let seenItemLevel = false;
   let activeModifier = null;
+  let identityHeaderOpen = true;
 
   const cleanModifierLine = (text) => text
     .replace(/(-?\d+(?:\.\d+)?)\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '$1')
@@ -254,6 +255,11 @@ export function parseItemInfo(clipboardText) {
       flushModifier()
     }
 
+    if (line === '--------') {
+      if (itemInfo.name) identityHeaderOpen = false
+      continue
+    }
+
     const scalarProperties = [
       [/^护甲:\s*\+?([\d.]+)/, 'armour'],
       [/^闪避(?:值)?:\s*\+?([\d.]+)/, 'evasion'],
@@ -311,10 +317,10 @@ export function parseItemInfo(clipboardText) {
       }
       continue
     }
-    else if (!itemInfo.name && line && !line.includes('--------') && !line.includes(':') && !isIgnoredTextLine(line)) {
+    else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
       itemInfo.name = line
     }
-    else if (itemInfo.name && !itemInfo.baseName && line && !line.includes('--------') && !isIgnoredTextLine(line)) {
+    else if (identityHeaderOpen && itemInfo.name && !itemInfo.baseName && line && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line
     }
     else if (line.includes('品质:')) {

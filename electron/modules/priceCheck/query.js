@@ -55,13 +55,17 @@ export function sanitizePriceCheckOptions(value = {}) {
     currency: OPTION_VALUES.currency.has(value.currency) ? value.currency : 'any',
     collapseListings: value.collapseListings === true,
     valueRange: OPTION_VALUES.valueRange.has(value.valueRange) ? value.valueRange : 'down20',
-    initialSelection: OPTION_VALUES.initialSelection.has(value.initialSelection) ? value.initialSelection : 'auto'
+    initialSelection: OPTION_VALUES.initialSelection.has(value.initialSelection) ? value.initialSelection : 'auto',
+    manualDcRate: Number.isFinite(Number(value.manualDcRate))
+      ? Math.min(1_000_000, Math.max(0, Number(value.manualDcRate)))
+      : 0
   }
 }
 
 export function createPriceCheckModel(item, catalog, options = {}) {
   if (!item?.rarity || (!item.name && !item.baseName)) throw new Error('剪贴板中没有可识别的国服物品')
   const rarity = item.rarity.replace(/\s/g, '')
+  const category = safeText(item.category)
   const fixedIdentity = rarity === '传奇' ? item.name : ''
   const baseType = item.baseName || item.name
   const stats = []
@@ -115,9 +119,9 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       ? { id, label, value, enabled: false, min: numericMinimum([value], options.valueRange), max: undefined }
       : null
   }).filter(Boolean)
-  return {
+  const model = {
     item: {
-      category: safeText(item.category),
+      category,
       rarity,
       name: safeText(item.name),
       baseType: safeText(baseType),
@@ -144,10 +148,42 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     stats,
     unknownStats
   }
+  return resolveUnidentifiedUnique(model, catalog)
+}
+
+export function resolveUnidentifiedUnique(model, catalog) {
+  if (model?.item?.rarity !== '传奇' || !model.item.unidentified) return model
+  const baseType = safeText(model.identity?.type || model.item.baseType)
+  const candidates = []
+  const seen = new Set()
+  for (const entry of catalog?.items || []) {
+    const entryBase = safeText(entry.baseType || entry.type)
+    const name = safeText(entry.name)
+    if (entry.unique !== true || entryBase !== baseType || !name) continue
+    const key = `${name}\u0000${entryBase}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    candidates.push({ key, name, baseType: entryBase })
+  }
+  candidates.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  if (candidates.length === 1) {
+    model.identity = { name: candidates[0].name, type: candidates[0].baseType }
+    model.identityResolution = { required: false, baseType, candidates }
+  } else {
+    model.identity = { name: '', type: baseType }
+    model.identityResolution = {
+      required: true,
+      baseType,
+      candidates,
+      message: candidates.length ? '请选择这件未鉴定传奇的实际名称' : '官方交易目录中没有找到该底材的传奇候选'
+    }
+  }
+  return model
 }
 
 export function buildOfficialTradeQuery(model, options = {}) {
   if (!model?.item || !model?.identity) throw new Error('查价模型无效')
+  if (model.identityResolution?.required) throw new Error(model.identityResolution.message || '请先选择未鉴定传奇名称')
   const category = safeText(model.item.category)
   const isGem = category.includes('宝石')
   const isFlask = category.includes('药剂') || category.includes('酊剂')
@@ -220,6 +256,20 @@ export function sanitizePriceCheckModel(value) {
   return {
     item: { ...(value.item || {}), ...flags },
     identity: { name: safeText(value.identity?.name), type: safeText(value.identity?.type) },
+    identityResolution: value.identityResolution && typeof value.identityResolution === 'object'
+      ? {
+          required: Boolean(value.identityResolution.required),
+          baseType: safeText(value.identityResolution.baseType),
+          message: safeText(value.identityResolution.message),
+          candidates: Array.isArray(value.identityResolution.candidates)
+            ? value.identityResolution.candidates.slice(0, 100).map((candidate) => ({
+                key: safeText(candidate.key, 400),
+                name: safeText(candidate.name),
+                baseType: safeText(candidate.baseType)
+              })).filter((candidate) => candidate.key && candidate.name && candidate.baseType)
+            : []
+        }
+      : undefined,
     flags,
     properties,
     stats,

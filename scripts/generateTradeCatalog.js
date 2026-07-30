@@ -20,11 +20,13 @@ export function generateTradeCatalog({ items = [], stats = [], gameVersion, gene
     return [{ key: entry.ref, label: entry.ref, matchers, ids }]
   }).sort((a, b) => a.key.localeCompare(b.key, 'en'))
   const normalizedItems = items.map((entry) => ({
-    key: entry.refName || entry.name,
+    key: `${entry.refName || entry.name}:${entry.base || entry.type || ''}`,
     name: entry.name,
     refName: entry.refName || '',
-    tradeTag: entry.tradeTag || ''
-  })).filter((entry) => entry.key && entry.name).sort((a, b) => a.key.localeCompare(b.key, 'zh-CN'))
+    baseType: entry.base || entry.type || entry.name,
+    tradeTag: entry.tradeTag || '',
+    unique: entry.namespace === 'UNIQUE' || entry.unique === true
+  })).filter((entry) => entry.key && entry.name && entry.baseType).sort((a, b) => a.key.localeCompare(b.key, 'zh-CN'))
   return validateTradeCatalog({
     schemaVersion: 1,
     game: 'poe1',

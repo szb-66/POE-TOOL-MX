@@ -31,7 +31,10 @@ export function validateTradeCatalog(catalog) {
   if (!catalog.gameVersion || !Number.isFinite(Date.parse(catalog.generatedAt))) throw new Error('交易目录版本元数据缺失')
   if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats)) throw new Error('交易目录记录结构无效')
 
-  assertUnique(catalog.items.map((entry) => compact(entry.key || entry.name)), '物品键')
+  assertUnique(catalog.items.map((entry) => compact(entry.key || `${entry.name}:${entry.baseType || entry.type || ''}:${entry.discriminator || ''}`)), '物品键')
+  for (const entry of catalog.items) {
+    if (!compact(entry.name) || !compact(entry.baseType || entry.type)) throw new Error('交易目录物品缺少名称或底材')
+  }
   assertUnique(catalog.stats.map((entry) => compact(entry.key)), '词缀键')
   const matcherKeys = []
   for (const entry of catalog.stats) {
@@ -68,7 +71,35 @@ export async function loadTradeCatalog(file = path.join(moduleDir, 'catalog.json
   return { catalog, status: tradeCatalogStatus(catalog, now) }
 }
 
-export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now()) {
+function officialItems(payload) {
+  if (!payload) return []
+  if (!Array.isArray(payload?.result)) throw new Error('腾讯官方物品目录响应结构无效')
+  const items = []
+  const seen = new Set()
+  for (const group of payload.result) {
+    for (const entry of group?.entries || []) {
+      const baseType = compact(entry?.type)
+      const unique = entry?.flags?.unique === true
+      const name = compact(entry?.name) || (unique ? '' : baseType)
+      if (!name || !baseType) continue
+      const discriminator = compact(entry?.disc)
+      const identity = `${unique ? 'unique' : 'base'}\u0000${name}\u0000${baseType}\u0000${discriminator}`
+      if (seen.has(identity)) continue
+      seen.add(identity)
+      items.push({
+        key: `official-item-${items.length + 1}`,
+        name,
+        baseType,
+        text: compact(entry?.text),
+        discriminator,
+        unique
+      })
+    }
+  }
+  return items
+}
+
+export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(), itemsPayload = null) {
   if (!Array.isArray(payload?.result)) throw new Error('腾讯官方词缀目录响应结构无效')
   const grouped = new Map()
   for (const group of payload.result) {
@@ -111,6 +142,8 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
     ...structuredClone(baseCatalog),
     generatedAt: new Date(now).toISOString(),
     sources: ['腾讯国服官方 /api/trade/data/stats', ...(baseCatalog.sources || [])],
+    itemCoverage: itemsPayload ? 'all' : baseCatalog.itemCoverage,
+    items: itemsPayload ? officialItems(itemsPayload) : structuredClone(baseCatalog.items),
     stats
   })
   return {

@@ -355,13 +355,17 @@ export const electronApi = isElectron ? {
   priceCheck: {
     getStatus: () => window.electronAPI.getPriceCheckStatus?.(),
     updateRuntime: (runtime) => window.electronAPI.updatePriceCheckRuntime?.(craftingIpcPayload(runtime)),
+    updateSettings: (patch) => window.electronAPI.updatePriceCheckSettings?.(craftingIpcPayload(patch)),
     capture: (request) => window.electronAPI.capturePriceCheckItem?.(craftingIpcPayload(request)),
     rerun: (request) => window.electronAPI.rerunPriceCheck?.(craftingIpcPayload(request)),
     loadMore: () => window.electronAPI.loadMorePriceCheck?.(),
+    loadDistribution: () => window.electronAPI.loadPriceCheckDistribution?.(),
+    resolveIdentity: (candidateKey) => window.electronAPI.resolvePriceCheckIdentity?.(String(candidateKey || '')),
     getOverlayState: () => window.electronAPI.getPriceCheckOverlayState?.(),
     closeOverlay: () => window.electronAPI.closePriceCheckOverlay?.(),
     openOfficial: () => window.electronAPI.openPriceCheckOfficial?.(),
-    onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {})
+    onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {}),
+    onSettingsChanged: (callback) => window.electronAPI.onPriceCheckSettingsChanged?.(callback) || (() => {})
   },
 
   combat: {

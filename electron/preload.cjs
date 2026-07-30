@@ -224,9 +224,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 国服官方挂单查价
   getPriceCheckStatus: () => ipcRenderer.invoke('price-check-status'),
   updatePriceCheckRuntime: (runtime) => ipcRenderer.invoke('price-check-runtime-update', runtime),
+  updatePriceCheckSettings: (patch) => ipcRenderer.invoke('price-check-settings-update', patch),
   capturePriceCheckItem: (request) => ipcRenderer.invoke('price-check-capture', request),
   rerunPriceCheck: (request) => ipcRenderer.invoke('price-check-rerun', request),
   loadMorePriceCheck: () => ipcRenderer.invoke('price-check-load-more'),
+  loadPriceCheckDistribution: () => ipcRenderer.invoke('price-check-load-distribution'),
+  resolvePriceCheckIdentity: (candidateKey) => ipcRenderer.invoke('price-check-resolve-identity', candidateKey),
   getPriceCheckOverlayState: () => ipcRenderer.invoke('price-check-overlay-state'),
   closePriceCheckOverlay: () => ipcRenderer.invoke('price-check-overlay-close'),
   openPriceCheckOfficial: () => ipcRenderer.invoke('price-check-open-official'),
@@ -234,6 +237,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('price-check-overlay-state', listener)
     return () => ipcRenderer.removeListener('price-check-overlay-state', listener)
+  },
+  onPriceCheckSettingsChanged: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('price-check-settings-changed', listener)
+    return () => ipcRenderer.removeListener('price-check-settings-changed', listener)
   },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),

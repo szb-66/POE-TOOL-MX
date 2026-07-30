@@ -37,6 +37,8 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   const loading = ref(false)
   const error = ref('')
   let removeOverlayListener = null
+  let removeSettingsListener = null
+  let settingsRevision = 0
 
   const authenticated = computed(() => account.status.authenticated)
   const catalog = computed(() => status.value?.catalog || null)
@@ -47,7 +49,8 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     currency: settings.value.currency,
     collapseListings: settings.value.collapseListings,
     valueRange: settings.value.valueRange,
-    initialSelection: settings.value.initialSelection
+    initialSelection: settings.value.initialSelection,
+    manualDcRate: settings.value.manualDcRate
   }))
 
   function saveSettings() {
@@ -100,11 +103,16 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     return settings.value.enabled
   }
 
-  function updateSetting(key, value) {
+  async function updateSetting(key, value) {
     const candidate = normalizePriceCheckSettings({ ...settings.value, [key]: value })
     settings.value = candidate
     saveSettings()
-    if (settings.value.enabled) void syncRuntime().catch((reason) => { error.value = reason.message })
+    try {
+      const snapshot = unwrap(await electronApi.priceCheck.updateSettings({ [key]: candidate[key] }))
+      settingsRevision = Math.max(settingsRevision, Number(snapshot.settingsRevision) || 0)
+    } catch (reason) {
+      error.value = reason.message
+    }
   }
 
   async function checkHoveredItem() {
@@ -145,6 +153,12 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     return data
   }
 
+  async function loadDistribution() {
+    const data = unwrap(await electronApi.priceCheck.loadDistribution())
+    result.value = data.result
+    return data
+  }
+
   function listenOverlay() {
     if (removeOverlayListener) return removeOverlayListener
     removeOverlayListener = electronApi.priceCheck.onOverlayState((snapshot) => {
@@ -152,12 +166,21 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       if (snapshot?.model) model.value = snapshot.model
       if (snapshot?.result) result.value = snapshot.result
     })
+    removeSettingsListener = electronApi.priceCheck.onSettingsChanged((snapshot) => {
+      const revision = Number(snapshot?.settingsRevision) || 0
+      if (revision < settingsRevision || !snapshot?.options) return
+      settingsRevision = revision
+      settings.value = normalizePriceCheckSettings({ ...settings.value, ...snapshot.options })
+      saveSettings()
+    })
     void electronApi.priceCheck.getOverlayState().then((response) => {
       if (response?.success) overlayState.value = response.data
     })
     return () => {
       removeOverlayListener?.()
       removeOverlayListener = null
+      removeSettingsListener?.()
+      removeSettingsListener = null
     }
   }
 
@@ -176,6 +199,6 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     status, settings, model, result, overlayState, loading, error,
     authenticated, catalog, league, options,
     saveSettings, clearResults, refreshStatus, syncRuntime, setEnabled,
-    updateSetting, checkHoveredItem, rerun, loadMore, listenOverlay
+    updateSetting, checkHoveredItem, rerun, loadMore, loadDistribution, listenOverlay
   }
 })
