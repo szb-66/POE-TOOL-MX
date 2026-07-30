@@ -51,6 +51,7 @@ export const usePoeCnAccountStore = defineStore('poeCnAccount', () => {
   const error = ref(null)
   const leagueChangeListeners = new Set()
   const statusChangeListeners = new Set()
+  let leagueLoadPromise = null
 
   function applyStatus(value) {
     status.value = { ...emptyStatus(), ...(value || {}) }
@@ -120,16 +121,24 @@ export const usePoeCnAccountStore = defineStore('poeCnAccount', () => {
   }
 
   async function loadLeagues() {
-    leagues.value = unwrap(await electronApi.poeCnAccount.listLeagues())
-    if (settings.value.league && !leagues.value.some((league) => league.id === settings.value.league)) {
-      await setLeague('')
-    }
-    return leagues.value
+    if (leagueLoadPromise) return leagueLoadPromise
+    leagueLoadPromise = (async () => {
+      leagues.value = unwrap(await electronApi.poeCnAccount.listLeagues())
+      if (settings.value.league && !leagues.value.some((league) => league.id === settings.value.league)) {
+        await setLeague('')
+      }
+      return leagues.value
+    })().finally(() => { leagueLoadPromise = null })
+    return leagueLoadPromise
   }
 
   function listenStatus() {
     return electronApi.poeCnAccount.onStatusChanged((nextStatus) => {
+      const wasAuthenticated = status.value.authenticated
       applyStatus(nextStatus)
+      if (!wasAuthenticated && status.value.authenticated) {
+        void loadLeagues().catch((caught) => { error.value = caught })
+      }
     })
   }
 

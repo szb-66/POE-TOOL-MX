@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
 import {
   isPoeCnAllowedUrl,
   requestPoeCnJson
@@ -9,14 +10,44 @@ import { PoeCnStashClient } from '../electron/modules/chaosRecipe/stashClient.js
 
 function fakeSession(fetchImpl) {
   const state = { cookies: [], cleared: 0, cacheCleared: 0 }
+  const cookies = new EventEmitter()
+  cookies.set = async (cookie) => { state.cookies.push(cookie) }
   return {
     state,
     fetch: fetchImpl,
-    cookies: { set: async (cookie) => { state.cookies.push(cookie) } },
+    cookies,
     clearStorageData: async () => { state.cleared += 1 },
     clearCache: async () => { state.cacheCleared += 1 }
   }
 }
+
+class FakeLoginWindow extends EventEmitter {
+  static instances = []
+
+  constructor(options) {
+    super()
+    this.options = options
+    this.destroyed = false
+    this.closeCalls = 0
+    this.webContents = new EventEmitter()
+    this.webContents.setWindowOpenHandler = (handler) => { this.windowOpenHandler = handler }
+    FakeLoginWindow.instances.push(this)
+  }
+
+  removeMenu() {}
+  show() {}
+  focus() {}
+  async loadURL(url) { this.url = url }
+  isDestroyed() { return this.destroyed }
+  close() {
+    if (this.destroyed) return
+    this.closeCalls += 1
+    this.destroyed = true
+    this.emit('closed')
+  }
+}
+
+const flushTimers = () => new Promise((resolve) => setTimeout(resolve, 10))
 
 const jsonResponse = (value, status = 200) => new Response(JSON.stringify(value), {
   status,
@@ -70,6 +101,136 @@ test('手动 POESESSID 只写入独立 Session Cookie 并在验证失败后清�
   assert.equal(JSON.stringify(auth.getStatus()).includes(secret), false)
   assert.equal(session.state.cleared, 1)
   assert.equal(session.state.cacheCleared, 1)
+})
+
+test('网页登录写入有效 POESESSID 后自动验证、广播并只关闭一次', async () => {
+  FakeLoginWindow.instances.length = 0
+  let profileCalls = 0
+  const session = fakeSession(async () => {
+    profileCalls += 1
+    return jsonResponse({ profile: { name: '自动登录账号' } })
+  })
+  const auth = new PoeCnAuthService({
+    session,
+    BrowserWindow: FakeLoginWindow,
+    webLoginDebounceMs: 0
+  })
+  const statuses = []
+  auth.subscribe((status) => statuses.push(status))
+
+  await auth.openWebLogin()
+  const window = FakeLoginWindow.instances[0]
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: '.poe.game.qq.com',
+    value: 'secret-must-not-be-broadcast'
+  }, 'explicit', false)
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: '.poe.game.qq.com'
+  }, 'overwrite', false)
+  await flushTimers()
+
+  assert.equal(profileCalls, 1)
+  assert.equal(window.closeCalls, 1)
+  assert.equal(auth.getStatus().accountName, '自动登录账号')
+  assert.equal(JSON.stringify(statuses).includes('secret-must-not-be-broadcast'), false)
+  assert.equal(session.cookies.listenerCount('changed'), 0)
+})
+
+test('网页登录中间态验证失败时保留窗口，后续 Cookie 可重试成功', async () => {
+  FakeLoginWindow.instances.length = 0
+  let profileCalls = 0
+  const session = fakeSession(async () => {
+    profileCalls += 1
+    return profileCalls === 1
+      ? new Response('{}', { status: 401 })
+      : jsonResponse({ profile: { name: '重试账号' } })
+  })
+  const auth = new PoeCnAuthService({
+    session,
+    BrowserWindow: FakeLoginWindow,
+    webLoginDebounceMs: 0
+  })
+
+  await auth.openWebLogin()
+  const window = FakeLoginWindow.instances[0]
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: 'poe.game.qq.com'
+  }, 'explicit', false)
+  await flushTimers()
+  assert.equal(window.isDestroyed(), false)
+  assert.equal(auth.getStatus().authenticated, false)
+  assert.equal(session.cookies.listenerCount('changed'), 1)
+
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: 'poe.game.qq.com'
+  }, 'overwrite', false)
+  await flushTimers()
+  assert.equal(profileCalls, 2)
+  assert.equal(window.closeCalls, 1)
+  assert.equal(auth.getStatus().accountName, '重试账号')
+})
+
+test('手动网页确认复用进行中的自动验证且关窗会清理监听', async () => {
+  FakeLoginWindow.instances.length = 0
+  let releaseProfile
+  let profileCalls = 0
+  const session = fakeSession(async () => {
+    profileCalls += 1
+    await new Promise((resolve) => { releaseProfile = resolve })
+    return jsonResponse({ profile: { name: '并发账号' } })
+  })
+  const auth = new PoeCnAuthService({
+    session,
+    BrowserWindow: FakeLoginWindow,
+    webLoginDebounceMs: 0
+  })
+
+  await auth.openWebLogin()
+  const window = FakeLoginWindow.instances[0]
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: 'poe.game.qq.com'
+  }, 'explicit', false)
+  await flushTimers()
+  const manual = auth.completeWebLogin()
+  releaseProfile()
+  await manual
+
+  assert.equal(profileCalls, 1)
+  assert.equal(window.closeCalls, 1)
+  assert.equal(session.cookies.listenerCount('changed'), 0)
+})
+
+test('注销会取消进行中的网页登录验证，迟到响应不能恢复登录', async () => {
+  FakeLoginWindow.instances.length = 0
+  let releaseProfile
+  const session = fakeSession(async () => {
+    await new Promise((resolve) => { releaseProfile = resolve })
+    return jsonResponse({ profile: { name: '迟到账号' } })
+  })
+  const auth = new PoeCnAuthService({
+    session,
+    BrowserWindow: FakeLoginWindow,
+    webLoginDebounceMs: 0
+  })
+
+  await auth.openWebLogin()
+  session.cookies.emit('changed', {}, {
+    name: 'POESESSID',
+    domain: 'poe.game.qq.com'
+  }, 'explicit', false)
+  await flushTimers()
+  const logout = auth.logout()
+  releaseProfile()
+  await logout
+  await flushTimers()
+
+  assert.equal(auth.getStatus().authenticated, false)
+  assert.equal(session.cookies.listenerCount('changed'), 0)
 })
 
 test('仓库页列表始终使用旧接口且每次重新请求', async () => {

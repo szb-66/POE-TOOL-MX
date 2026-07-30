@@ -22,3 +22,11 @@ Copyright (c) ChaosRecipeEnhancer contributors.
 Copyright (c) 2020 Alexander Drozdov.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, subject to inclusion of the above copyright notice and permission notice in substantial portions.
+
+## PoEDB 与 Path of Exile 物品美术
+
+- 数据页面：https://poedb.tw/cn/Unique_item
+- 用途：构建版本化的简体中文传奇名称、底材与物品图片离线快照。
+- 部分 PoEDB 图片地址不可用时，生成器从 `web.poecdn.com` 获取相同的 Path of Exile 官方物品美术资源。
+
+PoEDB 页面仅作为数据来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB。

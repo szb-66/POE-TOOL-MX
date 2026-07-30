@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { enrichOfficialItemsWithImages } from './uniqueItemSnapshot.js'
 
 export const TRADE_CATALOG_SCHEMA_VERSION = 1
 export const TRADE_CATALOG_STALE_MS = 180 * 24 * 60 * 60 * 1000
@@ -71,7 +72,7 @@ export async function loadTradeCatalog(file = path.join(moduleDir, 'catalog.json
   return { catalog, status: tradeCatalogStatus(catalog, now) }
 }
 
-function officialItems(payload) {
+function officialItems(payload, uniqueItemCatalog = null) {
   if (!payload) return []
   if (!Array.isArray(payload?.result)) throw new Error('腾讯官方物品目录响应结构无效')
   const items = []
@@ -96,10 +97,10 @@ function officialItems(payload) {
       })
     }
   }
-  return items
+  return enrichOfficialItemsWithImages(items, uniqueItemCatalog)
 }
 
-export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(), itemsPayload = null) {
+export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(), itemsPayload = null, uniqueItemCatalog = null) {
   if (!Array.isArray(payload?.result)) throw new Error('腾讯官方词缀目录响应结构无效')
   const grouped = new Map()
   for (const group of payload.result) {
@@ -143,7 +144,9 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
     generatedAt: new Date(now).toISOString(),
     sources: ['腾讯国服官方 /api/trade/data/stats', ...(baseCatalog.sources || [])],
     itemCoverage: itemsPayload ? 'all' : baseCatalog.itemCoverage,
-    items: itemsPayload ? officialItems(itemsPayload) : structuredClone(baseCatalog.items),
+    items: itemsPayload
+      ? officialItems(itemsPayload, uniqueItemCatalog)
+      : enrichOfficialItemsWithImages(structuredClone(baseCatalog.items), uniqueItemCatalog),
     stats
   })
   return {

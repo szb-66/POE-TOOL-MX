@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "patch": "fixture",
+  "images": [
+    {
+      "url": "https://cdn.poedb.tw/image/Art/2DItems/Rings/TestAlpha.webp",
+      "file": "images/test-alpha.webp",
+      "sha256": "fixture",
+      "fetchedAt": "2026-07-30T00:00:00.000Z"
+    },
+    {
+      "url": "https://cdn.poedb.tw/image/Art/2DItems/Rings/TestBeta.webp",
+      "file": "images/test-beta.webp",
+      "sha256": "fixture",
+      "fetchedAt": "2026-07-30T00:00:00.000Z"
+    }
+  ]
+}

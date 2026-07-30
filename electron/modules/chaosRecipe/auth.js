@@ -17,12 +17,17 @@ function profileSummary(payload, mode) {
 }
 
 export class PoeCnAuthService {
-  constructor({ session, BrowserWindow, parentWindow = () => null }) {
+  constructor({ session, BrowserWindow, parentWindow = () => null, webLoginDebounceMs = 250 }) {
     this.session = session
     this.BrowserWindow = BrowserWindow
     this.parentWindow = parentWindow
+    this.webLoginDebounceMs = webLoginDebounceMs
     this.status = { authenticated: false, mode: null, accountName: '' }
     this.loginWindow = null
+    this.loginCookieListener = null
+    this.loginValidationTimer = null
+    this.loginValidation = null
+    this.webLoginGeneration = 0
     this.cacheClearers = new Set()
     this.statusListeners = new Set()
   }
@@ -98,6 +103,58 @@ export class PoeCnAuthService {
     }
   }
 
+  cleanupWebLoginWatcher() {
+    if (this.loginValidationTimer) {
+      clearTimeout(this.loginValidationTimer)
+      this.loginValidationTimer = null
+    }
+    if (this.loginCookieListener) {
+      this.session.cookies.removeListener?.('changed', this.loginCookieListener)
+      this.loginCookieListener = null
+    }
+  }
+
+  watchWebLoginCookies(window) {
+    this.cleanupWebLoginWatcher()
+    this.loginCookieListener = (_event, cookie, _cause, removed) => {
+      const domain = String(cookie?.domain || '').replace(/^\./, '').toLowerCase()
+      if (
+        removed ||
+        cookie?.name !== 'POESESSID' ||
+        (domain !== 'poe.game.qq.com' && !domain.endsWith('.poe.game.qq.com')) ||
+        this.loginWindow !== window ||
+        window.isDestroyed()
+      ) return
+      if (this.loginValidationTimer) clearTimeout(this.loginValidationTimer)
+      this.loginValidationTimer = setTimeout(() => {
+        this.loginValidationTimer = null
+        void this.finishWebLogin().catch(() => {
+          // 登录页面可能分多次写入 Cookie；只有资料验证成功才自动关闭窗口。
+        })
+      }, this.webLoginDebounceMs)
+    }
+    this.session.cookies.on?.('changed', this.loginCookieListener)
+  }
+
+  finishWebLogin() {
+    const generation = this.webLoginGeneration
+    if (this.loginValidation?.generation === generation) return this.loginValidation.promise
+    const validation = { generation, promise: null }
+    validation.promise = (async () => {
+      const profile = await requestPoeCnJson(this.session, PROFILE_URL)
+      if (generation !== this.webLoginGeneration) throw new DOMException('网页登录验证已取消', 'AbortError')
+      const result = this.setStatus(profileSummary(profile, 'web'))
+      this.cleanupWebLoginWatcher()
+      const window = this.loginWindow
+      if (window && !window.isDestroyed()) window.close()
+      return result
+    })().finally(() => {
+      if (this.loginValidation === validation) this.loginValidation = null
+    })
+    this.loginValidation = validation
+    return validation.promise
+  }
+
   async openWebLogin() {
     if (this.loginWindow && !this.loginWindow.isDestroyed()) {
       this.loginWindow.focus()
@@ -119,6 +176,8 @@ export class PoeCnAuthService {
       }
     })
     this.loginWindow = window
+    this.webLoginGeneration += 1
+    this.watchWebLoginCookies(window)
     window.removeMenu?.()
     window.webContents.setWindowOpenHandler(({ url }) => (
       isPoeCnAllowedUrl(url) ? { action: 'allow' } : { action: 'deny' }
@@ -127,20 +186,35 @@ export class PoeCnAuthService {
       if (!isPoeCnAllowedUrl(url)) event.preventDefault()
     })
     window.once('ready-to-show', () => window.show())
-    window.once('closed', () => { if (this.loginWindow === window) this.loginWindow = null })
-    await window.loadURL(LOGIN_URL)
+    window.once('closed', () => {
+      if (this.loginWindow === window) {
+        this.webLoginGeneration += 1
+        this.cleanupWebLoginWatcher()
+        this.loginWindow = null
+      }
+    })
+    try {
+      await window.loadURL(LOGIN_URL)
+    } catch (error) {
+      if (!window.isDestroyed()) window.close()
+      throw error
+    }
     return { opened: true, existing: false }
   }
 
   async completeWebLogin() {
-    const result = await this.validate('web')
-    if (this.loginWindow && !this.loginWindow.isDestroyed()) this.loginWindow.close()
-    return result
+    if (this.loginValidationTimer) {
+      clearTimeout(this.loginValidationTimer)
+      this.loginValidationTimer = null
+    }
+    return this.finishWebLogin()
   }
 
   async logout() {
+    this.webLoginGeneration += 1
     this.setStatus({ authenticated: false, mode: null, accountName: '' })
     this.clearFeatureCaches()
+    this.cleanupWebLoginWatcher()
     if (this.loginWindow && !this.loginWindow.isDestroyed()) this.loginWindow.close()
     await this.session.clearStorageData({
       origin: POE_CN_ORIGIN,

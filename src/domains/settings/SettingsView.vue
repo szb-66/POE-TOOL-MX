@@ -501,7 +501,7 @@ async function runAccountAction(action, successMessage = '') {
 function openAccountLogin() {
   return runAccountAction(
     () => account.openWebLogin(),
-    '请在新窗口完成 QQ/国服登录，然后点击“我已完成登录”'
+    '请在新窗口完成 QQ/国服登录；验证成功后窗口会自动关闭，也可手动确认'
   )
 }
 

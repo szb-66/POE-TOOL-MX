@@ -78,7 +78,16 @@
           class="candidate"
           :disabled="busy"
           @click="resolveIdentity(candidate.key)"
-        >{{ candidate.name }}<small>{{ candidate.baseType }}</small></button>
+        >
+          <img :src="candidate.imageUrl" :alt="candidate.name" @error="useCandidatePlaceholder">
+          <span class="candidate-label">
+            <span class="candidate-title">
+              <strong>{{ candidate.name }}</strong>
+              <span v-if="candidate.legacy" class="legacy-tag">遗产</span>
+            </span>
+            <small>{{ candidate.baseType }}</small>
+          </span>
+        </button>
       </section>
 
       <template v-if="state.model && !filtersCollapsed">
@@ -273,6 +282,10 @@ async function resolveIdentity(candidateKey) {
   busy.value = true
   try { await electronApi.priceCheck.resolveIdentity(candidateKey) } finally { busy.value = false }
 }
+function useCandidatePlaceholder(event) {
+  const placeholder = 'price-check-image://snapshot/placeholder'
+  if (event.currentTarget.src !== placeholder) event.currentTarget.src = placeholder
+}
 function close() { void electronApi.priceCheck.closeOverlay() }
 function openOfficial() {
   void electronApi.priceCheck.openOfficial()
@@ -370,8 +383,13 @@ button:hover:not(:disabled) { background: #303849; border-color: #65728a; }
 button:focus-visible { outline: 2px solid #65b4ff; outline-offset: 1px; }
 button:disabled { opacity: .45; cursor: default; }
 .identity-resolver p { margin: 4px 0 8px; color: #aeb6c5; }
-.candidate { display: flex; justify-content: space-between; width: 100%; margin-top: 5px; text-align: left; }
-.candidate small { margin-left: 12px; }
+.candidate { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 56px; margin-top: 5px; text-align: left; }
+.candidate img { flex: 0 0 48px; width: 48px; height: 48px; object-fit: contain; }
+.candidate-label { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.candidate-title { display: flex; min-width: 0; align-items: center; gap: 6px; }
+.candidate-title strong { overflow: hidden; color: #d7a95b; text-overflow: ellipsis; white-space: nowrap; }
+.legacy-tag { flex: 0 0 auto; padding: 1px 5px; color: #c9a6ff; border: 1px solid #72539b; border-radius: 3px; font-size: 10px; line-height: 15px; }
+.candidate-label small { margin: 0; }
 .result-tabs { display: flex; gap: 5px; margin: 6px 0; }
 .result-tabs button.active { color: #9bc5ff; background: #18345a; border-color: #4285e8; }
 .distribution-summary { padding: 6px 4px; color: #aeb6c5; }

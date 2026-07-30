@@ -144,6 +144,74 @@ test('普通白弓不会把分隔线后的物品类别误解析成底材', async
   assert.equal(buildOfficialTradeQuery(model).query.type, '短弓')
 })
 
+test('魔法药剂从完整名称恢复官方底材后生成查询', () => {
+  const item = parseItemInfo([
+    '物品类别: 魔力药剂',
+    '稀 有 度: 魔法',
+    '预兆的自由之不朽魔力药剂',
+    '--------',
+    '5 秒内回复 2324 (augmented) 魔力',
+    '每次使用会从 42 充能次数中消耗 8 次',
+    '目前有 0 充能次数',
+    '--------',
+    '需求:',
+    '等级: 60',
+    '--------',
+    '物品等级: 85',
+    '--------',
+    '{ 前缀属性 "预兆的" (等阶：1) — 魔力 }',
+    '回复量提高 66%',
+    '魔力回复会在效果结束时立即开始 — 数值不可调整',
+    '{ 后缀属性 "自由之" (等阶：2) — 攻击, 施法 }',
+    '缓速时使用可以在接下来 12(12-14) 秒免疫缓速',
+    '瘫痪时使用可以在接下来 13(12-14) 秒免疫瘫痪',
+    '--------',
+    '点击右键以喝下药剂。只有装备于腰带上时才会充能。击败怪物时会回复充能次数。',
+    '--------',
+    '出售获得通货:非绑定'
+  ].join('\n'))
+  const catalog = {
+    items: [
+      { name: '魔力药剂', baseType: '魔力药剂', unique: false },
+      { name: '不朽魔力药剂', baseType: '不朽魔力药剂', unique: false }
+    ],
+    stats: []
+  }
+
+  assert.equal(item.name, '预兆的自由之不朽魔力药剂')
+  assert.equal(item.baseName, '')
+  const model = createPriceCheckModel(item, catalog)
+  assert.equal(model.item.baseType, '不朽魔力药剂')
+  assert.equal(model.identity.type, '不朽魔力药剂')
+  assert.equal(buildOfficialTradeQuery(model).query.type, '不朽魔力药剂')
+})
+
+test('目录底材补全选择最长后缀且无法匹配时保留原身份', () => {
+  const catalog = {
+    items: [
+      { name: '魔力药剂', baseType: '魔力药剂', unique: false },
+      { name: '不朽魔力药剂', baseType: '不朽魔力药剂', unique: false },
+      { name: '同名传奇', baseType: '不朽魔力药剂', unique: true }
+    ],
+    stats: []
+  }
+  const matched = createPriceCheckModel({
+    category: '魔力药剂',
+    rarity: '魔法',
+    name: '预兆的自由之不朽魔力药剂',
+    baseName: ''
+  }, catalog)
+  const unmatched = createPriceCheckModel({
+    category: '魔力药剂',
+    rarity: '魔法',
+    name: '未知实验药剂',
+    baseName: ''
+  }, catalog)
+
+  assert.equal(matched.identity.type, '不朽魔力药剂')
+  assert.equal(unmatched.identity.type, '未知实验药剂')
+})
+
 test('宝石等级和品质转换为官方 misc filters', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = parseItemInfo([
@@ -228,13 +296,19 @@ test('未鉴定传奇按官方底材候选自动解析或要求手选', () => {
 
   const many = resolveUnidentifiedUnique(structuredClone(baseModel), {
     items: [
-      { name: '传奇甲', baseType: '星空珠宝', unique: true },
-      { name: '传奇乙', baseType: '星空珠宝', unique: true }
+      { name: '传奇甲', baseType: '星空珠宝', unique: true, legacy: true },
+      { name: '传奇乙', baseType: '星空珠宝', unique: true, legacy: false }
     ]
   })
   assert.equal(many.identity.name, '')
   assert.equal(many.identityResolution.required, true)
-  assert.deepEqual(many.identityResolution.candidates.map((entry) => entry.name), ['传奇甲', '传奇乙'])
+  assert.deepEqual(
+    many.identityResolution.candidates.map(({ name, legacy }) => ({ name, legacy })),
+    [
+      { name: '传奇乙', legacy: false },
+      { name: '传奇甲', legacy: true }
+    ]
+  )
   assert.throws(() => buildOfficialTradeQuery(many), /请选择/)
 })
 

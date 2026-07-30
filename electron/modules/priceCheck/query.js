@@ -1,9 +1,32 @@
 import { matchCatalogStat } from './catalog.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
+import {
+  safeUniqueItemImageId,
+  uniqueItemImageUrl
+} from './uniqueItemSnapshot.js'
 
 const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
 
 const safeText = (value, max = 180) => String(value || '').trim().slice(0, max)
+
+function resolveNonUniqueBaseType(item, catalog) {
+  const fallback = safeText(item.baseName || item.name)
+  if (item.baseName || item.rarity?.replace(/\s/g, '') === '传奇') return fallback
+
+  const fullName = safeText(item.name)
+  if (!fullName) return fallback
+  const candidates = new Set()
+  for (const entry of catalog?.items || []) {
+    if (entry?.unique === true) continue
+    const baseType = safeText(entry?.baseType || entry?.type)
+    if (baseType && fullName.endsWith(baseType)) candidates.add(baseType)
+  }
+  if (!candidates.size) return fallback
+
+  const longestLength = Math.max(...[...candidates].map((baseType) => baseType.length))
+  const longest = [...candidates].filter((baseType) => baseType.length === longestLength)
+  return longest.length === 1 ? longest[0] : fallback
+}
 
 function numericMinimum(values, range = 'down20') {
   if (!values?.length) return undefined
@@ -67,7 +90,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   const rarity = item.rarity.replace(/\s/g, '')
   const category = safeText(item.category)
   const fixedIdentity = rarity === '传奇' ? item.name : ''
-  const baseType = item.baseName || item.name
+  const baseType = resolveNonUniqueBaseType(item, catalog)
   const stats = []
   const unknownStats = []
   const modifiers = [...(item.modifiers || [])]
@@ -163,9 +186,17 @@ export function resolveUnidentifiedUnique(model, catalog) {
     const key = `${name}\u0000${entryBase}`
     if (seen.has(key)) continue
     seen.add(key)
-    candidates.push({ key, name, baseType: entryBase })
+    const imageId = safeUniqueItemImageId(entry.imageId)
+    candidates.push({
+      key,
+      name,
+      baseType: entryBase,
+      legacy: entry.legacy === true,
+      imageId,
+      imageUrl: uniqueItemImageUrl(imageId)
+    })
   }
-  candidates.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
+  candidates.sort((a, b) => Number(a.legacy) - Number(b.legacy) || a.name.localeCompare(b.name, 'zh-CN'))
   if (candidates.length === 1) {
     model.identity = { name: candidates[0].name, type: candidates[0].baseType }
     model.identityResolution = { required: false, baseType, candidates }
@@ -265,7 +296,10 @@ export function sanitizePriceCheckModel(value) {
             ? value.identityResolution.candidates.slice(0, 100).map((candidate) => ({
                 key: safeText(candidate.key, 400),
                 name: safeText(candidate.name),
-                baseType: safeText(candidate.baseType)
+                baseType: safeText(candidate.baseType),
+                legacy: candidate.legacy === true,
+                imageId: safeUniqueItemImageId(candidate.imageId),
+                imageUrl: uniqueItemImageUrl(safeUniqueItemImageId(candidate.imageId))
               })).filter((candidate) => candidate.key && candidate.name && candidate.baseType)
             : []
         }

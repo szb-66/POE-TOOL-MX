@@ -34,6 +34,10 @@ import { ChaosRecipeControlOverlay } from './modules/chaosRecipe/controlOverlay.
 import { createShutdownController } from './modules/lifecycle/shutdown.js'
 import { acquireCrossProcessInstanceLock } from './modules/app/singleInstance.js'
 import { createOfficialTradeCatalog, loadTradeCatalog } from './modules/priceCheck/catalog.js'
+import {
+  registerUniqueItemImageProtocol,
+  UniqueItemImageRepository
+} from './modules/priceCheck/uniqueItemSnapshot.js'
 import { PoeCnTradeClient } from './modules/priceCheck/client.js'
 import { PriceCheckService } from './modules/priceCheck/service.js'
 import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
@@ -41,7 +45,10 @@ import { capturePoeItemText, sendWindowsCopy } from './modules/priceCheck/clipbo
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
-protocol.registerSchemesAsPrivileged([{ scheme: 'crafting-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'crafting-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+  { scheme: 'price-check-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
 
 app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
@@ -196,13 +203,28 @@ app.whenReady().then(async () => {
   chaosRecipeService.control = chaosControlOverlay
   await chaosRecipeService.restoreAuth()
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
+  const uniqueItemImages = new UniqueItemImageRepository()
+  let uniqueImageWarning = ''
+  try {
+    await uniqueItemImages.load()
+  } catch (error) {
+    uniqueItemImages.useFallback()
+    uniqueImageWarning = `本地传奇图片目录不可用：${error.message}`
+  }
+  registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
   let tradeCatalogBundle = await loadTradeCatalog()
   try {
     const [officialStats, officialItems] = await Promise.all([
       priceCheckClient.getStats(),
       priceCheckClient.getItems()
     ])
-    tradeCatalogBundle = createOfficialTradeCatalog(tradeCatalogBundle.catalog, officialStats, Date.now(), officialItems)
+    tradeCatalogBundle = createOfficialTradeCatalog(
+      tradeCatalogBundle.catalog,
+      officialStats,
+      Date.now(),
+      officialItems,
+      uniqueItemImages.catalog
+    )
   } catch (error) {
     tradeCatalogBundle.status = {
       ...tradeCatalogBundle.status,
@@ -210,6 +232,9 @@ app.whenReady().then(async () => {
       degraded: true,
       warning: `腾讯官方词缀目录不可用，已使用内置目录：${error.message}`
     }
+  }
+  if (uniqueImageWarning) {
+    tradeCatalogBundle.status.warning = [tradeCatalogBundle.status.warning, uniqueImageWarning].filter(Boolean).join('；')
   }
   const priceCheckOverlay = new PriceCheckOverlayManager()
   priceCheckService = new PriceCheckService({
