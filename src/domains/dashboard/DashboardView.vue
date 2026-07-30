@@ -5,7 +5,10 @@
         <h1>数据看板</h1>
         <p>集中查看模块运行、配置完整性与系统环境，并快速处理常用操作。</p>
       </div>
-      <el-button :icon="Refresh" :loading="refreshing" @click="refresh">刷新状态</el-button>
+      <div class="heading-actions">
+        <el-button :icon="Download" :loading="diagnosticsExporting" @click="exportDiagnostics">导出诊断</el-button>
+        <el-button :icon="Refresh" :loading="refreshing" @click="refresh">刷新状态</el-button>
+      </div>
     </header>
 
     <section class="summary-grid" aria-label="模块状态汇总">
@@ -77,6 +80,7 @@ import {
   Briefcase,
   CircleCheck,
   Coin,
+  Download,
   FirstAidKit,
   MapLocation,
   Monitor,
@@ -115,7 +119,9 @@ const {
   healthItems,
   healthHasIssues,
   refreshing,
+  diagnosticsExporting,
   refresh,
+  exportDiagnostics,
   runAction,
   changeModuleControl,
   openModule,
@@ -145,6 +151,7 @@ const moduleGroups = computed(() => groupDashboardModules(modules.value))
   align-items: center;
 }
 .page-heading { justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.heading-actions { display: flex; gap: 8px; }
 h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .page-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 
@@ -225,6 +232,7 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 }
 @media (max-width: 500px) {
   .page-heading { flex-direction: column; }
+  .heading-actions { width: 100%; }
   .summary-grid { grid-template-columns: 1fr; }
 }
 </style>

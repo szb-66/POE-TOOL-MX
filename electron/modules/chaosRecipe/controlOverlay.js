@@ -20,6 +20,7 @@ export class ChaosRecipeControlOverlay {
     this.interfaceDetection = interfaceDetection
     this.automationLock = automationLock
     this.service = null
+    this.stashPickup = null
     this.window = null
     this.enabled = false
     this.runtime = {
@@ -45,6 +46,11 @@ export class ChaosRecipeControlOverlay {
 
   attachService(service) {
     this.service = service
+    this.sync()
+  }
+
+  attachStashPickup(manager) {
+    this.stashPickup = manager
     this.sync()
   }
 
@@ -132,9 +138,21 @@ export class ChaosRecipeControlOverlay {
         : refreshReason || (snapshot
             ? `${recipeLabel}${isSingle ? ` ${availableCount} 件` : ` ${availableCount} 套`} · ${previewReason || actionReason || '操作已就绪'}`
             : previewReason || actionReason)
+    const stashPickupEnabled = Boolean(this.stashPickup?.runtime?.enabled)
+    const stashPickupAutomation = this.stashPickup?.getStatus?.() || { status: 'idle' }
+    const stashPickupRunning = stashPickupAutomation.status === 'running'
+    const stashPickupOccupied = lock.locked && lock.owner !== '仓库自动取件'
+    const canStashPickup = Boolean(stashPickupEnabled && this.detection.ready && this.detection.foreground &&
+      (stashPickupRunning || !stashPickupOccupied))
     return {
-      visible: Boolean(this.enabled && this.detection.ready && this.detection.foreground && this.detection.gameBounds),
-      enabled: this.enabled,
+      visible: Boolean((this.enabled || stashPickupEnabled) && this.detection.ready && this.detection.foreground && this.detection.gameBounds),
+      enabled: this.enabled || stashPickupEnabled,
+      recipeEnabled: this.enabled,
+      stashPickupEnabled,
+      canStashPickup,
+      stashPickupReason: stashPickupOccupied ? `${lock.owner}正在运行` : !this.detection.ready ? '仓库与背包未就绪' : '',
+      stashPickupLabel: stashPickupRunning ? '停止仓库取件' : '取出物品',
+      stashPickupAutomation,
       ready: Boolean(this.detection.ready),
       foreground: Boolean(this.detection.foreground),
       refreshing: false,
@@ -153,7 +171,13 @@ export class ChaosRecipeControlOverlay {
       canRun: Boolean((running || paused) || (canPreview && !occupiedByOther)),
       actionLabel,
       actionReason,
-      statusMessage,
+      statusMessage: !this.enabled
+        ? (stashPickupRunning
+            ? `正在取出物品：已取 ${stashPickupAutomation.pickedItems || 0} · 剩余格 ${stashPickupAutomation.remainingCells || 0}`
+            : stashPickupAutomation.reason === 'inventory-full'
+              ? '背包空间不足，取件已停止'
+              : '仓库自动取件已就绪')
+        : statusMessage,
       automation,
       message: automation.status === 'paused' && automation.tabName
         ? `请切换到“${automation.tabName}”`
@@ -199,7 +223,7 @@ export class ChaosRecipeControlOverlay {
 
   sync() {
     const state = this.computeState()
-    if (!this.enabled) {
+    if (!state.enabled) {
       this.close()
       return state
     }

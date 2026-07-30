@@ -71,12 +71,26 @@ sys.stdout.flush()
 
 # 全局变量
 is_running = False
+GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 
 # 播放提示音函数
 def play_success_sound():
     try:
         if sys.platform == 'win32' and 'winsound' in sys.modules:
             winsound.MessageBeep(winsound.MB_OK)
+    except Exception:
+        pass
+
+error_sound_played = False
+
+def play_error_sound():
+    global error_sound_played
+    if error_sound_played:
+        return
+    error_sound_played = True
+    try:
+        if sys.platform == 'win32' and 'winsound' in sys.modules:
+            winsound.MessageBeep(winsound.MB_ICONHAND)
     except Exception:
         pass
 
@@ -144,6 +158,9 @@ clipboard_read_delay = float({{DELAY_CLIPBOARD}})  # type: ignore
 
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
+required_currency_types = {{REQUIRED_CURRENCY_TYPES}}  # type: ignore
+verified_currency_types = set()
+fatal_error_reason = None
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
 map_config = {{MAP_CONFIG}}   # {method, vaal, match}  # type: ignore
 
@@ -207,22 +224,211 @@ def release_shift_if_held():
     is_shift_held = False
     time.sleep(0.05)
 
-def right_click_currency(currency):
-    currency_names = {
-        "alteration": "改造石",
-        "augmentation": "增幅石",
-        "regal": "富豪石",
-        "chaos": "混沌石",
-        "exalted": "崇高石",
-        "alchemy": "点金石",
-        "scouring": "重铸石",
-        "transmutation": "蜕变石",
-        "jewellers": "工匠石",
-        "fusing": "链结石",
-        "chromic": "幻色石",
-        "vaal": "瓦尔宝珠",
-        "wisdom": "知识卷轴"
+CURRENCY_NAMES = {
+    "alteration": "改造石",
+    "augmentation": "增幅石",
+    "regal": "富豪石",
+    "chaos": "混沌石",
+    "exalted": "崇高石",
+    "alchemy": "点金石",
+    "scouring": "重铸石",
+    "transmutation": "蜕变石",
+    "jewellers": "工匠石",
+    "fusing": "链结石",
+    "chromic": "幻色石",
+    "vaal": "瓦尔宝珠",
+    "wisdom": "知识卷轴"
+}
+
+def copied_item_header(text):
+    lines = []
+    for raw_line in str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if len(line) >= 4 and set(line) == {"-"}:
+            break
+        if line:
+            lines.append(line)
+    return lines
+
+def detected_item_name(header_lines):
+    candidates = [
+        line for line in header_lines
+        if ":" not in line and "：" not in line
+    ]
+    return candidates[-1] if candidates else "未检测到物品"
+
+def fail_currency_preflight(currency, reason, actual="未检测到物品"):
+    global is_running, fatal_error_reason
+    expected = CURRENCY_NAMES.get(currency, currency)
+    pos = currency_positions.get(currency) or {}
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    payload = {
+        "event": "currency-preflight-failed",
+        "mode": "map",
+        "currency": currency,
+        "expected": expected,
+        "actual": actual,
+        "position": {"x": int(pos.get("x", 0)), "y": int(pos.get("y", 0))},
+        "reason": reason
     }
+    print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def preflight_required_currencies():
+    verified_currency_types.clear()
+    print(f"[预检] 开始验证固定通货: {required_currency_types}")
+    if required_currency_types and GetClipboardSequenceNumber is None:
+        return fail_currency_preflight(
+            required_currency_types[0],
+            "无法读取剪贴板序列号，已停止地图制作以避免误操作"
+        )
+
+    for currency in required_currency_types:
+        expected = CURRENCY_NAMES.get(currency, currency)
+        pos = currency_positions.get(currency)
+        if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
+            return fail_currency_preflight(
+                currency,
+                f"未配置{expected}坐标，无法完成启动预检"
+            )
+        if not move_mouse(int(pos["x"]), int(pos["y"])):
+            return fail_currency_preflight(
+                currency,
+                f"无法移动到{expected}坐标，已停止地图制作"
+            )
+
+        try:
+            sequence_before = GetClipboardSequenceNumber()
+        except Exception:
+            return fail_currency_preflight(
+                currency,
+                f"无法读取{expected}复制前的剪贴板序列号，已停止地图制作"
+            )
+        if not send_copy_command():
+            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
+        try:
+            sequence_after = GetClipboardSequenceNumber()
+        except Exception:
+            return fail_currency_preflight(
+                currency,
+                f"无法读取{expected}复制后的剪贴板序列号，已停止地图制作"
+            )
+        if sequence_after == sequence_before:
+            return fail_currency_preflight(
+                currency,
+                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
+            )
+
+        header = copied_item_header(pyperclip.paste())
+        actual = detected_item_name(header)
+        if expected not in header:
+            return fail_currency_preflight(
+                currency,
+                f"通货位置错误：需要{expected}，实际检测到{actual}",
+                actual
+            )
+        verified_currency_types.add(currency)
+        print(f"[预检] {expected}验证通过")
+
+    print("EVENT " + json.dumps({
+        "event": "currency-preflight-succeeded",
+        "mode": "map",
+        "currencies": required_currency_types
+    }, ensure_ascii=False), flush=True)
+    print("[预检] 固定通货全部验证通过，开始正式地图制作")
+    return True
+
+def is_game_foreground():
+    if sys.platform != "win32":
+        return False
+    try:
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return False
+        length = user32.GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+    except Exception:
+        return False
+
+def find_game_window():
+    if sys.platform != "win32":
+        return 0
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+    def visit(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
+            matches.append(hwnd)
+        return True
+
+    try:
+        user32.EnumWindows(callback_type(visit), 0)
+    except Exception:
+        return 0
+    return matches[0] if matches else 0
+
+def focus_game_window(timeout_seconds=2.0):
+    if is_game_foreground():
+        return True
+    if sys.platform != "win32":
+        return False
+
+    hwnd = find_game_window()
+    if not hwnd:
+        return False
+
+    kernel32 = ctypes.windll.kernel32
+    foreground = user32.GetForegroundWindow()
+    current_thread = kernel32.GetCurrentThreadId()
+    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
+    attached_foreground = bool(
+        foreground_thread and foreground_thread != current_thread and
+        user32.AttachThreadInput(current_thread, foreground_thread, True)
+    )
+    attached_target = bool(
+        target_thread and target_thread != current_thread and target_thread != foreground_thread and
+        user32.AttachThreadInput(current_thread, target_thread, True)
+    )
+    try:
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        user32.SetFocus(hwnd)
+    finally:
+        if attached_target:
+            user32.AttachThreadInput(current_thread, target_thread, False)
+        if attached_foreground:
+            user32.AttachThreadInput(current_thread, foreground_thread, False)
+
+    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    while is_running and time.monotonic() < deadline:
+        if is_game_foreground():
+            return True
+        time.sleep(0.05)
+    return False
+
+def right_click_currency(currency):
+    currency_name = CURRENCY_NAMES.get(currency, currency)
+    if currency not in verified_currency_types:
+        return fail_currency_preflight(
+            currency,
+            f"{currency_name}未经过本次启动预检，已在点击前停止地图制作"
+        )
     
     if currency not in currency_positions:
         print(f"[错误] 未配置通货坐标: {currency}")
@@ -391,6 +597,15 @@ def start_map_rolling():
     except Exception as e:
         print(f"[警告] 快捷键注册失败: {e}")
 
+    if not focus_game_window():
+        print("[停止] 无法激活游戏窗口，请确认《流放之路》已启动且窗口可见")
+        is_running = False
+        release_all_keys()
+        return
+
+    if not preflight_required_currencies():
+        return False
+
     print(f"[开始] 地图洗练流程")
     
     processed_count = 0
@@ -551,10 +766,14 @@ def start_map_rolling():
             current_row = 0
             current_col += 1
                 
+    if fatal_error_reason:
+        return False
+
     print(f"[完成] 地图洗练结束，共处理 {processed_count} 张地图")
     play_success_sound()
     time.sleep(2)
     is_running = False
+    return True
 
 def process_single_map(initial_result, slot_x, slot_y):
     """Purpose: 针对单个格子的地图进行状态机式洗图/鉴定/腐化/存仓。
@@ -1053,7 +1272,9 @@ if __name__ == "__main__":
         print("[启动] 准备调用start_map_rolling()...")
         start_map_rolling()
         release_shift_if_held()
-        print("[完成] 脚本执行结束")
+        if fatal_error_reason:
+            sys.exit(2)
+        print("[系统] 脚本执行结束")
     except KeyboardInterrupt:
         print("\n[停止] 用户中断")
         is_running = False

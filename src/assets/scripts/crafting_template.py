@@ -93,9 +93,24 @@ def play_success_sound():
     except Exception as e:
         print(f"[警告] 播放提示音失败: {e}")
 
+error_sound_played = False
+
+def play_error_sound():
+    """预检失败时只播放一次系统警告音。"""
+    global error_sound_played
+    if error_sound_played:
+        return
+    error_sound_played = True
+    try:
+        if sys.platform == 'win32' and 'winsound' in sys.modules:
+            winsound.MessageBeep(winsound.MB_ICONHAND)
+    except Exception as e:
+        print(f"[警告] 播放错误提示音失败: {e}")
+
 # Windows API鼠标控制（用于解决DPI缩放问题）
 use_windows_api = False
 dpi_scale_factor = {{DPI_SCALE_FACTOR}}
+GetClipboardSequenceNumber = None
 try:
     if sys.platform == 'win32':
         import ctypes
@@ -117,6 +132,15 @@ try:
                 _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
         GetCursorPos.argtypes = [ctypes.POINTER(WinCursorPoint)]
         GetCursorPos.restype = wintypes.BOOL
+
+        try:
+            GetClipboardSequenceNumber = user32.GetClipboardSequenceNumber
+            GetClipboardSequenceNumber.restype = ctypes.c_uint
+            GetClipboardSequenceNumber.argtypes = []
+            print("[Windows API] 已启用GetClipboardSequenceNumber")
+        except Exception as e:
+            print(f"[警告] 无法初始化GetClipboardSequenceNumber: {e}")
+            GetClipboardSequenceNumber = None
         
         # Windows API 主路径使用物理像素；该倍率仅供 pynput 回退路径换算。
         try:
@@ -160,6 +184,9 @@ clipboard_read_delay = {{DELAY_CLIPBOARD}}
 
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
+required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
+verified_currency_types = set()
+fatal_error_reason = None
 
 # 物品位置坐标（确保坐标值为整数）
 item_position = {{ITEM_POSITION}}
@@ -250,6 +277,9 @@ def start_crafting():
         time.sleep(3)
         is_running = False
         return
+
+    if not preflight_required_currencies():
+        return False
     
     success = True
     
@@ -271,6 +301,7 @@ def start_crafting():
     play_success_sound()
     time.sleep(2)
     is_running = False
+    return True
 
 {{AFFIX_CRAFTING_FUNC}}
 
@@ -346,6 +377,124 @@ def release_shift_if_held():
     release_all_keys()
     is_shift_held = False
     time.sleep(0.05)
+
+CURRENCY_NAMES = {
+    "alteration": "改造石",
+    "augmentation": "增幅石",
+    "regal": "富豪石",
+    "chaos": "混沌石",
+    "exalted": "崇高石",
+    "alchemy": "点金石",
+    "scouring": "重铸石",
+    "transmutation": "蜕变石",
+    "jewellers": "工匠石",
+    "fusing": "链结石",
+    "chromic": "幻色石",
+    "vaal": "瓦尔宝珠",
+    "wisdom": "知识卷轴"
+}
+
+def copied_item_header(text):
+    lines = []
+    for raw_line in str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if len(line) >= 4 and set(line) == {"-"}:
+            break
+        if line:
+            lines.append(line)
+    return lines
+
+def detected_item_name(header_lines):
+    candidates = [
+        line for line in header_lines
+        if ":" not in line and "：" not in line
+    ]
+    return candidates[-1] if candidates else "未检测到物品"
+
+def fail_currency_preflight(currency, reason, actual="未检测到物品"):
+    global is_running, fatal_error_reason
+    expected = CURRENCY_NAMES.get(currency, currency)
+    pos = currency_positions.get(currency) or {}
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    payload = {
+        "event": "currency-preflight-failed",
+        "mode": "items",
+        "currency": currency,
+        "expected": expected,
+        "actual": actual,
+        "position": {"x": int(pos.get("x", 0)), "y": int(pos.get("y", 0))},
+        "reason": reason
+    }
+    print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def preflight_required_currencies():
+    verified_currency_types.clear()
+    print(f"[预检] 开始验证固定通货: {required_currency_types}")
+    if required_currency_types and GetClipboardSequenceNumber is None:
+        return fail_currency_preflight(
+            required_currency_types[0],
+            "无法读取剪贴板序列号，已停止制作以避免误操作"
+        )
+
+    for currency in required_currency_types:
+        expected = CURRENCY_NAMES.get(currency, currency)
+        pos = currency_positions.get(currency)
+        if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
+            return fail_currency_preflight(
+                currency,
+                f"未配置{expected}坐标，无法完成启动预检"
+            )
+        if not move_mouse(int(pos["x"]), int(pos["y"])):
+            return fail_currency_preflight(
+                currency,
+                f"无法移动到{expected}坐标，已停止制作"
+            )
+
+        try:
+            sequence_before = GetClipboardSequenceNumber()
+        except Exception:
+            return fail_currency_preflight(
+                currency,
+                f"无法读取{expected}复制前的剪贴板序列号，已停止制作"
+            )
+        if not send_copy_command():
+            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
+        try:
+            sequence_after = GetClipboardSequenceNumber()
+        except Exception:
+            return fail_currency_preflight(
+                currency,
+                f"无法读取{expected}复制后的剪贴板序列号，已停止制作"
+            )
+        if sequence_after == sequence_before:
+            return fail_currency_preflight(
+                currency,
+                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
+            )
+
+        header = copied_item_header(pyperclip.paste())
+        actual = detected_item_name(header)
+        if expected not in header:
+            return fail_currency_preflight(
+                currency,
+                f"通货位置错误：需要{expected}，实际检测到{actual}",
+                actual
+            )
+        verified_currency_types.add(currency)
+        print(f"[预检] {expected}验证通过")
+
+    print("EVENT " + json.dumps({
+        "event": "currency-preflight-succeeded",
+        "mode": "items",
+        "currencies": required_currency_types
+    }, ensure_ascii=False), flush=True)
+    print("[预检] 固定通货全部验证通过，开始正式制作")
+    return True
 
 def apply_currency(currency_type):
     # 应用通货到物品上（每次重新获取通货，不使用Shift）
@@ -488,21 +637,13 @@ def click_mouse(button="left"):
 
 def right_click_currency(currency):
     # 右键点击通货
-    currency_names = {
-        "alteration": "改造石",
-        "augmentation": "增幅石",
-        "regal": "富豪石",
-        "chaos": "混沌石",
-        "exalted": "崇高石",
-        "alchemy": "点金石",
-        "scouring": "重铸石",
-        "transmutation": "蜕变石",
-        "jewellers": "工匠石",
-        "fusing": "链结石",
-        "chromic": "幻色石"
-    }
-    
-    currency_name = currency_names.get(currency, currency)
+    currency_name = CURRENCY_NAMES.get(currency, currency)
+
+    if currency not in verified_currency_types:
+        return fail_currency_preflight(
+            currency,
+            f"{currency_name}未经过本次启动预检，已在点击前停止制作"
+        )
     
     if currency not in currency_positions:
         print(f"[错误] 未配置通货坐标: {currency}")
@@ -696,7 +837,9 @@ if __name__ == "__main__":
         # 脚本结束时，确保释放所有按键
         release_shift_if_held()
         
-        print("[完成] start_crafting()函数执行完成")
+        if fatal_error_reason:
+            sys.exit(2)
+        print("[系统] start_crafting()函数执行结束")
     except KeyboardInterrupt:
         print("\n[停止] 收到中断信号，正在退出...")
         is_running = False

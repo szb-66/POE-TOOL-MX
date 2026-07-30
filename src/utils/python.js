@@ -12,6 +12,10 @@ import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
 import { normalizeOperationDelay } from '@/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '@/utils/inventorySettings.js'
+import {
+  buildCraftingCurrencyPreflight,
+  buildMapCurrencyPreflight
+} from '@/utils/currencyPreflight.js'
 
 const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -775,6 +779,7 @@ def craft_colors(target_red, target_green, target_blue):
     x: Math.floor(itemPosition?.x || 0),
     y: Math.floor(itemPosition?.y || 0)
   }
+  const requiredCurrencyTypes = buildCraftingCurrencyPreflight(preset)
 
   // 填充模板
   let script = craftingTemplate
@@ -792,6 +797,7 @@ def craft_colors(target_red, target_green, target_blue):
     '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
+    '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
@@ -883,6 +889,7 @@ export function generateMapRollingScript(config) {
     offsetY: inventory?.slotSize?.h || 0,
     emptySlotThreshold: normalizeEmptySlotThreshold(inventory?.emptySlotThreshold)
   }
+  const requiredCurrencyTypes = buildMapCurrencyPreflight(mapConfig)
 
   // 填充模板
   let script = mapRollingTemplate
@@ -900,6 +907,7 @@ export function generateMapRollingScript(config) {
     '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
+    '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),

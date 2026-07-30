@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { electronApi } from '../api/electron.js'
 import { createDefaultBagSettings, normalizeBagSettings } from '../utils/bagConfig.js'
+import {
+  migrateStashGridCalibration,
+  normalizeStashGridCalibration,
+  normalizeStashGridRegion
+} from '../utils/stashGridCalibration.js'
 
 const STORAGE_KEY = 'interfaceDetectionSettings'
 
@@ -11,9 +16,15 @@ function loadInitial() {
     const saved = localStorage.getItem(STORAGE_KEY)
     const source = saved ? JSON.parse(saved) : JSON.parse(localStorage.getItem('bagSettings') || '{}')
     const normalized = normalizeBagSettings(source)
-    return { templates: normalized.templates, matchThreshold: normalized.matchThreshold }
+    let legacyCalibration = {}
+    try { legacyCalibration = JSON.parse(localStorage.getItem('chaosRecipeSettings') || '{}').calibration || {} } catch {}
+    return {
+      templates: normalized.templates,
+      matchThreshold: normalized.matchThreshold,
+      stashGridCalibration: migrateStashGridCalibration(source.stashGridCalibration, legacyCalibration)
+    }
   } catch {
-    return { templates: defaults.templates, matchThreshold: defaults.matchThreshold }
+    return { templates: defaults.templates, matchThreshold: defaults.matchThreshold, stashGridCalibration: normalizeStashGridCalibration() }
   }
 }
 
@@ -21,11 +32,13 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
   const initial = loadInitial()
   const templates = ref(initial.templates)
   const matchThreshold = ref(initial.matchThreshold)
+  const stashGridCalibration = ref(initial.stashGridCalibration)
 
   function runtime() {
     return {
       templates: JSON.parse(JSON.stringify(templates.value)),
-      matchThreshold: matchThreshold.value
+      matchThreshold: matchThreshold.value,
+      stashGridCalibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
     }
   }
 
@@ -33,6 +46,10 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     localStorage.setItem(STORAGE_KEY, JSON.stringify(runtime()))
     electronApi.bag.updateInterfaceConfig(runtime())?.catch(() => {})
     electronApi.chaosRecipe.updateDetectionConfig(runtime())?.catch(() => {})
+    electronApi.stashPickup.updateRuntime({
+      ...runtime(),
+      calibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
+    })?.catch(() => {})
   }
 
   function setTemplate(type, value) {
@@ -69,10 +86,17 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     save()
   }
 
+  function setStashGridCalibration(type, value) {
+    if (!['root', 'folder'].includes(type)) return
+    stashGridCalibration.value = { ...stashGridCalibration.value, [type]: normalizeStashGridRegion(value) }
+    save()
+  }
+
   function reset() {
     const defaults = createDefaultBagSettings()
     templates.value = defaults.templates
     matchThreshold.value = defaults.matchThreshold
+    stashGridCalibration.value = normalizeStashGridCalibration()
     save()
   }
 
@@ -81,6 +105,7 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
   return {
     templates,
     matchThreshold,
+    stashGridCalibration,
     runtime,
     save,
     setTemplate,
@@ -88,6 +113,7 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     applyTemplateCapture,
     clearCaptureMetadata,
     setMatchThreshold,
+    setStashGridCalibration,
     reset
   }
 })

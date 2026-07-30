@@ -120,3 +120,17 @@ TBD - created by archiving change expand-vendor-recipe-automation. Update Purpos
 - **WHEN** 当前配方没有候选、没有勾选单件或缺少仓库校准
 - **THEN** 预览和自动取件被禁用并显示具体原因
 
+### Requirement: 共享仓库校准与动态控制按钮
+系统 SHALL 让商城配方与仓库自动取件共享文件夹内外仓库网格校准，并 SHALL 按两个功能的独立启用状态动态显示游戏内按钮。
+
+#### Scenario: 迁移已有商城配方校准
+- **WHEN** 公共仓库校准为空且旧商城配方存在合法校准
+- **THEN** 系统复制旧校准且不要求用户重新框选
+
+#### Scenario: 仅仓库取件启用
+- **WHEN** 商城配方关闭且仓库自动取件启用
+- **THEN** 游戏内按钮组隐藏商城配方操作并显示“取出物品”
+
+#### Scenario: 两个功能都关闭
+- **WHEN** 商城配方与仓库自动取件都关闭
+- **THEN** 系统隐藏游戏内按钮组

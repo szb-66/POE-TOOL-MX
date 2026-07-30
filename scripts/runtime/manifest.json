@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "platform": "win32",
+  "arch": "x64",
+  "python": {
+    "version": "3.13.14",
+    "filename": "python-3.13.14-embed-amd64.zip",
+    "url": "https://www.python.org/ftp/python/3.13.14/python-3.13.14-embed-amd64.zip",
+    "sha256": "90b4e5b9898b72d744650524bff92377c367f44bd5fbd09e3148656c080ad907",
+    "license": "Python-2.0"
+  },
+  "packages": [
+    {
+      "name": "numpy",
+      "version": "2.5.1",
+      "importName": "numpy",
+      "filename": "numpy-2.5.1-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/10/70/800b3fca480af32df9e8ea9f3d4a0c8feb4b32d7f195d174eabbda4829ad/numpy-2.5.1-cp313-cp313-win_amd64.whl",
+      "sha256": "6c3fe51bc6a16453d452997053454f309e8e0ed7b42d6b361ce4ac8c32913d74",
+      "license": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0"
+    },
+    {
+      "name": "opencv-python-headless",
+      "version": "5.0.0.93",
+      "importName": "cv2",
+      "filename": "opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/b8/88/763b967f7efd7226b82c9fae16d560cba049b1f0c036647e65c610fd636e/opencv_python_headless-5.0.0.93-cp37-abi3-win_amd64.whl",
+      "sha256": "829717b6a95554f273e49e357cee3b3a2a26b6f4842fbc1bed2b45bdd8f87e0e",
+      "license": "MIT AND Apache-2.0"
+    },
+    {
+      "name": "mss",
+      "version": "10.2.0",
+      "importName": "mss",
+      "filename": "mss-10.2.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f2/c3/313e14f245c79b4c05bd0f3a84a4813aa26fa10f8993aebd91d04c5fad3f/mss-10.2.0-py3-none-any.whl",
+      "sha256": "e79f428899280e7e64e38365b5bfed683851ebea807eeaeadaf06eb8e0d67197",
+      "license": "MIT"
+    },
+    {
+      "name": "pynput",
+      "version": "1.8.2",
+      "importName": "pynput",
+      "filename": "pynput-1.8.2-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/6d/98/bbeb760852adb27f166ce1617f0e51aabb15f21b1e60ea703f2aed3c78ac/pynput-1.8.2-py2.py3-none-any.whl",
+      "sha256": "8cc38cf13a6ab2749cb375678be8a0fd705d7ce49c8001ff5db4007a723bbef1",
+      "license": "LGPL-3.0-or-later"
+    },
+    {
+      "name": "pyperclip",
+      "version": "1.11.0",
+      "importName": "pyperclip",
+      "filename": "pyperclip-1.11.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/df/80/fc9d01d5ed37ba4c42ca2b55b4339ae6e200b456be3a1aaddf4a9fa99b8c/pyperclip-1.11.0-py3-none-any.whl",
+      "sha256": "299403e9ff44581cb9ba2ffeed69c7aa96a008622ad0c46cb575ca75b5b84273",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "six",
+      "version": "1.17.0",
+      "importName": "six",
+      "filename": "six-1.17.0-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl",
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274",
+      "license": "MIT"
+    }
+  ],
+  "requiredScripts": [
+    "src/assets/scripts/bag_auto_stash_template.py",
+    "src/assets/scripts/chaos_recipe_pick_template.py",
+    "src/assets/scripts/combat_assist_template.py",
+    "src/assets/scripts/crafting_template.py",
+    "src/assets/scripts/map_rolling_template.py",
+    "src/assets/scripts/stash_pickup_template.py"
+  ],
+  "requiredProjectNotices": [
+    "LICENSE.md",
+    "THIRD_PARTY_NOTICES.md"
+  ]
+}

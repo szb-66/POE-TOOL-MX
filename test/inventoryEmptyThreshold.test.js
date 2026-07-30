@@ -20,6 +20,7 @@ import json, types
 ${block}
 grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 1, "cols": ${cols}, "emptySlotThreshold": ${emptySlotThreshold}}
 map_config = {}
+fatal_error_reason = None
 GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda mapping: types.SimpleNamespace(start=lambda: None))
 pyperclip = types.SimpleNamespace(paste=lambda: "Item Class: Maps")
@@ -27,6 +28,8 @@ time = types.SimpleNamespace(sleep=lambda value: None)
 statuses = iter(${JSON.stringify(statuses).replaceAll('true', 'True').replaceAll('false', 'False')})
 moves = []
 def move_mouse(x, y): moves.append([x, y]); return True
+def focus_game_window(): return True
+def preflight_required_currencies(): return True
 def get_slot_position(col, row): return col, row
 def read_clipboard_to_file(): return next(statuses)
 def wait_for_parse_result(): return {"category": "地图", "name": "测试地图", "mapTier": 1}

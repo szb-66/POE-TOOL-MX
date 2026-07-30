@@ -25,6 +25,7 @@ import { disposeBagAutomation, initBagAutomation } from './utils/bagService'
 import { useChaosRecipeStore } from './stores/chaosRecipe'
 import { usePriceCheckStore } from './stores/priceCheck'
 import { usePoeCnAccountStore } from './stores/poeCnAccount'
+import { useStashPickupStore } from './stores/stashPickup'
 
 const route = useRoute()
 const settingsStore = useSettingsStore()
@@ -33,6 +34,7 @@ let removeDevToolsListener = null
 let removeChaosAutomationListener = null
 let removePriceCheckListener = null
 let removeAccountListener = null
+let removeStashPickupListener = null
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -47,6 +49,9 @@ onMounted(() => {
     const chaosStore = useChaosRecipeStore()
     removeChaosAutomationListener = chaosStore.listenAutomation()
     void chaosStore.initializeRuntime()
+    const stashPickupStore = useStashPickupStore()
+    removeStashPickupListener = stashPickupStore.listen()
+    void stashPickupStore.initializeRuntime()
     const priceCheckStore = usePriceCheckStore()
     removePriceCheckListener = priceCheckStore.listenOverlay()
     void priceCheckStore.syncRuntime().catch(() => priceCheckStore.refreshStatus())
@@ -63,6 +68,7 @@ onUnmounted(() => {
   removeChaosAutomationListener?.()
   removePriceCheckListener?.()
   removeAccountListener?.()
+  removeStashPickupListener?.()
   disposeBagAutomation()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {

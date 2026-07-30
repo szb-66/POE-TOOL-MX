@@ -51,6 +51,89 @@
           </el-form>
         </el-card>
 
+        <div class="section-header"><h3 class="section-title">仓库自动取件</h3></div>
+        <el-card class="section-card">
+          <el-alert
+            title="按每格中央区域的图像统计值取件；搜索框为空时会取出所有达到阈值的物品。请先用检测预览确认参数。"
+            type="warning"
+            :closable="false"
+          />
+          <el-form label-width="130px" label-position="left" class="stash-pickup-settings">
+            <el-form-item label="启用功能">
+              <el-switch
+                :model-value="stashPickupStore.settings.enabled"
+                active-text="开启"
+                inactive-text="关闭"
+                @change="toggleStashPickup"
+              />
+            </el-form-item>
+            <el-form-item v-for="entry in calibrationOptions" :key="entry.key" :label="entry.label">
+              <el-button @click="stashPickupStore.calibrate(entry.key)">重新框选</el-button>
+              <el-tag :type="interfaceStore.stashGridCalibration[entry.key] ? 'success' : 'info'">
+                {{ interfaceStore.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
+              </el-tag>
+            </el-form-item>
+          </el-form>
+          <div class="profile-grid">
+            <div v-for="entry in profileOptions" :key="entry.key" class="profile-card">
+              <h4>{{ entry.label }}</h4>
+              <el-form label-width="90px" label-position="left">
+                <el-form-item label="检测方式">
+                  <el-select
+                    :model-value="stashPickupStore.settings.profiles[entry.key].method"
+                    @change="value => updateStashPickupProfile(entry.key, { method: value })"
+                  >
+                    <el-option label="方差 variance" value="variance" />
+                    <el-option label="亮度 brightness" value="brightness" />
+                    <el-option label="饱和度 saturation" value="saturation" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="跳过阈值">
+                  <el-input-number
+                    :model-value="activeProfileThreshold(entry.key)"
+                    :min="0"
+                    :max="stashPickupStore.settings.profiles[entry.key].method === 'variance' ? 65025 : 255"
+                    :step="stashPickupStore.settings.profiles[entry.key].method === 'variance' ? 50 : 1"
+                    @change="value => updateProfileThreshold(entry.key, value)"
+                  />
+                </el-form-item>
+                <el-form-item label="采样比例">
+                  <el-input-number
+                    :model-value="stashPickupStore.settings.profiles[entry.key].sampleRatio"
+                    :min="0.1"
+                    :max="1"
+                    :step="0.05"
+                    :precision="2"
+                    @change="value => updateStashPickupProfile(entry.key, { sampleRatio: value })"
+                  />
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          <div class="stash-pickup-actions">
+            <el-button
+              :loading="stashPickupStore.busy"
+              :disabled="!stashPickupStore.settings.enabled"
+              @click="previewStashPickup"
+            >检测预览</el-button>
+            <el-button v-if="stashPickupStore.running" type="danger" @click="stashPickupStore.stop()">停止取件</el-button>
+            <el-tag :type="stashPickupStatus.type">{{ stashPickupStatus.text }}</el-tag>
+            <el-tag>候选格 {{ stashPickupStore.state.candidateCells }}</el-tag>
+            <el-tag type="warning">剩余 {{ stashPickupStore.state.remainingCells }}</el-tag>
+            <el-tag type="success">已取 {{ stashPickupStore.state.pickedItems }}</el-tag>
+          </div>
+          <el-alert
+            v-if="stashPickupStore.state.reason"
+            :title="stashPickupStopReason"
+            :type="stashPickupStore.state.reason === 'inventory-full' ? 'warning' : 'info'"
+            :closable="false"
+          />
+          <div v-if="stashPickupStore.preview" class="stash-pickup-preview">
+            <div>{{ stashPickupStore.preview.layout }}×{{ stashPickupStore.preview.layout }} · {{ stashPickupStore.preview.candidateCells }} 个候选格</div>
+            <img :src="stashPickupStore.preview.imageDataUrl" alt="仓库检测预览" />
+          </div>
+        </el-card>
+
         <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
         <el-card class="section-card inventory-layout-card">
           <el-alert title="点击格子可切换是否执行自动入库；模块启用后布局将锁定。" type="info" :closable="false" />
@@ -188,6 +271,8 @@
 import { computed, ref } from 'vue'
 import { VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
+import { useStashPickupStore } from '@/stores/stashPickup'
+import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences } from '@/utils/bagService'
 import {
   BAG_BLACKLIST_FIELDS,
@@ -198,6 +283,16 @@ import {
 } from '@/utils/bagConfig'
 
 const bagStore = useBagStore()
+const stashPickupStore = useStashPickupStore()
+const interfaceStore = useInterfaceDetectionStore()
+const calibrationOptions = [
+  { key: 'root', label: '文件夹外仓库' },
+  { key: 'folder', label: '文件夹内仓库' }
+]
+const profileOptions = [
+  { key: 'normal', label: '普通仓库 12×12' },
+  { key: 'quad', label: '大型仓库 24×24' }
+]
 const draftRule = ref({ field: 'name', keyword: '', matchMode: 'contains' })
 const nativeColumns = Array.from({ length: INVENTORY_LAYOUT.nativeColumns }, (_value, index) => index)
 const inventoryRows = Array.from({ length: INVENTORY_LAYOUT.rows }, (_value, index) => index)
@@ -216,6 +311,20 @@ const detectionStatus = computed(() => {
   return bagStore.isDetecting ? { type: 'warning', text: '等待仓库与背包同时打开' } : { type: 'danger', text: '检测已停止' }
 })
 const hasRunStats = computed(() => bagStore.stashStats.scannedSlots > 0)
+const stashPickupStatus = computed(() => {
+  const status = stashPickupStore.state.status
+  if (status === 'running') return { type: 'warning', text: '正在取件' }
+  if (status === 'completed') return { type: 'success', text: '已完成' }
+  if (status === 'stopped') return { type: 'info', text: '已停止' }
+  return { type: 'info', text: stashPickupStore.settings.enabled ? '等待启动' : '功能未启用' }
+})
+const stashPickupStopReason = computed(() => ({
+  'inventory-full': '背包空间不足，取件已停止',
+  'game-not-foreground': '游戏不在前台，取件已停止',
+  'interface-lost': '仓库或背包界面丢失，取件已停止',
+  user: '用户已停止取件',
+  'no-candidates': '未检测到符合阈值的物品'
+}[stashPickupStore.state.reason] || `仓库取件已停止：${stashPickupStore.state.reason}`))
 
 async function handleModuleToggle(enabled) {
   try {
@@ -232,6 +341,28 @@ async function handlePreferenceChange(key, value) {
   } catch (error) {
     ElMessage.error(`更新设置失败：${error.message}`)
   }
+}
+
+async function toggleStashPickup(enabled) {
+  try { await stashPickupStore.setEnabled(enabled) } catch (error) { ElMessage.error(error.message) }
+}
+
+async function updateStashPickupProfile(layout, patch) {
+  try { await stashPickupStore.updateProfile(layout, patch) } catch (error) { ElMessage.error(error.message) }
+}
+
+function activeProfileThreshold(layout) {
+  const profile = stashPickupStore.settings.profiles[layout]
+  return profile.thresholds[profile.method]
+}
+
+function updateProfileThreshold(layout, value) {
+  const profile = stashPickupStore.settings.profiles[layout]
+  return updateStashPickupProfile(layout, { thresholds: { ...profile.thresholds, [profile.method]: value } })
+}
+
+async function previewStashPickup() {
+  try { await stashPickupStore.runPreview() } catch (error) { ElMessage.error(error.message) }
 }
 
 
@@ -308,6 +439,12 @@ async function handleStopStash() {
 .rule-editor { margin-top: 16px; }
 .rule-editor .el-input { flex: 1; min-width: 220px; }
 .rule-table { margin-top: 16px; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.profile-card { padding: 14px; border: 1px solid var(--border-base); border-radius: 8px; background: var(--bg-primary); }
+.profile-card h4 { margin: 0 0 12px; }
+.stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.stash-pickup-preview { margin-top: 12px; color: var(--text-secondary); }
+.stash-pickup-preview img { display: block; max-width: 100%; max-height: 520px; margin-top: 8px; border: 1px solid var(--border-base); border-radius: 6px; }
 .inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
 .inventory-layout-settings :deep(.el-form-item) { margin-bottom: 8px; }
 .inventory-layout-scroll { overflow-x: auto; padding: 12px 2px 4px; }

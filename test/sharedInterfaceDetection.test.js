@@ -87,7 +87,7 @@ test('混沌配方控制浮窗提供三项操作和动态停止继续', () => {
   assert.match(previewHandler, /closed: true/)
   assert.match(previewHandler, /control\?\.sync\(\)/)
   assert.match(view, /@pointerdown\.stop\.prevent="runFromPointer\('action'/)
-  assert.equal((view.match(/busy !== ''/g) || []).length, 3)
+  assert.equal((view.match(/busy !== ''/g) || []).length, 4)
   assert.doesNotMatch(view, /\|\| busy"/)
   assert.match(view, /button:not\(:disabled\):hover/)
   assert.match(view, /button:not\(:disabled\):active/)

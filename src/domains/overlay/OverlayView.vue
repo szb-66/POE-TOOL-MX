@@ -7,6 +7,7 @@
       :iteration="scriptIteration"
       :is-completed="isCompleted"
       :is-stopped="isStopped"
+      :stop-reason="stopReason"
       :allow-drag="true"
       :map-stats="mapStats"
       @confirm="handleConfirmCompletion"
@@ -30,7 +31,9 @@ const scriptIteration = ref(0) // 从脚本输出提取的循环次数
 const recentLogs = ref([]) // 最近的日志
 const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
+const stopReason = ref('') // 结构化运行失败原因
 const mapStats = ref(null) // 地图统计信息
+let outputLineBuffer = ''
 const isMapCategory = (category) => category === '异界地图' || category === '地图'
 
 function mergeMapStats(previousStats, incomingStats) {
@@ -58,12 +61,33 @@ function resetOverlayState() {
   recentLogs.value = []
   isCompleted.value = false
   isStopped.value = false
+  stopReason.value = ''
   mapStats.value = null
+  outputLineBuffer = ''
+}
+
+function applyStructuredScriptEvent(line) {
+  const text = String(line || '').trim()
+  if (!text.startsWith('EVENT ')) return
+  try {
+    const event = JSON.parse(text.slice(6))
+    if (event.event !== 'currency-preflight-failed') return
+    stopReason.value = event.reason || '通货启动预检失败'
+    isStopped.value = true
+    isCompleted.value = false
+  } catch {
+    // 非完整或非 JSON 日志继续按普通文本展示
+  }
 }
 
 // 监听控制台日志以提取循环次数
 const handleScriptOutput = (data) => {
   if (data.type === 'stdout' && data.data) {
+    outputLineBuffer += data.data
+    const completeLines = outputLineBuffer.split(/\r?\n/)
+    outputLineBuffer = completeLines.pop() || ''
+    completeLines.forEach(applyStructuredScriptEvent)
+
     // 匹配: [进度] 第 10 次
     const match = data.data.match(/\[进度\] 第 (\d+) 次/)
     if (match) {
@@ -87,10 +111,11 @@ const handleScriptOutput = (data) => {
         // 物品制作模式：任何[完成]都表示完成
         isCompleted.value = true
       }
+
     }
     
     // 匹配开始信号，重置状态
-    if (data.data.includes('[开始]')) {
+    if (data.data.includes('[开始]') && !stopReason.value) {
       resetOverlayState()
     }
     
@@ -183,6 +208,12 @@ onMounted(() => {
             mapStats: mapStats.value
           }
         }
+      }
+
+      if (data.error) {
+        stopReason.value = data.error
+        isStopped.value = true
+        isCompleted.value = false
       }
     })
   }

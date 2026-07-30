@@ -19,11 +19,12 @@ import { registerSystemHandlers } from './system.js'
 import { registerChaosRecipeHandlers } from './chaosRecipe.js'
 import { registerPriceCheckHandlers } from './priceCheck.js'
 import { registerPoeCnAccountHandlers } from './poeCnAccount.js'
+import { registerStashPickupHandlers } from './stashPickup.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
-    poeCnAccount,
+    poeCnAccount, stashPickup,
     interfaceDetection, automationLock
   } = dependencies
 
@@ -39,4 +40,5 @@ export function registerIpcHandlers(dependencies) {
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })
   if (priceCheck) registerPriceCheckHandlers(priceCheck)
   if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
+  if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
 }

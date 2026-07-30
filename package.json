@@ -15,11 +15,17 @@
     "unique-items:data": "node scripts/generateUniqueItemSnapshot.js",
     "unique-items:data:missing": "node scripts/generateUniqueItemSnapshot.js --fetch-missing",
     "unique-items:data:refresh": "node scripts/generateUniqueItemSnapshot.js --live",
+    "runtime:prepare": "node scripts/runtime/prepare.js",
+    "runtime:verify": "node scripts/runtime/verify.js",
     "dev": "vite",
     "electron:dev": "node scripts/dev.js",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:build": "electron-builder"
+    "electron:build": "npm run build && electron-builder --win nsis --x64",
+    "release:check": "node scripts/release/checkVersion.js",
+    "release:checksum": "node scripts/release/checksum.js",
+    "release:smoke": "node scripts/release/smokePackage.js",
+    "release:win": "npm run release:check && npm run runtime:prepare && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:smoke && npm run release:checksum"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -31,8 +37,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
-    "electron": "^28.2.0",
-    "electron-builder": "^24.9.1",
+    "electron": "43.0.0",
+    "electron-builder": "26.15.3",
+    "extract-zip": "2.0.1",
     "less": "^4.4.2",
     "unplugin-auto-import": "^21.0.0",
     "unplugin-vue-components": "^32.1.0",
@@ -42,6 +49,12 @@
   "build": {
     "appId": "com.exilehelper.app",
     "productName": "流放助手",
+    "artifactName": "PoE-CN-Helper-${version}-win-${arch}-setup.${ext}",
+    "beforePack": "scripts/runtime/beforePack.cjs",
+    "electronLanguages": [
+      "zh-CN",
+      "en-US"
+    ],
     "directories": {
       "output": "dist-electron"
     },
@@ -57,6 +70,8 @@
       "src/utils/electronAccelerator.js",
       "src/utils/inventorySettings.js",
       "src/utils/operationDelay.js",
+      "src/utils/stashGridCalibration.js",
+      "src/utils/stashPickupConfig.js",
       "electron/assets/item-footprints.json",
       "package.json",
       "LICENSE.md",
@@ -70,10 +85,25 @@
       {
         "from": "src/assets/scripts/chaos_recipe_pick_template.py",
         "to": "chaos_recipe_pick_template.py"
+      },
+      {
+        "from": "src/assets/scripts/stash_pickup_template.py",
+        "to": "stash_pickup_template.py"
+      },
+      {
+        "from": ".runtime/python-runtime",
+        "to": "python-runtime"
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "requestedExecutionLevel": "requireAdministrator",
       "icon": "src/assets/images/LOGO-512.png"
     },

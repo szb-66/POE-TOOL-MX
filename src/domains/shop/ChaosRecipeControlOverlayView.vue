@@ -1,5 +1,11 @@
 <template>
-  <div class="control-shell">
+  <div
+    class="control-shell"
+    :class="{
+      'recipe-only': state.recipeEnabled && !state.stashPickupEnabled,
+      'stash-only': !state.recipeEnabled && state.stashPickupEnabled
+    }"
+  >
     <div
       class="drag-handle"
       title="拖动商店配方按钮组"
@@ -11,23 +17,34 @@
       <span></span><span></span><span></span>
     </div>
     <button
+      v-if="state.recipeEnabled"
       :disabled="!state.canRefresh || busy !== ''"
       :title="state.refreshReason || '重新读取已选择的仓库页'"
       @pointerdown.stop.prevent="runFromPointer('refresh', $event)"
     >{{ busy === 'refresh' ? '刷新中…' : state.refreshLabel }}</button>
     <button
+      v-if="state.recipeEnabled"
       :class="{ active: state.previewActive }"
       :disabled="!state.canPreview || busy !== ''"
       :title="state.previewReason || '在当前仓库页预览目标物品'"
       @pointerdown.stop.prevent="runFromPointer('preview', $event)"
     >{{ state.previewLabel }}</button>
     <button
+      v-if="state.recipeEnabled"
       class="primary"
       :class="{ danger: state.automation?.status === 'running' }"
       :disabled="!state.canRun || busy !== ''"
       :title="state.actionReason || state.message || state.actionLabel"
       @pointerdown.stop.prevent="runFromPointer('action', $event)"
     >{{ busy === 'action' ? '处理中…' : state.actionLabel }}</button>
+    <button
+      v-if="state.stashPickupEnabled"
+      class="primary"
+      :class="{ danger: state.stashPickupAutomation?.status === 'running' }"
+      :disabled="!state.canStashPickup || busy !== ''"
+      :title="state.stashPickupReason || state.stashPickupLabel"
+      @pointerdown.stop.prevent="runFromPointer('stash', $event)"
+    >{{ busy === 'stash' ? '处理中…' : state.stashPickupLabel }}</button>
     <div class="status-message" :class="{ ready: state.canRun }">
       {{ state.statusMessage || '正在同步商店配方状态…' }}
     </div>
@@ -49,7 +66,11 @@ const state = reactive({
   previewActive: false,
   actionLabel: '自动取件',
   statusMessage: '正在同步商店配方状态…',
-  automation: { status: 'idle' }
+  automation: { status: 'idle' },
+  recipeEnabled: false,
+  stashPickupEnabled: false,
+  canStashPickup: false,
+  stashPickupAutomation: { status: 'idle' }
 })
 const busy = ref('')
 let disposeState
@@ -64,7 +85,11 @@ async function run(kind) {
   if (busy.value) return
   busy.value = kind
   try {
-    const response = kind === 'refresh'
+    const response = kind === 'stash'
+      ? (state.stashPickupAutomation?.status === 'running'
+          ? await electronApi.stashPickup.stop()
+          : await electronApi.stashPickup.start())
+      : kind === 'refresh'
       ? await electronApi.chaosRecipe.controlRefresh()
       : kind === 'preview'
         ? await electronApi.chaosRecipe.controlPreview()
@@ -98,7 +123,7 @@ onUnmounted(() => disposeState?.())
 .control-shell {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: 28px repeat(3, 1fr);
+  grid-template-columns: 28px repeat(4, 1fr);
   grid-template-rows: 38px 20px;
   column-gap: 7px;
   row-gap: 3px;
@@ -112,6 +137,8 @@ onUnmounted(() => disposeState?.())
   font-family: "Microsoft YaHei", sans-serif;
   user-select: none;
 }
+.control-shell.recipe-only { grid-template-columns: 28px repeat(3, 1fr); }
+.control-shell.stash-only { grid-template-columns: 28px 1fr; }
 .drag-handle {
   grid-row: 1 / 3;
   display: flex;

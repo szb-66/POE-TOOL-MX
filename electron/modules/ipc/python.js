@@ -12,10 +12,12 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
+import { parseScriptEventLine } from '../python/scriptEvents.js'
 
 export function registerPythonHandlers(python, window, fileWatcher) {
-  const { 
-    detectPythonPath, 
+  const {
+    detectPythonPath,
+    resolvePythonRuntime,
     killPythonProcessTree, 
     getCurrentScriptProcess, 
     getCurrentScriptMode,
@@ -226,11 +228,9 @@ export function registerPythonHandlers(python, window, fileWatcher) {
 
   // 检测Python路径
   ipcMain.handle('detect-python-path', async () => {
+    if (typeof resolvePythonRuntime === 'function') return resolvePythonRuntime()
     const pythonPath = detectPythonPath()
-    return {
-      path: pythonPath,
-      found: pythonPath !== null
-    }
+    return { ready: pythonPath !== null, found: pythonPath !== null, source: 'system', path: pythonPath, version: null, modules: [], error: null }
   })
 
   // 生成并执行脚本
@@ -297,11 +297,28 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       // 捕获标准输出
       let stdout = ''
       let stderr = ''
+      let stdoutLineBuffer = ''
+      let runtimeError = ''
       
       // 确保输出事件在进程创建后立即绑定
       pythonProcess.stdout.on('data', (data) => {
         const output = data.toString('utf8')
         stdout += output
+        stdoutLineBuffer += output
+        const completeLines = stdoutLineBuffer.split(/\r?\n/)
+        stdoutLineBuffer = completeLines.pop() || ''
+        for (const line of completeLines) {
+          const scriptEvent = parseScriptEventLine(line)
+          if (scriptEvent?.event !== 'currency-preflight-failed') continue
+          runtimeError = scriptEvent.reason || '通货启动预检失败'
+          sendScriptStatus({
+            status: 'error',
+            mode,
+            processId: pythonProcess.pid ?? null,
+            exitCode: null,
+            error: runtimeError
+          })
+        }
         
         // 发送到渲染进程控制台
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -365,12 +382,15 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         if (wasCurrent) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
         if (wasCurrent && !intentionallyStopped.has(pythonProcess)) {
+          const failed = Boolean(runtimeError) || code !== 0
           sendScriptStatus({
-            status: code === 0 ? 'stopped' : 'error',
+            status: failed ? 'error' : 'stopped',
             mode,
             processId: pythonProcess.pid ?? null,
             exitCode: code,
-            error: code === 0 ? undefined : (stderr.trim() || `脚本异常退出，退出代码: ${code}`)
+            error: failed
+              ? (runtimeError || stderr.trim() || `脚本异常退出，退出代码: ${code}`)
+              : undefined
           })
         }
         
@@ -410,6 +430,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           
           currentOverlayWindow.webContents.send('script-stopped', {
             code,
+            error: runtimeError || null,
             mapStats: currentConfig?.map ? {
               processedCount: finalProcessedCount,
               qualifiedCount: finalQualifiedCount,

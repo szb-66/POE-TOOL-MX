@@ -18,6 +18,9 @@ const craftingIpcPayload = (value) => {
 const mockApi = {
   system: {
     detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
+    getStartupHealth: () => Promise.resolve({ checkedAt: new Date().toISOString(), items: [] }),
+    getDiagnostics: () => Promise.resolve(null),
+    exportDiagnostics: () => Promise.resolve({ success: false, canceled: true }),
   },
   script: {
     executePython: () => Promise.reject(new Error('非 Electron 环境')),
@@ -137,6 +140,15 @@ const mockApi = {
     onControlOffset: () => () => {},
     onSnapshotUpdated: () => () => {}
   },
+  stashPickup: {
+    updateRuntime: () => Promise.resolve({ success: true, data: { status: 'idle' } }),
+    preview: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持检测预览' } }),
+    start: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持自动取件' } }),
+    stop: () => Promise.resolve({ success: true, data: { status: 'stopped' } }),
+    getStatus: () => Promise.resolve({ success: true, data: { status: 'idle' } }),
+    pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
+    onEvent: () => () => {}
+  },
   priceCheck: {
     getStatus: () => Promise.resolve({ success: true, data: { auth: { authenticated: false }, catalog: null } }),
     updateRuntime: (runtime) => Promise.resolve({ success: true, data: { enabled: Boolean(runtime?.enabled) } }),
@@ -217,6 +229,9 @@ const mockApi = {
 export const electronApi = isElectron ? {
   system: {
     detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
+    getStartupHealth: () => window.electronAPI.getStartupHealth?.(),
+    getDiagnostics: (modules) => window.electronAPI.getDiagnostics?.(craftingIpcPayload(modules)),
+    exportDiagnostics: (modules) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(modules)),
   },
   script: {
     executePython: (path, args) => window.electronAPI.executePython(path, args),
@@ -351,6 +366,15 @@ export const electronApi = isElectron ? {
     onControlState: (callback) => window.electronAPI.onChaosRecipeControlState?.(callback) || (() => {}),
     onControlOffset: (callback) => window.electronAPI.onChaosRecipeControlOffset?.(callback) || (() => {}),
     onSnapshotUpdated: (callback) => window.electronAPI.onChaosRecipeSnapshotUpdated?.(callback) || (() => {})
+  },
+  stashPickup: {
+    updateRuntime: (runtime) => window.electronAPI.updateStashPickupRuntime?.(runtime),
+    preview: () => window.electronAPI.previewStashPickup?.(),
+    start: () => window.electronAPI.startStashPickup?.(),
+    stop: () => window.electronAPI.stopStashPickup?.(),
+    getStatus: () => window.electronAPI.getStashPickupStatus?.(),
+    pickGridRegion: () => window.electronAPI.pickStashPickupGridRegion?.(),
+    onEvent: (callback) => window.electronAPI.onStashPickupEvent?.(callback) || (() => {})
   },
   priceCheck: {
     getStatus: () => window.electronAPI.getPriceCheckStatus?.(),

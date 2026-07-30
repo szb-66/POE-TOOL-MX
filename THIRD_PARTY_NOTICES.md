@@ -1,5 +1,25 @@
 # 第三方软件与来源说明
 
+本文件随源码和 Windows Release 一同发布。构建所用的精确版本、下载地址和 SHA-256 记录在
+[`scripts/runtime/manifest.json`](scripts/runtime/manifest.json) 中；内置运行时也保留各组件随包提供的许可证文本。
+
+## Python 运行时与模块
+
+Windows 安装包包含以下运行时组件：
+
+| 组件 | 版本 | 许可证 | 用途 |
+| --- | --- | --- | --- |
+| CPython embeddable package | 3.13.14 x64 | Python Software Foundation License 2.0 | 内置脚本解释器 |
+| NumPy | 2.5.1 | BSD-3-Clause | 数组与图像数据处理 |
+| opencv-python-headless | 5.0.0.93 | MIT（打包代码）/ Apache-2.0（OpenCV） | 图像与模板识别 |
+| MSS | 10.2.0 | MIT | 屏幕捕获 |
+| pynput | 1.8.2 | LGPL-3.0-or-later | 输入设备控制 |
+| Pyperclip | 1.11.0 | BSD-3-Clause | 剪贴板访问 |
+| six | 1.17.0 | MIT | pynput 的兼容性依赖 |
+
+CPython 的 `LICENSE.txt` 和各 wheel 的 `*.dist-info` 元数据、许可证文件保留在安装包的
+`resources/python-runtime` 中。上述项目的版权归各自作者和贡献者所有。
+
 ## ChaosRecipeEnhancer
 
 - 项目地址：https://github.com/ChaosRecipeEnhancer/ChaosRecipeEnhancer

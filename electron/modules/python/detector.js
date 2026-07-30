@@ -1,22 +1,40 @@
 /**
- * Purpose: 检测系统中 Python 可执行文件的路径
- * Inputs: 无
- * Outputs: Python 可执行文件路径（string）或 null（未找到）
- * Preconditions: 系统已安装 Python 3
- * Edge cases: 多版本 Python 时返回第一个找到的；跨平台兼容（Windows/Linux/Mac）
- * Errors: 检测失败返回 null，不抛出异常
+ * Purpose: 为正式包和开发环境解析、探测并描述可用的 Python 运行时。
+ * Production: 只允许 process.resourcesPath/python-runtime/python.exe。
+ * Development: 显式覆盖 -> 已准备的仓库运行时 -> 满足依赖的系统 Python。
  */
 
-import { execFileSync, execSync } from 'child_process'
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-// Python路径缓存
-let cachedPythonPath = null
-const compatiblePythonPathCache = new Map()
+const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = path.resolve(moduleDir, '../../..')
+const preparedRuntimePath = path.join(projectRoot, '.runtime', 'python-runtime', 'python.exe')
+const runtimeCache = new Map()
 
-const commonPythonPaths = () => {
+let runtimeContext = {
+  isPackaged: false,
+  resourcesPath: process.resourcesPath || '',
+  env: process.env
+}
+
+export function configurePythonRuntime(context = {}) {
+  runtimeContext = {
+    ...runtimeContext,
+    ...context,
+    env: context.env || runtimeContext.env || process.env
+  }
+  runtimeCache.clear()
+}
+
+export function resetPythonRuntimeCache() {
+  runtimeCache.clear()
+}
+
+function commonPythonPaths() {
   const paths = [
     'C:\\Python3\\python.exe',
     'C:\\Python39\\python.exe',
@@ -30,78 +48,102 @@ const commonPythonPaths = () => {
   ]
   const userRoot = path.join(os.homedir(), 'AppData', 'Local', 'Programs', 'Python')
   try {
-    const installed = fs.readdirSync(userRoot, { withFileTypes: true })
+    paths.push(...fs.readdirSync(userRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && /^Python\d+$/i.test(entry.name))
       .sort((left, right) => right.name.localeCompare(left.name, undefined, { numeric: true }))
-      .map((entry) => path.join(userRoot, entry.name, 'python.exe'))
-    paths.push(...installed)
-  } catch { /* 用户目录下没有独立 Python 安装 */ }
+      .map((entry) => path.join(userRoot, entry.name, 'python.exe')))
+  } catch { /* 用户目录中没有独立 Python */ }
   return [...new Set(paths)]
 }
 
-const pythonCandidates = () => ['python3', 'python', ...commonPythonPaths()]
-
-export const detectPythonPathWithModules = (requiredModules = []) => {
-  const modules = [...new Set(requiredModules.map((name) => String(name).trim()).filter(Boolean))]
-  const cacheKey = modules.slice().sort().join(',')
-  if (compatiblePythonPathCache.has(cacheKey)) return compatiblePythonPathCache.get(cacheKey)
-  const probe = modules.map((name) => `import ${name}`).join('; ') || 'import sys'
-  for (const candidate of pythonCandidates()) {
-    try {
-      execFileSync(candidate, ['-c', probe], { stdio: 'ignore', windowsHide: true, timeout: 5000 })
-      compatiblePythonPathCache.set(cacheKey, candidate)
-      return candidate
-    } catch { /* 继续查找具备全部依赖的解释器 */ }
-  }
-  return null
+function normalizeOverride(value) {
+  const input = String(value || '').trim()
+  if (!input) return null
+  try {
+    if (fs.statSync(input).isDirectory()) return path.join(input, 'python.exe')
+  } catch { /* 允许命令名或尚不可访问的显式路径进入统一探测 */ }
+  return input
 }
 
-/**
- * Purpose: 检测Python可执行文件路径
- * Inputs: 无
- * Outputs: Python路径（string），如果未找到返回 null
- * Preconditions: 无
- * Edge cases: 多版本时返回第一个找到的；使用缓存避免重复检测
- * Errors: 检测失败返回 null，不抛出异常
- */
-export const detectPythonPath = () => {
-  if (cachedPythonPath) {
-    return cachedPythonPath
+function probeRuntime(candidate, modules) {
+  const probe = [
+    'import json, platform, struct',
+    ...modules.map((name) => `import ${name}`),
+    `print(json.dumps({"version": platform.python_version(), "bits": struct.calcsize("P") * 8}))`
+  ].join('; ')
+  const output = execFileSync(candidate, ['-I', '-c', probe], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 10000,
+    stdio: ['ignore', 'pipe', 'pipe']
+  })
+  const info = JSON.parse(output.trim().split(/\r?\n/).at(-1))
+  if (Number(info.bits) !== 64 && runtimeContext.isPackaged) {
+    throw new Error(`正式版只支持 x64 Python，当前为 ${info.bits} bit`)
   }
+  return info
+}
 
-  // 尝试的命令列表（按优先级）
-  const possibleCommands = ['python3', 'python']
-  
-  // Windows常见安装路径
-  const possiblePaths = commonPythonPaths()
+function candidateList() {
+  const bundled = path.join(runtimeContext.resourcesPath || '', 'python-runtime', 'python.exe')
+  if (runtimeContext.isPackaged) return [{ path: bundled, source: 'bundled' }]
 
-  // 先尝试在PATH中查找命令（跨平台兼容）
-  for (const cmd of possibleCommands) {
+  const override = normalizeOverride(runtimeContext.env?.POE_PYTHON_RUNTIME)
+  const candidates = [
+    override && { path: override, source: 'override' },
+    { path: preparedRuntimePath, source: 'prepared' },
+    { path: 'python3', source: 'system' },
+    { path: 'python', source: 'system' },
+    ...commonPythonPaths().map((pythonPath) => ({ path: pythonPath, source: 'system' }))
+  ].filter(Boolean)
+  return candidates.filter((entry, index, all) => (
+    all.findIndex((candidate) => candidate.path.toLowerCase() === entry.path.toLowerCase()) === index
+  ))
+}
+
+export function resolvePythonRuntime(requiredModules = []) {
+  const modules = [...new Set(requiredModules.map((name) => String(name).trim()).filter(Boolean))].sort()
+  const cacheKey = `${runtimeContext.isPackaged ? 'packaged' : 'development'}:${modules.join(',')}`
+  if (runtimeCache.has(cacheKey)) return runtimeCache.get(cacheKey)
+
+  const failures = []
+  for (const candidate of candidateList()) {
     try {
-      // Windows 使用 where，Linux/Mac 使用 which
-      const command = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`
-      execSync(command, { stdio: 'ignore' })
-      cachedPythonPath = cmd
-      return cmd
-    } catch (e) {
-      // 继续尝试下一个命令
-    }
-  }
-
-  // 尝试检查常见安装路径（仅 Windows）
-  if (process.platform === 'win32') {
-    for (const pythonPath of possiblePaths) {
-      try {
-        if (fs.existsSync(pythonPath)) {
-          cachedPythonPath = pythonPath
-          return pythonPath
-        }
-      } catch (error) {
-        // 继续尝试下一个路径
+      const info = probeRuntime(candidate.path, modules)
+      const result = {
+        ready: true,
+        found: true,
+        source: candidate.source,
+        path: candidate.path,
+        version: info.version,
+        modules,
+        error: null
       }
+      runtimeCache.set(cacheKey, result)
+      return result
+    } catch (error) {
+      failures.push(`${candidate.source}: ${error?.message || '不可用'}`)
     }
   }
 
-  return null
+  const source = runtimeContext.isPackaged ? 'bundled' : 'unavailable'
+  const result = {
+    ready: false,
+    found: false,
+    source,
+    path: null,
+    version: null,
+    modules,
+    error: runtimeContext.isPackaged
+      ? '内置 Python 运行时缺失或损坏，请重新安装应用'
+      : `未找到满足依赖的 Python 3${failures.length ? `（已检查 ${failures.length} 个候选）` : ''}`
+  }
+  runtimeCache.set(cacheKey, result)
+  return result
 }
 
+export const detectPythonPathWithModules = (requiredModules = []) => (
+  resolvePythonRuntime(requiredModules).path
+)
+
+export const detectPythonPath = () => resolvePythonRuntime().path

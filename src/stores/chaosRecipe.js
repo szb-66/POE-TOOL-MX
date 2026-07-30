@@ -13,6 +13,7 @@ import {
   SINGLE_RECIPE_IDS,
   VENDOR_RECIPE_IDS
 } from '../../electron/modules/chaosRecipe/engine.js'
+import { normalizeStashGridRegion } from '../utils/stashGridCalibration.js'
 
 const STORAGE_KEY = 'chaosRecipeSettings'
 
@@ -27,21 +28,6 @@ const defaultSettings = () => ({
   calibration: { root: null, folder: null },
   tabFolderStates: {}
 })
-
-function normalizeRegion(value) {
-  const region = value?.region || value
-  const numbers = ['left', 'top', 'right', 'bottom'].map((key) => Number(region?.[key]))
-  if (!numbers.every(Number.isFinite) || numbers[2] <= numbers[0] || numbers[3] <= numbers[1]) return null
-  return {
-    left: numbers[0],
-    top: numbers[1],
-    right: numbers[2],
-    bottom: numbers[3],
-    displayId: String(value?.displayId || ''),
-    scaleFactor: Number(value?.scaleFactor || 1),
-    capturedAt: String(value?.capturedAt || '')
-  }
-}
 
 function normalizeTabFolderStates(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
@@ -77,12 +63,12 @@ export function normalizeChaosRecipeSettings(raw = {}) {
       y: Number.isFinite(Number(raw.controlOverlayOffset?.y)) ? Math.round(Number(raw.controlOverlayOffset.y)) : 1550
     },
     calibration: {
-      root: normalizeRegion(raw.calibration?.root) ||
-        normalizeRegion(raw.calibration?.normal) ||
-        normalizeRegion(raw.calibration?.quad),
-      folder: normalizeRegion(raw.calibration?.folder) ||
-        normalizeRegion(raw.calibration?.folderNormal) ||
-        normalizeRegion(raw.calibration?.folderQuad)
+      root: normalizeStashGridRegion(raw.calibration?.root) ||
+        normalizeStashGridRegion(raw.calibration?.normal) ||
+        normalizeStashGridRegion(raw.calibration?.quad),
+      folder: normalizeStashGridRegion(raw.calibration?.folder) ||
+        normalizeStashGridRegion(raw.calibration?.folderNormal) ||
+        normalizeStashGridRegion(raw.calibration?.folderQuad)
     }
   }
 }
@@ -112,6 +98,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const singleSelections = ref(Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [id, []])))
   const automation = ref({ status: 'idle', completedItems: 0, totalItems: 0, tabName: '' })
   const settings = ref(initial)
+  const stashGridCalibration = computed(() => interfaceDetectionStore.stashGridCalibration)
   const busy = ref(false)
   const error = ref(null)
   const auth = computed(() => accountStore.status)
@@ -130,7 +117,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const supportedTabs = computed(() => effectiveTabs.value.filter((tab) => tab.supported))
   const selectedTabs = computed(() => supportedTabs.value.filter((tab) => settings.value.selectedTabIds.includes(tab.id)))
   const requiredCalibrations = computed(() => requiredCalibrationKeys(selectedTabs.value))
-  const missingCalibrations = computed(() => missingCalibrationKeys(selectedTabs.value, settings.value.calibration))
+  const missingCalibrations = computed(() => missingCalibrationKeys(selectedTabs.value, stashGridCalibration.value))
   const missingCalibrationLabels = computed(() =>
     missingCalibrations.value.map((key) => CHAOS_GRID_LAYOUT_LABELS[key])
   )
@@ -148,6 +135,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function runtimePayload(overrides = {}) {
     return {
       ...JSON.parse(JSON.stringify(settings.value)),
+      calibration: JSON.parse(JSON.stringify(stashGridCalibration.value)),
       league: league.value,
       selectedItemIds: [...activeSelectedItemIds.value],
       ...interfaceDetectionStore.runtime(),
@@ -167,7 +155,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       recipeId: settings.value.activeRecipeId,
       setCount: settings.value.targetSetCount,
       itemIds: [...activeSelectedItemIds.value],
-      calibration: settings.value.calibration
+      calibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
     }
   }
 
@@ -258,8 +246,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   async function calibrate(type) {
     const result = unwrap(await electronApi.chaosRecipe.pickGridRegion())
     if (!result?.canceled) {
-      settings.value.calibration[type] = normalizeRegion(result)
-      save()
+      interfaceDetectionStore.setStashGridCalibration(type, result)
       if (settings.value.enabled) await syncRuntime()
     }
     return result
@@ -388,7 +375,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   return {
     auth, leagues, league, tabs, supportedTabs, selectedTabs, requiredCalibrations, missingCalibrations,
-    missingCalibrationLabels, snapshot, activeRecipe, activeSelectedItemIds,
+    missingCalibrationLabels, stashGridCalibration, snapshot, activeRecipe, activeSelectedItemIds,
     singleSelections, automation, settings, busy, error,
     save, setError, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,

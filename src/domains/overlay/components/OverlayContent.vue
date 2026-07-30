@@ -4,6 +4,10 @@
       @mouseenter="activateDragHandle" @mouseleave="deactivateDragHandle">
       <span></span><span></span><span></span>
     </div>
+    <div v-if="stopReason" class="failure-reason" role="alert">
+      <div class="failure-title">制作已停止</div>
+      <div class="failure-message">{{ stopReason }}</div>
+    </div>
     <!-- 背景层 -->
     <div class="background-layer" :style="backgroundStyle">
       <!-- 根据文件路径后缀判断是否为视频 -->
@@ -180,6 +184,10 @@ const props = defineProps({
   isStopped: {
     type: Boolean,
     default: false
+  },
+  stopReason: {
+    type: String,
+    default: ''
   },
   allowDrag: {
     type: Boolean,
@@ -427,6 +435,29 @@ function isModMatched(mod) {
   flex-direction: column;
   gap: 8px;
   padding-bottom: 25px;
+}
+
+.failure-reason {
+  position: relative;
+  z-index: 95;
+  margin: 18px 0 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 108, 108, 0.85);
+  border-radius: 8px;
+  background: rgba(92, 24, 24, 0.92);
+  color: #ffd6d6;
+  pointer-events: none;
+
+  .failure-title {
+    margin-bottom: 4px;
+    color: #ff8f8f;
+    font-weight: 700;
+  }
+
+  .failure-message {
+    line-height: 1.4;
+    word-break: break-word;
+  }
 }
 
 .item-header {

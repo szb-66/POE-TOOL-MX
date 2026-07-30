@@ -1,6 +1,9 @@
 node_modules
 dist/
 dist-electron/
+.runtime/
+__pycache__/
+*.py[cod]
 
 # 本地 AI / 编辑器工作流配置
 .claude/

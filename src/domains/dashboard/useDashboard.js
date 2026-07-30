@@ -51,7 +51,9 @@ export function useDashboard() {
   const accountStore = usePoeCnAccountStore()
   const pending = reactive({})
   const refreshing = ref(false)
+  const diagnosticsExporting = ref(false)
   const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境' })
+  const startupHealth = ref([])
   const craftingStatus = ref(null)
   const craftingStatusError = ref('')
 
@@ -174,10 +176,14 @@ export function useDashboard() {
       : shortcut.status === 'error'
         ? { status: 'error', text: shortcut.error || '全局快捷键注册失败' }
         : { status: 'pending', text: '全局快捷键等待初始化' }
+    const extraHealth = startupHealth.value.filter(item => (
+      !['runtime', 'game'].includes(item.id)
+    ))
     return [
       { id: 'python', label: 'Python', ...pythonHealth.value },
       { id: 'shortcuts', label: '快捷键', ...shortcutStatus },
-      { id: 'dpi', label: '游戏窗口 / DPI', ...dpiStatus }
+      { id: 'dpi', label: '游戏窗口 / DPI', ...dpiStatus },
+      ...extraHealth
     ]
   })
   const healthHasIssues = computed(() => healthItems.value.some(item => item.status !== 'ready'))
@@ -420,11 +426,12 @@ export function useDashboard() {
     refreshing.value = true
     craftingStatusError.value = ''
     try {
-      const [scriptResult, combatResult, pythonResult, craftingResult] = await Promise.allSettled([
+      const [scriptResult, combatResult, pythonResult, craftingResult, healthResult] = await Promise.allSettled([
         electronApi.script.getStatus(),
         electronApi.combat.getPotionStatus(),
         electronApi.script.detectPythonPath(),
-        electronApi.crafting.getStatus()
+        electronApi.crafting.getStatus(),
+        electronApi.system.getStartupHealth()
       ])
       if (scriptResult.status === 'fulfilled') scriptStore.applyStatus(scriptResult.value)
       else scriptStore.applyStatus({ status: 'error', error: scriptResult.reason?.message || '脚本状态读取失败' })
@@ -436,19 +443,29 @@ export function useDashboard() {
         combatStore.applyStatus({ running: false, event: 'error', error: combatResult.reason?.message || '战斗辅助状态读取失败' })
       }
 
-      if (pythonResult.status === 'fulfilled' && pythonResult.value?.found) {
-        pythonHealth.value = { status: 'ready', text: `可用 · ${pythonResult.value.path}` }
+      if (pythonResult.status === 'fulfilled' && (pythonResult.value?.ready || pythonResult.value?.found)) {
+        const runtime = pythonResult.value
+        const sourceLabel = {
+          bundled: '内置运行时',
+          prepared: '本地运行时',
+          override: '指定运行时',
+          system: '系统环境'
+        }[runtime.source] || 'Python'
+        pythonHealth.value = { status: 'ready', text: `${sourceLabel} · ${runtime.version || '版本未知'}` }
       } else {
         pythonHealth.value = {
           status: 'error',
           text: pythonResult.status === 'rejected'
             ? (pythonResult.reason?.message || 'Python 环境检查失败')
-            : '未找到可用的 Python 3'
+            : (pythonResult.value?.error || '未找到可用的 Python 3')
         }
       }
 
       if (craftingResult.status === 'fulfilled') craftingStatus.value = craftingResult.value
       else craftingStatusError.value = craftingResult.reason?.message || '做装数据状态读取失败'
+      startupHealth.value = healthResult.status === 'fulfilled' && Array.isArray(healthResult.value?.items)
+        ? healthResult.value.items
+        : []
       if (window.electronAPI) await settingsStore.refreshDpiScale()
     } catch (error) {
       craftingStatusError.value = error?.message || '状态刷新失败'
@@ -459,6 +476,22 @@ export function useDashboard() {
 
   const openModule = module => router.push(module.route)
   const openSettings = () => router.push('/settings')
+  async function exportDiagnostics() {
+    if (diagnosticsExporting.value) return
+    diagnosticsExporting.value = true
+    try {
+      const result = await electronApi.system.exportDiagnostics(
+        modules.value.map(({ id, state }) => ({ id, state }))
+      )
+      if (result?.canceled) return
+      if (!result?.success) throw new Error(result?.error || '诊断导出失败')
+      ElMessage.success(`诊断已导出：${result.fileName}`)
+    } catch (error) {
+      ElMessage.error(error?.message || '诊断导出失败')
+    } finally {
+      diagnosticsExporting.value = false
+    }
+  }
 
   onMounted(refresh)
 
@@ -468,7 +501,9 @@ export function useDashboard() {
     healthItems,
     healthHasIssues,
     refreshing,
+    diagnosticsExporting,
     refresh,
+    exportDiagnostics,
     runAction,
     changeModuleControl,
     openModule,

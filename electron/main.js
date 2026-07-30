@@ -42,6 +42,7 @@ import { PoeCnTradeClient } from './modules/priceCheck/client.js'
 import { PriceCheckService } from './modules/priceCheck/service.js'
 import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
 import { capturePoeItemText, sendWindowsCopy } from './modules/priceCheck/clipboardCapture.js'
+import { StashPickupManager } from './modules/stashPickup/manager.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -51,6 +52,10 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
+pythonDetector.configurePythonRuntime({
+  isPackaged: app.isPackaged,
+  resourcesPath: process.resourcesPath
+})
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) process.exit(0)
 
@@ -72,6 +77,7 @@ let automationLock = null
 let chaosControlOverlay = null
 let priceCheckService = null
 let crossProcessInstanceLock = null
+let stashPickup = null
 
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
@@ -87,6 +93,7 @@ async function cleanupApplicationResources() {
 
   await settleCleanupPhase([
     () => chaosRecipeService?.automation?.cleanup(),
+    () => stashPickup?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.closeOverlay(),
@@ -199,6 +206,15 @@ app.whenReady().then(async () => {
     interfaceDetection,
     automationLock
   })
+  stashPickup = new StashPickupManager({
+    python: { ...pythonManager, ...pythonDetector },
+    fileWatcher,
+    getMainWindow,
+    interfaceDetection,
+    automationLock,
+    onStatusChange: () => chaosControlOverlay?.sync()
+  })
+  chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
   await chaosRecipeService.restoreAuth()
@@ -270,6 +286,7 @@ app.whenReady().then(async () => {
       auth: chaosAuth,
       listLeagues: () => chaosStashClient.listLeagues()
     },
+    stashPickup,
     interfaceDetection,
     automationLock
   })

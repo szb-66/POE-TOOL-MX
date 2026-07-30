@@ -26,6 +26,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('detect-python-path')
   },
   detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
+  getStartupHealth: () => ipcRenderer.invoke('system-get-startup-health'),
+  getDiagnostics: (modules) => ipcRenderer.invoke('system-get-diagnostics', modules),
+  exportDiagnostics: (modules) => ipcRenderer.invoke('system-export-diagnostics', modules),
   startFileWatcher: (config) => {
     return ipcRenderer.invoke('start-file-watcher', config)
   },
@@ -220,6 +223,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('chaos-recipe-snapshot-updated', listener)
     return () => ipcRenderer.removeListener('chaos-recipe-snapshot-updated', listener)
+  },
+  updateStashPickupRuntime: (runtime) => ipcRenderer.invoke('stash-pickup-runtime-update', runtime),
+  previewStashPickup: () => ipcRenderer.invoke('stash-pickup-preview'),
+  startStashPickup: () => ipcRenderer.invoke('stash-pickup-start'),
+  stopStashPickup: () => ipcRenderer.invoke('stash-pickup-stop'),
+  getStashPickupStatus: () => ipcRenderer.invoke('stash-pickup-status'),
+  pickStashPickupGridRegion: () => ipcRenderer.invoke('stash-pickup-pick-grid-region'),
+  onStashPickupEvent: (callback) => {
+    const listener = (_event, message) => callback(message)
+    ipcRenderer.on('stash-pickup-event', listener)
+    return () => ipcRenderer.removeListener('stash-pickup-event', listener)
   },
   // 国服官方挂单查价
   getPriceCheckStatus: () => ipcRenderer.invoke('price-check-status'),
