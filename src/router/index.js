@@ -47,6 +47,11 @@ const routes = [
     component: () => import('../domains/priceCheck/PriceCheckView.vue')
   },
   {
+    path: '/puzzle',
+    name: 'Puzzle',
+    component: () => import('../domains/puzzle/PuzzleView.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../domains/settings/SettingsView.vue')

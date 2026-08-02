@@ -70,6 +70,14 @@ const mockApi = {
     submitScreenRegion: () => { },
     cancelScreenCoordinatePicker: () => { },
   },
+  puzzle: {
+    pickInventoryRegion: () => Promise.resolve({ canceled: true }),
+    analyze: () => Promise.resolve({
+      success: false,
+      error: { code: 'ELECTRON_REQUIRED', message: '九宫格识别仅支持 Electron 客户端' }
+    }),
+    onAnalysisUpdated: () => () => {}
+  },
   events: {
     onPythonOutput: () => { },
     onUpdateOverlay: () => { },
@@ -292,6 +300,11 @@ export const electronApi = isElectron ? {
     submitScreenCoordinate: (point) => window.electronAPI.submitScreenCoordinate?.(point),
     submitScreenRegion: (rectangle) => window.electronAPI.submitScreenRegion?.(rectangle),
     cancelScreenCoordinatePicker: () => window.electronAPI.cancelScreenCoordinatePicker?.()
+  },
+  puzzle: {
+    pickInventoryRegion: () => window.electronAPI.pickPuzzleInventoryRegion?.(),
+    analyze: (request) => window.electronAPI.analyzePuzzle?.(craftingIpcPayload(request)),
+    onAnalysisUpdated: (callback) => window.electronAPI.onPuzzleAnalysisUpdated?.(callback) || (() => {})
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
 

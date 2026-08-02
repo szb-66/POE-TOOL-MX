@@ -42,6 +42,10 @@
       <el-icon><Coin /></el-icon>
       <span>查价</span>
     </el-menu-item>
+    <el-menu-item index="/puzzle">
+      <el-icon><Grid /></el-icon>
+      <span>九宫格</span>
+    </el-menu-item>
     <el-menu-item index="/settings">
       <el-icon><Setting /></el-icon>
       <span>设置</span>
@@ -56,7 +60,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, Coin, HomeFilled, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
+import { Box, Briefcase, Coin, Grid, HomeFilled, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

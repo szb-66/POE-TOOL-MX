@@ -100,3 +100,14 @@ The system SHALL use capture controls for single game action keys and an ordered
 #### Scenario: 修改查价快捷键
 - **WHEN** 查价模块关闭且用户修改查价快捷键
 - **THEN** 系统保存新组合但不注册，直到模块再次开启
+
+### Requirement: 九宫格分析快捷键
+系统 SHALL 为九宫格识别提供默认 `Alt+7` 且可配置、不冲突的全局快捷键。
+
+#### Scenario: 启动九宫格分析
+- **WHEN** 用户在游戏前台触发九宫格快捷键
+- **THEN** 系统通过统一快捷键分发器启动一次九宫格仓库分析
+
+#### Scenario: 修改九宫格快捷键
+- **WHEN** 用户通过快捷键捕获控件修改九宫格快捷键
+- **THEN** 系统随完整快捷键集合一起校验、保存并事务式重新注册该组合

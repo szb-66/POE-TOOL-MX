@@ -2,7 +2,7 @@
   <div class="coordinate-picker" @click="handlePick" @pointerdown="handlePointerDown" @pointermove="handlePointerMove" @pointerup="handlePointerUp">
     <div v-if="selection" class="coordinate-picker__selection" :style="selectionStyle"></div>
     <div class="coordinate-picker__tip">
-      <strong>{{ context.mode === 'region' ? '拖动框选标题模板' : '点击选取坐标' }}</strong>
+      <strong>{{ pickerTitle }}</strong>
       <span v-if="context.mode === 'region'">{{ regionHint }}</span>
       <span v-else>移动到目标点后单击确认，按 Esc 取消</span>
       <button v-if="context.mode === 'region'" type="button" :disabled="!selectionValid" @click.stop="confirmRegion">确认选区</button>
@@ -14,7 +14,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 
-const context = reactive({ mode: 'point', minimumSize: { width: 20, height: 10 }, scaleFactor: 1 })
+const context = reactive({ mode: 'point', purpose: '', minimumSize: { width: 20, height: 10 }, scaleFactor: 1 })
 const dragStart = ref(null)
 const selection = ref(null)
 
@@ -35,9 +35,13 @@ const selectionStyle = computed(() => {
   const region = normalizedSelection.value
   return region ? { left: `${region.left}px`, top: `${region.top}px`, width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px` } : {}
 })
+const pickerTitle = computed(() => {
+  if (context.mode !== 'region') return '点击选取坐标'
+  return context.purpose === 'puzzle-inventory' ? '框选完整的右侧 6×10 碎片仓库' : '拖动框选标题模板'
+})
 const regionHint = computed(() => selection.value
-  ? `${physicalSize.value.width} × ${physicalSize.value.height} 物理像素${selectionValid.value ? '，按 Enter 或点击确认' : '，最小 20 × 10'}`
-  : '拖动框选完整标题，按 Esc 取消')
+  ? `${physicalSize.value.width} × ${physicalSize.value.height} 物理像素${selectionValid.value ? '，按 Enter 或点击确认' : `，最小 ${context.minimumSize.width} × ${context.minimumSize.height}`}`
+  : context.purpose === 'puzzle-inventory' ? '从仓库左上角拖到右下角，包含全部 60 个格子' : '拖动框选完整标题，按 Esc 取消')
 
 const handlePick = (event) => {
   if (context.mode !== 'point') return

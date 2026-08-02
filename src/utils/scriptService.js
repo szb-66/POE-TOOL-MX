@@ -26,6 +26,7 @@ import {
 } from './chaosRecipeService.js'
 import { usePriceCheckStore } from '../stores/priceCheck'
 import { validateStashTabSelection } from './stashTabSelection.js'
+import { usePuzzleStore } from '../stores/puzzle.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -83,6 +84,7 @@ export async function initShortcuts() {
         chaosRecipeStart: startChaosRecipePicking,
         chaosRecipePause: toggleChaosRecipePicking,
         chaosRecipeStop: stopChaosRecipePicking,
+        puzzleAnalyze: startPuzzleAnalysis,
         priceCheck: startPriceCheck
       })
     })
@@ -118,6 +120,11 @@ export async function startPriceCheck() {
   } catch (error) {
     ElMessage.error(error.message || '国服查价失败')
   }
+}
+
+export async function startPuzzleAnalysis() {
+  const result = await usePuzzleStore().analyze()
+  if (!result?.success && result?.error) ElMessage.error(result.error.message)
 }
 
 /**

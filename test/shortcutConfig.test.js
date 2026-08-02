@@ -10,6 +10,7 @@ test('全局快捷键不再包含背包补扫，但保留剧情导航', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStart, 'Alt+4')
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipePause, 'Alt+5')
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStop, 'Alt+6')
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.puzzleAnalyze, 'Alt+7')
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.priceCheck, 'Ctrl+D')
 })
 

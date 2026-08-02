@@ -107,6 +107,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   submitScreenCoordinate: (point) => ipcRenderer.send('coordinate-picker-select', point),
   submitScreenRegion: (rectangle) => ipcRenderer.send('screen-picker-region-select', rectangle),
   cancelScreenCoordinatePicker: () => ipcRenderer.send('coordinate-picker-cancel'),
+  pickPuzzleInventoryRegion: () => ipcRenderer.invoke('puzzle-pick-inventory-region'),
+  analyzePuzzle: (request) => ipcRenderer.invoke('puzzle-analyze', request),
+  onPuzzleAnalysisUpdated: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('puzzle-analysis-updated', listener)
+    return () => ipcRenderer.removeListener('puzzle-analysis-updated', listener)
+  },
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
   moveWindow: (x, y) => ipcRenderer.send('window-move', { x, y }),
   onWindowMaximized: (callback) => {

@@ -43,6 +43,7 @@ import { PriceCheckService } from './modules/priceCheck/service.js'
 import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
 import { capturePoeItemText, sendWindowsCopy } from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
+import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -78,6 +79,7 @@ let chaosControlOverlay = null
 let priceCheckService = null
 let crossProcessInstanceLock = null
 let stashPickup = null
+let puzzleService = null
 
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
@@ -97,6 +99,7 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.closeOverlay(),
+    () => puzzleService?.cleanup(),
     () => interfaceDetection?.cleanup(),
     () => craftingService?.cleanup(),
     async () => {
@@ -214,6 +217,12 @@ app.whenReady().then(async () => {
     automationLock,
     onStatusChange: () => chaosControlOverlay?.sync()
   })
+  puzzleService = new PuzzleAnalysisService({
+    python: { ...pythonManager, ...pythonDetector },
+    window: windowManager,
+    fileWatcher,
+    getMainWindow
+  })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
@@ -288,7 +297,8 @@ app.whenReady().then(async () => {
     },
     stashPickup,
     interfaceDetection,
-    automationLock
+    automationLock,
+    puzzle: puzzleService
   })
   
   createApplicationWindow()

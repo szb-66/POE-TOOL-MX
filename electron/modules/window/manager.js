@@ -712,7 +712,7 @@ async function captureDisplays(displays) {
   return screenshots
 }
 
-function createScreenPickerSession(mode, screenshots = new Map()) {
+function createScreenPickerSession(mode, screenshots = new Map(), options = {}) {
   if (screenPickerSession) {
     return mode === screenPickerSession.mode
       ? screenPickerSession.promise
@@ -731,6 +731,7 @@ function createScreenPickerSession(mode, screenshots = new Map()) {
     windows: [],
     contexts: new Map(),
     screenshots,
+    options,
     settled: false
   }
 
@@ -769,11 +770,12 @@ function openScreenPickerWindows(mode, displays) {
       const physicalBounds = physicalDisplayBounds(display)
       session.contexts.set(pickerWindow.webContents.id, {
         mode,
+        purpose: session.options?.purpose || '',
         displayId: String(display.id),
         scaleFactor: display.scaleFactor,
         displayDipBounds: display.bounds,
         displayPhysicalBounds: physicalBounds,
-        minimumSize: { width: 20, height: 10 }
+        minimumSize: session.options?.minimumSize || { width: 20, height: 10 }
       })
       pickerWindow.setAlwaysOnTop(true, 'screen-saver')
       pickerWindow.once('ready-to-show', () => {
@@ -800,7 +802,7 @@ export function pickScreenCoordinate() {
   return promise
 }
 
-export async function pickScreenRegion() {
+export async function pickScreenRegion(options = {}) {
   if (screenPickerSession) return createScreenPickerSession('region')
   const displays = screen.getAllDisplays()
   let screenshots
@@ -809,7 +811,7 @@ export async function pickScreenRegion() {
   } catch (error) {
     return { canceled: true, error: error.message }
   }
-  const promise = createScreenPickerSession('region', screenshots)
+  const promise = createScreenPickerSession('region', screenshots, options)
   openScreenPickerWindows('region', displays)
   return promise
 }
@@ -846,7 +848,9 @@ export function submitScreenPickerRegion(sender, clientRectangle) {
   if (!pickerWindow || !context || !session.windows.includes(pickerWindow)) return false
   const convert = process.platform === 'win32' ? (point) => screen.dipToScreenPoint(point) : (point) => point
   const selectedRegion = dipRectangleToPhysical(pickerWindow.getBounds(), clientRectangle, convert)
-  if (!isRegionLargeEnough(selectedRegion)) return false
+  const selectedSize = getRectangleSize(selectedRegion)
+  const minimumSize = context.minimumSize || { width: 20, height: 10 }
+  if (!isRegionLargeEnough(selectedRegion) || selectedSize.width < minimumSize.width || selectedSize.height < minimumSize.height) return false
   const screenshot = session.screenshots.get(context.displayId)
   try {
     if (!screenshot || screenshot.isEmpty()) throw new Error('选区截图不可用')
@@ -858,7 +862,7 @@ export function submitScreenPickerRegion(sender, clientRectangle) {
       template = template.resize({ ...crop.targetSize, quality: 'best' })
     }
     if (!hasUsefulPixelVariance(template.getBitmap())) throw new Error('选区图像信息过少，请框选包含清晰文字的区域')
-    const size = getRectangleSize(selectedRegion)
+    const size = selectedSize
     settleScreenPicker({
       canceled: false,
       displayId: context.displayId,

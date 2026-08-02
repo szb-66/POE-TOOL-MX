@@ -109,6 +109,11 @@
                   <KeyCaptureInput :model-value="shortcuts.priceCheck" @change="handleShortcutsChange('priceCheck', $event)" />
                 </el-form-item>
               </el-col>
+              <el-col :span="8">
+                <el-form-item label="九宫格分析">
+                  <KeyCaptureInput :model-value="shortcuts.puzzleAnalyze" @change="handleShortcutsChange('puzzleAnalyze', $event)" />
+                </el-form-item>
+              </el-col>
             </el-row>
           </el-form>
         </el-card>

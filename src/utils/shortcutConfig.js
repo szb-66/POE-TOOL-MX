@@ -10,6 +10,7 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   chaosRecipeStart: 'Alt+4',
   chaosRecipePause: 'Alt+5',
   chaosRecipeStop: 'Alt+6',
+  puzzleAnalyze: 'Alt+7',
   priceCheck: 'Ctrl+D'
 })
 

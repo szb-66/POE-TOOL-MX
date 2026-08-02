@@ -183,6 +183,7 @@ test('point/region 共用互斥会话并对关闭、取消、加载失败统一�
   assert.match(manager, /did-fail-load[\s\S]*settleScreenPicker/)
   assert.match(manager, /pickerWindow\.on\('closed'[\s\S]*settleScreenPicker/)
   assert.match(manager, /session\.screenshots\.clear\(\)/)
+  assert.match(manager, /selectedSize\.width < minimumSize\.width/)
 })
 
 test('高级上传和手工区域修改都会清除对应采集元数据', () => {

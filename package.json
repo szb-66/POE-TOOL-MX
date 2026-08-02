@@ -96,6 +96,14 @@
         "to": "stash_tab_selector.py"
       },
       {
+        "from": "src/assets/scripts/puzzle_analyzer.py",
+        "to": "puzzle_analyzer.py"
+      },
+      {
+        "from": "electron/assets/puzzle/templates.json",
+        "to": "puzzle_templates.json"
+      },
+      {
         "from": ".runtime/python-runtime",
         "to": "python-runtime"
       }

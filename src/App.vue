@@ -14,7 +14,7 @@
 
 <script setup>
 import { onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
 import { initShortcuts } from './utils/scriptService'
@@ -26,8 +26,10 @@ import { useChaosRecipeStore } from './stores/chaosRecipe'
 import { usePriceCheckStore } from './stores/priceCheck'
 import { usePoeCnAccountStore } from './stores/poeCnAccount'
 import { useStashPickupStore } from './stores/stashPickup'
+import { usePuzzleStore } from './stores/puzzle'
 
 const route = useRoute()
+const router = useRouter()
 const settingsStore = useSettingsStore()
 let initShortcutsHandler = null
 let removeDevToolsListener = null
@@ -35,6 +37,7 @@ let removeChaosAutomationListener = null
 let removePriceCheckListener = null
 let removeAccountListener = null
 let removeStashPickupListener = null
+let removePuzzleListener = null
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -55,6 +58,9 @@ onMounted(() => {
     const priceCheckStore = usePriceCheckStore()
     removePriceCheckListener = priceCheckStore.listenOverlay()
     void priceCheckStore.syncRuntime().catch(() => priceCheckStore.refreshStatus())
+    removePuzzleListener = usePuzzleStore().listen(() => {
+      void router.push('/puzzle')
+    })
   }
 
   removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
@@ -69,6 +75,7 @@ onUnmounted(() => {
   removePriceCheckListener?.()
   removeAccountListener?.()
   removeStashPickupListener?.()
+  removePuzzleListener?.()
   disposeBagAutomation()
   // 清理 IPC 监听器
   if (window.electronAPI && window.electronAPI.removeAllListeners) {
