@@ -18,10 +18,8 @@ import { validateCombatAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
 import { setBagModuleEnabled, stopBagStash } from '@/utils/bagService'
 import { startPotionAssist, stopPotionAssist } from '@/utils/combatService'
-import {
-  VENDOR_RECIPE_CATALOG,
-  VENDOR_RECIPE_IDS
-} from '../../../electron/modules/chaosRecipe/engine.js'
+import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
+import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
@@ -309,10 +307,7 @@ export function useDashboard() {
         label: '自动取件配方',
         value: activeRecipeId,
         disabled: chaosRecipeStore.busy || modulePending,
-        options: VENDOR_RECIPE_IDS.map(id => ({
-          value: id,
-          label: VENDOR_RECIPE_CATALOG[id].label
-        })),
+        options: buildVendorRecipeOptions(chaosRecipeStore.snapshot),
         run: value => chaosRecipeStore.setActiveRecipe(value)
       }]
     }

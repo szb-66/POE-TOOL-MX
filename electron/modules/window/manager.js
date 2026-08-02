@@ -24,6 +24,7 @@ import {
 import { getBagOverlayBounds } from './bagOverlay.js'
 import {
   dipRectangleToPhysical,
+  getDisplayPhysicalBounds,
   getRectangleSize,
   hasUsefulPixelVariance,
   isRegionLargeEnough,
@@ -693,14 +694,7 @@ function settleScreenPicker(result) {
 }
 
 function physicalDisplayBounds(display) {
-  if (process.platform !== 'win32') return { ...display.bounds }
-  const topLeft = screen.dipToScreenPoint({ x: display.bounds.x, y: display.bounds.y })
-  return {
-    x: topLeft.x,
-    y: topLeft.y,
-    width: Math.round(display.bounds.width * display.scaleFactor),
-    height: Math.round(display.bounds.height * display.scaleFactor)
-  }
+  return getDisplayPhysicalBounds(display, process.platform, (point) => screen.dipToScreenPoint(point))
 }
 
 async function captureDisplays(displays) {

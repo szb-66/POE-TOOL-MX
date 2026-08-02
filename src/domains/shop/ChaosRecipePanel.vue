@@ -245,7 +245,9 @@
           </span>
           <el-button v-if="store.automation.status === 'running'" @click="store.pauseAutomation">暂停</el-button>
           <el-button v-if="store.automation.status === 'paused'" type="primary" @click="store.resumeAutomation">
-            已切换到“{{ store.automation.tabName }}”，继续
+            {{ store.automation.code === 'INVENTORY_FULL'
+              ? '清空背包后继续'
+              : `已切换到“${store.automation.tabName}”，继续` }}
           </el-button>
           <el-button v-if="['running', 'paused'].includes(store.automation.status)" @click="store.stopAutomation">紧急停止</el-button>
         </div>

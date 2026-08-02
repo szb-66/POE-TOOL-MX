@@ -149,6 +149,10 @@ const mockApi = {
     pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
     onEvent: () => () => {}
   },
+  stashTabs: {
+    pickRootRegion: () => Promise.resolve({ success: true, canceled: true }),
+    preview: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持仓库页识别' })
+  },
   priceCheck: {
     getStatus: () => Promise.resolve({ success: true, data: { auth: { authenticated: false }, catalog: null } }),
     updateRuntime: (runtime) => Promise.resolve({ success: true, data: { enabled: Boolean(runtime?.enabled) } }),
@@ -375,6 +379,10 @@ export const electronApi = isElectron ? {
     getStatus: () => window.electronAPI.getStashPickupStatus?.(),
     pickGridRegion: () => window.electronAPI.pickStashPickupGridRegion?.(),
     onEvent: (callback) => window.electronAPI.onStashPickupEvent?.(callback) || (() => {})
+  },
+  stashTabs: {
+    pickRootRegion: () => window.electronAPI.pickStashTabRootRegion?.(),
+    preview: (config) => window.electronAPI.previewStashTabs?.(craftingIpcPayload(config))
   },
   priceCheck: {
     getStatus: () => window.electronAPI.getPriceCheckStatus?.(),

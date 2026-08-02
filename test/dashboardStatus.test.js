@@ -245,7 +245,7 @@ test('首页通用快捷控件接入物品、地图、战斗与商城状态源',
   )
 
   assert.match(dashboard, /useChaosRecipeStore/)
-  assert.match(dashboard, /VENDOR_RECIPE_IDS/)
+  assert.match(dashboard, /buildVendorRecipeOptions/)
   assert.match(dashboard, /setActiveRecipe/)
   assert.match(dashboard, /chaosRecipeStore\.refresh/)
   assert.match(dashboard, /chaosRecipeStore\.setEnabled/)

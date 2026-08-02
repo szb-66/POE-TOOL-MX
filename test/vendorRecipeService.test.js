@@ -70,3 +70,28 @@ test('统一服务创建预览计划不改变计数，实际消费物品后才�
   assert.equal(instance.snapshot.items.length, 0)
   assert.equal(instance.snapshot.recipes.chromatic.candidateCount, 0)
 })
+
+test('刷新仓库先清除旧自动化断点，再请求接口并生成新快照', async () => {
+  const order = []
+  const instance = new ChaosRecipeService({
+    auth: { getStatus: () => ({ authenticated: true }), registerCacheClearer() {} },
+    automation: { reset: reason => order.push(`reset:${reason}`) },
+    stashClient: {
+      clearCache() {},
+      async fetchTabs() {
+        order.push('fetch')
+        return [{ tab, items: [socketItem], diagnostics: { sourceArrayLength: 1 } }]
+      },
+      getTabsSnapshot: () => [tab]
+    },
+    overlay: { close() {} }
+  })
+
+  const snapshot = await instance.refresh({
+    league: '测试赛季',
+    selectedTabIds: [tab.id],
+    includeIdentified: false
+  })
+  assert.deepEqual(order, ['reset:refresh', 'fetch'])
+  assert.equal(snapshot.recipes.chromatic.candidateCount, 1)
+})

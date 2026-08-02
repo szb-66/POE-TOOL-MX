@@ -96,7 +96,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const tabs = ref([])
   const snapshot = ref(null)
   const singleSelections = ref(Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [id, []])))
-  const automation = ref({ status: 'idle', completedItems: 0, totalItems: 0, tabName: '' })
+  const automation = ref({ status: 'idle', completedItems: 0, totalItems: 0, tabName: '', code: '', reason: '' })
   const settings = ref(initial)
   const stashGridCalibration = computed(() => interfaceDetectionStore.stashGridCalibration)
   const busy = ref(false)

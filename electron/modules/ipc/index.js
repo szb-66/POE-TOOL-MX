@@ -20,6 +20,7 @@ import { registerChaosRecipeHandlers } from './chaosRecipe.js'
 import { registerPriceCheckHandlers } from './priceCheck.js'
 import { registerPoeCnAccountHandlers } from './poeCnAccount.js'
 import { registerStashPickupHandlers } from './stashPickup.js'
+import { registerStashTabHandlers } from './stashTabs.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
@@ -30,6 +31,7 @@ export function registerIpcHandlers(dependencies) {
 
   registerWindowHandlers(window)
   registerPythonHandlers(python, window, fileWatcher)
+  registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window)
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })

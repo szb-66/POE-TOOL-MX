@@ -12,7 +12,7 @@ import {
 } from '../bag/orchestrator.js'
 import { createBagOverlaySnapshot } from '../bag/overlayState.js'
 import { savePngAtomically, assertBagTemplateTarget } from '../bag/templateCapture.js'
-import { expandSearchRegion } from '../window/coordinates.js'
+import { expandSearchRegion, getDisplayPhysicalBounds } from '../window/coordinates.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
 import { getBagOverlayDragBounds } from '../window/bagOverlay.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
@@ -84,14 +84,19 @@ function validateConfig(config) {
 }
 
 function currentDisplays() {
-  return screen.getAllDisplays().map((display) => ({
-    id: String(display.id),
-    scaleFactor: display.scaleFactor,
-    physicalSize: {
-      width: Math.round(display.bounds.width * display.scaleFactor),
-      height: Math.round(display.bounds.height * display.scaleFactor)
+  return screen.getAllDisplays().map((display) => {
+    const physicalBounds = getDisplayPhysicalBounds(
+      display,
+      process.platform,
+      (point) => screen.dipToScreenPoint(point)
+    )
+    return {
+      id: String(display.id),
+      scaleFactor: display.scaleFactor,
+      physicalSize: { width: physicalBounds.width, height: physicalBounds.height },
+      physicalBounds
     }
-  }))
+  })
 }
 
 function validateCaptureConfig(config) {

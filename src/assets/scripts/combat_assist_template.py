@@ -126,12 +126,33 @@ def key_to_virtual_code(name):
     raise ValueError(f"不支持的按键: {name}")
 
 
-def send_sequence(keys):
-    user32 = ctypes.windll.user32
+def send_sequence(keys, foreground_check=None, key_event_sender=None):
+    check_foreground = foreground_check or is_game_foreground
+    send_key_event = key_event_sender or ctypes.windll.user32.keybd_event
+    sent_count = 0
     for name in keys:
+        if not check_foreground():
+            break
         virtual_code = key_to_virtual_code(name)
-        user32.keybd_event(virtual_code, 0, 0, 0)
-        user32.keybd_event(virtual_code, 0, 0x0002, 0)
+        send_key_event(virtual_code, 0, 0, 0)
+        send_key_event(virtual_code, 0, 0x0002, 0)
+        sent_count += 1
+    return sent_count
+
+
+def click_point(point, foreground_check=None, cursor_setter=None, mouse_event_sender=None):
+    check_foreground = foreground_check or is_game_foreground
+    user32 = None if cursor_setter and mouse_event_sender else ctypes.windll.user32
+    set_cursor = cursor_setter or user32.SetCursorPos
+    send_mouse_event = mouse_event_sender or user32.mouse_event
+    if not check_foreground():
+        return False
+    set_cursor(int(point.get("x", 0)), int(point.get("y", 0)))
+    if not check_foreground():
+        return False
+    send_mouse_event(0x0002, 0, 0, 0, 0)
+    send_mouse_event(0x0004, 0, 0, 0, 0)
+    return True
 
 
 def stop_running(_signum=None, _frame=None):
@@ -188,13 +209,29 @@ def run_potion(config):
                     emit("protected", until=limiter.protected_until)
                 continue
 
-            send_sequence(resource.get("keys", []))
+            if not is_game_foreground():
+                if last_focus is not False:
+                    emit("focus", active=False)
+                    last_focus = False
+                break
+
+            keys = resource.get("keys", [])
+            sent_count = send_sequence(keys)
+            if sent_count < len(keys) and last_focus is not False:
+                emit("focus", active=False)
+                last_focus = False
+            if sent_count <= 0:
+                break
+
             last_trigger[name] = now_ms
-            emit("triggered", resource=name, value=value, color=color)
+            emit("triggered", resource=name, value=value, color=color, keysSent=sent_count)
+            if sent_count < len(keys):
+                break
 
         time.sleep(scan_interval / 1000)
 
     emit("stopped")
+    return 0
 
 
 def run_sample(config):
@@ -208,13 +245,17 @@ def run_portal(config):
         return 2
 
     portal = config.get("portal", config)
-    send_sequence([portal.get("openKey", "Numpad1")])
+    if send_sequence([portal.get("openKey", "Numpad1")]) != 1:
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        return 2
     time.sleep(max(0, int(portal.get("waitMs", 500))) / 1000)
+    if not is_game_foreground():
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        return 2
     point = portal.get("clickPoint", {})
-    user32 = ctypes.windll.user32
-    user32.SetCursorPos(int(point.get("x", 0)), int(point.get("y", 0)))
-    user32.mouse_event(0x0002, 0, 0, 0, 0)
-    user32.mouse_event(0x0004, 0, 0, 0, 0)
+    if not click_point(point):
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        return 2
     print(json.dumps({"success": True}, ensure_ascii=False), flush=True)
     return 0
 

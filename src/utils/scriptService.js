@@ -25,6 +25,7 @@ import {
   toggleChaosRecipePicking
 } from './chaosRecipeService.js'
 import { usePriceCheckStore } from '../stores/priceCheck'
+import { validateStashTabSelection } from './stashTabSelection.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -150,6 +151,12 @@ export async function startCrafting() {
     return
   }
 
+  const stashValidation = validateStashTabSelection(settingsStore.stashTabSelection)
+  if (!stashValidation.valid) {
+    ElMessage.error(stashValidation.error)
+    return
+  }
+
   try {
     await refreshDpiForAutomation(settingsStore)
     // 获取文件路径
@@ -162,6 +169,7 @@ export async function startCrafting() {
       operationDelayMs: settingsStore.operationDelayMs,
       itemPosition: settingsStore.itemPosition,
       dpiScale: settingsStore.dpiScale,
+      stashTabSelection: stashValidation.config,
       preset: currentPreset,
       filePaths
     })
@@ -173,7 +181,8 @@ export async function startCrafting() {
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
       preset: plainPreset,
-      mode: 'items'
+      mode: 'items',
+      requiresStashTabOcr: stashValidation.config.enabled
     })
 
     if (isSuccessfulScriptStart(result)) {
@@ -224,6 +233,12 @@ export async function startMapRolling() {
     return
   }
 
+  const stashValidation = validateStashTabSelection(settingsStore.stashTabSelection)
+  if (!stashValidation.valid) {
+    ElMessage.error(stashValidation.error)
+    return
+  }
+
   try {
     await refreshDpiForAutomation(settingsStore)
     // 获取文件路径
@@ -237,6 +252,7 @@ export async function startMapRolling() {
       operationDelayMs: settingsStore.operationDelayMs,
       mapConfig: mapConfig,
       dpiScale: settingsStore.dpiScale,
+      stashTabSelection: stashValidation.config,
       filePaths
     })
 
@@ -247,7 +263,8 @@ export async function startMapRolling() {
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
       preset: plainPreset,
-      mode: 'map'
+      mode: 'map',
+      requiresStashTabOcr: stashValidation.config.enabled
     })
 
     if (isSuccessfulScriptStart(result)) {

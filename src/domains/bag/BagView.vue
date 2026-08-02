@@ -241,6 +241,18 @@
           </div>
           <div v-if="bagStore.moduleEnabled" class="hint-text">请先关闭模块再修改黑名单，重新启用后新规则生效。</div>
           <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
+            <el-table-column label="生效" width="90">
+              <template #default="scope">
+                <el-switch
+                  :model-value="scope.row.enabled"
+                  :disabled="bagStore.moduleEnabled"
+                  inline-prompt
+                  active-text="开"
+                  inactive-text="关"
+                  @change="toggleBlacklistRule(scope.$index, $event)"
+                />
+              </template>
+            </el-table-column>
             <el-table-column label="匹配字段" width="160">
               <template #default="scope">{{ BAG_BLACKLIST_FIELD_LABELS[scope.row.field] }}</template>
             </el-table-column>
@@ -372,9 +384,17 @@ function addBlacklistRule() {
   bagStore.setBlacklist([...bagStore.blacklist, {
     field: draftRule.value.field,
     keyword,
-    matchMode: draftRule.value.matchMode
+    matchMode: draftRule.value.matchMode,
+    enabled: true
   }])
   draftRule.value.keyword = ''
+}
+
+function toggleBlacklistRule(index, enabled) {
+  if (bagStore.moduleEnabled) return ElMessage.info('请先关闭模块再修改黑名单')
+  bagStore.setBlacklist(bagStore.blacklist.map((rule, ruleIndex) => (
+    ruleIndex === index ? { ...rule, enabled: Boolean(enabled) } : rule
+  )))
 }
 
 function removeBlacklistRule(index) {

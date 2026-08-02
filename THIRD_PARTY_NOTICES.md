@@ -16,6 +16,15 @@ Windows 安装包包含以下运行时组件：
 | pynput | 1.8.2 | LGPL-3.0-or-later | 输入设备控制 |
 | Pyperclip | 1.11.0 | BSD-3-Clause | 剪贴板访问 |
 | six | 1.17.0 | MIT | pynput 的兼容性依赖 |
+| RapidOCR | 3.9.1 | Apache-2.0 | 仓库页中文文字离线识别与模型 |
+| ONNX Runtime | 1.27.0 | MIT | RapidOCR 模型离线推理 |
+| pyclipper | 1.4.0 | MIT | OCR 文本框几何处理 |
+| Shapely | 2.1.2 | BSD-3-Clause | OCR 几何处理 |
+| Pillow | 12.3.0 | MIT-CMU | OCR 图像输入 |
+| PyYAML / OmegaConf | 6.0.3 / 2.0.0 | MIT / BSD-3-Clause | OCR 配置读取 |
+| Requests 及其传递依赖 | 2.34.2 | Apache-2.0 等 | RapidOCR 运行依赖；选择器运行时不访问网络 |
+| colorlog / colorama / tqdm | 6.12.0 / 0.4.6 / 4.70.0 | MIT / BSD-3-Clause / MPL-2.0 与 MIT | OCR 日志与进度依赖 |
+| flatbuffers / protobuf / packaging | 25.12.19 / 7.35.1 / 26.2 | Apache-2.0 / BSD-3-Clause / Apache-2.0 或 BSD-2-Clause | ONNX Runtime 传递依赖 |
 
 CPython 的 `LICENSE.txt` 和各 wheel 的 `*.dist-info` 元数据、许可证文件保留在安装包的
 `resources/python-runtime` 中。上述项目的版权归各自作者和贡献者所有。

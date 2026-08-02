@@ -24,6 +24,7 @@ keyboard = types.SimpleNamespace(GlobalHotKeys=lambda mapping: types.SimpleNames
 pyperclip = types.SimpleNamespace(paste=lambda: "")
 time = types.SimpleNamespace(sleep=lambda value: None)
 def focus_game_window(): events.append("focus"); return ${focusResult ? 'True' : 'False'}
+def select_currency_stash_tab(mode): events.append("stash"); return True
 def preflight_required_currencies(): events.append("preflight"); return True
 def move_mouse(x, y): events.append("move"); return True
 def get_slot_position(col, row): return col, row
@@ -50,7 +51,7 @@ print(json.dumps(events))
 
 test('地图洗练从应用启动时先保障游戏前台，再执行鼠标与复制操作', () => {
   const result = runMapStart(true)
-  assert.deepEqual(result.events, ['focus', 'preflight', 'move', 'copy'])
+  assert.deepEqual(result.events, ['focus', 'stash', 'preflight', 'move', 'copy'])
 })
 
 test('地图洗练使用 Win32 查找、恢复、激活并验证中英文游戏窗口', () => {

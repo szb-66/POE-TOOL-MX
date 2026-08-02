@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""国服混沌配方取件：逐件验证前台、界面和剪贴板身份后 Ctrl+点击。"""
+"""国服商城配方取件：按计划坐标复制、Ctrl+点击并比较原位复制文本。"""
 
 import argparse
 import ctypes
-import io
 import json
 import math
-import os
-import re
 import signal
 import sys
 import time
@@ -35,19 +32,17 @@ except Exception:
     pass
 
 try:
-    import cv2
-    import mss
-    import numpy as np
     import pyperclip
     from pynput import keyboard, mouse
     from pynput.keyboard import Key
     from pynput.mouse import Button
     DEPENDENCY_ERROR = ""
 except ImportError as exc:
-    cv2 = mss = np = pyperclip = keyboard = mouse = Key = Button = None
+    pyperclip = keyboard = mouse = Key = Button = None
     DEPENDENCY_ERROR = str(exc)
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+TRANSFER_ATTEMPTS = 2
 RUNNING = True
 CONTROLLER = None
 
@@ -146,63 +141,6 @@ def focus_game_window(timeout_seconds=2.0):
     return False
 
 
-def clipboard_sequence():
-    try:
-        return int(ctypes.windll.user32.GetClipboardSequenceNumber())
-    except Exception:
-        return None
-
-
-def load_gray(path):
-    try:
-        encoded = np.fromfile(path, dtype=np.uint8)
-        return cv2.imdecode(encoded, cv2.IMREAD_GRAYSCALE) if encoded.size else None
-    except Exception:
-        return None
-
-
-class InterfaceMatcher:
-    def __init__(self, config):
-        self.threshold = float(config.get("match_threshold", 0.8))
-        raw = config.get("templates", {})
-        self.regions = {
-            "stash": raw.get("stashRegion") or raw.get("stash_region") or {},
-            "inventory": raw.get("inventoryRegion") or raw.get("inventory_region") or {}
-        }
-        paths = {
-            "stash": raw.get("stashTitle") or raw.get("stash_title") or "",
-            "inventory": raw.get("inventoryTitle") or raw.get("inventory_title") or ""
-        }
-        self.templates = {key: load_gray(value) for key, value in paths.items() if value and os.path.exists(value)}
-
-    @property
-    def valid(self):
-        return all(key in self.templates and self.templates[key] is not None for key in ("stash", "inventory"))
-
-    def match_one(self, key):
-        region = self.regions[key]
-        width = int(region.get("right", 0)) - int(region.get("left", 0))
-        height = int(region.get("bottom", 0)) - int(region.get("top", 0))
-        if width <= 0 or height <= 0:
-            return False
-        with mss.mss() as screen:
-            shot = screen.grab({
-                "left": int(region.get("left", 0)),
-                "top": int(region.get("top", 0)),
-                "width": width,
-                "height": height
-            })
-        image = cv2.cvtColor(np.array(shot), cv2.COLOR_BGRA2GRAY)
-        template = self.templates[key]
-        if template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
-            return False
-        score = float(cv2.minMaxLoc(cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED))[1])
-        return score >= self.threshold
-
-    def ready(self):
-        return self.valid and self.match_one("stash") and self.match_one("inventory")
-
-
 class InputController:
     def __init__(self, delay_ms):
         try:
@@ -236,18 +174,21 @@ class InputController:
         return True
 
     def copy_item(self):
-        before_seq = clipboard_sequence()
-        before_text = str(pyperclip.paste() or "")
+        try:
+            pyperclip.copy("")
+        except Exception:
+            return ""
         self.keyboard.press(Key.ctrl)
         self.keyboard.press("c")
         self.keyboard.release("c")
         self.keyboard.release(Key.ctrl)
-        deadline = time.monotonic() + max(0.15, self.delay * 2)
+        deadline = time.monotonic() + max(0.25, self.delay * 4)
         while RUNNING and time.monotonic() < deadline:
-            current_seq = clipboard_sequence()
-            text = str(pyperclip.paste() or "")
-            changed = current_seq != before_seq if current_seq is not None and before_seq is not None else text != before_text
-            if changed and text.strip():
+            try:
+                text = str(pyperclip.paste() or "").strip()
+            except Exception:
+                return ""
+            if text:
                 return text
             time.sleep(0.01)
         return ""
@@ -260,65 +201,22 @@ class InputController:
         time.sleep(self.delay)
 
 
-def parse_item(text):
-    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
-    rarity = ""
-    item_level = None
-    header = []
-    rarity_index = -1
-    sockets = ""
-    for index, line in enumerate(lines):
-        compact = line.replace(" ", "")
-        if compact.startswith("稀有度:") or line.startswith("Rarity:"):
-            rarity = line.split(":", 1)[1].strip()
-            rarity_index = index
-        if compact.startswith("物品等级:") or line.startswith("Item Level:"):
-            try:
-                item_level = int(line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-        if compact.startswith("插槽:") or line.startswith("Sockets:"):
-            value = line.split(":", 1)[1].upper()
-            sockets = " ".join(re.findall(r"[RGBW](?:-[RGBW])*", value))
-    if rarity_index >= 0:
-        for line in lines[rarity_index + 1:]:
-            if line == "--------":
-                break
-            if ":" not in line:
-                header.append(line)
-    return {"rarity": rarity, "itemLevel": item_level, "header": header, "socketSignature": sockets}
-
-
-def matches(item, expected):
-    verification_kind = str(expected.get("verificationKind", "set")).casefold()
-    if verification_kind == "set":
-        rarity = str(item.get("rarity", "")).replace(" ", "").casefold()
-        if rarity not in ("稀有", "rare"):
-            return False, "目标位置不是稀有物品"
-        if item.get("itemLevel") != int(expected.get("itemLevel", -1)):
-            return False, "物品等级与仓库快照不一致"
-    expected_names = {
-        str(expected.get("baseType", "")).strip().casefold(),
-        str(expected.get("typeLine", "")).strip().casefold(),
-        str(expected.get("name", "")).strip().casefold()
-    }
-    expected_names.discard("")
-    actual_names = {value.casefold() for value in item.get("header", [])}
-    if expected_names and not expected_names.intersection(actual_names):
-        return False, "物品名称或基底与仓库快照不一致"
-    if verification_kind == "socket":
-        expected_sockets = str(expected.get("socketSignature", "")).strip().upper()
-        if not expected_sockets or item.get("socketSignature") != expected_sockets:
-            return False, "插槽结构与仓库快照不一致"
-    return True, ""
+def transfer_item(controller):
+    before = controller.copy_item()
+    if not before:
+        return False, ("ITEM_MISMATCH", "目标位置没有可复制的物品")
+    for _attempt in range(TRANSFER_ATTEMPTS):
+        if not RUNNING:
+            return False, ("USER_STOPPED", "用户停止")
+        controller.ctrl_click()
+        after = controller.copy_item()
+        if after != before:
+            return True, None
+    return False, ("INVENTORY_FULL", "背包空间不足，请清空背包后继续")
 
 
 def run(config):
     global CONTROLLER
-    matcher = InterfaceMatcher(config)
-    if not matcher.valid:
-        emit("error", code="INTERFACE_LOST", reason="仓库或背包界面模板不可用")
-        return 2
     CONTROLLER = InputController(config.get("operation_delay_ms", 80))
     try:
         if not focus_game_window():
@@ -326,27 +224,16 @@ def run(config):
             return 1
         for index, expected in enumerate(config.get("items", [])):
             if not RUNNING:
-                emit("aborted", code="USER_STOPPED", reason="用户停止")
-                return 1
-            if not is_game_foreground():
-                emit("aborted", code="GAME_NOT_FOREGROUND", reason="游戏窗口不在前台")
-                return 1
-            if not matcher.ready():
-                emit("aborted", code="INTERFACE_LOST", reason="仓库或背包界面已离开")
+                emit("aborted", code="USER_STOPPED", reason="用户停止", index=index)
                 return 1
             screen = expected.get("screen", {})
             if not CONTROLLER.move(screen.get("clickX", 0), screen.get("clickY", 0)):
-                emit("aborted", code="ITEM_MISMATCH", reason="无法移动到目标物品")
+                emit("aborted", code="ITEM_MISMATCH", reason="无法移动到目标物品", index=index)
                 return 1
-            text = CONTROLLER.copy_item()
-            if not text:
-                emit("aborted", code="ITEM_MISMATCH", reason="目标位置未返回物品文本")
-                return 1
-            valid, reason = matches(parse_item(text), expected)
-            if not valid:
-                emit("aborted", code="ITEM_MISMATCH", reason=reason, index=index)
-                return 1
-            CONTROLLER.ctrl_click()
+            transferred, error = transfer_item(CONTROLLER)
+            if not transferred:
+                emit("aborted", code=error[0], reason=error[1], index=index)
+                return 2 if error[0] == "INVENTORY_FULL" else 1
             emit("item-picked", index=index, itemId=expected.get("id"), setId=expected.get("setId"))
         emit("completed")
         return 0

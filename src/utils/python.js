@@ -67,6 +67,7 @@ export function generatePythonScript(config) {
     itemPosition,
     preset,
     filePaths,
+    stashTabSelection = { enabled: false },
     dpiScale = 1.0 // 默认DPI缩放比例
   } = config
 
@@ -798,6 +799,7 @@ def craft_colors(target_red, target_green, target_blue):
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
@@ -831,6 +833,7 @@ export function generateMapRollingScript(config) {
     operationDelayMs,
     mapConfig,
     filePaths,
+    stashTabSelection = { enabled: false },
     dpiScale = 1.0
   } = config
 
@@ -908,6 +911,7 @@ export function generateMapRollingScript(config) {
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),

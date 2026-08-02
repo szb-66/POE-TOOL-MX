@@ -8,6 +8,7 @@ import {
   clampRectangle,
   dipRectangleToPhysical,
   expandSearchRegion,
+  getDisplayPhysicalBounds,
   hasUsefulPixelVariance,
   isRegionLargeEnough,
   normalizeRectangle,
@@ -34,6 +35,11 @@ test('混合 DPI 换算只使用选区窗口所在显示器并保留负物理坐
     (point) => ({ x: Math.round(point.x * 1.5), y: Math.round(point.y * 1.5) })
   )
   assert.deepEqual(converted, { left: -1905, top: 180, right: -1755, bottom: 255 })
+  assert.deepEqual(getDisplayPhysicalBounds({
+    bounds: { x: -1280, y: 0, width: 1280, height: 720 }, scaleFactor: 1.5
+  }, 'win32', (point) => ({ x: Math.round(point.x * 1.5), y: Math.round(point.y * 1.5) })), {
+    x: -1920, y: 0, width: 1920, height: 1080
+  })
 })
 
 test('搜索区域四周扩展 12 物理像素并裁剪到显示器边界', () => {
@@ -103,6 +109,69 @@ test('当前采集元数据可校验环境变化与区域尺寸，手动模板�
   assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', { left: 0, top: 0, right: 200, bottom: 100 }, metadata, [
     { id: '2', scaleFactor: 1.25, physicalSize: { width: 1920, height: 1080 } }
   ]).error, /显示环境已变化/)
+})
+
+test('显示器 id 在重启后变化时通过物理环境与采集区域恢复匹配', () => {
+  const metadata = {
+    displayId: 'old-id', scaleFactor: 1.5,
+    displayPhysicalSize: { width: 1920, height: 1080 },
+    templateSize: { width: 120, height: 30 },
+    selectedRegion: { left: -500, top: 20, right: -380, bottom: 50 },
+    capturedAt: '2026-07-21T00:00:00.000Z'
+  }
+  const region = { left: -512, top: 8, right: -368, bottom: 62 }
+  const displays = [{
+    id: 'new-id', scaleFactor: 1.5,
+    physicalSize: { width: 1920, height: 1080 },
+    physicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+  }]
+
+  assert.deepEqual(validateTemplateCaptureEnvironment('仓库标题', 's.png', region, metadata, displays), {
+    error: '', warning: ''
+  })
+})
+
+test('显示器 id 交换后选择参数兼容且包含原采集区域的显示器', () => {
+  const metadata = {
+    displayId: '2', scaleFactor: 1.5,
+    displayPhysicalSize: { width: 1920, height: 1080 },
+    templateSize: { width: 120, height: 30 },
+    selectedRegion: { left: -500, top: 20, right: -380, bottom: 50 },
+    capturedAt: '2026-07-21T00:00:00.000Z'
+  }
+  const displays = [
+    {
+      id: '2', scaleFactor: 1.5,
+      physicalSize: { width: 1920, height: 1080 },
+      physicalBounds: { x: 0, y: 0, width: 1920, height: 1080 }
+    },
+    {
+      id: '3', scaleFactor: 1.5,
+      physicalSize: { width: 1920, height: 1080 },
+      physicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+    }
+  ]
+
+  assert.equal(validateTemplateCaptureEnvironment(
+    '仓库标题', 's.png', { left: -512, top: 8, right: -368, bottom: 62 }, metadata, displays
+  ).error, '')
+})
+
+test('多个兼容显示器无法由采集区域唯一确定时拒绝启动', () => {
+  const metadata = {
+    displayId: 'old-id', scaleFactor: 1,
+    displayPhysicalSize: { width: 1920, height: 1080 },
+    templateSize: { width: 120, height: 30 },
+    selectedRegion: { left: 100, top: 20, right: 220, bottom: 50 },
+    capturedAt: '2026-07-21T00:00:00.000Z'
+  }
+  const compatible = { scaleFactor: 1, physicalSize: { width: 1920, height: 1080 } }
+  const result = validateTemplateCaptureEnvironment(
+    '仓库标题', 's.png', { left: 88, top: 8, right: 232, bottom: 62 }, metadata,
+    [{ id: '3', ...compatible }, { id: '4', ...compatible }]
+  )
+
+  assert.match(result.error, /采集显示器已不存在/)
 })
 
 test('point/region 共用互斥会话并对关闭、取消、加载失败统一单次结算', () => {

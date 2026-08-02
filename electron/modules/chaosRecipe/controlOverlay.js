@@ -131,8 +131,11 @@ export class ChaosRecipeControlOverlay {
     if (!running && !paused && actionReason) {
       actionLabel = availableCount && !calibrated ? '需要校准' : (snapshot ? '无法取件' : '先刷新仓库')
     }
+    const inventoryFull = paused && automation.code === 'INVENTORY_FULL'
     const statusMessage = running
       ? `正在取件：${automation.completedItems || 0}/${automation.totalItems || 0}`
+      : inventoryFull
+        ? '背包空间不足，请清空背包后继续'
       : paused && automation.tabName
         ? `请切换到“${automation.tabName}”后继续`
         : refreshReason || (snapshot
@@ -179,8 +182,10 @@ export class ChaosRecipeControlOverlay {
               : '仓库自动取件已就绪')
         : statusMessage,
       automation,
-      message: automation.status === 'paused' && automation.tabName
-        ? `请切换到“${automation.tabName}”`
+      message: inventoryFull
+        ? '背包空间不足，请清空背包后继续'
+        : automation.status === 'paused' && automation.tabName
+          ? `请切换到“${automation.tabName}”`
         : '',
       offset: normalizeControlOffset(this.runtime.controlOverlayOffset)
     }

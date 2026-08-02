@@ -12,7 +12,52 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
-import { parseScriptEventLine } from '../python/scriptEvents.js'
+import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEvents.js'
+import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
+
+async function prepareCraftingOverlay(window, getOverlayWindow) {
+  let overlayWindow = getOverlayWindow()
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    overlayWindow = window.createOverlayWindow()
+  }
+  if (!overlayWindow || overlayWindow.isDestroyed()) {
+    throw new Error('无法创建制作浮层')
+  }
+
+  const contents = overlayWindow.webContents
+  const loading = typeof contents.isLoadingMainFrame === 'function'
+    ? contents.isLoadingMainFrame()
+    : contents.isLoading()
+  if (loading) {
+    await new Promise((resolve, reject) => {
+      const cleanup = () => {
+        clearTimeout(timer)
+        contents.removeListener('did-finish-load', handleLoaded)
+        contents.removeListener('did-fail-load', handleFailed)
+        contents.removeListener('destroyed', handleDestroyed)
+      }
+      const finish = (error) => {
+        cleanup()
+        if (error) reject(error)
+        else resolve()
+      }
+      const handleLoaded = () => finish()
+      const handleFailed = (_event, _code, description, _url, isMainFrame) => {
+        if (isMainFrame === false) return
+        finish(new Error(`制作浮层加载失败: ${description || '未知错误'}`))
+      }
+      const handleDestroyed = () => finish(new Error('制作浮层在加载期间被关闭'))
+      const timer = setTimeout(() => finish(new Error('制作浮层加载超时')), 15000)
+      contents.once('did-finish-load', handleLoaded)
+      contents.on('did-fail-load', handleFailed)
+      contents.once('destroyed', handleDestroyed)
+    })
+  }
+
+  if (overlayWindow.isDestroyed()) throw new Error('制作浮层已关闭')
+  overlayWindow.webContents.send('update-overlay', { reset: true })
+  return overlayWindow
+}
 
 export function registerPythonHandlers(python, window, fileWatcher) {
   const {
@@ -276,30 +321,42 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       const scriptPath = config.scriptPath || path.join(filePaths.tempDir, 'crafting.py')
 
       // 制作脚本同时依赖 pynput 与 pyperclip，不能回退到仅能执行 Python 的解释器。
-      const pythonPath = resolveCraftingPython(python)
+      const requireStashTabOcr = Boolean(config?.requiresStashTabOcr)
+      const pythonPath = resolveCraftingPython(python, requireStashTabOcr)
       if (!pythonPath) {
-        return { success: false, error: '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
+        return { success: false, error: requireStashTabOcr
+          ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
+          : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
       }
 
       // 保存脚本到文件
       fs.writeFileSync(scriptPath, scriptContent, 'utf8')
+      if (requireStashTabOcr) {
+        fs.copyFileSync(resolveStashTabSelectorPath(), path.join(path.dirname(scriptPath), 'stash_tab_selector.py'))
+      }
 
       // 启动文件监听
       if (config.preset) {
         fileWatcher.startFileWatcher(config.preset)
       }
 
-      const launch = createPythonProcess({ pythonPath, scriptPath })
-      const pythonProcess = launch.process
+      // 浮层必须先完成加载，否则启动阶段的结构化失败事件会在监听器挂载前丢失。
+      await prepareCraftingOverlay(window, getOverlayWindow)
 
-      setCurrentScriptProcess(pythonProcess, mode)
-
-      // 捕获标准输出
       let stdout = ''
       let stderr = ''
       let stdoutLineBuffer = ''
       let runtimeError = ''
-      
+      const launch = createPythonProcess({ pythonPath, scriptPath })
+      const pythonProcess = launch.process
+      const startupPromise = waitForScriptStartup(pythonProcess, {
+        getFailureReason: (code) => runtimeError || stderr.trim() ||
+          `制作进程在启动完成前已退出（退出码 ${code ?? '未知'}）`
+      })
+
+      setCurrentScriptProcess(pythonProcess, mode)
+
+      // 捕获标准输出
       // 确保输出事件在进程创建后立即绑定
       pythonProcess.stdout.on('data', (data) => {
         const output = data.toString('utf8')
@@ -309,8 +366,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         stdoutLineBuffer = completeLines.pop() || ''
         for (const line of completeLines) {
           const scriptEvent = parseScriptEventLine(line)
-          if (scriptEvent?.event !== 'currency-preflight-failed') continue
-          runtimeError = scriptEvent.reason || '通货启动预检失败'
+          if (!['crafting-startup-failed', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(scriptEvent?.event)) continue
+          runtimeError = scriptEvent.reason || (scriptEvent.event === 'stash-tab-selection-failed'
+            ? '仓库页自动选择失败'
+            : scriptEvent.event === 'currency-preflight-failed'
+              ? '通货启动预检失败'
+              : '制作脚本启动失败')
           sendScriptStatus({
             status: 'error',
             mode,
@@ -472,11 +533,35 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       })
 
       try {
-        await launch.started
+        await Promise.all([launch.started, startupPromise])
       } catch (error) {
-        if (getCurrentScriptProcess() === pythonProcess) clearCurrentScriptProcess()
+        const startupError = error?.message || '制作脚本启动失败'
+        if (getCurrentScriptProcess() === pythonProcess) {
+          intentionallyStopped.add(pythonProcess)
+          try {
+            await killPythonProcessTree(pythonProcess.pid)
+          } catch {
+            try { pythonProcess.kill('SIGKILL') } catch {}
+          }
+          clearCurrentScriptProcess()
+        }
         fileWatcher.stopFileWatcher()
-        return { success: false, error: `Python进程启动失败: ${error.message}` }
+        sendScriptStatus({
+          status: 'error',
+          mode,
+          processId: pythonProcess.pid ?? null,
+          exitCode: pythonProcess.exitCode ?? null,
+          error: startupError
+        })
+        const failedOverlayWindow = getOverlayWindow()
+        if (failedOverlayWindow && !failedOverlayWindow.isDestroyed()) {
+          failedOverlayWindow.webContents.send('script-stopped', {
+            code: pythonProcess.exitCode ?? null,
+            error: startupError,
+            mapStats: null
+          })
+        }
+        return { success: false, error: startupError }
       }
 
       sendScriptStatus({
@@ -485,16 +570,6 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         processId: pythonProcess.pid,
         exitCode: null
       })
-
-      // 进程已由操作系统确认创建后，再显示覆盖层并向 renderer 报告成功。
-      let currentOverlayWindow = getOverlayWindow()
-      if (!currentOverlayWindow) {
-        currentOverlayWindow = window.createOverlayWindow()
-      }
-
-      if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
-        currentOverlayWindow.webContents.send('update-overlay', { reset: true })
-      }
 
       return { success: true, processId: pythonProcess.pid, mode }
     } catch (error) {

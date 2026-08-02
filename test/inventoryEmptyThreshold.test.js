@@ -29,6 +29,7 @@ statuses = iter(${JSON.stringify(statuses).replaceAll('true', 'True').replaceAll
 moves = []
 def move_mouse(x, y): moves.append([x, y]); return True
 def focus_game_window(): return True
+def select_currency_stash_tab(mode): return True
 def preflight_required_currencies(): return True
 def get_slot_position(col, row): return col, row
 def read_clipboard_to_file(): return next(statuses)

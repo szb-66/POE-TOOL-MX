@@ -3,7 +3,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { createPinia, setActivePinia } from 'pinia'
 import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '../src/utils/combatConfig.js'
+import { useCombatStore } from '../src/stores/combat.js'
 
 const scriptUrl = new URL('../src/assets/scripts/combat_assist_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
@@ -81,8 +83,192 @@ test('战斗辅助脚本在发送药剂和回城输入前检查游戏前台状�
   assert.match(source, /gdi32\.GetPixel/)
   assert.match(source, /user32\.keybd_event/)
   assert.match(source, /if not focused:/)
+  assert.match(source, /if not focused:\s*\r?\n\s*time\.sleep\(scan_interval \/ 1000\)\s*\r?\n\s*continue/)
   assert.match(source, /if not is_game_foreground\(\):[\s\S]*游戏窗口当前不在前台/)
-  assert.ok(source.indexOf('send_sequence([portal.get(') < source.indexOf('user32.mouse_event(0x0002'))
+  assert.ok(source.indexOf('send_sequence([portal.get(') < source.indexOf('click_point(point)'))
+})
+
+test('战斗辅助失焦时暂停检测和输入，回到游戏后自动继续', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+events = []
+reads = []
+sends = []
+trace = []
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+focus = iter([False, True, True])
+def foreground():
+    value = next(focus)
+    trace.append("focus:" + str(value).lower())
+    return value
+def read(point):
+    trace.append("read")
+    reads.append(point)
+    return {"r": 0, "g": 0, "b": 0}
+def send(keys):
+    trace.append("send")
+    sends.append(keys)
+    return len(keys)
+def sleep(_delay):
+    trace.append("sleep")
+    if trace.count("sleep") >= 2:
+        module.running = False
+module.is_game_foreground = foreground
+module.read_pixel = read
+module.send_sequence = send
+module.time.sleep = sleep
+
+result = module.run_potion({"potion": {
+  "scanIntervalMs": 10,
+  "health": {"enabled": True, "threshold": 255, "keys": ["1"], "recoveryMode": "instant"},
+  "mana": {"enabled": False}
+}})
+print(json.dumps({"result": result, "events": events, "reads": reads, "sends": sends, "trace": trace}, ensure_ascii=False))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const values = JSON.parse(result.stdout)
+  assert.equal(values.result, 0)
+  assert.deepEqual(values.trace.slice(0, 3), ['focus:false', 'sleep', 'focus:true'])
+  assert.equal(values.reads.length, 1)
+  assert.deepEqual(values.sends, [['1']])
+  assert.equal(values.events.at(-1).event, 'stopped')
+  assert.equal(values.events.some(event => event.code === 'GAME_NOT_FOREGROUND'), false)
+})
+
+test('战斗辅助在像素读取后失焦时不发送本轮药剂按键', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+events = []
+sends = []
+focus = iter([True, False])
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+module.is_game_foreground = lambda: next(focus)
+module.read_pixel = lambda _point: {"r": 0, "g": 0, "b": 0}
+module.send_sequence = lambda keys: sends.append(keys) or len(keys)
+module.time.sleep = lambda _delay: setattr(module, "running", False)
+
+result = module.run_potion({"potion": {
+  "scanIntervalMs": 10,
+  "health": {"enabled": True, "threshold": 255, "keys": ["1", "2"], "recoveryMode": "instant"},
+  "mana": {"enabled": False}
+}})
+print(json.dumps({"result": result, "events": events, "sends": sends}, ensure_ascii=False))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const values = JSON.parse(result.stdout)
+  assert.equal(values.result, 0)
+  assert.deepEqual(values.sends, [])
+  assert.deepEqual(values.events.filter(event => event.event === 'focus').map(event => event.active), [true, false])
+})
+
+test('受保护按键序列在中途失焦后停止并配对释放当前键', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+focus = iter([True, False])
+events = []
+sent = module.send_sequence(
+  ["Enter", "Esc"],
+  foreground_check=lambda: next(focus),
+  key_event_sender=lambda virtual_code, scan_code, flags, extra: events.append([virtual_code, flags])
+)
+print(json.dumps({"sent": sent, "events": events}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    sent: 1,
+    events: [[0x0D, 0], [0x0D, 0x0002]]
+  })
+})
+
+test('回城等待期间失焦时不移动或点击鼠标', () => {
+  const code = `
+import contextlib, importlib.util, io, json, types, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+focus = iter([True, False])
+inputs = []
+class User32:
+    def SetCursorPos(self, x, y): inputs.append(["move", x, y])
+    def mouse_event(self, flags, *_args): inputs.append(["mouse", flags])
+module.ctypes = types.SimpleNamespace(windll=types.SimpleNamespace(user32=User32()))
+module.is_game_foreground = lambda: next(focus)
+module.send_sequence = lambda keys: inputs.append(["keys", keys]) or len(keys)
+module.time.sleep = lambda _delay: None
+output = io.StringIO()
+with contextlib.redirect_stdout(output):
+    result = module.run_portal({"portal": {"openKey": "Numpad1", "waitMs": 10, "clickPoint": {"x": 20, "y": 30}}})
+print(json.dumps({"result": result, "inputs": inputs, "output": output.getvalue().strip()}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const values = JSON.parse(result.stdout)
+  assert.equal(values.result, 2)
+  assert.deepEqual(values.inputs, [['keys', ['Numpad1']]])
+  assert.match(JSON.parse(values.output).error, /游戏窗口当前不在前台/)
+})
+
+test('鼠标移动后失焦时不再按下鼠标', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+focus = iter([True, False])
+events = []
+clicked = module.click_point(
+  {"x": 20, "y": 30},
+  foreground_check=lambda: next(focus),
+  cursor_setter=lambda x, y: events.append(["move", x, y]),
+  mouse_event_sender=lambda flags, *_args: events.append(["mouse", flags])
+)
+print(json.dumps({"clicked": clicked, "events": events}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    clicked: false,
+    events: [['move', 20, 30]]
+  })
+})
+
+test('Store 在失焦期间保持运行，并在回焦后恢复前台状态', () => {
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  assert.match(ipcSource, /running: true, \.\.\.JSON\.parse/)
+
+  setActivePinia(createPinia())
+  const store = useCombatStore()
+  store.applyStatus({ running: true, event: 'started', processId: 42 })
+  store.applyStatus({ running: true, event: 'focus', active: false })
+  assert.equal(store.running, true)
+  assert.equal(store.focused, false)
+  assert.equal(store.processId, 42)
+  assert.equal(store.lastError, '')
+  store.applyStatus({ running: true, event: 'focus', active: true })
+  assert.equal(store.running, true)
+  assert.equal(store.focused, true)
 })
 
 test('战斗辅助使用独立进程句柄并注册退出清理', () => {
@@ -104,14 +290,15 @@ test('所有使用物理屏幕坐标的 Python 脚本在移动鼠标前启用 DP
   ]
   for (const template of templates) {
     const source = readFileSync(template, 'utf8')
-    const invocation = '\nenable_per_monitor_dpi_awareness()\n'
-    const hasDpiInvocation = source.includes(invocation)
+    const invocation = /(?:^|\r?\n)enable_per_monitor_dpi_awareness\(\)\r?\n/
+    const invocationIndex = source.search(invocation)
+    const hasDpiInvocation = invocationIndex >= 0
     const hasDpiPlaceholder = source.includes('{{DPI_AWARENESS}}')
     assert.ok(hasDpiInvocation || hasDpiPlaceholder,
       `${template.pathname} 缺少 DPI 感知调用 (需包含直接调用或 {{DPI_AWARENESS}} 占位符)`)
     if (hasDpiInvocation) {
       assert.ok(
-        source.indexOf(invocation) < source.indexOf('SetCursorPos'),
+        invocationIndex < source.indexOf('SetCursorPos'),
         `${template.pathname} 在鼠标 API 初始化后才设置 DPI 感知`
       )
     }

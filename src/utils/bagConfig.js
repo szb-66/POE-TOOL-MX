@@ -34,7 +34,8 @@ export function normalizeBagBlacklist(rules = []) {
     .map((rule) => ({
       field: String(rule?.field || ''),
       keyword: String(rule?.keyword || '').trim(),
-      matchMode: BAG_BLACKLIST_MATCH_MODES.includes(rule?.matchMode) ? rule.matchMode : 'contains'
+      matchMode: BAG_BLACKLIST_MATCH_MODES.includes(rule?.matchMode) ? rule.matchMode : 'contains',
+      enabled: rule?.enabled !== false
     }))
     .filter((rule) => BAG_BLACKLIST_FIELDS.includes(rule.field) && rule.keyword.length > 0)
 }
@@ -165,6 +166,7 @@ export function parseBagItemHeader(clipboardText) {
 export function findBagBlacklistMatch(item, rules = []) {
   if (!item) return null
   for (const rule of normalizeBagBlacklist(rules)) {
+    if (!rule.enabled) continue
     const value = String(item[rule.field] || '').trim().toLocaleLowerCase()
     const keyword = rule.keyword.toLocaleLowerCase()
     if (value && (rule.matchMode === 'exact' ? value === keyword : value.includes(keyword))) return rule
@@ -213,15 +215,50 @@ export function captureKeyForTemplate(type) {
   throw new Error('不支持的模板目标')
 }
 
+function displayPhysicalSize(display) {
+  return display?.physicalSize || display?.displayPhysicalSize
+}
+
+function hasCompatibleDisplayParameters(display, metadata) {
+  const physicalSize = displayPhysicalSize(display)
+  return Number(display?.scaleFactor) === Number(metadata.scaleFactor) &&
+    Number(physicalSize?.width) === Number(metadata.displayPhysicalSize.width) &&
+    Number(physicalSize?.height) === Number(metadata.displayPhysicalSize.height)
+}
+
+function displayContainsRegion(display, region) {
+  const bounds = display?.physicalBounds || display?.displayPhysicalBounds
+  if (!bounds) return null
+  const left = Number(bounds.left ?? bounds.x)
+  const top = Number(bounds.top ?? bounds.y)
+  const right = Number(bounds.right ?? (left + Number(bounds.width)))
+  const bottom = Number(bounds.bottom ?? (top + Number(bounds.height)))
+  const edges = [left, top, right, bottom, region?.left, region?.top, region?.right, region?.bottom].map(Number)
+  if (!edges.every(Number.isFinite)) return null
+  return Number(region.left) >= left && Number(region.top) >= top &&
+    Number(region.right) <= right && Number(region.bottom) <= bottom
+}
+
+function resolveCaptureDisplay(metadata, displays) {
+  const compatible = displays.filter((display) => hasCompatibleDisplayParameters(display, metadata))
+  const exact = compatible.find((display) => String(display.id) === String(metadata.displayId))
+  if (exact && displayContainsRegion(exact, metadata.selectedRegion) !== false) return exact
+
+  const containing = compatible.filter((display) => displayContainsRegion(display, metadata.selectedRegion) === true)
+  if (containing.length === 1) return containing[0]
+  if (compatible.length === 1 && displayContainsRegion(compatible[0], metadata.selectedRegion) === null) return compatible[0]
+  return null
+}
+
 export function validateTemplateCaptureEnvironment(label, templatePath, region, metadata, displays = []) {
   if (!metadata) return templatePath ? { error: '', warning: `${label}使用手动上传模板，无法校验采集显示环境` } : { error: '', warning: '' }
-  const display = displays.find((item) => String(item.id) === String(metadata.displayId))
-  if (!display) return { error: `${label}的采集显示器已不存在，请重新框选`, warning: '' }
-  const physicalSize = display.physicalSize || display.displayPhysicalSize
-  if (Number(display.scaleFactor) !== Number(metadata.scaleFactor) ||
-      Number(physicalSize?.width) !== Number(metadata.displayPhysicalSize.width) ||
-      Number(physicalSize?.height) !== Number(metadata.displayPhysicalSize.height)) {
-    return { error: `${label}的显示环境已变化，请重新框选`, warning: '' }
+  const exactIdExists = displays.some((item) => String(item.id) === String(metadata.displayId))
+  const display = resolveCaptureDisplay(metadata, displays)
+  if (!display) return {
+    error: exactIdExists
+      ? `${label}的显示环境已变化，请重新框选`
+      : `${label}的采集显示器已不存在，请重新框选`,
+    warning: ''
   }
   const regionWidth = Number(region?.right) - Number(region?.left)
   const regionHeight = Number(region?.bottom) - Number(region?.top)

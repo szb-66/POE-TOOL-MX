@@ -61,6 +61,7 @@
         </el-card>
 
         <InterfaceDetectionSettings />
+        <StashTabSelectionSettings />
 
         <!-- 快捷键设置 -->
         <div class="section-header">
@@ -464,6 +465,7 @@ import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
 import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
+import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 

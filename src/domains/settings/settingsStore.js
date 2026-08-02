@@ -5,6 +5,7 @@ import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combat
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
+import { createDefaultStashTabSelection, normalizeStashTabSelection } from '@/utils/stashTabSelection'
 import {
   DEFAULT_STORY_OVERLAY_OPACITY,
   DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
@@ -29,6 +30,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const shortcutHealth = ref({ status: 'pending', error: '', failed: [] })
 
   const combatAssist = ref(createDefaultCombatAssist())
+  const stashTabSelection = ref(createDefaultStashTabSelection())
 
   const currencyPositions = ref({
     alteration: { x: 210, y: 561 },      // 改造石
@@ -135,6 +137,16 @@ export const useSettingsStore = defineStore('settings', () => {
   function updateCombatAssist(config) {
     combatAssist.value = normalizeCombatAssist(config)
     saveSettings()
+  }
+
+  function updateStashTabSelection(config) {
+    stashTabSelection.value = normalizeStashTabSelection({
+      ...stashTabSelection.value,
+      ...config,
+      names: { ...stashTabSelection.value.names, ...(config?.names || {}) }
+    })
+    saveSettings()
+    return stashTabSelection.value
   }
 
   function updateItemPosition(position) {
@@ -246,7 +258,8 @@ export const useSettingsStore = defineStore('settings', () => {
         storyOverlayOpacity: storyOverlayOpacity.value,
         storyShowSkillRequiredLevel: storyShowSkillRequiredLevel.value,
         backgroundHistory: backgroundHistory.value,
-        combatAssist: combatAssist.value
+        combatAssist: combatAssist.value,
+        stashTabSelection: stashTabSelection.value
       }))
     } catch (error) {
       // 保存设置失败
@@ -303,6 +316,7 @@ export const useSettingsStore = defineStore('settings', () => {
         storyOverlayOpacity.value = normalizeStoryOverlayOpacity(data.storyOverlayOpacity)
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
+        stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
       }
     } catch (error) {
       // 加载设置失败
@@ -383,6 +397,7 @@ export const useSettingsStore = defineStore('settings', () => {
     storyShowSkillRequiredLevel.value = DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
+    stashTabSelection.value = createDefaultStashTabSelection()
     saveSettings()
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
@@ -406,6 +421,7 @@ export const useSettingsStore = defineStore('settings', () => {
     globalShortcuts,
     shortcutHealth,
     combatAssist,
+    stashTabSelection,
     currencyPositions,
     inventory,
     operationDelayMs,
@@ -429,6 +445,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateGlobalShortcuts,
     updateShortcutHealth,
     updateCombatAssist,
+    updateStashTabSelection,
     updateCurrencyPosition,
     updateInventorySettings,
     updateOperationDelay,

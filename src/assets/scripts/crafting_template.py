@@ -187,6 +187,9 @@ currency_positions = {{CURRENCY_POSITIONS}}
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
 verified_currency_types = set()
 fatal_error_reason = None
+stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
+stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
+GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 
 # 物品位置坐标（确保坐标值为整数）
 item_position = {{ITEM_POSITION}}
@@ -195,10 +198,56 @@ item_position = {{ITEM_POSITION}}
 mouse_controller = mouse.Controller()
 keyboard_controller = keyboard.Controller()
 
+def is_game_foreground():
+    if sys.platform != "win32":
+        return False
+    try:
+        hwnd = user32.GetForegroundWindow()
+        length = user32.GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+    except Exception:
+        return False
+
+def focus_game_window(timeout_seconds=2.0):
+    if is_game_foreground():
+        return True
+    if sys.platform != "win32":
+        return False
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def visit(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
+            matches.append(hwnd)
+        return True
+    try:
+        user32.EnumWindows(callback_type(visit), 0)
+        if not matches:
+            return False
+        hwnd = matches[0]
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+        while time.monotonic() < deadline:
+            if is_game_foreground():
+                return True
+            time.sleep(0.05)
+    except Exception:
+        return False
+    return False
+
 # 主函数
 def start_crafting():
     # 开始制作
-    global is_running
+    global is_running, fatal_error_reason
     is_running = True
     
     # 注册停止快捷键监听
@@ -229,6 +278,16 @@ def start_crafting():
     print("=" * 50)
     
     print("[开始] 制作流程")
+
+    if not focus_game_window():
+        fatal_error_reason = "无法激活游戏窗口，请确认《流放之路》已启动且窗口可见"
+        is_running = False
+        release_all_keys()
+        print("EVENT " + json.dumps({
+            "event": "crafting-startup-failed", "mode": "items", "reason": fatal_error_reason
+        }, ensure_ascii=False), flush=True)
+        print(f"[停止] {fatal_error_reason}")
+        return False
     
     # 检查物品位置是否配置
     if item_position['x'] == 0 and item_position['y'] == 0:
@@ -278,8 +337,15 @@ def start_crafting():
         is_running = False
         return
 
+    if not select_currency_stash_tab("items"):
+        return False
+
     if not preflight_required_currencies():
         return False
+
+    print("EVENT " + json.dumps({
+        "event": "crafting-startup-succeeded", "mode": "items"
+    }, ensure_ascii=False), flush=True)
     
     success = True
     
@@ -377,6 +443,78 @@ def release_shift_if_held():
     release_all_keys()
     is_shift_held = False
     time.sleep(0.05)
+
+def select_currency_stash_tab(mode):
+    """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件。"""
+    global is_running, fatal_error_reason
+    if not stash_tab_selection.get("enabled"):
+        return True
+    process = None
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"stash_tab_selector_{mode}.json")
+    selector_output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"stash_tab_selector_{mode}.log")
+    selector_timeout_seconds = 120.0 if stash_tab_selection.get("hasScrollbar") else 30.0
+    try:
+        import subprocess
+        config = dict(stash_tab_selection)
+        config["targetName"] = str((config.get("names") or {}).get("currency") or "")
+        with open(config_path, "w", encoding="utf-8") as handle:
+            json.dump(config, handle, ensure_ascii=False)
+        timed_out = False
+        with open(selector_output_path, "w+", encoding="utf-8", errors="replace") as selector_output:
+            process = subprocess.Popen(
+                [sys.executable, stash_tab_selector_path, "--mode", "select", "--config", config_path],
+                stdout=selector_output, stderr=subprocess.STDOUT,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            )
+            deadline = time.monotonic() + selector_timeout_seconds
+            while is_running and process.poll() is None:
+                if time.monotonic() >= deadline:
+                    timed_out = True
+                    break
+                time.sleep(0.05)
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=1)
+                except Exception:
+                    process.kill()
+                    process.wait(timeout=1)
+            selector_output.flush()
+            selector_output.seek(0)
+            selector_output_text = selector_output.read()
+        if timed_out:
+            response = {
+                "success": False, "code": "selector-timeout",
+                "reason": f"仓库页识别超过 {selector_timeout_seconds:.0f} 秒，已停止；请检查框选区域和滚动条设置"
+            }
+        else:
+            line = next((line for line in reversed(selector_output_text.splitlines()) if line.startswith("RESULT ")), "")
+            diagnostic = "\n".join(selector_output_text.splitlines()[-8:]).strip()
+            response = json.loads(line[7:]) if line else {
+                "success": False, "reason": diagnostic or "识别器没有返回结果"
+            }
+        if not is_running and not timed_out:
+            release_all_keys()
+            return False
+    except Exception as error:
+        response = {"success": False, "reason": f"仓库页识别器启动失败：{error}", "code": "selector-startup-failed"}
+    if not response.get("success"):
+        fatal_error_reason = response.get("reason") or "仓库页自动选择失败"
+        is_running = False
+        release_all_keys()
+        print("EVENT " + json.dumps({
+            "event": "stash-tab-selection-failed", "mode": mode,
+            "code": response.get("code", "selection-failed"), "reason": fatal_error_reason
+        }, ensure_ascii=False), flush=True)
+        print(f"[停止] {fatal_error_reason}")
+        play_error_sound()
+        return False
+    print("EVENT " + json.dumps({
+        "event": "stash-tab-selection-succeeded", "mode": mode,
+        "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
+    }, ensure_ascii=False), flush=True)
+    time.sleep(max(0.25, mouse_click_delay * 2))
+    return True
 
 CURRENCY_NAMES = {
     "alteration": "改造石",
@@ -479,7 +617,7 @@ def preflight_required_currencies():
 
         header = copied_item_header(pyperclip.paste())
         actual = detected_item_name(header)
-        if expected not in header:
+        if expected not in actual:
             return fail_currency_preflight(
                 currency,
                 f"通货位置错误：需要{expected}，实际检测到{actual}",

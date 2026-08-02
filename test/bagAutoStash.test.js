@@ -70,13 +70,13 @@ test('黑名单规范化仅保留名称、基底和类别的非空规则', () =>
   assert.deepEqual(normalizeBagBlacklist([
     { field: 'name', keyword: '  神圣石 ' },
     { field: 'baseName', keyword: '戒指' },
-    { field: 'category', keyword: '通货' },
+    { field: 'category', keyword: '通货', enabled: false },
     { field: 'rarity', keyword: '传奇' },
     { field: 'name', keyword: ' ' }
   ]), [
-    { field: 'name', keyword: '神圣石', matchMode: 'contains' },
-    { field: 'baseName', keyword: '戒指', matchMode: 'contains' },
-    { field: 'category', keyword: '通货', matchMode: 'contains' }
+    { field: 'name', keyword: '神圣石', matchMode: 'contains', enabled: true },
+    { field: 'baseName', keyword: '戒指', matchMode: 'contains', enabled: true },
+    { field: 'category', keyword: '通货', matchMode: 'contains', enabled: false }
   ])
 })
 
@@ -93,11 +93,16 @@ test('物品头解析支持中文和英文复制格式', () => {
 test('黑名单按指定字段和模式做不区分大小写的匹配', () => {
   const item = { name: 'Chaos Orb', baseName: '', category: 'Stackable Currency' }
   assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'name', keyword: ' chaos ' }]), {
-    field: 'name', keyword: 'chaos', matchMode: 'contains'
+    field: 'name', keyword: 'chaos', matchMode: 'contains', enabled: true
   })
   assert.equal(findBagBlacklistMatch(item, [{ field: 'baseName', keyword: 'orb' }]), null)
   assert.deepEqual(findBagBlacklistMatch(item, [{ field: 'category', keyword: 'CURRENCY' }]), {
-    field: 'category', keyword: 'CURRENCY', matchMode: 'contains'
+    field: 'category', keyword: 'CURRENCY', matchMode: 'contains', enabled: true
+  })
+  const toggledRule = { field: 'name', keyword: 'chaos', matchMode: 'contains', enabled: false }
+  assert.equal(findBagBlacklistMatch(item, [toggledRule]), null)
+  assert.deepEqual(findBagBlacklistMatch(item, [{ ...toggledRule, enabled: true }]), {
+    field: 'name', keyword: 'chaos', matchMode: 'contains', enabled: true
   })
 
   const mapFragment = { name: '凡人的愤怒', baseName: '瓦尔碎片', category: '地图碎片' }
@@ -106,7 +111,7 @@ test('黑名单按指定字段和模式做不区分大小写的匹配', () => {
   ]), null)
   assert.deepEqual(findBagBlacklistMatch({ ...mapFragment, category: ' 地图 ' }, [
     { field: 'category', keyword: '地图', matchMode: 'exact' }
-  ]), { field: 'category', keyword: '地图', matchMode: 'exact' })
+  ]), { field: 'category', keyword: '地图', matchMode: 'exact', enabled: true })
   assert.ok(findBagBlacklistMatch(mapFragment, [
     { field: 'category', keyword: '地图', matchMode: 'contains' }
   ]))
@@ -124,7 +129,7 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
       stashRegion: { left: 1, top: 2, right: 3, bottom: 4 },
       inventoryRegion: { left: 5, top: 6, right: 7, bottom: 8 }
     },
-    blacklist: [{ field: 'category', keyword: '通货' }],
+    blacklist: [{ field: 'category', keyword: '通货', enabled: false }],
     inventoryLayout: {
       extraEnabled: true,
       extraColumns: 2,
@@ -143,6 +148,7 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   })
   assert.equal(config.blacklist[0].keyword, '通货')
   assert.equal(config.blacklist[0].matchMode, 'contains')
+  assert.equal(config.blacklist[0].enabled, false)
   assert.equal(config.operationDelayMs, 180)
   assert.equal(config.immediateStash, false)
   assert.equal(config.showStashButtonOnlyWhenReady, false)
@@ -161,9 +167,15 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /extraColumns[\s\S]*index - count/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODES/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODE_LABELS/)
+  assert.match(source, /<el-table-column label="生效"/)
+  assert.match(source, /:model-value="scope\.row\.enabled"/)
+  assert.match(source, /@change="toggleBlacklistRule\(scope\.\$index, \$event\)"/)
+  assert.match(source, /function toggleBlacklistRule\(index, enabled\)/)
+  assert.match(source, /ruleIndex === index \? \{ \.\.\.rule, enabled: Boolean\(enabled\) \} : rule/)
+  assert.match(source, /matchMode: draftRule\.value\.matchMode,[\s\S]*enabled: true/)
 })
 
-test('Python 黑名单精确匹配不会把地图碎片当作地图', () => {
+test('Python 黑名单支持精确匹配、旧规则迁移和单项启停', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -175,15 +187,21 @@ exact = module.find_blacklist_match(item, [{"field": "category", "keyword": "地
 contains = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "contains"}])
 legacy = module.normalize_blacklist([{"field": "category", "keyword": "地图"}])
 invalid = module.normalize_blacklist([{"field": "category", "keyword": "地图", "matchMode": "unknown"}])
-print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "invalid": invalid}, ensure_ascii=False))
+disabled_rules = module.normalize_blacklist([{"field": "category", "keyword": "地图", "enabled": False}])
+disabled = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "contains", "enabled": False}])
+reenabled = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "contains", "enabled": True}])
+print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "invalid": invalid, "disabled_rules": disabled_rules, "disabled": disabled, "reenabled": reenabled}, ensure_ascii=False))
 `
   const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     exact: null,
-    contains: { field: 'category', keyword: '地图', matchMode: 'contains' },
-    legacy: [{ field: 'category', keyword: '地图', matchMode: 'contains' }],
-    invalid: [{ field: 'category', keyword: '地图', matchMode: 'contains' }]
+    contains: { field: 'category', keyword: '地图', matchMode: 'contains', enabled: true },
+    legacy: [{ field: 'category', keyword: '地图', matchMode: 'contains', enabled: true }],
+    invalid: [{ field: 'category', keyword: '地图', matchMode: 'contains', enabled: true }],
+    disabled_rules: [{ field: 'category', keyword: '地图', matchMode: 'contains', enabled: false }],
+    disabled: null,
+    reenabled: { field: 'category', keyword: '地图', matchMode: 'contains', enabled: true }
   })
 })
 

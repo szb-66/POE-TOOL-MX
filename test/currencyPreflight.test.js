@@ -29,15 +29,23 @@ function currencyRuntime(template, mode) {
 }
 
 function runPreflight(template, mode, scenario) {
-  const expectedName = '改造石'
-  const copiedName = scenario === 'wrong' ? '混沌石' : expectedName
+  const currencyType = scenario === 'patched' ? 'scouring' : 'alteration'
+  const expectedName = currencyType === 'scouring' ? '重铸石' : '改造石'
+  const copiedName = scenario === 'wrong' || scenario === 'header-only'
+    ? '混沌石'
+    : scenario === 'patched'
+      ? `${expectedName}[0.4c]`
+      : expectedName
+  const itemClass = scenario === 'header-only'
+    ? `可堆叠通货（${expectedName}）`
+    : '可堆叠通货'
   const sequenceChange = scenario !== 'empty'
   const invoke = scenario === 'unverified'
-    ? 'result = right_click_currency("alteration"); clicks_before_formal = len([e for e in events if e[0] == "click"])'
+    ? `result = right_click_currency("${currencyType}"); clicks_before_formal = len([e for e in events if e[0] == "click"])`
     : `result = preflight_required_currencies()
 clicks_before_formal = len([e for e in events if e[0] == "click"])
 if result:
-    right_click_currency("alteration")`
+    right_click_currency("${currencyType}")`
 
   const script = `
 import json, types
@@ -47,10 +55,10 @@ sequence = [10]
 is_running = True
 fatal_error_reason = None
 error_sound_played = False
-required_currency_types = ["alteration"]
+required_currency_types = ["${currencyType}"]
 verified_currency_types = set()
-currency_positions = {"alteration": {"x": 11, "y": 22}}
-pyperclip = types.SimpleNamespace(paste=lambda: "物品类别: 可堆叠通货\\n稀有度: 通货\\n${copiedName}\\n--------\\n堆叠数量: 20/20")
+currency_positions = {"${currencyType}": {"x": 11, "y": 22}}
+pyperclip = types.SimpleNamespace(paste=lambda: "物品类别: ${itemClass}\\n稀有度: 通货\\n${copiedName}\\n--------\\n堆叠数量: 20/20")
 GetClipboardSequenceNumber = lambda: sequence[0]
 def move_mouse(x, y): events.append(("move", x, y)); return True
 def send_copy_command():
@@ -134,8 +142,16 @@ for (const [label, template, mode] of [
     assert.equal(result.events.filter(event => event[0] === 'click').length, 1)
   })
 
+  test(`${label}名称行包含正式名称时通过预检`, () => {
+    const result = runPreflight(template, mode, 'patched')
+    assert.equal(result.result, true)
+    assert.equal(result.clicks_before_formal, 0)
+    assert.deepEqual(result.verified, ['scouring'])
+    assert.equal(result.events.filter(event => event[0] === 'click').length, 1)
+  })
+
   test(`${label}空位置或错误通货失败关闭且零点击`, () => {
-    for (const scenario of ['empty', 'wrong']) {
+    for (const scenario of ['empty', 'wrong', 'header-only']) {
       const result = runPreflight(template, mode, scenario)
       assert.equal(result.result, false)
       assert.equal(result.clicks_before_formal, 0)
@@ -173,7 +189,7 @@ test('主进程和浮窗接入同一失败原因并保持完成状态互斥', ()
 
   const overlay = source('../src/domains/overlay/OverlayView.vue')
   const content = source('../src/domains/overlay/components/OverlayContent.vue')
-  assert.match(overlay, /event\.event !== 'currency-preflight-failed'/)
+  assert.match(overlay, /stash-tab-selection-failed/)
   assert.match(overlay, /stopReason\.value = event\.reason/)
   assert.match(overlay, /isCompleted\.value = false/)
   assert.match(content, /class="failure-reason"/)

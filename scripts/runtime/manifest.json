@@ -38,6 +38,177 @@
       "license": "MIT"
     },
     {
+      "name": "rapidocr",
+      "version": "3.9.1",
+      "importName": "rapidocr",
+      "filename": "rapidocr-3.9.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/a0/23/e8d7251c53137b5b66d89e85cb0bc3e6bcfaec9527f29b477ec04389c8b2/rapidocr-3.9.1-py3-none-any.whl",
+      "sha256": "600885e4e94e0b427abad394fccb0ec1d3c9118a215ca435bf7680aeae0e292b",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.27.0",
+      "importName": "onnxruntime",
+      "filename": "onnxruntime-1.27.0-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/7f/76/59ed932b0244acd7bbbd6449480053a6d958ea66357f022f932872e19287/onnxruntime-1.27.0-cp313-cp313-win_amd64.whl",
+      "sha256": "760021bca514d64a811837820d351a08a41741f16f8b4c26450da708fecf14e6",
+      "license": "MIT"
+    },
+    {
+      "name": "pyclipper",
+      "version": "1.4.0",
+      "importName": "pyclipper",
+      "filename": "pyclipper-1.4.0-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/ba/42/0a1920d276a0e1ca21dc0d13ee9e3ba10a9a8aa3abac76cd5e5a9f503306/pyclipper-1.4.0-cp313-cp313-win_amd64.whl",
+      "sha256": "d4b2d7c41086f1927d14947c563dfc7beed2f6c0d9af13c42fe3dcdc20d35832",
+      "license": "MIT"
+    },
+    {
+      "name": "shapely",
+      "version": "2.1.2",
+      "importName": "shapely",
+      "filename": "shapely-2.1.2-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/41/47/3647fe7ad990af60ad98b889657a976042c9988c2807cf322a9d6685f462/shapely-2.1.2-cp313-cp313-win_amd64.whl",
+      "sha256": "ca2591bff6645c216695bdf1614fca9c82ea1144d4a7591a466fef64f28f0715",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3",
+      "importName": "yaml",
+      "filename": "pyyaml-6.0.3-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/97/c9/39d5b874e8b28845e4ec2202b5da735d0199dbe5b8fb85f91398814a9a46/pyyaml-6.0.3-cp313-cp313-win_amd64.whl",
+      "sha256": "79005a0d97d5ddabfeeea4cf676af11e647e41d81c9a7722a193022accdb6b7c",
+      "license": "MIT"
+    },
+    {
+      "name": "Pillow",
+      "version": "12.3.0",
+      "importName": "PIL",
+      "filename": "pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/a6/9b/7a58e61d62be561da3a356fe2384d4059a6345fc130e23ef1c36a5b81d24/pillow-12.3.0-cp313-cp313-win_amd64.whl",
+      "sha256": "1cca606cd25738df4ed873d5ad46bbdb3d83b5cbca291f6b4ff13a4df6b0bbe8",
+      "license": "MIT-CMU"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.0",
+      "importName": "tqdm",
+      "filename": "tqdm-4.70.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f9/1c/01bfd571a64e7f270e6bab5e33777debe0edc56759233ce84f27dec92d14/tqdm-4.70.0-py3-none-any.whl",
+      "sha256": "7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953",
+      "license": "MPL-2.0 AND MIT"
+    },
+    {
+      "name": "omegaconf",
+      "version": "2.0.0",
+      "importName": "omegaconf",
+      "filename": "omegaconf-2.0.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/3d/95/ebd73361f9c6e94bd0f3b19ffe31c24e833834c022f1c0328ac71b2d6c90/omegaconf-2.0.0-py3-none-any.whl",
+      "sha256": "80e4f4aa932b10699baf94d43b0e9e44e504d140b6c94b92ab4ed12ce6b77ec6",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2",
+      "importName": "requests",
+      "filename": "requests-2.34.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl",
+      "sha256": "2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "colorlog",
+      "version": "6.12.0",
+      "importName": "colorlog",
+      "filename": "colorlog-6.12.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d4/19/0b6647bf5e331521e55d2b63bfbdc210bd9cd605189273f03614a05f702d/colorlog-6.12.0-py3-none-any.whl",
+      "sha256": "30d392604e9110045a2c2aeefc27d7a017abbab63f3a8aee594eac0801df784e",
+      "license": "MIT"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "importName": "colorama",
+      "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl",
+      "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19",
+      "importName": "flatbuffers",
+      "filename": "flatbuffers-25.12.19-py2.py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/e8/2d/d2a548598be01649e2d46231d151a6c56d10b964d94043a335ae56ea2d92/flatbuffers-25.12.19-py2.py3-none-any.whl",
+      "sha256": "7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "packaging",
+      "version": "26.2",
+      "importName": "packaging",
+      "filename": "packaging-26.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/df/b2/87e62e8c3e2f4b32e5fe99e0b86d576da1312593b39f47d8ceef365e95ed/packaging-26.2-py3-none-any.whl",
+      "sha256": "5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e",
+      "license": "Apache-2.0 OR BSD-2-Clause"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.35.1",
+      "importName": "google.protobuf",
+      "filename": "protobuf-7.35.1-cp310-abi3-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/0a/19/8d0cb6f20a1ef7b18f1c8986ad5783f22f84cce39c6ce9a6e645ea55192e/protobuf-7.35.1-cp310-abi3-win_amd64.whl",
+      "sha256": "230a75ddfc2de4806e56696ce9640c1cdfdb6543b7cfce98d42a4c0a0e7bdb87",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.4.9",
+      "importName": "charset_normalizer",
+      "filename": "charset_normalizer-3.4.9-cp313-cp313-win_amd64.whl",
+      "url": "https://files.pythonhosted.org/packages/e8/ef/6953a77c7cf2c2ff9998e6f575ab3e380119f100223381565a4f94c1f836/charset_normalizer-3.4.9-cp313-cp313-win_amd64.whl",
+      "sha256": "fe2c7201c642b7c308f1675355ad7ff7b66acfe3541625efe5a3ad38f29d6115",
+      "license": "MIT"
+    },
+    {
+      "name": "idna",
+      "version": "3.18",
+      "importName": "idna",
+      "filename": "idna-3.18-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/1e/5e/d4e9f1a599fb8e573b7b87160658329fbf28d19eac2718f51fc3def3aa5a/idna-3.18-py3-none-any.whl",
+      "sha256": "7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.7.0",
+      "importName": "urllib3",
+      "filename": "urllib3-2.7.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/7f/3e/5db95bcf282c52709639744ca2a8b149baccf648e39c8cc87553df9eae0c/urllib3-2.7.0-py3-none-any.whl",
+      "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897",
+      "license": "MIT"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.7.22",
+      "importName": "certifi",
+      "filename": "certifi-2026.7.22-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl",
+      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775",
+      "license": "MPL-2.0"
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "importName": "typing_extensions",
+      "filename": "typing_extensions-4.16.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/49/d3/b8441a820a491ddfc024b0b0cf0393375b75ea13866d9c66727e54c2fc80/typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "license": "PSF-2.0"
+    },
+    {
       "name": "pynput",
       "version": "1.8.2",
       "importName": "pynput",
@@ -71,6 +242,7 @@
     "src/assets/scripts/combat_assist_template.py",
     "src/assets/scripts/crafting_template.py",
     "src/assets/scripts/map_rolling_template.py",
+    "src/assets/scripts/stash_tab_selector.py",
     "src/assets/scripts/stash_pickup_template.py"
   ],
   "requiredProjectNotices": [

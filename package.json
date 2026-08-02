@@ -72,6 +72,7 @@
       "src/utils/operationDelay.js",
       "src/utils/stashGridCalibration.js",
       "src/utils/stashPickupConfig.js",
+      "src/utils/stashTabSelection.js",
       "electron/assets/item-footprints.json",
       "package.json",
       "LICENSE.md",
@@ -89,6 +90,10 @@
       {
         "from": "src/assets/scripts/stash_pickup_template.py",
         "to": "stash_pickup_template.py"
+      },
+      {
+        "from": "src/assets/scripts/stash_tab_selector.py",
+        "to": "stash_tab_selector.py"
       },
       {
         "from": ".runtime/python-runtime",

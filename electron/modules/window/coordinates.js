@@ -62,6 +62,21 @@ export function dipRectangleToPhysical(windowDipBounds, clientRectangle, dipToSc
   return normalizeRectangle(topLeft, bottomRight)
 }
 
+export function getDisplayPhysicalBounds(display, platform, dipToScreenPoint = (point) => point) {
+  const bounds = display?.bounds || {}
+  const windows = platform === 'win32'
+  const topLeft = windows
+    ? dipToScreenPoint({ x: finite(bounds.x), y: finite(bounds.y) })
+    : { x: finite(bounds.x), y: finite(bounds.y) }
+  const scaleFactor = windows ? finite(display?.scaleFactor, 1) : 1
+  return {
+    x: finite(topLeft?.x),
+    y: finite(topLeft?.y),
+    width: Math.round(finite(bounds.width) * scaleFactor),
+    height: Math.round(finite(bounds.height) * scaleFactor)
+  }
+}
+
 export function expandSearchRegion(selectedRegion, displayPhysicalBounds, margin = TEMPLATE_SEARCH_MARGIN) {
   return clampRectangle({
     left: finite(selectedRegion?.left) - margin,

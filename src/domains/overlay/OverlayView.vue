@@ -71,8 +71,12 @@ function applyStructuredScriptEvent(line) {
   if (!text.startsWith('EVENT ')) return
   try {
     const event = JSON.parse(text.slice(6))
-    if (event.event !== 'currency-preflight-failed') return
-    stopReason.value = event.reason || '通货启动预检失败'
+    if (!['crafting-startup-failed', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(event.event)) return
+    stopReason.value = event.reason || (event.event === 'stash-tab-selection-failed'
+      ? '仓库页自动选择失败'
+      : event.event === 'currency-preflight-failed'
+        ? '通货启动预检失败'
+        : '制作脚本启动失败')
     isStopped.value = true
     isCompleted.value = false
   } catch {

@@ -49,11 +49,20 @@ export class ChaosRecipeAutomationManager {
     this.itemOffset = 0
     this.completedItems = 0
     this.status = 'idle'
+    this.code = ''
+    this.reason = ''
     this.intentionalStop = false
   }
 
   send(event) {
-    const payload = { ...event, status: this.status, completedItems: this.completedItems, totalItems: this.plan?.itemCount || 0 }
+    const payload = {
+      code: this.code,
+      reason: this.reason,
+      ...event,
+      status: this.status,
+      completedItems: this.completedItems,
+      totalItems: this.plan?.itemCount || 0
+    }
     const window = this.getMainWindow?.()
     if (window && !window.isDestroyed()) window.webContents.send('chaos-recipe-automation-event', payload)
     this.onStatusChange?.(payload)
@@ -72,14 +81,22 @@ export class ChaosRecipeAutomationManager {
   }
 
   pythonPath() {
-    const required = ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
+    const required = ['pyperclip', 'pynput']
     const found = this.python.detectPythonPathWithModules?.(required) || this.python.detectPythonPath?.()
-    if (!found) throw new Error('未找到具备 cv2、mss、numpy、pyperclip、pynput 的 Python 3')
+    if (!found) throw new Error('未找到具备 pyperclip、pynput 的 Python 3')
     return found
   }
 
   currentTab() {
     return this.plan?.tabs?.[this.tabIndex] || null
+  }
+
+  clearCheckpoint() {
+    this.plan = null
+    this.config = null
+    this.tabIndex = 0
+    this.itemOffset = 0
+    this.completedItems = 0
   }
 
   overlayCurrent(message = '') {
@@ -114,11 +131,16 @@ export class ChaosRecipeAutomationManager {
     this.itemOffset = 0
     this.completedItems = 0
     this.status = 'running'
+    this.code = ''
+    this.reason = ''
     this.overlayCurrent()
     try {
       return this.spawnCurrentTab()
     } catch (error) {
       this.status = 'stopped'
+      this.code = error?.code || ''
+      this.reason = error?.message || '启动自动取件失败'
+      this.clearCheckpoint()
       this.automationLock?.release('混沌配方取件')
       throw error
     }
@@ -150,7 +172,9 @@ export class ChaosRecipeAutomationManager {
       (line) => console.log('[混沌配方取件]', line)
     ))
     child.stderr.on('data', (line) => console.error('[混沌配方取件]', String(line).trim()))
-    child.on('error', (error) => this.fail(error.message))
+    child.on('error', (error) => {
+      if (this.child === child) this.fail(error.message)
+    })
     child.on('close', (code) => this.handleClose(child, code))
     this.send({ event: 'started', tabId: tab.tabId, tabName: tab.tabName, processId: child.pid })
     return { success: true, status: this.status, tabName: tab.tabName, processId: child.pid }
@@ -169,9 +193,23 @@ export class ChaosRecipeAutomationManager {
       this.child = null
       this.advanceTab()
     } else if (event.event === 'aborted' || event.event === 'error') {
-      this.child = null
-      this.fail(event.reason || '取件脚本停止', event.code)
+      if (event.code === CHAOS_ERROR_CODES.INVENTORY_FULL) {
+        this.pauseForInventoryFull(child, event)
+      } else {
+        this.fail(event.reason || '取件脚本停止', event.code)
+      }
     }
+  }
+
+  pauseForInventoryFull(child, event = {}) {
+    this.status = 'paused'
+    this.code = CHAOS_ERROR_CODES.INVENTORY_FULL
+    this.reason = event.reason || '背包空间不足，请清空背包后继续'
+    this.intentionalStop = true
+    this.child = null
+    stopChild(child)
+    this.overlayCurrent(this.reason)
+    this.send({ event: 'paused', code: this.code, reason: this.reason })
   }
 
   handleClose(child, code) {
@@ -186,12 +224,16 @@ export class ChaosRecipeAutomationManager {
     this.itemOffset = 0
     if (this.tabIndex >= (this.plan?.tabs?.length || 0)) {
       this.status = 'completed'
+      this.code = ''
+      this.reason = ''
       this.overlay.close()
       this.automationLock?.release('混沌配方取件')
       this.send({ event: 'completed' })
       return { success: true, status: this.status }
     }
     this.status = 'paused'
+    this.code = ''
+    this.reason = 'tab-change'
     const tab = this.currentTab()
     this.overlayCurrent(`请切换到仓库页“${tab.tabName}”，然后继续`)
     this.send({ event: 'tab-change-required', tabId: tab.tabId, tabName: tab.tabName })
@@ -201,6 +243,8 @@ export class ChaosRecipeAutomationManager {
   pause() {
     if (this.status !== 'running') return { success: false, status: this.status }
     this.status = 'paused'
+    this.code = ''
+    this.reason = 'user'
     this.intentionalStop = true
     stopChild(this.child)
     this.child = null
@@ -212,29 +256,46 @@ export class ChaosRecipeAutomationManager {
   resume() {
     if (this.status !== 'paused') return { success: false, status: this.status }
     this.status = 'running'
+    this.code = ''
+    this.reason = ''
     this.overlayCurrent()
     return this.spawnCurrentTab()
   }
 
   stop(reason = 'user') {
     this.status = 'stopped'
+    this.code = ''
+    this.reason = reason
     this.intentionalStop = true
-    stopChild(this.child)
+    const child = this.child
     this.child = null
+    stopChild(child)
     this.overlay.close()
     this.automationLock?.release('混沌配方取件')
+    this.clearCheckpoint()
     this.send({ event: 'stopped', reason })
     return { success: true, status: this.status }
   }
 
   fail(reason, code = CHAOS_ERROR_CODES.ITEM_MISMATCH) {
     this.status = 'stopped'
+    this.code = code
+    this.reason = reason
     this.intentionalStop = true
-    stopChild(this.child)
+    const child = this.child
     this.child = null
+    stopChild(child)
     this.overlay.close()
     this.automationLock?.release('混沌配方取件')
+    this.clearCheckpoint()
     this.send({ event: 'error', reason, code })
+  }
+
+  reset(reason = 'reset') {
+    if (this.child || ['running', 'paused'].includes(this.status)) return this.stop(reason)
+    this.clearCheckpoint()
+    this.automationLock?.release('混沌配方取件')
+    return this.getStatus()
   }
 
   getStatus() {
@@ -243,13 +304,14 @@ export class ChaosRecipeAutomationManager {
       completedItems: this.completedItems,
       totalItems: this.plan?.itemCount || 0,
       tabIndex: this.tabIndex,
-      tabName: this.currentTab()?.tabName || ''
+      tabName: this.currentTab()?.tabName || '',
+      code: this.code,
+      reason: this.reason
     }
   }
 
   cleanup() {
-    if (this.child || this.status === 'running' || this.status === 'paused') this.stop('application-exit')
-    else this.automationLock?.release('混沌配方取件')
+    this.reset('application-exit')
     this.overlay.close()
   }
 }

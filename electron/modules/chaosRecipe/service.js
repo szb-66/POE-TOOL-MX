@@ -28,6 +28,7 @@ export class ChaosRecipeService {
   }
 
   clear() {
+    this.automation?.reset?.('service-clear')
     this.snapshot = null
     this.latestRequest = null
     this.stashClient.clearCache()
@@ -91,6 +92,7 @@ export class ChaosRecipeService {
   }
 
   async refresh({ league, selectedTabIds, includeIdentified = false, tabFolderStates = {} }) {
+    this.automation?.reset?.('refresh')
     const rawResults = await this.stashClient.fetchTabs(league, selectedTabIds)
     const results = this.applyFolderStates(rawResults, tabFolderStates)
     const availableTabs = this.stashClient.getTabsSnapshot(league)

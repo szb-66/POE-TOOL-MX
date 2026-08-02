@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createPinia, setActivePinia } from 'pinia'
 import { electronApi } from '../src/api/electron.js'
 import { useChaosRecipeStore } from '../src/stores/chaosRecipe.js'
+import { buildVendorRecipeOptions } from '../src/domains/dashboard/vendorRecipeOptions.js'
 
 function installStorage(initial = {}) {
   const values = new Map(Object.entries(initial))
@@ -97,6 +98,31 @@ test('首页切换配方会持久化并在控制开启时同步运行时', async
   } finally {
     electronApi.chaosRecipe.updateRuntime = originalUpdateRuntime
   }
+})
+
+test('首页自动取件配方按套装和单件口径显示实时可取数量', () => {
+  const empty = buildVendorRecipeOptions(null)
+  assert.deepEqual(empty.map(option => option.label), [
+    '机会石(0)', '混沌石(0)', '富豪石(0)', '崇高石(0)', '幻色石(0)', '工匠石(0)', '链结石(0)'
+  ])
+
+  const snapshot = {
+    recipes: {
+      chance: { fullSetCount: 1, candidateCount: 99 },
+      chaos: { fullSetCount: 2, candidateCount: 99 },
+      regal: { fullSetCount: 3, candidateCount: 99 },
+      exalted: { fullSetCount: 4, candidateCount: 99 },
+      chromatic: { fullSetCount: 99, candidateCount: 10 },
+      jeweller: { fullSetCount: 99, candidateCount: 20 },
+      fusing: { fullSetCount: 99, candidateCount: 30 }
+    }
+  }
+  assert.deepEqual(buildVendorRecipeOptions(snapshot).map(option => option.label), [
+    '机会石(1)', '混沌石(2)', '富豪石(3)', '崇高石(4)', '幻色石(10)', '工匠石(20)', '链结石(30)'
+  ])
+
+  snapshot.recipes.jeweller.candidateCount = 19
+  assert.equal(buildVendorRecipeOptions(snapshot).find(option => option.value === 'jeweller').label, '工匠石(19)')
 })
 
 test('商城配方页不再重复恢复账号', () => {

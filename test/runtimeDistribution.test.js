@@ -16,7 +16,7 @@ const generatedRoot = path.join(projectRoot, '.runtime')
 
 test('开发环境优先使用已准备且满足模块要求的内置运行时', () => {
   configurePythonRuntime({ isPackaged: false, resourcesPath: '', env: {} })
-  const runtime = resolvePythonRuntime(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
+  const runtime = resolvePythonRuntime(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip', 'rapidocr', 'onnxruntime'])
   assert.equal(runtime.ready, true)
   assert.equal(runtime.source, 'prepared')
   assert.equal(runtime.version, '3.13.14')
@@ -62,6 +62,9 @@ test('打包配置固定携带 x64 运行时并由 beforePack 强制验证', asy
   assert.equal(packageConfig.build.beforePack, 'scripts/runtime/beforePack.cjs')
   assert.ok(packageConfig.build.extraResources.some((entry) => (
     entry.from === '.runtime/python-runtime' && entry.to === 'python-runtime'
+  )))
+  assert.ok(packageConfig.build.extraResources.some((entry) => (
+    entry.from === 'src/assets/scripts/stash_tab_selector.py' && entry.to === 'stash_tab_selector.py'
   )))
   assert.deepEqual(packageConfig.build.win.target, [{ target: 'nsis', arch: ['x64'] }])
   assert.equal(packageConfig.build.win.requestedExecutionLevel, 'requireAdministrator')

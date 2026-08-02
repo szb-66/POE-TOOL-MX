@@ -196,19 +196,23 @@ def normalize_blacklist(rules):
         field = str(rule.get("field", "")) if isinstance(rule, dict) else ""
         keyword = str(rule.get("keyword", "")).strip() if isinstance(rule, dict) else ""
         match_mode = str(rule.get("matchMode", "")) if isinstance(rule, dict) else ""
+        enabled = rule.get("enabled") is not False if isinstance(rule, dict) else True
         if match_mode not in VALID_BLACKLIST_MATCH_MODES:
             match_mode = "contains"
         if field in VALID_BLACKLIST_FIELDS and keyword:
             normalized.append({
                 "field": field,
                 "keyword": keyword,
-                "matchMode": match_mode
+                "matchMode": match_mode,
+                "enabled": enabled
             })
     return normalized
 
 
 def find_blacklist_match(item, rules):
     for rule in normalize_blacklist(rules):
+        if not rule["enabled"]:
+            continue
         value = str(item.get(rule["field"], "")).strip().casefold()
         keyword = rule["keyword"].casefold()
         matched = value == keyword if rule["matchMode"] == "exact" else keyword in value
@@ -338,7 +342,7 @@ class InterfaceMatcher:
         height = int(region.get("bottom", 0)) - int(region.get("top", 0))
         if width <= 0 or height <= 0:
             return None
-        with mss.mss() as screen:
+        with mss.MSS() as screen:
             shot = screen.grab({
                 "left": int(region.get("left", 0)),
                 "top": int(region.get("top", 0)),
