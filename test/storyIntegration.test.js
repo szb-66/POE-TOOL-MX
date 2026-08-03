@@ -171,10 +171,28 @@ test('分割抓手保持内容穿透并覆盖完整窗口生命周期', () => {
   assert.match(manager, /let storyOverlayDividerWindow = null/)
   assert.match(manager, /createStoryDividerWindow/)
   assert.match(manager, /getStoryDividerRatioFromGrip/)
-  assert.match(manager, /storyOverlayDividerWindow\.close\(\)/)
+  assert.match(manager, /destroyWindow\(dividerWindow\)/)
   assert.match(manager, /storyOverlayOpacity === 0/)
   assert.match(preload, /updateStoryOverlayLayout/)
   assert.match(preload, /onStoryOverlayDividerRatio/)
+})
+
+test('剧情浮窗关闭会原子销毁全部窗口且旧实例回调不会污染新窗口', () => {
+  const manager = source('../electron/modules/window/manager.js')
+  const closeHandler = manager.slice(
+    manager.indexOf('export function closeStoryOverlayWindow()'),
+    manager.indexOf('export function getStoryOverlayWindow()')
+  )
+  assert.match(manager, /const overlayWindow = storyOverlayWindow/)
+  assert.match(manager, /storyOverlayWindow !== overlayWindow/)
+  assert.match(manager, /storyOverlayDividerWindow === dividerWindow/)
+  assert.match(manager, /storyOverlayGripWindow === gripWindow/)
+  assert.match(closeHandler, /const overlayWindow = storyOverlayWindow/)
+  assert.ok(closeHandler.indexOf('storyOverlayWindow = null') < closeHandler.indexOf('destroyWindow\(overlayWindow\)'))
+  assert.match(closeHandler, /destroyWindow\(dividerWindow\)/)
+  assert.match(closeHandler, /destroyWindow\(gripWindow\)/)
+  assert.match(closeHandler, /destroyWindow\(overlayWindow\)/)
+  assert.doesNotMatch(closeHandler, /\.close\(\)/)
 })
 
 test('浮层透明度以 0 到 100 数值持久化并实时同步', () => {

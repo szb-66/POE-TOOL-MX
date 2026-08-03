@@ -368,6 +368,10 @@ function storyOverlayIsInteractive() {
   return storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible()
 }
 
+function destroyWindow(window) {
+  if (window && !window.isDestroyed()) window.destroy()
+}
+
 function publishStoryDividerRatio() {
   if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
   storyOverlayWindow.webContents.send('story-overlay-divider-ratio', storyOverlayDividerRatio)
@@ -425,7 +429,10 @@ function createStoryDividerWindow() {
     publishStoryDividerRatio()
     syncStoryDividerToOverlay()
   })
-  storyOverlayDividerWindow.on('closed', () => { storyOverlayDividerWindow = null })
+  const dividerWindow = storyOverlayDividerWindow
+  dividerWindow.on('closed', () => {
+    if (storyOverlayDividerWindow === dividerWindow) storyOverlayDividerWindow = null
+  })
   return storyOverlayDividerWindow
 }
 
@@ -469,7 +476,10 @@ function createStoryGripWindow() {
       syncStoryDividerToOverlay()
     }
   })
-  storyOverlayGripWindow.on('closed', () => { storyOverlayGripWindow = null })
+  const gripWindow = storyOverlayGripWindow
+  gripWindow.on('closed', () => {
+    if (storyOverlayGripWindow === gripWindow) storyOverlayGripWindow = null
+  })
   return storyOverlayGripWindow
 }
 
@@ -525,10 +535,11 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
   storyOverlayWindow.setOpacity(storyOverlayOpacity / 100)
   createStoryGripWindow()
   createStoryDividerWindow()
-  storyOverlayWindow.webContents.once('did-finish-load', () => {
-    if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
-    if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
-    storyOverlayWindow.showInactive()
+  const overlayWindow = storyOverlayWindow
+  overlayWindow.webContents.once('did-finish-load', () => {
+    if (storyOverlayWindow !== overlayWindow || overlayWindow.isDestroyed()) return
+    if (initialSnapshot) overlayWindow.webContents.send('story-overlay-state', initialSnapshot)
+    overlayWindow.showInactive()
     syncStoryGripToOverlay()
     publishStoryDividerRatio()
     if (storyOverlayOpacity > 0) storyOverlayGripWindow?.showInactive()
@@ -536,22 +547,25 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
   })
 
   let saveTimer
-  storyOverlayWindow.on('move', () => {
+  overlayWindow.on('move', () => {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
-      const { x, y } = storyOverlayWindow.getBounds()
+      if (storyOverlayWindow !== overlayWindow || overlayWindow.isDestroyed()) return
+      const { x, y } = overlayWindow.getBounds()
       saveWindowState({ storyOverlayBounds: { x, y } })
       syncStoryDividerToOverlay()
     }, 250)
   })
-  storyOverlayWindow.on('closed', () => {
+  overlayWindow.on('closed', () => {
     clearTimeout(saveTimer)
-    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
-    if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) storyOverlayDividerWindow.close()
+    if (storyOverlayWindow !== overlayWindow) return
+    const gripWindow = storyOverlayGripWindow
+    const dividerWindow = storyOverlayDividerWindow
     storyOverlayGripWindow = null
     storyOverlayDividerWindow = null
     storyOverlayWindow = null
+    destroyWindow(gripWindow)
+    destroyWindow(dividerWindow)
   })
   return storyOverlayWindow
 }
@@ -620,12 +634,15 @@ export function getStoryOverlaySnapshot() {
 }
 
 export function closeStoryOverlayWindow() {
-  if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) storyOverlayDividerWindow.close()
-  storyOverlayDividerWindow = null
-  if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) storyOverlayGripWindow.close()
-  storyOverlayGripWindow = null
-  if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) storyOverlayWindow.close()
+  const overlayWindow = storyOverlayWindow
+  const gripWindow = storyOverlayGripWindow
+  const dividerWindow = storyOverlayDividerWindow
   storyOverlayWindow = null
+  storyOverlayDividerWindow = null
+  storyOverlayGripWindow = null
+  destroyWindow(dividerWindow)
+  destroyWindow(gripWindow)
+  destroyWindow(overlayWindow)
 }
 
 export function getStoryOverlayWindow() {

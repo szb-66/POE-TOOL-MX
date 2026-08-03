@@ -8,9 +8,8 @@
  */
 
 import { ipcMain, BrowserWindow, dialog, app } from 'electron'
-import fs from 'fs'
-import path from 'path'
 import { saveWindowState } from '../window/state.js'
+import { importOverlayBackground } from '../window/backgroundImport.js'
 
 export function registerWindowHandlers(window) {
   const { getMainWindow, getOverlayWindow, closeOverlayWindow } = window
@@ -97,8 +96,18 @@ export function registerWindowHandlers(window) {
     }
   })
 
-  // 选择文件并复制到项目目录
-  ipcMain.handle('select-file', async (event, options) => {
+  const importBackground = (sourcePath) => {
+    try {
+      return importOverlayBackground(sourcePath, { userDataPath: app.getPath('userData') })
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: error.code || 'BACKGROUND_IMPORT_FAILED', message: error.message || '导入背景失败' }
+      }
+    }
+  }
+
+  ipcMain.handle('select-overlay-background', async () => {
     const mainWindow = getMainWindow()
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openFile'],
@@ -108,41 +117,11 @@ export function registerWindowHandlers(window) {
       ]
     })
 
-    // 如果用户选择了文件，复制到项目目录
-    if (!result.canceled && result.filePaths.length > 0) {
-      const sourcePath = result.filePaths[0]
-      try {
-        // 创建背景文件目录（在 userData 目录下）
-        const backgroundsDir = path.join(app.getPath('userData'), 'backgrounds')
-        if (!fs.existsSync(backgroundsDir)) {
-          fs.mkdirSync(backgroundsDir, { recursive: true })
-        }
-
-        // 生成唯一文件名（使用时间戳和原始文件名）
-        const ext = path.extname(sourcePath)
-        const baseName = path.basename(sourcePath, ext)
-        const timestamp = Date.now()
-        const fileName = `${baseName}_${timestamp}${ext}`
-        const destPath = path.join(backgroundsDir, fileName)
-
-        // 复制文件
-        fs.copyFileSync(sourcePath, destPath)
-
-        // 返回项目内的相对路径（用于存储和显示）
-        // 使用 userData 目录的相对路径标识
-        return {
-          canceled: false,
-          filePaths: [destPath], // 返回完整路径，前端会处理显示
-          relativePath: `userData://backgrounds/${fileName}` // 用于存储的标识
-        }
-      } catch (error) {
-        // 如果复制失败，返回原始路径
-        return result
-      }
-    }
-
-    return result
+    if (result.canceled || result.filePaths.length === 0) return { success: false, canceled: true }
+    return { ...importBackground(result.filePaths[0]), canceled: false }
   })
+
+  ipcMain.handle('import-overlay-background', (_event, sourcePath) => importBackground(sourcePath))
 
   // 更新覆盖层设置
   ipcMain.handle('update-overlay-settings', async (event, settings) => {

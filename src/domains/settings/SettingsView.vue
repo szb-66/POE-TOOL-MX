@@ -371,15 +371,34 @@
           <el-row :gutter="40">
             <el-col :span="12">
               <el-form :model="overlaySettings" label-width="120px" label-position="left">
-                <!-- 移除背景类型选择，只保留文件上传 -->
-                
-                <el-form-item label="背景文件">
-                  <div class="file-input">
-                    <el-input v-model="overlaySettings.backgroundPath" placeholder="默认背景" readonly @click="handleSelectFile">
-                       <template #append>
-                         <el-button @click="handleSelectFile">选择</el-button>
-                       </template>
-                    </el-input>
+                <el-form-item label="背景模式">
+                  <el-radio-group v-model="overlaySettings.backgroundMode" @change="handleBackgroundModeChange">
+                    <el-radio-button value="default">默认背景</el-radio-button>
+                    <el-radio-button value="none">无背景</el-radio-button>
+                    <el-radio-button value="custom">自定义背景</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item v-if="overlaySettings.backgroundMode === 'custom'" label="背景文件">
+                  <div
+                    class="background-drop-zone"
+                    :class="{ 'is-dragging': isBackgroundDragging }"
+                    role="button"
+                    tabindex="0"
+                    @click="handleSelectFile"
+                    @keydown.enter.prevent="handleSelectFile"
+                    @keydown.space.prevent="handleSelectFile"
+                    @dragenter.prevent="isBackgroundDragging = true"
+                    @dragover.prevent="isBackgroundDragging = true"
+                    @dragleave.prevent="handleBackgroundDragLeave"
+                    @drop.prevent="handleBackgroundDrop"
+                  >
+                    <el-icon class="drop-icon"><UploadFilled /></el-icon>
+                    <strong>拖拽图片或视频到此处</strong>
+                    <span>或点击选择文件</span>
+                    <small v-if="overlaySettings.backgroundPath" :title="overlaySettings.backgroundPath">
+                      {{ overlaySettings.backgroundPath }}
+                    </small>
                   </div>
                 </el-form-item>
 
@@ -413,7 +432,7 @@
                     v-for="(item, index) in backgroundHistory" 
                     :key="index" 
                     class="history-item"
-                    :class="{ active: item.path === overlaySettings.backgroundPath }"
+                    :class="{ active: overlaySettings.backgroundMode === 'custom' && item.path === overlaySettings.backgroundPath }"
                     @click="applyHistory(item)"
                   >
                     <!-- 根据文件扩展名来决定显示视频还是图片 -->
@@ -460,8 +479,8 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
-import { Refresh, Close, Aim } from '@element-plus/icons-vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
@@ -478,6 +497,7 @@ import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
+import { OVERLAY_BACKGROUND_MODES, resolveOverlayBackgroundDrop } from '../../../shared/overlayBackground.js'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
@@ -496,9 +516,17 @@ const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
+const isBackgroundDragging = ref(false)
 
 onMounted(() => {
   void account.run(() => account.restore()).catch(() => {})
+  window.addEventListener('dragover', preventBackgroundFileNavigation)
+  window.addEventListener('drop', preventBackgroundFileNavigation)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('dragover', preventBackgroundFileNavigation)
+  window.removeEventListener('drop', preventBackgroundFileNavigation)
 })
 
 async function runAccountAction(action, successMessage = '') {
@@ -737,28 +765,67 @@ function formatFilePath(filePath) {
 function handleOverlaySettingsChange() {
   if (settingsStore.updateOverlaySettings) {
     settingsStore.updateOverlaySettings(overlaySettings.value)
+    overlaySettings.value = { ...settingsStore.overlaySettings }
   }
+}
+
+function preventBackgroundFileNavigation(event) {
+  if (Array.from(event.dataTransfer?.types || []).includes('Files')) event.preventDefault()
+}
+
+function handleBackgroundModeChange(mode) {
+  if (mode === OVERLAY_BACKGROUND_MODES.custom) {
+    if (overlaySettings.value.backgroundPath) handleOverlaySettingsChange()
+    return
+  }
+  overlaySettings.value.backgroundPath = ''
+  handleOverlaySettingsChange()
+}
+
+function applyImportedBackground(result) {
+  if (!result?.success || !result.filePath) {
+    if (!result?.canceled) ElMessage.error(result?.error?.message || '导入背景失败')
+    return false
+  }
+  overlaySettings.value.backgroundMode = OVERLAY_BACKGROUND_MODES.custom
+  overlaySettings.value.backgroundPath = result.filePath
+  handleOverlaySettingsChange()
+  return true
 }
 
 async function handleSelectFile() {
   try {
-    const result = await electronApi.selectFile()
-    if (!result.canceled && result.filePaths.length > 0) {
-      // 文件已经复制到项目目录，使用返回的路径
-      const savedPath = result.filePaths[0]
-      overlaySettings.value.backgroundPath = savedPath
-      
-      // 更新设置（会自动添加到历史记录）
-      handleOverlaySettingsChange()
-    }
+    applyImportedBackground(await electronApi.overlay.selectBackground())
   } catch (error) {
     ElMessage.error('选择文件失败: ' + error.message)
   }
 }
 
+function handleBackgroundDragLeave(event) {
+  if (!event.currentTarget.contains(event.relatedTarget)) isBackgroundDragging.value = false
+}
+
+async function handleBackgroundDrop(event) {
+  isBackgroundDragging.value = false
+  const drop = resolveOverlayBackgroundDrop(
+    event.dataTransfer?.files,
+    file => electronApi.overlay.getPathForFile(file)
+  )
+  if (!drop.success) {
+    ElMessage.error(drop.error.message)
+    return
+  }
+
+  try {
+    applyImportedBackground(await electronApi.overlay.importBackground(drop.sourcePath))
+  } catch (error) {
+    ElMessage.error('拖拽导入失败: ' + error.message)
+  }
+}
+
 // 历史记录操作
 function applyHistory(item) {
-  // 移除对 type 的依赖
+  overlaySettings.value.backgroundMode = OVERLAY_BACKGROUND_MODES.custom
   overlaySettings.value.backgroundPath = item.path
   handleOverlaySettingsChange()
 }
@@ -880,8 +947,47 @@ async function handleReset() {
       }
     }
     
-    .file-input {
+    .background-drop-zone {
       width: 100%;
+      min-height: 116px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 14px;
+      border: 2px dashed var(--border-base);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color .2s, background-color .2s;
+
+      &:hover,
+      &:focus-visible,
+      &.is-dragging {
+        outline: none;
+        border-color: var(--el-color-primary);
+        background-color: var(--el-color-primary-light-9);
+      }
+
+      .drop-icon {
+        font-size: 28px;
+        color: var(--el-color-primary);
+      }
+
+      strong {
+        color: var(--text-primary);
+      }
+
+      small {
+        width: 100%;
+        margin-top: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
     
     .history-section {

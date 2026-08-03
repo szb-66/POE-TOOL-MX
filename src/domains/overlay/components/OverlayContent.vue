@@ -9,9 +9,9 @@
       <div class="failure-message">{{ stopReason }}</div>
     </div>
     <!-- 背景层 -->
-    <div class="background-layer" :style="backgroundStyle">
+    <div v-if="backgroundMedia !== 'none'" class="background-layer" :style="backgroundStyle">
       <!-- 根据文件路径后缀判断是否为视频 -->
-      <video v-if="isVideo(effectiveSettings.backgroundPath)" :src="formattedBackgroundPath" autoplay loop muted
+      <video v-if="backgroundMedia === 'video'" :src="formattedBackgroundPath" autoplay loop muted
         class="bg-video"></video>
     </div>
 
@@ -155,6 +155,7 @@ import { Close } from '@element-plus/icons-vue'
 // 导入默认背景图，以防用户未设置
 import defaultBg from '@/assets/images/遮罩背景.png'
 import { electronApi } from '@/api/electron'
+import { normalizeOverlaySettings, overlayBackgroundMedia } from '../../../../shared/overlayBackground.js'
 
 const props = defineProps({
   itemInfo: {
@@ -164,6 +165,7 @@ const props = defineProps({
   settings: {
     type: Object,
     default: () => ({
+      backgroundMode: 'default',
       backgroundPath: '',
       blur: 4,
       maskOpacity: 0.5
@@ -265,24 +267,24 @@ const rarityClass = computed(() => {
 
 // 确保有默认值
 const effectiveSettings = computed(() => {
-  return {
-    backgroundPath: props.settings.backgroundPath || '',
-    blur: props.settings.blur ?? 4,
-    maskOpacity: props.settings.maskOpacity ?? 0.5
-  }
+  return normalizeOverlaySettings(props.settings)
 })
+
+const backgroundMedia = computed(() => overlayBackgroundMedia(effectiveSettings.value))
+
+function formatBackgroundPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return filePath
+  let normalizedPath = filePath.replace(/\\/g, '/')
+  if (normalizedPath.match(/^(https?|file):\/\//)) return normalizedPath
+  if (/^[A-Za-z]:/.test(normalizedPath)) return `file:///${normalizedPath}`
+  if (normalizedPath.startsWith('/') && !normalizedPath.startsWith('//')) return `file://${normalizedPath}`
+  return normalizedPath
+}
 
 const formattedBackgroundPath = computed(() => {
-  if (!effectiveSettings.value.backgroundPath) return defaultBg
-  // 简单处理 Windows 路径
-  return effectiveSettings.value.backgroundPath
+  if (effectiveSettings.value.backgroundMode === 'default') return defaultBg
+  return formatBackgroundPath(effectiveSettings.value.backgroundPath)
 })
-
-function isVideo(path) {
-  if (!path) return false
-  const ext = path.split('.').pop().toLowerCase()
-  return ['mp4', 'webm', 'ogg', 'mov'].includes(ext)
-}
 
 const backgroundStyle = computed(() => {
   const style = {
@@ -290,32 +292,14 @@ const backgroundStyle = computed(() => {
   }
 
   const path = effectiveSettings.value.backgroundPath
-  const isVideoFile = isVideo(path)
+  const isVideoFile = backgroundMedia.value === 'video'
 
   // 渲染背景图的条件：
   // 1. 路径为空（显示默认图）
   // 2. 不是视频文件
-  if (!path || !isVideoFile) {
+  if (backgroundMedia.value === 'default' || (path && !isVideoFile)) {
     // 处理背景图片路径
-    let bgUrl = formattedBackgroundPath.value
-
-    // 如果是字符串路径（用户自定义的本地文件路径）
-    if (typeof bgUrl === 'string' && bgUrl) {
-      // Windows 路径处理：替换反斜杠为正斜杠
-      bgUrl = bgUrl.replace(/\\/g, '/')
-
-      // 如果是绝对路径（Windows: C:/ 或 Unix: /），添加 file:// 协议
-      // 但排除已经是 URL 的情况（http://, https://, file://）
-      if (!bgUrl.match(/^(https?|file):\/\//) && !bgUrl.startsWith('/') && /^[A-Za-z]:/.test(bgUrl)) {
-        // Windows 绝对路径，添加 file:/// 前缀（注意三个斜杠）
-        bgUrl = `file:///${bgUrl}`
-      } else if (!bgUrl.match(/^(https?|file):\/\//) && bgUrl.startsWith('/') && !bgUrl.startsWith('//')) {
-        // Unix 绝对路径，添加 file:// 前缀
-        bgUrl = `file://${bgUrl}`
-      }
-    }
-
-    style.backgroundImage = `url("${bgUrl}")`
+    style.backgroundImage = `url("${formattedBackgroundPath.value}")`
   }
 
   return style

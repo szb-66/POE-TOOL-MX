@@ -97,10 +97,11 @@ const mockApi = {
     onBagDetectionStopped: () => () => { },
     onUpdateDebugOverlay: () => { },
   },
-  selectFile: () => Promise.resolve({ canceled: true, filePaths: [] }),
-  copyFileToProject: () => Promise.resolve({ success: false }),
   overlay: {
     updateSettings: () => Promise.resolve({ success: true }),
+    selectBackground: () => Promise.resolve({ success: false, canceled: true }),
+    importBackground: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '背景导入仅支持 Electron 客户端' } }),
+    getPathForFile: () => '',
   },
   bag: {
     startDetection: () => Promise.reject(new Error('非 Electron 环境')),
@@ -337,11 +338,11 @@ export const electronApi = isElectron ? {
     onUpdateDebugOverlay: (callback) => window.electronAPI.onUpdateDebugOverlay?.(callback),
   },
 
-  selectFile: () => window.electronAPI.selectFile(),
-  copyFileToProject: (sourcePath) => window.electronAPI.copyFileToProject(sourcePath),
-
   overlay: {
     updateSettings: (settings) => window.electronAPI.updateOverlaySettings(settings),
+    selectBackground: () => window.electronAPI.selectOverlayBackground(),
+    importBackground: (sourcePath) => window.electronAPI.importOverlayBackground(sourcePath),
+    getPathForFile: (file) => window.electronAPI.getPathForFile(file),
   },
 
   bag: {

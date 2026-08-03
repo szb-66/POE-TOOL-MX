@@ -6,6 +6,7 @@ import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/s
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
 import { createDefaultStashTabSelection, normalizeStashTabSelection } from '@/utils/stashTabSelection'
+import { addOverlayBackgroundHistory, normalizeOverlaySettings } from '../../../shared/overlayBackground.js'
 import {
   DEFAULT_STORY_OVERLAY_OPACITY,
   DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
@@ -89,11 +90,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const debugMode = ref(false)
 
   // 覆盖层设置
-  const overlaySettings = ref({
-    backgroundPath: '',      // 文件路径
-    blur: 4,                 // 模糊像素
-    maskOpacity: 0.5         // 遮罩透明度 (0-1)
-  })
+  const overlaySettings = ref(normalizeOverlaySettings())
   const gameWindowTitles = ref([...DEFAULT_GAME_WINDOW_TITLES])
   const storyOverlayWidth = ref(560)
   const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
@@ -248,12 +245,12 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function updateOverlaySettings(settings) {
-    overlaySettings.value = { ...overlaySettings.value, ...settings }
+    overlaySettings.value = normalizeOverlaySettings({ ...overlaySettings.value, ...settings })
     
     // Add to history if path is valid and not already at the top
-    if (settings.backgroundPath) {
+    if (overlaySettings.value.backgroundMode === 'custom' && overlaySettings.value.backgroundPath) {
       addToHistory({
-        path: settings.backgroundPath
+        path: overlaySettings.value.backgroundPath
       })
     }
 
@@ -266,19 +263,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function addToHistory(item) {
-    // Remove existing entry if present (to move to top)
-    const index = backgroundHistory.value.findIndex(h => h.path === item.path)
-    if (index !== -1) {
-      backgroundHistory.value.splice(index, 1)
-    }
-    
-    // Add to beginning
-    backgroundHistory.value.unshift(item)
-    
-    // Limit to 6 items
-    if (backgroundHistory.value.length > 6) {
-      backgroundHistory.value = backgroundHistory.value.slice(0, 6)
-    }
+    backgroundHistory.value = addOverlayBackgroundHistory(backgroundHistory.value, item?.path)
   }
 
   function removeHistoryItem(index) {
@@ -353,7 +338,7 @@ export const useSettingsStore = defineStore('settings', () => {
           debugMode.value = data.debugMode
         }
         if (data.overlaySettings) {
-          overlaySettings.value = { ...overlaySettings.value, ...data.overlaySettings }
+          overlaySettings.value = normalizeOverlaySettings(data.overlaySettings)
         }
         if (data.backgroundHistory) {
           backgroundHistory.value = data.backgroundHistory
@@ -418,11 +403,7 @@ export const useSettingsStore = defineStore('settings', () => {
     y: 930
   }
 
-  const defaultOverlaySettings = {
-    backgroundPath: '',
-    blur: 4,
-    maskOpacity: 0.5
-  }
+  const defaultOverlaySettings = normalizeOverlaySettings()
 
   function resetSettings() {
     globalShortcuts.value = { ...defaultGlobalShortcuts }

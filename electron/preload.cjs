@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -85,8 +85,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(data)
     })
   },
-  selectFile: () => ipcRenderer.invoke('select-file'),
-  copyFileToProject: (sourcePath) => ipcRenderer.invoke('copy-file-to-project', sourcePath),
+  selectOverlayBackground: () => ipcRenderer.invoke('select-overlay-background'),
+  importOverlayBackground: (sourcePath) => ipcRenderer.invoke('import-overlay-background', sourcePath),
+  getPathForFile: (file) => webUtils.getPathForFile(file),
   writeClipboardText: (text) => ipcRenderer.invoke('clipboard-write-text', text),
   updateOverlaySettings: (settings) => ipcRenderer.invoke('update-overlay-settings', settings),
   // 窗口控制
