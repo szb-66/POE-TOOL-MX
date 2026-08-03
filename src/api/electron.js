@@ -73,11 +73,17 @@ const mockApi = {
   },
   puzzle: {
     pickInventoryRegion: () => Promise.resolve({ canceled: true }),
+    pickAtlasRegion: () => Promise.resolve({ canceled: true }),
+    getConfiguration: () => Promise.resolve({ previews: { inventory: '', atlas: '' }, states: {} }),
     analyze: () => Promise.resolve({
       success: false,
-      error: { code: 'ELECTRON_REQUIRED', message: '九宫格识别仅支持 Electron 客户端' }
+      error: { code: 'ELECTRON_REQUIRED', message: '海图识别仅支持 Electron 客户端' }
     }),
-    onAnalysisUpdated: () => () => {}
+    startAutoPlacement: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '海图自动放置仅支持 Electron 客户端' } }),
+    stopAutoPlacement: () => Promise.resolve({ success: true, status: 'stopped' }),
+    getAutoPlacementStatus: () => Promise.resolve({ status: 'idle' }),
+    onAnalysisUpdated: () => () => {},
+    onAutoPlacementUpdated: () => () => {}
   },
   events: {
     onPythonOutput: () => { },
@@ -307,8 +313,14 @@ export const electronApi = isElectron ? {
   },
   puzzle: {
     pickInventoryRegion: () => window.electronAPI.pickPuzzleInventoryRegion?.(),
+    pickAtlasRegion: () => window.electronAPI.pickPuzzleAtlasRegion?.(),
+    getConfiguration: (request) => window.electronAPI.getPuzzleConfiguration?.(craftingIpcPayload(request)),
     analyze: (request) => window.electronAPI.analyzePuzzle?.(craftingIpcPayload(request)),
-    onAnalysisUpdated: (callback) => window.electronAPI.onPuzzleAnalysisUpdated?.(callback) || (() => {})
+    startAutoPlacement: (request) => window.electronAPI.startPuzzleAutoPlacement?.(craftingIpcPayload(request)),
+    stopAutoPlacement: (reason) => window.electronAPI.stopPuzzleAutoPlacement?.(reason),
+    getAutoPlacementStatus: () => window.electronAPI.getPuzzleAutoPlacementStatus?.(),
+    onAnalysisUpdated: (callback) => window.electronAPI.onPuzzleAnalysisUpdated?.(callback) || (() => {}),
+    onAutoPlacementUpdated: (callback) => window.electronAPI.onPuzzleAutoPlacementUpdated?.(callback) || (() => {})
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
 

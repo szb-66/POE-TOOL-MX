@@ -33,15 +33,31 @@ const physicalSize = computed(() => ({
 const selectionValid = computed(() => physicalSize.value.width >= context.minimumSize.width && physicalSize.value.height >= context.minimumSize.height)
 const selectionStyle = computed(() => {
   const region = normalizedSelection.value
-  return region ? { left: `${region.left}px`, top: `${region.top}px`, width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px` } : {}
+  const grid = context.purpose === 'puzzle-atlas'
+    ? { columns: 3, rows: 3 }
+    : context.purpose === 'puzzle-inventory' ? { columns: 6, rows: 10 } : null
+  return region ? {
+    left: `${region.left}px`, top: `${region.top}px`,
+    width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px`,
+    ...(grid ? {
+      backgroundSize: `${100 / grid.columns}% ${100 / grid.rows}%`,
+      backgroundImage: 'linear-gradient(to right, rgba(34,211,238,.8) 1px, transparent 1px), linear-gradient(to bottom, rgba(34,211,238,.8) 1px, transparent 1px)'
+    } : {})
+  } : {}
 })
 const pickerTitle = computed(() => {
   if (context.mode !== 'region') return '点击选取坐标'
-  return context.purpose === 'puzzle-inventory' ? '框选完整的右侧 6×10 碎片仓库' : '拖动框选标题模板'
+  if (context.purpose === 'puzzle-inventory') return '框选完整的 6×10 碎片仓库'
+  if (context.purpose === 'puzzle-atlas') return '框选完整的 3×3 海图区'
+  return '拖动框选标题模板'
 })
 const regionHint = computed(() => selection.value
   ? `${physicalSize.value.width} × ${physicalSize.value.height} 物理像素${selectionValid.value ? '，按 Enter 或点击确认' : `，最小 ${context.minimumSize.width} × ${context.minimumSize.height}`}`
-  : context.purpose === 'puzzle-inventory' ? '从仓库左上角拖到右下角，包含全部 60 个格子' : '拖动框选完整标题，按 Esc 取消')
+  : context.purpose === 'puzzle-inventory'
+    ? '贴近仓库网格外边框，从左上角拖到右下角，包含全部 60 格'
+    : context.purpose === 'puzzle-atlas'
+      ? '贴近海图网格外边框，从左上角拖到右下角，包含完整九格'
+      : '拖动框选完整标题，按 Esc 取消')
 
 const handlePick = (event) => {
   if (context.mode !== 'point') return
@@ -125,5 +141,5 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 .coordinate-picker__tip button { align-self: center; padding: 6px 18px; border: 0; border-radius: 5px; cursor: pointer; }
 .coordinate-picker__tip button:disabled { cursor: not-allowed; opacity: 0.45; }
-.coordinate-picker__selection { position: fixed; box-sizing: border-box; border: 2px solid #22d3ee; background: rgba(34, 211, 238, 0.12); pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.2); }
+.coordinate-picker__selection { position: fixed; box-sizing: border-box; border: 2px solid #22d3ee; background-color: rgba(34, 211, 238, 0.12); pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.2); }
 </style>

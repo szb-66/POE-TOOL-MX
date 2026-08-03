@@ -2,14 +2,18 @@
   <div class="puzzle-page">
     <div class="page-heading">
       <div>
-        <h2>九宫格</h2>
-        <p>识别右侧 6×10 碎片仓库，计算内部完全相连且外周出口最多的方案。</p>
+        <h2>海图 <el-tag size="small">S30 赛季玩法</el-tag></h2>
+        <p>识别 6×10 碎片仓库，计算方案并自动旋转、放入 3×3 海图区。</p>
       </div>
       <div class="heading-actions">
-        <el-button @click="pickRegion">框选仓库区域</el-button>
         <el-button type="primary" :loading="analyzing" :disabled="!regionMetadata" @click="startAnalysis">
           {{ analyzing ? '正在识别…' : '开始识别' }}
         </el-button>
+        <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
+          {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
+        </el-button>
+        <el-button v-else type="danger" @click="stopAutoPlacement">停止自动放入</el-button>
+        <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
       </div>
     </div>
 
@@ -23,7 +27,7 @@
     />
     <el-alert
       v-else-if="!regionMetadata"
-      title="首次使用请先框选右侧完整的 6×10 碎片仓库。"
+      title="首次使用请先框选完整的 6×10 碎片仓库。"
       :description="`页面按钮会自动切换到游戏并立即识别；也可按 ${puzzleShortcut} 触发。`"
       type="info"
       show-icon
@@ -31,10 +35,32 @@
       class="status-alert"
     />
 
-    <div v-if="regionMetadata" class="region-line">
-      已配置区域：{{ regionText }}
-      <span>快捷键 {{ puzzleShortcut }} 可在游戏前台立即分析</span>
+    <div class="configuration-grid">
+      <article v-for="config in regionConfigs" :key="config.type" class="configuration-card" :class="{ ready: config.state?.valid }">
+        <div class="configuration-heading">
+          <strong>{{ config.label }}</strong>
+          <div class="configuration-actions">
+            <el-tag :type="config.state?.valid ? 'success' : config.metadata ? 'danger' : 'warning'" size="small">{{ config.state?.valid ? '有效' : config.metadata ? '已失效' : '未配置' }}</el-tag>
+            <el-button size="small" :disabled="executing" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
+          </div>
+        </div>
+        <div class="preview-shell">
+          <div
+            v-if="config.preview"
+            class="preview-stage"
+            :style="{ '--columns': config.columns, '--rows': config.rows, '--preview-aspect': config.aspect, '--preview-width': `${config.aspect * 220}px` }"
+          >
+            <img :src="config.preview" :alt="`${config.label}截图预览`">
+            <i class="preview-grid" />
+          </div>
+          <span v-else>{{ config.metadata ? '预览不可用，请重新框选' : '等待截图' }}</span>
+        </div>
+        <small>{{ config.text }} · {{ config.state?.message }}</small>
+      </article>
     </div>
+    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可在游戏前台立即分析；Alt+3 可紧急停止自动放入</span></div>
+
+    <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
 
     <div class="count-strip">
       <div v-for="option in typeOptions" :key="option.value" class="count-card">
@@ -52,7 +78,7 @@
       <el-card class="inventory-card" shadow="never">
         <template #header>
           <div class="card-title">
-            <span>碎片仓库（点击格子可修正）</span>
+            <span>碎片仓库（点击修正类型，右键旋转角度）</span>
             <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
           </div>
         </template>
@@ -62,6 +88,7 @@
             v-for="slot in slots"
             :key="`${slot.row}-${slot.column}`"
             trigger="click"
+            :disabled="executing"
             @command="updateSlot(slot, $event)"
           >
             <button
@@ -73,9 +100,12 @@
                 selected: sourceCellBySlot.has(`${slot.row}:${slot.column}`)
               }"
               :title="slotTitle(slot)"
+              :disabled="executing"
+              @contextmenu.prevent="rotateSlot(slot)"
             >
               <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
               <span v-else class="empty-mark">·</span>
+              <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
               <b v-if="sourceCellBySlot.has(`${slot.row}:${slot.column}`)" class="source-index">
                 {{ sourceCellBySlot.get(`${slot.row}:${slot.column}`) + 1 }}
               </b>
@@ -106,14 +136,17 @@
           </div>
         </template>
 
-        <p class="exit-help">点击外周编号可设为必选出口；绿色表示当前方案已连接。</p>
+        <div class="exit-controls">
+          <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
+          <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
+        </div>
         <div class="solution-shell">
             <div class="horizontal-exits top-exits">
-              <button v-for="id in northExits" :key="id" :class="exitClasses(id)" @click="toggleExit(id)">{{ id }}</button>
+                <button v-for="id in northExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
             </div>
             <div class="solution-middle">
               <div class="vertical-exits">
-                <button v-for="id in westExits" :key="id" :class="exitClasses(id)" @click="toggleExit(id)">{{ id }}</button>
+                <button v-for="id in westExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
               </div>
               <div class="solution-grid">
                 <div v-for="cell in displayCells" :key="cell.index" class="solution-cell" :class="{ placeholder: !cell.mask }">
@@ -122,11 +155,11 @@
                 </div>
               </div>
               <div class="vertical-exits">
-                <button v-for="id in eastExits" :key="id" :class="exitClasses(id)" @click="toggleExit(id)">{{ id }}</button>
+                <button v-for="id in eastExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
               </div>
             </div>
             <div class="horizontal-exits bottom-exits">
-              <button v-for="id in southExits" :key="id" :class="exitClasses(id)" @click="toggleExit(id)">{{ id }}</button>
+              <button v-for="id in southExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
             </div>
         </div>
 
@@ -137,9 +170,9 @@
             </span>
           </div>
           <div class="solution-pager">
-            <el-button :disabled="solutionIndex === 0" @click="previousSolution">上一个</el-button>
+            <el-button :disabled="executing || solutionIndex === 0" @click="previousSolution">上一个</el-button>
             <span>第 {{ solutionIndex + 1 }} / {{ result.solutions.length }} 个展示方案</span>
-            <el-button :disabled="solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
+            <el-button :disabled="executing || solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
           </div>
           <p class="total-note">
             同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
@@ -147,16 +180,14 @@
           </p>
         </template>
 
-        <el-empty v-else :description="emptyDescription">
-          <el-button v-if="requiredExits.length" @click="clearRequiredExits">清空必选出口</el-button>
-        </el-empty>
+        <el-empty v-else :description="emptyDescription" />
       </el-card>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { Warning } from '@element-plus/icons-vue'
@@ -168,16 +199,26 @@ const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
 const {
   regionMetadata,
+  inventoryRegionMetadata,
+  atlasRegionMetadata,
+  previews,
+  configurationStates,
   slots,
   warnings,
   requiredExits,
+  forbiddenExits,
   solutionIndex,
   analyzing,
   error,
   result,
   counts,
   currentSolution,
-  currentSourceSlots
+  currentSourceSlots,
+  execution,
+  executing,
+  canAutoPlace,
+  autoPlaceBlockedReason,
+  resumeIndex
 } = storeToRefs(store)
 
 const typeOptions = [
@@ -195,10 +236,28 @@ const westExits = ['W0', 'W1', 'W2']
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
-const regionText = computed(() => {
-  const region = regionMetadata.value?.selectedRegion
-  if (!region) return '未配置'
-  return `${region.left}, ${region.top} · ${region.right - region.left}×${region.bottom - region.top}px · DPI ${regionMetadata.value.scaleFactor}`
+const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
+const metadataText = metadata => {
+  const region = metadata?.selectedRegion
+  if (!region) return '请贴近网格外边框进行截图'
+  return `${region.left}, ${region.top} · ${region.right - region.left}×${region.bottom - region.top}px · DPI ${metadata.scaleFactor} · ${metadata.capturedAt ? new Date(metadata.capturedAt).toLocaleString() : '时间未知'}`
+}
+const previewAspect = (metadata, columns, rows) => {
+  const region = metadata?.selectedRegion
+  const width = Number(region?.right) - Number(region?.left)
+  const height = Number(region?.bottom) - Number(region?.top)
+  return width > 0 && height > 0 ? width / height : columns / rows
+}
+const regionConfigs = computed(() => [
+  { type: 'inventory', label: '碎片仓库 6×10', pickLabel: '框选碎片仓库', columns: 6, rows: 10, metadata: inventoryRegionMetadata.value, state: configurationStates.value.inventory, preview: previews.value.inventory, aspect: previewAspect(inventoryRegionMetadata.value, 6, 10), text: metadataText(inventoryRegionMetadata.value) },
+  { type: 'atlas', label: '海图区 3×3', pickLabel: '框选海图区', columns: 3, rows: 3, metadata: atlasRegionMetadata.value, state: configurationStates.value.atlas, preview: previews.value.atlas, aspect: previewAspect(atlasRegionMetadata.value, 3, 3), text: metadataText(atlasRegionMetadata.value) }
+])
+const executionText = computed(() => {
+  if (execution.value.status === 'completed') return '海图自动放入和完整终检已完成'
+  if (execution.value.status === 'stopped') return `海图自动放入已停止，已完成 ${execution.value.completed || 0}/9 格`
+  if (execution.value.error?.code === 'ATLAS_NOT_EMPTY') return `${execution.value.reason}；未发送任何放置点击`
+  if (execution.value.status === 'error') return `${execution.value.reason || '海图自动放入失败'}；已完成 ${execution.value.completed || 0}/9 格，可重新同步仓库后继续`
+  return `海图自动放入进行中：${execution.value.completed || 0}/9 格${execution.value.currentIndex >= 0 ? `，当前第 ${execution.value.currentIndex + 1} 格` : ''}`
 })
 const sourceCellBySlot = computed(() => new Map(currentSourceSlots.value.map(source => [
   `${source.row}:${source.column}`,
@@ -208,14 +267,14 @@ const displayCells = computed(() => currentSolution.value?.cells || Array.from({
 const emptyDescription = computed(() => {
   if (!occupiedCount.value) return '识别仓库后将在这里显示方案'
   if (result.value.error === 'INSUFFICIENT_FRAGMENTS') return '可用碎片不足 9 块'
-  if (requiredExits.value.length) return '当前库存无法满足这些必选出口'
+  if (hasExitConstraints.value) return '当前库存无法满足出口限制，请手动调整出口状态或点击“清空出口状态”'
   return '当前库存组合没有可行的连通方案'
 })
 
-async function pickRegion() {
+async function pickRegion(type) {
   try {
-    const response = await store.pickInventoryRegion()
-    if (response?.success) ElMessage.success('碎片仓库区域已保存')
+    const response = type === 'atlas' ? await store.pickAtlasRegion() : await store.pickInventoryRegion()
+    if (response?.success) ElMessage.success(`${type === 'atlas' ? '海图区' : '碎片仓库'}已保存`)
   } catch (caught) {
     ElMessage.error(caught?.message || '框选区域失败')
   }
@@ -223,8 +282,24 @@ async function pickRegion() {
 
 async function startAnalysis() {
   const response = await store.analyze()
-  if (response?.success) ElMessage.success('九宫格碎片识别完成')
+  if (response?.success) ElMessage.success('海图碎片识别完成')
   else if (response?.error) ElMessage.error(response.error.message)
+}
+
+function rotateSlot(slot) {
+  if (executing.value || !slot.occupied) return
+  const step = slot.type === 'cross' ? 0 : 90
+  store.updateSlotOrientation(slot.row, slot.column, slot.orientation + step)
+}
+
+async function startAutoPlacement() {
+  const response = await store.startAutoPlacement(settingsStore.operationDelayMs)
+  if (!response?.success) ElMessage.error(response?.error?.message || '海图自动放入启动失败')
+}
+
+async function stopAutoPlacement() {
+  await store.stopAutoPlacement('user')
+  ElMessage.info('海图自动放入已停止')
 }
 
 function updateSlot(slot, command) {
@@ -241,17 +316,41 @@ function exitClasses(id) {
   return {
     'exit-button': true,
     achieved: currentSolution.value?.exits.includes(id),
-    required: requiredExits.value.includes(id)
+    required: requiredExits.value.includes(id),
+    forbidden: forbiddenExits.value.includes(id)
   }
 }
 
-function toggleExit(id) {
+function exitTitle(id) {
+  if (requiredExits.value.includes(id)) return `${id}：必选出口；左键取消，右键切换为禁止`
+  if (forbiddenExits.value.includes(id)) return `${id}：禁止出口；右键取消，左键切换为必选`
+  return `${id}：左键设为必选，右键设为禁止`
+}
+
+function toggleRequiredExit(id) {
   store.toggleRequiredExit(id)
 }
 
-function clearRequiredExits() {
-  for (const id of [...requiredExits.value]) store.toggleRequiredExit(id)
+function toggleForbiddenExit(id) {
+  store.toggleForbiddenExit(id)
 }
+
+const clearExitConstraints = store.clearExitConstraints
+
+let removeExecutionListener = null
+onMounted(() => {
+  void store.loadConfiguration()
+  removeExecutionListener = store.listenExecution(event => {
+    if (event?.status === 'error') ElMessage.error(event.error?.message || event.reason || '海图自动放入失败')
+    if (event?.status === 'completed') ElMessage.success('海图自动放入完成')
+    if (['error', 'stopped'].includes(event?.status)) void store.refreshInventoryAfterExecution()
+  })
+  void store.refreshExecutionStatus().then(status => {
+    if (['error', 'stopped'].includes(status?.status)) return store.refreshInventoryAfterExecution()
+    return null
+  })
+})
+onUnmounted(() => removeExecutionListener?.())
 
 const previousSolution = store.previousSolution
 const nextSolution = store.nextSolution
@@ -279,8 +378,19 @@ const nextSolution = store.nextSolution
 .page-heading p { margin: 0; color: var(--el-text-color-secondary); }
 .heading-actions { display: flex; gap: 10px; flex-shrink: 0; }
 .status-alert { margin-top: var(--spacing-md); }
+.auto-blocked-reason { max-width: 220px; color: var(--el-color-warning); line-height: 1.35; }
 .region-line { margin: 12px 0; font-size: 13px; color: var(--el-text-color-secondary); }
 .region-line span { color: var(--el-color-primary); }
+.configuration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
+.configuration-card { min-width: 0; padding: 12px; border: 1px solid var(--el-color-warning-light-5); border-radius: 9px; background: var(--el-bg-color); }
+.configuration-card.ready { border-color: var(--el-color-success-light-5); }
+.configuration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.configuration-actions { display: flex; align-items: center; gap: 8px; }
+.configuration-card small { display: block; overflow: hidden; margin-top: 7px; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
+.preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
+.preview-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.preview-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(to right, rgba(34,211,238,.75) 1px, transparent 1px), linear-gradient(to bottom, rgba(34,211,238,.75) 1px, transparent 1px); background-size: calc(100% / var(--columns)) calc(100% / var(--rows)); }
 
 .count-strip {
   display: grid;
@@ -337,9 +447,11 @@ const nextSolution = store.nextSolution
 .inventory-slot.selected { border-color: #f5c451; box-shadow: 0 0 0 2px #f5c451; }
 .empty-mark { font-size: 24px; }
 .source-index { position: absolute; left: 2px; top: 1px; color: #f5c451; font-size: 12px; }
+.orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 
-.exit-help { text-align: center; color: var(--el-text-color-secondary); margin: 0 0 10px; }
+.exit-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 10px; }
+.exit-help { text-align: center; color: var(--el-text-color-secondary); margin: 0; }
 .solution-shell {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 42px;
@@ -394,6 +506,7 @@ const nextSolution = store.nextSolution
 .exit-button { min-width: 0; min-height: 30px; border: 1px solid var(--el-border-color); border-radius: 5px; background: var(--el-fill-color-lighter); color: var(--el-text-color-secondary); cursor: pointer; font-size: 11px; line-height: 1; }
 .exit-button.achieved { color: var(--el-color-success); border-color: var(--el-color-success); background: var(--el-color-success-light-9); }
 .exit-button.required { outline: 2px solid var(--el-color-warning); outline-offset: -2px; font-weight: 700; }
+.exit-button.forbidden { color: var(--el-color-danger); border-color: var(--el-color-danger); background: var(--el-color-danger-light-9); text-decoration: line-through; font-weight: 700; }
 .solution-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 10px; font-size: 13px; }
 .solution-pager { justify-content: center; }
 .total-note { text-align: center; color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 0; }
@@ -401,5 +514,12 @@ const nextSolution = store.nextSolution
 @media (max-width: 1050px) {
   .workspace { grid-template-columns: 1fr; }
   .count-strip { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 720px) {
+  .page-heading { align-items: flex-start; flex-direction: column; }
+  .heading-actions { flex-wrap: wrap; }
+  .configuration-grid { grid-template-columns: 1fr; }
+  .configuration-heading,
+  .exit-controls { align-items: flex-start; flex-direction: column; }
 }
 </style>

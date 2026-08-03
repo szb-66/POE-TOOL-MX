@@ -101,6 +101,10 @@
         "to": "puzzle_analyzer.py"
       },
       {
+        "from": "src/assets/scripts/puzzle_auto_place.py",
+        "to": "puzzle_auto_place.py"
+      },
+      {
         "from": "electron/assets/puzzle/templates.json",
         "to": "puzzle_templates.json"
       },

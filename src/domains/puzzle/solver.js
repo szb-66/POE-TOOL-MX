@@ -134,8 +134,8 @@ function normalizeCounts(counts = {}) {
   return Object.fromEntries(PUZZLE_TYPES.map(type => [type, Math.max(0, Math.floor(Number(counts[type]) || 0))]))
 }
 
-function requiredExitMask(requiredExits = []) {
-  const requested = new Set(requiredExits)
+function boundaryExitMask(exits = []) {
+  const requested = new Set(exits)
   return BOUNDARY_EXITS.reduce((mask, exit, index) => requested.has(exit.id) ? mask | (1 << index) : mask, 0)
 }
 
@@ -157,7 +157,7 @@ function fitsInventory(usage, inventory) {
   return PUZZLE_TYPES.every(type => usage[type] <= inventory[type])
 }
 
-export function solvePuzzle({ counts = {}, requiredExits = [], solutionLimit = 100 } = {}) {
+export function solvePuzzle({ counts = {}, requiredExits = [], forbiddenExits = [], solutionLimit = 100 } = {}) {
   const inventory = normalizeCounts(counts)
   const available = PUZZLE_TYPES.reduce((sum, type) => sum + inventory[type], 0)
   const limit = Math.max(1, Math.min(1000, Math.floor(Number(solutionLimit) || 100)))
@@ -165,13 +165,18 @@ export function solvePuzzle({ counts = {}, requiredExits = [], solutionLimit = 1
     return { score: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'INSUFFICIENT_FRAGMENTS' }
   }
 
-  const requiredMask = requiredExitMask(requiredExits)
+  const requiredMask = boundaryExitMask(requiredExits)
+  const forbiddenMask = boundaryExitMask(forbiddenExits)
+  if (requiredMask & forbiddenMask) {
+    return { score: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'NO_SOLUTION' }
+  }
   const seen = new Set()
   for (let score = 12; score >= popcount(requiredMask); score -= 1) {
     const solutions = []
     let totalOptimalCount = 0
     for (const boundaryMask of BOUNDARY_MASKS_BY_SCORE[score]) {
       if ((boundaryMask & requiredMask) !== requiredMask) continue
+      if (boundaryMask & forbiddenMask) continue
       for (const internalMasks of CONNECTED_INTERNAL_MASKS) {
         const candidate = layoutFor(internalMasks, boundaryMask)
         if (!candidate || !fitsInventory(candidate.usage, inventory)) continue

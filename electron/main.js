@@ -48,6 +48,7 @@ import {
 } from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
+import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
@@ -183,6 +184,7 @@ app.whenReady().then(async () => {
   craftingService.registerImageProtocol()
 
   const chaosOverlay = new ChaosRecipeOverlayManager()
+  const puzzleOverlay = new PuzzleOverlayManager()
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
@@ -229,7 +231,9 @@ app.whenReady().then(async () => {
     python: { ...pythonManager, ...pythonDetector },
     window: windowManager,
     fileWatcher,
-    getMainWindow
+    getMainWindow,
+    automationLock,
+    overlay: puzzleOverlay
   })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachService(chaosRecipeService)

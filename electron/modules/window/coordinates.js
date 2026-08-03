@@ -62,6 +62,26 @@ export function dipRectangleToPhysical(windowDipBounds, clientRectangle, dipToSc
   return normalizeRectangle(topLeft, bottomRight)
 }
 
+export function physicalRectangleToDipBounds(region, platform, screenToDipRect = rectangle => rectangle) {
+  const physical = {
+    x: Math.round(finite(region?.left)),
+    y: Math.round(finite(region?.top)),
+    width: Math.max(1, Math.round(finite(region?.right) - finite(region?.left))),
+    height: Math.max(1, Math.round(finite(region?.bottom) - finite(region?.top)))
+  }
+  const converted = platform === 'win32' ? screenToDipRect(physical) : physical
+  const left = Math.round(finite(converted?.x))
+  const top = Math.round(finite(converted?.y))
+  const right = Math.round(finite(converted?.x) + finite(converted?.width, 1))
+  const bottom = Math.round(finite(converted?.y) + finite(converted?.height, 1))
+  return {
+    x: left,
+    y: top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
+  }
+}
+
 export function getDisplayPhysicalBounds(display, platform, dipToScreenPoint = (point) => point) {
   const bounds = display?.bounds || {}
   const windows = platform === 'win32'

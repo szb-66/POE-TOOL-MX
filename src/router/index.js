@@ -52,6 +52,12 @@ const routes = [
     component: () => import('../domains/puzzle/PuzzleView.vue')
   },
   {
+    path: '/puzzle-overlay',
+    name: 'PuzzleOverlay',
+    component: () => import('../domains/puzzle/PuzzleOverlayView.vue'),
+    meta: { noLayout: true }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('../domains/settings/SettingsView.vue')

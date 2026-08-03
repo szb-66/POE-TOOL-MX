@@ -110,7 +110,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="九宫格分析">
+                <el-form-item label="海图分析">
                   <KeyCaptureInput :model-value="shortcuts.puzzleAnalyze" @change="handleShortcutsChange('puzzleAnalyze', $event)" />
                 </el-form-item>
               </el-col>

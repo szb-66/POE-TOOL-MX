@@ -109,11 +109,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   submitScreenRegion: (rectangle) => ipcRenderer.send('screen-picker-region-select', rectangle),
   cancelScreenCoordinatePicker: () => ipcRenderer.send('coordinate-picker-cancel'),
   pickPuzzleInventoryRegion: () => ipcRenderer.invoke('puzzle-pick-inventory-region'),
+  pickPuzzleAtlasRegion: () => ipcRenderer.invoke('puzzle-pick-atlas-region'),
+  getPuzzleConfiguration: (request) => ipcRenderer.invoke('puzzle-configuration', request),
   analyzePuzzle: (request) => ipcRenderer.invoke('puzzle-analyze', request),
+  startPuzzleAutoPlacement: (request) => ipcRenderer.invoke('puzzle-auto-placement-start', request),
+  stopPuzzleAutoPlacement: (reason) => ipcRenderer.invoke('puzzle-auto-placement-stop', reason),
+  getPuzzleAutoPlacementStatus: () => ipcRenderer.invoke('puzzle-auto-placement-status'),
   onPuzzleAnalysisUpdated: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('puzzle-analysis-updated', listener)
     return () => ipcRenderer.removeListener('puzzle-analysis-updated', listener)
+  },
+  onPuzzleAutoPlacementUpdated: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('puzzle-auto-placement-updated', listener)
+    return () => ipcRenderer.removeListener('puzzle-auto-placement-updated', listener)
   },
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
   moveWindow: (x, y) => ipcRenderer.send('window-move', { x, y }),

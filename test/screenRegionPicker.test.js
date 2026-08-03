@@ -12,8 +12,24 @@ import {
   hasUsefulPixelVariance,
   isRegionLargeEnough,
   normalizeRectangle,
+  physicalRectangleToDipBounds,
   physicalRectangleToImageCrop
 } from '../electron/modules/window/coordinates.js'
+
+test('遮罩物理矩形一次转换为整数 DIP 边界', () => {
+  let received = null
+  const converted = physicalRectangleToDipBounds(
+    { left: 1472, top: 656, right: 2289, bottom: 1482 },
+    'win32',
+    rectangle => {
+      received = rectangle
+      return { x: 981.333, y: 437.333, width: 544.667, height: 550.667 }
+    }
+  )
+  assert.deepEqual(received, { x: 1472, y: 656, width: 817, height: 826 })
+  assert.deepEqual(converted, { x: 981, y: 437, width: 545, height: 551 })
+  assert.ok(Object.values(converted).every(Number.isInteger))
+})
 import { assertBagTemplateTarget, savePngAtomically } from '../electron/modules/bag/templateCapture.js'
 import { normalizeBagSettings, validateTemplateCaptureEnvironment } from '../src/utils/bagConfig.js'
 

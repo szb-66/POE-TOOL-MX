@@ -44,7 +44,7 @@
     </el-menu-item>
     <el-menu-item index="/puzzle">
       <el-icon><Grid /></el-icon>
-      <span>九宫格</span>
+      <span>海图</span>
     </el-menu-item>
     <el-menu-item index="/settings">
       <el-icon><Setting /></el-icon>

@@ -49,6 +49,36 @@ test('必选出口是硬约束且其余出口继续最大化', () => {
   }
 })
 
+test('禁止出口是硬约束且其余出口继续最大化', () => {
+  const forbiddenExits = ['N0', 'E1']
+  const result = solvePuzzle({ counts: abundant, forbiddenExits, solutionLimit: 8 })
+  assert.equal(result.score, 10)
+  assert.equal(result.solutions.length, 8)
+  for (const solution of result.solutions) {
+    forbiddenExits.forEach(exit => assert.ok(!solution.exits.includes(exit)))
+  }
+})
+
+test('必选与禁止出口可以组合且冲突约束明确无解', () => {
+  const result = solvePuzzle({
+    counts: abundant,
+    requiredExits: ['N0', 'S2'],
+    forbiddenExits: ['E1', 'W1'],
+    solutionLimit: 8
+  })
+  assert.equal(result.score, 10)
+  for (const solution of result.solutions) {
+    assert.ok(solution.exits.includes('N0'))
+    assert.ok(solution.exits.includes('S2'))
+    assert.ok(!solution.exits.includes('E1'))
+    assert.ok(!solution.exits.includes('W1'))
+  }
+
+  const conflict = solvePuzzle({ counts: abundant, requiredExits: ['N0'], forbiddenExits: ['N0'] })
+  assert.equal(conflict.error, 'NO_SOLUTION')
+  assert.equal(conflict.solutions.length, 0)
+})
+
 test('同分方案稳定截断且来源格按置信度和行列选择', () => {
   const first = solvePuzzle({ counts: abundant, solutionLimit: 2 })
   const second = solvePuzzle({ counts: abundant, solutionLimit: 2 })
@@ -73,4 +103,3 @@ test('图三式单边断口会被有效性检查拒绝', () => {
   broken.cells[4].mask ^= DIRECTIONS.E
   assert.equal(validateSolution(broken), false)
 })
-

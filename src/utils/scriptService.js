@@ -292,6 +292,10 @@ export async function stopCrafting() {
   const scriptStore = useScriptStore()
 
   try {
+    const atlasStatus = await electronApi.puzzle.getAutoPlacementStatus?.()
+    if (['validating', 'running'].includes(atlasStatus?.status)) {
+      await electronApi.puzzle.stopAutoPlacement('shortcut')
+    }
     const result = await electronApi.script.stop()
     if (result.success) {
       scriptStore.reset()

@@ -17,7 +17,16 @@ import numpy as np
 
 ROWS = 10
 COLS = 6
+ATLAS_ROWS = 3
+ATLAS_COLS = 3
 TYPE_ORDER = ("endpoint", "straight", "corner", "tee", "cross")
+MASK_VARIANTS = {
+    "endpoint": (1, 2, 4, 8),
+    "straight": (5, 10),
+    "corner": (3, 6, 12, 9),
+    "tee": (11, 7, 14, 13),
+    "cross": (15,),
+}
 MIN_COMPONENT_AREA = 24
 CONFIDENCE_THRESHOLD = 0.72
 MARGIN_THRESHOLD = 0.035
@@ -171,39 +180,40 @@ def focus_game_window(timeout_seconds: float = 2.0) -> tuple[bool, str]:
     return False, "GAME_FOCUS_FAILED"
 
 
-def region_monitor(region: dict[str, Any]) -> dict[str, int]:
+def region_monitor(region: dict[str, Any], columns: int = COLS, rows: int = ROWS) -> dict[str, int]:
     left = int(round(float(region.get("left", region.get("x", 0)))))
     top = int(round(float(region.get("top", region.get("y", 0)))))
     right = int(round(float(region.get("right", left + region.get("width", 0)))))
     bottom = int(round(float(region.get("bottom", top + region.get("height", 0)))))
     width = right - left
     height = bottom - top
-    if width < COLS * 20 or height < ROWS * 20:
-        raise ValueError("仓库区域过小，请完整框选 6×10 网格")
+    if width < columns * 20 or height < rows * 20:
+        raise ValueError(f"区域过小，请完整框选 {columns}×{rows} 网格")
     return {"left": left, "top": top, "width": width, "height": height}
 
 
-def capture_region(region: dict[str, Any]) -> np.ndarray:
-    monitor = region_monitor(region)
+def capture_region(region: dict[str, Any], region_type: str = "inventory") -> np.ndarray:
+    columns, rows = (ATLAS_COLS, ATLAS_ROWS) if region_type == "atlas" else (COLS, ROWS)
+    monitor = region_monitor(region, columns, rows)
     with mss.mss() as capture:
         return np.asarray(capture.grab(monitor))[:, :, :3]
 
 
-def cell_bounds(width: int, height: int, row: int, column: int) -> tuple[int, int, int, int]:
-    left = round(column * width / COLS)
-    right = round((column + 1) * width / COLS)
-    top = round(row * height / ROWS)
-    bottom = round((row + 1) * height / ROWS)
+def cell_bounds(width: int, height: int, row: int, column: int, columns: int = COLS, rows: int = ROWS) -> tuple[int, int, int, int]:
+    left = round(column * width / columns)
+    right = round((column + 1) * width / columns)
+    top = round(row * height / rows)
+    bottom = round((row + 1) * height / rows)
     return left, top, right, bottom
 
 
-def largest_green_component(cell: np.ndarray) -> dict[str, Any] | None:
+def largest_green_component(cell: np.ndarray, region_type: str = "inventory") -> dict[str, Any] | None:
     height, width = cell.shape[:2]
-    roi = cell[: max(1, round(height * 0.62)), round(width * 0.32): max(1, round(width * 0.96))]
+    roi = cell if region_type == "atlas" else cell[: max(1, round(height * 0.62)), round(width * 0.32): max(1, round(width * 0.96))]
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, np.array([35, 70, 80]), np.array([100, 255, 255]))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-    count, _labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
     candidates = [index for index in range(1, count) if int(stats[index, cv2.CC_STAT_AREA]) >= MIN_COMPONENT_AREA]
     if not candidates:
         return None
@@ -254,49 +264,202 @@ def classify(features: list[float], templates: dict[str, Any]) -> tuple[str, flo
     return best_type, round(confidence, 4), round(margin, 4)
 
 
-def infer_orientation(fragment_type: str, component: dict[str, Any]) -> int:
-    width = component["width"]
-    height = component["height"]
-    if fragment_type == "cross":
+def type_degree(fragment_type: str) -> int:
+    return {"endpoint": 1, "straight": 2, "corner": 2, "tee": 3, "cross": 4}.get(fragment_type, 0)
+
+
+def type_for_mask(mask: int) -> str | None:
+    degree = int(mask & 15).bit_count()
+    if degree == 1:
+        return "endpoint"
+    if degree == 2:
+        return "straight" if mask in (5, 10) else "corner"
+    if degree == 3:
+        return "tee"
+    if degree == 4:
+        return "cross"
+    return None
+
+
+def orientation_for_mask(mask: int) -> int:
+    fragment_type = type_for_mask(mask)
+    try:
+        return MASK_VARIANTS.get(fragment_type, (mask,)).index(mask) * 90
+    except ValueError:
         return 0
-    if fragment_type == "straight":
-        return 0 if height >= width else 90
-    center_x, center_y = component["centroid"]
-    roi_center_x = component["roiWidth"] / 2
-    roi_center_y = component["roiHeight"] / 2
-    if fragment_type == "endpoint":
-        if height >= width:
-            return 0 if center_y <= roi_center_y else 180
-        return 270 if center_x <= roi_center_x else 90
-    # Corner and tee orientation is advisory only; stock can rotate freely.
-    if abs(center_x - roi_center_x) >= abs(center_y - roi_center_y):
-        return 90 if center_x < roi_center_x else 270
-    return 180 if center_y < roi_center_y else 0
 
 
-def analyze_image(image: np.ndarray, templates: dict[str, Any]) -> dict[str, Any]:
+def inventory_route_topology(cell: np.ndarray, fragment_type: str) -> tuple[int, float]:
+    """从绿色图标内部的黑色航线识别屏幕绝对方向，避免把发光底纹当成线路。"""
+    height, width = cell.shape[:2]
+    expected_x = round(width * 0.67)
+    expected_y = round(height * 0.28)
+    value = cv2.cvtColor(cell, cv2.COLOR_BGR2HSV)[:, :, 2]
+
+    calibration_x = max(3, round(width * 0.18))
+    calibration_y = max(3, round(height * 0.18))
+    calibration = value[
+        max(0, expected_y - calibration_y):min(height, expected_y + calibration_y + 1),
+        max(0, expected_x - calibration_x):min(width, expected_x + calibration_x + 1),
+    ]
+    otsu_threshold = cv2.threshold(calibration, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[0]
+    dark_threshold = max(70.0, min(120.0, float(otsu_threshold) * 0.85))
+    dark = value < dark_threshold
+
+    radius_x = max(3, round(width * 0.15))
+    radius_y = max(3, round(height * 0.15))
+    band_x = max(1, round(width * 0.025))
+    band_y = max(1, round(height * 0.025))
+    search_radius = max(1, round(min(width, height) * 0.035))
+    variants = tuple(mask for masks in MASK_VARIANTS.values() for mask in masks)
+    best: tuple[float, int, float] | None = None
+
+    for center_y in range(expected_y - search_radius, expected_y + search_radius + 1):
+        for center_x in range(expected_x - search_radius, expected_x + search_radius + 1):
+            scores = {
+                1: float(dark[center_y - radius_y:center_y - 2, center_x - band_x:center_x + band_x + 1].mean()),
+                2: float(dark[center_y - band_y:center_y + band_y + 1, center_x + 2:center_x + radius_x].mean()),
+                4: float(dark[center_y + 2:center_y + radius_y, center_x - band_x:center_x + band_x + 1].mean()),
+                8: float(dark[center_y - band_y:center_y + band_y + 1, center_x - radius_x:center_x - 2].mean()),
+            }
+            center_score = float(dark[
+                center_y - band_y:center_y + band_y + 1,
+                center_x - band_x:center_x + band_x + 1,
+            ].mean())
+            distance = abs(center_x - expected_x) + abs(center_y - expected_y)
+            for direction_mask in variants:
+                selected = [score for direction, score in scores.items() if direction_mask & direction]
+                rejected = [score for direction, score in scores.items() if not direction_mask & direction]
+                selected_min = min(selected, default=0.0)
+                separation = selected_min - max(rejected, default=0.0)
+                separation_confidence = max(0.0, min(1.0, separation + 0.5))
+                strength_confidence = max(0.0, min(1.0, selected_min / 0.55))
+                confidence = separation_confidence * strength_confidence
+                type_prior = 0.03 if type_for_mask(direction_mask) == fragment_type else 0.0
+                rank = confidence + center_score * 0.5 + type_prior - distance * 0.015
+                candidate = (rank, direction_mask, confidence)
+                if best is None or candidate[0] > best[0]:
+                    best = candidate
+
+    if best is None:
+        return int(variants[0]), 0.0
+    return best[1], round(best[2], 4)
+
+
+def atlas_route_topology(cell: np.ndarray) -> tuple[int, float] | None:
+    """识别海图格中以格子中心为起点的黑色航线，隔离格线、外框和角落装饰。"""
+    height, width = cell.shape[:2]
+    gray = cv2.cvtColor(cell, cv2.COLOR_BGR2GRAY)
+    dark = cv2.inRange(gray, 0, 75)
+    dark = cv2.morphologyEx(dark, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+
+    # 航线会延伸到格子边缘，右下角航线因此可能经外框与角落装饰连成同一组件。
+    # 形态学闭运算后清空外围保护带，只保留足以判断 N/E/S/W 的中央航线段。
+    guard_x = max(8, round(width * 0.12))
+    guard_y = max(8, round(height * 0.12))
+    dark[:guard_y, :] = 0
+    dark[-guard_y:, :] = 0
+    dark[:, :guard_x] = 0
+    dark[:, -guard_x:] = 0
+
+    count, labels, stats, _centroids = cv2.connectedComponentsWithStats(dark)
+    center_x, center_y = width // 2, height // 2
+    center_half_x = max(8, round(width * 0.12))
+    center_half_y = max(8, round(height * 0.12))
+    band_x = max(5, round(width * 0.055))
+    band_y = max(5, round(height * 0.055))
+
+    def vertical_score(component: np.ndarray, start: int, end: int) -> float:
+        segment = component[start:end, max(0, center_x - band_x):min(width, center_x + band_x + 1)]
+        return float(np.count_nonzero(np.any(segment, axis=1)) / max(1, segment.shape[0]))
+
+    def horizontal_score(component: np.ndarray, start: int, end: int) -> float:
+        segment = component[max(0, center_y - band_y):min(height, center_y + band_y + 1), start:end]
+        return float(np.count_nonzero(np.any(segment, axis=0)) / max(1, segment.shape[1]))
+
+    best: tuple[float, int, float] | None = None
+    for index in range(1, count):
+        area = int(stats[index, cv2.CC_STAT_AREA])
+        if area < max(40, round(width * height * 0.001)):
+            continue
+        component = labels == index
+        center = component[
+            max(0, center_y - center_half_y):min(height, center_y + center_half_y + 1),
+            max(0, center_x - center_half_x):min(width, center_x + center_half_x + 1),
+        ]
+        if not np.any(center):
+            continue
+        scores = {
+            1: vertical_score(component, guard_y, center_y + 1),
+            2: horizontal_score(component, center_x, width - guard_x),
+            4: vertical_score(component, center_y, height - guard_y),
+            8: horizontal_score(component, guard_x, center_x + 1),
+        }
+        mask = sum(direction for direction, score in scores.items() if score >= 0.55)
+        fragment_type = type_for_mask(mask)
+        if not fragment_type:
+            continue
+        selected = [score for direction, score in scores.items() if mask & direction]
+        rejected = [score for direction, score in scores.items() if not mask & direction]
+        confidence = min(selected) - max(rejected, default=0.0) + 0.5
+        confidence = max(0.0, min(1.0, confidence))
+        rank = sum(selected) + confidence
+        if best is None or rank > best[0]:
+            best = (rank, mask, confidence)
+    return None if best is None else (best[1], round(best[2], 4))
+
+
+def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str = "inventory") -> dict[str, Any]:
     if image is None or image.size == 0:
         return fail("CAPTURE_EMPTY", "仓库截图为空")
     height, width = image.shape[:2]
     slots = []
     counts = {fragment_type: 0 for fragment_type in TYPE_ORDER}
     warnings = []
-    for row in range(ROWS):
-        for column in range(COLS):
-            left, top, right, bottom = cell_bounds(width, height, row, column)
-            component = largest_green_component(image[top:bottom, left:right])
+    columns, rows = (ATLAS_COLS, ATLAS_ROWS) if region_type == "atlas" else (COLS, ROWS)
+    for row in range(rows):
+        for column in range(columns):
+            left, top, right, bottom = cell_bounds(width, height, row, column, columns, rows)
+            cell = image[top:bottom, left:right]
+            atlas_topology = atlas_route_topology(cell) if region_type == "atlas" else None
+            component = None if region_type == "atlas" else largest_green_component(cell, region_type)
+            if atlas_topology is not None:
+                direction_mask, orientation_confidence = atlas_topology
+                fragment_type = type_for_mask(direction_mask)
+                confidence = orientation_confidence
+                margin = orientation_confidence
+                uncertain = orientation_confidence < 0.35
+                slot = {
+                    "row": row, "column": column, "occupied": True, "type": fragment_type,
+                    "mask": direction_mask, "orientation": orientation_for_mask(direction_mask),
+                    "orientationConfidence": orientation_confidence,
+                    "confidence": confidence, "margin": margin, "uncertain": uncertain,
+                    "corrected": False, "features": [],
+                }
+                slots.append(slot)
+                counts[fragment_type] += 1
+                if uncertain:
+                    warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
+                continue
             if component is None:
                 slots.append({
                     "row": row, "column": column, "occupied": False, "type": None,
-                    "orientation": 0, "confidence": 1.0, "margin": 1.0, "corrected": False,
+                    "mask": 0, "orientation": 0, "confidence": 1.0, "orientationConfidence": 1.0,
+                    "margin": 1.0, "corrected": False,
                 })
                 continue
             features = component_features(component)
-            fragment_type, confidence, margin = classify(features, templates)
-            uncertain = confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD
+            feature_type, feature_confidence, feature_margin = classify(features, templates)
+            direction_mask, orientation_confidence = inventory_route_topology(cell, feature_type)
+            fragment_type = type_for_mask(direction_mask) or feature_type
+            type_agrees = fragment_type == feature_type
+            confidence = round(min(orientation_confidence, feature_confidence), 4) if type_agrees else orientation_confidence
+            margin = round(min(orientation_confidence, feature_margin), 4) if type_agrees else orientation_confidence
+            uncertain = confidence < CONFIDENCE_THRESHOLD or margin < MARGIN_THRESHOLD or orientation_confidence < 0.35
             slot = {
                 "row": row, "column": column, "occupied": True, "type": fragment_type,
-                "orientation": infer_orientation(fragment_type, component),
+                "mask": direction_mask, "orientation": orientation_for_mask(direction_mask),
+                "orientationConfidence": orientation_confidence,
                 "confidence": confidence, "margin": margin, "uncertain": uncertain,
                 "corrected": False, "features": [round(value, 4) for value in features],
             }
@@ -305,7 +468,7 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any]) -> dict[str, Any
             if uncertain:
                 warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
     occupied_count = sum(counts.values())
-    if occupied_count == 0:
+    if occupied_count == 0 and region_type != "atlas":
         return fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片，请重新框选完整仓库")
     return {
         "success": True,
@@ -314,6 +477,7 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any]) -> dict[str, Any
         "warnings": warnings,
         "imageSize": {"width": width, "height": height},
         "occupiedCount": occupied_count,
+        "regionType": region_type,
     }
 
 
@@ -328,25 +492,27 @@ def main() -> int:
         if image_path:
             image = load_image(image_path)
             if config.get("imageIsRegion") is not True:
-                monitor = region_monitor(config["region"])
+                region_type = str(config.get("regionType", "inventory"))
+                columns, rows = (ATLAS_COLS, ATLAS_ROWS) if region_type == "atlas" else (COLS, ROWS)
+                monitor = region_monitor(config["region"], columns, rows)
                 image = image[monitor["top"]:monitor["top"] + monitor["height"], monitor["left"]:monitor["left"] + monitor["width"]]
         else:
             if config.get("requireGameForeground", True):
                 focused, focus_error = focus_game_window()
                 if not focused:
                     messages = {
-                        "GAME_WINDOW_NOT_FOUND": "未找到流放之路游戏窗口，未执行九宫格截图",
-                        "GAME_FOCUS_FAILED": "无法自动将游戏窗口置于前台，未执行九宫格截图",
-                        "UNSUPPORTED_PLATFORM": "九宫格识别目前仅支持 Windows",
+                        "GAME_WINDOW_NOT_FOUND": "未找到流放之路游戏窗口，未执行海图截图",
+                        "GAME_FOCUS_FAILED": "无法自动将游戏窗口置于前台，未执行海图截图",
+                        "UNSUPPORTED_PLATFORM": "海图识别目前仅支持 Windows",
                     }
                     emit(fail(focus_error, messages.get(focus_error, "无法激活游戏窗口")))
                     return 2
-            image = capture_region(config["region"])
-        payload = analyze_image(image, templates)
+            image = capture_region(config["region"], str(config.get("regionType", "inventory")))
+        payload = analyze_image(image, templates, str(config.get("regionType", "inventory")))
     except KeyError as error:
         payload = fail("CONFIG_INVALID", f"识别配置缺少字段：{error}")
     except Exception as error:
-        payload = fail("ANALYSIS_FAILED", f"九宫格识别失败：{error}")
+        payload = fail("ANALYSIS_FAILED", f"海图识别失败：{error}")
     emit(payload)
     return 0 if payload.get("success") else 2
 

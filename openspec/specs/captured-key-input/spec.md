@@ -111,3 +111,10 @@ The system SHALL use capture controls for single game action keys and an ordered
 #### Scenario: 修改九宫格快捷键
 - **WHEN** 用户通过快捷键捕获控件修改九宫格快捷键
 - **THEN** 系统随完整快捷键集合一起校验、保存并事务式重新注册该组合
+
+### Requirement: 海图自动放置紧急停止
+系统 SHALL 在海图自动放置运行时把现有全局结束快捷键作为紧急停止动作，不新增冲突快捷键。
+
+#### Scenario: 快捷键停止海图
+- **WHEN** 海图自动放置正在运行且用户触发全局结束快捷键
+- **THEN** 系统停止海图自动化，同时保留该快捷键原有的制作停止行为
