@@ -18,6 +18,7 @@ const craftingIpcPayload = (value) => {
 const mockApi = {
   system: {
     detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
+    updateGameWindowTitles: (titles) => Promise.resolve({ success: true, titles }),
     getStartupHealth: () => Promise.resolve({ checkedAt: new Date().toISOString(), items: [] }),
     getDiagnostics: () => Promise.resolve(null),
     exportDiagnostics: () => Promise.resolve({ success: false, canceled: true }),
@@ -103,6 +104,7 @@ const mockApi = {
     updateOperationDelay: () => Promise.resolve({ success: true }),
     updateEmptySlotThreshold: (emptySlotThreshold) => Promise.resolve({ success: true, emptySlotThreshold }),
     updatePreferences: () => Promise.resolve({ success: true }),
+    updateRuntimeConfig: (config) => Promise.resolve({ success: true, config, revision: 1 }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     getOverlayState: () => Promise.resolve(null),
@@ -176,6 +178,7 @@ const mockApi = {
     startPotion: () => Promise.reject(new Error('非 Electron 环境')),
     stopPotion: () => Promise.resolve({ success: true }),
     getPotionStatus: () => Promise.resolve({ running: false, processId: null }),
+    updatePotionConfig: (config) => Promise.resolve({ success: true, config, revision: 1, running: false }),
     samplePixel: () => Promise.reject(new Error('非 Electron 环境')),
     executePortal: () => Promise.reject(new Error('非 Electron 环境')),
     onStatus: () => () => {}
@@ -241,6 +244,7 @@ const mockApi = {
 export const electronApi = isElectron ? {
   system: {
     detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
+    updateGameWindowTitles: (titles) => window.electronAPI.updateGameWindowTitles?.(craftingIpcPayload(titles)),
     getStartupHealth: () => window.electronAPI.getStartupHealth?.(),
     getDiagnostics: (modules) => window.electronAPI.getDiagnostics?.(craftingIpcPayload(modules)),
     exportDiagnostics: (modules) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(modules)),
@@ -336,6 +340,7 @@ export const electronApi = isElectron ? {
     updateOperationDelay: (operationDelayMs) => window.electronAPI.updateBagOperationDelay?.(operationDelayMs),
     updateEmptySlotThreshold: (emptySlotThreshold) => window.electronAPI.updateBagEmptySlotThreshold?.(emptySlotThreshold),
     updatePreferences: (preferences) => window.electronAPI.updateBagPreferences?.(preferences),
+    updateRuntimeConfig: (config) => window.electronAPI.updateBagRuntimeConfig?.(craftingIpcPayload(config)),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
     captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
     getOverlayState: () => window.electronAPI.getBagStashOverlayState?.(),
@@ -417,6 +422,7 @@ export const electronApi = isElectron ? {
     startPotion: (payload) => window.electronAPI.startPotionAssist?.(payload),
     stopPotion: () => window.electronAPI.stopPotionAssist?.(),
     getPotionStatus: () => window.electronAPI.getPotionAssistStatus?.(),
+    updatePotionConfig: (config) => window.electronAPI.updatePotionAssistConfig?.(craftingIpcPayload(config)),
     samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
     executePortal: (payload) => window.electronAPI.executePortalAssist?.(payload),
     onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})

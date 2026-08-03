@@ -1,6 +1,7 @@
 import { qualityGainForItemLevel } from './equipmentPropertyRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
-export const CATALYST_MODEL_VERSION = 'poe1-3.28-v1'
+export const CATALYST_MODEL_VERSION = `${SEASON_BASELINE.game}-${SEASON_BASELINE.patch}-v1`
 
 export const CATALYST_DEFINITIONS = Object.freeze([
   ['abrasive', '研磨催化剂', 'attack', '攻击'],

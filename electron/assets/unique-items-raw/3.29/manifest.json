@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "patch": "3.29",
+  "sources": [
+    {
+      "id": "unique-items",
+      "url": "https://poedb.tw/cn/Unique_item",
+      "category": "unique-items",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:04:29.085Z",
+      "sha256": "3a39706481140ebea10ca87e8bc642f7661d80e494533e806466910b57369bb5",
+      "file": "pages/unique-items-fea31768dcaebbae.html.gz"
+    }
+  ]
+}

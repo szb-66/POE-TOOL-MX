@@ -187,9 +187,40 @@ currency_positions = {{CURRENCY_POSITIONS}}
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
 verified_currency_types = set()
 fatal_error_reason = None
+foreground_failure_emitted = False
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 # 物品位置坐标（确保坐标值为整数）
 item_position = {{ITEM_POSITION}}
@@ -206,9 +237,25 @@ def is_game_foreground():
         length = user32.GetWindowTextLengthW(hwnd)
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+        return game_window_title_priority(buffer.value) >= 0
     except Exception:
         return False
+
+def require_game_foreground():
+    global is_running, fatal_error_reason, foreground_failure_emitted
+    if is_game_foreground():
+        return True
+    is_running = False
+    fatal_error_reason = "游戏窗口运行中失去前台，制作已安全停止"
+    release_all_keys()
+    if not foreground_failure_emitted:
+        foreground_failure_emitted = True
+        print("EVENT " + json.dumps({
+            "event": "crafting-runtime-stopped", "mode": "items",
+            "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
+        }, ensure_ascii=False), flush=True)
+        print(f"[停止] {fatal_error_reason}")
+    return False
 
 def focus_game_window(timeout_seconds=2.0):
     if is_game_foreground():
@@ -223,14 +270,16 @@ def focus_game_window(timeout_seconds=2.0):
         length = user32.GetWindowTextLengthW(hwnd)
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
-            matches.append(hwnd)
+        priority = game_window_title_priority(buffer.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
         return True
     try:
         user32.EnumWindows(callback_type(visit), 0)
         if not matches:
             return False
-        hwnd = matches[0]
+        matches.sort(key=lambda entry: entry[0])
+        hwnd = matches[0][1]
         if user32.IsIconic(hwnd):
             user32.ShowWindow(hwnd, 9)
         user32.BringWindowToTop(hwnd)
@@ -674,6 +723,8 @@ def apply_currency(currency_type):
 def move_mouse(x, y):
     # 移动鼠标
     try:
+        if not require_game_foreground():
+            return False
         # 验证坐标类型和有效性
         # print(f"[调试] move_mouse 接收到的参数: x={x} (类型: {type(x)}), y={y} (类型: {type(y)})")
         
@@ -767,11 +818,14 @@ def move_mouse(x, y):
 
 def click_mouse(button="left"):
     # 点击鼠标
+    if not require_game_foreground():
+        return False
     if button == "left":
         mouse_controller.click(Button.left)
     elif button == "right":
         mouse_controller.click(Button.right)
     time.sleep(mouse_click_delay)
+    return True
 
 def right_click_currency(currency):
     # 右键点击通货
@@ -840,9 +894,15 @@ def left_click_item():
 def send_copy_command():
     # 发送 Alt+Ctrl+C 复制详细命令
     try:
+        if not require_game_foreground():
+            return False
         keyboard_controller.press(Key.ctrl)
+        if not require_game_foreground():
+            return False
         keyboard_controller.press(Key.alt)
         time.sleep(0.02)  # 短暂延迟确保修饰键按下
+        if not require_game_foreground():
+            return False
         keyboard_controller.press('c')
         time.sleep(0.02)  # 短暂延迟确保按键按下
         keyboard_controller.release('c')

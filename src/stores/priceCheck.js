@@ -39,6 +39,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   let removeOverlayListener = null
   let removeSettingsListener = null
   let settingsRevision = 0
+  let settingsCommitQueue = Promise.resolve()
 
   const authenticated = computed(() => account.status.authenticated)
   const catalog = computed(() => status.value?.catalog || null)
@@ -104,15 +105,22 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   }
 
   async function updateSetting(key, value) {
-    const candidate = normalizePriceCheckSettings({ ...settings.value, [key]: value })
-    settings.value = candidate
-    saveSettings()
-    try {
-      const snapshot = unwrap(await electronApi.priceCheck.updateSettings({ [key]: candidate[key] }))
-      settingsRevision = Math.max(settingsRevision, Number(snapshot.settingsRevision) || 0)
-    } catch (reason) {
-      error.value = reason.message
+    const commit = async () => {
+      try {
+        const candidate = normalizePriceCheckSettings({ ...settings.value, [key]: value })
+        const snapshot = unwrap(await electronApi.priceCheck.updateSettings({ [key]: candidate[key] }))
+        settingsRevision = Math.max(settingsRevision, Number(snapshot.settingsRevision) || settingsRevision + 1)
+        settings.value = candidate
+        saveSettings()
+        error.value = ''
+        return { success: true, revision: settingsRevision }
+      } catch (reason) {
+        error.value = reason.message
+        return { success: false, error: reason.message, revision: settingsRevision }
+      }
     }
+    settingsCommitQueue = settingsCommitQueue.then(commit, commit)
+    return settingsCommitQueue
   }
 
   async function checkHoveredItem() {

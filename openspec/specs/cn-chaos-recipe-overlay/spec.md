@@ -100,3 +100,14 @@ TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose afte
 #### Scenario: 用户拖动
 - **WHEN** 用户拖动控制组抓手
 - **THEN** 系统保存新相对偏移并在游戏窗口移动后继续跟随
+
+### Requirement: 配方取件失焦保留断点
+配方取件 MUST 在每次移动、复制和点击前验证游戏前台；失焦时 SHALL 停止当前输入进程、释放输入并保留当前页和物品游标，以便用户继续。
+
+#### Scenario: 配方取件中失焦
+- **WHEN** 配方取件处理当前物品期间游戏失去前台
+- **THEN** 系统进入可继续状态且游标仍指向尚未确认取走的当前物品
+
+#### Scenario: 失焦后继续
+- **WHEN** 用户继续因失焦暂停的配方取件
+- **THEN** 系统重新激活游戏并从保留的当前物品开始验证和取件

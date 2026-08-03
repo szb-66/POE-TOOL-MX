@@ -54,6 +54,7 @@ export function useDashboard() {
   const startupHealth = ref([])
   const craftingStatus = ref(null)
   const craftingStatusError = ref('')
+  let dashboardCombatQueue = Promise.resolve()
 
   const itemValidation = computed(() => validateCraftingConfig({
     itemPosition: settingsStore.itemPosition,
@@ -194,18 +195,23 @@ export function useDashboard() {
     return presets.map(preset => ({ value: preset.id, label: preset.name }))
   }
 
-  function updateCombatResource(resourceKey, field, value) {
-    const combatAssist = settingsStore.combatAssist
-    settingsStore.updateCombatAssist({
-      ...combatAssist,
-      potion: {
-        ...combatAssist.potion,
-        [resourceKey]: {
-          ...combatAssist.potion[resourceKey],
-          [field]: value
+  async function updateCombatResource(resourceKey, field, value) {
+    const commit = async () => {
+      const combatAssist = settingsStore.combatAssist
+      const result = await settingsStore.updateCombatAssist({
+        ...combatAssist,
+        potion: {
+          ...combatAssist.potion,
+          [resourceKey]: {
+            ...combatAssist.potion[resourceKey],
+            [field]: value
+          }
         }
-      }
-    })
+      })
+      if (!result.success) throw new Error(result.error)
+    }
+    dashboardCombatQueue = dashboardCombatQueue.then(commit, commit)
+    return dashboardCombatQueue
   }
 
   function controlsFor(module, activeRecipeId) {
@@ -261,7 +267,7 @@ export function useDashboard() {
       ]
     }
     if (module.id === 'combat') {
-      const disabled = modulePending || combatStore.running
+      const disabled = modulePending
       const potion = settingsStore.combatAssist.potion
       return [
         {

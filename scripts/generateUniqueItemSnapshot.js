@@ -10,13 +10,14 @@ import {
   validateUniqueItemRecords
 } from '../electron/modules/priceCheck/uniqueItemSnapshot.js'
 import { synchronizeRawSnapshot } from './craftingRawSnapshot.js'
+import { SEASON_BASELINE, S30_UNIQUE_SENTINELS } from '../shared/seasonBaseline.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(dirname, '..')
 const outputRoot = path.join(projectRoot, 'electron', 'assets', 'unique-items')
 const rawRoot = path.join(projectRoot, 'electron', 'assets', 'unique-items-raw')
 const fixtureRoot = path.join(projectRoot, 'test', 'fixtures', 'unique-items')
-const CURRENT_PATCH = '3.28'
+const CURRENT_PATCH = SEASON_BASELINE.patch
 const PAGE_SOURCE = {
   id: 'unique-items',
   page: 'Unique_item',
@@ -258,6 +259,10 @@ export async function generateUniqueItemSnapshot(args = process.argv.slice(2)) {
     patchRoot = path.join(rawRoot, options.patch)
   }
   const records = validateUniqueItemRecords(parsePoedbUniqueItems(html), { requireSentinels: !options.fixture })
+  if (!options.fixture && options.patch === SEASON_BASELINE.patch) {
+    const missing = S30_UNIQUE_SENTINELS.filter((name) => !records.some((record) => record.name === name))
+    if (missing.length) throw new Error(`传奇目录缺少 S30 哨兵：${missing.join('、')}`)
+  }
   let rawImages
   if (options.fixture) {
     const fixtureManifest = await readImageManifest(fixtureRoot)

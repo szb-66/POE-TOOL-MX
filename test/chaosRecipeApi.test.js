@@ -244,13 +244,14 @@ test('仓库页列表始终使用旧接口且每次重新请求', async () => {
     getAuthStatus: () => ({ authenticated: true, accountName: '匿名账号' })
   })
 
-  const first = await client.listTabs('测试赛季')
-  const second = await client.listTabs('测试赛季')
+  const first = await client.listTabs('S30 永火之咒')
+  const second = await client.listTabs('S30 永火之咒')
 
   assert.equal(first[0].name, '配方页')
   assert.equal(second[0].supported, true)
   assert.equal(calls.filter((url) => url.includes('/api/stash/')).length, 0)
   assert.equal(calls.filter((url) => url.includes('get-stash-items')).length, 2)
+  assert.ok(calls.every((url) => new URL(url).searchParams.get('league') === 'S30 永火之咒'))
 })
 
 test('客户端在 Retry-After 期间不继续请求', async () => {

@@ -1,7 +1,8 @@
 import { naturalSocketLimit, rollSocketColor, singletonLinks } from './equipmentPropertyRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
-export const TAINTED_RULESET = Object.freeze({ game: 'poe1', patch: '3.28', locale: 'zh-CN' })
-export const TAINTED_SOCKET_MODEL_VERSION = 'poe1-3.28-tainted-sockets-v1'
+export const TAINTED_RULESET = Object.freeze({ game: SEASON_BASELINE.game, patch: SEASON_BASELINE.patch, locale: SEASON_BASELINE.locale })
+export const TAINTED_SOCKET_MODEL_VERSION = `${SEASON_BASELINE.game}-${SEASON_BASELINE.patch}-tainted-sockets-v1`
 
 export const TAINTED_CURRENCIES = Object.freeze([
   { id: 'currency:tainted-chromatic', name: '污秽幻色石', supportLevel: 'supported', effect: '忽略装备属性需求，重铸腐化装备全部插槽颜色。', requirements: '已腐化、未镜像且至少有一个插槽的装备', consequences: '每个插槽独立等概率成为红、绿或蓝；孔数和连接不变' },
@@ -72,4 +73,3 @@ export function applyTaintedFusing(state, rng = Math.random) {
   state.links = target > 1 ? [ids.slice(0, target), ...ids.slice(target).map((id) => [id])] : ids.map((id) => [id])
   return { state, direction: add ? 'add' : 'remove', target }
 }
-

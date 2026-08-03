@@ -27,7 +27,7 @@ export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup,
-    interfaceDetection, automationLock, puzzle
+    interfaceDetection, automationLock, puzzle, gameWindowTitles
   } = dependencies
 
   registerWindowHandlers(window)
@@ -38,7 +38,7 @@ export function registerIpcHandlers(dependencies) {
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
   registerClipboardHandlers()
-  registerSystemHandlers(python)
+  registerSystemHandlers(python, gameWindowTitles)
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })
   if (priceCheck) registerPriceCheckHandlers(priceCheck)

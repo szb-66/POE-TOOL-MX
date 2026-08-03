@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "patch": "3.29",
+  "sources": [
+    {
+      "id": "gem:active",
+      "url": "https://poedb.tw/cn/Skill_Gems",
+      "category": "active",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:01:02.609Z",
+      "sha256": "a2ac1c5eb25b02b2d9e4013fb32639e4fca1d44289b3d9199dac702e9b4c3701",
+      "file": "pages/gem_active-91bb5c4064bdeb2c.html.gz"
+    },
+    {
+      "id": "gem:support",
+      "url": "https://poedb.tw/cn/Support_Gems",
+      "category": "support",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:01:03.736Z",
+      "sha256": "0ddfa13346650593145f19e865c8f1bfa791b4f8597e6cc489f2c7d9de1554e8",
+      "file": "pages/gem_support-46d765ab32cada1c.html.gz"
+    }
+  ]
+}

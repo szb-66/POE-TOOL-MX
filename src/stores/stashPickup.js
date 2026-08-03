@@ -26,6 +26,8 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   })
   const preview = ref(null)
   const busy = ref(false)
+  let settingsRevision = 0
+  let settingsCommitQueue = Promise.resolve()
   const running = computed(() => state.value.status === 'running')
 
   function runtime(overrides = {}) {
@@ -55,11 +57,22 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   }
 
   async function updateProfile(layout, patch) {
-    settings.value.profiles[layout] = normalizeStashPickupSettings({
-      profiles: { [layout]: { ...settings.value.profiles[layout], ...patch } }
-    }).profiles[layout]
-    save()
-    if (settings.value.enabled) await syncRuntime()
+    const commit = async () => {
+      const candidate = normalizeStashPickupSettings({
+        ...settings.value,
+        profiles: {
+          ...settings.value.profiles,
+          [layout]: { ...settings.value.profiles[layout], ...patch }
+        }
+      })
+      if (settings.value.enabled) await syncRuntime(candidate)
+      settings.value = candidate
+      settingsRevision += 1
+      save()
+      return { success: true, revision: settingsRevision }
+    }
+    settingsCommitQueue = settingsCommitQueue.then(commit, commit)
+    return settingsCommitQueue
   }
 
   async function calibrate(type) {
@@ -105,4 +118,3 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     setEnabled, updateProfile, calibrate, runPreview, start, stop, listen, initializeRuntime, syncRuntime
   }
 })
-

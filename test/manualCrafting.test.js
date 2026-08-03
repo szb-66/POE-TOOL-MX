@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { applyManualBenchCraft, applyManualCurrency, applyManualEssence, applyManualFossils, applyManualHarvestCraft, createManualSession, inspectManualCurrencies, listManualBeastcrafts, listManualBenchCrafts, listManualEssences, listManualFossils, listManualHarvestCrafts, previewManualCurrency, redoManualAction, resetManualSession, undoManualAction } from '../electron/modules/crafting/manualCrafting.js'
-import { MIRAGE_EQUIPMENT_CURRENCIES } from '../electron/modules/crafting/mirageRules.js'
+import { CURRENT_EQUIPMENT_CURRENCIES } from '../electron/modules/crafting/seasonalRules.js'
 
-const mirageBoundaryCurrencyIds = new Set(MIRAGE_EQUIPMENT_CURRENCIES.map((entry) => entry.id))
+const seasonalBoundaryCurrencyIds = new Set(CURRENT_EQUIPMENT_CURRENCIES.map((entry) => entry.id))
 
 const dataset = {
   bases: [{ id: 'base:wand', name: '测试法杖', displayName: '测试法杖', itemClass: 'Wand', categoryPath: ['单手武器', '法杖'], modifierProfileId: 'Wands', requiredLevel: 1, requirements: { level: 1, strength: 0, dexterity: 0, intelligence: 0 }, qualityType: 'weapon', socketLimit: 3, baseStats: [], implicitModifiers: [], tags: ['wand'], maxAffixes: { prefix: 3, suffix: 3 }, allowedVariants: ['normal'] }],
@@ -54,7 +54,7 @@ test('核心普通通货统一拒绝腐化和镜像物品', () => {
     const current = createManualSession(dataset, { baseId: 'base:wand', itemLevel: 84, variant: { kind: 'normal' }, seed: 112 })
     current.state[flag] = true
     const actions = inspectManualCurrencies(dataset, current).filter((entry) =>
-      !mirageBoundaryCurrencyIds.has(entry.id) &&
+      !seasonalBoundaryCurrencyIds.has(entry.id) &&
       !entry.id.startsWith('currency:catalyst-') &&
       (flag !== 'corrupted' || !entry.id.startsWith('currency:tainted-')))
     for (const action of actions) {
@@ -224,7 +224,7 @@ test('化石目录、共振器校验、组合重铸和纠缠揭示可复现', ()
   assert.deepEqual(undoManualAction(dataset, first.session).session.state, rare.state)
 })
 
-test('镂空、雕刻、圣洁、镶金和分裂特殊结果进入装备状态', () => {
+test('镂空、雕刻、圣洁、镶金和 3.29 随机破裂结果进入装备状态', () => {
   const specialDataset = structuredClone(dataset)
   specialDataset.modifiers.push(
     { id: 'mod:hollow', goalId: 'goal:hollow', familyId: 'family:hollow', modifierProfileId: 'Wands', groupId: 'AbyssJewelSocket', name: '深渊插槽', affixType: 'suffix', source: 'delve', tags: [], displayTags: [], spawnTags: ['wand'], requiredTags: [], itemClasses: ['Wand'], influences: [], tiers: [{ id: 'tier:hollow', tier: 1, name: 'T1 地下之', requiredLevel: 1, weight: 100, text: '拥有 1 个深渊插槽', values: [{ min: 1, max: 1 }], displayTags: [] }] },
@@ -238,9 +238,12 @@ test('镂空、雕刻、圣洁、镶金和分裂特殊结果进入装备状态',
   assert.ok(affixes.some((entry) => entry.sourceItemId === 'Essence_of_Hysteria'))
   assert.ok(result.session.state.implicits.includes('物品会被商贩高价购买'))
   const split = applyManualFossils(specialDataset, result.session, { sockets: 1, fossilIds: ['fractured'] })
-  assert.equal(split.session.state.split, true)
-  assert.deepEqual(split.event.createdItem, split.session.state)
-  assert.throws(() => applyManualFossils(specialDataset, split.session, { sockets: 1, fossilIds: ['fractured'] }), /不能再次分裂/)
+  assert.equal(split.session.state.split, false)
+  assert.equal([...split.session.state.prefixes, ...split.session.state.suffixes].filter((entry) => entry.fractured).length, 1)
+  assert.equal(split.event.createdItem, null)
+  assert.ok(split.event.fracturedModifier)
+  assert.equal(split.session.variant.kind, 'fractured')
+  assert.throws(() => applyManualFossils(specialDataset, split.session, { sockets: 1, fossilIds: ['fractured'] }), /已有破裂|不能.*分裂化石/)
 })
 
 function harvestDataset() {
@@ -328,12 +331,12 @@ test('移除附魔固定消耗三枚重铸石并只清空腐化装备的附魔�
   assert.equal(resetManualSession(current, redone.session).session.state.enchanted, false)
 })
 
-test('附魔阻止分裂且镜像装备不能通过工艺台移除附魔', () => {
+test('3.29 魔符破裂保持禁用且镜像装备不能通过工艺台移除附魔', () => {
   const current = harvestDataset()
   let session = createManualSession(current, { baseId: 'base:wand', itemLevel: 84, variant: { kind: 'normal' }, seed: 323 })
   session = applyManualCurrency(current, session, 'currency:alchemy').session
   session = applyManualHarvestCraft(current, session, 'harvest:weapon-quality').session
-  assert.match(listManualBeastcrafts(current, session).items.find((entry) => entry.id === 'split-two').unavailableReason, /附魔/)
+  assert.match(listManualBeastcrafts(current, session).items.find((entry) => entry.id === 'fracture-talisman-one').unavailableReason, /3\.29.*魔符/)
   session.state.mirrored = true
   const action = listManualBenchCrafts(current, session).items.find((entry) => entry.id === 'bench:remove-enchantments')
   assert.equal(action.canApply, false)

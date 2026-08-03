@@ -21,6 +21,10 @@ Define the offline skill gem catalog and its explicit snapshot maintenance workf
 - **WHEN** 来源缺少有效记录、字段无效或关键哨兵技能
 - **THEN** 生成流程失败且不以不完整结果替换正式目录
 
+#### Scenario: Include S30 gems
+- **WHEN** 生成 POE1 3.29 当前技能目录
+- **THEN** 目录包含 Mana-Infused Staff 与四个 Pact 宝石的稳定 POEDB 来源路径
+
 ### Requirement: Maintain skill gem snapshots explicitly
 系统 SHALL 支持完全离线重建、仅抓取缺失来源和显式刷新来源三种维护方式，应用运行时 MUST NOT 请求技能数据来源。
 
@@ -35,3 +39,10 @@ Define the offline skill gem catalog and its explicit snapshot maintenance workf
 #### Scenario: Refresh all sources
 - **WHEN** 维护者显式使用刷新命令
 - **THEN** 系统重新获取两个来源并生成带新抓取时间的目录
+
+### Requirement: S30 技能宝石快照完整
+系统 SHALL 从 3.29 中文主动与辅助宝石原始快照生成目录，并 MUST 同时验证长期稳定哨兵和 S30 新增宝石，目录元数据 SHALL 报告补丁 3.29。
+
+#### Scenario: S30 新宝石存在
+- **WHEN** 3.29 来源包含 S30 新增的有效技能宝石记录
+- **THEN** 离线目录包含其稳定 ID、中文名称、等级、颜色、类型和来源

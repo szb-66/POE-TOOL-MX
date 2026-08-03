@@ -41,9 +41,14 @@ import {
 import { PoeCnTradeClient } from './modules/priceCheck/client.js'
 import { PriceCheckService } from './modules/priceCheck/service.js'
 import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
-import { capturePoeItemText, sendWindowsCopy } from './modules/priceCheck/clipboardCapture.js'
+import {
+  assertWindowsGameForeground,
+  capturePoeItemText,
+  sendWindowsCopy
+} from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
+import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -80,6 +85,7 @@ let priceCheckService = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let puzzleService = null
+let gameWindowTitles = null
 
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
@@ -161,6 +167,8 @@ app.whenReady().then(async () => {
     process.exit(0)
     return
   }
+  gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
+  gameWindowTitles.initialize()
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
 
@@ -276,6 +284,7 @@ app.whenReady().then(async () => {
     shell,
     captureClipboard: () => capturePoeItemText({
       clipboard,
+      assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
       sendCopy: (options) => sendWindowsCopy(pythonDetector.detectPythonPath(), options)
     })
   })
@@ -298,7 +307,8 @@ app.whenReady().then(async () => {
     stashPickup,
     interfaceDetection,
     automationLock,
-    puzzle: puzzleService
+    puzzle: puzzleService,
+    gameWindowTitles
   })
   
   createApplicationWindow()

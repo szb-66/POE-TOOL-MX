@@ -28,6 +28,7 @@ let interfaceDetection = null
 let automationLock = null
 let disposeDetectionState = null
 let moduleRunning = false
+let bagConfigRevision = 0
 const session = new BagSessionController()
 const bagOverlayDrag = new OverlayDragSession()
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -344,17 +345,65 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     }
   })
 
+  ipcMain.handle('update-bag-runtime-config', async (_event, config = {}) => {
+    const previousConfig = latestConfig ? structuredClone(latestConfig) : null
+    const previousImmediate = previousConfig?.immediateStash !== false
+    try {
+      const captureValidation = validateCaptureConfig(config)
+      if (captureValidation.error) throw new Error(captureValidation.error)
+      const candidate = runtimeConfig(config)
+      const error = validateConfig(candidate)
+      if (error) throw new Error(error)
+      if (moduleRunning && interfaceDetection) await interfaceDetection.updateConfig(candidate)
+      latestConfig = candidate
+      bagConfigRevision += 1
+      syncBagOverlay()
+      if (moduleRunning && !previousImmediate && candidate.immediateStash &&
+          session.setReady(session.ready, session.foreground, true)) {
+        const result = startStashProcess(python, fileWatcher, 'auto')
+        if (!result.success) send('bag-stash-stopped', { reason: result.error })
+      }
+      return {
+        success: true,
+        config: structuredClone(candidate),
+        revision: bagConfigRevision,
+        warnings: captureValidation.warnings
+      }
+    } catch (error) {
+      if (moduleRunning && interfaceDetection && previousConfig) {
+        try { await interfaceDetection.updateConfig(previousConfig) } catch {}
+      }
+      latestConfig = previousConfig
+      syncBagOverlay()
+      return { success: false, error: error.message || String(error), revision: bagConfigRevision }
+    }
+  })
+
   ipcMain.handle('update-bag-interface-config', async (_event, config = {}) => {
-    if (latestConfig) {
-      latestConfig.templates = {
+    if (!latestConfig) return { success: true }
+    const previousConfig = structuredClone(latestConfig)
+    try {
+      const candidate = structuredClone(latestConfig)
+      candidate.templates = {
         stash_title: String(config.templates?.stashTitle || ''),
         inventory_title: String(config.templates?.inventoryTitle || ''),
         stash_region: config.templates?.stashRegion || {},
         inventory_region: config.templates?.inventoryRegion || {}
       }
-      latestConfig.match_threshold = Number(config.matchThreshold ?? 0.8)
+      candidate.match_threshold = Number(config.matchThreshold ?? 0.8)
+      const error = validateConfig(candidate)
+      if (error) throw new Error(error)
+      if (moduleRunning && interfaceDetection) await interfaceDetection.updateConfig(candidate)
+      latestConfig = candidate
+      bagConfigRevision += 1
+      return { success: true, revision: bagConfigRevision }
+    } catch (error) {
+      latestConfig = previousConfig
+      if (moduleRunning && interfaceDetection) {
+        try { await interfaceDetection.updateConfig(previousConfig) } catch {}
+      }
+      return { success: false, error: error.message || String(error), revision: bagConfigRevision }
     }
-    return { success: true }
   })
 
   ipcMain.handle('get-bag-stash-overlay-state', async () => currentOverlaySnapshot())

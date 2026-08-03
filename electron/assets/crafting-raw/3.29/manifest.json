@@ -1,0 +1,933 @@
+{
+  "schemaVersion": 1,
+  "patch": "3.29",
+  "sources": [
+    {
+      "id": "base:Claws",
+      "url": "https://poedb.tw/cn/Claws",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:02.315Z",
+      "sha256": "1caf98e67cdcc69de1f748b05549f393195b636f1b210b46748f9d7ce604e71e",
+      "file": "pages/base_Claws-d77d53af9bdca9fb.html.gz"
+    },
+    {
+      "id": "base:Daggers",
+      "url": "https://poedb.tw/cn/Daggers",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:05.632Z",
+      "sha256": "cbd9b79437aff4b6bc67a1a56f5b5462cea9381d8c06576f3c05d186d0f54116",
+      "file": "pages/base_Daggers-140aa5f7deb44cf0.html.gz"
+    },
+    {
+      "id": "base:Rune_Daggers",
+      "url": "https://poedb.tw/cn/Rune_Daggers",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:04.309Z",
+      "sha256": "85d3a356a9bb86ec80c1f14c6e6cbcbbb7c6f9c023bbd2e7499033a12c0bdf5b",
+      "file": "pages/base_Rune_Daggers-fbf447d4338135fa.html.gz"
+    },
+    {
+      "id": "base:Wands",
+      "url": "https://poedb.tw/cn/Wands",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:08.359Z",
+      "sha256": "49984cf65b077331044af1e30416d8e3b0c4e8051ff6f78c849a40c45fc804ad",
+      "file": "pages/base_Wands-8684dff075158e11.html.gz"
+    },
+    {
+      "id": "base:One_Hand_Swords",
+      "url": "https://poedb.tw/cn/One_Hand_Swords",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:09.908Z",
+      "sha256": "f2ff6a64fe83bc4eeaa75dfa48c7d2524a9363a0a52dfaae69714407b8f9df59",
+      "file": "pages/base_One_Hand_Swords-6283433226c2f2dc.html.gz"
+    },
+    {
+      "id": "base:Thrusting_One_Hand_Swords",
+      "url": "https://poedb.tw/cn/Thrusting_One_Hand_Swords",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:11.205Z",
+      "sha256": "51dba50af80ca52358f7a767a9a4c4716b6ee71a1400511a5c320cc6b4a5a94d",
+      "file": "pages/base_Thrusting_One_Hand_Swords-7102291d4b0b2712.html.gz"
+    },
+    {
+      "id": "base:One_Hand_Axes",
+      "url": "https://poedb.tw/cn/One_Hand_Axes",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:13.220Z",
+      "sha256": "d66b99d8b668c32d413369e1d3ee6f76961f65c6464b613045c595367ea46628",
+      "file": "pages/base_One_Hand_Axes-40d1ec384eb0a07a.html.gz"
+    },
+    {
+      "id": "base:One_Hand_Maces",
+      "url": "https://poedb.tw/cn/One_Hand_Maces",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:16.235Z",
+      "sha256": "91a75155fd7ea4c4984fe6b4644c5dbee18d8678587311724cc022e03341b0cb",
+      "file": "pages/base_One_Hand_Maces-753671305343d91c.html.gz"
+    },
+    {
+      "id": "base:Sceptres",
+      "url": "https://poedb.tw/cn/Sceptres",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:15.994Z",
+      "sha256": "81b510ce7529e0a6c0bfee146f6b0b576c0c98a0d82201c9355b69212d9539c9",
+      "file": "pages/base_Sceptres-24ae8154e3efcb8e.html.gz"
+    },
+    {
+      "id": "base:Bows",
+      "url": "https://poedb.tw/cn/Bows",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:18.277Z",
+      "sha256": "bfdb1379babf773d792a99475b0d3f429560552fd0547a59229bd34a8431355e",
+      "file": "pages/base_Bows-320e114e2172ae96.html.gz"
+    },
+    {
+      "id": "base:Staves",
+      "url": "https://poedb.tw/cn/Staves",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:20.766Z",
+      "sha256": "6f8907431da9471871ea35e783b23f26694aafb4f453769f65e84362056e5ab8",
+      "file": "pages/base_Staves-a1e695441721341a.html.gz"
+    },
+    {
+      "id": "base:Warstaves",
+      "url": "https://poedb.tw/cn/Warstaves",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:21.030Z",
+      "sha256": "a4ad64aebfe1080cd9b7c9ec8d8ffdf2d69b8cabeef817decb084a4300dd3bc6",
+      "file": "pages/base_Warstaves-d29b730963399505.html.gz"
+    },
+    {
+      "id": "base:Two_Hand_Swords",
+      "url": "https://poedb.tw/cn/Two_Hand_Swords",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:23.313Z",
+      "sha256": "3690def9236a203cf530e2977ddf5b9f90aac983c37bc0da7a3a6e35e532597e",
+      "file": "pages/base_Two_Hand_Swords-30daa15f07bc7932.html.gz"
+    },
+    {
+      "id": "base:Two_Hand_Axes",
+      "url": "https://poedb.tw/cn/Two_Hand_Axes",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:25.231Z",
+      "sha256": "d4039186a1b68120cd0e26df535b72102b468efe5e64b0f8f1e8e41d1678cbb8",
+      "file": "pages/base_Two_Hand_Axes-62d78121a06c812e.html.gz"
+    },
+    {
+      "id": "base:Two_Hand_Maces",
+      "url": "https://poedb.tw/cn/Two_Hand_Maces",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:25.955Z",
+      "sha256": "41584de08800c2b1a89b46744689253fd941ba8a9382fea847c9ff51b73b68b4",
+      "file": "pages/base_Two_Hand_Maces-1be05e2d83582800.html.gz"
+    },
+    {
+      "id": "base:Quivers",
+      "url": "https://poedb.tw/cn/Quivers",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:28.170Z",
+      "sha256": "4b63c4e4ba8d5d23d5408deb02e7828b289a3e09db97a4cebd1565d07bb6190c",
+      "file": "pages/base_Quivers-fa6156e6f0c4dcb2.html.gz"
+    },
+    {
+      "id": "base:Shields",
+      "url": "https://poedb.tw/cn/Shields",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:29.945Z",
+      "sha256": "6423b7968698a79997ed9c428ca771d106ecd0fe50f9592401b04023234ac13b",
+      "file": "pages/base_Shields-15161675ef0674d0.html.gz"
+    },
+    {
+      "id": "base:Gloves",
+      "url": "https://poedb.tw/cn/Gloves",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:29.965Z",
+      "sha256": "c0e4649eb39842fe32a2790a6599d65c97cd67dd65fde9cce232337e2aae7179",
+      "file": "pages/base_Gloves-13cb3841de739f10.html.gz"
+    },
+    {
+      "id": "base:Boots",
+      "url": "https://poedb.tw/cn/Boots",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:32.957Z",
+      "sha256": "0234ba52522fe9a68da569f6672d340ae3b87696bcf725aabe9dfd03744e74a3",
+      "file": "pages/base_Boots-db1c98e2349a73a3.html.gz"
+    },
+    {
+      "id": "base:Body_Armours",
+      "url": "https://poedb.tw/cn/Body_Armours",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:33.623Z",
+      "sha256": "0c822461426acba3bac5ee7ca803dd0487e211d32172e3b8153573e675da06f7",
+      "file": "pages/base_Body_Armours-92050ba84e35fe54.html.gz"
+    },
+    {
+      "id": "base:Helmets",
+      "url": "https://poedb.tw/cn/Helmets",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:35.725Z",
+      "sha256": "bd9fc49eb4a8382babe618be1e9d4ecc5e63ca32c62fad2ba4f1996c140068e8",
+      "file": "pages/base_Helmets-0acd5540f327a770.html.gz"
+    },
+    {
+      "id": "base:Amulets",
+      "url": "https://poedb.tw/cn/Amulets",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:41.250Z",
+      "sha256": "f9cb9072c5e3349b15f9b0e31806ace36e454bb4969868b20ba491ef3f457340",
+      "file": "pages/base_Amulets-40256bcb859209a2.html.gz"
+    },
+    {
+      "id": "base:Rings",
+      "url": "https://poedb.tw/cn/Rings",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:38.837Z",
+      "sha256": "1249ee948a95b3bff616a4cc3dd7c61c530e06a550611ae1b30a1da5ac6f535a",
+      "file": "pages/base_Rings-fd79861c85b52ca1.html.gz"
+    },
+    {
+      "id": "base:Belts",
+      "url": "https://poedb.tw/cn/Belts",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:39.816Z",
+      "sha256": "e16463503c8b85f0bcdab663acaada4c38d8f21325b22829019ea176a7c77e28",
+      "file": "pages/base_Belts-a124c49bf5a7b2f1.html.gz"
+    },
+    {
+      "id": "base:Jewels",
+      "url": "https://poedb.tw/cn/Jewels",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:42.872Z",
+      "sha256": "436d3154bf54b092fc19939bd7cb8f9c4eeecf31a82e65d826694e858ad54397",
+      "file": "pages/base_Jewels-94ade1c186bf43cd.html.gz"
+    },
+    {
+      "id": "base:Abyss_Jewels",
+      "url": "https://poedb.tw/cn/Abyss_Jewels",
+      "category": "base",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:43.965Z",
+      "sha256": "0c28c87491b12abf80cfd49d58814ab2353e7693ec209d000ba25c27fc5a796e",
+      "file": "pages/base_Abyss_Jewels-7c94c54b904f3a68.html.gz"
+    },
+    {
+      "id": "modifier:Claws",
+      "url": "https://poedb.tw/cn/Claws",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:47.208Z",
+      "sha256": "22502e6e13563b094060278012947649e767968fe1b5c7d8263663d369871a38",
+      "file": "pages/modifier_Claws-d77d53af9bdca9fb.html.gz"
+    },
+    {
+      "id": "modifier:Daggers",
+      "url": "https://poedb.tw/cn/Daggers",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:48.180Z",
+      "sha256": "290216b3a2ce89bded8a7a72fc43b8de51c2a76a7b04dbde4bdcfd7f19cf69d6",
+      "file": "pages/modifier_Daggers-140aa5f7deb44cf0.html.gz"
+    },
+    {
+      "id": "modifier:Rune_Daggers",
+      "url": "https://poedb.tw/cn/Rune_Daggers",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:48.938Z",
+      "sha256": "5e5a38798fdc0aa91f0ec7bf495680f351cbd3f2173f979ae8a64bbbdb27b108",
+      "file": "pages/modifier_Rune_Daggers-fbf447d4338135fa.html.gz"
+    },
+    {
+      "id": "modifier:Wands",
+      "url": "https://poedb.tw/cn/Wands",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:53.075Z",
+      "sha256": "f76acebdd491d089225511cbf81caef8a83e34b3cb511f46c2d4660dfc4c603d",
+      "file": "pages/modifier_Wands-8684dff075158e11.html.gz"
+    },
+    {
+      "id": "modifier:One_Hand_Swords",
+      "url": "https://poedb.tw/cn/One_Hand_Swords",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:53.020Z",
+      "sha256": "c8587ee37b015995793a753683c6bd02c173ca71473b01aead9a65603ee11525",
+      "file": "pages/modifier_One_Hand_Swords-6283433226c2f2dc.html.gz"
+    },
+    {
+      "id": "modifier:Thrusting_One_Hand_Swords",
+      "url": "https://poedb.tw/cn/Thrusting_One_Hand_Swords",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:53.615Z",
+      "sha256": "afb7bf8a5d65d11dca87a7b7966464cc1d24b0e57ad952a806b0d2f963ab5108",
+      "file": "pages/modifier_Thrusting_One_Hand_Swords-7102291d4b0b2712.html.gz"
+    },
+    {
+      "id": "modifier:One_Hand_Axes",
+      "url": "https://poedb.tw/cn/One_Hand_Axes",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:57.798Z",
+      "sha256": "0fc2fdd818647f06e59acee2c1f865c5206a520f142aadc1fad423528e3ffda0",
+      "file": "pages/modifier_One_Hand_Axes-40d1ec384eb0a07a.html.gz"
+    },
+    {
+      "id": "modifier:One_Hand_Maces",
+      "url": "https://poedb.tw/cn/One_Hand_Maces",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:58.059Z",
+      "sha256": "8dcb67db4bbc2d78069ce85016b1ded9d69661e48a4b907106fa8a5674116276",
+      "file": "pages/modifier_One_Hand_Maces-753671305343d91c.html.gz"
+    },
+    {
+      "id": "modifier:Sceptres",
+      "url": "https://poedb.tw/cn/Sceptres",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:57:58.551Z",
+      "sha256": "3fc4381fd3d40f29e71729acace093082b9022d272286eda05fa7bbcf8ef1891",
+      "file": "pages/modifier_Sceptres-24ae8154e3efcb8e.html.gz"
+    },
+    {
+      "id": "modifier:Bows",
+      "url": "https://poedb.tw/cn/Bows",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:02.953Z",
+      "sha256": "e91341e725bd50b5d2ffc46ebd78c1aa3adda764c0a586cdd2522852e13b6d43",
+      "file": "pages/modifier_Bows-320e114e2172ae96.html.gz"
+    },
+    {
+      "id": "modifier:Staves",
+      "url": "https://poedb.tw/cn/Staves",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:03.551Z",
+      "sha256": "786a9c4e4568330e54b6a46a3a61d4b6f29ecefbadc0724594e496e46443a8e5",
+      "file": "pages/modifier_Staves-a1e695441721341a.html.gz"
+    },
+    {
+      "id": "modifier:Warstaves",
+      "url": "https://poedb.tw/cn/Warstaves",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:03.507Z",
+      "sha256": "1f4923d84c7c9d170d6bcbdcf0e61011823a0c68cb2fad5542a9986f5d5d454e",
+      "file": "pages/modifier_Warstaves-d29b730963399505.html.gz"
+    },
+    {
+      "id": "modifier:Two_Hand_Swords",
+      "url": "https://poedb.tw/cn/Two_Hand_Swords",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:07.444Z",
+      "sha256": "19ad79ee61bdae0d4c7ede953930aad6d013fc466dd3bd2c2c0bbaf464c62da1",
+      "file": "pages/modifier_Two_Hand_Swords-30daa15f07bc7932.html.gz"
+    },
+    {
+      "id": "modifier:Two_Hand_Axes",
+      "url": "https://poedb.tw/cn/Two_Hand_Axes",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:07.879Z",
+      "sha256": "8e89854cc9bf9f5788602c418971e982649e453b81f557e59484012d30c28aae",
+      "file": "pages/modifier_Two_Hand_Axes-62d78121a06c812e.html.gz"
+    },
+    {
+      "id": "modifier:Two_Hand_Maces",
+      "url": "https://poedb.tw/cn/Two_Hand_Maces",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:08.067Z",
+      "sha256": "4f6aedab11a3cf4f39e3308da0d1e1dd3b9c2f317f5f66c5a5dc854373990964",
+      "file": "pages/modifier_Two_Hand_Maces-1be05e2d83582800.html.gz"
+    },
+    {
+      "id": "modifier:Quivers",
+      "url": "https://poedb.tw/cn/Quivers",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:11.593Z",
+      "sha256": "cd61d8a3b3ea1ee9c6542fbc6b284bd2f4375a43aa8730e4b17b5065855a514b",
+      "file": "pages/modifier_Quivers-fa6156e6f0c4dcb2.html.gz"
+    },
+    {
+      "id": "modifier:Amulets",
+      "url": "https://poedb.tw/cn/Amulets",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:13.118Z",
+      "sha256": "80b240a623cc24e050c791c4c29cbfe4a4a1ec15296194fd3a383aa9dff832db",
+      "file": "pages/modifier_Amulets-40256bcb859209a2.html.gz"
+    },
+    {
+      "id": "modifier:Rings",
+      "url": "https://poedb.tw/cn/Rings",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:12.786Z",
+      "sha256": "e14e6b3e3bba10f8bd78bdbb5a3fb2f075ca43b10e82030c0f7c686bd07127e4",
+      "file": "pages/modifier_Rings-fd79861c85b52ca1.html.gz"
+    },
+    {
+      "id": "modifier:Belts",
+      "url": "https://poedb.tw/cn/Belts",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:16.817Z",
+      "sha256": "949c46e611db09b671d1534426f3ba22571f941559750143be341edaaa47e2ae",
+      "file": "pages/modifier_Belts-a124c49bf5a7b2f1.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_str",
+      "url": "https://poedb.tw/cn/Gloves_str",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:18.764Z",
+      "sha256": "fb755e0dcd730961b54d2bb9ed2e4679842a95af1d7466e90a0b66ca9ac2cea9",
+      "file": "pages/modifier_Gloves_str-f7324a31aff6a030.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_dex",
+      "url": "https://poedb.tw/cn/Gloves_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:21.017Z",
+      "sha256": "934112e9bdc0a6987a11f66c2ad0dde4fd952b4c44c20a2f10f9214ec008ae0b",
+      "file": "pages/modifier_Gloves_dex-4970268f8b471b0f.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_int",
+      "url": "https://poedb.tw/cn/Gloves_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:22.372Z",
+      "sha256": "04d099bd44e9100d64b3309e9e6d57146bd00888377e01a564388b5f69925590",
+      "file": "pages/modifier_Gloves_int-3084627960fa9c2e.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_str_dex",
+      "url": "https://poedb.tw/cn/Gloves_str_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:37.611Z",
+      "sha256": "6399be5307330eb0f7089ff47ee146dd64782df681a1efc33420b6f460ef1c41",
+      "file": "pages/modifier_Gloves_str_dex-32603ed209a5b5d0.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_str_int",
+      "url": "https://poedb.tw/cn/Gloves_str_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:26.151Z",
+      "sha256": "2a5cc484a5f682319c9ccbf70a64de480842e530364da6bd2c2457e55477f09b",
+      "file": "pages/modifier_Gloves_str_int-c9b5363be8f6c40c.html.gz"
+    },
+    {
+      "id": "modifier:Gloves_dex_int",
+      "url": "https://poedb.tw/cn/Gloves_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:27.002Z",
+      "sha256": "35be61eb04a6c3df0487645d37e5346bb7a28e25897d2f4a275ab2d64a173c64",
+      "file": "pages/modifier_Gloves_dex_int-840efed5f3441b8e.html.gz"
+    },
+    {
+      "id": "modifier:Boots_str",
+      "url": "https://poedb.tw/cn/Boots_str",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:31.705Z",
+      "sha256": "7fe1e7f1557bec8bfaacfa8ed30fc9487819c75cb4ae0555cd7f5ac2badf5442",
+      "file": "pages/modifier_Boots_str-6588274d0bbcd156.html.gz"
+    },
+    {
+      "id": "modifier:Boots_dex",
+      "url": "https://poedb.tw/cn/Boots_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:30.947Z",
+      "sha256": "f97b090e398d9a0c487182fd29f6051c773de451ea06f9f2017737fcc336dc5d",
+      "file": "pages/modifier_Boots_dex-88e58a6121f6bf23.html.gz"
+    },
+    {
+      "id": "modifier:Boots_int",
+      "url": "https://poedb.tw/cn/Boots_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:35.562Z",
+      "sha256": "fa9fbb1d48601e40370593c44690a3f9019b590ab9e7a34aadd285f73fa01c26",
+      "file": "pages/modifier_Boots_int-908a924e8a23a4de.html.gz"
+    },
+    {
+      "id": "modifier:Boots_str_dex",
+      "url": "https://poedb.tw/cn/Boots_str_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:37.445Z",
+      "sha256": "88ea4f840beb1fc6ca9923da52421e502445a91a42a636e9aca00bc858eb4dc1",
+      "file": "pages/modifier_Boots_str_dex-f0e3b4bc1b809f1f.html.gz"
+    },
+    {
+      "id": "modifier:Boots_str_int",
+      "url": "https://poedb.tw/cn/Boots_str_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:44.023Z",
+      "sha256": "2948319fb921d2ea1b0ea413a0f4f15f20e2324a2ddcb01a9a97850304044f1e",
+      "file": "pages/modifier_Boots_str_int-35c9731c481b7abf.html.gz"
+    },
+    {
+      "id": "modifier:Boots_dex_int",
+      "url": "https://poedb.tw/cn/Boots_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:42.589Z",
+      "sha256": "cdaed90701dafc3ea79f7f5f9130ca9995eb792cf806ea0c1f159ad12281dc89",
+      "file": "pages/modifier_Boots_dex_int-70b74616f0154826.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_str",
+      "url": "https://poedb.tw/cn/Body_Armours_str",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:44.528Z",
+      "sha256": "bc0bc215a8750581183384fec27d3e3374ec4211c97478546622ef12138621d3",
+      "file": "pages/modifier_Body_Armours_str-c915b6e1c55f1ef9.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_dex",
+      "url": "https://poedb.tw/cn/Body_Armours_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:49.666Z",
+      "sha256": "c6800318dfc8101db5fe548e8f1a7d44df1ed02ca6bf1660cb63a8347be40516",
+      "file": "pages/modifier_Body_Armours_dex-9a7e85d6b7e6e1aa.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_int",
+      "url": "https://poedb.tw/cn/Body_Armours_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:49.707Z",
+      "sha256": "e3acd077774f47033f305c6dfb96a952b85304ee5f4ac9c8dcebf31286d13d4f",
+      "file": "pages/modifier_Body_Armours_int-fd50e43502887c98.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_str_dex",
+      "url": "https://poedb.tw/cn/Body_Armours_str_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:49.690Z",
+      "sha256": "93ed9acd335800540b7a948e68bc6c65b0b4faa946a40d7a43843af859e29aec",
+      "file": "pages/modifier_Body_Armours_str_dex-67e705c672b8eda0.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_str_int",
+      "url": "https://poedb.tw/cn/Body_Armours_str_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:56.428Z",
+      "sha256": "1fee51a52a58c37e5788dc6ab27e34f755cd08c64f374dcbc2599552695b7fd6",
+      "file": "pages/modifier_Body_Armours_str_int-979efccedd8dee99.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_dex_int",
+      "url": "https://poedb.tw/cn/Body_Armours_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:55.723Z",
+      "sha256": "d38f6e34fdc232b0eed5af1444bf07fdc6de0ea8f1c685dc616e879398e7c500",
+      "file": "pages/modifier_Body_Armours_dex_int-aea681654a9b6188.html.gz"
+    },
+    {
+      "id": "modifier:Body_Armours_str_dex_int",
+      "url": "https://poedb.tw/cn/Body_Armours_str_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:58:56.494Z",
+      "sha256": "7b2f3c8945989150a1dfdd1250414685d526f22cf9d1cff70ff30ef425085148",
+      "file": "pages/modifier_Body_Armours_str_dex_int-7f24ed0b16700fe9.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_str",
+      "url": "https://poedb.tw/cn/Helmets_str",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:02.282Z",
+      "sha256": "cae0622dafc72acdaa5b56a9d5e35b677f6aed12d830a857e927535aaba8cf95",
+      "file": "pages/modifier_Helmets_str-f1d516cf3b8a5820.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_dex",
+      "url": "https://poedb.tw/cn/Helmets_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:01.738Z",
+      "sha256": "b791cedcf567230579382a272b90b48e5d3b4c7d4e71be676279133769b8696b",
+      "file": "pages/modifier_Helmets_dex-954031dab5a37180.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_int",
+      "url": "https://poedb.tw/cn/Helmets_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:14.509Z",
+      "sha256": "c7c26b5b1ee0637dc62d810c573eafe429044fb5f797d33b67d57d482d23ab54",
+      "file": "pages/modifier_Helmets_int-ab3ca0ddcbcb1b34.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_str_dex",
+      "url": "https://poedb.tw/cn/Helmets_str_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:08.212Z",
+      "sha256": "5afc9e5d26cc52e10c6904739001bae1227024af9e10ec41c954c627d19ba14b",
+      "file": "pages/modifier_Helmets_str_dex-d058bd234f32d2b7.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_str_int",
+      "url": "https://poedb.tw/cn/Helmets_str_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:08.539Z",
+      "sha256": "b47e8335aac27c3a1ab926689f226b00de6055ffcbbfefc8acd6a4665603b47a",
+      "file": "pages/modifier_Helmets_str_int-b90dbba88cc2ce64.html.gz"
+    },
+    {
+      "id": "modifier:Helmets_dex_int",
+      "url": "https://poedb.tw/cn/Helmets_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:13.149Z",
+      "sha256": "b93d32ec3a49c04f41dd47fc20484d77938b404353988f4e5582d4aa2866e593",
+      "file": "pages/modifier_Helmets_dex_int-25002121d356e582.html.gz"
+    },
+    {
+      "id": "modifier:Shields_str",
+      "url": "https://poedb.tw/cn/Shields_str",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:12.779Z",
+      "sha256": "b4ca84c676136f840e13eb9266fe84956c32cc43e8943e8b028ed42d94f44162",
+      "file": "pages/modifier_Shields_str-01bc9665b60ae07f.html.gz"
+    },
+    {
+      "id": "modifier:Shields_dex",
+      "url": "https://poedb.tw/cn/Shields_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:17.337Z",
+      "sha256": "a00c47928da561075180912b863084bfa2cf7eb2d0b250045120c3fdfb7453e9",
+      "file": "pages/modifier_Shields_dex-78d6c7bf31a24f60.html.gz"
+    },
+    {
+      "id": "modifier:Shields_int",
+      "url": "https://poedb.tw/cn/Shields_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:17.818Z",
+      "sha256": "9727e9330506f59259134044ef24bc5f7a8e56a10af7da74f28201f38ab65bcf",
+      "file": "pages/modifier_Shields_int-8d52393ccb35c812.html.gz"
+    },
+    {
+      "id": "modifier:Shields_str_dex",
+      "url": "https://poedb.tw/cn/Shields_str_dex",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:20.340Z",
+      "sha256": "39a5c54ad1a60609f0e2b8f85d1a449fa40ca32afcefff041f60849af6f54ccc",
+      "file": "pages/modifier_Shields_str_dex-fd1dace4df6d88f2.html.gz"
+    },
+    {
+      "id": "modifier:Shields_str_int",
+      "url": "https://poedb.tw/cn/Shields_str_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:21.278Z",
+      "sha256": "29e8af67bce00fb03d71c9f5ef93c42edf37fe30182dab5464f11c8e25a657f9",
+      "file": "pages/modifier_Shields_str_int-d40df22f83bba518.html.gz"
+    },
+    {
+      "id": "modifier:Shields_dex_int",
+      "url": "https://poedb.tw/cn/Shields_dex_int",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:22.034Z",
+      "sha256": "02bc9ab8ed1db7dac1196f295c1ea21a774468fa2f4b54cb956dabb8ee7936c9",
+      "file": "pages/modifier_Shields_dex_int-a423b4f525d5303f.html.gz"
+    },
+    {
+      "id": "modifier:Crimson_Jewel",
+      "url": "https://poedb.tw/cn/Crimson_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:23.964Z",
+      "sha256": "292063cbd024f8939311b83828802c3b9fd98f55309c95bb40200467d43db561",
+      "file": "pages/modifier_Crimson_Jewel-22a6e5e7c4b579d2.html.gz"
+    },
+    {
+      "id": "modifier:Viridian_Jewel",
+      "url": "https://poedb.tw/cn/Viridian_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:25.462Z",
+      "sha256": "ba773ef713bacb11a30548e75354ef41d958e590123ca597d3e11f6493136acc",
+      "file": "pages/modifier_Viridian_Jewel-3b8f0abe0957f147.html.gz"
+    },
+    {
+      "id": "modifier:Cobalt_Jewel",
+      "url": "https://poedb.tw/cn/Cobalt_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:25.763Z",
+      "sha256": "2e598c1a4e79a168229648402f8302bfb674883caca02ac2392e4488ac680777",
+      "file": "pages/modifier_Cobalt_Jewel-17a07172beeb5a4f.html.gz"
+    },
+    {
+      "id": "modifier:Prismatic_Jewel",
+      "url": "https://poedb.tw/cn/Prismatic_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:27.936Z",
+      "sha256": "d0f1d90c853a685d4f4fcd59ecc1a6423a9d56f8d4ed3874a5fdb87c8fe73a54",
+      "file": "pages/modifier_Prismatic_Jewel-b7ebd210d98d7c33.html.gz"
+    },
+    {
+      "id": "modifier:Murderous_Eye_Jewel",
+      "url": "https://poedb.tw/cn/Murderous_Eye_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:29.820Z",
+      "sha256": "e13f786c193b7206c17126d925319f0557795a1a298aa9bd20fd03dffb4ed9eb",
+      "file": "pages/modifier_Murderous_Eye_Jewel-d519563b98b84fa8.html.gz"
+    },
+    {
+      "id": "modifier:Searching_Eye_Jewel",
+      "url": "https://poedb.tw/cn/Searching_Eye_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:30.123Z",
+      "sha256": "f234456f591827e3bb2c401c71a9dfcc9219d298e159a43d7cafca2e75715a2c",
+      "file": "pages/modifier_Searching_Eye_Jewel-fb5ab2f0e6b97800.html.gz"
+    },
+    {
+      "id": "modifier:Hypnotic_Eye_Jewel",
+      "url": "https://poedb.tw/cn/Hypnotic_Eye_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:31.483Z",
+      "sha256": "2db12619c40d0b1836c5cb129d87249285c0b3f8730004e908e42c989972cb3b",
+      "file": "pages/modifier_Hypnotic_Eye_Jewel-f55ae77ecc9f1775.html.gz"
+    },
+    {
+      "id": "modifier:Ghastly_Eye_Jewel",
+      "url": "https://poedb.tw/cn/Ghastly_Eye_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:33.940Z",
+      "sha256": "4722666ec17a43ef64252bc8613fd183b1783c5fbab68c4a18ac27249ddbb720",
+      "file": "pages/modifier_Ghastly_Eye_Jewel-1b630d56da137c7d.html.gz"
+    },
+    {
+      "id": "modifier:Large_Cluster_Jewel",
+      "url": "https://poedb.tw/cn/Large_Cluster_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:34.420Z",
+      "sha256": "10351c8656847ec50da33a07b0add7765ebfebd55078828c4737352ec6d776b9",
+      "file": "pages/modifier_Large_Cluster_Jewel-10c84f8648f3a6d2.html.gz"
+    },
+    {
+      "id": "modifier:Medium_Cluster_Jewel",
+      "url": "https://poedb.tw/cn/Medium_Cluster_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:35.581Z",
+      "sha256": "9c46541b92c5423a3e0e6fbba77e083393b6e5b1bbc6ac1afb1b0af09c22d370",
+      "file": "pages/modifier_Medium_Cluster_Jewel-355bfd8c255dbb54.html.gz"
+    },
+    {
+      "id": "modifier:Small_Cluster_Jewel",
+      "url": "https://poedb.tw/cn/Small_Cluster_Jewel",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:38.859Z",
+      "sha256": "76a46db2e68770acf9ad41d575250e8a7657667ae0da43ccf227b5e0202c4215",
+      "file": "pages/modifier_Small_Cluster_Jewel-8ba40ce974fc7697.html.gz"
+    },
+    {
+      "id": "modifier:Life_Flasks",
+      "url": "https://poedb.tw/cn/Life_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:39.205Z",
+      "sha256": "ebcaba333309a9e6c8812980fd2b77e86dba1f48e64ccf414286cd1166e4a0d2",
+      "file": "pages/modifier_Life_Flasks-37ce4ee7037db404.html.gz"
+    },
+    {
+      "id": "modifier:Mana_Flasks",
+      "url": "https://poedb.tw/cn/Mana_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:42.046Z",
+      "sha256": "6713f1874566aa9254d3d36c3e9836af8c75f33f9ff3fd46567d494293acbc49",
+      "file": "pages/modifier_Mana_Flasks-8d5cb88ba10f20e2.html.gz"
+    },
+    {
+      "id": "modifier:Hybrid_Flasks",
+      "url": "https://poedb.tw/cn/Hybrid_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:43.592Z",
+      "sha256": "f3f8eb983361e3577be826f9348b6d4cb0800ee81b17d1218ba54a3f793e6025",
+      "file": "pages/modifier_Hybrid_Flasks-428f43a6a54cd0de.html.gz"
+    },
+    {
+      "id": "modifier:Utility_Flasks",
+      "url": "https://poedb.tw/cn/Utility_Flasks",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:44.203Z",
+      "sha256": "63d1ef4ff59adfe92f7ffb9f5664f6b14afa48b7b275c2dd7d3e22b435424a7c",
+      "file": "pages/modifier_Utility_Flasks-da8427570df50877.html.gz"
+    },
+    {
+      "id": "modifier:Unset_Ring",
+      "url": "https://poedb.tw/cn/Unset_Ring",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:45.909Z",
+      "sha256": "391ce04a67af9ae6a60ba3c4efe08a505768b596bfc2be7a993068615f32381d",
+      "file": "pages/modifier_Unset_Ring-81f423596c237179.html.gz"
+    },
+    {
+      "id": "modifier:Bone_Ring",
+      "url": "https://poedb.tw/cn/Bone_Ring",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:48.290Z",
+      "sha256": "801dfa963c85b806104e7d916b73af7c3c72a9929aa81a1f1d14ebfdfb24e50c",
+      "file": "pages/modifier_Bone_Ring-7fb4465085d6cab8.html.gz"
+    },
+    {
+      "id": "modifier:Convoking_Wand",
+      "url": "https://poedb.tw/cn/Convoking_Wand",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:49.909Z",
+      "sha256": "519625f86d95c96a509412facab6a320414957fdff5f0293d72e89d226565766",
+      "file": "pages/modifier_Convoking_Wand-87ea77b12d7ed685.html.gz"
+    },
+    {
+      "id": "modifier:Bone_Spirit_Shield",
+      "url": "https://poedb.tw/cn/Bone_Spirit_Shield",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:50.570Z",
+      "sha256": "df80f34d337f9901ec322764c9066170c1ff020ee4b6295d3f549b2334bc205a",
+      "file": "pages/modifier_Bone_Spirit_Shield-3d1f3827bd6b859d.html.gz"
+    },
+    {
+      "id": "modifier:Runic_Crown",
+      "url": "https://poedb.tw/cn/Runic_Crown",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:53.875Z",
+      "sha256": "a37491bae4232e8b2fbafeee22375793afe6d6d334f963af7d912716e22abe49",
+      "file": "pages/modifier_Runic_Crown-0243af6a79f3b570.html.gz"
+    },
+    {
+      "id": "modifier:Runic_Sabatons",
+      "url": "https://poedb.tw/cn/Runic_Sabatons",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:54.767Z",
+      "sha256": "216195068d31d5ad3bb0e1f22608d13dd1f0c55df7e4d14e656c3bb91f2a861c",
+      "file": "pages/modifier_Runic_Sabatons-89f44b580c19664c.html.gz"
+    },
+    {
+      "id": "modifier:Runic_Gauntlets",
+      "url": "https://poedb.tw/cn/Runic_Gauntlets",
+      "category": "modifier",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:55.243Z",
+      "sha256": "9789c6f05fe81783e92618448c7dcabf3c01a822b3a83d9fa986ba027eeb7e43",
+      "file": "pages/modifier_Runic_Gauntlets-0e304c08c7df598b.html.gz"
+    },
+    {
+      "id": "craft:bench",
+      "url": "https://poedb.tw/cn/Crafting_Bench",
+      "category": "craft",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:58.077Z",
+      "sha256": "7e5dd3e89f4993c560e417bd46a316c6016c98afc989711462939599fe2b44d5",
+      "file": "pages/craft_bench-22755f8648664621.html.gz"
+    },
+    {
+      "id": "craft:harvest",
+      "url": "https://poedb.tw/cn/Horticrafting",
+      "category": "craft",
+      "status": 200,
+      "fetchedAt": "2026-08-03T03:59:58.956Z",
+      "sha256": "1f67585fdec54490fae990801325179f23069ea2a861bb4fd89d206868b195c9",
+      "file": "pages/craft_harvest-f74b00084a9cca93.html.gz"
+    },
+    {
+      "id": "implicit:eldritch",
+      "url": "https://poedb.tw/cn/Eldritch_implicit",
+      "category": "implicit",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:00:00.908Z",
+      "sha256": "b068a95a3fd14f3b28d17a6554a279e290843a3e14a07536279d8f4979b9b7db",
+      "file": "pages/implicit_eldritch-ee6356147340b7a4.html.gz"
+    },
+    {
+      "id": "reference:catalysts",
+      "url": "https://poedb.tw/cn/Catalysts",
+      "category": "reference",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:00:01.906Z",
+      "sha256": "59bab2309d0a2a48bb8061eaa19903a061b7a2fc98acb251729f1c70b04db54c",
+      "file": "pages/reference_catalysts-e8f9a491391d941b.html.gz"
+    },
+    {
+      "id": "implicit:vaal",
+      "url": "https://poedb.tw/cn/Vaal_Orb",
+      "category": "implicit",
+      "status": 200,
+      "fetchedAt": "2026-08-03T04:00:03.620Z",
+      "sha256": "0a0ebf21c519d64847e6f6e3eaca29cf645f6f713750597b6cb06a5bd0eae397",
+      "file": "pages/implicit_vaal-7cbb931fbce3ecf8.html.gz"
+    }
+  ]
+}

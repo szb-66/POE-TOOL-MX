@@ -3,9 +3,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { synchronizeRawSnapshot } from './craftingRawSnapshot.js'
 import { buildSkillGemCatalog } from './skillGemCatalog.js'
+import { SEASON_BASELINE, S30_SKILL_SENTINELS } from '../shared/seasonBaseline.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const patch = process.env.POE_PATCH || '3.28'
+const patch = process.env.POE_PATCH || SEASON_BASELINE.patch
 const rawSnapshotRoot = path.join(projectRoot, 'electron', 'assets', 'skill-raw')
 const outputFile = path.join(projectRoot, 'src', 'domains', 'story', 'skillCatalog.json')
 
@@ -45,6 +46,10 @@ function assertCatalog(catalog) {
   const convocation = catalog.skills.find(skill => skill.name === '号召' && skill.kind === 'active')
   if (!convocation || convocation.requiredLevel !== 24 || convocation.color !== 'white') {
     throw new Error('技能目录缺少“号召 / 24 / 白色”哨兵')
+  }
+  if (patch === SEASON_BASELINE.patch) {
+    const missing = S30_SKILL_SENTINELS.filter((sourcePath) => !catalog.skills.some((skill) => skill.sourcePath === sourcePath))
+    if (missing.length) throw new Error(`技能目录缺少 S30 哨兵：${missing.join('、')}`)
   }
 }
 

@@ -155,7 +155,7 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   assert.equal('delays' in config, false)
 })
 
-test('背包页面提供额外背包与逐格禁用布局，并在模块启用后锁定编辑', () => {
+test('背包页面提供额外背包与逐格禁用布局，并在模块启用后热更新', () => {
   const source = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
   assert.match(source, /背包格子布局/)
   assert.match(source, /inventory-region--extra/)
@@ -163,7 +163,9 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /v-for="column in nativeColumns"/)
   assert.match(source, /toggleExcludedSlot\(column, row\)/)
   assert.match(source, /清空选择/)
-  assert.match(source, /:disabled="bagStore\.moduleEnabled"/)
+  assert.doesNotMatch(source, /:disabled="bagStore\.moduleEnabled"/)
+  assert.match(source, /updateBagRuntimeConfig/)
+  assert.match(source, /运行中修改从下一轮入库生效/)
   assert.match(source, /extraColumns[\s\S]*index - count/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODES/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODE_LABELS/)
@@ -287,6 +289,51 @@ print(json.dumps(changes))
     [false, false], [false, false], [true, true],
     [true, false], [true, false], [false, true]
   ])
+})
+
+test('Python 持续检测在游戏后台跳过截图匹配并在回到前台后重新稳定识别', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+events = []
+focus = iter([False, False, True, True, True])
+class Matcher:
+    valid = True
+    checks = 0
+    def __init__(self, config): pass
+    def check_interface(self):
+        Matcher.checks += 1
+        return True, {"stashScore": 1, "inventoryScore": 1}
+module.InterfaceMatcher = Matcher
+module.is_game_foreground = lambda: next(focus)
+module.get_game_client_bounds = lambda: {"left": 1}
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+def sleep(_delay):
+    if Matcher.checks >= 3:
+        module.is_running = False
+module.time.sleep = sleep
+result = module.run_detection({})
+print(json.dumps({"result": result, "checks": Matcher.checks, "events": events}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const values = JSON.parse(result.stdout)
+  assert.equal(values.result, 0)
+  assert.equal(values.checks, 3)
+  assert.equal(values.events[0].foreground, false)
+  assert.equal(values.events.at(-1).ready, true)
+  assert.equal(values.events.at(-1).foreground, true)
+})
+
+test('Python 入库从助手启动时先聚焦游戏，运行中失焦会停止且释放输入', () => {
+  const source = readFileSync(new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url), 'utf8')
+  assert.match(source, /def run_stash\(config\):[\s\S]*?if not focus_game_window\(\):[\s\S]*?game-not-foreground/)
+  assert.match(source, /def move\(self, x, y\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?stop_for_foreground_loss\(self\)/)
+  assert.match(source, /def _send_copy\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.keyboard\.press\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
+  assert.match(source, /def ctrl_click\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.keyboard\.press\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
 })
 
 test('Python 检测模式使用 Electron 约定的错误事件名', () => {
@@ -850,6 +897,24 @@ test('全局操作等待同步接口只更新下一轮运行配置，不重启�
   assert.doesNotMatch(handler, /startDetectionProcess|reloadDetection|session\.reset/)
   assert.match(preloadSource, /updateBagOperationDelay/)
   assert.match(apiSource, /updateOperationDelay/)
+})
+
+test('完整背包运行时配置热更新检测并保留当前入库进程快照', () => {
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
+  const bagView = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  const handler = ipcSource.match(/ipcMain\.handle\('update-bag-runtime-config'[\s\S]*?\n  \}\)/)?.[0] || ''
+  assert.match(handler, /interfaceDetection\.updateConfig\(candidate\)/)
+  assert.match(handler, /latestConfig = candidate/)
+  assert.match(handler, /bagConfigRevision \+= 1/)
+  assert.doesNotMatch(handler, /stopChild\(stashProcess\)|stashProcess = null/)
+  assert.match(ipcSource, /const frozenConfig = structuredClone\(latestConfig\)/)
+  assert.match(preloadSource, /updateBagRuntimeConfig/)
+  assert.match(apiSource, /updateRuntimeConfig/)
+  assert.doesNotMatch(bagView, /:disabled="bagStore\.moduleEnabled"/)
+  assert.doesNotMatch(bagView, /请先关闭模块再修改黑名单/)
+  assert.match(bagView, /新规则从下一轮入库生效/)
 })
 
 test('正式包携带背包脚本并从稳定路径解析', () => {

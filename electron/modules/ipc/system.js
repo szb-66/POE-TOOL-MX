@@ -9,7 +9,7 @@ import {
 } from '../system/diagnostics.js'
 import { createStartupHealth } from '../system/health.js'
 
-export function registerSystemHandlers(python) {
+export function registerSystemHandlers(python, gameWindowTitles) {
   const displaySnapshot = () => screen.getAllDisplays().map((display) => ({
     id: display.id,
     primary: display.id === screen.getPrimaryDisplay()?.id,
@@ -19,7 +19,10 @@ export function registerSystemHandlers(python) {
   }))
   const detectDpi = async () => {
     const primaryScaleFactor = Number(screen.getPrimaryDisplay()?.scaleFactor) || 1
-    const result = await detectGameDpi({ pythonPath: python.detectPythonPath?.() })
+    const result = await detectGameDpi({
+      pythonPath: python.detectPythonPath?.(),
+      gameWindowTitles: gameWindowTitles?.getTitles?.()
+    })
     return { ...result, primaryScaleFactor }
   }
   const snapshot = async (modules = []) => createDiagnosticsSnapshot({
@@ -36,6 +39,13 @@ export function registerSystemHandlers(python) {
   })
 
   ipcMain.handle('system-detect-game-dpi', detectDpi)
+  ipcMain.handle('system-update-game-window-titles', async (_event, titles) => {
+    try {
+      return { success: true, titles: gameWindowTitles.update(titles) }
+    } catch (error) {
+      return { success: false, error: error.message || String(error) }
+    }
+  })
   ipcMain.handle('system-get-startup-health', async () => {
     const runtime = python.resolvePythonRuntime?.(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
       || { ready: Boolean(python.detectPythonPath?.()), source: 'system' }

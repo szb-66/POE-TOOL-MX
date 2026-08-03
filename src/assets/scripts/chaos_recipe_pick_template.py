@@ -6,6 +6,7 @@ import argparse
 import ctypes
 import json
 import math
+import os
 import signal
 import sys
 import time
@@ -42,9 +43,43 @@ except ImportError as exc:
     DEPENDENCY_ERROR = str(exc)
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
 TRANSFER_ATTEMPTS = 2
 RUNNING = True
 CONTROLLER = None
+
+
+class GameNotForegroundError(RuntimeError):
+    pass
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 
 def emit(event, **payload):
@@ -70,7 +105,7 @@ def is_game_foreground():
     length = user32.GetWindowTextLengthW(hwnd)
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+    return game_window_title_priority(buffer.value) >= 0
 
 
 def find_game_window():
@@ -88,12 +123,14 @@ def find_game_window():
             return True
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
-            matches.append(hwnd)
+        priority = game_window_title_priority(buffer.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
         return True
 
     user32.EnumWindows(callback_type(visit), 0)
-    return matches[0] if matches else 0
+    matches.sort(key=lambda entry: entry[0])
+    return matches[0][1] if matches else 0
 
 
 def restore_game_window_if_minimized(user32, hwnd):
@@ -141,6 +178,11 @@ def focus_game_window(timeout_seconds=2.0):
     return False
 
 
+def require_game_foreground():
+    if not is_game_foreground():
+        raise GameNotForegroundError("游戏窗口运行中失去前台")
+
+
 class InputController:
     def __init__(self, delay_ms):
         try:
@@ -165,6 +207,7 @@ class InputController:
             pass
 
     def move(self, x, y):
+        require_game_foreground()
         if sys.platform == "win32":
             if not ctypes.windll.user32.SetCursorPos(int(x), int(y)):
                 return False
@@ -174,17 +217,21 @@ class InputController:
         return True
 
     def copy_item(self):
+        require_game_foreground()
         try:
             pyperclip.copy("")
         except Exception:
             return ""
+        require_game_foreground()
         self.keyboard.press(Key.ctrl)
+        require_game_foreground()
         self.keyboard.press("c")
         self.keyboard.release("c")
         self.keyboard.release(Key.ctrl)
         deadline = time.monotonic() + max(0.25, self.delay * 4)
         while RUNNING and time.monotonic() < deadline:
             try:
+                require_game_foreground()
                 text = str(pyperclip.paste() or "").strip()
             except Exception:
                 return ""
@@ -194,7 +241,9 @@ class InputController:
         return ""
 
     def ctrl_click(self):
+        require_game_foreground()
         self.keyboard.press(Key.ctrl)
+        require_game_foreground()
         self.mouse.press(Button.left)
         self.mouse.release(Button.left)
         self.keyboard.release(Key.ctrl)
@@ -237,6 +286,9 @@ def run(config):
             emit("item-picked", index=index, itemId=expected.get("id"), setId=expected.get("setId"))
         emit("completed")
         return 0
+    except GameNotForegroundError as error:
+        emit("aborted", code="GAME_NOT_FOREGROUND", reason=str(error))
+        return 1
     finally:
         CONTROLLER.release_all()
 

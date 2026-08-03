@@ -101,6 +101,8 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const stashGridCalibration = computed(() => interfaceDetectionStore.stashGridCalibration)
   const busy = ref(false)
   const error = ref(null)
+  let runtimeRevision = 0
+  let runtimeCommitQueue = Promise.resolve()
   const auth = computed(() => accountStore.status)
   const leagues = computed(() => accountStore.leagues)
   const league = computed(() => accountStore.settings.league)
@@ -279,23 +281,45 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     automation.value = { ...automation.value, ...unwrap(await electronApi.chaosRecipe.stopAutomation()) }
   }
 
+  function commitSettings(buildCandidate) {
+    const commit = async () => {
+      try {
+        const candidate = buildCandidate(settings.value)
+        if (settings.value.enabled) await syncRuntime(candidate)
+        settings.value = normalizeChaosRecipeSettings(candidate)
+        runtimeRevision += 1
+        save()
+        setError(null)
+        return { success: true, revision: runtimeRevision }
+      } catch (reason) {
+        setError(reason)
+        return { success: false, error: reason.message || String(reason), revision: runtimeRevision }
+      }
+    }
+    runtimeCommitQueue = runtimeCommitQueue.then(commit, commit)
+    return runtimeCommitQueue
+  }
+
   function updateSetting(key, value) {
-    settings.value[key] = key === 'operationDelayMs' ? normalizeOperationDelay(value) : value
-    save()
-    if (settings.value.enabled) void syncRuntime().catch(setError)
+    return commitSettings(current => ({
+      ...current,
+      [key]: key === 'operationDelayMs' ? normalizeOperationDelay(value) : value
+    }))
   }
 
   function setActiveRecipe(recipeId) {
-    settings.value.activeRecipeId = VENDOR_RECIPE_IDS.includes(String(recipeId)) ? String(recipeId) : 'chaos'
-    const recipe = snapshot.value?.recipes?.[settings.value.activeRecipeId]
-    if (recipe?.kind === 'set') {
-      settings.value.targetSetCount = Math.min(
-        Math.max(1, settings.value.targetSetCount),
-        Math.max(1, Number(recipe.fullSetCount) || 0)
-      )
-    }
-    save()
-    if (settings.value.enabled) void syncRuntime().catch(setError)
+    return commitSettings(current => {
+      const activeRecipeId = VENDOR_RECIPE_IDS.includes(String(recipeId)) ? String(recipeId) : 'chaos'
+      const recipe = snapshot.value?.recipes?.[activeRecipeId]
+      let targetSetCount = current.targetSetCount
+      if (recipe?.kind === 'set') {
+        targetSetCount = Math.min(
+          Math.max(1, targetSetCount),
+          Math.max(1, Number(recipe.fullSetCount) || 0)
+        )
+      }
+      return { ...current, activeRecipeId, targetSetCount }
+    })
   }
 
   function setSelectedItemIds(recipeId, itemIds) {

@@ -101,6 +101,24 @@ assert not rejected["success"] and rejected["code"] == "target-not-unique"
 assert duplicate.fake_mouse.clicks == 0 and duplicate.top_calls == 2
 
 
+class LosingFocusSelector(SimulatedSelector):
+    def __init__(self):
+        super().__init__(["临时", "地图", "通货"])
+        self.environment_checks = 0
+
+    def validate_environment(self):
+        self.environment_checks += 1
+        if self.environment_checks >= 3:
+            return selector.fail("game-not-foreground", "游戏不在前台，已停止仓库页选择")
+        return selector.result(True)
+
+
+losing_focus = LosingFocusSelector()
+focus_result = losing_focus.select()
+assert not focus_result["success"] and focus_result["code"] == "game-not-foreground"
+assert losing_focus.fake_mouse.clicks == 0
+
+
 def fixture_result(path):
     image = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
     assert image is not None

@@ -289,6 +289,9 @@
         </div>
         <el-card class="section-card">
           <el-form label-width="120px" label-position="left">
+            <el-form-item label="游戏窗口名称">
+              <GameWindowTitleSettings />
+            </el-form-item>
             <el-form-item label="屏幕DPI缩放">
               <div class="dpi-settings">
                 <el-radio-group :model-value="settingsStore.dpiMode" @change="handleDpiModeChange">
@@ -471,8 +474,10 @@ import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
 import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
+import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { updateBagRuntimeConfig } from '@/utils/bagService'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
@@ -596,16 +601,23 @@ function handlePositionChange(currency) {
   })
 }
 
-function handleInventoryChange() {
-  settingsStore.updateInventorySettings({
-    startPos: inventory.value.startPos,
-    slotSize: inventory.value.slotSize
-  })
+async function handleInventoryChange() {
+  const candidate = {
+    ...settingsStore.inventory,
+    startPos: { ...inventory.value.startPos },
+    slotSize: { ...inventory.value.slotSize }
+  }
+  const result = await updateBagRuntimeConfig({ inventory: candidate })
+  if (!result.success) {
+    inventory.value = JSON.parse(JSON.stringify(settingsStore.inventory))
+    ElMessage.error(result.error)
+  }
 }
 
-function handleEmptySlotThresholdChange(value) {
-  const normalized = settingsStore.updateInventorySettings({ emptySlotThreshold: value })
-  inventory.value.emptySlotThreshold = normalized.emptySlotThreshold
+async function handleEmptySlotThresholdChange(value) {
+  const result = await updateBagRuntimeConfig({ inventory: { ...settingsStore.inventory, emptySlotThreshold: value } })
+  inventory.value.emptySlotThreshold = settingsStore.inventory.emptySlotThreshold
+  if (!result.success) ElMessage.error(result.error)
 }
 
 function handleItemPositionChange() {
@@ -690,8 +702,10 @@ async function handleDebugModeChange(enabled) {
   }
 }
 
-function handleOperationDelayChange(value) {
-  settingsStore.updateOperationDelay(value)
+async function handleOperationDelayChange(value) {
+  const result = await updateBagRuntimeConfig({ operationDelayMs: value })
+  operationDelayMs.value = settingsStore.operationDelayMs
+  if (!result.success) ElMessage.error(result.error)
 }
 
 function isVideo(path) {

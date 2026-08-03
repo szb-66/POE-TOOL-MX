@@ -30,7 +30,7 @@ export const FOSSIL_DEFINITIONS = [
   { id: 'faceted', name: '棱面化石', description: '更多宝石词缀', rules: [more(['gem'])], special: 'faceted' },
   { id: 'bloodstained', name: '溅血化石', description: '重铸显式词缀\n获得一条腐化固定词缀并使物品腐化', rules: [], special: 'bloodstained' },
   { id: 'hollow', name: '镂空化石', description: '具有深渊插槽', rules: [], special: 'hollow' },
-  { id: 'fractured', name: '分裂化石', description: '产生一个分裂副本\n不能用于势力、追忆、破裂、已分裂或附魔物品', rules: [], special: 'fractured' },
+  { id: 'fractured', name: '分裂化石', description: '重铸物品并随机破裂一条显式词缀\n不能用于已有破裂词缀或带势力的物品', rules: [], special: 'fractured' },
   { id: 'glyphic', name: '雕刻化石', description: '具有腐化的精华属性', rules: [], special: 'glyphic' },
   { id: 'tangled', name: '纠缠化石', description: '大幅增加一种随机词缀出现的几率\n并阻止另一种随机词缀出现\n插满共振器就会解开它们的效果', rules: [], special: 'tangled' },
   { id: 'sanctified', name: '圣洁化石', description: '数字属性值特别幸运\n高等级属性变得更普通', rules: [], special: 'sanctified' },

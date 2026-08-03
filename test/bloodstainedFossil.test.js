@@ -15,7 +15,7 @@ function rareSession(seed = 731) {
   return applyManualCurrency(dataset, initial, 'currency:alchemy').session
 }
 
-test('真实 3.28 快照启用溅血化石并公开候选与永久腐化后果', () => {
+test('真实 3.29 快照启用溅血化石并公开候选与永久腐化后果', () => {
   const rare = rareSession()
   const bloodstained = listManualFossils(dataset, rare).items.find((entry) => entry.id === 'bloodstained')
   assert.equal(bloodstained.supported, true)
@@ -60,9 +60,18 @@ test('溅血与镶金组合只替换一个隐式并保留未命中项', () => {
 })
 
 test('其他化石只改变显式池，不会过滤腐化固定词缀', () => {
-  const result = applyManualFossils(dataset, rareSession(2), { sockets: 2, fossilIds: ['bloodstained', 'corroded'] })
+  const elemental = corruptedImplicitCandidates(dataset, wand, 84)
+    .find(({ tier }) => tier.displayTags.some((tag) => tag.id === 'elemental'))
+  assert.ok(elemental, '当前瓦尔隐式池应包含元素标签候选')
+  const focusedDataset = {
+    ...dataset,
+    corruptedImplicitFamilies: [{ ...structuredClone(elemental.family), tiers: [structuredClone(elemental.tier)] }]
+  }
+  let session = createManualSession(focusedDataset, { baseId: wand.id, itemLevel: 84, variant: { kind: 'normal' }, seed: 2 })
+  session = applyManualCurrency(focusedDataset, session, 'currency:alchemy').session
+  const result = applyManualFossils(focusedDataset, session, { sockets: 2, fossilIds: ['bloodstained', 'corroded'] })
   const explicitModifiers = [...result.session.state.prefixes, ...result.session.state.suffixes]
-    .map((affix) => dataset.modifiers.find((modifier) => modifier.id === affix.modifierId))
+    .map((affix) => focusedDataset.modifiers.find((modifier) => modifier.id === affix.modifierId))
   assert.equal(explicitModifiers.some((modifier) => modifier?.tags.includes('elemental')), false)
   assert.ok(result.session.state.vaalImplicit.displayTags.some((tag) => tag.id === 'elemental'))
 })

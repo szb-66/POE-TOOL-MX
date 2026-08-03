@@ -1,6 +1,7 @@
 import { renderRangeText, rollRange } from './equipmentPropertyRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
-export const VAAL_MODEL_VERSION = 'poe1-3.28-vaal-v1'
+export const VAAL_MODEL_VERSION = `${SEASON_BASELINE.game}-${SEASON_BASELINE.patch}-vaal-v1`
 export const VAAL_OUTCOMES = Object.freeze(['implicit', 'white-sockets', 'rare-reforge', 'no-change'])
 export const VAAL_OUTCOME_LABELS = Object.freeze({
   implicit: '腐化隐式', 'white-sockets': '白色插槽', 'rare-reforge': '六词缀稀有重铸', 'no-change': '仅腐化'

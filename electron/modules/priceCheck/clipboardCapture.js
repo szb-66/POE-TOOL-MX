@@ -4,13 +4,48 @@ import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-export async function sendWindowsCopy(pythonPath, { advanced = false } = {}) {
+function gameForegroundGuardLines() {
+  return [
+    'import ctypes, json, os, sys, time',
+    'u = ctypes.windll.user32',
+    'h = u.GetForegroundWindow()',
+    'n = u.GetWindowTextLengthW(h)',
+    'b = ctypes.create_unicode_buffer(n + 1)',
+    'u.GetWindowTextW(h, b, n + 1)',
+    'titles = ("流放之路", "Path of Exile")',
+    'p = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")',
+    'try:',
+    ' data = json.load(open(p, "r", encoding="utf-8")) if p else {}',
+    ' values = data.get("titles") if isinstance(data, dict) else data',
+    ' titles = tuple(str(v).strip() for v in values) if isinstance(values, list) and values else titles',
+    'except Exception: pass',
+    'ok = any(t.casefold() in b.value.casefold() for t in titles if t)',
+    'sys.exit(23) if not ok else None'
+  ]
+}
+
+function runWindowsInputScript(pythonPath, lines) {
   if (process.platform !== 'win32' || !pythonPath) {
     throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境无法向游戏发送复制按键')
   }
+  return new Promise((resolve, reject) => {
+    execFile(pythonPath, ['-c', lines.join('\n')], { windowsHide: true, timeout: 3000 }, (error) => {
+      if (!error) return resolve()
+      if (Number(error.code) === 23) {
+        return reject(new ChaosRecipeError(CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND, '游戏窗口当前不在前台'))
+      }
+      reject(new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `无法向游戏发送复制按键：${error.message}`))
+    })
+  })
+}
+
+export async function assertWindowsGameForeground(pythonPath) {
+  return runWindowsInputScript(pythonPath, gameForegroundGuardLines())
+}
+
+export async function sendWindowsCopy(pythonPath, { advanced = false } = {}) {
   const script = [
-    'import ctypes, time',
-    'u = ctypes.windll.user32',
+    ...gameForegroundGuardLines(),
     'u.keybd_event(0x11, 0, 0, 0)',
     ...(advanced ? ['u.keybd_event(0x12, 0, 0, 0)'] : []),
     'u.keybd_event(0x43, 0, 0, 0)',
@@ -18,13 +53,8 @@ export async function sendWindowsCopy(pythonPath, { advanced = false } = {}) {
     'u.keybd_event(0x43, 0, 2, 0)',
     ...(advanced ? ['u.keybd_event(0x12, 0, 2, 0)'] : []),
     'u.keybd_event(0x11, 0, 2, 0)'
-  ].join('; ')
-  await new Promise((resolve, reject) => {
-    execFile(pythonPath, ['-c', script], { windowsHide: true, timeout: 3000 }, (error) => {
-      if (error) reject(new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `无法向游戏发送复制按键：${error.message}`))
-      else resolve()
-    })
-  })
+  ]
+  await runWindowsInputScript(pythonPath, script)
 }
 
 export async function captureFreshClipboardText({
@@ -54,6 +84,7 @@ export async function captureFreshClipboardText({
 }
 
 export async function capturePoeItemText(options) {
+  await options.assertForeground?.()
   try {
     return await captureFreshClipboardText({
       ...options,

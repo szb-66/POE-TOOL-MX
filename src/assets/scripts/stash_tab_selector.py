@@ -23,6 +23,37 @@ MIN_CONFIDENCE = 0.72
 MAX_SCROLL_STEPS = 30
 SCROLL_NOTCHES = 6
 SCROLL_DELAY_SECONDS = 0.22
+GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+
+
+def game_window_titles() -> tuple[str, ...]:
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title: str) -> int:
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 
 def enable_per_monitor_dpi_awareness() -> None:
@@ -176,6 +207,12 @@ class CaptureRegion:
         return {"left": self.x, "top": self.y, "width": self.width, "height": self.height}
 
 
+class SelectorSafetyError(RuntimeError):
+    def __init__(self, payload: dict[str, Any]):
+        super().__init__(str(payload.get("message") or payload.get("error") or "仓库页选择环境失效"))
+        self.payload = payload
+
+
 class StashTabSelector:
     def __init__(self, config: dict[str, Any], ocr_engine: Any | None = None):
         self.config = config
@@ -192,6 +229,7 @@ class StashTabSelector:
         return self._ocr
 
     def capture(self) -> np.ndarray:
+        self.require_environment()
         with mss.mss() as capture:
             return np.asarray(capture.grab(self.region.monitor()))
 
@@ -213,6 +251,7 @@ class StashTabSelector:
         return self._mouse
 
     def _position_mouse(self) -> None:
+        self.require_environment()
         self._mouse_controller().position = (
             self.region.x + self.region.width // 2,
             self.region.y + self.region.height // 2
@@ -220,6 +259,7 @@ class StashTabSelector:
 
     def scroll(self, notches: int) -> None:
         self._position_mouse()
+        self.require_environment()
         self._mouse_controller().scroll(0, notches)
         time.sleep(SCROLL_DELAY_SECONDS)
 
@@ -232,7 +272,7 @@ class StashTabSelector:
         title = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, title, length + 1)
         window_title = title.value
-        if not any(token in window_title.casefold() for token in ("path of exile", "流放之路")):
+        if game_window_title_priority(window_title) < 0:
             return fail("game-not-foreground", "游戏不在前台，已停止仓库页选择", windowTitle=window_title)
         bounds = self.config.get("rootRegion", {}).get("displayPhysicalBounds")
         if bounds:
@@ -259,11 +299,19 @@ class StashTabSelector:
             pass
         return result(True, windowTitle=window_title)
 
+    def require_environment(self) -> None:
+        environment = self.validate_environment()
+        if not environment["success"]:
+            raise SelectorSafetyError(environment)
+
     def preview(self) -> dict[str, Any]:
-        rows = self.recognize(self.capture())
-        target_rows = exact_target_rows(rows, self.target_name) if self.target_name else []
-        return result(True, mode="preview", rows=rows, targetName=self.target_name,
-                      targetMatchCount=len(target_rows), uniqueTargetMatch=len(target_rows) == 1)
+        try:
+            rows = self.recognize(self.capture())
+            target_rows = exact_target_rows(rows, self.target_name) if self.target_name else []
+            return result(True, mode="preview", rows=rows, targetName=self.target_name,
+                          targetMatchCount=len(target_rows), uniqueTargetMatch=len(target_rows) == 1)
+        except SelectorSafetyError as error:
+            return error.payload
 
     def scroll_to_top(self) -> dict[str, Any]:
         previous = None
@@ -352,13 +400,17 @@ class StashTabSelector:
             }
             from pynput.mouse import Button
             mouse = self._mouse_controller()
+            self.require_environment()
             mouse.position = (point["x"], point["y"])
+            self.require_environment()
             mouse.click(Button.left, 1)
             return result(True, mode="select", targetName=self.target_name, point=point,
                           confidence=matches[0]["confidence"], scrollStep=page["step"])
         except KeyboardInterrupt:
             self.restore_top()
             return fail("cancelled", "仓库页选择已停止")
+        except SelectorSafetyError as error:
+            return error.payload
         except Exception as error:
             try:
                 if self.config.get("hasScrollbar"):

@@ -1,4 +1,6 @@
-export const BEASTCRAFT_RULESET = Object.freeze({ game: 'poe1', patch: '3.28', locale: 'zh-CN' })
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
+
+export const BEASTCRAFT_RULESET = Object.freeze({ game: SEASON_BASELINE.game, patch: SEASON_BASELINE.patch, locale: SEASON_BASELINE.locale })
 
 export const BEAST_INFLUENCE_RECIPES = Object.freeze([
   ['shaper', '塑界者', 'Fenumal Devourer'],
@@ -32,8 +34,6 @@ const EXECUTABLE_RECIPES = [
   ...BEAST_INFLUENCE_RECIPES,
   { id: 'add-random-meta', name: '添加随机工艺元词缀', category: 'meta', beast: 'Wild Bristle Matron', supported: true },
   ...BEAST_ASPECT_RECIPES,
-  { id: 'split-two', name: '分裂为两件，各获得一半词缀', category: 'split', beast: 'Fenumal Plagued Arachnid', supported: true },
-  { id: 'split-three', name: '分裂为三件，每件两条词缀', category: 'split', beast: 'Fenumal Plagued Arachnid', secondaryBeast: 'The Black Mórrígan', supported: true },
   { id: 'create-imprint', name: '创建魔法物品拓印', category: 'state', beast: 'Craicic Chimeral', supported: true },
   { id: 'restore-imprint', name: '使用拓印恢复原物品', category: 'state', beast: 'Imprint', supported: true },
   { id: 'apply-hinekora-lock', name: '对魔法物品应用希内科拉之锁', category: 'state', beast: 'Craicic Chimeral', secondaryBeast: 'The Black Mórrígan', supported: true },
@@ -42,6 +42,8 @@ const EXECUTABLE_RECIPES = [
 ]
 
 const UNSUPPORTED_RECIPES = [
+  { id: 'fracture-talisman-one', name: '破裂稀有魔符的一条随机词缀', category: 'unsupported', beast: 'Fenumal Plagued Arachnid', unsupportedReason: '3.29 已移除二分物品配方；替代配方只作用于至少 4 条词缀的稀有魔符，而当前模拟器不支持魔符底材' },
+  { id: 'fracture-talisman-two', name: '破裂稀有魔符的两条随机词缀', category: 'unsupported', beast: 'Fenumal Plagued Arachnid', secondaryBeast: 'The Black Mórrígan', unsupportedReason: '3.29 已移除三分物品配方；替代配方只作用于至少 6 条词缀的稀有魔符，而当前模拟器不支持魔符底材' },
   { id: 'reroll-synthesis-implicit', name: '重骰一条综合隐式', category: 'unsupported', beast: 'Vivid Vulture', unsupportedReason: '当前数据快照没有综合隐式结果池，无法准确重骰' },
   { id: 'transform-talisman', name: '将项链转化为护符', category: 'unsupported', beast: 'Farric Frost Hellion Alpha', unsupportedReason: '当前状态模型没有护符底材与护符隐式结果池' },
   { id: 'reroll-watchers-eye', name: '重骰守望之眼词缀', category: 'unsupported', beast: 'Wild Hellion Alpha', unsupportedReason: '当前模拟器不支持传奇珠宝及守望之眼专用词缀池' }

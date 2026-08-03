@@ -136,14 +136,13 @@
 
         <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
         <el-card class="section-card inventory-layout-card">
-          <el-alert title="点击格子可切换是否执行自动入库；模块启用后布局将锁定。" type="info" :closable="false" />
+          <el-alert title="点击格子可切换是否执行自动入库；运行中修改从下一轮入库生效。" type="info" :closable="false" />
           <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
             <el-form-item label="额外背包">
               <el-switch
                 :model-value="bagStore.inventoryLayout.extraEnabled"
                 active-text="开启"
                 inactive-text="关闭"
-                :disabled="bagStore.moduleEnabled"
                 @change="setExtraInventoryEnabled"
               />
             </el-form-item>
@@ -153,7 +152,7 @@
                 :min="1"
                 :max="INVENTORY_LAYOUT.maxExtraColumns"
                 :step="1"
-                :disabled="bagStore.moduleEnabled || !bagStore.inventoryLayout.extraEnabled"
+                :disabled="!bagStore.inventoryLayout.extraEnabled"
                 @change="setExtraInventoryColumns"
               />
             </el-form-item>
@@ -171,7 +170,6 @@
                       type="button"
                       class="inventory-slot inventory-slot--extra"
                       :class="{ 'is-excluded': isSlotExcluded(column, row) }"
-                      :disabled="bagStore.moduleEnabled"
                       :aria-label="slotAriaLabel(column, row)"
                       :aria-pressed="isSlotExcluded(column, row)"
                       @click="toggleExcludedSlot(column, row)"
@@ -191,7 +189,6 @@
                       type="button"
                       class="inventory-slot"
                       :class="{ 'is-excluded': isSlotExcluded(column, row) }"
-                      :disabled="bagStore.moduleEnabled"
                       :aria-label="slotAriaLabel(column, row)"
                       :aria-pressed="isSlotExcluded(column, row)"
                       @click="toggleExcludedSlot(column, row)"
@@ -213,7 +210,7 @@
             <el-button
               type="danger"
               plain
-              :disabled="bagStore.moduleEnabled || bagStore.inventoryLayout.excludedSlots.length === 0"
+              :disabled="bagStore.inventoryLayout.excludedSlots.length === 0"
               @click="clearExcludedSlots"
             >
               清空选择
@@ -225,10 +222,10 @@
         <el-card class="section-card">
           <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
           <div class="rule-editor">
-            <el-select v-model="draftRule.field" style="width: 150px" :disabled="bagStore.moduleEnabled">
+            <el-select v-model="draftRule.field" style="width: 150px">
               <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
             </el-select>
-            <el-select v-model="draftRule.matchMode" style="width: 130px" :disabled="bagStore.moduleEnabled">
+            <el-select v-model="draftRule.matchMode" style="width: 130px">
               <el-option
                 v-for="mode in BAG_BLACKLIST_MATCH_MODES"
                 :key="mode"
@@ -236,16 +233,15 @@
                 :value="mode"
               />
             </el-select>
-            <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable :disabled="bagStore.moduleEnabled" @keyup.enter="addBlacklistRule" />
-            <el-button type="primary" :disabled="bagStore.moduleEnabled" @click="addBlacklistRule">添加</el-button>
+            <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable @keyup.enter="addBlacklistRule" />
+            <el-button type="primary" @click="addBlacklistRule">添加</el-button>
           </div>
-          <div v-if="bagStore.moduleEnabled" class="hint-text">请先关闭模块再修改黑名单，重新启用后新规则生效。</div>
+          <div v-if="bagStore.moduleEnabled" class="hint-text">模块保持开启；新规则从下一轮入库生效。</div>
           <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
             <el-table-column label="生效" width="90">
               <template #default="scope">
                 <el-switch
                   :model-value="scope.row.enabled"
-                  :disabled="bagStore.moduleEnabled"
                   inline-prompt
                   active-text="开"
                   inactive-text="关"
@@ -262,7 +258,7 @@
             <el-table-column prop="keyword" label="匹配关键词" />
             <el-table-column label="操作" width="100">
               <template #default="scope">
-                <el-button link type="danger" :disabled="bagStore.moduleEnabled" @click="removeBlacklistRule(scope.$index)">删除</el-button>
+                <el-button link type="danger" @click="removeBlacklistRule(scope.$index)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -285,7 +281,7 @@ import { VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
-import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences } from '@/utils/bagService'
+import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences, updateBagRuntimeConfig } from '@/utils/bagService'
 import {
   BAG_BLACKLIST_FIELDS,
   BAG_BLACKLIST_FIELD_LABELS,
@@ -378,27 +374,32 @@ async function previewStashPickup() {
 }
 
 
-function addBlacklistRule() {
+async function applyBagRuntimePatch(patch) {
+  const result = await updateBagRuntimeConfig(patch)
+  if (!result.success) ElMessage.error(result.error)
+  return result.success
+}
+
+async function addBlacklistRule() {
   const keyword = draftRule.value.keyword.trim()
   if (!keyword) return ElMessage.warning('请输入黑名单关键词')
-  bagStore.setBlacklist([...bagStore.blacklist, {
+  const success = await applyBagRuntimePatch({ blacklist: [...bagStore.blacklist, {
     field: draftRule.value.field,
     keyword,
     matchMode: draftRule.value.matchMode,
     enabled: true
-  }])
-  draftRule.value.keyword = ''
+  }] })
+  if (success) draftRule.value.keyword = ''
 }
 
 function toggleBlacklistRule(index, enabled) {
-  if (bagStore.moduleEnabled) return ElMessage.info('请先关闭模块再修改黑名单')
-  bagStore.setBlacklist(bagStore.blacklist.map((rule, ruleIndex) => (
+  return applyBagRuntimePatch({ blacklist: bagStore.blacklist.map((rule, ruleIndex) => (
     ruleIndex === index ? { ...rule, enabled: Boolean(enabled) } : rule
-  )))
+  )) })
 }
 
 function removeBlacklistRule(index) {
-  bagStore.setBlacklist(bagStore.blacklist.filter((_rule, ruleIndex) => ruleIndex !== index))
+  return applyBagRuntimePatch({ blacklist: bagStore.blacklist.filter((_rule, ruleIndex) => ruleIndex !== index) })
 }
 
 function slotKey(column, row) {
@@ -416,24 +417,22 @@ function slotAriaLabel(column, row) {
 }
 
 function setExtraInventoryEnabled(extraEnabled) {
-  bagStore.setInventoryLayout({ extraEnabled })
+  return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, extraEnabled } })
 }
 
 function setExtraInventoryColumns(extraColumns) {
-  bagStore.setInventoryLayout({ extraColumns })
+  return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, extraColumns } })
 }
 
 function toggleExcludedSlot(column, row) {
-  if (bagStore.moduleEnabled) return
   const key = slotKey(column, row)
   const excludedSlots = bagStore.inventoryLayout.excludedSlots.filter((slot) => slotKey(slot.column, slot.row) !== key)
   if (excludedSlots.length === bagStore.inventoryLayout.excludedSlots.length) excludedSlots.push({ column, row })
-  bagStore.setInventoryLayout({ excludedSlots })
+  return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, excludedSlots } })
 }
 
 function clearExcludedSlots() {
-  if (bagStore.moduleEnabled) return
-  bagStore.setInventoryLayout({ excludedSlots: [] })
+  return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, excludedSlots: [] } })
 }
 
 async function handleStopStash() {

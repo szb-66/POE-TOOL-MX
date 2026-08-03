@@ -6,7 +6,7 @@ const catalog = JSON.parse(await readFile(new URL('../src/domains/story/skillCat
 
 test('真实技能目录包含完整元数据、主动与辅助宝石哨兵', () => {
   assert.equal(catalog.schemaVersion, 1)
-  assert.equal(catalog.patch, '3.28')
+  assert.equal(catalog.patch, '3.29')
   assert.equal(catalog.locale, 'zh-CN')
   assert.ok(catalog.generatedAt)
   assert.equal(catalog.sources.length, 2)

@@ -22,6 +22,36 @@ MIN_COMPONENT_AREA = 24
 CONFIDENCE_THRESHOLD = 0.72
 MARGIN_THRESHOLD = 0.035
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+
+
+def game_window_titles() -> tuple[str, ...]:
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title: str) -> int:
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 
 def enable_per_monitor_dpi_awareness() -> None:
@@ -72,7 +102,7 @@ def foreground_game_title() -> str:
 
 def is_game_foreground() -> bool:
     title = foreground_game_title()
-    return any(token.casefold() in title.casefold() for token in GAME_WINDOW_TITLES)
+    return game_window_title_priority(title) >= 0
 
 
 def find_game_window() -> int:
@@ -90,12 +120,14 @@ def find_game_window() -> int:
             return True
         title = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, title, length + 1)
-        if any(token.casefold() in title.value.casefold() for token in GAME_WINDOW_TITLES):
-            matches.append(hwnd)
+        priority = game_window_title_priority(title.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
         return True
 
     user32.EnumWindows(callback_type(visit), 0)
-    return matches[0] if matches else 0
+    matches.sort(key=lambda entry: entry[0])
+    return matches[0][1] if matches else 0
 
 
 def focus_game_window(timeout_seconds: float = 2.0) -> tuple[bool, str]:

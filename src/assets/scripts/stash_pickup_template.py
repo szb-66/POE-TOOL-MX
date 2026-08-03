@@ -2,6 +2,7 @@ import argparse
 import base64
 import ctypes
 import json
+import os
 import sys
 import time
 
@@ -13,6 +14,36 @@ import numpy as np
 INPUT_EVENT_DELAY_SECONDS = 0.02
 TRANSFER_ATTEMPTS = 2
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 
 def emit(event, **payload):
@@ -31,7 +62,7 @@ def is_game_foreground():
     length = user32.GetWindowTextLengthW(hwnd)
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+    return game_window_title_priority(buffer.value) >= 0
 
 
 def find_game_window():
@@ -49,12 +80,14 @@ def find_game_window():
             return True
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
-            matches.append(hwnd)
+        priority = game_window_title_priority(buffer.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
         return True
 
     user32.EnumWindows(callback_type(visit), 0)
-    return matches[0] if matches else 0
+    matches.sort(key=lambda entry: entry[0])
+    return matches[0][1] if matches else 0
 
 
 def focus_game_window(timeout_seconds=2.0):
@@ -96,6 +129,11 @@ def focus_game_window(timeout_seconds=2.0):
             return True
         time.sleep(0.05)
     return False
+
+
+def require_game_foreground():
+    if not is_game_foreground():
+        raise RuntimeError("game-not-foreground")
 
 
 def region_rect(value):
@@ -272,9 +310,15 @@ def patch_changed(before, after, threshold=8.0):
     return float(np.mean(np.abs(before.astype(np.float32) - after.astype(np.float32)))) >= threshold
 
 
-def ctrl_click(mouse, keyboard, ctrl_key, left_button):
+def ctrl_click(mouse, keyboard, ctrl_key, left_button, foreground_check=None):
+    check_foreground = foreground_check or is_game_foreground
+    if not check_foreground():
+        raise RuntimeError("game-not-foreground")
     keyboard.press(ctrl_key)
     time.sleep(INPUT_EVENT_DELAY_SECONDS)
+    if not check_foreground():
+        keyboard.release(ctrl_key)
+        raise RuntimeError("game-not-foreground")
     mouse.click(left_button, 1)
     time.sleep(INPUT_EVENT_DELAY_SECONDS)
     keyboard.release(ctrl_key)
@@ -284,6 +328,7 @@ def wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, dela
     deadline = time.monotonic() + max(0.55, delay * 6)
     while time.monotonic() < deadline:
         time.sleep(min(0.05, delay))
+        require_game_foreground()
         after_image = capture(rect, grabber)
         after = local_patch(after_image, columns, candidate["column"], candidate["row"], ratio)
         if patch_changed(before, after):
@@ -320,6 +365,7 @@ def run(config, preview=False):
         raise RuntimeError("game-not-foreground")
     time.sleep(max(0.08, float(config.get("operationDelayMs", 80)) / 1000.0))
     with mss.mss() as grabber:
+        require_game_foreground()
         layout = choose_layout(config.get("calibration", {}), grabber, float(config.get("layoutConfidence", 1.15)))
         profile = config.get("profiles", {}).get("normal" if layout["columns"] == 12 else "quad", {})
         candidates = detect_candidates(layout["image"], layout["columns"], profile)
@@ -358,11 +404,13 @@ def run(config, preview=False):
                               skipped=True, cleared=True)
                     continue
                 cell_w, cell_h = rect["width"] / columns, rect["height"] / columns
+                require_game_foreground()
                 mouse.position = (
                     int(round(rect["left"] + (candidate["column"] + 0.5) * cell_w)),
                     int(round(rect["top"] + (candidate["row"] + 0.5) * cell_h)),
                 )
                 time.sleep(delay)
+                require_game_foreground()
                 current = capture(rect, grabber)
                 score = cell_score(current, columns, candidate["column"], candidate["row"], method, ratio)
                 if score < threshold:
@@ -372,6 +420,7 @@ def run(config, preview=False):
                 before = local_patch(current, columns, candidate["column"], candidate["row"], ratio)
                 after_image = None
                 for attempt in range(TRANSFER_ATTEMPTS):
+                    require_game_foreground()
                     ctrl_click(mouse, keyboard, Key.ctrl, Button.left)
                     after_image = wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay)
                     if after_image is not None:

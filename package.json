@@ -61,6 +61,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "shared/**/*",
       "!electron/assets/crafting-raw/**/*",
       "!electron/assets/skill-raw/**/*",
       "!electron/assets/unique-items-raw/**/*",

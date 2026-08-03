@@ -1,26 +1,34 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import {
+  DEFAULT_GAME_WINDOW_TITLES,
+  gameWindowTitlePriority,
+  isGameWindowTitle as matchesGameWindowTitle
+} from '../../../shared/gameWindowTitles.js'
 
 const execFileAsync = promisify(execFile)
 
-export const GAME_WINDOW_TITLE_PARTS = ['流放之路', 'path of exile']
+export const GAME_WINDOW_TITLE_PARTS = DEFAULT_GAME_WINDOW_TITLES
 
-export function isGameWindowTitle(title) {
-  const normalized = String(title || '').trim().toLowerCase()
-  return normalized.length > 0 && GAME_WINDOW_TITLE_PARTS.some((part) => normalized.includes(part.toLowerCase()))
+export function isGameWindowTitle(title, configuredTitles = GAME_WINDOW_TITLE_PARTS) {
+  return matchesGameWindowTitle(title, configuredTitles)
 }
 
-export function selectGameWindowCandidate(candidates = []) {
+export function selectGameWindowCandidate(candidates = [], configuredTitles = GAME_WINDOW_TITLE_PARTS) {
   const valid = candidates
-    .filter((candidate) => candidate && isGameWindowTitle(candidate.title) && !candidate.minimized)
+    .filter((candidate) => candidate && isGameWindowTitle(candidate.title, configuredTitles))
     .map((candidate) => ({
       ...candidate,
+      titlePriority: gameWindowTitlePriority(candidate.title, configuredTitles),
       area: Math.max(0, Number(candidate.area) || 0),
-      foreground: Boolean(candidate.foreground)
+      foreground: Boolean(candidate.foreground),
+      minimized: Boolean(candidate.minimized)
     }))
 
   if (valid.length === 0) return null
-  return valid.sort((left, right) => Number(right.foreground) - Number(left.foreground) || right.area - left.area)[0]
+  return valid.sort((left, right) => left.titlePriority - right.titlePriority ||
+    Number(left.minimized) - Number(right.minimized) ||
+    Number(right.foreground) - Number(left.foreground) || right.area - left.area)[0]
 }
 
 const WINDOWS_DPI_PROBE = String.raw`
@@ -64,9 +72,6 @@ def visit(hwnd, _lparam):
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
     title = buffer.value.strip()
-    lowered = title.lower()
-    if "流放之路" not in title and "path of exile" not in lowered:
-        return True
     rect = wintypes.RECT()
     area = 0
     if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
@@ -85,7 +90,11 @@ user32.EnumWindows(visit, 0)
 print(json.dumps(candidates, ensure_ascii=False))
 `
 
-export async function detectGameDpi({ pythonPath, platform = process.platform } = {}) {
+export async function detectGameDpi({
+  pythonPath,
+  platform = process.platform,
+  gameWindowTitles = GAME_WINDOW_TITLE_PARTS
+} = {}) {
   if (platform !== 'win32') {
     return { found: false, error: '自动识别游戏 DPI 仅支持 Windows' }
   }
@@ -101,9 +110,9 @@ export async function detectGameDpi({ pythonPath, platform = process.platform } 
       maxBuffer: 1024 * 1024,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     })
-    const selected = selectGameWindowCandidate(JSON.parse(stdout.trim() || '[]'))
+    const selected = selectGameWindowCandidate(JSON.parse(stdout.trim() || '[]'), gameWindowTitles)
     const dpi = Number(selected?.dpi)
-    if (!selected) return { found: false, error: '未找到《流放之路》游戏窗口' }
+    if (!selected) return { found: false, error: '未找到匹配的游戏窗口' }
     if (!Number.isFinite(dpi) || dpi <= 0) return { found: false, windowTitle: selected.title, error: '无法读取游戏窗口 DPI' }
     return {
       found: true,

@@ -61,8 +61,8 @@ test('珠宝匠、幻色与链接石分别维护孔位不变量及各自不应�
   const fused = applyManualCurrency(dataset, current, 'currency:fusing')
   assert.deepEqual(fused.session.state.sockets.map((socket) => socket.color), colorsBefore)
   assert.equal(new Set(fused.session.state.links.flat()).size, fused.session.state.sockets.length)
-  assert.equal(currency(fused.session, 'currency:jewellers').probabilityModel, 'poe1-3.28-community-v1')
-  assert.equal(currency(fused.session, 'currency:fusing').probabilityModel, 'poe1-3.28-community-v1')
+  assert.equal(currency(fused.session, 'currency:jewellers').probabilityModel, 'poe1-3.29-community-v1')
+  assert.equal(currency(fused.session, 'currency:fusing').probabilityModel, 'poe1-3.29-community-v1')
 })
 
 test('祝福石重掷可变普通固有词缀且不改变种类', () => {

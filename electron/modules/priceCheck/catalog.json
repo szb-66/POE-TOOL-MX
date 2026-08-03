@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "game": "poe1",
   "locale": "zh-CN",
-  "gameVersion": "3.28",
-  "generatedAt": "2026-07-29T00:00:00.000Z",
+  "gameVersion": "3.29",
+  "generatedAt": "2026-08-03T00:00:00.000Z",
   "sources": [
     "国服客户端简体中文物品文本",
     "Awakened PoE Trade stat identifiers"

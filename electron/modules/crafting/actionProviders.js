@@ -21,7 +21,7 @@ import {
   TAINTED_CURRENCIES, TAINTED_SOCKET_MODEL_VERSION, applyTaintedFusing, applyTaintedJewellers,
   rerollTaintedSocketColours, taintedCommonReason, taintedSocketReason
 } from './taintedRules.js'
-import { MIRAGE_EQUIPMENT_CURRENCIES } from './mirageRules.js'
+import { CURRENT_EQUIPMENT_CURRENCIES } from './seasonalRules.js'
 
 export class CraftActionRegistry {
   constructor() { this.providers = new Map() }
@@ -369,8 +369,8 @@ function taintedProviders() {
   })
 }
 
-function mirageBoundaryProviders() {
-  return MIRAGE_EQUIPMENT_CURRENCIES.map((definition) => ({
+function seasonalBoundaryProviders() {
+  return CURRENT_EQUIPMENT_CURRENCIES.map((definition) => ({
     ...definition,
     category: 'currency',
     description: definition.effect,
@@ -418,7 +418,7 @@ export function createCurrencyProviders() {
   return [
     ...catalystProviders(),
     ...taintedProviders(),
-    ...mirageBoundaryProviders(),
+    ...seasonalBoundaryProviders(),
     {
       id: 'currency:mirror-of-kalandra', name: '卡兰德之镜', category: 'currency',
       description: '创建当前装备的一件镜像副本，原件保持不变。',

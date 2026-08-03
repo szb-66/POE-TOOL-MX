@@ -1,10 +1,12 @@
 /** 国服 PoE 1 商店正则生成器的离线选项快照。 */
 
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
+
 export const VENDOR_DATA_META = Object.freeze({
   locale: 'zh-CN',
-  gameVersion: '国服正式服-2026-07',
-  updatedAt: '2026-07-21',
-  source: '国服客户端商店文本离线快照'
+  gameVersion: `${SEASON_BASELINE.season} / POE1 ${SEASON_BASELINE.patch}`,
+  updatedAt: SEASON_BASELINE.releasedAt,
+  source: 'S30 国服客户端商店文本离线快照与开发版语料回归'
 })
 
 export const THREE_LINK_OPTIONS = Object.freeze([

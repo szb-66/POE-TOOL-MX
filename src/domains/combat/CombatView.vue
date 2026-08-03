@@ -36,7 +36,7 @@
         <template #header>
           <div class="card-title">
             <span>{{ resource.label }}</span>
-            <el-switch v-model="config.potion[resource.key].enabled" @change="saveCombatConfig" />
+            <el-switch v-model="config.potion[resource.key].enabled" />
           </div>
         </template>
 
@@ -61,7 +61,7 @@
             <span class="hint">检测分量低于该值时触发</span>
           </el-form-item>
           <el-form-item label="触发按键">
-            <KeySequenceCapture v-model="config.potion[resource.key].keys" @change="saveCombatConfig" />
+            <KeySequenceCapture v-model="config.potion[resource.key].keys" />
           </el-form-item>
           <el-form-item label="回复模式">
             <el-radio-group v-model="config.potion[resource.key].recoveryMode">
@@ -121,7 +121,7 @@
       </template>
       <el-form label-width="150px" label-position="left">
         <el-form-item label="游戏内开启传送门键">
-          <KeyCaptureInput v-model="config.portal.openKey" mode="action" class="short-input" @change="saveCombatConfig" />
+          <KeyCaptureInput v-model="config.portal.openKey" mode="action" class="short-input" />
         </el-form-item>
         <el-form-item label="传送门点击位置">
           <div class="position-row">
@@ -164,7 +164,7 @@ import {
 
 const settingsStore = useSettingsStore()
 const combatStore = useCombatStore()
-const config = computed(() => settingsStore.combatAssist)
+const config = reactive(JSON.parse(JSON.stringify(settingsStore.combatAssist)))
 const shortcuts = computed(() => settingsStore.globalShortcuts)
 const pickingTarget = ref('')
 const samplingTarget = ref('')
@@ -182,13 +182,22 @@ const shortcutFields = [
 ]
 
 let saveTimer = null
+let suppressConfigWatch = false
 watch(config, () => {
+  if (suppressConfigWatch) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(saveCombatConfig, 150)
-}, { deep: true })
+}, { deep: true, flush: 'sync' })
 
-function saveCombatConfig() {
-  settingsStore.saveSettings()
+async function saveCombatConfig() {
+  const candidate = JSON.parse(JSON.stringify(config))
+  const result = await settingsStore.updateCombatAssist(candidate)
+  if (result.success) return true
+  suppressConfigWatch = true
+  Object.assign(config, JSON.parse(JSON.stringify(settingsStore.combatAssist)))
+  suppressConfigWatch = false
+  ElMessage.error(result.error)
+  return false
 }
 
 async function pickCoordinate(target) {
@@ -197,9 +206,8 @@ async function pickCoordinate(target) {
   try {
     const result = await electronApi.window.pickScreenCoordinate()
     if (!result || result.canceled) return
-    if (target === 'portal') config.value.portal.clickPoint = { x: result.x, y: result.y }
-    else config.value.potion[target].point = { x: result.x, y: result.y }
-    saveCombatConfig()
+    if (target === 'portal') config.portal.clickPoint = { x: result.x, y: result.y }
+    else config.potion[target].point = { x: result.x, y: result.y }
   } catch (error) {
     ElMessage.error(`选取坐标失败：${error.message}`)
   } finally {
@@ -210,13 +218,13 @@ async function pickCoordinate(target) {
 async function samplePixel(resource) {
   samplingTarget.value = resource.key
   try {
-    const result = await sampleCombatPixel(config.value.potion[resource.key].point)
+    const result = await sampleCombatPixel(config.potion[resource.key].point)
     if (!result?.success) throw new Error(result?.error || '读取失败')
     const value = result.color[resource.component]
     samples[resource.key] = {
       color: result.color,
       value,
-      triggered: value < config.value.potion[resource.key].threshold
+      triggered: value < config.potion[resource.key].threshold
     }
   } catch (error) {
     ElMessage.error(`读取颜色失败：${error.message}`)

@@ -93,6 +93,13 @@ test('物品与地图模板均严格先选择仓库页再执行通货预检', ()
   }
 })
 
+test('仓库页选择器在截图、滚动和点击前重复验证游戏前台', () => {
+  const source = readFileSync(path.join(projectRoot, 'src/assets/scripts/stash_tab_selector.py'), 'utf8')
+  assert.match(source, /def capture\(self\)[\s\S]*?self\.require_environment\(\)[\s\S]*?capture\.grab/)
+  assert.match(source, /def scroll\(self, notches[\s\S]*?self\._position_mouse\(\)[\s\S]*?self\.require_environment\(\)[\s\S]*?\.scroll/)
+  assert.match(source, /self\.require_environment\(\)\s*mouse\.position[\s\S]*?self\.require_environment\(\)\s*mouse\.click/)
+})
+
 test('制作模板持续排空 OCR 输出并对仓库选择设置硬超时', () => {
   for (const filename of ['crafting_template.py', 'map_rolling_template.py']) {
     const source = readFileSync(path.join(projectRoot, 'src/assets/scripts', filename), 'utf8')

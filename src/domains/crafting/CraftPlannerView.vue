@@ -140,7 +140,7 @@
               </div>
             </el-tab-pane>
             <el-tab-pane :label="`花园 (${store.harvest.total})`">
-              <p class="section-note">当前 POE1 3.28 的 76 条花园配方都会列出；其中憎恨结晶关联 11 条装备工艺和 1 条宝石转换。能准确改变当前装备状态的配方可直接使用，其余配方保留规则与消耗但安全禁用。</p>
+              <p class="section-note">当前 POE1 3.29 快照的 74 条花园配方都会列出；3.29 已移除追忆物品工艺。憎恨结晶关联 11 条装备工艺和 1 条宝石转换，不能准确改变装备状态的配方会安全禁用。</p>
               <el-alert :title="`当前状态可执行 ${store.harvest.executableCount} / ${store.harvest.total} 条；同类倾向重铸采用可审计的 10 倍 / 0.1 倍权重模型。`" type="info" :closable="false" />
               <div class="harvest-filters"><el-input v-model="harvestQuery" clearable placeholder="搜索花园工艺、标签或结果" /><el-select v-model="harvestCategory"><el-option label="全部类别" value="" /><el-option v-for="category in store.harvest.categories" :key="category.id" :label="`${category.label} (${category.count})`" :value="category.id" /></el-select><el-checkbox v-model="harvestAvailableOnly">仅可执行</el-checkbox></div>
               <div v-if="filteredHarvest.length" class="harvest-grid">
@@ -219,7 +219,7 @@
               </section>
             </el-tab-pane>
             <el-tab-pane :label="`野兽 (${store.beastcraft.total})`">
-              <div class="beast-heading"><div><p class="section-note">装备相关野兽工艺以 POE1 {{ store.beastcraft.ruleset?.patch || '3.28' }} 为规则基线；缺少准确结果池的配方保留说明但不会伪模拟。</p><small>增删前后缀的新增池使用主野兽等级，而不是装备物品等级。</small></div><el-input-number v-model="beastLevel" :min="68" :max="100" controls-position="right" @change="reloadBeastcrafts" /></div>
+              <div class="beast-heading"><div><p class="section-note">装备相关野兽工艺以 POE1 {{ store.beastcraft.ruleset?.patch || '3.29' }} 为规则基线；3.29 已移除二分 / 三分，新的魔符破裂配方因缺少魔符模型而安全禁用。</p><small>增删前后缀的新增池使用主野兽等级，而不是装备物品等级。</small></div><el-input-number v-model="beastLevel" :min="68" :max="100" controls-position="right" @change="reloadBeastcrafts" /></div>
               <el-alert :title="`当前可执行 ${store.beastcraft.executableCount} / ${store.beastcraft.total} 条装备配方；主野兽等级 ${store.beastcraft.beastLevel}。`" type="info" :closable="false" />
               <div class="beast-grid">
                 <button v-for="craft in sortedBeastcraft" :key="craft.id" class="currency-card beast-card" :class="{ disabled: !craft.canApply, unsupported: !craft.supported }" :disabled="!craft.canApply || store.applying" @click="useBeastcraft(craft)">

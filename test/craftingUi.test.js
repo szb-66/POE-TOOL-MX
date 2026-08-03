@@ -101,16 +101,16 @@ test('帮助页声明数据来源、限制、OCR 风险和非商业用途', asyn
   for (const text of ['POEDB', 'poecurrency.top', 'OCR', '手动模拟器不再读取', '个人、非商业']) assert.match(help, new RegExp(text))
 })
 
-test('做装页与帮助页公开 3.28 憎恨结晶及 Mirage 专属通货边界', async () => {
+test('做装页与帮助页公开 S30 花园变化及赛季专属通货边界', async () => {
   const help = await readFile('src/views/Help.vue', 'utf8')
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
-  for (const text of ['憎恨结晶参与 12 条配方', '5 条保证标签重铸', '6 条元素伤害转换', '折射之雾', '无常瓦尔宝珠', '复原之硬币', '玷污之硬币', '星团附魔与传奇物品状态模型']) assert.match(help, new RegExp(text))
-  for (const text of ['POE1 3.28', '憎恨结晶关联 11 条装备工艺', '1 条宝石转换']) assert.match(view, new RegExp(text))
+  for (const text of ['憎恨结晶参与 12 条配方', '5 条保证标签重铸', '6 条元素伤害转换', 'S30 特殊通货边界', '无常瓦尔宝珠', '占卜球', '雾隐水晶', '永火纪念币', '传奇状态模型']) assert.match(help, new RegExp(text))
+  for (const text of ['POE1 3.29', '74 条花园配方', '憎恨结晶关联 11 条装备工艺', '1 条宝石转换']) assert.match(view, new RegExp(text))
 })
 
 test('帮助页公开基础通货作用、生效条件和支持边界', async () => {
   const help = await readFile('src/views/Help.vue', 'utf8')
-  for (const text of ['磨刀石', '护甲片', '珠宝匠石', '幻色石', '链接石', '祝福石', '束缚石', 'poe1-3.28-community-v1', '蜕变石', '改造石', '增幅石', '富豪石', '点金石', '混沌石', '重铸石', '崇高石', '剥离石', '神圣石', '破溃宝珠', '至少有 4 条', '忽略全部元工艺', '禁用原因', '不执行近似结果']) assert.match(help, new RegExp(text))
+  for (const text of ['磨刀石', '护甲片', '珠宝匠石', '幻色石', '链接石', '祝福石', '束缚石', 'poe1-3.29-community-v1', '蜕变石', '改造石', '增幅石', '富豪石', '点金石', '混沌石', '重铸石', '崇高石', '剥离石', '神圣石', '破溃宝珠', '至少有 4 条', '忽略全部元工艺', '禁用原因', '不执行近似结果']) assert.match(help, new RegExp(text))
 })
 
 test('装备卡与帮助页公开圣玉和共享基础防御百分比边界', async () => {
@@ -134,7 +134,7 @@ test('装备卡与帮助页公开附魔标记、移除动作和三重铸石成�
   for (const text of ['state-badge enchanted', '已附魔', 'removedEnchantment', '已移除附魔', 'remove-enchantment', 'defaultQualityActive']) assert.match(view, new RegExp(text))
 })
 
-test('帮助页和装备卡公开 3.28 催化剂类型、派生值与概率边界', async () => {
+test('帮助页和装备卡公开 3.29 催化剂类型、派生值与概率边界', async () => {
   const help = await readFile('src/views/Help.vue', 'utf8')
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['首饰催化剂规则', '13 种催化剂', '左旋', '右旋', '污秽催化剂', '1–20%', '向下取整', '自 3.15 起', '不会消耗品质']) assert.match(help, new RegExp(text))
@@ -166,12 +166,12 @@ test('帮助页公开化石乘数、共振器限制与特殊化石边界', async
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   const help = await readFile('src/views/Help.vue', 'utf8')
   for (const text of ['fossil.candidateCount', 'record.event.corruptedImplicit', '腐化固定词缀：']) assert.match(view, new RegExp(text))
-  for (const text of ['化石与共振器制作规则', '1–4 个孔', '乘 10', '乘 0.15', '五彩化石', '棱面', '镂空', '雕刻', '圣洁化石', '纠缠化石', '分裂化石', '镶金化石', '溅血化石', '腐化固定词缀自身权重', '当前活动规则为 POE1 3.28']) assert.match(help, new RegExp(text))
+  for (const text of ['化石与共振器制作规则', '1–4 个孔', '乘 10', '乘 0.15', '五彩化石', '棱面', '镂空', '雕刻', '圣洁化石', '纠缠化石', '分裂化石', '随机破裂一条显式词缀', '镶金化石', '溅血化石', '腐化固定词缀自身权重', '当前活动规则为 POE1 3.29']) assert.match(help, new RegExp(text))
 })
 
 test('帮助页公开花园当前配方、元工艺、转换与安全禁用边界', async () => {
   const help = await readFile('src/views/Help.vue', 'utf8')
-  for (const text of ['花园工艺规则', '全部 76 条', '共 16 种标签', '自 3.27 起', '乘 0.1', '3.28', '移除并添加', '随机势力', '品质效果', '追忆固定词缀', '不伪造结果']) assert.match(help, new RegExp(text))
+  for (const text of ['花园工艺规则', '全部 74 条', '共 16 种标签', '自 3.27 起', '乘 0.1', '3.29', '已移除追忆物品工艺', '移除并添加', '随机势力', '品质效果', '追忆固定词缀', '不伪造结果']) assert.match(help, new RegExp(text))
   assert.doesNotMatch(help, /花园、野兽、腐化/)
 })
 
@@ -190,7 +190,7 @@ test('帮助页公开加密通货、占位、三选一与阻断边界', async ()
   for (const text of ['加密制作与揭露规则', '加密崇高石', '加密混沌石', '未揭露词缀', '三选一揭露', 'ModGroup 阻断', '无法骰出攻击/施法', '签名加密词缀']) assert.match(help, new RegExp(text))
 })
 
-test('帮助页公开 3.28 野兽增删、分裂、拓印与预见边界', async () => {
+test('帮助页公开 3.29 野兽增删、魔符破裂、拓印与预见边界', async () => {
   const help = await readFile('src/views/Help.vue', 'utf8')
-  for (const text of ['3.28 装备野兽工艺规则', '主野兽等级', '加前删后', '随机元工艺', '猫、鸟、蟹、蛛之势', '二分 / 三分', '拓印', '希内科拉之锁', '综合隐式重骰']) assert.match(help, new RegExp(text))
+  for (const text of ['3.29 装备野兽工艺规则', '主野兽等级', '加前删后', '随机元工艺', '猫、鸟、蟹、蛛之势', '魔符破裂', '已移除二分 / 三分', '拓印', '希内科拉之锁', '综合隐式重骰']) assert.match(help, new RegExp(text))
 })

@@ -1,6 +1,7 @@
 import { createSockets, rollSocketColor, singletonLinks } from './equipmentPropertyRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
-export const CORRUPTED_BENCH_RULESET = Object.freeze({ game: 'poe1', patch: '3.28', locale: 'zh-CN' })
+export const CORRUPTED_BENCH_RULESET = Object.freeze({ game: SEASON_BASELINE.game, patch: SEASON_BASELINE.patch, locale: SEASON_BASELINE.locale })
 
 const socketCosts = [null, null, 1, 3, 10, 70, 350]
 const linkCosts = [null, null, 1, 3, 5, 150, 1500]

@@ -8,9 +8,9 @@ import { normalizeCraftingDataset } from '../electron/modules/crafting/model.js'
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const dataset = normalizeCraftingDataset(JSON.parse(readFileSync(path.join(dirname, '..', 'electron', 'assets', 'crafting-data', 'dataset.json'), 'utf8')))
 
-test('3.28 真实快照包含受支持装备的瓦尔腐化隐式且排除专属对象', () => {
-  assert.equal(dataset.corruptedImplicitFamilies.length, 168)
-  assert.equal(dataset.corruptedImplicitFamilies.reduce((sum, family) => sum + family.tiers.length, 0), 205)
+test('3.29 真实快照包含受支持装备的瓦尔腐化隐式且排除专属对象', () => {
+  assert.equal(dataset.corruptedImplicitFamilies.length, 200)
+  assert.equal(dataset.corruptedImplicitFamilies.reduce((sum, family) => sum + family.tiers.length, 0), 234)
   const classes = new Set(dataset.corruptedImplicitFamilies.flatMap((family) => family.itemClasses))
   for (const itemClass of ['Ring', 'Amulet', 'Belt', 'Wand', 'Bow', 'Quiver', 'Helmet', 'Gloves', 'Boots', 'BodyArmour', 'Shield']) assert.ok(classes.has(itemClass), `缺少 ${itemClass}`)
   for (const unsupported of ['Jewel', 'AbyssJewel', 'Map', 'FishingRod']) assert.equal(classes.has(unsupported), false)

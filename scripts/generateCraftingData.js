@@ -21,14 +21,15 @@ import { createFossilCrafts } from '../electron/modules/crafting/fossilRules.js'
 import { FLASK_MODIFIER_PAGES, POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from '../electron/modules/crafting/poedbSources.js'
 import { synchronizeRawSnapshot } from './craftingRawSnapshot.js'
 import { CATALYST_DEFINITIONS } from '../electron/modules/crafting/catalystRules.js'
+import { SEASON_BASELINE } from '../shared/seasonBaseline.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(dirname, '..')
 const outputRoot = path.join(projectRoot, 'electron', 'assets', 'crafting-data')
 const rawSnapshotRoot = path.join(projectRoot, 'electron', 'assets', 'crafting-raw')
 const fixtureRoot = path.join(projectRoot, 'test', 'fixtures', 'crafting')
-const CURRENT_PATCH = '3.28'
-const CURRENT_LEAGUE = 'Mirage'
+const CURRENT_PATCH = SEASON_BASELINE.patch
+const CURRENT_LEAGUE = SEASON_BASELINE.league
 const VERSION_SOURCES = [
   'https://www.poewiki.net/wiki/Path_of_Exile',
   'https://www.poewiki.net/wiki/Version_history'
@@ -179,10 +180,10 @@ async function loadSnapshotDataset(rawSnapshot, sources) {
   const catalystHtml = rawSnapshot.texts.get('reference:catalysts')
   const vaalHtml = rawSnapshot.texts.get('implicit:vaal')
   const catalystNames = [...CATALYST_DEFINITIONS.map((entry) => entry.name), '污秽催化剂']
-  if (!/Catalyst\s*物品\s*\/13/.test(catalystHtml) || catalystNames.some((name) => !catalystHtml.includes(name))) {
-    throw new Error('3.28 催化剂来源缺少 13 种中文名称哨兵')
+  if (!/Catalyst\s*物品\s*\/\s*\d+/.test(catalystHtml) || catalystNames.some((name) => !catalystHtml.includes(name))) {
+    throw new Error(`${CURRENT_PATCH} 催化剂来源缺少当前中文名称哨兵`)
   }
-  if (!/瓦尔宝珠\s*已腐化\s*固定\s*\/463/.test(vaalHtml)) throw new Error('3.28 瓦尔宝珠来源缺少 463 条腐化隐式哨兵')
+  if (!/瓦尔宝珠\s*已腐化\s*固定\s*\/\s*\d+/.test(vaalHtml)) throw new Error(`${CURRENT_PATCH} 瓦尔宝珠来源缺少腐化隐式表哨兵`)
   const crafts = [
       ...createCoreCurrencyCrafts(), ...createMetaCrafts(), ...createFossilCrafts(),
       ...parsePoedbCrafts(benchHtml, { provider: 'bench' }),

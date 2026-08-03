@@ -39,12 +39,13 @@ export class StashPickupManager {
     this.onStatusChange = onStatusChange
     this.runtime = { enabled: false, calibration: {}, profiles: {}, operationDelayMs: 80 }
     this.child = null
+    this.allowingFocusTransition = false
     this.status = {
       status: 'idle', layout: 0, method: 'variance', candidateCells: 0,
       remainingCells: 0, pickedItems: 0, currentIndex: 0, reason: ''
     }
     this.disposeDetection = interfaceDetection?.subscribe(state => {
-      if (this.status.status === 'running' && (!state.ready || !state.foreground)) {
+      if (this.status.status === 'running' && !this.allowingFocusTransition && (!state.ready || !state.foreground)) {
         this.stop(!state.foreground ? 'game-not-foreground' : 'interface-lost')
       }
     })
@@ -86,7 +87,8 @@ export class StashPickupManager {
 
   ensureReady({ requireForeground = true } = {}) {
     const detection = this.interfaceDetection?.getState?.() || {}
-    if (!detection.ready) throw new Error('仓库与背包界面未就绪')
+    if (detection.foreground && !detection.ready) throw new Error('仓库与背包界面未就绪')
+    if (!detection.foreground && !detection.running) throw new Error('仓库与背包检测尚未运行')
     if (requireForeground && !detection.foreground) throw new Error('游戏不在前台')
     if (!this.runtime.calibration?.root && !this.runtime.calibration?.folder) throw new Error('缺少仓库网格校准')
   }
@@ -126,10 +128,11 @@ export class StashPickupManager {
 
   start() {
     if (this.status.status === 'running') throw new Error('仓库自动取件正在运行')
-    this.ensureReady()
+    this.ensureReady({ requireForeground: false })
     const gate = this.automationLock?.acquire(OWNER) || { success: true }
     if (!gate.success) throw new Error(gate.error)
     this.status = { ...this.status, status: 'running', candidateCells: 0, remainingCells: 0, pickedItems: 0, currentIndex: 0, reason: '' }
+    this.allowingFocusTransition = true
     try {
       const configPath = this.writeConfig()
       const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event))
@@ -143,6 +146,7 @@ export class StashPickupManager {
       this.publish({ event: 'starting' })
       return this.getStatus()
     } catch (error) {
+      this.allowingFocusTransition = false
       this.automationLock?.release(OWNER)
       this.status.status = 'stopped'
       throw error
@@ -151,6 +155,7 @@ export class StashPickupManager {
 
   handleEvent(child, event) {
     if (this.child !== child) return
+    this.allowingFocusTransition = false
     Object.assign(this.status, {
       status: event.event === 'completed' ? 'completed' : event.event === 'aborted' || event.event === 'error' ? 'stopped' : 'running',
       layout: Number(event.layout || this.status.layout || 0),
@@ -176,6 +181,7 @@ export class StashPickupManager {
   }
 
   stop(reason = 'user') {
+    this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
     this.status = { ...this.status, status: 'stopped', reason }
@@ -185,6 +191,7 @@ export class StashPickupManager {
   }
 
   fail(reason) {
+    this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
     this.status = { ...this.status, status: 'stopped', reason }

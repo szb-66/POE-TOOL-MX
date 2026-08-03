@@ -1,4 +1,6 @@
-export const SOCKET_MODEL_VERSION = 'poe1-3.28-community-v1'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
+
+export const SOCKET_MODEL_VERSION = `${SEASON_BASELINE.game}-${SEASON_BASELINE.patch}-community-v1`
 export const SOCKET_COUNT_BASE_WEIGHTS = Object.freeze([100, 90, 80, 30, 5, 1])
 export const LINK_SIZE_BASE_WEIGHTS = Object.freeze([100, 80, 30, 10, 2, 0.2])
 export const BASE_DEFENCE_LABEL_PATTERN = /^(护甲|闪避值|能量护盾|结界)$/

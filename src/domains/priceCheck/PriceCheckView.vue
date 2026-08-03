@@ -46,14 +46,14 @@
       <template #header><strong>查询设置</strong></template>
       <el-form label-width="140px">
         <el-form-item label="在线状态">
-          <el-select :model-value="store.settings.status" @change="value => store.updateSetting('status', value)">
+          <el-select :model-value="store.settings.status" @change="value => changeSetting('status', value)">
             <el-option label="在线可交易" value="available" />
             <el-option label="即时购买" value="instant" />
             <el-option label="包含离线" value="any" />
           </el-select>
         </el-form-item>
         <el-form-item label="挂单时间">
-          <el-select :model-value="store.settings.listed" @change="value => store.updateSetting('listed', value)">
+          <el-select :model-value="store.settings.listed" @change="value => changeSetting('listed', value)">
             <el-option label="所有时间" value="any" />
             <el-option label="1 天内" value="1day" />
             <el-option label="3 天内" value="3days" />
@@ -64,7 +64,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="通货">
-          <el-select :model-value="store.settings.currency" @change="value => store.updateSetting('currency', value)">
+          <el-select :model-value="store.settings.currency" @change="value => changeSetting('currency', value)">
             <el-option label="任意" value="any" />
             <el-option label="混沌石" value="chaos" />
             <el-option label="神圣石" value="divine" />
@@ -72,7 +72,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="数值范围">
-          <el-select :model-value="store.settings.valueRange" @change="value => store.updateSetting('valueRange', value)">
+          <el-select :model-value="store.settings.valueRange" @change="value => changeSetting('valueRange', value)">
             <el-option label="仅原数值" value="original" />
             <el-option label="下浮 10%" value="down10" />
             <el-option label="下浮 20%" value="down20" />
@@ -80,7 +80,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="词缀初始勾选">
-          <el-select :model-value="store.settings.initialSelection" @change="value => store.updateSetting('initialSelection', value)">
+          <el-select :model-value="store.settings.initialSelection" @change="value => changeSetting('initialSelection', value)">
             <el-option label="自动" value="auto" />
             <el-option label="全部" value="all" />
             <el-option label="无" value="none" />
@@ -92,14 +92,14 @@
             :min="0"
             :max="1000000"
             :step="10"
-            @change="value => store.updateSetting('manualDcRate', value)"
+            @change="value => changeSetting('manualDcRate', value)"
           />
           <span class="inline-hint">仅在第三方行情不可用时使用，0 表示不启用</span>
         </el-form-item>
         <el-form-item label="合并重复挂单">
           <el-switch
             :model-value="store.settings.collapseListings"
-            @change="value => store.updateSetting('collapseListings', value)"
+            @change="value => changeSetting('collapseListings', value)"
           />
         </el-form-item>
       </el-form>
@@ -144,6 +144,11 @@ async function toggleEnabled(enabled) {
   } catch (error) {
     ElMessage.error(error.message)
   }
+}
+
+async function changeSetting(key, value) {
+  const result = await store.updateSetting(key, value)
+  if (!result.success) ElMessage.error(result.error || '查价设置同步失败')
 }
 
 onMounted(() => store.refreshStatus().catch(() => {}))

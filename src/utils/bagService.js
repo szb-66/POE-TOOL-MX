@@ -7,9 +7,10 @@ import { buildBagRuntimeConfig, validateBagRuntimeConfig } from './bagConfig.js'
 let initialized = false
 let disposers = []
 
-function currentConfig() {
+function currentConfig(overrides = {}) {
   const bagStore = useBagStore()
   const settingsStore = useSettingsStore()
+  const { inventory, operationDelayMs, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
     immediateStash: bagStore.immediateStash,
@@ -17,21 +18,43 @@ function currentConfig() {
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
     blacklist: bagStore.blacklist,
-    inventoryLayout: bagStore.inventoryLayout
-  }, settingsStore)
+    inventoryLayout: bagStore.inventoryLayout,
+    ...bagOverrides
+  }, {
+    inventory: inventory || settingsStore.inventory,
+    operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs
+  })
+}
+
+let bagRuntimeQueue = Promise.resolve()
+
+export function updateBagRuntimeConfig(patch = {}) {
+  const bagStore = useBagStore()
+  const commit = async () => {
+    const candidate = currentConfig(patch)
+    if (bagStore.moduleEnabled) {
+      const error = validateBagRuntimeConfig(candidate)
+      if (error) return { success: false, error }
+      const result = await electronApi.bag.updateRuntimeConfig(candidate)
+      if (!result?.success) return { success: false, error: result?.error || '背包运行配置同步失败' }
+    }
+    if ('blacklist' in patch) bagStore.setBlacklist(patch.blacklist)
+    if ('inventoryLayout' in patch) bagStore.setInventoryLayout(patch.inventoryLayout)
+    if ('immediateStash' in patch) bagStore.setImmediateStash(patch.immediateStash)
+    if ('showStashButtonOnlyWhenReady' in patch) {
+      bagStore.setShowStashButtonOnlyWhenReady(patch.showStashButtonOnlyWhenReady)
+    }
+    const settingsStore = useSettingsStore()
+    if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
+    if ('operationDelayMs' in patch) settingsStore.updateOperationDelay(patch.operationDelayMs)
+    return { success: true }
+  }
+  bagRuntimeQueue = bagRuntimeQueue.then(commit, commit)
+  return bagRuntimeQueue
 }
 
 export async function updateBagPreferences(preferences = {}) {
-  const bagStore = useBagStore()
-  if ('immediateStash' in preferences) bagStore.setImmediateStash(preferences.immediateStash)
-  if ('showStashButtonOnlyWhenReady' in preferences) {
-    bagStore.setShowStashButtonOnlyWhenReady(preferences.showStashButtonOnlyWhenReady)
-  }
-  if (!bagStore.moduleEnabled) return { success: true }
-  return electronApi.bag.updatePreferences({
-    immediateStash: bagStore.immediateStash,
-    showStashButtonOnlyWhenReady: bagStore.showStashButtonOnlyWhenReady
-  })
+  return updateBagRuntimeConfig(preferences)
 }
 
 export async function startBagDetection({ silent = false } = {}) {

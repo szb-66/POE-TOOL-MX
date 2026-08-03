@@ -195,6 +195,8 @@ export class ChaosRecipeAutomationManager {
     } else if (event.event === 'aborted' || event.event === 'error') {
       if (event.code === CHAOS_ERROR_CODES.INVENTORY_FULL) {
         this.pauseForInventoryFull(child, event)
+      } else if (event.code === CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND) {
+        this.pauseForForegroundLoss(child, event)
       } else {
         this.fail(event.reason || '取件脚本停止', event.code)
       }
@@ -205,6 +207,17 @@ export class ChaosRecipeAutomationManager {
     this.status = 'paused'
     this.code = CHAOS_ERROR_CODES.INVENTORY_FULL
     this.reason = event.reason || '背包空间不足，请清空背包后继续'
+    this.intentionalStop = true
+    this.child = null
+    stopChild(child)
+    this.overlayCurrent(this.reason)
+    this.send({ event: 'paused', code: this.code, reason: this.reason })
+  }
+
+  pauseForForegroundLoss(child, event = {}) {
+    this.status = 'paused'
+    this.code = CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND
+    this.reason = event.reason || '游戏窗口运行中失去前台，请返回游戏后继续'
     this.intentionalStop = true
     this.child = null
     stopChild(child)

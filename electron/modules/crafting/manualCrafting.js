@@ -12,6 +12,7 @@ import { applyCorruptedBenchRecipe, corruptedBenchCatalog } from './corruptedBen
 import { createSockets, fullLinks, isBaseDefenceEntry, naturalSocketLimit, rollBaseEntries, rollBaseEntriesWithDefencePercentile, rollLinks, singletonLinks } from './equipmentPropertyRules.js'
 import { CATALYST_LABELS } from './catalystRules.js'
 import { VAAL_OUTCOME_LABELS, corruptedImplicitCandidates, replaceImplicitWithVaal, rollCorruptedImplicit } from './vaalRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
 const SCOURING_COST = { resourceId: 'currency:scouring', resourceName: '重铸石', amount: 1 }
 
@@ -263,7 +264,7 @@ export function listManualBeastcrafts(dataset, inputSession, input = {}, registr
   const beastLevel = Math.max(68, Math.min(100, Math.trunc(Number(input.beastLevel ?? session.beastLevel) || 83)))
   const items = BEASTCRAFT_RECIPES.map((recipe) => beastRecipeView(recipe, beastRecipeReason(dataset, base, session, recipe, registry, beastLevel)))
   return {
-    ruleset: { game: 'poe1', patch: '3.28', locale: 'zh-CN' }, beastLevel,
+    ruleset: { game: SEASON_BASELINE.game, patch: SEASON_BASELINE.patch, locale: SEASON_BASELINE.locale }, beastLevel,
     items, total: items.length, executableCount: items.filter((entry) => entry.canApply).length,
     pendingSplitResults: structuredClone(session.pendingSplitResults), imprint: structuredClone(session.imprint), foreseeing: session.foreseeing
   }
@@ -701,7 +702,7 @@ function fossilSpecialUnavailableReason(dataset, session, base, definition) {
   if (definition.special === 'hollow' && !hollowCandidates(dataset, base, session).length) return '该底材不能生成深渊插槽词缀'
   if (definition.special === 'glyphic' && !glyphicCandidates(dataset, base, session).length) return '当前底材没有可用的 T8 腐化精华词缀'
   if (definition.special === 'fractured') {
-    if (session.state.split) return '已分裂物品不能再次分裂'
+    if ([...session.state.prefixes, ...session.state.suffixes].some((entry) => entry.fractured)) return '已有破裂词缀的物品不能再次使用分裂化石'
     if (['influenced', 'synthesized', 'fractured'].includes(session.variant.kind)) return '分裂化石不能用于势力、追忆或破裂底材'
   }
   return ''
@@ -809,10 +810,13 @@ export function applyManualFossils(dataset, inputSession, input, registry = crea
     context.state.corruptionReplacedImplicit = structuredClone(corruptionReplacedImplicit)
     context.state.corrupted = true
   }
-  let createdItem = null
+  let fracturedModifier = null
   if (fossils.some((entry) => entry.special === 'fractured')) {
-    context.state.split = true
-    createdItem = normalizeCraftState(context.state)
+    fracturedModifier = selectByIndex([...context.state.prefixes, ...context.state.suffixes], rng)
+    if (!fracturedModifier) throw new Error('分裂化石重铸后没有可破裂的显式词缀')
+    fracturedModifier.fractured = true
+    context.state.split = false
+    session.variant = { kind: 'fractured', influences: [], fracturedTierId: fracturedModifier.tierId, implicits: [] }
   }
   session.state = normalizeCraftState(context.state)
   session.rngState = rng.state()
@@ -827,7 +831,7 @@ export function applyManualFossils(dataset, inputSession, input, registry = crea
     resonator: { id: resonator.id, name: resonator.name, sockets },
     fossils: fossils.map(({ id, name, description }) => ({ id, name, description })),
     guaranteedModifiers: guaranteedAffixes.map(({ modifier, tier, sourceItem }) => ({ name: modifier.name, text: tier.text, sourceItemName: sourceItem?.name ?? '' })),
-    tangled, createdItem,
+    tangled, createdItem: null, fracturedModifier: structuredClone(fracturedModifier),
     corruptedImplicit: structuredClone(corruptedImplicit),
     corruptionReplacedImplicit: structuredClone(corruptionReplacedImplicit),
     corrupted: session.state.corrupted

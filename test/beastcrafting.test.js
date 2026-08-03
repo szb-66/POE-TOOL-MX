@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
   applyManualBeastcraft, applyManualCurrency, createManualSession, listManualBeastcrafts,
-  previewManualCurrency, redoManualAction, resetManualSession, selectManualSplitResult, undoManualAction
+  previewManualCurrency, redoManualAction, resetManualSession, undoManualAction
 } from '../electron/modules/crafting/manualCrafting.js'
 import { normalizeCraftingDataset } from '../electron/modules/crafting/model.js'
 
@@ -25,9 +25,10 @@ function recipe(current, id, beastLevel = 83) { return listManualBeastcrafts(dat
 test('野兽目录按当前状态计算 27 条配方的可执行性', () => {
   const catalog = listManualBeastcrafts(dataset, session(10))
   assert.equal(catalog.total, 27)
-  assert.equal(catalog.ruleset.patch, '3.28')
-  assert.equal(catalog.items.filter((entry) => !entry.supported).length, 3)
-  assert.match(recipe(session(10), 'split-two').unavailableReason, /稀有/)
+  assert.equal(catalog.ruleset.patch, '3.29')
+  assert.equal(catalog.items.filter((entry) => !entry.supported).length, 5)
+  assert.equal(catalog.items.some((entry) => ['split-two', 'split-three'].includes(entry.id)), false)
+  assert.match(recipe(session(10), 'fracture-talisman-one').unavailableReason, /3\.29.*魔符/)
   assert.match(recipe(session(10), 'add-prefix-remove-suffix').unavailableReason, /稀有/)
   assert.match(recipe(session(10), 'add-shaper-mod').unavailableReason, /塑界者/)
 })
@@ -88,26 +89,11 @@ test('随机元工艺和八种势技能使用正常词缀位规则', () => {
   assert.match(recipe(aspect.session, 'aspect-cat-20').unavailableReason, /已经拥有势技能/)
 })
 
-test('二分保留全部词缀并要求选择后才能继续制作', () => {
+test('3.29 旧二分三分不可调用且魔符破裂保持安全禁用', () => {
   const current = rareSession(50)
-  const beforeIds = affixes(current.state).map((entry) => entry.tierId).sort()
-  const split = applyManualBeastcraft(dataset, current, 'split-two')
-  assert.equal(split.session.pendingSplitResults.length, 2)
-  assert.deepEqual(split.session.pendingSplitResults.flatMap((entry) => affixes(entry.state).map((affix) => affix.tierId)).sort(), beforeIds)
-  assert.ok(split.session.pendingSplitResults.every((entry) => entry.state.split))
-  assert.throws(() => applyManualCurrency(dataset, split.session, 'currency:annulment'), /先选择一件分裂产物/)
-  const selected = selectManualSplitResult(dataset, split.session, split.session.pendingSplitResults[1].itemId)
-  assert.equal(selected.session.pendingSplitResults.length, 0)
-  assert.equal(selected.session.activeItemId, split.session.pendingSplitResults[1].itemId)
-})
-
-test('三分要求六词缀并生成三件各两条词缀的产物', () => {
-  const current = rareSession(60)
-  const sample = affixes(current.state)[0]
-  current.state.prefixes = Array.from({ length: 3 }, (_, index) => ({ ...structuredClone(sample), affixType: 'prefix', modifierId: `test-prefix-${index}`, goalId: `test-prefix-${index}`, tierId: `test-prefix-tier-${index}`, groupId: `test-prefix-group-${index}` }))
-  current.state.suffixes = Array.from({ length: 3 }, (_, index) => ({ ...structuredClone(sample), affixType: 'suffix', modifierId: `test-suffix-${index}`, goalId: `test-suffix-${index}`, tierId: `test-suffix-tier-${index}`, groupId: `test-suffix-group-${index}` }))
-  const result = applyManualBeastcraft(dataset, current, 'split-three')
-  assert.deepEqual(result.session.pendingSplitResults.map((entry) => affixes(entry.state).length), [2, 2, 2])
+  assert.throws(() => applyManualBeastcraft(dataset, current, 'split-two'), /未知野兽工艺/)
+  assert.throws(() => applyManualBeastcraft(dataset, current, 'split-three'), /未知野兽工艺/)
+  assert.throws(() => applyManualBeastcraft(dataset, current, 'fracture-talisman-one'), /3\.29.*魔符/)
 })
 
 test('拓印绑定原物品并可一次性恢复魔法状态', () => {
@@ -146,14 +132,14 @@ test('非通货野兽动作会消费预见且撤销可恢复预见状态', () =>
   assert.equal(undone.session.foreseeing, true)
 })
 
-test('分裂选择、拓印与预见辅助状态参与撤销重做和重置', () => {
-  const current = rareSession(90)
-  const split = applyManualBeastcraft(dataset, current, 'split-two')
-  const selected = selectManualSplitResult(dataset, split.session, split.session.pendingSplitResults[0].itemId)
-  const undone = undoManualAction(dataset, selected.session)
-  assert.equal(undone.session.pendingSplitResults.length, 2)
+test('拓印与预见辅助状态参与撤销重做和重置', () => {
+  let current = applyManualCurrency(dataset, session(90), 'currency:transmutation').session
+  current = applyManualBeastcraft(dataset, current, 'apply-hinekora-lock').session
+  const changed = applyManualCurrency(dataset, current, 'currency:alteration')
+  const undone = undoManualAction(dataset, changed.session)
+  assert.equal(undone.session.foreseeing, true)
   const redone = redoManualAction(dataset, undone.session)
-  assert.equal(redone.session.pendingSplitResults.length, 0)
+  assert.equal(redone.session.foreseeing, false)
   const reset = resetManualSession(dataset, redone.session)
   assert.equal(reset.session.pendingSplitResults.length, 0)
   assert.equal(reset.session.imprint, null)

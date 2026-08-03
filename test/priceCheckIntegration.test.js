@@ -46,6 +46,18 @@ test('主进程复用国服认证与 Session，并在退出时关闭查价覆盖
   assert.match(main, /priceCheckService\?\.closeOverlay\(\)/)
 })
 
+test('查价复制使用动态游戏窗口名称执行原子前台门禁', async () => {
+  const [main, capture] = await Promise.all([
+    source('electron/main.js'),
+    source('electron/modules/priceCheck/clipboardCapture.js')
+  ])
+  assert.match(main, /assertForeground:\s*\(\) => assertWindowsGameForeground/)
+  assert.match(capture, /POE_GAME_WINDOW_TITLES_FILE/)
+  assert.match(capture, /GetForegroundWindow/)
+  assert.match(capture, /GAME_NOT_FOREGROUND/)
+  assert.ok(capture.indexOf('...gameForegroundGuardLines()') < capture.indexOf('u.keybd_event(0x11'))
+})
+
 test('查价覆盖层保持单实例、安全隔离并支持状态推送', async () => {
   const overlay = await source('electron/modules/priceCheck/overlay.js')
   assert.match(overlay, /if \(!this\.window \|\| this\.window\.isDestroyed\(\)\)/)

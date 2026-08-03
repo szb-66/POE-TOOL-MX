@@ -5,6 +5,7 @@ import { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, me
 import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from './model.js'
 import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from './poedbSources.js'
 import { createFossilCrafts } from './fossilRules.js'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
 async function fetchOrThrow(fetchImpl, url, signal) {
   let lastError
@@ -23,7 +24,8 @@ async function fetchOrThrow(fetchImpl, url, signal) {
 }
 
 function detectLeague(html) {
-  const matches = [...html.matchAll(/<img[^>]+alt="([^"]+)"[^>]+(?:league|League|Mirage|Settlers|Mercenaries)/gi)]
+  if (String(html).includes(SEASON_BASELINE.league)) return SEASON_BASELINE.league
+  const matches = [...html.matchAll(/<img[^>]+alt="([^"]+)"[^>]+(?:league|League|Allflame|Mirage|Settlers|Mercenaries)/gi)]
   return matches[0]?.[1] || 'current'
 }
 

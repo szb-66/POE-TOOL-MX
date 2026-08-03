@@ -37,6 +37,7 @@ function loadAutomationManager() {
     CHAOS_ERROR_CODES: {
       AUTOMATION_RUNNING: 'AUTOMATION_RUNNING',
       INVENTORY_FULL: 'INVENTORY_FULL',
+      GAME_NOT_FOREGROUND: 'GAME_NOT_FOREGROUND',
       ITEM_MISMATCH: 'ITEM_MISMATCH'
     },
     ChaosRecipeError: class extends Error {},
@@ -152,6 +153,15 @@ test('取件失败会关闭不可交互浮窗而不是留下卡死提示', () =>
   assert.doesNotMatch(failMethod, /this\.overlay\.update/)
 })
 
+test('配方取件每次移动、复制和点击前检查前台，失焦时释放输入', () => {
+  const source = readFileSync(scriptUrl, 'utf8')
+  assert.match(source, /def move\(self, x, y\):\s*require_game_foreground\(\)/)
+  assert.match(source, /def copy_item\(self\):\s*require_game_foreground\(\)/)
+  assert.match(source, /pyperclip\.copy\(""\)[\s\S]*?require_game_foreground\(\)[\s\S]*?self\.keyboard\.press\(Key\.ctrl\)/)
+  assert.match(source, /def ctrl_click\(self\):\s*require_game_foreground\(\)/)
+  assert.match(source, /except GameNotForegroundError as error:[\s\S]*?code="GAME_NOT_FOREGROUND"/)
+})
+
 test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢复', () => {
   const AutomationManager = loadAutomationManager()
   let releases = 0
@@ -199,6 +209,43 @@ test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢�
   manager.resume()
   assert.deepEqual(resumedIds, ['b'])
   assert.equal(manager.code, '')
+})
+
+test('游戏失焦暂停保留当前物品游标并允许继续', () => {
+  const AutomationManager = loadAutomationManager()
+  const overlays = []
+  const manager = new AutomationManager({
+    getMainWindow: () => null,
+    overlay: { create: value => overlays.push(value), close() {} },
+    automationLock: { release() {} }
+  })
+  manager.plan = {
+    itemCount: 2,
+    tabs: [{ tabId: 'tab-1', tabName: '配方页', columns: 12, items: [{ id: 'a' }, { id: 'b' }] }]
+  }
+  manager.config = { calibration: {} }
+  manager.status = 'running'
+  manager.itemOffset = 1
+  manager.completedItems = 1
+  const child = { killed: false, exitCode: null, kill() { this.killed = true; this.exitCode = 0 } }
+  manager.child = child
+  manager.handleEvent(child, {
+    event: 'aborted', code: 'GAME_NOT_FOREGROUND', reason: '游戏窗口运行中失去前台'
+  })
+
+  assert.equal(manager.status, 'paused')
+  assert.equal(manager.code, 'GAME_NOT_FOREGROUND')
+  assert.equal(manager.itemOffset, 1)
+  assert.equal(manager.completedItems, 1)
+  assert.deepEqual(overlays.at(-1).items.map(item => item.id), ['b'])
+
+  let resumedIds = []
+  manager.spawnCurrentTab = function () {
+    resumedIds = this.currentTab().items.slice(this.itemOffset).map(item => item.id)
+    return { success: true, status: this.status }
+  }
+  manager.resume()
+  assert.deepEqual(resumedIds, ['b'])
 })
 
 test('手动停止、普通错误和重置会清除断点并忽略迟到事件', () => {

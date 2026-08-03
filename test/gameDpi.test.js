@@ -6,7 +6,7 @@ import { loadDpiSettings, resolveEffectiveDpi } from '../src/utils/dpiSettings.j
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-test('游戏 DPI 候选匹配中英文标题并优先前台窗口', () => {
+test('游戏 DPI 候选匹配中英文标题并优先配置顺序', () => {
   assert.equal(isGameWindowTitle('流放之路'), true)
   assert.equal(isGameWindowTitle('Path of Exile 2'), true)
   assert.equal(isGameWindowTitle('普通浏览器窗口'), false)
@@ -24,8 +24,27 @@ test('没有前台候选时选择最大非最小化游戏窗口', () => {
     { title: 'Path of Exile', foreground: false, minimized: false, area: 5000, dpi: 144 },
     { title: '流放之路 2', foreground: false, minimized: false, area: 3000, dpi: 120 }
   ])
-  assert.equal(selected.dpi, 144)
+  assert.equal(selected.dpi, 120)
   assert.equal(selectGameWindowCandidate([{ title: '其他窗口', area: 9999 }]), null)
+})
+
+test('自定义名称优先级高于前台状态，同一名称内仍优先前台和面积', () => {
+  const candidates = [
+    { title: '低优先级客户端', foreground: true, minimized: false, area: 9000, dpi: 192 },
+    { title: '高优先级客户端 A', foreground: false, minimized: false, area: 1000, dpi: 120 },
+    { title: '高优先级客户端 B', foreground: true, minimized: false, area: 500, dpi: 144 }
+  ]
+  assert.equal(selectGameWindowCandidate(candidates, ['高优先级', '低优先级']).dpi, 144)
+  assert.equal(selectGameWindowCandidate(candidates, ['低优先级', '高优先级']).dpi, 192)
+})
+
+test('游戏最小化时仍可读取 DPI，同一名称下优先非最小化候选', () => {
+  const minimized = { title: '流放之路', foreground: false, minimized: true, area: 4000, dpi: 144 }
+  assert.equal(selectGameWindowCandidate([minimized])?.dpi, 144)
+  assert.equal(selectGameWindowCandidate([
+    minimized,
+    { title: '流放之路 - 可见', foreground: false, minimized: false, area: 1000, dpi: 120 }
+  ])?.dpi, 120)
 })
 
 test('旧 DPI 设置迁移到自动模式并保留手动初值与历史回退', () => {
@@ -56,6 +75,8 @@ test('启动与脚本运行前触发检测，脚本只在 pynput 回退路径使
   const mapRolling = source('../src/assets/scripts/map_rolling_template.py')
 
   assert.match(app, /void settingsStore\.refreshDpiScale\(\)/)
+  assert.match(app, /window\.addEventListener\('focus', refreshGameWindowOnFocus\)/)
+  assert.match(app, /window\.removeEventListener\('focus', refreshGameWindowOnFocus\)/)
   assert.equal((service.match(/await refreshDpiForAutomation\(settingsStore\)/g) || []).length, 2)
   assert.equal((generator.match(/'\{\{DPI_SCALE_FACTOR\}\}'/g) || []).length, 2)
   for (const template of [crafting, mapRolling]) {

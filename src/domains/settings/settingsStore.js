@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
-import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
+import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '@/utils/combatConfig'
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
 import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
@@ -19,6 +19,11 @@ import {
   normalizeDpiScale,
   resolveEffectiveDpi
 } from '@/utils/dpiSettings'
+import {
+  DEFAULT_GAME_WINDOW_TITLES,
+  normalizeGameWindowTitles,
+  validateGameWindowTitles
+} from '../../../shared/gameWindowTitles.js'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -30,6 +35,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const shortcutHealth = ref({ status: 'pending', error: '', failed: [] })
 
   const combatAssist = ref(createDefaultCombatAssist())
+  let combatConfigRevision = 0
+  let combatCommitQueue = Promise.resolve()
   const stashTabSelection = ref(createDefaultStashTabSelection())
 
   const currencyPositions = ref({
@@ -87,6 +94,7 @@ export const useSettingsStore = defineStore('settings', () => {
     blur: 4,                 // 模糊像素
     maskOpacity: 0.5         // 遮罩透明度 (0-1)
   })
+  const gameWindowTitles = ref([...DEFAULT_GAME_WINDOW_TITLES])
   const storyOverlayWidth = ref(560)
   const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
   const storyShowSkillRequiredLevel = ref(DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL)
@@ -135,8 +143,28 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   function updateCombatAssist(config) {
-    combatAssist.value = normalizeCombatAssist(config)
-    saveSettings()
+    const candidate = normalizeCombatAssist(config)
+    const validation = validateCombatAssist(candidate)
+    if (!validation.isValid) {
+      return Promise.resolve({ success: false, error: validation.errors[0] || '战斗辅助配置无效' })
+    }
+    const commit = async () => {
+      try {
+        const result = await electronApi.combat.updatePotionConfig(candidate)
+        if (!result?.success) throw new Error(result?.error || '战斗辅助配置同步失败')
+        const revision = Number(result.revision) || 0
+        if (revision >= combatConfigRevision) {
+          combatConfigRevision = revision
+          combatAssist.value = normalizeCombatAssist(result.config || candidate)
+          saveSettings()
+        }
+        return { success: true, config: JSON.parse(JSON.stringify(combatAssist.value)), revision }
+      } catch (error) {
+        return { success: false, error: error?.message || '战斗辅助配置同步失败' }
+      }
+    }
+    combatCommitQueue = combatCommitQueue.then(commit, commit)
+    return combatCommitQueue
   }
 
   function updateStashTabSelection(config) {
@@ -157,6 +185,24 @@ export const useSettingsStore = defineStore('settings', () => {
   function updateManualDpiScale(scale) {
     manualDpiScale.value = normalizeDpiScale(scale, manualDpiScale.value)
     saveSettings()
+  }
+
+  async function updateGameWindowTitles(value) {
+    const validation = validateGameWindowTitles(value)
+    if (!validation.valid) return { success: false, error: validation.error }
+    try {
+      const result = await electronApi.system.updateGameWindowTitles(validation.titles)
+      if (!result?.success) return { success: false, error: result?.error || '更新游戏窗口名称失败' }
+      gameWindowTitles.value = normalizeGameWindowTitles(result.titles)
+      saveSettings()
+      return { success: true, titles: [...gameWindowTitles.value] }
+    } catch (error) {
+      return { success: false, error: error?.message || '更新游戏窗口名称失败' }
+    }
+  }
+
+  function syncGameWindowTitles() {
+    return updateGameWindowTitles(gameWindowTitles.value)
   }
 
   function updateDpiMode(mode) {
@@ -248,6 +294,7 @@ export const useSettingsStore = defineStore('settings', () => {
         inventory: inventory.value,
         operationDelayMs: operationDelayMs.value,
         itemPosition: itemPosition.value,
+        gameWindowTitles: gameWindowTitles.value,
         dpiScale: dpiScale.value,
         dpiMode: dpiMode.value,
         manualDpiScale: manualDpiScale.value,
@@ -297,6 +344,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.itemPosition) {
           itemPosition.value = { ...data.itemPosition }
         }
+        gameWindowTitles.value = normalizeGameWindowTitles(data.gameWindowTitles)
         const dpiSettings = loadDpiSettings(data)
         dpiMode.value = dpiSettings.mode
         manualDpiScale.value = dpiSettings.manualScale
@@ -382,6 +430,7 @@ export const useSettingsStore = defineStore('settings', () => {
     inventory.value = { ...defaultInventory }
     operationDelayMs.value = OPERATION_DELAY.default
     itemPosition.value = { ...defaultItemPosition }
+    gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
     dpiMode.value = DPI_MODE_AUTO
     manualDpiScale.value = 1
     lastDetectedDpiScale.value = null
@@ -401,6 +450,7 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
+    electronApi.system.updateGameWindowTitles(gameWindowTitles.value)?.catch(() => {})
     // 同步重置后的设置
     if (electronApi && electronApi.overlay && electronApi.overlay.updateSettings) {
       // 使用 JSON.parse(JSON.stringify()) 去除 Proxy 包装，确保 IPC 通信正常
@@ -426,6 +476,7 @@ export const useSettingsStore = defineStore('settings', () => {
     inventory,
     operationDelayMs,
     itemPosition,
+    gameWindowTitles,
     dpiScale,
     dpiMode,
     manualDpiScale,
@@ -450,6 +501,8 @@ export const useSettingsStore = defineStore('settings', () => {
     updateInventorySettings,
     updateOperationDelay,
     updateItemPosition,
+    updateGameWindowTitles,
+    syncGameWindowTitles,
     updateManualDpiScale,
     updateDpiMode,
     refreshDpiScale,

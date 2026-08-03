@@ -63,6 +63,8 @@ except ImportError as exc:
 
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
 VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
 OPERATION_DELAY_DEFAULT_MS = 80
@@ -71,7 +73,36 @@ OPERATION_DELAY_MAX_MS = 500
 COPY_ATTEMPTS = 2
 INPUT_EVENT_DELAY_SECONDS = 0.01
 EXTRA_INVENTORY_MAX_COLUMNS = 6
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 is_running = True
+runtime_stop_reason = ""
 
 
 def emit(event, **payload):
@@ -246,7 +277,83 @@ def is_game_foreground():
     length = user32.GetWindowTextLengthW(hwnd)
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return any(expected.casefold() in buffer.value.casefold() for expected in GAME_WINDOW_TITLES)
+    return game_window_title_priority(buffer.value) >= 0
+
+
+def find_game_window():
+    if sys.platform != "win32":
+        return 0
+    user32 = ctypes.windll.user32
+    matches = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    @callback_type
+    def visit(hwnd, _lparam):
+        if not user32.IsWindowVisible(hwnd):
+            return True
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        priority = game_window_title_priority(buffer.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
+        return True
+
+    user32.EnumWindows(visit, 0)
+    matches.sort(key=lambda entry: entry[0])
+    return matches[0][1] if matches else 0
+
+
+def focus_game_window(timeout_seconds=2.0):
+    if is_game_foreground():
+        return True
+    if sys.platform != "win32":
+        return False
+    user32 = ctypes.windll.user32
+    kernel32 = ctypes.windll.kernel32
+    hwnd = find_game_window()
+    if not hwnd:
+        return False
+    foreground = user32.GetForegroundWindow()
+    current_thread = kernel32.GetCurrentThreadId()
+    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
+    attached_foreground = bool(
+        foreground_thread and foreground_thread != current_thread and
+        user32.AttachThreadInput(current_thread, foreground_thread, True)
+    )
+    attached_target = bool(
+        target_thread and target_thread != current_thread and target_thread != foreground_thread and
+        user32.AttachThreadInput(current_thread, target_thread, True)
+    )
+    try:
+        if user32.IsIconic(hwnd):
+            user32.ShowWindow(hwnd, 9)
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+        user32.SetFocus(hwnd)
+    finally:
+        if attached_target:
+            user32.AttachThreadInput(current_thread, target_thread, False)
+        if attached_foreground:
+            user32.AttachThreadInput(current_thread, foreground_thread, False)
+    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    while is_running and time.monotonic() < deadline:
+        if is_game_foreground():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+def stop_for_foreground_loss(controller=None):
+    global is_running, runtime_stop_reason
+    is_running = False
+    runtime_stop_reason = "game-not-foreground"
+    if controller is not None:
+        controller.release_all()
+    return False
 
 
 def get_game_client_bounds():
@@ -267,7 +374,8 @@ def get_game_client_bounds():
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
         title = buffer.value
-        if not any(expected.casefold() in title.casefold() for expected in GAME_WINDOW_TITLES):
+        priority = game_window_title_priority(title)
+        if priority < 0:
             return True
         rect = wintypes.RECT()
         origin = wintypes.POINT(0, 0)
@@ -278,7 +386,7 @@ def get_game_client_bounds():
         width = max(0, int(rect.right - rect.left))
         height = max(0, int(rect.bottom - rect.top))
         if width and height:
-            candidates.append((hwnd == foreground, width * height, {
+            candidates.append((priority, hwnd == foreground, width * height, {
                 "left": int(origin.x),
                 "top": int(origin.y),
                 "right": int(origin.x + width),
@@ -291,8 +399,8 @@ def get_game_client_bounds():
     user32.EnumWindows(visit, 0)
     if not candidates:
         return None
-    candidates.sort(key=lambda entry: (entry[0], entry[1]), reverse=True)
-    return candidates[0][2]
+    candidates.sort(key=lambda entry: (entry[0], -int(entry[1]), -entry[2]))
+    return candidates[0][3]
 
 
 def clipboard_sequence_number():
@@ -390,6 +498,8 @@ class InputController:
                 pass
 
     def move(self, x, y):
+        if not is_game_foreground():
+            return stop_for_foreground_loss(self)
         if sys.platform == "win32":
             if not ctypes.windll.user32.SetCursorPos(int(x), int(y)):
                 return False
@@ -400,8 +510,12 @@ class InputController:
 
     def _send_copy(self):
         try:
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
             self.keyboard.press(Key.ctrl)
             time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
             self.keyboard.press("c")
             time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.keyboard.release("c")
@@ -413,6 +527,9 @@ class InputController:
 
     def _copy_item_text_once(self):
         try:
+            if not is_game_foreground():
+                stop_for_foreground_loss(self)
+                return "unreadable", ""
             before_seq = clipboard_sequence_number()
             before_text = str(pyperclip.paste() or "")
             if not self._send_copy():
@@ -439,8 +556,12 @@ class InputController:
 
     def ctrl_click(self):
         try:
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
             self.keyboard.press(Key.ctrl)
             time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
             self.mouse.press(Button.left)
             time.sleep(INPUT_EVENT_DELAY_SECONDS)
             self.mouse.release(Button.left)
@@ -516,9 +637,22 @@ def run_detection(config):
          gameBounds=last_game_bounds)
     while is_running:
         try:
-            matched, scores = matcher.check_interface()
             foreground = is_game_foreground()
             game_bounds = get_game_client_bounds()
+            if not foreground:
+                changed = ready or foreground != last_foreground or game_bounds != last_game_bounds
+                ready = False
+                matched_count = 0
+                missed_count = 0
+                if changed:
+                    emit("detection-state", ready=False, foreground=False,
+                         gameBounds=game_bounds)
+                last_foreground = foreground
+                last_game_bounds = game_bounds
+                time.sleep(0.2)
+                continue
+
+            matched, scores = matcher.check_interface()
             ready, matched_count, missed_count, changed = advance_detection_state(
                 ready, matched_count, missed_count, matched)
             if changed or foreground != last_foreground or game_bounds != last_game_bounds:
@@ -539,12 +673,16 @@ def abort(reason, stats):
 
 
 def run_stash(config):
+    global runtime_stop_reason
+    runtime_stop_reason = ""
+    stats = empty_stats()
+    if not focus_game_window():
+        return abort("game-not-foreground", stats)
     matcher = InterfaceMatcher(config)
     if not matcher.valid:
-        emit("stash-error", reason="仓库或背包标题模板无法加载", **empty_stats())
+        emit("stash-error", reason="仓库或背包标题模板无法加载", **stats)
         return 2
     controller = InputController(config)
-    stats = empty_stats()
     inventory = config.get("inventory", {})
     start = inventory.get("startPos", {})
     slot = inventory.get("slotSize", {})
@@ -571,7 +709,7 @@ def run_stash(config):
                     consecutive_empty_slots = 0
                     continue
                 if not is_running:
-                    return abort("user-stopped", stats)
+                    return abort(runtime_stop_reason or "user-stopped", stats)
                 if not is_game_foreground():
                     return abort("game-not-foreground", stats)
                 interface_ready, _scores = matcher.check_interface()
@@ -613,6 +751,8 @@ def run_stash(config):
                         else:
                             stats["unreadableSlots"] += 1
                             ambiguous_slots.add((column, row))
+                if not is_running:
+                    return abort(runtime_stop_reason or "user-stopped", stats)
                 if handled_item:
                     footprint = resolve_item_footprint(handled_item, item_footprints)
                     resolved_slots.update(resolved_footprint_slots(

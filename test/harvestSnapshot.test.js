@@ -14,8 +14,9 @@ function naturalPool(base, variant = { kind: 'normal', influences: [], fractured
   return eligibleModifierTiers(dataset, base, 100, variant, { rarity: 'rare', prefixes: [], suffixes: [], influences: variant.influences, meta: {} }, { sources: ['natural'] })
 }
 
-test('内置快照保存当前 76 条花园配方、全部消耗与十六标签覆盖', () => {
-  assert.equal(harvestCrafts.length, 76)
+test('内置快照保存 3.29 当前 74 条花园配方、全部消耗与十六标签覆盖', () => {
+  assert.equal(harvestCrafts.length, 74)
+  assert.equal(harvestCrafts.some((craft) => craft.effectKind === 'synthesize_item'), false)
   assert.equal(harvestCrafts.filter((craft) => craft.effectKind === 'reforge_tag').length, 16)
   assert.equal(harvestCrafts.filter((craft) => craft.effectKind === 'convert_resistance' || craft.effectKind === 'convert_damage').length, 12)
   assert.equal(harvestCrafts.filter((craft) => craft.effectKind === 'remove_add_tag').length, 11)

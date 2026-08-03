@@ -72,6 +72,36 @@ sys.stdout.flush()
 # 全局变量
 is_running = False
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 # 播放提示音函数
 def play_success_sound():
@@ -161,6 +191,7 @@ currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}  # type: ignore
 verified_currency_types = set()
 fatal_error_reason = None
+foreground_failure_emitted = False
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
@@ -195,6 +226,8 @@ def set_cursor_pos_windows_api(x, y):
 
 def move_mouse(x, y):
     try:
+        if not require_game_foreground():
+            return False
         x, y = int(x), int(y)
         if use_windows_api:
             success = set_cursor_pos_windows_api(x, y)
@@ -208,9 +241,12 @@ def move_mouse(x, y):
         return False
 
 def click_mouse(button="left"):
+    if not require_game_foreground():
+        return False
     if button == "left": mouse_controller.click(Button.left)
     elif button == "right": mouse_controller.click(Button.right)
     time.sleep(mouse_click_delay)
+    return True
 
 def release_all_keys():
     try:
@@ -426,9 +462,25 @@ def is_game_foreground():
         length = user32.GetWindowTextLengthW(hwnd)
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        return any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES)
+        return game_window_title_priority(buffer.value) >= 0
     except Exception:
         return False
+
+def require_game_foreground():
+    global is_running, fatal_error_reason, foreground_failure_emitted
+    if is_game_foreground():
+        return True
+    is_running = False
+    fatal_error_reason = "游戏窗口运行中失去前台，地图洗练已安全停止"
+    release_all_keys()
+    if not foreground_failure_emitted:
+        foreground_failure_emitted = True
+        print("EVENT " + json.dumps({
+            "event": "crafting-runtime-stopped", "mode": "map",
+            "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
+        }, ensure_ascii=False), flush=True)
+        print(f"[停止] {fatal_error_reason}")
+    return False
 
 def find_game_window():
     if sys.platform != "win32":
@@ -444,15 +496,17 @@ def find_game_window():
             return True
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
-        if any(title.casefold() in buffer.value.casefold() for title in GAME_WINDOW_TITLES):
-            matches.append(hwnd)
+        priority = game_window_title_priority(buffer.value)
+        if priority >= 0:
+            matches.append((priority, hwnd))
         return True
 
     try:
         user32.EnumWindows(callback_type(visit), 0)
     except Exception:
         return 0
-    return matches[0] if matches else 0
+    matches.sort(key=lambda entry: entry[0])
+    return matches[0][1] if matches else 0
 
 def focus_game_window(timeout_seconds=2.0):
     if is_game_foreground():
@@ -529,10 +583,16 @@ def apply_currency(currency_type, target_x, target_y):
 
 def send_copy_command():
     try:
+        if not require_game_foreground():
+            return False
         # 使用 Ctrl+Alt+C 读取高级属性
         keyboard_controller.press(Key.ctrl)
+        if not require_game_foreground():
+            return False
         keyboard_controller.press(Key.alt)
         time.sleep(0.05) # 稍微增加按键间隔
+        if not require_game_foreground():
+            return False
         keyboard_controller.press('c')
         time.sleep(0.05)
         keyboard_controller.release('c')
@@ -601,6 +661,7 @@ def stash_item(x, y):
     # Ctrl+Click 存仓
     try:
         if not move_mouse(x, y): return False
+        if not require_game_foreground(): return False
         keyboard_controller.press(Key.ctrl)
         time.sleep(0.05)
         click_mouse("left")

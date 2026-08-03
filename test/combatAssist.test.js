@@ -281,6 +281,49 @@ test('战斗辅助使用独立进程句柄并注册退出清理', () => {
   assert.match(mainSource, /await cleanupCombatProcesses\(\)/)
 })
 
+test('自动喝药运行配置热加载并在损坏文件时保留最后有效配置', () => {
+  const code = `
+import importlib.util, json, os, tempfile, time, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+initial = {"potion": {"scanIntervalMs": 100}}
+with tempfile.TemporaryDirectory() as directory:
+    path = os.path.join(directory, "combat.json")
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump(initial, stream)
+    runtime = module.RuntimeConfig(path, initial)
+    time.sleep(0.01)
+    with open(path, "w", encoding="utf-8") as stream:
+        json.dump({"potion": {"scanIntervalMs": 25}}, stream)
+    updated = runtime.load()
+    time.sleep(0.01)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write("{")
+    fallback = runtime.load()
+    print(json.dumps({"updated": updated, "fallback": fallback}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout)
+  assert.equal(payload.updated.potion.scanIntervalMs, 25)
+  assert.equal(payload.fallback.potion.scanIntervalMs, 25)
+})
+
+test('自动喝药配置更新接口原子替换配置且不重启现有进程', () => {
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
+  const handler = ipcSource.match(/ipcMain\.handle\('combat-update-potion-config'[\s\S]*?\n  \}\)/)?.[0] || ''
+  assert.match(handler, /normalizeValidPotionConfig/)
+  assert.match(handler, /writeJsonAtomically/)
+  assert.match(handler, /potionConfigRevision \+= 1/)
+  assert.doesNotMatch(handler, /spawn\(|killPythonProcessTree/)
+  assert.match(preloadSource, /updatePotionAssistConfig/)
+  assert.match(apiSource, /updatePotionConfig/)
+})
+
 test('所有使用物理屏幕坐标的 Python 脚本在移动鼠标前启用 DPI 感知', () => {
   const templates = [
     scriptUrl,

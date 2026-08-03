@@ -29,7 +29,7 @@ const catalogPath = path.resolve('electron/modules/priceCheck/catalog.json')
 
 test('国服交易目录加载版本、计数和陈旧状态', async () => {
   const { catalog, status } = await loadTradeCatalog(catalogPath, Date.parse('2026-07-30T00:00:00Z'))
-  assert.equal(status.gameVersion, '3.28')
+  assert.equal(status.gameVersion, '3.29')
   assert.equal(status.stale, false)
   assert.equal(status.counts.stats, catalog.stats.length)
 })
@@ -435,6 +435,24 @@ test('快捷查价优先高级复制并在捕获失败后回退普通复制', as
   assert.match(captured, /回退物品/)
 })
 
+test('快捷查价前台预检失败时不修改剪贴板也不发送复制键', async () => {
+  let value = '用户原剪贴板'
+  let writes = 0
+  let sends = 0
+  const clipboard = {
+    readText: () => value,
+    writeText: (next) => { writes += 1; value = next }
+  }
+  await assert.rejects(capturePoeItemText({
+    clipboard,
+    assertForeground: async () => { throw new Error('游戏窗口当前不在前台') },
+    sendCopy: async () => { sends += 1 }
+  }), /游戏窗口当前不在前台/)
+  assert.equal(value, '用户原剪贴板')
+  assert.equal(writes, 0)
+  assert.equal(sends, 0)
+})
+
 test('高级文本解析词缀 T 级、标签、武器属性和状态', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = parseItemInfo([
@@ -521,13 +539,15 @@ function response(body, status = 200, contentType = 'application/json', extraHea
 
 test('腾讯 Provider 缓存相同搜索并校验响应结构', async () => {
   let calls = 0
+  const urls = []
   let clock = 10000
-  const session = { fetch: async () => { calls += 1; return response({ id: 'query1', result: ['abc'], total: 1 }) } }
+  const session = { fetch: async (url) => { calls += 1; urls.push(String(url)); return response({ id: 'query1', result: ['abc'], total: 1 }) } }
   const client = new PoeCnTradeClient({ session, now: () => clock })
-  const first = await client.search('测试赛季', { query: {} })
-  const second = await client.search('测试赛季', { query: {} })
+  const first = await client.search('S30 永火之咒', { query: {} })
+  const second = await client.search('S30 永火之咒', { query: {} })
   assert.equal(first.id, second.id)
   assert.equal(calls, 1)
+  assert.match(urls[0], /S30%20%E6%B0%B8%E7%81%AB%E4%B9%8B%E5%92%92/)
   client.clearCache()
   clock = 20000
   session.fetch = async () => response({})

@@ -5,6 +5,7 @@ import path from 'node:path'
 import {
   applyManualBeastcraft,
   applyManualCurrency,
+  applyManualFossils,
   createManualSession,
   inspectManualCurrencies,
   previewManualCurrency,
@@ -73,13 +74,13 @@ test('催化品质参与历史、重置与希内科拉确定性预见', () => {
   assert.deepEqual(resetManualSession(dataset, applied.session).session.state.catalystQuality, { type: null, amount: 0 })
 })
 
-test('催化品质随分裂复制并由拓印恢复', () => {
-  let splitSource = session(45)
-  splitSource = applyManualCurrency(dataset, splitSource, 'currency:alchemy').session
-  splitSource = applyManualCurrency(dataset, splitSource, 'currency:catalyst-fertile').session
-  const split = applyManualBeastcraft(dataset, splitSource, 'split-two')
-  assert.ok(split.session.pendingSplitResults.length === 2)
-  assert.ok(split.session.pendingSplitResults.every((result) => result.state.catalystQuality.type === 'life-mana'))
+test('催化品质在 3.29 分裂化石破裂后保留并由拓印恢复', () => {
+  let fracturedSource = session(45)
+  fracturedSource = applyManualCurrency(dataset, fracturedSource, 'currency:alchemy').session
+  fracturedSource = applyManualCurrency(dataset, fracturedSource, 'currency:catalyst-fertile').session
+  const fractured = applyManualFossils(dataset, fracturedSource, { sockets: 1, fossilIds: ['fractured'] })
+  assert.equal(fractured.session.state.catalystQuality.type, 'life-mana')
+  assert.equal([...fractured.session.state.prefixes, ...fractured.session.state.suffixes].filter((entry) => entry.fractured).length, 1)
 
   let imprinted = session(46)
   imprinted = applyManualCurrency(dataset, imprinted, 'currency:transmutation').session

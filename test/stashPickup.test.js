@@ -13,6 +13,7 @@ import {
 } from '../src/utils/stashGridCalibration.js'
 
 const pythonScript = new URL('../src/assets/scripts/stash_pickup_template.py', import.meta.url)
+const managerScript = new URL('../electron/modules/stashPickup/manager.js', import.meta.url)
 const fixtureDir = new URL('./fixtures/stashPickup/', import.meta.url)
 const pythonScriptPath = fileURLToPath(pythonScript)
 const fixtureDirPath = fileURLToPath(fixtureDir)
@@ -33,6 +34,38 @@ test('检测配置按普通与大型仓库保存独立默认值并限制参数�
   assert.deepEqual(
     normalizeStashPickupProfile({ method: 'brightness', brightnessThreshold: 999, sampleRatio: 0 }, 'normal'),
     { method: 'brightness', thresholds: { variance: 1500, brightness: 255, saturation: 50 }, sampleRatio: 0.1 }
+  )
+})
+
+test('正式取件在移动、截图和点击前验证游戏前台，失焦后不点击', () => {
+  const source = readFileSync(pythonScript, 'utf8')
+  assert.match(source, /require_game_foreground\(\)[\s\S]*?mouse\.position/)
+  assert.match(source, /require_game_foreground\(\)[\s\S]*?current = capture\(rect, grabber\)/)
+  const code = `
+import importlib.util, json
+spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
+hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
+events=[]
+focus=iter([True,False])
+class Keyboard:
+ def press(self,key): events.append("key-down")
+ def release(self,key): events.append("key-up")
+class Mouse:
+ def click(self,*args): events.append("click")
+try:
+ hp.ctrl_click(Mouse(),Keyboard(),"ctrl","left",lambda: next(focus))
+except RuntimeError as error:
+ events.append(str(error))
+print(json.dumps(events))
+`
+  assert.deepEqual(runPython(code), ['key-down', 'key-up', 'game-not-foreground'])
+})
+
+test('取件启动异常会撤销前台切换宽限状态', () => {
+  const source = readFileSync(managerScript, 'utf8')
+  assert.match(
+    source,
+    /catch \(error\) \{\s*this\.allowingFocusTransition = false\s*this\.automationLock\?\.release\(OWNER\)/
   )
 })
 
@@ -181,6 +214,7 @@ spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptP
 hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
 events=[]
 hp.focus_game_window=lambda: events.append("focus") or True
+hp.is_game_foreground=lambda: True
 class Grabber:
  def __enter__(self): return self
  def __exit__(self, *_): return False
@@ -242,6 +276,7 @@ class Grabber:
  def __exit__(self, *_): return False
 hp.mss.mss=lambda: Grabber()
 hp.focus_game_window=lambda: True
+hp.is_game_foreground=lambda: True
 
 state={"clicks":0, "visual":0}
 class Keyboard:
@@ -311,6 +346,7 @@ class Grabber:
  def __exit__(self, *_): return False
 hp.mss.mss=lambda: Grabber()
 hp.focus_game_window=lambda: True
+hp.is_game_foreground=lambda: True
 
 state={"firstRemoved":False,"secondRemoved":False,"clicks":0}
 def image():

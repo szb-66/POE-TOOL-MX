@@ -7,6 +7,34 @@ const mapTemplate = readFileSync(
   new URL('../src/assets/scripts/map_rolling_template.py', import.meta.url),
   'utf8'
 )
+const craftingTemplate = readFileSync(
+  new URL('../src/assets/scripts/crafting_template.py', import.meta.url),
+  'utf8'
+)
+
+function runRuntimeForegroundGate(template) {
+  const start = template.indexOf('def require_game_foreground():')
+  const end = template.indexOf('\ndef ', start + 5)
+  const block = template.slice(start, end)
+  const code = `
+import json
+${block}
+events = []
+released = []
+focus = iter([True, False])
+is_running = True
+fatal_error_reason = None
+foreground_failure_emitted = False
+def is_game_foreground(): return next(focus)
+def release_all_keys(): released.append(True)
+print(json.dumps({"first": require_game_foreground(), "second": require_game_foreground(),
+  "running": is_running, "reason": fatal_error_reason, "released": len(released)}))
+`
+  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  assert.equal(result.status, 0, result.stderr)
+  const lines = result.stdout.trim().split(/\r?\n/)
+  return { event: JSON.parse(lines[0].slice(6)), result: JSON.parse(lines.at(-1)) }
+}
 
 function runMapStart(focusResult) {
   const start = mapTemplate.indexOf('def start_map_rolling():')
@@ -73,4 +101,21 @@ test('地图洗练无法激活游戏时安全停止，不进入鼠标和剪贴�
   assert.deepEqual(result.events, ['focus'])
   assert.match(result.output, /无法激活游戏窗口/)
   assert.doesNotMatch(result.output, /连续空格候选/)
+})
+
+test('物品与地图制作运行中失焦时释放输入并发出统一停止事件', () => {
+  for (const [mode, template] of [['items', craftingTemplate], ['map', mapTemplate]]) {
+    const values = runRuntimeForegroundGate(template)
+    assert.equal(values.result.first, true)
+    assert.equal(values.result.second, false)
+    assert.equal(values.result.running, false)
+    assert.equal(values.result.released, 1)
+    assert.equal(values.event.event, 'crafting-runtime-stopped')
+    assert.equal(values.event.mode, mode)
+    assert.equal(values.event.code, 'GAME_NOT_FOREGROUND')
+    assert.match(values.result.reason, /失去前台/)
+    assert.match(template, /def move_mouse\(x, y\):[\s\S]*?if not require_game_foreground\(\):/)
+    assert.match(template, /def click_mouse\(button="left"\):[\s\S]*?if not require_game_foreground\(\):/)
+    assert.match(template, /def send_copy_command\(\):[\s\S]*?if not require_game_foreground\(\):/)
+  }
 })

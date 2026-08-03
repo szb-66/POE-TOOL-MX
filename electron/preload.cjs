@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('detect-python-path')
   },
   detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
+  updateGameWindowTitles: (titles) => ipcRenderer.invoke('system-update-game-window-titles', titles),
   getStartupHealth: () => ipcRenderer.invoke('system-get-startup-health'),
   getDiagnostics: (modules) => ipcRenderer.invoke('system-get-diagnostics', modules),
   exportDiagnostics: (modules) => ipcRenderer.invoke('system-export-diagnostics', modules),
@@ -138,6 +139,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
   updateBagEmptySlotThreshold: (emptySlotThreshold) => ipcRenderer.invoke('update-bag-empty-slot-threshold', emptySlotThreshold),
   updateBagPreferences: (preferences) => ipcRenderer.invoke('update-bag-preferences', preferences),
+  updateBagRuntimeConfig: (config) => ipcRenderer.invoke('update-bag-runtime-config', config),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
   onBagDetectionMatch: (callback) => {
@@ -270,6 +272,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),
   stopPotionAssist: () => ipcRenderer.invoke('combat-stop-potion'),
   getPotionAssistStatus: () => ipcRenderer.invoke('combat-get-potion-status'),
+  updatePotionAssistConfig: (config) => ipcRenderer.invoke('combat-update-potion-config', config),
   sampleCombatPixel: (payload) => ipcRenderer.invoke('combat-sample-pixel', payload),
   executePortalAssist: (payload) => ipcRenderer.invoke('combat-execute-portal', payload),
   onCombatStatus: (callback) => {

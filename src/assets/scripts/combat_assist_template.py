@@ -3,6 +3,7 @@
 import argparse
 import ctypes
 import json
+import os
 import signal
 import sys
 import time
@@ -33,7 +34,37 @@ enable_per_monitor_dpi_awareness()
 
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
 running = True
+
+
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_TITLES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
+    except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
+        return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
 
 
 def emit(event, **payload):
@@ -53,6 +84,10 @@ class RateLimiter:
         self.cooldown_ms = max(1, int(cooldown_ms))
         self.recent = []
         self.protected_until = 0
+
+    def configure(self, maximum, cooldown_ms):
+        self.maximum = max(1, int(maximum))
+        self.cooldown_ms = max(1, int(cooldown_ms))
 
     def allow(self, now_ms):
         if now_ms < self.protected_until:
@@ -74,7 +109,7 @@ def is_game_foreground():
     buffer = ctypes.create_unicode_buffer(length + 1)
     ctypes.windll.user32.GetWindowTextW(hwnd, buffer, length + 1)
     title = buffer.value
-    return any(expected.lower() in title.lower() for expected in GAME_WINDOW_TITLES)
+    return game_window_title_priority(title) >= 0
 
 
 def read_pixel(point):
@@ -160,14 +195,42 @@ def stop_running(_signum=None, _frame=None):
     running = False
 
 
-def run_potion(config):
+class RuntimeConfig:
+    def __init__(self, path, initial):
+        self.path = path
+        self.cached = initial
+        self.mtime_ns = None
+        if path:
+            try:
+                self.mtime_ns = os.stat(path).st_mtime_ns
+            except OSError:
+                pass
+
+    def load(self):
+        if not self.path:
+            return self.cached
+        try:
+            mtime_ns = os.stat(self.path).st_mtime_ns
+            if mtime_ns == self.mtime_ns:
+                return self.cached
+            candidate = load_config(self.path)
+            if not isinstance(candidate, dict) or not isinstance(candidate.get("potion"), dict):
+                raise ValueError("invalid combat runtime config")
+            self.cached = candidate
+            self.mtime_ns = mtime_ns
+        except Exception:
+            return self.cached
+        return self.cached
+
+
+def run_potion(config, config_path=None):
     global running
     running = True
     signal.signal(signal.SIGTERM, stop_running)
     signal.signal(signal.SIGINT, stop_running)
 
-    potion = config.get("potion", {})
-    scan_interval = max(10, int(potion.get("scanIntervalMs", 100)))
+    runtime_config = RuntimeConfig(config_path, config)
+    potion = runtime_config.load().get("potion", {})
     limiter = RateLimiter(
         potion.get("maxTriggersPerSecond", 5),
         potion.get("protectionCooldownMs", 1000)
@@ -177,6 +240,13 @@ def run_potion(config):
     emit("started")
 
     while running:
+        config = runtime_config.load()
+        potion = config.get("potion", {})
+        scan_interval = max(10, int(potion.get("scanIntervalMs", 100)))
+        limiter.configure(
+            potion.get("maxTriggersPerSecond", 5),
+            potion.get("protectionCooldownMs", 1000)
+        )
         focused = is_game_foreground()
         if focused != last_focus:
             emit("focus", active=focused)
@@ -272,7 +342,7 @@ def main():
     args = parser.parse_args()
     config = load_config(args.config)
     if args.mode == "potion":
-        run_potion(config)
+        run_potion(config, args.config)
         return 0
     if args.mode == "sample":
         run_sample(config)

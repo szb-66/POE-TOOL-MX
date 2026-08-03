@@ -27,6 +27,7 @@ import { usePriceCheckStore } from './stores/priceCheck'
 import { usePoeCnAccountStore } from './stores/poeCnAccount'
 import { useStashPickupStore } from './stores/stashPickup'
 import { usePuzzleStore } from './stores/puzzle'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
@@ -39,10 +40,13 @@ let removeAccountListener = null
 let removeStashPickupListener = null
 let removePuzzleListener = null
 
-onMounted(() => {
+onMounted(async () => {
   if (route.meta.noLayout) return
+  window.addEventListener('focus', refreshGameWindowOnFocus)
   // 初始化快捷键
   if (window.electronAPI) {
+    const titleSync = await settingsStore.syncGameWindowTitles()
+    if (!titleSync.success) ElMessage.warning(`游戏窗口名称同步失败：${titleSync.error}`)
     void settingsStore.refreshDpiScale()
     initShortcuts()
     initCombatAssist()
@@ -69,7 +73,14 @@ onMounted(() => {
   electronApi.window.setDevToolsVisible(settingsStore.debugMode)
 })
 
+const refreshGameWindowOnFocus = () => {
+  if (window.electronAPI && settingsStore.dpiMode === 'auto') {
+    void settingsStore.refreshDpiScale()
+  }
+}
+
 onUnmounted(() => {
+  window.removeEventListener('focus', refreshGameWindowOnFocus)
   removeDevToolsListener?.()
   removeChaosAutomationListener?.()
   removePriceCheckListener?.()

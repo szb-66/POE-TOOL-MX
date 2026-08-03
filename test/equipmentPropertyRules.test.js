@@ -30,7 +30,7 @@ test('孔色按属性需求偏向且无需求等权', () => {
 })
 
 test('珠宝匠和链接经验模型版本化且品质单调改善高结果权重', () => {
-  assert.match(SOCKET_MODEL_VERSION, /3\.28/)
+  assert.match(SOCKET_MODEL_VERSION, /3\.29/)
   assert.ok(socketCountWeights(6, 20).at(-1).weight > socketCountWeights(6, 0).at(-1).weight)
   assert.ok(linkSizeWeights(6, 20).at(-1).weight > linkSizeWeights(6, 0).at(-1).weight)
   assert.notEqual(rollSocketCount(4, 0, 1, () => 0), 1)

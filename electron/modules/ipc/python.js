@@ -366,12 +366,14 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         stdoutLineBuffer = completeLines.pop() || ''
         for (const line of completeLines) {
           const scriptEvent = parseScriptEventLine(line)
-          if (!['crafting-startup-failed', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(scriptEvent?.event)) continue
+          if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(scriptEvent?.event)) continue
           runtimeError = scriptEvent.reason || (scriptEvent.event === 'stash-tab-selection-failed'
             ? '仓库页自动选择失败'
             : scriptEvent.event === 'currency-preflight-failed'
               ? '通货启动预检失败'
-              : '制作脚本启动失败')
+              : scriptEvent.event === 'crafting-runtime-stopped'
+                ? '游戏窗口运行中失去前台'
+                : '制作脚本启动失败')
           sendScriptStatus({
             status: 'error',
             mode,
