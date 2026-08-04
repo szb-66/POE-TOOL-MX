@@ -200,7 +200,7 @@ test('全新执行发现海图残留时必须在任何点击前停止', { skip: 
 
 test('逐格验证只重读三次画面且不重放输入', () => {
   const script = source('src/assets/scripts/puzzle_auto_place.py')
-  const verify = script.match(/def verify_target[\s\S]*?\n\ndef main/)?.[0] || ''
+  const verify = script.match(/def verify_target[\s\S]*?\r?\n\r?\ndef main/)?.[0] || ''
   assert.match(verify, /range\(1, 4\)/)
   assert.match(verify, /capture_analyze/)
   assert.doesNotMatch(verify, /click_physical/)

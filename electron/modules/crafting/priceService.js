@@ -7,12 +7,9 @@ const STALE_MS = 24 * 60 * 60 * 1000
 const YESTERDAY_STALE_MS = 48 * 60 * 60 * 1000
 
 function parseTimestamp(raw) {
-  const first = Date.parse(raw)
-  if (Number.isFinite(first)) return first
-  const withT = Date.parse(raw.replace(' ', 'T'))
-  if (Number.isFinite(withT)) return withT
-  const withTz = Date.parse(raw.replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(raw) ? '' : '+08:00'))
-  return Number.isFinite(withTz) ? withTz : NaN
+  const normalized = raw.replace(' ', 'T')
+  const withTz = /[zZ]|[+-]\d\d:?\d\d$/.test(normalized) ? normalized : `${normalized}+08:00`
+  return Date.parse(withTz)
 }
 
 function flattenSummary(payload) {
