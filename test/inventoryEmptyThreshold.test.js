@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { pythonPath } from './helpers/python.js'
 import {
   EMPTY_SLOT_THRESHOLD,
   normalizeEmptySlotThreshold
@@ -42,7 +43,7 @@ def play_success_sound(): pass
 start_map_rolling()
 print(json.dumps(moves))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
 }

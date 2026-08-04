@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { pythonPath } from './helpers/python.js'
 
 const bagScriptPath = fileURLToPath(new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url))
 const mapTemplate = readFileSync(new URL('../src/assets/scripts/map_rolling_template.py', import.meta.url), 'utf8')
@@ -12,7 +13,7 @@ test('地图网格直接使用首格中心和相邻中心间距', () => {
   const end = mapTemplate.indexOf('def stash_item(x, y):')
   const block = mapTemplate.slice(start, end)
   const script = `${block}\ngrid_config = {"startX": 2604, "startY": 1155, "offsetX": 100, "offsetY": 100}\nprint(get_slot_position(0, 0), get_slot_position(1, 1), get_slot_position(11, 4))\n`
-  const result = spawnSync('python', ['-c', script], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', script], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stdout.trim(), '(2604, 1155) (2704, 1255) (3704, 1555)')
 })
@@ -42,7 +43,7 @@ module.is_game_foreground = lambda: True
 module.run_stash({"inventory": {"startPos": {"x": 2604, "y": 1155}, "slotSize": {"w": 100, "h": 100}}})
 print(json.dumps([Controller.moves[0], Controller.moves[1], Controller.moves[5], Controller.moves[-1]]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const summary = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
   assert.deepEqual(summary, [[2604, 1155], [2604, 1255], [2704, 1155], [3704, 1555]])

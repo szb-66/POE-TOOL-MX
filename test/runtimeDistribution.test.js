@@ -20,7 +20,7 @@ test('开发环境优先使用已准备且满足模块要求的内置运行时',
   assert.equal(runtime.ready, true)
   assert.equal(runtime.source, 'prepared')
   assert.equal(runtime.version, '3.13.14')
-  assert.match(runtime.path, /[\\/]流放助手[\\/]\.runtime[\\/]python-runtime[\\/]python\.exe$/)
+  assert.match(runtime.path, /[\\/]\.runtime[\\/]python-runtime[\\/]python\.exe$/)
   assert.equal(detectPythonPath(), runtime.path)
   assert.equal(detectPythonPathWithModules(['numpy']), runtime.path)
 })

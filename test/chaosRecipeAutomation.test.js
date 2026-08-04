@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { pythonPath } from './helpers/python.js'
 import vm from 'node:vm'
 
 const scriptUrl = new URL('../src/assets/scripts/chaos_recipe_pick_template.py', import.meta.url)
@@ -99,7 +100,7 @@ print(json.dumps({
   "events": events
 }, ensure_ascii=False))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.deepEqual(values.first, [true, null, 1])
@@ -138,7 +139,7 @@ module.restore_game_window_if_minimized(normal, 101)
 module.restore_game_window_if_minimized(minimized, 202)
 print(json.dumps([normal.calls, minimized.calls]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [[], [[202, 9]]])
 })

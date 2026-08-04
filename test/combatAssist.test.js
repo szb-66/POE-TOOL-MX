@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { pythonPath } from './helpers/python.js'
 import { createPinia, setActivePinia } from 'pinia'
 import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '../src/utils/combatConfig.js'
 import { useCombatStore } from '../src/stores/combat.js'
@@ -66,7 +67,7 @@ limiter = module.RateLimiter(2, 1000)
 results["rate"] = [limiter.allow(0)[0], limiter.allow(100)[0], limiter.allow(200)[1], limiter.allow(500)[1], limiter.allow(1200)[0]]
 print(json.dumps(results))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.equal(values.at_threshold, false)
@@ -130,7 +131,7 @@ result = module.run_potion({"potion": {
 }})
 print(json.dumps({"result": result, "events": events, "reads": reads, "sends": sends, "trace": trace}, ensure_ascii=False))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.equal(values.result, 0)
@@ -165,7 +166,7 @@ result = module.run_potion({"potion": {
 }})
 print(json.dumps({"result": result, "events": events, "sends": sends}, ensure_ascii=False))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.equal(values.result, 0)
@@ -190,7 +191,7 @@ sent = module.send_sequence(
 )
 print(json.dumps({"sent": sent, "events": events}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     sent: 1,
@@ -220,7 +221,7 @@ with contextlib.redirect_stdout(output):
     result = module.run_portal({"portal": {"openKey": "Numpad1", "waitMs": 10, "clickPoint": {"x": 20, "y": 30}}})
 print(json.dumps({"result": result, "inputs": inputs, "output": output.getvalue().strip()}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.equal(values.result, 2)
@@ -246,7 +247,7 @@ clicked = module.click_point(
 )
 print(json.dumps({"clicked": clicked, "events": events}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     clicked: false,
@@ -304,7 +305,7 @@ with tempfile.TemporaryDirectory() as directory:
     fallback = runtime.load()
     print(json.dumps({"updated": updated, "fallback": fallback}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const payload = JSON.parse(result.stdout)
   assert.equal(payload.updated.potion.scanIntervalMs, 25)
@@ -361,7 +362,7 @@ user32.GetAwarenessFromDpiAwarenessContext.argtypes = [ctypes.c_void_p]
 user32.GetAwarenessFromDpiAwarenessContext.restype = ctypes.c_int
 print(user32.GetAwarenessFromDpiAwarenessContext(user32.GetThreadDpiAwarenessContext()))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stdout.trim(), '2')
 })

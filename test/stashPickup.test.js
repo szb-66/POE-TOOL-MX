@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { runPython } from './helpers/python.js'
 import {
   normalizeStashPickupProfile,
   normalizeStashPickupSettings
@@ -17,14 +17,6 @@ const managerScript = new URL('../electron/modules/stashPickup/manager.js', impo
 const fixtureDir = new URL('./fixtures/stashPickup/', import.meta.url)
 const pythonScriptPath = fileURLToPath(pythonScript)
 const fixtureDirPath = fileURLToPath(fixtureDir)
-
-function runPython(code) {
-  const command = process.platform === 'win32' ? 'py' : 'python3'
-  const args = process.platform === 'win32' ? ['-3.13', '-c', code] : ['-c', code]
-  const result = spawnSync(command, args, { encoding: 'utf8' })
-  if (result.status !== 0) throw new Error(result.stderr || result.stdout)
-  return JSON.parse(result.stdout)
-}
 
 test('检测配置按普通与大型仓库保存独立默认值并限制参数范围', () => {
   const settings = normalizeStashPickupSettings()

@@ -20,6 +20,7 @@ import {
   waitForDetectionStartup
 } from '../electron/modules/bag/orchestrator.js'
 import { detectPythonPathWithModules } from '../electron/modules/python/detector.js'
+import { pythonPath as runtimePython } from './helpers/python.js'
 
 const scriptUrl = new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
@@ -194,7 +195,7 @@ disabled = module.find_blacklist_match(item, [{"field": "category", "keyword": "
 reenabled = module.find_blacklist_match(item, [{"field": "category", "keyword": "地图", "matchMode": "contains", "enabled": True}])
 print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "invalid": invalid, "disabled_rules": disabled_rules, "disabled": disabled, "reenabled": reenabled}, ensure_ascii=False))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     exact: null,
@@ -283,7 +284,7 @@ for matched in [True, True, True, False, False, False]:
     changes.append([ready, changed])
 print(json.dumps(changes))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [
     [false, false], [false, false], [true, true],
@@ -318,7 +319,7 @@ module.time.sleep = sleep
 result = module.run_detection({})
 print(json.dumps({"result": result, "checks": Matcher.checks, "events": events}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const values = JSON.parse(result.stdout)
   assert.equal(values.result, 0)
@@ -345,7 +346,7 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print(json.dumps([module.error_event("detect"), module.error_event("stash")]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), ['detection-error', 'stash-error'])
 })
@@ -385,7 +386,7 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 print(json.dumps([module.normalize_operation_delay(None), module.normalize_operation_delay(0), module.normalize_operation_delay(900), module.normalize_operation_delay("bad")]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [80, 20, 500, 80])
 })
@@ -402,7 +403,7 @@ module.keyboard = types.SimpleNamespace(Controller=lambda: object())
 controller = module.InputController({"operation_delay_ms": 180})
 print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.action_delay]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.18, 0.18])
 })
@@ -430,7 +431,7 @@ print(json.dumps([
     run([("empty", "")])
 ]))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [
     ['copied', 'Item Class: Currency\nRarity: Currency\nChaos Orb\n--------', 2],
@@ -466,7 +467,7 @@ raise SystemExit(module.run_stash({"inventory": {
     "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}, "emptySlotThreshold": 4
 }}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const events = result.stdout.trim().split(/\r?\n/).map((line) => JSON.parse(line.slice(6)))
   const completed = events.at(-1)
@@ -499,7 +500,7 @@ print(json.dumps({
     "excluded": [phases[0][0]["excluded"], phases[1][4]["excluded"]]
 }))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     sizes: [60, 30],
@@ -541,7 +542,7 @@ print(json.dumps({
     "points": [Controller.moves[0], Controller.moves[59], Controller.moves[60], Controller.moves[-1]]
 }))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const summary = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
   assert.deepEqual(summary, {
@@ -595,7 +596,7 @@ module.run_stash({"inventory": {
 boundary_case = {"moves": len(Controller.moves), "extraFirst": Controller.moves[60]}
 print(json.dumps({"excluded": excluded_case, "boundary": boundary_case}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const summary = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
   assert.deepEqual(summary, {
@@ -632,7 +633,7 @@ module.run_stash({"inventory": {
 }})
 print(json.dumps(Controller.moves))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), [[0, 0], [0, 1], [0, 2], [0, 3]])
 })
@@ -725,7 +726,7 @@ module.is_game_foreground = lambda: True
 code = module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}}})
 print(json.dumps({"code": code, "clicks": Controller.clicks}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const lines = result.stdout.trim().split(/\r?\n/)
   const summary = JSON.parse(lines.pop())
@@ -778,7 +779,7 @@ module.run_stash({"inventory": {
 }})
 print(json.dumps({"moves": Controller.moves, "clicks": Controller.clicks}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const lines = result.stdout.trim().split(/\r?\n/)
   const summary = JSON.parse(lines.pop())
@@ -820,7 +821,7 @@ result = {
 }
 print(json.dumps(result, ensure_ascii=False))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     sizes: [
@@ -876,7 +877,7 @@ module.run_stash({
 })
 print(json.dumps({"moves": Controller.moves, "clicks": Controller.clicks}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const lines = result.stdout.trim().split(/\r?\n/)
   const summary = JSON.parse(lines.pop())

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { pythonPath } from './helpers/python.js'
 
 const template = readFileSync(new URL('../src/assets/scripts/map_rolling_template.py', import.meta.url), 'utf8')
 
@@ -19,7 +20,7 @@ function evaluate(config, item) {
     .replaceAll('true', 'True')
     .replaceAll('false', 'False')
     .replaceAll('null', 'None')
-  const result = spawnSync('python', ['-c', script], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', script], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   return result.stdout.trim().split(/\r?\n/).at(-1) === 'True'
 }

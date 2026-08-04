@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { pythonPath } from './helpers/python.js'
 
 const mapTemplate = readFileSync(
   new URL('../src/assets/scripts/map_rolling_template.py', import.meta.url),
@@ -30,7 +31,7 @@ def release_all_keys(): released.append(True)
 print(json.dumps({"first": require_game_foreground(), "second": require_game_foreground(),
   "running": is_running, "reason": fatal_error_reason, "released": len(released)}))
 `
-  const result = spawnSync('python', ['-c', code], { encoding: 'utf8' })
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   const lines = result.stdout.trim().split(/\r?\n/)
   return { event: JSON.parse(lines[0].slice(6)), result: JSON.parse(lines.at(-1)) }
