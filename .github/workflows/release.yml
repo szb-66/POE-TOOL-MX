@@ -46,7 +46,7 @@ jobs:
         run: npm run build
 
       - name: Build NSIS installer
-        run: npx electron-builder --win nsis --x64
+        run: npx electron-builder --win nsis --x64 --publish never
 
       - name: Smoke-test packaged application
         run: npm run release:smoke
