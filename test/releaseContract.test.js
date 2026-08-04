@@ -1,8 +1,29 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+const projectRoot = fileURLToPath(new URL('..', import.meta.url))
+
+function javascriptFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
+    const entryPath = path.join(directory, entry.name)
+    if (entry.isDirectory()) return javascriptFiles(entryPath)
+    return entry.isFile() && /\.(?:c?js|mjs)$/.test(entry.name) ? [entryPath] : []
+  })
+}
+
+function packagedByRule(relativePath, rules) {
+  const normalized = relativePath.replaceAll('\\', '/')
+  return rules.some(rule => {
+    const normalizedRule = rule.replaceAll('\\', '/')
+    if (normalizedRule.startsWith('!')) return false
+    if (normalizedRule.endsWith('/**/*')) return normalized.startsWith(normalizedRule.slice(0, -4))
+    return normalized === normalizedRule
+  })
+}
 
 test('发布资产名称、版本标签与校验文件形成稳定契约', () => {
   const packageConfig = JSON.parse(source('../package.json'))
@@ -29,4 +50,32 @@ test('Windows CI 与标签发布固定 Action 提交并使用最小化权限', (
   assert.match(release, /THIRD_PARTY_NOTICES\.md/)
   assert.match(release, /actions\/attest-build-provenance@[a-f0-9]{40}/)
   assert.doesNotMatch(`${ci}\n${release}`, /uses:\s+\S+@(v\d+|main|master)\s*$/m)
+})
+
+test('正式包包含 Electron 主进程引用的源码模块依赖闭包', () => {
+  const packageConfig = JSON.parse(source('../package.json'))
+  const srcRoot = path.join(projectRoot, 'src')
+  const queue = javascriptFiles(path.join(projectRoot, 'electron'))
+  const visited = new Set()
+  const missing = new Set()
+
+  while (queue.length) {
+    const filePath = queue.pop()
+    if (visited.has(filePath)) continue
+    visited.add(filePath)
+    const contents = readFileSync(filePath, 'utf8')
+    const imports = contents.matchAll(/(?:from\s+|import\s*\()\s*['"]([^'"]+)['"]/g)
+    for (const [, specifier] of imports) {
+      if (!specifier.startsWith('.')) continue
+      const dependency = path.resolve(path.dirname(filePath), specifier)
+      if (!existsSync(dependency)) continue
+      if (dependency.startsWith(`${srcRoot}${path.sep}`)) {
+        const relativePath = path.relative(projectRoot, dependency)
+        if (!packagedByRule(relativePath, packageConfig.build.files)) missing.add(relativePath)
+      }
+      if (/\.(?:c?js|mjs)$/.test(dependency)) queue.push(dependency)
+    }
+  }
+
+  assert.deepEqual([...missing].sort(), [])
 })

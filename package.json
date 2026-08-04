@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -71,6 +71,7 @@
       "src/utils/electronAccelerator.js",
       "src/utils/inventorySettings.js",
       "src/utils/operationDelay.js",
+      "src/utils/puzzleConfig.js",
       "src/utils/stashGridCalibration.js",
       "src/utils/stashPickupConfig.js",
       "src/utils/stashTabSelection.js",
