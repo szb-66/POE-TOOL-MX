@@ -36,6 +36,25 @@ test('v1 剧情数据无损迁移为独立的默认剧情和技能预设', () =>
   assert.equal(data.skillPresets[0].chapterSkills[0].skillGroups[0].skills[1].color, 'red')
   assert.equal(data.currentStoryPresetId, 'default')
   assert.equal(data.currentSkillPresetId, 'default')
+  assert.equal(data.storyPresets[0].viewedChapterId, data.storyPresets[0].currentChapterId)
+})
+
+test('浏览章节与当前进度独立规范化并兼容缺失浏览字段', () => {
+  const legacy = normalizeStoryData({
+    version: 2,
+    storyPresets: [{ id: 'default', chapters, currentChapterId: 'c1', currentStepId: 's2' }],
+    skillPresets: [{ id: 'default', chapterSkills: [] }]
+  })
+  assert.equal(legacy.storyPresets[0].viewedChapterId, 'c1')
+  assert.equal(legacy.storyPresets[0].currentStepId, 's2')
+
+  const independent = normalizeStoryData({
+    version: 2,
+    storyPresets: [{ id: 'default', chapters, currentChapterId: 'c1', currentStepId: 's2', viewedChapterId: 'c2' }],
+    skillPresets: [{ id: 'default', chapterSkills: [] }]
+  })
+  assert.equal(independent.storyPresets[0].viewedChapterId, 'c2')
+  assert.equal(independent.storyPresets[0].currentChapterId, 'c1')
 })
 
 test('迁移保留目录字段并兼容自由文本和无效目录元数据', () => {
@@ -63,11 +82,13 @@ test('迁移保留目录字段并兼容自由文本和无效目录元数据', ()
 test('复制预设会重建实体 ID 且后续编辑相互隔离', () => {
   const sourceStory = {
     chapters: [{ id: 'c1', name: '第一章', steps: [{ id: 's1', text: '原步骤' }] }],
-    currentStepId: 's1'
+    currentStepId: 's1',
+    viewedChapterId: 'c1'
   }
   const storyCopy = createStoryPreset('副本', sourceStory)
   assert.notEqual(storyCopy.chapters[0].id, 'c1')
   assert.notEqual(storyCopy.chapters[0].steps[0].id, 's1')
+  assert.equal(storyCopy.viewedChapterId, storyCopy.chapters[0].id)
   storyCopy.chapters[0].steps[0].text = '已修改'
   assert.equal(sourceStory.chapters[0].steps[0].text, '原步骤')
 

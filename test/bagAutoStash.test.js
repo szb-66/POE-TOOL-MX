@@ -934,11 +934,15 @@ test('正式包携带背包脚本并从稳定路径解析', () => {
   assert.match(ipcSource, /candidates\.find\(\(candidate\) => fs\.existsSync\(candidate\)\)/)
 })
 
-test('穿透浮窗只使用独立原生抓手拖动', () => {
+test('制作进度穿透浮窗使用统一指针抓手拖动', () => {
   const source = readFileSync(new URL('../src/domains/overlay/components/OverlayContent.vue', import.meta.url), 'utf8')
   assert.match(source, /class="overlay-drag-handle"/)
-  assert.match(source, /@mouseenter="activateDragHandle" @mouseleave="deactivateDragHandle"/)
-  assert.match(source, /-webkit-app-region: drag/)
+  assert.match(source, /createOverlayDrag/)
+  assert.match(source, /@pointerdown="drag\.pointerDown"/)
+  assert.match(source, /cursor: grab/)
+  assert.match(source, /cursor: grabbing/)
+  assert.match(source, /-webkit-app-region: no-drag/)
+  assert.doesNotMatch(source, /activateDragHandle|deactivateDragHandle|@mouseenter/)
   assert.doesNotMatch(source, /getWindowPosition|setWindowPosition|handleMouseDown/)
   assert.doesNotMatch(source, /class="overlay-content"[^>]*@mouseenter/)
 })

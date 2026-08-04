@@ -28,8 +28,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
   updateGameWindowTitles: (titles) => ipcRenderer.invoke('system-update-game-window-titles', titles),
   getStartupHealth: () => ipcRenderer.invoke('system-get-startup-health'),
-  getDiagnostics: (modules) => ipcRenderer.invoke('system-get-diagnostics', modules),
-  exportDiagnostics: (modules) => ipcRenderer.invoke('system-export-diagnostics', modules),
+  getDiagnostics: (payload) => ipcRenderer.invoke('system-get-diagnostics', payload),
+  exportDiagnostics: (payload) => ipcRenderer.invoke('system-export-diagnostics', payload),
+  recordDiagnosticEvent: (event) => ipcRenderer.invoke('system-record-diagnostic-event', event),
   startFileWatcher: (config) => {
     return ipcRenderer.invoke('start-file-watcher', config)
   },
@@ -127,6 +128,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('puzzle-auto-placement-updated', listener)
   },
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
+  moveCraftingOverlay: (drag) => ipcRenderer.send('crafting-overlay-move', drag),
   moveWindow: (x, y) => ipcRenderer.send('window-move', { x, y }),
   onWindowMaximized: (callback) => {
     ipcRenderer.on('window-maximized', (event, isMaximized) => {
@@ -298,6 +300,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resizeStoryOverlay: (size) => ipcRenderer.invoke('resize-story-overlay', size),
   setStoryOverlayOpacity: (opacity) => ipcRenderer.invoke('set-story-overlay-opacity', opacity),
   updateStoryOverlayLayout: (layout) => ipcRenderer.invoke('update-story-overlay-layout', layout),
+  moveStoryOverlay: (drag) => ipcRenderer.send('story-overlay-move', drag),
   onStoryOverlayState: (callback) => {
     const listener = (_event, snapshot) => callback(snapshot)
     ipcRenderer.on('story-overlay-state', listener)

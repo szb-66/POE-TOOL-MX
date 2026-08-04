@@ -1,7 +1,10 @@
 <template>
   <div class="overlay-container" :class="{ 'has-content': hasContent }">
     <div v-if="allowDrag" class="overlay-drag-handle" title="拖动浮窗"
-      @mouseenter="activateDragHandle" @mouseleave="deactivateDragHandle">
+      @pointerdown="drag.pointerDown"
+      @pointermove="drag.pointerMove"
+      @pointerup="drag.pointerUp"
+      @pointercancel="drag.pointerUp">
       <span></span><span></span><span></span>
     </div>
     <div v-if="stopReason" class="failure-reason" role="alert">
@@ -155,6 +158,7 @@ import { Close } from '@element-plus/icons-vue'
 // 导入默认背景图，以防用户未设置
 import defaultBg from '@/assets/images/遮罩背景.png'
 import { electronApi } from '@/api/electron'
+import { createOverlayDrag } from '@/utils/useOverlayDrag'
 import { normalizeOverlaySettings, overlayBackgroundMedia } from '../../../../shared/overlayBackground.js'
 
 const props = defineProps({
@@ -202,6 +206,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'close'])
+const drag = createOverlayDrag((message) => electronApi.window.moveOverlay(message))
 
 // 鼠标事件穿透控制
 function setIgnoreMouseEvents(ignore, forward = true) {
@@ -213,11 +218,6 @@ function setIgnoreMouseEvents(ignore, forward = true) {
   } else if (window.ipcRenderer) {
     window.ipcRenderer.send('set-ignore-mouse-events', ignore, options)
   }
-}
-
-const activateDragHandle = () => setIgnoreMouseEvents(false, false)
-const deactivateDragHandle = () => {
-  if (!props.isCompleted && !props.isStopped) setIgnoreMouseEvents(true, true)
 }
 
 watch(() => props.isCompleted, (v) => {
@@ -389,24 +389,39 @@ function isModMatched(mod) {
 
 .overlay-drag-handle {
   position: absolute;
-  top: 4px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 42px;
-  height: 16px;
+  width: 72px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 8px;
-  background: rgba(12, 16, 22, 0.78);
-  cursor: move;
+  cursor: grab;
   pointer-events: auto;
-  -webkit-app-region: drag;
+  touch-action: none;
+  user-select: none;
+  -webkit-app-region: no-drag;
   z-index: 100;
 
+  &::before {
+    position: absolute;
+    width: 46px;
+    height: 16px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    border-radius: 8px;
+    background: rgba(12, 16, 22, 0.78);
+    content: '';
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
   span {
+    z-index: 1;
     width: 3px;
     height: 3px;
     border-radius: 50%;

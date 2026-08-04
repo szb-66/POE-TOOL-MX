@@ -68,7 +68,7 @@
         <span>{{ option.label }}</span>
         <strong>{{ counts[option.value] }}</strong>
       </div>
-      <div class="count-card total">
+      <div class="count-card total" :class="{ insufficient: result.error === 'INSUFFICIENT_FRAGMENTS' }">
         <span>可用总数</span>
         <strong>{{ occupiedCount }}</strong>
       </div>
@@ -132,9 +132,20 @@
         <template #header>
           <div class="card-title">
             <span>最优方案</span>
-            <el-tag v-if="result.score !== null" type="success">外周出口 {{ result.score }}</el-tag>
+            <el-tag v-if="solutionFeedback" type="warning">无可用方案</el-tag>
+            <el-tag v-else-if="result.score !== null" type="success">外周出口 {{ result.score }}</el-tag>
           </div>
         </template>
+
+        <el-alert
+          v-if="solutionFeedback"
+          :title="solutionFeedback.title"
+          :description="solutionFeedback.description"
+          type="warning"
+          show-icon
+          :closable="false"
+          class="solution-feedback"
+        />
 
         <div class="exit-controls">
           <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
@@ -237,6 +248,29 @@ const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, co
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
+const solutionFeedback = computed(() => {
+  if (result.value.error === 'INSUFFICIENT_FRAGMENTS') {
+    const missingCount = Math.max(0, 9 - occupiedCount.value)
+    return {
+      kind: 'insufficient',
+      title: '碎片不足，无法填满海图九宫格',
+      description: `当前识别到 ${occupiedCount.value} 块，还差 ${missingCount} 块。请补充碎片后重新识别，或点击仓库格修正识别结果。`
+    }
+  }
+  if (result.value.error !== 'NO_SOLUTION') return null
+  if (hasExitConstraints.value) {
+    return {
+      kind: 'constraints',
+      title: '现有碎片无法满足当前出口限制',
+      description: '请调整必选或禁止出口，或点击“清空出口状态”后重新计算。'
+    }
+  }
+  return {
+    kind: 'combination',
+    title: '现有碎片类型组合无法拼成完整九宫格',
+    description: '碎片总数已经足够，但类型组合无法形成完整连通方案。请补充其他类型，或点击仓库格修正识别结果。'
+  }
+})
 const metadataText = metadata => {
   const region = metadata?.selectedRegion
   if (!region) return '请贴近网格外边框进行截图'
@@ -282,7 +316,8 @@ async function pickRegion(type) {
 
 async function startAnalysis() {
   const response = await store.analyze()
-  if (response?.success) ElMessage.success('海图碎片识别完成')
+  if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
+  else if (response?.success) ElMessage.success('海图碎片识别完成')
   else if (response?.error) ElMessage.error(response.error.message)
 }
 
@@ -413,6 +448,13 @@ const nextSolution = store.nextSolution
 .count-card span { color: var(--el-text-color-regular); }
 .count-card strong { color: var(--el-text-color-primary); font-size: 18px; }
 .count-card.total { grid-template-columns: 1fr auto; }
+.count-card.total.insufficient {
+  border-color: var(--el-color-warning);
+  background: var(--el-color-warning-light-9);
+  box-shadow: inset 0 0 0 1px var(--el-color-warning-light-5);
+}
+.count-card.total.insufficient span,
+.count-card.total.insufficient strong { color: var(--el-color-warning-dark-2); }
 
 .workspace {
   display: grid;
@@ -450,6 +492,7 @@ const nextSolution = store.nextSolution
 .orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 
+.solution-feedback { margin-bottom: 14px; }
 .exit-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 10px; }
 .exit-help { text-align: center; color: var(--el-text-color-secondary); margin: 0; }
 .solution-shell {

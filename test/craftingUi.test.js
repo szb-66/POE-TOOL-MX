@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { HELP_TOPICS, topicText } from '../src/domains/help/helpContent.js'
+
+const helpContentText = async () => HELP_TOPICS.map(topicText).join('\n')
 
 test('做装页面以选择底材、手动通货、装备变化和三级目录为主流程', async () => {
   const [router, sidebar, view] = await Promise.all([
@@ -97,65 +100,65 @@ test('preload 暴露具名手动做装与三级目录接口并保留兼容接口
 })
 
 test('帮助页声明数据来源、限制、OCR 风险和非商业用途', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['POEDB', 'poecurrency.top', 'OCR', '手动模拟器不再读取', '个人、非商业']) assert.match(help, new RegExp(text))
 })
 
 test('做装页与帮助页公开 S30 花园变化及赛季专属通货边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['憎恨结晶参与 12 条配方', '5 条保证标签重铸', '6 条元素伤害转换', 'S30 特殊通货边界', '无常瓦尔宝珠', '占卜球', '雾隐水晶', '永火纪念币', '传奇状态模型']) assert.match(help, new RegExp(text))
   for (const text of ['POE1 3.29', '74 条花园配方', '憎恨结晶关联 11 条装备工艺', '1 条宝石转换']) assert.match(view, new RegExp(text))
 })
 
 test('帮助页公开基础通货作用、生效条件和支持边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['磨刀石', '护甲片', '珠宝匠石', '幻色石', '链接石', '祝福石', '束缚石', 'poe1-3.29-community-v1', '蜕变石', '改造石', '增幅石', '富豪石', '点金石', '混沌石', '重铸石', '崇高石', '剥离石', '神圣石', '破溃宝珠', '至少有 4 条', '忽略全部元工艺', '禁用原因', '不执行近似结果']) assert.match(help, new RegExp(text))
 })
 
 test('装备卡与帮助页公开圣玉和共享基础防御百分比边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['圣玉', '基础防御百分比', '护甲、闪避值、能量护盾和结界共享', '不会改变普通品质', '神圣石重骰的是显式词缀数值']) assert.match(help, new RegExp(text))
   for (const text of ['baseDefencePercentile', '基础防御百分比', 'baseDefenceChange', 'formatBaseDefences']) assert.match(view, new RegExp(text))
 })
 
 test('装备卡与帮助页公开卡兰德之镜的原件、副本和不可修改语义', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['卡兰德之镜', '原件完全不变', '镜像副本', '不能再次复制', 'Reflective Oil']) assert.match(help, new RegExp(text))
   for (const text of ['createdMirrorItem', '原件未改变', '生成镜像副本', 'state-badge mirrored', 'mirror-result']) assert.match(view, new RegExp(text))
 })
 
 test('装备卡与帮助页公开附魔标记、移除动作和三重铸石成本边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['附魔与移除', '移除附魔', '3 枚重铸石', '腐化装备允许', '镜像装备不能', '回火石与裁缝石']) assert.match(help, new RegExp(text))
   for (const text of ['state-badge enchanted', '已附魔', 'removedEnchantment', '已移除附魔', 'remove-enchantment', 'defaultQualityActive']) assert.match(view, new RegExp(text))
 })
 
 test('帮助页和装备卡公开 3.29 催化剂类型、派生值与概率边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['首饰催化剂规则', '13 种催化剂', '左旋', '右旋', '污秽催化剂', '1–20%', '向下取整', '自 3.15 起', '不会消耗品质']) assert.match(help, new RegExp(text))
   for (const text of ['catalystQualityLabel', 'displayedBaseImplicits', 'displayedPrefixes', 'displayedSuffixes', 'catalystQualityChange']) assert.match(view, new RegExp(text))
 })
 
 test('装备卡与帮助页公开瓦尔四结果、真实隐式和未支持边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['瓦尔宝珠与装备腐化', '腐化隐式', '白色插槽', '稀有重铸', '1/144', '珠宝具有专属']) assert.match(help, new RegExp(text))
   for (const text of ['displayedVaalImplicit', 'corruptionOutcomeLabel', 'corruptionReplacedImplicit', 'vaalOutcomeLabel']) assert.match(view, new RegExp(text))
 })
 
 test('帮助页公开精华阶级、重铸和元工艺限制', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['精华制作规则', 'T1 低语', 'T4 哀嚎', 'T5 咆哮', 'T8 特殊精华', '元工艺', '保证一条特殊词缀']) assert.match(help, new RegExp(text))
   assert.doesNotMatch(help, /精华、化石、隐匿、腐化/)
 })
 
 test('帮助页公开工艺替换、移除、占位和多大师上限', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   for (const text of ['工艺台与元工艺规则', '唯一工艺替换', '额外一枚重铸石', '移除工艺词缀', '前缀无法被变更', '后缀无法被变更', '最多 3 个工艺词缀', '自身计入三条上限']) assert.match(help, new RegExp(text))
   assert.match(view, /currentAffixLimit\('prefix'\)/)
@@ -164,33 +167,33 @@ test('帮助页公开工艺替换、移除、占位和多大师上限', async ()
 
 test('帮助页公开化石乘数、共振器限制与特殊化石边界', async () => {
   const view = await readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['fossil.candidateCount', 'record.event.corruptedImplicit', '腐化固定词缀：']) assert.match(view, new RegExp(text))
   for (const text of ['化石与共振器制作规则', '1–4 个孔', '乘 10', '乘 0.15', '五彩化石', '棱面', '镂空', '雕刻', '圣洁化石', '纠缠化石', '分裂化石', '随机破裂一条显式词缀', '镶金化石', '溅血化石', '腐化固定词缀自身权重', '当前活动规则为 POE1 3.29']) assert.match(help, new RegExp(text))
 })
 
 test('帮助页公开花园当前配方、元工艺、转换与安全禁用边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['花园工艺规则', '全部 74 条', '共 16 种标签', '自 3.27 起', '乘 0.1', '3.29', '已移除追忆物品工艺', '移除并添加', '随机势力', '品质效果', '追忆固定词缀', '不伪造结果']) assert.match(help, new RegExp(text))
   assert.doesNotMatch(help, /花园、野兽、腐化/)
 })
 
 test('帮助页公开古灵支配、元工艺矩阵和冲突石估计边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['古灵隐式与支配通货规则', '古灵混沌石', '古灵崇高石', '古灵无效石', '冲突石', 'T1 被降阶', 'T6 被选中', '社区实测估计', '不是官方']) assert.match(help, new RegExp(text))
 })
 
 test('帮助页公开六势力崇高、尊崇升级与觉醒供体销毁规则', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['六大势力与尊崇制作规则', '塑界者', '裂界者', '圣战者', '救赎者', '狩猎者', '督军', '六种势力崇高石', '统御宝珠', '尊崇 T1', '觉醒者之石', '供体被销毁', 'ModGroup 冲突', '撤销并恢复']) assert.match(help, new RegExp(text))
 })
 
 test('帮助页公开加密通货、占位、三选一与阻断边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['加密制作与揭露规则', '加密崇高石', '加密混沌石', '未揭露词缀', '三选一揭露', 'ModGroup 阻断', '无法骰出攻击/施法', '签名加密词缀']) assert.match(help, new RegExp(text))
 })
 
 test('帮助页公开 3.29 野兽增删、魔符破裂、拓印与预见边界', async () => {
-  const help = await readFile('src/views/Help.vue', 'utf8')
+  const help = await helpContentText()
   for (const text of ['3.29 装备野兽工艺规则', '主野兽等级', '加前删后', '随机元工艺', '猫、鸟、蟹、蛛之势', '魔符破裂', '已移除二分 / 三分', '拓印', '希内科拉之锁', '综合隐式重骰']) assert.match(help, new RegExp(text))
 })

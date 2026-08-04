@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { normalizeStashPickupSettings } from '../utils/stashPickupConfig.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'stashPickupSettings'
 
@@ -89,13 +90,23 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     try {
       if (settings.value.enabled) await syncRuntime()
       preview.value = unwrap(await electronApi.stashPickup.preview())
+      void reportDiagnosticRecovery('stashPickup', 'detection')
       return preview.value
+    } catch (error) {
+      void reportDiagnosticFailure('stashPickup', 'detection', error, 'automation_failed')
+      throw error
     } finally { busy.value = false }
   }
 
   async function start() {
-    if (settings.value.enabled) await syncRuntime()
-    state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.start()) }
+    try {
+      if (settings.value.enabled) await syncRuntime()
+      state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.start()) }
+      void reportDiagnosticRecovery('stashPickup', 'pickup')
+    } catch (error) {
+      void reportDiagnosticFailure('stashPickup', 'pickup', error, 'automation_failed')
+      throw error
+    }
   }
 
   async function stop() {
@@ -103,7 +114,15 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   }
 
   function listen() {
-    return electronApi.stashPickup.onEvent(event => { state.value = { ...state.value, ...event } })
+    return electronApi.stashPickup.onEvent(event => {
+      state.value = { ...state.value, ...event }
+      if (event?.event === 'error' || event?.status === 'error') {
+        void reportDiagnosticFailure('stashPickup', 'pickup', event, 'automation_failed')
+      }
+      if (event?.event === 'completed' || event?.status === 'completed') {
+        void reportDiagnosticRecovery('stashPickup', 'pickup')
+      }
+    })
   }
 
   async function initializeRuntime() {

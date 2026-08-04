@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 export const useScriptStore = defineStore('script', () => {
   const isRunning = ref(false)
@@ -14,8 +15,13 @@ export const useScriptStore = defineStore('script', () => {
     mode.value = running && (status.mode === 'items' || status.mode === 'map') ? status.mode : null
     if (status.mode === 'items' || status.mode === 'map') lastMode.value = status.mode
     processId.value = running ? (status.processId ?? null) : null
-    if (status.status === 'error') lastError.value = status.error || '制作脚本异常退出'
-    else if (running || status.status === 'stopped') lastError.value = ''
+    if (status.status === 'error') {
+      lastError.value = status.error || '制作脚本异常退出'
+      void reportDiagnosticFailure(lastMode.value || 'items', 'script_runtime', status, 'process_exit')
+    } else if (running || status.status === 'stopped') {
+      lastError.value = ''
+      if (lastMode.value) void reportDiagnosticRecovery(lastMode.value, 'script_runtime')
+    }
   }
 
   function reset() {

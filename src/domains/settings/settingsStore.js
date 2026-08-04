@@ -8,10 +8,14 @@ import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inven
 import { createDefaultStashTabSelection, normalizeStashTabSelection } from '@/utils/stashTabSelection'
 import { addOverlayBackgroundHistory, normalizeOverlaySettings } from '../../../shared/overlayBackground.js'
 import {
+  DEFAULT_STORY_OVERLAY_WIDTH,
   DEFAULT_STORY_OVERLAY_OPACITY,
   DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL,
+  migrateStoryOverlayLayout,
   normalizeStoryOverlayOpacity,
-  normalizeStoryShowSkillRequiredLevel
+  normalizeStoryOverlayWidth,
+  normalizeStoryShowSkillRequiredLevel,
+  STORY_OVERLAY_LAYOUT_VERSION
 } from './storySkillSettings'
 import {
   DPI_MODE_AUTO,
@@ -92,7 +96,8 @@ export const useSettingsStore = defineStore('settings', () => {
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
   const gameWindowTitles = ref([...DEFAULT_GAME_WINDOW_TITLES])
-  const storyOverlayWidth = ref(560)
+  const storyOverlayWidth = ref(DEFAULT_STORY_OVERLAY_WIDTH)
+  const storyOverlayLayoutVersion = ref(STORY_OVERLAY_LAYOUT_VERSION)
   const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
   const storyShowSkillRequiredLevel = ref(DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL)
 
@@ -287,6 +292,7 @@ export const useSettingsStore = defineStore('settings', () => {
         debugMode: debugMode.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
+        storyOverlayLayoutVersion: storyOverlayLayoutVersion.value,
         storyOverlayOpacity: storyOverlayOpacity.value,
         storyShowSkillRequiredLevel: storyShowSkillRequiredLevel.value,
         backgroundHistory: backgroundHistory.value,
@@ -343,13 +349,17 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.backgroundHistory) {
           backgroundHistory.value = data.backgroundHistory
         }
-        if (data.storyOverlayWidth != null) {
-          storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(data.storyOverlayWidth) || 560)))
-        }
+        const storyOverlayLayout = migrateStoryOverlayLayout({
+          width: data.storyOverlayWidth,
+          layoutVersion: data.storyOverlayLayoutVersion
+        })
+        storyOverlayWidth.value = storyOverlayLayout.width
+        storyOverlayLayoutVersion.value = storyOverlayLayout.layoutVersion
         storyOverlayOpacity.value = normalizeStoryOverlayOpacity(data.storyOverlayOpacity)
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
         stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
+        if (storyOverlayLayout.migrated) saveSettings()
       }
     } catch (error) {
       // 加载设置失败
@@ -376,7 +386,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   const updateStoryOverlayWidth = (width) => {
-    storyOverlayWidth.value = Math.max(360, Math.min(1200, Math.round(Number(width) || 560)))
+    storyOverlayWidth.value = normalizeStoryOverlayWidth(width)
     saveSettings()
     electronApi.storyOverlay.resize({ width: storyOverlayWidth.value })
   }
@@ -422,7 +432,8 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiDetectionError.value = ''
     debugMode.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
-    storyOverlayWidth.value = 560
+    storyOverlayWidth.value = DEFAULT_STORY_OVERLAY_WIDTH
+    storyOverlayLayoutVersion.value = STORY_OVERLAY_LAYOUT_VERSION
     storyOverlayOpacity.value = DEFAULT_STORY_OVERLAY_OPACITY
     storyShowSkillRequiredLevel.value = DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL
     backgroundHistory.value = []

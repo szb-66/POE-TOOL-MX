@@ -50,6 +50,7 @@ import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
+import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -87,6 +88,7 @@ let crossProcessInstanceLock = null
 let stashPickup = null
 let puzzleService = null
 let gameWindowTitles = null
+let diagnosticEvents = null
 
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
@@ -170,6 +172,10 @@ app.whenReady().then(async () => {
   }
   gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
   gameWindowTitles.initialize()
+  diagnosticEvents = new DiagnosticEventStore({
+    userDataPath: app.getPath('userData'),
+    appVersion: app.getVersion()
+  })
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
 
@@ -312,7 +318,8 @@ app.whenReady().then(async () => {
     interfaceDetection,
     automationLock,
     puzzle: puzzleService,
-    gameWindowTitles
+    gameWindowTitles,
+    diagnostics: diagnosticEvents
   })
   
   createApplicationWindow()

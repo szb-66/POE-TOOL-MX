@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
@@ -34,6 +34,33 @@ import {
   RECOVERY_MODE_OPTIONS,
   summarizeModules
 } from './dashboardStatus'
+
+const MODULE_DIAGNOSTIC_REASONS = Object.freeze({
+  items: 'process_exit',
+  map: 'process_exit',
+  bag: 'automation_failed',
+  combat: 'process_exit',
+  shop: 'automation_failed',
+  priceCheck: 'request_failed',
+  crafting: 'data_unavailable',
+  story: 'unknown_failure'
+})
+
+function moduleDiagnosticReason(module) {
+  if (module?.state === 'error') return MODULE_DIAGNOSTIC_REASONS[module.id] || 'unknown_failure'
+  if (module?.state === 'attention') return 'invalid_configuration'
+  return null
+}
+
+function healthDiagnosticReason(item) {
+  if (item?.status === 'ready') return null
+  if (item?.id === 'shortcuts') return 'shortcut_registration_failed'
+  if (item?.id === 'python') return 'runtime_unavailable'
+  if (item?.id === 'dpi') return 'game_window_not_found'
+  if (item?.id === 'network') return 'network_unavailable'
+  if (item?.id === 'userData') return 'directory_unwritable'
+  return 'unavailable'
+}
 
 export function useDashboard() {
   const router = useRouter()
@@ -154,6 +181,7 @@ export function useDashboard() {
 
     return values.map(module => ({
       ...module,
+      reasonCode: moduleDiagnosticReason(module),
       pending: Boolean(pending[module.id]),
       controls: controlsFor(module, activeRecipeId),
       actions: actionsFor(module)
@@ -186,6 +214,34 @@ export function useDashboard() {
     ]
   })
   const healthHasIssues = computed(() => healthItems.value.some(item => item.status !== 'ready'))
+
+  watch(
+    () => modules.value.map(({ id, state, reasonCode }) => ({ id, state, reasonCode })),
+    states => states.forEach(state => {
+      if (state.state === 'attention') return
+      void electronApi.system.recordDiagnosticEvent({
+        area: state.id,
+        operation: 'module_state',
+        outcome: state.state === 'error' ? 'failed' : 'recovered',
+        reasonCode: state.reasonCode
+      })
+    }),
+    { immediate: true, deep: true }
+  )
+
+  watch(
+    () => healthItems.value.find(item => item.id === 'shortcuts'),
+    item => {
+      if (!item || item.status === 'pending') return
+      void electronApi.system.recordDiagnosticEvent({
+        area: 'shortcuts',
+        operation: 'shortcut_registration',
+        outcome: item.status === 'error' ? 'failed' : 'recovered',
+        reasonCode: healthDiagnosticReason(item)
+      })
+    },
+    { immediate: true, deep: true }
+  )
 
   function sharedScriptOccupied(moduleId) {
     return scriptStore.isRunning && scriptStore.mode !== moduleId
@@ -481,9 +537,16 @@ export function useDashboard() {
     if (diagnosticsExporting.value) return
     diagnosticsExporting.value = true
     try {
-      const result = await electronApi.system.exportDiagnostics(
-        modules.value.map(({ id, state }) => ({ id, state }))
-      )
+      const result = await electronApi.system.exportDiagnostics({
+        modules: modules.value.map(({ id, state, reasonCode }) => ({ id, state, reasonCode })),
+        rendererHealth: healthItems.value
+          .filter(item => ['python', 'shortcuts', 'dpi'].includes(item.id))
+          .map(item => ({
+            id: item.id,
+            status: item.status,
+            reasonCode: healthDiagnosticReason(item)
+          }))
+      })
       if (result?.canceled) return
       if (!result?.success) throw new Error(result?.error || '诊断导出失败')
       ElMessage.success(`诊断已导出：${result.fileName}`)

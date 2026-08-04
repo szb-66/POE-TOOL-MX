@@ -14,14 +14,17 @@ import { loadWindowState, saveWindowState } from './state.js'
 import {
   DEFAULT_STORY_DIVIDER_RATIO,
   STORY_DIVIDER_GRIP_HTML,
-  STORY_GRIP_HTML,
   getStoryDividerGripBounds,
   getStoryDividerRatioFromGrip,
-  getStoryGripBounds,
-  getStoryOverlayBoundsFromGrip,
-  normalizeStoryDividerRatio
+  normalizeStoryDividerRatio,
+  storyOverlayBoundsEqual
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
+import {
+  OverlayDragPassthroughController,
+  getFixedOverlayDragBounds,
+  isPointInCenteredOverlayDragHandle
+} from './overlayDrag.js'
 import {
   dipRectangleToPhysical,
   getDisplayPhysicalBounds,
@@ -37,15 +40,28 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow = null
 let overlayWindow = null
 let storyOverlayWindow = null
-let storyOverlayGripWindow = null
 let storyOverlayDividerWindow = null
 let bagStashOverlayWindow = null
 let bagStashOverlaySnapshot = null
 let storyOverlaySnapshot = null
-let storyOverlaySize = { width: 560, height: 360 }
+let storyOverlaySize = { width: 460, height: 220 }
 let storyOverlayLayout = null
 let storyOverlayDividerRatio = DEFAULT_STORY_DIVIDER_RATIO
 let storyOverlayOpacity = 100
+const CRAFTING_OVERLAY_SIZE = Object.freeze({ width: 300, height: 400 })
+
+const craftingOverlayDragPassthrough = new OverlayDragPassthroughController({
+  getWindow: () => overlayWindow,
+  getCursorPoint: () => screen.getCursorScreenPoint(),
+  isPointInHandle: (point, bounds) => isPointInCenteredOverlayDragHandle(point, bounds)
+})
+
+const storyOverlayDragPassthrough = new OverlayDragPassthroughController({
+  getWindow: () => storyOverlayWindow,
+  getCursorPoint: () => screen.getCursorScreenPoint(),
+  isPointInHandle: (point, bounds) => storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible() &&
+    isPointInCenteredOverlayDragHandle(point, bounds)
+})
 
 export function createMainWindow() {
   const state = loadWindowState()
@@ -188,8 +204,7 @@ export function createOverlayWindow() {
   const icon = nativeImage.createFromPath(iconPath)
 
   overlayWindow = new BrowserWindow({
-    width: 300,
-    height: 400,
+    ...CRAFTING_OVERLAY_SIZE,
     x: width - 320,
     y: 20,
     frame: false,
@@ -217,16 +232,18 @@ export function createOverlayWindow() {
   }
 
   overlayWindow.setIgnoreMouseEvents(true, { forward: true }) // 允许鼠标事件转发，实现部分区域可交互
+  craftingOverlayDragPassthrough.setEnabled(true)
+  craftingOverlayDragPassthrough.start()
 
   // 监听渲染进程发送的鼠标事件设置
   overlayWindow.webContents.on('ipc-message', (event, channel, ...args) => {
     if (channel === 'set-ignore-mouse-events') {
-      const ignore = args[0]
-      overlayWindow.setIgnoreMouseEvents(ignore, { forward: true })
+      craftingOverlayDragPassthrough.setEnabled(Boolean(args[0]))
     }
   })
 
   overlayWindow.on('closed', () => {
+    craftingOverlayDragPassthrough.stop()
     overlayWindow = null
   })
 
@@ -234,6 +251,7 @@ export function createOverlayWindow() {
 }
 
 export function closeOverlayWindow() {
+  craftingOverlayDragPassthrough.stop()
   if (overlayWindow) {
     overlayWindow.close()
     overlayWindow = null
@@ -246,6 +264,17 @@ export function getMainWindow() {
 
 export function getOverlayWindow() {
   return overlayWindow
+}
+
+export function setCraftingOverlayDragging(dragging) {
+  craftingOverlayDragPassthrough.setDragging(dragging)
+}
+
+export function moveCraftingOverlayTo(point) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return false
+  const display = screen.getDisplayNearestPoint(point)
+  overlayWindow.setBounds(getFixedOverlayDragBounds(point, display.workArea, CRAFTING_OVERLAY_SIZE), false)
+  return true
 }
 
 function publishBagStashOverlayState() {
@@ -355,15 +384,6 @@ function getStoryOverlayBounds(width, height) {
   }
 }
 
-function syncStoryGripToOverlay() {
-  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed() || !storyOverlayGripWindow || storyOverlayGripWindow.isDestroyed()) return
-  const expected = getStoryGripBounds({ ...storyOverlayWindow.getBounds(), ...storyOverlaySize })
-  const current = storyOverlayGripWindow.getBounds()
-  if (current.x !== expected.x || current.y !== expected.y || current.width !== expected.width || current.height !== expected.height) {
-    storyOverlayGripWindow.setBounds(expected)
-  }
-}
-
 function storyOverlayIsInteractive() {
   return storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible()
 }
@@ -427,60 +447,13 @@ function createStoryDividerWindow() {
     )
     saveWindowState({ storyOverlayDividerRatio })
     publishStoryDividerRatio()
-    syncStoryDividerToOverlay()
   })
+  storyOverlayDividerWindow.on('moved', syncStoryDividerToOverlay)
   const dividerWindow = storyOverlayDividerWindow
   dividerWindow.on('closed', () => {
     if (storyOverlayDividerWindow === dividerWindow) storyOverlayDividerWindow = null
   })
   return storyOverlayDividerWindow
-}
-
-function createStoryGripWindow() {
-  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
-  if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed()) return storyOverlayGripWindow
-
-  storyOverlayGripWindow = new BrowserWindow({
-    ...getStoryGripBounds(storyOverlayWindow.getBounds()),
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focusable: false,
-    resizable: false,
-    movable: true,
-    hasShadow: false,
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
-    }
-  })
-  storyOverlayGripWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(STORY_GRIP_HTML)}`)
-  storyOverlayGripWindow.setAlwaysOnTop(true, 'screen-saver')
-  storyOverlayGripWindow.setOpacity(storyOverlayOpacity / 100)
-  storyOverlayGripWindow.once('ready-to-show', () => {
-    if (storyOverlayGripWindow && !storyOverlayGripWindow.isDestroyed() && storyOverlayIsInteractive()) {
-      storyOverlayGripWindow.showInactive()
-    }
-  })
-  storyOverlayGripWindow.on('move', () => {
-    if (!storyOverlayWindow || storyOverlayWindow.isDestroyed() || !storyOverlayGripWindow || storyOverlayGripWindow.isDestroyed()) return
-    const overlayBounds = storyOverlayWindow.getBounds()
-    const gripBounds = storyOverlayGripWindow.getBounds()
-    const next = getStoryOverlayBoundsFromGrip(gripBounds, overlayBounds, storyOverlaySize)
-    if (overlayBounds.x !== next.x || overlayBounds.y !== next.y) {
-      storyOverlayWindow.setBounds(next)
-      syncStoryDividerToOverlay()
-    }
-  })
-  const gripWindow = storyOverlayGripWindow
-  gripWindow.on('closed', () => {
-    if (storyOverlayGripWindow === gripWindow) storyOverlayGripWindow = null
-  })
-  return storyOverlayGripWindow
 }
 
 export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
@@ -496,7 +469,7 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     resizeStoryOverlay({ width: configuredWidth })
     setStoryOverlayOpacity(storyOverlayOpacity)
     storyOverlayWindow.showInactive()
-    if (storyOverlayOpacity > 0) createStoryGripWindow()?.showInactive()
+    storyOverlayDragPassthrough.start()
     createStoryDividerWindow()
     syncStoryDividerToOverlay()
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
@@ -504,8 +477,8 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     return storyOverlayWindow
   }
 
-  const width = Math.max(360, Math.min(1200, Math.round(Number(configuredWidth) || 560)))
-  const height = 360
+  const width = Math.max(320, Math.min(1200, Math.round(Number(configuredWidth) || 460)))
+  const height = 220
   storyOverlaySize = { width, height }
   storyOverlayWindow = new BrowserWindow({
     ...getStoryOverlayBounds(width, height),
@@ -533,16 +506,14 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
 
   storyOverlayWindow.setIgnoreMouseEvents(true, { forward: true })
   storyOverlayWindow.setOpacity(storyOverlayOpacity / 100)
-  createStoryGripWindow()
   createStoryDividerWindow()
   const overlayWindow = storyOverlayWindow
   overlayWindow.webContents.once('did-finish-load', () => {
     if (storyOverlayWindow !== overlayWindow || overlayWindow.isDestroyed()) return
     if (initialSnapshot) overlayWindow.webContents.send('story-overlay-state', initialSnapshot)
     overlayWindow.showInactive()
-    syncStoryGripToOverlay()
+    storyOverlayDragPassthrough.start()
     publishStoryDividerRatio()
-    if (storyOverlayOpacity > 0) storyOverlayGripWindow?.showInactive()
     syncStoryDividerToOverlay()
   })
 
@@ -553,18 +524,15 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
       if (storyOverlayWindow !== overlayWindow || overlayWindow.isDestroyed()) return
       const { x, y } = overlayWindow.getBounds()
       saveWindowState({ storyOverlayBounds: { x, y } })
-      syncStoryDividerToOverlay()
     }, 250)
   })
   overlayWindow.on('closed', () => {
     clearTimeout(saveTimer)
     if (storyOverlayWindow !== overlayWindow) return
-    const gripWindow = storyOverlayGripWindow
     const dividerWindow = storyOverlayDividerWindow
-    storyOverlayGripWindow = null
     storyOverlayDividerWindow = null
     storyOverlayWindow = null
-    destroyWindow(gripWindow)
+    storyOverlayDragPassthrough.stop()
     destroyWindow(dividerWindow)
   })
   return storyOverlayWindow
@@ -573,19 +541,37 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
 export function resizeStoryOverlay(size) {
   if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return false
   const display = screen.getDisplayMatching(storyOverlayWindow.getBounds())
-  const maxHeight = Math.max(260, Math.floor(display.workArea.height * 0.7))
+  const maxHeight = Math.max(180, Math.floor(display.workArea.height * 0.7))
   const bounds = storyOverlayWindow.getBounds()
   const requestedHeight = typeof size === 'object' ? size?.height : size
   const requestedWidth = typeof size === 'object' ? size?.width : null
-  const nextHeight = requestedHeight == null ? storyOverlaySize.height : Math.max(240, Math.min(maxHeight, Math.round(Number(requestedHeight) || 360)))
-  const maxWidth = Math.max(360, display.workArea.width)
-  const nextWidth = requestedWidth == null ? storyOverlaySize.width : Math.max(360, Math.min(maxWidth, Math.round(Number(requestedWidth) || 560)))
+  const nextHeight = requestedHeight == null ? storyOverlaySize.height : Math.max(150, Math.min(maxHeight, Math.round(Number(requestedHeight) || 220)))
+  const maxWidth = Math.max(320, display.workArea.width)
+  const nextWidth = requestedWidth == null ? storyOverlaySize.width : Math.max(320, Math.min(maxWidth, Math.round(Number(requestedWidth) || 460)))
   storyOverlaySize = { width: nextWidth, height: nextHeight }
   const maxX = display.workArea.x + display.workArea.width - nextWidth
   const nextX = Math.max(display.workArea.x, Math.min(maxX, bounds.x))
-  storyOverlayWindow.setBounds({ ...bounds, x: nextX, width: nextWidth, height: nextHeight })
-  syncStoryGripToOverlay()
+  const nextBounds = { ...bounds, x: nextX, width: nextWidth, height: nextHeight }
+  if (storyOverlayBoundsEqual(bounds, nextBounds)) return true
+  storyOverlayWindow.setBounds(nextBounds)
   syncStoryDividerToOverlay()
+  return true
+}
+
+export function setStoryOverlayDragging(dragging) {
+  storyOverlayDragPassthrough.setDragging(dragging)
+  if (dragging) {
+    storyOverlayDividerWindow?.hide()
+  } else {
+    syncStoryDividerToOverlay()
+  }
+}
+
+export function moveStoryOverlayTo(point) {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return false
+  const display = screen.getDisplayNearestPoint(point)
+  const nextBounds = getFixedOverlayDragBounds(point, display.workArea, storyOverlaySize)
+  storyOverlayWindow.setBounds(nextBounds, false)
   return true
 }
 
@@ -593,30 +579,32 @@ export function setStoryOverlayOpacity(opacity) {
   const number = Number(opacity)
   storyOverlayOpacity = Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100
   const nativeOpacity = storyOverlayOpacity / 100
-  for (const window of [storyOverlayWindow, storyOverlayGripWindow, storyOverlayDividerWindow]) {
+  for (const window of [storyOverlayWindow, storyOverlayDividerWindow]) {
     if (window && !window.isDestroyed()) window.setOpacity(nativeOpacity)
   }
   if (storyOverlayOpacity === 0) {
-    storyOverlayGripWindow?.hide()
     storyOverlayDividerWindow?.hide()
   } else if (storyOverlayWindow?.isVisible()) {
-    storyOverlayGripWindow?.showInactive()
     syncStoryDividerToOverlay()
   }
+  storyOverlayDragPassthrough.sync()
   return true
 }
 
 export function updateStoryOverlayLayout(layout) {
   const numeric = key => Math.max(0, Number(layout?.[key]) || 0)
-  storyOverlayLayout = {
+  const nextLayout = {
     stacked: Boolean(layout?.stacked),
     left: numeric('left'),
     top: numeric('top'),
     width: numeric('width'),
     height: numeric('height')
   }
+  if (storyOverlayLayout && storyOverlayLayout.stacked === nextLayout.stacked &&
+    storyOverlayLayout.left === nextLayout.left && storyOverlayLayout.top === nextLayout.top &&
+    storyOverlayLayout.width === nextLayout.width && storyOverlayLayout.height === nextLayout.height) return true
+  storyOverlayLayout = nextLayout
   createStoryDividerWindow()
-  publishStoryDividerRatio()
   syncStoryDividerToOverlay()
   return true
 }
@@ -635,22 +623,16 @@ export function getStoryOverlaySnapshot() {
 
 export function closeStoryOverlayWindow() {
   const overlayWindow = storyOverlayWindow
-  const gripWindow = storyOverlayGripWindow
   const dividerWindow = storyOverlayDividerWindow
   storyOverlayWindow = null
+  storyOverlayDragPassthrough.stop()
   storyOverlayDividerWindow = null
-  storyOverlayGripWindow = null
   destroyWindow(dividerWindow)
-  destroyWindow(gripWindow)
   destroyWindow(overlayWindow)
 }
 
 export function getStoryOverlayWindow() {
   return storyOverlayWindow
-}
-
-export function getStoryOverlayGripWindow() {
-  return storyOverlayGripWindow
 }
 
 export function getStoryOverlayDividerWindow() {

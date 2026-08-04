@@ -27,6 +27,7 @@ import {
 import { usePriceCheckStore } from '../stores/priceCheck'
 import { validateStashTabSelection } from './stashTabSelection.js'
 import { usePuzzleStore } from '../stores/puzzle.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -61,12 +62,15 @@ export async function initShortcuts() {
       const names = formatShortcutError(result)
       settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })
       ElMessage.error(`全局快捷键注册失败：${names}`)
+      void reportDiagnosticFailure('shortcuts', 'shortcut_registration', result, 'shortcut_registration_failed')
     } else {
       settingsStore.updateShortcutHealth(result)
+      void reportDiagnosticRecovery('shortcuts', 'shortcut_registration')
     }
   } catch (err) {
     settingsStore.updateShortcutHealth({ success: false, error: err.message })
     ElMessage.error(`全局快捷键初始化失败：${err.message}`)
+    void reportDiagnosticFailure('shortcuts', 'shortcut_registration', err, 'shortcut_registration_failed')
   }
 
   // 监听快捷键触发事件
@@ -195,11 +199,14 @@ export async function startCrafting() {
     if (isSuccessfulScriptStart(result)) {
       scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('脚本执行成功')
+      void reportDiagnosticRecovery('items', 'script_start')
     } else {
       ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
+      void reportDiagnosticFailure('items', 'script_start', result, 'process_start_failed')
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
+    void reportDiagnosticFailure('items', 'script_start', error, 'process_start_failed')
   }
 }
 
@@ -277,11 +284,14 @@ export async function startMapRolling() {
     if (isSuccessfulScriptStart(result)) {
       scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('地图洗练脚本执行成功')
+      void reportDiagnosticRecovery('map', 'script_start')
     } else {
       ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
+      void reportDiagnosticFailure('map', 'script_start', result, 'process_start_failed')
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
+    void reportDiagnosticFailure('map', 'script_start', error, 'process_start_failed')
   }
 }
 

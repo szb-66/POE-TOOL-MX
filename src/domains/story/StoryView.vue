@@ -8,7 +8,7 @@
       <div class="overlay-toggle">
         <label>上一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyPrevious" @change="saveShortcut('storyPrevious', $event)" /></label>
         <label>下一步 <KeyCaptureInput :model-value="settings.globalShortcuts.storyNext" @change="saveShortcut('storyNext', $event)" /></label>
-        <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="360" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
+        <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="320" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
         <label>透明度 <el-input-number :model-value="settings.storyOverlayOpacity" :min="0" :max="100" :step="5" controls-position="right" @change="settings.updateStoryOverlayOpacity" />%</label>
         <span>游戏浮窗</span>
         <el-switch :model-value="story.overlayVisible" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
@@ -16,7 +16,7 @@
     </div>
 
     <div class="story-workspace">
-      <el-card class="chapter-panel" shadow="never">
+      <el-card class="story-guide-panel" shadow="never">
         <template #header>
           <div class="preset-panel-header">
             <div class="panel-header">
@@ -33,66 +33,80 @@
             </div>
           </div>
         </template>
-        <el-empty v-if="!story.chapters.length" description="还没有章节" :image-size="72" />
-        <div v-else class="chapter-list">
-          <div
-            v-for="(chapter, index) in displayedChapters"
-            :key="chapter.id"
-            class="chapter-item"
-            :class="{ active: chapter.id === story.currentChapterId, dragging: isDragging('chapter', chapter.id) }"
-            @click="story.selectChapter(chapter.id)"
-            @dragover.prevent="previewDrag($event, 'chapter', chapter.id)"
-            @drop.prevent="dropDrag('chapter')"
-          >
-            <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'chapter', chapter.id)" @dragend="clearDrag">⋮⋮</span>
-            <span class="chapter-order">{{ index + 1 }}</span>
-            <span class="chapter-name">{{ chapter.name || '未命名章节' }}</span>
-            <el-button text type="danger" :icon="Delete" @click.stop="confirmDeleteChapter(chapter)" />
+        <div class="story-guide-layout">
+          <aside class="chapter-directory">
+            <el-empty v-if="!story.chapters.length" description="还没有章节" :image-size="64" />
+            <div v-else class="chapter-list">
+              <div
+                v-for="(chapter, index) in displayedChapters"
+                :key="chapter.id"
+                class="chapter-item"
+                :class="{
+                  active: chapter.id === story.viewedChapterId,
+                  progress: chapter.id === story.currentChapterId,
+                  dragging: isDragging('chapter', chapter.id)
+                }"
+                @click="story.selectChapter(chapter.id)"
+                @dragover.prevent="previewDrag($event, 'chapter', chapter.id)"
+                @drop.prevent="dropDrag('chapter')"
+              >
+                <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'chapter', chapter.id)" @dragend="clearDrag">⋮⋮</span>
+                <span class="chapter-order">{{ index + 1 }}</span>
+                <span class="chapter-name">{{ chapter.name || '未命名章节' }}</span>
+                <span v-if="chapter.id === story.currentChapterId" class="progress-dot" title="当前进度章节"></span>
+                <el-button text type="danger" :icon="Delete" @click.stop="confirmDeleteChapter(chapter)" />
+              </div>
+            </div>
+          </aside>
+
+          <section v-if="story.viewedChapter" class="chapter-details">
+            <div class="chapter-details-header">
+              <el-input v-model="story.viewedChapter.name" maxlength="40" placeholder="章节名称" />
+            </div>
+            <div class="chapter-details-scroll">
+              <el-empty v-if="!story.viewedChapter.steps.length" description="添加本章的第一个步骤" :image-size="64" />
+              <div v-else class="step-list">
+                <div
+                  v-for="(step, index) in displayedSteps"
+                  :key="step.id"
+                  class="step-item"
+                  :class="{ active: step.id === story.currentStepId, dragging: isDragging('step', step.id) }"
+                  @dragover.prevent="previewDrag($event, 'step', step.id)"
+                  @drop.prevent="dropDrag('step')"
+                >
+                  <div class="step-title">
+                    <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'step', step.id)" @dragend="clearDrag">⋮⋮</span>
+                    <span>步骤 {{ index + 1 }}</span>
+                    <el-radio
+                      class="progress-selector"
+                      :model-value="story.currentStepId"
+                      :label="step.id"
+                      @change="story.selectStep(story.viewedChapter.id, step.id)"
+                    >设为当前</el-radio>
+                    <el-button text type="danger" :icon="Delete" @click="story.deleteStep(story.viewedChapter.id, step.id)" />
+                  </div>
+                  <el-input
+                    v-model="step.text"
+                    type="textarea"
+                    :rows="3"
+                    resize="vertical"
+                    placeholder="输入这一阶段需要执行的操作"
+                    :ref="el => { if (el) stepInputRefs[step.id] = el }"
+                  />
+                </div>
+              </div>
+              <div class="add-step-row">
+                <el-button type="primary" :icon="Plus" @click="addStepAndFocus">添加步骤</el-button>
+              </div>
+            </div>
+          </section>
+          <div v-else class="chapter-details empty-details">
+            <el-empty description="添加或选择章节后开始编辑" />
           </div>
         </div>
       </el-card>
 
-      <template v-if="story.currentChapter">
-        <el-card class="steps-panel" shadow="never">
-          <template #header>
-            <div class="panel-header">
-              <el-input v-model="story.currentChapter.name" maxlength="40" placeholder="章节名称" />
-            </div>
-          </template>
-          <el-empty v-if="!story.currentChapter.steps.length" description="添加本章的第一个步骤" :image-size="72" />
-          <div v-else class="step-list">
-            <div
-              v-for="(step, index) in displayedSteps"
-              :key="step.id"
-              class="step-item"
-              :class="{ active: step.id === story.currentStepId, dragging: isDragging('step', step.id) }"
-              @click="story.selectStep(story.currentChapter.id, step.id)"
-              @dragover.prevent="previewDrag($event, 'step', step.id)"
-              @drop.prevent="dropDrag('step')"
-            >
-              <div class="step-title">
-                <span class="drag-handle" draggable="true" title="拖动排序" @dragstart.stop="startDrag($event, 'step', step.id)" @dragend="clearDrag">⋮⋮</span>
-                <span>步骤 {{ index + 1 }}</span>
-                <el-tag v-if="step.id === story.currentStepId" size="small" type="success">当前</el-tag>
-                <el-button text type="danger" :icon="Delete" @click.stop="story.deleteStep(story.currentChapter.id, step.id)" />
-              </div>
-              <el-input
-                v-model="step.text"
-                type="textarea"
-                :rows="3"
-                resize="vertical"
-                placeholder="输入这一阶段需要执行的操作"
-                :ref="el => { if (el) stepInputRefs[step.id] = el }"
-                @focus="story.selectStep(story.currentChapter.id, step.id)"
-              />
-            </div>
-          </div>
-          <div class="add-step-row">
-            <el-button type="primary" :icon="Plus" @click="addStepAndFocus">添加步骤</el-button>
-          </div>
-        </el-card>
-
-        <el-card class="skills-panel" shadow="never">
+      <el-card class="skills-panel" shadow="never">
           <template #header>
             <div class="preset-panel-header">
               <div class="preset-bar">
@@ -111,12 +125,13 @@
                 </label>
                 <div class="skill-panel-actions">
                   <el-button size="small" :icon="CopyDocument" :disabled="!story.canCopySkillsToNextChapter" @click="copySkillsToNext">复制到下一章</el-button>
-                  <el-button type="primary" size="small" :icon="Plus" @click="story.addSkillGroup(story.currentChapter.id)">技能组</el-button>
+                  <el-button type="primary" size="small" :icon="Plus" :disabled="!story.viewedChapter" @click="story.addSkillGroup(story.viewedChapter.id)">技能组</el-button>
                 </div>
               </div>
             </div>
           </template>
-          <el-empty v-if="!story.currentSkillGroups.length" description="本章未配置技能" :image-size="72" />
+          <el-empty v-if="!story.viewedChapter" description="请先选择章节" :image-size="72" />
+          <el-empty v-else-if="!story.viewedSkillGroups.length" description="本章未配置技能" :image-size="72" />
           <div v-else class="skill-groups">
             <div
               v-for="group in displayedSkillGroups"
@@ -129,7 +144,7 @@
               <div class="group-header">
                 <span class="drag-handle" draggable="true" title="拖动技能组排序" @dragstart.stop="startDrag($event, 'skill-group', group.id)" @dragend="clearDrag">⋮⋮</span>
                 <el-input v-model="group.name" maxlength="30" placeholder="技能组名称" />
-                <el-button :icon="Plus" circle @click="story.addSkill(story.currentChapter.id, group.id)" />
+                <el-button :icon="Plus" circle @click="story.addSkill(story.viewedChapter.id, group.id)" />
                 <el-button :icon="Delete" circle type="danger" @click="confirmDeleteGroup(group)" />
               </div>
               <div v-if="group.skills.length" class="skills-list">
@@ -160,17 +175,12 @@
                     <el-option label="蓝色" value="blue" />
                     <el-option label="白色" value="white" />
                   </el-select>
-                  <el-button text type="danger" :icon="Delete" @click="story.deleteSkill(story.currentChapter.id, group.id, skill.id)" />
+                  <el-button text type="danger" :icon="Delete" @click="story.deleteSkill(story.viewedChapter.id, group.id, skill.id)" />
                 </div>
               </div>
               <div v-else class="empty-group">暂无技能</div>
             </div>
           </div>
-        </el-card>
-      </template>
-
-      <el-card v-else class="empty-editor" shadow="never">
-        <el-empty description="添加或选择章节后开始编辑" />
       </el-card>
     </div>
   </div>
@@ -199,8 +209,8 @@ let saveTimer = null
 const dragPreview = ref(null)
 const stepInputRefs = {}
 const displayedChapters = computed(() => orderPreviewItems('chapter', story.chapters))
-const displayedSteps = computed(() => orderPreviewItems('step', story.currentChapter?.steps || []))
-const displayedSkillGroups = computed(() => orderPreviewItems('skill-group', story.currentSkillGroups))
+const displayedSteps = computed(() => orderPreviewItems('step', story.viewedChapter?.steps || []))
+const displayedSkillGroups = computed(() => orderPreviewItems('skill-group', story.viewedSkillGroups))
 
 function fetchSkillSuggestions(query, callback) {
   callback(searchSkillCatalog(skillCatalog.skills, query))
@@ -231,7 +241,8 @@ function skillColorLabel(color) {
 }
 
 function addStepAndFocus() {
-  const step = story.addStep(story.currentChapter.id)
+  if (!story.viewedChapter) return
+  const step = story.addStep(story.viewedChapter.id)
   if (!step) return
   nextTick(() => stepInputRefs[step.id]?.focus())
 }
@@ -243,8 +254,8 @@ function prepareDrag(event, id) {
 
 function dragItems(type) {
   if (type === 'chapter') return story.chapters
-  if (type === 'step') return story.currentChapter?.steps || []
-  return story.currentSkillGroups
+  if (type === 'step') return story.viewedChapter?.steps || []
+  return story.viewedSkillGroups
 }
 
 function orderPreviewItems(type, items) {
@@ -262,7 +273,7 @@ function startDrag(event, type, movedId) {
   dragPreview.value = {
     type,
     movedId,
-    chapterId: type === 'chapter' ? null : story.currentChapter?.id,
+    chapterId: type === 'chapter' ? null : story.viewedChapter?.id,
     ids: items.map(item => item.id)
   }
   prepareDrag(event, movedId)
@@ -369,7 +380,7 @@ function switchPreset(type, id) {
 
 async function copySkillsToNext() {
   if (!story.canCopySkillsToNextChapter) return
-  const targetGroups = story.currentSkillPreset.chapterSkills[story.currentChapterIndex + 1]?.skillGroups || []
+  const targetGroups = story.currentSkillPreset.chapterSkills[story.viewedChapterIndex + 1]?.skillGroups || []
   try {
     if (targetGroups.length) {
       await ElMessageBox.confirm('下一章已有技能配置，确认完整覆盖？', '复制章节技能', { type: 'warning' })
@@ -409,21 +420,33 @@ async function confirmDeleteChapter(chapter) {
 }
 
 async function confirmDeleteGroup(group) {
+  if (!story.viewedChapter) return
   try {
     await ElMessageBox.confirm(`删除技能组“${group.name || '未命名'}”？`, '删除技能组', { type: 'warning' })
-    story.deleteSkillGroup(story.currentChapter.id, group.id)
+    story.deleteSkillGroup(story.viewedChapter.id, group.id)
   } catch {}
 }
 </script>
 
 <style scoped lang="less">
-.story-page { height: 100%; overflow: auto; padding: 20px; background: var(--bg-secondary); box-sizing: border-box; }
+.story-page { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; padding: 20px; background: var(--bg-secondary); box-sizing: border-box; }
 .page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .skill-panel-actions, .level-toggle, .preset-bar { display: flex; align-items: center; }
-.page-header { justify-content: space-between; gap: 20px; margin-bottom: 18px; h2 { margin: 0 0 6px; } p { margin: 0; color: var(--text-secondary); } }
+.page-header { flex: 0 0 auto; justify-content: space-between; gap: 20px; margin-bottom: 18px; h2 { margin: 0 0 6px; } p { margin: 0; color: var(--text-secondary); } }
 .overlay-toggle { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .overlay-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .overlay-toggle :deep(.el-input-number) { width: 118px; }
-.story-workspace { display: grid; grid-template-columns: 240px minmax(340px, 1.35fr) minmax(340px, 1fr); gap: 16px; align-items: start; }
+.story-workspace { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(600px, 1.7fr) minmax(340px, 1fr); gap: 16px; align-items: stretch; }
+.story-guide-panel, .skills-panel { display: flex; min-height: 0; flex-direction: column; }
+.story-guide-panel :deep(.el-card__header), .skills-panel :deep(.el-card__header) { flex: 0 0 auto; }
+.story-guide-panel :deep(.el-card__body), .skills-panel :deep(.el-card__body) { min-height: 0; flex: 1; }
+.story-guide-panel :deep(.el-card__body) { overflow: hidden; padding: 0; }
+.skills-panel :deep(.el-card__body) { overflow-y: auto; }
+.story-guide-layout { display: grid; height: 100%; min-height: 0; grid-template-columns: 240px minmax(0, 1fr); }
+.chapter-directory { min-width: 0; overflow-y: auto; padding: 12px; border-right: 1px solid var(--border-color); }
+.chapter-details { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+.chapter-details-header { flex: 0 0 auto; padding: 12px; border-bottom: 1px solid var(--border-color); }
+.chapter-details-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px; }
+.empty-details { align-items: center; justify-content: center; }
 .preset-panel-header { display: grid; gap: 9px; }
 .panel-header { justify-content: space-between; gap: 10px; }
 .preset-bar { gap: 6px; min-width: 0; }
@@ -431,21 +454,25 @@ async function confirmDeleteGroup(group) {
 .preset-bar :deep(.el-select) { min-width: 0; flex: 1; }
 .skill-panel-actions { gap: 8px; }
 .level-toggle { gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
-.chapter-panel, .steps-panel, .skills-panel, .empty-editor { min-height: 280px; }
 .chapter-list, .step-list, .skill-groups, .skills-list { display: flex; flex-direction: column; gap: 10px; }
 .chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; }
 .step-item.active { border-color: var(--primary-color); background: var(--primary-light-9); }
 .chapter-item.active { border-color: var(--primary-color); background: var(--el-color-primary-light-8); box-shadow: inset 3px 0 0 var(--primary-color); }
 .chapter-item.active .chapter-name { font-weight: 700; }
+.chapter-item.progress:not(.active) { border-color: var(--el-color-success-light-5); }
+.progress-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--el-color-success); box-shadow: 0 0 0 3px var(--el-color-success-light-8); }
 .chapter-order { flex: 0 0 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; background: var(--fill-color-light); }
 .chapter-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drag-handle { flex: 0 0 auto; color: var(--text-placeholder); cursor: grab; user-select: none; font-weight: 700; letter-spacing: -3px; padding: 3px 5px 3px 1px; }
 .drag-handle:active { cursor: grabbing; }
 .chapter-item.dragging, .step-item.dragging, .skill-group.dragging { opacity: .45; }
-.step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; cursor: pointer; }
+.step-item, .skill-group { border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; }
+.skill-group { cursor: pointer; }
 .step-item :deep(.el-textarea__inner), .skill-group :deep(.el-input__inner) { cursor: text; }
 .step-title { justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .step-title > span:nth-child(2) { flex: 1; font-weight: 600; }
+.progress-selector { flex: 0 0 auto; margin-right: 0; }
+.progress-selector :deep(.el-radio__label) { padding-left: 5px; font-size: 12px; }
 .group-header { gap: 8px; margin-bottom: 10px; }
 .skill-row { gap: 8px; }
 .skill-autocomplete { min-width: 0; flex: 1; }
@@ -459,8 +486,22 @@ async function confirmDeleteGroup(group) {
 .color-dot.white { background: #f5f5f5; }
 .color-select { width: 92px; flex: 0 0 92px; }
 .empty-group { color: var(--text-placeholder); font-size: 13px; text-align: center; padding: 8px; }
-.empty-editor { grid-column: 2 / 4; }
 .add-step-row { margin-top: 10px; }
 .add-step-row :deep(.el-button) { width: 100%; }
-@media (max-width: 1100px) { .story-workspace { grid-template-columns: 220px 1fr; } .skills-panel { grid-column: 2; } }
+@media (max-width: 1100px) {
+  .story-page { overflow-y: auto; }
+  .story-workspace { display: flex; min-height: auto; flex: 0 0 auto; flex-direction: column; }
+  .story-guide-panel { height: 560px; }
+  .skills-panel { min-height: 360px; }
+}
+@media (max-width: 720px) {
+  .story-page { padding: 14px; }
+  .page-header { align-items: flex-start; flex-direction: column; }
+  .overlay-toggle { justify-content: flex-start; }
+  .story-guide-panel { height: auto; }
+  .story-guide-panel :deep(.el-card__body) { overflow: visible; }
+  .story-guide-layout { height: auto; grid-template-columns: 1fr; }
+  .chapter-directory { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--border-color); }
+  .chapter-details-scroll { max-height: 520px; }
+}
 </style>

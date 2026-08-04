@@ -100,9 +100,10 @@ onUnmounted(() => disposeState?.())
   gap: 3px;
   align-items: center;
   justify-content: center;
-  cursor: move;
+  cursor: grab;
   touch-action: none;
 }
+.drag-handle:active { cursor: grabbing; }
 .drag-handle span {
   width: 3px;
   height: 3px;

@@ -75,14 +75,17 @@ function normalizeStoryProgress(preset) {
   const current = flow.find(item => item.step.id === preset.currentStepId)
   if (current) {
     preset.currentChapterId = current.chapter.id
-    return preset
+  } else {
+    const selectedChapter = preset.chapters.find(chapter => chapter.id === preset.currentChapterId)
+    const fallback = selectedChapter?.steps.length
+      ? flow.find(item => item.chapter.id === selectedChapter.id)
+      : flow[0]
+    preset.currentChapterId = fallback?.chapter.id || selectedChapter?.id || preset.chapters[0]?.id || null
+    preset.currentStepId = fallback?.step.id || null
   }
-  const selectedChapter = preset.chapters.find(chapter => chapter.id === preset.currentChapterId)
-  const fallback = selectedChapter?.steps.length
-    ? flow.find(item => item.chapter.id === selectedChapter.id)
-    : flow[0]
-  preset.currentChapterId = fallback?.chapter.id || selectedChapter?.id || preset.chapters[0]?.id || null
-  preset.currentStepId = fallback?.step.id || null
+
+  const viewedChapter = preset.chapters.find(chapter => chapter.id === preset.viewedChapterId)
+  preset.viewedChapterId = viewedChapter?.id || preset.currentChapterId || preset.chapters[0]?.id || null
   return preset
 }
 
@@ -92,7 +95,8 @@ function normalizeStoryPreset(raw, index = 0) {
     name: normalizeName(raw?.name, index === 0 ? '默认剧情' : `剧情预设 ${index + 1}`),
     chapters: Array.isArray(raw?.chapters) ? raw.chapters.map(normalizeChapter) : [],
     currentChapterId: typeof raw?.currentChapterId === 'string' ? raw.currentChapterId : null,
-    currentStepId: typeof raw?.currentStepId === 'string' ? raw.currentStepId : null
+    currentStepId: typeof raw?.currentStepId === 'string' ? raw.currentStepId : null,
+    viewedChapterId: typeof raw?.viewedChapterId === 'string' ? raw.viewedChapterId : null
   })
 }
 
@@ -127,7 +131,8 @@ function migrateLegacyStoryData(raw) {
       name: '默认剧情',
       chapters,
       currentChapterId: raw?.currentChapterId,
-      currentStepId: raw?.currentStepId
+      currentStepId: raw?.currentStepId,
+      viewedChapterId: raw?.viewedChapterId
     })],
     skillPresets: [normalizeSkillPreset({
       id: DEFAULT_SKILL_PRESET_ID,
@@ -213,7 +218,8 @@ export function createStoryPreset(name, source = null) {
     name: normalizeName(name, '新剧情预设'),
     chapters,
     currentChapterId: null,
-    currentStepId: null
+    currentStepId: null,
+    viewedChapterId: null
   }
   if (source?.currentStepId) {
     const sourceFlow = buildStoryFlow(source.chapters)
@@ -222,6 +228,10 @@ export function createStoryPreset(name, source = null) {
     const target = targetFlow[sourceIndex]
     preset.currentChapterId = target?.chapter.id || chapters[0]?.id || null
     preset.currentStepId = target?.step.id || null
+  }
+  if (source?.viewedChapterId) {
+    const viewedIndex = source.chapters.findIndex(chapter => chapter.id === source.viewedChapterId)
+    preset.viewedChapterId = chapters[viewedIndex]?.id || preset.currentChapterId
   }
   return normalizeStoryProgress(preset)
 }

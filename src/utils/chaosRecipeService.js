@@ -1,6 +1,7 @@
 import { ElMessage } from 'element-plus'
 import { useChaosRecipeStore } from '../stores/chaosRecipe.js'
 import { useInterfaceDetectionStore } from '../stores/interfaceDetection.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 
 export async function startChaosRecipePicking() {
   const store = useChaosRecipeStore()
@@ -20,8 +21,10 @@ export async function startChaosRecipePicking() {
       matchThreshold: detectionStore.matchThreshold,
       operationDelayMs: store.settings.operationDelayMs
     })
+    void reportDiagnosticRecovery('shop', 'automation')
   } catch (error) {
     ElMessage.error(error.message)
+    void reportDiagnosticFailure('shop', 'automation', error, 'automation_failed')
   }
 }
 

@@ -7,7 +7,7 @@
     mode="vertical"
   >
     <el-menu-item index="/">
-      <el-icon><HomeFilled /></el-icon>
+      <el-icon><House /></el-icon>
       <span>首页</span>
     </el-menu-item>
     <el-menu-item index="/items">
@@ -15,7 +15,7 @@
       <span>物品</span>
     </el-menu-item>
     <el-menu-item index="/bag">
-      <el-icon><Briefcase /></el-icon>
+      <el-icon><SuitcaseLine /></el-icon>
       <span>背包</span>
     </el-menu-item>
     <el-menu-item index="/map">
@@ -35,7 +35,7 @@
       <span>商城</span>
     </el-menu-item>
     <el-menu-item index="/craft-planner">
-      <el-icon><Tools /></el-icon>
+      <el-icon><SetUp /></el-icon>
       <span>做装</span>
     </el-menu-item>
     <el-menu-item index="/price-check">
@@ -43,7 +43,7 @@
       <span>查价</span>
     </el-menu-item>
     <el-menu-item index="/puzzle">
-      <el-icon><Grid /></el-icon>
+      <el-icon><Guide /></el-icon>
       <span>海图</span>
     </el-menu-item>
     <el-menu-item index="/settings">
@@ -51,7 +51,7 @@
       <span>设置</span>
     </el-menu-item>
     <el-menu-item index="/help">
-      <el-icon><QuestionFilled /></el-icon>
+      <el-icon><Help /></el-icon>
       <span>帮助</span>
     </el-menu-item>
   </el-menu>
@@ -60,7 +60,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Briefcase, Coin, Grid, HomeFilled, MapLocation, ShoppingBag, Setting, QuestionFilled, FirstAidKit, Notebook, Tools } from '@element-plus/icons-vue'
+import { Box, Coin, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

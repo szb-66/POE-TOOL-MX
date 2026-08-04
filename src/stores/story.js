@@ -43,11 +43,20 @@ export const useStoryStore = defineStore('story', () => {
     get: () => currentStoryPreset.value?.currentStepId || null,
     set: value => { if (currentStoryPreset.value) currentStoryPreset.value.currentStepId = value }
   })
+  const viewedChapterId = computed({
+    get: () => currentStoryPreset.value?.viewedChapterId || null,
+    set: value => { if (currentStoryPreset.value) currentStoryPreset.value.viewedChapterId = value }
+  })
   const currentChapter = computed(() => chapters.value.find(item => item.id === currentChapterId.value) || null)
   const currentChapterIndex = computed(() => chapters.value.findIndex(item => item.id === currentChapterId.value))
   const currentStep = computed(() => currentChapter.value?.steps.find(item => item.id === currentStepId.value) || null)
   const currentSkillGroups = computed(() =>
     currentSkillPreset.value?.chapterSkills?.[currentChapterIndex.value]?.skillGroups || []
+  )
+  const viewedChapter = computed(() => chapters.value.find(item => item.id === viewedChapterId.value) || null)
+  const viewedChapterIndex = computed(() => chapters.value.findIndex(item => item.id === viewedChapterId.value))
+  const viewedSkillGroups = computed(() =>
+    currentSkillPreset.value?.chapterSkills?.[viewedChapterIndex.value]?.skillGroups || []
   )
   const snapshot = computed(() => buildStorySnapshot(
     chapters.value,
@@ -59,7 +68,7 @@ export const useStoryStore = defineStore('story', () => {
     }
   ))
   const canCopySkillsToNextChapter = computed(() =>
-    currentChapterIndex.value >= 0 && currentChapterIndex.value < chapters.value.length - 1
+    viewedChapterIndex.value >= 0 && viewedChapterIndex.value < chapters.value.length - 1
   )
 
   function stateData() {
@@ -84,14 +93,16 @@ export const useStoryStore = defineStore('story', () => {
   function selectEntry(entry) {
     currentChapterId.value = entry?.chapter.id || null
     currentStepId.value = entry?.step.id || null
+    viewedChapterId.value = entry?.chapter.id || viewedChapterId.value
     save()
   }
 
   function selectChapter(chapterId) {
     const chapter = chapters.value.find(item => item.id === chapterId)
-    currentChapterId.value = chapter?.id || null
-    currentStepId.value = chapter?.steps[0]?.id || null
-    save()
+    if (!chapter) return false
+    viewedChapterId.value = chapter.id
+    save({ sync: false })
+    return true
   }
 
   function selectStep(chapterId, stepId) {
@@ -176,9 +187,8 @@ export const useStoryStore = defineStore('story', () => {
       steps: []
     }
     chapters.value.push(chapter)
-    currentChapterId.value = chapter.id
-    currentStepId.value = null
-    save()
+    viewedChapterId.value = chapter.id
+    save({ sync: false })
     return chapter
   }
 
@@ -188,18 +198,19 @@ export const useStoryStore = defineStore('story', () => {
     const removedIndex = chapters.value.findIndex(item => item.id === chapterId)
     if (removedIndex < 0) return
     const removingCurrent = currentChapterId.value === chapterId
+    const removingViewed = viewedChapterId.value === chapterId
     chapters.value.splice(removedIndex, 1)
     if (removingCurrent) {
       const entry = selectStoryEntryAfterRemoval(chapters.value, activeIndex)
-      if (entry) selectEntry(entry)
-      else {
-        currentChapterId.value = chapters.value[Math.min(removedIndex, chapters.value.length - 1)]?.id || null
-        currentStepId.value = null
-        save()
-      }
-    } else {
-      save()
+      currentChapterId.value = entry?.chapter.id || null
+      currentStepId.value = entry?.step.id || null
     }
+    if (removingViewed) {
+      viewedChapterId.value = chapters.value[Math.min(removedIndex, chapters.value.length - 1)]?.id
+        || currentChapterId.value
+        || null
+    }
+    save()
   }
 
   function addStep(chapterId) {
@@ -207,7 +218,8 @@ export const useStoryStore = defineStore('story', () => {
     if (!chapter) return null
     const step = { id: createStoryId('step'), text: '' }
     chapter.steps.push(step)
-    selectStep(chapter.id, step.id)
+    viewedChapterId.value = chapter.id
+    save({ sync: false })
     return step
   }
 
@@ -221,15 +233,10 @@ export const useStoryStore = defineStore('story', () => {
     chapter.steps.splice(index, 1)
     if (removingCurrent) {
       const entry = selectStoryEntryAfterRemoval(chapters.value, removedFlowIndex)
-      if (entry) selectEntry(entry)
-      else {
-        currentChapterId.value = chapter.id
-        currentStepId.value = null
-        save()
-      }
-    } else {
-      save()
+      currentChapterId.value = entry?.chapter.id || null
+      currentStepId.value = entry?.step.id || null
     }
+    save()
   }
 
   function reorderChapter(chapterId, destinationIndex) {
@@ -245,7 +252,7 @@ export const useStoryStore = defineStore('story', () => {
     return true
   }
 
-  function ensureSkillSlot(chapterIndex = currentChapterIndex.value) {
+  function ensureSkillSlot(chapterIndex = viewedChapterIndex.value) {
     if (!currentSkillPreset.value || chapterIndex < 0) return null
     while (currentSkillPreset.value.chapterSkills.length <= chapterIndex) {
       currentSkillPreset.value.chapterSkills.push({ skillGroups: [] })
@@ -305,8 +312,8 @@ export const useStoryStore = defineStore('story', () => {
     if (!canCopySkillsToNextChapter.value) return false
     replaceChapterSkillGroups(
       currentSkillPreset.value.chapterSkills,
-      currentChapterIndex.value,
-      currentChapterIndex.value + 1
+      viewedChapterIndex.value,
+      viewedChapterIndex.value + 1
     )
     save()
     return true
@@ -345,10 +352,14 @@ export const useStoryStore = defineStore('story', () => {
     chapters,
     currentChapterId,
     currentStepId,
+    viewedChapterId,
     currentChapter,
     currentChapterIndex,
     currentStep,
     currentSkillGroups,
+    viewedChapter,
+    viewedChapterIndex,
+    viewedSkillGroups,
     overlayVisible,
     snapshot,
     canCopySkillsToNextChapter,

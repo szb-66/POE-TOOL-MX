@@ -4,6 +4,7 @@ import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { validateCombatAssist } from './combatConfig.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 
 let statusListenerRegistered = false
 
@@ -31,10 +32,12 @@ export async function startPotionAssist() {
   })
   if (!result?.success) {
     ElMessage.error(result?.error || '启动自动喝药失败')
+    void reportDiagnosticFailure('combat', 'script_start', result, 'process_start_failed')
     return false
   }
   store.applyStatus({ running: true, processId: result.processId, event: 'starting' })
   if (!result.alreadyRunning) ElMessage.success('自动喝药已启动')
+  void reportDiagnosticRecovery('combat', 'script_start')
   return true
 }
 
@@ -65,8 +68,10 @@ export async function executePortalAssist() {
   })
   if (!result?.success) {
     ElMessage.error(result?.error || '一键回城执行失败')
+    void reportDiagnosticFailure('combat', 'automation', result, 'automation_failed')
     return false
   }
   ElMessage.success('回城流程已执行')
+  void reportDiagnosticRecovery('combat', 'automation')
   return true
 }

@@ -1,3 +1,5 @@
+import { getFixedOverlayDragBounds } from './overlayDrag.js'
+
 export const BAG_OVERLAY_SIZE = Object.freeze({ width: 188, height: 64 })
 
 function normalizeSize(size) {
@@ -38,15 +40,5 @@ export function getBagOverlayBounds(savedBounds, displays, size = BAG_OVERLAY_SI
 }
 
 export function getBagOverlayDragBounds(point, workArea, size = BAG_OVERLAY_SIZE) {
-  const { width, height } = normalizeSize(size)
-  const minX = Math.round(workArea.x)
-  const minY = Math.round(workArea.y)
-  const maxX = Math.max(minX, Math.round(workArea.x + workArea.width - width))
-  const maxY = Math.max(minY, Math.round(workArea.y + workArea.height - height))
-  return {
-    x: Math.max(minX, Math.min(maxX, Math.round(point.x))),
-    y: Math.max(minY, Math.min(maxY, Math.round(point.y))),
-    width,
-    height
-  }
+  return getFixedOverlayDragBounds(point, workArea, normalizeSize(size))
 }

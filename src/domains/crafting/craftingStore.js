@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '../../api/electron.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../../utils/diagnostics.js'
 
 export const useCraftingStore = defineStore('crafting-simulator', () => {
   const status = ref(null)
@@ -290,8 +291,10 @@ export const useCraftingStore = defineStore('crafting-simulator', () => {
         veiled.value = await electronApi.crafting.listManualVeiledCrafts(session.value)
         beastcraft.value = await electronApi.crafting.listManualBeastcrafts(session.value, { beastLevel: beastcraft.value.beastLevel })
       }
+      void reportDiagnosticRecovery('crafting', 'data_update')
     } catch (error) {
       updateError.value = error?.message || '更新失败'
+      void reportDiagnosticFailure('crafting', 'data_update', error, 'data_unavailable')
       throw error
     } finally { updating.value = false }
   }

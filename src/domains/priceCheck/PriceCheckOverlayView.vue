@@ -344,7 +344,8 @@ onUnmounted(() => {
 <style scoped>
 * { box-sizing: border-box; }
 .overlay-shell { min-height: 100vh; color: #e8ebf2; background: #12141a; border: 1px solid #303642; border-radius: 9px; overflow: hidden; font: 12px/1.3 "Microsoft YaHei", sans-serif; }
-.topbar { height: 44px; display: flex; align-items: center; padding: 5px 9px; background: #1a1d25; border-bottom: 1px solid #2b303a; -webkit-app-region: drag; }
+.topbar { height: 44px; display: flex; align-items: center; padding: 5px 9px; background: #1a1d25; border-bottom: 1px solid #2b303a; cursor: grab; -webkit-app-region: drag; }
+.topbar:active { cursor: grabbing; }
 .icon-button, .close-button, .shortcut, .dc-rate { -webkit-app-region: no-drag; }
 .icon-button { width: 32px; height: 32px; padding: 0; font-size: 18px; background: #292e55; }
 .dc-rate { margin-left: 8px; color: #f4c56a; font-size: 11px; }

@@ -14,6 +14,7 @@ import {
   VENDOR_RECIPE_IDS
 } from '../../electron/modules/chaosRecipe/engine.js'
 import { normalizeStashGridRegion } from '../utils/stashGridCalibration.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'chaosRecipeSettings'
 
@@ -221,7 +222,8 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   async function refresh() {
-    return run(async () => {
+    try {
+      const result = await run(async () => {
       snapshot.value = unwrap(await electronApi.chaosRecipe.refresh({
         league: league.value,
         selectedTabIds: settings.value.selectedTabIds,
@@ -242,7 +244,13 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       save()
       if (settings.value.enabled) await syncRuntime()
       return snapshot.value
-    })
+      })
+      void reportDiagnosticRecovery('shop', 'refresh')
+      return result
+    } catch (error) {
+      void reportDiagnosticFailure('shop', 'refresh', error, 'request_failed')
+      throw error
+    }
   }
 
   async function calibrate(type) {
@@ -259,14 +267,21 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   async function startAutomation(runtime) {
-    return run(async () => {
+    try {
+      const result = await run(async () => {
       const result = unwrap(await electronApi.chaosRecipe.startAutomation({
         ...currentPlanRequest(),
         ...runtime
       }))
       automation.value = { ...automation.value, ...result }
       return result
-    })
+      })
+      void reportDiagnosticRecovery('shop', 'automation')
+      return result
+    } catch (error) {
+      void reportDiagnosticFailure('shop', 'automation', error, 'automation_failed')
+      throw error
+    }
   }
 
   async function pauseAutomation() {
@@ -357,6 +372,8 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function listenAutomation() {
     const disposeAutomation = electronApi.chaosRecipe.onAutomationEvent((event) => {
       automation.value = { ...automation.value, ...event }
+      if (event.event === 'error') void reportDiagnosticFailure('shop', 'automation', event, 'automation_failed')
+      if (event.event === 'completed') void reportDiagnosticRecovery('shop', 'automation')
       if (event.event === 'completed' && league.value && settings.value.selectedTabIds.length) {
         setTimeout(() => { void refresh().catch(() => {}) }, 1500)
       }

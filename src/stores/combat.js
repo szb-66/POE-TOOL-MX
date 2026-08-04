@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 export const useCombatStore = defineStore('combat', () => {
   const running = ref(false)
@@ -11,7 +12,10 @@ export const useCombatStore = defineStore('combat', () => {
   const lastError = ref('')
 
   function applyStatus(status = {}) {
-    if (status.event === 'starting' || status.event === 'started') lastError.value = ''
+    if (status.event === 'starting' || status.event === 'started') {
+      lastError.value = ''
+      void reportDiagnosticRecovery('combat', 'script_runtime')
+    }
     if (typeof status.running === 'boolean') running.value = status.running
     if (status.processId !== undefined) processId.value = status.processId
     if (status.event === 'focus') focused.value = Boolean(status.active)
@@ -21,7 +25,10 @@ export const useCombatStore = defineStore('combat', () => {
       if (status.resource === 'health') healthTriggers.value += 1
       if (status.resource === 'mana') manaTriggers.value += 1
     }
-    if (status.event === 'error') lastError.value = status.error || '战斗辅助发生错误'
+    if (status.event === 'error') {
+      lastError.value = status.error || '战斗辅助发生错误'
+      void reportDiagnosticFailure('combat', 'script_runtime', status, 'process_exit')
+    }
     if (!running.value) {
       focused.value = false
       protectedMode.value = false

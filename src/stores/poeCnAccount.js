@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'poeCnAccountSettings'
 const CHAOS_STORAGE_KEY = 'chaosRecipeSettings'
@@ -146,9 +147,12 @@ export const usePoeCnAccountStore = defineStore('poeCnAccount', () => {
     busy.value = true
     error.value = null
     try {
-      return await action()
+      const result = await action()
+      void reportDiagnosticRecovery('shop', 'authentication')
+      return result
     } catch (caught) {
       error.value = caught
+      void reportDiagnosticFailure('shop', 'authentication', caught, 'authentication_failed')
       throw caught
     } finally {
       busy.value = false

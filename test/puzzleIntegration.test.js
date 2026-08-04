@@ -105,6 +105,26 @@ test('出口按钮支持左右键三态、常驻清空和明确无解提示', ()
   assert.match(view, /\.exit-button\.forbidden[\s\S]*var\(--el-color-danger\)[\s\S]*text-decoration: line-through/)
 })
 
+test('九宫格无解状态区分数量、类型组合和出口限制并提供醒目反馈', () => {
+  const store = source('../src/stores/puzzle.js')
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+
+  assert.match(view, /v-if="solutionFeedback"[\s\S]*:title="solutionFeedback\.title"[\s\S]*:description="solutionFeedback\.description"[\s\S]*type="warning"[\s\S]*:closable="false"/)
+  assert.match(view, /v-if="solutionFeedback" type="warning">无可用方案<\/el-tag>[\s\S]*v-else-if="result\.score !== null" type="success">外周出口/)
+
+  assert.match(view, /result\.value\.error === 'INSUFFICIENT_FRAGMENTS'[\s\S]*9 - occupiedCount\.value[\s\S]*当前识别到 \$\{occupiedCount\.value\} 块，还差 \$\{missingCount\} 块/)
+  assert.match(view, /result\.value\.error !== 'NO_SOLUTION'[\s\S]*hasExitConstraints\.value[\s\S]*现有碎片无法满足当前出口限制[\s\S]*清空出口状态/)
+  assert.match(view, /kind: 'combination'[\s\S]*现有碎片类型组合无法拼成完整九宫格[\s\S]*补充其他类型/)
+  assert.match(view, /count-card total[\s\S]*result\.error === 'INSUFFICIENT_FRAGMENTS'/)
+  assert.match(view, /\.count-card\.total\.insufficient[\s\S]*var\(--el-color-warning\)/)
+
+  assert.match(store, /result\.value\.error === 'INSUFFICIENT_FRAGMENTS'[\s\S]*可用碎片不足 9 块，还差 \$\{Math\.max\(0, 9 - occupiedCount\.value\)\} 块/)
+  assert.match(store, /result\.value\.error === 'NO_SOLUTION' && hasExitConstraints\.value[\s\S]*当前碎片无法满足出口限制，请清空出口状态/)
+  assert.match(store, /result\.value\.error === 'NO_SOLUTION'\) return '现有碎片类型组合无法拼成完整九宫格'/)
+
+  assert.match(view, /response\?\.success && solutionFeedback\.value[\s\S]*ElMessage\.warning\(solutionFeedback\.value\.title\)[\s\S]*else if \(response\?\.success\) ElMessage\.success/)
+})
+
 test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const headingActions = view.match(/<div class="heading-actions">([\s\S]*?)<\/div>/)?.[1] || ''

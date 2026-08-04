@@ -22,6 +22,7 @@ const mockApi = {
     getStartupHealth: () => Promise.resolve({ checkedAt: new Date().toISOString(), items: [] }),
     getDiagnostics: () => Promise.resolve(null),
     exportDiagnostics: () => Promise.resolve({ success: false, canceled: true }),
+    recordDiagnosticEvent: () => Promise.resolve({ recorded: false }),
   },
   script: {
     executePython: () => Promise.reject(new Error('非 Electron 环境')),
@@ -70,6 +71,7 @@ const mockApi = {
     submitScreenCoordinate: () => { },
     submitScreenRegion: () => { },
     cancelScreenCoordinatePicker: () => { },
+    moveOverlay: () => { },
   },
   puzzle: {
     pickInventoryRegion: () => Promise.resolve({ canceled: true }),
@@ -198,6 +200,7 @@ const mockApi = {
     resize: () => Promise.resolve({ success: true }),
     setOpacity: () => Promise.resolve({ success: true }),
     updateLayout: () => Promise.resolve({ success: true }),
+    move: () => {},
     onState: () => () => {},
     onDividerRatio: () => () => {}
   },
@@ -253,8 +256,9 @@ export const electronApi = isElectron ? {
     detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
     updateGameWindowTitles: (titles) => window.electronAPI.updateGameWindowTitles?.(craftingIpcPayload(titles)),
     getStartupHealth: () => window.electronAPI.getStartupHealth?.(),
-    getDiagnostics: (modules) => window.electronAPI.getDiagnostics?.(craftingIpcPayload(modules)),
-    exportDiagnostics: (modules) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(modules)),
+    getDiagnostics: (payload) => window.electronAPI.getDiagnostics?.(craftingIpcPayload(payload)),
+    exportDiagnostics: (payload) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(payload)),
+    recordDiagnosticEvent: (event) => window.electronAPI.recordDiagnosticEvent?.(craftingIpcPayload(event)),
   },
   script: {
     executePython: (path, args) => window.electronAPI.executePython(path, args),
@@ -310,7 +314,8 @@ export const electronApi = isElectron ? {
     getScreenPickerContext: () => window.electronAPI.getScreenPickerContext?.(),
     submitScreenCoordinate: (point) => window.electronAPI.submitScreenCoordinate?.(point),
     submitScreenRegion: (rectangle) => window.electronAPI.submitScreenRegion?.(rectangle),
-    cancelScreenCoordinatePicker: () => window.electronAPI.cancelScreenCoordinatePicker?.()
+    cancelScreenCoordinatePicker: () => window.electronAPI.cancelScreenCoordinatePicker?.(),
+    moveOverlay: (drag) => window.electronAPI.moveCraftingOverlay?.(craftingIpcPayload(drag))
   },
   puzzle: {
     pickInventoryRegion: () => window.electronAPI.pickPuzzleInventoryRegion?.(),
@@ -449,6 +454,7 @@ export const electronApi = isElectron ? {
     resize: (size) => window.electronAPI.resizeStoryOverlay?.(size),
     setOpacity: (opacity) => window.electronAPI.setStoryOverlayOpacity?.(opacity),
     updateLayout: (layout) => window.electronAPI.updateStoryOverlayLayout?.(layout),
+    move: (drag) => window.electronAPI.moveStoryOverlay?.(craftingIpcPayload(drag)),
     onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {}),
     onDividerRatio: (callback) => window.electronAPI.onStoryOverlayDividerRatio?.(callback) || (() => {})
   },

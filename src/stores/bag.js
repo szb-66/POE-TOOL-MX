@@ -7,6 +7,7 @@ import {
   normalizeInventoryLayout
 } from '@/utils/bagConfig'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '@/utils/diagnostics.js'
 
 const emptyStats = () => ({
   scannedSlots: 0,
@@ -104,7 +105,14 @@ export const useBagStore = defineStore('bag', () => {
       stashProgress.value = Number(payload.progress ?? stashProgress.value)
     }
   }
-  function setStopReason(reason = '') { lastStopReason.value = String(reason) }
+  function setStopReason(reason = '') {
+    lastStopReason.value = String(reason)
+    if (['', 'user-stopped', 'process-ended'].includes(lastStopReason.value)) {
+      void reportDiagnosticRecovery('bag', 'script_runtime')
+    } else {
+      void reportDiagnosticFailure('bag', 'script_runtime', {}, 'process_exit')
+    }
+  }
   function resetRunStats() { stashProgress.value = 0; stashStats.value = emptyStats(); lastStopReason.value = '' }
   function resetStates() {
     isDetecting.value = false

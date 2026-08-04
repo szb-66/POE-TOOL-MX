@@ -10,9 +10,12 @@
 import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { saveWindowState } from '../window/state.js'
 import { importOverlayBackground } from '../window/backgroundImport.js'
+import { OverlayDragSession } from '../window/overlayDrag.js'
 
 export function registerWindowHandlers(window) {
   const { getMainWindow, getOverlayWindow, closeOverlayWindow } = window
+  const craftingOverlayDrag = new OverlayDragSession()
+  const storyOverlayDrag = new OverlayDragSession()
 
   // 窗口控制 IPC
   ipcMain.handle('window-minimize', () => {
@@ -119,6 +122,38 @@ export function registerWindowHandlers(window) {
 
     if (result.canceled || result.filePaths.length === 0) return { success: false, canceled: true }
     return { ...importBackground(result.filePaths[0]), canceled: false }
+  })
+
+  ipcMain.on('crafting-overlay-move', (event, point = {}) => {
+    const overlay = getOverlayWindow()
+    if (!overlay || overlay.isDestroyed() || overlay.webContents !== event.sender) return
+    if (point.phase === 'start') {
+      if (craftingOverlayDrag.begin(event.sender.id, point, overlay.getBounds())) window.setCraftingOverlayDragging(true)
+      return
+    }
+    if (point.phase === 'end') {
+      if (craftingOverlayDrag.end(event.sender.id)) window.setCraftingOverlayDragging(false)
+      return
+    }
+    if (point.phase !== 'move') return
+    const requested = craftingOverlayDrag.move(event.sender.id, point)
+    if (requested) window.moveCraftingOverlayTo(requested)
+  })
+
+  ipcMain.on('story-overlay-move', (event, point = {}) => {
+    const overlay = window.getStoryOverlayWindow?.()
+    if (!overlay || overlay.isDestroyed() || overlay.webContents !== event.sender) return
+    if (point.phase === 'start') {
+      if (storyOverlayDrag.begin(event.sender.id, point, overlay.getBounds())) window.setStoryOverlayDragging(true)
+      return
+    }
+    if (point.phase === 'end') {
+      if (storyOverlayDrag.end(event.sender.id)) window.setStoryOverlayDragging(false)
+      return
+    }
+    if (point.phase !== 'move') return
+    const requested = storyOverlayDrag.move(event.sender.id, point)
+    if (requested) window.moveStoryOverlayTo(requested)
   })
 
   ipcMain.handle('import-overlay-background', (_event, sourcePath) => importBackground(sourcePath))

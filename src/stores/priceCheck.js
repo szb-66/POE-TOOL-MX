@@ -7,6 +7,7 @@ import {
   DEFAULT_PRICE_CHECK_SETTINGS,
   normalizePriceCheckSettings
 } from '../utils/priceCheckSettings.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'priceCheckSettings'
 
@@ -135,9 +136,11 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       }))
       model.value = data.model
       result.value = data.result
+      void reportDiagnosticRecovery('priceCheck', 'query')
       return data
     } catch (reason) {
       error.value = reason.message
+      void reportDiagnosticFailure('priceCheck', 'query', reason, 'request_failed')
       throw reason
     } finally {
       loading.value = false

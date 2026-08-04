@@ -13,6 +13,7 @@ import {
   normalizePuzzleRegionMetadata,
   normalizePuzzleSettings
 } from '../utils/puzzleConfig.js'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'puzzleSettings'
 const SLOT_COUNT = 60
@@ -89,6 +90,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const currentSolution = computed(() => result.value.solutions[solutionIndex.value] || null)
   const currentSourceSlots = computed(() => currentSolution.value?.sourceSlots || [])
   const hasInventory = computed(() => slots.value.some(slot => slot.occupied))
+  const occupiedCount = computed(() => PUZZLE_TYPES.reduce((sum, type) => sum + counts.value[type], 0))
+  const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
   const executing = computed(() => ['validating', 'running'].includes(execution.value.status))
   const resumeIndex = computed(() => (
     ['error', 'stopped'].includes(execution.value.status) && execution.value.completed > 0 && execution.value.completed < 9
@@ -102,7 +105,16 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (executing.value) return '海图自动放入正在执行'
     if (!configurationStates.value.inventory?.valid) return '碎片仓库配置无效'
     if (!configurationStates.value.atlas?.valid) return '海图区配置无效'
-    if (!currentSolution.value) return '请先识别碎片并生成海图方案'
+    if (!currentSolution.value) {
+      if (result.value.error === 'INSUFFICIENT_FRAGMENTS') {
+        return `可用碎片不足 9 块，还差 ${Math.max(0, 9 - occupiedCount.value)} 块`
+      }
+      if (result.value.error === 'NO_SOLUTION' && hasExitConstraints.value) {
+        return '当前碎片无法满足出口限制，请清空出口状态'
+      }
+      if (result.value.error === 'NO_SOLUTION') return '现有碎片类型组合无法拼成完整九宫格'
+      return '请先识别碎片并生成海图方案'
+    }
     const expected = 9 - resumeIndex.value
     if (remainingSourceSlots.value.length !== expected) return '仓库内容已变化，请重新识别后继续'
     return ''
@@ -177,6 +189,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   function applyAnalysis(response, { resetConstraints = true, preserveSolution = false } = {}) {
     if (!response?.success) {
       error.value = response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图识别失败' }
+      void reportDiagnosticFailure('puzzle', 'analysis', error.value, 'unknown_failure')
       return false
     }
     if (response.regionMetadata) {
@@ -186,6 +199,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     slots.value = normalizeSlots(response.slots)
     warnings.value = Array.isArray(response.warnings) ? response.warnings : []
     error.value = null
+    void reportDiagnosticRecovery('puzzle', 'analysis')
     if (!preserveSolution) {
       if (resetConstraints) {
         requiredExits.value = []
@@ -228,6 +242,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       return response
     } catch (caught) {
       error.value = { code: 'PUZZLE_ANALYSIS_FAILED', message: caught?.message || String(caught) }
+      void reportDiagnosticFailure('puzzle', 'analysis', caught, 'unknown_failure')
       return { success: false, error: error.value }
     } finally {
       analyzing.value = false
@@ -287,6 +302,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), operationDelayMs })
     if (response?.status) execution.value = response
     if (!response?.success && response?.error) error.value = response.error
+    if (response?.success) void reportDiagnosticRecovery('puzzle', 'auto_placement')
+    else void reportDiagnosticFailure('puzzle', 'auto_placement', response?.error, 'automation_failed')
     return response
   }
 

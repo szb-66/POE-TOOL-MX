@@ -3,13 +3,16 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
   STORY_DIVIDER_GRIP_HTML,
-  STORY_GRIP_HTML,
   getStoryDividerGripBounds,
   getStoryDividerRatioFromGrip,
-  getStoryGripBounds,
-  getStoryOverlayBoundsFromGrip,
-  getStoryOverlayPositionFromGrip
+  storyOverlayBoundsEqual
 } from '../electron/modules/window/storyGrip.js'
+import {
+  OVERLAY_DRAG_HIT_HEIGHT,
+  OVERLAY_DRAG_HIT_WIDTH,
+  isPointInCenteredOverlayDragHandle
+} from '../electron/modules/window/overlayDrag.js'
+import { createStoryOverlayGeometryReporter } from '../src/domains/story/storyOverlayGeometry.js'
 
 function source(path) {
   return fs.readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -41,56 +44,83 @@ test('剧情浮窗保存位置、恢复屏幕可见性并限制内容高度', ()
   assert.match(manager, /requestedWidth/)
 })
 
-test('剧情浮窗使用独立原生三点抓手且内容窗口保持穿透', () => {
+test('剧情浮窗使用统一指针拖动抓手且其余内容保持穿透', () => {
   const manager = source('../electron/modules/window/manager.js')
   const overlay = source('../src/domains/story/StoryOverlayView.vue')
-  assert.match(manager, /let storyOverlayGripWindow = null/)
-  assert.match(manager, /createStoryGripWindow/)
-  assert.doesNotMatch(manager, /parent: storyOverlayWindow/)
+  assert.doesNotMatch(manager, /storyOverlayGripWindow|createStoryGripWindow/)
   assert.match(manager, /storyOverlayWindow\.setIgnoreMouseEvents\(true, \{ forward: true \}\)/)
-  assert.doesNotMatch(manager, /storyOverlayWindow\.setIgnoreMouseEvents\(Boolean/)
-  assert.match(STORY_GRIP_HTML, /-webkit-app-region:drag/)
-  assert.equal((STORY_GRIP_HTML.match(/<i><\/i>/g) || []).length, 3)
-  assert.doesNotMatch(overlay, /setIgnoreMouseEvents|story-drag-handle|@mouseenter/)
+  assert.match(manager, /screen\.getCursorScreenPoint\(\)/)
+  assert.match(manager, /new OverlayDragPassthroughController/)
+  assert.match(overlay, /class="story-position-grip"/)
+  assert.match(overlay, /createOverlayDrag/)
+  assert.match(overlay, /@pointerdown="drag\.pointerDown"/)
+  assert.match(overlay, /-webkit-app-region: no-drag/)
+  assert.doesNotMatch(overlay, /setIgnoreMouseEvents|updatePositionGripHitTest/)
+  assert.match(overlay, /cursor: grab/)
+  assert.match(overlay, /cursor: grabbing/)
 })
 
-test('抓手与剧情内容窗口保持固定相对位置并传播拖动位移', () => {
-  const overlay = { x: 1000, y: 20, width: 560, height: 240 }
-  const grip = getStoryGripBounds(overlay)
-  assert.deepEqual(grip, { x: 1254, y: 24, width: 52, height: 20 })
-  assert.deepEqual(getStoryOverlayPositionFromGrip({ ...grip, x: grip.x + 135, y: grip.y + 47 }, overlay), {
-    x: 1135,
-    y: 67
-  })
+test('主进程按屏幕坐标稳定命中位置抓手热区', () => {
+  const bounds = { x: 100, y: 50, width: 460, height: 220 }
+  assert.equal(OVERLAY_DRAG_HIT_WIDTH, 72)
+  assert.equal(OVERLAY_DRAG_HIT_HEIGHT, 24)
+  assert.equal(isPointInCenteredOverlayDragHandle({ x: 330, y: 62 }, bounds), true)
+  assert.equal(isPointInCenteredOverlayDragHandle({ x: 293, y: 62 }, bounds), false)
+  assert.equal(isPointInCenteredOverlayDragHandle({ x: 330, y: 75 }, bounds), false)
 })
 
-test('拖动抓手从规范尺寸生成完整边界，避免 DPI 取整误差累积', () => {
+test('位置抓手复用自动入库的固定起点拖动且始终恢复规范尺寸', () => {
   const manager = source('../electron/modules/window/manager.js')
-  const gripMoveHandler = manager.slice(
-    manager.indexOf("storyOverlayGripWindow.on('move'"),
-    manager.indexOf("storyOverlayGripWindow.on('closed'")
-  )
-  const overlayMoveHandler = manager.slice(
-    manager.indexOf("storyOverlayWindow.on('move'"),
-    manager.indexOf("storyOverlayWindow.on('closed'")
-  )
-  assert.match(manager, /let storyOverlaySize = \{ width: 560, height: 360 \}/)
-  assert.match(gripMoveHandler, /getStoryOverlayBoundsFromGrip\(gripBounds, overlayBounds, storyOverlaySize\)/)
-  assert.match(gripMoveHandler, /storyOverlayWindow\.setBounds\(next\)/)
-  assert.doesNotMatch(gripMoveHandler, /storyOverlayWindow\.setPosition/)
+  const preload = source('../electron/preload.cjs')
+  const ipc = source('../electron/modules/ipc/window.js')
+  const storyWindow = manager.slice(manager.indexOf('export function createStoryOverlayWindow'), manager.indexOf('export function resizeStoryOverlay'))
+  assert.match(manager, /let storyOverlaySize = \{ width: 460, height: 220 \}/)
+  assert.doesNotMatch(storyWindow, /setPosition|window-move|getStoryOverlayPositionFromGrip/)
+  assert.doesNotMatch(manager, /storyOverlayGripWindow/)
   assert.match(manager, /requestedHeight == null \? storyOverlaySize\.height/)
   assert.match(manager, /requestedWidth == null \? storyOverlaySize\.width/)
-  assert.doesNotMatch(overlayMoveHandler, /syncStoryGripToOverlay/)
+  assert.match(manager, /export function setStoryOverlayDragging[\s\S]*storyOverlayDividerWindow\?\.hide\(\)/)
+  assert.match(manager, /export function moveStoryOverlayTo[\s\S]*getFixedOverlayDragBounds\(point, display\.workArea, storyOverlaySize\)/)
+  assert.match(ipc, /const storyOverlayDrag = new OverlayDragSession\(\)/)
+  assert.match(ipc, /storyOverlayDrag\.begin/)
+  assert.match(ipc, /window\.moveStoryOverlayTo\(requested\)/)
+  assert.match(preload, /story-overlay-move/)
+  assert.doesNotMatch(preload, /story-overlay-native-drag-ended/)
 })
 
-test('Windows DPI 取整后的原生尺寸不会反馈进下一次拖动', () => {
-  const canonicalSize = { width: 560, height: 247 }
-  const driftedNativeBounds = { x: 1308, y: 82, width: 561, height: 248 }
-  const gripBounds = { x: 1563, y: 86, width: 53, height: 20 }
-  assert.deepEqual(
-    getStoryOverlayBoundsFromGrip(gripBounds, driftedNativeBounds, canonicalSize),
-    { x: 1309, y: 82, width: 560, height: 247 }
+test('剧情浮窗几何上报会忽略未变化高度和布局', () => {
+  const heights = []
+  const layouts = []
+  const report = createStoryOverlayGeometryReporter({
+    resize: height => heights.push(height),
+    updateLayout: layout => layouts.push(layout)
+  })
+  const geometry = { height: 201.4, layout: { stacked: false, left: 7, top: 30, width: 446, height: 160 } }
+
+  report(geometry)
+  report({ height: 201.49, layout: { ...geometry.layout } })
+  assert.deepEqual(heights, [201])
+  assert.equal(layouts.length, 1)
+
+  report({ height: 203, layout: { ...geometry.layout, width: 440 } })
+  assert.deepEqual(heights, [201, 203])
+  assert.equal(layouts.length, 2)
+})
+
+test('剧情浮窗仅在原生边界实际改变时需要更新', () => {
+  const current = { x: 100, y: 20, width: 460, height: 220 }
+  assert.equal(storyOverlayBoundsEqual(current, { ...current }), true)
+  assert.equal(storyOverlayBoundsEqual(current, { ...current, height: 221 }), false)
+})
+
+test('剧情浮窗布局上报不会回显分栏比例', () => {
+  const manager = source('../electron/modules/window/manager.js')
+  const handler = manager.slice(
+    manager.indexOf('export function updateStoryOverlayLayout'),
+    manager.indexOf('export function updateStoryOverlay(snapshot)')
   )
+  assert.match(handler, /storyOverlayLayout\.width === nextLayout\.width/)
+  assert.doesNotMatch(handler, /publishStoryDividerRatio/)
 })
 
 test('剧情浮窗宽度可输入并持久化，同组技能空间不足时换行', () => {
@@ -122,9 +152,46 @@ test('剧情三类列表实时预览拖动位置并按最终索引提交', () =>
   assert.match(store, /reorderItemsById\(chapters\.value, chapterId, destinationIndex\)/)
   assert.match(store, /reorderItemsById\(chapter\.steps, stepId, destinationIndex\)/)
   assert.match(store, /reorderItemsById\(groups, groupId, destinationIndex\)/)
-  assert.match(view, /\.step-item, \.skill-group \{[^}]*cursor: pointer;/)
+  assert.match(view, /\.skill-group \{ cursor: pointer;/)
   assert.match(view, /\.drag-handle \{[^}]*cursor: grab;/)
   assert.match(view, /\.el-textarea__inner\), \.skill-group :deep\(\.el-input__inner\) \{ cursor: text; \}/)
+})
+
+test('剧情管理页合并章节模块并使用独立滚动区域', () => {
+  const view = source('../src/domains/story/StoryView.vue')
+  assert.match(view, /class="story-guide-panel"/)
+  assert.match(view, /class="story-guide-layout"/)
+  assert.match(view, /class="chapter-directory"/)
+  assert.match(view, /class="chapter-details-scroll"/)
+  assert.match(view, /\.chapter-directory \{[^}]*overflow-y: auto;/)
+  assert.match(view, /\.chapter-details-scroll \{[^}]*overflow-y: auto;/)
+  assert.match(view, /\.skills-panel :deep\(\.el-card__body\) \{ overflow-y: auto;/)
+})
+
+test('浏览章节与步骤进度选择器解耦且快照使用进度技能', () => {
+  const view = source('../src/domains/story/StoryView.vue')
+  const store = source('../src/stores/story.js')
+  const selectChapter = store.slice(store.indexOf('function selectChapter'), store.indexOf('function selectStep'))
+  const addStep = store.slice(store.indexOf('function addStep'), store.indexOf('function deleteStep'))
+  assert.match(view, /<el-radio/)
+  assert.match(view, /@change="story\.selectStep/)
+  assert.doesNotMatch(view, /@focus="story\.selectStep/)
+  assert.doesNotMatch(selectChapter, /currentStepId/)
+  assert.doesNotMatch(addStep, /selectStep/)
+  assert.match(store, /viewedChapterId/)
+  assert.match(store, /viewedSkillGroups/)
+  assert.match(store, /buildStorySnapshot\([\s\S]*currentSkillGroups\.value/)
+})
+
+test('剧情浮窗使用紧凑默认尺寸和 14px 当前正文', () => {
+  const manager = source('../electron/modules/window/manager.js')
+  const overlay = source('../src/domains/story/StoryOverlayView.vue')
+  const view = source('../src/domains/story/StoryView.vue')
+  assert.match(manager, /Math\.max\(320, Math\.min\(1200/)
+  assert.match(manager, /Math\.max\(150, Math\.min\(maxHeight/)
+  assert.match(view, /:min="320"/)
+  assert.match(overlay, /\.step\.current \{[^}]*font-size: 14px;/)
+  assert.match(overlay, /@media \(max-width: 380px\)/)
 })
 
 test('剧情技能编辑器使用离线联想并将等级设置同步到浮层', () => {
@@ -163,6 +230,16 @@ test('原生分割抓手按规范布局计算比例并限制边界', () => {
   assert.equal(getStoryDividerRatioFromGrip({ x: 1000, y: 0, width: 14, height: 180 }, overlay, layout), 0.75)
 })
 
+test('分栏抓手拖动期间不会被程序化反向对齐', () => {
+  const manager = source('../electron/modules/window/manager.js')
+  const dividerHandler = manager.slice(
+    manager.indexOf("storyOverlayDividerWindow.on('move'"),
+    manager.indexOf("storyOverlayDividerWindow.on('moved'")
+  )
+  assert.match(dividerHandler, /getStoryDividerRatioFromGrip\(\s*storyOverlayDividerWindow\.getBounds\(\),/)
+  assert.doesNotMatch(dividerHandler, /syncStoryDividerToOverlay/)
+})
+
 test('分割抓手保持内容穿透并覆盖完整窗口生命周期', () => {
   const manager = source('../electron/modules/window/manager.js')
   const preload = source('../electron/preload.cjs')
@@ -186,11 +263,10 @@ test('剧情浮窗关闭会原子销毁全部窗口且旧实例回调不会污�
   assert.match(manager, /const overlayWindow = storyOverlayWindow/)
   assert.match(manager, /storyOverlayWindow !== overlayWindow/)
   assert.match(manager, /storyOverlayDividerWindow === dividerWindow/)
-  assert.match(manager, /storyOverlayGripWindow === gripWindow/)
+  assert.doesNotMatch(manager, /storyOverlayGripWindow|gripWindow/)
   assert.match(closeHandler, /const overlayWindow = storyOverlayWindow/)
   assert.ok(closeHandler.indexOf('storyOverlayWindow = null') < closeHandler.indexOf('destroyWindow\(overlayWindow\)'))
   assert.match(closeHandler, /destroyWindow\(dividerWindow\)/)
-  assert.match(closeHandler, /destroyWindow\(gripWindow\)/)
   assert.match(closeHandler, /destroyWindow\(overlayWindow\)/)
   assert.doesNotMatch(closeHandler, /\.close\(\)/)
 })

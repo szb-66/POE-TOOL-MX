@@ -1,354 +1,434 @@
 <template>
-  <div class="help-page">
-    <div class="help-content">
-      <!-- 警告横幅 -->
-      <div class="warning-banner">
-        <el-icon class="warning-icon"><WarningFilled /></el-icon>
-        <span>本工具完全免费，遇到任何付费情况请尽快联系相关人员进行退款</span>
+  <main class="help-page">
+    <header class="help-hero">
+      <div>
+        <span class="eyebrow">使用指南与规则参考</span>
+        <h1>帮助中心</h1>
+        <p>从首次配置到高级做装规则，在一个地方找到答案。</p>
       </div>
+      <el-input
+        v-model="searchQuery"
+        class="help-search"
+        clearable
+        size="large"
+        placeholder="搜索 DPI、Ctrl+D、花园、卡兰德之镜…"
+        aria-label="搜索帮助内容"
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+    </header>
 
-      <!-- 版本信息 -->
-      <div class="info-section">
-        <h3 class="section-title">版本信息</h3>
-        <div class="info-item">
-          <span class="info-label">版本号</span>
-          <span class="info-value">V1.0.0</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">更新时间</span>
-          <span class="info-value">2024-09-27</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">项目地址</span>
-          <a href="#" class="info-value link">github 链接</a>
-        </div>
-      </div>
+    <div class="help-shell">
+      <nav class="category-nav" aria-label="帮助分类">
+        <button
+          v-for="category in HELP_CATEGORIES"
+          :key="category.id"
+          type="button"
+          :class="{ active: activeCategory === category.id && !hasSearch }"
+          @click="selectCategory(category.id)"
+        >
+          <span>{{ category.label }}</span>
+          <small>{{ category.description }}</small>
+        </button>
+      </nav>
 
-      <div class="info-section">
-        <h3 class="section-title">POE1 手动做装模拟说明</h3>
-        <div class="crafting-help">
-          <p>当前主流程是“选择底材 → 手动使用通货、催化剂、精华、工艺台、化石共振器、花园、古灵、势力、加密或野兽工艺 → 观察装备变化”。自动路径和价格数据已经退出做装页面，不会影响模拟器启动或使用。</p>
-          <p>当前规则基线为国服 S30“永火之咒” / POE1 3.29（Curse of the Allflame）。底材、需求、基础属性、固有词缀、词缀阶级、出现等级、标签和权重来自隔离保存的 POEDB 简体中文 3.29 快照。更新只有在全部下载与 schema v8 哨兵校验成功后才会生效，3.28 原始快照仍保留用于离线回滚审计。</p>
-          <p>词缀目录固定按基础、六种势力、地心探险、穿越、隐匿、工艺台和精华分组。当前快照缺少某来源时会明确提示，不会用基础词缀伪造。</p>
-          <p>本功能仅供个人、非商业参考，与 Grinding Gear Games、POEDB 无官方关联。旧价格兼容模块使用过 poecurrency.top OCR 数据，但手动模拟器不再读取它。</p>
-        </div>
-      </div>
+      <section ref="contentScroll" class="help-content" aria-live="polite">
+        <template v-if="hasSearch">
+          <header class="section-heading search-heading">
+            <div>
+              <span class="eyebrow">全文搜索</span>
+              <h2>“{{ searchQuery.trim() }}”的结果</h2>
+              <p v-if="searchResults.length">找到 {{ searchResults.length }} 个相关专题。</p>
+            </div>
+            <el-button text @click="clearSearch">清空搜索</el-button>
+          </header>
 
-      <div class="info-section">
-        <h3 class="section-title">国服官方挂单查价</h3>
-        <div class="crafting-help">
-          <p>先在“设置 → 国服账号”登录并选择全局赛季，再从首页或查价配置页开启查价器。游戏内将鼠标悬停在物品上按 Ctrl+D：助手会优先发送 Ctrl+Alt+C 读取高级文本，失败时自动回退 Ctrl+C；查价器关闭时不会注册这个快捷键。</p>
-          <p>查询直接发送到腾讯国服官方市集的搜索与挂单接口。高级文本会保留真实词缀 T 级、标签、数值范围和武器/防具属性；普通文本不能确认等级时显示 T?。只有交易目录能够唯一识别的词缀才会进入官方查询，不会用做装目录猜测。</p>
-          <p>结果是当前公开挂单样本，不是成交记录，也不保证能按显示价格买到。系统会排除本人和无价格挂单、按卖家去重；首次展示 10 条，每次加载 10 条，最多展示 50 条。私聊文本只允许复制，不会自动发送。</p>
-          <p>本功能不会自动私聊、购买、上架，也不会把 poecurrency.top 的 OCR 数据自动替代为官方装备价格。交易目录陈旧时仍可进行可靠的名称查询，但未知词缀不会参与搜索。</p>
-        </div>
-      </div>
+          <div v-if="searchResults.length" class="search-results">
+            <button
+              v-for="topic in searchResults"
+              :key="topic.id"
+              type="button"
+              class="search-result"
+              @click="openTopic(topic)"
+            >
+              <span>{{ categoryLabel(topic.category) }}</span>
+              <strong>{{ topic.title }}</strong>
+              <p>{{ topic.summary }}</p>
+              <el-icon><ArrowRight /></el-icon>
+            </button>
+          </div>
 
-      <div class="info-section">
-        <h3 class="section-title">瓦尔宝珠与装备腐化</h3>
-        <div class="crafting-help algorithm-help">
-          <p>瓦尔宝珠当前只对未腐化、未镜像的非传奇、非珠宝装备执行。系统等权选择四个主结果：获得腐化隐式、产生白孔、变成六词缀稀有装备并重骰孔连，或除腐化标记外不变化。结果一旦确定，装备会永久进入已腐化状态。</p>
-          <ul>
-            <li><b>腐化隐式：</b>从 POEDB 3.29 当前页面过滤出 200 个受支持装备家族、234 个等级记录，按物品类别、物品等级和页面权重生成；已有固有词缀时随机替换一条。</li>
-            <li><b>白色插槽：</b>有非白孔时至少随机变白一个，其余每个非白孔分别有 10% 概率继续变白；孔数和连接保持不变。无孔装备仍会完成腐化，但外观等同于仅腐化。</li>
-            <li><b>稀有重铸：</b>按当前合法显式池生成三前缀和三后缀，并重骰孔数、颜色和连接；前缀/后缀锁与混沌重铸一样保护对应侧。六孔装备在该分支内以 1/36 获得六孔六连，因此总概率为公开的 1/144。</li>
-            <li><b>腐化后的继续制作：</b>大多数普通通货不可用；污秽催化剂、污秽幻色石、污秽工匠石、污秽链结石以及腐化装备孔位工艺台仍可按各自规则修改装备。</li>
-          </ul>
-          <p>珠宝具有专属稀有/传奇转换，传奇装备也可能转化；地图、药剂、技能宝石和特殊瓦尔宝珠各有不同结果。当前模型未完整覆盖这些对象，因此明确禁用，不用“仅腐化”伪装成准确模拟。</p>
-        </div>
-      </div>
+          <el-empty v-else description="没有找到相关帮助内容">
+            <el-button type="primary" plain @click="clearSearch">清空搜索</el-button>
+          </el-empty>
+        </template>
 
-      <div class="info-section">
-        <h3 class="section-title">首饰催化剂规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>3.29 当前支持 13 种催化剂：10 种常规标签品质、左旋/右旋催化剂，以及污秽催化剂。它们只作用于戒指、项链和腰带；同类型继续增加品质，更换类型会替换旧类型并从 0% 重新增加，最高 20%。</p>
-          <ul>
-            <li><b>标签品质：</b>研磨、加速、丰沃、灌注、内在、有害、棱光、回火、猛烈和不稳定的催化剂，分别强化攻击、速度、生命/魔力、施法、属性、物理/混沌伤害、抗性、防御、元素伤害和暴击词缀。</li>
-            <li><b>左旋 / 右旋：</b>分别强化所有前缀或所有后缀；底材固有词缀没有前后缀位置，因此不受左右品质影响。</li>
-            <li><b>污秽催化剂：</b>只用于腐化且未镜像的首饰，随机替换为一种非污秽品质类型及 1–20% 品质；当前类型选择使用公开边界下的等权模型。</li>
-            <li><b>数值显示：</b>匹配词缀按品质增加数值幅度并向下取整，例如 79 生命在 20% 丰沃品质下显示为 94；原始掷值与词缀 T 级不变。</li>
-          </ul>
-          <p>自 3.15 起，催化剂品质不再提高增幅石、富豪石、崇高石或势力崇高石命中相关词缀的概率，其他制作也不会消耗品质。模拟器保持这一当前规则，不复刻旧版本的权重机制。</p>
-        </div>
-      </div>
+        <template v-else>
+          <section v-if="activeCategory === 'getting-started'" class="category-section">
+            <div class="free-banner">
+              <el-icon><WarningFilled /></el-icon>
+              <div><strong>本工具完全免费</strong><span>遇到任何付费情况，请尽快联系相关人员退款。</span></div>
+            </div>
 
-      <div class="info-section">
-        <h3 class="section-title">工艺台与元工艺规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>普通工艺会确定性添加页面所示的前缀或后缀，并遵守底材类别、物品等级、词缀位和 Mod Group 冲突。给普通装备添加首条工艺后，装备会变为魔法；魔法装备每侧最多一条词缀，稀有装备通常每侧最多三条。</p>
-          <ul>
-            <li><b>唯一工艺替换：</b>装备只有一条未破裂工艺且没有多大师时，选择另一项工艺会自动移除旧工艺；实际消耗为新工艺成本加额外一枚重铸石。</li>
-            <li><b>移除工艺词缀：</b>消耗一枚重铸石，一次移除全部可移除工艺词缀和对应元工艺状态，不影响天然、精华、势力或破裂词缀。</li>
-            <li><b>前缀无法被变更：</b>占用一条后缀；后续尊重元工艺的重铸或移除保留现有前缀。</li>
-            <li><b>后缀无法被变更：</b>占用一条前缀；后续尊重元工艺的重铸或移除保留现有后缀。</li>
-            <li><b>无法骰出攻击/法术词缀：</b>各占用一条后缀，限制后续尊重元工艺的随机词缀池。</li>
-            <li><b>可以拥有最多 3 个工艺词缀：</b>占用一条后缀且自身计入三条上限，因此通常最多再添加两条工艺。</li>
-          </ul>
-          <p>页面展示当前 POEDB 快照中的显式词缀工艺和腐化装备孔位工艺；配方解锁位置仅供说明，不模拟玩家账号解锁进度。腐化定孔包含 2–6 孔、定连包含 2–6 连、定色包含 18 种“至少若干颜色”配方。定孔工艺忽略物品等级但不突破底材孔上限；每项腐化孔位工艺都会额外消耗与普通通货数量相同的瓦尔宝珠。</p>
-        </div>
-      </div>
+            <header class="section-heading">
+              <div>
+                <span class="eyebrow">从这里开始</span>
+                <h2>第一次使用，只需四步</h2>
+                <p>先完成安全配置与小规模测试，再启用自动化功能。</p>
+              </div>
+              <el-button type="primary" @click="navigateTo('/settings')">前往设置</el-button>
+            </header>
 
-      <div class="info-section">
-        <h3 class="section-title">污秽通货与准确性边界</h3>
-        <div class="crafting-help algorithm-help">
-          <p>当前版本目录保留 10 种仍在游戏中的污秽通货作用说明；已在 3.23 随迷宫附魔系统移除的污秽祝福不会作为可用通货出现。所有污秽通货都要求装备已腐化且未镜像。</p>
-          <ul>
-            <li><b>污秽幻色石：</b>忽略力量、敏捷、智慧需求，每个现有插槽独立等概率变为红、绿或蓝；孔数和连接不变。</li>
-            <li><b>污秽工匠石：</b>增加或移除一个插槽各 50%，并遵守物品等级与底材自然孔数上限；到达边界时只执行仍合法的方向。</li>
-            <li><b>污秽链结石：</b>为最大连接组增加或移除一条连接各 50%；到达全散或全连边界时只执行仍合法的方向。</li>
-            <li><b>仅说明、不执行：</b>污秽护甲片、污秽磨刀石、污秽崇高石、污秽混沌石和污染神泪缺少可审计的精确结果权重；污秽神秘石还需要完整传奇底材与权重库。页面显示其真实作用和禁用原因，但不会用 50/50 或均匀分布猜测。</li>
-          </ul>
-        </div>
-      </div>
+            <div class="quick-grid">
+              <article v-for="step in QUICK_START_STEPS" :key="step.number">
+                <span>{{ step.number }}</span>
+                <h3>{{ step.title }}</h3>
+                <p>{{ step.text }}</p>
+              </article>
+            </div>
 
-      <div class="info-section">
-        <h3 class="section-title">基础通货：何时生效、会发生什么</h3>
-        <div class="crafting-help algorithm-help">
-          <h4>升级和重铸</h4>
-          <ul>
-            <li><b>磨刀石 / 护甲片：</b>分别提高武器或护甲的普通品质，最高 20%。单次提升量使用当前物品等级公式 <code>clamp(30 × e^(-ilvl/30) - 0.3, 1, 20)</code>，小数部分随机取整；品质同步提高基础物理伤害或基础防御。</li>
-            <li><b>圣玉：</b>只重骰护甲的基础防御百分比。护甲、闪避值、能量护盾和结界共享同一个 0–100% 相对位置；圣玉不会改变普通品质、孔位、隐式或显式词缀。神圣石重骰的是显式词缀数值，两者不是同一层属性。</li>
-            <li><b>珠宝匠石：</b>重铸插槽数量，受底材类型与物品等级的自然最大孔数限制，并同时生成合法孔色与连接。</li>
-            <li><b>幻色石：</b>只重铸现有孔色；力量需求偏红、敏捷偏绿、智慧偏蓝，孔数和连接保持不变。</li>
-            <li><b>链接石：</b>只重铸现有孔之间的连接，孔数和颜色保持不变。</li>
-            <li><b>祝福石：</b>只重铸已结构化的普通或古灵固有词缀可变数值，不改变固有词缀种类；当前快照未结构化的忆境隐式不会用猜测范围代替。</li>
-            <li><b>束缚石：</b>把普通物品升级为稀有，并生成最多四个完整相连的插槽；四孔结果忽略物品等级，但仍受底材类型上限限制。</li>
-            <li><b>蜕变石：</b>只用于普通物品，将其升级为带一至两条随机显式词缀的魔法物品。</li>
-            <li><b>改造石：</b>只用于魔法物品，移除并重新生成全部可变显式词缀。</li>
-            <li><b>点金石：</b>只用于普通物品，将其升级为带随机显式词缀的稀有物品。</li>
-            <li><b>混沌石：</b>只用于稀有物品，用一组新的随机显式词缀替换现有可变词缀。</li>
-            <li><b>重铸石：</b>清除魔法或稀有物品的可变显式词缀，使其回到普通稀有度。</li>
-          </ul>
-          <h4>增加、移除和调整</h4>
-          <ul>
-            <li><b>增幅石：</b>魔法物品只有一条词缀时，保留它并增加另一条合法词缀。</li>
-            <li><b>富豪石：</b>保留魔法物品现有词缀，将其升级为稀有并增加一条词缀。</li>
-            <li><b>崇高石：</b>稀有物品仍有前缀或后缀空位时，增加一条随机词缀。</li>
-            <li><b>剥离石：</b>从当前可变显式词缀中随机移除一条。</li>
-            <li><b>神圣石：</b>不改变词缀种类或 T 级，只在该阶级原有区间内重骰具体数值。</li>
-            <li><b>破溃宝珠：</b>只用于至少有 4 条已揭露显式词缀的稀有物品，等概率随机锁定其中一条。它忽略全部元工艺，工艺词缀和元工艺自身也可能被破裂；允许 Split 与古灵隐式，拒绝腐化、势力、综合和已有破裂词缀的物品。</li>
-            <li><b>卡兰德之镜：</b>用于未腐化、未镜像的可装备非传奇物品。原件完全不变，系统生成一件底材、物品等级、词缀与数值、品质、基础防御、隐式、孔色和连接完全相同的镜像副本，并把当前制作目标切换到副本；镜像副本不能再次复制或使用制作通货修改。当前不实现 Reflective Oil 这一明确例外。</li>
-          </ul>
-          <p>每个通货按钮的条件、结果和禁用原因都与实际执行规则同源。珠宝匠石和链接石没有公开的完整官方概率表，因此页面把 <code>poe1-3.29-community-v1</code> 明确标注为社区经验模型；品质只会单调提高高孔数/高连接结果的相对权重，不宣称内部概率精确。未揭露加密占位需要先完成揭露才能使用破溃宝珠；未覆盖的特殊腐化对象仍会明确禁用，不执行近似结果。</p>
-          <p><b>附魔与移除：</b>花园品质附魔会替换品质的默认效果并令装备进入已附魔状态；重复附魔会替换旧效果。工艺台“移除附魔”默认解锁，固定消耗 3 枚重铸石，移除后品质数值不变并恢复默认品质作用。腐化装备允许使用此动作，镜像装备不能使用。回火石与裁缝石的完整随机权重尚未验证，因此本阶段不伪造其随机结果。</p>
-        </div>
-      </div>
+            <article class="safety-card">
+              <el-icon><CircleCheck /></el-icon>
+              <div>
+                <strong>安全试运行检查</strong>
+                <p>游戏保持前台 · 窗口与 DPI 已校准 · 停止快捷键可用 · 使用少量、低价值物品。</p>
+              </div>
+            </article>
+          </section>
 
-      <div class="info-section">
-        <h3 class="section-title">精华制作规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>精华会把普通装备升级为稀有装备，并保证产生页面所示的一条精华词缀。使用允许重铸的高阶精华时，稀有装备原有的可变显式词缀会全部被替换，不是额外增加一条词缀。</p>
-          <ul>
-            <li><b>T1 低语：</b>最低物品等级 1，只能用于普通装备；其余随机词缀最高按物品等级 35 生成。</li>
-            <li><b>T2 呢喃：</b>最低物品等级 8，只能用于普通装备；其余随机词缀最高按物品等级 45 生成。</li>
-            <li><b>T3 啼泣：</b>最低物品等级 20，只能用于普通装备；其余随机词缀最高按物品等级 60 生成。</li>
-            <li><b>T4 哀嚎：</b>最低物品等级 33，只能用于普通装备；其余随机词缀最高按物品等级 75 生成。</li>
-            <li><b>T5 咆哮、T6 尖啸、T7 破空：</b>最低物品等级分别为 46、59、65，可以升级普通装备或重铸稀有装备，不限制其余随机词缀等级。</li>
-            <li><b>T8 特殊精华：</b>按当前 POEDB 的底材对应效果保证一条特殊词缀，可用于普通或稀有装备。</li>
-          </ul>
-          <p>带有“前缀无法被变更”“后缀无法被变更”“无法骰出攻击/法术词缀”或多大师等任意元工艺的装备不能使用精华。无法从当前快照唯一确认精华名称或保证词缀的记录会被禁用。</p>
-          <p>精华仍拒绝已腐化装备；瓦尔与其他复杂工艺只执行已验证的数据边界。</p>
-        </div>
-      </div>
+          <section v-else-if="activeCategory === 'features'" class="category-section">
+            <header class="section-heading">
+              <div><span class="eyebrow">全部模块</span><h2>功能指南</h2><p>了解模块用途、准备工作和基础步骤，再前往对应页面。</p></div>
+            </header>
+            <div class="module-grid">
+              <article
+                v-for="topic in categoryTopics"
+                :key="topic.id"
+                :ref="element => rememberTopicElement(topic.id, element)"
+                :data-topic-id="topic.id"
+                class="module-card"
+                tabindex="-1"
+              >
+                <header><span>{{ moduleNumber(topic.id) }}</span><div><h3>{{ topic.title }}</h3><p>{{ topic.summary }}</p></div></header>
+                <div v-if="isExpanded(topic.id)" class="module-guide">
+                  <dl><dt>用途</dt><dd>{{ topic.module.purpose }}</dd><dt>使用前提</dt><dd>{{ topic.module.prerequisite }}</dd></dl>
+                  <strong>基础步骤</strong>
+                  <ol><li v-for="step in topic.module.steps" :key="step">{{ step }}</li></ol>
+                  <p class="risk-note"><el-icon><Warning /></el-icon>{{ topic.module.risk }}</p>
+                </div>
+                <footer>
+                  <el-button text @click="toggleTopic(topic)">{{ isExpanded(topic.id) ? '收起指南' : '查看指南' }}</el-button>
+                  <el-button type="primary" plain @click="navigateTo(topic.route)">打开{{ topic.title }}</el-button>
+                </footer>
+              </article>
+            </div>
+          </section>
 
-      <div class="info-section">
-        <h3 class="section-title">化石与共振器制作规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>普通联盟的原始、强能、巨能和威能混乱共振器分别有 1–4 个孔，只能作用于未腐化的稀有装备。共振器必须装满互不重复的化石；任意“前缀无法被变更”“无法骰出攻击”等元工艺都会使共振器不可使用，而不是受到保护。</p>
-          <ul>
-            <li><b>更多 / 更少 / 无：</b>普通“更多”将匹配标签的词缀权重乘 10，“更少”乘 0.15，“无”将权重设为 0；五彩化石的元素更多乘数为 6。多个不同化石继续相乘，禁止规则始终优先。</li>
-            <li><b>复合标签：</b>腐蚀与五彩所说的物理或混沌异常状态，要求词缀同时具有异常状态标签以及物理或混沌标签，不会误伤只有其中一个标签的词缀。</li>
-            <li><b>棱面 / 镂空 / 雕刻：</b>棱面化石允许宝石类地心限定词缀进入候选池；镂空保证合法的深渊插槽；雕刻保证当前底材可用的一条随机 T8 腐化精华词缀。</li>
-            <li><b>圣洁化石：</b>高需求等级词缀相对更常见，每个数字分量独立掷两次并取较高值。等级权重公式来自公开实测结论，页面按该结论模拟。</li>
-            <li><b>纠缠化石：</b>应用满孔共振器时，以固定种子随机揭示一个 10 倍标签和另一个禁止标签，并写入制作历史。</li>
-            <li><b>分裂 / 镶金：</b>3.29 的分裂化石会在重铸后随机破裂一条显式词缀，不再生成 Split 副本；势力、追忆或已有破裂词缀的物品不能使用。镶金化石保留固定词缀并加入商贩高价隐式说明。</li>
-            <li><b>溅血化石：</b>先按共振器内全部化石规则重铸显式词缀，再按装备类别、物品等级和腐化固定词缀自身权重生成一条结果并永久腐化装备。其他化石不影响腐化隐式权重；与镶金化石组合时，会从底材、综合、异界和商贩高价等全部可替换隐式中随机替换一个。</li>
-          </ul>
-          <p>制作历史只记录实际消耗的一枚共振器和每种化石，不读取价格。相同底材、物品等级、种子与组合会得到相同词缀、数值、纠缠揭示和腐化隐式。当前活动规则为 POE1 3.29；新法术武器、长杖、深渊珠宝、工艺台和腐化隐式变化均来自当前快照。</p>
-        </div>
-      </div>
+          <section v-else class="category-section">
+            <header class="section-heading">
+              <div><span class="eyebrow">{{ activeCategoryMeta.description }}</span><h2>{{ activeCategoryMeta.label }}</h2><p>{{ categoryIntro }}</p></div>
+            </header>
 
-      <div class="info-section">
-        <h3 class="section-title">花园工艺规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>花园页签收录当前 POE1 3.29 快照中的全部 74 条配方及多种命能消耗；3.29 已移除追忆物品工艺。憎恨结晶参与 12 条配方，其中 5 条保证标签重铸与 6 条元素伤害转换可以作用于装备，另 1 条辅助宝石转换因输入不属于装备状态而禁用。装备工艺会根据当前底材、物品等级、势力、词缀位、Mod Group 和元工艺实时计算候选。</p>
-          <ul>
-            <li><b>保证标签重铸：</b>支持火焰、冰霜、闪电、物理、生命、防御、混沌、攻击、施法、速度、暴击、召唤生物、元素、属性、魔力和掉落共 16 种标签。自 3.27 起，此类重铸会遵守“无法骰出攻击/法术词缀”。</li>
-            <li><b>同类更常见 / 更罕见：</b>从装备现有词缀收集标签，并在完整候选池中分别乘 10 或乘 0.1。公开资料没有给出权威内部常数，因此这是页面明确标注、可测试和可替换的社区模拟参数。</li>
-            <li><b>元素转换：</b>抗性与伤害转换只替换同一前后缀位置、相同来源、近似阶级和相同效果形状的对应元素词缀；伤害转换不把暴击伤害加成当作可转换伤害。</li>
-            <li><b>移除并添加：</b>先从元工艺允许移除的词缀中随机移除一条，再保证添加指定标签；移除阶段忽略无法骰出攻击/法术，添加阶段遵守全部元工艺。</li>
-            <li><b>势力工艺：</b>保证势力词缀重铸使用当前势力候选池；随机势力会改成不同且合法的一种或两种势力并重铸，历史中记录变化前后。</li>
-            <li><b>品质效果：</b>武器、近战武器、身体护甲等品质附魔会替换当前品质效果，并作为装备状态参与撤销、重做与重置。</li>
-          </ul>
-          <p>追忆固定词缀、白色插槽，以及命运卡、通货、宝石、地图等非装备配方仍会展示真实描述和消耗；在对应结果池或库存状态尚未建模前明确禁用，不伪造结果，也不读取价格。</p>
-          <p><b>S30 特殊通货边界：</b>无常瓦尔宝珠在 3.29 仍可用且扩大了合法目标边界；占卜球、五类雾隐水晶和多类永火纪念币依赖海底航行、传奇雾隐转化或专用结果池。当前模拟器没有这些赛季对象与传奇状态模型，因此通货页展示作用和禁用原因，但不会执行近似结果。</p>
-        </div>
-      </div>
+            <div v-if="activeCategory === 'about'" class="version-card">
+              <div><small>当前版本</small><strong>V{{ packageConfig.version }}</strong></div>
+              <a :href="PROJECT_URL" target="_blank" rel="noreferrer">查看 GitHub 项目<el-icon><TopRight /></el-icon></a>
+            </div>
 
-      <div class="info-section">
-        <h3 class="section-title">古灵隐式与支配通货规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>低阶、高阶、宏伟和卓越古灵余烬/溶液分别从当前 POEDB 的 T1–T4 真实权重池生成焊界者或灭界者隐式。只支持未腐化、非六势力的头盔、手套、鞋子和身体护甲；首次使用会清除普通固定词缀，但保留另一侧古灵隐式。</p>
-          <ul>
-            <li><b>支配：</b>单侧或更高阶的一侧支配；两侧同阶时无支配。焊界者支配前缀，灭界者支配后缀。</li>
-            <li><b>古灵混沌石：</b>忽略前缀/后缀无法被变更，完全重铸支配对应侧，不保留原词缀数量；从保留侧重建的无法骰出攻击/法术仍限制新词缀。</li>
-            <li><b>古灵崇高石：</b>只向支配对应侧添加一条词缀，遵守无法骰出攻击/法术。</li>
-            <li><b>古灵无效石：</b>只从支配对应侧移除一条，遵守前/后缀锁，也保护被无法骰出攻击/法术命中的现有词缀。</li>
-            <li><b>冲突石：</b>一侧升一阶、另一侧降一阶；T1 被降阶时删除，T6 被选中升级时保持 T6 但对侧仍降阶。</li>
-          </ul>
-          <p>冲突石使用 <code>clamp(0.5 - 0.11 × 阶级差, 0.05, 0.95)</code> 的社区实测估计；它不是官方公布的内部常数，页面和历史始终标注为估计。</p>
-        </div>
-      </div>
-
-      <div class="info-section">
-        <h3 class="section-title">六大势力与尊崇制作规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>势力页签覆盖塑界者、裂界者、圣战者、救赎者、狩猎者和督军六类词缀。候选来自当前 POEDB 快照，并按底材、物品等级、生成标签、词缀位和 Mod Group 实时计算；相同状态与随机种子会得到相同结果。</p>
-          <ul>
-            <li><b>六种势力崇高石：</b>只能用于未腐化、未分裂、无势力的稀有装备，且不能用于破裂、综合或带古灵隐式的装备。成功后添加对应势力及一条对应势力词缀，并遵守“无法骰出攻击/法术词缀”。</li>
-            <li><b>统御宝珠：</b>仅用于魔法或稀有头盔、胸甲、手套和鞋子。至少两条未受前后缀锁保护且可以升阶的势力词缀参与随机：一条被移除，另一条升一阶并重骰数值。</li>
-            <li><b>尊崇 T1：</b>最高普通势力阶升级为快照中权重为 0 的尊崇 T1；这些阶级不会进入普通随机池。已有尊崇 T1 再被选中时保持 T1，只重骰具体数值。</li>
-            <li><b>觉醒者之石：</b>供体与受体必须属于同一装备类型、各自恰有一种且势力不同，并各有至少一条所属势力词缀。系统随机继承双方各一条势力词缀，保留 modifier 与 T 级但重骰数值。</li>
-            <li><b>供体销毁与重骰：</b>成功后供体被销毁；受体保留底材、物品等级和已建模的非显式属性，变为双势力稀有装备。其他显式词缀全部重骰，前后缀锁与无法骰出标签元工艺均被忽略。</li>
-            <li><b>ModGroup 冲突：</b>若两条被选中的继承词缀属于同一 ModGroup，固定随机种子决定保留其中一条，另一条会在历史中明确标记为冲突丢弃。</li>
-          </ul>
-          <p>页面的供体配置代表从仓库中选择一件真实合法的单词缀势力装备；可选择具体底材、物品等级、势力和词缀阶级。觉醒操作可以撤销并恢复已销毁供体，重做仍产生完全相同的结果。</p>
-        </div>
-      </div>
-
-      <div class="info-section">
-        <h3 class="section-title">加密制作与揭露规则</h3>
-        <div class="crafting-help algorithm-help">
-          <p>加密页签使用当前 POEDB 快照中的普通“天选的 / 秩序之”词缀池。未揭露词缀会真实占用一个前缀或后缀位，但在完成三选一前没有任何属性效果；当前版本可直接右键物品揭露，因此模拟器不要求前往琼恩处。</p>
-          <ul>
-            <li><b>加密崇高石：</b>只能用于未腐化稀有装备。它随机移除一条词缀，再添加一个未揭露加密词缀；移除遵守“前缀/后缀无法被变更”，但“无法骰出攻击/施法”不会保护现有词缀。</li>
-            <li><b>加密混沌石：</b>按混沌石方式重铸稀有装备并保证一个未揭露词缀。前后缀锁会保留对应侧；普通随机词缀遵守操作开始时的攻击/施法生成限制。</li>
-            <li><b>三选一揭露：</b>从当前底材、物品等级和占位位置适用的真实池中按单项权重无放回生成三个不同选项，展示 T级、名称、出现等级、具体效果、标签与单项权重。</li>
-            <li><b>ModGroup 阻断：</b>已有天然、势力、加密或工艺台词缀占用同一 ModGroup 时，对应候选不会出现。放入占位后仍可先制作阻断工艺，候选会随当前装备重新计算。</li>
-            <li><b>揭露结果：</b>选中项替换占位并重骰具体数值，来源记为加密而非工艺台；揭露选项忽略“无法骰出攻击/施法”。选择、撤销和重做都会保留确定的词缀阶级与数值。</li>
-          </ul>
-          <p>当前范围不包含密教成员签名加密词缀、密教棋盘、账号工艺解锁经验和通货价格；这些内容不会用近似结果代替。</p>
-        </div>
-
-        <h3 class="section-title">3.29 装备野兽工艺规则</h3>
-        <div class="help-content">
-          <p>野兽页签以 POE1 3.29 的兽谱规则为基线，覆盖会直接改变当前装备的 22 条可执行动作，并保留 5 条数据不足或超出装备模型配方的准确说明。野兽价格、捕捉和祭坛战斗不参与模拟。</p>
-          <ul>
-            <li><b>加前删后 / 加后删前：</b>新增词缀由主野兽等级决定，忽略装备物品等级。新增遵守“无法骰出攻击/法术”；随机删除不受这两个标签限制。位置锁只保护被删除的一侧，被锁一侧保留时仍可向另一侧添加。</li>
-            <li><b>势力词缀：</b>六条配方只能用于已经具有对应势力的物品，按装备物品等级和真实权重添加同势力词缀。</li>
-            <li><b>随机元工艺：</b>只从无法骰出攻击、无法骰出法术、前缀锁、后缀锁和多大师五项中当前能正常添加的候选随机选择，不会先移除已有工艺腾位置。</li>
-            <li><b>势技能：</b>猫、鸟、蟹、蛛之势均提供 20 与 30 级版本，作为非工艺后缀占位；同一装备只能拥有一条势技能词缀。</li>
-            <li><b>魔符破裂：</b>3.29 已移除二分 / 三分物品配方，替换为破裂至少 4 / 6 条词缀稀有魔符的配方。当前模拟器不支持魔符底材，因此保留准确说明并禁用，不再生成 Split 副本。</li>
-            <li><b>拓印：</b>只为魔法物品保存一次绑定原物品身份的快照；恢复会消费拓印，分裂复制品和破裂物品不能使用原拓印。</li>
-            <li><b>黑莫里根：</b>最大插槽配方使用底材类型与物品等级共同决定的自然上限；最大连接配方只把物品现有插槽全部连起，不凭空增加插槽。</li>
-            <li><b>希内科拉之锁：</b>野兽配方只用于未腐化魔法物品。基础通货按钮会显示稳定的下一步预览，查看不会改变随机状态；真正使用通货或通过其他方式修改装备后预见消失。</li>
-          </ul>
-          <p>综合隐式重骰、项链转护符、守望之眼重骰、最大插槽和最大连接仍为禁用说明项，因为当前数据或装备状态模型无法给出准确结果。</p>
-        </div>
-      </div>
-
-      <!-- 作者信息 -->
-      <div class="info-section">
-        <h3 class="section-title">作者信息</h3>
-        <div class="info-item">
-          <span class="info-label">bilibili：</span>
-          <span class="info-value">这条鱼i</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">QQ：</span>
-          <span class="info-value">1123051973</span>
-        </div>
-      </div>
+            <div class="topic-list">
+              <article
+                v-for="topic in categoryTopics"
+                :key="topic.id"
+                :ref="element => rememberTopicElement(topic.id, element)"
+                :data-topic-id="topic.id"
+                class="topic-card"
+                tabindex="-1"
+              >
+                <button
+                  type="button"
+                  class="topic-trigger"
+                  :aria-expanded="isExpanded(topic.id)"
+                  :aria-controls="`topic-body-${topic.id}`"
+                  @click="toggleTopic(topic)"
+                >
+                  <span><strong>{{ topic.title }}</strong><small>{{ topic.summary }}</small></span>
+                  <el-icon :class="{ expanded: isExpanded(topic.id) }"><ArrowDown /></el-icon>
+                </button>
+                <div v-if="isExpanded(topic.id)" :id="`topic-body-${topic.id}`" class="topic-body">
+                  <template v-for="(block, index) in topic.blocks" :key="`${topic.id}-${index}`">
+                    <p v-if="block.type === 'paragraph'">{{ block.text }}</p>
+                    <h4 v-else-if="block.type === 'heading'">{{ block.text }}</h4>
+                    <ul v-else-if="block.type === 'list'"><li v-for="item in block.items" :key="item">{{ item }}</li></ul>
+                    <p v-else-if="block.type === 'callout'" class="topic-callout" :class="block.tone">{{ block.text }}</p>
+                  </template>
+                  <el-button v-if="topic.route" type="primary" plain @click="navigateTo(topic.route)">打开相关页面</el-button>
+                </div>
+              </article>
+            </div>
+          </section>
+        </template>
+      </section>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
-import { WarningFilled } from '@element-plus/icons-vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ArrowDown, ArrowRight, CircleCheck, Search, TopRight, Warning, WarningFilled } from '@element-plus/icons-vue'
+import packageConfig from '../../package.json'
+import {
+  HELP_CATEGORIES,
+  HELP_TOPICS,
+  MODULE_TOPICS,
+  QUICK_START_STEPS,
+  findHelpTopic,
+  searchHelpTopics
+} from '../domains/help/helpContent.js'
+
+const PROJECT_URL = 'https://github.com/szb-66/POE-TOOL-MX'
+const route = useRoute()
+const router = useRouter()
+const searchQuery = ref('')
+const activeCategory = ref('getting-started')
+const expandedTopicIds = ref([])
+const contentScroll = ref(null)
+const topicElements = new Map()
+
+const hasSearch = computed(() => Boolean(searchQuery.value.trim()))
+const searchResults = computed(() => searchHelpTopics(HELP_TOPICS, searchQuery.value))
+const activeCategoryMeta = computed(() => HELP_CATEGORIES.find(category => category.id === activeCategory.value) || HELP_CATEGORIES[0])
+const categoryTopics = computed(() => HELP_TOPICS.filter(topic => topic.category === activeCategory.value))
+const categoryIntro = computed(() => ({
+  faq: '按现象查找排查方法；所有诊断与配置仍由对应功能页执行。',
+  crafting: '完整保留当前 POE1 3.29 规则、数据来源与准确性边界。',
+  about: '了解应用版本、数据归属、本地隐私和社区维护信息。'
+})[activeCategory.value] || '')
+
+function categoryLabel(categoryId) {
+  return HELP_CATEGORIES.find(category => category.id === categoryId)?.label || categoryId
+}
+
+function moduleNumber(topicId) {
+  return String(MODULE_TOPICS.findIndex(topic => topic.id === topicId) + 1).padStart(2, '0')
+}
+
+function rememberTopicElement(topicId, element) {
+  if (element) topicElements.set(topicId, element)
+  else topicElements.delete(topicId)
+}
+
+function isExpanded(topicId) {
+  return expandedTopicIds.value.includes(topicId)
+}
+
+function setExpanded(topicId, expanded) {
+  const values = new Set(expandedTopicIds.value)
+  if (expanded) values.add(topicId)
+  else values.delete(topicId)
+  expandedTopicIds.value = [...values]
+}
+
+async function selectCategory(categoryId) {
+  searchQuery.value = ''
+  activeCategory.value = categoryId
+  await router.replace({ path: '/help' })
+  contentScroll.value?.scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' })
+}
+
+async function openTopic(topic, updateRoute = true) {
+  if (!topic) return
+  searchQuery.value = ''
+  activeCategory.value = topic.category
+  setExpanded(topic.id, true)
+  if (updateRoute) await router.replace({ path: '/help', query: { topic: topic.id } })
+  await nextTick()
+  await nextTick()
+  const element = topicElements.get(topic.id)
+  element?.focus({ preventScroll: true })
+  element?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' })
+}
+
+async function toggleTopic(topic) {
+  const shouldExpand = !isExpanded(topic.id)
+  setExpanded(topic.id, shouldExpand)
+  if (shouldExpand) {
+    await router.replace({ path: '/help', query: { topic: topic.id } })
+  } else if (route.query.topic === topic.id) {
+    await router.replace({ path: '/help' })
+  }
+}
+
+function clearSearch() {
+  searchQuery.value = ''
+}
+
+function navigateTo(path) {
+  if (path) void router.push(path)
+}
+
+function reducedMotion() {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+}
+
+watch(
+  () => route.query.topic,
+  topicId => {
+    if (!topicId) return
+    const topic = findHelpTopic(String(topicId))
+    if (topic) void openTopic(topic, false)
+    else {
+      activeCategory.value = 'getting-started'
+      void router.replace({ path: '/help' })
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="less">
 .help-page {
   height: 100%;
-  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary);
+  background:
+    radial-gradient(circle at 92% -10%, color-mix(in srgb, var(--el-color-primary) 10%, transparent), transparent 32%),
+    var(--bg-secondary);
+}
 
-  .help-content {
-    max-width: 900px;
-    padding: 20px;
+.help-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid var(--border-base);
+  background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
+}
+.eyebrow { display: block; margin-bottom: 5px; color: var(--el-color-primary); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.help-hero h1, .section-heading h2 { margin: 0; letter-spacing: .01em; }
+.help-hero h1 { font-size: 26px; }
+.help-hero p, .section-heading p { margin: 5px 0 0; color: var(--text-secondary); font-size: 13px; }
+.help-search { width: min(430px, 44vw); }
 
-    .warning-banner {
-      display: flex;
-      align-items: center;
-      gap: var(--spacing-sm);
-      padding: var(--spacing-sm) var(--spacing-md);
-      background-color: var(--warning-bg);
-      border-radius: var(--border-radius-sm);
-      margin-bottom: var(--spacing-lg);
-      color: var(--text-primary);
-      font-size: var(--font-size-base);
+.help-shell { min-height: 0; flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.category-nav { padding: 18px 12px; border-right: 1px solid var(--border-base); background: var(--bg-primary); }
+.category-nav button {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  padding: 12px 13px;
+  margin-bottom: 5px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.category-nav button:hover { background: var(--el-fill-color-light); }
+.category-nav button.active { color: var(--el-color-primary); background: var(--el-color-primary-light-9); box-shadow: inset 3px 0 var(--el-color-primary); }
+.category-nav span { font-size: 14px; font-weight: 650; }
+.category-nav small { color: var(--text-secondary); font-size: 11px; line-height: 1.35; }
 
-      .warning-icon {
-        color: var(--warning-color);
-        font-size: 14px;
-        flex-shrink: 0;
-      }
-    }
+.help-content { min-width: 0; overflow-y: auto; padding: 22px 26px 32px; scroll-padding-top: 20px; }
+.category-section, .search-heading, .search-results, .help-content > .el-empty { width: min(1040px, 100%); margin-inline: auto; }
+.section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.section-heading h2 { font-size: 22px; }
 
-    .info-section {
-      margin-bottom: var(--spacing-xl);
-      padding: var(--spacing-md);
-      background-color: var(--bg-primary);
-      border-radius: var(--border-radius-md);
+.free-banner, .safety-card { display: flex; align-items: center; gap: 12px; border-radius: 10px; }
+.free-banner { margin-bottom: 20px; padding: 12px 15px; border: 1px solid var(--el-color-warning-light-7); background: var(--el-color-warning-light-9); }
+.free-banner > .el-icon { color: var(--el-color-warning); font-size: 20px; }
+.free-banner div { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+.free-banner span { color: var(--text-secondary); font-size: 12px; }
 
-      .section-title {
-        font-size: var(--font-size-base);
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: var(--spacing-md);
-        padding-left: var(--spacing-sm);
-      }
+.quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.quick-grid article { min-height: 150px; padding: 17px; border: 1px solid var(--border-base); border-radius: 11px; background: var(--bg-primary); }
+.quick-grid article > span { display: inline-grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: var(--el-color-primary); background: var(--el-color-primary-light-9); font-size: 11px; font-weight: 700; }
+.quick-grid h3 { margin: 24px 0 7px; font-size: 15px; }
+.quick-grid p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.65; }
+.safety-card { margin-top: 14px; padding: 14px 16px; color: var(--el-color-success); border: 1px solid var(--el-color-success-light-7); background: var(--el-color-success-light-9); }
+.safety-card .el-icon { font-size: 21px; }
+.safety-card p { margin: 3px 0 0; color: var(--text-secondary); font-size: 12px; }
 
-      .info-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: var(--spacing-md);
-        padding-left: var(--spacing-sm);
+.module-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.module-card, .topic-card, .version-card { border: 1px solid var(--border-base); border-radius: 11px; background: var(--bg-primary); }
+.module-card { min-width: 0; padding: 16px; scroll-margin-top: 18px; outline: none; }
+.module-card:focus-visible, .topic-card:focus-visible { box-shadow: 0 0 0 3px var(--el-color-primary-light-7); }
+.module-card > header { display: flex; gap: 12px; }
+.module-card > header > span { flex: 0 0 28px; color: var(--el-color-primary); font-size: 11px; font-weight: 700; }
+.module-card h3 { margin: 0 0 5px; font-size: 16px; }
+.module-card header p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.module-card footer { display: flex; justify-content: flex-end; gap: 5px; margin-top: 14px; }
+.module-guide { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--border-base); font-size: 12px; line-height: 1.65; }
+.module-guide dl { display: grid; grid-template-columns: 60px 1fr; gap: 7px 10px; margin: 0 0 12px; }
+.module-guide dt { color: var(--text-secondary); }
+.module-guide dd { margin: 0; }
+.module-guide ol { margin: 6px 0 12px; padding-left: 20px; }
+.risk-note { display: flex; gap: 7px; margin: 0; padding: 9px 10px; border-radius: 7px; color: var(--text-secondary); background: var(--el-color-warning-light-9); }
+.risk-note .el-icon { flex: 0 0 auto; margin-top: 3px; color: var(--el-color-warning); }
 
-        .info-label {
-          color: var(--text-regular);
-          font-size: var(--font-size-base);
-          min-width: 60px;
-        }
+.topic-list { display: grid; gap: 10px; }
+.topic-card { overflow: hidden; scroll-margin-top: 18px; outline: none; }
+.topic-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 18px; border: 0; color: var(--text-primary); background: transparent; text-align: left; cursor: pointer; }
+.topic-trigger:hover { background: var(--el-fill-color-lighter); }
+.topic-trigger > span { display: grid; gap: 5px; }
+.topic-trigger strong { font-size: 14px; }
+.topic-trigger small { color: var(--text-secondary); font-size: 12px; }
+.topic-trigger .el-icon { flex: 0 0 auto; transition: transform .18s ease; }
+.topic-trigger .el-icon.expanded { transform: rotate(180deg); }
+.topic-body { padding: 4px 20px 20px; border-top: 1px solid var(--border-base); color: var(--text-regular); font-size: 13px; line-height: 1.75; }
+.topic-body p { margin: 13px 0 0; }
+.topic-body h4 { margin: 17px 0 5px; color: var(--text-primary); }
+.topic-body ul { margin: 12px 0 0; padding-left: 21px; }
+.topic-body li { margin-bottom: 8px; }
+.topic-body > .el-button { margin-top: 14px; }
+.topic-callout { padding: 10px 12px; border-radius: 7px; background: var(--el-fill-color-light); }
+.topic-callout.warning { background: var(--el-color-warning-light-9); }
 
-        .info-value {
-          color: var(--text-primary);
-          font-size: var(--font-size-base);
-          margin-left: var(--spacing-sm);
+.version-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; padding: 17px 19px; }
+.version-card div { display: grid; gap: 3px; }
+.version-card small { color: var(--text-secondary); }
+.version-card strong { font-size: 20px; }
+.version-card a { display: flex; align-items: center; gap: 5px; color: var(--el-color-primary); text-decoration: none; }
 
-          &.link {
-            color: var(--primary-color);
-            cursor: pointer;
-            text-decoration: none;
+.search-heading { align-items: center; }
+.search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.search-result { position: relative; min-width: 0; min-height: 126px; display: grid; align-content: start; gap: 6px; padding: 16px 42px 16px 17px; border: 1px solid var(--border-base); border-radius: 10px; color: var(--text-primary); background: var(--bg-primary); text-align: left; cursor: pointer; }
+.search-result:hover { border-color: var(--el-color-primary-light-5); box-shadow: 0 5px 18px rgba(0, 0, 0, .05); }
+.search-result > span { color: var(--el-color-primary); font-size: 11px; }
+.search-result strong { font-size: 14px; }
+.search-result p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.55; }
+.search-result .el-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); }
 
-            &:hover {
-              text-decoration: underline;
-            }
-          }
-        }
-      }
+@media (max-width: 1050px) {
+  .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
-      .crafting-help {
-        padding: 0 var(--spacing-sm);
-        color: var(--text-regular);
-        line-height: 1.7;
-        p { margin: 0 0 var(--spacing-sm); }
-        h4 { margin: var(--spacing-md) 0 var(--spacing-sm); color: var(--text-primary); }
-        ul { margin: 0 0 var(--spacing-md); padding-left: 22px; }
-        li { margin-bottom: var(--spacing-sm); }
-        .formula { padding: var(--spacing-sm) var(--spacing-md); background: var(--bg-secondary); border-radius: var(--border-radius-sm); color: var(--text-primary); }
-      }
-    }
-  }
+@media (max-width: 820px) {
+  .help-hero { align-items: flex-start; padding: 16px; }
+  .help-search { width: min(390px, 50vw); }
+  .help-shell { display: flex; flex-direction: column; }
+  .category-nav { display: flex; flex: 0 0 auto; gap: 6px; overflow-x: auto; padding: 9px 12px; border-right: 0; border-bottom: 1px solid var(--border-base); }
+  .category-nav button { flex: 0 0 auto; width: auto; min-width: 112px; margin: 0; padding: 9px 12px; }
+  .category-nav button.active { box-shadow: inset 0 -3px var(--el-color-primary); }
+  .category-nav small { display: none; }
+  .help-content { padding: 18px 16px 28px; }
+  .module-grid, .search-results { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .help-hero { flex-direction: column; gap: 14px; }
+  .help-search { width: 100%; }
+  .section-heading { align-items: flex-start; flex-direction: column; }
+  .quick-grid { grid-template-columns: 1fr; }
+  .quick-grid article { min-height: auto; }
+  .quick-grid h3 { margin-top: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topic-trigger .el-icon, .search-result { transition: none; }
+  * { scroll-behavior: auto !important; }
 }
 </style>
-

@@ -1,5 +1,6 @@
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from './bagConfig.js'
@@ -100,9 +101,11 @@ export async function startBagStash() {
     bagStore.resetRunStats()
     bagStore.setStashingStatus(true)
     ElMessage.success('开始自动入库')
+    void reportDiagnosticRecovery('bag', 'automation')
     return result
   } catch (error) {
     ElMessage.error(`启动入库失败：${error.message}`)
+    void reportDiagnosticFailure('bag', 'automation', error, 'automation_failed')
     return { success: false, error: error.message }
   }
 }
@@ -150,6 +153,7 @@ export async function initBagAutomation() {
     } catch (error) {
       bagStore.setDetectionStatus(false)
       bagStore.setStopReason(error.message)
+      void reportDiagnosticFailure('bag', 'detection', error, 'automation_failed')
     }
   }
 }
