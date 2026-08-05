@@ -69,6 +69,16 @@
         </div>
         <el-card class="section-card">
           <el-form :model="shortcuts" label-width="120px" label-position="left">
+            <el-form-item label="生效范围">
+              <div class="shortcut-scope-control">
+                <el-switch
+                  :model-value="shortcutScopeEnabled"
+                  @change="handleShortcutScopeToggle"
+                />
+                <span class="scope-label">仅在游戏窗口前台时生效</span>
+                <div class="hint-text">开启后，游戏未启动或切到其他窗口时快捷键自动暂停，避免拦截普通按键（如 B）；可随时关闭恢复全局生效。</div>
+              </div>
+            </el-form-item>
             <el-row :gutter="40">
               <el-col :span="8">
                 <el-form-item label="物品开始">
@@ -551,6 +561,7 @@ const account = usePoeCnAccountStore()
 const accountToken = ref('')
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
+const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)
 const positions = ref({ ...settingsStore.currencyPositions })
 const inventory = ref({ ...settingsStore.inventory })
 const operationDelayMs = ref(settingsStore.operationDelayMs)
@@ -619,6 +630,9 @@ function changeAccountLeague(league) {
 watch(() => settingsStore.globalShortcuts, (val) => {
   shortcuts.value = { ...val }
 }, { deep: true })
+watch(() => settingsStore.shortcutScopeEnabled, (val) => {
+  shortcutScopeEnabled.value = val
+})
 watch(() => settingsStore.currencyPositions, (val) => {
   positions.value = { ...val }
 }, { deep: true })
@@ -677,6 +691,16 @@ async function handleShortcutsChange(key, value) {
     shortcuts.value = { ...settingsStore.globalShortcuts }
     ElMessage.error(error.message)
   }
+}
+
+async function handleShortcutScopeToggle(enabled) {
+  const result = await settingsStore.setShortcutScopeEnabled(enabled)
+  if (result?.success === false) {
+    ElMessage.error(result.error || '更新快捷键生效范围失败')
+    shortcutScopeEnabled.value = settingsStore.shortcutScopeEnabled
+    return
+  }
+  ElMessage.success(enabled ? '快捷键已限制为游戏窗口前台生效' : '快捷键已改为全局生效')
 }
 
 function handlePositionChange(currency) {

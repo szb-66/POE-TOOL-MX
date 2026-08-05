@@ -6,10 +6,13 @@
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
 import { app, BrowserWindow, Menu, clipboard, globalShortcut, protocol, net, shell, session } from 'electron'
+import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createMainWindow, getMainWindow, toggleDevTools } from './modules/window/manager.js'
 import { installExternalLinkPolicy } from './modules/window/externalLinks.js'
 import { registerIpcHandlers } from './modules/ipc/index.js'
+import { startForegroundWatcher } from './modules/system/foregroundWatcher.js'
 
 // 导入各模块
 import * as windowManager from './modules/window/manager.js'
@@ -89,6 +92,19 @@ let stashPickup = null
 let puzzleService = null
 let gameWindowTitles = null
 let diagnosticEvents = null
+let foregroundWatcher = null
+
+function resolveForegroundWatcherScriptPath() {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, 'foreground_watcher.py')]
+    : [
+        path.resolve(moduleDir, '../src/assets/scripts/foreground_watcher.py'),
+        path.join(app.getAppPath(), 'src/assets/scripts/foreground_watcher.py'),
+        path.resolve(app.getAppPath(), '../src/assets/scripts/foreground_watcher.py')
+      ]
+  return candidates.find((candidate) => fs.existsSync(candidate)) || ''
+}
 
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
@@ -122,6 +138,7 @@ async function cleanupApplicationResources() {
       await cleanupCombatProcesses()
     },
     cleanupBagProcesses,
+    () => foregroundWatcher?.stop(),
     pythonManager.cleanup,
     () => fileWatcher.stopFileWatcher(),
     () => shortcutManager.unregisterAll(),
@@ -294,8 +311,52 @@ app.whenReady().then(async () => {
     gameWindowTitles,
     diagnostics: diagnosticEvents
   })
-  
+
   createApplicationWindow()
+
+  // 启动游戏前台监视器：门禁开启时仅在游戏窗口位于前台注册用户全局快捷键。
+  // 放到窗口创建后的下一个事件循环，避免同步探测 Python 阻塞窗口显示。
+  setImmediate(() => {
+    foregroundWatcher = startForegroundWatcher({
+      pythonPath: pythonDetector.detectPythonPath(),
+      scriptPath: resolveForegroundWatcherScriptPath(),
+      onStateChange: ({ game }) => {
+        const result = shortcutManager.setScopeActive(game)
+        const mainWindow = getMainWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('shortcut-scope-changed', {
+            ...shortcutManager.getScopeState(),
+            failed: result.failed
+          })
+        }
+        if (!result.success) {
+          void diagnosticEvents?.record({
+            area: 'shortcuts',
+            operation: 'shortcut_scope',
+            outcome: 'failed',
+            reasonCode: 'shortcut_registration_failed',
+            metadata: { failed: result.failed }
+          })
+        }
+      },
+      onFailure: (error) => {
+        shortcutManager.setScopeAvailable(false)
+        const mainWindow = getMainWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('shortcut-scope-changed', {
+            ...shortcutManager.getScopeState()
+          })
+        }
+        void diagnosticEvents?.record({
+          area: 'shortcuts',
+          operation: 'shortcut_scope',
+          outcome: 'failed',
+          reasonCode: 'foreground_watcher_failed',
+          metadata: { error: String(error?.message || error) }
+        })
+      }
+    })
+  })
 
   // 等待窗口加载完成后再通知渲染进程初始化快捷键，避免渲染端尚未准备好
   const mainWindow = getMainWindow()

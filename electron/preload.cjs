@@ -48,6 +48,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   beginShortcutCapture: () => ipcRenderer.invoke('begin-shortcut-capture'),
   endShortcutCapture: () => ipcRenderer.invoke('end-shortcut-capture'),
+  setShortcutScopeEnabled: (enabled) => {
+    return ipcRenderer.invoke('shortcut-set-scope-enabled', enabled)
+  },
+  getShortcutScopeState: () => {
+    return ipcRenderer.invoke('shortcut-get-scope-state')
+  },
+  onShortcutScopeChanged: (callback) => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('shortcut-scope-changed', listener)
+    return () => ipcRenderer.removeListener('shortcut-scope-changed', listener)
+  },
   generateAndExecuteScript: (config) => {
     return ipcRenderer.invoke('generate-and-execute-script', config)
   },

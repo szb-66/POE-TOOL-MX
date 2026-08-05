@@ -54,7 +54,9 @@ function moduleDiagnosticReason(module) {
 
 function healthDiagnosticReason(item) {
   if (item?.status === 'ready') return null
-  if (item?.id === 'shortcuts') return 'shortcut_registration_failed'
+  if (item?.id === 'shortcuts') {
+    return item?.status === 'attention' ? 'shortcut_scope_paused' : 'shortcut_registration_failed'
+  }
   if (item?.id === 'python') return 'runtime_unavailable'
   if (item?.id === 'dpi') return 'game_window_not_found'
   if (item?.id === 'network') return 'network_unavailable'
@@ -211,11 +213,17 @@ export function useDashboard() {
         : settingsStore.dpiDetectionStatus === 'detecting'
           ? { status: 'pending', text: '正在识别游戏窗口 DPI' }
           : { status: 'attention', text: settingsStore.dpiDetectionError || `使用回退倍率 ${settingsStore.dpiScale}` }
-    const shortcutStatus = shortcut.status === 'ready'
-      ? { status: 'ready', text: '全局快捷键已注册' }
+    const shortcutStatus = shortcut.status === 'pending'
+      ? { status: 'pending', text: '全局快捷键等待初始化' }
       : shortcut.status === 'error'
         ? { status: 'error', text: shortcut.error || '全局快捷键注册失败' }
-        : { status: 'pending', text: '全局快捷键等待初始化' }
+        : !settingsStore.shortcutScopeEnabled
+          ? { status: 'ready', text: '全局快捷键已注册（未限制窗口）' }
+          : !settingsStore.shortcutScopeAvailable
+            ? { status: 'attention', text: '前台监视不可用，快捷键已全局生效' }
+            : settingsStore.gameForeground
+              ? { status: 'ready', text: '全局快捷键已注册（游戏前台）' }
+              : { status: 'attention', text: '快捷键已暂停（游戏未在前台）' }
     const extraHealth = startupHealth.value.filter(item => (
       !['runtime', 'game'].includes(item.id)
     ))
@@ -245,7 +253,7 @@ export function useDashboard() {
   watch(
     () => healthItems.value.find(item => item.id === 'shortcuts'),
     item => {
-      if (!item || item.status === 'pending') return
+      if (!item || item.status === 'pending' || item.status === 'attention') return
       void electronApi.system.recordDiagnosticEvent({
         area: 'shortcuts',
         operation: 'shortcut_registration',

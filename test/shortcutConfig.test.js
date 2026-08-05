@@ -29,8 +29,10 @@ test('统一分发器对一次触发仅执行一个对应动作', () => {
 })
 
 test('主进程全量注册失败时保留并恢复上一份快捷键清单', () => {
-  const source = fs.readFileSync(new URL('../electron/modules/ipc/shortcut.js', import.meta.url), 'utf8')
-  assert.match(source, /previousShortcuts = new Map/)
-  assert.match(source, /previousShortcuts\.forEach/)
-  assert.match(source, /rolledBack: failed\.length > 0/)
+  const ipcSource = fs.readFileSync(new URL('../electron/modules/ipc/shortcut.js', import.meta.url), 'utf8')
+  const managerSource = fs.readFileSync(new URL('../electron/modules/shortcuts/manager.js', import.meta.url), 'utf8')
+  assert.match(ipcSource, /setConfiguredShortcuts\(entries\)/)
+  assert.match(ipcSource, /rolledBack: result\.failed\.length > 0/)
+  assert.match(managerSource, /previousIntended = new Map/)
+  assert.match(managerSource, /previousRegistered\.forEach/)
 })

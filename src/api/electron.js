@@ -50,8 +50,11 @@ const mockApi = {
     unregister: () => Promise.resolve({ success: true }),
     beginCapture: () => Promise.resolve({ success: true }),
     endCapture: () => Promise.resolve({ success: true, failed: [] }),
+    setScopeEnabled: (enabled) => Promise.resolve({ success: true, enabled: Boolean(enabled), available: true, gameForeground: false }),
+    getScopeState: () => Promise.resolve({ enabled: true, available: true, gameForeground: false, registered: [], intended: [] }),
     onTriggered: () => { },
     onInit: () => { },
+    onScopeChanged: () => () => { },
   },
   window: {
     minimize: () => { },
@@ -296,8 +299,11 @@ export const electronApi = isElectron ? {
     unregister: (accelerator) => window.electronAPI.unregisterGlobalShortcut(accelerator),
     beginCapture: () => window.electronAPI.beginShortcutCapture?.(),
     endCapture: () => window.electronAPI.endShortcutCapture?.(),
+    setScopeEnabled: (enabled) => window.electronAPI.setShortcutScopeEnabled?.(Boolean(enabled)),
+    getScopeState: () => window.electronAPI.getShortcutScopeState?.(),
     onTriggered: (callback) => window.electronAPI.onShortcutTriggered(callback),
     onInit: (callback) => window.electronAPI.onInitShortcuts(callback),
+    onScopeChanged: (callback) => window.electronAPI.onShortcutScopeChanged?.(callback) || (() => {}),
   },
 
   window: {

@@ -31,6 +31,7 @@ import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
+let shortcutScopeListenerRegistered = false
 let pythonOutputListenerRegistered = false
 let scriptStatusListenerRegistered = false
 
@@ -51,6 +52,25 @@ async function refreshDpiForAutomation(settingsStore) {
 export async function initShortcuts() {
   // 使用 electronApi 封装
   const settingsStore = useSettingsStore()
+
+  // 同步“仅在游戏窗口前台生效”开关与当前前台状态
+  try {
+    const storedEnabled = settingsStore.shortcutScopeEnabled
+    let scopeState = await electronApi.shortcut.getScopeState()
+    if (scopeState && Boolean(scopeState.enabled) !== storedEnabled) {
+      scopeState = await electronApi.shortcut.setScopeEnabled(storedEnabled)
+    }
+    if (scopeState) settingsStore.applyShortcutScopeState(scopeState)
+  } catch {
+    // 门禁状态同步失败不阻断快捷键初始化
+  }
+  if (!shortcutScopeListenerRegistered) {
+    electronApi.shortcut.onScopeChanged((state) => {
+      if (state) settingsStore.applyShortcutScopeState(state)
+    })
+    shortcutScopeListenerRegistered = true
+  }
+
   const shortcuts = settingsStore.globalShortcuts
   const registeredShortcuts = { ...shortcuts }
   if (!usePriceCheckStore().settings.enabled) delete registeredShortcuts.priceCheck

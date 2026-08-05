@@ -241,6 +241,7 @@
     "src/assets/scripts/chaos_recipe_pick_template.py",
     "src/assets/scripts/combat_assist_template.py",
     "src/assets/scripts/crafting_template.py",
+    "src/assets/scripts/foreground_watcher.py",
     "src/assets/scripts/map_rolling_template.py",
     "src/assets/scripts/stash_tab_selector.py",
     "src/assets/scripts/stash_pickup_template.py"

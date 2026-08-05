@@ -1,66 +1,71 @@
 /**
- * Purpose: 注册全局快捷键相关的 IPC 处理器
+ * Purpose: 注册全局快捷键相关的 IPC 处理器，支持前台作用域门禁
  * Inputs: shortcut (object) - 快捷键管理模块，window (object) - 窗口管理模块
  * Outputs: 注册 IPC 处理器和事件监听器，无返回值
  * Preconditions: 窗口已创建
- * Edge cases: 快捷键注册失败时返回失败状态；窗口不存在时静默处理
+ * Edge cases: 快捷键注册失败时返回失败状态；门禁开启且游戏未在前台时延迟注册；窗口不存在时静默处理
  * Errors: 快捷键注册失败时返回错误状态，不抛出异常
  */
 
 import { ipcMain } from 'electron'
 
 export function registerShortcutHandlers(shortcut, window) {
-  const { registerGlobalShortcut, unregisterGlobalShortcut } = shortcut
+  const {
+    registerConfiguredShortcut,
+    unregisterConfiguredShortcut,
+    setConfiguredShortcuts,
+    setScopeEnabled,
+    getScopeState,
+    getRegisteredShortcuts,
+    registerGlobalShortcut,
+    unregisterGlobalShortcut
+  } = shortcut
   const { getMainWindow } = window
   let suspendedShortcuts = null
 
+  const sendTriggered = (key) => {
+    const mainWindow = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('shortcut-triggered', key)
+    }
+  }
+
   // IPC: 注册全局快捷键
   ipcMain.handle('register-global-shortcut', async (event, accelerator, callbackId) => {
-    // 注意：callbackId在Electron中不能直接传递函数，需要通过IPC通信
-    // 这里我们使用callbackId作为key，实际回调在主进程中处理
-    const success = registerGlobalShortcut(accelerator, () => {
-      // 通知渲染进程快捷键被触发
-      const mainWindow = getMainWindow()
-      if (mainWindow) {
-        mainWindow.webContents.send('shortcut-triggered', callbackId || accelerator)
-      }
-    })
-    return { success }
+    const key = callbackId || accelerator
+    const result = registerConfiguredShortcut(accelerator, key, () => sendTriggered(key))
+    return { success: result.success, deferred: Boolean(result.deferred), error: result.error || '' }
   })
 
   // IPC: 注销全局快捷键
   ipcMain.handle('unregister-global-shortcut', async (event, accelerator) => {
-    const success = unregisterGlobalShortcut(accelerator)
-    return { success }
+    const result = unregisterConfiguredShortcut(accelerator)
+    return { success: result.success }
   })
 
   // IPC: 初始化快捷键（从设置中读取）
   ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts) => {
-    const mainWindow = getMainWindow()
-    const previousShortcuts = new Map(shortcut.getRegisteredShortcuts())
-
-    // 注销所有已注册的快捷键
-    const registeredShortcuts = shortcut.getRegisteredShortcuts()
-    registeredShortcuts.forEach((callback, accelerator) => {
-      unregisterGlobalShortcut(accelerator)
-    })
-
-    const failed = []
-    for (const [key, accelerator] of Object.entries(shortcuts)) {
-      if (!accelerator) continue
-      const success = registerGlobalShortcut(accelerator, () => {
-        if (mainWindow) mainWindow.webContents.send('shortcut-triggered', key)
-      })
-      if (!success) failed.push({ key, accelerator })
+    const entries = Object.entries(shortcuts || {})
+      .filter(([, accelerator]) => Boolean(accelerator))
+      .map(([key, accelerator]) => ({ key, accelerator, callback: () => sendTriggered(key) }))
+    const result = setConfiguredShortcuts(entries)
+    return {
+      success: result.success,
+      failed: result.failed,
+      deferred: result.deferred,
+      rolledBack: result.failed.length > 0
     }
+  })
 
-    if (failed.length) {
-      const currentShortcuts = shortcut.getRegisteredShortcuts()
-      currentShortcuts.forEach((callback, accelerator) => unregisterGlobalShortcut(accelerator))
-      previousShortcuts.forEach((callback, accelerator) => registerGlobalShortcut(accelerator, callback))
-    }
+  // IPC: 切换“仅在游戏窗口前台生效”开关
+  ipcMain.handle('shortcut-set-scope-enabled', (event, enabled) => {
+    const result = setScopeEnabled(enabled)
+    return { success: result.success, failed: result.failed, ...getScopeState() }
+  })
 
-    return { success: failed.length === 0, failed, rolledBack: failed.length > 0 }
+  // IPC: 查询当前快捷键门禁状态
+  ipcMain.handle('shortcut-get-scope-state', () => {
+    return getScopeState()
   })
 
   ipcMain.handle('begin-shortcut-capture', () => {

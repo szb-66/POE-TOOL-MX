@@ -47,6 +47,9 @@ function sanitizeCurrencyPositions(positions = {}) {
 export const useSettingsStore = defineStore('settings', () => {
   const globalShortcuts = ref({ ...DEFAULT_GLOBAL_SHORTCUTS })
   const shortcutHealth = ref({ status: 'pending', error: '', failed: [] })
+  const shortcutScopeEnabled = ref(true)
+  const shortcutScopeAvailable = ref(true)
+  const gameForeground = ref(false)
 
   const combatAssist = ref(createDefaultCombatAssist())
   let combatConfigRevision = 0
@@ -146,6 +149,30 @@ export const useSettingsStore = defineStore('settings', () => {
       status: result.success === true ? 'ready' : 'error',
       error: String(result.error || ''),
       failed: Array.isArray(result.failed) ? result.failed : []
+    }
+  }
+
+  function applyShortcutScopeState(state = {}) {
+    if (typeof state.enabled === 'boolean') shortcutScopeEnabled.value = state.enabled
+    if (typeof state.available === 'boolean') shortcutScopeAvailable.value = state.available
+    if (typeof state.gameForeground === 'boolean') gameForeground.value = state.gameForeground
+    return { ...state }
+  }
+
+  async function setShortcutScopeEnabled(enabled) {
+    const candidate = Boolean(enabled)
+    const previous = shortcutScopeEnabled.value
+    shortcutScopeEnabled.value = candidate
+    try {
+      const state = await electronApi.shortcut.setScopeEnabled(candidate)
+      if (state?.success === false) throw new Error(state.error || '更新快捷键作用域失败')
+      applyShortcutScopeState(state)
+      saveSettings()
+      return state || { success: true }
+    } catch (error) {
+      shortcutScopeEnabled.value = previous
+      saveSettings()
+      return { success: false, error: error?.message || '更新快捷键作用域失败' }
     }
   }
 
@@ -315,6 +342,7 @@ export const useSettingsStore = defineStore('settings', () => {
     try {
       localStorage.setItem('settings', JSON.stringify({
         globalShortcuts: globalShortcuts.value,
+        shortcutScopeEnabled: shortcutScopeEnabled.value,
         currencyPositions: sanitizeCurrencyPositions(currencyPositions.value),
         inventory: inventory.value,
         operationDelayMs: operationDelayMs.value,
@@ -353,6 +381,9 @@ export const useSettingsStore = defineStore('settings', () => {
       adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(data.adaptiveTimeoutMs)
       fixedTiming.value = normalizeFixedTiming(data.fixedTiming)
       if (saved) {
+        if (typeof data.shortcutScopeEnabled === 'boolean') {
+          shortcutScopeEnabled.value = data.shortcutScopeEnabled
+        }
         if (data.globalShortcuts) {
           globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts)
         } else {
@@ -458,6 +489,9 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function resetSettings() {
     globalShortcuts.value = { ...defaultGlobalShortcuts }
+    shortcutScopeEnabled.value = true
+    shortcutScopeAvailable.value = true
+    gameForeground.value = false
     currencyPositions.value = { ...defaultCurrencyPositions }
     inventory.value = { ...defaultInventory }
     operationDelayMs.value = OPERATION_DELAY.default
@@ -487,6 +521,10 @@ export const useSettingsStore = defineStore('settings', () => {
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
     electronApi.system.updateGameWindowTitles(gameWindowTitles.value)?.catch(() => {})
+    // 重置后把门禁开关同步回主进程，避免渲染端与主进程状态分叉
+    electronApi.shortcut.setScopeEnabled(true)
+      .then((state) => { if (state) applyShortcutScopeState(state) })
+      .catch(() => {})
     // 同步重置后的设置
     if (electronApi && electronApi.overlay && electronApi.overlay.updateSettings) {
       // 使用 JSON.parse(JSON.stringify()) 去除 Proxy 包装，确保 IPC 通信正常
@@ -506,6 +544,9 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     globalShortcuts,
     shortcutHealth,
+    shortcutScopeEnabled,
+    shortcutScopeAvailable,
+    gameForeground,
     combatAssist,
     stashTabSelection,
     currencyPositions,
@@ -534,6 +575,8 @@ export const useSettingsStore = defineStore('settings', () => {
     backgroundHistory,
     updateGlobalShortcuts,
     updateShortcutHealth,
+    applyShortcutScopeState,
+    setShortcutScopeEnabled,
     updateCombatAssist,
     updateStashTabSelection,
     updateCurrencyPosition,

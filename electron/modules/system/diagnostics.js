@@ -12,6 +12,7 @@ export const DIAGNOSTIC_AREAS = new Set([
 export const DIAGNOSTIC_OPERATIONS = new Set([
   'platform_check', 'user_data_check', 'administrator_check', 'display_check',
   'network_check', 'runtime_check', 'game_window_check', 'shortcut_registration',
+  'shortcut_scope',
   'module_state', 'script_start', 'script_runtime', 'detection', 'automation',
   'authentication', 'refresh', 'query', 'data_load', 'data_update', 'analysis',
   'auto_placement', 'pickup'
@@ -20,6 +21,7 @@ export const DIAGNOSTIC_REASON_CODES = new Set([
   'unknown_failure', 'unavailable', 'unsupported_platform', 'unsupported_arch',
   'directory_unwritable', 'runtime_unavailable', 'game_window_not_found',
   'permission_denied', 'invalid_configuration', 'shortcut_registration_failed',
+  'shortcut_scope_paused', 'foreground_watcher_failed',
   'process_start_failed', 'process_exit', 'foreground_lost',
   'authentication_required', 'authentication_failed', 'network_unavailable',
   'request_failed', 'rate_limited', 'data_unavailable', 'catalog_degraded',
