@@ -186,8 +186,6 @@ app.whenReady().then(async () => {
     protocol,
     net
   })
-  await craftingService.initialize()
-  craftingService.registerImageProtocol()
 
   const chaosOverlay = new ChaosRecipeOverlayManager()
   const puzzleOverlay = new PuzzleOverlayManager()
@@ -244,40 +242,15 @@ app.whenReady().then(async () => {
   chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
-  await chaosRecipeService.restoreAuth()
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
   const uniqueItemImages = new UniqueItemImageRepository()
-  let uniqueImageWarning = ''
-  try {
-    await uniqueItemImages.load()
-  } catch (error) {
-    uniqueItemImages.useFallback()
-    uniqueImageWarning = `本地传奇图片目录不可用：${error.message}`
-  }
-  registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
-  let tradeCatalogBundle = await loadTradeCatalog()
-  try {
-    const [officialStats, officialItems] = await Promise.all([
-      priceCheckClient.getStats(),
-      priceCheckClient.getItems()
-    ])
-    tradeCatalogBundle = createOfficialTradeCatalog(
-      tradeCatalogBundle.catalog,
-      officialStats,
-      Date.now(),
-      officialItems,
-      uniqueItemImages.catalog
-    )
-  } catch (error) {
-    tradeCatalogBundle.status = {
-      ...tradeCatalogBundle.status,
-      provider: 'bundled',
-      degraded: true,
-      warning: `腾讯官方词缀目录不可用，已使用内置目录：${error.message}`
-    }
-  }
-  if (uniqueImageWarning) {
-    tradeCatalogBundle.status.warning = [tradeCatalogBundle.status.warning, uniqueImageWarning].filter(Boolean).join('；')
+  // 先用内置目录构造查价服务（本地读取，快），官方目录后台刷新后替换
+  const tradeCatalogBundle = await loadTradeCatalog()
+  tradeCatalogBundle.status = {
+    ...tradeCatalogBundle.status,
+    provider: 'bundled',
+    degraded: true,
+    warning: '正在加载腾讯官方词缀目录…'
   }
   const priceCheckOverlay = new PriceCheckOverlayManager()
   priceCheckService = new PriceCheckService({
@@ -351,6 +324,53 @@ app.whenReady().then(async () => {
       createApplicationWindow()
     }
   })
+
+  // 耗时初始化移到窗口显示之后后台执行：做装数据、登录恢复、官方交易目录刷新
+  void (async () => {
+    try {
+      await craftingService.initialize()
+      craftingService.registerImageProtocol()
+    } catch (error) {
+      // 做装数据加载失败：IPC handler 内部仍会 await service.initialize() 重试
+    }
+    await chaosRecipeService.restoreAuth()
+    let uniqueImageWarning = ''
+    try {
+      await uniqueItemImages.load()
+    } catch (error) {
+      uniqueItemImages.useFallback()
+      uniqueImageWarning = `本地传奇图片目录不可用：${error.message}`
+    }
+    registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
+    try {
+      const [officialStats, officialItems] = await Promise.all([
+        priceCheckClient.getStats(),
+        priceCheckClient.getItems()
+      ])
+      const bundle = createOfficialTradeCatalog(
+        tradeCatalogBundle.catalog,
+        officialStats,
+        Date.now(),
+        officialItems,
+        uniqueItemImages.catalog
+      )
+      priceCheckService.catalog = bundle.catalog
+      priceCheckService.catalogStatus = bundle.status
+    } catch (error) {
+      priceCheckService.catalogStatus = {
+        ...priceCheckService.catalogStatus,
+        provider: 'bundled',
+        degraded: true,
+        warning: `腾讯官方词缀目录不可用，已使用内置目录：${error.message}`
+      }
+    }
+    if (uniqueImageWarning) {
+      priceCheckService.catalogStatus.warning = [priceCheckService.catalogStatus.warning, uniqueImageWarning].filter(Boolean).join('；')
+    }
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send('price-check-catalog-updated')
+    }
+  })()
 })
 
 // 应用退出时注销所有全局快捷键

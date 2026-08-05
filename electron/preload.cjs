@@ -281,6 +281,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('price-check-settings-changed', listener)
     return () => ipcRenderer.removeListener('price-check-settings-changed', listener)
   },
+  onPriceCheckCatalogUpdated: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('price-check-catalog-updated', listener)
+    return () => ipcRenderer.removeListener('price-check-catalog-updated', listener)
+  },
   // 战斗辅助
   startPotionAssist: (payload) => ipcRenderer.invoke('combat-start-potion', payload),
   stopPotionAssist: () => ipcRenderer.invoke('combat-stop-potion'),

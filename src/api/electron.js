@@ -433,7 +433,8 @@ export const electronApi = isElectron ? {
     closeOverlay: () => window.electronAPI.closePriceCheckOverlay?.(),
     openOfficial: () => window.electronAPI.openPriceCheckOfficial?.(),
     onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {}),
-    onSettingsChanged: (callback) => window.electronAPI.onPriceCheckSettingsChanged?.(callback) || (() => {})
+    onSettingsChanged: (callback) => window.electronAPI.onPriceCheckSettingsChanged?.(callback) || (() => {}),
+    onCatalogUpdated: (callback) => window.electronAPI.onPriceCheckCatalogUpdated?.(callback) || (() => {})
   },
 
   combat: {

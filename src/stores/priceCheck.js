@@ -39,6 +39,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   const error = ref('')
   let removeOverlayListener = null
   let removeSettingsListener = null
+  let removeCatalogListener = null
   let settingsRevision = 0
   let settingsCommitQueue = Promise.resolve()
 
@@ -184,6 +185,9 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       settings.value = normalizePriceCheckSettings({ ...settings.value, ...snapshot.options })
       saveSettings()
     })
+    removeCatalogListener = electronApi.priceCheck.onCatalogUpdated(() => {
+      void refreshStatus().catch(() => {})
+    })
     void electronApi.priceCheck.getOverlayState().then((response) => {
       if (response?.success) overlayState.value = response.data
     })
@@ -192,6 +196,8 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       removeOverlayListener = null
       removeSettingsListener?.()
       removeSettingsListener = null
+      removeCatalogListener?.()
+      removeCatalogListener = null
     }
   }
 
