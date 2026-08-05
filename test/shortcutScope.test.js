@@ -7,7 +7,7 @@ import vm from 'node:vm'
 import { DIAGNOSTIC_OPERATIONS, DIAGNOSTIC_REASON_CODES } from '../electron/modules/system/diagnostics.js'
 import { createEventLineParser } from '../electron/modules/system/foregroundWatcher.js'
 
-const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
+const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const flush = (ms = 5) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function createGlobalShortcutMock(failAccelerators = new Set()) {
