@@ -63,7 +63,7 @@ export class PriceCheckOverlayManager {
     this.cursorMonitor.unref?.()
   }
 
-  create(snapshot) {
+  create(snapshot, { reposition = true } = {}) {
     this.snapshot = structuredClone(snapshot)
     const cursor = screen.getCursorScreenPoint()
     const area = screen.getDisplayNearestPoint(cursor).workArea
@@ -111,13 +111,15 @@ export class PriceCheckOverlayManager {
         void this.window.loadFile(path.resolve(moduleDir, '../../../dist/index.html'), { hash: '/price-check-overlay' })
       }
     } else {
-      const currentBounds = this.window.getBounds()
-      this.window.setBounds(getPriceCheckOverlayBounds(
-        cursor,
-        area,
-        currentBounds.width,
-        currentBounds.height
-      ))
+      if (reposition) {
+        const currentBounds = this.window.getBounds()
+        this.window.setBounds(getPriceCheckOverlayBounds(
+          cursor,
+          area,
+          currentBounds.width,
+          currentBounds.height
+        ))
+      }
       this.window.show()
       this.window.focus()
       this.startCursorMonitor(cursor)

@@ -53,7 +53,12 @@
             <img :src="config.preview" :alt="`${config.label}截图预览`">
             <i class="preview-grid" />
           </div>
-          <span v-else>{{ config.metadata ? '预览不可用，请重新框选' : '等待截图' }}</span>
+          <el-empty
+            v-else
+            :description="config.metadata ? '预览不可用，请重新框选' : '等待截图'"
+            :image-size="72"
+            class="preview-empty"
+          />
         </div>
         <small>{{ config.text }} · {{ config.state?.message }}</small>
       </article>
@@ -425,6 +430,11 @@ const nextSolution = store.nextSolution
 .preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
 .preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
 .preview-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.preview-empty {
+  width: 100%;
+  padding: 12px 0;
+  :deep(.el-empty__description p) { margin: 0; font-size: 12px; }
+}
 .preview-grid { position: absolute; inset: 0; pointer-events: none; background-image: linear-gradient(to right, rgba(34,211,238,.75) 1px, transparent 1px), linear-gradient(to bottom, rgba(34,211,238,.75) 1px, transparent 1px); background-size: calc(100% / var(--columns)) calc(100% / var(--rows)); }
 
 .count-strip {

@@ -141,6 +141,19 @@ test('首页业务模块每行最多展示三个', async () => {
   assert.match(dashboard, /@media \(max-width: 1100px\)[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/)
 })
 
+test('浮窗内部重新查询不改变浮窗位置，仅外部捕获才重新定位', async () => {
+  const [overlay, service] = await Promise.all([
+    source('electron/modules/priceCheck/overlay.js'),
+    source('electron/modules/priceCheck/service.js')
+  ])
+  assert.match(overlay, /create\(snapshot, \{ reposition = true \} = \{\}\)/)
+  assert.match(overlay, /if \(reposition\) \{[\s\S]*setBounds/)
+  assert.match(service, /async check\(\{ text, league, model, options = \{\}, reposition = true \}\)/)
+  assert.match(service, /this\.overlay\?\.create\?\.\(state, \{ reposition \}\)/)
+  assert.match(service, /rerun[\s\S]*reposition: false/)
+  assert.match(service, /resolveIdentity[\s\S]*reposition: false/)
+})
+
 test('查价开关注册失败会回滚后端运行态', async () => {
   const store = await source('src/stores/priceCheck.js')
   assert.match(store, /await syncRuntime\(\{ enabled: true \}\)[\s\S]*shortcut\.register\(shortcut, 'priceCheck'\)/)

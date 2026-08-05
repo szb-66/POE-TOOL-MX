@@ -269,7 +269,7 @@ export class PriceCheckService {
     }
   }
 
-  async check({ text, league, model, options = {} }) {
+  async check({ text, league, model, options = {}, reposition = true }) {
     this.assertEnabled()
     options = sanitizePriceCheckOptions(options)
     this.controller?.abort()
@@ -281,14 +281,14 @@ export class PriceCheckService {
     }
     if (!this.auth.getStatus().authenticated) {
       const error = new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, '请先登录国服账号')
-      this.overlay?.create?.({ status: 'error', error: error.toJSON(), catalog: this.catalogStatus, auth: this.auth.getStatus(), league })
+      this.overlay?.create?.({ status: 'error', error: error.toJSON(), catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
     }
     let currentModel
     try {
       currentModel = model ? sanitizePriceCheckModel(model) : this.parse(text, options)
     } catch (error) {
-      this.overlay?.create?.({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league })
+      this.overlay?.create?.({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
     }
     if (currentModel.identityResolution?.required) {
@@ -313,7 +313,7 @@ export class PriceCheckService {
           ? { code: 'IDENTITY_UNRESOLVED', message: currentModel.identityResolution.message }
           : undefined
       }
-      this.overlay?.create?.(state)
+      this.overlay?.create?.(state, { reposition })
       void this.refreshDcRate()
       return structuredClone(this.latest)
     }
@@ -323,7 +323,7 @@ export class PriceCheckService {
       status: 'loading', league, model: currentModel, options,
       settingsRevision: this.settingsRevision, dcRate: this.currentDcRate(),
       catalog: this.catalogStatus, auth: this.auth.getStatus(), query
-    })
+    }, { reposition })
     try {
       let effectiveQuery = query
       let search
@@ -410,7 +410,8 @@ export class PriceCheckService {
     return this.check({
       league: String(request.league || source.league || ''),
       model: request.model || source.model,
-      options: request.options || {}
+      options: request.options || {},
+      reposition: false
     })
   }
 
@@ -426,7 +427,8 @@ export class PriceCheckService {
     return this.check({
       league: source.league,
       model,
-      options: source.options || this.runtime.options
+      options: source.options || this.runtime.options,
+      reposition: false
     })
   }
 
