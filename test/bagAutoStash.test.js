@@ -944,7 +944,7 @@ print(json.dumps({"moves": Controller.moves, "clicks": Controller.clicks}))
 })
 
 test('全局操作等待同步接口只更新下一轮运行配置，不重启检测器或重置会话', () => {
-  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const handler = ipcSource.match(/ipcMain\.handle\('update-bag-operation-delay'[\s\S]*?\n  \}\)/)?.[0] || ''
@@ -956,7 +956,7 @@ test('全局操作等待同步接口只更新下一轮运行配置，不重启�
 })
 
 test('完整背包运行时配置热更新检测并保留当前入库进程快照', () => {
-  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const bagView = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')

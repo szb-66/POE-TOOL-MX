@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { normalizePuzzleRegionMetadata, validatePuzzleRegionEnvironment } from '../src/utils/puzzleConfig.js'
 
-const source = relativePath => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+const source = relativePath => readFileSync(new URL(relativePath, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 const metadata = {
   displayId: 'old-id',

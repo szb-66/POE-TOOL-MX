@@ -256,7 +256,7 @@ print(json.dumps({"clicked": clicked, "events": events}))
 })
 
 test('Store 在失焦期间保持运行，并在回焦后恢复前台状态', () => {
-  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8').replace(/\r\n/g, '\n')
   assert.match(ipcSource, /running: true, \.\.\.JSON\.parse/)
 
   setActivePinia(createPinia())
@@ -313,7 +313,7 @@ with tempfile.TemporaryDirectory() as directory:
 })
 
 test('自动喝药配置更新接口原子替换配置且不重启现有进程', () => {
-  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8').replace(/\r\n/g, '\n')
   const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const handler = ipcSource.match(/ipcMain\.handle\('combat-update-potion-config'[\s\S]*?\n  \}\)/)?.[0] || ''

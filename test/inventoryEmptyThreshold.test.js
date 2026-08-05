@@ -9,7 +9,7 @@ import {
 } from '../src/utils/inventorySettings.js'
 import { buildBagRuntimeConfig } from '../src/utils/bagConfig.js'
 
-const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+const source = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const mapTemplate = source('../src/assets/scripts/map_rolling_template.py')
 
 function runMapScan(emptySlotThreshold, statuses, cols = 8) {
