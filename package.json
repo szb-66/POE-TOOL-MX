@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -104,6 +104,10 @@
       {
         "from": "src/assets/scripts/puzzle_auto_place.py",
         "to": "puzzle_auto_place.py"
+      },
+      {
+        "from": "src/assets/scripts/foreground_watcher.py",
+        "to": "foreground_watcher.py"
       },
       {
         "from": "electron/assets/puzzle/templates.json",

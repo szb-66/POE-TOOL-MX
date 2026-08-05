@@ -77,10 +77,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          $version = node -p "require('./package.json').version"
+          $notesFile = "docs/release-notes/v$version.md"
+          $notesArgs = @("--generate-notes")
+          if (Test-Path -LiteralPath $notesFile) {
+            $notesArgs = @("--notes-file", $notesFile)
+          }
           gh release create "${{ github.ref_name }}" `
             "${{ steps.assets.outputs.installer }}" `
             "dist-electron/SHA256SUMS.txt" `
             "THIRD_PARTY_NOTICES.md" `
             --verify-tag `
-            --generate-notes `
-            --title "流放助手 ${{ github.ref_name }}"
+            --title "流放助手 ${{ github.ref_name }}" `
+            @notesArgs
