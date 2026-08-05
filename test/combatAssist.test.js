@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { pythonPath } from './helpers/python.js'
 import { createPinia, setActivePinia } from 'pinia'
-import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '../src/utils/combatConfig.js'
+import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist, validateLoopAssist } from '../src/utils/combatConfig.js'
 import { useCombatStore } from '../src/stores/combat.js'
 
 const scriptUrl = new URL('../src/assets/scripts/combat_assist_template.py', import.meta.url)
@@ -317,7 +317,7 @@ test('自动喝药配置更新接口原子替换配置且不重启现有进程',
   const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const handler = ipcSource.match(/ipcMain\.handle\('combat-update-potion-config'[\s\S]*?\n  \}\)/)?.[0] || ''
-  assert.match(handler, /normalizeValidPotionConfig/)
+  assert.match(handler, /normalizePotionConfig/)
   assert.match(handler, /writeJsonAtomically/)
   assert.match(handler, /potionConfigRevision \+= 1/)
   assert.doesNotMatch(handler, /spawn\(|killPythonProcessTree/)
@@ -365,4 +365,141 @@ print(user32.GetAwarenessFromDpiAwarenessContext(user32.GetThreadDpiAwarenessCon
   const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.equal(result.stdout.trim(), '2')
+})
+
+test('主动循环配置默认空列表并按条目约束非法数值', () => {
+  const config = normalizeCombatAssist({
+    loop: {
+      items: [
+        { key: '1', intervalMs: 3000, enabled: true },
+        { key: '', intervalMs: 5000, enabled: true },
+        { key: 'w', intervalMs: -5, enabled: false }
+      ]
+    }
+  })
+  assert.equal(config.loop.tickMs, 50)
+  assert.deepEqual(config.loop.items, [
+    { id: '', key: '1', intervalMs: 3000, enabled: true },
+    { id: '', key: 'w', intervalMs: 1000, enabled: false }
+  ])
+})
+
+test('主动循环校验要求至少一条启用条目，综合校验任一模块有效即可', () => {
+  const empty = createDefaultCombatAssist()
+  assert.equal(validateLoopAssist(empty).isValid, false)
+
+  const withItem = createDefaultCombatAssist()
+  withItem.loop.items = [{ id: 'a', key: '1', intervalMs: 3000, enabled: true }]
+  assert.equal(validateLoopAssist(withItem).isValid, true)
+
+  const onlyLoop = normalizeCombatAssist({ loop: { items: [{ key: '1', intervalMs: 3000, enabled: true }] } })
+  assert.equal(validateCombatAssist(onlyLoop).isValid, true)
+
+  const noEnabled = normalizeCombatAssist({
+    potion: { health: { enabled: false }, mana: { enabled: false } },
+    loop: { items: [{ key: '1', intervalMs: 3000, enabled: false }] }
+  })
+  assert.equal(validateCombatAssist(noEnabled).isValid, false)
+})
+
+test('主动循环按各自间隔触发、启动立即按下并跳过禁用条目', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+events = []
+sends = []
+state = {"sleeps": 0}
+clock = iter([1.0, 1.25, 1.45, 1.46, 1.66])
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+module.is_game_foreground = lambda: True
+def send(keys):
+    sends.append(list(keys))
+    return len(keys)
+def sleep(_delay):
+    state["sleeps"] += 1
+    if state["sleeps"] >= 5:
+        module.running = False
+module.send_sequence = send
+module.time.sleep = sleep
+module.time.monotonic = lambda: next(clock)
+
+result = module.run_loop({"loop": {"tickMs": 10, "items": [
+    {"id": "a", "key": "1", "intervalMs": 200, "enabled": True},
+    {"id": "b", "key": "2", "intervalMs": 50, "enabled": False}
+]}})
+print(json.dumps({"result": result, "sends": sends, "events": events}, ensure_ascii=False))
+`
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout)
+  assert.equal(payload.result, 0)
+  assert.deepEqual(payload.sends, [['1'], ['1'], ['1'], ['1']])
+  const triggered = payload.events.filter(event => event.event === 'triggered')
+  assert.equal(triggered.length, 4)
+  assert.ok(triggered.every(event => event.resource === 'loop' && event.key === '1' && event.intervalMs === 200))
+})
+
+test('主动循环在游戏失焦时暂停发送，回焦后按间隔恢复', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+events = []
+sends = []
+state = {"sleeps": 0}
+clock = iter([1.0, 1.0, 1.0, 1.0, 1.0])
+focus = iter([True, True, False, True, True, True])
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+module.is_game_foreground = lambda: next(focus)
+def send(keys):
+    sends.append(list(keys))
+    return len(keys)
+def sleep(_delay):
+    state["sleeps"] += 1
+    if state["sleeps"] >= 5:
+        module.running = False
+module.send_sequence = send
+module.time.sleep = sleep
+module.time.monotonic = lambda: next(clock)
+
+result = module.run_loop({"loop": {"tickMs": 10, "items": [
+    {"id": "a", "key": "1", "intervalMs": 200, "enabled": True}
+]}})
+print(json.dumps({"result": result, "sends": sends, "events": events}, ensure_ascii=False))
+`
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout)
+  assert.equal(payload.result, 0)
+  assert.deepEqual(payload.sends, [['1']])
+  const focusEvents = payload.events.filter(event => event.event === 'focus')
+  assert.deepEqual(focusEvents, [{ event: 'focus', active: true }, { event: 'focus', active: false }, { event: 'focus', active: true }])
+})
+
+test('主动循环 IPC 桥接完整：独立进程、状态事件带来源标记、退出清理', () => {
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  const preloadSource = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
+  const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
+  assert.match(ipcSource, /let loopProcess = null/)
+  assert.match(ipcSource, /combat-start-loop/)
+  assert.match(ipcSource, /combat-stop-loop/)
+  assert.match(ipcSource, /combat-get-loop-status/)
+  assert.match(ipcSource, /combat-update-loop-config/)
+  assert.match(ipcSource, /origin: 'loop'/)
+  assert.match(ipcSource, /\[potionProcess, loopProcess, portalProcess\]/) // loopProcess 纳入退出清理
+  assert.match(preloadSource, /startLoopAssist/)
+  assert.match(preloadSource, /stopLoopAssist/)
+  assert.match(preloadSource, /getLoopAssistStatus/)
+  assert.match(preloadSource, /updateLoopAssistConfig/)
+  assert.match(apiSource, /startLoop:/)
+  assert.match(apiSource, /stopLoop:/)
+  assert.match(apiSource, /getLoopStatus:/)
+  assert.match(apiSource, /updateLoopConfig:/)
 })

@@ -291,6 +291,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopPotionAssist: () => ipcRenderer.invoke('combat-stop-potion'),
   getPotionAssistStatus: () => ipcRenderer.invoke('combat-get-potion-status'),
   updatePotionAssistConfig: (config) => ipcRenderer.invoke('combat-update-potion-config', config),
+  startLoopAssist: (payload) => ipcRenderer.invoke('combat-start-loop', payload),
+  stopLoopAssist: () => ipcRenderer.invoke('combat-stop-loop'),
+  getLoopAssistStatus: () => ipcRenderer.invoke('combat-get-loop-status'),
+  updateLoopAssistConfig: (config) => ipcRenderer.invoke('combat-update-loop-config', config),
   sampleCombatPixel: (payload) => ipcRenderer.invoke('combat-sample-pixel', payload),
   executePortalAssist: (payload) => ipcRenderer.invoke('combat-execute-portal', payload),
   onCombatStatus: (callback) => {

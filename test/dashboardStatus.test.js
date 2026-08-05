@@ -116,7 +116,19 @@ test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
     validation: { errors: [] },
     running: true,
     focused: false
-  }).statusText, '运行中 · 等待游戏窗口')
+  }).statusText, '被动喝药 · 等待游戏窗口')
+  assert.equal(evaluateCombatStatus({
+    validation: { errors: [] },
+    loopRunning: true,
+    loopFocused: true
+  }).statusText, '主动循环 · 游戏窗口前台')
+  assert.equal(evaluateCombatStatus({
+    validation: { errors: [] },
+    running: true,
+    focused: true,
+    loopRunning: true,
+    loopFocused: true
+  }).statusText, '被动喝药 + 主动循环 · 游戏窗口前台')
   assert.equal(evaluateCombatStatus({
     validation: { errors: [] },
     lastError: '后台失败'

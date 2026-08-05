@@ -115,6 +115,48 @@
     <el-card shadow="never" class="section-card">
       <template #header>
         <div class="card-title">
+          <div class="loop-title">
+            <strong>主动喝药循环</strong>
+            <span class="hint">开启后立即按下对应按键，并按各自间隔循环发送，仅游戏前台时发送</span>
+          </div>
+          <div class="runtime-actions">
+            <el-tag :type="combatStore.loopRunning ? 'success' : 'info'">
+              {{ combatStore.loopRunning ? (combatStore.loopFocused ? '运行中' : '运行中 · 等待游戏窗口') : '已停止' }}
+            </el-tag>
+            <el-button type="primary" :disabled="combatStore.loopRunning" @click="startLoopAssist">开始</el-button>
+            <el-button type="danger" :disabled="!combatStore.loopRunning" @click="stopLoopAssist">停止</el-button>
+            <el-button type="default" @click="addLoopItem">添加按键</el-button>
+          </div>
+        </div>
+      </template>
+
+      <el-alert
+        v-if="combatStore.loopLastError"
+        type="error"
+        :title="combatStore.loopLastError"
+        show-icon
+        :closable="false"
+        class="loop-error"
+      />
+
+      <div v-if="!config.loop.items.length" class="loop-empty">
+        尚未添加循环按键，点击右上角"添加按键"。
+      </div>
+      <div v-else class="loop-list">
+        <div v-for="(item, index) in config.loop.items" :key="item.id" class="loop-row">
+          <el-switch v-model="item.enabled" />
+          <KeyCaptureInput v-model="item.key" mode="action" placeholder="选择按键" class="loop-key" />
+          <span class="unit">间隔</span>
+          <el-input-number v-model="item.intervalMs" :min="100" :step="100" />
+          <span class="unit">毫秒</span>
+          <el-button :icon="Delete" circle size="small" @click="removeLoopItem(index)" />
+        </div>
+      </div>
+    </el-card>
+
+    <el-card shadow="never" class="section-card">
+      <template #header>
+        <div class="card-title">
           <strong>一键回城</strong>
           <el-button type="primary" @click="executePortalAssist">执行回城</el-button>
         </div>
@@ -148,7 +190,7 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Aim } from '@element-plus/icons-vue'
+import { Aim, Delete } from '@element-plus/icons-vue'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
@@ -158,7 +200,9 @@ import KeySequenceCapture from '@/components/common/KeySequenceCapture.vue'
 import {
   executePortalAssist,
   sampleCombatPixel,
+  startLoopAssist,
   startPotionAssist,
+  stopLoopAssist,
   stopPotionAssist
 } from '@/utils/combatService'
 
@@ -233,6 +277,19 @@ async function samplePixel(resource) {
   }
 }
 
+function addLoopItem() {
+  config.loop.items.push({
+    id: `loop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    key: '',
+    intervalMs: 3000,
+    enabled: true
+  })
+}
+
+function removeLoopItem(index) {
+  config.loop.items.splice(index, 1)
+}
+
 async function saveShortcut(key, value) {
   try {
     await commitGlobalShortcut(key, value)
@@ -271,6 +328,13 @@ async function saveShortcut(key, value) {
 .resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .shortcut-field { gap: 12px; span { white-space: nowrap; } }
 .section-card { margin-bottom: 18px; }
+.loop-title { display: flex; align-items: baseline; gap: 12px; }
+.loop-list { display: grid; gap: 10px; }
+.loop-row { display: flex; align-items: center; gap: 10px; }
+.loop-key { min-width: 110px; }
+.loop-row :deep(.el-input-number) { width: 130px; }
+.loop-empty { padding: 18px 0; color: var(--text-secondary); font-size: 13px; text-align: center; }
+.loop-error { margin-bottom: 12px; }
 .position-row :deep(.el-input-number) { width: 110px; }
 .short-input { max-width: 240px; }
 .hint, .unit { margin-left: 8px; color: var(--text-secondary); font-size: 12px; }

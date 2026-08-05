@@ -122,24 +122,33 @@ export function evaluateBagStatus(input = {}) {
 }
 
 export function evaluateCombatStatus(input = {}) {
-  const runningText = input.protectedMode
-    ? '运行中 · 频率保护'
-    : input.focused
-      ? '运行中 · 游戏窗口前台'
-      : '运行中 · 等待游戏窗口'
+  const potionRunning = Boolean(input.running)
+  const loopRunning = Boolean(input.loopRunning)
+  const running = potionRunning || loopRunning
+  const parts = []
+  if (potionRunning) parts.push(input.protectedMode ? '被动喝药 · 频率保护' : '被动喝药')
+  if (loopRunning) parts.push('主动循环')
+  const focusOk = potionRunning && loopRunning
+    ? Boolean(input.focused && input.loopFocused)
+    : potionRunning
+      ? Boolean(input.focused)
+      : Boolean(input.loopFocused)
+  const runningText = parts.length
+    ? `${parts.join(' + ')} · ${focusOk ? '游戏窗口前台' : '等待游戏窗口'}`
+    : ''
   return createModuleStatus({
     id: 'combat',
     title: '战斗辅助',
     route: '/combat',
-    description: '监测生命与魔力并在安全条件下触发药剂。',
-    error: input.lastError,
-    running: input.running,
+    description: '监测生命魔力自动喝药，并按间隔循环发送指定按键。',
+    error: input.lastError || input.loopLastError,
+    running,
     issues: input.validation?.errors,
     readyText: '配置完整，可启动',
     runningText,
     metrics: [
-      { label: '生命触发', value: Number(input.healthTriggers) || 0 },
-      { label: '魔力触发', value: Number(input.manaTriggers) || 0 }
+      { label: '被动触发', value: Number(input.healthTriggers) + Number(input.manaTriggers) || 0 },
+      { label: '循环触发', value: Number(input.loopTriggers) || 0 }
     ]
   })
 }

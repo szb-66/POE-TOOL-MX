@@ -214,7 +214,9 @@ class RuntimeConfig:
             if mtime_ns == self.mtime_ns:
                 return self.cached
             candidate = load_config(self.path)
-            if not isinstance(candidate, dict) or not isinstance(candidate.get("potion"), dict):
+            if not isinstance(candidate, dict):
+                raise ValueError("invalid combat runtime config")
+            if not (isinstance(candidate.get("potion"), dict) or isinstance(candidate.get("loop"), dict)):
                 raise ValueError("invalid combat runtime config")
             self.cached = candidate
             self.mtime_ns = mtime_ns
@@ -304,6 +306,55 @@ def run_potion(config, config_path=None):
     return 0
 
 
+def run_loop(config, config_path=None):
+    global running
+    running = True
+    signal.signal(signal.SIGTERM, stop_running)
+    signal.signal(signal.SIGINT, stop_running)
+
+    runtime_config = RuntimeConfig(config_path, config)
+    last_press = {}
+    last_focus = None
+    emit("started")
+
+    while running:
+        loop_config = runtime_config.load().get("loop", {})
+        tick_ms = max(10, int(loop_config.get("tickMs", 50)))
+        focused = is_game_foreground()
+        if focused != last_focus:
+            emit("focus", active=focused)
+            last_focus = focused
+
+        now_ms = int(time.monotonic() * 1000)
+        for item in loop_config.get("items", []):
+            if not item.get("enabled", False):
+                continue
+            key = str(item.get("key", "")).strip()
+            if not key:
+                continue
+            item_id = str(item.get("id") or key)
+            interval_ms = max(1, int(item.get("intervalMs", 1000)))
+            if last_press.get(item_id, 0) > 0 and now_ms - last_press[item_id] < interval_ms:
+                continue
+            if not is_game_foreground():
+                if last_focus is not False:
+                    emit("focus", active=False)
+                    last_focus = False
+                break
+            if send_sequence([key]) != 1:
+                if last_focus is not False:
+                    emit("focus", active=False)
+                    last_focus = False
+                break
+            last_press[item_id] = now_ms
+            emit("triggered", resource="loop", key=key, intervalMs=interval_ms)
+
+        time.sleep(tick_ms / 1000)
+
+    emit("stopped")
+    return 0
+
+
 def run_sample(config):
     point = config.get("point", {})
     print(json.dumps({"success": True, "color": read_pixel(point)}, ensure_ascii=False), flush=True)
@@ -337,12 +388,15 @@ def load_config(path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("potion", "sample", "portal"), required=True)
+    parser.add_argument("--mode", choices=("potion", "loop", "sample", "portal"), required=True)
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
     config = load_config(args.config)
     if args.mode == "potion":
         run_potion(config, args.config)
+        return 0
+    if args.mode == "loop":
+        run_loop(config, args.config)
         return 0
     if args.mode == "sample":
         run_sample(config)

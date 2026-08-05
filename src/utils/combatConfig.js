@@ -1,5 +1,7 @@
 export {
   createDefaultCombatAssist,
   normalizeCombatAssist,
-  validateCombatAssist
+  validateCombatAssist,
+  validateLoopAssist,
+  validatePotionAssist
 } from '../../shared/combatAssist.js'

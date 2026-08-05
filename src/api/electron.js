@@ -188,6 +188,10 @@ const mockApi = {
     stopPotion: () => Promise.resolve({ success: true }),
     getPotionStatus: () => Promise.resolve({ running: false, processId: null }),
     updatePotionConfig: (config) => Promise.resolve({ success: true, config, revision: 1, running: false }),
+    startLoop: () => Promise.reject(new Error('非 Electron 环境')),
+    stopLoop: () => Promise.resolve({ success: true }),
+    getLoopStatus: () => Promise.resolve({ running: false, processId: null }),
+    updateLoopConfig: (config) => Promise.resolve({ success: true, config, revision: 1, running: false }),
     samplePixel: () => Promise.reject(new Error('非 Electron 环境')),
     executePortal: () => Promise.reject(new Error('非 Electron 环境')),
     onStatus: () => () => {}
@@ -442,6 +446,10 @@ export const electronApi = isElectron ? {
     stopPotion: () => window.electronAPI.stopPotionAssist?.(),
     getPotionStatus: () => window.electronAPI.getPotionAssistStatus?.(),
     updatePotionConfig: (config) => window.electronAPI.updatePotionAssistConfig?.(craftingIpcPayload(config)),
+    startLoop: (payload) => window.electronAPI.startLoopAssist?.(payload),
+    stopLoop: () => window.electronAPI.stopLoopAssist?.(),
+    getLoopStatus: () => window.electronAPI.getLoopAssistStatus?.(),
+    updateLoopConfig: (config) => window.electronAPI.updateLoopAssistConfig?.(craftingIpcPayload(config)),
     samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
     executePortal: (payload) => window.electronAPI.executePortalAssist?.(payload),
     onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})

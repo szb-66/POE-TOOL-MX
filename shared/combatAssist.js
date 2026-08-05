@@ -32,6 +32,10 @@ export function createDefaultCombatAssist() {
       openKey: 'Numpad1',
       clickPoint: { x: 1908, y: 890 },
       waitMs: 500
+    },
+    loop: {
+      tickMs: 50,
+      items: []
     }
   }
 }
@@ -77,11 +81,24 @@ export function normalizeCombatAssist(raw = {}) {
         y: Number.isFinite(Number(raw.portal?.clickPoint?.y)) ? Number(raw.portal.clickPoint.y) : defaults.portal.clickPoint.y
       },
       waitMs: positiveNumber(raw.portal?.waitMs, defaults.portal.waitMs, 0)
+    },
+    loop: {
+      tickMs: positiveNumber(raw.loop?.tickMs, defaults.loop.tickMs, 10),
+      items: Array.isArray(raw.loop?.items)
+        ? raw.loop.items
+          .map(item => ({
+            id: String(item?.id || '').trim(),
+            key: String(item?.key || '').trim(),
+            intervalMs: positiveNumber(item?.intervalMs, 1000, 100),
+            enabled: item?.enabled === undefined ? true : Boolean(item.enabled)
+          }))
+          .filter(item => Boolean(item.key))
+        : []
     }
   }
 }
 
-export function validateCombatAssist(config = {}) {
+export function validatePotionAssist(config = {}) {
   const errors = []
   const resources = [
     ['health', '生命药剂'],
@@ -102,5 +119,20 @@ export function validateCombatAssist(config = {}) {
   }
 
   return { isValid: errors.length === 0, errors }
+}
+
+export function validateLoopAssist(config = {}) {
+  const errors = []
+  const enabledItems = (config.loop?.items || []).filter(item => item.enabled)
+  if (!enabledItems.length) errors.push('请至少添加一个启用的循环按键')
+  return { isValid: errors.length === 0, errors }
+}
+
+export function validateCombatAssist(config = {}) {
+  const potion = validatePotionAssist(config)
+  if (potion.isValid) return potion
+  const loop = validateLoopAssist(config)
+  if (loop.isValid) return loop
+  return potion
 }
 

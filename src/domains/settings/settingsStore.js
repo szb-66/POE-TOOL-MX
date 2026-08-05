@@ -152,12 +152,17 @@ export const useSettingsStore = defineStore('settings', () => {
     }
     const commit = async () => {
       try {
-        const result = await electronApi.combat.updatePotionConfig(candidate)
-        if (!result?.success) throw new Error(result?.error || '战斗辅助配置同步失败')
-        const revision = Number(result.revision) || 0
+        const potionResult = await electronApi.combat.updatePotionConfig(candidate)
+        if (!potionResult?.success) throw new Error(potionResult?.error || '战斗辅助配置同步失败')
+        const loopResult = await electronApi.combat.updateLoopConfig(candidate)
+        if (!loopResult?.success) {
+          await electronApi.combat.updatePotionConfig(combatAssist.value)?.catch(() => {})
+          throw new Error(loopResult?.error || '主动循环配置同步失败')
+        }
+        const revision = Number(potionResult.revision) || 0
         if (revision >= combatConfigRevision) {
           combatConfigRevision = revision
-          combatAssist.value = normalizeCombatAssist(result.config || candidate)
+          combatAssist.value = normalizeCombatAssist(potionResult.config || candidate)
           saveSettings()
         }
         return { success: true, config: JSON.parse(JSON.stringify(combatAssist.value)), revision }

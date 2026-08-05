@@ -14,10 +14,10 @@ import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
-import { validateCombatAssist } from '@/utils/combatConfig'
+import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
 import { setBagModuleEnabled, stopBagStash } from '@/utils/bagService'
-import { startPotionAssist, stopPotionAssist } from '@/utils/combatService'
+import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService'
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import {
@@ -102,7 +102,11 @@ export function useDashboard() {
     blacklist: bagStore.blacklist,
     inventoryLayout: bagStore.inventoryLayout
   }, settingsStore)))
-  const combatValidation = computed(() => validateCombatAssist(settingsStore.combatAssist))
+  const combatValidation = computed(() => {
+    const config = settingsStore.combatAssist
+    const hasLoopItems = (config.loop?.items || []).some(item => item.enabled && item.key)
+    return hasLoopItems ? validateLoopAssist(config) : validateCombatAssist(config)
+  })
   const modules = computed(() => {
     const activeRecipeId = chaosRecipeStore.settings.activeRecipeId
     const activeRecipe = chaosRecipeStore.activeRecipe
@@ -138,6 +142,10 @@ export function useDashboard() {
         focused: combatStore.focused,
         protectedMode: combatStore.protectedMode,
         lastError: combatStore.lastError,
+        loopRunning: combatStore.loopRunning,
+        loopFocused: combatStore.loopFocused,
+        loopTriggers: combatStore.loopTriggers,
+        loopLastError: combatStore.loopLastError,
         healthTriggers: combatStore.healthTriggers,
         manaTriggers: combatStore.manaTriggers
       }),
@@ -398,9 +406,18 @@ export function useDashboard() {
       }]
     }
     if (module.id === 'combat') {
-      return combatStore.running
-        ? [{ id: 'stop', label: '停止', type: 'danger', run: stopPotionAssist }]
-        : [{ id: 'start', label: '启动', type: 'primary', disabled: module.issues.length > 0, run: startPotionAssist }]
+      const actions = []
+      if (combatStore.running) {
+        actions.push({ id: 'stop', label: '停止被动', type: 'danger', run: stopPotionAssist })
+      } else {
+        actions.push({ id: 'start', label: '启动被动', type: 'primary', disabled: module.issues.length > 0, run: startPotionAssist })
+      }
+      if (combatStore.loopRunning) {
+        actions.push({ id: 'stop-loop', label: '停止循环', type: 'danger', run: stopLoopAssist })
+      } else {
+        actions.push({ id: 'start-loop', label: '启动循环', type: 'primary', disabled: module.issues.length > 0, run: startLoopAssist })
+      }
+      return actions
     }
     if (module.id === 'story') {
       return storyStore.overlayVisible
@@ -483,9 +500,10 @@ export function useDashboard() {
     refreshing.value = true
     craftingStatusError.value = ''
     try {
-      const [scriptResult, combatResult, pythonResult, craftingResult, healthResult] = await Promise.allSettled([
+      const [scriptResult, combatResult, loopResult, pythonResult, craftingResult, healthResult] = await Promise.allSettled([
         electronApi.script.getStatus(),
         electronApi.combat.getPotionStatus(),
+        electronApi.combat.getLoopStatus(),
         electronApi.script.detectPythonPath(),
         electronApi.crafting.getStatus(),
         electronApi.system.getStartupHealth()
@@ -498,6 +516,13 @@ export function useDashboard() {
         combatStore.applyStatus({ ...combatStatus, event: combatStatus.running ? 'running' : 'stopped' })
       } else {
         combatStore.applyStatus({ running: false, event: 'error', error: combatResult.reason?.message || '战斗辅助状态读取失败' })
+      }
+
+      if (loopResult.status === 'fulfilled') {
+        const loopStatus = loopResult.value
+        combatStore.applyStatus({ ...loopStatus, origin: 'loop', event: loopStatus.running ? 'running' : 'stopped' })
+      } else {
+        combatStore.applyStatus({ running: false, origin: 'loop', event: 'error', error: loopResult.reason?.message || '主动循环状态读取失败' })
       }
 
       if (pythonResult.status === 'fulfilled' && (pythonResult.value?.ready || pythonResult.value?.found)) {
