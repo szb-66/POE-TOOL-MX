@@ -34,8 +34,11 @@ import {
   resolveEffectiveDpi
 } from '@/utils/dpiSettings'
 import {
+  DEFAULT_GAME_WINDOW_PROCESS_NAMES,
   DEFAULT_GAME_WINDOW_TITLES,
+  normalizeGameWindowProcessNames,
   normalizeGameWindowTitles,
+  validateGameWindowProcessNames,
   validateGameWindowTitles
 } from '../../../shared/gameWindowTitles.js'
 
@@ -114,6 +117,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
   const gameWindowTitles = ref([...DEFAULT_GAME_WINDOW_TITLES])
+  const gameWindowProcessNames = ref([...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
   const storyOverlayWidth = ref(DEFAULT_STORY_OVERLAY_WIDTH)
   const storyOverlayLayoutVersion = ref(STORY_OVERLAY_LAYOUT_VERSION)
   const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
@@ -275,6 +279,24 @@ export const useSettingsStore = defineStore('settings', () => {
     return updateGameWindowTitles(gameWindowTitles.value)
   }
 
+  async function updateGameWindowProcessNames(value) {
+    const validation = validateGameWindowProcessNames(value)
+    if (!validation.valid) return { success: false, error: validation.error }
+    try {
+      const result = await electronApi.system.updateGameWindowProcessNames(validation.processNames)
+      if (!result?.success) return { success: false, error: result?.error || '更新游戏客户端进程名失败' }
+      gameWindowProcessNames.value = normalizeGameWindowProcessNames(result.processNames)
+      saveSettings()
+      return { success: true, processNames: [...gameWindowProcessNames.value] }
+    } catch (error) {
+      return { success: false, error: error?.message || '更新游戏客户端进程名失败' }
+    }
+  }
+
+  function syncGameWindowProcessNames() {
+    return updateGameWindowProcessNames(gameWindowProcessNames.value)
+  }
+
   function updateDpiMode(mode) {
     dpiMode.value = mode === DPI_MODE_MANUAL ? DPI_MODE_MANUAL : DPI_MODE_AUTO
     if (dpiMode.value === DPI_MODE_MANUAL) {
@@ -357,6 +379,7 @@ export const useSettingsStore = defineStore('settings', () => {
         fixedTiming: fixedTiming.value,
         itemPosition: itemPosition.value,
         gameWindowTitles: gameWindowTitles.value,
+        gameWindowProcessNames: gameWindowProcessNames.value,
         dpiScale: dpiScale.value,
         dpiMode: dpiMode.value,
         manualDpiScale: manualDpiScale.value,
@@ -414,6 +437,7 @@ export const useSettingsStore = defineStore('settings', () => {
           itemPosition.value = { ...data.itemPosition }
         }
         gameWindowTitles.value = normalizeGameWindowTitles(data.gameWindowTitles)
+        gameWindowProcessNames.value = normalizeGameWindowProcessNames(data.gameWindowProcessNames)
         const dpiSettings = loadDpiSettings(data)
         dpiMode.value = dpiSettings.mode
         manualDpiScale.value = dpiSettings.manualScale
@@ -509,6 +533,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fixedTiming.value = { ...FIXED_TIMING.defaults }
     itemPosition.value = { ...defaultItemPosition }
     gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
+    gameWindowProcessNames.value = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
     dpiMode.value = DPI_MODE_AUTO
     manualDpiScale.value = 1
     lastDetectedDpiScale.value = null
@@ -530,6 +555,7 @@ export const useSettingsStore = defineStore('settings', () => {
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
     electronApi.system.updateGameWindowTitles(gameWindowTitles.value)?.catch(() => {})
+    electronApi.system.updateGameWindowProcessNames(gameWindowProcessNames.value)?.catch(() => {})
     // 重置后把门禁开关同步回主进程，避免渲染端与主进程状态分叉
     electronApi.shortcut.setScopeEnabled(true)
       .then((state) => { if (state) applyShortcutScopeState(state) })
@@ -569,6 +595,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fixedTiming,
     itemPosition,
     gameWindowTitles,
+    gameWindowProcessNames,
     dpiScale,
     dpiMode,
     manualDpiScale,
@@ -600,6 +627,8 @@ export const useSettingsStore = defineStore('settings', () => {
     updateItemPosition,
     updateGameWindowTitles,
     syncGameWindowTitles,
+    updateGameWindowProcessNames,
+    syncGameWindowProcessNames,
     updateManualDpiScale,
     updateDpiMode,
     refreshDpiScale,

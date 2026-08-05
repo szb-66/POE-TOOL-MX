@@ -4,7 +4,9 @@ export const DEFAULT_GAME_WINDOW_PROCESS_NAMES = Object.freeze([
   'PathOfExile.exe',
   'PathOfExile_x64.exe',
   'PathOfExileSteam.exe',
-  'PathOfExile_x64Steam.exe'
+  'PathOfExile_x64Steam.exe',
+  'PathOfExileEGS.exe',
+  'PathOfExile_x64EGS.exe'
 ])
 
 export function validateGameWindowTitles(value) {
@@ -33,7 +35,7 @@ export function validateGameWindowProcessNames(value) {
   const processNames = []
   const seen = new Set()
   for (const entry of value) {
-    const processName = String(entry ?? '').trim()
+    const processName = String(entry ?? '').trim().split(/[\\/]/).pop() || ''
     if (!processName) return { valid: false, processNames: [], error: '游戏客户端进程名不能为空' }
     const key = processName.toLocaleLowerCase()
     if (seen.has(key)) return { valid: false, processNames: [], error: `游戏客户端进程名“${processName}”重复` }

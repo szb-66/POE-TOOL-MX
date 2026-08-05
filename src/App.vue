@@ -47,6 +47,8 @@ onMounted(async () => {
   if (window.electronAPI) {
     const titleSync = await settingsStore.syncGameWindowTitles()
     if (!titleSync.success) ElMessage.warning(`游戏窗口名称同步失败：${titleSync.error}`)
+    const processNameSync = await settingsStore.syncGameWindowProcessNames()
+    if (!processNameSync.success) ElMessage.warning(`游戏客户端进程名同步失败：${processNameSync.error}`)
     void settingsStore.refreshDpiScale()
     initShortcuts()
     initCombatAssist()

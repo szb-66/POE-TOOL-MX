@@ -37,10 +37,13 @@ test('标题使用不区分大小写的包含匹配并返回最早优先级', ()
 
 test('游戏客户端进程名使用不区分大小写的精确匹配并拒绝无效列表', () => {
   assert.deepEqual(validateGameWindowProcessNames(['PathOfExile.exe', '  PathOfExile_x64.exe  ']).processNames, ['PathOfExile.exe', 'PathOfExile_x64.exe'])
+  assert.deepEqual(validateGameWindowProcessNames(['C:\\Games\\Path of Exile\\PathOfExile.exe']).processNames, ['PathOfExile.exe'])
   assert.equal(validateGameWindowProcessNames([]).valid, false)
   assert.equal(validateGameWindowProcessNames(['  ']).valid, false)
   assert.equal(validateGameWindowProcessNames(['pathofexile.exe', 'PathOfExile.exe']).valid, false)
   assert.deepEqual(normalizeGameWindowProcessNames(null), [...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
+  assert.ok(DEFAULT_GAME_WINDOW_PROCESS_NAMES.includes('PathOfExileEGS.exe'))
+  assert.ok(DEFAULT_GAME_WINDOW_PROCESS_NAMES.includes('PathOfExile_x64EGS.exe'))
   assert.equal(isGameWindowProcessName('C:\\Games\\Path of Exile\\PathOfExile.exe'), true)
   assert.equal(isGameWindowProcessName('chrome.exe'), false)
 })
@@ -81,6 +84,28 @@ test('旧版配置缺少进程名时自动补齐默认列表', t => {
   assert.deepEqual(registry.getProcessNames(), [...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
 })
 
+test('进程名列表可独立更新并持久化，写入失败时保留上一份内存配置', t => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'poe-window-process-names-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const registry = new GameWindowTitleRegistry({ userDataPath: directory })
+  registry.initialize()
+  const result = registry.updateProcessNames(['PathOfExile.exe', 'CustomClient.exe'])
+  assert.deepEqual(result.processNames, ['PathOfExile.exe', 'CustomClient.exe'])
+  const saved = JSON.parse(readFileSync(path.join(directory, 'game-window-titles.json'), 'utf8'))
+  assert.deepEqual(saved.processNames, ['PathOfExile.exe', 'CustomClient.exe'])
+
+  const fileSystem = {
+    writeFileSync() {},
+    renameSync() { throw new Error('locked') },
+    unlinkSync() {}
+  }
+  const failing = new GameWindowTitleRegistry({ userDataPath: directory, fileSystem, environment: {} })
+  failing.titles = ['流放之路']
+  failing.processNames = ['PathOfExile.exe']
+  assert.throws(() => failing.updateProcessNames(['PathOfExile_x64.exe']), /locked/)
+  assert.deepEqual(failing.getProcessNames(), ['PathOfExile.exe'])
+})
+
 test('共享文件写入失败时不替换上一份内存配置', () => {
   const fileSystem = {
     writeFileSync() {},
@@ -98,11 +123,21 @@ test('设置持久化、启动同步和编辑器覆盖新增编辑删除与拖�
   const view = source('../src/domains/settings/SettingsView.vue')
   const editor = source('../src/domains/settings/GameWindowTitleSettings.vue')
   assert.match(store, /gameWindowTitles: gameWindowTitles\.value/)
+  assert.match(store, /gameWindowProcessNames: gameWindowProcessNames\.value/)
   assert.match(store, /normalizeGameWindowTitles\(data\.gameWindowTitles\)/)
+  assert.match(store, /normalizeGameWindowProcessNames\(data\.gameWindowProcessNames\)/)
   assert.match(store, /gameWindowTitles\.value = \[\.\.\.DEFAULT_GAME_WINDOW_TITLES\]/)
+  assert.match(store, /gameWindowProcessNames\.value = \[\.\.\.DEFAULT_GAME_WINDOW_PROCESS_NAMES\]/)
+  assert.match(store, /updateGameWindowProcessNames/)
+  assert.match(store, /syncGameWindowProcessNames/)
   assert.ok(app.indexOf('await settingsStore.syncGameWindowTitles()') < app.indexOf('settingsStore.refreshDpiScale()'))
+  assert.ok(app.indexOf('await settingsStore.syncGameWindowProcessNames()') < app.indexOf('settingsStore.refreshDpiScale()'))
   assert.match(view, /<GameWindowTitleSettings/)
   assert.match(editor, /draggable="true"/)
+  assert.match(editor, /processDrafts/)
+  assert.match(editor, /addProcessName/)
+  assert.match(editor, /removeProcessName/)
+  assert.match(editor, /commitProcessNames/)
   assert.match(editor, /dropTitle\(index\)/)
   assert.match(editor, /addTitle/)
   assert.match(editor, /removeTitle\(index\)/)
@@ -114,8 +149,11 @@ test('IPC 与全部 Python 窗口识别脚本接入同一热更新契约', () =>
   const api = source('../src/api/electron.js')
   const systemIpc = source('../electron/modules/ipc/system.js')
   assert.match(preload, /system-update-game-window-titles/)
+  assert.match(preload, /system-update-game-window-process-names/)
   assert.match(api, /updateGameWindowTitles/)
+  assert.match(api, /updateGameWindowProcessNames/)
   assert.match(systemIpc, /gameWindowTitles\.update\(titles\)/)
+  assert.match(systemIpc, /gameWindowTitles\.updateProcessNames\(processNames\)/)
 
   const scripts = [
     'crafting_template.py',

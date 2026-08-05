@@ -37,7 +37,7 @@ enable_per_monitor_dpi_awareness()
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
-GAME_WINDOW_PROCESS_NAMES = ("PathOfExile.exe", "PathOfExile_x64.exe", "PathOfExileSteam.exe", "PathOfExile_x64Steam.exe")
+GAME_WINDOW_PROCESS_NAMES = ("PathOfExile.exe", "PathOfExile_x64.exe", "PathOfExileSteam.exe", "PathOfExile_x64Steam.exe", "PathOfExileEGS.exe", "PathOfExile_x64EGS.exe")
 _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
 _game_window_process_names_mtime_ns = None
 running = True
@@ -82,7 +82,7 @@ def game_window_process_names():
             with open(config_path, "r", encoding="utf-8") as stream:
                 payload = json.load(stream)
             values = payload.get("processNames") if isinstance(payload, dict) else None
-            process_names = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            process_names = tuple(str(value).strip().rsplit("\\", 1)[-1].rsplit("/", 1)[-1] for value in values) if isinstance(values, list) else ()
             if not process_names or any(not name for name in process_names) or len({name.casefold() for name in process_names}) != len(process_names):
                 raise ValueError("invalid game window process names")
             _game_window_process_names_cache = process_names

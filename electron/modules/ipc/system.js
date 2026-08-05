@@ -103,6 +103,14 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       return { success: false, error: error.message || String(error) }
     }
   })
+  ipcMain.handle('system-update-game-window-process-names', async (_event, processNames) => {
+    try {
+      const result = gameWindowTitles.updateProcessNames(processNames)
+      return { success: true, titles: result.titles, processNames: result.processNames }
+    } catch (error) {
+      return { success: false, error: error.message || String(error) }
+    }
+  })
   ipcMain.handle('system-get-startup-health', async () => {
     const environment = await collectEnvironment()
     await recordHealth(environment.health.items)

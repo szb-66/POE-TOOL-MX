@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
   updateGameWindowTitles: (titles) => ipcRenderer.invoke('system-update-game-window-titles', titles),
+  updateGameWindowProcessNames: (processNames) => ipcRenderer.invoke('system-update-game-window-process-names', processNames),
   getStartupHealth: () => ipcRenderer.invoke('system-get-startup-health'),
   getDiagnostics: (payload) => ipcRenderer.invoke('system-get-diagnostics', payload),
   exportDiagnostics: (payload) => ipcRenderer.invoke('system-export-diagnostics', payload),

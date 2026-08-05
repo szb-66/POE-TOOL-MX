@@ -394,4 +394,7 @@ test('打包资源与运行时清单包含前台监视脚本', () => {
   const main = source('../electron/main.js')
   assert.match(main, /startForegroundWatcher/)
   assert.match(main, /foregroundWatcher\?\.stop\(\)/)
+  const watcherScript = source('../src/assets/scripts/foreground_watcher.py')
+  assert.match(watcherScript, /foreground_state = \(game, reason, process_name\)/)
+  assert.match(watcherScript, /if foreground_state != _last_foreground_state:/)
 })
