@@ -414,9 +414,9 @@ test('快捷查价捕获新剪贴板文本，失败时恢复原剪贴板', async
   assert.equal(value, '需要恢复')
 })
 
-test('快捷查价优先高级复制并在捕获失败后回退普通复制', async () => {
+test('快捷查价发送一次 Ctrl+C 复制并捕获文本', async () => {
   let value = '原内容'
-  const attempts = []
+  let sends = 0
   const clipboard = {
     readText: () => value,
     writeText: (next) => { value = next }
@@ -426,13 +426,13 @@ test('快捷查价优先高级复制并在捕获失败后回退普通复制', as
     releaseDelayMs: 0,
     timeoutMs: 2,
     pollMs: 1,
-    sendCopy: async ({ advanced }) => {
-      attempts.push(advanced)
-      if (!advanced) value = '物品类别: 胸甲\n稀 有 度: 稀有\n回退物品'
+    sendCopy: async () => {
+      sends += 1
+      value = '物品类别: 胸甲\n稀 有 度: 稀有\n复制物品'
     }
   })
-  assert.deepEqual(attempts, [true, false])
-  assert.match(captured, /回退物品/)
+  assert.equal(sends, 1)
+  assert.match(captured, /复制物品/)
 })
 
 test('快捷查价前台预检失败时不修改剪贴板也不发送复制键', async () => {

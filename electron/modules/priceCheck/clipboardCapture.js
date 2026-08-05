@@ -43,15 +43,13 @@ export async function assertWindowsGameForeground(pythonPath) {
   return runWindowsInputScript(pythonPath, gameForegroundGuardLines())
 }
 
-export async function sendWindowsCopy(pythonPath, { advanced = false } = {}) {
+export async function sendWindowsCopy(pythonPath) {
   const script = [
     ...gameForegroundGuardLines(),
     'u.keybd_event(0x11, 0, 0, 0)',
-    ...(advanced ? ['u.keybd_event(0x12, 0, 0, 0)'] : []),
     'u.keybd_event(0x43, 0, 0, 0)',
     'time.sleep(0.02)',
     'u.keybd_event(0x43, 0, 2, 0)',
-    ...(advanced ? ['u.keybd_event(0x12, 0, 2, 0)'] : []),
     'u.keybd_event(0x11, 0, 2, 0)'
   ]
   await runWindowsInputScript(pythonPath, script)
@@ -85,19 +83,8 @@ export async function captureFreshClipboardText({
 
 export async function capturePoeItemText(options) {
   await options.assertForeground?.()
-  try {
-    return await captureFreshClipboardText({
-      ...options,
-      sendCopy: () => options.sendCopy({ advanced: true })
-    })
-  } catch (advancedError) {
-    try {
-      return await captureFreshClipboardText({
-        ...options,
-        sendCopy: () => options.sendCopy({ advanced: false })
-      })
-    } catch {
-      throw advancedError
-    }
-  }
+  return captureFreshClipboardText({
+    ...options,
+    sendCopy: () => options.sendCopy()
+  })
 }

@@ -585,23 +585,17 @@ def send_copy_command():
     try:
         if not require_game_foreground():
             return False
-        # 使用 Ctrl+Alt+C 读取高级属性
+        # 使用 Ctrl+C 读取高级属性
         keyboard_controller.press(Key.ctrl)
         if not require_game_foreground():
             return False
-        keyboard_controller.press(Key.alt)
-        time.sleep(0.05) # 稍微增加按键间隔
-        if not require_game_foreground():
-            return False
         keyboard_controller.press('c')
-        time.sleep(0.05)
+        time.sleep(0.05) # 稍微增加按键间隔
         keyboard_controller.release('c')
-        keyboard_controller.release(Key.alt)
         keyboard_controller.release(Key.ctrl)
         time.sleep(clipboard_read_delay / 1000.0)
         # 释放所有修饰键以防万一
         keyboard_controller.release(Key.ctrl)
-        keyboard_controller.release(Key.alt)
         return True
     except:
         return False
@@ -790,7 +784,7 @@ def start_map_rolling():
                 print(f"[警告] 获取剪切板序列号失败: {e}")
         
         # 3. 复制物品信息
-        print(f"[操作] 复制物品信息 (Ctrl+Alt+C)")
+        print(f"[操作] 复制物品信息 (Ctrl+C)")
         if not read_clipboard_to_file():
             consecutive_empty_slots += 1
             print(f"[提示] 复制失败，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")

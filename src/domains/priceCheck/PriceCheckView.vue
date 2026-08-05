@@ -111,7 +111,7 @@
       <ol class="instructions">
         <li>在设置页登录国服账号并选择全局赛季。</li>
         <li>开启查价器后，将鼠标悬停在游戏物品上，按 {{ appSettings.globalShortcuts.priceCheck }}。</li>
-        <li>助手优先发送 Ctrl+Alt+C 读取高级物品文本，失败时自动回退 Ctrl+C。</li>
+        <li>助手发送 Ctrl+C 读取物品详细文本。</li>
       </ol>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
     </el-card>

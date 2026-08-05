@@ -23,7 +23,7 @@ export const ITEM_FORMAT_GUIDANCE = {
     },
     {
       id: 'item-detailed',
-      label: '详细复制格式（Ctrl+Alt+C）',
+      label: '详细复制格式（Ctrl+C）',
       text: `物品类别: 护身符
 稀有度: 稀有
 风暴之符

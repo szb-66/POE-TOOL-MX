@@ -268,7 +268,7 @@ app.whenReady().then(async () => {
     captureClipboard: () => capturePoeItemText({
       clipboard,
       assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
-      sendCopy: (options) => sendWindowsCopy(pythonDetector.detectPythonPath(), options)
+      sendCopy: () => sendWindowsCopy(pythonDetector.detectPythonPath())
     })
   })
 

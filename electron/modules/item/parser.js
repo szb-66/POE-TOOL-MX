@@ -200,7 +200,7 @@ export function parseItemInfo(clipboardText) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     
-    // 详细词缀头信息解析 (Alt+Ctrl+C)
+    // 详细词缀头信息解析 (Ctrl+C)
     // 示例: { 前缀属性 "韧炼的" (等阶：4) — 伤害, 物理, 攻击 }
     // 示例: { 基底属性 — 伤害, 召唤生物 }
     if (line.startsWith('{') && line.endsWith('}')) {

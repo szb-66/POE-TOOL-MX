@@ -892,27 +892,21 @@ def left_click_item():
     return True
 
 def send_copy_command():
-    # 发送 Alt+Ctrl+C 复制详细命令
+    # 发送 Ctrl+C 复制详细命令
     try:
         if not require_game_foreground():
             return False
         keyboard_controller.press(Key.ctrl)
         if not require_game_foreground():
             return False
-        keyboard_controller.press(Key.alt)
-        time.sleep(0.02)  # 短暂延迟确保修饰键按下
-        if not require_game_foreground():
-            return False
         keyboard_controller.press('c')
         time.sleep(0.02)  # 短暂延迟确保按键按下
         keyboard_controller.release('c')
-        keyboard_controller.release(Key.alt)
         keyboard_controller.release(Key.ctrl)
         time.sleep(clipboard_read_delay / 1000.0)
         
         # 额外确保修饰键释放
         keyboard_controller.release(Key.ctrl)
-        keyboard_controller.release(Key.alt)
         
         return True
     except Exception as e:
@@ -920,7 +914,6 @@ def send_copy_command():
         # 发生错误时也要确保释放
         try:
             keyboard_controller.release(Key.ctrl)
-            keyboard_controller.release(Key.alt)
         except:
             pass
         return False
