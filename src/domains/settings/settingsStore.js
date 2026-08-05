@@ -50,6 +50,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const shortcutScopeEnabled = ref(true)
   const shortcutScopeAvailable = ref(true)
   const gameForeground = ref(false)
+  const shortcutScopeReason = ref('')
+  const shortcutScopeWindowTitle = ref('')
+  const shortcutScopeProcessName = ref('')
 
   const combatAssist = ref(createDefaultCombatAssist())
   let combatConfigRevision = 0
@@ -156,6 +159,9 @@ export const useSettingsStore = defineStore('settings', () => {
     if (typeof state.enabled === 'boolean') shortcutScopeEnabled.value = state.enabled
     if (typeof state.available === 'boolean') shortcutScopeAvailable.value = state.available
     if (typeof state.gameForeground === 'boolean') gameForeground.value = state.gameForeground
+    if (typeof state.reason === 'string') shortcutScopeReason.value = state.reason
+    if (typeof state.windowTitle === 'string') shortcutScopeWindowTitle.value = state.windowTitle
+    if (typeof state.processName === 'string') shortcutScopeProcessName.value = state.processName
     return { ...state }
   }
 
@@ -492,6 +498,9 @@ export const useSettingsStore = defineStore('settings', () => {
     shortcutScopeEnabled.value = true
     shortcutScopeAvailable.value = true
     gameForeground.value = false
+    shortcutScopeReason.value = ''
+    shortcutScopeWindowTitle.value = ''
+    shortcutScopeProcessName.value = ''
     currencyPositions.value = { ...defaultCurrencyPositions }
     inventory.value = { ...defaultInventory }
     operationDelayMs.value = OPERATION_DELAY.default
@@ -547,6 +556,9 @@ export const useSettingsStore = defineStore('settings', () => {
     shortcutScopeEnabled,
     shortcutScopeAvailable,
     gameForeground,
+    shortcutScopeReason,
+    shortcutScopeWindowTitle,
+    shortcutScopeProcessName,
     combatAssist,
     stashTabSelection,
     currencyPositions,

@@ -65,6 +65,9 @@ except ImportError as exc:
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
+GAME_WINDOW_PROCESS_NAMES = ("PathOfExile.exe", "PathOfExile_x64.exe", "PathOfExileSteam.exe", "PathOfExile_x64Steam.exe")
+_game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
+_game_window_process_names_mtime_ns = None
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
 VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
 OPERATION_DELAY_DEFAULT_MS = 80
@@ -116,6 +119,79 @@ def game_window_titles():
 def game_window_title_priority(title):
     folded = str(title or "").casefold()
     return next((priority for priority, expected_title in enumerate(game_window_titles()) if expected_title.casefold() in folded), -1)
+
+
+def game_window_process_names():
+    global _game_window_process_names_cache, _game_window_process_names_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_PROCESS_NAMES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_process_names_mtime_ns:
+            with open(config_path, "r", encoding="utf-8") as stream:
+                payload = json.load(stream)
+            values = payload.get("processNames") if isinstance(payload, dict) else None
+            process_names = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not process_names or any(not name for name in process_names) or len({name.casefold() for name in process_names}) != len(process_names):
+                raise ValueError("invalid game window process names")
+            _game_window_process_names_cache = process_names
+            _game_window_process_names_mtime_ns = mtime_ns
+        return _game_window_process_names_cache
+    except Exception:
+        _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
+        _game_window_process_names_mtime_ns = None
+        return GAME_WINDOW_PROCESS_NAMES
+
+
+def window_process_name(hwnd):
+    if sys.platform != "win32" or not hwnd:
+        return ""
+    try:
+        user32 = ctypes.windll.user32
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if not pid.value:
+            return ""
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        handle = kernel32.OpenProcess(0x1000, False, pid.value)
+        if not handle:
+            return ""
+        try:
+            size = wintypes.DWORD(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            kernel32.QueryFullProcessImageNameW.argtypes = [
+                wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)
+            ]
+            kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+            if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                return buffer.value.rsplit("\\", 1)[-1].rsplit("/", 1)[-1].casefold()
+        finally:
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle(handle)
+    except Exception:
+        return ""
+    return ""
+
+
+def window_matches_game(hwnd):
+    if not hwnd:
+        return False
+    user32 = ctypes.windll.user32
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowTextW.restype = ctypes.c_int
+    length = user32.GetWindowTextLengthW(hwnd)
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buffer, length + 1)
+    title = buffer.value.strip()
+    if game_window_title_priority(title) < 0:
+        return False
+    return window_process_name(hwnd) in {name.casefold() for name in game_window_process_names()}
 is_running = True
 runtime_stop_reason = ""
 
@@ -288,11 +364,7 @@ def is_game_foreground():
     if sys.platform != "win32":
         return False
     user32 = ctypes.windll.user32
-    hwnd = user32.GetForegroundWindow()
-    length = user32.GetWindowTextLengthW(hwnd)
-    buffer = ctypes.create_unicode_buffer(length + 1)
-    user32.GetWindowTextW(hwnd, buffer, length + 1)
-    return game_window_title_priority(buffer.value) >= 0
+    return window_matches_game(user32.GetForegroundWindow())
 
 
 def find_game_window():
@@ -312,7 +384,7 @@ def find_game_window():
         buffer = ctypes.create_unicode_buffer(length + 1)
         user32.GetWindowTextW(hwnd, buffer, length + 1)
         priority = game_window_title_priority(buffer.value)
-        if priority >= 0:
+        if priority >= 0 and window_matches_game(hwnd):
             matches.append((priority, hwnd))
         return True
 
@@ -390,7 +462,7 @@ def get_game_client_bounds():
         user32.GetWindowTextW(hwnd, buffer, length + 1)
         title = buffer.value
         priority = game_window_title_priority(title)
-        if priority < 0:
+        if priority < 0 or not window_matches_game(hwnd):
             return True
         rect = wintypes.RECT()
         origin = wintypes.POINT(0, 0)

@@ -20,6 +20,9 @@ const intendedShortcuts = new Map()
 let scopeEnabled = true
 let scopeActive = false
 let scopeAvailable = true
+let scopeReason = ''
+let scopeWindowTitle = ''
+let scopeProcessName = ''
 
 function normalizeAccelerator(accelerator) {
   try {
@@ -181,8 +184,13 @@ export function setScopeEnabled(enabled) {
 /**
  * 更新游戏窗口前台状态；变为前台时注册全部意图，失焦时全部注销。
  */
-export function setScopeActive(active) {
+export function setScopeActive(active, details = {}) {
   scopeActive = Boolean(active)
+  if (details && typeof details === 'object') {
+    if (typeof details.reason === 'string') scopeReason = details.reason
+    if (typeof details.title === 'string') scopeWindowTitle = details.title
+    if (typeof details.processName === 'string') scopeProcessName = details.processName
+  }
   const failed = applyScope()
   return { success: failed.length === 0, failed }
 }
@@ -201,6 +209,9 @@ export function getScopeState() {
     enabled: scopeEnabled,
     available: scopeAvailable,
     gameForeground: scopeActive,
+    reason: scopeReason,
+    windowTitle: scopeWindowTitle,
+    processName: scopeProcessName,
     registered: [...registeredShortcuts.keys()],
     intended: [...intendedShortcuts.keys()]
   }

@@ -63,8 +63,10 @@ export function startForegroundWatcher({
   function handleEvent(payload) {
     if (payload?.event !== 'foreground') return
     const game = Boolean(payload.game)
-    state = { state: 'ready', game }
-    onStateChange({ game, title: String(payload.title || '') })
+    const reason = String(payload.reason || '')
+    const processName = String(payload.processName || '')
+    state = { state: 'ready', game, reason, processName }
+    onStateChange({ game, title: String(payload.title || ''), reason, processName })
   }
 
   function handleExit(error) {

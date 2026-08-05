@@ -98,6 +98,23 @@ test('游戏前台注册全部意图，失焦立即全部注销', () => {
   assert.equal(manager.getScopeState().gameForeground, false)
 })
 
+test('前台状态携带窗口与进程不匹配的具体原因', () => {
+  const mock = createGlobalShortcutMock()
+  const manager = loadShortcutManager(mock)
+  manager.setScopeActive(false, {
+    reason: 'process-name-mismatch',
+    title: 'Path of Exile 编年史 - Google Chrome',
+    processName: 'chrome.exe'
+  })
+  assert.equal(manager.getScopeState().gameForeground, false)
+  assert.equal(manager.getScopeState().reason, 'process-name-mismatch')
+  assert.equal(manager.getScopeState().windowTitle, 'Path of Exile 编年史 - Google Chrome')
+  assert.equal(manager.getScopeState().processName, 'chrome.exe')
+  manager.setScopeActive(true, { reason: 'game-foreground', title: '流放之路', processName: 'PathOfExile.exe' })
+  assert.equal(manager.getScopeState().reason, 'game-foreground')
+  assert.equal(manager.getScopeState().windowTitle, '流放之路')
+})
+
 test('关闭门禁开关立即无条件注册，重新开启后恢复前台约束', () => {
   const mock = createGlobalShortcutMock()
   const manager = loadShortcutManager(mock)
@@ -245,10 +262,17 @@ test('监视器解析前台事件并驱动状态回调', async () => {
   assert.equal(watcher.getState().state, 'starting')
   assert.equal(spawned.length, 1)
   children[0].stdout.emit('data', 'EVENT {"event":"foreground","game":true,"title":"流放之路"}\n')
-  assertLoose.deepEqual(states, [{ game: true, title: '流放之路' }])
+  assertLoose.deepEqual(states, [{ game: true, title: '流放之路', reason: '', processName: '' }])
   assert.equal(watcher.getState().state, 'ready')
   children[0].stdout.emit('data', 'EVENT {"event":"foreground","game":false,"title":"微信"}\n')
-  assertLoose.deepEqual(states.at(-1), { game: false, title: '微信' })
+  assertLoose.deepEqual(states.at(-1), { game: false, title: '微信', reason: '', processName: '' })
+  children[0].stdout.emit('data', 'EVENT {"event":"foreground","game":false,"title":"Path of Exile 编年史 - Google Chrome","reason":"process-name-mismatch","processName":"chrome.exe"}\n')
+  assertLoose.deepEqual(states.at(-1), {
+    game: false,
+    title: 'Path of Exile 编年史 - Google Chrome',
+    reason: 'process-name-mismatch',
+    processName: 'chrome.exe'
+  })
   watcher.stop()
 })
 
@@ -328,8 +352,11 @@ test('设置页、首页状态与设置存储展示前台门禁', () => {
   assert.match(settingsView, /仅在游戏窗口前台时生效/)
   assert.match(settingsView, /handleShortcutScopeToggle/)
   assert.match(dashboard, /快捷键已暂停（游戏未在前台）/)
+  assert.match(dashboard, /快捷键已暂停（前台窗口标题未匹配游戏窗口名称）/)
+  assert.match(dashboard, /快捷键已暂停（窗口标题匹配，但进程名不是游戏客户端）/)
   assert.match(dashboard, /前台监视不可用/)
   assert.match(store, /shortcutScopeEnabled/)
+  assert.match(store, /shortcutScopeReason/)
   assert.match(store, /applyShortcutScopeState/)
   assert.match(store, /setShortcutScopeEnabled/)
 })
@@ -352,6 +379,9 @@ test('诊断允许集合包含前台门禁事件与回退原因', () => {
   assert.ok(DIAGNOSTIC_OPERATIONS.has('shortcut_scope'))
   assert.ok(DIAGNOSTIC_REASON_CODES.has('foreground_watcher_failed'))
   assert.ok(DIAGNOSTIC_REASON_CODES.has('shortcut_scope_paused'))
+  assert.ok(DIAGNOSTIC_REASON_CODES.has('shortcut_scope_title_mismatch'))
+  assert.ok(DIAGNOSTIC_REASON_CODES.has('shortcut_scope_process_mismatch'))
+  assert.ok(DIAGNOSTIC_REASON_CODES.has('shortcut_scope_no_foreground_window'))
 })
 
 test('打包资源与运行时清单包含前台监视脚本', () => {

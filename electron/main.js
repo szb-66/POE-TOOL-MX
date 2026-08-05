@@ -320,8 +320,8 @@ app.whenReady().then(async () => {
     foregroundWatcher = startForegroundWatcher({
       pythonPath: pythonDetector.detectPythonPath(),
       scriptPath: resolveForegroundWatcherScriptPath(),
-      onStateChange: ({ game }) => {
-        const result = shortcutManager.setScopeActive(game)
+      onStateChange: ({ game, title, reason, processName }) => {
+        const result = shortcutManager.setScopeActive(game, { title, reason, processName })
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('shortcut-scope-changed', {

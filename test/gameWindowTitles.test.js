@@ -1,12 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
   DEFAULT_GAME_WINDOW_TITLES,
+  DEFAULT_GAME_WINDOW_PROCESS_NAMES,
   gameWindowTitlePriority,
+  isGameWindowCandidate,
+  isGameWindowProcessName,
+  normalizeGameWindowProcessNames,
   normalizeGameWindowTitles,
+  validateGameWindowProcessNames,
   validateGameWindowTitles
 } from '../shared/gameWindowTitles.js'
 import {
@@ -30,6 +35,23 @@ test('标题使用不区分大小写的包含匹配并返回最早优先级', ()
   assert.equal(gameWindowTitlePriority('普通窗口', ['自定义']), -1)
 })
 
+test('游戏客户端进程名使用不区分大小写的精确匹配并拒绝无效列表', () => {
+  assert.deepEqual(validateGameWindowProcessNames(['PathOfExile.exe', '  PathOfExile_x64.exe  ']).processNames, ['PathOfExile.exe', 'PathOfExile_x64.exe'])
+  assert.equal(validateGameWindowProcessNames([]).valid, false)
+  assert.equal(validateGameWindowProcessNames(['  ']).valid, false)
+  assert.equal(validateGameWindowProcessNames(['pathofexile.exe', 'PathOfExile.exe']).valid, false)
+  assert.deepEqual(normalizeGameWindowProcessNames(null), [...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
+  assert.equal(isGameWindowProcessName('C:\\Games\\Path of Exile\\PathOfExile.exe'), true)
+  assert.equal(isGameWindowProcessName('chrome.exe'), false)
+})
+
+test('窗口只有在标题与进程名同时匹配时才识别为游戏窗口', () => {
+  assert.equal(isGameWindowCandidate('Path of Exile 编年史 - Google Chrome', 'chrome.exe'), false)
+  assert.equal(isGameWindowCandidate('Season - PATH OF EXILE', 'PathOfExile.exe'), true)
+  assert.equal(isGameWindowCandidate('普通窗口', 'PathOfExile.exe'), false)
+  assert.equal(isGameWindowCandidate('流放之路', 'PathOfExile_x64.exe'), true)
+})
+
 test('主进程注册表原子更新固定共享文件并保留有序列表', t => {
   const directory = mkdtempSync(path.join(tmpdir(), 'poe-window-titles-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
@@ -37,9 +59,26 @@ test('主进程注册表原子更新固定共享文件并保留有序列表', t 
   const registry = new GameWindowTitleRegistry({ userDataPath: directory, environment })
   registry.initialize()
   assert.equal(environment[GAME_WINDOW_TITLES_ENV], path.join(directory, 'game-window-titles.json'))
-  assert.deepEqual(registry.update(['第二客户端', '第一客户端']), ['第二客户端', '第一客户端'])
+  const result = registry.update(['第二客户端', '第一客户端'])
+  assert.deepEqual(result.titles, ['第二客户端', '第一客户端'])
+  assert.deepEqual(result.processNames, [...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
   const saved = JSON.parse(readFileSync(environment[GAME_WINDOW_TITLES_ENV], 'utf8'))
-  assert.deepEqual(saved, { version: 1, titles: ['第二客户端', '第一客户端'] })
+  assert.deepEqual(saved, {
+    version: 2,
+    titles: ['第二客户端', '第一客户端'],
+    processNames: [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
+  })
+})
+
+test('旧版配置缺少进程名时自动补齐默认列表', t => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'poe-window-titles-legacy-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const filePath = path.join(directory, 'game-window-titles.json')
+  writeFileSync(filePath, JSON.stringify({ version: 1, titles: ['流放之路', 'Path of Exile'] }), 'utf8')
+  const registry = new GameWindowTitleRegistry({ userDataPath: directory })
+  registry.initialize()
+  assert.deepEqual(registry.getTitles(), ['流放之路', 'Path of Exile'])
+  assert.deepEqual(registry.getProcessNames(), [...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
 })
 
 test('共享文件写入失败时不替换上一份内存配置', () => {
@@ -86,13 +125,18 @@ test('IPC 与全部 Python 窗口识别脚本接入同一热更新契约', () =>
     'chaos_recipe_pick_template.py',
     'stash_pickup_template.py',
     'puzzle_analyzer.py',
-    'stash_tab_selector.py'
+    'stash_tab_selector.py',
+    'foreground_watcher.py'
   ].map(name => source(`../src/assets/scripts/${name}`))
 
   for (const script of scripts) {
     assert.match(script, /POE_GAME_WINDOW_TITLES_FILE/)
     assert.match(script, /st_mtime_ns/)
     assert.match(script, /def game_window_title_priority/)
+    assert.match(script, /def game_window_process_names/)
+    assert.match(script, /def window_process_name/)
+    assert.match(script, /def window_matches_game/)
+    assert.match(script, /processNames/)
     assert.match(script, /_game_window_titles_cache = GAME_WINDOW_TITLES/)
     assert.doesNotMatch(script, /any\([^\n]*GAME_WINDOW_TITLES/)
   }

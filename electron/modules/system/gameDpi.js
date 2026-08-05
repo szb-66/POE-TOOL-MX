@@ -2,7 +2,9 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
   DEFAULT_GAME_WINDOW_TITLES,
+  DEFAULT_GAME_WINDOW_PROCESS_NAMES,
   gameWindowTitlePriority,
+  isGameWindowCandidate,
   isGameWindowTitle as matchesGameWindowTitle
 } from '../../../shared/gameWindowTitles.js'
 
@@ -14,9 +16,18 @@ export function isGameWindowTitle(title, configuredTitles = GAME_WINDOW_TITLE_PA
   return matchesGameWindowTitle(title, configuredTitles)
 }
 
-export function selectGameWindowCandidate(candidates = [], configuredTitles = GAME_WINDOW_TITLE_PARTS) {
+export function selectGameWindowCandidate(
+  candidates = [],
+  configuredTitles = GAME_WINDOW_TITLE_PARTS,
+  configuredProcessNames = DEFAULT_GAME_WINDOW_PROCESS_NAMES
+) {
   const valid = candidates
-    .filter((candidate) => candidate && isGameWindowTitle(candidate.title, configuredTitles))
+    .filter((candidate) => candidate && isGameWindowCandidate(
+      candidate.title,
+      candidate.processName,
+      configuredTitles,
+      configuredProcessNames
+    ))
     .map((candidate) => ({
       ...candidate,
       titlePriority: gameWindowTitlePriority(candidate.title, configuredTitles),
@@ -51,6 +62,8 @@ user32.IsIconic.argtypes = [wintypes.HWND]
 user32.IsIconic.restype = wintypes.BOOL
 user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
 user32.GetWindowRect.restype = wintypes.BOOL
+user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+user32.GetWindowThreadProcessId.restype = wintypes.DWORD
 enum_windows_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 user32.EnumWindows.argtypes = [enum_windows_proc, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
@@ -77,8 +90,27 @@ def visit(hwnd, _lparam):
     if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
         area = max(0, rect.right - rect.left) * max(0, rect.bottom - rect.top)
     dpi = int(get_dpi_for_window(hwnd)) if get_dpi_for_window else 0
+    process_name = ""
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    if pid.value:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        process_handle = kernel32.OpenProcess(0x1000, False, pid.value)
+        if process_handle:
+            image_size = wintypes.DWORD(32768)
+            image_buffer = ctypes.create_unicode_buffer(image_size.value)
+            kernel32.QueryFullProcessImageNameW.argtypes = [
+                wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)
+            ]
+            kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+            if kernel32.QueryFullProcessImageNameW(process_handle, 0, image_buffer, ctypes.byref(image_size)):
+                process_name = image_buffer.value.rsplit("\\", 1)[-1].rsplit("/", 1)[-1]
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle(process_handle)
     candidates.append({
         "title": title,
+        "processName": process_name,
         "foreground": hwnd == foreground,
         "minimized": bool(user32.IsIconic(hwnd)),
         "area": area,
@@ -93,7 +125,8 @@ print(json.dumps(candidates, ensure_ascii=False))
 export async function detectGameDpi({
   pythonPath,
   platform = process.platform,
-  gameWindowTitles = GAME_WINDOW_TITLE_PARTS
+  gameWindowTitles = GAME_WINDOW_TITLE_PARTS,
+  gameWindowProcessNames = DEFAULT_GAME_WINDOW_PROCESS_NAMES
 } = {}) {
   if (platform !== 'win32') {
     return { found: false, error: '自动识别游戏 DPI 仅支持 Windows' }
@@ -110,7 +143,11 @@ export async function detectGameDpi({
       maxBuffer: 1024 * 1024,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     })
-    const selected = selectGameWindowCandidate(JSON.parse(stdout.trim() || '[]'), gameWindowTitles)
+    const selected = selectGameWindowCandidate(
+      JSON.parse(stdout.trim() || '[]'),
+      gameWindowTitles,
+      gameWindowProcessNames
+    )
     const dpi = Number(selected?.dpi)
     if (!selected) return { found: false, error: '未找到匹配的游戏窗口' }
     if (!Number.isFinite(dpi) || dpi <= 0) return { found: false, windowTitle: selected.title, error: '无法读取游戏窗口 DPI' }

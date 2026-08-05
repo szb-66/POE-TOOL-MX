@@ -37,7 +37,8 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     const primaryScaleFactor = Number(screen.getPrimaryDisplay()?.scaleFactor) || 1
     const result = await detectGameDpi({
       pythonPath: python.detectPythonPath?.(),
-      gameWindowTitles: gameWindowTitles?.getTitles?.()
+      gameWindowTitles: gameWindowTitles?.getTitles?.(),
+      gameWindowProcessNames: gameWindowTitles?.getProcessNames?.()
     })
     return { ...result, primaryScaleFactor }
   }
@@ -96,7 +97,8 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
   ipcMain.handle('system-detect-game-dpi', detectDpi)
   ipcMain.handle('system-update-game-window-titles', async (_event, titles) => {
     try {
-      return { success: true, titles: gameWindowTitles.update(titles) }
+      const result = gameWindowTitles.update(titles)
+      return { success: true, titles: result.titles, processNames: result.processNames }
     } catch (error) {
       return { success: false, error: error.message || String(error) }
     }

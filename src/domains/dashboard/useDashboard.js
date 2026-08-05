@@ -55,7 +55,11 @@ function moduleDiagnosticReason(module) {
 function healthDiagnosticReason(item) {
   if (item?.status === 'ready') return null
   if (item?.id === 'shortcuts') {
-    return item?.status === 'attention' ? 'shortcut_scope_paused' : 'shortcut_registration_failed'
+    if (item?.status !== 'attention') return 'shortcut_registration_failed'
+    if (item?.reason === 'window-title-mismatch') return 'shortcut_scope_title_mismatch'
+    if (item?.reason === 'process-name-mismatch') return 'shortcut_scope_process_mismatch'
+    if (item?.reason === 'no-foreground-window') return 'shortcut_scope_no_foreground_window'
+    return 'shortcut_scope_paused'
   }
   if (item?.id === 'python') return 'runtime_unavailable'
   if (item?.id === 'dpi') return 'game_window_not_found'
@@ -223,7 +227,13 @@ export function useDashboard() {
             ? { status: 'attention', text: '前台监视不可用，快捷键已全局生效' }
             : settingsStore.gameForeground
               ? { status: 'ready', text: '全局快捷键已注册（游戏前台）' }
-              : { status: 'attention', text: '快捷键已暂停（游戏未在前台）' }
+              : settingsStore.shortcutScopeReason === 'window-title-mismatch'
+                ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（前台窗口标题未匹配游戏窗口名称）' }
+                : settingsStore.shortcutScopeReason === 'process-name-mismatch'
+                  ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（窗口标题匹配，但进程名不是游戏客户端）' }
+                  : settingsStore.shortcutScopeReason === 'no-foreground-window'
+                    ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（未检测到前台窗口）' }
+                    : { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（游戏未在前台）' }
     const extraHealth = startupHealth.value.filter(item => (
       !['runtime', 'game'].includes(item.id)
     ))
