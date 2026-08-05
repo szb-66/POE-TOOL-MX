@@ -276,10 +276,11 @@ class Keyboard:
  def release(self, _): pass
 class Mouse:
  def __init__(self): self.position=(0, 0)
- def click(self, _button, _count):
+ def press(self, _button):
   state["clicks"] += 1
   if state["clicks"] == 1 or state["clicks"] == 3:
    state["visual"] += 20
+ def release(self, _button): pass
 
 hp.choose_layout=lambda *_: {
  "columns":12, "calibration":"root", "confidence":2,
@@ -354,11 +355,12 @@ class Keyboard:
  def release(self, _): pass
 class Mouse:
  def __init__(self): self.position=(0,0)
- def click(self, _button, _count):
+ def press(self, _button):
   state["clicks"] += 1
   column=int(self.position[0] // 10)
   if column == 0: state["firstRemoved"]=True
   if column == 2: state["secondRemoved"]=True
+ def release(self, _button): pass
 
 hp.choose_layout=lambda *_: {
  "columns":12, "calibration":"folder", "confidence":2,

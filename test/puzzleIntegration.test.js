@@ -51,7 +51,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   const router = source('../src/router/index.js')
   const app = source('../src/App.vue')
 
-  for (const channel of ['puzzle-pick-inventory-region', 'puzzle-analyze']) {
+  for (const channel of ['puzzle-pick-inventory-region', 'puzzle-analyze', 'puzzle-clear-region']) {
     assert.match(ipc, new RegExp(channel))
     assert.match(preload, new RegExp(channel))
   }
@@ -66,6 +66,33 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(app, /router\.push\('\/puzzle'\)/)
 })
 
+test('清空已选区域贯通 IPC、preload、渲染 API、服务与页面', () => {
+  const ipc = source('../electron/modules/ipc/puzzle.js')
+  const preload = source('../electron/preload.cjs')
+  const api = source('../src/api/electron.js')
+  const service = source('../electron/modules/puzzle/service.js')
+  const store = source('../src/stores/puzzle.js')
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+
+  assert.match(ipc, /service\.clearRegion\(type\)/)
+  assert.match(preload, /clearPuzzleRegion: \(type\) => ipcRenderer\.invoke\('puzzle-clear-region', type\)/)
+  assert.match(api, /clearRegion: \(type\) => window\.electronAPI\.clearPuzzleRegion\?\.\(type\)/)
+  assert.match(api, /clearRegion: \(\) => Promise\.resolve\(\{ success: true \}\)/)
+  assert.match(service, /clearRegion\(type = 'inventory'\)[\s\S]*previewPath\(regionType\)[\s\S]*fs\.unlinkSync/)
+  assert.match(service, /const previewFor = \(metadata, type\) =>[\s\S]*normalizePuzzleRegionMetadata\(metadata\) \? this\.readPreview\(type\) : ''/)
+  assert.match(store, /let regionClearGeneration = 0/)
+  assert.match(store, /function clearRegion\(type = 'inventory'\)[\s\S]*inventoryRegionMetadata\.value = null[\s\S]*regionClearGeneration \+= 1[\s\S]*resetAnalysisState\(\)/)
+  assert.match(store, /if \(regionClearGeneration !== clearGeneration\)[\s\S]*REGION_CLEARED/)
+  const clearBlock = store.match(/async function clearRegion[\s\S]*?\n  \}/)?.[0] || ''
+  assert.doesNotMatch(clearBlock, /analyzing/)
+  assert.match(store, /atlasRegionMetadata\.value = null/)
+  assert.match(store, /previews\.value\[type\] = ''/)
+  assert.match(store, /await loadConfiguration\(\)[\s\S]*previews\.value\[type\] = ''\n    return \{ success: true \}/)
+  assert.match(view, /:disabled="executing \|\| analyzing \|\| !config\.metadata" :title="clearRegionTitle\(config\)" @click="clearRegion\(config\.type\)">清空已选/)
+  assert.match(view, /function clearRegionTitle\(config\)[\s\S]*尚未框选区域/)
+  assert.doesNotMatch(view, /typeof store\.clearRegion/)
+})
+
 test('仓库编辑、出口硬约束、来源高亮和 100 个上限均由页面状态联动', () => {
   const store = source('../src/stores/puzzle.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
@@ -77,6 +104,33 @@ test('仓库编辑、出口硬约束、来源高亮和 100 个上限均由页面
   assert.match(view, /currentSourceSlots/)
   assert.match(view, /toggleRequiredExit/)
   assert.doesNotMatch(view, /3 秒|delayMs/)
+})
+
+test('碎片右键逆时针旋转且角度修正跳过完整重算', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /store\.updateSlotOrientation\(slot\.row, slot\.column, slot\.orientation - step\)/)
+  assert.match(view, /右键逆时针旋转角度/)
+  const store = source('../src/stores/puzzle.js')
+  const orientation = store.match(/function updateSlotOrientation\([\s\S]*?\n  \}/)?.[0] || ''
+  assert.match(orientation, /refreshSourceAssignments\(\)/)
+  assert.doesNotMatch(orientation, /recompute\(\)/)
+  const typeUpdate = store.match(/function updateSlot\([\s\S]*?\n  \}/)?.[0] || ''
+  assert.match(typeUpdate, /recompute\(\)/)
+  assert.match(store, /function refreshSourceAssignments/)
+})
+
+test('待确认与已拼入海图来源格具有独立且可叠加样式', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /class="uncertain-mark">\?<\/em>/)
+  const uncertain = view.match(/\.inventory-slot\.uncertain\s*\{([^}]*)\}/)?.[1] || ''
+  assert.match(uncertain, /border-style: dashed/)
+  assert.match(uncertain, /background: #313131/)
+  const selected = view.match(/\.inventory-slot\.selected\s*\{([^}]*)\}/)?.[1] || ''
+  assert.match(selected, /border-width: 5px/)
+  assert.match(selected, /border-color: var\(--el-color-primary\)/)
+  assert.doesNotMatch(selected, /background|box-shadow/)
+  assert.match(view, /\.inventory-slot\.selected\.uncertain\s*\{/)
+  assert.match(view, /\.source-index\s*\{[\s\S]*color: var\(--el-color-primary\)/)
 })
 
 test('出口三态在状态层互斥、可统一清空并按识别模式重置或保留', () => {
@@ -123,6 +177,22 @@ test('九宫格无解状态区分数量、类型组合和出口限制并提供�
   assert.match(store, /result\.value\.error === 'NO_SOLUTION'\) return '现有碎片类型组合无法拼成完整九宫格'/)
 
   assert.match(view, /response\?\.success && solutionFeedback\.value[\s\S]*ElMessage\.warning\(solutionFeedback\.value\.title\)[\s\S]*else if \(response\?\.success\) ElMessage\.success/)
+})
+
+test('重算期间仅在最优方案卡片显示 loading，且不人为延长计算', () => {
+  const store = source('../src/stores/puzzle.js')
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /solutionIndex,\n\s*solving,\n\s*analyzing,/)
+  assert.match(view, /const loadingVisible = computed\(\(\) => solving\.value\)/)
+  assert.match(view, /class="solution-card" shadow="never"[\s\S]*v-if="loadingVisible" class="solution-loading-mask"[\s\S]*is-loading[\s\S]*正在计算最优方案…/)
+  assert.match(view, /\.solution-card\s*\{\s*position:\s*relative;\s*\}/)
+  assert.match(view, /\.solution-loading-mask\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;[\s\S]*?z-index:\s*2000;/)
+  assert.doesNotMatch(view, /v-loading/)
+  assert.doesNotMatch(view, /loadingVisible\.value = false/)
+  assert.doesNotMatch(view, /puzzle-module|module-loading-mask/)
+  assert.match(store, /function waitForNextPaint\(\)[\s\S]*requestAnimationFrame\(\(\) => requestAnimationFrame\(resolve\)\)[\s\S]*setTimeout\(resolve, 16\)/)
+  assert.match(store, /async function recompute\(\)[\s\S]*solving\.value = true[\s\S]*await waitForNextPaint\(\)/)
+  assert.match(store, /finally \{\n\s*solving\.value = false\n\s*\}/)
 })
 
 test('两个框选入口分别位于对应配置卡而非页面顶部', () => {

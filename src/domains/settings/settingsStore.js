@@ -3,7 +3,16 @@ import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '@/utils/combatConfig'
 import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
-import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '@/utils/operationDelay'
+import {
+  ADAPTIVE_TIMING,
+  FIXED_TIMING,
+  OPERATION_DELAY,
+  migrateOperationDelay,
+  normalizeAdaptiveTimeoutMs,
+  normalizeAdaptiveTiming,
+  normalizeFixedTiming,
+  normalizeOperationDelay
+} from '@/utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
 import { createDefaultStashTabSelection, normalizeStashTabSelection } from '@/utils/stashTabSelection'
 import { addOverlayBackgroundHistory, normalizeOverlaySettings } from '../../../shared/overlayBackground.js'
@@ -68,6 +77,9 @@ export const useSettingsStore = defineStore('settings', () => {
   })
 
   const operationDelayMs = ref(OPERATION_DELAY.default)
+  const adaptiveTiming = ref(ADAPTIVE_TIMING.default)
+  const adaptiveTimeoutMs = ref(ADAPTIVE_TIMING.timeoutDefault)
+  const fixedTiming = ref({ ...FIXED_TIMING.defaults })
 
   const itemPosition = ref({
     x: 636,
@@ -142,6 +154,24 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
     electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
     return operationDelayMs.value
+  }
+
+  function updateAdaptiveTiming(enabled) {
+    adaptiveTiming.value = normalizeAdaptiveTiming(enabled)
+    saveSettings()
+    return adaptiveTiming.value
+  }
+
+  function updateAdaptiveTimeoutMs(value) {
+    adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(value)
+    saveSettings()
+    return adaptiveTimeoutMs.value
+  }
+
+  function updateFixedTiming(patch = {}) {
+    fixedTiming.value = normalizeFixedTiming({ ...fixedTiming.value, ...patch })
+    saveSettings()
+    return fixedTiming.value
   }
 
   function updateCombatAssist(config) {
@@ -288,6 +318,9 @@ export const useSettingsStore = defineStore('settings', () => {
         currencyPositions: sanitizeCurrencyPositions(currencyPositions.value),
         inventory: inventory.value,
         operationDelayMs: operationDelayMs.value,
+        adaptiveTiming: adaptiveTiming.value,
+        adaptiveTimeoutMs: adaptiveTimeoutMs.value,
+        fixedTiming: fixedTiming.value,
         itemPosition: itemPosition.value,
         gameWindowTitles: gameWindowTitles.value,
         dpiScale: dpiScale.value,
@@ -316,6 +349,9 @@ export const useSettingsStore = defineStore('settings', () => {
       let legacyBagSettings = {}
       try { legacyBagSettings = JSON.parse(localStorage.getItem('bagSettings') || '{}') } catch (_error) { /* ignore invalid legacy data */ }
       operationDelayMs.value = migrateOperationDelay(data, legacyBagSettings)
+      adaptiveTiming.value = normalizeAdaptiveTiming(data.adaptiveTiming)
+      adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(data.adaptiveTimeoutMs)
+      fixedTiming.value = normalizeFixedTiming(data.fixedTiming)
       if (saved) {
         if (data.globalShortcuts) {
           globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts)
@@ -425,6 +461,9 @@ export const useSettingsStore = defineStore('settings', () => {
     currencyPositions.value = { ...defaultCurrencyPositions }
     inventory.value = { ...defaultInventory }
     operationDelayMs.value = OPERATION_DELAY.default
+    adaptiveTiming.value = ADAPTIVE_TIMING.default
+    adaptiveTimeoutMs.value = ADAPTIVE_TIMING.timeoutDefault
+    fixedTiming.value = { ...FIXED_TIMING.defaults }
     itemPosition.value = { ...defaultItemPosition }
     gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
     dpiMode.value = DPI_MODE_AUTO
@@ -472,6 +511,9 @@ export const useSettingsStore = defineStore('settings', () => {
     currencyPositions,
     inventory,
     operationDelayMs,
+    adaptiveTiming,
+    adaptiveTimeoutMs,
+    fixedTiming,
     itemPosition,
     gameWindowTitles,
     dpiScale,
@@ -497,6 +539,9 @@ export const useSettingsStore = defineStore('settings', () => {
     updateCurrencyPosition,
     updateInventorySettings,
     updateOperationDelay,
+    updateAdaptiveTiming,
+    updateAdaptiveTimeoutMs,
+    updateFixedTiming,
     updateItemPosition,
     updateGameWindowTitles,
     syncGameWindowTitles,

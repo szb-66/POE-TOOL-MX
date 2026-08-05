@@ -183,8 +183,19 @@ item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 
 # 延迟配置
 mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
-mouse_click_delay = float({{DELAY_MOUSE_CLICK}})  # type: ignore
 clipboard_read_delay = float({{DELAY_CLIPBOARD}})  # type: ignore
+
+# 内部固定时序（非用户配置）
+MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
+KEY_HOLD_SECONDS = float({{KEY_HOLD_MS}}) / 1000.0
+BUTTON_HOLD_SECONDS = float({{BUTTON_HOLD_MS}}) / 1000.0
+RELEASE_SETTLE_SECONDS = float({{RELEASE_SETTLE_MS}}) / 1000.0
+CLIPBOARD_RESPONSE_MIN_SECONDS = float({{CLIPBOARD_CONFIRM_MS}}) / 1000.0
+STASH_TAB_SETTLE_SECONDS = float({{STASH_TAB_SETTLE_MS}}) / 1000.0
+STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
+
+# 自适应等待模式（生成脚本时填充）
+TIMING_MODE = "{{TIMING_MODE}}"
 
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
@@ -243,9 +254,15 @@ def move_mouse(x, y):
 def click_mouse(button="left"):
     if not require_game_foreground():
         return False
-    if button == "left": mouse_controller.click(Button.left)
-    elif button == "right": mouse_controller.click(Button.right)
-    time.sleep(mouse_click_delay)
+    if button == "left":
+        mouse_controller.press(Button.left)
+        time.sleep(BUTTON_HOLD_SECONDS)
+        mouse_controller.release(Button.left)
+    elif button == "right":
+        mouse_controller.press(Button.right)
+        time.sleep(BUTTON_HOLD_SECONDS)
+        mouse_controller.release(Button.right)
+    time.sleep(RELEASE_SETTLE_SECONDS)
     return True
 
 def release_all_keys():
@@ -331,7 +348,10 @@ def select_currency_stash_tab(mode):
         "event": "stash-tab-selection-succeeded", "mode": mode,
         "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
     }, ensure_ascii=False), flush=True)
-    time.sleep(max(0.25, mouse_click_delay * 2))
+    if TIMING_MODE == "adaptive":
+        time.sleep(0.05)
+    else:
+        time.sleep(STASH_TAB_SETTLE_SECONDS)
     return True
 
 CURRENCY_NAMES = {
@@ -418,7 +438,11 @@ def preflight_required_currencies():
                 currency,
                 f"无法读取{expected}复制前的剪贴板序列号，已停止地图制作"
             )
-        if not send_copy_command():
+        try:
+            before_text = str(pyperclip.paste() or "")
+        except Exception:
+            before_text = ""
+        if not send_copy_command(sequence_before, before_text):
             return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
         try:
             sequence_after = GetClipboardSequenceNumber()
@@ -581,28 +605,59 @@ def apply_currency(currency_type, target_x, target_y):
         release_shift_if_held()
         return False
 
-def send_copy_command():
+def send_copy_command(before_seq=None, before_text=""):
     try:
         if not require_game_foreground():
             return False
-        # 使用 Ctrl+C 读取高级属性
         keyboard_controller.press(Key.ctrl)
+        time.sleep(MODIFIER_SETTLE_SECONDS)
         if not require_game_foreground():
             return False
         keyboard_controller.press('c')
-        time.sleep(0.05) # 稍微增加按键间隔
+        time.sleep(KEY_HOLD_SECONDS)
         keyboard_controller.release('c')
+        time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
-        time.sleep(clipboard_read_delay / 1000.0)
-        # 释放所有修饰键以防万一
-        keyboard_controller.release(Key.ctrl)
+        if TIMING_MODE == "adaptive":
+            return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS)
+        time.sleep(max(CLIPBOARD_RESPONSE_MIN_SECONDS, clipboard_read_delay / 1000.0))
         return True
     except:
         return False
 
+def clipboard_changed(before_seq, before_text):
+    if GetClipboardSequenceNumber is not None:
+        try:
+            if before_seq is not None and GetClipboardSequenceNumber() != before_seq:
+                return True
+        except Exception:
+            pass
+    current_text = str(pyperclip.paste() or "")
+    return bool(current_text.strip()) and current_text != before_text
+
+
+def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
+    deadline = time.monotonic() + timeout_seconds
+    while is_running and time.monotonic() < deadline:
+        if clipboard_changed(before_seq, before_text):
+            return True
+        time.sleep(0.01)
+    return False
+
 def read_clipboard_to_file():
     try:
-        if not send_copy_command(): return False
+        before_seq = None
+        before_text = ""
+        if GetClipboardSequenceNumber is not None:
+            try:
+                before_seq = GetClipboardSequenceNumber()
+            except Exception:
+                before_seq = None
+        try:
+            before_text = str(pyperclip.paste() or "")
+        except Exception:
+            before_text = ""
+        if not send_copy_command(before_seq, before_text): return False
         clipboard_text = pyperclip.paste()
         if not clipboard_text or len(clipboard_text.strip()) == 0: return False
         
@@ -657,11 +712,11 @@ def stash_item(x, y):
         if not move_mouse(x, y): return False
         if not require_game_foreground(): return False
         keyboard_controller.press(Key.ctrl)
-        time.sleep(0.05)
+        time.sleep(MODIFIER_SETTLE_SECONDS)
         click_mouse("left")
-        time.sleep(0.05)
+        time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
-        time.sleep(0.2) # 等待存仓动作完成
+        time.sleep(0.05 if TIMING_MODE == "adaptive" else STASH_SETTLE_SECONDS) # 等待存仓动作完成
         return True
     except:
         keyboard_controller.release(Key.ctrl)

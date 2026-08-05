@@ -117,6 +117,6 @@ test('物品与地图制作运行中失焦时释放输入并发出统一停止�
     assert.match(values.result.reason, /失去前台/)
     assert.match(template, /def move_mouse\(x, y\):[\s\S]*?if not require_game_foreground\(\):/)
     assert.match(template, /def click_mouse\(button="left"\):[\s\S]*?if not require_game_foreground\(\):/)
-    assert.match(template, /def send_copy_command\(\):[\s\S]*?if not require_game_foreground\(\):/)
+    assert.match(template, /def send_copy_command\(before_seq=None, before_text=""\):[\s\S]*?if not require_game_foreground\(\):/)
   }
 })

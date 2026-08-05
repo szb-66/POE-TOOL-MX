@@ -27,7 +27,7 @@ function sendStatus(window, payload) {
   }
 }
 
-function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, handlers }) {
+function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, onStatus, onFailed, onClosed }) {
   const pythonPath = processTools.python.detectPythonPath()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const { scriptPath, configPath } = prepareFiles(processTools.fileWatcher, scriptContent, config, suffix)
@@ -36,7 +36,7 @@ function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, handl
     env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
     stdio: ['ignore', 'pipe', 'pipe']
   })
-  const send = payload => handlers.onStatus(origin ? { ...payload, origin } : payload)
+  const send = payload => onStatus(origin ? { ...payload, origin } : payload)
   let outputBuffer = ''
   child.stdout.on('data', data => {
     outputBuffer += data.toString('utf8')
@@ -54,8 +54,8 @@ function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, handl
   child.stderr.on('data', data => {
     send({ running: true, event: 'error', error: data.toString('utf8').trim() })
   })
-  child.on('error', error => handlers.onFailed(error))
-  child.on('close', code => handlers.onClosed(code))
+  child.on('error', error => onFailed(error))
+  child.on('close', code => onClosed(code))
   return { child, configPath }
 }
 

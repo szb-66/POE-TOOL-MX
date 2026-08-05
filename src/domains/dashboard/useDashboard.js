@@ -62,6 +62,15 @@ function healthDiagnosticReason(item) {
   return 'unavailable'
 }
 
+// 健康状态提升到模块作用域：DashboardView 每次切回首页都会重新挂载，
+// 若这些 ref 放在组件内，每次挂载都会重置为 pending/空列表，
+// 导致系统环境面板展开又收起、页面跳动。模块级共享后只在首次初始化。
+const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境' })
+const startupHealth = ref([])
+const craftingStatus = ref(null)
+const craftingStatusError = ref('')
+let activeDashboardRefresh = null
+
 export function useDashboard() {
   const router = useRouter()
   const presetStore = usePresetStore()
@@ -77,10 +86,6 @@ export function useDashboard() {
   const pending = reactive({})
   const refreshing = ref(false)
   const diagnosticsExporting = ref(false)
-  const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境' })
-  const startupHealth = ref([])
-  const craftingStatus = ref(null)
-  const craftingStatusError = ref('')
   let dashboardCombatQueue = Promise.resolve()
 
   const itemValidation = computed(() => validateCraftingConfig({
@@ -495,9 +500,7 @@ export function useDashboard() {
     }
   }
 
-  async function refresh() {
-    if (refreshing.value) return
-    refreshing.value = true
+  async function runDashboardRefresh() {
     craftingStatusError.value = ''
     try {
       const [scriptResult, combatResult, loopResult, pythonResult, craftingResult, healthResult] = await Promise.allSettled([
@@ -551,6 +554,19 @@ export function useDashboard() {
       if (window.electronAPI) await settingsStore.refreshDpiScale()
     } catch (error) {
       craftingStatusError.value = error?.message || '状态刷新失败'
+    }
+  }
+
+  async function refresh() {
+    if (refreshing.value) return
+    refreshing.value = true
+    try {
+      if (!activeDashboardRefresh) {
+        activeDashboardRefresh = runDashboardRefresh().finally(() => {
+          activeDashboardRefresh = null
+        })
+      }
+      await activeDashboardRefresh
     } finally {
       refreshing.value = false
     }

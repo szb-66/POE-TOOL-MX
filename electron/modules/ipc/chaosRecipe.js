@@ -78,7 +78,8 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       calibration: request.calibration,
       templates: request.templates,
       matchThreshold: request.matchThreshold,
-      operationDelayMs: request.operationDelayMs
+      operationDelayMs: request.operationDelayMs,
+      fixedTiming: request.fixedTiming
     })
   }))
   ipcMain.handle('chaos-recipe-automation-pause', invoke(() => service.automation.pause()))

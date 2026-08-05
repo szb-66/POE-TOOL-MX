@@ -1,11 +1,13 @@
 import { ElMessage } from 'element-plus'
 import { useChaosRecipeStore } from '../stores/chaosRecipe.js'
 import { useInterfaceDetectionStore } from '../stores/interfaceDetection.js'
+import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 
 export async function startChaosRecipePicking() {
   const store = useChaosRecipeStore()
   const detectionStore = useInterfaceDetectionStore()
+  const settingsStore = useSettingsStore()
 
   if (!store.snapshot?.fullSetCount) {
     ElMessage.warning('请先在商城的混沌配方页刷新仓库并生成可取套装')
@@ -19,7 +21,8 @@ export async function startChaosRecipePicking() {
     await store.startAutomation({
       templates: detectionStore.templates,
       matchThreshold: detectionStore.matchThreshold,
-      operationDelayMs: store.settings.operationDelayMs
+      operationDelayMs: store.settings.operationDelayMs,
+      fixedTiming: settingsStore.fixedTiming
     })
     void reportDiagnosticRecovery('shop', 'automation')
   } catch (error) {

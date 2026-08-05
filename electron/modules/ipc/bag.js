@@ -16,7 +16,7 @@ import { expandSearchRegion, getDisplayPhysicalBounds } from '../window/coordina
 import { OverlayDragSession } from '../window/overlayDrag.js'
 import { getBagOverlayDragBounds } from '../window/bagOverlay.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
-import { normalizeOperationDelay } from '../../../src/utils/operationDelay.js'
+import { normalizeOperationDelay, pythonFixedTiming } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
@@ -74,7 +74,8 @@ function runtimeConfig(config = {}) {
       layout: config.inventory?.layout || {}
     },
     blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
-    operation_delay_ms: normalizeOperationDelay(config.operationDelayMs)
+    operation_delay_ms: normalizeOperationDelay(config.operationDelayMs),
+    fixed_timing: pythonFixedTiming(config.fixedTiming)
   }
 }
 

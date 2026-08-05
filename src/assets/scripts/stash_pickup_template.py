@@ -11,11 +11,26 @@ import mss
 import numpy as np
 
 
-INPUT_EVENT_DELAY_SECONDS = 0.02
+MODIFIER_SETTLE_SECONDS = 0.05
+KEY_HOLD_SECONDS = 0.02
+BUTTON_HOLD_SECONDS = 0.02
+RELEASE_SETTLE_SECONDS = 0.02
+PATCH_VERIFY_SECONDS = 0.55
 TRANSFER_ATTEMPTS = 2
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
+
+
+def apply_fixed_timing(config):
+    global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
+    global RELEASE_SETTLE_SECONDS, PATCH_VERIFY_SECONDS
+    timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
+    PATCH_VERIFY_SECONDS = float(timing.get("patch_verify_ms", 550)) / 1000.0
 
 
 def game_window_titles():
@@ -315,17 +330,21 @@ def ctrl_click(mouse, keyboard, ctrl_key, left_button, foreground_check=None):
     if not check_foreground():
         raise RuntimeError("game-not-foreground")
     keyboard.press(ctrl_key)
-    time.sleep(INPUT_EVENT_DELAY_SECONDS)
+    time.sleep(MODIFIER_SETTLE_SECONDS)
     if not check_foreground():
         keyboard.release(ctrl_key)
         raise RuntimeError("game-not-foreground")
-    mouse.click(left_button, 1)
-    time.sleep(INPUT_EVENT_DELAY_SECONDS)
+    mouse.press(left_button)
+    time.sleep(BUTTON_HOLD_SECONDS)
+    mouse.release(left_button)
+    time.sleep(RELEASE_SETTLE_SECONDS)
     keyboard.release(ctrl_key)
 
 
-def wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay):
-    deadline = time.monotonic() + max(0.55, delay * 6)
+def wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay, timeout_seconds=None):
+    if timeout_seconds is None:
+        timeout_seconds = max(PATCH_VERIFY_SECONDS, delay * 6)
+    deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
         time.sleep(min(0.05, delay))
         require_game_foreground()
@@ -361,6 +380,7 @@ def changed_item_cells(before_image, after_image, columns, candidates, origin, t
 
 
 def run(config, preview=False):
+    apply_fixed_timing(config)
     if not focus_game_window():
         raise RuntimeError("game-not-foreground")
     time.sleep(max(0.08, float(config.get("operationDelayMs", 80)) / 1000.0))
@@ -388,6 +408,9 @@ def run(config, preview=False):
         from pynput.mouse import Button, Controller as MouseController
         keyboard, mouse = KeyboardController(), MouseController()
         delay = max(0.02, float(config.get("operationDelayMs", 80)) / 1000.0)
+        timing_mode = config.get("timing_mode", "fixed")
+        adaptive_timeout_ms = max(500, min(3000, float(config.get("adaptive_timeout_ms", 1000))))
+        patch_timeout = (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
         rect, columns = layout["rect"], layout["columns"]
         method = profile.get("method", "variance")
         threshold = float(profile.get("thresholds", {}).get(method, 0))
@@ -422,7 +445,7 @@ def run(config, preview=False):
                 for attempt in range(TRANSFER_ATTEMPTS):
                     require_game_foreground()
                     ctrl_click(mouse, keyboard, Key.ctrl, Button.left)
-                    after_image = wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay)
+                    after_image = wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay, patch_timeout)
                     if after_image is not None:
                         break
                     if attempt + 1 < TRANSFER_ATTEMPTS:

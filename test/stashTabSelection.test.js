@@ -131,10 +131,11 @@ function runSelectorParent(filename, childSource, timeoutOverride = null) {
   }
   const code = `
 import json, os, sys, tempfile, time
+TIMING_MODE = "fixed"
+STASH_TAB_SETTLE_SECONDS = 0.25
 ${selectorCall}
 is_running = True
 fatal_error_reason = None
-mouse_click_delay = 0
 stash_tab_selection = {
     "enabled": True, "hasScrollbar": False,
     "names": {"currency": "通货"}
@@ -185,7 +186,10 @@ test('仓库页配置注入后的两类 Python 模板保持可解析且关闭路
   if (!existsSync(pythonPath)) return
   const common = {
     GEN_DATE: 'test', DPI_AWARENESS: '', ITEM_INFO_FILE: 'item.txt', ITEM_INFO_RESULT_FILE: 'result.json',
-    DELAY_MOUSE_MOVE: '0.08', DELAY_MOUSE_CLICK: '0.08', DELAY_CLIPBOARD: '80',
+    DELAY_MOUSE_MOVE: '0.08', DELAY_CLIPBOARD: '80',
+    TIMING_MODE: 'adaptive',
+    MODIFIER_SETTLE_MS: '50', KEY_HOLD_MS: '20', BUTTON_HOLD_MS: '20', RELEASE_SETTLE_MS: '20',
+    CLIPBOARD_CONFIRM_MS: '250', STASH_TAB_SETTLE_MS: '250', STASH_SETTLE_MS: '200',
     CURRENCY_POSITIONS: '{}', REQUIRED_CURRENCY_TYPES: '[]', DPI_SCALE_FACTOR: '1',
     STOP_SHORTCUT: 'Alt+3', PYNPUT_STOP_SHORTCUT: '<alt>+3',
     STASH_TAB_SELECTION_JSON: JSON.stringify(JSON.stringify({ enabled: false, names: { currency: '通货' } }))

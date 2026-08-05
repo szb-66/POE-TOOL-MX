@@ -6,6 +6,17 @@
         <p>识别 6×10 碎片仓库，计算方案并自动旋转、放入 3×3 海图区。</p>
       </div>
       <div class="heading-actions">
+        <el-select
+          v-model="recognitionStrength"
+          size="small"
+          style="width: 92px"
+          :disabled="analyzing || executing"
+          @change="handleRecognitionStrengthChange"
+        >
+          <el-option value="sensitive" label="敏感" />
+          <el-option value="standard" label="标准" />
+          <el-option value="strict" label="严格" />
+        </el-select>
         <el-button type="primary" :loading="analyzing" :disabled="!regionMetadata" @click="startAnalysis">
           {{ analyzing ? '正在识别…' : '开始识别' }}
         </el-button>
@@ -15,7 +26,7 @@
         <el-button v-else type="danger" @click="stopAutoPlacement">停止自动放入</el-button>
         <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
       </div>
-    </div>
+      </div>
 
     <el-alert
       v-if="error"
@@ -42,6 +53,7 @@
           <div class="configuration-actions">
             <el-tag :type="config.state?.valid ? 'success' : config.metadata ? 'danger' : 'warning'" size="small">{{ config.state?.valid ? '有效' : config.metadata ? '已失效' : '未配置' }}</el-tag>
             <el-button size="small" :disabled="executing" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
+            <el-button size="small" :disabled="executing || analyzing || !config.metadata" :title="clearRegionTitle(config)" @click="clearRegion(config.type)">清空已选</el-button>
           </div>
         </div>
         <div class="preview-shell">
@@ -60,9 +72,12 @@
             class="preview-empty"
           />
         </div>
-        <small>{{ config.text }} · {{ config.state?.message }}</small>
+        <small v-if="config.type === 'inventory' && regionMetadata">
+          {{ config.text }} · 网格对齐：{{ gridAlignmentLabel }}<template v-if="gridAlignmentWarning">，建议重新框选</template> · {{ config.state?.message }}
+        </small>
+        <small v-else>{{ config.text }} · {{ config.state?.message }}</small>
       </article>
-    </div>
+      </div>
     <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可在游戏前台立即分析；Alt+3 可紧急停止自动放入</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
@@ -83,7 +98,7 @@
       <el-card class="inventory-card" shadow="never">
         <template #header>
           <div class="card-title">
-            <span>碎片仓库（点击修正类型，右键旋转角度）</span>
+            <span>碎片仓库（点击修正类型，右键逆时针旋转角度）</span>
             <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
           </div>
         </template>
@@ -110,6 +125,7 @@
             >
               <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
               <span v-else class="empty-mark">·</span>
+              <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
               <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
               <b v-if="sourceCellBySlot.has(`${slot.row}:${slot.column}`)" class="source-index">
                 {{ sourceCellBySlot.get(`${slot.row}:${slot.column}`) + 1 }}
@@ -197,6 +213,12 @@
         </template>
 
         <el-empty v-else :description="emptyDescription" />
+        <div v-if="loadingVisible" class="solution-loading-mask">
+          <div class="solution-loading-spinner">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>正在计算最优方案…</span>
+          </div>
+        </div>
       </el-card>
     </div>
   </div>
@@ -205,8 +227,8 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ElMessage } from 'element-plus'
-import { Warning } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Loading, Warning } from '@element-plus/icons-vue'
 import PuzzleGlyph from './PuzzleGlyph.vue'
 import { usePuzzleStore } from '../../stores/puzzle.js'
 import { useSettingsStore } from '../settings/settingsStore.js'
@@ -217,6 +239,8 @@ const {
   regionMetadata,
   inventoryRegionMetadata,
   atlasRegionMetadata,
+  recognition,
+  gridConfidence,
   previews,
   configurationStates,
   slots,
@@ -224,6 +248,7 @@ const {
   requiredExits,
   forbiddenExits,
   solutionIndex,
+  solving,
   analyzing,
   error,
   result,
@@ -236,6 +261,8 @@ const {
   autoPlaceBlockedReason,
   resumeIndex
 } = storeToRefs(store)
+
+const loadingVisible = computed(() => solving.value)
 
 const typeOptions = [
   { value: 'endpoint', label: '单边' },
@@ -252,6 +279,12 @@ const westExits = ['W0', 'W1', 'W2']
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
+const recognitionStrength = computed({
+  get: () => recognition.value?.strength || 'standard',
+  set: value => store.setRecognitionStrength(value)
+})
+const gridAlignmentLabel = computed(() => gridConfidence.value == null ? '—' : gridConfidence.value >= 0.8 ? '高' : gridConfidence.value >= 0.5 ? '中' : '低')
+const gridAlignmentWarning = computed(() => gridConfidence.value != null && gridConfidence.value < 0.5)
 const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
 const solutionFeedback = computed(() => {
   if (result.value.error === 'INSUFFICIENT_FRAGMENTS') {
@@ -319,6 +352,26 @@ async function pickRegion(type) {
   }
 }
 
+async function clearRegion(type) {
+  const label = type === 'atlas' ? '海图区' : '碎片仓库'
+  try {
+    await ElMessageBox.confirm(`确定清空已框选的${label}区域吗？`, '清空确认', {
+      type: 'warning',
+      confirmButtonText: '清空',
+      cancelButtonText: '取消'
+    })
+  } catch {
+    return
+  }
+  try {
+    const response = await store.clearRegion(type)
+    if (response?.success) ElMessage.success(`已清空${label}区域`)
+    else if (response?.error) ElMessage.error(response.error.message)
+  } catch (caught) {
+    ElMessage.error(caught?.message || '清空区域失败，请重试')
+  }
+}
+
 async function startAnalysis() {
   const response = await store.analyze()
   if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
@@ -326,14 +379,23 @@ async function startAnalysis() {
   else if (response?.error) ElMessage.error(response.error.message)
 }
 
+function handleRecognitionStrengthChange() {
+  if (!regionMetadata.value) return
+  void startAnalysis()
+}
+
 function rotateSlot(slot) {
   if (executing.value || !slot.occupied) return
   const step = slot.type === 'cross' ? 0 : 90
-  store.updateSlotOrientation(slot.row, slot.column, slot.orientation + step)
+  store.updateSlotOrientation(slot.row, slot.column, slot.orientation - step)
 }
 
 async function startAutoPlacement() {
-  const response = await store.startAutoPlacement(settingsStore.operationDelayMs)
+  const response = await store.startAutoPlacement(
+    settingsStore.operationDelayMs,
+    settingsStore.adaptiveTiming,
+    settingsStore.adaptiveTimeoutMs
+  )
   if (!response?.success) ElMessage.error(response?.error?.message || '海图自动放入启动失败')
 }
 
@@ -349,7 +411,16 @@ function updateSlot(slot, command) {
 function slotTitle(slot) {
   if (!slot.occupied) return `第 ${slot.row + 1} 行第 ${slot.column + 1} 列：空格`
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
-  return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%`
+  const selectedIndex = sourceCellBySlot.value?.get(`${slot.row}:${slot.column}`)
+  const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
+  return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}`
+}
+
+function clearRegionTitle(config) {
+  if (executing.value) return '自动放入进行中，暂不能清空'
+  if (analyzing.value) return '识别进行中，暂不能清空'
+  if (!config.metadata) return '尚未框选区域'
+  return '清空已选区域'
 }
 
 function exitClasses(id) {
@@ -390,7 +461,9 @@ onMounted(() => {
     return null
   })
 })
-onUnmounted(() => removeExecutionListener?.())
+onUnmounted(() => {
+  removeExecutionListener?.()
+})
 
 const previousSolution = store.previousSolution
 const nextSolution = store.nextSolution
@@ -403,7 +476,6 @@ const nextSolution = store.nextSolution
   overflow: auto;
   box-sizing: border-box;
 }
-
 .page-heading,
 .card-title,
 .solution-pager,
@@ -483,6 +555,7 @@ const nextSolution = store.nextSolution
 
 .inventory-slot {
   position: relative;
+  box-sizing: border-box;
   width: 100%;
   aspect-ratio: 1;
   padding: 9px;
@@ -494,14 +567,67 @@ const nextSolution = store.nextSolution
 }
 .inventory-slot:hover { border-color: var(--el-color-primary); }
 .inventory-slot.empty { background: var(--el-fill-color-lighter); color: var(--el-text-color-placeholder); }
-.inventory-slot.uncertain { border-color: var(--el-color-warning); box-shadow: inset 0 0 0 1px var(--el-color-warning); }
+.inventory-slot.uncertain {
+  border-style: dashed;
+  border-color: var(--el-color-warning);
+  background: #313131;
+}
 .inventory-slot.corrected::after { content: ''; position: absolute; right: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--el-color-primary); }
-.inventory-slot.selected { border-color: #f5c451; box-shadow: 0 0 0 2px #f5c451; }
+.inventory-slot.selected { border-width: 5px; border-color: var(--el-color-primary); }
+.inventory-slot.selected.uncertain {
+  border-width: 5px;
+  border-color: var(--el-color-primary);
+  background: #313131;
+}
 .empty-mark { font-size: 24px; }
-.source-index { position: absolute; left: 2px; top: 1px; color: #f5c451; font-size: 12px; }
+.uncertain-mark {
+  position: absolute;
+  left: 3px;
+  bottom: 1px;
+  color: var(--el-color-warning);
+  font-size: 11px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  pointer-events: none;
+}
+.source-index {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  min-width: 14px;
+  padding: 1px 3px;
+  border-radius: 3px;
+  border: 1px solid rgba(64, 158, 255, 0.65);
+  background: rgba(64, 158, 255, 0.12);
+  color: var(--el-color-primary);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
 .orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 
+.solution-card { position: relative; }
+.solution-loading-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.88);
+}
+.solution-loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--el-color-primary);
+  font-size: 14px;
+}
+.solution-loading-spinner .el-icon { font-size: 42px; }
 .solution-feedback { margin-bottom: 14px; }
 .exit-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 10px; }
 .exit-help { text-align: center; color: var(--el-text-color-secondary); margin: 0; }

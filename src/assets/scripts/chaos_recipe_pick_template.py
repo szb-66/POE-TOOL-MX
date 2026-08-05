@@ -46,8 +46,24 @@ GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
 TRANSFER_ATTEMPTS = 2
+MODIFIER_SETTLE_SECONDS = 0.05
+KEY_HOLD_SECONDS = 0.02
+BUTTON_HOLD_SECONDS = 0.02
+RELEASE_SETTLE_SECONDS = 0.02
+CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
 RUNNING = True
 CONTROLLER = None
+
+
+def apply_fixed_timing(config):
+    global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
+    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS
+    timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
+    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 250)) / 1000.0
 
 
 class GameNotForegroundError(RuntimeError):
@@ -192,6 +208,7 @@ class InputController:
         if not math.isfinite(delay):
             delay = 80
         self.delay = max(0.02, min(0.5, delay / 1000))
+        self.clipboard_timeout = max(CLIPBOARD_RESPONSE_MIN_SECONDS, self.delay * 4)
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
 
@@ -224,11 +241,14 @@ class InputController:
             return ""
         require_game_foreground()
         self.keyboard.press(Key.ctrl)
+        time.sleep(MODIFIER_SETTLE_SECONDS)
         require_game_foreground()
         self.keyboard.press("c")
+        time.sleep(KEY_HOLD_SECONDS)
         self.keyboard.release("c")
+        time.sleep(RELEASE_SETTLE_SECONDS)
         self.keyboard.release(Key.ctrl)
-        deadline = time.monotonic() + max(0.25, self.delay * 4)
+        deadline = time.monotonic() + self.clipboard_timeout
         while RUNNING and time.monotonic() < deadline:
             try:
                 require_game_foreground()
@@ -243,11 +263,14 @@ class InputController:
     def ctrl_click(self):
         require_game_foreground()
         self.keyboard.press(Key.ctrl)
+        time.sleep(MODIFIER_SETTLE_SECONDS)
         require_game_foreground()
         self.mouse.press(Button.left)
+        time.sleep(BUTTON_HOLD_SECONDS)
         self.mouse.release(Button.left)
+        time.sleep(RELEASE_SETTLE_SECONDS)
         self.keyboard.release(Key.ctrl)
-        time.sleep(self.delay)
+        time.sleep(RELEASE_SETTLE_SECONDS)
 
 
 def transfer_item(controller):
@@ -266,6 +289,7 @@ def transfer_item(controller):
 
 def run(config):
     global CONTROLLER
+    apply_fixed_timing(config)
     CONTROLLER = InputController(config.get("operation_delay_ms", 80))
     try:
         if not focus_game_window():

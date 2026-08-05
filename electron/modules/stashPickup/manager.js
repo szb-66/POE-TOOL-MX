@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { pythonFixedTiming } from '../../../src/utils/operationDelay.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
@@ -80,7 +81,10 @@ export class StashPickupManager {
     fs.writeFileSync(configPath, JSON.stringify({
       calibration: this.runtime.calibration || {},
       profiles: this.runtime.profiles || {},
-      operationDelayMs: Number(this.runtime.operationDelayMs || 80)
+      operationDelayMs: Number(this.runtime.operationDelayMs || 80),
+      timing_mode: this.runtime.adaptiveTiming === false ? 'fixed' : 'adaptive',
+      adaptive_timeout_ms: Math.max(500, Math.min(3000, Number(this.runtime.adaptiveTimeoutMs) || 1000)),
+      fixed_timing: pythonFixedTiming(this.runtime.fixedTiming)
     }, null, 2), 'utf8')
     return configPath
   }

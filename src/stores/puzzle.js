@@ -9,6 +9,7 @@ import {
   solvePuzzle
 } from '../domains/puzzle/solver.js'
 import {
+  normalizePuzzleRecognition,
   normalizePuzzleOrientation,
   normalizePuzzleRegionMetadata,
   normalizePuzzleSettings
@@ -33,6 +34,16 @@ function emptySlots() {
 
 function emptyResult() {
   return { score: null, totalOptimalCount: 0, solutions: [], truncated: false, error: '' }
+}
+
+function waitForNextPaint() {
+  return new Promise(resolve => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    } else {
+      setTimeout(resolve, 16)
+    }
+  })
 }
 
 function loadSettings() {
@@ -65,11 +76,31 @@ function normalizeSlots(value) {
   })
 }
 
+function mergeCorrectedSlots(existing, incoming) {
+  if (!existing || !existing.length) return incoming
+  return incoming.map((slot, index) => {
+    const previous = existing[index]
+    if (!previous?.corrected) return slot
+    return {
+      ...slot,
+      occupied: previous.occupied,
+      type: previous.type,
+      orientation: previous.orientation,
+      mask: previous.mask,
+      confidence: previous.confidence,
+      corrected: true,
+      uncertain: false
+    }
+  })
+}
+
 export const usePuzzleStore = defineStore('puzzle', () => {
   const loaded = loadSettings()
   const inventoryRegionMetadata = ref(loaded.inventoryRegionMetadata)
   const atlasRegionMetadata = ref(loaded.atlasRegionMetadata)
   const regionMetadata = inventoryRegionMetadata
+  const recognition = ref(loaded.recognition || { strength: 'standard' })
+  const gridConfidence = ref(null)
   const previews = ref({ inventory: '', atlas: '' })
   const configurationStates = ref({
     inventory: { configured: Boolean(loaded.inventoryRegionMetadata), valid: false, message: '等待环境校验' },
@@ -85,6 +116,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const error = ref(null)
   const result = ref(emptyResult())
   const execution = ref({ status: 'idle', currentIndex: -1, total: 9, completed: 0, reason: '', error: null })
+  let regionClearGeneration = 0
 
   const counts = computed(() => countsFromSlots(slots.value))
   const currentSolution = computed(() => result.value.solutions[solutionIndex.value] || null)
@@ -126,15 +158,19 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       regionMetadata: inventoryRegionMetadata.value,
       inventoryRegionMetadata: inventoryRegionMetadata.value,
-      atlasRegionMetadata: atlasRegionMetadata.value
+      atlasRegionMetadata: atlasRegionMetadata.value,
+      recognition: recognition.value
     }))
   }
   persistRegions()
 
-  function recompute() {
+  async function recompute() {
     if (executing.value) return
     solving.value = true
     try {
+      // 等一帧真正绘制完成，确保“正在计算”状态先显示出来，再执行同步求解
+      await waitForNextPaint()
+      if (executing.value) return
       const solved = solvePuzzle({
         counts: counts.value,
         requiredExits: requiredExits.value,
@@ -151,6 +187,20 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       solutionIndex.value = Math.min(solutionIndex.value, Math.max(0, result.value.solutions.length - 1))
     } finally {
       solving.value = false
+    }
+  }
+
+  function refreshSourceAssignments() {
+    const index = solutionIndex.value
+    const solution = result.value.solutions[index]
+    if (!solution) return
+    result.value = {
+      ...result.value,
+      solutions: result.value.solutions.map((candidate, candidateIndex) => (
+        candidateIndex === index
+          ? { ...candidate, sourceSlots: assignSourceSlots(candidate, slots.value) }
+          : candidate
+      ))
     }
   }
 
@@ -186,6 +236,35 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const pickInventoryRegion = () => pickRegion('inventory')
   const pickAtlasRegion = () => pickRegion('atlas')
 
+  async function clearRegion(type = 'inventory') {
+    if (executing.value) {
+      return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图自动放入进行中，暂不能清空区域' } }
+    }
+    if (type === 'atlas') {
+      atlasRegionMetadata.value = null
+    } else {
+      inventoryRegionMetadata.value = null
+      regionClearGeneration += 1
+      resetAnalysisState()
+      gridConfidence.value = null
+    }
+    previews.value[type] = ''
+    persistRegions()
+    try {
+      await electronApi.puzzle.clearRegion?.(type)
+    } catch {
+      // 预览文件清理失败不影响本地状态
+    }
+    try {
+      await loadConfiguration()
+    } catch {
+      // 配置刷新失败不影响本地清空结果
+    }
+    // 即使主进程接口未更新或预览文件清理失败，也不允许旧截图复活
+    previews.value[type] = ''
+    return { success: true }
+  }
+
   function applyAnalysis(response, { resetConstraints = true, preserveSolution = false } = {}) {
     if (!response?.success) {
       error.value = response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图识别失败' }
@@ -196,7 +275,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       inventoryRegionMetadata.value = normalizePuzzleRegionMetadata(response.regionMetadata) || inventoryRegionMetadata.value
       persistRegions()
     }
-    slots.value = normalizeSlots(response.slots)
+    slots.value = mergeCorrectedSlots(preserveSolution ? slots.value : null, normalizeSlots(response.slots))
+    gridConfidence.value = Number.isFinite(Number(response.gridConfidence)) ? Math.max(0, Math.min(1, Number(response.gridConfidence))) : 1
     warnings.value = Array.isArray(response.warnings) ? response.warnings : []
     error.value = null
     void reportDiagnosticRecovery('puzzle', 'analysis')
@@ -233,11 +313,16 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (!preserveSolution) resetAnalysisState()
     analyzing.value = true
     error.value = null
+    const clearGeneration = regionClearGeneration
     try {
       const response = await electronApi.puzzle.analyze({
         regionMetadata: inventoryRegionMetadata.value,
+        recognition: recognition.value,
         resetExecution: !preserveSolution
       })
+      if (regionClearGeneration !== clearGeneration) {
+        return { success: false, error: { code: 'REGION_CLEARED', message: '识别期间已清空碎片仓库，本次结果已忽略' } }
+      }
       applyAnalysis(response, { preserveSolution })
       return response
     } catch (caught) {
@@ -281,14 +366,26 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       ...slot, orientation: normalized, mask: maskForType(slot.type, normalized),
       confidence: 1, corrected: true, uncertain: false
     }
-    recompute()
+    refreshSourceAssignments()
   }
 
   function executionPayload() {
     if (!currentSolution.value) return null
+    const sourceSlots = currentSolution.value.sourceSlots.map(source => {
+      const slot = slots.value[Number(source.row) * 6 + Number(source.column)]
+      return {
+        row: source.row,
+        column: source.column,
+        type: source.type,
+        orientation: slot?.orientation ?? 0,
+        corrected: Boolean(slot?.corrected)
+      }
+    })
     return {
       inventoryRegionMetadata: inventoryRegionMetadata.value,
       atlasRegionMetadata: atlasRegionMetadata.value,
+      recognition: recognition.value,
+      sourceSlots,
       targets: currentSolution.value.cells.map(cell => ({
         index: cell.index, row: cell.row, column: cell.column,
         type: cell.type, mask: cell.mask, orientation: cell.orientation
@@ -297,14 +394,19 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
   }
 
-  async function startAutoPlacement(operationDelayMs = 80) {
+  async function startAutoPlacement(operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000) {
     if (!canAutoPlace.value) return { success: false, error: { code: 'ATLAS_NOT_READY', message: '请完成两项区域配置并确认全部来源碎片' } }
-    const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), operationDelayMs })
+    const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), operationDelayMs, adaptiveTiming, adaptiveTimeoutMs })
     if (response?.status) execution.value = response
     if (!response?.success && response?.error) error.value = response.error
     if (response?.success) void reportDiagnosticRecovery('puzzle', 'auto_placement')
     else void reportDiagnosticFailure('puzzle', 'auto_placement', response?.error, 'automation_failed')
     return response
+  }
+
+  function setRecognitionStrength(strength) {
+    recognition.value = normalizePuzzleRecognition({ strength })
+    persistRegions()
   }
 
   async function stopAutoPlacement(reason = 'user') {
@@ -370,6 +472,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     regionMetadata,
     inventoryRegionMetadata,
     atlasRegionMetadata,
+    recognition,
+    gridConfidence,
     previews,
     configurationStates,
     slots,
@@ -392,8 +496,10 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     canAutoPlace,
     autoPlaceBlockedReason,
     loadConfiguration,
+    setRecognitionStrength,
     pickInventoryRegion,
     pickAtlasRegion,
+    clearRegion,
     analyze,
     resetAnalysisState,
     applyAnalysis,

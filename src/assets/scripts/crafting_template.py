@@ -179,8 +179,19 @@ item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 
 # 自动操作等待（生成脚本时已将毫秒转换为秒）
 mouse_move_delay = {{DELAY_MOUSE_MOVE}}
-mouse_click_delay = {{DELAY_MOUSE_CLICK}}
 clipboard_read_delay = {{DELAY_CLIPBOARD}}
+
+# 固定时序（生成脚本时填充，自适应关闭时由用户配置覆盖）
+MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
+KEY_HOLD_SECONDS = float({{KEY_HOLD_MS}}) / 1000.0
+BUTTON_HOLD_SECONDS = float({{BUTTON_HOLD_MS}}) / 1000.0
+RELEASE_SETTLE_SECONDS = float({{RELEASE_SETTLE_MS}}) / 1000.0
+CLIPBOARD_RESPONSE_MIN_SECONDS = float({{CLIPBOARD_CONFIRM_MS}}) / 1000.0
+STASH_TAB_SETTLE_SECONDS = float({{STASH_TAB_SETTLE_MS}}) / 1000.0
+STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
+
+# 自适应等待模式（生成脚本时填充）
+TIMING_MODE = "{{TIMING_MODE}}"
 
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
@@ -562,7 +573,10 @@ def select_currency_stash_tab(mode):
         "event": "stash-tab-selection-succeeded", "mode": mode,
         "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
     }, ensure_ascii=False), flush=True)
-    time.sleep(max(0.25, mouse_click_delay * 2))
+    if TIMING_MODE == "adaptive":
+        time.sleep(0.05)
+    else:
+        time.sleep(STASH_TAB_SETTLE_SECONDS)
     return True
 
 CURRENCY_NAMES = {
@@ -649,7 +663,11 @@ def preflight_required_currencies():
                 currency,
                 f"无法读取{expected}复制前的剪贴板序列号，已停止制作"
             )
-        if not send_copy_command():
+        try:
+            before_text = str(pyperclip.paste() or "")
+        except Exception:
+            before_text = ""
+        if not send_copy_command(sequence_before, before_text):
             return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
         try:
             sequence_after = GetClipboardSequenceNumber()
@@ -821,10 +839,14 @@ def click_mouse(button="left"):
     if not require_game_foreground():
         return False
     if button == "left":
-        mouse_controller.click(Button.left)
+        mouse_controller.press(Button.left)
+        time.sleep(BUTTON_HOLD_SECONDS)
+        mouse_controller.release(Button.left)
     elif button == "right":
-        mouse_controller.click(Button.right)
-    time.sleep(mouse_click_delay)
+        mouse_controller.press(Button.right)
+        time.sleep(BUTTON_HOLD_SECONDS)
+        mouse_controller.release(Button.right)
+    time.sleep(RELEASE_SETTLE_SECONDS)
     return True
 
 def right_click_currency(currency):
@@ -891,23 +913,23 @@ def left_click_item():
     click_mouse("left")
     return True
 
-def send_copy_command():
-    # 发送 Ctrl+C 复制详细命令
+def send_copy_command(before_seq=None, before_text=""):
+    # 发送 Ctrl+C 复制详细命令；自适应模式下轮询直到剪贴板出现新内容或超时
     try:
         if not require_game_foreground():
             return False
         keyboard_controller.press(Key.ctrl)
+        time.sleep(MODIFIER_SETTLE_SECONDS)
         if not require_game_foreground():
             return False
         keyboard_controller.press('c')
-        time.sleep(0.02)  # 短暂延迟确保按键按下
+        time.sleep(KEY_HOLD_SECONDS)
         keyboard_controller.release('c')
+        time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
-        time.sleep(clipboard_read_delay / 1000.0)
-        
-        # 额外确保修饰键释放
-        keyboard_controller.release(Key.ctrl)
-        
+        if TIMING_MODE == "adaptive":
+            return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS)
+        time.sleep(max(CLIPBOARD_RESPONSE_MIN_SECONDS, clipboard_read_delay / 1000.0))
         return True
     except Exception as e:
         print(f"[错误] 发送复制命令失败: {e}")
@@ -918,11 +940,41 @@ def send_copy_command():
             pass
         return False
 
+def clipboard_changed(before_seq, before_text):
+    if GetClipboardSequenceNumber is not None:
+        try:
+            if before_seq is not None and GetClipboardSequenceNumber() != before_seq:
+                return True
+        except Exception:
+            pass
+    current_text = str(pyperclip.paste() or "")
+    return bool(current_text.strip()) and current_text != before_text
+
+
+def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
+    deadline = time.monotonic() + timeout_seconds
+    while is_running and time.monotonic() < deadline:
+        if clipboard_changed(before_seq, before_text):
+            return True
+        time.sleep(0.01)
+    return False
+
 def read_clipboard_to_file():
     # 读取剪切板并写入文件
     try:
+        before_seq = None
+        before_text = ""
+        if GetClipboardSequenceNumber is not None:
+            try:
+                before_seq = GetClipboardSequenceNumber()
+            except Exception:
+                before_seq = None
+        try:
+            before_text = str(pyperclip.paste() or "")
+        except Exception:
+            before_text = ""
         # 发送复制命令
-        if not send_copy_command():
+        if not send_copy_command(before_seq, before_text):
             return False
         
         # 读取剪切板文本

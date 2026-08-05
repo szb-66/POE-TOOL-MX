@@ -5,7 +5,7 @@
       <strong>{{ pickerTitle }}</strong>
       <span v-if="context.mode === 'region'">{{ regionHint }}</span>
       <span v-else>移动到目标点后单击确认，按 Esc 取消</span>
-      <button v-if="context.mode === 'region'" type="button" :disabled="!selectionValid" @click.stop="confirmRegion">确认选区</button>
+      <button v-if="context.mode === 'region'" type="button" :disabled="!selectionValid" @pointerdown.stop @pointerup.stop @click.stop="confirmRegion">确认选区</button>
     </div>
   </div>
 </template>
@@ -139,7 +139,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
   font-size: 13px;
 }
 
-.coordinate-picker__tip button { align-self: center; padding: 6px 18px; border: 0; border-radius: 5px; cursor: pointer; }
+.coordinate-picker__tip button { align-self: center; padding: 6px 18px; border: 0; border-radius: 5px; cursor: pointer; pointer-events: auto; }
 .coordinate-picker__tip button:disabled { cursor: not-allowed; opacity: 0.45; }
 .coordinate-picker__selection { position: fixed; box-sizing: border-box; border: 2px solid #22d3ee; background-color: rgba(34, 211, 238, 0.12); pointer-events: none; box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.2); }
 </style>

@@ -358,8 +358,53 @@
               >
                 <template #suffix>ms</template>
               </el-input-number>
-              <div class="hint-text">鼠标到达目标后、点击完成后和读取剪贴板时使用的真实等待时间</div>
+              <div class="hint-text">鼠标移入物品后的悬停稳定时间；自适应关闭时组合键、点击和剪贴板等待使用下方固定时序配置</div>
             </el-form-item>
+            <el-form-item label="自适应等待">
+              <el-switch
+                v-model="adaptiveTiming"
+                active-text="开启"
+                inactive-text="关闭"
+                @change="handleAdaptiveTimingChange"
+              />
+              <div class="hint-text">开启后剪贴板、画面验证等改为轮询检测，有结果立即继续，不再固定等待</div>
+            </el-form-item>
+            <el-form-item v-if="adaptiveTiming" label="自适应等待上限">
+              <el-input-number
+                v-model="adaptiveTimeoutMs"
+                :min="ADAPTIVE_TIMING.timeoutMin"
+                :max="ADAPTIVE_TIMING.timeoutMax"
+                :step="100"
+                controls-position="right"
+                style="width: 240px"
+                @change="handleAdaptiveTimeoutChange"
+              >
+                <template #suffix>ms</template>
+              </el-input-number>
+              <div class="hint-text">画面/识别验证轮询未拿到结果时的最大等待时间；剪贴板空格确认使用内部固定间隔</div>
+            </el-form-item>
+            <template v-if="!adaptiveTiming">
+              <el-divider />
+              <h4 class="section-title">固定时序配置</h4>
+              <el-form-item
+                v-for="field in FIXED_TIMING_FIELDS"
+                :key="field.key"
+                :label="field.label"
+              >
+                <el-input-number
+                  v-model="fixedTiming[field.key]"
+                  :min="field.min"
+                  :max="field.max"
+                  :step="10"
+                  controls-position="right"
+                  style="width: 240px"
+                  @change="handleFixedTimingChange(field.key, $event)"
+                >
+                  <template #suffix>ms</template>
+                </el-input-number>
+              </el-form-item>
+              <div class="hint-text">关闭自适应后，各步骤等待使用这里的固定值；开启自适应时使用推荐默认值</div>
+            </template>
           </el-form>
         </el-card>
 
@@ -484,7 +529,7 @@ import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
-import { OPERATION_DELAY } from '../../utils/operationDelay'
+import { ADAPTIVE_TIMING, FIXED_TIMING, OPERATION_DELAY } from '../../utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
 import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
@@ -509,6 +554,9 @@ const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const positions = ref({ ...settingsStore.currencyPositions })
 const inventory = ref({ ...settingsStore.inventory })
 const operationDelayMs = ref(settingsStore.operationDelayMs)
+const adaptiveTiming = ref(settingsStore.adaptiveTiming)
+const adaptiveTimeoutMs = ref(settingsStore.adaptiveTimeoutMs)
+const fixedTiming = ref({ ...settingsStore.fixedTiming })
 const itemPosition = ref({ ...settingsStore.itemPosition })
 const manualDpiScale = ref(settingsStore.manualDpiScale || 1.0)
 const debugMode = ref(settingsStore.debugMode)
@@ -580,6 +628,15 @@ watch(() => settingsStore.inventory, (val) => {
 watch(() => settingsStore.operationDelayMs, (val) => {
   operationDelayMs.value = val
 })
+watch(() => settingsStore.adaptiveTiming, (val) => {
+  adaptiveTiming.value = val
+})
+watch(() => settingsStore.adaptiveTimeoutMs, (val) => {
+  adaptiveTimeoutMs.value = val
+})
+watch(() => settingsStore.fixedTiming, (val) => {
+  fixedTiming.value = { ...val }
+}, { deep: true })
 watch(() => settingsStore.itemPosition, (val) => {
   itemPosition.value = { ...val }
 }, { deep: true })
@@ -735,6 +792,41 @@ async function handleOperationDelayChange(value) {
   operationDelayMs.value = settingsStore.operationDelayMs
   if (!result.success) ElMessage.error(result.error)
 }
+
+function handleAdaptiveTimingChange(value) {
+  settingsStore.updateAdaptiveTiming(value)
+  adaptiveTiming.value = settingsStore.adaptiveTiming
+}
+
+function handleAdaptiveTimeoutChange(value) {
+  settingsStore.updateAdaptiveTimeoutMs(value)
+  adaptiveTimeoutMs.value = settingsStore.adaptiveTimeoutMs
+}
+
+function handleFixedTimingChange(key, value) {
+  updateBagRuntimeConfig({
+    fixedTiming: { ...settingsStore.fixedTiming, [key]: value }
+  }).then((result) => {
+    fixedTiming.value = { ...settingsStore.fixedTiming }
+    if (!result?.success) ElMessage.error(result?.error)
+  })
+}
+
+const FIXED_TIMING_FIELDS = Object.entries(FIXED_TIMING.fields).map(([key, rule]) => ({
+  key,
+  label: ({
+    modifierSettleMs: '组合键稳定',
+    keyHoldMs: '按键保持',
+    buttonHoldMs: '鼠标点击保持',
+    releaseSettleMs: '释放后稳定',
+    clipboardConfirmMs: '剪贴板/空格确认',
+    stashTabSettleMs: '选仓后生效等待',
+    stashSettleMs: '存仓后生效等待',
+    patchVerifyMs: '画面变化验证等待'
+  })[key],
+  min: rule.min,
+  max: rule.max
+}))
 
 function isVideo(path) {
   if (!path) return false

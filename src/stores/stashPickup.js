@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { normalizeStashPickupSettings } from '../utils/stashPickupConfig.js'
+import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
@@ -32,11 +33,15 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   const running = computed(() => state.value.status === 'running')
 
   function runtime(overrides = {}) {
+    const settingsStore = useSettingsStore()
     return {
       ...JSON.parse(JSON.stringify(settings.value)),
       calibration: JSON.parse(JSON.stringify(interfaceStore.stashGridCalibration)),
       ...interfaceStore.runtime(),
-      operationDelayMs: 80,
+      operationDelayMs: settingsStore.operationDelayMs,
+      adaptiveTiming: settingsStore.adaptiveTiming,
+      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
+      fixedTiming: settingsStore.fixedTiming,
       ...overrides
     }
   }

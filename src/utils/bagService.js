@@ -11,7 +11,7 @@ let disposers = []
 function currentConfig(overrides = {}) {
   const bagStore = useBagStore()
   const settingsStore = useSettingsStore()
-  const { inventory, operationDelayMs, ...bagOverrides } = overrides
+  const { inventory, operationDelayMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
     immediateStash: bagStore.immediateStash,
@@ -23,7 +23,8 @@ function currentConfig(overrides = {}) {
     ...bagOverrides
   }, {
     inventory: inventory || settingsStore.inventory,
-    operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs
+    operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs,
+    fixedTiming: fixedTiming ?? settingsStore.fixedTiming
   })
 }
 
@@ -48,6 +49,7 @@ export function updateBagRuntimeConfig(patch = {}) {
     const settingsStore = useSettingsStore()
     if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
     if ('operationDelayMs' in patch) settingsStore.updateOperationDelay(patch.operationDelayMs)
+    if ('fixedTiming' in patch) settingsStore.updateFixedTiming(patch.fixedTiming)
     return { success: true }
   }
   bagRuntimeQueue = bagRuntimeQueue.then(commit, commit)

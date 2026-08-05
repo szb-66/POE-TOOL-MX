@@ -62,7 +62,7 @@ currency_positions = {"${currencyType}": {"x": 11, "y": 22}}
 pyperclip = types.SimpleNamespace(paste=lambda: "物品类别: ${itemClass}\\n稀有度: 通货\\n${copiedName}\\n--------\\n堆叠数量: 20/20")
 GetClipboardSequenceNumber = lambda: sequence[0]
 def move_mouse(x, y): events.append(("move", x, y)); return True
-def send_copy_command():
+def send_copy_command(before_seq=None, before_text=""):
     events.append(("copy",))
     ${sequenceChange ? 'sequence[0] += 1' : 'pass'}
     return True
@@ -118,6 +118,13 @@ test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
     moduleTwo: { enabled: true, mode: 'alchemy' },
     moduleThree: { enabled: false }
   }), ['scouring', 'alchemy'])
+})
+
+test('预检复制在自适应模式下传入真实剪贴板内容与序列号', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    assert.match(template, /before_text = str\(pyperclip\.paste\(\) or ""\)/)
+    assert.match(template, /if not send_copy_command\(sequence_before, before_text\):/)
+  }
 })
 
 test('地图完整清单包含知识卷轴和明确启用的瓦尔宝珠', () => {

@@ -76,6 +76,7 @@ const mockApi = {
   puzzle: {
     pickInventoryRegion: () => Promise.resolve({ canceled: true }),
     pickAtlasRegion: () => Promise.resolve({ canceled: true }),
+    clearRegion: () => Promise.resolve({ success: true }),
     getConfiguration: () => Promise.resolve({ previews: { inventory: '', atlas: '' }, states: {} }),
     analyze: () => Promise.resolve({
       success: false,
@@ -324,6 +325,7 @@ export const electronApi = isElectron ? {
   puzzle: {
     pickInventoryRegion: () => window.electronAPI.pickPuzzleInventoryRegion?.(),
     pickAtlasRegion: () => window.electronAPI.pickPuzzleAtlasRegion?.(),
+    clearRegion: (type) => window.electronAPI.clearPuzzleRegion?.(type),
     getConfiguration: (request) => window.electronAPI.getPuzzleConfiguration?.(craftingIpcPayload(request)),
     analyze: (request) => window.electronAPI.analyzePuzzle?.(craftingIpcPayload(request)),
     startAutoPlacement: (request) => window.electronAPI.startPuzzleAutoPlacement?.(craftingIpcPayload(request)),

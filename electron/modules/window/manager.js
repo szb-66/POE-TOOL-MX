@@ -74,6 +74,7 @@ export function createMainWindow() {
     width: state.width || 1200,
     height: state.height || 800,
     frame: false,
+    backgroundColor: '#f5f7fa', // 页面加载前也显示应用底色，避免白屏
     icon: icon.isEmpty() ? undefined : icon, // 如果图标加载失败则不设置
     webPreferences: {
       preload: path.join(__dirname, '../../preload.cjs'),

@@ -21,8 +21,20 @@ test('旧海图区域配置迁移为仓库配置并保留新增海图区', () =>
   assert.deepEqual(normalizePuzzleSettings({ regionMetadata: inventory }).inventoryRegionMetadata, inventory)
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, atlasRegionMetadata: atlas }), {
     inventoryRegionMetadata: inventory,
-    atlasRegionMetadata: atlas
+    atlasRegionMetadata: atlas,
+    recognition: { strength: 'standard' }
   })
+})
+
+test('旧配置缺少识别强度时默认标准档', () => {
+  const inventory = metadata({ left: -700, top: 20, right: -100, bottom: 1020 })
+  assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory }), {
+    inventoryRegionMetadata: inventory,
+    atlasRegionMetadata: null,
+    recognition: { strength: 'standard' }
+  })
+  assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'sensitive' } }).recognition, { strength: 'sensitive' })
+  assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'unknown' } }).recognition, { strength: 'standard' })
 })
 
 test('仓库和海图区使用物理区域等分中心并支持负坐标', () => {

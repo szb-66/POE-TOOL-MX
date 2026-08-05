@@ -79,6 +79,7 @@ test('放置后移出目标格再等待游戏稳定验证', { skip: !existsSync(
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
     'import puzzle_auto_place as module',
     'events=[]',
+    'module.timing_mode="fixed"',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
     'module.move_physical=lambda x,y: events.append(["move",x,y])',
     'module.time.sleep=lambda seconds: events.append(["sleep",round(seconds,3)])',
@@ -101,6 +102,7 @@ test('仓库右键旋转后必须确认实际角度再拿取碎片', { skip: !ex
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
     'import puzzle_auto_place as module',
     'events=[]',
+    'module.timing_mode="fixed"',
     'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"uncertain":False}',
     'captures=iter([{"success":True,"slots":[{**source,"orientation":0}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":0}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":270}]+[{}]*59}])',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
@@ -123,6 +125,7 @@ test('多次旋转必须逐次确认角度后才能继续下一次右键', { ski
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
     'import puzzle_auto_place as module',
     'events=[]',
+    'module.timing_mode="fixed"',
     'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"uncertain":False}',
     'captures=iter([{"success":True,"slots":[{**source,"orientation":270}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":180}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":90}]+[{}]*59}])',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",button])',
@@ -141,6 +144,85 @@ test('多次旋转必须逐次确认角度后才能继续下一次右键', { ski
     ['click', 'right'], ['capture'],
     ['click', 'right'], ['capture']
   ])
+})
+
+test('修正来源旋转确认失败时重试右键并继续', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'events=[]',
+    'module.timing_mode="fixed"',
+    'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"corrected":True}',
+    'module.click_physical=lambda x,y,button,delay: events.append(["click",button])',
+    'module.verify_source_rotation=lambda *args: events.append(["verify"]) or (False, {**source, "orientation":0})',
+    'module.time.sleep=lambda seconds: None',
+    'ok,confirmed,actual=module.rotate_source_to_target({"left":0,"top":0,"right":600,"bottom":1000},{},source,270,0.04,None,True)',
+    'print(json.dumps({"ok":ok,"orientation":confirmed["orientation"],"clicks":[e[1] for e in events if e[0]=="click"],"verifies":sum(1 for e in events if e[0]=="verify")}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  const output = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  assert.equal(output.ok, true)
+  assert.equal(output.orientation, 270)
+  assert.deepEqual(output.clicks, ['right', 'right', 'right'])
+  assert.equal(output.verifies, 3)
+})
+
+test('修正来源点击已生效但验证失败时不再补发右键', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'events=[]',
+    'module.timing_mode="fixed"',
+    'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"corrected":True}',
+    'module.click_physical=lambda x,y,button,delay: events.append(["click",button])',
+    'module.verify_source_rotation=lambda *args: events.append(["verify"]) or (False, {**source, "orientation":270})',
+    'module.time.sleep=lambda seconds: None',
+    'ok,confirmed,actual=module.rotate_source_to_target({"left":0,"top":0,"right":600,"bottom":1000},{},source,270,0.04,None,True)',
+    'print(json.dumps({"ok":ok,"orientation":confirmed["orientation"],"unverified":confirmed.get("rotationUnverified"),"clicks":[e[1] for e in events if e[0]=="click"],"verifies":sum(1 for e in events if e[0]=="verify")}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  const output = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  assert.equal(output.ok, true)
+  assert.equal(output.orientation, 270)
+  assert.equal(output.unverified, true)
+  assert.deepEqual(output.clicks, ['right'])
+  assert.equal(output.verifies, 1)
+})
+
+test('自动放置接受修正来源并优先使用', () => {
+  const script = source('src/assets/scripts/puzzle_auto_place.py')
+  assert.match(script, /source_slots = config\.get\("sourceSlots"\)/)
+  assert.match(script, /planned_sources = source_slots if isinstance\(source_slots, list\) and len\(source_slots\) == 9/)
+  assert.match(script, /planned_source_valid\(inventory, source, target\)/)
+})
+
+test('计划来源必须与实时库存占用一致，修正格可跳过类型校验', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'from puzzle_auto_place import planned_source_valid',
+    'slots=[{"occupied":False} for _ in range(60)]',
+    'source={"row":0,"column":0,"type":"corner","corrected":False}',
+    'target={"type":"corner"}',
+    'empty=planned_source_valid({"success":True,"slots":slots},source,target)',
+    'slots[0]={"occupied":True,"type":"corner","orientation":270}',
+    'matched=planned_source_valid({"success":True,"slots":slots},source,target)',
+    'slots[0]={"occupied":True,"type":"tee","orientation":0}',
+    'mismatch=planned_source_valid({"success":True,"slots":slots},source,target)',
+    'corrected=planned_source_valid({"success":True,"slots":slots},{**source,"corrected":True},target)',
+    'print(json.dumps({"empty":empty,"matched":matched,"mismatch":mismatch,"corrected":corrected}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { empty: false, matched: true, mismatch: false, corrected: true })
+})
+
+test('执行后同步仓库保留手动修正格子', () => {
+  const store = source('src/stores/puzzle.js')
+  assert.match(store, /mergeCorrectedSlots\(preserveSolution \? slots\.value : null/)
+  assert.match(store, /previous\?\.corrected/)
+  assert.match(store, /corrected: true/)
 })
 
 test('动态来源选择允许低置信度碎片并按置信度排序', { skip: !existsSync(python) }, () => {

@@ -391,7 +391,7 @@ print(json.dumps([module.normalize_operation_delay(None), module.normalize_opera
   assert.deepEqual(JSON.parse(result.stdout), [80, 20, 500, 80])
 })
 
-test('Python 全局自动操作等待同时覆盖移入稳定、剪贴板响应和点击后等待', () => {
+test('Python 自动操作等待作为悬停稳定等待，剪贴板有下限且点击后使用固定内部等待', () => {
   const code = `
 import importlib.util, json, sys, types
 sys.dont_write_bytecode = True
@@ -401,14 +401,69 @@ spec.loader.exec_module(module)
 module.mouse = types.SimpleNamespace(Controller=lambda: object())
 module.keyboard = types.SimpleNamespace(Controller=lambda: object())
 controller = module.InputController({"operation_delay_ms": 180})
-print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.action_delay]))
+print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.release_settle]))
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.18, 0.18])
+  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.25, 0.02])
 })
 
-test('Python Ctrl+C 首次无响应时重试，连续无响应才判为空格', () => {
+test('Python Ctrl+C 与 Ctrl+点击按固定内部时序且 Ctrl 最后释放', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+clock = [0.0]
+events = []
+def advance(seconds):
+    clock[0] += max(float(seconds), 0.001)
+    events.append(("sleep", round(max(float(seconds), 0.001), 3)))
+module.time.sleep = advance
+module.time.monotonic = lambda: clock[0]
+module.is_game_foreground = lambda: True
+
+class Keyboard:
+    def press(self, key): events.append(("key-down", str(key)))
+    def release(self, key): events.append(("key-up", str(key)))
+class Mouse:
+    def press(self, button): events.append(("mouse-down", str(button)))
+    def release(self, button): events.append(("mouse-up", str(button)))
+
+controller = module.InputController.__new__(module.InputController)
+controller.keyboard = Keyboard()
+controller.mouse = Mouse()
+controller.release_settle = module.RELEASE_SETTLE_SECONDS
+
+controller._send_copy()
+copy_events = list(events)
+copy_sleeps = [seconds for kind, seconds in copy_events if kind == "sleep"]
+clock[0] = 0.0
+events.clear()
+controller.ctrl_click()
+click_events = list(events)
+click_sleeps = [seconds for kind, seconds in click_events if kind == "sleep"]
+
+print(json.dumps({
+    "copy": [[kind, name] for kind, name in copy_events if kind != "sleep"],
+    "copySleeps": copy_sleeps,
+    "click": [[kind, name] for kind, name in click_events if kind != "sleep"],
+    "clickSleeps": click_sleeps
+}))
+`
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    copy: [['key-down', 'Key.ctrl'], ['key-down', 'c'], ['key-up', 'c'], ['key-up', 'Key.ctrl']],
+    copySleeps: [0.05, 0.02, 0.02],
+    click: [['key-down', 'Key.ctrl'], ['mouse-down', 'Button.left'], ['mouse-up', 'Button.left'], ['key-up', 'Key.ctrl']],
+    clickSleeps: [0.05, 0.02, 0.02, 0.02]
+  })
+})
+
+test('Python Ctrl+C 无响应一次即判空格，不再重复确认', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -426,16 +481,16 @@ def run(responses):
     controller._copy_item_text_once = attempt
     return [*controller.copy_item_text(), calls["count"]]
 print(json.dumps([
-    run([("no-response", ""), ("copied", text)]),
-    run([("no-response", ""), ("no-response", "")]),
+    run([("no-response", "")]),
+    run([("copied", text)]),
     run([("empty", "")])
 ]))
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), [
-    ['copied', 'Item Class: Currency\nRarity: Currency\nChaos Orb\n--------', 2],
-    ['empty', '', 2],
+    ['empty', '', 1],
+    ['copied', 'Item Class: Currency\nRarity: Currency\nChaos Orb\n--------', 1],
     ['empty', '', 1]
   ])
 })

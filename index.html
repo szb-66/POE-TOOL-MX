@@ -6,9 +6,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: file: blob: price-check-image:; media-src 'self' file: blob: data:; font-src 'self' data:;">
     <title>流放助手</title>
+    <style>
+      #app-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #f5f7fa;
+        color: #606266;
+        font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      }
+
+      #app-loading .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #dcdfe6;
+        border-top-color: #409eff;
+        border-radius: 50%;
+        animation: app-loading-spin 0.8s linear infinite;
+      }
+
+      @keyframes app-loading-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #app-loading .loading-text {
+        font-size: 13px;
+        line-height: 1.4;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div id="app-loading">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">正在加载…</div>
+      </div>
+    </div>
+    <script>
+      // 覆盖层窗口与主窗口共用同一份 HTML：覆盖层路由不应显示主窗口专用加载占位。
+      if (location.hash && location.hash !== '#/') {
+        document.getElementById('app-loading')?.remove()
+      }
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

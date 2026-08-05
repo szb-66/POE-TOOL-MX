@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from './errors.js'
 import { resolveStashGridLayout } from './layout.js'
+import { pythonFixedTiming } from '../../../src/utils/operationDelay.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -154,7 +155,8 @@ export class ChaosRecipeAutomationManager {
       items,
       templates: this.config.templates || {},
       match_threshold: Number(this.config.matchThreshold || 0.8),
-      operation_delay_ms: Number(this.config.operationDelayMs || 80)
+      operation_delay_ms: Number(this.config.operationDelayMs || 80),
+      fixed_timing: pythonFixedTiming(this.config.fixedTiming)
     }
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'chaos_recipe_pick_config.json')
     fs.writeFileSync(configPath, JSON.stringify(runtime, null, 2), 'utf8')

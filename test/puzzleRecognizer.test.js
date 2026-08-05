@@ -13,7 +13,7 @@ const templatesPath = path.join(workspace, 'electron', 'assets', 'puzzle', 'temp
 const screenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'inventory-region.png')
 const emptyScreenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'empty-region.png')
 
-function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory' } = {}) {
+function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory', recognition } = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-recognizer-'))
   const configPath = path.join(directory, 'config.json')
   const config = {
@@ -23,6 +23,7 @@ function analyze({ region, imagePath = screenshot, imageIsRegion = false, region
     regionType,
     requireGameForeground: false
   }
+  if (recognition) config.recognition = recognition
   if (region) config.region = region
   writeFileSync(configPath, JSON.stringify(config))
   try {
@@ -70,6 +71,19 @@ function atlasTopologyFixture(directory) {
   const imagePath = path.join(directory, 'atlas-topology.pgm')
   writeFileSync(imagePath, Buffer.concat([Buffer.from(`P5\n${width} ${height}\n255\n`), pixels]))
   return imagePath
+}
+
+function createDimmedScreenshot(directory) {
+  const output = path.join(directory, 'dimmed.png')
+  const code = [
+    'import cv2, numpy as np',
+    `src = cv2.imdecode(np.fromfile(${JSON.stringify(screenshot)}, np.uint8), cv2.IMREAD_COLOR)`,
+    `dim = (src * 0.75).astype(np.uint8)`,
+    `cv2.imencode('.png', dim)[1].tofile(${JSON.stringify(output)})`
+  ].join(';')
+  const result = spawnSync(python, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  return output
 }
 
 function atlasBorderInterferenceFixture(directory) {
@@ -148,6 +162,76 @@ test('真实仓库逐格识别全部有效方向而不是只返回合法角度�
     const truth = expected.get(`${slot.row + 1},${slot.column + 1}`)
     if (truth) assert.deepEqual([slot.type, slot.mask], truth, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
   }
+})
+
+test('识别强度预设包含三档且标准档保持默认', () => {
+  const source = readFileSync(analyzer, 'utf8')
+  assert.match(source, /STRENGTH_PRESETS\s*=\s*\{[\s\S]*"sensitive"[\s\S]*"standard"[\s\S]*"strict"/)
+  assert.match(source, /"standard"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.72/)
+  assert.match(source, /"sensitive"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.60/)
+  assert.match(source, /"strict"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.82/)
+})
+
+test('分析主入口把识别强度配置传给 analyze_image', () => {
+  const source = readFileSync(analyzer, 'utf8')
+  assert.match(
+    source,
+    /analyze_image\(image, templates, str\(config\.get\("regionType", "inventory"\)\), config\.get\("recognition"\)\)/
+  )
+})
+
+test('传入识别强度配置后仍能完成仓库识别', { skip: !existsSync(python) }, () => {
+  const result = analyze({
+    region: { left: 4, top: 4, right: 570, bottom: 954 },
+    recognition: { strength: 'sensitive' }
+  })
+  assert.equal(result.success, true)
+  assert.equal(result.occupiedCount, 50)
+})
+
+test('敏感档可识别变暗样本', { skip: !existsSync(python) }, () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-dimmed-'))
+  try {
+    const dimmed = createDimmedScreenshot(directory)
+    const result = analyze({ imagePath: dimmed, imageIsRegion: true, recognition: { strength: 'sensitive' } })
+    assert.equal(result.success, true)
+    assert.equal(result.occupiedCount, 50)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('方向识别使用绿色图标质心作为探针中心', () => {
+  const source = readFileSync(analyzer, 'utf8')
+  assert.match(source, /cellCentroid/)
+  assert.match(source, /def inventory_route_topology\([\s\S]*component:[\s\S]*strength:/)
+})
+
+test('区域轻微偏移后方向掩码保持稳定', { skip: !existsSync(python) }, () => {
+  const result = analyze({ region: { left: 8, top: 4, right: 574, bottom: 954 } })
+  assert.equal(result.success, true)
+  assert.equal(result.occupiedCount, 50)
+  const expected = new Map([
+    ['1,4', 1], ['9,4', 2], ['2,4', 4], ['6,6', 8],
+    ['1,2', 5], ['2,2', 10],
+    ['4,3', 3], ['1,5', 6], ['3,5', 12], ['2,5', 9],
+    ['2,6', 11], ['3,3', 7], ['10,6', 14], ['8,1', 13],
+    ['1,1', 15]
+  ])
+  for (const slot of result.slots) {
+    const truth = expected.get(`${slot.row + 1},${slot.column + 1}`)
+    if (truth) assert.equal(slot.mask, truth, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
+  }
+})
+
+test('网格置信度区分正常与偏移框选并给出低置信警告', { skip: !existsSync(python) }, () => {
+  const aligned = analyze({ region: { left: 4, top: 4, right: 570, bottom: 954 } })
+  const shifted = analyze({ region: { left: 8, top: 4, right: 574, bottom: 954 } })
+  assert.equal(aligned.success, true)
+  assert.equal(shifted.success, true)
+  assert.ok(Number(aligned.gridConfidence) > Number(shifted.gridConfidence))
+  assert.equal(shifted.gridAlignment, 'low')
+  assert.ok(shifted.warnings.some(warning => /重新框选/.test(warning.message || warning)))
 })
 
 test('海图区使用 3×3 协议并允许空海图', { skip: !existsSync(python) }, () => {

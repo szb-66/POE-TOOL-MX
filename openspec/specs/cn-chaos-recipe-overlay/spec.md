@@ -45,11 +45,11 @@ TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose afte
 - **THEN** 系统在下一次点击前停止、释放所有输入状态并关闭不可交互的高亮浮窗，全局紧急停止仍可重复调用
 
 ### Requirement: 混沌配方功能开关
-系统 SHALL 在混沌配方页持久化功能启用状态和独立操作等待时间。
+系统 SHALL 在混沌配方页持久化功能启用状态和独立悬停稳定取件等待时间。
 
 #### Scenario: 开启且检测配置有效
 - **WHEN** 用户开启混沌配方
-- **THEN** 系统注册公共检测消费者并使用独立的20至500毫秒取件等待
+- **THEN** 系统注册公共检测消费者并使用独立的20至500毫秒悬停稳定取件等待
 
 #### Scenario: 检测配置缺失
 - **WHEN** 用户在公共仓库或背包模板缺失时开启

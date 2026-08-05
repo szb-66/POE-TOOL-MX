@@ -151,10 +151,12 @@ export class PuzzleAnalysisService {
         message: validation.valid ? '当前显示环境有效' : validation.message
       }
     }
+    const previewFor = (metadata, type) =>
+      normalizePuzzleRegionMetadata(metadata) ? this.readPreview(type) : ''
     return {
       previews: {
-        inventory: this.readPreview('inventory'),
-        atlas: this.readPreview('atlas')
+        inventory: previewFor(inventoryRegionMetadata, 'inventory'),
+        atlas: previewFor(atlasRegionMetadata, 'atlas')
       },
       states: {
         inventory: regionState(inventoryRegionMetadata, 'inventory'),
@@ -193,6 +195,17 @@ export class PuzzleAnalysisService {
   pickInventoryRegion() { return this.pickRegion('inventory') }
 
   pickAtlasRegion() { return this.pickRegion('atlas') }
+
+  clearRegion(type = 'inventory') {
+    const regionType = type === 'atlas' ? 'atlas' : 'inventory'
+    try {
+      const preview = this.previewPath(regionType)
+      if (fs.existsSync(preview)) fs.unlinkSync(preview)
+    } catch {
+      // 预览文件不存在或删除失败不影响清空状态
+    }
+    return { success: true, type: regionType }
+  }
 
   validateRegion(regionMetadata, type = 'inventory') {
     const validation = validatePuzzleRegionEnvironment(regionMetadata, currentDisplays(), type)
@@ -270,7 +283,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, targets, operationDelayMs = 80, resume = false } = {}) {
+  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, targets, sourceSlots, recognition, operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
@@ -288,8 +301,12 @@ export class PuzzleAnalysisService {
         atlasRegion: atlas.selectedRegion,
         displayBounds: atlasRegionMetadata?.displayPhysicalBounds || null,
         targets,
+        sourceSlots,
+        recognition,
         resume: Boolean(resume),
         operationDelayMs: Math.max(20, Math.min(500, Number(operationDelayMs) || 80)),
+        timing_mode: adaptiveTiming === false ? 'fixed' : 'adaptive',
+        adaptive_timeout_ms: Math.max(500, Math.min(3000, Number(adaptiveTimeoutMs) || 1000)),
         templatesPath: this.templatesPath()
       }), 'utf8')
       const child = spawn(this.automationPythonPath(), [this.autoScriptPath(), '--config', configPath], {
@@ -396,7 +413,7 @@ export class PuzzleAnalysisService {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
-  async analyze({ regionMetadata, resetExecution = true } = {}) {
+  async analyze({ regionMetadata, recognition, resetExecution = true } = {}) {
     if (this.automationChild) return { success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置期间不能重新识别' } }
     if (this.busy) return { success: false, error: { code: 'ANALYSIS_BUSY', message: '海图识别正在进行，请稍候' } }
     if (resetExecution) {
@@ -413,6 +430,7 @@ export class PuzzleAnalysisService {
         region: metadata.selectedRegion,
         templatesPath: this.templatesPath(),
         regionType: 'inventory',
+        recognition,
         requireGameForeground: true
       })
       const payload = result.success ? { ...result, regionMetadata: metadata } : result

@@ -70,9 +70,24 @@ VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
 OPERATION_DELAY_DEFAULT_MS = 80
 OPERATION_DELAY_MIN_MS = 20
 OPERATION_DELAY_MAX_MS = 500
-COPY_ATTEMPTS = 2
-INPUT_EVENT_DELAY_SECONDS = 0.01
+COPY_ATTEMPTS = 1
+MODIFIER_SETTLE_SECONDS = 0.05
+KEY_HOLD_SECONDS = 0.02
+BUTTON_HOLD_SECONDS = 0.02
+RELEASE_SETTLE_SECONDS = 0.02
+CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
 EXTRA_INVENTORY_MAX_COLUMNS = 6
+
+
+def apply_fixed_timing(config):
+    global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
+    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS
+    timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
+    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 250)) / 1000.0
 
 
 def game_window_titles():
@@ -482,8 +497,8 @@ class InputController:
         self.keyboard = keyboard.Controller()
         operation_delay = normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0
         self.mouse_move_delay = operation_delay
-        self.action_delay = operation_delay
-        self.clipboard_delay = operation_delay
+        self.clipboard_delay = max(CLIPBOARD_RESPONSE_MIN_SECONDS, operation_delay)
+        self.release_settle = RELEASE_SETTLE_SECONDS
 
     def release_all(self):
         for key in (Key.ctrl, Key.alt, Key.shift):
@@ -513,12 +528,13 @@ class InputController:
             if not is_game_foreground():
                 return stop_for_foreground_loss(self)
             self.keyboard.press(Key.ctrl)
-            time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            time.sleep(MODIFIER_SETTLE_SECONDS)
             if not is_game_foreground():
                 return stop_for_foreground_loss(self)
             self.keyboard.press("c")
-            time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            time.sleep(KEY_HOLD_SECONDS)
             self.keyboard.release("c")
+            time.sleep(RELEASE_SETTLE_SECONDS)
             self.keyboard.release(Key.ctrl)
             return True
         except Exception:
@@ -548,6 +564,7 @@ class InputController:
             return "unreadable", ""
 
     def copy_item_text(self):
+        """复制物品文本；剪贴板无响应一次即判空格，不重复确认以提升空格扫描速度。"""
         for _attempt in range(COPY_ATTEMPTS):
             status, text = self._copy_item_text_once()
             if status != "no-response":
@@ -559,14 +576,15 @@ class InputController:
             if not is_game_foreground():
                 return stop_for_foreground_loss(self)
             self.keyboard.press(Key.ctrl)
-            time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            time.sleep(MODIFIER_SETTLE_SECONDS)
             if not is_game_foreground():
                 return stop_for_foreground_loss(self)
             self.mouse.press(Button.left)
-            time.sleep(INPUT_EVENT_DELAY_SECONDS)
+            time.sleep(BUTTON_HOLD_SECONDS)
             self.mouse.release(Button.left)
+            time.sleep(self.release_settle)
             self.keyboard.release(Key.ctrl)
-            time.sleep(self.action_delay)
+            time.sleep(self.release_settle)
             return True
         except Exception:
             self.release_all()
@@ -676,6 +694,7 @@ def run_stash(config):
     global runtime_stop_reason
     runtime_stop_reason = ""
     stats = empty_stats()
+    apply_fixed_timing(config)
     if not focus_game_window():
         return abort("game-not-foreground", stats)
     matcher = InterfaceMatcher(config)

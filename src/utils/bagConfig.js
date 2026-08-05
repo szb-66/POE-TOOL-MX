@@ -1,4 +1,4 @@
-import { normalizeOperationDelay } from './operationDelay.js'
+import { normalizeFixedTiming, normalizeOperationDelay } from './operationDelay.js'
 import { normalizeEmptySlotThreshold } from './inventorySettings.js'
 
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
@@ -183,6 +183,7 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
     matchThreshold: bag.matchThreshold,
     blacklist: bag.blacklist,
     operationDelayMs: normalizeOperationDelay(settings?.operationDelayMs),
+    fixedTiming: normalizeFixedTiming(settings?.fixedTiming),
     inventory: {
       startPos: {
         x: finiteNumber(settings?.inventory?.startPos?.x, 2658),

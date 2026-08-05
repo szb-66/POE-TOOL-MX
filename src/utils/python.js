@@ -10,7 +10,11 @@
 import craftingTemplate from '@/assets/scripts/crafting_template.py?raw'
 import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
-import { normalizeOperationDelay } from '@/utils/operationDelay.js'
+import {
+  normalizeFixedTiming,
+  normalizeAdaptiveTiming,
+  normalizeOperationDelay
+} from '@/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '@/utils/inventorySettings.js'
 import {
   buildCraftingCurrencyPreflight,
@@ -64,6 +68,8 @@ export function generatePythonScript(config) {
     globalShortcuts,
     currencyPositions,
     operationDelayMs,
+    adaptiveTiming = true,
+    fixedTiming = {},
     itemPosition,
     preset,
     filePaths,
@@ -75,6 +81,8 @@ export function generatePythonScript(config) {
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
   const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
+  const normalizedAdaptiveTiming = normalizeAdaptiveTiming(adaptiveTiming)
+  const normalizedFixedTiming = normalizeFixedTiming(fixedTiming)
 
   // 转义文件路径中的反斜杠（Python使用原始字符串）
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
@@ -795,8 +803,15 @@ def craft_colors(target_red, target_green, target_blue):
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
+    '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
+    '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
+    '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
+    '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
+    '{{RELEASE_SETTLE_MS}}': String(normalizedFixedTiming.releaseSettleMs),
+    '{{CLIPBOARD_CONFIRM_MS}}': String(normalizedFixedTiming.clipboardConfirmMs),
+    '{{STASH_TAB_SETTLE_MS}}': String(normalizedFixedTiming.stashTabSettleMs),
+    '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),
@@ -831,6 +846,8 @@ export function generateMapRollingScript(config) {
     currencyPositions,
     inventory,
     operationDelayMs,
+    adaptiveTiming = true,
+    fixedTiming = {},
     mapConfig,
     filePaths,
     stashTabSelection = { enabled: false },
@@ -841,6 +858,8 @@ export function generateMapRollingScript(config) {
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
   const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
+  const normalizedAdaptiveTiming = normalizeAdaptiveTiming(adaptiveTiming)
+  const normalizedFixedTiming = normalizeFixedTiming(fixedTiming)
 
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
 
@@ -907,8 +926,15 @@ export function generateMapRollingScript(config) {
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{DELAY_MOUSE_CLICK}}': operationDelaySeconds,
     '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
+    '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
+    '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
+    '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
+    '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
+    '{{RELEASE_SETTLE_MS}}': String(normalizedFixedTiming.releaseSettleMs),
+    '{{CLIPBOARD_CONFIRM_MS}}': String(normalizedFixedTiming.clipboardConfirmMs),
+    '{{STASH_TAB_SETTLE_MS}}': String(normalizedFixedTiming.stashTabSettleMs),
+    '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),

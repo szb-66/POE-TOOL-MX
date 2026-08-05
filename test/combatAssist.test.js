@@ -493,6 +493,8 @@ test('主动循环 IPC 桥接完整：独立进程、状态事件带来源标记
   assert.match(ipcSource, /combat-get-loop-status/)
   assert.match(ipcSource, /combat-update-loop-config/)
   assert.match(ipcSource, /origin: 'loop'/)
+  assert.match(ipcSource, /function spawnCombatProcess\(\{[^}]*\bonStatus[^}]*\bonFailed[^}]*\bonClosed/)
+  assert.doesNotMatch(ipcSource, /handlers\.on/) // 回调必须直接解构，避免 close 时读取 undefined 抛异常
   assert.match(ipcSource, /\[potionProcess, loopProcess, portalProcess\]/) // loopProcess 纳入退出清理
   assert.match(preloadSource, /startLoopAssist/)
   assert.match(preloadSource, /stopLoopAssist/)

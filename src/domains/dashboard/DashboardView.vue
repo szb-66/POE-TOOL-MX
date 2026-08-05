@@ -29,12 +29,12 @@
         <div>
           <el-button v-if="healthHasIssues" size="small" text type="primary" @click="openSettings">前往设置</el-button>
           <el-button size="small" text @click="healthExpanded = !healthExpanded">
-            {{ healthExpanded || healthHasIssues ? '收起' : '查看' }}
+            {{ healthExpanded ? '收起' : '查看' }}
           </el-button>
         </div>
       </header>
       <el-collapse-transition>
-        <div v-if="healthExpanded || healthHasIssues" class="health-list">
+        <div v-if="healthExpanded" class="health-list">
           <article v-for="item in healthItems" :key="item.id">
             <span class="health-dot" :class="item.status" />
             <div><strong>{{ item.label }}</strong><p>{{ item.text }}</p></div>

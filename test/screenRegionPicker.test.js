@@ -202,6 +202,12 @@ test('point/region 共用互斥会话并对关闭、取消、加载失败统一�
   assert.match(manager, /selectedSize\.width < minimumSize\.width/)
 })
 
+test('区域选框的确认按钮可点击且不会触发拖拽选区', () => {
+  const picker = readFileSync(new URL('../src/domains/settings/CoordinatePickerView.vue', import.meta.url), 'utf8')
+  assert.match(picker, /button[\s\S]*@pointerdown\.stop[\s\S]*@pointerup\.stop[\s\S]*@click\.stop="confirmRegion"/)
+  assert.match(picker, /\.coordinate-picker__tip button \{[\s\S]*pointer-events: auto;/)
+})
+
 test('高级上传和手工区域修改都会清除对应采集元数据', () => {
   const store = readFileSync(new URL('../src/stores/interfaceDetection.js', import.meta.url), 'utf8')
   assert.match(store, /function setTemplate\([\s\S]*stashCapture[\s\S]*save\(\)/)

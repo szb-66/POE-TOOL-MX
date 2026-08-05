@@ -1,6 +1,7 @@
 export const PUZZLE_GRID_SIZE = Object.freeze({ columns: 6, rows: 10 })
 export const ATLAS_GRID_SIZE = Object.freeze({ columns: 3, rows: 3 })
 export const PUZZLE_REGION_TYPES = Object.freeze({ inventory: 'inventory', atlas: 'atlas' })
+export const PUZZLE_RECOGNITION_STRENGTHS = Object.freeze(['sensitive', 'standard', 'strict'])
 
 function finite(value, fallback = 0) {
   const number = Number(value)
@@ -41,12 +42,21 @@ export function puzzleGridSize(type = PUZZLE_REGION_TYPES.inventory) {
   return type === PUZZLE_REGION_TYPES.atlas ? ATLAS_GRID_SIZE : PUZZLE_GRID_SIZE
 }
 
+export function normalizePuzzleRecognition(value = {}) {
+  const strength = PUZZLE_RECOGNITION_STRENGTHS.includes(value?.strength) ? value.strength : 'standard'
+  return { strength }
+}
+
 export function normalizePuzzleSettings(value = {}) {
   const inventoryRegionMetadata = normalizePuzzleRegionMetadata(
     value.inventoryRegionMetadata || value.regionMetadata
   )
   const atlasRegionMetadata = normalizePuzzleRegionMetadata(value.atlasRegionMetadata)
-  return { inventoryRegionMetadata, atlasRegionMetadata }
+  return {
+    inventoryRegionMetadata,
+    atlasRegionMetadata,
+    recognition: normalizePuzzleRecognition(value.recognition)
+  }
 }
 
 export function gridCellCenter(region, grid, row, column) {
