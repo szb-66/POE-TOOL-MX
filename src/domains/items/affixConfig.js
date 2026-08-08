@@ -120,7 +120,11 @@ export function normalizeModuleTwo(input = {}) {
 }
 
 export function createDefaultModuleTwo() {
-  return normalizeModuleTwo({ enabled: true, mode: 'alteration', affixGroups: [createDefaultAffixGroup(0)] })
+  return normalizeModuleTwo({
+    enabled: true,
+    mode: 'alteration',
+    affixGroups: [createDefaultAffixGroup(0)]
+  })
 }
 
 export function cloneAffixGroup(group, index) {

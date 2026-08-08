@@ -6,6 +6,7 @@
     <el-container>
       <el-main class="main-content">
         <slot />
+        <RouteLoadingOverlay />
       </el-main>
     </el-container>
   </el-container>
@@ -14,6 +15,7 @@
 <script setup>
 import { computed } from 'vue'
 import Sidebar from './Sidebar.vue'
+import RouteLoadingOverlay from '../common/RouteLoadingOverlay.vue'
 
 const sidebarWidth = computed(() => '68px')
 </script>
@@ -28,9 +30,9 @@ const sidebarWidth = computed(() => '68px')
   }
 
   .main-content {
+    position: relative;
     padding: 0;
     background-color: var(--bg-secondary);
   }
 }
 </style>
-

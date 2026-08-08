@@ -45,6 +45,7 @@ onMounted(async () => {
   window.addEventListener('focus', refreshGameWindowOnFocus)
   // 初始化快捷键
   if (window.electronAPI) {
+    void electronApi.update.configure({ mode: settingsStore.updateMode }).catch(() => {})
     const titleSync = await settingsStore.syncGameWindowTitles()
     if (!titleSync.success) ElMessage.warning(`游戏窗口名称同步失败：${titleSync.error}`)
     const processNameSync = await settingsStore.syncGameWindowProcessNames()

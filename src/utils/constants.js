@@ -21,7 +21,15 @@ export const CURRENCY_TYPES = {
   FUSING: 'fusing',               // 链结石
   CHROMIC: 'chromic',             // 幻色石
   VAAL: 'vaal',                   // 瓦尔宝珠
-  WISDOM: 'wisdom'                // 知识卷轴
+  WISDOM: 'wisdom',               // 知识卷轴
+  LESSER_ELDRITCH_EMBER: 'lesser-eldritch-ember',
+  GREATER_ELDRITCH_EMBER: 'greater-eldritch-ember',
+  GRAND_ELDRITCH_EMBER: 'grand-eldritch-ember',
+  EXCEPTIONAL_ELDRITCH_EMBER: 'exceptional-eldritch-ember',
+  LESSER_ELDRITCH_ICHOR: 'lesser-eldritch-ichor',
+  GREATER_ELDRITCH_ICHOR: 'greater-eldritch-ichor',
+  GRAND_ELDRITCH_ICHOR: 'grand-eldritch-ichor',
+  EXCEPTIONAL_ELDRITCH_ICHOR: 'exceptional-eldritch-ichor'
 }
 
 // 通货中文名称映射
@@ -38,7 +46,15 @@ export const CURRENCY_NAMES = {
   [CURRENCY_TYPES.FUSING]: '链结石',
   [CURRENCY_TYPES.CHROMIC]: '幻色石',
   [CURRENCY_TYPES.VAAL]: '瓦尔宝珠',
-  [CURRENCY_TYPES.WISDOM]: '知识卷轴'
+  [CURRENCY_TYPES.WISDOM]: '知识卷轴',
+  [CURRENCY_TYPES.LESSER_ELDRITCH_EMBER]: '次级古灵余烬',
+  [CURRENCY_TYPES.GREATER_ELDRITCH_EMBER]: '高级古灵余烬',
+  [CURRENCY_TYPES.GRAND_ELDRITCH_EMBER]: '上级古灵余烬',
+  [CURRENCY_TYPES.EXCEPTIONAL_ELDRITCH_EMBER]: '卓越古灵余烬',
+  [CURRENCY_TYPES.LESSER_ELDRITCH_ICHOR]: '次级古灵溶液',
+  [CURRENCY_TYPES.GREATER_ELDRITCH_ICHOR]: '高级古灵溶液',
+  [CURRENCY_TYPES.GRAND_ELDRITCH_ICHOR]: '上级古灵溶液',
+  [CURRENCY_TYPES.EXCEPTIONAL_ELDRITCH_ICHOR]: '卓越古灵溶液'
 }
 
 // 制作模式

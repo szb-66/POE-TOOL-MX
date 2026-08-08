@@ -12,6 +12,38 @@ import { ref, computed } from 'vue'
 import { cleanMigratedMapConfig, createDefaultMapConfig } from '../utils/mapPresetMigration.js'
 import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
 import { createDefaultModuleTwo, normalizeModuleTwo } from '../domains/items/affixConfig.js'
+import { createDefaultEldritchModule, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
+
+function defaultModuleThree() {
+  return {
+    enabled: false,
+    socket: { enabled: false, count: 0 },
+    link: { enabled: false, count: 0 },
+    color: { enabled: false, red: 0, green: 0, blue: 0 }
+  }
+}
+
+function normalizeItemPreset(preset = {}) {
+  const checkInitialItem = typeof preset.checkInitialItem === 'boolean'
+    ? preset.checkInitialItem
+    : preset.moduleTwo?.checkInitialAffixes !== false
+  const moduleEldritch = normalizeEldritchModule(preset.moduleEldritch)
+  const moduleTwo = normalizeModuleTwo(preset.moduleTwo)
+  const defaults = defaultModuleThree()
+  const sourceThree = preset.moduleThree || {}
+  const moduleThree = {
+    ...defaults,
+    ...sourceThree,
+    socket: { ...defaults.socket, ...(sourceThree.socket || {}) },
+    link: { ...defaults.link, ...(sourceThree.link || {}) },
+    color: { ...defaults.color, ...(sourceThree.color || {}) }
+  }
+  if (moduleEldritch.enabled) {
+    moduleTwo.enabled = false
+    moduleThree.enabled = false
+  }
+  return { ...preset, checkInitialItem, moduleTwo, moduleThree, moduleEldritch }
+}
 
 export const usePresetStore = defineStore('preset', () => {
   // 物品预设
@@ -19,13 +51,10 @@ export const usePresetStore = defineStore('preset', () => {
     {
       id: 'default',
       name: '默认预设',
+      checkInitialItem: true,
       moduleTwo: createDefaultModuleTwo(),
-      moduleThree: {
-        enabled: false,
-        socket: { enabled: false, count: 0 },
-        link: { enabled: false, count: 0 },
-        color: { enabled: false, red: 0, green: 0, blue: 0 }
-      }
+      moduleThree: defaultModuleThree(),
+      moduleEldritch: createDefaultEldritchModule()
     }
   ])
 
@@ -63,13 +92,10 @@ export const usePresetStore = defineStore('preset', () => {
     const newPreset = {
       id: `preset_${Date.now()}`,
       name: name || `预设${itemPresets.value.length}`,
+      checkInitialItem: true,
       moduleTwo: createDefaultModuleTwo(),
-      moduleThree: {
-        enabled: false,
-        socket: { enabled: false, count: 0 },
-        link: { enabled: false, count: 0 },
-        color: { enabled: false, red: 0, green: 0, blue: 0 }
-      }
+      moduleThree: defaultModuleThree(),
+      moduleEldritch: createDefaultEldritchModule()
     }
     itemPresets.value.push(newPreset)
     currentItemPresetId.value = newPreset.id
@@ -168,8 +194,14 @@ export const usePresetStore = defineStore('preset', () => {
   function updateCurrentItemPreset(data) {
     const preset = currentItemPreset.value
     if (preset) {
-      if (data.moduleTwo) data = { ...data, moduleTwo: normalizeModuleTwo(data.moduleTwo) }
-      Object.assign(preset, data)
+      const next = { ...preset, ...data }
+      if (data.moduleEldritch?.enabled) {
+        next.moduleTwo = { ...next.moduleTwo, enabled: false }
+        next.moduleThree = { ...next.moduleThree, enabled: false }
+      } else if (data.moduleTwo?.enabled || data.moduleThree?.enabled) {
+        next.moduleEldritch = { ...next.moduleEldritch, enabled: false }
+      }
+      Object.assign(preset, normalizeItemPreset(next))
       savePresets()
     }
   }
@@ -227,16 +259,7 @@ export const usePresetStore = defineStore('preset', () => {
         })
         itemPresets.value = loaded
       }
-      itemPresets.value = itemPresets.value.map((preset) => ({
-        ...preset,
-        moduleTwo: normalizeModuleTwo(preset.moduleTwo),
-        moduleThree: preset.moduleThree || {
-          enabled: false,
-          socket: { enabled: false, count: 0 },
-          link: { enabled: false, count: 0 },
-          color: { enabled: false, red: 0, green: 0, blue: 0 }
-        }
-      }))
+      itemPresets.value = itemPresets.value.map(normalizeItemPreset)
 
       if (savedCurrentItemId) {
         currentItemPresetId.value = savedCurrentItemId

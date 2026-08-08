@@ -41,6 +41,7 @@ test('旧单组字符串配置迁移为组合并清理空条件', () => {
   assert.deepEqual(migrated.affixGroups[0].requiredAffixes.map((entry) => entry.keyword), ['生命'])
   assert.equal(migrated.affixGroups[0].selectedCount, 2)
   assert.equal(hasEffectiveAffixGroups(migrated), true)
+  assert.equal(Object.hasOwn(migrated, 'checkInitialAffixes'), false)
 })
 
 test('最低 T 接受更好或相同阶级并拒绝更差阶级', () => {
@@ -128,7 +129,7 @@ test('复制组合生成新的稳定 ID，并允许跨组复用相同词缀', ()
 test('启用词缀模块但所有组合为空时启动校验拒绝运行', () => {
   const result = validateCraftingConfig({
     itemPosition: { x: 100, y: 100 },
-    currencyPositions: { alteration: { x: 1, y: 1 } },
+    currencyPositions: { wisdom: { x: 2, y: 2 }, alteration: { x: 1, y: 1 } },
     preset: {
       moduleTwo: { enabled: true, mode: 'alteration', affixGroups: [] },
       moduleThree: { enabled: false }
@@ -136,4 +137,20 @@ test('启用词缀模块但所有组合为空时启动校验拒绝运行', () =>
   })
   assert.equal(result.isValid, false)
   assert.ok(result.errors.includes('词缀制作至少需要配置一个有效的达标组合'))
+})
+
+test('所有物品制作启动配置都要求知识卷轴坐标', () => {
+  const result = validateCraftingConfig({
+    itemPosition: { x: 100, y: 100 },
+    currencyPositions: { alteration: { x: 1, y: 1 } },
+    preset: {
+      moduleTwo: {
+        enabled: true,
+        mode: 'alteration',
+        affixGroups: [{ id: 'life', name: '生命', requiredAffixes: ['最大生命'] }]
+      },
+      moduleThree: { enabled: false }
+    }
+  })
+  assert.match(result.errors.join('\n'), /知识卷轴 \(wisdom\)/)
 })

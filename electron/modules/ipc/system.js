@@ -8,6 +8,7 @@ import {
 } from '../system/diagnostics.js'
 import { createStartupHealth } from '../system/health.js'
 import { exportDiagnosticsFile } from '../system/diagnosticExport.js'
+import { sanitizeStartupReport } from '../system/startupEvent.js'
 
 const HEALTH_OPERATIONS = {
   platform: 'platform_check', userData: 'user_data_check', administrator: 'administrator_check',
@@ -25,7 +26,7 @@ function healthReasonCode(item) {
   return 'unavailable'
 }
 
-export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvents = null) {
+export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvents = null, startupDiagnostics = null) {
   const displaySnapshot = () => screen.getAllDisplays().map(display => ({
     id: display.id,
     primary: display.id === screen.getPrimaryDisplay()?.id,
@@ -120,6 +121,10 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
   ipcMain.handle('system-record-diagnostic-event', async (_event, candidate) => (
     diagnosticEvents?.record(candidate) || { recorded: false, reason: 'store_unavailable' }
   ))
+  ipcMain.on('startup-report', (_event, candidate) => {
+    const report = sanitizeStartupReport(candidate)
+    if (report) startupDiagnostics?.record?.(report, _event.sender)
+  })
   ipcMain.handle('system-export-diagnostics', (_event, payload) => exportDiagnosticsFile({
     showSaveDialog: options => dialog.showSaveDialog(options),
     buildSnapshot: () => snapshot(payload)

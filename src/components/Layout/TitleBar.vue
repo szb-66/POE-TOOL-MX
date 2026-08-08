@@ -1,7 +1,7 @@
 <template>
   <div class="title-bar">
     <div class="title-content">
-      <el-icon class="app-logo-icon"><Monitor /></el-icon>
+      <img :src="appLogo" alt="" class="app-logo" />
       <span class="app-title">流放助手</span>
     </div>
     <div class="window-controls">
@@ -28,8 +28,9 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Minus, FullScreen, Close, Connection, Monitor } from '@element-plus/icons-vue'
+import { Minus, FullScreen, Close, Connection } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
+import appLogo from '@/assets/images/LOGO.png'
 
 const isAlwaysOnTop = ref(false)
 
@@ -79,8 +80,11 @@ onMounted(async () => {
   padding-left: 10px;
   gap: 8px;
   
-  .app-logo-icon {
-    font-size: 16px;
+  .app-logo {
+    width: 18px;
+    height: 18px;
+    display: block;
+    object-fit: contain;
   }
   
   .app-title {
@@ -127,5 +131,4 @@ onMounted(async () => {
   }
 }
 </style>
-
 

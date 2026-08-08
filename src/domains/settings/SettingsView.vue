@@ -350,6 +350,82 @@
           </el-form>
         </el-card>
 
+        <!-- 应用更新 -->
+        <div class="section-header">
+          <h3 class="section-title">应用更新</h3>
+        </div>
+        <el-card class="section-card">
+          <el-form label-width="120px" label-position="left">
+            <el-form-item label="更新模式">
+              <div class="update-settings">
+                <el-radio-group v-model="updateMode" @change="handleUpdateModeChange">
+                  <el-radio-button value="manual">手动更新</el-radio-button>
+                  <el-radio-button value="automatic">自动检查与下载</el-radio-button>
+                </el-radio-group>
+                <span class="hint-text">自动模式会在启动 30 秒后检查，之后每 6 小时检查；安装始终需要确认。</span>
+              </div>
+            </el-form-item>
+            <el-form-item label="版本状态">
+              <div class="update-settings">
+                <div class="update-version-row">
+                  <el-tag>当前 v{{ updateState.currentVersion || '未知' }}</el-tag>
+                  <el-tag v-if="updateState.availableVersion" type="success">可用 v{{ updateState.availableVersion }}</el-tag>
+                  <span>{{ updateStatusText }}</span>
+                </div>
+                <span v-if="updateState.releaseDate" class="hint-text">发布时间：{{ formatUpdateDate(updateState.releaseDate) }}</span>
+                <el-alert
+                  v-if="!updateState.supported"
+                  title="开发版不连接真实更新源，请使用模拟 updater 运行测试。"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                />
+                <el-alert
+                  v-if="updateState.error"
+                  :title="updateState.error"
+                  type="error"
+                  :closable="false"
+                  show-icon
+                />
+                <el-progress
+                  v-if="updateState.status === 'downloading' || updateState.status === 'downloaded'"
+                  :percentage="Math.round(updateState.progress?.percent || 0)"
+                  :status="updateState.status === 'downloaded' ? 'success' : undefined"
+                />
+                <span v-if="updateState.status === 'downloading'" class="hint-text">
+                  {{ formatUpdateBytes(updateState.progress?.transferred) }} / {{ formatUpdateBytes(updateState.progress?.total) }}
+                </span>
+                <div class="update-actions">
+                  <el-button
+                    :loading="updateState.status === 'checking'"
+                    :disabled="!updateState.supported || updateBusy"
+                    @click="handleCheckUpdate"
+                  >立即检查</el-button>
+                  <el-button
+                    v-if="updateState.status === 'available'"
+                    type="primary"
+                    @click="handleDownloadUpdate"
+                  >下载更新</el-button>
+                  <el-button
+                    v-if="updateState.status === 'downloaded'"
+                    type="success"
+                    @click="handleInstallUpdate"
+                  >重启并安装</el-button>
+                </div>
+              </div>
+            </el-form-item>
+            <el-form-item v-if="updateState.releaseNotes" label="发布说明">
+              <pre class="update-release-notes">{{ updateState.releaseNotes }}</pre>
+            </el-form-item>
+          </el-form>
+          <el-alert
+            title="当前 Windows 安装包未签名，重启安装时可能出现 UAC 或 SmartScreen 提示。"
+            type="warning"
+            :closable="false"
+            show-icon
+          />
+        </el-card>
+
         <!-- 操作延迟 -->
         <div class="section-header">
           <h3 class="section-title">操作延迟</h3>
@@ -534,7 +610,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
@@ -576,14 +652,49 @@ const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
 const isBackgroundDragging = ref(false)
+const updateMode = ref(settingsStore.updateMode)
+const updateState = ref({
+  mode: settingsStore.updateMode,
+  source: 'github',
+  currentVersion: '',
+  status: 'idle',
+  supported: false,
+  availableVersion: '',
+  releaseDate: '',
+  releaseNotes: '',
+  progress: null,
+  error: ''
+})
+let removeUpdateStateListener = null
 
-onMounted(() => {
+const updateBusy = computed(() => ['checking', 'downloading'].includes(updateState.value.status))
+const updateStatusText = computed(() => ({
+  idle: '等待检查',
+  checking: '正在检查更新…',
+  available: '发现新版本',
+  'not-available': '当前已是最新版本',
+  downloading: '正在下载更新…',
+  downloaded: '更新已下载，等待重启安装',
+  error: '更新操作失败'
+})[updateState.value.status] || '等待检查')
+
+onMounted(async () => {
   void account.run(() => account.restore()).catch(() => {})
+  removeUpdateStateListener = electronApi.update.onStateChanged(state => {
+    updateState.value = { ...updateState.value, ...state }
+  })
+  try {
+    updateState.value = { ...updateState.value, ...(await electronApi.update.getState()) }
+  } catch (error) {
+    updateState.value.error = error?.message || '读取更新状态失败'
+  }
   window.addEventListener('dragover', preventBackgroundFileNavigation)
   window.addEventListener('drop', preventBackgroundFileNavigation)
 })
 
 onBeforeUnmount(() => {
+  removeUpdateStateListener?.()
+  removeUpdateStateListener = null
   window.removeEventListener('dragover', preventBackgroundFileNavigation)
   window.removeEventListener('drop', preventBackgroundFileNavigation)
 })
@@ -659,6 +770,9 @@ watch(() => settingsStore.manualDpiScale, (val) => {
 })
 watch(() => settingsStore.debugMode, (val) => {
   debugMode.value = val
+})
+watch(() => settingsStore.updateMode, (val) => {
+  updateMode.value = val
 })
 watch(() => settingsStore.overlaySettings, (val) => {
   overlaySettings.value = { ...val }
@@ -809,6 +923,57 @@ async function handleDebugModeChange(enabled) {
     debugMode.value = settingsStore.debugMode
     ElMessage.error('切换调试模式失败')
   }
+}
+
+async function handleUpdateModeChange(mode) {
+  const result = await settingsStore.updateApplicationUpdateMode(mode)
+  updateMode.value = settingsStore.updateMode
+  if (!result.success) ElMessage.error(result.error)
+  else updateState.value = { ...updateState.value, ...(result.state || {}), mode: settingsStore.updateMode }
+}
+
+async function handleCheckUpdate() {
+  const result = await electronApi.update.check()
+  if (result?.busy) ElMessage.info('更新操作正在进行')
+}
+
+async function handleDownloadUpdate() {
+  const result = await electronApi.update.download()
+  if (result?.busy) ElMessage.info('更新操作正在进行')
+}
+
+async function handleInstallUpdate() {
+  try {
+    await ElMessageBox.confirm(
+      '应用将先停止所有自动化任务和子进程，然后退出并安装更新。是否继续？',
+      '重启并安装',
+      { confirmButtonText: '继续', cancelButtonText: '取消', type: 'warning' }
+    )
+    const result = await electronApi.update.restartAndInstall()
+    if (!result?.success) {
+      const fallback = {
+        'install-in-progress': '更新安装正在进行',
+        'update-not-downloaded': '更新尚未下载完成',
+        'cleanup-timeout': '安装前清理超时，应用将安全退出',
+        'cleanup-failed': '安装前清理失败，应用将安全退出'
+      }[result?.reason] || '更新安装失败'
+      ElMessage.error(result?.reason ? fallback : (result?.state?.error || fallback))
+    }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') ElMessage.error(error?.message || '更新安装失败')
+  }
+}
+
+function formatUpdateDate(value) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value || '') : date.toLocaleString('zh-CN')
+}
+
+function formatUpdateBytes(value) {
+  const bytes = Number(value) || 0
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 async function handleOperationDelayChange(value) {
@@ -985,6 +1150,7 @@ async function handleReset() {
     itemPosition.value = { ...settingsStore.itemPosition }
     manualDpiScale.value = settingsStore.manualDpiScale
     debugMode.value = settingsStore.debugMode
+    updateMode.value = settingsStore.updateMode
     overlaySettings.value = { ...settingsStore.overlaySettings }
     backgroundHistory.value = []
 
@@ -1215,6 +1381,38 @@ async function handleReset() {
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
+    }
+
+    .update-settings {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .update-version-row,
+    .update-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .update-release-notes {
+      width: 100%;
+      max-height: 240px;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font: inherit;
     }
   }
 

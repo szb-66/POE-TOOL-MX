@@ -133,6 +133,16 @@ test('主窗口关闭会发起完整应用退出', () => {
   assert.equal(app.quitCalls, 1)
 })
 
+test('外部严格清理完成后 before-quit 不重复执行清理', () => {
+  const app = createFakeApp()
+  let cleanupCalls = 0
+  const controller = createShutdownController({ app, cleanup: async () => { cleanupCalls += 1 } })
+  controller.markCleanupComplete()
+  const event = app.emitBeforeQuit()
+  assert.equal(event.defaultPrevented, false)
+  assert.equal(cleanupCalls, 0)
+})
+
 test('主进程接入统一退出控制且不会扫描终止系统中的其他 Python', () => {
   const main = readFileSync(new URL('../electron/main.js', import.meta.url), 'utf8')
   const pythonProcess = readFileSync(new URL('../electron/modules/python/process.js', import.meta.url), 'utf8')
@@ -141,6 +151,9 @@ test('主进程接入统一退出控制且不会扫描终止系统中的其他 P
   assert.match(main, /window\.on\('close', shutdownController\.handleMainWindowClose\)/)
   assert.match(main, /BrowserWindow\.getAllWindows\(\)/)
   assert.match(main, /throw new AggregateError\(errors/)
+  assert.match(main, /applicationCleanupPromise/)
+  assert.match(main, /cleanupApplicationResourcesOnce/)
+  assert.match(main, /requestShutdown: \(\) => app\.quit\(\)/)
   assert.doesNotMatch(main, /app\.on\('before-quit', async/)
   assert.doesNotMatch(pythonProcess, /tasklist .*python\.exe/)
   assert.match(pythonProcess, /if \(!stopped\) throw new Error/)

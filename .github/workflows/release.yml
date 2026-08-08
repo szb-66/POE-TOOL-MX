@@ -60,10 +60,24 @@ jobs:
         run: |
           $version = node -p "require('./package.json').version"
           $installer = "dist-electron/PoE-CN-Helper-$version-win-x64-setup.exe"
-          if (-not (Test-Path -LiteralPath $installer)) {
-            throw "Missing release installer: $installer"
+          $blockmap = "$installer.blockmap"
+          $updateMetadata = "dist-electron/latest.yml"
+          foreach ($asset in @($installer, $blockmap, $updateMetadata)) {
+            if (-not (Test-Path -LiteralPath $asset)) {
+              throw "Missing release asset: $asset"
+            }
+          }
+          $metadata = Get-Content -Raw -LiteralPath $updateMetadata
+          $versionPattern = '(?m)^version:\s+' + [regex]::Escape($version) + '\r?$'
+          if ($metadata -notmatch $versionPattern) {
+            throw "latest.yml version does not match package version"
+          }
+          if ($metadata -notmatch "PoE-CN-Helper-$([regex]::Escape($version))-win-x64-setup.exe") {
+            throw "latest.yml does not reference the release installer"
           }
           "installer=$installer" >> $env:GITHUB_OUTPUT
+          "blockmap=$blockmap" >> $env:GITHUB_OUTPUT
+          "update_metadata=$updateMetadata" >> $env:GITHUB_OUTPUT
 
       - name: Generate build provenance
         uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
@@ -85,6 +99,8 @@ jobs:
           }
           gh release create "${{ github.ref_name }}" `
             "${{ steps.assets.outputs.installer }}" `
+            "${{ steps.assets.outputs.blockmap }}" `
+            "${{ steps.assets.outputs.update_metadata }}" `
             "dist-electron/SHA256SUMS.txt" `
             "THIRD_PARTY_NOTICES.md" `
             --verify-tag `

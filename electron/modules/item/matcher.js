@@ -19,6 +19,12 @@ function effectPatternRegex(pattern) {
   return new RegExp(`^${source}$`, 'u')
 }
 
+function naturalImplicitPattern(text) {
+  return cleanEffectText(text)
+    .replace(/([+\-]?)\(?\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?\)?/g, '$1#')
+    .replace(/([+\-]?)\d+(?:\.\d+)?/g, '$1#')
+}
+
 function conditionValue(condition) {
   if (typeof condition === 'string') return { kind: 'keyword', keyword: condition.trim(), minTier: null }
   if (!condition || typeof condition !== 'object') return null
@@ -67,6 +73,35 @@ function matchCondition(conditionInput, candidates) {
     return condition.minTier === null || (modifier.tier > 0 && modifier.tier <= condition.minTier)
   })
   return candidate ? { condition, candidate } : null
+}
+
+export function matchEldritchImplicits(itemInfo, targets = [], { naturalBaseImplicitTexts = [] } = {}) {
+  const conditions = (Array.isArray(targets) ? targets : []).map(conditionValue).filter(Boolean)
+  const structured = (itemInfo?.modifiers ?? [])
+    .filter((modifier) => modifier.type === 'base' || modifier.type === 'implicit')
+    .map((modifier) => cleanEffectText(modifier.text || modifier.lines?.join('\n') || ''))
+  const candidates = (structured.length ? structured : (itemInfo?.implicitMods ?? []).map(cleanEffectText)).filter(Boolean)
+  for (const naturalText of naturalBaseImplicitTexts) {
+    const patternText = naturalImplicitPattern(naturalText)
+    if (!patternText) continue
+    const pattern = effectPatternRegex(patternText)
+    const index = candidates.findIndex((candidate) => pattern.test(candidate))
+    if (index >= 0) candidates.splice(index, 1)
+  }
+  for (const condition of conditions) {
+    const pattern = condition.kind === 'catalog' || condition.effectPattern
+      ? effectPatternRegex(condition.effectPattern)
+      : null
+    const matchedText = candidates.find((candidate) => pattern ? pattern.test(candidate) : candidate.includes(condition.keyword))
+    if (matchedText) {
+      return {
+        isMatch: true,
+        matchedTargetName: String(condition.displayName || condition.keyword || condition.effectPattern),
+        matchedText
+      }
+    }
+  }
+  return { isMatch: false, matchedTargetName: '', matchedText: '' }
 }
 
 function legacyGroup(requiredAffixes, selectedAffixes, selectedCount) {

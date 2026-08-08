@@ -5,8 +5,10 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
-import { app, BrowserWindow, Menu, clipboard, globalShortcut, protocol, net, shell, session } from 'electron'
+import { app, BrowserWindow, Menu, clipboard, crashReporter, dialog, globalShortcut, protocol, net, shell, session } from 'electron'
+import electronUpdater from 'electron-updater'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createMainWindow, getMainWindow, toggleDevTools } from './modules/window/manager.js'
@@ -54,6 +56,9 @@ import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
+import { createStartupLogger } from './modules/system/startupLog.js'
+import { createCrashGuard } from './modules/system/crashGuard.js'
+import { ApplicationUpdateService } from './modules/update/service.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -62,12 +67,112 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'price-check-image', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
 ])
 
+const startupStartedAt = Date.now()
+const startupSafeMode = process.argv.includes('--startup-safe-mode')
+const developmentFaultEnabled = (argument) => (
+  process.env.NODE_ENV === 'development' && process.argv.includes(argument)
+)
+let applicationShuttingDown = false
+let startupFailureShown = false
+
+function resolveApplicationVersion() {
+  try {
+    const mainModuleDirectory = path.dirname(fileURLToPath(import.meta.url))
+    return JSON.parse(fs.readFileSync(path.resolve(mainModuleDirectory, '../package.json'), 'utf8')).version
+  } catch {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')).version
+    } catch {
+      return app.getVersion()
+    }
+  }
+}
+
+if (startupSafeMode) app.disableHardwareAcceleration()
 app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
+const crashDumpsPath = path.join(app.getPath('userData'), 'crashes')
+const startupLog = createStartupLogger({ userDataPath: app.getPath('userData') })
+const applicationVersion = resolveApplicationVersion()
+try {
+  fs.mkdirSync(crashDumpsPath, { recursive: true })
+  app.setPath('crashDumps', crashDumpsPath)
+} catch (error) {
+  startupLog.record({ phase: 'crashpad', outcome: 'warning', reasonCode: 'crash_directory_unavailable', error })
+}
+startupLog.record({
+  phase: 'app-start', outcome: 'started', reasonCode: 'none',
+  message: `version=${applicationVersion} electron=${process.versions.electron} platform=${process.platform} release=${os.release()} arch=${process.arch} safeMode=${startupSafeMode}`
+})
+try {
+  crashReporter.start({
+    productName: '流放助手',
+    uploadToServer: false,
+    globalExtra: { applicationVersion, startupSafeMode: String(startupSafeMode) }
+  })
+  startupLog.record({ phase: 'crashpad', outcome: 'succeeded', reasonCode: 'none' })
+} catch (error) {
+  startupLog.record({ phase: 'crashpad', outcome: 'failed', reasonCode: 'crashpad_start_failed', error })
+}
+
+function showStartupFailure({ reasonCode = 'startup_failed' } = {}) {
+  if (startupFailureShown || applicationShuttingDown) return
+  startupFailureShown = true
+  startupLog.record({
+    phase: 'startup-failure', outcome: 'failed', reasonCode,
+    message: '已向用户显示本地诊断材料位置'
+  })
+  if (developmentFaultEnabled('--diagnostic-exit-on-unrecoverable')) {
+    applicationShuttingDown = true
+    app.exit(2)
+    return
+  }
+  try {
+    dialog.showErrorBox(
+      '流放助手启动失败',
+      `应用启动失败（${reasonCode}）。\n\n启动日志：${startupLog.filePath}\n崩溃转储：${crashDumpsPath}\n\n这些文件不会自动上传，请在反馈问题时主动提供。`
+    )
+  } catch {
+    // 原生提示不可用时仍保留已落盘日志。
+  }
+  applicationShuttingDown = true
+  app.exit(1)
+}
+
+const crashGuard = createCrashGuard({
+  app,
+  log: startupLog,
+  startedAt: startupStartedAt,
+  safeMode: startupSafeMode,
+  onUnrecoverable: showStartupFailure,
+  isShuttingDown: () => applicationShuttingDown
+})
+crashGuard.install()
+
+const startupDiagnostics = {
+  record(event, sender) {
+    const mainWindow = getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents !== sender) return false
+    const recorded = startupLog.record(event)
+    if (recorded && event?.reasonCode === 'none' && event?.phase === 'renderer' && event?.outcome === 'succeeded') {
+      crashGuard.markStartupComplete()
+    }
+    if (event?.reasonCode === 'none' && event?.phase === 'renderer' && event?.outcome === 'succeeded' &&
+        developmentFaultEnabled('--diagnostic-exit-after-mounted')) {
+      setImmediate(() => app.quit())
+    }
+    return recorded
+  }
+}
+
 pythonDetector.configurePythonRuntime({
   isPackaged: app.isPackaged,
   resourcesPath: process.resourcesPath
 })
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
+startupLog.record({
+  phase: 'instance-lock', outcome: hasSingleInstanceLock ? 'succeeded' : 'stopped',
+  reasonCode: hasSingleInstanceLock ? 'none' : 'existing_instance'
+})
 if (!hasSingleInstanceLock) process.exit(0)
 
 function showExistingMainWindow() {
@@ -93,6 +198,7 @@ let puzzleService = null
 let gameWindowTitles = null
 let diagnosticEvents = null
 let foregroundWatcher = null
+let applicationUpdate = null
 
 function resolveForegroundWatcherScriptPath() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -166,32 +272,75 @@ async function cleanupApplicationResources() {
   }
 }
 
+let applicationCleanupPromise = null
+function cleanupApplicationResourcesOnce() {
+  if (!applicationCleanupPromise) applicationCleanupPromise = cleanupApplicationResources()
+  return applicationCleanupPromise
+}
+
 const shutdownController = createShutdownController({
   app,
-  cleanup: cleanupApplicationResources
+  cleanup: cleanupApplicationResourcesOnce
 })
 
 function createApplicationWindow() {
-  const window = createMainWindow()
+  startupLog.record({ phase: 'main-window', outcome: 'started', reasonCode: 'none' })
+  const window = createMainWindow({
+    beforeLoad: candidate => crashGuard.observeWindow(candidate),
+    diagnosticFailLoad: developmentFaultEnabled('--diagnostic-fail-load')
+  })
   window.on('close', shutdownController.handleMainWindowClose)
+  startupLog.record({ phase: 'main-window', outcome: 'succeeded', reasonCode: 'none' })
+  if (developmentFaultEnabled('--diagnostic-crash-renderer')) {
+    window.webContents.once('did-finish-load', () => {
+      setImmediate(() => {
+        if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+          window.webContents.forcefullyCrashRenderer()
+        }
+      })
+    })
+  }
   return window
 }
 
 // 生命周期管理：ready 后创建窗口与快捷键，退出前清理
-app.whenReady().then(async () => {
+async function startApplication() {
   if (!hasSingleInstanceLock) return
+  startupLog.record({ phase: 'app-ready', outcome: 'succeeded', reasonCode: 'none' })
+  if (developmentFaultEnabled('--diagnostic-fail-main')) {
+    throw new Error('development diagnostic main-process failure')
+  }
+  if (developmentFaultEnabled('--diagnostic-crash-main-native')) {
+    process.crash()
+  }
   crossProcessInstanceLock = await acquireCrossProcessInstanceLock({
     onSecondInstance: showExistingMainWindow
   })
   if (!crossProcessInstanceLock.acquired) {
+    startupLog.record({ phase: 'cross-process-lock', outcome: 'stopped', reasonCode: 'existing_instance' })
     process.exit(0)
     return
   }
+  startupLog.record({ phase: 'cross-process-lock', outcome: 'succeeded', reasonCode: 'none' })
   gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
   gameWindowTitles.initialize()
   diagnosticEvents = new DiagnosticEventStore({
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion()
+  })
+  applicationUpdate = new ApplicationUpdateService({
+    updater: electronUpdater.autoUpdater,
+    currentVersion: app.getVersion(),
+    isPackaged: app.isPackaged,
+    cleanup: cleanupApplicationResourcesOnce,
+    markCleanupComplete: () => shutdownController.markCleanupComplete(),
+    requestShutdown: () => app.quit()
+  })
+  applicationUpdate.on('state-changed', state => {
+    const mainWindow = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('update-state-changed', state)
+    }
   })
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
@@ -288,6 +437,7 @@ app.whenReady().then(async () => {
       sendCopy: () => sendWindowsCopy(pythonDetector.detectPythonPath())
     })
   })
+  startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
   registerIpcHandlers({
@@ -309,7 +459,10 @@ app.whenReady().then(async () => {
     automationLock,
     puzzle: puzzleService,
     gameWindowTitles,
-    diagnostics: diagnosticEvents
+    diagnostics: diagnosticEvents,
+    startupDiagnostics,
+    applicationUpdate,
+    getMainWindow
   })
 
   createApplicationWindow()
@@ -362,10 +515,11 @@ app.whenReady().then(async () => {
   const mainWindow = getMainWindow()
   if (mainWindow) {
     mainWindow.webContents.once('did-finish-load', () => {
+      if (mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return
       // 只给主应用页面安装外链策略。国服登录窗必须留在独立 Session 内导航。
       installExternalLinkPolicy(mainWindow.webContents, (url) => shell.openExternal(url))
       // 渲染进程再行注册本地快捷键映射
-      if (mainWindow) {
+      if (!mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
         mainWindow.webContents.send('init-shortcuts')
       }
     })
@@ -431,11 +585,30 @@ app.whenReady().then(async () => {
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send('price-check-catalog-updated')
     }
-  })()
+  })().catch((error) => {
+    startupLog.record({
+      phase: 'background-initialization', outcome: 'failed',
+      reasonCode: 'background_initialization_failed', error
+    })
+  })
+}
+
+app.whenReady().then(startApplication).catch((error) => {
+  startupLog.record({ phase: 'app-ready', outcome: 'failed', reasonCode: 'startup_initialization_failed', error })
+  showStartupFailure({ reasonCode: 'startup_initialization_failed' })
+  app.exit(1)
 })
 
 // 应用退出时注销所有全局快捷键
+app.on('before-quit', () => {
+  if (applicationShuttingDown) return
+  applicationShuttingDown = true
+  applicationUpdate?.dispose()
+  startupLog.record({ phase: 'app-shutdown', outcome: 'started', reasonCode: 'none' })
+})
+
 app.on('will-quit', () => {
+  crashGuard.dispose()
   globalShortcut.unregisterAll()
   shortcutManager.unregisterAll()
 })

@@ -71,6 +71,10 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   } = python
   const { getMainWindow, getOverlayWindow } = window
   const intentionallyStopped = new WeakSet()
+  let lastSuccessfulItemConfig = null
+  let itemRestartPromise = null
+
+  const cloneScriptConfig = (config) => JSON.parse(JSON.stringify(config))
 
   const sendScriptStatus = (payload) => {
     const mainWindow = getMainWindow()
@@ -279,7 +283,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   })
 
   // 生成并执行脚本
-  ipcMain.handle('generate-and-execute-script', async (event, config) => {
+  const executeGeneratedScript = async (event, config) => {
     try {
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
@@ -578,6 +582,30 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       fileWatcher.stopFileWatcher()
       clearCurrentScriptProcess()
       return { success: false, error: error.message }
+    }
+  }
+
+  ipcMain.handle('generate-and-execute-script', async (event, config) => {
+    const result = await executeGeneratedScript(event, config)
+    if (config?.mode === 'items' && result?.success) {
+      lastSuccessfulItemConfig = cloneScriptConfig(config)
+    }
+    return result
+  })
+
+  ipcMain.handle('restart-last-item-script', async (event) => {
+    if (!lastSuccessfulItemConfig) {
+      return { success: false, error: '没有可重新开始的物品制作任务' }
+    }
+    if (itemRestartPromise) {
+      return { success: false, error: '物品制作正在重新开始，请勿重复点击' }
+    }
+
+    itemRestartPromise = executeGeneratedScript(event, cloneScriptConfig(lastSuccessfulItemConfig))
+    try {
+      return await itemRestartPromise
+    } finally {
+      itemRestartPromise = null
     }
   })
 }

@@ -10,12 +10,21 @@
 import { ipcMain } from 'electron'
 import fs from 'fs'
 import { parseItemInfo } from '../item/parser.js'
-import { matchAffixes, matchSockets, matchMapRequirements } from '../item/matcher.js'
+import { matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirements } from '../item/matcher.js'
 
-export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window) {
-  const { getOverlayWindow } = window
+export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null) {
+  const { getMainWindow, getOverlayWindow } = window
   const { getFilePaths } = fileWatcher
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
+  const sendItemResult = (result, config) => {
+    const overlayWindow = getOverlayWindow()
+    if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('update-overlay', result)
+    if (!config?.moduleEldritch?.enabled) return
+    const mainWindow = getMainWindow?.()
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('update-overlay', result)
+    }
+  }
 
   // IPC: 保存文件
   ipcMain.handle('save-file', async (event, filePath, content) => {
@@ -119,6 +128,12 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         mapMatchResult = matchMapRequirements(itemInfo, config.map)
       }
 
+      const eldritchMatchResult = config?.moduleEldritch?.enabled
+        ? matchEldritchImplicits(itemInfo, config.moduleEldritch.targets, {
+            naturalBaseImplicitTexts: crafting?.naturalBaseImplicitTexts?.(itemInfo.baseName) ?? []
+          })
+        : { isMatch: false, matchedTargetName: '', matchedText: '' }
+
       // 读取脚本写入的循环次数、处理数量、符合条件数量和词缀统计（如果文件中有）
       const filePaths = getFilePaths()
       let currentIteration = 0
@@ -170,6 +185,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         moreScarabs: itemInfo.moreScarabs || 0,
         moreCurrency: itemInfo.moreCurrency || 0,
         isCorrupted: isCorrupted,
+        isMirrored: itemInfo.isMirrored,
+        isUnmodifiable: itemInfo.isUnmodifiable,
+        influences: itemInfo.influences,
         isUnidentified: itemInfo.isUnidentified || false,
         affixMatch: affixMatchResult.isMatch,
         requiredAllMatched: affixMatchResult.requiredAllMatched,
@@ -178,8 +196,12 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         matchedGroupId: affixMatchResult.matchedGroupId,
         matchedGroupName: affixMatchResult.matchedGroupName,
         affixGroupResults: affixMatchResult.groupResults,
+        eldritchImplicitMatch: eldritchMatchResult.isMatch,
+        matchedEldritchTargetName: eldritchMatchResult.matchedTargetName,
+        matchedEldritchText: eldritchMatchResult.matchedText,
         mapMatch: mapMatchResult.isMatch,
         explicitMods: itemInfo.explicitMods,
+        implicitMods: itemInfo.implicitMods,
         detailedMods: itemInfo.detailedMods,
         socketMatch,
         isLegendary,
@@ -201,11 +223,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       }
       writeParseResult(result)
       
-      // 发送给覆盖层
-      const overlayWindow = getOverlayWindow()
-      if (overlayWindow) {
-        overlayWindow.webContents.send('update-overlay', result)
-      }
+      sendItemResult(result, config)
     } catch (error) {
       writeParseResult({
         error: error.message
@@ -249,11 +267,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       }
     }
     
-    // 发送给覆盖层（即使只有统计信息更新，也要发送）
-    const overlayWindow = getOverlayWindow()
-    if (overlayWindow && !overlayWindow.isDestroyed()) {
-      overlayWindow.webContents.send('update-overlay', result)
-    }
+    // 地图统计继续发送浮层；古灵结果额外同步主页面。
+    sendItemResult(result, config)
   })
 
   // 写入解析结果

@@ -7,6 +7,8 @@
  * Errors: 验证失败返回错误列表，不抛出异常
  */
 import { hasEffectiveAffixGroups } from '../domains/items/affixConfig.js'
+import { eldritchCurrencyType, hasEffectiveEldritchTargets, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
+import { CURRENCY_NAMES } from './constants.js'
 
 /**
  * Purpose: 验证制作配置
@@ -29,12 +31,32 @@ export const validateCraftingConfig = (config) => {
   if (!preset) {
     errors.push('未选择预设配置')
   } else {
+    const wisdomPosition = config.currencyPositions?.wisdom
+    if (!wisdomPosition || (wisdomPosition.x === 0 && wisdomPosition.y === 0)) {
+      errors.push(`未配置 ${CURRENCY_NAMES.wisdom} (wisdom) 的坐标`)
+    }
+
     // 检查是否有启用的模块
     const affixEnabled = preset.moduleTwo?.enabled
     const socketEnabled = preset.moduleThree?.enabled
+    const eldritchEnabled = preset.moduleEldritch?.enabled
     
-    if (!affixEnabled && !socketEnabled) {
-      errors.push('请至少启用一个制作模块 (词缀或插槽)')
+    if (!affixEnabled && !socketEnabled && !eldritchEnabled) {
+      errors.push('请至少启用一个制作模块 (词缀、古灵隐式或插槽)')
+    }
+
+    if (eldritchEnabled && (affixEnabled || socketEnabled)) {
+      errors.push('古灵隐式制作不能与显式词缀或插槽制作同时启用')
+    }
+
+    if (eldritchEnabled) {
+      const eldritch = normalizeEldritchModule(preset.moduleEldritch)
+      if (!hasEffectiveEldritchTargets(eldritch)) errors.push('古灵隐式制作至少需要选择一个目标词缀')
+      const currency = eldritchCurrencyType(eldritch)
+      const position = config.currencyPositions?.[currency]
+      if (!position || (position.x === 0 && position.y === 0)) {
+        errors.push(`未配置 ${CURRENCY_NAMES[currency] || currency} (${currency}) 的坐标`)
+      }
     }
     
     // 验证词缀模块所需的通货坐标

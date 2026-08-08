@@ -41,6 +41,7 @@ import {
   validateGameWindowProcessNames,
   validateGameWindowTitles
 } from '../../../shared/gameWindowTitles.js'
+import { normalizeUpdateMode, UPDATE_MODE_MANUAL } from '@/utils/applicationUpdate'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -75,7 +76,15 @@ export const useSettingsStore = defineStore('settings', () => {
     fusing: { x: 323, y: 797 },          // 链结石
     chromic: { x: 428, y: 798 },         // 幻色石
     vaal: { x: 1158, y: 1017 },          // 瓦尔宝珠
-    wisdom: { x: 210, y: 430 }           // 知识卷轴
+    wisdom: { x: 210, y: 430 },          // 知识卷轴
+    'lesser-eldritch-ember': { x: 0, y: 0 },
+    'greater-eldritch-ember': { x: 0, y: 0 },
+    'grand-eldritch-ember': { x: 0, y: 0 },
+    'exceptional-eldritch-ember': { x: 0, y: 0 },
+    'lesser-eldritch-ichor': { x: 0, y: 0 },
+    'greater-eldritch-ichor': { x: 0, y: 0 },
+    'grand-eldritch-ichor': { x: 0, y: 0 },
+    'exceptional-eldritch-ichor': { x: 0, y: 0 }
   })
 
   // 背包设置
@@ -113,6 +122,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const dpiScale = computed(() => effectiveDpi.value.scaleFactor)
   const dpiSource = computed(() => effectiveDpi.value.source)
   const debugMode = ref(false)
+  const updateMode = ref(UPDATE_MODE_MANUAL)
 
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
@@ -385,6 +395,7 @@ export const useSettingsStore = defineStore('settings', () => {
         manualDpiScale: manualDpiScale.value,
         lastDetectedDpiScale: lastDetectedDpiScale.value,
         debugMode: debugMode.value,
+        updateMode: updateMode.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
         storyOverlayLayoutVersion: storyOverlayLayoutVersion.value,
@@ -445,6 +456,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (typeof data.debugMode === 'boolean') {
           debugMode.value = data.debugMode
         }
+        updateMode.value = normalizeUpdateMode(data.updateMode)
         if (data.overlaySettings) {
           overlaySettings.value = normalizeOverlaySettings(data.overlaySettings)
         }
@@ -543,6 +555,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiWindowTitle.value = ''
     dpiDetectionError.value = ''
     debugMode.value = false
+    updateMode.value = UPDATE_MODE_MANUAL
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = DEFAULT_STORY_OVERLAY_WIDTH
     storyOverlayLayoutVersion.value = STORY_OVERLAY_LAYOUT_VERSION
@@ -566,11 +579,26 @@ export const useSettingsStore = defineStore('settings', () => {
       electronApi.overlay.updateSettings(JSON.parse(JSON.stringify(overlaySettings.value)))
     }
     electronApi.window.setDevToolsVisible(false)
+    electronApi.update.configure({ mode: updateMode.value }).catch(() => {})
   }
 
   function updateDebugMode(enabled) {
     debugMode.value = Boolean(enabled)
     saveSettings()
+  }
+
+  async function updateApplicationUpdateMode(mode) {
+    const previous = updateMode.value
+    updateMode.value = normalizeUpdateMode(mode)
+    saveSettings()
+    try {
+      const state = await electronApi.update.configure({ mode: updateMode.value })
+      return { success: true, state }
+    } catch (error) {
+      updateMode.value = previous
+      saveSettings()
+      return { success: false, error: error?.message || '更新模式同步失败' }
+    }
   }
 
   // 初始化时加载
@@ -607,6 +635,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiWindowTitle,
     dpiDetectionError,
     debugMode,
+    updateMode,
     overlaySettings,
     storyOverlayWidth,
     storyOverlayOpacity,
@@ -633,6 +662,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDpiMode,
     refreshDpiScale,
     updateDebugMode,
+    updateApplicationUpdateMode,
     updateOverlaySettings,
     updateStoryOverlayWidth,
     updateStoryOverlayOpacity,

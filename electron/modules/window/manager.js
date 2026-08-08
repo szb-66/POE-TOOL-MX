@@ -63,7 +63,7 @@ const storyOverlayDragPassthrough = new OverlayDragPassthroughController({
     isPointInCenteredOverlayDragHandle(point, bounds)
 })
 
-export function createMainWindow() {
+export function createMainWindow({ beforeLoad = null, diagnosticFailLoad = false } = {}) {
   const state = loadWindowState()
 
   // 设置应用图标
@@ -101,6 +101,7 @@ export function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow(options)
+  beforeLoad?.(mainWindow)
 
   const notifyDevToolsVisibility = (visible) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -175,7 +176,9 @@ export function createMainWindow() {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
 
   // 开发环境加载本地服务器，生产环境加载打包后的文件
-  if (process.env.NODE_ENV === 'development' && devServerUrl) {
+  if (process.env.NODE_ENV === 'development' && diagnosticFailLoad) {
+    mainWindow.loadFile(path.join(__dirname, '../../../dist/__missing_startup_diagnostic__.html'))
+  } else if (process.env.NODE_ENV === 'development' && devServerUrl) {
     mainWindow.loadURL(devServerUrl)
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../../dist/index.html'))

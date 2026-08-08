@@ -34,6 +34,7 @@ let shortcutListenerRegistered = false
 let shortcutScopeListenerRegistered = false
 let pythonOutputListenerRegistered = false
 let scriptStatusListenerRegistered = false
+let itemResultListenerRegistered = false
 
 function formatShortcutError(result) {
   return result?.failed?.map(item => item.accelerator).join('、') || '未知快捷键'
@@ -132,6 +133,11 @@ export async function initShortcuts() {
     scriptStatusListenerRegistered = true
   }
 
+  if (!itemResultListenerRegistered) {
+    electronApi.events.onUpdateOverlay((result) => useScriptStore().applyItemResult(result))
+    itemResultListenerRegistered = true
+  }
+
   const currentStatus = await electronApi.script.getStatus()
   useScriptStore().applyStatus(currentStatus)
 
@@ -158,6 +164,7 @@ export async function startCrafting() {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
+  scriptStore.resetItemRuntime()
 
   // 检查是否已有脚本在运行
   const status = await electronApi.script.getStatus()

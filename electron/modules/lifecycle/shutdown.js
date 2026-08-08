@@ -59,6 +59,11 @@ export function createShutdownController({
     if (state === 'idle') app.quit()
   }
 
+  const markCleanupComplete = () => {
+    if (state === 'cleaning') throw new Error('退出清理正在进行')
+    state = 'ready'
+  }
+
   app.on('before-quit', handleBeforeQuit)
 
   return {
@@ -69,6 +74,7 @@ export function createShutdownController({
       return shutdownPromise
     },
     requestShutdown,
-    handleMainWindowClose
+    handleMainWindowClose,
+    markCleanupComplete
   }
 }

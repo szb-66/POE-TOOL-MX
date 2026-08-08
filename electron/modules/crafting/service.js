@@ -33,6 +33,21 @@ export class CraftingService {
     return this.pricesReady
   }
 
+  searchEldritchImplicitSuggestions(input) {
+    return this.repository.searchEldritchImplicitSuggestions(input)
+  }
+
+  naturalBaseImplicitTexts(baseName) {
+    try {
+      const name = String(baseName || '').trim()
+      if (!name) return []
+      const base = this.repository.getDataset().bases.find((entry) => entry.name === name || entry.displayName === name)
+      return (base?.implicitModifiers ?? []).map((implicit) => implicit.text).filter(Boolean)
+    } catch {
+      return []
+    }
+  }
+
   createManualSession(input) {
     const session = createManualSession(this.repository.getDataset(), input)
     return { session, currencies: inspectManualCurrencies(this.repository.getDataset(), session), essences: listManualEssences(this.repository.getDataset(), session), benchCrafts: listManualBenchCrafts(this.repository.getDataset(), session), fossils: listManualFossils(this.repository.getDataset(), session), harvest: listManualHarvestCrafts(this.repository.getDataset(), session), eldritch: listManualEldritchCrafts(this.repository.getDataset(), session), influence: listManualInfluenceCrafts(this.repository.getDataset(), session), veiled: listManualVeiledCrafts(this.repository.getDataset(), session), beastcraft: listManualBeastcrafts(this.repository.getDataset(), session) }

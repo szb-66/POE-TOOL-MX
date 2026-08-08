@@ -206,7 +206,7 @@ export function parseItemInfo(clipboardText) {
     if (line.startsWith('{') && line.endsWith('}')) {
       flushModifier()
       const typeEntry = [
-        ['前缀属性', 'prefix'], ['后缀属性', 'suffix'], ['基底属性', 'base'],
+        ['前缀属性', 'prefix'], ['后缀属性', 'suffix'], ['基底属性', 'base'], ['隐式属性', 'implicit'],
         ['传奇属性', 'unique'], ['工艺属性', 'crafted'], ['附魔属性', 'enchant'],
         ['破裂属性', 'fractured']
       ].find(([label]) => line.includes(label))

@@ -1,55 +1,57 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { pageLoaders } from './pageLoaders'
+import { routeTransition } from './transitionState'
 
 const routes = [
   {
     path: '/',
     name: 'Dashboard',
-    component: () => import('../domains/dashboard/DashboardView.vue')
+    component: pageLoaders['/']
   },
   {
     path: '/items',
     name: 'Items',
-    component: () => import('../domains/items/ItemsView.vue')
+    component: pageLoaders['/items']
   },
   {
     path: '/bag',
     name: 'Bag',
-    component: () => import('../domains/bag/BagView.vue')
+    component: pageLoaders['/bag']
   },
   {
     path: '/map',
     name: 'Map',
-    component: () => import('../domains/map/MapView.vue')
+    component: pageLoaders['/map']
   },
   {
     path: '/combat',
     name: 'Combat',
-    component: () => import('../domains/combat/CombatView.vue')
+    component: pageLoaders['/combat']
   },
   {
     path: '/story',
     name: 'Story',
-    component: () => import('../domains/story/StoryView.vue')
+    component: pageLoaders['/story']
   },
   {
     path: '/shop',
     name: 'Shop',
-    component: () => import('../domains/shop/ShopView.vue')
+    component: pageLoaders['/shop']
   },
   {
     path: '/craft-planner',
     name: 'CraftPlanner',
-    component: () => import('../domains/crafting/CraftPlannerView.vue')
+    component: pageLoaders['/craft-planner']
   },
   {
     path: '/price-check',
     name: 'PriceCheck',
-    component: () => import('../domains/priceCheck/PriceCheckView.vue')
+    component: pageLoaders['/price-check']
   },
   {
     path: '/puzzle',
     name: 'Puzzle',
-    component: () => import('../domains/puzzle/PuzzleView.vue')
+    component: pageLoaders['/puzzle']
   },
   {
     path: '/puzzle-overlay',
@@ -60,12 +62,12 @@ const routes = [
   {
     path: '/settings',
     name: 'Settings',
-    component: () => import('../domains/settings/SettingsView.vue')
+    component: pageLoaders['/settings']
   },
   {
     path: '/help',
     name: 'Help',
-    component: () => import('../views/Help.vue')
+    component: pageLoaders['/help']
   },
   {
     path: '/overlay',
@@ -137,5 +139,21 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes
 })
+
+const navigationTokens = new WeakMap()
+
+router.beforeEach((to, from) => {
+  if (to.meta.noLayout || to.fullPath === from.fullPath) return true
+  navigationTokens.set(to, routeTransition.start())
+  return true
+})
+
+function finishNavigation(to) {
+  const token = navigationTokens.get(to)
+  if (token !== undefined) routeTransition.finish(token)
+}
+
+router.afterEach((to) => finishNavigation(to))
+router.onError((_error, to) => finishNavigation(to))
 
 export default router

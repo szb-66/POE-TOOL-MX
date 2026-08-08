@@ -27,10 +27,12 @@ const start = async () => {
   // 2. 获取 electron 可执行文件路径
   const electronPath = require('electron')
   const electronMainPath = path.join(__dirname, '../electron/main.js')
+  const diagnosticArguments = process.argv.slice(2)
+  const keepServerForRelaunch = diagnosticArguments.includes('--diagnostic-keep-server-for-relaunch')
 
   // 3. 启动 Electron
   // 传递 VITE_DEV_SERVER_URL 环境变量
-  const electronProcess = spawn(electronPath, [electronMainPath], {
+  const electronProcess = spawn(electronPath, [electronMainPath, ...diagnosticArguments], {
     env: { 
       ...process.env, 
       NODE_ENV: 'development',
@@ -41,6 +43,9 @@ const start = async () => {
 
   // 4. 监听 Electron 关闭事件
   electronProcess.on('close', async (code) => {
+    if (keepServerForRelaunch) {
+      await new Promise(resolve => setTimeout(resolve, 10000))
+    }
     await server.close()
     process.exit(code ?? 0)
   })

@@ -25,9 +25,18 @@ const mockApi = {
     exportDiagnostics: () => Promise.resolve({ success: false, canceled: true }),
     recordDiagnosticEvent: () => Promise.resolve({ recorded: false }),
   },
+  update: {
+    getState: () => Promise.resolve({ mode: 'manual', source: 'github', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
+    configure: (input) => Promise.resolve({ mode: input?.mode === 'automatic' ? 'automatic' : 'manual', source: 'github', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
+    check: () => Promise.resolve({ success: false }),
+    download: () => Promise.resolve({ success: false }),
+    restartAndInstall: () => Promise.resolve({ success: false }),
+    onStateChanged: () => () => {}
+  },
   script: {
     executePython: () => Promise.reject(new Error('非 Electron 环境')),
     generateAndExecute: () => Promise.reject(new Error('非 Electron 环境')),
+    restartLastItem: () => Promise.resolve({ success: false, error: '非 Electron 环境' }),
     stop: () => Promise.resolve({ success: true }),
     getStatus: () => Promise.resolve({ isRunning: false }),
     onStatusChanged: () => () => {},
@@ -220,6 +229,7 @@ const mockApi = {
     searchModifiers: () => Promise.resolve({ items: [], total: 0 }),
     searchModifierCatalog: () => Promise.resolve({ groups: [], sourceCoverage: {}, totalFamilies: 0 }),
     searchAffixSuggestions: () => Promise.resolve({ items: [], total: 0 }),
+    searchEldritchImplicitSuggestions: () => Promise.resolve({ items: [], total: 0 }),
     createManualSession: () => Promise.reject(new Error('仅 Electron 客户端支持手动做装')),
     applyManualCurrency: () => Promise.reject(new Error('仅 Electron 客户端支持手动做装')),
     listManualEssences: () => Promise.resolve({ items: [], unresolvedCount: 0 }),
@@ -270,9 +280,18 @@ export const electronApi = isElectron ? {
     exportDiagnostics: (payload) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(payload)),
     recordDiagnosticEvent: (event) => window.electronAPI.recordDiagnosticEvent?.(craftingIpcPayload(event)),
   },
+  update: {
+    getState: () => window.electronAPI.getApplicationUpdateState?.(),
+    configure: (input) => window.electronAPI.configureApplicationUpdate?.(craftingIpcPayload(input)),
+    check: () => window.electronAPI.checkApplicationUpdate?.(),
+    download: () => window.electronAPI.downloadApplicationUpdate?.(),
+    restartAndInstall: () => window.electronAPI.restartAndInstallApplicationUpdate?.(),
+    onStateChanged: (callback) => window.electronAPI.onApplicationUpdateStateChanged?.(callback) || (() => {})
+  },
   script: {
     executePython: (path, args) => window.electronAPI.executePython(path, args),
     generateAndExecute: (config) => window.electronAPI.generateAndExecuteScript(config),
+    restartLastItem: () => window.electronAPI.restartLastItemScript?.(),
     stop: () => window.electronAPI.stopScript(),
     getStatus: () => window.electronAPI.getScriptStatus(),
     onStatusChanged: (callback) => window.electronAPI.onScriptStatusChanged?.(callback) || (() => {}),
@@ -485,6 +504,7 @@ export const electronApi = isElectron ? {
     searchModifiers: (input) => window.electronAPI.searchCraftingModifiers?.(craftingIpcPayload(input)),
     searchModifierCatalog: (input) => window.electronAPI.searchCraftingModifierCatalog?.(craftingIpcPayload(input)),
     searchAffixSuggestions: (input) => window.electronAPI.searchCraftingAffixSuggestions?.(craftingIpcPayload(input)),
+    searchEldritchImplicitSuggestions: (input) => window.electronAPI.searchCraftingEldritchImplicitSuggestions?.(craftingIpcPayload(input)),
     createManualSession: (input) => window.electronAPI.createManualCraftingSession?.(craftingIpcPayload(input)),
     applyManualCurrency: (session, actionId) => window.electronAPI.applyManualCraftingCurrency?.(craftingIpcPayload(session), actionId),
     listManualEssences: (session) => window.electronAPI.listManualCraftingEssences?.(craftingIpcPayload(session)),

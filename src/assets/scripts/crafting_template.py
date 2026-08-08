@@ -459,11 +459,13 @@ def start_crafting():
     # 检查是否有启用的模块
     affix_enabled = {{ENABLE_AFFIX}}
     socket_enabled = {{ENABLE_SOCKET}}
+    eldritch_enabled = {{ENABLE_ELDRITCH}}
     
     print(f"[配置] 词缀匹配模块: {'启用' if affix_enabled else '禁用'}")
     print(f"[配置] 插槽制作模块: {'启用' if socket_enabled else '禁用'}")
+    print(f"[配置] 古灵隐式模块: {'启用' if eldritch_enabled else '禁用'}")
     
-    if not affix_enabled and not socket_enabled:
+    if not affix_enabled and not socket_enabled and not eldritch_enabled:
         print("[错误] 请至少启用一个制作模块")
         time.sleep(3)
         is_running = False
@@ -475,22 +477,32 @@ def start_crafting():
     if not preflight_required_currencies():
         return False
 
+    initial_item_result = prepare_item_for_crafting()
+    if initial_item_result is None:
+        return False
+
     print("EVENT " + json.dumps({
         "event": "crafting-startup-succeeded", "mode": "items"
     }, ensure_ascii=False), flush=True)
     
     success = True
+
+    if eldritch_enabled:
+        success = craft_eldritch_implicits(initial_item_result)
+        if not success:
+            is_running = False
+            return
     
     # 词缀匹配
     if affix_enabled:
-        success = craft_affixes()
+        success = craft_affixes(initial_item_result)
         if not success:
             is_running = False
             return
     
     # 插槽制作（顺序执行）
     if socket_enabled:
-        success = craft_sockets()
+        success = craft_sockets(initial_item_result)
         if not success:
             is_running = False
             return
@@ -502,6 +514,8 @@ def start_crafting():
     return True
 
 {{AFFIX_CRAFTING_FUNC}}
+
+{{ELDRITCH_CRAFTING_FUNC}}
 
 {{SOCKET_CRAFTING_FUNC}}
 
@@ -664,7 +678,15 @@ CURRENCY_NAMES = {
     "fusing": "链结石",
     "chromic": "幻色石",
     "vaal": "瓦尔宝珠",
-    "wisdom": "知识卷轴"
+    "wisdom": "知识卷轴",
+    "lesser-eldritch-ember": "次级古灵余烬",
+    "greater-eldritch-ember": "高级古灵余烬",
+    "grand-eldritch-ember": "上级古灵余烬",
+    "exceptional-eldritch-ember": "卓越古灵余烬",
+    "lesser-eldritch-ichor": "次级古灵溶液",
+    "greater-eldritch-ichor": "高级古灵溶液",
+    "grand-eldritch-ichor": "上级古灵溶液",
+    "exceptional-eldritch-ichor": "卓越古灵溶液"
 }
 
 def copied_item_header(text):
@@ -1138,6 +1160,58 @@ def wait_for_parse_result():
             return {"error": "等待超时，未收到解析结果"}
             
     return {"error": "循环已停止"}
+
+def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
+    global is_running, fatal_error_reason
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    print("EVENT " + json.dumps({
+        "event": "crafting-startup-failed",
+        "mode": "items",
+        "code": code,
+        "reason": reason
+    }, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return None
+
+def prepare_item_for_crafting():
+    """读取目标物品；未鉴定时只鉴定一次，并返回最终解析结果。"""
+    if not move_mouse(item_position['x'], item_position['y']):
+        return fail_item_preparation("无法移动到待制作物品位置", "ITEM_POSITION_FAILED")
+    if not read_clipboard_to_file():
+        return fail_item_preparation("无法读取待制作物品", "ITEM_READ_FAILED")
+
+    result = wait_for_parse_result()
+    if result.get("error"):
+        return fail_item_preparation(
+            f"待制作物品解析失败：{result.get('error')}",
+            "ITEM_PARSE_FAILED"
+        )
+
+    if not result.get("isUnidentified", False):
+        print("[准备] 目标物品已经鉴定")
+        return result
+
+    print("[准备] 检测到未鉴定物品，使用知识卷轴")
+    if not apply_currency("wisdom"):
+        return fail_item_preparation("使用知识卷轴鉴定物品失败", "ITEM_IDENTIFY_FAILED")
+    time.sleep(0.05)
+
+    if not read_clipboard_to_file():
+        return fail_item_preparation("鉴定后无法重新读取物品", "ITEM_IDENTIFY_READ_FAILED")
+    result = wait_for_parse_result()
+    if result.get("error"):
+        return fail_item_preparation(
+            f"鉴定后物品解析失败：{result.get('error')}",
+            "ITEM_IDENTIFY_PARSE_FAILED"
+        )
+    if result.get("isUnidentified", False):
+        return fail_item_preparation("使用知识卷轴后物品仍为未鉴定状态", "ITEM_STILL_UNIDENTIFIED")
+
+    print("[准备] 物品鉴定完成")
+    return result
 
 # 自动启动制作
 if __name__ == "__main__":

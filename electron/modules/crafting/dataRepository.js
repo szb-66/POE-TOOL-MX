@@ -259,6 +259,36 @@ export class CraftingDataRepository {
     return { items: suggestions.slice(0, size), total: suggestions.length }
   }
 
+  searchEldritchImplicitSuggestions({ query = '', source = 'exarch', tier = 1, limit = 50 } = {}) {
+    const dataset = this.getDataset()
+    const selectedSource = source === 'eater' ? 'eater' : 'exarch'
+    const selectedTier = Math.max(1, Math.min(4, Math.trunc(Number(tier)) || 1))
+    const needle = String(query).trim().toLocaleLowerCase('zh-CN')
+    const items = (dataset.eldritchImplicitFamilies ?? []).flatMap((family) => {
+      if (family.source !== selectedSource) return []
+      const tierEntry = family.tiers.find((entry) => entry.tier === selectedTier)
+      if (!tierEntry) return []
+      const itemClasses = family.itemClasses.filter((itemClass) => Number(tierEntry.weights?.[itemClass]) > 0)
+      if (!itemClasses.length) return []
+      const pattern = effectPattern(family.effectKey || tierEntry.text)
+      const displayName = String(family.name || pattern.replaceAll('#', '')).replace(/\s+/g, ' ').trim()
+      const applicableLabel = itemClasses.map((itemClass) => ITEM_CLASS_LABELS[itemClass] || itemClass).join(' / ')
+      const searchable = `${displayName} ${pattern} ${tierEntry.text} ${applicableLabel}`.toLocaleLowerCase('zh-CN')
+      return needle && !searchable.includes(needle) ? [] : [{
+        familyId: family.id,
+        displayName,
+        effectPattern: pattern,
+        exampleText: tierEntry.text,
+        applicableLabel,
+        source: selectedSource,
+        tier: selectedTier
+      }]
+    })
+    items.sort((a, b) => a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN'))
+    const size = Math.max(1, Math.min(100, Math.trunc(Number(limit)) || 50))
+    return { items: items.slice(0, size), total: items.length }
+  }
+
   searchModifierCatalog({ baseId, itemLevel = 100, query = '' } = {}) {
     const dataset = this.getDataset()
     const base = dataset.bases.find((entry) => entry.id === baseId)

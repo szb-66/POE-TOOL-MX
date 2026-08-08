@@ -63,7 +63,7 @@ export function evaluateItemsStatus(input = {}) {
     id: 'items',
     title: '物品制作',
     route: '/items',
-    description: '按当前预设自动完成词缀与插槽制作。',
+    description: '按当前预设自动完成词缀、古灵隐式与插槽制作。',
     error: input.lastError && input.lastMode === 'items' ? input.lastError : '',
     running: input.scriptRunning && input.scriptMode === 'items',
     issues: input.validation?.errors,

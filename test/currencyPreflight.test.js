@@ -101,7 +101,7 @@ test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
       color: { enabled: true, red: 3, green: 2, blue: 1 }
     }
   }), [
-    'transmutation', 'scouring', 'alteration', 'augmentation', 'regal',
+    'wisdom', 'transmutation', 'scouring', 'alteration', 'augmentation', 'regal',
     'jewellers', 'fusing', 'chromic'
   ])
 
@@ -112,12 +112,12 @@ test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
       enableExalted: true
     },
     moduleThree: { enabled: false }
-  }), ['alchemy', 'scouring', 'chaos', 'exalted'])
+  }), ['wisdom', 'alchemy', 'scouring', 'chaos', 'exalted'])
 
   assert.deepEqual(buildCraftingCurrencyPreflight({
     moduleTwo: { enabled: true, mode: 'alchemy' },
     moduleThree: { enabled: false }
-  }), ['scouring', 'alchemy'])
+  }), ['wisdom', 'scouring', 'alchemy'])
 })
 
 test('预检复制在自适应模式下传入真实剪贴板内容与序列号', () => {

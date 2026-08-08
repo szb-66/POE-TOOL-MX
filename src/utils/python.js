@@ -20,6 +20,7 @@ import {
   buildCraftingCurrencyPreflight,
   buildMapCurrencyPreflight
 } from '@/utils/currencyPreflight.js'
+import { eldritchCurrencyType } from '@/domains/items/eldritchConfig.js'
 
 const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -83,6 +84,7 @@ export function generatePythonScript(config) {
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
   const normalizedAdaptiveTiming = normalizeAdaptiveTiming(adaptiveTiming)
   const normalizedFixedTiming = normalizeFixedTiming(fixedTiming)
+  const checkInitialItem = preset?.checkInitialItem !== false
 
   // 转义文件路径中的反斜杠（Python使用原始字符串）
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
@@ -141,7 +143,7 @@ export function generatePythonScript(config) {
   // 生成词缀匹配逻辑
   const generateAffixMatchingLogic = () => {
     if (!preset.moduleTwo || !preset.moduleTwo.enabled) {
-      return 'def craft_affixes():\n    return True'
+      return 'def craft_affixes(initial_result=None):\n    return True'
     }
 
     const mode = preset.moduleTwo.mode || 'alteration'
@@ -149,34 +151,101 @@ export function generatePythonScript(config) {
     const enableRegal = preset.moduleTwo.enableRegal || false
     const enableExalted = preset.moduleTwo.enableExalted || false
 
-    let logic = `def craft_affixes():
+    let finishLogic = `def explicit_affix_count(result):
+    modifiers = result.get("modifiers", []) if isinstance(result, dict) else []
+    if isinstance(modifiers, list) and modifiers:
+        counted_types = {"prefix", "suffix", "fractured", "crafted"}
+        structured = [
+            modifier for modifier in modifiers
+            if isinstance(modifier, dict) and modifier.get("type") in counted_types
+        ]
+        if structured:
+            return len(structured)
+
+    detailed_mods = result.get("detailedMods", []) if isinstance(result, dict) else []
+    if isinstance(detailed_mods, list) and detailed_mods:
+        return len(detailed_mods)
+
+    explicit_mods = result.get("explicitMods", []) if isinstance(result, dict) else []
+    return len(explicit_mods) if isinstance(explicit_mods, list) else 0
+
+def augment_single_affix_if_needed(result):
+    if not ${mode === 'alteration' && enableAugmentation ? 'True' : 'False'}:
+        return True, result
+    if not isinstance(result, dict) or result.get("rarity", "").replace(" ", "") != "魔法":
+        return True, result
+    if explicit_affix_count(result) != 1:
+        return True, result
+
+    print("[提示] 检测到单词缀，先使用增幅石...")
+    if not apply_currency("augmentation"):
+        print("[错误] 使用增幅石失败")
+        return False, result
+    time.sleep(0.05)
+
+    if not read_clipboard_to_file():
+        print("[错误] 增幅后读取物品信息失败")
+        return False, result
+    refreshed_result = wait_for_parse_result()
+    if not isinstance(refreshed_result, dict):
+        print("[错误] 增幅后未返回有效解析结果")
+        return False, result
+    if refreshed_result.get("error"):
+        print(f"[错误] 增幅后解析错误: {refreshed_result.get('error')}")
+        return False, refreshed_result
+    return True, refreshed_result
+
+def finish_affix_match(result, iteration=0):
+    matched_group_name = result.get("matchedGroupName", "")
+    group_suffix = f" · {matched_group_name}" if matched_group_name else ""
+    stage = "首次识别" if iteration == 0 else f"第 {iteration} 次"
+    print(f"[成功] 词缀匹配成功{group_suffix}！（{stage}）")
+`
+
+    if (mode === 'alteration') {
+      if (enableRegal) {
+        finishLogic += `    print("[操作] 使用富豪石")
+    if not apply_currency("regal"):
+        print("[错误] 使用富豪石失败")
+        return False
+    time.sleep(0.05)
+`
+      }
+    } else if (mode === 'chaos' && enableExalted) {
+      finishLogic += `    print("[操作] 使用崇高石")
+    if not apply_currency("exalted"):
+        print("[错误] 使用崇高石失败")
+        return False
+    time.sleep(0.05)
+`
+    }
+
+    finishLogic += `    print("[完成] 词缀制作完成！")
+    time.sleep(2)
+    return True
+`
+
+    let logic = `${finishLogic}
+def craft_affixes(initial_result=None):
     # 词缀匹配逻辑
     try:
         print(f"[开始] 词缀匹配流程")
-        
-        # 移动到物品位置
-        # print(f"[操作] 移动鼠标到物品位置以读取信息: ({item_position['x']}, {item_position['y']})")
-        if not move_mouse(item_position['x'], item_position['y']):
-            print("[错误] 初始移动到物品位置失败")
+        if not isinstance(initial_result, dict):
+            print("[错误] 缺少制作前物品读取结果")
             return False
-        time.sleep(0.02)
-        
-        # 读取当前物品信息
-        if not read_clipboard_to_file():
-            print("[错误] 初始读取物品信息失败")
-            return False
-        
-        result = wait_for_parse_result()
-        
-        # 检查解析结果是否有错误
-        if result.get("error"):
-            print(f"[错误] 初始解析错误: {result.get('error')}")
-            return False
+        result = initial_result
         
         if result.get("isLegendary", False):
             print("[停止] 检测到传奇物品，无法制作")
             time.sleep(3)
             return False
+
+        if ${checkInitialItem ? 'True' : 'False'}:
+            augment_success, result = augment_single_affix_if_needed(result)
+            if not augment_success:
+                return False
+            if result.get("affixMatch", False):
+                return finish_affix_match(result, 0)
         
         # 预处理：确保物品进入正确的起始状态
         # print("[预处理] 开始状态检查...")
@@ -380,35 +449,9 @@ export function generatePythonScript(config) {
                 time.sleep(3)
                 return False
             
-            # 增幅石判定逻辑 (先于匹配检查)
-            # 只有在改造石模式且启用了增幅石，且只有1条词缀时使用
-            # 注意：不检查是否已经匹配，因为只有1条词缀必然不满足"可能有2条词缀"的完美情况(除非只要1条)，
-            # 但既然开了增幅石，通常是希望补满词缀再判断
-            should_augment = False
-            if ${mode === 'alteration' && enableAugmentation ? 'True' : 'False'} and result.get("rarity") == "魔法":
-                explicit_mods = result.get("explicitMods", [])
-                
-                # 只有1条词缀就直接使用增幅
-                if len(explicit_mods) == 1:
-                    print(f"[提示] 检测到单词缀，先使用增幅石...")
-                    should_augment = True
-
-            if should_augment:
-                # 使用增幅石
-                print("[操作] 使用增幅石 (单词缀)")
-                if not apply_currency("augmentation"):
-                    print("[错误] 使用增幅石失败")
-                    continue
-                time.sleep(0.05)
-                
-                # 读取新状态
-                # print("[调试] 读取增幅后物品信息...")
-                if not read_clipboard_to_file():
-                    continue
-                
-                result = wait_for_parse_result()
-                if result.get("error"):
-                    continue
+            augment_success, result = augment_single_affix_if_needed(result)
+            if not augment_success:
+                return False
 
             # 检查词缀匹配
             affix_match = result.get("affixMatch", False)
@@ -429,50 +472,7 @@ export function generatePythonScript(config) {
             if detailed_mods:
                 print(f"  - detailedMods数量: {len(detailed_mods)}")
             if affix_match:
-                group_suffix = f" · {matched_group_name}" if matched_group_name else ""
-                print(f"[成功] 词缀匹配成功{group_suffix}！(第 {iteration} 次)")
-`
-
-    if (mode === 'alteration') {
-      if (enableAugmentation) {
-        logic += `
-                # 使用增幅石
-                print("[操作] 使用增幅石")
-                if not apply_currency("augmentation"):
-                    print("[错误] 使用增幅石失败")
-                    return False
-                time.sleep(0.05)
-`
-      }
-      if (enableRegal) {
-        logic += `
-                # 使用富豪石
-                print("[操作] 使用富豪石")
-                if not apply_currency("regal"):
-                    print("[错误] 使用富豪石失败")
-                    return False
-                time.sleep(0.05)
-`
-      }
-    } else if (mode === 'chaos' && enableExalted) {
-      logic += `
-                # 使用崇高石
-                print("[操作] 使用崇高石")
-                if not apply_currency("exalted"):
-                    print("[错误] 使用崇高石失败")
-                    return False
-                time.sleep(0.05)
-`
-    }
-
-    logic += `
-                print("[完成] 词缀制作完成！")
-                time.sleep(2)
-                return True
-            
-            elif should_augment:
-                # 这一段逻辑已经上移，这里需要移除多余的代码
-                pass
+                return finish_affix_match(result, iteration)
 
             # 未匹配，继续循环
             if iteration % 10 == 0:
@@ -491,15 +491,18 @@ export function generatePythonScript(config) {
   // 生成插槽制作逻辑
   const generateSocketCraftingLogic = () => {
     if (!preset.moduleThree || !preset.moduleThree.enabled) {
-      return 'def craft_sockets():\n    return True'
+      return 'def craft_sockets(initial_result=None):\n    return True'
     }
 
     const socketConfig = preset.moduleThree.socket || {}
     const linkConfig = preset.moduleThree.link || {}
     const colorConfig = preset.moduleThree.color || {}
 
-    let logic = `def craft_sockets():
+    let logic = `def craft_sockets(initial_result=None):
     # 插槽制作逻辑
+    if ${checkInitialItem ? 'True' : 'False'} and isinstance(initial_result, dict) and initial_result.get("socketMatch", False):
+        print("[完成] 当前物品插槽、连接和颜色已经满足全部目标，未消耗通货")
+        return True
 `
 
     // 开孔流程
@@ -766,6 +769,77 @@ def craft_colors(target_red, target_green, target_blue):
     return logic
   }
 
+  const generateEldritchCraftingLogic = () => {
+    const module = preset.moduleEldritch || {}
+    if (!module.enabled) return 'def craft_eldritch_implicits(initial_result=None):\n    return True'
+    const currency = eldritchCurrencyType(module)
+    return `def fail_eldritch_crafting(reason, code="ELDRITCH_CRAFTING_FAILED"):
+    global is_running, fatal_error_reason
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    print("EVENT " + json.dumps({
+        "event": "crafting-runtime-stopped", "mode": "items", "code": code, "reason": reason
+    }, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def craft_eldritch_implicits(initial_result=None):
+    try:
+        if not isinstance(initial_result, dict):
+            return fail_eldritch_crafting("缺少制作前物品读取结果", "ITEM_PREPARATION_MISSING")
+        result = initial_result
+
+        category = str(result.get("category") or "").replace(" ", "")
+        if result.get("isLegendary"):
+            return fail_eldritch_crafting("传奇物品不能使用古灵直接通货", "ELDRITCH_UNSUPPORTED_RARITY")
+        if result.get("isCorrupted"):
+            return fail_eldritch_crafting("已腐化物品不能使用古灵直接通货", "ELDRITCH_CORRUPTED")
+        if result.get("isMirrored") or result.get("isUnmodifiable"):
+            return fail_eldritch_crafting("不可改变或镜像物品不能进行古灵制作", "ELDRITCH_UNMODIFIABLE")
+        if category not in {"头部", "头盔", "手套", "鞋子", "胸甲", "身体护甲"}:
+            return fail_eldritch_crafting("古灵直接通货只能用于头盔、手套、鞋子或胸甲", "ELDRITCH_UNSUPPORTED_BASE")
+        if result.get("influences"):
+            return fail_eldritch_crafting("势力或忆境物品不能使用古灵直接通货", "ELDRITCH_INFLUENCED")
+
+        if ${checkInitialItem ? 'True' : 'False'} and result.get("eldritchImplicitMatch"):
+            target = result.get("matchedEldritchTargetName") or "目标隐式"
+            print(f"[完成] 当前装备已经命中：{target}，未消耗通货")
+            return True
+
+        max_iterations = 1000
+        for iteration in range(1, max_iterations + 1):
+            if not is_running:
+                return False
+            try:
+                current_result = dict(result)
+                current_result["iteration"] = iteration
+                with open(item_info_result_file, 'w', encoding='utf-8') as stream:
+                    stream.write(json.dumps(current_result, ensure_ascii=False))
+            except Exception:
+                pass
+
+            print(f"[操作] 第 {iteration} 次 - 使用 ${currency}")
+            if not apply_currency("${currency}"):
+                return fail_eldritch_crafting("使用古灵通货失败", "ELDRITCH_CURRENCY_FAILED")
+            time.sleep(0.05)
+            if not read_clipboard_to_file():
+                return fail_eldritch_crafting("使用通货后无法读取装备", "ITEM_READ_FAILED")
+            result = wait_for_parse_result()
+            if result.get("error"):
+                return fail_eldritch_crafting(result.get("error"), "ITEM_PARSE_FAILED")
+            if result.get("eldritchImplicitMatch"):
+                target = result.get("matchedEldritchTargetName") or "目标隐式"
+                print(f"[成功] 古灵隐式命中：{target}（第 {iteration} 次）")
+                return True
+
+        return fail_eldritch_crafting("达到最大循环次数 (1000)，仍未命中目标古灵隐式", "ELDRITCH_MAX_ITERATIONS")
+    except Exception as error:
+        return fail_eldritch_crafting(f"古灵隐式制作异常：{type(error).__name__}: {error}")
+`
+  }
+
   // 准备替换数据
   const stopShortcut = globalShortcuts?.end || 'Alt+3'
   const pynputStopShortcut = toPynputHotkey(stopShortcut) || '<alt>+3'
@@ -821,7 +895,9 @@ def craft_colors(target_red, target_green, target_blue):
     '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
     '{{ENABLE_AFFIX}}': preset.moduleTwo?.enabled ? 'True' : 'False',
     '{{ENABLE_SOCKET}}': preset.moduleThree?.enabled ? 'True' : 'False',
+    '{{ENABLE_ELDRITCH}}': preset.moduleEldritch?.enabled ? 'True' : 'False',
     '{{AFFIX_CRAFTING_FUNC}}': generateAffixMatchingLogic(),
+    '{{ELDRITCH_CRAFTING_FUNC}}': generateEldritchCraftingLogic(),
     '{{SOCKET_CRAFTING_FUNC}}': generateSocketCraftingLogic(),
     '{{DPI_AWARENESS}}': DPI_AWARENESS
   }

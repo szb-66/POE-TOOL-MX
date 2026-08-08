@@ -4,14 +4,18 @@
  * Outputs: 有序、去重的通货 ID 数组。
  * Edge cases: 起始稀有度预处理和未鉴定地图等条件分支也必须纳入。
  */
+import { eldritchCurrencyType } from '../domains/items/eldritchConfig.js'
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))]
 }
 
 export function buildCraftingCurrencyPreflight(preset = {}) {
-  const currencies = []
+  const currencies = ['wisdom']
   const affix = preset.moduleTwo || {}
+  const eldritch = preset.moduleEldritch || {}
+
+  if (eldritch.enabled) currencies.push(eldritchCurrencyType(eldritch))
 
   if (affix.enabled) {
     const mode = affix.mode || 'alteration'

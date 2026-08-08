@@ -13,6 +13,7 @@
 - [x] unpacked 资源结构和包内 Python 模块冒烟检查
 - [x] NSIS x64 安装包命名与版本一致性
 - [x] `SHA256SUMS.txt` 生成
+- [x] `latest.yml` 版本、安装包引用与 NSIS `.blockmap` 资产校验
 - [x] 安装包无代码签名状态确认
 - [x] OpenSpec 严格校验
 
@@ -66,7 +67,8 @@
 
 - [ ] 创建与 `package.json` 一致的 `v*` 测试标签
 - [ ] Windows CI 与 Release 工作流全部通过
-- [ ] Release 包含安装包、`SHA256SUMS.txt` 和 `THIRD_PARTY_NOTICES.md`
+- [ ] Release 包含安装包、同名 `.blockmap`、`latest.yml`、`SHA256SUMS.txt` 和 `THIRD_PARTY_NOTICES.md`
+- [ ] 已安装的上一稳定版可在应用内检查、下载并在确认后覆盖升级
 - [ ] GitHub 构建来源证明可以验证安装包与校验文件
 - [ ] 从 Release 重新下载后 SHA-256 一致
 - [ ] 下载的安装包可以安装、启动和卸载

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  reportStartupEvent: (event) => ipcRenderer.send('startup-report', event),
   executePython: (scriptPath, args) => {
     return ipcRenderer.invoke('execute-python', scriptPath, args)
   },
@@ -32,6 +33,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDiagnostics: (payload) => ipcRenderer.invoke('system-get-diagnostics', payload),
   exportDiagnostics: (payload) => ipcRenderer.invoke('system-export-diagnostics', payload),
   recordDiagnosticEvent: (event) => ipcRenderer.invoke('system-record-diagnostic-event', event),
+  getApplicationUpdateState: () => ipcRenderer.invoke('update-get-state'),
+  configureApplicationUpdate: (input) => ipcRenderer.invoke('update-configure', input),
+  checkApplicationUpdate: () => ipcRenderer.invoke('update-check'),
+  downloadApplicationUpdate: () => ipcRenderer.invoke('update-download'),
+  restartAndInstallApplicationUpdate: () => ipcRenderer.invoke('update-restart-install'),
+  onApplicationUpdateStateChanged: (callback) => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('update-state-changed', listener)
+    return () => ipcRenderer.removeListener('update-state-changed', listener)
+  },
   startFileWatcher: (config) => {
     return ipcRenderer.invoke('start-file-watcher', config)
   },
@@ -63,6 +74,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateAndExecuteScript: (config) => {
     return ipcRenderer.invoke('generate-and-execute-script', config)
   },
+  restartLastItemScript: () => ipcRenderer.invoke('restart-last-item-script'),
   pickStashTabRootRegion: () => ipcRenderer.invoke('stash-tabs-pick-root-region'),
   previewStashTabs: (config) => ipcRenderer.invoke('stash-tabs-preview', config),
   onShortcutTriggered: (callback) => {
@@ -340,6 +352,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchCraftingModifiers: (input) => ipcRenderer.invoke('crafting-search-modifiers', input),
   searchCraftingModifierCatalog: (input) => ipcRenderer.invoke('crafting-search-modifier-catalog', input),
   searchCraftingAffixSuggestions: (input) => ipcRenderer.invoke('crafting-search-affix-suggestions', input),
+  searchCraftingEldritchImplicitSuggestions: (input) => ipcRenderer.invoke('crafting-search-eldritch-implicit-suggestions', input),
   createManualCraftingSession: (input) => ipcRenderer.invoke('crafting-create-manual-session', input),
   applyManualCraftingCurrency: (session, actionId) => ipcRenderer.invoke('crafting-apply-manual-currency', session, actionId),
   listManualCraftingEssences: (session) => ipcRenderer.invoke('crafting-list-manual-essences', session),

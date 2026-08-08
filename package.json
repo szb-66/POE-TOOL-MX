@@ -30,6 +30,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "cheerio": "^1.0.0",
+    "electron-updater": "^6.8.9",
     "element-plus": "^2.6.3",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
@@ -119,6 +120,11 @@
       }
     ],
     "win": {
+      "publish": {
+        "provider": "github",
+        "owner": "szb-66",
+        "repo": "POE-TOOL-MX"
+      },
       "target": [
         {
           "target": "nsis",
@@ -128,7 +134,7 @@
         }
       ],
       "requestedExecutionLevel": "requireAdministrator",
-      "icon": "src/assets/images/LOGO-512.png"
+      "icon": "src/assets/images/LOGO.png"
     },
     "nsis": {
       "oneClick": false,

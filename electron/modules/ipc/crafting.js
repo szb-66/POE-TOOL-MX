@@ -45,6 +45,15 @@ export function registerCraftingHandlers(service) {
     await service.initialize()
     return service.repository.searchAffixSuggestions({ query: safeQuery(input.query), limit: Math.min(100, Number(input.limit) || 50) })
   })
+  ipcMain.handle('crafting-search-eldritch-implicit-suggestions', async (_event, input = {}) => {
+    await service.initialize()
+    return service.searchEldritchImplicitSuggestions({
+      query: safeQuery(input.query),
+      source: input.source === 'eater' ? 'eater' : 'exarch',
+      tier: Math.max(1, Math.min(4, Math.trunc(Number(input.tier)) || 1)),
+      limit: Math.min(100, Number(input.limit) || 50)
+    })
+  })
   ipcMain.handle('crafting-create-manual-session', async (_event, input = {}) => { await service.initialize(); return service.createManualSession(input) })
   ipcMain.handle('crafting-apply-manual-currency', async (_event, session, actionId) => { await service.initialize(); return service.applyManualCurrency(session, safeId(actionId)) })
   ipcMain.handle('crafting-list-manual-essences', async (_event, session) => { await service.initialize(); return service.listManualEssences(session) })

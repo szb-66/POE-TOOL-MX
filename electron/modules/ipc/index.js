@@ -22,23 +22,26 @@ import { registerPoeCnAccountHandlers } from './poeCnAccount.js'
 import { registerStashPickupHandlers } from './stashPickup.js'
 import { registerStashTabHandlers } from './stashTabs.js'
 import { registerPuzzleHandlers } from './puzzle.js'
+import { registerApplicationUpdateHandlers } from './update.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup,
-    interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics
+    interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
+    applicationUpdate, getMainWindow
   } = dependencies
 
   registerWindowHandlers(window)
   registerPythonHandlers(python, window, fileWatcher)
   registerStashTabHandlers(python, window, fileWatcher)
-  registerFileHandlers(fileWatcher, itemParser, itemMatcher, window)
+  registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting)
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
   registerClipboardHandlers()
-  registerSystemHandlers(python, gameWindowTitles, diagnostics)
+  registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
+  if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })
   if (priceCheck) registerPriceCheckHandlers(priceCheck)

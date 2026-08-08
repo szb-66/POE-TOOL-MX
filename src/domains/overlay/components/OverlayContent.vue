@@ -91,6 +91,13 @@
       </div>
 
       <div class="mods-container">
+        <div v-if="itemInfo.implicitMods?.length" class="implicit-section">
+          <div class="implicit-heading">隐式词缀</div>
+          <div v-for="(mod, index) in itemInfo.implicitMods" :key="'imp-' + index" class="mod-line"
+            :class="{ 'matched-highlight': itemInfo.eldritchImplicitMatch && mod === itemInfo.matchedEldritchText }">
+            <span class="mod-text">{{ mod }}</span>
+          </div>
+        </div>
         <!-- 详细词缀信息 -->
         <div v-for="(mod, index) in itemInfo.detailedMods" :key="index" class="mod-line"
           :class="{ 'matched-highlight': isModMatched(mod) }">
@@ -113,21 +120,25 @@
       </div>
 
       <div class="status-footer">
-        <span v-if="isCompleted && itemInfo.affixMatch" class="match-success">词缀匹配成功</span>
+        <span v-if="isCompleted && itemInfo.eldritchImplicitMatch" class="match-success">古灵隐式命中：{{ itemInfo.matchedEldritchTargetName }}</span>
+        <span v-else-if="isCompleted && itemInfo.affixMatch" class="match-success">词缀匹配成功</span>
         <span v-else-if="isCompleted && itemInfo.socketMatch" class="match-success">插槽匹配成功</span>
-        <span v-else-if="isStopped && !itemInfo.affixMatch && !itemInfo.socketMatch" class="match-stopped">已停止</span>
+        <span v-else-if="isStopped && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="match-stopped">已停止</span>
         <span v-else class="match-pending">制作中...</span>
       </div>
 
       <!-- 制作完成后的确认按钮 -->
-      <div v-if="(itemInfo.affixMatch || itemInfo.socketMatch) && isCompleted" class="completion-actions">
-        <el-button type="success" size="small" @click="$emit('confirm')">
+      <div v-if="(itemInfo.affixMatch || itemInfo.socketMatch || itemInfo.eldritchImplicitMatch) && isCompleted" class="completion-actions">
+        <el-button type="primary" size="small" :loading="isRestarting" @click="$emit('restart')">
+          重新开始
+        </el-button>
+        <el-button type="success" size="small" :disabled="isRestarting" @click="$emit('confirm')">
           确认完成
         </el-button>
       </div>
 
       <!-- 制作中或已停止时的关闭按钮（制作成功时不显示） -->
-      <div v-if="(!isCompleted || isStopped) && !itemInfo.affixMatch && !itemInfo.socketMatch" class="completion-actions">
+      <div v-if="(!isCompleted || isStopped) && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="completion-actions">
         <el-button type="danger" size="small" @click="$emit('close')">
           关闭
         </el-button>
@@ -191,6 +202,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  isRestarting: {
+    type: Boolean,
+    default: false
+  },
   stopReason: {
     type: String,
     default: ''
@@ -205,7 +220,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['confirm', 'close'])
+const emit = defineEmits(['confirm', 'restart', 'close'])
 const drag = createOverlayDrag((message) => electronApi.window.moveOverlay(message))
 
 // 鼠标事件穿透控制
@@ -496,6 +511,18 @@ function isModMatched(mod) {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.implicit-section {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 5px;
+
+  .implicit-heading {
+    color: #c69bff;
+    font-size: 11px;
+    font-weight: 700;
+  }
 }
 
 .mod-line {

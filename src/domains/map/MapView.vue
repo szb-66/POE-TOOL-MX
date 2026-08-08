@@ -26,6 +26,18 @@
           <label class="form-label">预设</label>
           <PresetSelector type="map" />
         </div>
+
+        <div class="form-item">
+          <label class="form-label">操作</label>
+          <el-button
+            type="primary"
+            :loading="starting"
+            :disabled="starting || scriptStore.isRunning"
+            @click="handleStart"
+          >
+            {{ isCurrentModeRunning ? '运行中' : '启动' }}
+          </el-button>
+        </div>
       </div>
 
       <div class="header-bottom">
@@ -154,7 +166,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { QuestionFilled, Delete, Plus } from '@element-plus/icons-vue'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
@@ -164,10 +176,14 @@ import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
 import { MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 import { MAP_BASE_STATS, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
-import { commitGlobalShortcut } from '@/utils/scriptService'
+import { useScriptStore } from '@/stores/script'
+import { commitGlobalShortcut, startMapRolling } from '@/utils/scriptService'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
+const scriptStore = useScriptStore()
+const starting = ref(false)
+const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'map')
 
 // Shortcuts binding
 const shortcuts = computed(() => settingsStore.globalShortcuts)
@@ -176,6 +192,16 @@ async function saveShortcut(key, value) {
     await commitGlobalShortcut(key, value)
   } catch (error) {
     ElMessage.error(error.message)
+  }
+}
+
+async function handleStart() {
+  if (starting.value || scriptStore.isRunning) return
+  starting.value = true
+  try {
+    await startMapRolling()
+  } finally {
+    starting.value = false
   }
 }
 

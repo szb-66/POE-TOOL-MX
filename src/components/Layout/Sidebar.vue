@@ -6,51 +6,51 @@
     :collapse="false"
     mode="vertical"
   >
-    <el-menu-item index="/">
+    <el-menu-item index="/" @pointerenter="warmRoute('/')" @focusin="warmRoute('/')">
       <el-icon><House /></el-icon>
       <span>首页</span>
     </el-menu-item>
-    <el-menu-item index="/items">
+    <el-menu-item index="/items" @pointerenter="warmRoute('/items')" @focusin="warmRoute('/items')">
       <el-icon><Box /></el-icon>
       <span>物品</span>
     </el-menu-item>
-    <el-menu-item index="/bag">
+    <el-menu-item index="/bag" @pointerenter="warmRoute('/bag')" @focusin="warmRoute('/bag')">
       <el-icon><SuitcaseLine /></el-icon>
       <span>背包</span>
     </el-menu-item>
-    <el-menu-item index="/map">
+    <el-menu-item index="/map" @pointerenter="warmRoute('/map')" @focusin="warmRoute('/map')">
       <el-icon><MapLocation /></el-icon>
       <span>地图</span>
     </el-menu-item>
-    <el-menu-item index="/combat">
+    <el-menu-item index="/combat" @pointerenter="warmRoute('/combat')" @focusin="warmRoute('/combat')">
       <el-icon><FirstAidKit /></el-icon>
       <span>战斗</span>
     </el-menu-item>
-    <el-menu-item index="/story">
+    <el-menu-item index="/story" @pointerenter="warmRoute('/story')" @focusin="warmRoute('/story')">
       <el-icon><Notebook /></el-icon>
       <span>剧情</span>
     </el-menu-item>
-    <el-menu-item index="/shop">
+    <el-menu-item index="/shop" @pointerenter="warmRoute('/shop')" @focusin="warmRoute('/shop')">
       <el-icon><ShoppingBag /></el-icon>
       <span>商城</span>
     </el-menu-item>
-    <el-menu-item index="/craft-planner">
+    <el-menu-item index="/craft-planner" @pointerenter="warmRoute('/craft-planner')" @focusin="warmRoute('/craft-planner')">
       <el-icon><SetUp /></el-icon>
       <span>做装</span>
     </el-menu-item>
-    <el-menu-item index="/price-check">
+    <el-menu-item index="/price-check" @pointerenter="warmRoute('/price-check')" @focusin="warmRoute('/price-check')">
       <el-icon><Coin /></el-icon>
       <span>查价</span>
     </el-menu-item>
-    <el-menu-item index="/puzzle">
+    <el-menu-item index="/puzzle" @pointerenter="warmRoute('/puzzle')" @focusin="warmRoute('/puzzle')">
       <el-icon><Guide /></el-icon>
       <span>海图</span>
     </el-menu-item>
-    <el-menu-item index="/settings">
+    <el-menu-item index="/settings" @pointerenter="warmRoute('/settings')" @focusin="warmRoute('/settings')">
       <el-icon><Setting /></el-icon>
       <span>设置</span>
     </el-menu-item>
-    <el-menu-item index="/help">
+    <el-menu-item index="/help" @pointerenter="warmRoute('/help')" @focusin="warmRoute('/help')">
       <el-icon><Help /></el-icon>
       <span>帮助</span>
     </el-menu-item>
@@ -61,10 +61,15 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Box, Coin, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { preloadPage } from '@/router/pageLoaders'
 
 const route = useRoute()
 
 const activeMenu = computed(() => route.path)
+
+function warmRoute(path) {
+  void preloadPage(path)
+}
 </script>
 
 <style scoped lang="less">

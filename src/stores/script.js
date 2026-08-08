@@ -8,6 +8,22 @@ export const useScriptStore = defineStore('script', () => {
   const processId = ref(null)
   const lastError = ref('')
   const lastMode = ref(null)
+  const itemRuntime = ref({ iteration: 0, eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' })
+
+  function applyItemResult(result = {}) {
+    if (result.reset) return resetItemRuntime()
+    itemRuntime.value = {
+      ...itemRuntime.value,
+      iteration: Math.max(itemRuntime.value.iteration, Number(result.iteration) || 0),
+      eldritchImplicitMatch: Boolean(result.eldritchImplicitMatch),
+      matchedEldritchTargetName: String(result.matchedEldritchTargetName || ''),
+      error: String(result.error || '')
+    }
+  }
+
+  function resetItemRuntime() {
+    itemRuntime.value = { iteration: 0, eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' }
+  }
 
   function applyStatus(status = {}) {
     const running = status.isRunning === true || status.status === 'running'
@@ -30,6 +46,7 @@ export const useScriptStore = defineStore('script', () => {
     processId.value = null
     lastError.value = ''
     lastMode.value = null
+    resetItemRuntime()
   }
 
   return {
@@ -38,6 +55,9 @@ export const useScriptStore = defineStore('script', () => {
     processId,
     lastError,
     lastMode,
+    itemRuntime,
+    applyItemResult,
+    resetItemRuntime,
     applyStatus,
     reset
   }

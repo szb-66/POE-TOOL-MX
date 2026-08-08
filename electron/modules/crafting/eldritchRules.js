@@ -2,7 +2,7 @@ import { renderRolledText, rollTierValues } from './actionProviders.js'
 
 export const ELDRITCH_ITEM_CLASSES = Object.freeze(['Helmet', 'Gloves', 'Boots', 'BodyArmour'])
 export const ELDRITCH_SOURCE_LABELS = Object.freeze({ exarch: '焚界者', eater: '灭界者' })
-export const ELDRITCH_TIER_LABELS = Object.freeze({ 1: '低阶', 2: '高阶', 3: '宏伟', 4: '卓越', 5: '精美', 6: '完美' })
+export const ELDRITCH_TIER_LABELS = Object.freeze({ 1: '次级', 2: '高级', 3: '上级', 4: '卓越', 5: '精美', 6: '完美' })
 
 const direct = (source, tier, id, name) => ({
   id: `eldritch:${id}`, resourceId: `currency:${id}`, name, kind: 'implicit', source, tier,
@@ -13,13 +13,13 @@ const direct = (source, tier, id, name) => ({
 })
 
 export const ELDRITCH_CURRENCY_DEFINITIONS = Object.freeze([
-  direct('exarch', 1, 'lesser-eldritch-ember', '低阶古灵余烬'),
-  direct('exarch', 2, 'greater-eldritch-ember', '高阶古灵余烬'),
-  direct('exarch', 3, 'grand-eldritch-ember', '宏伟古灵余烬'),
+  direct('exarch', 1, 'lesser-eldritch-ember', '次级古灵余烬'),
+  direct('exarch', 2, 'greater-eldritch-ember', '高级古灵余烬'),
+  direct('exarch', 3, 'grand-eldritch-ember', '上级古灵余烬'),
   direct('exarch', 4, 'exceptional-eldritch-ember', '卓越古灵余烬'),
-  direct('eater', 1, 'lesser-eldritch-ichor', '低阶古灵溶液'),
-  direct('eater', 2, 'greater-eldritch-ichor', '高阶古灵溶液'),
-  direct('eater', 3, 'grand-eldritch-ichor', '宏伟古灵溶液'),
+  direct('eater', 1, 'lesser-eldritch-ichor', '次级古灵溶液'),
+  direct('eater', 2, 'greater-eldritch-ichor', '高级古灵溶液'),
+  direct('eater', 3, 'grand-eldritch-ichor', '上级古灵溶液'),
   direct('eater', 4, 'exceptional-eldritch-ichor', '卓越古灵溶液'),
   {
     id: 'eldritch:chaos', resourceId: 'currency:eldritch-chaos', name: '古灵混沌石', kind: 'chaos',

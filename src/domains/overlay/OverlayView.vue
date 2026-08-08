@@ -7,10 +7,12 @@
       :iteration="scriptIteration"
       :is-completed="isCompleted"
       :is-stopped="isStopped"
+      :is-restarting="isRestarting"
       :stop-reason="stopReason"
       :allow-drag="true"
       :map-stats="mapStats"
       @confirm="handleConfirmCompletion"
+      @restart="handleRestart"
       @close="handleClose"
     />
   </div>
@@ -31,6 +33,7 @@ const scriptIteration = ref(0) // 从脚本输出提取的循环次数
 const recentLogs = ref([]) // 最近的日志
 const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
+const isRestarting = ref(false) // 是否正在重新启动制作
 const stopReason = ref('') // 结构化运行失败原因
 const mapStats = ref(null) // 地图统计信息
 let outputLineBuffer = ''
@@ -141,6 +144,40 @@ function handleConfirmCompletion() {
   electronApi.window.closeOverlay()
 }
 
+function restoreCompletedState(snapshot, error) {
+  itemInfo.value = snapshot.itemInfo
+  scriptIteration.value = snapshot.iteration
+  recentLogs.value = snapshot.logs
+  mapStats.value = snapshot.mapStats
+  isCompleted.value = true
+  isStopped.value = false
+  stopReason.value = error || '重新开始物品制作失败'
+}
+
+async function handleRestart() {
+  if (isRestarting.value) return
+
+  const completedSnapshot = {
+    itemInfo: itemInfo.value,
+    iteration: scriptIteration.value,
+    logs: [...recentLogs.value],
+    mapStats: mapStats.value
+  }
+
+  isRestarting.value = true
+  stopReason.value = ''
+  try {
+    const result = await electronApi.script.restartLastItem()
+    if (!result?.success) {
+      restoreCompletedState(completedSnapshot, result?.error)
+    }
+  } catch (error) {
+    restoreCompletedState(completedSnapshot, error?.message)
+  } finally {
+    isRestarting.value = false
+  }
+}
+
 function handleClose() {
   electronApi.window.closeOverlay()
 }
@@ -195,7 +232,7 @@ onMounted(() => {
         }
       } else {
         // 物品制作模式：如果制作成功，不标记为已停止，保持成功状态
-        if (itemInfo.value?.affixMatch || itemInfo.value?.socketMatch) {
+        if (itemInfo.value?.affixMatch || itemInfo.value?.socketMatch || itemInfo.value?.eldritchImplicitMatch) {
           // 制作成功，保持完成状态，不设置isStopped
           isCompleted.value = true
           isStopped.value = false
