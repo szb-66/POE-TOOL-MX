@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createPinia, setActivePinia } from 'pinia'
 import { usePresetStore } from '../src/stores/preset.js'
+import { createDefaultMapConfig } from '../src/utils/mapPresetMigration.js'
 import {
   createModuleStatus,
   evaluateBagStatus,
@@ -36,7 +37,7 @@ test('模块状态按异常、运行中、需配置、可用的优先级互斥�
   assert.equal(createModuleStatus({}).state, 'ready')
 })
 
-test('物品和地图区分共享脚本归属并保留互斥占用说明', () => {
+test('制作和地图区分共享脚本归属并保留互斥占用说明', () => {
   const validation = { isValid: true, errors: [] }
   const items = evaluateItemsStatus({
     validation,
@@ -50,7 +51,7 @@ test('物品和地图区分共享脚本归属并保留互斥占用说明', () =>
   })
   assert.equal(items.state, 'running')
   assert.equal(map.state, 'ready')
-  assert.match(map.statusText, /物品模块占用/)
+  assert.match(map.statusText, /制作模块占用/)
 })
 
 test('首页快捷配置使用真实制作方式和回复模式枚举', () => {
@@ -69,7 +70,7 @@ test('首页快捷配置使用真实制作方式和回复模式枚举', () => {
   ])
 })
 
-test('首页切换物品和地图配置只修改当前预设并持久化', () => {
+test('首页切换物品、地图和航海海图配置只修改各自当前预设并持久化', () => {
   const values = new Map()
   globalThis.localStorage = {
     getItem: key => values.get(key) ?? null,
@@ -80,6 +81,7 @@ test('首页切换物品和地图配置只修改当前预设并持久化', () =>
   const store = usePresetStore()
   const itemPreset = store.addItemPreset('点金装备')
   const mapPreset = store.addMapPreset('混沌地图')
+  const chartPreset = store.addChartPreset('混沌海图')
 
   store.switchItemPreset(itemPreset.id)
   store.updateCurrentItemPreset({
@@ -89,11 +91,21 @@ test('首页切换物品和地图配置只修改当前预设并持久化', () =>
   store.updateCurrentMapPreset({
     map: { ...store.currentMapPreset.map, method: 'chaos' }
   })
+  store.switchChartPreset(chartPreset.id)
+  store.updateCurrentChartPreset({
+    chart: { ...store.currentChartPreset.chart, method: 'chaos' }
+  })
+  store.setMapRollingKind('chart')
 
   assert.equal(store.currentItemPreset.moduleTwo.mode, 'alchemy')
   assert.equal(store.itemPresets.find(preset => preset.id === 'default').moduleTwo.mode, 'alteration')
   assert.equal(store.currentMapPreset.map.method, 'chaos')
   assert.equal(store.mapPresets.find(preset => preset.id === 'default').map.method, 'alchemy')
+  assert.equal(store.currentChartPreset.chart.method, 'chaos')
+  assert.equal(store.chartPresets.find(preset => preset.id === 'default').chart.method, 'alchemy')
+  assert.equal(store.mapRollingKind, 'chart')
+  assert.equal(store.mapPresets.some(preset => preset.id === chartPreset.id), false)
+  assert.equal(store.chartPresets.some(preset => preset.id === mapPreset.id), false)
 
   setActivePinia(createPinia())
   const restored = usePresetStore()
@@ -101,6 +113,43 @@ test('首页切换物品和地图配置只修改当前预设并持久化', () =>
   assert.equal(restored.currentItemPreset.moduleTwo.mode, 'alchemy')
   assert.equal(restored.currentMapPresetId, mapPreset.id)
   assert.equal(restored.currentMapPreset.map.method, 'chaos')
+  assert.equal(restored.currentChartPresetId, chartPreset.id)
+  assert.equal(restored.currentChartPreset.chart.method, 'chaos')
+  assert.equal(restored.mapRollingKind, 'chart')
+})
+
+test('过渡版本嵌套海图配置拆分为独立预设并清理地图预设', () => {
+  const values = new Map([
+    ['mapPresets', JSON.stringify([{
+      id: 'default',
+      name: '旧默认',
+      map: {
+        ...createDefaultMapConfig(),
+        activeKind: 'chart',
+        chart: { method: 'chaos', match: { blacklist: ['中毒'] } }
+      }
+    }])],
+    ['currentMapPresetId', 'default']
+  ])
+  globalThis.localStorage = {
+    getItem: key => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, String(value)),
+    removeItem: key => values.delete(key)
+  }
+  setActivePinia(createPinia())
+  const store = usePresetStore()
+
+  assert.equal(store.mapRollingKind, 'chart')
+  assert.equal(store.currentChartPreset.name, '旧默认')
+  assert.equal(store.currentChartPreset.chart.method, 'chaos')
+  assert.deepEqual(store.currentChartPreset.chart.match.blacklist, ['中毒'])
+  assert.equal('chart' in store.currentMapPreset.map, false)
+  assert.equal('activeKind' in store.currentMapPreset.map, false)
+
+  const savedMaps = JSON.parse(values.get('mapPresets'))
+  const savedCharts = JSON.parse(values.get('chartPresets'))
+  assert.equal('chart' in savedMaps[0].map, false)
+  assert.equal(savedCharts[0].chart.method, 'chaos')
 })
 
 test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
@@ -188,7 +237,7 @@ test('商城配方状态覆盖配置、快照、运行和异常优先级', () =>
   assert.equal(evaluateCraftingStatus({
     status: { source: 'builtin', manifest: { patch: '3.28' } },
     session: { id: 'session' }
-  }).statusText, '存在进行中的做装会话')
+  }).statusText, '存在进行中的模拟会话')
 })
 
 test('八模块汇总每张卡只计入一个类别', () => {

@@ -3,8 +3,10 @@ import assert from 'node:assert/strict'
 import {
   counterClockwiseTurns,
   gridCellCenter,
+  normalizePuzzleTabPoints,
   normalizePuzzleOrientation,
   normalizePuzzleSettings,
+  validatePuzzleTabPoint,
   validatePuzzleRegionEnvironment
 } from '../src/utils/puzzleConfig.js'
 
@@ -22,7 +24,8 @@ test('旧海图区域配置迁移为仓库配置并保留新增海图区', () =>
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, atlasRegionMetadata: atlas }), {
     inventoryRegionMetadata: inventory,
     atlasRegionMetadata: atlas,
-    recognition: { strength: 'standard' }
+    recognition: { strength: 'standard' },
+    inventoryTabPoints: { 1: null, 2: null }
   })
 })
 
@@ -31,10 +34,21 @@ test('旧配置缺少识别强度时默认标准档', () => {
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory }), {
     inventoryRegionMetadata: inventory,
     atlasRegionMetadata: null,
-    recognition: { strength: 'standard' }
+    recognition: { strength: 'standard' },
+    inventoryTabPoints: { 1: null, 2: null }
   })
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'sensitive' } }).recognition, { strength: 'sensitive' })
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'unknown' } }).recognition, { strength: 'standard' })
+})
+
+test('双页页签坐标规范化并限制在仓库正上方安全带', () => {
+  const inventory = metadata({ left: -800, top: 100, right: -200, bottom: 1000 })
+  assert.deepEqual(normalizePuzzleTabPoints({ 1: { x: -650.4, y: 50.6 }, 2: { x: -550, y: 51 } }), {
+    1: { x: -650, y: 51 }, 2: { x: -550, y: 51 }
+  })
+  assert.equal(validatePuzzleTabPoint({ x: -650, y: 50 }, inventory, 1, { x: -550, y: 50 }).valid, true)
+  assert.equal(validatePuzzleTabPoint({ x: -650, y: 250 }, inventory, 1).code, 'TAB_POINT_OUTSIDE_SAFE_BAND')
+  assert.equal(validatePuzzleTabPoint({ x: -650, y: 50 }, inventory, 2, { x: -650, y: 50 }).code, 'TAB_POINTS_DUPLICATE')
 })
 
 test('仓库和海图区使用物理区域等分中心并支持负坐标', () => {

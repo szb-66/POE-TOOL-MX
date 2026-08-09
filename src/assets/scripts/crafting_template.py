@@ -477,7 +477,7 @@ def start_crafting():
     if not preflight_required_currencies():
         return False
 
-    initial_item_result = prepare_item_for_crafting()
+    initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
     if initial_item_result is None:
         return False
 
@@ -1176,8 +1176,8 @@ def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
     play_error_sound()
     return None
 
-def prepare_item_for_crafting():
-    """读取目标物品；未鉴定时只鉴定一次，并返回最终解析结果。"""
+def prepare_item_for_crafting(identify_unidentified=True):
+    """读取目标物品；需要时鉴定一次，并返回最终解析结果。"""
     if not move_mouse(item_position['x'], item_position['y']):
         return fail_item_preparation("无法移动到待制作物品位置", "ITEM_POSITION_FAILED")
     if not read_clipboard_to_file():
@@ -1193,6 +1193,12 @@ def prepare_item_for_crafting():
     if not result.get("isUnidentified", False):
         print("[准备] 目标物品已经鉴定")
         return result
+
+    if not identify_unidentified:
+        return fail_item_preparation(
+            "检测到未鉴定装备，请先鉴定后再开始古灵隐式制作",
+            "ITEM_UNIDENTIFIED"
+        )
 
     print("[准备] 检测到未鉴定物品，使用知识卷轴")
     if not apply_currency("wisdom"):

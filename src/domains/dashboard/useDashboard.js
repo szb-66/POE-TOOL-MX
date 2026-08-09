@@ -13,6 +13,7 @@ import { useCraftingStore } from '@/domains/crafting/craftingStore'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
+import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
@@ -99,10 +100,15 @@ export function useDashboard() {
     currencyPositions: settingsStore.currencyPositions,
     preset: presetStore.currentItemPreset
   }))
+  const activeMapConfig = computed(() => getActiveMapRollingConfig(
+    presetStore.currentMapPreset?.map || {},
+    presetStore.currentChartPreset?.chart || {},
+    presetStore.mapRollingKind
+  ))
   const mapValidation = computed(() => validateMapRollingConfig({
     inventory: settingsStore.inventory,
     currencyPositions: settingsStore.currencyPositions,
-    mapConfig: presetStore.currentMapPreset?.map
+    mapConfig: activeMapConfig.value
   }))
   const bagValidationError = computed(() => validateBagRuntimeConfig(buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
@@ -142,6 +148,7 @@ export function useDashboard() {
       }),
       evaluateMapStatus({
         validation: mapValidation.value,
+        targetLabel: activeMapConfig.value.targetKind === 'chart' ? '航海海图' : '异界地图',
         scriptRunning: scriptStore.isRunning,
         scriptMode: scriptStore.mode,
         lastError: scriptStore.lastError,
@@ -330,26 +337,36 @@ export function useDashboard() {
     }
     if (module.id === 'map') {
       const disabled = modulePending || (scriptStore.isRunning && scriptStore.mode === 'map')
+      const isChart = presetStore.mapRollingKind === 'chart'
       return [
         {
           id: 'map-preset',
           type: 'select',
-          label: '地图预设',
-          value: presetStore.currentMapPresetId,
+          label: isChart ? '海图预设' : '地图预设',
+          value: isChart ? presetStore.currentChartPresetId : presetStore.currentMapPresetId,
           disabled,
-          options: selectOptions(presetStore.mapPresets),
-          run: value => presetStore.switchMapPreset(value)
+          options: selectOptions(isChart ? presetStore.chartPresets : presetStore.mapPresets),
+          run: value => isChart
+            ? presetStore.switchChartPreset(value)
+            : presetStore.switchMapPreset(value)
         },
         {
           id: 'map-method',
           type: 'select',
           label: '洗图方式',
-          value: presetStore.currentMapPreset?.map?.method || 'alchemy',
+          value: activeMapConfig.value.method || 'alchemy',
           disabled,
           options: MAP_ROLLING_METHOD_OPTIONS,
-          run: value => presetStore.updateCurrentMapPreset({
-            map: { ...presetStore.currentMapPreset.map, method: value }
-          })
+          run: value => {
+            if (isChart) {
+              return presetStore.updateCurrentChartPreset({
+                chart: { ...presetStore.currentChartPreset.chart, method: value }
+              })
+            }
+            return presetStore.updateCurrentMapPreset({
+              map: { ...presetStore.currentMapPreset.map, method: value }
+            })
+          }
         }
       ]
     }
@@ -565,7 +582,7 @@ export function useDashboard() {
       }
 
       if (craftingResult.status === 'fulfilled') craftingStatus.value = craftingResult.value
-      else craftingStatusError.value = craftingResult.reason?.message || '做装数据状态读取失败'
+      else craftingStatusError.value = craftingResult.reason?.message || '模拟数据状态读取失败'
       startupHealth.value = healthResult.status === 'fulfilled' && Array.isArray(healthResult.value?.items)
         ? healthResult.value.items
         : []

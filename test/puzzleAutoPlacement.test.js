@@ -198,6 +198,32 @@ test('自动放置接受修正来源并优先使用', () => {
   assert.match(script, /planned_source_valid\(inventory, source, target\)/)
 })
 
+test('切换仓库页签先点击标定点并等待页面稳定', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'events=[]',
+    'module.timing_mode="fixed"',
+    'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
+    'module.move_physical=lambda x,y: events.append(["move",x,y])',
+    'module.time.sleep=lambda seconds: events.append(["sleep",round(seconds,3)])',
+    'module.switch_inventory_page({"1":{"x":100,"y":200},"2":{"x":300,"y":200}},2,0.04)',
+    'print(json.dumps(events))'
+  ].join(';')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), [['click', 300, 200, 'left'], ['move', 0, 0], ['sleep', 0.25]])
+})
+
+test('自动放入在截图和危险来源输入前切换并验证计划页', () => {
+  const script = source('src/assets/scripts/puzzle_auto_place.py')
+  const main = script.match(/def main\(\)[\s\S]*?return 0/)?.[0] || ''
+  assert.ok(main.indexOf('switch_inventory_page(') < main.indexOf('inventory = capture_analyze('))
+  assert.ok(main.indexOf('planned_source_valid(') < main.indexOf('rotate_source_to_target('))
+  assert.match(main, /source_page = int\(source\.get\("page", 1\)\)/)
+  assert.match(main, /event\("source-page"/)
+})
+
 test('计划来源必须与实时库存占用一致，修正格可跳过类型校验', { skip: !existsSync(python) }, () => {
   const code = [
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
@@ -220,7 +246,7 @@ test('计划来源必须与实时库存占用一致，修正格可跳过类型�
 
 test('执行后同步仓库保留手动修正格子', () => {
   const store = source('src/stores/puzzle.js')
-  assert.match(store, /mergeCorrectedSlots\(preserveSolution \? slots\.value : null/)
+  assert.match(store, /mergeCorrectedSlots\(preserveSolution \? inventoryPages\.value\[page\]\.slots : null/)
   assert.match(store, /previous\?\.corrected/)
   assert.match(store, /corrected: true/)
 })
@@ -300,7 +326,7 @@ test('中断后保留方案、同步剩余仓库并从未完成格继续', () =>
   assert.match(script, /completed_indices[\s\S]*slot_matches/)
   assert.match(script, /resume_pending[\s\S]*recoveredHeld=True/)
   assert.match(store, /currentSolution\.value\.cells\.slice\(resumeIndex\.value\)/)
-  assert.match(store, /analyze\(\{ preserveSolution: true \}\)/)
+  assert.match(store, /analyze\(\{ preserveSolution: true, page \}\)/)
   assert.match(view, /继续自动放入（第 \$\{resumeIndex \+ 1\} 格）/)
   assert.match(view, /refreshInventoryAfterExecution/)
 })
@@ -333,7 +359,8 @@ test('IPC、preload 和渲染 API 暴露完整自动放置协议', () => {
   const sources = [source('electron/modules/ipc/puzzle.js'), source('electron/preload.cjs'), source('src/api/electron.js')].join('\n')
   for (const token of [
     'puzzle-pick-atlas-region', 'puzzle-configuration', 'puzzle-auto-placement-start',
-    'puzzle-auto-placement-stop', 'puzzle-auto-placement-status', 'puzzle-auto-placement-updated'
+    'puzzle-auto-placement-stop', 'puzzle-auto-placement-status', 'puzzle-auto-placement-updated',
+    'puzzle-pick-inventory-tab-point'
   ]) assert.match(sources, new RegExp(token))
 })
 

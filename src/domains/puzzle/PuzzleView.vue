@@ -18,7 +18,7 @@
           <el-option value="strict" label="严格" />
         </el-select>
         <el-button type="primary" :loading="analyzing" :disabled="!regionMetadata" @click="startAnalysis">
-          {{ analyzing ? '正在识别…' : '开始识别' }}
+          {{ analyzing ? '正在自动识别两页…' : '自动识别两页' }}
         </el-button>
         <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
           {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
@@ -39,7 +39,7 @@
     <el-alert
       v-else-if="!regionMetadata"
       title="首次使用请先框选完整的 6×10 碎片仓库。"
-      :description="`页面按钮会自动切换到游戏并立即识别；也可按 ${puzzleShortcut} 触发。`"
+      :description="`标定两个仓库页签后，识别按钮会自动切换并读取两页；也可按 ${puzzleShortcut} 触发。`"
       type="info"
       show-icon
       :closable="false"
@@ -52,7 +52,7 @@
           <strong>{{ config.label }}</strong>
           <div class="configuration-actions">
             <el-tag :type="config.state?.valid ? 'success' : config.metadata ? 'danger' : 'warning'" size="small">{{ config.state?.valid ? '有效' : config.metadata ? '已失效' : '未配置' }}</el-tag>
-            <el-button size="small" :disabled="executing" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
+            <el-button size="small" :disabled="executing || analyzing" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
             <el-button size="small" :disabled="executing || analyzing || !config.metadata" :title="clearRegionTitle(config)" @click="clearRegion(config.type)">清空已选</el-button>
           </div>
         </div>
@@ -76,9 +76,15 @@
           {{ config.text }} · 网格对齐：{{ gridAlignmentLabel }}<template v-if="gridAlignmentWarning">，建议重新框选</template> · {{ config.state?.message }}
         </small>
         <small v-else>{{ config.text }} · {{ config.state?.message }}</small>
+        <div v-if="config.type === 'inventory'" class="tab-point-settings">
+          <span v-for="page in [1, 2]" :key="page">
+            第 {{ page }} 页页签：{{ tabPointText(page) }}
+            <el-button size="small" :disabled="executing || analyzing || !regionMetadata" @click="pickTabPoint(page)">取点</el-button>
+          </span>
+        </div>
       </article>
       </div>
-    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可在游戏前台立即分析；Alt+3 可紧急停止自动放入</span></div>
+    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；Alt+3 可紧急停止自动放入</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
 
@@ -97,9 +103,20 @@
     <div class="workspace">
       <el-card class="inventory-card" shadow="never">
         <template #header>
-          <div class="card-title">
-            <span>碎片仓库（点击修正类型，右键逆时针旋转角度）</span>
-            <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
+          <div class="inventory-card-header">
+            <strong>碎片仓库</strong>
+            <div class="inventory-card-toolbar">
+              <span class="inventory-help">点击“修正类型”，右键“逆时针旋转角度”</span>
+              <el-radio-group v-model="selectedInventoryPage" class="inventory-page-tabs" size="small" :disabled="analyzing || executing">
+                <el-radio-button :value="1">第1页</el-radio-button>
+                <el-radio-button :value="2">第2页</el-radio-button>
+              </el-radio-group>
+              <el-tag :type="currentPageState.recognized ? 'success' : 'info'">
+                {{ currentPageState.recognized ? `已识别 ${currentPageOccupiedCount} 块` : '未识别' }}
+              </el-tag>
+              <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
+              <el-button size="small" :disabled="executing || !currentPageState.recognized" @click="clearCurrentInventoryPage">清空本页结果</el-button>
+            </div>
           </div>
         </template>
 
@@ -117,7 +134,7 @@
                 empty: !slot.occupied,
                 uncertain: slot.uncertain,
                 corrected: slot.corrected,
-                selected: sourceCellBySlot.has(`${slot.row}:${slot.column}`)
+                selected: sourceCellBySlot.has(slotKey(slot))
               }"
               :title="slotTitle(slot)"
               :disabled="executing"
@@ -127,8 +144,8 @@
               <span v-else class="empty-mark">·</span>
               <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
               <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
-              <b v-if="sourceCellBySlot.has(`${slot.row}:${slot.column}`)" class="source-index">
-                {{ sourceCellBySlot.get(`${slot.row}:${slot.column}`) + 1 }}
+              <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
+                {{ sourceCellBySlot.get(slotKey(slot)) + 1 }}
               </b>
             </button>
             <template #dropdown>
@@ -239,6 +256,9 @@ const {
   regionMetadata,
   inventoryRegionMetadata,
   atlasRegionMetadata,
+  inventoryTabPoints,
+  selectedInventoryPage,
+  inventoryPages,
   recognition,
   gridConfidence,
   previews,
@@ -279,9 +299,11 @@ const westExits = ['W0', 'W1', 'W2']
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
+const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])
+const currentPageOccupiedCount = computed(() => slots.value.filter(slot => slot.occupied).length)
 const recognitionStrength = computed({
   get: () => recognition.value?.strength || 'standard',
-  set: value => store.setRecognitionStrength(value)
+  set: value => { store.setRecognitionStrength(value) }
 })
 const gridAlignmentLabel = computed(() => gridConfidence.value == null ? '—' : gridConfidence.value >= 0.8 ? '高' : gridConfidence.value >= 0.5 ? '中' : '低')
 const gridAlignmentWarning = computed(() => gridConfidence.value != null && gridConfidence.value < 0.5)
@@ -329,10 +351,10 @@ const executionText = computed(() => {
   if (execution.value.status === 'stopped') return `海图自动放入已停止，已完成 ${execution.value.completed || 0}/9 格`
   if (execution.value.error?.code === 'ATLAS_NOT_EMPTY') return `${execution.value.reason}；未发送任何放置点击`
   if (execution.value.status === 'error') return `${execution.value.reason || '海图自动放入失败'}；已完成 ${execution.value.completed || 0}/9 格，可重新同步仓库后继续`
-  return `海图自动放入进行中：${execution.value.completed || 0}/9 格${execution.value.currentIndex >= 0 ? `，当前第 ${execution.value.currentIndex + 1} 格` : ''}`
+  return `海图自动放入进行中：${execution.value.completed || 0}/9 格${execution.value.currentIndex >= 0 ? `，当前第 ${execution.value.currentIndex + 1} 格` : ''}${execution.value.source?.page ? `，仓库第 ${execution.value.source.page} 页` : ''}`
 })
 const sourceCellBySlot = computed(() => new Map(currentSourceSlots.value.map(source => [
-  `${source.row}:${source.column}`,
+  `${Number(source.page || 1)}:${source.row}:${source.column}`,
   source.cellIndex
 ])))
 const displayCells = computed(() => currentSolution.value?.cells || Array.from({ length: 9 }, (_, index) => ({ index, mask: 0 })))
@@ -408,10 +430,30 @@ function updateSlot(slot, command) {
   store.updateSlot(slot.row, slot.column, command === 'empty' ? null : command)
 }
 
+async function clearCurrentInventoryPage() {
+  const response = await store.clearInventoryPage(selectedInventoryPage.value)
+  if (response?.success) ElMessage.success(`已清空第 ${selectedInventoryPage.value} 页识别结果`)
+}
+
+async function pickTabPoint(page) {
+  const response = await store.pickInventoryTabPoint(page)
+  if (response?.success) ElMessage.success(`第 ${page} 页页签坐标已保存`)
+  else if (response?.error) ElMessage.error(response.error.message)
+}
+
+function tabPointText(page) {
+  const point = inventoryTabPoints.value?.[page]
+  return point ? `${point.x}, ${point.y}` : '未标定'
+}
+
+function slotKey(slot) {
+  return `${Number(slot.page || selectedInventoryPage.value)}:${slot.row}:${slot.column}`
+}
+
 function slotTitle(slot) {
   if (!slot.occupied) return `第 ${slot.row + 1} 行第 ${slot.column + 1} 列：空格`
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
-  const selectedIndex = sourceCellBySlot.value?.get(`${slot.row}:${slot.column}`)
+  const selectedIndex = sourceCellBySlot.value?.get(slotKey(slot))
   const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
   return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}`
 }
@@ -499,6 +541,13 @@ const nextSolution = store.nextSolution
 .configuration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .configuration-actions { display: flex; align-items: center; gap: 8px; }
 .configuration-card small { display: block; overflow: hidden; margin-top: 7px; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.tab-point-settings { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+.tab-point-settings span { display: inline-flex; align-items: center; gap: 6px; color: var(--el-text-color-secondary); font-size: 12px; }
+.inventory-card-header { display: grid; gap: 10px; }
+.inventory-card-header > strong { display: block; line-height: 1; }
+.inventory-card-toolbar { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.inventory-help { flex: 1; color: var(--el-text-color-secondary); font-size: 12px; }
+.inventory-page-tabs { display: inline-flex; flex: none; flex-direction: row; flex-wrap: nowrap; white-space: nowrap; }
 .preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
 .preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
 .preview-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }

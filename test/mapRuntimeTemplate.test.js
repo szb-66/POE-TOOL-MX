@@ -67,3 +67,27 @@ test('地图运行模板不再引用旧地图类型字段', () => {
   assert.equal(checkBlock.includes('Normal'), false)
   assert.equal(checkBlock.includes('T17'), false)
 })
+
+test('航海海图运行时仅匹配四项奖励并支持亡者硫磺', () => {
+  assert.equal(evaluate({ targetKind: 'chart', match: {
+    mandatoryStats: { deadmanSulphur: stat(true, 30) },
+    optionalStats: {
+      quantity: stat(true, 100),
+      packSize: stat(true, 15),
+      moreMaps: stat(true, 999)
+    },
+    selectedCount: 2
+  } }, {
+    itemQuantity: 110,
+    monsterPackSize: 16,
+    deadmanSulphur: 30
+  }), true)
+})
+
+test('地图运行模板按活动目标隔离物品类别并使用区域等级日志', () => {
+  assert.match(template, /map_config\.get\("targetKind"\) == "chart"/)
+  assert.match(template, /return category == "海图"/)
+  assert.match(template, /不是当前目标/)
+  assert.match(template, /区域等级/)
+  assert.match(template, /瓦尔后的类别不是当前目标/)
+})

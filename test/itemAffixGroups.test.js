@@ -139,7 +139,7 @@ test('启用词缀模块但所有组合为空时启动校验拒绝运行', () =>
   assert.ok(result.errors.includes('词缀制作至少需要配置一个有效的达标组合'))
 })
 
-test('所有物品制作启动配置都要求知识卷轴坐标', () => {
+test('非古灵物品制作启动配置要求知识卷轴坐标', () => {
   const result = validateCraftingConfig({
     itemPosition: { x: 100, y: 100 },
     currencyPositions: { alteration: { x: 1, y: 1 } },

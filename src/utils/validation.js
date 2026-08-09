@@ -9,6 +9,7 @@
 import { hasEffectiveAffixGroups } from '../domains/items/affixConfig.js'
 import { eldritchCurrencyType, hasEffectiveEldritchTargets, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
 import { CURRENCY_NAMES } from './constants.js'
+import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 
 /**
  * Purpose: 验证制作配置
@@ -31,15 +32,17 @@ export const validateCraftingConfig = (config) => {
   if (!preset) {
     errors.push('未选择预设配置')
   } else {
-    const wisdomPosition = config.currencyPositions?.wisdom
-    if (!wisdomPosition || (wisdomPosition.x === 0 && wisdomPosition.y === 0)) {
-      errors.push(`未配置 ${CURRENCY_NAMES.wisdom} (wisdom) 的坐标`)
-    }
-
     // 检查是否有启用的模块
     const affixEnabled = preset.moduleTwo?.enabled
     const socketEnabled = preset.moduleThree?.enabled
     const eldritchEnabled = preset.moduleEldritch?.enabled
+
+    if (!eldritchEnabled) {
+      const wisdomPosition = config.currencyPositions?.wisdom
+      if (!wisdomPosition || (wisdomPosition.x === 0 && wisdomPosition.y === 0)) {
+        errors.push(`未配置 ${CURRENCY_NAMES.wisdom} (wisdom) 的坐标`)
+      }
+    }
     
     if (!affixEnabled && !socketEnabled && !eldritchEnabled) {
       errors.push('请至少启用一个制作模块 (词缀、古灵隐式或插槽)')
@@ -113,7 +116,8 @@ export const validateCraftingConfig = (config) => {
 
 export const validateMapRollingConfig = (config) => {
   const errors = []
-  const { inventory, currencyPositions, mapConfig } = config
+  const { inventory, currencyPositions } = config
+  const mapConfig = config.mapConfig ? getActiveMapRollingConfig(config.mapConfig) : null
 
   if (!mapConfig) {
     errors.push('未找到地图配置')

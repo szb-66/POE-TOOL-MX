@@ -205,6 +205,12 @@ export function matchMapRequirements(itemInfo, mapConfig) {
     return { isMatch: false }
   }
 
+  const targetKind = mapConfig.targetKind === 'chart' ? 'chart' : 'atlas'
+  const categoryMatches = targetKind === 'chart'
+    ? itemInfo.category === '海图'
+    : ['异界地图', '地图'].includes(itemInfo.category)
+  if (!categoryMatches) return { isMatch: false, reason: 'category' }
+
   const matchConfig = mapConfig.match || {}
   const explicitMods = itemInfo.explicitMods || []
 
@@ -218,72 +224,15 @@ export function matchMapRequirements(itemInfo, mapConfig) {
     }
   }
 
-  // 2. 检查白名单 (Whitelist) - 优先级最高
+  // 白名单沿用既有“任一命中即通过词缀检查”语义；基底条件仍必须满足。
   const whitelist = matchConfig.whitelist || []
-  if (whitelist.length > 0) {
-    for (const mod of explicitMods) {
-      for (const whiteTerm of whitelist) {
-        if (whiteTerm && mod.includes(whiteTerm)) {
-          return { isMatch: true, reason: 'whitelist' }
-        }
-      }
-    }
-  }
+  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => mod.includes(term)))
 
-  // 准备基底检查数据
-  let mandatory = { ...(matchConfig.mandatoryStats || {}) }
-  let optional = { ...(matchConfig.optionalStats || {}) }
-
-  // 判断是否使用T17匹配条件：完全由用户选择的tab决定
-  const isT17 = mapConfig.tiers?.t17 || false
-
-  // 过滤掉没有后缀的旧key（quantity, rarity, packSize等），只保留带后缀的key
-  // 这样可以避免旧配置干扰
-  const isValidKey = (key) => {
-    // 有效的key应该以T17或Normal结尾，或者是T17特有的属性
-    if (key.endsWith('T17') || key.endsWith('Normal')) {
-      return true
-    }
-    if (['moreMaps', 'moreScarabs', 'moreCurrency'].includes(key)) {
-      return true
-    }
-    // 没有后缀的旧key（quantity, rarity, packSize）应该被忽略
-    return false
-  }
-
-  // 过滤mandatory和optional，只保留有效的key
-  mandatory = Object.fromEntries(
-    Object.entries(mandatory).filter(([key]) => isValidKey(key))
-  )
-  optional = Object.fromEntries(
-    Object.entries(optional).filter(([key]) => isValidKey(key))
-  )
-
-  // 判断key是否与当前地图类型相关
-  const keyRelevantForType = (key) => {
-    if (key.endsWith('T17')) {
-      return isT17
-    }
-    if (key.endsWith('Normal')) {
-      return !isT17
-    }
-    if (['moreMaps', 'moreScarabs', 'moreCurrency'].includes(key)) {
-      return isT17
-    }
-    // 不应该到这里，因为已经过滤了无效key
-    return false
-  }
-
-  // 获取base_key（去除后缀）
-  const getBaseKey = (key) => {
-    if (key.endsWith('T17')) {
-      return key.replace('T17', '')
-    }
-    if (key.endsWith('Normal')) {
-      return key.replace('Normal', '')
-    }
-    return key
-  }
+  const validKeys = targetKind === 'chart'
+    ? ['quantity', 'rarity', 'packSize', 'deadmanSulphur']
+    : ['quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency']
+  const mandatory = Object.fromEntries(Object.entries(matchConfig.mandatoryStats || {}).filter(([key]) => validKeys.includes(key)))
+  const optional = Object.fromEntries(Object.entries(matchConfig.optionalStats || {}).filter(([key]) => validKeys.includes(key)))
 
   // 解决冲突：如果必选和挑选有相同key，取最大值作为必选，并从挑选移除
   const conflictKeys = Object.keys(mandatory).filter(key => optional[key])
@@ -299,17 +248,9 @@ export function matchMapRequirements(itemInfo, mapConfig) {
 
   // 3. 检查必选基底
   for (const [key, config] of Object.entries(mandatory)) {
-    // 只检查enabled为True的配置
-    if (!config?.enabled) {
-      continue
-    }
-    // 检查key是否与当前地图类型相关
-    if (!keyRelevantForType(key)) {
-      continue
-    }
+    if (!config?.enabled) continue
     const targetVal = config.value || 0
-    const baseKey = getBaseKey(key)
-    const currentVal = getMapStatValue(itemInfo, baseKey)
+    const currentVal = getMapStatValue(itemInfo, key)
     if (currentVal < targetVal) {
       return { isMatch: false, reason: 'mandatory', failedStat: key, current: currentVal, required: targetVal }
     }
@@ -322,18 +263,10 @@ export function matchMapRequirements(itemInfo, mapConfig) {
   const activeOptions = Object.keys(optional).filter(k => optional[k]?.enabled)
   if (activeOptions.length > 0) {
     for (const key of activeOptions) {
-      // 检查key是否与当前地图类型相关
-      if (!keyRelevantForType(key)) {
-        continue
-      }
       const config = optional[key]
-      // 再次确认enabled状态（虽然activeOptions已经过滤了，但为了安全）
-      if (!config?.enabled) {
-        continue
-      }
+      if (!config?.enabled) continue
       const targetVal = config.value || 0
-      const baseKey = getBaseKey(key)
-      const currentVal = getMapStatValue(itemInfo, baseKey)
+      const currentVal = getMapStatValue(itemInfo, key)
       if (currentVal >= targetVal) {
         matchCount++
       }
@@ -344,7 +277,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
     }
   }
 
-  return { isMatch: true, reason: 'all' }
+  return { isMatch: true, reason: whitelistMatched ? 'whitelist' : 'all' }
 }
 
 // 获取地图属性值
@@ -358,6 +291,8 @@ export function getMapStatValue(itemInfo, key) {
     val = itemInfo.itemRarity || 0
   } else if (key === 'packSize') {
     val = itemInfo.monsterPackSize || 0
+  } else if (key === 'deadmanSulphur') {
+    val = itemInfo.deadmanSulphur || 0
   } else if (key === 'moreMaps') {
     // T17属性：更多地图
     // 优先从顶层属性获取（解析器已解析）

@@ -30,6 +30,12 @@ export function parseItemInfo(clipboardText) {
     },
     links: 0,               // 最大连接数
     mapTier: 0,             // 地图阶级
+    itemQuantity: 0,
+    itemRarity: 0,
+    monsterPackSize: 0,
+    areaLevel: 0,
+    areaName: '',
+    deadmanSulphur: 0,
     isCorrupted: false,     // 是否已腐化
     isUnidentified: false,  // 是否未鉴定
     implicitMods: [],      // 固有词缀
@@ -41,11 +47,16 @@ export function parseItemInfo(clipboardText) {
   let socketLine = ''
   let nameFound = false
   let baseNameFound = false
+  let seenItemLevel = false
   const ignorePatterns = [
     '点击右键',
     '在私人地图装置',
     '放入一个物品',
     '出售获得通货',
+    '航行词缀将在完成测绘后揭示',
+    '将此物品带给瓦莱丽',
+    '海图形状：',
+    '海图形状:',
     '已腐化',
     '裂界者物品',
     '塑界者物品',
@@ -60,6 +71,8 @@ export function parseItemInfo(clipboardText) {
     '物品数量:',
     '物品稀有度:',
     '怪物群大小:',
+    '区域等级:',
+    '亡者硫磺:',
     '更多地图:',
     '更多圣甲虫:',
     '更多通货:',
@@ -146,6 +159,12 @@ export function parseItemInfo(clipboardText) {
       }
     }
     // 物品名称（在稀有度之后的第一行非空行，且不是分隔线，不是属性行）
+    else if (itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {
+      itemInfo.baseName = line
+      itemInfo.name ||= line
+      nameFound = true
+      baseNameFound = true
+    }
     else if (itemInfo.rarity && !nameFound && line && 
              !line.includes('--------') && 
              !line.includes(':') &&
@@ -176,6 +195,27 @@ export function parseItemInfo(clipboardText) {
       if (levelMatch) {
         itemInfo.level = parseInt(levelMatch[1])
       }
+      seenItemLevel = true
+    }
+    else if (line.includes('区域等级:')) {
+      const match = line.match(/区域等级:\s*(\d+)/)
+      if (match) itemInfo.areaLevel = parseInt(match[1])
+    }
+    else if (line.includes('物品数量:')) {
+      const match = line.match(/物品数量:\s*\+?(\d+)%/)
+      if (match) itemInfo.itemQuantity = parseInt(match[1])
+    }
+    else if (line.includes('物品稀有度:')) {
+      const match = line.match(/物品稀有度:\s*\+?(\d+)%/)
+      if (match) itemInfo.itemRarity = parseInt(match[1])
+    }
+    else if (line.includes('怪物群大小:')) {
+      const match = line.match(/怪物群大小:\s*\+?(\d+)%/)
+      if (match) itemInfo.monsterPackSize = parseInt(match[1])
+    }
+    else if (line.includes('亡者硫磺:')) {
+      const match = line.match(/亡者硫磺:\s*\+?(\d+)%/)
+      if (match) itemInfo.deadmanSulphur = parseInt(match[1])
     }
     // 插槽信息
     else if (line.startsWith('插槽:')) {
@@ -199,6 +239,9 @@ export function parseItemInfo(clipboardText) {
       }
     }
     // 显性词缀（普通词缀，不包含特殊标记）
+    else if (itemInfo.category === '海图' && !seenItemLevel && !itemInfo.areaName && line && !line.includes(':')) {
+      itemInfo.areaName = line
+    }
     else if (line && !line.includes('--------') && 
              !line.includes('(implicit)') && 
              !line.includes('(crafted)') &&
@@ -206,7 +249,7 @@ export function parseItemInfo(clipboardText) {
              !line.includes(':') &&
              line.length > 5) {
       // 排除一些明显不是词缀的行
-      if (!line.match(/^需求:|^等级:|^力量:|^敏捷:|^智慧:|^护甲:|^物理伤害:|^攻击暴击率:|^每秒攻击次数:/)) {
+      if ((itemInfo.category !== '海图' || seenItemLevel) && !isIgnoredTextLine(line) && !line.match(/^需求:|^等级:|^力量:|^敏捷:|^智慧:|^护甲:|^物理伤害:|^攻击暴击率:|^每秒攻击次数:/)) {
         itemInfo.explicitMods.push(line)
       }
     }
@@ -331,6 +374,3 @@ export function matchSockets(itemInfo, socketConfig, linkConfig, colorConfig) {
 
   return true
 }
-    else if (extractMapTier(line) > 0) {
-      itemInfo.mapTier = extractMapTier(line)
-    }

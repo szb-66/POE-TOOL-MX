@@ -13,7 +13,7 @@ const templatesPath = path.join(workspace, 'electron', 'assets', 'puzzle', 'temp
 const screenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'inventory-region.png')
 const emptyScreenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'empty-region.png')
 
-function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory', recognition } = {}) {
+function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory', recognition, allowEmpty = false } = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-recognizer-'))
   const configPath = path.join(directory, 'config.json')
   const config = {
@@ -23,6 +23,7 @@ function analyze({ region, imagePath = screenshot, imageIsRegion = false, region
     regionType,
     requireGameForeground: false
   }
+  if (allowEmpty) config.allowEmpty = true
   if (recognition) config.recognition = recognition
   if (region) config.region = region
   writeFileSync(configPath, JSON.stringify(config))
@@ -84,6 +85,20 @@ function createDimmedScreenshot(directory) {
   const result = spawnSync(python, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
   assert.equal(result.status, 0, result.stderr)
   return output
+}
+
+function createEmptyGridScreenshot(directory) {
+  const width = 600
+  const height = 1000
+  const pixels = Buffer.alloc(width * height, 120)
+  const fill = (left, top, right, bottom, value = 20) => {
+    for (let y = top; y < bottom; y += 1) pixels.fill(value, y * width + left, y * width + right)
+  }
+  for (let column = 1; column < 6; column += 1) fill(column * 100 - 1, 0, column * 100 + 1, height)
+  for (let row = 1; row < 10; row += 1) fill(0, row * 100 - 1, width, row * 100 + 1)
+  const imagePath = path.join(directory, 'empty-grid.pgm')
+  writeFileSync(imagePath, Buffer.concat([Buffer.from(`P5\n${width} ${height}\n255\n`), pixels]))
+  return imagePath
 }
 
 function atlasBorderInterferenceFixture(directory) {
@@ -176,8 +191,20 @@ test('分析主入口把识别强度配置传给 analyze_image', () => {
   const source = readFileSync(analyzer, 'utf8')
   assert.match(
     source,
-    /analyze_image\(image, templates, str\(config\.get\("regionType", "inventory"\)\), config\.get\("recognition"\)\)/
+    /recognition\["allowEmpty"\][\s\S]*analyze_image\(image, templates, str\(config\.get\("regionType", "inventory"\)\), recognition\)/
   )
+})
+
+test('实时仓库识别在截图前点击目标页签并等待稳定', () => {
+  const source = readFileSync(analyzer, 'utf8')
+  assert.match(source, /def click_inventory_tab\([\s\S]*SetCursorPos[\s\S]*mouse_event\(0x0002[\s\S]*mouse_event\(0x0004/)
+  assert.match(source, /TAB_SWITCH_FAILED/)
+  const focusIndex = source.indexOf('focused, focus_error = focus_game_window()')
+  const clickIndex = source.indexOf('click_inventory_tab(tab_point')
+  const captureIndex = source.indexOf('image = capture_region(config["region"]')
+  assert.ok(focusIndex >= 0 && focusIndex < clickIndex && clickIndex < captureIndex)
+  const clickHelper = source.match(/def click_inventory_tab\([\s\S]*?\n\n/)?.[0] || ''
+  assert.match(clickHelper, /mouse_event\(0x0004[\s\S]*SetCursorPos\(0, 0\)[\s\S]*time\.sleep/)
 })
 
 test('传入识别强度配置后仍能完成仓库识别', { skip: !existsSync(python) }, () => {
@@ -288,6 +315,18 @@ test('没有有效绿色符号时返回结构化错误', { skip: !existsSync(pyt
   const result = analyze({ imagePath: emptyScreenshot, imageIsRegion: true })
   assert.equal(result.success, false)
   assert.equal(result.error.code, 'NO_FRAGMENTS')
+})
+
+test('允许空页时有效空网格返回零碎片结果', { skip: !existsSync(python) }, () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-empty-grid-'))
+  try {
+    const result = analyze({ imagePath: createEmptyGridScreenshot(directory), imageIsRegion: true, allowEmpty: true })
+    assert.equal(result.success, true)
+    assert.equal(result.occupiedCount, 0)
+    assert.equal(result.slots.length, 60)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('轻微框选偏差仍保留全部碎片并把模糊候选标为待确认', { skip: !existsSync(python) }, () => {

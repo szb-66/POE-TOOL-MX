@@ -96,6 +96,15 @@ test('同分方案稳定截断且来源格按置信度和行列选择', () => {
   assert.deepEqual(sources.map(slot => [slot.row, slot.column]), [[5, 5], [0, 2]])
 })
 
+test('双页相同行列是独立来源且页码参与稳定排序', () => {
+  const solution = { cells: [{ index: 0, type: 'corner' }, { index: 1, type: 'corner' }] }
+  const sources = assignSourceSlots(solution, [
+    { page: 2, row: 0, column: 0, occupied: true, type: 'corner', confidence: 0.9 },
+    { page: 1, row: 0, column: 0, occupied: true, type: 'corner', confidence: 0.9 }
+  ])
+  assert.deepEqual(sources.map(source => [source.page, source.row, source.column]), [[1, 0, 0], [2, 0, 0]])
+})
+
 test('图三式单边断口会被有效性检查拒绝', () => {
   const valid = solvePuzzle({ counts: abundant, solutionLimit: 1 }).solutions[0]
   assert.equal(validateSolution(valid), true)

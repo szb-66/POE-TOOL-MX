@@ -11,9 +11,9 @@ function unique(values) {
 }
 
 export function buildCraftingCurrencyPreflight(preset = {}) {
-  const currencies = ['wisdom']
   const affix = preset.moduleTwo || {}
   const eldritch = preset.moduleEldritch || {}
+  const currencies = eldritch.enabled ? [] : ['wisdom']
 
   if (eldritch.enabled) currencies.push(eldritchCurrencyType(eldritch))
 

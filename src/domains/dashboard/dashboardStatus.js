@@ -61,7 +61,7 @@ export function evaluateItemsStatus(input = {}) {
   const occupied = input.scriptRunning && input.scriptMode !== 'items'
   return createModuleStatus({
     id: 'items',
-    title: '物品制作',
+    title: '制作',
     route: '/items',
     description: '按当前预设自动完成词缀、古灵隐式与插槽制作。',
     error: input.lastError && input.lastMode === 'items' ? input.lastError : '',
@@ -81,15 +81,15 @@ export function evaluateMapStatus(input = {}) {
     id: 'map',
     title: '地图洗练',
     route: '/map',
-    description: '依据地图预设自动洗练并筛选结果。',
+    description: `依据${input.targetLabel || '异界地图'}预设自动洗练并筛选结果。`,
     error: input.lastError && input.lastMode === 'map' ? input.lastError : '',
     running: input.scriptRunning && input.scriptMode === 'map',
     issues: input.validation?.errors,
     readyText: occupied
-      ? (input.scriptMode === 'items' ? '共享脚本正被物品模块占用' : '共享脚本正在运行')
+      ? (input.scriptMode === 'items' ? '共享脚本正被制作模块占用' : '共享脚本正在运行')
       : '配置完整，可启动',
     runningText: '地图洗练脚本运行中',
-    metrics: []
+    metrics: [{ label: '洗练目标', value: input.targetLabel || '异界地图' }]
   })
 }
 
@@ -244,18 +244,18 @@ export function evaluatePriceCheckStatus(input = {}) {
 export function evaluateCraftingStatus(input = {}) {
   const manifest = input.status?.manifest
   const issues = []
-  if (!input.status) issues.push('做装数据状态尚未加载')
-  else if (!manifest && !input.status.source) issues.push('未找到可用的做装数据目录')
+  if (!input.status) issues.push('模拟数据状态尚未加载')
+  else if (!manifest && !input.status.source) issues.push('未找到可用的模拟数据目录')
 
   return createModuleStatus({
     id: 'crafting',
-    title: '手动做装',
+    title: '模拟',
     route: '/craft-planner',
     description: '使用离线 POE1 数据模拟通货与各类工艺。',
     error: input.updateError,
     running: false,
     issues,
-    readyText: input.session ? '存在进行中的做装会话' : '做装数据可用',
+    readyText: input.session ? '存在进行中的模拟会话' : '模拟数据可用',
     metrics: [
       { label: '数据版本', value: manifest?.patch || input.status?.patch || '未知' },
       { label: '制作会话', value: input.session ? '可继续' : '未开始' }

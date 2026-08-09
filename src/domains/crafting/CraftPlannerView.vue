@@ -1,7 +1,7 @@
 <template>
   <div class="craft-page">
     <header class="page-heading">
-      <div><h2>POE1 手动做装模拟器</h2><p>选择底材，像游戏里一样使用通货、精华、工艺台、化石、花园、古灵、势力、加密与野兽工艺，并观察每一步装备变化。</p></div>
+      <div><h2>POE1 装备制作模拟器</h2><p>选择底材，像游戏里一样使用通货、精华、工艺台、化石、花园、古灵、势力、加密与野兽工艺，并观察每一步装备变化。</p></div>
       <div class="header-actions">
         <el-button size="small" :loading="store.updating" @click="updateData">更新 POEDB 数据</el-button>
         <el-button v-if="store.updating" size="small" @click="store.cancelUpdate">取消</el-button>
@@ -413,7 +413,7 @@ const fossilSelectionReason = computed(() => {
 const categoryOptions = (items = []) => items.map((item) => ({ value: item.itemClass || item.name, label: `${item.name} (${item.count})`, ...(item.children?.length ? { children: categoryOptions(item.children) } : {}) }))
 const baseCategoryOptions = computed(() => categoryOptions(store.categories))
 
-onMounted(async () => { try { await store.initialize(); await loadBases() } catch (error) { pageError.value = error?.message || '做装数据初始化失败' } })
+onMounted(async () => { try { await store.initialize(); await loadBases() } catch (error) { pageError.value = error?.message || '模拟数据初始化失败' } })
 onBeforeUnmount(() => { clearTimeout(catalogTimer); store.dispose() })
 watch(resonatorSockets, (count) => { selectedFossilIds.value = selectedFossilIds.value.slice(0, count) })
 watch(() => store.currentState?.influences?.join('|'), () => { if (store.session) prepareDonorOptions() })

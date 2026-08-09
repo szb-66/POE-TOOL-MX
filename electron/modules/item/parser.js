@@ -32,6 +32,9 @@ export function parseItemInfo(clipboardText) {
     itemQuantity: 0,
     itemRarity: 0,
     monsterPackSize: 0,
+    areaLevel: 0,
+    areaName: '',
+    deadmanSulphur: 0,
     mapTier: 0,
     armour: 0,
     evasion: 0,
@@ -133,6 +136,10 @@ export function parseItemInfo(clipboardText) {
     '在私人地图装置',
     '放入一个物品',
     '出售获得通货',
+    '航行词缀将在完成测绘后揭示',
+    '将此物品带给瓦莱丽',
+    '海图形状：',
+    '海图形状:',
     '奖励:',
     '掉落的地图有几率转换为',
     '产生的区域不受你的异界天赋树影响',
@@ -152,6 +159,8 @@ export function parseItemInfo(clipboardText) {
     '物品数量:', // 地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
     '物品稀有度:', // 地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
     '怪物群大小:', // 地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
+    '区域等级:',
+    '亡者硫磺:',
     '更多地图:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤，防止解析失败时被误处理）
     '更多圣甲虫:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
     '更多通货:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
@@ -317,6 +326,10 @@ export function parseItemInfo(clipboardText) {
       }
       continue
     }
+    else if (identityHeaderOpen && itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {
+      itemInfo.baseName = line
+      if (!itemInfo.name) itemInfo.name = line
+    }
     else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
       itemInfo.name = line
     }
@@ -334,6 +347,10 @@ export function parseItemInfo(clipboardText) {
       if (gemLevelMatch) {
         itemInfo.gemLevel = parseInt(gemLevelMatch[1])
       }
+    }
+    else if (line.includes('区域等级:')) {
+      const areaLevelMatch = line.match(/区域等级:\s*(\d+)/)
+      if (areaLevelMatch) itemInfo.areaLevel = parseInt(areaLevelMatch[1])
     }
     else if (line.includes('物品等级:')) {
       const levelMatch = line.match(/物品等级:\s*(\d+)/)
@@ -365,6 +382,10 @@ export function parseItemInfo(clipboardText) {
       if (match) {
         itemInfo.monsterPackSize = parseInt(match[1])
       }
+    }
+    else if (line.includes('亡者硫磺:')) {
+      const match = line.match(/亡者硫磺:\s*\+?(\d+)%/)
+      if (match) itemInfo.deadmanSulphur = parseInt(match[1])
     }
     else if (line.includes('更多地图:')) {
       const match = line.match(/更多地图:\s*\+?(\d+)%/)
@@ -405,6 +426,9 @@ export function parseItemInfo(clipboardText) {
     else if (line.includes('(enchant)')) {
        // 附魔词缀，暂时忽略或归类
        continue;
+    }
+    else if (itemInfo.category === '海图' && !seenItemLevel && !itemInfo.areaName && line && !line.includes(':')) {
+      itemInfo.areaName = line
     }
     else if (line && line.length > 2) { // 稍微放宽长度限制，有些词缀可能很短
       

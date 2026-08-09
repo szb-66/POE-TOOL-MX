@@ -2,6 +2,7 @@ export const PUZZLE_GRID_SIZE = Object.freeze({ columns: 6, rows: 10 })
 export const ATLAS_GRID_SIZE = Object.freeze({ columns: 3, rows: 3 })
 export const PUZZLE_REGION_TYPES = Object.freeze({ inventory: 'inventory', atlas: 'atlas' })
 export const PUZZLE_RECOGNITION_STRENGTHS = Object.freeze(['sensitive', 'standard', 'strict'])
+export const PUZZLE_INVENTORY_PAGES = Object.freeze([1, 2])
 
 function finite(value, fallback = 0) {
   const number = Number(value)
@@ -47,6 +48,21 @@ export function normalizePuzzleRecognition(value = {}) {
   return { strength }
 }
 
+export function normalizePuzzleTabPoint(value) {
+  const x = Number(value?.x)
+  const y = Number(value?.y)
+  return Number.isFinite(x) && Number.isFinite(y)
+    ? { x: Math.round(x), y: Math.round(y) }
+    : null
+}
+
+export function normalizePuzzleTabPoints(value = {}) {
+  return {
+    1: normalizePuzzleTabPoint(value?.[1] ?? value?.['1']),
+    2: normalizePuzzleTabPoint(value?.[2] ?? value?.['2'])
+  }
+}
+
 export function normalizePuzzleSettings(value = {}) {
   const inventoryRegionMetadata = normalizePuzzleRegionMetadata(
     value.inventoryRegionMetadata || value.regionMetadata
@@ -55,8 +71,41 @@ export function normalizePuzzleSettings(value = {}) {
   return {
     inventoryRegionMetadata,
     atlasRegionMetadata,
-    recognition: normalizePuzzleRecognition(value.recognition)
+    recognition: normalizePuzzleRecognition(value.recognition),
+    inventoryTabPoints: normalizePuzzleTabPoints(value.inventoryTabPoints)
   }
+}
+
+export function validatePuzzleTabPoint(point, metadata, page, otherPoint = null) {
+  const normalizedPoint = normalizePuzzleTabPoint(point)
+  const normalizedMetadata = normalizePuzzleRegionMetadata(metadata)
+  const normalizedPage = Number(page)
+  if (!PUZZLE_INVENTORY_PAGES.includes(normalizedPage)) {
+    return { valid: false, code: 'TAB_PAGE_INVALID', message: '仓库页码无效' }
+  }
+  if (!normalizedPoint) {
+    return { valid: false, code: 'TAB_POINT_REQUIRED', message: `请先标定第 ${normalizedPage} 页页签坐标` }
+  }
+  if (!normalizedMetadata) {
+    return { valid: false, code: 'REGION_REQUIRED', message: '请先框选完整的 6×10 碎片仓库区域' }
+  }
+  const region = normalizedMetadata.selectedRegion
+  const cellHeight = (region.bottom - region.top) / PUZZLE_GRID_SIZE.rows
+  const withinTabBand = normalizedPoint.x >= region.left && normalizedPoint.x <= region.right &&
+    normalizedPoint.y >= region.top - cellHeight && normalizedPoint.y < region.top
+  const bounds = normalizedMetadata.displayPhysicalBounds
+  const withinDisplay = !bounds.width || !bounds.height || (
+    normalizedPoint.x >= bounds.x && normalizedPoint.x < bounds.x + bounds.width &&
+    normalizedPoint.y >= bounds.y && normalizedPoint.y < bounds.y + bounds.height
+  )
+  if (!withinTabBand || !withinDisplay) {
+    return { valid: false, code: 'TAB_POINT_OUTSIDE_SAFE_BAND', message: `第 ${normalizedPage} 页取点必须位于仓库网格正上方的页签区域` }
+  }
+  const normalizedOther = normalizePuzzleTabPoint(otherPoint)
+  if (normalizedOther && normalizedOther.x === normalizedPoint.x && normalizedOther.y === normalizedPoint.y) {
+    return { valid: false, code: 'TAB_POINTS_DUPLICATE', message: '两个仓库页签不能使用同一个坐标' }
+  }
+  return { valid: true, point: normalizedPoint }
 }
 
 export function gridCellCenter(region, grid, row, column) {

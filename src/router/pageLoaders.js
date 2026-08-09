@@ -9,6 +9,7 @@ export const pageLoaders = Object.freeze({
   '/craft-planner': () => import('../domains/crafting/CraftPlannerView.vue'),
   '/price-check': () => import('../domains/priceCheck/PriceCheckView.vue'),
   '/puzzle': () => import('../domains/puzzle/PuzzleView.vue'),
+  '/tools': () => import('../domains/tools/ToolsView.vue'),
   '/settings': () => import('../domains/settings/SettingsView.vue'),
   '/help': () => import('../views/Help.vue')
 })

@@ -823,6 +823,20 @@ def update_map_stats(processed_count, qualified_count, blacklist_stats, whitelis
         # 静默失败，不影响主流程
         pass
 
+def rolling_target_label():
+    return "航海海图" if map_config.get("targetKind") == "chart" else "地图"
+
+def item_matches_rolling_target(item_data):
+    category = str((item_data or {}).get("category") or (item_data or {}).get("itemClass") or "")
+    if map_config.get("targetKind") == "chart":
+        return category == "海图"
+    return category in ("异界地图", "地图")
+
+def rolling_item_level_label(item_data):
+    if map_config.get("targetKind") == "chart":
+        return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
+    return f"T{int((item_data or {}).get('mapTier', 0))}"
+
 def start_map_rolling():
     """Purpose: 主控循环，按网格遍历地图、读取解析结果、套用策略并更新统计。
     Inputs: grid_config 坐标与行列，map_config 洗图策略，GetClipboardSequenceNumber 等外部依赖。
@@ -832,6 +846,19 @@ def start_map_rolling():
     """
     global is_running, fatal_error_reason
     is_running = True
+    target_kind = map_config.get("targetKind")
+    target_label = "航海海图" if target_kind == "chart" else "地图"
+
+    def scan_item_matches_target(item_data):
+        category = str((item_data or {}).get("category") or (item_data or {}).get("itemClass") or "")
+        if target_kind == "chart":
+            return category == "海图"
+        return category in ("异界地图", "地图")
+
+    def scan_item_level_label(item_data):
+        if target_kind == "chart":
+            return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
+        return f"T{int((item_data or {}).get('mapTier', 0))}"
     
     print(f"[启动] 开始执行地图洗练脚本")
     print(f"[配置] 网格配置: {grid_config}")
@@ -871,7 +898,7 @@ def start_map_rolling():
         "event": "crafting-startup-succeeded", "mode": "map"
     }, ensure_ascii=False), flush=True)
 
-    print(f"[开始] 地图洗练流程")
+    print(f"[开始] {target_label}洗练流程")
     
     processed_count = 0
     qualified_count = 0
@@ -995,8 +1022,8 @@ def start_map_rolling():
         
         # 6. 检查是否是地图
         category = result.get("category", "") or result.get("itemClass", "")
-        if category not in ["异界地图", "地图"]:
-            print(f"[提示] 不是地图 (类别: {category})，跳过")
+        if not scan_item_matches_target(result):
+            print(f"[提示] 不是当前目标 {target_label} (类别: {category})，跳过")
             # 移动到下一个格子
             current_row += 1
             if current_row >= grid_config['rows']:
@@ -1005,7 +1032,7 @@ def start_map_rolling():
             continue
         
         # 7. 处理该地图
-        print(f"[处理] 开始处理地图: {result.get('name', '未知')} T{result.get('mapTier', 0)}")
+        print(f"[处理] 开始处理{target_label}: {result.get('name', '未知')} {scan_item_level_label(result)}")
         # 统计当前地图的黑白名单词缀
         map_blacklist_stats, map_whitelist_stats = count_affix_stats(result)
         # 合并到总统计中
@@ -1034,7 +1061,7 @@ def start_map_rolling():
     if fatal_error_reason:
         return False
 
-    print(f"[完成] 地图洗练结束，共处理 {processed_count} 张地图")
+    print(f"[完成] {target_label}洗练结束，共处理 {processed_count} 张")
     play_success_sound()
     time.sleep(2)
     is_running = False
@@ -1054,6 +1081,10 @@ def process_single_map(initial_result, slot_x, slot_y):
     
     while is_running and iteration < max_iterations:
         iteration += 1
+
+        if not item_matches_rolling_target(current_result):
+            print(f"  > [停止单件] 重新读取后的类别不是当前目标 {rolling_target_label()}，未继续使用通货")
+            return False
         
         # 基本信息提取
         is_corrupted = current_result.get("isCorrupted", False)
@@ -1063,7 +1094,7 @@ def process_single_map(initial_result, slot_x, slot_y):
         quality = int(current_result.get("quality", 0))
         is_legendary = current_result.get("isLegendary", False)
         
-        print(f"  > [状态] T{tier} {rarity} 品质:{quality}% 腐化:{is_corrupted} 传奇:{is_legendary}")
+        print(f"  > [状态] {rolling_item_level_label(current_result)} {rarity} 品质:{quality}% 腐化:{is_corrupted} 传奇:{is_legendary}")
 
         # 0. 传奇地图跳过
         if is_legendary:
@@ -1075,7 +1106,7 @@ def process_single_map(initial_result, slot_x, slot_y):
             return True
 
         # 0.1 T17 + 点金模式 检查
-        if tier == 17 and map_config['method'] == 'alchemy':
+        if map_config.get('targetKind') != 'chart' and tier == 17 and map_config['method'] == 'alchemy':
              print("  > [错误] T17地图不能使用点金模式")
              return True # 跳过
 
@@ -1098,7 +1129,7 @@ def process_single_map(initial_result, slot_x, slot_y):
         method = map_config['method'] # alchemy or chaos
         
         # 打印当前地图状态（用于调试）
-        print(f"  > [地图状态] Tier: {tier}, 稀有度: {rarity}, 品质: {quality}%, 腐化: {is_corrupted}, 方法: {method}")
+        print(f"  > [{rolling_target_label()}状态] {rolling_item_level_label(current_result)}, 稀有度: {rarity}, 品质: {quality}%, 腐化: {is_corrupted}, 方法: {method}")
 
         # 0.5 检查是否未鉴定，如果未鉴定则先鉴定
         is_unidentified = current_result.get("isUnidentified", False)
@@ -1114,6 +1145,9 @@ def process_single_map(initial_result, slot_x, slot_y):
             current_result = wait_for_parse_result()
             if current_result.get("error"):
                 print("  > [错误] 鉴定后解析物品信息失败")
+                return False
+            if not item_matches_rolling_target(current_result):
+                print(f"  > [停止单件] 鉴定后的类别不是当前目标 {rolling_target_label()}")
                 return False
             # 更新状态
             rarity = current_result.get("rarity", "普通").replace(" ", "")
@@ -1301,6 +1335,9 @@ def process_single_map(initial_result, slot_x, slot_y):
             if current_result.get("error"):
                 print("  > [错误] 读取物品信息失败")
                 return False
+            if not item_matches_rolling_target(current_result):
+                print(f"  > [停止单件] 瓦尔后的类别不是当前目标 {rolling_target_label()}")
+                return False
             
             # 瓦尔后检查是否符合条件（先检查基底，再检查词缀）
             vaal_base_ok = check_map_base(current_result)
@@ -1344,7 +1381,11 @@ def check_map_base(item_data):
     Edge cases: 缺失属性按零处理；必选与挑选冲突时取较大值且不重复计数。
     """
     match_config = map_config['match']
-    valid_keys = ('quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency')
+    valid_keys = (
+        ('quantity', 'rarity', 'packSize', 'deadmanSulphur')
+        if map_config.get('targetKind') == 'chart'
+        else ('quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency')
+    )
     mandatory = {
         key: dict(value) for key, value in match_config.get('mandatoryStats', {}).items()
         if key in valid_keys
@@ -1482,6 +1523,8 @@ def get_stat_value(item_data, key):
     elif key == 'packSize':
         val = int(item_data.get('monsterPackSize', 0))
         if val == 0: val = int(item_data.get('packSize', 0))
+    elif key == 'deadmanSulphur':
+        val = int(item_data.get('deadmanSulphur', 0))
     elif key == 'moreMaps':
         # 优先从顶层属性获取（解析器已解析）
         val = int(item_data.get('moreMaps', 0))

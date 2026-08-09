@@ -9,7 +9,12 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { cleanMigratedMapConfig, createDefaultMapConfig } from '../utils/mapPresetMigration.js'
+import {
+  cleanMigratedChartConfig,
+  cleanMigratedMapConfig,
+  createDefaultChartConfig,
+  createDefaultMapConfig
+} from '../utils/mapPresetMigration.js'
 import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
 import { createDefaultModuleTwo, normalizeModuleTwo } from '../domains/items/affixConfig.js'
 import { createDefaultEldritchModule, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
@@ -67,10 +72,21 @@ export const usePresetStore = defineStore('preset', () => {
     }
   ])
 
+  // 航海海图预设与异界地图预设完全独立
+  const chartPresets = ref([
+    {
+      id: 'default',
+      name: '默认预设',
+      chart: createDefaultChartConfig()
+    }
+  ])
+
   const shopPresets = ref([createDefaultShopPreset()])
   
   const currentItemPresetId = ref('default')
   const currentMapPresetId = ref('default')
+  const currentChartPresetId = ref('default')
+  const mapRollingKind = ref('atlas')
   const currentShopPresetId = ref('default')
 
   const currentItemPreset = computed(() => {
@@ -79,6 +95,10 @@ export const usePresetStore = defineStore('preset', () => {
 
   const currentMapPreset = computed(() => {
     return mapPresets.value.find(p => p.id === currentMapPresetId.value) || mapPresets.value[0]
+  })
+
+  const currentChartPreset = computed(() => {
+    return chartPresets.value.find(p => p.id === currentChartPresetId.value) || chartPresets.value[0]
   })
 
   const currentShopPreset = computed(() => {
@@ -111,6 +131,18 @@ export const usePresetStore = defineStore('preset', () => {
     }
     mapPresets.value.push(newPreset)
     currentMapPresetId.value = newPreset.id
+    savePresets()
+    return newPreset
+  }
+
+  function addChartPreset(name) {
+    const newPreset = {
+      id: `chart_preset_${Date.now()}`,
+      name: name || `预设${chartPresets.value.length}`,
+      chart: createDefaultChartConfig()
+    }
+    chartPresets.value.push(newPreset)
+    currentChartPresetId.value = newPreset.id
     savePresets()
     return newPreset
   }
@@ -151,6 +183,18 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
+  function deleteChartPreset(id) {
+    if (id === 'default') return false
+    const index = chartPresets.value.findIndex(p => p.id === id)
+    if (index > -1) {
+      chartPresets.value.splice(index, 1)
+      if (currentChartPresetId.value === id) currentChartPresetId.value = 'default'
+      savePresets()
+      return true
+    }
+    return false
+  }
+
   function deleteShopPreset(id) {
     if (id === 'default') return false
     const index = shopPresets.value.findIndex(p => p.id === id)
@@ -181,6 +225,21 @@ export const usePresetStore = defineStore('preset', () => {
       return true
     }
     return false
+  }
+
+  function switchChartPreset(id) {
+    const preset = chartPresets.value.find(p => p.id === id)
+    if (preset) {
+      currentChartPresetId.value = id
+      savePresets()
+      return true
+    }
+    return false
+  }
+
+  function setMapRollingKind(kind) {
+    mapRollingKind.value = kind === 'chart' ? 'chart' : 'atlas'
+    savePresets()
   }
 
   function switchShopPreset(id) {
@@ -214,6 +273,14 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
+  function updateCurrentChartPreset(data) {
+    const preset = currentChartPreset.value
+    if (preset) {
+      Object.assign(preset, data)
+      savePresets()
+    }
+  }
+
   function updateCurrentShopPreset(data) {
     const preset = currentShopPreset.value
     if (preset) {
@@ -228,6 +295,9 @@ export const usePresetStore = defineStore('preset', () => {
       localStorage.setItem('currentItemPresetId', currentItemPresetId.value)
       localStorage.setItem('mapPresets', JSON.stringify(mapPresets.value))
       localStorage.setItem('currentMapPresetId', currentMapPresetId.value)
+      localStorage.setItem('chartPresets', JSON.stringify(chartPresets.value))
+      localStorage.setItem('currentChartPresetId', currentChartPresetId.value)
+      localStorage.setItem('mapRollingKind', mapRollingKind.value)
       localStorage.setItem('shopPresets', JSON.stringify(shopPresets.value))
       localStorage.setItem('currentShopPresetId', currentShopPresetId.value)
     } catch (error) {
@@ -241,6 +311,9 @@ export const usePresetStore = defineStore('preset', () => {
       const savedCurrentItemId = localStorage.getItem('currentItemPresetId')
       const savedMapPresets = localStorage.getItem('mapPresets')
       const savedCurrentMapId = localStorage.getItem('currentMapPresetId')
+      const savedChartPresets = localStorage.getItem('chartPresets')
+      const savedCurrentChartId = localStorage.getItem('currentChartPresetId')
+      const savedMapRollingKind = localStorage.getItem('mapRollingKind')
       
       // 旧数据迁移
       const oldPresets = localStorage.getItem('presets')
@@ -267,18 +340,53 @@ export const usePresetStore = defineStore('preset', () => {
         currentItemPresetId.value = oldCurrentId
       }
 
+      let loadedMapPresets = null
       if (savedMapPresets) {
-        const loaded = JSON.parse(savedMapPresets)
-        loaded.forEach(preset => {
+        loadedMapPresets = JSON.parse(savedMapPresets)
+        const loaded = loadedMapPresets.map(preset => {
           const rawMap = preset.map || {}
           if (rawMap.chisel) delete rawMap.chisel
-          preset.map = cleanMigratedMapConfig(rawMap)
+          return { ...preset, map: cleanMigratedMapConfig(rawMap) }
         })
         mapPresets.value = loaded
       }
       
       if (savedCurrentMapId) {
         currentMapPresetId.value = savedCurrentMapId
+      }
+
+      if (savedChartPresets) {
+        chartPresets.value = JSON.parse(savedChartPresets).map(preset => ({
+          ...preset,
+          chart: cleanMigratedChartConfig(preset.chart || {})
+        }))
+      } else if (loadedMapPresets?.some(preset => preset.map?.chart)) {
+        chartPresets.value = loadedMapPresets.map(preset => ({
+          id: preset.id,
+          name: preset.name,
+          chart: cleanMigratedChartConfig(preset.map?.chart || {}, preset.map?.grid || {})
+        }))
+      }
+
+      if (!chartPresets.value.length) {
+        chartPresets.value = [{ id: 'default', name: '默认预设', chart: createDefaultChartConfig() }]
+      }
+      if (savedCurrentChartId && chartPresets.value.some(preset => preset.id === savedCurrentChartId)) {
+        currentChartPresetId.value = savedCurrentChartId
+      } else if (!savedChartPresets && chartPresets.value.some(preset => preset.id === currentMapPresetId.value)) {
+        currentChartPresetId.value = currentMapPresetId.value
+      }
+      const legacyActiveKind = loadedMapPresets
+        ?.find(preset => preset.id === currentMapPresetId.value)?.map?.activeKind
+      mapRollingKind.value = savedMapRollingKind === 'chart' || (!savedMapRollingKind && legacyActiveKind === 'chart')
+        ? 'chart'
+        : 'atlas'
+
+      if (!mapPresets.value.some(preset => preset.id === currentMapPresetId.value)) currentMapPresetId.value = 'default'
+      if (!chartPresets.value.some(preset => preset.id === currentChartPresetId.value)) currentChartPresetId.value = 'default'
+
+      if (!savedChartPresets || loadedMapPresets?.some(preset => preset.map?.chart || preset.map?.activeKind)) {
+        savePresets()
       }
     } catch (error) {
       // 加载预设失败
@@ -306,12 +414,16 @@ export const usePresetStore = defineStore('preset', () => {
   return {
     itemPresets,
     mapPresets,
+    chartPresets,
     shopPresets,
     currentItemPresetId,
     currentMapPresetId,
+    currentChartPresetId,
+    mapRollingKind,
     currentShopPresetId,
     currentItemPreset,
     currentMapPreset,
+    currentChartPreset,
     currentShopPreset,
     // 兼容旧代码的别名，逐步替换
     presets: itemPresets,
@@ -325,15 +437,20 @@ export const usePresetStore = defineStore('preset', () => {
     // 新方法
     addItemPreset,
     addMapPreset,
+    addChartPreset,
     addShopPreset,
     deleteItemPreset,
     deleteMapPreset,
+    deleteChartPreset,
     deleteShopPreset,
     switchItemPreset,
     switchMapPreset,
+    switchChartPreset,
+    setMapRollingKind,
     switchShopPreset,
     updateCurrentItemPreset,
     updateCurrentMapPreset,
+    updateCurrentChartPreset,
     updateCurrentShopPreset,
     savePresets,
     loadPresets,

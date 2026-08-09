@@ -28,6 +28,7 @@ import { usePriceCheckStore } from '../stores/priceCheck'
 import { validateStashTabSelection } from './stashTabSelection.js'
 import { usePuzzleStore } from '../stores/puzzle.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
+import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -256,13 +257,23 @@ export async function startMapRolling() {
   }
 
   // 获取当前预设和配置
-  const currentPreset = presetStore.currentMapPreset
-  const mapConfig = currentPreset.map
+  const targetKind = presetStore.mapRollingKind
+  const currentPreset = targetKind === 'chart'
+    ? presetStore.currentChartPreset
+    : presetStore.currentMapPreset
+  const storedMapConfig = targetKind === 'chart'
+    ? currentPreset.chart
+    : currentPreset.map
 
-  if (!mapConfig) {
+  if (!storedMapConfig) {
     ElMessage.error('当前预设未包含地图配置')
     return
   }
+  const mapConfig = getActiveMapRollingConfig(
+    targetKind === 'chart' ? {} : storedMapConfig,
+    targetKind === 'chart' ? storedMapConfig : null,
+    targetKind
+  )
 
   // 验证背包首格坐标（从全局设置中读取）
   const validation = validateMapRollingConfig({
@@ -302,7 +313,11 @@ export async function startMapRolling() {
     })
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
-    const plainPreset = JSON.parse(JSON.stringify(currentPreset))
+    const plainPreset = JSON.parse(JSON.stringify({
+      id: currentPreset.id,
+      name: currentPreset.name,
+      map: mapConfig
+    }))
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({

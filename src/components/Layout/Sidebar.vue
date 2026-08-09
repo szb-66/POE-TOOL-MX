@@ -12,7 +12,7 @@
     </el-menu-item>
     <el-menu-item index="/items" @pointerenter="warmRoute('/items')" @focusin="warmRoute('/items')">
       <el-icon><Box /></el-icon>
-      <span>物品</span>
+      <span>制作</span>
     </el-menu-item>
     <el-menu-item index="/bag" @pointerenter="warmRoute('/bag')" @focusin="warmRoute('/bag')">
       <el-icon><SuitcaseLine /></el-icon>
@@ -36,7 +36,7 @@
     </el-menu-item>
     <el-menu-item index="/craft-planner" @pointerenter="warmRoute('/craft-planner')" @focusin="warmRoute('/craft-planner')">
       <el-icon><SetUp /></el-icon>
-      <span>做装</span>
+      <span>模拟</span>
     </el-menu-item>
     <el-menu-item index="/price-check" @pointerenter="warmRoute('/price-check')" @focusin="warmRoute('/price-check')">
       <el-icon><Coin /></el-icon>
@@ -45,6 +45,10 @@
     <el-menu-item index="/puzzle" @pointerenter="warmRoute('/puzzle')" @focusin="warmRoute('/puzzle')">
       <el-icon><Guide /></el-icon>
       <span>海图</span>
+    </el-menu-item>
+    <el-menu-item index="/tools" @pointerenter="warmRoute('/tools')" @focusin="warmRoute('/tools')">
+      <el-icon><Connection /></el-icon>
+      <span>工具站</span>
     </el-menu-item>
     <el-menu-item index="/settings" @pointerenter="warmRoute('/settings')" @focusin="warmRoute('/settings')">
       <el-icon><Setting /></el-icon>
@@ -60,7 +64,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Coin, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
 
 const route = useRoute()

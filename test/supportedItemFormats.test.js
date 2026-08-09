@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
 import {
   ITEM_FORMAT_GUIDANCE,
+  CHART_FORMAT_GUIDANCE,
   MAP_FORMAT_GUIDANCE,
   SUPPORTED_FORMAT_EXAMPLES
 } from '../src/utils/supportedItemFormats.js'
@@ -56,7 +57,35 @@ test('完整六字段地图样例可解析替代阶级写法和全部扩展基�
 test('页面说明引用全部受测样例', () => {
   assert.equal(ITEM_FORMAT_GUIDANCE.examples.length, 6)
   assert.equal(MAP_FORMAT_GUIDANCE.examples.length, 4)
-  assert.equal(SUPPORTED_FORMAT_EXAMPLES.length, 10)
+  assert.equal(CHART_FORMAT_GUIDANCE.examples.length, 3)
+  assert.equal(SUPPORTED_FORMAT_EXAMPLES.length, 13)
+})
+
+test('航海海图样例解析身份、奖励数值和特殊状态', () => {
+  const identified = parseItemInfo(byId['chart-identified'])
+  assert.equal(identified.category, '海图')
+  assert.equal(identified.name, '航海 跋涉')
+  assert.equal(identified.baseName, '金沙海床海图')
+  assert.equal(identified.areaName, '深渊平原')
+  assert.equal(identified.areaLevel, 83)
+  assert.equal(identified.itemRarity, 98)
+  assert.equal(identified.deadmanSulphur, 30)
+  assert.equal(identified.detailedMods[1].lines.length, 2)
+  assert.equal(identified.explicitMods.some(mod => mod.includes('完成测绘')), false)
+  assert.equal(identified.explicitMods.some(mod => mod.includes('瓦莱丽')), false)
+
+  const unidentified = parseItemInfo(byId['chart-unidentified'])
+  assert.equal(unidentified.name, '珊瑚密林海图')
+  assert.equal(unidentified.baseName, '珊瑚密林海图')
+  assert.equal(unidentified.areaName, '海底林地')
+  assert.equal(unidentified.isUnidentified, true)
+  assert.deepEqual(unidentified.explicitMods, [])
+
+  const corrupted = parseItemInfo(byId['chart-corrupted'])
+  assert.equal(corrupted.itemQuantity, 110)
+  assert.equal(corrupted.monsterPackSize, 16)
+  assert.equal(corrupted.deadmanSulphur, 30)
+  assert.equal(corrupted.isCorrupted, true)
 })
 
 test('所有格式指导示例均可被真实解析器识别', () => {

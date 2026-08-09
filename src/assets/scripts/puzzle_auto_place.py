@@ -149,6 +149,19 @@ def click_physical(x: int, y: int, button: str, delay: float) -> None:
             user32.mouse_event(up, 0, 0, 0, 0)
 
 
+def inventory_tab_point(points: dict[str, Any], page: int) -> tuple[int, int]:
+    value = points.get(str(page), points.get(page)) if isinstance(points, dict) else None
+    if not isinstance(value, dict):
+        raise RuntimeError(f"第 {page} 页仓库页签坐标未配置")
+    return int(value["x"]), int(value["y"])
+
+
+def switch_inventory_page(points: dict[str, Any], page: int, delay: float) -> None:
+    click_physical(*inventory_tab_point(points, page), "left", delay)
+    move_physical(0, 0)
+    time.sleep(max(delay, 0.25 if timing_mode == "fixed" else 0.16))
+
+
 def place_fragment(
     source_point: tuple[int, int],
     target_point: tuple[int, int],
@@ -363,6 +376,7 @@ def main() -> int:
     templates = load_json(config["templatesPath"])
     recognition = config.get("recognition") or {}
     source_slots = config.get("sourceSlots")
+    inventory_tab_points = config.get("inventoryTabPoints") or {}
     inventory_region = config["inventoryRegion"]
     atlas_region = config["atlasRegion"]
     neutral_point = verification_neutral_point(atlas_region, inventory_region, config.get("displayBounds"))
@@ -413,14 +427,20 @@ def main() -> int:
                 completed_indices.add(int(target["index"]))
                 event("step-completed", currentIndex=position, completed=len(completed_indices), target=target, recoveredHeld=True)
                 continue
+        source = planned_sources[position] if planned_sources is not None else {"page": 1}
+        source_page = int(source.get("page", 1))
+        event("source-page", currentIndex=position, completed=len(completed_indices), source=source)
+        try:
+            switch_inventory_page(inventory_tab_points, source_page, delay)
+        except (KeyError, TypeError, ValueError, RuntimeError) as error:
+            return fail("TAB_SWITCH_FAILED", str(error), currentIndex=position, source=source)
         inventory = capture_analyze(inventory_region, templates, "inventory", recognition=recognition)
         if not inventory.get("success"):
             error = inventory.get("error", {})
             return fail(error.get("code", "INVENTORY_RECOGNITION_FAILED"), error.get("message", "碎片仓库识别失败"), currentIndex=position)
         if planned_sources is not None:
-            source = planned_sources[position]
             if not planned_source_valid(inventory, source, target):
-                return fail("SOURCE_NOT_FOUND", f"仓库中没有{target.get('type')}碎片", currentIndex=position)
+                return fail("SOURCE_NOT_FOUND", f"第 {source_page} 页仓库中没有计划的{target.get('type')}碎片，请重新识别对应页面", currentIndex=position, source=source)
         else:
             sources = available_sources(inventory, str(target.get("type")))
             if not sources:

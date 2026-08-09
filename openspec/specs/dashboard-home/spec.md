@@ -22,8 +22,8 @@ Define the dashboard home, unified module status, safe common actions, system he
 - **WHEN** 用户查看首页业务模块
 - **THEN** 系统从上到下依次展示检测、制造、其他三个横向分区
 - **AND** 检测分区从左到右展示背包入库、战斗辅助、商城配方
-- **AND** 制造分区从左到右展示地图洗练、物品制作
-- **AND** 其他分区从左到右展示剧情指引、手动做装
+- **AND** 制造分区从左到右展示地图洗练、制作
+- **AND** 其他分区从左到右展示剧情指引、模拟
 - **AND** 每个模块只出现一次
 
 #### Scenario: 汇总互斥状态
@@ -50,7 +50,7 @@ Define the dashboard home, unified module status, safe common actions, system he
 - **AND** 商城正则是否为空不影响首页状态
 
 #### Scenario: 非运行型模块
-- **WHEN** 做装数据目录可用
+- **WHEN** 模拟数据目录可用
 - **THEN** 对应模块显示为可用
 - **AND** 不显示虚假的启停控制
 
@@ -94,7 +94,7 @@ Define the dashboard home, unified module status, safe common actions, system he
 
 #### Scenario: 高影响操作
 - **WHEN** 用户查看战斗、做装或商城配方卡片
-- **THEN** 首页不提供一键回城、做装数据更新、自动取件执行、校准、登录、重置、预设管理或坐标、阈值、按键等详细参数编辑
+- **THEN** 首页不提供一键回城、模拟数据更新、自动取件执行、校准、登录、重置、预设管理或坐标、阈值、按键等详细参数编辑
 
 #### Scenario: 共享脚本被占用
 - **WHEN** 物品脚本正在运行且用户查看地图卡片，或反之
@@ -170,3 +170,12 @@ Define the dashboard home, unified module status, safe common actions, system he
 - **WHEN** 被动喝药与主动循环同时运行
 - **THEN** 卡片状态文案分别列出两个功能
 - **AND** 两个功能任一未处于游戏前台时状态显示等待游戏窗口
+
+### Requirement: 首页展示地图洗练目标
+系统 SHALL 在首页地图卡片展示最后选中的异界地图或航海海图目标，并针对该目标展示和切换对应的独立预设集合、洗练方式及校验状态。
+
+#### Scenario: 查看航海海图目标
+- **WHEN** 当前地图预设最后选中航海海图
+- **THEN** 首页明确显示航海海图目标
+- **AND** 预设选项只包含航海海图预设
+- **AND** 启动操作使用当前航海海图预设的独立配置

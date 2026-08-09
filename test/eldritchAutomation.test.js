@@ -47,7 +47,7 @@ test('八种模式和等级映射到唯一直接古灵通货并加入预检', ()
     for (let tier = 1; tier <= 4; tier += 1) {
       const moduleEldritch = { enabled: true, source: sourceName, tier, targets: [] }
       assert.equal(eldritchCurrencyType(moduleEldritch), expected[sourceName][tier - 1])
-      assert.deepEqual(buildCraftingCurrencyPreflight({ moduleEldritch }), ['wisdom', expected[sourceName][tier - 1]])
+      assert.deepEqual(buildCraftingCurrencyPreflight({ moduleEldritch }), [expected[sourceName][tier - 1]])
     }
   }
 })
@@ -55,7 +55,7 @@ test('八种模式和等级映射到唯一直接古灵通货并加入预检', ()
 test('古灵启动校验要求目标、互斥模块和所选通货坐标', () => {
   const base = {
     itemPosition: { x: 100, y: 100 },
-    currencyPositions: { wisdom: { x: 10, y: 15 }, 'grand-eldritch-ichor': { x: 20, y: 30 } },
+    currencyPositions: { 'grand-eldritch-ichor': { x: 20, y: 30 } },
     preset: {
       moduleTwo: { enabled: false },
       moduleThree: { enabled: false },
@@ -68,6 +68,7 @@ test('古灵启动校验要求目标、互斥模块和所选通货坐标', () =>
     }
   }
   assert.equal(validateCraftingConfig(base).isValid, true)
+  assert.doesNotMatch(validateCraftingConfig(base).errors.join('\n'), /知识卷轴/)
   assert.match(validateCraftingConfig({ ...base, currencyPositions: {} }).errors.join('\n'), /上级古灵溶液/)
   assert.match(validateCraftingConfig({
     ...base,
@@ -214,6 +215,7 @@ test('生成的古灵流程初始命中与非法底材零消耗，重骰命中�
     }
     const script = generatePythonScript(config)
     assert.equal(script.includes('{{'), false)
+    assert.match(script, /eldritch_enabled = True[\s\S]*prepare_item_for_crafting\(identify_unidentified=not eldritch_enabled\)/)
     const start = script.indexOf('def fail_eldritch_crafting(')
     const end = script.indexOf('def craft_sockets(', start)
     assert.ok(start >= 0 && end > start)

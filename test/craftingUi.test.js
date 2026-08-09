@@ -5,7 +5,7 @@ import { HELP_TOPICS, topicText } from '../src/domains/help/helpContent.js'
 
 const helpContentText = async () => HELP_TOPICS.map(topicText).join('\n')
 
-test('做装页面以选择底材、手动通货、装备变化和三级目录为主流程', async () => {
+test('模拟页面以选择底材、手动通货、装备变化和三级目录为主流程', async () => {
   const [router, sidebar, view] = await Promise.all([
     readFile('src/router/index.js', 'utf8'),
     readFile('src/components/Layout/Sidebar.vue', 'utf8'),
@@ -80,7 +80,7 @@ test('preload 暴露具名手动做装与三级目录接口并保留兼容接口
     assert.match(preload, new RegExp(name))
   }
   assert.match(api, /crafting:\s*\{/)
-  assert.match(api, /仅 Electron 客户端支持手动做装/)
+  assert.match(api, /仅 Electron 客户端支持模拟功能/)
   assert.match(store, /const eldritch = ref/)
   assert.match(store, /applyManualEldritchCraft/)
   assert.match(store, /listManualEldritchCrafts/)

@@ -278,6 +278,27 @@ def focus_game_window(timeout_seconds: float = 2.0) -> tuple[bool, str]:
     return False, "GAME_FOCUS_FAILED"
 
 
+def click_inventory_tab(point: dict[str, Any], settle_seconds: float = 0.25) -> None:
+    if os.name != "nt":
+        raise RuntimeError("仓库自动切页目前仅支持 Windows")
+    if not is_game_foreground():
+        raise RuntimeError("游戏窗口未处于前台，未执行仓库页签点击")
+    x = int(point["x"])
+    y = int(point["y"])
+    user32 = ctypes.windll.user32
+    user32.SetCursorPos(x, y)
+    if not is_game_foreground():
+        raise RuntimeError("移动到仓库页签后游戏失去前台，未执行点击")
+    user32.mouse_event(0x0002, 0, 0, 0, 0)
+    try:
+        time.sleep(0.04)
+    finally:
+        user32.mouse_event(0x0004, 0, 0, 0, 0)
+    if not user32.SetCursorPos(0, 0):
+        raise RuntimeError("分页后无法将鼠标移出识别区域")
+    time.sleep(max(0.16, float(settle_seconds)))
+
+
 def region_monitor(region: dict[str, Any], columns: int = COLS, rows: int = ROWS) -> dict[str, int]:
     left = int(round(float(region.get("left", region.get("x", 0)))))
     top = int(round(float(region.get("top", region.get("y", 0)))))
@@ -629,10 +650,12 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
             counts[fragment_type] += 1
             if uncertain:
                 warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
-    occupied_count = sum(counts.values())
-    if occupied_count == 0 and region_type != "atlas":
-        return fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片，请重新框选完整仓库")
     grid_confidence_value = grid_confidence(image, columns, rows) if region_type == "inventory" else 1.0
+    occupied_count = sum(counts.values())
+    if occupied_count == 0 and region_type != "atlas" and not bool(recognition.get("allowEmpty") if isinstance(recognition, dict) else False):
+        return fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片，请重新框选完整仓库")
+    if occupied_count == 0 and region_type != "atlas" and grid_confidence_value < 0.5:
+        return fail("EMPTY_GRID_UNCERTAIN", "未识别到碎片且网格对齐置信度过低，请重新框选完整仓库")
     grid_alignment = "high" if grid_confidence_value >= 0.8 else "medium" if grid_confidence_value >= 0.5 else "low"
     if grid_confidence_value < 0.5:
         warnings.append("框选网格与游戏网格偏差较大，请重新框选")
@@ -675,8 +698,17 @@ def main() -> int:
                     }
                     emit(fail(focus_error, messages.get(focus_error, "无法激活游戏窗口")))
                     return 2
+            tab_point = config.get("tabPoint")
+            if tab_point is not None:
+                try:
+                    click_inventory_tab(tab_point, config.get("tabSettleSeconds", 0.25))
+                except (KeyError, TypeError, ValueError, RuntimeError) as error:
+                    emit(fail("TAB_SWITCH_FAILED", str(error)))
+                    return 2
             image = capture_region(config["region"], str(config.get("regionType", "inventory")))
-        payload = analyze_image(image, templates, str(config.get("regionType", "inventory")), config.get("recognition"))
+        recognition = dict(config.get("recognition") or {})
+        recognition["allowEmpty"] = bool(config.get("allowEmpty", False))
+        payload = analyze_image(image, templates, str(config.get("regionType", "inventory")), recognition)
     except KeyError as error:
         payload = fail("CONFIG_INVALID", f"识别配置缺少字段：{error}")
     except Exception as error:

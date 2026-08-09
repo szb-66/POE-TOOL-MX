@@ -54,6 +54,11 @@ const routes = [
     component: pageLoaders['/puzzle']
   },
   {
+    path: '/tools',
+    name: 'Tools',
+    component: pageLoaders['/tools']
+  },
+  {
     path: '/puzzle-overlay',
     name: 'PuzzleOverlay',
     component: () => import('../domains/puzzle/PuzzleOverlayView.vue'),

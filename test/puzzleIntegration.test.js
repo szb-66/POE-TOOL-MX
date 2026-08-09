@@ -61,6 +61,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(main, /new PuzzleAnalysisService/)
   assert.match(source('../electron/modules/puzzle/service.js'), /if \(this\.busy\)[\s\S]*ANALYSIS_BUSY/)
   assert.match(source('../electron/modules/puzzle/service.js'), /async analyze[\s\S]*requireGameForeground: true/)
+  assert.match(source('../electron/modules/puzzle/service.js'), /requestedPages[\s\S]*\[1, 2\][\s\S]*pages: results/)
   assert.match(source('../src/utils/scriptService.js'), /puzzleAnalyze: startPuzzleAnalysis/)
   assert.match(router, /path: '\/puzzle'/)
   assert.match(app, /router\.push\('\/puzzle'\)/)
@@ -109,7 +110,7 @@ test('仓库编辑、出口硬约束、来源高亮和 100 个上限均由页面
 test('碎片右键逆时针旋转且角度修正跳过完整重算', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(view, /store\.updateSlotOrientation\(slot\.row, slot\.column, slot\.orientation - step\)/)
-  assert.match(view, /右键逆时针旋转角度/)
+  assert.match(view, /右键“逆时针旋转角度”/)
   const store = source('../src/stores/puzzle.js')
   const orientation = store.match(/function updateSlotOrientation\([\s\S]*?\n  \}/)?.[0] || ''
   assert.match(orientation, /refreshSourceAssignments\(\)/)
@@ -199,7 +200,7 @@ test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const headingActions = view.match(/<div class="heading-actions">([\s\S]*?)<\/div>/)?.[1] || ''
   assert.doesNotMatch(headingActions, /框选碎片仓库|框选海图区/)
-  assert.match(view, /class="configuration-actions"[\s\S]*:disabled="executing" @click="pickRegion\(config\.type\)"/)
+  assert.match(view, /class="configuration-actions"[\s\S]*:disabled="executing \|\| analyzing" @click="pickRegion\(config\.type\)"/)
   assert.match(view, /type: 'inventory'[\s\S]*pickLabel: '框选碎片仓库'/)
   assert.match(view, /type: 'atlas'[\s\S]*pickLabel: '框选海图区'/)
 })
@@ -208,21 +209,21 @@ test('低置信度碎片保留警告但仍参与海图求解与来源分配', ()
   const store = source('../src/stores/puzzle.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(store, /counts: counts\.value/)
-  assert.match(store, /assignSourceSlots\(solution, slots\.value\)/)
+  assert.match(store, /assignSourceSlots\(solution, allSlots\.value\)/)
   assert.doesNotMatch(store, /剩余来源碎片存在待确认项/)
   assert.match(view, /auto-blocked-reason/)
   assert.match(view, /\{\{ autoPlaceBlockedReason \}\}/)
 })
 
-test('用户开始新识别时清空旧方案、格子、错误和执行进度', () => {
+test('重新框选仓库时清空双页结果，单页识别只由服务重置执行进度', () => {
   const store = source('../src/stores/puzzle.js')
   const service = source('../electron/modules/puzzle/service.js')
   const reset = store.match(/function resetAnalysisState\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
-  assert.match(reset, /slots\.value = emptySlots\(\)/)
+  assert.match(reset, /inventoryPages\.value = \{ 1: emptyInventoryPage\(1\), 2: emptyInventoryPage\(2\) \}/)
   assert.match(reset, /result\.value = emptyResult\(\)/)
   assert.match(reset, /execution\.value = \{ status: 'idle'/)
   assert.match(reset, /error\.value = null/)
-  assert.match(store, /if \(!preserveSolution\) resetAnalysisState\(\)/)
+  assert.match(store, /inventoryTabPoints\.value = normalizePuzzleTabPoints\(\)[\s\S]*resetAnalysisState\(\)/)
   assert.match(service, /if \(resetExecution\)[\s\S]*event: 'reset'/)
 })
 

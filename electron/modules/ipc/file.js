@@ -16,6 +16,14 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
   const { getMainWindow, getOverlayWindow } = window
   const { getFilePaths } = fileWatcher
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
+  const isRollingCategory = (category) => isMapCategory(category) || category === '海图'
+  const activeMapConfig = (map = {}) => {
+    if (map.targetKind === 'chart' || map.targetKind === 'atlas') return map
+    return map.activeKind === 'chart'
+      ? { ...(map.chart || {}), targetKind: 'chart' }
+      : { ...map, targetKind: 'atlas' }
+  }
+  const rollingTarget = (config) => activeMapConfig(config?.map || {}).targetKind === 'chart' ? 'chart' : 'atlas'
   const sendItemResult = (result, config) => {
     const overlayWindow = getOverlayWindow()
     if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('update-overlay', result)
@@ -124,8 +132,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
 
       // 匹配地图（地图制作）- 仅用于判断，统计完全由脚本负责
       let mapMatchResult = { isMatch: false }
-      if (config && config.map && isMapCategory(itemInfo.category)) {
-        mapMatchResult = matchMapRequirements(itemInfo, config.map)
+      if (config && config.map && isRollingCategory(itemInfo.category)) {
+        mapMatchResult = matchMapRequirements(itemInfo, activeMapConfig(config.map))
       }
 
       const eldritchMatchResult = config?.moduleEldritch?.enabled
@@ -180,6 +188,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         itemQuantity: itemInfo.itemQuantity,
         itemRarity: itemInfo.itemRarity,
         monsterPackSize: itemInfo.monsterPackSize,
+        areaLevel: itemInfo.areaLevel || 0,
+        areaName: itemInfo.areaName || '',
+        deadmanSulphur: itemInfo.deadmanSulphur || 0,
         mapTier: itemInfo.mapTier,
         moreMaps: itemInfo.moreMaps || 0,
         moreScarabs: itemInfo.moreScarabs || 0,
@@ -206,7 +217,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         socketMatch,
         isLegendary,
         iteration: currentIteration,
-        mapStats: isMapCategory(itemInfo.category) ? {
+        rollingTarget: rollingTarget(config),
+        mapStats: isRollingCategory(itemInfo.category) ? {
           processedCount: scriptProcessedCount !== null && scriptProcessedCount !== undefined 
             ? scriptProcessedCount 
             : 0,
@@ -243,7 +255,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
     if (hasMapStats) {
       // 如果 result 中没有 category，但 config 中有地图配置，则认为是地图模式
       // 或者如果 result 中已经有 category 为异界地图，也认为是地图模式
-      const isMapMode = isMapCategory(result.category) || config?.map
+      const isMapMode = isRollingCategory(result.category) || config?.map
       
       if (isMapMode) {
         result.mapStats = {
@@ -262,8 +274,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         }
         // 确保 category 存在，以便前端正确识别为地图模式
         if (!result.category) {
-          result.category = '地图'
+          result.category = rollingTarget(config) === 'chart' ? '海图' : '地图'
         }
+        result.rollingTarget = rollingTarget(config)
       }
     }
     

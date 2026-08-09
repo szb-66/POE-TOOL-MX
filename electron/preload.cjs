@@ -136,6 +136,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cancelScreenCoordinatePicker: () => ipcRenderer.send('coordinate-picker-cancel'),
   pickPuzzleInventoryRegion: () => ipcRenderer.invoke('puzzle-pick-inventory-region'),
   pickPuzzleAtlasRegion: () => ipcRenderer.invoke('puzzle-pick-atlas-region'),
+  pickPuzzleInventoryTabPoint: (page) => ipcRenderer.invoke('puzzle-pick-inventory-tab-point', page),
   clearPuzzleRegion: (type) => ipcRenderer.invoke('puzzle-clear-region', type),
   getPuzzleConfiguration: (request) => ipcRenderer.invoke('puzzle-configuration', request),
   analyzePuzzle: (request) => ipcRenderer.invoke('puzzle-analyze', request),

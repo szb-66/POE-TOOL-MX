@@ -1,6 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cleanMigratedMapConfig, createDefaultMapConfig } from '../src/utils/mapPresetMigration.js'
+import {
+  cleanMigratedChartConfig,
+  cleanMigratedMapConfig,
+  createDefaultMapConfig,
+  getActiveMapRollingConfig
+} from '../src/utils/mapPresetMigration.js'
 
 test('地图公共基底迁移时取已启用配置中的更严格阈值', () => {
   const map = cleanMigratedMapConfig({
@@ -47,4 +52,24 @@ test('地图配置迁移可重复执行且默认包含六项基底', () => {
   assert.deepEqual(Object.keys(once.match.mandatoryStats), [
     'quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency'
   ])
+})
+
+test('地图与航海海图配置独立迁移且运行时按目标选择', () => {
+  const once = cleanMigratedMapConfig({ method: 'chaos', match: { blacklist: ['反射'] } })
+  const twice = cleanMigratedMapConfig(once)
+  assert.deepEqual(twice, once)
+  assert.equal(once.method, 'chaos')
+  assert.deepEqual(once.match.blacklist, ['反射'])
+  assert.equal('chart' in once, false)
+  assert.equal('activeKind' in once, false)
+
+  const chart = cleanMigratedChartConfig({ method: 'alchemy' }, once.grid)
+  assert.deepEqual(Object.keys(chart.match.mandatoryStats), [
+    'quantity', 'rarity', 'packSize', 'deadmanSulphur'
+  ])
+  chart.method = 'chaos'
+  const active = getActiveMapRollingConfig(once, chart, 'chart')
+  assert.equal(active.targetKind, 'chart')
+  assert.equal(active.method, 'chaos')
+  assert.equal(active.grid.rows, 5)
 })

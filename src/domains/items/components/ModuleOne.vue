@@ -3,7 +3,7 @@
     <div class="module-content">
       <div class="form-row">
         <div class="form-item">
-          <label class="form-label">物品开始</label>
+          <label class="form-label">制作开始</label>
           <KeyCaptureInput :model-value="form.itemStart" class="form-input" @change="handleSave" />
         </div>
         <div class="form-item">

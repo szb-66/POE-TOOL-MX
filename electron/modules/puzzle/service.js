@@ -5,7 +5,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
-import { normalizePuzzleRegionMetadata, validatePuzzleRegionEnvironment } from '../../../src/utils/puzzleConfig.js'
+import {
+  normalizePuzzleRegionMetadata,
+  normalizePuzzleTabPoints,
+  validatePuzzleRegionEnvironment,
+  validatePuzzleTabPoint
+} from '../../../src/utils/puzzleConfig.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const AUTOMATION_OWNER = '海图自动放置'
@@ -196,6 +201,17 @@ export class PuzzleAnalysisService {
 
   pickAtlasRegion() { return this.pickRegion('atlas') }
 
+  async pickInventoryTabPoint(page) {
+    const mainWindow = this.getMainWindow?.()
+    try {
+      mainWindow?.minimize()
+      await sleep(500)
+      return await this.window.pickScreenCoordinate()
+    } finally {
+      restoreWindow(mainWindow)
+    }
+  }
+
   clearRegion(type = 'inventory') {
     const regionType = type === 'atlas' ? 'atlas' : 'inventory'
     try {
@@ -254,6 +270,11 @@ export class PuzzleAnalysisService {
     }
     if (event.event === 'started') {
       this.setExecution({ status: 'running', total: Number(event.total || 9), completed: Number(event.completed || 0), reason: '', error: null }, event)
+    } else if (event.event === 'source-page') {
+      this.setExecution({
+        status: 'running', currentIndex: Number(event.currentIndex), completed: Number(event.completed || 0),
+        source: event.source || null
+      }, event)
     } else if (event.event === 'step') {
       this.setExecution({
         status: 'running', currentIndex: Number(event.currentIndex), completed: Number(event.completed || 0),
@@ -283,7 +304,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, targets, sourceSlots, recognition, operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000, resume = false } = {}) {
+  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, recognition, operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
@@ -295,9 +316,18 @@ export class PuzzleAnalysisService {
       if (!Array.isArray(targets) || targets.length !== 9 || targets.some(target => !(Number(target?.mask) & 15))) {
         throw codedError('PLAN_INVALID', '当前海图方案不完整，无法自动放置')
       }
+      if (!Array.isArray(sourceSlots) || sourceSlots.length !== 9) {
+        throw codedError('PLAN_INVALID', '当前海图来源不完整，无法自动放置')
+      }
+      const tabPoints = normalizePuzzleTabPoints(inventoryTabPoints)
+      for (const page of new Set(sourceSlots.map(source => Number(source?.page || 1)))) {
+        const validation = validatePuzzleTabPoint(tabPoints[page], inventoryRegionMetadata, page, tabPoints[page === 1 ? 2 : 1])
+        if (!validation.valid) throw codedError(validation.code, validation.message)
+      }
       const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'puzzle-auto-place-')
       fs.writeFileSync(configPath, JSON.stringify({
         inventoryRegion: inventory.selectedRegion,
+        inventoryTabPoints: tabPoints,
         atlasRegion: atlas.selectedRegion,
         displayBounds: atlasRegionMetadata?.displayPhysicalBounds || null,
         targets,
@@ -413,9 +443,13 @@ export class PuzzleAnalysisService {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
-  async analyze({ regionMetadata, recognition, resetExecution = true } = {}) {
-    if (this.automationChild) return { success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置期间不能重新识别' } }
-    if (this.busy) return { success: false, error: { code: 'ANALYSIS_BUSY', message: '海图识别正在进行，请稍候' } }
+  async analyze({ regionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true } = {}) {
+    const requestedPages = Array.isArray(pages)
+      ? [...new Set(pages.map(value => Number(value)).filter(value => value === 1 || value === 2))].sort((left, right) => left - right)
+      : [1, 2].includes(Number(page)) ? [Number(page)] : [1, 2]
+    const responsePage = requestedPages.length === 1 ? requestedPages[0] : null
+    if (this.automationChild) return { success: false, page: responsePage, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置期间不能重新识别' } }
+    if (this.busy) return { success: false, page: responsePage, error: { code: 'ANALYSIS_BUSY', message: '海图识别正在进行，请稍候' } }
     if (resetExecution) {
       this.execution = { status: 'idle', currentIndex: -1, total: 9, completed: 0, source: null, target: null, turns: 0, reason: '', error: null }
       this.overlay?.close?.()
@@ -426,18 +460,39 @@ export class PuzzleAnalysisService {
     const mainWindow = this.getMainWindow?.()
     try {
       const metadata = this.validateRegion(regionMetadata)
-      const result = await this.runAnalyzer({
-        region: metadata.selectedRegion,
-        templatesPath: this.templatesPath(),
-        regionType: 'inventory',
-        recognition,
-        requireGameForeground: true
-      })
-      const payload = result.success ? { ...result, regionMetadata: metadata } : result
+      if (!requestedPages.length) throw codedError('TAB_PAGE_INVALID', '仓库页码无效')
+      const tabPoints = normalizePuzzleTabPoints(inventoryTabPoints)
+      for (const currentPage of requestedPages) {
+        const validation = validatePuzzleTabPoint(tabPoints[currentPage], metadata, currentPage, tabPoints[currentPage === 1 ? 2 : 1])
+        if (!validation.valid) throw codedError(validation.code, validation.message)
+      }
+      const results = []
+      for (const currentPage of requestedPages) {
+        const result = await this.runAnalyzer({
+          region: metadata.selectedRegion,
+          templatesPath: this.templatesPath(),
+          regionType: 'inventory',
+          recognition,
+          allowEmpty: true,
+          requireGameForeground: true,
+          page: currentPage,
+          tabPoint: tabPoints[currentPage],
+          tabSettleSeconds: 0.25
+        })
+        if (!result.success) {
+          const payload = { ...result, page: currentPage }
+          this.publish(payload)
+          return payload
+        }
+        results.push({ ...result, page: currentPage })
+      }
+      const payload = results.length === 1
+        ? { ...results[0], regionMetadata: metadata }
+        : { success: true, pages: results, regionMetadata: metadata }
       this.publish(payload)
       return payload
     } catch (error) {
-      const payload = { success: false, error: { code: error.code || 'PUZZLE_ANALYSIS_FAILED', message: error.message || String(error) } }
+      const payload = { success: false, page: responsePage, error: { code: error.code || 'PUZZLE_ANALYSIS_FAILED', message: error.message || String(error) } }
       this.publish(payload)
       return payload
     } finally {

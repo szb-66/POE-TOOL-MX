@@ -33,7 +33,7 @@ test('物品制作界面公开默认保护开关，启动门禁先准备物品�
   assert.doesNotMatch(moduleOne, /达标即停止|统一控制词缀、古灵隐式和插槽制作/)
 
   const preflight = template.indexOf('if not preflight_required_currencies():')
-  const preparation = template.indexOf('initial_item_result = prepare_item_for_crafting()', preflight)
+  const preparation = template.indexOf('initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)', preflight)
   const startupSucceeded = template.indexOf('"event": "crafting-startup-succeeded"', preparation)
   const eldritch = template.indexOf('craft_eldritch_implicits(initial_item_result)', startupSucceeded)
   const affixes = template.indexOf('craft_affixes(initial_item_result)', startupSucceeded)
@@ -82,7 +82,7 @@ def release_all_keys(): pass
 def play_error_sound(): pass
 def move_mouse(x, y): return True
 
-def run(results, read_results=None, apply_success=True):
+def run(results, read_results=None, apply_success=True, identify_unidentified=True):
     global is_running, fatal_error_reason, queue, reads, applied
     is_running = True
     fatal_error_reason = None
@@ -95,7 +95,7 @@ def run(results, read_results=None, apply_success=True):
     globals()["read_clipboard_to_file"] = read
     globals()["wait_for_parse_result"] = wait
     globals()["apply_currency"] = apply
-    prepared = prepare_item_for_crafting()
+    prepared = prepare_item_for_crafting(identify_unidentified=identify_unidentified)
     return {"prepared": prepared, "applied": applied, "fatal": fatal_error_reason}
 
 identified = {"rarity": "魔法", "isUnidentified": False}
@@ -103,6 +103,7 @@ unidentified = {"rarity": "稀有", "isUnidentified": True}
 print(json.dumps({
   "identified": run([identified]),
   "unidentified": run([unidentified, identified]),
+  "eldritchUnidentified": run([unidentified], identify_unidentified=False),
   "identifyFailed": run([unidentified], apply_success=False),
   "still": run([unidentified, unidentified]),
   "parseFailed": run([{"error": "无法解析"}]),
@@ -114,6 +115,9 @@ print(json.dumps({
   assert.equal(result.identified.prepared.isUnidentified, false)
   assert.deepEqual(result.unidentified.applied, ['wisdom'])
   assert.equal(result.unidentified.prepared.isUnidentified, false)
+  assert.deepEqual(result.eldritchUnidentified.applied, [])
+  assert.equal(result.eldritchUnidentified.prepared, null)
+  assert.match(result.eldritchUnidentified.fatal, /未鉴定.*请先.*鉴定/)
   assert.equal(result.identifyFailed.prepared, null)
   assert.match(result.identifyFailed.fatal, /知识卷轴/)
   assert.deepEqual(result.still.applied, ['wisdom'])

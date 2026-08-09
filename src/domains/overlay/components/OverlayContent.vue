@@ -24,12 +24,12 @@
     <!-- 地图制作模式：显示统计信息 -->
     <div v-if="isMapMode && hasContent" class="overlay-content">
       <div class="item-header">
-        <span>地图概览</span>
+        <span>{{ rollingTargetLabel }}概览</span>
       </div>
 
       <div class="map-stats-container">
         <div class="stat-item">
-          <span class="stat-label">已处理地图数量：</span>
+          <span class="stat-label">已处理{{ rollingTargetLabel }}数量：</span>
           <span class="stat-value">{{ mapStats?.processedCount || 0 }}</span>
         </div>
         <div class="stat-item">
@@ -253,8 +253,14 @@ watch(() => props.isStopped, (v) => {
 
 // 判断是否为地图制作模式
 const isMapMode = computed(() => {
-  return ['异界地图', '地图'].includes(props.itemInfo?.category) || props.mapStats !== null
+  return ['异界地图', '地图', '海图'].includes(props.itemInfo?.category) || props.mapStats !== null
 })
+
+const rollingTargetLabel = computed(() => (
+  props.itemInfo?.rollingTarget === 'chart' || props.itemInfo?.category === '海图'
+    ? '航海海图'
+    : '地图'
+))
 
 const hasContent = computed(() => {
   if (isMapMode.value) {

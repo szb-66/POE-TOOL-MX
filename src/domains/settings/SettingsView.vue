@@ -81,7 +81,7 @@
             </el-form-item>
             <el-row :gutter="40">
               <el-col :span="8">
-                <el-form-item label="物品开始">
+                <el-form-item label="制作开始">
                   <KeyCaptureInput :model-value="shortcuts.itemStart" @change="handleShortcutsChange('itemStart', $event)" />
                 </el-form-item>
               </el-col>

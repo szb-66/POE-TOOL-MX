@@ -215,13 +215,13 @@ export function assignSourceSlots(solution, slots = []) {
     .sort((left, right) => {
       const leftConfidence = left.corrected ? 2 : Number(left.confidence || 0)
       const rightConfidence = right.corrected ? 2 : Number(right.confidence || 0)
-      return rightConfidence - leftConfidence || left.row - right.row || left.column - right.column
+      return rightConfidence - leftConfidence || Number(left.page || 1) - Number(right.page || 1) || left.row - right.row || left.column - right.column
     })]))
   const sourceSlots = []
   for (const cell of solution.cells) {
     const source = available.get(cell.type)?.shift()
     if (!source) return []
-    sourceSlots.push({ row: source.row, column: source.column, type: source.type, cellIndex: cell.index })
+    sourceSlots.push({ page: Number(source.page || 1), row: source.row, column: source.column, type: source.type, cellIndex: cell.index })
   }
   return sourceSlots
 }

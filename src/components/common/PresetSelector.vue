@@ -49,7 +49,7 @@ const props = defineProps({
   type: {
     type: String,
     default: 'item',
-    validator: (value) => ['item', 'map', 'shop'].includes(value)
+    validator: (value) => ['item', 'map', 'chart', 'shop'].includes(value)
   }
 })
 
@@ -73,6 +73,15 @@ const presetAccess = computed(() => ({
     remove: presetStore.deleteMapPreset,
     switchTo: presetStore.switchMapPreset,
     update: presetStore.updateCurrentMapPreset
+  },
+  chart: {
+    presets: presetStore.chartPresets,
+    currentId: presetStore.currentChartPresetId,
+    current: presetStore.currentChartPreset,
+    add: presetStore.addChartPreset,
+    remove: presetStore.deleteChartPreset,
+    switchTo: presetStore.switchChartPreset,
+    update: presetStore.updateCurrentChartPreset
   },
   shop: {
     presets: presetStore.shopPresets,
