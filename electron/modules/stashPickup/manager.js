@@ -31,19 +31,21 @@ function terminate(child) {
 }
 
 export class StashPickupManager {
-  constructor({ python, fileWatcher, getMainWindow, interfaceDetection, automationLock, onStatusChange }) {
+  constructor({ python, fileWatcher, getMainWindow, interfaceDetection, automationLock, calibration, onStatusChange }) {
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
     this.interfaceDetection = interfaceDetection
     this.automationLock = automationLock
+    this.calibration = calibration
     this.onStatusChange = onStatusChange
-    this.runtime = { enabled: false, calibration: {}, profiles: {}, operationDelayMs: 80 }
+    this.runtime = { enabled: false, calibration: {}, operationDelayMs: 80 }
     this.child = null
     this.allowingFocusTransition = false
     this.status = {
-      status: 'idle', layout: 0, method: 'variance', candidateCells: 0,
-      remainingCells: 0, pickedItems: 0, currentIndex: 0, reason: ''
+      status: 'idle', layout: 0, method: 'highlight-model', candidateCells: 0,
+      remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
+      modelVersion: '', calibration: '', reason: ''
     }
     this.disposeDetection = interfaceDetection?.subscribe(state => {
       if (this.status.status === 'running' && !this.allowingFocusTransition && (!state.ready || !state.foreground)) {
@@ -54,20 +56,24 @@ export class StashPickupManager {
 
   scriptPath() {
     const candidates = app.isPackaged
-      ? [path.join(process.resourcesPath, 'stash_pickup_template.py')]
-      : [
-          path.resolve(moduleDir, '../../../src/assets/scripts/stash_pickup_template.py'),
-          path.join(app.getAppPath(), 'src/assets/scripts/stash_pickup_template.py')
-        ]
+      ? [path.join(process.resourcesPath, 'junfeng_highlight_pickup.py')]
+      : [path.resolve(moduleDir, '../../../src/assets/scripts/junfeng_highlight_pickup.py')]
     const found = candidates.find(value => fs.existsSync(value))
     if (!found) throw new Error('仓库自动取件脚本不存在')
     return found
   }
 
   pythonPath() {
-    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'pynput']) || this.python.detectPythonPath?.()
-    if (!found) throw new Error('未找到具备 cv2、mss、numpy、pynput 的 Python 3')
+    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput']) || this.python.detectPythonPath?.()
+    if (!found) throw new Error('未找到仓库高亮识别所需 Python 运行时')
     return found
+  }
+
+  modelPaths() {
+    const root = app.isPackaged
+      ? path.join(process.resourcesPath, 'junfeng-highlight-model')
+      : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
+    return { model: path.join(root, 'model.onnx'), manifest: path.join(root, 'manifest.json') }
   }
 
   setRuntime(runtime = {}) {
@@ -78,10 +84,29 @@ export class StashPickupManager {
 
   writeConfig() {
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'stash_pickup_config.json')
+    const model = this.modelPaths()
+    const templates = this.runtime.templates || {}
     fs.writeFileSync(configPath, JSON.stringify({
       calibration: this.runtime.calibration || {},
-      profiles: this.runtime.profiles || {},
-      operationDelayMs: Number(this.runtime.operationDelayMs || 80),
+      interface_mode: 'stash',
+      templates: {
+        stash_title: String(templates.stashTitle || ''),
+        inventory_title: String(templates.inventoryTitle || ''),
+        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
+        stash_region: templates.stashRegion || {},
+        inventory_region: templates.inventoryRegion || {},
+        junfeng_reward_region: templates.junfengRewardRegion || {}
+      },
+      match_threshold: Number(this.runtime.matchThreshold ?? 0.8),
+      layout_confidence: 1.15,
+      model_path: model.model,
+      manifest_path: model.manifest,
+      highlight_threshold: 0.995,
+      abort_on_uncertain: false,
+      calibration_similarity: 0.965,
+      calibration_index: this.calibration?.indexPath || '',
+      calibration_root: this.calibration?.root || '',
+      operation_delay_ms: Number(this.runtime.operationDelayMs || 80),
       timing_mode: this.runtime.adaptiveTiming === false ? 'fixed' : 'adaptive',
       adaptive_timeout_ms: Math.max(500, Math.min(3000, Number(this.runtime.adaptiveTimeoutMs) || 1000)),
       fixed_timing: pythonFixedTiming(this.runtime.fixedTiming)
@@ -117,7 +142,7 @@ export class StashPickupManager {
       const child = this.spawnProcess(['--config', configPath, '--preview'], event => {
         if (event.event === 'preview') {
           settled = true
-          resolve(event)
+          resolve(this.normalizeEvent(event))
         } else if (event.event === 'error') {
           settled = true
           reject(new Error(event.reason || '检测预览失败'))
@@ -135,7 +160,11 @@ export class StashPickupManager {
     this.ensureReady({ requireForeground: false })
     const gate = this.automationLock?.acquire(OWNER) || { success: true }
     if (!gate.success) throw new Error(gate.error)
-    this.status = { ...this.status, status: 'running', candidateCells: 0, remainingCells: 0, pickedItems: 0, currentIndex: 0, reason: '' }
+    this.status = {
+      ...this.status, status: 'running', method: 'highlight-model', candidateCells: 0,
+      remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
+      modelVersion: '', calibration: '', reason: ''
+    }
     this.allowingFocusTransition = true
     try {
       const configPath = this.writeConfig()
@@ -159,21 +188,34 @@ export class StashPickupManager {
 
   handleEvent(child, event) {
     if (this.child !== child) return
+    event = this.normalizeEvent(event)
     this.allowingFocusTransition = false
     Object.assign(this.status, {
       status: event.event === 'completed' ? 'completed' : event.event === 'aborted' || event.event === 'error' ? 'stopped' : 'running',
       layout: Number(event.layout || this.status.layout || 0),
-      method: event.method || this.status.method,
-      candidateCells: Number(event.candidateCells ?? this.status.candidateCells),
-      remainingCells: Number(event.remainingCells ?? this.status.remainingCells),
+      method: 'highlight-model',
+      candidateCells: Number(event.candidateCells ?? event.candidateItems ?? this.status.candidateCells),
+      remainingCells: Number(event.remainingCells ?? event.remainingItems ?? this.status.remainingCells),
       pickedItems: Number(event.pickedItems ?? this.status.pickedItems),
       currentIndex: Number(event.currentIndex ?? this.status.currentIndex),
+      uncertainCells: Number(event.uncertainCells ?? this.status.uncertainCells),
+      modelVersion: event.modelVersion || this.status.modelVersion,
+      calibration: event.calibration || this.status.calibration,
       reason: event.reason || ''
     })
     this.publish(event)
     if (event.event === 'completed' || event.event === 'aborted' || event.event === 'error') {
       this.child = null
       this.automationLock?.release(OWNER)
+    }
+  }
+
+  normalizeEvent(event = {}) {
+    return {
+      ...event,
+      method: 'highlight-model',
+      candidateCells: Number(event.candidateCells ?? event.candidateItems ?? 0),
+      remainingCells: Number(event.remainingCells ?? event.remainingItems ?? 0)
     }
   }
 

@@ -16,7 +16,11 @@
     </el-menu-item>
     <el-menu-item index="/bag" @pointerenter="warmRoute('/bag')" @focusin="warmRoute('/bag')">
       <el-icon><SuitcaseLine /></el-icon>
-      <span>背包</span>
+      <span>存取</span>
+    </el-menu-item>
+    <el-menu-item index="/highlight-model-training" @pointerenter="warmRoute('/highlight-model-training')" @focusin="warmRoute('/highlight-model-training')">
+      <el-icon><DataAnalysis /></el-icon>
+      <span>模型训练</span>
     </el-menu-item>
     <el-menu-item index="/map" @pointerenter="warmRoute('/map')" @focusin="warmRoute('/map')">
       <el-icon><MapLocation /></el-icon>
@@ -64,7 +68,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Coin, Connection, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
 
 const route = useRoute()

@@ -3,7 +3,8 @@ import path from 'path'
 
 export const BAG_TEMPLATE_TARGETS = Object.freeze({
   stashTitle: 'stash_title.png',
-  inventoryTitle: 'inventory_title.png'
+  inventoryTitle: 'inventory_title.png',
+  junfengRewardTitle: 'junfeng_reward_title.png'
 })
 
 export function assertBagTemplateTarget(type) {

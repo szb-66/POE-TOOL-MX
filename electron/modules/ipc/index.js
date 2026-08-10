@@ -23,11 +23,12 @@ import { registerStashPickupHandlers } from './stashPickup.js'
 import { registerStashTabHandlers } from './stashTabs.js'
 import { registerPuzzleHandlers } from './puzzle.js'
 import { registerApplicationUpdateHandlers } from './update.js'
+import { registerJunfengHandlers } from './junfeng.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
-    poeCnAccount, stashPickup,
+    poeCnAccount, stashPickup, junfeng,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
     applicationUpdate, getMainWindow
   } = dependencies
@@ -47,5 +48,6 @@ export function registerIpcHandlers(dependencies) {
   if (priceCheck) registerPriceCheckHandlers(priceCheck)
   if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
+  if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection })
   if (puzzle) registerPuzzleHandlers(puzzle)
 }

@@ -19,6 +19,11 @@ const routes = [
     component: pageLoaders['/bag']
   },
   {
+    path: '/highlight-model-training',
+    name: 'HighlightModelTraining',
+    component: pageLoaders['/highlight-model-training']
+  },
+  {
     path: '/map',
     name: 'Map',
     component: pageLoaders['/map']

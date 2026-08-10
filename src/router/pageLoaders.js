@@ -2,6 +2,7 @@ export const pageLoaders = Object.freeze({
   '/': () => import('../domains/dashboard/DashboardView.vue'),
   '/items': () => import('../domains/items/ItemsView.vue'),
   '/bag': () => import('../domains/bag/BagView.vue'),
+  '/highlight-model-training': () => import('../domains/bag/HighlightModelTrainingView.vue'),
   '/map': () => import('../domains/map/MapView.vue'),
   '/combat': () => import('../domains/combat/CombatView.vue'),
   '/story': () => import('../domains/story/StoryView.vue'),

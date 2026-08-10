@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "architectureVersion": 1,
+  "modelVersion": "junfeng-20260810162605",
+  "classes": [
+    "highlighted",
+    "dimmed",
+    "empty"
+  ],
+  "inputName": "input",
+  "inputSize": {
+    "width": 64,
+    "height": 64
+  },
+  "outputs": {
+    "logits": "logits",
+    "embedding": "embedding"
+  },
+  "sha256": "c6037edc591c4c5e4d2bb84e39a885658c0188efc3c2ed6c62a8829448cd4ea6",
+  "benchmark": {
+    "passed": false,
+    "partition": "validation",
+    "audited": true,
+    "threshold": 0.995,
+    "precision": 1.0,
+    "recall": 0.9545454545454546,
+    "falsePositives": 0,
+    "falseNegatives": 1,
+    "zeroHighlightClicks": 0,
+    "zeroHighlightScenes": 0,
+    "highlightedCells": 22,
+    "negativeCells": 242,
+    "coveragePassed": false,
+    "evaluatedCells": 264,
+    "validationSessions": [
+      "junfeng:0fd7069db6f2bd4147396725",
+      "junfeng:e0d3d23729db366a07ba3543"
+    ],
+    "errors": [
+      {
+        "kind": "false-negative",
+        "sessionId": "junfeng:e0d3d23729db366a07ba3543",
+        "previewId": "e0d3d23729db366a07ba3543",
+        "column": 0,
+        "row": 3,
+        "actualLabel": "highlighted",
+        "highlightProbability": 0.944192111492157
+      }
+    ]
+  }
+}

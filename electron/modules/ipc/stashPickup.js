@@ -22,8 +22,10 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
       templates: {
         stash_title: String(templates.stashTitle),
         inventory_title: String(templates.inventoryTitle),
+        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
         stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {}
+        inventory_region: templates.inventoryRegion || {},
+        junfeng_reward_region: templates.junfengRewardRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     })

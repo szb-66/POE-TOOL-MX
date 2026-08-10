@@ -1,10 +1,7 @@
 <template>
   <div
+    ref="controlShell"
     class="control-shell"
-    :class="{
-      'recipe-only': state.recipeEnabled && !state.stashPickupEnabled,
-      'stash-only': !state.recipeEnabled && state.stashPickupEnabled
-    }"
   >
     <div
       class="drag-handle"
@@ -16,35 +13,49 @@
     >
       <span></span><span></span><span></span>
     </div>
-    <button
-      v-if="state.recipeEnabled"
-      :disabled="!state.canRefresh || busy !== ''"
-      :title="state.refreshReason || '重新读取已选择的仓库页'"
-      @pointerdown.stop.prevent="runFromPointer('refresh', $event)"
-    >{{ busy === 'refresh' ? '刷新中…' : state.refreshLabel }}</button>
-    <button
-      v-if="state.recipeEnabled"
-      :class="{ active: state.previewActive }"
-      :disabled="!state.canPreview || busy !== ''"
-      :title="state.previewReason || '在当前仓库页预览目标物品'"
-      @pointerdown.stop.prevent="runFromPointer('preview', $event)"
-    >{{ state.previewLabel }}</button>
-    <button
-      v-if="state.recipeEnabled"
-      class="primary"
-      :class="{ danger: state.automation?.status === 'running' }"
-      :disabled="!state.canRun || busy !== ''"
-      :title="state.actionReason || state.message || state.actionLabel"
-      @pointerdown.stop.prevent="runFromPointer('action', $event)"
-    >{{ busy === 'action' ? '处理中…' : state.actionLabel }}</button>
-    <button
-      v-if="state.stashPickupEnabled"
-      class="primary"
-      :class="{ danger: state.stashPickupAutomation?.status === 'running' }"
-      :disabled="!state.canStashPickup || busy !== ''"
-      :title="state.stashPickupReason || state.stashPickupLabel"
-      @pointerdown.stop.prevent="runFromPointer('stash', $event)"
-    >{{ busy === 'stash' ? '处理中…' : state.stashPickupLabel }}</button>
+    <div class="button-row">
+      <button
+        v-if="state.recipeEnabled"
+        v-show="!state.rewardDetected"
+        :disabled="!state.canRefresh || busy !== ''"
+        :title="state.refreshReason || '重新读取已选择的仓库页'"
+        @pointerdown.stop.prevent="runFromPointer('refresh', $event)"
+      >{{ busy === 'refresh' ? '刷新中…' : state.refreshLabel }}</button>
+      <button
+        v-if="state.recipeEnabled"
+        v-show="!state.rewardDetected"
+        :class="{ active: state.previewActive }"
+        :disabled="!state.canPreview || busy !== ''"
+        :title="state.previewReason || '在当前仓库页预览目标物品'"
+        @pointerdown.stop.prevent="runFromPointer('preview', $event)"
+      >{{ state.previewLabel }}</button>
+      <button
+        v-if="state.recipeEnabled"
+        v-show="!state.rewardDetected"
+        class="primary"
+        :class="{ danger: state.automation?.status === 'running' }"
+        :disabled="!state.canRun || busy !== ''"
+        :title="state.actionReason || state.message || state.actionLabel"
+        @pointerdown.stop.prevent="runFromPointer('action', $event)"
+      >{{ busy === 'action' ? '处理中…' : state.actionLabel }}</button>
+      <button
+        v-if="state.stashPickupEnabled"
+        v-show="!state.rewardDetected"
+        class="primary"
+        :class="{ danger: state.stashPickupAutomation?.status === 'running' }"
+        :disabled="!state.canStashPickup || busy !== ''"
+        :title="state.stashPickupReason || state.stashPickupLabel"
+        @pointerdown.stop.prevent="runFromPointer('stash', $event)"
+      >{{ busy === 'stash' ? '处理中…' : state.stashPickupLabel }}</button>
+      <button
+        v-if="state.junfengEnabled && state.rewardDetected"
+        class="primary"
+        :class="{ danger: state.junfengRunning }"
+        :disabled="!state.canJunfeng || Boolean(busy)"
+        :title="state.junfengReason || state.junfengButtonLabel"
+        @pointerdown.stop.prevent="runFromPointer('junfeng', $event)"
+      >{{ busy === 'junfeng' ? '处理中…' : state.junfengButtonLabel }}</button>
+    </div>
     <div class="status-message" :class="{ ready: state.canRun }">
       {{ state.statusMessage || '正在同步商店配方状态…' }}
     </div>
@@ -52,7 +63,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createOverlayDrag } from '@/utils/useOverlayDrag'
 
@@ -70,22 +81,43 @@ const state = reactive({
   recipeEnabled: false,
   stashPickupEnabled: false,
   canStashPickup: false,
-  stashPickupAutomation: { status: 'idle' }
+  stashPickupAutomation: { status: 'idle' },
+  rewardDetected: false,
+  junfengEnabled: false,
+  junfengReady: false,
+  junfengRunning: false,
+  canJunfeng: false,
+  junfengButtonLabel: '取出高亮',
+  junfengAutomation: { status: 'idle' }
 })
 const busy = ref('')
+const controlShell = ref(null)
 let disposeState
+let resizeObserver
 const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(message))
 
 function applyState(response) {
   const snapshot = response?.success ? response.data : response
   if (snapshot) Object.assign(state, snapshot)
+  void nextTick(reportContentSize)
+}
+
+function reportContentSize() {
+  const bounds = controlShell.value?.getBoundingClientRect()
+  if (!bounds?.width || !bounds?.height) return
+  electronApi.chaosRecipe.resizeControl({
+    width: Math.ceil(bounds.width),
+    height: Math.ceil(bounds.height)
+  })
 }
 
 async function run(kind) {
   if (busy.value) return
   busy.value = kind
   try {
-    const response = kind === 'stash'
+    const response = kind === 'junfeng'
+      ? (state.junfengRunning ? await electronApi.junfeng.stop() : await electronApi.junfeng.start())
+      : kind === 'stash'
       ? (state.stashPickupAutomation?.status === 'running'
           ? await electronApi.stashPickup.stop()
           : await electronApi.stashPickup.start())
@@ -106,16 +138,21 @@ function runFromPointer(kind, event) {
 }
 
 onMounted(async () => {
+  resizeObserver = new ResizeObserver(reportContentSize)
+  if (controlShell.value) resizeObserver.observe(controlShell.value)
   disposeState = electronApi.chaosRecipe.onControlState(applyState)
   applyState(await electronApi.chaosRecipe.getControlState())
 })
-onUnmounted(() => disposeState?.())
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+  disposeState?.()
+})
 </script>
 
 <style scoped>
 :global(html), :global(body), :global(#app) {
-  width: 100%;
-  height: 100%;
+  width: max-content;
+  height: max-content;
   margin: 0;
   overflow: hidden;
   background: transparent !important;
@@ -123,12 +160,12 @@ onUnmounted(() => disposeState?.())
 .control-shell {
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: 28px repeat(4, 1fr);
+  grid-template-columns: 28px max-content;
   grid-template-rows: 38px 20px;
   column-gap: 7px;
   row-gap: 3px;
-  width: 100%;
-  height: 100%;
+  width: max-content;
+  height: max-content;
   padding: 7px;
   border: 1px solid rgba(119, 157, 219, .55);
   border-radius: 12px;
@@ -137,8 +174,10 @@ onUnmounted(() => disposeState?.())
   font-family: "Microsoft YaHei", sans-serif;
   user-select: none;
 }
-.control-shell.recipe-only { grid-template-columns: 28px repeat(3, 1fr); }
-.control-shell.stash-only { grid-template-columns: 28px 1fr; }
+.button-row {
+  display: flex;
+  gap: 7px;
+}
 .drag-handle {
   grid-row: 1 / 3;
   display: flex;
@@ -157,12 +196,17 @@ onUnmounted(() => disposeState?.())
   background: rgba(218, 230, 255, .75);
 }
 button {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 14px;
   border: 1px solid rgba(132, 178, 255, .5);
   border-radius: 8px;
   color: #edf4ff;
   background: linear-gradient(145deg, #3a659d, #294c78);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 2px 6px rgba(0, 0, 0, .28);
   font: 700 14px/1 "Microsoft YaHei", sans-serif;
+  white-space: nowrap;
   cursor: pointer;
   transition: filter .12s ease, transform .08s ease, box-shadow .12s ease;
 }
@@ -186,7 +230,8 @@ button:disabled {
   cursor: not-allowed;
 }
 .status-message {
-  grid-column: 2 / -1;
+  grid-column: 2;
+  min-width: 0;
   overflow: hidden;
   color: #ffd18a;
   font-size: 12px;

@@ -791,7 +791,7 @@ function getCurrencyName(key) {
 function handleBagAutoStashToggle(enabled) {
   bagStore.setModuleEnabled(enabled)
   if (enabled) {
-    ElMessage.success('一键入库功能已启用，请前往"背包"页面进行配置')
+    ElMessage.success('一键入库功能已启用，请前往“存取”页面进行配置')
   } else {
     ElMessage.info('一键入库功能已关闭')
   }

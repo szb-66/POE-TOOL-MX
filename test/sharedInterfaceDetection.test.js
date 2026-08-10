@@ -6,6 +6,7 @@ import {
   CHAOS_CONTROL_DIP_SIZE,
   DEFAULT_CHAOS_CONTROL_OFFSET,
   clampControlPhysicalBounds,
+  normalizeControlDipSize,
   normalizeControlOffset,
   placeControlInDip
 } from '../electron/modules/chaosRecipe/controlOverlayPosition.js'
@@ -41,6 +42,30 @@ test('混沌控制浮窗在高 DPI 下保持固定内容尺寸并返回物理偏
   assert.equal(placement.height, CHAOS_CONTROL_DIP_SIZE.height)
   assert.equal(placement.y, 720 - CHAOS_CONTROL_DIP_SIZE.height)
   assert.deepEqual(placement.offset, { x: 50, y: 1264 })
+})
+
+test('按钮组浮层按渲染内容调整外窗尺寸', () => {
+  assert.deepEqual(normalizeControlDipSize({ width: 173.2, height: 76.1 }), { width: 174, height: 77 })
+  assert.deepEqual(normalizeControlDipSize({ width: 0, height: 9999 }), {
+    width: 1,
+    height: CHAOS_CONTROL_DIP_SIZE.height
+  })
+
+  const view = source('../src/domains/shop/ChaosRecipeControlOverlayView.vue')
+  const preload = source('../electron/preload.cjs')
+  const api = source('../src/api/electron.js')
+  const ipc = source('../electron/modules/ipc/chaosRecipe.js')
+  const manager = source('../electron/modules/chaosRecipe/controlOverlay.js')
+
+  assert.match(view, /class="button-row"/)
+  assert.match(view, /width:\s*max-content/)
+  assert.match(view, /ResizeObserver/)
+  assert.match(view, /resizeControl/)
+  assert.match(preload, /chaos-recipe-control-resize/)
+  assert.match(api, /resizeControl/)
+  assert.match(ipc, /chaos-recipe-control-resize/)
+  assert.match(manager, /resizeToContent/)
+  assert.match(manager, /this\.contentSize/)
 })
 
 test('检测进程由公共协调器持有且两个功能只注册消费者', () => {

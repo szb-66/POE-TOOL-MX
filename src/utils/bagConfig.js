@@ -76,10 +76,13 @@ export function createDefaultBagSettings() {
     templates: {
       stashTitle: '',
       inventoryTitle: '',
+      junfengRewardTitle: '',
       stashRegion: { ...DEFAULT_REGION },
       inventoryRegion: { ...DEFAULT_REGION },
+      junfengRewardRegion: { ...DEFAULT_REGION },
       stashCapture: null,
-      inventoryCapture: null
+      inventoryCapture: null,
+      junfengRewardCapture: null
     },
     matchThreshold: 0.8,
     blacklist: [],
@@ -130,10 +133,13 @@ export function normalizeBagSettings(raw = {}) {
     templates: {
       stashTitle: String(raw.templates?.stashTitle || ''),
       inventoryTitle: String(raw.templates?.inventoryTitle || ''),
+      junfengRewardTitle: String(raw.templates?.junfengRewardTitle || ''),
       stashRegion: normalizeRegion(raw.templates?.stashRegion),
       inventoryRegion: normalizeRegion(raw.templates?.inventoryRegion),
+      junfengRewardRegion: normalizeRegion(raw.templates?.junfengRewardRegion),
       stashCapture: normalizeCaptureMetadata(raw.templates?.stashCapture),
-      inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture)
+      inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture),
+      junfengRewardCapture: normalizeCaptureMetadata(raw.templates?.junfengRewardCapture)
     },
     matchThreshold: Number.isFinite(threshold) ? Math.min(1, Math.max(0.1, threshold)) : defaults.matchThreshold,
     blacklist: normalizeBagBlacklist(raw.blacklist),
@@ -213,6 +219,7 @@ export function validateBagRuntimeConfig(config) {
 export function captureKeyForTemplate(type) {
   if (type === 'stashTitle') return 'stashCapture'
   if (type === 'inventoryTitle') return 'inventoryCapture'
+  if (type === 'junfengRewardTitle') return 'junfengRewardCapture'
   throw new Error('不支持的模板目标')
 }
 

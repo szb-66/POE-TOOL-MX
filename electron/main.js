@@ -52,6 +52,8 @@ import {
   sendWindowsCopy
 } from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
+import { JunfengHighlightManager } from './modules/junfeng/manager.js'
+import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
@@ -194,6 +196,7 @@ let chaosControlOverlay = null
 let priceCheckService = null
 let crossProcessInstanceLock = null
 let stashPickup = null
+let junfengHighlight = null
 let puzzleService = null
 let gameWindowTitles = null
 let diagnosticEvents = null
@@ -227,6 +230,7 @@ async function cleanupApplicationResources() {
   await settleCleanupPhase([
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
+    () => junfengHighlight?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.closeOverlay(),
@@ -389,12 +393,23 @@ async function startApplication() {
     interfaceDetection,
     automationLock
   })
+  const highlightCalibration = new JunfengCalibrationRepository(path.join(app.getPath('userData'), 'junfeng-highlight'))
   stashPickup = new StashPickupManager({
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
     interfaceDetection,
     automationLock,
+    calibration: highlightCalibration,
+    onStatusChange: () => chaosControlOverlay?.sync()
+  })
+  junfengHighlight = new JunfengHighlightManager({
+    python: { ...pythonManager, ...pythonDetector },
+    fileWatcher,
+    getMainWindow,
+    interfaceDetection,
+    automationLock,
+    calibration: highlightCalibration,
     onStatusChange: () => chaosControlOverlay?.sync()
   })
   puzzleService = new PuzzleAnalysisService({
@@ -406,6 +421,7 @@ async function startApplication() {
     overlay: puzzleOverlay
   })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
+  chaosControlOverlay.attachJunfeng?.(junfengHighlight)
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
@@ -455,6 +471,7 @@ async function startApplication() {
       listLeagues: () => chaosStashClient.listLeagues()
     },
     stashPickup,
+    junfeng: junfengHighlight,
     interfaceDetection,
     automationLock,
     puzzle: puzzleService,

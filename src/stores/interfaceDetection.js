@@ -50,23 +50,30 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
       ...runtime(),
       calibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
     })?.catch(() => {})
+    electronApi.junfeng.updateRuntime(runtime())?.catch(() => {})
   }
 
   function setTemplate(type, value) {
     templates.value[type] = String(value || '')
-    templates.value[type === 'stashTitle' ? 'stashCapture' : 'inventoryCapture'] = null
+    templates.value[templateKeys(type).capture] = null
     save()
   }
 
   function setTemplateRegion(type, region) {
-    templates.value[type === 'stashTitle' ? 'stashRegion' : 'inventoryRegion'] = { ...region }
-    templates.value[type === 'stashTitle' ? 'stashCapture' : 'inventoryCapture'] = null
+    const keys = templateKeys(type)
+    templates.value[keys.region] = { ...region }
+    templates.value[keys.capture] = null
     save()
   }
 
+  function templateKeys(type) {
+    if (type === 'stashTitle') return { region: 'stashRegion', capture: 'stashCapture' }
+    if (type === 'junfengRewardTitle') return { region: 'junfengRewardRegion', capture: 'junfengRewardCapture' }
+    return { region: 'inventoryRegion', capture: 'inventoryCapture' }
+  }
+
   function applyTemplateCapture(type, result) {
-    const regionKey = type === 'stashTitle' ? 'stashRegion' : 'inventoryRegion'
-    const captureKey = type === 'stashTitle' ? 'stashCapture' : 'inventoryCapture'
+    const { region: regionKey, capture: captureKey } = templateKeys(type)
     templates.value = {
       ...templates.value,
       [type]: String(result.path || ''),
@@ -77,7 +84,7 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
   }
 
   function clearCaptureMetadata(type) {
-    templates.value[type === 'stashTitle' ? 'stashCapture' : 'inventoryCapture'] = null
+    templates.value[templateKeys(type).capture] = null
   }
 
   function setMatchThreshold(value) {

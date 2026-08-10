@@ -101,8 +101,10 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       templates: {
         stash_title: String(templates.stashTitle),
         inventory_title: String(templates.inventoryTitle),
+        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
         stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {}
+        inventory_region: templates.inventoryRegion || {},
+        junfeng_reward_region: templates.junfengRewardRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     }
@@ -110,6 +112,10 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     return control?.setRuntime({ ...runtime, enabled: true }) || { enabled: true }
   }))
   ipcMain.handle('chaos-recipe-control-state', invoke(() => control?.getState() || { visible: false }))
+  ipcMain.on('chaos-recipe-control-resize', (event, size = {}) => {
+    if (!control?.window || control.window.isDestroyed() || control.window.webContents !== event.sender) return
+    control.resizeToContent(size)
+  })
   ipcMain.handle('chaos-recipe-control-refresh', invoke(async () => {
     const runtime = control?.runtime || {}
     const snapshot = await service.refresh({
@@ -171,8 +177,10 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       templates: {
         stash_title: String(templates.stashTitle || ''),
         inventory_title: String(templates.inventoryTitle || ''),
+        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
         stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {}
+        inventory_region: templates.inventoryRegion || {},
+        junfeng_reward_region: templates.junfengRewardRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     }) || {}

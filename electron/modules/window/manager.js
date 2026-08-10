@@ -864,7 +864,7 @@ export function submitScreenPickerRegion(sender, clientRectangle) {
     if (crop.width !== crop.targetSize.width || crop.height !== crop.targetSize.height) {
       template = template.resize({ ...crop.targetSize, quality: 'best' })
     }
-    if (!hasUsefulPixelVariance(template.getBitmap())) throw new Error('选区图像信息过少，请框选包含清晰文字的区域')
+    if (!hasUsefulPixelVariance(template.toBitmap())) throw new Error('选区图像信息过少，请框选包含清晰文字的区域')
     const size = selectedSize
     settleScreenPicker({
       canceled: false,

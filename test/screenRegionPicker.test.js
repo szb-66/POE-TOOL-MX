@@ -81,6 +81,12 @@ test('空图与低信息像素会被拒绝', () => {
   assert.equal(hasUsefulPixelVariance(varied), true)
 })
 
+test('标题框选使用当前 nativeImage 位图接口，不触发 getBitmap 弃用警告', () => {
+  const manager = readFileSync(new URL('../electron/modules/window/manager.js', import.meta.url), 'utf8')
+  assert.doesNotMatch(manager, /\.getBitmap\(\)/)
+  assert.match(manager, /hasUsefulPixelVariance\(template\.toBitmap\(\)\)/)
+})
+
 test('模板保存只接受白名单目标，并在替换失败时恢复旧文件', () => {
   assert.equal(assertBagTemplateTarget('stashTitle'), 'stash_title.png')
   assert.throws(() => assertBagTemplateTarget('../../evil'), /不支持的模板目标/)

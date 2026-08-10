@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""背包安全自动入库：双界面检测、剪贴板识别、黑名单与安全停止。"""
+"""背包安全入库：双界面检测、剪贴板识别、黑名单与安全停止。"""
 
 import argparse
 import ctypes
@@ -520,7 +520,8 @@ class InterfaceMatcher:
     def _load_templates(self):
         definitions = {
             "stash": self.config.get("templates", {}).get("stash_title", ""),
-            "inventory": self.config.get("templates", {}).get("inventory_title", "")
+            "inventory": self.config.get("templates", {}).get("inventory_title", ""),
+            "reward": self.config.get("templates", {}).get("junfeng_reward_title", "")
         }
         for name, image_path in definitions.items():
             if image_path and os.path.exists(image_path):
@@ -530,7 +531,7 @@ class InterfaceMatcher:
 
     @property
     def valid(self):
-        return "stash" in self.templates and "inventory" in self.templates
+        return "inventory" in self.templates and ("stash" in self.templates or "reward" in self.templates)
 
     def _capture(self, region):
         width = int(region.get("right", 0)) - int(region.get("left", 0))
@@ -559,7 +560,25 @@ class InterfaceMatcher:
         templates = self.config.get("templates", {})
         stash_ok, stash_score = self._match("stash", templates.get("stash_region", {}))
         inventory_ok, inventory_score = self._match("inventory", templates.get("inventory_region", {}))
-        return stash_ok and inventory_ok, {"stashScore": stash_score, "inventoryScore": inventory_score}
+        reward_ok, reward_score = self._match("reward", templates.get("junfeng_reward_region", {}))
+        return {
+            "stashMatched": stash_ok and inventory_ok,
+            "rewardMatched": reward_ok,
+            "inventoryMatched": inventory_ok,
+        }, {
+            "stashScore": stash_score,
+            "inventoryScore": inventory_score,
+            "rewardScore": reward_score,
+        }
+
+    def check_ready(self, mode):
+        templates = self.config.get("templates", {})
+        inventory_ok, _inventory_score = self._match("inventory", templates.get("inventory_region", {}))
+        if mode == "reward":
+            expected_ok, _expected_score = self._match("reward", templates.get("junfeng_reward_region", {}))
+        else:
+            expected_ok, _expected_score = self._match("stash", templates.get("stash_region", {}))
+        return expected_ok and inventory_ok
 
 
 class InputController:
@@ -716,40 +735,51 @@ def build_scan_phases(inventory):
 def run_detection(config):
     matcher = InterfaceMatcher(config)
     if not matcher.valid:
-        emit("detection-error", reason="仓库或背包标题模板无法加载")
+        emit("detection-error", reason="背包标题以及仓库或君锋镇奖励标题模板无法加载")
         return 2
-    ready = False
+    stash_ready = False
+    reward_detected = False
     last_foreground = is_game_foreground()
     last_game_bounds = get_game_client_bounds()
-    matched_count = 0
-    missed_count = 0
-    emit("detection-state", ready=False, foreground=last_foreground,
-         gameBounds=last_game_bounds)
+    last_inventory_matched = False
+    stash_matched_count = stash_missed_count = 0
+    reward_matched_count = reward_missed_count = 0
+    emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
+         junfengReady=False, foreground=last_foreground, gameBounds=last_game_bounds)
     while is_running:
         try:
             foreground = is_game_foreground()
             game_bounds = get_game_client_bounds()
             if not foreground:
-                changed = ready or foreground != last_foreground or game_bounds != last_game_bounds
-                ready = False
-                matched_count = 0
-                missed_count = 0
+                changed = stash_ready or reward_detected or foreground != last_foreground or game_bounds != last_game_bounds
+                stash_ready = reward_detected = False
+                stash_matched_count = stash_missed_count = 0
+                reward_matched_count = reward_missed_count = 0
+                last_inventory_matched = False
                 if changed:
-                    emit("detection-state", ready=False, foreground=False,
-                         gameBounds=game_bounds)
+                    emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
+                         junfengReady=False, foreground=False, gameBounds=game_bounds)
                 last_foreground = foreground
                 last_game_bounds = game_bounds
                 time.sleep(0.2)
                 continue
 
-            matched, scores = matcher.check_interface()
-            ready, matched_count, missed_count, changed = advance_detection_state(
-                ready, matched_count, missed_count, matched)
-            if changed or foreground != last_foreground or game_bounds != last_game_bounds:
-                emit("detection-state", ready=ready, foreground=foreground,
-                     gameBounds=game_bounds, **scores)
+            matches, scores = matcher.check_interface()
+            if isinstance(matches, bool):
+                matches = {"stashMatched": matches, "rewardMatched": False, "inventoryMatched": matches}
+            stash_ready, stash_matched_count, stash_missed_count, stash_changed = advance_detection_state(
+                stash_ready, stash_matched_count, stash_missed_count, matches["stashMatched"])
+            reward_detected, reward_matched_count, reward_missed_count, reward_changed = advance_detection_state(
+                reward_detected, reward_matched_count, reward_missed_count, matches["rewardMatched"])
+            junfeng_ready = reward_detected and matches["inventoryMatched"]
+            inventory_changed = matches["inventoryMatched"] != last_inventory_matched
+            if stash_changed or reward_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
+                emit("detection-state", ready=stash_ready, stashReady=stash_ready,
+                     rewardDetected=reward_detected, junfengReady=junfeng_ready,
+                     foreground=foreground, gameBounds=game_bounds, **scores)
             last_foreground = foreground
             last_game_bounds = game_bounds
+            last_inventory_matched = matches["inventoryMatched"]
             time.sleep(0.2)
         except Exception as exc:
             emit("detection-error", reason=str(exc))
@@ -878,7 +908,7 @@ def load_config(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="背包安全自动入库")
+    parser = argparse.ArgumentParser(description="背包安全入库")
     parser.add_argument("--config", required=True)
     parser.add_argument("--mode", choices=("detect", "stash"), required=True)
     args = parser.parse_args()

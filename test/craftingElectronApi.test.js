@@ -39,3 +39,28 @@ test('手动做装 IPC 会把 Vue Proxy 参数转换为可克隆的普通数据'
     delete globalThis.window
   }
 })
+
+test('仓库取件 IPC 会把 Vue Proxy 运行配置转换为可克隆的普通数据', async () => {
+  let received
+  globalThis.window = {
+    electronAPI: {
+      updateStashPickupRuntime(runtime) {
+        received = runtime
+        return Promise.resolve({ success: true, data: { status: 'idle' } })
+      }
+    }
+  }
+
+  try {
+    const { electronApi } = await import(`../src/api/electron.js?stash-pickup-ipc-proxy=${Date.now()}`)
+    const fixedTiming = new Proxy({ patchVerifyMs: 550 }, {})
+    const runtime = new Proxy({ enabled: true, fixedTiming }, {})
+
+    await electronApi.stashPickup.updateRuntime(runtime)
+
+    assert.doesNotThrow(() => structuredClone(received))
+    assert.deepEqual(received, { enabled: true, fixedTiming: { patchVerifyMs: 550 } })
+  } finally {
+    delete globalThis.window
+  }
+})

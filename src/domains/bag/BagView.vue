@@ -2,274 +2,383 @@
   <div class="bag-page">
     <el-scrollbar>
       <div class="bag-content">
-        <div class="section-header"><h3 class="section-title">背包安全自动入库</h3></div>
-        <el-card class="section-card">
-          <el-form label-width="120px" label-position="left">
-            <el-form-item label="启用模块">
-              <el-switch :model-value="bagStore.moduleEnabled" active-text="开启" inactive-text="关闭" @change="handleModuleToggle" />
-              <span class="hint-text inline-hint">持续检测仓库与背包，并提供游戏内入库按钮</span>
-            </el-form-item>
-            <el-form-item label="立即执行入库">
-              <el-switch
-                :model-value="bagStore.immediateStash"
-                active-text="开启"
-                inactive-text="关闭"
-                @change="(value) => handlePreferenceChange('immediateStash', value)"
-              />
-              <span class="hint-text inline-hint">开启后每次打开仓库会话自动执行一轮；关闭后点击浮层执行</span>
-            </el-form-item>
-            <el-form-item label="满足条件显示">
-              <el-switch
-                :model-value="bagStore.showStashButtonOnlyWhenReady"
-                active-text="开启"
-                inactive-text="关闭"
-                @change="(value) => handlePreferenceChange('showStashButtonOnlyWhenReady', value)"
-              />
-              <span class="hint-text inline-hint">关闭后模块运行期间始终显示浮层，未就绪时按钮禁用</span>
-            </el-form-item>
-            <el-form-item label="检测状态">
-              <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
-            </el-form-item>
-            <el-form-item v-if="bagStore.isStashing" label="扫描进度">
-              <el-progress :percentage="bagStore.stashProgress" :text-inside="true" :stroke-width="20" />
-            </el-form-item>
-            <el-form-item v-if="hasRunStats" label="本轮统计">
-              <div class="stats-row">
-                <el-tag type="success">已入库 {{ bagStore.stashStats.stashedSlots }}</el-tag>
-                <el-tag>跳过占位 {{ bagStore.stashStats.skippedOccupiedSlots }}</el-tag>
-                <el-tag type="warning">黑名单 {{ bagStore.stashStats.blacklistedSlots }}</el-tag>
-                <el-tag type="info">空格 {{ bagStore.stashStats.emptySlots }}</el-tag>
-                <el-tag type="danger">未识别 {{ bagStore.stashStats.unreadableSlots }}</el-tag>
-              </div>
-            </el-form-item>
-            <el-form-item v-if="bagStore.lastStopReason" label="停止原因">
-              <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
-            </el-form-item>
-            <el-form-item v-if="bagStore.isStashing">
-              <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
-            </el-form-item>
-          </el-form>
-        </el-card>
-
-        <div class="section-header"><h3 class="section-title">仓库自动取件</h3></div>
-        <el-card class="section-card">
-          <el-alert
-            title="按每格中央区域的图像统计值取件；搜索框为空时会取出所有达到阈值的物品。请先用检测预览确认参数。"
-            type="warning"
-            :closable="false"
-          />
-          <el-form label-width="130px" label-position="left" class="stash-pickup-settings">
-            <el-form-item label="启用功能">
-              <el-switch
-                :model-value="stashPickupStore.settings.enabled"
-                active-text="开启"
-                inactive-text="关闭"
-                @change="toggleStashPickup"
-              />
-            </el-form-item>
-            <el-form-item v-for="entry in calibrationOptions" :key="entry.key" :label="entry.label">
-              <el-button @click="stashPickupStore.calibrate(entry.key)">重新框选</el-button>
-              <el-tag :type="interfaceStore.stashGridCalibration[entry.key] ? 'success' : 'info'">
-                {{ interfaceStore.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
-              </el-tag>
-            </el-form-item>
-          </el-form>
-          <div class="profile-grid">
-            <div v-for="entry in profileOptions" :key="entry.key" class="profile-card">
-              <h4>{{ entry.label }}</h4>
-              <el-form label-width="90px" label-position="left">
-                <el-form-item label="检测方式">
-                  <el-select
-                    :model-value="stashPickupStore.settings.profiles[entry.key].method"
-                    @change="value => updateStashPickupProfile(entry.key, { method: value })"
-                  >
-                    <el-option label="方差 variance" value="variance" />
-                    <el-option label="亮度 brightness" value="brightness" />
-                    <el-option label="饱和度 saturation" value="saturation" />
-                  </el-select>
+        <el-tabs v-model="activeTab" class="storage-tabs">
+          <el-tab-pane label="入库" name="inbound">
+            <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
+            <el-card class="section-card">
+              <el-form label-width="120px" label-position="left">
+                <el-form-item label="启用模块">
+                  <el-switch :model-value="bagStore.moduleEnabled" active-text="开启" inactive-text="关闭" @change="handleModuleToggle" />
+                  <span class="hint-text inline-hint">持续检测仓库与背包，并提供游戏内入库按钮</span>
                 </el-form-item>
-                <el-form-item label="跳过阈值">
-                  <el-input-number
-                    :model-value="activeProfileThreshold(entry.key)"
-                    :min="0"
-                    :max="stashPickupStore.settings.profiles[entry.key].method === 'variance' ? 65025 : 255"
-                    :step="stashPickupStore.settings.profiles[entry.key].method === 'variance' ? 50 : 1"
-                    @change="value => updateProfileThreshold(entry.key, value)"
+                <el-form-item label="立即执行入库">
+                  <el-switch
+                    :model-value="bagStore.immediateStash"
+                    active-text="开启"
+                    inactive-text="关闭"
+                    @change="(value) => handlePreferenceChange('immediateStash', value)"
+                  />
+                  <span class="hint-text inline-hint">开启后每次打开仓库会话自动执行一轮；关闭后点击浮层执行</span>
+                </el-form-item>
+                <el-form-item label="满足条件显示">
+                  <el-switch
+                    :model-value="bagStore.showStashButtonOnlyWhenReady"
+                    active-text="开启"
+                    inactive-text="关闭"
+                    @change="(value) => handlePreferenceChange('showStashButtonOnlyWhenReady', value)"
+                  />
+                  <span class="hint-text inline-hint">关闭后模块运行期间始终显示浮层，未就绪时按钮禁用</span>
+                </el-form-item>
+                <el-form-item label="检测状态">
+                  <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
+                </el-form-item>
+                <el-form-item v-if="bagStore.isStashing" label="扫描进度">
+                  <el-progress :percentage="bagStore.stashProgress" :text-inside="true" :stroke-width="20" />
+                </el-form-item>
+                <el-form-item v-if="hasRunStats" label="本轮统计">
+                  <div class="stats-row">
+                    <el-tag type="success">已入库 {{ bagStore.stashStats.stashedSlots }}</el-tag>
+                    <el-tag>跳过占位 {{ bagStore.stashStats.skippedOccupiedSlots }}</el-tag>
+                    <el-tag type="warning">黑名单 {{ bagStore.stashStats.blacklistedSlots }}</el-tag>
+                    <el-tag type="info">空格 {{ bagStore.stashStats.emptySlots }}</el-tag>
+                    <el-tag type="danger">未识别 {{ bagStore.stashStats.unreadableSlots }}</el-tag>
+                  </div>
+                </el-form-item>
+                <el-form-item v-if="bagStore.lastStopReason" label="停止原因">
+                  <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
+                </el-form-item>
+                <el-form-item v-if="bagStore.isStashing">
+                  <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
+                </el-form-item>
+              </el-form>
+            </el-card>
+
+            <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
+            <el-card class="section-card inventory-layout-card">
+              <el-alert title="点击格子可切换是否执行自动入库；运行中修改从下一轮入库生效。" type="info" :closable="false" />
+              <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
+                <el-form-item label="额外背包">
+                  <el-switch
+                    :model-value="bagStore.inventoryLayout.extraEnabled"
+                    active-text="开启"
+                    inactive-text="关闭"
+                    @change="setExtraInventoryEnabled"
                   />
                 </el-form-item>
-                <el-form-item label="采样比例">
+                <el-form-item label="额外列数">
                   <el-input-number
-                    :model-value="stashPickupStore.settings.profiles[entry.key].sampleRatio"
-                    :min="0.1"
-                    :max="1"
-                    :step="0.05"
-                    :precision="2"
-                    @change="value => updateStashPickupProfile(entry.key, { sampleRatio: value })"
+                    :model-value="bagStore.inventoryLayout.extraColumns"
+                    :min="1"
+                    :max="INVENTORY_LAYOUT.maxExtraColumns"
+                    :step="1"
+                    :disabled="!bagStore.inventoryLayout.extraEnabled"
+                    @change="setExtraInventoryColumns"
                   />
                 </el-form-item>
               </el-form>
-            </div>
-          </div>
-          <div class="stash-pickup-actions">
-            <el-button
-              :loading="stashPickupStore.busy"
-              :disabled="!stashPickupStore.settings.enabled"
-              @click="previewStashPickup"
-            >检测预览</el-button>
-            <el-button v-if="stashPickupStore.running" type="danger" @click="stashPickupStore.stop()">停止取件</el-button>
-            <el-tag :type="stashPickupStatus.type">{{ stashPickupStatus.text }}</el-tag>
-            <el-tag>候选格 {{ stashPickupStore.state.candidateCells }}</el-tag>
-            <el-tag type="warning">剩余 {{ stashPickupStore.state.remainingCells }}</el-tag>
-            <el-tag type="success">已取 {{ stashPickupStore.state.pickedItems }}</el-tag>
-          </div>
-          <el-alert
-            v-if="stashPickupStore.state.reason"
-            :title="stashPickupStopReason"
-            :type="stashPickupStore.state.reason === 'inventory-full' ? 'warning' : 'info'"
-            :closable="false"
-          />
-          <div v-if="stashPickupStore.preview" class="stash-pickup-preview">
-            <div>{{ stashPickupStore.preview.layout }}×{{ stashPickupStore.preview.layout }} · {{ stashPickupStore.preview.candidateCells }} 个候选格</div>
-            <img :src="stashPickupStore.preview.imageDataUrl" alt="仓库检测预览" />
-          </div>
-        </el-card>
 
-        <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
-        <el-card class="section-card inventory-layout-card">
-          <el-alert title="点击格子可切换是否执行自动入库；运行中修改从下一轮入库生效。" type="info" :closable="false" />
-          <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
-            <el-form-item label="额外背包">
-              <el-switch
-                :model-value="bagStore.inventoryLayout.extraEnabled"
-                active-text="开启"
-                inactive-text="关闭"
-                @change="setExtraInventoryEnabled"
-              />
-            </el-form-item>
-            <el-form-item label="额外列数">
-              <el-input-number
-                :model-value="bagStore.inventoryLayout.extraColumns"
-                :min="1"
-                :max="INVENTORY_LAYOUT.maxExtraColumns"
-                :step="1"
-                :disabled="!bagStore.inventoryLayout.extraEnabled"
-                @change="setExtraInventoryColumns"
-              />
-            </el-form-item>
-          </el-form>
-
-          <div class="inventory-layout-scroll">
-            <div class="inventory-layout">
-              <div v-if="extraColumns.length" class="inventory-region inventory-region--extra">
-                <div class="inventory-region__label">额外背包</div>
-                <div class="inventory-columns">
-                  <div v-for="column in extraColumns" :key="column" class="inventory-column">
-                    <button
-                      v-for="row in inventoryRows"
-                      :key="slotKey(column, row)"
-                      type="button"
-                      class="inventory-slot inventory-slot--extra"
-                      :class="{ 'is-excluded': isSlotExcluded(column, row) }"
-                      :aria-label="slotAriaLabel(column, row)"
-                      :aria-pressed="isSlotExcluded(column, row)"
-                      @click="toggleExcludedSlot(column, row)"
-                    >
-                      <span v-if="isSlotExcluded(column, row)">×</span>
-                    </button>
+              <div class="inventory-layout-scroll">
+                <div class="inventory-layout">
+                  <div v-if="extraColumns.length" class="inventory-region inventory-region--extra">
+                    <div class="inventory-region__label">额外背包</div>
+                    <div class="inventory-columns">
+                      <div v-for="column in extraColumns" :key="column" class="inventory-column">
+                        <button
+                          v-for="row in inventoryRows"
+                          :key="slotKey(column, row)"
+                          type="button"
+                          class="inventory-slot inventory-slot--extra"
+                          :class="{ 'is-excluded': isSlotExcluded(column, row) }"
+                          :aria-label="slotAriaLabel(column, row)"
+                          :aria-pressed="isSlotExcluded(column, row)"
+                          @click="toggleExcludedSlot(column, row)"
+                        >
+                          <span v-if="isSlotExcluded(column, row)">×</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="inventory-region inventory-region--native">
+                    <div class="inventory-region__label">原生背包</div>
+                    <div class="inventory-columns">
+                      <div v-for="column in nativeColumns" :key="column" class="inventory-column">
+                        <button
+                          v-for="row in inventoryRows"
+                          :key="slotKey(column, row)"
+                          type="button"
+                          class="inventory-slot"
+                          :class="{ 'is-excluded': isSlotExcluded(column, row) }"
+                          :aria-label="slotAriaLabel(column, row)"
+                          :aria-pressed="isSlotExcluded(column, row)"
+                          @click="toggleExcludedSlot(column, row)"
+                        >
+                          <span v-if="isSlotExcluded(column, row)">×</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="inventory-region inventory-region--native">
-                <div class="inventory-region__label">原生背包</div>
-                <div class="inventory-columns">
-                  <div v-for="column in nativeColumns" :key="column" class="inventory-column">
-                    <button
-                      v-for="row in inventoryRows"
-                      :key="slotKey(column, row)"
-                      type="button"
-                      class="inventory-slot"
-                      :class="{ 'is-excluded': isSlotExcluded(column, row) }"
-                      :aria-label="slotAriaLabel(column, row)"
-                      :aria-pressed="isSlotExcluded(column, row)"
-                      @click="toggleExcludedSlot(column, row)"
-                    >
-                      <span v-if="isSlotExcluded(column, row)">×</span>
-                    </button>
-                  </div>
+
+              <div class="inventory-layout-footer">
+                <div class="inventory-legend">
+                  <span><i class="legend-swatch"></i>自动入库</span>
+                  <span><i class="legend-swatch is-excluded"></i>不执行入库</span>
+                  <span>已禁用 {{ bagStore.inventoryLayout.excludedSlots.length }} 格</span>
                 </div>
+                <el-button
+                  type="danger"
+                  plain
+                  :disabled="bagStore.inventoryLayout.excludedSlots.length === 0"
+                  @click="clearExcludedSlots"
+                >
+                  清空选择
+                </el-button>
               </div>
-            </div>
-          </div>
+            </el-card>
 
-          <div class="inventory-layout-footer">
-            <div class="inventory-legend">
-              <span><i class="legend-swatch"></i>自动入库</span>
-              <span><i class="legend-swatch is-excluded"></i>不执行入库</span>
-              <span>已禁用 {{ bagStore.inventoryLayout.excludedSlots.length }} 格</span>
-            </div>
-            <el-button
-              type="danger"
-              plain
-              :disabled="bagStore.inventoryLayout.excludedSlots.length === 0"
-              @click="clearExcludedSlots"
-            >
-              清空选择
-            </el-button>
-          </div>
-        </el-card>
+            <div class="section-header"><h3 class="section-title">物品黑名单</h3></div>
+            <el-card class="section-card">
+              <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
+              <div class="rule-editor">
+                <el-select v-model="draftRule.field" style="width: 150px">
+                  <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
+                </el-select>
+                <el-select v-model="draftRule.matchMode" style="width: 130px">
+                  <el-option
+                    v-for="mode in BAG_BLACKLIST_MATCH_MODES"
+                    :key="mode"
+                    :label="BAG_BLACKLIST_MATCH_MODE_LABELS[mode]"
+                    :value="mode"
+                  />
+                </el-select>
+                <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable @keyup.enter="addBlacklistRule" />
+                <el-button type="primary" @click="addBlacklistRule">添加</el-button>
+              </div>
+              <div v-if="bagStore.moduleEnabled" class="hint-text">模块保持开启；新规则从下一轮入库生效。</div>
+              <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
+                <el-table-column label="生效" width="90">
+                  <template #default="scope">
+                    <el-switch
+                      :model-value="scope.row.enabled"
+                      inline-prompt
+                      active-text="开"
+                      inactive-text="关"
+                      @change="toggleBlacklistRule(scope.$index, $event)"
+                    />
+                  </template>
+                </el-table-column>
+                <el-table-column label="匹配字段" width="160">
+                  <template #default="scope">{{ BAG_BLACKLIST_FIELD_LABELS[scope.row.field] }}</template>
+                </el-table-column>
+                <el-table-column label="匹配方式" width="120">
+                  <template #default="scope">{{ BAG_BLACKLIST_MATCH_MODE_LABELS[scope.row.matchMode] }}</template>
+                </el-table-column>
+                <el-table-column prop="keyword" label="匹配关键词" />
+                <el-table-column label="操作" width="100">
+                  <template #default="scope">
+                    <el-button link type="danger" @click="removeBlacklistRule(scope.$index)">删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-else description="暂无黑名单规则" :image-size="60" />
+            </el-card>
 
-        <div class="section-header"><h3 class="section-title">物品黑名单</h3></div>
-        <el-card class="section-card">
-          <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
-          <div class="rule-editor">
-            <el-select v-model="draftRule.field" style="width: 150px">
-              <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
-            </el-select>
-            <el-select v-model="draftRule.matchMode" style="width: 130px">
-              <el-option
-                v-for="mode in BAG_BLACKLIST_MATCH_MODES"
-                :key="mode"
-                :label="BAG_BLACKLIST_MATCH_MODE_LABELS[mode]"
-                :value="mode"
+            <el-alert
+              title="仓库与背包识别模板已移动到“设置 → 游戏界面检测”，并与混沌配方共用。"
+              type="info"
+              :closable="false"
+            />
+          </el-tab-pane>
+          <el-tab-pane label="取件" name="pickup">
+            <div class="section-header"><h3 class="section-title">仓库自动取件</h3></div>
+            <el-card class="section-card">
+              <el-alert
+                title="默认使用当前高亮模型取件，自动识别普通仓库 12×12 和大型仓库 24×24：搜索框为空时全部物品都会高亮并取出；输入筛选后，只取出筛选结果；模糊格会跳过。请先运行检测预览。"
+                type="info"
+                :closable="false"
               />
-            </el-select>
-            <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable @keyup.enter="addBlacklistRule" />
-            <el-button type="primary" @click="addBlacklistRule">添加</el-button>
-          </div>
-          <div v-if="bagStore.moduleEnabled" class="hint-text">模块保持开启；新规则从下一轮入库生效。</div>
-          <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
-            <el-table-column label="生效" width="90">
-              <template #default="scope">
-                <el-switch
-                  :model-value="scope.row.enabled"
-                  inline-prompt
-                  active-text="开"
-                  inactive-text="关"
-                  @change="toggleBlacklistRule(scope.$index, $event)"
+              <el-form label-width="130px" label-position="left" class="stash-pickup-settings">
+                <el-form-item label="启用功能">
+                  <el-switch
+                    :model-value="stashPickupStore.settings.enabled"
+                    active-text="开启"
+                    inactive-text="关闭"
+                    @change="toggleStashPickup"
+                  />
+                </el-form-item>
+                <el-form-item v-for="entry in calibrationOptions" :key="entry.key" :label="entry.label">
+                  <el-button @click="stashPickupStore.calibrate(entry.key)">重新框选</el-button>
+                  <el-tag :type="interfaceStore.stashGridCalibration[entry.key] ? 'success' : 'info'">
+                    {{ interfaceStore.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
+                  </el-tag>
+                </el-form-item>
+              </el-form>
+              <div class="stash-pickup-actions">
+                <el-button
+                  :loading="stashPickupStore.busy"
+                  :disabled="!stashPickupStore.settings.enabled"
+                  @click="previewStashPickup"
+                >检测预览</el-button>
+                <el-button v-if="stashPickupStore.running" type="danger" @click="stashPickupStore.stop()">停止取件</el-button>
+                <el-tag :type="stashPickupStatus.type">{{ stashPickupStatus.text }}</el-tag>
+                <el-tag>候选格 {{ stashPickupStore.state.candidateCells }}</el-tag>
+                <el-tag type="warning">模糊格 {{ stashPickupStore.state.uncertainCells }}</el-tag>
+                <el-tag type="warning">剩余 {{ stashPickupStore.state.remainingCells }}</el-tag>
+                <el-tag type="success">已取 {{ stashPickupStore.state.pickedItems }}</el-tag>
+                <el-tag v-if="stashPickupStore.state.modelVersion">模型 {{ stashPickupStore.state.modelVersion }}</el-tag>
+              </div>
+              <el-alert
+                v-if="stashPickupStore.state.reason"
+                :title="stashPickupStopReason"
+                type="warning"
+                :closable="false"
+              />
+              <div v-if="stashPickupStore.preview" class="stash-pickup-preview">
+                <div>
+                  {{ stashPickupStore.preview.layout }}×{{ stashPickupStore.preview.layout }} ·
+                  {{ stashPickupStore.preview.candidateCells }} 个候选格 ·
+                  {{ stashPickupStore.preview.uncertainCells || 0 }} 个模糊格 ·
+                  模型 {{ stashPickupStore.preview.modelVersion || '未就绪' }}
+                </div>
+                <HighlightGridPreview
+                  :image-src="stashPickupStore.preview.rawImageDataUrl || stashPickupStore.preview.imageDataUrl"
+                  alt="仓库检测预览"
+                  :cells="stashPickupStore.preview.cells || []"
+                  :columns="stashPickupStore.preview.layout"
+                  :rows="stashPickupStore.preview.layout"
+                  :labels="stashPickupStore.previewLabels"
+                  decision-mode
+                  editable
+                  @change="stashPickupStore.setPreviewLabel($event.cell, $event.label)"
                 />
-              </template>
-            </el-table-column>
-            <el-table-column label="匹配字段" width="160">
-              <template #default="scope">{{ BAG_BLACKLIST_FIELD_LABELS[scope.row.field] }}</template>
-            </el-table-column>
-            <el-table-column label="匹配方式" width="120">
-              <template #default="scope">{{ BAG_BLACKLIST_MATCH_MODE_LABELS[scope.row.matchMode] }}</template>
-            </el-table-column>
-            <el-table-column prop="keyword" label="匹配关键词" />
-            <el-table-column label="操作" width="100">
-              <template #default="scope">
-                <el-button link type="danger" @click="removeBlacklistRule(scope.$index)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-else description="暂无黑名单规则" :image-size="60" />
-        </el-card>
+                <el-button
+                  type="primary"
+                  plain
+                  :disabled="!Object.keys(stashPickupStore.previewLabels).length"
+                  @click="saveStashPreviewCorrections"
+                >保存修改的校准素材</el-button>
+              </div>
+            </el-card>
 
-        <el-alert
-          title="仓库与背包识别模板已移动到“设置 → 游戏界面检测”，并与混沌配方共用。"
-          type="info"
-          :closable="false"
-        />
+            <div class="section-header"><h3 class="section-title">君锋镇取出高亮</h3></div>
+            <el-card class="section-card junfeng-card">
+              <el-alert
+                title="正式取件只截取一次奖励网格，不操作搜索框。低置信格会安全停止，不会自动点击。"
+                type="info"
+                :closable="false"
+              />
+              <el-form label-width="140px" label-position="left" class="junfeng-settings">
+                <el-form-item label="启用功能">
+                  <el-switch
+                    :model-value="junfengStore.settings.enabled"
+                    active-text="开启"
+                    inactive-text="关闭"
+                    @change="toggleJunfeng"
+                  />
+                </el-form-item>
+                <el-form-item label="奖励标题">
+                  <el-button :loading="capturingRewardTitle" @click="captureRewardTitle">框选标题</el-button>
+                  <el-tag :type="interfaceStore.templates.junfengRewardTitle ? 'success' : 'info'">
+                    {{ interfaceStore.templates.junfengRewardTitle ? '已配置' : '未配置' }}
+                  </el-tag>
+                </el-form-item>
+                <el-form-item label="12×11 奖励网格">
+                  <el-button @click="calibrateJunfengGrid">框选网格</el-button>
+                  <el-tag :type="junfengStore.settings.gridRegion ? 'success' : 'info'">
+                    {{ junfengStore.settings.gridRegion ? '已校准' : '未校准' }}
+                  </el-tag>
+                </el-form-item>
+              </el-form>
+              <div class="stash-pickup-actions">
+                <el-button :loading="junfengStore.busy" @click="previewJunfeng">检测预览</el-button>
+                <el-button v-if="junfengStore.running" type="danger" @click="junfengStore.stop()">停止取件</el-button>
+                <el-tag :type="junfengStatus.type">{{ junfengStatus.text }}</el-tag>
+                <el-tag>候选物品 {{ junfengStore.state.candidateItems }}</el-tag>
+                <el-tag type="warning">模糊格 {{ junfengStore.state.uncertainCells }}</el-tag>
+                <el-tag type="success">已取 {{ junfengStore.state.pickedItems }}</el-tag>
+              </div>
+              <el-alert
+                v-if="junfengStore.state.reason"
+                :title="junfengStopReason"
+                type="warning"
+                :closable="false"
+              />
+              <div v-if="junfengStore.preview" class="junfeng-preview">
+                <div class="junfeng-preview__summary">
+                  模型 {{ junfengStore.preview.modelVersion || '未就绪' }} ·
+                  候选 {{ junfengStore.preview.candidateItems || 0 }} ·
+                  模糊 {{ junfengStore.preview.uncertainCells || 0 }}
+                </div>
+                <el-alert
+                  v-if="junfengStore.preview.modelError"
+                  :title="`模型不可用：${junfengStore.preview.modelError}`"
+                  type="warning"
+                  :closable="false"
+                />
+                <HighlightGridPreview
+                  :image-src="junfengStore.preview.rawImageDataUrl || junfengStore.preview.imageDataUrl"
+                  alt="君锋镇奖励检测预览"
+                  :cells="junfengStore.preview.cells || []"
+                  :columns="12"
+                  :rows="11"
+                  :labels="junfengStore.previewLabels"
+                  decision-mode
+                  editable
+                  @change="junfengStore.setPreviewLabel($event.cell, $event.label)"
+                />
+                <el-button
+                  type="primary"
+                  plain
+                  :disabled="!Object.keys(junfengStore.previewLabels).length"
+                  @click="saveJunfengPreviewCorrections"
+                >保存修改的校准素材</el-button>
+              </div>
+            </el-card>
+
+            <div class="section-header"><h3 class="section-title">共享本机校准素材</h3></div>
+            <el-card class="section-card shared-calibration-card">
+              <div class="shared-calibration">
+                <div class="shared-calibration__header">
+                  <strong>已保存 {{ junfengStore.corrections.length }} 个素材</strong>
+                  <el-button
+                    plain
+                    size="small"
+                    :disabled="!junfengStore.corrections.length"
+                    @click="rebuildJunfengCorrections"
+                  >重建特征</el-button>
+                  <el-button
+                    type="danger"
+                    plain
+                    size="small"
+                    :disabled="!junfengStore.corrections.length"
+                    @click="resetJunfengCorrections"
+                  >全部重置</el-button>
+                </div>
+                <el-table v-if="junfengStore.corrections.length" :data="junfengStore.corrections" size="small" max-height="240">
+                  <el-table-column label="图块" width="68">
+                    <template #default="scope"><img class="calibration-thumbnail" :src="scope.row.tileDataUrl" alt="校准图块" /></template>
+                  </el-table-column>
+                  <el-table-column label="格子" width="90">
+                    <template #default="scope">{{ scope.row.column + 1 }},{{ scope.row.row + 1 }}</template>
+                  </el-table-column>
+                  <el-table-column label="标签" width="100">
+                    <template #default="scope">{{ junfengLabel(scope.row.label) }}</template>
+                  </el-table-column>
+                  <el-table-column label="来源" width="110">
+                    <template #default="scope">{{ calibrationDomainLabel(scope.row.domain) }}</template>
+                  </el-table-column>
+                  <el-table-column prop="modelVersion" label="模型版本" />
+                  <el-table-column label="操作" width="80">
+                    <template #default="scope">
+                      <el-button link type="danger" @click="junfengStore.removeCorrection(scope.row.id)">删除</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </el-card>
+          </el-tab-pane>
+        </el-tabs>
       </div>
     </el-scrollbar>
   </div>
@@ -280,7 +389,10 @@ import { computed, ref } from 'vue'
 import { VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
+import { useJunfengStore } from '@/stores/junfeng'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
+import { electronApi } from '@/api/electron'
+import HighlightGridPreview from '@/components/highlight/HighlightGridPreview.vue'
 import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences, updateBagRuntimeConfig } from '@/utils/bagService'
 import {
   BAG_BLACKLIST_FIELDS,
@@ -292,14 +404,13 @@ import {
 
 const bagStore = useBagStore()
 const stashPickupStore = useStashPickupStore()
+const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()
+const activeTab = ref('inbound')
+const capturingRewardTitle = ref(false)
 const calibrationOptions = [
   { key: 'root', label: '文件夹外仓库' },
   { key: 'folder', label: '文件夹内仓库' }
-]
-const profileOptions = [
-  { key: 'normal', label: '普通仓库 12×12' },
-  { key: 'quad', label: '大型仓库 24×24' }
 ]
 const draftRule = ref({ field: 'name', keyword: '', matchMode: 'contains' })
 const nativeColumns = Array.from({ length: INVENTORY_LAYOUT.nativeColumns }, (_value, index) => index)
@@ -327,12 +438,29 @@ const stashPickupStatus = computed(() => {
   return { type: 'info', text: stashPickupStore.settings.enabled ? '等待启动' : '功能未启用' }
 })
 const stashPickupStopReason = computed(() => ({
-  'inventory-full': '背包空间不足，取件已停止',
   'game-not-foreground': '游戏不在前台，取件已停止',
   'interface-lost': '仓库或背包界面丢失，取件已停止',
+  'uncertain-cells': '检测到模糊格，未执行自动点击',
+  'transfer-unconfirmed': '转移未确认，已安全停止',
   user: '用户已停止取件',
-  'no-candidates': '未检测到符合阈值的物品'
+  'no-candidates': '当前画面没有高置信高亮物品',
+  completed: '高亮物品已取出'
 }[stashPickupStore.state.reason] || `仓库取件已停止：${stashPickupStore.state.reason}`))
+const junfengStatus = computed(() => {
+  if (junfengStore.running) return { type: 'warning', text: '正在取出高亮' }
+  if (junfengStore.state.status === 'completed') return { type: 'success', text: '已完成' }
+  if (!junfengStore.settings.enabled) return { type: 'info', text: '功能未启用' }
+  return { type: 'info', text: '等待奖励界面' }
+})
+const junfengStopReason = computed(() => ({
+  'game-not-foreground': '游戏不在前台，取件已安全停止',
+  'reward-interface-lost': '奖励界面已消失，取件已安全停止',
+  'uncertain-cells': '检测到低置信候选，未执行自动点击',
+  'transfer-unconfirmed': '转移未确认，已停止且未判断为背包已满',
+  'no-candidates': '当前画面没有高置信高亮物品',
+  completed: '高亮物品已取出',
+  user: '用户已停止取件'
+}[junfengStore.state.reason] || `君锋镇取件停止：${junfengStore.state.reason}`))
 
 async function handleModuleToggle(enabled) {
   try {
@@ -355,22 +483,64 @@ async function toggleStashPickup(enabled) {
   try { await stashPickupStore.setEnabled(enabled) } catch (error) { ElMessage.error(error.message) }
 }
 
-async function updateStashPickupProfile(layout, patch) {
-  try { await stashPickupStore.updateProfile(layout, patch) } catch (error) { ElMessage.error(error.message) }
-}
-
-function activeProfileThreshold(layout) {
-  const profile = stashPickupStore.settings.profiles[layout]
-  return profile.thresholds[profile.method]
-}
-
-function updateProfileThreshold(layout, value) {
-  const profile = stashPickupStore.settings.profiles[layout]
-  return updateStashPickupProfile(layout, { thresholds: { ...profile.thresholds, [profile.method]: value } })
-}
-
 async function previewStashPickup() {
   try { await stashPickupStore.runPreview() } catch (error) { ElMessage.error(error.message) }
+}
+
+async function toggleJunfeng(enabled) {
+  try { await junfengStore.setEnabled(enabled) } catch (error) { ElMessage.error(error.message) }
+}
+
+async function captureRewardTitle() {
+  capturingRewardTitle.value = true
+  try {
+    const result = await electronApi.bag.captureTemplate('junfengRewardTitle')
+    if (result?.canceled) return
+    if (!result?.success) throw new Error(result?.error || '奖励标题框选失败')
+    interfaceStore.applyTemplateCapture('junfengRewardTitle', result)
+  } catch (error) { ElMessage.error(error.message) } finally { capturingRewardTitle.value = false }
+}
+
+async function calibrateJunfengGrid() {
+  try { await junfengStore.calibrateGrid() } catch (error) { ElMessage.error(error.message) }
+}
+
+async function previewJunfeng() {
+  try { await junfengStore.runPreview() } catch (error) { ElMessage.error(error.message) }
+}
+
+async function saveJunfengPreviewCorrections() {
+  try {
+    const count = await junfengStore.savePreviewCorrections()
+    ElMessage.success(`已保存 ${count} 个校准素材并立即生效`)
+  }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+async function saveStashPreviewCorrections() {
+  try {
+    const count = await stashPickupStore.savePreviewCorrections()
+    await junfengStore.loadCorrections()
+    ElMessage.success(`已保存 ${count} 个校准素材并立即生效`)
+  } catch (error) { ElMessage.error(error.message) }
+}
+
+async function resetJunfengCorrections() {
+  try { await junfengStore.resetCorrections(); ElMessage.success('本机校准素材已重置') }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+async function rebuildJunfengCorrections() {
+  try { await junfengStore.rebuildCorrections(); ElMessage.success('已标记为按当前模型重新提取特征') }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+function junfengLabel(label) {
+  return ({ highlighted: '高亮', dimmed: '灰暗', empty: '空格', unknown: '未知' })[label] || label
+}
+
+function calibrationDomainLabel(domain) {
+  return ({ junfeng: '君锋镇', 'small-stash': '小仓库', 'large-stash': '大仓库' })[domain] || '君锋镇'
 }
 
 
@@ -449,6 +619,8 @@ async function handleStopStash() {
 <style scoped lang="less">
 .bag-page { height: 100%; background: var(--bg-secondary); }
 .bag-content { max-width: 1100px; margin: 0 auto; padding: 20px; }
+.storage-tabs { margin-bottom: var(--spacing-lg); }
+.storage-tabs :deep(.el-tabs__header) { margin-bottom: var(--spacing-lg); }
 .section-header { margin: 0 0 var(--spacing-sm) var(--spacing-xs); }
 .section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
@@ -458,12 +630,14 @@ async function handleStopStash() {
 .rule-editor { margin-top: 16px; }
 .rule-editor .el-input { flex: 1; min-width: 220px; }
 .rule-table { margin-top: 16px; }
-.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
-.profile-card { padding: 14px; border: 1px solid var(--border-base); border-radius: 8px; background: var(--bg-primary); }
-.profile-card h4 { margin: 0 0 12px; }
 .stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
-.stash-pickup-preview { margin-top: 12px; color: var(--text-secondary); }
-.stash-pickup-preview img { display: block; max-width: 100%; max-height: 520px; margin-top: 8px; border: 1px solid var(--border-base); border-radius: 6px; }
+.stash-pickup-preview { display: grid; gap: 10px; margin-top: 12px; color: var(--text-secondary); }
+.junfeng-settings { margin-top: 16px; }
+.junfeng-preview { display: grid; gap: 10px; margin-top: 14px; }
+.junfeng-preview__summary { color: var(--text-secondary); }
+.shared-calibration { display: grid; gap: 8px; }
+.calibration-thumbnail { display: block; width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--border-base); border-radius: 4px; }
+.shared-calibration__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
 .inventory-layout-settings :deep(.el-form-item) { margin-bottom: 8px; }
 .inventory-layout-scroll { overflow-x: auto; padding: 12px 2px 4px; }

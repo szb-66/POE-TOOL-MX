@@ -39,6 +39,9 @@ export class InterfaceDetectionCoordinator {
       running: false,
       reloading: false,
       ready: false,
+      stashReady: false,
+      rewardDetected: false,
+      junfengReady: false,
       foreground: false,
       gameBounds: null,
       reason: ''
@@ -142,10 +145,14 @@ export class InterfaceDetectionCoordinator {
           running: true,
           reloading: false,
           ready: Boolean(event.ready),
+          stashReady: Boolean(event.stashReady ?? event.ready),
+          rewardDetected: Boolean(event.rewardDetected),
+          junfengReady: Boolean(event.junfengReady),
           foreground: Boolean(event.foreground),
           gameBounds: event.gameBounds || null,
           stashScore: event.stashScore,
           inventoryScore: event.inventoryScore,
+          rewardScore: event.rewardScore,
           reason: ''
         })
       } else if (event.event === 'detection-error') {
@@ -168,6 +175,9 @@ export class InterfaceDetectionCoordinator {
         running: false,
         reloading: false,
         ready: false,
+        stashReady: false,
+        rewardDetected: false,
+        junfengReady: false,
         foreground: false,
         reason: terminalReason || describeDetectionExit({ code, stderr, spawnError })
       })
@@ -181,7 +191,7 @@ export class InterfaceDetectionCoordinator {
     } catch (error) {
       if (this.child === child) this.child = null
       stopChild(child)
-      this.publish({ running: false, reloading: false, ready: false, foreground: false, reason: error.message })
+      this.publish({ running: false, reloading: false, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: error.message })
       throw error
     }
   }
@@ -190,7 +200,7 @@ export class InterfaceDetectionCoordinator {
     const previous = this.child
     this.child = null
     stopChild(previous)
-    this.publish({ running: false, reloading: true, ready: false, foreground: false, reason: '' })
+    this.publish({ running: false, reloading: true, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '' })
     return this.start()
   }
 
@@ -198,7 +208,7 @@ export class InterfaceDetectionCoordinator {
     const child = this.child
     this.child = null
     stopChild(child)
-    this.publish({ running: false, reloading: false, ready: false, foreground: false, gameBounds: null, reason: '' })
+    this.publish({ running: false, reloading: false, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '' })
   }
 
   cleanup() {

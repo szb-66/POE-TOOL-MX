@@ -2,6 +2,7 @@ import { BrowserWindow, screen } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeGridRegion } from './coordinates.js'
+import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -24,6 +25,7 @@ export class ChaosRecipeOverlayManager {
   constructor() {
     this.window = null
     this.snapshot = null
+    this.statePublisher = createLoadAwarePublisher()
   }
 
   create(snapshot) {
@@ -78,11 +80,9 @@ export class ChaosRecipeOverlayManager {
   publish() {
     const window = this.window
     if (!window || window.isDestroyed() || !this.snapshot) return
-    const send = () => {
+    this.statePublisher.publish(window.webContents, () => {
       if (!window.isDestroyed()) window.webContents.send('chaos-recipe-overlay-state', this.snapshot)
-    }
-    if (window.webContents.isLoadingMainFrame()) window.webContents.once('did-finish-load', send)
-    else send()
+    })
   }
 
   getState() {
@@ -90,6 +90,7 @@ export class ChaosRecipeOverlayManager {
   }
 
   close() {
+    this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
     this.window = null
     this.snapshot = null

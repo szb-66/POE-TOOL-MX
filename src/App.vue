@@ -26,6 +26,7 @@ import { useChaosRecipeStore } from './stores/chaosRecipe'
 import { usePriceCheckStore } from './stores/priceCheck'
 import { usePoeCnAccountStore } from './stores/poeCnAccount'
 import { useStashPickupStore } from './stores/stashPickup'
+import { useJunfengStore } from './stores/junfeng'
 import { usePuzzleStore } from './stores/puzzle'
 import { ElMessage } from 'element-plus'
 
@@ -38,6 +39,7 @@ let removeChaosAutomationListener = null
 let removePriceCheckListener = null
 let removeAccountListener = null
 let removeStashPickupListener = null
+let removeJunfengListener = null
 let removePuzzleListener = null
 
 onMounted(async () => {
@@ -62,6 +64,9 @@ onMounted(async () => {
     const stashPickupStore = useStashPickupStore()
     removeStashPickupListener = stashPickupStore.listen()
     void stashPickupStore.initializeRuntime()
+    const junfengStore = useJunfengStore()
+    removeJunfengListener = junfengStore.listen()
+    void junfengStore.initializeRuntime()
     const priceCheckStore = usePriceCheckStore()
     removePriceCheckListener = priceCheckStore.listenOverlay()
     void priceCheckStore.syncRuntime().catch(() => priceCheckStore.refreshStatus())
@@ -89,6 +94,7 @@ onUnmounted(() => {
   removePriceCheckListener?.()
   removeAccountListener?.()
   removeStashPickupListener?.()
+  removeJunfengListener?.()
   removePuzzleListener?.()
   disposeBagAutomation()
   // 清理 IPC 监听器

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import {
   CHAOS_CONTROL_DIP_SIZE,
   DEFAULT_CHAOS_CONTROL_OFFSET,
+  normalizeControlDipSize,
   normalizeControlOffset,
   placeControlInDip
 } from './controlOverlayPosition.js'
@@ -11,6 +12,7 @@ import {
   CHAOS_GRID_LAYOUT_LABELS,
   missingCalibrationKeys
 } from './layout.js'
+import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -21,7 +23,10 @@ export class ChaosRecipeControlOverlay {
     this.automationLock = automationLock
     this.service = null
     this.stashPickup = null
+    this.junfeng = null
     this.window = null
+    this.statePublisher = createLoadAwarePublisher()
+    this.contentSize = { ...CHAOS_CONTROL_DIP_SIZE }
     this.enabled = false
     this.runtime = {
       league: '',
@@ -51,6 +56,11 @@ export class ChaosRecipeControlOverlay {
 
   attachStashPickup(manager) {
     this.stashPickup = manager
+    this.sync()
+  }
+
+  attachJunfeng(manager) {
+    this.junfeng = manager
     this.sync()
   }
 
@@ -147,15 +157,46 @@ export class ChaosRecipeControlOverlay {
     const stashPickupOccupied = lock.locked && lock.owner !== '仓库自动取件'
     const canStashPickup = Boolean(stashPickupEnabled && this.detection.ready && this.detection.foreground &&
       (stashPickupRunning || !stashPickupOccupied))
+    const rewardDetected = Boolean(this.detection.rewardDetected)
+    const junfengReady = Boolean(this.detection.junfengReady)
+    const junfengEnabled = Boolean(this.junfeng?.runtime?.enabled)
+    const junfengAutomation = this.junfeng?.getStatus?.() || { status: 'idle' }
+    const junfengRunning = junfengAutomation.status === 'running'
+    const junfengOccupied = lock.locked && lock.owner !== '君锋镇取出高亮'
+    const junfengAvailability = this.junfeng?.getAvailability?.() || { ready: false, reason: '君锋镇模块未配置' }
+    const canJunfeng = Boolean(junfengEnabled && junfengReady && junfengAvailability.ready && this.detection.foreground &&
+      (junfengRunning || !junfengOccupied))
+    const normalVisible = Boolean((this.enabled || stashPickupEnabled) && this.detection.ready)
+    const junfengVisible = Boolean(junfengEnabled && rewardDetected)
+    const junfengReason = junfengOccupied
+      ? `${lock.owner}正在运行`
+      : !junfengReady
+        ? '奖励与背包界面未就绪'
+        : !junfengAvailability.ready
+          ? junfengAvailability.reason
+        : ''
+    const junfengStatus = junfengRunning
+      ? `正在取出高亮：已取 ${junfengAutomation.pickedItems || 0} · 剩余 ${junfengAutomation.remainingItems || 0}`
+      : junfengAutomation.reason
+        ? `君锋镇取件已停止：${junfengAutomation.reason}`
+        : '君锋镇高亮取件已就绪'
     return {
-      visible: Boolean((this.enabled || stashPickupEnabled) && this.detection.ready && this.detection.foreground && this.detection.gameBounds),
-      enabled: this.enabled || stashPickupEnabled,
+      visible: Boolean((rewardDetected ? junfengVisible : normalVisible) && this.detection.foreground && this.detection.gameBounds),
+      enabled: this.enabled || stashPickupEnabled || junfengEnabled,
       recipeEnabled: this.enabled,
       stashPickupEnabled,
       canStashPickup,
       stashPickupReason: stashPickupOccupied ? `${lock.owner}正在运行` : !this.detection.ready ? '仓库与背包未就绪' : '',
       stashPickupLabel: stashPickupRunning ? '停止仓库取件' : '取出物品',
       stashPickupAutomation,
+      rewardDetected,
+      junfengEnabled,
+      junfengReady,
+      junfengRunning,
+      canJunfeng,
+      junfengReason,
+      junfengButtonLabel: junfengRunning ? '停止取件' : '取出高亮',
+      junfengAutomation,
       ready: Boolean(this.detection.ready),
       foreground: Boolean(this.detection.foreground),
       refreshing: false,
@@ -174,7 +215,9 @@ export class ChaosRecipeControlOverlay {
       canRun: Boolean((running || paused) || (canPreview && !occupiedByOther)),
       actionLabel,
       actionReason,
-      statusMessage: !this.enabled
+      statusMessage: rewardDetected
+        ? junfengStatus
+        : !this.enabled
         ? (stashPickupRunning
             ? `正在取出物品：已取 ${stashPickupAutomation.pickedItems || 0} · 剩余格 ${stashPickupAutomation.remainingCells || 0}`
             : stashPickupAutomation.reason === 'inventory-full'
@@ -194,8 +237,8 @@ export class ChaosRecipeControlOverlay {
   createWindow() {
     if (this.window && !this.window.isDestroyed()) return this.window
     this.window = new BrowserWindow({
-      width: CHAOS_CONTROL_DIP_SIZE.width,
-      height: CHAOS_CONTROL_DIP_SIZE.height,
+      width: this.contentSize.width,
+      height: this.contentSize.height,
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -241,20 +284,19 @@ export class ChaosRecipeControlOverlay {
             screenToDipPoint: (point) => screen.screenToDipPoint(point),
             dipToScreenPoint: (point) => screen.dipToScreenPoint(point)
           }
-        : null
+        : null,
+      this.contentSize
     )
     if (placement) {
       this.runtime.controlOverlayOffset = placement.offset
       window.setBounds(placement)
     }
-    const publish = () => {
+    this.statePublisher.publish(window.webContents, () => {
       if (!window.isDestroyed()) window.webContents.send('chaos-recipe-control-state', {
         ...state,
         offset: this.runtime.controlOverlayOffset
       })
-    }
-    if (window.webContents.isLoadingMainFrame()) window.webContents.once('did-finish-load', publish)
-    else publish()
+    })
     if (state.visible && placement) window.showInactive()
     else window.hide()
     return state
@@ -262,6 +304,14 @@ export class ChaosRecipeControlOverlay {
 
   getState() {
     return this.computeState()
+  }
+
+  resizeToContent(size) {
+    const next = normalizeControlDipSize(size)
+    if (next.width === this.contentSize.width && next.height === this.contentSize.height) return next
+    this.contentSize = next
+    this.sync()
+    return next
   }
 
   moveToDip(x, y) {
@@ -282,6 +332,7 @@ export class ChaosRecipeControlOverlay {
   }
 
   close() {
+    this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
     this.window = null
   }

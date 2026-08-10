@@ -1,0 +1,12 @@
+{
+  "validationDomain": "junfeng",
+  "mode": "audited",
+  "validationSessions": [
+    "junfeng:0fd7069db6f2bd4147396725",
+    "junfeng:e0d3d23729db366a07ba3543"
+  ],
+  "testSessions": [
+    "junfeng:5bd03e5ffcb9a4de9bfc2ab6",
+    "junfeng:bdd834171dd8d48f582dceb4"
+  ]
+}

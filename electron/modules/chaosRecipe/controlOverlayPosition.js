@@ -7,6 +7,13 @@ function finite(value, fallback) {
   return Number.isFinite(number) ? number : fallback
 }
 
+export function normalizeControlDipSize(value, maximum = CHAOS_CONTROL_DIP_SIZE) {
+  return {
+    width: Math.max(1, Math.min(maximum.width, Math.ceil(finite(value?.width, maximum.width)))),
+    height: Math.max(1, Math.min(maximum.height, Math.ceil(finite(value?.height, maximum.height))))
+  }
+}
+
 export function normalizeControlOffset(value) {
   return {
     x: Math.round(finite(value?.x, DEFAULT_CHAOS_CONTROL_OFFSET.x)),

@@ -84,13 +84,13 @@ export async function setBagModuleEnabled(enabled) {
     const result = await startBagDetection()
     if (!result?.success) return false
     bagStore.setModuleEnabled(true)
-    ElMessage.success('背包安全自动入库已启用')
+    ElMessage.success('背包安全入库已启用')
     return true
   }
   await electronApi.bag.stopDetection()
   bagStore.setModuleEnabled(false)
   bagStore.resetStates()
-  ElMessage.success('背包安全自动入库已关闭')
+  ElMessage.success('背包安全入库已关闭')
   return true
 }
 

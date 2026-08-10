@@ -17,6 +17,9 @@
     "unique-items:data:refresh": "node scripts/generateUniqueItemSnapshot.js --live",
     "runtime:prepare": "node scripts/runtime/prepare.js",
     "runtime:verify": "node scripts/runtime/verify.js",
+    "junfeng:dataset": "python scripts/junfeng/build_dataset.py",
+    "junfeng:train": "python scripts/junfeng/train_model.py",
+    "junfeng:benchmark": "python scripts/junfeng/benchmark_model.py",
     "dev": "vite",
     "electron:dev": "node scripts/dev.js",
     "build": "vite build",
@@ -71,6 +74,7 @@
       "src/utils/bagConfig.js",
       "src/utils/electronAccelerator.js",
       "src/utils/inventorySettings.js",
+      "src/utils/junfengConfig.js",
       "src/utils/operationDelay.js",
       "src/utils/puzzleConfig.js",
       "src/utils/stashGridCalibration.js",
@@ -93,6 +97,14 @@
       {
         "from": "src/assets/scripts/stash_pickup_template.py",
         "to": "stash_pickup_template.py"
+      },
+      {
+        "from": "src/assets/scripts/junfeng_highlight_pickup.py",
+        "to": "junfeng_highlight_pickup.py"
+      },
+      {
+        "from": "src/assets/models/junfeng-highlight",
+        "to": "junfeng-highlight-model"
       },
       {
         "from": "src/assets/scripts/stash_tab_selector.py",

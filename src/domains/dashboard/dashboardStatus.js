@@ -106,9 +106,9 @@ export function evaluateBagStatus(input = {}) {
 
   return createModuleStatus({
     id: 'bag',
-    title: '背包入库',
+    title: '存取',
     route: '/bag',
-    description: '检测仓库与背包界面并安全执行自动入库。',
+    description: '管理安全入库、仓库取件与君锋镇取件。',
     error: runtimeError,
     running: input.moduleEnabled && (input.isDetecting || input.isStashing),
     issues: input.configError ? [input.configError] : [],

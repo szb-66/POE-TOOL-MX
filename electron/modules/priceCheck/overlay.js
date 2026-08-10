@@ -6,6 +6,7 @@ import {
   getPriceCheckOverlayBounds,
   hasLeftPriceCheckIntent
 } from './overlayPosition.js'
+import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const CURSOR_POLL_MS = 80
@@ -20,6 +21,7 @@ export class PriceCheckOverlayManager {
     this.cursorAnchor = null
     this.cursorEnteredWindow = false
     this.cursorOutsideSince = 0
+    this.statePublisher = createLoadAwarePublisher()
   }
 
   stopCursorMonitor() {
@@ -135,9 +137,10 @@ export class PriceCheckOverlayManager {
 
   publish() {
     if (!this.window || this.window.isDestroyed() || !this.snapshot) return
-    const send = () => this.window && !this.window.isDestroyed() && this.window.webContents.send('price-check-overlay-state', this.snapshot)
-    if (this.window.webContents.isLoadingMainFrame()) this.window.webContents.once('did-finish-load', send)
-    else send()
+    const window = this.window
+    this.statePublisher.publish(window.webContents, () => {
+      if (this.window === window && !window.isDestroyed()) window.webContents.send('price-check-overlay-state', this.snapshot)
+    })
   }
 
   getState() { return this.snapshot ? structuredClone(this.snapshot) : null }
@@ -147,6 +150,7 @@ export class PriceCheckOverlayManager {
   }
   close() {
     this.stopCursorMonitor()
+    this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
     this.window = null
     this.snapshot = null

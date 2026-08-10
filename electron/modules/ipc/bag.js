@@ -64,8 +64,10 @@ function runtimeConfig(config = {}) {
     templates: {
       stash_title: String(config.templates?.stashTitle || ''),
       inventory_title: String(config.templates?.inventoryTitle || ''),
+      junfeng_reward_title: String(config.templates?.junfengRewardTitle || ''),
       stash_region: config.templates?.stashRegion || {},
-      inventory_region: config.templates?.inventoryRegion || {}
+      inventory_region: config.templates?.inventoryRegion || {},
+      junfeng_reward_region: config.templates?.junfengRewardRegion || {}
     },
     match_threshold: Number(config.matchThreshold ?? 0.8),
     inventory: {
@@ -237,9 +239,13 @@ function startStashProcess(python, fileWatcher, mode) {
   return { success: true, processId: child.pid, mode }
 }
 
-const templateRuntimeKeys = (type) => type === 'stashTitle'
-  ? { path: 'stash_title', region: 'stash_region' }
-  : { path: 'inventory_title', region: 'inventory_region' }
+const TEMPLATE_RUNTIME_KEYS = Object.freeze({
+  stashTitle: { path: 'stash_title', region: 'stash_region' },
+  inventoryTitle: { path: 'inventory_title', region: 'inventory_region' },
+  junfengRewardTitle: { path: 'junfeng_reward_title', region: 'junfeng_reward_region' }
+})
+
+const templateRuntimeKeys = (type) => TEMPLATE_RUNTIME_KEYS[type] || TEMPLATE_RUNTIME_KEYS.inventoryTitle
 
 const updateRuntimeTemplate = (type, templatePath, region) => {
   if (!latestConfig?.templates) return
@@ -388,8 +394,10 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       candidate.templates = {
         stash_title: String(config.templates?.stashTitle || ''),
         inventory_title: String(config.templates?.inventoryTitle || ''),
+        junfeng_reward_title: String(config.templates?.junfengRewardTitle || ''),
         stash_region: config.templates?.stashRegion || {},
-        inventory_region: config.templates?.inventoryRegion || {}
+        inventory_region: config.templates?.inventoryRegion || {},
+        junfeng_reward_region: config.templates?.junfengRewardRegion || {}
       }
       candidate.match_threshold = Number(config.matchThreshold ?? 0.8)
       const error = validateConfig(candidate)
@@ -443,7 +451,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       const templateDir = path.join(app.getPath('userData'), 'templates')
       if (!fs.existsSync(templateDir)) fs.mkdirSync(templateDir, { recursive: true })
       const ext = path.extname(sourcePath)
-      const fileName = type === 'stashTitle' ? `stash_title${ext}` : `inventory_title${ext}`
+      const fileName = path.basename(assertBagTemplateTarget(type), '.png') + ext
       const targetPath = path.join(templateDir, fileName)
       fs.copyFileSync(sourcePath, targetPath)
       updateRuntimeTemplate(type, targetPath)

@@ -3,6 +3,7 @@ dist/
 dist-electron/
 dist-electron-*/
 .runtime/
+artifacts/
 __pycache__/
 *.py[cod]
 

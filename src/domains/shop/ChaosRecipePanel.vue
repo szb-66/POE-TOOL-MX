@@ -67,31 +67,36 @@
               <el-button class="inline-button" @click="$router.push('/settings')">修改全局赛季</el-button>
             </el-form-item>
             <el-form-item label="仓库页">
-              <el-checkbox-group
-                :model-value="store.settings.selectedTabIds"
-                class="tab-list"
-                @change="value => store.updateSetting('selectedTabIds', value)"
-              >
-                <el-checkbox v-for="tab in store.supportedTabs" :key="tab.id" :value="tab.id">
-                  {{ tab.name }}
-                  <el-tag v-if="tab.inFolder" size="small" type="warning">
-                    文件夹内
-                  </el-tag>
-                  <el-tag size="small">{{ tab.type === 'quad' ? '大型' : '普通' }}</el-tag>
-                </el-checkbox>
-              </el-checkbox-group>
-              <span v-if="store.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
-              <div v-for="tab in store.selectedTabs" :key="`override-${tab.id}`" class="tab-override-row">
-                <span class="tab-override-title">{{ tab.name }}</span>
-                <el-switch
-                  :model-value="tab.inFolder"
-                  active-text="位于文件夹内"
-                  inactive-text="位于文件夹外"
-                  @change="inFolder => store.updateTabFolderState(tab.id, inFolder)"
-                />
+              <div class="tab-list">
+                <div
+                  v-for="tab in store.supportedTabs"
+                  :key="tab.id"
+                  class="tab-card"
+                  :class="{ active: store.settings.selectedTabIds.includes(tab.id) }"
+                  role="checkbox"
+                  tabindex="0"
+                  :aria-checked="store.settings.selectedTabIds.includes(tab.id)"
+                  @click="toggleTabSelection(tab.id)"
+                  @keydown.space.prevent="toggleTabSelection(tab.id)"
+                  @keydown.enter.prevent="toggleTabSelection(tab.id)"
+                >
+                  <div class="tab-card-title">
+                    <strong>{{ tab.name }}</strong>
+                    <el-tag size="small">{{ tab.type === 'quad' ? '大型' : '普通' }}</el-tag>
+                  </div>
+                  <div class="tab-folder-control" @click.stop @keydown.stop>
+                    <span>文件夹</span>
+                    <el-switch
+                      :model-value="tab.inFolder"
+                      :aria-label="`${tab.name}位于文件夹内`"
+                      @change="inFolder => store.updateTabFolderState(tab.id, inFolder)"
+                    />
+                  </div>
+                </div>
               </div>
+              <span v-if="store.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
               <p class="muted folder-hint">
-                旧接口无法判断仓库页是否在文件夹内，请按游戏中的实际位置手动选择；默认按文件夹外处理。
+                旧接口无法判断仓库页是否在文件夹内，请按游戏中的实际位置设置“文件夹”开关；开启表示位于文件夹内，默认关闭。
               </p>
             </el-form-item>
             <el-form-item label="配方选项">
@@ -320,6 +325,13 @@ const diagnosticWarning = computed(() => {
 
 const formatTime = (value) => value ? new Date(value).toLocaleTimeString() : ''
 
+function toggleTabSelection(tabId) {
+  const selectedTabIds = store.settings.selectedTabIds.includes(tabId)
+    ? store.settings.selectedTabIds.filter(id => id !== tabId)
+    : [...store.settings.selectedTabIds, tabId]
+  store.updateSetting('selectedTabIds', selectedTabIds)
+}
+
 async function toggleEnabled(enabled) {
   try {
     await store.setEnabled(enabled)
@@ -346,15 +358,27 @@ async function toggleEnabled(enabled) {
 .diagnostic-line { margin: 12px 0 0; color: var(--text-secondary); font-size: 13px; }
 .config-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 16px; }
 .inline-button { margin-left: 10px; }
-.tab-list { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 8px 12px; width: 100%; }
-.tab-override-row {
+.tab-list { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 10px 12px; width: 100%; }
+.tab-card {
   display: flex;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   align-items: center;
-  width: 100%;
-  margin-top: 8px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 2px solid var(--border-lighter);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
 }
-.tab-override-title { color: var(--text-secondary); font-size: 13px; }
+.tab-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--el-color-primary-light-7); }
+.tab-card.active { border-color: var(--el-color-primary); }
+.tab-card:hover { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
+.tab-card.active:hover { border-color: var(--el-color-primary); }
+.tab-card-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tab-card-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab-folder-control { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 13px; cursor: default; }
 .folder-hint { margin: 8px 0 0; }
 .calibration-row + .calibration-row { margin-top: 12px; }
 .calibration-warning { margin-top: 12px; }
@@ -366,7 +390,7 @@ async function toggleEnabled(enabled) {
   padding: 12px;
   color: var(--text-primary);
   text-align: left;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-lighter);
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
@@ -380,11 +404,11 @@ async function toggleEnabled(enabled) {
   gap: 10px;
   align-items: center;
   padding: 9px 10px;
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-lighter);
   border-radius: 6px;
 }
 .single-row code { color: var(--el-color-primary); }
-.summary-item { padding: 14px; border: 1px solid var(--border-light); border-radius: 8px; text-align: center; }
+.summary-item { padding: 14px; border: 1px solid var(--border-lighter); border-radius: 8px; text-align: center; }
 .summary-item strong, .summary-item span { display: block; }
 .summary-item strong { font-size: 24px; }
 .summary-item span { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
