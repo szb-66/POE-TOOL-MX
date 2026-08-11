@@ -70,7 +70,7 @@
 - [ ] Windows CI 与 Release 工作流全部通过
 - [ ] Release 包含安装包、同名 `.blockmap`、`latest.yml`、`SHA256SUMS.txt` 和 `THIRD_PARTY_NOTICES.md`
 - [ ] CNB `Auto-Tool-MX/POE-TOOL-MX` 的同标签 Release 包含相同五类资产；首个完整镜像从 `v1.0.3` 开始，不使用资产不完整的 `v1.0.2`
-- [ ] `https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/download/latest/latest.yml` 返回当前稳定版本，且同一路径下的安装包与 `.blockmap` 可下载
+- [ ] `https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/latest/download/latest.yml` 返回当前稳定版本，且同一路径下的安装包与 `.blockmap` 可下载
 - [ ] GitHub 与 CNB Release 的安装包 SHA-256 完全一致
 - [ ] 已安装的上一稳定版可在应用内检查、下载并在确认后覆盖升级
 - [ ] GitHub 构建来源证明可以验证安装包与校验文件

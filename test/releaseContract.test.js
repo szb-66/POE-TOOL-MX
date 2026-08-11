@@ -30,7 +30,7 @@ test('发布资产名称、版本标签与校验文件形成稳定契约', () =>
   assert.equal(packageConfig.build.artifactName, 'PoE-CN-Helper-${version}-win-${arch}-setup.${ext}')
   assert.deepEqual(packageConfig.build.win.publish, {
     provider: 'generic',
-    url: 'https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/download/latest'
+    url: 'https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/latest/download'
   })
   assert.equal(packageConfig.scripts['release:check'], 'node scripts/release/checkVersion.js')
   assert.equal(packageConfig.scripts['release:checksum'], 'node scripts/release/checksum.js')
