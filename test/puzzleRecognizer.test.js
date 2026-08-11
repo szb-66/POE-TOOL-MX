@@ -203,8 +203,10 @@ test('实时仓库识别在截图前点击目标页签并等待稳定', () => {
   const clickIndex = source.indexOf('click_inventory_tab(tab_point')
   const captureIndex = source.indexOf('image = capture_region(config["region"]')
   assert.ok(focusIndex >= 0 && focusIndex < clickIndex && clickIndex < captureIndex)
-  const clickHelper = source.match(/def click_inventory_tab\([\s\S]*?\n\n/)?.[0] || ''
-  assert.match(clickHelper, /mouse_event\(0x0004[\s\S]*SetCursorPos\(0, 0\)[\s\S]*time\.sleep/)
+  for (const candidate of [source, source.replace(/\r?\n/g, '\r\n')]) {
+    const clickHelper = candidate.match(/def click_inventory_tab\([\s\S]*?\r?\n\r?\n/)?.[0] || ''
+    assert.match(clickHelper, /mouse_event\(0x0004[\s\S]*SetCursorPos\(0, 0\)[\s\S]*time\.sleep/)
+  }
 })
 
 test('传入识别强度配置后仍能完成仓库识别', { skip: !existsSync(python) }, () => {
