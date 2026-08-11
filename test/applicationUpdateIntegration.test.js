@@ -21,6 +21,7 @@ test('更新 IPC 只暴露固定命令且校验主窗口与模式', () => {
 test('设置默认手动更新并持久化、重置和同步到主进程', () => {
   const store = source('../src/domains/settings/settingsStore.js')
   const app = source('../src/App.vue')
+  const runtime = source('../src/startup/mainRuntime.js')
   assert.match(store, /const updateMode = ref\(UPDATE_MODE_MANUAL\)/)
   assert.match(store, /updateMode: updateMode\.value/)
   assert.match(store, /updateMode\.value = normalizeUpdateMode\(data\.updateMode\)/)
@@ -35,11 +36,12 @@ test('设置默认手动更新并持久化、重置和同步到主进程', () =>
     '设置 store 会被覆盖层复用，构造时不得调用仅限主窗口的更新 IPC'
   )
 
-  const mountedStart = app.indexOf('onMounted(async () => {')
+  const mountedStart = app.indexOf('onMounted(() => {')
   const noLayoutGuard = app.indexOf('if (route.meta.noLayout) return', mountedStart)
-  const updateSync = app.indexOf('electronApi.update.configure({ mode: settingsStore.updateMode })', mountedStart)
-  assert.ok(mountedStart >= 0 && noLayoutGuard > mountedStart && updateSync > noLayoutGuard,
+  const runtimeImport = app.indexOf("import('./startup/mainRuntime')", mountedStart)
+  assert.ok(mountedStart >= 0 && noLayoutGuard > mountedStart && runtimeImport > noLayoutGuard,
     '更新模式应在排除覆盖层路由后由主窗口同步')
+  assert.match(runtime, /electronApi\.update\.configure\(\{ mode: settingsStore\.updateMode \}\)/)
 })
 
 test('设置页展示更新信息、纯文本说明、进度和未签名警告', () => {

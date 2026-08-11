@@ -17,90 +17,42 @@ import { onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
-import { initShortcuts } from './utils/scriptService'
-import { useSettingsStore } from './domains/settings/settingsStore'
-import { electronApi } from './api/electron'
-import { initCombatAssist } from './utils/combatService'
-import { disposeBagAutomation, initBagAutomation } from './utils/bagService'
-import { useChaosRecipeStore } from './stores/chaosRecipe'
-import { usePriceCheckStore } from './stores/priceCheck'
-import { usePoeCnAccountStore } from './stores/poeCnAccount'
-import { useStashPickupStore } from './stores/stashPickup'
-import { useJunfengStore } from './stores/junfeng'
-import { usePuzzleStore } from './stores/puzzle'
-import { ElMessage } from 'element-plus'
+import { reportStartupEvent } from './utils/startupReporter'
+import { markMainRuntimeSettled } from './startup/readiness'
 
 const route = useRoute()
 const router = useRouter()
-const settingsStore = useSettingsStore()
-let initShortcutsHandler = null
-let removeDevToolsListener = null
-let removeChaosAutomationListener = null
-let removePriceCheckListener = null
-let removeAccountListener = null
-let removeStashPickupListener = null
-let removeJunfengListener = null
-let removePuzzleListener = null
+let runtimeDispose = null
+let runtimeGeneration = 0
 
-onMounted(async () => {
+onMounted(() => {
   if (route.meta.noLayout) return
-  window.addEventListener('focus', refreshGameWindowOnFocus)
-  // 初始化快捷键
-  if (window.electronAPI) {
-    void electronApi.update.configure({ mode: settingsStore.updateMode }).catch(() => {})
-    const titleSync = await settingsStore.syncGameWindowTitles()
-    if (!titleSync.success) ElMessage.warning(`游戏窗口名称同步失败：${titleSync.error}`)
-    const processNameSync = await settingsStore.syncGameWindowProcessNames()
-    if (!processNameSync.success) ElMessage.warning(`游戏客户端进程名同步失败：${processNameSync.error}`)
-    void settingsStore.refreshDpiScale()
-    initShortcuts()
-    initCombatAssist()
-    initBagAutomation()
-    const accountStore = usePoeCnAccountStore()
-    removeAccountListener = accountStore.listenStatus()
-    const chaosStore = useChaosRecipeStore()
-    removeChaosAutomationListener = chaosStore.listenAutomation()
-    void chaosStore.initializeRuntime()
-    const stashPickupStore = useStashPickupStore()
-    removeStashPickupListener = stashPickupStore.listen()
-    void stashPickupStore.initializeRuntime()
-    const junfengStore = useJunfengStore()
-    removeJunfengListener = junfengStore.listen()
-    void junfengStore.initializeRuntime()
-    const priceCheckStore = usePriceCheckStore()
-    removePriceCheckListener = priceCheckStore.listenOverlay()
-    void priceCheckStore.syncRuntime().catch(() => priceCheckStore.refreshStatus())
-    removePuzzleListener = usePuzzleStore().listen(() => {
-      void router.push('/puzzle')
+  if (!window.electronAPI) return
+  const generation = ++runtimeGeneration
+  void import('./startup/mainRuntime')
+    .then(({ initializeMainRuntime }) => initializeMainRuntime({ router }))
+    .then((result) => {
+      if (generation !== runtimeGeneration) {
+        result.dispose?.()
+        return
+      }
+      runtimeDispose = result.dispose
+      if (result.warnings.length) {
+        reportStartupEvent('renderer-runtime-failed', result.warnings.map(item => item.name).join(','))
+      } else {
+        reportStartupEvent('renderer-runtime-ready')
+      }
     })
-  }
-
-  removeDevToolsListener = electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
-    settingsStore.updateDebugMode(visible)
-  })
-  electronApi.window.setDevToolsVisible(settingsStore.debugMode)
+    .catch((error) => {
+      markMainRuntimeSettled([{ name: 'main-runtime', error: String(error?.message || error) }])
+      reportStartupEvent('renderer-runtime-failed', error)
+    })
 })
 
-const refreshGameWindowOnFocus = () => {
-  if (window.electronAPI && settingsStore.dpiMode === 'auto') {
-    void settingsStore.refreshDpiScale()
-  }
-}
-
 onUnmounted(() => {
-  window.removeEventListener('focus', refreshGameWindowOnFocus)
-  removeDevToolsListener?.()
-  removeChaosAutomationListener?.()
-  removePriceCheckListener?.()
-  removeAccountListener?.()
-  removeStashPickupListener?.()
-  removeJunfengListener?.()
-  removePuzzleListener?.()
-  disposeBagAutomation()
-  // 清理 IPC 监听器
-  if (window.electronAPI && window.electronAPI.removeAllListeners) {
-    window.electronAPI.removeAllListeners('init-shortcuts')
-  }
+  runtimeGeneration += 1
+  runtimeDispose?.()
+  runtimeDispose = null
 })
 </script>
 

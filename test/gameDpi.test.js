@@ -92,15 +92,15 @@ test('有效 DPI 按手动、当前游戏、历史和主屏顺序解析', () => 
 })
 
 test('启动与脚本运行前触发检测，脚本只在 pynput 回退路径使用注入倍率', () => {
-  const app = source('../src/App.vue')
+  const runtime = source('../src/startup/mainRuntime.js')
   const service = source('../src/utils/scriptService.js')
   const generator = source('../src/utils/python.js')
   const crafting = source('../src/assets/scripts/crafting_template.py')
   const mapRolling = source('../src/assets/scripts/map_rolling_template.py')
 
-  assert.match(app, /void settingsStore\.refreshDpiScale\(\)/)
-  assert.match(app, /window\.addEventListener\('focus', refreshGameWindowOnFocus\)/)
-  assert.match(app, /window\.removeEventListener\('focus', refreshGameWindowOnFocus\)/)
+  assert.match(runtime, /settingsStore\.refreshDpiScale\(\)/)
+  assert.match(runtime, /window\.addEventListener\('focus', refreshGameWindowOnFocus\)/)
+  assert.match(runtime, /window\.removeEventListener\('focus', refreshGameWindowOnFocus\)/)
   assert.equal((service.match(/await refreshDpiForAutomation\(settingsStore\)/g) || []).length, 2)
   assert.equal((generator.match(/'\{\{DPI_SCALE_FACTOR\}\}'/g) || []).length, 2)
   for (const template of [crafting, mapRolling]) {

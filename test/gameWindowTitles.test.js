@@ -119,7 +119,7 @@ test('共享文件写入失败时不替换上一份内存配置', () => {
 
 test('设置持久化、启动同步和编辑器覆盖新增编辑删除与拖拽', () => {
   const store = source('../src/domains/settings/settingsStore.js')
-  const app = source('../src/App.vue')
+  const runtime = source('../src/startup/mainRuntime.js')
   const view = source('../src/domains/settings/SettingsView.vue')
   const editor = source('../src/domains/settings/GameWindowTitleSettings.vue')
   assert.match(store, /gameWindowTitles: gameWindowTitles\.value/)
@@ -130,8 +130,9 @@ test('设置持久化、启动同步和编辑器覆盖新增编辑删除与拖�
   assert.match(store, /gameWindowProcessNames\.value = \[\.\.\.DEFAULT_GAME_WINDOW_PROCESS_NAMES\]/)
   assert.match(store, /updateGameWindowProcessNames/)
   assert.match(store, /syncGameWindowProcessNames/)
-  assert.ok(app.indexOf('await settingsStore.syncGameWindowTitles()') < app.indexOf('settingsStore.refreshDpiScale()'))
-  assert.ok(app.indexOf('await settingsStore.syncGameWindowProcessNames()') < app.indexOf('settingsStore.refreshDpiScale()'))
+  const startupDpiSync = runtime.indexOf("settleSubsystem('dpi'")
+  assert.ok(runtime.indexOf('await settingsStore.syncGameWindowTitles()') < startupDpiSync)
+  assert.ok(runtime.indexOf('await settingsStore.syncGameWindowProcessNames()') < startupDpiSync)
   assert.match(view, /<GameWindowTitleSettings/)
   assert.match(editor, /draggable="true"/)
   assert.match(editor, /processDrafts/)

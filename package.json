@@ -22,6 +22,7 @@
     "junfeng:benchmark": "python scripts/junfeng/benchmark_model.py",
     "dev": "vite",
     "electron:dev": "node scripts/dev.js",
+    "startup:benchmark": "node scripts/startupBenchmark.js",
     "build": "vite build",
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --win nsis --x64",

@@ -371,8 +371,7 @@ test('启动同步先比较本地开关，重置与失败路径保持主从状�
   assert.match(settingsStore, /const previous = shortcutScopeEnabled\.value/)
   assert.match(settingsStore, /setScopeEnabled\(true\)/)
   assert.match(dashboard, /item\.status === 'pending' \|\| item\.status === 'attention'/)
-  assert.ok(main.indexOf('createApplicationWindow()') < main.indexOf('setImmediate(() => {'))
-  assert.match(main, /setImmediate\(\(\) => \{[\s\S]*startForegroundWatcher/)
+  assert.match(main, /createApplicationWindow\(\)[\s\S]*?setImmediate\(\(\) => \{[\s\S]*?startForegroundWatcher/)
 })
 
 test('诊断允许集合包含前台门禁事件与回退原因', () => {

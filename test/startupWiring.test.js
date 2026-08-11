@@ -13,6 +13,12 @@ test('渲染端启动事件只接受固定枚举和长度受限文本', () => {
   assert.equal(sanitizeStartupReport({ type: 'unknown', message: 'boom' }), null)
   assert.equal(sanitizeStartupReport({ type: 'renderer-error', message: 'x'.repeat(1025) }), null)
   assert.equal(sanitizeStartupReport('renderer-mounted'), null)
+  assert.deepEqual(sanitizeStartupReport({ type: 'dashboard-ready' }), {
+    phase: 'dashboard', outcome: 'succeeded', reasonCode: 'none', message: ''
+  })
+  assert.deepEqual(sanitizeStartupReport({ type: 'renderer-runtime-failed', message: 'partial' }), {
+    phase: 'renderer-runtime', outcome: 'failed', reasonCode: 'renderer_runtime_failed', message: 'partial'
+  })
 })
 
 test('主进程在 ready 前启用本地 Crashpad 和崩溃保护', () => {
@@ -28,6 +34,7 @@ test('主进程在 ready 前启用本地 Crashpad 和崩溃保护', () => {
   assert.match(main, /--diagnostic-crash-renderer/)
   assert.match(main, /--diagnostic-crash-main-native/)
   assert.match(main, /--diagnostic-exit-after-mounted/)
+  assert.match(main, /--diagnostic-exit-after-dashboard-ready/)
   assert.match(main, /--diagnostic-exit-on-unrecoverable/)
 })
 

@@ -22,3 +22,14 @@ test('开发端口占用时给出不会切换数据 origin 的提示', () => {
   assert.match(launcher, /不会切换端口以免读取到另一份本地数据/)
   assert.match(launcher, /process\.exit\(1\)/)
 })
+
+test('开发服务器只预热首屏并忽略生成数据目录', () => {
+  const viteConfig = source('../vite.config.js')
+
+  assert.match(viteConfig, /warmup:\s*(?:isNodeTest\s*\?\s*undefined\s*:\s*)?\{[\s\S]*?DashboardRouteView\.vue/)
+  assert.match(viteConfig, /isNodeTest\s*=\s*Boolean\(process\.env\.NODE_TEST_CONTEXT\)/)
+  assert.match(viteConfig, /optimizeDeps:\s*\{[\s\S]*?'vue'[\s\S]*?'element-plus'/)
+  assert.match(viteConfig, /watch:\s*\{[\s\S]*?crafting-raw[\s\S]*?unique-items-raw/)
+  assert.doesNotMatch(viteConfig, /warmup:[\s\S]*?pageLoaders/)
+  assert.doesNotMatch(viteConfig, /element-plus\/dist\/index\.css/)
+})

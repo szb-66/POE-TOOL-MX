@@ -30,7 +30,7 @@ export function registerIpcHandlers(dependencies) {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
-    applicationUpdate, getMainWindow
+    applicationUpdate, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
   registerWindowHandlers(window)
@@ -48,6 +48,6 @@ export function registerIpcHandlers(dependencies) {
   if (priceCheck) registerPriceCheckHandlers(priceCheck)
   if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
-  if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection })
+  if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection, enableTraining: enableJunfengTraining })
   if (puzzle) registerPuzzleHandlers(puzzle)
 }

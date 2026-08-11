@@ -155,12 +155,23 @@ const startupDiagnostics = {
     const mainWindow = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents !== sender) return false
     const recorded = startupLog.record(event)
+    if (developmentFaultEnabled('--diagnostic-startup-json')) {
+      console.log(`@@POE_STARTUP@@${JSON.stringify({ timestamp: new Date().toISOString(), ...event })}`)
+    }
     if (recorded && event?.reasonCode === 'none' && event?.phase === 'renderer' && event?.outcome === 'succeeded') {
       crashGuard.markStartupComplete()
     }
     if (event?.reasonCode === 'none' && event?.phase === 'renderer' && event?.outcome === 'succeeded' &&
         developmentFaultEnabled('--diagnostic-exit-after-mounted')) {
       setImmediate(() => app.quit())
+    }
+    if (event?.reasonCode === 'none' && event?.phase === 'dashboard' && event?.outcome === 'succeeded' &&
+        developmentFaultEnabled('--diagnostic-exit-after-dashboard-ready')) {
+      setImmediate(() => {
+        void shutdownController.requestShutdown()
+        // 仅诊断基准使用：给正常清理短暂窗口，避免后台网络恢复让六轮基准长期挂起。
+        setTimeout(() => app.exit(0), 3000).unref()
+      })
     }
     return recorded
   }
@@ -479,7 +490,8 @@ async function startApplication() {
     diagnostics: diagnosticEvents,
     startupDiagnostics,
     applicationUpdate,
-    getMainWindow
+    getMainWindow,
+    enableJunfengTraining: !app.isPackaged
   })
 
   createApplicationWindow()

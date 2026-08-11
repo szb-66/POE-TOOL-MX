@@ -9,7 +9,11 @@ const STARTUP_EVENT_TYPES = Object.freeze({
   'renderer-mounted': { phase: 'renderer', outcome: 'succeeded', reasonCode: 'none' },
   'renderer-error': { phase: 'renderer', outcome: 'failed', reasonCode: 'renderer_error' },
   'renderer-unhandled-rejection': { phase: 'renderer', outcome: 'failed', reasonCode: 'renderer_unhandled_rejection' },
-  'renderer-bootstrap-failed': { phase: 'renderer', outcome: 'failed', reasonCode: 'renderer_bootstrap_failed' }
+  'renderer-bootstrap-failed': { phase: 'renderer', outcome: 'failed', reasonCode: 'renderer_bootstrap_failed' },
+  'dashboard-ready': { phase: 'dashboard', outcome: 'succeeded', reasonCode: 'none' },
+  'dashboard-load-failed': { phase: 'dashboard', outcome: 'failed', reasonCode: 'dashboard_load_failed' },
+  'renderer-runtime-ready': { phase: 'renderer-runtime', outcome: 'succeeded', reasonCode: 'none' },
+  'renderer-runtime-failed': { phase: 'renderer-runtime', outcome: 'failed', reasonCode: 'renderer_runtime_failed' }
 })
 
 export function sanitizeStartupReport(candidate) {

@@ -74,7 +74,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   Box,
   Briefcase,
@@ -94,6 +94,7 @@ import {
 import ModuleStatusCard from './components/ModuleStatusCard.vue'
 import { groupDashboardModules } from './dashboardGroups'
 import { useDashboard } from './useDashboard'
+import { reportStartupEvent } from '../../utils/startupReporter'
 
 const healthExpanded = ref(false)
 const moduleIcons = {
@@ -129,6 +130,8 @@ const {
 } = useDashboard()
 
 const moduleGroups = computed(() => groupDashboardModules(modules.value))
+
+onMounted(() => reportStartupEvent('dashboard-ready'))
 </script>
 
 <style scoped lang="less">

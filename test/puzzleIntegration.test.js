@@ -49,7 +49,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   const api = source('../src/api/electron.js')
   const main = source('../electron/main.js')
   const router = source('../src/router/index.js')
-  const app = source('../src/App.vue')
+  const runtime = source('../src/startup/mainRuntime.js')
 
   for (const channel of ['puzzle-pick-inventory-region', 'puzzle-analyze', 'puzzle-clear-region']) {
     assert.match(ipc, new RegExp(channel))
@@ -64,7 +64,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(source('../electron/modules/puzzle/service.js'), /requestedPages[\s\S]*\[1, 2\][\s\S]*pages: results/)
   assert.match(source('../src/utils/scriptService.js'), /puzzleAnalyze: startPuzzleAnalysis/)
   assert.match(router, /path: '\/puzzle'/)
-  assert.match(app, /router\.push\('\/puzzle'\)/)
+  assert.match(runtime, /router\.push\('\/puzzle'\)/)
 })
 
 test('清空已选区域贯通 IPC、preload、渲染 API、服务与页面', () => {

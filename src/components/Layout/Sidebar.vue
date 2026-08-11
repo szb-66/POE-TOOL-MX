@@ -18,7 +18,7 @@
       <el-icon><SuitcaseLine /></el-icon>
       <span>存取</span>
     </el-menu-item>
-    <el-menu-item index="/highlight-model-training" @pointerenter="warmRoute('/highlight-model-training')" @focusin="warmRoute('/highlight-model-training')">
+    <el-menu-item v-if="isModelTrainingEnabled" index="/highlight-model-training" @pointerenter="warmRoute('/highlight-model-training')" @focusin="warmRoute('/highlight-model-training')">
       <el-icon><DataAnalysis /></el-icon>
       <span>模型训练</span>
     </el-menu-item>
@@ -72,6 +72,7 @@ import { Box, Coin, Connection, DataAnalysis, Guide, Help, House, MapLocation, S
 import { preloadPage } from '@/router/pageLoaders'
 
 const route = useRoute()
+const isModelTrainingEnabled = import.meta.env.DEV
 
 const activeMenu = computed(() => route.path)
 

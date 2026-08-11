@@ -7,7 +7,7 @@ const invoke = handler => async (_event, ...args) => {
   }
 }
 
-export function registerJunfengHandlers(manager, window, { interfaceDetection } = {}) {
+export function registerJunfengHandlers(manager, window, { interfaceDetection, enableTraining = false } = {}) {
   ipcMain.handle('junfeng-runtime-update', invoke(async runtime => {
     const candidate = { ...manager.runtime, ...(runtime || {}) }
     if (!candidate.enabled) {
@@ -51,6 +51,8 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection } 
   ipcMain.handle('highlight-calibration-save', invoke(value => manager.addCorrection(value || {})))
   ipcMain.handle('highlight-calibration-remove', invoke(id => manager.removeCorrection(id)))
   ipcMain.handle('highlight-calibration-reset', invoke(() => manager.resetCorrections()))
+  if (!enableTraining) return
+
   ipcMain.handle('junfeng-training-pick-region', invoke(async () => {
     const result = await window.pickScreenRegion()
     if (result?.canceled) return result

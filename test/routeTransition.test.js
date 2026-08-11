@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { createPagePreloader } from '../src/router/pageLoaders.js'
+import { createPagePreloader } from '../src/router/pagePreloader.js'
 import { createRouteTransitionController } from '../src/router/transitionState.js'
 
 function createScheduler() {

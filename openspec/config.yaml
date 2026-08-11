@@ -1,13 +1,23 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  流放助手是面向国服《流放之路》的 Windows 10/11 x64 Electron 桌面辅助工具，
+  覆盖物品与地图制作、背包仓库、战斗与剧情辅助、商城配方、做装模拟、查价、浮窗和预设。
+
+  技术栈：Vue 3 Composition API（<script setup>）、Element Plus、Pinia、Vue Router、
+  Vite 5、Electron、Less；自动化脚本使用随应用提供的 Python 运行时。
+  前端按 src/domains 组织业务，公共组件位于 src/components，Electron 主进程代码位于 electron。
+
+  开发约束：默认只在开发版验证，使用 npm run electron:dev；只有明确要求时才执行打包或发布流程。
+  改动应定位并修复根因；复杂改动使用 OpenSpec；若多次尝试修复，完成后清理失败方案遗留代码。
+  Vue 组件使用 PascalCase 文件名、<script setup> 和 scoped Less，优先复用现有领域模块、store 与工具。
+
+  自动化属于安全敏感路径：必须保留前台窗口、坐标、DPI、模板和运行环境预检；
+  预检失败时不得产生键鼠输入，并始终保留可用的停止机制。
+  不得在代码、测试、诊断或文档中暴露 POESESSID、Cookie、Authorization、账号或完整用户路径。
+
+  验证优先运行受影响的 node --test 测试文件，再运行 npm test；
+  涉及 Vue 页面时验证 Vite 开发转换，涉及 OpenSpec 变更时运行严格校验。
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

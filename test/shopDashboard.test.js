@@ -127,11 +127,11 @@ test('首页自动取件配方按套装和单件口径显示实时可取数量',
 
 test('商城配方页不再重复恢复账号', () => {
   const panel = readFileSync(new URL('../src/domains/shop/ChaosRecipePanel.vue', import.meta.url), 'utf8')
-  const app = readFileSync(new URL('../src/App.vue', import.meta.url), 'utf8')
+  const runtime = readFileSync(new URL('../src/startup/mainRuntime.js', import.meta.url), 'utf8')
   const store = readFileSync(new URL('../src/stores/chaosRecipe.js', import.meta.url), 'utf8')
 
   assert.doesNotMatch(panel, /onMounted|store\.restoreAuth/)
-  assert.match(app, /chaosStore\.initializeRuntime\(\)/)
+  assert.match(runtime, /chaosStore\.initializeRuntime\(\)/)
   assert.match(store, /async function initializeRuntime\(\)[\s\S]*await accountStore\.restore\(\)[\s\S]*await syncRuntime\(\)/)
   assert.doesNotMatch(store, /async function (?:openWebLogin|completeWebLogin|loginWithToken|logout)/)
 })

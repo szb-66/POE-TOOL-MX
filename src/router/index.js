@@ -2,6 +2,14 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import { pageLoaders } from './pageLoaders'
 import { routeTransition } from './transitionState'
 
+const developmentRoutes = import.meta.env.DEV ? [
+  {
+    path: '/highlight-model-training',
+    name: 'HighlightModelTraining',
+    component: pageLoaders['/highlight-model-training']
+  }
+] : []
+
 const routes = [
   {
     path: '/',
@@ -18,11 +26,7 @@ const routes = [
     name: 'Bag',
     component: pageLoaders['/bag']
   },
-  {
-    path: '/highlight-model-training',
-    name: 'HighlightModelTraining',
-    component: pageLoaders['/highlight-model-training']
-  },
+  ...developmentRoutes,
   {
     path: '/map',
     name: 'Map',
@@ -153,6 +157,7 @@ const router = createRouter({
 const navigationTokens = new WeakMap()
 
 router.beforeEach((to, from) => {
+  if (!import.meta.env.DEV && to.path === '/highlight-model-training') return { path: '/', replace: true }
   if (to.meta.noLayout || to.fullPath === from.fullPath) return true
   navigationTokens.set(to, routeTransition.start())
   return true
