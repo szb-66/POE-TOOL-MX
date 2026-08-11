@@ -21,6 +21,17 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Check CNB mirror credentials
+        shell: pwsh
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CNB_TOKEN)) {
+            throw "Required GitHub Actions secret CNB_TOKEN is not configured"
+          }
 
       - name: Use Node.js 24
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -106,3 +117,17 @@ jobs:
             --verify-tag `
             --title "流放助手 ${{ github.ref_name }}" `
             @notesArgs
+
+      - name: Sync release tag to CNB
+        shell: pwsh
+        env:
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          $basicCredential = [Convert]::ToBase64String(
+            [Text.Encoding]::UTF8.GetBytes("cnb:$env:CNB_TOKEN")
+          )
+          Write-Output "::add-mask::$basicCredential"
+          $remote = "https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX"
+          $auth = "http.extraHeader=Authorization: Basic $basicCredential"
+          git -c $auth push $remote "HEAD:refs/heads/${{ github.event.repository.default_branch }}"
+          git -c $auth push $remote "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"

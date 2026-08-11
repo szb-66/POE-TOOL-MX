@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -134,9 +134,8 @@
     ],
     "win": {
       "publish": {
-        "provider": "github",
-        "owner": "szb-66",
-        "repo": "POE-TOOL-MX"
+        "provider": "generic",
+        "url": "https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/download/latest"
       },
       "target": [
         {

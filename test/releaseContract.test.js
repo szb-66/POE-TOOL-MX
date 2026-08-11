@@ -29,9 +29,8 @@ test('发布资产名称、版本标签与校验文件形成稳定契约', () =>
   const packageConfig = JSON.parse(source('../package.json'))
   assert.equal(packageConfig.build.artifactName, 'PoE-CN-Helper-${version}-win-${arch}-setup.${ext}')
   assert.deepEqual(packageConfig.build.win.publish, {
-    provider: 'github',
-    owner: 'szb-66',
-    repo: 'POE-TOOL-MX'
+    provider: 'generic',
+    url: 'https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/download/latest'
   })
   assert.equal(packageConfig.scripts['release:check'], 'node scripts/release/checkVersion.js')
   assert.equal(packageConfig.scripts['release:checksum'], 'node scripts/release/checksum.js')
@@ -48,6 +47,7 @@ test('Windows CI 与标签发布固定 Action 提交并使用最小化权限', (
   assert.match(ci, /npm run runtime:prepare/)
   assert.match(ci, /npm run release:smoke/)
   assert.match(release, /tags:\s*\n\s*- "v\*"/)
+  assert.match(release, /actions\/checkout@[a-f0-9]{40}[\s\S]*?fetch-depth:\s*0/)
   assert.match(release, /contents: write/)
   assert.match(release, /id-token: write/)
   assert.match(release, /attestations: write/)
@@ -58,6 +58,45 @@ test('Windows CI 与标签发布固定 Action 提交并使用最小化权限', (
   assert.match(release, /THIRD_PARTY_NOTICES\.md/)
   assert.match(release, /actions\/attest-build-provenance@[a-f0-9]{40}/)
   assert.doesNotMatch(`${ci}\n${release}`, /uses:\s+\S+@(v\d+|main|master)\s*$/m)
+})
+
+test('GitHub 正式发布后才同步 CNB 标签且凭据不进入远程地址', () => {
+  const release = source('../.github/workflows/release.yml')
+  const credentialIndex = release.indexOf('- name: Check CNB mirror credentials')
+  const publishIndex = release.indexOf('- name: Publish GitHub Release')
+  const syncIndex = release.indexOf('- name: Sync release tag to CNB')
+  const branchPushIndex = release.indexOf('HEAD:refs/heads/${{ github.event.repository.default_branch }}', syncIndex)
+  const tagPushIndex = release.indexOf('refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}', syncIndex)
+
+  assert.ok(credentialIndex >= 0 && publishIndex > credentialIndex && syncIndex > publishIndex)
+  assert.ok(branchPushIndex > syncIndex && tagPushIndex > branchPushIndex)
+  assert.match(release, /CNB_TOKEN:\s*\$\{\{ secrets\.CNB_TOKEN \}\}/)
+  assert.match(release, /https:\/\/cnb\.cool\/Auto-Tool-MX\/POE-TOOL-MX/)
+  assert.doesNotMatch(release, /https:\/\/cnb:[^@\s]+@cnb\.cool/)
+})
+
+test('CNB 标签流水线只镜像并验证完整发布资产', () => {
+  const pipeline = source('../.cnb.yml')
+  const requiredAssets = [
+    'PoE-CN-Helper-${version}-win-x64-setup.exe',
+    '"$installer.blockmap"',
+    'latest.yml',
+    'SHA256SUMS.txt',
+    'THIRD_PARTY_NOTICES.md'
+  ]
+  for (const asset of requiredAssets) {
+    const escapedAsset = asset.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    assert.match(pipeline, new RegExp(escapedAsset))
+  }
+
+  const createIndex = pipeline.indexOf('name: Create CNB Release')
+  const uploadIndex = pipeline.indexOf('name: Upload CNB Release assets')
+  const latestIndex = pipeline.indexOf('name: Mark CNB Release as latest')
+  assert.ok(createIndex >= 0 && uploadIndex > createIndex && latestIndex > uploadIndex)
+  assert.match(pipeline, /sha256sum --check --strict SHA256SUMS\.txt/)
+  assert.match(pipeline, /overlying:\s*true/)
+  assert.match(pipeline, /latest:\s*true/)
+  assert.doesNotMatch(pipeline, /electron-builder|npm run build|CNB_TOKEN/)
 })
 
 test('正式包包含 Electron 主进程引用的源码模块依赖闭包', () => {
