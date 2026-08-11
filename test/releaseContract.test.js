@@ -72,6 +72,8 @@ test('GitHub 正式发布后才同步 CNB 标签且凭据不进入远程地址',
   assert.ok(branchPushIndex > syncIndex && tagPushIndex > branchPushIndex)
   assert.match(release, /CNB_TOKEN:\s*\$\{\{ secrets\.CNB_TOKEN \}\}/)
   assert.match(release, /https:\/\/cnb\.cool\/Auto-Tool-MX\/POE-TOOL-MX/)
+  assert.match(release, /push --force \$remote "refs\/tags\//)
+  assert.doesNotMatch(release, /push --force \$remote "HEAD:refs\/heads\//)
   assert.doesNotMatch(release, /https:\/\/cnb:[^@\s]+@cnb\.cool/)
 })
 

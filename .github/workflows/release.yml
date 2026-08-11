@@ -130,4 +130,4 @@ jobs:
           $remote = "https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX"
           $auth = "http.extraHeader=Authorization: Basic $basicCredential"
           git -c $auth push $remote "HEAD:refs/heads/${{ github.event.repository.default_branch }}"
-          git -c $auth push $remote "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
+          git -c $auth push --force $remote "refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
