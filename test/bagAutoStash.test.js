@@ -605,6 +605,52 @@ print(json.dumps({"code": code, **state}))
   assert.deepEqual(result.current, [1, 0])
 })
 
+test('Python 复制确认要求内容实际变化，残留旧文本不判为复制到物品', () => {
+  const code = `
+import importlib.util, json, sys, types
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+class FakeTime:
+    def __init__(self):
+        self.now = 0.0
+    def monotonic(self):
+        self.now += 0.1
+        return self.now
+    def sleep(self, _value):
+        pass
+module.time = FakeTime()
+module.is_running = True
+module.is_game_foreground = lambda: True
+module.CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+controller = module.InputController.__new__(module.InputController)
+controller.clipboard_delay = 1.0
+controller._send_copy = lambda ctrl_held=False: True
+def run(pastes, seqs):
+    paste_iter = iter(pastes)
+    seq_iter = iter(seqs)
+    module.pyperclip = types.SimpleNamespace(paste=lambda: next(paste_iter))
+    module.clipboard_sequence_number = lambda: next(seq_iter)
+    return controller._copy_item_text_once(False)
+print(json.dumps({
+    "stale": run(["旧物品文本"] * 20, [1] + [1] * 20),
+    "copied": run(["旧物品文本", "新物品文本"], [1, 2]),
+    "identical": run(["相同物品文本"] * 20, [1, 2] + [2] * 20),
+    "empty": run(["旧物品文本", ""], [1, 2]),
+    "empty_no_seq": run(["旧物品文本", ""], [None, None])
+}, ensure_ascii=False))
+`
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const outcome = JSON.parse(result.stdout)
+  assert.deepEqual(outcome.stale, ['no-response', ''])
+  assert.deepEqual(outcome.copied, ['copied', '新物品文本'])
+  assert.deepEqual(outcome.identical, ['copied', '相同物品文本'])
+  assert.deepEqual(outcome.empty, ['empty', ''])
+  assert.deepEqual(outcome.empty_no_seq, ['empty', ''])
+})
+
 test('Python Ctrl+C 无响应一次即判空格，不再重复确认', () => {
   const code = `
 import importlib.util, json, sys
@@ -617,7 +663,7 @@ def run(responses):
     controller = module.InputController.__new__(module.InputController)
     values = iter(responses)
     calls = {"count": 0}
-    def attempt(_ctrl_held=False):
+    def attempt(_ctrl_held=False, _clear_first=False):
         calls["count"] += 1
         return next(values)
     controller._copy_item_text_once = attempt
@@ -967,7 +1013,7 @@ class Controller:
     def click_with_ctrl(self):
         self.clicks += 1
         return self.click
-    def copy_item_text(self, ctrl_held=False):
+    def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False):
         self.copies += 1
         return next(self.statuses)
     def release_all(self): self.releases += 1
@@ -1008,14 +1054,16 @@ spec.loader.exec_module(module)
 
 clock = [0.0]
 events = []
+copies = [0]
 def advance(seconds):
     clock[0] += float(seconds)
 module.time.sleep = advance
 module.time.monotonic = lambda: clock[0]
 module.is_game_foreground = lambda: True
 module.is_ctrl_pressed = lambda: True
-module.clipboard_sequence_number = lambda: 0
-module.pyperclip.paste = lambda: ""
+module.clipboard_sequence_number = lambda: copies[0]
+module.pyperclip.copy = lambda _text: None
+module.pyperclip.paste = lambda: "" if copies[0] > 0 else "old-text"
 
 class Keyboard:
     def press(self, key): events.append(("key-down", str(key)))
@@ -1027,6 +1075,7 @@ class Mouse:
 module.keyboard = types.SimpleNamespace(Controller=Keyboard)
 module.mouse = types.SimpleNamespace(Controller=Mouse)
 controller = module.InputController({"operation_delay_ms": 50, "timing_mode": "adaptive", "adaptive_timeout_ms": 100})
+module.InputController._send_copy = lambda self, ctrl_held=False: (copies.__setitem__(0, copies[0] + 1) or True)
 confirmed, reason = module.transfer_pickup_item(controller)
 print(json.dumps({
     "confirmed": confirmed,

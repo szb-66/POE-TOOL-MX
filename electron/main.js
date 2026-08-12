@@ -391,7 +391,14 @@ async function startApplication() {
     overlay: chaosOverlay,
     onItemPicked: (itemId) => chaosRecipeService?.consumeItem(itemId),
     automationLock,
-    onStatusChange: () => chaosControlOverlay?.sync()
+    onStatusChange: (payload) => {
+      chaosControlOverlay?.sync()
+      if (payload?.event !== 'completed' && payload?.event !== 'stopped') return
+      const mainWindow = getMainWindow?.()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('chaos-recipe-snapshot-updated', chaosRecipeService?.snapshot)
+      }
+    }
   })
   chaosRecipeService = new ChaosRecipeService({
     auth: chaosAuth,

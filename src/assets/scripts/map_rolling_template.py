@@ -678,7 +678,7 @@ def apply_currency(currency_type, target_x, target_y):
         release_shift_if_held()
         return False
 
-def send_copy_command(before_seq=None, before_text="", result_timeout=None):
+def send_copy_command(before_seq=None, before_text="", result_timeout=None, allow_unchanged_text=False):
     # 返回 True=复制成功, False=复制成功但剪贴板未变化, None=复制指令执行失败
     try:
         if not require_game_foreground():
@@ -694,29 +694,39 @@ def send_copy_command(before_seq=None, before_text="", result_timeout=None):
         keyboard_controller.release(Key.ctrl)
         time.sleep(RELEASE_SETTLE_SECONDS)
         if result_timeout is not None:
-            return wait_for_clipboard_change(before_seq, before_text, result_timeout)
+            return wait_for_clipboard_change(before_seq, before_text, result_timeout, allow_unchanged_text)
         if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS)
+            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text)
         time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
         return True
     except:
         return None
 
-def clipboard_changed(before_seq, before_text):
-    if GetClipboardSequenceNumber is not None:
+def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
+    # 序列号变化只是必要条件；复制成功还要求粘贴内容确实变化，
+    # 避免游戏清空剪贴板或其它程序写入导致旧文本被当作新复制结果。
+    # 重试路径（不重复使用通货）物品文本必然不变：序列号已变化且文本
+    # 非空即视为游戏重写成功（allow_unchanged_text=True）。
+    seq_changed = False
+    if GetClipboardSequenceNumber is not None and before_seq is not None:
         try:
-            if before_seq is not None and GetClipboardSequenceNumber() != before_seq:
-                return True
+            if GetClipboardSequenceNumber() == before_seq:
+                return False
+            seq_changed = True
         except Exception:
             pass
     current_text = str(pyperclip.paste() or "")
-    return bool(current_text.strip()) and current_text != before_text
+    if not current_text.strip():
+        return False
+    if allow_unchanged_text and seq_changed:
+        return True
+    return current_text != before_text
 
 
-def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
+def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
     while is_running:
-        if clipboard_changed(before_seq, before_text):
+        if clipboard_changed(before_seq, before_text, allow_unchanged_text):
             return True
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -724,7 +734,7 @@ def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
         time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
     return False
 
-def read_clipboard_to_file():
+def read_clipboard_to_file(allow_unchanged_text=False):
     global parse_request_sequence, pending_parse_request_id
     try:
         before_seq = None
@@ -738,9 +748,10 @@ def read_clipboard_to_file():
             before_text = str(pyperclip.paste() or "")
         except Exception:
             before_text = ""
-        if not send_copy_command(before_seq, before_text): return False
+        if not send_copy_command(before_seq, before_text, allow_unchanged_text=allow_unchanged_text): return False
         clipboard_text = pyperclip.paste()
         if not clipboard_text or len(clipboard_text.strip()) == 0: return False
+        if clipboard_text == before_text and not allow_unchanged_text: return False
         
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
@@ -882,12 +893,13 @@ def fail_map_runtime(reason, code="MAP_PROCESSING_FAILED"):
     play_error_sound()
     return False
 
-def read_current_rolling_target(x, y, attempts=2):
+def read_current_rolling_target(x, y, attempts=2, allow_unchanged_text=False):
     last_error = "无法读取当前目标"
     for attempt in range(attempts):
         if not is_running:
             break
-        request_id = read_and_parse(x, y)
+        # 重试不重复使用通货：物品文本与上次相同，允许序列号变化后的同文本复制
+        request_id = read_and_parse(x, y, allow_unchanged_text=allow_unchanged_text or attempt > 0)
         if request_id:
             result = wait_for_parse_result(request_id)
             if not result.get("error") and item_matches_rolling_target(result):
@@ -1077,7 +1089,7 @@ def start_map_rolling():
             if result.get("isLegendary"):
                 print("[提示] 检测到传奇地图，跳过")
             else:
-                result = read_current_rolling_target(slot_x, slot_y, attempts=1)
+                result = read_current_rolling_target(slot_x, slot_y, attempts=1, allow_unchanged_text=True)
                 if result.get("error"):
                     fail_map_runtime(
                         f"当前{target_label}解析失败：{result.get('error')}",
@@ -1398,10 +1410,10 @@ def process_single_map(initial_result, slot_x, slot_y):
         return failed_map_result(fatal_error_reason, "MAP_RUNTIME_STOPPED")
     return failed_map_result("单张目标达到最大洗练次数，已安全停止", "MAP_MAX_ITERATIONS")
 
-def read_and_parse(x, y):
+def read_and_parse(x, y, allow_unchanged_text=False):
     # 辅助函数：移动鼠标，复制，等待解析
     if not move_mouse(x, y): return False
-    return read_clipboard_to_file()
+    return read_clipboard_to_file(allow_unchanged_text)
 
 def check_map_base(item_data):
     """Purpose: 使用统一六项配置校验地图基底。

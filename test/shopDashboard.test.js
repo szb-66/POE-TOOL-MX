@@ -220,6 +220,158 @@ test('浮窗切换配方后首页持久化选择并让运行时收敛', async ()
   }
 })
 
+test('取件完成广播快照后首页更新数量并重置单件勾选且不回推运行时', async () => {
+  installStorage({
+    chaosRecipeSettings: JSON.stringify({
+      enabled: true,
+      selectedTabIds: ['tab-1'],
+      activeRecipeId: 'chromatic'
+    })
+  })
+  setActivePinia(createPinia())
+  const original = {
+    onSnapshotUpdated: electronApi.chaosRecipe.onSnapshotUpdated,
+    updateRuntime: electronApi.chaosRecipe.updateRuntime
+  }
+  let snapshotUpdated
+  const runtimeCalls = []
+  electronApi.chaosRecipe.onSnapshotUpdated = callback => {
+    snapshotUpdated = callback
+    return () => { snapshotUpdated = null }
+  }
+  electronApi.chaosRecipe.updateRuntime = async payload => {
+    runtimeCalls.push(JSON.parse(JSON.stringify(payload)))
+    return { success: true, data: { enabled: payload.enabled } }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    const dispose = store.listenAutomation()
+    await snapshotUpdated({
+      fetchedAt: '2026-01-01T00:00:00.000Z',
+      recipes: {
+        chance: { kind: 'set', fullSetCount: 0 },
+        chaos: { kind: 'set', fullSetCount: 1 },
+        regal: { kind: 'set', fullSetCount: 0 },
+        exalted: { kind: 'set', fullSetCount: 0 },
+        chromatic: { kind: 'single', candidates: [{ id: 'rgb-1' }, { id: 'rgb-2' }] },
+        jeweller: { kind: 'single', candidates: [{ id: 'six-socket-1' }] },
+        fusing: { kind: 'single', candidates: [{ id: 'six-link-1' }] }
+      }
+    })
+
+    assert.equal(store.snapshot.recipes.chaos.fullSetCount, 1)
+    assert.equal(store.settings.activeRecipeId, 'chromatic')
+    assert.deepEqual(store.singleSelections.chromatic, ['rgb-1', 'rgb-2'])
+    assert.equal(runtimeCalls.length, 0)
+    dispose()
+    assert.equal(snapshotUpdated, null)
+  } finally {
+    electronApi.chaosRecipe.onSnapshotUpdated = original.onSnapshotUpdated
+    electronApi.chaosRecipe.updateRuntime = original.updateRuntime
+  }
+})
+
+test('取件快照广播处理不再回推控制浮窗运行时', () => {
+  const store = readFileSync(new URL('../src/stores/chaosRecipe.js', import.meta.url), 'utf8')
+  const segment = store.slice(store.indexOf('onSnapshotUpdated'), store.indexOf('onControlRecipeSelected'))
+  assert.match(segment, /snapshot\.value = value/)
+  assert.match(segment, /resetSingleSelections\(value\)/)
+  assert.doesNotMatch(segment, /syncRuntime/)
+})
+
+test('主进程在取件完成或停止时广播取件后快照', () => {
+  const main = readFileSync(new URL('../electron/main.js', import.meta.url), 'utf8')
+  const start = main.indexOf('new ChaosRecipeAutomationManager')
+  const segment = main.slice(start, main.indexOf('chaosRecipeService = new ChaosRecipeService'))
+  assert.match(segment, /onStatusChange:\s*\(payload\)\s*=>/)
+  assert.match(segment, /payload\?\.event\s*!==\s*'completed'\s*&&\s*payload\?\.event\s*!==\s*'stopped'/)
+  assert.match(segment, /webContents\.send\('chaos-recipe-snapshot-updated',\s*chaosRecipeService\?\.snapshot\)/)
+})
+
+test('取件完成后不再自动请求网络刷新仓库', async () => {
+  installStorage({
+    poeCnAccountSettings: JSON.stringify({ league: 'S29' }),
+    chaosRecipeSettings: JSON.stringify({ enabled: true, selectedTabIds: ['tab-1'] })
+  })
+  setActivePinia(createPinia())
+  const original = {
+    onAutomationEvent: electronApi.chaosRecipe.onAutomationEvent,
+    refresh: electronApi.chaosRecipe.refresh
+  }
+  let automationEvent
+  let refreshCalls = 0
+  electronApi.chaosRecipe.onAutomationEvent = callback => {
+    automationEvent = callback
+    return () => { automationEvent = null }
+  }
+  electronApi.chaosRecipe.refresh = async () => {
+    refreshCalls += 1
+    return { success: true, data: {} }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    const dispose = store.listenAutomation()
+    automationEvent({ event: 'completed', status: 'completed' })
+    await new Promise(resolve => setTimeout(resolve, 1600))
+    assert.equal(refreshCalls, 0)
+    dispose()
+    assert.equal(automationEvent, null)
+  } finally {
+    electronApi.chaosRecipe.onAutomationEvent = original.onAutomationEvent
+    electronApi.chaosRecipe.refresh = original.refresh
+  }
+})
+
+test('运行时同步携带全局自动化时序四字段', async () => {
+  installStorage({
+    settings: JSON.stringify({
+      operationDelayMs: 20,
+      adaptiveTiming: false,
+      adaptiveTimeoutMs: 300,
+      fixedTiming: {
+        modifierSettleMs: 10,
+        keyHoldMs: 5,
+        buttonHoldMs: 5,
+        releaseSettleMs: 5,
+        clipboardConfirmMs: 100,
+        stashTabSettleMs: 100,
+        stashSettleMs: 80,
+        patchVerifyMs: 200
+      }
+    })
+  })
+  setActivePinia(createPinia())
+  const original = electronApi.chaosRecipe.updateRuntime
+  const calls = []
+  electronApi.chaosRecipe.updateRuntime = async payload => {
+    calls.push(JSON.parse(JSON.stringify(payload)))
+    return { success: true, data: { enabled: payload.enabled } }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    await store.syncRuntime()
+    const last = calls.at(-1)
+    assert.equal(last.operationDelayMs, 20)
+    assert.equal(last.adaptiveTiming, false)
+    assert.equal(last.adaptiveTimeoutMs, 300)
+    assert.deepEqual(last.fixedTiming, {
+      modifierSettleMs: 10,
+      keyHoldMs: 5,
+      buttonHoldMs: 5,
+      releaseSettleMs: 5,
+      clipboardConfirmMs: 100,
+      stashTabSettleMs: 100,
+      stashSettleMs: 80,
+      patchVerifyMs: 200
+    })
+  } finally {
+    electronApi.chaosRecipe.updateRuntime = original
+  }
+})
+
 test('商城配方页不再重复恢复账号', () => {
   const panel = readFileSync(new URL('../src/domains/shop/ChaosRecipePanel.vue', import.meta.url), 'utf8')
   const runtime = readFileSync(new URL('../src/startup/mainRuntime.js', import.meta.url), 'utf8')

@@ -35,7 +35,6 @@ test('所有游戏输入链路把完整协议送到实际 Python 脚本', () => 
   for (const file of [
     'src/assets/scripts/bag_auto_stash_template.py',
     'src/assets/scripts/chaos_recipe_pick_template.py',
-    'src/assets/scripts/stash_pickup_template.py',
     'src/assets/scripts/junfeng_highlight_pickup.py',
     'src/assets/scripts/stash_tab_selector.py',
     'src/assets/scripts/puzzle_auto_place.py',
@@ -45,34 +44,6 @@ test('所有游戏输入链路把完整协议送到实际 Python 脚本', () => 
     assert.match(content, /operation_delay_ms/, `${file} 未读取悬停配置`)
     assert.match(content, /fixed_timing/, `${file} 未读取物理输入配置`)
   }
-})
-
-test('伪时钟验证仓库画面等待可提前成功并精确达到统一上限', { skip: !existsSync(bundledPython) }, () => {
-  const scriptPath = path.join(projectRoot, 'src', 'assets', 'scripts', 'stash_pickup_template.py')
-  const result = runPython(`
-import importlib.util, json, numpy as np
-spec=importlib.util.spec_from_file_location("stash", ${JSON.stringify(scriptPath)})
-m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-m.require_game_foreground=lambda: None
-before=np.zeros((2,2,3),dtype=np.uint8)
-candidate={"column":0,"row":0}
-class Clock:
- def __init__(self): self.value=0.0
- def monotonic(self): return self.value
- def sleep(self,value): self.value += value
-def execute(change_after, timeout):
- clock=Clock();m.time.monotonic=clock.monotonic;m.time.sleep=clock.sleep
- calls={"value":0}
- def grab(_rect,_grabber):
-  calls["value"] += 1
-  return np.ones((2,2,3),dtype=np.uint8)*20 if calls["value"] >= change_after else before
- m.capture=grab;m.local_patch=lambda image,*args:image
- found=m.wait_for_patch_change(before,{},1,candidate,1,None,timeout)
- return round(clock.value,3), found is not None
-print(json.dumps({"early":execute(2,3.0),"timeout":execute(999,0.37)}))
-`)
-  assert.deepEqual(result.early, [0.01, true])
-  assert.deepEqual(result.timeout, [0.37, false])
 })
 
 test('0ms、自定义值和大值不经过隐藏下限，君锋复用同一控制器', { skip: !existsSync(bundledPython) }, () => {

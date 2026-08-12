@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { usePoeCnAccountStore } from './poeCnAccount.js'
+import { normalizeAutomationTiming } from '../utils/operationDelay.js'
 import {
   CHAOS_GRID_LAYOUT_LABELS,
   missingCalibrationKeys,
@@ -134,12 +135,19 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   function runtimePayload(overrides = {}) {
+    let savedTiming = {}
+    try { savedTiming = JSON.parse(localStorage.getItem('settings') || '{}') } catch {}
+    const timing = normalizeAutomationTiming(savedTiming)
     return {
       ...JSON.parse(JSON.stringify(settings.value)),
       calibration: JSON.parse(JSON.stringify(stashGridCalibration.value)),
       league: league.value,
       selectedItemIds: [...activeSelectedItemIds.value],
       selectedItemIdsByRecipe: JSON.parse(JSON.stringify(singleSelections.value)),
+      operationDelayMs: timing.operationDelayMs,
+      adaptiveTiming: timing.adaptiveTiming,
+      adaptiveTimeoutMs: timing.adaptiveTimeoutMs,
+      fixedTiming: timing.fixedTiming,
       ...interfaceDetectionStore.runtime(),
       ...overrides
     }
@@ -370,9 +378,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       automation.value = { ...automation.value, ...event }
       if (event.event === 'error') void reportDiagnosticFailure('shop', 'automation', event, 'automation_failed')
       if (event.event === 'completed') void reportDiagnosticRecovery('shop', 'automation')
-      if (event.event === 'completed' && league.value && settings.value.selectedTabIds.length) {
-        setTimeout(() => { void refresh().catch(() => {}) }, 1500)
-      }
     })
     const disposeOffset = electronApi.chaosRecipe.onControlOffset((offset) => {
       settings.value.controlOverlayOffset = {
@@ -384,7 +389,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     const disposeSnapshot = electronApi.chaosRecipe.onSnapshotUpdated((value) => {
       snapshot.value = value
       resetSingleSelections(value)
-      if (settings.value.enabled) void syncRuntime().catch(setError)
     })
     const disposeActiveRecipe = electronApi.chaosRecipe.onControlRecipeSelected((recipeId) =>
       settings.value.activeRecipeId === recipeId ? Promise.resolve() : setActiveRecipe(recipeId)

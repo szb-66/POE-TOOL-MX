@@ -20,6 +20,7 @@ import {
   storyOverlayBoundsEqual
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
+import { getReloadAction } from './refreshShortcut.js'
 import {
   OverlayDragPassthroughController,
   getFixedOverlayDragBounds,
@@ -102,6 +103,17 @@ export function createMainWindow({ beforeLoad = null, diagnosticFailLoad = false
 
   mainWindow = new BrowserWindow(options)
   beforeLoad?.(mainWindow)
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const action = getReloadAction(input)
+    if (!action) return
+    event.preventDefault()
+    if (action === 'force-reload') {
+      mainWindow.webContents.reloadIgnoringCache()
+    } else {
+      mainWindow.webContents.reload()
+    }
+  })
 
   const notifyDevToolsVisibility = (visible) => {
     if (mainWindow && !mainWindow.isDestroyed()) {

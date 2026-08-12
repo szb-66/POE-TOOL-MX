@@ -226,7 +226,7 @@ ${block}
 item_position = {"x": 1, "y": 2}
 item_info_result_file = os.devnull
 def move_mouse(x, y): return True
-def read_clipboard_to_file(): return True
+def read_clipboard_to_file(allow_unchanged_text=False): return True
 def release_all_keys(): pass
 def play_error_sound(): pass
 
@@ -285,7 +285,7 @@ def apply_currency(currency):
     global apply_count
     apply_count += 1
     return True
-def read_clipboard_to_file(): return True
+def read_clipboard_to_file(allow_unchanged_text=False): return True
 def wait_for_parse_result():
     return {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}
 time.sleep = lambda _seconds: None

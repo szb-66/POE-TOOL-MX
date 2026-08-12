@@ -20,6 +20,124 @@ function runPython(source) {
   return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
 }
 
+test('装备模板在复制到旧剪贴板内容时不写入解析请求', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = None
+    pyperclip = types.SimpleNamespace(paste=lambda: "上一轮复制的物品文本")
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        return True
+    parsed = read_clipboard_to_file()
+    print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
+`)
+  assert.equal(result.result, false)
+  assert.equal(result.wroteRequest, false)
+})
+
+test('装备模板重试允许同文本时写入解析请求', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = None
+    parse_request_sequence = 0
+    pending_parse_request_id = 0
+    pyperclip = types.SimpleNamespace(paste=lambda: "上一轮复制的物品文本")
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        return True
+    parsed = read_clipboard_to_file(allow_unchanged_text=True)
+    print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
+`)
+  assert.equal(result.result, 1)
+  assert.equal(result.wroteRequest, true)
+})
+
+test('装备模板在复制到空剪贴板内容时不写入解析请求', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = None
+    pyperclip = types.SimpleNamespace(paste=lambda: "")
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        return True
+    parsed = read_clipboard_to_file()
+    print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
+`)
+  assert.equal(result.result, false)
+  assert.equal(result.wroteRequest, false)
+})
+
+test('装备与地图模板在序列号变化但内容未变时不判定复制成功', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def clipboard_changed(', 'def read_clipboard_to_file(')
+    const result = runPython(`
+import json, tempfile, types
+${snippet}
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+is_running = True
+GetClipboardSequenceNumber = lambda: 42
+pyperclip = types.SimpleNamespace(paste=lambda: "复制前内容")
+clock = {"now": 0.0}
+def monotonic():
+    clock["now"] += 1.0
+    return clock["now"]
+time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=monotonic)
+copied = wait_for_clipboard_change(41, "复制前内容", 1.0)
+print(json.dumps({"copied": copied, "loops": clock["now"]}, ensure_ascii=False))
+`)
+    assert.equal(result.copied, false)
+    assert.ok(result.loops >= 1)
+  }
+})
+
+test('装备与地图模板在序列号变化且内容变化时判定复制成功', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def clipboard_changed(', 'def read_clipboard_to_file(')
+    const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+is_running = True
+GetClipboardSequenceNumber = lambda: 42
+pyperclip = types.SimpleNamespace(paste=lambda: "新物品文本")
+time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=lambda: 1.0)
+copied = wait_for_clipboard_change(41, "旧物品文本", 1.0)
+print(json.dumps({"copied": copied}, ensure_ascii=False))
+`)
+    assert.equal(result.copied, true)
+  }
+})
+
+test('装备与地图模板在重试允许同文本时序列号变化即判复制成功', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def clipboard_changed(', 'def read_clipboard_to_file(')
+    const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+is_running = True
+GetClipboardSequenceNumber = lambda: 42
+pyperclip = types.SimpleNamespace(paste=lambda: "复制前内容")
+time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=lambda: 1.0)
+copied = wait_for_clipboard_change(41, "复制前内容", 1.0, allow_unchanged_text=True)
+print(json.dumps({"copied": copied}, ensure_ascii=False))
+`)
+    assert.equal(result.copied, true)
+  }
+})
+
 for (const [name, template, end] of [
   ['装备', craftingTemplate, 'def fail_item_preparation('],
   ['地图和海图', mapTemplate, 'def get_slot_position(']
@@ -131,7 +249,7 @@ results = ${JSON.stringify(parsedResults).replaceAll('true', 'True').replaceAll(
 def item_matches_rolling_target(item): return item.get("category") == "${category}"
 def rolling_target_label(): return "目标"
 def rolling_item_level_label(_item): return "等级"
-def read_and_parse(_x, _y): copies.append(len(copies) + 1); return len(copies)
+def read_and_parse(_x, _y, allow_unchanged_text=False): copies.append(len(copies) + 1); return len(copies)
 def wait_for_parse_result(_request_id=None): return results.pop(0)
 def apply_currency(currency, _x, _y): currencies.append(currency); return True
 def check_map_base(item): return bool(item.get("match"))

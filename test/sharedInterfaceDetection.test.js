@@ -143,6 +143,23 @@ test('混沌配方控制浮窗提供配方切换、三项操作和动态停止�
   assert.match(panel, /全局时序/)
 })
 
+test('控制浮窗失败原因在状态推送后保持可见', () => {
+  const view = source('../src/domains/shop/ChaosRecipeControlOverlayView.vue')
+  assert.match(view, /let pendingActionFailure = ''/)
+  assert.match(view, /let pendingSelectionFailure = ''/)
+  assert.match(view, /if \(!response\?\.success\) pendingActionFailure = response\?\.error\?\.message \|\| '操作失败'/)
+  assert.match(view, /if \(!response\?\.success\) pendingSelectionFailure = response\?\.error\?\.message \|\| '切换配方失败'/)
+  assert.match(view, /if \(pendingActionFailure\) \{/)
+  assert.match(view, /if \(pendingSelectionFailure\) \{/)
+})
+
+test('浮窗切换单件配方时基于最新快照重算勾选并同步选择集合', () => {
+  const manager = source('../electron/modules/chaosRecipe/controlOverlay.js')
+  assert.match(manager, /const selectedItemIds = SINGLE_RECIPE_IDS\.includes\(nextRecipeId\)/)
+  assert.match(manager, /this\.service\?\.snapshot\?\.recipes\?\.\[nextRecipeId\]\?\.candidates \|\| \[\]\)\.map\(\(item\) => String\(item\.id\)\)/)
+  assert.match(manager, /this\.runtime\.selectedItemIdsByRecipe = \{\s*\n\s*\.\.\.this\.runtime\.selectedItemIdsByRecipe,\s*\n\s*\[nextRecipeId\]: selectedItemIds\s*\n\s*\}/)
+})
+
 test('公共检测脚本上报游戏客户区并在几何变化时广播', () => {
   const script = source('../src/assets/scripts/bag_auto_stash_template.py')
   assert.match(script, /def get_game_client_bounds/)

@@ -692,11 +692,16 @@ class InputController:
             self.release_all()
             return False
 
-    def _copy_item_text_once(self, ctrl_held=False):
+    def _copy_item_text_once(self, ctrl_held=False, clear_first=False):
         try:
             if not is_game_foreground():
                 stop_for_foreground_loss(self)
                 return "unreadable", ""
+            if clear_first:
+                try:
+                    pyperclip.copy("")
+                except Exception:
+                    return "unreadable", ""
             before_seq = clipboard_sequence_number()
             before_text = str(pyperclip.paste() or "")
             if not self._send_copy(ctrl_held):
@@ -705,9 +710,25 @@ class InputController:
             while is_running:
                 current_seq = clipboard_sequence_number()
                 current_text = str(pyperclip.paste() or "")
-                changed = current_seq != before_seq if before_seq is not None and current_seq is not None else current_text != before_text
-                if changed:
-                    return ("copied", current_text) if current_text.strip() else ("empty", "")
+                if current_text.strip():
+                    # 内容实际变化才算复制到新物品；文本相同时以序列号变化确认
+                    # 游戏重写了相同文本（连续两件完全相同的物品），仅序列号未变
+                    # 时残留旧文本继续等待直至超时
+                    if clear_first or current_text != before_text:
+                        return "copied", current_text
+                    if before_seq is not None and current_seq is not None and current_seq != before_seq:
+                        return "copied", current_text
+                elif clear_first:
+                    # 清空后复制为空：来源格为空格，不依赖序列号变化
+                    return "empty", ""
+                elif before_seq is not None and current_seq is not None:
+                    # 剪贴板变空（空格）且序列号确实变化过，保留快速空格判定
+                    if current_seq != before_seq:
+                        return "empty", ""
+                else:
+                    # 序列号不可用：回退到内容对比，空内容区别于复制前的非空文本视为空格
+                    if current_text != before_text:
+                        return "empty", ""
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
@@ -717,13 +738,13 @@ class InputController:
             self.release_all()
             return "unreadable", ""
 
-    def copy_item_text(self, ctrl_held=False):
+    def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False):
         """复制物品文本；剪贴板无响应一次即判空格，不重复确认以提升空格扫描速度。"""
         for _attempt in range(COPY_ATTEMPTS):
-            status, text = self._copy_item_text_once(ctrl_held)
+            status, text = self._copy_item_text_once(ctrl_held, clear_first)
             if status != "no-response":
                 return status, text
-        return "empty", ""
+        return ("empty", "") if empty_on_no_response else ("no-response", "")
 
     def click_with_ctrl(self):
         try:
@@ -763,14 +784,14 @@ def transfer_item_once(controller):
 
 
 def transfer_pickup_item(controller):
-    """取件后原地复制确认，物品仍在时最多重试到第三次。"""
+    """取件后清空剪贴板原地复制确认，物品仍在时最多重试到第三次。"""
     try:
         if not controller.begin_ctrl():
             return False, runtime_stop_reason or "transfer-unconfirmed"
         for _attempt in range(3):
             if not controller.click_with_ctrl():
                 return False, runtime_stop_reason or "transfer-unconfirmed"
-            copy_status, _text = controller.copy_item_text(ctrl_held=True)
+            copy_status, _text = controller.copy_item_text(ctrl_held=True, clear_first=True)
             if copy_status == "empty":
                 return True, ""
             if copy_status != "copied":

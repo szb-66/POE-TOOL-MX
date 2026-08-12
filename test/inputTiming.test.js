@@ -41,10 +41,10 @@ test('制作与地图脚本包含自适应剪贴板轮询，固定常量仍保�
   for (const key of ['mapRolling', 'crafting']) {
     const content = source(key)
     assert.match(content, /TIMING_MODE = "{{TIMING_MODE}}"/)
-    assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds\):/)
-    assert.match(content, /def clipboard_changed\(before_seq, before_text\):/)
+    assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)
+    assert.match(content, /def clipboard_changed\(before_seq, before_text, allow_unchanged_text=False\):/)
     assert.match(content, /if TIMING_MODE == "adaptive":/)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS\)/)
+    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text\)/)
     assert.match(content, /CLIPBOARD_POLL_INTERVAL_SECONDS = 0\.01/)
     assert.match(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
   }
@@ -64,16 +64,6 @@ test('背包 Ctrl+C 与 Ctrl+点击均满足 Ctrl 先按下、最后释放', () 
   assert.ok(ctrlClick.indexOf('self.click_with_ctrl()') < ctrlClick.indexOf('self.release_key(Key.ctrl)'))
 })
 
-test('仓库取件 Ctrl+点击满足 Ctrl 先按下、最后释放', () => {
-  const content = source('stashPickup')
-  const ctrlClick = content.slice(
-    content.indexOf('def ctrl_click(mouse, keyboard, ctrl_key, left_button, foreground_check=None):'),
-    content.indexOf('def wait_for_patch_change(')
-  )
-  assert.ok(ctrlClick.indexOf('keyboard.press(ctrl_key)') < ctrlClick.indexOf('mouse.press(left_button)'))
-  assert.ok(ctrlClick.indexOf('mouse.release(left_button)') < ctrlClick.lastIndexOf('keyboard.release(ctrl_key)'))
-})
-
 test('混沌配方取件 Ctrl+C 与 Ctrl+点击均满足 Ctrl 先按下、最后释放', () => {
   const content = source('chaosRecipe')
   const copyItem = content.slice(content.indexOf('def copy_item(self):'), content.indexOf('def ctrl_click(self):'))
@@ -86,7 +76,7 @@ test('混沌配方取件 Ctrl+C 与 Ctrl+点击均满足 Ctrl 先按下、最后
 
 test('地图洗练 Ctrl+C 与存仓点击满足 Ctrl 先按下、最后释放', () => {
   const content = source('mapRolling')
-  const sendCopy = content.slice(content.indexOf('def send_copy_command('), content.indexOf('def read_clipboard_to_file():'))
+  const sendCopy = content.slice(content.indexOf('def send_copy_command('), content.indexOf('def read_clipboard_to_file('))
   assert.ok(sendCopy.indexOf('keyboard_controller.press(Key.ctrl)') < sendCopy.indexOf("keyboard_controller.press('c')"))
   assert.ok(sendCopy.indexOf("keyboard_controller.release('c')") < sendCopy.indexOf('keyboard_controller.release(Key.ctrl)'))
   const stashItem = content.slice(content.indexOf('def stash_item(x, y):'), content.indexOf('def update_map_stats('))
@@ -96,7 +86,7 @@ test('地图洗练 Ctrl+C 与存仓点击满足 Ctrl 先按下、最后释放', 
 
 test('制作脚本 Ctrl+C 满足 Ctrl 先按下、最后释放', () => {
   const content = source('crafting')
-  const sendCopy = content.slice(content.indexOf('def send_copy_command('), content.indexOf('def read_clipboard_to_file():'))
+  const sendCopy = content.slice(content.indexOf('def send_copy_command('), content.indexOf('def read_clipboard_to_file('))
   assert.ok(sendCopy.indexOf('keyboard_controller.press(Key.ctrl)') < sendCopy.indexOf("keyboard_controller.press('c')"))
   assert.ok(sendCopy.indexOf("keyboard_controller.release('c')") < sendCopy.indexOf('keyboard_controller.release(Key.ctrl)'))
 })

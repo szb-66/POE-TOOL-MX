@@ -47,7 +47,7 @@ test('检测预览允许从主窗口触发并交由脚本自动激活游戏', ()
   const script = source('src/assets/scripts/stash_pickup_template.py')
   assert.match(manager, /preview\(\)\s*{\s*this\.ensureReady\(\{ requireForeground: false \}\)/)
   assert.match(script, /def focus_game_window\(/)
-  assert.match(script, /if not focus_game_window\(\):[\s\S]*game-not-foreground/)
+  assert.match(script, /def require_game_foreground\(\):[\s\S]*raise RuntimeError\("game-not-foreground"\)/)
 })
 
 test('仓库与君锋镇共享本机校准池和统一网格预览交互', () => {
@@ -106,6 +106,6 @@ test('普通仓库与君锋镇共用三轮点击后复制确认且入库保持�
   assert.match(pickup, /transfer_pickup_item/)
   assert.match(action, /transferred, reason = transfer_pickup_item\(clipboard_controller\)/)
   assert.doesNotMatch(action, /transfer_item_once/)
-  assert.match(bag, /def transfer_pickup_item\(controller\):[\s\S]*begin_ctrl\(\)[\s\S]*for _attempt in range\(3\):[\s\S]*copy_item_text\(ctrl_held=True\)[\s\S]*inventory-full/)
+  assert.match(bag, /def transfer_pickup_item\(controller\):[\s\S]*begin_ctrl\(\)[\s\S]*for _attempt in range\(3\):[\s\S]*copy_item_text\(ctrl_held=True,\s*clear_first=True\)[\s\S]*inventory-full/)
   assert.match(bag, /def run_stash\(config\):[\s\S]*transfer_item_once\(controller\)/)
 })

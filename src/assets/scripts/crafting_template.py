@@ -1009,7 +1009,7 @@ def left_click_item():
     click_mouse("left")
     return True
 
-def send_copy_command(before_seq=None, before_text=""):
+def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=False):
     # 发送 Ctrl+C 复制详细命令；自适应模式下轮询直到剪贴板出现新内容或超时
     try:
         if not require_game_foreground():
@@ -1025,7 +1025,7 @@ def send_copy_command(before_seq=None, before_text=""):
         keyboard_controller.release(Key.ctrl)
         time.sleep(RELEASE_SETTLE_SECONDS)
         if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS)
+            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text)
         time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
         return True
     except Exception as e:
@@ -1037,21 +1037,31 @@ def send_copy_command(before_seq=None, before_text=""):
             pass
         return False
 
-def clipboard_changed(before_seq, before_text):
-    if GetClipboardSequenceNumber is not None:
+def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
+    # 序列号变化只是必要条件；复制成功还要求粘贴内容确实变化，
+    # 避免游戏清空剪贴板或其它程序写入导致旧文本被当作新复制结果。
+    # 重试路径（不重复使用通货）物品文本必然不变：序列号已变化且文本
+    # 非空即视为游戏重写成功（allow_unchanged_text=True）。
+    seq_changed = False
+    if GetClipboardSequenceNumber is not None and before_seq is not None:
         try:
-            if before_seq is not None and GetClipboardSequenceNumber() != before_seq:
-                return True
+            if GetClipboardSequenceNumber() == before_seq:
+                return False
+            seq_changed = True
         except Exception:
             pass
     current_text = str(pyperclip.paste() or "")
-    return bool(current_text.strip()) and current_text != before_text
+    if not current_text.strip():
+        return False
+    if allow_unchanged_text and seq_changed:
+        return True
+    return current_text != before_text
 
 
-def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
+def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
     while is_running:
-        if clipboard_changed(before_seq, before_text):
+        if clipboard_changed(before_seq, before_text, allow_unchanged_text):
             return True
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -1059,7 +1069,7 @@ def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
         time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
     return False
 
-def read_clipboard_to_file():
+def read_clipboard_to_file(allow_unchanged_text=False):
     # 读取剪切板并写入文件
     global parse_request_sequence, pending_parse_request_id
     try:
@@ -1075,7 +1085,7 @@ def read_clipboard_to_file():
         except Exception:
             before_text = ""
         # 发送复制命令
-        if not send_copy_command(before_seq, before_text):
+        if not send_copy_command(before_seq, before_text, allow_unchanged_text):
             return False
         
         # 读取剪切板文本
@@ -1083,6 +1093,10 @@ def read_clipboard_to_file():
         
         if not clipboard_text or len(clipboard_text.strip()) == 0:
             print("[警告] 剪切板内容为空")
+            return False
+        
+        if clipboard_text == before_text and not allow_unchanged_text:
+            print("[警告] 剪切板内容未更新，可能复制失败")
             return False
         
         parse_request_sequence += 1
@@ -1184,7 +1198,8 @@ def prepare_item_for_crafting(identify_unidentified=True):
     """读取目标物品；需要时鉴定一次，并返回最终解析结果。"""
     if not move_mouse(item_position['x'], item_position['y']):
         return fail_item_preparation("无法移动到待制作物品位置", "ITEM_POSITION_FAILED")
-    if not read_clipboard_to_file():
+    # 剪贴板可能残留用户手动复制的同一物品文本，允许序列号变化后的同文本复制
+    if not read_clipboard_to_file(allow_unchanged_text=True):
         return fail_item_preparation("无法读取待制作物品", "ITEM_READ_FAILED")
 
     result = wait_for_parse_result()

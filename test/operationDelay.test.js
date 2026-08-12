@@ -82,9 +82,9 @@ test('制作和地图脚本的悬停等待来自同一个真实值，点击与�
     assert.match(template, /mouse_controller\.press\(Button\.(left|right)\)\s*time\.sleep\(BUTTON_HOLD_SECONDS\)\s*mouse_controller\.release\(Button\.(left|right)\)/)
     assert.match(template, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
     assert.match(template, /TIMING_MODE = "{{TIMING_MODE}}"/)
-    assert.match(template, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds\):/)
+    assert.match(template, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)
     assert.match(template, /if TIMING_MODE == "adaptive":/)
-    assert.match(template, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS\)/)
+    assert.match(template, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text\)/)
     assert.match(template, /ADAPTIVE_TIMEOUT_SECONDS = float\(\{\{ADAPTIVE_TIMEOUT_MS\}\}\) \/ 1000\.0/)
     assert.doesNotMatch(template, /key_press_delay|currency_right_click_delay|item_left_click_delay/)
   }

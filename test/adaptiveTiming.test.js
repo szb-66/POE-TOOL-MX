@@ -143,24 +143,12 @@ test('制作与地图剪贴板确认在自适应模式使用统一上限', () =>
     '../src/assets/scripts/map_rolling_template.py'
   ]) {
     const content = source(relative)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS\)/)
+    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text\)/)
     assert.match(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
     assert.match(content, /ADAPTIVE_TIMEOUT_SECONDS = float\(\{\{ADAPTIVE_TIMEOUT_MS\}\}\) \/ 1000\.0/)
     assert.match(content, /TIMING_MODE = "{{TIMING_MODE}}"/)
-    assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds\):/)
+    assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)
   }
-})
-
-test('仓库取件脚本支持自适应超时参数，缺省时保持原固定上限', () => {
-  const content = source('../src/assets/scripts/stash_pickup_template.py')
-  assert.match(content, /def wait_for_patch_change\(before, rect, columns, candidate, ratio, grabber, timeout_seconds=None\):/)
-  assert.match(content, /if timeout_seconds is None:\s*timeout_seconds = PATCH_VERIFY_SECONDS/)
-  assert.match(content, /timing_mode = config\.get\("timing_mode", "fixed"\)/)
-  assert.match(content, /adaptive_timeout_ms = float\(config\.get\("adaptive_timeout_ms", 1000\)\)/)
-  assert.match(content, /patch_timeout = \(adaptive_timeout_ms \/ 1000\.0\) if timing_mode == "adaptive" else None/)
-  assert.match(content, /wait_for_patch_change\(before, rect, columns, candidate, ratio, grabber, patch_timeout\)/)
-  assert.match(content, /config\.get\("operation_delay_ms", 50\)/)
-  assert.doesNotMatch(content, /config\.get\("operationDelayMs"/)
 })
 
 test('海图放置脚本无隐藏输入下限并由统一验证时序兜底', () => {

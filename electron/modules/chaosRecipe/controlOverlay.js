@@ -352,10 +352,13 @@ export class ChaosRecipeControlOverlay {
     const state = this.computeState()
     if (!state.canSelectRecipe) throw new Error(state.recipeSelectionReason || '当前不能切换配方')
     this.runtime.activeRecipeId = nextRecipeId
-    if (SINGLE_RECIPE_IDS.includes(nextRecipeId)) {
-      this.runtime.selectedItemIds = [...(this.runtime.selectedItemIdsByRecipe?.[nextRecipeId] || [])]
-    } else {
-      this.runtime.selectedItemIds = []
+    const selectedItemIds = SINGLE_RECIPE_IDS.includes(nextRecipeId)
+      ? (this.service?.snapshot?.recipes?.[nextRecipeId]?.candidates || []).map((item) => String(item.id))
+      : []
+    this.runtime.selectedItemIds = [...selectedItemIds]
+    this.runtime.selectedItemIdsByRecipe = {
+      ...this.runtime.selectedItemIdsByRecipe,
+      [nextRecipeId]: selectedItemIds
     }
     return this.sync()
   }

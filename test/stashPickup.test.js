@@ -29,30 +29,6 @@ test('检测配置按普通与大型仓库保存独立默认值并限制参数�
   )
 })
 
-test('正式取件在移动、截图和点击前验证游戏前台，失焦后不点击', () => {
-  const source = readFileSync(pythonScript, 'utf8')
-  assert.match(source, /require_game_foreground\(\)[\s\S]*?mouse\.position/)
-  assert.match(source, /require_game_foreground\(\)[\s\S]*?current = capture\(rect, grabber\)/)
-  const code = `
-import importlib.util, json
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-events=[]
-focus=iter([True,False])
-class Keyboard:
- def press(self,key): events.append("key-down")
- def release(self,key): events.append("key-up")
-class Mouse:
- def click(self,*args): events.append("click")
-try:
- hp.ctrl_click(Mouse(),Keyboard(),"ctrl","left",lambda: next(focus))
-except RuntimeError as error:
- events.append(str(error))
-print(json.dumps(events))
-`
-  assert.deepEqual(runPython(code), ['key-down', 'key-up', 'game-not-foreground'])
-})
-
 test('取件启动异常会撤销前台切换宽限状态', () => {
   const source = readFileSync(managerScript, 'utf8')
   assert.match(
@@ -71,25 +47,24 @@ test('公共仓库校准保留物理元数据并只在公共值为空时迁移�
   assert.equal(normalizeStashGridRegion({ left: 1, top: 1, right: 1, bottom: 2 }), null)
 })
 
-test('固定截图按网格周期识别布局并生成稳定候选格', () => {
+test('固定截图按网格周期识别布局', () => {
   const code = `
 import importlib.util, cv2, json, os, numpy as np
 spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
 hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
 root=${JSON.stringify(fixtureDirPath)}
-cases=[("normal-unsearched.jpg",12,1500),("normal-highlight.jpg",12,1500),("normal-no-match.jpg",12,1500),("quad-highlight.jpg",24,3000)]
+cases=[("normal-unsearched.jpg",12),("normal-highlight.jpg",12),("normal-no-match.jpg",12),("quad-highlight.jpg",24)]
 out=[]
-for name,columns,threshold in cases:
+for name,columns in cases:
  image=cv2.imdecode(np.fromfile(os.path.join(root,name),dtype=np.uint8),cv2.IMREAD_COLOR)
- candidates=hp.detect_candidates(image,columns,{"method":"variance","thresholds":{"variance":threshold},"sampleRatio":.6})
- out.append([hp.detect_grid_layout(image)[0],round(hp.grid_confidence(image,12),2),round(hp.grid_confidence(image,24),2),len(candidates)])
+ out.append([hp.detect_grid_layout(image)[0],round(hp.grid_confidence(image,12),2),round(hp.grid_confidence(image,24),2)])
 print(json.dumps(out))
 `
   assert.deepEqual(runPython(code), [
-    [12, 3.38, 3.64, 28],
-    [12, 5.54, 5.14, 10],
-    [12, 4.91, 4.97, 0],
-    [24, 1.29, 1.45, 21]
+    [12, 3.38, 3.64],
+    [12, 5.54, 5.14],
+    [12, 4.91, 4.97],
+    [24, 1.29, 1.45]
   ])
 })
 
@@ -199,215 +174,10 @@ print(json.dumps([layout["calibration"],layout["columns"]]))
   assert.deepEqual(runPython(code), ['folder', 24])
 })
 
-test('检测预览会先激活游戏再识别仓库布局', () => {
-  const code = `
-import importlib.util, json, numpy as np
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-events=[]
-hp.focus_game_window=lambda: events.append("focus") or True
-hp.is_game_foreground=lambda: True
-class Grabber:
- def __enter__(self): return self
- def __exit__(self, *_): return False
-hp.mss.mss=lambda: Grabber()
-hp.choose_layout=lambda *_: events.append("layout") or {
- "columns":12, "calibration":"folder", "confidence":2,
- "rect":{"left":0,"top":0,"width":120,"height":120},
- "image":np.zeros((120,120,3),dtype=np.uint8)
-}
-hp.detect_candidates=lambda *_: []
-hp.emit=lambda *_args, **_kwargs: None
-result=hp.run({
- "calibration":{"folder":{"left":0,"top":0,"right":120,"bottom":120}},
- "profiles":{"normal":{"method":"variance","thresholds":{"variance":1},"sampleRatio":0.6}}
-}, True)
-print(json.dumps([result,events]))
-`
-  assert.deepEqual(runPython(code), [0, ['focus', 'layout']])
-})
-
-test('局部图像无变化判定未转移，明显变化判定成功', () => {
-  const code = `
-import importlib.util, numpy as np, json
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-a=np.zeros((10,10,3),dtype=np.uint8); b=a.copy(); c=np.full((10,10,3),20,dtype=np.uint8)
-print(json.dumps([hp.patch_changed(a,b),hp.patch_changed(a,c)]))
-`
-  assert.deepEqual(runPython(code), [false, true])
-})
-
-test('运行事件的动态剩余格数可覆盖公共载荷且不会重复关键字崩溃', () => {
-  const code = `
-import importlib.util, json
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-events=[]
-hp.emit=lambda event, **payload: events.append({"event":event, **payload})
-hp.emit_with("progress", {"candidateCells":27, "remainingCells":27}, remainingCells=26, pickedItems=1)
-print(json.dumps(events))
-`
-  assert.deepEqual(runPython(code), [
-    { event: 'progress', candidateCells: 27, remainingCells: 26, pickedItems: 1 }
-  ])
-})
-
-test('第二件首次点击未生效时会重试而不是误报背包已满', () => {
-  const code = `
-import importlib.util, json, numpy as np
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-
-clock=[0.0]
-hp.time.monotonic=lambda: clock[0]
-hp.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds), 0.001))
-
-class Grabber:
- def __enter__(self): return self
- def __exit__(self, *_): return False
-hp.mss.mss=lambda: Grabber()
-hp.focus_game_window=lambda: True
-hp.is_game_foreground=lambda: True
-
-state={"clicks":0, "visual":0}
-class Keyboard:
- def press(self, _): pass
- def release(self, _): pass
-class Mouse:
- def __init__(self): self.position=(0, 0)
- def press(self, _button):
-  state["clicks"] += 1
-  if state["clicks"] == 1 or state["clicks"] == 3:
-   state["visual"] += 20
- def release(self, _button): pass
-
-hp.choose_layout=lambda *_: {
- "columns":12, "calibration":"root", "confidence":2,
- "rect":{"left":0, "top":0, "width":120, "height":120},
- "image":np.zeros((1,1,3), dtype=np.uint8)
-}
-hp.detect_candidates=lambda *_: [
- {"column":0, "row":0, "score":10},
- {"column":3, "row":0, "score":10}
-]
-hp.capture=lambda *_: np.full((1,1,3), state["visual"], dtype=np.uint8)
-hp.cell_score=lambda *_: 10
-hp.local_patch=lambda image, *_: image.copy()
-events=[]
-hp.emit=lambda event, **payload: events.append({"event":event, **payload})
-
-import pynput.keyboard, pynput.mouse
-pynput.keyboard.Controller=Keyboard
-pynput.keyboard.Key=type("Key", (), {"ctrl":"ctrl"})
-pynput.mouse.Controller=Mouse
-pynput.mouse.Button=type("Button", (), {"left":"left"})
-
-result=hp.run({
- "calibration":{"root":{"left":0,"top":0,"right":120,"bottom":120}},
- "profiles":{"normal":{"method":"variance","thresholds":{"variance":1},"sampleRatio":0.6}},
- "operationDelayMs":20
-})
-print(json.dumps({
- "result":result,
- "clicks":state["clicks"],
- "pickedItems":events[-1].get("pickedItems"),
- "lastEvent":events[-1]["event"],
- "reasons":[event.get("reason") for event in events if event.get("reason")]
-}))
-`
-  assert.deepEqual(runPython(code), {
-    result: 0,
-    clicks: 3,
-    pickedItems: 2,
-    lastEvent: 'completed',
-    reasons: ['completed']
-  })
-})
-
-test('多格物品移除后跳过全部已清空占位格并继续取下一件', () => {
-  const code = `
-import importlib.util, json, numpy as np
-spec=importlib.util.spec_from_file_location("hp", ${JSON.stringify(pythonScriptPath)})
-hp=importlib.util.module_from_spec(spec); spec.loader.exec_module(hp)
-
-clock=[0.0]
-hp.time.monotonic=lambda: clock[0]
-hp.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds), 0.001))
-class Grabber:
- def __enter__(self): return self
- def __exit__(self, *_): return False
-hp.mss.mss=lambda: Grabber()
-hp.focus_game_window=lambda: True
-hp.is_game_foreground=lambda: True
-
-state={"firstRemoved":False,"secondRemoved":False,"clicks":0}
-def image():
- output=np.zeros((120,120,3),dtype=np.uint8)
- if not state["firstRemoved"]:
-  output[0:10,0:20]=40
- if not state["secondRemoved"]:
-  output[0:10,20:30]=60
- return output
-
-class Keyboard:
- def press(self, _): pass
- def release(self, _): pass
-class Mouse:
- def __init__(self): self.position=(0,0)
- def press(self, _button):
-  state["clicks"] += 1
-  column=int(self.position[0] // 10)
-  if column == 0: state["firstRemoved"]=True
-  if column == 2: state["secondRemoved"]=True
- def release(self, _button): pass
-
-hp.choose_layout=lambda *_: {
- "columns":12, "calibration":"folder", "confidence":2,
- "rect":{"left":0,"top":0,"width":120,"height":120},
- "image":image()
-}
-hp.detect_candidates=lambda *_: [
- {"column":0,"row":0,"score":10},
- {"column":1,"row":0,"score":10},
- {"column":2,"row":0,"score":10}
-]
-hp.capture=lambda *_: image()
-hp.cell_score=lambda _image,_columns,column,row,_method,_ratio: 10 if (column,row) in ((0,0),(1,0),(2,0)) else 0
-events=[]
-hp.emit=lambda event, **payload: events.append({"event":event, **payload})
-
-import pynput.keyboard, pynput.mouse
-pynput.keyboard.Controller=Keyboard
-pynput.keyboard.Key=type("Key", (), {"ctrl":"ctrl"})
-pynput.mouse.Controller=Mouse
-pynput.mouse.Button=type("Button", (), {"left":"left"})
-
-result=hp.run({
- "calibration":{"folder":{"left":0,"top":0,"right":120,"bottom":120}},
- "profiles":{"normal":{"method":"variance","thresholds":{"variance":1},"sampleRatio":0.6}},
- "operationDelayMs":20
-})
-print(json.dumps({
- "result":result,
- "clicks":state["clicks"],
- "pickedItems":events[-1].get("pickedItems"),
- "lastEvent":events[-1]["event"],
- "calibration":events[-1].get("calibration")
-}))
-`
-  assert.deepEqual(runPython(code), {
-    result: 0,
-    clicks: 2,
-    pickedItems: 2,
-    lastEvent: 'completed',
-    calibration: 'folder'
-  })
-})
-
-test('运行脚本不包含剪贴板并在未变化时发出背包已满', () => {
+test('取件脚本不再包含画面变化确认代码', () => {
   const source = readFileSync(pythonScript, 'utf8')
+  assert.doesNotMatch(source, /wait_for_patch_change|patch_changed|changed_item_cells|detect_candidates|def run\(|emit_with/)
   assert.doesNotMatch(source, /clipboard|pyperclip|copy_item/i)
-  assert.match(source, /reason="inventory-full"/)
-  assert.match(source, /keyboard\.release\(Key\.ctrl\)/)
+  assert.match(source, /def choose_layout\(/)
+  assert.match(source, /def capture\(/)
 })

@@ -124,11 +124,21 @@ const activeRecipeOption = computed(() =>
 const controlShell = ref(null)
 let disposeState
 let resizeObserver
+let pendingActionFailure = ''
+let pendingSelectionFailure = ''
 const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(message))
 
 function applyState(response) {
   const snapshot = response?.success ? response.data : response
   if (snapshot) Object.assign(state, snapshot)
+  if (pendingActionFailure) {
+    state.actionReason = pendingActionFailure
+    pendingActionFailure = ''
+  }
+  if (pendingSelectionFailure) {
+    state.recipeSelectionReason = pendingSelectionFailure
+    pendingSelectionFailure = ''
+  }
   if (!state.canSelectRecipe) recipeMenuOpen.value = false
   void nextTick(reportContentSize)
 }
@@ -157,7 +167,7 @@ async function run(kind) {
       : kind === 'preview'
         ? await electronApi.chaosRecipe.controlPreview()
         : await electronApi.chaosRecipe.controlAction()
-    if (!response?.success) state.actionReason = response?.error?.message || '操作失败'
+    if (!response?.success) pendingActionFailure = response?.error?.message || '操作失败'
   } finally {
     busy.value = ''
     applyState(await electronApi.chaosRecipe.getControlState())
@@ -180,7 +190,7 @@ async function selectControlRecipe(recipeId, event) {
   busy.value = 'recipe'
   try {
     const response = await electronApi.chaosRecipe.selectControlRecipe(recipeId)
-    if (!response?.success) state.recipeSelectionReason = response?.error?.message || '切换配方失败'
+    if (!response?.success) pendingSelectionFailure = response?.error?.message || '切换配方失败'
     else applyState(response)
   } finally {
     busy.value = ''

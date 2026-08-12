@@ -551,16 +551,16 @@ export const electronApi = isElectron ? {
   },
 
   combat: {
-    startPotion: (payload) => window.electronAPI.startPotionAssist?.(payload),
+    startPotion: (payload) => window.electronAPI.startPotionAssist?.(craftingIpcPayload(payload)),
     stopPotion: () => window.electronAPI.stopPotionAssist?.(),
     getPotionStatus: () => window.electronAPI.getPotionAssistStatus?.(),
     updatePotionConfig: (config) => window.electronAPI.updatePotionAssistConfig?.(craftingIpcPayload(config)),
-    startLoop: (payload) => window.electronAPI.startLoopAssist?.(payload),
+    startLoop: (payload) => window.electronAPI.startLoopAssist?.(craftingIpcPayload(payload)),
     stopLoop: () => window.electronAPI.stopLoopAssist?.(),
     getLoopStatus: () => window.electronAPI.getLoopAssistStatus?.(),
     updateLoopConfig: (config) => window.electronAPI.updateLoopAssistConfig?.(craftingIpcPayload(config)),
     samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
-    executePortal: (payload) => window.electronAPI.executePortalAssist?.(payload),
+    executePortal: (payload) => window.electronAPI.executePortalAssist?.(craftingIpcPayload(payload)),
     onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})
   },
 

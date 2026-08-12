@@ -207,7 +207,7 @@ class ClipboardController:
  def __init__(self,_config): self.mouse=mouse
  def move(self,x,y): mouse.position=(x,y); state["moves"].append([x,y]); return True
  def begin_ctrl(self): return True
- def copy_item_text(self, ctrl_held=False):
+ def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False):
   state["copies"] += 1
   if not state["removed"]: return "copied",item
   return "empty",""
@@ -312,7 +312,7 @@ class ClipboardController:
  def __init__(self,_config): self.mouse=mouse
  def move(self,x,y): self.mouse.position=(x,y); return True
  def begin_ctrl(self): return True
- def copy_item_text(self, ctrl_held=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
+ def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
  def click_with_ctrl(self): self.mouse.clicks += 1; return True
  def release_all(self): pass
 m.InputController=ClipboardController
@@ -365,7 +365,7 @@ class ClipboardController:
  def __init__(self,_config): self.mouse=mouse
  def move(self,x,y): self.mouse.position=(x,y); return True
  def begin_ctrl(self): return True
- def copy_item_text(self, ctrl_held=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
+ def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
  def click_with_ctrl(self): self.mouse.clicks += 1; return True
  def release_all(self): pass
 m.InputController=ClipboardController
@@ -439,7 +439,7 @@ class ClipboardController:
  def __init__(self,_config): self.mouse=mouse
  def move(self,x,y): self.mouse.position=(x,y); return True
  def begin_ctrl(self): return True
- def copy_item_text(self, ctrl_held=False):
+ def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False):
   column=0 if self.mouse.position[0] < 10 else 1
   return ("empty","") if column in state["removed"] else ("copied",item)
  def click_with_ctrl(self):
@@ -511,7 +511,7 @@ class ClipboardController:
  def __init__(self,_config): self.mouse=mouse
  def move(self,x,y): self.mouse.position=(x,y); return True
  def begin_ctrl(self): return True
- def copy_item_text(self, ctrl_held=False): return ("empty","") if state["removed"] else ("copied",item)
+ def copy_item_text(self, ctrl_held=False, empty_on_no_response=True, clear_first=False): return ("empty","") if state["removed"] else ("copied",item)
  def click_with_ctrl(self): state["clicks"] += 1; state["removed"]=True; return True
  def release_all(self): pass
 m.InputController=ClipboardController
