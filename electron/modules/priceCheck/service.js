@@ -3,6 +3,7 @@ import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
+  mergeStatIntoList,
   sanitizePriceCheckModel,
   sanitizePriceCheckOptions
 } from './query.js'
@@ -477,8 +478,8 @@ export class PriceCheckService {
     const candidate = unknown?.candidates?.find((entry) => entry.id === String(candidateId || ''))
     if (!candidate) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '词缀候选无效或已过期')
 
-    model.stats.push({
-      key: `${candidate.type}:${candidate.id}`,
+    const options = sanitizePriceCheckOptions(source.options || this.runtime.options)
+    mergeStatIntoList(model.stats, {
       id: candidate.id,
       label: candidate.label,
       text: unknown.text,
@@ -486,11 +487,12 @@ export class PriceCheckService {
       tier: unknown.tier,
       tags: unknown.tags || [],
       values: candidate.values || [],
+      merge: candidate.merge,
       sources: [{ text: unknown.text, name: candidate.label, values: candidate.values || [] }],
       enabled: true,
       min: candidate.min,
       max: candidate.max
-    })
+    }, options.valueRange)
     model.unknownStats.splice(unknownIndex, 1)
     return this.check({
       league: source.league,

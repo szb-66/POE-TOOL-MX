@@ -167,10 +167,12 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
       const id = compact(entry?.id)
       if (!matcher || !SUPPORTED_STAT_TYPES.has(type)) continue
       if (!isTradeStatId(id, type)) continue
+      const aliases = officialMatcherAliases(matcher)
+      if (!aliases.length) continue
       const identity = `${type}\u0000${id}`
       const existing = byIdentity.get(identity)
       if (existing) {
-        existing.matchers = [...new Set([...existing.matchers, ...officialMatcherAliases(matcher)])]
+        existing.matchers = [...new Set([...existing.matchers, ...aliases])]
         existing.local ||= /(?:\((?:Local|区域)\)|（区域）)$/i.test(matcher)
         continue
       }
@@ -179,7 +181,7 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
         label: matcher.replaceAll('#', '数值'),
         // “(Local)/(区域)” is official trade UI metadata and is absent from
         // the game's detailed clipboard text. Keep both forms under the same ID.
-        matchers: officialMatcherAliases(matcher),
+        matchers: aliases,
         ids: { [type]: id },
         ...(/(?:\((?:Local|区域)\)|（区域）)$/i.test(matcher) ? { local: true } : {}),
         availability: 'cn'
@@ -372,6 +374,7 @@ export function auditOfficialTradeCatalog(payload, catalog) {
   const retained = new Set(catalog.stats.flatMap(statIds).map(({ type, id }) => `${type}\u0000${id}`))
   const valid = []
   let rejected = 0
+  let filteredMatchers = 0
   for (const group of payload.result) {
     for (const entry of group?.entries || []) {
       const matcher = compact(entry?.text)
@@ -379,6 +382,12 @@ export function auditOfficialTradeCatalog(payload, catalog) {
       const id = compact(entry?.id)
       if (!matcher || !SUPPORTED_STAT_TYPES.has(type) || !isTradeStatId(id, type)) {
         rejected += 1
+        continue
+      }
+      // Mirror createOfficialTradeCatalog: unusable matchers (old translation
+      // control codes) are dropped there, so they are not a retention error.
+      if (!officialMatcherAliases(matcher).length) {
+        filteredMatchers += 1
         continue
       }
       valid.push({ matcher, type, id })
@@ -399,6 +408,7 @@ export function auditOfficialTradeCatalog(payload, catalog) {
     unique: identities.size - ambiguous.reduce((sum, ids) => sum + ids.size, 0),
     ambiguous: ambiguous.reduce((sum, ids) => sum + ids.size, 0),
     rejected,
+    filteredMatchers,
     silentDropped: silentDropped.length
   }
   if (report.silentDropped) throw new Error(`腾讯官方词缀目录静默丢弃 ${report.silentDropped} 条有效记录`)

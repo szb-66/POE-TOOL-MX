@@ -679,13 +679,14 @@ def apply_currency(currency_type, target_x, target_y):
         return False
 
 def send_copy_command(before_seq=None, before_text="", result_timeout=None):
+    # 返回 True=复制成功, False=复制成功但剪贴板未变化, None=复制指令执行失败
     try:
         if not require_game_foreground():
-            return False
+            return None
         keyboard_controller.press(Key.ctrl)
         time.sleep(MODIFIER_SETTLE_SECONDS)
         if not require_game_foreground():
-            return False
+            return None
         keyboard_controller.press('c')
         time.sleep(KEY_HOLD_SECONDS)
         keyboard_controller.release('c')
@@ -699,7 +700,7 @@ def send_copy_command(before_seq=None, before_text="", result_timeout=None):
         time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
         return True
     except:
-        return False
+        return None
 
 def clipboard_changed(before_seq, before_text):
     if GetClipboardSequenceNumber is not None:
@@ -807,6 +808,8 @@ def stash_item(x, y):
         before_text = str(pyperclip.paste() or "")
         timeout = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else STASH_SETTLE_SECONDS
         item_still_present = send_copy_command(before_seq, before_text, timeout)
+        if item_still_present is None:
+            return False
         return not item_still_present
     except:
         keyboard_controller.release(Key.ctrl)

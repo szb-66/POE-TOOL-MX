@@ -462,6 +462,21 @@ test('官方 local 标记生成游戏剪贴板别名且丢弃旧翻译控制符'
   assert.ok(catalog.stats.every((entry) => entry.matchers.every((matcher) => !/<[A-Z]{2}\d+>|}}/.test(matcher))))
 })
 
+test('官方目录出现旧翻译控制符词缀时跳过该条而不是让整个刷新失败', async () => {
+  const { catalog: bundled } = await loadTradeCatalog(catalogPath)
+  const entries = Array.from({ length: 101 }, (_, index) => ({
+    id: `explicit.stat_${400000 + index}`,
+    text: index === 0 ? '<AT3>损坏的旧翻译}}' : `测试跳过词缀 ${index} +#`,
+    type: 'explicit'
+  }))
+  const { catalog, status } = createOfficialTradeCatalog(bundled, {
+    result: [{ id: 'explicit', entries }]
+  })
+  assert.ok(catalog.stats.every((entry) => entry.matchers.length > 0))
+  assert.equal(status.coverage.silentDropped, 0)
+  assert.equal(status.coverage.filteredMatchers, 1)
+})
+
 test('当前游戏描述目录只按现存官方 ID 补充简中剪贴板 matcher', () => {
   const catalog = {
     schemaVersion: 2,
@@ -698,6 +713,59 @@ test('真实歧义词缀默认跳过且只能通过当前主进程候选重新�
   const selected = await service.resolveStatCandidate(unknown.key, 'explicit.stat_1694106311')
   assert.deepEqual(selected.model.unknownStats, [])
   assert.deepEqual(queries[1].query.stats[0].filters.map((filter) => filter.id), ['explicit.stat_1694106311'])
+})
+
+test('resolveStatCandidate 候选与已解析同 id 词缀合并数值而不是重复查询', async () => {
+  const catalog = {
+    items: [],
+    stats: [
+      { key: 'merge-target', label: '测试聚合候选', matchers: ['# 测试聚合候选'], ids: { explicit: 'explicit.stat_942001' }, merge: 'sum' },
+      { key: 'ambiguous-a', label: '候选甲', matchers: ['# 测试歧义'], ids: { explicit: 'explicit.stat_942001' } },
+      { key: 'ambiguous-b', label: '候选乙', matchers: ['# 测试歧义'], ids: { explicit: 'explicit.stat_942002' } }
+    ]
+  }
+  const queries = []
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true, accountName: 'me' }), registerCacheClearer: () => {} },
+    client: {
+      clearCache() {},
+      search: async (_league, query) => {
+        queries.push(structuredClone(query))
+        return { id: `candidate-${queries.length}`, total: 0, result: [] }
+      },
+      fetch: async () => ({ result: [] })
+    },
+    catalog,
+    catalogStatus: { provider: 'test', counts: { stats: catalog.stats.length, items: 0, currencies: 0 } },
+    overlay: { create: () => {}, update: () => {}, close: () => {} },
+    shell: { openExternal: async () => {} },
+    captureClipboard: async () => ({ ok: false })
+  })
+  service.updateRuntime({ enabled: true })
+  const first = await service.check({
+    league: 'S30赛季',
+    text: `物品类别: 项链
+稀 有 度: 稀有
+测试聚合项链
+黑曜护身符
+--------
+物品等级: 73
+--------
+{ 前缀属性 "聚合的" (等阶：1) }
+5 测试聚合候选
+10 测试歧义`
+  })
+
+  assert.deepEqual(first.model.stats.find((stat) => stat.id === 'explicit.stat_942001').values, [5])
+  const unknown = first.model.unknownStats[0]
+  assert.deepEqual(unknown.candidates.map((candidate) => candidate.id), ['explicit.stat_942001', 'explicit.stat_942002'])
+
+  const selected = await service.resolveStatCandidate(unknown.key, 'explicit.stat_942001')
+  const merged = selected.model.stats.filter((stat) => stat.id === 'explicit.stat_942001')
+  assert.equal(merged.length, 1)
+  assert.equal(merged[0].min, 12)
+  assert.equal(merged[0].sources.length, 2)
+  assert.equal(queries[1].query.stats[0].filters.filter((filter) => filter.id === 'explicit.stat_942001').length, 1)
 })
 
 test('用户提供的药剂与三件传奇歧义文案均保留合法官方候选', async () => {

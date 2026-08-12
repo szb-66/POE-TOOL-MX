@@ -89,6 +89,25 @@ export function sanitizePriceCheckOptions(value = {}) {
   }
 }
 
+export function mergeStatIntoList(stats, stat, valueRange = 'down20') {
+  const existing = stats.find((entry) => `${entry.type}\u0000${entry.id}` === `${stat.type}\u0000${stat.id}`)
+  if (!existing) {
+    stats.push({ ...stat, key: `${stat.type}:${stat.id}` })
+    return stats.at(-1)
+  }
+  existing.sources.push(...(stat.sources || []))
+  const mergeValue = existing.merge === 'max'
+    ? (left, right) => Math.max(left ?? -Infinity, right ?? -Infinity)
+    : (left, right) => (left || 0) + (right || 0)
+  existing.values = Array.from(
+    { length: Math.max(existing.values.length, stat.values.length) },
+    (_, index) => mergeValue(existing.values[index], stat.values[index])
+  )
+  existing.min = numericMinimum(existing.values, valueRange)
+  existing.enabled ||= stat.enabled
+  return existing
+}
+
 export function createPriceCheckModel(item, catalog, options = {}) {
   if (!item?.rarity || (!item.name && !item.baseName)) throw new Error('剪贴板中没有可识别的国服物品')
   const rarity = item.rarity.replace(/\s/g, '')
@@ -153,6 +172,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
             type: candidate.type,
             categories: candidate.categories,
             values: candidate.values,
+            merge: candidate.merge,
             min: numericMinimum(candidate.values, options.valueRange),
             max: undefined
           }))
@@ -184,27 +204,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     }
   }
   const mergedStats = []
-  const mergedByIdentity = new Map()
-  for (const stat of stats) {
-    const identity = `${stat.type}\u0000${stat.id}`
-    const existing = mergedByIdentity.get(identity)
-    if (!existing) {
-      stat.key = `${stat.type}:${stat.id}`
-      mergedByIdentity.set(identity, stat)
-      mergedStats.push(stat)
-      continue
-    }
-    existing.sources.push(...stat.sources)
-    const mergeValue = existing.merge === 'max'
-      ? (left, right) => Math.max(left ?? -Infinity, right ?? -Infinity)
-      : (left, right) => (left || 0) + (right || 0)
-    existing.values = Array.from(
-      { length: Math.max(existing.values.length, stat.values.length) },
-      (_, index) => mergeValue(existing.values[index], stat.values[index])
-    )
-    existing.min = numericMinimum(existing.values, options.valueRange)
-    existing.enabled ||= stat.enabled
-  }
+  for (const stat of stats) mergeStatIntoList(mergedStats, stat, options.valueRange)
   const properties = PROPERTY_DEFINITIONS.map(([field, label, id]) => {
     const value = Number(item[field]) || 0
     return value > 0
@@ -407,6 +407,7 @@ export function sanitizePriceCheckModel(value, catalog = null) {
           type: safeText(candidate.type, 24),
           categories: Array.isArray(candidate.categories) ? candidate.categories.slice(0, 20).map((entry) => safeText(entry, 80)).filter(Boolean) : [],
           values: Array.isArray(candidate.values) ? candidate.values.slice(0, 8).map(safeNumber).filter(Number.isFinite) : [],
+          merge: candidate.merge === 'max' || candidate.merge === 'sum' ? candidate.merge : undefined,
           min: safeNumber(candidate.min),
           max: safeNumber(candidate.max)
         })).filter((candidate) => candidate.type === type && isTradeStatId(candidate.id, type) && catalogHasStat(catalog, candidate.id, type)) : []

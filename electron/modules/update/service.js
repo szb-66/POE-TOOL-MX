@@ -196,6 +196,7 @@ export class ApplicationUpdateService extends EventEmitter {
     if (source !== this.state.source) {
       this.updater.setFeedURL({ provider: 'generic', url: UPDATE_SOURCE_URLS[source] })
       this.downloadReady = false
+      this.updater.downloadedUpdateHelper?.clear()?.catch?.(() => {})
       this.state = {
         ...this.state,
         source,
