@@ -16,7 +16,11 @@ import { expandSearchRegion, getDisplayPhysicalBounds } from '../window/coordina
 import { OverlayDragSession } from '../window/overlayDrag.js'
 import { getBagOverlayDragBounds } from '../window/bagOverlay.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
-import { normalizeOperationDelay, pythonFixedTiming } from '../../../src/utils/operationDelay.js'
+import {
+  normalizeAutomationTiming,
+  normalizeOperationDelay,
+  pythonAutomationTiming
+} from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
@@ -76,9 +80,14 @@ function runtimeConfig(config = {}) {
       layout: config.inventory?.layout || {}
     },
     blacklist: Array.isArray(config.blacklist) ? config.blacklist : [],
-    operation_delay_ms: normalizeOperationDelay(config.operationDelayMs),
-    fixed_timing: pythonFixedTiming(config.fixedTiming)
+    ...pythonAutomationTiming(config)
   }
+}
+
+export function updateBagAutomationTiming(value = {}) {
+  const timing = normalizeAutomationTiming(value)
+  if (latestConfig) Object.assign(latestConfig, pythonAutomationTiming(timing))
+  return timing
 }
 
 function validateConfig(config) {
@@ -323,7 +332,14 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
 
   ipcMain.handle('update-bag-operation-delay', async (_event, value) => {
     const operationDelayMs = normalizeOperationDelay(value)
-    if (latestConfig) latestConfig.operation_delay_ms = operationDelayMs
+    if (latestConfig) updateBagAutomationTiming({
+      operationDelayMs,
+      adaptiveTiming: latestConfig.timing_mode !== 'fixed',
+      adaptiveTimeoutMs: latestConfig.adaptive_timeout_ms,
+      fixedTiming: Object.fromEntries(Object.entries(latestConfig.fixed_timing || {}).map(([key, timingValue]) => [
+        key.replace(/_([a-z])/g, (_match, letter) => letter.toUpperCase()), timingValue
+      ]))
+    })
     return { success: true, operationDelayMs }
   })
 

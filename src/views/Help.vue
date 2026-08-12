@@ -1,5 +1,5 @@
 <template>
-  <main class="help-page">
+  <main class="help-page primary-page">
     <header class="help-hero">
       <div>
         <span class="eyebrow">使用指南与规则参考</span>
@@ -302,7 +302,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-  padding: 22px 26px 18px;
+  padding: 20px;
   border-bottom: 1px solid var(--border-base);
   background: color-mix(in srgb, var(--bg-primary) 94%, transparent);
 }
@@ -332,7 +332,7 @@ watch(
 .category-nav span { font-size: 14px; font-weight: 650; }
 .category-nav small { color: var(--text-secondary); font-size: 11px; line-height: 1.35; }
 
-.help-content { min-width: 0; overflow-y: auto; padding: 22px 26px 32px; scroll-padding-top: 20px; }
+.help-content { min-width: 0; overflow-y: auto; padding: 20px; scroll-padding-top: 20px; }
 .category-section, .search-heading, .search-results, .help-content > .el-empty { width: min(1040px, 100%); margin-inline: auto; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
 .section-heading h2 { font-size: 22px; }

@@ -55,8 +55,11 @@ KEY_HOLD_SECONDS = 0.02
 BUTTON_HOLD_SECONDS = 0.02
 RELEASE_SETTLE_SECONDS = 0.02
 CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 RUNNING = True
 CONTROLLER = None
+FOCUS_ACTIVATION_MIN_SECONDS = 0.2
+FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 
 
 def apply_fixed_timing(config):
@@ -259,11 +262,11 @@ def focus_game_window(timeout_seconds=2.0):
             user32.AttachThreadInput(current_thread, target_thread, False)
         if attached_foreground:
             user32.AttachThreadInput(current_thread, foreground_thread, False)
-    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
     while RUNNING and time.monotonic() < deadline:
         if is_game_foreground():
             return True
-        time.sleep(0.05)
+        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     return False
 
 
@@ -273,15 +276,19 @@ def require_game_foreground():
 
 
 class InputController:
-    def __init__(self, delay_ms):
+    def __init__(self, config):
+        if not isinstance(config, dict):
+            config = {"operation_delay_ms": config, "timing_mode": "fixed"}
         try:
-            delay = float(delay_ms)
+            delay = float(config.get("operation_delay_ms", 50))
         except (TypeError, ValueError):
             delay = 80
         if not math.isfinite(delay):
             delay = 80
-        self.delay = max(0.02, min(0.5, delay / 1000))
-        self.clipboard_timeout = max(CLIPBOARD_RESPONSE_MIN_SECONDS, self.delay * 4)
+        self.delay = max(0.0, delay / 1000)
+        self.timing_mode = config.get("timing_mode", "adaptive")
+        adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
+        self.clipboard_timeout = adaptive_timeout if self.timing_mode == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
 
@@ -321,8 +328,9 @@ class InputController:
         self.keyboard.release("c")
         time.sleep(RELEASE_SETTLE_SECONDS)
         self.keyboard.release(Key.ctrl)
+        time.sleep(RELEASE_SETTLE_SECONDS)
         deadline = time.monotonic() + self.clipboard_timeout
-        while RUNNING and time.monotonic() < deadline:
+        while RUNNING:
             try:
                 require_game_foreground()
                 text = str(pyperclip.paste() or "").strip()
@@ -330,7 +338,10 @@ class InputController:
                 return ""
             if text:
                 return text
-            time.sleep(0.01)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
         return ""
 
     def ctrl_click(self):
@@ -363,7 +374,7 @@ def transfer_item(controller):
 def run(config):
     global CONTROLLER
     apply_fixed_timing(config)
-    CONTROLLER = InputController(config.get("operation_delay_ms", 80))
+    CONTROLLER = InputController(config)
     try:
         if not focus_game_window():
             emit("aborted", code="GAME_NOT_FOREGROUND", reason="未找到或无法激活游戏窗口")

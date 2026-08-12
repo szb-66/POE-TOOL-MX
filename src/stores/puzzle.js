@@ -17,6 +17,7 @@ import {
   validatePuzzleTabPoint
 } from '../utils/puzzleConfig.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
+import { OPERATION_DELAY } from '../utils/operationDelay.js'
 
 const STORAGE_KEY = 'puzzleSettings'
 const SLOT_COUNT = 60
@@ -520,9 +521,9 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
   }
 
-  async function startAutoPlacement(operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000) {
+  async function startAutoPlacement(timing = { operationDelayMs: OPERATION_DELAY.default }) {
     if (!canAutoPlace.value) return { success: false, error: { code: 'ATLAS_NOT_READY', message: '请完成两项区域配置并确认全部来源碎片' } }
-    const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), operationDelayMs, adaptiveTiming, adaptiveTimeoutMs })
+    const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), ...timing })
     if (response?.status) execution.value = response
     if (!response?.success && response?.error) error.value = response.error
     if (response?.success) void reportDiagnosticRecovery('puzzle', 'auto_placement')

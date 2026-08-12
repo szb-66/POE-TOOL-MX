@@ -1,5 +1,5 @@
 <template>
-  <div class="combat-page">
+  <div class="combat-page primary-page primary-page__scroll primary-page__content">
     <div class="combat-header">
       <div>
         <h2>战斗辅助</h2>

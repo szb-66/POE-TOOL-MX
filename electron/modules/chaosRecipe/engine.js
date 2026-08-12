@@ -27,6 +27,30 @@ export const VENDOR_RECIPE_CATALOG = Object.freeze({
 export const VENDOR_RECIPE_IDS = Object.freeze(Object.keys(VENDOR_RECIPE_CATALOG))
 export const SINGLE_RECIPE_IDS = Object.freeze(['chromatic', 'jeweller', 'fusing'])
 
+export function selectAllSingleRecipeItems(snapshot) {
+  return Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [
+    id,
+    (snapshot?.recipes?.[id]?.candidates || []).map((item) => String(item.id))
+  ]))
+}
+
+export function vendorRecipeAvailableCount(snapshot, recipeId, selectedItemIdsByRecipe = null) {
+  const definition = VENDOR_RECIPE_CATALOG[recipeId]
+  if (!definition) return 0
+  const recipe = snapshot?.recipes?.[recipeId] || (recipeId === 'chaos' ? snapshot : null)
+  if (definition.kind === 'set') return Math.max(0, Number(recipe?.fullSetCount) || 0)
+  if (!selectedItemIdsByRecipe) return Math.max(0, Number(recipe?.candidateCount) || 0)
+  const selectedIds = new Set((selectedItemIdsByRecipe[recipeId] || []).map(String))
+  return (recipe?.candidates || []).filter((item) => selectedIds.has(String(item.id))).length
+}
+
+export function buildVendorRecipeOptions(snapshot, selectedItemIdsByRecipe = null) {
+  return VENDOR_RECIPE_IDS.map((id) => ({
+    value: id,
+    label: `${VENDOR_RECIPE_CATALOG[id].label}(${vendorRecipeAvailableCount(snapshot, id, selectedItemIdsByRecipe)})`
+  }))
+}
+
 const SINGLE_SLOTS = ['bodyArmour', 'helmet', 'gloves', 'boots', 'belt', 'amulet']
 const PICK_ORDER = ['bodyArmour', 'oneHandWeapon', 'twoHandWeapon', 'helmet', 'gloves', 'boots', 'belt', 'amulet', 'ring']
 const EQUIPMENT_SOCKET_COLOURS = new Set(['R', 'G', 'B', 'W'])

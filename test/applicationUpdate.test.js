@@ -14,6 +14,7 @@ class FakeUpdater extends EventEmitter {
     this.checkCalls = 0
     this.downloadCalls = 0
     this.installCalls = 0
+    this.feedURLs = []
     this.checkImplementation = async () => {}
     this.downloadImplementation = async () => {}
   }
@@ -30,6 +31,10 @@ class FakeUpdater extends EventEmitter {
 
   quitAndInstall() {
     this.installCalls += 1
+  }
+
+  setFeedURL(options) {
+    this.feedURLs.push(options)
   }
 }
 
@@ -89,6 +94,42 @@ test('手动检查发布无更新和可用更新状态', async () => {
   assert.equal(service.snapshot().status, 'available')
   assert.equal(service.snapshot().availableVersion, '1.0.3')
   assert.equal(service.snapshot().releaseNotes, '修复 A\n\n改进 B')
+})
+
+test('下载源默认 CNB 且可在空闲时手动切换 GitHub', async () => {
+  const { service, updater } = createService()
+  assert.equal(service.snapshot().source, 'cnb')
+  updater.emit('update-available', { version: '1.0.3' })
+
+  const github = service.configure({ mode: 'manual', source: 'github' })
+  assert.equal(github.source, 'github')
+  assert.equal(github.status, 'idle')
+  assert.equal(github.availableVersion, '')
+  assert.deepEqual(updater.feedURLs.at(-1), {
+    provider: 'generic',
+    url: 'https://github.com/szb-66/POE-TOOL-MX/releases/latest/download'
+  })
+
+  const cnb = service.configure({ mode: 'manual', source: 'cnb' })
+  assert.equal(cnb.source, 'cnb')
+  assert.deepEqual(updater.feedURLs.at(-1), {
+    provider: 'generic',
+    url: 'https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/latest/download'
+  })
+})
+
+test('检查进行中拒绝切换下载源', async () => {
+  const { service, updater } = createService()
+  let finish
+  updater.checkImplementation = () => new Promise(resolve => { finish = resolve })
+  const checking = service.check()
+  assert.throws(
+    () => service.configure({ mode: 'manual', source: 'github' }),
+    /更新操作进行中/
+  )
+  updater.emit('update-not-available', { version: '1.0.2' })
+  finish()
+  await checking
 })
 
 test('下载进度和完成状态可观测且不自动安装', async () => {

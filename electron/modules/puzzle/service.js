@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
+import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import {
   normalizePuzzleRegionMetadata,
   normalizePuzzleTabPoints,
@@ -304,7 +305,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, recognition, operationDelayMs = 80, adaptiveTiming = true, adaptiveTimeoutMs = 1000, resume = false } = {}) {
+  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, recognition, operationDelayMs = OPERATION_DELAY.default, adaptiveTiming = true, adaptiveTimeoutMs = 1000, fixedTiming = {}, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
@@ -334,9 +335,7 @@ export class PuzzleAnalysisService {
         sourceSlots,
         recognition,
         resume: Boolean(resume),
-        operationDelayMs: Math.max(20, Math.min(500, Number(operationDelayMs) || 80)),
-        timing_mode: adaptiveTiming === false ? 'fixed' : 'adaptive',
-        adaptive_timeout_ms: Math.max(500, Math.min(3000, Number(adaptiveTimeoutMs) || 1000)),
+        ...pythonAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming }),
         templatesPath: this.templatesPath()
       }), 'utf8')
       const child = spawn(this.automationPythonPath(), [this.autoScriptPath(), '--config', configPath], {

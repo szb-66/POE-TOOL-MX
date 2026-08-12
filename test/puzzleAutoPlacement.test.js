@@ -65,12 +65,12 @@ test('海图点击必须等待落点稳定并保持按键，异常时仍释放�
   assert.equal(result.status, 0, result.stderr)
   const output = JSON.parse(result.stdout)
   assert.deepEqual(output.normal, [
-    ['move', 10, 20], ['sleep', 0.08], ['foreground'],
-    ['mouse', 0x0002], ['sleep', 0.02], ['mouse', 0x0004]
+    ['move', 10, 20], ['sleep', 0.02], ['foreground'],
+    ['mouse', 0x0002], ['sleep', 0.02], ['mouse', 0x0004], ['sleep', 0.02]
   ])
   assert.deepEqual(output.interrupted, [
     ['move', 30, 40], ['sleep', 0.5], ['foreground'],
-    ['mouse', 0x0008], ['sleep', 0.02], ['mouse', 0x0010]
+    ['mouse', 0x0008], ['sleep', 0.02], ['mouse', 0x0010], ['sleep', 0.02]
   ])
 })
 
@@ -92,9 +92,9 @@ test('放置后移出目标格再等待游戏稳定验证', { skip: !existsSync(
   assert.deepEqual(events.filter(event => event[0] === 'click'), [
     ['click', 10, 20, 'left'], ['click', 30, 40, 'left']
   ])
-  assert.ok(events[1][1] >= 0.16, '来源左键后必须等待至少 160ms')
+  assert.equal(events[1][1], 0.55, '来源左键后使用画面验证等待配置')
   assert.deepEqual(events[3], ['move', 50, 60], '目标点击后必须移出海图区再验证，避免悬停高亮改变拓扑')
-  assert.ok(events.at(-1)[1] >= 0.2, '目标左键后必须等待至少 200ms')
+  assert.equal(events.at(-1)[1], 0.55, '目标左键后使用画面验证等待配置')
 })
 
 test('仓库右键旋转后必须确认实际角度再拿取碎片', { skip: !existsSync(python) }, () => {

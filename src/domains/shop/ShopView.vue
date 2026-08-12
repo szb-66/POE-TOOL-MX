@@ -1,10 +1,13 @@
 <template>
-  <div class="shop-page">
-    <el-tabs v-model="activeTool" class="shop-tabs">
-      <el-tab-pane label="商城配方" name="chaos" />
-      <el-tab-pane label="商城正则" name="vendor" />
-    </el-tabs>
-    <template v-if="activeTool === 'vendor'">
+  <div class="shop-page primary-page primary-page--column">
+    <div class="primary-page__tabs">
+      <el-tabs v-model="activeTool" class="shop-tabs">
+        <el-tab-pane label="商城配方" name="chaos" />
+        <el-tab-pane label="商城正则" name="vendor" />
+      </el-tabs>
+    </div>
+    <div class="shop-content primary-page__scroll primary-page__content">
+      <template v-if="activeTool === 'vendor'">
     <div class="page-heading">
       <div>
         <h2>商城 Vendor 正则</h2>
@@ -135,8 +138,9 @@
         </el-card>
       </aside>
     </div>
-    </template>
-    <ChaosRecipePanel v-else />
+      </template>
+      <ChaosRecipePanel v-else />
+    </div>
   </div>
 </template>
 
@@ -203,11 +207,9 @@ async function copyRegex() {
 
 <style scoped lang="less">
 .shop-page {
-  min-height: 100%;
-  padding: 20px;
   color: var(--text-primary);
 }
-.shop-tabs { margin-bottom: 14px; }
+.shop-tabs { width: 100%; }
 
 .page-heading,
 .result-header,

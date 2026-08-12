@@ -4,12 +4,24 @@ import { runStrictCleanup } from '../lifecycle/strictCleanup.js'
 export const UPDATE_MODE_MANUAL = 'manual'
 export const UPDATE_MODE_AUTOMATIC = 'automatic'
 export const UPDATE_MODES = new Set([UPDATE_MODE_MANUAL, UPDATE_MODE_AUTOMATIC])
+export const UPDATE_SOURCE_CNB = 'cnb'
+export const UPDATE_SOURCE_GITHUB = 'github'
+export const UPDATE_SOURCES = new Set([UPDATE_SOURCE_CNB, UPDATE_SOURCE_GITHUB])
+
+const UPDATE_SOURCE_URLS = {
+  [UPDATE_SOURCE_CNB]: 'https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/latest/download',
+  [UPDATE_SOURCE_GITHUB]: 'https://github.com/szb-66/POE-TOOL-MX/releases/latest/download'
+}
 
 const DEFAULT_FIRST_CHECK_DELAY_MS = 30_000
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 function normalizedMode(mode) {
   return mode === UPDATE_MODE_AUTOMATIC ? UPDATE_MODE_AUTOMATIC : UPDATE_MODE_MANUAL
+}
+
+function normalizedSource(source) {
+  return source === UPDATE_SOURCE_GITHUB ? UPDATE_SOURCE_GITHUB : UPDATE_SOURCE_CNB
 }
 
 function versionParts(version) {
@@ -94,7 +106,7 @@ export class ApplicationUpdateService extends EventEmitter {
     this.downloadReady = false
     this.state = {
       mode: UPDATE_MODE_MANUAL,
-      source: 'github',
+      source: UPDATE_SOURCE_CNB,
       currentVersion: String(currentVersion || ''),
       status: 'idle',
       availableVersion: '',
@@ -177,11 +189,30 @@ export class ApplicationUpdateService extends EventEmitter {
 
   configure(input = {}) {
     const mode = normalizedMode(input.mode)
+    const source = normalizedSource(input.source)
+    if (source !== this.state.source && (this.operation || this.installing)) {
+      throw new Error('更新操作进行中，无法切换下载源')
+    }
+    if (source !== this.state.source) {
+      this.updater.setFeedURL({ provider: 'generic', url: UPDATE_SOURCE_URLS[source] })
+      this.downloadReady = false
+      this.state = {
+        ...this.state,
+        source,
+        status: 'idle',
+        availableVersion: '',
+        releaseName: '',
+        releaseDate: '',
+        releaseNotes: '',
+        progress: null,
+        error: ''
+      }
+    }
     this.state.mode = mode
     this.updater.autoDownload = mode === UPDATE_MODE_AUTOMATIC
     this.clearSchedule()
     if (mode === UPDATE_MODE_AUTOMATIC && this.state.supported) this.scheduleAutomaticChecks()
-    return this.patch({ mode })
+    return this.patch({ mode, source })
   }
 
   scheduleAutomaticChecks() {

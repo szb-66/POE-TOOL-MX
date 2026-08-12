@@ -1,5 +1,5 @@
 <template>
-  <div class="puzzle-page">
+  <div class="puzzle-page primary-page primary-page__scroll primary-page__content">
     <div class="page-heading">
       <div>
         <h2>海图 <el-tag size="small">S30 赛季玩法</el-tag></h2>
@@ -413,11 +413,12 @@ function rotateSlot(slot) {
 }
 
 async function startAutoPlacement() {
-  const response = await store.startAutoPlacement(
-    settingsStore.operationDelayMs,
-    settingsStore.adaptiveTiming,
-    settingsStore.adaptiveTimeoutMs
-  )
+  const response = await store.startAutoPlacement({
+    operationDelayMs: settingsStore.operationDelayMs,
+    adaptiveTiming: settingsStore.adaptiveTiming,
+    adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
+    fixedTiming: settingsStore.fixedTiming
+  })
   if (!response?.success) ElMessage.error(response?.error?.message || '海图自动放入启动失败')
 }
 
@@ -513,7 +514,7 @@ const nextSolution = store.nextSolution
 
 <style scoped lang="less">
 .puzzle-page {
-  padding: var(--spacing-lg);
+  padding: 20px;
   height: 100%;
   overflow: auto;
   box-sizing: border-box;

@@ -42,7 +42,7 @@ test('普通地图样例可解析阶级、基础属性和外延词缀', () => {
   assert.equal(item.itemQuantity, 82)
   assert.equal(item.itemRarity, 41)
   assert.equal(item.monsterPackSize, 25)
-  assert.ok(item.explicitMods.some(mod => mod.includes('元素抗性上限')))
+  assert.ok(item.explicitMods.some(mod => mod.includes('全部最大抗性')))
 })
 
 test('完整六字段地图样例可解析替代阶级写法和全部扩展基底', () => {

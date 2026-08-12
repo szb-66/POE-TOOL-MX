@@ -1,25 +1,24 @@
 export const OPERATION_DELAY = Object.freeze({
-  default: 80,
-  min: 20,
-  max: 500
+  default: 50
 })
+
+export const OPERATION_TIMING_VERSION = 2
+const LEGACY_OPERATION_DELAY_DEFAULT = 80
 
 export const ADAPTIVE_TIMING = Object.freeze({
   default: true,
-  timeoutDefault: 1000,
-  timeoutMin: 500,
-  timeoutMax: 3000
+  timeoutDefault: 1000
 })
 
 const FIXED_TIMING_FIELDS = Object.freeze({
-  modifierSettleMs: { default: 50, min: 10, max: 200 },
-  keyHoldMs: { default: 20, min: 5, max: 100 },
-  buttonHoldMs: { default: 20, min: 5, max: 100 },
-  releaseSettleMs: { default: 20, min: 5, max: 100 },
-  clipboardConfirmMs: { default: 250, min: 50, max: 1000 },
-  stashTabSettleMs: { default: 250, min: 50, max: 1000 },
-  stashSettleMs: { default: 200, min: 50, max: 1000 },
-  patchVerifyMs: { default: 550, min: 100, max: 3000 }
+  modifierSettleMs: { default: 50 },
+  keyHoldMs: { default: 20 },
+  buttonHoldMs: { default: 20 },
+  releaseSettleMs: { default: 20 },
+  clipboardConfirmMs: { default: 250 },
+  stashTabSettleMs: { default: 250 },
+  stashSettleMs: { default: 200 },
+  patchVerifyMs: { default: 550 }
 })
 
 const FIXED_TIMING_PYTHON_KEYS = Object.freeze({
@@ -48,7 +47,7 @@ const finiteNumber = (value) => {
 
 export function normalizeOperationDelay(value) {
   const delay = finiteNumber(value) ?? OPERATION_DELAY.default
-  return Math.max(OPERATION_DELAY.min, Math.min(OPERATION_DELAY.max, delay))
+  return delay >= 0 ? delay : OPERATION_DELAY.default
 }
 
 export function normalizeAdaptiveTiming(value) {
@@ -57,7 +56,7 @@ export function normalizeAdaptiveTiming(value) {
 
 export function normalizeAdaptiveTimeoutMs(value) {
   const timeout = finiteNumber(value) ?? ADAPTIVE_TIMING.timeoutDefault
-  return Math.max(ADAPTIVE_TIMING.timeoutMin, Math.min(ADAPTIVE_TIMING.timeoutMax, timeout))
+  return timeout >= 0 ? timeout : ADAPTIVE_TIMING.timeoutDefault
 }
 
 export function normalizeFixedTiming(value = {}) {
@@ -67,9 +66,7 @@ export function normalizeFixedTiming(value = {}) {
     const raw = value[key]
     if (raw == null || typeof raw === 'boolean' || (typeof raw === 'string' && raw.trim() === '')) continue
     const number = Number(raw)
-    if (Number.isFinite(number)) {
-      result[key] = Math.max(rule.min, Math.min(rule.max, number))
-    }
+    if (Number.isFinite(number) && number >= 0) result[key] = number
   }
   return result
 }
@@ -85,21 +82,50 @@ export function pythonFixedTiming(value = {}) {
   return result
 }
 
+export function normalizeAutomationTiming(value = {}) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  return {
+    operationDelayMs: normalizeOperationDelay(source.operationDelayMs),
+    adaptiveTiming: normalizeAdaptiveTiming(source.adaptiveTiming),
+    adaptiveTimeoutMs: normalizeAdaptiveTimeoutMs(source.adaptiveTimeoutMs),
+    fixedTiming: normalizeFixedTiming(source.fixedTiming)
+  }
+}
+
+export function pythonAutomationTiming(value = {}) {
+  const timing = normalizeAutomationTiming(value)
+  return {
+    operation_delay_ms: timing.operationDelayMs,
+    timing_mode: timing.adaptiveTiming ? 'adaptive' : 'fixed',
+    adaptive_timeout_ms: timing.adaptiveTimeoutMs,
+    fixed_timing: pythonFixedTiming(timing.fixedTiming)
+  }
+}
+
 export function migrateOperationDelay(settings = {}, bagSettings = {}) {
-  if (settings.operationDelayMs != null) return normalizeOperationDelay(settings.operationDelayMs)
-
-  const bagDelay = finiteNumber(bagSettings.transferDelayMs)
-  if (bagDelay != null) return normalizeOperationDelay(bagDelay)
-
-  const legacy = settings.delays
-  if (legacy && typeof legacy === 'object') {
-    const effective = [
-      (finiteNumber(legacy.mouseMove) ?? 100) * 0.05,
-      (finiteNumber(legacy.action) ?? 50) * 0.2,
-      (finiteNumber(legacy.clipboardRead) ?? 100) * 0.2
-    ]
-    return normalizeOperationDelay(Math.max(OPERATION_DELAY.default, ...effective))
+  let delay
+  if (settings.operationDelayMs != null) {
+    delay = normalizeOperationDelay(settings.operationDelayMs)
+  } else {
+    const bagDelay = finiteNumber(bagSettings.transferDelayMs)
+    if (bagDelay != null) {
+      delay = normalizeOperationDelay(bagDelay)
+    } else {
+      const legacy = settings.delays
+      if (legacy && typeof legacy === 'object') {
+        const effective = [
+          (finiteNumber(legacy.mouseMove) ?? 100) * 0.05,
+          (finiteNumber(legacy.action) ?? 50) * 0.2,
+          (finiteNumber(legacy.clipboardRead) ?? 100) * 0.2
+        ]
+        delay = normalizeOperationDelay(Math.max(LEGACY_OPERATION_DELAY_DEFAULT, ...effective))
+      } else {
+        delay = OPERATION_DELAY.default
+      }
+    }
   }
 
-  return OPERATION_DELAY.default
+  return Number(settings.operationTimingVersion) !== OPERATION_TIMING_VERSION && delay === LEGACY_OPERATION_DELAY_DEFAULT
+    ? OPERATION_DELAY.default
+    : delay
 }

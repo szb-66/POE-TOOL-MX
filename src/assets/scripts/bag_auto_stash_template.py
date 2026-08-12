@@ -70,16 +70,18 @@ _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
 _game_window_process_names_mtime_ns = None
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
 VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
-OPERATION_DELAY_DEFAULT_MS = 80
-OPERATION_DELAY_MIN_MS = 20
-OPERATION_DELAY_MAX_MS = 500
+OPERATION_DELAY_DEFAULT_MS = 50
 COPY_ATTEMPTS = 1
 MODIFIER_SETTLE_SECONDS = 0.05
 KEY_HOLD_SECONDS = 0.02
 BUTTON_HOLD_SECONDS = 0.02
 RELEASE_SETTLE_SECONDS = 0.02
 CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+VK_CONTROL = 0x11
 EXTRA_INVENTORY_MAX_COLUMNS = 6
+FOCUS_ACTIVATION_MIN_SECONDS = 0.2
+FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 
 
 def apply_fixed_timing(config):
@@ -91,6 +93,15 @@ def apply_fixed_timing(config):
     BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
     RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
     CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 250)) / 1000.0
+
+
+def is_ctrl_pressed():
+    if sys.platform != "win32":
+        return True
+    try:
+        return bool(ctypes.windll.user32.GetAsyncKeyState(VK_CONTROL) & 0x8000)
+    except Exception:
+        return False
 
 
 def game_window_titles():
@@ -207,11 +218,11 @@ def error_event(mode):
 def normalize_operation_delay(value=None):
     try:
         delay = float(OPERATION_DELAY_DEFAULT_MS if value is None else value)
-        if not math.isfinite(delay):
+        if not math.isfinite(delay) or delay < 0:
             delay = OPERATION_DELAY_DEFAULT_MS
     except (TypeError, ValueError):
         delay = OPERATION_DELAY_DEFAULT_MS
-    return max(OPERATION_DELAY_MIN_MS, min(delay, OPERATION_DELAY_MAX_MS))
+    return delay
 
 
 def advance_empty_streak(current, copy_status):
@@ -426,11 +437,11 @@ def focus_game_window(timeout_seconds=2.0):
             user32.AttachThreadInput(current_thread, target_thread, False)
         if attached_foreground:
             user32.AttachThreadInput(current_thread, foreground_thread, False)
-    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
     while is_running and time.monotonic() < deadline:
         if is_game_foreground():
             return True
-        time.sleep(0.05)
+        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     return False
 
 
@@ -588,20 +599,71 @@ class InputController:
         self.keyboard = keyboard.Controller()
         operation_delay = normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0
         self.mouse_move_delay = operation_delay
-        self.clipboard_delay = max(CLIPBOARD_RESPONSE_MIN_SECONDS, operation_delay)
+        self.timing_mode = config.get("timing_mode", "adaptive")
+        adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
+        self.clipboard_delay = adaptive_timeout if self.timing_mode == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
         self.release_settle = RELEASE_SETTLE_SECONDS
+        self.ctrl_release_delay = self.release_settle
+        self.pressed_keys = set()
+        self.pressed_buttons = set()
+
+    def press_key(self, key):
+        self.keyboard.press(key)
+        self.pressed_keys.add(key)
+
+    def release_key(self, key):
+        if key not in self.pressed_keys:
+            return
+        try:
+            self.keyboard.release(key)
+        finally:
+            self.pressed_keys.discard(key)
+
+    def press_button(self, button):
+        self.mouse.press(button)
+        self.pressed_buttons.add(button)
+
+    def release_button(self, button):
+        if button not in self.pressed_buttons:
+            return
+        try:
+            self.mouse.release(button)
+        finally:
+            self.pressed_buttons.discard(button)
 
     def release_all(self):
-        for key in (Key.ctrl, Key.alt, Key.shift):
+        released = False
+        for button in tuple(self.pressed_buttons):
             try:
-                self.keyboard.release(key)
+                self.release_button(button)
+                released = True
             except Exception:
                 pass
-        for button in (Button.left, Button.right):
+        for key in tuple(self.pressed_keys):
             try:
-                self.mouse.release(button)
+                self.release_key(key)
+                released = True
             except Exception:
                 pass
+        if released:
+            time.sleep(self.release_settle)
+
+    def begin_ctrl(self):
+        try:
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
+            if Key.ctrl not in self.pressed_keys:
+                self.press_key(Key.ctrl)
+                time.sleep(MODIFIER_SETTLE_SECONDS)
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
+            if not is_ctrl_pressed():
+                self.release_all()
+                return False
+            return True
+        except Exception:
+            self.release_all()
+            return False
 
     def move(self, x, y):
         if not is_game_foreground():
@@ -614,72 +676,110 @@ class InputController:
         time.sleep(self.mouse_move_delay)
         return True
 
-    def _send_copy(self):
+    def _send_copy(self, ctrl_held=False):
         try:
-            if not is_game_foreground():
-                return stop_for_foreground_loss(self)
-            self.keyboard.press(Key.ctrl)
-            time.sleep(MODIFIER_SETTLE_SECONDS)
-            if not is_game_foreground():
-                return stop_for_foreground_loss(self)
-            self.keyboard.press("c")
+            if not self.begin_ctrl():
+                return False
+            self.press_key("c")
             time.sleep(KEY_HOLD_SECONDS)
-            self.keyboard.release("c")
+            self.release_key("c")
             time.sleep(RELEASE_SETTLE_SECONDS)
-            self.keyboard.release(Key.ctrl)
+            if not ctrl_held:
+                self.release_key(Key.ctrl)
+                time.sleep(RELEASE_SETTLE_SECONDS)
             return True
         except Exception:
             self.release_all()
             return False
 
-    def _copy_item_text_once(self):
+    def _copy_item_text_once(self, ctrl_held=False):
         try:
             if not is_game_foreground():
                 stop_for_foreground_loss(self)
                 return "unreadable", ""
             before_seq = clipboard_sequence_number()
             before_text = str(pyperclip.paste() or "")
-            if not self._send_copy():
+            if not self._send_copy(ctrl_held):
                 return "unreadable", ""
             deadline = time.monotonic() + self.clipboard_delay
-            while is_running and time.monotonic() < deadline:
+            while is_running:
                 current_seq = clipboard_sequence_number()
                 current_text = str(pyperclip.paste() or "")
                 changed = current_seq != before_seq if before_seq is not None and current_seq is not None else current_text != before_text
                 if changed:
                     return ("copied", current_text) if current_text.strip() else ("empty", "")
-                time.sleep(0.01)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
             return "no-response", ""
         except Exception:
             self.release_all()
             return "unreadable", ""
 
-    def copy_item_text(self):
+    def copy_item_text(self, ctrl_held=False):
         """复制物品文本；剪贴板无响应一次即判空格，不重复确认以提升空格扫描速度。"""
         for _attempt in range(COPY_ATTEMPTS):
-            status, text = self._copy_item_text_once()
+            status, text = self._copy_item_text_once(ctrl_held)
             if status != "no-response":
                 return status, text
         return "empty", ""
 
+    def click_with_ctrl(self):
+        try:
+            if not self.begin_ctrl():
+                return False
+            self.press_button(Button.left)
+            time.sleep(BUTTON_HOLD_SECONDS)
+            self.release_button(Button.left)
+            time.sleep(self.ctrl_release_delay)
+            return True
+        except Exception:
+            self.release_all()
+            return False
+
     def ctrl_click(self):
         try:
-            if not is_game_foreground():
-                return stop_for_foreground_loss(self)
-            self.keyboard.press(Key.ctrl)
-            time.sleep(MODIFIER_SETTLE_SECONDS)
-            if not is_game_foreground():
-                return stop_for_foreground_loss(self)
-            self.mouse.press(Button.left)
-            time.sleep(BUTTON_HOLD_SECONDS)
-            self.mouse.release(Button.left)
-            time.sleep(self.release_settle)
-            self.keyboard.release(Key.ctrl)
+            if not self.click_with_ctrl():
+                return False
+            self.release_key(Key.ctrl)
             time.sleep(self.release_settle)
             return True
         except Exception:
             self.release_all()
             return False
+
+
+def transfer_item_once(controller):
+    """对已在点击前确认存在的物品只发送一次 Ctrl+左键。"""
+    try:
+        if not controller.ctrl_click():
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        return True, ""
+    except Exception:
+        return False, runtime_stop_reason or "transfer-unconfirmed"
+    finally:
+        controller.release_all()
+
+
+def transfer_pickup_item(controller):
+    """取件后原地复制确认，物品仍在时最多重试到第三次。"""
+    try:
+        if not controller.begin_ctrl():
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        for _attempt in range(3):
+            if not controller.click_with_ctrl():
+                return False, runtime_stop_reason or "transfer-unconfirmed"
+            copy_status, _text = controller.copy_item_text(ctrl_held=True)
+            if copy_status == "empty":
+                return True, ""
+            if copy_status != "copied":
+                return False, runtime_stop_reason or "transfer-unconfirmed"
+        return False, "inventory-full"
+    except Exception:
+        return False, runtime_stop_reason or "transfer-unconfirmed"
+    finally:
+        controller.release_all()
 
 
 def empty_stats():
@@ -799,10 +899,6 @@ def run_stash(config):
     apply_fixed_timing(config)
     if not focus_game_window():
         return abort("game-not-foreground", stats)
-    matcher = InterfaceMatcher(config)
-    if not matcher.valid:
-        emit("stash-error", reason="仓库或背包标题模板无法加载", **stats)
-        return 2
     controller = InputController(config)
     inventory = config.get("inventory", {})
     start = inventory.get("startPos", {})
@@ -833,9 +929,6 @@ def run_stash(config):
                     return abort(runtime_stop_reason or "user-stopped", stats)
                 if not is_game_foreground():
                     return abort("game-not-foreground", stats)
-                interface_ready, _scores = matcher.check_interface()
-                if not interface_ready:
-                    return abort("interface-lost", stats)
                 column, row = target["column"], target["row"]
                 if (column, row) in resolved_slots:
                     stats["unreadableSlots"] += consecutive_empty_slots
@@ -866,12 +959,14 @@ def run_stash(config):
                         elif find_blacklist_match(item, rules):
                             stats["blacklistedSlots"] += 1
                             handled_item = item
-                        elif controller.ctrl_click():
+                        else:
+                            transferred, reason = transfer_item_once(controller)
+                            if not transferred:
+                                stats["scannedSlots"] += 1
+                                emit_progress(stats, total_slots)
+                                return abort(reason, stats)
                             stats["stashedSlots"] += 1
                             handled_item = item
-                        else:
-                            stats["unreadableSlots"] += 1
-                            ambiguous_slots.add((column, row))
                 if not is_running:
                     return abort(runtime_stop_reason or "user-stopped", stats)
                 if handled_item:

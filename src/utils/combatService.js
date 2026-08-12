@@ -32,7 +32,13 @@ export async function startPotionAssist() {
   }
   const result = await electronApi.combat.startPotion({
     scriptContent: combatAssistTemplate,
-    config: JSON.parse(JSON.stringify(settings.combatAssist))
+    config: JSON.parse(JSON.stringify(settings.combatAssist)),
+    automationTiming: {
+      operationDelayMs: settings.operationDelayMs,
+      adaptiveTiming: settings.adaptiveTiming,
+      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
+      fixedTiming: settings.fixedTiming
+    }
   })
   if (!result?.success) {
     ElMessage.error(result?.error || '启动自动喝药失败')
@@ -67,7 +73,13 @@ export async function startLoopAssist() {
   }
   const result = await electronApi.combat.startLoop({
     scriptContent: combatAssistTemplate,
-    config: JSON.parse(JSON.stringify(settings.combatAssist))
+    config: JSON.parse(JSON.stringify(settings.combatAssist)),
+    automationTiming: {
+      operationDelayMs: settings.operationDelayMs,
+      adaptiveTiming: settings.adaptiveTiming,
+      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
+      fixedTiming: settings.fixedTiming
+    }
   })
   if (!result?.success) {
     ElMessage.error(result?.error || '启动主动循环失败')
@@ -103,7 +115,13 @@ export async function executePortalAssist() {
   const settings = useSettingsStore()
   const result = await electronApi.combat.executePortal({
     scriptContent: combatAssistTemplate,
-    config: { portal: JSON.parse(JSON.stringify(settings.combatAssist.portal)) }
+    config: { portal: JSON.parse(JSON.stringify(settings.combatAssist.portal)) },
+    automationTiming: {
+      operationDelayMs: settings.operationDelayMs,
+      adaptiveTiming: settings.adaptiveTiming,
+      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
+      fixedTiming: settings.fixedTiming
+    }
   })
   if (!result?.success) {
     ElMessage.error(result?.error || '一键回城执行失败')

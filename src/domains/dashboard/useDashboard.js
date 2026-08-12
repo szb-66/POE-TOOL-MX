@@ -5,6 +5,8 @@ import { electronApi } from '@/api/electron'
 import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
 import { useBagStore } from '@/stores/bag'
+import { useStashPickupStore } from '@/stores/stashPickup'
+import { useJunfengStore } from '@/stores/junfeng'
 import { useCombatStore } from '@/stores/combat'
 import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { useStoryStore } from '@/stores/story'
@@ -17,7 +19,7 @@ import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
-import { setBagModuleEnabled, stopBagStash } from '@/utils/bagService'
+import { setBagModuleEnabled } from '@/utils/bagService'
 import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService'
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
@@ -84,6 +86,8 @@ export function useDashboard() {
   const scriptStore = useScriptStore()
   const settingsStore = useSettingsStore()
   const bagStore = useBagStore()
+  const stashPickupStore = useStashPickupStore()
+  const junfengStore = useJunfengStore()
   const combatStore = useCombatStore()
   const chaosRecipeStore = useChaosRecipeStore()
   const storyStore = useStoryStore()
@@ -436,14 +440,27 @@ export function useDashboard() {
         : [{ id: 'start', label: '启动', type: 'primary', disabled: module.issues.length > 0 || sharedScriptOccupied('map'), run: startMapRolling }]
     }
     if (module.id === 'bag') {
-      if (bagStore.isStashing) return [{ id: 'stop-stash', label: '停止入库', type: 'danger', run: stopBagStash }]
-      return [{
-        id: 'toggle',
-        label: bagStore.moduleEnabled ? '关闭检测' : '启用检测',
-        type: bagStore.moduleEnabled ? 'danger' : 'primary',
-        disabled: !bagStore.moduleEnabled && module.issues.length > 0,
-        run: () => setBagModuleEnabled(!bagStore.moduleEnabled)
-      }]
+      return [
+        {
+          id: 'toggle-bag-stash',
+          label: bagStore.moduleEnabled ? '关闭背包入库' : '启用背包入库',
+          type: bagStore.moduleEnabled ? 'danger' : 'primary',
+          disabled: !bagStore.moduleEnabled && module.issues.length > 0,
+          run: () => setBagModuleEnabled(!bagStore.moduleEnabled)
+        },
+        {
+          id: 'toggle-stash-pickup',
+          label: stashPickupStore.settings.enabled ? '关闭仓库取件' : '启用仓库取件',
+          type: stashPickupStore.settings.enabled ? 'danger' : 'primary',
+          run: () => stashPickupStore.setEnabled(!stashPickupStore.settings.enabled)
+        },
+        {
+          id: 'toggle-junfeng',
+          label: junfengStore.settings.enabled ? '关闭君锋镇取件' : '启用君锋镇取件',
+          type: junfengStore.settings.enabled ? 'danger' : 'primary',
+          run: () => junfengStore.setEnabled(!junfengStore.settings.enabled)
+        }
+      ]
     }
     if (module.id === 'combat') {
       const actions = []

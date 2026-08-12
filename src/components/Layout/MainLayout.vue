@@ -32,6 +32,7 @@ const sidebarWidth = computed(() => '68px')
   .main-content {
     position: relative;
     padding: 0;
+    overflow: hidden;
     background-color: var(--bg-secondary);
   }
 }

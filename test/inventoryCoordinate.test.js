@@ -32,10 +32,13 @@ class Matcher:
     def check_interface(self): return True, {}
 class Controller:
     moves = []
-    def __init__(self, config): pass
-    def move(self, x, y): Controller.moves.append([x, y]); return True
-    def copy_item_text(self): return "copied", text
-    def ctrl_click(self): return True
+    def __init__(self, config): self.transferred = False
+    def move(self, x, y):
+        Controller.moves.append([x, y])
+        self.transferred = False
+        return True
+    def copy_item_text(self): return ("empty", "") if self.transferred else ("copied", text)
+    def ctrl_click(self): self.transferred = True; return True
     def release_all(self): pass
 module.InterfaceMatcher = Matcher
 module.InputController = Controller

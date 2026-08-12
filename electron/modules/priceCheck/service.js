@@ -24,7 +24,7 @@ function withoutBaseType(query) {
   return fallback
 }
 
-function normalizeListing(entry) {
+function normalizeListing(entry, currencyLabels = {}) {
   const price = entry?.listing?.price
   const account = entry?.listing?.account || {}
   const amount = Number(price?.amount)
@@ -37,6 +37,7 @@ function normalizeListing(entry) {
     afk: account.online?.status === 'afk',
     amount: Number.isFinite(amount) && amount > 0 ? amount : null,
     currency: String(price?.currency || ''),
+    currencyLabel: String(currencyLabels?.[price?.currency] || ''),
     priceType: String(price?.type || ''),
     whisper: String(entry?.listing?.whisper || ''),
     itemLevel: Number(entry?.item?.ilvl) || null,
@@ -45,8 +46,8 @@ function normalizeListing(entry) {
   }
 }
 
-export function summarizeListings(entries, accountName = '') {
-  const listings = entries.map(normalizeListing).filter((entry) => entry.id)
+export function summarizeListings(entries, accountName = '', currencyLabels = {}) {
+  const listings = entries.map((entry) => normalizeListing(entry, currencyLabels)).filter((entry) => entry.id)
   const unique = new Map()
   for (const listing of listings) {
     if (!listing.amount || !listing.currency || listing.accountName === accountName) continue
@@ -67,9 +68,9 @@ export function summarizeListings(entries, accountName = '') {
   return { listings, samples, disclaimer: '挂单参考，不代表成交价' }
 }
 
-export function buildPriceDistribution(entries, accountName = '', dcRate = null, target = 100) {
+export function buildPriceDistribution(entries, accountName = '', dcRate = null, target = 100, currencyLabels = {}) {
   const unique = new Map()
-  for (const listing of entries.map(normalizeListing)) {
+  for (const listing of entries.map((entry) => normalizeListing(entry, currencyLabels))) {
     if (!listing.id || !listing.amount || !listing.currency || listing.accountName === accountName) continue
     const sellerKey = listing.accountName || listing.characterName || listing.id
     if (!unique.has(sellerKey)) unique.set(sellerKey, listing)
@@ -93,6 +94,7 @@ export function buildPriceDistribution(entries, accountName = '', dcRate = null,
       key,
       amount: chaosEquivalent ?? listing.amount,
       currency: chaosEquivalent != null ? 'chaos' : listing.currency,
+      currencyLabel: chaosEquivalent != null ? (currencyLabels.chaos || '混沌石') : listing.currencyLabel,
       chaosEquivalent,
       count: 0,
       chaosCount: 0,
@@ -124,7 +126,7 @@ export function buildPriceDistribution(entries, accountName = '', dcRate = null,
 }
 
 export class PriceCheckService {
-  constructor({ auth, client, catalog, catalogStatus, overlay = null, shell = null, captureClipboard = null, dcRateProvider = null }) {
+  constructor({ auth, client, catalog, catalogStatus, overlay = null, shell = null, captureClipboard = null, dcRateProvider = null, catalogRefresher = null }) {
     this.auth = auth
     this.client = client
     this.catalog = catalog
@@ -133,6 +135,8 @@ export class PriceCheckService {
     this.shell = shell
     this.captureClipboard = captureClipboard
     this.dcRateProvider = dcRateProvider
+    this.catalogRefresher = catalogRefresher
+    this.catalogRefreshPending = null
     this.controller = null
     this.requestSequence = 0
     this.captureSequence = 0
@@ -207,6 +211,38 @@ export class PriceCheckService {
       catalog: this.catalogStatus,
       latest: this.latest ? { league: this.latest.league, updatedAt: this.latest.updatedAt } : null
     }
+  }
+
+  async refreshCatalog() {
+    if (!this.catalogRefresher) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境不支持刷新交易目录')
+    if (this.catalogRefreshPending) return this.catalogRefreshPending
+    this.catalogStatus = {
+      ...this.catalogStatus,
+      loading: true,
+      warning: '正在刷新腾讯官方物品与词缀目录…'
+    }
+    this.overlay?.update?.({ catalog: this.catalogStatus })
+    this.catalogRefreshPending = Promise.resolve()
+      .then(() => this.catalogRefresher())
+      .then((bundle) => {
+        this.catalog = bundle.catalog
+        this.catalogStatus = { ...bundle.status, loading: false, warning: '' }
+        this.overlay?.update?.({ catalog: this.catalogStatus })
+        return this.catalogStatus
+      })
+      .catch((error) => {
+        this.catalogStatus = {
+          ...this.catalogStatus,
+          provider: this.catalogStatus.provider || 'bundled',
+          degraded: true,
+          loading: false,
+          warning: `腾讯官方交易目录不可用，继续使用当前目录：${error.message}`
+        }
+        this.overlay?.update?.({ catalog: this.catalogStatus })
+        throw error
+      })
+      .finally(() => { this.catalogRefreshPending = null })
+    return this.catalogRefreshPending
   }
 
   updateSettings(patch = {}) {
@@ -286,7 +322,7 @@ export class PriceCheckService {
     }
     let currentModel
     try {
-      currentModel = model ? sanitizePriceCheckModel(model) : this.parse(text, options)
+      currentModel = model ? sanitizePriceCheckModel(model, this.catalog) : this.parse(text, options)
     } catch (error) {
       this.overlay?.create?.({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
@@ -373,13 +409,13 @@ export class PriceCheckService {
 
   createResult(queryId, total, entries) {
     const accountName = this.auth.getStatus().accountName
-    const summary = summarizeListings(entries, accountName)
+    const summary = summarizeListings(entries, accountName, this.catalog.currencyLabels)
     return {
       queryId,
       total,
       ...summary,
       listings: summary.listings.slice(0, 50),
-      distribution: buildPriceDistribution(entries, accountName, this.currentDcRate(), 100)
+      distribution: buildPriceDistribution(entries, accountName, this.currentDcRate(), 100, this.catalog.currencyLabels)
     }
   }
 
@@ -424,6 +460,38 @@ export class PriceCheckService {
     const model = structuredClone(source.model)
     model.identity = { name: candidate.name, type: candidate.baseType }
     model.identityResolution = { ...model.identityResolution, required: false, selectedKey: candidate.key }
+    return this.check({
+      league: source.league,
+      model,
+      options: source.options || this.runtime.options,
+      reposition: false
+    })
+  }
+
+  async resolveStatCandidate(unknownKey, candidateId) {
+    this.assertEnabled()
+    const source = this.latest || this.overlay?.getState?.()
+    const model = structuredClone(source?.model || null)
+    const unknownIndex = model?.unknownStats?.findIndex((entry) => entry.key === String(unknownKey || '')) ?? -1
+    const unknown = unknownIndex >= 0 ? model.unknownStats[unknownIndex] : null
+    const candidate = unknown?.candidates?.find((entry) => entry.id === String(candidateId || ''))
+    if (!candidate) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '词缀候选无效或已过期')
+
+    model.stats.push({
+      key: `${candidate.type}:${candidate.id}`,
+      id: candidate.id,
+      label: candidate.label,
+      text: unknown.text,
+      type: candidate.type,
+      tier: unknown.tier,
+      tags: unknown.tags || [],
+      values: candidate.values || [],
+      sources: [{ text: unknown.text, name: candidate.label, values: candidate.values || [] }],
+      enabled: true,
+      min: candidate.min,
+      max: candidate.max
+    })
+    model.unknownStats.splice(unknownIndex, 1)
     return this.check({
       league: source.league,
       model,

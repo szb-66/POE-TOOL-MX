@@ -112,6 +112,7 @@ export function createAwakenedTradeRequest(filters, stats) {
   range('armour_filters.filters.ar', filters.armour?.armour)
   range('armour_filters.filters.ev', filters.armour?.evasion)
   range('armour_filters.filters.es', filters.armour?.energyShield)
+  range('armour_filters.filters.base_defence_percentile', filters.armour?.baseDefencePercentile)
   range('armour_filters.filters.ward', filters.armour?.ward)
   range('armour_filters.filters.block', filters.armour?.block)
   range('misc_filters.filters.ilvl', filters.misc?.itemLevel)

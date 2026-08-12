@@ -1,6 +1,7 @@
 <template>
-  <div class="training-page">
-    <div class="training-content">
+  <div class="training-page primary-page primary-page--column">
+    <div class="primary-page__scroll">
+      <div class="training-content primary-page__content">
       <div class="page-heading">
         <div>
           <h2>高亮模型训练</h2>
@@ -169,6 +170,7 @@
           />
         </div>
       </el-card>
+      </div>
     </div>
   </div>
 </template>
@@ -271,7 +273,7 @@ function formatProbability(value) { const number = Number(value); return Number.
 </script>
 
 <style scoped lang="less">
-.training-page { height: 100%; overflow-y: auto; background: var(--bg-secondary); }
+.training-page { background: var(--bg-secondary); }
 .training-content { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .page-heading h2 { margin: 0 0 6px; color: var(--text-primary); font-size: 20px; }

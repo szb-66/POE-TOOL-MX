@@ -1,5 +1,5 @@
 <template>
-  <div class="items-page">
+  <div class="items-page primary-page primary-page__scroll primary-page__content">
     <SupportedFormatPanel :guidance="ITEM_FORMAT_GUIDANCE" />
 
     <el-alert

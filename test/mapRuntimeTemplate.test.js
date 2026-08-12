@@ -89,5 +89,6 @@ test('地图运行模板按活动目标隔离物品类别并使用区域等级�
   assert.match(template, /return category == "海图"/)
   assert.match(template, /不是当前目标/)
   assert.match(template, /区域等级/)
-  assert.match(template, /瓦尔后的类别不是当前目标/)
+  assert.match(template, /apply_currency_and_read\("vaal"/)
+  assert.match(template, /MAP_VAAL_READ_FAILED/)
 })

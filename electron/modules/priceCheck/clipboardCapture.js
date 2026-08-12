@@ -42,7 +42,23 @@ function gameForegroundGuardLines() {
     '  k.CloseHandle.argtypes = [wintypes.HANDLE]',
     '  k.CloseHandle(hproc)',
     'ok = any(t.casefold() in b.value.casefold() for t in titles if t) and proc_name in tuple(n.casefold() for n in process_names)',
-    'sys.exit(23) if not ok else None'
+    'sys.exit(23) if not ok else None',
+    'TokenElevation = 20',
+    'def is_elevated(process_id):',
+    ' hproc = k.OpenProcess(0x1000, False, process_id)',
+    ' if not hproc: return None',
+    ' token = wintypes.HANDLE()',
+    ' a = ctypes.windll.advapi32',
+    ' if not a.OpenProcessToken(hproc, 0x0008, ctypes.byref(token)):',
+    '  k.CloseHandle(hproc); return None',
+    ' elevated = wintypes.DWORD()',
+    ' needed = wintypes.DWORD()',
+    ' ok = a.GetTokenInformation(token, TokenElevation, ctypes.byref(elevated), ctypes.sizeof(elevated), ctypes.byref(needed))',
+    ' k.CloseHandle(token); k.CloseHandle(hproc)',
+    ' return bool(elevated.value) if ok else None',
+    'target_elevated = is_elevated(pid.value)',
+    'current_elevated = is_elevated(os.getpid())',
+    'sys.exit(24) if target_elevated is True and current_elevated is False else None'
   ]
 }
 
@@ -55,6 +71,9 @@ function runWindowsInputScript(pythonPath, lines) {
       if (!error) return resolve()
       if (Number(error.code) === 23) {
         return reject(new ChaosRecipeError(CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND, '游戏窗口当前不在前台'))
+      }
+      if (Number(error.code) === 24) {
+        return reject(new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '游戏以管理员权限运行，请同样以管理员权限运行流放助手'))
       }
       reject(new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `无法向游戏发送复制按键：${error.message}`))
     })

@@ -123,6 +123,101 @@ test('首页自动取件配方按套装和单件口径显示实时可取数量',
 
   snapshot.recipes.jeweller.candidateCount = 19
   assert.equal(buildVendorRecipeOptions(snapshot).find(option => option.value === 'jeweller').label, '工匠石(19)')
+
+  snapshot.recipes.chromatic.candidates = [{ id: 'rgb-1' }, { id: 'rgb-2' }]
+  snapshot.recipes.jeweller.candidates = [{ id: 'socket-1' }]
+  snapshot.recipes.fusing.candidates = [{ id: 'link-1' }]
+  assert.deepEqual(buildVendorRecipeOptions(snapshot, {
+    chromatic: ['rgb-2'],
+    jeweller: [],
+    fusing: ['link-1']
+  }).slice(4).map(option => option.label), ['幻色石(1)', '工匠石(0)', '链结石(1)'])
+})
+
+test('首页刷新完成时向控制浮窗提交同一快照派生的全部单件选择', async () => {
+  installStorage({
+    chaosRecipeSettings: JSON.stringify({
+      enabled: true,
+      selectedTabIds: ['tab-1'],
+      activeRecipeId: 'chaos'
+    })
+  })
+  setActivePinia(createPinia())
+  const original = {
+    refresh: electronApi.chaosRecipe.refresh,
+    updateRuntime: electronApi.chaosRecipe.updateRuntime
+  }
+  const runtimeCalls = []
+  electronApi.chaosRecipe.refresh = async () => ({
+    success: true,
+    data: {
+      availableTabs: [{ id: 'tab-1', name: '配方仓库', supported: true }],
+      recipes: {
+        chance: { kind: 'set', fullSetCount: 0 },
+        chaos: { kind: 'set', fullSetCount: 1 },
+        regal: { kind: 'set', fullSetCount: 0 },
+        exalted: { kind: 'set', fullSetCount: 0 },
+        chromatic: { kind: 'single', candidates: [{ id: 'rgb-1' }] },
+        jeweller: { kind: 'single', candidates: [{ id: 'six-socket-1' }] },
+        fusing: { kind: 'single', candidates: [{ id: 'six-link-1' }] }
+      }
+    }
+  })
+  electronApi.chaosRecipe.updateRuntime = async payload => {
+    runtimeCalls.push(JSON.parse(JSON.stringify(payload)))
+    return { success: true, data: { enabled: payload.enabled } }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    await store.refresh()
+
+    assert.equal(runtimeCalls.length, 1)
+    assert.deepEqual(runtimeCalls[0].selectedItemIdsByRecipe, {
+      chromatic: ['rgb-1'],
+      jeweller: ['six-socket-1'],
+      fusing: ['six-link-1']
+    })
+  } finally {
+    electronApi.chaosRecipe.refresh = original.refresh
+    electronApi.chaosRecipe.updateRuntime = original.updateRuntime
+  }
+})
+
+test('浮窗切换配方后首页持久化选择并让运行时收敛', async () => {
+  const values = installStorage({
+    chaosRecipeSettings: JSON.stringify({ enabled: true, activeRecipeId: 'chaos' })
+  })
+  setActivePinia(createPinia())
+  const original = {
+    onControlRecipeSelected: electronApi.chaosRecipe.onControlRecipeSelected,
+    updateRuntime: electronApi.chaosRecipe.updateRuntime
+  }
+  let selectFromControl
+  const runtimeCalls = []
+  electronApi.chaosRecipe.onControlRecipeSelected = callback => {
+    selectFromControl = callback
+    return () => { selectFromControl = null }
+  }
+  electronApi.chaosRecipe.updateRuntime = async payload => {
+    runtimeCalls.push(JSON.parse(JSON.stringify(payload)))
+    return { success: true, data: { enabled: payload.enabled } }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    const dispose = store.listenAutomation()
+    await selectFromControl('fusing')
+
+    assert.equal(store.settings.activeRecipeId, 'fusing')
+    assert.equal(JSON.parse(values.get('chaosRecipeSettings')).activeRecipeId, 'fusing')
+    assert.equal(runtimeCalls.at(-1).activeRecipeId, 'fusing')
+    dispose()
+    assert.equal(selectFromControl, null)
+  } finally {
+    electronApi.chaosRecipe.onControlRecipeSelected = original.onControlRecipeSelected
+    electronApi.chaosRecipe.updateRuntime = original.updateRuntime
+  }
 })
 
 test('商城配方页不再重复恢复账号', () => {

@@ -44,20 +44,24 @@ test('制作与地图脚本包含自适应剪贴板轮询，固定常量仍保�
     assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds\):/)
     assert.match(content, /def clipboard_changed\(before_seq, before_text\):/)
     assert.match(content, /if TIMING_MODE == "adaptive":/)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
-    assert.match(content, /time\.sleep\(0\.01\)/)
-    assert.doesNotMatch(content, /ADAPTIVE_TIMEOUT_SECONDS/)
+    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS\)/)
+    assert.match(content, /CLIPBOARD_POLL_INTERVAL_SECONDS = 0\.01/)
+    assert.match(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
   }
 })
 
 test('背包 Ctrl+C 与 Ctrl+点击均满足 Ctrl 先按下、最后释放', () => {
   const content = source('bag')
-  const sendCopy = content.slice(content.indexOf('def _send_copy(self):'), content.indexOf('def _copy_item_text_once(self):'))
-  assert.ok(sendCopy.indexOf('self.keyboard.press(Key.ctrl)') < sendCopy.indexOf('self.keyboard.press("c")'))
-  assert.ok(sendCopy.indexOf('self.keyboard.release("c")') < sendCopy.indexOf('self.keyboard.release(Key.ctrl)'))
-  const ctrlClick = content.slice(content.indexOf('def ctrl_click(self):'), content.indexOf('def empty_stats():'))
-  assert.ok(ctrlClick.indexOf('self.keyboard.press(Key.ctrl)') < ctrlClick.indexOf('self.mouse.press(Button.left)'))
-  assert.ok(ctrlClick.indexOf('self.mouse.release(Button.left)') < ctrlClick.indexOf('self.keyboard.release(Key.ctrl)'))
+  const beginCtrl = content.slice(content.indexOf('def begin_ctrl(self):'), content.indexOf('def move(self, x, y):'))
+  const sendCopy = content.slice(content.indexOf('def _send_copy(self, ctrl_held=False):'), content.indexOf('def _copy_item_text_once(self, ctrl_held=False):'))
+  const clickWithCtrl = content.slice(content.indexOf('def click_with_ctrl(self):'), content.indexOf('def ctrl_click(self):'))
+  const ctrlClick = content.slice(content.indexOf('def ctrl_click(self):'), content.indexOf('def transfer_item_once(controller):'))
+  assert.match(beginCtrl, /self\.press_key\(Key\.ctrl\)/)
+  assert.ok(sendCopy.indexOf('self.begin_ctrl()') < sendCopy.indexOf('self.press_key("c")'))
+  assert.ok(sendCopy.indexOf('self.release_key("c")') < sendCopy.indexOf('self.release_key(Key.ctrl)'))
+  assert.ok(clickWithCtrl.indexOf('self.begin_ctrl()') < clickWithCtrl.indexOf('self.press_button(Button.left)'))
+  assert.ok(clickWithCtrl.indexOf('self.press_button(Button.left)') < clickWithCtrl.indexOf('self.release_button(Button.left)'))
+  assert.ok(ctrlClick.indexOf('self.click_with_ctrl()') < ctrlClick.indexOf('self.release_key(Key.ctrl)'))
 })
 
 test('仓库取件 Ctrl+点击满足 Ctrl 先按下、最后释放', () => {

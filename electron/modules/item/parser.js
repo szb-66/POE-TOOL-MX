@@ -39,6 +39,7 @@ export function parseItemInfo(clipboardText) {
     armour: 0,
     evasion: 0,
     energyShield: 0,
+    baseDefencePercentile: 0,
     ward: 0,
     block: 0,
     physicalDamage: null,
@@ -65,6 +66,9 @@ export function parseItemInfo(clipboardText) {
   }
 
   let socketLine = ''
+  const stripInjectedPriceTag = (value) => String(value || '')
+    .replace(/\s*\[(?:\d+(?:\.\d+)?\s*[cd]\s*)+\]\s*$/i, '')
+    .trim()
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
   const extractMapTier = (text) => {
     if (!text) return 0
@@ -102,6 +106,7 @@ export function parseItemInfo(clipboardText) {
     }
     const modifier = {
       type: activeModifier.type,
+      affixType: activeModifier.affixType || null,
       name: activeModifier.name,
       tier: activeModifier.tier,
       tags: activeModifier.tags,
@@ -121,8 +126,7 @@ export function parseItemInfo(clipboardText) {
     activeModifier = null
   }
   
-  // 预扫描：检查是否存在物品等级行
-  // 注意：这要求用户在游戏内开启"显示详细属性" (Alt)
+  // 当前游戏 Ctrl+C 已直接提供详细属性；仍通过物品等级划定装备词缀区域。
   for (const line of lines) {
     if (line.includes('物品等级:')) {
       hasItemLevel = true;
@@ -152,6 +156,8 @@ export function parseItemInfo(clipboardText) {
     '救赎者物品',
     '狩猎者物品',
     '督军物品',
+    '焚界者物品',
+    '灭界者物品',
     '只能使用',
     '无法使用',
     '无法拥有',
@@ -198,7 +204,9 @@ export function parseItemInfo(clipboardText) {
     '救赎者物品': 'redeemer',
     '狩猎者物品': 'hunter',
     '督军物品': 'warlord',
-    '忆境物品': 'synthesised'
+    '忆境物品': 'synthesised',
+    '焚界者物品': 'searing-exarch',
+    '灭界者物品': 'eater-of-worlds'
   }
   const parseNumber = (value) => Number(String(value || '').replace(/[+,％%]/g, ''))
   const parseRange = (line) => {
@@ -214,25 +222,46 @@ export function parseItemInfo(clipboardText) {
     // 示例: { 基底属性 — 伤害, 召唤生物 }
     if (line.startsWith('{') && line.endsWith('}')) {
       flushModifier()
-      const typeEntry = [
-        ['前缀属性', 'prefix'], ['后缀属性', 'suffix'], ['基底属性', 'base'], ['隐式属性', 'implicit'],
-        ['传奇属性', 'unique'], ['工艺属性', 'crafted'], ['附魔属性', 'enchant'],
-        ['破裂属性', 'fractured']
-      ].find(([label]) => line.includes(label))
-      if (typeEntry) {
+      const affixType = /前缀属性|Prefix Modifier/i.test(line)
+        ? 'prefix'
+        : (/后缀属性|Suffix Modifier/i.test(line) ? 'suffix' : null)
+      const headerModifierName = line.match(/"([^"]*)"/)?.[1] || ''
+      const semanticHeader = line.replace(/"[^"]*"/g, '""')
+      // 当前游戏的详细复制会输出类似“破碎的 后缀属性”。语义来源必须先于
+      // 前/后缀位置判断，否则破碎词缀会被错误归为 explicit。
+      const semanticType = [
+        [/(?:破碎|破裂|分裂)(?:的)?|\bFractured\b/i, 'fractured'],
+        [/大师级|工艺属性|\b(?:Master Crafted|Crafted)\b/i, 'crafted'],
+        [/附魔属性|\bEnchant(?:ment)?\b/i, 'enchant'],
+        [/焚界者基底词缀|灭界者基底词缀|\b(?:Searing Exarch|Eater of Worlds) Implicit Modifier\b/i, 'implicit'],
+        [/隐式属性|\bImplicit\b/i, 'implicit'],
+        [/基底(?:属性|词缀)|\bBase Modifier\b/i, 'base'],
+        [/传奇属性|\bUnique Modifier\b/i, 'unique'],
+        [/影匿|解密|隐匿属性|\bVeiled\b/i, 'veiled'],
+        [/灌注|\bImbued\b/i, 'imbued'],
+        [/异度天灾|灾魇属性|\bScourge\b/i, 'scourge'],
+        [/佣兵|雇佣兵|\bMercenary\b/i, 'mercenary'],
+        [/地心|\bDelve\b/i, 'delve'],
+        [/致命贪婪|\bUltimatum\b/i, 'ultimatum'],
+        [/禁域|\bSanctum\b/i, 'sanctum'],
+        [/古神熔炉|\bCrucible\b/i, 'crucible']
+      ].find(([pattern]) => pattern.test(semanticHeader))?.[1] ||
+        (/影匿|\bof .*Veil\b/i.test(headerModifierName) ? 'veiled' : null)
+      const type = semanticType || affixType
+      if (type) {
         try {
-          const type = typeEntry[1];
           const nameMatch = line.match(/"([^"]+)"/);
           const name = nameMatch ? nameMatch[1] : '';
           
-          const tierMatch = line.match(/等阶：(\d+)/);
-          const tier = tierMatch ? parseInt(tierMatch[1]) : 0;
+          const tierMatch = line.match(/(?:等阶|等级)[：:]\s*(\d+)|\bTier:\s*(\d+)/i);
+          const tier = tierMatch ? parseInt(tierMatch[1] || tierMatch[2]) : 0;
           
           const tagsPart = line.split('—')[1];
           const tags = tagsPart ? tagsPart.replace('}', '').trim().split(',').map(t => t.trim()) : [];
           
           activeModifier = {
             type,
+            affixType,
             name,
             tier,
             tags,
@@ -255,7 +284,7 @@ export function parseItemInfo(clipboardText) {
       }
       if (isExplanationLine(line)) continue
       const boundary = isIgnoredTextLine(line) || line === '未鉴定' || line.includes('已腐化') ||
-        line.includes('(implicit)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
+        line.includes('(implicit)') || line.includes('(fractured)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
       if (!boundary) {
         activeModifier.originalLines.push(line)
         activeModifier.lines.push(cleanModifierLine(line))
@@ -273,6 +302,7 @@ export function parseItemInfo(clipboardText) {
       [/^护甲:\s*\+?([\d.]+)/, 'armour'],
       [/^闪避(?:值)?:\s*\+?([\d.]+)/, 'evasion'],
       [/^能量护盾:\s*\+?([\d.]+)/, 'energyShield'],
+      [/^虚化:\s*\+?([\d.]+)%?/, 'baseDefencePercentile'],
       [/^结界:\s*\+?([\d.]+)/, 'ward'],
       [/^格挡(?:几率)?:\s*\+?([\d.]+)%?/, 'block'],
       [/^(?:攻击)?暴击率:\s*\+?([\d.]+)%?/, 'criticalStrikeChance'],
@@ -287,7 +317,7 @@ export function parseItemInfo(clipboardText) {
       itemInfo.physicalDamage = parseRange(line)
       continue
     }
-    if (/^(?:元素|火焰|冰霜|闪电|混沌)伤害:/.test(line)) {
+    if (/^(?:元素|(?:火焰|冰霜|闪电|混沌)(?:[，,]\s*(?:火焰|冰霜|闪电|混沌))*)伤害:/.test(line)) {
       const ranges = [...line.matchAll(/(-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)/g)]
       itemInfo.elementalDamages.push(...ranges.map((match) => ({ min: Number(match[1]), max: Number(match[2]) })))
       continue
@@ -314,6 +344,9 @@ export function parseItemInfo(clipboardText) {
     else if (line === '已分裂' || line.includes('分裂物品')) {
       itemInfo.isSplit = true
     }
+    else if (line === '分裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {
+      itemInfo.isFractured = true
+    }
     else if (influenceLabels[line]) {
       if (!itemInfo.influences.includes(influenceLabels[line])) itemInfo.influences.push(influenceLabels[line])
     }
@@ -331,7 +364,7 @@ export function parseItemInfo(clipboardText) {
       if (!itemInfo.name) itemInfo.name = line
     }
     else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
-      itemInfo.name = line
+      itemInfo.name = stripInjectedPriceTag(line)
     }
     else if (identityHeaderOpen && itemInfo.name && !itemInfo.baseName && line && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line
@@ -430,6 +463,21 @@ export function parseItemInfo(clipboardText) {
     else if (itemInfo.category === '海图' && !seenItemLevel && !itemInfo.areaName && line && !line.includes(':')) {
       itemInfo.areaName = line
     }
+    else if (line.includes('(fractured)')) {
+      const mod = line.replace(/\s*\(fractured\)\s*$/, '').trim()
+      if (mod) {
+        itemInfo.modifiers.push({
+          type: 'fractured',
+          affixType: null,
+          name: '',
+          tier: 0,
+          tags: [],
+          lines: [cleanModifierLine(mod)],
+          text: cleanModifierLine(mod),
+          originalLines: [mod]
+        })
+      }
+    }
     else if (line && line.length > 2) { // 稍微放宽长度限制，有些词缀可能很短
       
       // 检查是否包含在忽略列表中
@@ -455,7 +503,7 @@ export function parseItemInfo(clipboardText) {
   }
 
   flushModifier()
-  itemInfo.isFractured = itemInfo.modifiers.some((modifier) => modifier.type === 'fractured')
+  itemInfo.isFractured ||= itemInfo.modifiers.some((modifier) => modifier.type === 'fractured')
   const average = (range) => range ? (Number(range.min) + Number(range.max)) / 2 : 0
   itemInfo.physicalDps = itemInfo.attacksPerSecond
     ? Math.round(average(itemInfo.physicalDamage) * itemInfo.attacksPerSecond * 100) / 100

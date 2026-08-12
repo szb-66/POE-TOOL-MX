@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-route" :aria-busy="loading || !mainRuntimeState.settled">
+  <div class="dashboard-route primary-page" :aria-busy="loading || !mainRuntimeState.settled">
     <div v-if="contentComponent" class="dashboard-content" :inert="!mainRuntimeState.settled">
       <component :is="contentComponent" />
     </div>
@@ -56,7 +56,7 @@ onMounted(loadContent)
 <style scoped>
 .dashboard-route { position: relative; height: 100%; background: var(--bg-secondary); }
 .dashboard-content { height: 100%; }
-.dashboard-skeleton { box-sizing: border-box; height: 100%; overflow: hidden; padding: 22px; }
+.dashboard-skeleton { box-sizing: border-box; height: 100%; overflow: hidden; padding: 20px; }
 .dashboard-skeleton header { height: 50px; margin-bottom: 18px; }
 .dashboard-skeleton header div { display: grid; gap: 8px; width: 360px; }
 .dashboard-skeleton span { display: block; border-radius: 8px; background: var(--el-fill-color); animation: startup-pulse 1.2s ease-in-out infinite; }

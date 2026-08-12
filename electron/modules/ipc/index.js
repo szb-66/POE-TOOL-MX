@@ -12,7 +12,7 @@ import { registerPythonHandlers } from './python.js'
 import { registerFileHandlers } from './file.js'
 import { registerShortcutHandlers } from './shortcut.js'
 import { registerBagHandlers } from './bag.js'
-import { registerCombatHandlers } from './combat.js'
+import { registerCombatHandlers, updateCombatAutomationTiming } from './combat.js'
 import { registerClipboardHandlers } from './clipboard.js'
 import { registerCraftingHandlers } from './crafting.js'
 import { registerSystemHandlers } from './system.js'
@@ -24,6 +24,7 @@ import { registerStashTabHandlers } from './stashTabs.js'
 import { registerPuzzleHandlers } from './puzzle.js'
 import { registerApplicationUpdateHandlers } from './update.js'
 import { registerJunfengHandlers } from './junfeng.js'
+import { registerAutomationTimingHandlers } from './automationTiming.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
@@ -40,6 +41,7 @@ export function registerIpcHandlers(dependencies) {
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
+  registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
   registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
   if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)

@@ -1,6 +1,8 @@
 <template>
-  <div class="price-check-page">
-    <div class="page-heading">
+  <div class="price-check-page primary-page primary-page--column">
+    <div class="primary-page__scroll">
+      <div class="price-check-content primary-page__content">
+        <div class="page-heading">
       <div>
         <h2>国服查价</h2>
         <p>配置 Ctrl+D 查价浮层；物品捕获只从游戏内快捷键进入。</p>
@@ -12,16 +14,16 @@
         inactive-text="已关闭"
         @change="toggleEnabled"
       />
-    </div>
+        </div>
 
-    <el-alert
+        <el-alert
       title="显示的是腾讯官方公开挂单，不代表实际成交价；不会自动私聊、购买或上架。"
       type="warning"
       :closable="false"
       show-icon
-    />
+        />
 
-    <el-card>
+        <el-card>
       <template #header><strong>运行状态</strong></template>
       <div class="status-grid">
         <div><span>账号</span><strong>{{ authText }}</strong></div>
@@ -37,12 +39,18 @@
         :closable="false"
         show-icon
       />
+      <el-button
+        v-if="store.catalog?.degraded"
+        class="settings-link"
+        :loading="store.loading"
+        @click="retryCatalog"
+      >重试官方目录</el-button>
       <el-button class="settings-link" type="primary" plain @click="$router.push('/settings')">
         前往账号与快捷键设置
       </el-button>
-    </el-card>
+        </el-card>
 
-    <el-card>
+        <el-card>
       <template #header><strong>查询设置</strong></template>
       <el-form label-width="140px">
         <el-form-item label="在线状态">
@@ -104,9 +112,9 @@
         </el-form-item>
       </el-form>
       <p class="muted">物品属性和词缀筛选只作用于当前浮层，不会覆盖这里的默认值。</p>
-    </el-card>
+        </el-card>
 
-    <el-card>
+        <el-card>
       <template #header><strong>使用说明与诊断</strong></template>
       <ol class="instructions">
         <li>在设置页登录国服账号并选择全局赛季。</li>
@@ -114,7 +122,9 @@
         <li>助手发送 Ctrl+C 读取物品详细文本。</li>
       </ol>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
-    </el-card>
+        </el-card>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -151,11 +161,20 @@ async function changeSetting(key, value) {
   if (!result.success) ElMessage.error(result.error || '查价设置同步失败')
 }
 
+async function retryCatalog() {
+  try {
+    await store.retryCatalog()
+    ElMessage.success('官方交易目录已更新')
+  } catch (error) {
+    ElMessage.error(error.message)
+  }
+}
+
 onMounted(() => store.refreshStatus().catch(() => {}))
 </script>
 
 <style scoped lang="less">
-.price-check-page { display: grid; gap: 16px; padding: 20px; max-width: 980px; margin: 0 auto; }
+.price-check-content { display: grid; gap: 16px; max-width: 980px; margin: 0 auto; }
 .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
 .page-heading h2 { margin: 0 0 6px; }
 .page-heading p, .muted { color: var(--el-text-color-secondary); }

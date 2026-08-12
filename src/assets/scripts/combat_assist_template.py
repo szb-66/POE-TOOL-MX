@@ -9,6 +9,20 @@ import signal
 import sys
 import time
 
+OPERATION_DELAY_SECONDS = 0.05
+KEY_HOLD_SECONDS = 0.02
+BUTTON_HOLD_SECONDS = 0.02
+RELEASE_SETTLE_SECONDS = 0.02
+
+
+def apply_input_timing(config):
+    global OPERATION_DELAY_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS, RELEASE_SETTLE_SECONDS
+    OPERATION_DELAY_SECONDS = max(0.0, float(config.get("operation_delay_ms", 50))) / 1000.0
+    timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
+    KEY_HOLD_SECONDS = max(0.0, float(timing.get("key_hold_ms", 20))) / 1000.0
+    BUTTON_HOLD_SECONDS = max(0.0, float(timing.get("button_hold_ms", 20))) / 1000.0
+    RELEASE_SETTLE_SECONDS = max(0.0, float(timing.get("release_settle_ms", 20))) / 1000.0
+
 
 def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -242,7 +256,9 @@ def send_sequence(keys, foreground_check=None, key_event_sender=None):
             break
         virtual_code = key_to_virtual_code(name)
         send_key_event(virtual_code, 0, 0, 0)
+        time.sleep(KEY_HOLD_SECONDS)
         send_key_event(virtual_code, 0, 0x0002, 0)
+        time.sleep(RELEASE_SETTLE_SECONDS)
         sent_count += 1
     return sent_count
 
@@ -255,10 +271,13 @@ def click_point(point, foreground_check=None, cursor_setter=None, mouse_event_se
     if not check_foreground():
         return False
     set_cursor(int(point.get("x", 0)), int(point.get("y", 0)))
+    time.sleep(OPERATION_DELAY_SECONDS)
     if not check_foreground():
         return False
     send_mouse_event(0x0002, 0, 0, 0, 0)
+    time.sleep(BUTTON_HOLD_SECONDS)
     send_mouse_event(0x0004, 0, 0, 0, 0)
+    time.sleep(RELEASE_SETTLE_SECONDS)
     return True
 
 
@@ -315,6 +334,7 @@ def run_potion(config, config_path=None):
 
     while running:
         config = runtime_config.load()
+        apply_input_timing(config)
         potion = config.get("potion", {})
         scan_interval = max(10, int(potion.get("scanIntervalMs", 100)))
         limiter.configure(
@@ -390,7 +410,9 @@ def run_loop(config, config_path=None):
     emit("started")
 
     while running:
-        loop_config = runtime_config.load().get("loop", {})
+        config = runtime_config.load()
+        apply_input_timing(config)
+        loop_config = config.get("loop", {})
         tick_ms = max(10, int(loop_config.get("tickMs", 50)))
         focused = is_game_foreground()
         if focused != last_focus:
@@ -433,6 +455,7 @@ def run_sample(config):
 
 
 def run_portal(config):
+    apply_input_timing(config)
     if not is_game_foreground():
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
         return 2

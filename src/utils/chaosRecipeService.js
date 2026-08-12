@@ -21,7 +21,9 @@ export async function startChaosRecipePicking() {
     await store.startAutomation({
       templates: detectionStore.templates,
       matchThreshold: detectionStore.matchThreshold,
-      operationDelayMs: store.settings.operationDelayMs,
+      operationDelayMs: settingsStore.operationDelayMs,
+      adaptiveTiming: settingsStore.adaptiveTiming,
+      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
       fixedTiming: settingsStore.fixedTiming
     })
     void reportDiagnosticRecovery('shop', 'automation')

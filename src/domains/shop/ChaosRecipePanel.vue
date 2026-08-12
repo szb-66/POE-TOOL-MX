@@ -19,17 +19,7 @@
           />
           <span class="muted inline-hint">开启后，仓库和道具背包同时打开时显示游戏内按钮组</span>
         </el-form-item>
-        <el-form-item label="取件操作等待">
-          <el-input-number
-            :model-value="store.settings.operationDelayMs"
-            :min="20"
-            :max="500"
-            :step="10"
-            controls-position="right"
-            @change="value => store.updateSetting('operationDelayMs', value)"
-          />
-          <span class="muted inline-hint">毫秒；仅影响商店配方自动取件</span>
-        </el-form-item>
+        <div class="muted">取件速度统一使用“设置 → 自动操作”中的全局时序。</div>
       </el-form>
     </el-card>
 

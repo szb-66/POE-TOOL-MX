@@ -12,9 +12,30 @@ import {
   CHAOS_GRID_LAYOUT_LABELS,
   missingCalibrationKeys
 } from './layout.js'
+import {
+  buildVendorRecipeOptions,
+  SINGLE_RECIPE_IDS,
+  VENDOR_RECIPE_IDS
+} from './engine.js'
 import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
+import { normalizeAutomationTiming } from '../../../src/utils/operationDelay.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+
+const STASH_PICKUP_STOP_MESSAGES = {
+  'game-not-foreground': '游戏不在前台，仓库取件已停止',
+  'interface-lost': '仓库或背包界面丢失，仓库取件已停止',
+  'transfer-unconfirmed': '无法确认物品已转移，已安全停止',
+  'inventory-full': '背包空间不足，仓库取件已停止',
+  'uncertain-cells': '存在无法确认的格子，仓库取件已停止'
+}
+
+function stashPickupStopMessage(automation = {}) {
+  if (automation.reason === 'completed') return `仓库取件已完成：已取 ${automation.pickedItems || 0}`
+  if (automation.reason === 'no-candidates') return '当前仓库页没有可取物品'
+  if (automation.reason) return STASH_PICKUP_STOP_MESSAGES[automation.reason] || `仓库取件已停止：${automation.reason}`
+  return '仓库自动取件已就绪'
+}
 
 export class ChaosRecipeControlOverlay {
   constructor({ getMainWindow, interfaceDetection, automationLock }) {
@@ -34,11 +55,12 @@ export class ChaosRecipeControlOverlay {
       includeIdentified: false,
       activeRecipeId: 'chaos',
       selectedItemIds: [],
+      selectedItemIdsByRecipe: {},
       targetSetCount: 1,
       calibration: { root: null, folder: null },
       templates: {},
       matchThreshold: 0.8,
-      operationDelayMs: 80,
+      ...normalizeAutomationTiming(),
       controlOverlayOffset: { ...DEFAULT_CHAOS_CONTROL_OFFSET }
     }
     this.detection = interfaceDetection?.getState?.() || {}
@@ -88,7 +110,10 @@ export class ChaosRecipeControlOverlay {
     const recipe = snapshot?.recipes?.[activeRecipeId] || (activeRecipeId === 'chaos' ? snapshot : null)
     const recipeLabel = recipe?.label || '混沌石'
     const isSingle = recipe?.kind === 'single'
-    const selectedIds = new Set((this.runtime.selectedItemIds || []).map(String))
+    const groupedSelectedIds = this.runtime.selectedItemIdsByRecipe?.[activeRecipeId]
+    const selectedIds = new Set((Array.isArray(groupedSelectedIds)
+      ? groupedSelectedIds
+      : this.runtime.selectedItemIds || []).map(String))
     const availableCount = isSingle
       ? (recipe?.candidates || []).filter((item) => selectedIds.has(String(item.id))).length
       : Math.max(0, Number(recipe?.fullSetCount) || 0)
@@ -104,7 +129,7 @@ export class ChaosRecipeControlOverlay {
     const automationActive = running || paused
     const canStartPreview = Boolean(availableCount && calibrated)
     const canPreview = Boolean(!automationActive && !occupiedByOther && (previewActive || canStartPreview))
-    let actionLabel = '自动取件'
+    let actionLabel = '取出配方'
     if (running) actionLabel = '停止取件'
     else if (paused) actionLabel = '继续取件'
     let actionReason = ''
@@ -142,6 +167,17 @@ export class ChaosRecipeControlOverlay {
       actionLabel = availableCount && !calibrated ? '需要校准' : (snapshot ? '无法取件' : '先刷新仓库')
     }
     const inventoryFull = paused && automation.code === 'INVENTORY_FULL'
+    const canSelectRecipe = Boolean(snapshot && !automationActive && !previewActive && !occupiedByOther)
+    const recipeSelectionReason = automationActive
+      ? '取件进行中，不能切换配方'
+      : previewActive
+        ? '请先取消预览高亮'
+        : occupiedByOther
+          ? `${lock.owner}正在运行`
+          : snapshot
+            ? ''
+            : '请先刷新仓库'
+    const recipeOptions = buildVendorRecipeOptions(snapshot, this.runtime.selectedItemIdsByRecipe)
     const statusMessage = running
       ? `正在取件：${automation.completedItems || 0}/${automation.totalItems || 0}`
       : inventoryFull
@@ -155,20 +191,23 @@ export class ChaosRecipeControlOverlay {
     const stashPickupAutomation = this.stashPickup?.getStatus?.() || { status: 'idle' }
     const stashPickupRunning = stashPickupAutomation.status === 'running'
     const stashPickupOccupied = lock.locked && lock.owner !== '仓库自动取件'
-    const canStashPickup = Boolean(stashPickupEnabled && this.detection.ready && this.detection.foreground &&
-      (stashPickupRunning || !stashPickupOccupied))
-    const rewardDetected = Boolean(this.detection.rewardDetected)
+    const canStashPickup = Boolean(stashPickupEnabled && this.detection.foreground &&
+      (stashPickupRunning || (this.detection.ready && !stashPickupOccupied)))
     const junfengReady = Boolean(this.detection.junfengReady)
     const junfengEnabled = Boolean(this.junfeng?.runtime?.enabled)
     const junfengAutomation = this.junfeng?.getStatus?.() || { status: 'idle' }
     const junfengRunning = junfengAutomation.status === 'running'
+    const rewardDetected = junfengRunning || (!stashPickupRunning && !running && !paused && Boolean(this.detection.rewardDetected))
     const junfengOccupied = lock.locked && lock.owner !== '君锋镇取出高亮'
     const junfengAvailability = this.junfeng?.getAvailability?.() || { ready: false, reason: '君锋镇模块未配置' }
-    const canJunfeng = Boolean(junfengEnabled && junfengReady && junfengAvailability.ready && this.detection.foreground &&
-      (junfengRunning || !junfengOccupied))
-    const normalVisible = Boolean((this.enabled || stashPickupEnabled) && this.detection.ready)
+    const canJunfeng = Boolean(junfengEnabled && this.detection.foreground &&
+      (junfengRunning || (junfengReady && junfengAvailability.ready && !junfengOccupied)))
+    const normalVisible = Boolean((this.enabled || stashPickupEnabled) &&
+      (this.detection.ready || stashPickupRunning || running || paused))
     const junfengVisible = Boolean(junfengEnabled && rewardDetected)
-    const junfengReason = junfengOccupied
+    const junfengReason = junfengRunning
+      ? ''
+      : junfengOccupied
       ? `${lock.owner}正在运行`
       : !junfengReady
         ? '奖励与背包界面未就绪'
@@ -186,7 +225,7 @@ export class ChaosRecipeControlOverlay {
       recipeEnabled: this.enabled,
       stashPickupEnabled,
       canStashPickup,
-      stashPickupReason: stashPickupOccupied ? `${lock.owner}正在运行` : !this.detection.ready ? '仓库与背包未就绪' : '',
+      stashPickupReason: stashPickupRunning ? '' : stashPickupOccupied ? `${lock.owner}正在运行` : !this.detection.ready ? '仓库与背包未就绪' : '',
       stashPickupLabel: stashPickupRunning ? '停止仓库取件' : '取出物品',
       stashPickupAutomation,
       rewardDetected,
@@ -202,6 +241,9 @@ export class ChaosRecipeControlOverlay {
       refreshing: false,
       activeRecipeId,
       recipeLabel,
+      recipeOptions,
+      canSelectRecipe,
+      recipeSelectionReason,
       isSingle,
       availableCount,
       fullSetCount,
@@ -220,9 +262,7 @@ export class ChaosRecipeControlOverlay {
         : !this.enabled
         ? (stashPickupRunning
             ? `正在取出物品：已取 ${stashPickupAutomation.pickedItems || 0} · 剩余格 ${stashPickupAutomation.remainingCells || 0}`
-            : stashPickupAutomation.reason === 'inventory-full'
-              ? '背包空间不足，取件已停止'
-              : '仓库自动取件已就绪')
+            : stashPickupStopMessage(stashPickupAutomation))
         : statusMessage,
       automation,
       message: inventoryFull
@@ -304,6 +344,20 @@ export class ChaosRecipeControlOverlay {
 
   getState() {
     return this.computeState()
+  }
+
+  selectRecipe(recipeId) {
+    const nextRecipeId = String(recipeId || '')
+    if (!VENDOR_RECIPE_IDS.includes(nextRecipeId)) throw new Error('不支持的商城配方')
+    const state = this.computeState()
+    if (!state.canSelectRecipe) throw new Error(state.recipeSelectionReason || '当前不能切换配方')
+    this.runtime.activeRecipeId = nextRecipeId
+    if (SINGLE_RECIPE_IDS.includes(nextRecipeId)) {
+      this.runtime.selectedItemIds = [...(this.runtime.selectedItemIdsByRecipe?.[nextRecipeId] || [])]
+    } else {
+      this.runtime.selectedItemIds = []
+    }
+    return this.sync()
   }
 
   resizeToContent(size) {

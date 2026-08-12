@@ -31,7 +31,7 @@ test('遮罩物理矩形一次转换为整数 DIP 边界', () => {
   assert.ok(Object.values(converted).every(Number.isInteger))
 })
 import { assertBagTemplateTarget, savePngAtomically } from '../electron/modules/bag/templateCapture.js'
-import { normalizeBagSettings, validateTemplateCaptureEnvironment } from '../src/utils/bagConfig.js'
+import { normalizeBagSettings, resolveCaptureDisplay, validateTemplateCaptureEnvironment } from '../src/utils/bagConfig.js'
 
 test('选区支持反向规范化、负坐标边界裁剪与最小 20×10 尺寸', () => {
   assert.deepEqual(normalizeRectangle({ x: 40, y: 30 }, { x: -20, y: 5 }), {
@@ -151,6 +151,22 @@ test('显示器 id 在重启后变化时通过物理环境与采集区域恢复�
   assert.deepEqual(validateTemplateCaptureEnvironment('仓库标题', 's.png', region, metadata, displays), {
     error: '', warning: ''
   })
+})
+
+test('共享显示器解析默认保持严格 DPI 比较并允许调用方指定容差', () => {
+  const metadata = {
+    displayId: 'old-id', scaleFactor: 1.5,
+    displayPhysicalSize: { width: 1920, height: 1080 },
+    selectedRegion: { left: -500, top: 20, right: -380, bottom: 50 }
+  }
+  const display = {
+    id: 'new-id', scaleFactor: 1.505,
+    physicalSize: { width: 1920, height: 1080 },
+    physicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+  }
+
+  assert.equal(resolveCaptureDisplay(metadata, [display]), null)
+  assert.equal(resolveCaptureDisplay(metadata, [display], 0.01), display)
 })
 
 test('显示器 id 交换后选择参数兼容且包含原采集区域的显示器', () => {

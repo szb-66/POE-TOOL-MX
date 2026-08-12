@@ -11,7 +11,7 @@ let disposers = []
 function currentConfig(overrides = {}) {
   const bagStore = useBagStore()
   const settingsStore = useSettingsStore()
-  const { inventory, operationDelayMs, fixedTiming, ...bagOverrides } = overrides
+  const { inventory, operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
     immediateStash: bagStore.immediateStash,
@@ -24,6 +24,8 @@ function currentConfig(overrides = {}) {
   }, {
     inventory: inventory || settingsStore.inventory,
     operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs,
+    adaptiveTiming: adaptiveTiming ?? settingsStore.adaptiveTiming,
+    adaptiveTimeoutMs: adaptiveTimeoutMs ?? settingsStore.adaptiveTimeoutMs,
     fixedTiming: fixedTiming ?? settingsStore.fixedTiming
   })
 }
@@ -48,8 +50,15 @@ export function updateBagRuntimeConfig(patch = {}) {
     }
     const settingsStore = useSettingsStore()
     if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
-    if ('operationDelayMs' in patch) settingsStore.updateOperationDelay(patch.operationDelayMs)
-    if ('fixedTiming' in patch) settingsStore.updateFixedTiming(patch.fixedTiming)
+    if (['operationDelayMs', 'adaptiveTiming', 'adaptiveTimeoutMs', 'fixedTiming'].some((key) => key in patch)) {
+      const timingResult = await settingsStore.updateAutomationTiming({
+        ...('operationDelayMs' in patch ? { operationDelayMs: patch.operationDelayMs } : {}),
+        ...('adaptiveTiming' in patch ? { adaptiveTiming: patch.adaptiveTiming } : {}),
+        ...('adaptiveTimeoutMs' in patch ? { adaptiveTimeoutMs: patch.adaptiveTimeoutMs } : {}),
+        ...('fixedTiming' in patch ? { fixedTiming: patch.fixedTiming } : {})
+      })
+      if (!timingResult.success) return timingResult
+    }
     return { success: true }
   }
   bagRuntimeQueue = bagRuntimeQueue.then(commit, commit)
@@ -170,6 +179,7 @@ export function formatBagStopReason(reason) {
   const labels = {
     'game-not-foreground': '游戏窗口不在前台',
     'interface-lost': '仓库或背包界面已关闭',
+    'transfer-unconfirmed': '无法确认物品已转移，已安全停止',
     'user-stopped': '用户停止',
     'process-exited': '进程异常退出',
     'process-ended': '进程已结束'

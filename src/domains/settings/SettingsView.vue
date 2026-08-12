@@ -1,14 +1,24 @@
 <template>
-  <div class="settings-page">
-    <el-scrollbar>
-      <div class="settings-content">
-        <!-- 操作按钮 -->
-        <div class="action-buttons">
-          <el-button type="danger" @click="handleReset" :icon="Refresh">
-            重置所有设置
-          </el-button>
-        </div>
+  <div class="settings-page primary-page primary-page--column">
+    <div class="primary-page__tabs settings-tab-bar">
+      <!-- 操作按钮保持在 Tab 组件之外 -->
+      <div class="action-buttons">
+        <el-button type="danger" @click="handleReset" :icon="Refresh">
+          重置所有设置
+        </el-button>
+      </div>
+      <el-tabs v-model="activeTab" class="settings-tabs" @tab-change="handleTabChange">
+          <el-tab-pane label="通用" name="general" />
+          <el-tab-pane label="自动操作" name="automation" />
+          <el-tab-pane label="界面识别" name="detection" />
+          <el-tab-pane label="覆盖层" name="overlay" />
+          <el-tab-pane label="系统" name="system" />
+      </el-tabs>
+    </div>
+    <el-scrollbar ref="settingsScrollbar" class="primary-page__scroll">
+      <div class="settings-content primary-page__content">
 
+        <div v-show="activeTab === 'general'" class="settings-tab-panel">
         <div class="section-header">
           <h3 class="section-title">国服账号</h3>
         </div>
@@ -59,10 +69,14 @@
             <div class="hint-text">登录 Cookie 仅保存在独立 Electron Session 中；商城配方与国服查价共用这里的账号和赛季。</div>
           </el-form>
         </el-card>
+        </div>
 
+        <div v-show="activeTab === 'detection'" class="settings-tab-panel">
         <InterfaceDetectionSettings />
         <StashTabSelectionSettings />
+        </div>
 
+        <div v-show="activeTab === 'general'" class="settings-tab-panel">
         <!-- 快捷键设置 -->
         <div class="section-header">
           <h3 class="section-title">快捷键设置</h3>
@@ -127,7 +141,9 @@
             </el-row>
           </el-form>
         </el-card>
+        </div>
 
+        <div v-show="activeTab === 'automation'" class="settings-tab-panel">
         <!-- 背包设置 -->
         <div class="section-header">
           <h3 class="section-title">背包设置</h3>
@@ -292,7 +308,9 @@
             </el-row>
           </el-form>
         </el-card>
+        </div>
 
+        <div v-show="activeTab === 'system'" class="settings-tab-panel">
         <!-- 系统设置 -->
         <div class="section-header">
           <h3 class="section-title">系统设置</h3>
@@ -356,6 +374,15 @@
         </div>
         <el-card class="section-card">
           <el-form label-width="120px" label-position="left">
+            <el-form-item label="下载源">
+              <div class="update-settings">
+                <el-radio-group v-model="updateSource" :disabled="updateBusy" @change="handleUpdateSourceChange">
+                  <el-radio-button value="cnb">CNB（国内推荐）</el-radio-button>
+                  <el-radio-button value="github">GitHub</el-radio-button>
+                </el-radio-group>
+                <span class="hint-text">当前来源：{{ updateSource === 'cnb' ? 'CNB 国内镜像' : 'GitHub Release' }}；失败后可手动切换并重试。</span>
+              </div>
+            </el-form-item>
             <el-form-item label="更新模式">
               <div class="update-settings">
                 <el-radio-group v-model="updateMode" @change="handleUpdateModeChange">
@@ -425,7 +452,9 @@
             show-icon
           />
         </el-card>
+        </div>
 
+        <div v-show="activeTab === 'automation'" class="settings-tab-panel">
         <!-- 操作延迟 -->
         <div class="section-header">
           <h3 class="section-title">操作延迟</h3>
@@ -435,8 +464,6 @@
             <el-form-item label="自动操作等待">
               <el-input-number
                 v-model="operationDelayMs"
-                :min="OPERATION_DELAY.min"
-                :max="OPERATION_DELAY.max"
                 :step="10"
                 controls-position="right"
                 style="width: 240px"
@@ -444,8 +471,27 @@
               >
                 <template #suffix>ms</template>
               </el-input-number>
-              <div class="hint-text">鼠标移入物品后的悬停稳定时间；自适应关闭时组合键、点击和剪贴板等待使用下方固定时序配置</div>
+              <div class="hint-text">所有游戏自动化移动鼠标后的真实悬停稳定时间</div>
             </el-form-item>
+            <el-divider />
+            <h4 class="section-title">物理输入时序</h4>
+            <el-form-item
+              v-for="field in PHYSICAL_TIMING_FIELDS"
+              :key="field.key"
+              :label="field.label"
+            >
+              <el-input-number
+                v-model="fixedTiming[field.key]"
+                :step="10"
+                controls-position="right"
+                style="width: 240px"
+                @change="handleFixedTimingChange(field.key, $event)"
+              >
+                <template #suffix>ms</template>
+              </el-input-number>
+            </el-form-item>
+            <div class="hint-text">组合键、按键、鼠标按钮和释放时序始终生效，包括自适应模式</div>
+            <el-divider />
             <el-form-item label="自适应等待">
               <el-switch
                 v-model="adaptiveTiming"
@@ -458,8 +504,6 @@
             <el-form-item v-if="adaptiveTiming" label="自适应等待上限">
               <el-input-number
                 v-model="adaptiveTimeoutMs"
-                :min="ADAPTIVE_TIMING.timeoutMin"
-                :max="ADAPTIVE_TIMING.timeoutMax"
                 :step="100"
                 controls-position="right"
                 style="width: 240px"
@@ -467,20 +511,18 @@
               >
                 <template #suffix>ms</template>
               </el-input-number>
-              <div class="hint-text">画面/识别验证轮询未拿到结果时的最大等待时间；剪贴板空格确认使用内部固定间隔</div>
+              <div class="hint-text">剪贴板、画面、页签和存仓验证未得到结果时的统一最大等待时间</div>
             </el-form-item>
             <template v-if="!adaptiveTiming">
               <el-divider />
-              <h4 class="section-title">固定时序配置</h4>
+              <h4 class="section-title">固定结果等待</h4>
               <el-form-item
-                v-for="field in FIXED_TIMING_FIELDS"
+                v-for="field in RESULT_TIMING_FIELDS"
                 :key="field.key"
                 :label="field.label"
               >
                 <el-input-number
                   v-model="fixedTiming[field.key]"
-                  :min="field.min"
-                  :max="field.max"
                   :step="10"
                   controls-position="right"
                   style="width: 240px"
@@ -489,11 +531,13 @@
                   <template #suffix>ms</template>
                 </el-input-number>
               </el-form-item>
-              <div class="hint-text">关闭自适应后，各步骤等待使用这里的固定值；开启自适应时使用推荐默认值</div>
+              <div class="hint-text">关闭自适应后，剪贴板、页签、存仓和画面验证使用这里的固定值</div>
             </template>
           </el-form>
         </el-card>
+        </div>
 
+        <div v-show="activeTab === 'overlay'" class="settings-tab-panel">
         <!-- 覆盖层设置 -->
         <div class="section-header">
           <h3 class="section-title">覆盖层设置</h3>
@@ -604,6 +648,7 @@
             </el-col>
           </el-row>
         </el-card>
+        </div>
       </div>
     </el-scrollbar>
   </div>
@@ -615,7 +660,7 @@ import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
-import { ADAPTIVE_TIMING, FIXED_TIMING, OPERATION_DELAY } from '../../utils/operationDelay'
+import { FIXED_TIMING } from '../../utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
 import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
@@ -635,6 +680,11 @@ const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
 const account = usePoeCnAccountStore()
 const accountToken = ref('')
+const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
+const SETTINGS_TABS = new Set(['general', 'automation', 'detection', 'overlay', 'system'])
+const storedSettingsTab = sessionStorage.getItem(SETTINGS_TAB_STORAGE_KEY)
+const activeTab = ref(SETTINGS_TABS.has(storedSettingsTab) ? storedSettingsTab : 'general')
+const settingsScrollbar = ref(null)
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)
@@ -653,9 +703,10 @@ const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
 const isBackgroundDragging = ref(false)
 const updateMode = ref(settingsStore.updateMode)
+const updateSource = ref(settingsStore.updateSource)
 const updateState = ref({
   mode: settingsStore.updateMode,
-  source: 'github',
+  source: settingsStore.updateSource,
   currentVersion: '',
   status: 'idle',
   supported: false,
@@ -677,6 +728,11 @@ const updateStatusText = computed(() => ({
   downloaded: '更新已下载，等待重启安装',
   error: '更新操作失败'
 })[updateState.value.status] || '等待检查')
+
+function handleTabChange(tab) {
+  sessionStorage.setItem(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS.has(tab) ? tab : 'general')
+  settingsScrollbar.value?.setScrollTop(0)
+}
 
 onMounted(async () => {
   void account.run(() => account.restore()).catch(() => {})
@@ -773,6 +829,9 @@ watch(() => settingsStore.debugMode, (val) => {
 })
 watch(() => settingsStore.updateMode, (val) => {
   updateMode.value = val
+})
+watch(() => settingsStore.updateSource, (val) => {
+  updateSource.value = val
 })
 watch(() => settingsStore.overlaySettings, (val) => {
   overlaySettings.value = { ...val }
@@ -932,6 +991,13 @@ async function handleUpdateModeChange(mode) {
   else updateState.value = { ...updateState.value, ...(result.state || {}), mode: settingsStore.updateMode }
 }
 
+async function handleUpdateSourceChange(source) {
+  const result = await settingsStore.updateApplicationUpdateSource(source)
+  updateSource.value = settingsStore.updateSource
+  if (!result.success) ElMessage.error(result.error)
+  else updateState.value = { ...updateState.value, ...(result.state || {}), source: settingsStore.updateSource }
+}
+
 async function handleCheckUpdate() {
   const result = await electronApi.update.check()
   if (result?.busy) ElMessage.info('更新操作正在进行')
@@ -977,45 +1043,46 @@ function formatUpdateBytes(value) {
 }
 
 async function handleOperationDelayChange(value) {
-  const result = await updateBagRuntimeConfig({ operationDelayMs: value })
+  const result = await settingsStore.updateOperationDelay(value)
   operationDelayMs.value = settingsStore.operationDelayMs
   if (!result.success) ElMessage.error(result.error)
 }
 
-function handleAdaptiveTimingChange(value) {
-  settingsStore.updateAdaptiveTiming(value)
+async function handleAdaptiveTimingChange(value) {
+  const result = await settingsStore.updateAdaptiveTiming(value)
   adaptiveTiming.value = settingsStore.adaptiveTiming
+  if (!result.success) ElMessage.error(result.error)
 }
 
-function handleAdaptiveTimeoutChange(value) {
-  settingsStore.updateAdaptiveTimeoutMs(value)
+async function handleAdaptiveTimeoutChange(value) {
+  const result = await settingsStore.updateAdaptiveTimeoutMs(value)
   adaptiveTimeoutMs.value = settingsStore.adaptiveTimeoutMs
+  if (!result.success) ElMessage.error(result.error)
 }
 
-function handleFixedTimingChange(key, value) {
-  updateBagRuntimeConfig({
-    fixedTiming: { ...settingsStore.fixedTiming, [key]: value }
-  }).then((result) => {
-    fixedTiming.value = { ...settingsStore.fixedTiming }
-    if (!result?.success) ElMessage.error(result?.error)
-  })
+async function handleFixedTimingChange(key, value) {
+  const result = await settingsStore.updateFixedTiming({ [key]: value })
+  fixedTiming.value = { ...settingsStore.fixedTiming }
+  if (!result?.success) ElMessage.error(result?.error)
 }
 
-const FIXED_TIMING_FIELDS = Object.entries(FIXED_TIMING.fields).map(([key, rule]) => ({
+const TIMING_FIELD_LABELS = {
+  modifierSettleMs: '组合键稳定',
+  keyHoldMs: '按键保持',
+  buttonHoldMs: '鼠标点击保持',
+  releaseSettleMs: '释放后稳定',
+  clipboardConfirmMs: '剪贴板/空格确认',
+  stashTabSettleMs: '选仓后生效等待',
+  stashSettleMs: '存仓后生效等待',
+  patchVerifyMs: '画面变化验证等待'
+}
+const PHYSICAL_TIMING_KEYS = new Set(['modifierSettleMs', 'keyHoldMs', 'buttonHoldMs', 'releaseSettleMs'])
+const TIMING_FIELDS = Object.keys(FIXED_TIMING.fields).map((key) => ({
   key,
-  label: ({
-    modifierSettleMs: '组合键稳定',
-    keyHoldMs: '按键保持',
-    buttonHoldMs: '鼠标点击保持',
-    releaseSettleMs: '释放后稳定',
-    clipboardConfirmMs: '剪贴板/空格确认',
-    stashTabSettleMs: '选仓后生效等待',
-    stashSettleMs: '存仓后生效等待',
-    patchVerifyMs: '画面变化验证等待'
-  })[key],
-  min: rule.min,
-  max: rule.max
+  label: TIMING_FIELD_LABELS[key]
 }))
+const PHYSICAL_TIMING_FIELDS = TIMING_FIELDS.filter(field => PHYSICAL_TIMING_KEYS.has(field.key))
+const RESULT_TIMING_FIELDS = TIMING_FIELDS.filter(field => !PHYSICAL_TIMING_KEYS.has(field.key))
 
 function isVideo(path) {
   if (!path) return false
@@ -1151,6 +1218,7 @@ async function handleReset() {
     manualDpiScale.value = settingsStore.manualDpiScale
     debugMode.value = settingsStore.debugMode
     updateMode.value = settingsStore.updateMode
+    updateSource.value = settingsStore.updateSource
     overlaySettings.value = { ...settingsStore.overlaySettings }
     backgroundHistory.value = []
 
@@ -1176,19 +1244,21 @@ async function handleReset() {
 
 <style scoped lang="less">
 .settings-page {
-  height: 100%;
-  background-color: var(--bg-secondary);
+  .settings-tab-bar {
+    .action-buttons {
+      order: 2;
+      margin-left: auto;
+    }
+
+    .settings-tabs {
+      order: 1;
+    }
+  }
 
   .settings-content {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
-
-    .action-buttons {
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: flex-end;
-    }
 
     .section-header {
       margin-bottom: var(--spacing-sm);

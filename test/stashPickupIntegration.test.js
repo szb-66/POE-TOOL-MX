@@ -68,3 +68,44 @@ test('仓库与君锋镇共享本机校准池和统一网格预览交互', () =>
   assert.match(view, /saveStashPreviewCorrections/)
   assert.match(view, /保存修改的校准素材/)
 })
+
+test('仓库按钮依赖公共标题检测，执行阶段不再匹配标题且失去前台仍立即停止', () => {
+  const manager = source('electron/modules/stashPickup/manager.js')
+  const overlay = source('electron/modules/chaosRecipe/controlOverlay.js')
+  const subscription = manager.slice(
+    manager.indexOf('this.disposeDetection = interfaceDetection?.subscribe'),
+    manager.indexOf('  scriptPath()')
+  )
+  const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
+
+  assert.match(subscription, /!state\.foreground/)
+  assert.doesNotMatch(subscription, /!state\.ready/)
+  assert.doesNotMatch(manager, /transfer_confirmation/)
+  assert.match(overlay, /canStashPickup[\s\S]*this\.detection\.ready/)
+  const action = script.slice(script.indexOf('def run(config, preview=False):'))
+  assert.doesNotMatch(action, /InterfaceMatcher|require_action_ready|check_interface/)
+  assert.match(overlay, /stashPickupRunning \|\| \(this\.detection\.ready && !stashPickupOccupied\)/)
+  assert.match(overlay, /this\.detection\.ready \|\| stashPickupRunning \|\| running \|\| paused/)
+})
+
+test('游戏浮窗显示仓库取件的真实停止原因', () => {
+  const manager = source('electron/modules/chaosRecipe/controlOverlay.js')
+
+  assert.match(manager, /game-not-foreground[\s\S]*游戏不在前台/)
+  assert.match(manager, /interface-lost[\s\S]*仓库或背包界面/)
+  assert.match(manager, /transfer-unconfirmed[\s\S]*无法确认物品已转移，已安全停止/)
+  assert.match(manager, /inventory-full[\s\S]*背包空间不足/)
+  assert.match(manager, /stashPickupStopMessage/)
+})
+
+test('普通仓库与君锋镇共用三轮点击后复制确认且入库保持单次转移', () => {
+  const pickup = source('src/assets/scripts/junfeng_highlight_pickup.py')
+  const bag = source('src/assets/scripts/bag_auto_stash_template.py')
+  const action = pickup.slice(pickup.indexOf('def run(config, preview=False):'))
+
+  assert.match(pickup, /transfer_pickup_item/)
+  assert.match(action, /transferred, reason = transfer_pickup_item\(clipboard_controller\)/)
+  assert.doesNotMatch(action, /transfer_item_once/)
+  assert.match(bag, /def transfer_pickup_item\(controller\):[\s\S]*begin_ctrl\(\)[\s\S]*for _attempt in range\(3\):[\s\S]*copy_item_text\(ctrl_held=True\)[\s\S]*inventory-full/)
+  assert.match(bag, /def run_stash\(config\):[\s\S]*transfer_item_once\(controller\)/)
+})

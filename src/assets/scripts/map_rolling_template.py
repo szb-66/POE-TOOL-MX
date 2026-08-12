@@ -256,10 +256,11 @@ except:
 
 item_info_file = r"{{ITEM_INFO_FILE}}"
 item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
+parse_request_sequence = 0
+pending_parse_request_id = None
 
 # 延迟配置
 mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
-clipboard_read_delay = float({{DELAY_CLIPBOARD}})  # type: ignore
 
 # 内部固定时序（非用户配置）
 MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
@@ -272,6 +273,12 @@ STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 
 # 自适应等待模式（生成脚本时填充）
 TIMING_MODE = "{{TIMING_MODE}}"
+ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+FILE_SYNC_POLL_INTERVAL_SECONDS = 0.01
+FOCUS_ACTIVATION_MIN_SECONDS = 0.2
+FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
+SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
@@ -353,7 +360,7 @@ def release_shift_if_held():
     global is_shift_held
     release_all_keys()
     is_shift_held = False
-    time.sleep(0.05)
+    time.sleep(RELEASE_SETTLE_SECONDS)
 
 def select_currency_stash_tab(mode):
     """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件。"""
@@ -382,7 +389,7 @@ def select_currency_stash_tab(mode):
                 if time.monotonic() >= deadline:
                     timed_out = True
                     break
-                time.sleep(0.05)
+                time.sleep(SELECTOR_PROCESS_POLL_INTERVAL_SECONDS)
             if process.poll() is None:
                 process.terminate()
                 try:
@@ -424,10 +431,6 @@ def select_currency_stash_tab(mode):
         "event": "stash-tab-selection-succeeded", "mode": mode,
         "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
     }, ensure_ascii=False), flush=True)
-    if TIMING_MODE == "adaptive":
-        time.sleep(0.05)
-    else:
-        time.sleep(STASH_TAB_SETTLE_SECONDS)
     return True
 
 CURRENCY_NAMES = {
@@ -637,11 +640,11 @@ def focus_game_window(timeout_seconds=2.0):
         if attached_foreground:
             user32.AttachThreadInput(current_thread, foreground_thread, False)
 
-    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
     while is_running and time.monotonic() < deadline:
         if is_game_foreground():
             return True
-        time.sleep(0.05)
+        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     return False
 
 def right_click_currency(currency):
@@ -675,7 +678,7 @@ def apply_currency(currency_type, target_x, target_y):
         release_shift_if_held()
         return False
 
-def send_copy_command(before_seq=None, before_text=""):
+def send_copy_command(before_seq=None, before_text="", result_timeout=None):
     try:
         if not require_game_foreground():
             return False
@@ -688,9 +691,12 @@ def send_copy_command(before_seq=None, before_text=""):
         keyboard_controller.release('c')
         time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
+        time.sleep(RELEASE_SETTLE_SECONDS)
+        if result_timeout is not None:
+            return wait_for_clipboard_change(before_seq, before_text, result_timeout)
         if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS)
-        time.sleep(max(CLIPBOARD_RESPONSE_MIN_SECONDS, clipboard_read_delay / 1000.0))
+            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS)
+        time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
         return True
     except:
         return False
@@ -708,13 +714,17 @@ def clipboard_changed(before_seq, before_text):
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
     deadline = time.monotonic() + timeout_seconds
-    while is_running and time.monotonic() < deadline:
+    while is_running:
         if clipboard_changed(before_seq, before_text):
             return True
-        time.sleep(0.01)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
     return False
 
 def read_clipboard_to_file():
+    global parse_request_sequence, pending_parse_request_id
     try:
         before_seq = None
         before_text = ""
@@ -731,23 +741,24 @@ def read_clipboard_to_file():
         clipboard_text = pyperclip.paste()
         if not clipboard_text or len(clipboard_text.strip()) == 0: return False
         
-        # JSON escape
-        clipboard_text = clipboard_text.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
-        json_data = '{"clipboard": "' + clipboard_text + '"}'
-        
+        parse_request_sequence += 1
+        pending_parse_request_id = parse_request_sequence
+        with open(item_info_result_file, 'w', encoding='utf-8'):
+            pass
         with open(item_info_file, 'w', encoding='utf-8') as f:
-            f.write(json_data)
-        return True
+            json.dump({
+                "clipboard": clipboard_text,
+                "requestId": pending_parse_request_id
+            }, f, ensure_ascii=False)
+        return pending_parse_request_id
     except Exception:
         return False
 
-def wait_for_parse_result():
+def wait_for_parse_result(request_id=None):
+    parse_result_poll_interval_seconds = 0.02
     max_wait = 100
     wait_count = 0
-    
-    if os.path.exists(item_info_result_file):
-        try: os.remove(item_info_result_file)
-        except: pass
+    expected_request_id = pending_parse_request_id if request_id is None else request_id
         
     while is_running:
         if os.path.exists(item_info_result_file):
@@ -755,14 +766,19 @@ def wait_for_parse_result():
                 with open(item_info_result_file, 'r', encoding='utf-8') as f:
                     content = f.read().strip()
                 if not content:
-                    time.sleep(0.02)
+                    time.sleep(parse_result_poll_interval_seconds)
                     wait_count += 1
                     continue
-                return json.loads(content)
+                result = json.loads(content)
+                if expected_request_id is not None and result.get("requestId") != expected_request_id:
+                    time.sleep(parse_result_poll_interval_seconds)
+                    wait_count += 1
+                    continue
+                return result
             except Exception:
-                time.sleep(0.02)
+                time.sleep(parse_result_poll_interval_seconds)
         
-        time.sleep(0.02)
+        time.sleep(parse_result_poll_interval_seconds)
         wait_count += 1
         if wait_count > max_wait:
             return {"error": "等待超时"}
@@ -786,8 +802,12 @@ def stash_item(x, y):
         click_mouse("left")
         time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
-        time.sleep(0.05 if TIMING_MODE == "adaptive" else STASH_SETTLE_SECONDS) # 等待存仓动作完成
-        return True
+        time.sleep(RELEASE_SETTLE_SECONDS)
+        before_seq = GetClipboardSequenceNumber() if GetClipboardSequenceNumber is not None else None
+        before_text = str(pyperclip.paste() or "")
+        timeout = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else STASH_SETTLE_SECONDS
+        item_still_present = send_copy_command(before_seq, before_text, timeout)
+        return not item_still_present
     except:
         keyboard_controller.release(Key.ctrl)
         return False
@@ -818,7 +838,7 @@ def update_map_stats(processed_count, qualified_count, blacklist_stats, whitelis
             f.flush()  # 立即刷新到磁盘
             os.fsync(f.fileno())  # 确保数据写入磁盘
         # 额外的小延迟，确保文件系统完全同步
-        time.sleep(0.01)
+        time.sleep(FILE_SYNC_POLL_INTERVAL_SECONDS)
     except Exception as e:
         # 静默失败，不影响主流程
         pass
@@ -837,12 +857,56 @@ def rolling_item_level_label(item_data):
         return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
     return f"T{int((item_data or {}).get('mapTier', 0))}"
 
+def completed_map_result(qualified=False):
+    return {
+        "status": "completed-qualified" if qualified else "completed-unqualified",
+        "qualified": bool(qualified)
+    }
+
+def failed_map_result(reason, code="MAP_PROCESSING_FAILED"):
+    return {"status": "failed", "reason": reason, "code": code}
+
+def fail_map_runtime(reason, code="MAP_PROCESSING_FAILED"):
+    global is_running, fatal_error_reason
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    print("EVENT " + json.dumps({
+        "event": "crafting-runtime-stopped", "mode": "map",
+        "code": code, "reason": reason
+    }, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def read_current_rolling_target(x, y, attempts=2):
+    last_error = "无法读取当前目标"
+    for attempt in range(attempts):
+        if not is_running:
+            break
+        request_id = read_and_parse(x, y)
+        if request_id:
+            result = wait_for_parse_result(request_id)
+            if not result.get("error") and item_matches_rolling_target(result):
+                return result
+            last_error = result.get("error") or f"解析类别不是当前目标 {rolling_target_label()}"
+        else:
+            last_error = fatal_error_reason or "复制当前目标失败"
+        if attempt + 1 < attempts and is_running:
+            print(f"  > [重试] {last_error}，重新复制当前格（不重复使用通货）")
+    return {"error": last_error}
+
+def apply_currency_and_read(currency_type, x, y):
+    if not apply_currency(currency_type, x, y):
+        return {"error": f"使用{CURRENCY_NAMES.get(currency_type, currency_type)}失败"}
+    return read_current_rolling_target(x, y)
+
 def start_map_rolling():
     """Purpose: 主控循环，按网格遍历地图、读取解析结果、套用策略并更新统计。
     Inputs: grid_config 坐标与行列，map_config 洗图策略，GetClipboardSequenceNumber 等外部依赖。
     Outputs: 写入 item_info_file/item_info_result_file；日志输出；可选存仓动作。
     Preconditions: 游戏窗口前置且坐标正确；前端文件监听正常；pynput 可用。
-    Edge cases: 剪贴板序列号不可用时回退到内容检查；快捷键注册失败仅告警；读取/解析超时会跳过当前格子。
+    Edge cases: 剪贴板序列号不可用时回退到内容检查；快捷键注册失败仅告警；读取/解析失败重试一次后安全停止。
     """
     global is_running, fatal_error_reason
     is_running = True
@@ -925,8 +989,6 @@ def start_map_rolling():
                 current_row = 0
                 current_col += 1
             continue
-        time.sleep(0.1)
-        
         # 2. 记录复制前的剪切板序列号
         clipboard_seq_before = None
         if GetClipboardSequenceNumber:
@@ -937,7 +999,8 @@ def start_map_rolling():
         
         # 3. 复制物品信息
         print(f"[操作] 复制物品信息 (Ctrl+C)")
-        if not read_clipboard_to_file():
+        parse_request_id = read_clipboard_to_file()
+        if not parse_request_id:
             consecutive_empty_slots += 1
             print(f"[提示] 复制失败，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
             if consecutive_empty_slots >= empty_slot_threshold:
@@ -1006,19 +1069,24 @@ def start_map_rolling():
         consecutive_empty_slots = 0
         
         # 5. 等待解析结果
-        result = wait_for_parse_result()
+        result = wait_for_parse_result(parse_request_id)
         if result.get("error"):
             if result.get("isLegendary"):
                 print("[提示] 检测到传奇地图，跳过")
             else:
-                print(f"[提示] 解析失败: {result.get('error')}")
-            
-            # 移动到下一个格子
-            current_row += 1
-            if current_row >= grid_config['rows']:
-                current_row = 0
-                current_col += 1
-            continue
+                result = read_current_rolling_target(slot_x, slot_y, attempts=1)
+                if result.get("error"):
+                    fail_map_runtime(
+                        f"当前{target_label}解析失败：{result.get('error')}",
+                        "MAP_PARSE_FAILED"
+                    )
+                    break
+            if result.get("error"):
+                current_row += 1
+                if current_row >= grid_config['rows']:
+                    current_row = 0
+                    current_col += 1
+                continue
         
         # 6. 检查是否是地图
         category = result.get("category", "") or result.get("itemClass", "")
@@ -1042,15 +1110,18 @@ def start_map_rolling():
             whitelist_stats[affix] = whitelist_stats.get(affix, 0) + count
         
         map_result = process_single_map(result, slot_x, slot_y)
-        if map_result:
-            processed_count += 1
-            # 如果返回的是元组，第二个值表示是否满足条件
-            if isinstance(map_result, tuple) and len(map_result) > 1 and map_result[1]:
-                qualified_count += 1
-            # 将处理数量、符合条件数量和词缀统计写入结果文件供前端显示
-            # 立即更新统计信息，确保前端能够实时看到更新
-            update_map_stats(processed_count, qualified_count, blacklist_stats, whitelist_stats)
-            print(f"[完成] 地图处理完成，移动到下一个格子")
+        if map_result.get("status") == "failed":
+            if not fatal_error_reason:
+                fail_map_runtime(
+                    map_result.get("reason") or f"当前{target_label}处理失败",
+                    map_result.get("code") or "MAP_PROCESSING_FAILED"
+                )
+            break
+        processed_count += 1
+        if map_result.get("qualified"):
+            qualified_count += 1
+        update_map_stats(processed_count, qualified_count, blacklist_stats, whitelist_stats)
+        print(f"[完成] {target_label}处理完成，移动到下一个格子")
         
         # 8. 移动到下一个格子（列优先：先向下，到底部后移到下一列顶部）
         current_row += 1
@@ -1070,7 +1141,7 @@ def start_map_rolling():
 def process_single_map(initial_result, slot_x, slot_y):
     """Purpose: 针对单个格子的地图进行状态机式洗图/鉴定/腐化/存仓。
     Inputs: initial_result(解析结果 dict)、slot_x/slot_y(像素坐标)；使用全局 map_config、apply_currency、read_and_parse。
-    Outputs: 返回 bool 或 (bool, bool) -> (是否完成, 是否满足条件)；可能触发鼠标键盘操作与文件写入。
+    Outputs: 返回结构化终态（合格、不合格或失败）；可能触发鼠标键盘操作与文件写入。
     Preconditions: 鼠标可定位到 slot 坐标；通货坐标正确；map_config 配置完备。
     Edge cases: 传奇地图直接跳过；T17 点金模式禁止；最大迭代 max_iterations 防止死循环。
     """
@@ -1084,7 +1155,7 @@ def process_single_map(initial_result, slot_x, slot_y):
 
         if not item_matches_rolling_target(current_result):
             print(f"  > [停止单件] 重新读取后的类别不是当前目标 {rolling_target_label()}，未继续使用通货")
-            return False
+            return failed_map_result(f"解析类别不是当前目标 {rolling_target_label()}", "MAP_TARGET_MISMATCH")
         
         # 基本信息提取
         is_corrupted = current_result.get("isCorrupted", False)
@@ -1099,16 +1170,16 @@ def process_single_map(initial_result, slot_x, slot_y):
         # 0. 传奇地图跳过
         if is_legendary:
             print("  > [跳过] 传奇地图")
-            return True
+            return completed_map_result()
 
         if is_unmodifiable:
             print("  > [跳过] 地图不可改变，无法使用通货")
-            return True
+            return completed_map_result()
 
         # 0.1 T17 + 点金模式 检查
         if map_config.get('targetKind') != 'chart' and tier == 17 and map_config['method'] == 'alchemy':
              print("  > [错误] T17地图不能使用点金模式")
-             return True # 跳过
+             return completed_map_result()
 
         # 0.2 检查是否已腐化且不满足要求 (无法修改)
         # 如果是瓦尔后检查阶段，这个逻辑会在后面处理
@@ -1121,10 +1192,10 @@ def process_single_map(initial_result, slot_x, slot_y):
                     stash_item(slot_x, slot_y)
                 else:
                     print("  > [成功] 已腐化且满足条件，但未启用自动存仓，跳过")
-                return (True, True)  # 返回 (处理完成, 满足条件)
+                return completed_map_result(True)
             else:
                 print("  > [跳过] 已腐化且不满足条件")
-                return (True, False)  # 返回 (处理完成, 不满足条件)
+                return completed_map_result()
 
         method = map_config['method'] # alchemy or chaos
         
@@ -1135,20 +1206,12 @@ def process_single_map(initial_result, slot_x, slot_y):
         is_unidentified = current_result.get("isUnidentified", False)
         if is_unidentified:
             print("  > [未鉴定] 检测到未鉴定地图，使用知识卷轴鉴定")
-            if not apply_currency("wisdom", slot_x, slot_y): 
-                print("  > [错误] 使用知识卷轴失败")
-                return False
-            # 重新读取和解析物品信息
-            if not read_and_parse(slot_x, slot_y): 
-                print("  > [错误] 鉴定后读取物品信息失败")
-                return False
-            current_result = wait_for_parse_result()
+            current_result = apply_currency_and_read("wisdom", slot_x, slot_y)
             if current_result.get("error"):
-                print("  > [错误] 鉴定后解析物品信息失败")
-                return False
-            if not item_matches_rolling_target(current_result):
-                print(f"  > [停止单件] 鉴定后的类别不是当前目标 {rolling_target_label()}")
-                return False
+                return failed_map_result(
+                    f"鉴定后读取失败：{current_result.get('error')}",
+                    "MAP_IDENTIFY_READ_FAILED"
+                )
             # 更新状态
             rarity = current_result.get("rarity", "普通").replace(" ", "")
             tier = int(current_result.get("mapTier", 0))
@@ -1173,21 +1236,18 @@ def process_single_map(initial_result, slot_x, slot_y):
                      pass # 这种情况会在后面 Step 6 处理
                  else:
                      print(f"  > [预处理] 状态{rarity}且不满足条件，使用重铸石")
-                     if not apply_currency("scouring", slot_x, slot_y): return False
-                     if not read_and_parse(slot_x, slot_y): return False
-                     current_result = wait_for_parse_result()
+                     current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                      if current_result.get("error"):
-                         print("  > [错误] 读取物品信息失败")
-                         return False
+                         return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                      continue
 
         # 混沌模式：魔法 -> 重铸 (因为要变成稀有，魔法不能直接变稀有，除了用富豪，但这里逻辑是重铸再点金)
         if method == 'chaos':
              if rarity == '魔法':
                  print(f"  > [预处理] 魔法物品，使用重铸石")
-                 if not apply_currency("scouring", slot_x, slot_y): return False
-                 if not read_and_parse(slot_x, slot_y): return False
-                 current_result = wait_for_parse_result()
+                 current_result = apply_currency_and_read("scouring", slot_x, slot_y)
+                 if current_result.get("error"):
+                     return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                  continue
         
         # 更新状态
@@ -1201,12 +1261,9 @@ def process_single_map(initial_result, slot_x, slot_y):
             # 如果是普通 -> 点金
             if rarity == '普通':
                 print("  > [操作] 使用点金石")
-                if not apply_currency("alchemy", slot_x, slot_y): return False
-                if not read_and_parse(slot_x, slot_y): return False
-                current_result = wait_for_parse_result()
+                current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
                 if current_result.get("error"):
-                    print("  > [错误] 读取物品信息失败")
-                    return False
+                    return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                 # 更新状态
                 rarity = current_result.get("rarity", "普通").replace(" ", "")
                 continue
@@ -1218,12 +1275,9 @@ def process_single_map(initial_result, slot_x, slot_y):
             # 普通 -> 点金
             if rarity == '普通':
                 print("  > [操作] 使用点金石")
-                if not apply_currency("alchemy", slot_x, slot_y): return False
-                if not read_and_parse(slot_x, slot_y): return False
-                current_result = wait_for_parse_result()
+                current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
                 if current_result.get("error"):
-                    print("  > [错误] 读取物品信息失败")
-                    return False
+                    return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                 # 更新状态
                 rarity = current_result.get("rarity", "普通").replace(" ", "")
                 continue
@@ -1233,12 +1287,9 @@ def process_single_map(initial_result, slot_x, slot_y):
                 # 先检查基底，如果基底不满足，继续洗
                 if not check_map_base(current_result):
                     print("  > [操作] 基底不满足，使用混沌石")
-                    if not apply_currency("chaos", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
                 # 如果基底满足，继续检查词缀（在下面Step 4处理）
 
@@ -1250,33 +1301,24 @@ def process_single_map(initial_result, slot_x, slot_y):
                 # 点金模式：如果是稀有，重铸后继续；如果是普通，先点金
                 if rarity == '稀有':
                     print("  > [操作] 基底不满足，使用重铸石")
-                    if not apply_currency("scouring", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查基底
                     print("  > [操作] 基底不满足，使用点金石")
-                    if not apply_currency("alchemy", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
             elif method == 'chaos':
                 # 混沌模式：使用混沌石继续洗
                 if rarity == '稀有':
                     print("  > [操作] 基底不满足，使用混沌石")
-                    if not apply_currency("chaos", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
             continue
 
@@ -1288,33 +1330,24 @@ def process_single_map(initial_result, slot_x, slot_y):
                 # 点金模式：如果是稀有，重铸后继续；如果是普通，先点金
                 if rarity == '稀有':
                     print("  > [操作] 词缀不满足，使用重铸石")
-                    if not apply_currency("scouring", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查词缀
                     print("  > [操作] 词缀不满足，使用点金石")
-                    if not apply_currency("alchemy", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
             elif method == 'chaos':
                 # 混沌模式：使用混沌石继续洗
                 if rarity == '稀有':
                     print("  > [操作] 词缀不满足，使用混沌石")
-                    if not apply_currency("chaos", slot_x, slot_y): return False
-                    if not read_and_parse(slot_x, slot_y): return False
-                    current_result = wait_for_parse_result()
+                    current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        print("  > [错误] 读取物品信息失败")
-                        return False
+                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
             continue
 
@@ -1327,17 +1360,9 @@ def process_single_map(initial_result, slot_x, slot_y):
         # 7. 瓦尔宝珠逻辑
         if map_config['vaal']['enabled']:
             print("  > [操作] 使用瓦尔宝珠")
-            if not apply_currency("vaal", slot_x, slot_y): return False
-            
-            # 瓦尔后需要重新读取
-            if not read_and_parse(slot_x, slot_y): return False
-            current_result = wait_for_parse_result()
+            current_result = apply_currency_and_read("vaal", slot_x, slot_y)
             if current_result.get("error"):
-                print("  > [错误] 读取物品信息失败")
-                return False
-            if not item_matches_rolling_target(current_result):
-                print(f"  > [停止单件] 瓦尔后的类别不是当前目标 {rolling_target_label()}")
-                return False
+                return failed_map_result(current_result.get("error"), "MAP_VAAL_READ_FAILED")
             
             # 瓦尔后检查是否符合条件（先检查基底，再检查词缀）
             vaal_base_ok = check_map_base(current_result)
@@ -1350,13 +1375,13 @@ def process_single_map(initial_result, slot_x, slot_y):
                     stash_item(slot_x, slot_y)
                 else:
                     print("  > [完成] 未启用自动存仓，不存仓")
-                return (True, True)  # 返回 (处理完成, 满足条件)
+                return completed_map_result(True)
             else:
                 if not vaal_base_ok:
                     print("  > [检查] 瓦尔后基底不满足条件，跳过")
                 else:
                     print("  > [检查] 瓦尔后词缀不满足条件，跳过")
-                return (True, False)  # 返回 (处理完成, 不满足条件)
+                return completed_map_result()
         else:
             # 不瓦尔，直接存仓（如果启用自动存仓）
             if auto_stash:
@@ -1364,14 +1389,15 @@ def process_single_map(initial_result, slot_x, slot_y):
                 stash_item(slot_x, slot_y)
             else:
                 print("  > [成功] 制作完成，但未启用自动存仓，跳过")
-            return (True, True)  # 返回 (处理完成, 满足条件)
+            return completed_map_result(True)
             
-    return (True, False)  # 返回 (处理完成, 不满足条件)
+    if not is_running and fatal_error_reason:
+        return failed_map_result(fatal_error_reason, "MAP_RUNTIME_STOPPED")
+    return failed_map_result("单张目标达到最大洗练次数，已安全停止", "MAP_MAX_ITERATIONS")
 
 def read_and_parse(x, y):
     # 辅助函数：移动鼠标，复制，等待解析
     if not move_mouse(x, y): return False
-    # time.sleep(0.05)
     return read_clipboard_to_file()
 
 def check_map_base(item_data):

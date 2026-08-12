@@ -1,5 +1,5 @@
 <template>
-  <div class="tools-page">
+  <div class="tools-page primary-page primary-page__scroll primary-page__content">
     <header class="page-heading">
       <div>
         <h1>工具站</h1>
@@ -244,7 +244,7 @@ function clearDrag() {
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 22px;
+  padding: 20px;
   color: var(--text-primary);
   background:
     radial-gradient(circle at 90% 0, color-mix(in srgb, var(--el-color-primary) 8%, transparent), transparent 30%),

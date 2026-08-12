@@ -71,6 +71,17 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     return status.value
   }
 
+  async function retryCatalog() {
+    loading.value = true
+    try {
+      const catalogStatus = unwrap(await electronApi.priceCheck.retryCatalog())
+      status.value = { ...(status.value || {}), catalog: catalogStatus }
+      return catalogStatus
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function syncRuntime(overrides = {}) {
     status.value = unwrap(await electronApi.priceCheck.updateRuntime({
       enabled: settings.value.enabled,
@@ -216,6 +227,6 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     status, settings, model, result, overlayState, loading, error,
     authenticated, catalog, league, options,
     saveSettings, clearResults, refreshStatus, syncRuntime, setEnabled,
-    updateSetting, checkHoveredItem, rerun, loadMore, loadDistribution, listenOverlay
+    updateSetting, retryCatalog, checkHoveredItem, rerun, loadMore, loadDistribution, listenOverlay
   }
 })

@@ -43,31 +43,29 @@ test('奖励界面优先显示取出高亮并隐藏普通仓库按钮', () => {
   assert.match(view, /electronApi\.junfeng\.start/)
 })
 
-test('正式取件只有一次全网格分类并包含失焦、模糊候选和转移未确认保护', () => {
+test('正式取件只有一次全网格分类并使用三轮复制确认保护', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
+  const shared = source('src/assets/scripts/bag_auto_stash_template.py')
   const classifyStart = script.indexOf('cells, groups, uncertain = classify(image, config, model, calibration)')
   const loopStart = script.indexOf('for index, candidate in enumerate(candidates):')
   assert.ok(classifyStart > 0 && loopStart > classifyStart)
   assert.equal((script.slice(classifyStart, loopStart).match(/classify\(/g) || []).length, 1)
   assert.match(script, /if uncertain and bool\(config\.get\("abort_on_uncertain", True\)\):[\s\S]*reason="uncertain-cells"/)
-  assert.match(script, /require_game_foreground\(\)[\s\S]*ctrl_click/)
-  assert.match(script, /for attempt in range\(2\)/)
+  assert.match(script, /require_game_foreground\(\)[\s\S]*transfer_pickup_item/)
+  assert.match(shared, /def transfer_pickup_item\(controller\):[\s\S]*for _attempt in range\(3\):/)
   assert.match(script, /reason="transfer-unconfirmed"/)
-  assert.doesNotMatch(script, /inventory-full/)
+  assert.match(shared, /return False, "inventory-full"/)
 })
 
-test('正式取件按候选格逐件确认，并用单格模型复核跳过已清空占格', () => {
+test('普通仓库和君锋镇共享唯一的逐候选复制判空路径', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
   assert.match(script, /candidates = \[candidate for group in groups for candidate in group\]/)
-  assert.match(script, /inspection_image = capture\(rect, grabber\)[\s\S]*candidate_label\(inspection_image/)
-  assert.match(script, /current_image = capture\(rect, grabber\)[\s\S]*before = candidate_patch\(current_image, columns, rows, candidate\)/)
-  assert.match(script, /fallback_image = capture\(rect, grabber\)[\s\S]*candidate_label\(fallback_image/)
+  assert.match(script, /copy_item_text\(\)[\s\S]*before_status == "empty"[\s\S]*transfer_pickup_item/)
+  assert.doesNotMatch(script, /transfer_confirmation|wait_for_candidate_change/)
+  assert.equal((script.match(/mouse\.position = park_position/g) || []).length, 1)
   assert.doesNotMatch(script, /changed_candidate_cells|cleared_cells/)
   assert.doesNotMatch(script, /next_position|source_patch/)
-  assert.equal((script.match(/mouse\.position = park_position/g) || []).length, 1)
-  assert.match(script, /candidate_label\(inspection_image, columns, rows, candidate, config, model, calibration, True\) != "highlighted"/)
-  assert.match(script, /patch_changed\(before, after, 8\.0\)[\s\S]*candidate_label\(after_image[\s\S]*== "empty"/)
-  assert.match(script, /require_action_ready\(interface_matcher, interface_mode\)[\s\S]*ctrl_click/)
+  assert.doesNotMatch(script, /InterfaceMatcher|require_action_ready|check_interface/)
 })
 
 test('主界面触发检测预览允许暂时失焦，正式取件仍要求奖励标题处于检测状态', () => {
@@ -77,11 +75,25 @@ test('主界面触发检测预览允许暂时失焦，正式取件仍要求奖�
   assert.match(manager, /if \(requireReward && !detection\.rewardDetected\)/)
 })
 
-test('普通仓库跳过模糊格继续取件，君锋镇保留模糊格整轮停止', () => {
+test('君锋镇按钮依赖公共标题检测，执行阶段只因失去前台停止', () => {
+  const manager = source('electron/modules/junfeng/manager.js')
+  const overlay = source('electron/modules/chaosRecipe/controlOverlay.js')
+  const subscription = manager.slice(
+    manager.indexOf('this.disposeDetection = interfaceDetection?.subscribe'),
+    manager.indexOf('  initialStatus()')
+  )
+
+  assert.match(subscription, /!state\.foreground/)
+  assert.doesNotMatch(subscription, /junfengReady|reward-interface-lost/)
+  assert.match(overlay, /const rewardDetected = junfengRunning \|\|/)
+  assert.match(overlay, /junfengRunning \|\| \(junfengReady && junfengAvailability\.ready && !junfengOccupied\)/)
+})
+
+test('普通仓库和君锋镇均跳过模糊格继续取件', () => {
   const stashManager = source('electron/modules/stashPickup/manager.js')
   const junfengManager = source('electron/modules/junfeng/manager.js')
   assert.match(stashManager, /abort_on_uncertain: false/)
-  assert.match(junfengManager, /abort_on_uncertain: true/)
+  assert.match(junfengManager, /abort_on_uncertain: false/)
 })
 
 test('通用训练框选的嵌套区域在写入 Python 配置前归一化为扁平物理坐标', () => {
@@ -90,24 +102,31 @@ test('通用训练框选的嵌套区域在写入 Python 配置前归一化为扁
   assert.match(manager, /previewTraining\(\{ domain, gridRegion, partition = 'train' \} = \{\}\)/)
 })
 
-test('君锋镇和仓库正式取件写入同步界面门禁配置', () => {
+test('君锋镇和仓库只在启动前校验标题，正式取件配置不再携带标题门禁', () => {
   const junfengManager = source('electron/modules/junfeng/manager.js')
   const stashManager = source('electron/modules/stashPickup/manager.js')
   for (const manager of [junfengManager, stashManager]) {
-    assert.match(manager, /templates:\s*\{[\s\S]*inventory_title:[\s\S]*junfeng_reward_title:/)
-    assert.match(manager, /match_threshold:/)
+    const writeConfig = manager.slice(manager.indexOf('  writeConfig('), manager.indexOf('  spawn', manager.indexOf('  writeConfig(')))
+    assert.doesNotMatch(writeConfig, /templates|match_threshold|interface_mode/)
   }
-  assert.match(junfengManager, /interface_mode: 'reward'/)
-  assert.match(stashManager, /interface_mode: 'stash'/)
+  assert.match(junfengManager, /if \(requireReward && !detection\.rewardDetected\)/)
+  assert.match(stashManager, /if \(detection\.foreground && !detection\.ready\)/)
+  assert.doesNotMatch(junfengManager, /transfer_confirmation/)
+  assert.doesNotMatch(stashManager, /transfer_confirmation/)
+  assert.match(junfengManager, /'pynput', 'pyperclip'/)
+  assert.match(stashManager, /'pynput', 'pyperclip'/)
+  assert.match(source('src/domains/bag/BagView.vue'), /'transfer-unconfirmed': '无法确认物品已转移，已安全停止'/)
 })
 
 test('君锋镇可用性校验模板采集环境和网格物理边界', () => {
   const manager = source('electron/modules/junfeng/manager.js')
+  const config = source('src/utils/junfengConfig.js')
   assert.match(manager, /validateTemplateCaptureEnvironment/)
   assert.match(manager, /junfengRewardCapture/)
   assert.match(manager, /inventoryCapture/)
-  assert.match(manager, /region\.displayPhysicalBounds/)
-  assert.match(manager, /分辨率或位置已变化/)
+  assert.match(manager, /validateJunfengGridEnvironment\(runtime\.gridRegion, this\.currentDisplays\(\)\)/)
+  assert.match(config, /region\.displayPhysicalBounds/)
+  assert.match(config, /分辨率或位置已变化/)
 })
 
 test('校准素材导出保留仓库与君锋镇来源域', () => {
@@ -128,7 +147,7 @@ test('有效模型可直接用于正式取件且准确率报告只作为质量�
 test('检测预览在截图前把鼠标停到当前显示器且位于网格之外', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
   assert.match(script, /park_position = park_cursor_position\(config\.get\("grid_region", \{\}\), rect\)/)
-  assert.match(script, /mouse\.position = park_position[\s\S]*time\.sleep\(0\.08\)[\s\S]*image = capture\(rect, grabber\)/)
+  assert.match(script, /mouse\.position = park_position[\s\S]*time\.sleep\(normalize_operation_delay\(config\.get\("operation_delay_ms"\)\) \/ 1000\.0\)[\s\S]*image = capture\(rect, grabber\)/)
 })
 
 test('检测与训练标注直接覆盖在原始预览截图上并支持点击循环标签', () => {

@@ -4,6 +4,7 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { normalizeCombatAssist, validateLoopAssist, validatePotionAssist } from '../../../shared/combatAssist.js'
+import { normalizeAutomationTiming, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 
 let potionProcess = null
 let loopProcess = null
@@ -15,6 +16,7 @@ let latestPotionConfig = null
 let loopConfigPath = ''
 let loopConfigRevision = 0
 let latestLoopConfig = null
+let latestAutomationTiming = pythonAutomationTiming()
 
 function isAlive(processRef) {
   return Boolean(processRef && !processRef.killed && processRef.exitCode === null)
@@ -66,6 +68,36 @@ function writeJsonAtomically(filePath, value) {
     fs.renameSync(temporaryPath, filePath)
   } catch (error) {
     try { fs.unlinkSync(temporaryPath) } catch {}
+    throw error
+  }
+}
+
+function combatRuntimeConfig(config, timing = latestAutomationTiming) {
+  return { ...config, ...timing }
+}
+
+export function updateCombatAutomationTiming(value = {}) {
+  const normalized = normalizeAutomationTiming(value)
+  const candidate = pythonAutomationTiming(normalized)
+  const previous = latestAutomationTiming
+  const written = []
+  const targets = [
+    [potionConfigPath, latestPotionConfig],
+    [loopConfigPath, latestLoopConfig]
+  ].filter(([configPath, config]) => configPath && config)
+  try {
+    for (const [configPath, config] of targets) {
+      writeJsonAtomically(configPath, combatRuntimeConfig(config, candidate))
+      written.push([configPath, config])
+    }
+    latestAutomationTiming = candidate
+    if (targets.some(([configPath]) => configPath === potionConfigPath)) potionConfigRevision += 1
+    if (targets.some(([configPath]) => configPath === loopConfigPath)) loopConfigRevision += 1
+    return normalized
+  } catch (error) {
+    for (const [configPath, config] of written) {
+      try { writeJsonAtomically(configPath, combatRuntimeConfig(config, previous)) } catch {}
+    }
     throw error
   }
 }
@@ -130,9 +162,10 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     }
     try {
       const config = normalizeValidPotionConfig(payload.config)
+      latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
       const handle = spawnCombatProcess({
         mode: 'potion',
-        config,
+        config: combatRuntimeConfig(config),
         suffix: 'potion',
         scriptContent: payload.scriptContent,
         onStatus: payload => sendStatus(window, payload),
@@ -180,7 +213,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       const config = normalizePotionConfig(value)
       const configPath = potionConfigPath || path.join(fileWatcher.getFilePaths().tempDir, 'combat_potion_config.json')
       fs.mkdirSync(path.dirname(configPath), { recursive: true })
-      writeJsonAtomically(configPath, config)
+      writeJsonAtomically(configPath, combatRuntimeConfig(config))
       potionConfigPath = configPath
       latestPotionConfig = config
       potionConfigRevision += 1
@@ -201,11 +234,12 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     }
     try {
       const config = normalizeValidLoopConfig(payload.config)
+      latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
       const validation = validateLoopAssist(config)
       if (!validation.isValid) throw new Error(validation.errors[0] || '循环按键配置无效')
       const handle = spawnCombatProcess({
         mode: 'loop',
-        config,
+        config: combatRuntimeConfig(config),
         suffix: 'loop',
         scriptContent: payload.scriptContent,
         origin: 'loop',
@@ -254,7 +288,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       const config = normalizeValidLoopConfig(value)
       const configPath = loopConfigPath || path.join(fileWatcher.getFilePaths().tempDir, 'combat_loop_config.json')
       fs.mkdirSync(path.dirname(configPath), { recursive: true })
-      writeJsonAtomically(configPath, config)
+      writeJsonAtomically(configPath, combatRuntimeConfig(config))
       loopConfigPath = configPath
       latestLoopConfig = config
       loopConfigRevision += 1
@@ -285,7 +319,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     try {
       const pythonPath = python.detectPythonPath()
       if (!pythonPath) return { success: false, error: '未找到Python可执行文件' }
-      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, payload.config, 'portal')
+      const portalTiming = pythonAutomationTiming(payload.automationTiming)
+      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, combatRuntimeConfig(payload.config, portalTiming), 'portal')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'portal', configPath)
       portalProcess = null
       return result

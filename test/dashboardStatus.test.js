@@ -334,3 +334,27 @@ test('首页通用快捷控件接入物品、地图、战斗与商城状态源',
   assert.match(card, /control\.type === 'switch'/)
   assert.match(card, /@change="\$emit\('control', module, control, \$event\)"/)
 })
+
+test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取件', () => {
+  const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
+  const card = readFileSync(
+    new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
+    'utf8'
+  )
+  const bagActions = dashboard.slice(
+    dashboard.indexOf("if (module.id === 'bag')", dashboard.indexOf('function actionsFor')),
+    dashboard.indexOf("if (module.id === 'combat')", dashboard.indexOf('function actionsFor'))
+  )
+
+  assert.match(dashboard, /useStashPickupStore/)
+  assert.match(dashboard, /useJunfengStore/)
+  assert.match(bagActions, /bagStore\.moduleEnabled \? '关闭背包入库' : '启用背包入库'/)
+  assert.match(bagActions, /stashPickupStore\.settings\.enabled \? '关闭仓库取件' : '启用仓库取件'/)
+  assert.match(bagActions, /junfengStore\.settings\.enabled \? '关闭君锋镇取件' : '启用君锋镇取件'/)
+  assert.match(bagActions, /setBagModuleEnabled\(!bagStore\.moduleEnabled\)/)
+  assert.match(bagActions, /stashPickupStore\.setEnabled\(!stashPickupStore\.settings\.enabled\)/)
+  assert.match(bagActions, /junfengStore\.setEnabled\(!junfengStore\.settings\.enabled\)/)
+  assert.equal([...bagActions.matchAll(/disabled:/g)].length, 1)
+  assert.match(bagActions, /disabled: !bagStore\.moduleEnabled && module\.issues\.length > 0/)
+  assert.match(card, /\.card-actions \{[\s\S]*?flex-wrap: wrap;/)
+})

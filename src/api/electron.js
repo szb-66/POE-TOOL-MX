@@ -26,8 +26,8 @@ const mockApi = {
     recordDiagnosticEvent: () => Promise.resolve({ recorded: false }),
   },
   update: {
-    getState: () => Promise.resolve({ mode: 'manual', source: 'github', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
-    configure: (input) => Promise.resolve({ mode: input?.mode === 'automatic' ? 'automatic' : 'manual', source: 'github', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
+    getState: () => Promise.resolve({ mode: 'manual', source: 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
+    configure: (input) => Promise.resolve({ mode: input?.mode === 'automatic' ? 'automatic' : 'manual', source: input?.source === 'github' ? 'github' : 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
     check: () => Promise.resolve({ success: false }),
     download: () => Promise.resolve({ success: false }),
     restartAndInstall: () => Promise.resolve({ success: false }),
@@ -136,6 +136,9 @@ const mockApi = {
     moveOverlay: () => {},
     updateInterfaceConfig: () => Promise.resolve({ success: true }),
   },
+  automationTiming: {
+    update: () => Promise.resolve({ success: false, error: '非 Electron 环境' })
+  },
   poeCnAccount: {
     getStatus: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
     restore: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
@@ -163,6 +166,7 @@ const mockApi = {
     updateRuntime: () => Promise.resolve({ success: true, data: { enabled: false } }),
     getControlState: () => Promise.resolve({ success: true, data: { visible: false } }),
     controlRefresh: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持仓库读取' } }),
+    selectControlRecipe: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持配方切换' } }),
     controlPreview: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持高亮' } }),
     controlAction: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持自动取件' } }),
     moveControl: () => {},
@@ -173,7 +177,8 @@ const mockApi = {
     onOverlayState: () => () => {},
     onControlState: () => () => {},
     onControlOffset: () => () => {},
-    onSnapshotUpdated: () => () => {}
+    onSnapshotUpdated: () => () => {},
+    onControlRecipeSelected: () => () => {}
   },
   stashPickup: {
     updateRuntime: () => Promise.resolve({ success: true, data: { status: 'idle' } }),
@@ -224,7 +229,9 @@ const mockApi = {
     updateRuntime: (runtime) => Promise.resolve({ success: true, data: { enabled: Boolean(runtime?.enabled) } }),
     capture: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
     rerun: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    retryCatalog: () => Promise.reject(new Error('仅 Electron 客户端支持刷新国服交易目录')),
     loadMore: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    resolveStatCandidate: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
     getOverlayState: () => Promise.resolve({ success: true, data: null }),
     closeOverlay: () => Promise.resolve({ success: true }),
     openOfficial: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
@@ -433,6 +440,9 @@ export const electronApi = isElectron ? {
     moveOverlay: (drag) => window.electronAPI.moveBagStashOverlay?.(craftingIpcPayload(drag)),
     updateInterfaceConfig: (config) => window.electronAPI.updateBagInterfaceConfig?.(craftingIpcPayload(config)),
   },
+  automationTiming: {
+    update: (timing) => window.electronAPI.updateAutomationTiming?.(craftingIpcPayload(timing))
+  },
   poeCnAccount: {
     getStatus: () => window.electronAPI.getPoeCnAccountStatus?.(),
     restore: () => window.electronAPI.restorePoeCnAccount?.(),
@@ -463,6 +473,7 @@ export const electronApi = isElectron ? {
     updateRuntime: (runtime) => window.electronAPI.updateChaosRecipeRuntime?.(craftingIpcPayload(runtime)),
     getControlState: () => window.electronAPI.getChaosRecipeControlState?.(),
     controlRefresh: () => window.electronAPI.refreshChaosRecipeFromControl?.(),
+    selectControlRecipe: (recipeId) => window.electronAPI.selectChaosRecipeFromControl?.(String(recipeId || '')),
     controlPreview: () => window.electronAPI.previewChaosRecipeFromControl?.(),
     controlAction: () => window.electronAPI.runChaosRecipeControlAction?.(),
     moveControl: (drag) => window.electronAPI.moveChaosRecipeControl?.(craftingIpcPayload(drag)),
@@ -473,7 +484,8 @@ export const electronApi = isElectron ? {
     onOverlayState: (callback) => window.electronAPI.onChaosRecipeOverlayState?.(callback) || (() => {}),
     onControlState: (callback) => window.electronAPI.onChaosRecipeControlState?.(callback) || (() => {}),
     onControlOffset: (callback) => window.electronAPI.onChaosRecipeControlOffset?.(callback) || (() => {}),
-    onSnapshotUpdated: (callback) => window.electronAPI.onChaosRecipeSnapshotUpdated?.(callback) || (() => {})
+    onSnapshotUpdated: (callback) => window.electronAPI.onChaosRecipeSnapshotUpdated?.(callback) || (() => {}),
+    onControlRecipeSelected: (callback) => window.electronAPI.onChaosRecipeControlRecipeSelected?.(callback) || (() => {})
   },
   stashPickup: {
     updateRuntime: (runtime) => window.electronAPI.updateStashPickupRuntime?.(craftingIpcPayload(runtime)),
@@ -525,9 +537,11 @@ export const electronApi = isElectron ? {
     updateSettings: (patch) => window.electronAPI.updatePriceCheckSettings?.(craftingIpcPayload(patch)),
     capture: (request) => window.electronAPI.capturePriceCheckItem?.(craftingIpcPayload(request)),
     rerun: (request) => window.electronAPI.rerunPriceCheck?.(craftingIpcPayload(request)),
+    retryCatalog: () => window.electronAPI.retryPriceCheckCatalog?.(),
     loadMore: () => window.electronAPI.loadMorePriceCheck?.(),
     loadDistribution: () => window.electronAPI.loadPriceCheckDistribution?.(),
     resolveIdentity: (candidateKey) => window.electronAPI.resolvePriceCheckIdentity?.(String(candidateKey || '')),
+    resolveStatCandidate: (unknownKey, candidateId) => window.electronAPI.resolvePriceCheckStatCandidate?.(String(unknownKey || ''), String(candidateId || '')),
     getOverlayState: () => window.electronAPI.getPriceCheckOverlayState?.(),
     closeOverlay: () => window.electronAPI.closePriceCheckOverlay?.(),
     openOfficial: () => window.electronAPI.openPriceCheckOfficial?.(),

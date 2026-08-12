@@ -176,10 +176,11 @@ except:
 
 item_info_file = r"{{ITEM_INFO_FILE}}"
 item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
+parse_request_sequence = 0
+pending_parse_request_id = None
 
 # 自动操作等待（生成脚本时已将毫秒转换为秒）
 mouse_move_delay = {{DELAY_MOUSE_MOVE}}
-clipboard_read_delay = {{DELAY_CLIPBOARD}}
 
 # 固定时序（生成脚本时填充，自适应关闭时由用户配置覆盖）
 MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
@@ -192,6 +193,11 @@ STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 
 # 自适应等待模式（生成脚本时填充）
 TIMING_MODE = "{{TIMING_MODE}}"
+ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+FOCUS_ACTIVATION_MIN_SECONDS = 0.2
+FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
+SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
@@ -367,11 +373,11 @@ def focus_game_window(timeout_seconds=2.0):
             user32.ShowWindow(hwnd, 9)
         user32.BringWindowToTop(hwnd)
         user32.SetForegroundWindow(hwnd)
-        deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+        deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
         while time.monotonic() < deadline:
             if is_game_foreground():
                 return True
-            time.sleep(0.05)
+            time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     except Exception:
         return False
     return False
@@ -588,7 +594,7 @@ def release_shift_if_held():
     global is_shift_held
     release_all_keys()
     is_shift_held = False
-    time.sleep(0.05)
+    time.sleep(RELEASE_SETTLE_SECONDS)
 
 def select_currency_stash_tab(mode):
     """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件。"""
@@ -617,7 +623,7 @@ def select_currency_stash_tab(mode):
                 if time.monotonic() >= deadline:
                     timed_out = True
                     break
-                time.sleep(0.05)
+                time.sleep(SELECTOR_PROCESS_POLL_INTERVAL_SECONDS)
             if process.poll() is None:
                 process.terminate()
                 try:
@@ -659,10 +665,6 @@ def select_currency_stash_tab(mode):
         "event": "stash-tab-selection-succeeded", "mode": mode,
         "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
     }, ensure_ascii=False), flush=True)
-    if TIMING_MODE == "adaptive":
-        time.sleep(0.05)
-    else:
-        time.sleep(STASH_TAB_SETTLE_SECONDS)
     return True
 
 CURRENCY_NAMES = {
@@ -1021,9 +1023,10 @@ def send_copy_command(before_seq=None, before_text=""):
         keyboard_controller.release('c')
         time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
+        time.sleep(RELEASE_SETTLE_SECONDS)
         if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS)
-        time.sleep(max(CLIPBOARD_RESPONSE_MIN_SECONDS, clipboard_read_delay / 1000.0))
+            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS)
+        time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
         return True
     except Exception as e:
         print(f"[错误] 发送复制命令失败: {e}")
@@ -1047,14 +1050,18 @@ def clipboard_changed(before_seq, before_text):
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds):
     deadline = time.monotonic() + timeout_seconds
-    while is_running and time.monotonic() < deadline:
+    while is_running:
         if clipboard_changed(before_seq, before_text):
             return True
-        time.sleep(0.01)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
     return False
 
 def read_clipboard_to_file():
     # 读取剪切板并写入文件
+    global parse_request_sequence, pending_parse_request_id
     try:
         before_seq = None
         before_text = ""
@@ -1078,34 +1085,26 @@ def read_clipboard_to_file():
             print("[警告] 剪切板内容为空")
             return False
         
-        # 转义JSON特殊字符
-        clipboard_text = clipboard_text.replace('\\', '\\\\')
-        clipboard_text = clipboard_text.replace('"', '\\"')
-        clipboard_text = clipboard_text.replace('\n', '\\n')
-        clipboard_text = clipboard_text.replace('\r', '\\r')
-        clipboard_text = clipboard_text.replace('\t', '\\t')
-        
-        json_data = '{"clipboard": "' + clipboard_text + '"}'
-        
-        # 写入文件
+        parse_request_sequence += 1
+        pending_parse_request_id = parse_request_sequence
+        with open(item_info_result_file, 'w', encoding='utf-8'):
+            pass
         with open(item_info_file, 'w', encoding='utf-8') as f:
-            f.write(json_data)
-        return True
+            json.dump({
+                "clipboard": clipboard_text,
+                "requestId": pending_parse_request_id
+            }, f, ensure_ascii=False)
+        return pending_parse_request_id
     except Exception as e:
         print(f"[错误] 读取剪切板失败: {e}")
         return False
 
-def wait_for_parse_result():
+def wait_for_parse_result(request_id=None):
     # 等待解析结果文件出现
+    parse_result_poll_interval_seconds = 0.02
     max_wait = 100  # 增加到10秒
     wait_count = 0
-    
-    # 先删除旧的结果文件（如果存在）
-    if os.path.exists(item_info_result_file):
-        try:
-            os.remove(item_info_result_file)
-        except:
-            pass
+    expected_request_id = pending_parse_request_id if request_id is None else request_id
     
     # 检查输入文件是否存在
     if not os.path.exists(item_info_file):
@@ -1119,13 +1118,18 @@ def wait_for_parse_result():
                     content = f.read().strip()
                 
                 if not content:
-                    time.sleep(0.02)
+                    time.sleep(parse_result_poll_interval_seconds)
                     wait_count += 1
                     if wait_count > max_wait:
                         return {"error": "结果文件为空"}
                     continue
                 
                 result = json.loads(content)
+
+                if expected_request_id is not None and result.get("requestId") != expected_request_id:
+                    time.sleep(parse_result_poll_interval_seconds)
+                    wait_count += 1
+                    continue
                 
                 # 检查是否有错误
                 if result.get("error"):
@@ -1135,14 +1139,14 @@ def wait_for_parse_result():
                 return result
             except json.JSONDecodeError as e:
                 print(f"[错误] JSON解析错误: {e}")
-                time.sleep(0.02)
+                time.sleep(parse_result_poll_interval_seconds)
                 wait_count += 1
                 if wait_count > max_wait:
                     return {"error": f"JSON解析失败: {e}"}
                 continue
             except Exception as e:
                 print(f"[错误] 读取结果文件错误: {e}")
-                time.sleep(0.02)
+                time.sleep(parse_result_poll_interval_seconds)
                 wait_count += 1
                 if wait_count > max_wait:
                     return {"error": f"读取结果失败: {e}"}
@@ -1152,7 +1156,7 @@ def wait_for_parse_result():
         if wait_count > 0 and wait_count % 20 == 0:
             print(f"[等待] 等待解析结果... ({wait_count * 0.1:.1f}秒)")
         
-        time.sleep(0.02)
+        time.sleep(parse_result_poll_interval_seconds)
         wait_count += 1
         if wait_count > max_wait:
             print(f"[错误] 等待超时 ({max_wait * 0.1:.1f}秒)，未收到解析结果")
@@ -1203,8 +1207,6 @@ def prepare_item_for_crafting(identify_unidentified=True):
     print("[准备] 检测到未鉴定物品，使用知识卷轴")
     if not apply_currency("wisdom"):
         return fail_item_preparation("使用知识卷轴鉴定物品失败", "ITEM_IDENTIFY_FAILED")
-    time.sleep(0.05)
-
     if not read_clipboard_to_file():
         return fail_item_preparation("鉴定后无法重新读取物品", "ITEM_IDENTIFY_READ_FAILED")
     result = wait_for_parse_result()

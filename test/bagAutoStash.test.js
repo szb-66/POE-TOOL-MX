@@ -12,7 +12,12 @@ import {
   normalizeBagSettings,
   parseBagItemHeader
 } from '../src/utils/bagConfig.js'
-import { OPERATION_DELAY, migrateOperationDelay, normalizeOperationDelay } from '../src/utils/operationDelay.js'
+import {
+  OPERATION_DELAY,
+  OPERATION_TIMING_VERSION,
+  migrateOperationDelay,
+  normalizeOperationDelay
+} from '../src/utils/operationDelay.js'
 import {
   BagSessionController,
   createEventLineParser,
@@ -20,7 +25,7 @@ import {
   waitForDetectionStartup
 } from '../electron/modules/bag/orchestrator.js'
 import { detectPythonPathWithModules } from '../electron/modules/python/detector.js'
-import { pythonPath as runtimePython } from './helpers/python.js'
+import { pythonPath as runtimePython, runPython } from './helpers/python.js'
 
 const scriptUrl = new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
@@ -208,20 +213,26 @@ print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "inval
   })
 })
 
-test('自动操作等待补齐默认值、钳制并按优先级迁移旧配置', () => {
-  assert.equal(normalizeOperationDelay(undefined), 80)
-  assert.equal(normalizeOperationDelay('invalid'), 80)
-  assert.equal(normalizeOperationDelay(null), 80)
-  assert.equal(normalizeOperationDelay('  '), 80)
-  assert.equal(normalizeOperationDelay(0), 20)
-  assert.equal(normalizeOperationDelay(900), 500)
+test('自动操作等待补齐默认值、保留用户非负值并按优先级迁移旧配置', () => {
+  assert.equal(normalizeOperationDelay(undefined), 50)
+  assert.equal(normalizeOperationDelay('invalid'), 50)
+  assert.equal(normalizeOperationDelay(null), 50)
+  assert.equal(normalizeOperationDelay('  '), 50)
+  assert.equal(normalizeOperationDelay(-1), 50)
+  assert.equal(normalizeOperationDelay(0), 0)
+  assert.equal(normalizeOperationDelay(900), 900)
+  assert.equal(normalizeOperationDelay(12.5), 12.5)
   assert.equal(normalizeOperationDelay(125), 125)
-  assert.deepEqual(OPERATION_DELAY, { default: 80, min: 20, max: 500 })
+  assert.deepEqual(OPERATION_DELAY, { default: 50 })
+  assert.equal(OPERATION_TIMING_VERSION, 2)
   assert.equal(migrateOperationDelay({ operationDelayMs: 120 }, { transferDelayMs: 200 }), 120)
+  assert.equal(migrateOperationDelay({ operationDelayMs: 80 }), 50)
+  assert.equal(migrateOperationDelay({ operationDelayMs: 80, operationTimingVersion: 2 }), 80)
   assert.equal(migrateOperationDelay({}, { transferDelayMs: 200 }), 200)
+  assert.equal(migrateOperationDelay({}, { transferDelayMs: 80 }), 50)
   assert.equal(migrateOperationDelay({ delays: { mouseMove: 2000, action: 50, clipboardRead: 100 } }), 100)
-  assert.equal(migrateOperationDelay({ delays: { mouseMove: 100, action: 50, clipboardRead: 100 } }), 80)
-  assert.equal(migrateOperationDelay({}, {}), 80)
+  assert.equal(migrateOperationDelay({ delays: { mouseMove: 100, action: 50, clipboardRead: 100 } }), 50)
+  assert.equal(migrateOperationDelay({}, {}), 50)
 })
 
 test('结构化事件解析器支持跨 chunk 行并忽略普通日志', () => {
@@ -256,6 +267,18 @@ test('失去前台不会解锁当前界面会话，返回前台也不会重复�
   assert.equal(state.beginManual().success, false)
   assert.equal(state.setReady(true, true), false)
   state.setReady(false, false)
+  assert.equal(state.setReady(true, true), true)
+})
+
+test('入库执行期间标题失配不会解锁会话或在恢复匹配后重复执行', () => {
+  const state = new BagSessionController()
+  assert.equal(state.setReady(true, true), true)
+  assert.equal(state.beginAutomatic().success, true)
+  assert.equal(state.setReady(false, true), false)
+  assert.equal(state.locked, true)
+  state.finishStash()
+  assert.equal(state.setReady(true, true), false)
+  state.setReady(false, true)
   assert.equal(state.setReady(true, true), true)
 })
 
@@ -333,8 +356,9 @@ test('Python 入库从助手启动时先聚焦游戏，运行中失焦会停止�
   const source = readFileSync(new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url), 'utf8')
   assert.match(source, /def run_stash\(config\):[\s\S]*?if not focus_game_window\(\):[\s\S]*?game-not-foreground/)
   assert.match(source, /def move\(self, x, y\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?stop_for_foreground_loss\(self\)/)
-  assert.match(source, /def _send_copy\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.keyboard\.press\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
-  assert.match(source, /def ctrl_click\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.keyboard\.press\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
+  assert.match(source, /def begin_ctrl\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.press_key\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
+  assert.match(source, /def _send_copy\(self, ctrl_held=False\):[\s\S]*?if not self\.begin_ctrl\(\):/)
+  assert.match(source, /def click_with_ctrl\(self\):[\s\S]*?if not self\.begin_ctrl\(\):/)
 })
 
 test('Python 检测模式使用 Electron 约定的错误事件名', () => {
@@ -388,10 +412,10 @@ print(json.dumps([module.normalize_operation_delay(None), module.normalize_opera
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [80, 20, 500, 80])
+  assert.deepEqual(JSON.parse(result.stdout), [50, 0, 900, 50])
 })
 
-test('Python 自动操作等待作为悬停稳定等待，剪贴板有下限且点击后使用固定内部等待', () => {
+test('Python 自动操作等待只作为悬停，自适应剪贴板使用统一上限', () => {
   const code = `
 import importlib.util, json, sys, types
 sys.dont_write_bytecode = True
@@ -400,12 +424,12 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 module.mouse = types.SimpleNamespace(Controller=lambda: object())
 module.keyboard = types.SimpleNamespace(Controller=lambda: object())
-controller = module.InputController({"operation_delay_ms": 180})
+controller = module.InputController({"operation_delay_ms": 180, "timing_mode": "adaptive", "adaptive_timeout_ms": 900})
 print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.release_settle]))
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.25, 0.02])
+  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.9, 0.02])
 })
 
 test('Python Ctrl+C 与 Ctrl+点击按固定内部时序且 Ctrl 最后释放', () => {
@@ -424,6 +448,7 @@ def advance(seconds):
 module.time.sleep = advance
 module.time.monotonic = lambda: clock[0]
 module.is_game_foreground = lambda: True
+module.is_ctrl_pressed = lambda: True
 
 class Keyboard:
     def press(self, key): events.append(("key-down", str(key)))
@@ -436,6 +461,9 @@ controller = module.InputController.__new__(module.InputController)
 controller.keyboard = Keyboard()
 controller.mouse = Mouse()
 controller.release_settle = module.RELEASE_SETTLE_SECONDS
+controller.ctrl_release_delay = controller.release_settle
+controller.pressed_keys = set()
+controller.pressed_buttons = set()
 
 controller._send_copy()
 copy_events = list(events)
@@ -445,22 +473,136 @@ events.clear()
 controller.ctrl_click()
 click_events = list(events)
 click_sleeps = [seconds for kind, seconds in click_events if kind == "sleep"]
+controller.release_all()
+controller.release_all()
+post_cleanup_events = list(events)
 
 print(json.dumps({
     "copy": [[kind, name] for kind, name in copy_events if kind != "sleep"],
     "copySleeps": copy_sleeps,
     "click": [[kind, name] for kind, name in click_events if kind != "sleep"],
-    "clickSleeps": click_sleeps
+    "clickSleeps": click_sleeps,
+    "postCleanup": [[kind, name] for kind, name in post_cleanup_events if kind != "sleep"]
 }))
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     copy: [['key-down', 'Key.ctrl'], ['key-down', 'c'], ['key-up', 'c'], ['key-up', 'Key.ctrl']],
-    copySleeps: [0.05, 0.02, 0.02],
+    copySleeps: [0.05, 0.02, 0.02, 0.02],
     click: [['key-down', 'Key.ctrl'], ['mouse-down', 'Button.left'], ['mouse-up', 'Button.left'], ['key-up', 'Key.ctrl']],
-    clickSleeps: [0.05, 0.02, 0.02, 0.02]
+    clickSleeps: [0.05, 0.02, 0.02, 0.02],
+    postCleanup: [['key-down', 'Key.ctrl'], ['mouse-down', 'Button.left'], ['mouse-up', 'Button.left'], ['key-up', 'Key.ctrl']]
   })
+})
+
+test('Python Ctrl 未实际生效时不发送左键，异常清理先释放鼠标再释放修饰键', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.time.sleep = lambda _seconds: None
+module.is_game_foreground = lambda: True
+
+events = []
+class Keyboard:
+    def press(self, key): events.append(("key-down", str(key)))
+    def release(self, key): events.append(("key-up", str(key)))
+class Mouse:
+    def press(self, button): events.append(("mouse-down", str(button)))
+    def release(self, button): events.append(("mouse-up", str(button)))
+
+controller = module.InputController.__new__(module.InputController)
+controller.keyboard = Keyboard()
+controller.mouse = Mouse()
+controller.release_settle = module.RELEASE_SETTLE_SECONDS
+controller.ctrl_release_delay = module.MODIFIER_SETTLE_SECONDS
+controller.pressed_keys = set()
+controller.pressed_buttons = set()
+
+module.is_ctrl_pressed = lambda: False
+result = controller.ctrl_click()
+rejected_events = list(events)
+
+events.clear()
+module.is_ctrl_pressed = lambda: True
+def fail_after_mouse_down(_seconds):
+    if events and events[-1][0] == "mouse-down":
+        raise RuntimeError("injected failure")
+module.time.sleep = fail_after_mouse_down
+failed_result = controller.ctrl_click()
+
+print(json.dumps({
+    "result": result,
+    "rejected": rejected_events,
+    "failedResult": failed_result,
+    "failed": events
+}))
+`
+  const result = runPython(code)
+  assert.equal(result.result, false)
+  assert.equal(result.rejected.some(([kind]) => kind.startsWith('mouse-down')), false)
+  assert.equal(result.failedResult, false)
+  const mouseUp = result.failed.findIndex(([kind, name]) => kind === 'mouse-up' && name === 'Button.left')
+  const ctrlUp = result.failed.findIndex(([kind, name]) => kind === 'key-up' && name === 'Key.ctrl')
+  assert.ok(mouseUp >= 0 && ctrlUp > mouseUp)
+})
+
+test('Python 类型受限物品不会被清理事件拿起并放进第五个判空格', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+restricted = "Item Class: Maps\\nRarity: Rare\\nRestricted Map\\n--------"
+state = {"ctrl": False, "held": False, "placed": None, "current": None, "clicks": 0}
+class Keyboard:
+    def press(self, key):
+        if str(key) == "Key.ctrl": state["ctrl"] = True
+    def release(self, key):
+        if str(key) == "Key.ctrl": state["ctrl"] = False
+class Mouse:
+    def press(self, button): pass
+    def release(self, button):
+        if str(button) != "Button.left": return
+        state["clicks"] += 1
+        if state["ctrl"]:
+            return
+        if state["held"]:
+            state["placed"] = state["current"]
+            state["held"] = False
+        elif state["current"] == (0, 0):
+            state["held"] = True
+
+controller = module.InputController.__new__(module.InputController)
+controller.keyboard = Keyboard()
+controller.mouse = Mouse()
+controller.release_settle = module.RELEASE_SETTLE_SECONDS
+controller.ctrl_release_delay = module.MODIFIER_SETTLE_SECONDS
+controller.pressed_keys = set()
+controller.pressed_buttons = set()
+def move(x, y): state["current"] = (x, y); return True
+controller.move = move
+controller.copy_item_text = lambda: ("copied", restricted) if state["current"] == (0, 0) else ("empty", "")
+module.InputController = lambda _config: controller
+module.is_game_foreground = lambda: True
+module.is_ctrl_pressed = lambda: state["ctrl"]
+module.emit = lambda *_args, **_kwargs: None
+code = module.run_stash({"inventory": {
+    "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
+    "emptySlotThreshold": 5
+}})
+print(json.dumps({"code": code, **state}))
+`
+  const result = runPython(code)
+  assert.equal(result.code, 0)
+  assert.equal(result.clicks, 1)
+  assert.equal(result.held, false)
+  assert.equal(result.placed, null)
+  assert.deepEqual(result.current, [1, 0])
 })
 
 test('Python Ctrl+C 无响应一次即判空格，不再重复确认', () => {
@@ -475,7 +617,7 @@ def run(responses):
     controller = module.InputController.__new__(module.InputController)
     values = iter(responses)
     calls = {"count": 0}
-    def attempt():
+    def attempt(_ctrl_held=False):
         calls["count"] += 1
         return next(values)
     controller._copy_item_text_once = attempt
@@ -502,7 +644,7 @@ sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-statuses = iter(["empty", "empty", "copied", "empty", "empty", "empty", "empty"])
+statuses = iter(["empty", "empty", "copied", "empty", "empty", "empty", "empty", "empty"])
 class Matcher:
     valid = True
     def __init__(self, config): pass
@@ -579,10 +721,15 @@ class Matcher:
     def check_interface(self): return True, {}
 class Controller:
     moves = []
+    confirming = False
     def __init__(self, config): pass
     def move(self, x, y): Controller.moves.append([x, y]); return True
-    def copy_item_text(self): return "copied", text
-    def ctrl_click(self): return True
+    def copy_item_text(self):
+        if Controller.confirming:
+            Controller.confirming = False
+            return "empty", ""
+        return "copied", text
+    def ctrl_click(self): Controller.confirming = True; return True
     def release_all(self): pass
 module.InterfaceMatcher = Matcher
 module.InputController = Controller
@@ -622,13 +769,17 @@ class Controller:
     moves = []
     calls = 0
     statuses = []
+    confirming = False
     def __init__(self, config): pass
     def move(self, x, y): Controller.moves.append([x, y]); return True
     def copy_item_text(self):
+        if Controller.confirming:
+            Controller.confirming = False
+            return "empty", ""
         status = Controller.statuses[Controller.calls] if Controller.calls < len(Controller.statuses) else "copied"
         Controller.calls += 1
         return status, text if status == "copied" else ""
-    def ctrl_click(self): return True
+    def ctrl_click(self): Controller.confirming = True; return True
     def release_all(self): pass
 module.InterfaceMatcher = Matcher
 module.InputController = Controller
@@ -643,6 +794,7 @@ excluded_case = {"moves": len(Controller.moves), "containsExcluded": [0, 2] in C
 
 Controller.moves = []
 Controller.calls = 0
+Controller.confirming = False
 Controller.statuses = ["copied"] * 58 + ["empty", "empty", "empty", "copied"]
 module.run_stash({"inventory": {
     "startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1},
@@ -739,23 +891,160 @@ test('Python 探测器选择满足指定模块的解释器并缓存结果', () =
 test('检测成功后清除历史停止原因', () => {
   const source = readFileSync(new URL('../src/utils/bagService.js', import.meta.url), 'utf8')
   assert.match(source, /setDetectionStatus\(true\)[\s\S]*setStopReason\(''\)/)
+  assert.match(source, /transfer-unconfirmed['"]:\s*['"]无法确认物品已转移，已安全停止/)
 })
 
 test('Python 入库对空格、无效文本和安全门禁采用失败关闭策略', () => {
   const source = readFileSync(scriptUrl, 'utf8')
+  const action = source.slice(source.indexOf('def run_stash(config):'))
   assert.match(source, /clipboard_sequence_number\(\)/)
   assert.match(source, /copy_status == "empty"[\s\S]*emptySlots/)
   assert.match(source, /item is None:[\s\S]*unreadableSlots/)
-  assert.match(source, /elif controller\.ctrl_click\(\):[\s\S]*stashedSlots/)
-  assert.doesNotMatch(source, /transfer_item|same_item|failedSlots/)
+  assert.match(source, /transferred, reason = transfer_item_once\(controller\)[\s\S]*stashedSlots/)
+  assert.doesNotMatch(source, /same_item|failedSlots/)
   assert.match(source, /if not is_game_foreground\(\):[\s\S]*game-not-foreground/)
-  assert.match(source, /if not interface_ready:[\s\S]*interface-lost/)
+  assert.doesNotMatch(action, /InterfaceMatcher|check_interface|interface-lost/)
+  assert.match(source, /def run_detection\(config\):[\s\S]*InterfaceMatcher\(config\)[\s\S]*check_interface\(\)/)
   assert.match(source, /finally:[\s\S]*controller\.release_all\(\)/)
-  assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('elif controller.ctrl_click():'))
-  assert.ok(source.indexOf('if not interface_ready:') < source.indexOf('elif controller.ctrl_click():'))
+  assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('transfer_item_once(controller)'))
 })
 
-test('Python 每个安全物品只 Ctrl+点击一次且点击后不再复制确认', () => {
+test('共享单次转移只点击一次且不执行点击后复制', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+class Controller:
+    def __init__(self, click=True):
+        self.click = click
+        self.clicks = 0
+        self.releases = 0
+    def ctrl_click(self):
+        self.clicks += 1
+        return self.click
+    def copy_item_text(self): raise RuntimeError("must-not-copy-after-click")
+    def release_all(self): self.releases += 1
+
+cases = []
+for click, stop_reason in (
+    (True, ""),
+    (False, "game-not-foreground"),
+):
+    module.runtime_stop_reason = stop_reason
+    controller = Controller(click)
+    confirmed, reason = module.transfer_item_once(controller)
+    cases.append([confirmed, reason, controller.clicks, controller.releases])
+print(json.dumps(cases))
+`
+  assert.deepEqual(runPython(code), [
+    [true, '', 1, 1],
+    [false, 'game-not-foreground', 1, 1]
+  ])
+})
+
+test('共享取件确认最多三轮并在确认清空后立即停止', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+class Controller:
+    def __init__(self, statuses, click=True):
+        self.statuses = iter(statuses)
+        self.click = click
+        self.clicks = 0
+        self.copies = 0
+        self.releases = 0
+        self.ctrl_sessions = 0
+    def begin_ctrl(self):
+        self.ctrl_sessions += 1
+        return self.click
+    def click_with_ctrl(self):
+        self.clicks += 1
+        return self.click
+    def copy_item_text(self, ctrl_held=False):
+        self.copies += 1
+        return next(self.statuses)
+    def release_all(self): self.releases += 1
+
+item = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+cases = []
+for statuses, click, stop_reason in (
+    ([('empty', '')], True, ''),
+    ([('copied', item), ('empty', '')], True, ''),
+    ([('copied', item), ('copied', item), ('empty', '')], True, ''),
+    ([('copied', item)] * 3, True, ''),
+    ([('unreadable', '')], True, ''),
+    ([('empty', '')], False, 'game-not-foreground'),
+):
+    module.runtime_stop_reason = stop_reason
+    controller = Controller(statuses, click)
+    confirmed, reason = module.transfer_pickup_item(controller)
+    cases.append([confirmed, reason, controller.clicks, controller.copies, controller.ctrl_sessions, controller.releases])
+print(json.dumps(cases))
+`
+  assert.deepEqual(runPython(code), [
+    [true, '', 1, 1, 1, 1],
+    [true, '', 2, 2, 1, 1],
+    [true, '', 3, 3, 1, 1],
+    [false, 'inventory-full', 3, 3, 1, 1],
+    [false, 'transfer-unconfirmed', 1, 1, 1, 1],
+    [false, 'game-not-foreground', 0, 0, 1, 1]
+  ])
+})
+
+test('取件点击与判空共用一次 Ctrl 会话并采用自适应上限', () => {
+  const code = `
+import importlib.util, json, sys, types
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+clock = [0.0]
+events = []
+def advance(seconds):
+    clock[0] += float(seconds)
+module.time.sleep = advance
+module.time.monotonic = lambda: clock[0]
+module.is_game_foreground = lambda: True
+module.is_ctrl_pressed = lambda: True
+module.clipboard_sequence_number = lambda: 0
+module.pyperclip.paste = lambda: ""
+
+class Keyboard:
+    def press(self, key): events.append(("key-down", str(key)))
+    def release(self, key): events.append(("key-up", str(key)))
+class Mouse:
+    def press(self, button): events.append(("mouse-down", str(button)))
+    def release(self, button): events.append(("mouse-up", str(button)))
+
+module.keyboard = types.SimpleNamespace(Controller=Keyboard)
+module.mouse = types.SimpleNamespace(Controller=Mouse)
+controller = module.InputController({"operation_delay_ms": 50, "timing_mode": "adaptive", "adaptive_timeout_ms": 100})
+confirmed, reason = module.transfer_pickup_item(controller)
+print(json.dumps({
+    "confirmed": confirmed,
+    "reason": reason,
+    "ctrlDown": events.count(("key-down", "Key.ctrl")),
+    "ctrlUp": events.count(("key-up", "Key.ctrl")),
+    "clicks": events.count(("mouse-down", "Button.left")),
+    "elapsed": round(clock[0], 3)
+}))
+`
+  const result = runPython(code)
+  assert.deepEqual({ ...result, elapsed: undefined }, {
+    confirmed: true, reason: '', ctrlDown: 1, ctrlUp: 1, clicks: 1, elapsed: undefined
+  })
+  assert.ok(result.elapsed < 0.35, `自适应输入耗时未降低：${result.elapsed}s`)
+})
+
+test('Python 每个安全物品只 Ctrl+点击一次并继续入库', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -763,7 +1052,7 @@ spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 text = "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
-statuses = iter([("copied", text), ("empty", ""), ("empty", ""), ("empty", "")])
+statuses = iter([("copied", text), ("empty", ""), ("empty", ""), ("empty", ""), ("empty", "")])
 class Matcher:
     valid = True
     def __init__(self, config): pass
@@ -775,7 +1064,7 @@ class Controller:
     def copy_item_text(self): return next(statuses)
     def ctrl_click(self): Controller.clicks += 1; return True
     def release_all(self): pass
-module.InterfaceMatcher = Matcher
+module.InterfaceMatcher = lambda _config: (_ for _ in ()).throw(RuntimeError("stash-action-must-not-match-title"))
 module.InputController = Controller
 module.is_game_foreground = lambda: True
 code = module.run_stash({"inventory": {"startPos": {"x": 0, "y": 0}, "slotSize": {"w": 1, "h": 1}}})
@@ -949,7 +1238,7 @@ test('全局操作等待同步接口只更新下一轮运行配置，不重启�
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const handler = ipcSource.match(/ipcMain\.handle\('update-bag-operation-delay'[\s\S]*?\n  \}\)/)?.[0] || ''
   assert.match(handler, /normalizeOperationDelay\(value\)/)
-  assert.match(handler, /latestConfig\.operation_delay_ms = operationDelayMs/)
+  assert.match(handler, /updateBagAutomationTiming\(\{/)
   assert.doesNotMatch(handler, /startDetectionProcess|reloadDetection|session\.reset/)
   assert.match(preloadSource, /updateBagOperationDelay/)
   assert.match(apiSource, /updateOperationDelay/)

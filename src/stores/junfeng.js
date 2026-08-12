@@ -44,6 +44,8 @@ export const useJunfengStore = defineStore('junfeng', () => {
       templates: JSON.parse(JSON.stringify(interfaceStore.templates)),
       matchThreshold: interfaceStore.matchThreshold,
       operationDelayMs: general.operationDelayMs,
+      adaptiveTiming: general.adaptiveTiming,
+      adaptiveTimeoutMs: general.adaptiveTimeoutMs,
       fixedTiming: general.fixedTiming,
       ...overrides
     }

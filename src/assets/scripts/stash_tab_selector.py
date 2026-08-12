@@ -23,7 +23,7 @@ import numpy as np
 MIN_CONFIDENCE = 0.72
 MAX_SCROLL_STEPS = 30
 SCROLL_NOTCHES = 6
-SCROLL_DELAY_SECONDS = 0.22
+RESULT_POLL_INTERVAL_SECONDS = 0.01
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
@@ -297,6 +297,13 @@ class StashTabSelector:
         self.names = config.get("names") or {}
         self.target_name = str(config.get("targetName") or self.names.get("currency") or "")
         self.min_confidence = float(config.get("minConfidence", MIN_CONFIDENCE))
+        self.operation_delay = max(0.0, float(config.get("operation_delay_ms", 50))) / 1000.0
+        self.timing_mode = str(config.get("timing_mode", "adaptive"))
+        self.adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
+        fixed_timing = config.get("fixed_timing", {})
+        self.button_hold = max(0.0, float(fixed_timing.get("button_hold_ms", 20))) / 1000.0
+        self.release_settle = max(0.0, float(fixed_timing.get("release_settle_ms", 20))) / 1000.0
+        self.stash_tab_settle = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 250))) / 1000.0
         self._ocr = ocr_engine
         self._mouse = None
 
@@ -333,12 +340,28 @@ class StashTabSelector:
             self.region.x + self.region.width // 2,
             self.region.y + self.region.height // 2
         )
+        time.sleep(self.operation_delay)
+
+    def _wait_for_frame_change(self, before: np.ndarray) -> bool:
+        if self.timing_mode != "adaptive":
+            time.sleep(self.stash_tab_settle)
+            return True
+        before_signature = frame_signature(before)
+        deadline = time.monotonic() + self.adaptive_timeout
+        while True:
+            if not same_frame(before_signature, frame_signature(self.capture())):
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
 
     def scroll(self, notches: int) -> None:
         self._position_mouse()
+        before = self.capture()
         self.require_environment()
         self._mouse_controller().scroll(0, notches)
-        time.sleep(SCROLL_DELAY_SECONDS)
+        self._wait_for_frame_change(before)
 
     def validate_environment(self) -> dict[str, Any]:
         if os.name != "nt":
@@ -479,8 +502,15 @@ class StashTabSelector:
             mouse = self._mouse_controller()
             self.require_environment()
             mouse.position = (point["x"], point["y"])
+            time.sleep(self.operation_delay)
+            before_click = self.capture()
             self.require_environment()
-            mouse.click(Button.left, 1)
+            mouse.press(Button.left)
+            time.sleep(self.button_hold)
+            mouse.release(Button.left)
+            time.sleep(self.release_settle)
+            if not self._wait_for_frame_change(before_click):
+                return fail("target-selection-timeout", "仓库页点击后未检测到画面变化，已停止")
             return result(True, mode="select", targetName=self.target_name, point=point,
                           confidence=matches[0]["confidence"], scrollStep=page["step"])
         except KeyboardInterrupt:

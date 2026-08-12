@@ -4,8 +4,8 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { pythonFixedTiming } from '../../../src/utils/operationDelay.js'
-import { normalizeJunfengRegion } from '../../../src/utils/junfengConfig.js'
+import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
+import { normalizeJunfengRegion, validateJunfengGridEnvironment } from '../../../src/utils/junfengConfig.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
 
@@ -50,7 +50,7 @@ export class JunfengHighlightManager {
     this.automationLock = automationLock
     this.calibration = calibration
     this.onStatusChange = onStatusChange
-    this.runtime = { enabled: false, gridRegion: null, grid: { columns: 12, rows: 11 }, operationDelayMs: 80 }
+    this.runtime = { enabled: false, gridRegion: null, grid: { columns: 12, rows: 11 }, operationDelayMs: OPERATION_DELAY.default }
     this.child = null
     this.lastPreview = new Map()
     this.lastPreviewId = ''
@@ -59,8 +59,8 @@ export class JunfengHighlightManager {
     this.trainingStatus = { status: 'idle', stage: '', reason: '', report: null, modelVersion: '' }
     this.status = this.initialStatus()
     this.disposeDetection = interfaceDetection?.subscribe(state => {
-      if (this.status.status === 'running' && (!state.foreground || !state.junfengReady)) {
-        this.stop(!state.foreground ? 'game-not-foreground' : 'reward-interface-lost')
+      if (this.status.status === 'running' && !state.foreground) {
+        this.stop('game-not-foreground')
       }
     })
   }
@@ -86,7 +86,7 @@ export class JunfengHighlightManager {
   }
 
   pythonPath() {
-    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput']) || this.python.detectPythonPath?.()
+    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']) || this.python.detectPythonPath?.()
     if (!found) throw new Error('未找到君锋镇识别所需 Python 运行时')
     return found
   }
@@ -173,59 +173,23 @@ export class JunfengHighlightManager {
   }
 
   getGridAvailability(runtime = this.runtime) {
-    const region = runtime.gridRegion
-    if (!region) return { ready: false, reason: '请先框选完整的 12×11 奖励区域' }
-    if (region.displayId) {
-      const display = screen.getAllDisplays().find(item => String(item.id) === String(region.displayId))
-      if (!display) return { ready: false, reason: '奖励网格所在显示器已变化，请重新框选' }
-      if (region.scaleFactor && Math.abs(Number(display.scaleFactor) - Number(region.scaleFactor)) > 0.01) {
-        return { ready: false, reason: '奖励网格所在显示器 DPI 已变化，请重新框选' }
-      }
-      if (region.displayPhysicalBounds) {
-        const current = getDisplayPhysicalBounds(
-          display,
-          process.platform,
-          point => screen.dipToScreenPoint?.(point) || point
-        )
-        const saved = region.displayPhysicalBounds
-        const savedX = Number(saved.x ?? saved.left)
-        const savedY = Number(saved.y ?? saved.top)
-        const changed = Number(saved.width) !== Number(current.width) ||
-          Number(saved.height) !== Number(current.height) ||
-          (Number.isFinite(savedX) && savedX !== Number(current.x)) ||
-          (Number.isFinite(savedY) && savedY !== Number(current.y))
-        if (changed) return { ready: false, reason: '奖励网格所在显示器分辨率或位置已变化，请重新框选' }
-      }
-    }
-    return { ready: true, reason: '' }
+    return validateJunfengGridEnvironment(runtime.gridRegion, this.currentDisplays())
   }
 
   writeConfig(overrides = {}) {
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'junfeng_highlight_config.json')
     const model = this.modelPaths()
-    const templates = this.runtime.templates || {}
     fs.writeFileSync(configPath, JSON.stringify({
       grid_region: normalizeJunfengRegion(overrides.gridRegion || this.runtime.gridRegion),
       grid: overrides.grid || this.runtime.grid || { columns: 12, rows: 11 },
-      interface_mode: 'reward',
-      templates: {
-        stash_title: String(templates.stashTitle || ''),
-        inventory_title: String(templates.inventoryTitle || ''),
-        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
-        stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {},
-        junfeng_reward_region: templates.junfengRewardRegion || {}
-      },
-      match_threshold: Number(this.runtime.matchThreshold ?? 0.8),
       highlight_threshold: 0.995,
-      abort_on_uncertain: true,
+      abort_on_uncertain: false,
       calibration_similarity: 0.965,
       calibration_index: overrides.disableCalibration ? '' : this.calibration.indexPath,
       calibration_root: overrides.disableCalibration ? '' : this.calibration.root,
       model_path: model.model,
       manifest_path: model.manifest,
-      operation_delay_ms: Number(this.runtime.operationDelayMs || 80),
-      fixed_timing: pythonFixedTiming(this.runtime.fixedTiming)
+      ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
     return configPath
   }

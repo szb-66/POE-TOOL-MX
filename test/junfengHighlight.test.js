@@ -10,6 +10,7 @@ import {
   JUNFENG_GRID,
   normalizeJunfengRegion,
   normalizeJunfengSettings,
+  validateJunfengGridEnvironment,
   validateJunfengSettings
 } from '../src/utils/junfengConfig.js'
 import { pythonPath, runPython } from './helpers/python.js'
@@ -28,6 +29,62 @@ test('君锋镇配置固定 12×11 网格并保留显示器与 DPI 元数据', (
   assert.deepEqual(normalizeJunfengSettings({ enabled: true, grid: { columns: 2, rows: 2 }, gridRegion: region }).grid, JUNFENG_GRID)
   assert.equal(validateJunfengSettings({ gridRegion: region }, {}), '请先框选君锋镇奖励标题')
   assert.equal(validateJunfengSettings({ gridRegion: region }, { junfengRewardTitle: 'reward.png' }), '')
+})
+
+test('君锋镇奖励网格在显示器 ID 重枚举后按物理环境和区域安全恢复', () => {
+  const region = {
+    left: -1200, top: 100, right: -200, bottom: 1000,
+    displayId: 'old-id', scaleFactor: 1.5,
+    displayPhysicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+  }
+  const compatible = {
+    id: 'new-id', scaleFactor: 1.505,
+    physicalSize: { width: 1920, height: 1080 },
+    physicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+  }
+
+  assert.deepEqual(validateJunfengGridEnvironment(region, [compatible]), { ready: true, reason: '' })
+})
+
+test('君锋镇奖励网格在显示器 ID 交换后选择包含原负坐标区域的兼容显示器', () => {
+  const region = {
+    left: -1200, top: 100, right: -200, bottom: 1000,
+    displayId: '2', scaleFactor: 1.5,
+    displayPhysicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 }
+  }
+  const displays = [
+    { id: '2', scaleFactor: 1.5, physicalSize: { width: 1920, height: 1080 }, physicalBounds: { x: 0, y: 0, width: 1920, height: 1080 } },
+    { id: '3', scaleFactor: 1.5, physicalSize: { width: 1920, height: 1080 }, physicalBounds: { x: -1920, y: 0, width: 1920, height: 1080 } }
+  ]
+
+  assert.deepEqual(validateJunfengGridEnvironment(region, displays), { ready: true, reason: '' })
+})
+
+test('君锋镇奖励网格对多屏歧义和真实显示环境变化保持阻断', () => {
+  const region = {
+    left: 100, top: 100, right: 1100, bottom: 1000,
+    displayId: 'old-id', scaleFactor: 1.5,
+    displayPhysicalBounds: { x: 0, y: 0, width: 1920, height: 1080 }
+  }
+  const withoutBounds = { scaleFactor: 1.5, physicalSize: { width: 1920, height: 1080 } }
+  assert.match(validateJunfengGridEnvironment(region, [
+    { id: '3', ...withoutBounds }, { id: '4', ...withoutBounds }
+  ]).reason, /显示器已变化/)
+
+  assert.match(validateJunfengGridEnvironment(region, [{
+    id: 'old-id', scaleFactor: 1.25,
+    physicalSize: { width: 1920, height: 1080 }, physicalBounds: { x: 0, y: 0, width: 1920, height: 1080 }
+  }]).reason, /DPI 已变化/)
+
+  assert.match(validateJunfengGridEnvironment(region, [{
+    id: 'old-id', scaleFactor: 1.5,
+    physicalSize: { width: 2560, height: 1440 }, physicalBounds: { x: 1920, y: 0, width: 2560, height: 1440 }
+  }]).reason, /分辨率或位置已变化/)
+
+  assert.match(validateJunfengGridEnvironment(region, [{
+    id: 'old-id', scaleFactor: 1.5,
+    physicalSize: { width: 1920, height: 1080 }, physicalBounds: { x: 10, y: 0, width: 1920, height: 1080 }
+  }]).reason, /分辨率或位置已变化/)
 })
 
 test('负坐标显示器的鼠标停车点保持在奖励网格外', () => {
@@ -112,67 +169,78 @@ print(json.dumps({"decisions":[cell["decision"] for cell in cells],"candidates":
   })
 })
 
-test('逐格复检必须继续满足高亮自动门槛', () => {
+test('普通仓库视觉只生成候选，取件后复制确认并跳过多格占位', () => {
   const code = `
 import importlib.util, json, numpy as np, sys
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
-spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
-m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-class Model:
- def __init__(self, probability): self.probability=probability
- def infer(self, _images):
-  p=self.probability
-  return np.asarray([[p,1-p,0]],dtype=np.float32),np.zeros((1,32),dtype=np.float32)
-image=np.zeros((10,10,3),dtype=np.uint8)
-candidate={"column":0,"row":0}
-config={"highlight_threshold":.995}
-labels=[m.candidate_label(image,1,1,candidate,config,Model(value),None,True) for value in (.999,.99,.2)]
-print(json.dumps(labels))
-`
-  assert.deepEqual(runPython(code), ['highlighted', 'uncertain', 'dimmed'])
-})
-
-test('转移确认忽略未清空的瞬时像素变化', () => {
-  const code = `
-import importlib.util, json, numpy as np, sys
-sys.path.insert(0, ${JSON.stringify(pythonDir)})
+import stash_pickup_template as shared
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 clock=[0.0]
 m.time.monotonic=lambda: clock[0]
 m.time.sleep=lambda seconds: clock.__setitem__(0,clock[0]+max(float(seconds),.001))
-m.require_action_ready=lambda *_args: None
-images=[np.full((10,10,3),40,dtype=np.uint8),np.zeros((10,10,3),dtype=np.uint8)]
-m.capture=lambda *_args: images.pop(0) if images else np.zeros((10,10,3),dtype=np.uint8)
-m.candidate_label=lambda image,*_args: "dimmed" if np.mean(image)>0 else "empty"
-before=np.full((10,10,3),100,dtype=np.uint8)
-result=m.wait_for_candidate_change(before,{"left":0,"top":0,"width":10,"height":10},1,1,
- {"column":0,"row":0},object(),.01,.1,{},object(),None)
-print(json.dumps({"cleared":result is not None,"mean":float(np.mean(result))}))
-`
-  assert.deepEqual(runPython(code), { cleared: true, mean: 0 })
-})
-
-test('输入门禁按取件场景同步验证标题和背包', () => {
-  const code = `
-import importlib.util, json, sys
-sys.path.insert(0, ${JSON.stringify(pythonDir)})
-spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
-m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.focus_game_window=lambda: True
 m.require_game_foreground=lambda: None
-class Matcher:
- def __init__(self,matches): self.matches=matches
- def check_interface(self): return self.matches,{}
-out=[]
-for mode,matches in (("reward",{"rewardMatched":True,"inventoryMatched":True}),
-                     ("reward",{"rewardMatched":False,"inventoryMatched":True}),
-                     ("stash",{"stashMatched":True}),
-                     ("stash",{"stashMatched":False})):
- try: m.require_action_ready(Matcher(matches),mode); out.append("ready")
- except RuntimeError as error: out.append(str(error))
-print(json.dumps(out))
+shared.is_game_foreground=lambda: True
+m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+candidates=[{"column":0,"row":0,"probability":1.0},{"column":1,"row":0,"probability":1.0}]
+m.classify=lambda *_args: (candidates, [candidates], [])
+m.load_calibration=lambda *_args: None
+state={"removed":False,"clicks":0,"copies":0,"releases":0,"moves":[]}
+item="Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+
+class Grabber:
+ def __enter__(self): return self
+ def __exit__(self,*_args): return False
+m.mss.MSS=lambda: Grabber()
+class Keyboard:
+ def press(self,_key): pass
+ def release(self,_key): pass
+class Mouse:
+ def __init__(self): self.position=(0,0)
+ def press(self,_button):
+  state["clicks"] += 1
+  state["removed"] = True
+ def release(self,_button): pass
+mouse=Mouse()
+class ClipboardController:
+ def __init__(self,_config): self.mouse=mouse
+ def move(self,x,y): mouse.position=(x,y); state["moves"].append([x,y]); return True
+ def begin_ctrl(self): return True
+ def copy_item_text(self, ctrl_held=False):
+  state["copies"] += 1
+  if not state["removed"]: return "copied",item
+  return "empty",""
+ def click_with_ctrl(self):
+  state["clicks"] += 1
+  state["removed"] = True
+  return True
+ def release_all(self): state["releases"] += 1
+m.InputController=ClipboardController
+
+def image():
+ if not state["removed"]: return np.full((10,10,3),100,dtype=np.uint8)
+ return np.full((10,10,3),40,dtype=np.uint8)
+m.capture=lambda *_args: image()
+import pynput.keyboard, pynput.mouse
+pynput.keyboard.Controller=Keyboard
+pynput.keyboard.Key=type("Key",(),{"ctrl":"ctrl"})
+pynput.mouse.Controller=lambda: mouse
+pynput.mouse.Button=type("Button",(),{"left":"left"})
+events=[]
+m.emit=lambda event, **payload: events.append({"event":event, **payload})
+config={"grid_region":{"left":0,"top":0,"right":20,"bottom":10},
+ "grid":{"columns":2,"rows":1},"operation_delay_ms":20,"timing_mode":"fixed",
+ "fixed_timing":{"patch_verify_ms":80}}
+result=m.run(config)
+print(json.dumps({"result":result,"clicks":state["clicks"],"copies":state["copies"],
+ "lastEvent":events[-1]["event"],"reason":events[-1].get("reason"),
+ "pickedItems":events[-1].get("pickedItems"),"moves":state["moves"],"releases":state["releases"]}))
 `
-  assert.deepEqual(runPython(code), ['ready', 'reward-interface-lost', 'ready', 'interface-lost'])
+  assert.deepEqual(runPython(code), {
+    result: 0, clicks: 1, copies: 3, lastEvent: 'completed', reason: 'completed', pickedItems: 1,
+    moves: [[5, 5], [15, 5]], releases: 2
+  })
 })
 
 test('仓库模式自动选择校准区域和 12×12 或 24×24 布局后使用高亮模型', () => {
@@ -225,9 +293,8 @@ m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), 
 candidate={"column":0,"row":0,"probability":1.0}
 m.classify=lambda *_args: ([candidate], [[candidate]], [{"column":1,"row":0}])
 m.load_calibration=lambda *_args: None
-m.candidate_label=lambda *_args: "highlighted"
 m.capture=lambda *_args: np.zeros((10,20,3),dtype=np.uint8)
-m.wait_for_candidate_change=lambda *_args: np.ones((10,20,3),dtype=np.uint8)
+m.InterfaceMatcher=lambda _config: (_ for _ in ()).throw(RuntimeError("reward-action-must-not-match-title"))
 class Grabber:
  def __enter__(self): return self
  def __exit__(self,*_args): return False
@@ -240,6 +307,15 @@ class Mouse:
  def press(self,_button): self.clicks += 1
  def release(self,_button): pass
 mouse=Mouse()
+item="Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class ClipboardController:
+ def __init__(self,_config): self.mouse=mouse
+ def move(self,x,y): self.mouse.position=(x,y); return True
+ def begin_ctrl(self): return True
+ def copy_item_text(self, ctrl_held=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
+ def click_with_ctrl(self): self.mouse.clicks += 1; return True
+ def release_all(self): pass
+m.InputController=ClipboardController
 import pynput.keyboard, pynput.mouse
 pynput.keyboard.Controller=Keyboard
 pynput.keyboard.Key=type("Key",(),{"ctrl":"ctrl"})
@@ -257,7 +333,62 @@ print(json.dumps({"result":result,"clicks":mouse.clicks,"lastEvent":events[-1]["
   })
 })
 
-test('相邻高亮物品逐件确认，单件变化不会被合并区域平均值稀释', () => {
+test('君锋镇存在模糊格时只取出高置信候选并保留模糊格统计', () => {
+  const code = `
+import importlib.util, json, numpy as np, sys
+sys.path.insert(0, ${JSON.stringify(pythonDir)})
+import stash_pickup_template as shared
+spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
+m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.focus_game_window=lambda: True
+m.require_game_foreground=lambda: None
+shared.is_game_foreground=lambda: True
+m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
+candidate={"column":0,"row":0,"probability":1.0}
+m.classify=lambda *_args: ([candidate], [[candidate]], [{"column":1,"row":0}])
+m.load_calibration=lambda *_args: None
+m.capture=lambda *_args: np.zeros((10,20,3),dtype=np.uint8)
+class Grabber:
+ def __enter__(self): return self
+ def __exit__(self,*_args): return False
+m.mss.MSS=lambda: Grabber()
+class Keyboard:
+ def press(self,_key): pass
+ def release(self,_key): pass
+class Mouse:
+ def __init__(self): self.position=(0,0); self.clicks=0
+ def press(self,_button): self.clicks += 1
+ def release(self,_button): pass
+mouse=Mouse()
+item="Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class ClipboardController:
+ def __init__(self,_config): self.mouse=mouse
+ def move(self,x,y): self.mouse.position=(x,y); return True
+ def begin_ctrl(self): return True
+ def copy_item_text(self, ctrl_held=False): return ("copied",item) if self.mouse.clicks == 0 else ("empty","")
+ def click_with_ctrl(self): self.mouse.clicks += 1; return True
+ def release_all(self): pass
+m.InputController=ClipboardController
+import pynput.keyboard, pynput.mouse
+pynput.keyboard.Controller=Keyboard
+pynput.keyboard.Key=type("Key",(),{"ctrl":"ctrl"})
+pynput.mouse.Controller=lambda: mouse
+pynput.mouse.Button=type("Button",(),{"left":"left"})
+events=[]
+m.emit=lambda event, **payload: events.append({"event":event, **payload})
+result=m.run({"grid_region":{"left":0,"top":0,"right":20,"bottom":10},
+ "grid":{"columns":2,"rows":1},"templates":{"junfeng_reward_title":"title.png"},
+ "interface_mode":"reward","abort_on_uncertain":False,
+ "operation_delay_ms":20})
+print(json.dumps({"result":result,"clicks":mouse.clicks,"lastEvent":events[-1]["event"],
+ "uncertainCells":events[-1]["uncertainCells"],"pickedItems":events[-1].get("pickedItems")}))
+`
+  assert.deepEqual(runPython(code), {
+    result: 0, clicks: 1, lastEvent: 'completed', uncertainCells: 1, pickedItems: 1
+  })
+})
+
+test('相邻高亮物品逐件复制确认且互不干扰', () => {
   const code = `
 import importlib.util, json, numpy as np, sys
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
@@ -272,9 +403,6 @@ m.focus_game_window=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
-m.candidate_label=lambda current, columns, rows, candidate, *_args: (
- "empty" if np.mean(m.candidate_patch(current, columns, rows, candidate)) < 99 else "highlighted")
-
 candidates=[
  {"column":0,"row":0,"probability":1.0},
  {"column":1,"row":0,"probability":1.0}
@@ -305,12 +433,28 @@ class Mouse:
 import pynput.keyboard, pynput.mouse
 pynput.keyboard.Controller=Keyboard
 pynput.keyboard.Key=type("Key", (), {"ctrl":"ctrl"})
-pynput.mouse.Controller=Mouse
+mouse=Mouse()
+item="Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class ClipboardController:
+ def __init__(self,_config): self.mouse=mouse
+ def move(self,x,y): self.mouse.position=(x,y); return True
+ def begin_ctrl(self): return True
+ def copy_item_text(self, ctrl_held=False):
+  column=0 if self.mouse.position[0] < 10 else 1
+  return ("empty","") if column in state["removed"] else ("copied",item)
+ def click_with_ctrl(self):
+  state["clicks"] += 1
+  state["removed"].add(0 if self.mouse.position[0] < 10 else 1)
+  return True
+ def release_all(self): pass
+m.InputController=ClipboardController
+pynput.mouse.Controller=lambda: mouse
 pynput.mouse.Button=type("Button", (), {"left":"left"})
+m.InterfaceMatcher=lambda _config: (_ for _ in ()).throw(RuntimeError("stash-action-must-not-match-title"))
 events=[]
 m.emit=lambda event, **payload: events.append({"event":event, **payload})
 result=m.run({"grid_region":{"left":0,"top":0,"right":20,"bottom":10},
- "grid":{"columns":2,"rows":1},"operation_delay_ms":20})
+ "grid":{"columns":2,"rows":1},"templates":{"stash_title":"title.png"},"operation_delay_ms":20})
 print(json.dumps({"result":result,"clicks":state["clicks"],"removed":sorted(state["removed"]),
  "pickedItems":events[-1].get("pickedItems"),"lastEvent":events[-1]["event"]}))
 `
@@ -319,7 +463,7 @@ print(json.dumps({"result":result,"clicks":state["clicks"],"removed":sorted(stat
   })
 })
 
-test('多格物品的弱变化占格会重新识别为空，不会在取走后再次空点击', () => {
+test('多格物品取走后其余候选占位复制为空，不会再次点击', () => {
   const code = `
 import importlib.util, json, numpy as np, sys
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
@@ -333,8 +477,6 @@ m.focus_game_window=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
-m.candidate_label=lambda current, columns, rows, candidate, *_args: (
- "empty" if np.mean(m.candidate_patch(current, columns, rows, candidate)) < 99 else "highlighted")
 candidates=[{"column":0,"row":0,"probability":1.0},{"column":1,"row":0,"probability":1.0}]
 m.classify=lambda *_args: (candidates, [candidates], [])
 state={"removed":False,"clicks":0}
@@ -361,8 +503,18 @@ class Mouse:
 import pynput.keyboard, pynput.mouse
 pynput.keyboard.Controller=Keyboard
 pynput.keyboard.Key=type("Key", (), {"ctrl":"ctrl"})
-pynput.mouse.Controller=Mouse
+mouse=Mouse()
+pynput.mouse.Controller=lambda: mouse
 pynput.mouse.Button=type("Button", (), {"left":"left"})
+item="Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------"
+class ClipboardController:
+ def __init__(self,_config): self.mouse=mouse
+ def move(self,x,y): self.mouse.position=(x,y); return True
+ def begin_ctrl(self): return True
+ def copy_item_text(self, ctrl_held=False): return ("empty","") if state["removed"] else ("copied",item)
+ def click_with_ctrl(self): state["clicks"] += 1; state["removed"]=True; return True
+ def release_all(self): pass
+m.InputController=ClipboardController
 events=[]
 m.emit=lambda event, **payload: events.append({"event":event, **payload})
 result=m.run({"grid_region":{"left":0,"top":0,"right":20,"bottom":10},

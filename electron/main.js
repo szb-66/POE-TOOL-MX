@@ -456,6 +456,19 @@ async function startApplication() {
       const snapshot = await craftingService.prices.refresh()
       return snapshot.records.find((record) => record.resourceId === 'currency:divine') || null
     },
+    catalogRefresher: async () => {
+      const [officialStats, officialItems] = await Promise.all([
+        priceCheckClient.getStats(),
+        priceCheckClient.getItems()
+      ])
+      return createOfficialTradeCatalog(
+        tradeCatalogBundle.catalog,
+        officialStats,
+        Date.now(),
+        officialItems,
+        uniqueItemImages.catalog
+      )
+    },
     overlay: priceCheckOverlay,
     shell,
     captureClipboard: () => capturePoeItemText({
@@ -587,26 +600,12 @@ async function startApplication() {
     }
     registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
     try {
-      const [officialStats, officialItems] = await Promise.all([
-        priceCheckClient.getStats(),
-        priceCheckClient.getItems()
-      ])
-      const bundle = createOfficialTradeCatalog(
-        tradeCatalogBundle.catalog,
-        officialStats,
-        Date.now(),
-        officialItems,
-        uniqueItemImages.catalog
-      )
-      priceCheckService.catalog = bundle.catalog
-      priceCheckService.catalogStatus = bundle.status
+      await priceCheckService.refreshCatalog()
     } catch (error) {
-      priceCheckService.catalogStatus = {
-        ...priceCheckService.catalogStatus,
-        provider: 'bundled',
-        degraded: true,
-        warning: `腾讯官方词缀目录不可用，已使用内置目录：${error.message}`
-      }
+      startupLog.record({
+        phase: 'price-check-catalog', outcome: 'failed',
+        reasonCode: 'official_catalog_unavailable', error
+      })
     }
     if (uniqueImageWarning) {
       priceCheckService.catalogStatus.warning = [priceCheckService.catalogStatus.warning, uniqueImageWarning].filter(Boolean).join('；')

@@ -23,7 +23,9 @@ test('查价 IPC、preload 和渲染层 API 使用同一组具名通道', async 
     'price-check-load-more',
     'price-check-load-distribution',
     'price-check-resolve-identity',
+    'price-check-resolve-stat-candidate',
     'price-check-settings-update',
+    'price-check-catalog-retry',
     'price-check-settings-changed',
     'price-check-overlay-state',
     'price-check-overlay-close',
@@ -33,7 +35,7 @@ test('查价 IPC、preload 和渲染层 API 使用同一组具名通道', async 
     assert.match(ipc, new RegExp(channel))
     assert.match(preload, new RegExp(channel))
   }
-  for (const method of ['getStatus', 'updateRuntime', 'updateSettings', 'capture', 'rerun', 'loadMore', 'loadDistribution', 'resolveIdentity', 'getOverlayState', 'closeOverlay', 'openOfficial', 'onSettingsChanged']) {
+  for (const method of ['getStatus', 'updateRuntime', 'updateSettings', 'capture', 'rerun', 'retryCatalog', 'loadMore', 'loadDistribution', 'resolveIdentity', 'resolveStatCandidate', 'getOverlayState', 'closeOverlay', 'openOfficial', 'onSettingsChanged']) {
     assert.match(api, new RegExp(`${method}:`))
   }
   assert.doesNotMatch(ipc, /['"]price-check-(?:parse|run|list-leagues)['"]/)
@@ -55,6 +57,9 @@ test('查价复制使用动态游戏窗口名称执行原子前台门禁', async
   assert.match(capture, /POE_GAME_WINDOW_TITLES_FILE/)
   assert.match(capture, /GetForegroundWindow/)
   assert.match(capture, /GAME_NOT_FOREGROUND/)
+  assert.match(capture, /TokenElevation/)
+  assert.match(capture, /sys\.exit\(24\)/)
+  assert.match(capture, /游戏以管理员权限运行，请同样以管理员权限运行流放助手/)
   assert.ok(capture.indexOf('...gameForegroundGuardLines()') < capture.indexOf('u.keybd_event(0x11'))
 })
 
@@ -125,12 +130,18 @@ test('查价设置跨页面双向同步并提供价格分布和候选选择', as
   ])
   assert.match(page, />查询设置</)
   assert.doesNotMatch(page, />默认查询设置</)
+  assert.match(page, /重试官方目录[\s\S]*retryCatalog/)
   assert.match(store, /onSettingsChanged[\s\S]*normalizePriceCheckSettings[\s\S]*saveSettings\(\)/)
+  assert.match(store, /async function retryCatalog\(\)[\s\S]*priceCheck\.retryCatalog/)
   assert.match(overlay, /syncSetting\('status'\)/)
   assert.match(overlay, /syncSetting\('collapseListings'\)/)
   assert.match(overlay, /1D ≈ \$\{rate\}C/)
   assert.match(overlay, /showDistribution[\s\S]*loadDistribution/)
   assert.match(overlay, /identity-required[\s\S]*resolveIdentity/)
+  assert.match(overlay, /unknown\.candidates[\s\S]*selectStatCandidate/)
+  assert.match(overlay, /resolveStatCandidate\(unknown\.key, candidate\.id\)/)
+  assert.match(overlay, /未加入本次查询/)
+  assert.match(overlay, /重试目录[\s\S]*retryCatalog/)
   assert.match(overlay, /\.filter-row:not\(\.unknown\):hover/)
   assert.match(overlay, /\.filter-row:focus-visible/)
 })

@@ -1,4 +1,4 @@
-import { normalizeFixedTiming, normalizeOperationDelay } from './operationDelay.js'
+import { normalizeAutomationTiming } from './operationDelay.js'
 import { normalizeEmptySlotThreshold } from './inventorySettings.js'
 
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
@@ -188,8 +188,7 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
     templates: bag.templates,
     matchThreshold: bag.matchThreshold,
     blacklist: bag.blacklist,
-    operationDelayMs: normalizeOperationDelay(settings?.operationDelayMs),
-    fixedTiming: normalizeFixedTiming(settings?.fixedTiming),
+    ...normalizeAutomationTiming(settings),
     inventory: {
       startPos: {
         x: finiteNumber(settings?.inventory?.startPos?.x, 2658),
@@ -227,9 +226,9 @@ function displayPhysicalSize(display) {
   return display?.physicalSize || display?.displayPhysicalSize
 }
 
-function hasCompatibleDisplayParameters(display, metadata) {
+function hasCompatibleDisplayParameters(display, metadata, scaleTolerance = 0) {
   const physicalSize = displayPhysicalSize(display)
-  return Number(display?.scaleFactor) === Number(metadata.scaleFactor) &&
+  return Math.abs(Number(display?.scaleFactor) - Number(metadata.scaleFactor)) <= scaleTolerance &&
     Number(physicalSize?.width) === Number(metadata.displayPhysicalSize.width) &&
     Number(physicalSize?.height) === Number(metadata.displayPhysicalSize.height)
 }
@@ -247,8 +246,9 @@ function displayContainsRegion(display, region) {
     Number(region.right) <= right && Number(region.bottom) <= bottom
 }
 
-function resolveCaptureDisplay(metadata, displays) {
-  const compatible = displays.filter((display) => hasCompatibleDisplayParameters(display, metadata))
+export function resolveCaptureDisplay(metadata, displays, scaleTolerance = 0) {
+  const tolerance = Math.max(0, Number(scaleTolerance) || 0)
+  const compatible = displays.filter((display) => hasCompatibleDisplayParameters(display, metadata, tolerance))
   const exact = compatible.find((display) => String(display.id) === String(metadata.displayId))
   if (exact && displayContainsRegion(exact, metadata.selectedRegion) !== false) return exact
 

@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js'
 import { resolveStashGridLayout } from '../chaosRecipe/layout.js'
+import { selectAllSingleRecipeItems } from '../chaosRecipe/engine.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
 
 const ok = (data = {}) => ({ success: true, data })
@@ -79,6 +80,8 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       templates: request.templates,
       matchThreshold: request.matchThreshold,
       operationDelayMs: request.operationDelayMs,
+      adaptiveTiming: request.adaptiveTiming,
+      adaptiveTimeoutMs: request.adaptiveTimeoutMs,
       fixedTiming: request.fixedTiming
     })
   }))
@@ -124,12 +127,25 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       includeIdentified: runtime.includeIdentified,
       tabFolderStates: runtime.tabFolderStates?.[runtime.league] || {}
     })
-    control?.sync()
+    const selectedItemIdsByRecipe = selectAllSingleRecipeItems(snapshot)
+    control?.setRuntime({
+      ...runtime,
+      selectedItemIdsByRecipe,
+      selectedItemIds: selectedItemIdsByRecipe[runtime.activeRecipeId] || []
+    })
     const mainWindow = window.getMainWindow?.()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chaos-recipe-snapshot-updated', snapshot)
     }
     return snapshot
+  }))
+  ipcMain.handle('chaos-recipe-control-select-recipe', invoke((recipeId) => {
+    const state = control?.selectRecipe(recipeId) || { visible: false }
+    const mainWindow = window.getMainWindow?.()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('chaos-recipe-control-recipe-selected', state.activeRecipeId)
+    }
+    return state
   }))
   ipcMain.handle('chaos-recipe-control-preview', invoke(() => {
     try {
@@ -167,7 +183,10 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       calibration: runtime.calibration,
       templates: runtime.templates,
       matchThreshold: runtime.matchThreshold,
-      operationDelayMs: runtime.operationDelayMs
+      operationDelayMs: runtime.operationDelayMs,
+      adaptiveTiming: runtime.adaptiveTiming,
+      adaptiveTimeoutMs: runtime.adaptiveTimeoutMs,
+      fixedTiming: runtime.fixedTiming
     })
   }))
   ipcMain.handle('interface-detection-state', invoke(() => interfaceDetection?.getState() || {}))

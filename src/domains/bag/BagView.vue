@@ -1,8 +1,7 @@
 <template>
-  <div class="bag-page">
-    <el-scrollbar>
-      <div class="bag-content">
-        <el-tabs v-model="activeTab" class="storage-tabs">
+  <div class="bag-page primary-page primary-page--column">
+    <div class="bag-content">
+      <el-tabs v-model="activeTab" class="storage-tabs">
           <el-tab-pane label="入库" name="inbound">
             <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
             <el-card class="section-card">
@@ -378,9 +377,8 @@
               </div>
             </el-card>
           </el-tab-pane>
-        </el-tabs>
-      </div>
-    </el-scrollbar>
+      </el-tabs>
+    </div>
   </div>
 </template>
 
@@ -441,7 +439,7 @@ const stashPickupStopReason = computed(() => ({
   'game-not-foreground': '游戏不在前台，取件已停止',
   'interface-lost': '仓库或背包界面丢失，取件已停止',
   'uncertain-cells': '检测到模糊格，未执行自动点击',
-  'transfer-unconfirmed': '转移未确认，已安全停止',
+  'transfer-unconfirmed': '无法确认物品已转移，已安全停止',
   user: '用户已停止取件',
   'no-candidates': '当前画面没有高置信高亮物品',
   completed: '高亮物品已取出'
@@ -617,10 +615,11 @@ async function handleStopStash() {
 </script>
 
 <style scoped lang="less">
-.bag-page { height: 100%; background: var(--bg-secondary); }
-.bag-content { max-width: 1100px; margin: 0 auto; padding: 20px; }
-.storage-tabs { margin-bottom: var(--spacing-lg); }
-.storage-tabs :deep(.el-tabs__header) { margin-bottom: var(--spacing-lg); }
+.bag-content { width: 100%; height: 100%; min-height: 0; }
+.storage-tabs { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+.storage-tabs :deep(.el-tabs__header) { flex: 0 0 auto; margin: 0; padding: 0 20px; border-bottom: 1px solid var(--border-base); background: var(--bg-primary); }
+.storage-tabs :deep(.el-tabs__content) { min-height: 0; flex: 1; overflow-y: auto; }
+.storage-tabs :deep(.el-tab-pane) { box-sizing: border-box; max-width: 1100px; margin: 0 auto; padding: 20px; }
 .section-header { margin: 0 0 var(--spacing-sm) var(--spacing-xs); }
 .section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }

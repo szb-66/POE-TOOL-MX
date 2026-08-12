@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-page">
+  <div class="dashboard-page primary-page primary-page__scroll primary-page__content">
     <header class="page-heading">
       <div>
         <h1>数据看板</h1>
@@ -139,7 +139,7 @@ onMounted(() => reportStartupEvent('dashboard-ready'))
   height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  padding: 22px;
+  padding: 20px;
   color: var(--text-primary);
   background:
     radial-gradient(circle at 90% 0, color-mix(in srgb, var(--el-color-primary) 8%, transparent), transparent 30%),

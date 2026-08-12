@@ -10,7 +10,7 @@ export class BagSessionController {
     this.ready = Boolean(ready)
     this.foreground = Boolean(foreground)
     if (!this.ready) {
-      this.locked = false
+      if (!this.stashing) this.locked = false
       return false
     }
     if (!this.foreground) return false

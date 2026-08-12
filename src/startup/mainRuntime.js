@@ -64,7 +64,7 @@ async function startMainRuntime({ router }) {
     settingsStore.updateDebugMode(visible)
   }))
 
-  void electronApi.update.configure({ mode: settingsStore.updateMode }).catch(() => {})
+  void electronApi.update.configure({ mode: settingsStore.updateMode, source: settingsStore.updateSource }).catch(() => {})
 
   const titleSync = await settingsStore.syncGameWindowTitles()
   if (!titleSync.success) {

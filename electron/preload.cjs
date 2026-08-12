@@ -176,6 +176,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startBagStash: () => ipcRenderer.invoke('start-bag-stash'),
   stopBagStash: () => ipcRenderer.invoke('stop-bag-stash'),
   updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
+  updateAutomationTiming: (timing) => ipcRenderer.invoke('automation-timing-update', timing),
   updateBagEmptySlotThreshold: (emptySlotThreshold) => ipcRenderer.invoke('update-bag-empty-slot-threshold', emptySlotThreshold),
   updateBagPreferences: (preferences) => ipcRenderer.invoke('update-bag-preferences', preferences),
   updateBagRuntimeConfig: (config) => ipcRenderer.invoke('update-bag-runtime-config', config),
@@ -244,6 +245,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateChaosRecipeRuntime: (runtime) => ipcRenderer.invoke('chaos-recipe-runtime-update', runtime),
   getChaosRecipeControlState: () => ipcRenderer.invoke('chaos-recipe-control-state'),
   refreshChaosRecipeFromControl: () => ipcRenderer.invoke('chaos-recipe-control-refresh'),
+  selectChaosRecipeFromControl: (recipeId) => ipcRenderer.invoke('chaos-recipe-control-select-recipe', recipeId),
   previewChaosRecipeFromControl: () => ipcRenderer.invoke('chaos-recipe-control-preview'),
   runChaosRecipeControlAction: () => ipcRenderer.invoke('chaos-recipe-control-action'),
   moveChaosRecipeControl: (drag) => ipcRenderer.send('chaos-recipe-control-move', drag),
@@ -274,6 +276,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('chaos-recipe-snapshot-updated', listener)
     return () => ipcRenderer.removeListener('chaos-recipe-snapshot-updated', listener)
+  },
+  onChaosRecipeControlRecipeSelected: (callback) => {
+    const listener = (_event, recipeId) => callback(recipeId)
+    ipcRenderer.on('chaos-recipe-control-recipe-selected', listener)
+    return () => ipcRenderer.removeListener('chaos-recipe-control-recipe-selected', listener)
   },
   updateStashPickupRuntime: (runtime) => ipcRenderer.invoke('stash-pickup-runtime-update', runtime),
   previewStashPickup: () => ipcRenderer.invoke('stash-pickup-preview'),
@@ -325,11 +332,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPriceCheckStatus: () => ipcRenderer.invoke('price-check-status'),
   updatePriceCheckRuntime: (runtime) => ipcRenderer.invoke('price-check-runtime-update', runtime),
   updatePriceCheckSettings: (patch) => ipcRenderer.invoke('price-check-settings-update', patch),
+  retryPriceCheckCatalog: () => ipcRenderer.invoke('price-check-catalog-retry'),
   capturePriceCheckItem: (request) => ipcRenderer.invoke('price-check-capture', request),
   rerunPriceCheck: (request) => ipcRenderer.invoke('price-check-rerun', request),
   loadMorePriceCheck: () => ipcRenderer.invoke('price-check-load-more'),
   loadPriceCheckDistribution: () => ipcRenderer.invoke('price-check-load-distribution'),
   resolvePriceCheckIdentity: (candidateKey) => ipcRenderer.invoke('price-check-resolve-identity', candidateKey),
+  resolvePriceCheckStatCandidate: (unknownKey, candidateId) => ipcRenderer.invoke('price-check-resolve-stat-candidate', unknownKey, candidateId),
   getPriceCheckOverlayState: () => ipcRenderer.invoke('price-check-overlay-state'),
   closePriceCheckOverlay: () => ipcRenderer.invoke('price-check-overlay-close'),
   openPriceCheckOfficial: () => ipcRenderer.invoke('price-check-open-official'),

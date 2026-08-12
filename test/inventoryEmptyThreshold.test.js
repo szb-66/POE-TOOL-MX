@@ -34,12 +34,13 @@ def select_currency_stash_tab(mode): return True
 def preflight_required_currencies(): return True
 def get_slot_position(col, row): return col, row
 def read_clipboard_to_file(): return next(statuses)
-def wait_for_parse_result(): return {"category": "地图", "name": "测试地图", "mapTier": 1}
-def process_single_map(result, x, y): return True
+def wait_for_parse_result(_request_id=None): return {"category": "地图", "name": "测试地图", "mapTier": 1}
+def process_single_map(result, x, y): return {"status": "completed-qualified", "qualified": True}
 def count_affix_stats(result): return {}, {}
 def update_map_stats(*args): pass
 def release_all_keys(): pass
 def play_success_sound(): pass
+def play_error_sound(): pass
 start_map_rolling()
 print(json.dumps(moves))
 `

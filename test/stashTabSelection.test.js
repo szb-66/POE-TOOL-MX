@@ -97,7 +97,7 @@ test('仓库页选择器在截图、滚动和点击前重复验证游戏前台',
   const source = readFileSync(path.join(projectRoot, 'src/assets/scripts/stash_tab_selector.py'), 'utf8')
   assert.match(source, /def capture\(self\)[\s\S]*?self\.require_environment\(\)[\s\S]*?capture\.grab/)
   assert.match(source, /def scroll\(self, notches[\s\S]*?self\._position_mouse\(\)[\s\S]*?self\.require_environment\(\)[\s\S]*?\.scroll/)
-  assert.match(source, /self\.require_environment\(\)\s*mouse\.position[\s\S]*?self\.require_environment\(\)\s*mouse\.click/)
+  assert.match(source, /self\.require_environment\(\)\s*mouse\.position[\s\S]*?self\.require_environment\(\)\s*mouse\.press[\s\S]*?mouse\.release/)
 })
 
 test('制作模板持续排空 OCR 输出并对仓库选择设置硬超时', () => {
@@ -133,6 +133,7 @@ function runSelectorParent(filename, childSource, timeoutOverride = null) {
 import json, os, sys, tempfile, time
 TIMING_MODE = "fixed"
 STASH_TAB_SETTLE_SECONDS = 0.25
+SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 ${selectorCall}
 is_running = True
 fatal_error_reason = None
@@ -189,6 +190,7 @@ test('仓库页配置注入后的两类 Python 模板保持可解析且关闭路
     DELAY_MOUSE_MOVE: '0.08', DELAY_CLIPBOARD: '80',
     TIMING_MODE: 'adaptive',
     MODIFIER_SETTLE_MS: '50', KEY_HOLD_MS: '20', BUTTON_HOLD_MS: '20', RELEASE_SETTLE_MS: '20',
+    ADAPTIVE_TIMEOUT_MS: '1000',
     CLIPBOARD_CONFIRM_MS: '250', STASH_TAB_SETTLE_MS: '250', STASH_SETTLE_MS: '200',
     CURRENCY_POSITIONS: '{}', REQUIRED_CURRENCY_TYPES: '[]', DPI_SCALE_FACTOR: '1',
     STOP_SHORTCUT: 'Alt+3', PYNPUT_STOP_SHORTCUT: '<alt>+3',

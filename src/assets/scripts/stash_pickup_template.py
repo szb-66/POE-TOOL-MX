@@ -17,7 +17,10 @@ KEY_HOLD_SECONDS = 0.02
 BUTTON_HOLD_SECONDS = 0.02
 RELEASE_SETTLE_SECONDS = 0.02
 PATCH_VERIFY_SECONDS = 0.55
+PATCH_POLL_INTERVAL_SECONDS = 0.01
 TRANSFER_ATTEMPTS = 2
+FOCUS_ACTIVATION_MIN_SECONDS = 0.2
+FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
@@ -211,11 +214,11 @@ def focus_game_window(timeout_seconds=2.0):
             user32.AttachThreadInput(current_thread, target_thread, False)
         if attached_foreground:
             user32.AttachThreadInput(current_thread, foreground_thread, False)
-    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
+    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
     while time.monotonic() < deadline:
         if is_game_foreground():
             return True
-        time.sleep(0.05)
+        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     return False
 
 
@@ -412,19 +415,23 @@ def ctrl_click(mouse, keyboard, ctrl_key, left_button, foreground_check=None):
     mouse.release(left_button)
     time.sleep(RELEASE_SETTLE_SECONDS)
     keyboard.release(ctrl_key)
+    time.sleep(RELEASE_SETTLE_SECONDS)
 
 
-def wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay, timeout_seconds=None):
+def wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, timeout_seconds=None):
     if timeout_seconds is None:
-        timeout_seconds = max(PATCH_VERIFY_SECONDS, delay * 6)
+        timeout_seconds = PATCH_VERIFY_SECONDS
     deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        time.sleep(min(0.05, delay))
+    while True:
         require_game_foreground()
         after_image = capture(rect, grabber)
         after = local_patch(after_image, columns, candidate["column"], candidate["row"], ratio)
         if patch_changed(before, after):
             return after_image
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(PATCH_POLL_INTERVAL_SECONDS, remaining))
     return None
 
 
@@ -456,7 +463,7 @@ def run(config, preview=False):
     apply_fixed_timing(config)
     if not focus_game_window():
         raise RuntimeError("game-not-foreground")
-    time.sleep(max(0.08, float(config.get("operationDelayMs", 80)) / 1000.0))
+    time.sleep(max(0.0, float(config.get("operation_delay_ms", 50)) / 1000.0))
     with mss.mss() as grabber:
         require_game_foreground()
         layout = choose_layout(config.get("calibration", {}), grabber, float(config.get("layoutConfidence", 1.15)))
@@ -480,9 +487,9 @@ def run(config, preview=False):
         from pynput.keyboard import Controller as KeyboardController, Key
         from pynput.mouse import Button, Controller as MouseController
         keyboard, mouse = KeyboardController(), MouseController()
-        delay = max(0.02, float(config.get("operationDelayMs", 80)) / 1000.0)
+        delay = max(0.0, float(config.get("operation_delay_ms", 50)) / 1000.0)
         timing_mode = config.get("timing_mode", "fixed")
-        adaptive_timeout_ms = max(500, min(3000, float(config.get("adaptive_timeout_ms", 1000))))
+        adaptive_timeout_ms = float(config.get("adaptive_timeout_ms", 1000))
         patch_timeout = (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
         rect, columns = layout["rect"], layout["columns"]
         method = profile.get("method", "variance")
@@ -518,11 +525,9 @@ def run(config, preview=False):
                 for attempt in range(TRANSFER_ATTEMPTS):
                     require_game_foreground()
                     ctrl_click(mouse, keyboard, Key.ctrl, Button.left)
-                    after_image = wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, delay, patch_timeout)
+                    after_image = wait_for_patch_change(before, rect, columns, candidate, ratio, grabber, patch_timeout)
                     if after_image is not None:
                         break
-                    if attempt + 1 < TRANSFER_ATTEMPTS:
-                        time.sleep(max(0.08, delay))
                 if after_image is None:
                     emit_with("aborted", common, currentIndex=index + 1,
                               remainingCells=len(candidates) - index, pickedItems=picked, reason="inventory-full")
@@ -531,7 +536,6 @@ def run(config, preview=False):
                 picked += 1
                 emit_with("progress", common, currentIndex=index + 1,
                           remainingCells=len(candidates) - index - 1, pickedItems=picked, skipped=False)
-                time.sleep(delay)
             emit_with("completed", common, remainingCells=0, pickedItems=picked, reason="completed")
             return 0
         finally:

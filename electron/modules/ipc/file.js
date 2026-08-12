@@ -11,6 +11,7 @@ import { ipcMain } from 'electron'
 import fs from 'fs'
 import { parseItemInfo } from '../item/parser.js'
 import { matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirements } from '../item/matcher.js'
+import { attachParseRequestId } from '../watcher/fileWatcher.js'
 
 export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null) {
   const { getMainWindow, getOverlayWindow } = window
@@ -72,13 +73,14 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
   })
 
   // 监听文件变化事件，处理业务逻辑
-  fileWatcher.on('fileChanged', (clipboardText, config) => {
+  fileWatcher.on('fileChanged', (clipboardText, config, requestId) => {
+    const writeCurrentParseResult = (result) => writeParseResult(attachParseRequestId(result, requestId))
     try {
       // 解析物品信息
       const itemInfo = parseItemInfo(clipboardText)
       
       if (!itemInfo) {
-        writeParseResult({
+        writeCurrentParseResult({
           error: '无法解析物品信息'
         })
         return
@@ -89,7 +91,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
 
       // 腐化的传奇物品仍然禁止制作
       if (isLegendary && isCorrupted) {
-        writeParseResult({
+        writeCurrentParseResult({
           rarity: itemInfo.rarity,
           isLegendary: true,
           isCorrupted: true,
@@ -233,11 +235,12 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
             : {}
         } : null
       }
-      writeParseResult(result)
+      const currentResult = attachParseRequestId(result, requestId)
+      writeParseResult(currentResult)
       
-      sendItemResult(result, config)
+      sendItemResult(currentResult, config)
     } catch (error) {
-      writeParseResult({
+      writeCurrentParseResult({
         error: error.message
       })
     }

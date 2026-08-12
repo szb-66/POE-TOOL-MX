@@ -17,6 +17,18 @@ const tempDir = path.join(os.tmpdir(), 'exile-helper')
 const itemInfoFile = path.join(tempDir, 'item_info.txt')
 const itemInfoResultFile = path.join(tempDir, 'item_info_result.json')
 
+export function decodeItemInfoRequest(content) {
+  const data = JSON.parse(content)
+  return {
+    clipboard: typeof data.clipboard === 'string' ? data.clipboard : '',
+    requestId: Number.isSafeInteger(data.requestId) ? data.requestId : null
+  }
+}
+
+export function attachParseRequestId(result, requestId) {
+  return requestId === null ? result : { ...result, requestId }
+}
+
 // 确保临时目录存在
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true })
@@ -101,10 +113,10 @@ class FileWatcher extends EventEmitter {
       if (eventType === 'change') {
         try {
           const content = fs.readFileSync(itemInfoFile, 'utf8')
-          const data = JSON.parse(content)
+          const request = decodeItemInfoRequest(content)
           
           // 发射文件变化事件，让 IPC 处理器处理业务逻辑
-          this.emit('fileChanged', data.clipboard, this.currentConfig)
+          this.emit('fileChanged', request.clipboard, this.currentConfig, request.requestId)
         } catch (error) {
           this.emit('fileError', error)
         }

@@ -17,16 +17,17 @@ if SCRIPT_DIRECTORY not in sys.path:
 from stash_pickup_template import (
     apply_fixed_timing,
     capture,
-    ctrl_click,
     focus_game_window,
-    is_game_foreground,
-    patch_changed,
     region_rect,
     require_game_foreground,
     choose_layout,
 )
-from bag_auto_stash_template import InterfaceMatcher
-
+from bag_auto_stash_template import (
+    InputController,
+    apply_fixed_timing as apply_transfer_timing,
+    normalize_operation_delay,
+    transfer_pickup_item,
+)
 LABELS = ("highlighted", "dimmed", "empty")
 CALIBRATION_UNSET = object()
 
@@ -232,18 +233,6 @@ def classify(image, config, model, calibration=CALIBRATION_UNSET):
     return cells, group_candidates(candidates), uncertain
 
 
-def candidate_label(image, columns, rows, candidate, config, model, calibration, require_threshold=False):
-    tile = grid_tile(image, columns, rows, candidate["column"], candidate["row"])
-    probabilities, embeddings = model.infer([tile["image"]])
-    probabilities, _ = apply_calibration(
-        probabilities, embeddings, calibration, float(config.get("calibration_similarity", 0.965)))
-    label = LABELS[int(np.argmax(probabilities[0]))]
-    if require_threshold and (label != "highlighted" or
-                              float(probabilities[0, 0]) < float(config.get("highlight_threshold", 0.995))):
-        return "uncertain" if label == "highlighted" else label
-    return label
-
-
 def annotated(image, columns, rows, cells):
     output = image.copy()
     colors = {"highlighted": (0, 220, 0), "dimmed": (140, 140, 140), "empty": (70, 70, 70), "unknown": (0, 180, 255)}
@@ -254,15 +243,6 @@ def annotated(image, columns, rows, cells):
         y1 = int(round((cell["row"] + 1) * image.shape[0] / rows))
         cv2.rectangle(output, (x0 + 2, y0 + 2), (x1 - 3, y1 - 3), colors.get(cell.get("label"), colors["unknown"]), 2)
     return data_url(output)
-
-
-def candidate_patch(image, columns, rows, candidate):
-    column, row = candidate["column"], candidate["row"]
-    x0 = int(round(column * image.shape[1] / columns))
-    x1 = int(round((column + 1) * image.shape[1] / columns))
-    y0 = int(round(row * image.shape[0] / rows))
-    y1 = int(round((row + 1) * image.shape[0] / rows))
-    return image[y0:y1, x0:x1].copy()
 
 
 def candidate_center(rect, columns, rows, candidate):
@@ -292,35 +272,6 @@ def park_cursor_position(region, rect):
                 if not (rect["left"] <= position[0] < right and rect["top"] <= position[1] < bottom):
                     return position
     return rect["left"] - 24, rect["top"] - 24
-
-
-def require_action_ready(interface_matcher, interface_mode):
-    require_game_foreground()
-    if interface_matcher is None:
-        return
-    if hasattr(interface_matcher, "check_ready"):
-        if not interface_matcher.check_ready(interface_mode):
-            raise RuntimeError("reward-interface-lost" if interface_mode == "reward" else "interface-lost")
-        return
-    matches, _scores = interface_matcher.check_interface()
-    ready = matches.get("rewardMatched") and matches.get("inventoryMatched") \
-        if interface_mode == "reward" else matches.get("stashMatched")
-    if not ready:
-        raise RuntimeError("reward-interface-lost" if interface_mode == "reward" else "interface-lost")
-
-
-def wait_for_candidate_change(before, rect, columns, rows, candidate, grabber, delay, timeout,
-                              config, model, calibration, interface_matcher=None, interface_mode="stash"):
-    deadline = time.monotonic() + max(timeout, delay * 6)
-    while time.monotonic() < deadline:
-        time.sleep(min(0.05, delay))
-        require_action_ready(interface_matcher, interface_mode)
-        after_image = capture(rect, grabber)
-        after = candidate_patch(after_image, columns, rows, candidate)
-        if patch_changed(before, after, 8.0) and \
-                candidate_label(after_image, columns, rows, candidate, config, model, calibration) == "empty":
-            return after_image
-    return None
 
 
 def run(config, preview=False):
@@ -358,7 +309,7 @@ def run(config, preview=False):
         config = {**config, "grid_region": grid_region, "grid": {"columns": columns, "rows": rows}}
         park_position = park_cursor_position(config.get("grid_region", {}), rect)
         mouse.position = park_position
-        time.sleep(0.08)
+        time.sleep(normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0)
         require_game_foreground()
         image = capture(rect, grabber)
         if model is None:
@@ -377,10 +328,6 @@ def run(config, preview=False):
                  remainingItems=0, pickedItems=0, uncertainCells=columns * rows, **layout_metadata)
             return 2
         calibration = load_calibration(config, model)
-        interface_mode = str(config.get("interface_mode", "stash"))
-        interface_matcher = InterfaceMatcher(config) if config.get("templates") else None
-        if interface_matcher is not None and not interface_matcher.valid:
-            raise RuntimeError("interface-template-invalid")
         cells, groups, uncertain = classify(image, config, model, calibration)
         common = {"modelVersion": model.version, "candidateItems": len(groups),
                   "uncertainCells": len(uncertain), **layout_metadata}
@@ -395,50 +342,33 @@ def run(config, preview=False):
             emit("completed", reason="no-candidates", remainingItems=0, pickedItems=0, **common)
             return 0
 
-        from pynput.keyboard import Controller as KeyboardController, Key
-        from pynput.mouse import Button
-        keyboard = KeyboardController()
-        delay = max(0.02, float(config.get("operation_delay_ms", 80)) / 1000.0)
-        timing_mode = config.get("timing_mode", "fixed")
-        adaptive_timeout = max(0.5, min(3.0, float(config.get("adaptive_timeout_ms", 1000)) / 1000.0))
-        fixed_timeout = max(0.08, float(config.get("fixed_timing", {}).get("patch_verify_ms", 550)) / 1000.0)
-        verify_timeout = adaptive_timeout if timing_mode == "adaptive" else fixed_timeout
+        apply_transfer_timing(config)
+        clipboard_controller = InputController(config)
+        mouse = clipboard_controller.mouse
         candidates = [candidate for group in groups for candidate in group]
         common["candidateItems"] = len(candidates)
         picked = 0
         try:
             emit("started", remainingItems=len(candidates), pickedItems=0, **common)
             for index, candidate in enumerate(candidates):
-                require_action_ready(interface_matcher, interface_mode)
-                inspection_image = capture(rect, grabber)
-                if candidate_label(inspection_image, columns, rows, candidate, config, model, calibration, True) != "highlighted":
+                require_game_foreground()
+                target_position = candidate_center(rect, columns, rows, candidate)
+                if not clipboard_controller.move(*target_position):
+                    emit("aborted", reason="game-not-foreground", remainingItems=len(candidates) - index,
+                         pickedItems=picked, **common)
+                    return 2
+                before_status, _ = clipboard_controller.copy_item_text()
+                if before_status == "empty":
                     emit("progress", currentIndex=index + 1, remainingItems=len(candidates) - index - 1,
                          pickedItems=picked, skipped=True, **common)
                     continue
-                require_action_ready(interface_matcher, interface_mode)
-                mouse.position = candidate_center(rect, columns, rows, candidate)
-                time.sleep(delay)
-                require_action_ready(interface_matcher, interface_mode)
-                current_image = capture(rect, grabber)
-                before = candidate_patch(current_image, columns, rows, candidate)
-                after_image = None
-                for attempt in range(2):
-                    require_action_ready(interface_matcher, interface_mode)
-                    ctrl_click(mouse, keyboard, Key.ctrl, Button.left)
-                    after_image = wait_for_candidate_change(
-                        before, rect, columns, rows, candidate, grabber, delay, verify_timeout,
-                        config, model, calibration, interface_matcher, interface_mode)
-                    if after_image is None:
-                        require_action_ready(interface_matcher, interface_mode)
-                        fallback_image = capture(rect, grabber)
-                        if candidate_label(fallback_image, columns, rows, candidate, config, model, calibration) == "empty":
-                            after_image = fallback_image
-                    if after_image is not None:
-                        break
-                    if attempt == 0:
-                        time.sleep(max(0.08, delay))
-                if after_image is None:
+                if before_status != "copied":
                     emit("aborted", reason="transfer-unconfirmed", remainingItems=len(candidates) - index,
+                         pickedItems=picked, **common)
+                    return 2
+                transferred, reason = transfer_pickup_item(clipboard_controller)
+                if not transferred:
+                    emit("aborted", reason=reason, remainingItems=len(candidates) - index,
                          pickedItems=picked, **common)
                     return 2
                 picked += 1
@@ -447,10 +377,7 @@ def run(config, preview=False):
             emit("completed", reason="completed", remainingItems=0, pickedItems=picked, **common)
             return 0
         finally:
-            try:
-                keyboard.release(Key.ctrl)
-            except Exception:
-                pass
+            clipboard_controller.release_all()
 
 
 def main():

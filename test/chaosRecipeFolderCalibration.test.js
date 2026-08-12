@@ -32,6 +32,12 @@ test('旧四键混沌配方校准迁移为文件夹内外两套区域', () => {
   assert.equal(normalizeChaosRecipeSettings({ activeRecipeId: 'unknown' }).activeRecipeId, 'chaos')
 })
 
+test('混沌配方忽略旧模块操作等待并只保留业务设置', () => {
+  const settings = normalizeChaosRecipeSettings({ operationDelayMs: 120, operationTimingVersion: 2 })
+  assert.equal('operationDelayMs' in settings, false)
+  assert.equal('operationTimingVersion' in settings, false)
+})
+
 test('仓库文件夹归属按赛季和仓库页持久化，默认位于文件夹外', () => {
   const settings = normalizeChaosRecipeSettings({
     tabOverrides: {

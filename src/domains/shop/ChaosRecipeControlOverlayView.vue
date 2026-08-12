@@ -29,6 +29,28 @@
         :title="state.previewReason || '在当前仓库页预览目标物品'"
         @pointerdown.stop.prevent="runFromPointer('preview', $event)"
       >{{ state.previewLabel }}</button>
+      <div
+        v-if="state.recipeEnabled"
+        v-show="!state.rewardDetected"
+        class="recipe-picker"
+      >
+        <button
+          :class="{ active: recipeMenuOpen }"
+          :disabled="!state.canSelectRecipe || busy !== ''"
+          :title="state.recipeSelectionReason || '选择要取出的商城配方'"
+          aria-label="取件配方"
+          @pointerdown.stop.prevent="toggleRecipeMenu"
+        >{{ activeRecipeOption?.label || '选择配方' }} ▾</button>
+        <div v-if="recipeMenuOpen" class="recipe-menu">
+          <button
+            v-for="option in state.recipeOptions"
+            :key="option.value"
+            :class="{ active: option.value === state.activeRecipeId }"
+            :disabled="busy !== ''"
+            @pointerdown.stop.prevent="selectControlRecipe(option.value, $event)"
+          >{{ option.label }}</button>
+        </div>
+      </div>
       <button
         v-if="state.recipeEnabled"
         v-show="!state.rewardDetected"
@@ -63,7 +85,7 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createOverlayDrag } from '@/utils/useOverlayDrag'
 
@@ -75,7 +97,11 @@ const state = reactive({
   refreshLabel: '刷新仓库',
   previewLabel: '预览高亮',
   previewActive: false,
-  actionLabel: '自动取件',
+  actionLabel: '取出配方',
+  activeRecipeId: 'chaos',
+  recipeOptions: [],
+  canSelectRecipe: false,
+  recipeSelectionReason: '',
   statusMessage: '正在同步商店配方状态…',
   automation: { status: 'idle' },
   recipeEnabled: false,
@@ -91,6 +117,10 @@ const state = reactive({
   junfengAutomation: { status: 'idle' }
 })
 const busy = ref('')
+const recipeMenuOpen = ref(false)
+const activeRecipeOption = computed(() =>
+  state.recipeOptions.find((option) => option.value === state.activeRecipeId)
+)
 const controlShell = ref(null)
 let disposeState
 let resizeObserver
@@ -99,6 +129,7 @@ const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(
 function applyState(response) {
   const snapshot = response?.success ? response.data : response
   if (snapshot) Object.assign(state, snapshot)
+  if (!state.canSelectRecipe) recipeMenuOpen.value = false
   void nextTick(reportContentSize)
 }
 
@@ -135,6 +166,26 @@ async function run(kind) {
 
 function runFromPointer(kind, event) {
   if (event.button === 0) void run(kind)
+}
+
+function toggleRecipeMenu(event) {
+  if (event.button === 0 && state.canSelectRecipe && !busy.value) {
+    recipeMenuOpen.value = !recipeMenuOpen.value
+  }
+}
+
+async function selectControlRecipe(recipeId, event) {
+  if (event.button !== 0 || busy.value) return
+  recipeMenuOpen.value = false
+  busy.value = 'recipe'
+  try {
+    const response = await electronApi.chaosRecipe.selectControlRecipe(recipeId)
+    if (!response?.success) state.recipeSelectionReason = response?.error?.message || '切换配方失败'
+    else applyState(response)
+  } finally {
+    busy.value = ''
+    applyState(await electronApi.chaosRecipe.getControlState())
+  }
 }
 
 onMounted(async () => {
@@ -209,6 +260,27 @@ button {
   white-space: nowrap;
   cursor: pointer;
   transition: filter .12s ease, transform .08s ease, box-shadow .12s ease;
+}
+.recipe-picker {
+  display: block;
+}
+.recipe-menu {
+  position: fixed;
+  z-index: 10;
+  top: 7px;
+  right: 7px;
+  left: 42px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  height: 38px;
+  background: rgba(18, 26, 42, .98);
+}
+.recipe-menu button {
+  min-width: 0;
+  height: 38px;
+  padding: 0 4px;
+  font-size: 11px;
 }
 button.primary { background: linear-gradient(145deg, #2f78cf, #24569a); }
 button.active { background: linear-gradient(145deg, #d58a2f, #9a5d1f); }

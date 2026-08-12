@@ -23,10 +23,13 @@ from puzzle_analyzer import (
     load_json,
 )
 
-POINTER_SETTLE_MIN_SECONDS = 0.08
-BUTTON_HOLD_MIN_SECONDS = 0.02
 timing_mode = "adaptive"
 adaptive_timeout_ms = 1000
+button_hold_seconds = 0.02
+release_settle_seconds = 0.02
+stash_tab_settle_seconds = 0.25
+patch_verify_seconds = 0.55
+RESULT_POLL_INTERVAL_SECONDS = 0.01
 
 def event(name: str, **payload: Any) -> None:
     print("EVENT " + json.dumps({"event": name, **payload}, ensure_ascii=False), flush=True)
@@ -131,7 +134,7 @@ def user32_api() -> Any:
 
 def click_physical(x: int, y: int, button: str, delay: float) -> None:
     move_physical(x, y)
-    time.sleep(max(float(delay), POINTER_SETTLE_MIN_SECONDS))
+    time.sleep(max(0.0, float(delay)))
     if not is_game_foreground():
         raise RuntimeError("游戏已失去前台")
     user32 = user32_api()
@@ -143,10 +146,11 @@ def click_physical(x: int, y: int, button: str, delay: float) -> None:
     try:
         user32.mouse_event(down, 0, 0, 0, 0)
         pressed = True
-        time.sleep(BUTTON_HOLD_MIN_SECONDS)
+        time.sleep(button_hold_seconds)
     finally:
         if pressed:
             user32.mouse_event(up, 0, 0, 0, 0)
+            time.sleep(release_settle_seconds)
 
 
 def inventory_tab_point(points: dict[str, Any], page: int) -> tuple[int, int]:
@@ -159,7 +163,8 @@ def inventory_tab_point(points: dict[str, Any], page: int) -> tuple[int, int]:
 def switch_inventory_page(points: dict[str, Any], page: int, delay: float) -> None:
     click_physical(*inventory_tab_point(points, page), "left", delay)
     move_physical(0, 0)
-    time.sleep(max(delay, 0.25 if timing_mode == "fixed" else 0.16))
+    if timing_mode == "fixed":
+        time.sleep(stash_tab_settle_seconds)
 
 
 def place_fragment(
@@ -168,14 +173,14 @@ def place_fragment(
     delay: float,
     neutral_point: tuple[int, int] | None = None,
 ) -> None:
-    selection_delay = max(delay, 0.16 if timing_mode == "fixed" else 0.10)
-    placement_delay = max(delay, 0.20 if timing_mode == "fixed" else 0.12)
     click_physical(*source_point, "left", delay)
-    time.sleep(selection_delay)
+    if timing_mode == "fixed":
+        time.sleep(patch_verify_seconds)
     click_physical(*target_point, "left", delay)
     if neutral_point is not None:
         move_physical(*neutral_point)
-    time.sleep(placement_delay)
+    if timing_mode == "fixed":
+        time.sleep(patch_verify_seconds)
 
 
 def capture_analyze(
@@ -187,7 +192,6 @@ def capture_analyze(
 ) -> dict[str, Any]:
     if manage_overlay:
         event("capture-start", regionType=region_type)
-    time.sleep(0.12)
     try:
         return analyze_image(capture_region(region, region_type), templates, region_type, recognition)
     finally:
@@ -261,7 +265,9 @@ def verify_source_rotation(
             return True, latest
         if deadline is not None and time.monotonic() >= deadline:
             break
-        time.sleep(max(0.08, delay))
+        remaining = deadline - time.monotonic() if deadline is not None else patch_verify_seconds
+        if remaining > 0:
+            time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
     return False, latest
 
 
@@ -288,7 +294,8 @@ def rotate_source_to_target(
             click_physical(*source_point, "right", delay)
             # 游戏右键旋转存在动画与输入冷却。先等待，再最多重读三次；
             # 右键不是幂等操作：仅当确认点击未生效（实际朝向与点击前一致）时才补发，避免多转 90°。
-            time.sleep(max(delay, 0.20 if timing_mode == "fixed" else 0.15))
+            if timing_mode == "fixed":
+                time.sleep(patch_verify_seconds)
             matched, latest = verify_source_rotation(region, templates, confirmed, expected, delay, recognition)
             if matched:
                 break
@@ -344,7 +351,6 @@ def verify_target(
     recognition: dict[str, Any] | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
     latest = None
-    retry_delay = max(0.08, delay)
     deadline = time.monotonic() + (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
     event("capture-series-start", regionType="atlas")
     try:
@@ -358,14 +364,17 @@ def verify_target(
                 return True, latest
             if deadline is not None and time.monotonic() >= deadline:
                 break
-            time.sleep(retry_delay)
+            remaining = deadline - time.monotonic() if deadline is not None else patch_verify_seconds
+            if remaining > 0:
+                time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
         return False, latest
     finally:
         event("capture-series-end", regionType="atlas")
 
 
 def main() -> int:
-    global timing_mode, adaptive_timeout_ms
+    global timing_mode, adaptive_timeout_ms, button_hold_seconds, release_settle_seconds
+    global stash_tab_settle_seconds, patch_verify_seconds
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
@@ -380,9 +389,14 @@ def main() -> int:
     inventory_region = config["inventoryRegion"]
     atlas_region = config["atlasRegion"]
     neutral_point = verification_neutral_point(atlas_region, inventory_region, config.get("displayBounds"))
-    delay = max(0.02, float(config.get("operationDelayMs", 80)) / 1000)
+    delay = max(0.0, float(config.get("operation_delay_ms", 50)) / 1000)
     timing_mode = config.get("timing_mode", "adaptive")
-    adaptive_timeout_ms = max(500, min(3000, float(config.get("adaptive_timeout_ms", 1000))))
+    adaptive_timeout_ms = float(config.get("adaptive_timeout_ms", 1000))
+    fixed_timing = config.get("fixed_timing", {})
+    button_hold_seconds = max(0.0, float(fixed_timing.get("button_hold_ms", 20))) / 1000.0
+    release_settle_seconds = max(0.0, float(fixed_timing.get("release_settle_ms", 20))) / 1000.0
+    stash_tab_settle_seconds = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 250))) / 1000.0
+    patch_verify_seconds = max(0.0, float(fixed_timing.get("patch_verify_ms", 550))) / 1000.0
     focused, focus_error = focus_game_window()
     if not focused:
         return fail(focus_error, "无法激活流放之路游戏窗口")
@@ -419,7 +433,8 @@ def main() -> int:
             try:
                 click_physical(*target_point, "left", delay)
                 move_physical(*neutral_point)
-                time.sleep(max(delay, 0.20 if timing_mode == "fixed" else 0.15))
+                if timing_mode == "fixed":
+                    time.sleep(patch_verify_seconds)
             except RuntimeError as error:
                 return fail("INPUT_FAILED", str(error), currentIndex=position)
             recovered, _actual = verify_target(atlas_region, templates, target, delay, recognition)

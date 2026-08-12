@@ -1,7 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
-import { normalizeOperationDelay } from '../utils/operationDelay.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { usePoeCnAccountStore } from './poeCnAccount.js'
 import {
@@ -10,6 +9,7 @@ import {
   requiredCalibrationKeys
 } from '../../electron/modules/chaosRecipe/layout.js'
 import {
+  selectAllSingleRecipeItems,
   SINGLE_RECIPE_IDS,
   VENDOR_RECIPE_IDS
 } from '../../electron/modules/chaosRecipe/engine.js'
@@ -24,7 +24,6 @@ const defaultSettings = () => ({
   includeIdentified: false,
   activeRecipeId: 'chaos',
   targetSetCount: 1,
-  operationDelayMs: 80,
   controlOverlayOffset: { x: 50, y: 1550 },
   calibration: { root: null, folder: null },
   tabFolderStates: {}
@@ -57,7 +56,6 @@ export function normalizeChaosRecipeSettings(raw = {}) {
     includeIdentified: Boolean(raw.includeIdentified),
     activeRecipeId,
     targetSetCount: Math.max(1, Math.min(20, Math.trunc(Number(raw.targetSetCount) || 1))),
-    operationDelayMs: normalizeOperationDelay(raw.operationDelayMs),
     tabFolderStates: normalizeTabFolderStates(raw.tabFolderStates || raw.tabOverrides),
     controlOverlayOffset: {
       x: Number.isFinite(Number(raw.controlOverlayOffset?.x)) ? Math.round(Number(raw.controlOverlayOffset.x)) : 50,
@@ -141,16 +139,14 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       calibration: JSON.parse(JSON.stringify(stashGridCalibration.value)),
       league: league.value,
       selectedItemIds: [...activeSelectedItemIds.value],
+      selectedItemIdsByRecipe: JSON.parse(JSON.stringify(singleSelections.value)),
       ...interfaceDetectionStore.runtime(),
       ...overrides
     }
   }
 
   function resetSingleSelections(value = snapshot.value) {
-    singleSelections.value = Object.fromEntries(SINGLE_RECIPE_IDS.map((id) => [
-      id,
-      (value?.recipes?.[id]?.candidates || []).map((item) => String(item.id))
-    ]))
+    singleSelections.value = selectAllSingleRecipeItems(value)
   }
 
   function currentPlanRequest() {
@@ -318,7 +314,7 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   function updateSetting(key, value) {
     return commitSettings(current => ({
       ...current,
-      [key]: key === 'operationDelayMs' ? normalizeOperationDelay(value) : value
+      [key]: value
     }))
   }
 
@@ -390,10 +386,14 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       resetSingleSelections(value)
       if (settings.value.enabled) void syncRuntime().catch(setError)
     })
+    const disposeActiveRecipe = electronApi.chaosRecipe.onControlRecipeSelected((recipeId) =>
+      settings.value.activeRecipeId === recipeId ? Promise.resolve() : setActiveRecipe(recipeId)
+    )
     return () => {
       disposeAutomation?.()
       disposeOffset?.()
       disposeSnapshot?.()
+      disposeActiveRecipe?.()
     }
   }
 

@@ -50,8 +50,11 @@ class FakeMouse:
         self.position = (0, 0)
         self.clicks = 0
 
-    def click(self, _button, count):
-        self.clicks += count
+    def press(self, _button):
+        pass
+
+    def release(self, _button):
+        self.clicks += 1
 
 
 class SimulatedSelector(selector.StashTabSelector):
@@ -87,6 +90,9 @@ class SimulatedSelector(selector.StashTabSelector):
 
     def _mouse_controller(self):
         return self.fake_mouse
+
+    def _wait_for_frame_change(self, _before):
+        return True
 
 
 successful = SimulatedSelector(["临时", "地图", "通货", "碎片"])

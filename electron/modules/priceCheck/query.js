@@ -1,4 +1,4 @@
-import { matchCatalogStat } from './catalog.js'
+import { isTradeStatId, resolveCatalogStat } from './catalog.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
 import {
   safeUniqueItemImageId,
@@ -53,6 +53,7 @@ const PROPERTY_DEFINITIONS = Object.freeze([
   ['armour', '护甲', 'armour.armour'],
   ['evasion', '闪避', 'armour.evasion'],
   ['energyShield', '能量护盾', 'armour.energyShield'],
+  ['baseDefencePercentile', '虚化', 'armour.baseDefencePercentile'],
   ['ward', '结界', 'armour.ward'],
   ['block', '格挡', 'armour.block'],
   ['level', '物品等级', 'misc.itemLevel'],
@@ -110,43 +111,99 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     const type = tradeStatType(modifier.type)
     const lines = Array.isArray(modifier.lines) ? modifier.lines.filter(Boolean) : []
     const text = modifier.text || lines.join('\n') || ''
-    const combinedMatch = matchCatalogStat(catalog, tradeStatText(text), type)
-    const effects = combinedMatch
-      ? [{ text, match: combinedMatch }]
+    const context = {
+      category,
+      name: modifier.name,
+      tags: modifier.tags,
+      affixType: modifier.affixType || modifier.type,
+      localItem: Boolean(
+        Number(item.attacksPerSecond) || Number(item.armour) || Number(item.evasion) ||
+        Number(item.energyShield) || Number(item.ward) || Number(item.block) ||
+        /(?:弓|剑|斧|锤|权杖|法杖|匕首|爪|长杖|战杖|钓竿|胸甲|头盔|手套|鞋子|盾|药剂)/.test(category)
+      )
+    }
+    // The official veiled namespace is keyed by the hidden modifier name
+    // (for example “艾尔雷恩的影匿”), not by the placeholder line “影匿前缀”.
+    const resolutionText = type === 'veiled' && modifier.name ? modifier.name : text
+    const combinedResolution = resolveCatalogStat(catalog, tradeStatText(resolutionText), type, context)
+    const effects = combinedResolution.match || combinedResolution.candidates.length
+      ? [{ text, resolution: combinedResolution }]
       : (lines.length > 1 ? lines : [text]).map((effectText) => ({
           text: effectText,
-          match: matchCatalogStat(catalog, tradeStatText(effectText), type)
+          resolution: resolveCatalogStat(catalog, tradeStatText(effectText), type, context)
         }))
     for (const effect of effects) {
-      if (!effect.match) {
+      const match = effect.resolution.match
+      if (!match) {
         if (effect.text) unknownStats.push({
+          key: `${type}:${unknownStats.length}:${effect.text}`,
           text: effect.text,
           type,
           tier: Number(modifier.tier) || null,
           tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
-          reason: '当前交易目录无法唯一映射'
+          reason: ({
+            ambiguous: '存在多个官方候选，请选择正确词缀',
+            'type-mismatch': '官方目录只有其他词缀类型，已阻止错查',
+            'not-found': '官方交易目录没有对应过滤项'
+          })[effect.resolution.reason] || '当前交易目录无法唯一映射',
+          candidates: effect.resolution.candidates.map((candidate) => ({
+            id: candidate.id,
+            label: candidate.label,
+            matcher: candidate.matcher,
+            type: candidate.type,
+            categories: candidate.categories,
+            values: candidate.values,
+            min: numericMinimum(candidate.values, options.valueRange),
+            max: undefined
+          }))
         })
         continue
       }
       stats.push({
-        key: `${effect.match.id}:${stats.length}`,
-        id: effect.match.id,
-        label: modifier.name || effect.match.label || effect.text,
+        key: `${match.id}:${stats.length}`,
+        id: match.id,
+        label: modifier.name || match.label || effect.text,
         text: effect.text,
         type,
         tier: Number(modifier.tier) || null,
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
-        values: effect.match.values,
+        values: match.values,
+        merge: match.merge,
+        sources: [{ text: effect.text, name: modifier.name || '', values: match.values }],
         enabled: options.initialSelection === 'all' || (
           (options.initialSelection || 'auto') === 'auto' &&
-          ['prefix', 'suffix', 'fractured'].includes(modifier.type) &&
-          Number(modifier.tier) > 0 &&
-          Number(modifier.tier) <= 2
+          (modifier.type === 'fractured' || (
+            ['prefix', 'suffix'].includes(modifier.type) &&
+            Number(modifier.tier) > 0 &&
+            Number(modifier.tier) <= 2
+          ))
         ),
-        min: numericMinimum(effect.match.values, options.valueRange),
+        min: numericMinimum(match.values, options.valueRange),
         max: undefined
       })
     }
+  }
+  const mergedStats = []
+  const mergedByIdentity = new Map()
+  for (const stat of stats) {
+    const identity = `${stat.type}\u0000${stat.id}`
+    const existing = mergedByIdentity.get(identity)
+    if (!existing) {
+      stat.key = `${stat.type}:${stat.id}`
+      mergedByIdentity.set(identity, stat)
+      mergedStats.push(stat)
+      continue
+    }
+    existing.sources.push(...stat.sources)
+    const mergeValue = existing.merge === 'max'
+      ? (left, right) => Math.max(left ?? -Infinity, right ?? -Infinity)
+      : (left, right) => (left || 0) + (right || 0)
+    existing.values = Array.from(
+      { length: Math.max(existing.values.length, stat.values.length) },
+      (_, index) => mergeValue(existing.values[index], stat.values[index])
+    )
+    existing.min = numericMinimum(existing.values, options.valueRange)
+    existing.enabled ||= stat.enabled
   }
   const properties = PROPERTY_DEFINITIONS.map(([field, label, id]) => {
     const value = Number(item[field]) || 0
@@ -180,7 +237,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       fractured: Boolean(item.isFractured)
     },
     properties,
-    stats,
+    stats: mergedStats,
     unknownStats
   }
   return resolveUnidentifiedUnique(model, catalog)
@@ -270,7 +327,15 @@ export function buildOfficialTradeQuery(model, options = {}) {
   return createAwakenedTradeRequest(filters, model.stats || [])
 }
 
-export function sanitizePriceCheckModel(value) {
+function catalogHasStat(catalog, id, type) {
+  if (!catalog) return true
+  return (catalog.stats || []).some((entry) => {
+    const value = entry.ids?.[type]
+    return (Array.isArray(value) ? value : [value]).includes(id)
+  })
+}
+
+export function sanitizePriceCheckModel(value, catalog = null) {
   if (!value || typeof value !== 'object') throw new Error('查价请求无效')
   const stats = Array.isArray(value.stats) ? value.stats.slice(0, 24).map((stat) => ({
     key: safeText(stat.key, 120),
@@ -282,8 +347,15 @@ export function sanitizePriceCheckModel(value) {
     tags: Array.isArray(stat.tags) ? stat.tags.slice(0, 12).map((tag) => safeText(tag, 40)).filter(Boolean) : [],
     enabled: Boolean(stat.enabled),
     min: safeNumber(stat.min),
-    max: safeNumber(stat.max)
-  })).filter((stat) => /^(explicit|implicit|fractured|crafted|enchant|pseudo)\./.test(stat.id)) : []
+    max: safeNumber(stat.max),
+    sources: Array.isArray(stat.sources)
+      ? stat.sources.slice(0, 12).map((source) => ({
+          text: safeText(source.text, 500),
+          name: safeText(source.name, 120),
+          values: Array.isArray(source.values) ? source.values.slice(0, 8).map(safeNumber).filter(Number.isFinite) : []
+        }))
+      : []
+  })).filter((stat) => isTradeStatId(stat.id, stat.type) && catalogHasStat(catalog, stat.id, stat.type)) : []
   const properties = Array.isArray(value.properties) ? value.properties.slice(0, 24).map((property) => ({
     id: safeText(property.id, 48),
     label: safeText(property.label, 80),
@@ -319,6 +391,26 @@ export function sanitizePriceCheckModel(value) {
     flags,
     properties,
     stats,
-    unknownStats: []
+    unknownStats: Array.isArray(value.unknownStats) ? value.unknownStats.slice(0, 24).map((unknown) => {
+      const type = safeText(unknown.type, 24)
+      return {
+        key: safeText(unknown.key, 500),
+        text: safeText(unknown.text, 500),
+        type,
+        tier: Number.isInteger(Number(unknown.tier)) && Number(unknown.tier) > 0 ? Number(unknown.tier) : null,
+        tags: Array.isArray(unknown.tags) ? unknown.tags.slice(0, 12).map((tag) => safeText(tag, 40)).filter(Boolean) : [],
+        reason: safeText(unknown.reason, 180),
+        candidates: Array.isArray(unknown.candidates) ? unknown.candidates.slice(0, 20).map((candidate) => ({
+          id: safeText(candidate.id, 80),
+          label: safeText(candidate.label),
+          matcher: safeText(candidate.matcher, 500),
+          type: safeText(candidate.type, 24),
+          categories: Array.isArray(candidate.categories) ? candidate.categories.slice(0, 20).map((entry) => safeText(entry, 80)).filter(Boolean) : [],
+          values: Array.isArray(candidate.values) ? candidate.values.slice(0, 8).map(safeNumber).filter(Number.isFinite) : [],
+          min: safeNumber(candidate.min),
+          max: safeNumber(candidate.max)
+        })).filter((candidate) => candidate.type === type && isTradeStatId(candidate.id, type) && catalogHasStat(catalog, candidate.id, type)) : []
+      }
+    }).filter((unknown) => unknown.text) : []
   }
 }

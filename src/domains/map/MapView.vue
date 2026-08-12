@@ -1,14 +1,17 @@
 <template>
-  <div class="map-page">
-    <el-tabs v-model="activeKind" class="kind-tabs">
-      <el-tab-pane label="异界地图" name="atlas" />
-      <el-tab-pane label="航海海图" name="chart" />
-    </el-tabs>
+  <div class="map-page primary-page primary-page--column">
+    <div class="primary-page__tabs">
+      <el-tabs v-model="activeKind" class="kind-tabs">
+        <el-tab-pane label="异界地图" name="atlas" />
+        <el-tab-pane label="航海海图" name="chart" />
+      </el-tabs>
+    </div>
 
-    <SupportedFormatPanel :guidance="formatGuidance" />
+    <div class="map-content primary-page__scroll primary-page__content">
+      <SupportedFormatPanel :guidance="formatGuidance" />
 
-    <div class="map-header">
-      <div class="header-top">
+      <div class="map-header">
+        <div class="header-top">
         <div class="form-item">
           <label class="form-label">洗图目标</label>
           <strong>{{ activeKind === 'chart' ? '航海海图' : '异界地图' }}</strong>
@@ -40,22 +43,23 @@
         </div>
       </div>
 
-      <div class="header-bottom">
-        <el-checkbox v-model="activeProfile.vaal.enabled" label="瓦尔宝珠" size="large">
-          <template #default><div class="checkbox-label"><img :src="vaalIcon" alt="瓦尔宝珠" class="icon-image" />瓦尔宝珠</div></template>
-        </el-checkbox>
-        <el-checkbox v-model="activeProfile.autoStash" label="符合条件存仓" size="large">
-          <template #default><div class="checkbox-label">符合条件存仓<el-tooltip content="满足当前目标条件后自动存入仓库" placement="top"><el-icon class="help-icon"><QuestionFilled /></el-icon></el-tooltip></div></template>
-        </el-checkbox>
+        <div class="header-bottom">
+          <el-checkbox v-model="activeProfile.vaal.enabled" label="瓦尔宝珠" size="large">
+            <template #default><div class="checkbox-label"><img :src="vaalIcon" alt="瓦尔宝珠" class="icon-image" />瓦尔宝珠</div></template>
+          </el-checkbox>
+          <el-checkbox v-model="activeProfile.autoStash" label="符合条件存仓" size="large">
+            <template #default><div class="checkbox-label">符合条件存仓<el-tooltip content="满足当前目标条件后自动存入仓库" placement="top"><el-icon class="help-icon"><QuestionFilled /></el-icon></el-tooltip></div></template>
+          </el-checkbox>
+        </div>
       </div>
-    </div>
 
-    <MapRollingProfilePanel
-      :profile="activeProfile"
-      :stat-keys="activeStatKeys"
-      :title="activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
-      :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
-    />
+      <MapRollingProfilePanel
+        :profile="activeProfile"
+        :stat-keys="activeStatKeys"
+        :title="activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
+        :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
+      />
+    </div>
   </div>
 </template>
 
@@ -119,8 +123,7 @@ watch(
 </script>
 
 <style scoped lang="less">
-.map-page { height: 100%; padding: 20px; overflow-y: auto; background: var(--bg-secondary); box-sizing: border-box; }
-.kind-tabs { margin-bottom: 8px; padding: 0 16px; border-radius: 8px; background: var(--bg-primary); }
+.kind-tabs { width: 100%; }
 .map-header { margin-bottom: 20px; padding: 20px; border-radius: 8px; background: var(--bg-primary); }
 .header-top, .header-bottom, .form-item, .checkbox-label { display: flex; align-items: center; }
 .header-top { flex-wrap: wrap; gap: 20px; margin-bottom: 16px; }

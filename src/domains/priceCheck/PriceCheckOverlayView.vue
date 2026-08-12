@@ -133,10 +133,21 @@
             <input v-model.number="stat.min" class="number" type="number" placeholder="最小" @click.stop @keydown.stop />
             <input v-model.number="stat.max" class="number" type="number" placeholder="最大" @click.stop @keydown.stop />
           </div>
-          <div v-for="unknown in state.model.unknownStats || []" :key="`${unknown.type}:${unknown.text}`" class="filter-row unknown">
-            <span class="tier">T{{ unknown.tier || '?' }}</span>
-            <span class="filter-name">{{ unknown.text }}<small>未映射 · {{ unknown.reason }}</small></span>
-            <span></span><span></span>
+          <div v-for="unknown in state.model.unknownStats || []" :key="unknown.key || `${unknown.type}:${unknown.text}`" class="unknown-block">
+            <div class="filter-row unknown">
+              <span class="tier">T{{ unknown.tier || '?' }}</span>
+              <span class="filter-name">{{ unknown.text }}<small>未加入本次查询 · {{ unknown.reason }}</small></span>
+              <span></span><span></span>
+            </div>
+            <div v-if="unknown.candidates?.length" class="stat-candidates">
+              <button
+                v-for="candidate in unknown.candidates"
+                :key="candidate.id"
+                :disabled="busy"
+                :title="candidate.id"
+                @click="selectStatCandidate(unknown, candidate)"
+              >使用 {{ candidate.label }}</button>
+            </div>
           </div>
         </section>
       </template>
@@ -161,7 +172,7 @@
             <span>价格</span><span>物等</span><span>状态</span><span>时间</span><span>卖家</span><span></span>
           </div>
           <div v-for="listing in state.result.listings || []" :key="listing.id" class="listing">
-            <strong>{{ listing.amount || '—' }} {{ currencyLabel(listing.currency) }}</strong>
+            <strong>{{ listing.amount || '—' }} {{ currencyLabel(listing.currency, listing.currencyLabel) }}</strong>
             <span>{{ listing.itemLevel || '—' }}</span>
             <span :class="{ instant: listing.instantBuyout }">{{ statusLabel(listing) }}</span>
             <span>{{ relativeTime(listing.indexed) }}</span>
@@ -198,7 +209,15 @@
         </template>
       </section>
 
-      <div v-if="state.catalog?.warning" class="warning">{{ state.catalog.warning }}</div>
+      <div v-if="state.catalog?.warning" class="warning catalog-warning">
+        <span>{{ state.catalog.warning }}</span>
+        <button v-if="state.catalog.degraded && !state.catalog.loading" :disabled="busy" @click="retryCatalog">重试目录</button>
+      </div>
+      <div v-if="state.catalog" class="catalog-status">
+        目录：{{ state.catalog.provider === 'official' ? '腾讯官方' : '内置' }}
+        · {{ state.catalog.gameVersion || '未知版本' }}
+        · {{ state.catalog.counts?.stats || 0 }} 条词缀
+      </div>
       <div class="disclaimer">挂单参考，不代表成交价</div>
     </main>
   </div>
@@ -272,6 +291,13 @@ async function loadMore() {
   busy.value = true
   try { await electronApi.priceCheck.loadMore() } finally { busy.value = false }
 }
+async function retryCatalog() {
+  busy.value = true
+  try {
+    const response = await electronApi.priceCheck.retryCatalog()
+    if (response?.success && state.value) state.value.catalog = response.data
+  } finally { busy.value = false }
+}
 async function showDistribution() {
   resultView.value = 'distribution'
   if (state.value?.result?.distribution?.complete || distributionLoading.value) return
@@ -281,6 +307,10 @@ async function showDistribution() {
 async function resolveIdentity(candidateKey) {
   busy.value = true
   try { await electronApi.priceCheck.resolveIdentity(candidateKey) } finally { busy.value = false }
+}
+async function selectStatCandidate(unknown, candidate) {
+  busy.value = true
+  try { await electronApi.priceCheck.resolveStatCandidate(unknown.key, candidate.id) } finally { busy.value = false }
 }
 function useCandidatePlaceholder(event) {
   const placeholder = 'price-check-image://snapshot/placeholder'
@@ -295,8 +325,8 @@ function toggleFilter(filter) { filter.enabled = !filter.enabled }
 function typeLabel(type) {
   return ({ explicit: '外延', implicit: '基底', fractured: '破裂', crafted: '工艺', enchant: '附魔', pseudo: '伪属性' })[type] || type
 }
-function currencyLabel(currency) {
-  return ({ chaos: '混沌石', divine: '神圣石' })[currency] || currency
+function currencyLabel(currency, localized = '') {
+  return localized || ({ chaos: '混沌石', divine: '神圣石' })[currency] || currency
 }
 function distributionPrice(group) {
   if (group.currency === 'chaos') {
@@ -304,7 +334,7 @@ function distributionPrice(group) {
     const divine = rate > 0 ? group.amount / rate : 0
     return divine >= 0.1 ? `${group.amount} C（≈ ${Number(divine.toFixed(2))} D）` : `${group.amount} C`
   }
-  return `${group.amount} ${currencyLabel(group.currency)}`
+  return `${group.amount} ${currencyLabel(group.currency, group.currencyLabel)}`
 }
 function statusLabel(listing) {
   if (listing.instantBuyout) return '即时购买'
@@ -378,6 +408,9 @@ h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; padding: 2px 0; font
 .filter-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-name small { margin-left: 6px; font-size: 10px; }
 .unknown { opacity: .65; cursor: default; }
+.unknown-block { padding-bottom: 3px; border-bottom: 1px solid #252a33; }
+.stat-candidates { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 5px 5px 39px; }
+.stat-candidates button { padding: 3px 6px; color: #9bc5ff; font-size: 10px; text-align: left; }
 .action-row { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: center; gap: 7px; padding: 6px 0; background: #12141aeF; }
 button { color: #e9eef8; background: #242936; border: 1px solid #414958; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
 button:hover:not(:disabled) { background: #303849; border-color: #65728a; }
@@ -415,5 +448,8 @@ button:disabled { opacity: .45; cursor: default; }
 .load-more { display: block; margin: 7px auto; }
 .state-message { padding: 10px; text-align: center; color: #74b5ff; }
 .error, .warning { color: #f1ad58; padding: 5px 0; }
+.catalog-warning { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.catalog-warning button { flex: 0 0 auto; padding: 3px 7px; }
+.catalog-status { color: #747d8c; text-align: center; font-size: 10px; }
 .disclaimer { color: #808896; text-align: center; margin-top: 6px; font-size: 10px; }
 </style>

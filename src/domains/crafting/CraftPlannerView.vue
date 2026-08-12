@@ -1,5 +1,5 @@
 <template>
-  <div class="craft-page">
+  <div class="craft-page primary-page primary-page__scroll primary-page__content">
     <header class="page-heading">
       <div><h2>POE1 装备制作模拟器</h2><p>选择底材，像游戏里一样使用通货、精华、工艺台、化石、花园、古灵、势力、加密与野兽工艺，并观察每一步装备变化。</p></div>
       <div class="header-actions">

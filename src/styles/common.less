@@ -51,3 +51,47 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* 主窗口一级页面统一布局 */
+.primary-page {
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  background: var(--bg-secondary);
+}
+
+.primary-page--column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.primary-page__tabs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--spacing-md);
+  min-width: 0;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-base);
+  background: var(--bg-primary);
+}
+
+.primary-page__tabs > .el-tabs {
+  flex: 1;
+  min-width: 0;
+}
+
+.primary-page__tabs .el-tabs__header {
+  margin: 0;
+}
+
+.primary-page__scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.primary-page__content {
+  padding: 20px;
+}

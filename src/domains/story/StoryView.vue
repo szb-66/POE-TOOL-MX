@@ -1,5 +1,5 @@
 <template>
-  <div class="story-page">
+  <div class="story-page primary-page primary-page__content">
     <div class="page-header">
       <div>
         <h2>剧情攻略</h2>

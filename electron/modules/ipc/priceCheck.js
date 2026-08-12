@@ -4,6 +4,12 @@ import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js
 const ok = (data = {}) => ({ success: true, data })
 
 export function registerPriceCheckHandlers(service) {
+  const broadcastCatalog = (snapshot) => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) window.webContents.send('price-check-catalog-updated', snapshot)
+    }
+    return snapshot
+  }
   const broadcastSettings = (snapshot) => {
     for (const window of BrowserWindow.getAllWindows()) {
       if (!window.isDestroyed()) window.webContents.send('price-check-settings-changed', snapshot)
@@ -35,6 +41,7 @@ export function registerPriceCheckHandlers(service) {
     return status
   }))
   ipcMain.handle('price-check-settings-update', invoke((patch) => broadcastSettings(service.updateSettings(patch || {}))))
+  ipcMain.handle('price-check-catalog-retry', invoke(async () => broadcastCatalog(await service.refreshCatalog())))
   ipcMain.handle('price-check-capture', invoke((request) => service.captureAndCheck({
     league: String(request?.league || ''),
     options: request?.options || {}
@@ -43,6 +50,7 @@ export function registerPriceCheckHandlers(service) {
   ipcMain.handle('price-check-load-more', invoke(() => service.loadMore()))
   ipcMain.handle('price-check-load-distribution', invoke(() => service.loadDistribution()))
   ipcMain.handle('price-check-resolve-identity', invoke((candidateKey) => service.resolveIdentity(candidateKey)))
+  ipcMain.handle('price-check-resolve-stat-candidate', invoke((unknownKey, candidateId) => service.resolveStatCandidate(unknownKey, candidateId)))
   ipcMain.handle('price-check-overlay-state', invoke(() => service.getOverlayState()))
   ipcMain.handle('price-check-overlay-close', invoke(() => service.closeOverlay()))
   ipcMain.handle('price-check-open-official', invoke(() => service.openOfficial()))

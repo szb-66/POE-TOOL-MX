@@ -223,6 +223,7 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
 .metrics dd { overflow: hidden; margin: 3px 0 0; color: var(--text-primary); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 
 .card-actions {
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 4px;
   margin-top: auto;

@@ -46,11 +46,31 @@ Copyright (c) ChaosRecipeEnhancer contributors.
 - 上游许可证：MIT
 - 固定上游提交：`18a401efce4683a274978e3f41ce08ac8948732b`
 - 直接采用并适配的文件：`renderer/src/web/price-check/trade/pathofexile-trade.ts`、`renderer/src/web/price-check/filters/create-item-filters.ts`、`renderer/src/web/price-check/filters/create-stat-filters.ts`
-- 用途：国服查价的请求构造直接采用上游的在线状态、按需过滤组和宽松默认语义；本项目仅改为 JavaScript，并适配腾讯国服端点、简体中文物品模型和官方 stat identifier。
+- 历史翻译参考：简体中文分支的 `renderer/public/data/zh_CN/items.ndjson` 与 `stats.ndjson`。该分支不再作为当前游戏规则或目录覆盖的权威来源。
+- 当前目录来源：Path of Exile 官方国际服 `/api/trade/data/stats` 提供通用 stat ID、类型和查询语义，腾讯国服官方 `/api/trade/data/stats` 与 `/api/trade/data/items` 提供简体中文 matcher 和物品名称；内置快照于 2026-08-11 从这些官方接口刷新，对应 POE1 3.29。
+- 用途：国服查价的请求构造采用上游的在线状态、按需过滤组和宽松默认语义；本项目适配当前详细复制格式、腾讯国服端点、简体中文物品模型和官方 stat identifier。
 
 Copyright (c) 2020 Alexander Drozdov.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, subject to inclusion of the above copyright notice and permission notice in substantial portions.
+
+## Sidekick
+
+- 项目地址：https://github.com/Sidekick-Poe/Sidekick
+- 上游许可证：MIT
+- 固定数据提交：`deb2455264929447748f1d3d25a1f8d9f5e10628`
+- 用途：构建查价目录时读取当前 POE1 繁体中文游戏 stat 描述，并仅按仍存在于官方交易目录的 trade ID 补充游戏剪贴板 matcher；不采用其应用代码或运行时服务。
+
+Copyright (c) 2020 Dominique Alexandre.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, subject to inclusion of the above copyright notice and permission notice in substantial portions.
+
+## OpenCC / opencc-js
+
+- 项目地址：https://github.com/BYVoid/OpenCC 、https://github.com/nk2028/opencc-js
+- 使用版本：`opencc-js@1.4.1`
+- 许可证：MIT、Apache-2.0（含词典数据的对应许可）
+- 用途：仅在开发期生成查价目录时，把 Sidekick 的繁体中文游戏描述转换为大陆简体中文；不进入 Electron 运行时代码。
 
 ## PoEDB 与 Path of Exile 物品美术
 

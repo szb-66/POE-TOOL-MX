@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { pythonFixedTiming } from '../../../src/utils/operationDelay.js'
+import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
@@ -39,7 +39,7 @@ export class StashPickupManager {
     this.automationLock = automationLock
     this.calibration = calibration
     this.onStatusChange = onStatusChange
-    this.runtime = { enabled: false, calibration: {}, operationDelayMs: 80 }
+    this.runtime = { enabled: false, calibration: {}, operationDelayMs: OPERATION_DELAY.default }
     this.child = null
     this.allowingFocusTransition = false
     this.status = {
@@ -48,8 +48,8 @@ export class StashPickupManager {
       modelVersion: '', calibration: '', reason: ''
     }
     this.disposeDetection = interfaceDetection?.subscribe(state => {
-      if (this.status.status === 'running' && !this.allowingFocusTransition && (!state.ready || !state.foreground)) {
-        this.stop(!state.foreground ? 'game-not-foreground' : 'interface-lost')
+      if (this.status.status === 'running' && !this.allowingFocusTransition && !state.foreground) {
+        this.stop('game-not-foreground')
       }
     })
   }
@@ -64,7 +64,7 @@ export class StashPickupManager {
   }
 
   pythonPath() {
-    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput']) || this.python.detectPythonPath?.()
+    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']) || this.python.detectPythonPath?.()
     if (!found) throw new Error('未找到仓库高亮识别所需 Python 运行时')
     return found
   }
@@ -85,19 +85,8 @@ export class StashPickupManager {
   writeConfig() {
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'stash_pickup_config.json')
     const model = this.modelPaths()
-    const templates = this.runtime.templates || {}
     fs.writeFileSync(configPath, JSON.stringify({
       calibration: this.runtime.calibration || {},
-      interface_mode: 'stash',
-      templates: {
-        stash_title: String(templates.stashTitle || ''),
-        inventory_title: String(templates.inventoryTitle || ''),
-        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
-        stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {},
-        junfeng_reward_region: templates.junfengRewardRegion || {}
-      },
-      match_threshold: Number(this.runtime.matchThreshold ?? 0.8),
       layout_confidence: 1.15,
       model_path: model.model,
       manifest_path: model.manifest,
@@ -106,10 +95,7 @@ export class StashPickupManager {
       calibration_similarity: 0.965,
       calibration_index: this.calibration?.indexPath || '',
       calibration_root: this.calibration?.root || '',
-      operation_delay_ms: Number(this.runtime.operationDelayMs || 80),
-      timing_mode: this.runtime.adaptiveTiming === false ? 'fixed' : 'adaptive',
-      adaptive_timeout_ms: Math.max(500, Math.min(3000, Number(this.runtime.adaptiveTimeoutMs) || 1000)),
-      fixed_timing: pythonFixedTiming(this.runtime.fixedTiming)
+      ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
     return configPath
   }

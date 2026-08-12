@@ -11,9 +11,8 @@ import craftingTemplate from '@/assets/scripts/crafting_template.py?raw'
 import mapRollingTemplate from '@/assets/scripts/map_rolling_template.py?raw'
 import { electronApi } from '@/api/electron.js'
 import {
-  normalizeFixedTiming,
-  normalizeAdaptiveTiming,
-  normalizeOperationDelay
+  normalizeAutomationTiming,
+  pythonAutomationTiming
 } from '@/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '@/utils/inventorySettings.js'
 import {
@@ -70,6 +69,7 @@ export function generatePythonScript(config) {
     currencyPositions,
     operationDelayMs,
     adaptiveTiming = true,
+    adaptiveTimeoutMs,
     fixedTiming = {},
     itemPosition,
     preset,
@@ -80,10 +80,16 @@ export function generatePythonScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
-  const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming })
+  const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
-  const normalizedAdaptiveTiming = normalizeAdaptiveTiming(adaptiveTiming)
-  const normalizedFixedTiming = normalizeFixedTiming(fixedTiming)
+  const normalizedAdaptiveTiming = normalizedTiming.adaptiveTiming
+  const normalizedAdaptiveTimeoutMs = normalizedTiming.adaptiveTimeoutMs
+  const normalizedFixedTiming = normalizedTiming.fixedTiming
+  const normalizedStashTabSelection = {
+    ...stashTabSelection,
+    ...pythonAutomationTiming(normalizedTiming)
+  }
   const checkInitialItem = preset?.checkInitialItem !== false
 
   // 转义文件路径中的反斜杠（Python使用原始字符串）
@@ -181,7 +187,6 @@ def augment_single_affix_if_needed(result):
     if not apply_currency("augmentation"):
         print("[错误] 使用增幅石失败")
         return False, result
-    time.sleep(0.05)
 
     if not read_clipboard_to_file():
         print("[错误] 增幅后读取物品信息失败")
@@ -208,7 +213,6 @@ def finish_affix_match(result, iteration=0):
     if not apply_currency("regal"):
         print("[错误] 使用富豪石失败")
         return False
-    time.sleep(0.05)
 `
       }
     } else if (mode === 'chaos' && enableExalted) {
@@ -216,7 +220,6 @@ def finish_affix_match(result, iteration=0):
     if not apply_currency("exalted"):
         print("[错误] 使用崇高石失败")
         return False
-    time.sleep(0.05)
 `
     }
 
@@ -313,7 +316,6 @@ def craft_affixes(initial_result=None):
                     print("[错误] 使用重铸石失败")
                     return False
             
-            time.sleep(0.05)
             
             # 重新读取物品信息
             if not read_clipboard_to_file():
@@ -384,9 +386,7 @@ def craft_affixes(initial_result=None):
             print(f"[操作] 第 {iteration} 次 - 使用改造石")
             if not apply_currency("alteration"):
                 print("[错误] 使用改造石失败，重试...")
-                time.sleep(0.05)
                 continue
-            time.sleep(0.05)
 `
     } else if (mode === 'chaos') {
       logic += `
@@ -394,9 +394,7 @@ def craft_affixes(initial_result=None):
             print(f"[操作] 第 {iteration} 次 - 使用混沌石")
             if not apply_currency("chaos"):
                 print("[错误] 使用混沌石失败，跳过本次循环")
-                time.sleep(0.05)
                 continue
-            time.sleep(0.05)
 `
     } else if (mode === 'alchemy') {
       logic += `
@@ -407,17 +405,13 @@ def craft_affixes(initial_result=None):
                 print(f"[操作] 第 {iteration} 次 - 物品非普通 ({current_rarity})，使用重铸石")
                 if not apply_currency("scouring"):
                     print("[错误] 使用重铸石失败，跳过")
-                    time.sleep(0.05)
                     continue
-                time.sleep(0.05)
             
             # 使用点金石
             print(f"[操作] 第 {iteration} 次 - 使用点金石")
             if not apply_currency("alchemy"):
                 print("[错误] 使用点金石失败，跳过本次循环")
-                time.sleep(0.05)
                 continue
-            time.sleep(0.05)
 `
     }
 
@@ -426,7 +420,6 @@ def craft_affixes(initial_result=None):
             # print(f"[调试] 第 {iteration} 次 - 开始读取物品信息...")
             if not read_clipboard_to_file():
                 print("[错误] 读取物品信息失败，重试...")
-                time.sleep(0.05)
                 continue
             
             # print(f"[调试] 第 {iteration} 次 - 等待解析结果...")
@@ -592,18 +585,14 @@ def craft_socket_count(target_count):
         print(f"[操作] 第 {iteration} 次 - 使用工匠石")
         if not right_click_currency("jewellers"):
             print("[错误] 右键点击工匠石失败，重试...")
-            time.sleep(0.05)
             continue
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
-            time.sleep(0.05)
             continue
-        time.sleep(0.05)
         
         # 复制物品并读取
         if not read_clipboard_to_file():
             print("[错误] 读取物品信息失败，重试...")
-            time.sleep(0.05)
             continue
         
         result = wait_for_parse_result()
@@ -661,18 +650,14 @@ def craft_links(target_links):
         print(f"[操作] 第 {iteration} 次 - 使用链结石")
         if not right_click_currency("fusing"):
             print("[错误] 右键点击链结石失败，重试...")
-            time.sleep(0.05)
             continue
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
-            time.sleep(0.05)
             continue
-        time.sleep(0.05)
         
         # 复制物品并读取
         if not read_clipboard_to_file():
             print("[错误] 读取物品信息失败，重试...")
-            time.sleep(0.05)
             continue
         
         result = wait_for_parse_result()
@@ -730,18 +715,14 @@ def craft_colors(target_red, target_green, target_blue):
         print(f"[操作] 第 {iteration} 次 - 使用幻色石")
         if not right_click_currency("chromic"):
             print("[错误] 右键点击幻色石失败，重试...")
-            time.sleep(0.05)
             continue
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
-            time.sleep(0.05)
             continue
-        time.sleep(0.05)
         
         # 复制物品并读取
         if not read_clipboard_to_file():
             print("[错误] 读取物品信息失败，重试...")
-            time.sleep(0.05)
             continue
         
         result = wait_for_parse_result()
@@ -823,7 +804,6 @@ def craft_eldritch_implicits(initial_result=None):
             print(f"[操作] 第 {iteration} 次 - 使用 ${currency}")
             if not apply_currency("${currency}"):
                 return fail_eldritch_crafting("使用古灵通货失败", "ELDRITCH_CURRENCY_FAILED")
-            time.sleep(0.05)
             if not read_clipboard_to_file():
                 return fail_eldritch_crafting("使用通货后无法读取装备", "ITEM_READ_FAILED")
             result = wait_for_parse_result()
@@ -877,8 +857,8 @@ def craft_eldritch_implicits(initial_result=None):
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
+    '{{ADAPTIVE_TIMEOUT_MS}}': String(normalizedAdaptiveTimeoutMs),
     '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
     '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
     '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
@@ -888,7 +868,7 @@ def craft_eldritch_implicits(initial_result=None):
     '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
-    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
@@ -923,6 +903,7 @@ export function generateMapRollingScript(config) {
     inventory,
     operationDelayMs,
     adaptiveTiming = true,
+    adaptiveTimeoutMs,
     fixedTiming = {},
     mapConfig,
     filePaths,
@@ -932,10 +913,16 @@ export function generateMapRollingScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
-  const normalizedOperationDelayMs = normalizeOperationDelay(operationDelayMs)
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming })
+  const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
-  const normalizedAdaptiveTiming = normalizeAdaptiveTiming(adaptiveTiming)
-  const normalizedFixedTiming = normalizeFixedTiming(fixedTiming)
+  const normalizedAdaptiveTiming = normalizedTiming.adaptiveTiming
+  const normalizedAdaptiveTimeoutMs = normalizedTiming.adaptiveTimeoutMs
+  const normalizedFixedTiming = normalizedTiming.fixedTiming
+  const normalizedStashTabSelection = {
+    ...stashTabSelection,
+    ...pythonAutomationTiming(normalizedTiming)
+  }
 
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
 
@@ -1002,8 +989,8 @@ export function generateMapRollingScript(config) {
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{DELAY_CLIPBOARD}}': normalizedOperationDelayMs.toFixed(0),
     '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
+    '{{ADAPTIVE_TIMEOUT_MS}}': String(normalizedAdaptiveTimeoutMs),
     '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
     '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
     '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
@@ -1013,7 +1000,7 @@ export function generateMapRollingScript(config) {
     '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
-    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(stashTabSelection)),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),

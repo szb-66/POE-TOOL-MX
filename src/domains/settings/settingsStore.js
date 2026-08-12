@@ -7,9 +7,11 @@ import {
   ADAPTIVE_TIMING,
   FIXED_TIMING,
   OPERATION_DELAY,
+  OPERATION_TIMING_VERSION,
   migrateOperationDelay,
   normalizeAdaptiveTimeoutMs,
   normalizeAdaptiveTiming,
+  normalizeAutomationTiming,
   normalizeFixedTiming,
   normalizeOperationDelay
 } from '@/utils/operationDelay'
@@ -41,7 +43,12 @@ import {
   validateGameWindowProcessNames,
   validateGameWindowTitles
 } from '../../../shared/gameWindowTitles.js'
-import { normalizeUpdateMode, UPDATE_MODE_MANUAL } from '@/utils/applicationUpdate'
+import {
+  normalizeUpdateMode,
+  normalizeUpdateSource,
+  UPDATE_MODE_MANUAL,
+  UPDATE_SOURCE_CNB
+} from '@/utils/applicationUpdate'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -123,6 +130,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const dpiSource = computed(() => effectiveDpi.value.source)
   const debugMode = ref(false)
   const updateMode = ref(UPDATE_MODE_MANUAL)
+  const updateSource = ref(UPDATE_SOURCE_CNB)
 
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
@@ -196,29 +204,49 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  let automationTimingQueue = Promise.resolve()
+
+  function updateAutomationTiming(patch = {}) {
+    const commit = async () => {
+      const previous = normalizeAutomationTiming({
+        operationDelayMs: operationDelayMs.value,
+        adaptiveTiming: adaptiveTiming.value,
+        adaptiveTimeoutMs: adaptiveTimeoutMs.value,
+        fixedTiming: fixedTiming.value
+      })
+      const candidate = normalizeAutomationTiming({ ...previous, ...patch,
+        fixedTiming: patch.fixedTiming ? { ...previous.fixedTiming, ...patch.fixedTiming } : previous.fixedTiming })
+      try {
+        const result = await electronApi.automationTiming.update(candidate)
+        if (!result?.success) throw new Error(result?.error || '自动化时序同步失败')
+        operationDelayMs.value = candidate.operationDelayMs
+        adaptiveTiming.value = candidate.adaptiveTiming
+        adaptiveTimeoutMs.value = candidate.adaptiveTimeoutMs
+        fixedTiming.value = candidate.fixedTiming
+        saveSettings()
+        return { success: true, timing: candidate }
+      } catch (error) {
+        return { success: false, error: error?.message || '自动化时序同步失败', timing: previous }
+      }
+    }
+    automationTimingQueue = automationTimingQueue.then(commit, commit)
+    return automationTimingQueue
+  }
+
   function updateOperationDelay(value) {
-    operationDelayMs.value = normalizeOperationDelay(value)
-    saveSettings()
-    electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
-    return operationDelayMs.value
+    return updateAutomationTiming({ operationDelayMs: normalizeOperationDelay(value) })
   }
 
   function updateAdaptiveTiming(enabled) {
-    adaptiveTiming.value = normalizeAdaptiveTiming(enabled)
-    saveSettings()
-    return adaptiveTiming.value
+    return updateAutomationTiming({ adaptiveTiming: normalizeAdaptiveTiming(enabled) })
   }
 
   function updateAdaptiveTimeoutMs(value) {
-    adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(value)
-    saveSettings()
-    return adaptiveTimeoutMs.value
+    return updateAutomationTiming({ adaptiveTimeoutMs: normalizeAdaptiveTimeoutMs(value) })
   }
 
   function updateFixedTiming(patch = {}) {
-    fixedTiming.value = normalizeFixedTiming({ ...fixedTiming.value, ...patch })
-    saveSettings()
-    return fixedTiming.value
+    return updateAutomationTiming({ fixedTiming: normalizeFixedTiming({ ...fixedTiming.value, ...patch }) })
   }
 
   function updateCombatAssist(config) {
@@ -384,6 +412,7 @@ export const useSettingsStore = defineStore('settings', () => {
         currencyPositions: sanitizeCurrencyPositions(currencyPositions.value),
         inventory: inventory.value,
         operationDelayMs: operationDelayMs.value,
+        operationTimingVersion: OPERATION_TIMING_VERSION,
         adaptiveTiming: adaptiveTiming.value,
         adaptiveTimeoutMs: adaptiveTimeoutMs.value,
         fixedTiming: fixedTiming.value,
@@ -396,6 +425,7 @@ export const useSettingsStore = defineStore('settings', () => {
         lastDetectedDpiScale: lastDetectedDpiScale.value,
         debugMode: debugMode.value,
         updateMode: updateMode.value,
+        updateSource: updateSource.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
         storyOverlayLayoutVersion: storyOverlayLayoutVersion.value,
@@ -416,6 +446,7 @@ export const useSettingsStore = defineStore('settings', () => {
       const data = saved ? JSON.parse(saved) : {}
       let legacyBagSettings = {}
       try { legacyBagSettings = JSON.parse(localStorage.getItem('bagSettings') || '{}') } catch (_error) { /* ignore invalid legacy data */ }
+      const operationTimingMigrated = data.operationTimingVersion !== OPERATION_TIMING_VERSION
       operationDelayMs.value = migrateOperationDelay(data, legacyBagSettings)
       adaptiveTiming.value = normalizeAdaptiveTiming(data.adaptiveTiming)
       adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(data.adaptiveTimeoutMs)
@@ -457,6 +488,7 @@ export const useSettingsStore = defineStore('settings', () => {
           debugMode.value = data.debugMode
         }
         updateMode.value = normalizeUpdateMode(data.updateMode)
+        updateSource.value = normalizeUpdateSource(data.updateSource)
         if (data.overlaySettings) {
           overlaySettings.value = normalizeOverlaySettings(data.overlaySettings)
         }
@@ -473,7 +505,7 @@ export const useSettingsStore = defineStore('settings', () => {
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
         stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
-        if (storyOverlayLayout.migrated) saveSettings()
+        if (operationTimingMigrated || storyOverlayLayout.migrated) saveSettings()
       }
     } catch (error) {
       // 加载设置失败
@@ -556,6 +588,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiDetectionError.value = ''
     debugMode.value = false
     updateMode.value = UPDATE_MODE_MANUAL
+    updateSource.value = UPDATE_SOURCE_CNB
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = DEFAULT_STORY_OVERLAY_WIDTH
     storyOverlayLayoutVersion.value = STORY_OVERLAY_LAYOUT_VERSION
@@ -565,7 +598,12 @@ export const useSettingsStore = defineStore('settings', () => {
     combatAssist.value = createDefaultCombatAssist()
     stashTabSelection.value = createDefaultStashTabSelection()
     saveSettings()
-    electronApi.bag.updateOperationDelay(operationDelayMs.value)?.catch(() => {})
+    electronApi.automationTiming.update(normalizeAutomationTiming({
+      operationDelayMs: operationDelayMs.value,
+      adaptiveTiming: adaptiveTiming.value,
+      adaptiveTimeoutMs: adaptiveTimeoutMs.value,
+      fixedTiming: fixedTiming.value
+    }))?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
     electronApi.system.updateGameWindowTitles(gameWindowTitles.value)?.catch(() => {})
     electronApi.system.updateGameWindowProcessNames(gameWindowProcessNames.value)?.catch(() => {})
@@ -579,7 +617,7 @@ export const useSettingsStore = defineStore('settings', () => {
       electronApi.overlay.updateSettings(JSON.parse(JSON.stringify(overlaySettings.value)))
     }
     electronApi.window.setDevToolsVisible(false)
-    electronApi.update.configure({ mode: updateMode.value }).catch(() => {})
+    electronApi.update.configure({ mode: updateMode.value, source: updateSource.value }).catch(() => {})
   }
 
   function updateDebugMode(enabled) {
@@ -592,12 +630,26 @@ export const useSettingsStore = defineStore('settings', () => {
     updateMode.value = normalizeUpdateMode(mode)
     saveSettings()
     try {
-      const state = await electronApi.update.configure({ mode: updateMode.value })
+      const state = await electronApi.update.configure({ mode: updateMode.value, source: updateSource.value })
       return { success: true, state }
     } catch (error) {
       updateMode.value = previous
       saveSettings()
       return { success: false, error: error?.message || '更新模式同步失败' }
+    }
+  }
+
+  async function updateApplicationUpdateSource(source) {
+    const previous = updateSource.value
+    updateSource.value = normalizeUpdateSource(source)
+    saveSettings()
+    try {
+      const state = await electronApi.update.configure({ mode: updateMode.value, source: updateSource.value })
+      return { success: true, state }
+    } catch (error) {
+      updateSource.value = previous
+      saveSettings()
+      return { success: false, error: error?.message || '更新来源同步失败' }
     }
   }
 
@@ -636,6 +688,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiDetectionError,
     debugMode,
     updateMode,
+    updateSource,
     overlaySettings,
     storyOverlayWidth,
     storyOverlayOpacity,
@@ -650,6 +703,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateCurrencyPosition,
     updateInventorySettings,
     updateOperationDelay,
+    updateAutomationTiming,
     updateAdaptiveTiming,
     updateAdaptiveTimeoutMs,
     updateFixedTiming,
@@ -663,6 +717,7 @@ export const useSettingsStore = defineStore('settings', () => {
     refreshDpiScale,
     updateDebugMode,
     updateApplicationUpdateMode,
+    updateApplicationUpdateSource,
     updateOverlaySettings,
     updateStoryOverlayWidth,
     updateStoryOverlayOpacity,
