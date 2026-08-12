@@ -154,3 +154,72 @@ test('非古灵物品制作启动配置要求知识卷轴坐标', () => {
   })
   assert.match(result.errors.join('\n'), /知识卷轴 \(wisdom\)/)
 })
+
+test('停用的组合不参与匹配且不出现在诊断中', () => {
+  const groups = [
+    {
+      id: 'disabled-plan',
+      name: '停用方案',
+      enabled: false,
+      requiredAffixes: ['最大生命'],
+      selectedAffixes: [],
+      selectedCount: 1
+    },
+    {
+      id: 'active-plan',
+      name: '启用方案',
+      requiredAffixes: ['冰霜伤害'],
+      selectedAffixes: ['生命', '火焰抗性'],
+      selectedCount: 1
+    }
+  ]
+  const result = matchAffixes(itemInfo, groups)
+  assert.equal(result.isMatch, false)
+  assert.equal(result.matchedGroupId, null)
+  assert.deepEqual(result.groupResults.map((group) => group.id), ['active-plan'])
+})
+
+test('旧预设组合默认启用，停用值被规范化保留', () => {
+  const migrated = normalizeModuleTwo({
+    enabled: true,
+    mode: 'alteration',
+    affixGroups: [
+      { id: 'legacy', name: '旧方案', requiredAffixes: ['生命'] },
+      { id: 'off', name: '停用', enabled: false, requiredAffixes: ['火焰'] }
+    ]
+  })
+  assert.equal(migrated.affixGroups[0].enabled, true)
+  assert.equal(migrated.affixGroups[1].enabled, false)
+  assert.equal(hasEffectiveAffixGroups(migrated), true)
+  assert.equal(hasEffectiveAffixGroups({ ...migrated, affixGroups: [migrated.affixGroups[1]] }), false)
+})
+
+test('复制组合继承启用状态', () => {
+  const original = normalizeModuleTwo({
+    affixGroups: [{
+      id: 'off',
+      name: '停用方案',
+      enabled: false,
+      requiredAffixes: ['最大生命']
+    }]
+  }).affixGroups[0]
+  const copied = cloneAffixGroup(original, 1)
+  assert.equal(copied.enabled, false)
+})
+
+test('全部组合停用时启动校验拒绝运行', () => {
+  const result = validateCraftingConfig({
+    itemPosition: { x: 100, y: 100 },
+    currencyPositions: { wisdom: { x: 2, y: 2 }, alteration: { x: 1, y: 1 } },
+    preset: {
+      moduleTwo: {
+        enabled: true,
+        mode: 'alteration',
+        affixGroups: [{ id: 'off', name: '停用', enabled: false, requiredAffixes: ['最大生命'] }]
+      },
+      moduleThree: { enabled: false }
+    }
+  })
+  assert.equal(result.isValid, false)
+  assert.ok(result.errors.includes('词缀制作至少需要配置一个有效的达标组合'))
+})

@@ -31,7 +31,10 @@
 
       <section v-for="(group, groupIndex) in form.affixGroups" :key="group.id" class="affix-group">
         <header class="group-header">
-          <el-input v-model="group.name" maxlength="40" class="group-name" @change="commit" />
+          <div class="group-title">
+            <el-switch v-model="group.enabled" @change="commit" />
+            <el-input v-model="group.name" maxlength="40" class="group-name" @change="commit" />
+          </div>
           <div class="group-actions">
             <el-button size="small" :icon="CopyDocument" @click="duplicateGroup(groupIndex)">复制</el-button>
             <el-button
@@ -283,6 +286,7 @@ function removeGroup(index) {
 }
 
 .mode-options,
+.group-title,
 .group-actions,
 .column-header,
 .count-selector {

@@ -88,6 +88,7 @@ export function normalizeAffixGroup(input = {}, index = 0) {
   return {
     id,
     name: text(input.name) || `组合 ${index + 1}`,
+    enabled: input.enabled !== false,
     requiredAffixes,
     selectedAffixes,
     selectedCount
@@ -143,5 +144,6 @@ export function cloneAffixGroup(group, index) {
 }
 
 export function hasEffectiveAffixGroups(moduleTwo) {
-  return normalizeModuleTwo(moduleTwo).affixGroups.some((group) => group.requiredAffixes.length || group.selectedAffixes.length)
+  return normalizeModuleTwo(moduleTwo).affixGroups
+    .some((group) => group.enabled !== false && (group.requiredAffixes.length || group.selectedAffixes.length))
 }

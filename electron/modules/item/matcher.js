@@ -130,7 +130,9 @@ export function matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, s
     ? affixGroupsOrRequired
     : legacyGroup(affixGroupsOrRequired, selectedAffixes, selectedCount)
   const candidates = candidateModifiers(itemInfo)
-  const groupResults = groups.map((group, index) => {
+  const groupResults = groups
+    .filter((group) => group.enabled !== false)
+    .map((group, index) => {
     const required = (group.requiredAffixes ?? []).map(conditionValue).filter(Boolean)
     const selected = (group.selectedAffixes ?? []).map(conditionValue).filter(Boolean)
     if (!required.length && !selected.length) return null
