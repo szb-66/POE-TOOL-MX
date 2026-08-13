@@ -80,6 +80,9 @@
       "src/utils/junfengConfig.js",
       "src/utils/operationDelay.js",
       "src/utils/puzzleConfig.js",
+      "src/utils/chartModMatcher.js",
+      "src/utils/chartEdgeGeometry.js",
+      "src/data/chartModsData.js",
       "src/utils/stashGridCalibration.js",
       "src/utils/stashPickupConfig.js",
       "src/utils/stashTabSelection.js",
@@ -120,6 +123,10 @@
       {
         "from": "src/assets/scripts/puzzle_auto_place.py",
         "to": "puzzle_auto_place.py"
+      },
+      {
+        "from": "src/assets/scripts/chart_mods_probe.py",
+        "to": "chart_mods_probe.py"
       },
       {
         "from": "src/assets/scripts/foreground_watcher.py",

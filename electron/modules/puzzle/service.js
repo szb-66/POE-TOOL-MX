@@ -7,14 +7,19 @@ import { fileURLToPath } from 'node:url'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import {
+  gridCellCenter,
   normalizePuzzleRegionMetadata,
   normalizePuzzleTabPoints,
   validatePuzzleRegionEnvironment,
   validatePuzzleTabPoint
 } from '../../../src/utils/puzzleConfig.js'
+import { computeBorderEdgeTargets, DEFAULT_EDGE_OFFSET_PX } from '../../../src/utils/chartEdgeGeometry.js'
+import { matchBorderMods, matchFragmentMods } from '../../../src/utils/chartModMatcher.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const AUTOMATION_OWNER = '海图自动放置'
+const MOD_PROBE_OWNER = '海图词缀探测'
+const MOD_PROBE_MODULES = Object.freeze(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip', 'rapidocr', 'onnxruntime'])
 
 function parseEvents(onEvent, onLog) {
   let buffer = ''
@@ -77,6 +82,7 @@ export class PuzzleAnalysisService {
     this.overlay = overlay
     this.child = null
     this.automationChild = null
+    this.modProbeChild = null
     this.busy = false
     this.execution = {
       status: 'idle', currentIndex: -1, total: 9, completed: 0,
@@ -108,6 +114,21 @@ export class PuzzleAnalysisService {
       : [path.resolve(moduleDir, '../../../src/assets/scripts/puzzle_auto_place.py')]
     const found = candidates.find(candidate => fs.existsSync(candidate))
     if (!found) throw codedError('AUTO_SCRIPT_MISSING', '海图自动放置脚本不存在')
+    return found
+  }
+
+  modProbeScriptPath() {
+    const candidates = app.isPackaged
+      ? [path.join(process.resourcesPath, 'chart_mods_probe.py')]
+      : [path.resolve(moduleDir, '../../../src/assets/scripts/chart_mods_probe.py')]
+    const found = candidates.find(candidate => fs.existsSync(candidate))
+    if (!found) throw codedError('MOD_PROBE_SCRIPT_MISSING', '海图词缀探测脚本不存在')
+    return found
+  }
+
+  modProbePythonPath() {
+    const found = this.python.detectPythonPathWithModules?.([...MOD_PROBE_MODULES])
+    if (!found) throw codedError('PYTHON_RUNTIME_MISSING', '未找到具备 cv2、mss、numpy、pynput、pyperclip、rapidocr 的内置 Python 运行时')
     return found
   }
 
@@ -232,6 +253,16 @@ export class PuzzleAnalysisService {
 
   getAutoPlacementStatus() {
     return structuredClone(this.execution)
+  }
+
+  resetExecution() {
+    this.execution = {
+      status: 'idle', currentIndex: -1, total: 9, completed: 0,
+      source: null, target: null, turns: 0, reason: '', error: null
+    }
+    this.overlay?.close?.()
+    this.releaseAutomation()
+    return this.publishExecution({ event: 'reset' })
   }
 
   publishExecution(event = {}) {
@@ -442,7 +473,206 @@ export class PuzzleAnalysisService {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
-  async analyze({ regionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true } = {}) {
+  // 词缀探测期间的进度推送不恢复主窗口,避免把游戏窗口挤到后台。
+  sendProgress(payload) {
+    const mainWindow = this.getMainWindow?.()
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
+  }
+
+  mapProbeEvent(event) {
+    if (event?.event === 'cell-copied') {
+      return { event: 'mods-progress', stage: 'copy', index: Number(event.index || 0), total: Number(event.total || 0) }
+    }
+    if (event?.event === 'edge-scanned') {
+      return { event: 'mods-progress', stage: 'border', index: Number(event.index || 0), total: Number(event.total || 0) }
+    }
+    return null
+  }
+
+  runProbe(config) {
+    return new Promise((resolve, reject) => {
+      const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'chart-mods-probe-')
+      fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
+      const child = spawn(this.modProbePythonPath(), [this.modProbeScriptPath(), '--config', configPath], {
+        shell: false,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          PYTHONUNBUFFERED: '1',
+          PYTHONIOENCODING: 'utf-8',
+          PYTHONUTF8: '1',
+          OC_DISABLE_DOT_ACCESS_WARNING: '1'
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+      })
+      this.modProbeChild = child
+      let buffer = ''
+      let resultLine = ''
+      let stderr = ''
+      child.stdout.setEncoding('utf8')
+      child.stderr.setEncoding('utf8')
+      const consumeLine = line => {
+        if (line.startsWith('RESULT ')) {
+          resultLine = line
+          return
+        }
+        if (!line.startsWith('EVENT ')) return
+        try {
+          const progress = this.mapProbeEvent(JSON.parse(line.slice(6)))
+          if (progress) this.sendProgress(progress)
+        } catch {
+          // 单条进度事件解析失败不影响识别流程
+        }
+      }
+      child.stdout.on('data', chunk => {
+        buffer += chunk
+        const lines = buffer.split(/\r?\n/)
+        buffer = lines.pop() || ''
+        for (const line of lines) consumeLine(line)
+      })
+      child.stderr.on('data', chunk => { stderr += chunk })
+      child.once('error', reject)
+      child.once('close', code => {
+        this.modProbeChild = null
+        try { fs.unlinkSync(configPath) } catch {}
+        if (!resultLine && buffer.trim()) consumeLine(buffer.trim())
+        if (!resultLine) {
+          const detail = String(stderr || '').trim().slice(-2000)
+          reject(codedError('MOD_PROBE_OUTPUT_INVALID', detail || `词缀探测进程异常退出（${code}）`))
+          return
+        }
+        try {
+          resolve(JSON.parse(resultLine.slice(7)))
+        } catch {
+          reject(codedError('MOD_PROBE_OUTPUT_INVALID', '词缀探测结果无法解析'))
+        }
+      })
+    })
+  }
+
+  emptyProbeStats(skipped = false, reason = '') {
+    return { attempted: 0, matched: 0, unveiled: 0, unknown: 0, skipped, reason }
+  }
+
+  async probeChartMods({ inventoryMetadata, atlasMetadata, tabPoints, analysisResults }) {
+    const fragmentStats = this.emptyProbeStats()
+    const normalizeAtlas = normalizePuzzleRegionMetadata(atlasMetadata)
+    if (!inventoryMetadata?.selectedRegion) {
+      fragmentStats.skipped = true
+      fragmentStats.reason = 'REGION_REQUIRED'
+      return { fragmentMods: {}, borderMods: {}, fragmentProbe: fragmentStats, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED') }
+    }
+    const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
+    if (!gate.success) {
+      fragmentStats.skipped = true
+      fragmentStats.reason = gate.error
+      return { fragmentMods: {}, borderMods: {}, fragmentProbe: fragmentStats, borderProbe: this.emptyProbeStats(true, gate.error) }
+    }
+    const fragmentMods = {}
+    try {
+      this.overlay?.close?.()
+      const copyCells = []
+      for (const result of analysisResults) {
+        const page = Number(result?.page || 1)
+        for (const slot of result.slots || []) {
+          if (!slot.occupied) continue
+          const center = gridCellCenter(inventoryMetadata.selectedRegion, 'inventory', slot.row, slot.column)
+          copyCells.push({ page, key: `${page}:${slot.row}:${slot.column}`, x: center.x, y: center.y })
+        }
+      }
+      try {
+        if (copyCells.length) {
+          const pages = [...new Set(copyCells.map(cell => cell.page))].map(page => ({
+            page,
+            tabPoint: tabPoints[page] || null,
+            cells: copyCells.filter(cell => cell.page === page).map(cell => ({ key: cell.key, x: cell.x, y: cell.y }))
+          }))
+          const copyResponse = await this.runProbe({
+            mode: 'copy', pages, copyTimeoutMs: 900, settleMs: 260
+          })
+          fragmentStats.attempted = copyCells.length
+          for (const cell of copyCells) {
+            const text = copyResponse?.texts?.[cell.key] || ''
+            const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
+            fragmentMods[cell.key] = {
+              status: match.status,
+              mod: match.mod || null,
+              confidence: match.confidence || 0,
+              rawText: text ? text.slice(0, 600) : ''
+            }
+            if (match.status === 'matched') fragmentStats.matched += 1
+            else if (match.status === 'unveiled') fragmentStats.unveiled += 1
+            else fragmentStats.unknown += 1
+          }
+        }
+      } catch (copyError) {
+        fragmentStats.skipped = true
+        fragmentStats.reason = String(copyError?.message || copyError)
+      }
+      let borderResult
+      if (!normalizeAtlas?.selectedRegion) {
+        borderResult = { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED') }
+      } else {
+        try {
+          borderResult = await this.runBorderProbe(normalizeAtlas)
+        } catch (borderError) {
+          borderResult = { borderMods: {}, borderProbe: this.emptyProbeStats(true, String(borderError?.message || borderError)) }
+        }
+      }
+      return { fragmentMods, ...borderResult, fragmentProbe: fragmentStats }
+    } finally {
+      this.automationLock?.release(MOD_PROBE_OWNER)
+    }
+  }
+
+  // 无锁的边缘 OCR 执行体:由 probeBorderMods 与 probeChartMods 在持锁后调用。
+  async runBorderProbe(normalizeAtlas) {
+    const borderStats = this.emptyProbeStats()
+    const edges = computeBorderEdgeTargets(normalizeAtlas.selectedRegion, DEFAULT_EDGE_OFFSET_PX, normalizeAtlas.displayPhysicalBounds)
+    const borderMods = {}
+    if (edges.length) {
+      const borderResponse = await this.runProbe({
+        mode: 'border', edges,
+        hoverRegion: { width: 480, height: 320, offsetY: 24 },
+        settleMs: 350, waitTimeoutMs: 1500, ocrMinConfidence: 0.5
+      })
+      borderStats.attempted = edges.length
+      for (const edge of edges) {
+        const rawTexts = Array.isArray(borderResponse?.edges?.[edge.id]?.texts) ? borderResponse.edges[edge.id].texts : []
+        const match = matchBorderMods(rawTexts)
+        borderMods[edge.id] = { status: match.status, mod: match.mod || null, confidence: match.confidence || 0, rawTexts }
+        if (match.status === 'matched') borderStats.matched += 1
+        else borderStats.unknown += 1
+      }
+    }
+    return { borderMods, borderProbe: borderStats }
+  }
+
+  // 独立边缘词缀识别:仅重新识别 12 段外边缘,不重复碎片形状与碎片词缀识别。
+  async probeBorderMods({ atlasRegionMetadata } = {}) {
+    if (this.busy) return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'ANALYSIS_BUSY'), success: false, error: { code: 'ANALYSIS_BUSY', message: '海图识别正在进行，请稍候' } }
+    if (this.automationChild) return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'AUTO_PLACEMENT_BUSY'), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置期间不能识别边缘词缀' } }
+    const normalizeAtlas = normalizePuzzleRegionMetadata(atlasRegionMetadata)
+    if (!normalizeAtlas?.selectedRegion) {
+      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED'), success: false, error: { code: 'REGION_REQUIRED', message: '请先框选 3×3 海图区' } }
+    }
+    const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
+    if (!gate.success) {
+      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, gate.error), success: false, error: { code: 'AUTOMATION_LOCKED', message: gate.error, owner: gate.owner } }
+    }
+    try {
+      this.overlay?.close?.()
+      const result = await this.runBorderProbe(normalizeAtlas)
+      console.log('[海图边缘词缀]', JSON.stringify({ borderProbe: result.borderProbe }))
+      return { ...result, success: true }
+    } catch (error) {
+      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, String(error?.message || error)), success: false, error: { code: 'BORDER_PROBE_FAILED', message: String(error?.message || error) } }
+    } finally {
+      this.automationLock?.release(MOD_PROBE_OWNER)
+    }
+  }
+
+  async analyze({ regionMetadata, atlasRegionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true, probeMods = true } = {}) {
     const requestedPages = Array.isArray(pages)
       ? [...new Set(pages.map(value => Number(value)).filter(value => value === 1 || value === 2))].sort((left, right) => left - right)
       : [1, 2].includes(Number(page)) ? [Number(page)] : [1, 2]
@@ -485,9 +715,24 @@ export class PuzzleAnalysisService {
         }
         results.push({ ...result, page: currentPage })
       }
+      this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: 0, starting: true })
+      const mods = probeMods
+        ? await this.probeChartMods({
+            inventoryMetadata: metadata,
+            atlasMetadata: atlasRegionMetadata,
+            tabPoints,
+            analysisResults: results
+          })
+        : {
+            fragmentMods: null,
+            borderMods: null,
+            fragmentProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST'),
+            borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST')
+          }
+      console.log('[海图词缀探测]', JSON.stringify({ fragmentProbe: mods.fragmentProbe, borderProbe: mods.borderProbe }))
       const payload = results.length === 1
-        ? { ...results[0], regionMetadata: metadata }
-        : { success: true, pages: results, regionMetadata: metadata }
+        ? { ...results[0], regionMetadata: metadata, ...mods }
+        : { success: true, pages: results, regionMetadata: metadata, ...mods }
       this.publish(payload)
       return payload
     } catch (error) {
@@ -503,6 +748,8 @@ export class PuzzleAnalysisService {
   cleanup() {
     if (this.child && !this.child.killed) this.child.kill('SIGTERM')
     this.child = null
+    if (this.modProbeChild && !this.modProbeChild.killed) this.modProbeChild.kill('SIGTERM')
+    this.modProbeChild = null
     this.busy = false
     if (this.automationChild) this.stopAutoPlacement('application-exit')
     else this.releaseAutomation()

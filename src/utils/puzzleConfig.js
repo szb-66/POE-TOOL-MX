@@ -72,7 +72,8 @@ export function normalizePuzzleSettings(value = {}) {
     inventoryRegionMetadata,
     atlasRegionMetadata,
     recognition: normalizePuzzleRecognition(value.recognition),
-    inventoryTabPoints: normalizePuzzleTabPoints(value.inventoryTabPoints)
+    inventoryTabPoints: normalizePuzzleTabPoints(value.inventoryTabPoints),
+    autoProbeBorderMods: value.autoProbeBorderMods !== false
   }
 }
 

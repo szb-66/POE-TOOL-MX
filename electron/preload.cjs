@@ -140,9 +140,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearPuzzleRegion: (type) => ipcRenderer.invoke('puzzle-clear-region', type),
   getPuzzleConfiguration: (request) => ipcRenderer.invoke('puzzle-configuration', request),
   analyzePuzzle: (request) => ipcRenderer.invoke('puzzle-analyze', request),
+  probePuzzleBorderMods: (request) => ipcRenderer.invoke('puzzle-probe-border-mods', request),
   startPuzzleAutoPlacement: (request) => ipcRenderer.invoke('puzzle-auto-placement-start', request),
   stopPuzzleAutoPlacement: (reason) => ipcRenderer.invoke('puzzle-auto-placement-stop', reason),
   getPuzzleAutoPlacementStatus: () => ipcRenderer.invoke('puzzle-auto-placement-status'),
+  completePuzzleChart: () => ipcRenderer.invoke('puzzle-complete-chart'),
   onPuzzleAnalysisUpdated: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('puzzle-analysis-updated', listener)

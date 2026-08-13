@@ -18,7 +18,7 @@
           <el-option value="strict" label="严格" />
         </el-select>
         <el-button type="primary" :loading="analyzing" :disabled="!regionMetadata" @click="startAnalysis">
-          {{ analyzing ? '正在自动识别两页…' : '自动识别两页' }}
+          {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
         </el-button>
         <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
           {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
@@ -187,15 +187,27 @@
 
         <div class="exit-controls">
           <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
+          <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="executing || analyzing || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
+          <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
           <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
         </div>
         <div class="solution-shell">
             <div class="horizontal-exits top-exits">
-                <button v-for="id in northExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                <el-tooltip v-for="id in northExits" :key="id" placement="top" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
+                    <template #content>
+                        <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
+                    </template>
+                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                </el-tooltip>
             </div>
             <div class="solution-middle">
               <div class="vertical-exits">
-                <button v-for="id in westExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                <el-tooltip v-for="id in westExits" :key="id" placement="left" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
+                    <template #content>
+                        <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
+                    </template>
+                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                </el-tooltip>
               </div>
               <div class="solution-grid">
                 <div v-for="cell in displayCells" :key="cell.index" class="solution-cell" :class="{ placeholder: !cell.mask }">
@@ -204,11 +216,21 @@
                 </div>
               </div>
               <div class="vertical-exits">
-                <button v-for="id in eastExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                <el-tooltip v-for="id in eastExits" :key="id" placement="right" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
+                    <template #content>
+                        <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
+                    </template>
+                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                </el-tooltip>
               </div>
             </div>
             <div class="horizontal-exits bottom-exits">
-              <button v-for="id in southExits" :key="id" :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                <el-tooltip v-for="id in southExits" :key="id" placement="bottom" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
+                    <template #content>
+                        <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
+                    </template>
+                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                </el-tooltip>
             </div>
         </div>
 
@@ -222,6 +244,9 @@
             <el-button :disabled="executing || solutionIndex === 0" @click="previousSolution">上一个</el-button>
             <span>第 {{ solutionIndex + 1 }} / {{ result.solutions.length }} 个展示方案</span>
             <el-button :disabled="executing || solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
+          </div>
+          <div class="chart-complete-row">
+            <el-button type="warning" :disabled="executing || analyzing || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
           </div>
           <p class="total-note">
             同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
@@ -267,6 +292,11 @@ const {
   warnings,
   requiredExits,
   forbiddenExits,
+  edges,
+  edgesRecognized,
+  probingBorder,
+  autoProbeBorderMods,
+  analysisProgress,
   solutionIndex,
   solving,
   analyzing,
@@ -397,8 +427,13 @@ async function clearRegion(type) {
 async function startAnalysis() {
   const response = await store.analyze()
   if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
-  else if (response?.success) ElMessage.success('海图碎片识别完成')
-  else if (response?.error) ElMessage.error(response.error.message)
+  else if (response?.success) {
+    const skipped = [response.borderProbe, response.fragmentProbe]
+      .filter(stats => stats?.skipped && stats.reason && stats.reason !== 'SKIPPED_BY_REQUEST')
+      .map(stats => `${stats.reason}`)
+    if (skipped.length) ElMessage.warning(`词缀识别跳过：${skipped.join('；')}`)
+    else ElMessage.success('海图碎片识别完成')
+  } else if (response?.error) ElMessage.error(response.error.message)
 }
 
 function handleRecognitionStrengthChange() {
@@ -425,6 +460,17 @@ async function startAutoPlacement() {
 async function stopAutoPlacement() {
   await store.stopAutoPlacement('user')
   ElMessage.info('海图自动放入已停止')
+}
+
+async function completeCurrentChart() {
+  const response = await store.completeCurrentChart()
+  if (!response?.success) ElMessage.error(response?.error?.message || '完成当前海图失败')
+  else {
+    const borderText = response.borderProbe && !response.borderProbe.skipped
+      ? `，边缘词缀已识别 ${response.borderProbe.matched}/${response.borderProbe.attempted}`
+      : ''
+    ElMessage.success(`已扣除当前海图 9 块碎片，剩余 ${occupiedCount.value} 块已重新计算${borderText}`)
+  }
 }
 
 function updateSlot(slot, command) {
@@ -456,8 +502,47 @@ function slotTitle(slot) {
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
   const selectedIndex = sourceCellBySlot.value?.get(slotKey(slot))
   const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
-  return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}`
+  const modLine = slotModTitleLine(slot)
+  return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}${modLine}`
 }
+
+function slotModTitleLine(slot) {
+  const mods = slot?.mods
+  if (!mods) return ''
+  if (mods.status === 'unveiled') return '\n词缀：未揭示'
+  if (mods.status === 'unknown') {
+    const raw = mods.rawText ? `\n${mods.rawText}` : ''
+    return `\n词缀：未知${raw}`
+  }
+  if (!mods.mod) return ''
+  const affix = mods.mod.affixType === 'suffix' ? '后缀' : mods.mod.affixType === 'prefix' ? '前缀' : '传奇'
+  return `\n${affix}词缀 · 等级 ${mods.mod.tier}\n${mods.mod.lines.join('\n')}`
+}
+
+function edgeModLines(id) {
+  if (!edgesRecognized.value) return ['词缀：未识别']
+  const edge = edges.value[id]
+  if (!edge || edge.status !== 'matched' || !edge.mod) return ['词缀：未知']
+  return [...edge.mod.lines]
+}
+
+const analysisProgressText = computed(() => {
+  const progress = analysisProgress.value
+  if (!progress?.stage) return ''
+  if (progress.stage === 'copy') {
+    return progress.index ? `正在读取碎片词缀 ${progress.index}/${progress.total}` : '正在准备读取碎片词缀…'
+  }
+  if (progress.stage === 'border') {
+    return `正在识别边缘词缀 ${progress.index}/${progress.total}`
+  }
+  return ''
+})
+
+const borderProbeProgressText = computed(() => {
+  const progress = analysisProgress.value
+  if (!probingBorder.value || progress?.stage !== 'border' || !progress.index) return ''
+  return `识别边缘词缀 ${progress.index}/${progress.total}`
+})
 
 function clearRegionTitle(config) {
   if (executing.value) return '自动放入进行中，暂不能清空'
@@ -487,6 +572,27 @@ function toggleRequiredExit(id) {
 
 function toggleForbiddenExit(id) {
   store.toggleForbiddenExit(id)
+}
+
+const probeBorderBlockedTitle = computed(() => {
+  if (executing.value || analyzing.value) return '海图任务进行中，暂不能识别边缘词缀'
+  if (!atlasRegionMetadata.value) return '请先框选 3×3 海图区'
+  return ''
+})
+
+async function handleProbeBorderMods() {
+  const response = await store.probeBorderMods()
+  if (response?.success) {
+    const matched = Number(response.borderProbe?.matched || 0)
+    const attempted = Number(response.borderProbe?.attempted || 0)
+    ElMessage.success(`边缘词缀已识别 ${matched}/${attempted}`)
+  } else if (response?.error) {
+    ElMessage.error(response.error.message)
+  }
+}
+
+function handleAutoProbeChange(value) {
+  store.setAutoProbeBorderMods(Boolean(value))
 }
 
 const clearExitConstraints = store.clearExitConstraints
@@ -657,6 +763,7 @@ const nextSolution = store.nextSolution
   line-height: 1.2;
 }
 .orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
+.mod-tooltip-line { line-height: 1.5; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 
 .solution-card { position: relative; }
@@ -738,6 +845,7 @@ const nextSolution = store.nextSolution
 .exit-button.forbidden { color: var(--el-color-danger); border-color: var(--el-color-danger); background: var(--el-color-danger-light-9); text-decoration: line-through; font-weight: 700; }
 .solution-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 10px; font-size: 13px; }
 .solution-pager { justify-content: center; }
+.chart-complete-row { display: flex; justify-content: center; margin-top: 12px; }
 .total-note { text-align: center; color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 0; }
 
 @media (max-width: 1050px) {

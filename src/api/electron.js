@@ -99,6 +99,8 @@ const mockApi = {
     startAutoPlacement: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '海图自动放置仅支持 Electron 客户端' } }),
     stopAutoPlacement: () => Promise.resolve({ success: true, status: 'stopped' }),
     getAutoPlacementStatus: () => Promise.resolve({ status: 'idle' }),
+    completeChart: () => Promise.resolve({ success: true }),
+    probeBorderMods: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '边缘词缀识别仅支持 Electron 客户端' } }),
     onAnalysisUpdated: () => () => {},
     onAutoPlacementUpdated: () => () => {}
   },
@@ -399,6 +401,8 @@ export const electronApi = isElectron ? {
     startAutoPlacement: (request) => window.electronAPI.startPuzzleAutoPlacement?.(craftingIpcPayload(request)),
     stopAutoPlacement: (reason) => window.electronAPI.stopPuzzleAutoPlacement?.(reason),
     getAutoPlacementStatus: () => window.electronAPI.getPuzzleAutoPlacementStatus?.(),
+    completeChart: () => window.electronAPI.completePuzzleChart?.(),
+    probeBorderMods: (request) => window.electronAPI.probePuzzleBorderMods?.(craftingIpcPayload(request)),
     onAnalysisUpdated: (callback) => window.electronAPI.onPuzzleAnalysisUpdated?.(callback) || (() => {}),
     onAutoPlacementUpdated: (callback) => window.electronAPI.onPuzzleAutoPlacementUpdated?.(callback) || (() => {})
   },
