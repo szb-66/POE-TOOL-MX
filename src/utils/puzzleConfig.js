@@ -3,6 +3,7 @@ export const ATLAS_GRID_SIZE = Object.freeze({ columns: 3, rows: 3 })
 export const PUZZLE_REGION_TYPES = Object.freeze({ inventory: 'inventory', atlas: 'atlas' })
 export const PUZZLE_RECOGNITION_STRENGTHS = Object.freeze(['sensitive', 'standard', 'strict'])
 export const PUZZLE_INVENTORY_PAGES = Object.freeze([1, 2])
+export const PUZZLE_REWARD_STRATEGIES = Object.freeze(['auto', 'balanced', 'strongbox', 'rare', 'magic', 'sulphur'])
 
 function finite(value, fallback = 0) {
   const number = Number(value)
@@ -73,7 +74,8 @@ export function normalizePuzzleSettings(value = {}) {
     atlasRegionMetadata,
     recognition: normalizePuzzleRecognition(value.recognition),
     inventoryTabPoints: normalizePuzzleTabPoints(value.inventoryTabPoints),
-    autoProbeBorderMods: value.autoProbeBorderMods !== false
+    autoProbeBorderMods: value.autoProbeBorderMods !== false,
+    rewardStrategy: PUZZLE_REWARD_STRATEGIES.includes(value.rewardStrategy) ? value.rewardStrategy : 'balanced'
   }
 }
 

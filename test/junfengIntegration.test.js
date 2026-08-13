@@ -57,10 +57,12 @@ test('正式取件只有一次全网格分类并使用三轮复制确认保护',
   assert.match(shared, /return False, "inventory-full"/)
 })
 
-test('普通仓库和君锋镇共享唯一的逐候选复制判空路径', () => {
+test('普通仓库和君锋镇共享候选复制判空路径，已知占位可提前跳过', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
-  assert.match(script, /candidates = \[candidate for group in groups for candidate in group\]/)
+  assert.match(script, /candidates = ordered_candidates\(groups\)/)
+  assert.match(script, /key=lambda candidate: \(candidate\["row"\], candidate\["column"\]\)/)
   assert.match(script, /copy_item_text\(\)[\s\S]*before_status == "empty"[\s\S]*transfer_pickup_item/)
+  assert.match(script, /resolved_footprint_slots\([\s\S]*resolved_slots\.update/)
   assert.doesNotMatch(script, /transfer_confirmation|wait_for_candidate_change/)
   assert.equal((script.match(/mouse\.position = park_position/g) || []).length, 1)
   assert.doesNotMatch(script, /changed_candidate_cells|cleared_cells/)

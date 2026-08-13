@@ -124,40 +124,71 @@ export function matchFragmentMods(lines) {
   }
 }
 
+// 为被 OCR 拆分的目标词缀生成有限阅读顺序拼接候选:相邻 2–3 段与完整短序列(≤4 段)。
+// 不拼接整段无关 UI,避免把全帧 OCR 的大量文字任意排列。
+function borderJoinCandidates(lines) {
+  if (lines.length < 2) return []
+  const candidates = []
+  for (let length = 2; length <= 3; length++) {
+    for (let start = 0; start + length <= lines.length; start++) {
+      candidates.push(lines.slice(start, start + length).join(''))
+    }
+  }
+  if (lines.length <= 4) candidates.push(lines.join(''))
+  return candidates
+}
+
+function uniqueBorderMatch(mods, confidence) {
+  return mods.length === 1 ? { status: 'matched', mod: mods[0], confidence } : null
+}
+
 // 匹配边框浮窗 OCR 文本行,返回 { status: 'matched'|'unknown', mod?, confidence }。
-// 先按固定数字精确匹配,再按全占位结构匹配唯一候选,最后按字符相似度兜底。
+// 复合词缀的全部目录行必须同时命中;依次尝试固定数字、包含、结构和模糊匹配。
 export function matchBorderMods(lines) {
   const sourceLines = Array.isArray(lines) ? lines.filter(line => typeof line === 'string' && line.trim()) : []
   if (!sourceLines.length) return { status: 'unknown', confidence: 0 }
-  const sourceFixed = fixedLineSet(sourceLines)
-  const sourceFull = normalizedLineSet(sourceLines)
+  const joined = borderJoinCandidates(sourceLines)
+  const candidateLines = [...sourceLines, ...joined]
+  const sourceFixed = fixedLineSet(candidateLines)
+  const sourceFull = normalizedLineSet(candidateLines)
   if (!sourceFixed.size) return { status: 'unknown', confidence: 0 }
 
-  for (const mod of BORDER_CHART_MODS) {
-    if (mod.lines.some(line => sourceFixed.has(catalogLineKey(line)))) {
-      return { status: 'matched', mod, confidence: 1 }
-    }
-  }
+  const exact = BORDER_CHART_MODS.filter(mod => mod.lines.length &&
+    mod.lines.every(line => sourceFixed.has(catalogLineKey(line))))
+  const exactMatch = uniqueBorderMatch(exact, 1)
+  if (exactMatch) return exactMatch
+
+  const contained = BORDER_CHART_MODS.filter(mod => mod.lines.length && mod.lines.every(line => {
+    const catalogText = catalogLineKey(line)
+    return catalogText && [...sourceFixed].some(sourceLine => sourceLine.includes(catalogText))
+  }))
+  const containedMatch = uniqueBorderMatch(contained, 0.95)
+  if (containedMatch) return containedMatch
+
   const structural = BORDER_CHART_MODS.filter(mod =>
-    mod.lines.length && mod.lines.some(line => sourceFull.has(normalizeChartModText(line))))
-  if (structural.length === 1) {
-    return { status: 'matched', mod: structural[0], confidence: 0.9 }
-  }
-  let best = null
+    mod.lines.length && mod.lines.every(line => sourceFull.has(normalizeChartModText(line))))
+  const structuralMatch = uniqueBorderMatch(structural, 0.9)
+  if (structuralMatch) return structuralMatch
+
+  const scored = []
   for (const mod of BORDER_CHART_MODS) {
     if (!mod.lines.length) continue
-    for (const modLine of mod.lines) {
+    const lineScores = mod.lines.map(modLine => {
       const modKey = catalogLineKey(modLine)
-      for (const sourceLine of sourceLines) {
+      let bestLine = 0
+      for (const sourceLine of candidateLines) {
         const similarity = textSimilarity(catalogLineKey(sourceLine), modKey)
-        if (!best || similarity > best.confidence) {
-          best = { mod, confidence: similarity }
-        }
+        if (similarity > bestLine) bestLine = similarity
       }
-    }
+      return bestLine
+    })
+    scored.push({ mod, confidence: Math.min(...lineScores) })
   }
-  if (best && best.confidence >= BORDER_MATCH_THRESHOLD) {
-    return { status: 'matched', mod: best.mod, confidence: best.confidence }
+
+  const bestConfidence = Math.max(0, ...scored.map(candidate => candidate.confidence))
+  const best = scored.filter(candidate => candidate.confidence === bestConfidence)
+  if (bestConfidence >= BORDER_MATCH_THRESHOLD && best.length === 1) {
+    return { status: 'matched', mod: best[0].mod, confidence: bestConfidence }
   }
-  return { status: 'unknown', confidence: best?.confidence ?? 0 }
+  return { status: 'unknown', confidence: bestConfidence }
 }

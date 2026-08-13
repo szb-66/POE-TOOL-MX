@@ -340,32 +340,182 @@ def unpack_ocr_output(output: Any) -> tuple[list[Any], list[str], list[float]]:
     return [], [], []
 
 
-def frame_signature(image: np.ndarray) -> bytes:
-    gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY) if image.shape[2] == 4 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    resized = cv2.resize(gray, (32, 32), interpolation=cv2.INTER_AREA)
-    return (resized > resized.mean()).astype(np.uint8).tobytes()
+def prepare_ocr_image(image: np.ndarray) -> np.ndarray:
+    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if image.shape[2] == 3 else image
 
 
-def same_frame(left: bytes | None, right: bytes | None) -> bool:
-    return left is not None and right is not None and left == right
+def ordered_texts(engine: Any, image: np.ndarray, min_confidence: float) -> list[str]:
+    """按阅读顺序返回 OCR 文本:先按行(y)再按水平位置(x)排序。"""
+    output = engine(prepare_ocr_image(image))
+    boxes, ocr_texts, scores = unpack_ocr_output(output)
+    rows = [
+        (box, str(text).strip(), float(score))
+        for box, text, score in zip(boxes, ocr_texts, scores)
+        if float(score) >= min_confidence and str(text).strip()
+    ]
+    if not rows:
+        return []
+    def geometry(row: tuple[Any, str, float]) -> tuple[float, float]:
+        box = row[0]
+        return (
+            (float(box[0][1]) + float(box[2][1])) / 2,
+            max(1.0, float(box[2][1]) - float(box[0][1])),
+        )
+
+    lines: list[list[tuple[Any, str, float]]] = []
+    for row in sorted(rows, key=lambda item: geometry(item)[0]):
+        center, height = geometry(row)
+        if lines:
+            line_centers = [geometry(item)[0] for item in lines[-1]]
+            line_heights = [geometry(item)[1] for item in lines[-1]]
+            if abs(center - sum(line_centers) / len(line_centers)) <= min(height, max(line_heights)) * 0.5:
+                lines[-1].append(row)
+                continue
+        lines.append([row])
+    return [
+        "".join(text for _box, text, _score in sorted(line, key=lambda item: float(item[0][0][0])))
+        for line in lines
+    ]
+
+
+def target_text_mask(image: np.ndarray) -> np.ndarray:
+    """蓝紫色词缀文字掩膜:目标文字在 B 通道上同时强于 G 与 R,白色仓库等级文字不满足。"""
+    blue = image[:, :, 0].astype(np.int16)
+    green = image[:, :, 1].astype(np.int16)
+    red = image[:, :, 2].astype(np.int16)
+    return (((blue - green) > 20) & ((blue - red) > 15)).astype(np.uint8) * 255
+
+
+# 词缀浮窗文字在逻辑像素下的参考字形高度(150% DPI 夹具实测 38px ≈ 25×1.5)。
+TEXT_GLYPH_HEIGHT_LOGICAL = 25.0
+
+
+def target_text_roi(
+    image: np.ndarray,
+    anchor: tuple[float, float] | None = None,
+    glyph_h: float = 32.0,
+    min_components: int = 3,
+) -> np.ndarray | None:
+    """提取目标词缀文字的联合边界并渲染为黑字白底小图;提取失败返回 None。
+
+    anchor 为鼠标在捕获图内的坐标:在多个文本块中取离锚点最近的一块,避免同框其它
+    蓝字(如魔法地图名)抢占 ROI。glyph_h 为词缀文字的字形高度(物理像素),
+    用于按字号过滤噪点与大面积蓝紫色背景(如海面)。
+    """
+    mask = target_text_mask(image)
+    if not int(mask.sum()):
+        return None
+    count, _labels, stats, _centroids = cv2.connectedComponentsWithStats(mask)
+    if count <= 1:
+        return None
+    height, width = mask.shape
+    min_area = max(6.0, (glyph_h * 0.35) ** 2)
+    components: list[tuple[int, int, int, int, int]] = []
+    for index in range(1, count):
+        x, y, w, h, area = (int(stats[index, column]) for column in range(5))
+        if area < min_area:
+            continue
+        if w > width * 0.8 or h > height * 0.6:
+            continue
+        if h < glyph_h * 0.4 or h > glyph_h * 3:
+            continue
+        components.append((x, y, w, h, area))
+    if len(components) < min_components:
+        return None
+    # 水平文本布局:先按行带聚类,再将垂直间距不超过 0.75 倍字高的相邻行合并为文本块。
+    band = glyph_h * 1.5
+    rows: dict[int, list[tuple[int, int, int, int, int]]] = {}
+    for component in components:
+        key = round((component[1] + component[3] / 2.0) / band)
+        rows.setdefault(key, []).append(component)
+    valid_rows = [row for row in rows.values() if len(row) >= min_components]
+    if not valid_rows:
+        return None
+    valid_rows.sort(key=lambda row: min(component[1] for component in row))
+    blocks: list[list[tuple[int, int, int, int, int]]] = []
+    for row in valid_rows:
+        row_top = min(component[1] for component in row)
+        if blocks and row_top - max(component[1] + component[3] for component in blocks[-1]) <= glyph_h * 0.75:
+            blocks[-1].extend(row)
+        else:
+            blocks.append(list(row))
+    if anchor is not None:
+        def block_distance(block: list[tuple[int, int, int, int, int]]) -> float:
+            return sum(
+                (component[0] + component[2] / 2.0 - anchor[0]) ** 2
+                + (component[1] + component[3] / 2.0 - anchor[1]) ** 2
+                for component in block
+            ) / len(block)
+        block = min(blocks, key=block_distance)
+    else:
+        block = max(blocks, key=len)
+    x1 = min(component[0] for component in block)
+    y1 = min(component[1] for component in block)
+    x2 = max(component[0] + component[2] for component in block)
+    y2 = max(component[1] + component[3] for component in block)
+    pad = max(4, int(round(glyph_h * 0.25)))
+    x1 = max(0, x1 - pad)
+    y1 = max(0, y1 - pad)
+    x2 = min(width, x2 + pad)
+    y2 = min(height, y2 + pad)
+    roi_mask = mask[y1:y2, x1:x2]
+    roi = np.full((y2 - y1, x2 - x1, 3), 255, np.uint8)
+    roi[roi_mask > 0] = 0
+    return roi
+
+
+def display_bounds_for_target(target: dict[str, Any], hover_region: dict[str, Any]) -> dict[str, int]:
+    configured = hover_region.get("displayBounds") or {}
+    if int(configured.get("width", 0)) > 0 and int(configured.get("height", 0)) > 0:
+        return {
+            "left": int(configured.get("left", configured.get("x", 0))),
+            "top": int(configured.get("top", configured.get("y", 0))),
+            "width": int(configured["width"]),
+            "height": int(configured["height"]),
+        }
+    x = int(target["x"])
+    y = int(target["y"])
+    with mss.mss() as capture:
+        monitors = capture.monitors[1:] or capture.monitors
+        monitor = next((item for item in monitors if (
+            item["left"] <= x < item["left"] + item["width"] and
+            item["top"] <= y < item["top"] + item["height"]
+        )), capture.monitors[0])
+        return {key: int(monitor[key]) for key in ("left", "top", "width", "height")}
 
 
 def hover_monitor(target: dict[str, Any], hover_region: dict[str, Any]) -> dict[str, int]:
     x = int(target["x"])
     y = int(target["y"])
-    width = max(120, int(hover_region.get("width", 480)))
-    height = max(60, int(hover_region.get("height", 320)))
-    offset_y = max(4, int(hover_region.get("offsetY", 24)))
+    scale_factor = max(0.1, float(hover_region.get("scaleFactor", 1)))
+    bounds = display_bounds_for_target(target, hover_region)
+    width = min(bounds["width"], max(120, round(float(hover_region.get("width", 800)) * scale_factor)))
+    height = min(bounds["height"], max(60, round(float(hover_region.get("height", 320)) * scale_factor)))
+    offset_y = max(0, round(float(hover_region.get("offsetY", 24)) * scale_factor))
     left = x - width // 2
     # 竖直居中于光标并整体向下偏移,同时覆盖浮窗渲染在光标上方或下方的两种情况。
     top = y + offset_y - height // 2
-    with mss.mss() as capture:
-        monitor = capture.monitors[0]
-        left = max(monitor["left"], left)
-        top = max(monitor["top"], top)
-        left = min(monitor["left"] + monitor["width"] - width, left)
-        top = min(monitor["top"] + monitor["height"] - height, top)
+    left = min(max(bounds["left"], left), bounds["left"] + bounds["width"] - width)
+    top = min(max(bounds["top"], top), bounds["top"] + bounds["height"] - height)
     return {"left": left, "top": top, "width": width, "height": height}
+
+
+def border_edge_texts(
+    engine: Any,
+    capture: Any,
+    monitor: dict[str, int],
+    settle_ms: int,
+    min_confidence: float,
+    anchor: tuple[float, float] | None = None,
+    glyph_h: float = 32.0,
+) -> list[str]:
+    """悬停等待后抓取一帧:优先 OCR 目标文字 ROI,提取失败时回退整帧 OCR。"""
+    time.sleep(settle_ms / 1000.0)
+    image = np.asarray(capture.grab(monitor))[:, :, :3]
+    roi = target_text_roi(image, anchor=anchor, glyph_h=glyph_h)
+    if roi is None:
+        return ordered_texts(engine, image, min_confidence)
+    return ordered_texts(engine, roi, min_confidence)
 
 
 def scan_border_texts(config: dict[str, Any]) -> dict[str, Any]:
@@ -374,8 +524,9 @@ def scan_border_texts(config: dict[str, Any]) -> dict[str, Any]:
         return fail("EDGES_EMPTY", "边缘目标点列表为空")
     hover_region = config.get("hoverRegion") or {}
     settle_ms = max(100, int(config.get("settleMs", DEFAULT_SETTLE_MS)))
-    wait_timeout_ms = max(200, int(config.get("waitTimeoutMs", DEFAULT_WAIT_TIMEOUT_MS)))
     min_confidence = float(config.get("ocrMinConfidence", DEFAULT_OCR_MIN_CONFIDENCE))
+    scale_factor = max(0.1, float(hover_region.get("scaleFactor", 1)))
+    glyph_h = max(6.0, TEXT_GLYPH_HEIGHT_LOGICAL * scale_factor)
     focused, focus_error = focus_game_window()
     if not focused:
         messages = {
@@ -393,23 +544,13 @@ def scan_border_texts(config: dict[str, Any]) -> dict[str, Any]:
             event({"event": "edge-scanned", "index": index + 1, "total": len(edges), "id": edge_id})
             texts: list[str] = []
             try:
-                move_cursor(int(edge["x"]), int(edge["y"]))
-                time.sleep(settle_ms / 1000.0)
                 monitor = hover_monitor(edge, hover_region)
-                before = frame_signature(np.asarray(capture.grab(monitor))[:, :, :3])
-                deadline = time.monotonic() + wait_timeout_ms / 1000.0
-                while time.monotonic() < deadline:
-                    time.sleep(0.1)
-                    current_frame = frame_signature(np.asarray(capture.grab(monitor))[:, :, :3])
-                    if not same_frame(before, current_frame):
-                        break
-                image = np.asarray(capture.grab(monitor))[:, :, :3]
-                output = engine(cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if image.shape[2] == 3 else image)
-                _boxes, ocr_texts, scores = unpack_ocr_output(output)
-                texts = [
-                    str(text).strip() for text, score in zip(ocr_texts, scores)
-                    if float(score) >= min_confidence and str(text).strip()
-                ]
+                move_cursor(int(edge["x"]), int(edge["y"]))
+                anchor = (float(edge["x"]) - monitor["left"], float(edge["y"]) - monitor["top"])
+                texts = border_edge_texts(
+                    engine, capture, monitor, settle_ms, min_confidence,
+                    anchor=anchor, glyph_h=glyph_h,
+                )
             except Exception:
                 texts = []
             results[edge_id] = {"texts": texts}

@@ -70,12 +70,22 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 - 项目地址：https://github.com/BYVoid/OpenCC 、https://github.com/nk2028/opencc-js
 - 使用版本：`opencc-js@1.4.1`
 - 许可证：MIT、Apache-2.0（含词典数据的对应许可）
-- 用途：仅在开发期生成查价目录时，把 Sidekick 的繁体中文游戏描述转换为大陆简体中文；不进入 Electron 运行时代码。
+- 用途：仅在开发期生成查价和物品占位目录时，把繁体中文游戏数据转换为大陆简体中文；不进入 Electron 运行时代码。
+
+## RePoE
+
+- 项目地址：https://github.com/repoe-fork/repoe
+- 托管数据：https://repoe-fork.github.io/
+- 目录数据版本：POE1 `3.29.3.1.2`
+- 上游许可证：MIT；`data` 目录中的游戏数据归 Grinding Gear Games 所有，并受其使用条款约束。
+- 用途：仅在开发期生成物品占位目录时读取英文与繁体中文的 `base_items`、繁体中文 `item_classes`、内部记录身份及 `inventory_width` / `inventory_height`；生成结果记录来源版本和 SHA-256，应用运行时不请求 RePoE。
+
+Copyright (c) 2016 brather1ng.
 
 ## PoEDB 与 Path of Exile 物品美术
 
 - 数据页面：https://poedb.tw/cn/Unique_item
-- 用途：构建版本化的简体中文传奇名称、底材与物品图片离线快照。
+- 用途：构建版本化的简体中文传奇名称、带稳定 `sourceId` 的做装底材与物品图片离线快照；`sourceId` 同时用于生成物品占位目录时与 RePoE 英文基底身份关联。
 - 部分 PoEDB 图片地址不可用时，生成器从 `web.poecdn.com` 获取相同的 Path of Exile 官方物品美术资源。
 
 PoEDB 页面仅作为数据来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB。

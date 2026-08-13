@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
@@ -95,6 +96,7 @@ export class StashPickupManager {
       calibration_similarity: 0.965,
       calibration_index: this.calibration?.indexPath || '',
       calibration_root: this.calibration?.root || '',
+      item_footprints: itemFootprintRegistry.snapshot(),
       ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
     return configPath

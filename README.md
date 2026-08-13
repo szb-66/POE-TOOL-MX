@@ -116,7 +116,7 @@
 
 - 账号会话信息仅保存在本机 Electron 独立 Session 或本地配置中，不会写入诊断文件；诊断事件也不会保存原始错误文本。
 - 应用只在执行对应功能时访问国服登录、交易接口和必要的数据源。
-- 做装、物品名称和美术快照包含来自 PoEDB 与 Path of Exile 的公开数据；具体归属见 [第三方软件与来源说明](THIRD_PARTY_NOTICES.md)。
+- 做装、物品名称、美术和物品占位快照包含来自 PoEDB、RePoE 与 Path of Exile 的公开数据；物品占位目录仅在开发期联网刷新，应用运行时只读取内置快照与仓库 API 已返回的尺寸。具体归属见 [第三方软件与来源说明](THIRD_PARTY_NOTICES.md)。
 - 请勿在 Issue、截图或日志中提交 POESESSID、Cookie、账号信息、完整用户路径或个人仓库内容。
 
 ## 参与开发
@@ -139,6 +139,14 @@ npm test
 npm run build
 npm run release:win
 ```
+
+刷新 POE1 3.29 物品占位目录：
+
+```powershell
+npm run item-footprints:data
+```
+
+该命令会读取本地做装快照，并从 RePoE 与腾讯国服官方交易目录下载同版本数据。生成器会校验版本、995 个做装基底覆盖率、重复身份与尺寸冲突；任一门禁失败时不会覆盖现有 `electron/assets/item-footprints.json`。刷新过程需要网络，应用运行时不会访问 RePoE 或为未知物品联网查询尺寸。
 
 `runtime:prepare` 会下载官方 Python 3.13 x64 嵌入式运行时和锁定的 wheel，并逐项校验 SHA-256；`runtime:verify` 会检查解释器、架构、模块、脚本资源和许可证。开发环境可通过 `POE_PYTHON_RUNTIME` 显式指定 Python，正式包始终使用内置运行时。
 

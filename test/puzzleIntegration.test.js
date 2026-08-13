@@ -82,14 +82,14 @@ test('清空已选区域贯通 IPC、preload、渲染 API、服务与页面', ()
   assert.match(service, /clearRegion\(type = 'inventory'\)[\s\S]*previewPath\(regionType\)[\s\S]*fs\.unlinkSync/)
   assert.match(service, /const previewFor = \(metadata, type\) =>[\s\S]*normalizePuzzleRegionMetadata\(metadata\) \? this\.readPreview\(type\) : ''/)
   assert.match(store, /let regionClearGeneration = 0/)
-  assert.match(store, /function clearRegion\(type = 'inventory'\)[\s\S]*inventoryRegionMetadata\.value = null[\s\S]*regionClearGeneration \+= 1[\s\S]*resetAnalysisState\(\)/)
+  assert.match(store, /function clearRegion\(type = 'inventory'\)[\s\S]*inventoryRegionMetadata\.value = null[\s\S]*regionClearGeneration \+= 1[\s\S]*resetInventoryAnalysisState\(\)/)
   assert.match(store, /if \(regionClearGeneration !== clearGeneration\)[\s\S]*REGION_CLEARED/)
   const clearBlock = store.match(/async function clearRegion[\s\S]*?\n  \}/)?.[0] || ''
   assert.doesNotMatch(clearBlock, /analyzing/)
   assert.match(store, /atlasRegionMetadata\.value = null/)
   assert.match(store, /previews\.value\[type\] = ''/)
   assert.match(store, /await loadConfiguration\(\)[\s\S]*previews\.value\[type\] = ''\n    return \{ success: true \}/)
-  assert.match(view, /:disabled="executing \|\| analyzing \|\| !config\.metadata" :title="clearRegionTitle\(config\)" @click="clearRegion\(config\.type\)">清空已选/)
+  assert.match(view, /:disabled="executing \|\| analyzing \|\| probingBorder \|\| !config\.metadata" :title="clearRegionTitle\(config\)" @click="clearRegion\(config\.type\)">清空已选/)
   assert.match(view, /function clearRegionTitle\(config\)[\s\S]*尚未框选区域/)
   assert.doesNotMatch(view, /typeof store\.clearRegion/)
 })
@@ -145,7 +145,6 @@ test('出口三态在状态层互斥、可统一清空并按识别模式重置�
   assert.match(clear, /forbiddenExits\.value = \[\]/)
   assert.equal((clear.match(/recompute\(\)/g) || []).length, 1)
   const apply = store.match(/function applyAnalysis\([\s\S]*?\n  \}/)?.[0] || ''
-  assert.match(apply, /if \(!preserveSolution\)/)
   assert.match(apply, /if \(resetConstraints\)[\s\S]*requiredExits\.value = \[\][\s\S]*forbiddenExits\.value = \[\]/)
 })
 
@@ -198,21 +197,68 @@ test('重算期间仅在最优方案卡片显示 loading，且不人为延长计
 
 test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
-  const headingActions = view.match(/<div class="heading-actions">([\s\S]*?)<\/div>/)?.[1] || ''
-  assert.doesNotMatch(headingActions, /框选碎片仓库|框选海图区/)
-  assert.match(view, /class="configuration-actions"[\s\S]*:disabled="executing \|\| analyzing" @click="pickRegion\(config\.type\)"/)
+  const pageHeading = view.slice(view.indexOf('<div class="page-heading">'), view.indexOf('<el-alert'))
+  assert.doesNotMatch(pageHeading, /框选碎片仓库|框选海图区|自动识别两页|自动放入|recognitionStrength/)
+  assert.match(view, /class="configuration-actions"[\s\S]*:disabled="executing \|\| analyzing \|\| probingBorder" @click="pickRegion\(config\.type\)"/)
   assert.match(view, /type: 'inventory'[\s\S]*pickLabel: '框选碎片仓库'/)
   assert.match(view, /type: 'atlas'[\s\S]*pickLabel: '框选海图区'/)
+})
+
+test('识别控件归入碎片仓库，自动放入控件归入最优方案', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  const inventoryHeader = view.match(/<el-card class="inventory-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
+  const solutionHeader = view.match(/<el-card class="solution-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
+
+  assert.match(inventoryHeader, /v-model="recognitionStrength"/)
+  assert.match(inventoryHeader, /@click="startAnalysis"[\s\S]*自动识别两页/)
+  assert.doesNotMatch(inventoryHeader, /startAutoPlacement|stopAutoPlacement/)
+  assert.match(solutionHeader, /@click="startAutoPlacement"[\s\S]*自动放入/)
+  assert.match(solutionHeader, /@click="stopAutoPlacement">停止自动放入/)
+  assert.match(solutionHeader, /auto-blocked-reason[\s\S]*autoPlaceBlockedReason/)
+})
+
+test('最优方案支持收益策略并明确相对分口径', () => {
+  const store = source('../src/stores/puzzle.js')
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  const rewards = source('../src/domains/puzzle/voyageRewards.js')
+  assert.match(view, /v-model="selectedRewardStrategy"/)
+  assert.match(view, /VOYAGE_REWARD_MODE_OPTIONS/)
+  assert.match(rewards, /\{ id: 'auto', label: '最高收益自动切换'/)
+  assert.match(view, /相对收益 \{\{ result\.rewardScore \}\}/)
+  assert.match(view, /QuestionFilled/)
+  assert.match(view, /不代表实际掉落量或通货价格/)
+  assert.match(view, /当前自动选择：\{\{ effectiveRewardStrategyLabel \}\}/)
+  assert.match(store, /slots: allSlots\.value,[\s\S]*edges: edges\.value,[\s\S]*strategy: rewardStrategy\.value/)
+  assert.match(store, /function setRewardStrategy\(strategy\)[\s\S]*persistRegions\(\)[\s\S]*recompute\(\)/)
+  assert.match(store, /const effectiveRewardStrategy = computed[\s\S]*result\.value\.effectiveStrategy/)
+  assert.match(store, /assignSourceSlots\([\s\S]*strategy: effectiveRewardStrategy\.value/)
+  assert.match(store, /if \(response\.borderMods\) \{[\s\S]*applyBorderMods\(response\.borderMods\)[\s\S]*persistRegions\(\)[\s\S]*await recompute\(\)/)
+})
+
+test('两个区域配置模块独立折叠并按区域数据初始化', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /const regionExpanded = reactive\(\{[\s\S]*inventory: !inventoryRegionMetadata\.value[\s\S]*atlas: !atlasRegionMetadata\.value/)
+  assert.match(view, /@click="toggleRegion\(config\.type\)"[\s\S]*regionExpanded\[config\.type\] \? '收起' : '展开'/)
+  assert.match(view, /<el-collapse-transition>[\s\S]*v-show="regionExpanded\[config\.type\]" class="configuration-body"/)
+  assert.match(view, /response\?\.success[\s\S]*regionExpanded\[type\] = false[\s\S]*已保存/)
+  assert.match(view, /response\?\.success[\s\S]*regionExpanded\[type\] = true[\s\S]*已清空/)
 })
 
 test('低置信度碎片保留警告但仍参与海图求解与来源分配', () => {
   const store = source('../src/stores/puzzle.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(store, /counts: counts\.value/)
-  assert.match(store, /assignSourceSlots\(solution, allSlots\.value\)/)
+  assert.match(store, /assignSourceSlots\(solution, allSlots\.value, \{ strategy: solved\.effectiveStrategy \|\| 'balanced', edges: edges\.value \}\)/)
   assert.doesNotMatch(store, /剩余来源碎片存在待确认项/)
   assert.match(view, /auto-blocked-reason/)
   assert.match(view, /\{\{ autoPlaceBlockedReason \}\}/)
+})
+
+test('识别任务运行时自动放入保持互斥', () => {
+  const store = source('../src/stores/puzzle.js')
+  const blockedReason = store.match(/const autoPlaceBlockedReason = computed\(\(\) => \{([\s\S]*?)\n  \}\)/)?.[1] || ''
+  assert.match(blockedReason, /analyzing\.value[\s\S]*海图识别正在进行/)
+  assert.match(blockedReason, /probingBorder\.value[\s\S]*边缘词缀识别正在进行/)
 })
 
 test('完成当前海图扣除来源碎片、清空出口限制并基于剩余碎片重算', () => {
@@ -234,13 +280,14 @@ test('完成当前海图扣除来源碎片、清空出口限制并基于剩余�
   assert.match(action, /completeChart\?\.\(\)/)
   assert.match(store, /completeCurrentChart,/)
 
-  assert.match(view, /solution-pager[\s\S]*chart-complete-row[\s\S]*type="warning" :disabled="executing \|\| analyzing \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成<\/el-button>/)
+  assert.match(view, /solution-pager[\s\S]*chart-complete-row[\s\S]*type="warning" :disabled="executing \|\| analyzing \|\| probingBorder \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成<\/el-button>/)
   const headingActions = view.match(/<div class="heading-actions">([\s\S]*?)<\/div>/)?.[1] || ''
   assert.doesNotMatch(headingActions, /completeCurrentChart/)
   const handler = view.match(/async function completeCurrentChart\(\) \{([\s\S]*?)\n\}/)?.[1] || ''
   assert.match(handler, /store\.completeCurrentChart\(\)/)
   assert.match(handler, /已扣除当前海图 9 块碎片，剩余 \$\{occupiedCount\.value\} 块已重新计算/)
   assert.match(handler, /response\.borderProbe/)
+  assert.match(handler, /边缘词缀已清空，请点击“识别边缘词缀”/)
   assert.doesNotMatch(handler, /confirm/)
 
   assert.match(ipc, /puzzle-complete-chart/)
@@ -263,8 +310,8 @@ test('独立边缘词缀识别通道贯通 IPC、preload、API 与服务', () =>
   assert.match(service, /async probeBorderMods\(\{ atlasRegionMetadata \} = \{\}\)/)
   assert.match(service, /async runBorderProbe\(normalizeAtlas\)/)
   assert.match(service, /AUTO_PLACEMENT_BUSY/)
-  const chartMods = service.match(/async probeChartMods\([\s\S]*?\n  \}/)?.[0] || ''
-  assert.match(chartMods, /this\.runBorderProbe\(normalizeAtlas\)/)
+  const fragmentMods = service.match(/async probeFragmentMods\([\s\S]*?\n  \}/)?.[0] || ''
+  assert.doesNotMatch(fragmentMods, /runBorderProbe|atlasMetadata/)
   const runProbe = service.match(/runProbe\(config\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.match(runProbe, /if \(line\.startsWith\('RESULT '\)\)[\s\S]*resultLine = line/)
   assert.match(runProbe, /if \(!resultLine && buffer\.trim\(\)\) consumeLine\(buffer\.trim\(\)\)/)
@@ -272,15 +319,51 @@ test('独立边缘词缀识别通道贯通 IPC、preload、API 与服务', () =>
   assert.match(runProbe, /slice\(-2000\)/)
 })
 
-test('海图区缺失或边缘识别失败时不丢弃已识别的碎片词缀', () => {
+test('边缘 OCR 使用 DPI 捕获、固定等待后单帧采样并直接执行共享匹配器', () => {
   const service = source('../electron/modules/puzzle/service.js')
-  const chartMods = service.match(/async probeChartMods\([\s\S]*?\n  \}/)?.[0] || ''
-  assert.match(chartMods, /!normalizeAtlas\?\.selectedRegion/)
-  assert.match(chartMods, /borderProbe: this\.emptyProbeStats\(true, 'REGION_REQUIRED'\)/)
-  assert.match(chartMods, /catch \(borderError\)[\s\S]*borderResult = \{ borderMods: \{\}, borderProbe: this\.emptyProbeStats\(true, String\(borderError\?\.message \|\| borderError\)\) \}/)
-  assert.match(chartMods, /return \{ fragmentMods, \.\.\.borderResult, fragmentProbe: fragmentStats \}/)
-  assert.match(chartMods, /catch \(copyError\)[\s\S]*fragmentStats\.reason = String\(copyError\?\.message \|\| copyError\)/)
-  assert.doesNotMatch(chartMods, /catch \(error\) \{\s*fragmentStats\.skipped = true[\s\S]*fragmentMods: \{\}/)
+  const geometry = source('../src/utils/chartEdgeGeometry.js')
+  const probe = source('../src/assets/scripts/chart_mods_probe.py')
+  const borderProbe = service.match(/async runBorderProbe\(normalizeAtlas\)[\s\S]*?\n  \}/)?.[0] || ''
+  const result = service.match(/function borderModResult\(lines\) \{([\s\S]*?)\n\}/)?.[1] || ''
+
+  assert.match(borderProbe, /width: 800, height: 800, offsetY: 0/)
+  assert.match(borderProbe, /scaleFactor: normalizeAtlas\.scaleFactor/)
+  assert.match(borderProbe, /displayBounds: normalizeAtlas\.displayPhysicalBounds/)
+  assert.match(borderProbe, /computeBorderEdgeTargets\(normalizeAtlas\.selectedRegion, normalizeAtlas\.displayPhysicalBounds\)/)
+  assert.doesNotMatch(borderProbe, /computeBorderEdgeTargets\([^\n]*scaleFactor/)
+  assert.match(geometry, /DEFAULT_EDGE_OFFSET_RATIO = 0\.06/)
+  assert.match(geometry, /offsetX = Math\.round\(width \* ratio\)/)
+  assert.match(geometry, /offsetY = Math\.round\(height \* ratio\)/)
+  assert.match(borderProbe, /settleMs: 300/)
+  assert.match(borderProbe, /borderModResult\(borderTextsFor\(borderResponse\?\.edges\?\.\[edge\.id\]\)\)/)
+  assert.match(borderProbe, /if \(borderResponse\?\.success === false\) \{[\s\S]*throw codedError\('BORDER_PROBE_FAILED'/)
+  assert.doesNotMatch(borderProbe, /waitTimeoutMs|retryEdges|enhanced/)
+  assert.doesNotMatch(service, /stableBorderResult|bestEvidenceSample|chooseBestBorderMatch/)
+
+  assert.match(result, /matchBorderMods\(lines\)/)
+  assert.match(result, /status: 'unknown'[\s\S]*rawTexts: lines/)
+  assert.match(probe, /def target_text_roi/)
+  assert.match(probe, /def border_edge_texts/)
+  assert.match(probe, /anchor: tuple\[float, float\] \| None = None/)
+  assert.match(probe, /anchor = \(float\(edge\["x"\]\) - monitor\["left"\], float\(edge\["y"\]\) - monitor\["top"\]\)/)
+  assert.match(probe, /move_cursor\(int\(edge\["x"\]\), int\(edge\["y"\]\)\)[\s\S]*border_edge_texts/)
+  assert.doesNotMatch(probe, /frame_signature|advance_hover_stability|sample_target_frames/)
+})
+
+test('自动识别只采集碎片词缀并返回兼容的边缘跳过字段', () => {
+  const service = source('../electron/modules/puzzle/service.js')
+  const store = source('../src/stores/puzzle.js')
+  const fragmentMods = service.match(/async probeFragmentMods\([\s\S]*?\n  \}/)?.[0] || ''
+  const analyze = service.match(/async analyze\([\s\S]*?\n  \}/)?.[0] || ''
+  const storeAnalyze = store.match(/async function analyze\([\s\S]*?\n  \}/)?.[0] || ''
+
+  assert.match(fragmentMods, /return \{ fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this\.emptyProbeStats\(true, 'SKIPPED_BY_REQUEST'\) \}/)
+  assert.match(fragmentMods, /catch \(copyError\)[\s\S]*fragmentStats\.reason = String\(copyError\?\.message \|\| copyError\)/)
+  assert.doesNotMatch(fragmentMods, /runBorderProbe|normalizeAtlas|atlasMetadata/)
+  assert.match(analyze, /await this\.probeFragmentMods\(/)
+  assert.doesNotMatch(analyze, /atlasRegionMetadata|probeChartMods|runBorderProbe/)
+  assert.doesNotMatch(storeAnalyze, /atlasRegionMetadata/)
+  assert.match(store, /function applyBorderMods\(borderMods\) \{[\s\S]*if \(!borderMods \|\| typeof borderMods !== 'object'\) return/)
 })
 
 test('完成后自动识别默认开启、持久化并接入完成流程', () => {
@@ -301,6 +384,8 @@ test('完成后自动识别默认开启、持久化并接入完成流程', () =>
   assert.match(view, /:loading="probingBorder && !borderProbeProgressText"[\s\S]*handleProbeBorderMods[\s\S]*识别边缘词缀/)
   assert.match(view, /borderProbeProgressText = computed/)
   assert.match(view, /<el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别<\/el-checkbox>/)
+  assert.match(view, /:disabled="executing \|\| analyzing \|\| probingBorder \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成/)
+  assert.match(action, /if \(executing\.value \|\| analyzing\.value \|\| probingBorder\.value\)/)
   assert.match(view, /async function handleProbeBorderMods\(\)[\s\S]*store\.probeBorderMods\(\)/)
   assert.match(view, /function handleAutoProbeChange\(value\)[\s\S]*setAutoProbeBorderMods/)
 })
@@ -311,26 +396,49 @@ test('手动把碎片格子改为空格时清除已识别词缀', () => {
   assert.match(action, /mods: occupied \? pageState\.slots\[index\]\.mods : null/)
 })
 
-test('碎片悬浮使用原生标题展示词缀与复制原文', () => {
+test('碎片悬浮使用 Element Plus 浮层并覆盖缺失数据', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const store = source('../src/stores/puzzle.js')
   const service = source('../electron/modules/puzzle/service.js')
-  assert.match(view, /slotModTitleLine\(slot\)/)
-  assert.match(view, /词缀：未揭示/)
-  assert.match(view, /词缀：未知/)
-  assert.doesNotMatch(view, /el-tooltip placement="top"[\s\S]*slotModLines/)
+  assert.match(view, /<el-tooltip[\s\S]*slotTooltipLines\(slot\)/)
+  assert.doesNotMatch(view, /:title="slotTitle\(slot\)"/)
   assert.match(store, /rawText: typeof value\.rawText === 'string'/)
   assert.match(service, /rawText: text \? text\.slice\(0, 600\) : ''/)
+  assert.match(service, /fragmentMods\[cell\.key\] = unknownFragmentMod\(\)/)
 })
 
-test('重新框选仓库时清空双页结果，单页识别只由服务重置执行进度', () => {  const store = source('../src/stores/puzzle.js')
+test('最优方案九宫格悬浮展示对应来源碎片词缀', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /<el-tooltip[\s\S]*v-for="cell in displayCells"[\s\S]*solutionCellTooltipLines\(cell\)/)
+  assert.match(view, /function solutionCellSlot\(cellIndex\)[\s\S]*currentSourceSlots\.value\.find\(source => source\.cellIndex === cellIndex\)[\s\S]*inventoryPages\.value\[page\]/)
+  assert.match(view, /function solutionCellTooltipLines\(cell\)[\s\S]*fragmentModTooltipLines\(slot\.mods\)/)
+})
+
+test('部分边缘识别失败时显示准确数量和边缘编号', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /formatBorderProbeFeedback/)
+  assert.match(view, /ElMessage\.warning\(feedback\.text\)/)
+})
+
+test('未知边缘悬停附带本次 OCR 原文，无原文时仅显示未知', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  const edgeLines = view.match(/function edgeModLines\(id\) \{([\s\S]*?)\n\}/)?.[1] || ''
+  assert.match(edgeLines, /词缀：未知/)
+  assert.match(edgeLines, /edge\.rawTexts/)
+  assert.match(edgeLines, /edge\.status === 'matched' && edge\.mod[\s\S]*edge\.mod\.lines/)
+  assert.doesNotMatch(edgeLines, /上一次|previous/)
+})
+
+test('重新框选仓库时只清空双页结果，单页识别只由服务重置执行进度', () => {  const store = source('../src/stores/puzzle.js')
   const service = source('../electron/modules/puzzle/service.js')
-  const reset = store.match(/function resetAnalysisState\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
+  const reset = store.match(/function resetInventoryAnalysisState\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.match(reset, /inventoryPages\.value = \{ 1: emptyInventoryPage\(1\), 2: emptyInventoryPage\(2\) \}/)
   assert.match(reset, /result\.value = emptyResult\(\)/)
   assert.match(reset, /execution\.value = \{ status: 'idle'/)
   assert.match(reset, /error\.value = null/)
-  assert.match(store, /inventoryTabPoints\.value = normalizePuzzleTabPoints\(\)[\s\S]*resetAnalysisState\(\)/)
+  assert.doesNotMatch(reset, /edges\.value|edgesRecognized\.value/)
+  assert.match(store, /inventoryTabPoints\.value = normalizePuzzleTabPoints\(\)[\s\S]*resetInventoryAnalysisState\(\)/)
+  assert.match(store, /atlasRegionMetadata\.value = null[\s\S]*resetBorderAnalysisState\(\)/)
   assert.match(service, /if \(resetExecution\)[\s\S]*event: 'reset'/)
 })
 

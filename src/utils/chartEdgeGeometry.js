@@ -1,5 +1,5 @@
 // 大海图 3×3 外边缘 12 段的屏幕目标点计算。
-// 每段目标点 = 段中点向外部偏移 offsetPx 像素,超出屏幕边界时钳制。
+// 每段目标点 = 段中点沿对应方向向外偏移海图区宽/高的一定比例,超出屏幕边界时钳制。
 export const BORDER_EDGE_IDS = Object.freeze([
   'N0', 'N1', 'N2',
   'E0', 'E1', 'E2',
@@ -7,20 +7,22 @@ export const BORDER_EDGE_IDS = Object.freeze([
   'W0', 'W1', 'W2'
 ])
 
-export const DEFAULT_EDGE_OFFSET_PX = 50
+export const DEFAULT_EDGE_OFFSET_RATIO = 0.06
 
 function finite(value) {
   const number = Number(value)
   return Number.isFinite(number) ? number : 0
 }
 
-export function computeBorderEdgeTargets(region, offsetPx = DEFAULT_EDGE_OFFSET_PX, screenBounds = null) {
+export function computeBorderEdgeTargets(region, screenBounds = null, offsetRatio = DEFAULT_EDGE_OFFSET_RATIO) {
   const left = finite(region?.left)
   const top = finite(region?.top)
   const width = finite(region?.right) - left
   const height = finite(region?.bottom) - top
   if (!(width > 0) || !(height > 0)) return []
-  const offset = Math.max(0, finite(offsetPx))
+  const ratio = Math.max(0, finite(offsetRatio))
+  const offsetX = Math.round(width * ratio)
+  const offsetY = Math.round(height * ratio)
   const bounds = screenBounds?.width > 0 && screenBounds?.height > 0
     ? {
         minX: finite(screenBounds.x ?? screenBounds.left),
@@ -39,17 +41,17 @@ export function computeBorderEdgeTargets(region, offsetPx = DEFAULT_EDGE_OFFSET_
   const edges = []
   for (let index = 0; index < 3; index++) {
     const x = left + (index + 0.5) * width / 3
-    edges.push({ id: `N${index}`, direction: 'north', ...clamp(x, top - offset) })
+    edges.push({ id: `N${index}`, direction: 'north', ...clamp(x, top - offsetY) })
   }
   for (let index = 0; index < 3; index++) {
-    edges.push({ id: `E${index}`, direction: 'east', ...clamp(left + width + offset, segmentCenter(index)) })
+    edges.push({ id: `E${index}`, direction: 'east', ...clamp(left + width + offsetX, segmentCenter(index)) })
   }
   for (let index = 0; index < 3; index++) {
     const x = left + (index + 0.5) * width / 3
-    edges.push({ id: `S${index}`, direction: 'south', ...clamp(x, top + height + offset) })
+    edges.push({ id: `S${index}`, direction: 'south', ...clamp(x, top + height + offsetY) })
   }
   for (let index = 0; index < 3; index++) {
-    edges.push({ id: `W${index}`, direction: 'west', ...clamp(left - offset, segmentCenter(index)) })
+    edges.push({ id: `W${index}`, direction: 'west', ...clamp(left - offsetX, segmentCenter(index)) })
   }
   return edges
 }

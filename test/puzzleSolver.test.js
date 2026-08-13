@@ -112,3 +112,99 @@ test('图三式单边断口会被有效性检查拒绝', () => {
   broken.cells[4].mask ^= DIRECTIONS.E
   assert.equal(validateSolution(broken), false)
 })
+
+test('收益策略把相邻收益高的同型碎片放在覆盖格数更多的位置', () => {
+  const solution = { cells: [
+    { index: 0, type: 'corner' },
+    { index: 4, type: 'corner' }
+  ] }
+  const sources = assignSourceSlots(solution, [
+    { page: 1, row: 0, column: 0, occupied: true, type: 'corner', confidence: 1, mods: { status: 'matched', mod: { lines: ['相邻区域包含 3 个额外奥术师的保险箱'] } } },
+    { page: 1, row: 0, column: 1, occupied: true, type: 'corner', confidence: 1, mods: { status: 'matched', mod: { lines: ['相邻区域中找到的物品稀有度提高 7%'] } } }
+  ], { strategy: 'strongbox' })
+
+  assert.equal(sources.find(source => source.cellIndex === 4).column, 0)
+  assert.ok(sources.find(source => source.cellIndex === 4).rewardScore > 0)
+})
+
+test('边缘词缀按相邻格生效并能放大该格碎片词缀，不依赖外周出口', () => {
+  const solution = { cells: [
+    { index: 0, type: 'corner', mask: DIRECTIONS.E | DIRECTIONS.S },
+    { index: 1, type: 'corner', mask: DIRECTIONS.E | DIRECTIONS.S }
+  ] }
+  const valuable = { status: 'matched', mod: { lines: ['相邻区域包含 3 个额外奥术师的保险箱'] } }
+  const sources = assignSourceSlots(solution, [
+    { page: 1, row: 0, column: 0, occupied: true, type: 'corner', confidence: 1, mods: valuable },
+    { page: 1, row: 0, column: 1, occupied: true, type: 'corner', confidence: 1, mods: null }
+  ], {
+    strategy: 'strongbox',
+    edges: { N0: { status: 'matched', mod: { lines: ['相邻区域的词缀数值提高 80%'] } } }
+  })
+
+  assert.equal(sources.find(source => source.cellIndex === 0).column, 0)
+  assert.ok(!solution.cells[0].mask || !(solution.cells[0].mask & DIRECTIONS.N))
+})
+
+test('求解器返回策略相对收益并在无词缀时保留外周出口兜底', () => {
+  const slots = Object.entries(abundant).flatMap(([type, count]) => Array.from({ length: count }, (_, index) => ({
+    page: index < 10 ? 1 : 2,
+    row: Math.floor((index % 10) / 6),
+    column: index % 6,
+    occupied: true,
+    type,
+    confidence: 1,
+    mods: type === 'cross' && index === 0
+      ? { status: 'matched', mod: { lines: ['所有航行区域中找到的亡者硫磺提高 25%'] } }
+      : null
+  })))
+  const profitable = solvePuzzle({ slots, strategy: 'sulphur', solutionLimit: 2 })
+  assert.equal(profitable.strategy, 'sulphur')
+  assert.ok(profitable.rewardScore > 0)
+  assert.ok(profitable.solutions.every(solution => solution.sourceSlots.length === 9))
+
+  const fallback = solvePuzzle({ counts: abundant, strategy: 'balanced', solutionLimit: 2 })
+  assert.equal(fallback.rewardDataAvailable, false)
+  assert.equal(fallback.score, 12)
+
+  const difficultyOnly = solvePuzzle({ slots: slots.map(slot => ({ ...slot, mods: { status: 'matched', mod: { lines: ['怪物伤害提高 50%'] } } })), solutionLimit: 1 })
+  assert.equal(difficultyOnly.rewardDataAvailable, false)
+})
+
+test('自动收益选择显示分最高的策略并保留出口约束', () => {
+  const slots = Object.entries(abundant).flatMap(([type, count]) => Array.from({ length: count }, (_, index) => ({
+    page: index < 10 ? 1 : 2,
+    row: Math.floor((index % 10) / 6),
+    column: index % 6,
+    occupied: true,
+    type,
+    confidence: 1,
+    mods: type === 'cross' && index === 0
+      ? { status: 'matched', mod: { lines: ['相邻区域包含 3 个额外奥术师的保险箱'] } }
+      : null
+  })))
+  const requiredExits = ['N0', 'S2']
+  const manual = ['balanced', 'strongbox', 'rare', 'magic', 'sulphur']
+    .map(strategy => solvePuzzle({ slots, strategy, requiredExits, solutionLimit: 1 }))
+  const highest = manual.reduce((best, result) => result.rewardScore > best.rewardScore ? result : best)
+  const automatic = solvePuzzle({ slots, strategy: 'auto', requiredExits, solutionLimit: 1 })
+
+  assert.equal(automatic.strategy, 'auto')
+  assert.equal(automatic.effectiveStrategy, highest.strategy)
+  assert.equal(automatic.rewardScore, highest.rewardScore)
+  requiredExits.forEach(exit => assert.ok(automatic.solutions[0].exits.includes(exit)))
+})
+
+test('自动收益同分时按策略顺序选择且无收益数据不冒充赢家', () => {
+  const slots = Array.from({ length: 9 }, (_, index) => ({
+    page: 1, row: Math.floor(index / 6), column: index % 6,
+    occupied: true, type: 'cross', confidence: 1,
+    mods: { status: 'matched', mod: { lines: ['相邻区域中找到的物品数量提高 10%'] } }
+  }))
+  const automatic = solvePuzzle({ slots, strategy: 'auto', solutionLimit: 1 })
+  assert.equal(automatic.effectiveStrategy, 'balanced')
+
+  const fallback = solvePuzzle({ counts: abundant, strategy: 'auto', solutionLimit: 1 })
+  assert.equal(fallback.strategy, 'auto')
+  assert.equal(fallback.effectiveStrategy, null)
+  assert.equal(fallback.score, 12)
+})

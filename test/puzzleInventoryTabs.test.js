@@ -60,12 +60,70 @@ test('双页批次仅在结果完整且可区分时原子替换', () => {
   assert.equal(store.inventoryPages[2].slots[0].type, 'endpoint')
 })
 
+test('仓库重识别保留已有边缘词缀结果', () => {
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({
+    success: true,
+    page: 1,
+    slots: [slot('corner')],
+    warnings: [],
+    gridConfidence: 0.9,
+    borderMods: {
+      N0: { status: 'matched', mod: { lines: ['已有边缘词缀'] }, confidence: 0.9, rawTexts: [] }
+    }
+  })
+
+  assert.equal(store.edges.N0.mod.lines[0], '已有边缘词缀')
+  assert.equal(store.applyAnalysisBatch({
+    success: true,
+    pages: [
+      { success: true, page: 1, slots: [slot('straight')], warnings: [], gridConfidence: 1 },
+      { success: true, page: 2, slots: [slot('endpoint')], warnings: [], gridConfidence: 1 }
+    ],
+    borderMods: null,
+    borderProbe: { skipped: true, reason: 'SKIPPED_BY_REQUEST' }
+  }), true)
+  assert.equal(store.edges.N0.mod.lines[0], '已有边缘词缀')
+})
+
+test('未知边缘 rawTexts 通过 borderMods 保留，重新识别后替换且不残留上一次文本', () => {
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({
+    success: true,
+    page: 1,
+    slots: [slot('corner')],
+    warnings: [],
+    gridConfidence: 0.9,
+    borderMods: {
+      E0: { status: 'unknown', mod: null, confidence: 0, rawTexts: ['相邻区域包含', '8个额外的海兽群'] }
+    }
+  })
+  assert.deepEqual(store.edges.E0.rawTexts, ['相邻区域包含', '8个额外的海兽群'])
+  assert.equal(store.edges.E0.status, 'unknown')
+
+  store.applyAnalysis({
+    success: true,
+    page: 1,
+    slots: [slot('corner')],
+    warnings: [],
+    gridConfidence: 0.9,
+    borderMods: {
+      E0: { status: 'matched', mod: { lines: ['相邻区域包含 8 个额外的海兽群'] }, confidence: 1, rawTexts: ['相邻区域包含8个额外的海兽群'] }
+    }
+  })
+  assert.equal(store.edges.E0.status, 'matched')
+  assert.equal(store.edges.E0.mod.lines[0], '相邻区域包含 8 个额外的海兽群')
+  assert.deepEqual(store.edges.E0.rawTexts, ['相邻区域包含8个额外的海兽群'])
+})
+
 test('页面、IPC 与执行负载携带双页及页签协议', () => {
   const store = source('src/stores/puzzle.js')
   const view = source('src/domains/puzzle/PuzzleView.vue')
   const service = source('electron/modules/puzzle/service.js')
-  assert.match(store, /inventoryPages = ref\(\{ 1: emptyInventoryPage\(1\), 2: emptyInventoryPage\(2\) \}\)/)
-  assert.match(store, /async function analyze\(\{ preserveSolution = false, page = null \}/)
+  assert.match(store, /inventoryPages = ref\(loaded\.inventoryPages\)/)
+  assert.match(store, /async function analyze\(\{ page = null \}/)
   assert.match(store, /inventoryTabPoints: inventoryTabPoints\.value/)
   assert.match(store, /applyAnalysisBatch/)
   assert.match(view, /第1页[\s\S]*第2页/)
@@ -76,7 +134,9 @@ test('页面、IPC 与执行负载携带双页及页签协议', () => {
   assert.doesNotMatch(view, /碎片仓库第 \{\{ selectedInventoryPage \}\} 页/)
   assert.match(view, /\.inventory-page-tabs \{[^}]*flex-direction: row;[^}]*flex-wrap: nowrap;/)
   assert.match(view, /analysisProgressText[\s\S]*'自动识别两页'/)
-  assert.match(view, /正在读取碎片词缀[\s\S]*正在识别边缘词缀/)
+  const analysisProgress = view.match(/const analysisProgressText = computed\([\s\S]*?\n\}\)/)?.[0] || ''
+  assert.match(analysisProgress, /正在读取碎片词缀/)
+  assert.doesNotMatch(analysisProgress, /边缘词缀/)
   assert.match(service, /allowEmpty: true/)
   assert.match(service, /validatePuzzleTabPoint/)
   assert.match(service, /\[1, 2\][\s\S]*for \(const currentPage of requestedPages\)[\s\S]*tabPoint: tabPoints\[currentPage\]/)

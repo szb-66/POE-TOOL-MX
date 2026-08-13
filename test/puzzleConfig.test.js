@@ -26,7 +26,8 @@ test('旧海图区域配置迁移为仓库配置并保留新增海图区', () =>
     atlasRegionMetadata: atlas,
     recognition: { strength: 'standard' },
     inventoryTabPoints: { 1: null, 2: null },
-    autoProbeBorderMods: true
+    autoProbeBorderMods: true,
+    rewardStrategy: 'balanced'
   })
 })
 
@@ -37,7 +38,8 @@ test('旧配置缺少识别强度时默认标准档', () => {
     atlasRegionMetadata: null,
     recognition: { strength: 'standard' },
     inventoryTabPoints: { 1: null, 2: null },
-    autoProbeBorderMods: true
+    autoProbeBorderMods: true,
+    rewardStrategy: 'balanced'
   })
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'sensitive' } }).recognition, { strength: 'sensitive' })
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'unknown' } }).recognition, { strength: 'standard' })
@@ -47,6 +49,9 @@ test('完成后自动识别默认开启且可显式关闭', () => {
   const inventory = metadata({ left: -700, top: 20, right: -100, bottom: 1020 })
   assert.equal(normalizePuzzleSettings({ inventoryRegionMetadata: inventory }).autoProbeBorderMods, true)
   assert.equal(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, autoProbeBorderMods: false }).autoProbeBorderMods, false)
+  assert.equal(normalizePuzzleSettings({ rewardStrategy: 'rare' }).rewardStrategy, 'rare')
+  assert.equal(normalizePuzzleSettings({ rewardStrategy: 'auto' }).rewardStrategy, 'auto')
+  assert.equal(normalizePuzzleSettings({ rewardStrategy: 'invalid' }).rewardStrategy, 'balanced')
 })
 
 test('双页页签坐标规范化并限制在仓库正上方安全带', () => {

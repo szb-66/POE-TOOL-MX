@@ -13,7 +13,7 @@ import {
   validatePuzzleRegionEnvironment,
   validatePuzzleTabPoint
 } from '../../../src/utils/puzzleConfig.js'
-import { computeBorderEdgeTargets, DEFAULT_EDGE_OFFSET_PX } from '../../../src/utils/chartEdgeGeometry.js'
+import { computeBorderEdgeTargets } from '../../../src/utils/chartEdgeGeometry.js'
 import { matchBorderMods, matchFragmentMods } from '../../../src/utils/chartModMatcher.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -51,6 +51,27 @@ function codedError(code, message) {
   const error = new Error(message)
   error.code = code
   return error
+}
+
+function unknownFragmentMod(rawText = '') {
+  return { status: 'unknown', mod: null, confidence: 0, rawText }
+}
+
+// 内部探测结果为多样本(texts 为字符串数组的数组)或旧式单样本(纯字符串数组),统一取首个样本。
+function borderTextsFor(edge) {
+  const texts = edge?.texts
+  if (Array.isArray(texts) && texts.every(sample => Array.isArray(sample))) return texts[0] || []
+  if (Array.isArray(texts) && texts.every(line => typeof line === 'string')) return texts
+  return []
+}
+
+// 对单帧 OCR 文本执行共享匹配器;未命中时保留本次原文供悬停诊断。
+function borderModResult(lines) {
+  const match = matchBorderMods(lines)
+  if (match.status === 'matched') {
+    return { status: 'matched', mod: match.mod, confidence: match.confidence, rawTexts: lines }
+  }
+  return { status: 'unknown', mod: null, confidence: 0, rawTexts: lines }
 }
 
 function currentDisplays() {
@@ -557,34 +578,39 @@ export class PuzzleAnalysisService {
     return { attempted: 0, matched: 0, unveiled: 0, unknown: 0, skipped, reason }
   }
 
-  async probeChartMods({ inventoryMetadata, atlasMetadata, tabPoints, analysisResults }) {
+  async probeFragmentMods({ inventoryMetadata, tabPoints, analysisResults }) {
     const fragmentStats = this.emptyProbeStats()
-    const normalizeAtlas = normalizePuzzleRegionMetadata(atlasMetadata)
+    const copyCells = []
+    for (const result of analysisResults || []) {
+      const page = Number(result?.page || 1)
+      for (const slot of result.slots || []) {
+        if (!slot.occupied) continue
+        const center = inventoryMetadata?.selectedRegion
+          ? gridCellCenter(inventoryMetadata.selectedRegion, 'inventory', slot.row, slot.column)
+          : { x: 0, y: 0 }
+        copyCells.push({ page, key: `${page}:${slot.row}:${slot.column}`, x: center.x, y: center.y })
+      }
+    }
+    const fragmentMods = {}
+    for (const cell of copyCells) fragmentMods[cell.key] = unknownFragmentMod()
     if (!inventoryMetadata?.selectedRegion) {
       fragmentStats.skipped = true
       fragmentStats.reason = 'REGION_REQUIRED'
-      return { fragmentMods: {}, borderMods: {}, fragmentProbe: fragmentStats, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED') }
+      fragmentStats.unknown = copyCells.length
+      return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
     const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
     if (!gate.success) {
       fragmentStats.skipped = true
       fragmentStats.reason = gate.error
-      return { fragmentMods: {}, borderMods: {}, fragmentProbe: fragmentStats, borderProbe: this.emptyProbeStats(true, gate.error) }
+      fragmentStats.unknown = copyCells.length
+      return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
-    const fragmentMods = {}
     try {
       this.overlay?.close?.()
-      const copyCells = []
-      for (const result of analysisResults) {
-        const page = Number(result?.page || 1)
-        for (const slot of result.slots || []) {
-          if (!slot.occupied) continue
-          const center = gridCellCenter(inventoryMetadata.selectedRegion, 'inventory', slot.row, slot.column)
-          copyCells.push({ page, key: `${page}:${slot.row}:${slot.column}`, x: center.x, y: center.y })
-        }
-      }
       try {
         if (copyCells.length) {
+          fragmentStats.attempted = copyCells.length
           const pages = [...new Set(copyCells.map(cell => cell.page))].map(page => ({
             page,
             tabPoint: tabPoints[page] || null,
@@ -596,8 +622,8 @@ export class PuzzleAnalysisService {
           if (copyResponse?.success === false) {
             fragmentStats.skipped = true
             fragmentStats.reason = copyResponse?.error?.message || '碎片词缀复制失败'
+            fragmentStats.unknown = copyCells.length
           } else {
-            fragmentStats.attempted = copyCells.length
             for (const cell of copyCells) {
               const text = copyResponse?.texts?.[cell.key] || ''
               const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
@@ -616,46 +642,43 @@ export class PuzzleAnalysisService {
       } catch (copyError) {
         fragmentStats.skipped = true
         fragmentStats.reason = String(copyError?.message || copyError)
+        fragmentStats.unknown = copyCells.length
       }
-      let borderResult
-      if (!normalizeAtlas?.selectedRegion) {
-        borderResult = { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED') }
-      } else {
-        try {
-          borderResult = await this.runBorderProbe(normalizeAtlas)
-        } catch (borderError) {
-          borderResult = { borderMods: {}, borderProbe: this.emptyProbeStats(true, String(borderError?.message || borderError)) }
-        }
-      }
-      return { fragmentMods, ...borderResult, fragmentProbe: fragmentStats }
+      return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     } finally {
       this.automationLock?.release(MOD_PROBE_OWNER)
     }
   }
 
-  // 无锁的边缘 OCR 执行体:由 probeBorderMods 与 probeChartMods 在持锁后调用。
+  // 无锁的边缘 OCR 执行体:由 probeBorderMods 在持锁后调用。
   async runBorderProbe(normalizeAtlas) {
     const borderStats = this.emptyProbeStats()
-    const edges = computeBorderEdgeTargets(normalizeAtlas.selectedRegion, DEFAULT_EDGE_OFFSET_PX, normalizeAtlas.displayPhysicalBounds)
+    const edges = computeBorderEdgeTargets(normalizeAtlas.selectedRegion, normalizeAtlas.displayPhysicalBounds)
     const borderMods = {}
     if (edges.length) {
+      borderStats.attempted = edges.length
+      for (const edge of edges) {
+        borderMods[edge.id] = { status: 'unknown', mod: null, confidence: 0, rawTexts: [] }
+      }
+      const hoverRegion = {
+        width: 800, height: 800, offsetY: 0,
+        scaleFactor: normalizeAtlas.scaleFactor,
+        displayBounds: normalizeAtlas.displayPhysicalBounds
+      }
       const borderResponse = await this.runProbe({
         mode: 'border', edges,
-        hoverRegion: { width: 480, height: 320, offsetY: 24 },
-        settleMs: 350, waitTimeoutMs: 1500, ocrMinConfidence: 0.5
+        hoverRegion,
+        settleMs: 300, ocrMinConfidence: 0.5
       })
       if (borderResponse?.success === false) {
-        borderStats.skipped = true
-        borderStats.reason = borderResponse?.error?.message || '边缘词缀识别失败'
-      } else {
-        borderStats.attempted = edges.length
-        for (const edge of edges) {
-          const rawTexts = Array.isArray(borderResponse?.edges?.[edge.id]?.texts) ? borderResponse.edges[edge.id].texts : []
-          const match = matchBorderMods(rawTexts)
-          borderMods[edge.id] = { status: match.status, mod: match.mod || null, confidence: match.confidence || 0, rawTexts }
-          if (match.status === 'matched') borderStats.matched += 1
-          else borderStats.unknown += 1
-        }
+        throw codedError('BORDER_PROBE_FAILED', borderResponse?.error?.message || '边缘词缀识别失败')
+      }
+      for (const edge of edges) {
+        borderMods[edge.id] = borderModResult(borderTextsFor(borderResponse?.edges?.[edge.id]))
+      }
+      for (const value of Object.values(borderMods)) {
+        if (value.status === 'matched') borderStats.matched += 1
+        else borderStats.unknown += 1
       }
     }
     return { borderMods, borderProbe: borderStats }
@@ -685,7 +708,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  async analyze({ regionMetadata, atlasRegionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true, probeMods = true } = {}) {
+  async analyze({ regionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true, probeMods = true } = {}) {
     const requestedPages = Array.isArray(pages)
       ? [...new Set(pages.map(value => Number(value)).filter(value => value === 1 || value === 2))].sort((left, right) => left - right)
       : [1, 2].includes(Number(page)) ? [Number(page)] : [1, 2]
@@ -730,9 +753,8 @@ export class PuzzleAnalysisService {
       }
       this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: 0, starting: true })
       const mods = probeMods
-        ? await this.probeChartMods({
+        ? await this.probeFragmentMods({
             inventoryMetadata: metadata,
-            atlasMetadata: atlasRegionMetadata,
             tabPoints,
             analysisResults: results
           })
@@ -742,7 +764,7 @@ export class PuzzleAnalysisService {
             fragmentProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST'),
             borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST')
           }
-      console.log('[海图词缀探测]', JSON.stringify({ fragmentProbe: mods.fragmentProbe, borderProbe: mods.borderProbe }))
+      console.log('[海图碎片词缀探测]', JSON.stringify({ fragmentProbe: mods.fragmentProbe }))
       const payload = results.length === 1
         ? { ...results[0], regionMetadata: metadata, ...mods }
         : { success: true, pages: results, regionMetadata: metadata, ...mods }

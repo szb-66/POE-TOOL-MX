@@ -244,13 +244,6 @@ test('计划来源必须与实时库存占用一致，修正格可跳过类型�
   assert.deepEqual(JSON.parse(result.stdout), { empty: false, matched: true, mismatch: false, corrected: true })
 })
 
-test('执行后同步仓库保留手动修正格子', () => {
-  const store = source('src/stores/puzzle.js')
-  assert.match(store, /mergeCorrectedSlots\(preserveSolution \? inventoryPages\.value\[page\]\.slots : null/)
-  assert.match(store, /previous\?\.corrected/)
-  assert.match(store, /corrected: true/)
-})
-
 test('动态来源选择允许低置信度碎片并按置信度排序', { skip: !existsSync(python) }, () => {
   const code = [
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
@@ -318,17 +311,18 @@ test('逐格验证只重读三次画面且不重放输入', () => {
   assert.match(script, /SOURCE_ROTATION_MISMATCH/)
 })
 
-test('中断后保留方案、同步剩余仓库并从未完成格继续', () => {
+test('中断后保留库存和锁定来源并从未完成格继续', () => {
   const script = source('src/assets/scripts/puzzle_auto_place.py')
   const store = source('src/stores/puzzle.js')
   const view = source('src/domains/puzzle/PuzzleView.vue')
   assert.ok(script.indexOf('initial_atlas = capture_analyze') < script.indexOf('for position, target in enumerate(targets)'))
   assert.match(script, /completed_indices[\s\S]*slot_matches/)
   assert.match(script, /resume_pending[\s\S]*recoveredHeld=True/)
-  assert.match(store, /currentSolution\.value\.cells\.slice\(resumeIndex\.value\)/)
-  assert.match(store, /analyze\(\{ preserveSolution: true, page \}\)/)
+  assert.match(store, /currentSolution\.value\.sourceSlots\.slice\(resumeIndex\.value\)/)
+  assert.doesNotMatch(store, /async function refreshInventoryAfterExecution/)
+  assert.doesNotMatch(store, /response\?\.event === 'step-completed'[\s\S]*emptySlots/)
   assert.match(view, /继续自动放入（第 \$\{resumeIndex \+ 1\} 格）/)
-  assert.match(view, /refreshInventoryAfterExecution/)
+  assert.doesNotMatch(view, /refreshInventoryAfterExecution/)
 })
 
 test('海图服务接入自动化锁、动态状态和遮罩截图显隐', () => {

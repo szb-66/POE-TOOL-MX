@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { SEASON_BASELINE } from '../../../shared/seasonBaseline.js'
 
 export const ITEM_FOOTPRINT_SCHEMA_VERSION = 1
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -24,15 +25,20 @@ function validFootprint(width, height) {
     : null
 }
 
-export function loadBundledFootprintCatalog(catalogPath = bundledCatalogPath) {
+export function loadBundledFootprintCatalog(catalogPath = bundledCatalogPath, gameVersion = SEASON_BASELINE.patch) {
   try {
     const parsed = JSON.parse(fs.readFileSync(catalogPath, 'utf8'))
     if (parsed?.schemaVersion !== ITEM_FOOTPRINT_SCHEMA_VERSION ||
+        parsed?.gameVersion !== gameVersion ||
         !Array.isArray(parsed.categories) || !Array.isArray(parsed.items)) {
       throw new Error('invalid item footprint catalog')
     }
     return {
       schemaVersion: ITEM_FOOTPRINT_SCHEMA_VERSION,
+      gameVersion: String(parsed.gameVersion || ''),
+      generatedAt: String(parsed.generatedAt || ''),
+      sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+      audit: parsed.audit && typeof parsed.audit === 'object' ? parsed.audit : {},
       categories: parsed.categories.filter((entry) =>
         Array.isArray(entry?.aliases) && entry.aliases.some(normalizeFootprintText) &&
         validFootprint(entry.width, entry.height)
@@ -50,6 +56,8 @@ export class ItemFootprintRegistry {
   constructor(catalog = loadBundledFootprintCatalog()) {
     this.items = new Map()
     this.categories = new Map()
+    this.categoryGroups = new Map()
+    this.keysByName = new Map()
     this.conflicts = new Set()
     this.loadCatalog(catalog)
   }
@@ -59,9 +67,10 @@ export class ItemFootprintRegistry {
     for (const entry of catalog.categories || []) {
       const footprint = validFootprint(entry.width, entry.height)
       if (!footprint) continue
-      for (const alias of entry.aliases || []) {
-        const key = normalizeFootprintText(alias)
-        if (key) this.categories.set(key, { key, ...footprint, source: 'bundled' })
+      const group = new Set((entry.aliases || []).map(normalizeFootprintText).filter(Boolean))
+      for (const key of group) {
+        this.categories.set(key, { key, ...footprint, source: 'bundled' })
+        this.categoryGroups.set(key, group)
       }
     }
     for (const entry of catalog.items || []) {
@@ -83,19 +92,28 @@ export class ItemFootprintRegistry {
     const nameList = [...new Set((Array.isArray(names) ? names : [names])
       .map(normalizeFootprintText).filter(Boolean))]
     if (!nameList.length) return false
-    for (const name of nameList) {
-      const keys = [createFootprintKey('', name), ...categoryList.map((category) => createFootprintKey(category, name))]
+    const keysForName = new Map(nameList.map((name) => [name, new Set([
+      ...(this.keysByName.get(name) || []),
+      createFootprintKey('', name),
+      ...categoryList.map((category) => createFootprintKey(category, name))
+    ].filter(Boolean))]))
+    const keys = [...new Set([...keysForName.values()].flatMap((values) => [...values]))]
+    const hasConflict = keys.some((key) => {
+      const existing = this.items.get(key)
+      return this.conflicts.has(key) || (existing && (existing.width !== footprint.width || existing.height !== footprint.height))
+    })
+    if (hasConflict) {
       for (const key of keys) {
-        if (!key || this.conflicts.has(key)) continue
-        const existing = this.items.get(key)
-        if (existing && (existing.width !== footprint.width || existing.height !== footprint.height)) {
-          this.items.delete(key)
-          this.conflicts.add(key)
-        } else {
-          this.items.set(key, { key, ...footprint, source })
-        }
+        this.items.delete(key)
+        this.conflicts.add(key)
       }
+      for (const [name, values] of keysForName) this.keysByName.set(name, values)
+      const groups = categoryList.map((category) => this.categoryGroups.get(category)).filter(Boolean)
+      for (const group of groups) for (const alias of group) this.categories.delete(alias)
+      return true
     }
+    for (const key of keys) this.items.set(key, { key, ...footprint, source })
+    for (const [name, values] of keysForName) this.keysByName.set(name, values)
     return true
   }
 

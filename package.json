@@ -16,6 +16,7 @@
     "unique-items:data:missing": "node scripts/generateUniqueItemSnapshot.js --fetch-missing",
     "unique-items:data:refresh": "node scripts/generateUniqueItemSnapshot.js --live",
     "price-check:data:refresh": "node scripts/generateTradeCatalog.js --official electron/modules/priceCheck/catalog.json 3.29",
+    "item-footprints:data": "node scripts/generateItemFootprints.js --game-version 3.29",
     "runtime:prepare": "node scripts/runtime/prepare.js",
     "runtime:verify": "node scripts/runtime/verify.js",
     "junfeng:dataset": "python scripts/junfeng/build_dataset.py",

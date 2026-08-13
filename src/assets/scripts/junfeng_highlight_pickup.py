@@ -26,6 +26,9 @@ from bag_auto_stash_template import (
     InputController,
     apply_fixed_timing as apply_transfer_timing,
     normalize_operation_delay,
+    parse_item_header,
+    resolve_item_footprint,
+    resolved_footprint_slots,
     transfer_pickup_item,
 )
 LABELS = ("highlighted", "dimmed", "empty")
@@ -197,6 +200,13 @@ def group_candidates(cells):
     return groups
 
 
+def ordered_candidates(groups):
+    return sorted(
+        (candidate for group in groups for candidate in group),
+        key=lambda candidate: (candidate["row"], candidate["column"]),
+    )
+
+
 def classify(image, config, model, calibration=CALIBRATION_UNSET):
     grid = config.get("grid", {})
     columns, rows = int(grid.get("columns", 12)), int(grid.get("rows", 11))
@@ -345,20 +355,34 @@ def run(config, preview=False):
         apply_transfer_timing(config)
         clipboard_controller = InputController(config)
         mouse = clipboard_controller.mouse
-        candidates = [candidate for group in groups for candidate in group]
+        candidates = ordered_candidates(groups)
+        candidate_keys = {(candidate["column"], candidate["row"]) for candidate in candidates}
+        resolved_slots = set()
+        ambiguous_slots = {
+            (cell["column"], cell["row"])
+            for cell in cells
+            if (cell["column"], cell["row"]) not in candidate_keys and cell.get("label") != "empty"
+        }
+        ambiguous_slots.update((cell["column"], cell["row"]) for cell in uncertain)
         common["candidateItems"] = len(candidates)
         picked = 0
         try:
             emit("started", remainingItems=len(candidates), pickedItems=0, **common)
             for index, candidate in enumerate(candidates):
+                candidate_key = (candidate["column"], candidate["row"])
+                if candidate_key in resolved_slots:
+                    emit("progress", currentIndex=index + 1, remainingItems=len(candidates) - index - 1,
+                         pickedItems=picked, skipped=True, **common)
+                    continue
                 require_game_foreground()
                 target_position = candidate_center(rect, columns, rows, candidate)
                 if not clipboard_controller.move(*target_position):
                     emit("aborted", reason="game-not-foreground", remainingItems=len(candidates) - index,
                          pickedItems=picked, **common)
                     return 2
-                before_status, _ = clipboard_controller.copy_item_text()
+                before_status, item_text = clipboard_controller.copy_item_text()
                 if before_status == "empty":
+                    ambiguous_slots.add(candidate_key)
                     emit("progress", currentIndex=index + 1, remainingItems=len(candidates) - index - 1,
                          pickedItems=picked, skipped=True, **common)
                     continue
@@ -371,6 +395,13 @@ def run(config, preview=False):
                     emit("aborted", reason=reason, remainingItems=len(candidates) - index,
                          pickedItems=picked, **common)
                     return 2
+                item = parse_item_header(item_text)
+                footprint = resolve_item_footprint(item, config.get("item_footprints", {}))
+                footprint_slots = resolved_footprint_slots(
+                    candidate, footprint, candidates, ambiguous_slots)
+                resolved_slots.update(footprint_slots)
+                if not footprint_slots:
+                    ambiguous_slots.add(candidate_key)
                 picked += 1
                 emit("progress", currentIndex=index + 1, remainingItems=len(candidates) - index - 1,
                      pickedItems=picked, **common)

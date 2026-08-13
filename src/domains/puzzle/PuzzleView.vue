@@ -5,28 +5,7 @@
         <h2>海图 <el-tag size="small">S30 赛季玩法</el-tag></h2>
         <p>识别 6×10 碎片仓库，计算方案并自动旋转、放入 3×3 海图区。</p>
       </div>
-      <div class="heading-actions">
-        <el-select
-          v-model="recognitionStrength"
-          size="small"
-          style="width: 92px"
-          :disabled="analyzing || executing"
-          @change="handleRecognitionStrengthChange"
-        >
-          <el-option value="sensitive" label="敏感" />
-          <el-option value="standard" label="标准" />
-          <el-option value="strict" label="严格" />
-        </el-select>
-        <el-button type="primary" :loading="analyzing" :disabled="!regionMetadata" @click="startAnalysis">
-          {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
-        </el-button>
-        <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
-          {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
-        </el-button>
-        <el-button v-else type="danger" @click="stopAutoPlacement">停止自动放入</el-button>
-        <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
-      </div>
-      </div>
+    </div>
 
     <el-alert
       v-if="error"
@@ -52,38 +31,43 @@
           <strong>{{ config.label }}</strong>
           <div class="configuration-actions">
             <el-tag :type="config.state?.valid ? 'success' : config.metadata ? 'danger' : 'warning'" size="small">{{ config.state?.valid ? '有效' : config.metadata ? '已失效' : '未配置' }}</el-tag>
-            <el-button size="small" :disabled="executing || analyzing" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
-            <el-button size="small" :disabled="executing || analyzing || !config.metadata" :title="clearRegionTitle(config)" @click="clearRegion(config.type)">清空已选</el-button>
+            <el-button size="small" :disabled="executing || analyzing || probingBorder" @click="pickRegion(config.type)">{{ config.pickLabel }}</el-button>
+            <el-button size="small" :disabled="executing || analyzing || probingBorder || !config.metadata" :title="clearRegionTitle(config)" @click="clearRegion(config.type)">清空已选</el-button>
+            <el-button text size="small" @click="toggleRegion(config.type)">{{ regionExpanded[config.type] ? '收起' : '展开' }}</el-button>
           </div>
         </div>
-        <div class="preview-shell">
-          <div
-            v-if="config.preview"
-            class="preview-stage"
-            :style="{ '--columns': config.columns, '--rows': config.rows, '--preview-aspect': config.aspect, '--preview-width': `${config.aspect * 220}px` }"
-          >
-            <img :src="config.preview" :alt="`${config.label}截图预览`">
-            <i class="preview-grid" />
+        <el-collapse-transition>
+          <div v-show="regionExpanded[config.type]" class="configuration-body">
+            <div class="preview-shell">
+              <div
+                v-if="config.preview"
+                class="preview-stage"
+                :style="{ '--columns': config.columns, '--rows': config.rows, '--preview-aspect': config.aspect, '--preview-width': `${config.aspect * 220}px` }"
+              >
+                <img :src="config.preview" :alt="`${config.label}截图预览`">
+                <i class="preview-grid" />
+              </div>
+              <el-empty
+                v-else
+                :description="config.metadata ? '预览不可用，请重新框选' : '等待截图'"
+                :image-size="72"
+                class="preview-empty"
+              />
+            </div>
+            <small v-if="config.type === 'inventory' && regionMetadata">
+              {{ config.text }} · 网格对齐：{{ gridAlignmentLabel }}<template v-if="gridAlignmentWarning">，建议重新框选</template> · {{ config.state?.message }}
+            </small>
+            <small v-else>{{ config.text }} · {{ config.state?.message }}</small>
+            <div v-if="config.type === 'inventory'" class="tab-point-settings">
+              <span v-for="page in [1, 2]" :key="page">
+                第 {{ page }} 页页签：{{ tabPointText(page) }}
+                <el-button size="small" :disabled="executing || analyzing || probingBorder || !regionMetadata" @click="pickTabPoint(page)">取点</el-button>
+              </span>
+            </div>
           </div>
-          <el-empty
-            v-else
-            :description="config.metadata ? '预览不可用，请重新框选' : '等待截图'"
-            :image-size="72"
-            class="preview-empty"
-          />
-        </div>
-        <small v-if="config.type === 'inventory' && regionMetadata">
-          {{ config.text }} · 网格对齐：{{ gridAlignmentLabel }}<template v-if="gridAlignmentWarning">，建议重新框选</template> · {{ config.state?.message }}
-        </small>
-        <small v-else>{{ config.text }} · {{ config.state?.message }}</small>
-        <div v-if="config.type === 'inventory'" class="tab-point-settings">
-          <span v-for="page in [1, 2]" :key="page">
-            第 {{ page }} 页页签：{{ tabPointText(page) }}
-            <el-button size="small" :disabled="executing || analyzing || !regionMetadata" @click="pickTabPoint(page)">取点</el-button>
-          </span>
-        </div>
+        </el-collapse-transition>
       </article>
-      </div>
+    </div>
     <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；Alt+3 可紧急停止自动放入</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
@@ -107,6 +91,20 @@
             <strong>碎片仓库</strong>
             <div class="inventory-card-toolbar">
               <span class="inventory-help">点击“修正类型”，右键“逆时针旋转角度”</span>
+              <el-select
+                v-model="recognitionStrength"
+                class="recognition-strength"
+                size="small"
+                :disabled="analyzing || executing || probingBorder"
+                @change="handleRecognitionStrengthChange"
+              >
+                <el-option value="sensitive" label="敏感" />
+                <el-option value="standard" label="标准" />
+                <el-option value="strict" label="严格" />
+              </el-select>
+              <el-button type="primary" size="small" :loading="analyzing" :disabled="!regionMetadata || executing || probingBorder" @click="startAnalysis">
+                {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
+              </el-button>
               <el-radio-group v-model="selectedInventoryPage" class="inventory-page-tabs" size="small" :disabled="analyzing || executing">
                 <el-radio-button :value="1">第1页</el-radio-button>
                 <el-radio-button :value="2">第2页</el-radio-button>
@@ -121,42 +119,51 @@
         </template>
 
         <div class="inventory-grid">
-          <el-dropdown
+          <el-tooltip
             v-for="slot in slots"
             :key="`${slot.row}-${slot.column}`"
-            trigger="click"
-            :disabled="executing"
-            @command="updateSlot(slot, $event)"
+            placement="top"
+            effect="dark"
+            :show-after="200"
+            :disabled="!slot.occupied"
           >
-            <button
-              class="inventory-slot"
-              :class="{
-                empty: !slot.occupied,
-                uncertain: slot.uncertain,
-                corrected: slot.corrected,
-                selected: sourceCellBySlot.has(slotKey(slot))
-              }"
-              :title="slotTitle(slot)"
-              :disabled="executing"
-              @contextmenu.prevent="rotateSlot(slot)"
-            >
-              <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
-              <span v-else class="empty-mark">·</span>
-              <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
-              <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
-              <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
-                {{ sourceCellBySlot.get(slotKey(slot)) + 1 }}
-              </b>
-            </button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="empty">空格</el-dropdown-item>
-                <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value">
-                  {{ option.label }}
-                </el-dropdown-item>
-              </el-dropdown-menu>
+            <template #content>
+              <div v-for="(line, index) in slotTooltipLines(slot)" :key="`${index}-${line}`" class="mod-tooltip-line">{{ line }}</div>
             </template>
-          </el-dropdown>
+            <el-dropdown
+              trigger="click"
+              :disabled="executing"
+              @command="updateSlot(slot, $event)"
+            >
+              <button
+                class="inventory-slot"
+                :class="{
+                  empty: !slot.occupied,
+                  uncertain: slot.uncertain,
+                  corrected: slot.corrected,
+                  selected: sourceCellBySlot.has(slotKey(slot))
+                }"
+                :disabled="executing"
+                @contextmenu.prevent="rotateSlot(slot)"
+              >
+                <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
+                <span v-else class="empty-mark">·</span>
+                <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
+                <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
+                <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
+                  {{ sourceCellBySlot.get(slotKey(slot)) + 1 }}
+                </b>
+              </button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="empty">空格</el-dropdown-item>
+                  <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value">
+                    {{ option.label }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </el-tooltip>
         </div>
 
         <div v-if="warnings.length" class="warning-summary">
@@ -168,10 +175,29 @@
 
       <el-card class="solution-card" shadow="never">
         <template #header>
-          <div class="card-title">
-            <span>最优方案</span>
-            <el-tag v-if="solutionFeedback" type="warning">无可用方案</el-tag>
-            <el-tag v-else-if="result.score !== null" type="success">外周出口 {{ result.score }}</el-tag>
+          <div class="solution-card-header">
+            <div class="card-title">
+              <span>最优方案</span>
+              <el-tag v-if="solutionFeedback" type="warning">无可用方案</el-tag>
+              <span v-else-if="result.rewardDataAvailable" class="reward-score">
+                <el-tag type="success">相对收益 {{ result.rewardScore }}</el-tag>
+                <el-tooltip :content="relativeRewardHelp" placement="top" effect="dark" popper-class="relative-reward-popper">
+                  <el-icon class="reward-help-icon" tabindex="0" aria-label="查看相对收益说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </span>
+              <el-tag v-else-if="result.score !== null" type="success">外周出口 {{ result.score }}</el-tag>
+            </div>
+            <div class="solution-actions">
+              <el-select v-model="selectedRewardStrategy" size="small" class="reward-strategy" :disabled="executing || analyzing || probingBorder || resumeIndex > 0" :title="resumeIndex > 0 ? '请先继续完成当前自动放入方案' : ''">
+                <el-option v-for="strategy in VOYAGE_REWARD_MODE_OPTIONS" :key="strategy.id" :value="strategy.id" :label="strategy.label" />
+              </el-select>
+              <small v-if="rewardStrategy === 'auto' && effectiveRewardStrategyLabel" class="effective-reward-strategy">当前自动选择：{{ effectiveRewardStrategyLabel }}</small>
+              <el-button v-if="!executing" type="success" size="small" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
+                {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
+              </el-button>
+              <el-button v-else type="danger" size="small" @click="stopAutoPlacement">停止自动放入</el-button>
+              <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
+            </div>
           </div>
         </template>
 
@@ -187,10 +213,15 @@
 
         <div class="exit-controls">
           <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
-          <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="executing || analyzing || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
+          <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
           <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
           <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
         </div>
+        <p class="reward-strategy-note">
+          {{ activeRewardStrategy.description }}
+          <template v-if="result.rewardDataAvailable">当前按已识别词缀计算相对收益，包含自身、相邻、全航行与边缘影响；该分数只用于方案比较，不是通货估价。</template>
+          <template v-else>识别碎片或边缘词缀后启用收益优化；当前仍按外周出口生成方案。</template>
+        </p>
         <div class="solution-shell">
             <div class="horizontal-exits top-exits">
                 <el-tooltip v-for="id in northExits" :key="id" placement="top" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
@@ -210,10 +241,22 @@
                 </el-tooltip>
               </div>
               <div class="solution-grid">
-                <div v-for="cell in displayCells" :key="cell.index" class="solution-cell" :class="{ placeholder: !cell.mask }">
-                  <PuzzleGlyph v-if="cell.mask" :mask="cell.mask" />
-                  <span>{{ cell.index + 1 }}</span>
-                </div>
+                <el-tooltip
+                  v-for="cell in displayCells"
+                  :key="cell.index"
+                  placement="top"
+                  effect="dark"
+                  :show-after="200"
+                  :disabled="!cell.mask || !solutionCellSlot(cell.index)"
+                >
+                  <template #content>
+                    <div v-for="(line, index) in solutionCellTooltipLines(cell)" :key="`${index}-${line}`" class="mod-tooltip-line">{{ line }}</div>
+                  </template>
+                  <div class="solution-cell" :class="{ placeholder: !cell.mask }">
+                    <PuzzleGlyph v-if="cell.mask" :mask="cell.mask" />
+                    <span>{{ cell.index + 1 }}</span>
+                  </div>
+                </el-tooltip>
               </div>
               <div class="vertical-exits">
                 <el-tooltip v-for="id in eastExits" :key="id" placement="right" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
@@ -246,7 +289,7 @@
             <el-button :disabled="executing || solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
           </div>
           <div class="chart-complete-row">
-            <el-button type="warning" :disabled="executing || analyzing || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
+            <el-button type="warning" :disabled="executing || analyzing || probingBorder || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
           </div>
           <p class="total-note">
             同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
@@ -267,13 +310,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, reactive } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, Warning } from '@element-plus/icons-vue'
+import { Loading, QuestionFilled, Warning } from '@element-plus/icons-vue'
 import PuzzleGlyph from './PuzzleGlyph.vue'
+import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
 import { useSettingsStore } from '../settings/settingsStore.js'
+import { formatBorderProbeFeedback, fragmentModTooltipLines } from '../../utils/chartModPresentation.js'
 
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
@@ -296,6 +341,7 @@ const {
   edgesRecognized,
   probingBorder,
   autoProbeBorderMods,
+  rewardStrategy,
   analysisProgress,
   solutionIndex,
   solving,
@@ -313,6 +359,10 @@ const {
 } = storeToRefs(store)
 
 const loadingVisible = computed(() => solving.value)
+const regionExpanded = reactive({
+  inventory: !inventoryRegionMetadata.value,
+  atlas: !atlasRegionMetadata.value
+})
 
 const typeOptions = [
   { value: 'endpoint', label: '单边' },
@@ -331,10 +381,17 @@ const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyz
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])
 const currentPageOccupiedCount = computed(() => slots.value.filter(slot => slot.occupied).length)
+const relativeRewardHelp = '相对收益是根据已识别词缀的类别、数值、作用范围（自身/相邻/全航行）及边缘增幅，结合当前策略权重计算的启发式比较分。分数越高表示按该权重更优，不代表实际掉落量或通货价格；不同策略权重口径不同，自动模式仍按界面分数直接取最高。'
 const recognitionStrength = computed({
   get: () => recognition.value?.strength || 'standard',
   set: value => { store.setRecognitionStrength(value) }
 })
+const selectedRewardStrategy = computed({
+  get: () => rewardStrategy.value,
+  set: value => { store.setRewardStrategy(value) }
+})
+const activeRewardStrategy = computed(() => VOYAGE_REWARD_MODE_OPTIONS.find(strategy => strategy.id === rewardStrategy.value) || VOYAGE_REWARD_MODE_OPTIONS[1])
+const effectiveRewardStrategyLabel = computed(() => VOYAGE_REWARD_MODE_OPTIONS.find(strategy => strategy.id === result.value.effectiveStrategy)?.label || '')
 const gridAlignmentLabel = computed(() => gridConfidence.value == null ? '—' : gridConfidence.value >= 0.8 ? '高' : gridConfidence.value >= 0.5 ? '中' : '低')
 const gridAlignmentWarning = computed(() => gridConfidence.value != null && gridConfidence.value < 0.5)
 const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
@@ -398,7 +455,10 @@ const emptyDescription = computed(() => {
 async function pickRegion(type) {
   try {
     const response = type === 'atlas' ? await store.pickAtlasRegion() : await store.pickInventoryRegion()
-    if (response?.success) ElMessage.success(`${type === 'atlas' ? '海图区' : '碎片仓库'}已保存`)
+    if (response?.success) {
+      regionExpanded[type] = false
+      ElMessage.success(`${type === 'atlas' ? '海图区' : '碎片仓库'}已保存`)
+    }
   } catch (caught) {
     ElMessage.error(caught?.message || '框选区域失败')
   }
@@ -417,18 +477,25 @@ async function clearRegion(type) {
   }
   try {
     const response = await store.clearRegion(type)
-    if (response?.success) ElMessage.success(`已清空${label}区域`)
+    if (response?.success) {
+      regionExpanded[type] = true
+      ElMessage.success(`已清空${label}区域`)
+    }
     else if (response?.error) ElMessage.error(response.error.message)
   } catch (caught) {
     ElMessage.error(caught?.message || '清空区域失败，请重试')
   }
 }
 
+function toggleRegion(type) {
+  regionExpanded[type] = !regionExpanded[type]
+}
+
 async function startAnalysis() {
   const response = await store.analyze()
   if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
   else if (response?.success) {
-    const skipped = [response.borderProbe, response.fragmentProbe]
+    const skipped = [response.fragmentProbe]
       .filter(stats => stats?.skipped && stats.reason && stats.reason !== 'SKIPPED_BY_REQUEST')
       .map(stats => `${stats.reason}`)
     if (skipped.length) ElMessage.warning(`词缀识别跳过：${skipped.join('；')}`)
@@ -466,10 +533,12 @@ async function completeCurrentChart() {
   const response = await store.completeCurrentChart()
   if (!response?.success) ElMessage.error(response?.error?.message || '完成当前海图失败')
   else {
-    const borderText = response.borderProbe && !response.borderProbe.skipped
-      ? `，边缘词缀已识别 ${response.borderProbe.matched}/${response.borderProbe.attempted}`
-      : ''
-    ElMessage.success(`已扣除当前海图 9 块碎片，剩余 ${occupiedCount.value} 块已重新计算${borderText}`)
+    const baseText = `已扣除当前海图 9 块碎片，剩余 ${occupiedCount.value} 块已重新计算`
+    if (response.borderProbe && !response.borderProbe.skipped) {
+      const feedback = formatBorderProbeFeedback(response)
+      if (feedback.partial) ElMessage.warning(`${baseText}，${feedback.text}`)
+      else ElMessage.success(`${baseText}，${feedback.text}`)
+    } else ElMessage.warning(`${baseText}，边缘词缀已清空，请点击“识别边缘词缀”`)
   }
 }
 
@@ -497,33 +566,38 @@ function slotKey(slot) {
   return `${Number(slot.page || selectedInventoryPage.value)}:${slot.row}:${slot.column}`
 }
 
-function slotTitle(slot) {
-  if (!slot.occupied) return `第 ${slot.row + 1} 行第 ${slot.column + 1} 列：空格`
+function slotTooltipLines(slot) {
+  if (!slot.occupied) return []
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
   const selectedIndex = sourceCellBySlot.value?.get(slotKey(slot))
   const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
-  const modLine = slotModTitleLine(slot)
-  return `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}${modLine}`
+  return [
+    `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}`,
+    ...fragmentModTooltipLines(slot.mods)
+  ]
 }
 
-function slotModTitleLine(slot) {
-  const mods = slot?.mods
-  if (!mods) return ''
-  if (mods.status === 'unveiled') return '\n词缀：未揭示'
-  if (mods.status === 'unknown') {
-    const raw = mods.rawText ? `\n${mods.rawText}` : ''
-    return `\n词缀：未知${raw}`
-  }
-  if (!mods.mod) return ''
-  const affix = mods.mod.affixType === 'suffix' ? '后缀' : mods.mod.affixType === 'prefix' ? '前缀' : '传奇'
-  return `\n${affix}词缀 · 等级 ${mods.mod.tier}\n${mods.mod.lines.join('\n')}`
+function solutionCellSlot(cellIndex) {
+  const source = currentSourceSlots.value.find(source => source.cellIndex === cellIndex)
+  if (!source) return null
+  const page = Number(source.page || 1)
+  return inventoryPages.value[page]?.slots?.[Number(source.row) * 6 + Number(source.column)] || null
+}
+
+function solutionCellTooltipLines(cell) {
+  const slot = cell.mask ? solutionCellSlot(cell.index) : null
+  return slot ? fragmentModTooltipLines(slot.mods) : []
 }
 
 function edgeModLines(id) {
   if (!edgesRecognized.value) return ['词缀：未识别']
   const edge = edges.value[id]
-  if (!edge || edge.status !== 'matched' || !edge.mod) return ['词缀：未知']
-  return [...edge.mod.lines]
+  if (!edge) return ['词缀：未知']
+  if (edge.status === 'matched' && edge.mod) return [...edge.mod.lines]
+  const rawLines = Array.isArray(edge.rawTexts)
+    ? edge.rawTexts.filter(line => typeof line === 'string' && line.trim())
+    : []
+  return rawLines.length ? ['词缀：未知', ...rawLines] : ['词缀：未知']
 }
 
 const analysisProgressText = computed(() => {
@@ -531,9 +605,6 @@ const analysisProgressText = computed(() => {
   if (!progress?.stage) return ''
   if (progress.stage === 'copy') {
     return progress.index ? `正在读取碎片词缀 ${progress.index}/${progress.total}` : '正在准备读取碎片词缀…'
-  }
-  if (progress.stage === 'border') {
-    return `正在识别边缘词缀 ${progress.index}/${progress.total}`
   }
   return ''
 })
@@ -547,6 +618,7 @@ const borderProbeProgressText = computed(() => {
 function clearRegionTitle(config) {
   if (executing.value) return '自动放入进行中，暂不能清空'
   if (analyzing.value) return '识别进行中，暂不能清空'
+  if (probingBorder.value) return '边缘词缀识别进行中，暂不能清空'
   if (!config.metadata) return '尚未框选区域'
   return '清空已选区域'
 }
@@ -576,6 +648,7 @@ function toggleForbiddenExit(id) {
 
 const probeBorderBlockedTitle = computed(() => {
   if (executing.value || analyzing.value) return '海图任务进行中，暂不能识别边缘词缀'
+  if (resumeIndex.value > 0) return '请先继续完成当前自动放入方案'
   if (!atlasRegionMetadata.value) return '请先框选 3×3 海图区'
   return ''
 })
@@ -583,9 +656,9 @@ const probeBorderBlockedTitle = computed(() => {
 async function handleProbeBorderMods() {
   const response = await store.probeBorderMods()
   if (response?.success) {
-    const matched = Number(response.borderProbe?.matched || 0)
-    const attempted = Number(response.borderProbe?.attempted || 0)
-    ElMessage.success(`边缘词缀已识别 ${matched}/${attempted}`)
+    const feedback = formatBorderProbeFeedback(response)
+    if (feedback.partial) ElMessage.warning(feedback.text)
+    else ElMessage.success(feedback.text)
   } else if (response?.error) {
     ElMessage.error(response.error.message)
   }
@@ -603,12 +676,8 @@ onMounted(() => {
   removeExecutionListener = store.listenExecution(event => {
     if (event?.status === 'error') ElMessage.error(event.error?.message || event.reason || '海图自动放入失败')
     if (event?.status === 'completed') ElMessage.success('海图自动放入完成')
-    if (['error', 'stopped'].includes(event?.status)) void store.refreshInventoryAfterExecution()
   })
-  void store.refreshExecutionStatus().then(status => {
-    if (['error', 'stopped'].includes(status?.status)) return store.refreshInventoryAfterExecution()
-    return null
-  })
+  void store.refreshExecutionStatus()
 })
 onUnmounted(() => {
   removeExecutionListener?.()
@@ -627,6 +696,7 @@ const nextSolution = store.nextSolution
 }
 .page-heading,
 .card-title,
+.solution-card-header,
 .solution-pager,
 .region-line {
   display: flex;
@@ -637,23 +707,24 @@ const nextSolution = store.nextSolution
 
 .page-heading h2 { margin: 0 0 6px; }
 .page-heading p { margin: 0; color: var(--el-text-color-secondary); }
-.heading-actions { display: flex; gap: 10px; flex-shrink: 0; }
 .status-alert { margin-top: var(--spacing-md); }
-.auto-blocked-reason { max-width: 220px; color: var(--el-color-warning); line-height: 1.35; }
+.auto-blocked-reason { max-width: 260px; color: var(--el-color-warning); line-height: 1.35; }
 .region-line { margin: 12px 0; font-size: 13px; color: var(--el-text-color-secondary); }
 .region-line span { color: var(--el-color-primary); }
 .configuration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
 .configuration-card { min-width: 0; padding: 12px; border: 1px solid var(--el-color-warning-light-5); border-radius: 9px; background: var(--el-bg-color); }
 .configuration-card.ready { border-color: var(--el-color-success-light-5); }
-.configuration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.configuration-actions { display: flex; align-items: center; gap: 8px; }
+.configuration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.configuration-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.configuration-body { padding-top: 8px; }
 .configuration-card small { display: block; overflow: hidden; margin-top: 7px; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .tab-point-settings { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
 .tab-point-settings span { display: inline-flex; align-items: center; gap: 6px; color: var(--el-text-color-secondary); font-size: 12px; }
 .inventory-card-header { display: grid; gap: 10px; }
 .inventory-card-header > strong { display: block; line-height: 1; }
-.inventory-card-toolbar { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.inventory-card-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
 .inventory-help { flex: 1; color: var(--el-text-color-secondary); font-size: 12px; }
+.recognition-strength { width: 92px; flex: none; }
 .inventory-page-tabs { display: inline-flex; flex: none; flex-direction: row; flex-wrap: nowrap; white-space: nowrap; }
 .preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
 .preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
@@ -767,6 +838,14 @@ const nextSolution = store.nextSolution
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 
 .solution-card { position: relative; }
+.solution-card-header { align-items: flex-start; }
+.solution-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.reward-score { display: inline-flex; align-items: center; gap: 4px; }
+.reward-help-icon { color: var(--el-text-color-secondary); cursor: help; }
+:global(.relative-reward-popper) { max-width: 380px; line-height: 1.6; }
+.reward-strategy { width: 160px; }
+.effective-reward-strategy { color: var(--el-text-color-secondary); white-space: nowrap; }
+.reward-strategy-note { margin: 0 0 12px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; text-align: center; }
 .solution-loading-mask {
   position: absolute;
   inset: 0;
@@ -854,9 +933,11 @@ const nextSolution = store.nextSolution
 }
 @media (max-width: 720px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
-  .heading-actions { flex-wrap: wrap; }
   .configuration-grid { grid-template-columns: 1fr; }
   .configuration-heading,
+  .solution-card-header,
   .exit-controls { align-items: flex-start; flex-direction: column; }
+  .configuration-actions,
+  .solution-actions { justify-content: flex-start; }
 }
 </style>
