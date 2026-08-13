@@ -256,6 +256,9 @@ export class PuzzleAnalysisService {
   }
 
   resetExecution() {
+    if (this.automationChild) {
+      return this.publishExecution({ event: 'reset-blocked' })
+    }
     this.execution = {
       status: 'idle', currentIndex: -1, total: 9, completed: 0,
       source: null, target: null, turns: 0, reason: '', error: null
@@ -590,19 +593,24 @@ export class PuzzleAnalysisService {
           const copyResponse = await this.runProbe({
             mode: 'copy', pages, copyTimeoutMs: 900, settleMs: 260
           })
-          fragmentStats.attempted = copyCells.length
-          for (const cell of copyCells) {
-            const text = copyResponse?.texts?.[cell.key] || ''
-            const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
-            fragmentMods[cell.key] = {
-              status: match.status,
-              mod: match.mod || null,
-              confidence: match.confidence || 0,
-              rawText: text ? text.slice(0, 600) : ''
+          if (copyResponse?.success === false) {
+            fragmentStats.skipped = true
+            fragmentStats.reason = copyResponse?.error?.message || '碎片词缀复制失败'
+          } else {
+            fragmentStats.attempted = copyCells.length
+            for (const cell of copyCells) {
+              const text = copyResponse?.texts?.[cell.key] || ''
+              const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
+              fragmentMods[cell.key] = {
+                status: match.status,
+                mod: match.mod || null,
+                confidence: match.confidence || 0,
+                rawText: text ? text.slice(0, 600) : ''
+              }
+              if (match.status === 'matched') fragmentStats.matched += 1
+              else if (match.status === 'unveiled') fragmentStats.unveiled += 1
+              else fragmentStats.unknown += 1
             }
-            if (match.status === 'matched') fragmentStats.matched += 1
-            else if (match.status === 'unveiled') fragmentStats.unveiled += 1
-            else fragmentStats.unknown += 1
           }
         }
       } catch (copyError) {
@@ -636,13 +644,18 @@ export class PuzzleAnalysisService {
         hoverRegion: { width: 480, height: 320, offsetY: 24 },
         settleMs: 350, waitTimeoutMs: 1500, ocrMinConfidence: 0.5
       })
-      borderStats.attempted = edges.length
-      for (const edge of edges) {
-        const rawTexts = Array.isArray(borderResponse?.edges?.[edge.id]?.texts) ? borderResponse.edges[edge.id].texts : []
-        const match = matchBorderMods(rawTexts)
-        borderMods[edge.id] = { status: match.status, mod: match.mod || null, confidence: match.confidence || 0, rawTexts }
-        if (match.status === 'matched') borderStats.matched += 1
-        else borderStats.unknown += 1
+      if (borderResponse?.success === false) {
+        borderStats.skipped = true
+        borderStats.reason = borderResponse?.error?.message || '边缘词缀识别失败'
+      } else {
+        borderStats.attempted = edges.length
+        for (const edge of edges) {
+          const rawTexts = Array.isArray(borderResponse?.edges?.[edge.id]?.texts) ? borderResponse.edges[edge.id].texts : []
+          const match = matchBorderMods(rawTexts)
+          borderMods[edge.id] = { status: match.status, mod: match.mod || null, confidence: match.confidence || 0, rawTexts }
+          if (match.status === 'matched') borderStats.matched += 1
+          else borderStats.unknown += 1
+        }
       }
     }
     return { borderMods, borderProbe: borderStats }

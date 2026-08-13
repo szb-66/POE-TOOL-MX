@@ -347,10 +347,12 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
     const page = [1, 2].includes(Number(response.page)) ? Number(response.page) : selectedInventoryPage.value
     const incomingSlots = normalizeSlots(response.slots, page)
-    if (response.fragmentMods) {
-      for (const slot of incomingSlots) {
-        slot.mods = normalizeSlotMods(response.fragmentMods[`${page}:${slot.row}:${slot.column}`])
-      }
+    const previousSlots = preserveSolution ? inventoryPages.value[page].slots : null
+    for (const slot of incomingSlots) {
+      const probed = response.fragmentMods?.[`${page}:${slot.row}:${slot.column}`]
+      slot.mods = probed
+        ? normalizeSlotMods(probed)
+        : previousSlots?.[slot.row * 6 + slot.column]?.mods ?? null
     }
     applyBorderMods(response.borderMods)
     const otherPage = page === 1 ? 2 : 1
@@ -497,6 +499,13 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (!currentSolution.value) {
       return { success: false, error: { code: 'NO_SOLUTION', message: '请先识别碎片并生成海图方案' } }
     }
+    const changedSlot = currentSolution.value.sourceSlots.find(source => {
+      const slot = inventoryPages.value[Number(source.page || 1)]?.slots[Number(source.row) * 6 + Number(source.column)]
+      return slot?.occupied && slot.type !== source.type
+    })
+    if (changedSlot) {
+      return { success: false, error: { code: 'INVENTORY_CHANGED', message: '仓库内容已变化，请重新识别后再完成当前海图' } }
+    }
     for (const source of currentSolution.value.sourceSlots) {
       const page = Number(source.page || 1)
       const index = Number(source.row) * 6 + Number(source.column)
@@ -516,6 +525,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
     let borderProbe = null
     if (autoProbeBorderMods.value) {
+      edges.value = emptyEdges()
+      edgesRecognized.value = false
       const probeResponse = await probeBorderMods()
       borderProbe = probeResponse?.borderProbe || null
     }

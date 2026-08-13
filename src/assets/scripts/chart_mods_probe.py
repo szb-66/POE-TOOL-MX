@@ -303,8 +303,7 @@ def copy_fragment_texts(config: dict[str, Any]) -> dict[str, Any]:
                     failed.append(key)
     finally:
         try:
-            if pyperclip.paste() == sentinel:
-                pyperclip.copy(previous)
+            pyperclip.copy(previous)
         except Exception:
             pass
         try:
@@ -358,7 +357,8 @@ def hover_monitor(target: dict[str, Any], hover_region: dict[str, Any]) -> dict[
     height = max(60, int(hover_region.get("height", 320)))
     offset_y = max(4, int(hover_region.get("offsetY", 24)))
     left = x - width // 2
-    top = y - offset_y - height
+    # 竖直居中于光标并整体向下偏移,同时覆盖浮窗渲染在光标上方或下方的两种情况。
+    top = y + offset_y - height // 2
     with mss.mss() as capture:
         monitor = capture.monitors[0]
         left = max(monitor["left"], left)

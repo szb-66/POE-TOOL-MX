@@ -70,7 +70,7 @@ try:
     probe_mss = sys.modules[probe.__name__]
     probe_mss.mss = fake_mss
     normal = probe.hover_monitor({"x": 960, "y": 540}, {"width": 480, "height": 320, "offsetY": 24})
-    assert normal == {"left": 720, "top": 196, "width": 480, "height": 320}
+    assert normal == {"left": 720, "top": 404, "width": 480, "height": 320}
     top_left = probe.hover_monitor({"x": 60, "y": 100}, {"width": 480, "height": 320, "offsetY": 24})
     assert top_left["left"] == 0 and top_left["top"] == 0
     bottom_right = probe.hover_monitor({"x": 1900, "y": 1070}, {"width": 480, "height": 320, "offsetY": 24})
