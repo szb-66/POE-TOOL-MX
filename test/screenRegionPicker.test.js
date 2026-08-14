@@ -13,7 +13,8 @@ import {
   isRegionLargeEnough,
   normalizeRectangle,
   physicalRectangleToDipBounds,
-  physicalRectangleToImageCrop
+  physicalRectangleToImageCrop,
+  resolveCaptureSources
 } from '../electron/modules/window/coordinates.js'
 
 test('遮罩物理矩形一次转换为整数 DIP 边界', () => {
@@ -79,6 +80,31 @@ test('空图与低信息像素会被拒绝', () => {
   const varied = Buffer.alloc(400, 20)
   varied[200] = 100
   assert.equal(hasUsefulPixelVariance(varied), true)
+})
+
+test('截图源优先按显示器 id 匹配且仅在单屏单源时安全回退', () => {
+  const image = { isEmpty: () => false }
+  const exact = resolveCaptureSources(
+    [{ id: 1 }, { id: 2 }],
+    [{ display_id: '2', thumbnail: image }, { display_id: '1', thumbnail: image }]
+  )
+  assert.equal(exact.get('1').display_id, '1')
+  assert.equal(exact.get('2').display_id, '2')
+
+  const fallback = resolveCaptureSources(
+    [{ id: 2020828493 }],
+    [{ display_id: '', thumbnail: image }]
+  )
+  assert.equal(fallback.get('2020828493').display_id, '')
+
+  assert.throws(() => resolveCaptureSources(
+    [{ id: 1 }],
+    [{ display_id: '1', thumbnail: { isEmpty: () => true } }]
+  ), error => error.code === 'CAPTURE_SOURCE_NOT_FOUND' && error.details.usableSourceCount === 0)
+  assert.throws(() => resolveCaptureSources(
+    [{ id: 1 }, { id: 2 }],
+    [{ display_id: '', thumbnail: image }, { display_id: '', thumbnail: image }]
+  ), error => error.code === 'CAPTURE_SOURCE_NOT_FOUND' && error.details.displayCount === 2)
 })
 
 test('标题框选使用当前 nativeImage 位图接口，不触发 getBitmap 弃用警告', () => {

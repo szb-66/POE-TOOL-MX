@@ -58,8 +58,9 @@
 - [ ] 界面模板不匹配时零鼠标键盘输入
 - [ ] 内置运行时异常时零鼠标键盘输入
 - [ ] 脱敏诊断不含 POESESSID、Cookie、账号、IP 地址和完整用户路径
-- [ ] 开发版首页导出 schema v2 JSON，取消保存不报错且不执行探测或写入
+- [ ] 开发版首页导出 schema v3 JSON；即时快照与 15 分钟诊断会话均可用，取消保存不报错且保留已结束会话
 - [ ] 诊断仅包含白名单健康、模块原因码与最近 7 天结构化事件，不含原始日志、配置、物品或仓库内容
+- [ ] 设备信息包含 Windows、CPU、内存、GPU 兼容性字段，但不含主机名、序列号、MAC 地址或设备 GUID
 - [ ] 人工搜索 Bearer、Authorization、邮箱、IPv4/IPv6、正斜杠路径和 UNC 路径，确认原值均已遮蔽
 - [ ] 事件文件损坏或诊断目标不可写时业务不受影响，错误提示不包含完整保存路径
 
@@ -70,6 +71,7 @@
 - [ ] Windows CI 与 Release 工作流全部通过
 - [ ] Release 包含安装包、同名 `.blockmap`、`latest.yml`、`SHA256SUMS.txt` 和 `THIRD_PARTY_NOTICES.md`
 - [ ] CNB `Auto-Tool-MX/POE-TOOL-MX` 的同标签 Release 包含相同五类资产；首个完整镜像从 `v1.0.3` 开始，不使用资产不完整的 `v1.0.2`
+- [ ] GitHub 与 CNB 同标签 Release 的版本说明均完整等于 `docs/release-notes/vX.Y.Z.md`；说明文件缺失或为空时发布必须失败
 - [ ] `https://cnb.cool/Auto-Tool-MX/POE-TOOL-MX/-/releases/latest/download/latest.yml` 返回当前稳定版本，且同一路径下的安装包与 `.blockmap` 可下载
 - [ ] GitHub 与 CNB Release 的安装包 SHA-256 完全一致
 - [ ] 已安装的上一稳定版可在应用内检查、下载并在确认后覆盖升级

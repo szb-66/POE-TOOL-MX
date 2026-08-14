@@ -250,6 +250,7 @@ async function pickCoordinate(target) {
   try {
     const result = await electronApi.window.pickScreenCoordinate()
     if (!result || result.canceled) return
+    if (result.success === false) throw new Error(result.error?.message || '坐标选取失败')
     if (target === 'portal') config.portal.clickPoint = { x: result.x, y: result.y }
     else config.potion[target].point = { x: result.x, y: result.y }
   } catch (error) {

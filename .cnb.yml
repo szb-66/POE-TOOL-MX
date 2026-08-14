@@ -7,6 +7,9 @@ $:
             tag="$CNB_BRANCH"
             printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
             version="${tag#v}"
+            notes="docs/release-notes/${tag}.md"
+            test -s "$notes"
+            cp "$notes" CNB_RELEASE_NOTES.md
             installer="PoE-CN-Helper-${version}-win-x64-setup.exe"
             base_url="https://github.com/szb-66/POE-TOOL-MX/releases/download/${tag}"
             mkdir -p release-assets
@@ -29,7 +32,7 @@ $:
           type: git:release
           options:
             title: "流放助手 ${CNB_BRANCH}"
-            description: "GitHub Release 国内同步镜像"
+            descriptionFromFile: CNB_RELEASE_NOTES.md
             latest: false
 
         - name: Upload CNB Release assets
@@ -43,5 +46,5 @@ $:
           options:
             overlying: true
             title: "流放助手 ${CNB_BRANCH}"
-            description: "GitHub Release 国内同步镜像"
+            descriptionFromFile: CNB_RELEASE_NOTES.md
             latest: true

@@ -4,6 +4,7 @@ import { electronApi } from '@/api/electron'
 import { useInterfaceDetectionStore } from './interfaceDetection'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { normalizeJunfengSettings } from '@/utils/junfengConfig'
+import { reportDiagnosticFailure, reportDiagnosticRecovery } from '@/utils/diagnostics.js'
 
 const STORAGE_KEY = 'junfengHighlightSettings'
 const TRAINING_STORAGE_KEY = 'highlightTrainingRegions'
@@ -14,7 +15,9 @@ function load() {
 
 function unwrap(response) {
   if (response?.success) return response.data
-  throw new Error(response?.error?.message || '君锋镇操作失败')
+  throw Object.assign(new Error(response?.error?.message || '君锋镇操作失败'), {
+    code: response?.error?.code || 'JUNFENG_OPERATION_FAILED'
+  })
 }
 
 export const useJunfengStore = defineStore('junfeng', () => {
@@ -66,13 +69,19 @@ export const useJunfengStore = defineStore('junfeng', () => {
   }
 
   async function calibrateGrid() {
-    const result = unwrap(await electronApi.junfeng.pickGridRegion())
-    if (!result?.canceled) {
-      settings.value = normalizeJunfengSettings({ ...settings.value, gridRegion: result })
-      persist()
-      if (settings.value.enabled) await sync()
+    try {
+      const result = unwrap(await electronApi.junfeng.pickGridRegion())
+      if (!result?.canceled) {
+        settings.value = normalizeJunfengSettings({ ...settings.value, gridRegion: result })
+        persist()
+        if (settings.value.enabled) await sync()
+        void reportDiagnosticRecovery('junfeng', 'region_capture')
+      }
+      return result
+    } catch (error) {
+      void reportDiagnosticFailure('junfeng', 'region_capture', error, 'screen_capture_failed')
+      throw error
     }
-    return result
   }
 
   async function runPreview() {
@@ -81,11 +90,23 @@ export const useJunfengStore = defineStore('junfeng', () => {
       if (settings.value.enabled) await sync()
       preview.value = unwrap(await electronApi.junfeng.preview())
       previewLabels.value = {}
+      void reportDiagnosticRecovery('junfeng', 'detection')
       return preview.value
+    } catch (error) {
+      void reportDiagnosticFailure('junfeng', 'detection', error, 'template_match_failed')
+      throw error
     } finally { busy.value = false }
   }
 
-  async function start() { state.value = { ...state.value, ...unwrap(await electronApi.junfeng.start()) } }
+  async function start() {
+    try {
+      state.value = { ...state.value, ...unwrap(await electronApi.junfeng.start()) }
+      void reportDiagnosticRecovery('junfeng', 'pickup')
+    } catch (error) {
+      void reportDiagnosticFailure('junfeng', 'pickup', error, 'automation_failed')
+      throw error
+    }
+  }
   async function stop() { state.value = { ...state.value, ...unwrap(await electronApi.junfeng.stop()) } }
 
   async function loadCorrections() { corrections.value = unwrap(await electronApi.highlightCalibration.list()); return corrections.value }

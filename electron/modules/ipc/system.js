@@ -1,6 +1,7 @@
 import { app, dialog, ipcMain, screen } from 'electron'
 import { detectGameDpi } from '../system/gameDpi.js'
 import {
+  collectDeviceInfo,
   createDiagnosticsSnapshot,
   detectAdministrator,
   sanitizeHealthStates,
@@ -69,6 +70,10 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     const environment = await collectEnvironment()
     await recordHealth(environment.health.items)
     const eventDocument = diagnosticEvents ? await diagnosticEvents.read() : { events: [], corrupt: false }
+    const capture = payload.captureId && diagnosticEvents
+      ? await diagnosticEvents.resolveCapture(payload.captureId)
+      : null
+    const device = collectDeviceInfo()
     return createDiagnosticsSnapshot({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
@@ -76,6 +81,8 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       nodeVersion: process.versions.node,
       packaged: app.isPackaged,
       administrator: environment.administrator,
+      device: device.device,
+      deviceAvailability: device.availability,
       displays: environment.displays,
       runtime: environment.runtime,
       gameDpi: environment.gameDpi,
@@ -91,7 +98,8 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
         }
       ],
       modules: sanitizeModuleStates(normalized.modules),
-      recentEvents: eventDocument.events
+      recentEvents: eventDocument.events,
+      context: capture || { mode: 'snapshot' }
     })
   }
 
@@ -120,6 +128,18 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
   ipcMain.handle('system-get-diagnostics', (_event, payload) => snapshot(payload))
   ipcMain.handle('system-record-diagnostic-event', async (_event, candidate) => (
     diagnosticEvents?.record(candidate) || { recorded: false, reason: 'store_unavailable' }
+  ))
+  ipcMain.handle('system-diagnostic-capture-start', (_event, input) => (
+    diagnosticEvents?.startCapture(input) || { success: false, errorCode: 'DIAGNOSTIC_CAPTURE_STORE_UNAVAILABLE' }
+  ))
+  ipcMain.handle('system-diagnostic-capture-status', () => (
+    diagnosticEvents?.getCaptureStatus() || { success: false, errorCode: 'DIAGNOSTIC_CAPTURE_STORE_UNAVAILABLE' }
+  ))
+  ipcMain.handle('system-diagnostic-capture-finish', (_event, input) => (
+    diagnosticEvents?.finishCapture(input) || { success: false, errorCode: 'DIAGNOSTIC_CAPTURE_STORE_UNAVAILABLE' }
+  ))
+  ipcMain.handle('system-diagnostic-capture-cancel', (_event, input) => (
+    diagnosticEvents?.cancelCapture(input) || { success: false, errorCode: 'DIAGNOSTIC_CAPTURE_STORE_UNAVAILABLE' }
   ))
   ipcMain.on('startup-report', (_event, candidate) => {
     const report = sanitizeStartupReport(candidate)

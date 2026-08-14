@@ -24,6 +24,10 @@ const mockApi = {
     getDiagnostics: () => Promise.resolve(null),
     exportDiagnostics: () => Promise.resolve({ success: false, canceled: true }),
     recordDiagnosticEvent: () => Promise.resolve({ recorded: false }),
+    startDiagnosticCapture: () => Promise.resolve({ success: false }),
+    getDiagnosticCaptureStatus: () => Promise.resolve({ success: true, activeCapture: null, lastCapture: null }),
+    finishDiagnosticCapture: () => Promise.resolve({ success: false }),
+    cancelDiagnosticCapture: () => Promise.resolve({ success: true }),
   },
   update: {
     getState: () => Promise.resolve({ mode: 'manual', source: 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
@@ -321,6 +325,10 @@ export const electronApi = isElectron ? {
     getDiagnostics: (payload) => window.electronAPI.getDiagnostics?.(craftingIpcPayload(payload)),
     exportDiagnostics: (payload) => window.electronAPI.exportDiagnostics?.(craftingIpcPayload(payload)),
     recordDiagnosticEvent: (event) => window.electronAPI.recordDiagnosticEvent?.(craftingIpcPayload(event)),
+    startDiagnosticCapture: (input) => window.electronAPI.startDiagnosticCapture?.(craftingIpcPayload(input)),
+    getDiagnosticCaptureStatus: () => window.electronAPI.getDiagnosticCaptureStatus?.(),
+    finishDiagnosticCapture: (input) => window.electronAPI.finishDiagnosticCapture?.(craftingIpcPayload(input)),
+    cancelDiagnosticCapture: (input) => window.electronAPI.cancelDiagnosticCapture?.(craftingIpcPayload(input)),
   },
   update: {
     getState: () => window.electronAPI.getApplicationUpdateState?.(),

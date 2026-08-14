@@ -1,4 +1,4 @@
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
@@ -38,19 +38,7 @@ import {
   summarizeModules
 } from './dashboardStatus'
 
-const MODULE_DIAGNOSTIC_REASONS = Object.freeze({
-  items: 'process_exit',
-  map: 'process_exit',
-  bag: 'automation_failed',
-  combat: 'process_exit',
-  shop: 'automation_failed',
-  priceCheck: 'request_failed',
-  crafting: 'data_unavailable',
-  story: 'unknown_failure'
-})
-
 function moduleDiagnosticReason(module) {
-  if (module?.state === 'error') return MODULE_DIAGNOSTIC_REASONS[module.id] || 'unknown_failure'
   if (module?.state === 'attention') return 'invalid_configuration'
   return null
 }
@@ -97,6 +85,9 @@ export function useDashboard() {
   const pending = reactive({})
   const refreshing = ref(false)
   const diagnosticsExporting = ref(false)
+  const diagnosticCapture = ref(null)
+  const diagnosticCaptureLoading = ref(false)
+  let captureTimeout = null
   let dashboardCombatQueue = Promise.resolve()
 
   const itemValidation = computed(() => validateCraftingConfig({
@@ -256,20 +247,6 @@ export function useDashboard() {
     ]
   })
   const healthHasIssues = computed(() => healthItems.value.some(item => item.status !== 'ready'))
-
-  watch(
-    () => modules.value.map(({ id, state, reasonCode }) => ({ id, state, reasonCode })),
-    states => states.forEach(state => {
-      if (state.state === 'attention') return
-      void electronApi.system.recordDiagnosticEvent({
-        area: state.id,
-        operation: 'module_state',
-        outcome: state.state === 'error' ? 'failed' : 'recovered',
-        reasonCode: state.reasonCode
-      })
-    }),
-    { immediate: true, deep: true }
-  )
 
   watch(
     () => healthItems.value.find(item => item.id === 'shortcuts'),
@@ -626,22 +603,60 @@ export function useDashboard() {
 
   const openModule = module => router.push(module.route)
   const openSettings = () => router.push('/settings')
-  async function exportDiagnostics() {
+  function diagnosticPayload(captureId) {
+    return {
+      ...(captureId ? { captureId } : {}),
+      modules: modules.value.map(({ id, state, reasonCode }) => ({ id, state, reasonCode })),
+      rendererHealth: healthItems.value
+        .filter(item => ['python', 'shortcuts', 'dpi'].includes(item.id))
+        .map(item => ({ id: item.id, status: item.status, reasonCode: healthDiagnosticReason(item) }))
+    }
+  }
+
+  function scheduleCaptureRefresh(capture) {
+    if (captureTimeout) clearTimeout(captureTimeout)
+    captureTimeout = null
+    if (capture?.status !== 'active' || !capture.expiresAt) return
+    const delay = Math.max(0, Date.parse(capture.expiresAt) - Date.now()) + 100
+    captureTimeout = setTimeout(loadDiagnosticCaptureStatus, delay)
+  }
+
+  async function loadDiagnosticCaptureStatus() {
+    const result = await electronApi.system.getDiagnosticCaptureStatus()
+    if (!result?.success) return
+    diagnosticCapture.value = result.activeCapture || result.lastCapture || null
+    scheduleCaptureRefresh(diagnosticCapture.value)
+  }
+
+  async function startDiagnosticCapture(area, symptom) {
+    diagnosticCaptureLoading.value = true
+    try {
+      const result = await electronApi.system.startDiagnosticCapture({ area, symptom })
+      if (!result?.success) throw new Error('诊断会话启动失败')
+      diagnosticCapture.value = result.capture
+      scheduleCaptureRefresh(result.capture)
+      ElMessage.success('诊断会话已开始，请复现问题后结束并导出')
+      return true
+    } catch (error) {
+      ElMessage.error(error?.message || '诊断会话启动失败')
+      return false
+    } finally {
+      diagnosticCaptureLoading.value = false
+    }
+  }
+
+  async function exportDiagnostics(captureId = null) {
+    if (typeof captureId !== 'string') captureId = null
     if (diagnosticsExporting.value) return
     diagnosticsExporting.value = true
     try {
-      const result = await electronApi.system.exportDiagnostics({
-        modules: modules.value.map(({ id, state, reasonCode }) => ({ id, state, reasonCode })),
-        rendererHealth: healthItems.value
-          .filter(item => ['python', 'shortcuts', 'dpi'].includes(item.id))
-          .map(item => ({
-            id: item.id,
-            status: item.status,
-            reasonCode: healthDiagnosticReason(item)
-          }))
-      })
+      const result = await electronApi.system.exportDiagnostics(diagnosticPayload(captureId))
       if (result?.canceled) return
       if (!result?.success) throw new Error(result?.error || '诊断导出失败')
+      if (captureId) {
+        await electronApi.system.cancelDiagnosticCapture({ captureId })
+        diagnosticCapture.value = null
+      }
       ElMessage.success(`诊断已导出：${result.fileName}`)
     } catch (error) {
       ElMessage.error(error?.message || '诊断导出失败')
@@ -650,7 +665,43 @@ export function useDashboard() {
     }
   }
 
-  onMounted(refresh)
+  async function finishAndExportDiagnosticCapture() {
+    const capture = diagnosticCapture.value
+    if (!capture) return
+    if (capture.status === 'active') {
+      diagnosticCaptureLoading.value = true
+      try {
+        const result = await electronApi.system.finishDiagnosticCapture({ captureId: capture.captureId })
+        if (!result?.success) throw new Error('诊断会话结束失败')
+        diagnosticCapture.value = result.capture
+      } catch (error) {
+        ElMessage.error(error?.message || '诊断会话结束失败')
+        return
+      } finally {
+        diagnosticCaptureLoading.value = false
+      }
+    }
+    await exportDiagnostics(diagnosticCapture.value?.captureId)
+  }
+
+  async function cancelDiagnosticCapture() {
+    const captureId = diagnosticCapture.value?.captureId
+    if (!captureId) return
+    const result = await electronApi.system.cancelDiagnosticCapture({ captureId })
+    if (result?.success) {
+      diagnosticCapture.value = null
+      scheduleCaptureRefresh(null)
+      ElMessage.success('诊断会话已取消')
+    } else ElMessage.error('诊断会话取消失败')
+  }
+
+  onMounted(() => {
+    void refresh()
+    void loadDiagnosticCaptureStatus()
+  })
+  onUnmounted(() => {
+    if (captureTimeout) clearTimeout(captureTimeout)
+  })
 
   return {
     modules,
@@ -659,8 +710,13 @@ export function useDashboard() {
     healthHasIssues,
     refreshing,
     diagnosticsExporting,
+    diagnosticCapture,
+    diagnosticCaptureLoading,
     refresh,
     exportDiagnostics,
+    startDiagnosticCapture,
+    finishAndExportDiagnosticCapture,
+    cancelDiagnosticCapture,
     runAction,
     changeModuleControl,
     openModule,

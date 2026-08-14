@@ -335,6 +335,14 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       ? await electronApi.puzzle.pickAtlasRegion?.()
       : await electronApi.puzzle.pickInventoryRegion()
     if (response?.canceled) return response
+    if (response?.success === false || response?.error) {
+      const failure = response?.error
+      error.value = typeof failure === 'object' && failure
+        ? failure
+        : { code: 'REGION_CAPTURE_FAILED', message: String(failure || '框选区域失败') }
+      void reportDiagnosticFailure('puzzle', 'region_capture', error.value, 'screen_capture_failed', error.value.details)
+      return { success: false, error: error.value }
+    }
     const normalized = normalizePuzzleRegionMetadata(response)
     if (!normalized) {
       error.value = { code: 'REGION_INVALID', message: '框选区域无效，请重新框选完整仓库' }
@@ -353,6 +361,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (response.previewDataUrl) previews.value[type] = response.previewDataUrl
     persistRegions()
     await loadConfiguration()
+    void reportDiagnosticRecovery('puzzle', 'region_capture')
     return { success: true, regionMetadata: normalized }
   }
 
@@ -658,6 +667,10 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (!inventoryRegionMetadata.value) return { success: false, error: { code: 'REGION_REQUIRED', message: '请先框选碎片仓库区域' } }
     const response = await electronApi.puzzle.pickInventoryTabPoint?.(normalized)
     if (!response || response.canceled) return response || { canceled: true }
+    if (response.success === false) {
+      error.value = response.error || { code: 'PICKER_FAILED', message: '坐标选取失败' }
+      return { success: false, error: error.value }
+    }
     const otherPage = normalized === 1 ? 2 : 1
     const validation = validatePuzzleTabPoint(response, inventoryRegionMetadata.value, normalized, inventoryTabPoints.value[otherPage])
     if (!validation.valid) {

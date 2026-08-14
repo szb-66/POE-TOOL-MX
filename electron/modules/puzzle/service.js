@@ -224,8 +224,10 @@ export class PuzzleAnalysisService {
         minimumSize: regionType === 'atlas' ? { width: 60, height: 60 } : { width: 120, height: 200 }
       })
       if (result?.canceled) return result
+      if (result?.success === false) return result
       this.savePreview(regionType, result.png)
       return {
+        success: true,
         canceled: false,
         type: regionType,
         selectedRegion: result.selectedRegion,

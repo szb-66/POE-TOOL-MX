@@ -33,6 +33,7 @@ import {
   hasUsefulPixelVariance,
   isRegionLargeEnough,
   physicalRectangleToImageCrop,
+  resolveCaptureSources,
   toGlobalDipPoint
 } from './coordinates.js'
 
@@ -694,6 +695,18 @@ export function toggleDevTools() {
 
 let screenPickerSession = null
 
+function screenPickerFailure(error, fallbackCode = 'SCREEN_CAPTURE_FAILED') {
+  return {
+    success: false,
+    canceled: false,
+    error: {
+      code: error?.code || fallbackCode,
+      message: error?.message || String(error || '屏幕捕获失败'),
+      ...(error?.details ? { details: error.details } : {})
+    }
+  }
+}
+
 function settleScreenPicker(result) {
   const session = screenPickerSession
   if (!session || session.settled) return
@@ -718,10 +731,10 @@ async function captureDisplays(displays) {
     return { width: Math.max(size.width, physical.width), height: Math.max(size.height, physical.height) }
   }, { width: 1, height: 1 })
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: maximum })
+  const resolved = resolveCaptureSources(displays, sources)
   const screenshots = new Map()
   displays.forEach((display) => {
-    const source = sources.find(item => String(item.display_id) === String(display.id))
-    if (!source || source.thumbnail.isEmpty()) throw new Error(`无法捕获显示器 ${display.id} 的画面`)
+    const source = resolved.get(String(display.id))
     screenshots.set(String(display.id), source.thumbnail)
   })
   return screenshots
@@ -731,7 +744,7 @@ function createScreenPickerSession(mode, screenshots = new Map(), options = {}) 
   if (screenPickerSession) {
     return mode === screenPickerSession.mode
       ? screenPickerSession.promise
-      : Promise.resolve({ canceled: true, error: '已有其他屏幕选取会话正在进行' })
+      : Promise.resolve(screenPickerFailure(Object.assign(new Error('已有其他屏幕选取会话正在进行'), { code: 'PICKER_BUSY' })))
   }
 
   let resolveSession
@@ -796,7 +809,13 @@ function openScreenPickerWindows(mode, displays) {
       pickerWindow.once('ready-to-show', () => {
         if (!pickerWindow.isDestroyed()) pickerWindow.show()
       })
-      pickerWindow.webContents.once('did-fail-load', () => settleScreenPicker({ canceled: true }))
+      pickerWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, _url, isMainFrame) => {
+        if (isMainFrame === false) return
+        settleScreenPicker(screenPickerFailure(Object.assign(
+          new Error(`框选窗口加载失败：${errorDescription || errorCode}`),
+          { code: 'PICKER_LOAD_FAILED', details: { errorCode } }
+        )))
+      })
       pickerWindow.on('closed', () => settleScreenPicker({ canceled: true }))
 
       if (process.env.NODE_ENV === 'development' && devServerUrl) {
@@ -806,7 +825,7 @@ function openScreenPickerWindows(mode, displays) {
       }
     })
   } catch (error) {
-    settleScreenPicker({ canceled: true, error: error.message })
+    settleScreenPicker(screenPickerFailure(error, 'PICKER_LOAD_FAILED'))
   }
 }
 
@@ -824,7 +843,7 @@ export async function pickScreenRegion(options = {}) {
   try {
     screenshots = await captureDisplays(displays)
   } catch (error) {
-    return { canceled: true, error: error.message }
+    return screenPickerFailure(error)
   }
   const promise = createScreenPickerSession('region', screenshots, options)
   openScreenPickerWindows('region', displays)
@@ -848,6 +867,7 @@ export function submitCoordinatePickerPoint(sender, clientPoint) {
     : globalDipPoint
 
   settleScreenPicker({
+    success: true,
     canceled: false,
     x: physicalPoint.x,
     y: physicalPoint.y
@@ -879,6 +899,7 @@ export function submitScreenPickerRegion(sender, clientRectangle) {
     if (!hasUsefulPixelVariance(template.toBitmap())) throw new Error('选区图像信息过少，请框选包含清晰文字的区域')
     const size = selectedSize
     settleScreenPicker({
+      success: true,
       canceled: false,
       displayId: context.displayId,
       scaleFactor: context.scaleFactor,
@@ -888,7 +909,7 @@ export function submitScreenPickerRegion(sender, clientRectangle) {
       png: template.toPNG()
     })
   } catch (error) {
-    settleScreenPicker({ canceled: true, error: error.message })
+    settleScreenPicker(screenPickerFailure(error))
   }
   return true
 }

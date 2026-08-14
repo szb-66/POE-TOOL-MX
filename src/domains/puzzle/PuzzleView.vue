@@ -458,7 +458,7 @@ async function pickRegion(type) {
     if (response?.success) {
       regionExpanded[type] = false
       ElMessage.success(`${type === 'atlas' ? '海图区' : '碎片仓库'}已保存`)
-    }
+    } else if (response?.error) ElMessage.error(response.error.message || String(response.error))
   } catch (caught) {
     ElMessage.error(caught?.message || '框选区域失败')
   }

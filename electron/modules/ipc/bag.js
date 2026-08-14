@@ -486,6 +486,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       assertBagTemplateTarget(type)
       const result = await window.pickScreenRegion()
       if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
+      if (result?.success === false) return { success: false, error: result.error?.message || '框选失败' }
       const templateDir = path.join(app.getPath('userData'), 'templates')
       const targetPath = savePngAtomically(templateDir, type, result.png)
       const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)

@@ -38,6 +38,7 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
   ipcMain.handle('stash-pickup-pick-grid-region', invoke(async () => {
     const result = await window.pickScreenRegion()
     if (result?.canceled) return result
+    if (result?.success === false) throw Object.assign(new Error(result.error?.message || '框选失败'), { code: result.error?.code })
     return {
       canceled: false, region: result.selectedRegion, displayId: result.displayId,
       scaleFactor: result.scaleFactor, displayPhysicalBounds: result.displayPhysicalBounds,

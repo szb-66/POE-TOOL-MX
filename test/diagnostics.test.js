@@ -2,16 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
+  collectDeviceInfo,
   createDiagnosticsSnapshot,
   diagnosticFileName,
   redactDiagnosticText,
+  sanitizeDiagnosticEvent,
   sanitizeDiagnosticValue,
   sanitizeHealthStates,
   sanitizeModuleStates
 } from '../electron/modules/system/diagnostics.js'
 import { exportDiagnosticsFile } from '../electron/modules/system/diagnosticExport.js'
+import { classifyDiagnosticError, classifyDiagnosticStage } from '../src/utils/diagnostics.js'
 
-test('schema v2 诊断快照只接受稳定白名单并保留显示环境', () => {
+test('schema v3 诊断快照只接受稳定白名单并保留显示环境', () => {
   const snapshot = createDiagnosticsSnapshot({
     diagnosticId: '11111111-1111-4111-8111-111111111111',
     appVersion: '1.0.0', electronVersion: '43.0.0', chromiumVersion: '150.0.0', nodeVersion: '24.17.0',
@@ -31,7 +34,7 @@ test('schema v2 诊断快照只接受稳定白名单并保留显示环境', () =
       reasonCode: 'process_exit', repeatCount: 2, metadata: { exitCode: 1, secret: 42 }, message: 'private'
     }]
   })
-  assert.equal(snapshot.schemaVersion, 2)
+  assert.equal(snapshot.schemaVersion, 3)
   assert.equal(snapshot.diagnosticId, '11111111-1111-4111-8111-111111111111')
   assert.equal(snapshot.application.packaged, true)
   assert.equal(snapshot.application.uptimeSeconds, 12)
@@ -41,6 +44,71 @@ test('schema v2 诊断快照只接受稳定白名单并保留显示环境', () =
   assert.deepEqual(snapshot.recentEvents[0].metadata, { exitCode: 1 })
   const serialized = JSON.stringify(snapshot)
   assert.doesNotMatch(serialized, /Alice|python\.exe|角色名称|private|secret/)
+})
+
+test('设备信息只保留兼容性字段且探测失败安全降级', () => {
+  const result = collectDeviceInfo({
+    platform: 'win32', release: '10.0.26100', version: 'Windows 11 Pro',
+    cpus: [{ model: 'Example CPU' }, { model: 'Example CPU' }], totalMemoryBytes: 16 * 1024 ** 3,
+    queryGpu: () => [{ Name: 'Example GPU', DriverVersion: '32.0.1', PNPDeviceID: 'secret-device-guid' }]
+  })
+  const snapshot = createDiagnosticsSnapshot({
+    device: result.device, deviceAvailability: result.availability,
+    context: { mode: 'capture', captureId: '33333333-3333-4333-8333-333333333333', area: 'puzzle',
+      symptom: 'wrong_result', status: 'completed', startedAt: '2026-08-14T00:00:00.000Z',
+      endedAt: '2026-08-14T00:01:00.000Z' }
+  })
+  assert.deepEqual(snapshot.device.cpu, { model: 'Example CPU', logicalCores: 2 })
+  assert.deepEqual(snapshot.device.gpus, [{ model: 'Example GPU', driverVersion: '32.0.1' }])
+  assert.equal(snapshot.device.memory.totalBytes, 16 * 1024 ** 3)
+  assert.equal(snapshot.context.symptom, 'wrong_result')
+  assert.doesNotMatch(JSON.stringify(snapshot), /PNP|secret-device-guid|hostname|serial|mac/i)
+
+  const failed = collectDeviceInfo({ platform: 'win32', cpus: [], totalMemoryBytes: Number.NaN,
+    queryGpu: () => { throw new Error('C:\\Users\\Alice\\gpu') } })
+  assert.equal(failed.availability.gpu, false)
+  assert.deepEqual(failed.device.gpus, [])
+})
+
+test('诊断分类区分识别、模板、坐标、网络、解析和数据故障', () => {
+  assert.equal(classifyDiagnosticError({ code: 'OCR_EMPTY' }, 'automation_failed'), 'ocr_failed')
+  assert.equal(classifyDiagnosticError({ code: 'TEMPLATE_NOT_FOUND' }, 'automation_failed'), 'template_match_failed')
+  assert.equal(classifyDiagnosticError({ code: 'COORDINATE_INVALID' }, 'automation_failed'), 'coordinate_failed')
+  assert.equal(classifyDiagnosticError({ code: 'REQUEST_TIMEOUT' }, 'request_failed'), 'network_timeout')
+  assert.equal(classifyDiagnosticError({ code: 'RESPONSE_PARSE_FAILED' }, 'request_failed'), 'response_parse_failed')
+  assert.equal(classifyDiagnosticError({ code: 'DATA_INVALID' }, 'data_unavailable'), 'data_invalid')
+  assert.equal(classifyDiagnosticStage({ code: 'OCR_EMPTY' }, 'analysis'), 'recognition')
+})
+
+test('诊断结论只聚合当前会话并优先未恢复的直接证据', () => {
+  const captureId = '33333333-3333-4333-8333-333333333333'
+  const common = { sessionId: '22222222-2222-4222-8222-222222222222', appVersion: '1.0.4' }
+  const snapshot = createDiagnosticsSnapshot({
+    context: { mode: 'capture', captureId, area: 'puzzle', symptom: 'wrong_result', status: 'completed',
+      startedAt: '2026-08-14T00:00:00.000Z', endedAt: '2026-08-14T00:01:00.000Z' },
+    recentEvents: [
+      { ...common, timestamp: '2026-08-13T00:00:00.000Z', area: 'puzzle', operation: 'analysis',
+        outcome: 'failed', reasonCode: 'unknown_failure' },
+      { ...common, captureId, timestamp: '2026-08-14T00:00:10.000Z', area: 'puzzle', operation: 'analysis',
+        outcome: 'failed', reasonCode: 'ocr_failed', stageCode: 'recognition', repeatCount: 2 }
+    ]
+  })
+  assert.equal(snapshot.findings.length, 1)
+  assert.equal(snapshot.findings[0].reasonCode, 'ocr_failed')
+  assert.equal(snapshot.findings[0].suggestedCheckCode, 'check_ocr_inputs')
+  assert.deepEqual(snapshot.findings[0].evidence, ['recentEvents[1]'])
+})
+
+test('屏幕捕获诊断仅保留非敏感计数', () => {
+  const event = sanitizeDiagnosticEvent({
+    timestamp: '2026-08-14T00:00:00.000Z',
+    sessionId: '11111111-1111-4111-8111-111111111111',
+    appVersion: '1.0.4', area: 'puzzle', operation: 'region_capture', outcome: 'failed',
+    reasonCode: 'capture_source_not_found',
+    metadata: { displayCount: 1, sourceCount: 1, usableSourceCount: 0, matchedDisplayCount: 0, displayId: 2020828493 }
+  })
+  assert.equal(event.reasonCode, 'capture_source_not_found')
+  assert.deepEqual(event.metadata, { displayCount: 1, sourceCount: 1, usableSourceCount: 0, matchedDisplayCount: 0 })
 })
 
 test('最终诊断递归遮蔽凭据、账号、邮件、IP 和各种本地路径', () => {
@@ -115,7 +183,7 @@ test('导出写入失败返回稳定错误且不泄露目标路径', async () =>
   assert.doesNotMatch(JSON.stringify(result), /Alice|secret/)
 })
 
-test('诊断 IPC、preload 与首页暴露 v2 载荷和安全事件通道', () => {
+test('诊断 IPC、preload 与首页暴露 v3 载荷、会话和安全事件通道', () => {
   const ipc = readFileSync(new URL('../electron/modules/ipc/system.js', import.meta.url), 'utf8')
   const preload = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
@@ -124,6 +192,8 @@ test('诊断 IPC、preload 与首页暴露 v2 载荷和安全事件通道', () =
   assert.match(preload, /system-get-diagnostics/)
   assert.match(preload, /system-export-diagnostics/)
   assert.match(preload, /system-record-diagnostic-event/)
+  assert.match(preload, /system-diagnostic-capture-start/)
+  assert.match(preload, /system-diagnostic-capture-finish/)
   assert.match(dashboard, /rendererHealth/)
   assert.match(dashboard, /reasonCode/)
 })

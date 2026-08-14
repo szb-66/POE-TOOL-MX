@@ -56,6 +56,8 @@ test('Windows CI 与标签发布固定 Action 提交并使用最小化权限', (
   assert.match(release, /\.blockmap/)
   assert.match(release, /latest\.yml version does not match package version/)
   assert.match(release, /THIRD_PARTY_NOTICES\.md/)
+  assert.match(release, /\$notesFile = "docs\/release-notes\/v\$version\.md"/)
+  assert.match(release, /--notes-file", \$notesFile/)
   assert.match(release, /actions\/attest-build-provenance@[a-f0-9]{40}/)
   assert.doesNotMatch(`${ci}\n${release}`, /uses:\s+\S+@(v\d+|main|master)\s*$/m)
 })
@@ -77,7 +79,7 @@ test('GitHub 正式发布后才同步 CNB 标签且凭据不进入远程地址',
   assert.doesNotMatch(release, /https:\/\/cnb:[^@\s]+@cnb\.cool/)
 })
 
-test('CNB 标签流水线只镜像并验证完整发布资产', () => {
+test('CNB 标签流水线只镜像并验证完整发布内容', () => {
   const pipeline = source('../.cnb.yml')
   const requiredAssets = [
     'PoE-CN-Helper-${version}-win-x64-setup.exe',
@@ -94,8 +96,14 @@ test('CNB 标签流水线只镜像并验证完整发布资产', () => {
   const createIndex = pipeline.indexOf('name: Create CNB Release')
   const uploadIndex = pipeline.indexOf('name: Upload CNB Release assets')
   const latestIndex = pipeline.indexOf('name: Mark CNB Release as latest')
+  const notesIndex = pipeline.indexOf('notes="docs/release-notes/${tag}.md"')
   assert.ok(createIndex >= 0 && uploadIndex > createIndex && latestIndex > uploadIndex)
+  assert.ok(notesIndex >= 0 && notesIndex < createIndex)
   assert.match(pipeline, /sha256sum --check --strict SHA256SUMS\.txt/)
+  assert.match(pipeline, /test -s "\$notes"/)
+  assert.match(pipeline, /cp "\$notes" CNB_RELEASE_NOTES\.md/)
+  assert.equal((pipeline.match(/descriptionFromFile:\s*CNB_RELEASE_NOTES\.md/g) || []).length, 2)
+  assert.doesNotMatch(pipeline, /description:\s*"GitHub Release 国内同步镜像"/)
   assert.match(pipeline, /overlying:\s*true/)
   assert.match(pipeline, /latest:\s*true/)
   assert.doesNotMatch(pipeline, /electron-builder|npm run build|CNB_TOKEN/)

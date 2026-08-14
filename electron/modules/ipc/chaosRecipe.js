@@ -37,6 +37,7 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
   ipcMain.handle('chaos-recipe-pick-grid-region', invoke(async () => {
     const result = await window.pickScreenRegion()
     if (result?.canceled) return result
+    if (result?.success === false) throw Object.assign(new Error(result.error?.message || '框选失败'), { code: result.error?.code })
     return {
       canceled: false,
       region: result.selectedRegion,

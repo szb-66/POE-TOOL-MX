@@ -6,6 +6,7 @@ export function registerStashTabHandlers(python, window, fileWatcher) {
     try {
       const picked = await window.pickScreenRegion()
       if (picked?.canceled) return { success: true, canceled: true }
+      if (picked?.success === false) return { success: false, error: picked.error?.message || '框选仓库列表失败' }
       return {
         success: true,
         canceled: false,

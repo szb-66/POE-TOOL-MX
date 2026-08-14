@@ -8,6 +8,28 @@ export function toGlobalDipPoint(windowBounds, clientPoint) {
 export const MIN_REGION_SIZE = Object.freeze({ width: 20, height: 10 })
 export const TEMPLATE_SEARCH_MARGIN = 12
 
+export function resolveCaptureSources(displays = [], sources = []) {
+  const usableSources = sources.filter(source => source?.thumbnail && !source.thumbnail.isEmpty())
+  const resolved = new Map()
+  for (const display of displays) {
+    const source = usableSources.find(candidate => String(candidate.display_id) === String(display.id))
+    if (source) resolved.set(String(display.id), source)
+  }
+  if (resolved.size === displays.length) return resolved
+  if (displays.length === 1 && usableSources.length === 1) {
+    return new Map([[String(displays[0].id), usableSources[0]]])
+  }
+  const error = new Error(`无法匹配屏幕截图源（显示器 ${displays.length}，截图源 ${sources.length}，可用 ${usableSources.length}）`)
+  error.code = 'CAPTURE_SOURCE_NOT_FOUND'
+  error.details = {
+    displayCount: displays.length,
+    sourceCount: sources.length,
+    usableSourceCount: usableSources.length,
+    matchedDisplayCount: resolved.size
+  }
+  throw error
+}
+
 function finite(value, fallback = 0) {
   const number = Number(value)
   return Number.isFinite(number) ? number : fallback

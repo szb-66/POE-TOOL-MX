@@ -28,6 +28,17 @@
 - **WHEN** CNB 流水线无法下载任一规定资产或资产校验不一致
 - **THEN** 镜像任务失败且不得把该不完整版本标记为最新 Release
 
+### Requirement: 镜像版本说明与源发布一致
+每个 CNB Release MUST 与同标签 GitHub Release 读取同一份 `docs/release-notes/vX.Y.Z.md` 作为版本说明，且 MUST NOT 通过额外 GitHub API 请求获取或重写说明。
+
+#### Scenario: 同步版本说明
+- **WHEN** 同标签版本说明文件存在且非空
+- **THEN** CNB Release 创建和 Latest 更新均使用该 Markdown 文件的完整内容
+
+#### Scenario: 版本说明缺失或为空
+- **WHEN** 同标签的版本说明文件不存在或内容为空
+- **THEN** CNB 镜像流水线在创建 Release 前失败，且不得降级为固定文案
+
 ### Requirement: 最新稳定版本下载入口
 CNB 镜像 SHALL 将最近一次成功同步的稳定 Release 标记为 Latest，并 MUST 通过稳定的 `releases/latest/download` 路径提供更新元数据及其引用资产。
 

@@ -169,6 +169,48 @@ test('区域变化只清空对应识别结果并立即持久化', async t => {
   assert.equal(storage.snapshot().edgesRecognized, false)
 })
 
+test('框选捕获失败会显示错误并写入诊断，主动取消保持静默', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalPickInventory = electronApi.puzzle.pickInventoryRegion
+  const originalRecord = electronApi.system.recordDiagnosticEvent
+  const events = []
+  globalThis.localStorage = memoryStorage()
+  electronApi.system.recordDiagnosticEvent = async event => { events.push(event); return { recorded: true } }
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    electronApi.puzzle.pickInventoryRegion = originalPickInventory
+    electronApi.system.recordDiagnosticEvent = originalRecord
+  })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  electronApi.puzzle.pickInventoryRegion = async () => ({
+    success: false,
+    canceled: false,
+    error: {
+      code: 'CAPTURE_SOURCE_NOT_FOUND',
+      message: '无法匹配屏幕截图源',
+      details: { displayCount: 1, sourceCount: 1, usableSourceCount: 0, matchedDisplayCount: 0 }
+    }
+  })
+
+  const failed = await store.pickInventoryRegion()
+  assert.equal(failed.success, false)
+  assert.equal(store.error.code, 'CAPTURE_SOURCE_NOT_FOUND')
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(events[0], {
+    area: 'puzzle', operation: 'region_capture', outcome: 'failed', reasonCode: 'capture_source_not_found',
+    stageCode: 'capture',
+    metadata: { displayCount: 1, sourceCount: 1, usableSourceCount: 0, matchedDisplayCount: 0 }
+  })
+
+  electronApi.puzzle.pickInventoryRegion = async () => ({ canceled: true })
+  store.error = null
+  assert.deepEqual(await store.pickInventoryRegion(), { canceled: true })
+  assert.equal(store.error, null)
+  assert.equal(events.length, 1)
+})
+
 test('自动放入进度和结束状态不提前扣除持久化库存', t => {
   const originalLocalStorage = globalThis.localStorage
   const originalListener = electronApi.puzzle.onAutoPlacementUpdated

@@ -916,6 +916,7 @@ async function handlePickCoordinate(type, currency = '') {
   try {
     const result = await electronApi.window.pickScreenCoordinate()
     if (!result || result.canceled) return
+    if (result.success === false) throw new Error(result.error?.message || '坐标选取失败')
 
     const point = { x: result.x, y: result.y }
     if (type === 'inventory') {
