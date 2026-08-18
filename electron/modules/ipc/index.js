@@ -25,13 +25,14 @@ import { registerPuzzleHandlers } from './puzzle.js'
 import { registerApplicationUpdateHandlers } from './update.js'
 import { registerJunfengHandlers } from './junfeng.js'
 import { registerAutomationTimingHandlers } from './automationTiming.js'
+import { registerFeedbackHandlers } from './feedback.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
-    applicationUpdate, getMainWindow, enableJunfengTraining = false
+    applicationUpdate, feedback, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
   registerWindowHandlers(window)
@@ -43,7 +44,8 @@ export function registerIpcHandlers(dependencies) {
   registerCombatHandlers(python, window, fileWatcher)
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
-  registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
+  const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
+  registerFeedbackHandlers(feedback, { buildDiagnostics: system?.buildSnapshot, getMainWindow })
   if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })

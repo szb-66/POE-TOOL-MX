@@ -10,16 +10,18 @@ function containingPanel(marker) {
   return view.slice(panelStart, markerIndex)
 }
 
-test('设置页提供五个任务分类并保持全局重置入口', () => {
+test('设置页提供六个任务分类并在反馈分类隐藏全局重置入口', () => {
   const tabs = [...view.matchAll(/<el-tab-pane label="([^"]+)" name="([^"]+)" \/>/g)]
   assert.deepEqual(tabs.map(match => match.slice(1)), [
     ['通用', 'general'],
     ['自动操作', 'automation'],
     ['界面识别', 'detection'],
     ['覆盖层', 'overlay'],
-    ['系统', 'system']
+    ['系统', 'system'],
+    ['问题反馈', 'feedback']
   ])
   assert.ok(view.indexOf('重置所有设置') < view.indexOf('<el-tabs'))
+  assert.match(view, /v-show="activeTab !== 'feedback'" class="action-buttons"/)
 })
 
 test('现有设置区块按任务归入对应面板且使用 v-show 保持挂载', () => {
@@ -36,11 +38,12 @@ test('现有设置区块按任务归入对应面板且使用 v-show 保持挂载
   for (const marker of ['系统设置', '应用更新']) {
     assert.match(containingPanel(marker), /activeTab === 'system'/)
   }
+  assert.match(containingPanel('<FeedbackSettings'), /activeTab === 'feedback'/)
   assert.doesNotMatch(view, /<div v-if="activeTab ===/)
 })
 
 test('Tab 会话状态校验后恢复，切换时保存并滚动到顶部', () => {
-  assert.match(view, /const SETTINGS_TABS = new Set\(\['general', 'automation', 'detection', 'overlay', 'system'\]\)/)
+  assert.match(view, /const SETTINGS_TABS = new Set\(\['general', 'automation', 'detection', 'overlay', 'system', 'feedback'\]\)/)
   assert.match(view, /sessionStorage\.getItem\(SETTINGS_TAB_STORAGE_KEY\)/)
   assert.match(view, /SETTINGS_TABS\.has\(storedSettingsTab\) \? storedSettingsTab : 'general'/)
   assert.match(view, /sessionStorage\.setItem\(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS\.has\(tab\) \? tab : 'general'\)/)

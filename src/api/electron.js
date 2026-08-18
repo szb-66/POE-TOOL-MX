@@ -29,6 +29,11 @@ const mockApi = {
     finishDiagnosticCapture: () => Promise.resolve({ success: false }),
     cancelDiagnosticCapture: () => Promise.resolve({ success: true }),
   },
+  feedback: {
+    pickAttachments: () => Promise.resolve({ success: false, canceled: false, attachments: [], error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    submit: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    onProgress: () => () => {}
+  },
   update: {
     getState: () => Promise.resolve({ mode: 'manual', source: 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
     configure: (input) => Promise.resolve({ mode: input?.mode === 'automatic' ? 'automatic' : 'manual', source: input?.source === 'github' ? 'github' : 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
@@ -333,6 +338,11 @@ export const electronApi = isElectron ? {
     getDiagnosticCaptureStatus: () => window.electronAPI.getDiagnosticCaptureStatus?.(),
     finishDiagnosticCapture: (input) => window.electronAPI.finishDiagnosticCapture?.(craftingIpcPayload(input)),
     cancelDiagnosticCapture: (input) => window.electronAPI.cancelDiagnosticCapture?.(craftingIpcPayload(input)),
+  },
+  feedback: {
+    pickAttachments: () => window.electronAPI.pickFeedbackAttachments?.(),
+    submit: (input) => window.electronAPI.submitFeedback?.(craftingIpcPayload(input)),
+    onProgress: (callback) => window.electronAPI.onFeedbackProgress?.(callback) || (() => {})
   },
   update: {
     getState: () => window.electronAPI.getApplicationUpdateState?.(),

@@ -62,6 +62,10 @@ import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
+import { FEEDBACK_CLOUDBASE_CONFIG } from './modules/feedback/config.js'
+import { FeedbackAuthClient } from './modules/feedback/auth.js'
+import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
+import { FeedbackService } from './modules/feedback/service.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -214,6 +218,7 @@ let gameWindowTitles = null
 let diagnosticEvents = null
 let foregroundWatcher = null
 let applicationUpdate = null
+let feedbackService = null
 
 function resolveForegroundWatcherScriptPath() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -357,6 +362,17 @@ async function startApplication() {
     if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
       mainWindow.webContents.send('update-state-changed', state)
     }
+  })
+  const feedbackAuth = new FeedbackAuthClient({
+    config: FEEDBACK_CLOUDBASE_CONFIG,
+    userDataPath: app.getPath('userData')
+  })
+  feedbackService = new FeedbackService({
+    config: FEEDBACK_CLOUDBASE_CONFIG,
+    auth: feedbackAuth,
+    cloud: new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth: feedbackAuth }),
+    appVersion: app.getVersion(),
+    locale: app.getLocale()
   })
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
@@ -512,6 +528,7 @@ async function startApplication() {
     diagnostics: diagnosticEvents,
     startupDiagnostics,
     applicationUpdate,
+    feedback: feedbackService,
     getMainWindow,
     enableJunfengTraining: !app.isPackaged
   })

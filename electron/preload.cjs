@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDiagnosticCaptureStatus: () => ipcRenderer.invoke('system-diagnostic-capture-status'),
   finishDiagnosticCapture: (input) => ipcRenderer.invoke('system-diagnostic-capture-finish', input),
   cancelDiagnosticCapture: (input) => ipcRenderer.invoke('system-diagnostic-capture-cancel', input),
+  pickFeedbackAttachments: () => ipcRenderer.invoke('feedback:pick-attachments'),
+  submitFeedback: (input) => ipcRenderer.invoke('feedback:submit', input),
+  onFeedbackProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress)
+    ipcRenderer.on('feedback:progress', listener)
+    return () => ipcRenderer.removeListener('feedback:progress', listener)
+  },
   getApplicationUpdateState: () => ipcRenderer.invoke('update-get-state'),
   configureApplicationUpdate: (input) => ipcRenderer.invoke('update-configure', input),
   checkApplicationUpdate: () => ipcRenderer.invoke('update-check'),

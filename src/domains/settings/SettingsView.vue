@@ -2,7 +2,7 @@
   <div class="settings-page primary-page primary-page--column">
     <div class="primary-page__tabs settings-tab-bar">
       <!-- 操作按钮保持在 Tab 组件之外 -->
-      <div class="action-buttons">
+      <div v-show="activeTab !== 'feedback'" class="action-buttons">
         <el-button type="danger" @click="handleReset" :icon="Refresh">
           重置所有设置
         </el-button>
@@ -13,6 +13,7 @@
           <el-tab-pane label="界面识别" name="detection" />
           <el-tab-pane label="覆盖层" name="overlay" />
           <el-tab-pane label="系统" name="system" />
+          <el-tab-pane label="问题反馈" name="feedback" />
       </el-tabs>
     </div>
     <el-scrollbar ref="settingsScrollbar" class="primary-page__scroll">
@@ -649,6 +650,9 @@
           </el-row>
         </el-card>
         </div>
+        <div v-show="activeTab === 'feedback'" class="settings-tab-panel">
+          <FeedbackSettings />
+        </div>
       </div>
     </el-scrollbar>
   </div>
@@ -670,6 +674,7 @@ import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
 import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
 import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
+import FeedbackSettings from './FeedbackSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
@@ -681,7 +686,7 @@ const interfaceDetectionStore = useInterfaceDetectionStore()
 const account = usePoeCnAccountStore()
 const accountToken = ref('')
 const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
-const SETTINGS_TABS = new Set(['general', 'automation', 'detection', 'overlay', 'system'])
+const SETTINGS_TABS = new Set(['general', 'automation', 'detection', 'overlay', 'system', 'feedback'])
 const storedSettingsTab = sessionStorage.getItem(SETTINGS_TAB_STORAGE_KEY)
 const activeTab = ref(SETTINGS_TABS.has(storedSettingsTab) ? storedSettingsTab : 'general')
 const settingsScrollbar = ref(null)

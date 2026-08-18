@@ -149,4 +149,5 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     showSaveDialog: options => dialog.showSaveDialog(options),
     buildSnapshot: () => snapshot(payload)
   }))
+  return { buildSnapshot: snapshot }
 }
