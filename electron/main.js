@@ -55,6 +55,7 @@ import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
+import { PuzzleCalibrationRepository } from './modules/puzzle/calibrationRepository.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
@@ -436,7 +437,8 @@ async function startApplication() {
     fileWatcher,
     getMainWindow,
     automationLock,
-    overlay: puzzleOverlay
+    overlay: puzzleOverlay,
+    calibration: new PuzzleCalibrationRepository(path.join(app.getPath('userData'), 'puzzle-calibration'))
   })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachJunfeng?.(junfengHighlight)

@@ -67,6 +67,26 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(runtime, /router\.push\('\/puzzle'\)/)
 })
 
+test('海图本机校准的仓储、IPC、页面识别和自动放入使用同一协议', () => {
+  const ipc = source('../electron/modules/ipc/puzzle.js')
+  const preload = source('../electron/preload.cjs')
+  const api = source('../src/api/electron.js')
+  const main = source('../electron/main.js')
+  const service = source('../electron/modules/puzzle/service.js')
+  const auto = source('../src/assets/scripts/puzzle_auto_place.py')
+  for (const channel of ['puzzle-calibration-list', 'puzzle-calibration-save', 'puzzle-calibration-remove', 'puzzle-calibration-reset']) {
+    assert.match(ipc, new RegExp(channel))
+    assert.match(preload, new RegExp(channel))
+  }
+  assert.match(api, /listCalibration:/)
+  assert.match(api, /saveCalibration:/)
+  assert.match(main, /new PuzzleCalibrationRepository\(path\.join\(app\.getPath\('userData'\), 'puzzle-calibration'\)\)/)
+  assert.match(service, /calibrationSamples: this\.calibrationSamples\(\)/)
+  assert.match(auto, /calibration_samples = config\.get\("calibrationSamples"\) or \[\]/)
+  assert.match(auto, /"inventory", calibration_samples=calibration_samples/)
+  assert.doesNotMatch(auto, /config\.get\("recognition"\)/)
+})
+
 test('清空已选区域贯通 IPC、preload、渲染 API、服务与页面', () => {
   const ipc = source('../electron/modules/ipc/puzzle.js')
   const preload = source('../electron/preload.cjs')
@@ -98,7 +118,7 @@ test('仓库编辑、出口硬约束、来源高亮和 100 个上限均由页面
   const store = source('../src/stores/puzzle.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(store, /solutionLimit: 100/)
-  assert.match(store, /assignSourceSlots/)
+  assert.match(store, /solveWithWorker/)
   assert.match(store, /function updateSlot/)
   assert.match(store, /requiredExits\.value = \[\]/)
   assert.match(view, /仅展示前 100 个/)
@@ -107,17 +127,15 @@ test('仓库编辑、出口硬约束、来源高亮和 100 个上限均由页面
   assert.doesNotMatch(view, /3 秒|delayMs/)
 })
 
-test('碎片右键逆时针旋转且角度修正跳过完整重算', () => {
+test('碎片右键逆时针旋转且角度修正按最新状态异步重算', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(view, /store\.updateSlotOrientation\(slot\.row, slot\.column, slot\.orientation - step\)/)
   assert.match(view, /右键“逆时针旋转角度”/)
   const store = source('../src/stores/puzzle.js')
   const orientation = store.match(/function updateSlotOrientation\([\s\S]*?\n  \}/)?.[0] || ''
-  assert.match(orientation, /refreshSourceAssignments\(\)/)
-  assert.doesNotMatch(orientation, /recompute\(\)/)
+  assert.match(orientation, /recompute\(\)/)
   const typeUpdate = store.match(/function updateSlot\([\s\S]*?\n  \}/)?.[0] || ''
   assert.match(typeUpdate, /recompute\(\)/)
-  assert.match(store, /function refreshSourceAssignments/)
 })
 
 test('待确认与已拼入海图来源格具有独立且可叠加样式', () => {
@@ -137,7 +155,7 @@ test('待确认与已拼入海图来源格具有独立且可叠加样式', () =>
 test('出口三态在状态层互斥、可统一清空并按识别模式重置或保留', () => {
   const store = source('../src/stores/puzzle.js')
   assert.match(store, /const forbiddenExits = ref\(\[\]\)/)
-  assert.match(store, /solvePuzzle\(\{[\s\S]*forbiddenExits: forbiddenExits\.value/)
+  assert.match(store, /const input = JSON\.parse\(JSON\.stringify\(\{[\s\S]*forbiddenExits: forbiddenExits\.value/)
   assert.match(store, /function toggleRequiredExit[\s\S]*forbiddenExits\.value = forbiddenExits\.value\.filter/)
   assert.match(store, /function toggleForbiddenExit[\s\S]*requiredExits\.value = requiredExits\.value\.filter/)
   const clear = store.match(/function clearExitConstraints\(\) \{([\s\S]*?)\n  \}/)?.[1] || ''
@@ -192,7 +210,7 @@ test('重算期间仅在最优方案卡片显示 loading，且不人为延长计
   assert.doesNotMatch(view, /puzzle-module|module-loading-mask/)
   assert.match(store, /function waitForNextPaint\(\)[\s\S]*requestAnimationFrame\(\(\) => requestAnimationFrame\(resolve\)\)[\s\S]*setTimeout\(resolve, 16\)/)
   assert.match(store, /async function recompute\(\)[\s\S]*solving\.value = true[\s\S]*await waitForNextPaint\(\)/)
-  assert.match(store, /finally \{\n\s*solving\.value = false\n\s*\}/)
+  assert.match(store, /finally \{\n\s*if \(requestId === solveRequestId\) solving\.value = false\n\s*\}/)
 })
 
 test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
@@ -204,12 +222,14 @@ test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
   assert.match(view, /type: 'atlas'[\s\S]*pickLabel: '框选海图区'/)
 })
 
-test('识别控件归入碎片仓库，自动放入控件归入最优方案', () => {
+test('本机校准控件归入碎片仓库，自动放入控件归入最优方案', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const inventoryHeader = view.match(/<el-card class="inventory-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
   const solutionHeader = view.match(/<el-card class="solution-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
 
-  assert.match(inventoryHeader, /v-model="recognitionStrength"/)
+  assert.match(inventoryHeader, /@click="saveCalibration"/)
+  assert.match(inventoryHeader, /本机素材/)
+  assert.doesNotMatch(inventoryHeader, /recognitionStrength|敏感|严格/)
   assert.match(inventoryHeader, /@click="startAnalysis"[\s\S]*自动识别两页/)
   assert.doesNotMatch(inventoryHeader, /startAutoPlacement|stopAutoPlacement/)
   assert.match(solutionHeader, /@click="startAutoPlacement"[\s\S]*自动放入/)
@@ -221,6 +241,7 @@ test('最优方案支持收益策略并明确相对分口径', () => {
   const store = source('../src/stores/puzzle.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const rewards = source('../src/domains/puzzle/voyageRewards.js')
+  const solver = source('../src/domains/puzzle/solver.js')
   assert.match(view, /v-model="selectedRewardStrategy"/)
   assert.match(view, /VOYAGE_REWARD_MODE_OPTIONS/)
   assert.match(rewards, /\{ id: 'auto', label: '最高收益自动切换'/)
@@ -228,10 +249,9 @@ test('最优方案支持收益策略并明确相对分口径', () => {
   assert.match(view, /QuestionFilled/)
   assert.match(view, /不代表实际掉落量或通货价格/)
   assert.match(view, /当前自动选择：\{\{ effectiveRewardStrategyLabel \}\}/)
-  assert.match(store, /slots: allSlots\.value,[\s\S]*edges: edges\.value,[\s\S]*strategy: rewardStrategy\.value/)
+  assert.match(store, /slots: availableSlots\.value,[\s\S]*edges: edges\.value,[\s\S]*strategy: rewardStrategy\.value/)
   assert.match(store, /function setRewardStrategy\(strategy\)[\s\S]*persistRegions\(\)[\s\S]*recompute\(\)/)
-  assert.match(store, /const effectiveRewardStrategy = computed[\s\S]*result\.value\.effectiveStrategy/)
-  assert.match(store, /assignSourceSlots\([\s\S]*strategy: effectiveRewardStrategy\.value/)
+  assert.match(solver, /sourceSlots: assignSourceSlots\(solution, slots, \{ strategy: effectiveStrategy \|\| 'balanced', edges \}\)/)
   assert.match(store, /if \(response\.borderMods\) \{[\s\S]*applyBorderMods\(response\.borderMods\)[\s\S]*persistRegions\(\)[\s\S]*await recompute\(\)/)
 })
 
@@ -246,9 +266,10 @@ test('两个区域配置模块独立折叠并按区域数据初始化', () => {
 
 test('低置信度碎片保留警告但仍参与海图求解与来源分配', () => {
   const store = source('../src/stores/puzzle.js')
+  const solver = source('../src/domains/puzzle/solver.js')
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(store, /counts: counts\.value/)
-  assert.match(store, /assignSourceSlots\(solution, allSlots\.value, \{ strategy: solved\.effectiveStrategy \|\| 'balanced', edges: edges\.value \}\)/)
+  assert.match(solver, /sourceSlots: assignSourceSlots\(solution, slots/)
   assert.doesNotMatch(store, /剩余来源碎片存在待确认项/)
   assert.match(view, /auto-blocked-reason/)
   assert.match(view, /\{\{ autoPlaceBlockedReason \}\}/)
@@ -280,7 +301,7 @@ test('完成当前海图扣除来源碎片、清空出口限制并基于剩余�
   assert.match(action, /completeChart\?\.\(\)/)
   assert.match(store, /completeCurrentChart,/)
 
-  assert.match(view, /solution-pager[\s\S]*chart-complete-row[\s\S]*type="warning" :disabled="executing \|\| analyzing \|\| probingBorder \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成<\/el-button>/)
+  assert.match(view, /solution-pager[\s\S]*chart-complete-row[\s\S]*type="warning" :disabled="executing \|\| analyzing \|\| probingBorder \|\| solving \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成<\/el-button>/)
   const headingActions = view.match(/<div class="heading-actions">([\s\S]*?)<\/div>/)?.[1] || ''
   assert.doesNotMatch(headingActions, /completeCurrentChart/)
   const handler = view.match(/async function completeCurrentChart\(\) \{([\s\S]*?)\n\}/)?.[1] || ''
@@ -384,8 +405,8 @@ test('完成后自动识别默认开启、持久化并接入完成流程', () =>
   assert.match(view, /:loading="probingBorder && !borderProbeProgressText"[\s\S]*handleProbeBorderMods[\s\S]*识别边缘词缀/)
   assert.match(view, /borderProbeProgressText = computed/)
   assert.match(view, /<el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别<\/el-checkbox>/)
-  assert.match(view, /:disabled="executing \|\| analyzing \|\| probingBorder \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成/)
-  assert.match(action, /if \(executing\.value \|\| analyzing\.value \|\| probingBorder\.value\)/)
+  assert.match(view, /:disabled="executing \|\| analyzing \|\| probingBorder \|\| solving \|\| !currentSolution" @click="completeCurrentChart">当前海图已完成/)
+  assert.match(action, /if \(executing\.value \|\| analyzing\.value \|\| probingBorder\.value \|\| solving\.value\)/)
   assert.match(view, /async function handleProbeBorderMods\(\)[\s\S]*store\.probeBorderMods\(\)/)
   assert.match(view, /function handleAutoProbeChange\(value\)[\s\S]*setAutoProbeBorderMods/)
 })
@@ -465,6 +486,28 @@ test('双区域截图预览完整等比例缩放且网格只覆盖图片可见�
   assert.match(view, /\.preview-stage\s*\{[\s\S]*?width:\s*min\(100%,\s*var\(--preview-width\)\);/)
   assert.match(view, /\.preview-stage img\s*\{[\s\S]*?object-fit:\s*contain;/)
   assert.doesNotMatch(view, /\.preview-shell img/)
+})
+
+test('碎片仓库每个格子提供独立固定锁按钮且不冒泡到格子操作', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(view, /class="slot-lock-button"/)
+  assert.match(view, /@click\.stop="toggleSlotLock\(slot\)"/)
+  assert.match(view, /@contextmenu\.stop\.prevent/)
+  assert.match(view, /locked:\s*isSlotLocked\(slot\)/)
+  assert.match(view, /currentPageLockedCount/)
+})
+
+test('浏览器 Worker 求解不禁用仓库编辑且只允许最新请求更新方案', () => {
+  const store = source('../src/stores/puzzle.js')
+  const worker = source('../src/domains/puzzle/solverWorker.js')
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(store, /new Worker\(new URL\('\.\.\/domains\/puzzle\/solverWorker\.js', import\.meta\.url\), \{ type: 'module' \}\)/)
+  assert.match(store, /const requestId = \+\+solveRequestId[\s\S]*activeSolve\?\.cancel\(\)/)
+  assert.match(store, /requestId !== solveRequestId[\s\S]*return null/)
+  assert.match(store, /if \(solving\.value\) return '正在按最新仓库状态计算方案'/)
+  assert.match(worker, /self\.onmessage[\s\S]*solvePuzzle\(data\?\.input\)[\s\S]*requestId/)
+  assert.doesNotMatch(view, /class="inventory-slot"[\s\S]{0,300}:disabled="[^\"]*solving/)
+  assert.doesNotMatch(view, /class="slot-lock-button"[\s\S]{0,300}:disabled="[^\"]*solving/)
 })
 
 test('识别资源进入资源清单但测试不触发安装包构建', () => {

@@ -96,6 +96,10 @@ const mockApi = {
     pickInventoryTabPoint: () => Promise.resolve({ canceled: true }),
     clearRegion: () => Promise.resolve({ success: true }),
     getConfiguration: () => Promise.resolve({ previews: { inventory: '', atlas: '' }, states: {} }),
+    listCalibration: () => Promise.resolve([]),
+    saveCalibration: () => Promise.resolve([]),
+    removeCalibration: () => Promise.resolve([]),
+    resetCalibration: () => Promise.resolve([]),
     analyze: () => Promise.resolve({
       success: false,
       error: { code: 'ELECTRON_REQUIRED', message: '海图识别仅支持 Electron 客户端' }
@@ -405,6 +409,10 @@ export const electronApi = isElectron ? {
     pickInventoryTabPoint: (page) => window.electronAPI.pickPuzzleInventoryTabPoint?.(page),
     clearRegion: (type) => window.electronAPI.clearPuzzleRegion?.(type),
     getConfiguration: (request) => window.electronAPI.getPuzzleConfiguration?.(craftingIpcPayload(request)),
+    listCalibration: () => window.electronAPI.listPuzzleCalibration?.(),
+    saveCalibration: (items) => window.electronAPI.savePuzzleCalibration?.(craftingIpcPayload(items)),
+    removeCalibration: (id) => window.electronAPI.removePuzzleCalibration?.(id),
+    resetCalibration: () => window.electronAPI.resetPuzzleCalibration?.(),
     analyze: (request) => window.electronAPI.analyzePuzzle?.(craftingIpcPayload(request)),
     startAutoPlacement: (request) => window.electronAPI.startPuzzleAutoPlacement?.(craftingIpcPayload(request)),
     stopAutoPlacement: (reason) => window.electronAPI.stopPuzzleAutoPlacement?.(reason),

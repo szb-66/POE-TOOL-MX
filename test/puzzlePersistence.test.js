@@ -20,6 +20,221 @@ function recognizedSlot(type = 'corner', orientation = 0) {
   }
 }
 
+const calibrationTile = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+const calibrationFeature = Array.from({ length: 128 }, (_, index) => index / 128)
+
+function crossSlots(count = 10) {
+  return Array.from({ length: count }, (_, index) => ({
+    row: Math.floor(index / 6), column: index % 6,
+    occupied: true, type: 'cross', orientation: 0, confidence: 1
+  }))
+}
+
+async function waitUntil(predicate, timeoutMs = 1000) {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error('等待测试状态超时')
+    await new Promise(resolve => setTimeout(resolve, 1))
+  }
+}
+
+async function waitForSolve(store) {
+  await waitUntil(() => !store.solving)
+}
+
+test('固定锁规范化持久化并在识别、清空和 store 重建后保留', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const storage = memoryStorage(JSON.stringify({
+    lockedSlots: [
+      { page: 1, row: 0, column: 0 },
+      { page: '1', row: '0', column: '0' },
+      { page: 2, row: 9, column: 5 },
+      { page: 3, row: 0, column: 0 },
+      { page: 1, row: 10, column: 0 },
+      { page: 1, row: 0.5, column: 0 },
+      null
+    ]
+  }))
+  globalThis.localStorage = storage
+  t.after(() => { globalThis.localStorage = originalLocalStorage })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  assert.deepEqual(store.lockedSlots, [
+    { page: 1, row: 0, column: 0 },
+    { page: 2, row: 9, column: 5 }
+  ])
+  assert.equal(store.lockedCount, 2)
+
+  store.applyAnalysis({ success: true, page: 1, slots: crossSlots(10) })
+  assert.equal(store.inventoryPages[1].slots[0].occupied, true)
+  assert.equal(store.counts.cross, 9)
+  await store.clearInventoryPage(1)
+  assert.equal(store.isSlotLocked({ page: 1, row: 0, column: 0 }), true)
+
+  setActivePinia(createPinia())
+  const restored = usePuzzleStore()
+  assert.deepEqual(restored.lockedSlots, [
+    { page: 1, row: 0, column: 0 },
+    { page: 2, row: 9, column: 5 }
+  ])
+})
+
+test('固定锁排除求解与自动来源，完成海图只扣除未锁定来源', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalStart = electronApi.puzzle.startAutoPlacement
+  const originalComplete = electronApi.puzzle.completeChart
+  const storage = memoryStorage()
+  let payload = null
+  globalThis.localStorage = storage
+  electronApi.puzzle.startAutoPlacement = async request => {
+    payload = request
+    return { success: true, status: 'idle' }
+  }
+  electronApi.puzzle.completeChart = async () => ({ success: true })
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    electronApi.puzzle.startAutoPlacement = originalStart
+    electronApi.puzzle.completeChart = originalComplete
+  })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.setAutoProbeBorderMods(false)
+  store.inventoryRegionMetadata = metadata(100)
+  store.atlasRegionMetadata = metadata(900)
+  store.inventoryTabPoints = { 1: { x: 200, y: 50 }, 2: { x: 300, y: 50 } }
+  store.configurationStates = {
+    inventory: { configured: true, valid: true },
+    atlas: { configured: true, valid: true }
+  }
+  store.applyAnalysis({ success: true, page: 1, slots: crossSlots(10) })
+  assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 0 }), true)
+  assert.equal(store.counts.cross, 9)
+  await waitForSolve(store)
+
+  const sourceSlots = Array.from({ length: 9 }, (_, offset) => {
+    const index = offset + 1
+    return { page: 1, row: Math.floor(index / 6), column: index % 6, type: 'cross', cellIndex: offset }
+  })
+  store.result = {
+    ...store.result,
+    solutions: [{
+      cells: Array.from({ length: 9 }, (_, index) => ({
+        index, row: Math.floor(index / 3), column: index % 3, type: 'cross', mask: 15, orientation: 0
+      })),
+      sourceSlots
+    }]
+  }
+
+  const started = await store.startAutoPlacement()
+  assert.equal(started.success, true)
+  assert.equal(payload.sourceSlots.length, 9)
+  assert.equal(payload.sourceSlots.some(source => source.row === 0 && source.column === 0), false)
+
+  store.execution = { status: 'stopped', completed: 3, currentIndex: 2 }
+  assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 1 }), false)
+  store.execution = { status: 'idle', completed: 0, currentIndex: -1 }
+
+  const completed = await store.completeCurrentChart()
+  assert.equal(completed.success, true)
+  assert.equal(store.inventoryPages[1].slots[0].occupied, true)
+  assert.equal(store.isSlotLocked({ page: 1, row: 0, column: 0 }), true)
+  assert.equal(store.counts.cross, 0)
+  assert.deepEqual(storage.snapshot().lockedSlots, [{ page: 1, row: 0, column: 0 }])
+})
+
+test('连续仓库修改终止旧 Worker 且只提交最新快照结果', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalWorker = globalThis.Worker
+  const originalListener = electronApi.puzzle.onAutoPlacementUpdated
+  const storage = memoryStorage()
+  let publishExecution = null
+  class ControlledWorker {
+    static instances = []
+
+    constructor() {
+      this.terminated = false
+      ControlledWorker.instances.push(this)
+    }
+
+    postMessage(message) { this.request = message }
+    terminate() { this.terminated = true }
+    emit(message) { this.onmessage?.({ data: message }) }
+  }
+  globalThis.localStorage = storage
+  globalThis.Worker = ControlledWorker
+  electronApi.puzzle.onAutoPlacementUpdated = callback => {
+    publishExecution = callback
+    return () => {}
+  }
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    globalThis.Worker = originalWorker
+    electronApi.puzzle.onAutoPlacementUpdated = originalListener
+  })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({ success: true, page: 1, slots: crossSlots(10) })
+  await waitUntil(() => ControlledWorker.instances.length === 1)
+  const first = ControlledWorker.instances[0]
+  assert.equal(store.solving, true)
+  assert.equal(store.autoPlaceBlockedReason, '正在按最新仓库状态计算方案')
+
+  assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 0 }), true)
+  store.updateSlot(0, 1, 'corner')
+  assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 2 }), true)
+  assert.equal(first.terminated, true)
+  assert.equal(store.counts.cross, 7)
+  assert.equal(store.counts.corner, 1)
+  assert.equal(store.inventoryPages[1].slots[1].type, 'corner')
+  assert.equal((await store.completeCurrentChart()).error.code, 'PUZZLE_BUSY')
+
+  await waitUntil(() => ControlledWorker.instances.length === 2)
+  const latest = ControlledWorker.instances[1]
+  const occupied = latest.request.input.slots.filter(slot => slot.occupied)
+  assert.equal(occupied.length, 8)
+  assert.equal(occupied.some(slot => slot.row === 0 && [0, 2].includes(slot.column)), false)
+  first.emit({
+    requestId: first.request.requestId,
+    result: { score: 12, solutions: [{ sourceSlots: [] }], error: '' }
+  })
+  assert.equal(store.currentSolution, null)
+  latest.emit({
+    requestId: latest.request.requestId,
+    result: { score: null, rewardScore: null, rewardDataAvailable: false, strategy: 'balanced', effectiveStrategy: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'INSUFFICIENT_FRAGMENTS' }
+  })
+  await waitForSolve(store)
+  assert.equal(store.result.error, 'INSUFFICIENT_FRAGMENTS')
+
+  assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 0 }), true)
+  await waitUntil(() => ControlledWorker.instances.length === 3)
+  const beforeReset = ControlledWorker.instances[2]
+  store.resetAnalysisState()
+  assert.equal(beforeReset.terminated, true)
+  assert.equal(store.solving, false)
+  beforeReset.emit({ requestId: beforeReset.request.requestId, result: { score: 12, solutions: [{ sourceSlots: [] }], error: '' } })
+  assert.equal(store.currentSolution, null)
+
+  store.applyAnalysis({ success: true, page: 1, slots: crossSlots(10) })
+  await waitUntil(() => ControlledWorker.instances.length === 4)
+  const failed = ControlledWorker.instances[3]
+  failed.emit({ requestId: failed.request.requestId, error: '测试 Worker 失败' })
+  await waitForSolve(store)
+  assert.equal(store.error.code, 'PUZZLE_SOLVER_FAILED')
+  assert.equal(store.currentSolution, null)
+  assert.equal(store.canAutoPlace, false)
+
+  store.applyAnalysis({ success: true, page: 1, slots: crossSlots(10) })
+  await waitUntil(() => ControlledWorker.instances.length === 5)
+  const beforeExecution = ControlledWorker.instances[4]
+  store.listenExecution()
+  publishExecution({ event: 'started', status: 'running', currentIndex: 0, completed: 0 })
+  assert.equal(beforeExecution.terminated, true)
+  assert.equal(store.solving, false)
+})
+
 function metadata(left = 100) {
   return {
     displayId: '1', scaleFactor: 1,
@@ -79,6 +294,43 @@ test('重建 store 后恢复全部识别数据并重新求解派生状态', asyn
 
   await new Promise(resolve => setTimeout(resolve, 40))
   assert.equal(restored.result.error, 'INSUFFICIENT_FRAGMENTS')
+})
+
+test('人工修正只保存具有本次截图图块的素材且图块不进入持久化', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalSave = electronApi.puzzle.saveCalibration
+  const storage = memoryStorage()
+  let saved = []
+  globalThis.localStorage = storage
+  electronApi.puzzle.saveCalibration = async items => {
+    saved = items
+    return items.map((item, index) => ({ ...item, id: String(index) }))
+  }
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    electronApi.puzzle.saveCalibration = originalSave
+  })
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({ success: true, page: 1, slots: [{
+    ...recognizedSlot('corner', 0), tileDataUrl: calibrationTile,
+    calibrationFeature, featureVersion: 1
+  }] })
+  store.updateSlotOrientation(0, 0, 90)
+  assert.equal(store.pendingCorrectionCount, 1)
+  assert.equal(store.savableCorrectionCount, 1)
+  assert.equal(JSON.stringify(storage.snapshot()).includes('tileDataUrl'), false)
+  assert.equal(await store.savePendingCorrections(), 1)
+  assert.equal(saved[0].labelMask, 6)
+  assert.equal(saved[0].featureVector.length, 128)
+  assert.equal(store.pendingCorrectionCount, 0)
+
+  setActivePinia(createPinia())
+  const restored = usePuzzleStore()
+  restored.updateSlotOrientation(0, 0, 180)
+  assert.equal(restored.pendingCorrectionCount, 1)
+  assert.equal(restored.savableCorrectionCount, 0)
+  await assert.rejects(() => restored.savePendingCorrections(), /重新识别/)
 })
 
 test('失败、重复或不完整识别不会覆盖内存与持久化旧结果', t => {
@@ -280,6 +532,7 @@ test('中断续跑保留完整锁定来源并只暴露未完成来源', async t 
       occupied: true, type: 'cross', orientation: 0, confidence: 1
     }))
   })
+  await waitForSolve(store)
   store.result = {
     ...store.result,
     solutions: [{
@@ -332,6 +585,7 @@ test('完成海图立即持久化碎片扣除与边缘清空', async t => {
     })),
     borderMods: { S0: { status: 'matched', confidence: 1, mod: { lines: ['旧边缘词缀'] } } }
   })
+  await waitForSolve(store)
   store.result = {
     ...store.result,
     solutions: [{
@@ -451,7 +705,7 @@ test('旧版、损坏及非法持久化数据安全回退为空识别状态', t 
   }))
   setActivePinia(createPinia())
   const invalid = usePuzzleStore()
-  assert.equal(invalid.recognition.strength, 'strict')
+  assert.equal(Object.hasOwn(invalid, 'recognition'), false)
   assert.equal(invalid.inventoryPages[1].recognized, false)
   assert.equal(invalid.edgesRecognized, false)
   assert.equal(invalid.edges.N0.status, 'unknown')

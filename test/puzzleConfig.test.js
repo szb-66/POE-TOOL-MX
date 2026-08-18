@@ -24,25 +24,23 @@ test('旧海图区域配置迁移为仓库配置并保留新增海图区', () =>
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, atlasRegionMetadata: atlas }), {
     inventoryRegionMetadata: inventory,
     atlasRegionMetadata: atlas,
-    recognition: { strength: 'standard' },
     inventoryTabPoints: { 1: null, 2: null },
     autoProbeBorderMods: true,
     rewardStrategy: 'balanced'
   })
 })
 
-test('旧配置缺少识别强度时默认标准档', () => {
+test('旧配置中的识别强度被静默忽略', () => {
   const inventory = metadata({ left: -700, top: 20, right: -100, bottom: 1020 })
   assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory }), {
     inventoryRegionMetadata: inventory,
     atlasRegionMetadata: null,
-    recognition: { strength: 'standard' },
     inventoryTabPoints: { 1: null, 2: null },
     autoProbeBorderMods: true,
     rewardStrategy: 'balanced'
   })
-  assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'sensitive' } }).recognition, { strength: 'sensitive' })
-  assert.deepEqual(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'unknown' } }).recognition, { strength: 'standard' })
+  assert.equal(Object.hasOwn(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'sensitive' } }), 'recognition'), false)
+  assert.equal(Object.hasOwn(normalizePuzzleSettings({ inventoryRegionMetadata: inventory, recognition: { strength: 'unknown' } }), 'recognition'), false)
 })
 
 test('完成后自动识别默认开启且可显式关闭', () => {

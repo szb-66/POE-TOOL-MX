@@ -352,7 +352,14 @@ export function solvePuzzle({ counts = {}, slots = [], edges = {}, strategy = 'b
       }
     }
     if (fallbackCount) {
-      return { score, rewardScore: null, rewardDataAvailable, strategy: normalizedStrategy, effectiveStrategy: normalizedStrategy === 'auto' ? null : normalizedStrategy, totalOptimalCount: fallbackCount, solutions: fallbackSolutions, truncated: fallbackCount > fallbackSolutions.length, error: '' }
+      const effectiveStrategy = normalizedStrategy === 'auto' ? null : normalizedStrategy
+      const solutions = slots.length
+        ? fallbackSolutions.map(solution => ({
+            ...solution,
+            sourceSlots: assignSourceSlots(solution, slots, { strategy: effectiveStrategy || 'balanced', edges })
+          }))
+        : fallbackSolutions
+      return { score, rewardScore: null, rewardDataAvailable, strategy: normalizedStrategy, effectiveStrategy, totalOptimalCount: fallbackCount, solutions, truncated: fallbackCount > solutions.length, error: '' }
     }
   }
   return { score: null, rewardScore: null, rewardDataAvailable, strategy: normalizedStrategy, effectiveStrategy: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'NO_SOLUTION' }

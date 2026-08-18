@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import ctypes
 from ctypes import wintypes
 import json
@@ -29,30 +30,16 @@ MASK_VARIANTS = {
     "cross": (15,),
 }
 MIN_COMPONENT_AREA = 24
-RECOGNITION_STRENGTHS = ("sensitive", "standard", "strict")
-STRENGTH_PRESETS = {
-    "sensitive": {
-        "greenLower": (30, 50, 60),
-        "greenUpper": (110, 255, 255),
-        "darkScale": 0.95,
-        "confidenceThreshold": 0.60,
-        "marginThreshold": 0.025,
-    },
-    "standard": {
-        "greenLower": (35, 70, 80),
-        "greenUpper": (100, 255, 255),
-        "darkScale": 0.85,
-        "confidenceThreshold": 0.72,
-        "marginThreshold": 0.035,
-    },
-    "strict": {
-        "greenLower": (40, 95, 100),
-        "greenUpper": (95, 255, 255),
-        "darkScale": 0.78,
-        "confidenceThreshold": 0.82,
-        "marginThreshold": 0.05,
-    },
+STANDARD_RECOGNITION = {
+    "greenLower": (35, 70, 80),
+    "greenUpper": (100, 255, 255),
+    "darkScale": 0.85,
+    "confidenceThreshold": 0.72,
+    "marginThreshold": 0.035,
 }
+CALIBRATION_FEATURE_VERSION = 1
+CALIBRATION_FEATURE_LENGTH = 128
+CALIBRATION_SIMILARITY = 0.965
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
@@ -311,8 +298,74 @@ def region_monitor(region: dict[str, Any], columns: int = COLS, rows: int = ROWS
     return {"left": left, "top": top, "width": width, "height": height}
 
 
-def recognition_preset(strength: str | None) -> dict[str, Any]:
-    return STRENGTH_PRESETS.get(str(strength or ""), STRENGTH_PRESETS["standard"])
+def png_data_url(image: np.ndarray) -> str:
+    thumbnail = cv2.resize(image, (48, 48), interpolation=cv2.INTER_AREA)
+    success, encoded = cv2.imencode(".png", thumbnail, [cv2.IMWRITE_PNG_COMPRESSION, 6])
+    return "" if not success else "data:image/png;base64," + base64.b64encode(encoded).decode("ascii")
+
+
+def calibration_feature(cell: np.ndarray) -> list[float]:
+    height, width = cell.shape[:2]
+    roi = cell[: max(1, round(height * 0.62)), round(width * 0.32): max(1, round(width * 0.96))]
+    hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+    green = cv2.inRange(hsv, np.array(STANDARD_RECOGNITION["greenLower"]), np.array(STANDARD_RECOGNITION["greenUpper"]))
+    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+    green_small = cv2.resize(green, (8, 8), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+    dark_small = 1.0 - cv2.resize(gray, (8, 8), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+    vector = np.concatenate((green_small.reshape(-1), dark_small.reshape(-1)))
+    norm = float(np.linalg.norm(vector))
+    if norm > 0:
+        vector /= norm
+    return [round(float(value), 7) for value in vector]
+
+
+def calibration_match(feature: list[float], samples: list[dict[str, Any]] | None) -> tuple[int, float] | None:
+    if len(feature) != CALIBRATION_FEATURE_LENGTH or not samples:
+        return None
+    vector = np.asarray(feature, dtype=np.float32)
+    votes: dict[int, float] = {}
+    best_similarity = 0.0
+    for sample in samples:
+        values = sample.get("featureVector") if isinstance(sample, dict) else None
+        label = sample.get("labelMask") if isinstance(sample, dict) else None
+        if sample.get("featureVersion") != CALIBRATION_FEATURE_VERSION or not isinstance(values, list) or len(values) != CALIBRATION_FEATURE_LENGTH:
+            continue
+        try:
+            label = int(label)
+            candidate = np.asarray(values, dtype=np.float32)
+        except (TypeError, ValueError):
+            continue
+        if label < 0 or label > 15 or not np.isfinite(candidate).all():
+            continue
+        norm = float(np.linalg.norm(candidate))
+        similarity = float(vector @ (candidate / norm)) if norm > 0 else 0.0
+        if similarity < CALIBRATION_SIMILARITY:
+            continue
+        votes[label] = votes.get(label, 0.0) + similarity - CALIBRATION_SIMILARITY + 1e-4
+        best_similarity = max(best_similarity, similarity)
+    if not votes:
+        return None
+    ranked = sorted(votes.items(), key=lambda item: (-item[1], item[0]))
+    if len(ranked) > 1 and ranked[0][1] < ranked[1][1] * 1.5:
+        return None
+    return ranked[0][0], round(best_similarity, 6)
+
+
+def calibrated_slot(slot: dict[str, Any], match: tuple[int, float] | None) -> dict[str, Any]:
+    slot["baseMask"] = int(slot.get("mask", 0))
+    slot["calibrated"] = False
+    slot["calibrationSimilarity"] = 0.0
+    if match is None:
+        return slot
+    mask, similarity = match
+    fragment_type = type_for_mask(mask) if mask else None
+    slot.update({
+        "occupied": bool(mask), "type": fragment_type, "mask": mask,
+        "orientation": orientation_for_mask(mask) if mask else 0,
+        "confidence": similarity, "margin": 1.0, "uncertain": False,
+        "calibrated": True, "calibrationSimilarity": similarity,
+    })
+    return slot
 
 
 def grid_confidence(image: np.ndarray, columns: int = COLS, rows: int = ROWS) -> float:
@@ -375,11 +428,11 @@ def cell_bounds(width: int, height: int, row: int, column: int, columns: int = C
     return left, top, right, bottom
 
 
-def largest_green_component(cell: np.ndarray, region_type: str = "inventory", strength: str | None = None) -> dict[str, Any] | None:
+def largest_green_component(cell: np.ndarray, region_type: str = "inventory") -> dict[str, Any] | None:
     height, width = cell.shape[:2]
     roi = cell if region_type == "atlas" else cell[: max(1, round(height * 0.62)), round(width * 0.32): max(1, round(width * 0.96))]
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-    preset = recognition_preset(strength)
+    preset = STANDARD_RECOGNITION
     mask = cv2.inRange(hsv, np.array(preset["greenLower"]), np.array(preset["greenUpper"]))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     count, labels, stats, centroids = cv2.connectedComponentsWithStats(mask)
@@ -462,7 +515,7 @@ def orientation_for_mask(mask: int) -> int:
         return 0
 
 
-def inventory_route_topology(cell: np.ndarray, fragment_type: str, component: dict[str, Any] | None = None, strength: str | None = None) -> tuple[int, float]:
+def inventory_route_topology(cell: np.ndarray, fragment_type: str, component: dict[str, Any] | None = None) -> tuple[int, float]:
     """从绿色图标内部的黑色航线识别屏幕绝对方向，避免把发光底纹当成线路。"""
     height, width = cell.shape[:2]
     cell_centroid = component.get("cellCentroid") if component else None
@@ -473,7 +526,7 @@ def inventory_route_topology(cell: np.ndarray, fragment_type: str, component: di
         expected_x = round(width * 0.67)
         expected_y = round(height * 0.28)
     value = cv2.cvtColor(cell, cv2.COLOR_BGR2HSV)[:, :, 2]
-    preset = recognition_preset(strength)
+    preset = STANDARD_RECOGNITION
 
     calibration_x = max(3, round(width * 0.18))
     calibration_y = max(3, round(height * 0.18))
@@ -588,12 +641,13 @@ def atlas_route_topology(cell: np.ndarray) -> tuple[int, float] | None:
     return None if best is None else (best[1], round(best[2], 4))
 
 
-def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str = "inventory", recognition: dict[str, Any] | None = None) -> dict[str, Any]:
+def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str = "inventory", recognition: dict[str, Any] | None = None,
+                  calibration_samples: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     if image is None or image.size == 0:
         return fail("CAPTURE_EMPTY", "仓库截图为空")
     height, width = image.shape[:2]
-    strength = str(recognition.get("strength")) if isinstance(recognition, dict) and recognition.get("strength") in RECOGNITION_STRENGTHS else "standard"
-    preset = recognition_preset(strength)
+    recognition = recognition if isinstance(recognition, dict) else {}
+    preset = STANDARD_RECOGNITION
     confidence_threshold = float(preset["confidenceThreshold"])
     margin_threshold = float(preset["marginThreshold"])
     slots = []
@@ -605,7 +659,9 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
             left, top, right, bottom = cell_bounds(width, height, row, column, columns, rows)
             cell = image[top:bottom, left:right]
             atlas_topology = atlas_route_topology(cell) if region_type == "atlas" else None
-            component = None if region_type == "atlas" else largest_green_component(cell, region_type, strength)
+            feature = calibration_feature(cell) if region_type == "inventory" else []
+            match = calibration_match(feature, calibration_samples) if region_type == "inventory" else None
+            component = None if region_type == "atlas" else largest_green_component(cell, region_type)
             if atlas_topology is not None:
                 direction_mask, orientation_confidence = atlas_topology
                 fragment_type = type_for_mask(direction_mask)
@@ -625,34 +681,41 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
                     warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
                 continue
             if component is None:
-                slots.append({
+                slot = calibrated_slot({
                     "row": row, "column": column, "occupied": False, "type": None,
                     "mask": 0, "orientation": 0, "confidence": 1.0, "orientationConfidence": 1.0,
-                    "margin": 1.0, "corrected": False,
-                })
+                    "margin": 1.0, "corrected": False, "tileDataUrl": png_data_url(cell),
+                    "calibrationFeature": feature, "featureVersion": CALIBRATION_FEATURE_VERSION,
+                }, match)
+                slots.append(slot)
+                if slot["occupied"]:
+                    counts[slot["type"]] += 1
                 continue
             features = component_features(component)
             feature_type, feature_confidence, feature_margin = classify(features, templates)
-            direction_mask, orientation_confidence = inventory_route_topology(cell, feature_type, component, strength)
+            direction_mask, orientation_confidence = inventory_route_topology(cell, feature_type, component)
             fragment_type = type_for_mask(direction_mask) or feature_type
             type_agrees = fragment_type == feature_type
             confidence = round(min(orientation_confidence, feature_confidence), 4) if type_agrees else orientation_confidence
             margin = round(min(orientation_confidence, feature_margin), 4) if type_agrees else orientation_confidence
             uncertain = confidence < confidence_threshold or margin < margin_threshold or orientation_confidence < 0.35
-            slot = {
+            slot = calibrated_slot({
                 "row": row, "column": column, "occupied": True, "type": fragment_type,
                 "mask": direction_mask, "orientation": orientation_for_mask(direction_mask),
                 "orientationConfidence": orientation_confidence,
                 "confidence": confidence, "margin": margin, "uncertain": uncertain,
                 "corrected": False, "features": [round(value, 4) for value in features],
-            }
+                "tileDataUrl": png_data_url(cell), "calibrationFeature": feature,
+                "featureVersion": CALIBRATION_FEATURE_VERSION,
+            }, match)
             slots.append(slot)
-            counts[fragment_type] += 1
-            if uncertain:
+            if slot["occupied"]:
+                counts[slot["type"]] += 1
+            if slot["uncertain"]:
                 warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
     grid_confidence_value = grid_confidence(image, columns, rows) if region_type == "inventory" else 1.0
     occupied_count = sum(counts.values())
-    if occupied_count == 0 and region_type != "atlas" and not bool(recognition.get("allowEmpty") if isinstance(recognition, dict) else False):
+    if occupied_count == 0 and region_type != "atlas" and not bool(recognition.get("allowEmpty")):
         return fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片，请重新框选完整仓库")
     if occupied_count == 0 and region_type != "atlas" and grid_confidence_value < 0.5:
         return fail("EMPTY_GRID_UNCERTAIN", "未识别到碎片且网格对齐置信度过低，请重新框选完整仓库")
@@ -708,7 +771,10 @@ def main() -> int:
             image = capture_region(config["region"], str(config.get("regionType", "inventory")))
         recognition = dict(config.get("recognition") or {})
         recognition["allowEmpty"] = bool(config.get("allowEmpty", False))
-        payload = analyze_image(image, templates, str(config.get("regionType", "inventory")), recognition)
+        payload = analyze_image(
+            image, templates, str(config.get("regionType", "inventory")), recognition,
+            config.get("calibrationSamples") or [],
+        )
     except KeyError as error:
         payload = fail("CONFIG_INVALID", f"识别配置缺少字段：{error}")
     except Exception as error:

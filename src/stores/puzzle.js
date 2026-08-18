@@ -3,13 +3,11 @@ import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import {
   PUZZLE_TYPES,
-  assignSourceSlots,
   countsFromSlots,
   maskForType,
   solvePuzzle
 } from '../domains/puzzle/solver.js'
 import {
-  normalizePuzzleRecognition,
   normalizePuzzleOrientation,
   normalizePuzzleRegionMetadata,
   normalizePuzzleSettings,
@@ -19,10 +17,29 @@ import {
 import { BORDER_EDGE_IDS } from '../utils/chartEdgeGeometry.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 import { OPERATION_DELAY } from '../utils/operationDelay.js'
-import { normalizeVoyageRewardMode, normalizeVoyageRewardStrategy } from '../domains/puzzle/voyageRewards.js'
+import { normalizeVoyageRewardMode } from '../domains/puzzle/voyageRewards.js'
 
 const STORAGE_KEY = 'puzzleSettings'
 const SLOT_COUNT = 60
+
+function slotKey(slot) {
+  return `${Number(slot?.page)}:${Number(slot?.row)}:${Number(slot?.column)}`
+}
+
+function normalizeLockedSlots(value) {
+  const unique = new Map()
+  for (const candidate of Array.isArray(value) ? value : []) {
+    const page = Number(candidate?.page)
+    const row = Number(candidate?.row)
+    const column = Number(candidate?.column)
+    if (![page, row, column].every(Number.isInteger)) continue
+    if (![1, 2].includes(page) || row < 0 || row >= 10 || column < 0 || column >= 6) continue
+    unique.set(`${page}:${row}:${column}`, { page, row, column })
+  }
+  return [...unique.values()].sort((left, right) => (
+    left.page - right.page || left.row - right.row || left.column - right.column
+  ))
+}
 
 function emptySlots(page = 1) {
   return Array.from({ length: SLOT_COUNT }, (_, index) => ({
@@ -114,6 +131,7 @@ function loadSettings() {
   if (typeof localStorage === 'undefined') return {
     ...normalizePuzzleSettings(),
     inventoryPages: normalizeInventoryPages(),
+    lockedSlots: [],
     edges: emptyEdges(),
     edgesRecognized: false
   }
@@ -124,6 +142,7 @@ function loadSettings() {
     return {
       ...normalizePuzzleSettings(value),
       inventoryPages: normalizeInventoryPages(value?.inventoryPages),
+      lockedSlots: normalizeLockedSlots(value?.lockedSlots),
       edges: normalizeBorderMods(value?.edges),
       edgesRecognized: Boolean(value?.edgesRecognized && hasStoredEdges)
     }
@@ -131,6 +150,7 @@ function loadSettings() {
     return {
       ...normalizePuzzleSettings(),
       inventoryPages: normalizeInventoryPages(),
+      lockedSlots: [],
       edges: emptyEdges(),
       edgesRecognized: false
     }
@@ -152,6 +172,8 @@ function normalizeSlots(value, page = 1) {
       orientation,
       mask: occupied ? maskForType(slot.type, orientation) : 0,
       confidence: Math.max(0, Math.min(1, Number(slot?.confidence) || 0)),
+      calibrated: Boolean(slot?.calibrated),
+      calibrationSimilarity: Math.max(0, Math.min(1, Number(slot?.calibrationSimilarity) || 0)),
       corrected: Boolean(slot?.corrected),
       uncertain: Boolean(slot?.uncertain),
       mods: occupied ? normalizeSlotMods(slot?.mods) : null
@@ -184,12 +206,15 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const inventoryRegionMetadata = ref(loaded.inventoryRegionMetadata)
   const atlasRegionMetadata = ref(loaded.atlasRegionMetadata)
   const regionMetadata = inventoryRegionMetadata
-  const recognition = ref(loaded.recognition || { strength: 'standard' })
   const inventoryTabPoints = ref(normalizePuzzleTabPoints(loaded.inventoryTabPoints))
   const autoProbeBorderMods = ref(loaded.autoProbeBorderMods !== false)
   const rewardStrategy = ref(loaded.rewardStrategy || 'balanced')
   const selectedInventoryPage = ref(1)
   const inventoryPages = ref(loaded.inventoryPages)
+  const lockedSlots = ref(normalizeLockedSlots(loaded.lockedSlots))
+  const calibrationSamples = ref([])
+  const captureCells = ref({})
+  const pendingCorrections = ref({})
   const previews = ref({ inventory: '', atlas: '' })
   const configurationStates = ref({
     inventory: { configured: Boolean(loaded.inventoryRegionMetadata), valid: false, message: '等待环境校验' },
@@ -201,6 +226,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const allSlots = computed(() => [1, 2]
     .filter(page => inventoryPages.value[page].recognized)
     .flatMap(page => inventoryPages.value[page].slots))
+  const lockedSlotKeys = computed(() => new Set(lockedSlots.value.map(slotKey)))
+  const availableSlots = computed(() => allSlots.value.filter(slot => !lockedSlotKeys.value.has(slotKey(slot))))
   const requiredExits = ref([])
   const forbiddenExits = ref([])
   const edges = ref(loaded.edges)
@@ -214,12 +241,14 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const result = ref(emptyResult())
   const execution = ref({ status: 'idle', currentIndex: -1, total: 9, completed: 0, reason: '', error: null })
   let regionClearGeneration = 0
+  let solveRequestId = 0
+  let activeSolve = null
 
-  const counts = computed(() => countsFromSlots(allSlots.value))
+  const counts = computed(() => countsFromSlots(availableSlots.value))
   const currentSolution = computed(() => result.value.solutions[solutionIndex.value] || null)
   const currentSourceSlots = computed(() => currentSolution.value?.sourceSlots || [])
-  const effectiveRewardStrategy = computed(() => result.value.effectiveStrategy || normalizeVoyageRewardStrategy(rewardStrategy.value))
-  const hasInventory = computed(() => allSlots.value.some(slot => slot.occupied))
+  const hasInventory = computed(() => availableSlots.value.some(slot => slot.occupied))
+  const lockedCount = computed(() => lockedSlots.value.length)
   const occupiedCount = computed(() => PUZZLE_TYPES.reduce((sum, type) => sum + counts.value[type], 0))
   const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
   const executing = computed(() => ['validating', 'running'].includes(execution.value.status))
@@ -235,6 +264,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (executing.value) return '海图自动放入正在执行'
     if (analyzing.value) return '海图识别正在进行'
     if (probingBorder.value) return '边缘词缀识别正在进行'
+    if (solving.value) return '正在按最新仓库状态计算方案'
     if (!configurationStates.value.inventory?.valid) return '碎片仓库配置无效'
     if (!configurationStates.value.atlas?.valid) return '海图区配置无效'
     if (!currentSolution.value) {
@@ -249,12 +279,16 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
     const expected = 9 - resumeIndex.value
     if (remainingSourceSlots.value.length !== expected) return '仓库内容已变化，请重新识别后继续'
+    if (remainingSourceSlots.value.some(source => lockedSlotKeys.value.has(slotKey(source)))) return '方案来源包含已锁定格，请重新计算'
     const missingTabPage = [...new Set(remainingSourceSlots.value.map(source => Number(source.page || 1)))]
       .find(page => !validatePuzzleTabPoint(inventoryTabPoints.value[page], inventoryRegionMetadata.value, page, inventoryTabPoints.value[page === 1 ? 2 : 1]).valid)
     if (missingTabPage) return `请先标定第 ${missingTabPage} 页仓库页签坐标`
     return ''
   })
   const canAutoPlace = computed(() => !autoPlaceBlockedReason.value)
+  const pendingCorrectionCount = computed(() => Object.keys(pendingCorrections.value).length)
+  const savableCorrectionCount = computed(() => Object.keys(pendingCorrections.value)
+    .filter(key => captureCells.value[key]?.tileDataUrl).length)
 
   function persistRegions() {
     if (typeof localStorage === 'undefined') return
@@ -262,11 +296,11 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       regionMetadata: inventoryRegionMetadata.value,
       inventoryRegionMetadata: inventoryRegionMetadata.value,
       atlasRegionMetadata: atlasRegionMetadata.value,
-      recognition: recognition.value,
       inventoryTabPoints: inventoryTabPoints.value,
       autoProbeBorderMods: autoProbeBorderMods.value,
       rewardStrategy: rewardStrategy.value,
       inventoryPages: inventoryPages.value,
+      lockedSlots: lockedSlots.value,
       edges: edges.value,
       edgesRecognized: edgesRecognized.value
     }))
@@ -274,56 +308,90 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   persistRegions()
   if ([1, 2].some(page => inventoryPages.value[page].recognized)) void recompute()
 
+  function invalidatePendingSolve() {
+    solveRequestId += 1
+    activeSolve?.cancel()
+    activeSolve = null
+    solving.value = false
+  }
+
+  function solveWithWorker(requestId, input) {
+    if (typeof Worker !== 'function') return Promise.resolve(solvePuzzle(input))
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(new URL('../domains/puzzle/solverWorker.js', import.meta.url), { type: 'module' })
+      let settled = false
+      const finish = (callback, value) => {
+        if (settled) return
+        settled = true
+        worker.terminate()
+        if (activeSolve?.requestId === requestId) activeSolve = null
+        callback(value)
+      }
+      activeSolve = {
+        requestId,
+        cancel: () => finish(resolve, null)
+      }
+      worker.onmessage = ({ data }) => {
+        if (Number(data?.requestId) !== requestId) return
+        if (data?.error) finish(reject, new Error(data.error))
+        else finish(resolve, data?.result || null)
+      }
+      worker.onerror = event => finish(reject, new Error(event?.message || '海图求解 Worker 运行失败'))
+      try {
+        worker.postMessage({ requestId, input })
+      } catch (caught) {
+        finish(reject, caught)
+      }
+    })
+  }
+
   async function recompute() {
-    if (executing.value) return
+    if (executing.value) {
+      invalidatePendingSolve()
+      return null
+    }
+    const requestId = ++solveRequestId
+    activeSolve?.cancel()
+    activeSolve = null
     solving.value = true
     try {
-      // 等一帧真正绘制完成，确保“正在计算”状态先显示出来，再执行同步求解
+      // 先绘制 loading，再把可序列化快照交给 Worker；Node 测试环境走同步适配。
       await waitForNextPaint()
-      if (executing.value) return
-      const solved = solvePuzzle({
+      if (requestId !== solveRequestId || executing.value) return null
+      const input = JSON.parse(JSON.stringify({
         counts: counts.value,
-        slots: allSlots.value,
+        slots: availableSlots.value,
         edges: edges.value,
         strategy: rewardStrategy.value,
         requiredExits: requiredExits.value,
         forbiddenExits: forbiddenExits.value,
         solutionLimit: 100
-      })
-      result.value = {
-        ...solved,
-        solutions: solved.solutions.map(solution => ({
-          ...solution,
-          sourceSlots: solution.sourceSlots?.length
-            ? solution.sourceSlots
-            : assignSourceSlots(solution, allSlots.value, { strategy: solved.effectiveStrategy || 'balanced', edges: edges.value })
-        }))
-      }
+      }))
+      const solved = await solveWithWorker(requestId, input)
+      if (!solved || requestId !== solveRequestId || executing.value) return null
+      result.value = solved
+      if (error.value?.code === 'PUZZLE_SOLVER_FAILED') error.value = null
       solutionIndex.value = Math.min(solutionIndex.value, Math.max(0, result.value.solutions.length - 1))
+      return solved
+    } catch (caught) {
+      if (requestId !== solveRequestId) return null
+      result.value = emptyResult()
+      error.value = { code: 'PUZZLE_SOLVER_FAILED', message: caught?.message || '海图方案计算失败' }
+      return null
     } finally {
-      solving.value = false
-    }
-  }
-
-  function refreshSourceAssignments() {
-    const index = solutionIndex.value
-    const solution = result.value.solutions[index]
-    if (!solution) return
-    result.value = {
-      ...result.value,
-      solutions: result.value.solutions.map((candidate, candidateIndex) => (
-        candidateIndex === index
-          ? { ...candidate, sourceSlots: assignSourceSlots(candidate, allSlots.value, { strategy: effectiveRewardStrategy.value, edges: edges.value }) }
-          : candidate
-      ))
+      if (requestId === solveRequestId) solving.value = false
     }
   }
 
   async function loadConfiguration() {
-    const response = await electronApi.puzzle.getConfiguration?.({
-      inventoryRegionMetadata: inventoryRegionMetadata.value,
-      atlasRegionMetadata: atlasRegionMetadata.value
-    })
+    const [response, samples] = await Promise.all([
+      electronApi.puzzle.getConfiguration?.({
+        inventoryRegionMetadata: inventoryRegionMetadata.value,
+        atlasRegionMetadata: atlasRegionMetadata.value
+      }),
+      electronApi.puzzle.listCalibration?.()
+    ])
+    if (Array.isArray(samples)) calibrationSamples.value = samples
     if (response?.previews) previews.value = { ...previews.value, ...response.previews }
     if (response?.states) configurationStates.value = { ...configurationStates.value, ...response.states }
     return response
@@ -420,6 +488,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       error.value = { code: 'DUPLICATE_INVENTORY_PAGE', message: `第 ${page} 页与第 ${otherPage} 页识别结果完全相同，请确认游戏仓库页已经切换` }
       return false
     }
+    rememberCaptureCells(page, response.slots)
     inventoryPages.value[page] = {
       page,
       recognized: true,
@@ -475,6 +544,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       error.value = { code: 'DUPLICATE_INVENTORY_PAGE', message: '第 1 页与第 2 页识别结果完全相同，请检查两个页签标定是否正确' }
       return false
     }
+    for (const page of [1, 2]) rememberCaptureCells(page, byPage.get(page).slots)
     if (response.regionMetadata) {
       inventoryRegionMetadata.value = normalizePuzzleRegionMetadata(response.regionMetadata) || inventoryRegionMetadata.value
     }
@@ -499,7 +569,28 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     edgesRecognized.value = hasBorderResults
   }
 
+  function captureCellKey(page, row, column) {
+    return `${Number(page)}:${Number(row)}:${Number(column)}`
+  }
+
+  function rememberCaptureCells(page, rawSlots) {
+    const prefix = `${Number(page)}:`
+    const retained = Object.fromEntries(Object.entries(captureCells.value).filter(([key]) => !key.startsWith(prefix)))
+    for (const slot of rawSlots || []) {
+      const key = captureCellKey(page, slot.row, slot.column)
+      retained[key] = {
+        tileDataUrl: typeof slot.tileDataUrl === 'string' ? slot.tileDataUrl : '',
+        featureVector: Array.isArray(slot.calibrationFeature) ? slot.calibrationFeature : [],
+        featureVersion: Number(slot.featureVersion) || 0
+      }
+    }
+    captureCells.value = retained
+    pendingCorrections.value = Object.fromEntries(Object.entries(pendingCorrections.value)
+      .filter(([key]) => !key.startsWith(prefix)))
+  }
+
   function resetInventoryAnalysisState() {
+    invalidatePendingSolve()
     inventoryPages.value = { 1: emptyInventoryPage(1), 2: emptyInventoryPage(2) }
     requiredExits.value = []
     forbiddenExits.value = []
@@ -508,6 +599,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     result.value = emptyResult()
     execution.value = { status: 'idle', currentIndex: -1, total: 9, completed: 0, reason: '', error: null }
     error.value = null
+    captureCells.value = {}
+    pendingCorrections.value = {}
   }
 
   function resetBorderAnalysisState() {
@@ -536,7 +629,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     try {
       const response = await electronApi.puzzle.analyze({
         regionMetadata: inventoryRegionMetadata.value,
-        recognition: recognition.value,
         inventoryTabPoints: inventoryTabPoints.value,
         page,
         resetExecution: true,
@@ -559,11 +651,14 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   }
 
   async function completeCurrentChart() {
-    if (executing.value || analyzing.value || probingBorder.value) {
+    if (executing.value || analyzing.value || probingBorder.value || solving.value) {
       return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图任务进行中，暂不能完成当前海图' } }
     }
     if (!currentSolution.value) {
       return { success: false, error: { code: 'NO_SOLUTION', message: '请先识别碎片并生成海图方案' } }
+    }
+    if (currentSolution.value.sourceSlots.some(source => isSlotLocked(source))) {
+      return { success: false, error: { code: 'INVENTORY_CHANGED', message: '方案来源包含已锁定格，请重新计算后再完成当前海图' } }
     }
     const changedSlot = currentSolution.value.sourceSlots.find(source => {
       const slot = inventoryPages.value[Number(source.page || 1)]?.slots[Number(source.row) * 6 + Number(source.column)]
@@ -654,11 +749,26 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     if (executing.value) return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图自动放入进行中，暂不能清空页面' } }
     const normalized = [1, 2].includes(Number(page)) ? Number(page) : selectedInventoryPage.value
     inventoryPages.value[normalized] = emptyInventoryPage(normalized)
+    const prefix = `${normalized}:`
+    captureCells.value = Object.fromEntries(Object.entries(captureCells.value).filter(([key]) => !key.startsWith(prefix)))
+    pendingCorrections.value = Object.fromEntries(Object.entries(pendingCorrections.value).filter(([key]) => !key.startsWith(prefix)))
     solutionIndex.value = 0
     error.value = null
     persistRegions()
     await recompute()
     return { success: true, page: normalized }
+  }
+
+  async function clearInventoryPages() {
+    if (executing.value) return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图自动放入进行中，暂不能清空页面' } }
+    inventoryPages.value = { 1: emptyInventoryPage(1), 2: emptyInventoryPage(2) }
+    captureCells.value = {}
+    pendingCorrections.value = {}
+    solutionIndex.value = 0
+    error.value = null
+    persistRegions()
+    await recompute()
+    return { success: true, pages: [1, 2] }
   }
 
   async function pickInventoryTabPoint(page) {
@@ -696,10 +806,14 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       orientation: occupied ? normalizePuzzleOrientation(type, orientation) : 0,
       mask: occupied ? maskForType(type, orientation) : 0,
       confidence: occupied ? 1 : 0,
+      calibrated: false,
+      calibrationSimilarity: 0,
       corrected: true,
       uncertain: false,
       mods: occupied ? pageState.slots[index].mods : null
     }
+    const correctionKey = captureCellKey(selectedInventoryPage.value, row, column)
+    pendingCorrections.value = { ...pendingCorrections.value, [correctionKey]: true }
     solutionIndex.value = 0
     persistRegions()
     recompute()
@@ -712,10 +826,38 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const normalized = normalizePuzzleOrientation(slot.type, orientation)
     inventoryPages.value[selectedInventoryPage.value].slots[index] = {
       ...slot, orientation: normalized, mask: maskForType(slot.type, normalized),
-      confidence: 1, corrected: true, uncertain: false
+      confidence: 1, calibrated: false, calibrationSimilarity: 0, corrected: true, uncertain: false
     }
+    const correctionKey = captureCellKey(selectedInventoryPage.value, row, column)
+    pendingCorrections.value = { ...pendingCorrections.value, [correctionKey]: true }
     persistRegions()
-    refreshSourceAssignments()
+    void recompute()
+  }
+
+  function isSlotLocked(slot) {
+    return lockedSlotKeys.value.has(slotKey({
+      page: Number(slot?.page || selectedInventoryPage.value),
+      row: slot?.row,
+      column: slot?.column
+    }))
+  }
+
+  function toggleSlotLock(slot) {
+    if (executing.value || resumeIndex.value > 0) return false
+    const candidate = normalizeLockedSlots([{
+      page: Number(slot?.page || selectedInventoryPage.value),
+      row: Number(slot?.row),
+      column: Number(slot?.column)
+    }])[0]
+    if (!candidate) return false
+    const key = slotKey(candidate)
+    lockedSlots.value = lockedSlotKeys.value.has(key)
+      ? lockedSlots.value.filter(item => slotKey(item) !== key)
+      : normalizeLockedSlots([...lockedSlots.value, candidate])
+    solutionIndex.value = 0
+    persistRegions()
+    void recompute()
+    return true
   }
 
   function executionPayload() {
@@ -735,7 +877,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     return {
       inventoryRegionMetadata: inventoryRegionMetadata.value,
       atlasRegionMetadata: atlasRegionMetadata.value,
-      recognition: recognition.value,
       inventoryTabPoints: inventoryTabPoints.value,
       sourceSlots,
       targets: currentSolution.value.cells.map(cell => ({
@@ -746,30 +887,59 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
   }
 
+  function applyExecutionState(response) {
+    if (!response?.status) return
+    const changed = ['status', 'currentIndex', 'completed', 'reason']
+      .some(key => response[key] !== execution.value[key])
+    execution.value = response
+    if (changed) invalidatePendingSolve()
+  }
+
   async function startAutoPlacement(timing = { operationDelayMs: OPERATION_DELAY.default }) {
     if (!canAutoPlace.value) return { success: false, error: { code: 'ATLAS_NOT_READY', message: '请完成两项区域配置并确认全部来源碎片' } }
     const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), ...timing })
-    if (response?.status) execution.value = response
+    applyExecutionState(response)
     if (!response?.success && response?.error) error.value = response.error
     if (response?.success) void reportDiagnosticRecovery('puzzle', 'auto_placement')
     else void reportDiagnosticFailure('puzzle', 'auto_placement', response?.error, 'automation_failed')
     return response
   }
 
-  function setRecognitionStrength(strength) {
-    recognition.value = normalizePuzzleRecognition({ strength })
-    persistRegions()
+  async function savePendingCorrections() {
+    const items = Object.keys(pendingCorrections.value).flatMap(key => {
+      const [page, row, column] = key.split(':').map(Number)
+      const capture = captureCells.value[key]
+      const slot = inventoryPages.value[page]?.slots[row * 6 + column]
+      if (!capture?.tileDataUrl || !slot) return []
+      return [{ ...capture, page, row, column, labelMask: Number(slot.mask || 0) }]
+    })
+    if (!items.length) throw new Error('当前修正缺少截图图块，请重新识别后再保存')
+    calibrationSamples.value = await electronApi.puzzle.saveCalibration(items)
+    const saved = new Set(items.map(item => captureCellKey(item.page, item.row, item.column)))
+    pendingCorrections.value = Object.fromEntries(Object.entries(pendingCorrections.value)
+      .filter(([key]) => !saved.has(key)))
+    return items.length
+  }
+
+  async function removeCalibration(id) {
+    calibrationSamples.value = await electronApi.puzzle.removeCalibration(id)
+    return calibrationSamples.value
+  }
+
+  async function resetCalibration() {
+    calibrationSamples.value = await electronApi.puzzle.resetCalibration()
+    return calibrationSamples.value
   }
 
   async function stopAutoPlacement(reason = 'user') {
     const response = await electronApi.puzzle.stopAutoPlacement?.(reason)
-    if (response?.status) execution.value = response
+    applyExecutionState(response)
     return response
   }
 
   async function refreshExecutionStatus() {
     const response = await electronApi.puzzle.getAutoPlacementStatus?.()
-    if (response?.status) execution.value = response
+    applyExecutionState(response)
     return response
   }
 
@@ -824,7 +994,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
 
   function listenExecution(onUpdated) {
     return electronApi.puzzle.onAutoPlacementUpdated?.(response => {
-      if (response?.status) execution.value = response
+      applyExecutionState(response)
       onUpdated?.(response)
     }) || (() => {})
   }
@@ -836,12 +1006,17 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     inventoryTabPoints,
     selectedInventoryPage,
     inventoryPages,
-    recognition,
+    lockedSlots,
+    calibrationSamples,
+    pendingCorrections,
+    pendingCorrectionCount,
+    savableCorrectionCount,
     gridConfidence,
     previews,
     configurationStates,
     slots,
     allSlots,
+    availableSlots,
     warnings,
     requiredExits,
     forbiddenExits,
@@ -862,17 +1037,21 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     currentSourceSlots,
     remainingSourceSlots,
     resumeIndex,
+    lockedCount,
     hasInventory,
     executing,
     canAutoPlace,
     autoPlaceBlockedReason,
     loadConfiguration,
-    setRecognitionStrength,
+    savePendingCorrections,
+    removeCalibration,
+    resetCalibration,
     pickInventoryRegion,
     pickAtlasRegion,
     pickInventoryTabPoint,
     clearRegion,
     clearInventoryPage,
+    clearInventoryPages,
     selectInventoryPage,
     analyze,
     resetAnalysisState,
@@ -880,6 +1059,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     applyAnalysisBatch,
     updateSlot,
     updateSlotOrientation,
+    isSlotLocked,
+    toggleSlotLock,
     toggleRequiredExit,
     toggleForbiddenExit,
     clearExitConstraints,

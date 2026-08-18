@@ -13,7 +13,7 @@ const templatesPath = path.join(workspace, 'electron', 'assets', 'puzzle', 'temp
 const screenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'inventory-region.png')
 const emptyScreenshot = path.join(workspace, 'test', 'fixtures', 'puzzle', 'empty-region.png')
 
-function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory', recognition, allowEmpty = false } = {}) {
+function analyze({ region, imagePath = screenshot, imageIsRegion = false, regionType = 'inventory', recognition, calibrationSamples, allowEmpty = false } = {}) {
   const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-recognizer-'))
   const configPath = path.join(directory, 'config.json')
   const config = {
@@ -25,6 +25,7 @@ function analyze({ region, imagePath = screenshot, imageIsRegion = false, region
   }
   if (allowEmpty) config.allowEmpty = true
   if (recognition) config.recognition = recognition
+  if (calibrationSamples) config.calibrationSamples = calibrationSamples
   if (region) config.region = region
   writeFileSync(configPath, JSON.stringify(config))
   try {
@@ -179,20 +180,16 @@ test('真实仓库逐格识别全部有效方向而不是只返回合法角度�
   }
 })
 
-test('识别强度预设包含三档且标准档保持默认', () => {
+test('碎片基础识别固定使用原标准参数并定义本机校准门槛', () => {
   const source = readFileSync(analyzer, 'utf8')
-  assert.match(source, /STRENGTH_PRESETS\s*=\s*\{[\s\S]*"sensitive"[\s\S]*"standard"[\s\S]*"strict"/)
-  assert.match(source, /"standard"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.72/)
-  assert.match(source, /"sensitive"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.60/)
-  assert.match(source, /"strict"\s*:\s*\{[\s\S]*"confidenceThreshold": 0\.82/)
+  assert.match(source, /STANDARD_RECOGNITION\s*=\s*\{[\s\S]*"confidenceThreshold": 0\.72/)
+  assert.match(source, /CALIBRATION_SIMILARITY\s*=\s*0\.965/)
+  assert.doesNotMatch(source, /STRENGTH_PRESETS|"sensitive"|"strict"/)
 })
 
-test('分析主入口把识别强度配置传给 analyze_image', () => {
+test('分析主入口把本机校准素材传给 analyze_image', () => {
   const source = readFileSync(analyzer, 'utf8')
-  assert.match(
-    source,
-    /recognition\["allowEmpty"\][\s\S]*analyze_image\(image, templates, str\(config\.get\("regionType", "inventory"\)\), recognition\)/
-  )
+  assert.match(source, /config\.get\("calibrationSamples"\) or \[\]/)
 })
 
 test('实时仓库识别在截图前点击目标页签并等待稳定', () => {
@@ -209,7 +206,7 @@ test('实时仓库识别在截图前点击目标页签并等待稳定', () => {
   }
 })
 
-test('传入识别强度配置后仍能完成仓库识别', { skip: !existsSync(python) }, () => {
+test('旧识别强度配置被静默忽略且仍能完成仓库识别', { skip: !existsSync(python) }, () => {
   const result = analyze({
     region: { left: 4, top: 4, right: 570, bottom: 954 },
     recognition: { strength: 'sensitive' }
@@ -218,11 +215,11 @@ test('传入识别强度配置后仍能完成仓库识别', { skip: !existsSync(
   assert.equal(result.occupiedCount, 50)
 })
 
-test('敏感档可识别变暗样本', { skip: !existsSync(python) }, () => {
+test('固定基础识别可识别既有变暗样本', { skip: !existsSync(python) }, () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-dimmed-'))
   try {
     const dimmed = createDimmedScreenshot(directory)
-    const result = analyze({ imagePath: dimmed, imageIsRegion: true, recognition: { strength: 'sensitive' } })
+    const result = analyze({ imagePath: dimmed, imageIsRegion: true })
     assert.equal(result.success, true)
     assert.equal(result.occupiedCount, 50)
   } finally {
@@ -233,7 +230,41 @@ test('敏感档可识别变暗样本', { skip: !existsSync(python) }, () => {
 test('方向识别使用绿色图标质心作为探针中心', () => {
   const source = readFileSync(analyzer, 'utf8')
   assert.match(source, /cellCentroid/)
-  assert.match(source, /def inventory_route_topology\([\s\S]*component:[\s\S]*strength:/)
+  assert.match(source, /def inventory_route_topology\([\s\S]*component:/)
+})
+
+test('高相似本机素材覆盖类型方向并支持空格双向纠错', { skip: !existsSync(python) }, () => {
+  const baseline = analyze({ imageIsRegion: true })
+  const occupied = baseline.slots.find(slot => slot.occupied)
+  const empty = baseline.slots.find(slot => !slot.occupied)
+  const calibrated = analyze({ imageIsRegion: true, calibrationSamples: [
+    { labelMask: 1, featureVersion: occupied.featureVersion, featureVector: occupied.calibrationFeature },
+    { labelMask: 2, featureVersion: empty.featureVersion, featureVector: empty.calibrationFeature }
+  ] })
+  const occupiedResult = calibrated.slots.find(slot => slot.row === occupied.row && slot.column === occupied.column)
+  const emptyResult = calibrated.slots.find(slot => slot.row === empty.row && slot.column === empty.column)
+  assert.deepEqual([occupiedResult.calibrated, occupiedResult.mask], [true, 1])
+  assert.deepEqual([emptyResult.calibrated, emptyResult.mask], [true, 2])
+  const removed = analyze({ imageIsRegion: true, calibrationSamples: [
+    { labelMask: 0, featureVersion: occupied.featureVersion, featureVector: occupied.calibrationFeature }
+  ] })
+  assert.equal(removed.slots.find(slot => slot.row === occupied.row && slot.column === occupied.column).occupied, false)
+})
+
+test('低相似和冲突本机素材回退基础识别', { skip: !existsSync(python) }, () => {
+  const baseline = analyze({ imageIsRegion: true })
+  const target = baseline.slots.find(slot => slot.occupied)
+  const low = analyze({ imageIsRegion: true, calibrationSamples: [
+    { labelMask: 1, featureVersion: 1, featureVector: Array(128).fill(0) }
+  ] })
+  assert.equal(low.slots.find(slot => slot.row === target.row && slot.column === target.column).calibrated, false)
+  const conflict = analyze({ imageIsRegion: true, calibrationSamples: [
+    { labelMask: 1, featureVersion: 1, featureVector: target.calibrationFeature },
+    { labelMask: 2, featureVersion: 1, featureVector: target.calibrationFeature }
+  ] })
+  const result = conflict.slots.find(slot => slot.row === target.row && slot.column === target.column)
+  assert.equal(result.calibrated, false)
+  assert.equal(result.mask, target.mask)
 })
 
 test('区域轻微偏移后方向掩码保持稳定', { skip: !existsSync(python) }, () => {

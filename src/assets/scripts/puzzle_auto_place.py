@@ -188,12 +188,12 @@ def capture_analyze(
     templates: dict[str, Any],
     region_type: str,
     manage_overlay: bool = True,
-    recognition: dict[str, Any] | None = None,
+    calibration_samples: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if manage_overlay:
         event("capture-start", regionType=region_type)
     try:
-        return analyze_image(capture_region(region, region_type), templates, region_type, recognition)
+        return analyze_image(capture_region(region, region_type), templates, region_type, {}, calibration_samples)
     finally:
         if manage_overlay:
             event("capture-end", regionType=region_type)
@@ -242,13 +242,13 @@ def verify_source_rotation(
     source: dict[str, Any],
     expected: int,
     delay: float,
-    recognition: dict[str, Any] | None = None,
+    calibration_samples: list[dict[str, Any]] | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
     latest = None
     fragment_type = str(source.get("type"))
     deadline = time.monotonic() + (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
     for attempt in range(1, 4):
-        capture_kwargs = {} if not recognition else {"recognition": recognition}
+        capture_kwargs = {} if not calibration_samples else {"calibration_samples": calibration_samples}
         result = capture_analyze(region, templates, "inventory", **capture_kwargs)
         latest = source_slot(result, source)
         matched = source_orientation_matches(latest, fragment_type, expected)
@@ -277,7 +277,7 @@ def rotate_source_to_target(
     source: dict[str, Any],
     target_orientation: int,
     delay: float,
-    recognition: dict[str, Any] | None = None,
+    calibration_samples: list[dict[str, Any]] | None = None,
     retry_on_mismatch: bool = False,
 ) -> tuple[bool, dict[str, Any], dict[str, Any] | None]:
     """逐次旋转并确认仓库中的实际角度；仅当确认点击未生效时才补发右键。"""
@@ -296,7 +296,7 @@ def rotate_source_to_target(
             # 右键不是幂等操作：仅当确认点击未生效（实际朝向与点击前一致）时才补发，避免多转 90°。
             if timing_mode == "fixed":
                 time.sleep(patch_verify_seconds)
-            matched, latest = verify_source_rotation(region, templates, confirmed, expected, delay, recognition)
+            matched, latest = verify_source_rotation(region, templates, confirmed, expected, delay, calibration_samples)
             if matched:
                 break
             before_orientation = normalized_orientation(fragment_type, int(confirmed.get("orientation", 0)))
@@ -348,15 +348,13 @@ def verify_target(
     templates: dict[str, Any],
     target: dict[str, Any],
     delay: float,
-    recognition: dict[str, Any] | None = None,
 ) -> tuple[bool, dict[str, Any] | None]:
     latest = None
     deadline = time.monotonic() + (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
     event("capture-series-start", regionType="atlas")
     try:
         for attempt in range(1, 4):
-            capture_kwargs = {} if not recognition else {"recognition": recognition}
-            result = capture_analyze(region, templates, "atlas", manage_overlay=False, **capture_kwargs)
+            result = capture_analyze(region, templates, "atlas", manage_overlay=False)
             index = int(target["row"]) * 3 + int(target["column"])
             latest = result.get("slots", [])[index] if result.get("success") and len(result.get("slots", [])) == 9 else None
             event("verification", index=int(target["index"]), attempt=attempt, success=slot_matches(latest, target), actual=latest)
@@ -383,7 +381,7 @@ def main() -> int:
     if len(targets) != 9:
         return fail("PLAN_INVALID", "自动放置方案必须包含九个目标格")
     templates = load_json(config["templatesPath"])
-    recognition = config.get("recognition") or {}
+    calibration_samples = config.get("calibrationSamples") or []
     source_slots = config.get("sourceSlots")
     inventory_tab_points = config.get("inventoryTabPoints") or {}
     inventory_region = config["inventoryRegion"]
@@ -402,7 +400,7 @@ def main() -> int:
         return fail(focus_error, "无法激活流放之路游戏窗口")
 
     resume_pending = bool(config.get("resume"))
-    initial_atlas = capture_analyze(atlas_region, templates, "atlas", recognition=recognition)
+    initial_atlas = capture_analyze(atlas_region, templates, "atlas")
     if not initial_atlas.get("success"):
         error = initial_atlas.get("error", {})
         return fail(
@@ -437,7 +435,7 @@ def main() -> int:
                     time.sleep(patch_verify_seconds)
             except RuntimeError as error:
                 return fail("INPUT_FAILED", str(error), currentIndex=position)
-            recovered, _actual = verify_target(atlas_region, templates, target, delay, recognition)
+            recovered, _actual = verify_target(atlas_region, templates, target, delay)
             if recovered:
                 completed_indices.add(int(target["index"]))
                 event("step-completed", currentIndex=position, completed=len(completed_indices), target=target, recoveredHeld=True)
@@ -449,7 +447,7 @@ def main() -> int:
             switch_inventory_page(inventory_tab_points, source_page, delay)
         except (KeyError, TypeError, ValueError, RuntimeError) as error:
             return fail("TAB_SWITCH_FAILED", str(error), currentIndex=position, source=source)
-        inventory = capture_analyze(inventory_region, templates, "inventory", recognition=recognition)
+        inventory = capture_analyze(inventory_region, templates, "inventory", calibration_samples=calibration_samples)
         if not inventory.get("success"):
             error = inventory.get("error", {})
             return fail(error.get("code", "INVENTORY_RECOGNITION_FAILED"), error.get("message", "碎片仓库识别失败"), currentIndex=position)
@@ -470,7 +468,7 @@ def main() -> int:
                 source,
                 int(target.get("orientation", 0)),
                 delay,
-                recognition,
+                calibration_samples,
                 bool(source.get("corrected")),
             )
             if not rotation_ok:
@@ -485,13 +483,13 @@ def main() -> int:
             place_fragment(source_point, target_point, delay, neutral_point)
         except RuntimeError as error:
             return fail("INPUT_FAILED", str(error), currentIndex=position)
-        verified, actual = verify_target(atlas_region, templates, target, delay, recognition)
+        verified, actual = verify_target(atlas_region, templates, target, delay)
         if not verified:
             return fail("TARGET_MISMATCH", f"海图第 {position + 1} 格验证失败", currentIndex=position, expected=target, actual=actual)
         completed_indices.add(int(target["index"]))
         event("step-completed", currentIndex=position, completed=len(completed_indices), target=target, source=source)
 
-    final_result = capture_analyze(atlas_region, templates, "atlas", recognition=recognition)
+    final_result = capture_analyze(atlas_region, templates, "atlas")
     actual_slots = final_result.get("slots", []) if final_result.get("success") else []
     mismatch = next((target for target in targets if not slot_matches(actual_slots[int(target["row"]) * 3 + int(target["column"])] if len(actual_slots) == 9 else None, target)), None)
     if mismatch:

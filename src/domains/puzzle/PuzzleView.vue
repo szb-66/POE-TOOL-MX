@@ -88,32 +88,43 @@
       <el-card class="inventory-card" shadow="never">
         <template #header>
           <div class="inventory-card-header">
-            <strong>碎片仓库</strong>
+            <div class="inventory-card-heading">
+              <span class="inventory-card-title">
+                <strong>碎片仓库</strong>
+                <el-tooltip content="点击格子“修正类型”，右键“逆时针旋转角度”；点击格子右上角锁按钮可将该格排除在计算和自动放入之外" placement="top" effect="dark">
+                  <el-icon class="inventory-help-icon" tabindex="0" aria-label="查看碎片仓库操作说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </span>
+              <el-button size="small" :disabled="executing || analyzing || probingBorder || !hasInventoryResults" @click="clearAllInventoryPages">清空两页结果</el-button>
+            </div>
             <div class="inventory-card-toolbar">
-              <span class="inventory-help">点击“修正类型”，右键“逆时针旋转角度”</span>
-              <el-select
-                v-model="recognitionStrength"
-                class="recognition-strength"
-                size="small"
-                :disabled="analyzing || executing || probingBorder"
-                @change="handleRecognitionStrengthChange"
-              >
-                <el-option value="sensitive" label="敏感" />
-                <el-option value="standard" label="标准" />
-                <el-option value="strict" label="严格" />
-              </el-select>
-              <el-button type="primary" size="small" :loading="analyzing" :disabled="!regionMetadata || executing || probingBorder" @click="startAnalysis">
-                {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
-              </el-button>
-              <el-radio-group v-model="selectedInventoryPage" class="inventory-page-tabs" size="small" :disabled="analyzing || executing">
-                <el-radio-button :value="1">第1页</el-radio-button>
-                <el-radio-button :value="2">第2页</el-radio-button>
-              </el-radio-group>
-              <el-tag :type="currentPageState.recognized ? 'success' : 'info'">
-                {{ currentPageState.recognized ? `已识别 ${currentPageOccupiedCount} 块` : '未识别' }}
-              </el-tag>
-              <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
-              <el-button size="small" :disabled="executing || !currentPageState.recognized" @click="clearCurrentInventoryPage">清空本页结果</el-button>
+              <div class="inventory-toolbar-group">
+                <span class="inventory-toolbar-label">
+                  本机校准
+                  <el-tooltip content="保存修正会将改过的图块存为本机素材，从下次识别和自动放入校验开始生效" placement="top" effect="dark">
+                    <el-icon class="inventory-help-icon" tabindex="0" aria-label="查看本机校准说明"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+                <el-button size="small" :disabled="!pendingCorrectionCount || !savableCorrectionCount || analyzing || executing" :title="calibrationSaveTitle" @click="saveCalibration">
+                  保存修正{{ pendingCorrectionCount ? `（${pendingCorrectionCount}）` : '' }}
+                </el-button>
+                <el-button size="small" @click="calibrationDialogVisible = true">本机素材（{{ calibrationSamples.length }}）</el-button>
+              </div>
+              <div class="inventory-toolbar-group">
+                <span class="inventory-toolbar-label">识别结果</span>
+                <el-button type="primary" size="small" :loading="analyzing" :disabled="!regionMetadata || executing || probingBorder" @click="startAnalysis">
+                  {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
+                </el-button>
+                <el-radio-group v-model="selectedInventoryPage" class="inventory-page-tabs" size="small" :disabled="analyzing || executing">
+                  <el-radio-button :value="1">第1页</el-radio-button>
+                  <el-radio-button :value="2">第2页</el-radio-button>
+                </el-radio-group>
+                <el-tag :type="currentPageState.recognized ? 'success' : 'info'">
+                  {{ currentPageState.recognized ? `可用 ${currentPageAvailableCount} 块` : '未识别' }}
+                </el-tag>
+                <el-tag v-if="currentPageLockedCount" type="warning">已锁定 {{ currentPageLockedCount }} 格</el-tag>
+                <el-tag v-if="uncertainCount" type="warning">{{ uncertainCount }} 格待确认</el-tag>
+              </div>
             </div>
           </div>
         </template>
@@ -125,44 +136,59 @@
             placement="top"
             effect="dark"
             :show-after="200"
-            :disabled="!slot.occupied"
+            :disabled="!slot.occupied && !slot.calibrated && !isSlotLocked(slot)"
           >
             <template #content>
               <div v-for="(line, index) in slotTooltipLines(slot)" :key="`${index}-${line}`" class="mod-tooltip-line">{{ line }}</div>
             </template>
-            <el-dropdown
-              trigger="click"
-              :disabled="executing"
-              @command="updateSlot(slot, $event)"
-            >
-              <button
-                class="inventory-slot"
-                :class="{
-                  empty: !slot.occupied,
-                  uncertain: slot.uncertain,
-                  corrected: slot.corrected,
-                  selected: sourceCellBySlot.has(slotKey(slot))
-                }"
+            <div class="inventory-slot-shell">
+              <el-dropdown
+                trigger="click"
                 :disabled="executing"
-                @contextmenu.prevent="rotateSlot(slot)"
+                @command="updateSlot(slot, $event)"
               >
-                <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
-                <span v-else class="empty-mark">·</span>
-                <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
-                <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
-                <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
-                  {{ sourceCellBySlot.get(slotKey(slot)) + 1 }}
-                </b>
+                <button
+                  class="inventory-slot"
+                  :class="{
+                    empty: !slot.occupied,
+                    uncertain: slot.uncertain,
+                    corrected: slot.corrected,
+                    locked: isSlotLocked(slot),
+                    selected: sourceCellBySlot.has(slotKey(slot))
+                  }"
+                  :disabled="executing"
+                  @contextmenu.prevent="rotateSlot(slot)"
+                >
+                  <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
+                  <span v-else class="empty-mark">·</span>
+                  <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
+                  <em v-if="slot.calibrated" class="calibration-mark">校</em>
+                  <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
+                  <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
+                    {{ sourceCellBySlot.get(slotKey(slot)) + 1 }}
+                  </b>
+                </button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="empty">空格</el-dropdown-item>
+                    <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value">
+                      {{ option.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <button
+                class="slot-lock-button"
+                :class="{ active: isSlotLocked(slot) }"
+                :disabled="executing || resumeIndex > 0"
+                :title="lockButtonTitle(slot)"
+                :aria-label="lockButtonTitle(slot)"
+                @click.stop="toggleSlotLock(slot)"
+                @contextmenu.stop.prevent
+              >
+                <el-icon><Lock v-if="isSlotLocked(slot)" /><Unlock v-else /></el-icon>
               </button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="empty">空格</el-dropdown-item>
-                  <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value">
-                    {{ option.label }}
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            </div>
           </el-tooltip>
         </div>
 
@@ -289,7 +315,7 @@
             <el-button :disabled="executing || solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
           </div>
           <div class="chart-complete-row">
-            <el-button type="warning" :disabled="executing || analyzing || probingBorder || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
+            <el-button type="warning" :disabled="executing || analyzing || probingBorder || solving || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
           </div>
           <p class="total-note">
             同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
@@ -306,19 +332,42 @@
         </div>
       </el-card>
     </div>
+
+    <el-dialog v-model="calibrationDialogVisible" title="海图本机校准素材" width="680px">
+      <el-empty v-if="!calibrationSamples.length" description="尚未保存校准素材" :image-size="72" />
+      <el-table v-else :data="calibrationSamples" max-height="420">
+        <el-table-column label="图块" width="76">
+          <template #default="scope"><img class="calibration-thumbnail" :src="scope.row.tileDataUrl" alt="海图校准图块"></template>
+        </el-table-column>
+        <el-table-column label="标签" width="130">
+          <template #default="scope">{{ calibrationLabel(scope.row.labelMask) }}</template>
+        </el-table-column>
+        <el-table-column label="来源">
+          <template #default="scope">第 {{ scope.row.page }} 页 · {{ scope.row.row + 1 }} 行 {{ scope.row.column + 1 }} 列</template>
+        </el-table-column>
+        <el-table-column label="操作" width="90">
+          <template #default="scope"><el-button text type="danger" @click="removeCalibration(scope.row)">删除</el-button></template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button type="danger" plain :disabled="!calibrationSamples.length" @click="resetCalibration">重置全部</el-button>
+        <el-button @click="calibrationDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Loading, QuestionFilled, Warning } from '@element-plus/icons-vue'
+import { Loading, Lock, QuestionFilled, Unlock, Warning } from '@element-plus/icons-vue'
 import PuzzleGlyph from './PuzzleGlyph.vue'
 import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
 import { useSettingsStore } from '../settings/settingsStore.js'
 import { formatBorderProbeFeedback, fragmentModTooltipLines } from '../../utils/chartModPresentation.js'
+import { typeForMask } from './solver.js'
 
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
@@ -329,7 +378,10 @@ const {
   inventoryTabPoints,
   selectedInventoryPage,
   inventoryPages,
-  recognition,
+  lockedSlots,
+  calibrationSamples,
+  pendingCorrectionCount,
+  savableCorrectionCount,
   gridConfidence,
   previews,
   configurationStates,
@@ -359,6 +411,7 @@ const {
 } = storeToRefs(store)
 
 const loadingVisible = computed(() => solving.value)
+const calibrationDialogVisible = ref(false)
 const regionExpanded = reactive({
   inventory: !inventoryRegionMetadata.value,
   atlas: !atlasRegionMetadata.value
@@ -380,11 +433,14 @@ const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, co
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])
-const currentPageOccupiedCount = computed(() => slots.value.filter(slot => slot.occupied).length)
+const currentPageAvailableCount = computed(() => slots.value.filter(slot => slot.occupied && !store.isSlotLocked(slot)).length)
+const currentPageLockedCount = computed(() => lockedSlots.value.filter(slot => slot.page === selectedInventoryPage.value).length)
+const hasInventoryResults = computed(() => [1, 2].some(page => inventoryPages.value[page].recognized))
 const relativeRewardHelp = '相对收益是根据已识别词缀的类别、数值、作用范围（自身/相邻/全航行）及边缘增幅，结合当前策略权重计算的启发式比较分。分数越高表示按该权重更优，不代表实际掉落量或通货价格；不同策略权重口径不同，自动模式仍按界面分数直接取最高。'
-const recognitionStrength = computed({
-  get: () => recognition.value?.strength || 'standard',
-  set: value => { store.setRecognitionStrength(value) }
+const calibrationSaveTitle = computed(() => {
+  if (!pendingCorrectionCount.value) return '修正类型、空格或角度后可保存'
+  if (!savableCorrectionCount.value) return '当前修正缺少截图图块，请重新识别后再保存'
+  return `保存 ${savableCorrectionCount.value} 个具有截图图块的修正`
 })
 const selectedRewardStrategy = computed({
   get: () => rewardStrategy.value,
@@ -503,11 +559,6 @@ async function startAnalysis() {
   } else if (response?.error) ElMessage.error(response.error.message)
 }
 
-function handleRecognitionStrengthChange() {
-  if (!regionMetadata.value) return
-  void startAnalysis()
-}
-
 function rotateSlot(slot) {
   if (executing.value || !slot.occupied) return
   const step = slot.type === 'cross' ? 0 : 90
@@ -546,9 +597,59 @@ function updateSlot(slot, command) {
   store.updateSlot(slot.row, slot.column, command === 'empty' ? null : command)
 }
 
-async function clearCurrentInventoryPage() {
-  const response = await store.clearInventoryPage(selectedInventoryPage.value)
-  if (response?.success) ElMessage.success(`已清空第 ${selectedInventoryPage.value} 页识别结果`)
+function isSlotLocked(slot) {
+  return store.isSlotLocked(slot)
+}
+
+function lockButtonTitle(slot) {
+  if (resumeIndex.value > 0) return '当前自动放入方案尚未完成，暂不能修改固定锁'
+  if (executing.value) return '自动放入执行中，暂不能修改固定锁'
+  return isSlotLocked(slot) ? '解除固定锁，恢复参与计算和自动放入' : '固定此格，排除计算和自动放入'
+}
+
+function toggleSlotLock(slot) {
+  if (!store.toggleSlotLock(slot)) ElMessage.warning(lockButtonTitle(slot))
+}
+
+async function saveCalibration() {
+  try {
+    const count = await store.savePendingCorrections()
+    ElMessage.success(`已保存 ${count} 个本机校准素材，下次识别和自动放入生效`)
+  } catch (caught) {
+    ElMessage.error(caught?.message || '保存校准素材失败')
+  }
+}
+
+function calibrationLabel(mask) {
+  const value = Number(mask) & 15
+  if (!value) return '空格'
+  const type = typeForMask(value)
+  return `${typeOptions.find(option => option.value === type)?.label || type} · 掩码 ${value}`
+}
+
+async function removeCalibration(sample) {
+  try {
+    await store.removeCalibration(sample.id)
+    ElMessage.success('校准素材已删除')
+  } catch (caught) {
+    ElMessage.error(caught?.message || '删除校准素材失败')
+  }
+}
+
+async function resetCalibration() {
+  try {
+    await ElMessageBox.confirm('确定重置全部海图本机校准素材吗？', '重置确认', { type: 'warning' })
+    await store.resetCalibration()
+    ElMessage.success('海图本机校准素材已重置')
+  } catch (caught) {
+    if (caught !== 'cancel' && caught !== 'close') ElMessage.error(caught?.message || '重置校准素材失败')
+  }
+}
+
+async function clearAllInventoryPages() {
+  const response = await store.clearInventoryPages()
+  if (response?.success) ElMessage.success('已清空两页识别结果')
+  else if (response?.error) ElMessage.error(response.error.message)
 }
 
 async function pickTabPoint(page) {
@@ -567,12 +668,16 @@ function slotKey(slot) {
 }
 
 function slotTooltipLines(slot) {
-  if (!slot.occupied) return []
+  const lockedText = isSlotLocked(slot) ? ['已固定：不参与库存计算、方案求解和自动放入'] : []
+  const calibratedText = slot.calibrated ? [`本机素材已校准 · 相似度 ${(Number(slot.calibrationSimilarity || 0) * 100).toFixed(1)}%`] : []
+  if (!slot.occupied) return [...lockedText, ...calibratedText]
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
   const selectedIndex = sourceCellBySlot.value?.get(slotKey(slot))
   const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
   return [
     `${name} · 朝向 ${slot.orientation}° · 置信度 ${Math.round(slot.confidence * 100)}%${selectedText}`,
+    ...lockedText,
+    ...calibratedText,
     ...fragmentModTooltipLines(slot.mods)
   ]
 }
@@ -721,10 +826,13 @@ const nextSolution = store.nextSolution
 .tab-point-settings { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
 .tab-point-settings span { display: inline-flex; align-items: center; gap: 6px; color: var(--el-text-color-secondary); font-size: 12px; }
 .inventory-card-header { display: grid; gap: 10px; }
-.inventory-card-header > strong { display: block; line-height: 1; }
+.inventory-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.inventory-card-title, .inventory-toolbar-label { display: inline-flex; align-items: center; gap: 5px; }
+.inventory-card-title > strong { line-height: 1; }
 .inventory-card-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
-.inventory-help { flex: 1; color: var(--el-text-color-secondary); font-size: 12px; }
-.recognition-strength { width: 92px; flex: none; }
+.inventory-toolbar-group { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 8px; border: 1px solid var(--el-border-color-lighter); border-radius: 6px; }
+.inventory-toolbar-label { color: var(--el-text-color-secondary); font-size: 12px; white-space: nowrap; }
+.inventory-help-icon { color: var(--el-text-color-secondary); cursor: help; }
 .inventory-page-tabs { display: inline-flex; flex: none; flex-direction: row; flex-wrap: nowrap; white-space: nowrap; }
 .preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
 .preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
@@ -780,6 +888,9 @@ const nextSolution = store.nextSolution
   margin: 0 auto;
 }
 
+.inventory-slot-shell { position: relative; width: 100%; aspect-ratio: 1; }
+.inventory-slot-shell :deep(.el-dropdown) { display: block; width: 100%; height: 100%; }
+
 .inventory-slot {
   position: relative;
   box-sizing: border-box;
@@ -794,6 +905,19 @@ const nextSolution = store.nextSolution
 }
 .inventory-slot:hover { border-color: var(--el-color-primary); }
 .inventory-slot.empty { background: var(--el-fill-color-lighter); color: var(--el-text-color-placeholder); }
+.inventory-slot.locked {
+  border-color: var(--el-color-warning);
+  filter: saturate(0.45);
+  opacity: 0.68;
+}
+.inventory-slot.locked::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, rgba(230, 162, 60, 0.13) 6px 12px);
+  pointer-events: none;
+}
 .inventory-slot.uncertain {
   border-style: dashed;
   border-color: var(--el-color-warning);
@@ -834,6 +958,27 @@ const nextSolution = store.nextSolution
   line-height: 1.2;
 }
 .orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
+.calibration-mark { position: absolute; right: 23px; top: 2px; color: var(--el-color-success); font-size: 10px; font-style: normal; font-weight: 700; }
+.slot-lock-button {
+  position: absolute;
+  z-index: 3;
+  top: 2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(144, 147, 153, 0.7);
+  border-radius: 4px;
+  background: rgba(20, 20, 20, 0.78);
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+}
+.slot-lock-button:hover { border-color: var(--el-color-warning); color: var(--el-color-warning); }
+.slot-lock-button.active { border-color: var(--el-color-warning); background: rgba(230, 162, 60, 0.2); color: var(--el-color-warning); }
+.slot-lock-button:disabled { cursor: not-allowed; opacity: 0.55; }
+.calibration-thumbnail { display: block; width: 48px; height: 48px; object-fit: fill; border-radius: 4px; }
 .mod-tooltip-line { line-height: 1.5; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }
 

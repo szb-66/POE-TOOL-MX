@@ -94,13 +94,14 @@ function restoreWindow(window) {
 }
 
 export class PuzzleAnalysisService {
-  constructor({ python, window, fileWatcher, getMainWindow, automationLock = null, overlay = null }) {
+  constructor({ python, window, fileWatcher, getMainWindow, automationLock = null, overlay = null, calibration = null }) {
     this.python = python
     this.window = window
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
     this.automationLock = automationLock
     this.overlay = overlay
+    this.calibration = calibration
     this.child = null
     this.automationChild = null
     this.modProbeChild = null
@@ -109,6 +110,32 @@ export class PuzzleAnalysisService {
       status: 'idle', currentIndex: -1, total: 9, completed: 0,
       source: null, target: null, turns: 0, reason: '', error: null
     }
+  }
+
+  calibrationSamples() {
+    return this.calibration?.list?.().map(sample => ({
+      labelMask: sample.labelMask,
+      featureVersion: sample.featureVersion,
+      featureVector: sample.featureVector
+    })) || []
+  }
+
+  listCalibration() { return this.calibration?.listWithImages?.() || [] }
+
+  saveCalibration(items = []) {
+    if (!Array.isArray(items) || !items.length || items.length > 60) throw new Error('待保存校准素材无效')
+    for (const item of items) this.calibration?.save?.(item)
+    return this.listCalibration()
+  }
+
+  removeCalibration(id) {
+    this.calibration?.remove?.(id)
+    return this.listCalibration()
+  }
+
+  resetCalibration() {
+    this.calibration?.reset?.()
+    return []
   }
 
   scriptPath() {
@@ -362,7 +389,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, recognition, operationDelayMs = OPERATION_DELAY.default, adaptiveTiming = true, adaptiveTimeoutMs = 1000, fixedTiming = {}, resume = false } = {}) {
+  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, operationDelayMs = OPERATION_DELAY.default, adaptiveTiming = true, adaptiveTimeoutMs = 1000, fixedTiming = {}, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
@@ -390,7 +417,7 @@ export class PuzzleAnalysisService {
         displayBounds: atlasRegionMetadata?.displayPhysicalBounds || null,
         targets,
         sourceSlots,
-        recognition,
+        calibrationSamples: this.calibrationSamples(),
         resume: Boolean(resume),
         ...pythonAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming }),
         templatesPath: this.templatesPath()
@@ -710,7 +737,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  async analyze({ regionMetadata, recognition, inventoryTabPoints, pages, page = null, resetExecution = true, probeMods = true } = {}) {
+  async analyze({ regionMetadata, inventoryTabPoints, pages, page = null, resetExecution = true, probeMods = true } = {}) {
     const requestedPages = Array.isArray(pages)
       ? [...new Set(pages.map(value => Number(value)).filter(value => value === 1 || value === 2))].sort((left, right) => left - right)
       : [1, 2].includes(Number(page)) ? [Number(page)] : [1, 2]
@@ -739,7 +766,7 @@ export class PuzzleAnalysisService {
           region: metadata.selectedRegion,
           templatesPath: this.templatesPath(),
           regionType: 'inventory',
-          recognition,
+          calibrationSamples: this.calibrationSamples(),
           allowEmpty: true,
           requireGameForeground: true,
           page: currentPage,
