@@ -39,6 +39,11 @@ function isUnknownBaseTypeError(error) {
     /unknown item base type/i.test(String(error?.details?.officialMessage || ''))
 }
 
+function isQueryTooComplexError(error) {
+  return error?.details?.status === 400 &&
+    /(?:query.{0,16}too complex|too complex|查询.{0,12}复杂)/i.test(String(error?.details?.officialMessage || error?.message || ''))
+}
+
 function withoutBaseType(query) {
   const fallback = structuredClone(query)
   delete fallback.query?.type
@@ -440,7 +445,16 @@ export class PriceCheckService {
       try {
         search = await this.client.search(league, effectiveQuery, { signal: controller.signal })
       } catch (error) {
-        if (isUnknownBaseTypeError(error) && effectiveQuery.query?.name && effectiveQuery.query?.type) {
+        if (isQueryTooComplexError(error)) {
+          const hasMercenaryGroups = effectiveQuery.query?.stats?.some(({ type }) => type === 'mercenary')
+          throw new ChaosRecipeError(
+            CHAOS_ERROR_CODES.QUERY_TOO_COMPLEX,
+            hasMercenaryGroups
+              ? '所选佣兵技能组过多，官方交易接口认为查询过于复杂；请减少启用的技能组后重试'
+              : '所选查询条件过多，官方交易接口认为查询过于复杂；请减少启用的筛选条件后重试',
+            { officialMessage: error.details?.officialMessage }
+          )
+        } else if (isUnknownBaseTypeError(error) && effectiveQuery.query?.name && effectiveQuery.query?.type) {
           effectiveQuery = withoutBaseType(effectiveQuery)
           search = await this.client.search(league, effectiveQuery, { signal: controller.signal })
         } else if (isUnknownBaseTypeError(error)) {

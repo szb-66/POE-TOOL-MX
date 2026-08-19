@@ -180,6 +180,11 @@ test('正负文案保留剪贴板原文并按符号生成官方查询边界', ()
       matchers: ['回复速度加快 #%', '回复速度减慢 #%'],
       negatedMatchers: ['回复速度减慢 #%'],
       ids: { explicit: 'explicit.stat_173226756' }
+    }, {
+      key: 'no-value-stat',
+      label: '数值不可调整',
+      matchers: ['数值不可调整'],
+      ids: { explicit: 'explicit.stat_173226757' }
     }]
   }
   const makeModel = (text, category = '生命药剂') => createPriceCheckModel({
@@ -206,11 +211,11 @@ test('正负文案保留剪贴板原文并按符号生成官方查询边界', ()
   assert.equal(negative.stats[0].text, '回复速度减慢 45%')
   assert.deepEqual(negative.stats[0].values, [-45])
   assert.equal(negative.stats[0].valueMultiplier, -1)
-  assert.equal(negative.stats[0].min, 45)
-  assert.equal(negative.stats[0].max, undefined)
+  assert.equal(negative.stats[0].min, undefined)
+  assert.equal(negative.stats[0].max, 45)
   assert.deepEqual(buildOfficialTradeQuery(negative).query.stats[0].filters[0].value, {
-    min: undefined,
-    max: -45,
+    min: -45,
+    max: undefined,
     option: undefined
   })
 
@@ -218,8 +223,8 @@ test('正负文案保留剪贴板原文并按符号生成官方查询边界', ()
   assert.equal(sanitized.stats[0].text, '回复速度减慢 45%')
   assert.deepEqual(sanitized.stats[0].values, [-45])
   assert.equal(sanitized.stats[0].valueMultiplier, -1)
-  assert.equal(sanitized.stats[0].min, 45)
-  assert.equal(sanitized.stats[0].max, undefined)
+  assert.equal(sanitized.stats[0].min, undefined)
+  assert.equal(sanitized.stats[0].max, 45)
 
   const edited = sanitizePriceCheckModel({
     ...negative,
@@ -232,9 +237,19 @@ test('正负文案保留剪贴板原文并按符号生成官方查询边界', ()
     max: -40,
     option: undefined
   })
+
+  const noValue = makeModel('数值不可调整')
+  assert.deepEqual(noValue.stats[0].values, [])
+  assert.equal(noValue.stats[0].min, undefined)
+  assert.equal(noValue.stats[0].max, undefined)
+  assert.deepEqual(buildOfficialTradeQuery(noValue).query.stats[0].filters[0].value, {
+    min: undefined,
+    max: undefined,
+    option: undefined
+  })
 })
 
-test('内置目录将真实回复速度减慢文案映射到正向 stat ID 的负数上界', async () => {
+test('内置目录将真实回复速度减慢文案映射到正向 stat ID 的负数下界', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = {
     category: '生命药剂', rarity: '传奇', name: '卡鲁之血', baseName: '圣化生命药剂',
@@ -245,11 +260,11 @@ test('内置目录将真实回复速度减慢文案映射到正向 stat ID 的�
   assert.equal(stat.text, '回复速度减慢 45%')
   assert.deepEqual(stat.values, [-45])
   assert.equal(stat.valueMultiplier, -1)
-  assert.equal(stat.min, 45)
-  assert.equal(stat.max, undefined)
+  assert.equal(stat.min, undefined)
+  assert.equal(stat.max, 45)
   assert.deepEqual(buildOfficialTradeQuery(model).query.stats[0].filters.find(({ id }) => id === stat.id).value, {
-    min: undefined,
-    max: -45,
+    min: -45,
+    max: undefined,
     option: undefined
   })
 })
@@ -279,11 +294,11 @@ test('负向 matcher 的符号变换不依赖药剂或中文词语白名单', ()
   assert.equal(model.stats[0].text, '任意反向描述 12')
   assert.deepEqual(model.stats[0].values, [-12])
   assert.equal(model.stats[0].valueMultiplier, -1)
-  assert.equal(model.stats[0].min, 12)
-  assert.equal(model.stats[0].max, undefined)
+  assert.equal(model.stats[0].min, undefined)
+  assert.equal(model.stats[0].max, 12)
   assert.deepEqual(buildOfficialTradeQuery(model).query.stats[0].filters[0].value, {
-    min: undefined,
-    max: -12,
+    min: -12,
+    max: undefined,
     option: undefined
   })
 })
@@ -308,10 +323,10 @@ test('稀有装备按物品原值生成腾讯官方查询 JSON', async () => {
   assert.equal(body.query.type, '龙鳞胸甲')
   assert.equal(body.query.status.option, 'available')
   assert.equal(body.query.filters.type_filters.filters.rarity.option, 'nonunique')
-  assert.equal(body.query.filters.misc_filters.filters.corrupted.option, 'false')
+  assert.equal(body.query.filters.misc_filters?.filters.corrupted, undefined)
   assert.equal(body.query.filters.trade_filters, undefined)
-  assert.equal(body.query.filters.misc_filters.filters.quality, undefined)
-  assert.equal(body.query.filters.misc_filters.filters.ilvl, undefined)
+  assert.equal(body.query.filters.misc_filters?.filters.quality, undefined)
+  assert.equal(body.query.filters.misc_filters?.filters.ilvl, undefined)
   assert.deepEqual(body.query.stats[0].filters.map(({ id }) => id), ['pseudo.pseudo_total_life'])
   assert.equal(totalLife.enabled, true)
   assert.equal(rawLife.enabled, false)
@@ -995,13 +1010,14 @@ test('resolveStatCandidate 候选与已解析同 id 词缀合并数值而不是�
   assert.equal(merged.length, 1)
   assert.deepEqual(merged[0].values, [-5])
   assert.equal(merged[0].valueMultiplier, -1)
-  assert.equal(merged[0].min, 5)
-  assert.equal(merged[0].max, undefined)
+  assert.equal(merged[0].min, undefined)
+  assert.equal(merged[0].max, 5)
   assert.equal(merged[0].sources.length, 2)
   assert.equal(merged[0].sources.at(-1).valueMultiplier, -1)
   const filters = queries[1].query.stats[0].filters.filter((filter) => filter.id === 'explicit.stat_942001')
   assert.equal(filters.length, 1)
-  assert.equal(filters[0].value.max, -5)
+  assert.equal(filters[0].value.min, -5)
+  assert.equal(filters[0].value.max, undefined)
 })
 
 test('用户提供的药剂与三件传奇歧义文案均保留合法官方候选', async () => {
@@ -1296,7 +1312,7 @@ test('未鉴定传奇按官方底材候选自动解析或要求手选', () => {
   assert.throws(() => buildOfficialTradeQuery(none), /没有找到/)
 })
 
-test('真实未鉴定圣化生命药剂自动解析卡鲁之血并保留药剂类别与未鉴定条件', async () => {
+test('真实未鉴定圣化生命药剂自动解析卡鲁之血并提交未鉴定条件', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = parseItemInfo(`物品类别: 生命药剂
 稀 有 度: 传奇

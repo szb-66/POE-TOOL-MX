@@ -1,5 +1,44 @@
 export const PRICE_CHECK_STATE_VALUES = Object.freeze(['any', 'true', 'false'])
 
+export const PRICE_CHECK_CLASSIC_INFLUENCES = Object.freeze([
+  {
+    key: 'shaper',
+    label: '有塑界者影响效果',
+    statId: 'pseudo.pseudo_has_shaper_influence',
+    aliases: Object.freeze(['塑界之器', '塑界者物品'])
+  },
+  {
+    key: 'elder',
+    label: '有裂界者影响效果',
+    statId: 'pseudo.pseudo_has_elder_influence',
+    aliases: Object.freeze(['裂界之器', '裂界者物品'])
+  },
+  {
+    key: 'crusader',
+    label: '有圣战者影响效果',
+    statId: 'pseudo.pseudo_has_crusader_influence',
+    aliases: Object.freeze(['圣战之器', '圣战者物品'])
+  },
+  {
+    key: 'redeemer',
+    label: '有救赎者影响效果',
+    statId: 'pseudo.pseudo_has_redeemer_influence',
+    aliases: Object.freeze(['救赎之器', '救赎者物品'])
+  },
+  {
+    key: 'hunter',
+    label: '有狩猎者影响效果',
+    statId: 'pseudo.pseudo_has_hunter_influence',
+    aliases: Object.freeze(['狩猎之器', '狩猎者物品'])
+  },
+  {
+    key: 'warlord',
+    label: '有督军影响效果',
+    statId: 'pseudo.pseudo_has_warlord_influence',
+    aliases: Object.freeze(['督军之器', '督军物品'])
+  }
+].map((definition) => Object.freeze(definition)))
+
 const PRICE_CHECK_CATEGORY_ENTRIES = Object.freeze([
   [['单手武器'], 'weapon.one', '单手武器'],
   [['单手近战武器'], 'weapon.onemelee', '单手近战武器'],
@@ -63,7 +102,7 @@ export function resolvePriceCheckCategory(value) {
 export const PRICE_CHECK_STATE_FILTERS = Object.freeze([
   { key: 'identified', officialKey: 'identified', label: '已鉴定' },
   { key: 'corrupted', officialKey: 'corrupted', label: '腐化' },
-  { key: 'mirrored', officialKey: 'mirrored', label: '复制', defaultAny: true },
+  { key: 'mirrored', officialKey: 'mirrored', label: '复制' },
   { key: 'fractured', officialKey: 'fractured_item', label: '分裂之物' },
   { key: 'split', officialKey: 'split', label: '分裂' },
   { key: 'mutated', officialKey: 'mutated', label: '秽生' },
@@ -94,7 +133,9 @@ export const PRICE_CHECK_STAT_TYPES = Object.freeze({
 export function createPriceCheckStateFilters(facts = {}) {
   return Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map((definition) => [
     definition.key,
-    definition.defaultAny ? 'any' : (facts[definition.key] ? 'true' : 'false')
+    definition.key === 'identified'
+      ? (facts.identified === false ? 'false' : 'any')
+      : (facts[definition.key] === true ? 'true' : 'any')
   ]))
 }
 

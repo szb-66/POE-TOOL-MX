@@ -115,6 +115,8 @@ test('查价属性与词缀使用单行整行选择且数值输入不误触发',
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   assert.match(view, /role="checkbox"[\s\S]*@click="toggleFilter\(property\)"/)
   assert.match(view, /role="checkbox"[\s\S]*@click="toggleFilter\(stat\)"/)
+  assert.match(view, /v-model\.number="stat\.min"[^>]*placeholder="最小"/)
+  assert.match(view, /v-model\.number="stat\.max"[^>]*placeholder="最大"/)
   assert.match(view, /class="number"[\s\S]*@click\.stop/)
   assert.match(view, /class="number"[\s\S]*@keydown\.stop/)
   assert.match(view, /\.filter-row \{[\s\S]*height: 32px;/)
@@ -148,6 +150,22 @@ test('查价物品属性固定两列并保留整行选择和输入隔离', async
   assert.match(view, /role="checkbox"[\s\S]*@click="toggleFilter\(property\)"/)
   assert.match(view, /v-model\.number="property\.min"[\s\S]*@click\.stop @keydown\.stop/)
   assert.match(view, /v-model\.number="property\.max"[\s\S]*@click\.stop @keydown\.stop/)
+})
+
+test('佣兵凭证浮窗按组显示技能并支持严格的父子选择交互', async () => {
+  const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  assert.match(view, /v-if="state\.model\.mercenarySkillGroups\?\.length"/)
+  assert.match(view, /v-for="group in state\.model\.mercenarySkillGroups"/)
+  assert.match(view, /\{\{ group\.skill\.text \}\}/)
+  assert.match(view, /v-for="support in group\.supports"/)
+  assert.match(view, /\{\{ support\.name \}\}[^]*等阶 \{\{ support\.tier \}\}/)
+  assert.match(view, /role="checkbox"[^]*:aria-checked="group\.enabled"[^]*@keydown\.enter\.prevent="toggleMercenaryGroup\(group\)"[^]*@keydown\.space\.prevent="toggleMercenaryGroup\(group\)"/)
+  assert.match(view, /:aria-pressed="support\.enabled"[^]*@click="toggleMercenarySupport\(group, support\)"/)
+  assert.match(view, /function toggleMercenarySupport\(group, support\)[^]*support\.enabled = !support\.enabled[^]*if \(support\.enabled\) group\.enabled = true/)
+  assert.match(view, /function toggleMercenaryGroup\(group\) \{ group\.enabled = !group\.enabled \}/)
+  assert.match(view, /\.mercenary-supports \{[^}]*flex-wrap: wrap/)
+  assert.match(view, /\.mercenary-panel \{[^}]*overflow-y: auto/)
+  assert.match(view, /\.mercenary-support\.enabled/)
 })
 
 test('地图和海图浮窗展示区域身份、形状选项与仅供参考字段', async () => {

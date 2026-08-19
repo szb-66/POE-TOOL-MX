@@ -38,8 +38,9 @@ test('便签和真实反馈中的地图格式统一按判别身份、精确阶�
     assert.deepEqual(query.type, { discriminator: 'map', option: '地图' }, fixture.id)
     assert.equal(query.filters.type_filters.filters.category.option, 'map', fixture.id)
     assert.deepEqual(query.filters.map_filters.filters.map_tier, { min: item.mapTier, max: item.mapTier }, fixture.id)
-    assert.equal(query.filters.misc_filters.filters.identified.option, String(!item.isUnidentified), fixture.id)
-    assert.equal(query.filters.misc_filters.filters.corrupted.option, String(item.isCorrupted), fixture.id)
+    const miscFilters = query.filters.misc_filters?.filters || {}
+    assert.equal(miscFilters.identified?.option, item.isUnidentified ? 'false' : undefined, fixture.id)
+    assert.equal(miscFilters.corrupted?.option, item.isCorrupted ? 'true' : undefined, fixture.id)
     if (item.rarity === '稀有') assert.equal(query.name, undefined, fixture.id)
   }
   const unidentifiedUnique = createPriceCheckModel(parseItemInfo(MAP_PRICE_CHECK_FIXTURES[0].text), catalog)

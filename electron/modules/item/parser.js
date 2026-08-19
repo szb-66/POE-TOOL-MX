@@ -1,3 +1,69 @@
+import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
+
+const CLASSIC_INFLUENCE_LABELS = Object.freeze(Object.fromEntries(
+  PRICE_CHECK_CLASSIC_INFLUENCES.flatMap(({ key, aliases }) => aliases.map((alias) => [alias, key]))
+))
+
+const stripInjectedPriceTag = (value) => String(value || '')
+  .replace(/\s*\[(?:\d+(?:\.\d+)?\s*[cd]\s*)+\]\s*$/i, '')
+  .trim()
+
+function parseMercenaryVoucher(lines) {
+  const firstSeparator = lines.indexOf('--------')
+  if (firstSeparator < 0) return null
+  const header = lines.slice(0, firstSeparator)
+  const category = header.find((line) => line.startsWith('物品类别:'))?.replace('物品类别:', '').trim()
+  if (category !== '地图碎片' || !header.some((line) => stripInjectedPriceTag(line) === '佣兵凭证')) return null
+
+  const sections = []
+  let current = []
+  for (let index = firstSeparator + 1; index <= lines.length; index += 1) {
+    const text = lines[index]
+    if (index === lines.length || text === '--------') {
+      if (current.length) sections.push(current)
+      current = []
+    } else {
+      current.push({ index, text })
+    }
+  }
+  const buildAt = sections.findIndex((section) => section.some(({ text }) => /^BD构建[：:]/.test(text)))
+  if (buildAt < 0) return null
+  const buildLine = sections[buildAt].find(({ text }) => /^BD构建[：:]/.test(text))?.text || ''
+  const levelLine = sections[buildAt].find(({ text }) => /^佣兵等级[：:]/.test(text))?.text || ''
+  const build = buildLine.replace(/^BD构建[：:]\s*/, '').trim()
+  const levelMatch = levelLine.match(/^佣兵等级[：:]\s*(\d+)$/)
+  if (!build) return null
+
+  const consumedIndexes = new Set()
+  for (const section of sections.slice(Math.max(0, buildAt - 1))) {
+    for (const { index } of section) consumedIndexes.add(index)
+  }
+  const skills = []
+  for (const section of sections.slice(buildAt + 1)) {
+    const texts = section.map(({ text }) => text)
+    if (texts.some((text) => text.startsWith('右键点击此物品查看佣兵详情') || text.includes('个人地图装置'))) break
+    const [name, ...supportLines] = texts
+    if (!name) continue
+    const supports = supportLines.map((text) => {
+      const match = text.match(/^(.*?)\s*[（(]\s*等阶\s*[：:]?\s*(\d+)\s*[）)]$/)
+      return {
+        text,
+        name: (match?.[1] || text).trim(),
+        tier: match ? Number(match[2]) : null
+      }
+    })
+    skills.push({ name, supports })
+  }
+  return {
+    consumedIndexes,
+    value: {
+      build,
+      level: levelMatch ? Number(levelMatch[1]) : 0,
+      skills
+    }
+  }
+}
+
 /**
  * Purpose: 解析剪切板中的物品信息，提取物品属性、词缀、插槽等信息
  * Inputs: clipboardText (string) - 从游戏剪切板复制的物品文本
@@ -13,6 +79,7 @@ export function parseItemInfo(clipboardText) {
   }
 
   const lines = clipboardText.split('\n').map(line => line.trim()).filter(line => line)
+  const mercenaryVoucher = parseMercenaryVoucher(lines)
   
   const itemInfo = {
     category: '',
@@ -50,6 +117,8 @@ export function parseItemInfo(clipboardText) {
     moreMaps: 0,
     moreScarabs: 0,
     moreCurrency: 0,
+    memoryLevel: null,
+    mercenary: mercenaryVoucher?.value || null,
     isCorrupted: false,
     isUnidentified: false,
     isMirrored: false,
@@ -68,9 +137,6 @@ export function parseItemInfo(clipboardText) {
   }
 
   let socketLine = ''
-  const stripInjectedPriceTag = (value) => String(value || '')
-    .replace(/\s*\[(?:\d+(?:\.\d+)?\s*[cd]\s*)+\]\s*$/i, '')
-    .trim()
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
   const extractMapTier = (text) => {
     if (!text) return 0
@@ -151,12 +217,7 @@ export function parseItemInfo(clipboardText) {
     '已腐化',
     '秽生',
     'Foulborn',
-    '裂界者物品',
-    '塑界者物品',
-    '圣战者物品',
-    '救赎者物品',
-    '狩猎者物品',
-    '督军物品',
+    ...Object.keys(CLASSIC_INFLUENCE_LABELS),
     '焚界者物品',
     '灭界者物品',
     '只能使用',
@@ -187,7 +248,7 @@ export function parseItemInfo(clipboardText) {
     '冰霜伤害:',
     '闪电伤害:',
     '混沌伤害:',
-    '回忆束丝:',
+    '回忆束丝',
     '需求:',
     '等级:',
     '力量:',
@@ -195,16 +256,14 @@ export function parseItemInfo(clipboardText) {
     '智慧:',
     '--------'
   ];
-  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern))
+  const isClusterJewel = () => /^(?:大型|中型|小型)星团珠宝$/.test(itemInfo.baseName || itemInfo.name)
+  const isClusterJewelDescriptionLine = (text) => isClusterJewel() &&
+    /^放入天赋树上配置好的.+珠宝槽。增加的天赋跟珠宝范围无关。可以右键点击从插槽中移除。$/.test(text)
+  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern)) ||
+    isClusterJewelDescriptionLine(text)
   const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
   const influenceLabels = {
-    '塑界之器': 'shaper',
-    '塑界者物品': 'shaper',
-    '裂界者物品': 'elder',
-    '圣战者物品': 'crusader',
-    '救赎者物品': 'redeemer',
-    '狩猎者物品': 'hunter',
-    '督军物品': 'warlord',
+    ...CLASSIC_INFLUENCE_LABELS,
     '忆境物品': 'synthesised',
     '焚界者物品': 'searing-exarch',
     '灭界者物品': 'eater-of-worlds'
@@ -217,6 +276,8 @@ export function parseItemInfo(clipboardText) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+
+    if (mercenaryVoucher?.consumedIndexes.has(i)) continue
 
     const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
     if (chartShapeMatch) {
@@ -357,6 +418,9 @@ export function parseItemInfo(clipboardText) {
     else if (line === '分裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {
       itemInfo.isFractured = true
     }
+    else if (/^回忆束丝[：:]\s*\d+$/.test(line)) {
+      itemInfo.memoryLevel = Number(line.match(/\d+$/)[0])
+    }
     else if (/^(?:秽生(?:物品)?|Foulborn(?: Item)?)$/i.test(line)) {
       itemInfo.isMutated = true
     }
@@ -466,8 +530,21 @@ export function parseItemInfo(clipboardText) {
       }
     }
     else if (line.includes('(enchant)')) {
-       // 附魔词缀，暂时忽略或归类
-       continue;
+      const original = line.replace(/\s*\(enchant\)\s*$/i, '').trim()
+      if (original && !isExplanationLine(original)) {
+        const text = cleanModifierLine(original)
+        itemInfo.modifiers.push({
+          type: 'enchant',
+          affixType: null,
+          name: '',
+          tier: 0,
+          tags: [],
+          lines: [text],
+          text,
+          originalLines: [original]
+        })
+      }
+      continue
     }
     else if (itemInfo.category === '海图' && !seenItemLevel && !itemInfo.areaName && line && !line.includes(':')) {
       itemInfo.areaName = line

@@ -24,36 +24,74 @@ const bounds = (values) => {
   return value < 0 ? { min: undefined, max: value } : { min: value, max: undefined }
 }
 
-test('状态白名单创建严格默认值并拒绝未知键和非法三态', () => {
-  const facts = Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key }, index) => [key, index % 2 === 0]))
+test('状态白名单区分明确肯定、未鉴定否定和任意默认', () => {
+  const facts = { identified: true, corrupted: false, mirrored: true, split: true }
   const created = createPriceCheckStateFilters(facts)
-  assert.equal(created.identified, 'true')
-  assert.equal(created.corrupted, 'false')
-  assert.equal(created.mirrored, 'any')
-  const sanitized = sanitizePriceCheckStateFilters({ ...created, corrupted: 'invalid', injected: 'true' }, facts)
-  assert.equal(sanitized.corrupted, 'false')
+  assert.equal(created.identified, 'any')
+  assert.equal(created.corrupted, 'any')
+  assert.equal(created.mirrored, 'true')
+  assert.equal(created.split, 'true')
+  assert.equal(created.fractured, 'any')
+  const sanitized = sanitizePriceCheckStateFilters({ ...created, corrupted: 'invalid', split: 'false', injected: 'true' }, facts)
+  assert.equal(sanitized.corrupted, 'any')
+  assert.equal(sanitized.split, 'false')
   assert.equal('injected' in sanitized, false)
+  const unidentified = createPriceCheckStateFilters({ ...facts, identified: false })
+  assert.equal(unidentified.identified, 'false')
+  assert.equal(sanitizePriceCheckStateFilters({ identified: 'invalid' }, { identified: false }).identified, 'false')
 })
 
-test('秽生与已有状态事实解析为当前物品三态且复制默认任意', async () => {
+test('秽生与已有状态事实解析为是且其余状态默认任意', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const item = parseItemInfo([
     '物品类别: 手套', '稀 有 度: 稀有', '测试手套', '术士手套', '--------',
-    '物品等级: 86', '--------', '秽生物品', '忆境物品', '焚界者物品', '灭界者物品', '分裂之物', '已分裂', '已腐化'
+    '物品等级: 86', '--------', '秽生物品', '忆境物品', '焚界者物品', '灭界者物品', '分裂之物', '已分裂', '已复制', '已腐化'
   ].join('\n'))
   const model = createPriceCheckModel(item, catalog, { initialSelection: 'none' })
   assert.equal(item.isMutated, true)
   assert.deepEqual(model.facts, {
-    identified: true, corrupted: true, mirrored: false, fractured: true, split: true,
+    identified: true, corrupted: true, mirrored: true, fractured: true, split: true,
     mutated: true, synthesised: true, searing: true, tangled: true, crafted: false, veiled: false
   })
-  assert.equal(model.stateFilters.mirrored, 'any')
-  assert.equal(model.stateFilters.mutated, 'true')
+  assert.deepEqual(model.stateFilters, {
+    identified: 'any', corrupted: 'true', mirrored: 'true', fractured: 'true', split: 'true',
+    mutated: 'true', synthesised: 'true', searing: 'true', tangled: 'true', crafted: 'any', veiled: 'any'
+  })
+})
+
+test('工艺和影匿词缀明确存在时初始化为是', async () => {
+  const { catalog } = await loadTradeCatalog(catalogPath)
+  const model = createPriceCheckModel({
+    category: '项链', rarity: '稀有', name: '测试', baseName: '瑚珀护身符',
+    modifiers: [
+      { type: 'crafted', text: '+10 最大生命' },
+      { type: 'veiled', name: '艾尔雷恩的影匿', text: '影匿前缀' }
+    ]
+  }, catalog, { initialSelection: 'none' })
+  assert.equal(model.facts.crafted, true)
+  assert.equal(model.facts.veiled, true)
+  assert.equal(model.stateFilters.crafted, 'true')
+  assert.equal(model.stateFilters.veiled, 'true')
+  assert.equal(model.stateFilters.identified, 'any')
+})
+
+test('复制文本明确包含未鉴定时已鉴定条件默认为否', async () => {
+  const { catalog } = await loadTradeCatalog(catalogPath)
+  const item = parseItemInfo([
+    '物品类别: 深渊珠宝', '稀 有 度: 稀有', '凶残之凝珠', '--------',
+    '深渊', '--------', '物品等级: 85', '--------', '未鉴定'
+  ].join('\n'))
+  const model = createPriceCheckModel(item, catalog, { initialSelection: 'none' })
+  assert.equal(model.facts.identified, false)
+  assert.equal(model.stateFilters.identified, 'false')
+  assert.equal(buildOfficialTradeQuery(model).query.filters.misc_filters.filters.identified.option, 'false')
 })
 
 test('所有非任意状态使用国服官方 misc_filters 字段并保持已鉴定正向语义', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const model = createPriceCheckModel({ category: '手套', rarity: '稀有', name: '测试', baseName: '术士手套' }, catalog, { initialSelection: 'none' })
+  const defaults = buildOfficialTradeQuery(model).query.filters.misc_filters?.filters || {}
+  for (const { officialKey } of PRICE_CHECK_STATE_FILTERS) assert.equal(defaults[officialKey], undefined, officialKey)
   model.stateFilters = Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key }) => [key, 'true']))
   model.stateFilters.mirrored = 'any'
   const filters = buildOfficialTradeQuery(model).query.filters.misc_filters.filters
@@ -73,10 +111,19 @@ test('旧布尔模型迁移为三态并由可信事实阻止渲染层篡改事�
   })
   assert.equal(legacy.facts.identified, false)
   assert.equal(legacy.stateFilters.corrupted, 'true')
-  assert.equal(legacy.stateFilters.mirrored, 'any')
+  assert.equal(legacy.stateFilters.mirrored, 'true')
+  assert.equal(legacy.stateFilters.identified, 'false')
+  assert.equal(legacy.stateFilters.fractured, 'any')
+  assert.equal(legacy.stateFilters.split, 'any')
 
-  const edited = sanitizePriceCheckModel({ ...legacy, facts: { ...legacy.facts, corrupted: false } }, null, { ...legacy.facts, corrupted: true })
+  const edited = sanitizePriceCheckModel({
+    ...legacy,
+    facts: { ...legacy.facts, corrupted: false },
+    stateFilters: { ...legacy.stateFilters, corrupted: 'invalid', split: 'false' }
+  }, null, { ...legacy.facts, corrupted: true })
   assert.equal(edited.facts.corrupted, true)
+  assert.equal(edited.stateFilters.corrupted, 'true')
+  assert.equal(edited.stateFilters.split, 'false')
 })
 
 test('固定综合规则目录无缺口且综合跨来源汇总倍率、替换和恢复偷取', async () => {

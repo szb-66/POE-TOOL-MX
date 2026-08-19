@@ -150,10 +150,45 @@
                 </select>
               </template>
               <template v-else>
-                <input v-model.number="property.min" class="number" type="number" placeholder="最小" @click.stop @keydown.stop />
-                <input v-model.number="property.max" class="number" type="number" placeholder="最大" @click.stop @keydown.stop />
+                <input v-model.number="property.min" class="number" type="number" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" placeholder="最小" @click.stop @keydown.stop />
+                <input v-model.number="property.max" class="number" type="number" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" placeholder="最大" @click.stop @keydown.stop />
               </template>
             </div>
+          </div>
+        </section>
+
+        <section v-if="state.model.mercenarySkillGroups?.length" class="panel mercenary-panel">
+          <h3>技能组</h3>
+          <div
+            v-for="group in state.model.mercenarySkillGroups"
+            :key="group.key"
+            class="mercenary-group"
+            :class="{ enabled: group.enabled }"
+          >
+            <div
+              class="mercenary-skill"
+              role="checkbox"
+              :aria-checked="group.enabled"
+              tabindex="0"
+              @click="toggleMercenaryGroup(group)"
+              @keydown.enter.prevent="toggleMercenaryGroup(group)"
+              @keydown.space.prevent="toggleMercenaryGroup(group)"
+            >
+              <span class="mercenary-label">技能组</span>
+              <strong>{{ group.skill.text }}</strong>
+            </div>
+            <div v-if="group.supports?.length" class="mercenary-supports">
+              <button
+                v-for="support in group.supports"
+                :key="support.key"
+                type="button"
+                class="mercenary-support"
+                :class="{ enabled: support.enabled }"
+                :aria-pressed="support.enabled"
+                @click="toggleMercenarySupport(group, support)"
+              >{{ support.name }}<small v-if="support.tier">（等阶 {{ support.tier }}）</small></button>
+            </div>
+            <small v-else class="mercenary-empty">此主动技能没有辅助技能</small>
           </div>
         </section>
 
@@ -393,6 +428,11 @@ function openOfficial() {
 }
 function copyWhisper(text) { void electronApi.clipboard.writeText(text) }
 function toggleFilter(filter) { filter.enabled = !filter.enabled }
+function toggleMercenaryGroup(group) { group.enabled = !group.enabled }
+function toggleMercenarySupport(group, support) {
+  support.enabled = !support.enabled
+  if (support.enabled) group.enabled = true
+}
 function toggleNameFilter() {
   const identity = state.value?.model?.identity
   if (!identity?.name) return
@@ -502,6 +542,22 @@ h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; padding: 2px 0; font
 .property-option { width: 100%; }
 .information-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; color: #cbd0dc; }
 .information-panel small { display: block; margin-top: 5px; }
+.mercenary-panel { max-height: 360px; overflow-y: auto; padding: 5px; }
+.mercenary-group { margin-top: 5px; padding: 6px; border: 1px dashed #464d5a; border-radius: 5px; background: #171920; }
+.mercenary-group:first-of-type { margin-top: 0; }
+.mercenary-group.enabled { border-style: solid; border-color: #c98922; background: #332815; }
+.mercenary-skill { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 2px 5px; border-radius: 4px; cursor: pointer; }
+.mercenary-skill:hover { background: #252a34; }
+.mercenary-group.enabled .mercenary-skill:hover { background: #44351c; }
+.mercenary-skill:focus-visible { outline: 1px solid #f0a82f; }
+.mercenary-skill strong { color: #d8dbe3; font-size: 13px; }
+.mercenary-group.enabled .mercenary-skill strong { color: #ffbd32; }
+.mercenary-label { padding: 2px 5px; color: #cfb4f3; background: #4a2c68; border-radius: 3px; }
+.mercenary-supports { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 5px 0 82px; }
+.mercenary-support { padding: 3px 7px; color: #aaaeb8; background: #1a1c22; border-color: #454952; }
+.mercenary-support.enabled { color: #f0e7ff; background: #49325e; border-color: #ba8de1; }
+.mercenary-support small { margin-left: 3px; color: inherit; }
+.mercenary-empty { display: block; padding: 2px 5px 0 82px; color: #747985; }
 .stat-row, .unknown { grid-template-columns: 46px 34px minmax(0, 1fr) 64px 64px; }
 .stat-source { display: inline-flex; justify-content: center; padding: 3px 4px; border: 1px solid currentColor; border-radius: 3px; font-size: 10px; font-weight: 700; }
 .stat-source-pseudo { color: #d9a5ff; background: #342444; }

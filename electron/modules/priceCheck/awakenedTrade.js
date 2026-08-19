@@ -37,7 +37,7 @@ function statToQuery(stat) {
   }
 }
 
-export function createAwakenedTradeRequest(filters, stats) {
+export function createAwakenedTradeRequest(filters, stats, mercenarySkillGroups = []) {
   const body = {
     query: {
       status: {
@@ -116,6 +116,7 @@ export function createAwakenedTradeRequest(filters, stats) {
   range('misc_filters.filters.ilvl', filters.misc?.itemLevel)
   range('misc_filters.filters.quality', filters.misc?.quality)
   range('misc_filters.filters.gem_level', filters.misc?.gemLevel)
+  range('misc_filters.filters.memory_level', filters.misc?.memoryLevel)
   range('socket_filters.filters.links', filters.socket?.links)
   range('map_filters.filters.map_tier', filters.map?.tier)
   range('map_filters.filters.map_iiq', filters.map?.iiq)
@@ -128,5 +129,17 @@ export function createAwakenedTradeRequest(filters, stats) {
   }
 
   query.stats[0].filters.push(...stats.filter((stat) => stat.enabled).map(statToQuery))
+  for (const group of mercenarySkillGroups) {
+    if (!group?.enabled || !group.skill?.id) continue
+    const ids = [
+      group.skill.id,
+      ...(group.supports || []).filter((support) => support.enabled).map((support) => support.id)
+    ]
+    query.stats.push({
+      type: 'mercenary',
+      value: { min: ids.length },
+      filters: ids.map((id) => ({ id }))
+    })
+  }
   return body
 }
