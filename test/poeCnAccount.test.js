@@ -19,6 +19,19 @@ test('查价器升级后缺失 enabled 时统一默认关闭', () => {
   assert.equal(normalizePriceCheckSettings({ enabled: true }).enabled, true)
 })
 
+test('立即查价对旧设置和非法值默认关闭并保留显式选择', () => {
+  assert.equal(normalizePriceCheckSettings({}).queryImmediately, false)
+  assert.equal(normalizePriceCheckSettings({ queryImmediately: 'true' }).queryImmediately, false)
+  assert.equal(normalizePriceCheckSettings({ queryImmediately: true }).queryImmediately, true)
+})
+
+test('旧数值下浮设置被忽略且不会进入后续保存载荷', () => {
+  for (const valueRange of ['down10', 'down20', 'unlimited']) {
+    const normalized = normalizePriceCheckSettings({ enabled: true, valueRange })
+    assert.equal('valueRange' in normalized, false)
+  }
+})
+
 test('全局赛季迁移优先商城配方并删除旧模块字段', () => {
   const storage = storageFrom({
     chaosRecipeSettings: JSON.stringify({ league: '商城赛季', selectedTabIds: ['1'] }),

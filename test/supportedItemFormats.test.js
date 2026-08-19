@@ -70,6 +70,7 @@ test('航海海图样例解析身份、奖励数值和特殊状态', () => {
   assert.equal(identified.areaLevel, 83)
   assert.equal(identified.itemRarity, 98)
   assert.equal(identified.deadmanSulphur, 30)
+  assert.equal(identified.chartShape, '直线')
   assert.equal(identified.detailedMods[1].lines.length, 2)
   assert.equal(identified.explicitMods.some(mod => mod.includes('完成测绘')), false)
   assert.equal(identified.explicitMods.some(mod => mod.includes('瓦莱丽')), false)

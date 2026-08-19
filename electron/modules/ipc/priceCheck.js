@@ -44,6 +44,7 @@ export function registerPriceCheckHandlers(service) {
   ipcMain.handle('price-check-catalog-retry', invoke(async () => broadcastCatalog(await service.refreshCatalog())))
   ipcMain.handle('price-check-capture', invoke((request) => service.captureAndCheck({
     league: String(request?.league || ''),
+    queryImmediately: request?.queryImmediately === true,
     options: request?.options || {}
   })))
   ipcMain.handle('price-check-rerun', invoke((request) => service.rerun(request || {})))

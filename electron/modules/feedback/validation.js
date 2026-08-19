@@ -7,6 +7,8 @@ export const MAX_TOTAL_BYTES = 30 * 1024 * 1024
 
 export const FEEDBACK_CATEGORIES = new Set(['bug', 'operation', 'data', 'suggestion', 'other'])
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 const MIME_BY_EXTENSION = Object.freeze({
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
   '.txt': 'text/plain', '.log': 'text/plain', '.json': 'application/json', '.md': 'text/markdown',
@@ -43,16 +45,34 @@ export function validateFeedbackInput(input = {}) {
   if (!FEEDBACK_CATEGORIES.has(category)) {
     throw new FeedbackValidationError('FEEDBACK_CATEGORY_INVALID', '请选择反馈类型')
   }
-  if (textLength(title) < 5 || textLength(title) > 80) {
-    throw new FeedbackValidationError('FEEDBACK_TITLE_INVALID', '标题需为 5–80 个字符')
+  if (!textLength(title)) {
+    throw new FeedbackValidationError('FEEDBACK_TITLE_INVALID', '请输入标题')
   }
-  if (textLength(description) < 20 || textLength(description) > 2000) {
-    throw new FeedbackValidationError('FEEDBACK_DESCRIPTION_INVALID', '详细描述需为 20–2000 个字符')
+  if (textLength(title) > 80) {
+    throw new FeedbackValidationError('FEEDBACK_TITLE_INVALID', '标题不能超过 80 个字符')
+  }
+  if (!textLength(description)) {
+    throw new FeedbackValidationError('FEEDBACK_DESCRIPTION_INVALID', '请输入详细描述')
+  }
+  if (textLength(description) > 2000) {
+    throw new FeedbackValidationError('FEEDBACK_DESCRIPTION_INVALID', '详细描述不能超过 2000 个字符')
   }
   if (textLength(contact) > 200) {
     throw new FeedbackValidationError('FEEDBACK_CONTACT_INVALID', '联系方式不能超过 200 个字符')
   }
   return { category, title, description, contact: contact || null }
+}
+
+export function validateDiagnosticCaptureInput(input = {}) {
+  const captureId = input?.diagnosticCaptureId
+  if (captureId === undefined || captureId === null || captureId === '') return null
+  if (input.includeDiagnostics !== true) {
+    throw new FeedbackValidationError('FEEDBACK_DIAGNOSTIC_CAPTURE_REQUIRES_CONSENT', '诊断会话只能在附带脱敏诊断时提交')
+  }
+  if (typeof captureId !== 'string' || !UUID_PATTERN.test(captureId)) {
+    throw new FeedbackValidationError('FEEDBACK_DIAGNOSTIC_CAPTURE_INVALID', '诊断会话标识无效，请重新开始诊断')
+  }
+  return captureId.toLowerCase()
 }
 
 export function attachmentMimeType(fileName) {

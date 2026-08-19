@@ -183,10 +183,11 @@ test('导出写入失败返回稳定错误且不泄露目标路径', async () =>
   assert.doesNotMatch(JSON.stringify(result), /Alice|secret/)
 })
 
-test('诊断 IPC、preload 与首页暴露 v3 载荷、会话和安全事件通道', () => {
+test('诊断 IPC、preload 与问题反馈页暴露 v3 载荷、会话和安全事件通道', () => {
   const ipc = readFileSync(new URL('../electron/modules/ipc/system.js', import.meta.url), 'utf8')
   const preload = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
+  const controller = readFileSync(new URL('../src/composables/useDiagnostics.js', import.meta.url), 'utf8')
   assert.match(ipc, /system-record-diagnostic-event/)
   assert.match(ipc, /exportDiagnosticsFile/)
   assert.match(preload, /system-get-diagnostics/)
@@ -196,4 +197,6 @@ test('诊断 IPC、preload 与首页暴露 v3 载荷、会话和安全事件通�
   assert.match(preload, /system-diagnostic-capture-finish/)
   assert.match(dashboard, /rendererHealth/)
   assert.match(dashboard, /reasonCode/)
+  assert.match(controller, /prepareDiagnosticCaptureForFeedback/)
+  assert.match(controller, /getRendererDiagnosticContext/)
 })

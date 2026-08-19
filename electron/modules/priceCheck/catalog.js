@@ -2,8 +2,13 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { enrichOfficialItemsWithImages } from './uniqueItemSnapshot.js'
+import {
+  CHART_BASE_TYPES,
+  CHART_REGION_ALIASES_VERSION,
+  chartRegionByType
+} from './chartRegions.js'
 
-export const TRADE_CATALOG_SCHEMA_VERSION = 2
+export const TRADE_CATALOG_SCHEMA_VERSION = 4
 export const TRADE_CATALOG_STALE_MS = 180 * 24 * 60 * 60 * 1000
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -36,7 +41,8 @@ export function isTradeStatId(id, type = '') {
   const value = compact(id)
   const expectedType = compact(type)
   if (expectedType && !SUPPORTED_STAT_TYPES.has(expectedType)) return false
-  return /^[a-z][a-z0-9_]*\.[a-z0-9_]+(?:\|\d+)*$/.test(value)
+  if (!/^[a-z][a-z0-9_]*\.[a-z0-9_]+(?:\|\d+)*$/.test(value)) return false
+  return !expectedType || value.startsWith(`${expectedType}.`)
 }
 
 function statIds(entry) {
@@ -54,23 +60,92 @@ function assertUnique(values, label) {
   }
 }
 
+function chartDisplayName(entry) {
+  return compact(entry?.text).match(/Chart\s*[（(](.+?)[）)]/)?.[1] || ''
+}
+
+export function enrichTradeCatalogChartRegions(catalog) {
+  const next = structuredClone(catalog)
+  next.chartRegionAliasesVersion = CHART_REGION_ALIASES_VERSION
+  next.items = (next.items || []).map((entry) => {
+    const type = compact(entry.baseType || entry.type)
+    const region = entry.discriminator === 'chart' ? chartRegionByType(type) : null
+    if (region) {
+      return {
+        ...entry,
+        category: 'chart',
+        displayName: region.displayName || chartDisplayName(entry),
+        aliases: [...new Set([...region.aliases, chartDisplayName(entry)].map(compact).filter(Boolean))]
+      }
+    }
+    if (CHART_BASE_TYPES.includes(type)) return { ...entry, category: 'chart' }
+    return entry
+  })
+  return next
+}
+
+export function resolveChartRegion(catalog, value) {
+  const key = compact(value).replace(/\s+/g, '')
+  if (!key) return null
+  const matches = (catalog?.items || []).filter((entry) => (
+    entry.category === 'chart' && entry.discriminator === 'chart' &&
+    [entry.displayName, ...(entry.aliases || [])].some((alias) => compact(alias).replace(/\s+/g, '') === key)
+  ))
+  if (matches.length !== 1) return null
+  const entry = matches[0]
+  return {
+    type: compact(entry.baseType || entry.type),
+    displayName: compact(entry.displayName),
+    aliases: [...(entry.aliases || [])]
+  }
+}
+
 export function validateTradeCatalog(catalog) {
   if (!catalog || typeof catalog !== 'object') throw new Error('交易目录不是对象')
+  if (catalog.chartRegionAliasesVersion !== CHART_REGION_ALIASES_VERSION) {
+    catalog = enrichTradeCatalogChartRegions(catalog)
+  }
   if (catalog.schemaVersion !== TRADE_CATALOG_SCHEMA_VERSION) {
     throw new Error(`交易目录 schema 不兼容：${catalog.schemaVersion}`)
   }
   if (catalog.game !== 'poe1' || catalog.locale !== 'zh-CN') throw new Error('交易目录游戏或语言无效')
   if (!catalog.gameVersion || !Number.isFinite(Date.parse(catalog.generatedAt))) throw new Error('交易目录版本元数据缺失')
-  if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats)) throw new Error('交易目录记录结构无效')
+  if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats) || !Array.isArray(catalog.pseudoRules)) {
+    throw new Error('交易目录记录结构无效')
+  }
+  if (!compact(catalog.pseudoRuleVersion) || !compact(catalog.pseudoRuleSource?.commit) || !compact(catalog.pseudoRuleSource?.file)) {
+    throw new Error('交易目录综合规则版本元数据缺失')
+  }
 
   assertUnique(catalog.items.map((entry) => compact(entry.key || `${entry.name}:${entry.baseType || entry.type || ''}:${entry.discriminator || ''}`)), '物品键')
   for (const entry of catalog.items) {
     if (!compact(entry.name) || !compact(entry.baseType || entry.type)) throw new Error('交易目录物品缺少名称或底材')
+    if (entry.aliases != null && (!Array.isArray(entry.aliases) || entry.aliases.some((alias) => !compact(alias)))) {
+      throw new Error(`交易目录物品 ${entry.key} 的别名无效`)
+    }
+    if (entry.discriminator === 'chart' && (
+      entry.category !== 'chart' || !compact(entry.displayName) || !entry.aliases?.length
+    )) throw new Error(`交易目录海图区域 ${entry.key} 元数据无效`)
   }
+  const chartAliases = catalog.items.flatMap((entry) => entry.discriminator === 'chart'
+    ? (entry.aliases || []).map((alias) => compact(alias).replace(/\s+/g, ''))
+    : [])
+  assertUnique(chartAliases, '海图区域别名')
   assertUnique(catalog.stats.map((entry) => compact(entry.key)), '词缀键')
   const statIdentities = []
   for (const entry of catalog.stats) {
     if (!entry.key || !Array.isArray(entry.matchers) || !entry.matchers.length) throw new Error('交易目录词缀缺少 matcher')
+    if (entry.negatedMatchers != null && (
+      !Array.isArray(entry.negatedMatchers) ||
+      entry.negatedMatchers.some((matcher) => !compact(matcher))
+    )) throw new Error(`交易目录词缀 ${entry.key} 的负向 matcher 无效`)
+    if (entry.negatedMatchers && entry.negatedMatchers.length !== new Set(entry.negatedMatchers.map(compact)).size) {
+      throw new Error(`交易目录词缀 ${entry.key} 的负向 matcher 重复`)
+    }
+    const matcherSet = new Set(entry.matchers.map(compact))
+    if ((entry.negatedMatchers || []).some((matcher) => !matcherSet.has(compact(matcher)))) {
+      throw new Error(`交易目录词缀 ${entry.key} 的负向 matcher 必须属于同一词缀的 matcher 集合`)
+    }
     const ids = statIds(entry)
     if (!ids.length || ids.some(({ type, id }) => !SUPPORTED_STAT_TYPES.has(type) || !isTradeStatId(id, type))) {
       throw new Error(`交易目录词缀 ${entry.key} 的 stat ID 无效`)
@@ -78,6 +153,10 @@ export function validateTradeCatalog(catalog) {
     if (entry.categories != null && (!Array.isArray(entry.categories) || entry.categories.some((value) => !compact(value)))) {
       throw new Error(`交易目录词缀 ${entry.key} 的类别无效`)
     }
+    if (entry.refs != null && (!Array.isArray(entry.refs) || entry.refs.some((value) => !compact(value)))) {
+      throw new Error(`交易目录词缀 ${entry.key} 的稳定 ref 无效`)
+    }
+    if (entry.refs && entry.refs.length !== new Set(entry.refs).size) throw new Error(`交易目录词缀 ${entry.key} 的稳定 ref 重复`)
     if (entry.merge != null && !MERGE_STRATEGIES.has(entry.merge)) {
       throw new Error(`交易目录词缀 ${entry.key} 的合并策略无效`)
     }
@@ -94,7 +173,53 @@ export function validateTradeCatalog(catalog) {
     }
   }
   assertUnique(statIdentities, '词缀类型 ID')
+  assertUnique(catalog.pseudoRules.map((rule) => compact(rule?.target)), '综合规则目标')
+  for (const [index, rule] of catalog.pseudoRules.entries()) {
+    if (!compact(rule?.target) || !Array.isArray(rule?.sources) || !rule.sources.length) {
+      throw new Error(`交易目录综合规则 ${index + 1} 结构无效`)
+    }
+    if (rule.sources.some((source) => !compact(source?.ref) || (
+      source.multiplier != null && !Number.isFinite(source.multiplier)
+    ))) throw new Error(`交易目录综合规则 ${rule.target} 的来源无效`)
+  }
   return catalog
+}
+
+export function auditPseudoRules(catalog) {
+  const refs = new Map()
+  for (const entry of catalog.stats || []) {
+    for (const ref of entry.refs || []) {
+      const records = refs.get(ref) || []
+      records.push(...statIds(entry).map(({ type, id }) => ({ type, id, key: entry.key })))
+      refs.set(ref, records)
+    }
+  }
+  const missingTargets = []
+  const ambiguousTargets = []
+  const invalidTargetNamespaces = []
+  const missingSources = []
+  const rules = []
+  for (const rule of catalog.pseudoRules || []) {
+    const allTargets = refs.get(rule.target) || []
+    const targets = allTargets.filter(({ type }) => type === 'pseudo')
+    const targetIds = [...new Set(targets.map(({ id }) => id))]
+    const absentSources = rule.sources.map(({ ref }) => ref).filter((ref) => !refs.has(ref))
+    if (!targetIds.length) missingTargets.push(rule.target)
+    if (targetIds.length > 1) ambiguousTargets.push(rule.target)
+    if (!targets.length && allTargets.some(({ type }) => type !== 'pseudo')) invalidTargetNamespaces.push(rule.target)
+    missingSources.push(...absentSources)
+    rules.push({ target: rule.target, targetId: targetIds.length === 1 ? targetIds[0] : null, missingSources: absentSources })
+  }
+  return {
+    version: catalog.pseudoRuleVersion,
+    total: (catalog.pseudoRules || []).length,
+    usable: rules.filter(({ targetId }) => targetId).length,
+    missingTargets: [...new Set(missingTargets)],
+    ambiguousTargets: [...new Set(ambiguousTargets)],
+    invalidTargetNamespaces: [...new Set(invalidTargetNamespaces)],
+    missingSources: [...new Set(missingSources)],
+    rules
+  }
 }
 
 export function tradeCatalogStatus(catalog, now = Date.now()) {
@@ -134,6 +259,7 @@ function officialItems(payload, uniqueItemCatalog = null) {
   const items = []
   const seen = new Set()
   for (const group of payload.result) {
+    const category = compact(group?.id)
     for (const entry of group?.entries || []) {
       const baseType = compact(entry?.type)
       const unique = entry?.flags?.unique === true
@@ -149,11 +275,13 @@ function officialItems(payload, uniqueItemCatalog = null) {
         baseType,
         text: compact(entry?.text),
         discriminator,
+        category,
         unique
       })
     }
   }
-  return enrichOfficialItemsWithImages(items, uniqueItemCatalog)
+  const enrichedItems = enrichTradeCatalogChartRegions({ items }).items
+  return enrichOfficialItemsWithImages(enrichedItems, uniqueItemCatalog)
 }
 
 export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(), itemsPayload = null, uniqueItemCatalog = null) {
@@ -199,22 +327,39 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
           ...official.matchers,
           ...entry.matchers.map(compact).filter(isUsableMatcher)
         ])]
+        if (entry.negatedMatchers?.length) {
+          official.negatedMatchers = [...new Set([
+            ...(official.negatedMatchers || []),
+            ...entry.negatedMatchers.map(compact).filter((matcher) => official.matchers.includes(matcher))
+          ])]
+        }
         official.local ||= Boolean(entry.local)
         if (entry.availability === 'international' || entry.availability === 'both') official.availability = 'both'
         if (entry.categories) official.categories = structuredClone(entry.categories)
         if (entry.merge) official.merge = entry.merge
         if (entry.resolver) official.resolver = structuredClone(entry.resolver)
+        if (entry.refs?.length) official.refs = [...new Set([...(official.refs || []), ...entry.refs.map(compact).filter(Boolean)])]
       } else if (entry.availability === 'international' || entry.availability === 'both') {
         missingIds[type] = id
       }
     }
     if (Object.keys(missingIds).length) {
       const matchers = entry.matchers.map(compact).filter(isUsableMatcher)
-      if (matchers.length) stats.push({ ...structuredClone(entry), matchers, availability: 'international', ids: missingIds })
+      if (matchers.length) {
+        const { negatedMatchers: _negatedMatchers, ...clonedEntry } = structuredClone(entry)
+        const negatedMatchers = entry.negatedMatchers?.map(compact).filter((matcher) => matchers.includes(matcher)) || []
+        stats.push({
+          ...clonedEntry,
+          matchers,
+          ...(negatedMatchers.length ? { negatedMatchers } : {}),
+          availability: 'international',
+          ids: missingIds
+        })
+      }
     }
   }
   if (stats.length < 100) throw new Error('腾讯官方词缀目录记录数异常')
-  const catalog = validateTradeCatalog({
+  const catalog = validateTradeCatalog(enrichTradeCatalogChartRegions({
     ...structuredClone(baseCatalog),
     schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
     generatedAt: new Date(now).toISOString(),
@@ -224,7 +369,7 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
       ? officialItems(itemsPayload, uniqueItemCatalog)
       : enrichOfficialItemsWithImages(structuredClone(baseCatalog.items), uniqueItemCatalog),
     stats
-  })
+  }))
   return {
     catalog,
     status: {
@@ -330,7 +475,8 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
       continue
     }
     if (!matchesResolver(entry, normalized, context)) continue
-    const values = match.slice(1).map(Number).filter(Number.isFinite)
+    const multiplier = entry.negatedMatchers?.includes(matcher) ? -1 : 1
+    const values = match.slice(1).map(Number).filter(Number.isFinite).map((value) => value * multiplier)
     for (const id of Array.isArray(rawIds) ? rawIds : [rawIds]) {
       candidates.push({
         key: entry.key,
@@ -338,7 +484,10 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
         id,
         matcher,
         values,
+        valueMultiplier: multiplier,
         type,
+        refs: [...(entry.refs || [])],
+        ref: entry.refs?.length === 1 ? entry.refs[0] : null,
         categories: [...(entry.categories || [])],
         merge: entry.merge || null,
         local: Boolean(entry.local)

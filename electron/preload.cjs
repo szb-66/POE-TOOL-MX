@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  emergencyStopAll: () => ipcRenderer.invoke('emergency-stop-all'),
   reportStartupEvent: (event) => ipcRenderer.send('startup-report', event),
   executePython: (scriptPath, args) => {
     return ipcRenderer.invoke('execute-python', scriptPath, args)

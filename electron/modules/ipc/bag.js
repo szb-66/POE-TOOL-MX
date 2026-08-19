@@ -61,6 +61,18 @@ function syncBagOverlay() {
   bagWindowApi.updateBagStashOverlay(currentOverlaySnapshot())
 }
 
+export function stopBagStashAutomation(reason = 'user') {
+  const child = stashProcess
+  const stopped = Boolean(child)
+  stashProcess = null
+  stopChild(child)
+  session.finishStash()
+  automationLock?.release('自动入库')
+  syncBagOverlay()
+  if (stopped) send('bag-stash-stopped', { reason })
+  return { success: true, stopped }
+}
+
 function runtimeConfig(config = {}) {
   return {
     immediateStash: config.immediateStash !== false,
@@ -450,15 +462,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     overlay.setBounds(getBagOverlayDragBounds(requested, workArea), false)
   })
 
-  ipcMain.handle('stop-bag-stash', async () => {
-    const child = stashProcess
-    stashProcess = null
-    stopChild(child)
-    session.finishStash()
-    automationLock?.release('自动入库')
-    syncBagOverlay()
-    return { success: true }
-  })
+  ipcMain.handle('stop-bag-stash', async () => stopBagStashAutomation())
 
   ipcMain.handle('upload-bag-template', async (_event, sourcePath, type) => {
     try {

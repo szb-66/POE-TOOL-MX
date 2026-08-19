@@ -118,3 +118,48 @@
 #### Scenario: 当前国际服参考格式回归
 - **WHEN** 回放当前仍在维护的国际服查价器已覆盖的普通 `(fractured)` 与详细 `Fractured Prefix/Suffix Modifier` 格式
 - **THEN** 系统自动恢复 fractured 类型且不要求用户选择词缀类型
+
+### Requirement: 所有受支持官方 stat 类型具有一致来源身份
+系统 SHALL 保留并展示官方交易目录中受支持的 `pseudo`、`explicit`、`implicit`、`enchant`、`fractured`、`crafted`、`veiled`、`scourge`、`imbued`、`delve`、`sanctum`、`mercenary`、`crucible` 和 `ultimatum` 类型，且 MUST 在解析、模型清理和查询提交过程中保持类型与 ID namespace 一致。
+
+#### Scenario: 详细文本包含特殊来源
+- **WHEN** 当前游戏详细复制文本明确标记任一受支持特殊来源
+- **THEN** 系统使用同类型官方 ID、显示对应来源标签且不回退为 `explicit`
+
+#### Scenario: 渲染进程伪造类型
+- **WHEN** 渲染进程提交的类型与 stat ID namespace 不一致
+- **THEN** 主进程从模型中移除该条件且不得发送官方请求
+
+### Requirement: 综合覆盖可量化且可查询
+系统 MUST 对固定综合规则集执行可重复覆盖审计，报告规则总数、可用目标、可用来源、缺失项和被安全省略项，并 SHALL 通过真实物品语料证明生成的综合条件可由腾讯国服官方市集接受。
+
+#### Scenario: 综合规则覆盖审计
+- **WHEN** 开发版对内置或刷新后的目录执行综合覆盖审计
+- **THEN** 每个启用规则都具有唯一合法 `pseudo.*` 目标和至少一个合法来源，所有缺失均被显式报告
+
+#### Scenario: 跨来源综合回归
+- **WHEN** 回放包含单抗、双抗、全抗、属性、生命和法术伤害的详细物品文本
+- **THEN** 系统生成预期合计值、保留贡献来源并把启用的 `pseudo.*` 条件写入官方查询 JSON
+
+#### Scenario: 官方查询等价性
+- **WHEN** 综合条件查询成功并生成官方 query ID
+- **THEN** 打开的腾讯国服官方市集查询包含等价的综合 stat 过滤，不得只在本地浮窗显示
+
+### Requirement: 正负别名保持相同 stat 的符号语义
+系统 MUST 使用固定上游数据声明的 matcher 数值方向解析所有官方 stat，SHALL 将负向别名的捕获值转换为负数，并 MUST 保持剪贴板原文、正数显示边界、官方 stat ID 与转换后数值可追溯。系统不得依赖“减慢”“降低”或“减少”等中文词语白名单推断符号。
+
+#### Scenario: 同一 stat 的正负别名
+- **WHEN** 一个正向官方 stat 同时具有“加快 #”和带负向元数据的“减慢 #”matcher
+- **THEN** 两个文案映射到相同 stat ID，前者产生正值，后者产生绝对值相同的负值
+
+#### Scenario: 非药剂负向词条
+- **WHEN** 装备、珠宝、地图或其他受支持物品出现上游标记的负向 matcher
+- **THEN** 系统应用与药剂相同的数据驱动符号转换，不需要物品类别专用规则
+
+#### Scenario: 原文与查询语义分离
+- **WHEN** 国服市集只显示正向 stat 名称而剪贴板使用其负向文案
+- **THEN** 浮窗保留负向原文并以正数编辑边界，官方请求使用可查询的 stat ID 和经过反向、交换后的负数边界
+
+#### Scenario: 负向覆盖审计
+- **WHEN** 开发版回放固定上游数据中的全部负向 matcher
+- **THEN** 每条记录均命中预期官方 stat ID、产生负值且不存在负向元数据静默丢弃

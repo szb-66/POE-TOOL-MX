@@ -122,6 +122,69 @@ test('查价属性与词缀使用单行整行选择且数值输入不误触发',
   assert.doesNotMatch(view, /content: "属性"/)
 })
 
+test('查价浮窗提供当前物品状态三态控件与完整来源标签', async () => {
+  const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  const metadata = await source('shared/priceCheckMetadata.js')
+  assert.match(view, /stateFiltersCollapsed = ref\(true\)/)
+  assert.match(view, /:aria-expanded="!stateFiltersCollapsed"/)
+  assert.match(view, /@click="stateFiltersCollapsed = !stateFiltersCollapsed"/)
+  assert.match(view, /v-if="!stateFiltersCollapsed"[^>]*id="price-check-state-filters"/)
+  assert.match(view, /v-model="state\.model\.stateFilters\[definition\.key\]"/)
+  assert.match(view, /<option value="any">任意<\/option>/)
+  assert.match(view, /<option value="true">是<\/option>/)
+  assert.match(view, /<option value="false">否<\/option>/)
+  assert.match(view, /@keydown\.enter\.prevent="toggleFilter\(stat\)"/)
+  assert.match(view, /stat-source-pseudo/)
+  for (const label of ['综合', '外延', '基底', '附魔', '分裂', '工艺', '影匿', '异度天灾', '灌注', '地心', '禁域', '佣兵', '古神熔炉', '致命贪婪']) {
+    assert.match(metadata, new RegExp(`label: '${label}'`), label)
+  }
+})
+
+test('查价物品属性固定两列并保留整行选择和输入隔离', async () => {
+  const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  assert.match(view, /class="property-grid">[\s\S]*v-for="property in state\.model\.properties"/)
+  assert.match(view, /\.property-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+  assert.match(view, /class="filter-name" :title="property\.label"/)
+  assert.match(view, /role="checkbox"[\s\S]*@click="toggleFilter\(property\)"/)
+  assert.match(view, /v-model\.number="property\.min"[\s\S]*@click\.stop @keydown\.stop/)
+  assert.match(view, /v-model\.number="property\.max"[\s\S]*@click\.stop @keydown\.stop/)
+})
+
+test('地图和海图浮窗展示区域身份、形状选项与仅供参考字段', async () => {
+  const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  const query = await source('electron/modules/priceCheck/query.js')
+  assert.match(view, /identity\?\.displayName \|\| state\.model\.item\.name/)
+  assert.match(view, /v-if="property\.options\?\.length"/)
+  assert.match(view, /v-model="property\.value"/)
+  assert.match(view, /v-if="state\.model\.information\?\.length"/)
+  assert.match(view, /官方过滤目录没有对应字段，不会写入查询/)
+  for (const label of ['地图阶级', '物品数量', '物品稀有度', '怪群', '区域等级', '亡者硫磺', '海图形状']) {
+    assert.match(query, new RegExp(`'${label}'`), label)
+  }
+})
+
+test('查价身份栏名称可选、大类常驻且手动说明位于右侧', async () => {
+  const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  const identitySection = view.match(/<section v-if="state\.model" class="panel identity">([\s\S]*?)<\/section>/)?.[1] || ''
+  assert.match(identitySection, /class="identity-name filter-row"/)
+  assert.match(identitySection, /role="checkbox"/)
+  assert.match(identitySection, /:aria-checked="nameFilterEnabled"/)
+  assert.match(identitySection, /:aria-disabled="!canToggleName"/)
+  assert.match(identitySection, /@click="toggleNameFilter"/)
+  assert.match(identitySection, /@keydown\.enter\.prevent="toggleNameFilter"/)
+  assert.match(identitySection, /@keydown\.space\.prevent="toggleNameFilter"/)
+  assert.match(identitySection, /identity\?\.categoryLabel \|\| state\.model\.item\.category/)
+  assert.match(identitySection, /state\.model\.item\.baseType[^]*state\.league/)
+  assert.match(identitySection, /class="identity-side"[^]*class="flags"[^]*class="identity-hint"/)
+  assert.match(identitySection, /物品已读取，请确认条件后点击“搜索”/)
+  assert.doesNotMatch(view, /<div v-else-if="state\.status === 'ready-to-query'" class="state-message">/)
+  assert.match(view, /nameFilterEnabled = computed\([\s\S]*!identity\?\.category \|\| identity\.nameEnabled !== false/)
+  assert.match(view, /function toggleNameFilter\(\)[\s\S]*!canToggleName\.value[\s\S]*identity\.nameEnabled = true[\s\S]*identity\.nameEnabled = !nameFilterEnabled\.value/)
+  assert.match(view, /electronApi\.priceCheck\.rerun\(\{[\s\S]*model: state\.value\.model/)
+  assert.match(view, /\.identity-side \{[\s\S]*flex-wrap: wrap;/)
+  assert.match(view, /\.identity-name\.disabled/)
+})
+
 test('查价设置跨页面双向同步并提供价格分布和候选选择', async () => {
   const [store, page, overlay] = await Promise.all([
     source('src/stores/priceCheck.js'),
@@ -129,21 +192,35 @@ test('查价设置跨页面双向同步并提供价格分布和候选选择', as
     source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   ])
   assert.match(page, />查询设置</)
+  assert.match(page, /label="立即查价"[\s\S]*settings\.queryImmediately[\s\S]*changeSetting\('queryImmediately'/)
   assert.doesNotMatch(page, />默认查询设置</)
   assert.match(page, /重试官方目录[\s\S]*retryCatalog/)
   assert.match(store, /onSettingsChanged[\s\S]*normalizePriceCheckSettings[\s\S]*saveSettings\(\)/)
   assert.match(store, /async function retryCatalog\(\)[\s\S]*priceCheck\.retryCatalog/)
+  assert.match(store, /key === 'queryImmediately'[\s\S]*saveSettings\(\)/)
+  assert.match(store, /priceCheck\.capture\(\{[\s\S]*queryImmediately: settings\.value\.queryImmediately/)
   assert.match(overlay, /syncSetting\('status'\)/)
   assert.match(overlay, /syncSetting\('collapseListings'\)/)
   assert.match(overlay, /1D ≈ \$\{rate\}C/)
   assert.match(overlay, /showDistribution[\s\S]*loadDistribution/)
+  assert.match(overlay, /ready-to-query[\s\S]*点击“搜索”/)
+  assert.match(overlay, /formatRateLimit[\s\S]*官方接口限制请求频率/)
+  assert.match(overlay, /stateErrorText[\s\S]*RATE_LIMITED/)
   assert.match(overlay, /identity-required[\s\S]*resolveIdentity/)
   assert.match(overlay, /unknown\.candidates[\s\S]*selectStatCandidate/)
+  assert.match(overlay, /\{\{ stat\.text \}\}/)
+  assert.match(overlay, /v-model\.number="stat\.min"[^>]*min="0"/)
+  assert.match(overlay, /v-model\.number="stat\.max"[^>]*min="0"/)
   assert.match(overlay, /resolveStatCandidate\(unknown\.key, candidate\.id\)/)
   assert.match(overlay, /未加入本次查询/)
   assert.match(overlay, /重试目录[\s\S]*retryCatalog/)
   assert.match(overlay, /\.filter-row:not\(\.unknown\):hover/)
   assert.match(overlay, /\.filter-row:focus-visible/)
+  for (const sourceText of [store, page, overlay]) {
+    assert.doesNotMatch(sourceText, /valueRange|down10|down20|unlimited/)
+  }
+  assert.doesNotMatch(page, /数值范围/)
+  assert.doesNotMatch(overlay, /数值范围/)
 })
 
 test('首页业务模块每行最多展示三个', async () => {
@@ -159,10 +236,15 @@ test('浮窗内部重新查询不改变浮窗位置，仅外部捕获才重新�
   ])
   assert.match(overlay, /create\(snapshot, \{ reposition = true \} = \{\}\)/)
   assert.match(overlay, /if \(reposition\) \{[\s\S]*setBounds/)
-  assert.match(service, /async check\(\{ text, league, model, options = \{\}, reposition = true \}\)/)
+  assert.match(service, /async check\(\{ text, league, model, options = \{\}, reposition = true, execute = true, queryImmediately = true \}\)/)
   assert.match(service, /this\.overlay\?\.create\?\.\(state, \{ reposition \}\)/)
   assert.match(service, /rerun[\s\S]*reposition: false/)
   assert.match(service, /resolveIdentity[\s\S]*reposition: false/)
+})
+
+test('捕获 IPC 显式清理立即查价布尔值', async () => {
+  const ipc = await source('electron/modules/ipc/priceCheck.js')
+  assert.match(ipc, /queryImmediately: request\?\.queryImmediately === true/)
 })
 
 test('查价开关注册失败会回滚后端运行态', async () => {

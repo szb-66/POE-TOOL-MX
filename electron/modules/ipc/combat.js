@@ -61,6 +61,50 @@ function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, onSta
   return { child, configPath }
 }
 
+async function stopCombatProcess(processRef, clear, statusPayload, errorMessage) {
+  if (!isAlive(processRef)) {
+    clear()
+    return { success: true, stopped: false, alreadyStopped: true }
+  }
+  const target = processRef
+  let success = await processTools?.python?.killPythonProcessTree?.(target.pid)
+  if (!success && !isAlive(target)) success = true
+  if (success) {
+    clear()
+    if (statusPayload) sendStatus(processTools?.window, statusPayload)
+  }
+  return success
+    ? { success: true, stopped: true }
+    : { success: false, stopped: false, error: errorMessage }
+}
+
+export function stopPotionAutomation() {
+  return stopCombatProcess(
+    potionProcess,
+    () => { potionProcess = null },
+    { running: false, event: 'stopped' },
+    '停止自动喝药进程失败'
+  )
+}
+
+export function stopLoopAutomation() {
+  return stopCombatProcess(
+    loopProcess,
+    () => { loopProcess = null },
+    { running: false, origin: 'loop', event: 'stopped' },
+    '停止主动循环进程失败'
+  )
+}
+
+export function stopPortalAutomation() {
+  return stopCombatProcess(
+    portalProcess,
+    () => { portalProcess = null },
+    null,
+    '停止一键回城进程失败'
+  )
+}
+
 function writeJsonAtomically(filePath, value) {
   const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
   try {
@@ -190,17 +234,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     }
   })
 
-  ipcMain.handle('combat-stop-potion', async () => {
-    if (!isAlive(potionProcess)) {
-      potionProcess = null
-      return { success: true, alreadyStopped: true }
-    }
-    const target = potionProcess
-    potionProcess = null
-    const success = await python.killPythonProcessTree(target.pid)
-    sendStatus(window, { running: false, event: 'stopped' })
-    return success ? { success: true } : { success: false, error: '停止自动喝药进程失败' }
-  })
+  ipcMain.handle('combat-stop-potion', stopPotionAutomation)
 
   ipcMain.handle('combat-get-potion-status', async () => ({
     running: isAlive(potionProcess),
@@ -265,17 +299,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     }
   })
 
-  ipcMain.handle('combat-stop-loop', async () => {
-    if (!isAlive(loopProcess)) {
-      loopProcess = null
-      return { success: true, alreadyStopped: true }
-    }
-    const target = loopProcess
-    loopProcess = null
-    const success = await python.killPythonProcessTree(target.pid)
-    sendStatus(window, { running: false, origin: 'loop', event: 'stopped' })
-    return success ? { success: true } : { success: false, error: '停止主动循环进程失败' }
-  })
+  ipcMain.handle('combat-stop-loop', stopLoopAutomation)
 
   ipcMain.handle('combat-get-loop-status', async () => ({
     running: isAlive(loopProcess),
@@ -333,9 +357,10 @@ export function registerCombatHandlers(python, window, fileWatcher) {
 
 export async function cleanupCombatProcesses() {
   const processes = [potionProcess, loopProcess, portalProcess].filter(isAlive)
-  potionProcess = null
-  loopProcess = null
-  portalProcess = null
-  if (!processTools?.python) return
-  await Promise.all(processes.map(child => processTools.python.killPythonProcessTree(child.pid)))
+  if (!processes.length) return
+  await Promise.all([
+    stopPotionAutomation(),
+    stopLoopAutomation(),
+    stopPortalAutomation()
+  ])
 }

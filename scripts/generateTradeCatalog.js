@@ -1,13 +1,18 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import {
+  TRADE_CATALOG_SCHEMA_VERSION,
+  auditPseudoRules,
   createLocalizedOfficialTradeCatalog,
   officialCurrencyLabels,
   validateTradeCatalog
 } from '../electron/modules/priceCheck/catalog.js'
+import { createVersionedPseudoRules } from '../electron/modules/priceCheck/pseudoRules.js'
 
 const SIDEKICK_COMMIT = 'deb2455264929447748f1d3d25a1f8d9f5e10628'
+const APT_STAT_MATCHER_COMMIT = '18a401efce4683a274978e3f41ce08ac8948732b'
 const SIDEKICK_POE1_ZH_STATS_URL = `https://raw.githubusercontent.com/Sidekick-Poe/Sidekick/${SIDEKICK_COMMIT}/data/poe1/zh/stats.json`
+const APT_POE1_EN_STATS_URL = `https://raw.githubusercontent.com/SnosMe/awakened-poe-trade/${APT_STAT_MATCHER_COMMIT}/renderer/public/data/en/stats.ndjson`
 const compactMatcher = (value) => String(value || '').replace(/\s+/g, ' ').trim()
 const isUsableMatcher = (value) => Boolean(value) && !/<[A-Z]{2}\d+>|}}/.test(value)
 
@@ -20,7 +25,11 @@ export function parseNdjson(text) {
 export function generateTradeCatalog({ items = [], stats = [], gameVersion, generatedAt }) {
   const statsByIdentity = new Map()
   for (const entry of stats) {
-    const matchers = [...new Set((entry.matchers || []).map((matcher) => matcher?.string?.trim()).filter(Boolean))]
+    const matcherRecords = (entry.matchers || [])
+      .map((matcher) => ({ string: compactMatcher(matcher?.string), negate: matcher?.negate === true }))
+      .filter(({ string }) => string)
+    const matchers = [...new Set(matcherRecords.map(({ string }) => string))]
+    const negatedMatchers = [...new Set(matcherRecords.filter(({ negate }) => negate).map(({ string }) => string))]
     const rawIds = entry.trade?.ids || entry.ids || {}
     if (!entry.ref || !matchers.length) continue
     for (const [type, values] of Object.entries(rawIds)) {
@@ -29,12 +38,17 @@ export function generateTradeCatalog({ items = [], stats = [], gameVersion, gene
         const existing = statsByIdentity.get(identity)
         if (existing) {
           existing.matchers = [...new Set([...existing.matchers, ...matchers])]
+          existing.negatedMatchers = [...new Set([...(existing.negatedMatchers || []), ...negatedMatchers])]
+          if (!existing.negatedMatchers.length) delete existing.negatedMatchers
+          existing.refs = [...new Set([...(existing.refs || []), entry.ref])]
           continue
         }
         statsByIdentity.set(identity, {
           key: `generated-${type}-${String(id).replace(/[^a-z0-9]+/gi, '-')}`,
           label: entry.label || entry.ref,
           matchers,
+          ...(negatedMatchers.length ? { negatedMatchers } : {}),
+          refs: [entry.ref],
           ids: { [type]: id },
           ...(entry.categories?.length ? { categories: [...new Set(entry.categories)] } : {}),
           ...(entry.merge ? { merge: entry.merge } : {}),
@@ -67,20 +81,152 @@ export function generateTradeCatalog({ items = [], stats = [], gameVersion, gene
   }
   const normalizedItems = [...itemsByIdentity.values()].sort((a, b) => a.key.localeCompare(b.key, 'zh-CN'))
   return validateTradeCatalog({
-    schemaVersion: 2,
+    schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
     game: 'poe1',
     locale: 'zh-CN',
     gameVersion: String(gameVersion || ''),
     generatedAt: generatedAt || new Date().toISOString(),
-    sources: ['Awakened PoE Trade 简体中文 NDJSON'],
+    sources: [`Awakened PoE Trade ${APT_STAT_MATCHER_COMMIT.slice(0, 12)} 英文 NDJSON`],
     items: normalizedItems,
-    stats: normalizedStats
+    stats: normalizedStats,
+    ...createVersionedPseudoRules()
   })
+}
+
+export function attachStableStatRefs(catalog, definitions) {
+  if (!Array.isArray(definitions)) throw new Error('Awakened PoE Trade 词缀目录结构无效')
+  const next = structuredClone(catalog)
+  const byIdentity = new Map(next.stats.flatMap((entry) => Object.entries(entry.ids || {}).flatMap(([type, value]) =>
+    (Array.isArray(value) ? value : [value]).map((id) => [`${type}\u0000${id}`, entry])
+  )))
+  const missingOfficialIds = new Set()
+  let linked = 0
+  for (const definition of definitions) {
+    const ref = compactMatcher(definition?.ref)
+    if (!ref) continue
+    let matched = false
+    for (const [type, values] of Object.entries(definition?.trade?.ids || definition?.ids || {})) {
+      for (const id of Array.isArray(values) ? values : [values]) {
+        const entry = byIdentity.get(`${type}\u0000${id}`)
+        if (!entry) {
+          missingOfficialIds.add(`${type}\u0000${id}`)
+          continue
+        }
+        entry.refs = [...new Set([...(entry.refs || []), ref])]
+        for (const matcherRecord of definition.matchers || []) {
+          const matcher = compactMatcher(matcherRecord?.string)
+          if (!matcher) continue
+          if (!entry.matchers.includes(matcher)) entry.matchers.push(matcher)
+          if (matcherRecord?.negate === true) {
+            entry.negatedMatchers = [...new Set([...(entry.negatedMatchers || []), matcher])]
+          }
+        }
+        matched = true
+      }
+    }
+    if (matched) linked += 1
+  }
+  const source = `Awakened PoE Trade ${APT_STAT_MATCHER_COMMIT.slice(0, 12)} 英文 NDJSON`
+  if (!next.sources.includes(source)) next.sources.push(source)
+  const validated = validateTradeCatalog(next)
+  return {
+    catalog: validated,
+    audit: {
+      definitions: definitions.length,
+      linked,
+      missingOfficialIds: missingOfficialIds.size,
+      pseudoRules: auditPseudoRules(validated)
+    }
+  }
+}
+
+export function reconcileLocalizedMatcherNegation(catalog, stableDefinitions, clipboardDefinitions, convertText = (text) => text) {
+  if (!Array.isArray(stableDefinitions) || !Array.isArray(clipboardDefinitions)) {
+    throw new Error('词缀符号恢复目录结构无效')
+  }
+  const next = structuredClone(catalog)
+  const byIdentity = new Map(next.stats.flatMap((entry) => Object.entries(entry.ids || {}).flatMap(([type, value]) =>
+    (Array.isArray(value) ? value : [value]).map((id) => [`${type}\u0000${id}`, entry])
+  )))
+  const clipboardMatchersByIdentity = new Map()
+  for (const definition of clipboardDefinitions) {
+    const matcher = compactMatcher(convertText(definition?.text))
+    if (!isUsableMatcher(matcher)) continue
+    for (const id of definition?.tradeIds || []) {
+      const type = String(id).split('.')[0]
+      const identity = `${type}\u0000${id}`
+      const matchers = clipboardMatchersByIdentity.get(identity) || new Set()
+      matchers.add(matcher)
+      clipboardMatchersByIdentity.set(identity, matchers)
+    }
+  }
+
+  let aligned = 0
+  let aliasesRecovered = 0
+  let skipped = 0
+  for (const definition of stableDefinitions) {
+    const matcherRecords = (definition?.matchers || [])
+      .map((matcher) => ({ string: compactMatcher(matcher?.string), negate: matcher?.negate === true }))
+      .filter(({ string }) => isUsableMatcher(string))
+    if (!matcherRecords.some(({ negate }) => negate)) continue
+    const stableMatchers = new Set(matcherRecords.map(({ string }) => string))
+    for (const [type, values] of Object.entries(definition?.trade?.ids || definition?.ids || {})) {
+      for (const id of Array.isArray(values) ? values : [values]) {
+        const identity = `${type}\u0000${id}`
+        const entry = byIdentity.get(identity)
+        if (!entry) continue
+        const clipboardMatchers = clipboardMatchersByIdentity.get(identity) || new Set()
+        const localizedMatchers = entry.matchers.filter((matcher) => (
+          !stableMatchers.has(compactMatcher(matcher)) && !clipboardMatchers.has(compactMatcher(matcher))
+        ))
+        if (localizedMatchers.length !== matcherRecords.length) {
+          skipped += 1
+          continue
+        }
+        aligned += 1
+        const before = entry.negatedMatchers?.length || 0
+        entry.negatedMatchers = [...new Set([
+          ...(entry.negatedMatchers || []),
+          ...matcherRecords.flatMap((record, index) => record.negate ? [localizedMatchers[index]] : [])
+        ])]
+        aliasesRecovered += entry.negatedMatchers.length - before
+      }
+    }
+  }
+  return {
+    catalog: validateTradeCatalog(next),
+    audit: { aligned, aliasesRecovered, skipped }
+  }
+}
+
+export function attachPseudoRuleMatcherRefs(catalog) {
+  const next = structuredClone(catalog)
+  const ruleRefs = new Set(next.pseudoRules.flatMap((rule) => [rule.target, ...rule.sources.map(({ ref }) => ref)]))
+  let aliasesAdded = 0
+  for (const entry of next.stats) {
+    const aliases = entry.matchers.filter((matcher) => ruleRefs.has(compactMatcher(matcher)))
+    if (!aliases.length) continue
+    const before = entry.refs?.length || 0
+    entry.refs = [...new Set([...(entry.refs || []), ...aliases])]
+    aliasesAdded += entry.refs.length - before
+  }
+  const validated = validateTradeCatalog(next)
+  return { catalog: validated, audit: { aliasesAdded, pseudoRules: auditPseudoRules(validated) } }
+}
+
+function upgradeBaseCatalog(catalog) {
+  return {
+    ...structuredClone(catalog),
+    schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
+    ...createVersionedPseudoRules()
+  }
 }
 
 export function mergeClipboardStatMatchers(catalog, definitions, convertText = (text) => text) {
   if (!Array.isArray(definitions)) throw new Error('当前游戏描述目录响应结构无效')
-  const next = structuredClone(catalog)
+  const next = catalog.schemaVersion === TRADE_CATALOG_SCHEMA_VERSION
+    ? structuredClone(catalog)
+    : upgradeBaseCatalog(catalog)
   const byIdentity = new Map(next.stats.flatMap((entry) => Object.entries(entry.ids || {}).flatMap(([type, value]) =>
     (Array.isArray(value) ? value : [value]).map((id) => [`${type}\u0000${id}`, entry])
   )))
@@ -106,6 +252,9 @@ export function mergeClipboardStatMatchers(catalog, definitions, convertText = (
       if (!entry.matchers.includes(matcher)) {
         entry.matchers.push(matcher)
         aliasesAdded += 1
+      }
+      if (definition?.negate === true) {
+        entry.negatedMatchers = [...new Set([...(entry.negatedMatchers || []), matcher])]
       }
     }
     if (hasOfficialId) linked += 1
@@ -143,7 +292,23 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
     if (!validate(payload)) throw new Error(`官方交易目录响应无效：${url}`)
     return payload
   }
-  const [internationalStats, clipboardStats] = await Promise.all([
+  const requestText = async (url, headers) => {
+    let response = null
+    let networkError = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        response = await fetchImpl(url, { headers })
+        break
+      } catch (error) {
+        networkError = error
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)))
+      }
+    }
+    if (!response) throw new Error(`词缀目录请求失败：${url}：${networkError?.message || '网络连接失败'}`)
+    if (!response.ok) throw new Error(`词缀目录请求失败：HTTP ${response.status} ${url}`)
+    return response.text()
+  }
+  const [internationalStats, clipboardStats, stableStatsText] = await Promise.all([
     requestJson('https://www.pathofexile.com/api/trade/data/stats', {
       Accept: 'application/json',
       'User-Agent': 'PoePriceCheckerDev/1.0'
@@ -151,7 +316,11 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
     requestJson(SIDEKICK_POE1_ZH_STATS_URL, {
       Accept: 'application/json',
       'User-Agent': 'PoePriceCheckerDev/1.0'
-    }, Array.isArray)
+    }, Array.isArray),
+    requestText(APT_POE1_EN_STATS_URL, {
+      Accept: 'application/x-ndjson,text/plain',
+      'User-Agent': 'PoePriceCheckerDev/1.0'
+    })
   ])
   const cnHeaders = {
     Accept: 'application/json',
@@ -163,7 +332,7 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
   const cnItems = await requestJson('https://poe.game.qq.com/api/trade/data/items', cnHeaders)
   const cnStatic = await requestJson('https://poe.game.qq.com/api/trade/data/static', cnHeaders)
   const official = createLocalizedOfficialTradeCatalog(
-    baseCatalog,
+    upgradeBaseCatalog(baseCatalog),
     internationalStats,
     cnStats,
     now,
@@ -174,11 +343,26 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
   const OpenCC = (await import('opencc-js')).default
   const toSimplified = OpenCC.Converter({ from: 'tw', to: 'cn' })
   const bridge = mergeClipboardStatMatchers(official.catalog, clipboardStats, toSimplified)
+  const stableDefinitions = parseNdjson(stableStatsText)
+  const stableRefs = attachStableStatRefs(bridge.catalog, stableDefinitions)
+  const localizedNegation = reconcileLocalizedMatcherNegation(
+    stableRefs.catalog,
+    stableDefinitions,
+    clipboardStats,
+    toSimplified
+  )
+  const pseudoRefs = attachPseudoRuleMatcherRefs(localizedNegation.catalog)
   const result = {
-    catalog: bridge.catalog,
+    catalog: pseudoRefs.catalog,
     status: {
       ...official.status,
-      clipboardCoverage: bridge.audit
+      clipboardCoverage: bridge.audit,
+      stableRefCoverage: {
+        ...stableRefs.audit,
+        localizedNegation: localizedNegation.audit,
+        pseudoRules: pseudoRefs.audit.pseudoRules,
+        pseudoAliasesAdded: pseudoRefs.audit.aliasesAdded
+      }
     }
   }
   result.catalog.gameVersion = String(gameVersion || baseCatalog.gameVersion || '')

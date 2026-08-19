@@ -106,10 +106,15 @@ export class PuzzleAnalysisService {
     this.automationChild = null
     this.modProbeChild = null
     this.busy = false
+    this.stopGeneration = 0
     this.execution = {
       status: 'idle', currentIndex: -1, total: 9, completed: 0,
       source: null, target: null, turns: 0, reason: '', error: null
     }
+  }
+
+  assertCurrentGeneration(generation, message) {
+    if (generation !== this.stopGeneration) throw codedError('EMERGENCY_STOPPED', message)
   }
 
   calibrationSamples() {
@@ -479,6 +484,20 @@ export class PuzzleAnalysisService {
     return { success: true, ...this.getAutoPlacementStatus() }
   }
 
+  emergencyStop(reason = 'shortcut') {
+    const stopped = []
+    this.stopGeneration += 1
+    if (this.child || (this.busy && !this.modProbeChild)) stopped.push({ id: 'puzzle-analysis', label: '海图识别' })
+    if (this.modProbeChild) stopped.push({ id: 'puzzle-probe', label: '海图词缀探测' })
+    terminate(this.child)
+    terminate(this.modProbeChild)
+    if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
+      this.stopAutoPlacement(reason)
+      stopped.push({ id: 'puzzle-placement', label: '海图自动放入' })
+    }
+    return { success: true, stopped }
+  }
+
   tempConfigPath() {
     const directory = this.fileWatcher?.getFilePaths?.().tempDir || os.tmpdir()
     fs.mkdirSync(directory, { recursive: true })
@@ -504,7 +523,7 @@ export class PuzzleAnalysisService {
       child.stderr.on('data', chunk => { stderr += chunk })
       child.once('error', reject)
       child.once('close', code => {
-        this.child = null
+        if (this.child === child) this.child = null
         try { fs.unlinkSync(configPath) } catch {}
         const resultLine = stdout.split(/\r?\n/).find(line => line.startsWith('RESULT '))
         if (!resultLine) {
@@ -586,7 +605,7 @@ export class PuzzleAnalysisService {
       child.stderr.on('data', chunk => { stderr += chunk })
       child.once('error', reject)
       child.once('close', code => {
-        this.modProbeChild = null
+        if (this.modProbeChild === child) this.modProbeChild = null
         try { fs.unlinkSync(configPath) } catch {}
         if (!resultLine && buffer.trim()) consumeLine(buffer.trim())
         if (!resultLine) {
@@ -725,13 +744,25 @@ export class PuzzleAnalysisService {
     if (!gate.success) {
       return { borderMods: {}, borderProbe: this.emptyProbeStats(true, gate.error), success: false, error: { code: 'AUTOMATION_LOCKED', message: gate.error, owner: gate.owner } }
     }
+    const stopGeneration = this.stopGeneration
     try {
       this.overlay?.close?.()
       const result = await this.runBorderProbe(normalizeAtlas)
+      if (stopGeneration !== this.stopGeneration) throw codedError('EMERGENCY_STOPPED', '海图词缀探测已紧急停止')
       console.log('[海图边缘词缀]', JSON.stringify({ borderProbe: result.borderProbe }))
       return { ...result, success: true }
     } catch (error) {
-      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, String(error?.message || error)), success: false, error: { code: 'BORDER_PROBE_FAILED', message: String(error?.message || error) } }
+      const canceled = stopGeneration !== this.stopGeneration || error.code === 'EMERGENCY_STOPPED'
+      return {
+        borderMods: {},
+        borderProbe: this.emptyProbeStats(true, String(error?.message || error)),
+        success: false,
+        canceled,
+        error: {
+          code: canceled ? 'EMERGENCY_STOPPED' : 'BORDER_PROBE_FAILED',
+          message: canceled ? '海图词缀探测已紧急停止' : String(error?.message || error)
+        }
+      }
     } finally {
       this.automationLock?.release(MOD_PROBE_OWNER)
     }
@@ -751,6 +782,7 @@ export class PuzzleAnalysisService {
       this.publishExecution({ event: 'reset' })
     }
     this.busy = true
+    const stopGeneration = this.stopGeneration
     const mainWindow = this.getMainWindow?.()
     try {
       const metadata = this.validateRegion(regionMetadata)
@@ -762,6 +794,7 @@ export class PuzzleAnalysisService {
       }
       const results = []
       for (const currentPage of requestedPages) {
+        this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
         const result = await this.runAnalyzer({
           region: metadata.selectedRegion,
           templatesPath: this.templatesPath(),
@@ -773,6 +806,7 @@ export class PuzzleAnalysisService {
           tabPoint: tabPoints[currentPage],
           tabSettleSeconds: 0.25
         })
+        this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
         if (!result.success) {
           const payload = { ...result, page: currentPage }
           this.publish(payload)
@@ -781,6 +815,7 @@ export class PuzzleAnalysisService {
         results.push({ ...result, page: currentPage })
       }
       this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: 0, starting: true })
+      this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
       const mods = probeMods
         ? await this.probeFragmentMods({
             inventoryMetadata: metadata,
@@ -793,6 +828,7 @@ export class PuzzleAnalysisService {
             fragmentProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST'),
             borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST')
           }
+      this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
       console.log('[海图碎片词缀探测]', JSON.stringify({ fragmentProbe: mods.fragmentProbe }))
       const payload = results.length === 1
         ? { ...results[0], regionMetadata: metadata, ...mods }
@@ -800,7 +836,16 @@ export class PuzzleAnalysisService {
       this.publish(payload)
       return payload
     } catch (error) {
-      const payload = { success: false, page: responsePage, error: { code: error.code || 'PUZZLE_ANALYSIS_FAILED', message: error.message || String(error) } }
+      const canceled = stopGeneration !== this.stopGeneration || error.code === 'EMERGENCY_STOPPED'
+      const payload = {
+        success: false,
+        canceled,
+        page: responsePage,
+        error: {
+          code: canceled ? 'EMERGENCY_STOPPED' : (error.code || 'PUZZLE_ANALYSIS_FAILED'),
+          message: canceled ? '海图识别已紧急停止' : (error.message || String(error))
+        }
+      }
       this.publish(payload)
       return payload
     } finally {

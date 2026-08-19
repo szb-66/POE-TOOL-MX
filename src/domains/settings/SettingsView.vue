@@ -106,7 +106,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="结束">
+                <el-form-item label="全局紧急停止">
                   <KeyCaptureInput :model-value="shortcuts.end" @change="handleShortcutsChange('end', $event)" />
                 </el-form-item>
               </el-col>

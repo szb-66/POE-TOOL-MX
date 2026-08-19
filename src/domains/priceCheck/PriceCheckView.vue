@@ -53,6 +53,15 @@
         <el-card>
       <template #header><strong>查询设置</strong></template>
       <el-form label-width="140px">
+        <el-form-item label="立即查价">
+          <el-switch
+            :model-value="store.settings.queryImmediately"
+            active-text="Ctrl+D 后立即查询"
+            inactive-text="确认后手动查询"
+            @change="value => changeSetting('queryImmediately', value)"
+          />
+          <span class="inline-hint">关闭时 Ctrl+D 仍会读取物品并打开浮窗，点击“搜索”后才访问官方接口</span>
+        </el-form-item>
         <el-form-item label="在线状态">
           <el-select :model-value="store.settings.status" @change="value => changeSetting('status', value)">
             <el-option label="在线可交易" value="available" />
@@ -77,14 +86,6 @@
             <el-option label="混沌石" value="chaos" />
             <el-option label="神圣石" value="divine" />
             <el-option label="混沌石或神圣石" value="chaos_divine" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="数值范围">
-          <el-select :model-value="store.settings.valueRange" @change="value => changeSetting('valueRange', value)">
-            <el-option label="仅原数值" value="original" />
-            <el-option label="下浮 10%" value="down10" />
-            <el-option label="下浮 20%" value="down20" />
-            <el-option label="不限制" value="unlimited" />
           </el-select>
         </el-form-item>
         <el-form-item label="词缀初始勾选">
@@ -119,7 +120,7 @@
       <ol class="instructions">
         <li>在设置页登录国服账号并选择全局赛季。</li>
         <li>开启查价器后，将鼠标悬停在游戏物品上，按 {{ appSettings.globalShortcuts.priceCheck }}。</li>
-        <li>助手发送 Ctrl+C 读取物品详细文本。</li>
+        <li>助手发送 Ctrl+C 读取物品详细文本；“立即查价”关闭时，请在浮窗确认条件后点击“搜索”。</li>
       </ol>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
         </el-card>

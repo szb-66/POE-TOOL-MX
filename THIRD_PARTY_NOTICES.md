@@ -46,6 +46,8 @@ Copyright (c) ChaosRecipeEnhancer contributors.
 - 上游许可证：MIT
 - 固定上游提交：`18a401efce4683a274978e3f41ce08ac8948732b`
 - 直接采用并适配的文件：`renderer/src/web/price-check/trade/pathofexile-trade.ts`、`renderer/src/web/price-check/filters/create-item-filters.ts`、`renderer/src/web/price-check/filters/create-stat-filters.ts`
+- 综合规则固定提交：`91b5a05b14cda3a632a306b5f606ca1cced8b4a9`（Awakened PoE Trade 3.29.102）
+- 综合规则适配来源：`renderer/src/web/price-check/filters/pseudo/index.ts`；稳定 stat ref 来源：同一提交的 `renderer/public/data/en/stats.ndjson`
 - 历史翻译参考：简体中文分支的 `renderer/public/data/zh_CN/items.ndjson` 与 `stats.ndjson`。该分支不再作为当前游戏规则或目录覆盖的权威来源。
 - 当前目录来源：Path of Exile 官方国际服 `/api/trade/data/stats` 提供通用 stat ID、类型和查询语义，腾讯国服官方 `/api/trade/data/stats` 与 `/api/trade/data/items` 提供简体中文 matcher 和物品名称；内置快照于 2026-08-11 从这些官方接口刷新，对应 POE1 3.29。
 - 用途：国服查价的请求构造采用上游的在线状态、按需过滤组和宽松默认语义；本项目适配当前详细复制格式、腾讯国服端点、简体中文物品模型和官方 stat identifier。
@@ -85,7 +87,7 @@ Copyright (c) 2016 brather1ng.
 ## PoEDB 与 Path of Exile 物品美术
 
 - 数据页面：https://poedb.tw/cn/Unique_item
-- 用途：构建版本化的简体中文传奇名称、带稳定 `sourceId` 的做装底材与物品图片离线快照；`sourceId` 同时用于生成物品占位目录时与 RePoE 英文基底身份关联。
+- 用途：构建版本化的简体中文传奇名称、真实属性 matcher、带稳定 `sourceId` 的做装底材与物品图片离线快照；真实属性 matcher 用于区分游戏详细复制中的传奇属性与说明文字，`sourceId` 同时用于生成物品占位目录时与 RePoE 英文底材身份关联。
 - 部分 PoEDB 图片地址不可用时，生成器从 `web.poecdn.com` 获取相同的 Path of Exile 官方物品美术资源。
 
 PoEDB 页面仅作为数据来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB。

@@ -40,6 +40,7 @@ import { createShutdownController } from './modules/lifecycle/shutdown.js'
 import { acquireCrossProcessInstanceLock } from './modules/app/singleInstance.js'
 import { createOfficialTradeCatalog, loadTradeCatalog } from './modules/priceCheck/catalog.js'
 import {
+  enrichOfficialItemsWithImages,
   registerUniqueItemImageProtocol,
   UniqueItemImageRepository
 } from './modules/priceCheck/uniqueItemSnapshot.js'
@@ -66,6 +67,7 @@ import { FEEDBACK_CLOUDBASE_CONFIG } from './modules/feedback/config.js'
 import { FeedbackAuthClient } from './modules/feedback/auth.js'
 import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
 import { FeedbackService } from './modules/feedback/service.js'
+import { AppPresenceService } from './modules/presence/service.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -219,6 +221,7 @@ let diagnosticEvents = null
 let foregroundWatcher = null
 let applicationUpdate = null
 let feedbackService = null
+let appPresenceService = null
 
 function resolveForegroundWatcherScriptPath() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -245,6 +248,7 @@ async function cleanupApplicationResources() {
   const errors = []
 
   await settleCleanupPhase([
+    () => appPresenceService?.stop(),
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
     () => junfengHighlight?.cleanup(),
@@ -374,6 +378,12 @@ async function startApplication() {
     appVersion: app.getVersion(),
     locale: app.getLocale()
   })
+  appPresenceService = new AppPresenceService({
+    config: FEEDBACK_CLOUDBASE_CONFIG,
+    auth: feedbackAuth,
+    appVersion: applicationVersion,
+    runtimeMode: app.isPackaged ? 'packaged' : 'development'
+  })
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
 
@@ -462,13 +472,24 @@ async function startApplication() {
   chaosRecipeService.control = chaosControlOverlay
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
   const uniqueItemImages = new UniqueItemImageRepository()
-  // 先用内置目录构造查价服务（本地读取，快），官方目录后台刷新后替换
+  let uniqueImageWarning = ''
+  try {
+    await uniqueItemImages.load()
+  } catch (error) {
+    uniqueItemImages.useFallback()
+    uniqueImageWarning = `本地传奇图片与属性目录不可用：${error.message}`
+  }
+  // 首次查价前先用本地传奇快照增强内置目录，官方目录仍在后台刷新后替换。
   const tradeCatalogBundle = await loadTradeCatalog()
+  tradeCatalogBundle.catalog.items = enrichOfficialItemsWithImages(
+    tradeCatalogBundle.catalog.items,
+    uniqueItemImages.catalog
+  )
   tradeCatalogBundle.status = {
     ...tradeCatalogBundle.status,
     provider: 'bundled',
     degraded: true,
-    warning: '正在加载腾讯官方词缀目录…'
+    warning: ['正在加载腾讯官方词缀目录…', uniqueImageWarning].filter(Boolean).join('；')
   }
   const priceCheckOverlay = new PriceCheckOverlayManager()
   priceCheckService = new PriceCheckService({
@@ -482,10 +503,8 @@ async function startApplication() {
       return snapshot.records.find((record) => record.resourceId === 'currency:divine') || null
     },
     catalogRefresher: async () => {
-      const [officialStats, officialItems] = await Promise.all([
-        priceCheckClient.getStats(),
-        priceCheckClient.getItems()
-      ])
+      const officialStats = await priceCheckClient.getStats()
+      const officialItems = await priceCheckClient.getItems()
       return createOfficialTradeCatalog(
         tradeCatalogBundle.catalog,
         officialStats,
@@ -533,6 +552,7 @@ async function startApplication() {
     enableJunfengTraining: !app.isPackaged
   })
 
+  appPresenceService.start()
   createApplicationWindow()
 
   // 启动游戏前台监视器：门禁开启时仅在游戏窗口位于前台注册用户全局快捷键。
@@ -617,13 +637,6 @@ async function startApplication() {
       // 做装数据加载失败：IPC handler 内部仍会 await service.initialize() 重试
     }
     await chaosRecipeService.restoreAuth()
-    let uniqueImageWarning = ''
-    try {
-      await uniqueItemImages.load()
-    } catch (error) {
-      uniqueItemImages.useFallback()
-      uniqueImageWarning = `本地传奇图片目录不可用：${error.message}`
-    }
     registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
     try {
       await priceCheckService.refreshCatalog()

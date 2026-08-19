@@ -28,7 +28,7 @@
           <KeyCaptureInput :model-value="shortcuts.mapStart" class="form-input-short" @change="saveShortcut('mapStart', $event)" />
         </div>
         <div class="form-item">
-          <label class="form-label">结束</label>
+          <label class="form-label">全局停止</label>
           <KeyCaptureInput :model-value="shortcuts.end" class="form-input-short" @change="saveShortcut('end', $event)" />
         </div>
         <div class="form-item">

@@ -12,6 +12,7 @@ import {
   createFeedbackId,
   createObjectKey,
   sanitizeAttachmentName,
+  validateDiagnosticCaptureInput,
   validateFeedbackInput
 } from './validation.js'
 import { isFeedbackConfigured } from './config.js'
@@ -150,12 +151,13 @@ export class FeedbackService {
     try {
       if (!isFeedbackConfigured(this.config)) throw new FeedbackValidationError('FEEDBACK_SERVICE_UNAVAILABLE', '反馈服务暂不可用')
       const form = validateFeedbackInput(input)
+      const diagnosticCaptureId = validateDiagnosticCaptureInput(input)
       const attachments = await this.resolveAttachments(input.attachmentTokens || [])
       let diagnostics = null
       if (input.includeDiagnostics) {
         if (typeof buildDiagnostics !== 'function') throw new FeedbackValidationError('FEEDBACK_DIAGNOSTICS_FAILED', '脱敏诊断生成失败')
         try {
-          const snapshot = await buildDiagnostics()
+          const snapshot = await buildDiagnostics(diagnosticCaptureId)
           const body = Buffer.from(`${JSON.stringify(snapshot, null, 2)}\n`, 'utf8')
           assertAttachmentSize(body.length)
           diagnostics = { name: 'poe-cn-helper-diagnostics.json', safeName: 'poe-cn-helper-diagnostics.json', mimeType: 'application/json', size: body.length, body, diagnostic: true }

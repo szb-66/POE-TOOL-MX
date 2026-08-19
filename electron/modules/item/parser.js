@@ -35,6 +35,7 @@ export function parseItemInfo(clipboardText) {
     areaLevel: 0,
     areaName: '',
     deadmanSulphur: 0,
+    chartShape: '',
     mapTier: 0,
     armour: 0,
     evasion: 0,
@@ -54,6 +55,7 @@ export function parseItemInfo(clipboardText) {
     isMirrored: false,
     isSplit: false,
     isFractured: false,
+    isMutated: false,
     links: 0,
     implicitMods: [],
     explicitMods: [],
@@ -140,16 +142,15 @@ export function parseItemInfo(clipboardText) {
     '在私人地图装置',
     '放入一个物品',
     '出售获得通货',
-    '航行词缀将在完成测绘后揭示',
     '将此物品带给瓦莱丽',
-    '海图形状：',
-    '海图形状:',
     '奖励:',
     '掉落的地图有几率转换为',
     '产生的区域不受你的异界天赋树影响',
     '只能被使用一次',
     '不可改变',
     '已腐化',
+    '秽生',
+    'Foulborn',
     '裂界者物品',
     '塑界者物品',
     '圣战者物品',
@@ -216,6 +217,13 @@ export function parseItemInfo(clipboardText) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+
+    const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
+    if (chartShapeMatch) {
+      flushModifier()
+      itemInfo.chartShape = chartShapeMatch[1].trim()
+      continue
+    }
     
     // 详细词缀头信息解析 (Ctrl+C)
     // 示例: { 前缀属性 "韧炼的" (等阶：4) — 伤害, 物理, 攻击 }
@@ -227,6 +235,7 @@ export function parseItemInfo(clipboardText) {
         : (/后缀属性|Suffix Modifier/i.test(line) ? 'suffix' : null)
       const headerModifierName = line.match(/"([^"]*)"/)?.[1] || ''
       const semanticHeader = line.replace(/"[^"]*"/g, '""')
+      if (/秽生|\bFoulborn\b/i.test(semanticHeader)) itemInfo.isMutated = true
       // 当前游戏的详细复制会输出类似“破碎的 后缀属性”。语义来源必须先于
       // 前/后缀位置判断，否则破碎词缀会被错误归为 explicit。
       const semanticType = [
@@ -284,6 +293,7 @@ export function parseItemInfo(clipboardText) {
       }
       if (isExplanationLine(line)) continue
       const boundary = isIgnoredTextLine(line) || line === '未鉴定' || line.includes('已腐化') ||
+        /^(?:秽生(?:物品)?|Foulborn(?: Item)?)$/i.test(line) ||
         line.includes('(implicit)') || line.includes('(fractured)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
       if (!boundary) {
         activeModifier.originalLines.push(line)
@@ -347,16 +357,15 @@ export function parseItemInfo(clipboardText) {
     else if (line === '分裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {
       itemInfo.isFractured = true
     }
+    else if (/^(?:秽生(?:物品)?|Foulborn(?: Item)?)$/i.test(line)) {
+      itemInfo.isMutated = true
+    }
     else if (influenceLabels[line]) {
       if (!itemInfo.influences.includes(influenceLabels[line])) itemInfo.influences.push(influenceLabels[line])
     }
     else if (isMapCategory(itemInfo.category) && extractMapTier(line) > 0) {
       itemInfo.mapTier = extractMapTier(line)
-      if (itemInfo.name && !itemInfo.baseName) {
-        itemInfo.baseName = line
-      } else if (!itemInfo.name && !itemInfo.baseName) {
-        itemInfo.baseName = line
-      }
+      itemInfo.baseName = '地图'
       continue
     }
     else if (identityHeaderOpen && itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {

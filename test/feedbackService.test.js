@@ -102,6 +102,41 @@ test('明确开启诊断时生成JSON附件并计入提交', async () => {
   assert.equal(document.attachments[0].kind, 'diagnostics')
 })
 
+test('会话诊断只向构建器传递会话标识且不写入云端记录', async () => {
+  const captureId = '11111111-1111-4111-8111-111111111111'
+  let receivedCaptureId
+  let document
+  const service = createService({
+    uploadObject: async () => {}, deleteObject: async () => {}, createFeedback: async value => { document = value }
+  })
+  const result = await service.submit({ ...validInput, includeDiagnostics: true, diagnosticCaptureId: captureId }, {
+    buildDiagnostics: async value => {
+      receivedCaptureId = value
+      return { schemaVersion: 3, context: { mode: 'capture', captureId } }
+    }
+  })
+  assert.equal(result.success, true)
+  assert.equal(receivedCaptureId, captureId)
+  assert.equal('diagnosticCaptureId' in document, false)
+  assert.equal(JSON.stringify(document).includes(captureId), false)
+})
+
+test('会话诊断构建失败时保留失败结果且不写入反馈', async () => {
+  const captureId = '11111111-1111-4111-8111-111111111111'
+  let saved = false
+  const service = createService({
+    uploadObject: async () => {}, deleteObject: async () => {}, createFeedback: async () => { saved = true }
+  })
+  const result = await service.submit({ ...validInput, includeDiagnostics: true, diagnosticCaptureId: captureId }, {
+    buildDiagnostics: async () => {
+      throw new Error('capture unavailable')
+    }
+  })
+  assert.equal(result.success, false)
+  assert.equal(result.errorCode, 'FEEDBACK_DIAGNOSTICS_FAILED')
+  assert.equal(saved, false)
+})
+
 test('附件读取失败不向渲染进程泄露本地路径', async () => {
   const secretPath = 'C:\\Users\\PrivateUser\\Desktop\\secret.txt'
   const stat = {

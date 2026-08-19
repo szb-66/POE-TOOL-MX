@@ -4,9 +4,29 @@ import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
   mergeStatIntoList,
+  refreshPseudoStats,
   sanitizePriceCheckModel,
   sanitizePriceCheckOptions
 } from './query.js'
+
+const DISTRIBUTION_REQUEST_INTERVAL_MS = 1000
+
+function waitForDistributionBatch(ms, signal) {
+  if (!(ms > 0)) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    let timer
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('查询已取消', 'AbortError'))
+    }
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    if (signal?.aborted) onAbort()
+    else signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
 
 function resultIds(search) {
   if (Array.isArray(search?.result)) return search.result
@@ -23,6 +43,14 @@ function withoutBaseType(query) {
   const fallback = structuredClone(query)
   delete fallback.query?.type
   return fallback
+}
+
+function errorSnapshot(error, fallbackCode = 'NETWORK_ERROR') {
+  return {
+    code: error?.code || fallbackCode,
+    message: error?.message || '国服查价失败',
+    details: structuredClone(error?.details || {})
+  }
 }
 
 function normalizeListing(entry, currencyLabels = {}) {
@@ -127,7 +155,19 @@ export function buildPriceDistribution(entries, accountName = '', dcRate = null,
 }
 
 export class PriceCheckService {
-  constructor({ auth, client, catalog, catalogStatus, overlay = null, shell = null, captureClipboard = null, dcRateProvider = null, catalogRefresher = null }) {
+  constructor({
+    auth,
+    client,
+    catalog,
+    catalogStatus,
+    overlay = null,
+    shell = null,
+    captureClipboard = null,
+    dcRateProvider = null,
+    catalogRefresher = null,
+    now = () => Date.now(),
+    distributionWait = waitForDistributionBatch
+  }) {
     this.auth = auth
     this.client = client
     this.catalog = catalog
@@ -137,6 +177,8 @@ export class PriceCheckService {
     this.captureClipboard = captureClipboard
     this.dcRateProvider = dcRateProvider
     this.catalogRefresher = catalogRefresher
+    this.now = now
+    this.distributionWait = distributionWait
     this.catalogRefreshPending = null
     this.controller = null
     this.requestSequence = 0
@@ -189,11 +231,18 @@ export class PriceCheckService {
     try {
       const text = await this.captureClipboard()
       if (captureSequence !== this.captureSequence) throw new DOMException('查询已取消', 'AbortError')
-      return this.check({ ...request, text, model: undefined })
+      const queryImmediately = request?.queryImmediately === true
+      return this.check({
+        ...request,
+        text,
+        model: undefined,
+        execute: queryImmediately,
+        queryImmediately
+      })
     } catch (error) {
       if (captureSequence === this.captureSequence && error?.name !== 'AbortError') this.overlay?.create?.({
         status: 'error',
-        error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message },
+        error: errorSnapshot(error, CHAOS_ERROR_CODES.INVALID_REQUEST),
         catalog: this.catalogStatus,
         auth: this.auth.getStatus(),
         league: request?.league
@@ -306,9 +355,10 @@ export class PriceCheckService {
     }
   }
 
-  async check({ text, league, model, options = {}, reposition = true }) {
+  async check({ text, league, model, options = {}, reposition = true, execute = true, queryImmediately = true }) {
     this.assertEnabled()
     options = sanitizePriceCheckOptions(options)
+    queryImmediately = queryImmediately === true
     this.controller?.abort()
     const controller = new AbortController()
     this.controller = controller
@@ -332,6 +382,7 @@ export class PriceCheckService {
       this.latest = {
         league,
         model: currentModel,
+        queryImmediately,
         options: structuredClone(options),
         result: null,
         rawEntries: [],
@@ -354,6 +405,28 @@ export class PriceCheckService {
       void this.refreshDcRate()
       return structuredClone(this.latest)
     }
+    if (execute === false) {
+      this.latest = {
+        league,
+        model: currentModel,
+        queryImmediately,
+        options: structuredClone(options),
+        result: null,
+        rawEntries: [],
+        remainingResultIds: [],
+        updatedAt: new Date().toISOString()
+      }
+      this.overlay?.create?.({
+        status: 'ready-to-query',
+        ...this.latest,
+        settingsRevision: this.settingsRevision,
+        dcRate: this.currentDcRate(),
+        catalog: this.catalogStatus,
+        auth: this.auth.getStatus()
+      }, { reposition })
+      void this.refreshDcRate()
+      return structuredClone(this.latest)
+    }
     const query = buildOfficialTradeQuery(currentModel, options)
     this.latest = null
     this.overlay?.create?.({
@@ -371,7 +444,9 @@ export class PriceCheckService {
           effectiveQuery = withoutBaseType(effectiveQuery)
           search = await this.client.search(league, effectiveQuery, { signal: controller.signal })
         } else if (isUnknownBaseTypeError(error)) {
-          const baseType = String(effectiveQuery.query?.type || currentModel.identity?.type || '').trim()
+          const baseType = String(
+            effectiveQuery.query?.type?.option || effectiveQuery.query?.type || currentModel.identity?.type || ''
+          ).trim()
           throw new ChaosRecipeError(
             CHAOS_ERROR_CODES.INVALID_REQUEST,
             `国服交易接口不认识物品底材“${baseType || '未知'}”，请重新复制物品；如果这是通货，请使用游戏内货币兑换`,
@@ -390,6 +465,7 @@ export class PriceCheckService {
       this.latest = {
         league,
         model: currentModel,
+        queryImmediately,
         query: effectiveQuery,
         options: structuredClone(options),
         result,
@@ -403,7 +479,7 @@ export class PriceCheckService {
     } catch (error) {
       if (error?.name === 'AbortError') throw error
       if (error?.code === CHAOS_ERROR_CODES.SESSION_EXPIRED) await this.auth.expire?.()
-      this.overlay?.update?.({ status: 'error', error: { code: error.code || 'NETWORK_ERROR', message: error.message }, auth: this.auth.getStatus() })
+      this.overlay?.update?.({ status: 'error', error: errorSnapshot(error), auth: this.auth.getStatus() })
       throw error
     }
   }
@@ -420,14 +496,14 @@ export class PriceCheckService {
     }
   }
 
-  refreshLatestResult() {
-    if (!this.latest?.result?.queryId) return
-    this.latest.result = this.createResult(
-      this.latest.result.queryId,
-      this.latest.result.total,
-      this.latest.rawEntries
+  refreshLatestResult(latest = this.latest) {
+    if (!latest?.result?.queryId) return
+    latest.result = this.createResult(
+      latest.result.queryId,
+      latest.result.total,
+      latest.rawEntries
     )
-    this.latest.result.distribution.complete = this.latest.remainingResultIds.length === 0
+    latest.result.distribution.complete = latest.remainingResultIds.length === 0
   }
 
   getOverlayState() { return this.overlay?.getState?.() || null }
@@ -444,10 +520,19 @@ export class PriceCheckService {
     this.assertEnabled()
     const source = this.latest || this.overlay?.getState?.()
     if (!source?.model) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可重新查询的物品')
+    const model = sanitizePriceCheckModel(
+      request.model || source.model,
+      this.catalog,
+      source.model.facts,
+      source.model.item?.category,
+      source.model
+    )
     return this.check({
       league: String(request.league || source.league || ''),
-      model: request.model || source.model,
+      model,
       options: request.options || {},
+      execute: true,
+      queryImmediately: source.queryImmediately === true,
       reposition: false
     })
   }
@@ -459,12 +544,20 @@ export class PriceCheckService {
     const candidate = candidates.find((entry) => entry.key === String(candidateKey || ''))
     if (!candidate) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '未鉴定传奇候选无效')
     const model = structuredClone(source.model)
-    model.identity = { name: candidate.name, type: candidate.baseType }
+    model.identity = {
+      ...model.identity,
+      name: candidate.name,
+      type: candidate.baseType,
+      nameEnabled: true
+    }
     model.identityResolution = { ...model.identityResolution, required: false, selectedKey: candidate.key }
+    const queryImmediately = source.queryImmediately === true
     return this.check({
       league: source.league,
       model,
       options: source.options || this.runtime.options,
+      execute: queryImmediately,
+      queryImmediately,
       reposition: false
     })
   }
@@ -484,20 +577,37 @@ export class PriceCheckService {
       label: candidate.label,
       text: unknown.text,
       type: candidate.type,
+      refs: candidate.refs || [],
+      ref: candidate.ref,
       tier: unknown.tier,
       tags: unknown.tags || [],
       values: candidate.values || [],
+      valueMultiplier: candidate.valueMultiplier,
       merge: candidate.merge,
-      sources: [{ text: unknown.text, name: candidate.label, values: candidate.values || [] }],
+      sources: [{
+        key: `${candidate.type}:${candidate.id}`,
+        id: candidate.id,
+        type: candidate.type,
+        text: unknown.text,
+        name: candidate.label,
+        values: candidate.values || [],
+        valueMultiplier: candidate.valueMultiplier,
+        refs: candidate.refs || [],
+        ref: candidate.ref
+      }],
       enabled: true,
       min: candidate.min,
       max: candidate.max
-    }, options.valueRange)
+    })
     model.unknownStats.splice(unknownIndex, 1)
+    refreshPseudoStats(model, this.catalog, options)
+    const queryImmediately = source.queryImmediately === true
     return this.check({
       league: source.league,
       model,
       options: source.options || this.runtime.options,
+      execute: queryImmediately,
+      queryImmediately,
       reposition: false
     })
   }
@@ -526,18 +636,49 @@ export class PriceCheckService {
     if (!this.latest?.result?.queryId) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可分析的查价结果')
     }
-    while (this.latest.remainingResultIds.length && this.latest.rawEntries.length < 100) {
-      const ids = this.latest.remainingResultIds.splice(0, 10)
-      const fetched = await this.client.fetch(this.latest.result.queryId, ids, { signal: this.controller?.signal })
-      this.latest.rawEntries.push(...fetched.result.filter(Boolean))
-      this.refreshLatestResult()
-      this.latest.updatedAt = new Date().toISOString()
-      this.overlay?.update?.({ status: 'ready', ...this.latest, dcRate: this.currentDcRate() })
+    const latest = this.latest
+    const requestSequence = this.requestSequence
+    const signal = this.controller?.signal
+    let previousRequestStartedAt = null
+    const assertCurrent = () => {
+      if (signal?.aborted || requestSequence !== this.requestSequence || latest !== this.latest) {
+        throw new DOMException('查询已取消', 'AbortError')
+      }
     }
-    this.refreshLatestResult()
-    this.latest.result.distribution.complete = true
-    this.overlay?.update?.({ status: 'ready', ...this.latest, dcRate: this.currentDcRate() })
-    return structuredClone(this.latest)
+    while (latest.remainingResultIds.length && latest.rawEntries.length < 100) {
+      if (previousRequestStartedAt != null) {
+        const wait = Math.max(0, previousRequestStartedAt + DISTRIBUTION_REQUEST_INTERVAL_MS - this.now())
+        if (wait > 0) await this.distributionWait(wait, signal)
+        assertCurrent()
+      }
+      previousRequestStartedAt = this.now()
+      const ids = latest.remainingResultIds.splice(0, 10)
+      let fetched
+      try {
+        fetched = await this.client.fetch(latest.result.queryId, ids, { signal })
+      } catch (error) {
+        latest.remainingResultIds.unshift(...ids)
+        assertCurrent()
+        if (error?.code !== CHAOS_ERROR_CODES.RATE_LIMITED) throw error
+        this.refreshLatestResult(latest)
+        latest.rateLimit = errorSnapshot(error, CHAOS_ERROR_CODES.RATE_LIMITED)
+        latest.updatedAt = new Date().toISOString()
+        this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+        return structuredClone(latest)
+      }
+      assertCurrent()
+      latest.rawEntries.push(...fetched.result.filter(Boolean))
+      latest.rateLimit = null
+      this.refreshLatestResult(latest)
+      latest.updatedAt = new Date().toISOString()
+      this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+    }
+    assertCurrent()
+    this.refreshLatestResult(latest)
+    latest.rateLimit = null
+    latest.result.distribution.complete = true
+    this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+    return structuredClone(latest)
   }
 
   async openOfficial() {

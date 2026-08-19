@@ -23,11 +23,14 @@ function setProperty(object, path, value) {
 }
 
 function statToQuery(stat) {
+  const displayMin = typeof stat.min === 'number' ? stat.min : undefined
+  const displayMax = typeof stat.max === 'number' ? stat.max : undefined
+  const negative = stat.valueMultiplier === -1
   return {
     id: stat.id,
     value: {
-      min: typeof stat.min === 'number' ? stat.min : undefined,
-      max: typeof stat.max === 'number' ? stat.max : undefined,
+      min: negative && displayMax !== undefined ? -displayMax : (negative ? undefined : displayMin),
+      max: negative && displayMin !== undefined ? -displayMin : (negative ? undefined : displayMax),
       option: stat.option
     },
     disabled: false
@@ -61,26 +64,21 @@ export function createAwakenedTradeRequest(filters, stats) {
   if (filters.trade.listed) {
     setProperty(query.filters, 'trade_filters.filters.indexed.option', filters.trade.listed)
   }
-  if (filters.name) query.name = filters.name
-  if (filters.baseType) query.type = filters.baseType
+  const identityToQuery = (value) => filters.discriminator
+    ? { discriminator: filters.discriminator, option: value }
+    : value
+  if (filters.name) query.name = identityToQuery(filters.name)
+  if (filters.baseType) query.type = identityToQuery(filters.baseType)
+  if (filters.category) {
+    setProperty(query.filters, 'type_filters.filters.category.option', filters.category)
+  }
 
   if (filters.rarity) {
     setProperty(query.filters, 'type_filters.filters.rarity.option', filters.rarity)
   }
-  if (filters.corrupted != null) {
-    setProperty(query.filters, 'misc_filters.filters.corrupted.option', String(filters.corrupted))
-  }
-  if (filters.unidentified != null) {
-    setProperty(query.filters, 'misc_filters.filters.identified.option', String(!filters.unidentified))
-  }
-  if (filters.mirrored != null) {
-    setProperty(query.filters, 'misc_filters.filters.mirrored.option', String(filters.mirrored))
-  }
-  if (filters.split != null) {
-    setProperty(query.filters, 'misc_filters.filters.split.option', String(filters.split))
-  }
-  if (filters.fractured != null) {
-    setProperty(query.filters, 'misc_filters.filters.fractured_item.option', String(filters.fractured))
+  for (const [key, value] of Object.entries(filters.stateFilters || {})) {
+    if (value === 'any') continue
+    setProperty(query.filters, `misc_filters.filters.${key}.option`, value)
   }
   if (filters.gemLevel != null) {
     setProperty(query.filters, 'misc_filters.filters.gem_level.min', filters.gemLevel)
@@ -120,6 +118,14 @@ export function createAwakenedTradeRequest(filters, stats) {
   range('misc_filters.filters.gem_level', filters.misc?.gemLevel)
   range('socket_filters.filters.links', filters.socket?.links)
   range('map_filters.filters.map_tier', filters.map?.tier)
+  range('map_filters.filters.map_iiq', filters.map?.iiq)
+  range('map_filters.filters.map_iir', filters.map?.iir)
+  range('map_filters.filters.map_packsize', filters.map?.packSize)
+  range('map_filters.filters.area_level', filters.map?.areaLevel)
+  range('map_filters.filters.chart_sulphur', filters.map?.sulphur)
+  if (filters.map?.shape?.option) {
+    setProperty(query.filters, 'map_filters.filters.chart_shape.option', String(filters.map.shape.option))
+  }
 
   query.stats[0].filters.push(...stats.filter((stat) => stat.enabled).map(statToQuery))
   return body

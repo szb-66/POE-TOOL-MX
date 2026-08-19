@@ -68,7 +68,7 @@
         </el-collapse-transition>
       </article>
     </div>
-    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；Alt+3 可紧急停止自动放入</span></div>
+    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；{{ emergencyStopShortcut }} 可全局紧急停止</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
 
@@ -367,6 +367,7 @@ import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
 import { useSettingsStore } from '../settings/settingsStore.js'
 import { formatBorderProbeFeedback, fragmentModTooltipLines } from '../../utils/chartModPresentation.js'
+import { isEmergencyCancellation } from '../../utils/emergencyStopResult.js'
 import { typeForMask } from './solver.js'
 
 const store = usePuzzleStore()
@@ -431,6 +432,7 @@ const westExits = ['W0', 'W1', 'W2']
 
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
+const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end || 'Alt+3')
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])
 const currentPageAvailableCount = computed(() => slots.value.filter(slot => slot.occupied && !store.isSlotLocked(slot)).length)
@@ -549,6 +551,7 @@ function toggleRegion(type) {
 
 async function startAnalysis() {
   const response = await store.analyze()
+  if (isEmergencyCancellation(response)) return
   if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
   else if (response?.success) {
     const skipped = [response.fragmentProbe]
@@ -582,6 +585,7 @@ async function stopAutoPlacement() {
 
 async function completeCurrentChart() {
   const response = await store.completeCurrentChart()
+  if (isEmergencyCancellation(response)) return
   if (!response?.success) ElMessage.error(response?.error?.message || '完成当前海图失败')
   else {
     const baseText = `已扣除当前海图 9 块碎片，剩余 ${occupiedCount.value} 块已重新计算`
@@ -760,6 +764,7 @@ const probeBorderBlockedTitle = computed(() => {
 
 async function handleProbeBorderMods() {
   const response = await store.probeBorderMods()
+  if (isEmergencyCancellation(response)) return
   if (response?.success) {
     const feedback = formatBorderProbeFeedback(response)
     if (feedback.partial) ElMessage.warning(feedback.text)

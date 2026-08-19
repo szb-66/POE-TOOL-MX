@@ -3,7 +3,7 @@
  * Inputs: python (object) - Python 管理模块，window (object) - 窗口管理模块，fileWatcher (object) - 文件监听模块
  * Outputs: 注册 IPC 处理器，无返回值
  * Preconditions: Python 环境已配置，窗口已创建
- * Edge cases: Python 未找到时返回错误；进程终止失败时静默处理
+ * Edge cases: Python 未找到时返回错误；进程终止失败时保留运行状态并返回失败
  * Errors: Python 路径未找到时抛出错误；进程启动失败时返回错误
  */
 
@@ -12,8 +12,16 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
+import { stopPythonProcess } from '../python/process.js'
 import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEvents.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
+
+let stopScriptHandler = null
+
+export function stopCurrentScript() {
+  if (!stopScriptHandler) return Promise.resolve({ success: true, stopped: false })
+  return stopScriptHandler()
+}
 
 async function prepareCraftingOverlay(window, getOverlayWindow) {
   let overlayWindow = getOverlayWindow()
@@ -130,32 +138,20 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   })
 
   // 停止脚本执行
-  ipcMain.handle('stop-script', async () => {
+  const stopScript = async () => {
     const currentScriptProcess = getCurrentScriptProcess()
     if (currentScriptProcess) {
       try {
         const pid = currentScriptProcess.pid
         const mode = getCurrentScriptMode()
         intentionallyStopped.add(currentScriptProcess)
-        
-        // 使用进程树终止函数
-        const success = await killPythonProcessTree(pid)
-        
-        if (!success) {
-          // 如果进程树终止失败，尝试直接kill
-          try {
-            if (currentScriptProcess && !currentScriptProcess.killed) {
-              currentScriptProcess.kill('SIGTERM')
-              await new Promise(resolve => setTimeout(resolve, 500))
-              if (currentScriptProcess && !currentScriptProcess.killed) {
-                currentScriptProcess.kill('SIGKILL')
-              }
-            }
-          } catch (e) {
-            // 直接kill失败
-          }
+
+        const stopped = await stopPythonProcess(currentScriptProcess, { killTree: killPythonProcessTree })
+        if (!stopped) {
+          intentionallyStopped.delete(currentScriptProcess)
+          return { success: false, stopped: false, error: '停止制作/地图进程失败，进程仍在运行' }
         }
-        
+
         // 发送脚本停止事件到overlay（用于地图制作）
         const overlayWindow = getOverlayWindow()
         const filePaths = fileWatcher.getFilePaths()
@@ -210,7 +206,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           processId: pid,
           exitCode: null
         })
-        return { success: true }
+        return { success: true, stopped: true }
       } catch (error) {
         const mode = getCurrentScriptMode()
         const processId = currentScriptProcess.pid
@@ -226,8 +222,10 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         return { success: false, error: error.message }
       }
     }
-    return { success: true, message: '没有正在执行的脚本', isRunning: false, processId: null, mode: null }
-  })
+    return { success: true, stopped: false, message: '没有正在执行的脚本', isRunning: false, processId: null, mode: null }
+  }
+  stopScriptHandler = stopScript
+  ipcMain.handle('stop-script', stopScript)
 
   // 获取脚本执行状态
   ipcMain.handle('get-script-status', async () => {
@@ -236,7 +234,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
     // 检查进程是否真正存活
     if (currentScriptProcess) {
       // 检查进程是否已被终止
-      if (currentScriptProcess.killed || currentScriptProcess.exitCode !== null) {
+      if (currentScriptProcess.exitCode !== null || currentScriptProcess.signalCode !== null) {
         clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
         return {

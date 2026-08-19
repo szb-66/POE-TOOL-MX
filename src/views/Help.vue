@@ -91,7 +91,7 @@
               <el-icon><CircleCheck /></el-icon>
               <div>
                 <strong>安全试运行检查</strong>
-                <p>游戏保持前台 · 窗口与 DPI 已校准 · 停止快捷键可用 · 使用少量、低价值物品。</p>
+                <p>游戏保持前台 · 窗口与 DPI 已校准 · 全局紧急停止快捷键可用 · 使用少量、低价值物品。</p>
               </div>
             </article>
           </section>

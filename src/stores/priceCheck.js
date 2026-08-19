@@ -51,7 +51,6 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     listed: settings.value.listed,
     currency: settings.value.currency,
     collapseListings: settings.value.collapseListings,
-    valueRange: settings.value.valueRange,
     initialSelection: settings.value.initialSelection,
     manualDcRate: settings.value.manualDcRate
   }))
@@ -121,6 +120,12 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     const commit = async () => {
       try {
         const candidate = normalizePriceCheckSettings({ ...settings.value, [key]: value })
+        if (key === 'queryImmediately') {
+          settings.value = candidate
+          saveSettings()
+          error.value = ''
+          return { success: true, revision: settingsRevision }
+        }
         const snapshot = unwrap(await electronApi.priceCheck.updateSettings({ [key]: candidate[key] }))
         settingsRevision = Math.max(settingsRevision, Number(snapshot.settingsRevision) || settingsRevision + 1)
         settings.value = candidate
@@ -144,11 +149,12 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     try {
       const data = unwrap(await electronApi.priceCheck.capture({
         league: league.value,
+        queryImmediately: settings.value.queryImmediately,
         options: options.value
       }))
       model.value = data.model
       result.value = data.result
-      void reportDiagnosticRecovery('priceCheck', 'query')
+      if (data.result) void reportDiagnosticRecovery('priceCheck', 'query')
       return data
     } catch (reason) {
       error.value = reason.message

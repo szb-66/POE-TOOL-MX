@@ -57,6 +57,46 @@ export function getCurrentScriptProcess() {
   return currentScriptProcess
 }
 
+function hasProcessExited(child) {
+  return !child || child.exitCode !== null || child.signalCode !== null
+}
+
+function waitForProcessExit(child, timeoutMs) {
+  if (hasProcessExited(child)) return Promise.resolve(true)
+  return new Promise(resolve => {
+    let settled = false
+    const finish = (exited) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      child.removeListener?.('exit', onExit)
+      resolve(exited)
+    }
+    const onExit = () => finish(true)
+    const timer = setTimeout(() => finish(hasProcessExited(child)), Math.max(0, Number(timeoutMs) || 0))
+    child.once?.('exit', onExit)
+  })
+}
+
+export async function stopPythonProcess(child, {
+  killTree = killPythonProcessTree,
+  gracefulTimeoutMs = 500,
+  forceTimeoutMs = 500
+} = {}) {
+  if (hasProcessExited(child)) return true
+  try {
+    if (await killTree(child.pid)) return true
+  } catch {
+    // 进程树终止失败后继续尝试当前子进程句柄。
+  }
+
+  try { child.kill('SIGTERM') } catch {}
+  if (await waitForProcessExit(child, gracefulTimeoutMs)) return true
+
+  try { child.kill('SIGKILL') } catch {}
+  return waitForProcessExit(child, forceTimeoutMs)
+}
+
 export function getCurrentScriptMode() {
   return currentScriptMode
 }

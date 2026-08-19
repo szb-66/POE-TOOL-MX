@@ -208,7 +208,13 @@ async function buildOutput({ patch, records, rawImages, generatedAt, targetRoot,
     patch,
     generatedAt,
     sources: [PAGE_SOURCE.url],
-    items: records.map(({ key, name, baseType, imageId }) => ({ key, name, baseType, imageId })),
+    items: records.map(({ key, name, baseType, modifierMatchers, imageId }) => ({
+      key,
+      name,
+      baseType,
+      modifierMatchers,
+      imageId
+    })),
     images
   }, { requireSentinels })
   await writeFile(path.join(targetRoot, 'catalog.json'), `${JSON.stringify(catalog, null, 2)}\n`)

@@ -9,16 +9,33 @@ import {
   createFeedbackId,
   createObjectKey,
   sanitizeAttachmentName,
+  validateDiagnosticCaptureInput,
   validateFeedbackInput
 } from '../electron/modules/feedback/validation.js'
 
-test('反馈字段边界与类型使用统一校验', () => {
-  assert.deepEqual(validateFeedbackInput({ category: 'bug', title: '12345', description: '12345678901234567890' }), {
-    category: 'bug', title: '12345', description: '12345678901234567890', contact: null
+test('反馈标题和内容取消最低字数限制但保留必填与最大长度校验', () => {
+  assert.deepEqual(validateFeedbackInput({ category: 'bug', title: '题', description: '文' }), {
+    category: 'bug', title: '题', description: '文', contact: null
   })
-  assert.throws(() => validateFeedbackInput({ category: 'bad', title: '12345', description: '12345678901234567890' }), FeedbackValidationError)
-  assert.throws(() => validateFeedbackInput({ category: 'bug', title: '1234', description: '12345678901234567890' }), /5–80/)
-  assert.throws(() => validateFeedbackInput({ category: 'bug', title: '12345', description: '太短' }), /20–2000/)
+  assert.throws(() => validateFeedbackInput({ category: 'bad', title: '题', description: '文' }), FeedbackValidationError)
+  assert.throws(() => validateFeedbackInput({ category: 'bug', title: ' ', description: '文' }), /请输入标题/)
+  assert.throws(() => validateFeedbackInput({ category: 'bug', title: '题', description: '\n' }), /请输入详细描述/)
+  assert.throws(() => validateFeedbackInput({ category: 'bug', title: '题'.repeat(81), description: '文' }), /80/)
+  assert.throws(() => validateFeedbackInput({ category: 'bug', title: '题', description: '文'.repeat(2001) }), /2000/)
+})
+
+test('诊断会话标识要求明确授权且只接受 UUID', () => {
+  const captureId = '11111111-1111-4111-8111-111111111111'
+  assert.equal(validateDiagnosticCaptureInput({ includeDiagnostics: true, diagnosticCaptureId: captureId }), captureId)
+  assert.equal(validateDiagnosticCaptureInput({ includeDiagnostics: true }), null)
+  assert.throws(
+    () => validateDiagnosticCaptureInput({ includeDiagnostics: false, diagnosticCaptureId: captureId }),
+    /只能在附带脱敏诊断时提交/
+  )
+  assert.throws(
+    () => validateDiagnosticCaptureInput({ includeDiagnostics: true, diagnosticCaptureId: 'not-a-uuid' }),
+    /诊断会话标识无效/
+  )
 })
 
 test('附件类型、数量、大小和伪装执行文件被拒绝', () => {

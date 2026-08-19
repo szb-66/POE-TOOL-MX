@@ -26,6 +26,7 @@ import { registerApplicationUpdateHandlers } from './update.js'
 import { registerJunfengHandlers } from './junfeng.js'
 import { registerAutomationTimingHandlers } from './automationTiming.js'
 import { registerFeedbackHandlers } from './feedback.js'
+import { registerEmergencyStopHandlers } from './emergencyStop.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
@@ -42,10 +43,11 @@ export function registerIpcHandlers(dependencies) {
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
+  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, puzzle, getMainWindow })
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
   const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
-  registerFeedbackHandlers(feedback, { buildDiagnostics: system?.buildSnapshot, getMainWindow })
+  registerFeedbackHandlers(feedback, { buildDiagnostics: system?.buildSnapshot, diagnostics, getMainWindow })
   if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })

@@ -17,6 +17,7 @@ import {
 import { BORDER_EDGE_IDS } from '../utils/chartEdgeGeometry.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 import { OPERATION_DELAY } from '../utils/operationDelay.js'
+import { isEmergencyCancellation } from '../utils/emergencyStopResult.js'
 import { normalizeVoyageRewardMode } from '../domains/puzzle/voyageRewards.js'
 
 const STORAGE_KEY = 'puzzleSettings'
@@ -637,6 +638,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       if (regionClearGeneration !== clearGeneration) {
         return { success: false, error: { code: 'REGION_CLEARED', message: '识别期间已清空碎片仓库，本次结果已忽略' } }
       }
+      if (isEmergencyCancellation(response)) return response
       const applied = Array.isArray(response?.pages)
         ? applyAnalysisBatch(response)
         : applyAnalysis(response)
@@ -692,6 +694,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     let borderMods = null
     if (autoProbeBorderMods.value) {
       const probeResponse = await probeBorderMods()
+      if (isEmergencyCancellation(probeResponse)) return probeResponse
       borderProbe = probeResponse?.borderProbe || null
       borderMods = probeResponse?.borderMods || null
     }
@@ -707,6 +710,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       const response = await electronApi.puzzle.probeBorderMods?.({
         atlasRegionMetadata: atlasRegionMetadata.value
       })
+      if (isEmergencyCancellation(response)) return response
       if (!response?.success) {
         if (response?.error) error.value = response.error
         return response || { success: false }

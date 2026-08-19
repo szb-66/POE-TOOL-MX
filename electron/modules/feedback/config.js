@@ -3,6 +3,7 @@ export const FEEDBACK_CLOUDBASE_CONFIG = Object.freeze({
   region: process.env.CLOUDBASE_FEEDBACK_REGION || 'ap-shanghai',
   bucket: process.env.CLOUDBASE_FEEDBACK_BUCKET || 'feedback',
   table: process.env.CLOUDBASE_FEEDBACK_TABLE || 'app_feedback',
+  presenceTable: process.env.CLOUDBASE_PRESENCE_TABLE || 'app_presence_heartbeat',
   publishableKey: process.env.CLOUDBASE_FEEDBACK_PUBLISHABLE_KEY || 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImQxMTZiNjExLTdhMWEtNDI0MS1hMTlkLTBmODNiOTc5OWJjYyJ9.eyJpc3MiOiJodHRwczovL3BvZS10b29sLWQ3Z2J1ZHVpdmJkYjYzMWJmLmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJwb2UtdG9vbC1kN2didWR1aXZiZGI2MzFiZiIsImV4cCI6NDA5MDcyMjY5OCwiaWF0IjoxNzg3MDM5NDk4LCJub25jZSI6Im42Z3ZXY1N2Ujg2VmtWYVA3enpzc0EiLCJhdF9oYXNoIjoibjZndldjU3ZSODZWa1ZhUDd6enNzQSIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJwb2UtdG9vbC1kN2didWR1aXZiZGI2MzFiZiIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.ieEqM1bD3992M4aCmyZhPPVDx-Wxp4pelxhKM9FgiAew1PYx9oe7MbCbzcuS4TlMSZnZp7p0qaX9J1RuyvGlRh2xsLNqOrWNWWgPu_MTII32kSP1zt9P4c19E4aGSfFJ_5MLiMPR8xa_tUeElzMQ-KsABeahxjPe5ivIoshCciOjGQ3vh8eK_imAk3UUvGOsEUa20zVL4rM6qYgJoPLXBqENp6_teWozWX_6wPzm4vj33kINOcSXY-f5YAO6akQfKR2kwMfnKo-nGuAAP7g1Ri1wqNZcgqSaLRH3sRDkKpKIcykIygzg4wVJkaxPqbN9dkNCGB12IX9N42cM0S4mdg'
 })
 
@@ -12,4 +13,8 @@ export function feedbackBaseUrl(config = FEEDBACK_CLOUDBASE_CONFIG) {
 
 export function isFeedbackConfigured(config = FEEDBACK_CLOUDBASE_CONFIG) {
   return Boolean(config.envId && config.region && config.bucket && config.table && config.publishableKey)
+}
+
+export function isPresenceConfigured(config = FEEDBACK_CLOUDBASE_CONFIG) {
+  return Boolean(config.envId && config.region && config.presenceTable && config.publishableKey)
 }

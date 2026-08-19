@@ -23,3 +23,9 @@ test('匿名反馈和存储在云端具备数量与频率边界', () => {
   assert.match(storagePolicies, /allowed_mime_types = ARRAY\[/)
   assert.match(storagePolicies, /feedback_storage_upload_allowed\(auth\.uid\(\), name\)/)
 })
+
+test('反馈表取消标题和内容最低字数约束但保留必填与上限', () => {
+  assert.match(migrations, /DROP CONSTRAINT app_feedback_title_check/)
+  assert.match(migrations, /CHECK \(btrim\(title\) <> '' AND char_length\(title\) <= 80\)/)
+  assert.match(migrations, /CHECK \(btrim\(description\) <> '' AND char_length\(description\) <= 2000\)/)
+})

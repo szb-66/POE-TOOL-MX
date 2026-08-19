@@ -29,6 +29,7 @@ import { validateStashTabSelection } from './stashTabSelection.js'
 import { usePuzzleStore } from '../stores/puzzle.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { getActiveMapRollingConfig } from './mapPresetMigration.js'
+import { isEmergencyCancellation } from './emergencyStopResult.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -36,6 +37,7 @@ let shortcutScopeListenerRegistered = false
 let pythonOutputListenerRegistered = false
 let scriptStatusListenerRegistered = false
 let itemResultListenerRegistered = false
+let emergencyStopPromise = null
 
 function formatShortcutError(result) {
   return result?.failed?.map(item => item.accelerator).join('、') || '未知快捷键'
@@ -101,7 +103,7 @@ export async function initShortcuts() {
       dispatchShortcutAction(accelerator, {
         itemStart: startCrafting,
         mapStart: startMapRolling,
-        end: stopCrafting,
+        end: emergencyStopAll,
         potionStart: startPotionAssist,
         potionStop: stopPotionAssist,
         portal: executePortalAssist,
@@ -155,7 +157,36 @@ export async function startPriceCheck() {
 
 export async function startPuzzleAnalysis() {
   const result = await usePuzzleStore().analyze()
+  if (isEmergencyCancellation(result)) return result
   if (!result?.success && result?.error) ElMessage.error(result.error.message)
+  return result
+}
+
+export function emergencyStopAll() {
+  if (emergencyStopPromise) return emergencyStopPromise
+  const run = async () => {
+    try {
+      const result = await electronApi.emergencyStopAll()
+      if (!result) throw new Error('主进程未返回停止结果')
+      const failed = Array.isArray(result.failed) ? result.failed : []
+      const stopped = Array.isArray(result.stopped) ? result.stopped : []
+      if (failed.length) {
+        ElMessage.error(`紧急停止部分失败：${failed.map(item => item.label || item.id).join('、')}`)
+      } else if (stopped.length) {
+        ElMessage.success(`已紧急停止：${stopped.map(item => item.label || item.id).join('、')}`)
+      } else {
+        ElMessage.info('当前没有运行中的自动化')
+      }
+      return result
+    } catch (error) {
+      ElMessage.error(`紧急停止失败：${error.message || String(error)}`)
+      return { success: false, stopped: [], failed: [{ id: 'emergency-stop', label: '紧急停止', error: error.message || String(error) }] }
+    }
+  }
+  emergencyStopPromise = run().finally(() => {
+    emergencyStopPromise = null
+  })
+  return emergencyStopPromise
 }
 
 /**

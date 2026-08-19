@@ -1,4 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { submitFeedbackWithDiagnostics } from '../feedback/submission.js'
 
 const ATTACHMENT_FILTERS = [
   { name: '支持的附件', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'txt', 'log', 'json', 'md', 'pdf', 'doc', 'docx', 'zip', '7z', 'rar'] }
@@ -19,7 +20,7 @@ function assertMainWindowSender(event, getMainWindow) {
   }
 }
 
-export function registerFeedbackHandlers(feedback, { buildDiagnostics, getMainWindow } = {}) {
+export function registerFeedbackHandlers(feedback, { buildDiagnostics, diagnostics, getMainWindow } = {}) {
   if (!feedback) return
   const guarded = handler => async (event, ...args) => {
     assertMainWindowSender(event, getMainWindow)
@@ -43,10 +44,15 @@ export function registerFeedbackHandlers(feedback, { buildDiagnostics, getMainWi
     }
   }))
 
-  ipcMain.handle('feedback:submit', guarded(async (event, input) => feedback.submit(input, {
-    buildDiagnostics,
-    onProgress: progress => {
-      if (!event.sender.isDestroyed()) event.sender.send('feedback:progress', progress)
-    }
-  })))
+  ipcMain.handle('feedback:submit', guarded(async (event, input) => {
+    return submitFeedbackWithDiagnostics({
+      feedback,
+      input,
+      buildDiagnostics,
+      diagnostics,
+      onProgress: progress => {
+        if (!event.sender.isDestroyed()) event.sender.send('feedback:progress', progress)
+      }
+    })
+  }))
 }

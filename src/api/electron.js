@@ -16,6 +16,7 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  emergencyStopAll: () => Promise.resolve({ success: true, stopped: [], failed: [] }),
   system: {
     detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
     updateGameWindowTitles: (titles) => Promise.resolve({ success: true, titles }),
@@ -326,6 +327,7 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  emergencyStopAll: () => window.electronAPI.emergencyStopAll?.(),
   system: {
     detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
     updateGameWindowTitles: (titles) => window.electronAPI.updateGameWindowTitles?.(craftingIpcPayload(titles)),

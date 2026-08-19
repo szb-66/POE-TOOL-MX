@@ -6,32 +6,9 @@
         <p>集中查看模块运行、配置完整性与系统环境，并快速处理常用操作。</p>
       </div>
       <div class="heading-actions">
-        <el-button :icon="Download" :loading="diagnosticsExporting" @click="exportDiagnostics()">导出当前诊断</el-button>
-        <el-button
-          v-if="!diagnosticCapture"
-          type="primary"
-          :loading="diagnosticCaptureLoading"
-          @click="captureDialogVisible = true"
-        >开始诊断会话</el-button>
-        <template v-else>
-          <el-button
-            type="warning"
-            :loading="diagnosticCaptureLoading || diagnosticsExporting"
-            @click="finishAndExportDiagnosticCapture"
-          >{{ diagnosticCapture.status === 'active' ? '结束并导出' : '导出诊断会话' }}</el-button>
-          <el-button @click="cancelDiagnosticCapture">取消会话</el-button>
-        </template>
         <el-button :icon="Refresh" :loading="refreshing" @click="refresh">刷新状态</el-button>
       </div>
     </header>
-
-    <el-alert
-      v-if="diagnosticCapture"
-      class="capture-alert"
-      :closable="false"
-      :type="diagnosticCapture.status === 'active' ? 'warning' : 'info'"
-      :title="captureStatusText"
-    />
 
     <section class="summary-grid" aria-label="模块状态汇总">
       <article v-for="item in summaryItems" :key="item.state" :class="`summary-${item.state}`">
@@ -93,25 +70,6 @@
       </section>
     </section>
 
-    <el-dialog v-model="captureDialogVisible" title="开始诊断会话" width="420px">
-      <el-form label-position="top">
-        <el-form-item label="受影响模块" required>
-          <el-select v-model="captureArea" placeholder="请选择模块" style="width: 100%">
-            <el-option v-for="item in captureAreas" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="问题现象" required>
-          <el-select v-model="captureSymptom" placeholder="请选择现象" style="width: 100%">
-            <el-option v-for="item in captureSymptoms" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-alert :closable="false" type="info" title="会话最长 15 分钟，仅记录结构化故障与恢复事件。" />
-      </el-form>
-      <template #footer>
-        <el-button @click="captureDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!captureArea || !captureSymptom" @click="beginCapture">开始</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -122,7 +80,6 @@ import {
   Briefcase,
   CircleCheck,
   Coin,
-  Download,
   FirstAidKit,
   MapLocation,
   Monitor,
@@ -139,24 +96,6 @@ import { useDashboard } from './useDashboard'
 import { reportStartupEvent } from '../../utils/startupReporter'
 
 const healthExpanded = ref(false)
-const captureDialogVisible = ref(false)
-const captureArea = ref('')
-const captureSymptom = ref('')
-const captureAreas = [
-  { value: 'system', label: '系统环境' }, { value: 'shortcuts', label: '快捷键' },
-  { value: 'items', label: '物品制作' }, { value: 'bag', label: '背包入库' },
-  { value: 'map', label: '地图洗图' }, { value: 'combat', label: '战斗辅助' },
-  { value: 'story', label: '剧情指引' }, { value: 'shop', label: '商城配方' },
-  { value: 'priceCheck', label: '国服查价' }, { value: 'crafting', label: '做装模拟' },
-  { value: 'stashPickup', label: '仓库取件' }, { value: 'puzzle', label: '海图拼图' },
-  { value: 'junfeng', label: '君锋镇取件' }
-]
-const captureSymptoms = [
-  { value: 'cannot_start', label: '无法启动' }, { value: 'wrong_result', label: '结果错误' },
-  { value: 'stops_during_use', label: '中途停止' }, { value: 'slow_or_stuck', label: '卡顿' },
-  { value: 'intermittent', label: '偶发失效' }, { value: 'crash_or_exit', label: '崩溃退出' },
-  { value: 'other_unexpected', label: '其他异常' }
-]
 const moduleIcons = {
   items: Box,
   bag: Briefcase,
@@ -180,34 +119,12 @@ const {
   healthItems,
   healthHasIssues,
   refreshing,
-  diagnosticsExporting,
-  diagnosticCapture,
-  diagnosticCaptureLoading,
   refresh,
-  exportDiagnostics,
-  startDiagnosticCapture,
-  finishAndExportDiagnosticCapture,
-  cancelDiagnosticCapture,
   runAction,
   changeModuleControl,
   openModule,
   openSettings
 } = useDashboard()
-
-const captureStatusText = computed(() => {
-  if (!diagnosticCapture.value) return ''
-  const labels = { active: '诊断会话正在记录，请复现问题后结束并导出。', completed: '诊断会话已结束，可以导出。',
-    timed_out: '诊断会话已达到 15 分钟上限，可以导出已记录内容。', interrupted: '检测到上次异常中断的诊断会话，可以导出。' }
-  return labels[diagnosticCapture.value.status] || '诊断会话可以导出。'
-})
-
-async function beginCapture() {
-  if (await startDiagnosticCapture(captureArea.value, captureSymptom.value)) {
-    captureDialogVisible.value = false
-    captureArea.value = ''
-    captureSymptom.value = ''
-  }
-}
 
 const moduleGroups = computed(() => groupDashboardModules(modules.value))
 
@@ -235,7 +152,6 @@ onMounted(() => reportStartupEvent('dashboard-ready'))
 }
 .page-heading { justify-content: space-between; gap: 20px; margin-bottom: 18px; }
 .heading-actions { display: flex; gap: 8px; }
-.capture-alert { margin-bottom: 14px; }
 h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .page-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 

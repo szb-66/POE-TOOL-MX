@@ -35,14 +35,6 @@
             <option value="chaos_divine">混沌或神圣</option>
           </select>
         </label>
-        <label>数值范围
-          <select v-model="queryOptions.valueRange" @change="syncSetting('valueRange')">
-            <option value="original">仅原数值</option>
-            <option value="down10">下浮 10%</option>
-            <option value="down20">下浮 20%</option>
-            <option value="unlimited">不限制</option>
-          </select>
-        </label>
         <label>词缀初选
           <select v-model="queryOptions.initialSelection" @change="syncSetting('initialSelection')">
             <option value="auto">自动</option>
@@ -57,17 +49,39 @@
       </section>
 
       <section v-if="state.model" class="panel identity">
-        <div>
-          <strong>{{ state.model.item.name || state.model.item.baseType }}</strong>
-          <span>{{ state.model.item.rarity }} · {{ state.model.item.baseType }} · {{ state.league }}</span>
+        <div class="identity-main">
+          <div
+            v-if="state.model.identity?.name"
+            class="identity-name filter-row"
+            :class="{ enabled: nameFilterEnabled, disabled: !canToggleName }"
+            role="checkbox"
+            :aria-checked="nameFilterEnabled"
+            :aria-disabled="!canToggleName"
+            tabindex="0"
+            :title="canToggleName ? '选中或取消具体物品名称' : '无法识别物品大类，必须保留具体名称'"
+            @click="toggleNameFilter"
+            @keydown.enter.prevent="toggleNameFilter"
+            @keydown.space.prevent="toggleNameFilter"
+          >
+            <strong>{{ state.model.identity.name }}</strong>
+            <small v-if="!canToggleName">大类不可用，名称必须保留</small>
+          </div>
+          <strong v-else class="identity-static-name">{{ state.model.identity?.displayName || state.model.item.name || state.model.item.baseType }}</strong>
+          <span class="identity-meta">
+            {{ state.model.item.rarity }} · {{ state.model.identity?.categoryLabel || state.model.item.category || '未知大类' }} · {{ state.model.item.baseType }} · {{ state.league }}
+          </span>
         </div>
-        <div class="flags">
-          <span v-for="flag in activeFlags" :key="flag">{{ flag }}</span>
+        <div class="identity-side">
+          <div class="flags">
+            <span v-for="flag in activeFlags" :key="flag">{{ flag }}</span>
+          </div>
+          <div v-if="state.status === 'ready-to-query'" class="identity-hint">物品已读取，请确认条件后点击“搜索”</div>
         </div>
       </section>
 
       <div v-if="state.status === 'loading'" class="state-message">正在查询官方挂单…</div>
-      <div v-else-if="state.status === 'error'" class="state-message error">{{ state.error?.message }}</div>
+      <div v-else-if="state.status === 'error'" class="state-message error">{{ stateErrorText }}</div>
+      <div v-if="rateLimitText" class="warning rate-limit-warning">{{ rateLimitText }}</div>
 
       <section v-if="state.status === 'identity-required'" class="panel identity-resolver">
         <h3>请选择未鉴定传奇</h3>
@@ -91,24 +105,66 @@
       </section>
 
       <template v-if="state.model && !filtersCollapsed">
+        <section class="panel state-filter-panel">
+          <div class="panel-heading">
+            <h3>状态过滤</h3>
+            <button
+              class="panel-toggle"
+              type="button"
+              :aria-expanded="!stateFiltersCollapsed"
+              aria-controls="price-check-state-filters"
+              @click="stateFiltersCollapsed = !stateFiltersCollapsed"
+            >{{ stateFiltersCollapsed ? '展开' : '折叠' }}</button>
+          </div>
+          <div v-if="!stateFiltersCollapsed" id="price-check-state-filters" class="state-filter-grid">
+            <label v-for="definition in stateDefinitions" :key="definition.key">
+              <span>{{ definition.label }}</span>
+              <select v-model="state.model.stateFilters[definition.key]">
+                <option value="any">任意</option>
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
         <section v-if="state.model.properties?.length" class="panel filter-list">
           <h3>物品属性</h3>
-          <div
-            v-for="property in state.model.properties"
-            :key="property.id"
-            class="filter-row property-row"
-            :class="{ enabled: property.enabled }"
-            role="checkbox"
-            :aria-checked="property.enabled"
-            tabindex="0"
-            @click="toggleFilter(property)"
-            @keydown.enter.prevent="toggleFilter(property)"
-            @keydown.space.prevent="toggleFilter(property)"
-          >
-            <span class="filter-name">{{ property.label }}</span>
-            <input v-model.number="property.min" class="number" type="number" placeholder="最小" @click.stop @keydown.stop />
-            <input v-model.number="property.max" class="number" type="number" placeholder="最大" @click.stop @keydown.stop />
+          <div class="property-grid">
+            <div
+              v-for="property in state.model.properties"
+              :key="property.id"
+              class="filter-row property-row"
+              :class="{ enabled: property.enabled }"
+              role="checkbox"
+              :aria-checked="property.enabled"
+              tabindex="0"
+              @click="toggleFilter(property)"
+              @keydown.enter.prevent="toggleFilter(property)"
+              @keydown.space.prevent="toggleFilter(property)"
+            >
+              <span class="filter-name" :title="property.label">{{ property.label }}</span>
+              <template v-if="property.options?.length">
+                <select v-model="property.value" class="property-option" @click.stop @keydown.stop>
+                  <option v-for="option in property.options" :key="option.id" :value="option.id">{{ option.label }}</option>
+                </select>
+              </template>
+              <template v-else>
+                <input v-model.number="property.min" class="number" type="number" placeholder="最小" @click.stop @keydown.stop />
+                <input v-model.number="property.max" class="number" type="number" placeholder="最大" @click.stop @keydown.stop />
+              </template>
+            </div>
           </div>
+        </section>
+
+        <section v-if="state.model.information?.length" class="panel information-panel">
+          <h3>仅供参考</h3>
+          <div class="information-grid">
+            <span v-for="entry in state.model.information" :key="entry.id">
+              {{ entry.label }}：{{ entry.value }}{{ entry.suffix }}
+            </span>
+          </div>
+          <small>官方过滤目录没有对应字段，不会写入查询。</small>
         </section>
 
         <section v-if="state.model.stats?.length || state.model.unknownStats?.length" class="panel filter-list">
@@ -125,16 +181,18 @@
             @keydown.enter.prevent="toggleFilter(stat)"
             @keydown.space.prevent="toggleFilter(stat)"
           >
-            <span class="tier" :class="{ known: stat.tier }">T{{ stat.tier || '?' }}</span>
+            <span class="stat-source" :class="statTypeClass(stat.type)">{{ typeLabel(stat.type) }}</span>
+            <span class="tier" :class="{ known: stat.tier }">{{ stat.tier ? `T${stat.tier}` : '—' }}</span>
             <span class="filter-name">
               {{ stat.text }}
-              <small>{{ typeLabel(stat.type) }}<template v-if="stat.tags?.length"> · {{ stat.tags.join('、') }}</template></small>
+              <small v-if="stat.tags?.length">{{ stat.tags.join('、') }}</small>
             </span>
-            <input v-model.number="stat.min" class="number" type="number" placeholder="最小" @click.stop @keydown.stop />
-            <input v-model.number="stat.max" class="number" type="number" placeholder="最大" @click.stop @keydown.stop />
+            <input v-model.number="stat.min" class="number" type="number" min="0" placeholder="最小" @click.stop @keydown.stop />
+            <input v-model.number="stat.max" class="number" type="number" min="0" placeholder="最大" @click.stop @keydown.stop />
           </div>
           <div v-for="unknown in state.model.unknownStats || []" :key="unknown.key || `${unknown.type}:${unknown.text}`" class="unknown-block">
             <div class="filter-row unknown">
+              <span class="stat-source" :class="statTypeClass(unknown.type)">{{ typeLabel(unknown.type) }}</span>
               <span class="tier">T{{ unknown.tier || '?' }}</span>
               <span class="filter-name">{{ unknown.text }}<small>未加入本次查询 · {{ unknown.reason }}</small></span>
               <span></span><span></span>
@@ -153,7 +211,7 @@
       </template>
 
       <section class="action-row">
-        <button class="search" :disabled="busy || !state.model" @click="rerun">搜索</button>
+        <button class="search" :disabled="busy || !state.model || state.status === 'identity-required'" @click="rerun">搜索</button>
         <button @click="filtersCollapsed = !filtersCollapsed">{{ filtersCollapsed ? '展开过滤器' : '折叠过滤器' }}</button>
         <button class="market" :disabled="state.status !== 'ready'" @click="openOfficial">网页市集</button>
       </section>
@@ -226,10 +284,12 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { electronApi } from '@/api/electron'
+import { PRICE_CHECK_STATE_FILTERS, PRICE_CHECK_STAT_TYPES } from '../../../shared/priceCheckMetadata.js'
 
 const state = ref(null)
 const busy = ref(false)
 const filtersCollapsed = ref(false)
+const stateFiltersCollapsed = ref(true)
 const settingsCollapsed = ref(true)
 const resultView = ref('list')
 const distributionLoading = ref(false)
@@ -238,7 +298,6 @@ const queryOptions = reactive({
   listed: 'any',
   currency: 'any',
   collapseListings: false,
-  valueRange: 'down20',
   initialSelection: 'auto',
   manualDcRate: 0
 })
@@ -246,22 +305,34 @@ let removeListener
 let removeSettingsListener
 let settingsRevision = 0
 
-const flagLabels = {
-  corrupted: '已腐化',
-  unidentified: '未鉴定',
-  mirrored: '镜像',
-  split: '分裂',
-  fractured: '破裂'
-}
-const activeFlags = computed(() => Object.entries(state.value?.model?.flags || {})
-  .filter(([, active]) => active)
-  .map(([key]) => flagLabels[key] || key))
+const stateDefinitions = PRICE_CHECK_STATE_FILTERS
+const activeFlags = computed(() => stateDefinitions
+  .filter(({ key }) => key !== 'identified' && state.value?.model?.facts?.[key])
+  .map(({ label }) => label))
+const nameFilterEnabled = computed(() => {
+  const identity = state.value?.model?.identity
+  return !identity?.category || identity.nameEnabled !== false
+})
+const canToggleName = computed(() => Boolean(
+  state.value?.model?.identity?.name && state.value?.model?.identity?.category
+))
 const dcRateText = computed(() => {
   const rate = Number(state.value?.dcRate?.value)
   if (!(rate > 0)) return 'DC 暂不可用'
   const source = ({ 'poecurrency.top': '第三方', manual: '手动' })[state.value.dcRate.source] || '缓存'
   return `1D ≈ ${rate}C · ${source}`
 })
+function formatRateLimit(error) {
+  if (!error) return ''
+  const retryAfter = Number(error.details?.retryAfter)
+  return Number.isFinite(retryAfter)
+    ? `官方接口限制请求频率，请在 ${Math.max(0, Math.ceil(retryAfter))} 秒后重试`
+    : '官方接口限制请求频率，但未提供恢复时间'
+}
+const stateErrorText = computed(() => state.value?.error?.code === 'RATE_LIMITED'
+  ? formatRateLimit(state.value.error)
+  : state.value?.error?.message || '')
+const rateLimitText = computed(() => formatRateLimit(state.value?.rateLimit))
 
 watch(() => state.value?.options, (options) => {
   if (options) Object.assign(queryOptions, options)
@@ -322,9 +393,19 @@ function openOfficial() {
 }
 function copyWhisper(text) { void electronApi.clipboard.writeText(text) }
 function toggleFilter(filter) { filter.enabled = !filter.enabled }
-function typeLabel(type) {
-  return ({ explicit: '外延', implicit: '基底', fractured: '破裂', crafted: '工艺', enchant: '附魔', pseudo: '伪属性' })[type] || type
+function toggleNameFilter() {
+  const identity = state.value?.model?.identity
+  if (!identity?.name) return
+  if (!canToggleName.value) {
+    identity.nameEnabled = true
+    return
+  }
+  identity.nameEnabled = !nameFilterEnabled.value
 }
+function typeLabel(type) {
+  return PRICE_CHECK_STAT_TYPES[type]?.label || '其他'
+}
+function statTypeClass(type) { return `stat-source-${PRICE_CHECK_STAT_TYPES[type]?.token || 'unknown'}` }
 function currencyLabel(currency, localized = '') {
   return localized || ({ chaos: '混沌石', divine: '神圣石' })[currency] || currency
 }
@@ -386,30 +467,65 @@ onUnmounted(() => {
 .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 10px; }
 .settings-grid label { display: grid; grid-template-columns: 66px 1fr; align-items: center; color: #cbd0dc; }
 .settings-grid .check-label { display: flex; gap: 8px; }
+.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.panel-heading h3 { flex: 1; margin: 0; }
+.panel-toggle { padding: 2px 7px; font-size: 11px; }
+.state-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 5px; }
+.state-filter-grid label { display: grid; grid-template-columns: minmax(48px, auto) 1fr; align-items: center; gap: 5px; color: #cbd0dc; }
+.state-filter-grid select { width: 100%; }
 select, .number { min-width: 0; height: 27px; color: #e8ebf2; background: #111319; border: 1px solid #444b58; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
 .setting-number { width: 100%; min-width: 0; height: 27px; color: #e8ebf2; background: #111319; border: 1px solid #444b58; border-radius: 4px; padding: 3px 6px; }
 .identity { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.identity div:first-child { display: flex; flex-direction: column; }
+.identity-main { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 3px; }
+.identity-name { display: flex; width: fit-content; max-width: 100%; min-height: 28px; height: auto; align-items: center; gap: 7px; padding: 3px 6px; }
+.identity-name.disabled { cursor: not-allowed; opacity: .72; }
+.filter-row.identity-name.disabled:hover { background: #182a47; border-color: #4285e8; }
+.identity-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.identity-static-name { padding: 3px 6px; }
+.identity-meta { padding-left: 6px; }
 .identity strong { color: #8bbcff; font-size: 14px; }
 .identity span, small { color: #9da5b3; }
+.identity-side { display: flex; min-width: 180px; max-width: 46%; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 5px 8px; text-align: right; }
+.identity-hint { flex: 1 1 180px; color: #55a9ff; }
 .flags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .flags span { padding: 2px 5px; color: #ffcc85; border: 1px solid #795a2d; border-radius: 4px; font-size: 10px; }
 h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; padding: 2px 0; font-size: 12px; color: #cfd5e2; background: #191c23; }
 .filter-list { max-height: 255px; overflow-y: auto; padding: 5px; }
+.property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .filter-row { display: grid; gap: 5px; align-items: center; height: 32px; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
 .filter-row:not(.unknown):hover { background: #202b3b; border-color: #52627a; }
 .filter-row.enabled { background: #182a47; border-color: #4285e8; }
 .filter-row.enabled:hover { background: #1d365b; border-color: #65a4ff; }
 .filter-row:focus-visible { outline: 1px solid #65b4ff; outline-offset: -1px; }
-.property-row { grid-template-columns: minmax(0, 1fr) 64px 64px; }
-.stat-row, .unknown { grid-template-columns: 34px minmax(0, 1fr) 64px 64px; }
+.property-row { grid-template-columns: minmax(0, 1fr) 52px 52px; }
+.property-row:has(.property-option) { grid-template-columns: minmax(0, 1fr) 109px; }
+.property-option { width: 100%; }
+.information-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; color: #cbd0dc; }
+.information-panel small { display: block; margin-top: 5px; }
+.stat-row, .unknown { grid-template-columns: 46px 34px minmax(0, 1fr) 64px 64px; }
+.stat-source { display: inline-flex; justify-content: center; padding: 3px 4px; border: 1px solid currentColor; border-radius: 3px; font-size: 10px; font-weight: 700; }
+.stat-source-pseudo { color: #d9a5ff; background: #342444; }
+.stat-source-explicit { color: #85bcf4; background: #1d3145; }
+.stat-source-implicit { color: #e5c66f; background: #3c3218; }
+.stat-source-enchant { color: #74d7d0; background: #173a38; }
+.stat-source-fractured { color: #f4b55f; background: #432d16; }
+.stat-source-crafted { color: #9bcf73; background: #243a19; }
+.stat-source-veiled { color: #c3a4e8; background: #302342; }
+.stat-source-scourge { color: #dc7f9d; background: #421d2b; }
+.stat-source-imbued { color: #6ed0ef; background: #183847; }
+.stat-source-delve { color: #f0c765; background: #403617; }
+.stat-source-sanctum { color: #e8dfad; background: #3c3825; }
+.stat-source-mercenary { color: #dcad78; background: #402e20; }
+.stat-source-crucible { color: #f08355; background: #482619; }
+.stat-source-ultimatum { color: #d38bdf; background: #3b2141; }
+.stat-source-unknown { color: #a5aab5; background: #2a2d34; }
 .tier { display: inline-flex; justify-content: center; padding: 2px; color: #a5aab5; border: 1px solid #4b5260; border-radius: 3px; font-size: 10px; }
 .tier.known { color: #47e89b; border-color: #1ebc6b; }
 .filter-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-name small { margin-left: 6px; font-size: 10px; }
 .unknown { opacity: .65; cursor: default; }
 .unknown-block { padding-bottom: 3px; border-bottom: 1px solid #252a33; }
-.stat-candidates { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 5px 5px 39px; }
+.stat-candidates { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 5px 5px 90px; }
 .stat-candidates button { padding: 3px 6px; color: #9bc5ff; font-size: 10px; text-align: left; }
 .action-row { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: center; gap: 7px; padding: 6px 0; background: #12141aeF; }
 button { color: #e9eef8; background: #242936; border: 1px solid #414958; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
@@ -436,6 +552,7 @@ button:disabled { opacity: .45; cursor: default; }
 .distribution-track span { display: block; height: 100%; min-width: 2px; background: #4e8de7; border-radius: inherit; }
 .distribution-row.highest .distribution-track span { background: #48c985; }
 .distribution-note { margin: 8px 4px 2px; color: #858d9c; font-size: 10px; }
+.rate-limit-warning { margin: 0 4px; }
 .search { background: #13aa58; border-color: #13aa58; }
 .market { background: #3478d4; border-color: #3478d4; }
 .result-heading { display: flex; justify-content: center; align-items: baseline; gap: 8px; padding: 5px; font-size: 14px; }

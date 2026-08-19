@@ -35,7 +35,7 @@
               v-model="form.title"
               maxlength="80"
               show-word-limit
-              placeholder="用一句话概括问题（5–80 字）"
+              placeholder="用一句话概括问题"
               @input="errors.title = ''"
             />
           </el-form-item>
@@ -48,7 +48,7 @@
               maxlength="2000"
               show-word-limit
               resize="vertical"
-              placeholder="请说明操作步骤、预期结果和实际现象（20–2000 字）"
+              placeholder="请说明操作步骤、预期结果和实际现象"
               @input="errors.description = ''"
             />
           </el-form-item>
@@ -104,21 +104,81 @@
               <strong>附带脱敏诊断</strong>
               <p>包含应用版本、系统与运行时状态、显示器/DPI和近期结构化原因码。</p>
             </div>
-            <el-switch v-model="form.includeDiagnostics" :disabled="submitting" />
+            <el-switch v-model="form.includeDiagnostics" :disabled="submitting || Boolean(diagnosticCapture)" />
           </div>
+          <el-alert
+            v-if="diagnosticCapture"
+            class="diagnostic-capture-alert"
+            :type="diagnosticCapture.status === 'active' ? 'warning' : 'info'"
+            :closable="false"
+            show-icon
+            :title="captureStatusText"
+          />
           <el-alert type="info" :closable="false" show-icon>
             默认关闭。不会自动上传账号令牌、Cookie、个人路径或诊断事件中的敏感原值。
           </el-alert>
+          <div class="diagnostic-actions">
+            <el-button
+              :icon="Download"
+              :loading="diagnosticsExporting"
+              :disabled="submitting || diagnosticCaptureLoading"
+              @click="exportDiagnostics()"
+            >导出当前诊断</el-button>
+            <el-button
+              v-if="!diagnosticCapture"
+              type="primary"
+              plain
+              :disabled="submitting"
+              :loading="diagnosticCaptureLoading"
+              @click="captureDialogVisible = true"
+            >开始诊断会话</el-button>
+            <template v-else>
+              <el-button
+                type="warning"
+                plain
+                :disabled="submitting"
+                :loading="diagnosticCaptureLoading || diagnosticsExporting"
+                @click="finishAndExportDiagnosticCapture"
+              >{{ diagnosticCapture.status === 'active' ? '结束并导出' : '导出诊断会话' }}</el-button>
+              <el-button :disabled="submitting" @click="cancelCapture">取消会话</el-button>
+            </template>
+          </div>
         </el-card>
       </aside>
     </div>
+
+    <el-dialog v-model="captureDialogVisible" title="开始诊断会话" width="420px" :close-on-click-modal="false">
+      <el-form label-position="top">
+        <el-form-item label="受影响模块" required>
+          <el-select v-model="captureArea" placeholder="请选择模块" style="width: 100%">
+            <el-option v-for="item in captureAreas" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="问题现象" required>
+          <el-select v-model="captureSymptom" placeholder="请选择现象" style="width: 100%">
+            <el-option v-for="item in captureSymptoms" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-alert :closable="false" type="info" title="会话最长 15 分钟。开始即表示同意在提交反馈时附带本次脱敏诊断。" />
+      </el-form>
+      <template #footer>
+        <el-button @click="captureDialogVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="diagnosticCaptureLoading"
+          :disabled="!captureArea || !captureSymptom"
+          @click="beginCapture"
+        >开始</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { Delete, Paperclip } from '@element-plus/icons-vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { Delete, Download, Paperclip } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
+import { useDiagnostics } from '@/composables/useDiagnostics'
 
 const categories = [
   { label: '功能异常', value: 'bug' },
@@ -126,6 +186,21 @@ const categories = [
   { label: '数据问题', value: 'data' },
   { label: '功能建议', value: 'suggestion' },
   { label: '其他', value: 'other' }
+]
+const captureAreas = [
+  { value: 'system', label: '系统环境' }, { value: 'shortcuts', label: '快捷键' },
+  { value: 'items', label: '物品制作' }, { value: 'bag', label: '背包入库' },
+  { value: 'map', label: '地图洗图' }, { value: 'combat', label: '战斗辅助' },
+  { value: 'story', label: '剧情指引' }, { value: 'shop', label: '商城配方' },
+  { value: 'priceCheck', label: '国服查价' }, { value: 'crafting', label: '做装模拟' },
+  { value: 'stashPickup', label: '仓库取件' }, { value: 'puzzle', label: '海图拼图' },
+  { value: 'junfeng', label: '君锋镇取件' }
+]
+const captureSymptoms = [
+  { value: 'cannot_start', label: '无法启动' }, { value: 'wrong_result', label: '结果错误' },
+  { value: 'stops_during_use', label: '中途停止' }, { value: 'slow_or_stuck', label: '卡顿' },
+  { value: 'intermittent', label: '偶发失效' }, { value: 'crash_or_exit', label: '崩溃退出' },
+  { value: 'other_unexpected', label: '其他异常' }
 ]
 
 const form = reactive({ category: '', title: '', description: '', contact: '', includeDiagnostics: false })
@@ -135,12 +210,29 @@ const submitting = ref(false)
 const submitError = ref('')
 const successId = ref('')
 const progress = ref(null)
+const captureDialogVisible = ref(false)
+const captureArea = ref('')
+const captureSymptom = ref('')
 let removeProgressListener = null
+
+const {
+  diagnosticsExporting,
+  diagnosticCapture,
+  diagnosticCaptureLoading,
+  captureStatusText,
+  startDiagnosticCapture,
+  finishAndExportDiagnosticCapture,
+  prepareDiagnosticCaptureForFeedback,
+  exportDiagnostics,
+  cancelDiagnosticCapture,
+  clearSubmittedDiagnosticCapture
+} = useDiagnostics()
 
 const totalSize = computed(() => attachments.value.reduce((sum, item) => sum + item.size, 0))
 const totalSizeText = computed(() => formatSize(totalSize.value))
 const progressText = computed(() => {
   if (!submitting.value || !progress.value) return ''
+  if (progress.value.phase === 'finishing-diagnostics') return '正在结束诊断会话…'
   if (progress.value.phase === 'authenticating') return '正在建立匿名身份…'
   if (progress.value.phase === 'uploading') return `正在上传 ${progress.value.index}/${progress.value.total}：${progress.value.fileName}`
   if (progress.value.phase === 'saving') return '正在保存反馈…'
@@ -151,8 +243,8 @@ function lengthOf(value) { return [...String(value || '').trim()].length }
 
 function validate() {
   errors.category = form.category ? '' : '请选择反馈类型'
-  errors.title = lengthOf(form.title) >= 5 && lengthOf(form.title) <= 80 ? '' : '标题需为 5–80 个字符'
-  errors.description = lengthOf(form.description) >= 20 && lengthOf(form.description) <= 2000 ? '' : '详细描述需为 20–2000 个字符'
+  errors.title = !lengthOf(form.title) ? '请输入标题' : lengthOf(form.title) > 80 ? '标题不能超过 80 个字符' : ''
+  errors.description = !lengthOf(form.description) ? '请输入详细描述' : lengthOf(form.description) > 2000 ? '详细描述不能超过 2000 个字符' : ''
   errors.contact = lengthOf(form.contact) <= 200 ? '' : '联系方式不能超过 200 个字符'
   return !Object.values(errors).some(Boolean)
 }
@@ -187,6 +279,19 @@ function removeAttachment(token) {
   attachments.value = attachments.value.filter(item => item.token !== token)
 }
 
+async function beginCapture() {
+  if (!await startDiagnosticCapture(captureArea.value, captureSymptom.value)) return
+  form.includeDiagnostics = true
+  captureDialogVisible.value = false
+  captureArea.value = ''
+  captureSymptom.value = ''
+}
+
+async function cancelCapture() {
+  if (!await cancelDiagnosticCapture()) return
+  form.includeDiagnostics = false
+}
+
 function resetForm() {
   form.category = ''
   form.title = ''
@@ -201,14 +306,21 @@ async function submitFeedback() {
   submitting.value = true
   submitError.value = ''
   successId.value = ''
-  progress.value = { phase: 'authenticating' }
+  progress.value = { phase: 'finishing-diagnostics' }
   try {
+    const prepared = await prepareDiagnosticCaptureForFeedback()
+    if (!prepared.success) {
+      submitError.value = prepared.error || '诊断会话结束失败，请重试'
+      return
+    }
+    progress.value = { phase: 'authenticating' }
     const result = await electronApi.feedback.submit({
       category: form.category,
       title: form.title,
       description: form.description,
       contact: form.contact,
-      includeDiagnostics: form.includeDiagnostics,
+      includeDiagnostics: Boolean(prepared.captureId) || form.includeDiagnostics,
+      ...(prepared.captureId ? { diagnosticCaptureId: prepared.captureId } : {}),
       attachmentTokens: attachments.value.map(item => item.token)
     })
     if (!result?.success) {
@@ -216,6 +328,7 @@ async function submitFeedback() {
       return
     }
     successId.value = result.feedbackId
+    clearSubmittedDiagnosticCapture(prepared.captureId)
     resetForm()
   } catch {
     submitError.value = '反馈提交失败，请检查网络后重试'
@@ -224,6 +337,10 @@ async function submitFeedback() {
     progress.value = null
   }
 }
+
+watch(diagnosticCapture, capture => {
+  if (capture) form.includeDiagnostics = true
+})
 
 async function copyFeedbackId() {
   if (!successId.value) return
@@ -294,6 +411,8 @@ onBeforeUnmount(() => {
   .submit-row { justify-content: flex-end; min-height: 32px; }
   .progress-text { color: var(--text-secondary); font-size: 13px; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .submit-error { color: var(--el-color-danger); background: var(--el-color-danger-light-9); border: 1px solid var(--el-color-danger-light-7); padding: 10px 12px; border-radius: var(--border-radius-base); margin-bottom: 14px; }
+  .diagnostic-capture-alert { margin-bottom: 12px; }
+  .diagnostic-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 }
 
 @media (max-width: 900px) {

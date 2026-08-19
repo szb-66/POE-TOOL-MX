@@ -7,8 +7,10 @@ import {
   enrichOfficialItemsWithImages,
   parsePoedbUniqueItems,
   registerUniqueItemImageProtocol,
+  matchesUniqueModifier,
   UniqueItemImageRepository,
   uniqueItemImageId,
+  validateUniqueItemCatalog,
   validateUniqueItemRecords
 } from '../electron/modules/priceCheck/uniqueItemSnapshot.js'
 import {
@@ -29,12 +31,17 @@ test('PoEDB 传奇页面解析中文名称、底材和稳定图片身份', async
   ])
   assert.equal(records[0].imageId, uniqueItemImageId(records[0].imageUrl))
   assert.match(records[0].imageId, /^unique-[a-f0-9]{20}$/)
+  assert.deepEqual(records[0].modifierMatchers, ['# 最大生命', '获得 1 级测试技能'])
+  assert.equal(matchesUniqueModifier('+17 最大生命', records[0].modifierMatchers), true)
+  assert.equal(matchesUniqueModifier('获得 1 级测试技能', records[0].modifierMatchers), true)
+  assert.equal(matchesUniqueModifier('这是属性解释，不是独立属性', records[0].modifierMatchers), false)
 })
 
 test('传奇快照拒绝重复身份、缺图和缺少正式哨兵', () => {
   const valid = {
     name: '测试传奇',
     baseType: '测试戒指',
+    modifierMatchers: [],
     imageUrl: 'https://cdn.poedb.tw/image/Art/Test.webp',
     imageId: uniqueItemImageId('https://cdn.poedb.tw/image/Art/Test.webp')
   }
@@ -46,14 +53,22 @@ test('传奇快照拒绝重复身份、缺图和缺少正式哨兵', () => {
     () => validateUniqueItemRecords([{ ...valid, imageUrl: '' }], { requireSentinels: false }),
     /缺少可信图片/
   )
+  assert.throws(
+    () => validateUniqueItemRecords([{ ...valid, modifierMatchers: null }], { requireSentinels: false }),
+    /matcher 无效/
+  )
   assert.throws(() => validateUniqueItemRecords([valid]), /缺少哨兵/)
+  assert.throws(
+    () => validateUniqueItemCatalog({ schemaVersion: 1, game: 'poe1', locale: 'zh-CN', patch: 'test' }, { requireSentinels: false }),
+    /schema 不兼容/
+  )
 })
 
 test('官方候选全集只由官方目录决定，本地快照补图或占位', () => {
   const imageId = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Test.webp')
   const catalog = {
     patch: 'test',
-    items: [{ name: '测试传奇甲', baseType: '测试戒指', imageId }]
+    items: [{ name: '测试传奇甲', baseType: '测试戒指', modifierMatchers: ['# 最大生命'], imageId }]
   }
   const official = enrichOfficialItemsWithImages([
     { name: '测试传奇甲', baseType: '测试戒指', unique: true },
@@ -62,8 +77,18 @@ test('官方候选全集只由官方目录决定，本地快照补图或占位',
   assert.equal(official.length, 2)
   assert.equal(official[0].imageId, imageId)
   assert.equal(official[0].legacy, false)
+  assert.equal(official[0].uniqueSnapshotCovered, true)
+  assert.deepEqual(official[0].uniqueModifierMatchers, ['# 最大生命'])
   assert.equal(official[1].imageId, 'placeholder')
   assert.equal(official[1].legacy, true)
+  assert.equal(official[1].uniqueSnapshotCovered, undefined)
+
+  const fallback = enrichOfficialItemsWithImages([{ ...official[0], unique: true }], {
+    patch: 'fallback',
+    items: []
+  })[0]
+  assert.equal(fallback.uniqueSnapshotCovered, undefined)
+  assert.equal(fallback.uniqueModifierMatchers, undefined)
 
   const resolved = resolveUnidentifiedUnique({
     item: { rarity: '传奇', unidentified: true, baseType: '测试戒指' },
@@ -73,10 +98,37 @@ test('官方候选全集只由官方目录决定，本地快照补图或占位',
   assert.equal(resolved.identityResolution.candidates[1].imageUrl, 'price-check-image://snapshot/placeholder')
 })
 
+test('官方通用地图底材按同名唯一阶级快照增强且拒绝歧义', () => {
+  const exactImageId = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Exact.webp')
+  const mapImageId = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Map.webp')
+  const catalog = {
+    patch: 'test',
+    items: [
+      { name: '精确地图', baseType: '地图', modifierMatchers: ['精确属性'], imageId: exactImageId },
+      { name: '精确地图', baseType: '地图（1 阶）', modifierMatchers: ['阶级属性'], imageId: mapImageId },
+      { name: '唯一地图', baseType: '地图（1 阶）', modifierMatchers: ['地图属性 #'], imageId: mapImageId },
+      { name: '歧义地图', baseType: '地图（1 阶）', modifierMatchers: ['旧属性'], imageId: mapImageId },
+      { name: '歧义地图', baseType: '地图（16 阶）', modifierMatchers: ['新属性'], imageId: exactImageId }
+    ]
+  }
+  const official = enrichOfficialItemsWithImages([
+    { name: '精确地图', baseType: '地图', discriminator: 'map', category: 'map', unique: true },
+    { name: '唯一地图', baseType: '地图', discriminator: 'map', category: 'map', unique: true },
+    { name: '歧义地图', baseType: '地图', discriminator: 'map', category: 'map', unique: true },
+    { name: '唯一地图', baseType: '其他底材', category: 'map', unique: true }
+  ], catalog)
+
+  assert.deepEqual(official[0].uniqueModifierMatchers, ['精确属性'])
+  assert.deepEqual(official[1].uniqueModifierMatchers, ['地图属性 #'])
+  assert.equal(official[1].imageId, mapImageId)
+  assert.equal(official[2].uniqueSnapshotCovered, undefined)
+  assert.equal(official[3].uniqueSnapshotCovered, undefined)
+})
+
 test('模型清理忽略任意候选 URL并只按合法图片 ID重建', () => {
   const imageId = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Test.webp')
   const model = sanitizePriceCheckModel({
-    item: { rarity: '传奇', unidentified: true },
+    item: { category: '生命药剂', rarity: '传奇', unidentified: true },
     identity: { name: '', type: '测试戒指' },
     identityResolution: {
       required: true,
@@ -90,6 +142,9 @@ test('模型清理忽略任意候选 URL并只按合法图片 ID重建', () => {
   assert.equal(model.identityResolution.candidates[0].legacy, true)
   assert.equal(model.identityResolution.candidates[1].imageId, 'placeholder')
   assert.equal(model.identityResolution.candidates[1].legacy, false)
+  assert.equal(model.identity.category, 'flask')
+  assert.equal(model.item.unidentified, true)
+  assert.equal(model.facts.identified, false)
   assert.equal(JSON.stringify(model).includes('attacker.example'), false)
   assert.equal(JSON.stringify(model).includes('secret.txt'), false)
 })
@@ -148,6 +203,8 @@ test('正式传奇目录可加载哨兵图片且主进程和浮层接入本地�
     readFile(path.join(dirname, '..', 'index.html'), 'utf8')
   ])
   assert.match(main, /registerUniqueItemImageProtocol/)
+  assert.ok(main.indexOf('await uniqueItemImages.load()') < main.indexOf('new PriceCheckService({'))
+  assert.match(main, /tradeCatalogBundle\.catalog\.items = enrichOfficialItemsWithImages/)
   assert.match(main, /scheme: 'price-check-image'/)
   assert.match(indexHtml, /img-src[^;]*price-check-image:/)
   assert.match(overlay, /candidate\.imageUrl/)

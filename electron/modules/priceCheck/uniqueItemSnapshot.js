@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { load } from 'cheerio'
 
-export const UNIQUE_ITEM_SNAPSHOT_SCHEMA_VERSION = 1
+export const UNIQUE_ITEM_SNAPSHOT_SCHEMA_VERSION = 2
 export const UNIQUE_ITEM_PLACEHOLDER_ID = 'placeholder'
 export const UNIQUE_ITEM_IMAGE_SCHEME = 'price-check-image'
 
@@ -38,10 +38,20 @@ export function parsePoedbUniqueItems(html) {
     if (!name && !baseType) return
     const column = node.closest('.col')
     const imageUrl = cleanText(column.find('a.UniqueItems img, a.UniqueItem img').first().attr('src'))
+    const modifierMatchers = []
+    column.find('.explicitMod').each((_, modifierNode) => {
+      const modifier = $(modifierNode)
+      if (modifier.find('.item_description').length) return
+      const normalized = modifier.clone()
+      normalized.find('.mod-value').replaceWith('#')
+      const matcher = cleanText(normalized.text())
+      if (matcher && !modifierMatchers.includes(matcher)) modifierMatchers.push(matcher)
+    })
     records.push({
       key: identityKey(name, baseType),
       name,
       baseType,
+      modifierMatchers,
       imageId: imageUrl ? uniqueItemImageId(imageUrl) : '',
       imageUrl
     })
@@ -55,6 +65,13 @@ export function validateUniqueItemRecords(records, { requireSentinels = true, re
   for (const record of records) {
     if (!cleanText(record.name) || !cleanText(record.baseType)) throw new Error('传奇快照存在名称或底材缺失的记录')
     if (
+      !Array.isArray(record.modifierMatchers) ||
+      record.modifierMatchers.some((matcher) => !cleanText(matcher)) ||
+      record.modifierMatchers.length !== new Set(record.modifierMatchers.map(cleanText)).size
+    ) {
+      throw new Error(`传奇 ${record.name} 的真实属性 matcher 无效`)
+    }
+    if (
       !/^unique-[a-f0-9]{20}$/.test(record.imageId || '') ||
       (requireImageUrl && !/^https:\/\/cdn\.poedb\.tw\/image\//i.test(record.imageUrl || ''))
     ) {
@@ -65,9 +82,14 @@ export function validateUniqueItemRecords(records, { requireSentinels = true, re
     identities.add(key)
   }
   if (requireSentinels) {
-    for (const name of ['猎首', '法师之血']) {
+    for (const name of ['猎首', '法师之血', '意志交锋']) {
       if (!records.some((record) => record.name === name)) throw new Error(`传奇快照缺少哨兵：${name}`)
     }
+    const willclash = records.find((record) => record.name === '意志交锋' && record.baseType === '黄金之面')
+    if (
+      willclash.modifierMatchers.length < 5 ||
+      !willclash.modifierMatchers.includes('该装备的闪避与能量护盾提高 #%')
+    ) throw new Error('传奇快照的意志交锋真实属性不完整')
   }
   return records
 }
@@ -91,19 +113,50 @@ export async function loadUniqueItemCatalog(root = defaultRoot) {
 }
 
 export function enrichOfficialItemsWithImages(items, catalog) {
-  const imageByIdentity = new Map((catalog?.items || []).map((entry) => [
+  const snapshots = catalog?.items || []
+  const snapshotByIdentity = new Map(snapshots.map((entry) => [
     identityKey(entry.name, entry.baseType),
-    entry.imageId
+    entry
   ]))
+  const tieredMapSnapshotsByName = new Map()
+  for (const snapshot of snapshots) {
+    if (!/^地图[（(]\s*\d+\s*阶[）)]$/.test(cleanText(snapshot.baseType))) continue
+    const name = cleanText(snapshot.name)
+    const matches = tieredMapSnapshotsByName.get(name) || []
+    matches.push(snapshot)
+    tieredMapSnapshotsByName.set(name, matches)
+  }
   const hasCurrentPatchCoverage = Boolean(catalog?.patch && catalog.patch !== 'fallback')
   return (items || []).map((entry) => {
-    const imageId = imageByIdentity.get(identityKey(entry.name, entry.baseType)) || UNIQUE_ITEM_PLACEHOLDER_ID
+    const exactSnapshot = snapshotByIdentity.get(identityKey(entry.name, entry.baseType))
+    const mapSnapshots = entry.discriminator === 'map' && entry.category === 'map' && cleanText(entry.baseType) === '地图'
+      ? tieredMapSnapshotsByName.get(cleanText(entry.name)) || []
+      : []
+    const snapshot = exactSnapshot || (mapSnapshots.length === 1 ? mapSnapshots[0] : null)
+    const imageId = snapshot?.imageId || UNIQUE_ITEM_PLACEHOLDER_ID
+    const uniqueSnapshotCovered = entry.unique === true && hasCurrentPatchCoverage && Boolean(snapshot)
+    const { uniqueModifierMatchers: _oldMatchers, uniqueSnapshotCovered: _oldCoverage, ...baseEntry } = entry
     return {
-      ...entry,
+      ...baseEntry,
       legacy: entry.unique === true && hasCurrentPatchCoverage && imageId === UNIQUE_ITEM_PLACEHOLDER_ID,
       imageId,
-      imageUrl: uniqueItemImageUrl(imageId)
+      imageUrl: uniqueItemImageUrl(imageId),
+      ...(uniqueSnapshotCovered
+        ? { uniqueSnapshotCovered: true, uniqueModifierMatchers: [...snapshot.modifierMatchers] }
+        : {})
     }
+  })
+}
+
+export function matchesUniqueModifier(text, matchers) {
+  const value = cleanText(text)
+  if (!value || !Array.isArray(matchers)) return false
+  return matchers.some((matcher) => {
+    const pattern = cleanText(matcher)
+      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      .replaceAll('#', '[-+]?\\d+(?:\\.\\d+)?')
+      .replace(/\\ /g, '\\s*')
+    return pattern ? new RegExp(`^${pattern}$`).test(value) : false
   })
 }
 
