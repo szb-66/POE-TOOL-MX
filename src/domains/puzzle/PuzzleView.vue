@@ -25,8 +25,9 @@
       class="status-alert"
     />
 
-    <div class="configuration-grid">
-      <article v-for="config in regionConfigs" :key="config.type" class="configuration-card" :class="{ ready: config.state?.valid }">
+    <el-row class="configuration-grid app-grid" :gutter="16">
+      <el-col v-for="config in regionConfigs" :key="config.type" :xs="24" :md="12" class="configuration-column">
+        <article class="configuration-card" :class="{ ready: config.state?.valid }">
         <div class="configuration-heading">
           <strong>{{ config.label }}</strong>
           <div class="configuration-actions">
@@ -66,8 +67,9 @@
             </div>
           </div>
         </el-collapse-transition>
-      </article>
-    </div>
+        </article>
+      </el-col>
+    </el-row>
     <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；{{ emergencyStopShortcut }} 可全局紧急停止</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
@@ -84,8 +86,8 @@
       </div>
     </div>
 
-    <div class="workspace">
-      <el-card class="inventory-card" shadow="never">
+    <el-row class="workspace app-grid" :gutter="16">
+      <el-col :xs="24" :lg="12"><el-card class="inventory-card" shadow="never">
         <template #header>
           <div class="inventory-card-header">
             <div class="inventory-card-heading">
@@ -197,9 +199,9 @@
           {{ warnings.slice(0, 3).map(item => item.message || item).join('；') }}
           <span v-if="warnings.length > 3">等 {{ warnings.length }} 条</span>
         </div>
-      </el-card>
+      </el-card></el-col>
 
-      <el-card class="solution-card" shadow="never">
+      <el-col :xs="24" :lg="12"><el-card class="solution-card" shadow="never">
         <template #header>
           <div class="solution-card-header">
             <div class="card-title">
@@ -330,8 +332,8 @@
             <span>正在计算最优方案…</span>
           </div>
         </div>
-      </el-card>
-    </div>
+      </el-card></el-col>
+    </el-row>
 
     <el-dialog v-model="calibrationDialogVisible" title="海图本机校准素材" width="680px">
       <el-empty v-if="!calibrationSamples.length" description="尚未保存校准素材" :image-size="72" />
@@ -821,11 +823,13 @@ const nextSolution = store.nextSolution
 .auto-blocked-reason { max-width: 260px; color: var(--el-color-warning); line-height: 1.35; }
 .region-line { margin: 12px 0; font-size: 13px; color: var(--el-text-color-secondary); }
 .region-line span { color: var(--el-color-primary); }
-.configuration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
-.configuration-card { min-width: 0; padding: 12px; border: 1px solid var(--el-color-warning-light-5); border-radius: 9px; background: var(--el-bg-color); }
+.configuration-grid { margin-top: 14px; }
+.configuration-column { display: flex; }
+.configuration-card { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--el-color-warning-light-5); border-radius: 9px; background: var(--el-bg-color); }
 .configuration-card.ready { border-color: var(--el-color-success-light-5); }
 .configuration-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .configuration-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.configuration-actions > .el-button + .el-button { margin-left: 0; }
 .configuration-body { padding-top: 8px; }
 .configuration-card small { display: block; overflow: hidden; margin-top: 7px; color: var(--el-text-color-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .tab-point-settings { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
@@ -852,7 +856,7 @@ const nextSolution = store.nextSolution
 .count-strip {
   display: grid;
   grid-template-columns: repeat(6, minmax(100px, 1fr));
-  gap: 10px;
+  gap: 16px;
   margin: 16px 0;
 }
 
@@ -879,28 +883,32 @@ const nextSolution = store.nextSolution
 .count-card.total.insufficient strong { color: var(--el-color-warning-dark-2); }
 
 .workspace {
-  display: grid;
-  grid-template-columns: minmax(390px, 1fr) minmax(440px, 1.1fr);
-  gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
+.workspace > .el-col { display: flex; }
+.workspace > .el-col > .el-card { width: 100%; flex: 1; }
 
 .inventory-grid {
+  --inventory-grid-gap: 4px;
+  --inventory-cell-size: min(90px, calc((100% - (5 * var(--inventory-grid-gap))) / 6));
   display: grid;
-  grid-template-columns: repeat(6, minmax(42px, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(6, var(--inventory-cell-size));
+  grid-auto-rows: var(--inventory-cell-size);
+  justify-content: center;
+  gap: var(--inventory-grid-gap);
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
 }
 
-.inventory-slot-shell { position: relative; width: 100%; aspect-ratio: 1; }
+.inventory-slot-shell { position: relative; width: 100%; height: 100%; }
 .inventory-slot-shell :deep(.el-dropdown) { display: block; width: 100%; height: 100%; }
 
 .inventory-slot {
   position: relative;
   box-sizing: border-box;
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
   padding: 9px;
   border: 1px solid var(--el-border-color);
   border-radius: 5px;
@@ -1003,7 +1011,7 @@ const nextSolution = store.nextSolution
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.88);
+  background: color-mix(in srgb, var(--app-bg, #0E1013) 88%, transparent);
 }
 .solution-loading-spinner {
   display: flex;
@@ -1078,12 +1086,10 @@ const nextSolution = store.nextSolution
 .total-note { text-align: center; color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 0; }
 
 @media (max-width: 1050px) {
-  .workspace { grid-template-columns: 1fr; }
   .count-strip { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 720px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
-  .configuration-grid { grid-template-columns: 1fr; }
   .configuration-heading,
   .solution-card-header,
   .exit-controls { align-items: flex-start; flex-direction: column; }

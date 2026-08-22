@@ -336,7 +336,7 @@ function handleColorChange() {
     display: inline-block;
 
     &.red {
-      background-color: #f56c6c;
+      background-color: var(--danger-color);
     }
 
     &.green {

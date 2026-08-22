@@ -23,4 +23,5 @@ export function registerApplicationUpdateHandlers(service, getMainWindow) {
   ipcMain.handle('update-check', guarded(() => service.check()))
   ipcMain.handle('update-download', guarded(() => service.download()))
   ipcMain.handle('update-restart-install', guarded(() => service.restartAndInstall()))
+  ipcMain.handle('update-acknowledge-installed', guarded(() => service.acknowledgeInstalledUpdate()))
 }

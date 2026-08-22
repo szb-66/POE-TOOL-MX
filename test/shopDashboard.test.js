@@ -23,8 +23,8 @@ test('商城首次默认配方并只恢复合法的最后选择', () => {
   const regexTab = shop.indexOf('label="商城正则"')
 
   assert.ok(recipeTab >= 0 && recipeTab < regexTab)
-  assert.match(shop, /\['chaos', 'vendor'\]\.includes\(storedActiveTool\) \? storedActiveTool : 'chaos'/)
-  assert.match(shop, /localStorage\.setItem\('shopActiveTool', value\)/)
+  assert.match(shop, /readPersistentTab\('shopActiveTool', SHOP_TABS, 'chaos'\)/)
+  assert.match(shop, /writePersistentTab\('shopActiveTool', value, SHOP_TABS, 'chaos'\)/)
 })
 
 test('应用级初始化恢复配方账号、元数据和运行时', async () => {

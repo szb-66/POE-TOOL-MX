@@ -1,5 +1,5 @@
 <template>
-  <div class="app-root">
+  <div class="app-root" :class="appThemeClass">
     <template v-if="!route.meta.noLayout">
       <TitleBar />
       <div class="main-content-wrapper">
@@ -13,17 +13,22 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import { markMainRuntimeSettled } from './startup/readiness'
+import { clearMainWindowTheme, resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'
 
 const route = useRoute()
 const router = useRouter()
 let runtimeDispose = null
 let runtimeGeneration = 0
+
+const appThemeClass = computed(() => `${resolveWindowTheme(route)}-window`)
+
+watch(() => route.fullPath, () => syncMainWindowTheme(route), { immediate: true })
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -53,6 +58,7 @@ onUnmounted(() => {
   runtimeGeneration += 1
   runtimeDispose?.()
   runtimeDispose = null
+  clearMainWindowTheme()
 })
 </script>
 

@@ -5,6 +5,7 @@ import App from './App.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import 'element-plus/es/components/message/style/css'
 import './styles/index.less'
+import { syncMainWindowTheme } from './theme/mainWindowTheme'
 
 let rendererMounted = false
 
@@ -23,6 +24,7 @@ const bootstrap = async () => {
   app.use(pinia)
   app.use(router)
   await router.isReady()
+  syncMainWindowTheme(router.currentRoute.value)
   app.mount('#app')
   reportStartupEvent('renderer-mounted')
   rendererMounted = true

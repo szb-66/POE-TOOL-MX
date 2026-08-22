@@ -3,6 +3,7 @@ import { spawn } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
+import { runManagedElectronSession } from './devProcess.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
@@ -28,30 +29,29 @@ const start = async () => {
   const electronPath = require('electron')
   const electronMainPath = path.join(__dirname, '../electron/main.js')
   const diagnosticArguments = process.argv.slice(2)
-  const keepServerForRelaunch = diagnosticArguments.includes('--diagnostic-keep-server-for-relaunch')
-
-  // 3. 启动 Electron
-  // 传递 VITE_DEV_SERVER_URL 环境变量
-  const electronProcess = spawn(electronPath, [electronMainPath, ...diagnosticArguments], {
-    env: { 
-      ...process.env, 
-      NODE_ENV: 'development',
-      VITE_DEV_SERVER_URL: DEV_SERVER_URL
-    },
-    stdio: 'inherit'
+  const launchElectron = () => new Promise((resolve, reject) => {
+    // 传递固定开发服务器地址；专用退出码会在同一 Vite 生命周期内重新拉起 Electron。
+    const electronProcess = spawn(electronPath, [electronMainPath, ...diagnosticArguments], {
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        VITE_DEV_SERVER_URL: DEV_SERVER_URL
+      },
+      stdio: 'inherit'
+    })
+    electronProcess.once('error', reject)
+    electronProcess.once('close', code => resolve(code ?? 1))
   })
 
-  // 4. 监听 Electron 关闭事件
-  electronProcess.on('close', async (code) => {
-    if (keepServerForRelaunch) {
-      await new Promise(resolve => setTimeout(resolve, 10000))
-    }
-    await server.close()
-    process.exit(code ?? 0)
+  return runManagedElectronSession({
+    launchElectron,
+    closeServer: () => server.close()
   })
 }
 
-start().catch((error) => {
+start().then((code) => {
+  process.exitCode = code ?? 0
+}).catch((error) => {
   if (isDevelopmentPortConflict(error)) {
     console.error(`开发端口 ${DEV_SERVER_PORT} 已被占用。请关闭旧的开发进程后重试，应用不会切换端口以免读取到另一份本地数据。`)
   } else {

@@ -81,8 +81,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="less">
-.key-capture { min-width: 130px; height: 32px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--el-border-color); border-radius: var(--el-border-radius-base); background: var(--el-fill-color-blank); cursor: pointer; outline: none; transition: border-color .15s; }
-.key-capture:hover, .key-capture:focus, .key-capture.capturing { border-color: var(--el-color-primary); }
+.key-capture { min-width: 130px; height: 32px; box-sizing: border-box; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--border-base); border-radius: var(--el-border-radius-base); background: var(--surface-2); cursor: pointer; outline: none; transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.key-capture:not(.disabled):hover { background: var(--surface-hover); border-color: var(--control-hover-border); }
+.key-capture:focus, .key-capture.capturing { border-color: var(--brand-color); }
 .key-capture.capturing { box-shadow: 0 0 0 2px var(--el-color-primary-light-8); }
 .key-capture.disabled { cursor: not-allowed; opacity: .6; }
 .key-value { color: var(--el-text-color-primary); font-family: Consolas, monospace; }

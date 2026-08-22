@@ -15,15 +15,11 @@
       </div>
     </div>
 
-    <div class="story-workspace">
-      <el-card class="story-guide-panel" shadow="never">
-        <template #header>
-          <div class="preset-panel-header">
-            <div class="panel-header">
-              <strong>章节</strong>
-              <el-button type="primary" size="small" :icon="Plus" @click="story.addChapter">添加</el-button>
-            </div>
-            <div class="preset-bar">
+    <el-row class="story-workspace app-grid" :gutter="16">
+      <el-col :xs="24" :lg="16"><el-card class="story-guide-panel" shadow="never">
+        <div class="story-guide-layout">
+          <aside class="chapter-directory">
+            <div class="preset-bar chapter-preset-bar">
               <el-select :model-value="story.currentStoryPresetId" size="small" @change="switchPreset('story', $event)">
                 <el-option v-for="preset in story.storyPresets" :key="preset.id" :label="preset.name" :value="preset.id" />
               </el-select>
@@ -31,10 +27,6 @@
               <el-button size="small" :icon="Edit" circle title="重命名剧情预设" @click="renamePreset('story')" />
               <el-button size="small" :icon="Delete" circle type="danger" title="删除剧情预设" :disabled="story.currentStoryPresetId === 'default'" @click="deletePreset('story')" />
             </div>
-          </div>
-        </template>
-        <div class="story-guide-layout">
-          <aside class="chapter-directory">
             <el-empty v-if="!story.chapters.length" description="还没有章节" :image-size="64" />
             <div v-else class="chapter-list">
               <div
@@ -54,14 +46,15 @@
                 <span class="chapter-order">{{ index + 1 }}</span>
                 <span class="chapter-name">{{ chapter.name || '未命名章节' }}</span>
                 <span v-if="chapter.id === story.currentChapterId" class="progress-dot" title="当前进度章节"></span>
-                <el-button text type="danger" :icon="Delete" @click.stop="confirmDeleteChapter(chapter)" />
               </div>
             </div>
+            <el-button class="add-chapter-button" :icon="Plus" @click="story.addChapter">添加章节</el-button>
           </aside>
 
           <section v-if="story.viewedChapter" class="chapter-details">
             <div class="chapter-details-header">
               <el-input v-model="story.viewedChapter.name" maxlength="40" placeholder="章节名称" />
+              <el-button type="danger" :icon="Delete" title="删除章节" @click="confirmDeleteChapter(story.viewedChapter)">删除章节</el-button>
             </div>
             <div class="chapter-details-scroll">
               <el-empty v-if="!story.viewedChapter.steps.length" description="添加本章的第一个步骤" :image-size="64" />
@@ -104,9 +97,9 @@
             <el-empty description="添加或选择章节后开始编辑" />
           </div>
         </div>
-      </el-card>
+      </el-card></el-col>
 
-      <el-card class="skills-panel" shadow="never">
+      <el-col :xs="24" :lg="8"><el-card class="skills-panel" shadow="never">
           <template #header>
             <div class="preset-panel-header">
               <div class="preset-bar">
@@ -123,16 +116,13 @@
                   <span>显示最低购买等级</span>
                   <el-switch :model-value="settings.storyShowSkillRequiredLevel" @change="settings.updateStoryShowSkillRequiredLevel" />
                 </label>
-                <div class="skill-panel-actions">
-                  <el-button size="small" :icon="CopyDocument" :disabled="!story.canCopySkillsToNextChapter" @click="copySkillsToNext">复制到下一章</el-button>
-                  <el-button type="primary" size="small" :icon="Plus" :disabled="!story.viewedChapter" @click="story.addSkillGroup(story.viewedChapter.id)">技能组</el-button>
-                </div>
+                <el-button size="small" :icon="CopyDocument" :disabled="!story.canCopySkillsToNextChapter" @click="copySkillsToNext">复制到下一章</el-button>
               </div>
             </div>
           </template>
           <el-empty v-if="!story.viewedChapter" description="请先选择章节" :image-size="72" />
-          <el-empty v-else-if="!story.viewedSkillGroups.length" description="本章未配置技能" :image-size="72" />
           <div v-else class="skill-groups">
+            <el-empty v-if="!story.viewedSkillGroups.length" description="本章未配置技能" :image-size="72" />
             <div
               v-for="group in displayedSkillGroups"
               :key="group.id"
@@ -180,9 +170,10 @@
               </div>
               <div v-else class="empty-group">暂无技能</div>
             </div>
+            <el-button class="add-skill-group-button" :icon="Plus" @click="story.addSkillGroup(story.viewedChapter.id)">技能组</el-button>
           </div>
-      </el-card>
-    </div>
+      </el-card></el-col>
+    </el-row>
   </div>
 </template>
 
@@ -430,32 +421,39 @@ async function confirmDeleteGroup(group) {
 
 <style scoped lang="less">
 .story-page { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; padding: 20px; background: var(--bg-secondary); box-sizing: border-box; }
-.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .skill-panel-actions, .level-toggle, .preset-bar { display: flex; align-items: center; }
+.page-header, .panel-header, .overlay-toggle, .group-header, .skill-row, .step-title, .level-toggle, .preset-bar { display: flex; align-items: center; }
 .page-header { flex: 0 0 auto; justify-content: space-between; gap: 20px; margin-bottom: 18px; h2 { margin: 0 0 6px; } p { margin: 0; color: var(--text-secondary); } }
 .overlay-toggle { gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .overlay-toggle label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .overlay-toggle :deep(.el-input-number) { width: 118px; }
-.story-workspace { display: grid; min-height: 0; flex: 1; grid-template-columns: minmax(600px, 1.7fr) minmax(340px, 1fr); gap: 16px; align-items: stretch; }
+.story-workspace { min-height: 0; flex: 1; align-items: stretch; overflow: hidden; }
+.story-workspace > .el-col { display: flex; min-height: 0; }
+.story-workspace > .el-col > .el-card { width: 100%; height: 100%; overflow: hidden; }
 .story-guide-panel, .skills-panel { display: flex; min-height: 0; flex-direction: column; }
 .story-guide-panel :deep(.el-card__header), .skills-panel :deep(.el-card__header) { flex: 0 0 auto; }
-.story-guide-panel :deep(.el-card__body), .skills-panel :deep(.el-card__body) { min-height: 0; flex: 1; }
+.story-guide-panel :deep(.el-card__body), .skills-panel :deep(.el-card__body) { min-height: 0; flex: 1 1 0; }
 .story-guide-panel :deep(.el-card__body) { overflow: hidden; padding: 0; }
 .skills-panel :deep(.el-card__body) { overflow-y: auto; }
-.story-guide-layout { display: grid; height: 100%; min-height: 0; grid-template-columns: 240px minmax(0, 1fr); }
+.story-guide-layout { display: grid; height: 100%; min-height: 0; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .chapter-directory { min-width: 0; overflow-y: auto; padding: 12px; border-right: 1px solid var(--border-color); }
 .chapter-details { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
-.chapter-details-header { flex: 0 0 auto; padding: 12px; border-bottom: 1px solid var(--border-color); }
+.chapter-details-header { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border-color); }
+.chapter-details-header :deep(.el-input) { min-width: 0; flex: 1; }
 .chapter-details-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px; }
 .empty-details { align-items: center; justify-content: center; }
 .preset-panel-header { display: grid; gap: 9px; }
-.panel-header { justify-content: space-between; gap: 10px; }
 .preset-bar { gap: 6px; min-width: 0; }
 .preset-bar strong { margin-right: auto; white-space: nowrap; }
 .preset-bar :deep(.el-select) { min-width: 0; flex: 1; }
-.skill-panel-actions { gap: 8px; }
+.preset-bar :deep(.el-button + .el-button) { margin-left: 0; }
+.chapter-preset-bar { margin-bottom: 10px; }
+.add-chapter-button { width: 100%; margin-top: 10px; }
+.panel-header { justify-content: space-between; gap: 10px; }
 .level-toggle { gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
 .chapter-list, .step-list, .skill-groups, .skills-list { display: flex; flex-direction: column; gap: 10px; }
-.chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; }
+.add-skill-group-button { width: 100%; }
+.chapter-item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; transition: border-color .15s ease, background-color .15s ease; }
+.chapter-item:hover { border-color: var(--control-hover-border); background: var(--surface-hover); }
 .step-item.active { border-color: var(--primary-color); background: var(--primary-light-9); }
 .chapter-item.active { border-color: var(--primary-color); background: var(--el-color-primary-light-8); box-shadow: inset 3px 0 0 var(--primary-color); }
 .chapter-item.active .chapter-name { font-weight: 700; }
@@ -490,16 +488,17 @@ async function confirmDeleteGroup(group) {
 .add-step-row :deep(.el-button) { width: 100%; }
 @media (max-width: 1100px) {
   .story-page { overflow-y: auto; }
-  .story-workspace { display: flex; min-height: auto; flex: 0 0 auto; flex-direction: column; }
-  .story-guide-panel { height: 560px; }
+  .story-workspace { min-height: auto; flex: 0 0 auto; overflow: visible; }
+  .story-workspace > .el-col > .el-card { height: auto; }
+  .story-workspace > .el-col > .story-guide-panel { height: 560px; }
   .skills-panel { min-height: 360px; }
 }
 @media (max-width: 720px) {
   .story-page { padding: 14px; }
   .page-header { align-items: flex-start; flex-direction: column; }
   .overlay-toggle { justify-content: flex-start; }
-  .story-guide-panel { height: auto; }
-  .story-guide-panel :deep(.el-card__body) { overflow: visible; }
+  .story-workspace > .el-col > .story-guide-panel { height: auto; }
+  .story-guide-panel :deep(.el-card__body) { flex: 0 0 auto; overflow: visible; }
   .story-guide-layout { height: auto; grid-template-columns: 1fr; }
   .chapter-directory { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--border-color); }
   .chapter-details-scroll { max-height: 520px; }

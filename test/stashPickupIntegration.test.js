@@ -99,7 +99,7 @@ test('游戏浮窗显示仓库取件的真实停止原因', () => {
   assert.match(manager, /stashPickupStopMessage/)
 })
 
-test('普通仓库与君锋镇共用三轮点击后复制确认且入库保持单次转移', () => {
+test('普通仓库与君锋镇共用三轮点击后复制确认且入库使用受控转移', () => {
   const pickup = source('src/assets/scripts/junfeng_highlight_pickup.py')
   const bag = source('src/assets/scripts/bag_auto_stash_template.py')
   const action = pickup.slice(pickup.indexOf('def run(config, preview=False):'))
@@ -108,5 +108,5 @@ test('普通仓库与君锋镇共用三轮点击后复制确认且入库保持�
   assert.match(action, /transferred, reason = transfer_pickup_item\(clipboard_controller\)/)
   assert.doesNotMatch(action, /transfer_item_once/)
   assert.match(bag, /def transfer_pickup_item\(controller\):[\s\S]*begin_ctrl\(\)[\s\S]*for _attempt in range\(3\):[\s\S]*copy_item_text\(ctrl_held=True,\s*clear_first=True\)[\s\S]*inventory-full/)
-  assert.match(bag, /def run_stash\(config\):[\s\S]*transfer_item_once\(controller\)/)
+  assert.match(bag, /def run_stash\(config\):[\s\S]*transfer_stash_item\([\s\S]*controller, item, force_unique_stash\)/)
 })

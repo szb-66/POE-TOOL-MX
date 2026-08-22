@@ -16,15 +16,232 @@
 }
 
 .el-input__wrapper,
+.el-select__wrapper,
 .el-textarea__inner {
   box-shadow: 0 0 0 1px @border-base inset;
-  
-  &:hover {
-    box-shadow: 0 0 0 1px @text-secondary inset;
-  }
-  
-  &.is-focus {
-    box-shadow: 0 0 0 1px @brand-color inset !important;
-  }
 }
 
+.el-input:not(.is-disabled) .el-input__wrapper:not(.is-focus):hover,
+.el-select__wrapper:not(.is-disabled):not(.is-focused):hover,
+.el-textarea:not(.is-disabled) .el-textarea__inner:not(:focus):hover {
+  box-shadow: 0 0 0 1px @text-secondary inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-cascader .el-input.is-focus .el-input__wrapper,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px @brand-color inset !important;
+}
+
+html.app-dark-theme {
+  .el-card { border-color: var(--border-base); border-radius: 8px; background: var(--surface-1); box-shadow: inset 0 1px rgba(255, 255, 255, .025); }
+  .el-card__header { border-color: var(--border-base); }
+  .el-empty {
+    --el-empty-fill-color-0: #111419;
+    --el-empty-fill-color-1: #46515a;
+    --el-empty-fill-color-2: #343c47;
+    --el-empty-fill-color-3: #1c2129;
+    --el-empty-fill-color-4: #2c333d;
+    --el-empty-fill-color-5: #242b35;
+    --el-empty-fill-color-6: #252c35;
+    --el-empty-fill-color-7: #181d24;
+    --el-empty-fill-color-8: #20262e;
+    --el-empty-fill-color-9: #161a20;
+  }
+  .el-button, .el-input__wrapper, .el-textarea__inner, .el-select__wrapper, .el-input-number, .el-dialog, .el-message-box, .el-popper, .el-dropdown-menu { border-radius: 6px; }
+  .el-input__wrapper, .el-select__wrapper, .el-textarea__inner {
+    background: var(--surface-2);
+    box-shadow: 0 0 0 1px var(--border-base) inset;
+    transition: background-color .15s ease, box-shadow .15s ease;
+  }
+  .el-input:not(.is-disabled) .el-input__wrapper:not(.is-focus):hover,
+  .el-select__wrapper:not(.is-disabled):not(.is-focused):hover,
+  .el-textarea:not(.is-disabled) .el-textarea__inner:not(:focus):hover {
+    background: var(--surface-hover);
+    box-shadow: 0 0 0 1px var(--control-hover-border) inset;
+  }
+  .el-input__wrapper.is-focus,
+  .el-cascader .el-input.is-focus .el-input__wrapper,
+  .el-select__wrapper.is-focused,
+  .el-textarea__inner:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px var(--brand-color) inset !important;
+  }
+  .el-checkbox {
+    --el-checkbox-checked-bg-color: var(--checkbox-checked-bg);
+    --el-checkbox-checked-input-border-color: var(--checkbox-checked-bg);
+    --el-checkbox-checked-icon-color: var(--checkbox-check-color);
+    --el-checkbox-input-border-color-hover: var(--control-hover-border);
+  }
+  .el-checkbox input:focus-visible + .el-checkbox__inner {
+    outline: 2px solid var(--checkbox-focus-ring);
+    outline-offset: 2px;
+  }
+  .el-radio-button {
+    --el-radio-button-checked-text-color: var(--brand-on-color);
+    --el-radio-button-checked-bg-color: var(--brand-color);
+    --el-radio-button-checked-border-color: var(--brand-color);
+  }
+  .el-button {
+    border-color: var(--border-base);
+    background: var(--surface-2);
+    color: var(--text-regular);
+    transition: color .15s ease, border-color .15s ease, background-color .15s ease, transform .15s ease;
+
+    &:not(.is-disabled):hover {
+      border-color: #4A5562;
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    &:not(.is-disabled):active { transform: translateY(1px); }
+    &.is-disabled { opacity: .48; transform: none; }
+
+    &.el-button--primary { --theme-button-accent: var(--brand-color); }
+    &.el-button--success { --theme-button-accent: var(--success-color); }
+    &.el-button--warning { --theme-button-accent: var(--warning-color); }
+    &.el-button--danger { --theme-button-accent: var(--danger-color); }
+    &.el-button--info { --theme-button-accent: var(--info-color); }
+
+    &.el-button--primary,
+    &.el-button--success,
+    &.el-button--warning,
+    &.el-button--danger,
+    &.el-button--info {
+      &:not(.is-text):not(.is-link):not(.is-plain) {
+        border-color: var(--theme-button-accent);
+        background: var(--theme-button-accent);
+        color: var(--brand-on-color);
+
+        &:not(.is-disabled):hover {
+          border-color: color-mix(in srgb, var(--theme-button-accent) 84%, white);
+          background: color-mix(in srgb, var(--theme-button-accent) 84%, white);
+          color: var(--brand-on-color);
+        }
+
+        &:not(.is-disabled):active {
+          border-color: color-mix(in srgb, var(--theme-button-accent) 94%, black);
+          background: color-mix(in srgb, var(--theme-button-accent) 94%, black);
+          color: var(--brand-on-color);
+        }
+      }
+
+      &.is-plain {
+        border-color: var(--theme-button-accent);
+        background: color-mix(in srgb, var(--theme-button-accent) 13%, var(--surface-1));
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+
+        &:not(.is-disabled):hover {
+          border-color: var(--theme-button-accent);
+          background: var(--theme-button-accent);
+          color: var(--brand-on-color);
+        }
+
+        &:not(.is-disabled):active {
+          border-color: color-mix(in srgb, var(--theme-button-accent) 94%, black);
+          background: color-mix(in srgb, var(--theme-button-accent) 94%, black);
+          color: var(--brand-on-color);
+        }
+      }
+
+      &.is-text {
+        border-color: transparent;
+        background: transparent;
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+
+        &:not(.is-disabled):hover {
+          border-color: transparent;
+          background: color-mix(in srgb, var(--theme-button-accent) 13%, transparent);
+          color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+        }
+
+        &:not(.is-disabled):active {
+          border-color: transparent;
+          background: color-mix(in srgb, var(--theme-button-accent) 18%, transparent);
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+        }
+      }
+
+      &.is-link {
+        border-color: transparent;
+        background: transparent;
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+
+        &:not(.is-disabled):hover {
+          border-color: transparent;
+          background: transparent;
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+        }
+
+        &:not(.is-disabled):active {
+          border-color: transparent;
+          background: transparent;
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+        }
+      }
+    }
+  }
+  .el-tag { border-radius: var(--status-radius); }
+  .el-table, .el-table tr, .el-table th.el-table__cell, .el-table td.el-table__cell { background: var(--surface-1); color: var(--text-regular); }
+  .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell { background: var(--surface-hover); }
+  .el-cascader__dropdown,
+  .el-cascader-panel {
+    --el-cascader-menu-text-color: var(--text-regular);
+    --el-cascader-menu-selected-text-color: #D8BF92;
+    --el-cascader-menu-fill: var(--surface-2);
+    --el-cascader-menu-border: solid 1px var(--border-base);
+    --el-cascader-menu-shadow: var(--el-box-shadow-light);
+    --el-cascader-node-background-hover: var(--surface-hover);
+    --el-cascader-node-color-disabled: var(--text-placeholder);
+    color: var(--text-regular);
+  }
+  .el-cascader-node:not(.is-disabled):hover,
+  .el-cascader-node:not(.is-disabled):focus,
+  .el-cascader__suggestion-item:hover,
+  .el-cascader__suggestion-item:focus {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+  .el-cascader-node.in-active-path,
+  .el-cascader-node.is-active,
+  .el-cascader-node.is-selectable.in-checked-path,
+  .el-cascader__suggestion-item.is-checked {
+    background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-2));
+    color: #D8BF92;
+    font-weight: 600;
+  }
+  .el-select-dropdown__item {
+    transition: color .15s ease, background-color .15s ease;
+
+    &:not(.is-disabled):hover,
+    &.is-hovering:not(.is-disabled) {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    &.is-selected {
+      background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-2));
+      color: #D8BF92;
+
+      &:not(.is-disabled):hover,
+      &.is-hovering:not(.is-disabled) {
+        background: color-mix(in srgb, var(--brand-color) 20%, var(--surface-hover));
+        color: #D8BF92;
+      }
+    }
+  }
+  .el-tabs__item { color: var(--text-secondary); }
+  .el-tabs__item:hover, .el-tabs__item.is-active { color: var(--text-primary); }
+  .el-tabs__active-bar { background: var(--brand-color); }
+  .el-tabs__nav-wrap::after { background: var(--border-base); }
+  .el-form-item__label { color: var(--text-regular); }
+  .el-message, .el-notification, .el-dialog, .el-message-box, .el-popper { border-color: var(--border-base); background: var(--surface-2); color: var(--text-primary); }
+}
+
+/* 升级说明保持纯文本换行，过长内容在弹窗内滚动。 */
+.installed-update-dialog .el-message-box__message {
+  max-height: 50vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}

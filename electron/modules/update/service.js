@@ -13,7 +13,6 @@ const UPDATE_SOURCE_URLS = {
   [UPDATE_SOURCE_GITHUB]: 'https://github.com/szb-66/POE-TOOL-MX/releases/latest/download'
 }
 
-const DEFAULT_FIRST_CHECK_DELAY_MS = 30_000
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
 function normalizedMode(mode) {
@@ -84,22 +83,22 @@ export class ApplicationUpdateService extends EventEmitter {
     isPackaged,
     cleanup,
     scheduler = defaultScheduler(),
-    firstCheckDelayMs = DEFAULT_FIRST_CHECK_DELAY_MS,
     checkIntervalMs = DEFAULT_CHECK_INTERVAL_MS,
     cleanupTimeoutMs = 8000,
     markCleanupComplete = () => {},
-    requestShutdown = () => {}
+    requestShutdown = () => {},
+    installedUpdateRepository = null,
+    installedUpdate = null
   }) {
     super()
     this.updater = updater
     this.cleanup = cleanup
     this.scheduler = scheduler
-    this.firstCheckDelayMs = firstCheckDelayMs
     this.checkIntervalMs = checkIntervalMs
     this.cleanupTimeoutMs = cleanupTimeoutMs
     this.markCleanupComplete = markCleanupComplete
     this.requestShutdown = requestShutdown
-    this.firstCheckTimer = null
+    this.installedUpdateRepository = installedUpdateRepository
     this.intervalTimer = null
     this.operation = null
     this.installing = false
@@ -115,7 +114,8 @@ export class ApplicationUpdateService extends EventEmitter {
       releaseNotes: '',
       progress: null,
       error: '',
-      supported: Boolean(isPackaged)
+      supported: Boolean(isPackaged),
+      installedUpdate: installedUpdate || null
     }
 
     this.updater.autoDownload = false
@@ -157,7 +157,16 @@ export class ApplicationUpdateService extends EventEmitter {
       downloaded: info => {
         this.operation = null
         this.downloadReady = true
-        this.patch({ status: 'downloaded', ...updateInfo(info), progress: { ...(this.state.progress || {}), percent: 100 }, error: '' })
+        const downloadedInfo = updateInfo(info)
+        this.patch({
+          status: 'downloaded',
+          availableVersion: downloadedInfo.availableVersion || this.state.availableVersion,
+          releaseName: downloadedInfo.releaseName || this.state.releaseName,
+          releaseDate: downloadedInfo.releaseDate || this.state.releaseDate,
+          releaseNotes: downloadedInfo.releaseNotes || this.state.releaseNotes,
+          progress: { ...(this.state.progress || {}), percent: 100 },
+          error: ''
+        })
       },
       error: error => {
         const failedOperation = this.operation
@@ -217,19 +226,13 @@ export class ApplicationUpdateService extends EventEmitter {
   }
 
   scheduleAutomaticChecks() {
-    this.firstCheckTimer = this.scheduler.setTimeout(() => {
-      this.firstCheckTimer = null
-      void this.check({ automatic: true })
-    }, this.firstCheckDelayMs)
     this.intervalTimer = this.scheduler.setInterval(() => {
       void this.check({ automatic: true })
     }, this.checkIntervalMs)
   }
 
   clearSchedule() {
-    if (this.firstCheckTimer != null) this.scheduler.clearTimeout(this.firstCheckTimer)
     if (this.intervalTimer != null) this.scheduler.clearInterval(this.intervalTimer)
-    this.firstCheckTimer = null
     this.intervalTimer = null
   }
 
@@ -267,10 +270,24 @@ export class ApplicationUpdateService extends EventEmitter {
     if (this.installing) return { success: false, busy: true, reason: 'install-in-progress', state: this.snapshot() }
     if (!this.downloadReady) return { success: false, reason: 'update-not-downloaded', state: this.snapshot() }
     this.installing = true
+    this.patch({ status: 'installing', error: '' })
+    try {
+      await this.installedUpdateRepository?.save({
+        targetVersion: this.state.availableVersion,
+        releaseNotes: this.state.releaseNotes
+      })
+    } catch (error) {
+      this.installing = false
+      return {
+        success: false,
+        reason: 'update-record-failed',
+        state: this.patch({ status: 'downloaded', error: sanitizeUpdateError(error) })
+      }
+    }
     try {
       await runStrictCleanup(this.cleanup, this.cleanupTimeoutMs)
       this.markCleanupComplete()
-      this.updater.quitAndInstall(false, true)
+      this.updater.quitAndInstall(true, true)
       return { success: true, state: this.snapshot() }
     } catch (error) {
       const reason = error?.name === 'StrictCleanupTimeoutError' ? 'cleanup-timeout' : 'cleanup-failed'
@@ -281,6 +298,17 @@ export class ApplicationUpdateService extends EventEmitter {
         // 退出请求本身失败时仍返回原始清理错误，避免覆盖根因。
       }
       return { success: false, reason, state }
+    }
+  }
+
+  async acknowledgeInstalledUpdate() {
+    if (!this.state.installedUpdate) return { success: true, acknowledged: false, state: this.snapshot() }
+    try {
+      const acknowledged = await this.installedUpdateRepository?.acknowledge(this.state.currentVersion)
+      if (acknowledged) this.patch({ installedUpdate: null })
+      return { success: true, acknowledged: Boolean(acknowledged), state: this.snapshot() }
+    } catch (error) {
+      return { success: false, acknowledged: false, state: this.patch({ error: sanitizeUpdateError(error) }) }
     }
   }
 

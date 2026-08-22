@@ -20,9 +20,9 @@ test('主窗口启动加载块位于 #app 内且包含加载动画', () => {
 })
 
 test('加载块样式与主窗口背景色一致，避免白屏', () => {
-  assert.match(indexHtml, /#app-loading[\s\S]*?background:\s*#f5f7fa/)
-  assert.match(indexHtml, /loading-spinner[\s\S]*?border-top-color:\s*#409eff/)
-  assert.match(managerSource, /backgroundColor:\s*'#f5f7fa'/)
+  assert.match(indexHtml, /#app-loading[\s\S]*?background:\s*#0E1013/)
+  assert.match(indexHtml, /loading-spinner[\s\S]*?border-top-color:\s*#C5A46D/)
+  assert.match(managerSource, /backgroundColor:\s*'#0E1013'/)
 })
 
 test('覆盖层路由不显示主窗口加载块', () => {

@@ -108,11 +108,11 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
-import { ElAutocomplete, ElButton, ElOption, ElSelect, ElTag } from 'element-plus'
 import { electronApi } from '../../../api/electron.js'
 import { usePresetStore } from '../../../stores/preset.js'
+import AffixConditionRow from './AffixConditionRow.vue'
 import {
   cloneAffixGroup,
   createAffixConfigId,
@@ -120,76 +120,6 @@ import {
   normalizeAffixCondition,
   normalizeModuleTwo
 } from '../affixConfig.js'
-
-const AffixConditionRow = defineComponent({
-  name: 'AffixConditionRow',
-  props: {
-    condition: { type: Object, required: true },
-    placeholder: { type: String, default: '' },
-    fetchSuggestions: { type: Function, required: true }
-  },
-  emits: ['select', 'change', 'remove'],
-  setup(props, { emit }) {
-    const tierOptions = computed(() => props.condition.tiers?.length
-      ? props.condition.tiers
-      : Array.from({ length: 20 }, (_, index) => ({ tier: index + 1, name: `T${index + 1}` })))
-    return () => h('div', { class: 'affix-condition-row' }, [
-      h(ElAutocomplete, {
-        modelValue: props.condition.keyword,
-        'onUpdate:modelValue': (value) => {
-          const changedCatalogText = props.condition.kind === 'catalog' && value !== props.condition.keyword
-          props.condition.keyword = value
-          props.condition.displayName = value
-          if (changedCatalogText) {
-            props.condition.kind = 'keyword'
-            props.condition.effectPattern = ''
-            props.condition.source = ''
-            props.condition.sourceLabel = ''
-            props.condition.profileId = ''
-            props.condition.applicableLabel = ''
-            props.condition.tiers = []
-          }
-        },
-        placeholder: props.placeholder,
-        fetchSuggestions: props.fetchSuggestions,
-        triggerOnFocus: false,
-        clearable: true,
-        popperClass: 'affix-suggestion-popper',
-        onSelect: (item) => emit('select', item),
-        onChange: () => emit('change')
-      }, {
-        default: ({ item }) => h('div', { class: 'suggestion-option' }, [
-          h('div', { class: 'suggestion-title' }, [
-            h('b', item.displayName),
-            h(ElTag, { size: 'small', type: item.affixType === 'prefix' ? 'success' : 'warning' }, () => item.affixType === 'prefix' ? '前缀' : '后缀'),
-            h(ElTag, { size: 'small', type: 'info' }, () => item.sourceLabel)
-          ]),
-          h('p', item.exampleText),
-          h('small', `${item.applicableLabel} · ${item.tiers.length ? `T1–T${Math.max(...item.tiers.map((tier) => tier.tier))}` : '无阶级'}`)
-        ])
-      }),
-      h(ElSelect, {
-        modelValue: props.condition.minTier,
-        'onUpdate:modelValue': (value) => { props.condition.minTier = value },
-        placeholder: '不限 T',
-        clearable: true,
-        class: 'tier-select',
-        popperClass: 'affix-tier-popper',
-        onChange: () => emit('change')
-      }, () => tierOptions.value.map((tier) => h(ElOption, {
-        key: tier.tier,
-        label: `最低 T${tier.tier}`,
-        value: tier.tier
-      }))),
-      h(ElButton, {
-        icon: Delete,
-        circle: true,
-        size: 'small',
-        onClick: () => emit('remove')
-      })
-    ])
-  }
-})
 
 const presetStore = usePresetStore()
 const moduleTwo = computed(() => presetStore.currentItemPreset.moduleTwo)

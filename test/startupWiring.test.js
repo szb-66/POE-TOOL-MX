@@ -40,9 +40,11 @@ test('主进程在 ready 前启用本地 Crashpad 和崩溃保护', () => {
 
 test('开发启动器把显式诊断参数传给 Electron', () => {
   const launcher = readFileSync(new URL('../scripts/dev.js', import.meta.url), 'utf8')
+  const processManager = readFileSync(new URL('../scripts/devProcess.js', import.meta.url), 'utf8')
   assert.match(launcher, /process\.argv\.slice\(2\)/)
   assert.match(launcher, /electronMainPath, \.\.\.diagnosticArguments/)
-  assert.match(launcher, /diagnostic-keep-server-for-relaunch/)
+  assert.match(launcher, /runManagedElectronSession/)
+  assert.match(processManager, /DEVELOPMENT_RESTART_EXIT_CODE/)
 })
 
 test('preload 与 Vue 启动入口完成受限启动握手', () => {

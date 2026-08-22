@@ -76,7 +76,7 @@ const PRICE_CHECK_CATEGORY_ENTRIES = Object.freeze([
   [['深渊珠宝'], 'jewel.abyss', '深渊珠宝'],
   [['星团珠宝'], 'jewel.cluster', '星团珠宝'],
   [['药剂', '生命药剂', '魔力药剂', '复合药剂', '混合药剂', '功能药剂'], 'flask', '药剂'],
-  [['地图'], 'map', '地图'],
+  [['地图', '异界地图'], 'map', '地图'],
   [['海图'], 'chart', '海图'],
   [['地图碎片'], 'map.fragment', '地图碎片'],
   [['裂隙石'], 'map.breachstone', '裂隙石'],

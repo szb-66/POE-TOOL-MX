@@ -1,5 +1,6 @@
 export const OVERLAY_DRAG_HIT_WIDTH = 72
 export const OVERLAY_DRAG_HIT_HEIGHT = 24
+export const STORY_OVERLAY_DRAG_HIT_TOP = 4
 
 function finitePoint(point) {
   const screenX = Number(point?.screenX)

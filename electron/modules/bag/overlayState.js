@@ -2,11 +2,10 @@ export function createBagOverlaySnapshot({
   moduleEnabled = false,
   ready = false,
   foreground = false,
-  stashing = false,
-  showOnlyWhenReady = true
+  stashing = false
 } = {}) {
   const available = Boolean(ready && foreground)
-  const visible = Boolean(moduleEnabled && (!showOnlyWhenReady || available || stashing))
+  const visible = Boolean(moduleEnabled && (available || stashing))
   let disabledReason = ''
   if (stashing) disabledReason = '入库正在执行'
   else if (!ready) disabledReason = '等待仓库与背包同时打开'

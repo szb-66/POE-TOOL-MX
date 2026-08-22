@@ -17,7 +17,7 @@ import { computed } from 'vue'
 import Sidebar from './Sidebar.vue'
 import RouteLoadingOverlay from '../common/RouteLoadingOverlay.vue'
 
-const sidebarWidth = computed(() => '68px')
+const sidebarWidth = computed(() => '76px')
 </script>
 
 <style scoped lang="less">
@@ -25,7 +25,7 @@ const sidebarWidth = computed(() => '68px')
   height: 100%;
 
   .sidebar-container {
-    background-color: var(--bg-primary);
+    background-color: var(--nav-bg, var(--bg-primary));
     border-right: 1px solid var(--border-base);
   }
 

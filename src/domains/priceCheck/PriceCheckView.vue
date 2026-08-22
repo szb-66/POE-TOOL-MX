@@ -1,11 +1,13 @@
 <template>
   <div class="price-check-page primary-page primary-page--column">
     <div class="primary-page__scroll">
-      <div class="price-check-content primary-page__content">
-        <div class="page-heading">
-      <div>
+      <el-row class="price-check-content primary-page__content app-grid" :gutter="16">
+        <el-col :span="24"><div class="page-heading">
+      <div class="page-heading__title">
         <h2>国服查价</h2>
-        <p>配置 Ctrl+D 查价浮层；物品捕获只从游戏内快捷键进入。</p>
+        <el-tooltip content="配置 Ctrl+D 查价浮层；物品捕获只从游戏内快捷键进入。" placement="top">
+          <el-icon class="page-heading__help" tabindex="0" aria-label="查看国服查价说明"><QuestionFilled /></el-icon>
+        </el-tooltip>
       </div>
       <el-switch
         :model-value="store.settings.enabled"
@@ -14,23 +16,16 @@
         inactive-text="已关闭"
         @change="toggleEnabled"
       />
-        </div>
+        </div></el-col>
 
-        <el-alert
-      title="显示的是腾讯官方公开挂单，不代表实际成交价；不会自动私聊、购买或上架。"
-      type="warning"
-      :closable="false"
-      show-icon
-        />
-
-        <el-card>
+        <el-col :span="24"><el-card>
       <template #header><strong>运行状态</strong></template>
-      <div class="status-grid">
-        <div><span>账号</span><strong>{{ authText }}</strong></div>
-        <div><span>全局赛季</span><strong>{{ leagueText }}</strong></div>
-        <div><span>快捷键</span><strong>{{ appSettings.globalShortcuts.priceCheck }}</strong></div>
-        <div><span>交易目录</span><strong>{{ catalogText }}</strong></div>
-      </div>
+      <el-row class="status-grid app-grid" :gutter="16">
+        <el-col :xs="24" :sm="12" :md="6"><div><span>账号</span><strong>{{ authText }}</strong></div></el-col>
+        <el-col :xs="24" :sm="12" :md="6"><div><span>全局赛季</span><strong>{{ leagueText }}</strong></div></el-col>
+        <el-col :xs="24" :sm="12" :md="6"><div><span>快捷键</span><strong>{{ appSettings.globalShortcuts.priceCheck }}</strong></div></el-col>
+        <el-col :xs="24" :sm="12" :md="6"><div><span>交易目录</span><strong>{{ catalogText }}</strong></div></el-col>
+      </el-row>
       <el-alert
         v-if="store.catalog?.warning"
         class="catalog-warning"
@@ -48,9 +43,9 @@
       <el-button class="settings-link" type="primary" plain @click="$router.push('/settings')">
         前往账号与快捷键设置
       </el-button>
-        </el-card>
+        </el-card></el-col>
 
-        <el-card>
+        <el-col :xs="24" :md="16"><el-card>
       <template #header><strong>查询设置</strong></template>
       <el-form label-width="140px">
         <el-form-item label="立即查价">
@@ -113,9 +108,9 @@
         </el-form-item>
       </el-form>
       <p class="muted">物品属性和词缀筛选只作用于当前浮层，不会覆盖这里的默认值。</p>
-        </el-card>
+        </el-card></el-col>
 
-        <el-card>
+        <el-col :xs="24" :md="8"><el-card>
       <template #header><strong>使用说明与诊断</strong></template>
       <ol class="instructions">
         <li>在设置页登录国服账号并选择全局赛季。</li>
@@ -123,8 +118,8 @@
         <li>助手发送 Ctrl+C 读取物品详细文本；“立即查价”关闭时，请在浮窗确认条件后点击“搜索”。</li>
       </ol>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
-        </el-card>
-      </div>
+        </el-card></el-col>
+      </el-row>
     </div>
   </div>
 </template>
@@ -132,6 +127,7 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { QuestionFilled } from '@element-plus/icons-vue'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -175,16 +171,17 @@ onMounted(() => store.refreshStatus().catch(() => {}))
 </script>
 
 <style scoped lang="less">
-.price-check-content { display: grid; gap: 16px; max-width: 980px; margin: 0 auto; }
-.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.page-heading h2 { margin: 0 0 6px; }
-.page-heading p, .muted { color: var(--el-text-color-secondary); }
-.status-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.price-check-content > .el-col { display: flex; }
+.price-check-content > .el-col > .el-card { width: 100%; }
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; }
+.page-heading__title { display: flex; align-items: center; gap: 8px; }
+.page-heading h2 { margin: 0; }
+.page-heading__help { color: var(--el-text-color-secondary); cursor: help; }
+.muted { color: var(--el-text-color-secondary); }
 .status-grid div { display: flex; flex-direction: column; gap: 5px; }
 .status-grid span { color: var(--el-text-color-secondary); font-size: 13px; }
 .catalog-warning, .settings-link { margin-top: 16px; }
 .el-select { width: 280px; }
 .inline-hint { margin-left: 10px; color: var(--el-text-color-secondary); font-size: 12px; }
 .instructions { margin: 0 0 16px; padding-left: 22px; line-height: 1.9; }
-@media (max-width: 850px) { .status-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>

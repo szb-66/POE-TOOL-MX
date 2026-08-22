@@ -12,7 +12,7 @@
 
     <div v-else class="dashboard-skeleton" aria-label="数据看板正在加载">
       <header><div><span class="title-block" /><span class="text-block" /></div></header>
-      <section class="summary-skeleton">
+      <section class="summary-band-skeleton">
         <span v-for="item in 4" :key="item" />
       </section>
       <section v-for="group in 3" :key="group" class="group-skeleton">
@@ -62,8 +62,8 @@ onMounted(loadContent)
 .dashboard-skeleton span { display: block; border-radius: 8px; background: var(--el-fill-color); animation: startup-pulse 1.2s ease-in-out infinite; }
 .title-block { width: 120px; height: 26px; }
 .text-block { width: 340px; height: 14px; }
-.summary-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
-.summary-skeleton span { height: 74px; }
+.summary-band-skeleton { display: grid; grid-template-columns: repeat(4, 1fr); overflow: hidden; margin-bottom: 28px; border: 1px solid var(--border-base); border-radius: 8px; }
+.summary-band-skeleton span { height: 62px; border-radius: 0; border-right: 1px solid var(--border-base); }
 .group-skeleton { margin-bottom: 24px; }
 .group-title { width: 90px; height: 18px; margin-bottom: 12px; }
 .group-skeleton div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -74,7 +74,8 @@ onMounted(loadContent)
 .runtime-syncing { position: absolute; right: 18px; bottom: 16px; padding: 7px 12px; border: 1px solid var(--border-base); border-radius: 8px; color: var(--text-secondary); background: var(--bg-primary); box-shadow: var(--el-box-shadow-light); font-size: 12px; pointer-events: none; }
 @keyframes startup-pulse { 50% { opacity: .45; } }
 @media (max-width: 780px) {
-  .summary-skeleton { grid-template-columns: repeat(2, 1fr); }
+  .summary-band-skeleton { grid-template-columns: repeat(2, 1fr); }
   .group-skeleton div { grid-template-columns: 1fr; }
 }
+@media (prefers-reduced-motion: reduce) { .dashboard-skeleton span { animation: none; } }
 </style>

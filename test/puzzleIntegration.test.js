@@ -152,6 +152,23 @@ test('待确认与已拼入海图来源格具有独立且可叠加样式', () =>
   assert.match(view, /\.source-index\s*\{[\s\S]*color: var\(--el-color-primary\)/)
 })
 
+test('碎片仓库使用同一尺寸计算固定六列方格与行列间距', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  const grid = view.match(/\.inventory-grid\s*\{([^}]*)\}/)?.[1] || ''
+  const shell = view.match(/\.inventory-slot-shell\s*\{([^}]*)\}/)?.[1] || ''
+  const slot = view.match(/\.inventory-slot\s*\{([^}]*)\}/)?.[1] || ''
+
+  assert.match(grid, /--inventory-grid-gap:\s*4px/)
+  assert.match(grid, /--inventory-cell-size:\s*min\(90px,\s*calc\(\(100% - \(5 \* var\(--inventory-grid-gap\)\)\) \/ 6\)\)/)
+  assert.match(grid, /grid-template-columns:\s*repeat\(6,\s*var\(--inventory-cell-size\)\)/)
+  assert.match(grid, /grid-auto-rows:\s*var\(--inventory-cell-size\)/)
+  assert.match(grid, /gap:\s*var\(--inventory-grid-gap\)/)
+  assert.match(shell, /height:\s*100%/)
+  assert.doesNotMatch(shell, /aspect-ratio/)
+  assert.match(slot, /height:\s*100%/)
+  assert.doesNotMatch(slot, /aspect-ratio/)
+})
+
 test('出口三态在状态层互斥、可统一清空并按识别模式重置或保留', () => {
   const store = source('../src/stores/puzzle.js')
   assert.match(store, /const forbiddenExits = ref\(\[\]\)/)
@@ -262,6 +279,14 @@ test('两个区域配置模块独立折叠并按区域数据初始化', () => {
   assert.match(view, /<el-collapse-transition>[\s\S]*v-show="regionExpanded\[config\.type\]" class="configuration-body"/)
   assert.match(view, /response\?\.success[\s\S]*regionExpanded\[type\] = false[\s\S]*已保存/)
   assert.match(view, /response\?\.success[\s\S]*regionExpanded\[type\] = true[\s\S]*已清空/)
+})
+
+test('区域配置操作项统一使用左侧标签到按钮的间距', () => {
+  const view = source('../src/domains/puzzle/PuzzleView.vue')
+  const actions = view.match(/\.configuration-actions\s*\{([^}]*)\}/)?.[1] || ''
+
+  assert.match(actions, /gap:\s*8px/)
+  assert.match(view, /\.configuration-actions > \.el-button \+ \.el-button\s*\{\s*margin-left:\s*0;\s*\}/)
 })
 
 test('低置信度碎片保留警告但仍参与海图求解与来源分配', () => {

@@ -82,3 +82,9 @@ test('制作进度浮窗通过独立会话移动且不再依赖悬停启停拖�
   assert.match(manager, /export function moveCraftingOverlayTo/)
   assert.match(manager, /getFixedOverlayDragBounds\(point, display\.workArea, CRAFTING_OVERLAY_SIZE\)/)
 })
+
+test('制作进度浮窗为顶部抓手预留内容空间', () => {
+  const view = source('../src/domains/overlay/components/OverlayContent.vue')
+  assert.match(view, /:class="\{[^}]*'has-drag-handle': allowDrag[^}]*\}"/)
+  assert.match(view, /\.overlay-container\.has-drag-handle\s*\{[^}]*padding-top:\s*calc\(24px \+ var\(--overlay-space-1\)\)/s)
+})

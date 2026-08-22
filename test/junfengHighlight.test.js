@@ -681,7 +681,9 @@ test('本机校准保存原始图块和特征，支持删除、损坏降级与�
     assert.equal(saved.columns, 12)
     assert.equal(saved.rows, 11)
     assert.equal(repository.list()[0].featureVector.length, 32)
-    assert.equal(repository.markForReembed('v2')[0].featureVector.length, 0)
+    const rebuilt = repository.markForReembed('v2')[0]
+    assert.equal(rebuilt.featureVector.length, 0)
+    assert.match(rebuilt.tileDataUrl, /^data:image\/png;base64,/)
     await writeFile(repository.indexPath, '{broken', 'utf8')
     assert.deepEqual(repository.list(), [])
     repository.save({ tileDataUrl: png, label: 'dimmed', column: 2, row: 3,

@@ -134,12 +134,13 @@ onUnmounted(() => { if (showDebugOverlay.value) electronApi.window.closeDebugOve
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
 .detection-form { margin-top: 16px; }
 .template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.capture-card { padding: 14px; border: 1px solid var(--border-light); border-radius: 8px; }
+.capture-card { min-width: 0; box-sizing: border-box; padding: 14px; border: 1px solid var(--border-light); border-radius: 8px; }
 .capture-header, .capture-header > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .template-preview { display: block; max-width: 100%; height: 72px; margin: 14px auto; object-fit: contain; }
-.region-inputs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.region-inputs { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.region-inputs :deep(.el-input-number) { width: 100%; min-width: 0; }
 @media (max-width: 900px) {
   .template-grid { grid-template-columns: 1fr; }
-  .region-inputs { grid-template-columns: repeat(2, 1fr); }
+  .region-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

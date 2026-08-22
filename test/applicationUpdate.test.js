@@ -14,6 +14,7 @@ class FakeUpdater extends EventEmitter {
     this.checkCalls = 0
     this.downloadCalls = 0
     this.installCalls = 0
+    this.installArguments = []
     this.feedURLs = []
     this.checkImplementation = async () => {}
     this.downloadImplementation = async () => {}
@@ -29,8 +30,9 @@ class FakeUpdater extends EventEmitter {
     return this.downloadImplementation()
   }
 
-  quitAndInstall() {
+  quitAndInstall(...args) {
     this.installCalls += 1
+    this.installArguments.push(args)
   }
 
   setFeedURL(options) {
@@ -67,7 +69,6 @@ function createService(options = {}) {
     cleanup: options.cleanup || (async () => {}),
     markCleanupComplete: options.markCleanupComplete || (() => {}),
     requestShutdown: options.requestShutdown || (() => {}),
-    firstCheckDelayMs: 30,
     checkIntervalMs: 60,
     cleanupTimeoutMs: options.cleanupTimeoutMs || 50
   })
@@ -161,13 +162,13 @@ test('下载失败保留可用版本并允许直接重试', async () => {
   assert.equal(updater.downloadCalls, 2)
 })
 
-test('自动模式安排首次与周期检查，切换手动后清理定时器', async () => {
+test('自动模式仅安排周期检查，切换手动后清理定时器', async () => {
   const { service, updater, scheduler } = createService()
   updater.checkImplementation = async () => updater.emit('update-not-available', { version: '1.0.2' })
   service.configure({ mode: 'automatic' })
-  assert.equal([...scheduler.timeouts.values()][0].delay, 30)
+  assert.equal(scheduler.timeouts.size, 0)
   assert.equal([...scheduler.intervals.values()][0].delay, 60)
-  await [...scheduler.timeouts.values()][0].callback()
+  await [...scheduler.intervals.values()][0].callback()
   assert.equal(updater.checkCalls, 1)
   service.configure({ mode: 'manual' })
   assert.equal(scheduler.timeouts.size, 0)
@@ -175,7 +176,7 @@ test('自动模式安排首次与周期检查，切换手动后清理定时器',
   assert.equal(updater.autoDownload, false)
 })
 
-test('自动检查发现新版本后下载但不安装', async () => {
+test('自动周期检查发现新版本后下载但不安装', async () => {
   const { service, updater, scheduler } = createService()
   updater.checkImplementation = async () => {
     updater.emit('update-available', { version: '1.0.3' })
@@ -185,7 +186,7 @@ test('自动检查发现新版本后下载但不安装', async () => {
     }
   }
   service.configure({ mode: 'automatic' })
-  await [...scheduler.timeouts.values()][0].callback()
+  await [...scheduler.intervals.values()][0].callback()
   assert.equal(service.snapshot().status, 'downloaded')
   assert.equal(updater.installCalls, 0)
 })
@@ -233,7 +234,51 @@ test('严格清理成功后标记完成并安装，失败时请求受控退出',
   const installed = await successful.service.restartAndInstall()
   assert.equal(installed.success, true)
   assert.equal(successful.updater.installCalls, 1)
+  assert.deepEqual(successful.updater.installArguments[0], [true, true])
   assert.equal(cleanupCompleteCalls, 1)
+})
+
+test('安装前保存更新内容，失败时恢复已下载状态且不清理', async () => {
+  const saved = []
+  let cleanupCalls = 0
+  const repository = {
+    save: async record => { saved.push(record) },
+    acknowledge: async () => true
+  }
+  const { service, updater } = createService({
+    cleanup: async () => { cleanupCalls += 1 }
+  })
+  service.installedUpdateRepository = repository
+  updater.emit('update-available', { version: '1.0.3', releaseNotes: '修复 A' })
+  updater.emit('update-downloaded', { version: '1.0.3' })
+  const result = await service.restartAndInstall()
+  assert.equal(result.success, true)
+  assert.deepEqual(saved, [{ targetVersion: '1.0.3', releaseNotes: '修复 A' }])
+  assert.equal(cleanupCalls, 1)
+
+  let failedCleanupCalls = 0
+  const failed = createService({ cleanup: async () => { failedCleanupCalls += 1 } })
+  failed.service.installedUpdateRepository = { save: async () => { throw new Error('record failed') } }
+  failed.updater.emit('update-available', { version: '1.0.3', releaseNotes: '修复 A' })
+  failed.updater.emit('update-downloaded', { version: '1.0.3' })
+  const failure = await failed.service.restartAndInstall()
+  assert.equal(failure.reason, 'update-record-failed')
+  assert.equal(failure.state.status, 'downloaded')
+  assert.equal(failedCleanupCalls, 0)
+  assert.equal(failed.updater.installCalls, 0)
+})
+
+test('当前版本的升级内容可确认已读且广播清除', async () => {
+  const acknowledgedVersions = []
+  const { service } = createService()
+  service.installedUpdateRepository = {
+    acknowledge: async version => { acknowledgedVersions.push(version); return true }
+  }
+  service.state.installedUpdate = { targetVersion: '1.0.2', releaseNotes: '内容' }
+  const result = await service.acknowledgeInstalledUpdate()
+  assert.equal(result.acknowledged, true)
+  assert.deepEqual(acknowledgedVersions, ['1.0.2'])
+  assert.equal(service.snapshot().installedUpdate, null)
 })
 
 test('更新未下载与重复安装返回明确原因且不清理', async () => {

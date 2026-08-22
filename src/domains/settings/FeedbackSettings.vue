@@ -21,8 +21,8 @@
       </template>
     </el-alert>
 
-    <div class="feedback-grid">
-      <el-card class="feedback-form-card" shadow="never">
+    <el-row class="feedback-grid app-grid" :gutter="16">
+      <el-col :xs="24" :md="16"><el-card class="feedback-form-card" shadow="never">
         <el-form label-position="top" @submit.prevent="submitFeedback">
           <el-form-item label="反馈类型" required :error="errors.category">
             <el-select v-model="form.category" placeholder="请选择反馈类型" @change="errors.category = ''">
@@ -70,9 +70,9 @@
             </el-button>
           </div>
         </el-form>
-      </el-card>
+      </el-card></el-col>
 
-      <aside class="feedback-evidence">
+      <el-col :xs="24" :md="8" tag="aside" class="feedback-evidence">
         <el-card shadow="never">
           <template #header>
             <div class="evidence-header">
@@ -144,8 +144,8 @@
             </template>
           </div>
         </el-card>
-      </aside>
-    </div>
+      </el-col>
+    </el-row>
 
     <el-dialog v-model="captureDialogVisible" title="开始诊断会话" width="420px" :close-on-click-modal="false">
       <el-form label-position="top">
@@ -372,11 +372,9 @@ onBeforeUnmount(() => {
   }
 
   .feedback-success { margin-bottom: 16px; }
+  :deep(.el-card) { background: var(--surface-1, var(--bg-primary)); box-shadow: inset 0 1px rgba(255,255,255,.025); }
 
   .feedback-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-    gap: 16px;
     align-items: start;
   }
 
@@ -401,7 +399,7 @@ onBeforeUnmount(() => {
   .attachment-button { width: 100%; }
   .limit-copy { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
   .attachment-list { display: grid; gap: 8px; margin-top: 12px; }
-  .attachment-item { padding: 8px 10px; border: 1px solid var(--border-base); border-radius: var(--border-radius-base); }
+  .attachment-item { padding: 8px 10px; border: 1px solid var(--border-base); border-radius: 6px; background: var(--surface-2, var(--bg-tertiary)); }
   .attachment-name { min-width: 0; display: grid; gap: 3px; }
   .attachment-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .attachment-name small { color: var(--text-secondary); }
@@ -410,12 +408,11 @@ onBeforeUnmount(() => {
   .switch-row p { margin: 6px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
   .submit-row { justify-content: flex-end; min-height: 32px; }
   .progress-text { color: var(--text-secondary); font-size: 13px; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .submit-error { color: var(--el-color-danger); background: var(--el-color-danger-light-9); border: 1px solid var(--el-color-danger-light-7); padding: 10px 12px; border-radius: var(--border-radius-base); margin-bottom: 14px; }
+  .submit-error { color: #F0AAA6; background: color-mix(in srgb, var(--el-color-danger) 13%, var(--surface-1)); border: 1px solid var(--el-color-danger); padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; }
   .diagnostic-capture-alert { margin-bottom: 12px; }
   .diagnostic-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 }
 
 @media (max-width: 900px) {
-  .feedback-settings .feedback-grid { grid-template-columns: 1fr; }
 }
 </style>

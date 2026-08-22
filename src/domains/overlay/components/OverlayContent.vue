@@ -1,5 +1,5 @@
 <template>
-  <div class="overlay-container" :class="{ 'has-content': hasContent }">
+  <div class="overlay-container" :class="{ 'has-content': hasContent, 'has-drag-handle': allowDrag }">
     <div v-if="allowDrag" class="overlay-drag-handle" title="拖动浮窗"
       @pointerdown="drag.pointerDown"
       @pointermove="drag.pointerMove"
@@ -362,11 +362,12 @@ function isModMatched(mod) {
   position: relative;
   width: 100%;
   height: 100%;
-  padding: 10px;
+  padding: var(--overlay-space-3);
   box-sizing: border-box;
-  border-radius: 20px;
-  color: #fff;
-  font-size: 14px;
+  border-radius: var(--overlay-radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--overlay-font-size);
   overflow: hidden;
   user-select: none;
   // pointer-events: none; // 移除了顶层的 pointer-events: none，由父组件控制或具体元素控制
@@ -408,6 +409,10 @@ function isModMatched(mod) {
   }
 }
 
+.overlay-container.has-drag-handle {
+  padding-top: calc(24px + var(--overlay-space-1));
+}
+
 .overlay-drag-handle {
   position: absolute;
   top: 0;
@@ -431,9 +436,9 @@ function isModMatched(mod) {
     width: 46px;
     height: 16px;
     box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.38);
-    border-radius: 8px;
-    background: rgba(12, 16, 22, 0.78);
+    border: 1px solid var(--overlay-border);
+    border-radius: var(--overlay-radius-md);
+    background: var(--overlay-surface);
     content: '';
   }
 
@@ -446,31 +451,31 @@ function isModMatched(mod) {
     width: 3px;
     height: 3px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.82);
+    background: var(--brand-color);
   }
 }
 
 .overlay-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--overlay-space-3);
   padding-bottom: 25px;
 }
 
 .failure-reason {
   position: relative;
   z-index: 95;
-  margin: 18px 0 8px;
-  padding: 10px 12px;
-  border: 1px solid rgba(245, 108, 108, 0.85);
-  border-radius: 8px;
-  background: rgba(92, 24, 24, 0.92);
-  color: #ffd6d6;
+  margin: 18px 0 var(--overlay-space-3);
+  padding: var(--overlay-space-3);
+  border: 1px solid var(--danger-color);
+  border-radius: var(--overlay-radius-md);
+  background: color-mix(in srgb, var(--danger-color) 28%, var(--surface-1));
+  color: #F6D3D1;
   pointer-events: none;
 
   .failure-title {
     margin-bottom: 4px;
-    color: #ff8f8f;
+    color: color-mix(in srgb, var(--danger-color) 76%, white);
     font-weight: 700;
   }
 

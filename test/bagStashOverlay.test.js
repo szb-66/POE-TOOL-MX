@@ -11,12 +11,11 @@ import { OverlayDragSession } from '../electron/modules/window/overlayDrag.js'
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-test('条件显示模式仅在就绪或入库中显示，入库时禁用', () => {
+test('浮层仅在就绪或入库中显示，入库时禁用', () => {
   assert.deepEqual(createBagOverlaySnapshot({
     moduleEnabled: true,
     ready: false,
-    foreground: false,
-    showOnlyWhenReady: true
+    foreground: false
   }), {
     visible: false,
     ready: false,
@@ -30,8 +29,7 @@ test('条件显示模式仅在就绪或入库中显示，入库时禁用', () =>
   const ready = createBagOverlaySnapshot({
     moduleEnabled: true,
     ready: true,
-    foreground: true,
-    showOnlyWhenReady: true
+    foreground: true
   })
   assert.equal(ready.visible, true)
   assert.equal(ready.disabled, false)
@@ -40,25 +38,23 @@ test('条件显示模式仅在就绪或入库中显示，入库时禁用', () =>
     moduleEnabled: true,
     ready: true,
     foreground: true,
-    stashing: true,
-    showOnlyWhenReady: true
+    stashing: true
   })
   assert.equal(stashing.visible, true)
   assert.equal(stashing.disabled, true)
   assert.equal(stashing.label, '入库中')
 })
 
-test('常驻模式在模块运行期间显示并准确说明禁用原因', () => {
+test('模块运行但条件不足时不提供常驻禁用按钮', () => {
   const waiting = createBagOverlaySnapshot({
     moduleEnabled: true,
     ready: true,
-    foreground: false,
-    showOnlyWhenReady: false
+    foreground: false
   })
-  assert.equal(waiting.visible, true)
+  assert.equal(waiting.visible, false)
   assert.equal(waiting.disabled, true)
   assert.equal(waiting.disabledReason, '游戏窗口不在前台')
-  assert.equal(createBagOverlaySnapshot({ moduleEnabled: false, showOnlyWhenReady: false }).visible, false)
+  assert.equal(createBagOverlaySnapshot({ moduleEnabled: false }).visible, false)
 })
 
 test('浮层恢复有效位置，失效位置回退到主屏工作区', () => {
@@ -144,7 +140,8 @@ test('专用浮层保持不抢焦点、独立路由、拖动与统一 IPC 状态
   assert.match(view, /-webkit-app-region: no-drag/)
   assert.match(view, /electronApi\.bag\.startStash\(\)/)
   assert.match(ipc, /createBagOverlaySnapshot/)
-  assert.match(ipc, /update-bag-preferences/)
+  assert.doesNotMatch(ipc, /update-bag-preferences|immediateStash|showStashButtonOnlyWhenReady/)
+  assert.doesNotMatch(ipc, /startStashProcess\([^)]*'auto'/)
   assert.match(ipc, /bag-stash-overlay-move/)
   assert.match(ipc, /getBagStashOverlayWindow/)
   assert.match(movePhase, /overlay\.setBounds\(getBagOverlayDragBounds\(/)

@@ -13,16 +13,17 @@ import { fileURLToPath } from 'url'
 import { loadWindowState, saveWindowState } from './state.js'
 import {
   DEFAULT_STORY_DIVIDER_RATIO,
-  STORY_DIVIDER_GRIP_HTML,
   getStoryDividerGripBounds,
   getStoryDividerRatioFromGrip,
+  isPointInStoryDividerGrip,
   normalizeStoryDividerRatio,
   storyOverlayBoundsEqual
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
-import { getReloadAction } from './refreshShortcut.js'
+import { dispatchReloadAction, getReloadAction } from './refreshShortcut.js'
 import {
   OverlayDragPassthroughController,
+  STORY_OVERLAY_DRAG_HIT_TOP,
   getFixedOverlayDragBounds,
   isPointInCenteredOverlayDragHandle
 } from './overlayDrag.js'
@@ -42,7 +43,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 let mainWindow = null
 let overlayWindow = null
 let storyOverlayWindow = null
-let storyOverlayDividerWindow = null
 let bagStashOverlayWindow = null
 let bagStashOverlaySnapshot = null
 let storyOverlaySnapshot = null
@@ -62,21 +62,26 @@ const storyOverlayDragPassthrough = new OverlayDragPassthroughController({
   getWindow: () => storyOverlayWindow,
   getCursorPoint: () => screen.getCursorScreenPoint(),
   isPointInHandle: (point, bounds) => storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible() &&
-    isPointInCenteredOverlayDragHandle(point, bounds)
+    (isPointInCenteredOverlayDragHandle(point, bounds, STORY_OVERLAY_DRAG_HIT_TOP) ||
+      isPointInStoryDividerGrip(point, bounds, storyOverlayLayout, storyOverlayDividerRatio))
 })
 
-export function createMainWindow({ beforeLoad = null, diagnosticFailLoad = false } = {}) {
+export function createMainWindow({
+  beforeLoad = null,
+  diagnosticFailLoad = false,
+  requestForceRefresh = () => {}
+} = {}) {
   const state = loadWindowState()
 
   // 设置应用图标
-  const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO.png')
+  const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO-dark.png')
   const icon = nativeImage.createFromPath(iconPath)
 
   const options = {
     width: state.width || 1200,
     height: state.height || 800,
     frame: false,
-    backgroundColor: '#f5f7fa', // 页面加载前也显示应用底色，避免白屏
+    backgroundColor: '#0E1013', // 页面加载前也显示主窗口深色底，避免白屏
     icon: icon.isEmpty() ? undefined : icon, // 如果图标加载失败则不设置
     webPreferences: {
       preload: path.join(__dirname, '../../preload.cjs'),
@@ -109,11 +114,10 @@ export function createMainWindow({ beforeLoad = null, diagnosticFailLoad = false
     const action = getReloadAction(input)
     if (!action) return
     event.preventDefault()
-    if (action === 'force-reload') {
-      mainWindow.webContents.reloadIgnoringCache()
-    } else {
-      mainWindow.webContents.reload()
-    }
+    dispatchReloadAction(action, {
+      reload: () => mainWindow.webContents.reload(),
+      requestForceRefresh
+    })
   })
 
   const notifyDevToolsVisibility = (visible) => {
@@ -217,7 +221,7 @@ export function createOverlayWindow() {
   const { width } = screen.getPrimaryDisplay().workAreaSize
 
   // 设置应用图标
-  const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO.png')
+  const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO-dark.png')
   const icon = nativeImage.createFromPath(iconPath)
 
   overlayWindow = new BrowserWindow({
@@ -401,10 +405,6 @@ function getStoryOverlayBounds(width, height) {
   }
 }
 
-function storyOverlayIsInteractive() {
-  return storyOverlayOpacity > 0 && storyOverlayWindow?.isVisible()
-}
-
 function destroyWindow(window) {
   if (window && !window.isDestroyed()) window.destroy()
 }
@@ -412,65 +412,6 @@ function destroyWindow(window) {
 function publishStoryDividerRatio() {
   if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
   storyOverlayWindow.webContents.send('story-overlay-divider-ratio', storyOverlayDividerRatio)
-}
-
-function syncStoryDividerToOverlay() {
-  if (!storyOverlayDividerWindow || storyOverlayDividerWindow.isDestroyed() || !storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
-  const expected = getStoryDividerGripBounds(storyOverlayWindow.getBounds(), storyOverlayLayout, storyOverlayDividerRatio)
-  if (!expected || !storyOverlayIsInteractive()) {
-    storyOverlayDividerWindow.hide()
-    return
-  }
-  const current = storyOverlayDividerWindow.getBounds()
-  if (current.x !== expected.x || current.y !== expected.y || current.width !== expected.width || current.height !== expected.height) {
-    storyOverlayDividerWindow.setBounds(expected)
-  }
-  storyOverlayDividerWindow.showInactive()
-}
-
-function createStoryDividerWindow() {
-  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
-  if (storyOverlayDividerWindow && !storyOverlayDividerWindow.isDestroyed()) return storyOverlayDividerWindow
-  const initialBounds = getStoryDividerGripBounds(storyOverlayWindow.getBounds(), storyOverlayLayout, storyOverlayDividerRatio)
-    || { x: storyOverlayWindow.getBounds().x, y: storyOverlayWindow.getBounds().y, width: 14, height: 1 }
-  storyOverlayDividerWindow = new BrowserWindow({
-    ...initialBounds,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000',
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focusable: false,
-    resizable: false,
-    movable: true,
-    hasShadow: false,
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
-    }
-  })
-  storyOverlayDividerWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(STORY_DIVIDER_GRIP_HTML)}`)
-  storyOverlayDividerWindow.setAlwaysOnTop(true, 'screen-saver')
-  storyOverlayDividerWindow.setOpacity(storyOverlayOpacity / 100)
-  storyOverlayDividerWindow.once('ready-to-show', syncStoryDividerToOverlay)
-  storyOverlayDividerWindow.on('move', () => {
-    if (!storyOverlayDividerWindow || storyOverlayDividerWindow.isDestroyed() || !storyOverlayWindow || storyOverlayWindow.isDestroyed()) return
-    storyOverlayDividerRatio = getStoryDividerRatioFromGrip(
-      storyOverlayDividerWindow.getBounds(),
-      storyOverlayWindow.getBounds(),
-      storyOverlayLayout
-    )
-    saveWindowState({ storyOverlayDividerRatio })
-    publishStoryDividerRatio()
-  })
-  storyOverlayDividerWindow.on('moved', syncStoryDividerToOverlay)
-  const dividerWindow = storyOverlayDividerWindow
-  dividerWindow.on('closed', () => {
-    if (storyOverlayDividerWindow === dividerWindow) storyOverlayDividerWindow = null
-  })
-  return storyOverlayDividerWindow
 }
 
 export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
@@ -487,8 +428,6 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     setStoryOverlayOpacity(storyOverlayOpacity)
     storyOverlayWindow.showInactive()
     storyOverlayDragPassthrough.start()
-    createStoryDividerWindow()
-    syncStoryDividerToOverlay()
     if (initialSnapshot) storyOverlayWindow.webContents.send('story-overlay-state', initialSnapshot)
     publishStoryDividerRatio()
     return storyOverlayWindow
@@ -523,7 +462,6 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
 
   storyOverlayWindow.setIgnoreMouseEvents(true, { forward: true })
   storyOverlayWindow.setOpacity(storyOverlayOpacity / 100)
-  createStoryDividerWindow()
   const overlayWindow = storyOverlayWindow
   overlayWindow.webContents.once('did-finish-load', () => {
     if (storyOverlayWindow !== overlayWindow || overlayWindow.isDestroyed()) return
@@ -531,7 +469,6 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     overlayWindow.showInactive()
     storyOverlayDragPassthrough.start()
     publishStoryDividerRatio()
-    syncStoryDividerToOverlay()
   })
 
   let saveTimer
@@ -546,11 +483,8 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
   overlayWindow.on('closed', () => {
     clearTimeout(saveTimer)
     if (storyOverlayWindow !== overlayWindow) return
-    const dividerWindow = storyOverlayDividerWindow
-    storyOverlayDividerWindow = null
     storyOverlayWindow = null
     storyOverlayDragPassthrough.stop()
-    destroyWindow(dividerWindow)
   })
   return storyOverlayWindow
 }
@@ -571,17 +505,36 @@ export function resizeStoryOverlay(size) {
   const nextBounds = { ...bounds, x: nextX, width: nextWidth, height: nextHeight }
   if (storyOverlayBoundsEqual(bounds, nextBounds)) return true
   storyOverlayWindow.setBounds(nextBounds)
-  syncStoryDividerToOverlay()
+  storyOverlayDragPassthrough.sync()
   return true
 }
 
 export function setStoryOverlayDragging(dragging) {
   storyOverlayDragPassthrough.setDragging(dragging)
-  if (dragging) {
-    storyOverlayDividerWindow?.hide()
-  } else {
-    syncStoryDividerToOverlay()
-  }
+}
+
+export function getStoryOverlayDividerBounds() {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return null
+  return getStoryDividerGripBounds(storyOverlayWindow.getBounds(), storyOverlayLayout, storyOverlayDividerRatio)
+}
+
+export function setStoryOverlayDividerDragging(dragging) {
+  storyOverlayDragPassthrough.setDragging(dragging)
+  if (!dragging) saveWindowState({ storyOverlayDividerRatio })
+}
+
+export function moveStoryOverlayDividerTo(point) {
+  if (!storyOverlayWindow || storyOverlayWindow.isDestroyed()) return false
+  const currentBounds = getStoryOverlayDividerBounds()
+  const x = Number(point?.x)
+  if (!currentBounds || !Number.isFinite(x)) return false
+  storyOverlayDividerRatio = getStoryDividerRatioFromGrip(
+    { ...currentBounds, x },
+    storyOverlayWindow.getBounds(),
+    storyOverlayLayout
+  )
+  publishStoryDividerRatio()
+  return true
 }
 
 export function moveStoryOverlayTo(point) {
@@ -596,14 +549,7 @@ export function setStoryOverlayOpacity(opacity) {
   const number = Number(opacity)
   storyOverlayOpacity = Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100
   const nativeOpacity = storyOverlayOpacity / 100
-  for (const window of [storyOverlayWindow, storyOverlayDividerWindow]) {
-    if (window && !window.isDestroyed()) window.setOpacity(nativeOpacity)
-  }
-  if (storyOverlayOpacity === 0) {
-    storyOverlayDividerWindow?.hide()
-  } else if (storyOverlayWindow?.isVisible()) {
-    syncStoryDividerToOverlay()
-  }
+  if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) storyOverlayWindow.setOpacity(nativeOpacity)
   storyOverlayDragPassthrough.sync()
   return true
 }
@@ -621,8 +567,7 @@ export function updateStoryOverlayLayout(layout) {
     storyOverlayLayout.left === nextLayout.left && storyOverlayLayout.top === nextLayout.top &&
     storyOverlayLayout.width === nextLayout.width && storyOverlayLayout.height === nextLayout.height) return true
   storyOverlayLayout = nextLayout
-  createStoryDividerWindow()
-  syncStoryDividerToOverlay()
+  storyOverlayDragPassthrough.sync()
   return true
 }
 
@@ -638,22 +583,19 @@ export function getStoryOverlaySnapshot() {
   return storyOverlaySnapshot
 }
 
+export function getStoryOverlayDividerRatio() {
+  return storyOverlayDividerRatio
+}
+
 export function closeStoryOverlayWindow() {
   const overlayWindow = storyOverlayWindow
-  const dividerWindow = storyOverlayDividerWindow
   storyOverlayWindow = null
   storyOverlayDragPassthrough.stop()
-  storyOverlayDividerWindow = null
-  destroyWindow(dividerWindow)
   destroyWindow(overlayWindow)
 }
 
 export function getStoryOverlayWindow() {
   return storyOverlayWindow
-}
-
-export function getStoryOverlayDividerWindow() {
-  return storyOverlayDividerWindow
 }
 
 function tryShowConsolePanel() {

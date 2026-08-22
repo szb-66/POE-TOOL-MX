@@ -104,8 +104,7 @@ export function useDashboard() {
   }))
   const bagValidationError = computed(() => validateBagRuntimeConfig(buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
-    immediateStash: bagStore.immediateStash,
-    showStashButtonOnlyWhenReady: bagStore.showStashButtonOnlyWhenReady,
+    forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
     blacklist: bagStore.blacklist,

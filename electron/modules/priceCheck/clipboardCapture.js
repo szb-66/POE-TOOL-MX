@@ -62,6 +62,76 @@ function gameForegroundGuardLines() {
   ]
 }
 
+function gameFocusLines() {
+  return [
+    'import ctypes, json, os, sys, time',
+    'from ctypes import wintypes',
+    'u = ctypes.windll.user32',
+    'k = ctypes.windll.kernel32',
+    'titles = ("流放之路", "Path of Exile")',
+    'process_names = ("PathOfExile.exe", "PathOfExile_x64.exe", "PathOfExileSteam.exe", "PathOfExile_x64Steam.exe", "PathOfExileEGS.exe", "PathOfExile_x64EGS.exe")',
+    'p = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")',
+    'try:',
+    ' data = json.load(open(p, "r", encoding="utf-8")) if p else {}',
+    ' values = data.get("titles") if isinstance(data, dict) else data',
+    ' titles = tuple(str(v).strip() for v in values) if isinstance(values, list) and values else titles',
+    ' pvalues = data.get("processNames") if isinstance(data, dict) else None',
+    ' process_names = tuple(str(v).strip().rsplit("\\\\", 1)[-1].rsplit("/", 1)[-1] for v in pvalues) if isinstance(pvalues, list) and pvalues else process_names',
+    'except Exception: pass',
+    'u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]',
+    'u.GetWindowThreadProcessId.restype = wintypes.DWORD',
+    'k.OpenProcess.restype = wintypes.HANDLE',
+    'k.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]',
+    'k.QueryFullProcessImageNameW.restype = wintypes.BOOL',
+    'k.CloseHandle.argtypes = [wintypes.HANDLE]',
+    'def process_name_for_window(hwnd):',
+    ' pid = wintypes.DWORD()',
+    ' u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))',
+    ' if not pid.value: return ""',
+    ' hproc = k.OpenProcess(0x1000, False, pid.value)',
+    ' if not hproc: return ""',
+    ' try:',
+    '  size = wintypes.DWORD(32768)',
+    '  buf = ctypes.create_unicode_buffer(size.value)',
+    '  return os.path.basename(buf.value).casefold() if k.QueryFullProcessImageNameW(hproc, 0, buf, ctypes.byref(size)) else ""',
+    ' finally:',
+    '  k.CloseHandle(hproc)',
+    'def window_matches_game(hwnd):',
+    ' if not hwnd: return False',
+    ' length = u.GetWindowTextLengthW(hwnd)',
+    ' title = ctypes.create_unicode_buffer(length + 1)',
+    ' u.GetWindowTextW(hwnd, title, length + 1)',
+    ' title_ok = any(value.casefold() in title.value.casefold() for value in titles if value)',
+    ' return title_ok and process_name_for_window(hwnd) in tuple(value.casefold() for value in process_names)',
+    'matches = []',
+    'callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)',
+    'def visit(hwnd, _lparam):',
+    ' if u.IsWindowVisible(hwnd) and window_matches_game(hwnd): matches.append(hwnd)',
+    ' return True',
+    'u.EnumWindows(callback_type(visit), 0)',
+    'sys.exit(23) if not matches else None',
+    'hwnd = matches[0]',
+    'foreground = u.GetForegroundWindow()',
+    'current_thread = k.GetCurrentThreadId()',
+    'foreground_thread = u.GetWindowThreadProcessId(foreground, None) if foreground else 0',
+    'target_thread = u.GetWindowThreadProcessId(hwnd, None)',
+    'attached_foreground = bool(foreground_thread and foreground_thread != current_thread and u.AttachThreadInput(current_thread, foreground_thread, True))',
+    'attached_target = bool(target_thread and target_thread != current_thread and target_thread != foreground_thread and u.AttachThreadInput(current_thread, target_thread, True))',
+    'try:',
+    ' u.ShowWindow(hwnd, 9) if u.IsIconic(hwnd) else None',
+    ' u.BringWindowToTop(hwnd)',
+    ' u.SetForegroundWindow(hwnd)',
+    ' u.SetFocus(hwnd)',
+    'finally:',
+    ' u.AttachThreadInput(current_thread, target_thread, False) if attached_target else None',
+    ' u.AttachThreadInput(current_thread, foreground_thread, False) if attached_foreground else None',
+    'deadline = time.monotonic() + 2.0',
+    'while time.monotonic() < deadline and u.GetForegroundWindow() != hwnd:',
+    ' time.sleep(0.05)',
+    'sys.exit(0 if u.GetForegroundWindow() == hwnd and window_matches_game(hwnd) else 25)'
+  ]
+}
+
 function runWindowsInputScript(pythonPath, lines) {
   if (process.platform !== 'win32' || !pythonPath) {
     throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境无法向游戏发送复制按键')
@@ -94,6 +164,31 @@ export async function sendWindowsCopy(pythonPath) {
     'u.keybd_event(0x11, 0, 2, 0)'
   ]
   await runWindowsInputScript(pythonPath, script)
+}
+
+export async function restoreWindowsGameFocus(
+  pythonPath,
+  { platform = process.platform, execFileImpl = execFile } = {}
+) {
+  if (platform !== 'win32' || !pythonPath || typeof execFileImpl !== 'function') return false
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (value) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    try {
+      execFileImpl(
+        pythonPath,
+        ['-c', gameFocusLines().join('\n')],
+        { windowsHide: true, timeout: 3000 },
+        (error) => finish(!error)
+      )
+    } catch {
+      finish(false)
+    }
+  })
 }
 
 export async function captureFreshClipboardText({

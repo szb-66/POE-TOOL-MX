@@ -1,5 +1,5 @@
 /**
- * Purpose: 无菜单栏时的刷新快捷键判定（Ctrl+R 刷新、Ctrl+Shift+R/F5 强制刷新）
+ * Purpose: 无菜单栏时的刷新快捷键判定与动作分发
  * Inputs: before-input-event 的 input 对象
  * Outputs: 'reload' | 'force-reload' | null
  * Preconditions: 无（纯函数）
@@ -15,4 +15,16 @@ export function getReloadAction(input) {
     return input.shift ? 'force-reload' : 'reload'
   }
   return null
+}
+
+export function dispatchReloadAction(action, { reload, requestForceRefresh }) {
+  if (action === 'force-reload') {
+    void requestForceRefresh()
+    return true
+  }
+  if (action === 'reload') {
+    reload()
+    return true
+  }
+  return false
 }

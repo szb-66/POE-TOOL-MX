@@ -80,23 +80,6 @@ export function createAwakenedTradeRequest(filters, stats, mercenarySkillGroups 
     if (value === 'any') continue
     setProperty(query.filters, `misc_filters.filters.${key}.option`, value)
   }
-  if (filters.gemLevel != null) {
-    setProperty(query.filters, 'misc_filters.filters.gem_level.min', filters.gemLevel)
-  }
-  if (filters.quality != null) {
-    setProperty(query.filters, 'misc_filters.filters.quality.min', filters.quality)
-  }
-  if (filters.itemLevel != null) {
-    setProperty(query.filters, 'misc_filters.filters.ilvl.min', filters.itemLevel)
-    setProperty(query.filters, 'misc_filters.filters.ilvl.max', filters.itemLevelMax)
-  }
-  if (filters.linkedSockets != null) {
-    setProperty(query.filters, 'socket_filters.filters.links.min', filters.linkedSockets)
-  }
-  if (filters.mapTier != null) {
-    setProperty(query.filters, 'map_filters.filters.map_tier.min', filters.mapTier)
-    setProperty(query.filters, 'map_filters.filters.map_tier.max', filters.mapTier)
-  }
   const range = (path, value) => {
     if (!value) return
     setProperty(query.filters, `${path}.min`, value.min)
@@ -128,7 +111,22 @@ export function createAwakenedTradeRequest(filters, stats, mercenarySkillGroups 
     setProperty(query.filters, 'map_filters.filters.chart_shape.option', String(filters.map.shape.option))
   }
 
-  query.stats[0].filters.push(...stats.filter((stat) => stat.enabled).map(statToQuery))
+  for (const stat of stats.filter((entry) => entry.enabled)) {
+    const variants = Array.isArray(stat.queryVariants) ? stat.queryVariants : []
+    if (variants.length > 1) {
+      query.stats.push({
+        type: 'count',
+        value: { min: 1 },
+        filters: variants.map((variant) => statToQuery({
+          ...stat,
+          id: variant.id,
+          valueMultiplier: variant.valueMultiplier
+        }))
+      })
+      continue
+    }
+    query.stats[0].filters.push(statToQuery(stat))
+  }
   for (const group of mercenarySkillGroups) {
     if (!group?.enabled || !group.skill?.id) continue
     const ids = [

@@ -33,19 +33,22 @@ const scriptPath = fileURLToPath(scriptUrl)
 test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
   const settings = normalizeBagSettings({
     moduleEnabled: true,
+    immediateStash: true,
+    showStashButtonOnlyWhenReady: true,
     buttonPosition: { x: 1, y: 2 },
     templates: { stashTitle: 'stash.png', inventoryTitle: 'inventory.png' }
   })
   assert.equal(settings.moduleEnabled, true)
-  assert.equal(settings.immediateStash, true)
-  assert.equal(settings.showStashButtonOnlyWhenReady, true)
+  assert.equal(settings.forceUniqueStash, false)
+  assert.equal('immediateStash' in settings, false)
+  assert.equal('showStashButtonOnlyWhenReady' in settings, false)
   assert.equal('transferDelayMs' in settings, false)
   assert.deepEqual(settings.blacklist, [])
   assert.equal('buttonPosition' in settings, false)
   assert.equal(settings.templates.stashTitle, 'stash.png')
   assert.deepEqual(settings.inventoryLayout, {
     extraEnabled: false,
-    extraColumns: 1,
+    extraColumns: 6,
     excludedSlots: []
   })
 })
@@ -69,7 +72,9 @@ test('背包布局限制额外列数并去重合法格子，同时保留隐藏�
     excludedSlots: [{ column: 0, row: 0 }, { column: -6, row: 4 }]
   })
   assert.equal(normalizeInventoryLayout({ extraColumns: 0 }).extraColumns, 1)
-  assert.equal(normalizeInventoryLayout({ extraColumns: 'invalid' }).extraColumns, 1)
+  assert.equal(normalizeInventoryLayout({ extraColumns: 'invalid' }).extraColumns, 6)
+  assert.equal(normalizeInventoryLayout({}).extraColumns, 6)
+  assert.equal(normalizeInventoryLayout({ extraColumns: 3 }).extraColumns, 3)
 })
 
 test('黑名单规范化仅保留名称、基底和类别的非空规则', () => {
@@ -128,8 +133,7 @@ test('黑名单按指定字段和模式做不区分大小写的匹配', () => {
 
 test('运行配置包含模板区域、网格、黑名单和全局自动操作等待', () => {
   const config = buildBagRuntimeConfig({
-    immediateStash: false,
-    showStashButtonOnlyWhenReady: false,
+    forceUniqueStash: true,
     templates: {
       stashTitle: 's.png', inventoryTitle: 'i.png',
       stashRegion: { left: 1, top: 2, right: 3, bottom: 4 },
@@ -156,8 +160,9 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   assert.equal(config.blacklist[0].matchMode, 'contains')
   assert.equal(config.blacklist[0].enabled, false)
   assert.equal(config.operationDelayMs, 180)
-  assert.equal(config.immediateStash, false)
-  assert.equal(config.showStashButtonOnlyWhenReady, false)
+  assert.equal(config.forceUniqueStash, true)
+  assert.equal('immediateStash' in config, false)
+  assert.equal('showStashButtonOnlyWhenReady' in config, false)
   assert.equal('delays' in config, false)
 })
 
@@ -171,7 +176,7 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /清空选择/)
   assert.doesNotMatch(source, /:disabled="bagStore\.moduleEnabled"/)
   assert.match(source, /updateBagRuntimeConfig/)
-  assert.match(source, /运行中修改从下一轮入库生效/)
+  assert.doesNotMatch(source, /运行中修改从下一轮入库生效/)
   assert.match(source, /extraColumns[\s\S]*index - count/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODES/)
   assert.match(source, /BAG_BLACKLIST_MATCH_MODE_LABELS/)
@@ -181,6 +186,26 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /function toggleBlacklistRule\(index, enabled\)/)
   assert.match(source, /ruleIndex === index \? \{ \.\.\.rule, enabled: Boolean\(enabled\) \} : rule/)
   assert.match(source, /matchMode: draftRule\.value\.matchMode,[\s\S]*enabled: true/)
+})
+
+test('存取页面合并启用条件、提供传奇强制入库并统一基础开关与问号说明', () => {
+  const source = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  assert.match(source, /传奇强入/)
+  assert.match(source, /bagStore\.forceUniqueStash/)
+  assert.match(source, /setForceUniqueStash\(forceUniqueStash\)[\s\S]*applyBagRuntimePatch\(\{ forceUniqueStash \}\)/)
+  assert.doesNotMatch(source, /立即执行入库|满足条件显示|immediateStash|showStashButtonOnlyWhenReady/)
+  assert.doesNotMatch(source, /active-text|inactive-text|inline-prompt/)
+  assert.match(source, /QuestionFilled/)
+  assert.match(source, /content="持续检测仓库与背包，并提供游戏内入库按钮"/)
+  assert.match(source, /aria-label="启用模块说明"/)
+  assert.match(source, /content="仅当传奇物品仓库页已满而无法正常入库时，才会追加 Shift 强制将该传奇物品放入当前仓库"/)
+  assert.match(source, /aria-label="传奇强入说明"/)
+  assert.match(source, /content="点击格子可切换是否执行自动入库。"/)
+  assert.match(source, /aria-label="背包格子布局说明"/)
+  assert.doesNotMatch(source, /<el-alert title="点击格子可切换是否执行自动入库。"/)
+  assert.match(source, /content="命中任一规则的物品会留在背包；统计按扫描格数计算。"/)
+  assert.match(source, /aria-label="物品黑名单说明"/)
+  assert.doesNotMatch(source, /运行中修改从下一轮入库生效|新规则从下一轮入库生效|识别模板已移动/)
 })
 
 test('Python 黑名单支持精确匹配、旧规则迁移和单项启停', () => {
@@ -245,51 +270,24 @@ test('结构化事件解析器支持跨 chunk 行并忽略普通日志', () => {
   assert.deepEqual(logs, ['普通日志'])
 })
 
-test('单会话只自动执行一次，not-ready 后重新解锁，手动补扫校验互斥', () => {
+test('检测状态只更新手动门禁，不会返回自动启动信号', () => {
   const state = new BagSessionController()
-  assert.equal(state.setReady(true), true)
-  assert.equal(state.beginAutomatic().success, true)
-  state.finishStash()
-  assert.equal(state.setReady(true), false)
+  assert.equal(state.setReady(true), undefined)
   assert.equal(state.beginManual().success, true)
   assert.equal(state.beginManual().success, false)
   state.finishStash()
   state.setReady(false)
-  assert.equal(state.setReady(true), true)
-})
-
-test('失去前台不会解锁当前界面会话，返回前台也不会重复自动执行', () => {
-  const state = new BagSessionController()
-  assert.equal(state.setReady(true, true), true)
-  assert.equal(state.beginAutomatic().success, true)
-  state.finishStash()
-  assert.equal(state.setReady(true, false), false)
   assert.equal(state.beginManual().success, false)
-  assert.equal(state.setReady(true, true), false)
-  state.setReady(false, false)
-  assert.equal(state.setReady(true, true), true)
 })
 
-test('入库执行期间标题失配不会解锁会话或在恢复匹配后重复执行', () => {
+test('手动入库要求检测就绪且游戏位于前台', () => {
   const state = new BagSessionController()
-  assert.equal(state.setReady(true, true), true)
-  assert.equal(state.beginAutomatic().success, true)
-  assert.equal(state.setReady(false, true), false)
-  assert.equal(state.locked, true)
-  state.finishStash()
-  assert.equal(state.setReady(true, true), false)
-  state.setReady(false, true)
-  assert.equal(state.setReady(true, true), true)
-})
-
-test('关闭立即执行时就绪不会锁定会话，仍可手动入库', () => {
-  const state = new BagSessionController()
-  assert.equal(state.setReady(true, true, false), false)
-  assert.equal(state.locked, false)
+  state.setReady(true, false)
+  assert.equal(state.beginManual().success, false)
+  state.setReady(true, true)
   assert.equal(state.beginManual().success, true)
   state.finishStash()
-  assert.equal(state.setReady(false, false, false), false)
-  assert.equal(state.setReady(true, true, true), true)
+  assert.equal(state.beginManual().success, true)
 })
 
 test('Python 检测状态需要连续三次命中或丢失才切换', () => {
@@ -548,6 +546,71 @@ print(json.dumps({
   const mouseUp = result.failed.findIndex(([kind, name]) => kind === 'mouse-up' && name === 'Button.left')
   const ctrlUp = result.failed.findIndex(([kind, name]) => kind === 'key-up' && name === 'Key.ctrl')
   assert.ok(mouseUp >= 0 && ctrlUp > mouseUp)
+})
+
+test('Python 强制入库按鼠标、Shift、Ctrl 顺序释放并覆盖失焦与异常清理', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+def run_case(focus_values, fail_after_mouse=False):
+    events = []
+    focus = iter(focus_values)
+    module.is_running = True
+    module.runtime_stop_reason = ""
+    module.is_game_foreground = lambda: next(focus, focus_values[-1])
+    module.is_ctrl_pressed = lambda: True
+    def advance(_seconds):
+        if fail_after_mouse and events and events[-1][0] == "mouse-down":
+            raise RuntimeError("injected failure")
+    module.time.sleep = advance
+    class Keyboard:
+        def press(self, key): events.append(("key-down", str(key)))
+        def release(self, key): events.append(("key-up", str(key)))
+    class Mouse:
+        def press(self, button): events.append(("mouse-down", str(button)))
+        def release(self, button): events.append(("mouse-up", str(button)))
+    controller = module.InputController.__new__(module.InputController)
+    controller.keyboard = Keyboard()
+    controller.mouse = Mouse()
+    controller.release_settle = module.RELEASE_SETTLE_SECONDS
+    controller.ctrl_release_delay = module.MODIFIER_SETTLE_SECONDS
+    controller.pressed_keys = set()
+    controller.pressed_buttons = set()
+    result = controller.ctrl_shift_click()
+    controller.release_all()
+    return {"result": result, "reason": module.runtime_stop_reason, "events": events}
+
+print(json.dumps({
+    "success": run_case([True, True, True]),
+    "blurred": run_case([True, True, False]),
+    "failed": run_case([True, True, True], True),
+}))
+`
+  const result = runPython(code)
+  assert.equal(result.success.result, true)
+  assert.deepEqual(result.success.events, [
+    ['key-down', 'Key.ctrl'],
+    ['key-down', 'Key.shift'],
+    ['mouse-down', 'Button.left'],
+    ['mouse-up', 'Button.left'],
+    ['key-up', 'Key.shift'],
+    ['key-up', 'Key.ctrl']
+  ])
+  assert.equal(result.blurred.result, false)
+  assert.equal(result.blurred.reason, 'game-not-foreground')
+  assert.deepEqual(result.blurred.events.slice(-2), [
+    ['key-up', 'Key.shift'],
+    ['key-up', 'Key.ctrl']
+  ])
+  assert.equal(result.failed.result, false)
+  const mouseUp = result.failed.events.findIndex(([kind, name]) => kind === 'mouse-up' && name === 'Button.left')
+  const shiftUp = result.failed.events.findIndex(([kind, name]) => kind === 'key-up' && name === 'Key.shift')
+  const ctrlUp = result.failed.events.findIndex(([kind, name]) => kind === 'key-up' && name === 'Key.ctrl')
+  assert.ok(mouseUp >= 0 && shiftUp > mouseUp && ctrlUp > shiftUp)
 })
 
 test('Python 类型受限物品不会被清理事件拿起并放进第五个判空格', () => {
@@ -946,13 +1009,34 @@ test('Python 入库对空格、无效文本和安全门禁采用失败关闭策�
   assert.match(source, /clipboard_sequence_number\(\)/)
   assert.match(source, /copy_status == "empty"[\s\S]*emptySlots/)
   assert.match(source, /item is None:[\s\S]*unreadableSlots/)
-  assert.match(source, /transferred, reason = transfer_item_once\(controller\)[\s\S]*stashedSlots/)
+  assert.match(source, /transferred, reason = transfer_stash_item\([\s\S]*controller, item, force_unique_stash\)[\s\S]*stashedSlots/)
   assert.doesNotMatch(source, /same_item|failedSlots/)
   assert.match(source, /if not is_game_foreground\(\):[\s\S]*game-not-foreground/)
   assert.doesNotMatch(action, /InterfaceMatcher|check_interface|interface-lost/)
   assert.match(source, /def run_detection\(config\):[\s\S]*InterfaceMatcher\(config\)[\s\S]*check_interface\(\)/)
   assert.match(source, /finally:[\s\S]*controller\.release_all\(\)/)
-  assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('transfer_item_once(controller)'))
+  assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('transfer_stash_item('))
+})
+
+test('Python 物品头可靠识别中英文传奇稀有度', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+samples = [
+    "物品类别: 项链\\n稀 有 度: 传奇\\n永恒诅咒\\n海灵护身符\\n--------",
+    "Item Class: Rings\\nRarity: Unique\\nBlackheart\\nIron Ring\\n--------",
+    "Item Class: Currency\\nRarity: Currency\\nChaos Orb\\n--------",
+]
+print(json.dumps([module.parse_item_header(text) for text in samples], ensure_ascii=False))
+`
+  assert.deepEqual(runPython(code), [
+    { category: '项链', rarity: 'unique', name: '永恒诅咒', baseName: '海灵护身符' },
+    { category: 'Rings', rarity: 'unique', name: 'Blackheart', baseName: 'Iron Ring' },
+    { category: 'Currency', rarity: 'Currency', name: 'Chaos Orb', baseName: '' }
+  ])
 })
 
 test('共享单次转移只点击一次且不执行点击后复制', () => {
@@ -988,6 +1072,142 @@ print(json.dumps(cases))
   assert.deepEqual(runPython(code), [
     [true, '', 1, 1],
     [false, 'game-not-foreground', 1, 1]
+  ])
+})
+
+test('传奇强制入库仅在首次点击后同一传奇仍存在时追加一次强制点击', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+unique_text = "Item Class: Rings\\nRarity: Unique\\nBlackheart\\nIron Ring\\n--------"
+other_text = "Item Class: Rings\\nRarity: Unique\\nDoedre's Damning\\nPaua Ring\\n--------"
+unique = module.parse_item_header(unique_text)
+normal = {"category": "Currency", "rarity": "Currency", "name": "Chaos Orb", "baseName": ""}
+
+class Controller:
+    def __init__(self, status=("empty", ""), click=True, force=True):
+        self.status = status
+        self.click = click
+        self.force = force
+        self.clicks = 0
+        self.copies = 0
+        self.forced = 0
+        self.releases = 0
+        self.copy_ctrl_held = []
+    def ctrl_click(self):
+        self.clicks += 1
+        return self.click
+    def click_with_ctrl(self):
+        self.clicks += 1
+        return self.click
+    def copy_item_text(self, ctrl_held=False, **kwargs):
+        self.copies += 1
+        self.copy_ctrl_held.append(ctrl_held)
+        return self.status
+    def ctrl_shift_click(self):
+        self.forced += 1
+        return self.force
+    def release_all(self): self.releases += 1
+
+cases = []
+for item, enabled, status, click, force, stop_reason in (
+    (normal, True, ("copied", unique_text), True, True, ""),
+    (unique, False, ("copied", unique_text), True, True, ""),
+    (unique, True, ("empty", ""), True, True, ""),
+    (unique, True, ("copied", other_text), True, True, ""),
+    (unique, True, ("copied", unique_text), True, True, ""),
+    (unique, True, ("unreadable", ""), True, True, ""),
+    (unique, True, ("copied", "not-an-item"), True, True, ""),
+    (unique, True, ("copied", unique_text), False, True, "game-not-foreground"),
+    (unique, True, ("copied", unique_text), True, False, "game-not-foreground"),
+):
+    module.runtime_stop_reason = stop_reason
+    controller = Controller(status, click, force)
+    confirmed, reason = module.transfer_stash_item(controller, item, enabled)
+    cases.append([confirmed, reason, controller.clicks, controller.copies, controller.forced, controller.releases, controller.copy_ctrl_held])
+print(json.dumps(cases))
+`
+  assert.deepEqual(runPython(code), [
+    [true, '', 1, 0, 0, 1, []],
+    [true, '', 1, 0, 0, 1, []],
+    [true, '', 1, 1, 0, 1, [true]],
+    [true, '', 1, 1, 0, 1, [true]],
+    [true, '', 1, 1, 1, 1, [true]],
+    [false, 'transfer-unconfirmed', 1, 1, 0, 1, [true]],
+    [false, 'transfer-unconfirmed', 1, 1, 0, 1, [true]],
+    [false, 'game-not-foreground', 1, 0, 0, 1, []],
+    [false, 'game-not-foreground', 1, 1, 1, 1, [true]]
+  ])
+})
+
+test('传奇强制入库在首次点击、复制确认和强制点击之间持续持有 Ctrl', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+unique_text = "Item Class: Rings\\nRarity: Unique\\nBlackheart\\nIron Ring\\n--------"
+events = []
+clipboard = {"text": "old", "sequence": 0}
+module.is_running = True
+module.runtime_stop_reason = ""
+module.is_game_foreground = lambda: True
+module.is_ctrl_pressed = lambda: True
+module.clipboard_sequence_number = lambda: clipboard["sequence"]
+module.time.sleep = lambda _seconds: None
+
+class Clipboard:
+    def copy(self, value):
+        clipboard["text"] = value
+        clipboard["sequence"] += 1
+    def paste(self): return clipboard["text"]
+
+class Keyboard:
+    def press(self, key):
+        events.append(("key-down", str(key)))
+        if key == "c":
+            clipboard["text"] = unique_text
+            clipboard["sequence"] += 1
+    def release(self, key): events.append(("key-up", str(key)))
+
+class Mouse:
+    def press(self, button): events.append(("mouse-down", str(button)))
+    def release(self, button): events.append(("mouse-up", str(button)))
+
+module.pyperclip = Clipboard()
+controller = module.InputController.__new__(module.InputController)
+controller.keyboard = Keyboard()
+controller.mouse = Mouse()
+controller.clipboard_delay = 0
+controller.release_settle = module.RELEASE_SETTLE_SECONDS
+controller.ctrl_release_delay = module.MODIFIER_SETTLE_SECONDS
+controller.pressed_keys = set()
+controller.pressed_buttons = set()
+
+result = module.transfer_stash_item(
+    controller, module.parse_item_header(unique_text), True)
+print(json.dumps({"result": result, "events": events}))
+`
+
+  const result = runPython(code)
+  assert.deepEqual(result.result, [true, ''])
+  assert.deepEqual(result.events, [
+    ['key-down', 'Key.ctrl'],
+    ['mouse-down', 'Button.left'],
+    ['mouse-up', 'Button.left'],
+    ['key-down', 'c'],
+    ['key-up', 'c'],
+    ['key-down', 'Key.shift'],
+    ['mouse-down', 'Button.left'],
+    ['mouse-up', 'Button.left'],
+    ['key-up', 'Key.shift'],
+    ['key-up', 'Key.ctrl']
   ])
 })
 
@@ -1308,7 +1528,7 @@ test('完整背包运行时配置热更新检测并保留当前入库进程快�
   assert.match(apiSource, /updateRuntimeConfig/)
   assert.doesNotMatch(bagView, /:disabled="bagStore\.moduleEnabled"/)
   assert.doesNotMatch(bagView, /请先关闭模块再修改黑名单/)
-  assert.match(bagView, /新规则从下一轮入库生效/)
+  assert.doesNotMatch(bagView, /新规则从下一轮入库生效/)
 })
 
 test('正式包携带背包脚本并从稳定路径解析', () => {

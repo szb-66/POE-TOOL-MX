@@ -44,16 +44,16 @@ onUnmounted(() => removeListener?.())
 </script>
 
 <style scoped>
-.puzzle-progress-overlay { position: fixed; inset: 0; box-sizing: border-box; color: #f8fafc; background: rgba(15, 23, 42, .08); font-family: "Microsoft YaHei", sans-serif; }
+.puzzle-progress-overlay { position: fixed; inset: 0; box-sizing: border-box; color: var(--text-primary); background: color-mix(in srgb, var(--app-bg) 8%, transparent); font-family: var(--font-ui); }
 .grid { display: grid; width: 100%; height: 100%; }
 .inventory-grid { grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(10, 1fr); }
 .atlas-grid { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); }
-.cell { position: relative; box-sizing: border-box; display: grid; place-items: center; border: 1px solid rgba(34, 211, 238, .72); color: rgba(34, 211, 238, .9); background: rgba(15, 23, 42, .05); }
+.cell { position: relative; box-sizing: border-box; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--brand-color) 72%, transparent); color: color-mix(in srgb, var(--brand-color) 84%, white); background: color-mix(in srgb, var(--surface-1) 6%, transparent); }
 .cell :deep(svg) { width: 46%; height: 46%; }
-.cell span, .cell b { position: absolute; right: 3px; bottom: 2px; padding: 1px 3px; border-radius: 3px; background: rgba(15, 23, 42, .72); font-size: clamp(8px, 1.4vw, 12px); }
+.cell span, .cell b { position: absolute; right: 3px; bottom: 2px; padding: 1px 3px; border-radius: var(--overlay-radius-sm); background: color-mix(in srgb, var(--surface-1) 78%, transparent); font-size: clamp(8px, 1.4vw, var(--overlay-font-size)); }
 .cell.source, .cell.current { border: 3px solid #fbbf24; background: rgba(251, 191, 36, .2); color: #fde68a; }
 .cell.completed { background: rgba(34, 197, 94, .25); color: #86efac; }
 .cell.failed { border-color: #ef4444; background: rgba(239, 68, 68, .3); color: #fecaca; }
 .cell.uncertain { border-color: #fb923c; }
-.progress-label { position: fixed; z-index: 2; top: 4px; left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 5px; background: rgba(15, 23, 42, .82); font-size: 11px; font-weight: 700; }
+.progress-label { position: fixed; z-index: 2; top: var(--overlay-space-1); left: 50%; transform: translateX(-50%); padding: 3px var(--overlay-space-3); border: 1px solid var(--overlay-border); border-radius: var(--overlay-radius-sm); background: var(--overlay-surface); font-size: var(--overlay-font-size-small); font-weight: 700; }
 </style>

@@ -112,17 +112,18 @@ const tagType = computed(() => ({
 <style scoped lang="less">
 .module-card {
   position: relative;
-  min-height: 276px;
+  min-height: 260px;
   border: 1px solid var(--border-base);
   border-top: 3px solid var(--el-color-info);
-  background: var(--bg-primary);
+  border-top-width: 2px;
+  background: var(--surface-1, var(--bg-primary));
   transition: border-color .18s ease, transform .18s ease;
 
-  &:hover { transform: translateY(-2px); }
+  &:hover { border-color: #3A434F; transform: translateY(-1px); }
   &.state-error { border-top-color: var(--el-color-danger); }
   &.state-running { border-top-color: var(--el-color-success); }
   &.state-attention { border-top-color: var(--el-color-warning); }
-  &.state-ready { border-top-color: var(--el-color-primary); }
+  &.state-ready { border-top-color: var(--el-color-info); }
 }
 
 .card-heading,
@@ -142,9 +143,7 @@ const tagType = computed(() => ({
   width: 38px;
   height: 38px;
   place-items: center;
-  border-radius: 10px;
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
+  color: var(--el-color-info);
   font-size: 21px;
 }
 h3 { margin: 0 0 3px; font-size: 16px; }
@@ -154,7 +153,7 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
   min-height: 42px;
   gap: 9px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--el-fill-color-light);
   color: var(--text-primary);
   font-size: 13px;
@@ -164,10 +163,10 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--el-color-primary);
+  background: var(--el-color-info);
 }
 .state-error .status-dot { background: var(--el-color-danger); }
-.state-running .status-dot { background: var(--el-color-success); box-shadow: 0 0 0 4px var(--el-color-success-light-8); }
+.state-running .status-dot { background: var(--el-color-success); }
 .state-attention .status-dot { background: var(--el-color-warning); }
 
 .issues { margin-top: 9px; }
@@ -220,7 +219,9 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
 .quick-control :deep(.el-select) { flex: 1; min-width: 0; }
 .metrics div { min-width: 0; padding: 8px 10px; border: 1px solid var(--border-base); border-radius: 7px; }
 .metrics dt { color: var(--text-secondary); font-size: 11px; }
-.metrics dd { overflow: hidden; margin: 3px 0 0; color: var(--text-primary); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.metrics dd { overflow: hidden; margin: 3px 0 0; color: var(--text-primary); font-family: var(--font-numeric); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) { .module-card { transform: none !important; } }
 
 .card-actions {
   flex-wrap: wrap;

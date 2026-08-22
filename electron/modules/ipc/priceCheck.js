@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js'
+import { PRICE_CHECK_OVERLAY_CLOSE_REASONS } from '../priceCheck/overlayFocus.js'
 
 const ok = (data = {}) => ({ success: true, data })
 
@@ -30,6 +31,10 @@ export function registerPriceCheckHandlers(service) {
     }
   }
 
+  ipcMain.on('price-check-overlay-rendered', (event, generation) => {
+    service.markOverlayRendered(event.sender, generation)
+  })
+
   ipcMain.handle('price-check-status', invoke(() => service.getStatus()))
   ipcMain.handle('price-check-runtime-update', invoke((runtime) => {
     const status = service.updateRuntime(runtime || {})
@@ -52,7 +57,13 @@ export function registerPriceCheckHandlers(service) {
   ipcMain.handle('price-check-load-distribution', invoke(() => service.loadDistribution()))
   ipcMain.handle('price-check-resolve-identity', invoke((candidateKey) => service.resolveIdentity(candidateKey)))
   ipcMain.handle('price-check-resolve-stat-candidate', invoke((unknownKey, candidateId) => service.resolveStatCandidate(unknownKey, candidateId)))
-  ipcMain.handle('price-check-overlay-state', invoke(() => service.getOverlayState()))
-  ipcMain.handle('price-check-overlay-close', invoke(() => service.closeOverlay()))
+  const getOverlayState = invoke(() => service.getOverlayState())
+  ipcMain.handle('price-check-overlay-state', async (event) => {
+    const response = await getOverlayState(event)
+    return response.success
+      ? { ...response, presentation: service.getOverlayPresentation() }
+      : response
+  })
+  ipcMain.handle('price-check-overlay-close', invoke(() => service.closeOverlay(PRICE_CHECK_OVERLAY_CLOSE_REASONS.USER_DISMISS)))
   ipcMain.handle('price-check-open-official', invoke(() => service.openOfficial()))
 }

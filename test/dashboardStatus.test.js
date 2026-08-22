@@ -358,3 +358,19 @@ test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取�
   assert.match(bagActions, /disabled: !bagStore\.moduleEnabled && module\.issues\.length > 0/)
   assert.match(card, /\.card-actions \{[\s\S]*?flex-wrap: wrap;/)
 })
+
+test('首页使用单一紧凑汇总带并以文字和图标表达模块状态', () => {
+  const dashboard = readFileSync(new URL('../src/domains/dashboard/DashboardView.vue', import.meta.url), 'utf8')
+  const card = readFileSync(new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url), 'utf8')
+  const skeleton = readFileSync(new URL('../src/domains/dashboard/DashboardRouteView.vue', import.meta.url), 'utf8')
+
+  assert.match(dashboard, /class="summary-band"/)
+  assert.match(dashboard, /aria-label="模块状态汇总"/)
+  assert.match(dashboard, /class="health-panel"/)
+  for (const label of ['异常', '运行中', '需配置', '可用']) assert.match(card, new RegExp(label))
+  assert.match(card, /<el-tag[^>]*>\{\{ stateLabel \}\}<\/el-tag>/)
+  assert.match(card, /<strong>\{\{ module\.statusText \}\}<\/strong>/)
+  assert.match(skeleton, /class="summary-band-skeleton"/)
+  assert.match(dashboard, /<el-row class="module-grid app-grid" :gutter="16">/)
+  assert.match(dashboard, /<el-col v-for="module in group\.modules"[^>]*:xs="24" :sm="12" :md="8">/)
+})

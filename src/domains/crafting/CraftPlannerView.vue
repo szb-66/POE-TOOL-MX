@@ -30,8 +30,8 @@
     </el-card>
 
     <template v-if="store.session">
-      <div class="workbench">
-        <section class="item-column">
+      <el-row class="workbench app-grid" :gutter="16">
+        <el-col tag="section" :xs="24" :lg="12" class="item-column">
           <el-card>
             <template #header><div class="card-heading"><b>2. 当前装备</b><div><el-button size="small" :disabled="!store.canUndo" @click="store.undo">撤销</el-button><el-button size="small" :disabled="!store.canRedo" @click="store.redo">重做</el-button><el-button size="small" type="danger" plain @click="store.reset">重置</el-button></div></div></template>
             <article class="poe-item" :class="`rarity-${store.currentState.rarity}`">
@@ -78,12 +78,12 @@
             </el-timeline>
             <el-empty v-else description="尚未进行制作" :image-size="48" />
           </el-card>
-        </section>
+        </el-col>
 
-        <el-card class="currency-panel" :class="{ 'details-hidden': !showCraftDetails }">
+        <el-col :xs="24" :lg="12"><el-card class="currency-panel" :class="{ 'details-hidden': !showCraftDetails }">
             <template #header><div class="card-heading"><b>3. 手动使用通货、精华、工艺台、化石、花园、古灵、势力与加密工艺</b><el-switch v-model="showCraftDetails" active-text="详细信息显示" /></div></template>
-          <el-tabs>
-            <el-tab-pane label="基础通货">
+          <el-tabs v-model="activeCraftTab">
+            <el-tab-pane label="基础通货" name="currency">
               <p class="section-note">点击可用的核心通货、破溃宝珠或污秽通货即可应用；机制已知但概率不足的项保留说明并禁用，不生成猜测结果。</p>
               <div class="currency-grid">
                 <button v-for="currency in sortedCurrencies" :key="currency.id" class="currency-card" :class="{ disabled: !currency.canApply, destructive: currency.destructive }" :disabled="!currency.canApply || store.applying" @click="useCurrency(currency)">
@@ -92,7 +92,7 @@
                 </button>
               </div>
             </el-tab-pane>
-            <el-tab-pane :label="`精华 (${store.essences.items.length})`">
+            <el-tab-pane :label="`精华 (${store.essences.items.length})`" name="essence">
               <div class="essence-filters"><el-input v-model="essenceQuery" clearable placeholder="搜索精华或保证效果" /><el-select v-model="essenceTierFilter" placeholder="全部阶级"><el-option label="全部阶级" :value="0" /><el-option v-for="tier in 8" :key="tier" :label="tier === 8 ? 'T8 特殊精华' : `T${tier}`" :value="tier" /></el-select></div>
               <el-alert v-if="store.essences.unresolvedCount" :title="`${store.essences.unresolvedCount} 条精华记录无法唯一解析，已禁止应用。`" type="warning" :closable="false" />
               <div v-if="filteredEssences.length" class="essence-grid">
@@ -106,7 +106,7 @@
               </div>
               <el-empty v-else description="没有匹配当前底材的精华" :image-size="48" />
             </el-tab-pane>
-            <el-tab-pane :label="`工艺台 (${store.benchCrafts.items.length})`">
+            <el-tab-pane :label="`工艺台 (${store.benchCrafts.items.length})`" name="bench">
               <div class="bench-filters"><el-input v-model="benchQuery" clearable placeholder="搜索名称、效果、标签或解锁位置" /><el-select v-model="benchAffixFilter"><el-option label="全部位置" value="" /><el-option label="前缀" value="prefix" /><el-option label="后缀" value="suffix" /></el-select><el-select v-model="benchKindFilter"><el-option label="全部工艺" value="" /><el-option label="普通工艺" value="modifier" /><el-option label="元工艺" value="meta" /><el-option label="腐化定孔" value="corrupted-sockets" /><el-option label="腐化定连" value="corrupted-links" /><el-option label="腐化定色" value="corrupted-colours" /><el-option label="移除动作" value="remove" /></el-select></div>
               <el-alert v-if="store.benchCrafts.unresolvedCount" :title="`${store.benchCrafts.unresolvedCount} 条工艺记录无法唯一映射，已禁止应用。`" type="warning" :closable="false" />
               <div v-if="filteredBenchCrafts.length" class="bench-grid">
@@ -121,7 +121,7 @@
               </div>
               <el-empty v-else description="没有符合筛选条件的工艺" :image-size="48" />
             </el-tab-pane>
-            <el-tab-pane :label="`化石 (${store.fossils.items.length})`">
+            <el-tab-pane :label="`化石 (${store.fossils.items.length})`" name="fossils">
               <p class="section-note">选择 1–4 孔混乱共振器并装满不同化石；共振器只重铸稀有装备，且不受任何元工艺保护。</p>
               <div class="resonator-builder">
                 <el-radio-group v-model="resonatorSockets"><el-radio-button v-for="resonator in store.fossils.resonators" :key="resonator.id" :value="resonator.sockets">{{ resonator.sockets }} 孔</el-radio-button></el-radio-group>
@@ -139,7 +139,7 @@
                 </button>
               </div>
             </el-tab-pane>
-            <el-tab-pane :label="`花园 (${store.harvest.total})`">
+            <el-tab-pane :label="`花园 (${store.harvest.total})`" name="harvest">
               <p class="section-note">当前 POE1 3.29 快照的 74 条花园配方都会列出；3.29 已移除追忆物品工艺。憎恨结晶关联 11 条装备工艺和 1 条宝石转换，不能准确改变装备状态的配方会安全禁用。</p>
               <el-alert :title="`当前状态可执行 ${store.harvest.executableCount} / ${store.harvest.total} 条；同类倾向重铸采用可审计的 10 倍 / 0.1 倍权重模型。`" type="info" :closable="false" />
               <div class="harvest-filters"><el-input v-model="harvestQuery" clearable placeholder="搜索花园工艺、标签或结果" /><el-select v-model="harvestCategory"><el-option label="全部类别" value="" /><el-option v-for="category in store.harvest.categories" :key="category.id" :label="`${category.label} (${category.count})`" :value="category.id" /></el-select><el-checkbox v-model="harvestAvailableOnly">仅可执行</el-checkbox></div>
@@ -152,7 +152,7 @@
               </div>
               <el-empty v-else description="没有符合筛选条件的花园工艺" :image-size="48" />
             </el-tab-pane>
-            <el-tab-pane :label="`古灵 (${store.eldritch.total})`">
+            <el-tab-pane :label="`古灵 (${store.eldritch.total})`" name="eldritch">
               <p class="section-note">焊界者高阶时支配前缀，灭界者高阶时支配后缀；同阶无支配。直接隐式通货只替换同侧并清除普通固定词缀。</p>
               <el-alert :title="`当前：${store.eldritch.dominance.label}，可执行 ${store.eldritch.executableCount} / ${store.eldritch.total} 种通货。冲突石概率为社区实测估计，非官方公布常数。`" type="info" :closable="false" />
               <div class="eldritch-help"><b>元工艺边界</b><span>古灵混沌忽略前/后缀锁；古灵崇高遵守无法骰出攻击/法术；古灵无效同时遵守位置锁和标签保护。</span></div>
@@ -165,7 +165,7 @@
                 </button>
               </div>
             </el-tab-pane>
-            <el-tab-pane :label="`加密 (${store.veiled.total})`">
+            <el-tab-pane :label="`加密 (${store.veiled.total})`" name="veiled">
               <p class="section-note">加密通货先生成一个占用真实词缀位但没有效果的未揭露词缀；当前版本可直接在物品上进行三选一揭露。</p>
               <el-alert :title="`当前可执行 ${store.veiled.executableCount} / ${store.veiled.total} 种加密通货。三选一按真实权重生成，并实时应用 ModGroup 阻断。`" type="info" :closable="false" />
               <div class="veiled-help"><b>元工艺边界</b><span>加密崇高石的移除遵守前/后缀无法改变，但忽略无法骰出攻击/施法；加密混沌石保留锁定侧，普通重铸遵守生成标签限制；揭露选项始终忽略攻击/施法限制。</span></div>
@@ -190,7 +190,7 @@
                 </div>
               </section>
             </el-tab-pane>
-            <el-tab-pane :label="`势力 (${store.influence.total})`">
+            <el-tab-pane :label="`势力 (${store.influence.total})`" name="influence">
               <p class="section-note">六种势力崇高石会给无势力稀有装备添加对应势力词缀；统御宝珠处理尊崇升阶；觉醒者之石会永久销毁供体并合并两种不同势力。</p>
               <el-alert :title="`当前可执行 ${store.influence.executableCount} / ${store.influence.total} 种势力通货。候选按底材、物品等级、ModGroup、槽位及元属性实时过滤。`" type="info" :closable="false" />
               <div class="influence-help"><b>重要边界</b><span>势力崇高石遵守“无法骰出攻击/法术”；统御宝珠不会影响受前后缀锁保护的词缀；觉醒者之石忽略全部元属性并重骰其他显式词缀。</span></div>
@@ -218,7 +218,7 @@
                 </article>
               </section>
             </el-tab-pane>
-            <el-tab-pane :label="`野兽 (${store.beastcraft.total})`">
+            <el-tab-pane :label="`野兽 (${store.beastcraft.total})`" name="beast">
               <div class="beast-heading"><div><p class="section-note">装备相关野兽工艺以 POE1 {{ store.beastcraft.ruleset?.patch || '3.29' }} 为规则基线；3.29 已移除二分 / 三分，新的魔符破裂配方因缺少魔符模型而安全禁用。</p><small>增删前后缀的新增池使用主野兽等级，而不是装备物品等级。</small></div><el-input-number v-model="beastLevel" :min="68" :max="100" controls-position="right" @change="reloadBeastcrafts" /></div>
               <el-alert :title="`当前可执行 ${store.beastcraft.executableCount} / ${store.beastcraft.total} 条装备配方；主野兽等级 ${store.beastcraft.beastLevel}。`" type="info" :closable="false" />
               <div class="beast-grid">
@@ -228,8 +228,8 @@
               </div>
             </el-tab-pane>
           </el-tabs>
-        </el-card>
-      </div>
+        </el-card></el-col>
+      </el-row>
 
       <el-card class="catalog-panel">
         <template #header><div class="card-heading"><div><b>4. 词缀目录</b><small>按流亡编年史：来源 → Mod Family → 具体阶级</small></div><el-input v-model="catalogQuery" clearable placeholder="搜索名称、效果" @input="debouncedCatalog" /></div></template>
@@ -253,8 +253,8 @@
         <el-collapse>
           <el-collapse-item v-for="group in store.catalog.groups" :key="group.id" :name="group.id">
             <template #title><div class="source-title"><strong>{{ group.label }}</strong><el-tag v-if="group.covered" size="small" type="success">{{ group.prefix.length + group.suffix.length }} 组</el-tag><el-tag v-else size="small" type="warning">{{ group.coverageMessage }}</el-tag></div></template>
-            <el-tabs>
-              <el-tab-pane v-for="affixType in ['prefix', 'suffix']" :key="affixType" :label="affixType === 'prefix' ? `前缀 (${group.prefix.length})` : `后缀 (${group.suffix.length})`">
+            <el-tabs :model-value="catalogAffixTabs[group.id] || 'prefix'" @tab-change="setCatalogAffixTab(group.id, $event)">
+              <el-tab-pane v-for="affixType in ['prefix', 'suffix']" :key="affixType" :name="affixType" :label="affixType === 'prefix' ? `前缀 (${group.prefix.length})` : `后缀 (${group.suffix.length})`">
                 <div v-if="group[affixType].length" class="family-list">
                   <div v-for="family in group[affixType]" :key="family.id" class="family-row">
                     <el-checkbox :model-value="familyChecked(family)" :indeterminate="familyIndeterminate(family)" @change="toggleFamily(family, $event)" />
@@ -290,6 +290,7 @@ import { familySelectionState, selectableFamilyTiers, tierSelectionKey, toggleFa
 import { CATALYST_LABELS, displayedCatalystEntry } from '../../../electron/modules/crafting/catalystRules.js'
 import { VAAL_OUTCOME_LABELS } from '../../../electron/modules/crafting/vaalRules.js'
 import { affixTierSummary, effectLines, formatProbability, rolledTextWithRanges } from './displayFormat.js'
+import { readPersistentTab, readPersistentTabMap, writePersistentTab, writePersistentTabMap } from '@/utils/tabPersistence'
 
 const store = useCraftingStore()
 const pageError = ref('')
@@ -299,6 +300,12 @@ const baseQuery = reactive({ category: '', itemClass: '', query: '' })
 const form = reactive({ baseId: '', itemLevel: 86, seed: 20260722, variant: { kind: 'normal', influences: [], fracturedTierId: null, implicits: [] } })
 const catalogQuery = ref('')
 const showCraftDetails = ref(localStorage.getItem('crafting:show-details') !== 'false')
+const CRAFT_TAB_STORAGE_KEY = 'crafting.activeActionTab'
+const CRAFT_TABS = ['currency', 'essence', 'bench', 'fossils', 'harvest', 'eldritch', 'veiled', 'influence', 'beast']
+const activeCraftTab = ref(readPersistentTab(CRAFT_TAB_STORAGE_KEY, CRAFT_TABS, 'currency'))
+const CATALOG_AFFIX_TAB_STORAGE_KEY = 'crafting.catalogAffixTabs'
+const CATALOG_AFFIX_TABS = ['prefix', 'suffix']
+const catalogAffixTabs = reactive({})
 const essenceQuery = ref('')
 const essenceTierFilter = ref(0)
 const benchQuery = ref('')
@@ -318,6 +325,28 @@ const donorForm = reactive({ baseId: '', itemLevel: 86, influence: '', seed: 202
 const donorTierKey = ref('')
 const beastLevel = ref(83)
 let catalogTimer = null
+
+function catalogGroupIds() {
+  return store.catalog.groups.map(group => String(group.id))
+}
+
+function syncCatalogAffixTabs() {
+  const ids = catalogGroupIds()
+  const restored = readPersistentTabMap(CATALOG_AFFIX_TAB_STORAGE_KEY, ids, CATALOG_AFFIX_TABS, 'prefix')
+  for (const id of Object.keys(catalogAffixTabs)) if (!ids.includes(id)) delete catalogAffixTabs[id]
+  Object.assign(catalogAffixTabs, restored)
+}
+
+function setCatalogAffixTab(groupId, value) {
+  catalogAffixTabs[String(groupId)] = String(value)
+  Object.assign(catalogAffixTabs, writePersistentTabMap(
+    CATALOG_AFFIX_TAB_STORAGE_KEY,
+    catalogAffixTabs,
+    catalogGroupIds(),
+    CATALOG_AFFIX_TABS,
+    'prefix'
+  ))
+}
 
 // ponytail: 用 reason 文案判定"不适用此物品"，后端没有显式字段；升级路径是在 manualCrafting 给每条打 appliesToBase 标记。
 const PERMANENT_UNAVAILABLE_PATTERNS = ['只能用于武器', '只能用于护甲', '不能用于该底材', '不能用于当前底材', '该底材不能拥有', '该底材不能生成', '该底材不能使用', '该底材不支持', '不适用于当前底材', '不适用于该底材', '该配方不能用于当前底材', '不能在本装备模拟器中执行']
@@ -418,6 +447,8 @@ onBeforeUnmount(() => { clearTimeout(catalogTimer); store.dispose() })
 watch(resonatorSockets, (count) => { selectedFossilIds.value = selectedFossilIds.value.slice(0, count) })
 watch(() => store.currentState?.influences?.join('|'), () => { if (store.session) prepareDonorOptions() })
 watch(showCraftDetails, (value) => localStorage.setItem('crafting:show-details', String(value)))
+watch(activeCraftTab, (value) => { activeCraftTab.value = writePersistentTab(CRAFT_TAB_STORAGE_KEY, value, CRAFT_TABS, 'currency') })
+watch(() => store.catalog.groups.map(group => group.id).join('|'), syncCatalogAffixTabs, { immediate: true })
 
 async function loadBases() { await store.searchBases({ ...baseQuery, page: 1, pageSize: 100 }) }
 async function categoryChanged(path = []) { baseQuery.category = String(path?.[0] || ''); baseQuery.itemClass = String(path?.length > 1 ? path.at(-1) : ''); form.baseId = ''; selectedBase.value = null; await loadBases() }
@@ -498,7 +529,7 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .base-form { gap: 12px; flex-wrap: wrap; :deep(.el-form-item) { margin: 0; min-width: 180px; flex: 1; } :deep(.el-select), :deep(.el-cascader), :deep(.el-input-number) { width: 100%; } }
 :deep(.el-select-dropdown__item small) { float: right; color: var(--text-secondary); }
 .base-summary { margin: 12px 0 0; color: var(--text-secondary); }
-.workbench { display: grid; grid-template-columns: minmax(360px, .9fr) minmax(480px, 1.1fr); gap: 14px; margin-top: 14px; align-items: start; }
+.workbench { margin-top: 14px; align-items: start; }
 .item-column { display: grid; gap: 14px; }
 .card-heading { justify-content: space-between; gap: 14px; > div:first-child { display: flex; flex-direction: column; } .el-input { width: 280px; } }
 .poe-item { overflow: hidden; margin-bottom: 12px; border: 2px solid #8b8b78; background: #111; color: #ddd; font-family: Georgia, 'Microsoft YaHei', serif; &.rarity-magic { border-color: #8888ff; .item-title { color: #8888ff; } } &.rarity-rare { border-color: #ffff77; .item-title { color: #ffff77; } } }
@@ -578,6 +609,6 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .family-metrics { justify-content: flex-end; flex-shrink: 0; em { padding: 2px 6px; border-radius: 3px; background: var(--el-fill-color); color: var(--text-secondary); font-size: 12px; font-style: normal; } }
 .tags { display: inline-flex; flex-wrap: wrap; gap: 3px; i { padding: 1px 5px; border-radius: 3px; background: #28445b; color: #c5e7ff; font-size: 11px; font-style: normal; } }
 .unavailable { color: var(--text-secondary); text-decoration: line-through; & + small { display: block; color: var(--el-color-danger); } }
-@media (max-width: 1050px) { .workbench { grid-template-columns: 1fr; } .currency-panel { position: static; } .donor-form { grid-template-columns: 1fr 120px 120px; } .donor-form > :nth-child(4) { grid-column: 1 / 3; } }
+@media (max-width: 1050px) { .currency-panel { position: static; } .donor-form { grid-template-columns: 1fr 120px 120px; } .donor-form > :nth-child(4) { grid-column: 1 / 3; } }
 @media (max-width: 650px) { .craft-page { padding: 12px; } .page-heading, .card-heading, .donor-heading, .unveil-heading, .beast-heading { align-items: flex-start; flex-direction: column; } .currency-grid, .harvest-grid, .eldritch-grid, .influence-grid, .veiled-grid, .unveil-options, .beast-grid { grid-template-columns: 1fr; } .bench-filters, .harvest-filters, .donor-form { grid-template-columns: 1fr; } .donor-form > :nth-child(4) { grid-column: auto; } .family-main { flex-direction: column; } .family-metrics { justify-content: flex-start; } }
 </style>

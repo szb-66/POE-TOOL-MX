@@ -8,6 +8,7 @@ import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/oper
 import { normalizeJunfengRegion, validateJunfengGridEnvironment } from '../../../src/utils/junfengConfig.js'
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
+import { normalizeJunfengProgress } from './progress.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '君锋镇取出高亮'
@@ -66,7 +67,7 @@ export class JunfengHighlightManager {
   }
 
   initialStatus() {
-    return { status: 'idle', candidateItems: 0, remainingItems: 0, pickedItems: 0, uncertainCells: 0, reason: '', modelVersion: '' }
+    return { status: 'idle', candidateItems: 0, processedItems: 0, remainingItems: 0, pickedItems: 0, uncertainCells: 0, reason: '', modelVersion: '' }
   }
 
   scriptPath() {
@@ -431,9 +432,14 @@ export class JunfengHighlightManager {
 
   handleEvent(child, event) {
     if (this.child !== child) return
+    const progress = normalizeJunfengProgress(
+      event.currentIndex ?? this.status.processedItems,
+      event.candidateItems ?? this.status.candidateItems
+    )
     Object.assign(this.status, {
       status: event.event === 'completed' ? 'completed' : ['aborted', 'error'].includes(event.event) ? 'stopped' : 'running',
-      candidateItems: Number(event.candidateItems ?? this.status.candidateItems),
+      candidateItems: progress.candidateItems,
+      processedItems: progress.processedItems,
       remainingItems: Number(event.remainingItems ?? this.status.remainingItems),
       pickedItems: Number(event.pickedItems ?? this.status.pickedItems),
       uncertainCells: Number(event.uncertainCells ?? this.status.uncertainCells),

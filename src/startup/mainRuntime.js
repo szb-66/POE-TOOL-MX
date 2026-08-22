@@ -1,4 +1,4 @@
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { electronApi } from '../api/electron'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { initShortcuts } from '../utils/scriptService'
@@ -10,6 +10,7 @@ import { usePoeCnAccountStore } from '../stores/poeCnAccount'
 import { useStashPickupStore } from '../stores/stashPickup'
 import { useJunfengStore } from '../stores/junfeng'
 import { usePuzzleStore } from '../stores/puzzle'
+import { useApplicationUpdateStore } from '../stores/applicationUpdate'
 import { markMainRuntimeSettled, resetMainRuntimeReadiness } from './readiness'
 
 let initializationPromise = null
@@ -64,7 +65,32 @@ async function startMainRuntime({ router }) {
     settingsStore.updateDebugMode(visible)
   }))
 
-  void electronApi.update.configure({ mode: settingsStore.updateMode, source: settingsStore.updateSource }).catch(() => {})
+  let updateConfigured = false
+  try {
+    await electronApi.update.configure({ mode: settingsStore.updateMode, source: settingsStore.updateSource })
+    updateConfigured = true
+  } catch (error) {
+    warnings.push({ name: 'application-update-configure', error: String(error?.message || error) })
+  }
+  const applicationUpdateStore = useApplicationUpdateStore()
+  try {
+    addDisposer(await applicationUpdateStore.initialize())
+    if (updateConfigured) void applicationUpdateStore.startupCheck()
+    void applicationUpdateStore.showInstalledUpdate(({ targetVersion, releaseNotes }) => ElMessageBox.alert(
+      releaseNotes,
+      `已更新至 v${targetVersion}`,
+      {
+        confirmButtonText: '我知道了',
+        type: 'success',
+        dangerouslyUseHTMLString: false,
+        customClass: 'installed-update-dialog'
+      }
+    ).catch(action => {
+      if (action !== 'close' && action !== 'cancel') throw action
+    })).catch(() => {})
+  } catch (error) {
+    warnings.push({ name: 'application-update-state', error: String(error?.message || error) })
+  }
 
   const titleSync = await settingsStore.syncGameWindowTitles()
   if (!titleSync.success) {

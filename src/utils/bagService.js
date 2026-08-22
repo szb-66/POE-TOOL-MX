@@ -14,8 +14,7 @@ function currentConfig(overrides = {}) {
   const { inventory, operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
-    immediateStash: bagStore.immediateStash,
-    showStashButtonOnlyWhenReady: bagStore.showStashButtonOnlyWhenReady,
+    forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
     blacklist: bagStore.blacklist,
@@ -44,10 +43,7 @@ export function updateBagRuntimeConfig(patch = {}) {
     }
     if ('blacklist' in patch) bagStore.setBlacklist(patch.blacklist)
     if ('inventoryLayout' in patch) bagStore.setInventoryLayout(patch.inventoryLayout)
-    if ('immediateStash' in patch) bagStore.setImmediateStash(patch.immediateStash)
-    if ('showStashButtonOnlyWhenReady' in patch) {
-      bagStore.setShowStashButtonOnlyWhenReady(patch.showStashButtonOnlyWhenReady)
-    }
+    if ('forceUniqueStash' in patch) bagStore.setForceUniqueStash(patch.forceUniqueStash)
     const settingsStore = useSettingsStore()
     if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
     if (['operationDelayMs', 'adaptiveTiming', 'adaptiveTimeoutMs', 'fixedTiming'].some((key) => key in patch)) {
@@ -63,10 +59,6 @@ export function updateBagRuntimeConfig(patch = {}) {
   }
   bagRuntimeQueue = bagRuntimeQueue.then(commit, commit)
   return bagRuntimeQueue
-}
-
-export async function updateBagPreferences(preferences = {}) {
-  return updateBagRuntimeConfig(preferences)
 }
 
 export async function startBagDetection({ silent = false } = {}) {

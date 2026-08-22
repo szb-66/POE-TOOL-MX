@@ -18,8 +18,8 @@
       </el-input>
     </header>
 
-    <div class="help-shell">
-      <nav class="category-nav" aria-label="帮助分类">
+    <el-row class="help-shell" :gutter="0">
+      <el-col tag="nav" :xs="24" :md="5" class="category-nav" aria-label="帮助分类">
         <button
           v-for="category in HELP_CATEGORIES"
           :key="category.id"
@@ -30,9 +30,9 @@
           <span>{{ category.label }}</span>
           <small>{{ category.description }}</small>
         </button>
-      </nav>
+      </el-col>
 
-      <section ref="contentScroll" class="help-content" aria-live="polite">
+      <el-col :xs="24" :md="19" class="help-content-column"><section ref="contentScroll" class="help-content" aria-live="polite">
         <template v-if="hasSearch">
           <header class="section-heading search-heading">
             <div>
@@ -43,10 +43,13 @@
             <el-button text @click="clearSearch">清空搜索</el-button>
           </header>
 
-          <div v-if="searchResults.length" class="search-results">
-            <button
+          <el-row v-if="searchResults.length" class="search-results app-grid" :gutter="16">
+            <el-col
               v-for="topic in searchResults"
               :key="topic.id"
+              tag="button"
+              :xs="24"
+              :sm="12"
               type="button"
               class="search-result"
               @click="openTopic(topic)"
@@ -55,8 +58,8 @@
               <strong>{{ topic.title }}</strong>
               <p>{{ topic.summary }}</p>
               <el-icon><ArrowRight /></el-icon>
-            </button>
-          </div>
+            </el-col>
+          </el-row>
 
           <el-empty v-else description="没有找到相关帮助内容">
             <el-button type="primary" plain @click="clearSearch">清空搜索</el-button>
@@ -79,13 +82,15 @@
               <el-button type="primary" @click="navigateTo('/settings')">前往设置</el-button>
             </header>
 
-            <div class="quick-grid">
-              <article v-for="step in QUICK_START_STEPS" :key="step.number">
-                <span>{{ step.number }}</span>
-                <h3>{{ step.title }}</h3>
-                <p>{{ step.text }}</p>
-              </article>
-            </div>
+            <el-row class="quick-grid app-grid" :gutter="16">
+              <el-col v-for="step in QUICK_START_STEPS" :key="step.number" :xs="24" :sm="12" :md="6">
+                <article class="quick-card">
+                  <span>{{ step.number }}</span>
+                  <h3>{{ step.title }}</h3>
+                  <p>{{ step.text }}</p>
+                </article>
+              </el-col>
+            </el-row>
 
             <article class="safety-card">
               <el-icon><CircleCheck /></el-icon>
@@ -100,28 +105,34 @@
             <header class="section-heading">
               <div><span class="eyebrow">全部模块</span><h2>功能指南</h2><p>了解模块用途、准备工作和基础步骤，再前往对应页面。</p></div>
             </header>
-            <div class="module-grid">
-              <article
+            <el-row class="module-grid app-grid" :gutter="16">
+              <el-col
                 v-for="topic in categoryTopics"
                 :key="topic.id"
-                :ref="element => rememberTopicElement(topic.id, element)"
-                :data-topic-id="topic.id"
-                class="module-card"
-                tabindex="-1"
+                :xs="24"
+                :sm="12"
+                class="module-column"
               >
-                <header><span>{{ moduleNumber(topic.id) }}</span><div><h3>{{ topic.title }}</h3><p>{{ topic.summary }}</p></div></header>
-                <div v-if="isExpanded(topic.id)" class="module-guide">
-                  <dl><dt>用途</dt><dd>{{ topic.module.purpose }}</dd><dt>使用前提</dt><dd>{{ topic.module.prerequisite }}</dd></dl>
-                  <strong>基础步骤</strong>
-                  <ol><li v-for="step in topic.module.steps" :key="step">{{ step }}</li></ol>
-                  <p class="risk-note"><el-icon><Warning /></el-icon>{{ topic.module.risk }}</p>
-                </div>
-                <footer>
-                  <el-button text @click="toggleTopic(topic)">{{ isExpanded(topic.id) ? '收起指南' : '查看指南' }}</el-button>
-                  <el-button type="primary" plain @click="navigateTo(topic.route)">打开{{ topic.title }}</el-button>
-                </footer>
-              </article>
-            </div>
+                <article
+                  :ref="element => rememberTopicElement(topic.id, element)"
+                  :data-topic-id="topic.id"
+                  class="module-card"
+                  tabindex="-1"
+                >
+                  <header><span>{{ moduleNumber(topic.id) }}</span><div><h3>{{ topic.title }}</h3><p>{{ topic.summary }}</p></div></header>
+                  <div v-if="isExpanded(topic.id)" class="module-guide">
+                    <dl><dt>用途</dt><dd>{{ topic.module.purpose }}</dd><dt>使用前提</dt><dd>{{ topic.module.prerequisite }}</dd></dl>
+                    <strong>基础步骤</strong>
+                    <ol><li v-for="step in topic.module.steps" :key="step">{{ step }}</li></ol>
+                    <p class="risk-note"><el-icon><Warning /></el-icon>{{ topic.module.risk }}</p>
+                  </div>
+                  <footer>
+                    <el-button text @click="toggleTopic(topic)">{{ isExpanded(topic.id) ? '收起指南' : '查看指南' }}</el-button>
+                    <el-button type="primary" plain @click="navigateTo(topic.route)">打开{{ topic.title }}</el-button>
+                  </footer>
+                </article>
+              </el-col>
+            </el-row>
           </section>
 
           <section v-else class="category-section">
@@ -166,8 +177,8 @@
             </div>
           </section>
         </template>
-      </section>
-    </div>
+      </section></el-col>
+    </el-row>
   </main>
 </template>
 
@@ -312,7 +323,7 @@ watch(
 .help-hero p, .section-heading p { margin: 5px 0 0; color: var(--text-secondary); font-size: 13px; }
 .help-search { width: min(430px, 44vw); }
 
-.help-shell { min-height: 0; flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); }
+.help-shell { min-height: 0; flex: 1; }
 .category-nav { padding: 18px 12px; border-right: 1px solid var(--border-base); background: var(--bg-primary); }
 .category-nav button {
   width: 100%;
@@ -333,7 +344,9 @@ watch(
 .category-nav small { color: var(--text-secondary); font-size: 11px; line-height: 1.35; }
 
 .help-content { min-width: 0; overflow-y: auto; padding: 20px; scroll-padding-top: 20px; }
-.category-section, .search-heading, .search-results, .help-content > .el-empty { width: min(1040px, 100%); margin-inline: auto; }
+.help-content-column { min-width: 0; min-height: 0; padding: 0 !important; }
+.help-content-column > .help-content { height: 100%; }
+.category-section, .search-heading, .search-results, .help-content > .el-empty { box-sizing: border-box; width: 100%; }
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
 .section-heading h2 { font-size: 22px; }
 
@@ -343,7 +356,7 @@ watch(
 .free-banner div { display: flex; flex-wrap: wrap; gap: 5px 12px; }
 .free-banner span { color: var(--text-secondary); font-size: 12px; }
 
-.quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.quick-card, .module-card { box-sizing: border-box; width: 100%; }
 .quick-grid article { min-height: 150px; padding: 17px; border: 1px solid var(--border-base); border-radius: 11px; background: var(--bg-primary); }
 .quick-grid article > span { display: inline-grid; width: 30px; height: 30px; place-items: center; border-radius: 8px; color: var(--el-color-primary); background: var(--el-color-primary-light-9); font-size: 11px; font-weight: 700; }
 .quick-grid h3 { margin: 24px 0 7px; font-size: 15px; }
@@ -352,7 +365,6 @@ watch(
 .safety-card .el-icon { font-size: 21px; }
 .safety-card p { margin: 3px 0 0; color: var(--text-secondary); font-size: 12px; }
 
-.module-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
 .module-card, .topic-card, .version-card { border: 1px solid var(--border-base); border-radius: 11px; background: var(--bg-primary); }
 .module-card { min-width: 0; padding: 16px; scroll-margin-top: 18px; outline: none; }
 .module-card:focus-visible, .topic-card:focus-visible { box-shadow: 0 0 0 3px var(--el-color-primary-light-7); }
@@ -394,17 +406,12 @@ watch(
 .version-card a { display: flex; align-items: center; gap: 5px; color: var(--el-color-primary); text-decoration: none; }
 
 .search-heading { align-items: center; }
-.search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
-.search-result { position: relative; min-width: 0; min-height: 126px; display: grid; align-content: start; gap: 6px; padding: 16px 42px 16px 17px; border: 1px solid var(--border-base); border-radius: 10px; color: var(--text-primary); background: var(--bg-primary); text-align: left; cursor: pointer; }
-.search-result:hover { border-color: var(--el-color-primary-light-5); box-shadow: 0 5px 18px rgba(0, 0, 0, .05); }
+.search-result { position: relative; min-width: 0; min-height: 126px; display: grid; align-content: start; gap: 6px; padding: 16px 42px 16px 17px; border: 1px solid var(--border-base); border-radius: 8px; color: var(--text-primary); background: var(--surface-1, var(--bg-primary)); text-align: left; cursor: pointer; }
+.search-result:hover { border-color: var(--el-color-primary-light-5); box-shadow: 0 5px 18px rgba(0, 0, 0, .18); }
 .search-result > span { color: var(--el-color-primary); font-size: 11px; }
 .search-result strong { font-size: 14px; }
 .search-result p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.55; }
 .search-result .el-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); }
-
-@media (max-width: 1050px) {
-  .quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 
 @media (max-width: 820px) {
   .help-hero { align-items: flex-start; padding: 16px; }
@@ -415,14 +422,12 @@ watch(
   .category-nav button.active { box-shadow: inset 0 -3px var(--el-color-primary); }
   .category-nav small { display: none; }
   .help-content { padding: 18px 16px 28px; }
-  .module-grid, .search-results { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
   .help-hero { flex-direction: column; gap: 14px; }
   .help-search { width: 100%; }
   .section-heading { align-items: flex-start; flex-direction: column; }
-  .quick-grid { grid-template-columns: 1fr; }
   .quick-grid article { min-height: auto; }
   .quick-grid h3 { margin-top: 16px; }
 }

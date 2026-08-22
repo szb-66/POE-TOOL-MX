@@ -19,6 +19,7 @@ import {
 } from './engine.js'
 import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
 import { normalizeAutomationTiming } from '../../../src/utils/operationDelay.js'
+import { formatJunfengButtonLabel } from '../junfeng/progress.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -206,19 +207,16 @@ export class ChaosRecipeControlOverlay {
       (this.detection.ready || stashPickupRunning || running || paused))
     const junfengVisible = Boolean(junfengEnabled && rewardDetected)
     const junfengReason = junfengRunning
-      ? ''
+      ? '取件进行中，可按 End 紧急停止'
       : junfengOccupied
       ? `${lock.owner}正在运行`
       : !junfengReady
         ? '奖励与背包界面未就绪'
         : !junfengAvailability.ready
           ? junfengAvailability.reason
+        : junfengAutomation.status === 'stopped' && junfengAutomation.reason
+          ? `君锋镇取件已停止：${junfengAutomation.reason}`
         : ''
-    const junfengStatus = junfengRunning
-      ? `正在取出高亮：已取 ${junfengAutomation.pickedItems || 0} · 剩余 ${junfengAutomation.remainingItems || 0}`
-      : junfengAutomation.reason
-        ? `君锋镇取件已停止：${junfengAutomation.reason}`
-        : '君锋镇高亮取件已就绪'
     return {
       visible: Boolean((rewardDetected ? junfengVisible : normalVisible) && this.detection.foreground && this.detection.gameBounds),
       enabled: this.enabled || stashPickupEnabled || junfengEnabled,
@@ -234,7 +232,7 @@ export class ChaosRecipeControlOverlay {
       junfengRunning,
       canJunfeng,
       junfengReason,
-      junfengButtonLabel: junfengRunning ? '停止取件' : '取出高亮',
+      junfengButtonLabel: formatJunfengButtonLabel(junfengAutomation),
       junfengAutomation,
       ready: Boolean(this.detection.ready),
       foreground: Boolean(this.detection.foreground),
@@ -257,9 +255,7 @@ export class ChaosRecipeControlOverlay {
       canRun: Boolean((running || paused) || (canPreview && !occupiedByOther)),
       actionLabel,
       actionReason,
-      statusMessage: rewardDetected
-        ? junfengStatus
-        : !this.enabled
+      statusMessage: !this.enabled
         ? (stashPickupRunning
             ? `正在取出物品：已取 ${stashPickupAutomation.pickedItems || 0} · 剩余格 ${stashPickupAutomation.remainingCells || 0}`
             : stashPickupStopMessage(stashPickupAutomation))

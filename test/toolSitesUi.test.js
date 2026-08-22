@@ -8,7 +8,11 @@ const loaders = readFileSync(new URL('../src/router/pageLoaders.js', import.meta
 const sidebar = readFileSync(new URL('../src/components/Layout/Sidebar.vue', import.meta.url), 'utf8')
 
 test('工具站页面包含卡片、全字段编辑、删除和拖拽交互', () => {
-  assert.match(view, /class="site-grid"/)
+  assert.match(view, /class="site-grid app-grid"/)
+  assert.match(view, /:xs="24"[\s\S]*:sm="12"[\s\S]*:md="8"/)
+  assert.match(view, /<el-col[\s\S]*:md="8"[\s\S]*<article[\s\S]*class="site-card"/)
+  assert.match(view, /\.site-grid > \.el-col \{[\s\S]*display: flex;/)
+  assert.match(view, /\.site-card \{[\s\S]*width: 100%;/)
   assert.match(view, /class="site-image"/)
   assert.match(view, /v-model="form\.name"/)
   assert.match(view, /v-model="form\.url"/)

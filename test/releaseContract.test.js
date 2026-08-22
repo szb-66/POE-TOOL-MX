@@ -34,6 +34,8 @@ test('发布资产名称、版本标签与校验文件形成稳定契约', () =>
   })
   assert.equal(packageConfig.scripts['release:check'], 'node scripts/release/checkVersion.js')
   assert.equal(packageConfig.scripts['release:checksum'], 'node scripts/release/checksum.js')
+  assert.equal(packageConfig.scripts['release:notes'], 'node scripts/release/injectReleaseNotes.js')
+  assert.match(packageConfig.scripts['release:win'], /electron-builder[\s\S]*npm run release:notes[\s\S]*npm run release:smoke/)
   assert.equal(packageConfig.scripts['release:smoke'], 'node scripts/release/smokePackage.js')
   assert.match(source('../scripts/release/checkVersion.js'), /tag !== expectedTag/)
   assert.match(source('../scripts/release/checksum.js'), /SHA256SUMS\.txt/)
@@ -55,11 +57,21 @@ test('Windows CI 与标签发布固定 Action 提交并使用最小化权限', (
   assert.match(release, /latest\.yml/)
   assert.match(release, /\.blockmap/)
   assert.match(release, /latest\.yml version does not match package version/)
+  assert.match(release, /npm run release:notes/)
+  assert.match(release, /latest\.yml does not contain non-empty release notes/)
   assert.match(release, /THIRD_PARTY_NOTICES\.md/)
   assert.match(release, /\$notesFile = "docs\/release-notes\/v\$version\.md"/)
   assert.match(release, /--notes-file", \$notesFile/)
   assert.match(release, /actions\/attest-build-provenance@[a-f0-9]{40}/)
   assert.doesNotMatch(`${ci}\n${release}`, /uses:\s+\S+@(v\d+|main|master)\s*$/m)
+})
+
+test('发布元数据脚本要求版本化说明并写入单一 latest.yml', () => {
+  const script = source('../scripts/release/injectReleaseNotes.js')
+  assert.match(script, /docs', 'release-notes'/)
+  assert.match(script, /dist-electron', 'latest\.yml'/)
+  assert.match(script, /releaseNotes: \|-/)
+  assert.match(script, /发布说明为空/)
 })
 
 test('GitHub 正式发布后才同步 CNB 标签且凭据不进入远程地址', () => {

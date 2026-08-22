@@ -146,10 +146,13 @@ test('混沌配方控制浮窗提供配方切换、三项操作和动态停止�
 test('控制浮窗失败原因在状态推送后保持可见', () => {
   const view = source('../src/domains/shop/ChaosRecipeControlOverlayView.vue')
   assert.match(view, /let pendingActionFailure = ''/)
+  assert.match(view, /let pendingJunfengFailure = ''/)
   assert.match(view, /let pendingSelectionFailure = ''/)
-  assert.match(view, /if \(!response\?\.success\) pendingActionFailure = response\?\.error\?\.message \|\| '操作失败'/)
+  assert.match(view, /if \(kind === 'junfeng'\) pendingJunfengFailure = failure/)
+  assert.match(view, /else pendingActionFailure = failure/)
   assert.match(view, /if \(!response\?\.success\) pendingSelectionFailure = response\?\.error\?\.message \|\| '切换配方失败'/)
   assert.match(view, /if \(pendingActionFailure\) \{/)
+  assert.match(view, /if \(pendingJunfengFailure\) \{[\s\S]*state\.junfengReason = pendingJunfengFailure/)
   assert.match(view, /if \(pendingSelectionFailure\) \{/)
 })
 

@@ -1,32 +1,32 @@
 <template>
   <div class="bag-page primary-page primary-page--column">
-    <div class="bag-content">
-      <el-tabs v-model="activeTab" class="storage-tabs">
+    <el-row class="bag-content app-grid" :gutter="16"><el-col :span="24">
+      <el-tabs v-model="activeTab" class="storage-tabs" @tab-change="handleStorageTabChange">
           <el-tab-pane label="入库" name="inbound">
             <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
             <el-card class="section-card">
               <el-form label-width="120px" label-position="left">
-                <el-form-item label="启用模块">
-                  <el-switch :model-value="bagStore.moduleEnabled" active-text="开启" inactive-text="关闭" @change="handleModuleToggle" />
-                  <span class="hint-text inline-hint">持续检测仓库与背包，并提供游戏内入库按钮</span>
+                <el-form-item>
+                  <template #label>
+                    <span class="label-with-help">
+                      启用模块
+                      <el-tooltip content="持续检测仓库与背包，并提供游戏内入库按钮" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="启用模块说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
+                  <el-switch :model-value="bagStore.moduleEnabled" @change="handleModuleToggle" />
                 </el-form-item>
-                <el-form-item label="立即执行入库">
-                  <el-switch
-                    :model-value="bagStore.immediateStash"
-                    active-text="开启"
-                    inactive-text="关闭"
-                    @change="(value) => handlePreferenceChange('immediateStash', value)"
-                  />
-                  <span class="hint-text inline-hint">开启后每次打开仓库会话自动执行一轮；关闭后点击浮层执行</span>
-                </el-form-item>
-                <el-form-item label="满足条件显示">
-                  <el-switch
-                    :model-value="bagStore.showStashButtonOnlyWhenReady"
-                    active-text="开启"
-                    inactive-text="关闭"
-                    @change="(value) => handlePreferenceChange('showStashButtonOnlyWhenReady', value)"
-                  />
-                  <span class="hint-text inline-hint">关闭后模块运行期间始终显示浮层，未就绪时按钮禁用</span>
+                <el-form-item>
+                  <template #label>
+                    <span class="label-with-help">
+                      传奇强入
+                      <el-tooltip content="仅当传奇物品仓库页已满而无法正常入库时，才会追加 Shift 强制将该传奇物品放入当前仓库" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="传奇强入说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
+                  <el-switch :model-value="bagStore.forceUniqueStash" @change="setForceUniqueStash" />
                 </el-form-item>
                 <el-form-item label="检测状态">
                   <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
@@ -52,15 +52,19 @@
               </el-form>
             </el-card>
 
-            <div class="section-header"><h3 class="section-title">背包格子布局</h3></div>
+            <div class="section-header">
+              <h3 class="section-title label-with-help">
+                背包格子布局
+                <el-tooltip content="点击格子可切换是否执行自动入库。" placement="top">
+                  <el-icon class="help-icon" tabindex="0" aria-label="背包格子布局说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </h3>
+            </div>
             <el-card class="section-card inventory-layout-card">
-              <el-alert title="点击格子可切换是否执行自动入库；运行中修改从下一轮入库生效。" type="info" :closable="false" />
               <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
                 <el-form-item label="额外背包">
                   <el-switch
                     :model-value="bagStore.inventoryLayout.extraEnabled"
-                    active-text="开启"
-                    inactive-text="关闭"
                     @change="setExtraInventoryEnabled"
                   />
                 </el-form-item>
@@ -136,9 +140,15 @@
               </div>
             </el-card>
 
-            <div class="section-header"><h3 class="section-title">物品黑名单</h3></div>
+            <div class="section-header">
+              <h3 class="section-title label-with-help">
+                物品黑名单
+                <el-tooltip content="命中任一规则的物品会留在背包；统计按扫描格数计算。" placement="top">
+                  <el-icon class="help-icon" tabindex="0" aria-label="物品黑名单说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </h3>
+            </div>
             <el-card class="section-card">
-              <el-alert title="命中任一规则的物品会留在背包；统计按扫描格数计算。" type="info" :closable="false" />
               <div class="rule-editor">
                 <el-select v-model="draftRule.field" style="width: 150px">
                   <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
@@ -154,15 +164,11 @@
                 <el-input v-model="draftRule.keyword" placeholder="输入匹配关键词" clearable @keyup.enter="addBlacklistRule" />
                 <el-button type="primary" @click="addBlacklistRule">添加</el-button>
               </div>
-              <div v-if="bagStore.moduleEnabled" class="hint-text">模块保持开启；新规则从下一轮入库生效。</div>
               <el-table v-if="bagStore.blacklist.length" :data="bagStore.blacklist" class="rule-table">
                 <el-table-column label="生效" width="90">
                   <template #default="scope">
                     <el-switch
                       :model-value="scope.row.enabled"
-                      inline-prompt
-                      active-text="开"
-                      inactive-text="关"
                       @change="toggleBlacklistRule(scope.$index, $event)"
                     />
                   </template>
@@ -182,27 +188,21 @@
               </el-table>
               <el-empty v-else description="暂无黑名单规则" :image-size="60" />
             </el-card>
-
-            <el-alert
-              title="仓库与背包识别模板已移动到“设置 → 游戏界面检测”，并与混沌配方共用。"
-              type="info"
-              :closable="false"
-            />
           </el-tab-pane>
           <el-tab-pane label="取件" name="pickup">
-            <div class="section-header"><h3 class="section-title">仓库自动取件</h3></div>
+            <div class="section-header">
+              <h3 class="section-title label-with-help">
+                仓库自动取件
+                <el-tooltip content="默认使用当前高亮模型取件，自动识别普通仓库 12×12 和大型仓库 24×24：搜索框为空时全部物品都会高亮并取出；输入筛选后，只取出筛选结果；模糊格会跳过。请先运行检测预览。" placement="top">
+                  <el-icon class="help-icon" tabindex="0" aria-label="仓库自动取件说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </h3>
+            </div>
             <el-card class="section-card">
-              <el-alert
-                title="默认使用当前高亮模型取件，自动识别普通仓库 12×12 和大型仓库 24×24：搜索框为空时全部物品都会高亮并取出；输入筛选后，只取出筛选结果；模糊格会跳过。请先运行检测预览。"
-                type="info"
-                :closable="false"
-              />
               <el-form label-width="130px" label-position="left" class="stash-pickup-settings">
                 <el-form-item label="启用功能">
                   <el-switch
                     :model-value="stashPickupStore.settings.enabled"
-                    active-text="开启"
-                    inactive-text="关闭"
                     @change="toggleStashPickup"
                   />
                 </el-form-item>
@@ -260,19 +260,19 @@
               </div>
             </el-card>
 
-            <div class="section-header"><h3 class="section-title">君锋镇取出高亮</h3></div>
+            <div class="section-header">
+              <h3 class="section-title label-with-help">
+                君锋镇取出高亮
+                <el-tooltip content="正式取件只截取一次奖励网格，不操作搜索框。低置信格会安全停止，不会自动点击。" placement="top">
+                  <el-icon class="help-icon" tabindex="0" aria-label="君锋镇取出高亮说明"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </h3>
+            </div>
             <el-card class="section-card junfeng-card">
-              <el-alert
-                title="正式取件只截取一次奖励网格，不操作搜索框。低置信格会安全停止，不会自动点击。"
-                type="info"
-                :closable="false"
-              />
               <el-form label-width="140px" label-position="left" class="junfeng-settings">
                 <el-form-item label="启用功能">
                   <el-switch
                     :model-value="junfengStore.settings.enabled"
-                    active-text="开启"
-                    inactive-text="关闭"
                     @change="toggleJunfeng"
                   />
                 </el-form-item>
@@ -335,26 +335,27 @@
               </div>
             </el-card>
 
-            <div class="section-header"><h3 class="section-title">共享本机校准素材</h3></div>
+            <div class="section-header section-header--actions">
+              <h3 class="section-title">共享本机校准素材（{{ junfengStore.corrections.length }}）</h3>
+              <div class="calibration-actions">
+                <el-button
+                  plain
+                  size="small"
+                  :disabled="!junfengStore.corrections.length"
+                  @click="rebuildJunfengCorrections"
+                >重建特征</el-button>
+                <el-button
+                  type="danger"
+                  plain
+                  size="small"
+                  :disabled="!junfengStore.corrections.length"
+                  @click="resetJunfengCorrections"
+                >全部重置</el-button>
+              </div>
+            </div>
             <el-card class="section-card shared-calibration-card">
               <div class="shared-calibration">
-                <div class="shared-calibration__header">
-                  <strong>已保存 {{ junfengStore.corrections.length }} 个素材</strong>
-                  <el-button
-                    plain
-                    size="small"
-                    :disabled="!junfengStore.corrections.length"
-                    @click="rebuildJunfengCorrections"
-                  >重建特征</el-button>
-                  <el-button
-                    type="danger"
-                    plain
-                    size="small"
-                    :disabled="!junfengStore.corrections.length"
-                    @click="resetJunfengCorrections"
-                  >全部重置</el-button>
-                </div>
-                <el-table v-if="junfengStore.corrections.length" :data="junfengStore.corrections" size="small" max-height="240">
+                <el-table v-if="junfengStore.corrections.length" :data="calibrationPage.items" size="small">
                   <el-table-column label="图块" width="68">
                     <template #default="scope"><img class="calibration-thumbnail" :src="scope.row.tileDataUrl" alt="校准图块" /></template>
                   </el-table-column>
@@ -374,24 +375,35 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                <el-pagination
+                  v-if="junfengStore.corrections.length > CALIBRATION_PAGE_SIZE"
+                  v-model:current-page="calibrationCurrentPage"
+                  class="calibration-pagination"
+                  layout="prev, pager, next"
+                  :page-size="CALIBRATION_PAGE_SIZE"
+                  :total="junfengStore.corrections.length"
+                  hide-on-single-page
+                />
               </div>
             </el-card>
           </el-tab-pane>
       </el-tabs>
-    </div>
+    </el-col></el-row>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { VideoPause } from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
+import { QuestionFilled, VideoPause } from '@element-plus/icons-vue'
 import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { electronApi } from '@/api/electron'
 import HighlightGridPreview from '@/components/highlight/HighlightGridPreview.vue'
-import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagPreferences, updateBagRuntimeConfig } from '@/utils/bagService'
+import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagRuntimeConfig } from '@/utils/bagService'
+import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
+import { paginateList } from '@/utils/listPagination'
 import {
   BAG_BLACKLIST_FIELDS,
   BAG_BLACKLIST_FIELD_LABELS,
@@ -404,7 +416,16 @@ const bagStore = useBagStore()
 const stashPickupStore = useStashPickupStore()
 const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()
-const activeTab = ref('inbound')
+const STORAGE_TAB_STORAGE_KEY = 'storage.activeTab'
+const STORAGE_TABS = ['inbound', 'pickup']
+const activeTab = ref(readPersistentTab(STORAGE_TAB_STORAGE_KEY, STORAGE_TABS, 'inbound'))
+const CALIBRATION_PAGE_SIZE = 10
+const calibrationCurrentPage = ref(1)
+const calibrationPage = computed(() => paginateList(
+  junfengStore.corrections,
+  calibrationCurrentPage.value,
+  CALIBRATION_PAGE_SIZE
+))
 const capturingRewardTitle = ref(false)
 const calibrationOptions = [
   { key: 'root', label: '文件夹外仓库' },
@@ -421,6 +442,14 @@ const extraColumns = computed(() => {
 const excludedSlotKeys = computed(() => new Set(
   bagStore.inventoryLayout.excludedSlots.map((slot) => slotKey(slot.column, slot.row))
 ))
+
+function handleStorageTabChange(tab) {
+  activeTab.value = writePersistentTab(STORAGE_TAB_STORAGE_KEY, tab, STORAGE_TABS, 'inbound')
+}
+
+watch(() => junfengStore.corrections.length, () => {
+  calibrationCurrentPage.value = calibrationPage.value.page
+})
 
 const detectionStatus = computed(() => {
   if (!bagStore.moduleEnabled) return { type: 'info', text: '模块未启用' }
@@ -465,15 +494,6 @@ async function handleModuleToggle(enabled) {
     await setBagModuleEnabled(enabled)
   } catch (error) {
     ElMessage.error(`操作失败：${error.message}`)
-  }
-}
-
-async function handlePreferenceChange(key, value) {
-  try {
-    const result = await updateBagPreferences({ [key]: value })
-    if (!result?.success) throw new Error(result?.error || '更新设置失败')
-  } catch (error) {
-    ElMessage.error(`更新设置失败：${error.message}`)
   }
 }
 
@@ -588,6 +608,10 @@ function setExtraInventoryEnabled(extraEnabled) {
   return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, extraEnabled } })
 }
 
+function setForceUniqueStash(forceUniqueStash) {
+  return applyBagRuntimePatch({ forceUniqueStash })
+}
+
 function setExtraInventoryColumns(extraColumns) {
   return applyBagRuntimePatch({ inventoryLayout: { ...bagStore.inventoryLayout, extraColumns } })
 }
@@ -615,16 +639,19 @@ async function handleStopStash() {
 </script>
 
 <style scoped lang="less">
-.bag-content { width: 100%; height: 100%; min-height: 0; }
+.bag-content { width: 100%; height: 100%; min-height: 0; margin: 0 !important; }
+.bag-content > .el-col { height: 100%; padding: 0 !important; }
 .storage-tabs { display: flex; height: 100%; min-height: 0; flex-direction: column; }
 .storage-tabs :deep(.el-tabs__header) { flex: 0 0 auto; margin: 0; padding: 0 20px; border-bottom: 1px solid var(--border-base); background: var(--bg-primary); }
 .storage-tabs :deep(.el-tabs__content) { min-height: 0; flex: 1; overflow-y: auto; }
-.storage-tabs :deep(.el-tab-pane) { box-sizing: border-box; max-width: 1100px; margin: 0 auto; padding: 20px; }
+.storage-tabs :deep(.el-tab-pane) { box-sizing: border-box; width: 100%; margin: 0; padding: 20px; }
 .section-header { margin: 0 0 var(--spacing-sm) var(--spacing-xs); }
+.section-header--actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.calibration-actions { display: flex; align-items: center; gap: 8px; }
 .section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
-.inline-hint { margin-left: 12px; }
-.hint-text { margin-top: 6px; color: var(--text-secondary); font-size: 12px; }
+.label-with-help { display: inline-flex; align-items: center; gap: 6px; }
+.help-icon { color: var(--text-secondary); cursor: help; }
 .stats-row, .rule-editor { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .rule-editor { margin-top: 16px; }
 .rule-editor .el-input { flex: 1; min-width: 220px; }
@@ -636,7 +663,7 @@ async function handleStopStash() {
 .junfeng-preview__summary { color: var(--text-secondary); }
 .shared-calibration { display: grid; gap: 8px; }
 .calibration-thumbnail { display: block; width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--border-base); border-radius: 4px; }
-.shared-calibration__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.calibration-pagination { justify-content: flex-end; margin-top: 8px; }
 .inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
 .inventory-layout-settings :deep(.el-form-item) { margin-bottom: 8px; }
 .inventory-layout-scroll { overflow-x: auto; padding: 12px 2px 4px; }

@@ -86,6 +86,11 @@ body {
   margin: 0;
 }
 
+/* 外层页签栏已经提供底部分隔线，避免与 Element Plus 默认底线叠成粗线。 */
+.primary-page__tabs .el-tabs__nav-wrap::after {
+  display: none;
+}
+
 .primary-page__scroll {
   min-height: 0;
   flex: 1;
@@ -94,4 +99,70 @@ body {
 
 .primary-page__content {
   padding: 20px;
+}
+
+/* Element Plus 24 列栅格的统一纵向 gutter。横向 gutter 由 :gutter="16" 提供。 */
+.app-grid {
+  row-gap: 16px;
+}
+
+.app-grid > .el-col > .el-card,
+.app-grid > .el-col > .section-card {
+  height: 100%;
+  margin-bottom: 0;
+}
+
+html.main-window-theme,
+html.main-window-theme body,
+html.main-window-theme #app {
+  background: var(--app-bg) !important;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  color-scheme: dark;
+}
+
+html.app-dark-theme body {
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color-scheme: dark;
+}
+html.app-dark-theme ::-webkit-scrollbar-thumb { background: #3A424D; }
+html.app-dark-theme ::-webkit-scrollbar-thumb:hover { background: #4A5562; }
+
+html.app-dark-theme {
+  :focus-visible:not(.el-input__inner):not(.el-select__input):not(.el-cascader__search-input):not(.el-textarea__inner) {
+    outline: 2px solid var(--brand-color);
+    outline-offset: 2px;
+  }
+  .el-input__inner:focus-visible,
+  .el-select__input:focus-visible,
+  .el-cascader__search-input:focus-visible,
+  .el-textarea__inner:focus-visible { outline: none; }
+}
+
+html.main-window-theme {
+  .primary-page { color: var(--text-primary); background: var(--app-bg); }
+  .primary-page__tabs {
+    border-color: var(--border-base);
+    background: var(--surface-1);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+  }
+}
+
+html.business-overlay-theme,
+html.business-overlay-theme body,
+html.business-overlay-theme #app {
+  background: transparent !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.app-dark-theme *,
+  html.app-dark-theme *::before,
+  html.app-dark-theme *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

@@ -16,6 +16,7 @@ export function registerWindowHandlers(window) {
   const { getMainWindow, getOverlayWindow, closeOverlayWindow } = window
   const craftingOverlayDrag = new OverlayDragSession()
   const storyOverlayDrag = new OverlayDragSession()
+  const storyOverlayDividerDrag = new OverlayDragSession()
 
   // 窗口控制 IPC
   ipcMain.handle('window-minimize', () => {
@@ -156,6 +157,25 @@ export function registerWindowHandlers(window) {
     if (requested) window.moveStoryOverlayTo(requested)
   })
 
+  ipcMain.on('story-overlay-divider-drag', (event, point = {}) => {
+    const overlay = window.getStoryOverlayWindow?.()
+    if (!overlay || overlay.isDestroyed() || overlay.webContents !== event.sender) return
+    if (point.phase === 'start') {
+      const dividerBounds = window.getStoryOverlayDividerBounds?.()
+      if (dividerBounds && storyOverlayDividerDrag.begin(event.sender.id, point, dividerBounds)) {
+        window.setStoryOverlayDividerDragging(true)
+      }
+      return
+    }
+    if (point.phase === 'end') {
+      if (storyOverlayDividerDrag.end(event.sender.id)) window.setStoryOverlayDividerDragging(false)
+      return
+    }
+    if (point.phase !== 'move') return
+    const requested = storyOverlayDividerDrag.move(event.sender.id, point)
+    if (requested) window.moveStoryOverlayDividerTo(requested)
+  })
+
   ipcMain.handle('import-overlay-background', (_event, sourcePath) => importBackground(sourcePath))
 
   // 更新覆盖层设置
@@ -183,6 +203,8 @@ export function registerWindowHandlers(window) {
   })
 
   ipcMain.handle('get-story-overlay-state', () => window.getStoryOverlaySnapshot())
+
+  ipcMain.handle('get-story-overlay-divider-ratio', () => window.getStoryOverlayDividerRatio())
 
   ipcMain.handle('resize-story-overlay', (event, size) => ({
     success: window.resizeStoryOverlay(size)

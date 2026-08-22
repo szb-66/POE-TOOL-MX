@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import {
   TRADE_CATALOG_SCHEMA_VERSION,
+  VERSIONED_UNQUERYABLE_STATS,
   auditPseudoRules,
   createLocalizedOfficialTradeCatalog,
   officialCurrencyLabels,
@@ -15,6 +16,11 @@ const SIDEKICK_POE1_ZH_STATS_URL = `https://raw.githubusercontent.com/Sidekick-P
 const APT_POE1_EN_STATS_URL = `https://raw.githubusercontent.com/SnosMe/awakened-poe-trade/${APT_STAT_MATCHER_COMMIT}/renderer/public/data/en/stats.ndjson`
 const compactMatcher = (value) => String(value || '').replace(/\s+/g, ' ').trim()
 const isUsableMatcher = (value) => Boolean(value) && !/<[A-Z]{2}\d+>|}}/.test(value)
+
+function unqueryableStatsForEntries(stats) {
+  const ids = new Set(stats.flatMap((entry) => Object.values(entry.ids || {}).flat()))
+  return structuredClone(VERSIONED_UNQUERYABLE_STATS.filter((entry) => ids.has(entry.id)))
+}
 
 export function parseNdjson(text) {
   return String(text || '').split(/\r?\n/).filter((line) => line.trim()).map((line, index) => {
@@ -84,11 +90,14 @@ export function generateTradeCatalog({ items = [], stats = [], gameVersion, gene
     schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
     game: 'poe1',
     locale: 'zh-CN',
+    provider: 'poe-cn',
     gameVersion: String(gameVersion || ''),
     generatedAt: generatedAt || new Date().toISOString(),
     sources: [`Awakened PoE Trade ${APT_STAT_MATCHER_COMMIT.slice(0, 12)} 英文 NDJSON`],
     items: normalizedItems,
     stats: normalizedStats,
+    statEquivalenceGroups: [],
+    unqueryableStats: unqueryableStatsForEntries(normalizedStats),
     ...createVersionedPseudoRules()
   })
 }
@@ -215,9 +224,14 @@ export function attachPseudoRuleMatcherRefs(catalog) {
 }
 
 function upgradeBaseCatalog(catalog) {
+  const stats = structuredClone(catalog.stats || [])
   return {
     ...structuredClone(catalog),
     schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
+    provider: 'poe-cn',
+    stats,
+    statEquivalenceGroups: structuredClone(catalog.statEquivalenceGroups || []),
+    unqueryableStats: unqueryableStatsForEntries(stats),
     ...createVersionedPseudoRules()
   }
 }
@@ -374,7 +388,11 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
     counts: {
       items: result.catalog.items.length,
       stats: result.catalog.stats.length,
-      currencies: Object.keys(result.catalog.currencyLabels || {}).length
+      currencies: Object.keys(result.catalog.currencyLabels || {}).length,
+      equivalenceGroups: result.catalog.statEquivalenceGroups.length,
+      unqueryableStats: result.catalog.unqueryableStats.filter((entry) => (
+        entry.provider === result.catalog.provider && entry.gameVersion === result.catalog.gameVersion
+      )).length
     },
     sources: [...result.catalog.sources]
   }

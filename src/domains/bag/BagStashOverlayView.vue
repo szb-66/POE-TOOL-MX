@@ -85,12 +85,12 @@ onUnmounted(() => disposeState?.())
   position: relative;
   display: grid;
   grid-template-columns: 28px 1fr;
-  gap: 5px;
+  gap: var(--overlay-space-1);
   box-sizing: border-box;
   width: 100%;
   height: 100%;
-  padding: 7px;
-  font-family: "Microsoft YaHei", sans-serif;
+  padding: var(--overlay-space-2);
+  font-family: var(--font-ui);
   user-select: none;
 }
 .drag-handle {
@@ -108,7 +108,7 @@ onUnmounted(() => disposeState?.())
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: rgba(218, 230, 255, .7);
+  background: var(--brand-color);
 }
 button {
   -webkit-app-region: no-drag;
@@ -118,25 +118,25 @@ button {
   height: 100%;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid rgba(132, 178, 255, .62);
-  border-radius: 12px;
-  color: #f4f8ff;
-  background: linear-gradient(145deg, rgba(36, 91, 171, .96), rgba(21, 55, 112, .96));
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .14);
-  font: 700 15px/1 "Microsoft YaHei", sans-serif;
+  gap: var(--overlay-space-2);
+  padding: var(--overlay-space-2) var(--overlay-space-3);
+  border: 1px solid var(--overlay-border);
+  border-radius: var(--overlay-radius-md);
+  color: var(--brand-on-color);
+  background: var(--brand-color);
+  box-shadow: var(--overlay-shadow), inset 0 1px rgba(255, 255, 255, .14);
+  font: 700 var(--overlay-font-size)/1 var(--font-ui);
   cursor: pointer;
 }
 button:hover:not(:disabled) {
-  border-color: rgba(174, 208, 255, .95);
-  background: linear-gradient(145deg, rgba(48, 111, 199, .98), rgba(27, 70, 139, .98));
+  border-color: color-mix(in srgb, var(--brand-color) 84%, white);
+  background: color-mix(in srgb, var(--brand-color) 84%, white);
 }
 button:active:not(:disabled) { transform: translateY(1px); }
 button:disabled {
-  border-color: rgba(145, 155, 174, .45);
-  color: rgba(235, 240, 248, .7);
-  background: linear-gradient(145deg, rgba(65, 72, 86, .92), rgba(38, 43, 54, .92));
+  border-color: var(--border-base);
+  color: var(--text-secondary);
+  background: var(--surface-2);
   cursor: not-allowed;
 }
 .button-icon { font-size: 18px; }

@@ -7,7 +7,7 @@
       </el-tabs>
     </div>
 
-    <div class="map-content primary-page__scroll primary-page__content">
+    <el-row class="map-content primary-page__scroll primary-page__content app-grid" :gutter="16"><el-col :span="24">
       <SupportedFormatPanel :guidance="formatGuidance" />
 
       <div class="map-header">
@@ -59,7 +59,7 @@
         :title="activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
         :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
       />
-    </div>
+    </el-col></el-row>
   </div>
 </template>
 

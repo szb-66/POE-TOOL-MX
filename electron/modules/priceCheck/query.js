@@ -1,4 +1,4 @@
-import { isTradeStatId, resolveCatalogStat, resolveChartRegion } from './catalog.js'
+import { isCatalogStatQueryable, isTradeStatId, resolveCatalogStat, resolveChartRegion } from './catalog.js'
 import { CHART_SHAPES, resolveChartShape } from './chartRegions.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
 import { createPseudoStats } from './pseudo.js'
@@ -208,13 +208,23 @@ export function sanitizePriceCheckOptions(value = {}) {
 }
 
 export function mergeStatIntoList(stats, stat) {
-  const existing = stats.find((entry) => `${entry.type}\u0000${entry.id}` === `${stat.type}\u0000${stat.id}`)
+  const identity = (value) => value.equivalenceGroup
+    ? `equivalence\u0000${value.equivalenceGroup}`
+    : `${value.type}\u0000${value.id}`
+  const existing = stats.find((entry) => identity(entry) === identity(stat))
   if (!existing) {
     stats.push({ ...stat, key: `${stat.type}:${stat.id}`, valueMultiplier: normalizeValueMultiplier(stat.valueMultiplier) })
     return stats.at(-1)
   }
   existing.sources.push(...(stat.sources || []))
   existing.refs = [...new Set([...(existing.refs || []), ...(stat.refs || [])])]
+  if (existing.equivalenceGroup && stat.equivalenceGroup === existing.equivalenceGroup) {
+    existing.queryVariants = [...new Map([
+      ...(existing.queryVariants || []),
+      ...(stat.queryVariants || [])
+    ].map((variant) => [variant.id, variant])).values()]
+      .sort((a, b) => a.id.localeCompare(b.id, 'en'))
+  }
   existing.ref = existing.refs.length === 1 ? existing.refs[0] : null
   const mergeValue = existing.merge === 'max'
     ? (left, right) => Math.max(left ?? -Infinity, right ?? -Infinity)
@@ -369,6 +379,8 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
         values: match.values,
         valueMultiplier: match.valueMultiplier,
+        ...(match.equivalenceGroup ? { equivalenceGroup: match.equivalenceGroup } : {}),
+        ...(match.queryVariants?.length > 1 ? { queryVariants: structuredClone(match.queryVariants) } : {}),
         merge: match.merge,
         sources: [{
           key: `${match.id}:${stats.length}`,
@@ -583,8 +595,6 @@ export function buildOfficialTradeQuery(model, options = {}) {
   const officialCategory = resolvePriceCheckCategory(category)
   const nameEnabled = model.identity.nameEnabled !== false
   if (!nameEnabled && !officialCategory) throw new Error('物品大类无法识别，不能取消具体名称')
-  const isGem = category.includes('宝石')
-  const isFlask = category.includes('药剂') || category.includes('酊剂')
   const stateFilters = sanitizePriceCheckStateFilters(model.stateFilters, model.facts)
   const filters = {
     trade: {
@@ -603,17 +613,7 @@ export function buildOfficialTradeQuery(model, options = {}) {
     rarity: model.item.rarity === '传奇' && IDENTITY_DISCRIMINATORS.has(officialCategory?.category)
       ? 'unique'
       : (NON_UNIQUE_RARITIES.has(model.item.rarity) ? 'nonunique' : undefined),
-    stateFilters: Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key, officialKey }) => [officialKey, stateFilters[key]])),
-    gemLevel: isGem && model.item.gemLevel >= 20 ? model.item.gemLevel : undefined,
-    quality: (
-      (isGem && model.item.quality >= 16) ||
-      (isFlask && model.item.quality > 20) ||
-      (options.exact && model.item.quality > 20)
-    ) ? model.item.quality : undefined,
-    itemLevel: options.exact && model.item.itemLevel > 0 && !model.identity.name
-      ? Math.min(model.item.itemLevel, 86)
-      : undefined,
-    linkedSockets: model.item.links > 0 ? model.item.links : undefined
+    stateFilters: Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key, officialKey }) => [officialKey, stateFilters[key]]))
   }
   for (const property of model.properties || []) {
     if (!property.enabled || !PROPERTY_IDS.has(property.id)) continue
@@ -641,7 +641,7 @@ function catalogHasStat(catalog, id, type) {
   if (!catalog) return true
   return (catalog.stats || []).some((entry) => {
     const value = entry.ids?.[type]
-    return (Array.isArray(value) ? value : [value]).includes(id)
+    return (Array.isArray(value) ? value : [value]).includes(id) && isCatalogStatQueryable(catalog, id)
   })
 }
 
@@ -660,6 +660,21 @@ function catalogRefsForStat(catalog, id, type) {
     catalogStatRefIndexes.set(catalog, index)
   }
   return [...(index.get(`${type}\u0000${id}`) || [])]
+}
+
+function trustedQueryMetadata(catalog, stat) {
+  if (!catalog || !stat?.text || !isCatalogStatQueryable(catalog, stat.id)) return {}
+  const resolution = resolveCatalogStat(catalog, tradeStatText(stat.text), stat.type)
+  const match = resolution.match
+  if (!match?.equivalenceGroup || match.queryVariants?.length < 2 ||
+      !match.queryVariants.some((variant) => variant.id === stat.id && variant.type === stat.type)) return {}
+  return {
+    id: match.id,
+    type: match.type,
+    valueMultiplier: match.valueMultiplier,
+    equivalenceGroup: match.equivalenceGroup,
+    queryVariants: structuredClone(match.queryVariants)
+  }
 }
 
 function createClassicInfluenceStats(influences, catalog) {
@@ -785,6 +800,27 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
         : []
     }
   }).filter((stat) => isTradeStatId(stat.id, stat.type) && catalogHasStat(catalog, stat.id, stat.type)) : []
+  if (!trustedModel) {
+    stats = stats.map((stat) => ({ ...stat, ...trustedQueryMetadata(catalog, stat) }))
+  }
+  if (trustedModel) {
+    const submittedByKey = new Map(stats.map((stat) => [stat.key, stat]))
+    const trustedLogicalStats = (trustedModel.stats || []).filter((stat) => stat.queryVariants?.length > 1)
+    const trustedLogicalKeys = new Set(trustedLogicalStats.map((stat) => stat.key))
+    stats = stats.filter((stat) => !trustedLogicalKeys.has(stat.key))
+    for (const trustedStat of trustedLogicalStats) {
+      const submitted = submittedByKey.get(trustedStat.key)
+      if (!submitted) continue
+      const rebuilt = {
+        ...structuredClone(trustedStat),
+        enabled: submitted.enabled,
+        min: submitted.min,
+        max: submitted.max,
+        ...trustedQueryMetadata(catalog, trustedStat)
+      }
+      if (rebuilt.queryVariants?.length > 1) stats.push(rebuilt)
+    }
+  }
   if (trustedModel) {
     const submittedInfluences = new Map(stats
       .filter((stat) => CLASSIC_INFLUENCE_STAT_IDS.has(stat.id))

@@ -20,7 +20,8 @@ export const INVENTORY_LAYOUT = Object.freeze({
   nativeColumns: 12,
   rows: 5,
   minExtraColumns: 1,
-  maxExtraColumns: 6
+  maxExtraColumns: 6,
+  defaultExtraColumns: 6
 })
 
 function finiteNumber(value, fallback) {
@@ -41,10 +42,13 @@ export function normalizeBagBlacklist(rules = []) {
 }
 
 export function normalizeInventoryLayout(layout = {}) {
-  const rawColumns = Number(layout.extraColumns)
+  const rawValue = layout.extraColumns
+  const rawColumns = rawValue === undefined || rawValue === null || String(rawValue).trim() === ''
+    ? Number.NaN
+    : Number(rawValue)
   const extraColumns = Number.isFinite(rawColumns)
     ? Math.min(INVENTORY_LAYOUT.maxExtraColumns, Math.max(INVENTORY_LAYOUT.minExtraColumns, Math.trunc(rawColumns)))
-    : INVENTORY_LAYOUT.minExtraColumns
+    : INVENTORY_LAYOUT.defaultExtraColumns
   const excludedSlots = []
   const seen = new Set()
   if (Array.isArray(layout.excludedSlots)) {
@@ -71,8 +75,7 @@ export function normalizeInventoryLayout(layout = {}) {
 export function createDefaultBagSettings() {
   return {
     moduleEnabled: false,
-    immediateStash: true,
-    showStashButtonOnlyWhenReady: true,
+    forceUniqueStash: false,
     templates: {
       stashTitle: '',
       inventoryTitle: '',
@@ -128,8 +131,7 @@ export function normalizeBagSettings(raw = {}) {
   const threshold = Number(raw.matchThreshold)
   return {
     moduleEnabled: Boolean(raw.moduleEnabled),
-    immediateStash: raw.immediateStash !== false,
-    showStashButtonOnlyWhenReady: raw.showStashButtonOnlyWhenReady !== false,
+    forceUniqueStash: Boolean(raw.forceUniqueStash),
     templates: {
       stashTitle: String(raw.templates?.stashTitle || ''),
       inventoryTitle: String(raw.templates?.inventoryTitle || ''),
@@ -183,8 +185,7 @@ export function findBagBlacklistMatch(item, rules = []) {
 export function buildBagRuntimeConfig(bagSettings, settings) {
   const bag = normalizeBagSettings(bagSettings)
   return {
-    immediateStash: bag.immediateStash,
-    showStashButtonOnlyWhenReady: bag.showStashButtonOnlyWhenReady,
+    forceUniqueStash: bag.forceUniqueStash,
     templates: bag.templates,
     matchThreshold: bag.matchThreshold,
     blacklist: bag.blacklist,

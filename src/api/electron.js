@@ -41,6 +41,7 @@ const mockApi = {
     check: () => Promise.resolve({ success: false }),
     download: () => Promise.resolve({ success: false }),
     restartAndInstall: () => Promise.resolve({ success: false }),
+    acknowledgeInstalled: () => Promise.resolve({ success: true, acknowledged: false }),
     onStateChanged: () => () => {}
   },
   script: {
@@ -143,7 +144,6 @@ const mockApi = {
     stopStash: () => Promise.resolve({ success: true }),
     updateOperationDelay: () => Promise.resolve({ success: true }),
     updateEmptySlotThreshold: (emptySlotThreshold) => Promise.resolve({ success: true, emptySlotThreshold }),
-    updatePreferences: () => Promise.resolve({ success: true }),
     updateRuntimeConfig: (config) => Promise.resolve({ success: true, config, revision: 1 }),
     uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
@@ -251,6 +251,7 @@ const mockApi = {
     getOverlayState: () => Promise.resolve({ success: true, data: null }),
     closeOverlay: () => Promise.resolve({ success: true }),
     openOfficial: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
+    rendered: (_generation) => {},
     onOverlayState: () => () => {}
   },
   combat: {
@@ -271,10 +272,12 @@ const mockApi = {
     close: () => Promise.resolve({ success: true }),
     update: () => Promise.resolve({ success: true }),
     getState: () => Promise.resolve(null),
+    getDividerRatio: () => Promise.resolve(0.64),
     resize: () => Promise.resolve({ success: true }),
     setOpacity: () => Promise.resolve({ success: true }),
     updateLayout: () => Promise.resolve({ success: true }),
     move: () => {},
+    moveDivider: () => {},
     onState: () => () => {},
     onDividerRatio: () => () => {}
   },
@@ -352,6 +355,7 @@ export const electronApi = isElectron ? {
     check: () => window.electronAPI.checkApplicationUpdate?.(),
     download: () => window.electronAPI.downloadApplicationUpdate?.(),
     restartAndInstall: () => window.electronAPI.restartAndInstallApplicationUpdate?.(),
+    acknowledgeInstalled: () => window.electronAPI.acknowledgeInstalledApplicationUpdate?.(),
     onStateChanged: (callback) => window.electronAPI.onApplicationUpdateStateChanged?.(callback) || (() => {})
   },
   script: {
@@ -463,7 +467,6 @@ export const electronApi = isElectron ? {
     stopStash: () => window.electronAPI.stopBagStash?.(),
     updateOperationDelay: (operationDelayMs) => window.electronAPI.updateBagOperationDelay?.(operationDelayMs),
     updateEmptySlotThreshold: (emptySlotThreshold) => window.electronAPI.updateBagEmptySlotThreshold?.(emptySlotThreshold),
-    updatePreferences: (preferences) => window.electronAPI.updateBagPreferences?.(preferences),
     updateRuntimeConfig: (config) => window.electronAPI.updateBagRuntimeConfig?.(craftingIpcPayload(config)),
     uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
     captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
@@ -577,6 +580,7 @@ export const electronApi = isElectron ? {
     getOverlayState: () => window.electronAPI.getPriceCheckOverlayState?.(),
     closeOverlay: () => window.electronAPI.closePriceCheckOverlay?.(),
     openOfficial: () => window.electronAPI.openPriceCheckOfficial?.(),
+    rendered: (generation) => window.electronAPI.notifyPriceCheckOverlayRendered?.(generation),
     onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {}),
     onSettingsChanged: (callback) => window.electronAPI.onPriceCheckSettingsChanged?.(callback) || (() => {}),
     onCatalogUpdated: (callback) => window.electronAPI.onPriceCheckCatalogUpdated?.(callback) || (() => {})
@@ -601,10 +605,12 @@ export const electronApi = isElectron ? {
     close: () => window.electronAPI.closeStoryOverlay?.(),
     update: (snapshot) => window.electronAPI.updateStoryOverlay?.(snapshot),
     getState: () => window.electronAPI.getStoryOverlayState?.(),
+    getDividerRatio: () => window.electronAPI.getStoryOverlayDividerRatio?.(),
     resize: (size) => window.electronAPI.resizeStoryOverlay?.(size),
     setOpacity: (opacity) => window.electronAPI.setStoryOverlayOpacity?.(opacity),
     updateLayout: (layout) => window.electronAPI.updateStoryOverlayLayout?.(layout),
     move: (drag) => window.electronAPI.moveStoryOverlay?.(craftingIpcPayload(drag)),
+    moveDivider: (drag) => window.electronAPI.moveStoryOverlayDivider?.(craftingIpcPayload(drag)),
     onState: (callback) => window.electronAPI.onStoryOverlayState?.(callback) || (() => {}),
     onDividerRatio: (callback) => window.electronAPI.onStoryOverlayDividerRatio?.(callback) || (() => {})
   },

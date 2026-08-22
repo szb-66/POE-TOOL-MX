@@ -63,17 +63,18 @@ onUnmounted(() => removeListener?.())
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
-  padding: 5px 10px;
-  color: #fff;
-  background: rgba(20, 20, 24, .88);
-  border: 1px solid #e6a23c;
-  border-radius: 6px;
-  font-size: 12px;
+  gap: var(--overlay-space-3);
+  padding: var(--overlay-space-1) var(--overlay-space-3);
+  color: var(--text-primary);
+  background: var(--overlay-surface);
+  border: 1px solid var(--brand-color);
+  border-radius: var(--overlay-radius-md);
+  box-shadow: var(--overlay-shadow);
+  font-size: var(--overlay-font-size);
   white-space: nowrap;
 }
-.tracker.running { border-color: #67c23a; }
-.tracker.stopped { border-color: #f56c6c; }
+.tracker.running { border-color: var(--success-color); }
+.tracker.stopped { border-color: var(--danger-color); }
 .item-box {
   position: absolute;
   box-sizing: border-box;

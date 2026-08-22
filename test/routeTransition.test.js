@@ -122,3 +122,12 @@ test('主内容区加载层、导航异常复位与侧栏预加载均已接线',
   assert.match(sidebarSource, /@pointerenter="warmRoute/)
   assert.match(sidebarSource, /@focusin="warmRoute/)
 })
+
+test('公共页面骨架顶部紧凑排列且加载提示不依赖绝对定位', () => {
+  const overlaySource = readFileSync(new URL('../src/components/common/RouteLoadingOverlay.vue', import.meta.url), 'utf8')
+  const labelRule = overlaySource.match(/\.route-loading-label\s*\{([^}]*)\}/)?.[1] ?? ''
+
+  assert.match(overlaySource, /class="route-loading-header"/)
+  assert.match(overlaySource, /\.route-loading-shell\s*\{[^}]*align-content:\s*start/)
+  assert.doesNotMatch(labelRule, /position:\s*absolute/)
+})

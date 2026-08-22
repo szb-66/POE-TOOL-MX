@@ -1,4 +1,4 @@
-export const CHART_REGION_ALIASES_VERSION = 'S30-2026-08-19'
+export const CHART_REGION_ALIASES_VERSION = 'S30-2026-08-20'
 
 export const CHART_REGION_ALIASES = Object.freeze([
   ['AbyssalPlain', '深渊平原', []],
@@ -15,7 +15,8 @@ export const CHART_REGION_ALIASES = Object.freeze([
   ['SeafloorRidges', '海床山脊', ['海底山脊']],
   ['SeaPillars', '海上石柱', []],
   ['SunkenTotems', '沉没图腾', []],
-  ['UnderseaGroves', '海底庄园', ['海底林地']]
+  ['UnderseaGroves', '海底庄园', ['海底林地']],
+  ['UnremarkableSeabed', '平庸海床', []]
 ].map(([type, displayName, aliases]) => Object.freeze({
   type,
   displayName,

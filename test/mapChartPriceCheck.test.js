@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
 import {
+  enrichTradeCatalogChartRegions,
   loadTradeCatalog,
   resolveChartRegion,
   validateTradeCatalog
@@ -111,6 +112,20 @@ test('传奇海图查询明确限制为 unique 稀有度', async () => {
 
 test('海图完整区域别名和五种形状映射唯一且形状默认不勾选', async () => {
   const catalog = await catalogPromise
+  const catalogWithCurrentRegions = structuredClone(catalog)
+  for (const region of CHART_REGION_ALIASES) {
+    if (catalogWithCurrentRegions.items.some((entry) => entry.baseType === region.type)) continue
+    catalogWithCurrentRegions.items.push({
+      key: `test-chart-${region.type}`,
+      name: region.type,
+      baseType: region.type,
+      text: `Chart (${region.displayName})`,
+      discriminator: 'chart',
+      category: 'chart',
+      unique: false
+    })
+  }
+  const completeCatalog = enrichTradeCatalogChartRegions(catalogWithCurrentRegions)
   const expectedShapeLabels = [
     ['1', '端点', '结束'],
     ['2', '角落', '角落'],
@@ -118,11 +133,12 @@ test('海图完整区域别名和五种形状映射唯一且形状默认不勾�
     ['4', '节点', '交汇'],
     ['5', '交叉', '岔路']
   ]
-  assert.equal(CHART_REGION_ALIASES.length, 15)
+  assert.equal(CHART_REGION_ALIASES.length, 16)
   for (const region of CHART_REGION_ALIASES) {
-    for (const alias of region.aliases) assert.equal(resolveChartRegion(catalog, alias)?.type, region.type)
+    for (const alias of region.aliases) assert.equal(resolveChartRegion(completeCatalog, alias)?.type, region.type)
   }
-  assert.equal(resolveChartRegion(catalog, '海底山脊')?.type, 'SeafloorRidges')
+  assert.equal(resolveChartRegion(completeCatalog, '海底山脊')?.type, 'SeafloorRidges')
+  assert.equal(resolveChartRegion(completeCatalog, '平庸海床')?.type, 'UnremarkableSeabed')
   assert.deepEqual(CHART_SHAPES.map(({ id, gameLabel, tradeLabel }) => [id, gameLabel, tradeLabel]), expectedShapeLabels)
   for (const fixture of CHART_SHAPE_PRICE_CHECK_FIXTURES) {
     const parsed = parseItemInfo(fixture.text)
@@ -161,6 +177,46 @@ test('海图完整区域别名和五种形状映射唯一且形状默认不勾�
     property.enabled = true
     assert.equal(buildOfficialTradeQuery(model).query.filters.map_filters.filters.chart_shape.option, shape.id)
   }
+})
+
+test('官方新增的未登记海图区域可从标准文本补全元数据', async () => {
+  const catalog = structuredClone(await catalogPromise)
+  catalog.items.push({
+    key: 'official-item-future-chart',
+    name: 'FutureSeabed',
+    baseType: 'FutureSeabed',
+    text: 'Chart (未来海床)',
+    discriminator: 'chart',
+    category: 'chart',
+    unique: false
+  })
+
+  const enriched = enrichTradeCatalogChartRegions(catalog)
+  assert.doesNotThrow(() => validateTradeCatalog(enriched))
+  assert.deepEqual(resolveChartRegion(enriched, '未来海床'), {
+    type: 'FutureSeabed',
+    displayName: '未来海床',
+    aliases: ['未来海床']
+  })
+})
+
+test('无法解析区域名的未知海图条目仍被目录校验拒绝', async () => {
+  const catalog = structuredClone(await catalogPromise)
+  catalog.items.push({
+    key: 'official-item-malformed-chart',
+    name: 'MalformedSeabed',
+    baseType: 'MalformedSeabed',
+    text: 'Chart',
+    discriminator: 'chart',
+    category: 'chart',
+    unique: false
+  })
+
+  const enriched = enrichTradeCatalogChartRegions(catalog)
+  assert.throws(
+    () => validateTradeCatalog(enriched),
+    /交易目录海图区域 official-item-malformed-chart 元数据无效/
+  )
 })
 
 test('无法识别海图区域时阻止退化为物理底材查询', async () => {

@@ -46,3 +46,19 @@ export function saveWindowState(state) {
   }
 }
 
+export function loadPriceCheckOverlaySize() {
+  const state = loadWindowState()
+  return state && typeof state === 'object' && !Array.isArray(state)
+    ? state.priceCheckOverlaySize || null
+    : null
+}
+
+export function savePriceCheckOverlaySize(size) {
+  saveWindowState({
+    priceCheckOverlaySize: {
+      width: size?.width,
+      height: size?.height
+    }
+  })
+}
+

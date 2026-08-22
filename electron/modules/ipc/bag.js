@@ -47,8 +47,7 @@ function currentOverlaySnapshot() {
     moduleEnabled: moduleRunning,
     ready: session.ready,
     foreground: session.foreground,
-    stashing: session.stashing,
-    showOnlyWhenReady: latestConfig?.showStashButtonOnlyWhenReady !== false
+    stashing: session.stashing
   })
 }
 
@@ -75,8 +74,7 @@ export function stopBagStashAutomation(reason = 'user') {
 
 function runtimeConfig(config = {}) {
   return {
-    immediateStash: config.immediateStash !== false,
-    showStashButtonOnlyWhenReady: config.showStashButtonOnlyWhenReady !== false,
+    force_unique_stash: Boolean(config.forceUniqueStash),
     templates: {
       stash_title: String(config.templates?.stashTitle || ''),
       inventory_title: String(config.templates?.inventoryTitle || ''),
@@ -196,8 +194,8 @@ function bindCommonProcessLogging(child, label) {
   return diagnostics
 }
 
-function startStashProcess(python, fileWatcher, mode) {
-  const gate = mode === 'auto' ? session.beginAutomatic() : session.beginManual()
+function startStashProcess(python, fileWatcher) {
+  const gate = session.beginManual()
   if (!gate.success) return gate
   const automationGate = automationLock?.acquire('自动入库') || { success: true }
   if (!automationGate.success) {
@@ -292,15 +290,11 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return
-    const shouldAutoStart = session.setReady(state.ready, state.foreground, latestConfig?.immediateStash !== false)
+    session.setReady(state.ready, state.foreground)
     send('bag-detection-match', { matched: session.ready && session.foreground, ...state })
     syncBagOverlay()
     if (!state.running && !state.reloading && state.reason) {
       send('bag-detection-stopped', { reason: state.reason })
-    }
-    if (shouldAutoStart) {
-      const result = startStashProcess(python, fileWatcher, 'auto')
-      if (!result.success) send('bag-stash-stopped', { reason: result.error })
     }
   })
 
@@ -340,7 +334,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     return { success: true }
   })
 
-  ipcMain.handle('start-bag-stash', async () => startStashProcess(python, fileWatcher, 'manual'))
+  ipcMain.handle('start-bag-stash', async () => startStashProcess(python, fileWatcher))
 
   ipcMain.handle('update-bag-operation-delay', async (_event, value) => {
     const operationDelayMs = normalizeOperationDelay(value)
@@ -361,28 +355,8 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     return { success: true, emptySlotThreshold }
   })
 
-  ipcMain.handle('update-bag-preferences', async (_event, preferences = {}) => {
-    const wasImmediate = latestConfig?.immediateStash !== false
-    if (latestConfig) {
-      latestConfig.immediateStash = preferences.immediateStash !== false
-      latestConfig.showStashButtonOnlyWhenReady = preferences.showStashButtonOnlyWhenReady !== false
-    }
-    syncBagOverlay()
-    if (moduleRunning && !wasImmediate && latestConfig?.immediateStash &&
-        session.setReady(session.ready, session.foreground, true)) {
-      const result = startStashProcess(python, fileWatcher, 'auto')
-      if (!result.success) send('bag-stash-stopped', { reason: result.error })
-    }
-    return {
-      success: true,
-      immediateStash: latestConfig?.immediateStash ?? true,
-      showStashButtonOnlyWhenReady: latestConfig?.showStashButtonOnlyWhenReady ?? true
-    }
-  })
-
   ipcMain.handle('update-bag-runtime-config', async (_event, config = {}) => {
     const previousConfig = latestConfig ? structuredClone(latestConfig) : null
-    const previousImmediate = previousConfig?.immediateStash !== false
     try {
       const captureValidation = validateCaptureConfig(config)
       if (captureValidation.error) throw new Error(captureValidation.error)
@@ -393,11 +367,6 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       latestConfig = candidate
       bagConfigRevision += 1
       syncBagOverlay()
-      if (moduleRunning && !previousImmediate && candidate.immediateStash &&
-          session.setReady(session.ready, session.foreground, true)) {
-        const result = startStashProcess(python, fileWatcher, 'auto')
-        if (!result.success) send('bag-stash-stopped', { reason: result.error })
-      }
       return {
         success: true,
         config: structuredClone(candidate),

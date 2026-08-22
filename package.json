@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -30,8 +30,9 @@
     "electron:build": "npm run build && electron-builder --win nsis --x64",
     "release:check": "node scripts/release/checkVersion.js",
     "release:checksum": "node scripts/release/checksum.js",
+    "release:notes": "node scripts/release/injectReleaseNotes.js",
     "release:smoke": "node scripts/release/smokePackage.js",
-    "release:win": "npm run release:check && npm run runtime:prepare && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:smoke && npm run release:checksum"
+    "release:win": "npm run release:check && npm run runtime:prepare && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:notes && npm run release:smoke && npm run release:checksum"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -74,7 +75,7 @@
       "!electron/assets/skill-raw/**/*",
       "!electron/assets/unique-items-raw/**/*",
       "scripts/**/*",
-      "src/assets/images/LOGO.png",
+      "src/assets/images/LOGO-dark.png",
       "src/utils/bagConfig.js",
       "src/utils/electronAccelerator.js",
       "src/utils/inventorySettings.js",
@@ -156,7 +157,7 @@
         }
       ],
       "requestedExecutionLevel": "requireAdministrator",
-      "icon": "src/assets/images/LOGO.png"
+      "icon": "src/assets/images/LOGO-dark.png"
     },
     "nsis": {
       "oneClick": false,

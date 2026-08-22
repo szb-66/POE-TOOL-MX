@@ -1,5 +1,6 @@
 import { parseItemInfo } from '../item/parser.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
+import { PRICE_CHECK_OVERLAY_CLOSE_REASONS } from './overlayFocus.js'
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
@@ -222,9 +223,10 @@ export class PriceCheckService {
       options: hasOptions ? sanitizePriceCheckOptions(runtime.options) : this.runtime.options
     }
     if (hasOptions) this.settingsRevision += 1
-    if (!enabled) {
+    if (enabled) this.overlay?.prepare?.()
+    else {
       this.clear()
-      this.overlay?.close?.()
+      this.destroyOverlay()
     }
     return this.getStatus()
   }
@@ -521,13 +523,24 @@ export class PriceCheckService {
   }
 
   getOverlayState() { return this.overlay?.getState?.() || null }
-  closeOverlay() {
+  getOverlayPresentation() { return this.overlay?.getPresentation?.() || null }
+  markOverlayRendered(contents, generation) { return this.overlay?.markRendered?.(contents, generation) || false }
+  closeOverlay(reason = PRICE_CHECK_OVERLAY_CLOSE_REASONS.SYSTEM) {
     this.requestSequence += 1
     this.captureSequence += 1
     this.controller?.abort()
     this.controller = null
-    this.overlay?.close?.()
+    this.overlay?.close?.(reason)
     return { closed: true }
+  }
+
+  destroyOverlay() {
+    this.requestSequence += 1
+    this.captureSequence += 1
+    this.controller?.abort()
+    this.controller = null
+    this.overlay?.destroy?.()
+    return { destroyed: true }
   }
 
   async rerun(request = {}) {
@@ -705,6 +718,7 @@ export class PriceCheckService {
     const url = `https://poe.game.qq.com/trade/search/${encodeURIComponent(this.latest.league)}/${encodeURIComponent(queryId)}`
     this.overlay?.preserveForExternalAction?.()
     await this.shell.openExternal(url)
+    this.closeOverlay(PRICE_CHECK_OVERLAY_CLOSE_REASONS.EXTERNAL_ACTION)
     return { opened: true }
   }
 }

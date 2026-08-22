@@ -2,29 +2,12 @@ export class BagSessionController {
   constructor() {
     this.ready = false
     this.foreground = false
-    this.locked = false
     this.stashing = false
   }
 
-  setReady(ready, foreground = true, immediateStash = true) {
+  setReady(ready, foreground = true) {
     this.ready = Boolean(ready)
     this.foreground = Boolean(foreground)
-    if (!this.ready) {
-      if (!this.stashing) this.locked = false
-      return false
-    }
-    if (!this.foreground) return false
-    if (this.locked || this.stashing) return false
-    if (!immediateStash) return false
-    this.locked = true
-    return true
-  }
-
-  beginAutomatic() {
-    if (!this.ready || !this.foreground || this.stashing) return { success: false, error: '界面未就绪、游戏不在前台或入库正在进行' }
-    this.locked = true
-    this.stashing = true
-    return { success: true }
   }
 
   beginManual() {
@@ -42,7 +25,6 @@ export class BagSessionController {
   reset() {
     this.ready = false
     this.foreground = false
-    this.locked = false
     this.stashing = false
   }
 }

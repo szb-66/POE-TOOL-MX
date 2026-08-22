@@ -8,8 +8,17 @@ import {
   chartRegionByType
 } from './chartRegions.js'
 
-export const TRADE_CATALOG_SCHEMA_VERSION = 4
+export const TRADE_CATALOG_SCHEMA_VERSION = 5
 export const TRADE_CATALOG_STALE_MS = 180 * 24 * 60 * 60 * 1000
+
+export const VERSIONED_UNQUERYABLE_STATS = Object.freeze([
+  Object.freeze({
+    provider: 'poe-cn',
+    gameVersion: '3.29',
+    id: 'implicit.stat_1571797746',
+    reason: '与有效过滤项重复，官方查询稳定返回零结果'
+  })
+])
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -35,6 +44,7 @@ const SUPPORTED_STAT_TYPES = new Set([
 const MERGE_STRATEGIES = new Set(['sum', 'max'])
 const RESOLVER_ARRAY_FIELDS = ['categories', 'modifierNames', 'tagsAny', 'tagsAll', 'textIncludes']
 const catalogMatcherIndexes = new WeakMap()
+const catalogEquivalenceIndexes = new WeakMap()
 const LOCAL_ITEM_CATEGORY_PATTERN = /(?:弓|剑|斧|锤|权杖|法杖|匕首|爪|长杖|战杖|钓竿|胸甲|头盔|手套|鞋子|盾|药剂|Bow|Sword|Axe|Mace|Sceptre|Wand|Dagger|Claw|Staff|Warstaff|Fishing Rod|Body Armour|Helmet|Gloves|Boots|Shield|Flask)/i
 
 export function isTradeStatId(id, type = '') {
@@ -60,6 +70,75 @@ function assertUnique(values, label) {
   }
 }
 
+const officialTextSignature = (value) => compact(value).normalize('NFKC')
+const placeholderSignature = (value) => (officialTextSignature(value).match(/#/g) || []).length
+
+function stableGroupKey(type, text, valueArity) {
+  const source = `${type}\u0000${officialTextSignature(text)}\u0000${valueArity}`
+  let hash = 2166136261
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `poe-cn:${type}:${(hash >>> 0).toString(16).padStart(8, '0')}:${valueArity}`
+}
+
+export function createStatEquivalenceGroups(payload) {
+  if (!Array.isArray(payload?.result)) throw new Error('腾讯官方词缀目录响应结构无效')
+  const groups = new Map()
+  for (const group of payload.result) {
+    for (const entry of group?.entries || []) {
+      const text = compact(entry?.text)
+      const textSignature = officialTextSignature(text)
+      const type = compact(entry?.type || group?.id)
+      const id = compact(entry?.id)
+      if (!text || !SUPPORTED_STAT_TYPES.has(type) || !isTradeStatId(id, type)) continue
+      if (!officialMatcherAliases(text).length) continue
+      const valueArity = placeholderSignature(text)
+      const identity = `${type}\u0000${textSignature}\u0000${valueArity}`
+      const record = groups.get(identity) || { type, text, valueArity, ids: new Set() }
+      if (text.localeCompare(record.text, 'zh-CN') < 0) record.text = text
+      record.ids.add(id)
+      groups.set(identity, record)
+    }
+  }
+  return [...groups.values()]
+    .filter(({ ids }) => ids.size > 1)
+    .map(({ type, text, valueArity, ids }) => ({
+      key: stableGroupKey(type, text, valueArity),
+      type,
+      text,
+      valueArity,
+      ids: [...ids].sort((a, b) => a.localeCompare(b, 'en'))
+    }))
+    .sort((a, b) => a.key.localeCompare(b.key, 'en'))
+}
+
+export function isCatalogStatQueryable(catalog, id, provider = catalog?.provider, gameVersion = catalog?.gameVersion) {
+  const identity = compact(id)
+  if (!identity) return false
+  return !(catalog?.unqueryableStats || []).some((entry) => (
+    compact(entry?.provider) === compact(provider) &&
+    compact(entry?.gameVersion) === compact(gameVersion) &&
+    compact(entry?.id) === identity
+  ))
+}
+
+function buildEquivalenceIndex(catalog) {
+  let index = catalogEquivalenceIndexes.get(catalog)
+  if (index) return index
+  index = new Map()
+  for (const group of catalog?.statEquivalenceGroups || []) {
+    for (const id of group.ids) {
+      for (const matcher of officialMatcherAliases(group.text)) {
+        index.set(`${group.type}\u0000${id}\u0000${matcherIndexKey(officialTextSignature(matcher))}`, group)
+      }
+    }
+  }
+  catalogEquivalenceIndexes.set(catalog, index)
+  return index
+}
+
 function chartDisplayName(entry) {
   return compact(entry?.text).match(/Chart\s*[（(](.+?)[）)]/)?.[1] || ''
 }
@@ -70,12 +149,15 @@ export function enrichTradeCatalogChartRegions(catalog) {
   next.items = (next.items || []).map((entry) => {
     const type = compact(entry.baseType || entry.type)
     const region = entry.discriminator === 'chart' ? chartRegionByType(type) : null
-    if (region) {
+    const displayName = entry.discriminator === 'chart'
+      ? (region?.displayName || chartDisplayName(entry))
+      : ''
+    if (displayName) {
       return {
         ...entry,
         category: 'chart',
-        displayName: region.displayName || chartDisplayName(entry),
-        aliases: [...new Set([...region.aliases, chartDisplayName(entry)].map(compact).filter(Boolean))]
+        displayName,
+        aliases: [...new Set([...(region?.aliases || []), displayName].map(compact).filter(Boolean))]
       }
     }
     if (CHART_BASE_TYPES.includes(type)) return { ...entry, category: 'chart' }
@@ -110,9 +192,11 @@ export function validateTradeCatalog(catalog) {
   }
   if (catalog.game !== 'poe1' || catalog.locale !== 'zh-CN') throw new Error('交易目录游戏或语言无效')
   if (!catalog.gameVersion || !Number.isFinite(Date.parse(catalog.generatedAt))) throw new Error('交易目录版本元数据缺失')
-  if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats) || !Array.isArray(catalog.pseudoRules)) {
+  if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats) || !Array.isArray(catalog.pseudoRules) ||
+      !Array.isArray(catalog.statEquivalenceGroups) || !Array.isArray(catalog.unqueryableStats)) {
     throw new Error('交易目录记录结构无效')
   }
+  if (!compact(catalog.provider)) throw new Error('交易目录 Provider 缺失')
   if (!compact(catalog.pseudoRuleVersion) || !compact(catalog.pseudoRuleSource?.commit) || !compact(catalog.pseudoRuleSource?.file)) {
     throw new Error('交易目录综合规则版本元数据缺失')
   }
@@ -173,6 +257,32 @@ export function validateTradeCatalog(catalog) {
     }
   }
   assertUnique(statIdentities, '词缀类型 ID')
+  const statIdentitySet = new Set(statIdentities)
+  assertUnique(catalog.statEquivalenceGroups.map((group) => compact(group?.key)), '词缀等价组键')
+  for (const group of catalog.statEquivalenceGroups) {
+    if (!compact(group?.key) || !SUPPORTED_STAT_TYPES.has(compact(group?.type)) || !compact(group?.text) ||
+        !Number.isInteger(group?.valueArity) || group.valueArity < 0 || !Array.isArray(group?.ids) || group.ids.length < 2) {
+      throw new Error('交易目录词缀等价组结构无效')
+    }
+    if (group.valueArity !== placeholderSignature(group.text)) throw new Error(`交易目录词缀等价组 ${group.key} 占位结构无效`)
+    const sortedIds = [...group.ids].sort((a, b) => a.localeCompare(b, 'en'))
+    if (group.ids.some((id, index) => id !== sortedIds[index])) throw new Error(`交易目录词缀等价组 ${group.key} 成员未稳定排序`)
+    for (const id of group.ids) {
+      if (!isTradeStatId(id, group.type) || !statIdentitySet.has(`${group.type}\u0000${id}`)) {
+        throw new Error(`交易目录词缀等价组 ${group.key} 成员无效：${id}`)
+      }
+    }
+  }
+  assertUnique(catalog.unqueryableStats.map((entry) => `${compact(entry?.provider)}\u0000${compact(entry?.gameVersion)}\u0000${compact(entry?.id)}`), '不可查询词缀标记')
+  for (const entry of catalog.unqueryableStats) {
+    const type = compact(entry?.id).split('.')[0]
+    if (!compact(entry?.provider) || !compact(entry?.gameVersion) || !compact(entry?.reason)) {
+      throw new Error('交易目录不可查询词缀版本元数据缺失')
+    }
+    if (!isTradeStatId(entry.id, type) || !statIdentitySet.has(`${type}\u0000${entry.id}`)) {
+      throw new Error(`交易目录不可查询词缀 ${entry.id} 成员无效`)
+    }
+  }
   assertUnique(catalog.pseudoRules.map((rule) => compact(rule?.target)), '综合规则目标')
   for (const [index, rule] of catalog.pseudoRules.entries()) {
     if (!compact(rule?.target) || !Array.isArray(rule?.sources) || !rule.sources.length) {
@@ -230,7 +340,15 @@ export function tradeCatalogStatus(catalog, now = Date.now()) {
     locale: catalog.locale,
     generatedAt: catalog.generatedAt,
     stale: now - generatedAt > TRADE_CATALOG_STALE_MS,
-    counts: { items: catalog.items.length, stats: catalog.stats.length, currencies: Object.keys(catalog.currencyLabels || {}).length },
+    counts: {
+      items: catalog.items.length,
+      stats: catalog.stats.length,
+      currencies: Object.keys(catalog.currencyLabels || {}).length,
+      equivalenceGroups: catalog.statEquivalenceGroups.length,
+      unqueryableStats: catalog.unqueryableStats.filter((entry) => (
+        entry.provider === catalog.provider && entry.gameVersion === catalog.gameVersion
+      )).length
+    },
     sources: [...(catalog.sources || [])]
   }
 }
@@ -362,6 +480,12 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
   const catalog = validateTradeCatalog(enrichTradeCatalogChartRegions({
     ...structuredClone(baseCatalog),
     schemaVersion: TRADE_CATALOG_SCHEMA_VERSION,
+    provider: compact(baseCatalog.provider) || 'poe-cn',
+    // Provider-local equivalence is rebuilt after the matching official
+    // payload has been applied; never carry CN groups through the temporary
+    // international-only catalog created during a refresh.
+    statEquivalenceGroups: [],
+    unqueryableStats: structuredClone(baseCatalog.unqueryableStats || VERSIONED_UNQUERYABLE_STATS),
     generatedAt: new Date(now).toISOString(),
     sources: ['腾讯国服官方 /api/trade/data/stats', ...(baseCatalog.sources || [])],
     itemCoverage: itemsPayload ? 'all' : baseCatalog.itemCoverage,
@@ -381,6 +505,33 @@ export function createOfficialTradeCatalog(baseCatalog, payload, now = Date.now(
   }
 }
 
+export function createCnOfficialTradeCatalog(
+  baseCatalog,
+  cnStatsPayload,
+  now = Date.now(),
+  cnItemsPayload = null,
+  uniqueItemCatalog = null
+) {
+  const localized = createOfficialTradeCatalog(
+    baseCatalog,
+    cnStatsPayload,
+    now,
+    cnItemsPayload,
+    uniqueItemCatalog
+  )
+  localized.catalog.provider = 'poe-cn'
+  localized.catalog.statEquivalenceGroups = createStatEquivalenceGroups(cnStatsPayload)
+  localized.catalog.unqueryableStats = structuredClone(VERSIONED_UNQUERYABLE_STATS)
+  localized.catalog = validateTradeCatalog(localized.catalog)
+  localized.status = {
+    ...tradeCatalogStatus(localized.catalog, now),
+    provider: 'official',
+    degraded: false,
+    coverage: auditOfficialTradeCatalog(cnStatsPayload, localized.catalog)
+  }
+  return localized
+}
+
 export function createLocalizedOfficialTradeCatalog(
   baseCatalog,
   internationalStatsPayload,
@@ -393,7 +544,7 @@ export function createLocalizedOfficialTradeCatalog(
   for (const entry of international.catalog.stats) entry.availability = 'international'
   international.catalog.sources = ['Path of Exile official /api/trade/data/stats']
 
-  const localized = createOfficialTradeCatalog(
+  const localized = createCnOfficialTradeCatalog(
     international.catalog,
     cnStatsPayload,
     now,
@@ -478,6 +629,7 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
     const multiplier = entry.negatedMatchers?.includes(matcher) ? -1 : 1
     const values = match.slice(1).map(Number).filter(Number.isFinite).map((value) => value * multiplier)
     for (const id of Array.isArray(rawIds) ? rawIds : [rawIds]) {
+      if (!isCatalogStatQueryable(catalog, id)) continue
       candidates.push({
         key: entry.key,
         label: candidateLabel(entry, id),
@@ -507,10 +659,35 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
     ? unique.filter((candidate) => candidate.local === localItem)
     : []
   const resolved = contextualCandidates.length === 1 ? contextualCandidates : unique
+  let match = resolved.length === 1 ? resolved[0] : null
+  if (!match && resolved.length > 1) {
+    const equivalenceIndex = buildEquivalenceIndex(catalog)
+    const groups = resolved.map((candidate) => equivalenceIndex.get(
+      `${candidate.type}\u0000${candidate.id}\u0000${matcherIndexKey(officialTextSignature(normalized))}`
+    ))
+    const group = groups[0]
+    const equivalent = group && groups.every((candidateGroup) => candidateGroup?.key === group.key) &&
+      resolved.every((candidate) => (
+        candidate.type === resolved[0].type &&
+        candidate.values.length === resolved[0].values.length &&
+        candidate.valueMultiplier === resolved[0].valueMultiplier
+      ))
+    if (equivalent) {
+      match = {
+        ...resolved[0],
+        equivalenceGroup: group.key,
+        queryVariants: resolved.map((candidate) => ({
+          id: candidate.id,
+          type: candidate.type,
+          valueMultiplier: candidate.valueMultiplier
+        }))
+      }
+    }
+  }
   return {
-    match: resolved.length === 1 ? resolved[0] : null,
+    match,
     candidates: resolved,
-    reason: resolved.length > 1 ? 'ambiguous' : textMatchedOtherType ? 'type-mismatch' : 'not-found'
+    reason: match ? null : resolved.length > 1 ? 'ambiguous' : textMatchedOtherType ? 'type-mismatch' : 'not-found'
   }
 }
 
@@ -551,11 +728,18 @@ export function auditOfficialTradeCatalog(payload, catalog) {
     groups.set(`${entry.matcher}\u0000${entry.type}`, group)
   }
   const ambiguous = [...groups.values()].filter((ids) => ids.size > 1)
+  const activeUnqueryable = (catalog.unqueryableStats || []).filter((entry) => (
+    entry.provider === catalog.provider && entry.gameVersion === catalog.gameVersion
+  ))
   const report = {
     valid: identities.size,
     retained: identities.size - silentDropped.length,
     unique: identities.size - ambiguous.reduce((sum, ids) => sum + ids.size, 0),
     ambiguous: ambiguous.reduce((sum, ids) => sum + ids.size, 0),
+    duplicateGroups: ambiguous.length,
+    equivalenceGroups: (catalog.statEquivalenceGroups || []).length,
+    unqueryable: activeUnqueryable.length,
+    unqueryableReasons: activeUnqueryable.map(({ id, reason }) => ({ id, reason })),
     rejected,
     filteredMatchers,
     silentDropped: silentDropped.length

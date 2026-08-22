@@ -26,7 +26,9 @@ test('反馈页面具备诊断默认关闭、失败保留和成功清空契约',
   assert.match(component, /if \(!result\?\.success\)[\s\S]*submitError\.value/)
   assert.match(component, /successId\.value = result\.feedbackId[\s\S]*resetForm\(\)/)
   assert.match(component, /attachments\.value\.map\(item => item\.token\)/)
-  assert.match(component, /grid-template-columns: minmax\(0, 2fr\) minmax\(280px, 1fr\)/)
+  assert.match(component, /class="feedback-grid app-grid" :gutter="16"/)
+  assert.match(component, /<el-col :xs="24" :md="16">/)
+  assert.match(component, /<el-col :xs="24" :md="8" tag="aside"/)
 })
 
 test('反馈页面取消标题和内容最低字数提示与校验', () => {

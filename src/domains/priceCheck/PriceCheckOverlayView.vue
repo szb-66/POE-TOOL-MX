@@ -1,87 +1,82 @@
 <template>
-  <div class="overlay-shell">
+  <div class="overlay-shell" :class="{ preview: props.previewMode }">
     <header class="topbar">
       <button class="icon-button" title="显示或隐藏查询设置" @click="settingsCollapsed = !settingsCollapsed">⚙</button>
       <div class="dc-rate">{{ dcRateText }}</div>
+      <span v-if="props.previewMode" class="preview-badge">预览模式</span>
       <div class="shortcut">Ctrl+D</div>
-      <button class="close-button" aria-label="关闭" @click="close">×</button>
+      <button class="close-button" aria-label="关闭" :disabled="props.previewMode" :title="props.previewMode ? '预览模式不会关闭真实浮窗' : '关闭'" @click="close">×</button>
     </header>
 
     <main v-if="state" class="content">
       <section v-if="!settingsCollapsed" class="panel settings-grid">
         <label>在线状态
-          <select v-model="queryOptions.status" @change="syncSetting('status')">
-            <option value="available">在线可交易</option>
-            <option value="instant">即时购买</option>
-            <option value="any">包含离线</option>
-          </select>
+          <el-select v-model="queryOptions.status" popper-class="price-check-select-popper" @change="syncSetting('status')">
+            <el-option label="在线可交易" value="available" />
+            <el-option label="即时购买" value="instant" />
+            <el-option label="包含离线" value="any" />
+          </el-select>
         </label>
         <label>挂单时间
-          <select v-model="queryOptions.listed" @change="syncSetting('listed')">
-            <option value="any">所有时间</option>
-            <option value="1day">1 天内</option>
-            <option value="3days">3 天内</option>
-            <option value="1week">1 周内</option>
-            <option value="2weeks">2 周内</option>
-            <option value="1month">1 月内</option>
-            <option value="2months">2 月内</option>
-          </select>
+          <el-select v-model="queryOptions.listed" popper-class="price-check-select-popper" @change="syncSetting('listed')">
+            <el-option label="所有时间" value="any" />
+            <el-option label="1 天内" value="1day" />
+            <el-option label="3 天内" value="3days" />
+            <el-option label="1 周内" value="1week" />
+            <el-option label="2 周内" value="2weeks" />
+            <el-option label="1 月内" value="1month" />
+            <el-option label="2 月内" value="2months" />
+          </el-select>
         </label>
         <label>通货
-          <select v-model="queryOptions.currency" @change="syncSetting('currency')">
-            <option value="any">任意通货</option>
-            <option value="chaos">混沌石</option>
-            <option value="divine">神圣石</option>
-            <option value="chaos_divine">混沌或神圣</option>
-          </select>
+          <el-select v-model="queryOptions.currency" popper-class="price-check-select-popper" @change="syncSetting('currency')">
+            <el-option label="任意通货" value="any" />
+            <el-option label="混沌石" value="chaos" />
+            <el-option label="神圣石" value="divine" />
+            <el-option label="混沌或神圣" value="chaos_divine" />
+          </el-select>
         </label>
         <label>词缀初选
-          <select v-model="queryOptions.initialSelection" @change="syncSetting('initialSelection')">
-            <option value="auto">自动</option>
-            <option value="all">全部</option>
-            <option value="none">无</option>
-          </select>
+          <el-select v-model="queryOptions.initialSelection" popper-class="price-check-select-popper" @change="syncSetting('initialSelection')">
+            <el-option label="自动" value="auto" />
+            <el-option label="全部" value="all" />
+            <el-option label="无" value="none" />
+          </el-select>
         </label>
         <label>手动 DC
-          <input v-model.number="queryOptions.manualDcRate" class="setting-number" type="number" min="0" @change="syncSetting('manualDcRate')" />
+          <el-input-number :model-value="queryOptions.manualDcRate" class="setting-number" size="small" :min="0" :controls="false" @update:model-value="setNumericField(queryOptions, 'manualDcRate', $event)" @change="syncSetting('manualDcRate')" />
         </label>
         <label class="check-label"><input v-model="queryOptions.collapseListings" type="checkbox" @change="syncSetting('collapseListings')" /> 合并重复挂单</label>
       </section>
 
       <section v-if="state.model" class="panel identity">
         <div class="identity-main">
-          <div
+          <button
             v-if="state.model.identity?.name"
+            type="button"
             class="identity-name filter-row"
             :class="{ enabled: nameFilterEnabled, disabled: !canToggleName }"
-            role="checkbox"
-            :aria-checked="nameFilterEnabled"
-            :aria-disabled="!canToggleName"
-            tabindex="0"
+            :aria-pressed="nameFilterEnabled"
+            :disabled="!canToggleName"
             :title="canToggleName ? '选中或取消具体物品名称' : '无法识别物品大类，必须保留具体名称'"
-            @click="toggleNameFilter"
-            @keydown.enter.prevent="toggleNameFilter"
-            @keydown.space.prevent="toggleNameFilter"
+            @click="setNameFilterEnabled(!nameFilterEnabled)"
+            @keydown.enter.prevent="setNameFilterEnabled(!nameFilterEnabled)"
+            @keydown.space.prevent="setNameFilterEnabled(!nameFilterEnabled)"
           >
             <strong>{{ state.model.identity.name }}</strong>
             <small v-if="!canToggleName">大类不可用，名称必须保留</small>
-          </div>
+          </button>
           <strong v-else class="identity-static-name">{{ state.model.identity?.displayName || state.model.item.name || state.model.item.baseType }}</strong>
           <span class="identity-meta">
             {{ state.model.item.rarity }} · {{ state.model.identity?.categoryLabel || state.model.item.category || '未知大类' }} · {{ state.model.item.baseType }} · {{ state.league }}
           </span>
         </div>
-        <div class="identity-side">
+        <div v-if="activeFlags.length" class="identity-side">
           <div class="flags">
             <span v-for="flag in activeFlags" :key="flag">{{ flag }}</span>
           </div>
-          <div v-if="state.status === 'ready-to-query'" class="identity-hint">物品已读取，请确认条件后点击“搜索”</div>
         </div>
       </section>
-
-      <div v-if="state.status === 'loading'" class="state-message">正在查询官方挂单…</div>
-      <div v-else-if="state.status === 'error'" class="state-message error">{{ stateErrorText }}</div>
-      <div v-if="rateLimitText" class="warning rate-limit-warning">{{ rateLimitText }}</div>
 
       <section v-if="state.status === 'identity-required'" class="panel identity-resolver">
         <h3>请选择未鉴定传奇</h3>
@@ -106,24 +101,24 @@
 
       <template v-if="state.model && !filtersCollapsed">
         <section class="panel state-filter-panel">
-          <div class="panel-heading">
-            <h3>状态过滤</h3>
-            <button
-              class="panel-toggle"
-              type="button"
-              :aria-expanded="!stateFiltersCollapsed"
-              aria-controls="price-check-state-filters"
-              @click="stateFiltersCollapsed = !stateFiltersCollapsed"
-            >{{ stateFiltersCollapsed ? '展开' : '折叠' }}</button>
-          </div>
+          <button
+            class="panel-heading"
+            type="button"
+            :aria-expanded="!stateFiltersCollapsed"
+            aria-controls="price-check-state-filters"
+            @click="stateFiltersCollapsed = !stateFiltersCollapsed"
+          >
+            <span class="panel-heading-title" role="heading" aria-level="3">状态过滤</span>
+            <el-icon class="panel-toggle-icon" :class="{ expanded: !stateFiltersCollapsed }" aria-hidden="true"><ArrowDown /></el-icon>
+          </button>
           <div v-if="!stateFiltersCollapsed" id="price-check-state-filters" class="state-filter-grid">
             <label v-for="definition in stateDefinitions" :key="definition.key">
               <span>{{ definition.label }}</span>
-              <select v-model="state.model.stateFilters[definition.key]">
-                <option value="any">任意</option>
-                <option value="true">是</option>
-                <option value="false">否</option>
-              </select>
+              <el-select v-model="state.model.stateFilters[definition.key]" popper-class="price-check-select-popper">
+                <el-option label="任意" value="any" />
+                <el-option label="是" value="true" />
+                <el-option label="否" value="false" />
+              </el-select>
             </label>
           </div>
         </section>
@@ -145,13 +140,13 @@
             >
               <span class="filter-name" :title="property.label">{{ property.label }}</span>
               <template v-if="property.options?.length">
-                <select v-model="property.value" class="property-option" @click.stop @keydown.stop>
-                  <option v-for="option in property.options" :key="option.id" :value="option.id">{{ option.label }}</option>
-                </select>
+                <el-select v-model="property.value" class="property-option" popper-class="price-check-select-popper" @click.stop @keydown.stop>
+                  <el-option v-for="option in property.options" :key="option.id" :label="option.label" :value="option.id" />
+                </el-select>
               </template>
               <template v-else>
-                <input v-model.number="property.min" class="number" type="number" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" placeholder="最小" @click.stop @keydown.stop />
-                <input v-model.number="property.max" class="number" type="number" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" placeholder="最大" @click.stop @keydown.stop />
+                <el-input-number :model-value="property.min" class="number" size="small" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" :controls="false" placeholder="最小" @update:model-value="setNumericField(property, 'min', $event)" @click.stop @keydown.stop />
+                <el-input-number :model-value="property.max" class="number" size="small" :min="property.label === '佣兵等级' ? 1 : undefined" :max="property.label === '佣兵等级' ? 100 : undefined" :controls="false" placeholder="最大" @update:model-value="setNumericField(property, 'max', $event)" @click.stop @keydown.stop />
               </template>
             </div>
           </div>
@@ -221,9 +216,10 @@
             <span class="filter-name">
               {{ stat.text }}
               <small v-if="stat.tags?.length">{{ stat.tags.join('、') }}</small>
+              <small v-if="stat.queryVariants?.length > 1" class="equivalence-hint">已合并多个官方同文案过滤项</small>
             </span>
-            <input v-model.number="stat.min" class="number" type="number" min="0" placeholder="最小" @click.stop @keydown.stop />
-            <input v-model.number="stat.max" class="number" type="number" min="0" placeholder="最大" @click.stop @keydown.stop />
+            <el-input-number :model-value="stat.min" class="number" size="small" :min="0" :controls="false" placeholder="最小" @update:model-value="setNumericField(stat, 'min', $event)" @click.stop @keydown.stop />
+            <el-input-number :model-value="stat.max" class="number" size="small" :min="0" :controls="false" placeholder="最大" @update:model-value="setNumericField(stat, 'max', $event)" @click.stop @keydown.stop />
           </div>
           <div v-for="unknown in state.model.unknownStats || []" :key="unknown.key || `${unknown.type}:${unknown.text}`" class="unknown-block">
             <div class="filter-row unknown">
@@ -246,10 +242,14 @@
       </template>
 
       <section class="action-row">
-        <button class="search" :disabled="busy || !state.model || state.status === 'identity-required'" @click="rerun">搜索</button>
-        <button @click="filtersCollapsed = !filtersCollapsed">{{ filtersCollapsed ? '展开过滤器' : '折叠过滤器' }}</button>
-        <button class="market" :disabled="state.status !== 'ready'" @click="openOfficial">网页市集</button>
+        <button class="primary" :disabled="props.previewMode || busy || !state.model || state.status === 'identity-required'" :title="props.previewMode ? '预览模式不会发起查询' : '按当前条件搜索'" @click="rerun">搜索</button>
+        <button class="secondary" @click="filtersCollapsed = !filtersCollapsed">{{ filtersCollapsed ? '展开过滤器' : '折叠过滤器' }}</button>
+        <button class="secondary" :disabled="props.previewMode || state.status !== 'ready'" :title="props.previewMode ? '预览模式不会打开网页' : '打开官方网页市集'" @click="openOfficial">网页市集</button>
       </section>
+
+      <div v-if="state.status === 'loading'" class="state-message" aria-live="polite">正在查询官方挂单…</div>
+      <div v-else-if="state.status === 'error'" class="state-message error" role="alert">{{ stateErrorText }}</div>
+      <div v-if="rateLimitText" class="warning rate-limit-warning" role="alert">{{ rateLimitText }}</div>
 
       <section v-if="state.result" class="results">
         <div class="result-heading">
@@ -317,11 +317,22 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
 import { PRICE_CHECK_STATE_FILTERS, PRICE_CHECK_STAT_TYPES } from '../../../shared/priceCheckMetadata.js'
 
-const state = ref(null)
+const props = defineProps({
+  previewMode: { type: Boolean, default: false },
+  previewState: { type: Object, default: null },
+  previewOptions: { type: Object, default: null }
+})
+
+function clonePreviewInput(value) {
+  return value == null ? value : structuredClone(toRaw(value))
+}
+
+const state = ref(props.previewMode ? clonePreviewInput(props.previewState) : null)
 const busy = ref(false)
 const filtersCollapsed = ref(false)
 const stateFiltersCollapsed = ref(true)
@@ -334,11 +345,13 @@ const queryOptions = reactive({
   currency: 'any',
   collapseListings: false,
   initialSelection: 'auto',
-  manualDcRate: 0
+  manualDcRate: 0,
+  ...(props.previewMode && props.previewOptions ? clonePreviewInput(props.previewOptions) : {})
 })
 let removeListener
 let removeSettingsListener
 let settingsRevision = 0
+let renderGeneration = 0
 
 const stateDefinitions = PRICE_CHECK_STATE_FILTERS
 const activeFlags = computed(() => stateDefinitions
@@ -374,15 +387,34 @@ watch(() => state.value?.options, (options) => {
 }, { immediate: true })
 
 async function syncSetting(key) {
+  if (props.previewMode) return
   const response = await electronApi.priceCheck.updateSettings({ [key]: queryOptions[key] })
   if (response?.success && response.data?.settingsRevision) settingsRevision = response.data.settingsRevision
 }
 
+function setNumericField(target, key, value) {
+  target[key] = value == null ? undefined : value
+}
+
+async function applySnapshot(snapshot, presentation = null) {
+  if (props.previewMode) return
+  state.value = snapshot
+  if (!snapshot) return
+  const displayGeneration = Number(presentation?.generation)
+  if (!Number.isSafeInteger(displayGeneration)) return
+  const renderId = ++renderGeneration
+  await nextTick()
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+  if (renderId === renderGeneration) electronApi.priceCheck.rendered(displayGeneration)
+}
+
 async function load() {
+  if (props.previewMode) return
   const response = await electronApi.priceCheck.getOverlayState()
-  if (response?.success) state.value = response.data
+  if (response?.success) await applySnapshot(response.data, response.presentation)
 }
 async function rerun() {
+  if (props.previewMode) return
   if (!state.value?.model || !state.value?.league) return
   busy.value = true
   try {
@@ -394,10 +426,12 @@ async function rerun() {
   } finally { busy.value = false }
 }
 async function loadMore() {
+  if (props.previewMode) return
   busy.value = true
   try { await electronApi.priceCheck.loadMore() } finally { busy.value = false }
 }
 async function retryCatalog() {
+  if (props.previewMode) return
   busy.value = true
   try {
     const response = await electronApi.priceCheck.retryCatalog()
@@ -406,15 +440,18 @@ async function retryCatalog() {
 }
 async function showDistribution() {
   resultView.value = 'distribution'
+  if (props.previewMode) return
   if (state.value?.result?.distribution?.complete || distributionLoading.value) return
   distributionLoading.value = true
   try { await electronApi.priceCheck.loadDistribution() } finally { distributionLoading.value = false }
 }
 async function resolveIdentity(candidateKey) {
+  if (props.previewMode) return
   busy.value = true
   try { await electronApi.priceCheck.resolveIdentity(candidateKey) } finally { busy.value = false }
 }
 async function selectStatCandidate(unknown, candidate) {
+  if (props.previewMode) return
   busy.value = true
   try { await electronApi.priceCheck.resolveStatCandidate(unknown.key, candidate.id) } finally { busy.value = false }
 }
@@ -422,25 +459,32 @@ function useCandidatePlaceholder(event) {
   const placeholder = 'price-check-image://snapshot/placeholder'
   if (event.currentTarget.src !== placeholder) event.currentTarget.src = placeholder
 }
-function close() { void electronApi.priceCheck.closeOverlay() }
+function close() {
+  if (props.previewMode) return
+  void electronApi.priceCheck.closeOverlay()
+}
 function openOfficial() {
+  if (props.previewMode) return
   void electronApi.priceCheck.openOfficial()
 }
-function copyWhisper(text) { void electronApi.clipboard.writeText(text) }
+function copyWhisper(text) {
+  if (props.previewMode) return
+  void electronApi.clipboard.writeText(text)
+}
 function toggleFilter(filter) { filter.enabled = !filter.enabled }
 function toggleMercenaryGroup(group) { group.enabled = !group.enabled }
 function toggleMercenarySupport(group, support) {
   support.enabled = !support.enabled
   if (support.enabled) group.enabled = true
 }
-function toggleNameFilter() {
+function setNameFilterEnabled(enabled) {
   const identity = state.value?.model?.identity
   if (!identity?.name) return
   if (!canToggleName.value) {
     identity.nameEnabled = true
     return
   }
-  identity.nameEnabled = !nameFilterEnabled.value
+  identity.nameEnabled = enabled !== false
 }
 function typeLabel(type) {
   return PRICE_CHECK_STAT_TYPES[type]?.label || '其他'
@@ -472,7 +516,8 @@ function relativeTime(value) {
   return `${Math.floor(seconds / 86400)} 天前`
 }
 onMounted(() => {
-  removeListener = electronApi.priceCheck.onOverlayState((snapshot) => { state.value = snapshot })
+  if (props.previewMode) return
+  removeListener = electronApi.priceCheck.onOverlayState((snapshot, presentation) => { void applySnapshot(snapshot, presentation) })
   removeSettingsListener = electronApi.priceCheck.onSettingsChanged((snapshot) => {
     const revision = Number(snapshot?.settingsRevision) || 0
     if (revision < settingsRevision || !snapshot?.options) return
@@ -494,67 +539,87 @@ onUnmounted(() => {
 
 <style scoped>
 * { box-sizing: border-box; }
-.overlay-shell { min-height: 100vh; color: #e8ebf2; background: #12141a; border: 1px solid #303642; border-radius: 9px; overflow: hidden; font: 12px/1.3 "Microsoft YaHei", sans-serif; }
-.topbar { height: 44px; display: flex; align-items: center; padding: 5px 9px; background: #1a1d25; border-bottom: 1px solid #2b303a; cursor: grab; -webkit-app-region: drag; }
+.overlay-shell { min-height: 100vh; color: var(--text-primary); background: var(--app-bg); border: 1px solid var(--overlay-border); border-radius: var(--overlay-radius-md); overflow: hidden; font: var(--overlay-font-size)/1.3 var(--font-ui); animation: none; transition: none; }
+.overlay-shell.preview { height: 640px; min-height: 0; }
+.overlay-shell.preview .content { height: calc(100% - 38px); }
+.overlay-shell.preview .topbar { cursor: default; -webkit-app-region: no-drag; }
+.topbar { height: 38px; display: flex; align-items: center; padding: var(--overlay-space-1) var(--overlay-space-3); background: var(--surface-1); border-bottom: 1px solid var(--border-base); cursor: grab; -webkit-app-region: drag; }
 .topbar:active { cursor: grabbing; }
 .icon-button, .close-button, .shortcut, .dc-rate { -webkit-app-region: no-drag; }
-.icon-button { width: 32px; height: 32px; padding: 0; font-size: 18px; background: #292e55; }
-.dc-rate { margin-left: 8px; color: #f4c56a; font-size: 11px; }
-.shortcut { margin-left: auto; padding: 5px 10px; color: #9bc5ff; background: #1d3558; border-radius: 5px; font-weight: 700; }
+.icon-button { width: var(--overlay-control-height-large); height: var(--overlay-control-height-large); padding: 0; font-size: 17px; background: var(--surface-2); }
+.dc-rate { margin-left: var(--overlay-space-3); color: color-mix(in srgb, var(--warning-color) 78%, white); font-size: var(--overlay-font-size-small); }
+.preview-badge { margin-left: var(--overlay-space-3); padding: 2px var(--overlay-space-2); color: color-mix(in srgb, var(--warning-color) 84%, white); background: color-mix(in srgb, var(--warning-color) 14%, var(--surface-2)); border: 1px solid color-mix(in srgb, var(--warning-color) 50%, var(--border-base)); border-radius: var(--overlay-radius-sm); font-size: var(--overlay-font-size-small); font-weight: 700; }
+.shortcut { margin-left: auto; padding: var(--overlay-space-1) var(--overlay-space-3); color: color-mix(in srgb, var(--brand-color) 78%, white); background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-2)); border-radius: var(--overlay-radius-sm); font-weight: 700; }
 .close-button { margin-left: 6px; padding: 0 5px; border: 0; background: transparent; font-size: 21px; }
-.content { height: calc(100vh - 44px); overflow: auto; padding: 6px 7px 10px; }
-.panel { margin-bottom: 5px; padding: 7px; background: #191c23; border: 1px solid #292e38; border-radius: 6px; }
+.content { height: calc(100vh - 38px); overflow: auto; padding: var(--overlay-space-2); }
+.panel { margin-bottom: var(--overlay-space-1); padding: var(--overlay-space-2); background: var(--surface-1); border: 1px solid var(--border-base); border-radius: var(--overlay-radius-md); }
 .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 10px; }
-.settings-grid label { display: grid; grid-template-columns: 66px 1fr; align-items: center; color: #cbd0dc; }
+.settings-grid label { display: grid; grid-template-columns: 66px 1fr; align-items: center; color: var(--text-regular); }
 .settings-grid .check-label { display: flex; gap: 8px; }
-.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.panel-heading h3 { flex: 1; margin: 0; }
-.panel-toggle { padding: 2px 7px; font-size: 11px; }
-.state-filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 5px; }
-.state-filter-grid label { display: grid; grid-template-columns: minmax(48px, auto) 1fr; align-items: center; gap: 5px; color: #cbd0dc; }
-.state-filter-grid select { width: 100%; }
-select, .number { min-width: 0; height: 27px; color: #e8ebf2; background: #111319; border: 1px solid #444b58; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
-.setting-number { width: 100%; min-width: 0; height: 27px; color: #e8ebf2; background: #111319; border: 1px solid #444b58; border-radius: 4px; padding: 3px 6px; }
+.check-label input[type="checkbox"] { appearance: none; position: relative; flex: 0 0 auto; width: 14px; height: 14px; margin: 0; background: var(--surface-2); border: 1px solid var(--border-base); border-radius: 3px; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, outline-color .15s ease; }
+.check-label input[type="checkbox"]:not(:disabled):hover { border-color: var(--control-hover-border); }
+.check-label input[type="checkbox"]:checked { background: var(--checkbox-checked-bg); border-color: var(--checkbox-checked-bg); }
+.check-label input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 4px; top: 1px; width: 3px; height: 7px; border: solid var(--checkbox-check-color); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.check-label input[type="checkbox"]:focus-visible { outline: 2px solid var(--checkbox-focus-ring); outline-offset: 2px; }
+.panel-heading { display: flex; width: 100%; min-height: 24px; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; color: var(--text-primary); background: transparent; border: 0; border-radius: var(--overlay-radius-sm); text-align: left; }
+.panel-heading:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); border-color: transparent; }
+.panel-heading:focus-visible { outline: 2px solid var(--brand-color); outline-offset: 1px; }
+.panel-heading-title { font-size: var(--overlay-font-size); font-weight: 700; }
+.panel-toggle-icon { flex: 0 0 auto; margin-right: var(--overlay-space-1); transform: rotate(-90deg); transition: transform .15s ease; }
+.panel-toggle-icon.expanded { transform: rotate(0deg); }
+.state-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.state-filter-grid label { display: grid; grid-template-columns: minmax(48px, auto) 1fr; align-items: center; gap: var(--overlay-space-1); color: var(--text-regular); }
+.settings-grid :deep(.el-select),
+.settings-grid :deep(.el-input-number),
+.state-filter-grid :deep(.el-select),
+.property-option,
+.number { width: 100%; min-width: 0; }
+:deep(.el-select__wrapper),
+:deep(.el-input__wrapper) { min-height: var(--overlay-control-height); padding-top: 2px; padding-bottom: 2px; font-size: var(--overlay-font-size); }
+.number :deep(.el-input__inner),
+.setting-number :deep(.el-input__inner) { text-align: left; }
+.number :deep(.el-input),
+.setting-number :deep(.el-input) { height: 24px; }
+.number :deep(.el-input__wrapper),
+.setting-number :deep(.el-input__wrapper) { min-height: 22px; padding-top: 0; padding-bottom: 0; }
 .identity { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .identity-main { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 3px; }
-.identity-name { display: flex; width: fit-content; max-width: 100%; min-height: 28px; height: auto; align-items: center; gap: 7px; padding: 3px 6px; }
+.identity-name { appearance: none; display: flex; width: fit-content; max-width: 100%; min-height: 28px; height: auto; align-items: center; gap: 7px; padding: 3px 6px; color: inherit; background: transparent; font: inherit; text-align: left; }
 .identity-name.disabled { cursor: not-allowed; opacity: .72; }
-.filter-row.identity-name.disabled:hover { background: #182a47; border-color: #4285e8; }
+.filter-row.identity-name.disabled:hover { background: color-mix(in srgb, var(--brand-color) 12%, var(--surface-1)); border-color: var(--brand-color); }
 .identity-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .identity-static-name { padding: 3px 6px; }
 .identity-meta { padding-left: 6px; }
-.identity strong { color: #8bbcff; font-size: 14px; }
-.identity span, small { color: #9da5b3; }
+.identity strong { color: color-mix(in srgb, var(--brand-color) 78%, white); font-size: 13px; }
+.identity span, small { color: var(--text-secondary); }
 .identity-side { display: flex; min-width: 180px; max-width: 46%; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 5px 8px; text-align: right; }
-.identity-hint { flex: 1 1 180px; color: #55a9ff; }
 .flags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .flags span { padding: 2px 5px; color: #ffcc85; border: 1px solid #795a2d; border-radius: 4px; font-size: 10px; }
-h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; padding: 2px 0; font-size: 12px; color: #cfd5e2; background: #191c23; }
+h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 var(--overlay-space-1); padding: 2px 0; font-size: var(--overlay-font-size); color: var(--text-primary); background: var(--surface-1); }
 .filter-list { max-height: 255px; overflow-y: auto; padding: 5px; }
 .property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .filter-row { display: grid; gap: 5px; align-items: center; height: 32px; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
-.filter-row:not(.unknown):hover { background: #202b3b; border-color: #52627a; }
-.filter-row.enabled { background: #182a47; border-color: #4285e8; }
-.filter-row.enabled:hover { background: #1d365b; border-color: #65a4ff; }
-.filter-row:focus-visible { outline: 1px solid #65b4ff; outline-offset: -1px; }
+.filter-row:not(.unknown):hover { background: var(--surface-hover); border-color: var(--border-lighter); }
+.filter-row.enabled { background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-1)); border-color: var(--brand-color); }
+.filter-row.enabled:hover { background: color-mix(in srgb, var(--brand-color) 19%, var(--surface-1)); border-color: color-mix(in srgb, var(--brand-color) 84%, white); }
+.filter-row:focus-visible { outline: 1px solid var(--brand-color); outline-offset: -1px; }
 .property-row { grid-template-columns: minmax(0, 1fr) 52px 52px; }
 .property-row:has(.property-option) { grid-template-columns: minmax(0, 1fr) 109px; }
-.property-option { width: 100%; }
-.information-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; color: #cbd0dc; }
+.information-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--text-regular); }
 .information-panel small { display: block; margin-top: 5px; }
 .mercenary-panel { max-height: 360px; overflow-y: auto; padding: 5px; }
-.mercenary-group { margin-top: 5px; padding: 6px; border: 1px dashed #464d5a; border-radius: 5px; background: #171920; }
+.mercenary-group { margin-top: 5px; padding: var(--overlay-space-2); border: 1px dashed var(--border-base); border-radius: var(--overlay-radius-sm); background: var(--surface-1); }
 .mercenary-group:first-of-type { margin-top: 0; }
 .mercenary-group.enabled { border-style: solid; border-color: #c98922; background: #332815; }
 .mercenary-skill { display: flex; align-items: center; gap: 8px; min-height: 28px; padding: 2px 5px; border-radius: 4px; cursor: pointer; }
-.mercenary-skill:hover { background: #252a34; }
+.mercenary-skill:hover { background: var(--surface-hover); }
 .mercenary-group.enabled .mercenary-skill:hover { background: #44351c; }
 .mercenary-skill:focus-visible { outline: 1px solid #f0a82f; }
-.mercenary-skill strong { color: #d8dbe3; font-size: 13px; }
+.mercenary-skill strong { color: var(--text-primary); font-size: 13px; }
 .mercenary-group.enabled .mercenary-skill strong { color: #ffbd32; }
 .mercenary-label { padding: 2px 5px; color: #cfb4f3; background: #4a2c68; border-radius: 3px; }
 .mercenary-supports { display: flex; flex-wrap: wrap; gap: 5px; padding: 3px 5px 0 82px; }
-.mercenary-support { padding: 3px 7px; color: #aaaeb8; background: #1a1c22; border-color: #454952; }
+.mercenary-support { padding: 3px 7px; color: var(--text-regular); background: var(--surface-2); border-color: var(--border-base); }
 .mercenary-support.enabled { color: #f0e7ff; background: #49325e; border-color: #ba8de1; }
 .mercenary-support small { margin-left: 3px; color: inherit; }
 .mercenary-empty { display: block; padding: 2px 5px 0 82px; color: #747985; }
@@ -580,15 +645,15 @@ h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 4px; padding: 2px 0; font
 .filter-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .filter-name small { margin-left: 6px; font-size: 10px; }
 .unknown { opacity: .65; cursor: default; }
-.unknown-block { padding-bottom: 3px; border-bottom: 1px solid #252a33; }
+.unknown-block { padding-bottom: 3px; border-bottom: 1px solid var(--border-base); }
 .stat-candidates { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 5px 5px 90px; }
-.stat-candidates button { padding: 3px 6px; color: #9bc5ff; font-size: 10px; text-align: left; }
-.action-row { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: center; gap: 7px; padding: 6px 0; background: #12141aeF; }
-button { color: #e9eef8; background: #242936; border: 1px solid #414958; border-radius: 5px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
-button:hover:not(:disabled) { background: #303849; border-color: #65728a; }
-button:focus-visible { outline: 2px solid #65b4ff; outline-offset: 1px; }
+.stat-candidates button { padding: 3px 6px; color: color-mix(in srgb, var(--brand-color) 78%, white); font-size: 10px; text-align: left; }
+.action-row { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: center; gap: var(--overlay-space-2); padding: var(--overlay-space-2) 0; background: color-mix(in srgb, var(--app-bg) 94%, transparent); }
+button { min-height: var(--overlay-control-height); color: var(--text-primary); background: var(--surface-2); border: 1px solid var(--border-base); border-radius: var(--overlay-radius-sm); padding: var(--overlay-space-1) var(--overlay-space-3); cursor: pointer; font-size: var(--overlay-font-size); }
+button:hover:not(:disabled) { background: var(--surface-hover); border-color: color-mix(in srgb, var(--brand-color) 55%, var(--border-base)); }
+button:focus-visible { outline: 2px solid var(--brand-color); outline-offset: 1px; }
 button:disabled { opacity: .45; cursor: default; }
-.identity-resolver p { margin: 4px 0 8px; color: #aeb6c5; }
+.identity-resolver p { margin: 4px 0 8px; color: var(--text-regular); }
 .candidate { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 56px; margin-top: 5px; text-align: left; }
 .candidate img { flex: 0 0 48px; width: 48px; height: 48px; object-fit: contain; }
 .candidate-label { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
@@ -597,30 +662,33 @@ button:disabled { opacity: .45; cursor: default; }
 .legacy-tag { flex: 0 0 auto; padding: 1px 5px; color: #c9a6ff; border: 1px solid #72539b; border-radius: 3px; font-size: 10px; line-height: 15px; }
 .candidate-label small { margin: 0; }
 .result-tabs { display: flex; gap: 5px; margin: 6px 0; }
-.result-tabs button.active { color: #9bc5ff; background: #18345a; border-color: #4285e8; }
-.distribution-summary { padding: 6px 4px; color: #aeb6c5; }
+.result-tabs button.active { color: var(--brand-on-color); background: var(--brand-color); border-color: var(--brand-color); }
+.distribution-summary { padding: 6px 4px; color: var(--text-regular); }
 .distribution-row { padding: 6px 4px; border-radius: 4px; }
-.distribution-row:hover { background: #20252f; }
+.distribution-row:hover { background: var(--surface-hover); }
 .distribution-row.highest { background: #1d2f25; }
 .distribution-label { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: baseline; }
 .distribution-label small { color: #d3a85e; }
-.distribution-track { height: 6px; margin-top: 4px; overflow: hidden; background: #101218; border-radius: 3px; }
-.distribution-track span { display: block; height: 100%; min-width: 2px; background: #4e8de7; border-radius: inherit; }
+.distribution-track { height: 6px; margin-top: 4px; overflow: hidden; background: var(--surface-2); border-radius: 3px; }
+.distribution-track span { display: block; height: 100%; min-width: 2px; background: var(--brand-color); border-radius: inherit; }
 .distribution-row.highest .distribution-track span { background: #48c985; }
 .distribution-note { margin: 8px 4px 2px; color: #858d9c; font-size: 10px; }
 .rate-limit-warning { margin: 0 4px; }
-.search { background: #13aa58; border-color: #13aa58; }
-.market { background: #3478d4; border-color: #3478d4; }
+.action-row .primary { color: var(--brand-on-color); background: var(--brand-color); border-color: var(--brand-color); }
+.action-row .primary:hover:not(:disabled) { color: var(--brand-on-color); background: color-mix(in srgb, var(--brand-color) 84%, white); border-color: color-mix(in srgb, var(--brand-color) 84%, white); }
+.action-row .secondary { color: var(--text-primary); background: var(--surface-2); border-color: var(--border-base); }
+.action-row .secondary:hover:not(:disabled) { color: var(--text-primary); background: var(--surface-hover); border-color: var(--control-hover-border); }
+.action-row button { min-height: 24px; padding: 2px var(--overlay-space-2); font-size: var(--overlay-font-size-small); }
 .result-heading { display: flex; justify-content: center; align-items: baseline; gap: 8px; padding: 5px; font-size: 14px; }
 .listing-head, .listing { display: grid; grid-template-columns: 1.1fr 38px 66px 60px minmax(72px, 1fr) 40px; gap: 5px; align-items: center; padding: 5px 6px; }
-.listing-head { color: #9da5b3; background: #08090c; font-weight: 700; }
-.listing { min-height: 36px; border-bottom: 1px solid #2b3039; background: #191c23; }
+.listing-head { color: var(--text-secondary); background: var(--app-bg); font-weight: 700; }
+.listing { min-height: 36px; border-bottom: 1px solid var(--border-base); background: var(--surface-1); }
 .listing .instant { color: #fff; background: #e52d35; border-radius: 4px; padding: 3px 5px; text-align: center; }
 .seller { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.copy { padding: 4px 7px; color: #69b4ff; }
+.copy { padding: 4px 7px; color: color-mix(in srgb, var(--brand-color) 78%, white); }
 .load-more { display: block; margin: 7px auto; }
-.state-message { padding: 10px; text-align: center; color: #74b5ff; }
-.error, .warning { color: #f1ad58; padding: 5px 0; }
+.state-message { padding: 10px; text-align: center; color: color-mix(in srgb, var(--brand-color) 78%, white); }
+.error, .warning { color: color-mix(in srgb, var(--warning-color) 78%, white); padding: 5px 0; }
 .catalog-warning { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .catalog-warning button { flex: 0 0 auto; padding: 3px 7px; }
 .catalog-status { color: #747d8c; text-align: center; font-size: 10px; }

@@ -269,6 +269,6 @@ export class JunfengCalibrationRepository {
       featureVector: []
     }))
     fs.writeFileSync(this.indexPath, JSON.stringify(index, null, 2), 'utf8')
-    return this.list()
+    return this.listWithImages()
   }
 }

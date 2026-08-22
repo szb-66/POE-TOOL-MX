@@ -8,66 +8,72 @@
       <el-button type="primary" :icon="Plus" @click="openCreateDialog">添加站点</el-button>
     </header>
 
-    <div v-if="sites.length" class="site-grid" aria-label="工具站列表">
-      <article
+    <el-row v-if="sites.length" class="site-grid app-grid" :gutter="16" aria-label="工具站列表">
+      <el-col
         v-for="(site, index) in sites"
         :key="site.id"
-        class="site-card"
-        :class="{ dragging: dragIndex === index, 'drag-target': dragTargetIndex === index }"
-        role="link"
-        tabindex="0"
-        :aria-label="`打开 ${site.name}`"
-        @click="openSite(site)"
-        @keydown.enter.prevent="openSite(site)"
-        @dragover.prevent="previewDrop(index)"
-        @drop.prevent.stop="finishDrag(index)"
+        :xs="24"
+        :sm="12"
+        :md="8"
       >
-        <div class="site-image" aria-hidden="true">
-          <img
-            v-if="currentImage(site)"
-            :src="currentImage(site)"
-            :alt="`${site.name} 图标`"
-            @error="advanceImage(site)"
-          >
-          <span v-else>{{ siteInitial(site) }}</span>
-        </div>
+        <article
+          class="site-card"
+          :class="{ dragging: dragIndex === index, 'drag-target': dragTargetIndex === index }"
+          role="link"
+          tabindex="0"
+          :aria-label="`打开 ${site.name}`"
+          @click="openSite(site)"
+          @keydown.enter.prevent="openSite(site)"
+          @dragover.prevent="previewDrop(index)"
+          @drop.prevent.stop="finishDrag(index)"
+        >
+          <div class="site-image" aria-hidden="true">
+            <img
+              v-if="currentImage(site)"
+              :src="currentImage(site)"
+              :alt="`${site.name} 图标`"
+              @error="advanceImage(site)"
+            >
+            <span v-else>{{ siteInitial(site) }}</span>
+          </div>
 
-        <div class="site-content">
-          <div class="site-title-row">
-            <h2>{{ site.name }}</h2>
-            <div class="site-actions" @click.stop @keydown.stop>
-              <el-tooltip content="拖动排序" placement="top">
-                <button
-                  class="icon-action drag-handle"
-                  type="button"
-                  draggable="true"
-                  :aria-label="`拖动 ${site.name} 排序`"
-                  @dragstart.stop="startDrag($event, index)"
-                  @dragend="clearDrag"
-                >
-                  <el-icon><Rank /></el-icon>
-                </button>
-              </el-tooltip>
-              <el-tooltip content="编辑" placement="top">
-                <button class="icon-action" type="button" :aria-label="`编辑 ${site.name}`" @click="openEditDialog(site)">
-                  <el-icon><Edit /></el-icon>
-                </button>
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top">
-                <button class="icon-action danger" type="button" :aria-label="`删除 ${site.name}`" @click="confirmDelete(site)">
-                  <el-icon><Delete /></el-icon>
-                </button>
-              </el-tooltip>
+          <div class="site-content">
+            <div class="site-title-row">
+              <h2>{{ site.name }}</h2>
+              <div class="site-actions" @click.stop @keydown.stop>
+                <el-tooltip content="拖动排序" placement="top">
+                  <button
+                    class="icon-action drag-handle"
+                    type="button"
+                    draggable="true"
+                    :aria-label="`拖动 ${site.name} 排序`"
+                    @dragstart.stop="startDrag($event, index)"
+                    @dragend="clearDrag"
+                  >
+                    <el-icon><Rank /></el-icon>
+                  </button>
+                </el-tooltip>
+                <el-tooltip content="编辑" placement="top">
+                  <button class="icon-action" type="button" :aria-label="`编辑 ${site.name}`" @click="openEditDialog(site)">
+                    <el-icon><Edit /></el-icon>
+                  </button>
+                </el-tooltip>
+                <el-tooltip content="删除" placement="top">
+                  <button class="icon-action danger" type="button" :aria-label="`删除 ${site.name}`" @click="confirmDelete(site)">
+                    <el-icon><Delete /></el-icon>
+                  </button>
+                </el-tooltip>
+              </div>
+            </div>
+            <p class="site-description">{{ site.description || '暂无描述' }}</p>
+            <div class="site-footer">
+              <span class="site-url" :title="site.url">{{ site.url }}</span>
+              <el-button text type="primary" size="small" :icon="TopRight" @click.stop="openSite(site)">打开</el-button>
             </div>
           </div>
-          <p class="site-description">{{ site.description || '暂无描述' }}</p>
-          <div class="site-footer">
-            <span class="site-url" :title="site.url">{{ site.url }}</span>
-            <el-button text type="primary" size="small" :icon="TopRight" @click.stop="openSite(site)">打开</el-button>
-          </div>
-        </div>
-      </article>
-    </div>
+        </article>
+      </el-col>
+    </el-row>
 
     <el-empty v-else description="还没有站点">
       <el-button type="primary" :icon="Plus" @click="openCreateDialog">添加第一个站点</el-button>
@@ -263,21 +269,24 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .page-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 
 .site-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
   padding-bottom: 4px;
+}
+
+.site-grid > .el-col {
+  display: flex;
 }
 
 .site-card {
   display: flex;
+  width: 100%;
   min-width: 0;
   min-height: 132px;
+  box-sizing: border-box;
   padding: 16px;
   border: 1px solid var(--border-base);
-  border-radius: 10px;
-  background: var(--bg-primary);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
+  border-radius: 8px;
+  background: var(--surface-1, var(--bg-primary));
+  box-shadow: inset 0 1px rgba(255, 255, 255, .025);
   cursor: pointer;
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, opacity .18s ease;
 }
@@ -285,7 +294,7 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .site-card:hover,
 .site-card:focus-visible {
   border-color: var(--el-color-primary-light-5);
-  box-shadow: 0 7px 18px rgb(31 45 61 / 9%);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 7px 18px rgb(0 0 0 / 18%);
   outline: none;
   transform: translateY(-1px);
 }
@@ -351,16 +360,8 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .site-footer .el-button { flex: 0 0 auto; padding-right: 0; }
 .site-form { padding-top: 8px; }
 
-@media (max-width: 1180px) {
-  .site-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
 @media (max-width: 760px) {
   .tools-page { padding: 15px; }
-  .site-grid { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 480px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .page-heading .el-button { width: 100%; }
 }

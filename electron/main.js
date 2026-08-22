@@ -37,8 +37,12 @@ import { InterfaceDetectionCoordinator } from './modules/interfaceDetection/coor
 import { AutomationLock } from './modules/automation/lock.js'
 import { ChaosRecipeControlOverlay } from './modules/chaosRecipe/controlOverlay.js'
 import { createShutdownController } from './modules/lifecycle/shutdown.js'
+import {
+  createApplicationRestartController,
+  DEVELOPMENT_RESTART_EXIT_CODE
+} from './modules/lifecycle/restart.js'
 import { acquireCrossProcessInstanceLock } from './modules/app/singleInstance.js'
-import { createOfficialTradeCatalog, loadTradeCatalog } from './modules/priceCheck/catalog.js'
+import { createCnOfficialTradeCatalog, loadTradeCatalog } from './modules/priceCheck/catalog.js'
 import {
   enrichOfficialItemsWithImages,
   registerUniqueItemImageProtocol,
@@ -50,6 +54,7 @@ import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
 import {
   assertWindowsGameForeground,
   capturePoeItemText,
+  restoreWindowsGameFocus,
   sendWindowsCopy
 } from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
@@ -63,6 +68,7 @@ import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
+import { InstalledUpdateRepository } from './modules/update/installedUpdateRepository.js'
 import { FEEDBACK_CLOUDBASE_CONFIG } from './modules/feedback/config.js'
 import { FeedbackAuthClient } from './modules/feedback/auth.js'
 import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
@@ -80,6 +86,9 @@ const startupStartedAt = Date.now()
 const startupSafeMode = process.argv.includes('--startup-safe-mode')
 const developmentFaultEnabled = (argument) => (
   process.env.NODE_ENV === 'development' && process.argv.includes(argument)
+)
+const managedDevelopmentRestart = (
+  process.env.NODE_ENV === 'development' && Boolean(process.env.VITE_DEV_SERVER_URL)
 )
 let applicationShuttingDown = false
 let startupFailureShown = false
@@ -254,7 +263,7 @@ async function cleanupApplicationResources() {
     () => junfengHighlight?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
-    () => priceCheckService?.closeOverlay(),
+    () => priceCheckService?.destroyOverlay(),
     () => puzzleService?.cleanup(),
     () => interfaceDetection?.cleanup(),
     () => craftingService?.cleanup(),
@@ -308,11 +317,45 @@ const shutdownController = createShutdownController({
   cleanup: cleanupApplicationResourcesOnce
 })
 
+function exitApplicationImmediately(code) {
+  applicationShuttingDown = true
+  try { applicationUpdate?.dispose() } catch {}
+  try { crashGuard.dispose() } catch {}
+  try { globalShortcut.unregisterAll() } catch {}
+  try { shortcutManager.unregisterAll() } catch {}
+  app.exit(code)
+}
+
+const applicationRestartController = createApplicationRestartController({
+  cleanup: cleanupApplicationResourcesOnce,
+  clearCache: async () => {
+    const mainWindow = getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) {
+      throw new Error('强制刷新时主窗口已不可用')
+    }
+    await mainWindow.webContents.session.clearCache()
+  },
+  markCleanupComplete: () => shutdownController.markCleanupComplete(),
+  restart: () => {
+    if (managedDevelopmentRestart) {
+      exitApplicationImmediately(DEVELOPMENT_RESTART_EXIT_CODE)
+      return
+    }
+    app.relaunch()
+    app.quit()
+  },
+  onError: error => startupLog.record({
+    phase: 'application-restart', outcome: 'failed', reasonCode: 'force_refresh_failed', error
+  }),
+  terminateAfterFailure: () => exitApplicationImmediately(1)
+})
+
 function createApplicationWindow() {
   startupLog.record({ phase: 'main-window', outcome: 'started', reasonCode: 'none' })
   const window = createMainWindow({
     beforeLoad: candidate => crashGuard.observeWindow(candidate),
-    diagnosticFailLoad: developmentFaultEnabled('--diagnostic-fail-load')
+    diagnosticFailLoad: developmentFaultEnabled('--diagnostic-fail-load'),
+    requestForceRefresh: () => applicationRestartController.requestRestart()
   })
   window.on('close', shutdownController.handleMainWindowClose)
   startupLog.record({ phase: 'main-window', outcome: 'succeeded', reasonCode: 'none' })
@@ -353,13 +396,17 @@ async function startApplication() {
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion()
   })
+  const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
+  const installedUpdate = await installedUpdateRepository.loadForVersion(app.getVersion())
   applicationUpdate = new ApplicationUpdateService({
     updater: electronUpdater.autoUpdater,
     currentVersion: app.getVersion(),
     isPackaged: app.isPackaged,
     cleanup: cleanupApplicationResourcesOnce,
     markCleanupComplete: () => shutdownController.markCleanupComplete(),
-    requestShutdown: () => app.quit()
+    requestShutdown: () => app.quit(),
+    installedUpdateRepository,
+    installedUpdate
   })
   applicationUpdate.on('state-changed', state => {
     const mainWindow = getMainWindow()
@@ -491,7 +538,9 @@ async function startApplication() {
     degraded: true,
     warning: ['正在加载腾讯官方词缀目录…', uniqueImageWarning].filter(Boolean).join('；')
   }
-  const priceCheckOverlay = new PriceCheckOverlayManager()
+  const priceCheckOverlay = new PriceCheckOverlayManager({
+    restoreGameFocus: () => restoreWindowsGameFocus(pythonDetector.detectPythonPath())
+  })
   priceCheckService = new PriceCheckService({
     auth: chaosAuth,
     client: priceCheckClient,
@@ -505,7 +554,7 @@ async function startApplication() {
     catalogRefresher: async () => {
       const officialStats = await priceCheckClient.getStats()
       const officialItems = await priceCheckClient.getItems()
-      return createOfficialTradeCatalog(
+      return createCnOfficialTradeCatalog(
         tradeCatalogBundle.catalog,
         officialStats,
         Date.now(),

@@ -10,7 +10,7 @@
       <el-icon><House /></el-icon>
       <span>首页</span>
     </el-menu-item>
-    <el-menu-item index="/items" @pointerenter="warmRoute('/items')" @focusin="warmRoute('/items')">
+    <el-menu-item class="nav-group-start" index="/items" @pointerenter="warmRoute('/items')" @focusin="warmRoute('/items')">
       <el-icon><Box /></el-icon>
       <span>制作</span>
     </el-menu-item>
@@ -50,11 +50,11 @@
       <el-icon><Guide /></el-icon>
       <span>海图</span>
     </el-menu-item>
-    <el-menu-item index="/tools" @pointerenter="warmRoute('/tools')" @focusin="warmRoute('/tools')">
+    <el-menu-item class="nav-group-start" index="/tools" @pointerenter="warmRoute('/tools')" @focusin="warmRoute('/tools')">
       <el-icon><Connection /></el-icon>
       <span>工具站</span>
     </el-menu-item>
-    <el-menu-item index="/settings" @pointerenter="warmRoute('/settings')" @focusin="warmRoute('/settings')">
+    <el-menu-item class="nav-group-start" index="/settings" @pointerenter="warmRoute('/settings')" @focusin="warmRoute('/settings')">
       <el-icon><Setting /></el-icon>
       <span>设置</span>
     </el-menu-item>
@@ -88,19 +88,35 @@ function warmRoute(path) {
   overflow-x: hidden;
   overflow-y: auto;
   padding: var(--spacing-xs);
-  background-color: transparent;
+  background-color: var(--nav-bg, transparent);
 
   :deep(.el-menu-item) {
     height: auto;
     min-height: 48px;
     padding: var(--spacing-sm) 0 !important;
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: 4px;
     border-radius: var(--border-radius-sm);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
+    color: var(--text-secondary);
+    transition: color .15s ease, background-color .15s ease;
+
+    &.nav-group-start { margin-top: 12px; }
+    &.nav-group-start::before {
+      content: '';
+      position: absolute;
+      top: -7px;
+      left: 8px;
+      right: 8px;
+      height: 1px;
+      background: var(--border-base);
+    }
+
+    &:hover { background: var(--surface-hover); color: var(--text-primary); }
+    &:focus-visible { outline: 2px solid var(--brand-color); outline-offset: -2px; }
 
     span {
       font-size: var(--font-size-xs);
@@ -115,11 +131,22 @@ function warmRoute(path) {
     }
 
     &.is-active {
-      background-color: var(--primary-color);
-      color: #fff;
+      background: color-mix(in srgb, var(--brand-color) 13%, var(--nav-bg));
+      color: var(--text-primary);
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        border-radius: 0 2px 2px 0;
+        background: var(--brand-color);
+      }
 
       .el-icon {
-        color: #fff;
+        color: var(--brand-color);
       }
     }
   }

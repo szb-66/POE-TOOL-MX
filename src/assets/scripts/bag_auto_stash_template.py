@@ -248,6 +248,9 @@ def parse_item_header(text):
     if category_index < 0 or rarity_index < 0:
         return None
     category = lines[category_index].split(":", 1)[1].strip()
+    rarity_value = lines[rarity_index].split(":", 1)[1].strip()
+    rarity_key = "".join(rarity_value.split()).casefold()
+    rarity = "unique" if rarity_key in ("传奇", "unique") else rarity_value
     header = []
     for line in lines[rarity_index + 1:]:
         if line == "--------":
@@ -256,7 +259,12 @@ def parse_item_header(text):
             header.append(line)
     if not category or not header:
         return None
-    return {"category": category, "name": header[0], "baseName": header[1] if len(header) > 1 else ""}
+    return {
+        "category": category,
+        "rarity": rarity,
+        "name": header[0],
+        "baseName": header[1] if len(header) > 1 else ""
+    }
 
 
 def normalize_footprint_text(value):
@@ -639,7 +647,15 @@ class InputController:
                 released = True
             except Exception:
                 pass
-        for key in tuple(self.pressed_keys):
+        ordered_keys = []
+        for key in (Key.shift, Key.ctrl):
+            if key in self.pressed_keys:
+                ordered_keys.append(key)
+        ordered_keys[0:0] = [
+            key for key in tuple(self.pressed_keys)
+            if key not in (Key.shift, Key.ctrl)
+        ]
+        for key in ordered_keys:
             try:
                 self.release_key(key)
                 released = True
@@ -770,11 +786,61 @@ class InputController:
             self.release_all()
             return False
 
+    def ctrl_shift_click(self):
+        try:
+            if not self.begin_ctrl():
+                return False
+            self.press_key(Key.shift)
+            time.sleep(MODIFIER_SETTLE_SECONDS)
+            if not is_game_foreground():
+                return stop_for_foreground_loss(self)
+            self.press_button(Button.left)
+            time.sleep(BUTTON_HOLD_SECONDS)
+            self.release_button(Button.left)
+            time.sleep(self.ctrl_release_delay)
+            self.release_key(Key.shift)
+            self.release_key(Key.ctrl)
+            time.sleep(self.release_settle)
+            return True
+        except Exception:
+            self.release_all()
+            return False
+
 
 def transfer_item_once(controller):
     """对已在点击前确认存在的物品只发送一次 Ctrl+左键。"""
     try:
         if not controller.ctrl_click():
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        return True, ""
+    except Exception:
+        return False, runtime_stop_reason or "transfer-unconfirmed"
+    finally:
+        controller.release_all()
+
+
+def transfer_stash_item(controller, item, force_unique_stash=False):
+    """普通入库单击一次；可选传奇在确认仍存在后追加一次 Ctrl+Shift+左键。"""
+    try:
+        force_unique = force_unique_stash and item.get("rarity") == "unique"
+        click = controller.click_with_ctrl if force_unique else controller.ctrl_click
+        if not click():
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        if not force_unique:
+            return True, ""
+        copy_status, copied_text = controller.copy_item_text(
+            ctrl_held=True, clear_first=True)
+        if copy_status == "empty":
+            return True, ""
+        if copy_status != "copied":
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        copied_item = parse_item_header(copied_text)
+        if copied_item is None:
+            return False, runtime_stop_reason or "transfer-unconfirmed"
+        identity_fields = ("category", "rarity", "name", "baseName")
+        if any(copied_item.get(field) != item.get(field) for field in identity_fields):
+            return True, ""
+        if not controller.ctrl_shift_click():
             return False, runtime_stop_reason or "transfer-unconfirmed"
         return True, ""
     except Exception:
@@ -927,6 +993,7 @@ def run_stash(config):
     start_x, start_y = int(start.get("x", 0)), int(start.get("y", 0))
     width, height = int(slot.get("w", 0)), int(slot.get("h", 0))
     rules = config.get("blacklist", [])
+    force_unique_stash = bool(config.get("force_unique_stash", False))
     item_footprints = inventory.get("itemFootprints", {})
     scan_phases = build_scan_phases(inventory)
     total_slots = sum(1 for phase in scan_phases for target in phase if not target["excluded"])
@@ -981,7 +1048,8 @@ def run_stash(config):
                             stats["blacklistedSlots"] += 1
                             handled_item = item
                         else:
-                            transferred, reason = transfer_item_once(controller)
+                            transferred, reason = transfer_stash_item(
+                                controller, item, force_unique_stash)
                             if not transferred:
                                 stats["scannedSlots"] += 1
                                 emit_progress(stats, total_slots)

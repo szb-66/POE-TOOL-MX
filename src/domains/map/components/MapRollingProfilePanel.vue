@@ -101,7 +101,7 @@ const removeModifier = (type, index) => props.profile.match[type].splice(index, 
 
 <style scoped lang="less">
 .profile-content { display: flex; flex-direction: column; gap: 20px; }
-.section-card { border: none; border-radius: 8px; box-shadow: 0 2px 12px rgba(0, 0, 0, .05); }
+.section-card { border: 1px solid var(--border-base); border-radius: 8px; box-shadow: inset 0 1px rgba(255, 255, 255, .025); }
 .card-header, .column-header, .condition-row, .modifier-item, .count-select { display: flex; align-items: center; }
 .card-header { gap: 8px; }
 .title { color: var(--text-primary); font-size: 16px; font-weight: 500; }
@@ -118,7 +118,6 @@ const removeModifier = (type, index) => props.profile.match[type].splice(index, 
 .number-input { width: 100px; }
 .modifier-card { flex: 1; }
 .modifier-item { gap: 8px; padding: 4px 8px; border-radius: 4px; background: var(--bg-secondary); }
-.modifier-item :deep(.el-input__wrapper) { background: transparent; box-shadow: none; }
 .add-btn { justify-content: flex-start; margin-top: 8px; padding-left: 0; }
 @media (max-width: 900px) { .base-content, .modifiers-section { flex-direction: column; } }
 </style>

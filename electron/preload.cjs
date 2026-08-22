@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkApplicationUpdate: () => ipcRenderer.invoke('update-check'),
   downloadApplicationUpdate: () => ipcRenderer.invoke('update-download'),
   restartAndInstallApplicationUpdate: () => ipcRenderer.invoke('update-restart-install'),
+  acknowledgeInstalledApplicationUpdate: () => ipcRenderer.invoke('update-acknowledge-installed'),
   onApplicationUpdateStateChanged: (callback) => {
     const listener = (_event, state) => callback(state)
     ipcRenderer.on('update-state-changed', listener)
@@ -196,7 +197,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateBagOperationDelay: (operationDelayMs) => ipcRenderer.invoke('update-bag-operation-delay', operationDelayMs),
   updateAutomationTiming: (timing) => ipcRenderer.invoke('automation-timing-update', timing),
   updateBagEmptySlotThreshold: (emptySlotThreshold) => ipcRenderer.invoke('update-bag-empty-slot-threshold', emptySlotThreshold),
-  updateBagPreferences: (preferences) => ipcRenderer.invoke('update-bag-preferences', preferences),
   updateBagRuntimeConfig: (config) => ipcRenderer.invoke('update-bag-runtime-config', config),
   uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
@@ -361,10 +361,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closePriceCheckOverlay: () => ipcRenderer.invoke('price-check-overlay-close'),
   openPriceCheckOfficial: () => ipcRenderer.invoke('price-check-open-official'),
   onPriceCheckOverlayState: (callback) => {
-    const listener = (_event, data) => callback(data)
+    const listener = (_event, data, presentation) => callback(data, presentation)
     ipcRenderer.on('price-check-overlay-state', listener)
     return () => ipcRenderer.removeListener('price-check-overlay-state', listener)
   },
+  notifyPriceCheckOverlayRendered: (generation) => ipcRenderer.send('price-check-overlay-rendered', generation),
   onPriceCheckSettingsChanged: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('price-check-settings-changed', listener)
@@ -395,10 +396,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeStoryOverlay: () => ipcRenderer.invoke('close-story-overlay'),
   updateStoryOverlay: (snapshot) => ipcRenderer.invoke('update-story-overlay', snapshot),
   getStoryOverlayState: () => ipcRenderer.invoke('get-story-overlay-state'),
+  getStoryOverlayDividerRatio: () => ipcRenderer.invoke('get-story-overlay-divider-ratio'),
   resizeStoryOverlay: (size) => ipcRenderer.invoke('resize-story-overlay', size),
   setStoryOverlayOpacity: (opacity) => ipcRenderer.invoke('set-story-overlay-opacity', opacity),
   updateStoryOverlayLayout: (layout) => ipcRenderer.invoke('update-story-overlay-layout', layout),
   moveStoryOverlay: (drag) => ipcRenderer.send('story-overlay-move', drag),
+  moveStoryOverlayDivider: (drag) => ipcRenderer.send('story-overlay-divider-drag', drag),
   onStoryOverlayState: (callback) => {
     const listener = (_event, snapshot) => callback(snapshot)
     ipcRenderer.on('story-overlay-state', listener)

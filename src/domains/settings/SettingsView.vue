@@ -19,7 +19,7 @@
     <el-scrollbar ref="settingsScrollbar" class="primary-page__scroll">
       <div class="settings-content primary-page__content">
 
-        <div v-show="activeTab === 'general'" class="settings-tab-panel">
+        <div v-show="activeTab === 'general'" class="settings-tab-panel settings-panel settings-panel--general">
         <div class="section-header">
           <h3 class="section-title">国服账号</h3>
         </div>
@@ -54,30 +54,33 @@
               </el-form-item>
             </template>
             <el-form-item label="全局赛季">
-              <el-select
-                :model-value="account.settings.league"
-                filterable
-                :disabled="!account.status.authenticated"
-                placeholder="选择商城配方与查价共用赛季"
-                @change="changeAccountLeague"
-              >
-                <el-option v-for="league in account.leagues" :key="league.id" :label="league.name" :value="league.id" />
-              </el-select>
-              <el-button class="account-button" :disabled="!account.status.authenticated" :loading="account.busy" @click="refreshAccountLeagues">
-                刷新赛季
-              </el-button>
+              <div class="account-league-row">
+                <el-select
+                  :model-value="account.settings.league"
+                  filterable
+                  :disabled="!account.status.authenticated"
+                  placeholder="选择商城配方与查价共用赛季"
+                  @change="changeAccountLeague"
+                >
+                  <el-option v-for="league in account.leagues" :key="league.id" :label="league.name" :value="league.id" />
+                </el-select>
+                <el-button :disabled="!account.status.authenticated" :loading="account.busy" @click="refreshAccountLeagues">
+                  刷新赛季
+                </el-button>
+              </div>
             </el-form-item>
             <div class="hint-text">登录 Cookie 仅保存在独立 Electron Session 中；商城配方与国服查价共用这里的账号和赛季。</div>
           </el-form>
         </el-card>
+
         </div>
 
-        <div v-show="activeTab === 'detection'" class="settings-tab-panel">
+        <div v-show="activeTab === 'detection'" class="settings-tab-panel settings-panel settings-panel--detection">
         <InterfaceDetectionSettings />
         <StashTabSelectionSettings />
         </div>
 
-        <div v-show="activeTab === 'general'" class="settings-tab-panel">
+        <div v-show="activeTab === 'general'" class="settings-tab-panel settings-panel settings-panel--general">
         <!-- 快捷键设置 -->
         <div class="section-header">
           <h3 class="section-title">快捷键设置</h3>
@@ -94,47 +97,47 @@
                 <div class="hint-text">开启后，游戏未启动或切到其他窗口时快捷键自动暂停，避免拦截普通按键（如 B）；可随时关闭恢复全局生效。</div>
               </div>
             </el-form-item>
-            <el-row :gutter="40">
-              <el-col :span="8">
+            <el-row class="independent-short-fields app-grid" :gutter="16">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="制作开始">
                   <KeyCaptureInput :model-value="shortcuts.itemStart" @change="handleShortcutsChange('itemStart', $event)" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="地图开始">
                   <KeyCaptureInput :model-value="shortcuts.mapStart" @change="handleShortcutsChange('mapStart', $event)" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="全局紧急停止">
                   <KeyCaptureInput :model-value="shortcuts.end" @change="handleShortcutsChange('end', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="40">
-              <el-col :span="8">
+            <el-row class="independent-short-fields app-grid" :gutter="16">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="配方开始">
                   <KeyCaptureInput :model-value="shortcuts.chaosRecipeStart" @change="handleShortcutsChange('chaosRecipeStart', $event)" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="配方暂停/继续">
                   <KeyCaptureInput :model-value="shortcuts.chaosRecipePause" @change="handleShortcutsChange('chaosRecipePause', $event)" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="配方紧急停止">
                   <KeyCaptureInput :model-value="shortcuts.chaosRecipeStop" @change="handleShortcutsChange('chaosRecipeStop', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="40">
-              <el-col :span="8">
+            <el-row class="independent-short-fields app-grid" :gutter="16">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="国服查价">
                   <KeyCaptureInput :model-value="shortcuts.priceCheck" @change="handleShortcutsChange('priceCheck', $event)" />
                 </el-form-item>
               </el-col>
-              <el-col :span="8">
+              <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="海图分析">
                   <KeyCaptureInput :model-value="shortcuts.puzzleAnalyze" @change="handleShortcutsChange('puzzleAnalyze', $event)" />
                 </el-form-item>
@@ -144,14 +147,14 @@
         </el-card>
         </div>
 
-        <div v-show="activeTab === 'automation'" class="settings-tab-panel">
+        <div v-show="activeTab === 'automation'" class="settings-tab-panel settings-panel settings-panel--automation">
         <!-- 背包设置 -->
         <div class="section-header">
           <h3 class="section-title">背包设置</h3>
         </div>
         <el-card class="section-card">
           <el-form :model="inventory" label-width="120px" label-position="left">
-            <el-row :gutter="40">
+            <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
                 <el-form-item label="首格位置">
                   <div class="position-input">
@@ -208,7 +211,7 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="40">
+            <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
                 <el-form-item label="连续空格停止数量">
                   <el-input-number
@@ -234,23 +237,23 @@
         </div>
         <el-card class="section-card">
           <el-form :model="positions" label-width="120px" label-position="left">
-            <el-row :gutter="40">
-              <el-col :span="12" :lg="8" v-for="(pos, key) in positions" :key="key">
+            <div class="currency-position-grid">
+              <div v-for="(pos, key) in positions" :key="key" class="currency-position-item">
                 <el-form-item :label="getCurrencyName(key)">
                   <div class="position-input">
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="positions[key].x"
                       placeholder="X"
                       :controls="false"
-                      style="width: 80px"
                       @change="handlePositionChange(key)"
                     />
                     <span class="separator">,</span>
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="positions[key].y"
                       placeholder="Y"
                       :controls="false"
-                      style="width: 80px"
                       @change="handlePositionChange(key)"
                     />
                     <el-button
@@ -264,8 +267,8 @@
                     />
                   </div>
                 </el-form-item>
-              </el-col>
-            </el-row>
+              </div>
+            </div>
           </el-form>
         </el-card>
 
@@ -275,7 +278,7 @@
         </div>
         <el-card class="section-card">
           <el-form :model="itemPosition" label-width="120px" label-position="left">
-            <el-row :gutter="40">
+            <el-row class="app-grid" :gutter="16">
               <el-col :span="8">
                 <el-form-item label="物品位置">
                   <div class="position-input">
@@ -311,7 +314,7 @@
         </el-card>
         </div>
 
-        <div v-show="activeTab === 'system'" class="settings-tab-panel">
+        <div v-show="activeTab === 'system'" class="settings-tab-panel settings-panel settings-panel--system">
         <!-- 系统设置 -->
         <div class="section-header">
           <h3 class="section-title">系统设置</h3>
@@ -390,7 +393,7 @@
                   <el-radio-button value="manual">手动更新</el-radio-button>
                   <el-radio-button value="automatic">自动检查与下载</el-radio-button>
                 </el-radio-group>
-                <span class="hint-text">自动模式会在启动 30 秒后检查，之后每 6 小时检查；安装始终需要确认。</span>
+                <span class="hint-text">每次启动都会立即后台检查；自动模式还会每 6 小时检查并自动下载。</span>
               </div>
             </el-form-item>
             <el-form-item label="版本状态">
@@ -438,7 +441,7 @@
                     v-if="updateState.status === 'downloaded'"
                     type="success"
                     @click="handleInstallUpdate"
-                  >重启并安装</el-button>
+                  >立即安装</el-button>
                 </div>
               </div>
             </el-form-item>
@@ -455,7 +458,7 @@
         </el-card>
         </div>
 
-        <div v-show="activeTab === 'automation'" class="settings-tab-panel">
+        <div v-show="activeTab === 'automation'" class="settings-tab-panel settings-panel settings-panel--automation">
         <!-- 操作延迟 -->
         <div class="section-header">
           <h3 class="section-title">操作延迟</h3>
@@ -538,13 +541,13 @@
         </el-card>
         </div>
 
-        <div v-show="activeTab === 'overlay'" class="settings-tab-panel">
+        <div v-show="activeTab === 'overlay'" class="settings-tab-panel settings-panel settings-panel--overlay">
         <!-- 覆盖层设置 -->
         <div class="section-header">
           <h3 class="section-title">覆盖层设置</h3>
         </div>
         <el-card class="section-card">
-          <el-row :gutter="40">
+          <el-row class="app-grid" :gutter="16">
             <el-col :span="12">
               <el-form :model="overlaySettings" label-width="120px" label-position="left">
                 <el-form-item label="背景模式">
@@ -638,7 +641,7 @@
                    效果预览 
                    <el-button link type="primary" size="small" @click="refreshPreview">刷新物品</el-button>
                  </div>
-                 <div class="preview-box">
+                 <div class="preview-box business-overlay-theme">
                     <OverlayContent 
                       :item-info="previewItem"
                       :settings="overlaySettings"
@@ -649,8 +652,28 @@
             </el-col>
           </el-row>
         </el-card>
+
+        <el-card class="section-card price-check-preview-card">
+          <template #header>
+            <div class="price-check-preview-header">
+              <div>
+                <strong>查价弹窗预览</strong>
+                <small>用于排查布局、主题和筛选交互；不展示真实挂单结果，修改不会保存或影响真实查价器。</small>
+              </div>
+              <el-button size="small" @click="resetPriceCheckPreview">重置预览</el-button>
+            </div>
+          </template>
+          <div class="price-check-preview-shell business-overlay-theme">
+            <PriceCheckOverlayView
+              :key="priceCheckPreviewKey"
+              preview-mode
+              :preview-state="priceCheckPreview.state"
+              :preview-options="priceCheckPreview.options"
+            />
+          </div>
+        </el-card>
         </div>
-        <div v-show="activeTab === 'feedback'" class="settings-tab-panel">
+        <div v-show="activeTab === 'feedback'" class="settings-tab-panel settings-panel settings-panel--feedback">
           <FeedbackSettings />
         </div>
       </div>
@@ -660,6 +683,7 @@
 
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
@@ -669,6 +693,8 @@ import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
 import { commitGlobalShortcut } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
 import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
+import PriceCheckOverlayView from '@/domains/priceCheck/PriceCheckOverlayView.vue'
+import { createPriceCheckPreview } from '@/domains/priceCheck/priceCheckPreview.js'
 import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
@@ -677,18 +703,21 @@ import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
 import FeedbackSettings from './FeedbackSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
+import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 import { OVERLAY_BACKGROUND_MODES, resolveOverlayBackgroundDrop } from '../../../shared/overlayBackground.js'
 
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
 const account = usePoeCnAccountStore()
+const applicationUpdate = useApplicationUpdateStore()
+const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
 const accountToken = ref('')
 const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
-const SETTINGS_TABS = new Set(['general', 'automation', 'detection', 'overlay', 'system', 'feedback'])
-const storedSettingsTab = sessionStorage.getItem(SETTINGS_TAB_STORAGE_KEY)
-const activeTab = ref(SETTINGS_TABS.has(storedSettingsTab) ? storedSettingsTab : 'general')
+const SETTINGS_TABS = ['general', 'automation', 'detection', 'overlay', 'system', 'feedback']
+const activeTab = ref(readPersistentTab(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'))
 const settingsScrollbar = ref(null)
 
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
@@ -707,55 +736,33 @@ const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
 const isBackgroundDragging = ref(false)
+const priceCheckPreview = ref(createPriceCheckPreview())
+const priceCheckPreviewKey = ref(0)
 const updateMode = ref(settingsStore.updateMode)
 const updateSource = ref(settingsStore.updateSource)
-const updateState = ref({
-  mode: settingsStore.updateMode,
-  source: settingsStore.updateSource,
-  currentVersion: '',
-  status: 'idle',
-  supported: false,
-  availableVersion: '',
-  releaseDate: '',
-  releaseNotes: '',
-  progress: null,
-  error: ''
-})
-let removeUpdateStateListener = null
-
-const updateBusy = computed(() => ['checking', 'downloading'].includes(updateState.value.status))
 const updateStatusText = computed(() => ({
   idle: '等待检查',
   checking: '正在检查更新…',
   available: '发现新版本',
   'not-available': '当前已是最新版本',
   downloading: '正在下载更新…',
-  downloaded: '更新已下载，等待重启安装',
+  downloaded: '更新已就绪，等待安装',
+  installing: '正在准备静默安装…',
   error: '更新操作失败'
 })[updateState.value.status] || '等待检查')
 
 function handleTabChange(tab) {
-  sessionStorage.setItem(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS.has(tab) ? tab : 'general')
+  activeTab.value = writePersistentTab(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general')
   settingsScrollbar.value?.setScrollTop(0)
 }
 
 onMounted(async () => {
   void account.run(() => account.restore()).catch(() => {})
-  removeUpdateStateListener = electronApi.update.onStateChanged(state => {
-    updateState.value = { ...updateState.value, ...state }
-  })
-  try {
-    updateState.value = { ...updateState.value, ...(await electronApi.update.getState()) }
-  } catch (error) {
-    updateState.value.error = error?.message || '读取更新状态失败'
-  }
   window.addEventListener('dragover', preventBackgroundFileNavigation)
   window.addEventListener('drop', preventBackgroundFileNavigation)
 })
 
 onBeforeUnmount(() => {
-  removeUpdateStateListener?.()
-  removeUpdateStateListener = null
   window.removeEventListener('dragover', preventBackgroundFileNavigation)
   window.removeEventListener('drop', preventBackgroundFileNavigation)
 })
@@ -994,45 +1001,41 @@ async function handleUpdateModeChange(mode) {
   const result = await settingsStore.updateApplicationUpdateMode(mode)
   updateMode.value = settingsStore.updateMode
   if (!result.success) ElMessage.error(result.error)
-  else updateState.value = { ...updateState.value, ...(result.state || {}), mode: settingsStore.updateMode }
+  else applicationUpdate.applyState({ ...(result.state || {}), mode: settingsStore.updateMode })
 }
 
 async function handleUpdateSourceChange(source) {
   const result = await settingsStore.updateApplicationUpdateSource(source)
   updateSource.value = settingsStore.updateSource
   if (!result.success) ElMessage.error(result.error)
-  else updateState.value = { ...updateState.value, ...(result.state || {}), source: settingsStore.updateSource }
+  else applicationUpdate.applyState({ ...(result.state || {}), source: settingsStore.updateSource })
 }
 
 async function handleCheckUpdate() {
-  const result = await electronApi.update.check()
+  const result = await applicationUpdate.check()
   if (result?.busy) ElMessage.info('更新操作正在进行')
 }
 
 async function handleDownloadUpdate() {
-  const result = await electronApi.update.download()
+  const result = await applicationUpdate.download()
   if (result?.busy) ElMessage.info('更新操作正在进行')
 }
 
 async function handleInstallUpdate() {
   try {
-    await ElMessageBox.confirm(
-      '应用将先停止所有自动化任务和子进程，然后退出并安装更新。是否继续？',
-      '重启并安装',
-      { confirmButtonText: '继续', cancelButtonText: '取消', type: 'warning' }
-    )
-    const result = await electronApi.update.restartAndInstall()
+    const result = await applicationUpdate.install()
     if (!result?.success) {
       const fallback = {
         'install-in-progress': '更新安装正在进行',
         'update-not-downloaded': '更新尚未下载完成',
+        'update-record-failed': '更新内容保存失败，未开始安装',
         'cleanup-timeout': '安装前清理超时，应用将安全退出',
         'cleanup-failed': '安装前清理失败，应用将安全退出'
       }[result?.reason] || '更新安装失败'
       ElMessage.error(result?.reason ? fallback : (result?.state?.error || fallback))
     }
   } catch (error) {
-    if (error !== 'cancel' && error !== 'close') ElMessage.error(error?.message || '更新安装失败')
+    ElMessage.error(error?.message || '更新安装失败')
   }
 }
 
@@ -1200,6 +1203,11 @@ function refreshPreview() {
   previewItem.value = generateRandomItem()
 }
 
+function resetPriceCheckPreview() {
+  priceCheckPreview.value = createPriceCheckPreview()
+  priceCheckPreviewKey.value += 1
+}
+
 async function handleReset() {
   try {
     await ElMessageBox.confirm(
@@ -1262,8 +1270,8 @@ async function handleReset() {
   }
 
   .settings-content {
-    max-width: 1200px;
-    margin: 0 auto;
+    box-sizing: border-box;
+    width: 100%;
     padding: 20px;
 
     .section-header {
@@ -1282,12 +1290,33 @@ async function handleReset() {
       margin-bottom: var(--spacing-lg);
     }
 
+    .settings-panel { min-width: 0; }
+
+    .independent-short-fields { margin-bottom: 0; }
+
     .account-token {
       max-width: 420px;
     }
 
     .account-button {
       margin-left: 12px;
+    }
+
+    .account-league-row {
+      display: flex;
+      width: 100%;
+      min-width: 0;
+      align-items: center;
+      gap: 12px;
+
+      :deep(.el-select) {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .el-button {
+        flex: 0 0 auto;
+      }
     }
 
     .position-input {
@@ -1304,6 +1333,15 @@ async function handleReset() {
         flex: none;
       }
     }
+
+    .currency-position-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0 28px;
+    }
+
+    .currency-position-item { min-width: 0; }
+    .coordinate-number-input { width: 68px; }
     
     .background-drop-zone {
       width: 100%;
@@ -1439,6 +1477,33 @@ async function handleReset() {
       }
     }
 
+    .price-check-preview-card { width: 100%; }
+
+    .price-check-preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+
+      > div {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      small {
+        color: var(--text-secondary);
+        font-weight: 400;
+      }
+    }
+
+    .price-check-preview-shell {
+      width: 100%;
+      overflow: hidden;
+      border-radius: var(--overlay-radius-md);
+    }
+
     .hint-text {
       font-size: 12px;
       color: var(--text-secondary);
@@ -1496,6 +1561,8 @@ async function handleReset() {
     box-shadow: none !important;
     border-radius: 8px !important;
     border: 1px solid var(--border-base) !important;
+    background: var(--surface-1, var(--bg-primary));
+    box-shadow: inset 0 1px rgba(255, 255, 255, .025) !important;
   }
 
   :deep(.el-form-item) {
@@ -1504,6 +1571,19 @@ async function handleReset() {
 
   :deep(.el-card__body) {
     padding: 24px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .settings-page .currency-position-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .settings-page {
+    .settings-content { padding: 15px; }
+    .currency-position-grid { grid-template-columns: 1fr; }
+    .settings-tab-bar { padding: 0 12px; gap: 8px; }
+    :deep(.el-card__body) { padding: 18px; }
   }
 }
 </style>

@@ -19,8 +19,8 @@
       </div>
     </div>
 
-    <div class="content-grid">
-      <div class="filter-column">
+    <el-row class="content-grid app-grid" :gutter="16">
+      <el-col :xs="24" :md="16" class="filter-column">
         <el-card class="filter-card">
           <template #header><span>插槽与连接</span></template>
 
@@ -83,9 +83,9 @@
             <el-checkbox v-for="item in groups.weaponTypes" :key="item.id" :value="item.id">{{ item.label }}</el-checkbox>
           </el-checkbox-group>
         </el-card>
-      </div>
+      </el-col>
 
-      <aside class="result-column">
+      <el-col :xs="24" :md="8" tag="aside" class="result-column">
         <el-card class="result-card">
           <template #header>
             <div class="result-header">
@@ -136,8 +136,8 @@
             <a href="https://github.com/veiset/poe-vendor-string" target="_blank" rel="noreferrer">veiset/poe-vendor-string</a>。
           </p>
         </el-card>
-      </aside>
-    </div>
+      </el-col>
+    </el-row>
       </template>
       <ChaosRecipePanel v-else />
     </div>
@@ -154,6 +154,7 @@ import { createDefaultVendorConfig } from './vendorConfig.js'
 import { VENDOR_DATA_META, VENDOR_OPTION_GROUPS } from './vendorData.js'
 import { generateVendorRegex } from './vendorRegex.js'
 import ChaosRecipePanel from './ChaosRecipePanel.vue'
+import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 
 const FilterGroup = defineComponent({
   props: { title: { type: String, required: true } },
@@ -166,8 +167,8 @@ const FilterGroup = defineComponent({
 })
 
 const presetStore = usePresetStore()
-const storedActiveTool = localStorage.getItem('shopActiveTool')
-const activeTool = ref(['chaos', 'vendor'].includes(storedActiveTool) ? storedActiveTool : 'chaos')
+const SHOP_TABS = ['chaos', 'vendor']
+const activeTool = ref(readPersistentTab('shopActiveTool', SHOP_TABS, 'chaos'))
 const groups = VENDOR_OPTION_GROUPS
 const meta = VENDOR_DATA_META
 const vendor = computed(() => presetStore.currentShopPreset.vendor)
@@ -178,7 +179,7 @@ watch(vendor, () => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => presetStore.savePresets(), 300)
 }, { deep: true })
-watch(activeTool, (value) => localStorage.setItem('shopActiveTool', value))
+watch(activeTool, (value) => { activeTool.value = writePersistentTab('shopActiveTool', value, SHOP_TABS, 'chaos') })
 
 async function resetCurrentPreset() {
   try {
@@ -230,12 +231,7 @@ async function copyRegex() {
 
 .preset-actions { gap: 10px; }
 
-.content-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-  gap: 18px;
-  align-items: start;
-}
+.content-grid { align-items: start; }
 
 .filter-column { display: grid; gap: 18px; }
 .result-column { display: grid; gap: 18px; position: sticky; top: 20px; }
@@ -293,7 +289,6 @@ async function copyRegex() {
 }
 
 @media (max-width: 1050px) {
-  .content-grid { grid-template-columns: 1fr; }
   .result-column { position: static; }
 }
 

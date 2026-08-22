@@ -2,14 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {
-  STORY_DIVIDER_GRIP_HTML,
   getStoryDividerGripBounds,
   getStoryDividerRatioFromGrip,
+  isPointInStoryDividerGrip,
   storyOverlayBoundsEqual
 } from '../electron/modules/window/storyGrip.js'
 import {
   OVERLAY_DRAG_HIT_HEIGHT,
   OVERLAY_DRAG_HIT_WIDTH,
+  STORY_OVERLAY_DRAG_HIT_TOP,
   isPointInCenteredOverlayDragHandle
 } from '../electron/modules/window/overlayDrag.js'
 import { createStoryOverlayGeometryReporter } from '../src/domains/story/storyOverlayGeometry.js'
@@ -51,19 +52,23 @@ test('剧情浮窗使用统一指针拖动抓手且其余内容保持穿透', ()
   assert.match(manager, /storyOverlayWindow\.setIgnoreMouseEvents\(true, \{ forward: true \}\)/)
   assert.match(manager, /screen\.getCursorScreenPoint\(\)/)
   assert.match(manager, /new OverlayDragPassthroughController/)
+  assert.match(manager, /isPointInCenteredOverlayDragHandle\(point, bounds, STORY_OVERLAY_DRAG_HIT_TOP\)/)
   assert.match(overlay, /class="story-position-grip"/)
+  assert.match(overlay, /<div class="overlay-heading">[\s\S]*class="story-position-grip"[\s\S]*<\/div>/)
   assert.match(overlay, /createOverlayDrag/)
   assert.match(overlay, /@pointerdown="drag\.pointerDown"/)
   assert.match(overlay, /-webkit-app-region: no-drag/)
   assert.doesNotMatch(overlay, /setIgnoreMouseEvents|updatePositionGripHitTest/)
   assert.match(overlay, /cursor: grab/)
   assert.match(overlay, /cursor: grabbing/)
+  assert.doesNotMatch(overlay, /drag-tip|拖动上方三点调整位置/)
 })
 
 test('主进程按屏幕坐标稳定命中位置抓手热区', () => {
   const bounds = { x: 100, y: 50, width: 460, height: 220 }
   assert.equal(OVERLAY_DRAG_HIT_WIDTH, 72)
   assert.equal(OVERLAY_DRAG_HIT_HEIGHT, 24)
+  assert.equal(STORY_OVERLAY_DRAG_HIT_TOP, 4)
   assert.equal(isPointInCenteredOverlayDragHandle({ x: 330, y: 62 }, bounds), true)
   assert.equal(isPointInCenteredOverlayDragHandle({ x: 293, y: 62 }, bounds), false)
   assert.equal(isPointInCenteredOverlayDragHandle({ x: 330, y: 75 }, bounds), false)
@@ -79,7 +84,7 @@ test('位置抓手复用自动入库的固定起点拖动且始终恢复规范�
   assert.doesNotMatch(manager, /storyOverlayGripWindow/)
   assert.match(manager, /requestedHeight == null \? storyOverlaySize\.height/)
   assert.match(manager, /requestedWidth == null \? storyOverlaySize\.width/)
-  assert.match(manager, /export function setStoryOverlayDragging[\s\S]*storyOverlayDividerWindow\?\.hide\(\)/)
+  assert.match(manager, /export function setStoryOverlayDragging[\s\S]*storyOverlayDragPassthrough\.setDragging\(dragging\)/)
   assert.match(manager, /export function moveStoryOverlayTo[\s\S]*getFixedOverlayDragBounds\(point, display\.workArea, storyOverlaySize\)/)
   assert.match(ipc, /const storyOverlayDrag = new OverlayDragSession\(\)/)
   assert.match(ipc, /storyOverlayDrag\.begin/)
@@ -166,6 +171,26 @@ test('剧情管理页合并章节模块并使用独立滚动区域', () => {
   assert.match(view, /\.chapter-directory \{[^}]*overflow-y: auto;/)
   assert.match(view, /\.chapter-details-scroll \{[^}]*overflow-y: auto;/)
   assert.match(view, /\.skills-panel :deep\(\.el-card__body\) \{ overflow-y: auto;/)
+  assert.match(view, /\.story-workspace \{[^}]*overflow: hidden;/)
+  assert.match(view, /\.story-workspace > \.el-col > \.el-card \{[^}]*height: 100%;[^}]*overflow: hidden;/)
+  assert.match(view, /\.story-guide-panel :deep\(\.el-card__body\), \.skills-panel :deep\(\.el-card__body\) \{[^}]*flex: 1 1 0;/)
+  assert.match(view, /\.story-guide-layout \{[^}]*grid-template-rows: minmax\(0, 1fr\);/)
+  assert.match(view, /\.chapter-item:hover \{[^}]*background: var\(--surface-hover\);/)
+  assert.doesNotMatch(view, /\.chapter-item:hover \{[^}]*transform:/)
+  const directory = view.slice(view.indexOf('<aside class="chapter-directory">'), view.indexOf('</aside>'))
+  const detailsHeader = view.slice(view.indexOf('<div class="chapter-details-header">'), view.indexOf('<div class="chapter-details-scroll">'))
+  assert.doesNotMatch(directory, /confirmDeleteChapter/)
+  assert.match(directory, /class="preset-bar chapter-preset-bar"/)
+  assert.match(directory, /class="add-chapter-button"/)
+  assert.doesNotMatch(directory, /class="add-chapter-button"[^>]*type="primary"/)
+  assert.ok(directory.indexOf('chapter-preset-bar') < directory.indexOf('class="chapter-list"'))
+  assert.ok(directory.indexOf('class="add-chapter-button"') > directory.indexOf('class="chapter-list"'))
+  assert.doesNotMatch(view, /<strong>章节<\/strong>/)
+  assert.doesNotMatch(view, /<template #header>[\s\S]*story\.currentStoryPresetId[\s\S]*<\/template>/)
+  assert.match(view, /\.story-guide-layout \{[^}]*grid-template-columns: 240px minmax\(0, 1fr\);/)
+  assert.match(view, /\.preset-bar :deep\(\.el-button \+ \.el-button\) \{ margin-left: 0; \}/)
+  assert.match(detailsHeader, /@click="confirmDeleteChapter\(story\.viewedChapter\)"/)
+  assert.match(detailsHeader, />删除章节<\/el-button>/)
 })
 
 test('浏览章节与步骤进度选择器解耦且快照使用进度技能', () => {
@@ -183,14 +208,14 @@ test('浏览章节与步骤进度选择器解耦且快照使用进度技能', ()
   assert.match(store, /buildStorySnapshot\([\s\S]*currentSkillGroups\.value/)
 })
 
-test('剧情浮窗使用紧凑默认尺寸和 14px 当前正文', () => {
+test('剧情浮窗使用紧凑默认尺寸和共享紧凑正文字号', () => {
   const manager = source('../electron/modules/window/manager.js')
   const overlay = source('../src/domains/story/StoryOverlayView.vue')
   const view = source('../src/domains/story/StoryView.vue')
   assert.match(manager, /Math\.max\(320, Math\.min\(1200/)
   assert.match(manager, /Math\.max\(150, Math\.min\(maxHeight/)
   assert.match(view, /:min="320"/)
-  assert.match(overlay, /\.step\.current \{[^}]*font-size: 14px;/)
+  assert.match(overlay, /\.step\.current \{[^}]*font-size: var\(--overlay-font-size\);/)
   assert.match(overlay, /@media \(max-width: 380px\)/)
 })
 
@@ -219,6 +244,20 @@ test('剧情和技能预设独立管理并支持技能组排序与整章复制',
   assert.match(store, /replaceChapterSkillGroups/)
 })
 
+test('剧情技能操作按层级放置复制和新增按钮', () => {
+  const view = source('../src/domains/story/StoryView.vue')
+  const panelHeader = view.slice(view.indexOf('<div class="panel-header">'), view.indexOf('</template>', view.indexOf('<div class="panel-header">')))
+  const skillGroups = view.slice(view.indexOf('<div v-else class="skill-groups">'), view.indexOf('</el-card>', view.indexOf('<div v-else class="skill-groups">')))
+  assert.match(panelHeader, /显示最低购买等级[\s\S]*复制到下一章/)
+  assert.doesNotMatch(panelHeader, /story\.addSkillGroup/)
+  assert.match(skillGroups, /class="add-skill-group-button"/)
+  assert.match(skillGroups, /story\.addSkillGroup\(story\.viewedChapter\.id\)/)
+  assert.doesNotMatch(skillGroups, /class="add-skill-group-button"[^>]*type="primary"/)
+  assert.doesNotMatch(skillGroups, /class="add-skill-group-button"[^>]*size="small"/)
+  assert.match(view, /\.panel-header \{ justify-content: space-between;/)
+  assert.match(view, /\.add-skill-group-button \{ width: 100%; \}/)
+})
+
 test('原生分割抓手按规范布局计算比例并限制边界', () => {
   const overlay = { x: 100, y: 50, width: 560, height: 260 }
   const layout = { stacked: false, left: 10, top: 50, width: 540, height: 180 }
@@ -228,28 +267,49 @@ test('原生分割抓手按规范布局计算比例并限制边界', () => {
   assert.equal(getStoryDividerGripBounds(overlay, { ...layout, stacked: true }, 0.64), null)
   assert.equal(getStoryDividerRatioFromGrip({ x: 0, y: 0, width: 14, height: 180 }, overlay, layout), 0.4)
   assert.equal(getStoryDividerRatioFromGrip({ x: 1000, y: 0, width: 14, height: 180 }, overlay, layout), 0.75)
+  assert.equal(isPointInStoryDividerGrip({ x: 456, y: 150 }, overlay, layout, 0.64), true)
+  assert.equal(isPointInStoryDividerGrip({ x: 448, y: 150 }, overlay, layout, 0.64), false)
 })
 
-test('分栏抓手拖动期间不会被程序化反向对齐', () => {
+test('分栏抓手与位置抓手共用剧情浮窗的指针拖动链路', () => {
   const manager = source('../electron/modules/window/manager.js')
-  const dividerHandler = manager.slice(
-    manager.indexOf("storyOverlayDividerWindow.on('move'"),
-    manager.indexOf("storyOverlayDividerWindow.on('moved'")
-  )
-  assert.match(dividerHandler, /getStoryDividerRatioFromGrip\(\s*storyOverlayDividerWindow\.getBounds\(\),/)
-  assert.doesNotMatch(dividerHandler, /syncStoryDividerToOverlay/)
+  const ipc = source('../electron/modules/ipc/window.js')
+  const preload = source('../electron/preload.cjs')
+  const api = source('../src/api/electron.js')
+  const overlay = source('../src/domains/story/StoryOverlayView.vue')
+  const mockStoryApi = api.slice(api.indexOf('storyOverlay: {'), api.indexOf('crafting: {', api.indexOf('storyOverlay: {')))
+  assert.doesNotMatch(manager, /storyOverlayDividerWindow|createStoryDividerWindow|syncStoryDividerToOverlay/)
+  assert.match(manager, /isPointInStoryDividerGrip\(point, bounds, storyOverlayLayout, storyOverlayDividerRatio\)/)
+  assert.match(manager, /export function getStoryOverlayDividerBounds/)
+  assert.match(manager, /export function moveStoryOverlayDividerTo/)
+  assert.match(ipc, /const storyOverlayDividerDrag = new OverlayDragSession\(\)/)
+  assert.match(ipc, /ipcMain\.on\('story-overlay-divider-drag'/)
+  assert.match(ipc, /window\.setStoryOverlayDividerDragging\(true\)/)
+  assert.match(ipc, /window\.moveStoryOverlayDividerTo\(requested\)/)
+  assert.match(preload, /moveStoryOverlayDivider: \(drag\) => ipcRenderer\.send\('story-overlay-divider-drag'/)
+  assert.match(api, /moveDivider: \(drag\) => window\.electronAPI\.moveStoryOverlayDivider/)
+  assert.match(preload, /getStoryOverlayDividerRatio: \(\) => ipcRenderer\.invoke\('get-story-overlay-divider-ratio'\)/)
+  assert.match(ipc, /ipcMain\.handle\('get-story-overlay-divider-ratio', \(\) => window\.getStoryOverlayDividerRatio\(\)\)/)
+  assert.match(manager, /export function getStoryOverlayDividerRatio\(\) \{\s*return storyOverlayDividerRatio\s*\}/)
+  assert.match(api, /getDividerRatio: \(\) => window\.electronAPI\.getStoryOverlayDividerRatio/)
+  assert.match(mockStoryApi, /getDividerRatio: \(\) => Promise\.resolve\(0\.64\)/)
+  assert.match(overlay, /electronApi\.storyOverlay\.getDividerRatio\?\.\(\)/)
+  assert.match(overlay, /class="story-divider-grip"/)
+  assert.match(overlay, /const dividerDrag = createOverlayDrag/)
 })
 
-test('分割抓手保持内容穿透并覆盖完整窗口生命周期', () => {
+test('内联分割抓手显示左右光标并在分割线两侧保留对称间距', () => {
   const manager = source('../electron/modules/window/manager.js')
   const preload = source('../electron/preload.cjs')
-  assert.match(STORY_DIVIDER_GRIP_HTML, /-webkit-app-region:drag/)
-  assert.match(STORY_DIVIDER_GRIP_HTML, /cursor:col-resize/)
-  assert.match(manager, /let storyOverlayDividerWindow = null/)
-  assert.match(manager, /createStoryDividerWindow/)
+  const overlay = source('../src/domains/story/StoryOverlayView.vue')
+  assert.match(overlay, /\.overlay-body \{[^}]*gap: 0;/)
+  assert.match(overlay, /\.story-divider-grip \{[^}]*cursor: ew-resize;/)
+  assert.match(overlay, /@pointerdown="dividerDrag\.pointerDown"/)
+  assert.match(overlay, /\.steps \{[^}]*padding-right: var\(--overlay-space-2\);/)
+  assert.match(overlay, /\.skills-section \{[^}]*padding: 5px var\(--overlay-space-2\) 1px;/)
+  assert.match(overlay, /\.skills-section \{[^}]*border-left: 1px solid/)
+  assert.doesNotMatch(overlay, /skills-title|本章技能/)
   assert.match(manager, /getStoryDividerRatioFromGrip/)
-  assert.match(manager, /destroyWindow\(dividerWindow\)/)
-  assert.match(manager, /storyOverlayOpacity === 0/)
   assert.match(preload, /updateStoryOverlayLayout/)
   assert.match(preload, /onStoryOverlayDividerRatio/)
 })
@@ -262,11 +322,9 @@ test('剧情浮窗关闭会原子销毁全部窗口且旧实例回调不会污�
   )
   assert.match(manager, /const overlayWindow = storyOverlayWindow/)
   assert.match(manager, /storyOverlayWindow !== overlayWindow/)
-  assert.match(manager, /storyOverlayDividerWindow === dividerWindow/)
-  assert.doesNotMatch(manager, /storyOverlayGripWindow|gripWindow/)
+  assert.doesNotMatch(manager, /storyOverlayDividerWindow|storyOverlayGripWindow|gripWindow/)
   assert.match(closeHandler, /const overlayWindow = storyOverlayWindow/)
   assert.ok(closeHandler.indexOf('storyOverlayWindow = null') < closeHandler.indexOf('destroyWindow\(overlayWindow\)'))
-  assert.match(closeHandler, /destroyWindow\(dividerWindow\)/)
   assert.match(closeHandler, /destroyWindow\(overlayWindow\)/)
   assert.doesNotMatch(closeHandler, /\.close\(\)/)
 })
@@ -280,7 +338,7 @@ test('浮层透明度以 0 到 100 数值持久化并实时同步', () => {
   assert.match(view, /:max="100"/)
   assert.match(settings, /storyOverlayOpacity: storyOverlayOpacity\.value/)
   assert.match(settings, /electronApi\.storyOverlay\.setOpacity/)
-  assert.match(manager, /window\.setOpacity\(nativeOpacity\)/)
+  assert.match(manager, /storyOverlayWindow\.setOpacity\(nativeOpacity\)/)
 })
 
 test('组合键捕获期间挂起全局快捷键并在提交前恢复', () => {

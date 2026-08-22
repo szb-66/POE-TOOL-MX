@@ -1,5 +1,6 @@
 <template>
   <div class="items-page primary-page primary-page__scroll primary-page__content">
+    <el-row class="app-grid" :gutter="16"><el-col :span="24">
     <SupportedFormatPanel :guidance="ITEM_FORMAT_GUIDANCE" />
 
     <el-alert
@@ -29,6 +30,7 @@
     <div class="module-section">
       <ModuleThree />
     </div>
+    </el-col></el-row>
   </div>
 </template>
 

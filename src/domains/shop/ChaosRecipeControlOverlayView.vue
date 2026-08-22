@@ -2,6 +2,7 @@
   <div
     ref="controlShell"
     class="control-shell"
+    :class="{ 'junfeng-only': state.rewardDetected }"
   >
     <div
       class="drag-handle"
@@ -72,13 +73,13 @@
       <button
         v-if="state.junfengEnabled && state.rewardDetected"
         class="primary"
-        :class="{ danger: state.junfengRunning }"
-        :disabled="!state.canJunfeng || Boolean(busy)"
-        :title="state.junfengReason || state.junfengButtonLabel"
+        :disabled="state.junfengRunning || !state.canJunfeng || Boolean(busy)"
+        :title="state.junfengReason || junfengButtonText"
+        :aria-label="state.junfengReason || junfengButtonText"
         @pointerdown.stop.prevent="runFromPointer('junfeng', $event)"
-      >{{ busy === 'junfeng' ? '处理中…' : state.junfengButtonLabel }}</button>
+      >{{ junfengButtonText }}</button>
     </div>
-    <div class="status-message" :class="{ ready: state.canRun }">
+    <div v-if="!state.rewardDetected" class="status-message" :class="{ ready: state.canRun }">
       {{ state.statusMessage || '正在同步商店配方状态…' }}
     </div>
   </div>
@@ -121,10 +122,15 @@ const recipeMenuOpen = ref(false)
 const activeRecipeOption = computed(() =>
   state.recipeOptions.find((option) => option.value === state.activeRecipeId)
 )
+const junfengButtonText = computed(() => busy.value === 'junfeng'
+  ? '进行中（0/0）'
+  : state.junfengButtonLabel
+)
 const controlShell = ref(null)
 let disposeState
 let resizeObserver
 let pendingActionFailure = ''
+let pendingJunfengFailure = ''
 let pendingSelectionFailure = ''
 const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(message))
 
@@ -134,6 +140,10 @@ function applyState(response) {
   if (pendingActionFailure) {
     state.actionReason = pendingActionFailure
     pendingActionFailure = ''
+  }
+  if (pendingJunfengFailure) {
+    state.junfengReason = pendingJunfengFailure
+    pendingJunfengFailure = ''
   }
   if (pendingSelectionFailure) {
     state.recipeSelectionReason = pendingSelectionFailure
@@ -153,11 +163,11 @@ function reportContentSize() {
 }
 
 async function run(kind) {
-  if (busy.value) return
+  if (busy.value || (kind === 'junfeng' && state.junfengRunning)) return
   busy.value = kind
   try {
     const response = kind === 'junfeng'
-      ? (state.junfengRunning ? await electronApi.junfeng.stop() : await electronApi.junfeng.start())
+      ? await electronApi.junfeng.start()
       : kind === 'stash'
       ? (state.stashPickupAutomation?.status === 'running'
           ? await electronApi.stashPickup.stop()
@@ -167,10 +177,17 @@ async function run(kind) {
       : kind === 'preview'
         ? await electronApi.chaosRecipe.controlPreview()
         : await electronApi.chaosRecipe.controlAction()
-    if (!response?.success) pendingActionFailure = response?.error?.message || '操作失败'
+    if (!response?.success) {
+      const failure = response?.error?.message || '操作失败'
+      if (kind === 'junfeng') pendingJunfengFailure = failure
+      else pendingActionFailure = failure
+    }
   } finally {
-    busy.value = ''
-    applyState(await electronApi.chaosRecipe.getControlState())
+    try {
+      applyState(await electronApi.chaosRecipe.getControlState())
+    } finally {
+      busy.value = ''
+    }
   }
 }
 
@@ -223,21 +240,29 @@ onUnmounted(() => {
   display: grid;
   grid-template-columns: 28px max-content;
   grid-template-rows: 38px 20px;
-  column-gap: 7px;
-  row-gap: 3px;
+  column-gap: var(--overlay-space-2);
+  row-gap: var(--overlay-space-1);
   width: max-content;
   height: max-content;
-  padding: 7px;
-  border: 1px solid rgba(119, 157, 219, .55);
-  border-radius: 12px;
-  background: rgba(18, 26, 42, .94);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
-  font-family: "Microsoft YaHei", sans-serif;
+  padding: var(--overlay-space-2);
+  border: 1px solid var(--overlay-border);
+  border-radius: var(--overlay-radius-md);
+  background: var(--overlay-surface);
+  box-shadow: var(--overlay-shadow);
+  font-family: var(--font-ui);
   user-select: none;
 }
+.control-shell.junfeng-only {
+  grid-template-rows: var(--overlay-control-height-large);
+  padding: var(--overlay-space-2);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.control-shell.junfeng-only .drag-handle { grid-row: 1; }
 .button-row {
   display: flex;
-  gap: 7px;
+  gap: var(--overlay-space-2);
 }
 .drag-handle {
   grid-row: 1 / 3;
@@ -254,19 +279,19 @@ onUnmounted(() => {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(218, 230, 255, .75);
+  background: var(--brand-color);
 }
 button {
   box-sizing: border-box;
   flex: 0 0 auto;
-  height: 38px;
-  padding: 0 14px;
-  border: 1px solid rgba(132, 178, 255, .5);
-  border-radius: 8px;
-  color: #edf4ff;
-  background: linear-gradient(145deg, #3a659d, #294c78);
+  height: var(--overlay-control-height-large);
+  padding: 0 var(--overlay-space-3);
+  border: 1px solid var(--border-base);
+  border-radius: var(--overlay-radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-2);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 2px 6px rgba(0, 0, 0, .28);
-  font: 700 14px/1 "Microsoft YaHei", sans-serif;
+  font: 700 var(--overlay-font-size)/1 var(--font-ui);
   white-space: nowrap;
   cursor: pointer;
   transition: filter .12s ease, transform .08s ease, box-shadow .12s ease;
@@ -283,18 +308,17 @@ button {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
-  height: 38px;
-  background: rgba(18, 26, 42, .98);
+  height: var(--overlay-control-height-large);
+  background: var(--overlay-surface-raised);
 }
 .recipe-menu button {
   min-width: 0;
-  height: 38px;
+  height: var(--overlay-control-height-large);
   padding: 0 4px;
   font-size: 11px;
 }
-button.primary { background: linear-gradient(145deg, #2f78cf, #24569a); }
-button.active { background: linear-gradient(145deg, #d58a2f, #9a5d1f); }
-button.danger { background: linear-gradient(145deg, #c75252, #8e3030); }
+button.primary, button.active { border-color: var(--brand-color); color: var(--brand-on-color); background: var(--brand-color); }
+button.danger { border-color: var(--danger-color); color: var(--brand-on-color); background: var(--danger-color); }
 button:not(:disabled):hover {
   filter: brightness(1.18);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2), 0 3px 9px rgba(0, 0, 0, .35);
@@ -315,12 +339,12 @@ button:disabled {
   grid-column: 2;
   min-width: 0;
   overflow: hidden;
-  color: #ffd18a;
-  font-size: 12px;
+  color: color-mix(in srgb, var(--warning-color) 78%, white);
+  font-size: var(--overlay-font-size-small);
   line-height: 20px;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.status-message.ready { color: #91e2ad; }
+.status-message.ready { color: color-mix(in srgb, var(--success-color) 78%, white); }
 </style>

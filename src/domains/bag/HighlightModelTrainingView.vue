@@ -1,14 +1,15 @@
 <template>
   <div class="training-page primary-page primary-page--column">
     <div class="primary-page__scroll">
-      <div class="training-content primary-page__content">
-      <div class="page-heading">
-        <div>
-          <h2>高亮模型训练</h2>
-          <p>统一采集君锋镇、小仓库和大仓库素材，人工复核后更新当前取件模型。</p>
-        </div>
-        <el-tag type="warning" effect="plain">仅开发版</el-tag>
-      </div>
+      <el-row class="training-content primary-page__content app-grid" :gutter="16">
+        <el-col :span="24">
+          <div class="page-heading">
+            <div>
+              <h2>高亮模型训练</h2>
+              <p>统一采集君锋镇、小仓库和大仓库素材，人工复核后更新当前取件模型。</p>
+            </div>
+            <el-tag type="warning" effect="plain">仅开发版</el-tag>
+          </div>
 
       <el-card class="section-card">
         <div class="highlight-training">
@@ -170,7 +171,8 @@
           />
         </div>
       </el-card>
-      </div>
+        </el-col>
+      </el-row>
     </div>
   </div>
 </template>
@@ -274,7 +276,7 @@ function formatProbability(value) { const number = Number(value); return Number.
 
 <style scoped lang="less">
 .training-page { background: var(--bg-secondary); }
-.training-content { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.training-content { padding: 20px; }
 .page-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .page-heading h2 { margin: 0 0 6px; color: var(--text-primary); font-size: 20px; }
 .page-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
