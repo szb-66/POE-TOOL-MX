@@ -10,6 +10,15 @@ const theme = readFileSync(new URL('../src/theme/mainWindowTheme.js', import.met
 const elementOverrides = readFileSync(new URL('../src/styles/element-override.less', import.meta.url), 'utf8')
 const commonStyles = readFileSync(new URL('../src/styles/common.less', import.meta.url), 'utf8')
 
+function noLayoutRoutePaths(source) {
+  const normalized = source.replace(/\r\n?/g, '\n')
+  const routeStarts = [...normalized.matchAll(/\n  \{\n    path: '([^']+)'/g)]
+  return routeStarts.flatMap((match, index) => {
+    const end = routeStarts[index + 1]?.index ?? normalized.indexOf('\n]', match.index)
+    return /noLayout:\s*true/.test(normalized.slice(match.index, end)) ? [match[1]] : []
+  })
+}
+
 test('主布局首帧和路由变化挂载窗口主题类，卸载时清理', () => {
   assert.match(main, /syncMainWindowTheme\(router\.currentRoute\.value\)/)
   assert.match(app, /:class="appThemeClass"/)
@@ -19,16 +28,14 @@ test('主布局首帧和路由变化挂载窗口主题类，卸载时清理', ()
 })
 
 test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔离', () => {
-  const routeStarts = [...router.matchAll(/\n  \{\n    path: '([^']+)'/g)]
-  const noLayoutRoutes = routeStarts.flatMap((match, index) => {
-    const end = routeStarts[index + 1]?.index ?? router.indexOf('\n]', match.index)
-    return /noLayout:\s*true/.test(router.slice(match.index, end)) ? [match[1]] : []
-  })
-  assert.deepEqual(noLayoutRoutes, [
+  const expectedRoutes = [
     '/puzzle-overlay', '/overlay', '/debug-overlay', '/story-overlay',
     '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
     '/coordinate-picker', '/price-check-overlay'
-  ])
+  ]
+  assert.deepEqual(noLayoutRoutePaths(router), expectedRoutes)
+  const crlfRouter = router.replace(/\r\n?/g, '\n').replace(/\n/g, '\r\n')
+  assert.deepEqual(noLayoutRoutePaths(crlfRouter), expectedRoutes)
   for (const path of [
     '/puzzle-overlay', '/overlay', '/story-overlay', '/bag-stash-overlay',
     '/chaos-recipe-overlay', '/chaos-recipe-control-overlay', '/price-check-overlay'
