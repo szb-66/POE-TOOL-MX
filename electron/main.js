@@ -73,7 +73,7 @@ import { FEEDBACK_CLOUDBASE_CONFIG } from './modules/feedback/config.js'
 import { FeedbackAuthClient } from './modules/feedback/auth.js'
 import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
 import { FeedbackService } from './modules/feedback/service.js'
-import { AppPresenceService } from './modules/presence/service.js'
+import { DailyUsageService } from './modules/dailyUsage/service.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -230,7 +230,7 @@ let diagnosticEvents = null
 let foregroundWatcher = null
 let applicationUpdate = null
 let feedbackService = null
-let appPresenceService = null
+let dailyUsageService = null
 
 function resolveForegroundWatcherScriptPath() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -257,7 +257,7 @@ async function cleanupApplicationResources() {
   const errors = []
 
   await settleCleanupPhase([
-    () => appPresenceService?.stop(),
+    () => dailyUsageService?.stop(),
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
     () => junfengHighlight?.cleanup(),
@@ -425,12 +425,15 @@ async function startApplication() {
     appVersion: app.getVersion(),
     locale: app.getLocale()
   })
-  appPresenceService = new AppPresenceService({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
-    auth: feedbackAuth,
-    appVersion: applicationVersion,
-    runtimeMode: app.isPackaged ? 'packaged' : 'development'
-  })
+  if (app.isPackaged) {
+    dailyUsageService = new DailyUsageService({
+      config: FEEDBACK_CLOUDBASE_CONFIG,
+      auth: feedbackAuth,
+      appVersion: applicationVersion,
+      runtimeMode: 'packaged',
+      userDataPath: app.getPath('userData')
+    })
+  }
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
 
@@ -601,7 +604,7 @@ async function startApplication() {
     enableJunfengTraining: !app.isPackaged
   })
 
-  appPresenceService.start()
+  dailyUsageService?.start()
   createApplicationWindow()
 
   // 启动游戏前台监视器：门禁开启时仅在游戏窗口位于前台注册用户全局快捷键。
