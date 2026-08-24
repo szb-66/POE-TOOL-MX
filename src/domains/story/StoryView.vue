@@ -434,9 +434,18 @@ async function confirmDeleteGroup(group) {
 .story-guide-panel :deep(.el-card__body), .skills-panel :deep(.el-card__body) { min-height: 0; flex: 1 1 0; }
 .story-guide-panel :deep(.el-card__body) { overflow: hidden; padding: 0; }
 .skills-panel :deep(.el-card__body) { overflow-y: auto; }
-.story-guide-layout { display: grid; height: 100%; min-height: 0; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-.chapter-directory { min-width: 0; overflow-y: auto; padding: 12px; border-right: 1px solid var(--border-color); }
-.chapter-details { display: flex; min-width: 0; min-height: 0; flex-direction: column; }
+.story-guide-layout { display: grid; height: 100%; min-height: 0; padding: 12px; gap: 12px; box-sizing: border-box; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.chapter-directory, .chapter-details {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 30%, var(--surface-1));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12), inset 0 1px rgba(255, 255, 255, .025);
+}
+.chapter-directory { overflow-y: auto; padding: 12px; }
+.chapter-details { display: flex; flex-direction: column; }
 .chapter-details-header { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border-color); }
 .chapter-details-header :deep(.el-input) { min-width: 0; flex: 1; }
 .chapter-details-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px; }
@@ -500,7 +509,7 @@ async function confirmDeleteGroup(group) {
   .story-workspace > .el-col > .story-guide-panel { height: auto; }
   .story-guide-panel :deep(.el-card__body) { flex: 0 0 auto; overflow: visible; }
   .story-guide-layout { height: auto; grid-template-columns: 1fr; }
-  .chapter-directory { max-height: 240px; border-right: 0; border-bottom: 1px solid var(--border-color); }
+  .chapter-directory { max-height: 240px; }
   .chapter-details-scroll { max-height: 520px; }
 }
 </style>

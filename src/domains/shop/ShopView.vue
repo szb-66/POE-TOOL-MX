@@ -260,7 +260,21 @@ async function copyRegex() {
   grid-template-columns: repeat(3, minmax(150px, 1fr));
   gap: 8px 14px;
 
-  :deep(.el-checkbox) { margin-right: 0; }
+  :deep(.el-checkbox) {
+    min-height: 38px;
+    margin-right: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--border-base);
+    border-radius: 6px;
+    background: var(--surface-2);
+    transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
+  }
+  :deep(.el-checkbox:hover) { border-color: var(--control-hover-border); background: var(--surface-hover); }
+  :deep(.el-checkbox:has(.el-checkbox__input.is-checked)) {
+    border-color: color-mix(in srgb, var(--primary-color) 68%, var(--border-base));
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-2));
+    box-shadow: inset 3px 0 0 var(--primary-color);
+  }
 }
 
 .weapon-grid { grid-template-columns: repeat(5, minmax(80px, 1fr)); }

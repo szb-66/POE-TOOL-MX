@@ -156,6 +156,7 @@ function mappedLabels(keys = []) {
 .region-summary { margin-left: 12px; color: var(--text-secondary); font-size: 13px; }
 .mapping-title { margin: 4px 0 12px; font-weight: 600; }
 .mapping-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.mapping-grid :deep(.el-input-group__prepend) { box-sizing: border-box; width: 120px; flex: 0 0 120px; justify-content: center; }
 .preview-result { margin-top: 18px; }
 .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .similar-hint { color: var(--el-color-warning); }

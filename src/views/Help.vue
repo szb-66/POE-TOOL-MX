@@ -378,7 +378,7 @@ watch(
 .module-guide dt { color: var(--text-secondary); }
 .module-guide dd { margin: 0; }
 .module-guide ol { margin: 6px 0 12px; padding-left: 20px; }
-.risk-note { display: flex; gap: 7px; margin: 0; padding: 9px 10px; border-radius: 7px; color: var(--text-secondary); background: var(--el-color-warning-light-9); }
+.risk-note { display: flex; gap: 7px; margin: 0; padding: 9px 10px; border-radius: 7px; color: var(--el-text-color-regular); background: var(--el-color-warning-light-9); }
 .risk-note .el-icon { flex: 0 0 auto; margin-top: 3px; color: var(--el-color-warning); }
 
 .topic-list { display: grid; gap: 10px; }

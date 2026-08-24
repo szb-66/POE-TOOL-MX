@@ -3,7 +3,6 @@
     <div class="page-heading">
       <div>
         <h2>海图 <el-tag size="small">S30 赛季玩法</el-tag></h2>
-        <p>识别 6×10 碎片仓库，计算方案并自动旋转、放入 3×3 海图区。</p>
       </div>
     </div>
 
@@ -239,17 +238,27 @@
           class="solution-feedback"
         />
 
-        <div class="exit-controls">
-          <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
-          <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
-          <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
-          <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
+        <div class="solution-guidance">
+          <div class="exit-controls">
+            <div class="exit-copy">
+              <strong>出口设置</strong>
+              <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
+            </div>
+            <div class="exit-actions">
+              <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
+              <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
+              <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
+            </div>
+          </div>
+          <div class="reward-strategy-note">
+            <strong>方案说明</strong>
+            <p>
+              {{ activeRewardStrategy.description }}
+              <template v-if="result.rewardDataAvailable">当前按已识别词缀计算相对收益，包含自身、相邻、全航行与边缘影响；该分数只用于方案比较，不是通货估价。</template>
+              <template v-else>识别碎片或边缘词缀后启用收益优化；当前仍按外周出口生成方案。</template>
+            </p>
+          </div>
         </div>
-        <p class="reward-strategy-note">
-          {{ activeRewardStrategy.description }}
-          <template v-if="result.rewardDataAvailable">当前按已识别词缀计算相对收益，包含自身、相邻、全航行与边缘影响；该分数只用于方案比较，不是通货估价。</template>
-          <template v-else>识别碎片或边缘词缀后启用收益优化；当前仍按外周出口生成方案。</template>
-        </p>
         <div class="solution-shell">
             <div class="horizontal-exits top-exits">
                 <el-tooltip v-for="id in northExits" :key="id" placement="top" effect="dark" :show-after="200" :disabled="!edgeModLines(id).length">
@@ -817,8 +826,7 @@ const nextSolution = store.nextSolution
   gap: var(--spacing-md);
 }
 
-.page-heading h2 { margin: 0 0 6px; }
-.page-heading p { margin: 0; color: var(--el-text-color-secondary); }
+.page-heading h2 { margin: 0; }
 .status-alert { margin-top: var(--spacing-md); }
 .auto-blocked-reason { max-width: 260px; color: var(--el-color-warning); line-height: 1.35; }
 .region-line { margin: 12px 0; font-size: 13px; color: var(--el-text-color-secondary); }
@@ -1012,7 +1020,31 @@ const nextSolution = store.nextSolution
 :global(.relative-reward-popper) { max-width: 380px; line-height: 1.6; }
 .reward-strategy { width: 160px; }
 .effective-reward-strategy { color: var(--el-text-color-secondary); white-space: nowrap; }
-.reward-strategy-note { margin: 0 0 12px; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; text-align: center; }
+.solution-guidance {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.exit-controls { display: grid; gap: 10px; }
+.exit-copy strong, .reward-strategy-note strong { color: var(--text-primary); font-size: 13px; }
+.exit-help { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
+.exit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.exit-actions > .el-button + .el-button { margin-left: 0; }
+.reward-strategy-note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-base);
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.reward-strategy-note p { margin: 0; }
 .solution-loading-mask {
   position: absolute;
   inset: 0;
@@ -1032,8 +1064,6 @@ const nextSolution = store.nextSolution
 }
 .solution-loading-spinner .el-icon { font-size: 42px; }
 .solution-feedback { margin-bottom: 14px; }
-.exit-controls { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 10px; }
-.exit-help { text-align: center; color: var(--el-text-color-secondary); margin: 0; }
 .solution-shell {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 42px;
@@ -1100,9 +1130,9 @@ const nextSolution = store.nextSolution
 @media (max-width: 720px) {
   .page-heading { align-items: flex-start; flex-direction: column; }
   .configuration-heading,
-  .solution-card-header,
-  .exit-controls { align-items: flex-start; flex-direction: column; }
+  .solution-card-header { align-items: flex-start; flex-direction: column; }
   .configuration-actions,
   .solution-actions { justify-content: flex-start; }
+  .reward-strategy-note { grid-template-columns: 1fr; gap: 4px; }
 }
 </style>

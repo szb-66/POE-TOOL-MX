@@ -1,10 +1,7 @@
 <template>
   <section class="feedback-settings" aria-labelledby="feedback-title">
     <div class="feedback-heading">
-      <div>
-        <h3 id="feedback-title">问题反馈</h3>
-        <p>描述遇到的问题并按需附上证据，我们会在 CloudBase 管理端集中处理。</p>
-      </div>
+      <h3 id="feedback-title">问题反馈</h3>
       <el-tag type="info" effect="plain">匿名提交</el-tag>
     </div>
 
@@ -99,13 +96,13 @@
         </el-card>
 
         <el-card class="diagnostics-card" shadow="never">
-          <div class="switch-row">
-            <div>
-              <strong>附带脱敏诊断</strong>
-              <p>包含应用版本、系统与运行时状态、显示器/DPI和近期结构化原因码。</p>
-            </div>
+          <div class="diagnostic-heading-row">
+            <strong>附带脱敏诊断</strong>
             <el-switch v-model="form.includeDiagnostics" :disabled="submitting || Boolean(diagnosticCapture)" />
           </div>
+          <p class="diagnostic-description">
+            包含应用版本、系统与运行时状态、显示器/DPI和近期结构化原因码。默认关闭，不会自动上传账号令牌、Cookie、个人路径或诊断事件中的敏感原值。
+          </p>
           <el-alert
             v-if="diagnosticCapture"
             class="diagnostic-capture-alert"
@@ -114,9 +111,6 @@
             show-icon
             :title="captureStatusText"
           />
-          <el-alert type="info" :closable="false" show-icon>
-            默认关闭。不会自动上传账号令牌、Cookie、个人路径或诊断事件中的敏感原值。
-          </el-alert>
           <div class="diagnostic-actions">
             <el-button
               :icon="Download"
@@ -367,8 +361,7 @@ onBeforeUnmount(() => {
     gap: 16px;
     margin-bottom: 16px;
 
-    h3 { margin: 0 0 6px; color: var(--text-primary); font-size: 18px; }
-    p { margin: 0; color: var(--text-secondary); line-height: 1.6; }
+    h3 { margin: 0; color: var(--text-primary); font-size: 18px; }
   }
 
   .feedback-success { margin-bottom: 16px; }
@@ -387,7 +380,7 @@ onBeforeUnmount(() => {
 
   .evidence-header,
   .submit-row,
-  .switch-row,
+  .diagnostic-heading-row,
   .attachment-item {
     display: flex;
     align-items: center;
@@ -403,14 +396,14 @@ onBeforeUnmount(() => {
   .attachment-name { min-width: 0; display: grid; gap: 3px; }
   .attachment-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .attachment-name small { color: var(--text-secondary); }
-  .switch-row { align-items: flex-start; margin-bottom: 12px; }
-  .switch-row strong { color: var(--text-primary); }
-  .switch-row p { margin: 6px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+  .diagnostic-heading-row strong { color: var(--text-primary); }
+  .diagnostic-description { margin: 8px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
   .submit-row { justify-content: flex-end; min-height: 32px; }
   .progress-text { color: var(--text-secondary); font-size: 13px; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .submit-error { color: #F0AAA6; background: color-mix(in srgb, var(--el-color-danger) 13%, var(--surface-1)); border: 1px solid var(--el-color-danger); padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; }
   .diagnostic-capture-alert { margin-bottom: 12px; }
-  .diagnostic-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .diagnostic-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+  .diagnostic-actions :deep(.el-button) { width: 100%; margin-left: 0; }
 }
 
 @media (max-width: 900px) {

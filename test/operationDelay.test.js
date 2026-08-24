@@ -11,6 +11,8 @@ test('设置页只展示一个自动操作等待输入并移除旧延迟控件�
   assert.match(view, /悬停稳定时间/)
   assert.match(view, /label="自适应等待"/)
   assert.match(view, /label="自适应等待上限"/)
+  assert.equal((view.match(/class="timing-setting-row"/g) || []).length, 2)
+  assert.match(view, /\.timing-setting-row :deep\(\.el-form-item__content\) \{\s*column-gap: 12px;/)
   assert.doesNotMatch(view, /ADAPTIVE_TIMING\.(?:timeoutMin|timeoutMax)/)
   assert.match(view, /handleAdaptiveTimingChange/)
   assert.match(view, /handleAdaptiveTimeoutChange/)

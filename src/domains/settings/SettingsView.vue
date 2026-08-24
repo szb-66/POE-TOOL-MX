@@ -156,38 +156,51 @@
           <el-form :model="inventory" label-width="120px" label-position="left">
             <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
-                <el-form-item class="spaced-field" label="首格位置">
-                  <div class="position-input">
+                <el-form-item class="spaced-field">
+                  <template #label>
+                    <span class="label-with-help">
+                      首格位置
+                      <el-tooltip content="背包第一个格子（左上角）的中心坐标" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="首格位置说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
+                  <div class="position-input coordinate-picker">
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="inventory.startPos.x"
                       placeholder="X"
                       :controls="false"
-                      style="width: 80px"
                       @change="handleInventoryChange"
                     />
-                    <span class="separator">,</span>
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="inventory.startPos.y"
                       placeholder="Y"
                       :controls="false"
-                      style="width: 80px"
                       @change="handleInventoryChange"
                     />
                     <el-button
                       class="pick-position-button"
                       :icon="Aim"
-                      circle
                       title="点击选取坐标"
                       :loading="coordinatePickingTarget === 'inventory'"
                       :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'inventory'"
                       @click="handlePickCoordinate('inventory')"
                     />
                   </div>
-                  <div class="hint-text">背包第一个格子（左上角）的中心坐标</div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item class="spaced-field" label="单格宽高">
+                <el-form-item class="spaced-field">
+                  <template #label>
+                    <span class="label-with-help">
+                      单格宽高
+                      <el-tooltip content="单个背包格子的宽度和高度" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="单格宽高说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
                   <div class="position-input">
                     <el-input-number
                       v-model="inventory.slotSize.w"
@@ -207,13 +220,20 @@
                       @change="handleInventoryChange"
                     />
                   </div>
-                  <div class="hint-text">单个背包格子的宽度和高度</div>
                 </el-form-item>
               </el-col>
             </el-row>
             <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
-                <el-form-item class="spaced-field" label="连续空格停止数量">
+                <el-form-item class="spaced-field">
+                  <template #label>
+                    <span class="label-with-help">
+                      连续空格判空
+                      <el-tooltip content="扫描连续达到该数量的空格后，认为后续没有内容" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="连续空格判空说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
                   <el-input-number
                     v-model="inventory.emptySlotThreshold"
                     :min="EMPTY_SLOT_THRESHOLD.min"
@@ -224,7 +244,6 @@
                     style="width: 180px"
                     @change="handleEmptySlotThresholdChange"
                   />
-                  <div class="hint-text">扫描连续达到该数量的空格后，认为后续没有内容</div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -240,7 +259,7 @@
             <div class="currency-position-grid">
               <div v-for="(pos, key) in positions" :key="key" class="currency-position-item">
                 <el-form-item :label="getCurrencyName(key)">
-                  <div class="position-input">
+                  <div class="position-input coordinate-picker">
                     <el-input-number
                       class="coordinate-number-input"
                       v-model="positions[key].x"
@@ -248,7 +267,6 @@
                       :controls="false"
                       @change="handlePositionChange(key)"
                     />
-                    <span class="separator">,</span>
                     <el-input-number
                       class="coordinate-number-input"
                       v-model="positions[key].y"
@@ -259,7 +277,6 @@
                     <el-button
                       class="pick-position-button"
                       :icon="Aim"
-                      circle
                       title="点击选取坐标"
                       :loading="coordinatePickingTarget === `currency:${key}`"
                       :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== `currency:${key}`"
@@ -274,33 +291,36 @@
 
         <!-- 物品位置 -->
         <div class="section-header">
-          <h3 class="section-title">物品位置</h3>
+          <h3 class="section-title label-with-help">
+            物品位置
+            <el-tooltip content="需要制作的装备存放的位置坐标" placement="top">
+              <el-icon class="help-icon" tabindex="0" aria-label="物品位置说明"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </h3>
         </div>
         <el-card class="section-card">
           <el-form :model="itemPosition" label-width="120px" label-position="left">
             <el-row class="app-grid" :gutter="16">
               <el-col :span="8">
                 <el-form-item label="物品位置">
-                  <div class="position-input">
+                  <div class="position-input coordinate-picker">
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="itemPosition.x"
                       placeholder="X"
                       :controls="false"
-                      style="width: 80px"
                       @change="handleItemPositionChange"
                     />
-                    <span class="separator">,</span>
                     <el-input-number
+                      class="coordinate-number-input"
                       v-model="itemPosition.y"
                       placeholder="Y"
                       :controls="false"
-                      style="width: 80px"
                       @change="handleItemPositionChange"
                     />
                     <el-button
                       class="pick-position-button"
                       :icon="Aim"
-                      circle
                       title="点击选取坐标"
                       :loading="coordinatePickingTarget === 'item'"
                       :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'item'"
@@ -315,63 +335,6 @@
         </div>
 
         <div v-show="activeTab === 'system'" class="settings-tab-panel settings-panel settings-panel--system">
-        <!-- 系统设置 -->
-        <div class="section-header">
-          <h3 class="section-title">系统设置</h3>
-        </div>
-        <el-card class="section-card">
-          <el-form label-width="120px" label-position="left">
-            <el-form-item label="游戏窗口名称">
-              <GameWindowTitleSettings />
-            </el-form-item>
-            <el-form-item label="屏幕DPI缩放">
-              <div class="dpi-settings">
-                <el-radio-group :model-value="settingsStore.dpiMode" @change="handleDpiModeChange">
-                  <el-radio-button value="auto">自动识别</el-radio-button>
-                  <el-radio-button value="manual">手动设置</el-radio-button>
-                </el-radio-group>
-                <div v-if="settingsStore.dpiMode === 'auto'" class="dpi-input">
-                  <el-tag :type="settingsStore.dpiDetectionStatus === 'success' ? 'success' : 'info'">
-                    {{ Math.round(settingsStore.dpiScale * 100) }}% · {{ getDpiSourceText() }}
-                  </el-tag>
-                  <el-button
-                    :icon="Refresh"
-                    :loading="settingsStore.dpiDetectionStatus === 'detecting'"
-                    @click="handleRefreshDpi"
-                  >重新识别</el-button>
-                </div>
-                <div v-else class="dpi-input">
-                <el-input-number
-                  v-model="manualDpiScale"
-                  :min="1.0"
-                  :max="3.0"
-                  :step="0.25"
-                  :precision="2"
-                  controls-position="right"
-                  style="width: 120px"
-                  @change="handleDpiScaleChange"
-                />
-                  <span class="hint-text">例如 Windows 150% 缩放填写 1.5</span>
-                </div>
-                <span v-if="settingsStore.dpiMode === 'auto'" class="hint-text">
-                  {{ getDpiStatusText() }}
-                </span>
-              </div>
-            </el-form-item>
-            <el-form-item label="调试模式">
-              <div class="dpi-input">
-                <el-switch
-                  v-model="debugMode"
-                  active-text="显示控制台"
-                  inactive-text="关闭"
-                  @change="handleDebugModeChange"
-                />
-                <span class="hint-text">显示应用的 Chromium DevTools Console 调试面板</span>
-              </div>
-            </el-form-item>
-          </el-form>
-        </el-card>
-
         <!-- 应用更新 -->
         <div class="section-header">
           <h3 class="section-title">应用更新</h3>
@@ -449,12 +412,63 @@
               <pre class="update-release-notes">{{ updateState.releaseNotes }}</pre>
             </el-form-item>
           </el-form>
-          <el-alert
-            title="当前 Windows 安装包未签名，重启安装时可能出现 UAC 或 SmartScreen 提示。"
-            type="warning"
-            :closable="false"
-            show-icon
-          />
+        </el-card>
+
+        <!-- 系统设置 -->
+        <div class="section-header">
+          <h3 class="section-title">系统设置</h3>
+        </div>
+        <el-card class="section-card">
+          <el-form label-width="120px" label-position="left">
+            <el-form-item label="游戏窗口名称">
+              <GameWindowTitleSettings />
+            </el-form-item>
+            <el-form-item label="屏幕DPI缩放">
+              <div class="dpi-settings">
+                <el-radio-group :model-value="settingsStore.dpiMode" @change="handleDpiModeChange">
+                  <el-radio-button value="auto">自动识别</el-radio-button>
+                  <el-radio-button value="manual">手动设置</el-radio-button>
+                </el-radio-group>
+                <div v-if="settingsStore.dpiMode === 'auto'" class="dpi-input">
+                  <el-tag :type="settingsStore.dpiDetectionStatus === 'success' ? 'success' : 'info'">
+                    {{ Math.round(settingsStore.dpiScale * 100) }}% · {{ getDpiSourceText() }}
+                  </el-tag>
+                  <el-button
+                    :icon="Refresh"
+                    :loading="settingsStore.dpiDetectionStatus === 'detecting'"
+                    @click="handleRefreshDpi"
+                  >重新识别</el-button>
+                </div>
+                <div v-else class="dpi-input">
+                <el-input-number
+                  v-model="manualDpiScale"
+                  :min="1.0"
+                  :max="3.0"
+                  :step="0.25"
+                  :precision="2"
+                  controls-position="right"
+                  style="width: 120px"
+                  @change="handleDpiScaleChange"
+                />
+                  <span class="hint-text">例如 Windows 150% 缩放填写 1.5</span>
+                </div>
+                <span v-if="settingsStore.dpiMode === 'auto'" class="hint-text">
+                  {{ getDpiStatusText() }}
+                </span>
+              </div>
+            </el-form-item>
+            <el-form-item label="调试模式">
+              <div class="dpi-input">
+                <el-switch
+                  v-model="debugMode"
+                  active-text="显示控制台"
+                  inactive-text="关闭"
+                  @change="handleDebugModeChange"
+                />
+                <span class="hint-text">显示应用的 Chromium DevTools Console 调试面板</span>
+              </div>
+            </el-form-item>
+          </el-form>
         </el-card>
         </div>
 
@@ -496,7 +510,7 @@
             </el-form-item>
             <div class="hint-text">组合键、按键、鼠标按钮和释放时序始终生效，包括自适应模式</div>
             <el-divider />
-            <el-form-item label="自适应等待">
+            <el-form-item class="timing-setting-row" label="自适应等待">
               <el-switch
                 v-model="adaptiveTiming"
                 active-text="开启"
@@ -505,7 +519,7 @@
               />
               <div class="hint-text">开启后剪贴板、画面验证等改为轮询检测，有结果立即继续，不再固定等待</div>
             </el-form-item>
-            <el-form-item v-if="adaptiveTiming" label="自适应等待上限">
+            <el-form-item v-if="adaptiveTiming" class="timing-setting-row" label="自适应等待上限">
               <el-input-number
                 v-model="adaptiveTimeoutMs"
                 :step="100"
@@ -684,7 +698,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Refresh, Close, Aim, UploadFilled } from '@element-plus/icons-vue'
+import { Refresh, Close, Aim, UploadFilled, QuestionFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
@@ -1292,6 +1306,21 @@ async function handleReset() {
 
     .settings-panel { min-width: 0; }
 
+    .label-with-help {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .help-icon {
+      color: var(--text-secondary);
+      cursor: help;
+      outline: none;
+
+      &:hover,
+      &:focus-visible { color: var(--primary-color); }
+    }
+
     .independent-short-fields { margin-bottom: 0; }
 
     .shortcut-scope-control {
@@ -1305,6 +1334,10 @@ async function handleReset() {
     }
 
     .spaced-field :deep(.el-form-item__content) { column-gap: 10px; }
+
+    .timing-setting-row :deep(.el-form-item__content) {
+      column-gap: 12px;
+    }
 
     .account-token {
       max-width: 420px;
@@ -1346,13 +1379,63 @@ async function handleReset() {
       }
     }
 
+    .coordinate-picker {
+      overflow: hidden;
+      width: fit-content;
+      border: 1px solid var(--border-base);
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      transition: border-color .2s, box-shadow .2s;
+
+      &:hover {
+        border-color: var(--control-hover-border, var(--text-secondary));
+      }
+
+      &:focus-within {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 1px var(--primary-color);
+      }
+
+      :deep(.el-input__wrapper) {
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none !important;
+      }
+
+      .coordinate-number-input,
+      .pick-position-button {
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+
+      .coordinate-number-input + .coordinate-number-input,
+      .pick-position-button {
+        border-left: 1px solid var(--border-base);
+      }
+
+      .pick-position-button {
+        width: 36px;
+        height: 32px;
+        padding: 0;
+
+        &:hover,
+        &:focus-visible {
+          color: var(--primary-color);
+          background: var(--surface-hover, var(--bg-secondary));
+        }
+      }
+    }
+
     .currency-position-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0 28px;
+      gap: 24px 28px;
     }
 
     .currency-position-item { min-width: 0; }
+    .currency-position-item :deep(.el-form-item) { margin-bottom: 0; }
     .coordinate-number-input { width: 68px; }
     
     .background-drop-zone {
@@ -1583,6 +1666,12 @@ async function handleReset() {
 
   :deep(.el-card__body) {
     padding: 24px;
+  }
+
+  .settings-panel--automation :deep(.section-card .el-form > .el-form-item:last-child),
+  .settings-panel--system :deep(.section-card .el-form > .el-form-item:last-child),
+  .settings-panel--automation :deep(.section-card .el-form > .app-grid:last-child .el-form-item) {
+    margin-bottom: 0;
   }
 }
 

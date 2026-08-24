@@ -80,16 +80,28 @@
             <el-form label-width="120px" label-position="left">
               <el-form-item label="检测坐标">
                 <div class="position-row">
-                  <el-input-number v-model="config.potion[resource.key].point.x" :controls="false" />
-                  <span>,</span>
-                  <el-input-number v-model="config.potion[resource.key].point.y" :controls="false" />
-                  <el-button
-                    :icon="Aim"
-                    circle
-                    :loading="pickingTarget === resource.key"
-                    :disabled="Boolean(pickingTarget) && pickingTarget !== resource.key"
-                    @click="pickCoordinate(resource.key)"
-                  />
+                  <div class="coordinate-picker">
+                    <el-input-number
+                      v-model="config.potion[resource.key].point.x"
+                      class="coordinate-number-input"
+                      placeholder="X"
+                      :controls="false"
+                    />
+                    <el-input-number
+                      v-model="config.potion[resource.key].point.y"
+                      class="coordinate-number-input"
+                      placeholder="Y"
+                      :controls="false"
+                    />
+                    <el-button
+                      class="pick-position-button"
+                      :icon="Aim"
+                      title="点击选取坐标"
+                      :loading="pickingTarget === resource.key"
+                      :disabled="Boolean(pickingTarget) && pickingTarget !== resource.key"
+                      @click="pickCoordinate(resource.key)"
+                    />
+                  </div>
                   <el-button :loading="samplingTarget === resource.key" @click="samplePixel(resource)">读取颜色</el-button>
                 </div>
               </el-form-item>
@@ -199,16 +211,28 @@
         </el-form-item>
         <el-form-item label="传送门点击位置">
           <div class="position-row">
-            <el-input-number v-model="config.portal.clickPoint.x" :controls="false" />
-            <span>,</span>
-            <el-input-number v-model="config.portal.clickPoint.y" :controls="false" />
-            <el-button
-              :icon="Aim"
-              circle
-              :loading="pickingTarget === 'portal'"
-              :disabled="Boolean(pickingTarget) && pickingTarget !== 'portal'"
-              @click="pickCoordinate('portal')"
-            />
+            <div class="coordinate-picker">
+              <el-input-number
+                v-model="config.portal.clickPoint.x"
+                class="coordinate-number-input"
+                placeholder="X"
+                :controls="false"
+              />
+              <el-input-number
+                v-model="config.portal.clickPoint.y"
+                class="coordinate-number-input"
+                placeholder="Y"
+                :controls="false"
+              />
+              <el-button
+                class="pick-position-button"
+                :icon="Aim"
+                title="点击选取坐标"
+                :loading="pickingTarget === 'portal'"
+                :disabled="Boolean(pickingTarget) && pickingTarget !== 'portal'"
+                @click="pickCoordinate('portal')"
+              />
+            </div>
           </div>
         </el-form-item>
         <el-form-item label="开启后等待">
@@ -371,6 +395,54 @@ async function saveShortcut(key, value) {
 
 .module-help:hover, .module-help:focus-visible { color: var(--brand-color); }
 .position-row { gap: 8px; flex-wrap: wrap; }
+.coordinate-picker {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  width: fit-content;
+  border: 1px solid var(--border-base);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  transition: border-color .2s, box-shadow .2s;
+
+  &:hover { border-color: var(--control-hover-border, var(--text-secondary)); }
+
+  &:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+  }
+
+  :deep(.el-input__wrapper) {
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none !important;
+  }
+
+  .coordinate-number-input,
+  .pick-position-button {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .coordinate-number-input + .coordinate-number-input,
+  .pick-position-button {
+    border-left: 1px solid var(--border-base);
+  }
+
+  .pick-position-button {
+    width: 36px;
+    height: 32px;
+    padding: 0;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--primary-color);
+      background: var(--surface-hover, var(--bg-secondary));
+    }
+  }
+}
 .card-title { justify-content: space-between; width: 100%; }
 .shortcut-grid, .resource-grid { margin: 0; }
 .shortcut-grid > .el-col, .resource-grid > .el-col { display: flex; }
@@ -379,14 +451,14 @@ async function saveShortcut(key, value) {
 .section-card { margin-bottom: 18px; }
 .subsection-title { margin-bottom: 12px; font-weight: 600; }
 .frequency-title { margin-top: 18px; }
-.frequency-form :deep(.el-form-item) { margin-bottom: 0; }
+.frequency-form :deep(.el-form-item) { margin-bottom: 12px; }
 .loop-list { display: grid; gap: 10px; }
 .loop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .loop-add-row { display: flex; justify-content: flex-start; }
 .loop-key { min-width: 110px; }
 .loop-row :deep(.el-input-number) { width: 130px; }
 .module-error { margin-bottom: 12px; }
-.position-row :deep(.el-input-number) { width: 110px; }
+.coordinate-picker .coordinate-number-input { width: 110px; }
 .short-input { max-width: 240px; }
 .hint, .unit { margin-left: 8px; color: var(--text-secondary); font-size: 12px; }
 
@@ -397,6 +469,5 @@ async function saveShortcut(key, value) {
 @media (max-width: 640px) {
   .module-header { flex-direction: column; }
   .module-action { align-self: flex-end; }
-  .frequency-form :deep(.el-form-item) { margin-bottom: 12px; }
 }
 </style>

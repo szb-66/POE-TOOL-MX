@@ -85,6 +85,22 @@ test('设置内容使用全宽任务面板并保留反馈独立状态', () => {
   assert.match(view, /@media \(max-width:\s*760px\)/)
 })
 
+test('自动操作与系统卡片统一保留单层底部间距', () => {
+  assert.match(view, /\.settings-panel--automation :deep\(\.section-card \.el-form > \.el-form-item:last-child\),/)
+  assert.match(view, /\.settings-panel--system :deep\(\.section-card \.el-form > \.el-form-item:last-child\),/)
+  assert.match(view, /\.settings-panel--automation :deep\(\.section-card \.el-form > \.app-grid:last-child \.el-form-item\) \{\s*margin-bottom: 0;/)
+  assert.match(view, /\.currency-position-item :deep\(\.el-form-item\) \{ margin-bottom: 0; \}/)
+})
+
+test('背包字段说明收进问号提示并补充物品位置说明', () => {
+  assert.match(view, />\s*连续空格判空\s*<el-tooltip content="扫描连续达到该数量的空格后，认为后续没有内容"/)
+  assert.doesNotMatch(view, /label="连续空格停止数量"/)
+  assert.match(view, /aria-label="首格位置说明"/)
+  assert.match(view, /aria-label="单格宽高说明"/)
+  assert.match(view, /aria-label="连续空格判空说明"/)
+  assert.match(view, /<h3 class="section-title label-with-help">\s*物品位置[\s\S]*?content="需要制作的装备存放的位置坐标"/)
+})
+
 test('通货坐标使用三等分布局并限制四位数输入框宽度', () => {
   assert.match(view, /class="currency-position-grid"/)
   assert.match(view, /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/)

@@ -657,6 +657,8 @@ async function handleStopStash() {
 .rule-editor .el-input { flex: 1; min-width: 220px; }
 .rule-table { margin-top: 16px; }
 .stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.stash-pickup-settings :deep(.el-form-item__content),
+.junfeng-settings :deep(.el-form-item__content) { gap: 8px; }
 .stash-pickup-preview { display: grid; gap: 10px; margin-top: 12px; color: var(--text-secondary); }
 .junfeng-settings { margin-top: 16px; }
 .junfeng-preview { display: grid; gap: 10px; margin-top: 14px; }

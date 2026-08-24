@@ -18,6 +18,13 @@ test('首页移除诊断入口且问题反馈页完整接管诊断操作', () =>
   assert.match(feedback, /diagnosticCaptureId: prepared\.captureId/)
 })
 
+test('诊断卡片按标题开关、说明和等宽双按钮分层', () => {
+  assert.match(feedback, /class="diagnostic-heading-row">[\s\S]*?附带脱敏诊断[\s\S]*?<el-switch/)
+  assert.match(feedback, /class="diagnostic-description">[\s\S]*?默认关闭，不会自动上传账号令牌、Cookie、个人路径或诊断事件中的敏感原值/)
+  assert.match(feedback, /\.diagnostic-actions \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+  assert.match(feedback, /\.diagnostic-actions :deep\(\.el-button\) \{ width: 100%; margin-left: 0; \}/)
+})
+
 test('本地导出不清理会话且只有反馈成功清除前端会话', () => {
   const exportStart = controller.indexOf('async function exportDiagnostics')
   const exportEnd = controller.indexOf('async function finishAndExportDiagnosticCapture')

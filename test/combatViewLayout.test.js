@@ -66,6 +66,18 @@ test('频率保护数字输入与单位文字保持间距', () => {
   assert.match(combatView, /\.hint, \.unit \{ margin-left: 8px;/)
 })
 
+test('坐标输入与取点按钮使用三段式组合框', () => {
+  const passive = moduleSource('passive-potion', 'active-potion')
+  const portal = moduleSource('portal')
+
+  assert.equal((combatView.match(/class="coordinate-picker"/g) || []).length, 2)
+  assert.match(passive, /class="coordinate-picker"[\s\S]*?placeholder="X"[\s\S]*?placeholder="Y"[\s\S]*?class="pick-position-button"/)
+  assert.match(portal, /class="coordinate-picker"[\s\S]*?placeholder="X"[\s\S]*?placeholder="Y"[\s\S]*?class="pick-position-button"/)
+  assert.doesNotMatch(passive, /<span>,<\/span>/)
+  assert.doesNotMatch(portal, /<span>,<\/span>/)
+  assert.match(combatView, /\.coordinate-number-input \+ \.coordinate-number-input,[\s\S]*?\.pick-position-button \{\s*border-left: 1px solid var\(--border-base\);/)
+})
+
 test('被动与主动喝药使用三态标签和单一条件启停按钮', () => {
   const passive = moduleSource('passive-potion', 'active-potion')
   const active = moduleSource('active-potion', 'portal')

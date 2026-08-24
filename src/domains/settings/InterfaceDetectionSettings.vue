@@ -134,7 +134,15 @@ onUnmounted(() => { if (showDebugOverlay.value) electronApi.window.closeDebugOve
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
 .detection-form { margin-top: 16px; }
 .template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.capture-card { min-width: 0; box-sizing: border-box; padding: 14px; border: 1px solid var(--border-light); border-radius: 8px; }
+.capture-card {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 14px;
+  border: 1px solid var(--border-base);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 56%, var(--surface-1));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12), inset 0 1px rgba(255, 255, 255, .03);
+}
 .capture-header, .capture-header > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .template-preview { display: block; max-width: 100%; height: 72px; margin: 14px auto; object-fit: contain; }
 .region-inputs { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
