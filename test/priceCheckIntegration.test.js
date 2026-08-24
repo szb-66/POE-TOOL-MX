@@ -98,16 +98,16 @@ test('查价浮窗按关闭原因选择性归还游戏焦点', async () => {
 
 test('查价浮窗靠近鼠标定位、边缘翻转并支持负坐标显示器', () => {
   assert.deepEqual(
-    getPriceCheckOverlayBounds({ x: 300, y: 200 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600, 700),
-    { x: 318, y: 218, width: 600, height: 700 }
+    getPriceCheckOverlayBounds({ x: 300, y: 200 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600),
+    { x: 318, y: 0, width: 600, height: 1080 }
   )
   assert.deepEqual(
-    getPriceCheckOverlayBounds({ x: 1850, y: 1000 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600, 700),
-    { x: 1232, y: 282, width: 600, height: 700 }
+    getPriceCheckOverlayBounds({ x: 1850, y: 1000 }, { x: 0, y: 0, width: 1920, height: 1080 }, 600),
+    { x: 1232, y: 0, width: 600, height: 1080 }
   )
   assert.deepEqual(
-    getPriceCheckOverlayBounds({ x: -100, y: 40 }, { x: -1280, y: 0, width: 1280, height: 1024 }, 520, 760),
-    { x: -638, y: 58, width: 520, height: 760 }
+    getPriceCheckOverlayBounds({ x: -100, y: 40 }, { x: -1280, y: 24, width: 1280, height: 1000 }, 520),
+    { x: -638, y: 24, width: 520, height: 1000 }
   )
 })
 
@@ -121,11 +121,15 @@ test('查价浮窗根据鼠标离开锚点或窗口判断关闭意图', () => {
   assert.equal(hasLeftPriceCheckIntent({ x: 100, y: 100 }, anchor, bounds, true), true)
 })
 
-test('查价浮层默认紧凑并折叠低频设置', async () => {
+test('查价浮层满高单滚动并折叠低频设置', async () => {
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   assert.match(view, /settingsCollapsed = ref\(true\)/)
   assert.match(view, /\.topbar \{ height: 38px;/)
-  assert.match(view, /\.filter-list \{ max-height: 255px; overflow-y: auto;/)
+  assert.match(view, /\.content \{ height: calc\(100vh - 38px\); overflow: auto;/)
+  const filterListRule = view.match(/\.filter-list \{[^}]*\}/)?.[0] || ''
+  const mercenaryRule = view.match(/\.mercenary-panel \{[^}]*\}/)?.[0] || ''
+  assert.doesNotMatch(filterListRule, /max-height|overflow/)
+  assert.doesNotMatch(mercenaryRule, /max-height|overflow/)
   assert.match(view, /\.listing \{ min-height: 36px;/)
 })
 
@@ -160,7 +164,9 @@ test('查价浮窗提供当前物品状态三态控件与完整来源标签', as
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   const metadata = await source('shared/priceCheckMetadata.js')
   const statePanel = view.match(/<section class="panel state-filter-panel">([\s\S]*?)<div v-if="!stateFiltersCollapsed"/)?.[1] || ''
-  assert.match(view, /stateFiltersCollapsed = ref\(true\)/)
+  assert.match(view, /stateFiltersCollapsed = ref\(false\)/)
+  assert.match(view, /let activeDisplayGeneration = null/)
+  assert.match(view, /if \(displayGeneration !== activeDisplayGeneration\) \{\s*activeDisplayGeneration = displayGeneration\s*stateFiltersCollapsed\.value = false\s*\}/)
   assert.match(statePanel, /<button[\s\S]*class="panel-heading"/)
   assert.match(statePanel, /:aria-expanded="!stateFiltersCollapsed"/)
   assert.match(statePanel, /aria-controls="price-check-state-filters"/)
@@ -187,6 +193,7 @@ test('查价物品属性固定两列并保留整行选择和输入隔离', async
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   assert.match(view, /class="property-grid">[\s\S]*v-for="property in state\.model\.properties"/)
   assert.match(view, /\.property-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
+  assert.match(view, /\.property-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 52px 52px;[^}]*background: var\(--surface-2\);[^}]*border-color: var\(--border-base\);/)
   assert.match(view, /class="filter-name" :title="property\.label"/)
   assert.match(view, /role="checkbox"[\s\S]*@click="toggleFilter\(property\)"/)
   assert.match(view, /:model-value="property\.min"[\s\S]*@update:model-value="setNumericField\(property, 'min', \$event\)"[\s\S]*@click\.stop @keydown\.stop/)
@@ -227,7 +234,8 @@ test('佣兵凭证浮窗按组显示技能并支持严格的父子选择交互',
   assert.match(view, /function toggleMercenarySupport\(group, support\)[^]*support\.enabled = !support\.enabled[^]*if \(support\.enabled\) group\.enabled = true/)
   assert.match(view, /function toggleMercenaryGroup\(group\) \{ group\.enabled = !group\.enabled \}/)
   assert.match(view, /\.mercenary-supports \{[^}]*flex-wrap: wrap/)
-  assert.match(view, /\.mercenary-panel \{[^}]*overflow-y: auto/)
+  const mercenaryRule = view.match(/\.mercenary-panel \{[^}]*\}/)?.[0] || ''
+  assert.doesNotMatch(mercenaryRule, /max-height|overflow/)
   assert.match(view, /\.mercenary-support\.enabled/)
 })
 
@@ -247,6 +255,10 @@ test('地图和海图浮窗展示区域身份、形状选项与仅供参考字�
 test('查价身份栏仅使用整行边框表达名称选择并保留大类安全约束', async () => {
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   const identitySection = view.match(/<section v-if="state\.model" class="panel identity">([\s\S]*?)<\/section>/)?.[1] || ''
+  assert.match(view, /toggleableIdentityName = computed\(\(\) => \{[\s\S]*identity\?\.name[\s\S]*item\?\.name/)
+  assert.match(view, /if \(identity\?\.category === 'map' \|\| identity\?\.category === 'chart' \|\| identity\?\.displayName\) return ''/)
+  assert.match(identitySection, /v-if="toggleableIdentityName"/)
+  assert.match(identitySection, /<strong>\{\{ toggleableIdentityName \}\}<\/strong>/)
   assert.match(identitySection, /<button[\s\S]*type="button"[\s\S]*class="identity-name filter-row"/)
   assert.match(identitySection, /:aria-pressed="nameFilterEnabled"/)
   assert.match(identitySection, /:disabled="!canToggleName"/)
@@ -261,12 +273,18 @@ test('查价身份栏仅使用整行边框表达名称选择并保留大类安�
   assert.doesNotMatch(view, /<div v-else-if="state\.status === 'ready-to-query'" class="state-message">/)
   assert.doesNotMatch(view, /\.identity-hint\s*\{/)
   assert.match(view, /nameFilterEnabled = computed\([\s\S]*!identity\?\.category \|\| identity\.nameEnabled !== false/)
-  assert.match(view, /function setNameFilterEnabled\(enabled\)[\s\S]*!canToggleName\.value[\s\S]*identity\.nameEnabled = true[\s\S]*identity\.nameEnabled = enabled !== false/)
+  assert.match(view, /canToggleName = computed\(\(\) => Boolean\([\s\S]*toggleableIdentityName\.value[\s\S]*identity\?\.category/)
+  assert.match(view, /function setNameFilterEnabled\(enabled\)[\s\S]*!toggleableIdentityName\.value[\s\S]*!canToggleName\.value[\s\S]*identity\.nameEnabled = true[\s\S]*identity\.nameEnabled = enabled !== false/)
   assert.match(view, /electronApi\.priceCheck\.rerun\(\{[\s\S]*model: state\.value\.model/)
   assert.match(view, /\.identity-side \{[\s\S]*flex-wrap: wrap;/)
   assert.match(view, /\.identity-name\.disabled/)
-  assert.match(view, /\.identity-name \{[^}]*appearance: none;[^}]*background: transparent;/)
-  assert.match(view, /\.filter-row\.enabled \{[^}]*border-color: var\(--brand-color\);/)
+  assert.match(view, /\.identity-name \{[^}]*appearance: none;/)
+  assert.match(view, /\.identity-name \{[^}]*width: 100%;/)
+  assert.doesNotMatch(view, /\.identity-name \{[^}]*width: fit-content;/)
+  assert.match(view, /\.identity-name\.filter-row \{[^}]*background: transparent;[^}]*border: 1px solid transparent;/)
+  assert.match(view, /\.identity-name\.filter-row\.enabled \{[^}]*background: color-mix\(in srgb, var\(--brand-color\) 14%, var\(--surface-1\)\);[^}]*border-color: var\(--brand-color\);/)
+  assert.doesNotMatch(view, /\.identity-name\.filter-row\.enabled \{[^}]*box-shadow:/)
+  assert.ok(view.indexOf('.identity-name.filter-row.enabled') > view.indexOf('button {'))
   assert.match(view, /\.filter-row:focus-visible/)
   assert.doesNotMatch(view, /\.identity-name-checkbox/)
 })

@@ -17,7 +17,7 @@ import {
   createPriceCheckModel,
   sanitizePriceCheckModel
 } from '../electron/modules/priceCheck/query.js'
-import { CHART_FORMAT_GUIDANCE } from '../src/utils/supportedItemFormats.js'
+import { CHART_FORMAT_EXAMPLES } from '../src/utils/supportedItemFormats.js'
 import { CHART_SHAPE_PRICE_CHECK_FIXTURES, MAP_PRICE_CHECK_FIXTURES } from './fixtures/mapChartItems.js'
 
 const catalogPromise = loadTradeCatalog().then(({ catalog }) => catalog)
@@ -85,7 +85,7 @@ test('传奇地图保留真实属性但不把说明文字加入搜索', async ()
 test('三种海图样本解析区域、等级、硫磺、形状和状态', async () => {
   const catalog = await catalogPromise
   const expectedTypes = ['AbyssalPlain', 'UnderseaGroves', 'BrineKingsDomain']
-  for (const [index, example] of CHART_FORMAT_GUIDANCE.examples.entries()) {
+  for (const [index, example] of CHART_FORMAT_EXAMPLES.entries()) {
     const item = parseItemInfo(example.text)
     const model = createPriceCheckModel(item, catalog)
     const query = buildOfficialTradeQuery(model).query

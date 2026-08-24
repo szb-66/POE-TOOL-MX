@@ -1,8 +1,4 @@
-export const ITEM_FORMAT_GUIDANCE = {
-  title: '当前支持的物品匹配格式',
-  summary: '支持中文客户端普通/详细复制；装备槽位共用同一结构，并识别普通、魔法、稀有、传奇、未鉴定与势力物品。',
-  fields: ['物品类别', '稀有度', '物品等级', '插槽', '基底/前缀/后缀/传奇属性', '多行复合词缀', '势力与特殊状态'],
-  examples: [
+export const ITEM_FORMAT_EXAMPLES = [
     {
       id: 'item-basic',
       label: '普通复制格式',
@@ -108,14 +104,9 @@ export const ITEM_FORMAT_GUIDANCE = {
 --------
 塑界之器`
     }
-  ]
-}
+]
 
-export const MAP_FORMAT_GUIDANCE = {
-  title: '当前支持的地图匹配格式',
-  summary: '所有地图统一按六项基底配置匹配；未出现的字段按 0 处理，不再区分普通地图和高级地图。',
-  fields: ['地图阶级 / 地图（N阶）', '物品数量', '物品稀有度', '怪物群大小', '更多地图', '更多圣甲虫', '更多通货'],
-  examples: [
+export const MAP_FORMAT_EXAMPLES = [
     {
       id: 'map-normal',
       label: '常规三字段地图',
@@ -202,14 +193,9 @@ export const MAP_FORMAT_GUIDANCE = {
 --------
 不可改变`
     }
-  ]
-}
+]
 
-export const CHART_FORMAT_GUIDANCE = {
-  title: '当前支持的航海海图匹配格式',
-  summary: '航海海图独立按四项奖励匹配；区域等级仅识别，海图形状不解析也不参与洗练。',
-  fields: ['区域等级', '物品数量', '物品稀有度', '怪物群大小', '亡者硫磺', '前缀/后缀属性'],
-  examples: [
+export const CHART_FORMAT_EXAMPLES = [
     {
       id: 'chart-identified',
       label: '已鉴定航海海图',
@@ -283,11 +269,10 @@ export const CHART_FORMAT_GUIDANCE = {
 --------
 已腐化`
     }
-  ]
-}
+]
 
 export const SUPPORTED_FORMAT_EXAMPLES = [
-  ...ITEM_FORMAT_GUIDANCE.examples,
-  ...MAP_FORMAT_GUIDANCE.examples,
-  ...CHART_FORMAT_GUIDANCE.examples
+  ...ITEM_FORMAT_EXAMPLES,
+  ...MAP_FORMAT_EXAMPLES,
+  ...CHART_FORMAT_EXAMPLES
 ]

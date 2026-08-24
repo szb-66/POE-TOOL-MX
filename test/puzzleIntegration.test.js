@@ -511,15 +511,20 @@ test('双区域截图预览完整等比例缩放且网格只覆盖图片可见�
   assert.match(view, /\.preview-stage\s*\{[\s\S]*?width:\s*min\(100%,\s*var\(--preview-width\)\);/)
   assert.match(view, /\.preview-stage img\s*\{[\s\S]*?object-fit:\s*contain;/)
   assert.doesNotMatch(view, /\.preview-shell img/)
+  assert.match(view, /\.preview-shell\s*\{[^}]*background:\s*var\(--surface-2, var\(--bg-tertiary\)\);/)
+  assert.doesNotMatch(view, /\.preview-shell\s*\{[^}]*background:\s*var\(--el-fill-color-dark\);/)
 })
 
-test('碎片仓库每个格子提供独立固定锁按钮且不冒泡到格子操作', () => {
+test('碎片仓库锁按钮未锁定时悬浮显示、锁定后常驻且不冒泡到格子操作', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   assert.match(view, /class="slot-lock-button"/)
   assert.match(view, /@click\.stop="toggleSlotLock\(slot\)"/)
   assert.match(view, /@contextmenu\.stop\.prevent/)
   assert.match(view, /locked:\s*isSlotLocked\(slot\)/)
   assert.match(view, /currentPageLockedCount/)
+  assert.match(view, /\.slot-lock-button\s*\{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/)
+  assert.match(view, /\.inventory-slot-shell:hover \.slot-lock-button,[\s\S]*?\.slot-lock-button:focus-visible,[\s\S]*?\.slot-lock-button\.active\s*\{\s*opacity:\s*1;\s*pointer-events:\s*auto;/)
+  assert.doesNotMatch(view, /\.inventory-slot-shell:focus-within \.slot-lock-button/)
 })
 
 test('浏览器 Worker 求解不禁用仓库编辑且只允许最新请求更新方案', () => {

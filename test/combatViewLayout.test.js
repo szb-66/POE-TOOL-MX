@@ -58,6 +58,14 @@ test('配置与功能内容归属各自模块', () => {
   assert.match(portal, />执行回城<\/el-button>/)
 })
 
+test('频率保护数字输入与单位文字保持间距', () => {
+  const settings = moduleSource('combat-settings', 'passive-potion')
+
+  assert.equal((settings.match(/<span class="unit">毫秒<\/span>/g) || []).length, 2)
+  assert.equal((settings.match(/<span class="unit">次<\/span>/g) || []).length, 1)
+  assert.match(combatView, /\.hint, \.unit \{ margin-left: 8px;/)
+})
+
 test('被动与主动喝药使用三态标签和单一条件启停按钮', () => {
   const passive = moduleSource('passive-potion', 'active-potion')
   const active = moduleSource('active-potion', 'portal')

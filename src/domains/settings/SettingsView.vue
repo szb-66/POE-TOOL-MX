@@ -156,7 +156,7 @@
           <el-form :model="inventory" label-width="120px" label-position="left">
             <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
-                <el-form-item label="首格位置">
+                <el-form-item class="spaced-field" label="首格位置">
                   <div class="position-input">
                     <el-input-number
                       v-model="inventory.startPos.x"
@@ -187,7 +187,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="单格宽高">
+                <el-form-item class="spaced-field" label="单格宽高">
                   <div class="position-input">
                     <el-input-number
                       v-model="inventory.slotSize.w"
@@ -213,7 +213,7 @@
             </el-row>
             <el-row class="app-grid" :gutter="16">
               <el-col :span="12">
-                <el-form-item label="连续空格停止数量">
+                <el-form-item class="spaced-field" label="连续空格停止数量">
                   <el-input-number
                     v-model="inventory.emptySlotThreshold"
                     :min="EMPTY_SLOT_THRESHOLD.min"
@@ -465,7 +465,7 @@
         </div>
         <el-card class="section-card">
           <el-form label-width="180px" label-position="left">
-            <el-form-item label="自动操作等待">
+            <el-form-item class="spaced-field" label="自动操作等待">
               <el-input-number
                 v-model="operationDelayMs"
                 :step="10"
@@ -1293,6 +1293,18 @@ async function handleReset() {
     .settings-panel { min-width: 0; }
 
     .independent-short-fields { margin-bottom: 0; }
+
+    .shortcut-scope-control {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 10px;
+      width: 100%;
+
+      .hint-text { flex-basis: 100%; }
+    }
+
+    .spaced-field :deep(.el-form-item__content) { column-gap: 10px; }
 
     .account-token {
       max-width: 420px;

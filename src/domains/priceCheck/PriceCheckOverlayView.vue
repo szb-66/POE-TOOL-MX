@@ -52,7 +52,7 @@
       <section v-if="state.model" class="panel identity">
         <div class="identity-main">
           <button
-            v-if="state.model.identity?.name"
+            v-if="toggleableIdentityName"
             type="button"
             class="identity-name filter-row"
             :class="{ enabled: nameFilterEnabled, disabled: !canToggleName }"
@@ -63,7 +63,7 @@
             @keydown.enter.prevent="setNameFilterEnabled(!nameFilterEnabled)"
             @keydown.space.prevent="setNameFilterEnabled(!nameFilterEnabled)"
           >
-            <strong>{{ state.model.identity.name }}</strong>
+            <strong>{{ toggleableIdentityName }}</strong>
             <small v-if="!canToggleName">大类不可用，名称必须保留</small>
           </button>
           <strong v-else class="identity-static-name">{{ state.model.identity?.displayName || state.model.item.name || state.model.item.baseType }}</strong>
@@ -335,7 +335,7 @@ function clonePreviewInput(value) {
 const state = ref(props.previewMode ? clonePreviewInput(props.previewState) : null)
 const busy = ref(false)
 const filtersCollapsed = ref(false)
-const stateFiltersCollapsed = ref(true)
+const stateFiltersCollapsed = ref(false)
 const settingsCollapsed = ref(true)
 const resultView = ref('list')
 const distributionLoading = ref(false)
@@ -352,6 +352,7 @@ let removeListener
 let removeSettingsListener
 let settingsRevision = 0
 let renderGeneration = 0
+let activeDisplayGeneration = null
 
 const stateDefinitions = PRICE_CHECK_STATE_FILTERS
 const activeFlags = computed(() => stateDefinitions
@@ -361,8 +362,17 @@ const nameFilterEnabled = computed(() => {
   const identity = state.value?.model?.identity
   return !identity?.category || identity.nameEnabled !== false
 })
+const toggleableIdentityName = computed(() => {
+  const model = state.value?.model
+  const identity = model?.identity
+  const item = model?.item
+  if (identity?.name) return identity.name
+  if (item?.rarity === '传奇') return ''
+  if (identity?.category === 'map' || identity?.category === 'chart' || identity?.displayName) return ''
+  return item?.name || ''
+})
 const canToggleName = computed(() => Boolean(
-  state.value?.model?.identity?.name && state.value?.model?.identity?.category
+  toggleableIdentityName.value && state.value?.model?.identity?.category
 ))
 const dcRateText = computed(() => {
   const rate = Number(state.value?.dcRate?.value)
@@ -402,6 +412,10 @@ async function applySnapshot(snapshot, presentation = null) {
   if (!snapshot) return
   const displayGeneration = Number(presentation?.generation)
   if (!Number.isSafeInteger(displayGeneration)) return
+  if (displayGeneration !== activeDisplayGeneration) {
+    activeDisplayGeneration = displayGeneration
+    stateFiltersCollapsed.value = false
+  }
   const renderId = ++renderGeneration
   await nextTick()
   await new Promise((resolve) => requestAnimationFrame(resolve))
@@ -479,7 +493,7 @@ function toggleMercenarySupport(group, support) {
 }
 function setNameFilterEnabled(enabled) {
   const identity = state.value?.model?.identity
-  if (!identity?.name) return
+  if (!identity || !toggleableIdentityName.value) return
   if (!canToggleName.value) {
     identity.nameEnabled = true
     return
@@ -584,7 +598,7 @@ onUnmounted(() => {
 .setting-number :deep(.el-input__wrapper) { min-height: 22px; padding-top: 0; padding-bottom: 0; }
 .identity { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .identity-main { display: flex; min-width: 0; flex: 1 1 auto; flex-direction: column; gap: 3px; }
-.identity-name { appearance: none; display: flex; width: fit-content; max-width: 100%; min-height: 28px; height: auto; align-items: center; gap: 7px; padding: 3px 6px; color: inherit; background: transparent; font: inherit; text-align: left; }
+.identity-name { appearance: none; display: flex; width: 100%; max-width: 100%; min-height: 28px; height: auto; align-items: center; gap: 7px; padding: 3px 8px; color: inherit; background: transparent; font: inherit; text-align: left; }
 .identity-name.disabled { cursor: not-allowed; opacity: .72; }
 .filter-row.identity-name.disabled:hover { background: color-mix(in srgb, var(--brand-color) 12%, var(--surface-1)); border-color: var(--brand-color); }
 .identity-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -596,18 +610,18 @@ onUnmounted(() => {
 .flags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .flags span { padding: 2px 5px; color: #ffcc85; border: 1px solid #795a2d; border-radius: 4px; font-size: 10px; }
 h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 var(--overlay-space-1); padding: 2px 0; font-size: var(--overlay-font-size); color: var(--text-primary); background: var(--surface-1); }
-.filter-list { max-height: 255px; overflow-y: auto; padding: 5px; }
+.filter-list { padding: 5px; }
 .property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .filter-row { display: grid; gap: 5px; align-items: center; height: 32px; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
 .filter-row:not(.unknown):hover { background: var(--surface-hover); border-color: var(--border-lighter); }
 .filter-row.enabled { background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-1)); border-color: var(--brand-color); }
 .filter-row.enabled:hover { background: color-mix(in srgb, var(--brand-color) 19%, var(--surface-1)); border-color: color-mix(in srgb, var(--brand-color) 84%, white); }
 .filter-row:focus-visible { outline: 1px solid var(--brand-color); outline-offset: -1px; }
-.property-row { grid-template-columns: minmax(0, 1fr) 52px 52px; }
+.property-row { grid-template-columns: minmax(0, 1fr) 52px 52px; background: var(--surface-2); border-color: var(--border-base); }
 .property-row:has(.property-option) { grid-template-columns: minmax(0, 1fr) 109px; }
 .information-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; color: var(--text-regular); }
 .information-panel small { display: block; margin-top: 5px; }
-.mercenary-panel { max-height: 360px; overflow-y: auto; padding: 5px; }
+.mercenary-panel { padding: 5px; }
 .mercenary-group { margin-top: 5px; padding: var(--overlay-space-2); border: 1px dashed var(--border-base); border-radius: var(--overlay-radius-sm); background: var(--surface-1); }
 .mercenary-group:first-of-type { margin-top: 0; }
 .mercenary-group.enabled { border-style: solid; border-color: #c98922; background: #332815; }
@@ -653,6 +667,10 @@ button { min-height: var(--overlay-control-height); color: var(--text-primary); 
 button:hover:not(:disabled) { background: var(--surface-hover); border-color: color-mix(in srgb, var(--brand-color) 55%, var(--border-base)); }
 button:focus-visible { outline: 2px solid var(--brand-color); outline-offset: 1px; }
 button:disabled { opacity: .45; cursor: default; }
+.identity-name.filter-row { background: transparent; border: 1px solid transparent; }
+.identity-name.filter-row:not(.enabled):hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-lighter); }
+.identity-name.filter-row.enabled { background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-1)); border-color: var(--brand-color); }
+.identity-name.filter-row.enabled:hover:not(:disabled) { background: color-mix(in srgb, var(--brand-color) 19%, var(--surface-1)); border-color: color-mix(in srgb, var(--brand-color) 84%, white); }
 .identity-resolver p { margin: 4px 0 8px; color: var(--text-regular); }
 .candidate { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 56px; margin-top: 5px; text-align: left; }
 .candidate img { flex: 0 0 48px; width: 48px; height: 48px; object-fit: contain; }

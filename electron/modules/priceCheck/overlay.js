@@ -20,6 +20,14 @@ const CURSOR_POLL_MS = 80
 const CURSOR_LEAVE_DELAY_MS = 160
 const NATIVE_PRIME_DELAY_MS = 16
 
+function lockPriceCheckOverlayHeight(window, area) {
+  const width = Math.max(1, Math.round(area.width))
+  const height = Math.max(1, Math.round(area.height))
+  window.setMinimumSize(1, 1)
+  window.setMaximumSize(width, height)
+  window.setMinimumSize(1, height)
+}
+
 export class PriceCheckOverlayManager {
   constructor({ sizeController = null, restoreGameFocus = async () => false, focusSession = null } = {}) {
     this.window = null
@@ -87,9 +95,12 @@ export class PriceCheckOverlayManager {
   ensureWindow(cursor, area) {
     if (this.window && !this.window.isDestroyed()) return false
     const { width, height } = this.sizeController.resolve(area)
-    const bounds = getPriceCheckOverlayBounds(cursor, area, width, height)
+    const bounds = getPriceCheckOverlayBounds(cursor, area, width)
     const window = new BrowserWindow({
       ...bounds,
+      minHeight: height,
+      maxHeight: height,
+      maxWidth: area.width,
       frame: false,
       transparent: true,
       backgroundColor: '#00000000',
@@ -171,11 +182,12 @@ export class PriceCheckOverlayManager {
     const created = this.ensureWindow(cursor, area)
     if (!created && reposition) {
       const currentBounds = this.window.getBounds()
+      const width = Math.min(currentBounds.width, area.width)
+      lockPriceCheckOverlayHeight(this.window, area)
       this.window.setBounds(getPriceCheckOverlayBounds(
         cursor,
         area,
-        currentBounds.width,
-        currentBounds.height
+        width
       ))
     }
     const display = this.presentation.beginDisplay()

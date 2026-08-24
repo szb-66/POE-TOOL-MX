@@ -8,8 +8,6 @@
     </div>
 
     <el-row class="map-content primary-page__scroll primary-page__content app-grid" :gutter="16"><el-col :span="24">
-      <SupportedFormatPanel :guidance="formatGuidance" />
-
       <div class="map-header">
         <div class="header-top">
         <div class="form-item">
@@ -70,8 +68,6 @@ import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
-import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
-import { CHART_FORMAT_GUIDANCE, MAP_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 import { CHART_BASE_STATS, MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { useScriptStore } from '@/stores/script'
@@ -103,8 +99,6 @@ const activeKind = computed({
 })
 const activeProfile = computed(() => activeKind.value === 'chart' ? chartConfig.value : mapConfig.value)
 const activeStatKeys = computed(() => activeKind.value === 'chart' ? CHART_BASE_STATS : MAP_BASE_STATS)
-const formatGuidance = computed(() => activeKind.value === 'chart' ? CHART_FORMAT_GUIDANCE : MAP_FORMAT_GUIDANCE)
-
 async function saveShortcut(key, value) {
   try { await commitGlobalShortcut(key, value) } catch (error) { ElMessage.error(error.message) }
 }

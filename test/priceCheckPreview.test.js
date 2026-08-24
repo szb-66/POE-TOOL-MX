@@ -63,4 +63,8 @@ test('查价预览保留本地交互并禁用搜索、网页市集和关闭', ()
   assert.match(view, /\.overlay-shell\.preview \{[^}]*height: 640px;[^}]*min-height: 0;/)
   assert.match(view, /\.overlay-shell\.preview \.content \{ height: calc\(100% - 38px\);/)
   assert.match(view, /\.overlay-shell\.preview \.topbar \{[^}]*-webkit-app-region: no-drag;/)
+  const filterListRule = view.match(/\.filter-list \{[^}]*\}/)?.[0] || ''
+  const mercenaryRule = view.match(/\.mercenary-panel \{[^}]*\}/)?.[0] || ''
+  assert.doesNotMatch(filterListRule, /max-height|overflow/)
+  assert.doesNotMatch(mercenaryRule, /max-height|overflow/)
 })

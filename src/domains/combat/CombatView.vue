@@ -25,13 +25,16 @@
       <div class="subsection-title frequency-title">频率保护</div>
       <el-form inline class="frequency-form">
         <el-form-item label="检测间隔">
-          <el-input-number v-model="config.potion.scanIntervalMs" :min="10" :step="10" /> 毫秒
+          <el-input-number v-model="config.potion.scanIntervalMs" :min="10" :step="10" />
+          <span class="unit">毫秒</span>
         </el-form-item>
         <el-form-item label="每秒最多触发">
-          <el-input-number v-model="config.potion.maxTriggersPerSecond" :min="1" :max="20" /> 次
+          <el-input-number v-model="config.potion.maxTriggersPerSecond" :min="1" :max="20" />
+          <span class="unit">次</span>
         </el-form-item>
         <el-form-item label="保护冷却">
-          <el-input-number v-model="config.potion.protectionCooldownMs" :min="1" :step="100" /> 毫秒
+          <el-input-number v-model="config.potion.protectionCooldownMs" :min="1" :step="100" />
+          <span class="unit">毫秒</span>
         </el-form-item>
       </el-form>
     </el-card>

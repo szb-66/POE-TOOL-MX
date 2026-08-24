@@ -123,11 +123,11 @@ test('主内容区加载层、导航异常复位与侧栏预加载均已接线',
   assert.match(sidebarSource, /@focusin="warmRoute/)
 })
 
-test('公共页面骨架顶部紧凑排列且加载提示不依赖绝对定位', () => {
+test('普通页面切换使用居中的常规转圈加载且不再渲染骨架占位', () => {
   const overlaySource = readFileSync(new URL('../src/components/common/RouteLoadingOverlay.vue', import.meta.url), 'utf8')
-  const labelRule = overlaySource.match(/\.route-loading-label\s*\{([^}]*)\}/)?.[1] ?? ''
 
-  assert.match(overlaySource, /class="route-loading-header"/)
-  assert.match(overlaySource, /\.route-loading-shell\s*\{[^}]*align-content:\s*start/)
-  assert.doesNotMatch(labelRule, /position:\s*absolute/)
+  assert.match(overlaySource, /class="route-loading-indicator"/)
+  assert.match(overlaySource, /<Loading\s*\/>/)
+  assert.match(overlaySource, /\.route-loading-overlay\s*\{[^}]*align-items:\s*center;[^}]*justify-content:\s*center;/)
+  assert.doesNotMatch(overlaySource, /route-loading-(?:title|band|cards)/)
 })

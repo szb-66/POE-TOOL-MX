@@ -1,26 +1,20 @@
 const CURSOR_OFFSET = 18
 const ANCHOR_RADIUS = 64
 
-export function getPriceCheckOverlayBounds(cursor, workArea, width, height) {
+export function getPriceCheckOverlayBounds(cursor, workArea, width) {
   const minX = workArea.x
   const minY = workArea.y
   const maxX = workArea.x + workArea.width - width
-  const maxY = workArea.y + workArea.height - height
   const preferredX = cursor.x + CURSOR_OFFSET
-  const preferredY = cursor.y + CURSOR_OFFSET
   const flippedX = cursor.x - width - CURSOR_OFFSET
-  const flippedY = cursor.y - height - CURSOR_OFFSET
   return {
     x: Math.round(Math.max(minX, Math.min(
       preferredX + width <= workArea.x + workArea.width ? preferredX : flippedX,
       maxX
     ))),
-    y: Math.round(Math.max(minY, Math.min(
-      preferredY + height <= workArea.y + workArea.height ? preferredY : flippedY,
-      maxY
-    ))),
+    y: Math.round(minY),
     width,
-    height
+    height: Math.round(workArea.height)
   }
 }
 

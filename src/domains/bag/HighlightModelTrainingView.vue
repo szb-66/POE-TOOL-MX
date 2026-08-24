@@ -19,7 +19,7 @@
             :closable="false"
           />
           <el-form label-width="140px" label-position="left">
-            <el-form-item label="素材来源">
+            <el-form-item class="training-source-field" label="素材来源">
               <el-select v-model="trainingDomain" style="width: 220px">
                 <el-option v-for="entry in trainingProfiles" :key="entry.value" :label="entry.label" :value="entry.value" />
               </el-select>
@@ -284,6 +284,7 @@ function formatProbability(value) { const number = Number(value); return Number.
 .highlight-training, .training-preview { display: grid; gap: 14px; }
 .hint-text, .preview-summary, .training-metrics { color: var(--text-secondary); font-size: 12px; }
 .hint-text { margin-left: 8px; }
+.training-source-field :deep(.el-form-item__content) { column-gap: 10px; }
 .training-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .session-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .session-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }

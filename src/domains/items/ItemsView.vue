@@ -1,8 +1,6 @@
 <template>
   <div class="items-page primary-page primary-page__scroll primary-page__content">
     <el-row class="app-grid" :gutter="16"><el-col :span="24">
-    <SupportedFormatPanel :guidance="ITEM_FORMAT_GUIDANCE" />
-
     <el-alert
       v-if="showEldritchRuntime"
       :title="eldritchRuntimeText"
@@ -40,8 +38,6 @@ import ModuleOne from './components/ModuleOne.vue'
 import ModuleTwo from './components/ModuleTwo.vue'
 import ModuleEldritch from './components/ModuleEldritch.vue'
 import ModuleThree from './components/ModuleThree.vue'
-import SupportedFormatPanel from '@/components/common/SupportedFormatPanel.vue'
-import { ITEM_FORMAT_GUIDANCE } from '@/utils/supportedItemFormats'
 import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
 

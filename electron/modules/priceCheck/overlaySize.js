@@ -1,7 +1,6 @@
 const DEFAULT_WIDTH_MIN = 520
 const DEFAULT_WIDTH_MAX = 640
-const DEFAULT_HEIGHT_MIN = 520
-const DEFAULT_HEIGHT_MAX = 760
+const DEFAULT_HEIGHT = 520
 export const PRICE_CHECK_OVERLAY_RESIZE_SAVE_DELAY_MS = 180
 
 function positiveInteger(value) {
@@ -13,26 +12,25 @@ function positiveInteger(value) {
 export function normalizePriceCheckOverlaySize(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const width = positiveInteger(value.width)
-  const height = positiveInteger(value.height)
-  return width && height ? { width, height } : null
+  return width ? { width } : null
 }
 
 export function getDefaultPriceCheckOverlaySize(workArea = {}) {
   const areaWidth = positiveInteger(workArea.width) || DEFAULT_WIDTH_MIN
-  const areaHeight = positiveInteger(workArea.height) || DEFAULT_HEIGHT_MIN
+  const areaHeight = positiveInteger(workArea.height) || DEFAULT_HEIGHT
   return {
     width: Math.min(DEFAULT_WIDTH_MAX, Math.max(DEFAULT_WIDTH_MIN, Math.floor(areaWidth * 0.32))),
-    height: Math.min(DEFAULT_HEIGHT_MAX, Math.max(DEFAULT_HEIGHT_MIN, Math.floor(areaHeight * 0.76)))
+    height: areaHeight
   }
 }
 
 export function resolvePriceCheckOverlaySize(preferredSize, workArea = {}) {
-  const desired = normalizePriceCheckOverlaySize(preferredSize) || getDefaultPriceCheckOverlaySize(workArea)
-  const areaSize = normalizePriceCheckOverlaySize(workArea)
-  if (!areaSize) return desired
+  const defaultSize = getDefaultPriceCheckOverlaySize(workArea)
+  const preferredWidth = normalizePriceCheckOverlaySize(preferredSize)?.width || defaultSize.width
+  const areaWidth = positiveInteger(workArea.width) || defaultSize.width
   return {
-    width: Math.min(desired.width, areaSize.width),
-    height: Math.min(desired.height, areaSize.height)
+    width: Math.min(preferredWidth, areaWidth),
+    height: defaultSize.height
   }
 }
 

@@ -359,6 +359,18 @@ test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取�
   assert.match(card, /\.card-actions \{[\s\S]*?flex-wrap: wrap;/)
 })
 
+test('首页模块卡片的单项快捷控件占满宽度且操作区底部对齐', () => {
+  const card = readFileSync(
+    new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(card, /\.module-card \{[\s\S]*?display: flex;[\s\S]*?flex-direction: column;/)
+  assert.match(card, /\.module-card :deep\(\.el-card__body\) \{[\s\S]*?display: flex;[\s\S]*?flex: 1;[\s\S]*?flex-direction: column;/)
+  assert.match(card, /\.quick-control:only-child \{ grid-column: 1 \/ -1; \}/)
+  assert.match(card, /\.card-actions \{[\s\S]*?margin-top: auto;/)
+})
+
 test('首页使用单一紧凑汇总带并以文字和图标表达模块状态', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/DashboardView.vue', import.meta.url), 'utf8')
   const card = readFileSync(new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url), 'utf8')

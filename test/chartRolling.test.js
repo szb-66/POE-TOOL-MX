@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
 import { matchMapRequirements } from '../electron/modules/item/matcher.js'
-import { CHART_FORMAT_GUIDANCE } from '../src/utils/supportedItemFormats.js'
+import { CHART_FORMAT_EXAMPLES } from '../src/utils/supportedItemFormats.js'
 
-const samples = Object.fromEntries(CHART_FORMAT_GUIDANCE.examples.map(example => [example.id, example.text]))
+const samples = Object.fromEntries(CHART_FORMAT_EXAMPLES.map(example => [example.id, example.text]))
 const stat = (enabled, value) => ({ enabled, value })
 
 test('JavaScript 航海海图匹配器隔离类别并匹配四项数值', () => {

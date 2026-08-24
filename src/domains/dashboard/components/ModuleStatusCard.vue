@@ -111,6 +111,8 @@ const tagType = computed(() => ({
 
 <style scoped lang="less">
 .module-card {
+  display: flex;
+  flex-direction: column;
   position: relative;
   min-height: 260px;
   border: 1px solid var(--border-base);
@@ -124,6 +126,11 @@ const tagType = computed(() => ({
   &.state-running { border-top-color: var(--el-color-success); }
   &.state-attention { border-top-color: var(--el-color-warning); }
   &.state-ready { border-top-color: var(--el-color-info); }
+}
+.module-card :deep(.el-card__body) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .card-heading,
@@ -215,6 +222,7 @@ p { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45;
   color: var(--text-secondary);
   font-size: 12px;
 }
+.quick-control:only-child { grid-column: 1 / -1; }
 .quick-control > span { flex: 0 0 auto; white-space: nowrap; }
 .quick-control :deep(.el-select) { flex: 1; min-width: 0; }
 .metrics div { min-width: 0; padding: 8px 10px; border: 1px solid var(--border-base); border-radius: 7px; }

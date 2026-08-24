@@ -1,10 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync } from 'node:fs'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
 import {
-  ITEM_FORMAT_GUIDANCE,
-  CHART_FORMAT_GUIDANCE,
-  MAP_FORMAT_GUIDANCE,
+  ITEM_FORMAT_EXAMPLES,
+  CHART_FORMAT_EXAMPLES,
+  MAP_FORMAT_EXAMPLES,
   SUPPORTED_FORMAT_EXAMPLES
 } from '../src/utils/supportedItemFormats.js'
 import { toGlobalDipPoint } from '../electron/modules/window/coordinates.js'
@@ -13,6 +14,16 @@ import { validateShortcuts } from '../src/utils/shortcutValidator.js'
 import { toElectronAccelerator } from '../src/utils/electronAccelerator.js'
 
 const byId = Object.fromEntries(SUPPORTED_FORMAT_EXAMPLES.map(example => [example.id, example.text]))
+
+test('制作和地图页面不再展示格式说明面板', () => {
+  const itemsView = readFileSync(new URL('../src/domains/items/ItemsView.vue', import.meta.url), 'utf8')
+  const mapView = readFileSync(new URL('../src/domains/map/MapView.vue', import.meta.url), 'utf8')
+  const panelPath = new URL('../src/components/common/SupportedFormatPanel.vue', import.meta.url)
+
+  assert.doesNotMatch(itemsView, /SupportedFormatPanel|ITEM_FORMAT_GUIDANCE/)
+  assert.doesNotMatch(mapView, /SupportedFormatPanel|(?:MAP|CHART)_FORMAT_GUIDANCE/)
+  assert.equal(existsSync(panelPath), false)
+})
 
 test('物品普通复制样例可解析基础字段、插槽和显式词缀', () => {
   const item = parseItemInfo(byId['item-basic'])
@@ -54,10 +65,10 @@ test('完整六字段地图样例可解析替代阶级写法和全部扩展基�
   assert.equal(item.moreCurrency, 45)
 })
 
-test('页面说明引用全部受测样例', () => {
-  assert.equal(ITEM_FORMAT_GUIDANCE.examples.length, 6)
-  assert.equal(MAP_FORMAT_GUIDANCE.examples.length, 4)
-  assert.equal(CHART_FORMAT_GUIDANCE.examples.length, 3)
+test('集中样例集合覆盖物品、地图和航海海图', () => {
+  assert.equal(ITEM_FORMAT_EXAMPLES.length, 6)
+  assert.equal(MAP_FORMAT_EXAMPLES.length, 4)
+  assert.equal(CHART_FORMAT_EXAMPLES.length, 3)
   assert.equal(SUPPORTED_FORMAT_EXAMPLES.length, 13)
 })
 
@@ -89,7 +100,7 @@ test('航海海图样例解析身份、奖励数值和特殊状态', () => {
   assert.equal(corrupted.isCorrupted, true)
 })
 
-test('所有格式指导示例均可被真实解析器识别', () => {
+test('所有代表性格式样例均可被真实解析器识别', () => {
   for (const example of SUPPORTED_FORMAT_EXAMPLES) {
     const item = parseItemInfo(example.text)
     assert.ok(item, example.id)

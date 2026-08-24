@@ -843,7 +843,7 @@ const nextSolution = store.nextSolution
 .inventory-toolbar-label { color: var(--el-text-color-secondary); font-size: 12px; white-space: nowrap; }
 .inventory-help-icon { color: var(--el-text-color-secondary); cursor: help; }
 .inventory-page-tabs { display: inline-flex; flex: none; flex-direction: row; flex-wrap: nowrap; white-space: nowrap; }
-.preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--el-fill-color-dark); color: var(--el-text-color-secondary); }
+.preview-shell { display: grid; min-height: 236px; padding: 8px; place-items: center; overflow: auto; box-sizing: border-box; border: 1px solid var(--el-border-color); border-radius: 6px; background: var(--surface-2, var(--bg-tertiary)); color: var(--el-text-color-secondary); }
 .preview-stage { position: relative; width: min(100%, var(--preview-width)); aspect-ratio: var(--preview-aspect); }
 .preview-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .preview-empty {
@@ -987,10 +987,19 @@ const nextSolution = store.nextSolution
   background: rgba(20, 20, 20, 0.78);
   color: var(--el-text-color-secondary);
   cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, border-color .15s ease, color .15s ease, background-color .15s ease;
 }
+.inventory-slot-shell:hover .slot-lock-button,
+.slot-lock-button:focus-visible,
+.slot-lock-button.active { opacity: 1; pointer-events: auto; }
 .slot-lock-button:hover { border-color: var(--el-color-warning); color: var(--el-color-warning); }
 .slot-lock-button.active { border-color: var(--el-color-warning); background: rgba(230, 162, 60, 0.2); color: var(--el-color-warning); }
-.slot-lock-button:disabled { cursor: not-allowed; opacity: 0.55; }
+.slot-lock-button:disabled { cursor: not-allowed; }
+.inventory-slot-shell:hover .slot-lock-button:disabled,
+.slot-lock-button:focus-visible:disabled,
+.slot-lock-button.active:disabled { opacity: 0.55; }
 .calibration-thumbnail { display: block; width: 48px; height: 48px; object-fit: fill; border-radius: 4px; }
 .mod-tooltip-line { line-height: 1.5; }
 .warning-summary { margin-top: 12px; color: var(--el-color-warning); font-size: 13px; }

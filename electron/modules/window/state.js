@@ -56,8 +56,7 @@ export function loadPriceCheckOverlaySize() {
 export function savePriceCheckOverlaySize(size) {
   saveWindowState({
     priceCheckOverlaySize: {
-      width: size?.width,
-      height: size?.height
+      width: size?.width
     }
   })
 }
