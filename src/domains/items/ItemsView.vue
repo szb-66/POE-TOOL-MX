@@ -44,13 +44,13 @@ import { useScriptStore } from '@/stores/script'
 const presetStore = usePresetStore()
 const scriptStore = useScriptStore()
 const showEldritchRuntime = computed(() => presetStore.currentItemPreset.moduleEldritch?.enabled && (
-  scriptStore.isRunning || scriptStore.itemRuntime.iteration > 0 || scriptStore.itemRuntime.eldritchImplicitMatch || scriptStore.itemRuntime.error || (scriptStore.lastMode === 'items' && scriptStore.lastError)
+  scriptStore.isRunning || scriptStore.itemRuntime.eldritchImplicitMatch || scriptStore.itemRuntime.error || (scriptStore.lastMode === 'items' && scriptStore.lastError)
 ))
 const eldritchRuntimeText = computed(() => {
   const runtime = scriptStore.itemRuntime
   if (runtime.error || (scriptStore.lastMode === 'items' && scriptStore.lastError)) return `古灵隐式制作停止：${runtime.error || scriptStore.lastError}`
-  if (runtime.eldritchImplicitMatch) return `古灵隐式命中：${runtime.matchedEldritchTargetName || '目标词缀'} · 循环 ${runtime.iteration} 次`
-  return `古灵隐式制作中 · 已循环 ${runtime.iteration} 次`
+  if (runtime.eldritchImplicitMatch) return `古灵隐式命中：${runtime.matchedEldritchTargetName || '目标词缀'}`
+  return '古灵隐式制作中'
 })
 </script>
 

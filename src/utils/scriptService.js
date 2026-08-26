@@ -17,7 +17,7 @@ import { ElMessage } from 'element-plus'
 import { executePortalAssist, startPotionAssist, stopPotionAssist } from './combatService.js'
 import { useStoryStore } from '../stores/story'
 import { validateShortcuts } from './shortcutValidator.js'
-import { dispatchShortcutAction } from './shortcutConfig.js'
+import { dispatchShortcutAction, normalizeGlobalShortcutSettings } from './shortcutConfig.js'
 import { isSuccessfulScriptStart } from './scriptStartResult.js'
 import {
   startChaosRecipePicking,
@@ -193,7 +193,11 @@ export function emergencyStopAll() {
 /**
  * 开始制作
  */
-export async function startCrafting({ forceInitialCheck = false } = {}) {
+export async function startCrafting({
+  forceInitialCheck = false,
+  usageSessionId = null,
+  continueCurrencyUsage = false
+} = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
@@ -255,12 +259,15 @@ export async function startCrafting({ forceInitialCheck = false } = {}) {
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = effectivePreset
+    const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
       preset: plainPreset,
       mode: 'items',
+      usageSessionId: requestedUsageSessionId,
+      continueCurrencyUsage,
       requiresStashTabOcr: stashValidation.config.enabled
     })
 
@@ -285,7 +292,11 @@ export async function startCrafting({ forceInitialCheck = false } = {}) {
 /**
  * 开始地图洗练
  */
-export async function startMapRolling({ recovery = null } = {}) {
+export async function startMapRolling({
+  recovery = null,
+  usageSessionId = null,
+  continueCurrencyUsage = false
+} = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
@@ -376,12 +387,15 @@ export async function startMapRolling({ recovery = null } = {}) {
       name: currentPreset.name,
       map: mapConfig
     }))
+    const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       scriptContent,
       preset: plainPreset,
       mode: 'map',
+      usageSessionId: requestedUsageSessionId,
+      continueCurrencyUsage,
       requiresStashTabOcr: stashValidation.config.enabled
     })
 
@@ -430,9 +444,9 @@ export async function stopCrafting() {
  */
 export async function updateShortcuts(candidateShortcuts = null) {
   const settingsStore = useSettingsStore()
-  const shortcuts = candidateShortcuts || settingsStore.globalShortcuts
+  const shortcuts = normalizeGlobalShortcutSettings(candidateShortcuts || settingsStore.globalShortcuts)
 
-  const validation = validateShortcuts(shortcuts)
+  const validation = validateShortcuts(shortcuts, { requiredKeys: ['end'] })
   if (!validation.isValid) throw new Error(validation.error)
 
   // 从设置中重新初始化快捷键
@@ -450,8 +464,8 @@ export async function updateShortcuts(candidateShortcuts = null) {
 
 export async function commitGlobalShortcut(key, value) {
   const settingsStore = useSettingsStore()
-  const candidate = { ...settingsStore.globalShortcuts, [key]: value }
+  const candidate = normalizeGlobalShortcutSettings({ ...settingsStore.globalShortcuts, [key]: value })
   await updateShortcuts(candidate)
-  settingsStore.updateGlobalShortcuts({ [key]: value })
-  return value
+  settingsStore.updateGlobalShortcuts({ [key]: candidate[key] })
+  return candidate[key]
 }

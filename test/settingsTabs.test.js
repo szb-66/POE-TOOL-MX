@@ -80,7 +80,7 @@ test('历史背景仅在自定义背景模式且存在历史记录时显示', ()
 })
 
 test('Tab 持久状态校验后恢复，切换时保存并滚动到顶部', () => {
-  assert.match(view, /const SETTINGS_TABS = \['general', 'automation', 'detection', 'overlay', 'system', 'feedback'\]/)
+  assert.match(view, /import \{ SETTINGS_TABS, resolveSettingsTab \} from '@\/router\/settingsNavigation'/)
   assert.match(view, /readPersistentTab\(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'\)/)
   assert.match(view, /writePersistentTab\(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general'\)/)
   assert.doesNotMatch(view, /sessionStorage/)

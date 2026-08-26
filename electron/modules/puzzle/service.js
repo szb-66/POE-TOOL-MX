@@ -15,6 +15,12 @@ import {
 } from '../../../src/utils/puzzleConfig.js'
 import { computeBorderEdgeTargets } from '../../../src/utils/chartEdgeGeometry.js'
 import { matchBorderMods, matchFragmentMods } from '../../../src/utils/chartModMatcher.js'
+import {
+  borderRecognitionResult,
+  fragmentRecognitionResult,
+  recognitionFailureResult
+} from './recognitionFeedback.js'
+import { PuzzleFailureEvidenceSession } from './failureEvidenceSession.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const AUTOMATION_OWNER = '海图自动放置'
@@ -94,14 +100,16 @@ function restoreWindow(window) {
 }
 
 export class PuzzleAnalysisService {
-  constructor({ python, window, fileWatcher, getMainWindow, automationLock = null, overlay = null, calibration = null }) {
+  constructor({ python, window, fileWatcher, getMainWindow, automationLock = null, overlay = null, feedbackOverlay = null, calibration = null, failureEvidence = null }) {
     this.python = python
     this.window = window
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
     this.automationLock = automationLock
     this.overlay = overlay
+    this.feedbackOverlay = feedbackOverlay
     this.calibration = calibration
+    this.failureEvidence = failureEvidence
     this.child = null
     this.automationChild = null
     this.modProbeChild = null
@@ -551,6 +559,17 @@ export class PuzzleAnalysisService {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
+  feedbackDisplayBounds(metadata) {
+    return normalizePuzzleRegionMetadata(metadata)?.displayPhysicalBounds || metadata?.displayPhysicalBounds || null
+  }
+
+  showFeedbackFailure({ sessionId = null, displayBounds = null, error, canceled = false }) {
+    const result = recognitionFailureResult(error, canceled)
+    if (sessionId) return this.feedbackOverlay?.showResult?.(sessionId, result) || false
+    if (!displayBounds) return false
+    return Boolean(this.feedbackOverlay?.showImmediateResult?.({ displayBounds, ...result }))
+  }
+
   mapProbeEvent(event) {
     if (event?.event === 'cell-copied') {
       return { event: 'mods-progress', stage: 'copy', index: Number(event.index || 0), total: Number(event.total || 0) }
@@ -561,7 +580,7 @@ export class PuzzleAnalysisService {
     return null
   }
 
-  runProbe(config) {
+  runProbe(config, feedbackSessionId = null) {
     return new Promise((resolve, reject) => {
       const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'chart-mods-probe-')
       fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
@@ -591,7 +610,14 @@ export class PuzzleAnalysisService {
         if (!line.startsWith('EVENT ')) return
         try {
           const progress = this.mapProbeEvent(JSON.parse(line.slice(6)))
-          if (progress) this.sendProgress(progress)
+          if (progress) {
+            this.sendProgress(progress)
+            this.feedbackOverlay?.updateProgress?.(feedbackSessionId, {
+              stage: progress.stage,
+              current: progress.index,
+              total: progress.total
+            })
+          }
         } catch {
           // 单条进度事件解析失败不影响识别流程
         }
@@ -626,7 +652,8 @@ export class PuzzleAnalysisService {
     return { attempted: 0, matched: 0, unveiled: 0, unknown: 0, skipped, reason }
   }
 
-  async probeFragmentMods({ inventoryMetadata, tabPoints, analysisResults }) {
+  async probeFragmentMods({ inventoryMetadata, tabPoints, analysisResults, feedbackSessionId = null }) {
+    const probeGeneration = this.stopGeneration
     const fragmentStats = this.emptyProbeStats()
     const copyCells = []
     for (const result of analysisResults || []) {
@@ -645,6 +672,11 @@ export class PuzzleAnalysisService {
       fragmentStats.skipped = true
       fragmentStats.reason = 'REGION_REQUIRED'
       fragmentStats.unknown = copyCells.length
+      this.showFeedbackFailure({
+        sessionId: feedbackSessionId,
+        displayBounds: inventoryMetadata?.displayPhysicalBounds,
+        error: codedError('REGION_REQUIRED', '请先框选碎片仓库区域')
+      })
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
     const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
@@ -652,6 +684,11 @@ export class PuzzleAnalysisService {
       fragmentStats.skipped = true
       fragmentStats.reason = gate.error
       fragmentStats.unknown = copyCells.length
+      this.showFeedbackFailure({
+        sessionId: feedbackSessionId,
+        displayBounds: inventoryMetadata.displayPhysicalBounds,
+        error: codedError('AUTOMATION_LOCKED', gate.error)
+      })
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
     try {
@@ -666,11 +703,16 @@ export class PuzzleAnalysisService {
           }))
           const copyResponse = await this.runProbe({
             mode: 'copy', pages, copyTimeoutMs: 900, settleMs: 260
-          })
+          }, feedbackSessionId)
           if (copyResponse?.success === false) {
             fragmentStats.skipped = true
             fragmentStats.reason = copyResponse?.error?.message || '碎片词缀复制失败'
             fragmentStats.unknown = copyCells.length
+            this.showFeedbackFailure({
+              sessionId: feedbackSessionId,
+              displayBounds: inventoryMetadata.displayPhysicalBounds,
+              error: copyResponse?.error || codedError('MOD_PROBE_FAILED', fragmentStats.reason)
+            })
           } else {
             for (const cell of copyCells) {
               const text = copyResponse?.texts?.[cell.key] || ''
@@ -691,6 +733,12 @@ export class PuzzleAnalysisService {
         fragmentStats.skipped = true
         fragmentStats.reason = String(copyError?.message || copyError)
         fragmentStats.unknown = copyCells.length
+        this.showFeedbackFailure({
+          sessionId: feedbackSessionId,
+          displayBounds: inventoryMetadata.displayPhysicalBounds,
+          error: copyError,
+          canceled: probeGeneration !== this.stopGeneration || copyError?.code === 'EMERGENCY_STOPPED'
+        })
       }
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     } finally {
@@ -699,7 +747,7 @@ export class PuzzleAnalysisService {
   }
 
   // 无锁的边缘 OCR 执行体:由 probeBorderMods 在持锁后调用。
-  async runBorderProbe(normalizeAtlas) {
+  async runBorderProbe(normalizeAtlas, feedbackSessionId = null) {
     const borderStats = this.emptyProbeStats()
     const edges = computeBorderEdgeTargets(normalizeAtlas.selectedRegion, normalizeAtlas.displayPhysicalBounds)
     const borderMods = {}
@@ -717,7 +765,7 @@ export class PuzzleAnalysisService {
         mode: 'border', edges,
         hoverRegion,
         settleMs: 300, ocrMinConfidence: 0.5
-      })
+      }, feedbackSessionId)
       if (borderResponse?.success === false) {
         throw codedError('BORDER_PROBE_FAILED', borderResponse?.error?.message || '边缘词缀识别失败')
       }
@@ -734,25 +782,39 @@ export class PuzzleAnalysisService {
 
   // 独立边缘词缀识别:仅重新识别 12 段外边缘,不重复碎片形状与碎片词缀识别。
   async probeBorderMods({ atlasRegionMetadata } = {}) {
-    if (this.busy) return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'ANALYSIS_BUSY'), success: false, error: { code: 'ANALYSIS_BUSY', message: '海图识别正在进行，请稍候' } }
-    if (this.automationChild) return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'AUTO_PLACEMENT_BUSY'), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置期间不能识别边缘词缀' } }
+    const displayBounds = this.feedbackDisplayBounds(atlasRegionMetadata)
+    const fail = (code, message, reason = code, extra = {}) => {
+      const error = { code, message, ...extra }
+      this.showFeedbackFailure({ displayBounds, error })
+      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, reason), success: false, error }
+    }
+    if (this.busy) return fail('ANALYSIS_BUSY', '海图识别正在进行，请稍候')
+    if (this.automationChild) return fail('AUTO_PLACEMENT_BUSY', '海图自动放置期间不能识别边缘词缀')
     const normalizeAtlas = normalizePuzzleRegionMetadata(atlasRegionMetadata)
     if (!normalizeAtlas?.selectedRegion) {
-      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, 'REGION_REQUIRED'), success: false, error: { code: 'REGION_REQUIRED', message: '请先框选 3×3 海图区' } }
+      return fail('REGION_REQUIRED', '请先框选 3×3 海图区')
     }
     const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
     if (!gate.success) {
-      return { borderMods: {}, borderProbe: this.emptyProbeStats(true, gate.error), success: false, error: { code: 'AUTOMATION_LOCKED', message: gate.error, owner: gate.owner } }
+      return fail('AUTOMATION_LOCKED', gate.error, gate.error, { owner: gate.owner })
     }
     const stopGeneration = this.stopGeneration
+    const feedbackSessionId = this.feedbackOverlay?.showRunning?.({
+      displayBounds: normalizeAtlas.displayPhysicalBounds,
+      stage: 'border',
+      current: 0,
+      total: 12
+    }) || null
     try {
       this.overlay?.close?.()
-      const result = await this.runBorderProbe(normalizeAtlas)
+      const result = await this.runBorderProbe(normalizeAtlas, feedbackSessionId)
       if (stopGeneration !== this.stopGeneration) throw codedError('EMERGENCY_STOPPED', '海图词缀探测已紧急停止')
       console.log('[海图边缘词缀]', JSON.stringify({ borderProbe: result.borderProbe }))
+      this.feedbackOverlay?.showResult?.(feedbackSessionId, borderRecognitionResult(result.borderProbe))
       return { ...result, success: true }
     } catch (error) {
       const canceled = stopGeneration !== this.stopGeneration || error.code === 'EMERGENCY_STOPPED'
+      this.showFeedbackFailure({ sessionId: feedbackSessionId, displayBounds, error, canceled })
       return {
         borderMods: {},
         borderProbe: this.emptyProbeStats(true, String(error?.message || error)),
@@ -784,6 +846,9 @@ export class PuzzleAnalysisService {
     this.busy = true
     const stopGeneration = this.stopGeneration
     const mainWindow = this.getMainWindow?.()
+    const displayBounds = this.feedbackDisplayBounds(regionMetadata)
+    let feedbackSessionId = null
+    const evidenceSession = new PuzzleFailureEvidenceSession(this.failureEvidence)
     try {
       const metadata = this.validateRegion(regionMetadata)
       if (!requestedPages.length) throw codedError('TAB_PAGE_INVALID', '仓库页码无效')
@@ -792,11 +857,24 @@ export class PuzzleAnalysisService {
         const validation = validatePuzzleTabPoint(tabPoints[currentPage], metadata, currentPage, tabPoints[currentPage === 1 ? 2 : 1])
         if (!validation.valid) throw codedError(validation.code, validation.message)
       }
+      const evidenceWorkspace = await evidenceSession.start()
+      feedbackSessionId = this.feedbackOverlay?.showRunning?.({
+        displayBounds: metadata.displayPhysicalBounds,
+        stage: 'shape',
+        current: 0,
+        total: requestedPages.length
+      }) || null
       const results = []
-      for (const currentPage of requestedPages) {
+      for (const [pageIndex, currentPage] of requestedPages.entries()) {
         this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
+        this.feedbackOverlay?.updateProgress?.(feedbackSessionId, {
+          stage: 'shape',
+          current: pageIndex + 1,
+          total: requestedPages.length
+        })
         const result = await this.runAnalyzer({
           region: metadata.selectedRegion,
+          displayBounds: metadata.displayPhysicalBounds,
           templatesPath: this.templatesPath(),
           regionType: 'inventory',
           calibrationSamples: this.calibrationSamples(),
@@ -804,23 +882,43 @@ export class PuzzleAnalysisService {
           requireGameForeground: true,
           page: currentPage,
           tabPoint: tabPoints[currentPage],
-          tabSettleSeconds: 0.25
+          tabSettleSeconds: 0.25,
+          ...(evidenceWorkspace ? {
+            evidenceId: evidenceWorkspace.evidenceId,
+            evidenceDirectory: evidenceWorkspace.directory
+          } : {})
         })
+        const publicResult = evidenceSession.consume(result)
         this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
-        if (!result.success) {
-          const payload = { ...result, page: currentPage }
+        if (!publicResult.success) {
+          if (evidenceWorkspace) await evidenceSession.commitFailure()
+          const payload = { ...publicResult, page: currentPage }
+          this.showFeedbackFailure({
+            sessionId: feedbackSessionId,
+            displayBounds: metadata.displayPhysicalBounds,
+            error: publicResult.error || codedError('PUZZLE_ANALYSIS_FAILED', '碎片形状识别失败')
+          })
           this.publish(payload)
           return payload
         }
-        results.push({ ...result, page: currentPage })
+        results.push({ ...publicResult, page: currentPage })
       }
-      this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: 0, starting: true })
+      const occupiedTotal = results.reduce((total, result) => (
+        total + (result.slots || []).filter(slot => slot?.occupied).length
+      ), 0)
+      this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: occupiedTotal, starting: true })
+      this.feedbackOverlay?.updateProgress?.(feedbackSessionId, {
+        stage: 'copy',
+        current: 0,
+        total: occupiedTotal
+      })
       this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
       const mods = probeMods
         ? await this.probeFragmentMods({
             inventoryMetadata: metadata,
             tabPoints,
-            analysisResults: results
+            analysisResults: results,
+            feedbackSessionId
           })
         : {
             fragmentMods: null,
@@ -833,6 +931,11 @@ export class PuzzleAnalysisService {
       const payload = results.length === 1
         ? { ...results[0], regionMetadata: metadata, ...mods }
         : { success: true, pages: results, regionMetadata: metadata, ...mods }
+      this.feedbackOverlay?.showResult?.(
+        feedbackSessionId,
+        fragmentRecognitionResult(mods.fragmentProbe, occupiedTotal)
+      )
+      await evidenceSession.discard()
       this.publish(payload)
       return payload
     } catch (error) {
@@ -846,9 +949,11 @@ export class PuzzleAnalysisService {
           message: canceled ? '海图识别已紧急停止' : (error.message || String(error))
         }
       }
+      this.showFeedbackFailure({ sessionId: feedbackSessionId, displayBounds, error, canceled })
       this.publish(payload)
       return payload
     } finally {
+      await evidenceSession.discard()
       this.busy = false
       restoreWindow(mainWindow)
     }
@@ -863,5 +968,6 @@ export class PuzzleAnalysisService {
     if (this.automationChild) this.stopAutoPlacement('application-exit')
     else this.releaseAutomation()
     this.overlay?.close?.()
+    this.feedbackOverlay?.close?.()
   }
 }

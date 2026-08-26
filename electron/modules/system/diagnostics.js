@@ -322,6 +322,32 @@ function sanitizeGameDpi(dpi = {}) {
   }
 }
 
+export function sanitizePuzzleFailureEvidenceSummary(value = null) {
+  const evidence = value?.evidence
+  const occurredAt = Number.isFinite(Date.parse(evidence?.occurredAt)) ? new Date(evidence.occurredAt).toISOString() : null
+  const referenceId = /^[a-f0-9-]{36}$/i.test(String(evidence?.referenceId || '')) ? String(evidence.referenceId).toLowerCase() : null
+  const integrity = ['ready', 'complete', 'partial', 'unavailable'].includes(value?.integrity?.status)
+    ? value.integrity.status
+    : value?.success === false ? 'unavailable' : 'ready'
+  return {
+    available: Boolean(referenceId && occurredAt),
+    integrity: {
+      status: integrity,
+      reasons: (Array.isArray(value?.integrity?.reasons) ? value.integrity.reasons : [])
+        .map(String).filter(item => /^[A-Z][A-Z0-9_]{1,80}$/.test(item)).slice(0, 64)
+    },
+    ...(referenceId && occurredAt ? {
+      referenceId,
+      occurredAt,
+      attemptCount: Math.max(0, Math.floor(Number(evidence.attemptCount) || 0)),
+      estimatedBytes: Math.max(0, Math.floor(Number(evidence.estimatedBytes) || 0)),
+      completeness: evidence.completeness === 'complete' ? 'complete' : 'partial',
+      completenessReasons: (Array.isArray(evidence.completenessReasons) ? evidence.completenessReasons : [])
+        .map(String).filter(item => /^[A-Z][A-Z0-9_]{1,80}$/.test(item)).slice(0, 64)
+    } : {})
+  }
+}
+
 export function createDiagnosticsSnapshot({
   diagnosticId = randomUUID(),
   appVersion,
@@ -343,6 +369,7 @@ export function createDiagnosticsSnapshot({
   context = { mode: 'snapshot' },
   device = {},
   deviceAvailability = {},
+  puzzleFailureEvidence = null,
   generatedAt = new Date().toISOString()
 } = {}) {
   const safeContext = sanitizeDiagnosticContext(context)
@@ -398,6 +425,7 @@ export function createDiagnosticsSnapshot({
     recentEvents: safeEvents,
     context: safeContext,
     findings: createFindings({ context: safeContext, health: safeHealth, modules: safeModules, events: findingEvents }),
+    puzzleRecognitionFailureEvidence: sanitizePuzzleFailureEvidenceSummary(puzzleFailureEvidence),
     coverage: {
       schemaVersion: DIAGNOSTICS_SCHEMA_VERSION,
       areas: [...DIAGNOSTIC_AREAS],

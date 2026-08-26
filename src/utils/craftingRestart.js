@@ -7,6 +7,7 @@ export async function restartCraftingWithLatestConfig({ presetStore, settingsSto
 export async function retryAutomationWithLatestConfig({
   mode,
   recovery = null,
+  usageSessionId = null,
   presetStore,
   settingsStore,
   startCrafting,
@@ -15,6 +16,6 @@ export async function retryAutomationWithLatestConfig({
   presetStore.loadPresets()
   settingsStore.loadSettings()
   return mode === 'map'
-    ? startMapRolling({ recovery })
-    : startCrafting({ forceInitialCheck: true })
+    ? startMapRolling({ recovery, usageSessionId, continueCurrencyUsage: true })
+    : startCrafting({ forceInitialCheck: true, usageSessionId, continueCurrencyUsage: true })
 }

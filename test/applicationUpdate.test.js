@@ -234,7 +234,7 @@ test('严格清理成功后标记完成并安装，失败时请求受控退出',
   const installed = await successful.service.restartAndInstall()
   assert.equal(installed.success, true)
   assert.equal(successful.updater.installCalls, 1)
-  assert.deepEqual(successful.updater.installArguments[0], [true, true])
+  assert.deepEqual(successful.updater.installArguments[0], [false, true])
   assert.equal(cleanupCompleteCalls, 1)
 })
 

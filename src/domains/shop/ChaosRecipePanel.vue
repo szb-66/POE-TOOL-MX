@@ -42,7 +42,7 @@
         </div>
       </template>
       <div class="auth-actions">
-        <el-button type="primary" plain @click="$router.push('/settings')">前往账号设置</el-button>
+        <el-button type="primary" plain @click="$router.push(settingsRoute('general'))">前往账号设置</el-button>
         <span class="muted">账号和赛季已收拢到设置页，商城正则本身不需要账号。</span>
       </div>
     </el-card>
@@ -54,7 +54,7 @@
           <el-form label-width="92px">
             <el-form-item label="赛季">
               <strong>{{ store.leagues.find(item => item.id === store.league)?.name || store.league || '未设置' }}</strong>
-              <el-button class="inline-button" @click="$router.push('/settings')">修改全局赛季</el-button>
+              <el-button class="inline-button" @click="$router.push(settingsRoute('general'))">修改全局赛季</el-button>
             </el-form-item>
             <el-form-item label="仓库页">
               <div class="tab-list">
@@ -260,6 +260,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
+import { settingsRoute } from '@/router/settingsNavigation'
 import { VENDOR_RECIPE_CATALOG, VENDOR_RECIPE_IDS } from '../../../electron/modules/chaosRecipe/engine.js'
 
 const store = useChaosRecipeStore()

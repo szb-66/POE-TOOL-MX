@@ -40,6 +40,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   cancelDiagnosticCapture: (input) => ipcRenderer.invoke('system-diagnostic-capture-cancel', input),
   pickFeedbackAttachments: () => ipcRenderer.invoke('feedback:pick-attachments'),
   submitFeedback: (input) => ipcRenderer.invoke('feedback:submit', input),
+  getPuzzleFailureEvidenceSummary: () => ipcRenderer.invoke('feedback:puzzle-evidence-summary'),
+  discardPuzzleFailureEvidence: (referenceId) => ipcRenderer.invoke('feedback:puzzle-evidence-discard', referenceId),
+  listFeedbackConversations: () => ipcRenderer.invoke('feedback:list'),
+  getFeedbackConversation: (feedbackId) => ipcRenderer.invoke('feedback:conversation', feedbackId),
+  pickFeedbackReplyAttachments: () => ipcRenderer.invoke('feedback:reply-pick-attachments'),
+  replyFeedback: (input) => ipcRenderer.invoke('feedback:reply', input),
   onFeedbackProgress: (callback) => {
     const listener = (_event, progress) => callback(progress)
     ipcRenderer.on('feedback:progress', listener)
@@ -86,6 +92,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   generateAndExecuteScript: (config) => {
     return ipcRenderer.invoke('generate-and-execute-script', config)
+  },
+  onFeedbackReplyProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress)
+    ipcRenderer.on('feedback:reply-progress', listener)
+    return () => ipcRenderer.removeListener('feedback:reply-progress', listener)
   },
   pickStashTabRootRegion: () => ipcRenderer.invoke('stash-tabs-pick-root-region'),
   previewStashTabs: (config) => ipcRenderer.invoke('stash-tabs-preview', config),
@@ -170,6 +181,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('puzzle-auto-placement-updated', listener)
     return () => ipcRenderer.removeListener('puzzle-auto-placement-updated', listener)
+  },
+  onChartRecognitionFeedbackUpdated: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('chart-recognition-feedback-updated', listener)
+    return () => ipcRenderer.removeListener('chart-recognition-feedback-updated', listener)
   },
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
   moveCraftingOverlay: (drag) => ipcRenderer.send('crafting-overlay-move', drag),

@@ -61,6 +61,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(main, /new PuzzleAnalysisService/)
   assert.match(source('../electron/modules/puzzle/service.js'), /if \(this\.busy\)[\s\S]*ANALYSIS_BUSY/)
   assert.match(source('../electron/modules/puzzle/service.js'), /async analyze[\s\S]*requireGameForeground: true/)
+  assert.match(source('../electron/modules/puzzle/service.js'), /region: metadata\.selectedRegion,[\s\S]*displayBounds: metadata\.displayPhysicalBounds/)
   assert.match(source('../electron/modules/puzzle/service.js'), /requestedPages[\s\S]*\[1, 2\][\s\S]*pages: results/)
   assert.match(source('../src/utils/scriptService.js'), /puzzleAnalyze: startPuzzleAnalysis/)
   assert.match(router, /path: '\/puzzle'/)
@@ -239,19 +240,26 @@ test('两个框选入口分别位于对应配置卡而非页面顶部', () => {
   assert.match(view, /type: 'atlas'[\s\S]*pickLabel: '框选海图区'/)
 })
 
-test('本机校准控件归入碎片仓库，自动放入控件归入最优方案', () => {
+test('本机校准控件归入碎片仓库，方案动作按新布局归入最优方案', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const inventoryHeader = view.match(/<el-card class="inventory-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
   const solutionHeader = view.match(/<el-card class="solution-card"[\s\S]*?<template #header>([\s\S]*?)<\/template>/)?.[1] || ''
+  const solutionCard = view.slice(view.indexOf('<el-card class="solution-card"'), view.indexOf('</el-card></el-col>', view.indexOf('<el-card class="solution-card"')))
+  const chartActions = solutionCard.slice(solutionCard.indexOf('<div class="chart-action-stack">'), solutionCard.indexOf('<p class="total-note">'))
+  const exitTitleRow = solutionCard.slice(solutionCard.indexOf('<div class="exit-title-row">'), solutionCard.indexOf('<p class="exit-help">'))
 
   assert.match(inventoryHeader, /@click="saveCalibration"/)
   assert.match(inventoryHeader, /本机素材/)
   assert.doesNotMatch(inventoryHeader, /recognitionStrength|敏感|严格/)
   assert.match(inventoryHeader, /@click="startAnalysis"[\s\S]*自动识别两页/)
   assert.doesNotMatch(inventoryHeader, /startAutoPlacement|stopAutoPlacement/)
-  assert.match(solutionHeader, /@click="startAutoPlacement"[\s\S]*自动放入/)
-  assert.match(solutionHeader, /@click="stopAutoPlacement">停止自动放入/)
-  assert.match(solutionHeader, /auto-blocked-reason[\s\S]*autoPlaceBlockedReason/)
+  assert.doesNotMatch(solutionHeader, /startAutoPlacement|stopAutoPlacement/)
+  assert.match(chartActions, /type="primary"[\s\S]*@click="handleProbeBorderMods"[\s\S]*识别边缘词缀[\s\S]*type="success"[\s\S]*@click="startAutoPlacement"[\s\S]*自动放入[\s\S]*type="warning"[\s\S]*@click="completeCurrentChart"[\s\S]*当前海图已完成/)
+  assert.match(chartActions, /@click="stopAutoPlacement">停止自动放入/)
+  assert.match(chartActions, /chart-action-options[\s\S]*<el-checkbox :model-value="autoProbeBorderMods"[\s\S]*完成后自动识别/)
+  assert.match(chartActions, /auto-blocked-reason[\s\S]*autoPlaceBlockedReason/)
+  assert.match(solutionCard, /<\/template>\s*<div class="chart-action-stack">/)
+  assert.match(exitTitleRow, /<strong>出口设置<\/strong>[\s\S]*@click="clearExitConstraints">清空出口状态/)
 })
 
 test('最优方案支持收益策略并明确相对分口径', () => {
@@ -354,11 +362,11 @@ test('独立边缘词缀识别通道贯通 IPC、preload、API 与服务', () =>
   assert.match(api, /probeBorderMods: \(request\) => window\.electronAPI\.probePuzzleBorderMods\?\.\(craftingIpcPayload\(request\)\)/)
   assert.match(api, /probeBorderMods: \(\) => Promise\.resolve\(\{ success: false[\s\S]*ELECTRON_REQUIRED/)
   assert.match(service, /async probeBorderMods\(\{ atlasRegionMetadata \} = \{\}\)/)
-  assert.match(service, /async runBorderProbe\(normalizeAtlas\)/)
+  assert.match(service, /async runBorderProbe\(normalizeAtlas, feedbackSessionId = null\)/)
   assert.match(service, /AUTO_PLACEMENT_BUSY/)
   const fragmentMods = service.match(/async probeFragmentMods\([\s\S]*?\n  \}/)?.[0] || ''
   assert.doesNotMatch(fragmentMods, /runBorderProbe|atlasMetadata/)
-  const runProbe = service.match(/runProbe\(config\) \{([\s\S]*?)\n  \}/)?.[1] || ''
+  const runProbe = service.match(/runProbe\(config, feedbackSessionId = null\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.match(runProbe, /if \(line\.startsWith\('RESULT '\)\)[\s\S]*resultLine = line/)
   assert.match(runProbe, /if \(!resultLine && buffer\.trim\(\)\) consumeLine\(buffer\.trim\(\)\)/)
   assert.match(runProbe, /OC_DISABLE_DOT_ACCESS_WARNING/)
@@ -369,7 +377,7 @@ test('边缘 OCR 使用 DPI 捕获、固定等待后单帧采样并直接执行�
   const service = source('../electron/modules/puzzle/service.js')
   const geometry = source('../src/utils/chartEdgeGeometry.js')
   const probe = source('../src/assets/scripts/chart_mods_probe.py')
-  const borderProbe = service.match(/async runBorderProbe\(normalizeAtlas\)[\s\S]*?\n  \}/)?.[0] || ''
+  const borderProbe = service.match(/async runBorderProbe\(normalizeAtlas, feedbackSessionId = null\)[\s\S]*?\n  \}/)?.[0] || ''
   const result = service.match(/function borderModResult\(lines\) \{([\s\S]*?)\n\}/)?.[1] || ''
 
   assert.match(borderProbe, /width: 800, height: 800, offsetY: 0/)

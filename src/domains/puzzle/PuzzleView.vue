@@ -219,11 +219,6 @@
                 <el-option v-for="strategy in VOYAGE_REWARD_MODE_OPTIONS" :key="strategy.id" :value="strategy.id" :label="strategy.label" />
               </el-select>
               <small v-if="rewardStrategy === 'auto' && effectiveRewardStrategyLabel" class="effective-reward-strategy">当前自动选择：{{ effectiveRewardStrategyLabel }}</small>
-              <el-button v-if="!executing" type="success" size="small" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
-                {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
-              </el-button>
-              <el-button v-else type="danger" size="small" @click="stopAutoPlacement">停止自动放入</el-button>
-              <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
             </div>
           </div>
         </template>
@@ -241,13 +236,11 @@
         <div class="solution-guidance">
           <div class="exit-controls">
             <div class="exit-copy">
-              <strong>出口设置</strong>
+              <div class="exit-title-row">
+                <strong>出口设置</strong>
+                <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
+              </div>
               <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
-            </div>
-            <div class="exit-actions">
-              <el-button size="small" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
-              <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
-              <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
             </div>
           </div>
           <div class="reward-strategy-note">
@@ -325,16 +318,27 @@
             <span>第 {{ solutionIndex + 1 }} / {{ result.solutions.length }} 个展示方案</span>
             <el-button :disabled="executing || solutionIndex + 1 >= result.solutions.length" @click="nextSolution">下一个</el-button>
           </div>
+        </template>
+        <div class="chart-action-stack">
           <div class="chart-complete-row">
+            <el-button type="primary" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
+            <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
+              {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
+            </el-button>
+            <el-button v-else type="danger" @click="stopAutoPlacement">停止自动放入</el-button>
             <el-button type="warning" :disabled="executing || analyzing || probingBorder || solving || !currentSolution" @click="completeCurrentChart">当前海图已完成</el-button>
           </div>
-          <p class="total-note">
-            同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
-            仓库中高亮的 9 格分别对应方案编号 1–9。
-          </p>
-        </template>
+          <div class="chart-action-options">
+            <el-checkbox :model-value="autoProbeBorderMods" @change="handleAutoProbeChange">完成后自动识别</el-checkbox>
+            <small v-if="!executing && !canAutoPlace" class="auto-blocked-reason">{{ autoPlaceBlockedReason }}</small>
+          </div>
+        </div>
+        <p v-if="currentSolution" class="total-note">
+          同分最优方案共 {{ result.totalOptimalCount }} 个<span v-if="result.truncated">，仅展示前 100 个</span>。
+          仓库中高亮的 9 格分别对应方案编号 1–9。
+        </p>
 
-        <el-empty v-else :description="emptyDescription" />
+        <el-empty v-if="!currentSolution" :description="emptyDescription" />
         <div v-if="loadingVisible" class="solution-loading-mask">
           <div class="solution-loading-spinner">
             <el-icon class="is-loading"><Loading /></el-icon>
@@ -442,8 +446,8 @@ const southExits = ['S0', 'S1', 'S2']
 const westExits = ['W0', 'W1', 'W2']
 
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
-const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || 'Alt+7')
-const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end || 'Alt+3')
+const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || '未设置')
+const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end)
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])
 const currentPageAvailableCount = computed(() => slots.value.filter(slot => slot.occupied && !store.isSlotLocked(slot)).length)
@@ -1030,10 +1034,9 @@ const nextSolution = store.nextSolution
   background: var(--surface-2);
 }
 .exit-controls { display: grid; gap: 10px; }
+.exit-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .exit-copy strong, .reward-strategy-note strong { color: var(--text-primary); font-size: 13px; }
 .exit-help { margin: 4px 0 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.5; }
-.exit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.exit-actions > .el-button + .el-button { margin-left: 0; }
 .reward-strategy-note {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1121,7 +1124,10 @@ const nextSolution = store.nextSolution
 .exit-button.forbidden { color: var(--el-color-danger); border-color: var(--el-color-danger); background: var(--el-color-danger-light-9); text-decoration: line-through; font-weight: 700; }
 .solution-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 10px; font-size: 13px; }
 .solution-pager { justify-content: center; }
-.chart-complete-row { display: flex; justify-content: center; margin-top: 12px; }
+.chart-action-stack { display: grid; justify-items: center; gap: 8px; margin-top: 12px; }
+.chart-complete-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.chart-complete-row > .el-button + .el-button { margin-left: 0; }
+.chart-action-options { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 12px; }
 .total-note { text-align: center; color: var(--el-text-color-secondary); font-size: 13px; margin-bottom: 0; }
 
 @media (max-width: 1050px) {

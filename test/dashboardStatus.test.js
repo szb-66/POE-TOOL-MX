@@ -12,6 +12,7 @@ import {
   evaluateItemsStatus,
   evaluateMapStatus,
   evaluatePriceCheckStatus,
+  evaluateShortcutHealth,
   evaluateShopStatus,
   evaluateStoryStatus,
   ITEM_CRAFTING_MODE_OPTIONS,
@@ -29,6 +30,53 @@ import {
   getCurrentScriptProcess,
   setCurrentScriptProcess
 } from '../electron/modules/python/process.js'
+
+test('快捷键健康状态区分注册异常与正常前台门禁暂停', () => {
+  assert.deepEqual(evaluateShortcutHealth(), {
+    status: 'pending',
+    text: '全局快捷键等待初始化'
+  })
+  assert.deepEqual(evaluateShortcutHealth({ status: 'error', error: 'Alt+1 注册失败' }), {
+    status: 'error',
+    text: 'Alt+1 注册失败'
+  })
+  assert.deepEqual(evaluateShortcutHealth({ status: 'ready', scopeEnabled: false }), {
+    status: 'ready',
+    text: '全局快捷键已注册（未限制窗口）'
+  })
+  assert.deepEqual(evaluateShortcutHealth({
+    status: 'ready',
+    scopeEnabled: true,
+    scopeAvailable: true,
+    gameForeground: true
+  }), {
+    status: 'ready',
+    text: '全局快捷键已注册（游戏前台）'
+  })
+
+  for (const reason of ['window-title-mismatch', 'process-name-mismatch', 'no-foreground-window']) {
+    assert.deepEqual(evaluateShortcutHealth({
+      status: 'ready',
+      scopeEnabled: true,
+      scopeAvailable: true,
+      gameForeground: false,
+      reason
+    }), {
+      status: 'ready',
+      text: '快捷键已就绪（切回游戏后生效）'
+    })
+  }
+
+  assert.deepEqual(evaluateShortcutHealth({
+    status: 'ready',
+    scopeEnabled: true,
+    scopeAvailable: false,
+    gameForeground: false
+  }), {
+    status: 'attention',
+    text: '前台监视不可用，快捷键已全局生效'
+  })
+})
 
 test('模块状态按异常、运行中、需配置、可用的优先级互斥判定', () => {
   assert.equal(createModuleStatus({ error: '失败', running: true, issues: ['缺配置'] }).state, 'error')

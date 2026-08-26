@@ -164,3 +164,82 @@ test('附件读取失败不向渲染进程泄露本地路径', async () => {
   assert.equal(result.errorCode, 'FEEDBACK_ATTACHMENT_MISSING')
   assert.doesNotMatch(result.error, /PrivateUser|secret\.txt/)
 })
+
+function puzzleEvidenceFixture(referenceId) {
+  const crop = { attempt: 1, page: 1, kind: 'crop', fileName: 'page-1-attempt-1-crop.png', encoding: 'png', width: 600, height: 1000, bytes: 3, sha256: 'a'.repeat(64), status: 'complete', body: Buffer.from('png') }
+  const window = { attempt: 1, page: 1, kind: 'window', fileName: 'page-1-attempt-1-window.jpg', encoding: 'jpeg', width: 1920, height: 1080, bytes: 4, sha256: 'b'.repeat(64), status: 'complete', body: Buffer.from('jpeg') }
+  return {
+    referenceId,
+    files: [crop, window],
+    manifest: {
+      schemaVersion: 1, evidenceId: referenceId, occurredAt: '2026-08-26T01:02:03Z',
+      completeness: { status: 'complete', reasons: [] }, attempts: [{ attempt: 1, page: 1 }],
+      files: [crop, window].map(({ body, ...metadata }) => metadata), omittedFiles: []
+    }
+  }
+}
+
+test('附带诊断读取系统证据并在云端保存成功后清理对应引用', async () => {
+  const referenceId = '11111111-1111-4111-8111-111111111111'
+  const uploaded = []
+  let document
+  const cleared = []
+  const service = createService({
+    uploadObject: async item => { uploaded.push(item) }, deleteObject: async () => {}, createFeedback: async value => { document = value }
+  }, {
+    failureEvidence: {
+      readEvidence: async id => { assert.equal(id, referenceId); return puzzleEvidenceFixture(referenceId) },
+      clear: async id => { cleared.push(id); return { success: true, cleared: true } }
+    }
+  })
+  const result = await service.submit({ ...validInput, includeDiagnostics: true, puzzleFailureEvidenceId: referenceId }, {
+    buildDiagnostics: async () => ({ schemaVersion: 3, safe: true })
+  })
+  assert.equal(result.success, true)
+  assert.deepEqual(document.attachments.map(item => item.kind), [
+    'puzzle-evidence-crop', 'puzzle-evidence-window', 'puzzle-evidence-manifest', 'diagnostics'
+  ])
+  assert.equal(uploaded.length, 4)
+  assert.deepEqual(cleared, [referenceId])
+})
+
+test('证据读取、上传或保存失败时保留同一引用供重试', async () => {
+  const referenceId = '11111111-1111-4111-8111-111111111111'
+  let cleared = 0
+  const unavailable = createService({ uploadObject: async () => {}, deleteObject: async () => {}, createFeedback: async () => {} }, {
+    failureEvidence: {
+      readEvidence: async () => { throw new Error('C:\\Users\\Private\\missing') },
+      clear: async () => { cleared += 1; return { success: true } }
+    }
+  })
+  const unavailableResult = await unavailable.submit({ ...validInput, includeDiagnostics: true, puzzleFailureEvidenceId: referenceId }, { buildDiagnostics: async () => ({ safe: true }) })
+  assert.equal(unavailableResult.errorCode, 'FEEDBACK_EVIDENCE_UNAVAILABLE')
+  assert.doesNotMatch(unavailableResult.error, /Private|missing/)
+
+  const saveFailed = createService({
+    uploadObject: async () => {}, deleteObject: async () => {}, createFeedback: async () => { throw new Error('save') }
+  }, {
+    failureEvidence: {
+      readEvidence: async () => puzzleEvidenceFixture(referenceId),
+      clear: async () => { cleared += 1; return { success: true } }
+    }
+  })
+  const failedResult = await saveFailed.submit({ ...validInput, includeDiagnostics: true, puzzleFailureEvidenceId: referenceId }, { buildDiagnostics: async () => ({ safe: true }) })
+  assert.equal(failedResult.success, false)
+  assert.equal(cleared, 0)
+})
+
+test('云端已保存后本地证据清理故障不反转成功结果', async () => {
+  const referenceId = '11111111-1111-4111-8111-111111111111'
+  const warnings = []
+  const service = createService({ uploadObject: async () => {}, deleteObject: async () => {}, createFeedback: async () => {} }, {
+    logger: { warn: (...items) => warnings.push(items) },
+    failureEvidence: {
+      readEvidence: async () => puzzleEvidenceFixture(referenceId),
+      clear: async () => { throw Object.assign(new Error('clear failed'), { code: 'EACCES' }) }
+    }
+  })
+  const result = await service.submit({ ...validInput, includeDiagnostics: true, puzzleFailureEvidenceId: referenceId }, { buildDiagnostics: async () => ({ safe: true }) })
+  assert.equal(result.success, true)
+  assert.equal(warnings.length, 1)
+})

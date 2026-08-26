@@ -87,7 +87,8 @@ Copyright (c) 2016 brather1ng.
 ## PoEDB 与 Path of Exile 物品美术
 
 - 数据页面：https://poedb.tw/cn/Unique_item
-- 用途：构建版本化的简体中文传奇名称、真实属性 matcher、带稳定 `sourceId` 的做装底材与物品图片离线快照；真实属性 matcher 用于区分游戏详细复制中的传奇属性与说明文字，`sourceId` 同时用于生成物品占位目录时与 RePoE 英文底材身份关联。
+- Path of Exile 开发者参考：https://www.pathofexile.com/developer/docs/reference
+- 用途：构建版本化的简体中文传奇名称、真实属性 matcher、带稳定 `sourceId` 的做装底材与物品图片离线快照；做装通货账单的图标由开发期生成器根据 Path of Exile 官方交易静态目录的 `image` 字段获取并作为本地快照随应用提供。真实属性 matcher 用于区分游戏详细复制中的传奇属性与说明文字，`sourceId` 同时用于生成物品占位目录时与 RePoE 英文底材身份关联。
 - 部分 PoEDB 图片地址不可用时，生成器从 `web.poecdn.com` 获取相同的 Path of Exile 官方物品美术资源。
 
-PoEDB 页面仅作为数据来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB。
+PoEDB 页面和 Path of Exile 官方交易目录仅作为开发期数据/美术来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB、`web.poecdn.com` 或官方交易目录以显示账单图标。

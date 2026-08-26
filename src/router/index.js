@@ -74,6 +74,12 @@ const routes = [
     meta: { noLayout: true }
   },
   {
+    path: '/chart-recognition-feedback',
+    name: 'ChartRecognitionFeedback',
+    component: () => import('../domains/puzzle/ChartRecognitionFeedbackView.vue'),
+    meta: { noLayout: true }
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: pageLoaders['/settings']

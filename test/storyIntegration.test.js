@@ -350,3 +350,14 @@ test('组合键捕获期间挂起全局快捷键并在提交前恢复', () => {
   assert.match(preload, /beginShortcutCapture/)
   assert.ok(capture.indexOf('await stopCapture()') < capture.indexOf("emit('change', result.value)"))
 })
+
+test('快捷键捕获提供显式清空并允许紧急停止禁用清空', () => {
+  const capture = source('../src/components/common/KeyCaptureInput.vue')
+  const settings = source('../src/domains/settings/SettingsView.vue')
+  const map = source('../src/domains/map/MapView.vue')
+  assert.match(capture, /allowEmpty: \{ type: Boolean, default: true \}/)
+  assert.match(capture, /aria-label="清空快捷键"/)
+  assert.match(capture, /result\.type === 'clear' && !props\.allowEmpty/)
+  assert.match(settings, /:model-value="shortcuts\.end" :allow-empty="false"/)
+  assert.match(map, /:model-value="shortcuts\.end" :allow-empty="false"/)
+})

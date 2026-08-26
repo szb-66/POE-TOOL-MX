@@ -33,7 +33,7 @@ export function registerIpcHandlers(dependencies) {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
-    applicationUpdate, feedback, getMainWindow, enableJunfengTraining = false
+    applicationUpdate, feedback, failureEvidence, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
   registerWindowHandlers(window)
@@ -46,7 +46,7 @@ export function registerIpcHandlers(dependencies) {
   registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, puzzle, getMainWindow })
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
-  const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics)
+  const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics, failureEvidence)
   registerFeedbackHandlers(feedback, { buildDiagnostics: system?.buildSnapshot, diagnostics, getMainWindow })
   if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)
   if (crafting) registerCraftingHandlers(crafting)

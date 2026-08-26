@@ -5,7 +5,7 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
-import { app, BrowserWindow, Menu, clipboard, crashReporter, dialog, globalShortcut, protocol, net, shell, session } from 'electron'
+import { app, BrowserWindow, Menu, clipboard, crashReporter, dialog, globalShortcut, protocol, net, screen, shell, session } from 'electron'
 import electronUpdater from 'electron-updater'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -62,7 +62,9 @@ import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleCalibrationRepository } from './modules/puzzle/calibrationRepository.js'
+import { PuzzleFailureEvidenceRepository } from './modules/puzzle/failureEvidenceRepository.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
+import { RecognitionFeedbackOverlayManager } from './modules/puzzle/recognitionFeedbackOverlay.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
@@ -418,10 +420,15 @@ async function startApplication() {
     config: FEEDBACK_CLOUDBASE_CONFIG,
     userDataPath: app.getPath('userData')
   })
+  const puzzleFailureEvidence = new PuzzleFailureEvidenceRepository({
+    root: path.join(app.getPath('userData'), 'diagnostic-evidence', 'puzzle-recognition')
+  })
+  await puzzleFailureEvidence.cleanup()
   feedbackService = new FeedbackService({
     config: FEEDBACK_CLOUDBASE_CONFIG,
     auth: feedbackAuth,
     cloud: new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth: feedbackAuth }),
+    failureEvidence: puzzleFailureEvidence,
     appVersion: app.getVersion(),
     locale: app.getLocale()
   })
@@ -447,6 +454,8 @@ async function startApplication() {
 
   const chaosOverlay = new ChaosRecipeOverlayManager()
   const puzzleOverlay = new PuzzleOverlayManager()
+  const recognitionFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
+  recognitionFeedbackOverlay.prime()
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
@@ -514,6 +523,8 @@ async function startApplication() {
     getMainWindow,
     automationLock,
     overlay: puzzleOverlay,
+    feedbackOverlay: recognitionFeedbackOverlay,
+    failureEvidence: puzzleFailureEvidence,
     calibration: new PuzzleCalibrationRepository(path.join(app.getPath('userData'), 'puzzle-calibration'))
   })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
@@ -600,6 +611,7 @@ async function startApplication() {
     startupDiagnostics,
     applicationUpdate,
     feedback: feedbackService,
+    failureEvidence: puzzleFailureEvidence,
     getMainWindow,
     enableJunfengTraining: !app.isPackaged
   })

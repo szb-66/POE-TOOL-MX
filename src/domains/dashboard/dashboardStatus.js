@@ -23,6 +23,21 @@ export const RECOVERY_MODE_OPTIONS = Object.freeze([
 
 const cleanIssues = (issues = []) => issues.map(item => String(item || '').trim()).filter(Boolean)
 
+export function evaluateShortcutHealth({
+  status = 'pending',
+  error = '',
+  scopeEnabled = true,
+  scopeAvailable = true,
+  gameForeground = false
+} = {}) {
+  if (status === 'pending') return { status: 'pending', text: '全局快捷键等待初始化' }
+  if (status === 'error') return { status: 'error', text: error || '全局快捷键注册失败' }
+  if (!scopeEnabled) return { status: 'ready', text: '全局快捷键已注册（未限制窗口）' }
+  if (!scopeAvailable) return { status: 'attention', text: '前台监视不可用，快捷键已全局生效' }
+  if (gameForeground) return { status: 'ready', text: '全局快捷键已注册（游戏前台）' }
+  return { status: 'ready', text: '快捷键已就绪（切回游戏后生效）' }
+}
+
 export function createModuleStatus({
   id,
   title,

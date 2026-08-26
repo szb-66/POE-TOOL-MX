@@ -41,6 +41,24 @@ function analyze({ region, imagePath = screenshot, imageIsRegion = false, region
   }
 }
 
+function probeAnalyzer(body) {
+  const code = [
+    'import importlib.util, json',
+    `spec = importlib.util.spec_from_file_location("puzzle_analyzer_probe", ${JSON.stringify(analyzer)})`,
+    'module = importlib.util.module_from_spec(spec)',
+    'spec.loader.exec_module(module)',
+    body
+  ].join('\n')
+  const process = spawnSync(python, ['-c', code], {
+    encoding: 'utf8',
+    env: { ...globalThis.process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
+  })
+  assert.equal(process.status, 0, process.stderr || process.stdout)
+  const line = process.stdout.split(/\r?\n/).filter(Boolean).at(-1)
+  assert.ok(line, process.stderr || process.stdout)
+  return JSON.parse(line)
+}
+
 function atlasTopologyFixture(directory) {
   const width = 600
   const height = 600
@@ -196,14 +214,151 @@ test('实时仓库识别在截图前点击目标页签并等待稳定', () => {
   const source = readFileSync(analyzer, 'utf8')
   assert.match(source, /def click_inventory_tab\([\s\S]*SetCursorPos[\s\S]*mouse_event\(0x0002[\s\S]*mouse_event\(0x0004/)
   assert.match(source, /TAB_SWITCH_FAILED/)
+  assert.match(source, /safe_hover_point\(config\["region"\], config\.get\("displayBounds"\)\)/)
+  assert.doesNotMatch(source, /SetCursorPos\(0,\s*0\)/)
   const focusIndex = source.indexOf('focused, focus_error = focus_game_window()')
   const clickIndex = source.indexOf('click_inventory_tab(tab_point')
-  const captureIndex = source.indexOf('image = capture_region(config["region"]')
+  const captureIndex = source.indexOf('payload = capture_with_retries(config, templates, recognition)')
   assert.ok(focusIndex >= 0 && focusIndex < clickIndex && clickIndex < captureIndex)
   for (const candidate of [source, source.replace(/\r?\n/g, '\r\n')]) {
     const clickHelper = candidate.match(/def click_inventory_tab\([\s\S]*?\r?\n\r?\n/)?.[0] || ''
-    assert.match(clickHelper, /mouse_event\(0x0004[\s\S]*SetCursorPos\(0, 0\)[\s\S]*time\.sleep/)
+    assert.match(clickHelper, /mouse_event\(0x0004[\s\S]*SetCursorPos\(int\(hover_point\[0\]\), int\(hover_point\[1\]\)\)[\s\S]*time\.sleep/)
   }
+  const main = source.match(/def main\(\)[\s\S]*?if __name__ == "__main__":/)?.[0] || ''
+  assert.equal(main.match(/click_inventory_tab\(/g)?.length, 1)
+})
+
+test('安全悬停点留在当前显示器且避开识别区域和全局原点', { skip: !existsSync(python) }, () => {
+  const result = probeAnalyzer([
+    'single_region = {"left": 100, "top": 120, "right": 700, "bottom": 1120}',
+    'single_bounds = {"x": 0, "y": 0, "width": 2560, "height": 1440}',
+    'negative_region = {"left": -1850, "top": 100, "right": -1250, "bottom": 1100}',
+    'negative_bounds = {"x": -1920, "y": 0, "width": 1920, "height": 1080}',
+    'single = module.safe_hover_point(single_region, single_bounds)',
+    'negative = module.safe_hover_point(negative_region, negative_bounds)',
+    'blocked = ""',
+    'try:',
+    '    module.safe_hover_point({"left": 0, "top": 0, "right": 100, "bottom": 100}, {"x": 0, "y": 0, "width": 100, "height": 100})',
+    'except ValueError as error:',
+    '    blocked = str(error)',
+    'print(json.dumps({"single": single, "negative": negative, "blocked": blocked}, ensure_ascii=False))'
+  ].join('\n'))
+  assert.notDeepEqual(result.single, [0, 0])
+  assert.ok(result.single[0] >= 0 && result.single[0] <= 2560)
+  assert.ok(result.single[1] >= 0 && result.single[1] <= 1440)
+  assert.ok(result.single[0] < 100 || result.single[0] > 700 || result.single[1] < 120 || result.single[1] > 1120)
+  assert.ok(result.negative[0] >= -1920 && result.negative[0] <= 0)
+  assert.ok(result.negative[1] >= 0 && result.negative[1] <= 1080)
+  assert.match(result.blocked, /找不到.*安全悬停点/)
+})
+
+test('切页识别只对低网格置信错误串行重读且最多三次', { skip: !existsSync(python) }, () => {
+  const result = probeAnalyzer([
+    'config = {"region": {"left": 0, "top": 0, "right": 600, "bottom": 1000}, "regionType": "inventory", "tabPoint": {"x": 10, "y": 10}}',
+    'retryable = module.fail("EMPTY_GRID_UNCERTAIN", "retry")',
+    'success = {"success": True, "occupiedCount": 5}',
+    'captures = []',
+    'sleeps = []',
+    'def capture(region, region_type):',
+    '    captures.append((region, region_type))',
+    '    return len(captures)',
+    'def recover(image, templates, region_type, recognition, calibration):',
+    '    return retryable if image < 3 else success',
+    'recovered = module.capture_with_retries(config, {}, {"allowEmpty": True}, capture, recover, sleeps.append)',
+    'persistent_captures = []',
+    'persistent_sleeps = []',
+    'def persistent_capture(region, region_type):',
+    '    persistent_captures.append(region_type)',
+    '    return len(persistent_captures)',
+    'persistent = module.capture_with_retries(config, {}, {"allowEmpty": True}, persistent_capture, lambda *args: retryable, persistent_sleeps.append)',
+    'nonretry_captures = []',
+    'def nonretry_capture(region, region_type):',
+    '    nonretry_captures.append(region_type)',
+    '    return 1',
+    'nonretry = module.capture_with_retries(config, {}, {"allowEmpty": True}, nonretry_capture, lambda *args: module.fail("CAPTURE_EMPTY", "stop"), lambda delay: None)',
+    'print(json.dumps({"recovered": recovered, "captures": len(captures), "sleeps": sleeps, "persistent": persistent, "persistentCaptures": len(persistent_captures), "persistentSleeps": persistent_sleeps, "nonretry": nonretry, "nonretryCaptures": len(nonretry_captures)}, ensure_ascii=False))'
+  ].join('\n'))
+  assert.equal(result.recovered.success, true)
+  assert.equal(result.captures, 3)
+  assert.deepEqual(result.sleeps, [0.25, 0.25])
+  assert.equal(result.persistent.error.code, 'EMPTY_GRID_UNCERTAIN')
+  assert.equal(result.persistentCaptures, 3)
+  assert.deepEqual(result.persistentSleeps, [0.25, 0.25])
+  assert.equal(result.nonretry.error.code, 'CAPTURE_EMPTY')
+  assert.equal(result.nonretryCaptures, 1)
+})
+
+test('失败证据由同帧完整游戏窗口派生裁剪并记录逐次网格指标', { skip: !existsSync(python) }, () => {
+  const result = probeAnalyzer([
+    'import tempfile',
+    'from pathlib import Path',
+    'directory = tempfile.mkdtemp(prefix="puzzle-evidence-test-")',
+    'config = {"region": {"left": 120, "top": 80, "right": 720, "bottom": 1080}, "displayBounds": {"x": 0, "y": 0, "width": 2560, "height": 1440}, "regionType": "inventory", "tabPoint": {"x": 10, "y": 10}, "page": 2, "evidenceId": "11111111-1111-4111-8111-111111111111", "evidenceDirectory": directory}',
+    'frame_calls = []',
+    'def frame_capture(_config):',
+    '    frame_calls.append(1)',
+    '    window = module.np.zeros((1200, 2000, 3), dtype=module.np.uint8)',
+    '    crop = window[40:1040, 20:620]',
+    '    return {"image": crop, "windowImage": window, "windowBounds": {"left": 100, "top": 40, "width": 2000, "height": 1200}, "monitorBounds": {"left": 0, "top": 0, "width": 2560, "height": 1440}, "actualCrop": {"left": 20, "top": 40, "width": 600, "height": 1000}}',
+    'def analyzer(_image, *_args):',
+    '    payload = module.fail("EMPTY_GRID_UNCERTAIN", "retry")',
+    '    payload["_recognitionEvidenceMetrics"] = {"stage": "GRID_ANALYSIS", "grid": {"candidateVerticalLines": [100, 200], "candidateHorizontalLines": [80, 160], "spacing": {"x": 100, "y": 80}, "deviation": {"mean": 1, "max": 2}, "confidence": 0.4}, "occupiedCount": 0, "warningCodes": ["GRID_ALIGNMENT_LOW"]}',
+    '    return payload',
+    'payload = module.capture_with_retries(config, {}, {"allowEmpty": True}, analyzer=analyzer, sleeper=lambda _delay: None, frame_capture=frame_capture)',
+    'evidence = payload["_failureEvidence"]',
+    'headers = {item["kind"]: Path(directory, item["fileName"]).read_bytes()[:4].hex() for item in evidence["files"][:2]}',
+    'print(json.dumps({"errorCode": payload["error"]["code"], "frameCalls": len(frame_calls), "attempts": evidence["attempts"], "files": evidence["files"], "headers": headers, "hasDirectory": "evidenceDirectory" in evidence}, ensure_ascii=False))'
+  ].join('\n'))
+  assert.equal(result.errorCode, 'EMPTY_GRID_UNCERTAIN')
+  assert.equal(result.frameCalls, 3)
+  assert.equal(result.attempts.length, 3)
+  assert.deepEqual(result.attempts[0].actualCrop, { left: 20, top: 40, width: 600, height: 1000 })
+  assert.equal(result.attempts[0].grid.confidence, 0.4)
+  assert.equal(result.attempts[0].errorCode, 'EMPTY_GRID_UNCERTAIN')
+  assert.equal(result.files.length, 6)
+  assert.match(result.headers.window, /^ffd8ff/)
+  assert.equal(result.headers.crop, '89504e47')
+  assert.equal(result.hasDirectory, false)
+})
+
+test('窗口边界或图片编码不可用只降低证据完整性且不改变识别结果', { skip: !existsSync(python) }, () => {
+  const result = probeAnalyzer([
+    'import tempfile',
+    'base = {"region": {"left": 0, "top": 0, "right": 600, "bottom": 1000}, "displayBounds": {"x": 0, "y": 0, "width": 1920, "height": 1080}, "regionType": "inventory", "tabPoint": {"x": 10, "y": 10}, "page": 1, "evidenceId": "11111111-1111-4111-8111-111111111111"}',
+    'captures = []',
+    'def capture(_region, _type):',
+    '    captures.append(1)',
+    '    return module.np.zeros((1000, 600, 3), dtype=module.np.uint8)',
+    'def unavailable(_config): raise module.EvidenceCaptureUnavailable("WINDOW_BOUNDS_UNAVAILABLE")',
+    'def failure(_image, *_args):',
+    '    payload = module.fail("CAPTURE_EMPTY", "original")',
+    '    payload["_recognitionEvidenceMetrics"] = {"stage": "CAPTURE", "grid": None, "occupiedCount": None, "warningCodes": []}',
+    '    return payload',
+    'first = module.capture_with_retries({**base, "evidenceDirectory": tempfile.mkdtemp()}, {}, {}, capture=capture, analyzer=failure, frame_capture=unavailable)',
+    'def frame(_config):',
+    '    image = module.np.zeros((1000, 600, 3), dtype=module.np.uint8)',
+    '    return {"image": image, "windowImage": image, "windowBounds": {"left": 0, "top": 0, "width": 600, "height": 1000}, "monitorBounds": {"left": 0, "top": 0, "width": 1920, "height": 1080}, "actualCrop": {"left": 0, "top": 0, "width": 600, "height": 1000}}',
+    'def broken_writer(*_args): raise RuntimeError("encoding")',
+    'second = module.capture_with_retries({**base, "evidenceDirectory": tempfile.mkdtemp()}, {}, {}, capture=capture, analyzer=failure, frame_capture=frame, image_writer=broken_writer)',
+    'print(json.dumps({"firstCode": first["error"]["code"], "firstReasons": first["_failureEvidence"]["completeness"]["reasons"], "firstStatuses": [item["status"] for item in first["_failureEvidence"]["files"]], "captures": len(captures), "secondCode": second["error"]["code"], "secondReasons": second["_failureEvidence"]["completeness"]["reasons"]}, ensure_ascii=False))'
+  ].join('\n'))
+  assert.equal(result.firstCode, 'CAPTURE_EMPTY')
+  assert.deepEqual(result.firstReasons, ['WINDOW_BOUNDS_UNAVAILABLE'])
+  assert.deepEqual(result.firstStatuses, ['missing', 'complete'])
+  assert.equal(result.captures, 1)
+  assert.equal(result.secondCode, 'CAPTURE_EMPTY')
+  assert.deepEqual(result.secondReasons, ['IMAGE_ENCODING_FAILED'])
+})
+
+test('实时完整窗口截图严格绑定前台游戏客户区且不退化为桌面截图', () => {
+  const source = readFileSync(analyzer, 'utf8')
+  const capture = source.match(/def capture_game_window_frame\([\s\S]*?\n\n/)?.[0] || ''
+  assert.match(capture, /GetForegroundWindow/)
+  assert.match(capture, /window_matches_game/)
+  assert.match(capture, /game_client_bounds/)
+  assert.match(capture, /CROP_OUTSIDE_GAME_WINDOW/)
+  assert.match(capture, /capture\.grab\(monitor\)/)
+  assert.doesNotMatch(capture, /monitors\[0\]|capture_region/)
 })
 
 test('旧识别强度配置被静默忽略且仍能完成仓库识别', { skip: !existsSync(python) }, () => {
@@ -384,8 +539,9 @@ test('实时识别会自动查找、恢复并激活游戏，确认前台后才�
   assert.match(source, /user32\.BringWindowToTop\(hwnd\)/)
   assert.match(source, /user32\.SetForegroundWindow\(hwnd\)/)
   const focus = source.indexOf('focused, focus_error = focus_game_window()')
-  const capture = source.indexOf('image = capture_region(config["region"], str(config.get("regionType", "inventory")))')
+  const capture = source.indexOf('payload = capture_with_retries(config, templates, recognition)')
   assert.ok(focus > 0 && capture > focus)
+  assert.match(source, /def capture_with_retries\([\s\S]*image = capture\(config\["region"\], region_type\)/)
   assert.match(source, /GAME_WINDOW_NOT_FOUND/)
   assert.match(source, /GAME_FOCUS_FAILED/)
 })

@@ -56,12 +56,12 @@ const checkInitialItem = computed({
 })
 
 const form = ref({
-  itemStart: settingsStore.globalShortcuts.itemStart || 'Alt+1'
+  itemStart: settingsStore.globalShortcuts.itemStart
 })
 
 // 监听设置变化，同步到form
 watch(() => settingsStore.globalShortcuts.itemStart, (val) => {
-  form.value.itemStart = val || 'Alt+1'
+  form.value.itemStart = val
 })
 
 async function handleSave(value) {

@@ -29,7 +29,7 @@ test('主布局首帧和路由变化挂载窗口主题类，卸载时清理', ()
 
 test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔离', () => {
   const expectedRoutes = [
-    '/puzzle-overlay', '/overlay', '/debug-overlay', '/story-overlay',
+    '/puzzle-overlay', '/chart-recognition-feedback', '/overlay', '/debug-overlay', '/story-overlay',
     '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
     '/coordinate-picker', '/price-check-overlay'
   ]
@@ -37,7 +37,7 @@ test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔�
   const crlfRouter = router.replace(/\r\n?/g, '\n').replace(/\n/g, '\r\n')
   assert.deepEqual(noLayoutRoutePaths(crlfRouter), expectedRoutes)
   for (const path of [
-    '/puzzle-overlay', '/overlay', '/story-overlay', '/bag-stash-overlay',
+    '/puzzle-overlay', '/chart-recognition-feedback', '/overlay', '/story-overlay', '/bag-stash-overlay',
     '/chaos-recipe-overlay', '/chaos-recipe-control-overlay', '/price-check-overlay'
   ]) assert.match(theme, new RegExp(`'${path.replaceAll('/', '\\/')}'`))
   assert.doesNotMatch(theme, /BUSINESS_OVERLAY_ROUTES[\s\S]*?'\/debug-overlay'/)

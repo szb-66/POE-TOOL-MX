@@ -62,6 +62,24 @@ test('更新内容弹窗同时只展示一次并在关闭后确认已读', async
   assert.equal(store.state.installedUpdate, null)
 })
 
+test('标题栏更新确认仅对当前运行周期的同一目标版本生效', () => {
+  setActivePinia(createPinia())
+  const store = useApplicationUpdateStore()
+  store.applyState({ status: 'available', availableVersion: '1.0.6' })
+  assert.equal(store.isVersionConfirmed(), false)
+  assert.equal(store.confirmVersion('1.0.6'), true)
+  assert.equal(store.isVersionConfirmed('1.0.6'), true)
+
+  store.applyState({ status: 'available', availableVersion: '1.0.7' })
+  assert.equal(store.isVersionConfirmed('1.0.7'), false)
+  assert.equal(store.confirmVersion('1.0.6'), false)
+  assert.equal(store.confirmVersion('1.0.7'), true)
+  assert.equal(store.isVersionConfirmed('1.0.7'), true)
+
+  store.dispose()
+  assert.equal(store.isVersionConfirmed('1.0.7'), false)
+})
+
 test('安装操作先在共享状态中锁定交互', async t => {
   let resolveInstall
   withUpdateApi(t, {

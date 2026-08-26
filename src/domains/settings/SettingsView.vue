@@ -110,7 +110,7 @@
               </el-col>
               <el-col :xs="24" :sm="12" :md="8">
                 <el-form-item label="全局紧急停止">
-                  <KeyCaptureInput :model-value="shortcuts.end" @change="handleShortcutsChange('end', $event)" />
+                  <KeyCaptureInput :model-value="shortcuts.end" :allow-empty="false" @change="handleShortcutsChange('end', $event)" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -701,6 +701,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute, useRouter } from 'vue-router'
 import { Refresh, Close, Aim, UploadFilled, QuestionFilled } from '@element-plus/icons-vue'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
@@ -723,8 +724,11 @@ import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
+import { SETTINGS_TABS, resolveSettingsTab } from '@/router/settingsNavigation'
 import { OVERLAY_BACKGROUND_MODES, resolveOverlayBackgroundDrop } from '../../../shared/overlayBackground.js'
 
+const route = useRoute()
+const router = useRouter()
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
@@ -733,7 +737,6 @@ const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
 const accountToken = ref('')
 const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
-const SETTINGS_TABS = ['general', 'automation', 'detection', 'overlay', 'system', 'feedback']
 const activeTab = ref(readPersistentTab(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'))
 const settingsScrollbar = ref(null)
 
@@ -769,9 +772,25 @@ const updateStatusText = computed(() => ({
 })[updateState.value.status] || '等待检查')
 
 function handleTabChange(tab) {
-  activeTab.value = writePersistentTab(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general')
+  const nextTab = writePersistentTab(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general')
+  activeTab.value = nextTab
+  if (resolveSettingsTab(route.query.tab) !== nextTab) {
+    void router.replace({ path: route.path, query: { ...route.query, tab: nextTab }, hash: route.hash })
+  }
   settingsScrollbar.value?.setScrollTop(0)
 }
+
+watch(() => route.query.tab, (tab) => {
+  const requestedTab = resolveSettingsTab(tab)
+  if (!requestedTab || requestedTab === activeTab.value) return
+  activeTab.value = writePersistentTab(
+    SETTINGS_TAB_STORAGE_KEY,
+    requestedTab,
+    SETTINGS_TABS,
+    'general'
+  )
+  settingsScrollbar.value?.setScrollTop(0)
+}, { immediate: true })
 
 onMounted(async () => {
   void account.run(() => account.restore()).catch(() => {})
@@ -887,8 +906,8 @@ function handleBagAutoStashToggle(enabled) {
 
 async function handleShortcutsChange(key, value) {
   try {
-    await commitGlobalShortcut(key, value)
-    ElMessage.success('快捷键已保存并注册')
+    const saved = await commitGlobalShortcut(key, value)
+    ElMessage.success(saved ? '快捷键已保存并注册' : '快捷键已清空')
   } catch (error) {
     shortcuts.value = { ...settingsStore.globalShortcuts }
     ElMessage.error(error.message)

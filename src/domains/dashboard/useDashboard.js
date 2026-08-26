@@ -24,6 +24,7 @@ import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } 
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import { setRendererDiagnosticContext } from '@/utils/diagnosticContext'
+import { settingsRouteForHealth } from '@/router/settingsNavigation'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
@@ -31,6 +32,7 @@ import {
   evaluateItemsStatus,
   evaluateMapStatus,
   evaluatePriceCheckStatus,
+  evaluateShortcutHealth,
   evaluateShopStatus,
   evaluateStoryStatus,
   ITEM_CRAFTING_MODE_OPTIONS,
@@ -215,23 +217,13 @@ export function useDashboard() {
         : settingsStore.dpiDetectionStatus === 'detecting'
           ? { status: 'pending', text: '正在识别游戏窗口 DPI' }
           : { status: 'attention', text: settingsStore.dpiDetectionError || `使用回退倍率 ${settingsStore.dpiScale}` }
-    const shortcutStatus = shortcut.status === 'pending'
-      ? { status: 'pending', text: '全局快捷键等待初始化' }
-      : shortcut.status === 'error'
-        ? { status: 'error', text: shortcut.error || '全局快捷键注册失败' }
-        : !settingsStore.shortcutScopeEnabled
-          ? { status: 'ready', text: '全局快捷键已注册（未限制窗口）' }
-          : !settingsStore.shortcutScopeAvailable
-            ? { status: 'attention', text: '前台监视不可用，快捷键已全局生效' }
-            : settingsStore.gameForeground
-              ? { status: 'ready', text: '全局快捷键已注册（游戏前台）' }
-              : settingsStore.shortcutScopeReason === 'window-title-mismatch'
-                ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（前台窗口标题未匹配游戏窗口名称）' }
-                : settingsStore.shortcutScopeReason === 'process-name-mismatch'
-                  ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（窗口标题匹配，但进程名不是游戏客户端）' }
-                  : settingsStore.shortcutScopeReason === 'no-foreground-window'
-                    ? { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（未检测到前台窗口）' }
-                    : { status: 'attention', reason: settingsStore.shortcutScopeReason, text: '快捷键已暂停（游戏未在前台）' }
+    const shortcutStatus = evaluateShortcutHealth({
+      status: shortcut.status,
+      error: shortcut.error,
+      scopeEnabled: settingsStore.shortcutScopeEnabled,
+      scopeAvailable: settingsStore.shortcutScopeAvailable,
+      gameForeground: settingsStore.gameForeground
+    })
     const extraHealth = startupHealth.value.filter(item => (
       !['runtime', 'game'].includes(item.id)
     ))
@@ -609,7 +601,7 @@ export function useDashboard() {
   }
 
   const openModule = module => router.push(module.route)
-  const openSettings = () => router.push('/settings')
+  const openSettings = () => router.push(settingsRouteForHealth(healthItems.value))
 
   onMounted(() => {
     void refresh()

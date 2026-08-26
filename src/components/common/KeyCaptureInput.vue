@@ -11,7 +11,15 @@
     <span v-if="capturing" class="capture-prompt">请按下按键…</span>
     <span v-else-if="modelValue" class="key-value">{{ modelValue }}</span>
     <span v-else class="placeholder">{{ placeholder }}</span>
-    <span class="edit-tip">{{ capturing ? 'Esc 取消' : '点击录入' }}</span>
+    <button
+      v-if="!capturing && allowEmpty && modelValue"
+      type="button"
+      class="clear-button"
+      aria-label="清空快捷键"
+      title="清空快捷键"
+      @click.stop="clearValue"
+    >清空</button>
+    <span v-else class="edit-tip">{{ capturing ? 'Esc 取消' : '点击录入' }}</span>
   </div>
 </template>
 
@@ -24,7 +32,8 @@ const props = defineProps({
   modelValue: { type: String, default: '' },
   mode: { type: String, default: 'shortcut' },
   placeholder: { type: String, default: '未设置' },
-  disabled: { type: Boolean, default: false }
+  disabled: { type: Boolean, default: false },
+  allowEmpty: { type: Boolean, default: true }
 })
 const emit = defineEmits(['update:modelValue', 'change'])
 const capturing = ref(false)
@@ -54,6 +63,12 @@ async function cancelCapture() {
   await stopCapture()
 }
 
+function clearValue() {
+  if (props.disabled || !props.allowEmpty || capturing.value) return
+  emit('update:modelValue', '')
+  emit('change', '')
+}
+
 function handleOutsidePointer(event) {
   if (!root.value?.contains(event.target)) void cancelCapture()
 }
@@ -69,6 +84,7 @@ async function handleKeydown(event) {
   if (['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) activeModifiers.add(event.key)
   const result = interpretCaptureEvent(event, props.mode, activeModifiers)
   if (result.type === 'cancel') return cancelCapture()
+  if (result.type === 'clear' && !props.allowEmpty) return
   if (result.type === 'pending') return
   await stopCapture()
   emit('update:modelValue', result.value)
@@ -90,4 +106,6 @@ onBeforeUnmount(() => {
 .capture-prompt { color: var(--el-color-primary); }
 .placeholder { color: var(--el-text-color-placeholder); }
 .edit-tip { flex: 0 0 auto; font-size: 11px; color: var(--el-text-color-placeholder); }
+.clear-button { flex: 0 0 auto; margin: 0; padding: 2px 4px; border: 0; background: transparent; color: var(--el-text-color-secondary); font: inherit; font-size: 11px; cursor: pointer; }
+.clear-button:hover, .clear-button:focus-visible { color: var(--el-color-danger); outline: none; }
 </style>

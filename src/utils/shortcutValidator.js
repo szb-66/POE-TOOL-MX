@@ -14,7 +14,17 @@ import { toElectronAccelerator } from './electronAccelerator.js'
  * Inputs: shortcuts (object) - 快捷键对象
  * Outputs: { isValid: boolean, error: string } - 验证结果
  */
-export function validateShortcuts(shortcuts) {
+export function validateShortcuts(shortcuts, { requiredKeys = [] } = {}) {
+  const missingRequired = requiredKeys.find(key => (
+    typeof shortcuts?.[key] !== 'string' || !shortcuts[key].trim()
+  ))
+  if (missingRequired) {
+    return {
+      isValid: false,
+      error: missingRequired === 'end' ? '全局紧急停止快捷键不能为空' : `快捷键 ${missingRequired} 不能为空`
+    }
+  }
+
   const shortcutValues = Object.values(shortcuts).filter(value => typeof value === 'string' && value.trim())
   const normalizedValues = shortcutValues.map(value => toElectronAccelerator(value).toLowerCase())
 

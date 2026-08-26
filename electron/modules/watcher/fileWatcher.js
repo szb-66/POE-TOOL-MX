@@ -61,7 +61,7 @@ class FileWatcher extends EventEmitter {
       // 创建监听文件失败
     }
 
-    // 监听结果文件变化 (用于实时更新循环次数等由脚本写入的信息)
+    // 监听结果文件变化（用于物品解析和地图统计快照，不承担逐次通货计数）
     try {
       let lastContent = ''
       let lastModified = 0

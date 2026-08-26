@@ -47,12 +47,13 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, h, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Minus, FullScreen, Close } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
+import { runApplicationUpdateEntryAction } from '@/utils/applicationUpdateAction'
 import appLogo from '@/assets/images/LOGO-dark.png'
 
 const isAlwaysOnTop = ref(false)
@@ -70,16 +71,59 @@ const updateEntryText = computed(() => ({
 
 async function handleUpdateEntry() {
   try {
-    const result = updateState.value.status === 'available'
-      ? await applicationUpdate.download()
-      : updateState.value.status === 'downloaded'
-        ? await applicationUpdate.install()
-        : null
+    const result = await runApplicationUpdateEntryAction({
+      state: updateState.value,
+      update: applicationUpdate,
+      confirm: confirmApplicationUpdate
+    })
+    if (result?.cancelled) return
+    if (result?.stale) {
+      ElMessage.info('可用更新已发生变化，请重新查看更新内容')
+      return
+    }
     if (result && !result.success && !result.busy) {
       ElMessage.error(result.state?.error || '更新操作失败')
     }
   } catch (error) {
     ElMessage.error(error?.message || '更新操作失败')
+  }
+}
+
+function formatUpdateDate(value) {
+  if (!value) return '未知'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN')
+}
+
+async function confirmApplicationUpdate(update) {
+  const releaseNotes = update.releaseNotes || '本版本暂无更新说明'
+  const message = h('div', { style: { textAlign: 'left' } }, [
+    h('p', { style: { margin: '0 0 6px' } }, `目标版本：v${update.availableVersion || '未知'}`),
+    h('p', { style: { margin: '0 0 12px', color: 'var(--text-secondary, #909399)' } }, `发布时间：${formatUpdateDate(update.releaseDate)}`),
+    h('div', { style: { marginBottom: '6px', fontWeight: '600' } }, '更新内容'),
+    h('pre', {
+      style: {
+        margin: '0',
+        maxHeight: '280px',
+        overflow: 'auto',
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'anywhere',
+        font: 'inherit'
+      }
+    }, releaseNotes)
+  ])
+  try {
+    await ElMessageBox.confirm(message, '发现新版本', {
+      confirmButtonText: update.status === 'downloaded' ? '重启并安装' : '下载更新',
+      cancelButtonText: '暂不更新',
+      closeOnClickModal: false,
+      distinguishCancelAndClose: true,
+      dangerouslyUseHTMLString: false
+    })
+    return true
+  } catch (action) {
+    if (action === 'cancel' || action === 'close') return false
+    throw action
   }
 }
 

@@ -27,7 +27,7 @@ function healthReasonCode(item) {
   return 'unavailable'
 }
 
-export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvents = null, startupDiagnostics = null) {
+export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvents = null, startupDiagnostics = null, failureEvidence = null) {
   const displaySnapshot = () => screen.getAllDisplays().map(display => ({
     id: display.id,
     primary: display.id === screen.getPrimaryDisplay()?.id,
@@ -74,6 +74,7 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       ? await diagnosticEvents.resolveCapture(payload.captureId)
       : null
     const device = collectDeviceInfo()
+    const evidenceResult = failureEvidence?.getSummary ? await failureEvidence.getSummary() : { success: true, evidence: null }
     return createDiagnosticsSnapshot({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
@@ -99,7 +100,11 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       ],
       modules: sanitizeModuleStates(normalized.modules),
       recentEvents: eventDocument.events,
-      context: capture || { mode: 'snapshot' }
+      context: capture || { mode: 'snapshot' },
+      puzzleFailureEvidence: {
+        ...evidenceResult,
+        integrity: failureEvidence?.integrityStatus?.() || { status: evidenceResult.success === false ? 'unavailable' : 'ready', reasons: [] }
+      }
     })
   }
 

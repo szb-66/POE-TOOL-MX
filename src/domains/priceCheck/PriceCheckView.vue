@@ -5,7 +5,7 @@
         <el-col :span="24"><div class="page-heading">
       <div class="page-heading__title">
         <h2>国服查价</h2>
-        <el-tooltip content="配置 Ctrl+D 查价浮层；物品捕获只从游戏内快捷键进入。" placement="top">
+        <el-tooltip content="配置游戏内快捷键打开查价浮层；快捷键未设置时不会触发物品捕获。" placement="top">
           <el-icon class="page-heading__help" tabindex="0" aria-label="查看国服查价说明"><QuestionFilled /></el-icon>
         </el-tooltip>
       </div>
@@ -23,7 +23,7 @@
       <el-row class="status-grid app-grid" :gutter="16">
         <el-col :xs="24" :sm="12" :md="6"><div><span>账号</span><strong>{{ authText }}</strong></div></el-col>
         <el-col :xs="24" :sm="12" :md="6"><div><span>全局赛季</span><strong>{{ leagueText }}</strong></div></el-col>
-        <el-col :xs="24" :sm="12" :md="6"><div><span>快捷键</span><strong>{{ appSettings.globalShortcuts.priceCheck }}</strong></div></el-col>
+        <el-col :xs="24" :sm="12" :md="6"><div><span>快捷键</span><strong>{{ priceCheckShortcutText }}</strong></div></el-col>
         <el-col :xs="24" :sm="12" :md="6"><div><span>交易目录</span><strong>{{ catalogText }}</strong></div></el-col>
       </el-row>
       <el-alert
@@ -40,7 +40,7 @@
         :loading="store.loading"
         @click="retryCatalog"
       >重试官方目录</el-button>
-      <el-button class="settings-link" type="primary" plain @click="$router.push('/settings')">
+      <el-button class="settings-link" type="primary" plain @click="$router.push(settingsRoute('general'))">
         前往账号与快捷键设置
       </el-button>
         </el-card></el-col>
@@ -51,11 +51,11 @@
         <el-form-item label="立即查价">
           <el-switch
             :model-value="store.settings.queryImmediately"
-            active-text="Ctrl+D 后立即查询"
+            :active-text="`${priceCheckShortcutText} 后立即查询`"
             inactive-text="确认后手动查询"
             @change="value => changeSetting('queryImmediately', value)"
           />
-          <span class="inline-hint">关闭时 Ctrl+D 仍会读取物品并打开浮窗，点击“搜索”后才访问官方接口</span>
+          <span class="inline-hint">关闭时，已设置的查价快捷键仍会读取物品并打开浮窗，点击“搜索”后才访问官方接口</span>
         </el-form-item>
         <el-form-item label="在线状态">
           <el-select :model-value="store.settings.status" @change="value => changeSetting('status', value)">
@@ -114,7 +114,8 @@
       <template #header><strong>使用说明与诊断</strong></template>
       <ol class="instructions">
         <li>在设置页登录国服账号并选择全局赛季。</li>
-        <li>开启查价器后，将鼠标悬停在游戏物品上，按 {{ appSettings.globalShortcuts.priceCheck }}。</li>
+        <li v-if="appSettings.globalShortcuts.priceCheck">开启查价器后，将鼠标悬停在游戏物品上，按 {{ priceCheckShortcutText }}。</li>
+        <li v-else>当前未设置查价快捷键；可保持查价器启用，并前往设置页录入快捷键后使用。</li>
         <li>助手发送 Ctrl+C 读取物品详细文本；“立即查价”关闭时，请在浮窗确认条件后点击“搜索”。</li>
       </ol>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
@@ -131,6 +132,7 @@ import { QuestionFilled } from '@element-plus/icons-vue'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
+import { settingsRoute } from '@/router/settingsNavigation'
 
 const store = usePriceCheckStore()
 const account = usePoeCnAccountStore()
@@ -138,6 +140,7 @@ const appSettings = useSettingsStore()
 
 const authText = computed(() => account.status.authenticated ? account.status.accountName : '未登录')
 const leagueText = computed(() => account.leagues.find(item => item.id === account.settings.league)?.name || account.settings.league || '未设置')
+const priceCheckShortcutText = computed(() => appSettings.globalShortcuts.priceCheck || '未设置')
 const catalogText = computed(() => store.catalog ? `${store.catalog.gameVersion} · ${store.catalog.counts?.stats || 0} 词缀` : '不可用')
 const catalogTagType = computed(() => store.catalog?.degraded || store.catalog?.stale ? 'warning' : 'success')
 const catalogStateText = computed(() => store.catalog?.degraded

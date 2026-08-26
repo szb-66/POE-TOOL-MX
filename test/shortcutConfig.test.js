@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-import { DEFAULT_GLOBAL_SHORTCUTS, dispatchShortcutAction, mergeGlobalShortcutSettings } from '../src/utils/shortcutConfig.js'
+import {
+  DEFAULT_GLOBAL_SHORTCUTS,
+  dispatchShortcutAction,
+  mergeGlobalShortcutSettings,
+  normalizeGlobalShortcutSettings
+} from '../src/utils/shortcutConfig.js'
 
 test('全局快捷键不再包含背包补扫，但保留剧情导航', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, undefined)
@@ -18,6 +23,24 @@ test('全局快捷键只接受当前格式字段', () => {
   assert.equal(mergeGlobalShortcutSettings({ stashShortcut: 'F6' }).stashStart, undefined)
   assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }).stashStart, undefined)
   assert.equal(mergeGlobalShortcutSettings({ unknown: 'F9' }).unknown, undefined)
+})
+
+test('普通快捷键保留空值且历史空紧急停止恢复默认值', () => {
+  const merged = mergeGlobalShortcutSettings({ itemStart: '  ', mapStart: ' Alt+9 ', end: ' ' })
+  assert.equal(merged.itemStart, '')
+  assert.equal(merged.mapStart, 'Alt+9')
+  assert.equal(merged.end, DEFAULT_GLOBAL_SHORTCUTS.end)
+  assert.equal(normalizeGlobalShortcutSettings({ ...DEFAULT_GLOBAL_SHORTCUTS, portal: '  ' }).portal, '')
+})
+
+test('快捷键提交先注册规范化候选再持久化成功值', () => {
+  const service = fs.readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
+  const store = fs.readFileSync(new URL('../src/domains/settings/settingsStore.js', import.meta.url), 'utf8')
+  const commit = service.match(/export async function commitGlobalShortcut[\s\S]*?\n\}/)?.[0] || ''
+  assert.match(commit, /normalizeGlobalShortcutSettings/)
+  assert.ok(commit.indexOf('await updateShortcuts(candidate)') < commit.indexOf('settingsStore.updateGlobalShortcuts'))
+  assert.match(service, /validateShortcuts\(shortcuts, \{ requiredKeys: \['end'\] \}\)/)
+  assert.match(store, /function updateGlobalShortcuts[\s\S]*normalizeGlobalShortcutSettings[\s\S]*if \(!candidate\.end\) throw new Error\('全局紧急停止快捷键不能为空'\)/)
 })
 
 test('统一分发器对一次触发仅执行一个对应动作', () => {

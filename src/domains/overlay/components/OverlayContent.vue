@@ -29,6 +29,18 @@
     <!-- 遮罩层 -->
     <div class="mask-layer" :style="maskStyle"></div>
 
+    <section v-if="currencyUsageEntries.length || showZeroCurrencyUsage" class="currency-usage-bill" aria-label="本次消耗">
+      <div class="currency-usage-title">本次消耗</div>
+      <div v-if="currencyUsageEntries.length" class="currency-usage-list">
+        <span v-for="entry in currencyUsageEntries" :key="entry.key" class="currency-usage-item"
+          role="img" :aria-label="`${entry.name} ${entry.amount} 次`" :title="`${entry.name}：${entry.amount} 次`">
+          <img :src="entry.icon" alt="" aria-hidden="true" />
+          <span class="currency-usage-count">×{{ entry.amount }}</span>
+        </span>
+      </div>
+      <div v-else class="currency-usage-empty">本次未消耗通货</div>
+    </section>
+
     <!-- 地图制作模式：显示统计信息 -->
     <div v-if="isMapMode && hasContent" class="overlay-content">
       <div class="item-header">
@@ -92,10 +104,6 @@
             {{ itemInfo.baseName }}{{ itemInfo.level ? '-' + itemInfo.level : '' }}
           </span>
         </div>
-      </div>
-
-      <div v-if="(itemInfo && itemInfo.iteration > 0) || iteration > 0" class="iteration-fixed">
-        已循环次数: {{ Math.max(itemInfo?.iteration || 0, iteration) }}
       </div>
 
       <div class="mods-container">
@@ -179,6 +187,8 @@ import defaultBg from '@/assets/images/遮罩背景.png'
 import { electronApi } from '@/api/electron'
 import { createOverlayDrag } from '@/utils/useOverlayDrag'
 import { normalizeOverlaySettings, overlayBackgroundMedia } from '../../../../shared/overlayBackground.js'
+import { CRAFTING_CURRENCY_CATALOG, normalizeCurrencyUsage } from '../../../../shared/craftingCurrencyCatalog.js'
+import { CRAFTING_CURRENCY_ICONS } from '../craftingCurrencyIcons.js'
 
 const props = defineProps({
   itemInfo: {
@@ -198,9 +208,9 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  iteration: {
-    type: Number,
-    default: 0
+  currencyUsage: {
+    type: Object,
+    default: () => ({})
   },
   isCompleted: {
     type: Boolean,
@@ -272,6 +282,17 @@ const rollingTargetLabel = computed(() => (
   props.itemInfo?.rollingTarget === 'chart' || props.itemInfo?.category === '海图'
     ? '航海海图'
     : '地图'
+))
+
+const currencyUsageEntries = computed(() => {
+  const usage = normalizeCurrencyUsage(props.currencyUsage)
+  return CRAFTING_CURRENCY_CATALOG.flatMap((currency) => usage[currency.key]
+    ? [{ ...currency, amount: usage[currency.key], icon: CRAFTING_CURRENCY_ICONS[currency.key] }]
+    : [])
+})
+
+const showZeroCurrencyUsage = computed(() => (
+  (props.isCompleted || props.isStopped) && currencyUsageEntries.value.length === 0
 ))
 
 const hasContent = computed(() => {
@@ -640,15 +661,55 @@ function isModMatched(mod) {
   }
 }
 
-.iteration-fixed {
-  text-align: center;
-  font-size: 12px;
-  color: #fff127;
-  border-radius: 100px;
-  border: 1px solid rgba(255, 241, 39, 0.5);
-  padding: 4px 0;
-
+.currency-usage-bill {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 5px;
+  margin-bottom: var(--overlay-space-2);
+  padding: 6px 8px;
+  border: 1px solid rgba(214, 180, 94, 0.42);
+  border-radius: var(--overlay-radius-md);
+  background: rgba(10, 12, 16, 0.58);
   backdrop-filter: blur(8px);
+}
+
+.currency-usage-title {
+  color: #e7cf8e;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.currency-usage-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+}
+
+.currency-usage-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 38px;
+  color: #f4f4f4;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+
+  img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+  }
+}
+
+.currency-usage-count {
+  font-size: 12px;
+  text-shadow: 0 1px 2px #000;
+}
+
+.currency-usage-empty {
+  color: #b8b8b8;
+  font-size: 11px;
 }
 
 .logs-container {

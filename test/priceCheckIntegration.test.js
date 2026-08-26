@@ -453,6 +453,17 @@ test('查价开关注册失败会回滚后端运行态', async () => {
   assert.match(store, /shortcut\.unregister\(shortcut\)[\s\S]*syncRuntime\(\{ enabled: false \}\)/)
 })
 
+test('空查价快捷键保留模块启用状态且跳过注册', async () => {
+  const [store, view] = await Promise.all([
+    source('src/stores/priceCheck.js'),
+    source('src/domains/priceCheck/PriceCheckView.vue')
+  ])
+  assert.doesNotMatch(store, /请先设置国服查价快捷键/)
+  assert.match(store, /await syncRuntime\(\{ enabled: true \}\)[\s\S]*if \(shortcut\) \{[\s\S]*shortcut\.register\(shortcut, 'priceCheck'\)[\s\S]*settings\.value\.enabled = true/)
+  assert.match(store, /if \(shortcut\) await electronApi\.shortcut\.unregister\(shortcut\)/)
+  assert.match(view, /priceCheckShortcutText[\s\S]*'未设置'/)
+})
+
 test('统一国服账号通道替代商城与查价重复认证入口', async () => {
   const [accountIpc, preload, settings, shop, price] = await Promise.all([
     source('electron/modules/ipc/poeCnAccount.js'),
@@ -486,7 +497,7 @@ test('查价快捷键已进入默认配置、设置页与统一动作派发', as
 
 test('查价配置页移除手动文本入口并只保留快捷键说明', async () => {
   const view = await source('src/domains/priceCheck/PriceCheckView.vue')
-  assert.match(view, /物品捕获只从游戏内快捷键进入/)
+  assert.match(view, /快捷键未设置时不会触发物品捕获/)
   assert.match(view, /store\.setEnabled\(enabled\)/)
   assert.doesNotMatch(view, /type="textarea"|store\.(?:run|parse|checkClipboard)\(/)
 })

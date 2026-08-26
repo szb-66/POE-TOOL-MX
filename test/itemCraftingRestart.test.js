@@ -126,6 +126,7 @@ test('异常恢复重载最新配置，装备只对本次强制首次判断，�
   }
   const itemResult = await retryAutomationWithLatestConfig({
     mode: 'items',
+    usageSessionId: 'usage-items',
     ...stores,
     startCrafting: options => { calls.push(['items', options]); return { success: true } },
     startMapRolling: () => { throw new Error('地图启动不应执行') }
@@ -134,6 +135,7 @@ test('异常恢复重载最新配置，装备只对本次强制首次判断，�
   const mapResult = await retryAutomationWithLatestConfig({
     mode: 'map',
     recovery,
+    usageSessionId: 'usage-map',
     ...stores,
     startCrafting: () => { throw new Error('装备启动不应执行') },
     startMapRolling: options => { calls.push(['map', options]); return { success: true } }
@@ -142,7 +144,7 @@ test('异常恢复重载最新配置，装备只对本次强制首次判断，�
   assert.equal(itemResult.success, true)
   assert.equal(mapResult.success, true)
   assert.deepEqual(calls, [
-    'preset', 'settings', ['items', { forceInitialCheck: true }],
-    'preset', 'settings', ['map', { recovery }]
+    'preset', 'settings', ['items', { forceInitialCheck: true, usageSessionId: 'usage-items', continueCurrencyUsage: true }],
+    'preset', 'settings', ['map', { recovery, usageSessionId: 'usage-map', continueCurrencyUsage: true }]
   ])
 })

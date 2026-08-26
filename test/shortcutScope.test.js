@@ -165,6 +165,23 @@ test('集合注册失败回滚到上一组成功注册集合', () => {
   assert.deepEqual([...manager.getIntendedShortcuts().keys()], ['Alt+3'])
 })
 
+test('空快捷键从新集合省略并注销原组合', () => {
+  const mock = createGlobalShortcutMock()
+  const manager = loadShortcutManager(mock)
+  manager.setScopeActive(true)
+  manager.setConfiguredShortcuts([
+    { key: 'itemStart', accelerator: 'Alt+1', callback: () => {} },
+    { key: 'end', accelerator: 'Alt+3', callback: () => {} }
+  ])
+  const result = manager.setConfiguredShortcuts([
+    { key: 'itemStart', accelerator: '', callback: () => {} },
+    { key: 'end', accelerator: 'Alt+3', callback: () => {} }
+  ])
+  assert.equal(result.success, true)
+  assert.deepEqual([...mock.registered.keys()], ['Alt+3'])
+  assert.deepEqual([...manager.getIntendedShortcuts().keys()], ['Alt+3'])
+})
+
 test('前台监视器不可用时回退为无条件注册', () => {
   const mock = createGlobalShortcutMock()
   const manager = loadShortcutManager(mock)
@@ -348,13 +365,15 @@ test('IPC、preload 与渲染 API 暴露前台门禁协议', () => {
 test('设置页、首页状态与设置存储展示前台门禁', () => {
   const settingsView = source('../src/domains/settings/SettingsView.vue')
   const dashboard = source('../src/domains/dashboard/useDashboard.js')
+  const dashboardStatus = source('../src/domains/dashboard/dashboardStatus.js')
   const store = source('../src/domains/settings/settingsStore.js')
   assert.match(settingsView, /仅在游戏窗口前台时生效/)
   assert.match(settingsView, /handleShortcutScopeToggle/)
-  assert.match(dashboard, /快捷键已暂停（游戏未在前台）/)
-  assert.match(dashboard, /快捷键已暂停（前台窗口标题未匹配游戏窗口名称）/)
-  assert.match(dashboard, /快捷键已暂停（窗口标题匹配，但进程名不是游戏客户端）/)
-  assert.match(dashboard, /前台监视不可用/)
+  assert.match(dashboard, /evaluateShortcutHealth/)
+  assert.doesNotMatch(dashboard, /shortcutScopeReason/)
+  assert.doesNotMatch(dashboard, /快捷键已暂停/)
+  assert.match(dashboardStatus, /快捷键已就绪（切回游戏后生效）/)
+  assert.match(dashboardStatus, /前台监视不可用/)
   assert.match(store, /shortcutScopeEnabled/)
   assert.match(store, /shortcutScopeReason/)
   assert.match(store, /applyShortcutScopeState/)
@@ -370,6 +389,7 @@ test('启动同步先比较本地开关，重置与失败路径保持主从状�
   assert.ok(scriptService.indexOf('const storedEnabled') < scriptService.indexOf('applyShortcutScopeState(scopeState)'))
   assert.match(settingsStore, /const previous = shortcutScopeEnabled\.value/)
   assert.match(settingsStore, /setScopeEnabled\(true\)/)
+  assert.match(dashboard, /if \(item\?\.status === 'ready'\) return null/)
   assert.match(dashboard, /item\.status === 'pending' \|\| item\.status === 'attention'/)
   assert.match(main, /createApplicationWindow\(\)[\s\S]*?setImmediate\(\(\) => \{[\s\S]*?startForegroundWatcher/)
 })

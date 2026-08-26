@@ -287,7 +287,7 @@ export class ApplicationUpdateService extends EventEmitter {
     try {
       await runStrictCleanup(this.cleanup, this.cleanupTimeoutMs)
       this.markCleanupComplete()
-      this.updater.quitAndInstall(true, true)
+      this.updater.quitAndInstall(false, true)
       return { success: true, state: this.snapshot() }
     } catch (error) {
       const reason = error?.name === 'StrictCleanupTimeoutError' ? 'cleanup-timeout' : 'cleanup-failed'

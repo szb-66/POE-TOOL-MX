@@ -43,13 +43,32 @@ test('真实CloudBase开发环境反馈闭环', { skip: !runCloud, timeout: 120_
     })
   })
   assert.equal(genericInsert.ok, false)
-  const forbiddenRead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}?select=feedback_id`, {
+  const allowedOwnRead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}?select=feedback_id`, {
     headers: { Authorization: `Bearer ${session.accessToken}` }
   })
-  assert.equal(forbiddenRead.ok, false)
+  assert.equal(allowedOwnRead.ok, true)
+  const forbiddenManagementRead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}?select=status,submitter_uid`, {
+    headers: { Authorization: `Bearer ${session.accessToken}` }
+  })
+  assert.equal(forbiddenManagementRead.ok, false)
 
   const plain = await service.submit(base)
   assert.equal(plain.success, true, JSON.stringify(plain))
+  const firstReplyId = crypto.randomUUID()
+  const replied = await service.reply({ feedbackId: plain.id, clientMessageId: firstReplyId, body: '开发环境用户连续回复验证', attachmentTokens: [] })
+  assert.equal(replied.success, true, JSON.stringify(replied))
+  const conversation = await service.conversation(plain.id)
+  assert.equal(conversation.success, true, JSON.stringify(conversation))
+  assert.equal(conversation.conversation.messages.at(-1).body, '开发环境用户连续回复验证')
+  assert.equal(JSON.stringify(conversation).includes('objectKey'), false)
+
+  const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-cloud-second-'))
+  const secondAuth = new FeedbackAuthClient({ config: FEEDBACK_CLOUDBASE_CONFIG, userDataPath: secondRoot })
+  const secondCloud = new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth: secondAuth })
+  await secondAuth.getSession()
+  assert.equal(await secondCloud.getFeedback(plain.id), null)
+  await assert.rejects(secondCloud.createMessage({ feedback_id: plain.id, author_role: 'user', body: '跨身份回复应被拒绝', attachments: [], client_message_id: crypto.randomUUID(), schema_version: 1 }))
+  await assert.rejects(cloud.createMessage({ feedback_id: plain.id, author_role: 'admin', body: '伪造管理员应被拒绝', attachments: [], client_message_id: crypto.randomUUID(), schema_version: 1 }))
 
   const textPath = path.join(root, 'evidence.txt')
   await writeFile(textPath, 'CloudBase feedback integration evidence\n')
@@ -57,6 +76,19 @@ test('真实CloudBase开发环境反馈闭环', { skip: !runCloud, timeout: 120_
   const selected = await service.registerAttachments([textPath, imagePath])
   const withFiles = await service.submit({ ...base, title: '开发环境图片与文件反馈测试', attachmentTokens: selected.map(item => item.token) })
   assert.equal(withFiles.success, true, JSON.stringify(withFiles))
+  const replySelection = await service.registerAttachments([textPath])
+  const attachmentReply = await service.reply({ feedbackId: withFiles.id, clientMessageId: crypto.randomUUID(), body: '用户附件回复验证', attachmentTokens: replySelection.map(item => item.token) })
+  assert.equal(attachmentReply.success, true, JSON.stringify(attachmentReply))
+  const attachmentConversation = await service.conversation(withFiles.id)
+  assert.equal(attachmentConversation.success, true, JSON.stringify(attachmentConversation))
+  assert.match(attachmentConversation.conversation.messages.at(-1).attachments[0].downloadUrl, /^https:\/\//)
+
+  for (let index = 0; index < 18; index += 1) {
+    const withinLimit = await service.reply({ feedbackId: plain.id, clientMessageId: crypto.randomUUID(), body: `回复限流验证 ${index + 1}`, attachmentTokens: [] })
+    assert.equal(withinLimit.success, true, JSON.stringify(withinLimit))
+  }
+  const rateLimited = await service.reply({ feedbackId: plain.id, clientMessageId: crypto.randomUUID(), body: '第 21 条回复应被拒绝', attachmentTokens: [] })
+  assert.equal(rateLimited.success, false)
 
   const withDiagnostics = await service.submit({ ...base, title: '开发环境脱敏诊断反馈测试', includeDiagnostics: true }, {
     buildDiagnostics: async () => ({ schemaVersion: 3, generatedAt: new Date().toISOString(), context: { mode: 'snapshot' }, safe: true })

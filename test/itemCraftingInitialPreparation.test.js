@@ -229,17 +229,19 @@ ${generated.slice(start, end)}
 is_running = True
 item_info_result_file = os.devnull
 currencies = []
+used = []
 def right_click_currency(currency): currencies.append(currency); return True
 def left_click_item(): return True
+def record_currency_usage(currency): used.append(currency)
 def read_clipboard_to_file(allow_unchanged_text=False): return True
 def wait_for_parse_result(_request_id=None): return {"socketsCount": 6}
 time.sleep = lambda _seconds: None
 success = craft_sockets({"socketMatch": True, "socketsCount": 6})
-print(json.dumps({"success": bool(success), "currencies": currencies}, ensure_ascii=False))
+print(json.dumps({"success": bool(success), "currencies": currencies, "used": used}, ensure_ascii=False))
 `)
     }
-    assert.deepEqual(runSockets(generateSockets(true)), { success: true, currencies: [] })
-    assert.deepEqual(runSockets(generateSockets(false)), { success: true, currencies: ['jewellers'] })
+    assert.deepEqual(runSockets(generateSockets(true)), { success: true, currencies: [], used: [] })
+    assert.deepEqual(runSockets(generateSockets(false)), { success: true, currencies: ['jewellers'], used: ['jewellers'] })
   } finally {
     await server.close()
   }

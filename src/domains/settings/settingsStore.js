@@ -2,7 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
 import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '@/utils/combatConfig'
-import { DEFAULT_GLOBAL_SHORTCUTS, mergeGlobalShortcutSettings } from '@/utils/shortcutConfig'
+import {
+  DEFAULT_GLOBAL_SHORTCUTS,
+  mergeGlobalShortcutSettings,
+  normalizeGlobalShortcutSettings
+} from '@/utils/shortcutConfig'
 import {
   ADAPTIVE_TIMING,
   FIXED_TIMING,
@@ -145,8 +149,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const backgroundHistory = ref([])
 
   function updateGlobalShortcuts(shortcuts) {
-    globalShortcuts.value = { ...globalShortcuts.value, ...shortcuts }
+    const candidate = normalizeGlobalShortcutSettings({ ...globalShortcuts.value, ...shortcuts })
+    if (!candidate.end) throw new Error('全局紧急停止快捷键不能为空')
+    globalShortcuts.value = candidate
     saveSettings()
+    return { ...candidate }
   }
 
   function updateCurrencyPosition(currency, position) {
@@ -452,11 +459,16 @@ export const useSettingsStore = defineStore('settings', () => {
       adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(data.adaptiveTimeoutMs)
       fixedTiming.value = normalizeFixedTiming(data.fixedTiming)
       if (saved) {
+        let shortcutSettingsMigrated = false
         if (typeof data.shortcutScopeEnabled === 'boolean') {
           shortcutScopeEnabled.value = data.shortcutScopeEnabled
         }
         if (data.globalShortcuts) {
-          globalShortcuts.value = mergeGlobalShortcutSettings(data.globalShortcuts)
+          const mergedShortcuts = mergeGlobalShortcutSettings(data.globalShortcuts)
+          shortcutSettingsMigrated = Object.keys(DEFAULT_GLOBAL_SHORTCUTS).some(key => (
+            Object.hasOwn(data.globalShortcuts, key) && data.globalShortcuts[key] !== mergedShortcuts[key]
+          ))
+          globalShortcuts.value = mergedShortcuts
         } else {
           globalShortcuts.value = mergeGlobalShortcutSettings()
         }
@@ -505,7 +517,7 @@ export const useSettingsStore = defineStore('settings', () => {
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
         stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
-        if (operationTimingMigrated || storyOverlayLayout.migrated) saveSettings()
+        if (operationTimingMigrated || storyOverlayLayout.migrated || shortcutSettingsMigrated) saveSettings()
       }
     } catch (error) {
       // 加载设置失败

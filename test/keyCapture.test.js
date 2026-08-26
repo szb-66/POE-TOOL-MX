@@ -34,3 +34,11 @@ test('快捷键验证接受翻页键并拒绝别名冲突和保留键', () => {
   assert.equal(validateShortcuts({ debug: 'F12' }).isValid, false)
   assert.equal(validateShortcuts({ debug: 'Ctrl+Shift+I' }).isValid, false)
 })
+
+test('完整应用快捷键允许普通空值但拒绝空紧急停止', () => {
+  assert.equal(validateShortcuts({ end: 'Alt+3', itemStart: '', mapStart: '  ' }, { requiredKeys: ['end'] }).isValid, true)
+  assert.deepEqual(
+    validateShortcuts({ end: ' ', itemStart: '' }, { requiredKeys: ['end'] }),
+    { isValid: false, error: '全局紧急停止快捷键不能为空' }
+  )
+})

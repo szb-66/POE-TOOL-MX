@@ -55,4 +55,22 @@ export function registerFeedbackHandlers(feedback, { buildDiagnostics, diagnosti
       }
     })
   }))
+
+  ipcMain.handle('feedback:puzzle-evidence-summary', guarded(async () => feedback.getPuzzleEvidenceSummary()))
+  ipcMain.handle('feedback:puzzle-evidence-discard', guarded(async (_event, referenceId) => feedback.discardPuzzleEvidence(referenceId)))
+
+  ipcMain.handle('feedback:list', guarded(async () => feedback.listConversations()))
+  ipcMain.handle('feedback:conversation', guarded(async (_event, feedbackId) => feedback.conversation(feedbackId)))
+  ipcMain.handle('feedback:reply-pick-attachments', guarded(async (event) => {
+    try {
+      const owner = BrowserWindow.fromWebContents(event.sender)
+      const options = { title: '选择回复附件', properties: ['openFile', 'multiSelections'], filters: ATTACHMENT_FILTERS }
+      const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options)
+      if (result.canceled) return { success: true, canceled: true, attachments: [] }
+      return { success: true, canceled: false, attachments: await feedback.registerAttachments(result.filePaths) }
+    } catch (error) { return safeFailure(error) }
+  }))
+  ipcMain.handle('feedback:reply', guarded(async (event, input) => feedback.reply(input, {
+    onProgress: progress => { if (!event.sender.isDestroyed()) event.sender.send('feedback:reply-progress', progress) }
+  })))
 }

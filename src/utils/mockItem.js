@@ -25,7 +25,6 @@ export function generateRandomItem() {
     detailedMods: [],
     affixMatch: Math.random() > 0.5,
     socketMatch: Math.random() > 0.5,
-    iteration: Math.floor(Math.random() * 100)
   };
 
   if (rarity !== '普通') {

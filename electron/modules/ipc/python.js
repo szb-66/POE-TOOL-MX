@@ -14,6 +14,7 @@ import path from 'path'
 import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
 import { stopPythonProcess } from '../python/process.js'
 import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEvents.js'
+import { CraftingCurrencyUsageLedger } from '../python/currencyUsageLedger.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
 
 let stopScriptHandler = null
@@ -23,7 +24,7 @@ export function stopCurrentScript() {
   return stopScriptHandler()
 }
 
-async function prepareCraftingOverlay(window, getOverlayWindow) {
+async function prepareCraftingOverlay(window, getOverlayWindow, currencyUsageSnapshot) {
   let overlayWindow = getOverlayWindow()
   if (!overlayWindow || overlayWindow.isDestroyed()) {
     overlayWindow = window.createOverlayWindow()
@@ -63,7 +64,7 @@ async function prepareCraftingOverlay(window, getOverlayWindow) {
   }
 
   if (overlayWindow.isDestroyed()) throw new Error('制作浮层已关闭')
-  overlayWindow.webContents.send('update-overlay', { reset: true })
+  overlayWindow.webContents.send('update-overlay', { reset: true, ...currencyUsageSnapshot })
   return overlayWindow
 }
 
@@ -79,6 +80,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   } = python
   const { getMainWindow, getOverlayWindow } = window
   const intentionallyStopped = new WeakSet()
+  const currencyUsageLedger = new CraftingCurrencyUsageLedger()
 
   const sendScriptStatus = (payload) => {
     const mainWindow = getMainWindow()
@@ -190,6 +192,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
             errorCode: null,
             error: null,
             recovery: null,
+            ...currencyUsageLedger.snapshot(),
             mapStats: currentConfig?.map ? {
               processedCount: finalProcessedCount,
               qualifiedCount: finalQualifiedCount,
@@ -332,6 +335,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
       }
 
+      const usageSnapshot = currencyUsageLedger.begin({
+        mode,
+        usageSessionId: config?.usageSessionId,
+        continueCurrencyUsage: config?.continueCurrencyUsage
+      })
+
       // 保存脚本到文件
       fs.writeFileSync(scriptPath, scriptContent, 'utf8')
       if (requireStashTabOcr) {
@@ -344,7 +353,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       }
 
       // 浮层必须先完成加载，否则启动阶段的结构化失败事件会在监听器挂载前丢失。
-      await prepareCraftingOverlay(window, getOverlayWindow)
+      await prepareCraftingOverlay(window, getOverlayWindow, usageSnapshot)
 
       let stdout = ''
       let stderr = ''
@@ -373,6 +382,17 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         stdoutLineBuffer = completeLines.pop() || ''
         for (const line of completeLines) {
           const scriptEvent = parseScriptEventLine(line)
+          if (scriptEvent?.event === 'crafting-currency-used') {
+            const updatedUsage = currencyUsageLedger.record(scriptEvent, {
+              usageSessionId: usageSnapshot.usageSessionId,
+              mode
+            })
+            const currentOverlayWindow = getOverlayWindow()
+            if (updatedUsage && currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
+              currentOverlayWindow.webContents.send('update-overlay', updatedUsage)
+            }
+            continue
+          }
           if (scriptEvent?.event === 'crafting-recovery-checkpoint') {
             latestRecovery = scriptEvent.recovery || latestRecovery
             continue
@@ -390,6 +410,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
                   errorCode: null,
                   error: null,
                   recovery: latestRecovery,
+                  ...currencyUsageLedger.snapshot(),
                   mapStats: null
                 })
               }
@@ -543,6 +564,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
             errorCode: termination === 'abnormal' ? runtimeErrorCode : null,
             error: termination === 'abnormal' ? runtimeError : null,
             recovery: latestRecovery,
+            ...currencyUsageLedger.snapshot(),
             mapStats: currentConfig?.map ? {
               processedCount: finalProcessedCount,
               qualifiedCount: finalQualifiedCount,
@@ -613,6 +635,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
             errorCode: 'PROCESS_START_FAILED',
             error: startupError,
             recovery: null,
+            ...currencyUsageLedger.snapshot(),
             mapStats: null
           })
         }
@@ -626,7 +649,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         exitCode: null
       })
 
-      return { success: true, processId: pythonProcess.pid, mode }
+      return { success: true, processId: pythonProcess.pid, mode, ...currencyUsageLedger.snapshot() }
     } catch (error) {
       fileWatcher.stopFileWatcher()
       clearCurrentScriptProcess()

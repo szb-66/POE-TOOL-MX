@@ -96,18 +96,19 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     if (enabled === settings.value.enabled) return enabled
     const shortcut = appSettings.globalShortcuts.priceCheck
     if (enabled) {
-      if (!shortcut) throw new Error('请先设置国服查价快捷键')
       await syncRuntime({ enabled: true })
-      const registration = await electronApi.shortcut.register(shortcut, 'priceCheck')
-      if (!registration?.success) {
-        await electronApi.priceCheck.updateRuntime({ enabled: false })
-        settings.value.enabled = false
-        saveSettings()
-        throw new Error(`快捷键 ${shortcut} 注册失败，查价器已保持关闭`)
+      if (shortcut) {
+        const registration = await electronApi.shortcut.register(shortcut, 'priceCheck')
+        if (!registration?.success) {
+          await electronApi.priceCheck.updateRuntime({ enabled: false })
+          settings.value.enabled = false
+          saveSettings()
+          throw new Error(`快捷键 ${shortcut} 注册失败，查价器已保持关闭`)
+        }
       }
       settings.value.enabled = true
     } else {
-      await electronApi.shortcut.unregister(shortcut)
+      if (shortcut) await electronApi.shortcut.unregister(shortcut)
       settings.value.enabled = false
       await syncRuntime({ enabled: false })
       clearResults()

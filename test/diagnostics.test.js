@@ -140,6 +140,34 @@ test('运行时部分失败不会影响快照且自由文本仍被脱敏', () =>
   assert.doesNotMatch(JSON.stringify(snapshot), /Alice|secret/)
 })
 
+test('诊断快照只暴露最近海图识别失败证据摘要和结构化完整性', () => {
+  const snapshot = createDiagnosticsSnapshot({
+    puzzleFailureEvidence: {
+      success: true,
+      evidence: {
+        referenceId: '11111111-1111-4111-8111-111111111111',
+        occurredAt: '2026-08-26T01:02:03Z',
+        attemptCount: 3,
+        estimatedBytes: 123456,
+        completeness: 'partial',
+        completenessReasons: ['IMAGE_ENCODING_FAILED', 'C:\\Users\\Private\\secret']
+      },
+      integrity: { status: 'partial', reasons: ['IMAGE_ENCODING_FAILED', 'POESESSID=secret'] }
+    }
+  })
+  assert.deepEqual(snapshot.puzzleRecognitionFailureEvidence, {
+    available: true,
+    integrity: { status: 'partial', reasons: ['IMAGE_ENCODING_FAILED'] },
+    referenceId: '11111111-1111-4111-8111-111111111111',
+    occurredAt: '2026-08-26T01:02:03.000Z',
+    attemptCount: 3,
+    estimatedBytes: 123456,
+    completeness: 'partial',
+    completenessReasons: ['IMAGE_ENCODING_FAILED']
+  })
+  assert.doesNotMatch(JSON.stringify(snapshot), /Private|POESESSID|secret/)
+})
+
 test('模块和健康状态只接受公开白名单且诊断文件名稳定', () => {
   assert.deepEqual(sanitizeModuleStates([
     { id: 'bag', state: 'running', reasonCode: 'automation_failed' },

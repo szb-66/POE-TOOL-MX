@@ -144,9 +144,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
           })
         : { isMatch: false, matchedTargetName: '', matchedText: '' }
 
-      // 读取脚本写入的循环次数、处理数量、符合条件数量和词缀统计（如果文件中有）
+      // 读取脚本写入的地图处理数量、符合条件数量和词缀统计（如果文件中有）
       const filePaths = getFilePaths()
-      let currentIteration = 0
       let scriptProcessedCount = null
       let scriptQualifiedCount = null
       let scriptBlacklistStats = null
@@ -156,9 +155,6 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
           const oldContent = fs.readFileSync(filePaths.itemInfoResultFile, 'utf8')
           if (oldContent) {
             const oldResult = JSON.parse(oldContent)
-            if (oldResult.iteration) {
-              currentIteration = oldResult.iteration
-            }
             if (oldResult.processed_count !== undefined && oldResult.processed_count !== null) {
               scriptProcessedCount = oldResult.processed_count
             }
@@ -218,7 +214,6 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         detailedMods: itemInfo.detailedMods,
         socketMatch,
         isLegendary,
-        iteration: currentIteration,
         rollingTarget: rollingTarget(config),
         mapStats: isRollingCategory(itemInfo.category) ? {
           processedCount: scriptProcessedCount !== null && scriptProcessedCount !== undefined 
@@ -291,7 +286,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
   function writeParseResult(result) {
     try {
       const filePaths = getFilePaths()
-      // 读取现有文件，保留脚本写入的 processed_count 和 iteration
+      // 读取现有文件，保留脚本写入的地图统计
       let existingData = {}
       if (fs.existsSync(filePaths.itemInfoResultFile)) {
         try {
@@ -316,12 +311,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         blacklist_stats: existingData.blacklist_stats !== undefined && existingData.blacklist_stats !== null 
           ? existingData.blacklist_stats 
           : result.blacklist_stats,
-        whitelist_stats: existingData.whitelist_stats !== undefined && existingData.whitelist_stats !== null 
+        whitelist_stats: existingData.whitelist_stats !== undefined && existingData.whitelist_stats !== null
           ? existingData.whitelist_stats 
-          : result.whitelist_stats,
-        iteration: existingData.iteration !== undefined && existingData.iteration !== null
-          ? existingData.iteration 
-          : result.iteration
+          : result.whitelist_stats
       }
       
       fs.writeFileSync(filePaths.itemInfoResultFile, JSON.stringify(mergedResult), 'utf8')

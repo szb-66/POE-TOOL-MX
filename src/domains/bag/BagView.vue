@@ -4,9 +4,9 @@
       <el-tabs v-model="activeTab" class="storage-tabs" @tab-change="handleStorageTabChange">
           <el-tab-pane label="入库" name="inbound">
             <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
-            <el-card class="section-card">
-              <el-form label-width="120px" label-position="left">
-                <el-form-item>
+            <el-card class="section-card module-summary-card">
+              <el-form label-width="120px" label-position="left" class="module-summary-grid">
+                <el-form-item class="module-summary-item">
                   <template #label>
                     <span class="label-with-help">
                       启用模块
@@ -17,7 +17,7 @@
                   </template>
                   <el-switch :model-value="bagStore.moduleEnabled" @change="handleModuleToggle" />
                 </el-form-item>
-                <el-form-item>
+                <el-form-item class="module-summary-item">
                   <template #label>
                     <span class="label-with-help">
                       传奇强入
@@ -28,13 +28,13 @@
                   </template>
                   <el-switch :model-value="bagStore.forceUniqueStash" @change="setForceUniqueStash" />
                 </el-form-item>
-                <el-form-item label="检测状态">
+                <el-form-item label="检测状态" class="module-summary-item">
                   <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
                 </el-form-item>
-                <el-form-item v-if="bagStore.isStashing" label="扫描进度">
+                <el-form-item v-if="bagStore.isStashing" label="扫描进度" class="module-summary-detail">
                   <el-progress :percentage="bagStore.stashProgress" :text-inside="true" :stroke-width="20" />
                 </el-form-item>
-                <el-form-item v-if="hasRunStats" label="本轮统计">
+                <el-form-item v-if="hasRunStats" label="本轮统计" class="module-summary-detail">
                   <div class="stats-row">
                     <el-tag type="success">已入库 {{ bagStore.stashStats.stashedSlots }}</el-tag>
                     <el-tag>跳过占位 {{ bagStore.stashStats.skippedOccupiedSlots }}</el-tag>
@@ -43,24 +43,26 @@
                     <el-tag type="danger">未识别 {{ bagStore.stashStats.unreadableSlots }}</el-tag>
                   </div>
                 </el-form-item>
-                <el-form-item v-if="bagStore.lastStopReason" label="停止原因">
+                <el-form-item v-if="bagStore.lastStopReason" label="停止原因" class="module-summary-detail">
                   <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
                 </el-form-item>
-                <el-form-item v-if="bagStore.isStashing">
+                <el-form-item v-if="bagStore.isStashing" class="module-summary-detail">
                   <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
                 </el-form-item>
               </el-form>
             </el-card>
 
-            <div class="section-header">
-              <h3 class="section-title label-with-help">
-                背包格子布局
-                <el-tooltip content="点击格子可切换是否执行自动入库。" placement="top">
-                  <el-icon class="help-icon" tabindex="0" aria-label="背包格子布局说明"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </h3>
-            </div>
-            <el-card class="section-card inventory-layout-card">
+            <div class="inbound-config-grid">
+              <section class="inbound-config">
+                <div class="section-header">
+                  <h3 class="section-title label-with-help">
+                    背包格子布局
+                    <el-tooltip content="点击格子可切换是否执行自动入库。" placement="top">
+                      <el-icon class="help-icon" tabindex="0" aria-label="背包格子布局说明"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </h3>
+                </div>
+                <el-card class="section-card inventory-layout-card">
               <el-form label-width="120px" label-position="left" class="inventory-layout-settings">
                 <el-form-item label="额外背包">
                   <el-switch
@@ -138,17 +140,19 @@
                   清空选择
                 </el-button>
               </div>
-            </el-card>
+                </el-card>
+              </section>
 
-            <div class="section-header">
-              <h3 class="section-title label-with-help">
-                物品黑名单
-                <el-tooltip content="命中任一规则的物品会留在背包；统计按扫描格数计算。" placement="top">
-                  <el-icon class="help-icon" tabindex="0" aria-label="物品黑名单说明"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </h3>
-            </div>
-            <el-card class="section-card">
+              <section class="inbound-config">
+                <div class="section-header">
+                  <h3 class="section-title label-with-help">
+                    物品黑名单
+                    <el-tooltip content="命中任一规则的物品会留在背包；统计按扫描格数计算。" placement="top">
+                      <el-icon class="help-icon" tabindex="0" aria-label="物品黑名单说明"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </h3>
+                </div>
+                <el-card class="section-card blacklist-card">
               <div class="rule-editor">
                 <el-select v-model="draftRule.field" style="width: 150px">
                   <el-option v-for="field in BAG_BLACKLIST_FIELDS" :key="field" :label="BAG_BLACKLIST_FIELD_LABELS[field]" :value="field" />
@@ -187,19 +191,23 @@
                 </el-table-column>
               </el-table>
               <el-empty v-else description="暂无黑名单规则" :image-size="60" />
-            </el-card>
+                </el-card>
+              </section>
+            </div>
           </el-tab-pane>
           <el-tab-pane label="取件" name="pickup">
-            <div class="section-header">
-              <h3 class="section-title label-with-help">
-                仓库自动取件
-                <el-tooltip content="默认使用当前高亮模型取件，自动识别普通仓库 12×12 和大型仓库 24×24：搜索框为空时全部物品都会高亮并取出；输入筛选后，只取出筛选结果；模糊格会跳过。请先运行检测预览。" placement="top">
-                  <el-icon class="help-icon" tabindex="0" aria-label="仓库自动取件说明"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </h3>
-            </div>
-            <el-card class="section-card">
-              <el-form label-width="130px" label-position="left" class="stash-pickup-settings">
+            <div class="pickup-feature-grid">
+              <section class="pickup-feature">
+                <div class="section-header">
+                  <h3 class="section-title label-with-help">
+                    仓库自动取件
+                    <el-tooltip content="默认使用当前高亮模型取件，自动识别普通仓库 12×12 和大型仓库 24×24：搜索框为空时全部物品都会高亮并取出；输入筛选后，只取出筛选结果；模糊格会跳过。请先运行检测预览。" placement="top">
+                      <el-icon class="help-icon" tabindex="0" aria-label="仓库自动取件说明"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </h3>
+                </div>
+                <el-card class="section-card">
+              <el-form label-width="140px" label-position="left" class="stash-pickup-settings">
                 <el-form-item label="启用功能">
                   <el-switch
                     :model-value="stashPickupStore.settings.enabled"
@@ -258,17 +266,19 @@
                   @click="saveStashPreviewCorrections"
                 >保存修改的校准素材</el-button>
               </div>
-            </el-card>
+                </el-card>
+              </section>
 
-            <div class="section-header">
-              <h3 class="section-title label-with-help">
-                君锋镇取出高亮
-                <el-tooltip content="正式取件只截取一次奖励网格，不操作搜索框。低置信格会安全停止，不会自动点击。" placement="top">
-                  <el-icon class="help-icon" tabindex="0" aria-label="君锋镇取出高亮说明"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </h3>
-            </div>
-            <el-card class="section-card junfeng-card">
+              <section class="pickup-feature">
+                <div class="section-header">
+                  <h3 class="section-title label-with-help">
+                    君锋镇取出高亮
+                    <el-tooltip content="正式取件只截取一次奖励网格，不操作搜索框。低置信格会安全停止，不会自动点击。" placement="top">
+                      <el-icon class="help-icon" tabindex="0" aria-label="君锋镇取出高亮说明"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </h3>
+                </div>
+                <el-card class="section-card junfeng-card">
               <el-form label-width="140px" label-position="left" class="junfeng-settings">
                 <el-form-item label="启用功能">
                   <el-switch
@@ -333,7 +343,9 @@
                   @click="saveJunfengPreviewCorrections"
                 >保存修改的校准素材</el-button>
               </div>
-            </el-card>
+                </el-card>
+              </section>
+            </div>
 
             <div class="section-header section-header--actions">
               <h3 class="section-title">共享本机校准素材（{{ junfengStore.corrections.length }}）</h3>
@@ -650,25 +662,43 @@ async function handleStopStash() {
 .calibration-actions { display: flex; align-items: center; gap: 8px; }
 .section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
+.module-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 18px 24px; }
+.module-summary-grid > .el-form-item { margin-bottom: 0; }
+.module-summary-detail { grid-column: 1 / -1; }
+.inbound-config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-lg); }
+.inbound-config { container-type: inline-size; display: flex; min-width: 0; flex-direction: column; }
+.inbound-config > .section-card { display: flex; flex: 1; flex-direction: column; margin-bottom: 0; }
+.inbound-config > .section-card :deep(.el-card__body) { flex: 1; }
+.blacklist-card :deep(.el-card__body) { display: flex; flex-direction: column; }
+.blacklist-card :deep(.el-empty) { flex: 1; }
+.inbound-config .rule-editor .el-input { min-width: 140px; }
+@container (max-width: 540px) {
+  .inbound-config .rule-editor { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .inbound-config .rule-editor > .el-select { width: 100% !important; }
+  .inbound-config .rule-editor > .el-input { grid-column: 1 / 3; min-width: 0; }
+  .inbound-config .rule-editor > .el-button { grid-column: 3; grid-row: 2; }
+}
+.pickup-feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(480px, 100%), 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-lg); }
+.pickup-feature { display: flex; min-width: 0; flex-direction: column; }
+.pickup-feature > .section-card { flex: 1; margin-bottom: 0; }
 .label-with-help { display: inline-flex; align-items: center; gap: 6px; }
 .help-icon { color: var(--text-secondary); cursor: help; }
 .stats-row, .rule-editor { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.rule-editor { margin-top: 16px; }
+.rule-editor { margin-top: 0; }
 .rule-editor .el-input { flex: 1; min-width: 220px; }
 .rule-table { margin-top: 16px; }
-.stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+.stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0 0; }
 .stash-pickup-settings :deep(.el-form-item__content),
 .junfeng-settings :deep(.el-form-item__content) { gap: 8px; }
 .stash-pickup-preview { display: grid; gap: 10px; margin-top: 12px; color: var(--text-secondary); }
-.junfeng-settings { margin-top: 16px; }
 .junfeng-preview { display: grid; gap: 10px; margin-top: 14px; }
 .junfeng-preview__summary { color: var(--text-secondary); }
 .shared-calibration { display: grid; gap: 8px; }
 .calibration-thumbnail { display: block; width: 40px; height: 40px; object-fit: cover; border: 1px solid var(--border-base); border-radius: 4px; }
 .calibration-pagination { justify-content: flex-end; margin-top: 8px; }
-.inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
+.inventory-layout-settings { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 0; }
 .inventory-layout-settings :deep(.el-form-item) { margin-bottom: 8px; }
-.inventory-layout-scroll { overflow-x: auto; padding: 12px 2px 4px; }
+.inventory-layout-scroll { overflow-x: auto; padding: 12px 2px; }
 .inventory-layout { display: inline-flex; align-items: flex-end; min-width: max-content; }
 .inventory-region { padding: 10px; border: 1px solid var(--border-base); border-radius: 8px; background: var(--bg-primary); }
 .inventory-region--extra { margin-right: 8px; background: color-mix(in srgb, var(--primary-color) 7%, var(--bg-primary)); border-right: 2px solid var(--primary-color); }

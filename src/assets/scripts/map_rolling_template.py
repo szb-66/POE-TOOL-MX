@@ -452,6 +452,17 @@ CURRENCY_NAMES = {
     "wisdom": "知识卷轴"
 }
 
+def record_currency_usage(currency):
+    if currency not in CURRENCY_NAMES:
+        return False
+    print("EVENT " + json.dumps({
+        "event": "crafting-currency-used",
+        "mode": "map",
+        "currency": currency,
+        "amount": 1
+    }, ensure_ascii=False), flush=True)
+    return True
+
 def copied_item_header(text):
     lines = []
     for raw_line in str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
@@ -674,15 +685,15 @@ def right_click_currency(currency):
     if not move_mouse(int(pos['x']), int(pos['y'])):
         return False
         
-    click_mouse("right")
-    return True
+    return click_mouse("right")
 
 def apply_currency(currency_type, target_x, target_y):
     try:
         release_shift_if_held()
         if not right_click_currency(currency_type): return False
         if not move_mouse(target_x, target_y): return False
-        click_mouse("left")
+        if not click_mouse("left"): return False
+        record_currency_usage(currency_type)
         return True
     except Exception as e:
         print(f"[错误] 应用通货失败: {e}")

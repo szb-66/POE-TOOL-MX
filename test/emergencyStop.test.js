@@ -138,7 +138,7 @@ test('制作进程仅在确认退出后才汇报停止成功', async () => {
 
 test('海图取消代次在每个新输入阶段前门禁且迟到关闭不覆盖新进程', () => {
   const puzzle = source('electron/modules/puzzle/service.js')
-  assert.match(puzzle, /for \(const currentPage of requestedPages\) \{\s*this\.assertCurrentGeneration\(stopGeneration, '海图识别已紧急停止'\)\s*const result = await this\.runAnalyzer/)
+  assert.match(puzzle, /for \(const \[pageIndex, currentPage\] of requestedPages\.entries\(\)\) \{\s*this\.assertCurrentGeneration\(stopGeneration, '海图识别已紧急停止'\)[\s\S]*?const result = await this\.runAnalyzer/)
   assert.match(puzzle, /this\.assertCurrentGeneration\(stopGeneration, '海图识别已紧急停止'\)\s*const mods = probeMods/)
   assert.match(puzzle, /if \(this\.modProbeChild === child\) this\.modProbeChild = null/)
   const stopBody = puzzle.match(/emergencyStop\(reason = 'shortcut'\) \{([\s\S]*?)\n  \}/)?.[1] || ''

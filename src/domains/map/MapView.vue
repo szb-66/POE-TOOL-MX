@@ -27,7 +27,7 @@
         </div>
         <div class="form-item">
           <label class="form-label">全局停止</label>
-          <KeyCaptureInput :model-value="shortcuts.end" class="form-input-short" @change="saveShortcut('end', $event)" />
+          <KeyCaptureInput :model-value="shortcuts.end" :allow-empty="false" class="form-input-short" @change="saveShortcut('end', $event)" />
         </div>
         <div class="form-item">
           <label class="form-label">预设</label>

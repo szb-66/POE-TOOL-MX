@@ -21,6 +21,7 @@ function initialState() {
 export const useApplicationUpdateStore = defineStore('applicationUpdate', () => {
   const state = ref(initialState())
   const initialized = ref(false)
+  const confirmedVersion = ref('')
   let removeStateListener = null
   let startupCheckPromise = null
   let installedUpdateDialogPromise = null
@@ -52,6 +53,19 @@ export const useApplicationUpdateStore = defineStore('applicationUpdate', () => 
     removeStateListener = null
     initialized.value = false
     startupCheckPromise = null
+    confirmedVersion.value = ''
+  }
+
+  function isVersionConfirmed(version = state.value.availableVersion) {
+    const targetVersion = String(version || '')
+    return Boolean(targetVersion) && confirmedVersion.value === targetVersion
+  }
+
+  function confirmVersion(version = state.value.availableVersion) {
+    const targetVersion = String(version || '')
+    if (!targetVersion || targetVersion !== String(state.value.availableVersion || '')) return false
+    confirmedVersion.value = targetVersion
+    return true
   }
 
   function startupCheck() {
@@ -107,10 +121,13 @@ export const useApplicationUpdateStore = defineStore('applicationUpdate', () => 
     state,
     busy,
     initialized,
+    confirmedVersion,
     applyState,
     initialize,
     dispose,
     startupCheck,
+    isVersionConfirmed,
+    confirmVersion,
     check,
     download,
     install,

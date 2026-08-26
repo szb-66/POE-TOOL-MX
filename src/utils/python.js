@@ -338,26 +338,6 @@ def craft_affixes(initial_result=None):
             if iteration % 10 == 0 or iteration == 1:
                 print(f"[进度] 第 {iteration} 次")
 
-            # 将当前循环次数写入结果文件供前端显示
-            try:
-                # 读取现有结果
-                current_result = {}
-                if os.path.exists(item_info_result_file):
-                    with open(item_info_result_file, 'r', encoding='utf-8') as f:
-                        content = f.read().strip()
-                        if content:
-                            current_result = json.loads(content)
-                
-                # 更新循环次数
-                current_result['iteration'] = iteration
-                
-                # 写入文件
-                with open(item_info_result_file, 'w', encoding='utf-8') as f:
-                    f.write(json.dumps(current_result))
-            except Exception as e:
-                # 写入循环次数失败不影响主流程
-                pass
-            
             # 检查是否应该停止
             if not is_running:
                 print("[停止] 收到停止信号")
@@ -537,25 +517,6 @@ def craft_socket_count(target_count):
             print("[停止] 收到停止信号")
             return False
         
-        # 将当前循环次数写入结果文件供前端显示
-        try:
-            # 读取现有结果
-            current_result = {}
-            if os.path.exists(item_info_result_file):
-                with open(item_info_result_file, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content:
-                        current_result = json.loads(content)
-            
-            # 更新循环次数
-            current_result['iteration'] = iteration
-            
-            # 写入文件
-            with open(item_info_result_file, 'w', encoding='utf-8') as f:
-                f.write(json.dumps(current_result))
-        except Exception as e:
-            pass
-
         if iteration > max_iterations:
             print(f"[停止] 开孔达到最大循环次数 ({max_iterations})")
             time.sleep(3)
@@ -569,6 +530,7 @@ def craft_socket_count(target_count):
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
             continue
+        record_currency_usage("jewellers")
         
         # 复制物品并读取；补读不重复使用工匠石
         result = read_current_item(allow_unchanged_text=True)
@@ -594,25 +556,6 @@ def craft_links(target_links):
             print("[停止] 收到停止信号")
             return False
             
-        # 将当前循环次数写入结果文件供前端显示
-        try:
-            # 读取现有结果
-            current_result = {}
-            if os.path.exists(item_info_result_file):
-                with open(item_info_result_file, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content:
-                        current_result = json.loads(content)
-            
-            # 更新循环次数
-            current_result['iteration'] = iteration
-            
-            # 写入文件
-            with open(item_info_result_file, 'w', encoding='utf-8') as f:
-                f.write(json.dumps(current_result))
-        except Exception as e:
-            pass
-
         if iteration > max_iterations:
             print(f"[停止] 链接达到最大循环次数 ({max_iterations})")
             time.sleep(3)
@@ -626,6 +569,7 @@ def craft_links(target_links):
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
             continue
+        record_currency_usage("fusing")
         
         # 复制物品并读取；补读不重复使用链结石
         result = read_current_item(allow_unchanged_text=True)
@@ -651,25 +595,6 @@ def craft_colors(target_red, target_green, target_blue):
             print("[停止] 收到停止信号")
             return False
             
-        # 将当前循环次数写入结果文件供前端显示
-        try:
-            # 读取现有结果
-            current_result = {}
-            if os.path.exists(item_info_result_file):
-                with open(item_info_result_file, 'r', encoding='utf-8') as f:
-                    content = f.read().strip()
-                    if content:
-                        current_result = json.loads(content)
-            
-            # 更新循环次数
-            current_result['iteration'] = iteration
-            
-            # 写入文件
-            with open(item_info_result_file, 'w', encoding='utf-8') as f:
-                f.write(json.dumps(current_result))
-        except Exception as e:
-            pass
-
         if iteration > max_iterations:
             print(f"[停止] 颜色达到最大循环次数 ({max_iterations})")
             time.sleep(3)
@@ -683,6 +608,7 @@ def craft_colors(target_red, target_green, target_blue):
         if not left_click_item():
             print("[错误] 左键点击物品失败，重试...")
             continue
+        record_currency_usage("chromic")
         
         # 复制物品并读取；补读不重复使用幻色石
         result = read_current_item(allow_unchanged_text=True)
@@ -750,13 +676,6 @@ def craft_eldritch_implicits(initial_result=None):
         for iteration in range(1, max_iterations + 1):
             if not is_running:
                 return False
-            try:
-                current_result = dict(result)
-                current_result["iteration"] = iteration
-                with open(item_info_result_file, 'w', encoding='utf-8') as stream:
-                    stream.write(json.dumps(current_result, ensure_ascii=False))
-            except Exception:
-                pass
 
             print(f"[操作] 第 {iteration} 次 - 使用 ${currency}")
             if not apply_currency("${currency}"):
@@ -776,8 +695,9 @@ def craft_eldritch_implicits(initial_result=None):
   }
 
   // 准备替换数据
-  const stopShortcut = globalShortcuts?.end || 'Alt+3'
-  const pynputStopShortcut = toPynputHotkey(stopShortcut) || '<alt>+3'
+  const stopShortcut = String(globalShortcuts?.end || '').trim()
+  if (!stopShortcut) throw new Error('全局紧急停止快捷键不能为空')
+  const pynputStopShortcut = toPynputHotkey(stopShortcut)
   
   // 构建通货坐标对象
   const safeCurrencyPositions = {}
@@ -903,8 +823,9 @@ export function generateMapRollingScript(config) {
     }).join('+')
   }
 
-  const stopShortcut = globalShortcuts?.end || 'Alt+3'
-  const pynputStopShortcut = toPynputHotkey(stopShortcut) || '<alt>+3'
+  const stopShortcut = String(globalShortcuts?.end || '').trim()
+  if (!stopShortcut) throw new Error('全局紧急停止快捷键不能为空')
+  const pynputStopShortcut = toPynputHotkey(stopShortcut)
 
   // 构建通货坐标对象
   const safeCurrencyPositions = {}

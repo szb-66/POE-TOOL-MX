@@ -8,9 +8,14 @@ import { FeedbackAuthClient } from '../electron/modules/feedback/auth.js'
 import { DailyUsageService } from '../electron/modules/dailyUsage/service.js'
 
 const runCloud = process.env.DAILY_USAGE_CLOUD_INTEGRATION === '1'
+const testConfig = Object.freeze({
+  ...FEEDBACK_CLOUDBASE_CONFIG,
+  envId: process.env.DAILY_USAGE_CLOUD_TEST_ENV_ID || '',
+  publishableKey: process.env.DAILY_USAGE_CLOUD_TEST_PUBLISHABLE_KEY || ''
+})
 
-function usageUrl(name = FEEDBACK_CLOUDBASE_CONFIG.dailyUsageTable) {
-  return `https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${name}`
+function usageUrl(name = testConfig.dailyUsageTable) {
+  return `https://${testConfig.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${name}`
 }
 
 async function responseJson(response) {
@@ -26,21 +31,31 @@ async function adminRows(apiKey, name, query) {
   return responseJson(response)
 }
 
+async function adminRequest(apiKey, name, { method, query = '', body }) {
+  return fetch(`${usageUrl(name)}${query ? `?${query}` : ''}`, {
+    method,
+    headers: { Authorization: `Bearer ${apiKey}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined
+  })
+}
+
 test('真实 CloudBase 每日使用写入与最小权限闭环', { skip: !runCloud, timeout: 120_000 }, async () => {
   const apiKey = process.env.CLOUDBASE_FEEDBACK_API_KEY
   assert.ok(apiKey, 'DAILY_USAGE_CLOUD_INTEGRATION=1 时必须通过环境变量提供 CLOUDBASE_FEEDBACK_API_KEY')
+  assert.ok(testConfig.envId && testConfig.publishableKey, '必须显式提供 DAILY_USAGE_CLOUD_TEST_ENV_ID 和 DAILY_USAGE_CLOUD_TEST_PUBLISHABLE_KEY')
+  assert.notEqual(testConfig.envId, FEEDBACK_CLOUDBASE_CONFIG.envId, '每日使用集成测试不得指向默认生产环境')
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-daily-usage-cloud-'))
-  const auth = new FeedbackAuthClient({ config: FEEDBACK_CLOUDBASE_CONFIG, userDataPath: root })
+  const auth = new FeedbackAuthClient({ config: testConfig, userDataPath: root })
   const session = await auth.getSession()
 
   const genericWrite = await fetch(usageUrl(), {
     method: 'POST',
-    headers: { Authorization: `Bearer ${FEEDBACK_CLOUDBASE_CONFIG.publishableKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    headers: { Authorization: `Bearer ${testConfig.publishableKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
     body: JSON.stringify({ app_version: 'daily-usage-integration', platform: 'win32', arch: 'x64', runtime_mode: 'packaged' })
   })
   assert.equal(genericWrite.ok, false)
 
-  for (const name of ['app_daily_usage', FEEDBACK_CLOUDBASE_CONFIG.dailyUsageTable, 'app_daily_usage_summary']) {
+  for (const name of ['app_daily_usage', testConfig.dailyUsageTable, 'app_daily_usage_totals', 'app_daily_usage_summary']) {
     const forbiddenRead = await fetch(`${usageUrl(name)}?select=*`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
     assert.equal(forbiddenRead.ok, false)
   }
@@ -59,8 +74,12 @@ test('真实 CloudBase 每日使用写入与最小权限闭环', { skip: !runClo
   })
   assert.equal(developmentWrite.ok, false)
 
+  const beforeRows = await adminRows(apiKey, 'app_daily_usage_summary', 'select=usage_count&order=usage_date.desc&limit=1')
+  assert.equal(beforeRows.length, 1)
+  const countBefore = BigInt(beforeRows[0].usage_count)
+
   const usage = new DailyUsageService({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
+    config: testConfig,
     auth,
     appVersion: 'daily-usage-integration',
     runtimeMode: 'packaged',
@@ -77,12 +96,13 @@ test('真实 CloudBase 每日使用写入与最小权限闭环', { skip: !runClo
   assert.equal(firstRows[0].app_version, 'daily-usage-integration')
   assert.equal(firstRows[0].runtime_mode, 'packaged')
 
-  const secondWrite = await fetch(usageUrl(), {
+  const duplicatePayload = { app_version: 'daily-usage-integration-upsert', platform: 'win32', arch: 'x64', runtime_mode: 'packaged' }
+  const concurrentWrites = await Promise.all(Array.from({ length: 3 }, () => fetch(usageUrl(), {
     method: 'POST',
     headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ app_version: 'daily-usage-integration-upsert', platform: 'win32', arch: 'x64', runtime_mode: 'packaged' })
-  })
-  assert.equal(secondWrite.ok, true)
+    body: JSON.stringify(duplicatePayload)
+  })))
+  assert.equal(concurrentWrites.every(response => response.ok), true)
 
   const secondRows = await adminRows(apiKey, 'app_daily_usage', rowQuery)
   assert.equal(secondRows.length, 1)
@@ -91,12 +111,35 @@ test('真实 CloudBase 每日使用写入与最小权限闭环', { skip: !runClo
   assert.ok(Date.parse(secondRows[0].last_used_at) >= Date.parse(firstRows[0].last_used_at))
   assert.equal(secondRows[0].app_version, 'daily-usage-integration-upsert')
 
-  const summaryRows = await adminRows(
-    apiKey,
-    'app_daily_usage_summary',
-    `select=usage_date,runtime_mode,app_version,usage_count&app_version=eq.${encodeURIComponent('daily-usage-integration-upsert')}`
-  )
+  const summaryRows = await adminRows(apiKey, 'app_daily_usage_summary', 'select=usage_date,runtime_mode,usage_count&order=usage_date.desc&limit=1')
   assert.equal(summaryRows.length, 1)
   assert.equal(summaryRows[0].runtime_mode, 'packaged')
-  assert.ok(BigInt(summaryRows[0].usage_count) >= 1n)
+  const countAfterConcurrentWrites = BigInt(summaryRows[0].usage_count)
+  assert.equal(countAfterConcurrentWrites, countBefore + 1n)
+
+  const invalidBefore = countAfterConcurrentWrites
+  const invalidWrite = await fetch(usageUrl(), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({ ...duplicatePayload, runtime_mode: 'development' })
+  })
+  assert.equal(invalidWrite.ok, false)
+  const afterInvalid = await adminRows(apiKey, 'app_daily_usage_summary', 'select=usage_count&order=usage_date.desc&limit=1')
+  assert.equal(BigInt(afterInvalid[0].usage_count), invalidBefore)
+
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const rewind = await adminRequest(apiKey, 'app_daily_usage', {
+    method: 'PATCH',
+    query: `installation_uid=eq.${encodeURIComponent(session.uid)}`,
+    body: { last_used_at: yesterday }
+  })
+  assert.equal(rewind.ok, true)
+  const crossDayWrite = await fetch(usageUrl(), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${session.accessToken}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(duplicatePayload)
+  })
+  assert.equal(crossDayWrite.ok, true)
+  const afterCrossDay = await adminRows(apiKey, 'app_daily_usage_summary', 'select=usage_count&order=usage_date.desc&limit=1')
+  assert.equal(BigInt(afterCrossDay[0].usage_count), countAfterConcurrentWrites + 1n)
 })

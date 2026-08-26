@@ -10,7 +10,8 @@ import {
   createObjectKey,
   sanitizeAttachmentName,
   validateDiagnosticCaptureInput,
-  validateFeedbackInput
+  validateFeedbackInput,
+  validatePuzzleEvidenceReferenceInput
 } from '../electron/modules/feedback/validation.js'
 
 test('反馈标题和内容取消最低字数限制但保留必填与最大长度校验', () => {
@@ -36,6 +37,14 @@ test('诊断会话标识要求明确授权且只接受 UUID', () => {
     () => validateDiagnosticCaptureInput({ includeDiagnostics: true, diagnosticCaptureId: 'not-a-uuid' }),
     /诊断会话标识无效/
   )
+})
+
+test('海图失败证据引用要求明确附带诊断且只接受 UUID', () => {
+  const id = '11111111-1111-4111-8111-111111111111'
+  assert.equal(validatePuzzleEvidenceReferenceInput({ includeDiagnostics: true, puzzleFailureEvidenceId: id }), id)
+  assert.equal(validatePuzzleEvidenceReferenceInput({ includeDiagnostics: true }), null)
+  assert.throws(() => validatePuzzleEvidenceReferenceInput({ includeDiagnostics: false, puzzleFailureEvidenceId: id }), /附带诊断/)
+  assert.throws(() => validatePuzzleEvidenceReferenceInput({ includeDiagnostics: true, puzzleFailureEvidenceId: 'bad' }), /已失效/)
 })
 
 test('附件类型、数量、大小和伪装执行文件被拒绝', () => {

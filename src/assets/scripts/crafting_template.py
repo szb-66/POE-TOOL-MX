@@ -700,6 +700,17 @@ CURRENCY_NAMES = {
     "exceptional-eldritch-ichor": "卓越古灵溶液"
 }
 
+def record_currency_usage(currency):
+    if currency not in CURRENCY_NAMES:
+        return False
+    print("EVENT " + json.dumps({
+        "event": "crafting-currency-used",
+        "mode": "items",
+        "currency": currency,
+        "amount": 1
+    }, ensure_ascii=False), flush=True)
+    return True
+
 def copied_item_header(text):
     lines = []
     for raw_line in str(text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
@@ -839,7 +850,9 @@ def apply_currency(currency_type):
         
         # 3. 左键点击应用 (Apply)
         # 不需要按下Shift
-        click_mouse("left")
+        if not click_mouse("left"):
+            return False
+        record_currency_usage(currency_type)
         return True
         
     except Exception as e:
@@ -997,8 +1010,7 @@ def right_click_currency(currency):
         print(f"[错误] 移动到 {currency_name} 失败")
         return False
         
-    click_mouse("right")
-    return True
+    return click_mouse("right")
 
 def left_click_item():
     # 左键点击物品
@@ -1021,8 +1033,7 @@ def left_click_item():
     if not move_mouse(target_x, target_y):
         print("[错误] 移动到物品位置失败")
         return False
-    click_mouse("left")
-    return True
+    return click_mouse("left")
 
 def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=False):
     # 发送 Ctrl+C 并返回本次复制确认过的文本；固定与自适应模式都不得按等待时间猜测成功。

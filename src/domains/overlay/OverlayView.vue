@@ -4,7 +4,7 @@
       :item-info="itemInfo"
       :settings="settings"
       :logs="recentLogs"
-      :iteration="scriptIteration"
+      :currency-usage="currencyUsage"
       :is-completed="isCompleted"
       :is-stopped="isStopped"
       :is-restarting="isRestarting"
@@ -28,6 +28,7 @@ import { usePresetStore } from '@/stores/preset'
 import { startCrafting, startMapRolling } from '@/utils/scriptService'
 import { restartCraftingWithLatestConfig, retryAutomationWithLatestConfig } from '@/utils/craftingRestart'
 import OverlayContent from './components/OverlayContent.vue'
+import { normalizeCurrencyUsage } from '../../../shared/craftingCurrencyCatalog.js'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
@@ -35,7 +36,8 @@ const presetStore = usePresetStore()
 const settings = ref({ ...settingsStore.overlaySettings })
 
 const itemInfo = ref(null)
-const scriptIteration = ref(0) // 从脚本输出提取的循环次数
+const usageSessionId = ref(null)
+const currencyUsage = ref({})
 const recentLogs = ref([]) // 最近的日志
 const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
@@ -68,9 +70,12 @@ function mergeMapStats(previousStats, incomingStats) {
   }
 }
 
-function resetOverlayState() {
+function resetOverlayState({ resetCurrencyUsage = true } = {}) {
   itemInfo.value = null
-  scriptIteration.value = 0
+  if (resetCurrencyUsage) {
+    usageSessionId.value = null
+    currencyUsage.value = {}
+  }
   recentLogs.value = []
   isCompleted.value = false
   isStopped.value = false
@@ -80,6 +85,15 @@ function resetOverlayState() {
   recoveryCheckpoint.value = null
   mapStats.value = null
   outputLineBuffer = ''
+}
+
+function applyCurrencyUsageSnapshot(data) {
+  if (Object.prototype.hasOwnProperty.call(data || {}, 'usageSessionId')) {
+    usageSessionId.value = typeof data.usageSessionId === 'string' ? data.usageSessionId : null
+  }
+  if (Object.prototype.hasOwnProperty.call(data || {}, 'currencyUsage')) {
+    currencyUsage.value = normalizeCurrencyUsage(data.currencyUsage)
+  }
 }
 
 function applyStructuredScriptEvent(line) {
@@ -130,7 +144,7 @@ function applyStructuredScriptEvent(line) {
   }
 }
 
-// 监听控制台日志以提取循环次数
+// 日志只更新运行状态；通货账单只接受主进程的规范化快照。
 const handleScriptOutput = (data) => {
   if (data.type === 'stdout' && data.data) {
     outputLineBuffer += data.data
@@ -138,12 +152,6 @@ const handleScriptOutput = (data) => {
     outputLineBuffer = completeLines.pop() || ''
     completeLines.forEach(applyStructuredScriptEvent)
 
-    // 匹配: [进度] 第 10 次
-    const match = data.data.match(/\[进度\] 第 (\d+) 次/)
-    if (match) {
-      scriptIteration.value = parseInt(match[1])
-    }
-    
     // 判断是否为地图制作模式
     const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category)
     
@@ -166,7 +174,7 @@ const handleScriptOutput = (data) => {
     
     // 匹配开始信号，重置状态
     if (data.data.includes('[开始]') && !stopReason.value) {
-      resetOverlayState()
+      resetOverlayState({ resetCurrencyUsage: false })
     }
     
     // 更新日志
@@ -187,7 +195,8 @@ function handleConfirmCompletion() {
 
 function restoreCompletedState(snapshot, error) {
   itemInfo.value = snapshot.itemInfo
-  scriptIteration.value = snapshot.iteration
+  usageSessionId.value = snapshot.usageSessionId
+  currencyUsage.value = snapshot.currencyUsage
   recentLogs.value = snapshot.logs
   mapStats.value = snapshot.mapStats
   isCompleted.value = true
@@ -198,7 +207,8 @@ function restoreCompletedState(snapshot, error) {
 function stoppedSnapshot() {
   return {
     itemInfo: itemInfo.value,
-    iteration: scriptIteration.value,
+    usageSessionId: usageSessionId.value,
+    currencyUsage: { ...currencyUsage.value },
     logs: [...recentLogs.value],
     mapStats: mapStats.value,
     stopMode: stopMode.value,
@@ -210,7 +220,8 @@ function stoppedSnapshot() {
 
 function restoreStoppedState(snapshot, error) {
   itemInfo.value = snapshot.itemInfo
-  scriptIteration.value = snapshot.iteration
+  usageSessionId.value = snapshot.usageSessionId
+  currencyUsage.value = snapshot.currencyUsage
   recentLogs.value = snapshot.logs
   mapStats.value = snapshot.mapStats
   stopMode.value = snapshot.stopMode
@@ -226,7 +237,8 @@ async function handleRestart() {
 
   const completedSnapshot = {
     itemInfo: itemInfo.value,
-    iteration: scriptIteration.value,
+    usageSessionId: usageSessionId.value,
+    currencyUsage: { ...currencyUsage.value },
     logs: [...recentLogs.value],
     mapStats: mapStats.value
   }
@@ -253,6 +265,7 @@ async function handleRetry() {
     const result = await retryAutomationWithLatestConfig({
       mode: stopMode.value === 'map' ? 'map' : 'items',
       recovery: stopMode.value === 'map' ? recoveryCheckpoint.value : null,
+      usageSessionId: usageSessionId.value,
       presetStore,
       settingsStore,
       startCrafting,
@@ -281,8 +294,11 @@ onMounted(() => {
   electronApi.events.onUpdateOverlay((data) => {
     if (data.reset) {
       resetOverlayState()
+      applyCurrencyUsageSnapshot(data)
       return
     }
+
+    applyCurrencyUsageSnapshot(data)
 
     if (data.mapStats) {
       mapStats.value = mergeMapStats(mapStats.value, data.mapStats)
@@ -303,14 +319,12 @@ onMounted(() => {
       }
     }
 
-    if (data.iteration) {
-      scriptIteration.value = data.iteration
-    }
   })
 
   // 监听脚本停止事件（用于获取最终的地图统计信息）
   if (electronApi.events.onScriptStopped) {
     electronApi.events.onScriptStopped((data) => {
+      applyCurrencyUsageSnapshot(data)
       // 判断是否是地图制作模式
       const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category) || data.mapStats !== null
       

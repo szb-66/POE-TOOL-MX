@@ -8,13 +8,12 @@ export const useScriptStore = defineStore('script', () => {
   const processId = ref(null)
   const lastError = ref('')
   const lastMode = ref(null)
-  const itemRuntime = ref({ iteration: 0, eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' })
+  const itemRuntime = ref({ eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' })
 
   function applyItemResult(result = {}) {
     if (result.reset) return resetItemRuntime()
     itemRuntime.value = {
       ...itemRuntime.value,
-      iteration: Math.max(itemRuntime.value.iteration, Number(result.iteration) || 0),
       eldritchImplicitMatch: Boolean(result.eldritchImplicitMatch),
       matchedEldritchTargetName: String(result.matchedEldritchTargetName || ''),
       error: String(result.error || '')
@@ -22,7 +21,7 @@ export const useScriptStore = defineStore('script', () => {
   }
 
   function resetItemRuntime() {
-    itemRuntime.value = { iteration: 0, eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' }
+    itemRuntime.value = { eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' }
   }
 
   function applyStatus(status = {}) {

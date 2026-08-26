@@ -33,7 +33,14 @@ const mockApi = {
   feedback: {
     pickAttachments: () => Promise.resolve({ success: false, canceled: false, attachments: [], error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
     submit: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
-    onProgress: () => () => {}
+    getPuzzleEvidenceSummary: () => Promise.resolve({ success: true, evidence: null }),
+    discardPuzzleEvidence: () => Promise.resolve({ success: true, cleared: false }),
+    list: () => Promise.resolve({ success: false, items: [], error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    conversation: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    pickReplyAttachments: () => Promise.resolve({ success: false, canceled: false, attachments: [], error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    reply: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持问题反馈', errorCode: 'FEEDBACK_SERVICE_UNAVAILABLE' }),
+    onProgress: () => () => {},
+    onReplyProgress: () => () => {}
   },
   update: {
     getState: () => Promise.resolve({ mode: 'manual', source: 'cnb', currentVersion: '', status: 'idle', supported: false, progress: null, error: '' }),
@@ -346,7 +353,14 @@ export const electronApi = isElectron ? {
   feedback: {
     pickAttachments: () => window.electronAPI.pickFeedbackAttachments?.(),
     submit: (input) => window.electronAPI.submitFeedback?.(craftingIpcPayload(input)),
-    onProgress: (callback) => window.electronAPI.onFeedbackProgress?.(callback) || (() => {})
+    getPuzzleEvidenceSummary: () => window.electronAPI.getPuzzleFailureEvidenceSummary?.(),
+    discardPuzzleEvidence: (referenceId) => window.electronAPI.discardPuzzleFailureEvidence?.(String(referenceId || '')),
+    list: () => window.electronAPI.listFeedbackConversations?.(),
+    conversation: (feedbackId) => window.electronAPI.getFeedbackConversation?.(String(feedbackId || '')),
+    pickReplyAttachments: () => window.electronAPI.pickFeedbackReplyAttachments?.(),
+    reply: (input) => window.electronAPI.replyFeedback?.(craftingIpcPayload(input)),
+    onProgress: (callback) => window.electronAPI.onFeedbackProgress?.(callback) || (() => {}),
+    onReplyProgress: (callback) => window.electronAPI.onFeedbackReplyProgress?.(callback) || (() => {})
   },
   update: {
     getState: () => window.electronAPI.getApplicationUpdateState?.(),
@@ -434,7 +448,8 @@ export const electronApi = isElectron ? {
     completeChart: () => window.electronAPI.completePuzzleChart?.(),
     probeBorderMods: (request) => window.electronAPI.probePuzzleBorderMods?.(craftingIpcPayload(request)),
     onAnalysisUpdated: (callback) => window.electronAPI.onPuzzleAnalysisUpdated?.(callback) || (() => {}),
-    onAutoPlacementUpdated: (callback) => window.electronAPI.onPuzzleAutoPlacementUpdated?.(callback) || (() => {})
+    onAutoPlacementUpdated: (callback) => window.electronAPI.onPuzzleAutoPlacementUpdated?.(callback) || (() => {}),
+    onRecognitionFeedbackUpdated: (callback) => window.electronAPI.onChartRecognitionFeedbackUpdated?.(callback) || (() => {})
   },
   setIgnoreMouseEvents: (ignore, options) => window.electronAPI.setIgnoreMouseEvents(ignore, options),
 

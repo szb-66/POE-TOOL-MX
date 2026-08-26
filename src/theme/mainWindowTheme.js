@@ -4,6 +4,7 @@ export const BUSINESS_OVERLAY_THEME_CLASS = 'business-overlay-theme'
 
 export const BUSINESS_OVERLAY_ROUTES = Object.freeze([
   '/puzzle-overlay',
+  '/chart-recognition-feedback',
   '/overlay',
   '/story-overlay',
   '/bag-stash-overlay',

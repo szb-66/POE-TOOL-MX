@@ -146,6 +146,33 @@ export function createObjectKey({ uid, feedbackId, fileName, id = randomBytes(8)
   return `${safeSegment(uid, 'anonymous')}/${safeSegment(feedbackId, 'feedback')}/${safeSegment(id, 'file')}-${sanitizeAttachmentName(fileName)}`
 }
 
+export function validatePuzzleEvidenceReferenceInput(input = {}) {
+  const referenceId = input?.puzzleFailureEvidenceId
+  if (referenceId === undefined || referenceId === null || referenceId === '') return null
+  if (input.includeDiagnostics !== true) {
+    throw new FeedbackValidationError('FEEDBACK_EVIDENCE_REQUIRES_CONSENT', '海图识别失败证据只能在附带诊断时提交')
+  }
+  if (typeof referenceId !== 'string' || !UUID_PATTERN.test(referenceId)) {
+    throw new FeedbackValidationError('FEEDBACK_EVIDENCE_UNAVAILABLE', '海图识别失败证据已失效，请重新复现或关闭附带诊断')
+  }
+  return referenceId.toLowerCase()
+}
+
+export function createMessageObjectKey({ uid, feedbackId, clientMessageId, fileName, id = randomBytes(8).toString('hex') }) {
+  return `${safeSegment(uid, 'anonymous')}/${safeSegment(feedbackId, 'feedback')}/messages/${safeSegment(clientMessageId, 'message')}/${safeSegment(id, 'file')}-${sanitizeAttachmentName(fileName)}`
+}
+
+export function validateFeedbackReply(input = {}) {
+  const clientMessageId = String(input.clientMessageId || '').toLowerCase()
+  const body = String(input.body || '').trim()
+  if (!UUID_PATTERN.test(clientMessageId)) throw new FeedbackValidationError('FEEDBACK_CLIENT_MESSAGE_ID_INVALID', '回复标识无效，请重试')
+  const length = textLength(body)
+  if (length < 1 || length > 2000) throw new FeedbackValidationError('FEEDBACK_REPLY_INVALID', '回复内容需为 1–2000 个字符')
+  const feedbackId = String(input.feedbackId || '').toLowerCase()
+  if (!UUID_PATTERN.test(feedbackId)) throw new FeedbackValidationError('FEEDBACK_NOT_FOUND', '反馈不存在或无权访问')
+  return { feedbackId, clientMessageId, body }
+}
+
 export function formatAttachmentSize(bytes) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`

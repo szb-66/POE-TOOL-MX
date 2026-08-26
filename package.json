@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -9,6 +9,7 @@
     "crafting:data": "node scripts/generateCraftingData.js",
     "crafting:data:missing": "node scripts/generateCraftingData.js --fetch-missing",
     "crafting:data:refresh": "node scripts/generateCraftingData.js --live",
+    "crafting:currency-icons": "node scripts/generateCraftingCurrencyIcons.js",
     "skills:data": "node scripts/generateSkillGemData.js",
     "skills:data:missing": "node scripts/generateSkillGemData.js --fetch-missing",
     "skills:data:refresh": "node scripts/generateSkillGemData.js --live",
@@ -161,7 +162,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     }
   }
 }
