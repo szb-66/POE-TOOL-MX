@@ -618,7 +618,10 @@
               </el-form>
 
               <!-- 历史记录 -->
-              <div v-if="backgroundHistory.length > 0" class="history-section">
+              <div
+                v-if="overlaySettings.backgroundMode === 'custom' && backgroundHistory.length > 0"
+                class="history-section"
+              >
                 <h4 class="history-title">历史背景</h4>
                 <div class="history-grid">
                   <div 

@@ -79,10 +79,6 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   } = python
   const { getMainWindow, getOverlayWindow } = window
   const intentionallyStopped = new WeakSet()
-  let lastSuccessfulItemConfig = null
-  let itemRestartPromise = null
-
-  const cloneScriptConfig = (config) => JSON.parse(JSON.stringify(config))
 
   const sendScriptStatus = (payload) => {
     const mainWindow = getMainWindow()
@@ -189,6 +185,11 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           
           overlayWindow.webContents.send('script-stopped', {
             code: null,
+            mode,
+            termination: 'manual',
+            errorCode: null,
+            error: null,
+            recovery: null,
             mapStats: currentConfig?.map ? {
               processedCount: finalProcessedCount,
               qualifiedCount: finalQualifiedCount,
@@ -349,6 +350,10 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       let stderr = ''
       let stdoutLineBuffer = ''
       let runtimeError = ''
+      let runtimeErrorCode = null
+      let latestRecovery = null
+      let scriptTermination = null
+      let manualStopNotified = false
       const launch = createPythonProcess({ pythonPath, scriptPath })
       const pythonProcess = launch.process
       const startupPromise = waitForScriptStartup(pythonProcess, {
@@ -368,7 +373,37 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         stdoutLineBuffer = completeLines.pop() || ''
         for (const line of completeLines) {
           const scriptEvent = parseScriptEventLine(line)
+          if (scriptEvent?.event === 'crafting-recovery-checkpoint') {
+            latestRecovery = scriptEvent.recovery || latestRecovery
+            continue
+          }
+          if (scriptEvent?.event === 'crafting-manual-stopped') {
+            scriptTermination = 'manual'
+            if (!manualStopNotified) {
+              manualStopNotified = true
+              const currentOverlayWindow = getOverlayWindow()
+              if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
+                currentOverlayWindow.webContents.send('script-stopped', {
+                  code: null,
+                  mode,
+                  termination: 'manual',
+                  errorCode: null,
+                  error: null,
+                  recovery: latestRecovery,
+                  mapStats: null
+                })
+              }
+            }
+            continue
+          }
+          if (scriptEvent?.event === 'crafting-completed') {
+            scriptTermination = 'completed'
+            continue
+          }
           if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(scriptEvent?.event)) continue
+          scriptTermination = 'abnormal'
+          latestRecovery = scriptEvent.recovery || latestRecovery
+          runtimeErrorCode = scriptEvent.code || runtimeErrorCode
           runtimeError = scriptEvent.reason || (scriptEvent.event === 'stash-tab-selection-failed'
             ? '仓库页自动选择失败'
             : scriptEvent.event === 'currency-preflight-failed'
@@ -444,10 +479,18 @@ export function registerPythonHandlers(python, window, fileWatcher) {
 
       pythonProcess.on('close', (code) => {
         const wasCurrent = getCurrentScriptProcess() === pythonProcess
+        const wasIntentionallyStopped = intentionallyStopped.has(pythonProcess) || scriptTermination === 'manual'
+        const termination = scriptTermination === 'completed' && code === 0 ? 'completed' : 'abnormal'
+        if (termination === 'abnormal' && !runtimeError) {
+          runtimeErrorCode = runtimeErrorCode || (code !== 0 ? 'SCRIPT_EXIT_FAILED' : 'SCRIPT_INCOMPLETE')
+          runtimeError = stderr.trim() || (code !== 0
+            ? `脚本异常退出，退出代码: ${code}`
+            : '制作脚本未正常完成')
+        }
         if (wasCurrent) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
-        if (wasCurrent && !intentionallyStopped.has(pythonProcess)) {
-          const failed = Boolean(runtimeError) || code !== 0
+        if (wasCurrent && !wasIntentionallyStopped) {
+          const failed = termination === 'abnormal'
           sendScriptStatus({
             status: failed ? 'error' : 'stopped',
             mode,
@@ -463,7 +506,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         const currentOverlayWindow = getOverlayWindow()
         const currentConfig = fileWatcher.getCurrentConfig()
         
-        if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
+        if (currentOverlayWindow && !currentOverlayWindow.isDestroyed() && !wasIntentionallyStopped) {
           // 尝试读取脚本写入的统计信息
           let finalProcessedCount = 0
           let finalQualifiedCount = 0
@@ -495,7 +538,11 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           
           currentOverlayWindow.webContents.send('script-stopped', {
             code,
-            error: runtimeError || null,
+            mode,
+            termination,
+            errorCode: termination === 'abnormal' ? runtimeErrorCode : null,
+            error: termination === 'abnormal' ? runtimeError : null,
+            recovery: latestRecovery,
             mapStats: currentConfig?.map ? {
               processedCount: finalProcessedCount,
               qualifiedCount: finalQualifiedCount,
@@ -561,7 +608,11 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         if (failedOverlayWindow && !failedOverlayWindow.isDestroyed()) {
           failedOverlayWindow.webContents.send('script-stopped', {
             code: pythonProcess.exitCode ?? null,
+            mode,
+            termination: 'abnormal',
+            errorCode: 'PROCESS_START_FAILED',
             error: startupError,
+            recovery: null,
             mapStats: null
           })
         }
@@ -584,27 +635,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   }
 
   ipcMain.handle('generate-and-execute-script', async (event, config) => {
-    const result = await executeGeneratedScript(event, config)
-    if (config?.mode === 'items' && result?.success) {
-      lastSuccessfulItemConfig = cloneScriptConfig(config)
-    }
-    return result
-  })
-
-  ipcMain.handle('restart-last-item-script', async (event) => {
-    if (!lastSuccessfulItemConfig) {
-      return { success: false, error: '没有可重新开始的物品制作任务' }
-    }
-    if (itemRestartPromise) {
-      return { success: false, error: '物品制作正在重新开始，请勿重复点击' }
-    }
-
-    itemRestartPromise = executeGeneratedScript(event, cloneScriptConfig(lastSuccessfulItemConfig))
-    try {
-      return await itemRestartPromise
-    } finally {
-      itemRestartPromise = null
-    }
+    return executeGeneratedScript(event, config)
   })
 }
 

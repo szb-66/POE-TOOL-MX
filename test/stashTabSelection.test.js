@@ -207,7 +207,7 @@ test('仓库页配置注入后的两类 Python 模板保持可解析且关闭路
       ELDRITCH_CRAFTING_FUNC: 'def craft_eldritch_implicits():\n    return True',
       SOCKET_CRAFTING_FUNC: 'def craft_sockets():\n    return True'
     }],
-    ['map_rolling_template.py', { ...common, GRID_CONFIG: "{'rows': 5, 'cols': 12, 'startX': 1, 'startY': 1, 'offsetX': 1, 'offsetY': 1}", MAP_CONFIG: '{}' }]
+    ['map_rolling_template.py', { ...common, GRID_CONFIG: "{'rows': 5, 'cols': 12, 'startX': 1, 'startY': 1, 'offsetX': 1, 'offsetY': 1}", MAP_CONFIG: '{}', RECOVERY_CONFIG: '{}' }]
   ]
   for (const [filename, replacements] of variants) {
     let generated = readFileSync(path.join(projectRoot, 'src/assets/scripts', filename), 'utf8')

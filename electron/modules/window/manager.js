@@ -20,6 +20,7 @@ import {
   storyOverlayBoundsEqual
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
+import { getCraftingOverlayBounds } from './craftingOverlayPosition.js'
 import { dispatchReloadAction, getReloadAction } from './refreshShortcut.js'
 import {
   OverlayDragPassthroughController,
@@ -218,16 +219,22 @@ export function createMainWindow({
 export function createOverlayWindow() {
   if (overlayWindow) return overlayWindow
 
-  const { width } = screen.getPrimaryDisplay().workAreaSize
+  const displays = screen.getAllDisplays().map((display) => ({
+    ...display,
+    primary: display.id === screen.getPrimaryDisplay().id
+  }))
+  const bounds = getCraftingOverlayBounds(
+    loadWindowState().craftingOverlayBounds,
+    displays,
+    CRAFTING_OVERLAY_SIZE
+  )
 
   // 设置应用图标
   const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO-dark.png')
   const icon = nativeImage.createFromPath(iconPath)
 
   overlayWindow = new BrowserWindow({
-    ...CRAFTING_OVERLAY_SIZE,
-    x: width - 320,
-    y: 20,
+    ...bounds,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000', // 关键：设置背景颜色为完全透明
@@ -263,9 +270,24 @@ export function createOverlayWindow() {
     }
   })
 
-  overlayWindow.on('closed', () => {
+  const craftingWindow = overlayWindow
+  let saveTimer = null
+  const savePosition = () => {
+    clearTimeout(saveTimer)
+    saveTimer = null
+    if (craftingWindow.isDestroyed()) return
+    const { x, y } = craftingWindow.getBounds()
+    saveWindowState({ craftingOverlayBounds: { x, y } })
+  }
+  craftingWindow.on('move', () => {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(savePosition, 250)
+  })
+  craftingWindow.on('close', savePosition)
+  craftingWindow.on('closed', () => {
+    clearTimeout(saveTimer)
     craftingOverlayDragPassthrough.stop()
-    overlayWindow = null
+    if (overlayWindow === craftingWindow) overlayWindow = null
   })
 
   return overlayWindow

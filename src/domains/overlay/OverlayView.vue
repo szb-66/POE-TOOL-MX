@@ -8,23 +8,29 @@
       :is-completed="isCompleted"
       :is-stopped="isStopped"
       :is-restarting="isRestarting"
+      :can-retry="canRetry"
       :stop-reason="stopReason"
       :allow-drag="true"
       :map-stats="mapStats"
       @confirm="handleConfirmCompletion"
       @restart="handleRestart"
+      @retry="handleRetry"
       @close="handleClose"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
+import { usePresetStore } from '@/stores/preset'
+import { startCrafting, startMapRolling } from '@/utils/scriptService'
+import { restartCraftingWithLatestConfig, retryAutomationWithLatestConfig } from '@/utils/craftingRestart'
 import OverlayContent from './components/OverlayContent.vue'
 
 const settingsStore = useSettingsStore()
+const presetStore = usePresetStore()
 // 使用本地 ref 存储设置，以便响应 IPC 更新
 const settings = ref({ ...settingsStore.overlaySettings })
 
@@ -35,9 +41,13 @@ const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
 const isRestarting = ref(false) // 是否正在重新启动制作
 const stopReason = ref('') // 结构化运行失败原因
+const stopMode = ref(null)
+const stopTermination = ref(null)
+const recoveryCheckpoint = ref(null)
 const mapStats = ref(null) // 地图统计信息
 let outputLineBuffer = ''
-const isMapCategory = (category) => category === '异界地图' || category === '地图'
+const isMapCategory = (category) => category === '异界地图' || category === '地图' || category === '海图'
+const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal')
 
 function mergeMapStats(previousStats, incomingStats) {
   if (!incomingStats) {
@@ -65,6 +75,9 @@ function resetOverlayState() {
   isCompleted.value = false
   isStopped.value = false
   stopReason.value = ''
+  stopMode.value = null
+  stopTermination.value = null
+  recoveryCheckpoint.value = null
   mapStats.value = null
   outputLineBuffer = ''
 }
@@ -74,7 +87,35 @@ function applyStructuredScriptEvent(line) {
   if (!text.startsWith('EVENT ')) return
   try {
     const event = JSON.parse(text.slice(6))
+    if (event.event === 'crafting-recovery-checkpoint') {
+      recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
+      if (event.recovery) {
+        mapStats.value = mergeMapStats(mapStats.value, {
+          processedCount: event.recovery.processedCount,
+          qualifiedCount: event.recovery.qualifiedCount,
+          blacklistStats: event.recovery.blacklistStats,
+          whitelistStats: event.recovery.whitelistStats
+        })
+      }
+      return
+    }
+    if (event.event === 'crafting-manual-stopped') {
+      stopMode.value = event.mode || stopMode.value
+      stopTermination.value = 'manual'
+      stopReason.value = event.reason || '用户主动停止制作'
+      isStopped.value = true
+      isCompleted.value = false
+      return
+    }
+    if (event.event === 'crafting-completed') {
+      stopMode.value = event.mode || stopMode.value
+      stopTermination.value = 'completed'
+      return
+    }
     if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(event.event)) return
+    stopMode.value = event.mode || stopMode.value
+    stopTermination.value = 'abnormal'
+    recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
     stopReason.value = event.reason || (event.event === 'stash-tab-selection-failed'
       ? '仓库页自动选择失败'
       : event.event === 'currency-preflight-failed'
@@ -154,6 +195,32 @@ function restoreCompletedState(snapshot, error) {
   stopReason.value = error || '重新开始物品制作失败'
 }
 
+function stoppedSnapshot() {
+  return {
+    itemInfo: itemInfo.value,
+    iteration: scriptIteration.value,
+    logs: [...recentLogs.value],
+    mapStats: mapStats.value,
+    stopMode: stopMode.value,
+    stopTermination: stopTermination.value,
+    recovery: recoveryCheckpoint.value,
+    reason: stopReason.value
+  }
+}
+
+function restoreStoppedState(snapshot, error) {
+  itemInfo.value = snapshot.itemInfo
+  scriptIteration.value = snapshot.iteration
+  recentLogs.value = snapshot.logs
+  mapStats.value = snapshot.mapStats
+  stopMode.value = snapshot.stopMode
+  stopTermination.value = snapshot.stopTermination
+  recoveryCheckpoint.value = snapshot.recovery
+  stopReason.value = error || snapshot.reason || '重新启动制作失败'
+  isCompleted.value = false
+  isStopped.value = true
+}
+
 async function handleRestart() {
   if (isRestarting.value) return
 
@@ -167,12 +234,39 @@ async function handleRestart() {
   isRestarting.value = true
   stopReason.value = ''
   try {
-    const result = await electronApi.script.restartLastItem()
+    const result = await restartCraftingWithLatestConfig({ presetStore, settingsStore, startCrafting })
     if (!result?.success) {
       restoreCompletedState(completedSnapshot, result?.error)
     }
   } catch (error) {
     restoreCompletedState(completedSnapshot, error?.message)
+  } finally {
+    isRestarting.value = false
+  }
+}
+
+async function handleRetry() {
+  if (isRestarting.value || !canRetry.value) return
+  const snapshot = stoppedSnapshot()
+  isRestarting.value = true
+  try {
+    const result = await retryAutomationWithLatestConfig({
+      mode: stopMode.value === 'map' ? 'map' : 'items',
+      recovery: stopMode.value === 'map' ? recoveryCheckpoint.value : null,
+      presetStore,
+      settingsStore,
+      startCrafting,
+      startMapRolling
+    })
+    if (!result?.success) {
+      restoreStoppedState(snapshot, result?.error)
+      return
+    }
+    stopReason.value = ''
+    stopTermination.value = null
+    isStopped.value = false
+  } catch (error) {
+    restoreStoppedState(snapshot, error?.message)
   } finally {
     isRestarting.value = false
   }
@@ -253,8 +347,12 @@ onMounted(() => {
         }
       }
 
-      if (data.error) {
-        stopReason.value = data.error
+      stopMode.value = data.mode || (isMapMode ? 'map' : 'items')
+      stopTermination.value = data.termination || 'abnormal'
+      recoveryCheckpoint.value = data.recovery || recoveryCheckpoint.value
+
+      if (!isCompleted.value && (data.error || stopTermination.value === 'abnormal')) {
+        stopReason.value = data.error || stopReason.value || '制作异常停止，可重试'
         isStopped.value = true
         isCompleted.value = false
       }

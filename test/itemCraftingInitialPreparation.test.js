@@ -70,7 +70,7 @@ test('页面级首次识别配置默认开启并迁移模块级临时关闭值',
 
 test('制作前准备仅鉴定未鉴定物品一次，并对失败发出启动错误', () => {
   const template = source('../src/assets/scripts/crafting_template.py')
-  const start = template.indexOf('def fail_item_preparation(')
+  const start = template.indexOf('def fail_item_runtime(')
   const end = template.indexOf('# 自动启动制作', start)
   assert.ok(start >= 0 && end > start)
   const block = template.slice(start, end)
@@ -90,7 +90,7 @@ def run(results, read_results=None, apply_success=True, identify_unidentified=Tr
     reads = list(read_results or [True] * max(1, len(queue)))
     applied = []
     def read(allow_unchanged_text=False): return reads.pop(0)
-    def wait(): return queue.pop(0)
+    def wait(_request_id=None): return queue.pop(0)
     def apply(currency): applied.append(currency); return apply_success
     globals()["read_clipboard_to_file"] = read
     globals()["wait_for_parse_result"] = wait
@@ -103,11 +103,13 @@ unidentified = {"rarity": "稀有", "isUnidentified": True}
 print(json.dumps({
   "identified": run([identified]),
   "unidentified": run([unidentified, identified]),
+  "retryRead": run([unidentified, identified], [True, False, True]),
+  "identifyReadFailed": run([unidentified], [True, False, False, False]),
   "eldritchUnidentified": run([unidentified], identify_unidentified=False),
   "identifyFailed": run([unidentified], apply_success=False),
   "still": run([unidentified, unidentified]),
-  "parseFailed": run([{"error": "无法解析"}]),
-  "readFailed": run([identified], [False])
+  "parseFailed": run([{"error": "无法解析"}, {"error": "无法解析"}, {"error": "无法解析"}]),
+  "readFailed": run([identified], [False, False, False])
 }, ensure_ascii=False))
 `)
 
@@ -115,6 +117,11 @@ print(json.dumps({
   assert.equal(result.identified.prepared.isUnidentified, false)
   assert.deepEqual(result.unidentified.applied, ['wisdom'])
   assert.equal(result.unidentified.prepared.isUnidentified, false)
+  assert.deepEqual(result.retryRead.applied, ['wisdom'])
+  assert.equal(result.retryRead.prepared.isUnidentified, false)
+  assert.deepEqual(result.identifyReadFailed.applied, ['wisdom'])
+  assert.equal(result.identifyReadFailed.prepared, null)
+  assert.match(result.identifyReadFailed.fatal, /鉴定后无法重新读取/)
   assert.deepEqual(result.eldritchUnidentified.applied, [])
   assert.equal(result.eldritchUnidentified.prepared, null)
   assert.match(result.eldritchUnidentified.fatal, /未鉴定.*请先.*鉴定/)
@@ -124,7 +131,7 @@ print(json.dumps({
   assert.equal(result.still.prepared, null)
   assert.match(result.still.fatal, /仍为未鉴定/)
   assert.equal(result.parseFailed.prepared, null)
-  assert.match(result.parseFailed.fatal, /解析失败/)
+  assert.match(result.parseFailed.fatal, /无法解析/)
   assert.equal(result.readFailed.prepared, null)
   assert.match(result.readFailed.fatal, /无法读取/)
 })
@@ -155,11 +162,14 @@ test('页面级首次识别统一控制词缀和插槽模块', async () => {
     })
 
     const runAffix = (generated) => {
+      const helperStart = generated.indexOf('def fail_item_runtime(')
+      const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
       const start = generated.indexOf('def explicit_affix_count(')
       const end = generated.indexOf('def craft_eldritch_implicits(', start)
-      assert.ok(start >= 0 && end > start)
+      assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start)
       return runPython(`
 import json, os, time
+${generated.slice(helperStart, helperEnd)}
 ${generated.slice(start, end)}
 is_running = True
 item_info_result_file = os.devnull
@@ -167,7 +177,7 @@ applied = []
 queue = [{"rarity":"魔法", "affixMatch":True, "matchedGroupName":"目标", "explicitMods":[]}]
 def apply_currency(currency): applied.append(currency); return True
 def read_clipboard_to_file(allow_unchanged_text=False): return True
-def wait_for_parse_result(): return queue.pop(0)
+def wait_for_parse_result(_request_id=None): return queue.pop(0)
 time.sleep = lambda _seconds: None
 initial = {"rarity":"魔法", "affixMatch":True, "matchedGroupName":"目标", "explicitMods":[]}
 success = craft_affixes(initial)
@@ -207,11 +217,14 @@ print(json.dumps({"success": bool(success), "applied": applied}, ensure_ascii=Fa
       stashTabSelection: { enabled: false }
     })
     const runSockets = (generated) => {
+      const helperStart = generated.indexOf('def fail_item_runtime(')
+      const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
       const start = generated.indexOf('def craft_sockets(')
       const end = generated.indexOf('# 辅助函数', start)
-      assert.ok(start >= 0 && end > start)
+      assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start)
       return runPython(`
 import json, os, time
+${generated.slice(helperStart, helperEnd)}
 ${generated.slice(start, end)}
 is_running = True
 item_info_result_file = os.devnull
@@ -219,7 +232,7 @@ currencies = []
 def right_click_currency(currency): currencies.append(currency); return True
 def left_click_item(): return True
 def read_clipboard_to_file(allow_unchanged_text=False): return True
-def wait_for_parse_result(): return {"socketsCount": 6}
+def wait_for_parse_result(_request_id=None): return {"socketsCount": 6}
 time.sleep = lambda _seconds: None
 success = craft_sockets({"socketMatch": True, "socketsCount": 6})
 print(json.dumps({"success": bool(success), "currencies": currencies}, ensure_ascii=False))

@@ -290,6 +290,8 @@ stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
 map_config = {{MAP_CONFIG}}   # {method, vaal, match}  # type: ignore
+recovery_config = {{RECOVERY_CONFIG}}  # type: ignore
+current_recovery_checkpoint = None
 
 # 创建控制器
 mouse_controller = mouse.Controller()
@@ -422,6 +424,7 @@ def select_currency_stash_tab(mode):
         release_all_keys()
         print("EVENT " + json.dumps({
             "event": "stash-tab-selection-failed", "mode": mode,
+            "termination": "abnormal", "recovery": globals().get("current_recovery_checkpoint"),
             "code": response.get("code", "selection-failed"), "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
@@ -476,6 +479,8 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品"):
     payload = {
         "event": "currency-preflight-failed",
         "mode": "map",
+        "termination": "abnormal",
+        "recovery": globals().get("current_recovery_checkpoint"),
         "currency": currency,
         "expected": expected,
         "actual": actual,
@@ -521,7 +526,12 @@ def preflight_required_currencies():
             before_text = str(pyperclip.paste() or "")
         except Exception:
             before_text = ""
-        if not send_copy_command(sequence_before, before_text):
+        clipboard_text = send_copy_command(
+            sequence_before,
+            before_text,
+            allow_unchanged_text=True
+        )
+        if not clipboard_text:
             return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
         try:
             sequence_after = GetClipboardSequenceNumber()
@@ -536,7 +546,7 @@ def preflight_required_currencies():
                 f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
             )
 
-        header = copied_item_header(pyperclip.paste())
+        header = copied_item_header(clipboard_text)
         actual = detected_item_name(header)
         if expected not in actual:
             return fail_currency_preflight(
@@ -574,7 +584,8 @@ def require_game_foreground():
         foreground_failure_emitted = True
         print("EVENT " + json.dumps({
             "event": "crafting-runtime-stopped", "mode": "map",
-            "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
+            "termination": "abnormal", "code": "GAME_NOT_FOREGROUND",
+            "reason": fatal_error_reason, "recovery": globals().get("current_recovery_checkpoint")
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
     return False
@@ -679,7 +690,7 @@ def apply_currency(currency_type, target_x, target_y):
         return False
 
 def send_copy_command(before_seq=None, before_text="", result_timeout=None, allow_unchanged_text=False):
-    # 返回 True=复制成功, False=复制成功但剪贴板未变化, None=复制指令执行失败
+    # 返回本次复制确认过的文本；False=超时未变化，None=复制指令执行失败。
     try:
         if not require_game_foreground():
             return None
@@ -695,39 +706,38 @@ def send_copy_command(before_seq=None, before_text="", result_timeout=None, allo
         time.sleep(RELEASE_SETTLE_SECONDS)
         if result_timeout is not None:
             return wait_for_clipboard_change(before_seq, before_text, result_timeout, allow_unchanged_text)
-        if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text)
-        time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
-        return True
+        timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
+        return wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text)
     except:
         return None
 
 def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
-    # 序列号变化只是必要条件；复制成功还要求粘贴内容确实变化，
-    # 避免游戏清空剪贴板或其它程序写入导致旧文本被当作新复制结果。
-    # 重试路径（不重复使用通货）物品文本必然不变：序列号已变化且文本
-    # 非空即视为游戏重写成功（allow_unchanged_text=True）。
+    # 返回同一次轮询中确认过的文本，避免确认后再次读取剪贴板产生竞态。
+    # 重试允许同文本，但必须有剪贴板序列号变化作为本次 Ctrl+C 的证据。
     seq_changed = False
     if GetClipboardSequenceNumber is not None and before_seq is not None:
         try:
             if GetClipboardSequenceNumber() == before_seq:
-                return False
+                return None
             seq_changed = True
         except Exception:
             pass
     current_text = str(pyperclip.paste() or "")
     if not current_text.strip():
-        return False
+        return None
     if allow_unchanged_text and seq_changed:
-        return True
-    return current_text != before_text
+        return current_text
+    if current_text != before_text:
+        return current_text
+    return None
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
     while is_running:
-        if clipboard_changed(before_seq, before_text, allow_unchanged_text):
-            return True
+        clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
+        if clipboard_text is not None:
+            return clipboard_text
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
@@ -748,10 +758,8 @@ def read_clipboard_to_file(allow_unchanged_text=False):
             before_text = str(pyperclip.paste() or "")
         except Exception:
             before_text = ""
-        if not send_copy_command(before_seq, before_text, allow_unchanged_text=allow_unchanged_text): return False
-        clipboard_text = pyperclip.paste()
-        if not clipboard_text or len(clipboard_text.strip()) == 0: return False
-        if clipboard_text == before_text and not allow_unchanged_text: return False
+        clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text=allow_unchanged_text)
+        if not clipboard_text: return False
         
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
@@ -881,35 +889,59 @@ def failed_map_result(reason, code="MAP_PROCESSING_FAILED"):
     return {"status": "failed", "reason": reason, "code": code}
 
 def fail_map_runtime(reason, code="MAP_PROCESSING_FAILED"):
-    global is_running, fatal_error_reason
+    global is_running, fatal_error_reason, current_recovery_checkpoint
     fatal_error_reason = reason
     is_running = False
     release_all_keys()
     print("EVENT " + json.dumps({
         "event": "crafting-runtime-stopped", "mode": "map",
-        "code": code, "reason": reason
+        "termination": "abnormal", "code": code, "reason": reason,
+        "recovery": current_recovery_checkpoint
     }, ensure_ascii=False), flush=True)
     print(f"[停止] {reason}")
     play_error_sound()
     return False
 
-def read_current_rolling_target(x, y, attempts=2, allow_unchanged_text=False):
+def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, empty_on_copy_failure=False):
     last_error = "无法读取当前目标"
+    copied_any = False
     for attempt in range(attempts):
         if not is_running:
             break
         # 重试不重复使用通货：物品文本与上次相同，允许序列号变化后的同文本复制
         request_id = read_and_parse(x, y, allow_unchanged_text=allow_unchanged_text or attempt > 0)
         if request_id:
+            copied_any = True
             result = wait_for_parse_result(request_id)
             if not result.get("error") and item_matches_rolling_target(result):
+                return result
+            if result.get("isLegendary"):
                 return result
             last_error = result.get("error") or f"解析类别不是当前目标 {rolling_target_label()}"
         else:
             last_error = fatal_error_reason or "复制当前目标失败"
         if attempt + 1 < attempts and is_running:
             print(f"  > [重试] {last_error}，重新复制当前格（不重复使用通货）")
+    if empty_on_copy_failure and not copied_any:
+        return {"empty": True}
     return {"error": last_error}
+
+def update_map_recovery_checkpoint(current_col, current_row, processed_count, qualified_count, blacklist_stats, whitelist_stats):
+    global current_recovery_checkpoint
+    current_recovery_checkpoint = {
+        "targetKind": map_config.get("targetKind", "atlas"),
+        "col": int(current_col),
+        "row": int(current_row),
+        "processedCount": int(processed_count),
+        "qualifiedCount": int(qualified_count),
+        "blacklistStats": dict(blacklist_stats),
+        "whitelistStats": dict(whitelist_stats)
+    }
+    print("EVENT " + json.dumps({
+        "event": "crafting-recovery-checkpoint", "mode": "map",
+        "recovery": current_recovery_checkpoint
+    }, ensure_ascii=False), flush=True)
+    return current_recovery_checkpoint
 
 def apply_currency_and_read(currency_type, x, y):
     if not apply_currency(currency_type, x, y):
@@ -921,18 +953,12 @@ def start_map_rolling():
     Inputs: grid_config 坐标与行列，map_config 洗图策略，GetClipboardSequenceNumber 等外部依赖。
     Outputs: 写入 item_info_file/item_info_result_file；日志输出；可选存仓动作。
     Preconditions: 游戏窗口前置且坐标正确；前端文件监听正常；pynput 可用。
-    Edge cases: 剪贴板序列号不可用时回退到内容检查；快捷键注册失败仅告警；读取/解析失败重试一次后安全停止。
+    Edge cases: 剪贴板序列号不可用时拒绝同文本补读；快捷键注册失败仅告警；读取/解析三次失败后安全停止。
     """
     global is_running, fatal_error_reason
     is_running = True
     target_kind = map_config.get("targetKind")
     target_label = "航海海图" if target_kind == "chart" else "地图"
-
-    def scan_item_matches_target(item_data):
-        category = str((item_data or {}).get("category") or (item_data or {}).get("itemClass") or "")
-        if target_kind == "chart":
-            return category == "海图"
-        return category in ("异界地图", "地图")
 
     def scan_item_level_label(item_data):
         if target_kind == "chart":
@@ -948,6 +974,10 @@ def start_map_rolling():
         def on_stop():
             global is_running
             print("\n[快捷键] 停止脚本")
+            print("EVENT " + json.dumps({
+                "event": "crafting-manual-stopped", "mode": "map",
+                "termination": "manual", "reason": "用户主动停止地图或海图洗练"
+            }, ensure_ascii=False), flush=True)
             is_running = False
             release_all_keys()
             
@@ -962,7 +992,9 @@ def start_map_rolling():
         is_running = False
         release_all_keys()
         print("EVENT " + json.dumps({
-            "event": "crafting-startup-failed", "mode": "map", "reason": fatal_error_reason
+            "event": "crafting-startup-failed", "mode": "map",
+            "termination": "abnormal", "reason": fatal_error_reason,
+            "recovery": current_recovery_checkpoint
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
         return False
@@ -979,17 +1011,21 @@ def start_map_rolling():
 
     print(f"[开始] {target_label}洗练流程")
     
-    processed_count = 0
-    qualified_count = 0
-    blacklist_stats = {}  # 统计黑名单词缀拦截次数
-    whitelist_stats = {}  # 统计白名单词缀通过次数
-    current_col = 0
-    current_row = 0
+    processed_count = int(recovery_config.get("processedCount", 0)) if recovery_config else 0
+    qualified_count = int(recovery_config.get("qualifiedCount", 0)) if recovery_config else 0
+    blacklist_stats = dict(recovery_config.get("blacklistStats", {})) if recovery_config else {}
+    whitelist_stats = dict(recovery_config.get("whitelistStats", {})) if recovery_config else {}
+    current_col = int(recovery_config.get("col", 0)) if recovery_config else 0
+    current_row = int(recovery_config.get("row", 0)) if recovery_config else 0
     consecutive_empty_slots = 0
     empty_slot_threshold = max(1, min(60, int(grid_config.get('emptySlotThreshold', 3))))
     
     # 从第一个格子开始，按列优先顺序处理
     while is_running and current_col < grid_config['cols']:
+        update_map_recovery_checkpoint(
+            current_col, current_row, processed_count, qualified_count,
+            blacklist_stats, whitelist_stats
+        )
         # 计算当前格子坐标
         slot_x, slot_y = get_slot_position(current_col, current_row)
         print(f"[进度] 正在处理第 {current_col+1} 列, 第 {current_row+1} 行 (坐标: {slot_x}, {slot_y})")
@@ -1004,98 +1040,36 @@ def start_map_rolling():
                 current_row = 0
                 current_col += 1
             continue
-        # 2. 记录复制前的剪切板序列号
-        clipboard_seq_before = None
-        if GetClipboardSequenceNumber:
-            try:
-                clipboard_seq_before = GetClipboardSequenceNumber()
-            except Exception as e:
-                print(f"[警告] 获取剪切板序列号失败: {e}")
-        
-        # 3. 复制物品信息
-        print(f"[操作] 复制物品信息 (Ctrl+C)")
-        parse_request_id = read_clipboard_to_file()
-        if not parse_request_id:
+        # 2. 最多三次复制并解析当前格；补读不移动到下一格。
+        print(f"[操作] 复制并解析物品信息 (Ctrl+C)")
+        result = read_current_rolling_target(
+            slot_x, slot_y, attempts=3,
+            allow_unchanged_text=True,
+            empty_on_copy_failure=True
+        )
+        if result.get("empty"):
             consecutive_empty_slots += 1
-            print(f"[提示] 复制失败，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
+            print(f"[提示] 三次均未复制到物品，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
             if consecutive_empty_slots >= empty_slot_threshold:
                 print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
                 break
-            # 移动到下一个格子
             current_row += 1
             if current_row >= grid_config['rows']:
                 current_row = 0
                 current_col += 1
             continue
-        
-        # 4. 检查剪切板序列号是否变化（判断是否复制到新内容）
-        clipboard_seq_after = None
-        if GetClipboardSequenceNumber:
-            try:
-                clipboard_seq_after = GetClipboardSequenceNumber()
-            except Exception as e:
-                print(f"[警告] 获取剪切板序列号失败: {e}")
-        
-        # 检查是否成功复制到新内容
-        if GetClipboardSequenceNumber:
-            # 如果GetClipboardSequenceNumber可用，必须成功获取到两个序列号
-            if clipboard_seq_before is None or clipboard_seq_after is None:
-                print(f"[停止] 无法获取剪切板序列号 (before: {clipboard_seq_before}, after: {clipboard_seq_after})，停止流程")
-                is_running = False
-                break
-            # 如果序列号没有变化，说明当前格是空格候选
-            if clipboard_seq_after == clipboard_seq_before:
-                consecutive_empty_slots += 1
-                print(f"[提示] 剪切板序列号未变化 ({clipboard_seq_before} -> {clipboard_seq_after})，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
-                if consecutive_empty_slots >= empty_slot_threshold:
-                    print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
-                    break
-                current_row += 1
-                if current_row >= grid_config['rows']:
-                    current_row = 0
-                    current_col += 1
-                continue
-            else:
-                print(f"[检测] 剪切板序列号已变化 ({clipboard_seq_before} -> {clipboard_seq_after})，检测到新内容")
-        else:
-            # 如果GetClipboardSequenceNumber不可用，回退到检查剪切板内容
-            # 检查剪切板内容是否有效（不为空且可能包含地图信息）
-            try:
-                clipboard_text = pyperclip.paste()
-                if not clipboard_text or len(clipboard_text.strip()) == 0:
-                    consecutive_empty_slots += 1
-                    print(f"[提示] 剪切板内容为空，连续空格候选 {consecutive_empty_slots}/{empty_slot_threshold}")
-                    if consecutive_empty_slots >= empty_slot_threshold:
-                        print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
-                        break
-                    current_row += 1
-                    if current_row >= grid_config['rows']:
-                        current_row = 0
-                        current_col += 1
-                    continue
-                # 如果剪切板有内容，继续执行（无法判断是否是地图，交给后续解析判断）
-                print("[检测] 剪切板有内容，继续处理")
-            except Exception as e:
-                print(f"[停止] 无法读取剪切板内容: {e}，流程结束")
-                is_running = False
-                break
 
-        # 已复制到新内容，解析结果无论成功与否都不是空格
+        # 已复制到内容，解析失败不是空格，必须停留当前格等待恢复。
         consecutive_empty_slots = 0
-        
-        # 5. 等待解析结果
-        result = wait_for_parse_result(parse_request_id)
         if result.get("error"):
             if result.get("isLegendary"):
                 print("[提示] 检测到传奇地图，跳过")
             else:
-                result = read_current_rolling_target(slot_x, slot_y, attempts=1, allow_unchanged_text=True)
-                if result.get("error"):
-                    fail_map_runtime(
-                        f"当前{target_label}解析失败：{result.get('error')}",
-                        "MAP_PARSE_FAILED"
-                    )
-                    break
+                fail_map_runtime(
+                    f"当前{target_label}解析失败：{result.get('error')}",
+                    "MAP_PARSE_FAILED"
+                )
+                break
             if result.get("error"):
                 current_row += 1
                 if current_row >= grid_config['rows']:
@@ -1103,27 +1077,10 @@ def start_map_rolling():
                     current_col += 1
                 continue
         
-        # 6. 检查是否是地图
-        category = result.get("category", "") or result.get("itemClass", "")
-        if not scan_item_matches_target(result):
-            print(f"[提示] 不是当前目标 {target_label} (类别: {category})，跳过")
-            # 移动到下一个格子
-            current_row += 1
-            if current_row >= grid_config['rows']:
-                current_row = 0
-                current_col += 1
-            continue
-        
-        # 7. 处理该地图
+        # 3. 处理该地图或海图
         print(f"[处理] 开始处理{target_label}: {result.get('name', '未知')} {scan_item_level_label(result)}")
         # 统计当前地图的黑白名单词缀
         map_blacklist_stats, map_whitelist_stats = count_affix_stats(result)
-        # 合并到总统计中
-        for affix, count in map_blacklist_stats.items():
-            blacklist_stats[affix] = blacklist_stats.get(affix, 0) + count
-        for affix, count in map_whitelist_stats.items():
-            whitelist_stats[affix] = whitelist_stats.get(affix, 0) + count
-        
         map_result = process_single_map(result, slot_x, slot_y)
         if map_result.get("status") == "failed":
             if not fatal_error_reason:
@@ -1132,6 +1089,11 @@ def start_map_rolling():
                     map_result.get("code") or "MAP_PROCESSING_FAILED"
                 )
             break
+        # 只有当前格进入完成终态后才提交该格统计，失败恢复不会重复累计。
+        for affix, count in map_blacklist_stats.items():
+            blacklist_stats[affix] = blacklist_stats.get(affix, 0) + count
+        for affix, count in map_whitelist_stats.items():
+            whitelist_stats[affix] = whitelist_stats.get(affix, 0) + count
         processed_count += 1
         if map_result.get("qualified"):
             qualified_count += 1
@@ -1148,6 +1110,9 @@ def start_map_rolling():
         return False
 
     print(f"[完成] {target_label}洗练结束，共处理 {processed_count} 张")
+    print("EVENT " + json.dumps({
+        "event": "crafting-completed", "mode": "map", "termination": "completed"
+    }, ensure_ascii=False), flush=True)
     play_success_sound()
     time.sleep(2)
     is_running = False

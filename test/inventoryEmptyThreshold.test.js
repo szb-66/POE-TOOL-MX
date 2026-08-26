@@ -20,7 +20,9 @@ function runMapScan(emptySlotThreshold, statuses, cols = 8) {
 import json, types
 ${block}
 grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 1, "cols": ${cols}, "emptySlotThreshold": ${emptySlotThreshold}}
-map_config = {}
+map_config = {"targetKind": "atlas"}
+recovery_config = {}
+current_recovery_checkpoint = None
 fatal_error_reason = None
 GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda mapping: types.SimpleNamespace(start=lambda: None))
@@ -33,11 +35,12 @@ def focus_game_window(): return True
 def select_currency_stash_tab(mode): return True
 def preflight_required_currencies(): return True
 def get_slot_position(col, row): return col, row
-def read_clipboard_to_file(): return next(statuses)
-def wait_for_parse_result(_request_id=None): return {"category": "地图", "name": "测试地图", "mapTier": 1}
+def read_current_rolling_target(*args, **kwargs):
+    return {"category": "地图", "name": "测试地图", "mapTier": 1} if next(statuses) else {"empty": True}
 def process_single_map(result, x, y): return {"status": "completed-qualified", "qualified": True}
 def count_affix_stats(result): return {}, {}
 def update_map_stats(*args): pass
+def update_map_recovery_checkpoint(*args): pass
 def release_all_keys(): pass
 def play_success_sound(): pass
 def play_error_sound(): pass
@@ -61,7 +64,8 @@ test('连续空格阈值使用默认值、取整并限制在 1–60', () => {
 test('设置页持久化共享阈值并支持旧值补全和重置', () => {
   const view = source('../src/domains/settings/SettingsView.vue')
   const store = source('../src/domains/settings/settingsStore.js')
-  assert.match(view, /label="连续空格停止数量"/)
+  assert.match(view, /连续空格判空/)
+  assert.match(view, /v-model="inventory\.emptySlotThreshold"/)
   assert.match(view, /:min="EMPTY_SLOT_THRESHOLD\.min"/)
   assert.match(view, /:max="EMPTY_SLOT_THRESHOLD\.max"/)
   assert.match(store, /emptySlotThreshold: EMPTY_SLOT_THRESHOLD\.default/)

@@ -190,7 +190,8 @@ def augment_single_affix_if_needed(result):
 
     refreshed_result = read_current_item()
     if not isinstance(refreshed_result, dict) or refreshed_result.get("error"):
-        print(f"[错误] 增幅后读取物品信息失败: {refreshed_result.get('error') if isinstance(refreshed_result, dict) else '无效结果'}")
+        error_msg = refreshed_result.get("error") if isinstance(refreshed_result, dict) else "无效结果"
+        fail_item_runtime(f"增幅后读取物品信息失败：{error_msg}", "ITEM_READ_FAILED")
         return False, result
     return True, refreshed_result
 
@@ -223,40 +224,6 @@ def finish_affix_match(result, iteration=0):
 `
 
     let logic = `${finishLogic}
-def fail_item_reading(reason, code="ITEM_READ_FAILED"):
-    global is_running, fatal_error_reason
-    fatal_error_reason = reason
-    is_running = False
-    release_all_keys()
-    print("EVENT " + json.dumps({
-        "event": "crafting-runtime-stopped", "mode": "items",
-        "code": code, "reason": reason
-    }, ensure_ascii=False), flush=True)
-    print(f"[停止] {reason}")
-    play_error_sound()
-    return None
-
-def read_current_item():
-    # 复制并解析当前物品；失败时只重试一次复制读取，不重复使用制作通货
-    last_error = ""
-    for attempt in range(2):
-        if not is_running:
-            return {"error": "循环已停止"}
-        # 重试不重复使用通货：物品文本与上次相同，允许序列号变化后的同文本复制
-        if not read_clipboard_to_file(allow_unchanged_text=(attempt == 1)):
-            last_error = "读取物品信息失败"
-            if attempt == 0:
-                print("[重试] 读取物品信息失败，重新复制读取（不重复使用通货）")
-            continue
-        result = wait_for_parse_result()
-        if isinstance(result, dict) and result.get("error"):
-            last_error = result.get("error")
-            if attempt == 0:
-                print(f"[重试] 解析错误: {last_error}，重新复制读取（不重复使用通货）")
-            continue
-        return result
-    return {"error": last_error or "无法读取当前物品"}
-
 def craft_affixes(initial_result=None):
     # 词缀匹配逻辑
     try:
@@ -345,12 +312,12 @@ def craft_affixes(initial_result=None):
                     return False
             
             
-            # 重新读取物品信息（失败时只重试一次读取，不重复使用通货）
+            # 重新读取物品信息（最多三次读取，不重复使用通货）
             result = read_current_item()
             if not isinstance(result, dict) or result.get("error"):
                 error_msg = result.get("error") if isinstance(result, dict) else "无效解析结果"
                 print(f"[错误] 读取物品信息失败: {error_msg}")
-                return fail_item_reading(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
             
             preprocess_count += 1
         
@@ -441,12 +408,12 @@ def craft_affixes(initial_result=None):
     }
 
     logic += `
-            # 复制物品并读取（失败时只重试一次读取，不重复使用通货）
+            # 复制物品并读取（最多三次读取，不重复使用通货）
             result = read_current_item()
             if not isinstance(result, dict) or result.get("error"):
                 error_msg = result.get("error") if isinstance(result, dict) else "无效解析结果"
                 print(f"[错误] 读取当前物品失败: {error_msg}")
-                return fail_item_reading(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
             
             # print(f"[调试] 第 {iteration} 次 - 解析成功，检查是否需要增幅...")
             
@@ -603,18 +570,10 @@ def craft_socket_count(target_count):
             print("[错误] 左键点击物品失败，重试...")
             continue
         
-        # 复制物品并读取
-        if not read_clipboard_to_file(allow_unchanged_text=True):
-            print("[错误] 读取物品信息失败，重试...")
-            continue
-        
-        result = wait_for_parse_result()
-        
-        # 检查解析结果是否有错误
+        # 复制物品并读取；补读不重复使用工匠石
+        result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            print(f"[错误] 解析错误: {result.get('error')}，重试...")
-            time.sleep(1)
-            continue
+            return fail_item_runtime(f"开孔后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
         
         current_count = result.get("socketsCount", 0)
         if current_count >= target_count:
@@ -668,18 +627,10 @@ def craft_links(target_links):
             print("[错误] 左键点击物品失败，重试...")
             continue
         
-        # 复制物品并读取
-        if not read_clipboard_to_file(allow_unchanged_text=True):
-            print("[错误] 读取物品信息失败，重试...")
-            continue
-        
-        result = wait_for_parse_result()
-        
-        # 检查解析结果是否有错误
+        # 复制物品并读取；补读不重复使用链结石
+        result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            print(f"[错误] 解析错误: {result.get('error')}，重试...")
-            time.sleep(1)
-            continue
+            return fail_item_runtime(f"链接后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
         
         current_links = result.get("links", 0)
         if current_links >= target_links:
@@ -733,18 +684,10 @@ def craft_colors(target_red, target_green, target_blue):
             print("[错误] 左键点击物品失败，重试...")
             continue
         
-        # 复制物品并读取
-        if not read_clipboard_to_file(allow_unchanged_text=True):
-            print("[错误] 读取物品信息失败，重试...")
-            continue
-        
-        result = wait_for_parse_result()
-        
-        # 检查解析结果是否有错误
+        # 复制物品并读取；补读不重复使用幻色石
+        result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            print(f"[错误] 解析错误: {result.get('error')}，重试...")
-            time.sleep(1)
-            continue
+            return fail_item_runtime(f"染色后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
         
         colors = result.get("socketsColors", {})
         current_red = colors.get("red", 0)
@@ -773,7 +716,8 @@ def craft_colors(target_red, target_green, target_blue):
     is_running = False
     release_all_keys()
     print("EVENT " + json.dumps({
-        "event": "crafting-runtime-stopped", "mode": "items", "code": code, "reason": reason
+        "event": "crafting-runtime-stopped", "mode": "items",
+        "termination": "abnormal", "code": code, "reason": reason
     }, ensure_ascii=False), flush=True)
     print(f"[停止] {reason}")
     play_error_sound()
@@ -817,11 +761,9 @@ def craft_eldritch_implicits(initial_result=None):
             print(f"[操作] 第 {iteration} 次 - 使用 ${currency}")
             if not apply_currency("${currency}"):
                 return fail_eldritch_crafting("使用古灵通货失败", "ELDRITCH_CURRENCY_FAILED")
-            if not read_clipboard_to_file(allow_unchanged_text=True):
-                return fail_eldritch_crafting("使用通货后无法读取装备", "ITEM_READ_FAILED")
-            result = wait_for_parse_result()
+            result = read_current_item(allow_unchanged_text=True)
             if result.get("error"):
-                return fail_eldritch_crafting(result.get("error"), "ITEM_PARSE_FAILED")
+                return fail_eldritch_crafting(f"使用通货后无法读取装备：{result.get('error')}", "ITEM_READ_FAILED")
             if result.get("eldritchImplicitMatch"):
                 target = result.get("matchedEldritchTargetName") or "目标隐式"
                 print(f"[成功] 古灵隐式命中：{target}（第 {iteration} 次）")
@@ -919,6 +861,7 @@ export function generateMapRollingScript(config) {
     adaptiveTimeoutMs,
     fixedTiming = {},
     mapConfig,
+    recovery = null,
     filePaths,
     stashTabSelection = { enabled: false },
     dpiScale = 1.0
@@ -1016,6 +959,7 @@ export function generateMapRollingScript(config) {
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify(mapConfig)),
+    '{{RECOVERY_CONFIG}}': jsonToPython(JSON.stringify(recovery || {})),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
     '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,

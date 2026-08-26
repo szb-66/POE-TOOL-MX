@@ -87,7 +87,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateAndExecuteScript: (config) => {
     return ipcRenderer.invoke('generate-and-execute-script', config)
   },
-  restartLastItemScript: () => ipcRenderer.invoke('restart-last-item-script'),
   pickStashTabRootRegion: () => ipcRenderer.invoke('stash-tabs-pick-root-region'),
   previewStashTabs: (config) => ipcRenderer.invoke('stash-tabs-preview', config),
   onShortcutTriggered: (callback) => {

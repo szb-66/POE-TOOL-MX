@@ -26,6 +26,7 @@ focus = iter([True, False])
 is_running = True
 fatal_error_reason = None
 foreground_failure_emitted = False
+current_recovery_checkpoint = None
 def is_game_foreground(): return next(focus)
 def release_all_keys(): released.append(True)
 print(json.dumps({"first": require_game_foreground(), "second": require_game_foreground(),
@@ -46,7 +47,9 @@ import json, types
 ${block}
 events = []
 grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 1, "cols": 1, "emptySlotThreshold": 1}
-map_config = {}
+map_config = {"targetKind": "atlas"}
+recovery_config = {}
+current_recovery_checkpoint = None
 fatal_error_reason = None
 GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda mapping: types.SimpleNamespace(start=lambda: None))
@@ -59,9 +62,11 @@ def move_mouse(x, y): events.append("move"); return True
 def get_slot_position(col, row): return col, row
 def read_clipboard_to_file(): events.append("copy"); return False
 def wait_for_parse_result(): return {"error": "unexpected"}
+def read_current_rolling_target(*args, **kwargs): events.append("copy"); return {"empty": True}
 def process_single_map(result, x, y): return True
 def count_affix_stats(result): return {}, {}
 def update_map_stats(*args): pass
+def update_map_recovery_checkpoint(*args): pass
 def release_all_keys(): pass
 def play_success_sound(): pass
 start_map_rolling()

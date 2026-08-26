@@ -216,12 +216,16 @@ test('生成的古灵流程初始命中与非法底材零消耗，重骰命中�
     const script = generatePythonScript(config)
     assert.equal(script.includes('{{'), false)
     assert.match(script, /eldritch_enabled = True[\s\S]*prepare_item_for_crafting\(identify_unidentified=not eldritch_enabled\)/)
+    const helperStart = script.indexOf('def fail_item_runtime(')
+    const helperEnd = script.indexOf('def fail_item_preparation(', helperStart)
     const start = script.indexOf('def fail_eldritch_crafting(')
     const end = script.indexOf('def craft_sockets(', start)
-    assert.ok(start >= 0 && end > start)
+    assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start)
+    const helperBlock = script.slice(helperStart, helperEnd)
     const block = script.slice(start, end)
     const harness = `
 import json, os, time
+${helperBlock}
 ${block}
 item_position = {"x": 1, "y": 2}
 item_info_result_file = os.devnull
@@ -236,7 +240,7 @@ def run(results):
     fatal_error_reason = None
     result_queue = list(results)
     apply_count = 0
-    def wait(): return result_queue.pop(0)
+    def wait(_request_id=None): return result_queue.pop(0)
     def apply(currency):
         global apply_count
         apply_count += 1
@@ -274,6 +278,7 @@ print(json.dumps({
     const unprotectedEnd = unprotectedScript.indexOf('def craft_sockets(', unprotectedStart)
     const unprotected = spawnSync(pythonPath, ['-c', `
 import json, os, time
+${helperBlock}
 ${unprotectedScript.slice(unprotectedStart, unprotectedEnd)}
 is_running = True
 fatal_error_reason = None
@@ -286,7 +291,7 @@ def apply_currency(currency):
     apply_count += 1
     return True
 def read_clipboard_to_file(allow_unchanged_text=False): return True
-def wait_for_parse_result():
+def wait_for_parse_result(_request_id=None):
     return {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}
 time.sleep = lambda _seconds: None
 initial = {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}

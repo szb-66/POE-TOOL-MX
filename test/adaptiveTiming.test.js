@@ -143,8 +143,9 @@ test('制作与地图剪贴板确认在自适应模式使用统一上限', () =>
     '../src/assets/scripts/map_rolling_template.py'
   ]) {
     const content = source(relative)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text\)/)
-    assert.match(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
+    assert.match(content, /timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS/)
+    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text\)/)
+    assert.doesNotMatch(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
     assert.match(content, /ADAPTIVE_TIMEOUT_SECONDS = float\(\{\{ADAPTIVE_TIMEOUT_MS\}\}\) \/ 1000\.0/)
     assert.match(content, /TIMING_MODE = "{{TIMING_MODE}}"/)
     assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)

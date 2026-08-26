@@ -30,6 +30,7 @@ import { usePuzzleStore } from '../stores/puzzle.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 import { isEmergencyCancellation } from './emergencyStopResult.js'
+import { validateMapRecovery } from './craftingRecovery.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -192,7 +193,7 @@ export function emergencyStopAll() {
 /**
  * 开始制作
  */
-export async function startCrafting() {
+export async function startCrafting({ forceInitialCheck = false } = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
@@ -202,29 +203,34 @@ export async function startCrafting() {
   const status = await electronApi.script.getStatus()
   scriptStore.applyStatus(status)
   if (status.isRunning) {
-    ElMessage.warning('脚本已在运行中')
-    return
+    const error = '脚本已在运行中'
+    ElMessage.warning(error)
+    return { success: false, error }
   }
 
   // 检查是否有启用的模块
   const currentPreset = presetStore.currentItemPreset
+  const effectivePreset = JSON.parse(JSON.stringify(currentPreset))
+  if (forceInitialCheck) effectivePreset.checkInitialItem = true
 
   // 验证配置
   const validation = validateCraftingConfig({
     itemPosition: settingsStore.itemPosition,
     currencyPositions: settingsStore.currencyPositions,
-    preset: currentPreset
+    preset: effectivePreset
   })
 
   if (!validation.isValid) {
-    ElMessage.error(validation.errors[0])
-    return
+    const error = validation.errors[0]
+    ElMessage.error(error)
+    return { success: false, error }
   }
 
   const stashValidation = validateStashTabSelection(settingsStore.stashTabSelection)
   if (!stashValidation.valid) {
-    ElMessage.error(stashValidation.error)
-    return
+    const error = stashValidation.error
+    ElMessage.error(error)
+    return { success: false, error }
   }
 
   try {
@@ -243,12 +249,12 @@ export async function startCrafting() {
       itemPosition: settingsStore.itemPosition,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
-      preset: currentPreset,
+      preset: effectivePreset,
       filePaths
     })
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
-    const plainPreset = JSON.parse(JSON.stringify(currentPreset))
+    const plainPreset = effectivePreset
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
@@ -262,20 +268,24 @@ export async function startCrafting() {
       scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('脚本执行成功')
       void reportDiagnosticRecovery('items', 'script_start')
+      return { ...result, success: true }
     } else {
-      ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
+      const error = result?.error || '后台进程未返回有效进程标识'
+      ElMessage.error('脚本执行失败: ' + error)
       void reportDiagnosticFailure('items', 'script_start', result, 'process_start_failed')
+      return { ...(result || {}), success: false, error }
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
     void reportDiagnosticFailure('items', 'script_start', error, 'process_start_failed')
+    return { success: false, error: error.message || String(error) }
   }
 }
 
 /**
  * 开始地图洗练
  */
-export async function startMapRolling() {
+export async function startMapRolling({ recovery = null } = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
@@ -284,8 +294,9 @@ export async function startMapRolling() {
   const status = await electronApi.script.getStatus()
   scriptStore.applyStatus(status)
   if (status.isRunning) {
-    ElMessage.warning('脚本已在运行中')
-    return
+    const error = '脚本已在运行中'
+    ElMessage.warning(error)
+    return { success: false, error }
   }
 
   // 获取当前预设和配置
@@ -298,8 +309,9 @@ export async function startMapRolling() {
     : currentPreset.map
 
   if (!storedMapConfig) {
-    ElMessage.error('当前预设未包含地图配置')
-    return
+    const error = '当前预设未包含地图配置'
+    ElMessage.error(error)
+    return { success: false, error }
   }
   const mapConfig = getActiveMapRollingConfig(
     targetKind === 'chart' ? {} : storedMapConfig,
@@ -315,14 +327,26 @@ export async function startMapRolling() {
   })
 
   if (!validation.isValid) {
-    ElMessage.error(validation.errors[0])
-    return
+    const error = validation.errors[0]
+    ElMessage.error(error)
+    return { success: false, error }
   }
 
   const stashValidation = validateStashTabSelection(settingsStore.stashTabSelection)
   if (!stashValidation.valid) {
-    ElMessage.error(stashValidation.error)
-    return
+    const error = stashValidation.error
+    ElMessage.error(error)
+    return { success: false, error }
+  }
+
+  const recoveryValidation = validateMapRecovery(recovery, {
+    targetKind,
+    rows: mapConfig.grid?.rows || 5,
+    cols: mapConfig.grid?.cols || 12
+  })
+  if (!recoveryValidation.valid) {
+    ElMessage.error(recoveryValidation.error)
+    return { success: false, error: recoveryValidation.error }
   }
 
   try {
@@ -340,6 +364,7 @@ export async function startMapRolling() {
       adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
       fixedTiming: settingsStore.fixedTiming,
       mapConfig: mapConfig,
+      recovery: recoveryValidation.value,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       filePaths
@@ -364,13 +389,17 @@ export async function startMapRolling() {
       scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('地图洗练脚本执行成功')
       void reportDiagnosticRecovery('map', 'script_start')
+      return { ...result, success: true }
     } else {
-      ElMessage.error('脚本执行失败: ' + (result?.error || '后台进程未返回有效进程标识'))
+      const error = result?.error || '后台进程未返回有效进程标识'
+      ElMessage.error('脚本执行失败: ' + error)
       void reportDiagnosticFailure('map', 'script_start', result, 'process_start_failed')
+      return { ...(result || {}), success: false, error }
     }
   } catch (error) {
     ElMessage.error('启动制作失败: ' + error.message)
     void reportDiagnosticFailure('map', 'script_start', error, 'process_start_failed')
+    return { success: false, error: error.message || String(error) }
   }
 }
 

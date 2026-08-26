@@ -10,6 +10,14 @@
     <div v-if="stopReason" class="failure-reason" role="alert">
       <div class="failure-title">制作已停止</div>
       <div class="failure-message">{{ stopReason }}</div>
+      <div v-if="isStopped" class="failure-actions">
+        <el-button v-if="canRetry" type="primary" size="small" :loading="isRestarting" @click="$emit('retry')">
+          重试
+        </el-button>
+        <el-button type="danger" size="small" :disabled="isRestarting" @click="$emit('close')">
+          关闭
+        </el-button>
+      </div>
     </div>
     <!-- 背景层 -->
     <div v-if="backgroundMedia !== 'none'" class="background-layer" :style="backgroundStyle">
@@ -67,8 +75,8 @@
         </el-button>
       </div>
 
-      <!-- 制作中或已停止时的关闭按钮 -->
-      <div v-if="!isCompleted || isStopped" class="completion-actions">
+      <!-- 制作停止后的关闭按钮 -->
+      <div v-if="isStopped && !isCompleted && !stopReason" class="completion-actions">
         <el-button type="danger" size="small" @click="$emit('close')">
           关闭
         </el-button>
@@ -137,8 +145,8 @@
         </el-button>
       </div>
 
-      <!-- 制作中或已停止时的关闭按钮（制作成功时不显示） -->
-      <div v-if="(!isCompleted || isStopped) && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="completion-actions">
+      <!-- 制作停止后的关闭按钮（制作成功时不显示） -->
+      <div v-if="isStopped && !isCompleted && !stopReason && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="completion-actions">
         <el-button type="danger" size="small" @click="$emit('close')">
           关闭
         </el-button>
@@ -146,7 +154,7 @@
     </div>
     <div v-else class="overlay-placeholder">
       <span class="placeholder-text">等待物品信息...</span>
-      <div class="placeholder-actions">
+      <div v-if="!stopReason" class="placeholder-actions">
         <el-button type="danger" circle size="small" @click="$emit('close')" title="关闭">
           <el-icon>
             <Close />
@@ -206,6 +214,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  canRetry: {
+    type: Boolean,
+    default: false
+  },
   stopReason: {
     type: String,
     default: ''
@@ -220,7 +232,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['confirm', 'restart', 'close'])
+const emit = defineEmits(['confirm', 'restart', 'retry', 'close'])
 const drag = createOverlayDrag((message) => electronApi.window.moveOverlay(message))
 
 // 鼠标事件穿透控制
@@ -365,6 +377,8 @@ function isModMatched(mod) {
   padding: var(--overlay-space-3);
   box-sizing: border-box;
   border-radius: var(--overlay-radius-md);
+  // 为带 filter 的背景合成层建立明确裁剪，避免透明 Electron 窗口仍显示方角。
+  clip-path: inset(0 round var(--overlay-radius-md));
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-size: var(--overlay-font-size);
@@ -482,6 +496,14 @@ function isModMatched(mod) {
   .failure-message {
     line-height: 1.4;
     word-break: break-word;
+  }
+
+  .failure-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--overlay-space-2);
+    margin-top: var(--overlay-space-2);
+    pointer-events: auto;
   }
 }
 

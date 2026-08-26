@@ -43,10 +43,10 @@ test('制作与地图脚本包含自适应剪贴板轮询，固定常量仍保�
     assert.match(content, /TIMING_MODE = "{{TIMING_MODE}}"/)
     assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)
     assert.match(content, /def clipboard_changed\(before_seq, before_text, allow_unchanged_text=False\):/)
-    assert.match(content, /if TIMING_MODE == "adaptive":/)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text\)/)
+    assert.match(content, /timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS/)
+    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text\)/)
     assert.match(content, /CLIPBOARD_POLL_INTERVAL_SECONDS = 0\.01/)
-    assert.match(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
+    assert.doesNotMatch(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
   }
 })
 

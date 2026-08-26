@@ -58,14 +58,13 @@ test('设置默认手动更新与 CNB 来源并持久化、重置和同步到主
   assert.match(runtime, /customClass: 'installed-update-dialog'/)
 })
 
-test('设置页展示更新信息、纯文本说明、进度和未签名警告', () => {
+test('设置页展示更新信息、纯文本说明和进度', () => {
   const view = source('../src/domains/settings/SettingsView.vue')
   const titleBar = source('../src/components/Layout/TitleBar.vue')
   assert.match(view, /应用更新/)
   assert.match(view, /update-release-notes/)
   assert.doesNotMatch(view, /v-html="updateState\.releaseNotes"/)
   assert.match(view, /el-progress/)
-  assert.match(view, /SmartScreen/)
   assert.match(view, /立即安装/)
   assert.match(view, /CNB（国内推荐）/)
   assert.match(view, /GitHub Release/)

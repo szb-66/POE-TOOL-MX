@@ -30,8 +30,16 @@ function currencyRuntime(template, mode) {
 }
 
 function runPreflight(template, mode, scenario) {
-  const currencyType = scenario === 'patched' ? 'scouring' : 'alteration'
-  const expectedName = currencyType === 'scouring' ? '重铸石' : '改造石'
+  const currencyType = scenario === 'patched'
+    ? 'scouring'
+    : scenario === 'same-text'
+      ? 'wisdom'
+      : 'alteration'
+  const expectedName = currencyType === 'scouring'
+    ? '重铸石'
+    : currencyType === 'wisdom'
+      ? '知识卷轴'
+      : '改造石'
   const copiedName = scenario === 'wrong' || scenario === 'header-only'
     ? '混沌石'
     : scenario === 'patched'
@@ -62,10 +70,12 @@ currency_positions = {"${currencyType}": {"x": 11, "y": 22}}
 pyperclip = types.SimpleNamespace(paste=lambda: "物品类别: ${itemClass}\\n稀有度: 通货\\n${copiedName}\\n--------\\n堆叠数量: 20/20")
 GetClipboardSequenceNumber = lambda: sequence[0]
 def move_mouse(x, y): events.append(("move", x, y)); return True
-def send_copy_command(before_seq=None, before_text=""):
-    events.append(("copy",))
+def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=False):
+    events.append(("copy", allow_unchanged_text))
     ${sequenceChange ? 'sequence[0] += 1' : 'pass'}
-    return True
+    if "${scenario}" == "same-text" and not allow_unchanged_text:
+        return False
+    return pyperclip.paste() if sequence[0] != before_seq else False
 def release_all_keys(): events.append(("release",))
 def play_error_sound(): events.append(("sound",))
 def click_mouse(button): events.append(("click", button))
@@ -120,10 +130,14 @@ test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
   }), ['wisdom', 'scouring', 'alchemy'])
 })
 
-test('预检复制在自适应模式下传入真实剪贴板内容与序列号', () => {
+test('预检复制传入真实剪贴板状态并允许序列号变化后的同文本', () => {
   for (const template of [craftingTemplate, mapTemplate]) {
     assert.match(template, /before_text = str\(pyperclip\.paste\(\) or ""\)/)
-    assert.match(template, /if not send_copy_command\(sequence_before, before_text\):/)
+    assert.match(
+      template,
+      /clipboard_text = send_copy_command\(\s*sequence_before,\s*before_text,\s*allow_unchanged_text=True\s*\)/
+    )
+    assert.match(template, /header = copied_item_header\(clipboard_text\)/)
   }
 })
 
@@ -156,6 +170,14 @@ for (const [label, template, mode] of [
     assert.equal(result.clicks_before_formal, 0)
     assert.deepEqual(result.verified, ['scouring'])
     assert.equal(result.events.filter(event => event[0] === 'click').length, 1)
+  })
+
+  test(`${label}预检接受序列号变化后的同文本复制`, () => {
+    const result = runPreflight(template, mode, 'same-text')
+    assert.equal(result.result, true)
+    assert.deepEqual(result.verified, ['wisdom'])
+    assert.deepEqual(result.events.find(event => event[0] === 'copy'), ['copy', true])
+    assert.equal(result.clicks_before_formal, 0)
   })
 
   test(`${label}空位置或错误通货失败关闭且零点击`, () => {

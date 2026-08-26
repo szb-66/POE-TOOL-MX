@@ -31,7 +31,7 @@ with tempfile.TemporaryDirectory() as directory:
     GetClipboardSequenceNumber = None
     pyperclip = types.SimpleNamespace(paste=lambda: "上一轮复制的物品文本")
     def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
-        return True
+        return None
     parsed = read_clipboard_to_file()
     print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
 `)
@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as directory:
   assert.equal(result.wroteRequest, false)
 })
 
-test('装备模板重试允许同文本时写入解析请求', () => {
+test('装备模板重试在无法确认剪贴板序列变化时拒绝同文本', () => {
   const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
   const result = runPython(`
 import json, os, tempfile, types
@@ -52,12 +52,12 @@ with tempfile.TemporaryDirectory() as directory:
     pending_parse_request_id = 0
     pyperclip = types.SimpleNamespace(paste=lambda: "上一轮复制的物品文本")
     def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
-        return True
+        return None
     parsed = read_clipboard_to_file(allow_unchanged_text=True)
     print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
 `)
-  assert.equal(result.result, 1)
-  assert.equal(result.wroteRequest, true)
+  assert.equal(result.result, false)
+  assert.equal(result.wroteRequest, false)
 })
 
 test('装备模板在复制到空剪贴板内容时不写入解析请求', () => {
@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory() as directory:
     GetClipboardSequenceNumber = None
     pyperclip = types.SimpleNamespace(paste=lambda: "")
     def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
-        return True
+        return None
     parsed = read_clipboard_to_file()
     print(json.dumps({"result": parsed, "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
 `)
@@ -116,7 +116,7 @@ time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=lambda: 1.0)
 copied = wait_for_clipboard_change(41, "旧物品文本", 1.0)
 print(json.dumps({"copied": copied}, ensure_ascii=False))
 `)
-    assert.equal(result.copied, true)
+    assert.equal(result.copied, '新物品文本')
   }
 })
 
@@ -134,7 +134,99 @@ time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=lambda: 1.0)
 copied = wait_for_clipboard_change(41, "复制前内容", 1.0, allow_unchanged_text=True)
 print(json.dumps({"copied": copied}, ensure_ascii=False))
 `)
-    assert.equal(result.copied, true)
+    assert.equal(result.copied, '复制前内容')
+  }
+})
+
+test('装备与地图模板在没有序列号证据时拒绝同文本重试', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def clipboard_changed(', 'def read_clipboard_to_file(')
+    const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+is_running = True
+GetClipboardSequenceNumber = None
+pyperclip = types.SimpleNamespace(paste=lambda: "复制前内容")
+clock = {"now": 0.0}
+def monotonic():
+    clock["now"] += 1.0
+    return clock["now"]
+time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=monotonic)
+copied = wait_for_clipboard_change(None, "复制前内容", 1.0, allow_unchanged_text=True)
+print(json.dumps({"copied": copied}, ensure_ascii=False))
+`)
+    assert.equal(result.copied, false)
+  }
+})
+
+test('装备与地图模板写入复制确认时捕获的同一份文本快照', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+    const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    parse_request_sequence = 0
+    pending_parse_request_id = None
+    GetClipboardSequenceNumber = lambda: 10
+    pastes = []
+    def paste():
+        pastes.append(len(pastes) + 1)
+        return "复制前内容" if len(pastes) == 1 else "确认后被其他程序覆盖"
+    pyperclip = types.SimpleNamespace(paste=paste)
+    def send_copy_command(_before_seq=None, _before_text="", *_args, **_kwargs):
+        return "本轮确认快照"
+    request_id = read_clipboard_to_file()
+    with open(item_info_file, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    print(json.dumps({"requestId": request_id, "request": request, "pasteCalls": len(pastes)}, ensure_ascii=False))
+`)
+    assert.equal(result.requestId, 1)
+    assert.equal(result.request.clipboard, '本轮确认快照')
+    assert.equal(result.request.requestId, 1)
+    assert.equal(result.pasteCalls, 1)
+  }
+})
+
+test('装备与地图模板的固定模式等待剪贴板事件并返回同次确认快照', () => {
+  for (const template of [craftingTemplate, mapTemplate]) {
+    const snippet = block(template, 'def send_copy_command(', 'def wait_for_parse_result(')
+    const result = runPython(`
+import json, types
+${snippet}
+state = {"sequence": 10, "text": "上一轮物品", "sleeps": 0}
+GetClipboardSequenceNumber = lambda: state["sequence"]
+pyperclip = types.SimpleNamespace(paste=lambda: state["text"])
+class Controller:
+    def press(self, _key): pass
+    def release(self, _key): pass
+keyboard_controller = Controller()
+Key = types.SimpleNamespace(ctrl="ctrl")
+def sleep(_value):
+    state["sleeps"] += 1
+    if state["sleeps"] == 6:
+        state["sequence"] = 11
+        state["text"] = "本轮物品"
+clock = {"now": 0.0}
+def monotonic():
+    clock["now"] += 0.01
+    return clock["now"]
+time = types.SimpleNamespace(sleep=sleep, monotonic=monotonic)
+is_running = True
+TIMING_MODE = "fixed"
+MODIFIER_SETTLE_SECONDS = KEY_HOLD_SECONDS = RELEASE_SETTLE_SECONDS = 0.0
+CLIPBOARD_RESPONSE_MIN_SECONDS = 1.0
+ADAPTIVE_TIMEOUT_SECONDS = 1.0
+CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+def require_game_foreground(): return True
+copied = send_copy_command(10, "上一轮物品")
+print(json.dumps({"copied": copied, "sequence": state["sequence"]}, ensure_ascii=False))
+`)
+    assert.equal(result.copied, '本轮物品')
+    assert.equal(result.sequence, 11)
   }
 })
 
@@ -200,6 +292,8 @@ ${startBlock}
 events = []
 grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 2, "cols": 1, "emptySlotThreshold": 2}
 map_config = {"targetKind": "atlas"}
+recovery_config = {}
+current_recovery_checkpoint = None
 fatal_error_reason = None
 GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda _mapping: types.SimpleNamespace(start=lambda: None))
@@ -212,9 +306,11 @@ def move_mouse(x, y): events.append(["move", x, y]); return True
 def get_slot_position(col, row): return col, row
 def read_clipboard_to_file(): return 1
 def wait_for_parse_result(_request_id=None): return {"category": "地图", "name": "测试", "mapTier": 16}
+def read_current_rolling_target(*_args, **_kwargs): return {"category": "地图", "name": "测试", "mapTier": 16}
 def process_single_map(_result, _x, _y): events.append(["process"]); return {"status": "failed", "reason": "解析超时"}
 def count_affix_stats(_result): return {}, {}
 def update_map_stats(*_args): events.append(["stats"])
+def update_map_recovery_checkpoint(*_args): events.append(["checkpoint"])
 def release_all_keys(): events.append(["release"])
 def play_success_sound(): events.append(["success"])
 def play_error_sound(): events.append(["error"])
@@ -230,6 +326,55 @@ print(json.dumps({"events": events, "reason": fatal_error_reason}, ensure_ascii=
   assert.equal(result.events.filter(([event]) => event === 'process').length, 1)
   assert.deepEqual(result.events.filter(([event]) => event === 'move'), [['move', 0, 0]])
   assert.equal(result.reason, '解析超时')
+})
+
+test('地图恢复从检查点失败格继续并仅提交该格一次统计', () => {
+  const startBlock = block(mapTemplate, 'def start_map_rolling():', 'def process_single_map(')
+  const result = runPython(`
+import json, types
+${startBlock}
+events = []
+grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 2, "cols": 3, "emptySlotThreshold": 1}
+map_config = {"targetKind": "atlas"}
+recovery_config = {
+  "targetKind": "atlas", "col": 1, "row": 1,
+  "processedCount": 4, "qualifiedCount": 3,
+  "blacklistStats": {"反射": 2}, "whitelistStats": {"额外怪物": 1}
+}
+current_recovery_checkpoint = None
+fatal_error_reason = None
+GetClipboardSequenceNumber = None
+keyboard = types.SimpleNamespace(GlobalHotKeys=lambda _mapping: types.SimpleNamespace(start=lambda: None))
+time = types.SimpleNamespace(sleep=lambda _value: None)
+def focus_game_window(): return True
+def select_currency_stash_tab(_mode): return True
+def preflight_required_currencies(): return True
+def move_mouse(x, y): events.append(["move", x, y]); return True
+def get_slot_position(col, row): return col, row
+reads = 0
+def read_current_rolling_target(*_args, **_kwargs):
+    global reads
+    reads += 1
+    return {"category": "地图", "name": "恢复地图", "mapTier": 16} if reads == 1 else {"empty": True}
+def process_single_map(_result, _x, _y): events.append(["process"]); return {"status": "completed-qualified", "qualified": True}
+def count_affix_stats(_result): return {"不能回复": 1}, {"怪物群": 2}
+def update_map_stats(*args): events.append(["stats", *args])
+def update_map_recovery_checkpoint(*args): events.append(["checkpoint", *args])
+def release_all_keys(): pass
+def play_success_sound(): pass
+start_map_rolling()
+print(json.dumps(events, ensure_ascii=False))
+`)
+
+  assert.deepEqual(result.filter(([event]) => event === 'move')[0], ['move', 1, 1])
+  assert.equal(result.filter(([event]) => event === 'process').length, 1)
+  const stats = result.find(([event]) => event === 'stats')
+  assert.deepEqual(stats.slice(1, 3), [5, 4])
+  assert.deepEqual(stats[3], { 反射: 2, 不能回复: 1 })
+  assert.deepEqual(stats[4], { 额外怪物: 1, 怪物群: 2 })
+  const checkpoints = result.filter(([event]) => event === 'checkpoint')
+  assert.deepEqual(checkpoints[0].slice(1, 5), [1, 1, 4, 3])
+  assert.deepEqual(checkpoints[1].slice(1, 5), [2, 0, 5, 4])
 })
 
 function runSingleTarget({ method, targetKind, category, parsedResults }) {
@@ -260,20 +405,86 @@ print(json.dumps({"result": result, "currencies": currencies, "copies": copies},
 `)
 }
 
+function runInitialTargetRead({ targetKind, category, copyResults, parsedResults }) {
+  const helperBlock = block(mapTemplate, 'def completed_map_result(', 'def start_map_rolling():')
+  return runPython(`
+import json
+${helperBlock}
+map_config = {"targetKind": "${targetKind}"}
+is_running = True
+fatal_error_reason = None
+current_recovery_checkpoint = None
+copies = []
+copy_results = ${JSON.stringify(copyResults).replaceAll('true', 'True').replaceAll('false', 'False')}
+parsed_results = ${JSON.stringify(parsedResults).replaceAll('true', 'True').replaceAll('false', 'False')}
+def read_and_parse(_x, _y, allow_unchanged_text=False):
+    copies.append(bool(allow_unchanged_text))
+    return copy_results.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed_results.pop(0)
+def item_matches_rolling_target(item): return item.get("category") == "${category}"
+def rolling_target_label(): return "${category}"
+result = read_current_rolling_target(10, 20, attempts=3, allow_unchanged_text=True, empty_on_copy_failure=True)
+print(json.dumps({"result": result, "copies": copies}, ensure_ascii=False))
+`)
+}
+
 for (const [targetKind, category] of [['atlas', '地图'], ['chart', '海图']]) {
-  test(`点金模式在${category}首次解析失败时只重试复制，不重复使用通货`, () => {
+  test(`${category}初始读取在前两次解析失败后由第三次恢复`, () => {
+    const outcome = runInitialTargetRead({
+      targetKind,
+      category,
+      copyResults: [1, 2, 3],
+      parsedResults: [{ error: '复制结果等待超时' }, { error: '解析失败' }, { category }]
+    })
+    assert.equal(outcome.result.category, category)
+    assert.equal(outcome.copies.length, 3)
+    assert.deepEqual(outcome.copies, [true, true, true])
+  })
+}
+
+test('地图初始读取三次均无法复制时才作为空格候选', () => {
+  const outcome = runInitialTargetRead({
+    targetKind: 'atlas',
+    category: '地图',
+    copyResults: [false, false, false],
+    parsedResults: []
+  })
+  assert.deepEqual(outcome.result, { empty: true })
+  assert.equal(outcome.copies.length, 3)
+})
+
+for (const [targetKind, category] of [['atlas', '地图'], ['chart', '海图']]) {
+  test(`点金模式在${category}前两次解析失败后第三次恢复，不重复使用通货`, () => {
     const outcome = runSingleTarget({
       method: 'alchemy',
       targetKind,
       category,
       parsedResults: [
         { error: '等待超时' },
+        { error: '等待超时' },
         { category, rarity: '稀有', match: true }
       ]
     })
     assert.deepEqual(outcome.currencies, ['alchemy'])
-    assert.equal(outcome.copies.length, 2)
+    assert.equal(outcome.copies.length, 3)
     assert.equal(outcome.result.status, 'completed-qualified')
+  })
+
+  test(`点金模式在${category}三次解析均失败后停留当前格且不重复使用通货`, () => {
+    const outcome = runSingleTarget({
+      method: 'alchemy',
+      targetKind,
+      category,
+      parsedResults: [
+        { error: '等待超时' },
+        { error: '等待超时' },
+        { error: '等待超时' }
+      ]
+    })
+    assert.deepEqual(outcome.currencies, ['alchemy'])
+    assert.equal(outcome.copies.length, 3)
+    assert.equal(outcome.result.status, 'failed')
+    assert.match(outcome.result.reason, /等待超时/)
   })
 }
 

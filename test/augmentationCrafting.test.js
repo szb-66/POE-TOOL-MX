@@ -28,7 +28,7 @@ function parsedMagicModifier(lines) {
   ].join('\n'))
 }
 
-test('改造模式在首次解析失败时只重试读取一次，不重复使用通货', async () => {
+test('改造模式在前两次解析失败时最多补读到第三次，不重复使用通货', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
   try {
     const { generatePythonScript } = await server.ssrLoadModule('/src/utils/python.js')
@@ -60,13 +60,16 @@ test('改造模式在首次解析失败时只重试读取一次，不重复使�
       stashTabSelection: { enabled: false }
     })
 
+    const helperStart = generated.indexOf('def fail_item_runtime(')
+    const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
     const start = generated.indexOf('def explicit_affix_count(')
     const end = generated.indexOf('def craft_eldritch_implicits(', start)
-    assert.ok(start >= 0 && end > start)
-    assert.ok(generated.indexOf('def read_current_item(', start) > start)
+    assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start)
+    assert.ok(generated.indexOf('def read_current_item(', helperStart) > helperStart)
 
     const runReadRetry = (scenarios) => runPython(`
 import json, os, time
+${generated.slice(helperStart, helperEnd)}
 ${generated.slice(start, end)}
 item_info_result_file = os.devnull
 time.sleep = lambda _seconds: None
@@ -86,7 +89,7 @@ def run(initial, queue):
         nonlocal reads
         reads += 1
         return True
-    def wait():
+    def wait(_request_id=None):
         return pending.pop(0)
     def fail(reason, _code="ITEM_READ_FAILED"):
         global is_running, fatal_error_reason
@@ -97,7 +100,7 @@ def run(initial, queue):
     globals()["apply_currency"] = apply
     globals()["read_clipboard_to_file"] = read
     globals()["wait_for_parse_result"] = wait
-    globals()["fail_item_reading"] = fail
+    globals()["fail_item_runtime"] = fail
     success = craft_affixes(initial)
     return {"success": bool(success), "applied": applied, "reads": reads, "stopped": stopped}
 
@@ -138,11 +141,12 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       initial: plainSingle,
       queue: [
         { error: '等待超时' },
+        { error: '等待超时' },
         { error: '等待超时' }
       ]
     }])
     assert.deepEqual(failed, [
-      { success: false, applied: ['alteration'], reads: 2, stopped: ['读取当前物品失败：等待超时'] }
+      { success: false, applied: ['alteration'], reads: 3, stopped: ['读取当前物品失败：等待超时'] }
     ])
   } finally {
     await server.close()
@@ -182,11 +186,14 @@ test('改造模式按结构化词缀数在判断前只增幅一次并重新解�
     })
 
     const runAffixes = (generated, scenarios) => {
+      const helperStart = generated.indexOf('def fail_item_runtime(')
+      const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
       const start = generated.indexOf('def explicit_affix_count(')
       const end = generated.indexOf('def craft_eldritch_implicits(', start)
-      assert.ok(start >= 0 && end > start)
+      assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start)
       return runPython(`
 import json, os, time
+${generated.slice(helperStart, helperEnd)}
 ${generated.slice(start, end)}
 item_info_result_file = os.devnull
 time.sleep = lambda _seconds: None
@@ -204,7 +211,7 @@ def run(initial, parsed_results):
         nonlocal reads
         reads += 1
         return True
-    def wait():
+    def wait(_request_id=None):
         return queue.pop(0)
     globals()["apply_currency"] = apply
     globals()["read_clipboard_to_file"] = read
@@ -251,13 +258,13 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       { initial: multilineSingle, queue: [doubleAffix] },
       { initial: plainSingle, queue: [doubleAffix] },
       { initial: doubleAffix, queue: [] },
-      { initial: multilineSingle, queue: [{ error: '增幅后解析失败' }, { error: '增幅后解析失败' }] }
+      { initial: multilineSingle, queue: [{ error: '增幅后解析失败' }, { error: '增幅后解析失败' }, { error: '增幅后解析失败' }] }
     ])
     assert.deepEqual(enabledInitial, [
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
       { success: true, applied: [], reads: 0, remaining: 0 },
-      { success: false, applied: ['augmentation'], reads: 2, remaining: 0 }
+      { success: false, applied: ['augmentation'], reads: 3, remaining: 0 }
     ])
 
     const loopSingle = { ...multilineSingle, affixMatch: true }

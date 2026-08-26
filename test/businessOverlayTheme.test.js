@@ -46,6 +46,15 @@ test('制作悬浮窗及设置页预览都保留紧凑内容内边距', () => {
   assert.match(overlayContent, /\.overlay-container\s*\{[^}]*padding:\s*var\(--overlay-space-3\)/s)
 })
 
+test('制作悬浮窗以合成裁剪边界落实外层圆角', () => {
+  const overlayContent = source('src/domains/overlay/components/OverlayContent.vue')
+
+  assert.match(
+    overlayContent,
+    /\.overlay-container\s*\{[^}]*border-radius:\s*var\(--overlay-radius-md\);[^}]*clip-path:\s*inset\(0 round var\(--overlay-radius-md\)\);/s
+  )
+})
+
 test('视觉改造保持固定窗口尺寸与可变尺寸策略', () => {
   const manager = source('electron/modules/window/manager.js')
   const bagOverlay = source('electron/modules/window/bagOverlay.js')

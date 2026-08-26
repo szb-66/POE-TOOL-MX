@@ -67,6 +67,18 @@ test('覆盖层设置在制作预览后提供独立查价弹窗预览和重置�
   assert.match(view, /\.price-check-preview-card \{ width: 100%; \}/)
 })
 
+test('历史背景仅在自定义背景模式且存在历史记录时显示', () => {
+  const overlayStart = view.indexOf('<div v-show="activeTab === \'overlay\'"')
+  const overlayEnd = view.indexOf('<div v-show="activeTab === \'feedback\'"', overlayStart)
+  const overlayPanel = view.slice(overlayStart, overlayEnd)
+  const historySection = overlayPanel.match(/<div\s+v-if="([^"]+)"\s+class="history-section"/)
+
+  assert.equal(
+    historySection?.[1],
+    "overlaySettings.backgroundMode === 'custom' && backgroundHistory.length > 0"
+  )
+})
+
 test('Tab 持久状态校验后恢复，切换时保存并滚动到顶部', () => {
   assert.match(view, /const SETTINGS_TABS = \['general', 'automation', 'detection', 'overlay', 'system', 'feedback'\]/)
   assert.match(view, /readPersistentTab\(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'\)/)

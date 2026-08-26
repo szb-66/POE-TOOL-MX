@@ -341,7 +341,7 @@ def require_game_foreground():
         foreground_failure_emitted = True
         print("EVENT " + json.dumps({
             "event": "crafting-runtime-stopped", "mode": "items",
-            "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
+            "termination": "abnormal", "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
     return False
@@ -394,6 +394,10 @@ def start_crafting():
         def on_stop_hotkey():
             global is_running
             print("\n[快捷键] 监测到停止快捷键 ({{STOP_SHORTCUT}})")
+            print("EVENT " + json.dumps({
+                "event": "crafting-manual-stopped", "mode": "items",
+                "termination": "manual", "reason": "用户主动停止制作"
+            }, ensure_ascii=False), flush=True)
             is_running = False
             # 强制释放所有键
             release_all_keys()
@@ -422,7 +426,8 @@ def start_crafting():
         is_running = False
         release_all_keys()
         print("EVENT " + json.dumps({
-            "event": "crafting-startup-failed", "mode": "items", "reason": fatal_error_reason
+            "event": "crafting-startup-failed", "mode": "items",
+            "termination": "abnormal", "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
         return False
@@ -514,6 +519,9 @@ def start_crafting():
             return
     
     print("[完成] 所有制作流程完成！")
+    print("EVENT " + json.dumps({
+        "event": "crafting-completed", "mode": "items", "termination": "completed"
+    }, ensure_ascii=False), flush=True)
     play_success_sound()
     time.sleep(2)
     is_running = False
@@ -656,6 +664,7 @@ def select_currency_stash_tab(mode):
         release_all_keys()
         print("EVENT " + json.dumps({
             "event": "stash-tab-selection-failed", "mode": mode,
+            "termination": "abnormal",
             "code": response.get("code", "selection-failed"), "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
@@ -718,6 +727,7 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品"):
     payload = {
         "event": "currency-preflight-failed",
         "mode": "items",
+        "termination": "abnormal",
         "currency": currency,
         "expected": expected,
         "actual": actual,
@@ -763,7 +773,12 @@ def preflight_required_currencies():
             before_text = str(pyperclip.paste() or "")
         except Exception:
             before_text = ""
-        if not send_copy_command(sequence_before, before_text):
+        clipboard_text = send_copy_command(
+            sequence_before,
+            before_text,
+            allow_unchanged_text=True
+        )
+        if not clipboard_text:
             return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
         try:
             sequence_after = GetClipboardSequenceNumber()
@@ -778,7 +793,7 @@ def preflight_required_currencies():
                 f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
             )
 
-        header = copied_item_header(pyperclip.paste())
+        header = copied_item_header(clipboard_text)
         actual = detected_item_name(header)
         if expected not in actual:
             return fail_currency_preflight(
@@ -1010,7 +1025,7 @@ def left_click_item():
     return True
 
 def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=False):
-    # 发送 Ctrl+C 复制详细命令；自适应模式下轮询直到剪贴板出现新内容或超时
+    # 发送 Ctrl+C 并返回本次复制确认过的文本；固定与自适应模式都不得按等待时间猜测成功。
     try:
         if not require_game_foreground():
             return False
@@ -1024,10 +1039,8 @@ def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=Fals
         time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
         time.sleep(RELEASE_SETTLE_SECONDS)
-        if TIMING_MODE == "adaptive":
-            return wait_for_clipboard_change(before_seq, before_text, ADAPTIVE_TIMEOUT_SECONDS, allow_unchanged_text)
-        time.sleep(CLIPBOARD_RESPONSE_MIN_SECONDS)
-        return True
+        timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
+        return wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text)
     except Exception as e:
         print(f"[错误] 发送复制命令失败: {e}")
         # 发生错误时也要确保释放
@@ -1038,31 +1051,32 @@ def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=Fals
         return False
 
 def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
-    # 序列号变化只是必要条件；复制成功还要求粘贴内容确实变化，
-    # 避免游戏清空剪贴板或其它程序写入导致旧文本被当作新复制结果。
-    # 重试路径（不重复使用通货）物品文本必然不变：序列号已变化且文本
-    # 非空即视为游戏重写成功（allow_unchanged_text=True）。
+    # 返回同一次轮询中确认过的文本，避免确认后再次读取剪贴板产生竞态。
+    # 重试允许同文本，但必须有剪贴板序列号变化作为本次 Ctrl+C 的证据。
     seq_changed = False
     if GetClipboardSequenceNumber is not None and before_seq is not None:
         try:
             if GetClipboardSequenceNumber() == before_seq:
-                return False
+                return None
             seq_changed = True
         except Exception:
             pass
     current_text = str(pyperclip.paste() or "")
     if not current_text.strip():
-        return False
+        return None
     if allow_unchanged_text and seq_changed:
-        return True
-    return current_text != before_text
+        return current_text
+    if current_text != before_text:
+        return current_text
+    return None
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
     while is_running:
-        if clipboard_changed(before_seq, before_text, allow_unchanged_text):
-            return True
+        clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
+        if clipboard_text is not None:
+            return clipboard_text
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
@@ -1085,18 +1099,8 @@ def read_clipboard_to_file(allow_unchanged_text=False):
         except Exception:
             before_text = ""
         # 发送复制命令
-        if not send_copy_command(before_seq, before_text, allow_unchanged_text):
-            return False
-        
-        # 读取剪切板文本
-        clipboard_text = pyperclip.paste()
-        
-        if not clipboard_text or len(clipboard_text.strip()) == 0:
-            print("[警告] 剪切板内容为空")
-            return False
-        
-        if clipboard_text == before_text and not allow_unchanged_text:
-            print("[警告] 剪切板内容未更新，可能复制失败")
+        clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text)
+        if not clipboard_text:
             return False
         
         parse_request_sequence += 1
@@ -1179,6 +1183,39 @@ def wait_for_parse_result(request_id=None):
             
     return {"error": "循环已停止"}
 
+def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
+    global is_running, fatal_error_reason
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    print("EVENT " + json.dumps({
+        "event": "crafting-runtime-stopped", "mode": "items",
+        "termination": "abnormal", "code": code, "reason": reason
+    }, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def read_current_item(attempts=3, allow_unchanged_text=False):
+    """复制并解析当前装备；补读只重复复制，不重复使用制作通货。"""
+    last_error = "无法读取当前物品"
+    for attempt in range(max(1, int(attempts))):
+        if not is_running:
+            return {"error": "循环已停止"}
+        request_id = read_clipboard_to_file(
+            allow_unchanged_text=allow_unchanged_text or attempt > 0
+        )
+        if request_id:
+            result = wait_for_parse_result(request_id)
+            if isinstance(result, dict) and not result.get("error"):
+                return result
+            last_error = result.get("error") if isinstance(result, dict) else "无效解析结果"
+        else:
+            last_error = fatal_error_reason or "读取物品信息失败"
+        if attempt + 1 < attempts and is_running:
+            print(f"[重试] {last_error}，重新复制当前物品（不重复使用通货）")
+    return {"error": last_error}
+
 def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
     global is_running, fatal_error_reason
     fatal_error_reason = reason
@@ -1187,6 +1224,7 @@ def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
     print("EVENT " + json.dumps({
         "event": "crafting-startup-failed",
         "mode": "items",
+        "termination": "abnormal",
         "code": code,
         "reason": reason
     }, ensure_ascii=False), flush=True)
@@ -1198,15 +1236,12 @@ def prepare_item_for_crafting(identify_unidentified=True):
     """读取目标物品；需要时鉴定一次，并返回最终解析结果。"""
     if not move_mouse(item_position['x'], item_position['y']):
         return fail_item_preparation("无法移动到待制作物品位置", "ITEM_POSITION_FAILED")
-    # 剪贴板可能残留用户手动复制的同一物品文本，允许序列号变化后的同文本复制
-    if not read_clipboard_to_file(allow_unchanged_text=True):
-        return fail_item_preparation("无法读取待制作物品", "ITEM_READ_FAILED")
-
-    result = wait_for_parse_result()
+    # 剪贴板可能残留用户手动复制的同一物品文本；最多读取三次且不使用通货。
+    result = read_current_item(allow_unchanged_text=True)
     if result.get("error"):
         return fail_item_preparation(
-            f"待制作物品解析失败：{result.get('error')}",
-            "ITEM_PARSE_FAILED"
+            f"无法读取待制作物品：{result.get('error')}",
+            "ITEM_READ_FAILED"
         )
 
     if not result.get("isUnidentified", False):
@@ -1222,13 +1257,12 @@ def prepare_item_for_crafting(identify_unidentified=True):
     print("[准备] 检测到未鉴定物品，使用知识卷轴")
     if not apply_currency("wisdom"):
         return fail_item_preparation("使用知识卷轴鉴定物品失败", "ITEM_IDENTIFY_FAILED")
-    if not read_clipboard_to_file():
-        return fail_item_preparation("鉴定后无法重新读取物品", "ITEM_IDENTIFY_READ_FAILED")
-    result = wait_for_parse_result()
+
+    result = read_current_item()
     if result.get("error"):
         return fail_item_preparation(
-            f"鉴定后物品解析失败：{result.get('error')}",
-            "ITEM_IDENTIFY_PARSE_FAILED"
+            f"鉴定后无法重新读取物品：{result.get('error')}",
+            "ITEM_IDENTIFY_READ_FAILED"
         )
     if result.get("isUnidentified", False):
         return fail_item_preparation("使用知识卷轴后物品仍为未鉴定状态", "ITEM_STILL_UNIDENTIFIED")
