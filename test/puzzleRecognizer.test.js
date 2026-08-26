@@ -351,7 +351,7 @@ test('窗口边界或图片编码不可用只降低证据完整性且不改变�
 })
 
 test('实时完整窗口截图严格绑定前台游戏客户区且不退化为桌面截图', () => {
-  const source = readFileSync(analyzer, 'utf8')
+  const source = readFileSync(analyzer, 'utf8').replace(/\r\n?/g, '\n')
   const capture = source.match(/def capture_game_window_frame\([\s\S]*?\n\n/)?.[0] || ''
   assert.match(capture, /GetForegroundWindow/)
   assert.match(capture, /window_matches_game/)

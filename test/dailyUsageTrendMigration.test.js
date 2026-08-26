@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 const migration = readFileSync(
   new URL('../cloudbase/migrations/20260826160000_add_daily_usage_trend.sql', import.meta.url),
   'utf8'
-)
+).replace(/\r\n?/g, '\n')
 const expectedSha256 = '20cd85bfd555d3802b4c37fb15585523225865e949c5ab89ec0e4cb4ac85ccbd'
 
 test('每日趋势迁移副本使用固定 SHA-256', () => {

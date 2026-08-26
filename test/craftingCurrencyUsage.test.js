@@ -12,7 +12,9 @@ import { pythonPath } from './helpers/python.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(dirname, '..')
-const source = relativePath => readFile(path.join(projectRoot, relativePath), 'utf8')
+const source = async relativePath => (
+  await readFile(path.join(projectRoot, relativePath), 'utf8')
+).replace(/\r\n?/g, '\n')
 
 function block(text, start, end) {
   const from = text.indexOf(start)
