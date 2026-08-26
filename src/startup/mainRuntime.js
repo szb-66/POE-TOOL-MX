@@ -81,7 +81,6 @@ async function startMainRuntime({ router }) {
       `已更新至 v${targetVersion}`,
       {
         confirmButtonText: '我知道了',
-        type: 'success',
         dangerouslyUseHTMLString: false,
         customClass: 'installed-update-dialog'
       }

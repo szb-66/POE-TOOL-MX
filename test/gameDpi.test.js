@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { isGameWindowTitle, selectGameWindowCandidate } from '../electron/modules/system/gameDpi.js'
+import {
+  createCachedGameDpiDetector,
+  isGameWindowTitle,
+  selectGameWindowCandidate
+} from '../electron/modules/system/gameDpi.js'
 import { loadDpiSettings, resolveEffectiveDpi } from '../src/utils/dpiSettings.js'
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -45,6 +49,31 @@ test('游戏最小化时仍可读取 DPI，同一名称下优先非最小化候�
     minimized,
     { title: '流放之路 - 可见', processName: 'PathOfExile.exe', foreground: false, minimized: false, area: 1000, dpi: 120 }
   ])?.dpi, 120)
+})
+
+test('并发和短时间重复 DPI 探测复用同一任务与结果', async () => {
+  let calls = 0
+  let release
+  let now = 1000
+  const detector = createCachedGameDpiDetector(() => {
+    calls += 1
+    return new Promise(resolve => { release = resolve })
+  }, { cacheDurationMs: 2000, now: () => now })
+
+  const first = detector()
+  const second = detector()
+  assert.strictEqual(first, second)
+  assert.equal(calls, 1)
+  release({ found: true, scaleFactor: 1.5 })
+  assert.deepEqual(await first, { found: true, scaleFactor: 1.5 })
+  assert.deepEqual(await detector(), { found: true, scaleFactor: 1.5 })
+  assert.equal(calls, 1)
+
+  now += 2001
+  const third = detector()
+  assert.equal(calls, 2)
+  release({ found: true, scaleFactor: 1.25 })
+  assert.equal((await third).scaleFactor, 1.25)
 })
 
 test('浏览器等非游戏进程即使标题匹配也不作为 DPI 候选', () => {

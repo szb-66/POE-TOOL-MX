@@ -32,6 +32,7 @@ export function evaluateShortcutHealth({
 } = {}) {
   if (status === 'pending') return { status: 'pending', text: '全局快捷键等待初始化' }
   if (status === 'error') return { status: 'error', text: error || '全局快捷键注册失败' }
+  if (status === 'attention') return { status: 'attention', text: error || '部分快捷键注册失败' }
   if (!scopeEnabled) return { status: 'ready', text: '全局快捷键已注册（未限制窗口）' }
   if (!scopeAvailable) return { status: 'attention', text: '前台监视不可用，快捷键已全局生效' }
   if (gameForeground) return { status: 'ready', text: '全局快捷键已注册（游戏前台）' }
@@ -258,9 +259,10 @@ export function evaluatePriceCheckStatus(input = {}) {
 
 export function evaluateCraftingStatus(input = {}) {
   const manifest = input.status?.manifest
+  const deferred = !input.status && !input.updateError
   const issues = []
-  if (!input.status) issues.push('模拟数据状态尚未加载')
-  else if (!manifest && !input.status.source) issues.push('未找到可用的模拟数据目录')
+  if (!input.status && !deferred) issues.push('模拟数据状态尚未加载')
+  else if (!deferred && !manifest && !input.status?.source) issues.push('未找到可用的模拟数据目录')
 
   return createModuleStatus({
     id: 'crafting',
@@ -270,9 +272,9 @@ export function evaluateCraftingStatus(input = {}) {
     error: input.updateError,
     running: false,
     issues,
-    readyText: input.session ? '存在进行中的模拟会话' : '模拟数据可用',
+    readyText: deferred ? '首次进入时加载' : input.session ? '存在进行中的模拟会话' : '模拟数据可用',
     metrics: [
-      { label: '数据版本', value: manifest?.patch || input.status?.patch || '未知' },
+      { label: '数据版本', value: deferred ? '按需加载' : manifest?.patch || input.status?.patch || '未知' },
       { label: '制作会话', value: input.session ? '可继续' : '未开始' }
     ]
   })

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createPinia, setActivePinia } from 'pinia'
 import { usePresetStore } from '../src/stores/preset.js'
 import { createDefaultMapConfig } from '../src/utils/mapPresetMigration.js'
+import { resolveShortcutScopeHealth } from '../src/utils/shortcutConfig.js'
 import {
   createModuleStatus,
   evaluateBagStatus,
@@ -40,6 +41,10 @@ test('快捷键健康状态区分注册异常与正常前台门禁暂停', () =>
     status: 'error',
     text: 'Alt+1 注册失败'
   })
+  assert.deepEqual(evaluateShortcutHealth({ status: 'attention', error: '部分快捷键注册失败：Ctrl+D；其余快捷键可用' }), {
+    status: 'attention',
+    text: '部分快捷键注册失败：Ctrl+D；其余快捷键可用'
+  })
   assert.deepEqual(evaluateShortcutHealth({ status: 'ready', scopeEnabled: false }), {
     status: 'ready',
     text: '全局快捷键已注册（未限制窗口）'
@@ -75,6 +80,61 @@ test('快捷键健康状态区分注册异常与正常前台门禁暂停', () =>
   }), {
     status: 'attention',
     text: '前台监视不可用，快捷键已全局生效'
+  })
+})
+
+test('快捷键作用域状态同步区分部分失败、全部失败与恢复', () => {
+  assert.deepEqual(resolveShortcutScopeHealth({
+    enabled: true,
+    available: true,
+    gameForeground: true,
+    registered: ['Alt+2', 'Alt+3'],
+    intended: ['Alt+2', 'Alt+3', 'Ctrl+D'],
+    failed: ['Ctrl+D']
+  }), {
+    status: 'attention',
+    error: '部分快捷键注册失败：Ctrl+D；其余快捷键可用',
+    failed: ['Ctrl+D']
+  })
+
+  assert.deepEqual(resolveShortcutScopeHealth({
+    enabled: true,
+    available: true,
+    gameForeground: false,
+    registered: [],
+    intended: ['Alt+2', 'Alt+3', 'Ctrl+D'],
+    failed: ['Ctrl+D'],
+    partialFailure: true
+  }), {
+    status: 'attention',
+    error: '部分快捷键注册失败：Ctrl+D；其余快捷键可用',
+    failed: ['Ctrl+D']
+  })
+
+  assert.deepEqual(resolveShortcutScopeHealth({
+    enabled: true,
+    available: true,
+    gameForeground: true,
+    registered: [],
+    intended: ['Alt+2', 'Ctrl+D'],
+    failed: ['Alt+2', 'Ctrl+D']
+  }), {
+    status: 'error',
+    error: '全局快捷键注册失败：Alt+2、Ctrl+D',
+    failed: ['Alt+2', 'Ctrl+D']
+  })
+
+  assert.deepEqual(resolveShortcutScopeHealth({
+    enabled: true,
+    available: true,
+    gameForeground: true,
+    registered: ['Alt+2', 'Ctrl+D'],
+    intended: ['Alt+2', 'Ctrl+D'],
+    failed: []
+  }), {
+    status: 'ready',
+    error: '',
+    failed: []
   })
 })
 
@@ -281,7 +341,11 @@ test('商城配方状态覆盖配置、快照、运行和异常优先级', () =>
     candidateCount: 4
   }).metrics[0].value, '4 件')
 
-  assert.equal(evaluateCraftingStatus({ status: null }).state, 'attention')
+  const deferredCrafting = evaluateCraftingStatus({ status: null })
+  assert.equal(deferredCrafting.state, 'ready')
+  assert.equal(deferredCrafting.statusText, '首次进入时加载')
+  assert.deepEqual(deferredCrafting.metrics[0], { label: '数据版本', value: '按需加载' })
+  assert.equal(evaluateCraftingStatus({ status: null, updateError: '模拟数据损坏' }).state, 'error')
   assert.equal(evaluateCraftingStatus({
     status: { source: 'builtin', manifest: { patch: '3.28' } },
     session: { id: 'session' }

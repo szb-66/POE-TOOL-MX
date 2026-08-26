@@ -1,5 +1,5 @@
 import { app, dialog, ipcMain, screen } from 'electron'
-import { detectGameDpi } from '../system/gameDpi.js'
+import { createCachedGameDpiDetector, detectGameDpi } from '../system/gameDpi.js'
 import {
   collectDeviceInfo,
   createDiagnosticsSnapshot,
@@ -35,7 +35,7 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     scaleFactor: display.scaleFactor,
     rotation: display.rotation
   }))
-  const detectDpi = async () => {
+  const detectDpi = createCachedGameDpiDetector(async () => {
     const primaryScaleFactor = Number(screen.getPrimaryDisplay()?.scaleFactor) || 1
     const result = await detectGameDpi({
       pythonPath: python.detectPythonPath?.(),
@@ -43,13 +43,15 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       gameWindowProcessNames: gameWindowTitles?.getProcessNames?.()
     })
     return { ...result, primaryScaleFactor }
-  }
+  })
   const collectEnvironment = async () => {
     const displays = displaySnapshot()
-    const administrator = detectAdministrator()
-    const runtime = python.resolvePythonRuntime?.(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
-      || { ready: Boolean(python.detectPythonPath?.()), source: 'system' }
-    const gameDpi = await detectDpi()
+    const [administrator, runtime, gameDpi] = await Promise.all([
+      detectAdministrator(),
+      python.resolvePythonRuntimeAsync?.(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
+        || Promise.resolve({ ready: Boolean(python.detectPythonPath?.()), source: 'system' }),
+      detectDpi()
+    ])
     const health = await createStartupHealth({
       userDataPath: app.getPath('userData'), displays, runtime, gameDpi, administrator
     })

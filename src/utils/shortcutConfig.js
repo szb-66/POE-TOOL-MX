@@ -44,3 +44,16 @@ export const dispatchShortcutAction = (id, handlers) => {
   handler()
   return true
 }
+
+export const resolveShortcutScopeHealth = (state = {}) => {
+  const failed = Array.isArray(state.failed)
+    ? state.failed.map(value => String(value || '').trim()).filter(Boolean)
+    : []
+  if (!failed.length) return { status: 'ready', error: '', failed: [] }
+
+  const names = failed.join('、')
+  const registered = Array.isArray(state.registered) ? state.registered : []
+  return state.partialFailure === true || registered.length > 0
+    ? { status: 'attention', error: `部分快捷键注册失败：${names}；其余快捷键可用`, failed }
+    : { status: 'error', error: `全局快捷键注册失败：${names}`, failed }
+}

@@ -105,8 +105,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       callback(accelerator)
     })
   },
-  initShortcutsFromSettings: (shortcuts) => {
-    return ipcRenderer.invoke('init-shortcuts-from-settings', shortcuts)
+  initShortcutsFromSettings: (shortcuts, options = {}) => {
+    return ipcRenderer.invoke('init-shortcuts-from-settings', shortcuts, options)
   },
   onInitShortcuts: (callback) => {
     ipcRenderer.on('init-shortcuts', () => {

@@ -4,7 +4,7 @@
  * Inputs: accelerator (string) - 快捷键组合，callback (function) - 回调函数
  * Outputs: 注册/注销结果（boolean）、作用域状态
  * Preconditions: Electron app 已初始化
- * Edge cases: 快捷键已注册时先注销再注册；注册失败时回滚；门禁开启且游戏未在前台时不注册
+ * Edge cases: 快捷键已注册时先注销再注册；作用域应用时隔离失败组合；门禁开启且游戏未在前台时不注册
  * Errors: 注册失败返回 false，不抛出异常
  */
 
@@ -23,6 +23,9 @@ let scopeAvailable = true
 let scopeReason = ''
 let scopeWindowTitle = ''
 let scopeProcessName = ''
+// 最近一次实际注册尝试的结果。失焦只注销活动快捷键，不清除用户尚未看到的冲突结论。
+let lastScopeFailures = []
+let lastScopePartialFailure = false
 
 function normalizeAccelerator(accelerator) {
   try {
@@ -60,6 +63,11 @@ function unregisterActive(accelerator) {
   registeredShortcuts.delete(accelerator)
 }
 
+function updateScopeRegistrationResult(failed = []) {
+  lastScopeFailures = [...failed]
+  lastScopePartialFailure = lastScopeFailures.length > 0 && registeredShortcuts.size > 0
+}
+
 function applyScope() {
   const failed = []
   if (!shouldRegister()) {
@@ -70,22 +78,13 @@ function applyScope() {
     return failed
   }
 
-  const registeredThisPass = []
   for (const [accelerator, entry] of intendedShortcuts) {
     if (registeredShortcuts.has(accelerator)) continue
-    if (tryRegister(accelerator, entry.callback)) {
-      registeredThisPass.push(accelerator)
-    } else {
+    if (!tryRegister(accelerator, entry.callback)) {
       failed.push(accelerator)
     }
   }
-
-  if (failed.length) {
-    for (const accelerator of registeredThisPass) {
-      globalShortcut.unregister(accelerator)
-      registeredShortcuts.delete(accelerator)
-    }
-  }
+  updateScopeRegistrationResult(failed)
   return failed
 }
 
@@ -122,11 +121,13 @@ export function unregisterConfiguredShortcut(accelerator) {
 
 /**
  * 用一组配置快捷键替换全部意图（设置页保存、应用启动初始化）。
- * 注册失败时回滚到上一组意图与已注册集合。
+ * 设置页保存默认保持事务回滚；应用启动可选择保留部分成功注册和全部注册意图。
  */
-export function setConfiguredShortcuts(entries = []) {
+export function setConfiguredShortcuts(entries = [], { rollbackOnFailure = true } = {}) {
   const previousIntended = new Map(intendedShortcuts)
   const previousRegistered = new Map(registeredShortcuts)
+  const previousFailures = [...lastScopeFailures]
+  const previousPartialFailure = lastScopePartialFailure
 
   registeredShortcuts.forEach((_callback, accelerator) => {
     globalShortcut.unregister(accelerator)
@@ -145,13 +146,15 @@ export function setConfiguredShortcuts(entries = []) {
   }
 
   const failed = []
-  if (shouldRegister()) {
+  const registrationAttempted = shouldRegister()
+  if (registrationAttempted) {
     for (const { normalized, callback } of candidates) {
       if (!tryRegister(normalized, callback)) failed.push(normalized)
     }
   }
 
-  if (failed.length) {
+  const rolledBack = failed.length > 0 && rollbackOnFailure
+  if (rolledBack) {
     registeredShortcuts.forEach((_callback, accelerator) => {
       globalShortcut.unregister(accelerator)
     })
@@ -163,11 +166,19 @@ export function setConfiguredShortcuts(entries = []) {
     previousRegistered.forEach((callback, accelerator) => {
       tryRegister(accelerator, callback)
     })
+    lastScopeFailures = previousFailures
+    lastScopePartialFailure = previousPartialFailure
+  } else if (registrationAttempted) {
+    updateScopeRegistrationResult(failed)
+  } else {
+    // 配置已被替换，旧组合的冲突结论不再适用；进入游戏后会验证新组合。
+    updateScopeRegistrationResult([])
   }
 
   return {
     success: failed.length === 0,
     failed,
+    rolledBack,
     deferred: shouldRegister() ? [] : [...intendedShortcuts.keys()]
   }
 }
@@ -213,7 +224,9 @@ export function getScopeState() {
     windowTitle: scopeWindowTitle,
     processName: scopeProcessName,
     registered: [...registeredShortcuts.keys()],
-    intended: [...intendedShortcuts.keys()]
+    intended: [...intendedShortcuts.keys()],
+    failed: [...lastScopeFailures],
+    partialFailure: lastScopePartialFailure
   }
 }
 
@@ -236,6 +249,7 @@ export function unregisterAll() {
   })
   registeredShortcuts.clear()
   intendedShortcuts.clear()
+  updateScopeRegistrationResult([])
 }
 
 export function getRegisteredShortcuts() {

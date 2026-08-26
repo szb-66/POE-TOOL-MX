@@ -4,16 +4,19 @@
  * Development: 显式覆盖 -> 已准备的仓库运行时 -> 满足依赖的系统 Python。
  */
 
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(moduleDir, '../../..')
 const preparedRuntimePath = path.join(projectRoot, '.runtime', 'python-runtime', 'python.exe')
 const runtimeCache = new Map()
+const runtimePending = new Map()
+const execFileAsync = promisify(execFile)
 
 let runtimeContext = {
   isPackaged: false,
@@ -28,10 +31,12 @@ export function configurePythonRuntime(context = {}) {
     env: context.env || runtimeContext.env || process.env
   }
   runtimeCache.clear()
+  runtimePending.clear()
 }
 
 export function resetPythonRuntimeCache() {
   runtimeCache.clear()
+  runtimePending.clear()
 }
 
 function commonPythonPaths() {
@@ -78,6 +83,25 @@ function probeRuntime(candidate, modules) {
     stdio: ['ignore', 'pipe', 'pipe']
   })
   const info = JSON.parse(output.trim().split(/\r?\n/).at(-1))
+  if (Number(info.bits) !== 64 && runtimeContext.isPackaged) {
+    throw new Error(`正式版只支持 x64 Python，当前为 ${info.bits} bit`)
+  }
+  return info
+}
+
+async function probeRuntimeAsync(candidate, modules) {
+  const probe = [
+    'import json, platform, struct',
+    ...modules.map((name) => `import ${name}`),
+    `print(json.dumps({"version": platform.python_version(), "bits": struct.calcsize("P") * 8}))`
+  ].join('; ')
+  const { stdout } = await execFileAsync(candidate, ['-I', '-c', probe], {
+    encoding: 'utf8',
+    windowsHide: true,
+    timeout: 10000,
+    maxBuffer: 1024 * 1024
+  })
+  const info = JSON.parse(String(stdout).trim().split(/\r?\n/).at(-1))
   if (Number(info.bits) !== 64 && runtimeContext.isPackaged) {
     throw new Error(`正式版只支持 x64 Python，当前为 ${info.bits} bit`)
   }
@@ -140,6 +164,52 @@ export function resolvePythonRuntime(requiredModules = []) {
   }
   runtimeCache.set(cacheKey, result)
   return result
+}
+
+export function resolvePythonRuntimeAsync(requiredModules = []) {
+  const modules = [...new Set(requiredModules.map((name) => String(name).trim()).filter(Boolean))].sort()
+  const cacheKey = `${runtimeContext.isPackaged ? 'packaged' : 'development'}:${modules.join(',')}`
+  if (runtimeCache.has(cacheKey)) return Promise.resolve(runtimeCache.get(cacheKey))
+  if (runtimePending.has(cacheKey)) return runtimePending.get(cacheKey)
+
+  const pending = (async () => {
+    const failures = []
+    for (const candidate of candidateList()) {
+      try {
+        const info = await probeRuntimeAsync(candidate.path, modules)
+        const result = {
+          ready: true,
+          found: true,
+          source: candidate.source,
+          path: candidate.path,
+          version: info.version,
+          modules,
+          error: null
+        }
+        runtimeCache.set(cacheKey, result)
+        return result
+      } catch (error) {
+        failures.push(`${candidate.source}: ${error?.message || '不可用'}`)
+      }
+    }
+
+    const source = runtimeContext.isPackaged ? 'bundled' : 'unavailable'
+    const result = {
+      ready: false,
+      found: false,
+      source,
+      path: null,
+      version: null,
+      modules,
+      error: runtimeContext.isPackaged
+        ? '内置 Python 运行时缺失或损坏，请重新安装应用'
+        : `未找到满足依赖的 Python 3${failures.length ? `（已检查 ${failures.length} 个候选）` : ''}`
+    }
+    runtimeCache.set(cacheKey, result)
+    return result
+  })().finally(() => runtimePending.delete(cacheKey))
+  runtimePending.set(cacheKey, pending)
+  return pending
 }
 
 export const detectPythonPathWithModules = (requiredModules = []) => (

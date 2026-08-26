@@ -56,6 +56,7 @@ test('设置默认手动更新与 CNB 来源并持久化、重置和同步到主
   assert.match(updateStore, /if \(startupCheckPromise\) return startupCheckPromise/)
   assert.match(runtime, /dangerouslyUseHTMLString: false/)
   assert.match(runtime, /customClass: 'installed-update-dialog'/)
+  assert.doesNotMatch(runtime, /type:\s*'success'/, '更新完成弹窗不应显示左侧成功图标')
 })
 
 test('设置页展示更新信息、纯文本说明和进度', () => {

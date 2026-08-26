@@ -62,6 +62,7 @@ export default defineConfig({
       'vue-router',
       'element-plus',
       '@element-plus/icons-vue',
+      'element-plus/es/components/*/style/css',
       'element-plus/es/components/message/style/css'
     ]
   },

@@ -5,7 +5,8 @@ import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist 
 import {
   DEFAULT_GLOBAL_SHORTCUTS,
   mergeGlobalShortcutSettings,
-  normalizeGlobalShortcutSettings
+  normalizeGlobalShortcutSettings,
+  resolveShortcutScopeHealth
 } from '@/utils/shortcutConfig'
 import {
   ADAPTIVE_TIMING,
@@ -178,7 +179,9 @@ export const useSettingsStore = defineStore('settings', () => {
 
   function updateShortcutHealth(result = {}) {
     shortcutHealth.value = {
-      status: result.success === true ? 'ready' : 'error',
+      status: ['ready', 'attention', 'error'].includes(result.status)
+        ? result.status
+        : result.success === true ? 'ready' : 'error',
       error: String(result.error || ''),
       failed: Array.isArray(result.failed) ? result.failed : []
     }
@@ -191,6 +194,7 @@ export const useSettingsStore = defineStore('settings', () => {
     if (typeof state.reason === 'string') shortcutScopeReason.value = state.reason
     if (typeof state.windowTitle === 'string') shortcutScopeWindowTitle.value = state.windowTitle
     if (typeof state.processName === 'string') shortcutScopeProcessName.value = state.processName
+    if (Array.isArray(state.failed)) updateShortcutHealth(resolveShortcutScopeHealth(state))
     return { ...state }
   }
 

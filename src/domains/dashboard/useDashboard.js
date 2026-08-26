@@ -67,8 +67,6 @@ function healthDiagnosticReason(item) {
 // 导致系统环境面板展开又收起、页面跳动。模块级共享后只在首次初始化。
 const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境' })
 const startupHealth = ref([])
-const craftingStatus = ref(null)
-const craftingStatusError = ref('')
 let activeDashboardRefresh = null
 
 export function useDashboard() {
@@ -192,8 +190,8 @@ export function useDashboard() {
         error: priceCheckStore.error
       }),
       evaluateCraftingStatus({
-        status: craftingStatus.value,
-        updateError: craftingStatusError.value || craftingStore.updateError,
+        status: craftingStore.status,
+        updateError: craftingStore.updateError,
         session: craftingStore.session
       })
     ]
@@ -529,14 +527,12 @@ export function useDashboard() {
   }
 
   async function runDashboardRefresh() {
-    craftingStatusError.value = ''
     try {
-      const [scriptResult, combatResult, loopResult, pythonResult, craftingResult, healthResult] = await Promise.allSettled([
+      const [scriptResult, combatResult, loopResult, pythonResult, healthResult] = await Promise.allSettled([
         electronApi.script.getStatus(),
         electronApi.combat.getPotionStatus(),
         electronApi.combat.getLoopStatus(),
         electronApi.script.detectPythonPath(),
-        electronApi.crafting.getStatus(),
         electronApi.system.getStartupHealth()
       ])
       if (scriptResult.status === 'fulfilled') scriptStore.applyStatus(scriptResult.value)
@@ -574,14 +570,11 @@ export function useDashboard() {
         }
       }
 
-      if (craftingResult.status === 'fulfilled') craftingStatus.value = craftingResult.value
-      else craftingStatusError.value = craftingResult.reason?.message || '模拟数据状态读取失败'
       startupHealth.value = healthResult.status === 'fulfilled' && Array.isArray(healthResult.value?.items)
         ? healthResult.value.items
         : []
-      if (window.electronAPI) await settingsStore.refreshDpiScale()
     } catch (error) {
-      craftingStatusError.value = error?.message || '状态刷新失败'
+      pythonHealth.value = { status: 'error', text: error?.message || '首页状态刷新失败' }
     }
   }
 

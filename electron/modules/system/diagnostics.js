@@ -1,7 +1,10 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
+import { promisify } from 'node:util'
+
+const execFileAsync = promisify(execFile)
 
 export const DIAGNOSTICS_SCHEMA_VERSION = 3
 export const DIAGNOSTIC_CAPTURE_DURATION_MS = 15 * 60 * 1000
@@ -120,17 +123,29 @@ export function sanitizeDiagnosticValue(value, homeDirectory = os.homedir()) {
   return value
 }
 
-export function detectAdministrator() {
-  if (process.platform !== 'win32') return false
-  try {
-    const command = '[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent() | ForEach-Object { $_.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }'
-    return execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
-      encoding: 'utf8', windowsHide: true, timeout: 5000
-    }).trim().toLowerCase() === 'true'
-  } catch {
-    return null
+const ADMINISTRATOR_PROBE_COMMAND = '[Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent() | ForEach-Object { $_.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }'
+
+export function createAdministratorDetector({
+  platform = process.platform,
+  execFileAsyncFn = execFileAsync
+} = {}) {
+  let pending = null
+  return () => {
+    if (pending) return pending
+    pending = platform !== 'win32'
+      ? Promise.resolve(false)
+      : execFileAsyncFn('powershell.exe', [
+          '-NoProfile', '-NonInteractive', '-Command', ADMINISTRATOR_PROBE_COMMAND
+        ], {
+          encoding: 'utf8', windowsHide: true, timeout: 5000
+        })
+        .then(({ stdout }) => String(stdout).trim().toLowerCase() === 'true')
+        .catch(() => null)
+    return pending
   }
 }
+
+export const detectAdministrator = createAdministratorDetector()
 
 function safeReasonCode(value) {
   return DIAGNOSTIC_REASON_CODES.has(value) ? value : null

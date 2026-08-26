@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs'
 
 const source = relativePath => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
-test('识别反馈窗口在主进程预热、注入服务并随服务退出销毁', () => {
+test('识别反馈窗口不在启动时预热、注入服务并随服务退出销毁', () => {
   const main = source('../electron/main.js')
   const service = source('../electron/modules/puzzle/service.js')
   assert.match(main, /new RecognitionFeedbackOverlayManager\(\{ BrowserWindowClass: BrowserWindow, screenApi: screen \}\)/)
-  assert.match(main, /recognitionFeedbackOverlay\.prime\(\)/)
+  assert.doesNotMatch(main, /recognitionFeedbackOverlay\.prime\(\)/)
   assert.match(main, /feedbackOverlay: recognitionFeedbackOverlay/)
   assert.match(service, /this\.feedbackOverlay\?\.close\?\.\(\)/)
   assert.match(service, /this\.overlay\?\.close\?\.\(\)[\s\S]*this\.feedbackOverlay\?\.close/)

@@ -451,11 +451,11 @@ async function startApplication() {
     protocol,
     net
   })
+  craftingService.registerImageProtocol()
 
   const chaosOverlay = new ChaosRecipeOverlayManager()
   const puzzleOverlay = new PuzzleOverlayManager()
   const recognitionFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
-  recognitionFeedbackOverlay.prime()
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
@@ -630,8 +630,7 @@ async function startApplication() {
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('shortcut-scope-changed', {
-            ...shortcutManager.getScopeState(),
-            failed: result.failed
+            ...shortcutManager.getScopeState()
           })
         }
         if (!result.success) {
@@ -692,14 +691,9 @@ async function startApplication() {
     }
   })
 
-  // 耗时初始化移到窗口显示之后后台执行：做装数据、登录恢复、官方交易目录刷新
+  // 耗时初始化移到窗口显示之后后台执行：登录恢复、官方交易目录刷新。
+  // 做装数据仅在首次使用相关 IPC 或图片协议时加载，避免启动阶段阻塞系统响应。
   void (async () => {
-    try {
-      await craftingService.initialize()
-      craftingService.registerImageProtocol()
-    } catch (error) {
-      // 做装数据加载失败：IPC handler 内部仍会 await service.initialize() 重试
-    }
     await chaosRecipeService.restoreAuth()
     registerUniqueItemImageProtocol({ protocol, net, repository: uniqueItemImages })
     try {

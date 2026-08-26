@@ -44,16 +44,18 @@ export function registerShortcutHandlers(shortcut, window) {
   })
 
   // IPC: 初始化快捷键（从设置中读取）
-  ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts) => {
+  ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts, options = {}) => {
     const entries = Object.entries(shortcuts || {})
       .filter(([, accelerator]) => Boolean(accelerator))
       .map(([key, accelerator]) => ({ key, accelerator, callback: () => sendTriggered(key) }))
-    const result = setConfiguredShortcuts(entries)
+    const rollbackOnFailure = options?.rollbackOnFailure !== false
+    const result = setConfiguredShortcuts(entries, { rollbackOnFailure })
     return {
+      ...getScopeState(),
       success: result.success,
       failed: result.failed,
       deferred: result.deferred,
-      rolledBack: result.failed.length > 0
+      rolledBack: result.rolledBack
     }
   })
 

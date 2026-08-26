@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   collectDeviceInfo,
+  createAdministratorDetector,
   createDiagnosticsSnapshot,
   diagnosticFileName,
   redactDiagnosticText,
@@ -138,6 +139,26 @@ test('运行时部分失败不会影响快照且自由文本仍被脱敏', () =>
   assert.equal(snapshot.runtime.ready, false)
   assert.equal(snapshot.game.found, false)
   assert.doesNotMatch(JSON.stringify(snapshot), /Alice|secret/)
+})
+
+test('管理员状态探测异步执行并在进程内复用同一任务', async () => {
+  let calls = 0
+  let release
+  const detect = createAdministratorDetector({
+    platform: 'win32',
+    execFileAsyncFn: () => {
+      calls += 1
+      return new Promise(resolve => { release = resolve })
+    }
+  })
+  const first = detect()
+  const second = detect()
+  assert.strictEqual(first, second)
+  assert.equal(calls, 1)
+  release({ stdout: 'True\r\n' })
+  assert.equal(await first, true)
+  assert.equal(await detect(), true)
+  assert.equal(calls, 1)
 })
 
 test('诊断快照只暴露最近海图识别失败证据摘要和结构化完整性', () => {

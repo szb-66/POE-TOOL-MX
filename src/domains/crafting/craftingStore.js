@@ -34,11 +34,17 @@ export const useCraftingStore = defineStore('crafting-simulator', () => {
   async function initialize() {
     stopUpdateEvents?.()
     stopUpdateEvents = electronApi.crafting.onUpdateProgress((progress) => { updateProgress.value = progress })
-    const [nextStatus, nextCategories] = await Promise.all([
-      electronApi.crafting.getStatus(), electronApi.crafting.listCategories()
-    ])
-    status.value = nextStatus
-    categories.value = nextCategories
+    updateError.value = ''
+    try {
+      const [nextStatus, nextCategories] = await Promise.all([
+        electronApi.crafting.getStatus(), electronApi.crafting.listCategories()
+      ])
+      status.value = nextStatus
+      categories.value = nextCategories
+    } catch (error) {
+      updateError.value = error?.message || '模拟数据加载失败'
+      throw error
+    }
   }
 
   async function searchBases(input) {

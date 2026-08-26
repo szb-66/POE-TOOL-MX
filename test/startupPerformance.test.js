@@ -22,6 +22,12 @@ test('启动基准使用中位数并执行外壳、首页和相对缩短预算',
   assert.deepEqual(result.budget, { shell: true, dashboard: true, reduction: true })
 })
 
+test('开发服务器首次预构建 Element Plus 组件样式，避免冷启动整页重载', () => {
+  const viteConfig = source('../vite.config.js')
+
+  assert.ok(viteConfig.includes("'element-plus/es/components/*/style/css'"))
+})
+
 test('启动基准只清理本仓库旧 Electron 开发实例', () => {
   const benchmark = source('../scripts/startupBenchmark.js')
   assert.match(benchmark, /closeOldDevelopmentProcesses/)
@@ -70,4 +76,22 @@ test('首页路由使用轻量外壳并保留失败重试和状态同步门禁',
   assert.match(route, />重试</)
   assert.match(route, /:inert="!mainRuntimeState\.settled"/)
   assert.match(content, /dashboard-ready/)
+})
+
+test('启动与首页状态刷新不预热完整做装数据', () => {
+  const main = source('../electron/main.js')
+  const dashboard = source('../src/domains/dashboard/useDashboard.js')
+
+  assert.match(main, /craftingService\.registerImageProtocol\(\)/)
+  assert.doesNotMatch(main, /await craftingService\.initialize\(\)/)
+  assert.doesNotMatch(dashboard, /electronApi\.crafting\.getStatus\(\)/)
+  assert.match(dashboard, /status: craftingStore\.status/)
+})
+
+test('首页复用主运行时的 DPI 探测结果', () => {
+  const runtime = source('../src/startup/mainRuntime.js')
+  const dashboard = source('../src/domains/dashboard/useDashboard.js')
+
+  assert.match(runtime, /settingsStore\.refreshDpiScale\(\)/)
+  assert.doesNotMatch(dashboard, /settingsStore\.refreshDpiScale\(\)/)
 })

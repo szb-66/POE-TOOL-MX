@@ -8,7 +8,8 @@ import {
   configurePythonRuntime,
   detectPythonPath,
   detectPythonPathWithModules,
-  resolvePythonRuntime
+  resolvePythonRuntime,
+  resolvePythonRuntimeAsync
 } from '../electron/modules/python/detector.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -23,6 +24,16 @@ test('开发环境优先使用已准备且满足模块要求的内置运行时',
   assert.match(runtime.path, /[\\/]\.runtime[\\/]python-runtime[\\/]python\.exe$/)
   assert.equal(detectPythonPath(), runtime.path)
   assert.equal(detectPythonPathWithModules(['numpy']), runtime.path)
+})
+
+test('异步运行时探测复用并发任务并返回相同缓存结果', async () => {
+  configurePythonRuntime({ isPackaged: false, resourcesPath: '', env: {} })
+  const first = resolvePythonRuntimeAsync(['sys', 'json'])
+  const second = resolvePythonRuntimeAsync(['json', 'sys'])
+  assert.strictEqual(first, second)
+  const runtime = await first
+  assert.equal(runtime.ready, true)
+  assert.strictEqual(await resolvePythonRuntimeAsync(['sys', 'json']), runtime)
 })
 
 test('正式版只使用 resourcesPath 下的 bundled 运行时', () => {

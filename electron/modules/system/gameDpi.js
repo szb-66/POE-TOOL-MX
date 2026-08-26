@@ -42,6 +42,36 @@ export function selectGameWindowCandidate(
     Number(right.foreground) - Number(left.foreground) || right.area - left.area)[0]
 }
 
+export function createCachedGameDpiDetector(detect, {
+  cacheDurationMs = 2000,
+  now = Date.now
+} = {}) {
+  let pending = null
+  let cached = null
+  let cachedAt = 0
+  let hasCached = false
+  return (...args) => {
+    const currentTime = now()
+    if (hasCached && currentTime - cachedAt <= cacheDurationMs) return Promise.resolve(cached)
+    if (pending) return pending
+    let operation
+    try {
+      operation = detect(...args)
+    } catch (error) {
+      operation = Promise.reject(error)
+    }
+    pending = Promise.resolve(operation)
+      .then((result) => {
+        cached = result
+        cachedAt = now()
+        hasCached = true
+        return result
+      })
+      .finally(() => { pending = null })
+    return pending
+  }
+}
+
 const WINDOWS_DPI_PROBE = String.raw`
 import ctypes
 import json

@@ -98,6 +98,7 @@ export class CraftingService {
       try {
         const url = new URL(request.url)
         const imageId = decodeURIComponent(url.pathname.replace(/^\//, ''))
+        await this.initialize()
         const info = await this.repository.imageInfo(imageId)
         if (!info) return new Response('Not found', { status: 404 })
         return this.net.fetch(pathToFileURL(info.file).toString())

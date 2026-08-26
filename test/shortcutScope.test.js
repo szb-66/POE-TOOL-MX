@@ -98,6 +98,69 @@ test('游戏前台注册全部意图，失焦立即全部注销', () => {
   assert.equal(manager.getScopeState().gameForeground, false)
 })
 
+test('游戏前台部分快捷键冲突时保留其余快捷键并在后续状态同步时重试', () => {
+  const failSet = new Set(['Ctrl+D'])
+  const mock = createGlobalShortcutMock(failSet)
+  const manager = loadShortcutManager(mock)
+  manager.setConfiguredShortcuts([
+    { key: 'mapStart', accelerator: 'Alt+2', callback: () => {} },
+    { key: 'end', accelerator: 'Alt+3', callback: () => {} },
+    { key: 'priceCheck', accelerator: 'Ctrl+D', callback: () => {} }
+  ])
+
+  const firstForeground = manager.setScopeActive(true)
+  assert.equal(firstForeground.success, false)
+  assertLoose.deepEqual(firstForeground.failed, ['Ctrl+D'])
+  assert.deepEqual([...mock.registered.keys()].sort(), ['Alt+2', 'Alt+3'])
+  assert.deepEqual([...manager.getIntendedShortcuts().keys()].sort(), ['Alt+2', 'Alt+3', 'Ctrl+D'])
+  assertLoose.deepEqual(manager.getScopeState().failed, ['Ctrl+D'])
+  assert.equal(manager.getScopeState().partialFailure, true)
+
+  const successfulRegistrationCalls = mock.calls.filter(([action, accelerator]) => (
+    action === 'register' && accelerator !== 'Ctrl+D'
+  )).length
+  manager.setScopeActive(true)
+  assert.equal(mock.calls.filter(([action, accelerator]) => (
+    action === 'register' && accelerator !== 'Ctrl+D'
+  )).length, successfulRegistrationCalls)
+
+  manager.setScopeActive(false)
+  assert.equal(mock.registered.size, 0)
+  assertLoose.deepEqual(manager.getScopeState().failed, ['Ctrl+D'])
+  assert.equal(manager.getScopeState().partialFailure, true)
+
+  const secondForeground = manager.setScopeActive(true)
+  assert.equal(secondForeground.success, false)
+  assertLoose.deepEqual(secondForeground.failed, ['Ctrl+D'])
+
+  failSet.clear()
+  const recovered = manager.setScopeActive(true)
+  assert.equal(recovered.success, true)
+  assert.deepEqual([...mock.registered.keys()].sort(), ['Alt+2', 'Alt+3', 'Ctrl+D'])
+  assertLoose.deepEqual(manager.getScopeState().failed, [])
+  assert.equal(manager.getScopeState().partialFailure, false)
+
+  manager.setScopeActive(false)
+  assert.equal(mock.registered.size, 0)
+  assertLoose.deepEqual(manager.getScopeState().failed, [])
+})
+
+test('应用启动恢复快捷键时允许部分成功并保留失败注册意图', () => {
+  const mock = createGlobalShortcutMock(new Set(['Ctrl+D']))
+  const manager = loadShortcutManager(mock)
+  manager.setScopeActive(true)
+
+  const result = manager.setConfiguredShortcuts([
+    { key: 'mapStart', accelerator: 'Alt+2', callback: () => {} },
+    { key: 'priceCheck', accelerator: 'Ctrl+D', callback: () => {} }
+  ], { rollbackOnFailure: false })
+
+  assert.equal(result.success, false)
+  assertLoose.deepEqual(result.failed, ['Ctrl+D'])
+  assert.deepEqual([...mock.registered.keys()], ['Alt+2'])
+  assert.deepEqual([...manager.getIntendedShortcuts().keys()], ['Alt+2', 'Ctrl+D'])
+})
+
 test('前台状态携带窗口与进程不匹配的具体原因', () => {
   const mock = createGlobalShortcutMock()
   const manager = loadShortcutManager(mock)
@@ -350,9 +413,10 @@ test('IPC、preload 与渲染 API 暴露前台门禁协议', () => {
   const ipc = source('../electron/modules/ipc/shortcut.js')
   const preload = source('../electron/preload.cjs')
   const api = source('../src/api/electron.js')
+  const scriptService = source('../src/utils/scriptService.js')
   assert.match(ipc, /shortcut-set-scope-enabled/)
   assert.match(ipc, /shortcut-get-scope-state/)
-  assert.match(ipc, /setConfiguredShortcuts\(entries\)/)
+  assert.match(ipc, /setConfiguredShortcuts\(entries, \{ rollbackOnFailure \}\)/)
   assert.match(ipc, /deferred: Boolean\(result\.deferred\)/)
   assert.match(preload, /setShortcutScopeEnabled/)
   assert.match(preload, /getShortcutScopeState/)
@@ -360,6 +424,8 @@ test('IPC、preload 与渲染 API 暴露前台门禁协议', () => {
   assert.match(api, /setScopeEnabled/)
   assert.match(api, /getScopeState/)
   assert.match(api, /onScopeChanged/)
+  assert.match(api, /initFromSettings: \(shortcuts, options\)/)
+  assert.match(scriptService, /initFromSettings\(registeredShortcuts, \{ rollbackOnFailure: false \}\)/)
 })
 
 test('设置页、首页状态与设置存储展示前台门禁', () => {
@@ -377,6 +443,7 @@ test('设置页、首页状态与设置存储展示前台门禁', () => {
   assert.match(store, /shortcutScopeEnabled/)
   assert.match(store, /shortcutScopeReason/)
   assert.match(store, /applyShortcutScopeState/)
+  assert.match(store, /updateShortcutHealth\(resolveShortcutScopeHealth\(state\)\)/)
   assert.match(store, /setShortcutScopeEnabled/)
 })
 
@@ -392,6 +459,7 @@ test('启动同步先比较本地开关，重置与失败路径保持主从状�
   assert.match(dashboard, /if \(item\?\.status === 'ready'\) return null/)
   assert.match(dashboard, /item\.status === 'pending' \|\| item\.status === 'attention'/)
   assert.match(main, /createApplicationWindow\(\)[\s\S]*?setImmediate\(\(\) => \{[\s\S]*?startForegroundWatcher/)
+  assert.doesNotMatch(main, /getScopeState\(\),\s*failed: result\.failed/)
 })
 
 test('诊断允许集合包含前台门禁事件与回退原因', () => {

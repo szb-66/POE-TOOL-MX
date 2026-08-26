@@ -72,13 +72,21 @@ const mockApi = {
     writeText: (text) => writeTextToClipboard(text),
   },
   shortcut: {
-    initFromSettings: () => Promise.resolve({ success: true, failed: [] }),
+    initFromSettings: () => Promise.resolve({ success: true, failed: [], registered: [], intended: [] }),
     register: () => Promise.resolve({ success: true }),
     unregister: () => Promise.resolve({ success: true }),
     beginCapture: () => Promise.resolve({ success: true }),
     endCapture: () => Promise.resolve({ success: true, failed: [] }),
     setScopeEnabled: (enabled) => Promise.resolve({ success: true, enabled: Boolean(enabled), available: true, gameForeground: false }),
-    getScopeState: () => Promise.resolve({ enabled: true, available: true, gameForeground: false, registered: [], intended: [] }),
+    getScopeState: () => Promise.resolve({
+      enabled: true,
+      available: true,
+      gameForeground: false,
+      registered: [],
+      intended: [],
+      failed: [],
+      partialFailure: false
+    }),
     onTriggered: () => { },
     onInit: () => { },
     onScopeChanged: () => () => { },
@@ -397,7 +405,7 @@ export const electronApi = isElectron ? {
   },
 
   shortcut: {
-    initFromSettings: (shortcuts) => window.electronAPI.initShortcutsFromSettings(shortcuts),
+    initFromSettings: (shortcuts, options) => window.electronAPI.initShortcutsFromSettings(shortcuts, options),
     register: (accelerator, callback) => window.electronAPI.registerGlobalShortcut(accelerator, callback),
     unregister: (accelerator) => window.electronAPI.unregisterGlobalShortcut(accelerator),
     beginCapture: () => window.electronAPI.beginShortcutCapture?.(),

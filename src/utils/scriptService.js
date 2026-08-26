@@ -82,14 +82,16 @@ export async function initShortcuts() {
 
   // 从设置中初始化快捷键
   try {
-    const result = await electronApi.shortcut.initFromSettings(registeredShortcuts)
+    const result = await electronApi.shortcut.initFromSettings(registeredShortcuts, { rollbackOnFailure: false })
+    settingsStore.applyShortcutScopeState(result)
     if (!result?.success) {
       const names = formatShortcutError(result)
-      settingsStore.updateShortcutHealth({ ...result, error: `注册失败：${names}` })
-      ElMessage.error(`全局快捷键注册失败：${names}`)
+      const health = settingsStore.shortcutHealth
+      const message = health.error || `全局快捷键注册失败：${names}`
+      if (health.status === 'attention') ElMessage.warning(message)
+      else ElMessage.error(message)
       void reportDiagnosticFailure('shortcuts', 'shortcut_registration', result, 'shortcut_registration_failed')
     } else {
-      settingsStore.updateShortcutHealth(result)
       void reportDiagnosticRecovery('shortcuts', 'shortcut_registration')
     }
   } catch (err) {

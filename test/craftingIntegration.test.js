@@ -98,6 +98,64 @@ test('取消任务立即发布 cancelled 且丢弃后续 Worker 事件', async (
   assert.equal(manager.tasks.size, 0)
 })
 
+test('做装图片协议首次并发请求按需复用初始化并保留失败响应', async () => {
+  let handler = null
+  let initializeCalls = 0
+  let releaseInitialization
+  const initializationGate = new Promise((resolve) => { releaseInitialization = resolve })
+  const fetched = []
+  const service = new CraftingService({
+    storageRoot: os.tmpdir(),
+    protocol: { handle: (_scheme, candidate) => { handler = candidate } },
+    net: {
+      fetch: async (url) => {
+        fetched.push(url)
+        return new Response('image', { status: 200 })
+      }
+    }
+  })
+  service.repository = {
+    initialize: async () => {
+      initializeCalls += 1
+      await initializationGate
+      return { source: 'builtin' }
+    },
+    imageInfo: async (imageId) => ({ file: path.join(os.tmpdir(), `${imageId}.webp`) })
+  }
+
+  service.registerImageProtocol()
+  assert.equal(initializeCalls, 0)
+  assert.equal(typeof handler, 'function')
+
+  const first = handler({ url: 'crafting-image://snapshot/first' })
+  const second = handler({ url: 'crafting-image://snapshot/second' })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(initializeCalls, 1)
+  assert.equal(fetched.length, 0)
+
+  releaseInitialization()
+  const responses = await Promise.all([first, second])
+  assert.deepEqual(responses.map((response) => response.status), [200, 200])
+  assert.equal(fetched.length, 2)
+
+  let failureHandler = null
+  let imageLookupCalled = false
+  const failingService = new CraftingService({
+    storageRoot: os.tmpdir(),
+    protocol: { handle: (_scheme, candidate) => { failureHandler = candidate } },
+    net: { fetch: async () => new Response('unexpected') }
+  })
+  failingService.repository = {
+    initialize: async () => { throw new Error('模拟数据损坏') },
+    imageInfo: async () => { imageLookupCalled = true; return null }
+  }
+  failingService.registerImageProtocol()
+
+  const failure = await failureHandler({ url: 'crafting-image://snapshot/failure' })
+  assert.equal(failure.status, 400)
+  assert.equal(imageLookupCalled, false)
+})
+
 test('CraftingService 跨层返回加密目录并完成通货与揭露状态序列化', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'crafting-veiled-service-'))
   const service = new CraftingService({ storageRoot: root, protocol: { handle() {} }, net: { fetch() {} }, fetchImpl: fixtureFetch })
