@@ -708,7 +708,8 @@ import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
 import { FIXED_TIMING } from '../../utils/operationDelay'
 import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
-import { commitGlobalShortcut } from '../../utils/scriptService'
+import { DEFAULT_GLOBAL_SHORTCUTS } from '../../utils/shortcutConfig'
+import { commitGlobalShortcut, updateShortcuts } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
 import OverlayContent from '@/domains/overlay/components/OverlayContent.vue'
 import PriceCheckOverlayView from '@/domains/priceCheck/PriceCheckOverlayView.vue'
@@ -720,18 +721,23 @@ import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
 import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
 import FeedbackSettings from './FeedbackSettings.vue'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
+import { useChaosRecipeStore } from '@/stores/chaosRecipe'
+import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 import { SETTINGS_TABS, resolveSettingsTab } from '@/router/settingsNavigation'
 import { OVERLAY_BACKGROUND_MODES, resolveOverlayBackgroundDrop } from '../../../shared/overlayBackground.js'
+import { resetApplicationSettings } from './settingsReset.js'
 
 const route = useRoute()
 const router = useRouter()
 const settingsStore = useSettingsStore()
 const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
+const chaosRecipeStore = useChaosRecipeStore()
+const priceCheckStore = usePriceCheckStore()
 const account = usePoeCnAccountStore()
 const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
@@ -1247,7 +1253,7 @@ function resetPriceCheckPreview() {
 async function handleReset() {
   try {
     await ElMessageBox.confirm(
-      '确定要重置所有设置为默认值吗？此操作不可恢复。',
+      '确定要重置所有设置吗？设备相关坐标、区域和普通快捷键将清空，此操作不可恢复。',
       '确认重置',
       {
         confirmButtonText: '确定',
@@ -1256,13 +1262,19 @@ async function handleReset() {
       }
     )
 
-    // 重置设置
-    settingsStore.resetSettings()
-    interfaceDetectionStore.reset()
+    const resetResult = await resetApplicationSettings({
+      stopAutomations: () => electronApi.emergencyStopAll(),
+      syncShortcuts: () => updateShortcuts(DEFAULT_GLOBAL_SHORTCUTS),
+      resetStoredSettings: () => settingsStore.resetSettings(),
+      resetInterfaceDetection: () => interfaceDetectionStore.reset(),
+      resetControlOverlayOffset: () => chaosRecipeStore.resetControlOverlayOffset(),
+      syncPriceCheckShortcut: () => priceCheckStore.syncRuntime({ shortcut: DEFAULT_GLOBAL_SHORTCUTS.priceCheck })
+    })
 
     // 同步本地 ref
     shortcuts.value = { ...settingsStore.globalShortcuts }
     positions.value = { ...settingsStore.currencyPositions }
+    inventory.value = structuredClone(settingsStore.inventory)
     operationDelayMs.value = settingsStore.operationDelayMs
     itemPosition.value = { ...settingsStore.itemPosition }
     manualDpiScale.value = settingsStore.manualDpiScale
@@ -1272,21 +1284,15 @@ async function handleReset() {
     overlaySettings.value = { ...settingsStore.overlaySettings }
     backgroundHistory.value = []
 
-    // 重新注册快捷键
-    if (window.electronAPI) {
-      try {
-        await updateShortcuts()
-        ElMessage.success('设置已重置为默认值，快捷键已重新注册')
-      } catch (error) {
-        ElMessage.success('设置已重置为默认值')
-      }
+    if (resetResult.warnings.length) {
+      ElMessage.warning('设置已重置；部分浮窗状态同步失败，将在下次启动时应用')
     } else {
-      ElMessage.success('设置已重置为默认值')
+      ElMessage.success('设置已重置，设备相关项已清空，紧急停止快捷键已重新注册')
     }
   } catch (error) {
     // 用户取消操作
     if (error !== 'cancel') {
-      ElMessage.error('重置设置失败')
+      ElMessage.error(error?.message || '重置设置失败')
     }
   }
 }

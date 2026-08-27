@@ -3,7 +3,12 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { normalizeCombatAssist, validateLoopAssist, validatePotionAssist } from '../../../shared/combatAssist.js'
+import {
+  normalizeCombatAssist,
+  validateLoopAssist,
+  validatePortalAssist,
+  validatePotionAssist
+} from '../../../shared/combatAssist.js'
 import { normalizeAutomationTiming, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 
 let potionProcess = null
@@ -341,10 +346,13 @@ export function registerCombatHandlers(python, window, fileWatcher) {
   ipcMain.handle('combat-execute-portal', async (_event, payload) => {
     if (isAlive(portalProcess)) return { success: false, busy: true, error: '回城流程正在执行' }
     try {
+      const config = normalizeCombatAssist(payload.config)
+      const validation = validatePortalAssist(config)
+      if (!validation.isValid) return { success: false, error: validation.errors[0] || '回城配置无效' }
       const pythonPath = python.detectPythonPath()
       if (!pythonPath) return { success: false, error: '未找到Python可执行文件' }
       const portalTiming = pythonAutomationTiming(payload.automationTiming)
-      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, combatRuntimeConfig(payload.config, portalTiming), 'portal')
+      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, combatRuntimeConfig(config, portalTiming), 'portal')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'portal', configPath)
       portalProcess = null
       return result

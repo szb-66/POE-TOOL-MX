@@ -1,17 +1,17 @@
 export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
-  itemStart: 'Alt+1',
-  mapStart: 'Alt+2',
+  itemStart: '',
+  mapStart: '',
   end: 'Alt+3',
-  potionStart: 'Numpad7',
-  potionStop: 'Numpad8',
-  portal: 'Numpad2',
-  storyPrevious: 'PageUp',
-  storyNext: 'PageDown',
-  chaosRecipeStart: 'Alt+4',
-  chaosRecipePause: 'Alt+5',
-  chaosRecipeStop: 'Alt+6',
-  puzzleAnalyze: 'Alt+7',
-  priceCheck: 'Ctrl+D'
+  potionStart: '',
+  potionStop: '',
+  portal: '',
+  storyPrevious: '',
+  storyNext: '',
+  chaosRecipeStart: '',
+  chaosRecipePause: '',
+  chaosRecipeStop: '',
+  puzzleAnalyze: '',
+  priceCheck: ''
 })
 
 export const normalizeGlobalShortcutValue = (value) => (

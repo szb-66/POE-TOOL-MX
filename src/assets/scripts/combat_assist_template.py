@@ -456,19 +456,31 @@ def run_sample(config):
 
 def run_portal(config):
     apply_input_timing(config)
+    portal = config.get("portal", config)
+    open_key = str(portal.get("openKey", "")).strip()
+    point = portal.get("clickPoint", {})
+    try:
+        point_x = float(point.get("x", 0))
+        point_y = float(point.get("y", 0))
+    except (TypeError, ValueError):
+        point_x = point_y = 0
+    if not open_key:
+        print(json.dumps({"success": False, "error": "回城按键未配置"}, ensure_ascii=False), flush=True)
+        return 2
+    if point_x == 0 and point_y == 0:
+        print(json.dumps({"success": False, "error": "回城点击坐标未配置"}, ensure_ascii=False), flush=True)
+        return 2
     if not is_game_foreground():
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
         return 2
 
-    portal = config.get("portal", config)
-    if send_sequence([portal.get("openKey", "Numpad1")]) != 1:
+    if send_sequence([open_key]) != 1:
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
         return 2
     time.sleep(max(0, int(portal.get("waitMs", 500))) / 1000)
     if not is_game_foreground():
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
         return 2
-    point = portal.get("clickPoint", {})
     if not click_point(point):
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
         return 2

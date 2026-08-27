@@ -15,6 +15,7 @@ import {
   VENDOR_RECIPE_IDS
 } from '../../electron/modules/chaosRecipe/engine.js'
 import { normalizeStashGridRegion } from '../utils/stashGridCalibration.js'
+import { normalizeControlOffset } from '../../electron/modules/chaosRecipe/controlOverlayPosition.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 const STORAGE_KEY = 'chaosRecipeSettings'
@@ -25,7 +26,7 @@ const defaultSettings = () => ({
   includeIdentified: false,
   activeRecipeId: 'chaos',
   targetSetCount: 1,
-  controlOverlayOffset: { x: 50, y: 1550 },
+  controlOverlayOffset: null,
   calibration: { root: null, folder: null },
   tabFolderStates: {}
 })
@@ -58,10 +59,7 @@ export function normalizeChaosRecipeSettings(raw = {}) {
     activeRecipeId,
     targetSetCount: Math.max(1, Math.min(20, Math.trunc(Number(raw.targetSetCount) || 1))),
     tabFolderStates: normalizeTabFolderStates(raw.tabFolderStates || raw.tabOverrides),
-    controlOverlayOffset: {
-      x: Number.isFinite(Number(raw.controlOverlayOffset?.x)) ? Math.round(Number(raw.controlOverlayOffset.x)) : 50,
-      y: Number.isFinite(Number(raw.controlOverlayOffset?.y)) ? Math.round(Number(raw.controlOverlayOffset.y)) : 1550
-    },
+    controlOverlayOffset: normalizeControlOffset(raw.controlOverlayOffset),
     calibration: {
       root: normalizeStashGridRegion(raw.calibration?.root) ||
         normalizeStashGridRegion(raw.calibration?.normal) ||
@@ -168,6 +166,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   async function syncRuntime(overrides = {}) {
     return unwrap(await electronApi.chaosRecipe.updateRuntime(runtimePayload(overrides)))
+  }
+
+  async function resetControlOverlayOffset() {
+    settings.value.controlOverlayOffset = null
+    save()
+    return syncRuntime({ controlOverlayOffset: null })
   }
 
   async function setEnabled(enabled) {
@@ -380,10 +384,9 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       if (event.event === 'completed') void reportDiagnosticRecovery('shop', 'automation')
     })
     const disposeOffset = electronApi.chaosRecipe.onControlOffset((offset) => {
-      settings.value.controlOverlayOffset = {
-        x: Math.round(Number(offset?.x) || 0),
-        y: Math.round(Number(offset?.y) || 0)
-      }
+      const normalized = normalizeControlOffset(offset)
+      if (!normalized) return
+      settings.value.controlOverlayOffset = normalized
       save()
     })
     const disposeSnapshot = electronApi.chaosRecipe.onSnapshotUpdated((value) => {
@@ -425,6 +428,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     save, setError, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,
     updateSetting, setActiveRecipe, setSelectedItemIds, updateTabFolderState,
-    listenAutomation, setEnabled, syncRuntime, initializeRuntime
+    listenAutomation, setEnabled, syncRuntime, initializeRuntime, resetControlOverlayOffset
   }
 })

@@ -159,7 +159,7 @@ test('界面、IPC、设置和脚本接入古灵自动制作与安全外链', ()
   const items = source('../src/domains/items/ItemsView.vue')
   const moduleOne = source('../src/domains/items/components/ModuleOne.vue')
   const moduleEldritch = source('../src/domains/items/components/ModuleEldritch.vue')
-  const settings = source('../src/domains/settings/settingsStore.js')
+  const environmentDefaults = source('../src/utils/environmentDefaults.js')
   const generator = source('../src/utils/python.js')
   const template = source('../src/assets/scripts/crafting_template.py')
   const preload = source('../electron/preload.cjs')
@@ -175,7 +175,7 @@ test('界面、IPC、设置和脚本接入古灵自动制作与安全外链', ()
   for (const key of [
     'lesser-eldritch-ember', 'greater-eldritch-ember', 'grand-eldritch-ember', 'exceptional-eldritch-ember',
     'lesser-eldritch-ichor', 'greater-eldritch-ichor', 'grand-eldritch-ichor', 'exceptional-eldritch-ichor'
-  ]) assert.match(settings, new RegExp(key))
+  ]) assert.match(environmentDefaults, new RegExp(key))
   assert.match(generator, /generateEldritchCraftingLogic/)
   assert.match(generator, /eldritchImplicitMatch/)
   assert.match(template, /ENABLE_ELDRITCH/)

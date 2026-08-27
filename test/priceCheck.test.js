@@ -2773,6 +2773,36 @@ test('查价服务启用时预热浮窗以避免 Ctrl+D 冷启动等待', async 
   assert.equal(prepared, 1)
 })
 
+test('查价服务把当前快捷键持续发布到真实浮窗状态', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const created = []
+  const updated = []
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }), registerCacheClearer: () => {} },
+    client: {
+      clearCache() {},
+      search: async () => ({ id: 'shortcut-state', total: 0, result: [] }),
+      fetch: async () => ({ result: [] })
+    },
+    catalog,
+    catalogStatus: status,
+    overlay: {
+      prepare() {},
+      create: (snapshot) => created.push(structuredClone(snapshot)),
+      update: (snapshot) => updated.push(structuredClone(snapshot))
+    }
+  })
+
+  const initial = service.updateRuntime({ enabled: true, shortcut: 'Ctrl+D' })
+  assert.equal(initial.shortcut, 'Ctrl+D')
+  await service.check({ league: 'S30', text: '物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------' })
+  assert.equal(created.at(-1).shortcut, 'Ctrl+D')
+
+  const changed = service.updateRuntime({ enabled: true, shortcut: 'F8' })
+  assert.equal(changed.shortcut, 'F8')
+  assert.equal(updated.at(-1).shortcut, 'F8')
+})
+
 test('交易目录刷新验证成功后原子替换且合并并发请求', async () => {
   const { catalog, status } = await loadTradeCatalog(catalogPath)
   const replacement = structuredClone(catalog)

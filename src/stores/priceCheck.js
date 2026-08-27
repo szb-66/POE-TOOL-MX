@@ -86,6 +86,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       enabled: settings.value.enabled,
       league: league.value,
       options: options.value,
+      shortcut: appSettings.globalShortcuts.priceCheck,
       ...overrides
     }))
     return status.value

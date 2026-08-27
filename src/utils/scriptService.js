@@ -466,8 +466,21 @@ export async function updateShortcuts(candidateShortcuts = null) {
 
 export async function commitGlobalShortcut(key, value) {
   const settingsStore = useSettingsStore()
+  const previous = normalizeGlobalShortcutSettings(settingsStore.globalShortcuts)
   const candidate = normalizeGlobalShortcutSettings({ ...settingsStore.globalShortcuts, [key]: value })
   await updateShortcuts(candidate)
   settingsStore.updateGlobalShortcuts({ [key]: candidate[key] })
+  try {
+    if (key === 'priceCheck') await usePriceCheckStore().syncRuntime({ shortcut: candidate[key] })
+  } catch (error) {
+    settingsStore.updateGlobalShortcuts({ [key]: previous[key] })
+    try {
+      await updateShortcuts(previous)
+      await usePriceCheckStore().syncRuntime({ shortcut: previous[key] })
+    } catch (rollbackError) {
+      throw new Error(`${error.message}；恢复原快捷键失败：${rollbackError.message}`, { cause: error })
+    }
+    throw error
+  }
   return candidate[key]
 }

@@ -3,7 +3,6 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   CHAOS_CONTROL_DIP_SIZE,
-  DEFAULT_CHAOS_CONTROL_OFFSET,
   normalizeControlDipSize,
   normalizeControlOffset,
   placeControlInDip
@@ -62,7 +61,7 @@ export class ChaosRecipeControlOverlay {
       templates: {},
       matchThreshold: 0.8,
       ...normalizeAutomationTiming(),
-      controlOverlayOffset: { ...DEFAULT_CHAOS_CONTROL_OFFSET }
+      controlOverlayOffset: null
     }
     this.detection = interfaceDetection?.getState?.() || {}
     this.disposeDetection = interfaceDetection?.subscribe((state) => {
@@ -93,7 +92,9 @@ export class ChaosRecipeControlOverlay {
       ...this.runtime,
       ...structuredClone(runtime),
       selectedTabIds: Array.isArray(runtime.selectedTabIds) ? runtime.selectedTabIds.map(String) : this.runtime.selectedTabIds,
-      controlOverlayOffset: normalizeControlOffset(runtime.controlOverlayOffset ?? this.runtime.controlOverlayOffset)
+      controlOverlayOffset: Object.hasOwn(runtime, 'controlOverlayOffset')
+        ? normalizeControlOffset(runtime.controlOverlayOffset)
+        : this.runtime.controlOverlayOffset
     }
     this.sync()
     return this.getState()
@@ -324,13 +325,12 @@ export class ChaosRecipeControlOverlay {
       this.contentSize
     )
     if (placement) {
-      this.runtime.controlOverlayOffset = placement.offset
       window.setBounds(placement)
     }
     this.statePublisher.publish(window.webContents, () => {
       if (!window.isDestroyed()) window.webContents.send('chaos-recipe-control-state', {
         ...state,
-        offset: this.runtime.controlOverlayOffset
+        offset: normalizeControlOffset(this.runtime.controlOverlayOffset)
       })
     })
     if (state.visible && placement) window.showInactive()

@@ -4,7 +4,7 @@
       <button class="icon-button" title="显示或隐藏查询设置" @click="settingsCollapsed = !settingsCollapsed">⚙</button>
       <div class="dc-rate">{{ dcRateText }}</div>
       <span v-if="props.previewMode" class="preview-badge">预览模式</span>
-      <div class="shortcut">Ctrl+D</div>
+      <div class="shortcut">{{ priceCheckShortcutText }}</div>
       <button class="close-button" aria-label="关闭" :disabled="props.previewMode" :title="props.previewMode ? '预览模式不会关闭真实浮窗' : '关闭'" @click="close">×</button>
     </header>
 
@@ -320,6 +320,7 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
+import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { PRICE_CHECK_STATE_FILTERS, PRICE_CHECK_STAT_TYPES } from '../../../shared/priceCheckMetadata.js'
 
 const props = defineProps({
@@ -327,12 +328,18 @@ const props = defineProps({
   previewState: { type: Object, default: null },
   previewOptions: { type: Object, default: null }
 })
+const appSettings = useSettingsStore()
 
 function clonePreviewInput(value) {
   return value == null ? value : structuredClone(toRaw(value))
 }
 
 const state = ref(props.previewMode ? clonePreviewInput(props.previewState) : null)
+const priceCheckShortcutText = computed(() => (
+  props.previewMode
+    ? appSettings.globalShortcuts.priceCheck || '未设置'
+    : state.value?.shortcut || '未设置'
+))
 const busy = ref(false)
 const filtersCollapsed = ref(false)
 const stateFiltersCollapsed = ref(false)

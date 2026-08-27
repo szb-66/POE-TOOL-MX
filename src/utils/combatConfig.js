@@ -3,5 +3,6 @@ export {
   normalizeCombatAssist,
   validateCombatAssist,
   validateLoopAssist,
-  validatePotionAssist
+  validatePotionAssist,
+  validatePortalAssist
 } from '../../shared/combatAssist.js'

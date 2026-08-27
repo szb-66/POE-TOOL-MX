@@ -15,7 +15,7 @@ export const BAG_BLACKLIST_MATCH_MODE_LABELS = Object.freeze({
   exact: '精确匹配'
 })
 
-const DEFAULT_REGION = Object.freeze({ left: 0, top: 0, right: 1920, bottom: 1080 })
+const DEFAULT_REGION = Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 })
 export const INVENTORY_LAYOUT = Object.freeze({
   nativeColumns: 12,
   rows: 5,
@@ -192,12 +192,12 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
     ...normalizeAutomationTiming(settings),
     inventory: {
       startPos: {
-        x: finiteNumber(settings?.inventory?.startPos?.x, 2658),
-        y: finiteNumber(settings?.inventory?.startPos?.y, 1199)
+        x: finiteNumber(settings?.inventory?.startPos?.x, 0),
+        y: finiteNumber(settings?.inventory?.startPos?.y, 0)
       },
       slotSize: {
-        w: finiteNumber(settings?.inventory?.slotSize?.w, 100),
-        h: finiteNumber(settings?.inventory?.slotSize?.h, 100)
+        w: finiteNumber(settings?.inventory?.slotSize?.w, 0),
+        h: finiteNumber(settings?.inventory?.slotSize?.h, 0)
       },
       emptySlotThreshold: normalizeEmptySlotThreshold(settings?.inventory?.emptySlotThreshold),
       layout: bag.inventoryLayout
@@ -211,6 +211,7 @@ export function validateBagRuntimeConfig(config) {
   if (regions.some((region) => region.right <= region.left || region.bottom <= region.top)) return '模板匹配区域无效'
   const gridValues = [config.inventory.startPos.x, config.inventory.startPos.y, config.inventory.slotSize.w, config.inventory.slotSize.h]
   if (gridValues.some((value) => !Number.isFinite(value))) return '背包网格配置无效'
+  if (config.inventory.startPos.x === 0 && config.inventory.startPos.y === 0) return '请先配置背包首格坐标'
   if (config.inventory.slotSize.w <= 0 || config.inventory.slotSize.h <= 0) return '背包单格宽高无效'
   return ''
 }

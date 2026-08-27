@@ -373,7 +373,7 @@ test('浮窗内部重新查询不改变浮窗位置，仅外部捕获才重新�
   assert.match(overlay, /create\(snapshot, \{ reposition = true \} = \{\}\)/)
   assert.match(overlay, /if \(!created && reposition\) \{[\s\S]*setBounds/)
   assert.match(service, /async check\(\{ text, league, model, options = \{\}, reposition = true, execute = true, queryImmediately = true \}\)/)
-  assert.match(service, /this\.overlay\?\.create\?\.\(state, \{ reposition \}\)/)
+  assert.match(service, /this\.createOverlay\(state, \{ reposition \}\)/)
   assert.match(service, /rerun[\s\S]*reposition: false/)
   assert.match(service, /resolveIdentity[\s\S]*reposition: false/)
 })
@@ -384,7 +384,7 @@ test('查价浮窗启用后后台预热、普通关闭停放且禁用或退出�
     source('electron/modules/priceCheck/service.js'),
     source('electron/main.js')
   ])
-  assert.match(service, /if \(enabled\) this\.overlay\?\.prepare\?\.\(\)/)
+  assert.match(service, /if \(enabled\) \{[\s\S]*this\.overlay\?\.prepare\?\.\(\)/)
   assert.match(overlay, /prepare\(\)[\s\S]*ensureWindow/)
   assert.match(overlay, /close\(reason = PRICE_CHECK_OVERLAY_CLOSE_REASONS\.SYSTEM\)[\s\S]*this\.presentation\?\.park\(\)/)
   assert.doesNotMatch(overlay.match(/close\(reason[\s\S]*?\n  \}/)?.[0] || '', /\.hide\(\)|\.close\(\)|\.destroy\(\)/)
@@ -464,6 +464,15 @@ test('空查价快捷键保留模块启用状态且跳过注册', async () => {
   assert.match(view, /priceCheckShortcutText[\s\S]*'未设置'/)
 })
 
+test('真实查价浮窗从主进程快照读取最新快捷键', async () => {
+  const [store, view] = await Promise.all([
+    source('src/stores/priceCheck.js'),
+    source('src/domains/priceCheck/PriceCheckOverlayView.vue')
+  ])
+  assert.match(store, /updateRuntime\(\{[\s\S]*shortcut:\s*appSettings\.globalShortcuts\.priceCheck/)
+  assert.match(view, /props\.previewMode[\s\S]*appSettings\.globalShortcuts\.priceCheck[\s\S]*state\.value\?\.shortcut/)
+})
+
 test('统一国服账号通道替代商城与查价重复认证入口', async () => {
   const [accountIpc, preload, settings, shop, price] = await Promise.all([
     source('electron/modules/ipc/poeCnAccount.js'),
@@ -483,13 +492,13 @@ test('统一国服账号通道替代商城与查价重复认证入口', async ()
   assert.doesNotMatch(price, /POESESSID|打开网页登录|退出共享国服账号/)
 })
 
-test('查价快捷键已进入默认配置、设置页与统一动作派发', async () => {
+test('查价快捷键字段默认未设置并进入设置页与统一动作派发', async () => {
   const [config, settings, service] = await Promise.all([
     source('src/utils/shortcutConfig.js'),
     source('src/domains/settings/SettingsView.vue'),
     source('src/utils/scriptService.js')
   ])
-  assert.match(config, /priceCheck: 'Ctrl\+D'/)
+  assert.match(config, /priceCheck: ''/)
   assert.match(settings, /shortcuts\.priceCheck[\s\S]*handleShortcutsChange\('priceCheck'/)
   assert.match(service, /priceCheck:\s*startPriceCheck/)
   assert.match(service, /checkHoveredItem\(\)/)

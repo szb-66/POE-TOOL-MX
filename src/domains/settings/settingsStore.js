@@ -20,7 +20,12 @@ import {
   normalizeFixedTiming,
   normalizeOperationDelay
 } from '@/utils/operationDelay'
-import { EMPTY_SLOT_THRESHOLD, normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
+import { normalizeEmptySlotThreshold } from '@/utils/inventorySettings'
+import {
+  createDefaultInventorySettings,
+  createEmptyCurrencyPositions,
+  createEmptyItemPosition
+} from '@/utils/environmentDefaults'
 import { createDefaultStashTabSelection, normalizeStashTabSelection } from '@/utils/stashTabSelection'
 import { addOverlayBackgroundHistory, normalizeOverlaySettings } from '../../../shared/overlayBackground.js'
 import {
@@ -75,46 +80,17 @@ export const useSettingsStore = defineStore('settings', () => {
   let combatCommitQueue = Promise.resolve()
   const stashTabSelection = ref(createDefaultStashTabSelection())
 
-  const currencyPositions = ref({
-    alteration: { x: 210, y: 561 },      // 改造石
-    augmentation: { x: 425, y: 663 },    // 增幅石
-    regal: { x: 830, y: 555 },           // 富豪石
-    chaos: { x: 1040, y: 567 },          // 混沌石
-    exalted: { x: 570, y: 567 },         // 崇高石
-    alchemy: { x: 933, y: 567 },         // 点金石
-    scouring: { x: 822, y: 1000 },       // 重铸石
-    transmutation: { x: 110, y: 567 },   // 蜕变石
-    jewellers: { x: 209, y: 797 },       // 工匠石
-    fusing: { x: 323, y: 797 },          // 链结石
-    chromic: { x: 428, y: 798 },         // 幻色石
-    vaal: { x: 1158, y: 1017 },          // 瓦尔宝珠
-    wisdom: { x: 210, y: 430 },          // 知识卷轴
-    'lesser-eldritch-ember': { x: 0, y: 0 },
-    'greater-eldritch-ember': { x: 0, y: 0 },
-    'grand-eldritch-ember': { x: 0, y: 0 },
-    'exceptional-eldritch-ember': { x: 0, y: 0 },
-    'lesser-eldritch-ichor': { x: 0, y: 0 },
-    'greater-eldritch-ichor': { x: 0, y: 0 },
-    'grand-eldritch-ichor': { x: 0, y: 0 },
-    'exceptional-eldritch-ichor': { x: 0, y: 0 }
-  })
+  const currencyPositions = ref(createEmptyCurrencyPositions())
 
   // 背包设置
-  const inventory = ref({
-    startPos: { x: 2658, y: 1199 },      // 首格坐标
-    slotSize: { w: 100, h: 100 },        // 单格宽高
-    emptySlotThreshold: EMPTY_SLOT_THRESHOLD.default
-  })
+  const inventory = ref(createDefaultInventorySettings())
 
   const operationDelayMs = ref(OPERATION_DELAY.default)
   const adaptiveTiming = ref(ADAPTIVE_TIMING.default)
   const adaptiveTimeoutMs = ref(ADAPTIVE_TIMING.timeoutDefault)
   const fixedTiming = ref({ ...FIXED_TIMING.defaults })
 
-  const itemPosition = ref({
-    x: 636,
-    y: 930
-  })
+  const itemPosition = ref(createEmptyItemPosition())
 
   const dpiMode = ref(DPI_MODE_AUTO)
   const manualDpiScale = ref(1)
@@ -531,22 +507,6 @@ export const useSettingsStore = defineStore('settings', () => {
   // 默认值（用于重置）
   const defaultGlobalShortcuts = DEFAULT_GLOBAL_SHORTCUTS
 
-  const defaultCurrencyPositions = {
-    alteration: { x: 210, y: 561 },
-    augmentation: { x: 425, y: 663 },
-    regal: { x: 830, y: 555 },
-    chaos: { x: 1040, y: 567 },
-    exalted: { x: 570, y: 567 },
-    alchemy: { x: 933, y: 567 },
-    scouring: { x: 822, y: 1000 },
-    transmutation: { x: 110, y: 567 },
-    jewellers: { x: 209, y: 797 },
-    fusing: { x: 323, y: 797 },
-    chromic: { x: 428, y: 798 },
-    vaal: { x: 1158, y: 1017 },
-    wisdom: { x: 210, y: 430 }
-  }
-
   const updateStoryOverlayWidth = (width) => {
     storyOverlayWidth.value = normalizeStoryOverlayWidth(width)
     saveSettings()
@@ -564,17 +524,6 @@ export const useSettingsStore = defineStore('settings', () => {
     electronApi.storyOverlay.setOpacity(storyOverlayOpacity.value)
   }
 
-  const defaultInventory = {
-    startPos: { x: 2658, y: 1199 },
-    slotSize: { w: 100, h: 100 },
-    emptySlotThreshold: EMPTY_SLOT_THRESHOLD.default
-  }
-
-  const defaultItemPosition = {
-    x: 636,
-    y: 930
-  }
-
   const defaultOverlaySettings = normalizeOverlaySettings()
 
   function resetSettings() {
@@ -585,13 +534,13 @@ export const useSettingsStore = defineStore('settings', () => {
     shortcutScopeReason.value = ''
     shortcutScopeWindowTitle.value = ''
     shortcutScopeProcessName.value = ''
-    currencyPositions.value = { ...defaultCurrencyPositions }
-    inventory.value = { ...defaultInventory }
+    currencyPositions.value = createEmptyCurrencyPositions()
+    inventory.value = createDefaultInventorySettings()
     operationDelayMs.value = OPERATION_DELAY.default
     adaptiveTiming.value = ADAPTIVE_TIMING.default
     adaptiveTimeoutMs.value = ADAPTIVE_TIMING.timeoutDefault
     fixedTiming.value = { ...FIXED_TIMING.defaults }
-    itemPosition.value = { ...defaultItemPosition }
+    itemPosition.value = createEmptyItemPosition()
     gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
     gameWindowProcessNames.value = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
     dpiMode.value = DPI_MODE_AUTO

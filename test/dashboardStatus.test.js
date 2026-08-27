@@ -145,6 +145,22 @@ test('模块状态按异常、运行中、需配置、可用的优先级互斥�
   assert.equal(createModuleStatus({}).state, 'ready')
 })
 
+test('查价快捷键未设置时首页明确提示配置而不展示旧默认键', () => {
+  const base = {
+    authenticated: true,
+    league: 'S29',
+    catalog: { degraded: false }
+  }
+  const missing = evaluatePriceCheckStatus(base)
+  assert.equal(missing.state, 'attention')
+  assert.ok(missing.issues.includes('请先设置查价快捷键'))
+  assert.doesNotMatch(missing.description, /Ctrl\+D/)
+
+  const configured = evaluatePriceCheckStatus({ ...base, shortcut: 'F8' })
+  assert.equal(configured.state, 'ready')
+  assert.match(configured.description, /F8/)
+})
+
 test('制作和地图区分共享脚本归属并保留互斥占用说明', () => {
   const validation = { isValid: true, errors: [] }
   const items = evaluateItemsStatus({

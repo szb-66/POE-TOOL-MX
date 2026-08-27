@@ -185,6 +185,7 @@ export function useDashboard() {
         authenticated: accountStore.status.authenticated,
         accountName: accountStore.status.accountName,
         league: accountStore.settings.league,
+        shortcut: settingsStore.globalShortcuts.priceCheck,
         catalog: priceCheckStore.catalog,
         latest: priceCheckStore.status?.latest,
         error: priceCheckStore.error

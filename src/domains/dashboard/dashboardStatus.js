@@ -235,6 +235,7 @@ export function evaluatePriceCheckStatus(input = {}) {
   const issues = []
   if (!input.authenticated) issues.push('请在设置页登录国服账号')
   if (!input.league) issues.push('请在设置页选择全局赛季')
+  if (!input.shortcut) issues.push('请先设置查价快捷键')
   if (!input.catalog) issues.push('交易目录尚未加载')
   else if (input.catalog.degraded) issues.push('官方交易目录不可用，当前使用内置目录')
 
@@ -242,7 +243,9 @@ export function evaluatePriceCheckStatus(input = {}) {
     id: 'priceCheck',
     title: '国服查价',
     route: '/price-check',
-    description: '在游戏内按 Ctrl+D 查询腾讯官方市集挂单。',
+    description: input.shortcut
+      ? `在游戏内按 ${input.shortcut} 查询腾讯官方市集挂单。`
+      : '设置游戏内查价快捷键后查询腾讯官方市集挂单。',
     error: input.error,
     running: Boolean(input.enabled && !issues.length),
     issues,

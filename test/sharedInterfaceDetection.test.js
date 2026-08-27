@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { AutomationLock } from '../electron/modules/automation/lock.js'
 import {
   CHAOS_CONTROL_DIP_SIZE,
-  DEFAULT_CHAOS_CONTROL_OFFSET,
+  CHAOS_CONTROL_MARGIN,
   clampControlPhysicalBounds,
   normalizeControlDipSize,
   normalizeControlOffset,
@@ -24,12 +24,37 @@ test('自动入库与混沌取件共享互斥锁并只允许持有者释放', ()
 })
 
 test('混沌控制浮窗使用相对游戏物理坐标并限制到客户区', () => {
-  assert.deepEqual(normalizeControlOffset(), DEFAULT_CHAOS_CONTROL_OFFSET)
+  assert.equal(normalizeControlOffset(), null)
+  assert.equal(normalizeControlOffset({ x: null, y: null }), null)
   const game = { left: -1920, top: 0, right: 0, bottom: 1080, width: 1920, height: 1080 }
+  const initial = clampControlPhysicalBounds(game, null)
+  assert.equal(initial.left, -1920 + CHAOS_CONTROL_MARGIN)
+  assert.equal(initial.bottom, 1080 - CHAOS_CONTROL_MARGIN)
+
   const bounds = clampControlPhysicalBounds(game, { x: 50, y: 1550 })
   assert.equal(bounds.left, -1870)
   assert.equal(bounds.top, 1004)
   assert.deepEqual(bounds.offset, { x: 50, y: 1004 })
+})
+
+test('混沌控制浮窗未拖动时动态定位且不会持久化初始位置', () => {
+  const game = { left: 0, top: 0, right: 2560, bottom: 1440, width: 2560, height: 1440 }
+  const placement = placeControlInDip(game, null, {
+    screenToDipPoint: ({ x, y }) => ({ x: x / 2, y: y / 2 }),
+    dipToScreenPoint: ({ x, y }) => ({ x: x * 2, y: y * 2 })
+  })
+  assert.equal(placement.x, CHAOS_CONTROL_MARGIN)
+  assert.equal(placement.y, 720 - CHAOS_CONTROL_DIP_SIZE.height - CHAOS_CONTROL_MARGIN)
+
+  const manager = source('../electron/modules/chaosRecipe/controlOverlay.js')
+  assert.match(manager, /controlOverlayOffset:\s*null/)
+  const sync = manager.slice(manager.indexOf('sync() {'), manager.indexOf('setVisible(visible)'))
+  assert.doesNotMatch(sync, /this\.runtime\.controlOverlayOffset\s*=\s*placement\.offset/)
+
+  const settings = source('../src/domains/settings/SettingsView.vue')
+  const store = source('../src/stores/chaosRecipe.js')
+  assert.match(settings, /resetApplicationSettings\(\{[\s\S]*resetControlOverlayOffset:\s*\(\) => chaosRecipeStore\.resetControlOverlayOffset\(\)/)
+  assert.match(store, /settings\.value\.controlOverlayOffset = null[\s\S]*syncRuntime\(\{ controlOverlayOffset: null \}\)/)
 })
 
 test('混沌控制浮窗在高 DPI 下保持固定内容尺寸并返回物理偏移', () => {

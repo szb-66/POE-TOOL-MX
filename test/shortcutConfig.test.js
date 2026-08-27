@@ -8,15 +8,12 @@ import {
   normalizeGlobalShortcutSettings
 } from '../src/utils/shortcutConfig.js'
 
-test('全局快捷键不再包含背包补扫，但保留剧情导航', () => {
+test('全局快捷键仅保留紧急停止默认值', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, undefined)
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyPrevious, 'PageUp')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.storyNext, 'PageDown')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStart, 'Alt+4')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipePause, 'Alt+5')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStop, 'Alt+6')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.puzzleAnalyze, 'Alt+7')
-  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.priceCheck, 'Ctrl+D')
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.end, 'Alt+3')
+  for (const [key, value] of Object.entries(DEFAULT_GLOBAL_SHORTCUTS)) {
+    if (key !== 'end') assert.equal(value, '', `${key} 不应提供内置快捷键`)
+  }
 })
 
 test('全局快捷键只接受当前格式字段', () => {
@@ -39,6 +36,8 @@ test('快捷键提交先注册规范化候选再持久化成功值', () => {
   const commit = service.match(/export async function commitGlobalShortcut[\s\S]*?\n\}/)?.[0] || ''
   assert.match(commit, /normalizeGlobalShortcutSettings/)
   assert.ok(commit.indexOf('await updateShortcuts(candidate)') < commit.indexOf('settingsStore.updateGlobalShortcuts'))
+  assert.match(commit, /if \(key === 'priceCheck'\) await usePriceCheckStore\(\)\.syncRuntime\(\{ shortcut: candidate\[key\] \}\)/)
+  assert.match(commit, /catch \(error\)[\s\S]*settingsStore\.updateGlobalShortcuts\(\{ \[key\]: previous\[key\] \}\)[\s\S]*await updateShortcuts\(previous\)/)
   assert.match(service, /validateShortcuts\(shortcuts, \{ requiredKeys: \['end'\] \}\)/)
   assert.match(store, /function updateGlobalShortcuts[\s\S]*normalizeGlobalShortcutSettings[\s\S]*if \(!candidate\.end\) throw new Error\('全局紧急停止快捷键不能为空'\)/)
 })

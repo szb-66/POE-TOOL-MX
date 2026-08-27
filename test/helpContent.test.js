@@ -39,7 +39,7 @@ test('功能指南覆盖全部侧栏业务路由', () => {
 test('全文搜索覆盖标题、关键词和正文且空查询恢复默认状态', () => {
   assert.deepEqual(searchHelpTopics(HELP_TOPICS, ''), [])
   assert.ok(searchHelpTopics(HELP_TOPICS, 'DPI').some(topic => topic.id === 'faq-dpi'))
-  assert.ok(searchHelpTopics(HELP_TOPICS, 'Ctrl+D').some(topic => topic.id === 'module-price-check'))
+  assert.ok(searchHelpTopics(HELP_TOPICS, '查价快捷键').some(topic => topic.id === 'module-price-check'))
   assert.deepEqual(searchHelpTopics(HELP_TOPICS, '卡兰德之镜').map(topic => topic.id), ['crafting-currency'])
   assert.ok(searchHelpTopics(HELP_TOPICS, '花园').some(topic => topic.id === 'crafting-harvest'))
 })

@@ -10,7 +10,8 @@ import {
   normalizeBagBlacklist,
   normalizeInventoryLayout,
   normalizeBagSettings,
-  parseBagItemHeader
+  parseBagItemHeader,
+  validateBagRuntimeConfig
 } from '../src/utils/bagConfig.js'
 import {
   OPERATION_DELAY,
@@ -164,6 +165,20 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   assert.equal('immediateStash' in config, false)
   assert.equal('showStashButtonOnlyWhenReady' in config, false)
   assert.equal('delays' in config, false)
+})
+
+test('背包运行配置不再补旧坐标并在输入前拒绝未配置网格', () => {
+  const config = buildBagRuntimeConfig({
+    templates: {
+      stashTitle: 'stash.png',
+      inventoryTitle: 'inventory.png',
+      stashRegion: { left: 1, top: 1, right: 20, bottom: 20 },
+      inventoryRegion: { left: 1, top: 1, right: 20, bottom: 20 }
+    }
+  }, {})
+  assert.deepEqual(config.inventory.startPos, { x: 0, y: 0 })
+  assert.deepEqual(config.inventory.slotSize, { w: 0, h: 0 })
+  assert.equal(validateBagRuntimeConfig(config), '请先配置背包首格坐标')
 })
 
 test('背包页面提供额外背包与逐格禁用布局，并在模块启用后热更新', () => {

@@ -11,7 +11,7 @@
         class="help-search"
         clearable
         size="large"
-        placeholder="搜索 DPI、Ctrl+D、花园、卡兰德之镜…"
+        placeholder="搜索 DPI、快捷键、花园、卡兰德之镜…"
         aria-label="搜索帮助内容"
       >
         <template #prefix><el-icon><Search /></el-icon></template>

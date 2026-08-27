@@ -5,7 +5,13 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { pythonPath } from './helpers/python.js'
 import { createPinia, setActivePinia } from 'pinia'
-import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist, validateLoopAssist } from '../src/utils/combatConfig.js'
+import {
+  createDefaultCombatAssist,
+  normalizeCombatAssist,
+  validateCombatAssist,
+  validateLoopAssist,
+  validatePortalAssist
+} from '../src/utils/combatConfig.js'
 import { useCombatStore } from '../src/stores/combat.js'
 
 const scriptUrl = new URL('../src/assets/scripts/combat_assist_template.py', import.meta.url)
@@ -13,13 +19,20 @@ const scriptPath = fileURLToPath(scriptUrl)
 const combatIpcUrl = new URL('../electron/modules/ipc/combat.js', import.meta.url)
 const electronMainUrl = new URL('../electron/main.js', import.meta.url)
 
-test('战斗辅助默认配置包含血蓝独立模式、安全限制和回城流程', () => {
+test('战斗辅助默认配置清空设备输入并保留时间与业务限制', () => {
   const config = createDefaultCombatAssist()
   assert.equal(config.potion.health.recoveryMode, 'duration')
   assert.equal(config.potion.mana.recoveryMode, 'duration')
-  assert.deepEqual(config.potion.health.keys, ['1', '2', '3', '4', '5', 'w'])
+  assert.deepEqual(config.potion.health.point, { x: 0, y: 0 })
+  assert.deepEqual(config.potion.mana.point, { x: 0, y: 0 })
+  assert.deepEqual(config.potion.health.keys, [])
+  assert.deepEqual(config.potion.mana.keys, [])
   assert.equal(config.potion.maxTriggersPerSecond, 5)
-  assert.equal(config.portal.openKey, 'Numpad1')
+  assert.equal(config.potion.scanIntervalMs, 100)
+  assert.equal(config.potion.protectionCooldownMs, 1000)
+  assert.equal(config.portal.openKey, '')
+  assert.deepEqual(config.portal.clickPoint, { x: 0, y: 0 })
+  assert.equal(config.portal.waitMs, 500)
 })
 
 test('战斗辅助旧设置加载时补齐默认值并约束非法数值', () => {
@@ -35,6 +48,10 @@ test('战斗辅助旧设置加载时补齐默认值并约束非法数值', () =>
 
 test('战斗辅助启动校验要求启用检测项、坐标和按键序列', () => {
   const valid = createDefaultCombatAssist()
+  valid.potion.health.point = { x: 10, y: 20 }
+  valid.potion.health.keys = ['1']
+  valid.potion.mana.point = { x: 30, y: 40 }
+  valid.potion.mana.keys = ['2']
   assert.equal(validateCombatAssist(valid).isValid, true)
 
   const invalid = createDefaultCombatAssist()
@@ -48,6 +65,46 @@ test('战斗辅助启动校验要求启用检测项、坐标和按键序列', ()
 
   invalid.potion.mana.enabled = false
   assert.match(validateCombatAssist(invalid).errors[0], /至少启用一项/)
+})
+
+test('回城缺少按键或点击坐标时失败关闭', () => {
+  const empty = createDefaultCombatAssist()
+  assert.deepEqual(validatePortalAssist(empty), {
+    isValid: false,
+    errors: ['回城按键未配置', '回城点击坐标未配置']
+  })
+
+  const configured = normalizeCombatAssist({
+    portal: { openKey: 'Numpad1', clickPoint: { x: 20, y: 30 } }
+  })
+  assert.equal(validatePortalAssist(configured).isValid, true)
+
+  const ipcSource = readFileSync(combatIpcUrl, 'utf8')
+  const handler = ipcSource.slice(ipcSource.indexOf("ipcMain.handle('combat-execute-portal'"))
+  assert.ok(handler.indexOf('validatePortalAssist(config)') < handler.indexOf('python.detectPythonPath()'))
+  assert.ok(handler.indexOf('validatePortalAssist(config)') < handler.indexOf("prepareFiles(fileWatcher"))
+  assert.doesNotMatch(readFileSync(scriptUrl, 'utf8'), /portal\.get\("openKey",\s*"Numpad1"\)/)
+})
+
+test('回城脚本收到空配置时在焦点检查和键鼠调用前退出', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("combat", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+calls = []
+module.is_game_foreground = lambda: calls.append("focus") or True
+module.send_sequence = lambda keys: calls.append(["keys", keys]) or len(keys)
+module.click_point = lambda point: calls.append(["click", point]) or True
+result = module.run_portal({"portal": {"openKey": "", "clickPoint": {"x": 0, "y": 0}}})
+print(json.dumps({"result": result, "calls": calls}))
+`
+  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  assert.equal(payload.result, 2)
+  assert.deepEqual(payload.calls, [])
 })
 
 test('自动喝药核心逻辑覆盖阈值、两种回复模式和频率保护', () => {

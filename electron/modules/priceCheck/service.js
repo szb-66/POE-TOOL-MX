@@ -194,7 +194,7 @@ export class PriceCheckService {
     this.dcRate = null
     this.dcRateAttemptedAt = 0
     this.dcRatePending = null
-    this.runtime = { enabled: false, league: '', options: sanitizePriceCheckOptions() }
+    this.runtime = { enabled: false, league: '', shortcut: '', options: sanitizePriceCheckOptions() }
     this.auth.registerCacheClearer?.(() => this.clear())
   }
 
@@ -205,7 +205,7 @@ export class PriceCheckService {
     this.controller = null
     this.client.clearCache()
     this.latest = null
-    this.overlay?.update?.({ status: 'idle', result: null })
+    this.updateOverlay({ status: 'idle', result: null })
   }
 
   assertEnabled() {
@@ -214,17 +214,33 @@ export class PriceCheckService {
     }
   }
 
+  overlaySnapshot(snapshot = {}) {
+    return { ...snapshot, shortcut: this.runtime.shortcut }
+  }
+
+  createOverlay(snapshot, options) {
+    this.overlay?.create?.(this.overlaySnapshot(snapshot), options)
+  }
+
+  updateOverlay(snapshot) {
+    this.overlay?.update?.(this.overlaySnapshot(snapshot))
+  }
+
   updateRuntime(runtime = {}) {
     const enabled = Boolean(runtime.enabled)
     const hasOptions = runtime.options && typeof runtime.options === 'object'
+    const hasShortcut = Object.prototype.hasOwnProperty.call(runtime, 'shortcut')
     this.runtime = {
       enabled,
       league: String(runtime.league || '').slice(0, 120),
+      shortcut: hasShortcut ? String(runtime.shortcut || '').trim().slice(0, 120) : this.runtime.shortcut,
       options: hasOptions ? sanitizePriceCheckOptions(runtime.options) : this.runtime.options
     }
     if (hasOptions) this.settingsRevision += 1
-    if (enabled) this.overlay?.prepare?.()
-    else {
+    if (enabled) {
+      this.overlay?.prepare?.()
+      this.updateOverlay({ shortcut: this.runtime.shortcut })
+    } else {
       this.clear()
       this.destroyOverlay()
     }
@@ -247,7 +263,7 @@ export class PriceCheckService {
         queryImmediately
       })
     } catch (error) {
-      if (captureSequence === this.captureSequence && error?.name !== 'AbortError') this.overlay?.create?.({
+      if (captureSequence === this.captureSequence && error?.name !== 'AbortError') this.createOverlay({
         status: 'error',
         error: errorSnapshot(error, CHAOS_ERROR_CODES.INVALID_REQUEST),
         catalog: this.catalogStatus,
@@ -261,6 +277,7 @@ export class PriceCheckService {
   getStatus() {
     return {
       enabled: this.runtime.enabled,
+      shortcut: this.runtime.shortcut,
       options: structuredClone(this.runtime.options),
       settingsRevision: this.settingsRevision,
       dcRate: this.currentDcRate(),
@@ -278,13 +295,13 @@ export class PriceCheckService {
       loading: true,
       warning: '正在刷新腾讯官方物品与词缀目录…'
     }
-    this.overlay?.update?.({ catalog: this.catalogStatus })
+    this.updateOverlay({ catalog: this.catalogStatus })
     this.catalogRefreshPending = Promise.resolve()
       .then(() => this.catalogRefresher())
       .then((bundle) => {
         this.catalog = bundle.catalog
         this.catalogStatus = { ...bundle.status, loading: false, warning: '' }
-        this.overlay?.update?.({ catalog: this.catalogStatus })
+        this.updateOverlay({ catalog: this.catalogStatus })
         return this.catalogStatus
       })
       .catch((error) => {
@@ -295,7 +312,7 @@ export class PriceCheckService {
           loading: false,
           warning: `腾讯官方交易目录不可用，继续使用当前目录：${error.message}`
         }
-        this.overlay?.update?.({ catalog: this.catalogStatus })
+        this.updateOverlay({ catalog: this.catalogStatus })
         throw error
       })
       .finally(() => { this.catalogRefreshPending = null })
@@ -305,7 +322,7 @@ export class PriceCheckService {
   updateSettings(patch = {}) {
     this.runtime.options = sanitizePriceCheckOptions({ ...this.runtime.options, ...patch })
     this.settingsRevision += 1
-    this.overlay?.update?.({
+    this.updateOverlay({
       options: structuredClone(this.runtime.options),
       settingsRevision: this.settingsRevision,
       dcRate: this.currentDcRate()
@@ -348,7 +365,7 @@ export class PriceCheckService {
       .finally(() => { this.dcRatePending = null })
     const snapshot = await this.dcRatePending
     if (this.latest) this.refreshLatestResult()
-    this.overlay?.update?.({ dcRate: snapshot, ...(this.latest ? { result: this.latest.result } : {}) })
+    this.updateOverlay({ dcRate: snapshot, ...(this.latest ? { result: this.latest.result } : {}) })
     return snapshot
   }
 
@@ -375,14 +392,14 @@ export class PriceCheckService {
     }
     if (!this.auth.getStatus().authenticated) {
       const error = new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, '请先登录国服账号')
-      this.overlay?.create?.({ status: 'error', error: error.toJSON(), catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
+      this.createOverlay({ status: 'error', error: error.toJSON(), catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
     }
     let currentModel
     try {
       currentModel = model ? sanitizePriceCheckModel(model, this.catalog) : this.parse(text, options)
     } catch (error) {
-      this.overlay?.create?.({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
+      this.createOverlay({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
     }
     if (currentModel.identityResolution?.required) {
@@ -408,7 +425,7 @@ export class PriceCheckService {
           ? { code: 'IDENTITY_UNRESOLVED', message: currentModel.identityResolution.message }
           : undefined
       }
-      this.overlay?.create?.(state, { reposition })
+      this.createOverlay(state, { reposition })
       void this.refreshDcRate()
       return structuredClone(this.latest)
     }
@@ -423,7 +440,7 @@ export class PriceCheckService {
         remainingResultIds: [],
         updatedAt: new Date().toISOString()
       }
-      this.overlay?.create?.({
+      this.createOverlay({
         status: 'ready-to-query',
         ...this.latest,
         settingsRevision: this.settingsRevision,
@@ -436,7 +453,7 @@ export class PriceCheckService {
     }
     const query = buildOfficialTradeQuery(currentModel, options)
     this.latest = null
-    this.overlay?.create?.({
+    this.createOverlay({
       status: 'loading', league, model: currentModel, options,
       settingsRevision: this.settingsRevision, dcRate: this.currentDcRate(),
       catalog: this.catalogStatus, auth: this.auth.getStatus(), query
@@ -489,13 +506,13 @@ export class PriceCheckService {
         remainingResultIds: allIds.slice(10),
         updatedAt: new Date().toISOString()
       }
-      this.overlay?.update?.({ status: 'ready', ...this.latest, dcRate: this.currentDcRate(), catalog: this.catalogStatus, auth: this.auth.getStatus() })
+      this.updateOverlay({ status: 'ready', ...this.latest, dcRate: this.currentDcRate(), catalog: this.catalogStatus, auth: this.auth.getStatus() })
       void this.refreshDcRate()
       return structuredClone(this.latest)
     } catch (error) {
       if (error?.name === 'AbortError') throw error
       if (error?.code === CHAOS_ERROR_CODES.SESSION_EXPIRED) await this.auth.expire?.()
-      this.overlay?.update?.({ status: 'error', error: errorSnapshot(error), auth: this.auth.getStatus() })
+      this.updateOverlay({ status: 'error', error: errorSnapshot(error), auth: this.auth.getStatus() })
       throw error
     }
   }
@@ -654,7 +671,7 @@ export class PriceCheckService {
     this.latest.rawEntries.push(...fetched.result.filter(Boolean))
     this.refreshLatestResult()
     this.latest.updatedAt = new Date().toISOString()
-    this.overlay?.update?.({ status: 'ready', ...this.latest })
+    this.updateOverlay({ status: 'ready', ...this.latest })
     return structuredClone(this.latest)
   }
 
@@ -690,7 +707,7 @@ export class PriceCheckService {
         this.refreshLatestResult(latest)
         latest.rateLimit = errorSnapshot(error, CHAOS_ERROR_CODES.RATE_LIMITED)
         latest.updatedAt = new Date().toISOString()
-        this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+        this.updateOverlay({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
         return structuredClone(latest)
       }
       assertCurrent()
@@ -698,13 +715,13 @@ export class PriceCheckService {
       latest.rateLimit = null
       this.refreshLatestResult(latest)
       latest.updatedAt = new Date().toISOString()
-      this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+      this.updateOverlay({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
     }
     assertCurrent()
     this.refreshLatestResult(latest)
     latest.rateLimit = null
     latest.result.distribution.complete = true
-    this.overlay?.update?.({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
+    this.updateOverlay({ status: 'ready', ...latest, dcRate: this.currentDcRate() })
     return structuredClone(latest)
   }
 

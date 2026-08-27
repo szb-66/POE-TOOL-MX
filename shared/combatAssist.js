@@ -16,21 +16,21 @@ export function createDefaultCombatAssist() {
       protectionCooldownMs: 1000,
       health: {
         ...DEFAULT_RESOURCE,
-        point: { x: 200, y: 1850 },
+        point: { x: 0, y: 0 },
         threshold: 60,
-        keys: ['1', '2', '3', '4', '5', 'w']
+        keys: []
       },
       mana: {
         ...DEFAULT_RESOURCE,
-        point: { x: 3622, y: 1944 },
+        point: { x: 0, y: 0 },
         threshold: 80,
-        keys: ['5'],
+        keys: [],
         recoveryCooldownMs: 2000
       }
     },
     portal: {
-      openKey: 'Numpad1',
-      clickPoint: { x: 1908, y: 890 },
+      openKey: '',
+      clickPoint: { x: 0, y: 0 },
       waitMs: 500
     },
     loop: {
@@ -128,6 +128,14 @@ export function validateLoopAssist(config = {}) {
   return { isValid: errors.length === 0, errors }
 }
 
+export function validatePortalAssist(config = {}) {
+  const errors = []
+  if (!String(config.portal?.openKey || '').trim()) errors.push('回城按键未配置')
+  const point = config.portal?.clickPoint
+  if (!point || (Number(point.x) === 0 && Number(point.y) === 0)) errors.push('回城点击坐标未配置')
+  return { isValid: errors.length === 0, errors }
+}
+
 export function validateCombatAssist(config = {}) {
   const potion = validatePotionAssist(config)
   if (potion.isValid) return potion
@@ -135,4 +143,3 @@ export function validateCombatAssist(config = {}) {
   if (loop.isValid) return loop
   return potion
 }
-
