@@ -174,12 +174,16 @@
           </div>
       </el-card></el-col>
     </el-row>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { CopyDocument, Delete, Edit, Plus } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
@@ -196,6 +200,7 @@ import {
 
 const story = useStoryStore()
 const settings = useSettingsStore()
+const helpTopics = [moduleTopicById('story')]
 let saveTimer = null
 const dragPreview = ref(null)
 const stepInputRefs = {}

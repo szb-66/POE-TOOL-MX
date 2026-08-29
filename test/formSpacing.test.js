@@ -16,6 +16,6 @@ test('设置页开关标签以及控件说明之间保持间距', () => {
 
   assert.match(settings, /\.shortcut-scope-control \{[\s\S]*?display: flex;[\s\S]*?gap: 4px 10px;/)
   assert.match(settings, /\.shortcut-scope-control \{[\s\S]*?\.hint-text \{ flex-basis: 100%; \}/)
-  assert.equal((settings.match(/<el-form-item class="spaced-field"/g) || []).length, 4)
+  assert.equal((settings.match(/<el-form-item class="spaced-field"/g) || []).length, 3)
   assert.match(settings, /\.spaced-field :deep\(\.el-form-item__content\) \{ column-gap: 10px; \}/)
 })

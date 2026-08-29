@@ -26,11 +26,13 @@ const bootstrap = async () => {
   await router.isReady()
   syncMainWindowTheme(router.currentRoute.value)
   app.mount('#app')
+  window.__appBootstrapped = true
   reportStartupEvent('renderer-mounted')
   rendererMounted = true
 }
 
 void bootstrap().catch((error) => {
+  window.__bootstrapError = String(error?.message || error)
   reportStartupEvent('renderer-bootstrap-failed', error)
 })
 

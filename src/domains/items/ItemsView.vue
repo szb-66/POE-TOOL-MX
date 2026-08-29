@@ -29,6 +29,8 @@
       <ModuleThree />
     </div>
     </el-col></el-row>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
@@ -38,8 +40,12 @@ import ModuleOne from './components/ModuleOne.vue'
 import ModuleTwo from './components/ModuleTwo.vue'
 import ModuleEldritch from './components/ModuleEldritch.vue'
 import ModuleThree from './components/ModuleThree.vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
+
+const helpTopics = [moduleTopicById('items')]
 
 const presetStore = usePresetStore()
 const scriptStore = useScriptStore()

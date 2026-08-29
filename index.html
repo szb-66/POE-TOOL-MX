@@ -54,6 +54,16 @@
       if (location.hash && location.hash !== '#/') {
         document.getElementById('app-loading')?.remove()
       }
+      // 引导失败兜底：模块加载或 bootstrap 失败时补一块深色提示，避免停留在白屏。
+      setTimeout(() => {
+        if (window.__appBootstrapped || document.getElementById('app-boot-fallback')) return
+        const fallback = document.createElement('div')
+        fallback.id = 'app-boot-fallback'
+        fallback.setAttribute('style', 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0E1013;color:#AEB4BD;font-family:\'Segoe UI Variable\',\'Microsoft YaHei UI\',\'PingFang SC\',sans-serif;font-size:13px;line-height:1.6;text-align:center;padding:0 24px;')
+        fallback.textContent = '界面加载失败，请按 F5 刷新重试' +
+          (window.__bootstrapError ? `（${window.__bootstrapError}）` : '')
+        document.getElementById('app')?.appendChild(fallback)
+      }, 8000)
     </script>
     <script type="module" src="/src/main.js"></script>
   </body>

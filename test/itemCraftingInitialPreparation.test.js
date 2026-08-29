@@ -74,6 +74,8 @@ test('制作前准备仅鉴定未鉴定物品一次，并对失败发出启动�
   const end = template.indexOf('# 自动启动制作', start)
   assert.ok(start >= 0 && end > start)
   const block = template.slice(start, end)
+    .replaceAll('{{ENABLE_AFFIX}}', 'True')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
   const result = runPython(`
 import json, time
 ${block}
@@ -134,6 +136,42 @@ print(json.dumps({
   assert.match(result.parseFailed.fatal, /无法解析/)
   assert.equal(result.readFailed.prepared, null)
   assert.match(result.readFailed.fatal, /无法读取/)
+})
+
+test('读取到未适配词缀补丁标记时停止制作，仅插槽配置放行', () => {
+  const template = source('../src/assets/scripts/crafting_template.py')
+  const start = template.indexOf('def fail_item_runtime(')
+  const end = template.indexOf('def fail_item_preparation(', start)
+  assert.ok(start >= 0 && end > start)
+  const substitute = (affixEnabled, eldritchEnabled) => template.slice(start, end)
+    .replaceAll('{{ENABLE_AFFIX}}', affixEnabled ? 'True' : 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', eldritchEnabled ? 'True' : 'False')
+
+  const run = (generated, queueLiteral) => runPython(`
+import json, time
+${generated}
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+def read_clipboard_to_file(allow_unchanged_text=False): return True
+def wait_for_parse_result(_request_id=None): return queue.pop(0)
+queue = ${queueLiteral}
+result = read_current_item()
+print(json.dumps({"result": result, "fatal": fatal_error_reason}, ensure_ascii=False))
+`)
+
+  const guarded = run(substitute(true, false), '[{"rarity": "魔法", "affixFormatUnsupported": True}]')
+  assert.match(guarded.fatal, /未适配的词缀补丁格式/)
+  assert.deepEqual(guarded.result, { error: '检测到未适配的词缀补丁格式' })
+
+  const eldritchGuarded = run(substitute(false, true), '[{"rarity": "稀有", "affixFormatUnsupported": True}]')
+  assert.match(eldritchGuarded.fatal, /未适配的词缀补丁格式/)
+  assert.deepEqual(eldritchGuarded.result, { error: '检测到未适配的词缀补丁格式' })
+
+  const passthrough = run(substitute(false, false), '[{"rarity": "魔法", "affixFormatUnsupported": True, "socketsCount": 3}]')
+  assert.equal(passthrough.fatal, null)
+  assert.deepEqual(passthrough.result, { rarity: '魔法', affixFormatUnsupported: true, socketsCount: 3 })
 })
 
 test('页面级首次识别统一控制词缀和插槽模块', async () => {
@@ -242,6 +280,103 @@ print(json.dumps({"success": bool(success), "currencies": currencies, "used": us
     }
     assert.deepEqual(runSockets(generateSockets(true)), { success: true, currencies: [], used: [] })
     assert.deepEqual(runSockets(generateSockets(false)), { success: true, currencies: ['jewellers'], used: ['jewellers'] })
+  } finally {
+    await server.close()
+  }
+})
+
+test('读取未变化时词缀循环继续下一轮且增幅补读沿用增幅前结果', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
+  try {
+    const { generatePythonScript } = await server.ssrLoadModule('/src/utils/python.js')
+    const generated = generatePythonScript({
+      globalShortcuts: { end: 'Alt+3' },
+      currencyPositions: { alteration: { x: 2, y: 2 }, augmentation: { x: 5, y: 5 } },
+      operationDelayMs: 50,
+      adaptiveTiming: true,
+      fixedTiming: {},
+      itemPosition: { x: 30, y: 40 },
+      preset: {
+        checkInitialItem: true,
+        moduleTwo: {
+          enabled: true,
+          mode: 'alteration',
+          enableAugmentation: true,
+          affixGroups: [{ id: 'goal', name: '目标', requiredAffixes: [], selectedAffixes: ['充能'], selectedCount: 1 }]
+        },
+        moduleThree: { enabled: false },
+        moduleEldritch: { enabled: false }
+      },
+      filePaths: { itemInfoFile: 'item.txt', itemInfoResultFile: 'result.json' },
+      stashTabSelection: { enabled: false }
+    })
+
+    const helperStart = generated.indexOf('def fail_item_runtime(')
+    const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
+    const logicStart = generated.indexOf('def explicit_affix_count(')
+    const finishStart = generated.indexOf('def finish_affix_match(', logicStart)
+    const logicEnd = generated.indexOf('def craft_eldritch_implicits(', logicStart)
+    assert.ok(helperStart >= 0 && helperEnd > helperStart && logicStart >= 0)
+    assert.ok(finishStart > logicStart && logicEnd > finishStart)
+
+    const twoAffix = '{"rarity":"魔法","affixMatch":false,"modifiers":[{"type":"prefix","name":"鞭笞的","tier":1,"text":"你被敌人击中时获得 3 次充能"},{"type":"suffix","name":"海豹之","tier":1,"text":"生效期间，有 53% 几率避免被冰缓"}]}'
+    const oneAffix = '{"rarity":"魔法","affixMatch":false,"modifiers":[{"type":"suffix","name":"海豹之","tier":1,"text":"生效期间，有 53% 几率避免被冰缓"}]}'
+
+    const runLoop = runPython(`
+import json, time
+${generated.slice(helperStart, helperEnd)}
+${generated.slice(logicStart, logicEnd)}
+is_running = True
+fatal = []
+def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
+    fatal.append(reason)
+    globals()["is_running"] = False
+    return False
+def release_all_keys(): pass
+def play_error_sound(): pass
+applied = []
+def apply_currency(currency): applied.append(currency); return True
+reads = []
+queue = ["unchanged", "unchanged", "last"]
+def read_current_item():
+    item = queue.pop(0)
+    reads.append(item)
+    if item == "last":
+        globals()["is_running"] = False
+    return {"unchanged": True}
+time.sleep = lambda _seconds: None
+initial = json.loads(r'''${twoAffix}''')
+success = craft_affixes(initial)
+print(json.dumps({"success": bool(success), "applied": applied, "fatal": fatal}, ensure_ascii=False))
+`)
+    assert.equal(runLoop.fatal.length, 0)
+    assert.equal(runLoop.success, false)
+    assert.deepEqual(runLoop.applied, ['alteration', 'alteration', 'alteration'])
+
+    const runAugment = runPython(`
+import json, time
+${generated.slice(helperStart, helperEnd)}
+${generated.slice(logicStart, finishStart)}
+is_running = True
+fatal = []
+def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
+    fatal.append(reason)
+    globals()["is_running"] = False
+    return False, None
+def release_all_keys(): pass
+def play_error_sound(): pass
+applied = []
+def apply_currency(currency): applied.append(currency); return True
+def read_current_item(): return {"unchanged": True}
+time.sleep = lambda _seconds: None
+ok, kept = augment_single_affix_if_needed(json.loads(r'''${oneAffix}'''))
+refreshed = [ok, kept.get("affixMatch"), len(kept.get("modifiers", [])), list(applied), list(fatal)]
+def read_current_item(): return json.loads(r'''${twoAffix}''')
+ok2, refreshed_result = augment_single_affix_if_needed(json.loads(r'''${oneAffix}'''))
+print(json.dumps({"kept": refreshed, "refreshed": [ok2, len(refreshed_result.get("modifiers", [])), list(applied)], "fatal": list(fatal)}, ensure_ascii=False))
+`)
+    assert.deepEqual(runAugment.kept, [true, false, 1, ['augmentation'], []])
+    assert.deepEqual(runAugment.refreshed, [true, 2, ['augmentation', 'augmentation']])
   } finally {
     await server.close()
   }

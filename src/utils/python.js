@@ -193,6 +193,10 @@ def augment_single_affix_if_needed(result):
         error_msg = refreshed_result.get("error") if isinstance(refreshed_result, dict) else "无效结果"
         fail_item_runtime(f"增幅后读取物品信息失败：{error_msg}", "ITEM_READ_FAILED")
         return False, result
+    if refreshed_result.get("unchanged"):
+        # 增幅效果尚未反映在文本中：沿用增幅前结果，下一轮循环会重新判定
+        print("[提示] 增幅后文本未变化，沿用增幅前读取结果")
+        return True, result
     return True, refreshed_result
 
 def finish_affix_match(result, iteration=0):
@@ -313,12 +317,16 @@ def craft_affixes(initial_result=None):
             
             
             # 重新读取物品信息（最多三次读取，不重复使用通货）
-            result = read_current_item()
-            if not isinstance(result, dict) or result.get("error"):
-                error_msg = result.get("error") if isinstance(result, dict) else "无效解析结果"
+            read_result = read_current_item()
+            if not isinstance(read_result, dict) or read_result.get("error"):
+                error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
                 print(f"[错误] 读取物品信息失败: {error_msg}")
                 return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
-            
+            if read_result.get("unchanged"):
+                # 文本未变化说明状态未推进：沿用上次结果，仅消耗一次预处理尝试
+                print("[预处理] 物品文本未变化，沿用上次读取结果")
+            else:
+                result = read_result
             preprocess_count += 1
         
         if preprocess_count >= preprocess_limit:
@@ -389,11 +397,18 @@ def craft_affixes(initial_result=None):
 
     logic += `
             # 复制物品并读取（最多三次读取，不重复使用通货）
-            result = read_current_item()
-            if not isinstance(result, dict) or result.get("error"):
-                error_msg = result.get("error") if isinstance(result, dict) else "无效解析结果"
+            read_result = read_current_item()
+            if not isinstance(read_result, dict) or read_result.get("error"):
+                error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
                 print(f"[错误] 读取当前物品失败: {error_msg}")
                 return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+            
+            if read_result.get("unchanged"):
+                # 文本未变化：匹配结论与上次一致，沿用上次结果，直接进入下一轮使用通货
+                if iteration % 10 == 0:
+                    print(f"[检查] 第 {iteration} 次 - 文本未变化，继续...")
+                continue
+            result = read_result
             
             # print(f"[调试] 第 {iteration} 次 - 解析成功，检查是否需要增幅...")
             

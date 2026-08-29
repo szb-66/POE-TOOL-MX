@@ -275,6 +275,8 @@ STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 TIMING_MODE = "{{TIMING_MODE}}"
 ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+# 复制成功（有序列号证据）但文本未变化的哨兵：区别于"没有复制到内容"
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 FILE_SYNC_POLL_INTERVAL_SECONDS = 0.01
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
 FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
@@ -740,20 +742,25 @@ def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
         return current_text
     if current_text != before_text:
         return current_text
+    if seq_changed:
+        return CLIPBOARD_TEXT_UNCHANGED
     return None
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
+    saw_unchanged_copy = False
     while is_running:
         clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
-        if clipboard_text is not None:
+        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
+            saw_unchanged_copy = True
+        elif clipboard_text is not None:
             return clipboard_text
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
         time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
-    return False
+    return CLIPBOARD_TEXT_UNCHANGED if saw_unchanged_copy else False
 
 def read_clipboard_to_file(allow_unchanged_text=False):
     global parse_request_sequence, pending_parse_request_id
@@ -771,6 +778,7 @@ def read_clipboard_to_file(allow_unchanged_text=False):
             before_text = ""
         clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text=allow_unchanged_text)
         if not clipboard_text: return False
+        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED: return "unchanged"
         
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
@@ -916,13 +924,20 @@ def fail_map_runtime(reason, code="MAP_PROCESSING_FAILED"):
 def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, empty_on_copy_failure=False):
     last_error = "无法读取当前目标"
     copied_any = False
+    saw_unchanged = False
+    last_dispatched = False
     for attempt in range(attempts):
         if not is_running:
             break
-        # 重试不重复使用通货：物品文本与上次相同，允许序列号变化后的同文本复制
-        request_id = read_and_parse(x, y, allow_unchanged_text=allow_unchanged_text or attempt > 0)
-        if request_id:
+        # 同文本重发仅用于解析分发后的补发；复制未取得新文本时不得接受旧 tooltip。
+        request_id = read_and_parse(x, y, allow_unchanged_text=allow_unchanged_text or (attempt > 0 and last_dispatched))
+        if request_id == "unchanged":
+            last_dispatched = False
+            saw_unchanged = True
+            last_error = "剪贴板文本未变化"
+        elif request_id:
             copied_any = True
+            last_dispatched = True
             result = wait_for_parse_result(request_id)
             if not result.get("error") and item_matches_rolling_target(result):
                 return result
@@ -930,9 +945,13 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
                 return result
             last_error = result.get("error") or f"解析类别不是当前目标 {rolling_target_label()}"
         else:
+            last_dispatched = False
             last_error = fatal_error_reason or "复制当前目标失败"
         if attempt + 1 < attempts and is_running:
             print(f"  > [重试] {last_error}，重新复制当前格（不重复使用通货）")
+    if saw_unchanged and not copied_any:
+        # 文本未变化说明状态未推进：按无新信息处理，由调用方继续洗练
+        return {"unchanged": True}
     if empty_on_copy_failure and not copied_any:
         return {"empty": True}
     return {"error": last_error}

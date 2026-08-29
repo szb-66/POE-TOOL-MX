@@ -58,17 +58,13 @@
       <el-icon><Setting /></el-icon>
       <span>设置</span>
     </el-menu-item>
-    <el-menu-item index="/help" @pointerenter="warmRoute('/help')" @focusin="warmRoute('/help')">
-      <el-icon><Help /></el-icon>
-      <span>帮助</span>
-    </el-menu-item>
   </el-menu>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Coin, Connection, DataAnalysis, Guide, Help, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, Guide, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
 
 const route = useRoute()

@@ -440,7 +440,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       const templateDir = path.join(app.getPath('userData'), 'templates')
       if (!fs.existsSync(templateDir)) fs.mkdirSync(templateDir, { recursive: true })
       const ext = path.extname(sourcePath)
-      const fileName = path.basename(assertBagTemplateTarget(type), '.png') + ext
+      const fileName = path.basename(assertBagTemplateTarget(type, app.isPackaged), '.png') + ext
       const targetPath = path.join(templateDir, fileName)
       fs.copyFileSync(sourcePath, targetPath)
       updateRuntimeTemplate(type, targetPath)
@@ -461,7 +461,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
       if (result?.success === false) return { success: false, error: result.error?.message || '框选失败' }
       const templateDir = path.join(app.getPath('userData'), 'templates')
-      const targetPath = savePngAtomically(templateDir, type, result.png)
+      const targetPath = savePngAtomically(templateDir, type, result.png, fs, app.isPackaged)
       const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)
       updateRuntimeTemplate(type, targetPath, region)
       let reloaded = false

@@ -1,9 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { HELP_TOPICS, topicText } from '../src/domains/help/helpContent.js'
+import { CRAFTING_TOPICS, MODULE_TOPICS } from '../src/domains/help/helpContent.js'
 
-const helpContentText = async () => HELP_TOPICS.map(topicText).join('\n')
+const topicText = topic => [
+  topic.title,
+  topic.summary,
+  ...(topic.blocks || []).map(block => Array.isArray(block.items) ? block.items.join(' ') : String(block.text || ''))
+].join(' ')
+const helpContentText = () => [...MODULE_TOPICS, ...CRAFTING_TOPICS].map(topicText).join('\n')
 
 test('模拟页面以选择底材、手动通货、装备变化和三级目录为主流程', async () => {
   const [router, sidebar, view] = await Promise.all([

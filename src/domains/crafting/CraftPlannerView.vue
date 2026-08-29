@@ -280,11 +280,15 @@
         </el-table>
       </el-dialog>
     </template>
+
+    <PageHelpDrawer :topics="helpTopics" title="做装模拟帮助" />
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { CRAFTING_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
 import { useCraftingStore } from './craftingStore.js'
 import { familySelectionState, selectableFamilyTiers, tierSelectionKey, toggleFamilySelection, toggleTierSelection } from './modSelection.js'
 import { CATALYST_LABELS, displayedCatalystEntry } from '../../../electron/modules/crafting/catalystRules.js'
@@ -293,6 +297,7 @@ import { affixTierSummary, effectLines, formatProbability, rolledTextWithRanges 
 import { readPersistentTab, readPersistentTabMap, writePersistentTab, writePersistentTabMap } from '@/utils/tabPersistence'
 
 const store = useCraftingStore()
+const helpTopics = [moduleTopicById('crafting'), ...CRAFTING_TOPICS]
 const pageError = ref('')
 const selectedBase = ref(null)
 const baseCategoryPath = ref([])

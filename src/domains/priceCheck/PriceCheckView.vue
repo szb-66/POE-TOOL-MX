@@ -122,6 +122,8 @@
         </el-card></el-col>
       </el-row>
     </div>
+
+    <PageHelpDrawer :topics="helpTopics" title="查价帮助" />
   </div>
 </template>
 
@@ -129,10 +131,15 @@
 import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { CRAFTING_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { settingsRoute } from '@/router/settingsNavigation'
+
+const CRAFTING_PRICE_CHECK_TOPIC = CRAFTING_TOPICS.find(topic => topic.id === 'crafting-price-check')
+const helpTopics = [moduleTopicById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
 
 const store = usePriceCheckStore()
 const account = usePoeCnAccountStore()

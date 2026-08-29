@@ -11,9 +11,9 @@ import {
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('设置导航仅接受六个稳定 Tab 单值并为合法目标生成查询路由', () => {
+test('设置导航仅接受七个稳定 Tab 单值并为合法目标生成查询路由', () => {
   assert.deepEqual(SETTINGS_TABS, [
-    'general', 'automation', 'detection', 'overlay', 'system', 'feedback'
+    'general', 'automation', 'detection', 'overlay', 'system', 'feedback', 'about'
   ])
   for (const tab of SETTINGS_TABS) {
     assert.equal(resolveSettingsTab(tab), tab)
@@ -62,13 +62,11 @@ test('明确业务入口携带通用目标，普通设置入口不携带目标',
   const priceCheck = source('src/domains/priceCheck/PriceCheckView.vue')
   const dashboard = source('src/domains/dashboard/useDashboard.js')
   const sidebar = source('src/components/Layout/Sidebar.vue')
-  const help = source('src/views/Help.vue')
 
   assert.equal((shop.match(/settingsRoute\('general'\)/g) || []).length, 2)
   assert.match(priceCheck, /\$router\.push\(settingsRoute\('general'\)\)/)
   assert.match(dashboard, /router\.push\(settingsRouteForHealth\(healthItems\.value\)\)/)
   assert.match(sidebar, /index="\/settings"/)
   assert.doesNotMatch(sidebar, /settingsRoute/)
-  assert.match(help, /navigateTo\('\/settings'\)/)
-  assert.doesNotMatch(help, /settingsRoute/)
+  assert.doesNotMatch(sidebar, /index="\/help"/)
 })

@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
+import { restoreMainWindowToForeground } from '../window/manager.js'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import {
   gridCellCenter,
@@ -49,10 +50,6 @@ function terminate(child) {
   setTimeout(() => { if (child.exitCode === null) child.kill('SIGKILL') }, 1200)
 }
 
-function sleep(milliseconds) {
-  return new Promise(resolve => setTimeout(resolve, milliseconds))
-}
-
 function codedError(code, message) {
   const error = new Error(message)
   error.code = code
@@ -90,13 +87,6 @@ function currentDisplays() {
       point => screen.dipToScreenPoint(point)
     )
   }))
-}
-
-function restoreWindow(window) {
-  if (!window || window.isDestroyed()) return
-  if (window.isMinimized()) window.restore()
-  window.show()
-  window.focus()
 }
 
 export class PuzzleAnalysisService {
@@ -255,30 +245,23 @@ export class PuzzleAnalysisService {
 
   async pickRegion(type = 'inventory') {
     const regionType = type === 'atlas' ? 'atlas' : 'inventory'
-    const mainWindow = this.getMainWindow?.()
-    try {
-      mainWindow?.minimize()
-      await sleep(500)
-      const result = await this.window.pickScreenRegion({
-        purpose: regionType === 'atlas' ? 'puzzle-atlas' : 'puzzle-inventory',
-        minimumSize: regionType === 'atlas' ? { width: 60, height: 60 } : { width: 120, height: 200 }
-      })
-      if (result?.canceled) return result
-      if (result?.success === false) return result
-      this.savePreview(regionType, result.png)
-      return {
-        success: true,
-        canceled: false,
-        type: regionType,
-        selectedRegion: result.selectedRegion,
-        displayId: result.displayId,
-        scaleFactor: result.scaleFactor,
-        displayPhysicalBounds: result.displayPhysicalBounds,
-        capturedAt: new Date().toISOString(),
-        previewDataUrl: this.readPreview(regionType)
-      }
-    } finally {
-      restoreWindow(mainWindow)
+    const result = await this.window.pickScreenRegion({
+      purpose: regionType === 'atlas' ? 'puzzle-atlas' : 'puzzle-inventory',
+      minimumSize: regionType === 'atlas' ? { width: 60, height: 60 } : { width: 120, height: 200 }
+    })
+    if (result?.canceled) return result
+    if (result?.success === false) return result
+    this.savePreview(regionType, result.png)
+    return {
+      success: true,
+      canceled: false,
+      type: regionType,
+      selectedRegion: result.selectedRegion,
+      displayId: result.displayId,
+      scaleFactor: result.scaleFactor,
+      displayPhysicalBounds: result.displayPhysicalBounds,
+      capturedAt: new Date().toISOString(),
+      previewDataUrl: this.readPreview(regionType)
     }
   }
 
@@ -286,15 +269,8 @@ export class PuzzleAnalysisService {
 
   pickAtlasRegion() { return this.pickRegion('atlas') }
 
-  async pickInventoryTabPoint(page) {
-    const mainWindow = this.getMainWindow?.()
-    try {
-      mainWindow?.minimize()
-      await sleep(500)
-      return await this.window.pickScreenCoordinate()
-    } finally {
-      restoreWindow(mainWindow)
-    }
+  pickInventoryTabPoint(page) {
+    return this.window.pickScreenCoordinate()
   }
 
   clearRegion(type = 'inventory') {
@@ -549,7 +525,7 @@ export class PuzzleAnalysisService {
 
   publish(payload) {
     const mainWindow = this.getMainWindow?.()
-    restoreWindow(mainWindow)
+    restoreMainWindowToForeground()
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
@@ -827,6 +803,8 @@ export class PuzzleAnalysisService {
       }
     } finally {
       this.automationLock?.release(MOD_PROBE_OWNER)
+      // 与 analyze 行为一致：识别结束后恢复主窗口前台；早期校验失败在 try 之前返回，不经过此处。
+      restoreMainWindowToForeground()
     }
   }
 
@@ -955,7 +933,7 @@ export class PuzzleAnalysisService {
     } finally {
       await evidenceSession.discard()
       this.busy = false
-      restoreWindow(mainWindow)
+      restoreMainWindowToForeground()
     }
   }
 

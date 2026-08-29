@@ -58,12 +58,16 @@
         :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
       />
     </el-col></el-row>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { QuestionFilled } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
@@ -77,6 +81,7 @@ import MapRollingProfilePanel from './components/MapRollingProfilePanel.vue'
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
 const scriptStore = useScriptStore()
+const helpTopics = [moduleTopicById('map')]
 const starting = ref(false)
 const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'map')
 const shortcuts = computed(() => settingsStore.globalShortcuts)

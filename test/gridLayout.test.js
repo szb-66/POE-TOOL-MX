@@ -17,8 +17,7 @@ const primaryViews = [
   'src/domains/priceCheck/PriceCheckView.vue',
   'src/domains/puzzle/PuzzleView.vue',
   'src/domains/tools/ToolsView.vue',
-  'src/domains/settings/SettingsView.vue',
-  'src/views/Help.vue'
+  'src/domains/settings/SettingsView.vue'
 ]
 
 test('全部主窗口一级页面使用 Element Plus 24 栅格承载页面区块', () => {
@@ -70,12 +69,4 @@ test('海图页卡片在列内承载视觉样式并统一使用 16px 间距', ()
   assert.match(puzzle, /<el-row class="workspace app-grid" :gutter="16">[\s\S]*?<el-col :xs="24" :lg="12"><el-card/)
   assert.match(puzzle, /\.workspace\s*\{[^}]*align-items:\s*stretch;/)
   assert.match(puzzle, /\.workspace > \.el-col > \.el-card\s*\{[^}]*flex:\s*1;/)
-})
-
-test('帮助中心卡片在栅格列内承载视觉样式，避免 gutter 被卡片背景覆盖', () => {
-  const help = source('src/views/Help.vue')
-
-  assert.match(help, /<el-row class="quick-grid app-grid" :gutter="16">[\s\S]*?<el-col[^>]*>[\s\S]*?<article class="quick-card">/)
-  assert.match(help, /<el-row class="module-grid app-grid" :gutter="16">[\s\S]*?<el-col[^>]*class="module-column"[^>]*>[\s\S]*?<article[\s\S]*?class="module-card"/)
-  assert.match(help, /\.quick-card, \.module-card\s*\{[^}]*box-sizing:\s*border-box;[^}]*width:\s*100%;/)
 })

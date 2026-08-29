@@ -14,6 +14,7 @@
           <el-tab-pane label="覆盖层" name="overlay" />
           <el-tab-pane label="系统" name="system" />
           <el-tab-pane label="问题反馈" name="feedback" />
+          <el-tab-pane label="关于" name="about" />
       </el-tabs>
     </div>
     <el-scrollbar ref="settingsScrollbar" class="primary-page__scroll">
@@ -159,66 +160,19 @@
                 <el-form-item class="spaced-field">
                   <template #label>
                     <span class="label-with-help">
-                      首格位置
-                      <el-tooltip content="背包第一个格子（左上角）的中心坐标" placement="top">
-                        <el-icon class="help-icon" tabindex="0" aria-label="首格位置说明"><QuestionFilled /></el-icon>
+                      背包网格
+                      <el-tooltip content="框选游戏中完整的 12×5 原生背包网格，自动换算首格中心与单格宽高" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="背包网格说明"><QuestionFilled /></el-icon>
                       </el-tooltip>
                     </span>
                   </template>
-                  <div class="position-input coordinate-picker">
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="inventory.startPos.x"
-                      placeholder="X"
-                      :controls="false"
-                      @change="handleInventoryChange"
-                    />
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="inventory.startPos.y"
-                      placeholder="Y"
-                      :controls="false"
-                      @change="handleInventoryChange"
-                    />
+                  <div class="bag-grid-picker">
                     <el-button
-                      class="pick-position-button"
-                      :icon="Aim"
-                      title="点击选取坐标"
-                      :loading="coordinatePickingTarget === 'inventory'"
-                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'inventory'"
-                      @click="handlePickCoordinate('inventory')"
-                    />
-                  </div>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item class="spaced-field">
-                  <template #label>
-                    <span class="label-with-help">
-                      单格宽高
-                      <el-tooltip content="单个背包格子的宽度和高度" placement="top">
-                        <el-icon class="help-icon" tabindex="0" aria-label="单格宽高说明"><QuestionFilled /></el-icon>
-                      </el-tooltip>
-                    </span>
-                  </template>
-                  <div class="position-input">
-                    <el-input-number
-                      v-model="inventory.slotSize.w"
-                      placeholder="W"
-                      :min="0"
-                      :controls="false"
-                      style="width: 80px"
-                      @change="handleInventoryChange"
-                    />
-                    <span class="separator">x</span>
-                    <el-input-number
-                      v-model="inventory.slotSize.h"
-                      placeholder="H"
-                      :min="0"
-                      :controls="false"
-                      style="width: 80px"
-                      @change="handleInventoryChange"
-                    />
+                      type="primary"
+                      :loading="bagGridPicking"
+                      @click="handlePickBagGrid"
+                    >{{ inventoryGridConfigured ? '重新框选背包网格' : '框选背包网格' }}</el-button>
+                    <span class="bag-grid-summary" :class="{ 'bag-grid-summary--empty': !inventoryGridConfigured }">{{ inventoryGridSummary }}</span>
                   </div>
                 </el-form-item>
               </el-col>
@@ -693,8 +647,21 @@
         <div v-show="activeTab === 'feedback'" class="settings-tab-panel settings-panel settings-panel--feedback">
           <FeedbackSettings />
         </div>
+
+        <div v-show="activeTab === 'about'" class="settings-tab-panel settings-panel settings-panel--about">
+          <div class="section-header">
+            <h3 class="section-title">关于流放助手</h3>
+          </div>
+          <div class="about-version-card">
+            <div><small>当前版本</small><strong>V{{ packageConfig.version }}</strong></div>
+            <a :href="PROJECT_URL" target="_blank" rel="noreferrer">查看 GitHub 项目<el-icon><TopRight /></el-icon></a>
+          </div>
+          <HelpTopicList :topics="aboutTopics" />
+        </div>
       </div>
     </el-scrollbar>
+
+    <PageHelpDrawer :topics="helpTopics" title="设置帮助" />
   </div>
 </template>
 
@@ -702,12 +669,15 @@
 import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { Refresh, Close, Aim, UploadFilled, QuestionFilled } from '@element-plus/icons-vue'
+import { Refresh, Close, Aim, UploadFilled, QuestionFilled, TopRight } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import HelpTopicList from '@/domains/help/HelpTopicList.vue'
+import { FAQ_TOPICS, GENERAL_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
 import { FIXED_TIMING } from '../../utils/operationDelay'
-import { EMPTY_SLOT_THRESHOLD } from '../../utils/inventorySettings'
+import { EMPTY_SLOT_THRESHOLD, deriveInventoryGridFromRegion } from '../../utils/inventorySettings'
 import { DEFAULT_GLOBAL_SHORTCUTS } from '../../utils/shortcutConfig'
 import { commitGlobalShortcut, updateShortcuts } from '../../utils/scriptService'
 import { electronApi } from '@/api/electron'
@@ -730,6 +700,11 @@ import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 import { SETTINGS_TABS, resolveSettingsTab } from '@/router/settingsNavigation'
 import { OVERLAY_BACKGROUND_MODES, resolveOverlayBackgroundDrop } from '../../../shared/overlayBackground.js'
 import { resetApplicationSettings } from './settingsReset.js'
+import packageConfig from '../../../package.json'
+
+const PROJECT_URL = 'https://github.com/szb-66/POE-TOOL-MX'
+const aboutTopics = GENERAL_TOPICS.filter(topic => topic.category === 'about')
+const helpTopics = [moduleTopicById('settings'), ...FAQ_TOPICS]
 
 const route = useRoute()
 const router = useRouter()
@@ -761,6 +736,7 @@ const overlaySettings = ref({ ...settingsStore.overlaySettings })
 const backgroundHistory = ref([...settingsStore.backgroundHistory])
 const bagAutoStashEnabled = ref(bagStore.moduleEnabled)
 const coordinatePickingTarget = ref('')
+const bagGridPicking = ref(false)
 const isBackgroundDragging = ref(false)
 const priceCheckPreview = ref(createPriceCheckPreview())
 const priceCheckPreviewKey = ref(0)
@@ -776,6 +752,15 @@ const updateStatusText = computed(() => ({
   installing: '正在准备静默安装…',
   error: '更新操作失败'
 })[updateState.value.status] || '等待检查')
+
+const inventoryGridConfigured = computed(() =>
+  (inventory.value.startPos.x !== 0 || inventory.value.startPos.y !== 0) &&
+  inventory.value.slotSize.w > 0 && inventory.value.slotSize.h > 0
+)
+
+const inventoryGridSummary = computed(() => inventoryGridConfigured.value
+  ? `首格 (${inventory.value.startPos.x}, ${inventory.value.startPos.y}) · 单格 ${inventory.value.slotSize.w}×${inventory.value.slotSize.h}`
+  : '尚未框选')
 
 function handleTabChange(tab) {
   const nextTab = writePersistentTab(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general')
@@ -973,10 +958,7 @@ async function handlePickCoordinate(type, currency = '') {
     if (result.success === false) throw new Error(result.error?.message || '坐标选取失败')
 
     const point = { x: result.x, y: result.y }
-    if (type === 'inventory') {
-      inventory.value.startPos = point
-      handleInventoryChange()
-    } else if (type === 'currency') {
+    if (type === 'currency') {
       positions.value[currency] = point
       handlePositionChange(currency)
     } else if (type === 'item') {
@@ -988,6 +970,31 @@ async function handlePickCoordinate(type, currency = '') {
     ElMessage.error('选取坐标失败')
   } finally {
     coordinatePickingTarget.value = ''
+  }
+}
+
+async function handlePickBagGrid() {
+  if (bagGridPicking.value) return
+  bagGridPicking.value = true
+  try {
+    const result = await electronApi.window.pickScreenRegion({
+      purpose: 'bag-inventory',
+      minimumSize: { width: 240, height: 100 }
+    })
+    if (!result || result.canceled) return
+    if (result.success === false) throw new Error(result.error?.message || '框选背包网格失败')
+    const grid = deriveInventoryGridFromRegion(result.selectedRegion)
+    if (!grid) {
+      ElMessage.error('选区无法换算背包网格，请重新框选')
+      return
+    }
+    inventory.value = { ...inventory.value, startPos: grid.startPos, slotSize: grid.slotSize }
+    await handleInventoryChange()
+    ElMessage.success(`已框选背包网格：首格 (${grid.startPos.x}, ${grid.startPos.y})，单格 ${grid.slotSize.w}×${grid.slotSize.h}`)
+  } catch (error) {
+    ElMessage.error(error.message || '框选背包网格失败')
+  } finally {
+    bagGridPicking.value = false
   }
 }
 
@@ -1396,14 +1403,25 @@ async function handleReset() {
       display: flex;
       align-items: center;
 
-      .separator {
-        margin: 0 8px;
-        color: var(--text-secondary);
-      }
-
       .pick-position-button {
         margin-left: 8px;
         flex: none;
+      }
+    }
+
+    .bag-grid-picker {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .bag-grid-summary {
+      color: var(--text-secondary);
+      font-size: 13px;
+
+      &.bag-grid-summary--empty {
+        color: var(--text-placeholder, var(--text-secondary));
       }
     }
 
@@ -1700,6 +1718,25 @@ async function handleReset() {
   .settings-panel--system :deep(.section-card .el-form > .el-form-item:last-child),
   .settings-panel--automation :deep(.section-card .el-form > .app-grid:last-child .el-form-item) {
     margin-bottom: 0;
+  }
+}
+
+.settings-panel--about {
+  .about-version-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 14px;
+    padding: 17px 19px;
+    border: 1px solid var(--border-base);
+    border-radius: 11px;
+    background: var(--surface-1, var(--bg-primary));
+
+    div { display: grid; gap: 3px; }
+    small { color: var(--text-secondary); }
+    strong { font-size: 20px; }
+    a { display: flex; align-items: center; gap: 5px; color: var(--el-color-primary); text-decoration: none; }
   }
 }
 

@@ -241,12 +241,16 @@
         </el-form-item>
       </el-form>
     </el-card>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
 import { Aim, Delete, QuestionFilled } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
@@ -264,6 +268,7 @@ import {
 
 const settingsStore = useSettingsStore()
 const combatStore = useCombatStore()
+const helpTopics = [moduleTopicById('combat')]
 const config = reactive(JSON.parse(JSON.stringify(settingsStore.combatAssist)))
 const shortcuts = computed(() => settingsStore.globalShortcuts)
 const pickingTarget = ref('')

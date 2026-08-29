@@ -1,11 +1,3 @@
-export const HELP_CATEGORIES = Object.freeze([
-  { id: 'getting-started', label: '快速开始', description: '完成首次配置并安全试运行' },
-  { id: 'features', label: '功能指南', description: '了解各模块用途与入口' },
-  { id: 'faq', label: '常见问题', description: '处理环境、显示和快捷键问题' },
-  { id: 'crafting', label: '做装参考', description: '查询 POE1 3.29 制作规则' },
-  { id: 'about', label: '关于', description: '版本、来源、隐私与联系方式' }
-])
-
 export const QUICK_START_STEPS = Object.freeze([
   { number: '01', title: '启动游戏与助手', text: '使用窗口化或无边框窗口运行国服客户端，并以与游戏相同的权限级别启动流放助手。' },
   { number: '02', title: '完成基础设置', text: '进入设置页选择游戏窗口，配置账号、快捷键、仓库与背包区域。' },
@@ -168,33 +160,6 @@ export const GENERAL_TOPICS = Object.freeze([
   }
 ])
 
-export const HELP_TOPICS = Object.freeze([
-  ...GENERAL_TOPICS,
-  ...MODULE_TOPICS,
-  ...FAQ_TOPICS,
-  ...CRAFTING_TOPICS
-])
-
-export function blockText(block) {
-  if (!block) return ''
-  if (Array.isArray(block.items)) return block.items.join(' ')
-  return String(block.text || '')
-}
-
-export function topicText(topic) {
-  return [topic.title, topic.summary, ...(topic.keywords || []), ...(topic.blocks || []).map(blockText)].join(' ')
-}
-
-export function normalizeHelpQuery(value) {
-  return String(value || '').trim().toLocaleLowerCase('zh-CN')
-}
-
-export function searchHelpTopics(topics, query) {
-  const needle = normalizeHelpQuery(query)
-  if (!needle) return []
-  return topics.filter(topic => normalizeHelpQuery(topicText(topic)).includes(needle))
-}
-
-export function findHelpTopic(topicId) {
-  return HELP_TOPICS.find(topic => topic.id === topicId) || null
+export function moduleTopicById(id) {
+  return MODULE_TOPICS.find(topic => topic.id === `module-${id}`) || null
 }

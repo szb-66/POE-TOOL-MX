@@ -38,6 +38,8 @@ import {
   resolveCaptureSources,
   toGlobalDipPoint
 } from './coordinates.js'
+import { restoreWindowsGameFocus } from '../priceCheck/clipboardCapture.js'
+import { detectPythonPath } from '../python/detector.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -658,6 +660,34 @@ export function toggleDevTools() {
 }
 
 let screenPickerSession = null
+let pickerPreparing = false
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+export function restoreMainWindowToForeground() {
+  const win = mainWindow
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+}
+
+async function preparePickerSession() {
+  mainWindow?.minimize()
+  await wait(500)
+  if (process.platform !== 'win32') return
+  const activated = await restoreWindowsGameFocus(detectPythonPath())
+  if (!activated) {
+    throw Object.assign(new Error('未找到游戏窗口，请先启动游戏'), { code: 'GAME_NOT_FOUND' })
+  }
+}
+
+function pickerBusyFailure() {
+  return screenPickerFailure(Object.assign(
+    new Error('已有其他屏幕选取会话正在进行'),
+    { code: 'PICKER_BUSY' }
+  ))
+}
 
 function screenPickerFailure(error, fallbackCode = 'SCREEN_CAPTURE_FAILED') {
   return {
@@ -793,25 +823,45 @@ function openScreenPickerWindows(mode, displays) {
   }
 }
 
-export function pickScreenCoordinate() {
+export async function pickScreenCoordinate() {
   if (screenPickerSession) return createScreenPickerSession('point')
-  const promise = createScreenPickerSession('point')
-  openScreenPickerWindows('point', screen.getAllDisplays())
-  return promise
+  if (pickerPreparing) return pickerBusyFailure()
+  pickerPreparing = true
+  try {
+    await preparePickerSession()
+    const promise = createScreenPickerSession('point')
+    openScreenPickerWindows('point', screen.getAllDisplays())
+    return await promise
+  } catch (error) {
+    return screenPickerFailure(error)
+  } finally {
+    pickerPreparing = false
+    restoreMainWindowToForeground()
+  }
 }
 
 export async function pickScreenRegion(options = {}) {
   if (screenPickerSession) return createScreenPickerSession('region')
-  const displays = screen.getAllDisplays()
-  let screenshots
+  if (pickerPreparing) return pickerBusyFailure()
+  pickerPreparing = true
   try {
-    screenshots = await captureDisplays(displays)
+    await preparePickerSession()
+    const displays = screen.getAllDisplays()
+    let screenshots
+    try {
+      screenshots = await captureDisplays(displays)
+    } catch (error) {
+      return screenPickerFailure(error)
+    }
+    const promise = createScreenPickerSession('region', screenshots, options)
+    openScreenPickerWindows('region', displays)
+    return await promise
   } catch (error) {
     return screenPickerFailure(error)
+  } finally {
+    pickerPreparing = false
+    restoreMainWindowToForeground()
   }
-  const promise = createScreenPickerSession('region', screenshots, options)
-  openScreenPickerWindows('region', displays)
-  return promise
 }
 
 export function getScreenPickerContext(sender) {

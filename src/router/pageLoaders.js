@@ -15,8 +15,7 @@ export const pageLoaders = Object.freeze({
   '/price-check': () => import('../domains/priceCheck/PriceCheckView.vue'),
   '/puzzle': () => import('../domains/puzzle/PuzzleView.vue'),
   '/tools': () => import('../domains/tools/ToolsView.vue'),
-  '/settings': () => import('../domains/settings/SettingsView.vue'),
-  '/help': () => import('../views/Help.vue')
+  '/settings': () => import('../domains/settings/SettingsView.vue')
 })
 
 export const preloadPage = createPagePreloader(pageLoaders)

@@ -7,14 +7,20 @@ export const BAG_TEMPLATE_TARGETS = Object.freeze({
   junfengRewardTitle: 'junfeng_reward_title.png'
 })
 
-export function assertBagTemplateTarget(type) {
-  const fileName = BAG_TEMPLATE_TARGETS[type]
-  if (!fileName) throw new Error('不支持的模板目标')
-  return fileName
+export function resolveTemplateFileName(fileName, isPackaged = true) {
+  if (isPackaged) return fileName
+  const ext = path.extname(fileName)
+  return `${path.basename(fileName, ext)}.dev${ext}`
 }
 
-export function savePngAtomically(templateDirectory, type, png, fileSystem = fs) {
-  const fileName = assertBagTemplateTarget(type)
+export function assertBagTemplateTarget(type, isPackaged = true) {
+  const fileName = BAG_TEMPLATE_TARGETS[type]
+  if (!fileName) throw new Error('不支持的模板目标')
+  return resolveTemplateFileName(fileName, isPackaged)
+}
+
+export function savePngAtomically(templateDirectory, type, png, fileSystem = fs, isPackaged = true) {
+  const fileName = assertBagTemplateTarget(type, isPackaged)
   if (!Buffer.isBuffer(png) || png.length === 0) throw new Error('模板 PNG 数据为空')
   fileSystem.mkdirSync(templateDirectory, { recursive: true })
   const targetPath = path.join(templateDirectory, fileName)

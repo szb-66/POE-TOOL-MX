@@ -373,6 +373,21 @@ test('独立边缘词缀识别通道贯通 IPC、preload、API 与服务', () =>
   assert.match(runProbe, /slice\(-2000\)/)
 })
 
+test('边缘词缀识别结束后恢复主窗口前台且早期校验失败不触发', () => {
+  const service = source('../electron/modules/puzzle/service.js')
+  const manager = source('../electron/modules/window/manager.js')
+  const probe = service.match(/async probeBorderMods\(\{ atlasRegionMetadata \} = \{\}\)[\s\S]*?\n  \}/)?.[0] || ''
+  const finallyBlock = probe.match(/finally \{([\s\S]*?)\n    \}/)?.[1] || ''
+
+  assert.match(manager, /export function restoreMainWindowToForeground\(\) \{[\s\S]*?win\.show\(\)[\s\S]*?win\.focus\(\)/)
+  assert.match(finallyBlock, /this\.automationLock\?\.release\(MOD_PROBE_OWNER\)/)
+  assert.match(finallyBlock, /restoreMainWindowToForeground\(\)/)
+  assert.equal((probe.match(/restoreMainWindowToForeground\(\)/g) || []).length, 1)
+
+  const analyze = service.match(/async analyze\([\s\S]*?\n  \}/)?.[0] || ''
+  assert.match(analyze, /finally \{[\s\S]*?restoreMainWindowToForeground\(\)/)
+})
+
 test('边缘 OCR 使用 DPI 捕获、固定等待后单帧采样并直接执行共享匹配器', () => {
   const service = source('../electron/modules/puzzle/service.js')
   const geometry = source('../src/utils/chartEdgeGeometry.js')

@@ -24,6 +24,8 @@
     <div v-if="contentComponent && !mainRuntimeState.settled" class="runtime-syncing">
       正在同步模块状态…
     </div>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
@@ -31,6 +33,21 @@
 import { onMounted, shallowRef, ref } from 'vue'
 import { mainRuntimeState } from '../../startup/readiness'
 import { reportStartupEvent } from '../../utils/startupReporter'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById, QUICK_START_STEPS } from '@/domains/help/helpContent.js'
+
+const quickStartTopic = {
+  id: 'getting-started',
+  title: '第一次使用流放助手',
+  summary: '按四个步骤完成环境、设置、校准和安全试运行。',
+  route: '/settings',
+  blocks: [
+    { type: 'paragraph', text: '先启动国服游戏，再以与游戏相同的权限级别启动助手。使用窗口化或无边框窗口，并从设置页完成账号、快捷键、显示环境和所需模块的校准。' },
+    { type: 'list', items: QUICK_START_STEPS.map(step => `${step.title}：${step.text}`) },
+    { type: 'callout', tone: 'warning', text: '先设置并测试“全局紧急停止”快捷键，再用少量、低价值物品试运行。任何识别或坐标异常都应先停止并重新校准。' }
+  ]
+}
+const helpTopics = [moduleTopicById('dashboard'), quickStartTopic]
 
 const contentComponent = shallowRef(null)
 const loading = ref(false)

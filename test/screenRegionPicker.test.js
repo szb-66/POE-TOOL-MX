@@ -31,7 +31,7 @@ test('遮罩物理矩形一次转换为整数 DIP 边界', () => {
   assert.deepEqual(converted, { x: 981, y: 437, width: 545, height: 551 })
   assert.ok(Object.values(converted).every(Number.isInteger))
 })
-import { assertBagTemplateTarget, savePngAtomically } from '../electron/modules/bag/templateCapture.js'
+import { assertBagTemplateTarget, resolveTemplateFileName, savePngAtomically } from '../electron/modules/bag/templateCapture.js'
 import { normalizeBagSettings, resolveCaptureDisplay, validateTemplateCaptureEnvironment } from '../src/utils/bagConfig.js'
 
 test('选区支持反向规范化、负坐标边界裁剪与最小 20×10 尺寸', () => {
@@ -115,6 +115,7 @@ test('标题框选使用当前 nativeImage 位图接口，不触发 getBitmap �
 
 test('模板保存只接受白名单目标，并在替换失败时恢复旧文件', () => {
   assert.equal(assertBagTemplateTarget('stashTitle'), 'stash_title.png')
+  assert.equal(assertBagTemplateTarget('stashTitle', true), 'stash_title.png')
   assert.throws(() => assertBagTemplateTarget('../../evil'), /不支持的模板目标/)
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bag-template-'))
   const target = path.join(directory, 'stash_title.png')
@@ -134,6 +135,26 @@ test('模板保存只接受白名单目标，并在替换失败时恢复旧文�
     assert.throws(() => savePngAtomically(directory, 'stashTitle', Buffer.from('new'), failingFs), /simulated/)
     assert.equal(temporaryRenameFailed, true)
     assert.equal(fs.readFileSync(target, 'utf8'), 'old')
+    assert.equal(fs.readdirSync(directory).some((name) => name.endsWith('.tmp') || name.endsWith('.bak')), false)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('模板文件名按运行模式隔离：安装版固定名，开发版追加 .dev 后缀且不覆盖安装版文件', () => {
+  assert.equal(resolveTemplateFileName('stash_title.png', true), 'stash_title.png')
+  assert.equal(resolveTemplateFileName('stash_title.png', false), 'stash_title.dev.png')
+  assert.equal(assertBagTemplateTarget('inventoryTitle', false), 'inventory_title.dev.png')
+  assert.equal(assertBagTemplateTarget('junfengRewardTitle', false), 'junfeng_reward_title.dev.png')
+  assert.throws(() => assertBagTemplateTarget('../../evil', false), /不支持的模板目标/)
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bag-template-mode-'))
+  try {
+    const packagedTarget = path.join(directory, 'stash_title.png')
+    fs.writeFileSync(packagedTarget, 'packaged')
+    const savedPath = savePngAtomically(directory, 'stashTitle', Buffer.from('dev'), fs, false)
+    assert.equal(path.basename(savedPath), 'stash_title.dev.png')
+    assert.equal(fs.readFileSync(packagedTarget, 'utf8'), 'packaged')
+    assert.equal(fs.readFileSync(savedPath, 'utf8'), 'dev')
     assert.equal(fs.readdirSync(directory).some((name) => name.endsWith('.tmp') || name.endsWith('.bak')), false)
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })

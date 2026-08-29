@@ -1,5 +1,7 @@
 import { normalizeAutomationTiming } from './operationDelay.js'
-import { normalizeEmptySlotThreshold } from './inventorySettings.js'
+import { INVENTORY_LAYOUT, normalizeEmptySlotThreshold } from './inventorySettings.js'
+
+export { INVENTORY_LAYOUT }
 
 export const BAG_BLACKLIST_FIELDS = Object.freeze(['name', 'baseName', 'category'])
 export const BAG_BLACKLIST_MATCH_MODES = Object.freeze(['contains', 'exact'])
@@ -16,13 +18,6 @@ export const BAG_BLACKLIST_MATCH_MODE_LABELS = Object.freeze({
 })
 
 const DEFAULT_REGION = Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 })
-export const INVENTORY_LAYOUT = Object.freeze({
-  nativeColumns: 12,
-  rows: 5,
-  minExtraColumns: 1,
-  maxExtraColumns: 6,
-  defaultExtraColumns: 6
-})
 
 function finiteNumber(value, fallback) {
   const number = Number(value)

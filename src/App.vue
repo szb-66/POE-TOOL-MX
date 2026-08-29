@@ -19,7 +19,7 @@ import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import { markMainRuntimeSettled } from './startup/readiness'
-import { clearMainWindowTheme, resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'
+import { resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +29,11 @@ let runtimeGeneration = 0
 const appThemeClass = computed(() => `${resolveWindowTheme(route)}-window`)
 
 watch(() => route.fullPath, () => syncMainWindowTheme(route), { immediate: true })
+
+// ponytail: HMR 批次后重申主题类，防止热更新链路打掉 html 深色类后停在亮色
+if (import.meta.hot) {
+  import.meta.hot.on('vite:afterUpdate', () => syncMainWindowTheme(route))
+}
 
 onMounted(() => {
   if (route.meta.noLayout) return
@@ -58,7 +63,6 @@ onUnmounted(() => {
   runtimeGeneration += 1
   runtimeDispose?.()
   runtimeDispose = null
-  clearMainWindowTheme()
 })
 </script>
 

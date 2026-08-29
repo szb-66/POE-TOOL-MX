@@ -369,6 +369,8 @@
         <el-button @click="calibrationDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
@@ -377,6 +379,8 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Lock, QuestionFilled, Unlock, Warning } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import PuzzleGlyph from './PuzzleGlyph.vue'
 import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
@@ -387,6 +391,7 @@ import { typeForMask } from './solver.js'
 
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
+const helpTopics = [moduleTopicById('puzzle')]
 const {
   regionMetadata,
   inventoryRegionMetadata,
@@ -672,9 +677,13 @@ async function clearAllInventoryPages() {
 }
 
 async function pickTabPoint(page) {
-  const response = await store.pickInventoryTabPoint(page)
-  if (response?.success) ElMessage.success(`第 ${page} 页页签坐标已保存`)
-  else if (response?.error) ElMessage.error(response.error.message)
+  try {
+    const response = await store.pickInventoryTabPoint(page)
+    if (response?.success) ElMessage.success(`第 ${page} 页页签坐标已保存`)
+    else if (response?.error) ElMessage.error(response.error.message)
+  } catch (caught) {
+    ElMessage.error(caught?.message || '页签取点失败')
+  }
 }
 
 function tabPointText(page) {

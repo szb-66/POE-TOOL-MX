@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
+import path from 'node:path'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
+import { loadTradeCatalog } from '../electron/modules/priceCheck/catalog.js'
+import { createPriceCheckModel } from '../electron/modules/priceCheck/query.js'
 import {
   ITEM_FORMAT_EXAMPLES,
   CHART_FORMAT_EXAMPLES,
@@ -66,10 +69,10 @@ test('完整六字段地图样例可解析替代阶级写法和全部扩展基�
 })
 
 test('集中样例集合覆盖物品、地图和航海海图', () => {
-  assert.equal(ITEM_FORMAT_EXAMPLES.length, 6)
+  assert.equal(ITEM_FORMAT_EXAMPLES.length, 7)
   assert.equal(MAP_FORMAT_EXAMPLES.length, 4)
   assert.equal(CHART_FORMAT_EXAMPLES.length, 3)
-  assert.equal(SUPPORTED_FORMAT_EXAMPLES.length, 13)
+  assert.equal(SUPPORTED_FORMAT_EXAMPLES.length, 14)
 })
 
 test('航海海图样例解析身份、奖励数值和特殊状态', () => {
@@ -107,6 +110,124 @@ test('所有代表性格式样例均可被真实解析器识别', () => {
     assert.ok(item.category, `${example.id} 缺少类别`)
     assert.ok(item.rarity, `${example.id} 缺少稀有度`)
   }
+})
+
+test('词缀补丁样例可解析破碎、前后缀与古灵固有词缀', () => {
+  const item = parseItemInfo(byId['item-affix-patch'])
+  assert.equal(item.category, '鞋子')
+  assert.equal(item.isFractured, true)
+  assert.deepEqual(item.influences, ['searing-exarch', 'eater-of-worlds'])
+  assert.deepEqual(item.implicitMods, ['移动速度加快 7%', '你造成的点燃的伤害生效速度加快 7%'])
+
+  const fractured = item.modifiers.find(mod => mod.type === 'fractured')
+  assert.equal(fractured.affixType, 'prefix')
+  assert.equal(fractured.name, '鼓舞的')
+  assert.equal(fractured.tier, 1)
+  assert.deepEqual(fractured.lines, ['该装备的护甲与能量护盾提高 99%'])
+
+  const life = item.modifiers.find(mod => mod.name === '运动员的')
+  assert.equal(life.type, 'prefix')
+  assert.equal(life.tier, 1)
+  assert.deepEqual(life.lines, ['+126 最大生命'])
+
+  const chaos = item.modifiers.find(mod => mod.name === '巴曼斯之')
+  assert.equal(chaos.type, 'suffix')
+  assert.equal(chaos.tier, 1)
+  assert.deepEqual(chaos.lines, ['+31% 混沌抗性'])
+
+  assert.equal(item.explicitMods.some(mod => mod.includes('(115-129)') || mod.includes('(92-100)')), false)
+  assert.equal(item.explicitMods.some(mod => mod.includes('近期内意指')), false)
+  assert.equal(item.explicitMods.some(mod => mod.includes('他们会在短时间内')), false)
+  assert.equal(item.explicitMods.length, 6)
+  assert.equal(item.affixFormatUnsupported, false)
+})
+
+test('未适配的词缀补丁格式被标记，受支持格式不误报', () => {
+  const item = parseItemInfo(`物品类别: 鞋子
+稀 有 度: 稀有
+咒缚 足迹
+圣骑士长靴
+--------
+物品等级: 84
+--------
+{ 上级前缀 "鼓舞的" (T1)— 生命 }
++126(115-129) 最大生命`)
+  assert.equal(item.affixFormatUnsupported, true)
+
+  const zeroMods = parseItemInfo(`物品类别: 戒指
+稀 有 度: 魔法
+火山之红玉戒指
+--------
+物品等级: 72
+--------`)
+  assert.equal(zeroMods.affixFormatUnsupported, true)
+
+  const normal = parseItemInfo(`物品类别: 胸甲
+稀 有 度: 普通
+星芒战铠
+--------
+物品等级: 86
+--------`)
+  assert.equal(normal.affixFormatUnsupported, false)
+  assert.equal(parseItemInfo(byId['item-basic']).affixFormatUnsupported, false)
+  assert.equal(parseItemInfo(byId['item-unidentified']).affixFormatUnsupported, false)
+  assert.equal(parseItemInfo(byId['map-normal']).affixFormatUnsupported, false)
+})
+
+test('简改词缀 v1 的 ▲/▽ 标记解析后与官方措辞结果一致', () => {
+  let pendingMark = ''
+  const withMarkers = byId['item-affix-patch'].split('\n').map((line) => {
+    if (line.startsWith('{')) {
+      pendingMark = /前缀词缀/.test(line) ? '▲' : (/后缀词缀/.test(line) ? '▽' : '')
+      return line
+    }
+    if (line === '--------') {
+      pendingMark = ''
+      return line
+    }
+    if (pendingMark && line && !/^[（(]/.test(line)) {
+      const marked = `${pendingMark} ${line}`
+      pendingMark = ''
+      return marked
+    }
+    return line
+  }).join('\n')
+
+  const signature = (mods) => mods.map(({ originalLines, ...rest }) => rest)
+  const base = parseItemInfo(byId['item-affix-patch'])
+  const marked = parseItemInfo(withMarkers)
+  assert.deepEqual(signature(marked.modifiers), signature(base.modifiers))
+  assert.deepEqual(marked.explicitMods, base.explicitMods)
+  assert.deepEqual(marked.implicitMods, base.implicitMods)
+})
+
+test('功能补丁的行首标记与尾部注释剥除且改写文案保留原文', async () => {
+  const { catalog } = await loadTradeCatalog(path.resolve('electron/modules/priceCheck/catalog.json'))
+  const text = `物品类别: 鞋子
+稀 有 度: 稀有
+咒缚 足迹
+圣骑士长靴
+--------
+物品等级: 84
+--------
+{ 破碎的 ▲ 前缀词缀 "鼓舞的" (等阶：1)— 防御, 护甲, 能量护盾 }
+▲ 此装备增加 99(92-100)% 护甲与能量护盾 [④/③双缀][①单(★100)]
+{ ▲ 前缀词缀 "运动员的" (等阶：1)— 生命 }
+▲ +126(115-129) 最大生命 [①手|鞋|链]
+{ ▽ 后缀词缀 "巴曼斯之" (等阶：1)— 混沌, 抗性 }
+▽ +31(31-35)% 混沌抗性 [①](★35%)`
+  const item = parseItemInfo(text)
+  const fractured = item.modifiers.find(mod => mod.type === 'fractured')
+  assert.equal(fractured.affixType, 'prefix')
+  assert.deepEqual(fractured.lines, ['此装备增加 99% 护甲与能量护盾'])
+  assert.deepEqual(item.modifiers.find(mod => mod.name === '运动员的').lines, ['+126 最大生命'])
+  assert.deepEqual(item.modifiers.find(mod => mod.name === '巴曼斯之').lines, ['+31% 混沌抗性'])
+  assert.equal(item.explicitMods.some(mod => mod.includes('★') || mod.includes('[①')), false)
+
+  const model = createPriceCheckModel(item, catalog, { initialSelection: 'none' })
+  const rewritten = model.unknownStats.find(stat => stat.text.includes('此装备增加'))
+  assert.ok(rewritten, '改写文案应进入未映射词缀')
+  assert.equal(rewritten.text, '此装备增加 99% 护甲与能量护盾')
 })
 
 test('魔法物品区分基底属性和后缀', () => {

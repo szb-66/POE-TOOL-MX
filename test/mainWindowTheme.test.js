@@ -9,6 +9,7 @@ const variables = readFileSync(new URL('../src/styles/variables.less', import.me
 const theme = readFileSync(new URL('../src/theme/mainWindowTheme.js', import.meta.url), 'utf8')
 const elementOverrides = readFileSync(new URL('../src/styles/element-override.less', import.meta.url), 'utf8')
 const commonStyles = readFileSync(new URL('../src/styles/common.less', import.meta.url), 'utf8')
+const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 
 function noLayoutRoutePaths(source) {
   const normalized = source.replace(/\r\n?/g, '\n')
@@ -19,12 +20,24 @@ function noLayoutRoutePaths(source) {
   })
 }
 
-test('主布局首帧和路由变化挂载窗口主题类，卸载时清理', () => {
+test('主布局首帧和路由变化挂载窗口主题类，热更新后重申且不清理', () => {
   assert.match(main, /syncMainWindowTheme\(router\.currentRoute\.value\)/)
   assert.match(app, /:class="appThemeClass"/)
   assert.match(app, /watch\(\(\) => route\.fullPath/)
+  assert.match(app, /import\.meta\.hot[\s\S]*?vite:afterUpdate[\s\S]*?syncMainWindowTheme\(route\)/)
+  assert.doesNotMatch(app, /clearMainWindowTheme/)
+  assert.doesNotMatch(theme, /clearMainWindowTheme/)
   assert.match(theme, /root\.classList\.toggle\(SHARED_DARK_THEME_CLASS/)
   assert.match(theme, /MAIN_WINDOW_THEME_CLASS,[\s\S]*?BUSINESS_OVERLAY_THEME_CLASS/)
+})
+
+test('引导失败时由内联看门狗兜底显示深色提示', () => {
+  assert.match(main, /window\.__appBootstrapped = true/)
+  assert.match(main, /window\.__bootstrapError = String\(error/)
+  assert.match(indexHtml, /__appBootstrapped/)
+  assert.match(indexHtml, /app-boot-fallback/)
+  assert.match(indexHtml, /界面加载失败，请按 F5 刷新重试/)
+  assert.match(indexHtml, /background:#0E1013/)
 })
 
 test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔离', () => {

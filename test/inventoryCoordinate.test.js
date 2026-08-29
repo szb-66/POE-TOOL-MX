@@ -52,7 +52,7 @@ print(json.dumps([Controller.moves[0], Controller.moves[1], Controller.moves[5],
   assert.deepEqual(summary, [[2604, 1155], [2604, 1255], [2704, 1155], [3704, 1555]])
 })
 
-test('设置页明确要求首格中心坐标', () => {
+test('设置页通过框选换算首格中心坐标', () => {
   const view = readFileSync(new URL('../src/domains/settings/SettingsView.vue', import.meta.url), 'utf8')
-  assert.match(view, /背包第一个格子（左上角）的中心坐标/)
+  assert.match(view, /deriveInventoryGridFromRegion/)
 })

@@ -25,6 +25,7 @@ test('装备模板在复制到旧剪贴板内容时不写入解析请求', () =>
   const result = runPython(`
 import json, os, tempfile, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 with tempfile.TemporaryDirectory() as directory:
     item_info_file = os.path.join(directory, "item.json")
     item_info_result_file = os.path.join(directory, "result.json")
@@ -44,6 +45,7 @@ test('装备模板重试在无法确认剪贴板序列变化时拒绝同文本',
   const result = runPython(`
 import json, os, tempfile, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 with tempfile.TemporaryDirectory() as directory:
     item_info_file = os.path.join(directory, "item.json")
     item_info_result_file = os.path.join(directory, "result.json")
@@ -65,6 +67,7 @@ test('装备模板在复制到空剪贴板内容时不写入解析请求', () =>
   const result = runPython(`
 import json, os, tempfile, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 with tempfile.TemporaryDirectory() as directory:
     item_info_file = os.path.join(directory, "item.json")
     item_info_result_file = os.path.join(directory, "result.json")
@@ -85,6 +88,7 @@ test('装备与地图模板在序列号变化但内容未变时不判定复制�
     const result = runPython(`
 import json, tempfile, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 is_running = True
 GetClipboardSequenceNumber = lambda: 42
@@ -95,11 +99,107 @@ def monotonic():
     return clock["now"]
 time = types.SimpleNamespace(sleep=lambda _value: None, monotonic=monotonic)
 copied = wait_for_clipboard_change(41, "复制前内容", 1.0)
-print(json.dumps({"copied": copied, "loops": clock["now"]}, ensure_ascii=False))
+print(json.dumps({"copied": copied, "unchanged": copied == "__CLIPBOARD_TEXT_UNCHANGED__"}, ensure_ascii=False))
 `)
-    assert.equal(result.copied, false)
-    assert.ok(result.loops >= 1)
+    assert.ok(result.copied !== '复制前内容')
+    // 装备与地图模板都区分"复制成功但文本未变化"（哨兵），不判定为复制成功
+    assert.equal(result.unchanged, true)
   }
+})
+
+test('地图模板读取在全部尝试均为同文本时返回未变化且不放行', () => {
+  const snippet = block(mapTemplate, 'def read_current_rolling_target(', 'def update_map_recovery_checkpoint(')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+calls = []
+outcomes = ["unchanged", "unchanged", "unchanged"]
+def read_and_parse(_x, _y, allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): raise AssertionError("不应分发解析")
+def item_matches_rolling_target(_item): return False
+def rolling_target_label(): return "地图"
+result = read_current_rolling_target(1, 2)
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.deepEqual(result.result, { unchanged: true })
+  assert.deepEqual(result.calls, [false, false, false])
+})
+
+test('地图模板读取在未变化后重试拒收同文本直至取得新文本', () => {
+  const snippet = block(mapTemplate, 'def read_current_rolling_target(', 'def update_map_recovery_checkpoint(')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+calls = []
+outcomes = ["unchanged", 2]
+parsed = [{"category": "地图", "mapTier": 16}]
+def read_and_parse(_x, _y, allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+def item_matches_rolling_target(_item): return True
+def rolling_target_label(): return "地图"
+result = read_current_rolling_target(1, 2)
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.category, '地图')
+  assert.deepEqual(result.calls, [false, false])
+})
+
+test('地图模板读取在解析分发失败后的重试放行同文本重发', () => {
+  const snippet = block(mapTemplate, 'def read_current_rolling_target(', 'def update_map_recovery_checkpoint(')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+calls = []
+outcomes = [1, 2]
+parsed = [{"error": "等待超时"}, {"category": "地图", "mapTier": 16}]
+def read_and_parse(_x, _y, allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+def item_matches_rolling_target(_item): return True
+def rolling_target_label(): return "地图"
+result = read_current_rolling_target(1, 2)
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.category, '地图')
+  assert.deepEqual(result.calls, [false, true])
+})
+
+test('地图模板初始读取显式同文本放行行为保持不变', () => {
+  const snippet = block(mapTemplate, 'def read_current_rolling_target(', 'def update_map_recovery_checkpoint(')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+calls = []
+outcomes = [1]
+parsed = [{"category": "地图", "mapTier": 16}]
+def read_and_parse(_x, _y, allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+def item_matches_rolling_target(_item): return True
+def rolling_target_label(): return "地图"
+result = read_current_rolling_target(1, 2, attempts=3, allow_unchanged_text=True, empty_on_copy_failure=True)
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.category, '地图')
+  assert.deepEqual(result.calls, [true])
 })
 
 test('装备与地图模板在序列号变化且内容变化时判定复制成功', () => {
@@ -108,6 +208,7 @@ test('装备与地图模板在序列号变化且内容变化时判定复制成�
     const result = runPython(`
 import json, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 is_running = True
 GetClipboardSequenceNumber = lambda: 42
@@ -126,6 +227,7 @@ test('装备与地图模板在重试允许同文本时序列号变化即判复�
     const result = runPython(`
 import json, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 is_running = True
 GetClipboardSequenceNumber = lambda: 42
@@ -144,6 +246,7 @@ test('装备与地图模板在没有序列号证据时拒绝同文本重试', ()
     const result = runPython(`
 import json, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 is_running = True
 GetClipboardSequenceNumber = None
@@ -160,12 +263,117 @@ print(json.dumps({"copied": copied}, ensure_ascii=False))
   }
 })
 
+test('装备模板读取在全部尝试均为同文本时返回未变化且不放行', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+calls = []
+outcomes = ["unchanged", "unchanged", "unchanged"]
+def read_clipboard_to_file(allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): raise AssertionError("不应分发解析")
+result = read_current_item()
+print(json.dumps({"result": result, "calls": calls, "fatal": fatal_error_reason}, ensure_ascii=False))
+`)
+  assert.deepEqual(result.result, { unchanged: true })
+  assert.deepEqual(result.calls, [false, false, false])
+  assert.equal(result.fatal, null)
+})
+
+test('装备模板读取在未变化后重试拒收同文本直至取得新文本', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+calls = []
+outcomes = ["unchanged", 2]
+parsed = [{"rarity": "魔法", "affixMatch": True}]
+def read_clipboard_to_file(allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+result = read_current_item()
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.rarity, '魔法')
+  assert.deepEqual(result.calls, [false, false])
+})
+
+test('装备模板读取在解析分发失败后的重试放行同文本重发', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+calls = []
+outcomes = [1, 2]
+parsed = [{"error": "等待超时"}, {"rarity": "魔法"}]
+def read_clipboard_to_file(allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+result = read_current_item()
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.rarity, '魔法')
+  assert.deepEqual(result.calls, [false, true])
+})
+
+test('装备模板显式同文本放行的首次尝试行为保持不变', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+calls = []
+outcomes = [1]
+parsed = [{"rarity": "普通", "socketsCount": 3}]
+def read_clipboard_to_file(allow_unchanged_text=False):
+    calls.append(bool(allow_unchanged_text))
+    return outcomes.pop(0)
+def wait_for_parse_result(_request_id=None): return parsed.pop(0)
+result = read_current_item(allow_unchanged_text=True)
+print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
+`)
+  assert.equal(result.result.socketsCount, 3)
+  assert.deepEqual(result.calls, [true])
+})
+
 test('装备与地图模板写入复制确认时捕获的同一份文本快照', () => {
   for (const template of [craftingTemplate, mapTemplate]) {
     const snippet = block(template, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
     const result = runPython(`
 import json, os, tempfile, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 with tempfile.TemporaryDirectory() as directory:
     item_info_file = os.path.join(directory, "item.json")
     item_info_result_file = os.path.join(directory, "result.json")
@@ -197,6 +405,7 @@ test('装备与地图模板的固定模式等待剪贴板事件并返回同次�
     const result = runPython(`
 import json, types
 ${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 state = {"sequence": 10, "text": "上一轮物品", "sleeps": 0}
 GetClipboardSequenceNumber = lambda: state["sequence"]
 pyperclip = types.SimpleNamespace(paste=lambda: state["text"])

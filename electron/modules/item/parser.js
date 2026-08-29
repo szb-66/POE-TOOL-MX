@@ -159,10 +159,13 @@ export function parseItemInfo(clipboardText) {
   // 物品解析状态标记
   let hasItemLevel = false;
   let seenItemLevel = false;
+  let sawAffixHeader = false;
   let activeModifier = null;
   let identityHeaderOpen = true;
 
   const cleanModifierLine = (text) => text
+    .replace(/^[▲▽]\s*/, '')
+    .replace(/(?:\s*(?:\[[^\]]*\]|\([^()\]]*★[^()\]]*\)))+\s*$/g, '')
     .replace(/(-?\d+(?:\.\d+)?)\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '$1')
     .replace(/\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '')
     .trim()
@@ -288,12 +291,14 @@ export function parseItemInfo(clipboardText) {
     
     // 详细词缀头信息解析 (Ctrl+C)
     // 示例: { 前缀属性 "韧炼的" (等阶：4) — 伤害, 物理, 攻击 }
+    // 示例: { ▲ 前缀词缀 "运动员的" (等阶：3)— 生命 }（词缀补丁格式）
     // 示例: { 基底属性 — 伤害, 召唤生物 }
     if (line.startsWith('{') && line.endsWith('}')) {
+      sawAffixHeader = true
       flushModifier()
-      const affixType = /前缀属性|Prefix Modifier/i.test(line)
+      const affixType = /前缀(?:属性|词缀)|Prefix Modifier/i.test(line)
         ? 'prefix'
-        : (/后缀属性|Suffix Modifier/i.test(line) ? 'suffix' : null)
+        : (/后缀(?:属性|词缀)|Suffix Modifier/i.test(line) ? 'suffix' : null)
       const headerModifierName = line.match(/"([^"]*)"/)?.[1] || ''
       const semanticHeader = line.replace(/"[^"]*"/g, '""')
       if (/秽生|\bFoulborn\b/i.test(semanticHeader)) itemInfo.isMutated = true
@@ -301,15 +306,15 @@ export function parseItemInfo(clipboardText) {
       // 前/后缀位置判断，否则破碎词缀会被错误归为 explicit。
       const semanticType = [
         [/(?:破碎|破裂|分裂)(?:的)?|\bFractured\b/i, 'fractured'],
-        [/大师级|工艺属性|\b(?:Master Crafted|Crafted)\b/i, 'crafted'],
-        [/附魔属性|\bEnchant(?:ment)?\b/i, 'enchant'],
+        [/大师级|工艺(?:属性|词缀)|\b(?:Master Crafted|Crafted)\b/i, 'crafted'],
+        [/附魔(?:属性|词缀)|\bEnchant(?:ment)?\b/i, 'enchant'],
         [/焚界者基底词缀|灭界者基底词缀|\b(?:Searing Exarch|Eater of Worlds) Implicit Modifier\b/i, 'implicit'],
-        [/隐式属性|\bImplicit\b/i, 'implicit'],
+        [/隐式(?:属性|词缀)|\bImplicit\b/i, 'implicit'],
         [/基底(?:属性|词缀)|\bBase Modifier\b/i, 'base'],
-        [/传奇属性|\bUnique Modifier\b/i, 'unique'],
-        [/影匿|解密|隐匿属性|\bVeiled\b/i, 'veiled'],
+        [/传奇(?:属性|词缀)|\bUnique Modifier\b/i, 'unique'],
+        [/影匿|解密|隐匿(?:属性|词缀)|\bVeiled\b/i, 'veiled'],
         [/灌注|\bImbued\b/i, 'imbued'],
-        [/异度天灾|灾魇属性|\bScourge\b/i, 'scourge'],
+        [/异度天灾|灾魇(?:属性|词缀)|\bScourge\b/i, 'scourge'],
         [/佣兵|雇佣兵|\bMercenary\b/i, 'mercenary'],
         [/地心|\bDelve\b/i, 'delve'],
         [/致命贪婪|\bUltimatum\b/i, 'ultimatum'],
@@ -590,6 +595,12 @@ export function parseItemInfo(clipboardText) {
 
   flushModifier()
   itemInfo.isFractured ||= itemInfo.modifiers.some((modifier) => modifier.type === 'fractured')
+  // 词缀补丁未适配检测：有词缀头但零结构化词缀（头部措辞未识别），或魔法/稀有物品未识别出任何词缀
+  const affixBearingRarity = ['魔法', '稀有'].includes(itemInfo.rarity.replace(/\s/g, ''))
+  const hasStructuredMods = itemInfo.modifiers.length > 0 || itemInfo.detailedMods.length > 0
+  const hasAnyMods = hasStructuredMods || itemInfo.explicitMods.length > 0
+  itemInfo.affixFormatUnsupported = (sawAffixHeader && !hasStructuredMods) ||
+    (affixBearingRarity && !itemInfo.isUnidentified && !hasAnyMods)
   const average = (range) => range ? (Number(range.min) + Number(range.max)) / 2 : 0
   itemInfo.physicalDps = itemInfo.attacksPerSecond
     ? Math.round(average(itemInfo.physicalDamage) * itemInfo.attacksPerSecond * 100) / 100

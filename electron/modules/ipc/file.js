@@ -198,6 +198,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         isUnmodifiable: itemInfo.isUnmodifiable,
         influences: itemInfo.influences,
         isUnidentified: itemInfo.isUnidentified || false,
+        affixFormatUnsupported: itemInfo.affixFormatUnsupported || false,
         affixMatch: affixMatchResult.isMatch,
         requiredAllMatched: affixMatchResult.requiredAllMatched,
         matchedSelectedCount: affixMatchResult.matchedSelectedCount,

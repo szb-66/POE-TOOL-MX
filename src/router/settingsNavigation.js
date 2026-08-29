@@ -4,7 +4,8 @@ export const SETTINGS_TABS = Object.freeze([
   'detection',
   'overlay',
   'system',
-  'feedback'
+  'feedback',
+  'about'
 ])
 
 const SETTINGS_TAB_SET = new Set(SETTINGS_TABS)

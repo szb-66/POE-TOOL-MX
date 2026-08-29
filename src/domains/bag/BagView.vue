@@ -215,7 +215,7 @@
                   />
                 </el-form-item>
                 <el-form-item v-for="entry in calibrationOptions" :key="entry.key" :label="entry.label">
-                  <el-button @click="stashPickupStore.calibrate(entry.key)">重新框选</el-button>
+                  <el-button @click="calibrateStashPickupGrid(entry.key)">重新框选</el-button>
                   <el-tag :type="interfaceStore.stashGridCalibration[entry.key] ? 'success' : 'info'">
                     {{ interfaceStore.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
                   </el-tag>
@@ -401,12 +401,16 @@
           </el-tab-pane>
       </el-tabs>
     </el-col></el-row>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { QuestionFilled, VideoPause } from '@element-plus/icons-vue'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
@@ -428,6 +432,7 @@ const bagStore = useBagStore()
 const stashPickupStore = useStashPickupStore()
 const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()
+const helpTopics = [moduleTopicById('bag')]
 const STORAGE_TAB_STORAGE_KEY = 'storage.activeTab'
 const STORAGE_TABS = ['inbound', 'pickup']
 const activeTab = ref(readPersistentTab(STORAGE_TAB_STORAGE_KEY, STORAGE_TABS, 'inbound'))
@@ -533,6 +538,10 @@ async function captureRewardTitle() {
 
 async function calibrateJunfengGrid() {
   try { await junfengStore.calibrateGrid() } catch (error) { ElMessage.error(error.message) }
+}
+
+async function calibrateStashPickupGrid(key) {
+  try { await stashPickupStore.calibrate(key) } catch (error) { ElMessage.error(error.message) }
 }
 
 async function previewJunfeng() {

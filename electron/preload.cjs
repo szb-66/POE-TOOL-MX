@@ -153,6 +153,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('devtools-visibility-changed', listener)
   },
   pickScreenCoordinate: () => ipcRenderer.invoke('pick-screen-coordinate'),
+  pickScreenRegion: (options) => ipcRenderer.invoke('screen-picker-region', options),
   getScreenPickerContext: () => ipcRenderer.invoke('screen-picker-context'),
   submitScreenCoordinate: (point) => ipcRenderer.send('coordinate-picker-select', point),
   submitScreenRegion: (rectangle) => ipcRenderer.send('screen-picker-region-select', rectangle),

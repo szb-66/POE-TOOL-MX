@@ -94,6 +94,8 @@ async function captureTemplate(definition) {
     store.applyTemplateCapture(definition.type, result)
     versions.value[definition.type] = result.version || Date.now()
     if (result.reloadError) ElMessage.warning(`模板已保存，但检测器重载失败：${result.reloadError}`)
+  } catch (error) {
+    ElMessage.error(error?.message || '框选失败')
   } finally {
     capturingType.value = ''
   }

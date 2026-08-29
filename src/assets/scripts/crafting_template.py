@@ -195,6 +195,8 @@ STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 TIMING_MODE = "{{TIMING_MODE}}"
 ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
 CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+# 复制成功（有序列号证据）但文本未变化的哨兵：区别于"没有复制到内容"
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
 FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
@@ -1079,20 +1081,25 @@ def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
         return current_text
     if current_text != before_text:
         return current_text
+    if seq_changed:
+        return CLIPBOARD_TEXT_UNCHANGED
     return None
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
     deadline = time.monotonic() + timeout_seconds
+    saw_unchanged_copy = False
     while is_running:
         clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
-        if clipboard_text is not None:
+        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
+            saw_unchanged_copy = True
+        elif clipboard_text is not None:
             return clipboard_text
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
         time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
-    return False
+    return CLIPBOARD_TEXT_UNCHANGED if saw_unchanged_copy else False
 
 def read_clipboard_to_file(allow_unchanged_text=False):
     # 读取剪切板并写入文件
@@ -1113,6 +1120,8 @@ def read_clipboard_to_file(allow_unchanged_text=False):
         clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text)
         if not clipboard_text:
             return False
+        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
+            return "unchanged"
         
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
@@ -1210,21 +1219,36 @@ def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
 def read_current_item(attempts=3, allow_unchanged_text=False):
     """复制并解析当前装备；补读只重复复制，不重复使用制作通货。"""
     last_error = "无法读取当前物品"
+    last_dispatched = False
     for attempt in range(max(1, int(attempts))):
         if not is_running:
             return {"error": "循环已停止"}
+        # 同文本重发仅用于解析分发后的补发；复制阶段未取得新文本时不得接受旧 tooltip。
         request_id = read_clipboard_to_file(
-            allow_unchanged_text=allow_unchanged_text or attempt > 0
+            allow_unchanged_text=allow_unchanged_text or (attempt > 0 and last_dispatched)
         )
-        if request_id:
+        if request_id == "unchanged":
+            last_dispatched = False
+            last_error = "剪贴板文本未变化"
+        elif request_id:
+            last_dispatched = True
             result = wait_for_parse_result(request_id)
             if isinstance(result, dict) and not result.get("error"):
+                if ({{ENABLE_AFFIX}} or {{ENABLE_ELDRITCH}}) and result.get("affixFormatUnsupported"):
+                    fail_item_runtime(
+                        "检测到未适配的词缀补丁格式，无法识别词缀，已停止制作。请更新软件或反馈适配",
+                        "AFFIX_PATCH_UNSUPPORTED"
+                    )
+                    return {"error": "检测到未适配的词缀补丁格式"}
                 return result
             last_error = result.get("error") if isinstance(result, dict) else "无效解析结果"
         else:
+            last_dispatched = False
             last_error = fatal_error_reason or "读取物品信息失败"
         if attempt + 1 < attempts and is_running:
             print(f"[重试] {last_error}，重新复制当前物品（不重复使用通货）")
+    if last_error == "剪贴板文本未变化":
+        return {"unchanged": True}
     return {"error": last_error}
 
 def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):

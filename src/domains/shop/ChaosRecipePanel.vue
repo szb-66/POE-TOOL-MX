@@ -112,7 +112,7 @@
           <template #header><span>仓库网格校准</span></template>
           <p class="muted">框选游戏中完整的物品格子区域，不包含标签页标题和仓库边框；普通与大型共用区域。</p>
           <div v-for="entry in calibrationOptions" :key="entry.key" class="calibration-row">
-            <el-button @click="store.calibrate(entry.key)">框选{{ entry.label }} {{ entry.size }}</el-button>
+            <el-button @click="calibrateStashGrid(entry.key)">框选{{ entry.label }} {{ entry.size }}</el-button>
             <el-tag :type="store.stashGridCalibration[entry.key] ? 'success' : 'info'">
               {{ store.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
             </el-tag>
@@ -330,6 +330,10 @@ async function toggleEnabled(enabled) {
   } catch (error) {
     ElMessage.error(error.message)
   }
+}
+
+async function calibrateStashGrid(key) {
+  try { await store.calibrate(key) } catch (error) { ElMessage.error(error.message) }
 }
 
 </script>

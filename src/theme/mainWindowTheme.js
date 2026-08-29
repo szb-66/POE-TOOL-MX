@@ -26,11 +26,3 @@ export function syncMainWindowTheme(route) {
   root.classList.toggle(BUSINESS_OVERLAY_THEME_CLASS, theme === 'overlay')
   return theme
 }
-
-export function clearMainWindowTheme() {
-  document.documentElement.classList.remove(
-    SHARED_DARK_THEME_CLASS,
-    MAIN_WINDOW_THEME_CLASS,
-    BUSINESS_OVERLAY_THEME_CLASS
-  )
-}

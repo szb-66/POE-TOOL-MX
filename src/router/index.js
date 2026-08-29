@@ -85,11 +85,6 @@ const routes = [
     component: pageLoaders['/settings']
   },
   {
-    path: '/help',
-    name: 'Help',
-    component: pageLoaders['/help']
-  },
-  {
     path: '/overlay',
     name: 'Overlay',
     component: () => import('../domains/overlay/OverlayView.vue'),

@@ -18,6 +18,12 @@ const context = reactive({ mode: 'point', purpose: '', minimumSize: { width: 20,
 const dragStart = ref(null)
 const selection = ref(null)
 
+const REGION_GRIDS = {
+  'puzzle-inventory': { columns: 6, rows: 10 },
+  'puzzle-atlas': { columns: 3, rows: 3 },
+  'bag-inventory': { columns: 12, rows: 5 }
+}
+
 const normalizedSelection = computed(() => {
   if (!selection.value) return null
   const { start, end } = selection.value
@@ -33,9 +39,7 @@ const physicalSize = computed(() => ({
 const selectionValid = computed(() => physicalSize.value.width >= context.minimumSize.width && physicalSize.value.height >= context.minimumSize.height)
 const selectionStyle = computed(() => {
   const region = normalizedSelection.value
-  const grid = context.purpose === 'puzzle-atlas'
-    ? { columns: 3, rows: 3 }
-    : context.purpose === 'puzzle-inventory' ? { columns: 6, rows: 10 } : null
+  const grid = REGION_GRIDS[context.purpose] || null
   return region ? {
     left: `${region.left}px`, top: `${region.top}px`,
     width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px`,
@@ -49,6 +53,7 @@ const pickerTitle = computed(() => {
   if (context.mode !== 'region') return '点击选取坐标'
   if (context.purpose === 'puzzle-inventory') return '框选完整的 6×10 碎片仓库'
   if (context.purpose === 'puzzle-atlas') return '框选完整的 3×3 海图区'
+  if (context.purpose === 'bag-inventory') return '框选完整的 12×5 背包'
   return '拖动框选标题模板'
 })
 const regionHint = computed(() => selection.value
@@ -57,7 +62,9 @@ const regionHint = computed(() => selection.value
     ? '贴近仓库网格外边框，从左上角拖到右下角，包含全部 60 格'
     : context.purpose === 'puzzle-atlas'
       ? '贴近海图网格外边框，从左上角拖到右下角，包含完整九格'
-      : '拖动框选完整标题，按 Esc 取消')
+      : context.purpose === 'bag-inventory'
+        ? '贴近背包网格外边框，从左上角拖到右下角，包含全部 60 格'
+        : '拖动框选完整标题，按 Esc 取消')
 
 const handlePick = (event) => {
   if (context.mode !== 'point') return

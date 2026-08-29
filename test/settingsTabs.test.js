@@ -10,7 +10,7 @@ function containingPanel(marker) {
   return view.slice(panelStart, markerIndex)
 }
 
-test('设置页提供六个任务分类并在反馈分类隐藏全局重置入口', () => {
+test('设置页提供七个任务分类并在反馈分类隐藏全局重置入口', () => {
   const tabs = [...view.matchAll(/<el-tab-pane label="([^"]+)" name="([^"]+)" \/>/g)]
   assert.deepEqual(tabs.map(match => match.slice(1)), [
     ['通用', 'general'],
@@ -18,7 +18,8 @@ test('设置页提供六个任务分类并在反馈分类隐藏全局重置入�
     ['界面识别', 'detection'],
     ['覆盖层', 'overlay'],
     ['系统', 'system'],
-    ['问题反馈', 'feedback']
+    ['问题反馈', 'feedback'],
+    ['关于', 'about']
   ])
   assert.ok(view.indexOf('重置所有设置') < view.indexOf('<el-tabs'))
   assert.match(view, /v-show="activeTab !== 'feedback'" class="action-buttons"/)
@@ -107,10 +108,19 @@ test('自动操作与系统卡片统一保留单层底部间距', () => {
 test('背包字段说明收进问号提示并补充物品位置说明', () => {
   assert.match(view, />\s*连续空格判空\s*<el-tooltip content="扫描连续达到该数量的空格后，认为后续没有内容"/)
   assert.doesNotMatch(view, /label="连续空格停止数量"/)
-  assert.match(view, /aria-label="首格位置说明"/)
-  assert.match(view, /aria-label="单格宽高说明"/)
+  assert.match(view, /aria-label="背包网格说明"/)
+  assert.doesNotMatch(view, /aria-label="首格位置说明"/)
+  assert.doesNotMatch(view, /aria-label="单格宽高说明"/)
   assert.match(view, /aria-label="连续空格判空说明"/)
   assert.match(view, /<h3 class="section-title label-with-help">\s*物品位置[\s\S]*?content="需要制作的装备存放的位置坐标"/)
+})
+
+test('背包网格仅通过框选配置并以只读形式展示当前值', () => {
+  assert.match(view, />框选背包网格<|重新框选背包网格/)
+  assert.match(view, /尚未框选/)
+  assert.doesNotMatch(view, /v-model="inventory\.startPos\.[xy]"/)
+  assert.doesNotMatch(view, /v-model="inventory\.slotSize\.[wh]"/)
+  assert.doesNotMatch(view, /handlePickCoordinate\('inventory'\)/)
 })
 
 test('通货坐标使用三等分布局并限制四位数输入框宽度', () => {
