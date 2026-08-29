@@ -57,6 +57,12 @@
     <el-menu-item class="nav-group-start" index="/settings" @pointerenter="warmRoute('/settings')" @focusin="warmRoute('/settings')">
       <el-icon><Setting /></el-icon>
       <span>设置</span>
+      <span
+        v-if="feedbackRepliesStore.unreadCount > 0"
+        class="feedback-reply-dot"
+        role="img"
+        aria-label="反馈有新回复"
+      />
     </el-menu-item>
   </el-menu>
 </template>
@@ -66,8 +72,10 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Box, Coin, Connection, DataAnalysis, Guide, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
+import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 
 const route = useRoute()
+const feedbackRepliesStore = useFeedbackRepliesStore()
 const isModelTrainingEnabled = import.meta.env.DEV
 
 const activeMenu = computed(() => route.path)
@@ -109,6 +117,16 @@ function warmRoute(path) {
       right: 8px;
       height: 1px;
       background: var(--border-base);
+    }
+
+    .feedback-reply-dot {
+      position: absolute;
+      top: 6px;
+      right: calc(50% - 16px);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--el-color-danger);
     }
 
     &:hover { background: var(--surface-hover); color: var(--text-primary); }

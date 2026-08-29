@@ -7,7 +7,19 @@
 
     <el-tabs v-model="activeView" class="feedback-tabs" @tab-change="handleViewChange">
       <el-tab-pane label="提交反馈" name="submit" />
-      <el-tab-pane label="我的反馈" name="mine" />
+      <el-tab-pane name="mine">
+        <template #label>
+          <span class="mine-tab-label">
+            我的反馈
+            <span
+              v-if="feedbackRepliesStore.unreadCount > 0"
+              class="feedback-unread-dot"
+              role="img"
+              aria-label="有新回复"
+            />
+          </span>
+        </template>
+      </el-tab-pane>
     </el-tabs>
 
     <template v-if="activeView === 'submit'">
@@ -231,9 +243,11 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Delete, Download, Paperclip } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
 import { useDiagnostics } from '@/composables/useDiagnostics'
+import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 
 const categories = [
   { label: '功能异常', value: 'bug' },
@@ -300,6 +314,9 @@ const {
   cancelDiagnosticCapture,
   clearSubmittedDiagnosticCapture
 } = useDiagnostics()
+
+const feedbackRepliesStore = useFeedbackRepliesStore()
+const route = useRoute()
 
 const totalSize = computed(() => attachments.value.reduce((sum, item) => sum + item.size, 0))
 const totalSizeText = computed(() => formatSize(totalSize.value))
@@ -449,6 +466,7 @@ async function submitFeedback() {
       return
     }
     successId.value = result.feedbackId
+    feedbackRepliesStore.registerSubmitted(result.id)
     clearSubmittedDiagnosticCapture(prepared.captureId)
     puzzleEvidence.value = null
     resetForm()
@@ -464,12 +482,30 @@ async function submitFeedback() {
 }
 
 async function handleViewChange(name) { if (name === 'mine' && !conversationItems.value.length) await loadConversations() }
+
+let focusingTarget = ''
+async function focusFeedbackFromQuery(id) {
+  const targetId = String(id || '')
+  if (!targetId || selectedFeedbackId.value === targetId || focusingTarget === targetId) return
+  focusingTarget = targetId
+  try {
+    if (!conversationItems.value.length) await loadConversations()
+    if (!conversationItems.value.some(item => item.id === targetId)) return
+    activeView.value = 'mine'
+    await openConversation(targetId)
+  } finally { focusingTarget = '' }
+}
 async function loadConversations() {
   listLoading.value = true; listError.value = ''
   try {
     const result = await electronApi.feedback.list()
     if (!result?.success) throw new Error(result?.error || '反馈列表加载失败')
     conversationItems.value = result.items || []
+    // 兜底：通知跳转时列表可能尚未就绪（启动检查失败后手动刷新等），就绪后重试选中。
+    const pendingId = String(route.query.feedbackId || '')
+    if (pendingId && selectedFeedbackId.value !== pendingId && conversationItems.value.some(item => item.id === pendingId)) {
+      void focusFeedbackFromQuery(pendingId)
+    }
   } catch (error) { listError.value = error.message }
   finally { listLoading.value = false }
 }
@@ -487,6 +523,10 @@ async function openConversation(id) {
   replyAttachments.value = []
   replyClientMessageId.value = ''
   await loadConversation(id)
+  if (conversationDetail.value) {
+    const listItem = conversationItems.value.find(item => item.id === id)
+    feedbackRepliesStore.markSeen(id, listItem?.adminReplyCount, listItem?.lastMessageAuthor)
+  }
 }
 async function loadConversation(id) {
   if (!id) return
@@ -515,6 +555,7 @@ async function sendReply() {
   try {
     const result = await electronApi.feedback.reply({ feedbackId: selectedFeedbackId.value, clientMessageId: replyClientMessageId.value, body: replyBody.value, attachmentTokens: replyAttachments.value.map(item => item.token) })
     if (!result?.success) { replyError.value = result?.error || '回复发送失败'; return }
+    feedbackRepliesStore.reactivate(selectedFeedbackId.value)
     replyBody.value = ''; replyAttachments.value = []; replyClientMessageId.value = ''
     await Promise.all([loadConversation(selectedFeedbackId.value), loadConversations()])
   } catch { replyError.value = '回复发送失败，请检查网络后重试' }
@@ -538,6 +579,8 @@ onMounted(() => {
   loadPuzzleEvidenceSummary()
 })
 
+watch(() => route.query.feedbackId, (id) => { void focusFeedbackFromQuery(id) }, { immediate: true })
+
 onBeforeUnmount(() => {
   removeProgressListener?.()
   removeProgressListener = null
@@ -558,6 +601,16 @@ onBeforeUnmount(() => {
     h3 { margin: 0; color: var(--text-primary); font-size: 18px; }
   }
 
+  .feedback-unread-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--el-color-danger);
+  }
+
+  .mine-tab-label { display: inline-flex; align-items: center; }
   .feedback-success { margin-bottom: 16px; }
   .feedback-tabs { margin-bottom: 16px; }
   :deep(.el-card) { background: var(--surface-1, var(--bg-primary)); box-shadow: inset 0 1px rgba(255,255,255,.025); }

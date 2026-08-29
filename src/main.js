@@ -4,6 +4,7 @@ import router from './router'
 import App from './App.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/notification/style/css'
 import './styles/index.less'
 import { syncMainWindowTheme } from './theme/mainWindowTheme'
 

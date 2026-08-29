@@ -91,7 +91,7 @@ def run(results, read_results=None, apply_success=True, identify_unidentified=Tr
     queue = list(results)
     reads = list(read_results or [True] * max(1, len(queue)))
     applied = []
-    def read(allow_unchanged_text=False): return reads.pop(0)
+    def read(allow_unchanged_text=False, **_kwargs): return reads.pop(0)
     def wait(_request_id=None): return queue.pop(0)
     def apply(currency): applied.append(currency); return apply_success
     globals()["read_clipboard_to_file"] = read
@@ -154,7 +154,7 @@ is_running = True
 fatal_error_reason = None
 def release_all_keys(): pass
 def play_error_sound(): pass
-def read_clipboard_to_file(allow_unchanged_text=False): return True
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs): return True
 def wait_for_parse_result(_request_id=None): return queue.pop(0)
 queue = ${queueLiteral}
 result = read_current_item()
@@ -214,7 +214,7 @@ item_info_result_file = os.devnull
 applied = []
 queue = [{"rarity":"魔法", "affixMatch":True, "matchedGroupName":"目标", "explicitMods":[]}]
 def apply_currency(currency): applied.append(currency); return True
-def read_clipboard_to_file(allow_unchanged_text=False): return True
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs): return True
 def wait_for_parse_result(_request_id=None): return queue.pop(0)
 time.sleep = lambda _seconds: None
 initial = {"rarity":"魔法", "affixMatch":True, "matchedGroupName":"目标", "explicitMods":[]}
@@ -271,7 +271,7 @@ used = []
 def right_click_currency(currency): currencies.append(currency); return True
 def left_click_item(): return True
 def record_currency_usage(currency): used.append(currency)
-def read_clipboard_to_file(allow_unchanged_text=False): return True
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs): return True
 def wait_for_parse_result(_request_id=None): return {"socketsCount": 6}
 time.sleep = lambda _seconds: None
 success = craft_sockets({"socketMatch": True, "socketsCount": 6})

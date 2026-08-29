@@ -85,7 +85,7 @@ def run(initial, queue):
     def apply(currency):
         applied.append(currency)
         return True
-    def read(allow_unchanged_text=False):
+    def read(allow_unchanged_text=False, **_kwargs):
         nonlocal reads
         reads += 1
         return True
@@ -207,7 +207,7 @@ def run(initial, parsed_results):
     def apply(currency):
         applied.append(currency)
         return True
-    def read(allow_unchanged_text=False):
+    def read(allow_unchanged_text=False, **_kwargs):
         nonlocal reads
         reads += 1
         return True

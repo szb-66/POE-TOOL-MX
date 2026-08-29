@@ -117,7 +117,7 @@ is_running = True
 fatal_error_reason = None
 calls = []
 outcomes = ["unchanged", "unchanged", "unchanged"]
-def read_and_parse(_x, _y, allow_unchanged_text=False):
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): raise AssertionError("不应分发解析")
@@ -141,7 +141,7 @@ fatal_error_reason = None
 calls = []
 outcomes = ["unchanged", 2]
 parsed = [{"category": "地图", "mapTier": 16}]
-def read_and_parse(_x, _y, allow_unchanged_text=False):
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -165,7 +165,7 @@ fatal_error_reason = None
 calls = []
 outcomes = [1, 2]
 parsed = [{"error": "等待超时"}, {"category": "地图", "mapTier": 16}]
-def read_and_parse(_x, _y, allow_unchanged_text=False):
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -189,7 +189,7 @@ fatal_error_reason = None
 calls = []
 outcomes = [1]
 parsed = [{"category": "地图", "mapTier": 16}]
-def read_and_parse(_x, _y, allow_unchanged_text=False):
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -277,7 +277,7 @@ def release_all_keys(): pass
 def play_error_sound(): pass
 calls = []
 outcomes = ["unchanged", "unchanged", "unchanged"]
-def read_clipboard_to_file(allow_unchanged_text=False):
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): raise AssertionError("不应分发解析")
@@ -304,7 +304,7 @@ def play_error_sound(): pass
 calls = []
 outcomes = ["unchanged", 2]
 parsed = [{"rarity": "魔法", "affixMatch": True}]
-def read_clipboard_to_file(allow_unchanged_text=False):
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -330,7 +330,7 @@ def play_error_sound(): pass
 calls = []
 outcomes = [1, 2]
 parsed = [{"error": "等待超时"}, {"rarity": "魔法"}]
-def read_clipboard_to_file(allow_unchanged_text=False):
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -356,7 +356,7 @@ def play_error_sound(): pass
 calls = []
 outcomes = [1]
 parsed = [{"rarity": "普通", "socketsCount": 3}]
-def read_clipboard_to_file(allow_unchanged_text=False):
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs):
     calls.append(bool(allow_unchanged_text))
     return outcomes.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed.pop(0)
@@ -365,6 +365,232 @@ print(json.dumps({"result": result, "calls": calls}, ensure_ascii=False))
 `)
   assert.equal(result.result.socketsCount, 3)
   assert.deepEqual(result.calls, [true])
+})
+
+test('装备模板通货后读取命中历史文本时退避复核并接受稳定文本', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.0
+seen_item_texts = {"旧状态文本": True}
+is_running = True
+parse_request_sequence = 0
+pending_parse_request_id = None
+sleeps = []
+time = types.SimpleNamespace(sleep=lambda _v: sleeps.append(1))
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = lambda: 7
+    pyperclip = types.SimpleNamespace(paste=lambda: "旧状态文本")
+    copies = []
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        copies.append(_before_text)
+        return "旧状态文本"
+    request_id = read_clipboard_to_file(verify_freshness=True)
+    with open(item_info_file, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    print(json.dumps({"requestId": request_id, "clipboard": request["clipboard"], "copies": len(copies), "sleeps": len(sleeps), "stillSeen": "旧状态文本" in seen_item_texts}, ensure_ascii=False))
+`)
+  assert.equal(result.requestId, 1)
+  assert.equal(result.clipboard, '旧状态文本')
+  assert.equal(result.copies, 2)
+  assert.equal(result.sleeps, 1)
+  assert.equal(result.stillSeen, true)
+})
+
+test('装备模板可疑文本复核到较新结果时取新者', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.0
+seen_item_texts = {"旧状态文本": True}
+is_running = True
+parse_request_sequence = 0
+pending_parse_request_id = None
+time = types.SimpleNamespace(sleep=lambda _v: None)
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = lambda: 7
+    pyperclip = types.SimpleNamespace(paste=lambda: "旧状态文本")
+    copies = []
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        copies.append(_before_text)
+        return "旧状态文本" if len(copies) == 1 else "较新状态文本"
+    request_id = read_clipboard_to_file(verify_freshness=True)
+    with open(item_info_file, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    print(json.dumps({"requestId": request_id, "clipboard": request["clipboard"], "copies": len(copies)}, ensure_ascii=False))
+`)
+  assert.equal(result.requestId, 1)
+  assert.equal(result.clipboard, '较新状态文本')
+  assert.equal(result.copies, 2)
+})
+
+test('装备模板未变化退避复核仍不变才按无新信息处理', () => {
+  const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const unchanged = runPython(`
+import json, os, tempfile, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.0
+seen_item_texts = {}
+is_running = True
+sleeps = []
+time = types.SimpleNamespace(sleep=lambda _v: sleeps.append(1))
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = lambda: 7
+    pyperclip = types.SimpleNamespace(paste=lambda: "复制前内容")
+    copies = []
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        copies.append(1)
+        return CLIPBOARD_TEXT_UNCHANGED
+    parsed = read_clipboard_to_file(verify_freshness=True)
+    print(json.dumps({"result": parsed, "copies": len(copies), "sleeps": len(sleeps), "wroteRequest": os.path.exists(item_info_file)}, ensure_ascii=False))
+`)
+  assert.equal(unchanged.result, 'unchanged')
+  assert.equal(unchanged.copies, 2)
+  assert.equal(unchanged.sleeps, 1)
+  assert.equal(unchanged.wroteRequest, false)
+
+  const fresh = runPython(`
+import json, os, tempfile, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.0
+seen_item_texts = {}
+is_running = True
+parse_request_sequence = 0
+pending_parse_request_id = None
+time = types.SimpleNamespace(sleep=lambda _v: None)
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = lambda: 7
+    pyperclip = types.SimpleNamespace(paste=lambda: "复制前内容")
+    copies = []
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        copies.append(1)
+        return CLIPBOARD_TEXT_UNCHANGED if len(copies) == 1 else "新状态文本"
+    request_id = read_clipboard_to_file(verify_freshness=True)
+    with open(item_info_file, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    print(json.dumps({"requestId": request_id, "clipboard": request["clipboard"], "copies": len(copies)}, ensure_ascii=False))
+`)
+  assert.equal(fresh.requestId, 1)
+  assert.equal(fresh.clipboard, '新状态文本')
+  assert.equal(fresh.copies, 2)
+})
+
+test('装备读取按调用语义传递新鲜度验证开关', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+def release_all_keys(): pass
+def play_error_sound(): pass
+calls = []
+def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs):
+    calls.append([bool(allow_unchanged_text), _kwargs.get("verify_freshness")])
+    return 1
+def wait_for_parse_result(_request_id=None): return {"rarity": "普通"}
+read_current_item()
+read_current_item(allow_unchanged_text=True)
+print(json.dumps(calls))
+`)
+  assert.deepEqual(result, [[false, true], [true, false]])
+})
+
+test('地图模板通货后读取命中历史文本时退避复核到较新结果', () => {
+  const snippet = block(mapTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
+  const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.0
+seen_item_texts = {"旧状态文本": True}
+is_running = True
+parse_request_sequence = 0
+pending_parse_request_id = None
+time = types.SimpleNamespace(sleep=lambda _v: None)
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    GetClipboardSequenceNumber = lambda: 7
+    pyperclip = types.SimpleNamespace(paste=lambda: "旧状态文本")
+    copies = []
+    def send_copy_command(_before_seq=None, _before_text="", allow_unchanged_text=False):
+        copies.append(_before_text)
+        return "旧状态文本" if len(copies) == 1 else "较新状态文本"
+    request_id = read_clipboard_to_file(verify_freshness=True)
+    with open(item_info_file, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    print(json.dumps({"requestId": request_id, "clipboard": request["clipboard"], "copies": len(copies)}, ensure_ascii=False))
+`)
+  assert.equal(result.requestId, 1)
+  assert.equal(result.clipboard, '较新状态文本')
+  assert.equal(result.copies, 2)
+})
+
+test('地图洗练读取按调用语义传递新鲜度验证开关', () => {
+  const snippet = block(mapTemplate, 'def read_current_rolling_target(', 'def update_map_recovery_checkpoint(')
+  const result = runPython(`
+import json, types
+${snippet}
+CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
+is_running = True
+fatal_error_reason = None
+calls = []
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
+    calls.append([bool(allow_unchanged_text), _kwargs.get("verify_freshness")])
+    return 1
+def wait_for_parse_result(_request_id=None): return {"category": "地图", "mapTier": 16}
+def item_matches_rolling_target(_item): return True
+def rolling_target_label(): return "地图"
+read_current_rolling_target(1, 2)
+read_current_rolling_target(1, 2, allow_unchanged_text=True, empty_on_copy_failure=True)
+print(json.dumps(calls))
+`)
+  assert.deepEqual(result, [[false, true], [true, false]])
+})
+
+test('装备与地图模板requestId不匹配的等待最终超时返回失败', () => {
+  for (const [template, end] of [[craftingTemplate, 'def fail_item_runtime('], [mapTemplate, 'def get_slot_position(']]) {
+    const waitBlock = block(template, 'def wait_for_parse_result(', end)
+    const result = runPython(`
+import json, os, tempfile, types
+${waitBlock}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    with open(item_info_file, "w", encoding="utf-8") as handle:
+        json.dump({"clipboard": "current", "requestId": 2}, handle)
+    with open(item_info_result_file, "w", encoding="utf-8") as handle:
+        json.dump({"category": "旧结果", "requestId": 1}, handle)
+    is_running = True
+    pending_parse_request_id = 2
+    time = types.SimpleNamespace(sleep=lambda _v: None)
+    print(json.dumps(wait_for_parse_result(), ensure_ascii=False))
+`)
+    assert.ok(result.error && result.error.includes('等待超时'))
+  }
 })
 
 test('装备与地图模板写入复制确认时捕获的同一份文本快照', () => {
@@ -603,7 +829,7 @@ results = ${JSON.stringify(parsedResults).replaceAll('true', 'True').replaceAll(
 def item_matches_rolling_target(item): return item.get("category") == "${category}"
 def rolling_target_label(): return "目标"
 def rolling_item_level_label(_item): return "等级"
-def read_and_parse(_x, _y, allow_unchanged_text=False): copies.append(len(copies) + 1); return len(copies)
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs): copies.append(len(copies) + 1); return len(copies)
 def wait_for_parse_result(_request_id=None): return results.pop(0)
 def apply_currency(currency, _x, _y): currencies.append(currency); return True
 def check_map_base(item): return bool(item.get("match"))
@@ -626,7 +852,7 @@ current_recovery_checkpoint = None
 copies = []
 copy_results = ${JSON.stringify(copyResults).replaceAll('true', 'True').replaceAll('false', 'False')}
 parsed_results = ${JSON.stringify(parsedResults).replaceAll('true', 'True').replaceAll('false', 'False')}
-def read_and_parse(_x, _y, allow_unchanged_text=False):
+def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs):
     copies.append(bool(allow_unchanged_text))
     return copy_results.pop(0)
 def wait_for_parse_result(_request_id=None): return parsed_results.pop(0)

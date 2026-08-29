@@ -1101,28 +1101,25 @@ def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_un
         time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
     return CLIPBOARD_TEXT_UNCHANGED if saw_unchanged_copy else False
 
-def read_clipboard_to_file(allow_unchanged_text=False):
-    # 读取剪切板并写入文件
+def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
+    # 读取剪切板并写入文件；verify_freshness 用于通货后读取的过期文本退避复核。
     global parse_request_sequence, pending_parse_request_id
     try:
-        before_seq = None
-        before_text = ""
-        if GetClipboardSequenceNumber is not None:
-            try:
-                before_seq = GetClipboardSequenceNumber()
-            except Exception:
-                before_seq = None
-        try:
-            before_text = str(pyperclip.paste() or "")
-        except Exception:
-            before_text = ""
-        # 发送复制命令
-        clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text)
+        clipboard_text = capture_clipboard_text(allow_unchanged_text)
         if not clipboard_text:
             return False
+        if verify_freshness and (clipboard_text == CLIPBOARD_TEXT_UNCHANGED or clipboard_text in seen_item_texts):
+            print("[验证] 复制结果疑似过期（未变化或命中历史文本），退避复核...")
+            time.sleep(STALE_COPY_BACKOFF_SECONDS)
+            if not is_running:
+                return False
+            recheck_text = capture_clipboard_text(False)
+            if recheck_text and recheck_text != CLIPBOARD_TEXT_UNCHANGED and recheck_text != clipboard_text:
+                print("[验证] 复核取得较新文本，丢弃首次结果")
+                clipboard_text = recheck_text
         if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
             return "unchanged"
-        
+
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
         with open(item_info_result_file, 'w', encoding='utf-8'):
@@ -1132,10 +1129,39 @@ def read_clipboard_to_file(allow_unchanged_text=False):
                 "clipboard": clipboard_text,
                 "requestId": pending_parse_request_id
             }, f, ensure_ascii=False)
+        remember_accepted_text(clipboard_text)
         return pending_parse_request_id
     except Exception as e:
         print(f"[错误] 读取剪切板失败: {e}")
         return False
+
+# 复制新鲜度验证：识别跨轮过期文本（未变化或命中历史记录），退避复核后才分发解析。
+# 说明：helpers 定义在使用方之后属模板结构约束（测试片段以函数定义为界截取）。
+SEEN_TEXT_CAPACITY = 8
+STALE_COPY_BACKOFF_SECONDS = 0.2
+seen_item_texts = {}
+
+def remember_accepted_text(text):
+    # 记录已接受分发的文本；容量有限 FIFO 淘汰，防止长会话增长。
+    seen_item_texts.pop(text, None)
+    seen_item_texts[text] = True
+    while len(seen_item_texts) > SEEN_TEXT_CAPACITY:
+        seen_item_texts.pop(next(iter(seen_item_texts)))
+
+def capture_clipboard_text(allow_unchanged_text=False):
+    # 单次复制：读取前置序列号与文本，发送 Ctrl+C 并等待变化。
+    before_seq = None
+    before_text = ""
+    if GetClipboardSequenceNumber is not None:
+        try:
+            before_seq = GetClipboardSequenceNumber()
+        except Exception:
+            before_seq = None
+    try:
+        before_text = str(pyperclip.paste() or "")
+    except Exception:
+        before_text = ""
+    return send_copy_command(before_seq, before_text, allow_unchanged_text)
 
 def wait_for_parse_result(request_id=None):
     # 等待解析结果文件出现
@@ -1167,6 +1193,8 @@ def wait_for_parse_result(request_id=None):
                 if expected_request_id is not None and result.get("requestId") != expected_request_id:
                     time.sleep(parse_result_poll_interval_seconds)
                     wait_count += 1
+                    if wait_count > max_wait:
+                        return {"error": "等待超时，未收到解析结果"}
                     continue
                 
                 # 检查是否有错误
@@ -1216,8 +1244,10 @@ def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
     play_error_sound()
     return False
 
-def read_current_item(attempts=3, allow_unchanged_text=False):
-    """复制并解析当前装备；补读只重复复制，不重复使用制作通货。"""
+def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=None):
+    """复制并解析当前装备；补读只重复复制，不重复使用通货。"""
+    if verify_freshness is None:
+        verify_freshness = not allow_unchanged_text
     last_error = "无法读取当前物品"
     last_dispatched = False
     for attempt in range(max(1, int(attempts))):
@@ -1225,7 +1255,8 @@ def read_current_item(attempts=3, allow_unchanged_text=False):
             return {"error": "循环已停止"}
         # 同文本重发仅用于解析分发后的补发；复制阶段未取得新文本时不得接受旧 tooltip。
         request_id = read_clipboard_to_file(
-            allow_unchanged_text=allow_unchanged_text or (attempt > 0 and last_dispatched)
+            allow_unchanged_text=allow_unchanged_text or (attempt > 0 and last_dispatched),
+            verify_freshness=verify_freshness
         )
         if request_id == "unchanged":
             last_dispatched = False

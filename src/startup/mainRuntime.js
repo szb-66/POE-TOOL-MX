@@ -1,4 +1,4 @@
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import { electronApi } from '../api/electron'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { initShortcuts } from '../utils/scriptService'
@@ -11,6 +11,7 @@ import { useStashPickupStore } from '../stores/stashPickup'
 import { useJunfengStore } from '../stores/junfeng'
 import { usePuzzleStore } from '../stores/puzzle'
 import { useApplicationUpdateStore } from '../stores/applicationUpdate'
+import { useFeedbackRepliesStore } from '../stores/feedbackReplies'
 import { markMainRuntimeSettled, resetMainRuntimeReadiness } from './readiness'
 
 let initializationPromise = null
@@ -90,6 +91,24 @@ async function startMainRuntime({ router }) {
   } catch (error) {
     warnings.push({ name: 'application-update-state', error: String(error?.message || error) })
   }
+
+  // 反馈未读回复启动检查：静默运行，失败不打扰用户（spec 要求）。
+  void useFeedbackRepliesStore().startupCheck({
+    notify: items => {
+      const message = items.length === 1
+        ? `反馈「${items[0].title}」有新回复，点击查看`
+        : `${items.length} 条反馈有新回复，点击查看`
+      const notification = ElNotification({
+        title: '反馈新回复',
+        message,
+        type: 'info',
+        onClick: () => {
+          notification.close()
+          router.push({ path: '/settings', query: { tab: 'feedback', feedbackId: items[0].id } })
+        }
+      })
+    }
+  })
 
   const titleSync = await settingsStore.syncGameWindowTitles()
   if (!titleSync.success) {

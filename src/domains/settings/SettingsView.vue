@@ -13,7 +13,19 @@
           <el-tab-pane label="界面识别" name="detection" />
           <el-tab-pane label="覆盖层" name="overlay" />
           <el-tab-pane label="系统" name="system" />
-          <el-tab-pane label="问题反馈" name="feedback" />
+          <el-tab-pane name="feedback">
+            <template #label>
+              <span class="feedback-tab-label">
+                问题反馈
+                <span
+                  v-if="feedbackRepliesStore.unreadCount > 0"
+                  class="feedback-unread-dot"
+                  role="img"
+                  aria-label="反馈有新回复"
+                />
+              </span>
+            </template>
+          </el-tab-pane>
           <el-tab-pane label="关于" name="about" />
       </el-tabs>
     </div>
@@ -690,6 +702,7 @@ import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
 import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
 import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
 import FeedbackSettings from './FeedbackSettings.vue'
+import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { usePriceCheckStore } from '@/stores/priceCheck'
@@ -714,6 +727,7 @@ const interfaceDetectionStore = useInterfaceDetectionStore()
 const chaosRecipeStore = useChaosRecipeStore()
 const priceCheckStore = usePriceCheckStore()
 const account = usePoeCnAccountStore()
+const feedbackRepliesStore = useFeedbackRepliesStore()
 const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
 const accountToken = ref('')
@@ -1315,6 +1329,20 @@ async function handleReset() {
 
     .settings-tabs {
       order: 1;
+    }
+
+    .feedback-tab-label {
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .feedback-unread-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: var(--el-color-danger);
     }
   }
 

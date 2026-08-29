@@ -11,16 +11,18 @@ function containingPanel(marker) {
 }
 
 test('设置页提供七个任务分类并在反馈分类隐藏全局重置入口', () => {
-  const tabs = [...view.matchAll(/<el-tab-pane label="([^"]+)" name="([^"]+)" \/>/g)]
-  assert.deepEqual(tabs.map(match => match.slice(1)), [
-    ['通用', 'general'],
-    ['自动操作', 'automation'],
-    ['界面识别', 'detection'],
-    ['覆盖层', 'overlay'],
-    ['系统', 'system'],
-    ['问题反馈', 'feedback'],
-    ['关于', 'about']
+  const tabs = [...view.matchAll(/<el-tab-pane\b[^>]*\bname="([^"]+)"/g)].map(match => match[1])
+  assert.deepEqual(tabs, [
+    'general',
+    'automation',
+    'detection',
+    'overlay',
+    'system',
+    'feedback',
+    'about'
   ])
+  assert.match(view, /<el-tab-pane label="通用" name="general" \/>/)
+  assert.match(view, /feedback-tab-label[\s\S]{0,200}问题反馈/, '反馈 tab 使用 label 插槽携带未读红点')
   assert.ok(view.indexOf('重置所有设置') < view.indexOf('<el-tabs'))
   assert.match(view, /v-show="activeTab !== 'feedback'" class="action-buttons"/)
 })

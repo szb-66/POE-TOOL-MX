@@ -183,7 +183,7 @@ def augment_single_affix_if_needed(result):
     if explicit_affix_count(result) != 1:
         return True, result
 
-    print("[提示] 检测到单词缀，先使用增幅石...")
+    print(f"[提示] 检测到单词缀，先使用增幅石（explicitMods: {len(result.get('explicitMods') or [])}, detailedMods: {len(result.get('detailedMods') or [])}）...")
     if not apply_currency("augmentation"):
         print("[错误] 使用增幅石失败")
         return False, result

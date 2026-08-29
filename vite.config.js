@@ -36,7 +36,8 @@ export default defineConfig({
         './src/main.js',
         './src/App.vue',
         './src/components/Layout/MainLayout.vue',
-        './src/domains/dashboard/DashboardRouteView.vue'
+        './src/domains/dashboard/DashboardRouteView.vue',
+        './src/domains/settings/CoordinatePickerView.vue'
       ]
     },
     watch: {
