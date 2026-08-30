@@ -196,10 +196,11 @@ test('正式传奇目录可加载哨兵图片且主进程和浮层接入本地�
   assert.notEqual(currentItem.imageId, 'placeholder')
   assert.equal(legacyItem.legacy, true)
   assert.equal(legacyItem.imageId, 'placeholder')
-  const [main, overlay, settings, indexHtml] = await Promise.all([
+  const [main, overlay, settings, accountField, indexHtml] = await Promise.all([
     readFile(path.join(dirname, '..', 'electron', 'main.js'), 'utf8'),
     readFile(path.join(dirname, '..', 'src', 'domains', 'priceCheck', 'PriceCheckOverlayView.vue'), 'utf8'),
     readFile(path.join(dirname, '..', 'src', 'domains', 'settings', 'SettingsView.vue'), 'utf8'),
+    readFile(path.join(dirname, '..', 'src', 'components', 'configuration', 'AccountLeagueConfigurationField.vue'), 'utf8'),
     readFile(path.join(dirname, '..', 'index.html'), 'utf8')
   ])
   assert.match(main, /registerUniqueItemImageProtocol/)
@@ -211,6 +212,7 @@ test('正式传奇目录可加载哨兵图片且主进程和浮层接入本地�
   assert.match(overlay, /candidate\.legacy/)
   assert.match(overlay, />遗产</)
   assert.match(overlay, /width:\s*48px;\s*height:\s*48px;\s*object-fit:\s*contain/)
-  assert.match(settings, /验证成功后窗口会自动关闭/)
-  assert.match(settings, /我已完成登录/)
+  assert.match(settings, /AccountLeagueConfigurationField show-token/)
+  assert.match(accountField, /验证成功后窗口会自动关闭/)
+  assert.match(accountField, /我已完成登录/)
 })

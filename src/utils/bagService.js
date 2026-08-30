@@ -4,6 +4,13 @@ import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics
 import { useBagStore } from '@/stores/bag'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from './bagConfig.js'
+import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
+import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectBagConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '@/domains/configurationGuide/configurationIssues.js'
 
 let initialized = false
 let disposers = []
@@ -11,7 +18,7 @@ let disposers = []
 function currentConfig(overrides = {}) {
   const bagStore = useBagStore()
   const settingsStore = useSettingsStore()
-  const { inventory, operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming, ...bagOverrides } = overrides
+  const { inventory, operationDelayMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
     forceUniqueStash: bagStore.forceUniqueStash,
@@ -23,8 +30,6 @@ function currentConfig(overrides = {}) {
   }, {
     inventory: inventory || settingsStore.inventory,
     operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs,
-    adaptiveTiming: adaptiveTiming ?? settingsStore.adaptiveTiming,
-    adaptiveTimeoutMs: adaptiveTimeoutMs ?? settingsStore.adaptiveTimeoutMs,
     fixedTiming: fixedTiming ?? settingsStore.fixedTiming
   })
 }
@@ -46,11 +51,9 @@ export function updateBagRuntimeConfig(patch = {}) {
     if ('forceUniqueStash' in patch) bagStore.setForceUniqueStash(patch.forceUniqueStash)
     const settingsStore = useSettingsStore()
     if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
-    if (['operationDelayMs', 'adaptiveTiming', 'adaptiveTimeoutMs', 'fixedTiming'].some((key) => key in patch)) {
+    if (['operationDelayMs', 'fixedTiming'].some((key) => key in patch)) {
       const timingResult = await settingsStore.updateAutomationTiming({
         ...('operationDelayMs' in patch ? { operationDelayMs: patch.operationDelayMs } : {}),
-        ...('adaptiveTiming' in patch ? { adaptiveTiming: patch.adaptiveTiming } : {}),
-        ...('adaptiveTimeoutMs' in patch ? { adaptiveTimeoutMs: patch.adaptiveTimeoutMs } : {}),
         ...('fixedTiming' in patch ? { fixedTiming: patch.fixedTiming } : {})
       })
       if (!timingResult.success) return timingResult
@@ -74,14 +77,40 @@ export async function startBagDetection({ silent = false } = {}) {
     bagStore.setDetectionStatus(true)
     bagStore.setStopReason('')
   }
-  else if (!silent) ElMessage.error(`启动背包检测失败：${result?.error || '未知错误'}`)
+  else {
+    bagStore.setStopReason(result?.error || '未知错误', result)
+    if (!silent) ElMessage.error(`启动背包检测失败：${result?.error || '未知错误'}`)
+  }
   if (result?.success && result.warnings?.length && !silent) ElMessage.warning(result.warnings.join('；'))
   return result
 }
 
-export async function setBagModuleEnabled(enabled) {
+function collectBagConfiguration(actionId = CONFIGURATION_ACTIONS.enable) {
+  const interfaceStore = useInterfaceDetectionStore()
+  const settingsStore = useSettingsStore()
+  return collectBagConfigurationIssues({
+    actionId,
+    templates: interfaceStore.templates,
+    inventory: settingsStore.inventory
+  })
+}
+
+export async function setBagModuleEnabled(enabled, { configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (enabled) {
+    if (!configurationGuideBypass) {
+      const check = collectBagConfiguration()
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.bag,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成背包安全入库配置',
+          actionLabel: '启用',
+          collect: () => collectBagConfiguration(),
+          execute: () => setBagModuleEnabled(true, { configurationGuideBypass: true })
+        })
+      }
+    }
     const result = await startBagDetection()
     if (!result?.success) return false
     bagStore.setModuleEnabled(true)
@@ -95,12 +124,30 @@ export async function setBagModuleEnabled(enabled) {
   return true
 }
 
-export async function startBagStash() {
+export async function startBagStash({ configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (bagStore.isStashing) return { success: false, error: '入库正在进行中' }
+  if (!configurationGuideBypass) {
+    const check = collectBagConfiguration(CONFIGURATION_ACTIONS.start)
+    if (!check.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.bag,
+        actionId: CONFIGURATION_ACTIONS.start,
+        title: '完成背包入库配置',
+        actionLabel: '开始入库',
+        collect: () => collectBagConfiguration(CONFIGURATION_ACTIONS.start),
+        execute: () => startBagStash({ configurationGuideBypass: true })
+      })
+    }
+  }
   try {
     const result = await electronApi.bag.startStash()
-    if (!result?.success) throw new Error(result?.error || '未知错误')
+    if (!result?.success) {
+      bagStore.setStopReason(result?.error || '未知错误', result)
+      if (!result?.configurationRequired) ElMessage.error(`启动入库失败：${result?.error || '未知错误'}`)
+      void reportDiagnosticFailure('bag', 'automation', result, 'automation_failed')
+      return result
+    }
     bagStore.resetRunStats()
     bagStore.setStashingStatus(true)
     ElMessage.success('开始自动入库')
@@ -130,7 +177,7 @@ export async function initBagAutomation() {
     electronApi.events.onBagDetectionStopped((data) => {
       bagStore.setDetectionStatus(false)
       bagStore.setMatchedStatus(false)
-      if (data?.reason && data.reason !== 'process-ended') bagStore.setStopReason(data.reason)
+      if (data?.reason && data.reason !== 'process-ended') bagStore.setStopReason(data.reason, data)
     }),
     electronApi.events.onBagStashProgress((data) => {
       if (data.progress === 0) bagStore.resetRunStats()
@@ -143,7 +190,7 @@ export async function initBagAutomation() {
     }),
     electronApi.events.onBagStashStopped((data) => {
       bagStore.setStashingStatus(false, data)
-      bagStore.setStopReason(data?.reason || '未知原因')
+      bagStore.setStopReason(data?.reason || '未知原因', data)
       if (data?.reason && data.reason !== 'user-stopped' && data.reason !== 'process-ended') {
         ElMessage.warning(`入库已停止：${formatBagStopReason(data.reason)}`)
       }
@@ -155,7 +202,7 @@ export async function initBagAutomation() {
       await startBagDetection({ silent: true })
     } catch (error) {
       bagStore.setDetectionStatus(false)
-      bagStore.setStopReason(error.message)
+      bagStore.setStopReason(error.message, error)
       void reportDiagnosticFailure('bag', 'detection', error, 'automation_failed')
     }
   }

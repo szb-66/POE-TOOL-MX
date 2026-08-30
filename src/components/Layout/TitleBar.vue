@@ -53,15 +53,22 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Minus, FullScreen, Close } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
-import { runApplicationUpdateEntryAction } from '@/utils/applicationUpdateAction'
+import { createApplicationUpdateEntryActionRunner } from '@/utils/applicationUpdateAction'
+import ReleaseNotesContent from '@/components/common/ReleaseNotesContent.vue'
 import appLogo from '@/assets/images/LOGO-dark.png'
 
 const isAlwaysOnTop = ref(false)
+const updateEntryActionPending = ref(false)
 const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState } = storeToRefs(applicationUpdate)
+const runUpdateEntryAction = createApplicationUpdateEntryActionRunner((pending) => {
+  updateEntryActionPending.value = pending
+})
 
 const updateEntryVisible = computed(() => ['available', 'downloading', 'downloaded', 'installing'].includes(updateState.value.status))
-const updateEntryDisabled = computed(() => ['downloading', 'installing'].includes(updateState.value.status))
+const updateEntryDisabled = computed(() => (
+  updateEntryActionPending.value || ['downloading', 'installing'].includes(updateState.value.status)
+))
 const updateEntryText = computed(() => ({
   available: `发现新版本 v${updateState.value.availableVersion}`,
   downloading: `下载中 ${Math.round(updateState.value.progress?.percent || 0)}%`,
@@ -71,7 +78,7 @@ const updateEntryText = computed(() => ({
 
 async function handleUpdateEntry() {
   try {
-    const result = await runApplicationUpdateEntryAction({
+    const result = await runUpdateEntryAction({
       state: updateState.value,
       update: applicationUpdate,
       confirm: confirmApplicationUpdate
@@ -101,16 +108,15 @@ async function confirmApplicationUpdate(update) {
     h('p', { style: { margin: '0 0 6px' } }, `目标版本：v${update.availableVersion || '未知'}`),
     h('p', { style: { margin: '0 0 12px', color: 'var(--text-secondary, #909399)' } }, `发布时间：${formatUpdateDate(update.releaseDate)}`),
     h('div', { style: { marginBottom: '6px', fontWeight: '600' } }, '更新内容'),
-    h('pre', {
+    h(ReleaseNotesContent, {
+      source: releaseNotes,
       style: {
         margin: '0',
         maxHeight: '280px',
         overflow: 'auto',
-        whiteSpace: 'pre-wrap',
-        overflowWrap: 'anywhere',
-        font: 'inherit'
+        overflowWrap: 'anywhere'
       }
-    }, releaseNotes)
+    })
   ])
   try {
     await ElMessageBox.confirm(message, '发现新版本', {

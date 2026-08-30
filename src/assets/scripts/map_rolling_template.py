@@ -262,7 +262,7 @@ pending_parse_request_id = None
 # 延迟配置
 mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
 
-# 内部固定时序（非用户配置）
+# 固定时序（生成脚本时填充）
 MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
 KEY_HOLD_SECONDS = float({{KEY_HOLD_MS}}) / 1000.0
 BUTTON_HOLD_SECONDS = float({{BUTTON_HOLD_MS}}) / 1000.0
@@ -271,10 +271,6 @@ CLIPBOARD_RESPONSE_MIN_SECONDS = float({{CLIPBOARD_CONFIRM_MS}}) / 1000.0
 STASH_TAB_SETTLE_SECONDS = float({{STASH_TAB_SETTLE_MS}}) / 1000.0
 STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 
-# 自适应等待模式（生成脚本时填充）
-TIMING_MODE = "{{TIMING_MODE}}"
-ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
-CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 # 复制成功（有序列号证据）但文本未变化的哨兵：区别于"没有复制到内容"
 CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 FILE_SYNC_POLL_INTERVAL_SECONDS = 0.01
@@ -482,7 +478,7 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
-def fail_currency_preflight(currency, reason, actual="未检测到物品"):
+def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
     expected = CURRENCY_NAMES.get(currency, currency)
     pos = currency_positions.get(currency) or {}
@@ -498,6 +494,8 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品"):
         "expected": expected,
         "actual": actual,
         "position": {"x": int(pos.get("x", 0)), "y": int(pos.get("y", 0))},
+        "failureCode": failure_code,
+        "configurationIssueId": f"currency.{currency}",
         "reason": reason
     }
     print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
@@ -511,7 +509,8 @@ def preflight_required_currencies():
     if required_currency_types and GetClipboardSequenceNumber is None:
         return fail_currency_preflight(
             required_currency_types[0],
-            "无法读取剪贴板序列号，已停止地图制作以避免误操作"
+            "无法读取剪贴板序列号，已停止地图制作以避免误操作",
+            failure_code="CLIPBOARD_UNAVAILABLE"
         )
 
     for currency in required_currency_types:
@@ -533,7 +532,8 @@ def preflight_required_currencies():
         except Exception:
             return fail_currency_preflight(
                 currency,
-                f"无法读取{expected}复制前的剪贴板序列号，已停止地图制作"
+                f"无法读取{expected}复制前的剪贴板序列号，已停止地图制作",
+                failure_code="CLIPBOARD_UNAVAILABLE"
             )
         try:
             before_text = str(pyperclip.paste() or "")
@@ -545,18 +545,20 @@ def preflight_required_currencies():
             allow_unchanged_text=True
         )
         if not clipboard_text:
-            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
+            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息", failure_code="CURRENCY_NOT_FOUND")
         try:
             sequence_after = GetClipboardSequenceNumber()
         except Exception:
             return fail_currency_preflight(
                 currency,
-                f"无法读取{expected}复制后的剪贴板序列号，已停止地图制作"
+                f"无法读取{expected}复制后的剪贴板序列号，已停止地图制作",
+                failure_code="CLIPBOARD_UNAVAILABLE"
             )
         if sequence_after == sequence_before:
             return fail_currency_preflight(
                 currency,
-                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
+                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页",
+                failure_code="CURRENCY_NOT_FOUND"
             )
 
         header = copied_item_header(clipboard_text)
@@ -565,7 +567,8 @@ def preflight_required_currencies():
             return fail_currency_preflight(
                 currency,
                 f"通货位置错误：需要{expected}，实际检测到{actual}",
-                actual
+                actual,
+                failure_code="CURRENCY_TYPE_MISMATCH"
             )
         verified_currency_types.add(currency)
         print(f"[预检] {expected}验证通过")
@@ -719,8 +722,7 @@ def send_copy_command(before_seq=None, before_text="", result_timeout=None, allo
         time.sleep(RELEASE_SETTLE_SECONDS)
         if result_timeout is not None:
             return wait_for_clipboard_change(before_seq, before_text, result_timeout, allow_unchanged_text)
-        timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
-        return wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text)
+        return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS, allow_unchanged_text)
     except:
         return None
 
@@ -748,19 +750,11 @@ def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
-    deadline = time.monotonic() + timeout_seconds
-    saw_unchanged_copy = False
-    while is_running:
-        clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
-        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
-            saw_unchanged_copy = True
-        elif clipboard_text is not None:
-            return clipboard_text
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
-    return CLIPBOARD_TEXT_UNCHANGED if saw_unchanged_copy else False
+    time.sleep(max(0.0, timeout_seconds))
+    if not is_running:
+        return False
+    clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
+    return clipboard_text if clipboard_text is not None else False
 
 def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
     global parse_request_sequence, pending_parse_request_id
@@ -873,8 +867,7 @@ def stash_item(x, y):
         time.sleep(RELEASE_SETTLE_SECONDS)
         before_seq = GetClipboardSequenceNumber() if GetClipboardSequenceNumber is not None else None
         before_text = str(pyperclip.paste() or "")
-        timeout = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else STASH_SETTLE_SECONDS
-        item_still_present = send_copy_command(before_seq, before_text, timeout)
+        item_still_present = send_copy_command(before_seq, before_text, STASH_SETTLE_SECONDS)
         if item_still_present is None:
             return False
         return not item_still_present
@@ -1183,6 +1176,46 @@ def start_map_rolling():
     is_running = False
     return True
 
+def _explicit_affix_count(result):
+    if not isinstance(result, dict) or result.get("affixFormatUnsupported"):
+        return None
+    detailed = result.get("detailedMods")
+    if isinstance(detailed, list) and detailed:
+        return sum(1 for modifier in detailed if isinstance(modifier, dict) and modifier.get("type") in ("prefix", "suffix"))
+    explicit = result.get("explicitMods")
+    if isinstance(explicit, list) and len(explicit) == 0:
+        return 0
+    return None
+
+def fill_rare_map_affixes(result, slot_x, slot_y):
+    if not map_config.get("exalted", {}).get("enabled") or str(result.get("rarity", "")).replace(" ", "") != "稀有":
+        return {"ok": True, "result": result}
+    current = result
+    while is_running:
+        count = _explicit_affix_count(current)
+        if count is None:
+            return {"ok": False, "reason": "无法可靠确认稀有地图的显式词缀数量", "code": "MAP_EXALTED_AFFIX_COUNT_UNAVAILABLE"}
+        if count < 0 or count > 6:
+            return {"ok": False, "reason": "稀有地图的显式词缀数量超出合法范围", "code": "MAP_EXALTED_AFFIX_COUNT_INVALID"}
+        if count == 6:
+            return {"ok": True, "result": current}
+        next_result = apply_currency_and_read("exalted", slot_x, slot_y)
+        if not isinstance(next_result, dict):
+            return {"ok": False, "reason": "崇高石使用后未返回可确认的物品结果", "code": "MAP_EXALTED_READ_FAILED"}
+        if next_result.get("error"):
+            return {"ok": False, "reason": next_result.get("error"), "code": next_result.get("code", "MAP_EXALTED_READ_FAILED")}
+        if str(next_result.get("rarity", "")).replace(" ", "") != "稀有":
+            return {"ok": False, "reason": "崇高石使用后物品不再是稀有品质", "code": "MAP_EXALTED_RARITY_CHANGED"}
+        next_count = _explicit_affix_count(next_result)
+        if next_count is None:
+            return {"ok": False, "reason": "崇高石使用后无法可靠确认显式词缀数量", "code": "MAP_EXALTED_AFFIX_COUNT_UNAVAILABLE"}
+        if next_count < 0 or next_count > 6:
+            return {"ok": False, "reason": "崇高石使用后的显式词缀数量超出合法范围", "code": "MAP_EXALTED_AFFIX_COUNT_INVALID"}
+        if next_count <= count:
+            return {"ok": False, "reason": "崇高石使用后显式词缀数量未增加", "code": "MAP_EXALTED_AFFIX_COUNT_NOT_INCREASED"}
+        current = next_result
+    return {"ok": False, "reason": fatal_error_reason or "崇高石补满已停止", "code": "MAP_RUNTIME_STOPPED"}
+
 def process_single_map(initial_result, slot_x, slot_y):
     """Purpose: 针对单个格子的地图进行状态机式洗图/鉴定/腐化/存仓。
     Inputs: initial_result(解析结果 dict)、slot_x/slot_y(像素坐标)；使用全局 map_config、apply_currency、read_and_parse。
@@ -1241,6 +1274,13 @@ def process_single_map(initial_result, slot_x, slot_y):
             else:
                 print("  > [跳过] 已腐化且不满足条件")
                 return completed_map_result()
+
+        if rarity == '稀有':
+            filled = fill_rare_map_affixes(current_result, slot_x, slot_y)
+            if not filled.get("ok"):
+                return failed_map_result(filled.get("reason"), filled.get("code", "MAP_EXALTED_READ_FAILED"))
+            current_result = filled["result"]
+            rarity = current_result.get("rarity", "普通").replace(" ", "")
 
         method = map_config['method'] # alchemy or chaos
         

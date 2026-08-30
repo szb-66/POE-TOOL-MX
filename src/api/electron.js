@@ -17,6 +17,15 @@ const craftingIpcPayload = (value) => {
 
 const mockApi = {
   emergencyStopAll: () => Promise.resolve({ success: true, stopped: [], failed: [] }),
+  configTransfer: {
+    open: () => Promise.resolve({ success: false, canceled: false, fileName: '', content: '', errorCode: 'CONFIG_TRANSFER_UNAVAILABLE', error: '仅 Electron 客户端支持配置导入' }),
+    save: () => Promise.resolve({ success: false, canceled: false, fileName: '', errorCode: 'CONFIG_TRANSFER_UNAVAILABLE', error: '仅 Electron 客户端支持配置导出' })
+  },
+  configurationGuide: {
+    openFromOverlay: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持浮窗重新定位' } }),
+    returnToOverlay: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持返回制作浮窗' } }),
+    onRequested: () => () => {}
+  },
   system: {
     detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
     updateGameWindowTitles: (titles) => Promise.resolve({ success: true, titles }),
@@ -346,6 +355,15 @@ const mockApi = {
 
 export const electronApi = isElectron ? {
   emergencyStopAll: () => window.electronAPI.emergencyStopAll?.(),
+  configTransfer: {
+    open: () => window.electronAPI.openConfigTransfer?.(),
+    save: (payload) => window.electronAPI.saveConfigTransfer?.(craftingIpcPayload(payload))
+  },
+  configurationGuide: {
+    openFromOverlay: (request) => window.electronAPI.openConfigurationGuideFromOverlay?.(craftingIpcPayload(request)),
+    returnToOverlay: () => window.electronAPI.returnToConfigurationGuideOverlay?.(),
+    onRequested: (callback) => window.electronAPI.onConfigurationGuideRequested?.(callback) || (() => {})
+  },
   system: {
     detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
     updateGameWindowTitles: (titles) => window.electronAPI.updateGameWindowTitles?.(craftingIpcPayload(titles)),

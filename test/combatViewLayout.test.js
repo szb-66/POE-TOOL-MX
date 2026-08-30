@@ -69,13 +69,18 @@ test('频率保护数字输入与单位文字保持间距', () => {
 test('坐标输入与取点按钮使用三段式组合框', () => {
   const passive = moduleSource('passive-potion', 'active-potion')
   const portal = moduleSource('portal')
+  const coordinateField = readFileSync(
+    new URL('../src/components/configuration/CoordinateConfigurationField.vue', import.meta.url),
+    'utf8'
+  )
 
-  assert.equal((combatView.match(/class="coordinate-picker"/g) || []).length, 2)
-  assert.match(passive, /class="coordinate-picker"[\s\S]*?placeholder="X"[\s\S]*?placeholder="Y"[\s\S]*?class="pick-position-button"/)
-  assert.match(portal, /class="coordinate-picker"[\s\S]*?placeholder="X"[\s\S]*?placeholder="Y"[\s\S]*?class="pick-position-button"/)
+  assert.equal((combatView.match(/<CoordinateConfigurationField/g) || []).length, 2)
+  assert.match(passive, /<CoordinateConfigurationField[\s\S]*?:model-value="config\.potion\[resource\.key\]\.point"/)
+  assert.match(portal, /<CoordinateConfigurationField[\s\S]*?:model-value="config\.portal\.clickPoint"/)
+  assert.match(coordinateField, /placeholder="X"[\s\S]*?placeholder="Y"[\s\S]*?class="pick-position-button"/)
   assert.doesNotMatch(passive, /<span>,<\/span>/)
   assert.doesNotMatch(portal, /<span>,<\/span>/)
-  assert.match(combatView, /\.coordinate-number-input \+ \.coordinate-number-input,[\s\S]*?\.pick-position-button \{\s*border-left: 1px solid var\(--border-base\);/)
+  assert.match(coordinateField, /\.coordinate-number-input \+ \.coordinate-number-input,[\s\S]*?\.pick-position-button \{\s*border-left: 1px solid var\(--border-base\);/)
 })
 
 test('被动与主动喝药使用三态标签和单一条件启停按钮', () => {

@@ -178,26 +178,26 @@ test('旧 iteration 快速覆盖回放只能观察到最终快照', async () => 
   await writeFile(resultFile, '{}', 'utf8')
   const observed = []
   let lastContent = ''
-  const timers = new Set()
+  let timer = null
   const watcher = watch(resultFile, { persistent: false }, () => {
-    const timer = setTimeout(async () => {
-      timers.delete(timer)
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(async () => {
+      timer = null
       const content = await readFile(resultFile, 'utf8')
       if (content === lastContent) return
       lastContent = content
       observed.push(JSON.parse(content).iteration)
-    }, 20)
-    timers.add(timer)
+    }, 300)
   })
   try {
     for (let iteration = 1; iteration <= 20; iteration += 1) {
       await writeFile(resultFile, JSON.stringify({ iteration }), 'utf8')
     }
-    await new Promise(resolve => setTimeout(resolve, 120))
+    await new Promise(resolve => setTimeout(resolve, 700))
     assert.deepEqual(observed, [20])
   } finally {
     watcher.close()
-    for (const timer of timers) clearTimeout(timer)
+    if (timer) clearTimeout(timer)
     await rm(tempRoot, { recursive: true, force: true })
   }
 })

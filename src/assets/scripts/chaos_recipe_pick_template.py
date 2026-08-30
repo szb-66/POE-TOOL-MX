@@ -50,12 +50,12 @@ GAME_WINDOW_PROCESS_NAMES = ("PathOfExile.exe", "PathOfExile_x64.exe", "PathOfEx
 _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
 _game_window_process_names_mtime_ns = None
 TRANSFER_ATTEMPTS = 2
-MODIFIER_SETTLE_SECONDS = 0.05
-KEY_HOLD_SECONDS = 0.02
-BUTTON_HOLD_SECONDS = 0.02
-RELEASE_SETTLE_SECONDS = 0.02
-CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
-CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+MODIFIER_SETTLE_SECONDS = 0.02
+KEY_HOLD_SECONDS = 0.015
+BUTTON_HOLD_SECONDS = 0.015
+RELEASE_SETTLE_SECONDS = 0.01
+CLIPBOARD_RESPONSE_MIN_SECONDS = 0.01
+STASH_SETTLE_SECONDS = 0.01
 RUNNING = True
 CONTROLLER = None
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
@@ -64,13 +64,14 @@ FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 
 def apply_fixed_timing(config):
     global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
-    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS
+    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS, STASH_SETTLE_SECONDS
     timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
-    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
-    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
-    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
-    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
-    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 250)) / 1000.0
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 20)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 15)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 15)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 10)) / 1000.0
+    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 10)) / 1000.0
+    STASH_SETTLE_SECONDS = float(timing.get("stash_settle_ms", 10)) / 1000.0
 
 
 class GameNotForegroundError(RuntimeError):
@@ -278,17 +279,15 @@ def require_game_foreground():
 class InputController:
     def __init__(self, config):
         if not isinstance(config, dict):
-            config = {"operation_delay_ms": config, "timing_mode": "fixed"}
+            config = {"operation_delay_ms": config}
         try:
-            delay = float(config.get("operation_delay_ms", 50))
+            delay = float(config.get("operation_delay_ms", 40))
         except (TypeError, ValueError):
-            delay = 80
+            delay = 40
         if not math.isfinite(delay):
-            delay = 80
+            delay = 40
         self.delay = max(0.0, delay / 1000)
-        self.timing_mode = config.get("timing_mode", "adaptive")
-        adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
-        self.clipboard_timeout = adaptive_timeout if self.timing_mode == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
+        self.clipboard_timeout = CLIPBOARD_RESPONSE_MIN_SECONDS
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
 
@@ -329,20 +328,14 @@ class InputController:
         time.sleep(RELEASE_SETTLE_SECONDS)
         self.keyboard.release(Key.ctrl)
         time.sleep(RELEASE_SETTLE_SECONDS)
-        deadline = time.monotonic() + self.clipboard_timeout
-        while RUNNING:
-            try:
-                require_game_foreground()
-                text = str(pyperclip.paste() or "").strip()
-            except Exception:
-                return ""
-            if text:
-                return text
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                break
-            time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
-        return ""
+        time.sleep(self.clipboard_timeout)
+        if not RUNNING:
+            return ""
+        try:
+            require_game_foreground()
+            return str(pyperclip.paste() or "").strip()
+        except Exception:
+            return ""
 
     def ctrl_click(self):
         require_game_foreground()
@@ -365,6 +358,7 @@ def transfer_item(controller):
         if not RUNNING:
             return False, ("USER_STOPPED", "用户停止")
         controller.ctrl_click()
+        time.sleep(STASH_SETTLE_SECONDS)
         after = controller.copy_item()
         if after != before:
             return True, None

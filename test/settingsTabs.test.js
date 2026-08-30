@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const view = readFileSync(new URL('../src/domains/settings/SettingsView.vue', import.meta.url), 'utf8')
+const accountField = readFileSync(new URL('../src/components/configuration/AccountLeagueConfigurationField.vue', import.meta.url), 'utf8')
+const inventoryGridField = readFileSync(new URL('../src/components/configuration/InventoryGridConfigurationField.vue', import.meta.url), 'utf8')
 
 function containingPanel(marker) {
   const markerIndex = view.indexOf(marker)
@@ -28,16 +30,17 @@ test('设置页提供七个任务分类并在反馈分类隐藏全局重置入�
 })
 
 test('全局赛季选择与刷新按钮保持左右排列', () => {
-  assert.match(view, /<div class="account-league-row">[\s\S]*<el-select[\s\S]*刷新赛季[\s\S]*<\/div>/)
-  assert.match(view, /\.account-league-row \{[\s\S]*display: flex;[\s\S]*gap: 12px;/)
-  assert.match(view, /\.account-league-row[\s\S]*:deep\(\.el-select\) \{[\s\S]*flex: 1;/)
+  assert.match(view, /AccountLeagueConfigurationField/)
+  assert.match(accountField, /<div class="account-league-field__league">[\s\S]*<el-select[\s\S]*刷新赛季[\s\S]*<\/div>/)
+  assert.match(accountField, /\.account-league-field__league \{[\s\S]*display: flex;[\s\S]*gap: 12px;/)
+  assert.match(accountField, /\.account-league-field__league :deep\(\.el-select\) \{[^}]*flex: 1;/)
 })
 
 test('现有设置区块按任务归入对应面板且使用 v-show 保持挂载', () => {
   for (const marker of ['国服账号', '快捷键设置']) {
     assert.match(containingPanel(marker), /activeTab === 'general'/)
   }
-  for (const marker of ['背包设置', '通货坐标', '物品位置', '操作延迟']) {
+  for (const marker of ['背包设置', '通货坐标', '操作延迟']) {
     assert.match(containingPanel(marker), /activeTab === 'automation'/)
   }
   for (const marker of ['<InterfaceDetectionSettings', '<StashTabSelectionSettings']) {
@@ -107,19 +110,35 @@ test('自动操作与系统卡片统一保留单层底部间距', () => {
   assert.match(view, /\.currency-position-item :deep\(\.el-form-item\) \{ margin-bottom: 0; \}/)
 })
 
-test('背包字段说明收进问号提示并补充物品位置说明', () => {
+test('背包字段说明收进问号提示且设置页不再编辑物品位置', () => {
   assert.match(view, />\s*连续空格判空\s*<el-tooltip content="扫描连续达到该数量的空格后，认为后续没有内容"/)
   assert.doesNotMatch(view, /label="连续空格停止数量"/)
   assert.match(view, /aria-label="背包网格说明"/)
   assert.doesNotMatch(view, /aria-label="首格位置说明"/)
   assert.doesNotMatch(view, /aria-label="单格宽高说明"/)
   assert.match(view, /aria-label="连续空格判空说明"/)
-  assert.match(view, /<h3 class="section-title label-with-help">\s*物品位置[\s\S]*?content="需要制作的装备存放的位置坐标"/)
+  assert.doesNotMatch(view, /物品位置|itemPosition|handleItemPositionChange|updateItemPositionDraft/)
+})
+
+test('自动操作等待仅保留固定时序并提供键盘可访问说明', () => {
+  const operationStart = view.indexOf('<!-- 操作延迟 -->')
+  const operationEnd = view.indexOf('<div v-show="activeTab === \'overlay\'"', operationStart)
+  const operationSection = view.slice(operationStart, operationEnd)
+  assert.match(operationSection, /v-model="operationDelayMs"/)
+  assert.match(operationSection, />物理输入时序</)
+  assert.match(operationSection, /v-model="fixedTiming\[field\.key\]"/)
+  assert.doesNotMatch(operationSection, /adaptiveTiming|adaptiveTimeoutMs|自适应等待/)
+  assert.match(operationSection, />固定结果等待</)
+  assert.match(operationSection, /TIMING_FIELD_HELP\.operationDelayMs/)
+  assert.match(operationSection, /:content="field\.help"/)
+  assert.match(operationSection, /class="help-icon timing-help-trigger" tabindex="0"/)
+  assert.doesNotMatch(operationSection, />自动检测</)
 })
 
 test('背包网格仅通过框选配置并以只读形式展示当前值', () => {
-  assert.match(view, />框选背包网格<|重新框选背包网格/)
-  assert.match(view, /尚未框选/)
+  assert.match(view, /InventoryGridConfigurationField/)
+  assert.match(inventoryGridField, /框选背包网格/)
+  assert.match(inventoryGridField, /尚未框选/)
   assert.doesNotMatch(view, /v-model="inventory\.startPos\.[xy]"/)
   assert.doesNotMatch(view, /v-model="inventory\.slotSize\.[wh]"/)
   assert.doesNotMatch(view, /handlePickCoordinate\('inventory'\)/)

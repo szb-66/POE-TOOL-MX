@@ -51,7 +51,7 @@ export function validateToolSite(input = {}, sites = [], editingId = '') {
   }
 }
 
-function parseStoredSites(value) {
+export function parseStoredToolSites(value) {
   if (!value || value.version !== TOOL_SITES_STORAGE_VERSION || !Array.isArray(value.sites)) return null
 
   const ids = new Set()
@@ -87,7 +87,7 @@ export function loadToolSites(storage = globalThis.localStorage) {
   let stored = null
   try {
     const raw = storage?.getItem(TOOL_SITES_STORAGE_KEY)
-    if (raw != null) stored = parseStoredSites(JSON.parse(raw))
+    if (raw != null) stored = parseStoredToolSites(JSON.parse(raw))
   } catch {
     stored = null
   }
@@ -96,6 +96,14 @@ export function loadToolSites(storage = globalThis.localStorage) {
   const defaults = cloneSites(DEFAULT_TOOL_SITES)
   saveToolSites(defaults, storage)
   return defaults
+}
+
+export function readToolSites(storage = globalThis.localStorage) {
+  try {
+    const raw = storage?.getItem(TOOL_SITES_STORAGE_KEY)
+    if (raw != null) return parseStoredToolSites(JSON.parse(raw)) || cloneSites(DEFAULT_TOOL_SITES)
+  } catch { /* invalid data falls back without mutating storage */ }
+  return cloneSites(DEFAULT_TOOL_SITES)
 }
 
 export function createToolSiteId() {

@@ -1,4 +1,6 @@
+import { h } from 'vue'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
+import ReleaseNotesContent from '../components/common/ReleaseNotesContent.vue'
 import { electronApi } from '../api/electron'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { initShortcuts } from '../utils/scriptService'
@@ -78,7 +80,7 @@ async function startMainRuntime({ router }) {
     addDisposer(await applicationUpdateStore.initialize())
     if (updateConfigured) void applicationUpdateStore.startupCheck()
     void applicationUpdateStore.showInstalledUpdate(({ targetVersion, releaseNotes }) => ElMessageBox.alert(
-      releaseNotes,
+      h(ReleaseNotesContent, { source: releaseNotes }),
       `已更新至 v${targetVersion}`,
       {
         confirmButtonText: '我知道了',

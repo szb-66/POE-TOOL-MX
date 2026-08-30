@@ -27,26 +27,23 @@ test('五个自动化脚本定义一致的内部固定时序常量', () => {
   }
   for (const key of runtimeKeys) {
     const content = source(key)
-    assert.match(content, /MODIFIER_SETTLE_SECONDS\s*=\s*0\.05/, `${key} 缺少组合键稳定默认值`)
-    assert.match(content, /KEY_HOLD_SECONDS\s*=\s*0\.02/, `${key} 缺少按键保持默认值`)
-    assert.match(content, /BUTTON_HOLD_SECONDS\s*=\s*0\.02/, `${key} 缺少鼠标保持默认值`)
-    assert.match(content, /RELEASE_SETTLE_SECONDS\s*=\s*0\.02/, `${key} 缺少释放稳定默认值`)
+    assert.match(content, /MODIFIER_SETTLE_SECONDS\s*=\s*0\.02/, `${key} 缺少组合键稳定默认值`)
+    assert.match(content, /KEY_HOLD_SECONDS\s*=\s*0\.015/, `${key} 缺少按键保持默认值`)
+    assert.match(content, /BUTTON_HOLD_SECONDS\s*=\s*0\.015/, `${key} 缺少鼠标保持默认值`)
+    assert.match(content, /RELEASE_SETTLE_SECONDS\s*=\s*0\.01/, `${key} 缺少释放稳定默认值`)
     assert.match(content, /def apply_fixed_timing\(config\):/, `${key} 缺少固定时序应用函数`)
   }
-  assert.match(source('bag'), /CLIPBOARD_RESPONSE_MIN_SECONDS\s*=\s*0\.25/)
-  assert.match(source('chaosRecipe'), /CLIPBOARD_RESPONSE_MIN_SECONDS\s*=\s*0\.25/)
+  assert.match(source('bag'), /CLIPBOARD_RESPONSE_MIN_SECONDS\s*=\s*0\.01/)
+  assert.match(source('chaosRecipe'), /CLIPBOARD_RESPONSE_MIN_SECONDS\s*=\s*0\.01/)
 })
 
-test('制作与地图脚本包含自适应剪贴板轮询，固定常量仍保留', () => {
+test('制作与地图脚本在固定等待后只检查一次剪贴板', () => {
   for (const key of ['mapRolling', 'crafting']) {
     const content = source(key)
-    assert.match(content, /TIMING_MODE = "{{TIMING_MODE}}"/)
     assert.match(content, /def wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text=False\):/)
     assert.match(content, /def clipboard_changed\(before_seq, before_text, allow_unchanged_text=False\):/)
-    assert.match(content, /timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS/)
-    assert.match(content, /wait_for_clipboard_change\(before_seq, before_text, timeout_seconds, allow_unchanged_text\)/)
-    assert.match(content, /CLIPBOARD_POLL_INTERVAL_SECONDS = 0\.01/)
-    assert.doesNotMatch(content, /time\.sleep\(CLIPBOARD_RESPONSE_MIN_SECONDS\)/)
+    assert.match(content, /time\.sleep\(max\(0\.0, timeout_seconds\)\)/)
+    assert.doesNotMatch(content, /TIMING_MODE|ADAPTIVE_TIMEOUT|CLIPBOARD_POLL_INTERVAL_SECONDS/)
   }
 })
 

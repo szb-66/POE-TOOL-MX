@@ -5,6 +5,12 @@ import { useInterfaceDetectionStore } from './interfaceDetection'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { normalizeJunfengSettings } from '@/utils/junfengConfig'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '@/utils/diagnostics.js'
+import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectJunfengConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '@/domains/configurationGuide/configurationIssues.js'
 
 const STORAGE_KEY = 'junfengHighlightSettings'
 const TRAINING_STORAGE_KEY = 'highlightTrainingRegions'
@@ -16,14 +22,19 @@ function load() {
 function unwrap(response) {
   if (response?.success) return response.data
   throw Object.assign(new Error(response?.error?.message || '君锋镇操作失败'), {
-    code: response?.error?.code || 'JUNFENG_OPERATION_FAILED'
+    code: response?.error?.code || 'JUNFENG_OPERATION_FAILED',
+    failureCode: response?.error?.failureCode || '',
+    configurationIssueId: response?.error?.configurationIssueId || ''
   })
 }
 
 export const useJunfengStore = defineStore('junfeng', () => {
   const interfaceStore = useInterfaceDetectionStore()
   const settings = ref(load())
-  const state = ref({ status: 'idle', candidateItems: 0, remainingItems: 0, pickedItems: 0, uncertainCells: 0, reason: '', modelVersion: '' })
+  const state = ref({
+    status: 'idle', candidateItems: 0, remainingItems: 0, pickedItems: 0,
+    uncertainCells: 0, reason: '', modelVersion: '', failureCode: '', configurationIssueId: ''
+  })
   const preview = ref(null)
   const previewLabels = ref({})
   const corrections = ref([])
@@ -47,8 +58,6 @@ export const useJunfengStore = defineStore('junfeng', () => {
       templates: JSON.parse(JSON.stringify(interfaceStore.templates)),
       matchThreshold: interfaceStore.matchThreshold,
       operationDelayMs: general.operationDelayMs,
-      adaptiveTiming: general.adaptiveTiming,
-      adaptiveTimeoutMs: general.adaptiveTimeoutMs,
       fixedTiming: general.fixedTiming,
       ...overrides
     }
@@ -61,8 +70,29 @@ export const useJunfengStore = defineStore('junfeng', () => {
     return state.value
   }
 
-  async function setEnabled(value) {
+  function collectConfiguration(actionId) {
+    return collectJunfengConfigurationIssues({
+      actionId,
+      templates: interfaceStore.templates,
+      gridRegion: settings.value.gridRegion
+    })
+  }
+
+  async function setEnabled(value, { configurationGuideBypass = false } = {}) {
     const enabled = Boolean(value)
+    if (enabled && !configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.enable)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.junfeng,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成君锋镇配置',
+          actionLabel: '启用',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.enable),
+          execute: () => setEnabled(true, { configurationGuideBypass: true })
+        })
+      }
+    }
     await sync({ enabled })
     settings.value.enabled = enabled
     persist()
@@ -84,7 +114,20 @@ export const useJunfengStore = defineStore('junfeng', () => {
     }
   }
 
-  async function runPreview() {
+  async function runPreview({ configurationGuideBypass = false } = {}) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.capture)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.junfeng,
+          actionId: CONFIGURATION_ACTIONS.capture,
+          title: '完成君锋镇识别配置',
+          actionLabel: '运行预览',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.capture),
+          execute: () => runPreview({ configurationGuideBypass: true })
+        })
+      }
+    }
     busy.value = true
     try {
       if (settings.value.enabled) await sync()
@@ -93,16 +136,42 @@ export const useJunfengStore = defineStore('junfeng', () => {
       void reportDiagnosticRecovery('junfeng', 'detection')
       return preview.value
     } catch (error) {
+      state.value = {
+        ...state.value,
+        reason: error.message,
+        failureCode: error.failureCode || '',
+        configurationIssueId: error.configurationIssueId || ''
+      }
       void reportDiagnosticFailure('junfeng', 'detection', error, 'template_match_failed')
       throw error
     } finally { busy.value = false }
   }
 
-  async function start() {
+  async function start({ configurationGuideBypass = false } = {}) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.start)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.junfeng,
+          actionId: CONFIGURATION_ACTIONS.start,
+          title: '完成君锋镇配置',
+          actionLabel: '开始拾取',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.start),
+          execute: () => start({ configurationGuideBypass: true })
+        })
+      }
+    }
     try {
       state.value = { ...state.value, ...unwrap(await electronApi.junfeng.start()) }
       void reportDiagnosticRecovery('junfeng', 'pickup')
     } catch (error) {
+      state.value = {
+        ...state.value,
+        status: 'stopped',
+        reason: error.message,
+        failureCode: error.failureCode || '',
+        configurationIssueId: error.configurationIssueId || ''
+      }
       void reportDiagnosticFailure('junfeng', 'pickup', error, 'automation_failed')
       throw error
     }

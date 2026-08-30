@@ -58,14 +58,12 @@
         </div>
       </template>
 
-      <el-alert
-        v-if="combatStore.lastError"
-        type="error"
-        :title="combatStore.lastError"
-        show-icon
-        :closable="false"
-        class="module-error"
-      />
+      <div v-if="combatStore.lastError" class="module-error configuration-correction-alert">
+        <el-alert type="error" :title="combatStore.lastError" show-icon :closable="false" />
+        <el-button v-if="potionCorrectionIssue" type="warning" plain @click="openCombatCorrection(CONFIGURATION_ACTIONS.potion, combatStore.lastFailure)">
+          重新配置
+        </el-button>
+      </div>
 
       <el-row class="resource-grid app-grid" :gutter="16">
         <el-col v-for="resource in resources" :key="resource.key" :xs="24" :md="12">
@@ -80,28 +78,14 @@
             <el-form label-width="120px" label-position="left">
               <el-form-item label="检测坐标">
                 <div class="position-row">
-                  <div class="coordinate-picker">
-                    <el-input-number
-                      v-model="config.potion[resource.key].point.x"
-                      class="coordinate-number-input"
-                      placeholder="X"
-                      :controls="false"
-                    />
-                    <el-input-number
-                      v-model="config.potion[resource.key].point.y"
-                      class="coordinate-number-input"
-                      placeholder="Y"
-                      :controls="false"
-                    />
-                    <el-button
-                      class="pick-position-button"
-                      :icon="Aim"
-                      title="点击选取坐标"
-                      :loading="pickingTarget === resource.key"
-                      :disabled="Boolean(pickingTarget) && pickingTarget !== resource.key"
-                      @click="pickCoordinate(resource.key)"
-                    />
-                  </div>
+                  <CoordinateConfigurationField
+                    class="combat-coordinate-field"
+                    :model-value="config.potion[resource.key].point"
+                    :loading="pickingTarget === resource.key"
+                    :disabled="Boolean(pickingTarget) && pickingTarget !== resource.key"
+                    @update:model-value="config.potion[resource.key].point = $event"
+                    @pick="pickCoordinate(resource.key)"
+                  />
                   <el-button :loading="samplingTarget === resource.key" @click="samplePixel(resource)">读取颜色</el-button>
                 </div>
               </el-form-item>
@@ -167,14 +151,12 @@
         </div>
       </template>
 
-      <el-alert
-        v-if="combatStore.loopLastError"
-        type="error"
-        :title="combatStore.loopLastError"
-        show-icon
-        :closable="false"
-        class="module-error"
-      />
+      <div v-if="combatStore.loopLastError" class="module-error configuration-correction-alert">
+        <el-alert type="error" :title="combatStore.loopLastError" show-icon :closable="false" />
+        <el-button v-if="loopCorrectionIssue" type="warning" plain @click="openCombatCorrection(CONFIGURATION_ACTIONS.loop, combatStore.loopLastFailure)">
+          重新配置
+        </el-button>
+      </div>
 
       <div class="loop-list">
         <div v-for="(item, index) in config.loop.items" :key="item.id" class="loop-row">
@@ -205,34 +187,26 @@
           </div>
         </div>
       </template>
+      <div v-if="combatStore.portalLastError" class="module-error configuration-correction-alert">
+        <el-alert type="error" :title="combatStore.portalLastError" show-icon :closable="false" />
+        <el-button v-if="portalCorrectionIssue" type="warning" plain @click="openCombatCorrection(CONFIGURATION_ACTIONS.portal, combatStore.portalLastFailure)">
+          重新配置
+        </el-button>
+      </div>
       <el-form label-width="150px" label-position="left">
         <el-form-item label="游戏内开启传送门键">
           <KeyCaptureInput v-model="config.portal.openKey" mode="action" class="short-input" />
         </el-form-item>
         <el-form-item label="传送门点击位置">
           <div class="position-row">
-            <div class="coordinate-picker">
-              <el-input-number
-                v-model="config.portal.clickPoint.x"
-                class="coordinate-number-input"
-                placeholder="X"
-                :controls="false"
-              />
-              <el-input-number
-                v-model="config.portal.clickPoint.y"
-                class="coordinate-number-input"
-                placeholder="Y"
-                :controls="false"
-              />
-              <el-button
-                class="pick-position-button"
-                :icon="Aim"
-                title="点击选取坐标"
-                :loading="pickingTarget === 'portal'"
-                :disabled="Boolean(pickingTarget) && pickingTarget !== 'portal'"
-                @click="pickCoordinate('portal')"
-              />
-            </div>
+            <CoordinateConfigurationField
+              class="combat-coordinate-field"
+              :model-value="config.portal.clickPoint"
+              :loading="pickingTarget === 'portal'"
+              :disabled="Boolean(pickingTarget) && pickingTarget !== 'portal'"
+              @update:model-value="config.portal.clickPoint = $event"
+              @pick="pickCoordinate('portal')"
+            />
           </div>
         </el-form-item>
         <el-form-item label="开启后等待">
@@ -248,7 +222,7 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
-import { Aim, Delete, QuestionFilled } from '@element-plus/icons-vue'
+import { Delete, QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -257,6 +231,10 @@ import { electronApi } from '@/api/electron'
 import { commitGlobalShortcut } from '@/utils/scriptService'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import KeySequenceCapture from '@/components/common/KeySequenceCapture.vue'
+import CoordinateConfigurationField from '@/components/configuration/CoordinateConfigurationField.vue'
+import { collectCombatConfigurationIssues, CONFIGURATION_ACTIONS, CONFIGURATION_MODULES } from '@/domains/configurationGuide/configurationIssues.js'
+import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 import {
   executePortalAssist,
   sampleCombatPixel,
@@ -274,6 +252,34 @@ const shortcuts = computed(() => settingsStore.globalShortcuts)
 const pickingTarget = ref('')
 const samplingTarget = ref('')
 const samples = reactive({})
+const potionCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.combat,
+  actionId: CONFIGURATION_ACTIONS.potion,
+  ...combatStore.lastFailure,
+  message: combatStore.lastError
+}))
+const loopCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.combat,
+  actionId: CONFIGURATION_ACTIONS.loop,
+  ...combatStore.loopLastFailure,
+  message: combatStore.loopLastError
+}))
+const portalCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.combat,
+  actionId: CONFIGURATION_ACTIONS.portal,
+  ...combatStore.portalLastFailure,
+  message: combatStore.portalLastError
+}))
+
+function openCombatCorrection(actionId, failure) {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.combat,
+    actionId,
+    title: '重新配置战斗辅助',
+    failure,
+    collect: () => collectCombatConfigurationIssues({ actionId, config: settingsStore.combatAssist })
+  })
+}
 
 const resources = [
   { key: 'health', label: '生命药剂', channelLabel: '红色分量', component: 'r' },
@@ -400,54 +406,7 @@ async function saveShortcut(key, value) {
 
 .module-help:hover, .module-help:focus-visible { color: var(--brand-color); }
 .position-row { gap: 8px; flex-wrap: wrap; }
-.coordinate-picker {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  width: fit-content;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--bg-tertiary);
-  transition: border-color .2s, box-shadow .2s;
-
-  &:hover { border-color: var(--control-hover-border, var(--text-secondary)); }
-
-  &:focus-within {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 1px var(--primary-color);
-  }
-
-  :deep(.el-input__wrapper) {
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none !important;
-  }
-
-  .coordinate-number-input,
-  .pick-position-button {
-    margin: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .coordinate-number-input + .coordinate-number-input,
-  .pick-position-button {
-    border-left: 1px solid var(--border-base);
-  }
-
-  .pick-position-button {
-    width: 36px;
-    height: 32px;
-    padding: 0;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--primary-color);
-      background: var(--surface-hover, var(--bg-secondary));
-    }
-  }
-}
+.combat-coordinate-field { width: auto; }
 .card-title { justify-content: space-between; width: 100%; }
 .shortcut-grid, .resource-grid { margin: 0; }
 .shortcut-grid > .el-col, .resource-grid > .el-col { display: flex; }
@@ -463,7 +422,8 @@ async function saveShortcut(key, value) {
 .loop-key { min-width: 110px; }
 .loop-row :deep(.el-input-number) { width: 130px; }
 .module-error { margin-bottom: 12px; }
-.coordinate-picker .coordinate-number-input { width: 110px; }
+.configuration-correction-alert { display: flex; align-items: center; gap: 10px; }
+.configuration-correction-alert :deep(.el-alert) { min-width: 0; flex: 1; }
 .short-input { max-width: 240px; }
 .hint, .unit { margin-left: 8px; color: var(--text-secondary); font-size: 12px; }
 

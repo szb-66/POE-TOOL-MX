@@ -1,4 +1,4 @@
-import { app, screen } from 'electron'
+import { app, clipboard, screen } from 'electron'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -16,12 +16,14 @@ import {
 } from '../../../src/utils/puzzleConfig.js'
 import { computeBorderEdgeTargets } from '../../../src/utils/chartEdgeGeometry.js'
 import { matchBorderMods, matchFragmentMods } from '../../../src/utils/chartModMatcher.js'
+import { chartFragmentCopyProtocol } from '../priceCheck/chartRegions.js'
 import {
   borderRecognitionResult,
   fragmentRecognitionResult,
   recognitionFailureResult
 } from './recognitionFeedback.js'
 import { PuzzleFailureEvidenceSession } from './failureEvidenceSession.js'
+import { finalizeInventoryAnalysisResult, resolveFragmentCopy } from './fragmentRecognition.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const AUTOMATION_OWNER = '海图自动放置'
@@ -103,6 +105,7 @@ export class PuzzleAnalysisService {
     this.child = null
     this.automationChild = null
     this.modProbeChild = null
+    this.automationClipboardSnapshots = new WeakMap()
     this.busy = false
     this.stopGeneration = 0
     this.execution = {
@@ -117,6 +120,8 @@ export class PuzzleAnalysisService {
 
   calibrationSamples() {
     return this.calibration?.list?.().map(sample => ({
+      kind: sample.kind,
+      type: sample.type,
       labelMask: sample.labelMask,
       featureVersion: sample.featureVersion,
       featureVector: sample.featureVector
@@ -190,8 +195,8 @@ export class PuzzleAnalysisService {
   }
 
   automationPythonPath() {
-    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'pynput'])
-    if (!found) throw codedError('PYTHON_RUNTIME_MISSING', '未找到具备 cv2、mss、numpy、pynput 的内置 Python 运行时')
+    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
+    if (!found) throw codedError('PYTHON_RUNTIME_MISSING', '未找到具备 cv2、mss、numpy、pynput、pyperclip 的内置 Python 运行时')
     return found
   }
 
@@ -324,6 +329,26 @@ export class PuzzleAnalysisService {
     this.automationLock?.release(AUTOMATION_OWNER)
   }
 
+  captureAutomationClipboard() {
+    try {
+      return { valid: true, text: clipboard.readText() }
+    } catch {
+      return { valid: false, text: '' }
+    }
+  }
+
+  restoreClipboardSnapshot(snapshot) {
+    if (!snapshot?.valid) return
+    try { clipboard.writeText(snapshot.text) } catch {}
+  }
+
+  restoreAutomationClipboard(child) {
+    if (!child) return
+    const snapshot = this.automationClipboardSnapshots.get(child)
+    this.automationClipboardSnapshots.delete(child)
+    this.restoreClipboardSnapshot(snapshot)
+  }
+
   handleAutomationEvent(child, event) {
     if (this.automationChild !== child) return
     if (event.event === 'capture-start') {
@@ -365,11 +390,13 @@ export class PuzzleAnalysisService {
         slots: Array.isArray(event.slots) && event.slots.length ? event.slots : this.execution.slots
       }, event)
     } else if (event.event === 'completed') {
+      this.restoreAutomationClipboard(child)
       this.automationChild = null
       this.setExecution({ status: 'completed', currentIndex: 8, completed: 9, reason: '', error: null }, event)
       this.overlay?.close?.()
       this.releaseAutomation()
     } else if (event.event === 'error') {
+      this.restoreAutomationClipboard(child)
       this.automationChild = null
       const error = { code: event.code || 'AUTO_PLACEMENT_FAILED', message: event.reason || '海图自动放置失败', ...event }
       this.setExecution({ status: 'error', reason: error.message, error }, event)
@@ -378,12 +405,13 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, operationDelayMs = OPERATION_DELAY.default, adaptiveTiming = true, adaptiveTimeoutMs = 1000, fixedTiming = {}, resume = false } = {}) {
+  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, operationDelayMs = OPERATION_DELAY.default, fixedTiming = {}, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
     const gate = this.automationLock?.acquire(AUTOMATION_OWNER) || { success: true }
     if (!gate.success) return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTOMATION_LOCKED', message: gate.error, owner: gate.owner } }
+    let pendingClipboardSnapshot = null
     try {
       const inventory = this.validateRegion(inventoryRegionMetadata, 'inventory')
       const atlas = this.validateRegion(atlasRegionMetadata, 'atlas')
@@ -407,16 +435,22 @@ export class PuzzleAnalysisService {
         targets,
         sourceSlots,
         calibrationSamples: this.calibrationSamples(),
+        copyTypeProtocol: chartFragmentCopyProtocol(),
+        copyTimeoutMs: 900,
+        copySettleMs: 260,
         resume: Boolean(resume),
-        ...pythonAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming }),
+        ...pythonAutomationTiming({ operationDelayMs, fixedTiming }),
         templatesPath: this.templatesPath()
       }), 'utf8')
+      pendingClipboardSnapshot = this.captureAutomationClipboard()
       const child = spawn(this.automationPythonPath(), [this.autoScriptPath(), '--config', configPath], {
         shell: false, windowsHide: true,
         cwd: path.dirname(this.autoScriptPath()),
         env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
         stdio: ['ignore', 'pipe', 'pipe']
       })
+      this.automationClipboardSnapshots.set(child, pendingClipboardSnapshot)
+      pendingClipboardSnapshot = null
       this.automationChild = child
       this.execution = { status: 'validating', currentIndex: -1, total: 9, completed: 0, source: null, target: null, turns: 0, reason: '', error: null }
       this.overlay?.create?.({ ...this.execution, inventoryRegion: inventory.selectedRegion, atlasRegion: atlas.selectedRegion, targets })
@@ -440,6 +474,14 @@ export class PuzzleAnalysisService {
       })
       return { success: true, ...this.publishExecution({ event: 'starting' }) }
     } catch (error) {
+      const child = this.automationChild
+      this.automationChild = null
+      if (child) {
+        terminate(child)
+        this.restoreAutomationClipboard(child)
+      } else {
+        this.restoreClipboardSnapshot(pendingClipboardSnapshot)
+      }
       this.releaseAutomation()
       const payload = { code: error.code || 'AUTO_PLACEMENT_FAILED', message: error.message || String(error) }
       this.execution = { ...this.execution, status: 'error', reason: payload.message, error: payload }
@@ -451,6 +493,7 @@ export class PuzzleAnalysisService {
     const child = this.automationChild
     this.automationChild = null
     terminate(child)
+    this.restoreAutomationClipboard(child)
     const error = { code, message: reason }
     this.setExecution({ status: 'error', reason, error }, { event: 'error', code, reason })
     this.overlay?.close?.()
@@ -462,6 +505,7 @@ export class PuzzleAnalysisService {
     const child = this.automationChild
     this.automationChild = null
     terminate(child)
+    this.restoreAutomationClipboard(child)
     this.setExecution({ status: 'stopped', reason: String(reason || 'user'), error: null }, { event: 'stopped', reason })
     this.overlay?.close?.()
     this.releaseAutomation()
@@ -488,7 +532,7 @@ export class PuzzleAnalysisService {
     return path.join(directory, `puzzle-analysis-${process.pid}-${Date.now()}.json`)
   }
 
-  runAnalyzer(config) {
+  runAnalyzer(config, onStarted = null) {
     return new Promise((resolve, reject) => {
       const configPath = this.tempConfigPath()
       fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
@@ -499,6 +543,7 @@ export class PuzzleAnalysisService {
         stdio: ['ignore', 'pipe', 'pipe']
       })
       this.child = child
+      onStarted?.()
       let stdout = ''
       let stderr = ''
       child.stdout.setEncoding('utf8')
@@ -525,7 +570,6 @@ export class PuzzleAnalysisService {
 
   publish(payload) {
     const mainWindow = this.getMainWindow?.()
-    restoreMainWindowToForeground()
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('puzzle-analysis-updated', payload)
   }
 
@@ -556,7 +600,7 @@ export class PuzzleAnalysisService {
     return null
   }
 
-  runProbe(config, feedbackSessionId = null) {
+  runProbe(config, feedbackSessionId = null, onStarted = null) {
     return new Promise((resolve, reject) => {
       const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'chart-mods-probe-')
       fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
@@ -573,6 +617,7 @@ export class PuzzleAnalysisService {
         stdio: ['ignore', 'pipe', 'pipe']
       })
       this.modProbeChild = child
+      onStarted?.()
       let buffer = ''
       let resultLine = ''
       let stderr = ''
@@ -635,12 +680,15 @@ export class PuzzleAnalysisService {
     for (const result of analysisResults || []) {
       const page = Number(result?.page || 1)
       for (const slot of result.slots || []) {
-        if (!slot.occupied) continue
+        if (!slot.candidate) continue
         const center = inventoryMetadata?.selectedRegion
           ? gridCellCenter(inventoryMetadata.selectedRegion, 'inventory', slot.row, slot.column)
           : { x: 0, y: 0 }
-        copyCells.push({ page, key: `${page}:${slot.row}:${slot.column}`, x: center.x, y: center.y })
+        copyCells.push({ page, key: `${page}:${slot.row}:${slot.column}`, x: center.x, y: center.y, slot })
       }
+    }
+    const finalize = () => {
+      for (const result of analysisResults || []) finalizeInventoryAnalysisResult(result)
     }
     const fragmentMods = {}
     for (const cell of copyCells) fragmentMods[cell.key] = unknownFragmentMod()
@@ -653,6 +701,7 @@ export class PuzzleAnalysisService {
         displayBounds: inventoryMetadata?.displayPhysicalBounds,
         error: codedError('REGION_REQUIRED', '请先框选碎片仓库区域')
       })
+      finalize()
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
     const gate = this.automationLock?.acquire(MOD_PROBE_OWNER) || { success: true }
@@ -665,6 +714,7 @@ export class PuzzleAnalysisService {
         displayBounds: inventoryMetadata.displayPhysicalBounds,
         error: codedError('AUTOMATION_LOCKED', gate.error)
       })
+      finalize()
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     }
     try {
@@ -692,6 +742,7 @@ export class PuzzleAnalysisService {
           } else {
             for (const cell of copyCells) {
               const text = copyResponse?.texts?.[cell.key] || ''
+              Object.assign(cell.slot, resolveFragmentCopy(cell.slot, text))
               const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
               fragmentMods[cell.key] = {
                 status: match.status,
@@ -699,7 +750,8 @@ export class PuzzleAnalysisService {
                 confidence: match.confidence || 0,
                 rawText: text ? text.slice(0, 600) : ''
               }
-              if (match.status === 'matched') fragmentStats.matched += 1
+              if (!cell.slot.type) fragmentStats.unknown += 1
+              else if (match.status === 'matched') fragmentStats.matched += 1
               else if (match.status === 'unveiled') fragmentStats.unveiled += 1
               else fragmentStats.unknown += 1
             }
@@ -716,6 +768,7 @@ export class PuzzleAnalysisService {
           canceled: probeGeneration !== this.stopGeneration || copyError?.code === 'EMERGENCY_STOPPED'
         })
       }
+      finalize()
       return { fragmentMods, fragmentProbe: fragmentStats, borderMods: null, borderProbe: this.emptyProbeStats(true, 'SKIPPED_BY_REQUEST') }
     } finally {
       this.automationLock?.release(MOD_PROBE_OWNER)
@@ -723,7 +776,7 @@ export class PuzzleAnalysisService {
   }
 
   // 无锁的边缘 OCR 执行体:由 probeBorderMods 在持锁后调用。
-  async runBorderProbe(normalizeAtlas, feedbackSessionId = null) {
+  async runBorderProbe(normalizeAtlas, feedbackSessionId = null, onStarted = null) {
     const borderStats = this.emptyProbeStats()
     const edges = computeBorderEdgeTargets(normalizeAtlas.selectedRegion, normalizeAtlas.displayPhysicalBounds)
     const borderMods = {}
@@ -741,7 +794,7 @@ export class PuzzleAnalysisService {
         mode: 'border', edges,
         hoverRegion,
         settleMs: 300, ocrMinConfidence: 0.5
-      }, feedbackSessionId)
+      }, feedbackSessionId, onStarted)
       if (borderResponse?.success === false) {
         throw codedError('BORDER_PROBE_FAILED', borderResponse?.error?.message || '边缘词缀识别失败')
       }
@@ -781,9 +834,10 @@ export class PuzzleAnalysisService {
       current: 0,
       total: 12
     }) || null
+    let automationStarted = false
     try {
       this.overlay?.close?.()
-      const result = await this.runBorderProbe(normalizeAtlas, feedbackSessionId)
+      const result = await this.runBorderProbe(normalizeAtlas, feedbackSessionId, () => { automationStarted = true })
       if (stopGeneration !== this.stopGeneration) throw codedError('EMERGENCY_STOPPED', '海图词缀探测已紧急停止')
       console.log('[海图边缘词缀]', JSON.stringify({ borderProbe: result.borderProbe }))
       this.feedbackOverlay?.showResult?.(feedbackSessionId, borderRecognitionResult(result.borderProbe))
@@ -803,8 +857,7 @@ export class PuzzleAnalysisService {
       }
     } finally {
       this.automationLock?.release(MOD_PROBE_OWNER)
-      // 与 analyze 行为一致：识别结束后恢复主窗口前台；早期校验失败在 try 之前返回，不经过此处。
-      restoreMainWindowToForeground()
+      if (automationStarted) await restoreMainWindowToForeground()
     }
   }
 
@@ -823,9 +876,9 @@ export class PuzzleAnalysisService {
     }
     this.busy = true
     const stopGeneration = this.stopGeneration
-    const mainWindow = this.getMainWindow?.()
     const displayBounds = this.feedbackDisplayBounds(regionMetadata)
     let feedbackSessionId = null
+    let automationStarted = false
     const evidenceSession = new PuzzleFailureEvidenceSession(this.failureEvidence)
     try {
       const metadata = this.validateRegion(regionMetadata)
@@ -865,7 +918,7 @@ export class PuzzleAnalysisService {
             evidenceId: evidenceWorkspace.evidenceId,
             evidenceDirectory: evidenceWorkspace.directory
           } : {})
-        })
+        }, () => { automationStarted = true })
         const publicResult = evidenceSession.consume(result)
         this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
         if (!publicResult.success) {
@@ -881,14 +934,14 @@ export class PuzzleAnalysisService {
         }
         results.push({ ...publicResult, page: currentPage })
       }
-      const occupiedTotal = results.reduce((total, result) => (
-        total + (result.slots || []).filter(slot => slot?.occupied).length
+      const candidateTotal = results.reduce((total, result) => (
+        total + (result.slots || []).filter(slot => slot?.candidate).length
       ), 0)
-      this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: occupiedTotal, starting: true })
+      this.sendProgress({ event: 'mods-progress', stage: 'copy', index: 0, total: candidateTotal, starting: true })
       this.feedbackOverlay?.updateProgress?.(feedbackSessionId, {
         stage: 'copy',
         current: 0,
-        total: occupiedTotal
+        total: candidateTotal
       })
       this.assertCurrentGeneration(stopGeneration, '海图识别已紧急停止')
       const mods = probeMods
@@ -911,7 +964,7 @@ export class PuzzleAnalysisService {
         : { success: true, pages: results, regionMetadata: metadata, ...mods }
       this.feedbackOverlay?.showResult?.(
         feedbackSessionId,
-        fragmentRecognitionResult(mods.fragmentProbe, occupiedTotal)
+        fragmentRecognitionResult(mods.fragmentProbe, candidateTotal)
       )
       await evidenceSession.discard()
       this.publish(payload)
@@ -933,7 +986,7 @@ export class PuzzleAnalysisService {
     } finally {
       await evidenceSession.discard()
       this.busy = false
-      restoreMainWindowToForeground()
+      if (automationStarted) await restoreMainWindowToForeground()
     }
   }
 

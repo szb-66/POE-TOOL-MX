@@ -254,25 +254,25 @@ print(json.dumps({"exact": exact, "contains": contains, "legacy": legacy, "inval
 })
 
 test('自动操作等待补齐默认值、保留用户非负值并按优先级迁移旧配置', () => {
-  assert.equal(normalizeOperationDelay(undefined), 50)
-  assert.equal(normalizeOperationDelay('invalid'), 50)
-  assert.equal(normalizeOperationDelay(null), 50)
-  assert.equal(normalizeOperationDelay('  '), 50)
-  assert.equal(normalizeOperationDelay(-1), 50)
+  assert.equal(normalizeOperationDelay(undefined), 40)
+  assert.equal(normalizeOperationDelay('invalid'), 40)
+  assert.equal(normalizeOperationDelay(null), 40)
+  assert.equal(normalizeOperationDelay('  '), 40)
+  assert.equal(normalizeOperationDelay(-1), 40)
   assert.equal(normalizeOperationDelay(0), 0)
   assert.equal(normalizeOperationDelay(900), 900)
   assert.equal(normalizeOperationDelay(12.5), 12.5)
   assert.equal(normalizeOperationDelay(125), 125)
-  assert.deepEqual(OPERATION_DELAY, { default: 50 })
-  assert.equal(OPERATION_TIMING_VERSION, 2)
+  assert.deepEqual(OPERATION_DELAY, { default: 40 })
+  assert.equal(OPERATION_TIMING_VERSION, 3)
   assert.equal(migrateOperationDelay({ operationDelayMs: 120 }, { transferDelayMs: 200 }), 120)
-  assert.equal(migrateOperationDelay({ operationDelayMs: 80 }), 50)
-  assert.equal(migrateOperationDelay({ operationDelayMs: 80, operationTimingVersion: 2 }), 80)
+  assert.equal(migrateOperationDelay({ operationDelayMs: 80 }), 40)
+  assert.equal(migrateOperationDelay({ operationDelayMs: 80, operationTimingVersion: 3 }), 80)
   assert.equal(migrateOperationDelay({}, { transferDelayMs: 200 }), 200)
-  assert.equal(migrateOperationDelay({}, { transferDelayMs: 80 }), 50)
+  assert.equal(migrateOperationDelay({}, { transferDelayMs: 80 }), 40)
   assert.equal(migrateOperationDelay({ delays: { mouseMove: 2000, action: 50, clipboardRead: 100 } }), 100)
-  assert.equal(migrateOperationDelay({ delays: { mouseMove: 100, action: 50, clipboardRead: 100 } }), 50)
-  assert.equal(migrateOperationDelay({}, {}), 50)
+  assert.equal(migrateOperationDelay({ delays: { mouseMove: 100, action: 50, clipboardRead: 100 } }), 40)
+  assert.equal(migrateOperationDelay({}, {}), 40)
 })
 
 test('结构化事件解析器支持跨 chunk 行并忽略普通日志', () => {
@@ -425,10 +425,10 @@ print(json.dumps([module.normalize_operation_delay(None), module.normalize_opera
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [50, 0, 900, 50])
+  assert.deepEqual(JSON.parse(result.stdout), [40, 0, 900, 40])
 })
 
-test('Python 自动操作等待只作为悬停，自适应剪贴板使用统一上限', () => {
+test('Python 自动操作等待只作为悬停，剪贴板使用固定确认等待', () => {
   const code = `
 import importlib.util, json, sys, types
 sys.dont_write_bytecode = True
@@ -437,12 +437,13 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 module.mouse = types.SimpleNamespace(Controller=lambda: object())
 module.keyboard = types.SimpleNamespace(Controller=lambda: object())
-controller = module.InputController({"operation_delay_ms": 180, "timing_mode": "adaptive", "adaptive_timeout_ms": 900})
+module.apply_fixed_timing({"fixed_timing":{"clipboard_confirm_ms":10,"release_settle_ms":10}})
+controller = module.InputController({"operation_delay_ms": 180})
 print(json.dumps([controller.mouse_move_delay, controller.clipboard_delay, controller.release_settle]))
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.9, 0.02])
+  assert.deepEqual(JSON.parse(result.stdout), [0.18, 0.01, 0.01])
 })
 
 test('Python Ctrl+C 与 Ctrl+点击按固定内部时序且 Ctrl 最后释放', () => {
@@ -502,9 +503,9 @@ print(json.dumps({
   assert.equal(result.status, 0, result.stderr)
   assert.deepEqual(JSON.parse(result.stdout), {
     copy: [['key-down', 'Key.ctrl'], ['key-down', 'c'], ['key-up', 'c'], ['key-up', 'Key.ctrl']],
-    copySleeps: [0.05, 0.02, 0.02, 0.02],
+    copySleeps: [0.02, 0.015, 0.01, 0.01],
     click: [['key-down', 'Key.ctrl'], ['mouse-down', 'Button.left'], ['mouse-up', 'Button.left'], ['key-up', 'Key.ctrl']],
-    clickSleeps: [0.05, 0.02, 0.02, 0.02],
+    clickSleeps: [0.02, 0.015, 0.01, 0.01],
     postCleanup: [['key-down', 'Key.ctrl'], ['mouse-down', 'Button.left'], ['mouse-up', 'Button.left'], ['key-up', 'Key.ctrl']]
   })
 })
@@ -1279,7 +1280,7 @@ print(json.dumps(cases))
   ])
 })
 
-test('取件点击与判空共用一次 Ctrl 会话并采用自适应上限', () => {
+test('取件点击与判空共用一次 Ctrl 会话并在内部边界内立即确认', () => {
   const code = `
 import importlib.util, json, sys, types
 sys.dont_write_bytecode = True
@@ -1579,6 +1580,7 @@ test('制作进度穿透浮窗使用统一指针抓手拖动', () => {
 test('模板替换允许运行态更新并重载检测器', () => {
   const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
   const settingsSource = readFileSync(new URL('../src/domains/settings/InterfaceDetectionSettings.vue', import.meta.url), 'utf8')
+  const fieldSource = readFileSync(new URL('../src/components/configuration/TemplateCaptureConfigurationField.vue', import.meta.url), 'utf8')
   const coordinatorSource = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
   assert.match(ipcSource, /reloadDetectionForTemplateChange/)
   assert.match(ipcSource, /updateRuntimeTemplate\(type, targetPath/)
@@ -1586,6 +1588,10 @@ test('模板替换允许运行态更新并重载检测器', () => {
   assert.match(coordinatorSource, /async restart\(\)[\s\S]*stopChild\(previous\)[\s\S]*return this\.start\(\)/)
   assert.match(coordinatorSource, /if \(this\.child !== child\) return/)
   assert.match(ipcSource, /reloadError/)
-  assert.match(settingsSource, /captureTemplate\(definition\)/)
+  assert.match(settingsSource, /TemplateCaptureConfigurationField/)
+  assert.match(fieldSource, /async function captureTemplate\(\)/)
+  assert.match(fieldSource, /electronApi\.bag\.captureTemplate\(props\.type\)/)
+  assert.match(fieldSource, /store\.applyTemplateCapture\(props\.type, result\)/)
+  assert.match(fieldSource, /if \(result\?\.canceled\) return/)
   assert.match(settingsSource, /游戏界面检测/)
 })

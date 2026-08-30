@@ -34,6 +34,7 @@ export const useBagStore = defineStore('bag', () => {
   const stashProgress = ref(0)
   const stashStats = ref(emptyStats())
   const lastStopReason = ref('')
+  const lastFailure = ref({ failureCode: '', configurationIssueId: '' })
 
   function saveSettings() {
     try {
@@ -101,15 +102,25 @@ export const useBagStore = defineStore('bag', () => {
       stashProgress.value = Number(payload.progress ?? stashProgress.value)
     }
   }
-  function setStopReason(reason = '') {
+  function setStopReason(reason = '', failure = {}) {
     lastStopReason.value = String(reason)
+    lastFailure.value = {
+      failureCode: String(failure.failureCode || failure.code || ''),
+      configurationIssueId: String(failure.configurationIssueId || '')
+    }
     if (['', 'user-stopped', 'process-ended'].includes(lastStopReason.value)) {
+      lastFailure.value = { failureCode: '', configurationIssueId: '' }
       void reportDiagnosticRecovery('bag', 'script_runtime')
     } else {
       void reportDiagnosticFailure('bag', 'script_runtime', {}, 'process_exit')
     }
   }
-  function resetRunStats() { stashProgress.value = 0; stashStats.value = emptyStats(); lastStopReason.value = '' }
+  function resetRunStats() {
+    stashProgress.value = 0
+    stashStats.value = emptyStats()
+    lastStopReason.value = ''
+    lastFailure.value = { failureCode: '', configurationIssueId: '' }
+  }
   function resetStates() {
     isDetecting.value = false
     isMatched.value = false
@@ -123,7 +134,7 @@ export const useBagStore = defineStore('bag', () => {
 
   return {
     moduleEnabled, forceUniqueStash, templates, matchThreshold, blacklist, inventoryLayout,
-    isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason,
+    isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason, lastFailure,
     setModuleEnabled, setForceUniqueStash,
     setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
     setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,

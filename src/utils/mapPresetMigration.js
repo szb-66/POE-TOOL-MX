@@ -60,6 +60,7 @@ function migrateStats(stats = {}, keys = Object.values(MAP_BASE_STATS)) {
 function createRollingProfile(statKeys) {
   return {
     method: 'alchemy',
+    exalted: { enabled: false },
     vaal: { enabled: true, checkAfter: false },
     autoStash: true,
     match: {
@@ -78,6 +79,7 @@ function migrateRollingProfile(rawProfile = {}, statKeys) {
   return {
     ...defaults,
     ...rawProfile,
+    exalted: { ...defaults.exalted, ...(rawProfile.exalted || {}) },
     vaal: { ...defaults.vaal, ...(rawProfile.vaal || {}) },
     match: {
       ...defaults.match,

@@ -1,5 +1,9 @@
 <template>
-  <div class="overlay-container" :class="{ 'has-content': hasContent, 'has-drag-handle': allowDrag }">
+  <div class="overlay-container" :class="{
+    'has-content': hasContent,
+    'has-drag-handle': allowDrag,
+    'operation-log-expanded': operationLogExpanded
+  }">
     <div v-if="allowDrag" class="overlay-drag-handle" title="拖动浮窗"
       @pointerdown="drag.pointerDown"
       @pointermove="drag.pointerMove"
@@ -10,7 +14,14 @@
     <div v-if="stopReason" class="failure-reason" role="alert">
       <div class="failure-title">制作已停止</div>
       <div class="failure-message">{{ stopReason }}</div>
+      <div v-if="failureDetail?.expected" class="failure-detail">
+        <span>预期：{{ failureDetail.expected }}</span>
+        <span>实际：{{ failureDetail.actual || '未检测到物品' }}</span>
+      </div>
       <div v-if="isStopped" class="failure-actions">
+        <el-button v-if="canRelocate" type="warning" size="small" :disabled="isRestarting" @click="$emit('relocate')">
+          重新定位
+        </el-button>
         <el-button v-if="canRetry" type="primary" size="small" :loading="isRestarting" @click="$emit('retry')">
           重试
         </el-button>
@@ -171,16 +182,36 @@
       </div>
     </div>
 
-    <div v-if="logs.length > 0" class="logs-container">
-      <div v-for="(log, index) in logs" :key="index" class="log-line">
-        {{ log }}
+    <section class="operation-log" aria-label="操作日志">
+      <button
+        type="button"
+        class="operation-log-header"
+        :aria-expanded="operationLogExpanded"
+        @click="$emit('toggle-operation-log')"
+      >
+        <span>操作日志</span>
+        <span class="operation-log-count">{{ operationLogExpanded ? '收起' : '展开' }} · {{ logs.length }}/100</span>
+      </button>
+      <div v-if="operationLogExpanded" ref="operationLogList" class="operation-log-list">
+        <div v-if="logs.length === 0" class="operation-log-empty">等待操作记录...</div>
+        <div
+          v-for="(log, index) in logs"
+          :key="`${log.sessionId}-${log.timestamp}-${index}`"
+          class="operation-log-line"
+          :class="`operation-${log.outcome}`"
+        >
+          <span class="operation-log-time">{{ formatOperationTime(log.timestamp) }}</span>
+          <span class="operation-log-phase">{{ operationPhaseLabel(log.phase) }}</span>
+          <span class="operation-log-summary">{{ log.summary || log.action }}</span>
+          <span v-if="log.code" class="operation-log-code">{{ log.code }}</span>
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Close } from '@element-plus/icons-vue'
 // 导入默认背景图，以防用户未设置
 import defaultBg from '@/assets/images/遮罩背景.png'
@@ -208,6 +239,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  operationLogExpanded: {
+    type: Boolean,
+    default: false
+  },
   currencyUsage: {
     type: Object,
     default: () => ({})
@@ -228,6 +263,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  canRelocate: {
+    type: Boolean,
+    default: false
+  },
+  failureDetail: {
+    type: Object,
+    default: null
+  },
   stopReason: {
     type: String,
     default: ''
@@ -242,8 +285,32 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['confirm', 'restart', 'retry', 'close'])
+const emit = defineEmits(['confirm', 'restart', 'retry', 'relocate', 'toggle-operation-log', 'close'])
 const drag = createOverlayDrag((message) => electronApi.window.moveOverlay(message))
+const operationLogList = ref(null)
+const operationPhaseLabels = {
+  session: '会话',
+  input: '输入',
+  snapshot: '读取',
+  transition: '确认',
+  publication: '发布'
+}
+
+function operationPhaseLabel(phase) {
+  return operationPhaseLabels[phase] || phase || '操作'
+}
+
+function formatOperationTime(timestamp) {
+  const parsed = new Date(timestamp)
+  if (Number.isNaN(parsed.getTime())) return '--:--:--'
+  return parsed.toLocaleTimeString('zh-CN', { hour12: false })
+}
+
+watch(() => props.logs.length, async () => {
+  await nextTick()
+  const list = operationLogList.value
+  if (list) list.scrollTop = list.scrollHeight
+})
 
 // 鼠标事件穿透控制
 function setIgnoreMouseEvents(ignore, forward = true) {
@@ -494,7 +561,11 @@ function isModMatched(mod) {
   display: flex;
   flex-direction: column;
   gap: var(--overlay-space-3);
-  padding-bottom: 25px;
+  padding-bottom: 38px;
+}
+
+.operation-log-expanded .overlay-content {
+  padding-bottom: 170px;
 }
 
 .failure-reason {
@@ -517,6 +588,15 @@ function isModMatched(mod) {
   .failure-message {
     line-height: 1.4;
     word-break: break-word;
+  }
+
+  .failure-detail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+    color: #f0d7a1;
+    font-size: 11px;
   }
 
   .failure-actions {
@@ -712,31 +792,90 @@ function isModMatched(mod) {
   font-size: 11px;
 }
 
-.logs-container {
+.operation-log {
   position: absolute;
-  bottom: 0%;
+  bottom: 0;
   left: 0;
   width: 100%;
+  height: 30px;
   padding: 4px 8px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  pointer-events: none;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0) 100%);
+  pointer-events: auto;
+  background: rgba(4, 6, 8, 0.92);
+  border-top: 1px solid rgba(221, 184, 92, 0.45);
   z-index: 90;
-  max-height: 100px;
-  overflow: hidden;
 }
 
-.log-line {
+.operation-log-expanded .operation-log {
+  height: 156px;
+  padding-top: 6px;
+}
+
+.operation-log-header {
+  display: flex;
+  width: 100%;
+  border: 0;
+  padding: 0 0 4px;
+  justify-content: space-between;
+  background: transparent;
+  color: #e7cf8e;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.operation-log-count {
+  color: #999;
+  font-weight: 400;
+}
+
+.operation-log-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.operation-log-line {
+  display: grid;
+  grid-template-columns: 54px 34px minmax(0, 1fr) auto;
+  gap: 4px;
+  align-items: baseline;
   font-size: 10px;
   color: #aaaaaa;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   text-shadow: 1px 1px 1px #000;
-  line-height: 1.3;
+  line-height: 1.45;
+}
+
+.operation-log-time,
+.operation-log-phase,
+.operation-log-code {
+  white-space: nowrap;
+}
+
+.operation-log-summary {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.operation-log-code,
+.operation-failed {
+  color: #e56b6b;
+}
+
+.operation-confirmed,
+.operation-success {
+  color: #8fcf75;
+}
+
+.operation-log-empty {
+  color: #777;
+  font-size: 10px;
+  padding-top: 6px;
 }
 
 .map-stats-container {

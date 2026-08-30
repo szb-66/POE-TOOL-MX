@@ -5,6 +5,12 @@ import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { validateLoopAssist, validatePotionAssist } from './combatConfig.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
+import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectCombatConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '@/domains/configurationGuide/configurationIssues.js'
 
 let statusListenerRegistered = false
 
@@ -22,9 +28,29 @@ export async function initCombatAssist() {
   store.applyStatus({ ...loopStatus, origin: 'loop', event: loopStatus.running ? 'running' : 'stopped' })
 }
 
-export async function startPotionAssist() {
+function collectCombatConfiguration(actionId) {
+  return collectCombatConfigurationIssues({
+    actionId,
+    config: useSettingsStore().combatAssist
+  })
+}
+
+export async function startPotionAssist({ configurationGuideBypass = false } = {}) {
   const settings = useSettingsStore()
   const store = useCombatStore()
+  if (!configurationGuideBypass) {
+    const check = collectCombatConfiguration(CONFIGURATION_ACTIONS.potion)
+    if (!check.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.combat,
+        actionId: CONFIGURATION_ACTIONS.potion,
+        title: '完成自动喝药配置',
+        actionLabel: '开始',
+        collect: () => collectCombatConfiguration(CONFIGURATION_ACTIONS.potion),
+        execute: () => startPotionAssist({ configurationGuideBypass: true })
+      })
+    }
+  }
   const validation = validatePotionAssist(settings.combatAssist)
   if (!validation.isValid) {
     ElMessage.warning(validation.errors[0])
@@ -33,14 +59,19 @@ export async function startPotionAssist() {
   const result = await electronApi.combat.startPotion({
     scriptContent: combatAssistTemplate,
     config: JSON.parse(JSON.stringify(settings.combatAssist)),
-    automationTiming: {
+      automationTiming: {
       operationDelayMs: settings.operationDelayMs,
-      adaptiveTiming: settings.adaptiveTiming,
-      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
       fixedTiming: settings.fixedTiming
     }
   })
   if (!result?.success) {
+    store.applyStatus({
+      running: false,
+      event: 'error',
+      error: result?.error || '启动自动喝药失败',
+      failureCode: result?.failureCode || '',
+      configurationIssueId: result?.configurationIssueId || ''
+    })
     ElMessage.error(result?.error || '启动自动喝药失败')
     void reportDiagnosticFailure('combat', 'script_start', result, 'process_start_failed')
     return false
@@ -63,9 +94,22 @@ export async function stopPotionAssist() {
   return true
 }
 
-export async function startLoopAssist() {
+export async function startLoopAssist({ configurationGuideBypass = false } = {}) {
   const settings = useSettingsStore()
   const store = useCombatStore()
+  if (!configurationGuideBypass) {
+    const check = collectCombatConfiguration(CONFIGURATION_ACTIONS.loop)
+    if (!check.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.combat,
+        actionId: CONFIGURATION_ACTIONS.loop,
+        title: '完成主动循环配置',
+        actionLabel: '开始',
+        collect: () => collectCombatConfiguration(CONFIGURATION_ACTIONS.loop),
+        execute: () => startLoopAssist({ configurationGuideBypass: true })
+      })
+    }
+  }
   const validation = validateLoopAssist(settings.combatAssist)
   if (!validation.isValid) {
     ElMessage.warning(validation.errors[0])
@@ -74,14 +118,20 @@ export async function startLoopAssist() {
   const result = await electronApi.combat.startLoop({
     scriptContent: combatAssistTemplate,
     config: JSON.parse(JSON.stringify(settings.combatAssist)),
-    automationTiming: {
+      automationTiming: {
       operationDelayMs: settings.operationDelayMs,
-      adaptiveTiming: settings.adaptiveTiming,
-      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
       fixedTiming: settings.fixedTiming
     }
   })
   if (!result?.success) {
+    store.applyStatus({
+      running: false,
+      origin: 'loop',
+      event: 'error',
+      error: result?.error || '启动主动循环失败',
+      failureCode: result?.failureCode || '',
+      configurationIssueId: result?.configurationIssueId || ''
+    })
     ElMessage.error(result?.error || '启动主动循环失败')
     void reportDiagnosticFailure('combat', 'script_start', result, 'process_start_failed')
     return false
@@ -111,23 +161,37 @@ export async function sampleCombatPixel(point) {
   })
 }
 
-export async function executePortalAssist() {
+export async function executePortalAssist({ configurationGuideBypass = false } = {}) {
   const settings = useSettingsStore()
+  const store = useCombatStore()
+  if (!configurationGuideBypass) {
+    const check = collectCombatConfiguration(CONFIGURATION_ACTIONS.portal)
+    if (!check.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.combat,
+        actionId: CONFIGURATION_ACTIONS.portal,
+        title: '完成一键回城配置',
+        actionLabel: '执行回城',
+        collect: () => collectCombatConfiguration(CONFIGURATION_ACTIONS.portal),
+        execute: () => executePortalAssist({ configurationGuideBypass: true })
+      })
+    }
+  }
   const result = await electronApi.combat.executePortal({
     scriptContent: combatAssistTemplate,
     config: { portal: JSON.parse(JSON.stringify(settings.combatAssist.portal)) },
-    automationTiming: {
+      automationTiming: {
       operationDelayMs: settings.operationDelayMs,
-      adaptiveTiming: settings.adaptiveTiming,
-      adaptiveTimeoutMs: settings.adaptiveTimeoutMs,
       fixedTiming: settings.fixedTiming
     }
   })
   if (!result?.success) {
+    store.applyPortalFailure(result)
     ElMessage.error(result?.error || '一键回城执行失败')
     void reportDiagnosticFailure('combat', 'automation', result, 'automation_failed')
     return false
   }
+  store.applyPortalFailure(null)
   ElMessage.success('回城流程已执行')
   void reportDiagnosticRecovery('combat', 'automation')
   return true

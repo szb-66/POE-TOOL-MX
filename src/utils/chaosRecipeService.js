@@ -13,19 +13,14 @@ export async function startChaosRecipePicking() {
     ElMessage.warning('请先在商城的混沌配方页刷新仓库并生成可取套装')
     return
   }
-  if (!detectionStore.templates.stashTitle || !detectionStore.templates.inventoryTitle) {
-    ElMessage.warning('请先在设置页配置仓库和背包标题模板')
-    return
-  }
   try {
-    await store.startAutomation({
+    const result = await store.startAutomation({
       templates: detectionStore.templates,
       matchThreshold: detectionStore.matchThreshold,
       operationDelayMs: settingsStore.operationDelayMs,
-      adaptiveTiming: settingsStore.adaptiveTiming,
-      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
       fixedTiming: settingsStore.fixedTiming
     })
+    if (result?.configurationRequired) return result
     void reportDiagnosticRecovery('shop', 'automation')
   } catch (error) {
     ElMessage.error(error.message)

@@ -44,7 +44,12 @@
                   </div>
                 </el-form-item>
                 <el-form-item v-if="bagStore.lastStopReason" label="停止原因" class="module-summary-detail">
-                  <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
+                  <div class="configuration-correction-alert">
+                    <el-alert :closable="false" type="warning" :title="formatBagStopReason(bagStore.lastStopReason)" />
+                    <el-button v-if="bagCorrectionIssue" type="warning" plain @click="openBagCorrection">
+                      重新配置
+                    </el-button>
+                  </div>
                 </el-form-item>
                 <el-form-item v-if="bagStore.isStashing" class="module-summary-detail">
                   <el-button type="danger" :icon="VideoPause" @click="handleStopStash">停止入库</el-button>
@@ -214,12 +219,15 @@
                     @change="toggleStashPickup"
                   />
                 </el-form-item>
-                <el-form-item v-for="entry in calibrationOptions" :key="entry.key" :label="entry.label">
-                  <el-button @click="calibrateStashPickupGrid(entry.key)">重新框选</el-button>
-                  <el-tag :type="interfaceStore.stashGridCalibration[entry.key] ? 'success' : 'info'">
-                    {{ interfaceStore.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
-                  </el-tag>
-                </el-form-item>
+                <div class="shared-configuration-list">
+                  <StashGridConfigurationField
+                    v-for="entry in calibrationOptions"
+                    :key="entry.key"
+                    :label="entry.label"
+                    :calibration="interfaceStore.stashGridCalibration[entry.key]"
+                    @pick="calibrateStashPickupGrid(entry.key)"
+                  />
+                </div>
               </el-form>
               <div class="stash-pickup-actions">
                 <el-button
@@ -235,12 +243,12 @@
                 <el-tag type="success">已取 {{ stashPickupStore.state.pickedItems }}</el-tag>
                 <el-tag v-if="stashPickupStore.state.modelVersion">模型 {{ stashPickupStore.state.modelVersion }}</el-tag>
               </div>
-              <el-alert
-                v-if="stashPickupStore.state.reason"
-                :title="stashPickupStopReason"
-                type="warning"
-                :closable="false"
-              />
+              <div v-if="stashPickupStore.state.reason" class="configuration-correction-alert">
+                <el-alert :title="stashPickupStopReason" type="warning" :closable="false" />
+                <el-button v-if="stashPickupCorrectionIssue" type="warning" plain @click="openStashPickupCorrection">
+                  重新配置
+                </el-button>
+              </div>
               <div v-if="stashPickupStore.preview" class="stash-pickup-preview">
                 <div>
                   {{ stashPickupStore.preview.layout }}×{{ stashPickupStore.preview.layout }} ·
@@ -286,18 +294,18 @@
                     @change="toggleJunfeng"
                   />
                 </el-form-item>
-                <el-form-item label="奖励标题">
-                  <el-button :loading="capturingRewardTitle" @click="captureRewardTitle">框选标题</el-button>
-                  <el-tag :type="interfaceStore.templates.junfengRewardTitle ? 'success' : 'info'">
-                    {{ interfaceStore.templates.junfengRewardTitle ? '已配置' : '未配置' }}
-                  </el-tag>
-                </el-form-item>
-                <el-form-item label="12×11 奖励网格">
-                  <el-button @click="calibrateJunfengGrid">框选网格</el-button>
-                  <el-tag :type="junfengStore.settings.gridRegion ? 'success' : 'info'">
-                    {{ junfengStore.settings.gridRegion ? '已校准' : '未校准' }}
-                  </el-tag>
-                </el-form-item>
+                <div class="shared-configuration-list">
+                  <TemplateCaptureConfigurationField
+                    type="junfengRewardTitle"
+                    region-key="junfengRewardRegion"
+                    label="君锋镇奖励标题模板"
+                  />
+                  <StashGridConfigurationField
+                    label="12×11 奖励网格"
+                    :calibration="junfengStore.settings.gridRegion"
+                    @pick="calibrateJunfengGrid"
+                  />
+                </div>
               </el-form>
               <div class="stash-pickup-actions">
                 <el-button :loading="junfengStore.busy" @click="previewJunfeng">检测预览</el-button>
@@ -307,12 +315,12 @@
                 <el-tag type="warning">模糊格 {{ junfengStore.state.uncertainCells }}</el-tag>
                 <el-tag type="success">已取 {{ junfengStore.state.pickedItems }}</el-tag>
               </div>
-              <el-alert
-                v-if="junfengStore.state.reason"
-                :title="junfengStopReason"
-                type="warning"
-                :closable="false"
-              />
+              <div v-if="junfengStore.state.reason" class="configuration-correction-alert">
+                <el-alert :title="junfengStopReason" type="warning" :closable="false" />
+                <el-button v-if="junfengCorrectionIssue" type="warning" plain @click="openJunfengCorrection">
+                  重新配置
+                </el-button>
+              </div>
               <div v-if="junfengStore.preview" class="junfeng-preview">
                 <div class="junfeng-preview__summary">
                   模型 {{ junfengStore.preview.modelVersion || '未就绪' }} ·
@@ -415,8 +423,10 @@ import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
-import { electronApi } from '@/api/electron'
+import { useSettingsStore } from '@/domains/settings/settingsStore.js'
 import HighlightGridPreview from '@/components/highlight/HighlightGridPreview.vue'
+import StashGridConfigurationField from '@/components/configuration/StashGridConfigurationField.vue'
+import TemplateCaptureConfigurationField from '@/components/configuration/TemplateCaptureConfigurationField.vue'
 import { formatBagStopReason, setBagModuleEnabled, stopBagStash, updateBagRuntimeConfig } from '@/utils/bagService'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 import { paginateList } from '@/utils/listPagination'
@@ -427,11 +437,21 @@ import {
   BAG_BLACKLIST_MATCH_MODE_LABELS,
   INVENTORY_LAYOUT
 } from '@/utils/bagConfig'
+import {
+  collectBagConfigurationIssues,
+  collectJunfengConfigurationIssues,
+  collectStashPickupConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '@/domains/configurationGuide/configurationIssues.js'
+import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 
 const bagStore = useBagStore()
 const stashPickupStore = useStashPickupStore()
 const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()
+const settingsStore = useSettingsStore()
 const helpTopics = [moduleTopicById('bag')]
 const STORAGE_TAB_STORAGE_KEY = 'storage.activeTab'
 const STORAGE_TABS = ['inbound', 'pickup']
@@ -443,11 +463,31 @@ const calibrationPage = computed(() => paginateList(
   calibrationCurrentPage.value,
   CALIBRATION_PAGE_SIZE
 ))
-const capturingRewardTitle = ref(false)
 const calibrationOptions = [
   { key: 'root', label: '文件夹外仓库' },
   { key: 'folder', label: '文件夹内仓库' }
 ]
+const bagCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.bag,
+  actionId: CONFIGURATION_ACTIONS.start,
+  failureCode: bagStore.lastFailure.failureCode,
+  configurationIssueId: bagStore.lastFailure.configurationIssueId,
+  message: bagStore.lastStopReason
+}))
+const stashPickupCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.stashPickup,
+  actionId: CONFIGURATION_ACTIONS.start,
+  failureCode: stashPickupStore.state.failureCode || stashPickupStore.state.code,
+  configurationIssueId: stashPickupStore.state.configurationIssueId,
+  message: stashPickupStore.state.reason
+}))
+const junfengCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.junfeng,
+  actionId: CONFIGURATION_ACTIONS.start,
+  failureCode: junfengStore.state.failureCode || junfengStore.state.code,
+  configurationIssueId: junfengStore.state.configurationIssueId,
+  message: junfengStore.state.reason
+}))
 const draftRule = ref({ field: 'name', keyword: '', matchMode: 'contains' })
 const nativeColumns = Array.from({ length: INVENTORY_LAYOUT.nativeColumns }, (_value, index) => index)
 const inventoryRows = Array.from({ length: INVENTORY_LAYOUT.rows }, (_value, index) => index)
@@ -462,6 +502,60 @@ const excludedSlotKeys = computed(() => new Set(
 
 function handleStorageTabChange(tab) {
   activeTab.value = writePersistentTab(STORAGE_TAB_STORAGE_KEY, tab, STORAGE_TABS, 'inbound')
+}
+
+function openStashPickupCorrection() {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.stashPickup,
+    actionId: CONFIGURATION_ACTIONS.start,
+    title: '重新配置仓库取件',
+    failure: {
+      failureCode: stashPickupStore.state.failureCode || stashPickupStore.state.code,
+      configurationIssueId: stashPickupStore.state.configurationIssueId,
+      message: stashPickupStore.state.reason
+    },
+    collect: () => collectStashPickupConfigurationIssues({
+      actionId: CONFIGURATION_ACTIONS.start,
+      templates: interfaceStore.templates,
+      calibration: interfaceStore.stashGridCalibration
+    })
+  })
+}
+
+function openBagCorrection() {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.bag,
+    actionId: CONFIGURATION_ACTIONS.start,
+    title: '重新配置背包安全入库',
+    failure: {
+      failureCode: bagStore.lastFailure.failureCode,
+      configurationIssueId: bagStore.lastFailure.configurationIssueId,
+      message: bagStore.lastStopReason
+    },
+    collect: () => collectBagConfigurationIssues({
+      actionId: CONFIGURATION_ACTIONS.start,
+      templates: interfaceStore.templates,
+      inventory: settingsStore.inventory
+    })
+  })
+}
+
+function openJunfengCorrection() {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.junfeng,
+    actionId: CONFIGURATION_ACTIONS.start,
+    title: '重新配置君锋镇取件',
+    failure: {
+      failureCode: junfengStore.state.failureCode || junfengStore.state.code,
+      configurationIssueId: junfengStore.state.configurationIssueId,
+      message: junfengStore.state.reason
+    },
+    collect: () => collectJunfengConfigurationIssues({
+      actionId: CONFIGURATION_ACTIONS.start,
+      templates: interfaceStore.templates,
+      gridRegion: junfengStore.settings.gridRegion
+    })
+  })
 }
 
 watch(() => junfengStore.corrections.length, () => {
@@ -524,16 +618,6 @@ async function previewStashPickup() {
 
 async function toggleJunfeng(enabled) {
   try { await junfengStore.setEnabled(enabled) } catch (error) { ElMessage.error(error.message) }
-}
-
-async function captureRewardTitle() {
-  capturingRewardTitle.value = true
-  try {
-    const result = await electronApi.bag.captureTemplate('junfengRewardTitle')
-    if (result?.canceled) return
-    if (!result?.success) throw new Error(result?.error || '奖励标题框选失败')
-    interfaceStore.applyTemplateCapture('junfengRewardTitle', result)
-  } catch (error) { ElMessage.error(error.message) } finally { capturingRewardTitle.value = false }
 }
 
 async function calibrateJunfengGrid() {
@@ -669,6 +753,8 @@ async function handleStopStash() {
 .section-header { margin: 0 0 var(--spacing-sm) var(--spacing-xs); }
 .section-header--actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .calibration-actions { display: flex; align-items: center; gap: 8px; }
+.configuration-correction-alert { display: flex; align-items: center; gap: 10px; }
+.configuration-correction-alert :deep(.el-alert) { min-width: 0; flex: 1; }
 .section-title { margin: 0; font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
 .module-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 18px 24px; }
@@ -699,6 +785,7 @@ async function handleStopStash() {
 .stash-pickup-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0 0; }
 .stash-pickup-settings :deep(.el-form-item__content),
 .junfeng-settings :deep(.el-form-item__content) { gap: 8px; }
+.shared-configuration-list { display: grid; gap: 12px; }
 .stash-pickup-preview { display: grid; gap: 10px; margin-top: 12px; color: var(--text-secondary); }
 .junfeng-preview { display: grid; gap: 10px; margin-top: 14px; }
 .junfeng-preview__summary { color: var(--text-secondary); }

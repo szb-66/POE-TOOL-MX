@@ -407,12 +407,12 @@ export function useDashboard() {
     if (module.id === 'items') {
       return scriptStore.isRunning && scriptStore.mode === 'items'
         ? [{ id: 'stop', label: '停止', type: 'danger', run: stopCrafting }]
-        : [{ id: 'start', label: '启动', type: 'primary', disabled: module.issues.length > 0 || sharedScriptOccupied('items'), run: startCrafting }]
+        : [{ id: 'start', label: '启动', type: 'primary', disabled: sharedScriptOccupied('items'), run: startCrafting }]
     }
     if (module.id === 'map') {
       return scriptStore.isRunning && scriptStore.mode === 'map'
         ? [{ id: 'stop', label: '停止', type: 'danger', run: stopCrafting }]
-        : [{ id: 'start', label: '启动', type: 'primary', disabled: module.issues.length > 0 || sharedScriptOccupied('map'), run: startMapRolling }]
+        : [{ id: 'start', label: '启动', type: 'primary', disabled: sharedScriptOccupied('map'), run: startMapRolling }]
     }
     if (module.id === 'bag') {
       return [
@@ -420,7 +420,6 @@ export function useDashboard() {
           id: 'toggle-bag-stash',
           label: bagStore.moduleEnabled ? '关闭背包入库' : '启用背包入库',
           type: bagStore.moduleEnabled ? 'danger' : 'primary',
-          disabled: !bagStore.moduleEnabled && module.issues.length > 0,
           run: () => setBagModuleEnabled(!bagStore.moduleEnabled)
         },
         {
@@ -442,12 +441,12 @@ export function useDashboard() {
       if (combatStore.running) {
         actions.push({ id: 'stop', label: '停止被动', type: 'danger', run: stopPotionAssist })
       } else {
-        actions.push({ id: 'start', label: '启动被动', type: 'primary', disabled: module.issues.length > 0, run: startPotionAssist })
+        actions.push({ id: 'start', label: '启动被动', type: 'primary', run: startPotionAssist })
       }
       if (combatStore.loopRunning) {
         actions.push({ id: 'stop-loop', label: '停止循环', type: 'danger', run: stopLoopAssist })
       } else {
-        actions.push({ id: 'start-loop', label: '启动循环', type: 'primary', disabled: module.issues.length > 0, run: startLoopAssist })
+        actions.push({ id: 'start-loop', label: '启动循环', type: 'primary', run: startLoopAssist })
       }
       return actions
     }
@@ -484,7 +483,8 @@ export function useDashboard() {
           disabled: chaosRecipeStore.busy,
           run: async () => {
             const enabled = !chaosRecipeStore.settings.enabled
-            await chaosRecipeStore.setEnabled(enabled)
+            const result = await chaosRecipeStore.setEnabled(enabled)
+            if (result?.configurationRequired) return
             ElMessage.success(enabled ? '商城配方游戏内控制已开启' : '商城配方游戏内控制已关闭')
           }
         }
@@ -498,7 +498,8 @@ export function useDashboard() {
         disabled: Boolean(pending.priceCheck),
         run: async () => {
           const enabled = !priceCheckStore.settings.enabled
-          await priceCheckStore.setEnabled(enabled)
+          const result = await priceCheckStore.setEnabled(enabled)
+          if (result?.configurationRequired) return
           ElMessage.success(enabled ? '国服查价器已启用' : '国服查价器已关闭')
         }
       }]

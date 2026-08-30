@@ -19,6 +19,17 @@ const TRAINING_PROFILES = {
   'large-stash': { columns: 24, rows: 24 }
 }
 
+function configurationError(message, failureCode, configurationIssueId) {
+  return Object.assign(new Error(message), { failureCode, configurationIssueId })
+}
+
+function eventError(event, fallback) {
+  return Object.assign(new Error(event?.reason || fallback), {
+    failureCode: String(event?.failureCode || ''),
+    configurationIssueId: String(event?.configurationIssueId || '')
+  })
+}
+
 function fileSha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
 }
@@ -67,7 +78,11 @@ export class JunfengHighlightManager {
   }
 
   initialStatus() {
-    return { status: 'idle', candidateItems: 0, processedItems: 0, remainingItems: 0, pickedItems: 0, uncertainCells: 0, reason: '', modelVersion: '' }
+    return {
+      status: 'idle', candidateItems: 0, processedItems: 0, remainingItems: 0,
+      pickedItems: 0, uncertainCells: 0, reason: '', modelVersion: '',
+      failureCode: '', configurationIssueId: ''
+    }
   }
 
   scriptPath() {
@@ -106,7 +121,9 @@ export class JunfengHighlightManager {
     const detection = this.interfaceDetection?.getState?.() || {}
     if (!this.runtime.enabled) throw new Error('君锋镇模块未启用')
     const configuration = this.getConfigurationAvailability()
-    if (!configuration.ready) throw new Error(configuration.reason)
+    if (!configuration.ready) {
+      throw configurationError(configuration.reason, configuration.failureCode, configuration.configurationIssueId)
+    }
     if (requireReward && !detection.rewardDetected) throw new Error('未检测到君锋镇奖励标题')
     if (modelRequired) {
       const availability = this.getAvailability()
@@ -153,14 +170,16 @@ export class JunfengHighlightManager {
 
   getConfigurationAvailability(runtime = this.runtime) {
     const gridAvailability = this.getGridAvailability(runtime)
-    if (!gridAvailability.ready) return gridAvailability
+    if (!gridAvailability.ready) {
+      return { ...gridAvailability, failureCode: 'REGION_INVALID', configurationIssueId: 'junfeng.grid' }
+    }
     const templates = runtime.templates || {}
     const displays = this.currentDisplays()
     const definitions = [
-      ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture'],
-      ['君锋镇奖励标题', 'junfengRewardTitle', 'junfengRewardRegion', 'junfengRewardCapture']
+      ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture', 'template.inventory-title'],
+      ['君锋镇奖励标题', 'junfengRewardTitle', 'junfengRewardRegion', 'junfengRewardCapture', 'template.junfeng-reward-title']
     ]
-    for (const [label, pathKey, regionKey, captureKey] of definitions) {
+    for (const [label, pathKey, regionKey, captureKey, configurationIssueId] of definitions) {
       const result = validateTemplateCaptureEnvironment(
         label,
         templates[pathKey],
@@ -168,7 +187,7 @@ export class JunfengHighlightManager {
         templates[captureKey],
         displays
       )
-      if (result.error) return { ready: false, reason: result.error }
+      if (result.error) return { ready: false, reason: result.error, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
     }
     return { ready: true, reason: '' }
   }
@@ -217,7 +236,7 @@ export class JunfengHighlightManager {
           this.lastPreviewId = crypto.createHash('sha256').update(String(event.imageDataUrl || '')).digest('hex').slice(0, 24)
           this.lastPreview = new Map((event.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
           resolve(event)
-        } else if (event.event === 'error') { settled = true; reject(new Error(event.reason || '君锋镇预览失败')) }
+        } else if (event.event === 'error') { settled = true; reject(eventError(event, '君锋镇预览失败')) }
       })
       child.on('error', reject)
       child.on('close', code => { if (!settled) reject(new Error(`君锋镇预览进程异常退出（${code}）`)) })
@@ -443,7 +462,9 @@ export class JunfengHighlightManager {
       remainingItems: Number(event.remainingItems ?? this.status.remainingItems),
       pickedItems: Number(event.pickedItems ?? this.status.pickedItems),
       uncertainCells: Number(event.uncertainCells ?? this.status.uncertainCells),
-      reason: event.reason || '', modelVersion: event.modelVersion || this.status.modelVersion
+      reason: event.reason || '', modelVersion: event.modelVersion || this.status.modelVersion,
+      failureCode: String(event.failureCode || ''),
+      configurationIssueId: String(event.configurationIssueId || '')
     })
     this.publish(event)
     if (['completed', 'aborted', 'error'].includes(event.event)) {
@@ -462,18 +483,24 @@ export class JunfengHighlightManager {
   stop(reason = 'user') {
     stopChild(this.child)
     this.child = null
-    this.status = { ...this.status, status: 'stopped', reason }
+    this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
     this.automationLock?.release(OWNER)
     this.publish({ event: 'stopped', reason })
     return this.getStatus()
   }
 
-  fail(reason) {
+  fail(reason, failure = {}) {
     stopChild(this.child)
     this.child = null
-    this.status = { ...this.status, status: 'stopped', reason }
+    this.status = {
+      ...this.status,
+      status: 'stopped',
+      reason,
+      failureCode: String(failure.failureCode || ''),
+      configurationIssueId: String(failure.configurationIssueId || '')
+    }
     this.automationLock?.release(OWNER)
-    this.publish({ event: 'error', reason })
+    this.publish({ event: 'error', reason, failureCode: this.status.failureCode, configurationIssueId: this.status.configurationIssueId })
   }
   getStatus() { return structuredClone(this.status) }
   listCorrections() { return this.calibration.listWithImages() }

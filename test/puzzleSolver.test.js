@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  BOUNDARY_EXITS,
   CONNECTED_INTERNAL_MASKS,
   DIRECTIONS,
   assignSourceSlots,
@@ -34,49 +33,20 @@ test('求解结果九格连通、内部无断口且出口达到12', () => {
 
 test('库存不足与不可能的类型组合返回结构化无解', () => {
   assert.equal(solvePuzzle({ counts: { cross: 8 } }).error, 'INSUFFICIENT_FRAGMENTS')
-  const impossible = solvePuzzle({ counts: { endpoint: 9 }, requiredExits: BOUNDARY_EXITS.map(exit => exit.id) })
+  const impossible = solvePuzzle({ counts: { endpoint: 9 } })
   assert.equal(impossible.error, 'NO_SOLUTION')
   assert.equal(impossible.solutions.length, 0)
 })
 
-test('必选出口是硬约束且其余出口继续最大化', () => {
-  const requiredExits = ['N0', 'E1', 'S2', 'W1']
-  const result = solvePuzzle({ counts: abundant, requiredExits, solutionLimit: 8 })
-  assert.equal(result.score, 12)
-  assert.equal(result.solutions.length, 8)
-  for (const solution of result.solutions) {
-    requiredExits.forEach(exit => assert.ok(solution.exits.includes(exit)))
-  }
-})
-
-test('禁止出口是硬约束且其余出口继续最大化', () => {
-  const forbiddenExits = ['N0', 'E1']
-  const result = solvePuzzle({ counts: abundant, forbiddenExits, solutionLimit: 8 })
-  assert.equal(result.score, 10)
-  assert.equal(result.solutions.length, 8)
-  for (const solution of result.solutions) {
-    forbiddenExits.forEach(exit => assert.ok(!solution.exits.includes(exit)))
-  }
-})
-
-test('必选与禁止出口可以组合且冲突约束明确无解', () => {
+test('旧出口约束字段被忽略并继续返回无约束最优方案', () => {
   const result = solvePuzzle({
     counts: abundant,
-    requiredExits: ['N0', 'S2'],
-    forbiddenExits: ['E1', 'W1'],
+    requiredExits: ['N0'],
+    forbiddenExits: ['N0', 'E1'],
     solutionLimit: 8
   })
-  assert.equal(result.score, 10)
-  for (const solution of result.solutions) {
-    assert.ok(solution.exits.includes('N0'))
-    assert.ok(solution.exits.includes('S2'))
-    assert.ok(!solution.exits.includes('E1'))
-    assert.ok(!solution.exits.includes('W1'))
-  }
-
-  const conflict = solvePuzzle({ counts: abundant, requiredExits: ['N0'], forbiddenExits: ['N0'] })
-  assert.equal(conflict.error, 'NO_SOLUTION')
-  assert.equal(conflict.solutions.length, 0)
+  assert.equal(result.score, 12)
+  assert.equal(result.solutions.length, 8)
 })
 
 test('同分方案稳定截断且来源格按置信度和行列选择', () => {
@@ -170,7 +140,7 @@ test('求解器返回策略相对收益并在无词缀时保留外周出口兜�
   assert.equal(difficultyOnly.rewardDataAvailable, false)
 })
 
-test('自动收益选择显示分最高的策略并保留出口约束', () => {
+test('自动收益选择显示分最高的策略', () => {
   const slots = Object.entries(abundant).flatMap(([type, count]) => Array.from({ length: count }, (_, index) => ({
     page: index < 10 ? 1 : 2,
     row: Math.floor((index % 10) / 6),
@@ -182,16 +152,14 @@ test('自动收益选择显示分最高的策略并保留出口约束', () => {
       ? { status: 'matched', mod: { lines: ['相邻区域包含 3 个额外奥术师的保险箱'] } }
       : null
   })))
-  const requiredExits = ['N0', 'S2']
   const manual = ['balanced', 'strongbox', 'rare', 'magic', 'sulphur']
-    .map(strategy => solvePuzzle({ slots, strategy, requiredExits, solutionLimit: 1 }))
+    .map(strategy => solvePuzzle({ slots, strategy, solutionLimit: 1 }))
   const highest = manual.reduce((best, result) => result.rewardScore > best.rewardScore ? result : best)
-  const automatic = solvePuzzle({ slots, strategy: 'auto', requiredExits, solutionLimit: 1 })
+  const automatic = solvePuzzle({ slots, strategy: 'auto', solutionLimit: 1 })
 
   assert.equal(automatic.strategy, 'auto')
   assert.equal(automatic.effectiveStrategy, highest.strategy)
   assert.equal(automatic.rewardScore, highest.rewardScore)
-  requiredExits.forEach(exit => assert.ok(automatic.solutions[0].exits.includes(exit)))
 })
 
 test('自动收益同分时按策略顺序选择且无收益数据不冒充赢家', () => {

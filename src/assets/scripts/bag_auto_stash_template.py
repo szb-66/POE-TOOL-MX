@@ -70,14 +70,14 @@ _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
 _game_window_process_names_mtime_ns = None
 VALID_BLACKLIST_FIELDS = ("name", "baseName", "category")
 VALID_BLACKLIST_MATCH_MODES = ("contains", "exact")
-OPERATION_DELAY_DEFAULT_MS = 50
+OPERATION_DELAY_DEFAULT_MS = 40
 COPY_ATTEMPTS = 1
-MODIFIER_SETTLE_SECONDS = 0.05
-KEY_HOLD_SECONDS = 0.02
-BUTTON_HOLD_SECONDS = 0.02
-RELEASE_SETTLE_SECONDS = 0.02
-CLIPBOARD_RESPONSE_MIN_SECONDS = 0.25
-CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
+MODIFIER_SETTLE_SECONDS = 0.02
+KEY_HOLD_SECONDS = 0.015
+BUTTON_HOLD_SECONDS = 0.015
+RELEASE_SETTLE_SECONDS = 0.01
+CLIPBOARD_RESPONSE_MIN_SECONDS = 0.01
+STASH_SETTLE_SECONDS = 0.01
 VK_CONTROL = 0x11
 EXTRA_INVENTORY_MAX_COLUMNS = 6
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
@@ -86,13 +86,14 @@ FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 
 def apply_fixed_timing(config):
     global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
-    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS
+    global RELEASE_SETTLE_SECONDS, CLIPBOARD_RESPONSE_MIN_SECONDS, STASH_SETTLE_SECONDS
     timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
-    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
-    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
-    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
-    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
-    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 250)) / 1000.0
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 20)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 15)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 15)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 10)) / 1000.0
+    CLIPBOARD_RESPONSE_MIN_SECONDS = float(timing.get("clipboard_confirm_ms", 10)) / 1000.0
+    STASH_SETTLE_SECONDS = float(timing.get("stash_settle_ms", 10)) / 1000.0
 
 
 def is_ctrl_pressed():
@@ -607,9 +608,7 @@ class InputController:
         self.keyboard = keyboard.Controller()
         operation_delay = normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0
         self.mouse_move_delay = operation_delay
-        self.timing_mode = config.get("timing_mode", "adaptive")
-        adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
-        self.clipboard_delay = adaptive_timeout if self.timing_mode == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
+        self.clipboard_delay = CLIPBOARD_RESPONSE_MIN_SECONDS
         self.release_settle = RELEASE_SETTLE_SECONDS
         self.ctrl_release_delay = self.release_settle
         self.pressed_keys = set()
@@ -722,33 +721,23 @@ class InputController:
             before_text = str(pyperclip.paste() or "")
             if not self._send_copy(ctrl_held):
                 return "unreadable", ""
-            deadline = time.monotonic() + self.clipboard_delay
-            while is_running:
-                current_seq = clipboard_sequence_number()
-                current_text = str(pyperclip.paste() or "")
-                if current_text.strip():
-                    # 内容实际变化才算复制到新物品；文本相同时以序列号变化确认
-                    # 游戏重写了相同文本（连续两件完全相同的物品），仅序列号未变
-                    # 时残留旧文本继续等待直至超时
-                    if clear_first or current_text != before_text:
-                        return "copied", current_text
-                    if before_seq is not None and current_seq is not None and current_seq != before_seq:
-                        return "copied", current_text
-                elif clear_first:
-                    # 清空后复制为空：来源格为空格，不依赖序列号变化
+            time.sleep(self.clipboard_delay)
+            if not is_running:
+                return "no-response", ""
+            current_seq = clipboard_sequence_number()
+            current_text = str(pyperclip.paste() or "")
+            if current_text.strip():
+                if clear_first or current_text != before_text:
+                    return "copied", current_text
+                if before_seq is not None and current_seq is not None and current_seq != before_seq:
+                    return "copied", current_text
+            elif clear_first:
+                return "empty", ""
+            elif before_seq is not None and current_seq is not None:
+                if current_seq != before_seq:
                     return "empty", ""
-                elif before_seq is not None and current_seq is not None:
-                    # 剪贴板变空（空格）且序列号确实变化过，保留快速空格判定
-                    if current_seq != before_seq:
-                        return "empty", ""
-                else:
-                    # 序列号不可用：回退到内容对比，空内容区别于复制前的非空文本视为空格
-                    if current_text != before_text:
-                        return "empty", ""
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    break
-                time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
+            elif current_text != before_text:
+                return "empty", ""
             return "no-response", ""
         except Exception:
             self.release_all()
@@ -812,6 +801,7 @@ def transfer_item_once(controller):
     try:
         if not controller.ctrl_click():
             return False, runtime_stop_reason or "transfer-unconfirmed"
+        time.sleep(STASH_SETTLE_SECONDS)
         return True, ""
     except Exception:
         return False, runtime_stop_reason or "transfer-unconfirmed"
@@ -826,6 +816,7 @@ def transfer_stash_item(controller, item, force_unique_stash=False):
         click = controller.click_with_ctrl if force_unique else controller.ctrl_click
         if not click():
             return False, runtime_stop_reason or "transfer-unconfirmed"
+        time.sleep(STASH_SETTLE_SECONDS)
         if not force_unique:
             return True, ""
         copy_status, copied_text = controller.copy_item_text(
@@ -857,6 +848,7 @@ def transfer_pickup_item(controller):
         for _attempt in range(3):
             if not controller.click_with_ctrl():
                 return False, runtime_stop_reason or "transfer-unconfirmed"
+            time.sleep(STASH_SETTLE_SECONDS)
             copy_status, _text = controller.copy_item_text(ctrl_held=True, clear_first=True)
             if copy_status == "empty":
                 return True, ""
@@ -922,7 +914,15 @@ def build_scan_phases(inventory):
 def run_detection(config):
     matcher = InterfaceMatcher(config)
     if not matcher.valid:
-        emit("detection-error", reason="背包标题以及仓库或君锋镇奖励标题模板无法加载")
+        templates = config.get("templates", {})
+        if "inventory" not in matcher.templates:
+            issue_id = "template.inventory-title"
+        elif templates.get("stash_title") and "stash" not in matcher.templates:
+            issue_id = "template.stash-title"
+        else:
+            issue_id = "template.junfeng-reward-title"
+        emit("detection-error", reason="界面标题模板无法加载",
+             failureCode="TEMPLATE_INVALID", configurationIssueId=issue_id)
         return 2
     stash_ready = False
     reward_detected = False

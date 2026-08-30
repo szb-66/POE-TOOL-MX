@@ -14,6 +14,17 @@
           <label class="form-label">首次识别</label>
           <el-checkbox v-model="checkInitialItem">开启</el-checkbox>
         </div>
+        <div class="form-item item-position-item">
+          <label class="form-label">被制作物品位置</label>
+          <CoordinateConfigurationField
+            :model-value="itemPosition"
+            :loading="itemPositionPicking"
+            :disabled="itemPositionPicking"
+            pick-title="抓取被制作物品位置"
+            @update:model-value="updateItemPosition"
+            @pick="pickItemPosition"
+          />
+        </div>
         <div class="form-item">
           <label class="form-label">词缀参考</label>
           <a href="https://poedb.tw/cn/Modifiers" target="_blank" rel="noopener noreferrer" class="poedb-link">
@@ -43,12 +54,16 @@ import { useSettingsStore } from '../../settings/settingsStore'
 import { useScriptStore } from '../../../stores/script'
 import PresetSelector from '../../../components/common/PresetSelector.vue'
 import KeyCaptureInput from '../../../components/common/KeyCaptureInput.vue'
+import CoordinateConfigurationField from '@/components/configuration/CoordinateConfigurationField.vue'
+import { electronApi } from '@/api/electron'
 import { commitGlobalShortcut, startCrafting } from '../../../utils/scriptService'
 
 const presetStore = usePresetStore()
 const settingsStore = useSettingsStore()
 const scriptStore = useScriptStore()
 const starting = ref(false)
+const itemPosition = ref({ ...settingsStore.itemPosition })
+const itemPositionPicking = ref(false)
 const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'items')
 const checkInitialItem = computed({
   get: () => presetStore.currentItemPreset.checkInitialItem !== false,
@@ -63,6 +78,34 @@ const form = ref({
 watch(() => settingsStore.globalShortcuts.itemStart, (val) => {
   form.value.itemStart = val
 })
+
+watch(() => settingsStore.itemPosition, (value) => {
+  itemPosition.value = { ...value }
+}, { deep: true })
+
+function updateItemPosition(point) {
+  itemPosition.value = { x: point.x, y: point.y }
+  settingsStore.updateItemPosition(itemPosition.value)
+}
+
+async function pickItemPosition() {
+  if (itemPositionPicking.value) return
+
+  itemPositionPicking.value = true
+  try {
+    const result = await electronApi.window.pickScreenCoordinate()
+    if (!result || result.canceled) return
+    if (result.success === false) throw new Error(result.error?.message || '坐标选取失败')
+
+    const point = { x: result.x, y: result.y }
+    updateItemPosition(point)
+    ElMessage.success(`已选取坐标 (${point.x}, ${point.y})`)
+  } catch (error) {
+    ElMessage.error(error?.message || '坐标选取失败')
+  } finally {
+    itemPositionPicking.value = false
+  }
+}
 
 async function handleSave(value) {
   try {

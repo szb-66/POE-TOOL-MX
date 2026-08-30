@@ -18,9 +18,17 @@ function toHalfWidth(text) {
   return String(text || '').replace(/[０-９（）－—–％＋．，,]/g, char => FULLWIDTH_MAP.get(char) ?? char)
 }
 
+// 国服高级描述会把当前掷值直接写在范围前，如 37(26-40)%；目录只保留范围。
+function collapseRolledRangeValue(text) {
+  return toHalfWidth(text).replace(
+    /[+-]?\d+(?:\.\d+)?\s*(?=\(\d+(?:\.\d+)?-\d+(?:\.\d+)?\))/g,
+    ''
+  )
+}
+
 // 规范化:全角转半角、去空白、数值范围与所有数字占位为 #,用于结构比对。
 export function normalizeChartModText(text) {
-  return toHalfWidth(text)
+  return collapseRolledRangeValue(text)
     .replace(/\s+/g, '')
     .replace(/\(\d+(?:\.\d+)?-\d+(?:\.\d+)?\)/g, '#')
     .replace(/[+-]?\d+(?:\.\d+)?/g, '#')
@@ -28,7 +36,7 @@ export function normalizeChartModText(text) {
 
 // 固定值规范化:数值范围占位,固定数字保留,用于目录条目分档比对。
 export function catalogLineKey(text) {
-  return toHalfWidth(text)
+  return collapseRolledRangeValue(text)
     .replace(/\s+/g, '')
     .replace(/\(\d+(?:\.\d+)?-\d+(?:\.\d+)?\)/g, '#')
 }
@@ -54,11 +62,25 @@ function fixedLineSet(lines) {
   return values
 }
 
-function modLineMatches(modLine, fullSet, fixedSet) {
-  // 目录行含数值范围时按全占位结构比对,否则按固定数字精确比对。
-  return HAS_RANGE.test(modLine)
-    ? fullSet.has(normalizeChartModText(modLine))
-    : fixedSet.has(catalogLineKey(modLine))
+function rangedLineKey(text) {
+  return collapseRolledRangeValue(text).replace(/\s+/g, '')
+}
+
+function rangedLineSet(lines) {
+  return new Set(lines
+    .filter(line => HAS_RANGE.test(line))
+    .map(rangedLineKey))
+}
+
+function matchModLine(modLine, fullSet, fixedSet, rangedSet) {
+  if (!HAS_RANGE.test(modLine)) {
+    return { matched: fixedSet.has(catalogLineKey(modLine)), exactRange: false }
+  }
+  const exactRange = rangedSet.has(rangedLineKey(modLine))
+  return {
+    matched: exactRange || fullSet.has(normalizeChartModText(modLine)),
+    exactRange
+  }
 }
 
 function levenshtein(left, right) {
@@ -93,14 +115,18 @@ export function matchFragmentMods(lines) {
   if (!sourceLines.length) return { status: 'unknown', confidence: 0 }
   const fullSet = normalizedLineSet(sourceLines)
   const fixedSet = fixedLineSet(sourceLines)
+  const rangedSet = rangedLineSet(sourceLines)
   let best = null
   for (const mod of FRAGMENT_CHART_MODS) {
     if (!mod.lines.length) continue
     let matched = 0
     let fixedMatched = 0
+    let exactRanges = 0
     for (const modLine of mod.lines) {
-      if (modLineMatches(modLine, fullSet, fixedSet)) {
+      const lineMatch = matchModLine(modLine, fullSet, fixedSet, rangedSet)
+      if (lineMatch.matched) {
         matched += 1
+        if (lineMatch.exactRange) exactRanges += 1
         if (!HAS_RANGE.test(modLine)) fixedMatched += 1
       }
     }
@@ -109,9 +135,10 @@ export function matchFragmentMods(lines) {
     const better = !best
       || score > best.score
       || (score === best.score && matched > best.matched)
-      || (score === best.score && matched === best.matched && fixedMatched > best.fixedMatched)
+      || (score === best.score && matched === best.matched && exactRanges > best.exactRanges)
+      || (score === best.score && matched === best.matched && exactRanges === best.exactRanges && fixedMatched > best.fixedMatched)
     if (better) {
-      best = { mod, matched, fixedMatched, total: mod.lines.length, score }
+      best = { mod, matched, fixedMatched, exactRanges, total: mod.lines.length, score }
     }
   }
   if (!best) return { status: 'unknown', confidence: 0 }

@@ -10,11 +10,11 @@ import mss
 import numpy as np
 
 
-MODIFIER_SETTLE_SECONDS = 0.05
-KEY_HOLD_SECONDS = 0.02
-BUTTON_HOLD_SECONDS = 0.02
-RELEASE_SETTLE_SECONDS = 0.02
-PATCH_VERIFY_SECONDS = 0.55
+MODIFIER_SETTLE_SECONDS = 0.02
+KEY_HOLD_SECONDS = 0.015
+BUTTON_HOLD_SECONDS = 0.015
+RELEASE_SETTLE_SECONDS = 0.01
+PATCH_VERIFY_SECONDS = 0.01
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
 FOREGROUND_POLL_INTERVAL_SECONDS = 0.05
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
@@ -29,11 +29,11 @@ def apply_fixed_timing(config):
     global MODIFIER_SETTLE_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS
     global RELEASE_SETTLE_SECONDS, PATCH_VERIFY_SECONDS
     timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
-    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 50)) / 1000.0
-    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 20)) / 1000.0
-    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 20)) / 1000.0
-    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 20)) / 1000.0
-    PATCH_VERIFY_SECONDS = float(timing.get("patch_verify_ms", 550)) / 1000.0
+    MODIFIER_SETTLE_SECONDS = float(timing.get("modifier_settle_ms", 20)) / 1000.0
+    KEY_HOLD_SECONDS = float(timing.get("key_hold_ms", 15)) / 1000.0
+    BUTTON_HOLD_SECONDS = float(timing.get("button_hold_ms", 15)) / 1000.0
+    RELEASE_SETTLE_SECONDS = float(timing.get("release_settle_ms", 10)) / 1000.0
+    PATCH_VERIFY_SECONDS = float(timing.get("patch_verify_ms", 10)) / 1000.0
 
 
 def game_window_titles():

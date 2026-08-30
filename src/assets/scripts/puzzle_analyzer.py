@@ -6,7 +6,6 @@ import ctypes
 from ctypes import wintypes
 import hashlib
 import json
-import math
 import os
 import sys
 import time
@@ -35,10 +34,8 @@ STANDARD_RECOGNITION = {
     "greenLower": (35, 70, 80),
     "greenUpper": (100, 255, 255),
     "darkScale": 0.85,
-    "confidenceThreshold": 0.72,
-    "marginThreshold": 0.035,
 }
-CALIBRATION_FEATURE_VERSION = 1
+CALIBRATION_FEATURE_VERSION = 2
 CALIBRATION_FEATURE_LENGTH = 128
 CALIBRATION_SIMILARITY = 0.965
 LIVE_CAPTURE_ATTEMPTS = 3
@@ -434,7 +431,10 @@ def calibration_feature(cell: np.ndarray) -> list[float]:
     return [round(float(value), 7) for value in vector]
 
 
-def calibration_match(feature: list[float], samples: list[dict[str, Any]] | None) -> tuple[int, float] | None:
+def calibration_match(
+    feature: list[float], samples: list[dict[str, Any]] | None,
+    fragment_type: str | None = None, empty_only: bool = False,
+) -> tuple[int, float] | None:
     if len(feature) != CALIBRATION_FEATURE_LENGTH or not samples:
         return None
     vector = np.asarray(feature, dtype=np.float32)
@@ -443,6 +443,8 @@ def calibration_match(feature: list[float], samples: list[dict[str, Any]] | None
     for sample in samples:
         values = sample.get("featureVector") if isinstance(sample, dict) else None
         label = sample.get("labelMask") if isinstance(sample, dict) else None
+        kind = str(sample.get("kind") or "") if isinstance(sample, dict) else ""
+        sample_type = str(sample.get("type") or "") if isinstance(sample, dict) else ""
         if sample.get("featureVersion") != CALIBRATION_FEATURE_VERSION or not isinstance(values, list) or len(values) != CALIBRATION_FEATURE_LENGTH:
             continue
         try:
@@ -451,6 +453,11 @@ def calibration_match(feature: list[float], samples: list[dict[str, Any]] | None
         except (TypeError, ValueError):
             continue
         if label < 0 or label > 15 or not np.isfinite(candidate).all():
+            continue
+        if empty_only:
+            if kind != "empty" or label != 0:
+                continue
+        elif not fragment_type or kind != "fragment" or sample_type != fragment_type or label not in MASK_VARIANTS.get(fragment_type, ()):
             continue
         norm = float(np.linalg.norm(candidate))
         similarity = float(vector @ (candidate / norm)) if norm > 0 else 0.0
@@ -466,21 +473,25 @@ def calibration_match(feature: list[float], samples: list[dict[str, Any]] | None
     return ranked[0][0], round(best_similarity, 6)
 
 
-def calibrated_slot(slot: dict[str, Any], match: tuple[int, float] | None) -> dict[str, Any]:
-    slot["baseMask"] = int(slot.get("mask", 0))
-    slot["calibrated"] = False
-    slot["calibrationSimilarity"] = 0.0
-    if match is None:
-        return slot
-    mask, similarity = match
-    fragment_type = type_for_mask(mask) if mask else None
-    slot.update({
-        "occupied": bool(mask), "type": fragment_type, "mask": mask,
-        "orientation": orientation_for_mask(mask) if mask else 0,
-        "confidence": similarity, "margin": 1.0, "uncertain": False,
-        "calibrated": True, "calibrationSimilarity": similarity,
-    })
-    return slot
+def direction_candidate(
+    cell: np.ndarray, component: dict[str, Any], fragment_type: str,
+    feature: list[float], samples: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    mask, confidence = inventory_route_topology(cell, fragment_type, component)
+    match = calibration_match(feature, samples, fragment_type=fragment_type)
+    calibrated = match is not None
+    similarity = 0.0
+    if match is not None:
+        mask, similarity = match
+        confidence = similarity
+    return {
+        "mask": int(mask),
+        "orientation": orientation_for_mask(mask),
+        "confidence": round(float(confidence), 4),
+        "uncertain": float(confidence) < 0.35,
+        "calibrated": calibrated,
+        "calibrationSimilarity": round(float(similarity), 6),
+    }
 
 
 def grid_metrics(image: np.ndarray, columns: int = COLS, rows: int = ROWS) -> dict[str, Any]:
@@ -587,8 +598,7 @@ def largest_green_component(cell: np.ndarray, region_type: str = "inventory") ->
         return None
     index = max(candidates, key=lambda value: int(stats[value, cv2.CC_STAT_AREA]))
     x, y, component_width, component_height, area = [int(value) for value in stats[index]]
-    if area < max(MIN_COMPONENT_AREA, round(width * height * 0.012)):
-        return None
+    strict_area = max(MIN_COMPONENT_AREA, round(width * height * 0.012))
     return {
         "x": x,
         "y": y,
@@ -604,6 +614,7 @@ def largest_green_component(cell: np.ndarray, region_type: str = "inventory") ->
         "roiHeight": int(roi.shape[0]),
         "cellWidth": width,
         "cellHeight": height,
+        "candidateState": "clear" if area >= strict_area else "suspect",
     }
 
 
@@ -615,25 +626,6 @@ def component_features(component: dict[str, Any]) -> list[float]:
         height / component["cellHeight"],
         component["area"] / max(1, width * height),
     ]
-
-
-def feature_distance(left: list[float], right: list[float], weights: list[float]) -> float:
-    return math.sqrt(sum(weight * (a - b) ** 2 for a, b, weight in zip(left, right, weights)))
-
-
-def classify(features: list[float], templates: dict[str, Any]) -> tuple[str, float, float]:
-    weights = [float(value) for value in templates.get("featureWeights", [1, 1, 0.75])]
-    scores = []
-    for fragment_type in TYPE_ORDER:
-        prototypes = templates.get("types", {}).get(fragment_type, [])
-        distance = min((feature_distance(features, prototype, weights) for prototype in prototypes), default=1.0)
-        scores.append((fragment_type, distance))
-    scores.sort(key=lambda item: (item[1], TYPE_ORDER.index(item[0])))
-    best_type, best_distance = scores[0]
-    second_distance = scores[1][1]
-    confidence = max(0.0, min(1.0, 1.0 - best_distance * 4.0))
-    margin = max(0.0, second_distance - best_distance)
-    return best_type, round(confidence, 4), round(margin, 4)
 
 
 def type_degree(fragment_type: str) -> int:
@@ -689,7 +681,9 @@ def inventory_route_topology(cell: np.ndarray, fragment_type: str, component: di
     band_x = max(1, round(width * 0.025))
     band_y = max(1, round(height * 0.025))
     search_radius = max(1, round(min(width, height) * 0.035))
-    variants = tuple(mask for masks in MASK_VARIANTS.values() for mask in masks)
+    variants = MASK_VARIANTS.get(fragment_type, ())
+    if not variants:
+        return 0, 0.0
     best: tuple[float, int, float] | None = None
 
     for center_y in range(expected_y - search_radius, expected_y + search_radius + 1):
@@ -713,8 +707,7 @@ def inventory_route_topology(cell: np.ndarray, fragment_type: str, component: di
                 separation_confidence = max(0.0, min(1.0, separation + 0.5))
                 strength_confidence = max(0.0, min(1.0, selected_min / 0.55))
                 confidence = separation_confidence * strength_confidence
-                type_prior = 0.03 if type_for_mask(direction_mask) == fragment_type else 0.0
-                rank = confidence + center_score * 0.5 + type_prior - distance * 0.015
+                rank = confidence + center_score * 0.5 - distance * 0.015
                 candidate = (rank, direction_mask, confidence)
                 if best is None or candidate[0] > best[0]:
                     best = candidate
@@ -795,12 +788,11 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
         return payload
     height, width = image.shape[:2]
     recognition = recognition if isinstance(recognition, dict) else {}
-    preset = STANDARD_RECOGNITION
-    confidence_threshold = float(preset["confidenceThreshold"])
-    margin_threshold = float(preset["marginThreshold"])
     slots = []
     counts = {fragment_type: 0 for fragment_type in TYPE_ORDER}
+    candidate_count = 0
     warnings = []
+    type_hints = recognition.get("typeHints") if isinstance(recognition.get("typeHints"), dict) else {}
     columns, rows = (ATLAS_COLS, ATLAS_ROWS) if region_type == "atlas" else (COLS, ROWS)
     for row in range(rows):
         for column in range(columns):
@@ -808,7 +800,6 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
             cell = image[top:bottom, left:right]
             atlas_topology = atlas_route_topology(cell) if region_type == "atlas" else None
             feature = calibration_feature(cell) if region_type == "inventory" else []
-            match = calibration_match(feature, calibration_samples) if region_type == "inventory" else None
             component = None if region_type == "atlas" else largest_green_component(cell, region_type)
             if atlas_topology is not None:
                 direction_mask, orientation_confidence = atlas_topology
@@ -829,37 +820,53 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
                     warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
                 continue
             if component is None:
-                slot = calibrated_slot({
+                slots.append({
                     "row": row, "column": column, "occupied": False, "type": None,
                     "mask": 0, "orientation": 0, "confidence": 1.0, "orientationConfidence": 1.0,
-                    "margin": 1.0, "corrected": False, "tileDataUrl": png_data_url(cell),
+                    "directionConfidence": 1.0, "margin": 1.0, "uncertain": False,
+                    "candidate": False, "candidateState": "empty", "typeSource": None, "shapeLabel": "",
+                    "calibrated": False, "calibrationSimilarity": 0.0, "corrected": False,
+                    "directionCandidates": {}, "emptyCalibration": {"matched": False, "similarity": 0.0},
+                    "tileDataUrl": png_data_url(cell),
                     "calibrationFeature": feature, "featureVersion": CALIBRATION_FEATURE_VERSION,
-                }, match)
-                slots.append(slot)
-                if slot["occupied"]:
-                    counts[slot["type"]] += 1
+                })
                 continue
             features = component_features(component)
-            feature_type, feature_confidence, feature_margin = classify(features, templates)
-            direction_mask, orientation_confidence = inventory_route_topology(cell, feature_type, component)
-            fragment_type = type_for_mask(direction_mask) or feature_type
-            type_agrees = fragment_type == feature_type
-            confidence = round(min(orientation_confidence, feature_confidence), 4) if type_agrees else orientation_confidence
-            margin = round(min(orientation_confidence, feature_margin), 4) if type_agrees else orientation_confidence
-            uncertain = confidence < confidence_threshold or margin < margin_threshold or orientation_confidence < 0.35
-            slot = calibrated_slot({
-                "row": row, "column": column, "occupied": True, "type": fragment_type,
-                "mask": direction_mask, "orientation": orientation_for_mask(direction_mask),
-                "orientationConfidence": orientation_confidence,
-                "confidence": confidence, "margin": margin, "uncertain": uncertain,
+            candidate_count += 1
+            direction_candidates = {
+                fragment_type: direction_candidate(cell, component, fragment_type, feature, calibration_samples)
+                for fragment_type in TYPE_ORDER
+            }
+            empty_match = calibration_match(feature, calibration_samples, empty_only=True)
+            empty_calibration = {
+                "matched": empty_match is not None,
+                "similarity": 0.0 if empty_match is None else round(float(empty_match[1]), 6),
+            }
+            hint_type = str(type_hints.get(f"{row}:{column}") or "")
+            selected = direction_candidates.get(hint_type)
+            occupied = selected is not None
+            direction_mask = int(selected.get("mask", 0)) if selected else 0
+            direction_confidence = float(selected.get("confidence", 0.0)) if selected else 0.0
+            uncertain = not occupied or bool(selected.get("uncertain"))
+            slot = {
+                "row": row, "column": column, "candidate": True,
+                "candidateState": component.get("candidateState", "clear"),
+                "occupied": occupied, "type": hint_type if occupied else None,
+                "typeSource": "hint" if occupied else None, "shapeLabel": "",
+                "mask": direction_mask, "orientation": orientation_for_mask(direction_mask) if direction_mask else 0,
+                "orientationConfidence": direction_confidence, "directionConfidence": direction_confidence,
+                "confidence": direction_confidence, "margin": 1.0, "uncertain": uncertain,
+                "calibrated": bool(selected.get("calibrated")) if selected else False,
+                "calibrationSimilarity": float(selected.get("calibrationSimilarity", 0.0)) if selected else 0.0,
                 "corrected": False, "features": [round(value, 4) for value in features],
+                "directionCandidates": direction_candidates, "emptyCalibration": empty_calibration,
                 "tileDataUrl": png_data_url(cell), "calibrationFeature": feature,
                 "featureVersion": CALIBRATION_FEATURE_VERSION,
-            }, match)
+            }
             slots.append(slot)
             if slot["occupied"]:
                 counts[slot["type"]] += 1
-            if slot["uncertain"]:
+            if occupied and slot["uncertain"]:
                 warnings.append(f"第 {row + 1} 行第 {column + 1} 列识别置信度不足，请人工确认")
     metrics = grid_metrics(image, columns, rows) if region_type == "inventory" else {
         "candidateVerticalLines": [], "candidateHorizontalLines": [],
@@ -867,13 +874,14 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
     }
     grid_confidence_value = float(metrics["confidence"])
     occupied_count = sum(counts.values())
-    if occupied_count == 0 and region_type != "atlas" and not bool(recognition.get("allowEmpty")):
-        payload = fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片，请重新框选完整仓库")
-        payload["_recognitionEvidenceMetrics"] = {"stage": "FRAGMENT_ANALYSIS", "grid": metrics, "occupiedCount": 0, "warningCodes": []}
-        return payload
-    if occupied_count == 0 and region_type != "atlas" and grid_confidence_value < 0.5:
+    visual_count = candidate_count if region_type != "atlas" else occupied_count
+    if visual_count == 0 and region_type != "atlas" and grid_confidence_value < 0.5:
         payload = fail("EMPTY_GRID_UNCERTAIN", "未识别到碎片且网格对齐置信度过低，请重新框选完整仓库")
         payload["_recognitionEvidenceMetrics"] = {"stage": "GRID_ANALYSIS", "grid": metrics, "occupiedCount": 0, "warningCodes": ["GRID_ALIGNMENT_LOW"]}
+        return payload
+    if visual_count == 0 and region_type != "atlas" and not bool(recognition.get("allowEmpty")):
+        payload = fail("NO_FRAGMENTS", "配置区域内未识别到绿色碎片")
+        payload["_recognitionEvidenceMetrics"] = {"stage": "FRAGMENT_ANALYSIS", "grid": metrics, "occupiedCount": 0, "warningCodes": []}
         return payload
     grid_alignment = "high" if grid_confidence_value >= 0.8 else "medium" if grid_confidence_value >= 0.5 else "low"
     if grid_confidence_value < 0.5:
@@ -887,10 +895,11 @@ def analyze_image(image: np.ndarray, templates: dict[str, Any], region_type: str
         "gridAlignment": grid_alignment,
         "imageSize": {"width": width, "height": height},
         "occupiedCount": occupied_count,
+        "candidateCount": candidate_count if region_type != "atlas" else occupied_count,
         "regionType": region_type,
     }
     payload["_recognitionEvidenceMetrics"] = {
-        "stage": "COMPLETED", "grid": metrics, "occupiedCount": occupied_count,
+        "stage": "COMPLETED", "grid": metrics, "occupiedCount": visual_count,
         "warningCodes": ["GRID_ALIGNMENT_LOW"] if grid_confidence_value < 0.5 else [],
     }
     return payload

@@ -40,6 +40,7 @@ import {
 } from './coordinates.js'
 import { restoreWindowsGameFocus } from '../priceCheck/clipboardCapture.js'
 import { detectPythonPath } from '../python/detector.js'
+import { restoreWindowToForeground } from './foregroundRestore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -663,11 +664,7 @@ let screenPickerSession = null
 let pickerPreparing = false
 
 export function restoreMainWindowToForeground() {
-  const win = mainWindow
-  if (!win || win.isDestroyed()) return
-  if (win.isMinimized()) win.restore()
-  win.show()
-  win.focus()
+  return restoreWindowToForeground(mainWindow)
 }
 
 function waitMinimized(win, capMs = 300) {
@@ -872,7 +869,7 @@ async function runScreenPicker(mode, options = {}) {
     return await promise
   } finally {
     pickerPreparing = false
-    restoreMainWindowToForeground()
+    await restoreMainWindowToForeground()
   }
 }
 

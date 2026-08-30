@@ -41,3 +41,14 @@ The application MUST persist imported overlay backgrounds and their personal sel
 #### Scenario: Import a personal overlay background
 - **WHEN** the user imports a local background in development or packaged execution
 - **THEN** the copied file is stored below `%APPDATA%/流放助手/backgrounds` and no repository-tracked file is created or changed by the import
+
+### Requirement: 只显式导入当前配置包
+系统 SHALL 只在用户通过设置页选择文件后解析当前支持的版本化配置包，并 MUST 继续忽略旧版用户目录、LevelDB 来源、迁移快照和迁移标记。配置包导入 MUST NOT 改变稳定用户数据目录或开发服务器来源。
+
+#### Scenario: 用户选择当前配置包
+- **WHEN** 用户在设置页显式打开有效的当前格式配置包
+- **THEN** 系统只按用户选择的兼容区块导入当前存储格式
+
+#### Scenario: 旧版数据位于配置包旁边
+- **WHEN** 所选文件所在目录还包含旧版存储或迁移文件
+- **THEN** 系统不检查、不读取且不合并这些相邻数据

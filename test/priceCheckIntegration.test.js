@@ -474,10 +474,11 @@ test('真实查价浮窗从主进程快照读取最新快捷键', async () => {
 })
 
 test('统一国服账号通道替代商城与查价重复认证入口', async () => {
-  const [accountIpc, preload, settings, shop, price] = await Promise.all([
+  const [accountIpc, preload, settings, accountField, shop, price] = await Promise.all([
     source('electron/modules/ipc/poeCnAccount.js'),
     source('electron/preload.cjs'),
     source('src/domains/settings/SettingsView.vue'),
+    source('src/components/configuration/AccountLeagueConfigurationField.vue'),
     source('src/domains/shop/ChaosRecipePanel.vue'),
     source('src/domains/priceCheck/PriceCheckView.vue')
   ])
@@ -485,7 +486,8 @@ test('统一国服账号通道替代商城与查价重复认证入口', async ()
     assert.match(accountIpc, new RegExp(`poe-cn-account-${channel}`))
     assert.match(preload, new RegExp(`poe-cn-account-${channel}`))
   }
-  assert.match(settings, /国服账号[\s\S]*全局赛季/)
+  assert.match(settings, /国服账号[\s\S]*AccountLeagueConfigurationField/)
+  assert.match(accountField, /全局赛季/)
   assert.match(shop, /前往账号设置/)
   assert.match(price, /前往账号与快捷键设置/)
   assert.doesNotMatch(shop, /POESESSID|打开网页登录|退出国服账号/)

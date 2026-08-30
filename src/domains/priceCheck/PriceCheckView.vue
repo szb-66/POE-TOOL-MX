@@ -43,6 +43,12 @@
       <el-button class="settings-link" type="primary" plain @click="$router.push(settingsRoute('general'))">
         前往账号与快捷键设置
       </el-button>
+      <div v-if="store.error" class="price-check-error configuration-correction-alert">
+        <el-alert :title="store.error" type="error" :closable="false" show-icon />
+        <el-button v-if="priceCorrectionIssue" type="warning" plain @click="openPriceCorrection">
+          重新配置
+        </el-button>
+      </div>
         </el-card></el-col>
 
         <el-col :xs="24" :md="16"><el-card>
@@ -137,6 +143,9 @@ import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { settingsRoute } from '@/router/settingsNavigation'
+import { collectPriceCheckConfigurationIssues, CONFIGURATION_ACTIONS, CONFIGURATION_MODULES } from '@/domains/configurationGuide/configurationIssues.js'
+import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 
 const CRAFTING_PRICE_CHECK_TOPIC = CRAFTING_TOPICS.find(topic => topic.id === 'crafting-price-check')
 const helpTopics = [moduleTopicById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
@@ -153,10 +162,30 @@ const catalogTagType = computed(() => store.catalog?.degraded || store.catalog?.
 const catalogStateText = computed(() => store.catalog?.degraded
   ? '当前使用内置交易目录'
   : store.catalog?.stale ? '交易目录可能已过期' : '官方交易目录可用')
+const priceCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.priceCheck,
+  actionId: CONFIGURATION_ACTIONS.capture,
+  ...store.failure
+}))
+
+function openPriceCorrection() {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.priceCheck,
+    actionId: CONFIGURATION_ACTIONS.capture,
+    title: '重新配置国服查价',
+    failure: store.failure,
+    collect: () => collectPriceCheckConfigurationIssues({
+      actionId: CONFIGURATION_ACTIONS.capture,
+      authenticated: store.authenticated,
+      league: store.league
+    })
+  })
+}
 
 async function toggleEnabled(enabled) {
   try {
-    await store.setEnabled(enabled)
+    const result = await store.setEnabled(enabled)
+    if (result?.configurationRequired) return
     ElMessage.success(enabled ? '国服查价器已启用' : '国服查价器已关闭')
   } catch (error) {
     ElMessage.error(error.message)
@@ -191,6 +220,9 @@ onMounted(() => store.refreshStatus().catch(() => {}))
 .status-grid div { display: flex; flex-direction: column; gap: 5px; }
 .status-grid span { color: var(--el-text-color-secondary); font-size: 13px; }
 .catalog-warning, .settings-link { margin-top: 16px; }
+.price-check-error { margin-top: 16px; }
+.configuration-correction-alert { display: flex; align-items: center; gap: 10px; }
+.configuration-correction-alert :deep(.el-alert) { min-width: 0; flex: 1; }
 .el-select { width: 280px; }
 .inline-hint { margin-left: 10px; color: var(--el-text-color-secondary); font-size: 12px; }
 .instructions { margin: 0 0 16px; padding-left: 22px; line-height: 1.9; }

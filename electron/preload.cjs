@@ -3,6 +3,15 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   emergencyStopAll: () => ipcRenderer.invoke('emergency-stop-all'),
+  openConfigTransfer: () => ipcRenderer.invoke('config-transfer:open'),
+  saveConfigTransfer: (payload) => ipcRenderer.invoke('config-transfer:save', payload),
+  openConfigurationGuideFromOverlay: (request) => ipcRenderer.invoke('configuration-guide:open-from-overlay', request),
+  returnToConfigurationGuideOverlay: () => ipcRenderer.invoke('configuration-guide:return-to-overlay'),
+  onConfigurationGuideRequested: (callback) => {
+    const listener = (_event, request) => callback(request)
+    ipcRenderer.on('configuration-guide:requested', listener)
+    return () => ipcRenderer.removeListener('configuration-guide:requested', listener)
+  },
   reportStartupEvent: (event) => ipcRenderer.send('startup-report', event),
   executePython: (scriptPath, args) => {
     return ipcRenderer.invoke('execute-python', scriptPath, args)

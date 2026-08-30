@@ -37,53 +37,7 @@
           <h3 class="section-title">国服账号</h3>
         </div>
         <el-card class="section-card">
-          <el-form label-width="120px" label-position="left">
-            <el-form-item label="账号状态">
-              <el-tag :type="account.status.authenticated ? 'success' : 'info'">
-                {{ account.status.authenticated ? `已登录 · ${account.status.accountName}` : '未登录' }}
-              </el-tag>
-              <el-button v-if="account.status.authenticated" class="account-button" :loading="account.busy" @click="logoutAccount">
-                退出账号
-              </el-button>
-            </el-form-item>
-            <template v-if="!account.status.authenticated">
-              <el-form-item label="网页登录">
-                <el-button type="primary" :loading="account.busy" @click="openAccountLogin">打开网页登录</el-button>
-                <el-button :loading="account.busy" @click="completeAccountLogin">我已完成登录</el-button>
-              </el-form-item>
-              <el-form-item label="会话令牌">
-                <el-input
-                  v-model="accountToken"
-                  class="account-token"
-                  type="password"
-                  show-password
-                  autocomplete="off"
-                  placeholder="输入国服 POESESSID"
-                  @keyup.enter="loginAccountToken"
-                />
-                <el-button class="account-button" :disabled="!accountToken.trim()" :loading="account.busy" @click="loginAccountToken">
-                  验证令牌
-                </el-button>
-              </el-form-item>
-            </template>
-            <el-form-item label="全局赛季">
-              <div class="account-league-row">
-                <el-select
-                  :model-value="account.settings.league"
-                  filterable
-                  :disabled="!account.status.authenticated"
-                  placeholder="选择商城配方与查价共用赛季"
-                  @change="changeAccountLeague"
-                >
-                  <el-option v-for="league in account.leagues" :key="league.id" :label="league.name" :value="league.id" />
-                </el-select>
-                <el-button :disabled="!account.status.authenticated" :loading="account.busy" @click="refreshAccountLeagues">
-                  刷新赛季
-                </el-button>
-              </div>
-            </el-form-item>
-            <div class="hint-text">登录 Cookie 仅保存在独立 Electron Session 中；商城配方与国服查价共用这里的账号和赛季。</div>
-          </el-form>
+          <AccountLeagueConfigurationField show-token />
         </el-card>
 
         </div>
@@ -158,6 +112,7 @@
             </el-row>
           </el-form>
         </el-card>
+
         </div>
 
         <div v-show="activeTab === 'automation'" class="settings-tab-panel settings-panel settings-panel--automation">
@@ -178,14 +133,11 @@
                       </el-tooltip>
                     </span>
                   </template>
-                  <div class="bag-grid-picker">
-                    <el-button
-                      type="primary"
-                      :loading="bagGridPicking"
-                      @click="handlePickBagGrid"
-                    >{{ inventoryGridConfigured ? '重新框选背包网格' : '框选背包网格' }}</el-button>
-                    <span class="bag-grid-summary" :class="{ 'bag-grid-summary--empty': !inventoryGridConfigured }">{{ inventoryGridSummary }}</span>
-                  </div>
+                  <InventoryGridConfigurationField
+                    :inventory="inventory"
+                    :loading="bagGridPicking"
+                    @pick="handlePickBagGrid"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -225,79 +177,19 @@
             <div class="currency-position-grid">
               <div v-for="(pos, key) in positions" :key="key" class="currency-position-item">
                 <el-form-item :label="getCurrencyName(key)">
-                  <div class="position-input coordinate-picker">
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="positions[key].x"
-                      placeholder="X"
-                      :controls="false"
-                      @change="handlePositionChange(key)"
-                    />
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="positions[key].y"
-                      placeholder="Y"
-                      :controls="false"
-                      @change="handlePositionChange(key)"
-                    />
-                    <el-button
-                      class="pick-position-button"
-                      :icon="Aim"
-                      title="点击选取坐标"
-                      :loading="coordinatePickingTarget === `currency:${key}`"
-                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== `currency:${key}`"
-                      @click="handlePickCoordinate('currency', key)"
-                    />
-                  </div>
+                  <CoordinateConfigurationField
+                    :model-value="positions[key]"
+                    :loading="coordinatePickingTarget === `currency:${key}`"
+                    :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== `currency:${key}`"
+                    @update:model-value="updateCurrencyPositionDraft(key, $event)"
+                    @pick="handlePickCurrencyCoordinate(key)"
+                  />
                 </el-form-item>
               </div>
             </div>
           </el-form>
         </el-card>
 
-        <!-- 物品位置 -->
-        <div class="section-header">
-          <h3 class="section-title label-with-help">
-            物品位置
-            <el-tooltip content="需要制作的装备存放的位置坐标" placement="top">
-              <el-icon class="help-icon" tabindex="0" aria-label="物品位置说明"><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </h3>
-        </div>
-        <el-card class="section-card">
-          <el-form :model="itemPosition" label-width="120px" label-position="left">
-            <el-row class="app-grid" :gutter="16">
-              <el-col :span="8">
-                <el-form-item label="物品位置">
-                  <div class="position-input coordinate-picker">
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="itemPosition.x"
-                      placeholder="X"
-                      :controls="false"
-                      @change="handleItemPositionChange"
-                    />
-                    <el-input-number
-                      class="coordinate-number-input"
-                      v-model="itemPosition.y"
-                      placeholder="Y"
-                      :controls="false"
-                      @change="handleItemPositionChange"
-                    />
-                    <el-button
-                      class="pick-position-button"
-                      :icon="Aim"
-                      title="点击选取坐标"
-                      :loading="coordinatePickingTarget === 'item'"
-                      :disabled="Boolean(coordinatePickingTarget) && coordinatePickingTarget !== 'item'"
-                      @click="handlePickCoordinate('item')"
-                    />
-                  </div>
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </el-form>
-        </el-card>
         </div>
 
         <div v-show="activeTab === 'system'" class="settings-tab-panel settings-panel settings-panel--system">
@@ -375,7 +267,7 @@
               </div>
             </el-form-item>
             <el-form-item v-if="updateState.releaseNotes" label="发布说明">
-              <pre class="update-release-notes">{{ updateState.releaseNotes }}</pre>
+              <ReleaseNotesContent class="update-release-notes" :source="updateState.releaseNotes" />
             </el-form-item>
           </el-form>
         </el-card>
@@ -436,6 +328,13 @@
             </el-form-item>
           </el-form>
         </el-card>
+
+        <div class="section-header">
+          <h3 class="section-title">配置迁移</h3>
+        </div>
+        <el-card class="section-card config-transfer-section-card">
+          <ConfigTransferCard />
+        </el-card>
         </div>
 
         <div v-show="activeTab === 'automation'" class="settings-tab-panel settings-panel settings-panel--automation">
@@ -445,7 +344,15 @@
         </div>
         <el-card class="section-card">
           <el-form label-width="180px" label-position="left">
-            <el-form-item class="spaced-field" label="自动操作等待">
+            <el-form-item class="spaced-field">
+              <template #label>
+                <span class="label-with-help">
+                  自动操作等待
+                  <el-tooltip :content="TIMING_FIELD_HELP.operationDelayMs" placement="top" popper-class="timing-help-tooltip">
+                    <el-icon class="help-icon timing-help-trigger" tabindex="0" aria-label="自动操作等待说明"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number
                 v-model="operationDelayMs"
                 :step="10"
@@ -462,8 +369,15 @@
             <el-form-item
               v-for="field in PHYSICAL_TIMING_FIELDS"
               :key="field.key"
-              :label="field.label"
             >
+              <template #label>
+                <span class="label-with-help">
+                  {{ field.label }}
+                  <el-tooltip :content="field.help" placement="top" popper-class="timing-help-tooltip">
+                    <el-icon class="help-icon timing-help-trigger" tabindex="0" :aria-label="`${field.label}说明`"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number
                 v-model="fixedTiming[field.key]"
                 :step="10"
@@ -474,49 +388,32 @@
                 <template #suffix>ms</template>
               </el-input-number>
             </el-form-item>
-            <div class="hint-text">组合键、按键、鼠标按钮和释放时序始终生效，包括自适应模式</div>
+            <div class="hint-text">组合键、按键、鼠标按钮和释放时序始终生效</div>
             <el-divider />
-            <el-form-item class="timing-setting-row" label="自适应等待">
-              <el-switch
-                v-model="adaptiveTiming"
-                active-text="开启"
-                inactive-text="关闭"
-                @change="handleAdaptiveTimingChange"
-              />
-              <div class="hint-text">开启后剪贴板、画面验证等改为轮询检测，有结果立即继续，不再固定等待</div>
-            </el-form-item>
-            <el-form-item v-if="adaptiveTiming" class="timing-setting-row" label="自适应等待上限">
+            <h4 class="section-title">固定结果等待</h4>
+            <el-form-item
+              v-for="field in RESULT_TIMING_FIELDS"
+              :key="field.key"
+            >
+              <template #label>
+                <span class="label-with-help">
+                  {{ field.label }}
+                  <el-tooltip :content="field.help" placement="top" popper-class="timing-help-tooltip">
+                    <el-icon class="help-icon timing-help-trigger" tabindex="0" :aria-label="`${field.label}说明`"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number
-                v-model="adaptiveTimeoutMs"
-                :step="100"
+                v-model="fixedTiming[field.key]"
+                :step="10"
                 controls-position="right"
                 style="width: 240px"
-                @change="handleAdaptiveTimeoutChange"
+                @change="handleFixedTimingChange(field.key, $event)"
               >
                 <template #suffix>ms</template>
               </el-input-number>
-              <div class="hint-text">剪贴板、画面、页签和存仓验证未得到结果时的统一最大等待时间</div>
             </el-form-item>
-            <template v-if="!adaptiveTiming">
-              <el-divider />
-              <h4 class="section-title">固定结果等待</h4>
-              <el-form-item
-                v-for="field in RESULT_TIMING_FIELDS"
-                :key="field.key"
-                :label="field.label"
-              >
-                <el-input-number
-                  v-model="fixedTiming[field.key]"
-                  :step="10"
-                  controls-position="right"
-                  style="width: 240px"
-                  @change="handleFixedTimingChange(field.key, $event)"
-                >
-                  <template #suffix>ms</template>
-                </el-input-number>
-              </el-form-item>
-              <div class="hint-text">关闭自适应后，剪贴板、页签、存仓和画面验证使用这里的固定值</div>
-            </template>
+            <div class="hint-text">剪贴板、页签、存仓和画面验证始终使用这里的固定值</div>
           </el-form>
         </el-card>
         </div>
@@ -673,15 +570,14 @@
       </div>
     </el-scrollbar>
 
-    <PageHelpDrawer :topics="helpTopics" title="设置帮助" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { Refresh, Close, Aim, UploadFilled, QuestionFilled, TopRight } from '@element-plus/icons-vue'
+import { Refresh, Close, UploadFilled, QuestionFilled, TopRight } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import HelpTopicList from '@/domains/help/HelpTopicList.vue'
 import { FAQ_TOPICS, GENERAL_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
@@ -698,15 +594,19 @@ import PriceCheckOverlayView from '@/domains/priceCheck/PriceCheckOverlayView.vu
 import { createPriceCheckPreview } from '@/domains/priceCheck/priceCheckPreview.js'
 import { generateRandomItem } from '@/utils/mockItem'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
+import ReleaseNotesContent from '@/components/common/ReleaseNotesContent.vue'
+import CoordinateConfigurationField from '@/components/configuration/CoordinateConfigurationField.vue'
+import InventoryGridConfigurationField from '@/components/configuration/InventoryGridConfigurationField.vue'
+import AccountLeagueConfigurationField from '@/components/configuration/AccountLeagueConfigurationField.vue'
 import InterfaceDetectionSettings from './InterfaceDetectionSettings.vue'
 import StashTabSelectionSettings from './StashTabSelectionSettings.vue'
 import GameWindowTitleSettings from './GameWindowTitleSettings.vue'
+import ConfigTransferCard from './configTransfer/ConfigTransferCard.vue'
 import FeedbackSettings from './FeedbackSettings.vue'
 import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { usePriceCheckStore } from '@/stores/priceCheck'
-import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
@@ -726,11 +626,9 @@ const bagStore = useBagStore()
 const interfaceDetectionStore = useInterfaceDetectionStore()
 const chaosRecipeStore = useChaosRecipeStore()
 const priceCheckStore = usePriceCheckStore()
-const account = usePoeCnAccountStore()
 const feedbackRepliesStore = useFeedbackRepliesStore()
 const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
-const accountToken = ref('')
 const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
 const activeTab = ref(readPersistentTab(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'))
 const settingsScrollbar = ref(null)
@@ -740,10 +638,7 @@ const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)
 const positions = ref({ ...settingsStore.currencyPositions })
 const inventory = ref({ ...settingsStore.inventory })
 const operationDelayMs = ref(settingsStore.operationDelayMs)
-const adaptiveTiming = ref(settingsStore.adaptiveTiming)
-const adaptiveTimeoutMs = ref(settingsStore.adaptiveTimeoutMs)
 const fixedTiming = ref({ ...settingsStore.fixedTiming })
-const itemPosition = ref({ ...settingsStore.itemPosition })
 const manualDpiScale = ref(settingsStore.manualDpiScale || 1.0)
 const debugMode = ref(settingsStore.debugMode)
 const overlaySettings = ref({ ...settingsStore.overlaySettings })
@@ -766,16 +661,6 @@ const updateStatusText = computed(() => ({
   installing: '正在准备静默安装…',
   error: '更新操作失败'
 })[updateState.value.status] || '等待检查')
-
-const inventoryGridConfigured = computed(() =>
-  (inventory.value.startPos.x !== 0 || inventory.value.startPos.y !== 0) &&
-  inventory.value.slotSize.w > 0 && inventory.value.slotSize.h > 0
-)
-
-const inventoryGridSummary = computed(() => inventoryGridConfigured.value
-  ? `首格 (${inventory.value.startPos.x}, ${inventory.value.startPos.y}) · 单格 ${inventory.value.slotSize.w}×${inventory.value.slotSize.h}`
-  : '尚未框选')
-
 function handleTabChange(tab) {
   const nextTab = writePersistentTab(SETTINGS_TAB_STORAGE_KEY, tab, SETTINGS_TABS, 'general')
   activeTab.value = nextTab
@@ -798,7 +683,6 @@ watch(() => route.query.tab, (tab) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  void account.run(() => account.restore()).catch(() => {})
   window.addEventListener('dragover', preventBackgroundFileNavigation)
   window.addEventListener('drop', preventBackgroundFileNavigation)
 })
@@ -807,44 +691,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('dragover', preventBackgroundFileNavigation)
   window.removeEventListener('drop', preventBackgroundFileNavigation)
 })
-
-async function runAccountAction(action, successMessage = '') {
-  try {
-    await account.run(action)
-    if (successMessage) ElMessage.success(successMessage)
-  } catch (error) {
-    ElMessage.error(error.message)
-  }
-}
-
-function openAccountLogin() {
-  return runAccountAction(
-    () => account.openWebLogin(),
-    '请在新窗口完成 QQ/国服登录；验证成功后窗口会自动关闭，也可手动确认'
-  )
-}
-
-function completeAccountLogin() {
-  return runAccountAction(() => account.completeWebLogin(), '国服网页登录成功')
-}
-
-async function loginAccountToken() {
-  const token = accountToken.value
-  accountToken.value = ''
-  return runAccountAction(() => account.setSessionToken(token), '国服会话验证成功')
-}
-
-function logoutAccount() {
-  return runAccountAction(() => account.logout(), '已退出国服账号')
-}
-
-function refreshAccountLeagues() {
-  return runAccountAction(() => account.loadLeagues())
-}
-
-function changeAccountLeague(league) {
-  return runAccountAction(() => account.setLeague(league), '全局赛季已更新')
-}
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
 watch(() => settingsStore.globalShortcuts, (val) => {
@@ -862,17 +708,8 @@ watch(() => settingsStore.inventory, (val) => {
 watch(() => settingsStore.operationDelayMs, (val) => {
   operationDelayMs.value = val
 })
-watch(() => settingsStore.adaptiveTiming, (val) => {
-  adaptiveTiming.value = val
-})
-watch(() => settingsStore.adaptiveTimeoutMs, (val) => {
-  adaptiveTimeoutMs.value = val
-})
 watch(() => settingsStore.fixedTiming, (val) => {
   fixedTiming.value = { ...val }
-}, { deep: true })
-watch(() => settingsStore.itemPosition, (val) => {
-  itemPosition.value = { ...val }
 }, { deep: true })
 watch(() => settingsStore.manualDpiScale, (val) => {
   manualDpiScale.value = val
@@ -936,6 +773,11 @@ function handlePositionChange(currency) {
   })
 }
 
+function updateCurrencyPositionDraft(currency, point) {
+  positions.value[currency] = point
+  handlePositionChange(currency)
+}
+
 async function handleInventoryChange() {
   const candidate = {
     ...settingsStore.inventory,
@@ -955,30 +797,18 @@ async function handleEmptySlotThresholdChange(value) {
   if (!result.success) ElMessage.error(result.error)
 }
 
-function handleItemPositionChange() {
-  settingsStore.updateItemPosition({
-    x: itemPosition.value.x,
-    y: itemPosition.value.y
-  })
-}
-
-async function handlePickCoordinate(type, currency = '') {
+async function handlePickCurrencyCoordinate(currency) {
   if (coordinatePickingTarget.value) return
 
-  coordinatePickingTarget.value = type === 'currency' ? `currency:${currency}` : type
+  coordinatePickingTarget.value = `currency:${currency}`
   try {
     const result = await electronApi.window.pickScreenCoordinate()
     if (!result || result.canceled) return
     if (result.success === false) throw new Error(result.error?.message || '坐标选取失败')
 
     const point = { x: result.x, y: result.y }
-    if (type === 'currency') {
-      positions.value[currency] = point
-      handlePositionChange(currency)
-    } else if (type === 'item') {
-      itemPosition.value = point
-      handleItemPositionChange()
-    }
+    positions.value[currency] = point
+    handlePositionChange(currency)
     ElMessage.success(`已选取坐标 (${point.x}, ${point.y})`)
   } catch (error) {
     ElMessage.error('选取坐标失败')
@@ -1120,18 +950,6 @@ async function handleOperationDelayChange(value) {
   if (!result.success) ElMessage.error(result.error)
 }
 
-async function handleAdaptiveTimingChange(value) {
-  const result = await settingsStore.updateAdaptiveTiming(value)
-  adaptiveTiming.value = settingsStore.adaptiveTiming
-  if (!result.success) ElMessage.error(result.error)
-}
-
-async function handleAdaptiveTimeoutChange(value) {
-  const result = await settingsStore.updateAdaptiveTimeoutMs(value)
-  adaptiveTimeoutMs.value = settingsStore.adaptiveTimeoutMs
-  if (!result.success) ElMessage.error(result.error)
-}
-
 async function handleFixedTimingChange(key, value) {
   const result = await settingsStore.updateFixedTiming({ [key]: value })
   fixedTiming.value = { ...settingsStore.fixedTiming }
@@ -1148,10 +966,22 @@ const TIMING_FIELD_LABELS = {
   stashSettleMs: '存仓后生效等待',
   patchVerifyMs: '画面变化验证等待'
 }
+const TIMING_FIELD_HELP = {
+  operationDelayMs: '所有游戏自动化把鼠标移动到目标后，到复制、点击或滚动等依赖悬停动作开始前的稳定等待。',
+  modifierSettleMs: 'Ctrl、Shift、Alt 等组合键按下后，到配合的普通键或鼠标动作开始前的等待，用于复制、批量存取等组合输入。',
+  keyHoldMs: '普通键按下到释放之间的保持时间，用于复制、旋转及其他键盘输入。',
+  buttonHoldMs: '鼠标按钮按下到释放之间的保持时间，用于制作、存取、旋转和放置等左右键点击。',
+  releaseSettleMs: '键盘键或鼠标按钮释放后，到下一次输入或结果处理前的稳定等待，用于全部连续输入链路。',
+  clipboardConfirmMs: '发送复制或触发目标格状态变化后，到读取剪贴板或确认空格状态前的等待，用于物品读取、来源复核和格位确认。',
+  stashTabSettleMs: '选择或切换仓库页签后，到读取页签内容或继续点击前的等待，用于仓库取件、商城配方和页签选择。',
+  stashSettleMs: '点击存仓后，到确认物品已转移或处理下一格前的等待，用于背包入库及相关存仓流程。',
+  patchVerifyMs: '执行会改变画面的动作后，到截图、OCR、验证变化或继续下一步前的等待，用于制作、地图、海图和自动放置验证。'
+}
 const PHYSICAL_TIMING_KEYS = new Set(['modifierSettleMs', 'keyHoldMs', 'buttonHoldMs', 'releaseSettleMs'])
 const TIMING_FIELDS = Object.keys(FIXED_TIMING.fields).map((key) => ({
   key,
-  label: TIMING_FIELD_LABELS[key]
+  label: TIMING_FIELD_LABELS[key],
+  help: TIMING_FIELD_HELP[key]
 }))
 const PHYSICAL_TIMING_FIELDS = TIMING_FIELDS.filter(field => PHYSICAL_TIMING_KEYS.has(field.key))
 const RESULT_TIMING_FIELDS = TIMING_FIELDS.filter(field => !PHYSICAL_TIMING_KEYS.has(field.key))
@@ -1297,7 +1127,6 @@ async function handleReset() {
     positions.value = { ...settingsStore.currencyPositions }
     inventory.value = structuredClone(settingsStore.inventory)
     operationDelayMs.value = settingsStore.operationDelayMs
-    itemPosition.value = { ...settingsStore.itemPosition }
     manualDpiScale.value = settingsStore.manualDpiScale
     debugMode.value = settingsStore.debugMode
     updateMode.value = settingsStore.updateMode
@@ -1384,6 +1213,12 @@ async function handleReset() {
       &:focus-visible { color: var(--primary-color); }
     }
 
+    :global(.timing-help-tooltip) {
+      max-width: 420px;
+      line-height: 1.6;
+      white-space: normal;
+    }
+
     .independent-short-fields { margin-bottom: 0; }
 
     .shortcut-scope-control {
@@ -1400,31 +1235,6 @@ async function handleReset() {
 
     .timing-setting-row :deep(.el-form-item__content) {
       column-gap: 12px;
-    }
-
-    .account-token {
-      max-width: 420px;
-    }
-
-    .account-button {
-      margin-left: 12px;
-    }
-
-    .account-league-row {
-      display: flex;
-      width: 100%;
-      min-width: 0;
-      align-items: center;
-      gap: 12px;
-
-      :deep(.el-select) {
-        min-width: 0;
-        flex: 1;
-      }
-
-      .el-button {
-        flex: 0 0 auto;
-      }
     }
 
     .position-input {
@@ -1716,7 +1526,6 @@ async function handleReset() {
       margin: 0;
       padding: 12px;
       overflow: auto;
-      white-space: pre-wrap;
       overflow-wrap: anywhere;
       border: 1px solid var(--border-base);
       border-radius: 6px;

@@ -68,8 +68,6 @@ export function generatePythonScript(config) {
     globalShortcuts,
     currencyPositions,
     operationDelayMs,
-    adaptiveTiming = true,
-    adaptiveTimeoutMs,
     fixedTiming = {},
     itemPosition,
     preset,
@@ -80,11 +78,9 @@ export function generatePythonScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
-  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming })
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, fixedTiming })
   const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
-  const normalizedAdaptiveTiming = normalizedTiming.adaptiveTiming
-  const normalizedAdaptiveTimeoutMs = normalizedTiming.adaptiveTimeoutMs
   const normalizedFixedTiming = normalizedTiming.fixedTiming
   const normalizedStashTabSelection = {
     ...stashTabSelection,
@@ -747,8 +743,6 @@ def craft_eldritch_implicits(initial_result=None):
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
-    '{{ADAPTIVE_TIMEOUT_MS}}': String(normalizedAdaptiveTimeoutMs),
     '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
     '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
     '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
@@ -792,8 +786,6 @@ export function generateMapRollingScript(config) {
     currencyPositions,
     inventory,
     operationDelayMs,
-    adaptiveTiming = true,
-    adaptiveTimeoutMs,
     fixedTiming = {},
     mapConfig,
     recovery = null,
@@ -804,11 +796,9 @@ export function generateMapRollingScript(config) {
 
   const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
   const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
-  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming })
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, fixedTiming })
   const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
   const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
-  const normalizedAdaptiveTiming = normalizedTiming.adaptiveTiming
-  const normalizedAdaptiveTimeoutMs = normalizedTiming.adaptiveTimeoutMs
   const normalizedFixedTiming = normalizedTiming.fixedTiming
   const normalizedStashTabSelection = {
     ...stashTabSelection,
@@ -881,8 +871,6 @@ export function generateMapRollingScript(config) {
     '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
     '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
     '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
-    '{{TIMING_MODE}}': normalizedAdaptiveTiming ? 'adaptive' : 'fixed',
-    '{{ADAPTIVE_TIMEOUT_MS}}': String(normalizedAdaptiveTimeoutMs),
     '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
     '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
     '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),

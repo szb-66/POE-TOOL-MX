@@ -16,3 +16,22 @@ export async function runApplicationUpdateEntryAction({ state, update, confirm }
   if (current.status === 'downloaded') return update.install()
   return { success: false, busy: ['checking', 'downloading', 'installing'].includes(current.status) }
 }
+
+export function createApplicationUpdateEntryActionRunner(onPendingChange = () => {}) {
+  let inFlight = false
+
+  return async function runExclusiveApplicationUpdateEntryAction(options) {
+    if (inFlight) {
+      return { success: false, busy: true, reason: 'entry-action-in-progress' }
+    }
+
+    inFlight = true
+    try {
+      onPendingChange(true)
+      return await runApplicationUpdateEntryAction(options)
+    } finally {
+      inFlight = false
+      onPendingChange(false)
+    }
+  }
+}

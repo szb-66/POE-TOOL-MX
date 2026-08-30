@@ -9,6 +9,17 @@ import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
 
+function configurationError(message, failureCode, configurationIssueId) {
+  return Object.assign(new Error(message), { failureCode, configurationIssueId })
+}
+
+function eventError(event, fallback) {
+  return Object.assign(new Error(event?.reason || fallback), {
+    failureCode: String(event?.failureCode || ''),
+    configurationIssueId: String(event?.configurationIssueId || '')
+  })
+}
+
 function parseEvents(onEvent, onLog) {
   let buffer = ''
   return chunk => {
@@ -46,7 +57,7 @@ export class StashPickupManager {
     this.status = {
       status: 'idle', layout: 0, method: 'highlight-model', candidateCells: 0,
       remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
-      modelVersion: '', calibration: '', reason: ''
+      modelVersion: '', calibration: '', reason: '', failureCode: '', configurationIssueId: ''
     }
     this.disposeDetection = interfaceDetection?.subscribe(state => {
       if (this.status.status === 'running' && !this.allowingFocusTransition && !state.foreground) {
@@ -107,7 +118,9 @@ export class StashPickupManager {
     if (detection.foreground && !detection.ready) throw new Error('仓库与背包界面未就绪')
     if (!detection.foreground && !detection.running) throw new Error('仓库与背包检测尚未运行')
     if (requireForeground && !detection.foreground) throw new Error('游戏不在前台')
-    if (!this.runtime.calibration?.root && !this.runtime.calibration?.folder) throw new Error('缺少仓库网格校准')
+    if (!this.runtime.calibration?.root && !this.runtime.calibration?.folder) {
+      throw configurationError('缺少仓库网格校准', 'CALIBRATION_REQUIRED', 'stash-grid.any')
+    }
   }
 
   spawnProcess(args, onEvent) {
@@ -133,7 +146,7 @@ export class StashPickupManager {
           resolve(this.normalizeEvent(event))
         } else if (event.event === 'error') {
           settled = true
-          reject(new Error(event.reason || '检测预览失败'))
+          reject(eventError(event, '检测预览失败'))
         }
       })
       child.on('error', reject)
@@ -151,7 +164,7 @@ export class StashPickupManager {
     this.status = {
       ...this.status, status: 'running', method: 'highlight-model', candidateCells: 0,
       remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
-      modelVersion: '', calibration: '', reason: ''
+      modelVersion: '', calibration: '', reason: '', failureCode: '', configurationIssueId: ''
     }
     this.allowingFocusTransition = true
     try {
@@ -189,7 +202,9 @@ export class StashPickupManager {
       uncertainCells: Number(event.uncertainCells ?? this.status.uncertainCells),
       modelVersion: event.modelVersion || this.status.modelVersion,
       calibration: event.calibration || this.status.calibration,
-      reason: event.reason || ''
+      reason: event.reason || '',
+      failureCode: String(event.failureCode || ''),
+      configurationIssueId: String(event.configurationIssueId || '')
     })
     this.publish(event)
     if (event.event === 'completed' || event.event === 'aborted' || event.event === 'error') {
@@ -218,19 +233,25 @@ export class StashPickupManager {
     this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
-    this.status = { ...this.status, status: 'stopped', reason }
+    this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
     this.automationLock?.release(OWNER)
     this.publish({ event: 'stopped', reason })
     return this.getStatus()
   }
 
-  fail(reason) {
+  fail(reason, failure = {}) {
     this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
-    this.status = { ...this.status, status: 'stopped', reason }
+    this.status = {
+      ...this.status,
+      status: 'stopped',
+      reason,
+      failureCode: String(failure.failureCode || ''),
+      configurationIssueId: String(failure.configurationIssueId || '')
+    }
     this.automationLock?.release(OWNER)
-    this.publish({ event: 'error', reason })
+    this.publish({ event: 'error', reason, failureCode: this.status.failureCode, configurationIssueId: this.status.configurationIssueId })
   }
 
   getStatus() {

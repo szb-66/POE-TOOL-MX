@@ -9,19 +9,19 @@ import signal
 import sys
 import time
 
-OPERATION_DELAY_SECONDS = 0.05
-KEY_HOLD_SECONDS = 0.02
-BUTTON_HOLD_SECONDS = 0.02
-RELEASE_SETTLE_SECONDS = 0.02
+OPERATION_DELAY_SECONDS = 0.04
+KEY_HOLD_SECONDS = 0.015
+BUTTON_HOLD_SECONDS = 0.015
+RELEASE_SETTLE_SECONDS = 0.01
 
 
 def apply_input_timing(config):
     global OPERATION_DELAY_SECONDS, KEY_HOLD_SECONDS, BUTTON_HOLD_SECONDS, RELEASE_SETTLE_SECONDS
-    OPERATION_DELAY_SECONDS = max(0.0, float(config.get("operation_delay_ms", 50))) / 1000.0
+    OPERATION_DELAY_SECONDS = max(0.0, float(config.get("operation_delay_ms", 40))) / 1000.0
     timing = config.get("fixed_timing", {}) if isinstance(config, dict) else {}
-    KEY_HOLD_SECONDS = max(0.0, float(timing.get("key_hold_ms", 20))) / 1000.0
-    BUTTON_HOLD_SECONDS = max(0.0, float(timing.get("button_hold_ms", 20))) / 1000.0
-    RELEASE_SETTLE_SECONDS = max(0.0, float(timing.get("release_settle_ms", 20))) / 1000.0
+    KEY_HOLD_SECONDS = max(0.0, float(timing.get("key_hold_ms", 15))) / 1000.0
+    BUTTON_HOLD_SECONDS = max(0.0, float(timing.get("button_hold_ms", 15))) / 1000.0
+    RELEASE_SETTLE_SECONDS = max(0.0, float(timing.get("release_settle_ms", 10))) / 1000.0
 
 
 def enable_per_monitor_dpi_awareness():
@@ -354,7 +354,12 @@ def run_potion(config, config_path=None):
             resource = potion.get(name, {})
             if not resource.get("enabled", False):
                 continue
-            color = read_pixel(resource.get("point", {}))
+            try:
+                color = read_pixel(resource.get("point", {}))
+            except Exception as error:
+                emit("error", error=str(error), failureCode="DISPLAY_ENVIRONMENT_CHANGED",
+                     configurationIssueId=f"combat.potion.{name}.position")
+                return 2
             value = color[component]
             if not should_trigger(
                 value,
@@ -390,6 +395,10 @@ def run_potion(config, config_path=None):
             last_trigger[name] = now_ms
             emit("triggered", resource=name, value=value, color=color, keysSent=sent_count)
             if sent_count < len(keys):
+                if is_game_foreground():
+                    emit("error", error="药剂按键序列无法发送", failureCode="KEY_SEQUENCE_INVALID",
+                         configurationIssueId=f"combat.potion.{name}.keys")
+                    return 2
                 break
 
         time.sleep(scan_interval / 1000)
@@ -436,6 +445,10 @@ def run_loop(config, config_path=None):
                     last_focus = False
                 break
             if send_sequence([key]) != 1:
+                if is_game_foreground():
+                    emit("error", error="循环按键无法发送", failureCode="KEY_SEQUENCE_INVALID",
+                         configurationIssueId="combat.loop.items")
+                    return 2
                 if last_focus is not False:
                     emit("focus", active=False)
                     last_focus = False
@@ -465,24 +478,32 @@ def run_portal(config):
     except (TypeError, ValueError):
         point_x = point_y = 0
     if not open_key:
-        print(json.dumps({"success": False, "error": "回城按键未配置"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "回城按键未配置",
+                          "failureCode": "CONFIGURATION_MISSING",
+                          "configurationIssueId": "combat.portal.key"}, ensure_ascii=False), flush=True)
         return 2
     if point_x == 0 and point_y == 0:
-        print(json.dumps({"success": False, "error": "回城点击坐标未配置"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "回城点击坐标未配置",
+                          "failureCode": "CONFIGURATION_MISSING",
+                          "configurationIssueId": "combat.portal.position"}, ensure_ascii=False), flush=True)
         return 2
     if not is_game_foreground():
-        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台",
+                          "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2
 
     if send_sequence([open_key]) != 1:
-        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台",
+                          "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2
     time.sleep(max(0, int(portal.get("waitMs", 500))) / 1000)
     if not is_game_foreground():
-        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台",
+                          "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2
     if not click_point(point):
-        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台"}, ensure_ascii=False), flush=True)
+        print(json.dumps({"success": False, "error": "游戏窗口当前不在前台",
+                          "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2
     print(json.dumps({"success": True}, ensure_ascii=False), flush=True)
     return 0
@@ -500,11 +521,9 @@ def main():
     args = parser.parse_args()
     config = load_config(args.config)
     if args.mode == "potion":
-        run_potion(config, args.config)
-        return 0
+        return run_potion(config, args.config)
     if args.mode == "loop":
-        run_loop(config, args.config)
-        return 0
+        return run_loop(config, args.config)
     if args.mode == "sample":
         run_sample(config)
         return 0

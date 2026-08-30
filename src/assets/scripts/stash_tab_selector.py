@@ -23,7 +23,6 @@ import numpy as np
 MIN_CONFIDENCE = 0.72
 MAX_SCROLL_STEPS = 30
 SCROLL_NOTCHES = 6
-RESULT_POLL_INTERVAL_SECONDS = 0.01
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
 _game_window_titles_mtime_ns = None
@@ -297,13 +296,11 @@ class StashTabSelector:
         self.names = config.get("names") or {}
         self.target_name = str(config.get("targetName") or self.names.get("currency") or "")
         self.min_confidence = float(config.get("minConfidence", MIN_CONFIDENCE))
-        self.operation_delay = max(0.0, float(config.get("operation_delay_ms", 50))) / 1000.0
-        self.timing_mode = str(config.get("timing_mode", "adaptive"))
-        self.adaptive_timeout = max(0.0, float(config.get("adaptive_timeout_ms", 1000))) / 1000.0
+        self.operation_delay = max(0.0, float(config.get("operation_delay_ms", 40))) / 1000.0
         fixed_timing = config.get("fixed_timing", {})
-        self.button_hold = max(0.0, float(fixed_timing.get("button_hold_ms", 20))) / 1000.0
-        self.release_settle = max(0.0, float(fixed_timing.get("release_settle_ms", 20))) / 1000.0
-        self.stash_tab_settle = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 250))) / 1000.0
+        self.button_hold = max(0.0, float(fixed_timing.get("button_hold_ms", 15))) / 1000.0
+        self.release_settle = max(0.0, float(fixed_timing.get("release_settle_ms", 10))) / 1000.0
+        self.stash_tab_settle = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 10))) / 1000.0
         self._ocr = ocr_engine
         self._mouse = None
 
@@ -343,18 +340,9 @@ class StashTabSelector:
         time.sleep(self.operation_delay)
 
     def _wait_for_frame_change(self, before: np.ndarray) -> bool:
-        if self.timing_mode != "adaptive":
-            time.sleep(self.stash_tab_settle)
-            return True
+        time.sleep(self.stash_tab_settle)
         before_signature = frame_signature(before)
-        deadline = time.monotonic() + self.adaptive_timeout
-        while True:
-            if not same_frame(before_signature, frame_signature(self.capture())):
-                return True
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return False
-            time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
+        return not same_frame(before_signature, frame_signature(self.capture()))
 
     def scroll(self, notches: int) -> None:
         self._position_mouse()

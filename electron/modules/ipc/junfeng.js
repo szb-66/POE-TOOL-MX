@@ -3,7 +3,12 @@ import { ipcMain } from 'electron'
 const ok = data => ({ success: true, data })
 const invoke = handler => async (_event, ...args) => {
   try { return ok(await handler(...args)) } catch (error) {
-    return { success: false, error: { code: error.code || 'JUNFENG_ERROR', message: error.message || String(error) } }
+    return { success: false, error: {
+      code: error.code || 'JUNFENG_ERROR',
+      message: error.message || String(error),
+      failureCode: error.failureCode || '',
+      configurationIssueId: error.configurationIssueId || ''
+    } }
   }
 }
 
@@ -17,7 +22,12 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection, e
       return manager.getStatus()
     }
     const templates = candidate.templates || {}
-    if (!templates.junfengRewardTitle || !templates.inventoryTitle) throw new Error('请先配置君锋镇奖励和背包标题模板')
+    if (!templates.junfengRewardTitle) {
+      throw Object.assign(new Error('请先配置君锋镇奖励标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.junfeng-reward-title' })
+    }
+    if (!templates.inventoryTitle) {
+      throw Object.assign(new Error('请先配置背包标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' })
+    }
     manager.setRuntime(candidate)
     await interfaceDetection?.registerConsumer('junfeng-highlight', {
       templates: {

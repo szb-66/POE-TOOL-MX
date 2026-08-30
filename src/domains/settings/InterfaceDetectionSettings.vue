@@ -19,43 +19,13 @@
         </el-form-item>
       </el-form>
       <div class="template-grid">
-        <div v-for="definition in definitions" :key="definition.type" class="capture-card">
-          <div class="capture-header">
-            <strong>{{ definition.label }}</strong>
-            <div>
-              <el-upload
-                :auto-upload="false"
-                :show-file-list="false"
-                accept="image/*"
-                :on-change="file => uploadTemplate(file, definition.type)"
-              >
-                <el-button>上传</el-button>
-              </el-upload>
-              <el-button
-                type="primary"
-                :loading="capturingType === definition.type"
-                :disabled="Boolean(capturingType)"
-                @click="captureTemplate(definition)"
-              >框选</el-button>
-            </div>
-          </div>
-          <img
-            v-if="store.templates[definition.type]"
-            :src="previewUrl(store.templates[definition.type], versions[definition.type])"
-            class="template-preview"
-          />
-          <el-empty v-else description="尚未配置模板" :image-size="48" />
-          <div class="region-inputs">
-            <el-input-number
-              v-for="key in regionKeys"
-              :key="key"
-              v-model="store.templates[definition.region][key]"
-              :controls="false"
-              :placeholder="key"
-              @change="saveRegion(definition.type)"
-            />
-          </div>
-        </div>
+        <TemplateCaptureConfigurationField
+          v-for="definition in definitions"
+          :key="definition.type"
+          :type="definition.type"
+          :region-key="definition.region"
+          :label="definition.label"
+        />
       </div>
     </el-card>
   </div>
@@ -65,51 +35,15 @@
 import { onUnmounted, ref, watch } from 'vue'
 import { electronApi } from '@/api/electron'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
+import TemplateCaptureConfigurationField from '@/components/configuration/TemplateCaptureConfigurationField.vue'
 
 const store = useInterfaceDetectionStore()
-const capturingType = ref('')
-const versions = ref({})
 const showDebugOverlay = ref(false)
-const regionKeys = ['left', 'top', 'right', 'bottom']
 const definitions = [
   { type: 'stashTitle', region: 'stashRegion', label: '仓库标题模板' },
   { type: 'inventoryTitle', region: 'inventoryRegion', label: '背包标题模板' },
   { type: 'junfengRewardTitle', region: 'junfengRewardRegion', label: '君锋镇奖励标题模板' }
 ]
-
-async function uploadTemplate(file, type) {
-  const result = await electronApi.bag.uploadTemplate(file.raw.path, type)
-  if (!result?.success) return ElMessage.error(result?.error || '上传失败')
-  store.setTemplate(type, result.path)
-  versions.value[type] = result.version || Date.now()
-  if (result.reloadError) ElMessage.warning(`模板已保存，但检测器重载失败：${result.reloadError}`)
-}
-
-async function captureTemplate(definition) {
-  capturingType.value = definition.type
-  try {
-    const result = await electronApi.bag.captureTemplate(definition.type)
-    if (result?.canceled) return
-    if (!result?.success) return ElMessage.error(result?.error || '框选失败')
-    store.applyTemplateCapture(definition.type, result)
-    versions.value[definition.type] = result.version || Date.now()
-    if (result.reloadError) ElMessage.warning(`模板已保存，但检测器重载失败：${result.reloadError}`)
-  } catch (error) {
-    ElMessage.error(error?.message || '框选失败')
-  } finally {
-    capturingType.value = ''
-  }
-}
-
-function saveRegion(type) {
-  store.clearCaptureMetadata(type)
-  store.save()
-}
-
-function previewUrl(imagePath, version = '') {
-  const url = imagePath.startsWith('file:') ? imagePath : `file:///${imagePath.replace(/\\/g, '/')}`
-  return version ? `${url}?v=${encodeURIComponent(version)}` : url
-}
 
 function updateDebugOverlay() {
   if (!showDebugOverlay.value) return
@@ -136,21 +70,7 @@ onUnmounted(() => { if (showDebugOverlay.value) electronApi.window.closeDebugOve
 .section-card { margin-bottom: var(--spacing-lg); box-shadow: none; border: 1px solid var(--border-base); }
 .detection-form { margin-top: 16px; }
 .template-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.capture-card {
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 14px;
-  border: 1px solid var(--border-base);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-2) 56%, var(--surface-1));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .12), inset 0 1px rgba(255, 255, 255, .03);
-}
-.capture-header, .capture-header > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.template-preview { display: block; max-width: 100%; height: 72px; margin: 14px auto; object-fit: contain; }
-.region-inputs { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.region-inputs :deep(.el-input-number) { width: 100%; min-width: 0; }
 @media (max-width: 900px) {
   .template-grid { grid-template-columns: 1fr; }
-  .region-inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 </style>

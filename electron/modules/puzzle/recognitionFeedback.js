@@ -28,7 +28,7 @@ export function fragmentRecognitionResult(stats = {}, occupiedTotal = 0) {
   const recognized = matched + unveiled
   const partial = Boolean(stats.skipped) || unveiled > 0 || unknown > 0 || recognized < total
   return partial
-    ? { status: 'partial', message: `已识别 ${recognized}/${total} 个词缀，未知 ${unknown} 个` }
+    ? { status: 'partial', message: `已识别 ${recognized}/${total} 个词缀，词缀未知 ${unknown} 个` }
     : { status: 'success', message: `碎片识别完成，共 ${total} 个` }
 }
 

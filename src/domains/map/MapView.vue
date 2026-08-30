@@ -42,6 +42,9 @@
       </div>
 
         <div class="header-bottom">
+          <el-checkbox v-model="activeProfile.exalted.enabled" label="崇高石" size="large">
+            <template #default><div class="checkbox-label"><img :src="exaltedIcon" alt="崇高石" class="icon-image" />崇高石</div></template>
+          </el-checkbox>
           <el-checkbox v-model="activeProfile.vaal.enabled" label="瓦尔宝珠" size="large">
             <template #default><div class="checkbox-label"><img :src="vaalIcon" alt="瓦尔宝珠" class="icon-image" />瓦尔宝珠</div></template>
           </el-checkbox>
@@ -71,6 +74,7 @@ import { moduleTopicById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
+import exaltedIcon from '@/assets/images/crafting-currency/exalted.png'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
 import { CHART_BASE_STATS, MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'

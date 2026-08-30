@@ -11,8 +11,15 @@ export function resolveCraftingPython(python, requireStashTabOcr = false) {
   return python.detectPythonPathWithModules(modules)
 }
 
-export function createPythonProcess({ pythonPath, scriptPath, spawnProcess = spawn, env = process.env }) {
-  const child = spawnProcess(pythonPath, [scriptPath], {
+export function createPythonProcess({
+  pythonPath,
+  scriptPath,
+  args = [],
+  stdin = 'ignore',
+  spawnProcess = spawn,
+  env = process.env
+}) {
+  const child = spawnProcess(pythonPath, [scriptPath, ...args], {
     shell: false,
     windowsHide: true,
     env: {
@@ -21,7 +28,7 @@ export function createPythonProcess({ pythonPath, scriptPath, spawnProcess = spa
       PYTHONIOENCODING: 'utf-8',
       PYTHONUTF8: '1'
     },
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdio: [stdin, 'pipe', 'pipe']
   })
 
   const started = new Promise((resolve, reject) => {

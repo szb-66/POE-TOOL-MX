@@ -8,6 +8,12 @@ import {
   normalizePriceCheckSettings
 } from '../utils/priceCheckSettings.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
+import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectPriceCheckConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '../domains/configurationGuide/configurationIssues.js'
 
 const STORAGE_KEY = 'priceCheckSettings'
 
@@ -16,6 +22,8 @@ function unwrap(response) {
   const error = new Error(response?.error?.message || '国服查价失败')
   error.code = response?.error?.code
   error.details = response?.error?.details
+  error.failureCode = response?.error?.failureCode || error.code || ''
+  error.configurationIssueId = response?.error?.configurationIssueId || ''
   throw error
 }
 
@@ -37,6 +45,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   const overlayState = ref(null)
   const loading = ref(false)
   const error = ref('')
+  const failure = ref(null)
   let removeOverlayListener = null
   let removeSettingsListener = null
   let removeCatalogListener = null
@@ -92,9 +101,30 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     return status.value
   }
 
-  async function setEnabled(value) {
+  function collectConfiguration(actionId) {
+    return collectPriceCheckConfigurationIssues({
+      actionId,
+      authenticated: authenticated.value,
+      league: league.value
+    })
+  }
+
+  async function setEnabled(value, { configurationGuideBypass = false } = {}) {
     const enabled = Boolean(value)
     if (enabled === settings.value.enabled) return enabled
+    if (enabled && !configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.enable)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.priceCheck,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成国服查价配置',
+          actionLabel: '启用',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.enable),
+          execute: () => setEnabled(true, { configurationGuideBypass: true })
+        })
+      }
+    }
     const shortcut = appSettings.globalShortcuts.priceCheck
     if (enabled) {
       await syncRuntime({ enabled: true })
@@ -126,6 +156,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
           settings.value = candidate
           saveSettings()
           error.value = ''
+          failure.value = null
           return { success: true, revision: settingsRevision }
         }
         const snapshot = unwrap(await electronApi.priceCheck.updateSettings({ [key]: candidate[key] }))
@@ -133,9 +164,15 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
         settings.value = candidate
         saveSettings()
         error.value = ''
+        failure.value = null
         return { success: true, revision: settingsRevision }
       } catch (reason) {
         error.value = reason.message
+        failure.value = {
+          failureCode: reason.failureCode || reason.code || '',
+          configurationIssueId: reason.configurationIssueId || '',
+          message: reason.message
+        }
         return { success: false, error: reason.message, revision: settingsRevision }
       }
     }
@@ -143,11 +180,24 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     return settingsCommitQueue
   }
 
-  async function checkHoveredItem() {
+  async function checkHoveredItem({ configurationGuideBypass = false } = {}) {
     if (!settings.value.enabled) throw new Error('国服查价器尚未启用')
-    if (!league.value) throw new Error('请先在设置页选择国服赛季')
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.capture)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.priceCheck,
+          actionId: CONFIGURATION_ACTIONS.capture,
+          title: '完成国服查价配置',
+          actionLabel: '开始查价',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.capture),
+          execute: () => checkHoveredItem({ configurationGuideBypass: true })
+        })
+      }
+    }
     loading.value = true
     error.value = ''
+    failure.value = null
     try {
       const data = unwrap(await electronApi.priceCheck.capture({
         league: league.value,
@@ -157,9 +207,15 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       model.value = data.model
       result.value = data.result
       if (data.result) void reportDiagnosticRecovery('priceCheck', 'query')
+      failure.value = null
       return data
     } catch (reason) {
       error.value = reason.message
+      failure.value = {
+        failureCode: reason.failureCode || reason.code || '',
+        configurationIssueId: reason.configurationIssueId || '',
+        message: reason.message
+      }
       void reportDiagnosticFailure('priceCheck', 'query', reason, 'request_failed')
       throw reason
     } finally {
@@ -232,7 +288,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   })
 
   return {
-    status, settings, model, result, overlayState, loading, error,
+    status, settings, model, result, overlayState, loading, error, failure,
     authenticated, catalog, league, options,
     saveSettings, clearResults, refreshStatus, syncRuntime, setEnabled,
     updateSetting, retryCatalog, checkHoveredItem, rerun, loadMore, loadDistribution, listenOverlay

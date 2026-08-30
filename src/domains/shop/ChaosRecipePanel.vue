@@ -23,14 +23,17 @@
       </el-form>
     </el-card>
 
-    <el-alert
-      v-if="store.error"
-      class="block"
-      :title="`${store.error.code}：${store.error.message}`"
-      type="error"
-      :closable="false"
-      show-icon
-    />
+    <div v-if="store.error" class="block configuration-correction-alert">
+      <el-alert
+        :title="`${store.error.code}：${store.error.message}`"
+        type="error"
+        :closable="false"
+        show-icon
+      />
+      <el-button v-if="shopErrorCorrectionIssue" type="warning" plain @click="openShopCorrection(store.error)">
+        重新配置
+      </el-button>
+    </div>
 
     <el-card class="block">
       <template #header>
@@ -57,37 +60,15 @@
               <el-button class="inline-button" @click="$router.push(settingsRoute('general'))">修改全局赛季</el-button>
             </el-form-item>
             <el-form-item label="仓库页">
-              <div class="tab-list">
-                <div
-                  v-for="tab in store.supportedTabs"
-                  :key="tab.id"
-                  class="tab-card"
-                  :class="{ active: store.settings.selectedTabIds.includes(tab.id) }"
-                  role="checkbox"
-                  tabindex="0"
-                  :aria-checked="store.settings.selectedTabIds.includes(tab.id)"
-                  @click="toggleTabSelection(tab.id)"
-                  @keydown.space.prevent="toggleTabSelection(tab.id)"
-                  @keydown.enter.prevent="toggleTabSelection(tab.id)"
-                >
-                  <div class="tab-card-title">
-                    <strong>{{ tab.name }}</strong>
-                    <el-tag size="small">{{ tab.type === 'quad' ? '大型' : '普通' }}</el-tag>
-                  </div>
-                  <div class="tab-folder-control" @click.stop @keydown.stop>
-                    <span>文件夹</span>
-                    <el-switch
-                      :model-value="tab.inFolder"
-                      :aria-label="`${tab.name}位于文件夹内`"
-                      @change="inFolder => store.updateTabFolderState(tab.id, inFolder)"
-                    />
-                  </div>
-                </div>
-              </div>
-              <span v-if="store.league && !store.supportedTabs.length" class="muted">没有可用的普通或大型仓库页</span>
-              <p class="muted folder-hint">
-                旧接口无法判断仓库页是否在文件夹内，请按游戏中的实际位置设置“文件夹”开关；开启表示位于文件夹内，默认关闭。
-              </p>
+              <ShopStashTabConfigurationField
+                :tabs="store.supportedTabs"
+                :selected-tab-ids="store.settings.selectedTabIds"
+                :league="store.league"
+                :loading="store.busy"
+                @update:selected-tab-ids="saveStashTabs"
+                @update-folder="saveStashTabFolder"
+                @refresh="loadStashTabs"
+              />
             </el-form-item>
             <el-form-item label="配方选项">
               <el-checkbox
@@ -111,12 +92,14 @@
         <el-card>
           <template #header><span>仓库网格校准</span></template>
           <p class="muted">框选游戏中完整的物品格子区域，不包含标签页标题和仓库边框；普通与大型共用区域。</p>
-          <div v-for="entry in calibrationOptions" :key="entry.key" class="calibration-row">
-            <el-button @click="calibrateStashGrid(entry.key)">框选{{ entry.label }} {{ entry.size }}</el-button>
-            <el-tag :type="store.stashGridCalibration[entry.key] ? 'success' : 'info'">
-              {{ store.stashGridCalibration[entry.key] ? '已校准' : '未校准' }}
-            </el-tag>
-          </div>
+          <StashGridConfigurationField
+            v-for="entry in calibrationOptions"
+            :key="entry.key"
+            class="calibration-row"
+            :label="`${entry.label} ${entry.size}`"
+            :calibration="store.stashGridCalibration[entry.key]"
+            @pick="calibrateStashGrid(entry.key)"
+          />
           <el-alert
             v-if="store.missingCalibrationLabels.length"
             class="calibration-warning"
@@ -199,14 +182,17 @@
           show-icon
         />
 
-        <el-alert
-          v-if="store.automation.event === 'error'"
-          class="block"
-          :title="`自动取件已停止：${store.automation.reason || '未知错误'}`"
-          type="error"
-          :closable="false"
-          show-icon
-        />
+        <div v-if="store.automation.event === 'error'" class="block configuration-correction-alert">
+          <el-alert
+            :title="`自动取件已停止：${store.automation.reason || '未知错误'}`"
+            type="error"
+            :closable="false"
+            show-icon
+          />
+          <el-button v-if="shopAutomationCorrectionIssue" type="warning" plain @click="openShopCorrection(store.automation)">
+            重新配置
+          </el-button>
+        </div>
 
         <el-alert
           v-if="store.settings.activeRecipeId === 'chaos' && activeRecipe?.needsLowLevel"
@@ -261,6 +247,11 @@
 import { computed } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
 import { settingsRoute } from '@/router/settingsNavigation'
+import StashGridConfigurationField from '@/components/configuration/StashGridConfigurationField.vue'
+import ShopStashTabConfigurationField from '@/components/configuration/ShopStashTabConfigurationField.vue'
+import { CONFIGURATION_ACTIONS, CONFIGURATION_MODULES } from '@/domains/configurationGuide/configurationIssues.js'
+import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 import { VENDOR_RECIPE_CATALOG, VENDOR_RECIPE_IDS } from '../../../electron/modules/chaosRecipe/engine.js'
 
 const store = useChaosRecipeStore()
@@ -297,6 +288,18 @@ const missingEntries = computed(() => Object.entries(activeRecipe.value?.missing
 const automationProgress = computed(() => Math.min(100, Math.round(
   Number(store.automation.completedItems || 0) * 100 / Math.max(1, Number(store.automation.totalItems || 0))
 )))
+const shopErrorCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.shop,
+  actionId: CONFIGURATION_ACTIONS.start,
+  ...store.error
+}))
+const shopAutomationCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.shop,
+  actionId: CONFIGURATION_ACTIONS.start,
+  failureCode: store.automation.failureCode || store.automation.code,
+  configurationIssueId: store.automation.configurationIssueId,
+  message: store.automation.reason
+}))
 const diagnosticWarning = computed(() => {
   const diagnostic = store.snapshot?.diagnostics
   if (!diagnostic) return ''
@@ -316,16 +319,39 @@ const diagnosticWarning = computed(() => {
 
 const formatTime = (value) => value ? new Date(value).toLocaleTimeString() : ''
 
-function toggleTabSelection(tabId) {
-  const selectedTabIds = store.settings.selectedTabIds.includes(tabId)
-    ? store.settings.selectedTabIds.filter(id => id !== tabId)
-    : [...store.settings.selectedTabIds, tabId]
-  store.updateSetting('selectedTabIds', selectedTabIds)
+async function saveStashTabs(selectedTabIds) {
+  try { await store.updateSetting('selectedTabIds', selectedTabIds.map(String)) }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+async function saveStashTabFolder({ tabId, inFolder }) {
+  try { await store.updateTabFolderState(tabId, inFolder) }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+async function loadStashTabs() {
+  try { await store.loadTabs() }
+  catch (error) { ElMessage.error(error.message) }
+}
+
+function openShopCorrection(failure) {
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.shop,
+    actionId: CONFIGURATION_ACTIONS.start,
+    title: '重新配置商城配方',
+    failure: {
+      failureCode: failure?.failureCode || failure?.code,
+      configurationIssueId: failure?.configurationIssueId,
+      message: failure?.message || failure?.reason
+    },
+    collect: () => store.collectConfiguration(CONFIGURATION_ACTIONS.start)
+  })
 }
 
 async function toggleEnabled(enabled) {
   try {
-    await store.setEnabled(enabled)
+    const result = await store.setEnabled(enabled)
+    if (result?.configurationRequired) return
     ElMessage.success(enabled ? '商店配方游戏内控制已开启' : '商店配方游戏内控制已关闭')
   } catch (error) {
     ElMessage.error(error.message)
@@ -353,28 +379,6 @@ async function calibrateStashGrid(key) {
 .diagnostic-line { margin: 12px 0 0; color: var(--text-secondary); font-size: 13px; }
 .config-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr); gap: 16px; }
 .inline-button { margin-left: 10px; }
-.tab-list { display: grid; grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 10px 12px; width: 100%; }
-.tab-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-  padding: 12px 14px;
-  border: 2px solid var(--border-lighter);
-  border-radius: 8px;
-  background: transparent;
-  cursor: pointer;
-  transition: border-color .15s ease, background-color .15s ease, box-shadow .15s ease;
-}
-.tab-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--el-color-primary-light-7); }
-.tab-card.active { border-color: var(--el-color-primary); }
-.tab-card:hover { border-color: var(--el-color-primary-light-5); background: var(--el-color-primary-light-9); }
-.tab-card.active:hover { border-color: var(--el-color-primary); }
-.tab-card-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.tab-card-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tab-folder-control { display: flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: 13px; cursor: default; }
-.folder-hint { margin: 8px 0 0; }
 .calibration-row + .calibration-row { margin-top: 12px; }
 .calibration-warning { margin-top: 12px; }
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
@@ -410,6 +414,8 @@ async function calibrateStashGrid(key) {
 .summary-item.primary { border-color: var(--el-color-primary); color: var(--el-color-primary); }
 .automation-controls label { display: flex; align-items: center; gap: 8px; }
 .inline-hint { margin-left: 12px; }
+.configuration-correction-alert { display: flex; align-items: center; gap: 10px; }
+.configuration-correction-alert :deep(.el-alert) { min-width: 0; flex: 1; }
 @media (max-width: 900px) {
   .config-grid { grid-template-columns: 1fr; }
   .tab-list { grid-template-columns: 1fr; }

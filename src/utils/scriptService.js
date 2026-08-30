@@ -31,6 +31,13 @@ import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics
 import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 import { isEmergencyCancellation } from './emergencyStopResult.js'
 import { validateMapRecovery } from './craftingRecovery.js'
+import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectCraftingConfigurationIssues,
+  collectMapConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '../domains/configurationGuide/configurationIssues.js'
 
 // 监听器注册标志
 let shortcutListenerRegistered = false
@@ -198,7 +205,8 @@ export function emergencyStopAll() {
 export async function startCrafting({
   forceInitialCheck = false,
   usageSessionId = null,
-  continueCurrencyUsage = false
+  continueCurrencyUsage = false,
+  configurationGuideBypass = false
 } = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
@@ -218,6 +226,34 @@ export async function startCrafting({
   const currentPreset = presetStore.currentItemPreset
   const effectivePreset = JSON.parse(JSON.stringify(currentPreset))
   if (forceInitialCheck) effectivePreset.checkInitialItem = true
+
+  const collectConfiguration = () => {
+    const latestPreset = JSON.parse(JSON.stringify(usePresetStore().currentItemPreset))
+    if (forceInitialCheck) latestPreset.checkInitialItem = true
+    const latestSettings = useSettingsStore()
+    return collectCraftingConfigurationIssues({
+      itemPosition: latestSettings.itemPosition,
+      currencyPositions: latestSettings.currencyPositions,
+      stashTabSelection: latestSettings.stashTabSelection,
+      preset: latestPreset
+    })
+  }
+  const configurationCheck = collectConfiguration()
+  if (!configurationGuideBypass && !configurationCheck.ok) {
+    return runWithConfigurationGuide({
+      moduleId: CONFIGURATION_MODULES.items,
+      actionId: CONFIGURATION_ACTIONS.start,
+      title: '完成物品制作配置',
+      actionLabel: '开始制作',
+      collect: collectConfiguration,
+      execute: () => startCrafting({
+        forceInitialCheck,
+        usageSessionId,
+        continueCurrencyUsage,
+        configurationGuideBypass: true
+      })
+    })
+  }
 
   // 验证配置
   const validation = validateCraftingConfig({
@@ -246,13 +282,11 @@ export async function startCrafting({
 
     // 生成脚本内容
     const scriptContent = generatePythonScript({
-      globalShortcuts: settingsStore.globalShortcuts,
-      currencyPositions: settingsStore.currencyPositions,
-      operationDelayMs: settingsStore.operationDelayMs,
-      adaptiveTiming: settingsStore.adaptiveTiming,
-      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
-      fixedTiming: settingsStore.fixedTiming,
-      itemPosition: settingsStore.itemPosition,
+        globalShortcuts: settingsStore.globalShortcuts,
+        currencyPositions: settingsStore.currencyPositions,
+        operationDelayMs: settingsStore.operationDelayMs,
+        fixedTiming: settingsStore.fixedTiming,
+        itemPosition: settingsStore.itemPosition,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       preset: effectivePreset,
@@ -297,7 +331,8 @@ export async function startCrafting({
 export async function startMapRolling({
   recovery = null,
   usageSessionId = null,
-  continueCurrencyUsage = false
+  continueCurrencyUsage = false,
+  configurationGuideBypass = false
 } = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
@@ -321,16 +356,57 @@ export async function startMapRolling({
     ? currentPreset.chart
     : currentPreset.map
 
-  if (!storedMapConfig) {
+  const mapConfig = storedMapConfig
+    ? getActiveMapRollingConfig(
+      targetKind === 'chart' ? {} : storedMapConfig,
+      targetKind === 'chart' ? storedMapConfig : null,
+      targetKind
+    )
+    : null
+
+  const collectConfiguration = () => {
+    const latestPresets = usePresetStore()
+    const latestSettings = useSettingsStore()
+    const latestKind = latestPresets.mapRollingKind
+    const latestPreset = latestKind === 'chart'
+      ? latestPresets.currentChartPreset
+      : latestPresets.currentMapPreset
+    const latestStored = latestKind === 'chart' ? latestPreset.chart : latestPreset.map
+    const latestMapConfig = latestStored
+      ? getActiveMapRollingConfig(
+        latestKind === 'chart' ? {} : latestStored,
+        latestKind === 'chart' ? latestStored : null,
+        latestKind
+      )
+      : null
+    return collectMapConfigurationIssues({
+      inventory: latestSettings.inventory,
+      currencyPositions: latestSettings.currencyPositions,
+      stashTabSelection: latestSettings.stashTabSelection,
+      mapConfig: latestMapConfig
+    })
+  }
+  const configurationCheck = collectConfiguration()
+  if (!configurationGuideBypass && !configurationCheck.ok) {
+    return runWithConfigurationGuide({
+      moduleId: CONFIGURATION_MODULES.map,
+      actionId: CONFIGURATION_ACTIONS.start,
+      title: targetKind === 'chart' ? '完成航海海图配置' : '完成地图制作配置',
+      actionLabel: '开始制作',
+      collect: collectConfiguration,
+      execute: () => startMapRolling({
+        recovery,
+        usageSessionId,
+        continueCurrencyUsage,
+        configurationGuideBypass: true
+      })
+    })
+  }
+  if (!mapConfig) {
     const error = '当前预设未包含地图配置'
     ElMessage.error(error)
     return { success: false, error }
   }
-  const mapConfig = getActiveMapRollingConfig(
-    targetKind === 'chart' ? {} : storedMapConfig,
-    targetKind === 'chart' ? storedMapConfig : null,
-    targetKind
-  )
 
   // 验证背包首格坐标（从全局设置中读取）
   const validation = validateMapRollingConfig({
@@ -370,13 +446,11 @@ export async function startMapRolling({
     // 生成脚本内容
     const scriptContent = generateMapRollingScript({
       globalShortcuts: settingsStore.globalShortcuts,
-      currencyPositions: settingsStore.currencyPositions,
-      inventory: settingsStore.inventory,
-      operationDelayMs: settingsStore.operationDelayMs,
-      adaptiveTiming: settingsStore.adaptiveTiming,
-      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
-      fixedTiming: settingsStore.fixedTiming,
-      mapConfig: mapConfig,
+        currencyPositions: settingsStore.currencyPositions,
+        inventory: settingsStore.inventory,
+        operationDelayMs: settingsStore.operationDelayMs,
+        fixedTiming: settingsStore.fixedTiming,
+        mapConfig: mapConfig,
       recovery: recoveryValidation.value,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,

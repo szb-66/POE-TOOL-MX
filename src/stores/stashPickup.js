@@ -5,6 +5,12 @@ import { normalizeStashPickupSettings } from '../utils/stashPickupConfig.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
+import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectStashPickupConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '../domains/configurationGuide/configurationIssues.js'
 
 const STORAGE_KEY = 'stashPickupSettings'
 
@@ -16,7 +22,11 @@ function loadSettings() {
 
 function unwrap(response) {
   if (response?.success) return response.data
-  throw new Error(response?.error?.message || '仓库自动取件操作失败')
+  throw Object.assign(new Error(response?.error?.message || '仓库自动取件操作失败'), {
+    code: response?.error?.code || 'STASH_PICKUP_ERROR',
+    failureCode: response?.error?.failureCode || '',
+    configurationIssueId: response?.error?.configurationIssueId || ''
+  })
 }
 
 export const useStashPickupStore = defineStore('stashPickup', () => {
@@ -25,7 +35,7 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   const state = ref({
     status: 'idle', layout: 0, method: 'highlight-model', candidateCells: 0,
     remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
-    modelVersion: '', calibration: '', reason: ''
+    modelVersion: '', calibration: '', reason: '', failureCode: '', configurationIssueId: ''
   })
   const preview = ref(null)
   const previewLabels = ref({})
@@ -41,8 +51,6 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
       calibration: JSON.parse(JSON.stringify(interfaceStore.stashGridCalibration)),
       ...interfaceStore.runtime(),
       operationDelayMs: settingsStore.operationDelayMs,
-      adaptiveTiming: settingsStore.adaptiveTiming,
-      adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
       fixedTiming: settingsStore.fixedTiming,
       ...overrides
     }
@@ -57,8 +65,29 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     return state.value
   }
 
-  async function setEnabled(value) {
+  function collectConfiguration(actionId) {
+    return collectStashPickupConfigurationIssues({
+      actionId,
+      templates: interfaceStore.templates,
+      calibration: interfaceStore.stashGridCalibration
+    })
+  }
+
+  async function setEnabled(value, { configurationGuideBypass = false } = {}) {
     const enabled = Boolean(value)
+    if (enabled && !configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.enable)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.stashPickup,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成仓库取件配置',
+          actionLabel: '启用',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.enable),
+          execute: () => setEnabled(true, { configurationGuideBypass: true })
+        })
+      }
+    }
     await syncRuntime({ enabled })
     settings.value.enabled = enabled
     save()
@@ -92,7 +121,20 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     return result
   }
 
-  async function runPreview() {
+  async function runPreview({ configurationGuideBypass = false } = {}) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.capture)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.stashPickup,
+          actionId: CONFIGURATION_ACTIONS.capture,
+          title: '完成仓库检测配置',
+          actionLabel: '运行预览',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.capture),
+          execute: () => runPreview({ configurationGuideBypass: true })
+        })
+      }
+    }
     busy.value = true
     try {
       if (settings.value.enabled) await syncRuntime()
@@ -101,17 +143,43 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
       void reportDiagnosticRecovery('stashPickup', 'detection')
       return preview.value
     } catch (error) {
+      state.value = {
+        ...state.value,
+        reason: error.message,
+        failureCode: error.failureCode || '',
+        configurationIssueId: error.configurationIssueId || ''
+      }
       void reportDiagnosticFailure('stashPickup', 'detection', error, 'automation_failed')
       throw error
     } finally { busy.value = false }
   }
 
-  async function start() {
+  async function start({ configurationGuideBypass = false } = {}) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.start)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.stashPickup,
+          actionId: CONFIGURATION_ACTIONS.start,
+          title: '完成仓库取件配置',
+          actionLabel: '开始取件',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.start),
+          execute: () => start({ configurationGuideBypass: true })
+        })
+      }
+    }
     try {
       if (settings.value.enabled) await syncRuntime()
       state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.start()) }
       void reportDiagnosticRecovery('stashPickup', 'pickup')
     } catch (error) {
+      state.value = {
+        ...state.value,
+        status: 'stopped',
+        reason: error.message,
+        failureCode: error.failureCode || '',
+        configurationIssueId: error.configurationIssueId || ''
+      }
       void reportDiagnosticFailure('stashPickup', 'pickup', error, 'automation_failed')
       throw error
     }

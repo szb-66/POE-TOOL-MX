@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { runApplicationUpdateEntryAction } from '../src/utils/applicationUpdateAction.js'
+import {
+  createApplicationUpdateEntryActionRunner,
+  runApplicationUpdateEntryAction
+} from '../src/utils/applicationUpdateAction.js'
 
 function createUpdateController() {
   let confirmedVersion = ''
@@ -87,4 +90,93 @@ test('确认期间同一版本下载完成后按最新状态直接安装', async
   })
   assert.equal(result.success, true)
   assert.deepEqual(update.calls, { download: 0, install: 1 })
+})
+
+test('更新确认未结束时连续点击只打开一个弹窗并执行一次下载', async () => {
+  const update = createUpdateController()
+  update.state = { status: 'available', availableVersion: '1.0.3' }
+  let confirmCalls = 0
+  let resolveConfirm
+  const confirmPendingChanges = []
+  const confirmation = new Promise(resolve => { resolveConfirm = resolve })
+  const runEntryAction = createApplicationUpdateEntryActionRunner((pending) => {
+    confirmPendingChanges.push(pending)
+  })
+  const options = {
+    state: update.state,
+    update,
+    confirm: async () => {
+      confirmCalls += 1
+      return confirmation
+    }
+  }
+
+  const first = runEntryAction(options)
+  const duplicates = await Promise.all(Array.from({ length: 7 }, () => runEntryAction(options)))
+
+  assert.equal(confirmCalls, 1)
+  assert.ok(duplicates.every(result => result.busy && result.reason === 'entry-action-in-progress'))
+  assert.deepEqual(update.calls, { download: 0, install: 0 })
+  assert.deepEqual(confirmPendingChanges, [true])
+
+  resolveConfirm(true)
+  const result = await first
+  assert.equal(result.success, true)
+  assert.deepEqual(update.calls, { download: 1, install: 0 })
+  assert.deepEqual(confirmPendingChanges, [true, false])
+})
+
+test('自动下载版本等待确认时连续点击只执行一次安装', async () => {
+  const update = createUpdateController()
+  update.state = { status: 'downloaded', availableVersion: '1.0.3' }
+  let confirmCalls = 0
+  let resolveConfirm
+  const confirmation = new Promise(resolve => { resolveConfirm = resolve })
+  const runEntryAction = createApplicationUpdateEntryActionRunner()
+  const options = {
+    state: update.state,
+    update,
+    confirm: async () => {
+      confirmCalls += 1
+      return confirmation
+    }
+  }
+
+  const first = runEntryAction(options)
+  const duplicate = await runEntryAction(options)
+
+  assert.equal(confirmCalls, 1)
+  assert.equal(duplicate.busy, true)
+  assert.deepEqual(update.calls, { download: 0, install: 0 })
+
+  resolveConfirm(true)
+  const result = await first
+  assert.equal(result.success, true)
+  assert.deepEqual(update.calls, { download: 0, install: 1 })
+})
+
+test('取消或弹窗异常后更新入口会释放并发门禁', async () => {
+  const update = createUpdateController()
+  update.state = { status: 'available', availableVersion: '1.0.3' }
+  let confirmCalls = 0
+  const runEntryAction = createApplicationUpdateEntryActionRunner()
+  const options = {
+    state: update.state,
+    update,
+    confirm: async () => {
+      confirmCalls += 1
+      if (confirmCalls === 1) return false
+      if (confirmCalls === 2) throw new Error('弹窗异常')
+      return false
+    }
+  }
+
+  const cancelled = await runEntryAction(options)
+  assert.equal(cancelled.cancelled, true)
+  await assert.rejects(runEntryAction(options), /弹窗异常/)
+  const retried = await runEntryAction(options)
+
+  assert.equal(retried.cancelled, true)
+  assert.equal(confirmCalls, 3)
+  assert.deepEqual(update.calls, { download: 0, install: 0 })
 })

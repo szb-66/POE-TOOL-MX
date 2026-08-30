@@ -482,8 +482,8 @@ test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取�
   assert.match(bagActions, /setBagModuleEnabled\(!bagStore\.moduleEnabled\)/)
   assert.match(bagActions, /stashPickupStore\.setEnabled\(!stashPickupStore\.settings\.enabled\)/)
   assert.match(bagActions, /junfengStore\.setEnabled\(!junfengStore\.settings\.enabled\)/)
-  assert.equal([...bagActions.matchAll(/disabled:/g)].length, 1)
-  assert.match(bagActions, /disabled: !bagStore\.moduleEnabled && module\.issues\.length > 0/)
+  assert.equal([...bagActions.matchAll(/disabled:/g)].length, 0)
+  assert.doesNotMatch(bagActions, /disabled: !bagStore\.moduleEnabled && module\.issues\.length > 0/)
   assert.match(card, /\.card-actions \{[\s\S]*?flex-wrap: wrap;/)
 })
 

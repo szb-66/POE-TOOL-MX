@@ -7,7 +7,7 @@ import { usePuzzleStore } from '../src/stores/puzzle.js'
 const source = relativePath => readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 
 const slot = (type, orientation = 0) => ({
-  row: 0, column: 0, occupied: true, type, orientation,
+  row: 0, column: 0, candidate: true, occupied: true, type, typeSource: 'copy', shapeLabel: type, orientation,
   confidence: 0.9, uncertain: false, corrected: false
 })
 
@@ -128,7 +128,7 @@ test('页面、IPC 与执行负载携带双页及页签协议', () => {
   const view = source('src/domains/puzzle/PuzzleView.vue')
   const service = source('electron/modules/puzzle/service.js')
   assert.match(store, /inventoryPages = ref\(loaded\.inventoryPages\)/)
-  assert.match(store, /async function analyze\(\{ page = null \}/)
+  assert.match(store, /async function analyze\(\{ page = null, configurationGuideBypass = false \}/)
   assert.match(store, /inventoryTabPoints: inventoryTabPoints\.value/)
   assert.match(store, /applyAnalysisBatch/)
   assert.match(view, /第1页[\s\S]*第2页/)
@@ -136,13 +136,13 @@ test('页面、IPC 与执行负载携带双页及页签协议', () => {
   assert.match(view, /第 \{\{ page \}\} 页页签/)
   assert.ok(view.indexOf('<el-radio-group') > view.indexOf('class="inventory-card"'))
   assert.match(view, /class="inventory-card-heading"[\s\S]*<strong>碎片仓库<\/strong>[\s\S]*查看碎片仓库操作说明[\s\S]*清空两页结果[\s\S]*class="inventory-card-toolbar"/)
-  assert.match(view, /class="inventory-toolbar-group"[\s\S]*本机校准[\s\S]*保存修正[\s\S]*本机素材[\s\S]*下次识别和自动放入校验开始生效/)
+  assert.match(view, /class="inventory-toolbar-group"[\s\S]*本机校准[\s\S]*保存后立即更新仓库并用于后续识别[\s\S]*校准本机素材[\s\S]*素材管理/)
   assert.match(view, /class="inventory-toolbar-group"[\s\S]*识别结果[\s\S]*自动识别两页[\s\S]*class="inventory-page-tabs"/)
   assert.doesNotMatch(view, /碎片仓库第 \{\{ selectedInventoryPage \}\} 页/)
   assert.match(view, /\.inventory-page-tabs \{[^}]*flex-direction: row;[^}]*flex-wrap: nowrap;/)
   assert.match(view, /analysisProgressText[\s\S]*'自动识别两页'/)
   const analysisProgress = view.match(/const analysisProgressText = computed\([\s\S]*?\n\}\)/)?.[0] || ''
-  assert.match(analysisProgress, /正在读取碎片词缀/)
+  assert.match(analysisProgress, /正在复制碎片/)
   assert.doesNotMatch(analysisProgress, /边缘词缀/)
   assert.match(service, /allowEmpty: true/)
   assert.match(service, /validatePuzzleTabPoint/)

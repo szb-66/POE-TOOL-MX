@@ -57,6 +57,7 @@ export function buildMapCurrencyPreflight(mapConfig = {}) {
     currencies.push('scouring', 'alchemy', 'chaos')
   }
 
+  if (mapConfig.exalted?.enabled) currencies.push('exalted')
   if (mapConfig.vaal?.enabled) currencies.push('vaal')
   return unique(currencies)
 }

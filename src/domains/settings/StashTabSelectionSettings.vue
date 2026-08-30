@@ -84,6 +84,7 @@ import { electronApi } from '@/api/electron'
 import { STASH_TAB_TYPES, normalizeStashTabSelection } from '@/utils/stashTabSelection'
 import { useSettingsStore } from './settingsStore'
 
+const emit = defineEmits(['configured'])
 const store = useSettingsStore()
 const picking = ref(false)
 const previewing = ref(false)
@@ -99,6 +100,7 @@ const regionSummary = computed(() => {
 function update(patch) {
   store.updateStashTabSelection(patch)
   previewResult.value = null
+  emit('configured')
 }
 
 function updateName(key, value) {

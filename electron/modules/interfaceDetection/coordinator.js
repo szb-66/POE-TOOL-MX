@@ -44,7 +44,9 @@ export class InterfaceDetectionCoordinator {
       junfengReady: false,
       foreground: false,
       gameBounds: null,
-      reason: ''
+      reason: '',
+      failureCode: '',
+      configurationIssueId: ''
     }
   }
 
@@ -153,11 +155,17 @@ export class InterfaceDetectionCoordinator {
           stashScore: event.stashScore,
           inventoryScore: event.inventoryScore,
           rewardScore: event.rewardScore,
-          reason: ''
+          reason: '',
+          failureCode: '',
+          configurationIssueId: ''
         })
       } else if (event.event === 'detection-error') {
         terminalReason = event.reason || '检测器报告错误'
-        this.publish({ reason: terminalReason })
+        this.publish({
+          reason: terminalReason,
+          failureCode: String(event.failureCode || ''),
+          configurationIssueId: String(event.configurationIssueId || '')
+        })
       }
     }, (line) => console.log('[公共界面检测]', line)))
     child.stderr.on('data', (data) => {
@@ -186,7 +194,7 @@ export class InterfaceDetectionCoordinator {
       await waitForDetectionStartup(child, {
         getFailureReason: (code) => describeDetectionExit({ code, terminalReason, stderr, spawnError })
       })
-      this.publish({ running: true, reloading: false, reason: '' })
+      this.publish({ running: true, reloading: false, reason: '', failureCode: '', configurationIssueId: '' })
       return this.getState()
     } catch (error) {
       if (this.child === child) this.child = null
@@ -200,7 +208,7 @@ export class InterfaceDetectionCoordinator {
     const previous = this.child
     this.child = null
     stopChild(previous)
-    this.publish({ running: false, reloading: true, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '' })
+    this.publish({ running: false, reloading: true, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '', failureCode: '', configurationIssueId: '' })
     return this.start()
   }
 
@@ -208,7 +216,7 @@ export class InterfaceDetectionCoordinator {
     const child = this.child
     this.child = null
     stopChild(child)
-    this.publish({ running: false, reloading: false, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '' })
+    this.publish({ running: false, reloading: false, ready: false, stashReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '', failureCode: '', configurationIssueId: '' })
   }
 
   cleanup() {

@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -23,13 +24,13 @@ from puzzle_analyzer import (
     load_json,
 )
 
-timing_mode = "adaptive"
-adaptive_timeout_ms = 1000
-button_hold_seconds = 0.02
-release_settle_seconds = 0.02
-stash_tab_settle_seconds = 0.25
-patch_verify_seconds = 0.55
-RESULT_POLL_INTERVAL_SECONDS = 0.01
+modifier_settle_seconds = 0.02
+key_hold_seconds = 0.015
+button_hold_seconds = 0.015
+release_settle_seconds = 0.01
+clipboard_confirm_seconds = 0.01
+stash_tab_settle_seconds = 0.01
+patch_verify_seconds = 0.01
 
 def event(name: str, **payload: Any) -> None:
     print("EVENT " + json.dumps({"event": name, **payload}, ensure_ascii=False), flush=True)
@@ -132,6 +133,145 @@ def user32_api() -> Any:
     return ctypes.windll.user32
 
 
+def _normalized_copy_value(value: Any) -> str:
+    return "".join(unicodedata.normalize("NFKC", str(value or "")).split())
+
+
+def parse_copied_fragment_type(text: str, protocol: dict[str, Any]) -> dict[str, str] | None:
+    """仅使用主进程传入的字段和别名协议，把复制文本解析为内部碎片类型。"""
+    fields = protocol.get("fields") if isinstance(protocol, dict) else None
+    aliases_by_type = protocol.get("aliasesByType") if isinstance(protocol, dict) else None
+    if not isinstance(fields, dict) or not isinstance(aliases_by_type, dict):
+        return None
+    values: dict[str, str] = {}
+    for raw_line in unicodedata.normalize("NFKC", str(text or "")).splitlines():
+        if ":" not in raw_line:
+            continue
+        key, value = raw_line.split(":", 1)
+        values[_normalized_copy_value(key)] = value.strip()
+    category = values.get(_normalized_copy_value(fields.get("category")), "")
+    shape_label = values.get(_normalized_copy_value(fields.get("shape")), "")
+    if _normalized_copy_value(category) != _normalized_copy_value(fields.get("categoryValue")):
+        return None
+    normalized_shape = _normalized_copy_value(shape_label)
+    for fragment_type, aliases in aliases_by_type.items():
+        if any(_normalized_copy_value(alias) == normalized_shape for alias in aliases if alias):
+            return {"type": str(fragment_type), "shapeLabel": shape_label}
+    return None
+
+
+def send_copy_key() -> None:
+    if not is_game_foreground():
+        raise RuntimeError("游戏已失去前台")
+    user32 = user32_api()
+    ctrl_down = False
+    c_down = False
+    try:
+        user32.keybd_event(0x11, 0, 0, 0)
+        ctrl_down = True
+        time.sleep(modifier_settle_seconds)
+        user32.keybd_event(0x43, 0, 0, 0)
+        c_down = True
+        time.sleep(key_hold_seconds)
+    finally:
+        if c_down:
+            user32.keybd_event(0x43, 0, 2, 0)
+            time.sleep(release_settle_seconds)
+        if ctrl_down:
+            user32.keybd_event(0x11, 0, 2, 0)
+            time.sleep(release_settle_seconds)
+
+
+def _clipboard_api() -> Any:
+    import pyperclip
+    return pyperclip
+
+
+def copy_hovered_fragment_text(
+    source_point: tuple[int, int],
+    timeout_ms: int,
+    settle_ms: int,
+    clipboard_api: Any | None = None,
+    copy_sender: Any | None = None,
+) -> str:
+    api = clipboard_api or _clipboard_api()
+    move_physical(*source_point)
+    time.sleep(max(0.0, float(settle_ms) / 1000.0))
+    sentinel = f"__poe_puzzle_source_copy_{os.getpid()}_{time.monotonic_ns()}__"
+    api.copy(sentinel)
+    (copy_sender or send_copy_key)()
+    time.sleep(max(0.0, float(timeout_ms) / 1000.0))
+    current = api.paste()
+    return str(current) if current and str(current) != sentinel else ""
+
+
+def confirm_source_copy(
+    source_point: tuple[int, int],
+    expected_type: str,
+    protocol: dict[str, Any],
+    timeout_ms: int = 900,
+    settle_ms: int = 260,
+    clipboard_api: Any | None = None,
+    copy_sender: Any | None = None,
+) -> dict[str, Any]:
+    try:
+        copied = copy_hovered_fragment_text(
+            source_point, timeout_ms, settle_ms, clipboard_api, copy_sender
+        )
+    except Exception as error:
+        return {
+            "success": False,
+            "code": "SOURCE_TYPE_COPY_FAILED",
+            "reason": f"来源碎片复制失败：{error}",
+            "actualType": None,
+        }
+    parsed = parse_copied_fragment_type(copied, protocol)
+    if not parsed:
+        return {
+            "success": False,
+            "code": "SOURCE_TYPE_COPY_FAILED",
+            "reason": "来源碎片复制失败或复制文本未包含可识别的海图形状",
+            "actualType": None,
+        }
+    actual_type = str(parsed["type"])
+    if actual_type != str(expected_type):
+        return {
+            "success": False,
+            "code": "SOURCE_TYPE_MISMATCH",
+            "reason": "来源碎片复制类型与当前计划不一致",
+            "actualType": actual_type,
+            "shapeLabel": parsed.get("shapeLabel", ""),
+        }
+    return {
+        "success": True,
+        "type": actual_type,
+        "shapeLabel": parsed.get("shapeLabel", ""),
+    }
+
+
+def execute_with_preserved_clipboard(
+    config: dict[str, Any],
+    runner: Any | None = None,
+    clipboard_api: Any | None = None,
+) -> int:
+    api = clipboard_api or _clipboard_api()
+    snapshot_valid = False
+    previous = ""
+    try:
+        previous = str(api.paste())
+        snapshot_valid = True
+    except Exception:
+        pass
+    try:
+        return (runner or run_placement)(config)
+    finally:
+        if snapshot_valid:
+            try:
+                api.copy(previous)
+            except Exception:
+                pass
+
+
 def click_physical(x: int, y: int, button: str, delay: float) -> None:
     move_physical(x, y)
     time.sleep(max(0.0, float(delay)))
@@ -163,8 +303,7 @@ def inventory_tab_point(points: dict[str, Any], page: int) -> tuple[int, int]:
 def switch_inventory_page(points: dict[str, Any], page: int, delay: float) -> None:
     click_physical(*inventory_tab_point(points, page), "left", delay)
     move_physical(0, 0)
-    if timing_mode == "fixed":
-        time.sleep(stash_tab_settle_seconds)
+    time.sleep(stash_tab_settle_seconds)
 
 
 def place_fragment(
@@ -174,13 +313,10 @@ def place_fragment(
     neutral_point: tuple[int, int] | None = None,
 ) -> None:
     click_physical(*source_point, "left", delay)
-    if timing_mode == "fixed":
-        time.sleep(patch_verify_seconds)
+    time.sleep(patch_verify_seconds)
     click_physical(*target_point, "left", delay)
     if neutral_point is not None:
         move_physical(*neutral_point)
-    if timing_mode == "fixed":
-        time.sleep(patch_verify_seconds)
 
 
 def capture_analyze(
@@ -189,11 +325,15 @@ def capture_analyze(
     region_type: str,
     manage_overlay: bool = True,
     calibration_samples: list[dict[str, Any]] | None = None,
+    recognition: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if manage_overlay:
         event("capture-start", regionType=region_type)
     try:
-        return analyze_image(capture_region(region, region_type), templates, region_type, {}, calibration_samples)
+        return analyze_image(
+            capture_region(region, region_type), templates, region_type,
+            recognition or {}, calibration_samples,
+        )
     finally:
         if manage_overlay:
             event("capture-end", regionType=region_type)
@@ -246,9 +386,15 @@ def verify_source_rotation(
 ) -> tuple[bool, dict[str, Any] | None]:
     latest = None
     fragment_type = str(source.get("type"))
-    deadline = time.monotonic() + (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
     for attempt in range(1, 4):
-        capture_kwargs = {} if not calibration_samples else {"calibration_samples": calibration_samples}
+        time.sleep(patch_verify_seconds)
+        capture_kwargs = {
+            "recognition": {
+                "typeHints": {f'{int(source["row"])}:{int(source["column"])}': fragment_type}
+            }
+        }
+        if calibration_samples:
+            capture_kwargs["calibration_samples"] = calibration_samples
         result = capture_analyze(region, templates, "inventory", **capture_kwargs)
         latest = source_slot(result, source)
         matched = source_orientation_matches(latest, fragment_type, expected)
@@ -263,11 +409,6 @@ def verify_source_rotation(
         )
         if matched:
             return True, latest
-        if deadline is not None and time.monotonic() >= deadline:
-            break
-        remaining = deadline - time.monotonic() if deadline is not None else patch_verify_seconds
-        if remaining > 0:
-            time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
     return False, latest
 
 
@@ -294,8 +435,6 @@ def rotate_source_to_target(
             click_physical(*source_point, "right", delay)
             # 游戏右键旋转存在动画与输入冷却。先等待，再最多重读三次；
             # 右键不是幂等操作：仅当确认点击未生效（实际朝向与点击前一致）时才补发，避免多转 90°。
-            if timing_mode == "fixed":
-                time.sleep(patch_verify_seconds)
             matched, latest = verify_source_rotation(region, templates, confirmed, expected, delay, calibration_samples)
             if matched:
                 break
@@ -350,51 +489,45 @@ def verify_target(
     delay: float,
 ) -> tuple[bool, dict[str, Any] | None]:
     latest = None
-    deadline = time.monotonic() + (adaptive_timeout_ms / 1000.0) if timing_mode == "adaptive" else None
     event("capture-series-start", regionType="atlas")
     try:
         for attempt in range(1, 4):
+            time.sleep(patch_verify_seconds)
             result = capture_analyze(region, templates, "atlas", manage_overlay=False)
             index = int(target["row"]) * 3 + int(target["column"])
             latest = result.get("slots", [])[index] if result.get("success") and len(result.get("slots", [])) == 9 else None
             event("verification", index=int(target["index"]), attempt=attempt, success=slot_matches(latest, target), actual=latest)
             if slot_matches(latest, target):
                 return True, latest
-            if deadline is not None and time.monotonic() >= deadline:
-                break
-            remaining = deadline - time.monotonic() if deadline is not None else patch_verify_seconds
-            if remaining > 0:
-                time.sleep(min(RESULT_POLL_INTERVAL_SECONDS, remaining))
         return False, latest
     finally:
         event("capture-series-end", regionType="atlas")
 
 
-def main() -> int:
-    global timing_mode, adaptive_timeout_ms, button_hold_seconds, release_settle_seconds
+def run_placement(config: dict[str, Any]) -> int:
+    global modifier_settle_seconds, key_hold_seconds, button_hold_seconds
+    global release_settle_seconds, clipboard_confirm_seconds
     global stash_tab_settle_seconds, patch_verify_seconds
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
-    args = parser.parse_args()
-    config = load_json(Path(args.config))
     targets = config.get("targets") or []
     if len(targets) != 9:
         return fail("PLAN_INVALID", "自动放置方案必须包含九个目标格")
     templates = load_json(config["templatesPath"])
     calibration_samples = config.get("calibrationSamples") or []
+    copy_type_protocol = config.get("copyTypeProtocol") or {}
     source_slots = config.get("sourceSlots")
     inventory_tab_points = config.get("inventoryTabPoints") or {}
     inventory_region = config["inventoryRegion"]
     atlas_region = config["atlasRegion"]
     neutral_point = verification_neutral_point(atlas_region, inventory_region, config.get("displayBounds"))
-    delay = max(0.0, float(config.get("operation_delay_ms", 50)) / 1000)
-    timing_mode = config.get("timing_mode", "adaptive")
-    adaptive_timeout_ms = float(config.get("adaptive_timeout_ms", 1000))
+    delay = max(0.0, float(config.get("operation_delay_ms", 40)) / 1000)
     fixed_timing = config.get("fixed_timing", {})
-    button_hold_seconds = max(0.0, float(fixed_timing.get("button_hold_ms", 20))) / 1000.0
-    release_settle_seconds = max(0.0, float(fixed_timing.get("release_settle_ms", 20))) / 1000.0
-    stash_tab_settle_seconds = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 250))) / 1000.0
-    patch_verify_seconds = max(0.0, float(fixed_timing.get("patch_verify_ms", 550))) / 1000.0
+    modifier_settle_seconds = max(0.0, float(fixed_timing.get("modifier_settle_ms", 20))) / 1000.0
+    key_hold_seconds = max(0.0, float(fixed_timing.get("key_hold_ms", 15))) / 1000.0
+    button_hold_seconds = max(0.0, float(fixed_timing.get("button_hold_ms", 15))) / 1000.0
+    release_settle_seconds = max(0.0, float(fixed_timing.get("release_settle_ms", 10))) / 1000.0
+    clipboard_confirm_seconds = max(0.0, float(fixed_timing.get("clipboard_confirm_ms", 10))) / 1000.0
+    stash_tab_settle_seconds = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 10))) / 1000.0
+    patch_verify_seconds = max(0.0, float(fixed_timing.get("patch_verify_ms", 10))) / 1000.0
     focused, focus_error = focus_game_window()
     if not focused:
         return fail(focus_error, "无法激活流放之路游戏窗口")
@@ -419,6 +552,8 @@ def main() -> int:
     completed_indices = initial_completed_indices(initial_slots, targets, resume_pending)
     event("started", total=9, completed=len(completed_indices), completedIndices=sorted(completed_indices))
     planned_sources = source_slots if isinstance(source_slots, list) and len(source_slots) == 9 else None
+    if planned_sources is None:
+        return fail("PLAN_INVALID", "自动放置必须包含九个计划来源格")
     for position, target in enumerate(targets):
         if int(target["index"]) in completed_indices:
             event("step-completed", currentIndex=position, completed=len(completed_indices), target=target, skipped=True)
@@ -431,8 +566,6 @@ def main() -> int:
             try:
                 click_physical(*target_point, "left", delay)
                 move_physical(*neutral_point)
-                if timing_mode == "fixed":
-                    time.sleep(patch_verify_seconds)
             except RuntimeError as error:
                 return fail("INPUT_FAILED", str(error), currentIndex=position)
             recovered, _actual = verify_target(atlas_region, templates, target, delay)
@@ -440,25 +573,64 @@ def main() -> int:
                 completed_indices.add(int(target["index"]))
                 event("step-completed", currentIndex=position, completed=len(completed_indices), target=target, recoveredHeld=True)
                 continue
-        source = planned_sources[position] if planned_sources is not None else {"page": 1}
+        source = dict(planned_sources[position])
+        expected_type = str(target.get("type") or "")
+        if not expected_type or str(source.get("type") or "") != expected_type:
+            return fail("PLAN_INVALID", "计划来源类型与目标类型不一致", currentIndex=position, source=source, target=target)
         source_page = int(source.get("page", 1))
+        try:
+            source_point = cell_center(
+                inventory_region, 10, 6, int(source["row"]), int(source["column"])
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            return fail("PLAN_INVALID", f"计划来源格坐标无效：{error}", currentIndex=position, source=source)
         event("source-page", currentIndex=position, completed=len(completed_indices), source=source)
         try:
             switch_inventory_page(inventory_tab_points, source_page, delay)
         except (KeyError, TypeError, ValueError, RuntimeError) as error:
             return fail("TAB_SWITCH_FAILED", str(error), currentIndex=position, source=source)
-        inventory = capture_analyze(inventory_region, templates, "inventory", calibration_samples=calibration_samples)
+        copy_check = confirm_source_copy(
+            source_point,
+            expected_type,
+            copy_type_protocol,
+            int(clipboard_confirm_seconds * 1000),
+            int(delay * 1000),
+        )
+        if not copy_check.get("success"):
+            return fail(
+                str(copy_check.get("code") or "SOURCE_TYPE_COPY_FAILED"),
+                str(copy_check.get("reason") or "来源碎片类型复核失败"),
+                currentIndex=position,
+                source=source,
+                expectedType=expected_type,
+                actualType=copy_check.get("actualType"),
+            )
+        confirmed_type = str(copy_check["type"])
+        inventory = capture_analyze(
+            inventory_region,
+            templates,
+            "inventory",
+            calibration_samples=calibration_samples,
+            recognition={
+                "typeHints": {f'{int(source["row"])}:{int(source["column"])}': confirmed_type}
+            },
+        )
         if not inventory.get("success"):
             error = inventory.get("error", {})
             return fail(error.get("code", "INVENTORY_RECOGNITION_FAILED"), error.get("message", "碎片仓库识别失败"), currentIndex=position)
-        if planned_sources is not None:
-            if not planned_source_valid(inventory, source, target):
-                return fail("SOURCE_NOT_FOUND", f"第 {source_page} 页仓库中没有计划的{target.get('type')}碎片，请重新识别对应页面", currentIndex=position, source=source)
+        if not planned_source_valid(inventory, source, target):
+            return fail("SOURCE_NOT_FOUND", f"第 {source_page} 页仓库中没有计划的{target.get('type')}碎片，请重新识别对应页面", currentIndex=position, source=source)
+        live_source = source_slot(inventory, source) or {}
+        if source.get("corrected"):
+            source = {**live_source, **source}
         else:
-            sources = available_sources(inventory, str(target.get("type")))
-            if not sources:
-                return fail("SOURCE_NOT_FOUND", f"仓库中没有{target.get('type')}碎片", currentIndex=position)
-            source = sources[0]
+            source = {**source, **live_source}
+        source = {
+            **source,
+            "type": confirmed_type,
+            "typeSource": "copy",
+            "shapeLabel": copy_check.get("shapeLabel", ""),
+        }
         turns = counter_clockwise_turns(str(target.get("type")), int(source.get("orientation", 0)), int(target.get("orientation", 0)))
         event("step", currentIndex=position, completed=len(completed_indices), target=target, source=source, turns=turns, slots=inventory.get("slots", []))
         try:
@@ -496,6 +668,14 @@ def main() -> int:
         return fail("FINAL_VERIFICATION_FAILED", "海图终检与当前方案不一致", expected=mismatch)
     event("completed", completed=9, total=9)
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    args = parser.parse_args()
+    config = load_json(Path(args.config))
+    return execute_with_preserved_clipboard(config)
 
 
 if __name__ == "__main__":

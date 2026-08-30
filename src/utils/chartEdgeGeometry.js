@@ -7,6 +7,13 @@ export const BORDER_EDGE_IDS = Object.freeze([
   'W0', 'W1', 'W2'
 ])
 
+const BORDER_EDGE_SCAN_ORDER = Object.freeze([
+  'N0', 'N1', 'N2',
+  'E0', 'E1', 'E2',
+  'S2', 'S1', 'S0',
+  'W2', 'W1', 'W0'
+])
+
 export const DEFAULT_EDGE_OFFSET_RATIO = 0.06
 
 function finite(value) {
@@ -38,20 +45,24 @@ export function computeBorderEdgeTargets(region, screenBounds = null, offsetRati
       }
     : { x: Math.round(x), y: Math.round(y) }
   const segmentCenter = index => Math.round(top + (index + 0.5) * height / 3)
-  const edges = []
+  const edgeTargets = Object.create(null)
   for (let index = 0; index < 3; index++) {
     const x = left + (index + 0.5) * width / 3
-    edges.push({ id: `N${index}`, direction: 'north', ...clamp(x, top - offsetY) })
+    const id = `N${index}`
+    edgeTargets[id] = { id, direction: 'north', ...clamp(x, top - offsetY) }
   }
   for (let index = 0; index < 3; index++) {
-    edges.push({ id: `E${index}`, direction: 'east', ...clamp(left + width + offsetX, segmentCenter(index)) })
+    const id = `E${index}`
+    edgeTargets[id] = { id, direction: 'east', ...clamp(left + width + offsetX, segmentCenter(index)) }
   }
   for (let index = 0; index < 3; index++) {
     const x = left + (index + 0.5) * width / 3
-    edges.push({ id: `S${index}`, direction: 'south', ...clamp(x, top + height + offsetY) })
+    const id = `S${index}`
+    edgeTargets[id] = { id, direction: 'south', ...clamp(x, top + height + offsetY) }
   }
   for (let index = 0; index < 3; index++) {
-    edges.push({ id: `W${index}`, direction: 'west', ...clamp(left - offsetX, segmentCenter(index)) })
+    const id = `W${index}`
+    edgeTargets[id] = { id, direction: 'west', ...clamp(left - offsetX, segmentCenter(index)) }
   }
-  return edges
+  return BORDER_EDGE_SCAN_ORDER.map(id => edgeTargets[id])
 }

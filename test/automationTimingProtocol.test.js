@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -26,7 +26,7 @@ test('所有游戏输入链路把完整协议送到实际 Python 脚本', () => 
     ['electron/modules/stashPickup/manager.js', /pythonAutomationTiming\(this\.runtime\)/],
     ['electron/modules/junfeng/manager.js', /pythonAutomationTiming\(this\.runtime\)/],
     ['electron/modules/chaosRecipe/automation.js', /pythonAutomationTiming\(this\.config\)/],
-    ['electron/modules/puzzle/service.js', /pythonAutomationTiming\(\{ operationDelayMs, adaptiveTiming, adaptiveTimeoutMs, fixedTiming \}\)/],
+    ['electron/modules/puzzle/service.js', /pythonAutomationTiming\(\{ operationDelayMs, fixedTiming \}\)/],
     ['electron/modules/ipc/combat.js', /pythonAutomationTiming\(payload\.automationTiming\)/],
     ['src/utils/python.js', /pythonAutomationTiming\(normalizedTiming\)/]
   ]
@@ -57,11 +57,11 @@ m.mouse=types.SimpleNamespace(Controller=lambda:object())
 m.keyboard=types.SimpleNamespace(Controller=lambda:object())
 values=[]
 for delay in (0,137,9000):
- c=m.InputController({"operation_delay_ms":delay,"timing_mode":"adaptive","adaptive_timeout_ms":2468})
+ c=m.InputController({"operation_delay_ms":delay,"fixed_timing":{"clipboard_confirm_ms":10}})
  values.append([c.mouse_move_delay,c.clipboard_delay])
 print(json.dumps(values))
 `)
-  assert.deepEqual(result, [[0, 2.468], [0.137, 2.468], [9, 2.468]])
+  assert.deepEqual(result, [[0, 0.01], [0.137, 0.01], [9, 0.01]])
   assert.match(junfeng, /InputController\(config\)/)
   assert.match(junfeng, /normalize_operation_delay\(config\.get\("operation_delay_ms"\)\)/)
 })
@@ -72,7 +72,7 @@ test('动作边界禁止重新引入裸数字等待或旧字段', () => {
     ['src/assets/scripts/stash_pickup_template.py', [/operationDelayMs/, /max\(0\.02/, /max\(0\.08/]],
     ['src/assets/scripts/chaos_recipe_pick_template.py', [/self\.delay\s*=\s*max\(0\.02/, /self\.delay\s*\*\s*4/]],
     ['src/assets/scripts/stash_tab_selector.py', [/SCROLL_DELAY_SECONDS/, /mouse\.click\(/]],
-    ['src/assets/scripts/map_rolling_template.py', [/time\.sleep\(0\.05 if TIMING_MODE/, /clipboard_read_delay/]],
+    ['src/assets/scripts/map_rolling_template.py', [/TIMING_MODE/, /ADAPTIVE_TIMEOUT/, /clipboard_read_delay/]],
     ['src/assets/scripts/crafting_template.py', [/clipboard_read_delay/]],
     ['src/utils/python.js', [/time\.sleep\(0\.05\)/, /DELAY_CLIPBOARD/]]
   ])
@@ -80,4 +80,16 @@ test('动作边界禁止重新引入裸数字等待或旧字段', () => {
     const content = source(file)
     for (const pattern of patterns) assert.doesNotMatch(content, pattern, `${file}: ${pattern}`)
   }
+
+  for (const file of ['src', 'electron', 'shared']) {
+    assert.doesNotMatch(sourceTree(file), /adaptiveTiming|adaptiveTimeoutMs|timing_mode|adaptive_timeout_ms/, file)
+  }
 })
+
+function sourceTree(relativeDirectory) {
+  const root = path.join(projectRoot, relativeDirectory)
+  return readdirSync(root, { recursive: true })
+    .filter(entry => /\.(?:js|cjs|vue|py)$/.test(entry) && statSync(path.join(root, entry)).isFile())
+    .map(entry => source(path.join(relativeDirectory, entry)))
+    .join('\n')
+}

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createPinia, setActivePinia } from 'pinia'
 import { electronApi } from '../src/api/electron.js'
 import { useChaosRecipeStore } from '../src/stores/chaosRecipe.js'
+import { usePoeCnAccountStore } from '../src/stores/poeCnAccount.js'
 import { buildVendorRecipeOptions } from '../src/domains/dashboard/vendorRecipeOptions.js'
 
 function installStorage(initial = {}) {
@@ -73,6 +74,98 @@ test('应用级初始化恢复配方账号、元数据和运行时', async () =>
     electronApi.poeCnAccount.listLeagues = original.listLeagues
     electronApi.chaosRecipe.listTabs = original.listTabs
     electronApi.chaosRecipe.updateRuntime = original.updateRuntime
+  }
+})
+
+test('重新登录后已有全局赛季会自动加载仓库页而无需手动刷新', async () => {
+  installStorage({
+    poeCnAccountSettings: JSON.stringify({ league: 'S30' })
+  })
+  setActivePinia(createPinia())
+
+  const original = {
+    completeWebLogin: electronApi.poeCnAccount.completeWebLogin,
+    listLeagues: electronApi.poeCnAccount.listLeagues,
+    listTabs: electronApi.chaosRecipe.listTabs
+  }
+  let tabCalls = 0
+  electronApi.poeCnAccount.completeWebLogin = async () => ({
+    success: true,
+    data: { authenticated: true, accountName: '重新登录账号' }
+  })
+  electronApi.poeCnAccount.listLeagues = async () => ({
+    success: true,
+    data: [{ id: 'S30', name: 'S30' }]
+  })
+  electronApi.chaosRecipe.listTabs = async (league) => {
+    tabCalls += 1
+    return {
+      success: true,
+      data: [{ id: 'tab-1', name: `${league} 配方仓库`, supported: true }]
+    }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    const account = usePoeCnAccountStore()
+    await account.completeWebLogin()
+    await new Promise(resolve => setImmediate(resolve))
+
+    assert.equal(store.auth.authenticated, true)
+    assert.equal(store.league, 'S30')
+    assert.equal(store.supportedTabs.length, 1)
+    assert.equal(tabCalls, 1)
+  } finally {
+    electronApi.poeCnAccount.completeWebLogin = original.completeWebLogin
+    electronApi.poeCnAccount.listLeagues = original.listLeagues
+    electronApi.chaosRecipe.listTabs = original.listTabs
+  }
+})
+
+test('首次登录后选择赛季会自动加载仓库页并进入后续配置', async () => {
+  installStorage()
+  setActivePinia(createPinia())
+
+  const original = {
+    completeWebLogin: electronApi.poeCnAccount.completeWebLogin,
+    listLeagues: electronApi.poeCnAccount.listLeagues,
+    setLeague: electronApi.poeCnAccount.setLeague,
+    listTabs: electronApi.chaosRecipe.listTabs
+  }
+  let tabCalls = 0
+  electronApi.poeCnAccount.completeWebLogin = async () => ({
+    success: true,
+    data: { authenticated: true, accountName: '首次登录账号' }
+  })
+  electronApi.poeCnAccount.listLeagues = async () => ({
+    success: true,
+    data: [{ id: 'S30', name: 'S30' }]
+  })
+  electronApi.poeCnAccount.setLeague = async (league) => ({ success: true, data: { league } })
+  electronApi.chaosRecipe.listTabs = async (league) => {
+    tabCalls += 1
+    return {
+      success: true,
+      data: [{ id: 'tab-1', name: `${league} 配方仓库`, supported: true }]
+    }
+  }
+
+  try {
+    const store = useChaosRecipeStore()
+    const account = usePoeCnAccountStore()
+    await account.completeWebLogin()
+    assert.equal(tabCalls, 0)
+
+    await account.setLeague('S30')
+
+    assert.equal(store.league, 'S30')
+    assert.equal(store.supportedTabs.length, 1)
+    assert.equal(tabCalls, 1)
+  } finally {
+    electronApi.poeCnAccount.completeWebLogin = original.completeWebLogin
+    electronApi.poeCnAccount.listLeagues = original.listLeagues
+    electronApi.poeCnAccount.setLeague = original.setLeague
+    electronApi.chaosRecipe.listTabs = original.listTabs
   }
 })
 
@@ -324,7 +417,7 @@ test('取件完成后不再自动请求网络刷新仓库', async () => {
   }
 })
 
-test('运行时同步携带全局自动化时序四字段', async () => {
+test('运行时同步只携带全局固定自动化时序字段', async () => {
   installStorage({
     settings: JSON.stringify({
       operationDelayMs: 20,
@@ -355,8 +448,8 @@ test('运行时同步携带全局自动化时序四字段', async () => {
     await store.syncRuntime()
     const last = calls.at(-1)
     assert.equal(last.operationDelayMs, 20)
-    assert.equal(last.adaptiveTiming, false)
-    assert.equal(last.adaptiveTimeoutMs, 300)
+    assert.equal('adaptiveTiming' in last, false)
+    assert.equal('adaptiveTimeoutMs' in last, false)
     assert.deepEqual(last.fixedTiming, {
       modifierSettleMs: 10,
       keyHoldMs: 5,

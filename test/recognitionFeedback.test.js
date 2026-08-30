@@ -14,7 +14,7 @@ test('碎片识别结果按完整、未揭示、未知和跳过统计分级', ()
   )
   assert.deepEqual(
     fragmentRecognitionResult({ attempted: 5, matched: 3, unveiled: 1, unknown: 1, skipped: false }, 5),
-    { status: 'partial', message: '已识别 4/5 个词缀，未知 1 个' }
+    { status: 'partial', message: '已识别 4/5 个词缀，词缀未知 1 个' }
   )
   assert.equal(fragmentRecognitionResult({ attempted: 5, matched: 5, skipped: true }, 5).status, 'partial')
 })

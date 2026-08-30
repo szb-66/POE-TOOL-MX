@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
-import { createDefaultCombatAssist, normalizeCombatAssist, validateCombatAssist } from '@/utils/combatConfig'
+import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
 import {
   DEFAULT_GLOBAL_SHORTCUTS,
   mergeGlobalShortcutSettings,
@@ -9,13 +9,10 @@ import {
   resolveShortcutScopeHealth
 } from '@/utils/shortcutConfig'
 import {
-  ADAPTIVE_TIMING,
   FIXED_TIMING,
   OPERATION_DELAY,
   OPERATION_TIMING_VERSION,
   migrateOperationDelay,
-  normalizeAdaptiveTimeoutMs,
-  normalizeAdaptiveTiming,
   normalizeAutomationTiming,
   normalizeFixedTiming,
   normalizeOperationDelay
@@ -86,8 +83,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const inventory = ref(createDefaultInventorySettings())
 
   const operationDelayMs = ref(OPERATION_DELAY.default)
-  const adaptiveTiming = ref(ADAPTIVE_TIMING.default)
-  const adaptiveTimeoutMs = ref(ADAPTIVE_TIMING.timeoutDefault)
   const fixedTiming = ref({ ...FIXED_TIMING.defaults })
 
   const itemPosition = ref(createEmptyItemPosition())
@@ -197,8 +192,6 @@ export const useSettingsStore = defineStore('settings', () => {
     const commit = async () => {
       const previous = normalizeAutomationTiming({
         operationDelayMs: operationDelayMs.value,
-        adaptiveTiming: adaptiveTiming.value,
-        adaptiveTimeoutMs: adaptiveTimeoutMs.value,
         fixedTiming: fixedTiming.value
       })
       const candidate = normalizeAutomationTiming({ ...previous, ...patch,
@@ -207,8 +200,6 @@ export const useSettingsStore = defineStore('settings', () => {
         const result = await electronApi.automationTiming.update(candidate)
         if (!result?.success) throw new Error(result?.error || '自动化时序同步失败')
         operationDelayMs.value = candidate.operationDelayMs
-        adaptiveTiming.value = candidate.adaptiveTiming
-        adaptiveTimeoutMs.value = candidate.adaptiveTimeoutMs
         fixedTiming.value = candidate.fixedTiming
         saveSettings()
         return { success: true, timing: candidate }
@@ -224,24 +215,12 @@ export const useSettingsStore = defineStore('settings', () => {
     return updateAutomationTiming({ operationDelayMs: normalizeOperationDelay(value) })
   }
 
-  function updateAdaptiveTiming(enabled) {
-    return updateAutomationTiming({ adaptiveTiming: normalizeAdaptiveTiming(enabled) })
-  }
-
-  function updateAdaptiveTimeoutMs(value) {
-    return updateAutomationTiming({ adaptiveTimeoutMs: normalizeAdaptiveTimeoutMs(value) })
-  }
-
   function updateFixedTiming(patch = {}) {
     return updateAutomationTiming({ fixedTiming: normalizeFixedTiming({ ...fixedTiming.value, ...patch }) })
   }
 
   function updateCombatAssist(config) {
     const candidate = normalizeCombatAssist(config)
-    const validation = validateCombatAssist(candidate)
-    if (!validation.isValid) {
-      return Promise.resolve({ success: false, error: validation.errors[0] || '战斗辅助配置无效' })
-    }
     const commit = async () => {
       try {
         const potionResult = await electronApi.combat.updatePotionConfig(candidate)
@@ -400,8 +379,6 @@ export const useSettingsStore = defineStore('settings', () => {
         inventory: inventory.value,
         operationDelayMs: operationDelayMs.value,
         operationTimingVersion: OPERATION_TIMING_VERSION,
-        adaptiveTiming: adaptiveTiming.value,
-        adaptiveTimeoutMs: adaptiveTimeoutMs.value,
         fixedTiming: fixedTiming.value,
         itemPosition: itemPosition.value,
         gameWindowTitles: gameWindowTitles.value,
@@ -435,8 +412,6 @@ export const useSettingsStore = defineStore('settings', () => {
       try { legacyBagSettings = JSON.parse(localStorage.getItem('bagSettings') || '{}') } catch (_error) { /* ignore invalid legacy data */ }
       const operationTimingMigrated = data.operationTimingVersion !== OPERATION_TIMING_VERSION
       operationDelayMs.value = migrateOperationDelay(data, legacyBagSettings)
-      adaptiveTiming.value = normalizeAdaptiveTiming(data.adaptiveTiming)
-      adaptiveTimeoutMs.value = normalizeAdaptiveTimeoutMs(data.adaptiveTimeoutMs)
       fixedTiming.value = normalizeFixedTiming(data.fixedTiming)
       if (saved) {
         let shortcutSettingsMigrated = false
@@ -537,8 +512,6 @@ export const useSettingsStore = defineStore('settings', () => {
     currencyPositions.value = createEmptyCurrencyPositions()
     inventory.value = createDefaultInventorySettings()
     operationDelayMs.value = OPERATION_DELAY.default
-    adaptiveTiming.value = ADAPTIVE_TIMING.default
-    adaptiveTimeoutMs.value = ADAPTIVE_TIMING.timeoutDefault
     fixedTiming.value = { ...FIXED_TIMING.defaults }
     itemPosition.value = createEmptyItemPosition()
     gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
@@ -565,8 +538,6 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
     electronApi.automationTiming.update(normalizeAutomationTiming({
       operationDelayMs: operationDelayMs.value,
-      adaptiveTiming: adaptiveTiming.value,
-      adaptiveTimeoutMs: adaptiveTimeoutMs.value,
       fixedTiming: fixedTiming.value
     }))?.catch(() => {})
     electronApi.bag.updateEmptySlotThreshold(inventory.value.emptySlotThreshold)?.catch(() => {})
@@ -635,8 +606,6 @@ export const useSettingsStore = defineStore('settings', () => {
     currencyPositions,
     inventory,
     operationDelayMs,
-    adaptiveTiming,
-    adaptiveTimeoutMs,
     fixedTiming,
     itemPosition,
     gameWindowTitles,
@@ -669,8 +638,6 @@ export const useSettingsStore = defineStore('settings', () => {
     updateInventorySettings,
     updateOperationDelay,
     updateAutomationTiming,
-    updateAdaptiveTiming,
-    updateAdaptiveTimeoutMs,
     updateFixedTiming,
     updateItemPosition,
     updateGameWindowTitles,

@@ -27,6 +27,8 @@ import { registerJunfengHandlers } from './junfeng.js'
 import { registerAutomationTimingHandlers } from './automationTiming.js'
 import { registerFeedbackHandlers } from './feedback.js'
 import { registerEmergencyStopHandlers } from './emergencyStop.js'
+import { registerConfigTransferHandlers } from './configTransfer.js'
+import { registerConfigurationGuideHandlers } from './configurationGuide.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
@@ -44,6 +46,8 @@ export function registerIpcHandlers(dependencies) {
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
   registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, puzzle, getMainWindow })
+  registerConfigTransferHandlers({ getMainWindow })
+  registerConfigurationGuideHandlers(window)
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
   const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics, failureEvidence)

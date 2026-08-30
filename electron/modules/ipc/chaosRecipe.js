@@ -79,11 +79,9 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     return service.automation.start(plan, {
       calibration: request.calibration,
       templates: request.templates,
-      matchThreshold: request.matchThreshold,
-      operationDelayMs: request.operationDelayMs,
-      adaptiveTiming: request.adaptiveTiming,
-      adaptiveTimeoutMs: request.adaptiveTimeoutMs,
-      fixedTiming: request.fixedTiming
+        matchThreshold: request.matchThreshold,
+        operationDelayMs: request.operationDelayMs,
+        fixedTiming: request.fixedTiming
     })
   }))
   ipcMain.handle('chaos-recipe-automation-pause', invoke(() => service.automation.pause()))
@@ -183,11 +181,9 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
     return service.automation.start(plan, {
       calibration: runtime.calibration,
       templates: runtime.templates,
-      matchThreshold: runtime.matchThreshold,
-      operationDelayMs: runtime.operationDelayMs,
-      adaptiveTiming: runtime.adaptiveTiming,
-      adaptiveTimeoutMs: runtime.adaptiveTimeoutMs,
-      fixedTiming: runtime.fixedTiming
+        matchThreshold: runtime.matchThreshold,
+        operationDelayMs: runtime.operationDelayMs,
+        fixedTiming: runtime.fixedTiming
     })
   }))
   ipcMain.handle('interface-detection-state', invoke(() => interfaceDetection?.getState() || {}))

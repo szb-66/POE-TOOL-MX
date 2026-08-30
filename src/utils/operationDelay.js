@@ -1,24 +1,19 @@
 export const OPERATION_DELAY = Object.freeze({
-  default: 50
+  default: 40
 })
 
-export const OPERATION_TIMING_VERSION = 2
+export const OPERATION_TIMING_VERSION = 3
 const LEGACY_OPERATION_DELAY_DEFAULT = 80
 
-export const ADAPTIVE_TIMING = Object.freeze({
-  default: true,
-  timeoutDefault: 1000
-})
-
 const FIXED_TIMING_FIELDS = Object.freeze({
-  modifierSettleMs: { default: 50 },
-  keyHoldMs: { default: 20 },
-  buttonHoldMs: { default: 20 },
-  releaseSettleMs: { default: 20 },
-  clipboardConfirmMs: { default: 250 },
-  stashTabSettleMs: { default: 250 },
-  stashSettleMs: { default: 200 },
-  patchVerifyMs: { default: 550 }
+  modifierSettleMs: { default: 20 },
+  keyHoldMs: { default: 15 },
+  buttonHoldMs: { default: 15 },
+  releaseSettleMs: { default: 10 },
+  clipboardConfirmMs: { default: 10 },
+  stashTabSettleMs: { default: 10 },
+  stashSettleMs: { default: 10 },
+  patchVerifyMs: { default: 10 }
 })
 
 const FIXED_TIMING_PYTHON_KEYS = Object.freeze({
@@ -50,15 +45,6 @@ export function normalizeOperationDelay(value) {
   return delay >= 0 ? delay : OPERATION_DELAY.default
 }
 
-export function normalizeAdaptiveTiming(value) {
-  return value !== false
-}
-
-export function normalizeAdaptiveTimeoutMs(value) {
-  const timeout = finiteNumber(value) ?? ADAPTIVE_TIMING.timeoutDefault
-  return timeout >= 0 ? timeout : ADAPTIVE_TIMING.timeoutDefault
-}
-
 export function normalizeFixedTiming(value = {}) {
   const result = { ...FIXED_TIMING.defaults }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return result
@@ -72,7 +58,7 @@ export function normalizeFixedTiming(value = {}) {
 }
 
 // Python 自动化脚本的 fixed_timing 配置统一使用 snake_case 键名，
-// 与 operation_delay_ms、adaptive_timeout_ms 等配置协议保持一致。
+// 与 operation_delay_ms 配置协议保持一致。
 export function pythonFixedTiming(value = {}) {
   const normalized = normalizeFixedTiming(value)
   const result = {}
@@ -86,8 +72,6 @@ export function normalizeAutomationTiming(value = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
   return {
     operationDelayMs: normalizeOperationDelay(source.operationDelayMs),
-    adaptiveTiming: normalizeAdaptiveTiming(source.adaptiveTiming),
-    adaptiveTimeoutMs: normalizeAdaptiveTimeoutMs(source.adaptiveTimeoutMs),
     fixedTiming: normalizeFixedTiming(source.fixedTiming)
   }
 }
@@ -96,8 +80,6 @@ export function pythonAutomationTiming(value = {}) {
   const timing = normalizeAutomationTiming(value)
   return {
     operation_delay_ms: timing.operationDelayMs,
-    timing_mode: timing.adaptiveTiming ? 'adaptive' : 'fixed',
-    adaptive_timeout_ms: timing.adaptiveTimeoutMs,
     fixed_timing: pythonFixedTiming(timing.fixedTiming)
   }
 }

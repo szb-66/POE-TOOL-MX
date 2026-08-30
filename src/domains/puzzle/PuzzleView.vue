@@ -6,14 +6,12 @@
       </div>
     </div>
 
-    <el-alert
-      v-if="error"
-      :title="error.message"
-      type="error"
-      show-icon
-      :closable="false"
-      class="status-alert"
-    />
+    <div v-if="error" class="status-alert status-alert--action">
+      <el-alert :title="error.message" type="error" show-icon :closable="false" />
+      <el-button v-if="puzzleCorrectionIssue" type="warning" plain @click="openPuzzleCorrection">
+        重新配置
+      </el-button>
+    </div>
     <el-alert
       v-else-if="!regionMetadata"
       title="首次使用请先框选完整的 6×10 碎片仓库。"
@@ -102,18 +100,18 @@
               <div class="inventory-toolbar-group">
                 <span class="inventory-toolbar-label">
                   本机校准
-                  <el-tooltip content="保存修正会将改过的图块存为本机素材，从下次识别和自动放入校验开始生效" placement="top" effect="dark">
+                  <el-tooltip content="逐项核对不确定格或人工修正，保存后立即更新仓库并用于后续识别" placement="top" effect="dark">
                     <el-icon class="inventory-help-icon" tabindex="0" aria-label="查看本机校准说明"><QuestionFilled /></el-icon>
                   </el-tooltip>
                 </span>
-                <el-button size="small" :disabled="!pendingCorrectionCount || !savableCorrectionCount || analyzing || executing" :title="calibrationSaveTitle" @click="saveCalibration">
-                  保存修正{{ pendingCorrectionCount ? `（${pendingCorrectionCount}）` : '' }}
+                <el-button size="small" type="primary" plain :disabled="!calibrationQueueCount || analyzing || executing" @click="guidedCalibrationVisible = true">
+                  校准本机素材（{{ calibrationQueueCount }}）
                 </el-button>
-                <el-button size="small" @click="calibrationDialogVisible = true">本机素材（{{ calibrationSamples.length }}）</el-button>
+                <el-button size="small" @click="calibrationDialogVisible = true">素材管理（{{ calibrationSamples.length }}）</el-button>
               </div>
               <div class="inventory-toolbar-group">
                 <span class="inventory-toolbar-label">识别结果</span>
-                <el-button type="primary" size="small" :loading="analyzing" :disabled="!regionMetadata || executing || probingBorder" @click="startAnalysis">
+                <el-button type="primary" size="small" :loading="analyzing" :disabled="executing || probingBorder" @click="startAnalysis">
                   {{ analyzing ? (analysisProgressText || '正在自动识别…') : '自动识别两页' }}
                 </el-button>
                 <el-radio-group v-model="selectedInventoryPage" class="inventory-page-tabs" size="small" :disabled="analyzing || executing">
@@ -137,7 +135,7 @@
             placement="top"
             effect="dark"
             :show-after="200"
-            :disabled="!slot.occupied && !slot.calibrated && !isSlotLocked(slot)"
+            :disabled="!slot.occupied && !slot.candidate && !slot.calibrated && !isSlotLocked(slot)"
           >
             <template #content>
               <div v-for="(line, index) in slotTooltipLines(slot)" :key="`${index}-${line}`" class="mod-tooltip-line">{{ line }}</div>
@@ -151,7 +149,8 @@
                 <button
                   class="inventory-slot"
                   :class="{
-                    empty: !slot.occupied,
+                    empty: !slot.occupied && !slot.candidate,
+                    candidate: slot.candidate && !slot.occupied,
                     uncertain: slot.uncertain,
                     corrected: slot.corrected,
                     locked: isSlotLocked(slot),
@@ -161,8 +160,10 @@
                   @contextmenu.prevent="rotateSlot(slot)"
                 >
                   <PuzzleGlyph v-if="slot.occupied" :type="slot.type" :orientation="slot.orientation" />
+                  <span v-else-if="slot.candidate" class="candidate-mark">?</span>
                   <span v-else class="empty-mark">·</span>
                   <em v-if="slot.occupied && slot.uncertain" class="uncertain-mark">?</em>
+                  <em v-if="slot.occupied && slot.mods?.status === 'unknown'" class="mod-unknown-mark" aria-label="词缀未知">词?</em>
                   <em v-if="slot.calibrated" class="calibration-mark">校</em>
                   <em v-if="slot.occupied" class="orientation-badge">{{ slot.orientation }}°</em>
                   <b v-if="sourceCellBySlot.has(slotKey(slot))" class="source-index">
@@ -171,8 +172,8 @@
                 </button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="empty">空格</el-dropdown-item>
-                    <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value">
+                    <el-dropdown-item command="empty" :disabled="slot.typeSource === 'copy'">空格</el-dropdown-item>
+                    <el-dropdown-item v-for="option in typeOptions" :key="option.value" :command="option.value" :disabled="slot.typeSource === 'copy' && option.value !== slot.type">
                       {{ option.label }}
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -237,10 +238,9 @@
           <div class="exit-controls">
             <div class="exit-copy">
               <div class="exit-title-row">
-                <strong>出口设置</strong>
-                <el-button size="small" :disabled="executing || !hasExitConstraints" @click="clearExitConstraints">清空出口状态</el-button>
+                <strong>边缘词缀</strong>
               </div>
-              <p class="exit-help">左键设为必选出口，右键设为禁止出口；同键再点一次恢复默认。绿色表示当前方案已连接。</p>
+              <p class="exit-help">左键点击出口可修改对应边缘词缀；悬停查看当前内容，绿色表示当前方案已连接。</p>
             </div>
           </div>
           <div class="reward-strategy-note">
@@ -258,7 +258,7 @@
                     <template #content>
                         <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
                     </template>
-                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                    <button :disabled="borderModEditingDisabled" :class="exitClasses(id)" :title="exitTitle(id)" @click="openBorderModDialog(id)" @contextmenu.prevent>{{ id }}</button>
                 </el-tooltip>
             </div>
             <div class="solution-middle">
@@ -267,7 +267,7 @@
                     <template #content>
                         <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
                     </template>
-                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                    <button :disabled="borderModEditingDisabled" :class="exitClasses(id)" :title="exitTitle(id)" @click="openBorderModDialog(id)" @contextmenu.prevent>{{ id }}</button>
                 </el-tooltip>
               </div>
               <div class="solution-grid">
@@ -293,7 +293,7 @@
                     <template #content>
                         <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
                     </template>
-                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                    <button :disabled="borderModEditingDisabled" :class="exitClasses(id)" :title="exitTitle(id)" @click="openBorderModDialog(id)" @contextmenu.prevent>{{ id }}</button>
                 </el-tooltip>
               </div>
             </div>
@@ -302,7 +302,7 @@
                     <template #content>
                         <div v-for="line in edgeModLines(id)" :key="line" class="mod-tooltip-line">{{ line }}</div>
                     </template>
-                    <button :disabled="executing" :class="exitClasses(id)" :title="exitTitle(id)" @click="toggleRequiredExit(id)" @contextmenu.prevent="toggleForbiddenExit(id)">{{ id }}</button>
+                    <button :disabled="borderModEditingDisabled" :class="exitClasses(id)" :title="exitTitle(id)" @click="openBorderModDialog(id)" @contextmenu.prevent>{{ id }}</button>
                 </el-tooltip>
             </div>
         </div>
@@ -321,8 +321,8 @@
         </template>
         <div class="chart-action-stack">
           <div class="chart-complete-row">
-            <el-button type="primary" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0 || !atlasRegionMetadata" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
-            <el-button v-if="!executing" type="success" :disabled="!canAutoPlace" :title="autoPlaceBlockedReason" @click="startAutoPlacement">
+            <el-button type="primary" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
+            <el-button v-if="!executing" type="success" :disabled="autoPlaceButtonDisabled" :title="autoPlaceButtonTitle" @click="startAutoPlacement">
               {{ resumeIndex > 0 ? `继续自动放入（第 ${resumeIndex + 1} 格）` : '自动放入' }}
             </el-button>
             <el-button v-else type="danger" @click="stopAutoPlacement">停止自动放入</el-button>
@@ -348,7 +348,40 @@
       </el-card></el-col>
     </el-row>
 
-    <el-dialog v-model="calibrationDialogVisible" title="海图本机校准素材" width="680px">
+    <el-dialog v-model="borderModDialogVisible" :title="borderModDialogTitle" width="620px" destroy-on-close>
+      <el-form label-position="top">
+        <el-form-item label="边缘词缀">
+          <el-select
+            v-model="selectedBorderModIndex"
+            class="border-mod-select"
+            filterable
+            placeholder="输入关键词联想边缘词缀"
+            popper-class="border-mod-select-popper"
+          >
+            <el-option
+              v-for="option in borderModOptions"
+              :key="option.index"
+              :label="option.label"
+              :value="option.index"
+            >
+              <div class="border-mod-option">
+                <span v-for="line in option.mod.lines" :key="line">{{ line }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <p class="border-mod-dialog-help">只能选择边缘词缀目录中的完整词缀；重新识别边缘词缀后，本次手工修改会被最新识别结果覆盖。</p>
+      <template #footer>
+        <el-button type="danger" plain :disabled="savingBorderMod || !activeBorderEdgeHasContent" @click="clearBorderMod">清空词缀</el-button>
+        <el-button :disabled="savingBorderMod" @click="borderModDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingBorderMod" :disabled="selectedBorderModIndex === null" @click="saveBorderMod">确认</el-button>
+      </template>
+    </el-dialog>
+
+    <PuzzleCalibrationWizard v-model="guidedCalibrationVisible" />
+
+    <el-dialog v-model="calibrationDialogVisible" title="海图本机校准素材管理" width="680px">
       <el-empty v-if="!calibrationSamples.length" description="尚未保存校准素材" :image-size="72" />
       <el-table v-else :data="calibrationSamples" max-height="420">
         <el-table-column label="图块" width="76">
@@ -382,12 +415,17 @@ import { Loading, Lock, QuestionFilled, Unlock, Warning } from '@element-plus/ic
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleTopicById } from '@/domains/help/helpContent.js'
 import PuzzleGlyph from './PuzzleGlyph.vue'
+import PuzzleCalibrationWizard from './PuzzleCalibrationWizard.vue'
 import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
+import { BORDER_CHART_MODS } from '../../data/chartModsData.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
 import { useSettingsStore } from '../settings/settingsStore.js'
 import { formatBorderProbeFeedback, fragmentModTooltipLines } from '../../utils/chartModPresentation.js'
 import { isEmergencyCancellation } from '../../utils/emergencyStopResult.js'
 import { typeForMask } from './solver.js'
+import { collectPuzzleConfigurationIssues, CONFIGURATION_ACTIONS, CONFIGURATION_MODULES } from '@/domains/configurationGuide/configurationIssues.js'
+import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
@@ -401,15 +439,12 @@ const {
   inventoryPages,
   lockedSlots,
   calibrationSamples,
-  pendingCorrectionCount,
-  savableCorrectionCount,
+  calibrationQueueCount,
   gridConfidence,
   previews,
   configurationStates,
   slots,
   warnings,
-  requiredExits,
-  forbiddenExits,
   edges,
   edgesRecognized,
   probingBorder,
@@ -432,6 +467,7 @@ const {
 } = storeToRefs(store)
 
 const loadingVisible = computed(() => solving.value)
+const guidedCalibrationVisible = ref(false)
 const calibrationDialogVisible = ref(false)
 const regionExpanded = reactive({
   inventory: !inventoryRegionMetadata.value,
@@ -449,6 +485,13 @@ const northExits = ['N0', 'N1', 'N2']
 const eastExits = ['E0', 'E1', 'E2']
 const southExits = ['S0', 'S1', 'S2']
 const westExits = ['W0', 'W1', 'W2']
+const borderModOptions = BORDER_CHART_MODS
+  .map((mod, index) => ({ index, mod, label: Array.isArray(mod.lines) ? mod.lines.join('；') : '' }))
+  .filter(option => option.label)
+const borderModDialogVisible = ref(false)
+const activeBorderExitId = ref('')
+const selectedBorderModIndex = ref(null)
+const savingBorderMod = ref(false)
 
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
 const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || '未设置')
@@ -459,11 +502,6 @@ const currentPageAvailableCount = computed(() => slots.value.filter(slot => slot
 const currentPageLockedCount = computed(() => lockedSlots.value.filter(slot => slot.page === selectedInventoryPage.value).length)
 const hasInventoryResults = computed(() => [1, 2].some(page => inventoryPages.value[page].recognized))
 const relativeRewardHelp = '相对收益是根据已识别词缀的类别、数值、作用范围（自身/相邻/全航行）及边缘增幅，结合当前策略权重计算的启发式比较分。分数越高表示按该权重更优，不代表实际掉落量或通货价格；不同策略权重口径不同，自动模式仍按界面分数直接取最高。'
-const calibrationSaveTitle = computed(() => {
-  if (!pendingCorrectionCount.value) return '修正类型、空格或角度后可保存'
-  if (!savableCorrectionCount.value) return '当前修正缺少截图图块，请重新识别后再保存'
-  return `保存 ${savableCorrectionCount.value} 个具有截图图块的修正`
-})
 const selectedRewardStrategy = computed({
   get: () => rewardStrategy.value,
   set: value => { store.setRewardStrategy(value) }
@@ -472,7 +510,6 @@ const activeRewardStrategy = computed(() => VOYAGE_REWARD_MODE_OPTIONS.find(stra
 const effectiveRewardStrategyLabel = computed(() => VOYAGE_REWARD_MODE_OPTIONS.find(strategy => strategy.id === result.value.effectiveStrategy)?.label || '')
 const gridAlignmentLabel = computed(() => gridConfidence.value == null ? '—' : gridConfidence.value >= 0.8 ? '高' : gridConfidence.value >= 0.5 ? '中' : '低')
 const gridAlignmentWarning = computed(() => gridConfidence.value != null && gridConfidence.value < 0.5)
-const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
 const solutionFeedback = computed(() => {
   if (result.value.error === 'INSUFFICIENT_FRAGMENTS') {
     const missingCount = Math.max(0, 9 - occupiedCount.value)
@@ -483,13 +520,6 @@ const solutionFeedback = computed(() => {
     }
   }
   if (result.value.error !== 'NO_SOLUTION') return null
-  if (hasExitConstraints.value) {
-    return {
-      kind: 'constraints',
-      title: '现有碎片无法满足当前出口限制',
-      description: '请调整必选或禁止出口，或点击“清空出口状态”后重新计算。'
-    }
-  }
   return {
     kind: 'combination',
     title: '现有碎片类型组合无法拼成完整九宫格',
@@ -526,7 +556,6 @@ const displayCells = computed(() => currentSolution.value?.cells || Array.from({
 const emptyDescription = computed(() => {
   if (!occupiedCount.value) return '识别仓库后将在这里显示方案'
   if (result.value.error === 'INSUFFICIENT_FRAGMENTS') return '可用碎片不足 9 块'
-  if (hasExitConstraints.value) return '当前库存无法满足出口限制，请手动调整出口状态或点击“清空出口状态”'
   return '当前库存组合没有可行的连通方案'
 })
 
@@ -572,7 +601,9 @@ function toggleRegion(type) {
 async function startAnalysis() {
   const response = await store.analyze()
   if (isEmergencyCancellation(response)) return
-  if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
+  if (response?.success && calibrationQueueCount.value) {
+    ElMessage.warning(`识别部分完成，${calibrationQueueCount.value} 格需要本机校准`)
+  } else if (response?.success && solutionFeedback.value) ElMessage.warning(solutionFeedback.value.title)
   else if (response?.success) {
     const skipped = [response.fragmentProbe]
       .filter(stats => stats?.skipped && stats.reason && stats.reason !== 'SKIPPED_BY_REQUEST')
@@ -589,12 +620,11 @@ function rotateSlot(slot) {
 }
 
 async function startAutoPlacement() {
-  const response = await store.startAutoPlacement({
-    operationDelayMs: settingsStore.operationDelayMs,
-    adaptiveTiming: settingsStore.adaptiveTiming,
-    adaptiveTimeoutMs: settingsStore.adaptiveTimeoutMs,
-    fixedTiming: settingsStore.fixedTiming
-  })
+    const response = await store.startAutoPlacement({
+      operationDelayMs: settingsStore.operationDelayMs,
+      fixedTiming: settingsStore.fixedTiming
+    })
+  if (response?.configurationRequired) return
   if (!response?.success) ElMessage.error(response?.error?.message || '海图自动放入启动失败')
 }
 
@@ -618,7 +648,9 @@ async function completeCurrentChart() {
 }
 
 function updateSlot(slot, command) {
-  store.updateSlot(slot.row, slot.column, command === 'empty' ? null : command)
+  if (!store.updateSlot(slot.row, slot.column, command === 'empty' ? null : command)) {
+    ElMessage.warning('该碎片类型已由复制文本确认，只能校准或旋转方向')
+  }
 }
 
 function isSlotLocked(slot) {
@@ -633,15 +665,6 @@ function lockButtonTitle(slot) {
 
 function toggleSlotLock(slot) {
   if (!store.toggleSlotLock(slot)) ElMessage.warning(lockButtonTitle(slot))
-}
-
-async function saveCalibration() {
-  try {
-    const count = await store.savePendingCorrections()
-    ElMessage.success(`已保存 ${count} 个本机校准素材，下次识别和自动放入生效`)
-  } catch (caught) {
-    ElMessage.error(caught?.message || '保存校准素材失败')
-  }
 }
 
 function calibrationLabel(mask) {
@@ -698,7 +721,12 @@ function slotKey(slot) {
 function slotTooltipLines(slot) {
   const lockedText = isSlotLocked(slot) ? ['已固定：不参与库存计算、方案求解和自动放入'] : []
   const calibratedText = slot.calibrated ? [`本机素材已校准 · 相似度 ${(Number(slot.calibrationSimilarity || 0) * 100).toFixed(1)}%`] : []
-  if (!slot.occupied) return [...lockedText, ...calibratedText]
+  if (!slot.occupied) {
+    const candidateText = slot.candidate
+      ? [`视觉候选 · ${slot.shapeLabel ? `复制形状“${slot.shapeLabel}”未解析` : '复制未获得有效类型'}`, '未确认类型，不参与库存计数和方案求解']
+      : []
+    return [...candidateText, ...lockedText, ...calibratedText, ...fragmentModTooltipLines(slot.mods)]
+  }
   const name = typeOptions.find(option => option.value === slot.type)?.label || slot.type
   const selectedIndex = sourceCellBySlot.value?.get(slotKey(slot))
   const selectedText = selectedIndex !== undefined ? ` · 已拼入海图第 ${selectedIndex + 1} 格` : ''
@@ -737,7 +765,7 @@ const analysisProgressText = computed(() => {
   const progress = analysisProgress.value
   if (!progress?.stage) return ''
   if (progress.stage === 'copy') {
-    return progress.index ? `正在读取碎片词缀 ${progress.index}/${progress.total}` : '正在准备读取碎片词缀…'
+    return progress.index ? `正在复制碎片 ${progress.index}/${progress.total}` : '正在准备复制碎片…'
   }
   return ''
 })
@@ -760,23 +788,59 @@ function exitClasses(id) {
   return {
     'exit-button': true,
     achieved: currentSolution.value?.exits.includes(id),
-    required: requiredExits.value.includes(id),
-    forbidden: forbiddenExits.value.includes(id)
+    configured: edges.value[id]?.status === 'matched'
   }
 }
 
 function exitTitle(id) {
-  if (requiredExits.value.includes(id)) return `${id}：必选出口；左键取消，右键切换为禁止`
-  if (forbiddenExits.value.includes(id)) return `${id}：禁止出口；右键取消，左键切换为必选`
-  return `${id}：左键设为必选，右键设为禁止`
+  return `${id}：点击修改边缘词缀`
 }
 
-function toggleRequiredExit(id) {
-  store.toggleRequiredExit(id)
+const borderModEditingDisabled = computed(() => executing.value || analyzing.value || probingBorder.value || resumeIndex.value > 0)
+const borderModDialogTitle = computed(() => activeBorderExitId.value ? `修改边缘词缀（${activeBorderExitId.value}）` : '修改边缘词缀')
+const activeBorderEdgeHasContent = computed(() => {
+  const edge = edges.value[activeBorderExitId.value]
+  return Boolean(edge?.status === 'matched' || edge?.rawTexts?.some(line => String(line).trim()))
+})
+
+function openBorderModDialog(id) {
+  if (borderModEditingDisabled.value) return
+  activeBorderExitId.value = id
+  const lines = edges.value[id]?.mod?.lines
+  const selected = Array.isArray(lines)
+    ? borderModOptions.find(option => JSON.stringify(option.mod.lines) === JSON.stringify(lines))
+    : null
+  selectedBorderModIndex.value = selected?.index ?? null
+  borderModDialogVisible.value = true
 }
 
-function toggleForbiddenExit(id) {
-  store.toggleForbiddenExit(id)
+async function saveBorderMod() {
+  const option = borderModOptions.find(item => item.index === selectedBorderModIndex.value)
+  if (!option) {
+    ElMessage.error('请选择词缀目录中的有效边缘词缀')
+    return
+  }
+  savingBorderMod.value = true
+  try {
+    const response = await store.updateBorderMod(activeBorderExitId.value, option.mod)
+    if (!response?.success) return ElMessage.error(response?.error?.message || '边缘词缀修改失败')
+    borderModDialogVisible.value = false
+    ElMessage.success(`${activeBorderExitId.value} 边缘词缀已更新`)
+  } finally {
+    savingBorderMod.value = false
+  }
+}
+
+async function clearBorderMod() {
+  savingBorderMod.value = true
+  try {
+    const response = await store.updateBorderMod(activeBorderExitId.value, null)
+    if (!response?.success) return ElMessage.error(response?.error?.message || '边缘词缀清空失败')
+    borderModDialogVisible.value = false
+    ElMessage.success(`${activeBorderExitId.value} 边缘词缀已清空`)
+  } finally {
+    savingBorderMod.value = false
+  }
 }
 
 const probeBorderBlockedTitle = computed(() => {
@@ -785,6 +849,55 @@ const probeBorderBlockedTitle = computed(() => {
   if (!atlasRegionMetadata.value) return '请先框选 3×3 海图区'
   return ''
 })
+
+const autoPlaceConfigurationCheck = computed(() => collectPuzzleConfigurationIssues({
+  actionId: CONFIGURATION_ACTIONS.autoPlace,
+  inventoryRegionMetadata: inventoryRegionMetadata.value,
+  atlasRegionMetadata: atlasRegionMetadata.value,
+  inventoryTabPoints: inventoryTabPoints.value,
+  sourcePages: currentSourceSlots.value.map(slot => slot.page)
+}))
+const autoPlaceButtonDisabled = computed(() => {
+  if (analyzing.value || probingBorder.value || solving.value) return true
+  return autoPlaceConfigurationCheck.value.ok ? !canAutoPlace.value : false
+})
+const autoPlaceButtonTitle = computed(() => autoPlaceConfigurationCheck.value.ok
+  ? autoPlaceBlockedReason.value
+  : '点击完成当前自动摆放所需配置')
+
+const puzzleFailureAction = computed(() => error.value?.configurationActionId || (
+  ['TARGET_MISMATCH', 'FINAL_VERIFICATION_FAILED'].includes(error.value?.code)
+    ? CONFIGURATION_ACTIONS.autoPlace
+    : CONFIGURATION_ACTIONS.analyze
+))
+const puzzleCorrectionIssue = computed(() => configurationIssueFromFailure({
+  moduleId: CONFIGURATION_MODULES.puzzle,
+  actionId: puzzleFailureAction.value,
+  failureCode: error.value?.failureCode || error.value?.code,
+  configurationIssueId: error.value?.configurationIssueId,
+  message: error.value?.message
+}))
+
+function openPuzzleCorrection() {
+  const actionId = puzzleFailureAction.value
+  openConfigurationCorrectionGuide({
+    moduleId: CONFIGURATION_MODULES.puzzle,
+    actionId,
+    title: '重新配置海图识别',
+    failure: {
+      failureCode: error.value?.failureCode || error.value?.code,
+      configurationIssueId: error.value?.configurationIssueId,
+      message: error.value?.message
+    },
+    collect: () => collectPuzzleConfigurationIssues({
+      actionId,
+      inventoryRegionMetadata: inventoryRegionMetadata.value,
+      atlasRegionMetadata: atlasRegionMetadata.value,
+      inventoryTabPoints: inventoryTabPoints.value,
+      sourcePages: currentSourceSlots.value.map(slot => slot.page)
+    })
+  })
+}
 
 async function handleProbeBorderMods() {
   const response = await store.probeBorderMods()
@@ -801,8 +914,6 @@ async function handleProbeBorderMods() {
 function handleAutoProbeChange(value) {
   store.setAutoProbeBorderMods(Boolean(value))
 }
-
-const clearExitConstraints = store.clearExitConstraints
 
 let removeExecutionListener = null
 onMounted(() => {
@@ -841,6 +952,8 @@ const nextSolution = store.nextSolution
 
 .page-heading h2 { margin: 0; }
 .status-alert { margin-top: var(--spacing-md); }
+.status-alert--action { display: flex; align-items: center; gap: 10px; }
+.status-alert--action :deep(.el-alert) { min-width: 0; flex: 1; }
 .auto-blocked-reason { max-width: 260px; color: var(--el-color-warning); line-height: 1.35; }
 .region-line { margin: 12px 0; font-size: 13px; color: var(--el-text-color-secondary); }
 .region-line span { color: var(--el-color-primary); }
@@ -939,6 +1052,7 @@ const nextSolution = store.nextSolution
 }
 .inventory-slot:hover { border-color: var(--el-color-primary); }
 .inventory-slot.empty { background: var(--el-fill-color-lighter); color: var(--el-text-color-placeholder); }
+.inventory-slot.candidate { border-style: dashed; border-color: var(--el-color-warning); background: #313131; color: var(--el-color-warning); }
 .inventory-slot.locked {
   border-color: var(--el-color-warning);
   filter: saturate(0.45);
@@ -965,6 +1079,7 @@ const nextSolution = store.nextSolution
   background: #313131;
 }
 .empty-mark { font-size: 24px; }
+.candidate-mark { font-size: 24px; font-weight: 700; }
 .uncertain-mark {
   position: absolute;
   left: 3px;
@@ -974,6 +1089,21 @@ const nextSolution = store.nextSolution
   font-weight: 700;
   font-style: normal;
   line-height: 1;
+  pointer-events: none;
+}
+.mod-unknown-mark {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  transform: translateX(-50%);
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgba(230, 162, 60, 0.16);
+  color: var(--el-color-warning);
+  font-size: 10px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1.2;
   pointer-events: none;
 }
 .source-index {
@@ -1129,8 +1259,12 @@ const nextSolution = store.nextSolution
 .vertical-exits { display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 4px; min-width: 0; }
 .exit-button { min-width: 0; min-height: 30px; border: 1px solid var(--el-border-color); border-radius: 5px; background: var(--el-fill-color-lighter); color: var(--el-text-color-secondary); cursor: pointer; font-size: 11px; line-height: 1; }
 .exit-button.achieved { color: var(--el-color-success); border-color: var(--el-color-success); background: var(--el-color-success-light-9); }
-.exit-button.required { outline: 2px solid var(--el-color-warning); outline-offset: -2px; font-weight: 700; }
-.exit-button.forbidden { color: var(--el-color-danger); border-color: var(--el-color-danger); background: var(--el-color-danger-light-9); text-decoration: line-through; font-weight: 700; }
+.exit-button.configured:not(.achieved) { color: var(--el-color-primary); border-color: var(--el-color-primary-light-5); }
+.exit-button:disabled { cursor: not-allowed; opacity: .55; }
+.border-mod-select { width: 100%; }
+.border-mod-dialog-help { margin: 0; color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; }
+:global(.border-mod-select-popper .el-select-dropdown__item) { height: auto; min-height: 34px; padding-top: 6px; padding-bottom: 6px; line-height: 1.45; }
+.border-mod-option { display: grid; white-space: normal; }
 .solution-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 10px; font-size: 13px; }
 .solution-pager { justify-content: center; }
 .chart-action-stack { display: grid; justify-items: center; gap: 8px; margin-top: 12px; }

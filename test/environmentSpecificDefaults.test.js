@@ -10,7 +10,7 @@ import {
   createEmptyItemPosition
 } from '../src/utils/environmentDefaults.js'
 import { DEFAULT_GLOBAL_SHORTCUTS } from '../src/utils/shortcutConfig.js'
-import { ADAPTIVE_TIMING, FIXED_TIMING, OPERATION_DELAY } from '../src/utils/operationDelay.js'
+import { FIXED_TIMING, OPERATION_DELAY, OPERATION_TIMING_VERSION } from '../src/utils/operationDelay.js'
 import { normalizeChaosRecipeSettings } from '../src/stores/chaosRecipe.js'
 import { validateCraftingConfig, validateMapRollingConfig } from '../src/utils/validation.js'
 import { createDefaultMapConfig } from '../src/utils/mapPresetMigration.js'
@@ -82,15 +82,20 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(fresh.inventory.startPos, { x: 0, y: 0 })
     assert.deepEqual(fresh.inventory.slotSize, { w: 0, h: 0 })
     assert.equal(fresh.operationDelayMs, OPERATION_DELAY.default)
-    assert.equal(fresh.adaptiveTiming, ADAPTIVE_TIMING.default)
-    assert.equal(fresh.adaptiveTimeoutMs, ADAPTIVE_TIMING.timeoutDefault)
     assert.deepEqual(fresh.fixedTiming, FIXED_TIMING.defaults)
+    assert.equal('adaptiveTiming' in fresh, false)
+    assert.equal('adaptiveTimeoutMs' in fresh, false)
 
     const saved = {
       globalShortcuts: { ...DEFAULT_GLOBAL_SHORTCUTS, itemStart: 'F6', priceCheck: 'F8' },
       currencyPositions: { chaos: { x: 321, y: 654 } },
       inventory: { startPos: { x: 101, y: 202 }, slotSize: { w: 33, h: 44 } },
       itemPosition: { x: 777, y: 888 },
+      operationTimingVersion: 2,
+      operationDelayMs: 73,
+      adaptiveTiming: true,
+      adaptiveTimeoutMs: 999,
+      fixedTiming: { modifierSettleMs: 34, keyHoldMs: 12 },
       combatAssist: {
         potion: {
           health: { point: { x: 11, y: 22 }, keys: ['1'] },
@@ -99,7 +104,7 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
         portal: { openKey: 'Numpad1', clickPoint: { x: 55, y: 66 } }
       }
     }
-    installStorage(saved)
+    const savedStorage = installStorage(saved)
     const existing = useSettingsStore(createPinia())
     assert.equal(existing.globalShortcuts.itemStart, 'F6')
     assert.equal(existing.globalShortcuts.priceCheck, 'F8')
@@ -109,6 +114,18 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(existing.itemPosition, { x: 777, y: 888 })
     assert.deepEqual(existing.combatAssist.potion.health.point, { x: 11, y: 22 })
     assert.equal(existing.combatAssist.portal.openKey, 'Numpad1')
+    assert.equal(existing.operationDelayMs, 73)
+    assert.deepEqual(existing.fixedTiming, {
+      ...FIXED_TIMING.defaults,
+      modifierSettleMs: 34,
+      keyHoldMs: 12
+    })
+    assert.equal('adaptiveTiming' in existing, false)
+    assert.equal('adaptiveTimeoutMs' in existing, false)
+    const migrated = JSON.parse(savedStorage.get('settings'))
+    assert.equal(migrated.operationTimingVersion, OPERATION_TIMING_VERSION)
+    assert.equal('adaptiveTiming' in migrated, false)
+    assert.equal('adaptiveTimeoutMs' in migrated, false)
 
     existing.resetSettings()
     assert.deepEqual(existing.globalShortcuts, DEFAULT_GLOBAL_SHORTCUTS)
@@ -118,8 +135,9 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(existing.combatAssist.potion.health.keys, [])
     assert.equal(existing.combatAssist.portal.openKey, '')
     assert.equal(existing.operationDelayMs, OPERATION_DELAY.default)
-    assert.equal(existing.adaptiveTimeoutMs, ADAPTIVE_TIMING.timeoutDefault)
     assert.deepEqual(existing.fixedTiming, FIXED_TIMING.defaults)
+    assert.equal('adaptiveTiming' in existing, false)
+    assert.equal('adaptiveTimeoutMs' in existing, false)
   } finally {
     await server.close()
   }

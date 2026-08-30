@@ -11,7 +11,7 @@ test('物品制作完成浮窗提供重新开始按钮且地图完成态不受�
   const view = source('../src/domains/overlay/OverlayView.vue')
   const content = source('../src/domains/overlay/components/OverlayContent.vue')
 
-  assert.match(content, /defineEmits\(\['confirm', 'restart', 'retry', 'close'\]\)/)
+  assert.match(content, /defineEmits\(\[[^\]]*'confirm'[^\]]*'restart'[^\]]*'retry'[^\]]*'close'[^\]]*\]\)/)
   assert.match(content, /重新开始/)
   assert.match(content, /\$emit\('restart'\)/)
   assert.match(content, /:loading="isRestarting"/)
@@ -30,7 +30,7 @@ test('运行中的物品和地图制作隐藏关闭按钮，停止与等待状�
   assert.match(content, /v-if="isStopped && !isCompleted && !stopReason"/)
   assert.match(content, /v-if="isStopped && !isCompleted && !stopReason && !itemInfo\.affixMatch/)
   assert.match(content, /v-else class="overlay-placeholder"[\s\S]*v-if="!stopReason"/)
-  assert.match(content, /defineEmits\(\['confirm', 'restart', 'retry', 'close'\]\)/)
+  assert.match(content, /defineEmits\(\[[^\]]*'confirm'[^\]]*'restart'[^\]]*'retry'[^\]]*'close'[^\]]*\]\)/)
   assert.match(content, /v-if="canRetry"[\s\S]*\$emit\('retry'\)/)
 })
 

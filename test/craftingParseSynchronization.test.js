@@ -625,7 +625,7 @@ with tempfile.TemporaryDirectory() as directory:
   }
 })
 
-test('装备与地图模板的固定模式等待剪贴板事件并返回同次确认快照', () => {
+test('装备与地图模板等待固定时长后单次确认剪贴板快照', () => {
   for (const template of [craftingTemplate, mapTemplate]) {
     const snippet = block(template, 'def send_copy_command(', 'def wait_for_parse_result(')
     const result = runPython(`
@@ -642,7 +642,7 @@ keyboard_controller = Controller()
 Key = types.SimpleNamespace(ctrl="ctrl")
 def sleep(_value):
     state["sleeps"] += 1
-    if state["sleeps"] == 6:
+    if state["sleeps"] == 5:
         state["sequence"] = 11
         state["text"] = "本轮物品"
 clock = {"now": 0.0}
@@ -651,11 +651,8 @@ def monotonic():
     return clock["now"]
 time = types.SimpleNamespace(sleep=sleep, monotonic=monotonic)
 is_running = True
-TIMING_MODE = "fixed"
 MODIFIER_SETTLE_SECONDS = KEY_HOLD_SECONDS = RELEASE_SETTLE_SECONDS = 0.0
 CLIPBOARD_RESPONSE_MIN_SECONDS = 1.0
-ADAPTIVE_TIMEOUT_SECONDS = 1.0
-CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 def require_game_foreground(): return True
 copied = send_copy_command(10, "上一轮物品")
 print(json.dumps({"copied": copied, "sequence": state["sequence"]}, ensure_ascii=False))
@@ -819,7 +816,7 @@ function runSingleTarget({ method, targetKind, category, parsedResults }) {
 import json
 ${helperBlock}
 ${processBlock}
-map_config = {"method": "${method}", "targetKind": "${targetKind}", "autoStash": False, "vaal": {"enabled": False}}
+map_config = {"method": "${method}", "targetKind": "${targetKind}", "autoStash": False, "exalted": {"enabled": False}, "vaal": {"enabled": False}}
 is_running = True
 fatal_error_reason = None
 CURRENCY_NAMES = {"alchemy": "点金石", "chaos": "混沌石", "scouring": "重铸石", "wisdom": "知识卷轴", "vaal": "瓦尔宝珠"}
@@ -832,6 +829,7 @@ def rolling_item_level_label(_item): return "等级"
 def read_and_parse(_x, _y, allow_unchanged_text=False, **_kwargs): copies.append(len(copies) + 1); return len(copies)
 def wait_for_parse_result(_request_id=None): return results.pop(0)
 def apply_currency(currency, _x, _y): currencies.append(currency); return True
+def fill_rare_map_affixes(result, _x, _y): return {"ok": True, "result": result}
 def check_map_base(item): return bool(item.get("match"))
 def check_map_mods(_item): return True
 def stash_item(_x, _y): return True

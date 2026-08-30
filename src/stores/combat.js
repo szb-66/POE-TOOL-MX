@@ -10,17 +10,26 @@ export const useCombatStore = defineStore('combat', () => {
   const healthTriggers = ref(0)
   const manaTriggers = ref(0)
   const lastError = ref('')
+  const lastFailure = ref({ failureCode: '', configurationIssueId: '' })
   const loopRunning = ref(false)
   const loopFocused = ref(false)
   const loopTriggers = ref(0)
   const loopProcessId = ref(null)
   const loopLastError = ref('')
+  const loopLastFailure = ref({ failureCode: '', configurationIssueId: '' })
+  const portalLastError = ref('')
+  const portalLastFailure = ref({ failureCode: '', configurationIssueId: '' })
 
   function applyStatus(status = {}) {
     const isLoop = status.origin === 'loop'
     if (status.event === 'starting' || status.event === 'started') {
-      if (isLoop) loopLastError.value = ''
-      else lastError.value = ''
+      if (isLoop) {
+        loopLastError.value = ''
+        loopLastFailure.value = { failureCode: '', configurationIssueId: '' }
+      } else {
+        lastError.value = ''
+        lastFailure.value = { failureCode: '', configurationIssueId: '' }
+      }
       void reportDiagnosticRecovery('combat', 'script_runtime')
     }
     if (typeof status.running === 'boolean') {
@@ -47,9 +56,17 @@ export const useCombatStore = defineStore('combat', () => {
     if (status.event === 'error') {
       if (isLoop) {
         loopLastError.value = status.error || '主动循环发生错误'
+        loopLastFailure.value = {
+          failureCode: status.failureCode || status.code || '',
+          configurationIssueId: status.configurationIssueId || ''
+        }
         void reportDiagnosticFailure('combat', 'script_runtime', status, 'process_exit')
       } else {
         lastError.value = status.error || '战斗辅助发生错误'
+        lastFailure.value = {
+          failureCode: status.failureCode || status.code || '',
+          configurationIssueId: status.configurationIssueId || ''
+        }
         void reportDiagnosticFailure('combat', 'script_runtime', status, 'process_exit')
       }
     }
@@ -65,9 +82,17 @@ export const useCombatStore = defineStore('combat', () => {
     }
   }
 
+  function applyPortalFailure(failure = null) {
+    portalLastError.value = failure ? String(failure.error || failure.message || '一键回城执行失败') : ''
+    portalLastFailure.value = failure ? {
+      failureCode: String(failure.failureCode || failure.code || ''),
+      configurationIssueId: String(failure.configurationIssueId || '')
+    } : { failureCode: '', configurationIssueId: '' }
+  }
+
   return {
-    running, focused, protectedMode, processId, healthTriggers, manaTriggers, lastError,
-    loopRunning, loopFocused, loopTriggers, loopProcessId, loopLastError,
-    applyStatus
+    running, focused, protectedMode, processId, healthTriggers, manaTriggers, lastError, lastFailure,
+    loopRunning, loopFocused, loopTriggers, loopProcessId, loopLastError, loopLastFailure,
+    portalLastError, portalLastFailure, applyStatus, applyPortalFailure
   }
 })

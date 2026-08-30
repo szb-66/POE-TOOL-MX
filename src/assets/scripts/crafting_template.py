@@ -182,7 +182,7 @@ pending_parse_request_id = None
 # 自动操作等待（生成脚本时已将毫秒转换为秒）
 mouse_move_delay = {{DELAY_MOUSE_MOVE}}
 
-# 固定时序（生成脚本时填充，自适应关闭时由用户配置覆盖）
+# 固定时序（生成脚本时填充）
 MODIFIER_SETTLE_SECONDS = float({{MODIFIER_SETTLE_MS}}) / 1000.0
 KEY_HOLD_SECONDS = float({{KEY_HOLD_MS}}) / 1000.0
 BUTTON_HOLD_SECONDS = float({{BUTTON_HOLD_MS}}) / 1000.0
@@ -191,10 +191,6 @@ CLIPBOARD_RESPONSE_MIN_SECONDS = float({{CLIPBOARD_CONFIRM_MS}}) / 1000.0
 STASH_TAB_SETTLE_SECONDS = float({{STASH_TAB_SETTLE_MS}}) / 1000.0
 STASH_SETTLE_SECONDS = float({{STASH_SETTLE_MS}}) / 1000.0
 
-# 自适应等待模式（生成脚本时填充）
-TIMING_MODE = "{{TIMING_MODE}}"
-ADAPTIVE_TIMEOUT_SECONDS = float({{ADAPTIVE_TIMEOUT_MS}}) / 1000.0
-CLIPBOARD_POLL_INTERVAL_SECONDS = 0.01
 # 复制成功（有序列号证据）但文本未变化的哨兵：区别于"没有复制到内容"
 CLIPBOARD_TEXT_UNCHANGED = "__CLIPBOARD_TEXT_UNCHANGED__"
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
@@ -730,7 +726,7 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
-def fail_currency_preflight(currency, reason, actual="未检测到物品"):
+def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
     expected = CURRENCY_NAMES.get(currency, currency)
     pos = currency_positions.get(currency) or {}
@@ -745,6 +741,8 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品"):
         "expected": expected,
         "actual": actual,
         "position": {"x": int(pos.get("x", 0)), "y": int(pos.get("y", 0))},
+        "failureCode": failure_code,
+        "configurationIssueId": f"currency.{currency}",
         "reason": reason
     }
     print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
@@ -758,7 +756,8 @@ def preflight_required_currencies():
     if required_currency_types and GetClipboardSequenceNumber is None:
         return fail_currency_preflight(
             required_currency_types[0],
-            "无法读取剪贴板序列号，已停止制作以避免误操作"
+            "无法读取剪贴板序列号，已停止制作以避免误操作",
+            failure_code="CLIPBOARD_UNAVAILABLE"
         )
 
     for currency in required_currency_types:
@@ -780,7 +779,8 @@ def preflight_required_currencies():
         except Exception:
             return fail_currency_preflight(
                 currency,
-                f"无法读取{expected}复制前的剪贴板序列号，已停止制作"
+                f"无法读取{expected}复制前的剪贴板序列号，已停止制作",
+                failure_code="CLIPBOARD_UNAVAILABLE"
             )
         try:
             before_text = str(pyperclip.paste() or "")
@@ -792,18 +792,20 @@ def preflight_required_currencies():
             allow_unchanged_text=True
         )
         if not clipboard_text:
-            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息")
+            return fail_currency_preflight(currency, f"无法复制{expected}位置的物品信息", failure_code="CURRENCY_NOT_FOUND")
         try:
             sequence_after = GetClipboardSequenceNumber()
         except Exception:
             return fail_currency_preflight(
                 currency,
-                f"无法读取{expected}复制后的剪贴板序列号，已停止制作"
+                f"无法读取{expected}复制后的剪贴板序列号，已停止制作",
+                failure_code="CLIPBOARD_UNAVAILABLE"
             )
         if sequence_after == sequence_before:
             return fail_currency_preflight(
                 currency,
-                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页"
+                f"{expected}坐标下没有可复制物品，请确认已切换到正确仓库页",
+                failure_code="CURRENCY_NOT_FOUND"
             )
 
         header = copied_item_header(clipboard_text)
@@ -812,7 +814,8 @@ def preflight_required_currencies():
             return fail_currency_preflight(
                 currency,
                 f"通货位置错误：需要{expected}，实际检测到{actual}",
-                actual
+                actual,
+                failure_code="CURRENCY_TYPE_MISMATCH"
             )
         verified_currency_types.add(currency)
         print(f"[预检] {expected}验证通过")
@@ -1052,8 +1055,7 @@ def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=Fals
         time.sleep(RELEASE_SETTLE_SECONDS)
         keyboard_controller.release(Key.ctrl)
         time.sleep(RELEASE_SETTLE_SECONDS)
-        timeout_seconds = ADAPTIVE_TIMEOUT_SECONDS if TIMING_MODE == "adaptive" else CLIPBOARD_RESPONSE_MIN_SECONDS
-        return wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text)
+        return wait_for_clipboard_change(before_seq, before_text, CLIPBOARD_RESPONSE_MIN_SECONDS, allow_unchanged_text)
     except Exception as e:
         print(f"[错误] 发送复制命令失败: {e}")
         # 发生错误时也要确保释放
@@ -1087,19 +1089,11 @@ def clipboard_changed(before_seq, before_text, allow_unchanged_text=False):
 
 
 def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_unchanged_text=False):
-    deadline = time.monotonic() + timeout_seconds
-    saw_unchanged_copy = False
-    while is_running:
-        clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
-        if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
-            saw_unchanged_copy = True
-        elif clipboard_text is not None:
-            return clipboard_text
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        time.sleep(min(CLIPBOARD_POLL_INTERVAL_SECONDS, remaining))
-    return CLIPBOARD_TEXT_UNCHANGED if saw_unchanged_copy else False
+    time.sleep(max(0.0, timeout_seconds))
+    if not is_running:
+        return False
+    clipboard_text = clipboard_changed(before_seq, before_text, allow_unchanged_text)
+    return clipboard_text if clipboard_text is not None else False
 
 def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
     # 读取剪切板并写入文件；verify_freshness 用于通货后读取的过期文本退避复核。

@@ -161,21 +161,24 @@ test('识别截图样本固定保存在仓库中', () => {
   assert.equal(existsSync(emptyScreenshot), true)
 })
 
-test('用户截图可识别五种线型、空格、锁标记和等级文本', { skip: !existsSync(python) }, () => {
+test('用户截图只产出视觉候选、空格证据和五类方向候选', { skip: !existsSync(python) }, () => {
   const result = analyze({ region: { left: 4, top: 4, right: 570, bottom: 954 } })
   assert.equal(result.success, true)
   assert.equal(result.slots.length, 60)
-  assert.equal(result.occupiedCount, 50)
-  assert.deepEqual(result.counts, { endpoint: 14, straight: 8, corner: 14, tee: 8, cross: 6 })
-  assert.equal(result.slots.find(slot => slot.row === 1 && slot.column === 2).occupied, true)
-  assert.equal(result.slots.find(slot => slot.row === 6 && slot.column === 3).occupied, false)
-  assert.ok(Object.values(result.counts).every(count => count > 0))
-  assert.deepEqual(new Set(result.slots.filter(slot => slot.type === 'straight').map(slot => slot.orientation)), new Set([0, 90]))
-  assert.ok(result.slots.filter(slot => slot.occupied).every(slot => Number.isInteger(slot.mask) && slot.mask > 0 && slot.mask < 16))
-  assert.ok(result.slots.filter(slot => slot.occupied).every(slot => [0, 90, 180, 270].includes(slot.orientation)))
+  assert.equal(result.candidateCount, 50)
+  assert.equal(result.occupiedCount, 0)
+  assert.deepEqual(result.counts, { endpoint: 0, straight: 0, corner: 0, tee: 0, cross: 0 })
+  assert.equal(result.slots.find(slot => slot.row === 1 && slot.column === 2).candidate, true)
+  assert.equal(result.slots.find(slot => slot.row === 6 && slot.column === 3).candidate, false)
+  const candidates = result.slots.filter(slot => slot.candidate)
+  assert.ok(candidates.every(slot => slot.type === null && slot.occupied === false && slot.mask === 0))
+  assert.ok(candidates.every(slot => Object.keys(slot.directionCandidates).length === 5))
+  assert.ok(candidates.every(slot => Object.values(slot.directionCandidates).every(direction =>
+    Number.isInteger(direction.mask) && direction.mask > 0 && direction.mask < 16 &&
+    [0, 90, 180, 270].includes(direction.orientation))))
 })
 
-test('真实仓库逐格识别全部有效方向而不是只返回合法角度格式', { skip: !existsSync(python) }, () => {
+test('真实仓库按每种复制类型分别返回正确合法方向', { skip: !existsSync(python) }, () => {
   const result = analyze({ region: { left: 4, top: 4, right: 570, bottom: 954 } })
   assert.equal(result.success, true)
   const expected = new Map([
@@ -194,15 +197,42 @@ test('真实仓库逐格识别全部有效方向而不是只返回合法角度�
   ])
   for (const slot of result.slots) {
     const truth = expected.get(`${slot.row + 1},${slot.column + 1}`)
-    if (truth) assert.deepEqual([slot.type, slot.mask], truth, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
+    if (truth) {
+      const [type, mask] = truth
+      assert.equal(slot.directionCandidates[type].mask, mask, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
+      assert.equal(slot.type, null)
+    }
   }
 })
 
-test('碎片基础识别固定使用原标准参数并定义本机校准门槛', () => {
+test('外部确认类型只选择该类型的方向候选', { skip: !existsSync(python) }, () => {
+  const result = analyze({
+    imageIsRegion: true,
+    recognition: { typeHints: { '0:3': 'endpoint', '0:1': 'straight' } }
+  })
+  const endpoint = result.slots.find(slot => slot.row === 0 && slot.column === 3)
+  const straight = result.slots.find(slot => slot.row === 0 && slot.column === 1)
+  assert.deepEqual([endpoint.occupied, endpoint.type, endpoint.mask, endpoint.typeSource], [true, 'endpoint', 1, 'hint'])
+  assert.deepEqual([straight.occupied, straight.type, straight.mask, straight.typeSource], [true, 'straight', 5, 'hint'])
+  assert.equal(result.slots.find(slot => slot.row === 0 && slot.column === 0).type, null)
+})
+
+test('低门槛绿色连通域进入疑似候选而不是扫描全部空格', { skip: !existsSync(python) }, () => {
+  const result = probeAnalyzer([
+    'cell = module.np.zeros((100, 100, 3), dtype=module.np.uint8)',
+    'cell[8:13, 50:55] = (0, 255, 0)',
+    'component = module.largest_green_component(cell, "inventory")',
+    'empty = module.largest_green_component(module.np.zeros((100, 100, 3), dtype=module.np.uint8), "inventory")',
+    'print(json.dumps({"state": component.get("candidateState") if component else None, "area": component.get("area") if component else 0, "empty": empty is None}))'
+  ].join('\n'))
+  assert.deepEqual(result, { state: 'suspect', area: 25, empty: true })
+})
+
+test('碎片候选与方向固定使用原颜色参数并移除图像类型分类门槛', () => {
   const source = readFileSync(analyzer, 'utf8')
-  assert.match(source, /STANDARD_RECOGNITION\s*=\s*\{[\s\S]*"confidenceThreshold": 0\.72/)
+  assert.match(source, /STANDARD_RECOGNITION\s*=\s*\{[\s\S]*"greenLower": \(35, 70, 80\)[\s\S]*"darkScale": 0\.85/)
   assert.match(source, /CALIBRATION_SIMILARITY\s*=\s*0\.965/)
-  assert.doesNotMatch(source, /STRENGTH_PRESETS|"sensitive"|"strict"/)
+  assert.doesNotMatch(source, /STRENGTH_PRESETS|"sensitive"|"strict"|confidenceThreshold|marginThreshold|def classify\(/)
 })
 
 test('分析主入口把本机校准素材传给 analyze_image', () => {
@@ -367,7 +397,8 @@ test('旧识别强度配置被静默忽略且仍能完成仓库识别', { skip: 
     recognition: { strength: 'sensitive' }
   })
   assert.equal(result.success, true)
-  assert.equal(result.occupiedCount, 50)
+  assert.equal(result.candidateCount, 50)
+  assert.equal(result.occupiedCount, 0)
 })
 
 test('固定基础识别可识别既有变暗样本', { skip: !existsSync(python) }, () => {
@@ -376,7 +407,7 @@ test('固定基础识别可识别既有变暗样本', { skip: !existsSync(python
     const dimmed = createDimmedScreenshot(directory)
     const result = analyze({ imagePath: dimmed, imageIsRegion: true })
     assert.equal(result.success, true)
-    assert.equal(result.occupiedCount, 50)
+    assert.equal(result.candidateCount, 50)
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
@@ -388,44 +419,43 @@ test('方向识别使用绿色图标质心作为探针中心', () => {
   assert.match(source, /def inventory_route_topology\([\s\S]*component:/)
 })
 
-test('高相似本机素材覆盖类型方向并支持空格双向纠错', { skip: !existsSync(python) }, () => {
+test('高相似 v2 素材只校正同类型方向，空格素材只返回无文本证据', { skip: !existsSync(python) }, () => {
   const baseline = analyze({ imageIsRegion: true })
-  const occupied = baseline.slots.find(slot => slot.occupied)
-  const empty = baseline.slots.find(slot => !slot.occupied)
+  const target = baseline.slots.find(slot => slot.row === 0 && slot.column === 3)
   const calibrated = analyze({ imageIsRegion: true, calibrationSamples: [
-    { labelMask: 1, featureVersion: occupied.featureVersion, featureVector: occupied.calibrationFeature },
-    { labelMask: 2, featureVersion: empty.featureVersion, featureVector: empty.calibrationFeature }
+    { kind: 'fragment', type: 'endpoint', labelMask: 4, featureVersion: target.featureVersion, featureVector: target.calibrationFeature },
+    { kind: 'fragment', type: 'straight', labelMask: 10, featureVersion: target.featureVersion, featureVector: target.calibrationFeature },
+    { kind: 'empty', type: null, labelMask: 0, featureVersion: target.featureVersion, featureVector: target.calibrationFeature }
   ] })
-  const occupiedResult = calibrated.slots.find(slot => slot.row === occupied.row && slot.column === occupied.column)
-  const emptyResult = calibrated.slots.find(slot => slot.row === empty.row && slot.column === empty.column)
-  assert.deepEqual([occupiedResult.calibrated, occupiedResult.mask], [true, 1])
-  assert.deepEqual([emptyResult.calibrated, emptyResult.mask], [true, 2])
-  const removed = analyze({ imageIsRegion: true, calibrationSamples: [
-    { labelMask: 0, featureVersion: occupied.featureVersion, featureVector: occupied.calibrationFeature }
-  ] })
-  assert.equal(removed.slots.find(slot => slot.row === occupied.row && slot.column === occupied.column).occupied, false)
+  const result = calibrated.slots.find(slot => slot.row === target.row && slot.column === target.column)
+  assert.deepEqual([result.type, result.occupied], [null, false])
+  assert.deepEqual([result.directionCandidates.endpoint.calibrated, result.directionCandidates.endpoint.mask], [true, 4])
+  assert.deepEqual([result.directionCandidates.straight.calibrated, result.directionCandidates.straight.mask], [true, 10])
+  assert.deepEqual(result.emptyCalibration, { matched: true, similarity: 1 })
 })
 
-test('低相似和冲突本机素材回退基础识别', { skip: !existsSync(python) }, () => {
+test('低相似、跨类型和同类型冲突素材不改变基础方向候选', { skip: !existsSync(python) }, () => {
   const baseline = analyze({ imageIsRegion: true })
-  const target = baseline.slots.find(slot => slot.occupied)
+  const target = baseline.slots.find(slot => slot.row === 0 && slot.column === 3)
+  const baseMask = target.directionCandidates.endpoint.mask
   const low = analyze({ imageIsRegion: true, calibrationSamples: [
-    { labelMask: 1, featureVersion: 1, featureVector: Array(128).fill(0) }
+    { kind: 'fragment', type: 'endpoint', labelMask: 2, featureVersion: 2, featureVector: Array(128).fill(0) }
   ] })
-  assert.equal(low.slots.find(slot => slot.row === target.row && slot.column === target.column).calibrated, false)
+  assert.equal(low.slots.find(slot => slot.row === target.row && slot.column === target.column).directionCandidates.endpoint.calibrated, false)
   const conflict = analyze({ imageIsRegion: true, calibrationSamples: [
-    { labelMask: 1, featureVersion: 1, featureVector: target.calibrationFeature },
-    { labelMask: 2, featureVersion: 1, featureVector: target.calibrationFeature }
+    { kind: 'fragment', type: 'endpoint', labelMask: 1, featureVersion: 2, featureVector: target.calibrationFeature },
+    { kind: 'fragment', type: 'endpoint', labelMask: 2, featureVersion: 2, featureVector: target.calibrationFeature },
+    { kind: 'fragment', type: 'straight', labelMask: 10, featureVersion: 2, featureVector: target.calibrationFeature }
   ] })
   const result = conflict.slots.find(slot => slot.row === target.row && slot.column === target.column)
-  assert.equal(result.calibrated, false)
-  assert.equal(result.mask, target.mask)
+  assert.equal(result.directionCandidates.endpoint.calibrated, false)
+  assert.equal(result.directionCandidates.endpoint.mask, baseMask)
 })
 
 test('区域轻微偏移后方向掩码保持稳定', { skip: !existsSync(python) }, () => {
   const result = analyze({ region: { left: 8, top: 4, right: 574, bottom: 954 } })
   assert.equal(result.success, true)
-  assert.equal(result.occupiedCount, 50)
+  assert.equal(result.candidateCount, 50)
   const expected = new Map([
     ['1,4', 1], ['9,4', 2], ['2,4', 4], ['6,6', 8],
     ['1,2', 5], ['2,2', 10],
@@ -435,7 +465,11 @@ test('区域轻微偏移后方向掩码保持稳定', { skip: !existsSync(python
   ])
   for (const slot of result.slots) {
     const truth = expected.get(`${slot.row + 1},${slot.column + 1}`)
-    if (truth) assert.equal(slot.mask, truth, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
+    if (truth) {
+      const type = truth === 15 ? 'cross' : ([1, 2, 4, 8].includes(truth) ? 'endpoint'
+        : ([5, 10].includes(truth) ? 'straight' : ([3, 6, 12, 9].includes(truth) ? 'corner' : 'tee')))
+      assert.equal(slot.directionCandidates[type].mask, truth, `第 ${slot.row + 1} 行第 ${slot.column + 1} 列方向错误`)
+    }
   }
 })
 
@@ -499,10 +533,21 @@ test('海图区九格识别隔离右下角外框和角落装饰', { skip: !exist
   }
 })
 
-test('没有有效绿色符号时返回结构化错误', { skip: !existsSync(python) }, () => {
+test('没有可信网格和绿色符号时返回框选不确定错误', { skip: !existsSync(python) }, () => {
   const result = analyze({ imagePath: emptyScreenshot, imageIsRegion: true })
   assert.equal(result.success, false)
-  assert.equal(result.error.code, 'NO_FRAGMENTS')
+  assert.equal(result.error.code, 'EMPTY_GRID_UNCERTAIN')
+})
+
+test('有效空网格未允许空页时返回无碎片错误', { skip: !existsSync(python) }, () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'puzzle-empty-grid-error-'))
+  try {
+    const result = analyze({ imagePath: createEmptyGridScreenshot(directory), imageIsRegion: true })
+    assert.equal(result.success, false)
+    assert.equal(result.error.code, 'NO_FRAGMENTS')
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
 test('允许空页时有效空网格返回零碎片结果', { skip: !existsSync(python) }, () => {
@@ -517,12 +562,12 @@ test('允许空页时有效空网格返回零碎片结果', { skip: !existsSync(
   }
 })
 
-test('轻微框选偏差仍保留全部碎片并把模糊候选标为待确认', { skip: !existsSync(python) }, () => {
+test('图像初扫保留全部候选且在复制前不伪造类型', { skip: !existsSync(python) }, () => {
   const result = analyze({ imageIsRegion: true })
   assert.equal(result.success, true)
-  assert.equal(result.occupiedCount, 50)
-  assert.ok(result.slots.some(slot => slot.uncertain))
-  assert.ok(result.warnings.length > 0)
+  assert.equal(result.candidateCount, 50)
+  assert.ok(result.slots.filter(slot => slot.candidate).every(slot => slot.uncertain && slot.type === null))
+  assert.equal(result.warnings.length, 0)
 })
 
 test('识别模板包含五类多方向尺度基准', () => {

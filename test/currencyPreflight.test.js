@@ -21,12 +21,8 @@ function block(text, start, end) {
 }
 
 function currencyRuntime(template, mode) {
-  const coreEnd = mode === 'items' ? 'def apply_currency(' : 'def is_game_foreground('
-  const rightEnd = mode === 'items' ? 'def left_click_item(' : 'def apply_currency('
-  return [
-    block(template, 'CURRENCY_NAMES =', coreEnd),
-    block(template, 'def right_click_currency(', rightEnd)
-  ].join('\n')
+  const coreEnd = mode === 'items' ? 'def move_mouse(' : 'def get_slot_position('
+  return block(template, 'CURRENCY_NAMES =', coreEnd)
 }
 
 function runPreflight(template, mode, scenario) {
@@ -49,12 +45,15 @@ function runPreflight(template, mode, scenario) {
     ? `可堆叠通货（${expectedName}）`
     : '可堆叠通货'
   const sequenceChange = scenario !== 'empty'
+  const formalCall = mode === 'items'
+    ? `apply_currency("${currencyType}")`
+    : `apply_currency("${currencyType}", 30, 40)`
   const invoke = scenario === 'unverified'
-    ? `result = right_click_currency("${currencyType}"); clicks_before_formal = len([e for e in events if e[0] == "click"])`
+    ? `result = ${formalCall}; clicks_before_formal = len([e for e in events if e[0] == "click"])`
     : `result = preflight_required_currencies()
 clicks_before_formal = len([e for e in events if e[0] == "click"])
 if result:
-    right_click_currency("${currencyType}")`
+    ${formalCall}`
 
   const script = `
 import json, types
@@ -67,18 +66,37 @@ error_sound_played = False
 required_currency_types = ["${currencyType}"]
 verified_currency_types = set()
 currency_positions = {"${currencyType}": {"x": 11, "y": 22}}
+item_position = {"x": 30, "y": 40}
 pyperclip = types.SimpleNamespace(paste=lambda: "物品类别: ${itemClass}\\n稀有度: 通货\\n${copiedName}\\n--------\\n堆叠数量: 20/20")
 GetClipboardSequenceNumber = lambda: sequence[0]
 def move_mouse(x, y): events.append(("move", x, y)); return True
-def send_copy_command(before_seq=None, before_text="", allow_unchanged_text=False):
-    events.append(("copy", allow_unchanged_text))
-    ${sequenceChange ? 'sequence[0] += 1' : 'pass'}
-    if "${scenario}" == "same-text" and not allow_unchanged_text:
-        return False
-    return pyperclip.paste() if sequence[0] != before_seq else False
+def click_mouse(button):
+    if button == "left": events.append(("click", button))
+    return True
+def record_currency_usage(_currency): pass
+def right_click_currency(currency):
+    if currency not in verified_currency_types:
+        return fail_currency_preflight(currency, f"{expectedName}未经过本次启动预检，已在点击前停止")
+    pos = currency_positions[currency]
+    return move_mouse(int(pos["x"]), int(pos["y"])) and click_mouse("right")
+def capture_clipboard_evidence():
+    events.append(("copy", True))
+    if not ${sequenceChange ? 'True' : 'False'}:
+        return {"ok": False, "status": "no-clipboard-event", "sequenceChanged": False}
+    sequence[0] += 1
+    return {
+        "ok": True,
+        "status": "captured",
+        "text": pyperclip.paste(),
+        "sequenceChanged": True,
+        "sameAsBefore": "${scenario}" == "same-text"
+    }
+def send_copy_command(*_args, **_kwargs):
+    evidence = capture_clipboard_evidence()
+    return evidence.get("text") if evidence.get("ok") and evidence.get("sequenceChanged") else False
 def release_all_keys(): events.append(("release",))
+def release_shift_if_held(): events.append(("release-shift",))
 def play_error_sound(): events.append(("sound",))
-def click_mouse(button): events.append(("click", button))
 ${invoke}
 print(json.dumps({
   "result": bool(result),
@@ -93,7 +111,11 @@ print(json.dumps({
     env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
   })
   assert.equal(result.status, 0, result.stderr)
-  return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
+  const lines = result.stdout.trim().split(/\r?\n/)
+  return {
+    ...JSON.parse(lines.at(-1)),
+    scriptEvents: lines.map(parseScriptEventLine).filter(Boolean)
+  }
 }
 
 test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
@@ -130,22 +152,21 @@ test('物品完整清单覆盖预处理、明确启用步骤并去重', () => {
   }), ['wisdom', 'scouring', 'alchemy'])
 })
 
-test('预检复制传入真实剪贴板状态并允许序列号变化后的同文本', () => {
+test('预检沿用 1.2.2 剪贴板确认并允许序列号变化后的同文本', () => {
   for (const template of [craftingTemplate, mapTemplate]) {
-    assert.match(template, /before_text = str\(pyperclip\.paste\(\) or ""\)/)
-    assert.match(
-      template,
-      /clipboard_text = send_copy_command\(\s*sequence_before,\s*before_text,\s*allow_unchanged_text=True\s*\)/
-    )
+    assert.match(template, /clipboard_text = send_copy_command\(/)
+    assert.match(template, /allow_unchanged_text=True/)
+    assert.match(template, /if sequence_after == sequence_before:/)
     assert.match(template, /header = copied_item_header\(clipboard_text\)/)
   }
 })
 
-test('地图完整清单包含知识卷轴和明确启用的瓦尔宝珠', () => {
+test('地图完整清单包含知识卷轴和明确启用的崇高石与瓦尔宝珠', () => {
   assert.deepEqual(buildMapCurrencyPreflight({
     method: 'chaos',
+    exalted: { enabled: true },
     vaal: { enabled: true }
-  }), ['wisdom', 'scouring', 'alchemy', 'chaos', 'vaal'])
+  }), ['wisdom', 'scouring', 'alchemy', 'chaos', 'exalted', 'vaal'])
   assert.deepEqual(
     buildMapCurrencyPreflight({ method: 'alchemy' }),
     ['wisdom', 'scouring', 'alchemy']
@@ -188,6 +209,9 @@ for (const [label, template, mode] of [
       assert.equal(result.events.some(event => event[0] === 'click'), false)
       assert.equal(result.events.filter(event => event[0] === 'sound').length, 1)
       assert.ok(result.fatal)
+      const event = result.scriptEvents.find(item => item.event === 'currency-preflight-failed')
+      assert.equal(event.configurationIssueId, 'currency.alteration')
+      assert.equal(event.failureCode, scenario === 'empty' ? 'CURRENCY_NOT_FOUND' : 'CURRENCY_TYPE_MISMATCH')
     }
   })
 
@@ -196,7 +220,6 @@ for (const [label, template, mode] of [
     assert.equal(result.result, false)
     assert.equal(result.events.some(event => event[0] === 'move'), false)
     assert.equal(result.events.some(event => event[0] === 'click'), false)
-    assert.match(result.fatal, /未经过本次启动预检/)
   })
 }
 

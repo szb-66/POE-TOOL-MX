@@ -7,6 +7,7 @@
           <router-view />
         </MainLayout>
       </div>
+      <ConfigurationGuideDialog />
     </template>
     <router-view v-else />
   </div>
@@ -17,6 +18,7 @@ import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
+import ConfigurationGuideDialog from './domains/configurationGuide/ConfigurationGuideDialog.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import { markMainRuntimeSettled } from './startup/readiness'
 import { resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'

@@ -27,10 +27,17 @@ export const CHART_BASE_TYPES = Object.freeze(['金沙海床海图', '珊瑚密�
 
 export const CHART_SHAPE_ALIASES_VERSION = 'S30-cn-game-and-trade-2026-08-20'
 
+export const CHART_FRAGMENT_COPY_FIELDS = Object.freeze({
+  category: '物品类别',
+  categoryValue: '海图',
+  shape: '海图形状'
+})
+
 // 游戏复制文本与腾讯市集过滤目录使用两套中文文案。两套五类形状都显式保留，
 // 避免把市集标签误当成游戏内唯一译名后，只能逐个修补识别失败。
-const shape = (id, gameLabel, tradeLabel) => Object.freeze({
+const shape = (id, puzzleType, gameLabel, tradeLabel) => Object.freeze({
   id,
+  puzzleType,
   label: gameLabel,
   gameLabel,
   tradeLabel,
@@ -38,11 +45,11 @@ const shape = (id, gameLabel, tradeLabel) => Object.freeze({
 })
 
 export const CHART_SHAPES = Object.freeze([
-  shape('1', '端点', '结束'),
-  shape('2', '角落', '角落'),
-  shape('3', '直线', '直线'),
-  shape('4', '节点', '交汇'),
-  shape('5', '交叉', '岔路')
+  shape('1', 'endpoint', '端点', '结束'),
+  shape('2', 'corner', '角落', '角落'),
+  shape('3', 'straight', '直线', '直线'),
+  shape('4', 'tee', '节点', '交汇'),
+  shape('5', 'cross', '交叉', '岔路')
 ])
 
 const normalized = (value) => String(value || '').normalize('NFKC').replace(/\s+/g, '').trim()
@@ -50,6 +57,42 @@ const normalized = (value) => String(value || '').normalize('NFKC').replace(/\s+
 export function resolveChartShape(value) {
   const key = normalized(value)
   return CHART_SHAPES.find((shape) => shape.aliases.some((alias) => normalized(alias) === key)) || null
+}
+
+export function parseCopiedChartFragment(value) {
+  const lines = String(value || '')
+    .normalize('NFKC')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+  const field = label => {
+    const prefix = normalized(label)
+    const line = lines.find(candidate => normalized(candidate.split(':', 1)[0]) === prefix && candidate.includes(':'))
+    return line ? line.slice(line.indexOf(':') + 1).trim() : ''
+  }
+  const category = field(CHART_FRAGMENT_COPY_FIELDS.category)
+  const shapeLabel = field(CHART_FRAGMENT_COPY_FIELDS.shape)
+  if (normalized(category) !== normalized(CHART_FRAGMENT_COPY_FIELDS.categoryValue)) {
+    return { isChart: false, type: null, shapeLabel, shape: null }
+  }
+  const resolved = resolveChartShape(shapeLabel)
+  return {
+    isChart: true,
+    type: resolved?.puzzleType || null,
+    shapeLabel,
+    shape: resolved
+  }
+}
+
+export function chartShapeAliasesByPuzzleType() {
+  return Object.fromEntries(CHART_SHAPES.map(entry => [entry.puzzleType, [...entry.aliases]]))
+}
+
+export function chartFragmentCopyProtocol() {
+  return {
+    fields: { ...CHART_FRAGMENT_COPY_FIELDS },
+    aliasesByType: chartShapeAliasesByPuzzleType()
+  }
 }
 
 export function chartRegionByType(value) {

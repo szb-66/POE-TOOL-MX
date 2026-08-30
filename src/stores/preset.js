@@ -16,52 +16,14 @@ import {
   createDefaultMapConfig
 } from '../utils/mapPresetMigration.js'
 import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
-import { createDefaultModuleTwo, normalizeModuleTwo } from '../domains/items/affixConfig.js'
-import { createDefaultEldritchModule, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
-
-function defaultModuleThree() {
-  return {
-    enabled: false,
-    socket: { enabled: false, count: 0 },
-    link: { enabled: false, count: 0 },
-    color: { enabled: false, red: 0, green: 0, blue: 0 }
-  }
-}
-
-function normalizeItemPreset(preset = {}) {
-  const checkInitialItem = typeof preset.checkInitialItem === 'boolean'
-    ? preset.checkInitialItem
-    : preset.moduleTwo?.checkInitialAffixes !== false
-  const moduleEldritch = normalizeEldritchModule(preset.moduleEldritch)
-  const moduleTwo = normalizeModuleTwo(preset.moduleTwo)
-  const defaults = defaultModuleThree()
-  const sourceThree = preset.moduleThree || {}
-  const moduleThree = {
-    ...defaults,
-    ...sourceThree,
-    socket: { ...defaults.socket, ...(sourceThree.socket || {}) },
-    link: { ...defaults.link, ...(sourceThree.link || {}) },
-    color: { ...defaults.color, ...(sourceThree.color || {}) }
-  }
-  if (moduleEldritch.enabled) {
-    moduleTwo.enabled = false
-    moduleThree.enabled = false
-  }
-  return { ...preset, checkInitialItem, moduleTwo, moduleThree, moduleEldritch }
-}
+import {
+  createDefaultItemPreset,
+  normalizeItemPreset
+} from '../utils/itemPreset.js'
 
 export const usePresetStore = defineStore('preset', () => {
   // 物品预设
-  const itemPresets = ref([
-    {
-      id: 'default',
-      name: '默认预设',
-      checkInitialItem: true,
-      moduleTwo: createDefaultModuleTwo(),
-      moduleThree: defaultModuleThree(),
-      moduleEldritch: createDefaultEldritchModule()
-    }
-  ])
+  const itemPresets = ref([createDefaultItemPreset()])
 
   // 地图预设
   const mapPresets = ref([
@@ -110,12 +72,9 @@ export const usePresetStore = defineStore('preset', () => {
   
   function addItemPreset(name) {
     const newPreset = {
+      ...createDefaultItemPreset('', ''),
       id: `preset_${Date.now()}`,
-      name: name || `预设${itemPresets.value.length}`,
-      checkInitialItem: true,
-      moduleTwo: createDefaultModuleTwo(),
-      moduleThree: defaultModuleThree(),
-      moduleEldritch: createDefaultEldritchModule()
+      name: name || `预设${itemPresets.value.length}`
     }
     itemPresets.value.push(newPreset)
     currentItemPresetId.value = newPreset.id

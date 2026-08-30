@@ -4,6 +4,23 @@ import { createPinia, setActivePinia } from 'pinia'
 import { electronApi } from '../src/api/electron.js'
 import { usePuzzleStore } from '../src/stores/puzzle.js'
 
+function confirmedSlot(type, index = 0) {
+  return {
+    row: Math.floor(index / 6), column: index % 6,
+    candidate: true, occupied: true, type, typeSource: 'copy', shapeLabel: type,
+    orientation: 0, confidence: 1
+  }
+}
+
+function atlasMetadata() {
+  return {
+    displayId: '1', scaleFactor: 1,
+    displayPhysicalBounds: { x: 0, y: 0, width: 1920, height: 1080 },
+    selectedRegion: { left: 900, top: 100, right: 1500, bottom: 700 },
+    capturedAt: '2026-08-30T00:00:00.000Z'
+  }
+}
+
 test('切换收益策略会持久化并触发方案重算', async () => {
   const originalLocalStorage = globalThis.localStorage
   let saved = null
@@ -36,8 +53,8 @@ test('自动收益模式保持持久化并随词缀重选实际策略', async ()
   const batch = line => ({
     success: true,
     pages: [
-      { page: 1, slots: Array.from({ length: 9 }, (_, index) => ({ row: Math.floor(index / 6), column: index % 6, occupied: true, type: 'cross', confidence: 1 })) },
-      { page: 2, slots: [{ row: 0, column: 0, occupied: true, type: 'corner', confidence: 1 }] }
+      { page: 1, slots: Array.from({ length: 9 }, (_, index) => confirmedSlot('cross', index)) },
+      { page: 2, slots: [confirmedSlot('corner')] }
     ],
     fragmentMods: { '1:0:0': { status: 'matched', mod: { lines: [line] }, confidence: 1 } }
   })
@@ -73,11 +90,11 @@ test('边缘词缀识别成功后按新边缘收益重算', async () => {
     store.applyAnalysisBatch({
       success: true,
       pages: [
-        { page: 1, slots: Array.from({ length: 9 }, (_, index) => ({ row: Math.floor(index / 6), column: index % 6, occupied: true, type: 'cross', confidence: 1 })) },
-        { page: 2, slots: [{ row: 0, column: 0, occupied: true, type: 'corner', confidence: 1 }] }
+        { page: 1, slots: Array.from({ length: 9 }, (_, index) => confirmedSlot('cross', index)) },
+        { page: 2, slots: [confirmedSlot('corner')] }
       ]
     })
-    const response = await store.probeBorderMods()
+    const response = await store.probeBorderMods({ configurationGuideBypass: true })
     assert.equal(response.success, true)
     assert.equal(store.result.rewardDataAvailable, true)
     assert.ok(store.result.rewardScore > 0)
@@ -92,12 +109,9 @@ function chartInventory(borderMods) {
     pages: [
       {
         page: 1,
-        slots: Array.from({ length: 9 }, (_, index) => ({
-          row: Math.floor(index / 6), column: index % 6,
-          occupied: true, type: 'cross', confidence: 1
-        }))
+        slots: Array.from({ length: 9 }, (_, index) => confirmedSlot('cross', index))
       },
-      { page: 2, slots: [{ row: 0, column: 0, occupied: true, type: 'corner', confidence: 1 }] }
+      { page: 2, slots: [confirmedSlot('corner')] }
     ],
     borderMods
   }
@@ -148,6 +162,7 @@ test('完成海图且开启自动识别时先清空旧词缀再应用新结果',
   try {
     setActivePinia(createPinia())
     const store = usePuzzleStore()
+    store.atlasRegionMetadata = atlasMetadata()
     electronApi.puzzle.probeBorderMods = async () => {
       clearedBeforeProbe = !store.edgesRecognized
         && store.edges.N0.status === 'unknown'
@@ -192,6 +207,7 @@ test('完成海图后的自动识别失败时保持边缘词缀清空', async ()
   try {
     setActivePinia(createPinia())
     const store = usePuzzleStore()
+    store.atlasRegionMetadata = atlasMetadata()
     store.applyAnalysisBatch(chartInventory({
       N0: { status: 'matched', mod: { lines: ['旧海图边缘词缀'] }, confidence: 1, rawTexts: ['旧海图 OCR 原文'] }
     }))
@@ -221,7 +237,7 @@ test('独立边缘识别期间拒绝完成当前海图并保留库存', async ()
     await new Promise(resolve => setTimeout(resolve, 40))
     const occupiedBefore = store.inventoryPages[1].slots.filter(slot => slot.occupied).length
 
-    const probing = store.probeBorderMods()
+    const probing = store.probeBorderMods({ configurationGuideBypass: true })
     assert.equal(store.probingBorder, true)
     const response = await store.completeCurrentChart()
 

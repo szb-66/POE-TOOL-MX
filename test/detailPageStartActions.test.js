@@ -18,6 +18,28 @@ test('物品制作详情页复用制作启动服务并阻止重复或并行启�
   assert.match(view, /async function handleStart\(\)[\s\S]*starting\.value = true[\s\S]*await startCrafting\(\)[\s\S]*starting\.value = false/)
 })
 
+test('物品制作页顶部提供被制作物品坐标并复用持久化取点流程', () => {
+  const view = source('../src/domains/items/components/ModuleOne.vue')
+  const help = source('../src/domains/help/helpContent.js')
+
+  assert.match(view, /<label class="form-label">被制作物品位置<\/label>/)
+  assert.doesNotMatch(view, /此坐标是游戏中被制作物品所在的位置|class="position-help"/)
+  assert.match(view, /<CoordinateConfigurationField[\s\S]*:model-value="itemPosition"[\s\S]*@update:model-value="updateItemPosition"[\s\S]*@pick="pickItemPosition"/)
+  assert.match(view, /const itemPosition = ref\(\{ \.\.\.settingsStore\.itemPosition \}\)/)
+  assert.match(view, /watch\(\(\) => settingsStore\.itemPosition,[\s\S]*itemPosition\.value = \{ \.\.\.value \}/)
+  assert.match(view, /settingsStore\.updateItemPosition\(itemPosition\.value\)/)
+  assert.match(help, /prerequisite: '在制作页配置被制作物品位置，并配置通货位置、制作预设、游戏窗口和停止快捷键。'/)
+
+  const pickStart = view.indexOf('async function pickItemPosition()')
+  const pickEnd = view.indexOf('async function handleSave', pickStart)
+  const pick = view.slice(pickStart, pickEnd)
+  assert.match(pick, /if \(itemPositionPicking\.value\) return/)
+  assert.match(pick, /if \(!result \|\| result\.canceled\) return/)
+  assert.match(pick, /if \(result\.success === false\) throw new Error/)
+  assert.ok(pick.indexOf('result.canceled') < pick.indexOf('updateItemPosition(point)'))
+  assert.match(pick, /finally \{\s*itemPositionPicking\.value = false/)
+})
+
 test('地图制作详情页复用地图启动服务并阻止重复或并行启动', () => {
   const view = source('../src/domains/map/MapView.vue')
 

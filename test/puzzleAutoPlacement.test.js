@@ -66,20 +66,19 @@ test('海图点击必须等待落点稳定并保持按键，异常时仍释放�
   const output = JSON.parse(result.stdout)
   assert.deepEqual(output.normal, [
     ['move', 10, 20], ['sleep', 0.02], ['foreground'],
-    ['mouse', 0x0002], ['sleep', 0.02], ['mouse', 0x0004], ['sleep', 0.02]
+    ['mouse', 0x0002], ['sleep', 0.015], ['mouse', 0x0004], ['sleep', 0.01]
   ])
   assert.deepEqual(output.interrupted, [
     ['move', 30, 40], ['sleep', 0.5], ['foreground'],
-    ['mouse', 0x0008], ['sleep', 0.02], ['mouse', 0x0010], ['sleep', 0.02]
+    ['mouse', 0x0008], ['sleep', 0.015], ['mouse', 0x0010], ['sleep', 0.01]
   ])
 })
 
-test('放置后移出目标格再等待游戏稳定验证', { skip: !existsSync(python) }, () => {
+test('拿取来源后等待固定画面时序再放置并移出目标格', { skip: !existsSync(python) }, () => {
   const code = [
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
     'import puzzle_auto_place as module',
     'events=[]',
-    'module.timing_mode="fixed"',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
     'module.move_physical=lambda x,y: events.append(["move",x,y])',
     'module.time.sleep=lambda seconds: events.append(["sleep",round(seconds,3)])',
@@ -92,9 +91,9 @@ test('放置后移出目标格再等待游戏稳定验证', { skip: !existsSync(
   assert.deepEqual(events.filter(event => event[0] === 'click'), [
     ['click', 10, 20, 'left'], ['click', 30, 40, 'left']
   ])
-  assert.equal(events[1][1], 0.55, '来源左键后使用画面验证等待配置')
-  assert.deepEqual(events[3], ['move', 50, 60], '目标点击后必须移出海图区再验证，避免悬停高亮改变拓扑')
-  assert.equal(events.at(-1)[1], 0.55, '目标左键后使用画面验证等待配置')
+  assert.deepEqual(events, [
+    ['click', 10, 20, 'left'], ['sleep', 0.01], ['click', 30, 40, 'left'], ['move', 50, 60]
+  ])
 })
 
 test('仓库右键旋转后必须确认实际角度再拿取碎片', { skip: !existsSync(python) }, () => {
@@ -106,7 +105,7 @@ test('仓库右键旋转后必须确认实际角度再拿取碎片', { skip: !ex
     'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"uncertain":False}',
     'captures=iter([{"success":True,"slots":[{**source,"orientation":0}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":0}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":270}]+[{}]*59}])',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
-    'module.capture_analyze=lambda *args: events.append(["capture"]) or next(captures)',
+    'module.capture_analyze=lambda *args,**kwargs: events.append(["capture"]) or next(captures)',
     'module.time.sleep=lambda seconds: events.append(["sleep",round(seconds,3)])',
     'ok,confirmed,actual=module.rotate_source_to_target({"left":0,"top":0,"right":600,"bottom":1000},{},source,270,0.04)',
     'print(json.dumps({"ok":ok,"orientation":confirmed["orientation"],"events":events}))'
@@ -129,7 +128,7 @@ test('多次旋转必须逐次确认角度后才能继续下一次右键', { ski
     'source={"row":0,"column":0,"occupied":True,"type":"corner","orientation":0,"confidence":0.9,"uncertain":False}',
     'captures=iter([{"success":True,"slots":[{**source,"orientation":270}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":180}]+[{}]*59},{"success":True,"slots":[{**source,"orientation":90}]+[{}]*59}])',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",button])',
-    'module.capture_analyze=lambda *args: events.append(["capture"]) or next(captures)',
+    'module.capture_analyze=lambda *args,**kwargs: events.append(["capture"]) or next(captures)',
     'module.time.sleep=lambda seconds: None',
     'ok,confirmed,actual=module.rotate_source_to_target({"left":0,"top":0,"right":600,"bottom":1000},{},source,90,0.04)',
     'print(json.dumps({"ok":ok,"orientation":confirmed["orientation"],"events":events}))'
@@ -198,12 +197,122 @@ test('自动放置接受修正来源并优先使用', () => {
   assert.match(script, /planned_source_valid\(inventory, source, target\)/)
 })
 
-test('切换仓库页签先点击标定点并等待页面稳定', { skip: !existsSync(python) }, () => {
+test('自动放入从共享复制协议接收形状别名且运行时包含剪贴板模块', () => {
+  const service = source('electron/modules/puzzle/service.js')
+  const regions = source('electron/modules/priceCheck/chartRegions.js')
+  const script = source('src/assets/scripts/puzzle_auto_place.py')
+  assert.match(service, /copyTypeProtocol: chartFragmentCopyProtocol\(\)/)
+  assert.match(service, /\['cv2', 'mss', 'numpy', 'pynput', 'pyperclip'\]/)
+  assert.match(regions, /aliasesByType: chartShapeAliasesByPuzzleType\(\)/)
+  assert.match(script, /aliases_by_type = protocol\.get\("aliasesByType"\)/)
+  for (const duplicatedShapeLabel of ['端点', '结束', '角落', '直线', '节点', '交汇', '交叉', '岔路']) {
+    assert.doesNotMatch(script, new RegExp(duplicatedShapeLabel))
+  }
+})
+
+test('Python 来源复制解析遵守主进程传入的五类形状协议', { skip: !existsSync(python) }, () => {
+  const protocol = {
+    fields: { category: '物品类别', categoryValue: '海图', shape: '海图形状' },
+    aliasesByType: {
+      endpoint: ['端点', '结束'], corner: ['角落'], straight: ['直线'],
+      tee: ['节点', '交汇'], cross: ['交叉', '岔路']
+    }
+  }
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'from puzzle_auto_place import parse_copied_fragment_type',
+    `protocol=json.loads(${JSON.stringify(JSON.stringify(protocol))})`,
+    'samples=[("端点","endpoint"),("角落","corner"),("直线","straight"),("交汇","tee"),("岔路","cross")]',
+    'parsed=[parse_copied_fragment_type(f"物品 类别： 海 图\\n海图 形状： {label}",protocol)["type"] for label,_expected in samples]',
+    'unknown=parse_copied_fragment_type("物品类别: 海图\\n海图形状: 未知",protocol)',
+    'non_chart=parse_copied_fragment_type("物品类别: 装备\\n海图形状: 角落",protocol)',
+    'print(json.dumps({"parsed":parsed,"unknown":unknown,"nonChart":non_chart},ensure_ascii=False))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    parsed: ['endpoint', 'corner', 'straight', 'tee', 'cross'], unknown: null, nonChart: null
+  })
+})
+
+test('九个计划来源各自只复制一次，复制失败或类型不符不产生危险点击', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'protocol={"fields":{"category":"category","categoryValue":"chart","shape":"shape"},"aliasesByType":{"corner":["corner"],"tee":["tee"]}}',
+    'class Clip:',
+    '  def __init__(self): self.value="original"',
+    '  def copy(self,value): self.value=value',
+    '  def paste(self): return self.value',
+    'clip=Clip(); events=[]; texts=iter(["category: chart\\nshape: corner"]*9)',
+    'module.move_physical=lambda x,y: events.append(["move",x,y])',
+    'module.click_physical=lambda *args: events.append(["dangerous-click"])',
+    'module.time.sleep=lambda seconds: None',
+    'def send(): events.append(["copy"]); clip.value=next(texts)',
+    'results=[module.confirm_source_copy((i,i),"corner",protocol,200,50,clip,send) for i in range(9)]',
+    'def mismatch_send(): events.append(["copy"]); clip.value="category: chart\\nshape: tee"',
+    'mismatch=module.confirm_source_copy((10,10),"corner",protocol,200,50,clip,mismatch_send)',
+    'def failed_send(): events.append(["copy"])',
+    'failed=module.confirm_source_copy((11,11),"corner",protocol,200,50,clip,failed_send)',
+    'print(json.dumps({"successes":sum(1 for item in results if item["success"]),"copies":sum(1 for item in events if item[0]=="copy"),"dangerous":sum(1 for item in events if item[0]=="dangerous-click"),"mismatch":mismatch["code"],"failed":failed["code"]}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), {
+    successes: 9, copies: 11, dangerous: 0,
+    mismatch: 'SOURCE_TYPE_MISMATCH', failed: 'SOURCE_TYPE_COPY_FAILED'
+  })
+})
+
+test('来源方向识别与旋转验证始终携带复制确认类型', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'source={"row":2,"column":3,"occupied":True,"type":"corner","orientation":90}',
+    'captured=[]',
+    'module.capture_analyze=lambda *args,**kwargs: captured.append(kwargs) or {"success":True,"slots":[{}]*15+[source]+[{}]*44}',
+    'ok,actual=module.verify_source_rotation({}, {}, source, 90, 0.01)',
+    'print(json.dumps({"ok":ok,"recognition":captured[0]["recognition"]}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1)), {
+    ok: true, recognition: { typeHints: { '2:3': 'corner' } }
+  })
+})
+
+test('自动放入在所有结束路径恢复剪贴板，紧急停止由主进程兜底', { skip: !existsSync(python) }, () => {
+  const code = [
+    `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
+    'import puzzle_auto_place as module',
+    'class Clip:',
+    '  def __init__(self): self.value="before"',
+    '  def copy(self,value): self.value=value',
+    '  def paste(self): return self.value',
+    'clip=Clip()',
+    'def success(config): clip.copy("during"); return 7',
+    'normal=module.execute_with_preserved_clipboard({},success,clip); after_normal=clip.value',
+    'def failure(config): clip.copy("during-error"); raise RuntimeError("boom")',
+    'try: module.execute_with_preserved_clipboard({},failure,clip)',
+    'except RuntimeError: pass',
+    'print(json.dumps({"normal":normal,"afterNormal":after_normal,"afterFailure":clip.value}))'
+  ].join('\n')
+  const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout), { normal: 7, afterNormal: 'before', afterFailure: 'before' })
+
+  const service = source('electron/modules/puzzle/service.js')
+  assert.match(service, /event\.event === 'completed'[\s\S]*restoreAutomationClipboard\(child\)/)
+  assert.match(service, /event\.event === 'error'[\s\S]*restoreAutomationClipboard\(child\)/)
+  assert.match(service, /stopAutoPlacement\(reason = 'user'\)[\s\S]*restoreAutomationClipboard\(child\)/)
+  assert.match(service, /emergencyStop\(reason = 'shortcut'\)[\s\S]*stopAutoPlacement\(reason\)/)
+})
+
+test('切换仓库页签后移出并等待固定页签生效时序', { skip: !existsSync(python) }, () => {
   const code = [
     `import json,sys;sys.path.insert(0,${JSON.stringify(scripts)})`,
     'import puzzle_auto_place as module',
     'events=[]',
-    'module.timing_mode="fixed"',
     'module.click_physical=lambda x,y,button,delay: events.append(["click",x,y,button])',
     'module.move_physical=lambda x,y: events.append(["move",x,y])',
     'module.time.sleep=lambda seconds: events.append(["sleep",round(seconds,3)])',
@@ -212,16 +321,21 @@ test('切换仓库页签先点击标定点并等待页面稳定', { skip: !exist
   ].join(';')
   const result = spawnSync(python, ['-c', code], { cwd: scripts, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1' } })
   assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [['click', 300, 200, 'left'], ['move', 0, 0], ['sleep', 0.25]])
+  assert.deepEqual(JSON.parse(result.stdout), [['click', 300, 200, 'left'], ['move', 0, 0], ['sleep', 0.01]])
 })
 
 test('自动放入在截图和危险来源输入前切换并验证计划页', () => {
   const script = source('src/assets/scripts/puzzle_auto_place.py')
-  const main = script.match(/def main\(\)[\s\S]*?return 0/)?.[0] || ''
-  assert.ok(main.indexOf('switch_inventory_page(') < main.indexOf('inventory = capture_analyze('))
+  const main = script.match(/def run_placement\(config: dict\[str, Any\]\)[\s\S]*?return 0/)?.[0] || ''
+  assert.ok(main.indexOf('switch_inventory_page(') < main.indexOf('confirm_source_copy('))
+  assert.ok(main.indexOf('confirm_source_copy(') < main.indexOf('inventory = capture_analyze('))
   assert.ok(main.indexOf('planned_source_valid(') < main.indexOf('rotate_source_to_target('))
+  assert.ok(main.indexOf('confirm_source_copy(') < main.indexOf('rotate_source_to_target('))
+  assert.ok(main.indexOf('confirm_source_copy(') < main.lastIndexOf('place_fragment('))
   assert.match(main, /source_page = int\(source\.get\("page", 1\)\)/)
   assert.match(main, /event\("source-page"/)
+  assert.match(main, /SOURCE_TYPE_COPY_FAILED/)
+  assert.match(main, /actualType=copy_check\.get\("actualType"\)/)
 })
 
 test('计划来源必须与实时库存占用一致，修正格可跳过类型校验', { skip: !existsSync(python) }, () => {
@@ -301,7 +415,7 @@ test('全新执行发现海图残留时必须在任何点击前停止', { skip: 
 
 test('逐格验证只重读三次画面且不重放输入', () => {
   const script = source('src/assets/scripts/puzzle_auto_place.py')
-  const verify = script.match(/def verify_target[\s\S]*?\r?\n\r?\ndef main/)?.[0] || ''
+  const verify = script.match(/def verify_target[\s\S]*?\r?\n\r?\ndef run_placement/)?.[0] || ''
   assert.match(verify, /range\(1, 4\)/)
   assert.match(verify, /capture_analyze/)
   assert.doesNotMatch(verify, /click_physical/)

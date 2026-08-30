@@ -64,6 +64,10 @@ test('混沌配方页面只提供文件夹内外两类校准和仓库标识', ()
     new URL('../src/domains/shop/ChaosRecipePanel.vue', import.meta.url),
     'utf8'
   )
+  const tabField = readFileSync(
+    new URL('../src/components/configuration/ShopStashTabConfigurationField.vue', import.meta.url),
+    'utf8'
+  )
   const variables = readFileSync(
     new URL('../src/styles/variables.less', import.meta.url),
     'utf8'
@@ -74,20 +78,22 @@ test('混沌配方页面只提供文件夹内外两类校准和仓库标识', ()
   }
   assert.doesNotMatch(panel, /key: '(?:normal|quad|folderNormal|folderQuad)'/)
   assert.match(panel, /普通与大型共用/)
-  assert.match(panel, /tab\.inFolder/)
-  assert.match(panel, />文件夹</)
-  assert.match(panel, /开启表示位于文件夹内/)
-  assert.match(panel, /tab\.type === 'quad' \? '大型' : '普通'/)
+  assert.match(panel, /ShopStashTabConfigurationField/)
+  assert.match(tabField, /tab\.inFolder/)
+  assert.match(tabField, />文件夹</)
+  assert.match(tabField, /开启表示位于文件夹内/)
+  assert.match(tabField, /tab\.type === 'quad' \? '大型' : '普通'/)
   assert.match(panel, /missingCalibrationLabels/)
-  assert.match(panel, /旧接口无法判断仓库页是否在文件夹内/)
-  assert.match(panel, /updateTabFolderState/)
-  assert.match(panel, /class="tab-card"/)
-  assert.match(panel, /tab-card\.active/)
-  assert.match(panel, /tab-card:hover[^}]*background/)
-  assert.doesNotMatch(panel, /tab-card\.active\s*\{[^}]*background/)
-  assert.doesNotMatch(panel, /var\(--border-light\)/)
+  assert.match(tabField, /旧接口无法判断仓库页是否在文件夹内/)
+  assert.match(panel, /saveStashTabFolder/)
+  assert.match(panel, /store\.updateTabFolderState/)
+  assert.match(tabField, /class="shop-stash-tab-field__card"/)
+  assert.match(tabField, /shop-stash-tab-field__card\.active/)
+  assert.match(tabField, /shop-stash-tab-field__card:hover[^}]*background/)
+  assert.doesNotMatch(tabField, /shop-stash-tab-field__card\.active\s*\{[^}]*background/)
+  assert.doesNotMatch(tabField, /var\(--border-light\)/)
   assert.match(variables, /--border-lighter:/)
-  assert.match(panel, /toggleTabSelection/)
+  assert.match(tabField, /emit\('update:selectedTabIds', next\)/)
   assert.doesNotMatch(panel, /tab-override-row/)
   assert.doesNotMatch(panel, /扫描当前游戏仓库页/)
   for (const text of ['商店配方状态', 'recipeCards', 'activeRecipeId', 'activeSelectedItemIds', '默认全选']) {

@@ -146,11 +146,6 @@ function normalizeCounts(counts = {}) {
   return Object.fromEntries(PUZZLE_TYPES.map(type => [type, Math.max(0, Math.floor(Number(counts[type]) || 0))]))
 }
 
-function boundaryExitMask(exits = []) {
-  const requested = new Set(exits)
-  return BOUNDARY_EXITS.reduce((mask, exit, index) => requested.has(exit.id) ? mask | (1 << index) : mask, 0)
-}
-
 function layoutFor(internalMasks, boundaryMask) {
   const cells = [...internalMasks]
   BOUNDARY_EXITS.forEach((exit, index) => {
@@ -279,13 +274,12 @@ function rewardCandidate(internalMasks, additions, inventory, sourceScores, bord
   return { cells, rewardScore }
 }
 
-function solveRewardPuzzle({ inventory, slots, edges, strategy, requiredMask, forbiddenMask, limit }) {
+function solveRewardPuzzle({ inventory, slots, edges, strategy, limit }) {
   const sourceScores = createSourceScoreTables(slots, strategy, edges)
   const borderScores = createBorderScoreTable(edges, strategy)
   let best = null
-  for (let score = 12; score >= popcount(requiredMask); score -= 1) {
+  for (let score = 12; score >= 0; score -= 1) {
     for (const boundaryMask of BOUNDARY_MASKS_BY_SCORE[score]) {
-      if ((boundaryMask & requiredMask) !== requiredMask || boundaryMask & forbiddenMask) continue
       const additions = new Uint8Array(9)
       BOUNDARY_EXITS.forEach((exit, index) => { if (boundaryMask & (1 << index)) additions[exit.cell] |= exit.direction })
       for (const internalMasks of CONNECTED_INTERNAL_MASKS) {
@@ -307,7 +301,7 @@ function solveRewardPuzzle({ inventory, slots, edges, strategy, requiredMask, fo
   return best
 }
 
-export function solvePuzzle({ counts = {}, slots = [], edges = {}, strategy = 'balanced', requiredExits = [], forbiddenExits = [], solutionLimit = 100 } = {}) {
+export function solvePuzzle({ counts = {}, slots = [], edges = {}, strategy = 'balanced', solutionLimit = 100 } = {}) {
   const normalizedStrategy = normalizeVoyageRewardMode(strategy)
   const inventory = normalizeCounts(Array.isArray(slots) && slots.length ? countsFromSlots(slots) : counts)
   const available = PUZZLE_TYPES.reduce((sum, type) => sum + inventory[type], 0)
@@ -317,18 +311,13 @@ export function solvePuzzle({ counts = {}, slots = [], edges = {}, strategy = 'b
     return { score: null, rewardScore: null, rewardDataAvailable, strategy: normalizedStrategy, effectiveStrategy: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'INSUFFICIENT_FRAGMENTS' }
   }
 
-  const requiredMask = boundaryExitMask(requiredExits)
-  const forbiddenMask = boundaryExitMask(forbiddenExits)
-  if (requiredMask & forbiddenMask) {
-    return { score: null, rewardScore: null, rewardDataAvailable, strategy: normalizedStrategy, effectiveStrategy: null, totalOptimalCount: 0, solutions: [], truncated: false, error: 'NO_SOLUTION' }
-  }
   if (rewardDataAvailable) {
     const strategies = normalizedStrategy === 'auto'
       ? VOYAGE_REWARD_STRATEGIES.map(option => option.id)
       : [normalizedStrategy]
     let selected = null
     for (const effectiveStrategy of strategies) {
-      const candidate = solveRewardPuzzle({ inventory, slots, edges, strategy: effectiveStrategy, requiredMask, forbiddenMask, limit })
+      const candidate = solveRewardPuzzle({ inventory, slots, edges, strategy: effectiveStrategy, limit })
       if (!candidate?.totalOptimalCount) continue
       const rewardScore = Math.round(candidate.rewardScore * 10) / 10
       if (!selected || rewardScore > selected.rewardScore) selected = { ...candidate, rewardScore, effectiveStrategy }
@@ -338,12 +327,10 @@ export function solvePuzzle({ counts = {}, slots = [], edges = {}, strategy = 'b
     }
     return { ...selected, rewardDataAvailable, strategy: normalizedStrategy, truncated: selected.totalOptimalCount > selected.solutions.length, error: '' }
   }
-  for (let score = 12; score >= popcount(requiredMask); score -= 1) {
+  for (let score = 12; score >= 0; score -= 1) {
     const fallbackSolutions = []
     let fallbackCount = 0
     for (const boundaryMask of BOUNDARY_MASKS_BY_SCORE[score]) {
-      if ((boundaryMask & requiredMask) !== requiredMask) continue
-      if (boundaryMask & forbiddenMask) continue
       for (const internalMasks of CONNECTED_INTERNAL_MASKS) {
         const candidate = layoutFor(internalMasks, boundaryMask)
         if (!candidate || !fitsInventory(candidate.usage, inventory)) continue

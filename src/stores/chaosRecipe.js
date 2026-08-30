@@ -17,6 +17,12 @@ import {
 import { normalizeStashGridRegion } from '../utils/stashGridCalibration.js'
 import { normalizeControlOffset } from '../../electron/modules/chaosRecipe/controlOverlayPosition.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
+import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectShopConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '../domains/configurationGuide/configurationIssues.js'
 
 const STORAGE_KEY = 'chaosRecipeSettings'
 
@@ -84,6 +90,8 @@ function unwrap(response) {
   const error = new Error(response?.error?.message || '国服商店配方操作失败')
   error.code = response?.error?.code || 'UNKNOWN'
   error.details = response?.error?.details || {}
+  error.failureCode = response?.error?.failureCode || error.code
+  error.configurationIssueId = response?.error?.configurationIssueId || ''
   throw error
 }
 
@@ -143,8 +151,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
       selectedItemIds: [...activeSelectedItemIds.value],
       selectedItemIdsByRecipe: JSON.parse(JSON.stringify(singleSelections.value)),
       operationDelayMs: timing.operationDelayMs,
-      adaptiveTiming: timing.adaptiveTiming,
-      adaptiveTimeoutMs: timing.adaptiveTimeoutMs,
       fixedTiming: timing.fixedTiming,
       ...interfaceDetectionStore.runtime(),
       ...overrides
@@ -174,10 +180,31 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     return syncRuntime({ controlOverlayOffset: null })
   }
 
-  async function setEnabled(enabled) {
+  function collectConfiguration(actionId) {
+    return collectShopConfigurationIssues({
+      actionId,
+      authenticated: auth.value.authenticated,
+      league: league.value,
+      templates: interfaceDetectionStore.templates,
+      selectedTabs: selectedTabs.value,
+      missingCalibrations: missingCalibrations.value
+    })
+  }
+
+  async function setEnabled(enabled, { configurationGuideBypass = false } = {}) {
     const next = Boolean(enabled)
-    if (next && (!interfaceDetectionStore.templates.stashTitle || !interfaceDetectionStore.templates.inventoryTitle)) {
-      throw new Error('请先在设置页配置仓库和背包标题模板')
+    if (next && !configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.enable)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.shop,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成商城配方配置',
+          actionLabel: '启用',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.enable),
+          execute: () => setEnabled(true, { configurationGuideBypass: true })
+        })
+      }
     }
     try {
       await syncRuntime({ enabled: next })
@@ -206,7 +233,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   function setError(value) {
-    error.value = value ? { code: value.code || 'UNKNOWN', message: value.message || String(value) } : null
+    error.value = value ? {
+      code: value.code || 'UNKNOWN',
+      message: value.message || String(value),
+      failureCode: value.failureCode || value.code || '',
+      configurationIssueId: value.configurationIssueId || ''
+    } : null
   }
 
   async function run(action) {
@@ -274,7 +306,20 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     return run(async () => unwrap(await electronApi.chaosRecipe.openOverlay(currentPlanRequest())))
   }
 
-  async function startAutomation(runtime) {
+  async function startAutomation(runtime, { configurationGuideBypass = false } = {}) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.start)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.shop,
+          actionId: CONFIGURATION_ACTIONS.start,
+          title: '完成商城配方取件配置',
+          actionLabel: '开始取件',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.start),
+          execute: () => startAutomation(runtime, { configurationGuideBypass: true })
+        })
+      }
+    }
     try {
       const result = await run(async () => {
       const result = unwrap(await electronApi.chaosRecipe.startAutomation({
@@ -379,7 +424,12 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
 
   function listenAutomation() {
     const disposeAutomation = electronApi.chaosRecipe.onAutomationEvent((event) => {
-      automation.value = { ...automation.value, ...event }
+      automation.value = {
+        ...automation.value,
+        ...event,
+        failureCode: event.failureCode || event.code || '',
+        configurationIssueId: event.configurationIssueId || ''
+      }
       if (event.event === 'error') void reportDiagnosticFailure('shop', 'automation', event, 'automation_failed')
       if (event.event === 'completed') void reportDiagnosticRecovery('shop', 'automation')
     })
@@ -413,7 +463,11 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     save()
     if (accountStore.status.authenticated && league.value) await loadTabs()
   })
+  let wasAccountAuthenticated = auth.value.authenticated
   accountStore.onStatusChanged(async (nextStatus) => {
+    const becameAuthenticated = !wasAccountAuthenticated && nextStatus.authenticated
+    wasAccountAuthenticated = nextStatus.authenticated
+    if (becameAuthenticated && league.value) await loadTabs()
     if (nextStatus.authenticated) return
     if (settings.value.enabled) await setEnabled(false)
     tabs.value = []
@@ -428,6 +482,6 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     save, setError, loadTabs, refresh, calibrate, previewOverlay,
     startAutomation, pauseAutomation, resumeAutomation, stopAutomation,
     updateSetting, setActiveRecipe, setSelectedItemIds, updateTabFolderState,
-    listenAutomation, setEnabled, syncRuntime, initializeRuntime, resetControlOverlayOffset
+    listenAutomation, setEnabled, syncRuntime, initializeRuntime, resetControlOverlayOffset, collectConfiguration
   }
 })

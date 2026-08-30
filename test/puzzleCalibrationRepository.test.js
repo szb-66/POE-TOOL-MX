@@ -6,7 +6,8 @@ import path from 'node:path'
 import {
   PuzzleCalibrationRepository,
   PUZZLE_CALIBRATION_FEATURE_LENGTH,
-  PUZZLE_CALIBRATION_FEATURE_VERSION
+  PUZZLE_CALIBRATION_FEATURE_VERSION,
+  PUZZLE_CALIBRATION_SCHEMA_VERSION
 } from '../electron/modules/puzzle/calibrationRepository.js'
 
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
@@ -23,6 +24,8 @@ test('海图校准素材保存、同图覆盖、删除和重置', () => {
     assert.equal(first.id, second.id)
     assert.equal(repository.list().length, 1)
     assert.equal(repository.list()[0].labelMask, 10)
+    assert.equal(repository.list()[0].kind, 'fragment')
+    assert.equal(repository.list()[0].type, 'straight')
     assert.match(repository.listWithImages()[0].tileDataUrl, /^data:image\/png;base64,/)
     assert.equal(repository.remove(first.id), true)
     assert.equal(repository.list().length, 0)
@@ -49,13 +52,39 @@ test('海图校准素材拒绝非法输入并忽略损坏、越界和路径逃�
     writeFileSync(repository.indexPath, '{bad json', 'utf8')
     assert.deepEqual(repository.list(), [])
     writeFileSync(repository.indexPath, JSON.stringify({ samples: [
-      { id: 'escape', labelMask: 1, featureVersion: 1, featureVector: vector, relativePath: '..\\outside.png' },
-      { id: 'label', labelMask: 20, featureVersion: 1, featureVector: vector, relativePath: 'samples\\missing.png' },
-      { id: 'vector', labelMask: 1, featureVersion: 1, featureVector: [1], relativePath: 'samples\\missing.png' }
-    ] }), 'utf8')
+      { id: 'escape', kind: 'fragment', type: 'endpoint', labelMask: 1, featureVersion: PUZZLE_CALIBRATION_FEATURE_VERSION, featureVector: vector, relativePath: '..\\outside.png' },
+      { id: 'label', kind: 'fragment', type: 'endpoint', labelMask: 20, featureVersion: PUZZLE_CALIBRATION_FEATURE_VERSION, featureVector: vector, relativePath: 'samples\\missing.png' },
+      { id: 'vector', kind: 'fragment', type: 'endpoint', labelMask: 1, featureVersion: PUZZLE_CALIBRATION_FEATURE_VERSION, featureVector: [1], relativePath: 'samples\\missing.png' }
+    ], schemaVersion: PUZZLE_CALIBRATION_SCHEMA_VERSION }), 'utf8')
     assert.deepEqual(repository.list(), [])
     assert.doesNotThrow(() => JSON.parse(readFileSync(repository.indexPath, 'utf8')))
     assert.equal(existsSync(path.join(root, 'outside.png')), false)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('海图校准仓储首次读取时清空全部 v1 素材并建立空 v2 索引', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'puzzle-calibration-v1-'))
+  try {
+    const repository = new PuzzleCalibrationRepository(root)
+    repository.ensure()
+    const legacyImage = path.join(repository.sampleRoot, 'legacy.png')
+    writeFileSync(legacyImage, Buffer.from(png.split(',')[1], 'base64'))
+    writeFileSync(repository.indexPath, JSON.stringify({
+      schemaVersion: 1,
+      samples: [{
+        id: 'legacy', labelMask: 1, featureVersion: 1, featureVector: vector,
+        relativePath: path.join('samples', 'legacy.png')
+      }]
+    }), 'utf8')
+
+    assert.deepEqual(repository.list(), [])
+    assert.equal(existsSync(legacyImage), false)
+    assert.deepEqual(JSON.parse(readFileSync(repository.indexPath, 'utf8')), {
+      schemaVersion: PUZZLE_CALIBRATION_SCHEMA_VERSION,
+      samples: []
+    })
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

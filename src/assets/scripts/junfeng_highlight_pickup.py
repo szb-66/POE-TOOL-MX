@@ -39,6 +39,26 @@ def emit(event, **payload):
     print("EVENT " + json.dumps({"event": event, **payload}, ensure_ascii=False), flush=True)
 
 
+def failure_details(reason, config=None):
+    reason = str(reason or "")
+    if reason == "game-not-foreground":
+        return {"failureCode": "GAME_NOT_FOREGROUND"}
+    if reason in ("calibration-missing", "layout-unrecognized"):
+        return {
+            "failureCode": "REGION_GEOMETRY_CHANGED",
+            "configurationIssueId": "stash-grid.any",
+        }
+    if reason == "grid-invalid":
+        return {
+            "failureCode": "REGION_INVALID",
+            "configurationIssueId": (
+                "junfeng.grid" if isinstance(config, dict) and config.get("grid_region")
+                else "stash-grid.any"
+            ),
+        }
+    return {}
+
+
 def load_json(path, fallback=None):
     try:
         with open(path, "r", encoding="utf-8") as stream:
@@ -416,13 +436,15 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--preview", action="store_true")
     args = parser.parse_args()
+    config = None
     try:
         config = load_json(args.config)
         if not isinstance(config, dict):
             raise RuntimeError("config-invalid")
         return run(config, args.preview)
     except Exception as exc:
-        emit("error", reason=str(exc))
+        reason = str(exc)
+        emit("error", reason=reason, **failure_details(reason, config))
         return 2
 
 

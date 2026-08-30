@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createPinia, setActivePinia } from 'pinia'
 import { electronApi } from '../src/api/electron.js'
 import { usePuzzleStore } from '../src/stores/puzzle.js'
+import { BORDER_CHART_MODS } from '../src/data/chartModsData.js'
 
 function memoryStorage(initial = null) {
   let value = initial
@@ -15,7 +16,7 @@ function memoryStorage(initial = null) {
 
 function recognizedSlot(type = 'corner', orientation = 0) {
   return {
-    row: 0, column: 0, occupied: true, type, orientation,
+    row: 0, column: 0, candidate: true, occupied: true, type, typeSource: 'copy', shapeLabel: type, orientation,
     confidence: 0.72, corrected: false, uncertain: true
   }
 }
@@ -26,7 +27,7 @@ const calibrationFeature = Array.from({ length: 128 }, (_, index) => index / 128
 function crossSlots(count = 10) {
   return Array.from({ length: count }, (_, index) => ({
     row: Math.floor(index / 6), column: index % 6,
-    occupied: true, type: 'cross', orientation: 0, confidence: 1
+    candidate: true, occupied: true, type: 'cross', typeSource: 'copy', shapeLabel: '交叉', orientation: 0, confidence: 1
   }))
 }
 
@@ -183,12 +184,12 @@ test('连续仓库修改终止旧 Worker 且只提交最新快照结果', async 
   assert.equal(store.autoPlaceBlockedReason, '正在按最新仓库状态计算方案')
 
   assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 0 }), true)
-  store.updateSlot(0, 1, 'corner')
+  assert.equal(store.updateSlot(0, 1, 'corner'), false)
   assert.equal(store.toggleSlotLock({ page: 1, row: 0, column: 2 }), true)
   assert.equal(first.terminated, true)
-  assert.equal(store.counts.cross, 7)
-  assert.equal(store.counts.corner, 1)
-  assert.equal(store.inventoryPages[1].slots[1].type, 'corner')
+  assert.equal(store.counts.cross, 8)
+  assert.equal(store.counts.corner, 0)
+  assert.equal(store.inventoryPages[1].slots[1].type, 'cross')
   assert.equal((await store.completeCurrentChart()).error.code, 'PUZZLE_BUSY')
 
   await waitUntil(() => ControlledWorker.instances.length === 2)
@@ -314,23 +315,156 @@ test('人工修正只保存具有本次截图图块的素材且图块不进入�
   const store = usePuzzleStore()
   store.applyAnalysis({ success: true, page: 1, slots: [{
     ...recognizedSlot('corner', 0), tileDataUrl: calibrationTile,
-    calibrationFeature, featureVersion: 1
+    calibrationFeature, featureVersion: 2,
+    directionCandidates: { corner: { mask: 3, orientation: 0, confidence: 0.8 } }
   }] })
   store.updateSlotOrientation(0, 0, 90)
-  assert.equal(store.pendingCorrectionCount, 1)
-  assert.equal(store.savableCorrectionCount, 1)
+  assert.equal(store.calibrationQueueCount, 1)
+  assert.equal(Boolean(store.calibrationQueue[0].capture?.tileDataUrl), true)
   assert.equal(JSON.stringify(storage.snapshot()).includes('tileDataUrl'), false)
-  assert.equal(await store.savePendingCorrections(), 1)
+  await store.saveCalibrationItem(store.calibrationQueue[0].key, { type: 'corner', orientation: 90 })
   assert.equal(saved[0].labelMask, 6)
+  assert.equal(saved[0].kind, 'fragment')
+  assert.equal(saved[0].type, 'corner')
   assert.equal(saved[0].featureVector.length, 128)
-  assert.equal(store.pendingCorrectionCount, 0)
+  assert.equal(store.calibrationQueueCount, 0)
 
   setActivePinia(createPinia())
   const restored = usePuzzleStore()
   restored.updateSlotOrientation(0, 0, 180)
-  assert.equal(restored.pendingCorrectionCount, 1)
-  assert.equal(restored.savableCorrectionCount, 0)
-  await assert.rejects(() => restored.savePendingCorrections(), /重新识别/)
+  assert.equal(restored.calibrationQueueCount, 1)
+  assert.equal(restored.calibrationQueue[0].capture, null)
+  await assert.rejects(
+    () => restored.saveCalibrationItem(restored.calibrationQueue[0].key, { type: 'corner', orientation: 180 }),
+    /重新识别/
+  )
+})
+
+test('未解析候选持久化真值字段但不持久化本轮图块和各类型方向候选', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalSave = electronApi.puzzle.saveCalibration
+  const storage = memoryStorage()
+  let shouldFail = true
+  let saved = null
+  globalThis.localStorage = storage
+  electronApi.puzzle.saveCalibration = async items => {
+    if (shouldFail) throw new Error('模拟保存失败')
+    saved = items[0]
+    return [{ ...saved, id: 'guided-1' }]
+  }
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    electronApi.puzzle.saveCalibration = originalSave
+  })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({ success: true, page: 1, slots: [{
+    row: 0, column: 0, candidate: true, occupied: false, type: null,
+    typeSource: 'copy-failed', shapeLabel: '', directionConfidence: 0,
+    confidence: 0, uncertain: true, tileDataUrl: calibrationTile,
+    calibrationFeature, featureVersion: 2,
+    directionCandidates: {
+      corner: { mask: 6, orientation: 90, confidence: 0.76, uncertain: false }
+    }
+  }] })
+
+  assert.equal(store.calibrationQueueCount, 1)
+  assert.equal(store.calibrationQueue[0].capture.directionCandidates.corner.orientation, 90)
+  const persisted = storage.snapshot().inventoryPages['1'].slots[0]
+  assert.deepEqual([
+    persisted.candidate,
+    persisted.type,
+    persisted.typeSource,
+    persisted.uncertain,
+    persisted.directionConfidence
+  ], [true, null, 'copy-failed', true, 0])
+  const serialized = JSON.stringify(storage.snapshot())
+  assert.equal(serialized.includes('tileDataUrl'), false)
+  assert.equal(serialized.includes('calibrationFeature'), false)
+  assert.equal(serialized.includes('directionCandidates'), false)
+
+  await assert.rejects(() => store.saveCalibrationItem('1:0:0', { type: 'corner', orientation: 90 }), /模拟保存失败/)
+  assert.equal(store.calibrationQueueCount, 1)
+  assert.equal(store.inventoryPages[1].slots[0].type, null)
+
+  shouldFail = false
+  await store.saveCalibrationItem('1:0:0', { type: 'corner', orientation: 90 })
+  assert.deepEqual([saved.kind, saved.type, saved.labelMask], ['fragment', 'corner', 6])
+  assert.equal(store.calibrationQueueCount, 0)
+  assert.deepEqual([
+    store.inventoryPages[1].slots[0].occupied,
+    store.inventoryPages[1].slots[0].type,
+    store.inventoryPages[1].slots[0].typeSource,
+    store.inventoryPages[1].slots[0].orientation
+  ], [true, 'corner', 'manual', 90])
+})
+
+test('复制成功类型在引导校准中只读但方向可逐项保存', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const originalSave = electronApi.puzzle.saveCalibration
+  const storage = memoryStorage()
+  let calls = 0
+  globalThis.localStorage = storage
+  electronApi.puzzle.saveCalibration = async items => {
+    calls += 1
+    return [{ ...items[0], id: 'copy-locked' }]
+  }
+  t.after(() => {
+    globalThis.localStorage = originalLocalStorage
+    electronApi.puzzle.saveCalibration = originalSave
+  })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({ success: true, page: 1, slots: [{
+    ...recognizedSlot('corner', 0), shapeLabel: '角落', tileDataUrl: calibrationTile,
+    calibrationFeature, featureVersion: 2,
+    directionCandidates: { corner: { mask: 3, orientation: 0, confidence: 0.3, uncertain: true } }
+  }] })
+  assert.equal(store.calibrationQueue[0].typeLocked, true)
+  await assert.rejects(() => store.saveCalibrationItem('1:0:0', { type: 'straight', orientation: 0 }), /不能修改/)
+  assert.equal(calls, 0)
+  assert.equal(store.calibrationQueueCount, 1)
+
+  const result = await store.saveCalibrationItem('1:0:0', { type: 'corner', orientation: 90 })
+  assert.equal(calls, 1)
+  assert.deepEqual([result.item.type, result.item.labelMask], ['corner', 6])
+  assert.equal(store.inventoryPages[1].slots[0].typeSource, 'copy')
+  assert.equal(store.calibrationQueueCount, 0)
+})
+
+test('引导校准队列跨页按页行列稳定排序', t => {
+  const originalLocalStorage = globalThis.localStorage
+  globalThis.localStorage = memoryStorage()
+  t.after(() => { globalThis.localStorage = originalLocalStorage })
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  store.applyAnalysis({ success: true, page: 2, slots: [{
+    row: 5, column: 2, candidate: true, occupied: false, type: null,
+    typeSource: 'copy-unknown', shapeLabel: '未知', uncertain: true
+  }] })
+  store.applyAnalysis({ success: true, page: 1, slots: [
+    { row: 2, column: 3, candidate: true, occupied: false, type: null, typeSource: 'copy-failed', uncertain: true },
+    { row: 0, column: 4, candidate: true, occupied: false, type: null, typeSource: 'copy-failed', uncertain: true }
+  ] })
+  assert.deepEqual(store.calibrationQueue.map(item => item.key), ['1:0:4', '1:2:3', '2:5:2'])
+})
+
+test('旧持久化中的未修正图像类型降级为待确认候选且不参与求解', t => {
+  const originalLocalStorage = globalThis.localStorage
+  globalThis.localStorage = memoryStorage(JSON.stringify({
+    inventoryPages: { 1: { recognized: true, slots: [{
+      row: 0, column: 0, occupied: true, type: 'corner', orientation: 90,
+      confidence: 0.9, corrected: false, uncertain: false
+    }] } }
+  }))
+  t.after(() => { globalThis.localStorage = originalLocalStorage })
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  const slot = store.inventoryPages[1].slots[0]
+  assert.deepEqual([slot.candidate, slot.occupied, slot.type, slot.typeSource, slot.uncertain], [true, false, null, 'legacy-unverified', true])
+  assert.equal(store.counts.corner, 0)
 })
 
 test('失败、重复或不完整识别不会覆盖内存与持久化旧结果', t => {
@@ -529,7 +663,7 @@ test('中断续跑保留完整锁定来源并只暴露未完成来源', async t 
     page: 1,
     slots: Array.from({ length: 9 }, (_, index) => ({
       row: Math.floor(index / 6), column: index % 6,
-      occupied: true, type: 'cross', orientation: 0, confidence: 1
+      candidate: true, occupied: true, type: 'cross', typeSource: 'copy', orientation: 0, confidence: 1
     }))
   })
   await waitForSolve(store)
@@ -581,7 +715,7 @@ test('完成海图立即持久化碎片扣除与边缘清空', async t => {
     page: 1,
     slots: Array.from({ length: 9 }, (_, index) => ({
       row: Math.floor(index / 6), column: index % 6,
-      occupied: true, type: 'cross', confidence: 1
+      candidate: true, occupied: true, type: 'cross', typeSource: 'copy', confidence: 1
     })),
     borderMods: { S0: { status: 'matched', confidence: 1, mod: { lines: ['旧边缘词缀'] } } }
   })
@@ -611,6 +745,55 @@ test('完成海图立即持久化碎片扣除与边缘清空', async t => {
   assert.equal(completeCalls, 1)
 })
 
+test('手工边缘词缀只更新目标段、持久化并可逐段清空', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  const storage = memoryStorage()
+  globalThis.localStorage = storage
+  t.after(() => { globalThis.localStorage = originalLocalStorage })
+
+  const firstMod = BORDER_CHART_MODS.find(mod => mod.lines.includes('相邻区域中找到的通货总增 100%'))
+  const secondMod = BORDER_CHART_MODS.find(mod => mod.lines.includes('相邻区域的稀有怪物掉落 1 个额外神圣石'))
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+
+  assert.equal((await store.updateBorderMod('N0', firstMod)).success, true)
+  assert.equal(store.edges.N0.mod.lines[0], '相邻区域中找到的通货总增 100%')
+  assert.equal(store.edges.N0.confidence, 1)
+  assert.deepEqual(store.edges.N0.rawTexts, [])
+  assert.equal(storage.snapshot().edges.N0.mod.lines[0], '相邻区域中找到的通货总增 100%')
+
+  assert.equal((await store.updateBorderMod('E1', secondMod)).success, true)
+  assert.equal((await store.updateBorderMod('N0', null)).success, true)
+  assert.equal(store.edges.N0.status, 'unknown')
+  assert.equal(store.edges.N0.mod, null)
+  assert.equal(store.edges.E1.mod.lines[0], '相邻区域的稀有怪物掉落 1 个额外神圣石')
+  assert.equal(store.edgesRecognized, true)
+
+  setActivePinia(createPinia())
+  const restored = usePuzzleStore()
+  assert.equal(restored.edges.N0.status, 'unknown')
+  assert.equal(restored.edges.E1.mod.lines[0], '相邻区域的稀有怪物掉落 1 个额外神圣石')
+  assert.equal((await restored.updateBorderMod('E1', null)).success, true)
+  assert.equal(restored.edgesRecognized, false)
+})
+
+test('手工边缘词缀拒绝目录外文本并在碎片识别后保留', async t => {
+  const originalLocalStorage = globalThis.localStorage
+  globalThis.localStorage = memoryStorage()
+  t.after(() => { globalThis.localStorage = originalLocalStorage })
+
+  setActivePinia(createPinia())
+  const store = usePuzzleStore()
+  const invalid = await store.updateBorderMod('N0', { lines: ['自由输入词缀'] })
+  assert.equal(invalid.success, false)
+  assert.equal(invalid.error.code, 'INVALID_BORDER_MOD')
+
+  const selected = BORDER_CHART_MODS.find(mod => mod.lines.includes('相邻区域包含 8 个额外的海兽群'))
+  assert.equal((await store.updateBorderMod('W2', selected)).success, true)
+  assert.equal(store.applyAnalysis({ success: true, page: 1, slots: [recognizedSlot()] }), true)
+  assert.equal(store.edges.W2.mod.lines[0], '相邻区域包含 8 个额外的海兽群')
+})
+
 test('独立边缘识别成功后立即覆盖持久化结果', async t => {
   const originalLocalStorage = globalThis.localStorage
   const originalProbe = electronApi.puzzle.probeBorderMods
@@ -627,7 +810,7 @@ test('独立边缘识别成功后立即覆盖持久化结果', async t => {
 
   setActivePinia(createPinia())
   const store = usePuzzleStore()
-  const response = await store.probeBorderMods()
+  const response = await store.probeBorderMods({ configurationGuideBypass: true })
   assert.equal(response.success, true)
   const saved = storage.snapshot()
   assert.equal(saved.edgesRecognized, true)
@@ -657,7 +840,7 @@ test('独立边缘识别失败时保留旧持久化结果', async t => {
   })
   const before = JSON.stringify(storage.snapshot())
 
-  const response = await store.probeBorderMods()
+  const response = await store.probeBorderMods({ configurationGuideBypass: true })
 
   assert.equal(response.success, false)
   assert.equal(store.edges.E1.mod.lines[0], '旧边缘词缀')
@@ -681,7 +864,7 @@ test('空边缘识别结果覆盖为未识别状态而不是伪造已识别', as
     success: true, page: 1, slots: [recognizedSlot()],
     borderMods: { N0: { status: 'matched', confidence: 1, mod: { lines: ['旧边缘词缀'] } } }
   })
-  await store.probeBorderMods()
+  await store.probeBorderMods({ configurationGuideBypass: true })
   assert.equal(store.edgesRecognized, false)
   assert.equal(storage.snapshot().edgesRecognized, false)
   assert.equal(storage.snapshot().edges.N0.mod, null)

@@ -46,7 +46,7 @@
 - **THEN** 主进程接收最新配置且功能无需关闭或重新开启
 
 #### Scenario: 更新全局自动化时序
-- **WHEN** 用户修改 `operationDelayMs`、`adaptiveTiming`、`adaptiveTimeoutMs` 或 `fixedTiming`
+- **WHEN** 用户修改 `operationDelayMs` 或 `fixedTiming`
 - **THEN** 系统把规范化后的完整时序作为一个修订同步给所有已启用游戏输入消费者
 - **AND** 任一同步失败时保留上一份已生效时序并显示失败原因
 

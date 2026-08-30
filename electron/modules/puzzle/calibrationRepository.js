@@ -2,19 +2,32 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const PUZZLE_CALIBRATION_FEATURE_VERSION = 1
+export const PUZZLE_CALIBRATION_SCHEMA_VERSION = 2
+export const PUZZLE_CALIBRATION_FEATURE_VERSION = 2
 export const PUZZLE_CALIBRATION_FEATURE_LENGTH = 128
 
+const MASKS_BY_TYPE = Object.freeze({
+  endpoint: [1, 2, 4, 8],
+  straight: [5, 10],
+  corner: [3, 6, 12, 9],
+  tee: [11, 7, 14, 13],
+  cross: [15]
+})
+
+function typeForMask(mask) {
+  return Object.entries(MASKS_BY_TYPE).find(([, masks]) => masks.includes(mask))?.[0] || null
+}
+
 function emptyIndex() {
-  return { schemaVersion: 1, samples: [] }
+  return { schemaVersion: PUZZLE_CALIBRATION_SCHEMA_VERSION, samples: [] }
 }
 
 function readIndex(filePath) {
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'))
-    return Array.isArray(value?.samples) ? value : emptyIndex()
+    return Array.isArray(value?.samples) ? value : null
   } catch {
-    return emptyIndex()
+    return null
   }
 }
 
@@ -45,17 +58,45 @@ export class PuzzleCalibrationRepository {
     fs.mkdirSync(this.sampleRoot, { recursive: true })
   }
 
+  clearSampleFiles() {
+    this.ensure()
+    for (const name of fs.readdirSync(this.sampleRoot)) {
+      const filePath = path.join(this.sampleRoot, name)
+      try { if (fs.statSync(filePath).isFile()) fs.unlinkSync(filePath) } catch {}
+    }
+  }
+
+  readV2Index() {
+    const indexExists = fs.existsSync(this.indexPath)
+    const index = readIndex(this.indexPath)
+    if (!index) return emptyIndex()
+    const hasLegacyRecord = index.samples.some(sample => Number(sample?.featureVersion) !== PUZZLE_CALIBRATION_FEATURE_VERSION)
+    if (Number(index.schemaVersion) !== PUZZLE_CALIBRATION_SCHEMA_VERSION || hasLegacyRecord) {
+      this.clearSampleFiles()
+      const fresh = emptyIndex()
+      fs.writeFileSync(this.indexPath, JSON.stringify(fresh, null, 2), 'utf8')
+      return fresh
+    }
+    if (!indexExists) return emptyIndex()
+    return index
+  }
+
   list() {
-    return readIndex(this.indexPath).samples.filter(sample => {
+    return this.readV2Index().samples.filter(sample => {
       const labelMask = Number(sample?.labelMask)
+      const kind = sample?.kind
+      const sampleType = sample?.type || null
       const filePath = path.resolve(this.root, sample?.relativePath || '')
       return Number.isInteger(labelMask) && labelMask >= 0 && labelMask <= 15 &&
+        ((kind === 'empty' && labelMask === 0 && sampleType === null) ||
+          (kind === 'fragment' && typeForMask(labelMask) === sampleType)) &&
         Number(sample?.featureVersion) === PUZZLE_CALIBRATION_FEATURE_VERSION &&
         validVector(sample?.featureVector) && filePath.startsWith(`${this.sampleRoot}${path.sep}`) &&
         fs.existsSync(filePath)
     }).map(sample => ({
       ...sample,
       labelMask: Number(sample.labelMask),
+      type: sample.type || null,
       featureVersion: PUZZLE_CALIBRATION_FEATURE_VERSION,
       featureVector: sample.featureVector.map(Number)
     }))
@@ -68,21 +109,30 @@ export class PuzzleCalibrationRepository {
     }))
   }
 
-  save({ tileDataUrl, labelMask, featureVector, featureVersion, page, row, column } = {}) {
+  save({ tileDataUrl, labelMask, type = null, kind = null, featureVector, featureVersion, page, row, column } = {}) {
     const mask = Number(labelMask)
     if (!Number.isInteger(mask) || mask < 0 || mask > 15) throw new Error('校准标签无效')
+    const inferredType = typeForMask(mask)
+    const sampleKind = kind || (mask === 0 ? 'empty' : 'fragment')
+    const sampleType = sampleKind === 'empty' ? null : (String(type || inferredType || '').trim() || null)
+    if ((sampleKind === 'empty' && (mask !== 0 || sampleType !== null)) ||
+      (sampleKind === 'fragment' && (!inferredType || sampleType !== inferredType))) {
+      throw new Error('校准类型与方向不一致')
+    }
     if (Number(featureVersion) !== PUZZLE_CALIBRATION_FEATURE_VERSION || !validVector(featureVector)) {
       throw new Error('校准特征无效')
     }
     const png = decodePng(tileDataUrl)
     this.ensure()
+    const index = this.readV2Index()
     const id = crypto.createHash('sha256').update(png).digest('hex').slice(0, 24)
     const relativePath = path.join('samples', `${id}.png`)
     fs.writeFileSync(path.join(this.root, relativePath), png)
-    const index = readIndex(this.indexPath)
     const sample = {
       id,
       labelMask: mask,
+      kind: sampleKind,
+      type: sampleType,
       featureVersion: PUZZLE_CALIBRATION_FEATURE_VERSION,
       featureVector: featureVector.map(Number),
       page: Number(page) || 1,
@@ -92,13 +142,13 @@ export class PuzzleCalibrationRepository {
       capturedAt: new Date().toISOString()
     }
     index.samples = [...index.samples.filter(item => item.id !== id), sample]
-    index.schemaVersion = 1
+    index.schemaVersion = PUZZLE_CALIBRATION_SCHEMA_VERSION
     fs.writeFileSync(this.indexPath, JSON.stringify(index, null, 2), 'utf8')
     return sample
   }
 
   remove(id) {
-    const index = readIndex(this.indexPath)
+    const index = this.readV2Index()
     const target = index.samples.find(sample => sample.id === String(id))
     if (!target) return false
     const filePath = path.resolve(this.root, target.relativePath || '')
@@ -112,11 +162,7 @@ export class PuzzleCalibrationRepository {
   }
 
   reset() {
-    this.ensure()
-    for (const name of fs.readdirSync(this.sampleRoot)) {
-      const filePath = path.join(this.sampleRoot, name)
-      try { if (fs.statSync(filePath).isFile()) fs.unlinkSync(filePath) } catch {}
-    }
+    this.clearSampleFiles()
     fs.writeFileSync(this.indexPath, JSON.stringify(emptyIndex(), null, 2), 'utf8')
     return []
   }

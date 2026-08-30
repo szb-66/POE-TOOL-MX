@@ -35,10 +35,12 @@ def focus_game_window(): return True
 def select_currency_stash_tab(mode): return True
 def preflight_required_currencies(): return True
 def get_slot_position(col, row): return col, row
+def rolling_transaction_context(col, row): return {"targetKind": "atlas", "targetId": f"atlas:{col}:{row}", "column": col, "row": row}
 def read_current_rolling_target(*args, **kwargs):
     return {"category": "地图", "name": "测试地图", "mapTier": 1} if next(statuses) else {"empty": True}
 def process_single_map(result, x, y): return {"status": "completed-qualified", "qualified": True}
 def count_affix_stats(result): return {}, {}
+def complete_crafting_target(*args): return {"ok": True}
 def update_map_stats(*args): pass
 def update_map_recovery_checkpoint(*args): pass
 def release_all_keys(): pass

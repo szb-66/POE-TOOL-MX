@@ -100,11 +100,20 @@ export function updateBagAutomationTiming(value = {}) {
   return timing
 }
 
-function validateConfig(config) {
-  if (!config?.templates?.stash_title || !config?.templates?.inventory_title) return '请先配置仓库和背包标题模板'
-  if (!config.inventory?.startPos || !config.inventory?.slotSize) return '背包网格配置不完整'
-  return ''
+function validateConfigIssue(config) {
+  if (!config?.templates?.stash_title) {
+    return { error: '请先配置仓库标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' }
+  }
+  if (!config?.templates?.inventory_title) {
+    return { error: '请先配置背包标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' }
+  }
+  if (!config.inventory?.startPos || !config.inventory?.slotSize) {
+    return { error: '背包网格配置不完整', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'inventory.grid' }
+  }
+  return { error: '', failureCode: '', configurationIssueId: '' }
 }
+
+function validateConfig(config) { return validateConfigIssue(config).error }
 
 function currentDisplays() {
   return screen.getAllDisplays().map((display) => {
@@ -126,19 +135,19 @@ function validateCaptureConfig(config) {
   const displays = currentDisplays()
   const warnings = []
   const definitions = [
-    ['仓库标题', 'stashTitle', 'stashRegion', 'stashCapture'],
-    ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture']
+    ['仓库标题', 'stashTitle', 'stashRegion', 'stashCapture', 'template.stash-title'],
+    ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture', 'template.inventory-title']
   ]
-  for (const [label, pathKey, regionKey, captureKey] of definitions) {
+  for (const [label, pathKey, regionKey, captureKey, configurationIssueId] of definitions) {
     const result = validateTemplateCaptureEnvironment(label, config.templates?.[pathKey], config.templates?.[regionKey], config.templates?.[captureKey], displays)
-    if (result.error) return { error: result.error, warnings }
+    if (result.error) return { error: result.error, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
     if (result.warning) warnings.push(result.warning)
     const metadata = config.templates?.[captureKey]
     if (metadata) {
       const image = nativeImage.createFromPath(String(config.templates[pathKey] || ''))
       const size = image.getSize()
       if (image.isEmpty() || size.width !== metadata.templateSize.width || size.height !== metadata.templateSize.height) {
-        return { error: `${label}的模板尺寸与采集记录不一致，请重新框选`, warnings }
+        return { error: `${label}的模板尺寸与采集记录不一致，请重新框选`, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
       }
     }
   }
@@ -207,11 +216,11 @@ function startStashProcess(python, fileWatcher) {
     automationLock?.release('自动入库')
     return { success: false, error: '背包模块尚未配置' }
   }
-  const error = validateConfig(latestConfig)
-  if (error) {
+  const validation = validateConfigIssue(latestConfig)
+  if (validation.error) {
     session.finishStash()
     automationLock?.release('自动入库')
-    return { success: false, error }
+    return { success: false, ...validation }
   }
 
   let child
@@ -294,7 +303,11 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     send('bag-detection-match', { matched: session.ready && session.foreground, ...state })
     syncBagOverlay()
     if (!state.running && !state.reloading && state.reason) {
-      send('bag-detection-stopped', { reason: state.reason })
+      send('bag-detection-stopped', {
+        reason: state.reason,
+        failureCode: state.failureCode || '',
+        configurationIssueId: state.configurationIssueId || ''
+      })
     }
   })
 
@@ -302,10 +315,10 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     try {
       if (moduleRunning) return { success: true, shared: true }
       const captureValidation = validateCaptureConfig(config || {})
-      if (captureValidation.error) return { success: false, error: captureValidation.error }
+      if (captureValidation.error) return { success: false, ...captureValidation }
       latestConfig = runtimeConfig(config)
-      const error = validateConfig(latestConfig)
-      if (error) return { success: false, error }
+      const validation = validateConfigIssue(latestConfig)
+      if (validation.error) return { success: false, ...validation }
       session.reset()
       if (!interfaceDetection) throw new Error('公共界面检测服务未初始化')
       await interfaceDetection.registerConsumer('bag', latestConfig)
@@ -340,8 +353,6 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     const operationDelayMs = normalizeOperationDelay(value)
     if (latestConfig) updateBagAutomationTiming({
       operationDelayMs,
-      adaptiveTiming: latestConfig.timing_mode !== 'fixed',
-      adaptiveTimeoutMs: latestConfig.adaptive_timeout_ms,
       fixedTiming: Object.fromEntries(Object.entries(latestConfig.fixed_timing || {}).map(([key, timingValue]) => [
         key.replace(/_([a-z])/g, (_match, letter) => letter.toUpperCase()), timingValue
       ]))

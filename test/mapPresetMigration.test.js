@@ -52,6 +52,7 @@ test('地图配置迁移可重复执行且默认包含六项基底', () => {
   assert.deepEqual(Object.keys(once.match.mandatoryStats), [
     'quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency'
   ])
+  assert.deepEqual(once.exalted, { enabled: false })
 })
 
 test('地图与航海海图配置独立迁移且运行时按目标选择', () => {
@@ -68,8 +69,18 @@ test('地图与航海海图配置独立迁移且运行时按目标选择', () =>
     'quantity', 'rarity', 'packSize', 'deadmanSulphur'
   ])
   chart.method = 'chaos'
+  chart.exalted.enabled = true
   const active = getActiveMapRollingConfig(once, chart, 'chart')
   assert.equal(active.targetKind, 'chart')
   assert.equal(active.method, 'chaos')
+  assert.equal(active.exalted.enabled, true)
+  assert.equal(once.exalted.enabled, false)
   assert.equal(active.grid.rows, 5)
+})
+
+test('旧地图与海图预设默认关闭崇高石并保留显式开关', () => {
+  assert.equal(cleanMigratedMapConfig({}).exalted.enabled, false)
+  assert.equal(cleanMigratedChartConfig({}).exalted.enabled, false)
+  assert.equal(cleanMigratedMapConfig({ exalted: { enabled: true } }).exalted.enabled, true)
+  assert.equal(cleanMigratedChartConfig({ exalted: { enabled: true } }).exalted.enabled, true)
 })

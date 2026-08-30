@@ -7,11 +7,30 @@ import {
 } from '../src/utils/chartEdgeGeometry.js'
 
 const REGION = { left: 100, top: 200, right: 925, bottom: 1028 }
+const CLOCKWISE_EDGE_IDS = [
+  'N0', 'N1', 'N2',
+  'E0', 'E1', 'E2',
+  'S2', 'S1', 'S0',
+  'W2', 'W1', 'W0'
+]
 
-test('返回 12 段外边缘且顺序为 N/E/S/W', () => {
+test('从 N0 开始返回连续顺时针的 12 段外边缘', () => {
   const edges = computeBorderEdgeTargets(REGION)
-  assert.deepEqual(edges.map(edge => edge.id), BORDER_EDGE_IDS)
+  const ids = edges.map(edge => edge.id)
+  assert.deepEqual(ids, CLOCKWISE_EDGE_IDS)
   assert.equal(edges.length, 12)
+  assert.deepEqual([...new Set(ids)].sort(), [...BORDER_EDGE_IDS].sort())
+})
+
+test('南边从右向左且西边从下向上完成顺时针后半圈', () => {
+  const edges = computeBorderEdgeTargets(REGION)
+  const south = edges.filter(edge => edge.direction === 'south')
+  const west = edges.filter(edge => edge.direction === 'west')
+
+  assert.deepEqual(south.map(edge => edge.id), ['S2', 'S1', 'S0'])
+  assert.ok(south[0].x > south[1].x && south[1].x > south[2].x)
+  assert.deepEqual(west.map(edge => edge.id), ['W2', 'W1', 'W0'])
+  assert.ok(west[0].y > west[1].y && west[1].y > west[2].y)
 })
 
 test('825×828 标定区域沿对应方向外移 6% 后仍为 50 像素', () => {

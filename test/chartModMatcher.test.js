@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BORDER_CHART_MODS } from '../src/data/chartModsData.js'
+import { parseCopiedChartFragment } from '../electron/modules/priceCheck/chartRegions.js'
 import {
   UNVEILED_TEXT,
   catalogLineKey,
@@ -14,6 +15,58 @@ test('规范化:全角转半角、去空白、范围与数字占位', () => {
   assert.equal(normalizeChartModText('怪物生命总增 (46—60)%'), '怪物生命总增#%')
   assert.equal(normalizeChartModText('相邻区域中找到的物品数量提高 ５５%'), '相邻区域中找到的物品数量提高#%')
   assert.equal(normalizeChartModText('怪物可以发射 2 个额外投射物'), '怪物可以发射#个额外投射物')
+})
+
+test('规范化:当前掷值紧邻范围时折叠为单个范围占位', () => {
+  for (const text of ['3(2-4)', '37 (26—40)%', '３（２－４）', '+37(26-40)%']) {
+    assert.equal(normalizeChartModText(text), text.includes('%') ? '#%' : '#', text)
+  }
+  assert.equal(catalogLineKey('相邻区域包含 3(2-4) 个怪物'), '相邻区域包含#个怪物')
+  assert.equal(normalizeChartModText('2 秒内出现 3 个怪物'), '#秒内出现#个怪物')
+})
+
+const rareChartWithRolledRanges = `物品类别: 海图
+稀 有 度: 稀有
+深水 跋涉
+珊瑚密林海图
+------
+海底林地
+区域等级: 83
+物品数量: +110% (augmented)
+怪物群大小: +18% (augmented)
+亡者硫磺: +45% (augmented)
+----------------------
+需求:
+等级: 66
+------
+物品等级: 83
+
+{ 基底属性 }
+相邻区域包含 3(2-4) 个额外被囚禁的怪物
+-----------------------
+海图形状：直线
+
+{ 前缀属性 "抗性的" (等阶：1) — 元素, 混沌, 抗性 }
++37(26-40)% 怪物的混沌抗性
++26(26-40)% 怪物的元素抗性
+{ 前缀属性 "装甲的" (等阶：1) — 物理 }
+怪物的物理减伤提高 31(21-35)%
+{ 前缀属性 "野蛮人的" (等阶：1) — 伤害 }
+怪物伤害提高 33(26-35)%
+此区域中找到的亡者硫磺提高 45%
+{ 后缀属性 "巨人之" (等阶：1) }
+怪物效果区域的扩大 58(46-60)%
+--------------------
+将此物品带给瓦莱丽，登上君临号，为该区域绘制海图。
+出售获得通货:非绑定`
+
+test('碎片匹配:完整稀有海图的实际值范围命中正确类型和词缀档位', () => {
+  const parsed = parseCopiedChartFragment(rareChartWithRolledRanges)
+  const result = matchFragmentMods(rareChartWithRolledRanges.split(/\r?\n/))
+  assert.deepEqual([parsed.isChart, parsed.type, parsed.shapeLabel], [true, 'straight', '直线'])
+  assert.equal(result.status, 'matched')
+  assert.equal(result.mod.tier, 46)
+  assert.deepEqual(result.mod.lines, ['相邻区域包含 (2—4) 个额外被囚禁的怪物'])
 })
 
 test('碎片匹配:数值范围样例命中正确档位', () => {

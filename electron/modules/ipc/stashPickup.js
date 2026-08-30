@@ -3,7 +3,12 @@ import { ipcMain } from 'electron'
 const ok = data => ({ success: true, data })
 const invoke = handler => async (_event, ...args) => {
   try { return ok(await handler(...args)) } catch (error) {
-    return { success: false, error: { code: error.code || 'STASH_PICKUP_ERROR', message: error.message || String(error) } }
+    return { success: false, error: {
+      code: error.code || 'STASH_PICKUP_ERROR',
+      message: error.message || String(error),
+      failureCode: error.failureCode || '',
+      configurationIssueId: error.configurationIssueId || ''
+    } }
   }
 }
 
@@ -17,7 +22,12 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
       return manager.getStatus()
     }
     const templates = runtime.templates || {}
-    if (!templates.stashTitle || !templates.inventoryTitle) throw new Error('请先配置仓库和背包标题模板')
+    if (!templates.stashTitle) {
+      throw Object.assign(new Error('请先配置仓库标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' })
+    }
+    if (!templates.inventoryTitle) {
+      throw Object.assign(new Error('请先配置背包标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' })
+    }
     await interfaceDetection?.registerConsumer('stash-pickup', {
       templates: {
         stash_title: String(templates.stashTitle),

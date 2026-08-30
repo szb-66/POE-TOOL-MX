@@ -3,18 +3,23 @@
     <OverlayContent 
       :item-info="itemInfo"
       :settings="settings"
-      :logs="recentLogs"
+      :logs="recentOperations"
+      :operation-log-expanded="operationLogExpanded"
       :currency-usage="currencyUsage"
       :is-completed="isCompleted"
       :is-stopped="isStopped"
       :is-restarting="isRestarting"
       :can-retry="canRetry"
+      :can-relocate="canRelocate"
       :stop-reason="stopReason"
+      :failure-detail="failureDetail"
       :allow-drag="true"
       :map-stats="mapStats"
       @confirm="handleConfirmCompletion"
       @restart="handleRestart"
       @retry="handleRetry"
+      @relocate="handleRelocate"
+      @toggle-operation-log="operationLogExpanded = !operationLogExpanded"
       @close="handleClose"
     />
   </div>
@@ -29,6 +34,12 @@ import { startCrafting, startMapRolling } from '@/utils/scriptService'
 import { restartCraftingWithLatestConfig, retryAutomationWithLatestConfig } from '@/utils/craftingRestart'
 import OverlayContent from './components/OverlayContent.vue'
 import { normalizeCurrencyUsage } from '../../../shared/craftingCurrencyCatalog.js'
+import { isCorrectableConfigurationFailure } from '@/domains/configurationGuide/configurationFailures.js'
+import {
+  appendCraftingOperation,
+  createCraftingOperationState,
+  visibleCraftingOperations
+} from './craftingOperationLog.js'
 
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
@@ -38,18 +49,27 @@ const settings = ref({ ...settingsStore.overlaySettings })
 const itemInfo = ref(null)
 const usageSessionId = ref(null)
 const currencyUsage = ref({})
-const recentLogs = ref([]) // 最近的日志
+const operationLogState = ref(createCraftingOperationState())
+const activeOperationMode = ref('items')
+const operationLogExpanded = ref(false)
+const recentOperations = computed(() => visibleCraftingOperations(operationLogState.value, activeOperationMode.value))
 const isCompleted = ref(false) // 是否制作完成
 const isStopped = ref(false) // 是否已停止
 const isRestarting = ref(false) // 是否正在重新启动制作
 const stopReason = ref('') // 结构化运行失败原因
 const stopMode = ref(null)
 const stopTermination = ref(null)
+const failureDetail = ref(null)
 const recoveryCheckpoint = ref(null)
 const mapStats = ref(null) // 地图统计信息
 let outputLineBuffer = ''
 const isMapCategory = (category) => category === '异界地图' || category === '地图' || category === '海图'
 const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal')
+const canRelocate = computed(() => canRetry.value && isCorrectableConfigurationFailure({
+  moduleId: stopMode.value === 'map' ? 'map' : 'items',
+  actionId: 'start',
+  ...failureDetail.value
+}))
 
 function mergeMapStats(previousStats, incomingStats) {
   if (!incomingStats) {
@@ -72,17 +92,18 @@ function mergeMapStats(previousStats, incomingStats) {
 
 function resetOverlayState({ resetCurrencyUsage = true } = {}) {
   itemInfo.value = null
+  operationLogExpanded.value = false
   if (resetCurrencyUsage) {
     usageSessionId.value = null
     currencyUsage.value = {}
   }
-  recentLogs.value = []
   isCompleted.value = false
   isStopped.value = false
   stopReason.value = ''
   stopMode.value = null
   stopTermination.value = null
   recoveryCheckpoint.value = null
+  failureDetail.value = null
   mapStats.value = null
   outputLineBuffer = ''
 }
@@ -101,6 +122,14 @@ function applyStructuredScriptEvent(line) {
   if (!text.startsWith('EVENT ')) return
   try {
     const event = JSON.parse(text.slice(6))
+    if (event.event === 'crafting-operation') {
+      activeOperationMode.value = event.mode === 'map' ? 'map' : 'items'
+      if (event.phase === 'session' && event.action === 'start') {
+        operationLogExpanded.value = false
+      }
+      operationLogState.value = appendCraftingOperation(operationLogState.value, event)
+      return
+    }
     if (event.event === 'crafting-recovery-checkpoint') {
       recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
       if (event.recovery) {
@@ -130,6 +159,14 @@ function applyStructuredScriptEvent(line) {
     stopMode.value = event.mode || stopMode.value
     stopTermination.value = 'abnormal'
     recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
+    failureDetail.value = event.configurationIssueId ? {
+      failureCode: String(event.failureCode || ''),
+      configurationIssueId: String(event.configurationIssueId || ''),
+      currency: String(event.currency || ''),
+      expected: String(event.expected || ''),
+      actual: String(event.actual || ''),
+      position: event.position || null
+    } : null
     stopReason.value = event.reason || (event.event === 'stash-tab-selection-failed'
       ? '仓库页自动选择失败'
       : event.event === 'currency-preflight-failed'
@@ -177,14 +214,6 @@ const handleScriptOutput = (data) => {
       resetOverlayState({ resetCurrencyUsage: false })
     }
     
-    // 更新日志
-    const lines = data.data.split('\n').filter(line => line.trim())
-    for (const line of lines) {
-      recentLogs.value.push(line)
-      if (recentLogs.value.length > 5) {
-        recentLogs.value.shift()
-      }
-    }
   }
 }
 
@@ -197,7 +226,6 @@ function restoreCompletedState(snapshot, error) {
   itemInfo.value = snapshot.itemInfo
   usageSessionId.value = snapshot.usageSessionId
   currencyUsage.value = snapshot.currencyUsage
-  recentLogs.value = snapshot.logs
   mapStats.value = snapshot.mapStats
   isCompleted.value = true
   isStopped.value = false
@@ -209,11 +237,11 @@ function stoppedSnapshot() {
     itemInfo: itemInfo.value,
     usageSessionId: usageSessionId.value,
     currencyUsage: { ...currencyUsage.value },
-    logs: [...recentLogs.value],
     mapStats: mapStats.value,
     stopMode: stopMode.value,
     stopTermination: stopTermination.value,
     recovery: recoveryCheckpoint.value,
+    failureDetail: failureDetail.value ? { ...failureDetail.value } : null,
     reason: stopReason.value
   }
 }
@@ -222,11 +250,11 @@ function restoreStoppedState(snapshot, error) {
   itemInfo.value = snapshot.itemInfo
   usageSessionId.value = snapshot.usageSessionId
   currencyUsage.value = snapshot.currencyUsage
-  recentLogs.value = snapshot.logs
   mapStats.value = snapshot.mapStats
   stopMode.value = snapshot.stopMode
   stopTermination.value = snapshot.stopTermination
   recoveryCheckpoint.value = snapshot.recovery
+  failureDetail.value = snapshot.failureDetail
   stopReason.value = error || snapshot.reason || '重新启动制作失败'
   isCompleted.value = false
   isStopped.value = true
@@ -239,7 +267,6 @@ async function handleRestart() {
     itemInfo: itemInfo.value,
     usageSessionId: usageSessionId.value,
     currencyUsage: { ...currencyUsage.value },
-    logs: [...recentLogs.value],
     mapStats: mapStats.value
   }
 
@@ -285,6 +312,18 @@ async function handleRetry() {
   }
 }
 
+async function handleRelocate() {
+  if (!canRelocate.value) return
+  const response = await electronApi.configurationGuide.openFromOverlay({
+    moduleId: stopMode.value === 'map' ? 'map' : 'items',
+    actionId: 'start',
+    focusIssueId: failureDetail.value.configurationIssueId
+  })
+  if (!response?.success) {
+    stopReason.value = response?.error?.message || '无法打开重新定位引导'
+  }
+}
+
 function handleClose() {
   electronApi.window.closeOverlay()
 }
@@ -301,6 +340,7 @@ onMounted(() => {
     applyCurrencyUsageSnapshot(data)
 
     if (data.mapStats) {
+      activeOperationMode.value = 'map'
       mapStats.value = mergeMapStats(mapStats.value, data.mapStats)
     }
 
@@ -312,6 +352,7 @@ onMounted(() => {
         mapStats: mapStats.value || data.mapStats || itemInfo.value?.mapStats || null
       }
     } else if (data.category) {
+      if (isMapCategory(data.category)) activeOperationMode.value = 'map'
       itemInfo.value = {
         ...(itemInfo.value || {}),
         category: data.category,
@@ -364,6 +405,16 @@ onMounted(() => {
       stopMode.value = data.mode || (isMapMode ? 'map' : 'items')
       stopTermination.value = data.termination || 'abnormal'
       recoveryCheckpoint.value = data.recovery || recoveryCheckpoint.value
+      if (data.configurationIssueId) {
+        failureDetail.value = {
+          failureCode: String(data.failureCode || ''),
+          configurationIssueId: String(data.configurationIssueId || ''),
+          currency: String(data.currency || ''),
+          expected: String(data.expected || ''),
+          actual: String(data.actual || ''),
+          position: data.position || null
+        }
+      }
 
       if (!isCompleted.value && (data.error || stopTermination.value === 'abnormal')) {
         stopReason.value = data.error || stopReason.value || '制作异常停止，可重试'

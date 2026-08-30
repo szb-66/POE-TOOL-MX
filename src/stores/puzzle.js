@@ -15,13 +15,45 @@ import {
   validatePuzzleTabPoint
 } from '../utils/puzzleConfig.js'
 import { BORDER_EDGE_IDS } from '../utils/chartEdgeGeometry.js'
+import { BORDER_CHART_MODS } from '../data/chartModsData.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 import { OPERATION_DELAY } from '../utils/operationDelay.js'
 import { isEmergencyCancellation } from '../utils/emergencyStopResult.js'
 import { normalizeVoyageRewardMode } from '../domains/puzzle/voyageRewards.js'
+import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import {
+  collectPuzzleConfigurationIssues,
+  CONFIGURATION_ACTIONS,
+  CONFIGURATION_MODULES
+} from '../domains/configurationGuide/configurationIssues.js'
 
 const STORAGE_KEY = 'puzzleSettings'
 const SLOT_COUNT = 60
+
+function configurationAwarePuzzleError(value, { actionId, page } = {}) {
+  const error = value && typeof value === 'object'
+    ? { ...value }
+    : { code: 'PUZZLE_OPERATION_FAILED', message: String(value || '海图操作失败') }
+  const code = String(error.code || '')
+  const normalizedPage = [1, 2].includes(Number(page ?? error.page)) ? Number(page ?? error.page) : null
+  if (code === 'EMPTY_GRID_UNCERTAIN') {
+    Object.assign(error, { failureCode: 'REGION_GEOMETRY_CHANGED', configurationIssueId: 'puzzle.inventory-region' })
+  } else if (code === 'TAB_SWITCH_FAILED' || code === 'DUPLICATE_INVENTORY_PAGE') {
+    Object.assign(error, {
+      failureCode: 'TAB_SWITCH_FAILED',
+      configurationIssueId: normalizedPage ? `puzzle.tab.${normalizedPage}` : ''
+    })
+  } else if (['TARGET_MISMATCH', 'FINAL_VERIFICATION_FAILED'].includes(code)) {
+    Object.assign(error, { failureCode: code, configurationIssueId: 'puzzle.atlas-region' })
+  } else if (['REGION_INVALID', 'REGION_GEOMETRY_CHANGED'].includes(code)) {
+    Object.assign(error, {
+      failureCode: code,
+      configurationIssueId: actionId === CONFIGURATION_ACTIONS.border ? 'puzzle.atlas-region' : 'puzzle.inventory-region'
+    })
+  }
+  error.configurationActionId = actionId || error.configurationActionId || ''
+  return error
+}
 
 function slotKey(slot) {
   return `${Number(slot?.page)}:${Number(slot?.row)}:${Number(slot?.column)}`
@@ -47,10 +79,14 @@ function emptySlots(page = 1) {
     page,
     row: Math.floor(index / 6),
     column: index % 6,
+    candidate: false,
     occupied: false,
     type: null,
+    typeSource: null,
+    shapeLabel: '',
     orientation: 0,
     confidence: 0,
+    directionConfidence: 0,
     corrected: false,
     uncertain: false,
     mods: null
@@ -111,7 +147,7 @@ function emptyInventoryPage(page) {
 function slotSignature(slots = []) {
   return slots.map(slot => slot?.occupied
     ? `${slot.type}:${Number(slot.orientation || 0)}`
-    : '-').join('|')
+    : slot?.candidate ? `?:${slot.typeSource || 'unresolved'}` : '-').join('|')
 }
 
 function emptyResult() {
@@ -162,24 +198,53 @@ function normalizeSlots(value, page = 1) {
   const byPosition = new Map((Array.isArray(value) ? value : []).map(slot => [`${slot.row}:${slot.column}`, slot]))
   return emptySlots(page).map(fallback => {
     const slot = byPosition.get(`${fallback.row}:${fallback.column}`)
-    const occupied = Boolean(slot?.occupied && PUZZLE_TYPES.includes(slot.type))
+    const rawOccupied = Boolean(slot?.occupied && PUZZLE_TYPES.includes(slot.type))
+    const rawTypeSource = typeof slot?.typeSource === 'string' ? slot.typeSource : null
+    const typeSource = rawTypeSource || (slot?.corrected ? 'manual' : (rawOccupied ? 'legacy-unverified' : null))
+    const occupied = Boolean(rawOccupied && ['copy', 'manual'].includes(typeSource))
+    const candidate = Boolean(slot?.candidate || rawOccupied) && typeSource !== 'calibration-empty'
     const orientation = occupied ? normalizePuzzleOrientation(slot.type, slot?.orientation) : 0
     return {
       page,
       row: fallback.row,
       column: fallback.column,
+      candidate,
       occupied,
       type: occupied ? slot.type : null,
+      typeSource,
+      shapeLabel: typeof slot?.shapeLabel === 'string' ? slot.shapeLabel.slice(0, 80) : '',
       orientation,
       mask: occupied ? maskForType(slot.type, orientation) : 0,
       confidence: Math.max(0, Math.min(1, Number(slot?.confidence) || 0)),
+      directionConfidence: Math.max(0, Math.min(1, Number(slot?.directionConfidence ?? slot?.orientationConfidence) || 0)),
       calibrated: Boolean(slot?.calibrated),
       calibrationSimilarity: Math.max(0, Math.min(1, Number(slot?.calibrationSimilarity) || 0)),
       corrected: Boolean(slot?.corrected),
-      uncertain: Boolean(slot?.uncertain),
-      mods: occupied ? normalizeSlotMods(slot?.mods) : null
+      uncertain: Boolean(slot?.uncertain || (rawOccupied && !occupied)),
+      mods: occupied || candidate ? normalizeSlotMods(slot?.mods) : null
     }
   })
+}
+
+const BORDER_MODS_BY_LINES = new Map(BORDER_CHART_MODS
+  .filter(mod => Array.isArray(mod.lines) && mod.lines.length)
+  .map(mod => [JSON.stringify(mod.lines), normalizeRecognizedMod(mod)]))
+
+function normalizeDirectionCandidates(value) {
+  if (!value || typeof value !== 'object') return {}
+  return Object.fromEntries(PUZZLE_TYPES.flatMap(type => {
+    const direction = value[type]
+    if (!direction) return []
+    const orientation = normalizePuzzleOrientation(type, direction.orientation)
+    return [[type, {
+      mask: maskForType(type, orientation),
+      orientation,
+      confidence: Math.max(0, Math.min(1, Number(direction.confidence) || 0)),
+      uncertain: Boolean(direction.uncertain),
+      calibrated: Boolean(direction.calibrated),
+      calibrationSimilarity: Math.max(0, Math.min(1, Number(direction.calibrationSimilarity) || 0))
+    }]]
+  }))
 }
 
 function normalizeInventoryPage(value, page) {
@@ -229,8 +294,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     .flatMap(page => inventoryPages.value[page].slots))
   const lockedSlotKeys = computed(() => new Set(lockedSlots.value.map(slotKey)))
   const availableSlots = computed(() => allSlots.value.filter(slot => !lockedSlotKeys.value.has(slotKey(slot))))
-  const requiredExits = ref([])
-  const forbiddenExits = ref([])
   const edges = ref(loaded.edges)
   const edgesRecognized = ref(loaded.edgesRecognized)
   const probingBorder = ref(false)
@@ -251,7 +314,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const hasInventory = computed(() => availableSlots.value.some(slot => slot.occupied))
   const lockedCount = computed(() => lockedSlots.value.length)
   const occupiedCount = computed(() => PUZZLE_TYPES.reduce((sum, type) => sum + counts.value[type], 0))
-  const hasExitConstraints = computed(() => Boolean(requiredExits.value.length || forbiddenExits.value.length))
   const executing = computed(() => ['validating', 'running'].includes(execution.value.status))
   const resumeIndex = computed(() => (
     ['error', 'stopped'].includes(execution.value.status) && execution.value.completed > 0 && execution.value.completed < 9
@@ -272,9 +334,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       if (result.value.error === 'INSUFFICIENT_FRAGMENTS') {
         return `可用碎片不足 9 块，还差 ${Math.max(0, 9 - occupiedCount.value)} 块`
       }
-      if (result.value.error === 'NO_SOLUTION' && hasExitConstraints.value) {
-        return '当前碎片无法满足出口限制，请清空出口状态'
-      }
       if (result.value.error === 'NO_SOLUTION') return '现有碎片类型组合无法拼成完整九宫格'
       return '请先识别碎片并生成海图方案'
     }
@@ -287,9 +346,22 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     return ''
   })
   const canAutoPlace = computed(() => !autoPlaceBlockedReason.value)
-  const pendingCorrectionCount = computed(() => Object.keys(pendingCorrections.value).length)
-  const savableCorrectionCount = computed(() => Object.keys(pendingCorrections.value)
-    .filter(key => captureCells.value[key]?.tileDataUrl).length)
+  const calibrationQueue = computed(() => [1, 2].flatMap(page => (
+    inventoryPages.value[page].recognized ? inventoryPages.value[page].slots : []
+  )).filter(slot => slot.uncertain || pendingCorrections.value[slotKey(slot)]).map(slot => {
+    const key = slotKey(slot)
+    return {
+      key,
+      page: slot.page,
+      row: slot.row,
+      column: slot.column,
+      slot: { ...slot },
+      capture: captureCells.value[key] || null,
+      manualCorrection: Boolean(pendingCorrections.value[key]),
+      typeLocked: slot.typeSource === 'copy' && PUZZLE_TYPES.includes(slot.type)
+    }
+  }).sort((left, right) => left.page - right.page || left.row - right.row || left.column - right.column))
+  const calibrationQueueCount = computed(() => calibrationQueue.value.length)
 
   function persistRegions() {
     if (typeof localStorage === 'undefined') return
@@ -364,8 +436,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
         slots: availableSlots.value,
         edges: edges.value,
         strategy: rewardStrategy.value,
-        requiredExits: requiredExits.value,
-        forbiddenExits: forbiddenExits.value,
         solutionLimit: 100
       }))
       const solved = await solveWithWorker(requestId, input)
@@ -468,9 +538,12 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     return { success: true }
   }
 
-  function applyAnalysis(response, { resetConstraints = false } = {}) {
+  function applyAnalysis(response) {
     if (!response?.success) {
-      error.value = response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图识别失败' }
+      error.value = configurationAwarePuzzleError(
+        response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图识别失败' },
+        { actionId: CONFIGURATION_ACTIONS.analyze, page: response?.page }
+      )
       void reportDiagnosticFailure('puzzle', 'analysis', error.value, 'unknown_failure')
       return false
     }
@@ -486,7 +559,10 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     }
     const otherPage = page === 1 ? 2 : 1
     if (inventoryPages.value[otherPage].recognized && slotSignature(incomingSlots) === slotSignature(inventoryPages.value[otherPage].slots)) {
-      error.value = { code: 'DUPLICATE_INVENTORY_PAGE', message: `第 ${page} 页与第 ${otherPage} 页识别结果完全相同，请确认游戏仓库页已经切换` }
+      error.value = configurationAwarePuzzleError({
+        code: 'DUPLICATE_INVENTORY_PAGE',
+        message: `第 ${page} 页与第 ${otherPage} 页识别结果完全相同，请确认游戏仓库页已经切换`
+      }, { actionId: CONFIGURATION_ACTIONS.analyze, page })
       return false
     }
     rememberCaptureCells(page, response.slots)
@@ -504,18 +580,17 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     persistRegions()
     error.value = null
     void reportDiagnosticRecovery('puzzle', 'analysis')
-    if (resetConstraints) {
-      requiredExits.value = []
-      forbiddenExits.value = []
-    }
     solutionIndex.value = 0
     recompute()
     return true
   }
 
-  function applyAnalysisBatch(response, { resetConstraints = false } = {}) {
+  function applyAnalysisBatch(response) {
     if (!response?.success) {
-      error.value = response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图双页识别失败' }
+      error.value = configurationAwarePuzzleError(
+        response?.error || { code: 'PUZZLE_ANALYSIS_FAILED', message: '海图双页识别失败' },
+        { actionId: CONFIGURATION_ACTIONS.analyze, page: response?.page }
+      )
       void reportDiagnosticFailure('puzzle', 'analysis', error.value, 'unknown_failure')
       return false
     }
@@ -542,7 +617,10 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       }]
     }))
     if (slotSignature(nextPages[1].slots) === slotSignature(nextPages[2].slots)) {
-      error.value = { code: 'DUPLICATE_INVENTORY_PAGE', message: '第 1 页与第 2 页识别结果完全相同，请检查两个页签标定是否正确' }
+      error.value = configurationAwarePuzzleError({
+        code: 'DUPLICATE_INVENTORY_PAGE',
+        message: '第 1 页与第 2 页识别结果完全相同，请检查两个页签标定是否正确'
+      }, { actionId: CONFIGURATION_ACTIONS.analyze, page: 2 })
       return false
     }
     for (const page of [1, 2]) rememberCaptureCells(page, byPage.get(page).slots)
@@ -554,10 +632,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     persistRegions()
     error.value = null
     void reportDiagnosticRecovery('puzzle', 'analysis')
-    if (resetConstraints) {
-      requiredExits.value = []
-      forbiddenExits.value = []
-    }
     solutionIndex.value = 0
     recompute()
     return true
@@ -568,6 +642,32 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const hasBorderResults = BORDER_EDGE_IDS.some(id => Object.hasOwn(borderMods, id))
     edges.value = hasBorderResults ? normalizeBorderMods(borderMods) : emptyEdges()
     edgesRecognized.value = hasBorderResults
+  }
+
+  async function updateBorderMod(exitId, mod = null) {
+    if (executing.value || analyzing.value || probingBorder.value || resumeIndex.value > 0) {
+      return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图任务进行中，暂不能修改边缘词缀' } }
+    }
+    if (!BORDER_EDGE_IDS.includes(exitId)) {
+      return { success: false, error: { code: 'INVALID_BORDER_EDGE', message: '无效的海图边缘位置' } }
+    }
+    const selected = mod == null ? null : BORDER_MODS_BY_LINES.get(JSON.stringify(mod?.lines))
+    if (mod != null && !selected) {
+      return { success: false, error: { code: 'INVALID_BORDER_MOD', message: '请选择词缀目录中的有效边缘词缀' } }
+    }
+    edges.value = {
+      ...edges.value,
+      [exitId]: selected
+        ? { id: exitId, status: 'matched', mod: { ...selected, lines: [...selected.lines], tags: [...(selected.tags || [])] }, confidence: 1, rawTexts: [] }
+        : { id: exitId, status: 'unknown', mod: null, confidence: 0, rawTexts: [] }
+    }
+    edgesRecognized.value = Object.values(edges.value).some(edge => (
+      edge?.status === 'matched' || (Array.isArray(edge?.rawTexts) && edge.rawTexts.some(line => String(line).trim()))
+    ))
+    solutionIndex.value = 0
+    persistRegions()
+    await recompute()
+    return { success: true, edge: edges.value[exitId] }
   }
 
   function captureCellKey(page, row, column) {
@@ -582,7 +682,12 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       retained[key] = {
         tileDataUrl: typeof slot.tileDataUrl === 'string' ? slot.tileDataUrl : '',
         featureVector: Array.isArray(slot.calibrationFeature) ? slot.calibrationFeature : [],
-        featureVersion: Number(slot.featureVersion) || 0
+        featureVersion: Number(slot.featureVersion) || 0,
+        directionCandidates: normalizeDirectionCandidates(slot.directionCandidates),
+        emptyCalibration: {
+          matched: Boolean(slot.emptyCalibration?.matched),
+          similarity: Math.max(0, Math.min(1, Number(slot.emptyCalibration?.similarity) || 0))
+        }
       }
     }
     captureCells.value = retained
@@ -593,8 +698,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   function resetInventoryAnalysisState() {
     invalidatePendingSolve()
     inventoryPages.value = { 1: emptyInventoryPage(1), 2: emptyInventoryPage(2) }
-    requiredExits.value = []
-    forbiddenExits.value = []
     analysisProgress.value = { stage: null, index: 0, total: 0 }
     solutionIndex.value = 0
     result.value = emptyResult()
@@ -615,7 +718,31 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     persistRegions()
   }
 
-  async function analyze({ page = null } = {}) {
+  function collectConfiguration(actionId, sourcePages = currentSourceSlots.value.map(slot => slot.page)) {
+    return collectPuzzleConfigurationIssues({
+      actionId,
+      inventoryRegionMetadata: inventoryRegionMetadata.value,
+      atlasRegionMetadata: atlasRegionMetadata.value,
+      inventoryTabPoints: inventoryTabPoints.value,
+      sourcePages
+    })
+  }
+
+  async function analyze({ page = null, configurationGuideBypass = false } = {}) {
+    const analysisPages = [1, 2].includes(Number(page)) ? [Number(page)] : [1, 2]
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.analyze, analysisPages)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.puzzle,
+          actionId: CONFIGURATION_ACTIONS.analyze,
+          title: '完成海图识别配置',
+          actionLabel: '开始识别',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.analyze, analysisPages),
+          execute: () => analyze({ page, configurationGuideBypass: true })
+        })
+      }
+    }
     if (!inventoryRegionMetadata.value) {
       error.value = { code: 'REGION_REQUIRED', message: '请先框选完整的 6×10 碎片仓库区域' }
       return { success: false, error: error.value }
@@ -676,8 +803,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
         inventoryPages.value[page].slots[index] = { ...emptySlots(page)[index] }
       }
     }
-    requiredExits.value = []
-    forbiddenExits.value = []
     execution.value = { status: 'idle', currentIndex: -1, total: 9, completed: 0, reason: '', error: null }
     solutionIndex.value = 0
     edges.value = emptyEdges()
@@ -701,9 +826,22 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     return { success: true, borderProbe, borderMods }
   }
 
-  async function probeBorderMods() {
+  async function probeBorderMods({ configurationGuideBypass = false } = {}) {
     if (probingBorder.value || executing.value || analyzing.value || resumeIndex.value > 0) {
       return { success: false, error: { code: 'PUZZLE_BUSY', message: '海图任务进行中，暂不能识别边缘词缀' } }
+    }
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.border)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.puzzle,
+          actionId: CONFIGURATION_ACTIONS.border,
+          title: '完成海图边缘识别配置',
+          actionLabel: '开始识别',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.border),
+          execute: () => probeBorderMods({ configurationGuideBypass: true })
+        })
+      }
     }
     probingBorder.value = true
     try {
@@ -712,7 +850,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       })
       if (isEmergencyCancellation(response)) return response
       if (!response?.success) {
-        if (response?.error) error.value = response.error
+        if (response?.error) error.value = configurationAwarePuzzleError(response.error, { actionId: CONFIGURATION_ACTIONS.border })
         return response || { success: false }
       }
       if (response.borderMods) {
@@ -800,16 +938,21 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   function updateSlot(row, column, type, orientation = 0) {
     const index = Number(row) * 6 + Number(column)
     const pageState = inventoryPages.value[selectedInventoryPage.value]
-    if (!pageState.slots[index]) return
+    if (!pageState.slots[index]) return false
+    const previous = pageState.slots[index]
     const occupied = PUZZLE_TYPES.includes(type)
+    if (previous.typeSource === 'copy' && (!occupied || type !== previous.type)) return false
     pageState.recognized = true
     pageState.slots[index] = {
-      ...pageState.slots[index],
+      ...previous,
+      candidate: occupied,
       occupied,
       type: occupied ? type : null,
+      typeSource: previous.typeSource === 'copy' ? 'copy' : 'manual',
       orientation: occupied ? normalizePuzzleOrientation(type, orientation) : 0,
       mask: occupied ? maskForType(type, orientation) : 0,
       confidence: occupied ? 1 : 0,
+      directionConfidence: occupied ? 1 : 0,
       calibrated: false,
       calibrationSimilarity: 0,
       corrected: true,
@@ -821,21 +964,24 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     solutionIndex.value = 0
     persistRegions()
     recompute()
+    return true
   }
 
   function updateSlotOrientation(row, column, orientation) {
     const index = Number(row) * 6 + Number(column)
     const slot = inventoryPages.value[selectedInventoryPage.value].slots[index]
-    if (!slot?.occupied) return
+    if (!slot?.occupied) return false
     const normalized = normalizePuzzleOrientation(slot.type, orientation)
     inventoryPages.value[selectedInventoryPage.value].slots[index] = {
       ...slot, orientation: normalized, mask: maskForType(slot.type, normalized),
-      confidence: 1, calibrated: false, calibrationSimilarity: 0, corrected: true, uncertain: false
+      confidence: 1, directionConfidence: 1,
+      calibrated: false, calibrationSimilarity: 0, corrected: true, uncertain: false
     }
     const correctionKey = captureCellKey(selectedInventoryPage.value, row, column)
     pendingCorrections.value = { ...pendingCorrections.value, [correctionKey]: true }
     persistRegions()
     void recompute()
+    return true
   }
 
   function isSlotLocked(slot) {
@@ -896,33 +1042,93 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const changed = ['status', 'currentIndex', 'completed', 'reason']
       .some(key => response[key] !== execution.value[key])
     execution.value = response
+    if (response.status === 'error' && response.error) {
+      error.value = configurationAwarePuzzleError(response.error, { actionId: CONFIGURATION_ACTIONS.autoPlace })
+    }
     if (changed) invalidatePendingSolve()
   }
 
-  async function startAutoPlacement(timing = { operationDelayMs: OPERATION_DELAY.default }) {
+  async function startAutoPlacement(
+    timing = { operationDelayMs: OPERATION_DELAY.default },
+    { configurationGuideBypass = false } = {}
+  ) {
+    if (!configurationGuideBypass) {
+      const check = collectConfiguration(CONFIGURATION_ACTIONS.autoPlace)
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.puzzle,
+          actionId: CONFIGURATION_ACTIONS.autoPlace,
+          title: '完成海图自动摆放配置',
+          actionLabel: '开始摆放',
+          collect: () => collectConfiguration(CONFIGURATION_ACTIONS.autoPlace),
+          execute: () => startAutoPlacement(timing, { configurationGuideBypass: true })
+        })
+      }
+    }
     if (!canAutoPlace.value) return { success: false, error: { code: 'ATLAS_NOT_READY', message: '请完成两项区域配置并确认全部来源碎片' } }
     const response = await electronApi.puzzle.startAutoPlacement?.({ ...executionPayload(), ...timing })
     applyExecutionState(response)
-    if (!response?.success && response?.error) error.value = response.error
+    if (!response?.success && response?.error) {
+      error.value = configurationAwarePuzzleError(response.error, { actionId: CONFIGURATION_ACTIONS.autoPlace })
+    }
     if (response?.success) void reportDiagnosticRecovery('puzzle', 'auto_placement')
     else void reportDiagnosticFailure('puzzle', 'auto_placement', response?.error, 'automation_failed')
     return response
   }
 
-  async function savePendingCorrections() {
-    const items = Object.keys(pendingCorrections.value).flatMap(key => {
-      const [page, row, column] = key.split(':').map(Number)
-      const capture = captureCells.value[key]
-      const slot = inventoryPages.value[page]?.slots[row * 6 + column]
-      if (!capture?.tileDataUrl || !slot) return []
-      return [{ ...capture, page, row, column, labelMask: Number(slot.mask || 0) }]
-    })
-    if (!items.length) throw new Error('当前修正缺少截图图块，请重新识别后再保存')
-    calibrationSamples.value = await electronApi.puzzle.saveCalibration(items)
-    const saved = new Set(items.map(item => captureCellKey(item.page, item.row, item.column)))
+  async function saveCalibrationItem(key, correction = {}) {
+    const [page, row, column] = String(key).split(':').map(Number)
+    const slot = inventoryPages.value[page]?.slots[row * 6 + column]
+    const capture = captureCells.value[key]
+    if (!slot || !capture?.tileDataUrl) throw new Error('当前项目缺少截图图块，请重新识别后再校准')
+    const lockedType = slot.typeSource === 'copy' && PUZZLE_TYPES.includes(slot.type) ? slot.type : null
+    const requestedType = PUZZLE_TYPES.includes(correction.type) ? correction.type : null
+    if (lockedType && correction.type != null && requestedType !== lockedType) {
+      throw new Error('复制已确认的碎片类型不能修改')
+    }
+    const type = lockedType || requestedType
+    const suggested = type ? capture.directionCandidates?.[type] : null
+    const orientation = type
+      ? normalizePuzzleOrientation(type, correction.orientation ?? (slot.type === type ? slot.orientation : suggested?.orientation))
+      : 0
+    const labelMask = type ? maskForType(type, orientation) : 0
+    const item = {
+      tileDataUrl: capture.tileDataUrl,
+      featureVector: capture.featureVector,
+      featureVersion: capture.featureVersion,
+      page,
+      row,
+      column,
+      kind: type ? 'fragment' : 'empty',
+      type,
+      labelMask
+    }
+    const samples = await electronApi.puzzle.saveCalibration([item])
+    const nextSlot = {
+      ...slot,
+      candidate: Boolean(type),
+      candidateState: type ? 'confirmed' : 'manual-empty',
+      occupied: Boolean(type),
+      type,
+      typeSource: lockedType ? 'copy' : 'manual',
+      orientation,
+      mask: labelMask,
+      confidence: 1,
+      directionConfidence: 1,
+      calibrated: true,
+      calibrationSimilarity: 1,
+      corrected: true,
+      uncertain: false,
+      mods: type ? slot.mods : null
+    }
+    inventoryPages.value[page].slots[row * 6 + column] = nextSlot
+    calibrationSamples.value = Array.isArray(samples) ? samples : calibrationSamples.value
     pendingCorrections.value = Object.fromEntries(Object.entries(pendingCorrections.value)
-      .filter(([key]) => !saved.has(key)))
-    return items.length
+      .filter(([pendingKey]) => pendingKey !== key))
+    persistRegions()
+    solutionIndex.value = 0
+    await recompute()
+    return { item, slot: nextSlot }
   }
 
   async function removeCalibration(id) {
@@ -945,34 +1151,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const response = await electronApi.puzzle.getAutoPlacementStatus?.()
     applyExecutionState(response)
     return response
-  }
-
-  function toggleRequiredExit(exitId) {
-    const wasRequired = requiredExits.value.includes(exitId)
-    forbiddenExits.value = forbiddenExits.value.filter(value => value !== exitId)
-    requiredExits.value = wasRequired
-      ? requiredExits.value.filter(value => value !== exitId)
-      : [...requiredExits.value, exitId]
-    solutionIndex.value = 0
-    recompute()
-  }
-
-  function toggleForbiddenExit(exitId) {
-    const wasForbidden = forbiddenExits.value.includes(exitId)
-    requiredExits.value = requiredExits.value.filter(value => value !== exitId)
-    forbiddenExits.value = wasForbidden
-      ? forbiddenExits.value.filter(value => value !== exitId)
-      : [...forbiddenExits.value, exitId]
-    solutionIndex.value = 0
-    recompute()
-  }
-
-  function clearExitConstraints() {
-    if (!requiredExits.value.length && !forbiddenExits.value.length) return
-    requiredExits.value = []
-    forbiddenExits.value = []
-    solutionIndex.value = 0
-    recompute()
   }
 
   function previousSolution() {
@@ -1013,8 +1191,8 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     lockedSlots,
     calibrationSamples,
     pendingCorrections,
-    pendingCorrectionCount,
-    savableCorrectionCount,
+    calibrationQueue,
+    calibrationQueueCount,
     gridConfidence,
     previews,
     configurationStates,
@@ -1022,8 +1200,6 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     allSlots,
     availableSlots,
     warnings,
-    requiredExits,
-    forbiddenExits,
     edges,
     edgesRecognized,
     probingBorder,
@@ -1047,7 +1223,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     canAutoPlace,
     autoPlaceBlockedReason,
     loadConfiguration,
-    savePendingCorrections,
+    saveCalibrationItem,
     removeCalibration,
     resetCalibration,
     pickInventoryRegion,
@@ -1065,9 +1241,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     updateSlotOrientation,
     isSlotLocked,
     toggleSlotLock,
-    toggleRequiredExit,
-    toggleForbiddenExit,
-    clearExitConstraints,
+    updateBorderMod,
     previousSolution,
     nextSolution,
     recompute,
