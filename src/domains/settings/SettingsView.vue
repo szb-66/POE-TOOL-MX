@@ -570,6 +570,7 @@
       </div>
     </el-scrollbar>
 
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
@@ -580,7 +581,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Refresh, Close, UploadFilled, QuestionFilled, TopRight } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import HelpTopicList from '@/domains/help/HelpTopicList.vue'
-import { FAQ_TOPICS, GENERAL_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
+import { FAQ_TOPICS, GENERAL_TOPICS, moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from './settingsStore'
 import { useBagStore } from '@/stores/bag'
 import { CURRENCY_NAMES } from '../../utils/constants'
@@ -617,7 +618,7 @@ import packageConfig from '../../../package.json'
 
 const PROJECT_URL = 'https://github.com/szb-66/POE-TOOL-MX'
 const aboutTopics = GENERAL_TOPICS.filter(topic => topic.category === 'about')
-const helpTopics = [moduleTopicById('settings'), ...FAQ_TOPICS]
+const helpTopics = [...moduleHelpTopicsById('settings'), ...FAQ_TOPICS]
 
 const route = useRoute()
 const router = useRouter()
@@ -1320,7 +1321,9 @@ async function handleReset() {
 
     .currency-position-item { min-width: 0; }
     .currency-position-item :deep(.el-form-item) { margin-bottom: 0; }
-    .coordinate-number-input { width: 68px; }
+    .currency-position-item .coordinate-configuration-field {
+      --coordinate-number-input-width: 68px;
+    }
     
     .background-drop-zone {
       width: 100%;

@@ -80,7 +80,7 @@ function updateAxis(axis, value) {
 }
 
 .coordinate-number-input {
-  width: 112px;
+  width: var(--coordinate-number-input-width, 112px);
 }
 
 .coordinate-number-input,
@@ -90,6 +90,11 @@ function updateAxis(axis, value) {
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+
+.coordinate-configuration-field > .coordinate-number-input,
+.coordinate-configuration-field > .pick-position-button {
+  border-radius: 0;
 }
 
 .coordinate-number-input + .coordinate-number-input,

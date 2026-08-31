@@ -106,6 +106,8 @@
         <el-button type="primary" @click="submitForm">保存</el-button>
       </template>
     </el-dialog>
+
+    <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
 
@@ -113,6 +115,8 @@
 import { reactive, ref } from 'vue'
 import { Delete, Edit, Plus, Rank, TopRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import {
   addToolSite,
   deleteToolSite,
@@ -123,6 +127,7 @@ import {
   updateToolSite
 } from './toolSites'
 
+const helpTopics = moduleHelpTopicsById('tools')
 const emptyForm = () => ({ name: '', url: '', description: '', imageUrl: '' })
 const sites = ref(loadToolSites())
 const dialogVisible = ref(false)

@@ -418,7 +418,7 @@
 import { computed, ref, watch } from 'vue'
 import { QuestionFilled, VideoPause } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById } from '@/domains/help/helpContent.js'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useBagStore } from '@/stores/bag'
 import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
@@ -452,7 +452,7 @@ const stashPickupStore = useStashPickupStore()
 const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()
 const settingsStore = useSettingsStore()
-const helpTopics = [moduleTopicById('bag')]
+const helpTopics = moduleHelpTopicsById('bag')
 const STORAGE_TAB_STORAGE_KEY = 'storage.activeTab'
 const STORAGE_TABS = ['inbound', 'pickup']
 const activeTab = ref(readPersistentTab(STORAGE_TAB_STORAGE_KEY, STORAGE_TABS, 'inbound'))

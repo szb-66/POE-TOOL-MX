@@ -224,7 +224,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { Delete, QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById } from '@/domains/help/helpContent.js'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
@@ -246,7 +246,7 @@ import {
 
 const settingsStore = useSettingsStore()
 const combatStore = useCombatStore()
-const helpTopics = [moduleTopicById('combat')]
+const helpTopics = moduleHelpTopicsById('combat')
 const config = reactive(JSON.parse(JSON.stringify(settingsStore.combatAssist)))
 const shortcuts = computed(() => settingsStore.globalShortcuts)
 const pickingTarget = ref('')

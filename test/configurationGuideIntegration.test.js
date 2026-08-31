@@ -14,6 +14,7 @@ test('应用壳只挂载一个引导宿主且不在启动时主动打开', () =>
 
 test('引导编辑区约束滚动容器，底部取消与继续操作不会被内容遮挡', () => {
   const dialog = source('src/domains/configurationGuide/ConfigurationGuideDialog.vue')
+  assert.doesNotMatch(dialog, /只有你点击底部继续按钮后才会重新校验并执行/)
   assert.match(dialog, /<el-scrollbar class="configuration-guide__scroll" max-height="56vh">/)
   assert.match(dialog, /\.configuration-guide__body \{[^}]*height: clamp\(360px, 56vh, 560px\);[^}]*min-height: 0;/)
   assert.match(dialog, /\.configuration-guide__editor \{[^}]*display: flex;[^}]*min-height: 0;[^}]*overflow: hidden;/)

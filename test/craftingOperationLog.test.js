@@ -73,3 +73,18 @@ test('操作日志默认收起且按需展开，新会话和重置会恢复收�
   assert.match(content, /\.overlay-content \{[\s\S]*padding-bottom: 38px/)
   assert.match(content, /\.operation-log-expanded \.overlay-content \{[\s\S]*padding-bottom: 170px/)
 })
+
+test('装备与地图脚本会产生同一会话下的操作日志事件', async () => {
+  const [itemTemplate, mapTemplate] = await Promise.all([
+    readFile(new URL('../src/assets/scripts/crafting_template.py', import.meta.url), 'utf8'),
+    readFile(new URL('../src/assets/scripts/map_rolling_template.py', import.meta.url), 'utf8')
+  ])
+
+  for (const template of [itemTemplate, mapTemplate]) {
+    assert.match(template, /"event": "crafting-operation"/)
+    assert.match(template, /emit_crafting_operation\("session", "start", "started"/)
+    assert.match(template, /emit_crafting_operation\("input", currency_type, "started"/)
+    assert.match(template, /emit_crafting_operation\([\s\S]*"input", currency, "dispatched"/)
+    assert.match(template, /operation_logger\("confirmation", "read-current-item", "confirmed"/)
+  }
+})

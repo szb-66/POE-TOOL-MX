@@ -284,6 +284,7 @@ required_currency_types = {{REQUIRED_CURRENCY_TYPES}}  # type: ignore
 verified_currency_types = set()
 fatal_error_reason = None
 foreground_failure_emitted = False
+crafting_operation_session_id = f"map-{os.getpid()}-{time.time_ns()}"
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 grid_config = {{GRID_CONFIG}} # {startX, startY, offsetX, offsetY, rows, cols}  # type: ignore
@@ -450,6 +451,25 @@ CURRENCY_NAMES = {
     "wisdom": "知识卷轴"
 }
 
+def emit_crafting_operation(phase, action, outcome, code="", summary=""):
+    """Purpose: publish one sanitized map-operation event.
+    Inputs: phase/action/outcome plus optional stable code and safe summary; values are stringified.
+    Outputs: writes one flushed ``EVENT`` JSON line to stdout and returns ``None``.
+    Edge cases: empty optional values remain empty; the renderer applies field-length limits.
+    Errors: JSON serialization and stdout write failures propagate to the caller.
+    """
+    print("EVENT " + json.dumps({
+        "event": "crafting-operation",
+        "mode": "map",
+        "sessionId": globals().get("crafting_operation_session_id", "map-test-session"),
+        "timestamp": int(__import__("time").time() * 1000),
+        "phase": str(phase),
+        "action": str(action),
+        "outcome": str(outcome),
+        "code": str(code or ""),
+        "summary": str(summary or "")
+    }, ensure_ascii=False), flush=True)
+
 def record_currency_usage(currency):
     if currency not in CURRENCY_NAMES:
         return False
@@ -459,6 +479,10 @@ def record_currency_usage(currency):
         "currency": currency,
         "amount": 1
     }, ensure_ascii=False), flush=True)
+    emit_crafting_operation(
+        "input", currency, "dispatched",
+        summary=f"已对当前格使用{CURRENCY_NAMES.get(currency, currency)}"
+    )
     return True
 
 def copied_item_header(text):
@@ -693,15 +717,24 @@ def right_click_currency(currency):
     return click_mouse("right")
 
 def apply_currency(currency_type, target_x, target_y):
+    currency_name = CURRENCY_NAMES.get(currency_type, currency_type)
+    emit_crafting_operation("input", currency_type, "started", summary=f"准备使用{currency_name}")
     try:
         release_shift_if_held()
-        if not right_click_currency(currency_type): return False
-        if not move_mouse(target_x, target_y): return False
-        if not click_mouse("left"): return False
+        if not right_click_currency(currency_type):
+            emit_crafting_operation("input", currency_type, "failed", "CURRENCY_PICK_FAILED", f"未能取得{currency_name}")
+            return False
+        if not move_mouse(target_x, target_y):
+            emit_crafting_operation("input", currency_type, "failed", "ITEM_MOVE_FAILED", "未能移动到当前格")
+            return False
+        if not click_mouse("left"):
+            emit_crafting_operation("input", currency_type, "failed", "ITEM_CLICK_FAILED", f"{currency_name}目标点击失败")
+            return False
         record_currency_usage(currency_type)
         return True
     except Exception as e:
         print(f"[错误] 应用通货失败: {e}")
+        emit_crafting_operation("input", currency_type, "failed", "CURRENCY_APPLY_FAILED", f"使用{currency_name}时发生异常")
         release_shift_if_held()
         return False
 
@@ -944,6 +977,9 @@ def fail_map_runtime(reason, code="MAP_PROCESSING_FAILED"):
     return False
 
 def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, empty_on_copy_failure=False, verify_freshness=None):
+    operation_logger = globals().get("emit_crafting_operation")
+    if operation_logger:
+        operation_logger("confirmation", "read-current-item", "started", summary=f"开始读取当前{rolling_target_label()}")
     if verify_freshness is None:
         verify_freshness = not allow_unchanged_text
     last_error = "无法读取当前目标"
@@ -968,8 +1004,12 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
             last_dispatched = True
             result = wait_for_parse_result(request_id)
             if not result.get("error") and item_matches_rolling_target(result):
+                if operation_logger:
+                    operation_logger("confirmation", "read-current-item", "confirmed", summary=f"当前{rolling_target_label()}读取并解析成功")
                 return result
             if result.get("isLegendary"):
+                if operation_logger:
+                    operation_logger("confirmation", "read-current-item", "confirmed", summary="当前目标为传奇物品")
                 return result
             last_error = result.get("error") or f"解析类别不是当前目标 {rolling_target_label()}"
         else:
@@ -979,9 +1019,15 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
             print(f"  > [重试] {last_error}，重新复制当前格（不重复使用通货）")
     if saw_unchanged and not copied_any:
         # 文本未变化说明状态未推进：按无新信息处理，由调用方继续洗练
+        if operation_logger:
+            operation_logger("confirmation", "read-current-item", "confirmed", summary=f"当前{rolling_target_label()}状态未变化")
         return {"unchanged": True}
     if empty_on_copy_failure and not copied_any:
+        if operation_logger:
+            operation_logger("confirmation", "read-current-item", "failed", "ROLLING_TARGET_EMPTY", "当前格没有可读取目标")
         return {"empty": True}
+    if operation_logger:
+        operation_logger("confirmation", "read-current-item", "failed", "ROLLING_TARGET_READ_FAILED", last_error)
     return {"error": last_error}
 
 def update_map_recovery_checkpoint(current_col, current_row, processed_count, qualified_count, blacklist_stats, whitelist_stats):
@@ -1024,6 +1070,8 @@ def start_map_rolling():
         return f"T{int((item_data or {}).get('mapTier', 0))}"
     
     print(f"[启动] 开始执行地图洗练脚本")
+    if "emit_crafting_operation" in globals():
+        emit_crafting_operation("session", "start", "started", summary=f"{target_label}洗练会话开始")
     print(f"[配置] 网格配置: {grid_config}")
     print(f"[配置] 地图配置: {map_config}")
     

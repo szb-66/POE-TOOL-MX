@@ -22,20 +22,16 @@
     </div>
 
     <template v-if="form.enabled">
-      <el-alert
-        title="任意一个组合满足即达标；每组要求全部必选词缀，并满足指定数量的挑选词缀。T 级为空表示不限，T1 优于 T2。"
-        type="info"
-        :closable="false"
-        class="rule-tip"
-      />
-
-      <section v-for="(group, groupIndex) in form.affixGroups" :key="group.id" class="affix-group">
+      <section
+        v-for="(group, groupIndex) in form.affixGroups"
+        :key="group.id"
+        class="affix-group"
+        :class="{ 'is-collapsed': isGroupCollapsed(group.id) }"
+      >
         <header class="group-header">
           <div class="group-title">
             <el-switch v-model="group.enabled" @change="commit" />
             <el-input v-model="group.name" maxlength="40" class="group-name" @change="commit" />
-          </div>
-          <div class="group-actions">
             <el-button size="small" :icon="CopyDocument" @click="duplicateGroup(groupIndex)">复制</el-button>
             <el-button
               size="small"
@@ -46,9 +42,24 @@
               @click="removeGroup(groupIndex)"
             >删除</el-button>
           </div>
+          <div class="group-actions">
+            <el-button
+              class="collapse-group"
+              size="small"
+              :icon="isGroupCollapsed(group.id) ? ArrowDown : ArrowUp"
+              :aria-label="isGroupCollapsed(group.id) ? `展开${group.name}` : `收起${group.name}`"
+              :aria-expanded="!isGroupCollapsed(group.id)"
+              :aria-controls="`affix-group-content-${group.id}`"
+              @click="toggleGroupCollapse(group.id)"
+            >{{ isGroupCollapsed(group.id) ? '展开' : '收起' }}</el-button>
+          </div>
         </header>
 
-        <div class="affix-columns">
+        <div
+          v-if="!isGroupCollapsed(group.id)"
+          :id="`affix-group-content-${group.id}`"
+          class="affix-columns"
+        >
           <div class="affix-column">
             <div class="column-header">
               <span>必选词缀</span>
@@ -109,7 +120,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { electronApi } from '../../../api/electron.js'
 import { usePresetStore } from '../../../stores/preset.js'
 import AffixConditionRow from './AffixConditionRow.vue'
@@ -124,6 +135,7 @@ import {
 const presetStore = usePresetStore()
 const moduleTwo = computed(() => presetStore.currentItemPreset.moduleTwo)
 const form = ref(normalizeModuleTwo(moduleTwo.value))
+const collapsedGroupIds = ref(new Set())
 
 watch(moduleTwo, (value) => {
   form.value = normalizeModuleTwo(value)
@@ -132,6 +144,24 @@ watch(moduleTwo, (value) => {
 function commit() {
   form.value = normalizeModuleTwo(form.value)
   presetStore.updateCurrentItemPreset({ moduleTwo: form.value })
+}
+
+function isGroupCollapsed(groupId) {
+  return collapsedGroupIds.value.has(groupId)
+}
+
+function toggleGroupCollapse(groupId) {
+  const nextCollapsedGroupIds = new Set(collapsedGroupIds.value)
+  if (nextCollapsedGroupIds.has(groupId)) nextCollapsedGroupIds.delete(groupId)
+  else nextCollapsedGroupIds.add(groupId)
+  collapsedGroupIds.value = nextCollapsedGroupIds
+}
+
+function forgetGroupCollapse(groupId) {
+  if (!collapsedGroupIds.value.has(groupId)) return
+  const nextCollapsedGroupIds = new Set(collapsedGroupIds.value)
+  nextCollapsedGroupIds.delete(groupId)
+  collapsedGroupIds.value = nextCollapsedGroupIds
 }
 
 function blankCondition() {
@@ -194,7 +224,8 @@ function duplicateGroup(index) {
 
 function removeGroup(index) {
   if (form.value.affixGroups.length <= 1) return
-  form.value.affixGroups.splice(index, 1)
+  const [removedGroup] = form.value.affixGroups.splice(index, 1)
+  forgetGroupCollapse(removedGroup?.id)
   commit()
 }
 </script>
@@ -225,8 +256,8 @@ function removeGroup(index) {
   gap: var(--spacing-sm);
 }
 
-.rule-tip {
-  margin-bottom: var(--spacing-md);
+.group-title :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .affix-group {
@@ -244,6 +275,11 @@ function removeGroup(index) {
   gap: var(--spacing-md);
   padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border-lighter);
+}
+
+.affix-group.is-collapsed .group-header {
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .group-name {

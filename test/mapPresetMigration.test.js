@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   cleanMigratedChartConfig,
   cleanMigratedMapConfig,
+  createDefaultChartConfig,
   createDefaultMapConfig,
   getActiveMapRollingConfig
 } from '../src/utils/mapPresetMigration.js'
@@ -78,9 +79,43 @@ test('地图与航海海图配置独立迁移且运行时按目标选择', () =>
   assert.equal(active.grid.rows, 5)
 })
 
-test('旧地图与海图预设默认关闭崇高石并保留显式开关', () => {
-  assert.equal(cleanMigratedMapConfig({}).exalted.enabled, false)
-  assert.equal(cleanMigratedChartConfig({}).exalted.enabled, false)
-  assert.equal(cleanMigratedMapConfig({ exalted: { enabled: true } }).exalted.enabled, true)
-  assert.equal(cleanMigratedChartConfig({ exalted: { enabled: true } }).exalted.enabled, true)
+test('地图与海图默认关闭全部可选动作', () => {
+  for (const config of [
+    createDefaultMapConfig(),
+    createDefaultChartConfig(),
+    cleanMigratedMapConfig({}),
+    cleanMigratedChartConfig({})
+  ]) {
+    assert.equal(config.exalted.enabled, false)
+    assert.equal(config.vaal.enabled, false)
+    assert.equal(config.autoStash, false)
+  }
+})
+
+test('地图与海图迁移只补齐缺失的可选动作并保留显式开关', () => {
+  const map = cleanMigratedMapConfig({
+    exalted: { enabled: true },
+    vaal: { enabled: true, checkAfter: true },
+    autoStash: true
+  })
+  const chart = cleanMigratedChartConfig({
+    exalted: { enabled: true },
+    vaal: { enabled: true, checkAfter: true },
+    autoStash: true
+  })
+
+  for (const config of [map, chart]) {
+    assert.deepEqual(config.exalted, { enabled: true })
+    assert.deepEqual(config.vaal, { enabled: true, checkAfter: true })
+    assert.equal(config.autoStash, true)
+  }
+
+  const partiallySaved = cleanMigratedMapConfig({
+    exalted: { enabled: true },
+    vaal: { checkAfter: true }
+  })
+  assert.equal(partiallySaved.exalted.enabled, true)
+  assert.equal(partiallySaved.vaal.enabled, false)
+  assert.equal(partiallySaved.vaal.checkAfter, true)
+  assert.equal(partiallySaved.autoStash, false)
 })

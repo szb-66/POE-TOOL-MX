@@ -4,9 +4,7 @@ import { readFileSync } from 'node:fs'
 import {
   SETTINGS_TABS,
   resolveSettingsTab,
-  settingsRoute,
-  settingsRouteForHealth,
-  settingsTabForHealth
+  settingsRoute
 } from '../src/router/settingsNavigation.js'
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
@@ -23,28 +21,6 @@ test('设置导航仅接受七个稳定 Tab 单值并为合法目标生成查询
     assert.equal(resolveSettingsTab(invalid), null)
     assert.deepEqual(settingsRoute(invalid), { path: '/settings' })
   }
-})
-
-test('首页按首个非正常健康项定位设置分类', () => {
-  assert.equal(settingsTabForHealth([
-    { id: 'python', status: 'ready' },
-    { id: 'shortcuts', status: 'attention' },
-    { id: 'dpi', status: 'error' }
-  ]), 'general')
-  assert.equal(settingsTabForHealth([
-    { id: 'python', status: 'error' },
-    { id: 'shortcuts', status: 'attention' }
-  ]), 'system')
-  assert.equal(settingsTabForHealth([
-    { id: 'shortcuts', status: 'ready' },
-    { id: 'network', status: 'attention' }
-  ]), 'system')
-  assert.equal(settingsTabForHealth([{
-    id: 'shortcuts',
-    status: 'ready',
-    reason: 'window-title-mismatch'
-  }]), null)
-  assert.deepEqual(settingsRouteForHealth([]), { path: '/settings' })
 })
 
 test('设置页同步合法查询目标、持久化选择并使用 replace 回写手动切换', () => {
@@ -65,7 +41,8 @@ test('明确业务入口携带通用目标，普通设置入口不携带目标',
 
   assert.equal((shop.match(/settingsRoute\('general'\)/g) || []).length, 2)
   assert.match(priceCheck, /\$router\.push\(settingsRoute\('general'\)\)/)
-  assert.match(dashboard, /router\.push\(settingsRouteForHealth\(healthItems\.value\)\)/)
+  assert.match(dashboard, /router\.push\(settingsRoute\(action\.target\)\)/)
+  assert.doesNotMatch(dashboard, /settingsRouteForHealth|settingsTabForHealth/)
   assert.match(sidebar, /index="\/settings"/)
   assert.doesNotMatch(sidebar, /settingsRoute/)
   assert.doesNotMatch(sidebar, /index="\/help"/)

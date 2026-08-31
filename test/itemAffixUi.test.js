@@ -6,6 +6,12 @@ import { renderToString } from '@vue/server-renderer'
 import { createPinia, setActivePinia } from 'pinia'
 import { createServer } from 'vite'
 
+function readFunctionBody(source, functionName) {
+  const match = source.match(new RegExp(`function ${functionName}\\([^)]*\\) \\{([\\s\\S]*?)\\n\\}`))
+  assert.ok(match, `缺少函数 ${functionName}`)
+  return match[1]
+}
+
 test('物品词缀界面提供多组合、全库联想、自由关键词和最低 T 编辑', async () => {
   const [moduleTwo, conditionRow, preload, api, fileIpc, runtime] = await Promise.all([
     readFile('src/domains/items/components/ModuleTwo.vue', 'utf8'),
@@ -22,6 +28,12 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     '新增达标组合',
     'duplicateGroup',
     'removeGroup',
+    'collapsedGroupIds',
+    'toggleGroupCollapse',
+    'isGroupCollapsed',
+    'aria-label',
+    'aria-expanded',
+    'aria-controls',
     '必选词缀',
     '挑选词缀',
     'fetchSuggestions',
@@ -34,11 +46,37 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     '不限 T',
     '最低 T'
   ]) assert.match(view, new RegExp(text))
+  assert.match(moduleTwo, /v-if="!isGroupCollapsed\(group\.id\)"/)
+  const headerGroups = moduleTwo.match(/<div class="group-title">([\s\S]*?)<\/div>\s*<div class="group-actions">([\s\S]*?)<\/div>\s*<\/header>/)
+  assert.ok(headerGroups, '组合标题栏应包含左右两个操作区')
+  assert.match(headerGroups[1], /duplicateGroup\(groupIndex\)/)
+  assert.match(headerGroups[1], /removeGroup\(groupIndex\)/)
+  assert.doesNotMatch(headerGroups[1], /toggleGroupCollapse/)
+  assert.match(headerGroups[2], /toggleGroupCollapse\(group\.id\)/)
+  assert.doesNotMatch(headerGroups[2], /duplicateGroup|removeGroup/)
+  assert.match(moduleTwo, /\.group-title :deep\(\.el-button \+ \.el-button\) \{\s*margin-left: 0;/)
   assert.match(preload, /searchCraftingAffixSuggestions/)
   assert.match(api, /searchAffixSuggestions/)
   assert.match(fileIpc, /matchedGroupName/)
   assert.match(fileIpc, /affixGroupResults/)
   assert.match(runtime, /命中组合/)
+})
+
+test('达标组合折叠保持为独立界面状态', async () => {
+  const source = await readFile('src/domains/items/components/ModuleTwo.vue', 'utf8')
+  const toggleBody = readFunctionBody(source, 'toggleGroupCollapse')
+  const forgetBody = readFunctionBody(source, 'forgetGroupCollapse')
+  const addBody = readFunctionBody(source, 'addGroup')
+  const duplicateBody = readFunctionBody(source, 'duplicateGroup')
+  const removeBody = readFunctionBody(source, 'removeGroup')
+
+  assert.match(toggleBody, /new Set\(collapsedGroupIds\.value\)/)
+  assert.doesNotMatch(toggleBody, /\bform\b|commit\(|updateCurrentItemPreset/)
+  assert.doesNotMatch(forgetBody, /\bform\b|commit\(|updateCurrentItemPreset/)
+  assert.doesNotMatch(addBody, /collapsedGroupIds|toggleGroupCollapse/)
+  assert.doesNotMatch(duplicateBody, /collapsedGroupIds|toggleGroupCollapse/)
+  assert.match(removeBody, /forgetGroupCollapse\(removedGroup\?\.id\)/)
+  assert.match(removeBody, /commit\(\)/)
 })
 
 test('词缀 T 级选择器不在渲染函数外调用插槽', async () => {
@@ -79,9 +117,13 @@ test('词缀 T 级选择器不在渲染函数外调用插槽', async () => {
     app.provide(ZINDEX_INJECTION_KEY, { current: 0 })
     app.config.warnHandler = (message) => warnings.push(message)
 
-    await renderToString(app)
+    const html = await renderToString(app)
 
     assert.equal(warnings.some((message) => message.includes('invoked outside of the render function')), false, warnings.join('\n'))
+    assert.match(html, /aria-expanded="true"/)
+    assert.match(html, /收起(?:<!--.*?-->)*<\/span>/)
+    assert.match(html, /class="affix-columns"/)
+    assert.match(html, /必选词缀/)
   } finally {
     await server.close()
   }

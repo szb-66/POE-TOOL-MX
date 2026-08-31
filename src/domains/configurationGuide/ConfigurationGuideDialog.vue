@@ -23,13 +23,6 @@
         />
       </div>
 
-      <el-alert
-        title="只有你点击底部继续按钮后才会重新校验并执行；关闭窗口不会启用模块或发送游戏输入。"
-        type="info"
-        :closable="false"
-        show-icon
-      />
-
       <div class="configuration-guide__body">
         <nav class="configuration-guide__issues" aria-label="配置项列表">
           <button

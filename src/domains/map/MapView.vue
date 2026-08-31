@@ -70,7 +70,7 @@
 import { computed, ref, watch } from 'vue'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById } from '@/domains/help/helpContent.js'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '../settings/settingsStore'
 import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
@@ -85,7 +85,7 @@ import MapRollingProfilePanel from './components/MapRollingProfilePanel.vue'
 const settingsStore = useSettingsStore()
 const presetStore = usePresetStore()
 const scriptStore = useScriptStore()
-const helpTopics = [moduleTopicById('map')]
+const helpTopics = moduleHelpTopicsById('map')
 const starting = ref(false)
 const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'map')
 const shortcuts = computed(() => settingsStore.globalShortcuts)

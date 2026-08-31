@@ -413,7 +413,7 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading, Lock, QuestionFilled, Unlock, Warning } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById } from '@/domains/help/helpContent.js'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import PuzzleGlyph from './PuzzleGlyph.vue'
 import PuzzleCalibrationWizard from './PuzzleCalibrationWizard.vue'
 import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
@@ -429,7 +429,7 @@ import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/c
 
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
-const helpTopics = [moduleTopicById('puzzle')]
+const helpTopics = moduleHelpTopicsById('puzzle')
 const {
   regionMetadata,
   inventoryRegionMetadata,

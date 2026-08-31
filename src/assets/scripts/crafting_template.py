@@ -203,6 +203,7 @@ required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
 verified_currency_types = set()
 fatal_error_reason = None
 foreground_failure_emitted = False
+crafting_operation_session_id = f"items-{os.getpid()}-{time.time_ns()}"
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
@@ -418,6 +419,8 @@ def start_crafting():
     print("=" * 50)
     
     print("[开始] 制作流程")
+    if "emit_crafting_operation" in globals():
+        emit_crafting_operation("session", "start", "started", summary="装备制作会话开始")
 
     if not focus_game_window():
         fatal_error_reason = "无法激活游戏窗口，请确认《流放之路》已启动且窗口可见"
@@ -698,6 +701,25 @@ CURRENCY_NAMES = {
     "exceptional-eldritch-ichor": "卓越古灵溶液"
 }
 
+def emit_crafting_operation(phase, action, outcome, code="", summary=""):
+    """Purpose: publish one sanitized equipment-operation event.
+    Inputs: phase/action/outcome plus optional stable code and safe summary; values are stringified.
+    Outputs: writes one flushed ``EVENT`` JSON line to stdout and returns ``None``.
+    Edge cases: empty optional values remain empty; the renderer applies field-length limits.
+    Errors: JSON serialization and stdout write failures propagate to the caller.
+    """
+    print("EVENT " + json.dumps({
+        "event": "crafting-operation",
+        "mode": "items",
+        "sessionId": globals().get("crafting_operation_session_id", "items-test-session"),
+        "timestamp": int(__import__("time").time() * 1000),
+        "phase": str(phase),
+        "action": str(action),
+        "outcome": str(outcome),
+        "code": str(code or ""),
+        "summary": str(summary or "")
+    }, ensure_ascii=False), flush=True)
+
 def record_currency_usage(currency):
     if currency not in CURRENCY_NAMES:
         return False
@@ -707,6 +729,10 @@ def record_currency_usage(currency):
         "currency": currency,
         "amount": 1
     }, ensure_ascii=False), flush=True)
+    emit_crafting_operation(
+        "input", currency, "dispatched",
+        summary=f"已对目标使用{CURRENCY_NAMES.get(currency, currency)}"
+    )
     return True
 
 def copied_item_header(text):
@@ -830,11 +856,13 @@ def preflight_required_currencies():
 
 def apply_currency(currency_type):
     # 应用通货到物品上（每次重新获取通货，不使用Shift）
-    
+    currency_name = CURRENCY_NAMES.get(currency_type, currency_type)
+    emit_crafting_operation("input", currency_type, "started", summary=f"准备使用{currency_name}")
     try:
         # 验证物品位置
         if item_position['x'] == 0 and item_position['y'] == 0:
             print("[错误] 物品位置未配置")
+            emit_crafting_operation("input", currency_type, "failed", "ITEM_POSITION_MISSING", f"{currency_name}未使用：物品位置未配置")
             return False
             
         # 0. 确保Shift松开 (防止之前残留)
@@ -843,6 +871,7 @@ def apply_currency(currency_type):
         # 1. 移动到通货位置并右键点击 (Pick)
         # print(f"[操作] 获取通货: {currency_type}")
         if not right_click_currency(currency_type):
+            emit_crafting_operation("input", currency_type, "failed", "CURRENCY_PICK_FAILED", f"未能取得{currency_name}")
             return False
             
         # 2. 移动到物品位置
@@ -851,17 +880,20 @@ def apply_currency(currency_type):
         
         # 移动鼠标
         if not move_mouse(target_x, target_y):
+            emit_crafting_operation("input", currency_type, "failed", "ITEM_MOVE_FAILED", "未能移动到目标物品")
             return False
         
         # 3. 左键点击应用 (Apply)
         # 不需要按下Shift
         if not click_mouse("left"):
+            emit_crafting_operation("input", currency_type, "failed", "ITEM_CLICK_FAILED", f"{currency_name}目标点击失败")
             return False
         record_currency_usage(currency_type)
         return True
         
     except Exception as e:
         print(f"[错误] 应用通货失败: {e}")
+        emit_crafting_operation("input", currency_type, "failed", "CURRENCY_APPLY_FAILED", f"使用{currency_name}时发生异常")
         import traceback
         traceback.print_exc()
         release_shift_if_held() # 发生错误时释放
@@ -1240,6 +1272,9 @@ def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
 
 def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=None):
     """复制并解析当前装备；补读只重复复制，不重复使用通货。"""
+    operation_logger = globals().get("emit_crafting_operation")
+    if operation_logger:
+        operation_logger("confirmation", "read-current-item", "started", summary="开始读取目标物品")
     if verify_freshness is None:
         verify_freshness = not allow_unchanged_text
     last_error = "无法读取当前物品"
@@ -1265,6 +1300,8 @@ def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=N
                         "AFFIX_PATCH_UNSUPPORTED"
                     )
                     return {"error": "检测到未适配的词缀补丁格式"}
+                if operation_logger:
+                    operation_logger("confirmation", "read-current-item", "confirmed", summary="目标物品读取并解析成功")
                 return result
             last_error = result.get("error") if isinstance(result, dict) else "无效解析结果"
         else:
@@ -1273,7 +1310,11 @@ def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=N
         if attempt + 1 < attempts and is_running:
             print(f"[重试] {last_error}，重新复制当前物品（不重复使用通货）")
     if last_error == "剪贴板文本未变化":
+        if operation_logger:
+            operation_logger("confirmation", "read-current-item", "confirmed", summary="目标物品状态未变化")
         return {"unchanged": True}
+    if operation_logger:
+        operation_logger("confirmation", "read-current-item", "failed", "ITEM_READ_FAILED", last_error)
     return {"error": last_error}
 
 def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):

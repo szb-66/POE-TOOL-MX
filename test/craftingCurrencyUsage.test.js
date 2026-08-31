@@ -35,7 +35,9 @@ function runApplyCurrency(template, mode, failureStage = null) {
   const call = mode === 'items' ? 'apply_currency("alteration")' : 'apply_currency("alteration", 30, 40)'
   const script = `
 import json
+import time
 ${definitions}
+crafting_operation_session_id = "test-session"
 item_position = {"x": 30, "y": 40}
 def release_shift_if_held(): pass
 def right_click_currency(currency): return ${failureStage === 'right' ? 'False' : 'True'}
@@ -84,13 +86,30 @@ for (const [label, file, mode] of [
     for (const stage of ['right', 'move', 'click']) {
       const failed = runApplyCurrency(template, mode, stage)
       assert.equal(failed.result, false)
-      assert.deepEqual(failed.events, [])
+      assert.deepEqual(failed.events.filter(event => event.event === 'crafting-currency-used'), [])
+      assert.deepEqual(
+        failed.events.filter(event => event.event === 'crafting-operation').map(event => event.outcome),
+        ['started', 'failed']
+      )
     }
     const succeeded = runApplyCurrency(template, mode)
     assert.equal(succeeded.result, true)
-    assert.deepEqual(succeeded.events, [{
+    assert.deepEqual(succeeded.events.filter(event => event.event === 'crafting-currency-used'), [{
       event: 'crafting-currency-used', mode, currency: 'alteration', amount: 1
     }])
+    assert.deepEqual(
+      succeeded.events.filter(event => event.event === 'crafting-operation').map(event => ({
+        mode: event.mode,
+        sessionId: event.sessionId,
+        phase: event.phase,
+        action: event.action,
+        outcome: event.outcome
+      })),
+      [
+        { mode, sessionId: 'test-session', phase: 'input', action: 'alteration', outcome: 'started' },
+        { mode, sessionId: 'test-session', phase: 'input', action: 'alteration', outcome: 'dispatched' }
+      ]
+    )
   })
 }
 

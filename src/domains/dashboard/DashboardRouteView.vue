@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-route primary-page" :aria-busy="loading || !mainRuntimeState.settled">
     <div v-if="contentComponent" class="dashboard-content" :inert="!mainRuntimeState.settled">
-      <component :is="contentComponent" />
+      <component :is="contentComponent" @open-health-help="openHealthHelp" />
     </div>
 
     <div v-else-if="error" class="dashboard-error" role="alert">
@@ -25,7 +25,7 @@
       正在同步模块状态…
     </div>
 
-    <PageHelpDrawer :topics="helpTopics" />
+    <PageHelpDrawer ref="helpDrawer" :topics="helpTopics" />
   </div>
 </template>
 
@@ -34,7 +34,7 @@ import { onMounted, shallowRef, ref } from 'vue'
 import { mainRuntimeState } from '../../startup/readiness'
 import { reportStartupEvent } from '../../utils/startupReporter'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById, QUICK_START_STEPS } from '@/domains/help/helpContent.js'
+import { FAQ_TOPICS, moduleHelpTopicsById, QUICK_START_STEPS } from '@/domains/help/helpContent.js'
 
 const quickStartTopic = {
   id: 'getting-started',
@@ -47,11 +47,18 @@ const quickStartTopic = {
     { type: 'callout', tone: 'warning', text: '先设置并测试“全局紧急停止”快捷键，再用少量、低价值物品试运行。任何识别或坐标异常都应先停止并重新校准。' }
   ]
 }
-const helpTopics = [moduleTopicById('dashboard'), quickStartTopic]
+const dashboardHealthHelpIds = new Set(['faq-runtime', 'faq-dpi', 'faq-config-location', 'faq-system-environment'])
+const healthHelpTopics = FAQ_TOPICS.filter(topic => dashboardHealthHelpIds.has(topic.id))
+const helpTopics = [...moduleHelpTopicsById('dashboard'), quickStartTopic, ...healthHelpTopics]
 
 const contentComponent = shallowRef(null)
+const helpDrawer = ref(null)
 const loading = ref(false)
 const error = ref('')
+
+function openHealthHelp(topicId) {
+  helpDrawer.value?.open(topicId)
+}
 
 async function loadContent() {
   if (loading.value) return

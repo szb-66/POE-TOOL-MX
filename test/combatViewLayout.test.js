@@ -81,6 +81,7 @@ test('坐标输入与取点按钮使用三段式组合框', () => {
   assert.doesNotMatch(passive, /<span>,<\/span>/)
   assert.doesNotMatch(portal, /<span>,<\/span>/)
   assert.match(coordinateField, /\.coordinate-number-input \+ \.coordinate-number-input,[\s\S]*?\.pick-position-button \{\s*border-left: 1px solid var\(--border-base\);/)
+  assert.match(coordinateField, /\.coordinate-configuration-field > \.coordinate-number-input,[\s\S]*?\.coordinate-configuration-field > \.pick-position-button \{\s*border-radius: 0;/)
 })
 
 test('被动与主动喝药使用三态标签和单一条件启停按钮', () => {

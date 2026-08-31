@@ -67,6 +67,15 @@ test('共享深色变量与紧凑悬浮密度使用独立作用域', () => {
   assert.doesNotMatch(variables, /localStorage|sessionStorage|theme-setting|prefers-color-scheme/)
 })
 
+test('深色主题为错误横幅提供完整暗色背景色阶', () => {
+  for (const level of [3, 5, 7, 8, 9]) {
+    const danger = variables.match(new RegExp(`--el-color-danger-light-${level}:\\s*(#[0-9A-Fa-f]{6});`))?.[1]
+    const error = variables.match(new RegExp(`--el-color-error-light-${level}:\\s*(#[0-9A-Fa-f]{6});`))?.[1]
+    assert.ok(danger, `缺少 danger light ${level}`)
+    assert.equal(error, danger, `error light ${level} 应与 danger 色阶一致`)
+  }
+})
+
 test('深色按钮沿用组件库类型并提供统一交互状态', () => {
   for (const type of ['primary', 'success', 'warning', 'danger', 'info']) {
     assert.match(elementOverrides, new RegExp(`&\\.el-button--${type}\\s*\\{\\s*--theme-button-accent:`))

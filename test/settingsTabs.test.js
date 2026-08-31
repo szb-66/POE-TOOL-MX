@@ -144,10 +144,10 @@ test('背包网格仅通过框选配置并以只读形式展示当前值', () =>
   assert.doesNotMatch(view, /handlePickCoordinate\('inventory'\)/)
 })
 
-test('通货坐标使用三等分布局并限制四位数输入框宽度', () => {
+test('通货坐标使用三等分布局并通过组件变量限制四位数输入框宽度', () => {
   assert.match(view, /class="currency-position-grid"/)
   assert.match(view, /grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/)
-  assert.match(view, /\.coordinate-number-input\s*\{\s*width:\s*68px/)
+  assert.match(view, /\.currency-position-item \.coordinate-configuration-field\s*\{\s*--coordinate-number-input-width:\s*68px/)
   assert.match(view, /@media \(max-width:\s*1100px\)[\s\S]*?currency-position-grid\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/)
   assert.match(view, /@media \(max-width:\s*760px\)[\s\S]*?currency-position-grid\s*\{\s*grid-template-columns:\s*1fr/)
   assert.doesNotMatch(view, /v-model="positions\[key\]\.[xy]"[\s\S]{0,120}style="width:\s*80px"/)

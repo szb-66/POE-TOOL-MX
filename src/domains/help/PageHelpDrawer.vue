@@ -4,12 +4,16 @@
     type="primary"
     circle
     aria-label="打开本页帮助"
-    @click="visible = true"
+    @click="open()"
   >
     <el-icon><QuestionFilled /></el-icon>
   </el-button>
   <el-drawer v-model="visible" :title="title || '本页帮助'" size="460px" class="page-help-drawer">
-    <HelpTopicList :topics="topics" :default-expanded-id="defaultExpandedId" />
+    <HelpTopicList
+      :key="targetOpenVersion"
+      :topics="visibleTopics"
+      :default-expanded-id="defaultExpandedId"
+    />
   </el-drawer>
 </template>
 
@@ -24,8 +28,25 @@ const props = defineProps({
 })
 
 const visible = ref(false)
-// ponytail: 仅做“单主题默认展开”，多主题记住展开状态到抽屉关闭为止
-const defaultExpandedId = computed(() => (props.topics.length === 1 ? props.topics[0].id : ''))
+const requestedTopicId = ref('')
+const targetOpenVersion = ref(0)
+const visibleTopics = computed(() => {
+  if (!requestedTopicId.value) return props.topics
+  const target = props.topics.find(topic => topic.id === requestedTopicId.value)
+  return target ? [target, ...props.topics.filter(topic => topic.id !== target.id)] : props.topics
+})
+// 每次打开都重建主题列表：定向入口展开目标，普通入口恢复规范默认状态。
+const defaultExpandedId = computed(() => (
+  requestedTopicId.value || (props.topics.length === 1 ? props.topics[0].id : '')
+))
+
+function open(topicId = '') {
+  requestedTopicId.value = props.topics.some(topic => topic.id === topicId) ? topicId : ''
+  targetOpenVersion.value += 1
+  visible.value = true
+}
+
+defineExpose({ open })
 </script>
 
 <style scoped lang="less">

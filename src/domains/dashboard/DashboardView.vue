@@ -26,7 +26,6 @@
           <el-tag v-else size="small" type="success">全部正常</el-tag>
         </div>
         <div>
-          <el-button v-if="healthHasIssues" size="small" text type="primary" @click="openSettings">前往设置</el-button>
           <el-button size="small" text @click="healthExpanded = !healthExpanded">
             {{ healthExpanded ? '收起' : '查看' }}
           </el-button>
@@ -37,7 +36,16 @@
           <el-col v-for="item in healthItems" :key="item.id" :xs="24" :sm="12" :md="8">
             <article class="health-card">
               <span class="health-dot" :class="item.status" />
-              <div><strong>{{ item.label }}</strong><p>{{ item.text }}</p></div>
+              <div class="health-content"><strong>{{ item.label }}</strong><p>{{ item.text }}</p></div>
+              <el-button
+                v-if="item.action"
+                class="health-action"
+                size="small"
+                text
+                type="primary"
+                :aria-label="`${item.label}：${item.action.label}`"
+                @click="openHealthAction(item.action)"
+              >{{ item.action.label }}</el-button>
             </article>
           </el-col>
         </el-row>
@@ -97,6 +105,7 @@ import { groupDashboardModules } from './dashboardGroups'
 import { useDashboard } from './useDashboard'
 import { reportStartupEvent } from '../../utils/startupReporter'
 
+const emit = defineEmits(['open-health-help'])
 const healthExpanded = ref(false)
 const moduleIcons = {
   items: Box,
@@ -125,8 +134,8 @@ const {
   runAction,
   changeModuleControl,
   openModule,
-  openSettings
-} = useDashboard()
+  openHealthAction
+} = useDashboard({ openHelp: topicId => emit('open-health-help', topicId) })
 
 const moduleGroups = computed(() => groupDashboardModules(modules.value))
 
@@ -210,7 +219,7 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .health-list > .el-col { min-width: 0; }
 .health-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 9px;
   min-width: 0;
   min-height: 58px;
@@ -221,6 +230,8 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
   border-radius: 6px;
   background: var(--surface-2, var(--el-fill-color-light));
 }
+.health-content { flex: 1 1 auto; min-width: 0; }
+.health-action { flex: 0 0 auto; margin-left: auto; }
 .health-list strong { font-size: 12px; }
 .health-list p { overflow: hidden; margin: 3px 0 0; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .health-dot { flex: 0 0 8px; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--el-color-info); }

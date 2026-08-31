@@ -1,7 +1,8 @@
 <template>
   <div class="price-check-page primary-page primary-page--column">
     <div class="primary-page__scroll">
-      <el-row class="price-check-content primary-page__content app-grid" :gutter="16">
+      <div class="primary-page__content">
+      <el-row class="price-check-content app-grid" :gutter="16">
         <el-col :span="24"><div class="page-heading">
       <div class="page-heading__title">
         <h2>国服查价</h2>
@@ -127,6 +128,7 @@
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
         </el-card></el-col>
       </el-row>
+      </div>
     </div>
 
     <PageHelpDrawer :topics="helpTopics" title="查价帮助" />
@@ -138,7 +140,7 @@ import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { CRAFTING_TOPICS, moduleTopicById } from '@/domains/help/helpContent.js'
+import { CRAFTING_TOPICS, moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -148,7 +150,7 @@ import { configurationIssueFromFailure } from '@/domains/configurationGuide/conf
 import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
 
 const CRAFTING_PRICE_CHECK_TOPIC = CRAFTING_TOPICS.find(topic => topic.id === 'crafting-price-check')
-const helpTopics = [moduleTopicById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
+const helpTopics = [...moduleHelpTopicsById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
 
 const store = usePriceCheckStore()
 const account = usePoeCnAccountStore()

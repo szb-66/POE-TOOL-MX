@@ -61,8 +61,8 @@ function createRollingProfile(statKeys) {
   return {
     method: 'alchemy',
     exalted: { enabled: false },
-    vaal: { enabled: true, checkAfter: false },
-    autoStash: true,
+    vaal: { enabled: false, checkAfter: false },
+    autoStash: false,
     match: {
       blacklist: [],
       whitelist: [],

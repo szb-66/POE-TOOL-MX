@@ -6,6 +6,7 @@ import {
   FAQ_TOPICS,
   GENERAL_TOPICS,
   MODULE_TOPICS,
+  moduleHelpTopicsById,
   moduleTopicById
 } from '../src/domains/help/helpContent.js'
 
@@ -18,7 +19,8 @@ const topicText = topic => [
 ].join(' ')
 
 test('帮助专题使用唯一稳定 ID 并保留标题摘要', () => {
-  const topics = [...GENERAL_TOPICS, ...MODULE_TOPICS, ...FAQ_TOPICS, ...CRAFTING_TOPICS]
+  const beginnerTopics = MODULE_TOPICS.flatMap(topic => moduleHelpTopicsById(topic.id.slice('module-'.length)).slice(1))
+  const topics = [...GENERAL_TOPICS, ...MODULE_TOPICS, ...beginnerTopics, ...FAQ_TOPICS, ...CRAFTING_TOPICS]
   const ids = topics.map(topic => topic.id)
   assert.equal(new Set(ids).size, ids.length)
   for (const topic of topics) {
@@ -30,7 +32,7 @@ test('帮助专题使用唯一稳定 ID 并保留标题摘要', () => {
 test('模块指南覆盖全部侧栏业务路由', () => {
   assert.deepEqual(
     MODULE_TOPICS.map(topic => topic.route),
-    ['/', '/items', '/bag', '/map', '/combat', '/story', '/shop', '/craft-planner', '/price-check', '/puzzle', '/settings']
+    ['/', '/items', '/bag', '/map', '/combat', '/story', '/shop', '/craft-planner', '/price-check', '/puzzle', '/tools', '/settings']
   )
   for (const topic of MODULE_TOPICS) {
     assert.ok(topic.module.purpose)
@@ -38,13 +40,45 @@ test('模块指南覆盖全部侧栏业务路由', () => {
     assert.equal(topic.module.steps.length, 3)
     assert.ok(topic.module.risk)
   }
-  assert.equal(MODULE_TOPICS.length, 11)
+  assert.equal(MODULE_TOPICS.length, 12)
 })
 
 test('moduleTopicById 按 id 返回模块主题', () => {
   assert.equal(moduleTopicById('items')?.id, 'module-items')
   assert.equal(moduleTopicById('settings')?.route, '/settings')
-  assert.equal(moduleTopicById('tools'), null)
+  assert.equal(moduleTopicById('tools')?.route, '/tools')
+  assert.equal(moduleTopicById('unknown'), null)
+})
+
+test('moduleHelpTopicsById 返回稳定有序的新手主题集合', () => {
+  const requiredSections = ['首次使用前准备', '操作步骤', '如何判断成功', '停止与恢复', '常见问题', '安全边界', '术语']
+  const expectedKeywords = {
+    dashboard: ['需要关注', '模块卡片', '全局紧急停止'],
+    items: ['物品预设', '词缀组合', '通货坐标'],
+    bag: ['背包安全入库', '物品黑名单', '君锋镇取出高亮'],
+    map: ['异界地图', '航海海图', '黑名单词缀', '符合条件存仓'],
+    combat: ['检测间隔', '被动喝药', '主动喝药', '一键回城'],
+    story: ['剧情预设', '技能预设', '剧情浮窗'],
+    shop: ['商城配方', '商城正则', '复制正则'],
+    crafting: ['分类', '底材', '制作历史', '撤销', '重做'],
+    'price-check': ['国服账号', '全局赛季', '国服查价', '公开挂单'],
+    puzzle: ['本机校准', '锁定', '相对收益', '自动放置'],
+    tools: ['添加站点', '拖动排序', '图片地址', '永久移除'],
+    settings: ['通用', '自动操作', '界面识别', '覆盖层', '系统', '问题反馈', '关于']
+  }
+
+  for (const [id, keywords] of Object.entries(expectedKeywords)) {
+    const topics = moduleHelpTopicsById(id)
+    assert.equal(topics[0], moduleTopicById(id))
+    assert.ok(Object.isFrozen(topics))
+    assert.ok(topics.length >= 3)
+    assert.equal(topics[1].id, `module-${id}-first-use`)
+    const content = topics.map(topicText).join('\n')
+    for (const section of requiredSections) assert.match(content, new RegExp(section))
+    for (const keyword of keywords) assert.match(content, new RegExp(keyword))
+  }
+
+  assert.deepEqual(moduleHelpTopicsById('unknown'), [])
 })
 
 test('做装参考保留完整专题和关键公开边界', () => {
@@ -56,30 +90,40 @@ test('做装参考保留完整专题和关键公开边界', () => {
 })
 
 test('常见问题与关于专题完整保留', () => {
-  assert.equal(FAQ_TOPICS.length, 8)
+  assert.equal(FAQ_TOPICS.length, 9)
   assert.equal(GENERAL_TOPICS.filter(topic => topic.category === 'about').length, 3)
   assert.ok(FAQ_TOPICS.every(topic => topic.blocks.length))
+  const systemEnvironment = FAQ_TOPICS.find(topic => topic.id === 'faq-system-environment')
+  assert.match(topicText(systemEnvironment), /Windows 10\/11 x64/)
+  assert.match(topicText(systemEnvironment), /相同权限级别/)
+  assert.match(topicText(systemEnvironment), /网络适配器/)
+  const configLocation = FAQ_TOPICS.find(topic => topic.id === 'faq-config-location')
+  assert.match(topicText(configLocation), /不可写/)
+  assert.match(topicText(configLocation), /权限|安全软件|问题反馈/)
 })
 
 test('帮助内容就近分配到对应一级页面', () => {
   const expectations = [
-    ['src/domains/dashboard/DashboardRouteView.vue', /helpTopics = \[moduleTopicById\('dashboard'\), quickStartTopic\]/],
-    ['src/domains/items/ItemsView.vue', /helpTopics = \[moduleTopicById\('items'\)\]/],
-    ['src/domains/bag/BagView.vue', /helpTopics = \[moduleTopicById\('bag'\)\]/],
-    ['src/domains/map/MapView.vue', /helpTopics = \[moduleTopicById\('map'\)\]/],
-    ['src/domains/combat/CombatView.vue', /helpTopics = \[moduleTopicById\('combat'\)\]/],
-    ['src/domains/story/StoryView.vue', /helpTopics = \[moduleTopicById\('story'\)\]/],
-    ['src/domains/shop/ShopView.vue', /helpTopics = \[moduleTopicById\('shop'\)\]/],
-    ['src/domains/crafting/CraftPlannerView.vue', /helpTopics = \[moduleTopicById\('crafting'\), \.\.\.CRAFTING_TOPICS\]/],
-    ['src/domains/priceCheck/PriceCheckView.vue', /helpTopics = \[moduleTopicById\('price-check'\), CRAFTING_PRICE_CHECK_TOPIC\]/],
-    ['src/domains/puzzle/PuzzleView.vue', /helpTopics = \[moduleTopicById\('puzzle'\)\]/],
-    ['src/domains/settings/SettingsView.vue', /helpTopics = \[moduleTopicById\('settings'\), \.\.\.FAQ_TOPICS\]/]
+    ['src/domains/dashboard/DashboardRouteView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('dashboard'\), quickStartTopic, \.\.\.healthHelpTopics\]/],
+    ['src/domains/items/ItemsView.vue', /helpTopics = moduleHelpTopicsById\('items'\)/],
+    ['src/domains/bag/BagView.vue', /helpTopics = moduleHelpTopicsById\('bag'\)/],
+    ['src/domains/map/MapView.vue', /helpTopics = moduleHelpTopicsById\('map'\)/],
+    ['src/domains/combat/CombatView.vue', /helpTopics = moduleHelpTopicsById\('combat'\)/],
+    ['src/domains/story/StoryView.vue', /helpTopics = moduleHelpTopicsById\('story'\)/],
+    ['src/domains/shop/ShopView.vue', /helpTopics = moduleHelpTopicsById\('shop'\)/],
+    ['src/domains/crafting/CraftPlannerView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('crafting'\), \.\.\.CRAFTING_TOPICS\]/],
+    ['src/domains/priceCheck/PriceCheckView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('price-check'\), CRAFTING_PRICE_CHECK_TOPIC\]/],
+    ['src/domains/puzzle/PuzzleView.vue', /helpTopics = moduleHelpTopicsById\('puzzle'\)/],
+    ['src/domains/tools/ToolsView.vue', /helpTopics = moduleHelpTopicsById\('tools'\)/],
+    ['src/domains/settings/SettingsView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('settings'\), \.\.\.FAQ_TOPICS\]/]
   ]
-  for (const [path, pattern] of expectations) assert.match(source(path), pattern)
+  for (const [path, pattern] of expectations) {
+    assert.match(source(path), /<PageHelpDrawer[^>]*:topics="helpTopics"/)
+    assert.match(source(path), pattern)
+  }
 })
 
-test('无帮助内容的页面不接入帮助抽屉', () => {
-  assert.doesNotMatch(source('src/domains/tools/ToolsView.vue'), /PageHelpDrawer/)
+test('开发页和独立浮窗不接入帮助抽屉', () => {
   assert.doesNotMatch(source('src/domains/bag/HighlightModelTrainingView.vue'), /PageHelpDrawer/)
   for (const path of [
     'src/domains/overlay/OverlayView.vue',
@@ -103,15 +147,23 @@ test('帮助中心完全移除且无残留引用', () => {
   }
 })
 
-test('抽屉默认展开唯一主题并保持只读导航', () => {
+test('抽屉默认展开唯一主题并保持只读展示', () => {
   const drawer = source('src/domains/help/PageHelpDrawer.vue')
   assert.match(drawer, /props\.topics\.length === 1 \? props\.topics\[0\]\.id : ''/)
   assert.match(drawer, /<el-drawer/)
+  assert.match(drawer, /defineExpose\(\{ open \}\)/)
+  assert.match(drawer, /requestedTopicId\.value \|\|/)
+  assert.match(drawer, /target \? \[target, \.\.\.props\.topics\.filter/)
+  assert.match(drawer, /targetOpenVersion\.value \+= 1/)
+  assert.doesNotMatch(drawer, /if \(requestedTopicId\.value\) targetOpenVersion\.value \+= 1/)
   const list = source('src/domains/help/HelpTopicList.vue')
   assert.match(list, /v-if="block\.type === 'paragraph'/)
   assert.match(list, /v-else-if="block\.type === 'heading'/)
   assert.match(list, /v-else-if="block\.type === 'list'/)
   assert.match(list, /v-else-if="block\.type === 'callout'/)
+  assert.match(list, /watch\(\(\) => props\.defaultExpandedId/)
+  assert.match(list, /expandedTopicIds\.value = topicId \? \[topicId\] : \[\]/)
+  assert.doesNotMatch(list, /打开相关页面|useRouter|navigateTo|router\.push|topic\.route/)
   assert.doesNotMatch(list, /startCrafting|startMapRolling|commitGlobalShortcut|updateShortcuts/)
 })
 

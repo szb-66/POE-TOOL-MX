@@ -18,15 +18,13 @@
           <ul v-else-if="block.type === 'list'"><li v-for="item in block.items" :key="item">{{ item }}</li></ul>
           <p v-else-if="block.type === 'callout'" class="topic-callout" :class="block.tone">{{ block.text }}</p>
         </template>
-        <el-button v-if="topic.route" type="primary" plain @click="navigateTo(topic.route)">打开相关页面</el-button>
       </div>
     </article>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 
 const props = defineProps({
@@ -34,8 +32,11 @@ const props = defineProps({
   defaultExpandedId: { type: String, default: '' }
 })
 
-const router = useRouter()
-const expandedTopicIds = ref(props.defaultExpandedId ? [props.defaultExpandedId] : [])
+const expandedTopicIds = ref([])
+
+watch(() => props.defaultExpandedId, (topicId) => {
+  expandedTopicIds.value = topicId ? [topicId] : []
+}, { immediate: true })
 
 function isExpanded(topicId) {
   return expandedTopicIds.value.includes(topicId)
@@ -47,9 +48,6 @@ function toggle(topicId) {
     : [...expandedTopicIds.value, topicId]
 }
 
-function navigateTo(path) {
-  if (path) void router.push(path)
-}
 </script>
 
 <style scoped lang="less">
@@ -68,7 +66,6 @@ function navigateTo(path) {
 .topic-body h4 { margin: 17px 0 5px; color: var(--text-primary); }
 .topic-body ul { margin: 12px 0 0; padding-left: 21px; }
 .topic-body li { margin-bottom: 8px; }
-.topic-body > .el-button { margin-top: 14px; }
 .topic-callout { padding: 10px 12px; border-radius: 7px; background: var(--el-fill-color-light); }
 .topic-callout.warning { background: var(--el-color-warning-light-9); }
 

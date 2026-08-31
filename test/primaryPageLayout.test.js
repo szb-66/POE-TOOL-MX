@@ -78,7 +78,7 @@ test('存取、模型训练和查价遵循无最大版心的全宽内容结构',
   assert.doesNotMatch(training, /\.training-content\s*\{[^}]*margin:/)
 
   const priceCheck = source('src/domains/priceCheck/PriceCheckView.vue')
-  assert.match(priceCheck, /price-check-page primary-page primary-page--column[\s\S]*primary-page__scroll[\s\S]*price-check-content primary-page__content app-grid/)
+  assert.match(priceCheck, /price-check-page primary-page primary-page--column[\s\S]*primary-page__scroll[\s\S]*<div class="primary-page__content">\s*<el-row class="price-check-content app-grid"/)
   assert.doesNotMatch(priceCheck, /\.price-check-content\s*\{[^}]*max-width/)
   assert.doesNotMatch(priceCheck, /\.price-check-content\s*\{[^}]*margin:/)
   assert.match(priceCheck, /:xs="24" :md="16"[\s\S]*:xs="24" :md="8"/)

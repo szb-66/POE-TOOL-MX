@@ -24,7 +24,8 @@ import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } 
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import { setRendererDiagnosticContext } from '@/utils/diagnosticContext'
-import { settingsRouteForHealth } from '@/router/settingsNavigation'
+import { settingsRoute } from '@/router/settingsNavigation'
+import { healthActionForItem } from './healthActions.js'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
@@ -69,7 +70,7 @@ const pythonHealth = ref({ status: 'pending', text: '正在检测 Python 环境'
 const startupHealth = ref([])
 let activeDashboardRefresh = null
 
-export function useDashboard() {
+export function useDashboard({ openHelp = () => {} } = {}) {
   const router = useRouter()
   const presetStore = usePresetStore()
   const scriptStore = useScriptStore()
@@ -231,7 +232,7 @@ export function useDashboard() {
       { id: 'shortcuts', label: '快捷键', ...shortcutStatus },
       { id: 'dpi', label: '游戏窗口 / DPI', ...dpiStatus },
       ...extraHealth
-    ]
+    ].map(item => ({ ...item, action: healthActionForItem(item) }))
   })
   const healthHasIssues = computed(() => healthItems.value.some(item => item.status !== 'ready'))
 
@@ -596,7 +597,11 @@ export function useDashboard() {
   }
 
   const openModule = module => router.push(module.route)
-  const openSettings = () => router.push(settingsRouteForHealth(healthItems.value))
+  const openHealthAction = action => {
+    if (action?.type === 'settings') return router.push(settingsRoute(action.target))
+    if (action?.type === 'help') return openHelp(action.target)
+    return undefined
+  }
 
   onMounted(() => {
     void refresh()
@@ -612,6 +617,6 @@ export function useDashboard() {
     runAction,
     changeModuleControl,
     openModule,
-    openSettings
+    openHealthAction
   }
 }

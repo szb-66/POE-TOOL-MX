@@ -39,9 +39,8 @@
           <template v-if="section.group === 'preset' && exportSectionIds.includes(section.id)">
             <div class="preset-details">
               <div class="preset-selection-actions">
-                <el-button link type="primary" @click="selectAllExportPresets(section)">全选</el-button>
-                <el-button link type="primary" @click="selectCurrentExportPreset(section)">仅当前预设</el-button>
-                <el-button link @click="exportPresetIds[section.id] = []">清空</el-button>
+                <el-button size="small" @click="selectAllExportPresets(section)">全选</el-button>
+                <el-button size="small" @click="exportPresetIds[section.id] = []">清空</el-button>
               </div>
               <el-checkbox-group v-model="exportPresetIds[section.id]" class="preset-checks">
                 <el-checkbox v-for="preset in section.presets" :key="preset.id" :value="preset.id">
@@ -114,8 +113,8 @@
               <template v-if="section.group === 'preset' && section.selectable && importSectionIds.includes(section.id)">
                 <div class="preset-details">
                   <div class="preset-selection-actions">
-                    <el-button link type="primary" @click="importRecordKeys[section.id] = section.items.map(item => item.recordKey)">全选</el-button>
-                    <el-button link @click="importRecordKeys[section.id] = []">清空</el-button>
+                    <el-button size="small" @click="importRecordKeys[section.id] = section.items.map(item => item.recordKey)">全选</el-button>
+                    <el-button size="small" @click="importRecordKeys[section.id] = []">清空</el-button>
                   </div>
                   <el-checkbox-group v-model="importRecordKeys[section.id]" class="preset-checks">
                     <el-checkbox v-for="item in section.items" :key="item.recordKey" :value="item.recordKey">
@@ -261,10 +260,6 @@ function openExportDialog() {
 
 function selectAllExportPresets(section) {
   exportPresetIds[section.id] = section.presets.map(preset => preset.id)
-}
-
-function selectCurrentExportPreset(section) {
-  exportPresetIds[section.id] = section.presets.filter(preset => preset.active).map(preset => preset.id)
 }
 
 function selectAllTransferContent() {

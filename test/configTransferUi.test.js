@@ -21,9 +21,17 @@ test('export UI uses one outer card with five inner content cards and no group h
   assert.match(component, /v-for="section in exportCatalog"/)
   assert.match(component, /class="preset-details"/)
   assert.match(component, /v-model="exportPresetIds\[section\.id\]"/)
+  const presetActionBlocks = [...component.matchAll(/<div class="preset-selection-actions">([\s\S]*?)<\/div>/g)]
+    .map(match => match[1])
+  assert.equal(presetActionBlocks.length, 2)
+  for (const actions of presetActionBlocks) {
+    assert.match(actions, /<el-button size="small".*?>全选<\/el-button>/)
+    assert.match(actions, /<el-button size="small".*?>清空<\/el-button>/)
+    assert.doesNotMatch(actions, /<el-button link/)
+  }
   assert.match(component, /selectAllTransferContent/)
   assert.match(component, /clearExportSelection/)
-  assert.match(component, /selectCurrentExportPreset/)
+  assert.doesNotMatch(component, /仅当前预设|selectCurrentExportPreset/)
   assert.match(component, /:disabled="!exportSectionIds\.length"/)
   assert.match(component, /exportIncludeDeviceGrid\['preset\.map'\] = false/)
   assert.doesNotMatch(component, /groupedExportCatalog|groupedImportCatalog|transfer-group__title|selectFullBackup|完整备份|确认导出本机环境|便携设置|本机环境/)

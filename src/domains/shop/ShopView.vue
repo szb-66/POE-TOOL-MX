@@ -150,7 +150,7 @@
 import { computed, defineComponent, h, ref, watch } from 'vue'
 import { CopyDocument, RefreshLeft } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
-import { moduleTopicById } from '@/domains/help/helpContent.js'
+import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import PresetSelector from '../../components/common/PresetSelector.vue'
 import { electronApi } from '../../api/electron.js'
 import { usePresetStore } from '../../stores/preset.js'
@@ -171,7 +171,7 @@ const FilterGroup = defineComponent({
 })
 
 const presetStore = usePresetStore()
-const helpTopics = [moduleTopicById('shop')]
+const helpTopics = moduleHelpTopicsById('shop')
 const SHOP_TABS = ['chaos', 'vendor']
 const activeTool = ref(readPersistentTab('shopActiveTool', SHOP_TABS, 'chaos'))
 const groups = VENDOR_OPTION_GROUPS

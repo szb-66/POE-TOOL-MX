@@ -1,3 +1,5 @@
+import { MODULE_BEGINNER_TOPICS } from './moduleBeginnerHelp.js'
+
 export const QUICK_START_STEPS = Object.freeze([
   { number: '01', title: '启动游戏与助手', text: '使用窗口化或无边框窗口运行国服客户端，并以与游戏相同的权限级别启动流放助手。' },
   { number: '02', title: '完成基础设置', text: '进入设置页选择游戏窗口，配置账号、快捷键、仓库与背包区域。' },
@@ -39,6 +41,7 @@ export const MODULE_TOPICS = Object.freeze([
   moduleTopic({ id: 'crafting', title: '模拟', summary: '在离线数据边界内手动模拟装备制作。', keywords: ['模拟器', 'POEDB', '通货', '花园'], route: '/craft-planner', purpose: '选择底材并手动应用通货、精华、工艺台、化石、花园、古灵、势力、加密或野兽工艺。', prerequisite: '模拟数据快照可用；用户理解该模块是规则模拟而非游戏内自动操作。', steps: ['选择底材、物品等级与初始状态。', '从对应页签选择当前可用的制作动作。', '查看装备变化、历史、撤销与重做。'], risk: '只执行当前数据集能够验证的结果；禁用项不会用近似概率伪造。' }),
   moduleTopic({ id: 'price-check', title: '查价', summary: '通过国服官方市集查询公开挂单样本。', keywords: ['查价快捷键', 'Ctrl+C', '官方挂单', '赛季'], route: '/price-check', purpose: '读取游戏内物品文本，构建国服官方交易查询并展示公开挂单。', prerequisite: '在设置中登录国服账号、选择全局赛季、设置查价快捷键并启用查价器。', steps: ['鼠标悬停在物品上按已配置的查价快捷键。', '确认识别到的物品与词缀条件。', '查看首批挂单，必要时加载更多或打开官方页面。'], risk: '结果不是成交记录，也不保证能够按显示价格购买；私聊文本只复制，不会自动发送。' }),
   moduleTopic({ id: 'puzzle', title: '海图', summary: '识别碎片并计算连通摆放方案。', keywords: ['碎片', '边缘词缀', '自动放置'], route: '/puzzle', purpose: '识别仓库中的海图碎片和边缘词缀，允许修正识别结果，并计算或自动执行摆放方案。', prerequisite: '完成碎片仓库区域、海图区域和识别模板配置。', steps: ['识别仓库碎片并修正错误格子。', '点击方案外周出口检查或修改边缘词缀。', '确认方案后再启动自动放置。'], risk: '页面按钮会切换到游戏并立即识别；自动放置前应确认碎片数量、边缘词缀和仓库区域。' }),
+  moduleTopic({ id: 'tools', title: '工具站', summary: '集中访问并管理常用的流放之路站点。', keywords: ['外部网站', '添加站点', '拖动排序'], route: '/tools', purpose: '打开内置常用站点，并按个人习惯添加、编辑、删除和排序本机站点条目。', prerequisite: '当前电脑可以访问目标网站；添加自定义条目前已核对完整网页地址。', steps: ['点击站点卡片或“打开”访问网站。', '使用“添加站点”或卡片操作维护名称、地址、描述和图片。', '从“拖动排序”按钮调整顺序，不需要的条目经确认后删除。'], risk: '第三方网站有独立的隐私与安全规则；登录、下载或授权前请自行核对域名。' }),
   moduleTopic({ id: 'settings', title: '设置', summary: '配置账号、快捷键、显示环境与自动化参数。', keywords: ['DPI', '快捷键', '国服账号', '界面检测'], route: '/settings', purpose: '集中管理账号、游戏窗口、快捷键、DPI、模板、坐标、操作等待和各模块基础参数。', prerequisite: '建议先启动游戏，并确认当前显示器、Windows 缩放和游戏窗口模式。', steps: ['选择或同步游戏窗口名称。', '设置全局紧急停止快捷键以及各功能快捷键。', '按需校准界面模板、坐标和仓库区域。'], risk: '修改分辨率、DPI、显示器或窗口位置后应重新校准；不同功能快捷键不能重复。' })
 ])
 
@@ -46,13 +49,17 @@ const faq = (id, title, summary, keywords, blocks) => ({ id: `faq-${id}`, catego
 
 export const FAQ_TOPICS = Object.freeze([
   faq('runtime', '脚本无法启动', '从首页环境状态检查内置 Python 与资源。', ['Python', '运行时', '脚本'], [paragraph('先查看首页运行环境状态。开发版可以使用准备好的本地运行时；正式安装包只使用随应用提供的 Python。若运行时或模块异常，应重新准备运行时并检查安全软件是否隔离资源。')]),
+  faq('system-environment', '系统环境异常', '核对 Windows 版本、权限级别和网络接口。', ['Windows', '管理员权限', '网络接口', '系统环境'], [paragraph('流放助手仅支持 Windows 10/11 x64。助手与游戏应使用相同权限级别，否则全局快捷键、窗口识别或自动化可能被系统拦截。网络接口异常时先确认 Windows 中存在已启用的网络适配器并能正常联网，再返回首页刷新状态；仍无法恢复时可在“设置 → 问题反馈”导出脱敏诊断。')]),
   faq('dpi', 'DPI、多屏或点击位置错位', '重新确认窗口模式、缩放和界面校准。', ['DPI', '多屏', '缩放', '坐标'], [paragraph('将游戏切换到窗口化或无边框窗口，确认 Windows 显示缩放，然后重新校准模板和操作区域。移动游戏到另一台显示器或修改缩放比例后也应重新校准。独占全屏不在支持范围内。')]),
   faq('security', '杀毒软件或 SmartScreen 拦截', '识别未签名程序提示并核对可信来源。', ['杀毒软件', 'SmartScreen', '安全'], [paragraph('未签名开发版或安装包可能触发信誉提示。只从可信仓库构建或下载并核对文件来源；若安全软件删除运行时文件，应恢复或重新准备后再次验证。')]),
   faq('shortcuts', '全局快捷键无效', '检查权限、冲突、前台状态和注册状态。', ['快捷键', '权限', '停止', '前台'], [paragraph('快捷键默认仅在游戏窗口位于前台时生效：游戏未启动或切到其他窗口时会自动暂停，不会拦截普通按键（例如把一键回城设为 B 时，游戏外仍可正常输入 B）。若希望游戏外也响应快捷键，可在“设置 → 快捷键设置”关闭“仅在游戏窗口前台时生效”。'), paragraph('确认流放助手和游戏使用相同权限级别，快捷键没有被其他软件占用，并在设置页重新录入。不同功能不能使用重复快捷键；全局紧急停止会同时结束所有正在运行的游戏自动化，但保留模块启用状态。')]),
   faq('foreground', '提示游戏未处于前台', '这是自动化开始前的安全保护。', ['前台窗口', '遮挡', '启动器'], [paragraph('点击游戏窗口使其处于前台，确保没有启动器、聊天窗口或系统弹窗遮挡，再重新开始。前台检查失败时应用应在产生输入前停止。')]),
   faq('price-check', '查价无法使用或结果不完整', '检查国服账号、赛季、快捷键与交易目录。', ['查价快捷键', '账号', '赛季', '查价'], [paragraph('先在设置中确认国服账号已登录、选择全局赛季并录入查价快捷键，再启用查价器。触发后助手会通过 Ctrl+C 读取物品详细文本；交易目录陈旧或词缀无法唯一识别时，未知词缀不会参与搜索。')]),
   faq('diagnostics', '如何导出诊断', '主动保存经过脱敏的本地诊断 JSON。', ['诊断', '导出', '隐私', '反馈'], [paragraph('前往“设置 → 问题反馈”选择“导出当前诊断”，或开始诊断会话后复现问题再导出。文件包含应用与运行时版本、显示器、DPI、模块原因码和近期结构化事件；本地导出不会自动上传，也不会清除待提交的诊断会话。提交前仍建议检查内容。')]),
-  faq('config-location', '配置保存在哪里', '用户配置与缓存位于独立应用数据目录。', ['APPDATA', '配置', '备份'], [paragraph('配置和缓存默认保存在 %APPDATA%\\流放助手。覆盖安装不会主动删除该目录；重置、卸载或反馈问题前可先备份，并避免公开包含账号会话的原始配置。')])
+  faq('config-location', '配置目录与写入异常', '了解配置位置，并处理用户数据目录不可写问题。', ['APPDATA', '配置', '备份', '不可写', '权限'], [
+    paragraph('配置和缓存默认保存在 %APPDATA%\\流放助手。覆盖安装不会主动删除该目录；重置、卸载或反馈问题前可先备份，并避免公开包含账号会话的原始配置。'),
+    paragraph('若首页提示配置目录不可写，先确认当前 Windows 用户对该目录具有写入权限，并检查安全软件、受控文件夹访问或同步工具是否阻止写入。不要直接删除或重建目录，以免丢失现有配置；仍无法恢复时可在“设置 → 问题反馈”导出脱敏诊断并附上错误信息。')
+  ])
 ])
 
 const crafting = (id, title, summary, keywords, blocks) => ({ id: `crafting-${id}`, category: 'crafting', title, summary, keywords, blocks })
@@ -162,4 +169,18 @@ export const GENERAL_TOPICS = Object.freeze([
 
 export function moduleTopicById(id) {
   return MODULE_TOPICS.find(topic => topic.id === `module-${id}`) || null
+}
+
+const MODULE_HELP_TOPICS_BY_ID = Object.freeze(Object.fromEntries(
+  MODULE_TOPICS.map((overview) => {
+    const id = overview.id.slice('module-'.length)
+    return [id, Object.freeze([overview, ...(MODULE_BEGINNER_TOPICS[id] || [])])]
+  })
+))
+const EMPTY_MODULE_HELP_TOPICS = Object.freeze([])
+
+export { MODULE_BEGINNER_TOPICS }
+
+export function moduleHelpTopicsById(id) {
+  return MODULE_HELP_TOPICS_BY_ID[id] || EMPTY_MODULE_HELP_TOPICS
 }
