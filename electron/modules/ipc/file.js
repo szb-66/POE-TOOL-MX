@@ -10,8 +10,10 @@
 import { ipcMain } from 'electron'
 import fs from 'fs'
 import { parseItemInfo } from '../item/parser.js'
+import { buildCraftingAffixPayload } from '../item/craftingAffixPayload.js'
 import { matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirements } from '../item/matcher.js'
 import { attachParseRequestId } from '../watcher/fileWatcher.js'
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null) {
   const { getMainWindow, getOverlayWindow } = window
@@ -178,6 +180,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         rarity: itemInfo.rarity,
         name: itemInfo.name,
         baseName: itemInfo.baseName,
+        footprint: itemFootprintRegistry.resolve(itemInfo.category, itemInfo.baseName || itemInfo.name),
         level: itemInfo.level,
         quality: itemInfo.quality,
         socketsCount: itemInfo.socketsCount,
@@ -210,9 +213,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         matchedEldritchTargetName: eldritchMatchResult.matchedTargetName,
         matchedEldritchText: eldritchMatchResult.matchedText,
         mapMatch: mapMatchResult.isMatch,
-        explicitMods: itemInfo.explicitMods,
-        implicitMods: itemInfo.implicitMods,
-        detailedMods: itemInfo.detailedMods,
+        ...buildCraftingAffixPayload(itemInfo),
         socketMatch,
         isLegendary,
         rollingTarget: rollingTarget(config),

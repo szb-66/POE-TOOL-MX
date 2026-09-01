@@ -1,6 +1,32 @@
 import { createDefaultModuleTwo, normalizeModuleTwo } from '../domains/items/affixConfig.js'
 import { createDefaultEldritchModule, normalizeEldritchModule } from '../domains/items/eldritchConfig.js'
 
+export const BATCH_CRAFTING_CATEGORY_IDS = Object.freeze([
+  'helmet', 'bodyArmour', 'gloves', 'boots', 'shield', 'oneHandWeapon', 'twoHandWeapon',
+  'bow', 'quiver', 'ring', 'amulet', 'belt', 'jewel', 'flask'
+])
+
+const BATCH_CATEGORY_SET = new Set(BATCH_CRAFTING_CATEGORY_IDS)
+
+export function createItemCraftingRunPreset(preset = {}, {
+  forceInitialCheck = false,
+  singleItemOnly = false
+} = {}) {
+  const effectivePreset = JSON.parse(JSON.stringify(preset))
+  if (forceInitialCheck) effectivePreset.checkInitialItem = true
+  if (singleItemOnly && effectivePreset.batchCrafting) {
+    effectivePreset.batchCrafting.enabled = false
+  }
+  return effectivePreset
+}
+
+export function normalizeBatchCrafting(value = {}) {
+  const categoryIds = [...new Set((Array.isArray(value?.categoryIds) ? value.categoryIds : [])
+    .map((entry) => String(entry || ''))
+    .filter((entry) => BATCH_CATEGORY_SET.has(entry)))]
+  return { enabled: Boolean(value?.enabled), categoryIds }
+}
+
 export function createDefaultModuleThree() {
   return {
     enabled: false,
@@ -15,6 +41,7 @@ export function createDefaultItemPreset(id = 'default', name = '默认预设') {
     id,
     name,
     checkInitialItem: true,
+    batchCrafting: normalizeBatchCrafting(),
     moduleTwo: createDefaultModuleTwo(),
     moduleThree: createDefaultModuleThree(),
     moduleEldritch: createDefaultEldritchModule()
@@ -26,6 +53,7 @@ export function normalizeItemPreset(preset = {}) {
     ? preset.checkInitialItem
     : preset.moduleTwo?.checkInitialAffixes !== false
   const moduleEldritch = normalizeEldritchModule(preset.moduleEldritch)
+  const batchCrafting = normalizeBatchCrafting(preset.batchCrafting)
   const moduleTwo = normalizeModuleTwo(preset.moduleTwo)
   const defaults = createDefaultModuleThree()
   const sourceThree = preset.moduleThree || {}
@@ -40,5 +68,5 @@ export function normalizeItemPreset(preset = {}) {
     moduleTwo.enabled = false
     moduleThree.enabled = false
   }
-  return { ...preset, checkInitialItem, moduleTwo, moduleThree, moduleEldritch }
+  return { ...preset, checkInitialItem, batchCrafting, moduleTwo, moduleThree, moduleEldritch }
 }

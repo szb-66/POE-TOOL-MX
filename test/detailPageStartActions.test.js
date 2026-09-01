@@ -28,7 +28,7 @@ test('物品制作页顶部提供被制作物品坐标并复用持久化取点�
   assert.match(view, /const itemPosition = ref\(\{ \.\.\.settingsStore\.itemPosition \}\)/)
   assert.match(view, /watch\(\(\) => settingsStore\.itemPosition,[\s\S]*itemPosition\.value = \{ \.\.\.value \}/)
   assert.match(view, /settingsStore\.updateItemPosition\(itemPosition\.value\)/)
-  assert.match(help, /prerequisite: '在制作页配置被制作物品位置，并配置通货位置、制作预设、游戏窗口和停止快捷键。'/)
+  assert.match(help, /prerequisite: '单件模式需配置物品位置；批量模式需配置原生背包网格，并由用户自行打开角色背包和通货页面后手动扫描。/)
 
   const pickStart = view.indexOf('async function pickItemPosition()')
   const pickEnd = view.indexOf('async function handleSave', pickStart)

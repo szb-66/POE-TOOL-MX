@@ -23,6 +23,7 @@ export const useBagStore = defineStore('bag', () => {
   const defaults = createDefaultBagSettings()
   const interfaceDetectionStore = useInterfaceDetectionStore()
   const moduleEnabled = ref(defaults.moduleEnabled)
+  const allflameReceiverEnabled = ref(defaults.allflameReceiverEnabled)
   const forceUniqueStash = ref(defaults.forceUniqueStash)
   const templates = computed(() => interfaceDetectionStore.templates)
   const matchThreshold = computed(() => interfaceDetectionStore.matchThreshold)
@@ -30,6 +31,8 @@ export const useBagStore = defineStore('bag', () => {
   const inventoryLayout = ref(defaults.inventoryLayout)
   const isDetecting = ref(false)
   const isMatched = ref(false)
+  const isStashMatched = ref(false)
+  const isAllflameReceiverMatched = ref(false)
   const isStashing = ref(false)
   const stashProgress = ref(0)
   const stashStats = ref(emptyStats())
@@ -40,6 +43,7 @@ export const useBagStore = defineStore('bag', () => {
     try {
       localStorage.setItem('bagSettings', JSON.stringify({
         moduleEnabled: moduleEnabled.value,
+        allflameReceiverEnabled: allflameReceiverEnabled.value,
         forceUniqueStash: forceUniqueStash.value,
         blacklist: blacklist.value,
         inventoryLayout: inventoryLayout.value
@@ -52,6 +56,7 @@ export const useBagStore = defineStore('bag', () => {
   function applySettings(raw) {
     const normalized = normalizeBagSettings(raw)
     moduleEnabled.value = normalized.moduleEnabled
+    allflameReceiverEnabled.value = normalized.allflameReceiverEnabled
     forceUniqueStash.value = normalized.forceUniqueStash
     blacklist.value = normalized.blacklist
     inventoryLayout.value = normalized.inventoryLayout
@@ -67,6 +72,7 @@ export const useBagStore = defineStore('bag', () => {
   }
 
   function setModuleEnabled(enabled) { moduleEnabled.value = Boolean(enabled); saveSettings() }
+  function setAllflameReceiverEnabled(enabled) { allflameReceiverEnabled.value = Boolean(enabled); saveSettings() }
   function setForceUniqueStash(enabled) { forceUniqueStash.value = Boolean(enabled); saveSettings() }
   function clearCaptureMetadata(type) { interfaceDetectionStore.clearCaptureMetadata(type) }
   function setTemplate(type, path) {
@@ -85,7 +91,11 @@ export const useBagStore = defineStore('bag', () => {
     saveSettings()
   }
   function setDetectionStatus(status) { isDetecting.value = Boolean(status) }
-  function setMatchedStatus(status) { isMatched.value = Boolean(status) }
+  function setMatchedStatus(status, detail = {}) {
+    isMatched.value = Boolean(status)
+    isStashMatched.value = Boolean(detail.stashReady ?? detail.ready)
+    isAllflameReceiverMatched.value = Boolean(detail.allflameReceiverReady)
+  }
   function setStashingStatus(status, payload = {}) {
     isStashing.value = Boolean(status)
     if (typeof payload === 'number') stashProgress.value = payload
@@ -124,6 +134,8 @@ export const useBagStore = defineStore('bag', () => {
   function resetStates() {
     isDetecting.value = false
     isMatched.value = false
+    isStashMatched.value = false
+    isAllflameReceiverMatched.value = false
     isStashing.value = false
     resetRunStats()
   }
@@ -133,9 +145,9 @@ export const useBagStore = defineStore('bag', () => {
   saveSettings()
 
   return {
-    moduleEnabled, forceUniqueStash, templates, matchThreshold, blacklist, inventoryLayout,
-    isDetecting, isMatched, isStashing, stashProgress, stashStats, lastStopReason, lastFailure,
-    setModuleEnabled, setForceUniqueStash,
+    moduleEnabled, allflameReceiverEnabled, forceUniqueStash, templates, matchThreshold, blacklist, inventoryLayout,
+    isDetecting, isMatched, isStashMatched, isAllflameReceiverMatched, isStashing, stashProgress, stashStats, lastStopReason, lastFailure,
+    setModuleEnabled, setAllflameReceiverEnabled, setForceUniqueStash,
     setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
     setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,
     resetRunStats, resetStates, saveSettings, loadSettings, resetSettings

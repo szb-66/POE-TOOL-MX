@@ -7,6 +7,7 @@ export async function restartCraftingWithLatestConfig({ presetStore, settingsSto
 export async function retryAutomationWithLatestConfig({
   mode,
   recovery = null,
+  batchRecovery = null,
   usageSessionId = null,
   presetStore,
   settingsStore,
@@ -16,6 +17,18 @@ export async function retryAutomationWithLatestConfig({
   presetStore.loadPresets()
   settingsStore.loadSettings()
   return mode === 'map'
-    ? startMapRolling({ recovery, usageSessionId, continueCurrencyUsage: true })
-    : startCrafting({ forceInitialCheck: true, usageSessionId, continueCurrencyUsage: true })
+    ? startMapRolling({ recovery, usageSessionId, continueCurrencyUsage: true, configurationGuideBypass: true })
+    : startCrafting(batchRecovery ? {
+        forceInitialCheck: true,
+        usageSessionId: batchRecovery.usageSessionId || usageSessionId,
+        continueCurrencyUsage: true,
+        configurationGuideBypass: true,
+        batchRecovery
+      } : {
+        forceInitialCheck: true,
+        usageSessionId,
+        continueCurrencyUsage: true,
+        configurationGuideBypass: true,
+        singleItemOnly: true
+      })
 }

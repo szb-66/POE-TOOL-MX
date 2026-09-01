@@ -10,14 +10,17 @@ test('边框词缀目录覆盖 poedb 全部 65 条', () => {
   assert.equal(BORDER_CHART_MODS.length, 65)
 })
 
-test('碎片词缀条目字段完整且描述行非空', () => {
+test('碎片词缀条目保留 poedb 来源标签且描述行非空', () => {
+  const affixTypeCounts = {}
   for (const mod of FRAGMENT_CHART_MODS) {
     assert.ok(Number.isFinite(mod.tier), 'tier 必须是数字')
-    assert.ok(['prefix', 'suffix', 'legendary'].includes(mod.affixType), `前后缀类型非法: ${mod.affixType}`)
+    assert.ok(['prefix', 'suffix', 'legendary', ''].includes(mod.affixType), `来源标签非法: ${mod.affixType}`)
     assert.ok(Array.isArray(mod.lines) && mod.lines.length > 0, '描述行不能为空')
     assert.ok(mod.lines.every(line => typeof line === 'string' && line.trim()), '描述行必须为非空字符串')
     assert.ok(Array.isArray(mod.tags), 'tags 必须是数组')
+    affixTypeCounts[mod.affixType] = (affixTypeCounts[mod.affixType] || 0) + 1
   }
+  assert.deepEqual(affixTypeCounts, { suffix: 32, prefix: 49, legendary: 1, '': 68 })
 })
 
 test('边框词缀条目字段完整,仅 poedb 原文的空描述条目无描述行', () => {

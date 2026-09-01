@@ -14,6 +14,10 @@
       <ModuleOne />
     </div>
 
+    <div class="module-section">
+      <ModuleBatch />
+    </div>
+
     <!-- 模块二：词缀匹配 -->
     <div class="module-section">
       <ModuleTwo />
@@ -37,6 +41,7 @@
 <script setup>
 import { computed } from 'vue'
 import ModuleOne from './components/ModuleOne.vue'
+import ModuleBatch from './components/ModuleBatch.vue'
 import ModuleTwo from './components/ModuleTwo.vue'
 import ModuleEldritch from './components/ModuleEldritch.vue'
 import ModuleThree from './components/ModuleThree.vue'

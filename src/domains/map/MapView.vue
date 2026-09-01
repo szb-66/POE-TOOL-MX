@@ -57,6 +57,7 @@
       <MapRollingProfilePanel
         :profile="activeProfile"
         :stat-keys="activeStatKeys"
+        :target-kind="activeKind"
         :title="activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
         :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
       />

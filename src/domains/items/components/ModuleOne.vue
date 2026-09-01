@@ -19,7 +19,7 @@
           <CoordinateConfigurationField
             :model-value="itemPosition"
             :loading="itemPositionPicking"
-            :disabled="itemPositionPicking"
+            :disabled="itemPositionPicking || batchEnabled"
             pick-title="抓取被制作物品位置"
             @update:model-value="updateItemPosition"
             @pick="pickItemPosition"
@@ -65,6 +65,7 @@ const starting = ref(false)
 const itemPosition = ref({ ...settingsStore.itemPosition })
 const itemPositionPicking = ref(false)
 const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'items')
+const batchEnabled = computed(() => Boolean(presetStore.currentItemPreset.batchCrafting?.enabled))
 const checkInitialItem = computed({
   get: () => presetStore.currentItemPreset.checkInitialItem !== false,
   set: value => presetStore.updateCurrentItemPreset({ checkInitialItem: Boolean(value) })

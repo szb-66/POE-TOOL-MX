@@ -11,6 +11,7 @@ import { ipcMain, BrowserWindow, dialog, app } from 'electron'
 import { saveWindowState } from '../window/state.js'
 import { importOverlayBackground } from '../window/backgroundImport.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
+import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 
 export function registerWindowHandlers(window) {
   const { getMainWindow, getOverlayWindow, closeOverlayWindow } = window
@@ -42,6 +43,22 @@ export function registerWindowHandlers(window) {
 
   ipcMain.handle('close-overlay-window', () => {
     closeOverlayWindow()
+  })
+
+  ipcMain.handle('crafting-batch-return-to-scan', (event) => {
+    const overlay = getOverlayWindow()
+    if (!overlay || overlay.isDestroyed() || event.sender !== overlay.webContents) {
+      return { success: false, error: '仅制作浮层可请求返回批量扫描' }
+    }
+    const mainWindow = getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed()) return { success: false, error: '主窗口不可用' }
+    batchRecoveryStore.clear()
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.webContents.send('crafting-batch-scan-requested')
+    closeOverlayWindow()
+    return { success: true }
   })
 
   ipcMain.handle('window-toggle-always-on-top', () => {

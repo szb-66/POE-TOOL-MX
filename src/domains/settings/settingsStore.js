@@ -105,6 +105,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const dpiScale = computed(() => effectiveDpi.value.scaleFactor)
   const dpiSource = computed(() => effectiveDpi.value.source)
   const debugMode = ref(false)
+  const batchScanConfirmationSuppressed = ref(false)
   const updateMode = ref(UPDATE_MODE_MANUAL)
   const updateSource = ref(UPDATE_SOURCE_CNB)
 
@@ -361,6 +362,12 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  function updateBatchScanConfirmationSuppressed(suppressed) {
+    batchScanConfirmationSuppressed.value = Boolean(suppressed)
+    saveSettings()
+    return batchScanConfirmationSuppressed.value
+  }
+
   function addToHistory(item) {
     backgroundHistory.value = addOverlayBackgroundHistory(backgroundHistory.value, item?.path)
   }
@@ -388,6 +395,7 @@ export const useSettingsStore = defineStore('settings', () => {
         manualDpiScale: manualDpiScale.value,
         lastDetectedDpiScale: lastDetectedDpiScale.value,
         debugMode: debugMode.value,
+        batchScanConfirmationSuppressed: batchScanConfirmationSuppressed.value,
         updateMode: updateMode.value,
         updateSource: updateSource.value,
         overlaySettings: overlaySettings.value,
@@ -454,6 +462,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (typeof data.debugMode === 'boolean') {
           debugMode.value = data.debugMode
         }
+        batchScanConfirmationSuppressed.value = data.batchScanConfirmationSuppressed === true
         updateMode.value = normalizeUpdateMode(data.updateMode)
         updateSource.value = normalizeUpdateSource(data.updateSource)
         if (data.overlaySettings) {
@@ -525,6 +534,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiWindowTitle.value = ''
     dpiDetectionError.value = ''
     debugMode.value = false
+    batchScanConfirmationSuppressed.value = false
     updateMode.value = UPDATE_MODE_MANUAL
     updateSource.value = UPDATE_SOURCE_CNB
     overlaySettings.value = { ...defaultOverlaySettings }
@@ -621,6 +631,7 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiWindowTitle,
     dpiDetectionError,
     debugMode,
+    batchScanConfirmationSuppressed,
     updateMode,
     updateSource,
     overlaySettings,
@@ -648,6 +659,7 @@ export const useSettingsStore = defineStore('settings', () => {
     updateDpiMode,
     refreshDpiScale,
     updateDebugMode,
+    updateBatchScanConfirmationSuppressed,
     updateApplicationUpdateMode,
     updateApplicationUpdateSource,
     updateOverlaySettings,

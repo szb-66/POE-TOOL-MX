@@ -463,6 +463,14 @@ test('首页通用快捷控件接入物品、地图、战斗与商城状态源',
   assert.match(card, /@change="\$emit\('control', module, control, \$event\)"/)
 })
 
+test('首页账号健康状态声明并初始化所读取的账号状态源', () => {
+  const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
+
+  assert.match(dashboard, /import \{ usePoeCnAccountStore \} from '@\/stores\/poeCnAccount'/)
+  assert.match(dashboard, /const accountStore = usePoeCnAccountStore\(\)/)
+  assert.match(dashboard, /authenticated: accountStore\.status\.authenticated/)
+})
+
 test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取件', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
   const card = readFileSync(

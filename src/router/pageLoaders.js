@@ -13,6 +13,7 @@ export const pageLoaders = Object.freeze({
   '/shop': () => import('../domains/shop/ShopView.vue'),
   '/craft-planner': () => import('../domains/crafting/CraftPlannerView.vue'),
   '/price-check': () => import('../domains/priceCheck/PriceCheckView.vue'),
+  '/faustus': () => import('../domains/faustus/FaustusView.vue'),
   '/puzzle': () => import('../domains/puzzle/PuzzleView.vue'),
   '/tools': () => import('../domains/tools/ToolsView.vue'),
   '/settings': () => import('../domains/settings/SettingsView.vue')

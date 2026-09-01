@@ -70,17 +70,21 @@ export function normalizeInventoryLayout(layout = {}) {
 export function createDefaultBagSettings() {
   return {
     moduleEnabled: false,
+    allflameReceiverEnabled: false,
     forceUniqueStash: false,
     templates: {
       stashTitle: '',
       inventoryTitle: '',
       junfengRewardTitle: '',
+      allflameReceiverTitle: '',
       stashRegion: { ...DEFAULT_REGION },
       inventoryRegion: { ...DEFAULT_REGION },
       junfengRewardRegion: { ...DEFAULT_REGION },
+      allflameReceiverRegion: { ...DEFAULT_REGION },
       stashCapture: null,
       inventoryCapture: null,
-      junfengRewardCapture: null
+      junfengRewardCapture: null,
+      allflameReceiverCapture: null
     },
     matchThreshold: 0.8,
     blacklist: [],
@@ -126,17 +130,21 @@ export function normalizeBagSettings(raw = {}) {
   const threshold = Number(raw.matchThreshold)
   return {
     moduleEnabled: Boolean(raw.moduleEnabled),
+    allflameReceiverEnabled: Boolean(raw.allflameReceiverEnabled),
     forceUniqueStash: Boolean(raw.forceUniqueStash),
     templates: {
       stashTitle: String(raw.templates?.stashTitle || ''),
       inventoryTitle: String(raw.templates?.inventoryTitle || ''),
       junfengRewardTitle: String(raw.templates?.junfengRewardTitle || ''),
+      allflameReceiverTitle: String(raw.templates?.allflameReceiverTitle || ''),
       stashRegion: normalizeRegion(raw.templates?.stashRegion),
       inventoryRegion: normalizeRegion(raw.templates?.inventoryRegion),
       junfengRewardRegion: normalizeRegion(raw.templates?.junfengRewardRegion),
+      allflameReceiverRegion: normalizeRegion(raw.templates?.allflameReceiverRegion),
       stashCapture: normalizeCaptureMetadata(raw.templates?.stashCapture),
       inventoryCapture: normalizeCaptureMetadata(raw.templates?.inventoryCapture),
-      junfengRewardCapture: normalizeCaptureMetadata(raw.templates?.junfengRewardCapture)
+      junfengRewardCapture: normalizeCaptureMetadata(raw.templates?.junfengRewardCapture),
+      allflameReceiverCapture: normalizeCaptureMetadata(raw.templates?.allflameReceiverCapture)
     },
     matchThreshold: Number.isFinite(threshold) ? Math.min(1, Math.max(0.1, threshold)) : defaults.matchThreshold,
     blacklist: normalizeBagBlacklist(raw.blacklist),
@@ -180,6 +188,8 @@ export function findBagBlacklistMatch(item, rules = []) {
 export function buildBagRuntimeConfig(bagSettings, settings) {
   const bag = normalizeBagSettings(bagSettings)
   return {
+    moduleEnabled: bag.moduleEnabled,
+    allflameReceiverEnabled: bag.allflameReceiverEnabled,
     forceUniqueStash: bag.forceUniqueStash,
     templates: bag.templates,
     matchThreshold: bag.matchThreshold,
@@ -201,8 +211,15 @@ export function buildBagRuntimeConfig(bagSettings, settings) {
 }
 
 export function validateBagRuntimeConfig(config) {
-  if (!config.templates.stashTitle || !config.templates.inventoryTitle) return '请先配置仓库和背包标题模板'
-  const regions = [config.templates.stashRegion, config.templates.inventoryRegion]
+  const normalEnabled = Boolean(config.moduleEnabled)
+  const receiverEnabled = Boolean(config.allflameReceiverEnabled)
+  const validateNormal = normalEnabled || (!normalEnabled && !receiverEnabled)
+  if (!config.templates.inventoryTitle) return '请先配置背包标题模板'
+  if (validateNormal && !config.templates.stashTitle) return '请先配置仓库标题模板'
+  if (receiverEnabled && !config.templates.allflameReceiverTitle) return '请先配置永火接收舱标题模板'
+  const regions = [config.templates.inventoryRegion]
+  if (validateNormal) regions.push(config.templates.stashRegion)
+  if (receiverEnabled) regions.push(config.templates.allflameReceiverRegion)
   if (regions.some((region) => region.right <= region.left || region.bottom <= region.top)) return '模板匹配区域无效'
   const gridValues = [config.inventory.startPos.x, config.inventory.startPos.y, config.inventory.slotSize.w, config.inventory.slotSize.h]
   if (gridValues.some((value) => !Number.isFinite(value))) return '背包网格配置无效'
@@ -216,6 +233,7 @@ export function captureKeyForTemplate(type) {
   if (type === 'stashTitle') return 'stashCapture'
   if (type === 'inventoryTitle') return 'inventoryCapture'
   if (type === 'junfengRewardTitle') return 'junfengRewardCapture'
+  if (type === 'allflameReceiverTitle') return 'allflameReceiverCapture'
   throw new Error('不支持的模板目标')
 }
 

@@ -29,11 +29,12 @@ import { registerFeedbackHandlers } from './feedback.js'
 import { registerEmergencyStopHandlers } from './emergencyStop.js'
 import { registerConfigTransferHandlers } from './configTransfer.js'
 import { registerConfigurationGuideHandlers } from './configurationGuide.js'
+import { registerFaustusHandlers } from './faustus.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
-    poeCnAccount, stashPickup, junfeng,
+    poeCnAccount, stashPickup, junfeng, faustus,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
     applicationUpdate, feedback, failureEvidence, getMainWindow, enableJunfengTraining = false
   } = dependencies
@@ -45,7 +46,8 @@ export function registerIpcHandlers(dependencies) {
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
   registerCombatHandlers(python, window, fileWatcher)
-  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, puzzle, getMainWindow })
+  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, getMainWindow })
+  if (faustus) registerFaustusHandlers(faustus, window, getMainWindow)
   registerConfigTransferHandlers({ getMainWindow })
   registerConfigurationGuideHandlers(window)
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })

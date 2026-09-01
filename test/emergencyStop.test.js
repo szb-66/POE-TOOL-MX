@@ -73,6 +73,25 @@ test('统一紧急停止在单项失败时继续停止其他任务', async () =>
   ])
 })
 
+test('统一紧急停止会终止运行中的浮士德并计入停止结果', async () => {
+  const calls = []
+  const coordinator = new EmergencyStopCoordinator([
+    {
+      id: 'faustus',
+      label: '浮士德分段改价',
+      stop: reason => {
+        calls.push(reason)
+        return { success: true, stopped: true }
+      }
+    }
+  ])
+
+  const result = await coordinator.stopAll('shortcut')
+  assert.deepEqual(calls, ['shortcut'])
+  assert.deepEqual(result.stopped, [{ id: 'faustus', label: '浮士德分段改价' }])
+  assert.deepEqual(result.failed, [])
+})
+
 test('end 快捷键接入全自动化停止并保留前台作用域配置', () => {
   const scriptService = source('src/utils/scriptService.js')
   const emergencyIpc = source('electron/modules/ipc/emergencyStop.js')
@@ -81,7 +100,7 @@ test('end 快捷键接入全自动化停止并保留前台作用域配置', () =
 
   assert.match(scriptService, /end:\s*emergencyStopAll/)
   assert.doesNotMatch(scriptService, /end:\s*stopCrafting/)
-  for (const id of ['script', 'bag-stash', 'stash-pickup', 'junfeng', 'chaos-recipe', 'potion', 'combat-loop', 'portal', 'puzzle']) {
+  for (const id of ['script', 'batch-inventory-scan', 'bag-stash', 'stash-pickup', 'junfeng', 'faustus', 'chaos-recipe', 'potion', 'combat-loop', 'portal', 'puzzle']) {
     assert.match(emergencyIpc, new RegExp(`['"]${id}['"]`))
   }
   assert.match(preload, /emergencyStopAll:\s*\(\) => ipcRenderer\.invoke\('emergency-stop-all'\)/)

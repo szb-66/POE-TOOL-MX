@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { createServer } from 'vite'
 import { parseItemInfo } from '../electron/modules/item/parser.js'
+import { buildCraftingAffixPayload } from '../electron/modules/item/craftingAffixPayload.js'
 import { pythonPath } from './helpers/python.js'
 
 function runPython(script) {
@@ -14,8 +15,15 @@ function runPython(script) {
   return JSON.parse(executed.stdout.trim().split(/\r?\n/).at(-1))
 }
 
+function currentRuntimeAffixPayload(item) {
+  return {
+    rarity: item.rarity,
+    ...buildCraftingAffixPayload(item)
+  }
+}
+
 function parsedMagicModifier(lines) {
-  return parseItemInfo([
+  return currentRuntimeAffixPayload(parseItemInfo([
     '物品类别: 单手剑',
     '稀 有 度: 魔法',
     '测试之剑',
@@ -25,7 +33,23 @@ function parsedMagicModifier(lines) {
     '--------',
     '{ 前缀属性 "复合测试" (等阶：1) — 攻击 }',
     ...lines
-  ].join('\n'))
+  ].join('\n')))
+}
+
+function parsedFracturedMagicModifier() {
+  return currentRuntimeAffixPayload(parseItemInfo([
+    '物品类别: 戒指',
+    '稀 有 度: 魔法',
+    '测试戒指',
+    '金光戒指',
+    '--------',
+    '物品等级: 86',
+    '--------',
+    '{ 破碎的 ▲ 前缀词缀 "锁定生命" (等阶：1)— 生命 }',
+    '+80 最大生命',
+    '{ ▽ 后缀词缀 "抗火之" (等阶：1)— 元素, 火焰, 抗性 }',
+    '+35% 火焰抗性'
+  ].join('\n')))
 }
 
 test('改造模式在前两次解析失败时最多补读到第三次，不重复使用通货', async () => {
@@ -229,7 +253,7 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       affixMatch: true,
       matchedGroupName: '目标'
     }
-    assert.equal(multilineSingle.modifiers.length, 1)
+    assert.equal(multilineSingle.detailedMods.length, 1)
     assert.equal(multilineSingle.explicitMods.length, 2)
     const plainSingle = {
       rarity: '魔法',
@@ -238,6 +262,10 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       modifiers: [],
       detailedMods: [],
       explicitMods: ['+80 最大生命']
+    }
+    const ambiguousPlainMultiline = {
+      ...plainSingle,
+      explicitMods: ['物理伤害提高 120%', '+25 最大生命']
     }
     const doubleAffix = {
       rarity: '魔法',
@@ -253,17 +281,26 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       ],
       explicitMods: ['+80 最大生命', '+35% 火焰抗性']
     }
+    const fracturedDoubleAffix = {
+      ...parsedFracturedMagicModifier(),
+      affixMatch: true,
+      matchedGroupName: '目标'
+    }
 
     const enabledInitial = runAffixes(generate(true, true), [
       { initial: multilineSingle, queue: [doubleAffix] },
       { initial: plainSingle, queue: [doubleAffix] },
+      { initial: ambiguousPlainMultiline, queue: [] },
       { initial: doubleAffix, queue: [] },
+      { initial: fracturedDoubleAffix, queue: [doubleAffix] },
       { initial: multilineSingle, queue: [{ error: '增幅后解析失败' }, { error: '增幅后解析失败' }, { error: '增幅后解析失败' }] }
     ])
     assert.deepEqual(enabledInitial, [
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
+      { success: false, applied: [], reads: 0, remaining: 0 },
       { success: true, applied: [], reads: 0, remaining: 0 },
+      { success: true, applied: [], reads: 0, remaining: 1 },
       { success: false, applied: ['augmentation'], reads: 3, remaining: 0 }
     ])
 

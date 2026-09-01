@@ -17,7 +17,8 @@ export function parseScriptEventLine(line) {
 const STARTUP_FAILURE_EVENTS = new Set([
   'crafting-startup-failed',
   'stash-tab-selection-failed',
-  'currency-preflight-failed'
+  'currency-preflight-failed',
+  'crafting-batch-preflight-failed'
 ])
 
 export function waitForScriptStartup(child, {

@@ -69,6 +69,7 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
   function templateKeys(type) {
     if (type === 'stashTitle') return { region: 'stashRegion', capture: 'stashCapture' }
     if (type === 'junfengRewardTitle') return { region: 'junfengRewardRegion', capture: 'junfengRewardCapture' }
+    if (type === 'allflameReceiverTitle') return { region: 'allflameReceiverRegion', capture: 'allflameReceiverCapture' }
     return { region: 'inventoryRegion', capture: 'inventoryCapture' }
   }
 

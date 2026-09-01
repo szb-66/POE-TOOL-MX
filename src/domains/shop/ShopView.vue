@@ -125,17 +125,6 @@
           </el-button>
         </el-card>
 
-        <el-card class="about-card">
-          <template #header><span>说明</span></template>
-          <p>数据：{{ meta.gameVersion }} · {{ meta.updatedAt }}</p>
-          <p>本功能为离线、非官方工具，不会自动修改剪贴板，也不会向游戏发送按键。</p>
-          <p>
-            功能参考
-            <a href="https://poe.re/#/" target="_blank" rel="noreferrer">poe.re</a>
-            与
-            <a href="https://github.com/veiset/poe-vendor-string" target="_blank" rel="noreferrer">veiset/poe-vendor-string</a>。
-          </p>
-        </el-card>
       </el-col>
     </el-row>
       </template>
@@ -155,7 +144,7 @@ import PresetSelector from '../../components/common/PresetSelector.vue'
 import { electronApi } from '../../api/electron.js'
 import { usePresetStore } from '../../stores/preset.js'
 import { createDefaultVendorConfig } from './vendorConfig.js'
-import { VENDOR_DATA_META, VENDOR_OPTION_GROUPS } from './vendorData.js'
+import { VENDOR_OPTION_GROUPS } from './vendorData.js'
 import { generateVendorRegex } from './vendorRegex.js'
 import ChaosRecipePanel from './ChaosRecipePanel.vue'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
@@ -175,7 +164,6 @@ const helpTopics = moduleHelpTopicsById('shop')
 const SHOP_TABS = ['chaos', 'vendor']
 const activeTool = ref(readPersistentTab('shopActiveTool', SHOP_TABS, 'chaos'))
 const groups = VENDOR_OPTION_GROUPS
-const meta = VENDOR_DATA_META
 const vendor = computed(() => presetStore.currentShopPreset.vendor)
 const result = computed(() => generateVendorRegex(vendor.value))
 
@@ -296,16 +284,6 @@ async function copyRegex() {
 .result-header { justify-content: space-between; }
 .warning-list { display: grid; gap: 8px; margin-top: 12px; }
 .copy-button { width: 100%; margin-top: 14px; }
-
-.about-card {
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.7;
-
-  p { margin: 0 0 8px; }
-  p:last-child { margin-bottom: 0; }
-  a { color: var(--el-color-primary); }
-}
 
 @media (max-width: 1050px) {
   .result-column { position: static; }

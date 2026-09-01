@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -89,6 +89,8 @@
       "src/utils/stashGridCalibration.js",
       "src/utils/stashPickupConfig.js",
       "src/utils/stashTabSelection.js",
+      "src/utils/faustusConfig.js",
+      "src/utils/faustusPricing.js",
       "electron/assets/item-footprints.json",
       "package.json",
       "LICENSE.md",
@@ -118,6 +120,10 @@
       {
         "from": "src/assets/scripts/stash_tab_selector.py",
         "to": "stash_tab_selector.py"
+      },
+      {
+        "from": "src/assets/scripts/faustus_market_repricing.py",
+        "to": "faustus_market_repricing.py"
       },
       {
         "from": "src/assets/scripts/puzzle_analyzer.py",

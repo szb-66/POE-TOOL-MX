@@ -31,6 +31,9 @@ import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics
 import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 import { isEmergencyCancellation } from './emergencyStopResult.js'
 import { validateMapRecovery } from './craftingRecovery.js'
+import { createItemCraftingRunPreset } from './itemPreset.js'
+import { useBatchCraftingStore } from '../stores/batchCrafting.js'
+import { freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
 import {
   collectCraftingConfigurationIssues,
@@ -206,11 +209,14 @@ export async function startCrafting({
   forceInitialCheck = false,
   usageSessionId = null,
   continueCurrencyUsage = false,
-  configurationGuideBypass = false
+  configurationGuideBypass = false,
+  singleItemOnly = false,
+  batchRecovery = null
 } = {}) {
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
+  const batchStore = useBatchCraftingStore()
   scriptStore.resetItemRuntime()
 
   // 检查是否已有脚本在运行
@@ -224,18 +230,84 @@ export async function startCrafting({
 
   // 检查是否有启用的模块
   const currentPreset = presetStore.currentItemPreset
-  const effectivePreset = JSON.parse(JSON.stringify(currentPreset))
-  if (forceInitialCheck) effectivePreset.checkInitialItem = true
+  const effectivePreset = createItemCraftingRunPreset(currentPreset, { forceInitialCheck, singleItemOnly })
+  if (batchRecovery) {
+    effectivePreset.batchCrafting = {
+      enabled: true,
+      categoryIds: [...new Set((batchRecovery.targets || []).map(target => String(target.categoryId || '')).filter(Boolean))]
+    }
+  }
 
-  const collectConfiguration = () => {
+  const collectBatchPrerequisites = () => {
     const latestPreset = JSON.parse(JSON.stringify(usePresetStore().currentItemPreset))
-    if (forceInitialCheck) latestPreset.checkInitialItem = true
     const latestSettings = useSettingsStore()
     return collectCraftingConfigurationIssues({
       itemPosition: latestSettings.itemPosition,
+      inventory: latestSettings.inventory,
       currencyPositions: latestSettings.currencyPositions,
       stashTabSelection: latestSettings.stashTabSelection,
-      preset: latestPreset
+      preset: latestPreset,
+      batchSnapshot: batchStore.snapshot,
+      batchCandidateCount: batchStore.candidates.length
+    })
+  }
+  if (!batchRecovery && effectivePreset.batchCrafting?.enabled && !configurationGuideBypass) {
+    const prerequisites = collectBatchPrerequisites()
+    if (!prerequisites.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.items,
+        actionId: CONFIGURATION_ACTIONS.start,
+        title: '完成背包批量制作配置',
+        actionLabel: '开始批量制作',
+        collect: collectBatchPrerequisites,
+        execute: () => startCrafting({
+          forceInitialCheck, usageSessionId, continueCurrencyUsage,
+          configurationGuideBypass: true
+        })
+      })
+    }
+  }
+
+  let batchConfig = null
+  let effectiveItemPosition = settingsStore.itemPosition
+  if (effectivePreset.batchCrafting?.enabled) {
+    try {
+      const buildResult = batchRecovery
+        ? restoreBatchConfiguration({ checkpoint: batchRecovery, preset: effectivePreset, inventory: settingsStore.inventory })
+        : freezeBatchConfiguration({
+            snapshot: batchStore.snapshot,
+            categoryIds: effectivePreset.batchCrafting.categoryIds,
+            preset: effectivePreset,
+            inventory: settingsStore.inventory
+          })
+      if (!buildResult.valid) throw new Error(buildResult.error)
+      batchConfig = buildResult.config
+      const completed = new Set(batchConfig.completedIds || [])
+      effectiveItemPosition = batchConfig.targets.find(target => !completed.has(target.id))?.position || settingsStore.itemPosition
+    } catch (caught) {
+      const error = caught?.message || '批量制作启动检查失败'
+      ElMessage.error(error)
+      return { success: false, error }
+    }
+  }
+
+  const collectConfiguration = () => {
+    const latestPreset = createItemCraftingRunPreset(
+      usePresetStore().currentItemPreset,
+      { forceInitialCheck, singleItemOnly }
+    )
+    if (batchRecovery) latestPreset.batchCrafting = { ...effectivePreset.batchCrafting }
+    const latestSettings = useSettingsStore()
+    return collectCraftingConfigurationIssues({
+      itemPosition: effectivePreset.batchCrafting?.enabled ? effectiveItemPosition : latestSettings.itemPosition,
+      currencyPositions: latestSettings.currencyPositions,
+      stashTabSelection: latestSettings.stashTabSelection,
+      inventory: latestSettings.inventory,
+      preset: latestPreset,
+      batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : batchStore.snapshot,
+      batchCandidateCount: batchRecovery
+        ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length)
+        : batchStore.candidates.length
     })
   }
   const configurationCheck = collectConfiguration()
@@ -250,16 +322,24 @@ export async function startCrafting({
         forceInitialCheck,
         usageSessionId,
         continueCurrencyUsage,
-        configurationGuideBypass: true
+        configurationGuideBypass: true,
+        singleItemOnly,
+        batchRecovery
       })
     })
   }
 
   // 验证配置
   const validation = validateCraftingConfig({
-    itemPosition: settingsStore.itemPosition,
+    itemPosition: effectiveItemPosition,
+    inventory: settingsStore.inventory,
     currencyPositions: settingsStore.currencyPositions,
-    preset: effectivePreset
+    stashTabSelection: settingsStore.stashTabSelection,
+    preset: effectivePreset,
+    batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : batchStore.snapshot,
+    batchCandidateCount: batchRecovery
+      ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length)
+      : batchStore.candidates.length
   })
 
   if (!validation.isValid) {
@@ -286,16 +366,18 @@ export async function startCrafting({
         currencyPositions: settingsStore.currencyPositions,
         operationDelayMs: settingsStore.operationDelayMs,
         fixedTiming: settingsStore.fixedTiming,
-        itemPosition: settingsStore.itemPosition,
+        itemPosition: effectiveItemPosition,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       preset: effectivePreset,
+      batchConfig,
       filePaths
     })
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = effectivePreset
-    const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
+    const requestedUsageSessionId = batchRecovery?.usageSessionId || usageSessionId || globalThis.crypto.randomUUID()
+    if (batchConfig) scriptStore.beginBatch(batchConfig, requestedUsageSessionId)
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
@@ -304,6 +386,7 @@ export async function startCrafting({
       mode: 'items',
       usageSessionId: requestedUsageSessionId,
       continueCurrencyUsage,
+      batchRecoveryContext: batchConfig,
       requiresStashTabOcr: stashValidation.config.enabled
     })
 

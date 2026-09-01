@@ -60,11 +60,13 @@ import {
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
+import { FaustusManager } from './modules/faustus/manager.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleCalibrationRepository } from './modules/puzzle/calibrationRepository.js'
 import { PuzzleFailureEvidenceRepository } from './modules/puzzle/failureEvidenceRepository.js'
 import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { RecognitionFeedbackOverlayManager } from './modules/puzzle/recognitionFeedbackOverlay.js'
+import { getDisplayPhysicalBounds } from './modules/window/coordinates.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
@@ -226,6 +228,7 @@ let priceCheckService = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let junfengHighlight = null
+let faustusManager = null
 let puzzleService = null
 let gameWindowTitles = null
 let diagnosticEvents = null
@@ -263,6 +266,7 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
     () => junfengHighlight?.cleanup(),
+    () => faustusManager?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.destroyOverlay(),
@@ -456,6 +460,7 @@ async function startApplication() {
   const chaosOverlay = new ChaosRecipeOverlayManager()
   const puzzleOverlay = new PuzzleOverlayManager()
   const recognitionFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
+  const faustusFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
@@ -515,6 +520,22 @@ async function startApplication() {
     automationLock,
     calibration: highlightCalibration,
     onStatusChange: () => chaosControlOverlay?.sync()
+  })
+  faustusManager = new FaustusManager({
+    python: { ...pythonManager, ...pythonDetector },
+    fileWatcher,
+    getMainWindow,
+    foregroundState: () => shortcutManager.getScopeState(),
+    automationLock,
+    feedbackOverlay: faustusFeedbackOverlay,
+    resolveDisplayBounds: calibration => {
+      const displays = screen.getAllDisplays()
+      const display = displays.find(candidate => String(candidate.id) === String(calibration?.displayId))
+        || screen.getDisplayNearestPoint({ x: Number(calibration?.left || 0), y: Number(calibration?.top || 0) })
+      return getDisplayPhysicalBounds(display, process.platform, point => screen.dipToScreenPoint(point))
+    },
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath
   })
   puzzleService = new PuzzleAnalysisService({
     python: { ...pythonManager, ...pythonDetector },
@@ -603,6 +624,7 @@ async function startApplication() {
     },
     stashPickup,
     junfeng: junfengHighlight,
+    faustus: faustusManager,
     interfaceDetection,
     automationLock,
     puzzle: puzzleService,

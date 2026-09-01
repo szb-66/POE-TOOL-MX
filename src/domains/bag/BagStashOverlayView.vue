@@ -33,7 +33,7 @@ const state = ref({
   foreground: false,
   stashing: false,
   disabled: true,
-  disabledReason: '等待仓库与背包同时打开',
+  disabledReason: '等待入库目标与背包同时打开',
   label: '自动入库'
 })
 const starting = ref(false)

@@ -25,6 +25,8 @@ import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySetting
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 let stashProcess = null
+let batchScanProcess = null
+const batchScanStopRequests = new WeakMap()
 let latestConfig = null
 let getMainWindowRef = null
 let bagWindowApi = null
@@ -33,6 +35,12 @@ let automationLock = null
 let disposeDetectionState = null
 let moduleRunning = false
 let bagConfigRevision = 0
+let latestDetectionState = {
+  ready: false,
+  stashReady: false,
+  allflameReceiverReady: false,
+  foreground: false
+}
 const session = new BagSessionController()
 const bagOverlayDrag = new OverlayDragSession()
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -43,8 +51,14 @@ function send(channel, payload = {}) {
 }
 
 function currentOverlaySnapshot() {
+  const normalEnabled = Boolean(latestConfig?.module_enabled)
+  const allflameReceiverEnabled = Boolean(latestConfig?.allflame_receiver_enabled)
   return createBagOverlaySnapshot({
-    moduleEnabled: moduleRunning,
+    moduleEnabled: moduleRunning && (normalEnabled || allflameReceiverEnabled),
+    normalEnabled,
+    allflameReceiverEnabled,
+    stashReady: Boolean(latestDetectionState.stashReady ?? latestDetectionState.ready),
+    allflameReceiverReady: Boolean(latestDetectionState.allflameReceiverReady),
     ready: session.ready,
     foreground: session.foreground,
     stashing: session.stashing
@@ -53,7 +67,7 @@ function currentOverlaySnapshot() {
 
 function syncBagOverlay() {
   if (!bagWindowApi) return
-  if (!moduleRunning) {
+  if (!moduleRunning || (!latestConfig?.module_enabled && !latestConfig?.allflame_receiver_enabled)) {
     bagWindowApi.closeBagStashOverlayWindow()
     return
   }
@@ -74,14 +88,18 @@ export function stopBagStashAutomation(reason = 'user') {
 
 function runtimeConfig(config = {}) {
   return {
+    module_enabled: Boolean(config.moduleEnabled),
+    allflame_receiver_enabled: Boolean(config.allflameReceiverEnabled),
     force_unique_stash: Boolean(config.forceUniqueStash),
     templates: {
       stash_title: String(config.templates?.stashTitle || ''),
       inventory_title: String(config.templates?.inventoryTitle || ''),
       junfeng_reward_title: String(config.templates?.junfengRewardTitle || ''),
+      allflame_receiver_title: String(config.templates?.allflameReceiverTitle || ''),
       stash_region: config.templates?.stashRegion || {},
       inventory_region: config.templates?.inventoryRegion || {},
-      junfeng_reward_region: config.templates?.junfengRewardRegion || {}
+      junfeng_reward_region: config.templates?.junfengRewardRegion || {},
+      allflame_receiver_region: config.templates?.allflameReceiverRegion || {}
     },
     match_threshold: Number(config.matchThreshold ?? 0.8),
     inventory: {
@@ -101,8 +119,16 @@ export function updateBagAutomationTiming(value = {}) {
 }
 
 function validateConfigIssue(config) {
-  if (!config?.templates?.stash_title) {
+  const normalEnabled = Boolean(config?.module_enabled)
+  const allflameReceiverEnabled = Boolean(config?.allflame_receiver_enabled)
+  if (!normalEnabled && !allflameReceiverEnabled) {
+    return { error: '请先启用一种入库功能', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: '' }
+  }
+  if (normalEnabled && !config?.templates?.stash_title) {
     return { error: '请先配置仓库标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' }
+  }
+  if (allflameReceiverEnabled && !config?.templates?.allflame_receiver_title) {
+    return { error: '请先配置永火接收舱标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.allflame-receiver-title' }
   }
   if (!config?.templates?.inventory_title) {
     return { error: '请先配置背包标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' }
@@ -111,6 +137,33 @@ function validateConfigIssue(config) {
     return { error: '背包网格配置不完整', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'inventory.grid' }
   }
   return { error: '', failureCode: '', configurationIssueId: '' }
+}
+
+function isMainWindowSender(event) {
+  const mainWindow = getMainWindowRef?.()
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && event?.sender === mainWindow.webContents)
+}
+
+export function stopBatchInventoryScan(reason = 'user') {
+  const child = batchScanProcess
+  const stopped = Boolean(child)
+  if (child) batchScanStopRequests.set(child, { reason: String(reason || 'user') })
+  stopChild(child)
+  return { success: true, stopped }
+}
+
+function effectiveDetectionReady(state = latestDetectionState, config = latestConfig) {
+  return Boolean(
+    (config?.module_enabled && (state?.stashReady ?? state?.ready)) ||
+    (config?.allflame_receiver_enabled && state?.allflameReceiverReady)
+  )
+}
+
+function applyDetectionState(state = {}) {
+  latestDetectionState = structuredClone(state)
+  session.setReady(effectiveDetectionReady(state), state.foreground)
+  send('bag-detection-match', { matched: session.ready && session.foreground, ...state })
+  syncBagOverlay()
 }
 
 function validateConfig(config) { return validateConfigIssue(config).error }
@@ -134,10 +187,15 @@ function currentDisplays() {
 function validateCaptureConfig(config) {
   const displays = currentDisplays()
   const warnings = []
-  const definitions = [
-    ['仓库标题', 'stashTitle', 'stashRegion', 'stashCapture', 'template.stash-title'],
-    ['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture', 'template.inventory-title']
-  ]
+  const normalEnabled = Boolean(config.moduleEnabled)
+  const allflameReceiverEnabled = Boolean(config.allflameReceiverEnabled)
+  const definitions = [['背包标题', 'inventoryTitle', 'inventoryRegion', 'inventoryCapture', 'template.inventory-title']]
+  if (normalEnabled || !allflameReceiverEnabled) {
+    definitions.unshift(['仓库标题', 'stashTitle', 'stashRegion', 'stashCapture', 'template.stash-title'])
+  }
+  if (allflameReceiverEnabled) {
+    definitions.unshift(['永火接收舱标题', 'allflameReceiverTitle', 'allflameReceiverRegion', 'allflameReceiverCapture', 'template.allflame-receiver-title'])
+  }
   for (const [label, pathKey, regionKey, captureKey, configurationIssueId] of definitions) {
     const result = validateTemplateCaptureEnvironment(label, config.templates?.[pathKey], config.templates?.[regionKey], config.templates?.[captureKey], displays)
     if (result.error) return { error: result.error, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
@@ -181,9 +239,21 @@ function resolveBagScriptPath() {
   return scriptPath
 }
 
+function resolveHighlightModelPaths() {
+  const root = app.isPackaged
+    ? path.join(process.resourcesPath, 'junfeng-highlight-model')
+    : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
+  return {
+    modelPath: path.join(root, 'model.onnx'),
+    manifestPath: path.join(root, 'manifest.json')
+  }
+}
+
 function spawnPython(python, mode, configPath) {
   const requiredModules = ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
-  const pythonPath = python.detectPythonPathWithModules?.(requiredModules) || python.detectPythonPath()
+  const preferredModules = mode === 'scan' ? [...requiredModules, 'onnxruntime'] : requiredModules
+  const pythonPath = python.detectPythonPathWithModules?.(preferredModules) ||
+    python.detectPythonPathWithModules?.(requiredModules) || python.detectPythonPath()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const scriptPath = resolveBagScriptPath()
   return spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
@@ -267,10 +337,96 @@ function startStashProcess(python, fileWatcher) {
   return { success: true, processId: child.pid, mode }
 }
 
+async function startBatchInventoryScan(python, fileWatcher, config = {}) {
+  if (batchScanProcess) return Promise.resolve({ success: false, error: '背包扫描正在进行' })
+  const automationGate = automationLock?.acquire('批量背包扫描') || { success: true }
+  if (!automationGate.success) return Promise.resolve(automationGate)
+  const inventory = config.inventory || {}
+  const configured = [inventory.startPos?.x, inventory.startPos?.y, inventory.slotSize?.w, inventory.slotSize?.h]
+    .every(value => Number.isFinite(Number(value)) && Number(value) > 0)
+  if (!configured) {
+    automationLock?.release('批量背包扫描')
+    return Promise.resolve({ success: false, error: '请先配置背包网格', errorCode: 'INVENTORY_GRID_INVALID' })
+  }
+  const frozenConfig = {
+    inventory: {
+      startPos: { x: Number(inventory.startPos.x), y: Number(inventory.startPos.y) },
+      slotSize: { w: Number(inventory.slotSize.w), h: Number(inventory.slotSize.h) },
+      itemFootprints: itemFootprintRegistry.snapshot()
+    },
+    emptySlotModel: {
+      ...resolveHighlightModelPaths(),
+      threshold: 0.995
+    },
+    ...pythonAutomationTiming(config)
+  }
+  let configPath = ''
+  let child
+  let windowPrepared = false
+  try {
+    windowPrepared = await bagWindowApi.minimizeMainWindowForAutomation()
+    if (!windowPrepared) throw new Error('无法为背包扫描准备应用窗口')
+    configPath = writeConfig(fileWatcher, `batch_inventory_scan_${Date.now()}.json`, frozenConfig)
+    child = spawnPython(python, 'scan', configPath)
+    batchScanProcess = child
+  } catch (error) {
+    automationLock?.release('批量背包扫描')
+    if (configPath) fs.rmSync(configPath, { force: true })
+    if (windowPrepared) await bagWindowApi.restoreMainWindowToForeground()
+    return { success: false, error: error.message, errorCode: 'SCAN_START_FAILED' }
+  }
+  return new Promise((resolve) => {
+    let terminal = null
+    let stderr = ''
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', createEventLineParser((event) => {
+      if (event.event === 'inventory-scan-progress') {
+        send('batch-crafting-scan-progress', event)
+      } else if (event.event === 'inventory-scan-completed') {
+        terminal = { success: true, snapshot: event.snapshot }
+      } else if (event.event === 'inventory-scan-error' || event.event === 'inventory-scan-stopped') {
+        terminal = {
+          success: false,
+          error: String(event.reason || '背包扫描失败'),
+          errorCode: String(event.code || 'SCAN_FAILED')
+        }
+      }
+    }, () => {}))
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', data => { stderr = `${stderr}${String(data)}`.slice(-2000) })
+    child.on('error', error => {
+      terminal = { success: false, error: error.message, errorCode: 'SCAN_PROCESS_ERROR' }
+    })
+    child.on('close', async code => {
+      if (batchScanProcess === child) batchScanProcess = null
+      automationLock?.release('批量背包扫描')
+      if (configPath) fs.rmSync(configPath, { force: true })
+      const stopRequest = batchScanStopRequests.get(child)
+      batchScanStopRequests.delete(child)
+      const result = stopRequest ? {
+        success: false,
+        cancelled: true,
+        error: '用户已停止背包扫描',
+        errorCode: 'USER_STOPPED',
+        reason: stopRequest.reason
+      } : terminal || {
+        success: false,
+        error: stderr.trim() || (code === 0 ? '扫描未返回结果' : `背包扫描进程异常退出（${code}）`),
+        errorCode: 'SCAN_PROCESS_EXITED'
+      }
+      if (result.success) send('batch-crafting-scan-completed', result.snapshot)
+      else send('batch-crafting-scan-stopped', result)
+      await bagWindowApi.restoreMainWindowToForeground()
+      resolve(result)
+    })
+  })
+}
+
 const TEMPLATE_RUNTIME_KEYS = Object.freeze({
   stashTitle: { path: 'stash_title', region: 'stash_region' },
   inventoryTitle: { path: 'inventory_title', region: 'inventory_region' },
-  junfengRewardTitle: { path: 'junfeng_reward_title', region: 'junfeng_reward_region' }
+  junfengRewardTitle: { path: 'junfeng_reward_title', region: 'junfeng_reward_region' },
+  allflameReceiverTitle: { path: 'allflame_receiver_title', region: 'allflame_receiver_region' }
 })
 
 const templateRuntimeKeys = (type) => TEMPLATE_RUNTIME_KEYS[type] || TEMPLATE_RUNTIME_KEYS.inventoryTitle
@@ -299,9 +455,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return
-    session.setReady(state.ready, state.foreground)
-    send('bag-detection-match', { matched: session.ready && session.foreground, ...state })
-    syncBagOverlay()
+    applyDetectionState(state)
     if (!state.running && !state.reloading && state.reason) {
       send('bag-detection-stopped', {
         reason: state.reason,
@@ -312,23 +466,39 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   })
 
   ipcMain.handle('start-bag-detection', async (_event, config) => {
+    const previousConfig = latestConfig ? structuredClone(latestConfig) : null
+    const wasRunning = moduleRunning
     try {
-      if (moduleRunning) return { success: true, shared: true }
       const captureValidation = validateCaptureConfig(config || {})
       if (captureValidation.error) return { success: false, ...captureValidation }
-      latestConfig = runtimeConfig(config)
-      const validation = validateConfigIssue(latestConfig)
+      const candidate = runtimeConfig(config)
+      const validation = validateConfigIssue(candidate)
       if (validation.error) return { success: false, ...validation }
-      session.reset()
       if (!interfaceDetection) throw new Error('公共界面检测服务未初始化')
-      await interfaceDetection.registerConsumer('bag', latestConfig)
+      latestConfig = candidate
+      let state
+      if (moduleRunning) state = await interfaceDetection.updateConfig(candidate)
+      else {
+        session.reset()
+        state = await interfaceDetection.registerConsumer('bag', candidate)
+      }
       moduleRunning = true
-      syncBagOverlay()
+      applyDetectionState(state)
       return { success: true, shared: true, warnings: captureValidation.warnings }
     } catch (error) {
-      interfaceDetection?.unregisterConsumer('bag')
-      session.reset()
-      moduleRunning = false
+      latestConfig = previousConfig
+      if (wasRunning && previousConfig) {
+        try {
+          const state = await interfaceDetection?.updateConfig(previousConfig)
+          if (state) applyDetectionState(state)
+        } catch {}
+        moduleRunning = true
+      } else {
+        interfaceDetection?.unregisterConsumer('bag')
+        session.reset()
+        moduleRunning = false
+        latestDetectionState = { ready: false, stashReady: false, allflameReceiverReady: false, foreground: false }
+      }
       syncBagOverlay()
       return { success: false, error: error.message }
     }
@@ -338,6 +508,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     const stashing = stashProcess
     stashProcess = null
     moduleRunning = false
+    latestDetectionState = { ready: false, stashReady: false, allflameReceiverReady: false, foreground: false }
     interfaceDetection?.unregisterConsumer('bag')
     stopChild(stashing)
     automationLock?.release('自动入库')
@@ -349,6 +520,14 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
 
   ipcMain.handle('start-bag-stash', async () => startStashProcess(python, fileWatcher))
 
+  ipcMain.handle('batch-crafting-scan-inventory', async (event, config = {}) => {
+    if (!isMainWindowSender(event)) return { success: false, error: '仅主窗口可启动背包扫描' }
+    return startBatchInventoryScan(python, fileWatcher, config)
+  })
+  ipcMain.handle('batch-crafting-stop-scan', async (event) => {
+    if (!isMainWindowSender(event)) return { success: false, error: '仅主窗口可停止背包扫描' }
+    return stopBatchInventoryScan()
+  })
   ipcMain.handle('update-bag-operation-delay', async (_event, value) => {
     const operationDelayMs = normalizeOperationDelay(value)
     if (latestConfig) updateBagAutomationTiming({
@@ -374,8 +553,11 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       const candidate = runtimeConfig(config)
       const error = validateConfig(candidate)
       if (error) throw new Error(error)
-      if (moduleRunning && interfaceDetection) await interfaceDetection.updateConfig(candidate)
       latestConfig = candidate
+      if (moduleRunning && interfaceDetection) {
+        const state = await interfaceDetection.updateConfig(candidate)
+        applyDetectionState(state)
+      }
       bagConfigRevision += 1
       syncBagOverlay()
       return {
@@ -403,15 +585,20 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
         stash_title: String(config.templates?.stashTitle || ''),
         inventory_title: String(config.templates?.inventoryTitle || ''),
         junfeng_reward_title: String(config.templates?.junfengRewardTitle || ''),
+        allflame_receiver_title: String(config.templates?.allflameReceiverTitle || ''),
         stash_region: config.templates?.stashRegion || {},
         inventory_region: config.templates?.inventoryRegion || {},
-        junfeng_reward_region: config.templates?.junfengRewardRegion || {}
+        junfeng_reward_region: config.templates?.junfengRewardRegion || {},
+        allflame_receiver_region: config.templates?.allflameReceiverRegion || {}
       }
       candidate.match_threshold = Number(config.matchThreshold ?? 0.8)
       const error = validateConfig(candidate)
       if (error) throw new Error(error)
-      if (moduleRunning && interfaceDetection) await interfaceDetection.updateConfig(candidate)
       latestConfig = candidate
+      if (moduleRunning && interfaceDetection) {
+        const state = await interfaceDetection.updateConfig(candidate)
+        applyDetectionState(state)
+      }
       bagConfigRevision += 1
       return { success: true, revision: bagConfigRevision }
     } catch (error) {
@@ -505,11 +692,16 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
 
 export async function cleanupBagProcesses() {
   const stashing = stashProcess
+  const scanning = batchScanProcess
   stashProcess = null
+  batchScanProcess = null
   moduleRunning = false
+  latestDetectionState = { ready: false, stashReady: false, allflameReceiverReady: false, foreground: false }
   interfaceDetection?.unregisterConsumer('bag')
   stopChild(stashing)
+  stopChild(scanning)
   automationLock?.release('自动入库')
+  automationLock?.release('批量背包扫描')
   session.reset()
   syncBagOverlay()
 }

@@ -390,7 +390,7 @@ test('边缘词缀识别结束后恢复主窗口前台且早期校验失败不�
   const probe = service.match(/async probeBorderMods\(\{ atlasRegionMetadata \} = \{\}\)[\s\S]*?\n  \}/)?.[0] || ''
   const finallyBlock = probe.match(/finally \{([\s\S]*?)\n    \}/)?.[1] || ''
 
-  assert.match(manager, /export function restoreMainWindowToForeground\(\) \{[\s\S]*?restoreWindowToForeground\(mainWindow\)/)
+  assert.match(manager, /export function restoreMainWindowToForeground\(\) \{[\s\S]*?restoreWindowToForeground\(mainWindow,/)
   assert.match(foreground, /window\.show\(\)[\s\S]*window\.moveTop\?\.\(\)[\s\S]*window\.focus\(\)/)
   assert.match(foreground, /window\.isFocused\?\.\(\)[\s\S]*window\.minimize\(\)[\s\S]*window\.restore\(\)/)
   assert.doesNotMatch(foreground, /setAlwaysOnTop/)

@@ -40,7 +40,7 @@ import {
 } from './coordinates.js'
 import { restoreWindowsGameFocus } from '../priceCheck/clipboardCapture.js'
 import { detectPythonPath } from '../python/detector.js'
-import { restoreWindowToForeground } from './foregroundRestore.js'
+import { restoreWindowToForeground, restoreWindowsNativeWindowFocus } from './foregroundRestore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -664,7 +664,9 @@ let screenPickerSession = null
 let pickerPreparing = false
 
 export function restoreMainWindowToForeground() {
-  return restoreWindowToForeground(mainWindow)
+  return restoreWindowToForeground(mainWindow, {
+    nativeFocusFn: window => restoreWindowsNativeWindowFocus(window, { pythonPath: detectPythonPath() })
+  })
 }
 
 function waitMinimized(win, capMs = 300) {
@@ -678,10 +680,16 @@ function waitMinimized(win, capMs = 300) {
   })
 }
 
-async function preparePickerSession() {
+export function minimizeMainWindowForAutomation() {
   const win = mainWindow
+  if (!win || win.isDestroyed()) return Promise.resolve(false)
   const minimized = waitMinimized(win)
-  win?.minimize()
+  if (!win.isMinimized()) win.minimize()
+  return minimized.then(() => Boolean(mainWindow === win && !win.isDestroyed() && win.isMinimized()))
+}
+
+async function preparePickerSession() {
+  const minimized = minimizeMainWindowForAutomation()
   if (process.platform !== 'win32') {
     await minimized
     return

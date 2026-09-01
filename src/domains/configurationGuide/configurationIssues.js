@@ -170,12 +170,24 @@ export function collectCraftingConfigurationIssues(context = {}) {
   const issues = []
   const preset = context.preset
 
-  if (!isConfiguredPoint(context.itemPosition)) {
+  const batchEnabled = Boolean(preset?.batchCrafting?.enabled)
+  if (!batchEnabled && !isConfiguredPoint(context.itemPosition)) {
     issues.push(issue(moduleId, actionId, 'item.position', 'coordinate', '制作物品位置', '物品位置未配置，请先在设置中抓取物品坐标', 'item.position'))
   }
   if (!preset) {
     issues.push(issue(moduleId, actionId, 'preset.items', 'preset', '物品制作预设', '未选择预设配置', 'preset.items'))
     return createConfigurationCheck(issues, context)
+  }
+  if (batchEnabled) {
+    if (!isConfiguredGrid(context.inventory)) issues.push(inventoryGridIssue(moduleId, actionId, context.inventory))
+    if (!context.batchSnapshot?.scanId) {
+      issues.push(issue(moduleId, actionId, 'preset.items.batch-scan', 'preset', '本地背包扫描', '请先打开角色背包和通货页面，然后在批量制作模块扫描背包', 'preset.items.batch-scan', 'missing'))
+    }
+    if (!preset.batchCrafting.categoryIds?.length) {
+      issues.push(issue(moduleId, actionId, 'preset.items.batch-categories', 'preset', '批量物品类别', '请至少选择一个背包批量制作类别', 'preset.items.batch-categories', 'missing'))
+    } else if (context.batchSnapshot?.scanId && !Number(context.batchCandidateCount || 0)) {
+      issues.push(issue(moduleId, actionId, 'preset.items.batch-candidates', 'preset', '批量制作候选', '当前扫描没有所选类别的可制作物品，请调整类别或重新扫描', 'preset.items.batch-categories', 'missing'))
+    }
   }
 
   const affixEnabled = Boolean(preset.moduleTwo?.enabled)
@@ -225,6 +237,19 @@ export function collectBagConfigurationIssues(context = {}) {
   const actionId = context.actionId || CONFIGURATION_ACTIONS.enable
   const issues = templateIssues(moduleId, actionId, context.templates, [
     { id: 'stash-title', label: '仓库标题模板', template: 'stashTitle', region: 'stashRegion' },
+    { id: 'inventory-title', label: '背包标题模板', template: 'inventoryTitle', region: 'inventoryRegion' }
+  ])
+  if (!isConfiguredGrid(context.inventory)) {
+    issues.push(inventoryGridIssue(moduleId, actionId, context.inventory))
+  }
+  return createConfigurationCheck(issues, context)
+}
+
+export function collectAllflameReceiverConfigurationIssues(context = {}) {
+  const moduleId = CONFIGURATION_MODULES.bag
+  const actionId = context.actionId || CONFIGURATION_ACTIONS.enable
+  const issues = templateIssues(moduleId, actionId, context.templates, [
+    { id: 'allflame-receiver-title', label: '永火接收舱标题模板', template: 'allflameReceiverTitle', region: 'allflameReceiverRegion' },
     { id: 'inventory-title', label: '背包标题模板', template: 'inventoryTitle', region: 'inventoryRegion' }
   ])
   if (!isConfiguredGrid(context.inventory)) {

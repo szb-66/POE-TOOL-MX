@@ -11,7 +11,7 @@ export class BagSessionController {
   }
 
   beginManual() {
-    if (!this.ready) return { success: false, error: '仓库和背包尚未同时识别成功' }
+    if (!this.ready) return { success: false, error: '入库目标和背包尚未同时识别成功' }
     if (!this.foreground) return { success: false, error: '游戏窗口当前不在前台' }
     if (this.stashing) return { success: false, error: '入库正在进行中' }
     this.stashing = true

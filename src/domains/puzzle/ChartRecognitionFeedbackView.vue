@@ -9,7 +9,7 @@
       <div v-if="hasProgress" class="progress-track" aria-hidden="true">
         <span :style="{ width: `${progressPercent}%` }"></span>
       </div>
-      <p>识别进行中，请勿移动鼠标</p>
+      <p>{{ helperText }}</p>
     </template>
     <template v-else>
       <span class="result-icon" aria-hidden="true">{{ resultIcon }}</span>
@@ -29,7 +29,9 @@ const snapshot = ref({ kind: 'running', stage: 'shape', current: 0, total: 0, st
 const stageLabels = Object.freeze({
   shape: '正在识别碎片形状',
   copy: '正在读取碎片词缀',
-  border: '正在识别边缘词缀'
+  border: '正在识别边缘词缀',
+  starting: '正在加载识别组件',
+  grid: '正在扫描市集格子'
 })
 const resultTitles = Object.freeze({
   success: '识别完成',
@@ -42,8 +44,12 @@ const current = computed(() => Math.max(0, Number(snapshot.value.current || 0)))
 const total = computed(() => Math.max(0, Number(snapshot.value.total || 0)))
 const hasProgress = computed(() => total.value > 0)
 const progressPercent = computed(() => Math.min(100, Math.round(current.value / Math.max(1, total.value) * 100)))
-const stageLabel = computed(() => stageLabels[snapshot.value.stage] || '正在识别')
-const resultTitle = computed(() => resultTitles[snapshot.value.status] || '识别结束')
+const isFaustus = computed(() => snapshot.value.scope === 'faustus')
+const stageLabel = computed(() => snapshot.value.label || stageLabels[snapshot.value.stage] || '正在识别')
+const helperText = computed(() => snapshot.value.detail || (isFaustus.value ? '正在游戏内执行，请勿操作鼠标和键盘' : '识别进行中，请勿移动鼠标'))
+const resultTitle = computed(() => isFaustus.value
+  ? (snapshot.value.status === 'success' ? '价格识别完成' : '价格识别失败')
+  : (resultTitles[snapshot.value.status] || '识别结束'))
 const resultIcon = computed(() => resultIcons[snapshot.value.status] || '•')
 let removeListener = null
 

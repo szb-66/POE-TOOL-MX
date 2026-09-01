@@ -16,6 +16,7 @@ import { stopPythonProcess } from '../python/process.js'
 import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEvents.js'
 import { CraftingCurrencyUsageLedger } from '../python/currencyUsageLedger.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
+import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 
 let stopScriptHandler = null
 
@@ -149,6 +150,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           intentionallyStopped.delete(currentScriptProcess)
           return { success: false, stopped: false, error: '停止制作/地图进程失败，进程仍在运行' }
         }
+        if (mode === 'items') batchRecoveryStore.clear()
 
         // 发送脚本停止事件到overlay（用于地图制作）
         const overlayWindow = getOverlayWindow()
@@ -326,10 +328,16 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       }
       const scriptPath = config.scriptPath || path.join(filePaths.tempDir, 'crafting.py')
 
+      if (config?.batchRecoveryContext) {
+        const checkpoint = batchRecoveryStore.begin(config.batchRecoveryContext, config.usageSessionId)
+        if (!checkpoint.valid) return { success: false, error: checkpoint.error }
+      }
+
       // 制作脚本同时依赖 pynput 与 pyperclip，不能回退到仅能执行 Python 的解释器。
       const requireStashTabOcr = Boolean(config?.requiresStashTabOcr)
       const pythonPath = resolveCraftingPython(python, requireStashTabOcr)
       if (!pythonPath) {
+        if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: '制作脚本运行环境不可用', code: 'PYTHON_UNAVAILABLE' })
         return { success: false, error: requireStashTabOcr
           ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
           : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
@@ -382,6 +390,18 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         stdoutLineBuffer = completeLines.pop() || ''
         for (const line of completeLines) {
           const scriptEvent = parseScriptEventLine(line)
+          if (scriptEvent?.event?.startsWith('crafting-batch-')) {
+            batchRecoveryStore.applyEvent(scriptEvent)
+          }
+          if (scriptEvent?.event?.startsWith('crafting-batch-') || scriptEvent?.event === 'crafting-recovery-checkpoint') {
+            if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+              mainWindow.webContents.send('update-overlay', scriptEvent)
+            }
+            const batchOverlayWindow = getOverlayWindow()
+            if (batchOverlayWindow && !batchOverlayWindow.isDestroyed()) {
+              batchOverlayWindow.webContents.send('update-overlay', scriptEvent)
+            }
+          }
           if (scriptEvent?.event === 'crafting-currency-used') {
             const updatedUsage = currencyUsageLedger.record(scriptEvent, {
               usageSessionId: usageSnapshot.usageSessionId,
@@ -399,6 +419,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           }
           if (scriptEvent?.event === 'crafting-manual-stopped') {
             scriptTermination = 'manual'
+            if (mode === 'items') batchRecoveryStore.clear()
             if (!manualStopNotified) {
               manualStopNotified = true
               const currentOverlayWindow = getOverlayWindow()
@@ -419,9 +440,10 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           }
           if (scriptEvent?.event === 'crafting-completed') {
             scriptTermination = 'completed'
+            if (mode === 'items') batchRecoveryStore.clear()
             continue
           }
-          if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(scriptEvent?.event)) continue
+          if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed', 'crafting-batch-preflight-failed'].includes(scriptEvent?.event)) continue
           scriptTermination = 'abnormal'
           latestRecovery = scriptEvent.recovery || latestRecovery
           runtimeErrorCode = scriptEvent.code || runtimeErrorCode
@@ -429,9 +451,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
             ? '仓库页自动选择失败'
             : scriptEvent.event === 'currency-preflight-failed'
               ? '通货启动预检失败'
+              : scriptEvent.event === 'crafting-batch-preflight-failed'
+                ? '背包批量制作预检失败'
               : scriptEvent.event === 'crafting-runtime-stopped'
                 ? '游戏窗口运行中失去前台'
                 : '制作脚本启动失败')
+          if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: runtimeError, code: runtimeErrorCode })
           sendScriptStatus({
             status: 'error',
             mode,
@@ -507,6 +532,9 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           runtimeError = stderr.trim() || (code !== 0
             ? `脚本异常退出，退出代码: ${code}`
             : '制作脚本未正常完成')
+        }
+        if (mode === 'items' && termination === 'abnormal' && !wasIntentionallyStopped) {
+          batchRecoveryStore.markAbnormal({ reason: runtimeError, code: runtimeErrorCode })
         }
         if (wasCurrent) clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
@@ -609,6 +637,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         await Promise.all([launch.started, startupPromise])
       } catch (error) {
         const startupError = error?.message || '制作脚本启动失败'
+        if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: startupError, code: 'SCRIPT_START_FAILED' })
         if (getCurrentScriptProcess() === pythonProcess) {
           intentionallyStopped.add(pythonProcess)
           try {
@@ -651,6 +680,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
 
       return { success: true, processId: pythonProcess.pid, mode, ...currencyUsageLedger.snapshot() }
     } catch (error) {
+      if (config?.mode === 'items') batchRecoveryStore.markAbnormal({ reason: error.message, code: 'SCRIPT_START_FAILED' })
       fileWatcher.stopFileWatcher()
       clearCurrentScriptProcess()
       return { success: false, error: error.message }
@@ -659,6 +689,24 @@ export function registerPythonHandlers(python, window, fileWatcher) {
 
   ipcMain.handle('generate-and-execute-script', async (event, config) => {
     return executeGeneratedScript(event, config)
+  })
+
+  const trustedBatchRecoverySender = (event) => {
+    const mainWindow = getMainWindow()
+    const overlayWindow = getOverlayWindow()
+    return Boolean(
+      (mainWindow && !mainWindow.isDestroyed() && event.sender === mainWindow.webContents) ||
+      (overlayWindow && !overlayWindow.isDestroyed() && event.sender === overlayWindow.webContents)
+    )
+  }
+  ipcMain.handle('crafting-batch-recovery-get', (event) => {
+    if (!trustedBatchRecoverySender(event)) return { success: false, error: '无权读取批量恢复检查点' }
+    return { success: true, checkpoint: batchRecoveryStore.snapshot({ requireRecoverable: true }) }
+  })
+  ipcMain.handle('crafting-batch-recovery-clear', (event) => {
+    if (!trustedBatchRecoverySender(event)) return { success: false, error: '无权清除批量恢复检查点' }
+    batchRecoveryStore.clear()
+    return { success: true }
   })
 }
 

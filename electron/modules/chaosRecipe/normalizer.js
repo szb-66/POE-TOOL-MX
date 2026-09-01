@@ -66,7 +66,7 @@ function categoryCandidates(raw) {
   return values.filter(Boolean)
 }
 
-function decodeIconResourcePath(icon) {
+export function decodeIconResourcePath(icon) {
   const parts = String(icon || '').split('/').filter(Boolean)
   for (const part of parts) {
     if (part.length < 12) continue

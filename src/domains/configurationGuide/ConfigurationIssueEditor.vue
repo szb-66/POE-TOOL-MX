@@ -150,6 +150,31 @@
       </el-form>
     </div>
 
+    <el-alert
+      v-else-if="issue.editorId === 'preset.items.batch-scan'"
+      title="请关闭引导，在制作页的背包批量制作区域点击“扫描背包”"
+      description="扫描前请自行在游戏中打开角色背包和通货页面。"
+      type="warning"
+      :closable="false"
+      show-icon
+    />
+
+    <div v-else-if="issue.editorId === 'preset.items.batch-categories'" class="batch-category-editor">
+      <el-checkbox-group :model-value="selectedBatchCategoryIds" @change="saveBatchCategories">
+        <el-checkbox v-for="category in batchCategories" :key="category.id" :value="category.id">
+          {{ category.label }}（{{ category.count }}）
+        </el-checkbox>
+      </el-checkbox-group>
+      <el-alert
+        v-if="!batchCategories.length"
+        title="当前扫描没有可选物品类别"
+        description="请关闭引导，返回制作页重新扫描背包。"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+    </div>
+
     <div v-else-if="issue.editorId === 'preset.items'" class="preset-editor">
       <PresetSelector type="item" />
       <ModuleTwo />
@@ -203,6 +228,7 @@ import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePresetStore } from '@/stores/preset'
+import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { CURRENCY_NAMES } from '@/utils/constants'
 import { deriveInventoryGridFromRegion } from '@/utils/inventorySettings'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
@@ -231,6 +257,7 @@ const stashPickup = useStashPickupStore()
 const junfeng = useJunfengStore()
 const puzzle = usePuzzleStore()
 const presets = usePresetStore()
+const batchCrafting = useBatchCraftingStore()
 const picking = ref('')
 const combatDraft = ref(JSON.parse(JSON.stringify(settings.combatAssist)))
 const combatResources = [
@@ -240,7 +267,8 @@ const combatResources = [
 const templateDefinitions = {
   'template.stash-title': { type: 'stashTitle', regionKey: 'stashRegion', label: '仓库标题模板' },
   'template.inventory-title': { type: 'inventoryTitle', regionKey: 'inventoryRegion', label: '背包标题模板' },
-  'template.junfeng-reward-title': { type: 'junfengRewardTitle', regionKey: 'junfengRewardRegion', label: '君锋镇奖励标题模板' }
+  'template.junfeng-reward-title': { type: 'junfengRewardTitle', regionKey: 'junfengRewardRegion', label: '君锋镇奖励标题模板' },
+  'template.allflame-receiver-title': { type: 'allflameReceiverTitle', regionKey: 'allflameReceiverRegion', label: '永火接收舱标题模板' }
 }
 
 const currencyKey = computed(() => props.issue.editorId.startsWith('currency.') ? props.issue.editorId.slice('currency.'.length) : '')
@@ -271,9 +299,18 @@ const chartConfig = computed(() => {
 })
 const activeMapProfile = computed(() => mapKind.value === 'chart' ? chartConfig.value : mapConfig.value)
 const activeMapStatKeys = computed(() => mapKind.value === 'chart' ? CHART_BASE_STATS : MAP_BASE_STATS)
+const batchCategories = computed(() => batchCrafting.categories)
+const selectedBatchCategoryIds = computed(() => presets.currentItemPreset?.batchCrafting?.categoryIds || [])
 
 function configured() {
   emit('configured', props.issue.id)
+}
+
+function saveBatchCategories(categoryIds) {
+  presets.updateCurrentItemPreset({
+    batchCrafting: { ...presets.currentItemPreset.batchCrafting, categoryIds }
+  })
+  configured()
 }
 
 function saveCurrency(point) {
@@ -481,7 +518,9 @@ onMounted(() => {
 <style scoped>
 .configuration-issue-editor { display: grid; gap: 14px; }
 .configuration-issue-editor__row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.combat-editor, .preset-editor { display: grid; gap: 14px; }
+.combat-editor, .preset-editor, .batch-category-editor { display: grid; gap: 14px; }
+.batch-category-editor :deep(.el-checkbox-group) { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.batch-category-editor :deep(.el-checkbox) { margin-right: 0; }
 .combat-loop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .combat-loop-row :deep(.el-input-number) { width: 130px; }
 .map-method { width: 140px; }

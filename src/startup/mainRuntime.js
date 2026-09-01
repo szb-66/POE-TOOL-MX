@@ -9,6 +9,7 @@ import { disposeBagAutomation, initBagAutomation } from '../utils/bagService'
 import { useChaosRecipeStore } from '../stores/chaosRecipe'
 import { usePriceCheckStore } from '../stores/priceCheck'
 import { usePoeCnAccountStore } from '../stores/poeCnAccount'
+import { useBatchCraftingStore } from '../stores/batchCrafting'
 import { useStashPickupStore } from '../stores/stashPickup'
 import { useJunfengStore } from '../stores/junfeng'
 import { usePuzzleStore } from '../stores/puzzle'
@@ -55,6 +56,9 @@ async function startMainRuntime({ router }) {
   // 先接收生命周期事件，再查询当前状态，避免同步期间漏掉进程事件。
   const accountStore = usePoeCnAccountStore()
   addDisposer(accountStore.listenStatus())
+  const batchCraftingStore = useBatchCraftingStore()
+  addDisposer(batchCraftingStore.listen())
+  addDisposer(electronApi.batchCrafting.onScanRequested(() => { void router.push('/items') }))
   const chaosStore = useChaosRecipeStore()
   addDisposer(chaosStore.listenAutomation())
   const stashPickupStore = useStashPickupStore()

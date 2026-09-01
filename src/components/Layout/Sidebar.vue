@@ -46,6 +46,10 @@
       <el-icon><Coin /></el-icon>
       <span>查价</span>
     </el-menu-item>
+    <el-menu-item index="/faustus" @pointerenter="warmRoute('/faustus')" @focusin="warmRoute('/faustus')">
+      <el-icon><PriceTag /></el-icon>
+      <span>浮士德</span>
+    </el-menu-item>
     <el-menu-item index="/puzzle" @pointerenter="warmRoute('/puzzle')" @focusin="warmRoute('/puzzle')">
       <el-icon><Guide /></el-icon>
       <span>海图</span>
@@ -70,7 +74,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Box, Coin, Connection, DataAnalysis, Guide, House, MapLocation, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, Guide, House, MapLocation, PriceTag, ShoppingBag, Setting, SetUp, SuitcaseLine, FirstAidKit, Notebook } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
 import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 

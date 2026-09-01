@@ -256,6 +256,8 @@ test('公共检测独立上报普通仓库与奖励状态并在背包变化时�
   assert.match(python, /junfeng_ready = reward_detected and matches\["inventoryMatched"\]/)
   assert.match(python, /inventory_changed = matches\["inventoryMatched"\] != last_inventory_matched/)
   assert.match(coordinator, /stashReady: Boolean\(event\.stashReady \?\? event\.ready\)/)
+  assert.match(python, /allflameReceiverReady=allflame_receiver_ready/)
+  assert.match(coordinator, /allflameReceiverReady: Boolean\(event\.allflameReceiverReady\)/)
   assert.match(coordinator, /rewardDetected: Boolean\(event\.rewardDetected\)/)
   assert.match(coordinator, /rewardScore: event\.rewardScore/)
 })

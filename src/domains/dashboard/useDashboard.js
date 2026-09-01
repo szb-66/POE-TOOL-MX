@@ -14,6 +14,8 @@ import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCraftingStore } from '@/domains/crafting/craftingStore'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { useBatchCraftingStore } from '@/stores/batchCrafting'
+import { inventoryItemPosition, validateBatchInventoryLayout, validateBatchCategoryCompatibility } from '@/domains/items/batchCrafting'
 import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
 import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
@@ -84,15 +86,36 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const craftingStore = useCraftingStore()
   const priceCheckStore = usePriceCheckStore()
   const accountStore = usePoeCnAccountStore()
+  const batchCraftingStore = useBatchCraftingStore()
   const pending = reactive({})
   const refreshing = ref(false)
   let dashboardCombatQueue = Promise.resolve()
 
-  const itemValidation = computed(() => validateCraftingConfig({
-    itemPosition: settingsStore.itemPosition,
-    currencyPositions: settingsStore.currencyPositions,
-    preset: presetStore.currentItemPreset
-  }))
+  const itemValidation = computed(() => {
+    const preset = presetStore.currentItemPreset
+    if (!preset?.batchCrafting?.enabled) return validateCraftingConfig({
+      itemPosition: settingsStore.itemPosition,
+      currencyPositions: settingsStore.currencyPositions,
+      preset
+    })
+    const candidates = batchCraftingStore.candidates
+    const first = candidates[0]
+    const base = validateCraftingConfig({
+      itemPosition: first ? inventoryItemPosition(first, settingsStore.inventory) : { x: 0, y: 0 },
+      inventory: settingsStore.inventory,
+      currencyPositions: settingsStore.currencyPositions,
+      preset
+    })
+    const errors = [...base.errors]
+    if (!batchCraftingStore.snapshot?.scanId) errors.unshift('请先自行打开角色背包和通货页面，然后扫描背包')
+    else if (!preset.batchCrafting.categoryIds?.length) errors.unshift('请至少选择一个背包批量制作类别')
+    else if (!candidates.length) errors.unshift('当前扫描没有所选类别的可制作物品')
+    const layout = validateBatchInventoryLayout(candidates, settingsStore.inventory)
+    if (!layout.valid) errors.unshift(layout.error)
+    const compatibility = validateBatchCategoryCompatibility(preset, candidates)
+    if (!compatibility.valid) errors.unshift(compatibility.error)
+    return { ...base, isValid: errors.length === 0, errors }
+  })
   const activeMapConfig = computed(() => getActiveMapRollingConfig(
     presetStore.currentMapPreset?.map || {},
     presetStore.currentChartPreset?.chart || {},
@@ -105,6 +128,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   }))
   const bagValidationError = computed(() => validateBagRuntimeConfig(buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
+    allflameReceiverEnabled: bagStore.allflameReceiverEnabled,
     forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
@@ -126,11 +150,14 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         scriptRunning: scriptStore.isRunning,
         scriptMode: scriptStore.mode,
         lastError: scriptStore.lastError,
-        lastMode: scriptStore.lastMode
+        lastMode: scriptStore.lastMode,
+        batchEnabled: presetStore.currentItemPreset?.batchCrafting?.enabled,
+        batchCount: batchCraftingStore.candidates.length,
+        batchProgress: scriptStore.batchRuntime
       }),
       evaluateBagStatus({
         configError: bagValidationError.value,
-        moduleEnabled: bagStore.moduleEnabled,
+        moduleEnabled: bagStore.moduleEnabled || bagStore.allflameReceiverEnabled,
         isDetecting: bagStore.isDetecting,
         isMatched: bagStore.isMatched,
         isStashing: bagStore.isStashing,

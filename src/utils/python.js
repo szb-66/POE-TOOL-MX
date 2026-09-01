@@ -71,6 +71,7 @@ export function generatePythonScript(config) {
     fixedTiming = {},
     itemPosition,
     preset,
+    batchConfig = null,
     filePaths,
     stashTabSelection = { enabled: false },
     dpiScale = 1.0 // 默认DPI缩放比例
@@ -169,14 +170,20 @@ export function generatePythonScript(config) {
         return len(detailed_mods)
 
     explicit_mods = result.get("explicitMods", []) if isinstance(result, dict) else []
-    return len(explicit_mods) if isinstance(explicit_mods, list) else 0
+    if isinstance(explicit_mods, list) and len(explicit_mods) == 1:
+        return 1
+    return None
 
 def augment_single_affix_if_needed(result):
     if not ${mode === 'alteration' && enableAugmentation ? 'True' : 'False'}:
         return True, result
     if not isinstance(result, dict) or result.get("rarity", "").replace(" ", "") != "魔法":
         return True, result
-    if explicit_affix_count(result) != 1:
+    affix_count = explicit_affix_count(result)
+    if affix_count is None:
+        print("[错误] 无法从结构化解析结果确认显式词缀数量，已停止以避免错误跳过增幅石")
+        return False, result
+    if affix_count != 1:
         return True, result
 
     print(f"[提示] 检测到单词缀，先使用增幅石（explicitMods: {len(result.get('explicitMods') or [])}, detailedMods: {len(result.get('detailedMods') or [])}）...")
@@ -729,6 +736,24 @@ def craft_eldritch_implicits(initial_result=None):
     y: Math.floor(itemPosition?.y || 0)
   }
   const requiredCurrencyTypes = buildCraftingCurrencyPreflight(preset)
+  const safeBatchConfig = batchConfig?.enabled ? {
+    enabled: true,
+    batchId: String(batchConfig.batchId || ''),
+    scanId: String(batchConfig.scanId || ''),
+    snapshotFingerprint: String(batchConfig.snapshotFingerprint || ''),
+    recovering: Boolean(batchConfig.recovering),
+    completedIds: (batchConfig.completedIds || []).map(String),
+    targets: (batchConfig.targets || []).map((target) => ({
+      id: String(target.id || ''),
+      categoryId: String(target.categoryId || ''),
+      baseType: String(target.baseType || ''),
+      displayName: String(target.displayName || target.baseType || ''),
+      x: Number(target.x), y: Number(target.y),
+      width: Number(target.width), height: Number(target.height),
+      footprintSource: String(target.footprintSource || ''),
+      position: { x: Math.floor(target.position?.x || 0), y: Math.floor(target.position?.y || 0) }
+    }))
+  } : { enabled: false, targets: [] }
 
   // 填充模板
   let script = craftingTemplate
@@ -754,6 +779,7 @@ def craft_eldritch_implicits(initial_result=None):
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
+    '{{BATCH_CONFIG_JSON}}': JSON.stringify(JSON.stringify(safeBatchConfig)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
     '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,

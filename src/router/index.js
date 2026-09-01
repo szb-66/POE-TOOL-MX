@@ -58,6 +58,11 @@ const routes = [
     component: pageLoaders['/price-check']
   },
   {
+    path: '/faustus',
+    name: 'Faustus',
+    component: pageLoaders['/faustus']
+  },
+  {
     path: '/puzzle',
     name: 'Puzzle',
     component: pageLoaders['/puzzle']

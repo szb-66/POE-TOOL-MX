@@ -3,6 +3,21 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
   emergencyStopAll: () => ipcRenderer.invoke('emergency-stop-all'),
+  scanBatchCraftingInventory: (config) => ipcRenderer.invoke('batch-crafting-scan-inventory', config),
+  stopBatchCraftingInventoryScan: () => ipcRenderer.invoke('batch-crafting-stop-scan'),
+  onBatchCraftingScanProgress: (callback) => {
+    const listener = (_event, progress) => callback(progress)
+    ipcRenderer.on('batch-crafting-scan-progress', listener)
+    return () => ipcRenderer.removeListener('batch-crafting-scan-progress', listener)
+  },
+  returnToBatchCraftingScan: () => ipcRenderer.invoke('crafting-batch-return-to-scan'),
+  getBatchCraftingRecovery: () => ipcRenderer.invoke('crafting-batch-recovery-get'),
+  clearBatchCraftingRecovery: () => ipcRenderer.invoke('crafting-batch-recovery-clear'),
+  onBatchCraftingScanRequested: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('crafting-batch-scan-requested', listener)
+    return () => ipcRenderer.removeListener('crafting-batch-scan-requested', listener)
+  },
   openConfigTransfer: () => ipcRenderer.invoke('config-transfer:open'),
   saveConfigTransfer: (payload) => ipcRenderer.invoke('config-transfer:save', payload),
   openConfigurationGuideFromOverlay: (request) => ipcRenderer.invoke('configuration-guide:open-from-overlay', request),
@@ -335,6 +350,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event, message) => callback(message)
     ipcRenderer.on('stash-pickup-event', listener)
     return () => ipcRenderer.removeListener('stash-pickup-event', listener)
+  },
+  getFaustusStatus: () => ipcRenderer.invoke('faustus-status'),
+  pickFaustusGridRegion: () => ipcRenderer.invoke('faustus-grid-pick'),
+  testFaustusPriceWindow: (request) => ipcRenderer.invoke('faustus-price-window-test', request),
+  startFaustusRepricing: (request) => ipcRenderer.invoke('faustus-start', request),
+  stopFaustusRepricing: (reason) => ipcRenderer.invoke('faustus-stop', reason),
+  onFaustusEvent: (callback) => {
+    const listener = (_event, payload) => callback(payload)
+    ipcRenderer.on('faustus-event', listener)
+    return () => ipcRenderer.removeListener('faustus-event', listener)
   },
   updateJunfengRuntime: (runtime) => ipcRenderer.invoke('junfeng-runtime-update', runtime),
   previewJunfeng: () => ipcRenderer.invoke('junfeng-preview'),

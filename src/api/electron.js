@@ -17,6 +17,15 @@ const craftingIpcPayload = (value) => {
 
 const mockApi = {
   emergencyStopAll: () => Promise.resolve({ success: true, stopped: [], failed: [] }),
+  batchCrafting: {
+    scanInventory: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持背包扫描' }),
+    stopScan: () => Promise.resolve({ success: true, stopped: false }),
+    returnToScan: () => Promise.resolve({ success: false }),
+    getRecovery: () => Promise.resolve({ success: true, checkpoint: null }),
+    clearRecovery: () => Promise.resolve({ success: true }),
+    onScanProgress: () => () => {},
+    onScanRequested: () => () => {}
+  },
   configTransfer: {
     open: () => Promise.resolve({ success: false, canceled: false, fileName: '', content: '', errorCode: 'CONFIG_TRANSFER_UNAVAILABLE', error: '仅 Electron 客户端支持配置导入' }),
     save: () => Promise.resolve({ success: false, canceled: false, fileName: '', errorCode: 'CONFIG_TRANSFER_UNAVAILABLE', error: '仅 Electron 客户端支持配置导出' })
@@ -229,6 +238,14 @@ const mockApi = {
     pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
     onEvent: () => () => {}
   },
+  faustus: {
+    getStatus: () => Promise.resolve({ success: true, data: { status: 'idle', reasonCode: '', processed: 0, total: 0 } }),
+    pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
+    testPriceWindow: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持价格窗口识别' } }),
+    start: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持浮士德改价' } }),
+    stop: () => Promise.resolve({ success: true, data: { status: 'stopped' } }),
+    onEvent: () => () => {}
+  },
   junfeng: {
     updateRuntime: () => Promise.resolve({ success: true, data: { status: 'idle' } }),
     preview: () => Promise.resolve({ success: false, error: { message: '仅 Electron 客户端支持君锋镇预览' } }),
@@ -355,6 +372,15 @@ const mockApi = {
 
 export const electronApi = isElectron ? {
   emergencyStopAll: () => window.electronAPI.emergencyStopAll?.(),
+  batchCrafting: {
+    scanInventory: (config) => window.electronAPI.scanBatchCraftingInventory?.(craftingIpcPayload(config)),
+    stopScan: () => window.electronAPI.stopBatchCraftingInventoryScan?.(),
+    returnToScan: () => window.electronAPI.returnToBatchCraftingScan?.(),
+    getRecovery: () => window.electronAPI.getBatchCraftingRecovery?.(),
+    clearRecovery: () => window.electronAPI.clearBatchCraftingRecovery?.(),
+    onScanProgress: (callback) => window.electronAPI.onBatchCraftingScanProgress?.(callback) || (() => {}),
+    onScanRequested: (callback) => window.electronAPI.onBatchCraftingScanRequested?.(callback) || (() => {})
+  },
   configTransfer: {
     open: () => window.electronAPI.openConfigTransfer?.(),
     save: (payload) => window.electronAPI.saveConfigTransfer?.(craftingIpcPayload(payload))
@@ -571,6 +597,14 @@ export const electronApi = isElectron ? {
     getStatus: () => window.electronAPI.getStashPickupStatus?.(),
     pickGridRegion: () => window.electronAPI.pickStashPickupGridRegion?.(),
     onEvent: (callback) => window.electronAPI.onStashPickupEvent?.(callback) || (() => {})
+  },
+  faustus: {
+    getStatus: () => window.electronAPI.getFaustusStatus?.(),
+    pickGridRegion: () => window.electronAPI.pickFaustusGridRegion?.(),
+    testPriceWindow: (request) => window.electronAPI.testFaustusPriceWindow?.(craftingIpcPayload(request)),
+    start: (request) => window.electronAPI.startFaustusRepricing?.(craftingIpcPayload(request)),
+    stop: (reason) => window.electronAPI.stopFaustusRepricing?.(String(reason || 'user')),
+    onEvent: (callback) => window.electronAPI.onFaustusEvent?.(callback) || (() => {})
   },
   junfeng: {
     updateRuntime: (runtime) => window.electronAPI.updateJunfengRuntime?.(craftingIpcPayload(runtime)),

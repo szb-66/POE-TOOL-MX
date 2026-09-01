@@ -4,7 +4,8 @@ import path from 'path'
 export const BAG_TEMPLATE_TARGETS = Object.freeze({
   stashTitle: 'stash_title.png',
   inventoryTitle: 'inventory_title.png',
-  junfengRewardTitle: 'junfeng_reward_title.png'
+  junfengRewardTitle: 'junfeng_reward_title.png',
+  allflameReceiverTitle: 'allflame_receiver_title.png'
 })
 
 export function resolveTemplateFileName(fileName, isPackaged = true) {

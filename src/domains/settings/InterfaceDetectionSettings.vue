@@ -42,7 +42,8 @@ const showDebugOverlay = ref(false)
 const definitions = [
   { type: 'stashTitle', region: 'stashRegion', label: '仓库标题模板' },
   { type: 'inventoryTitle', region: 'inventoryRegion', label: '背包标题模板' },
-  { type: 'junfengRewardTitle', region: 'junfengRewardRegion', label: '君锋镇奖励标题模板' }
+  { type: 'junfengRewardTitle', region: 'junfengRewardRegion', label: '君锋镇奖励标题模板' },
+  { type: 'allflameReceiverTitle', region: 'allflameReceiverRegion', label: '永火接收舱标题模板' }
 ]
 
 function updateDebugOverlay() {
@@ -50,7 +51,8 @@ function updateDebugOverlay() {
   electronApi.window.updateDebugOverlay({ rectangles: [
     { ...store.templates.stashRegion, label: '仓库标题区域', color: 'red' },
     { ...store.templates.inventoryRegion, label: '背包标题区域', color: 'blue' },
-    { ...store.templates.junfengRewardRegion, label: '君锋镇奖励标题区域', color: 'orange' }
+    { ...store.templates.junfengRewardRegion, label: '君锋镇奖励标题区域', color: 'orange' },
+    { ...store.templates.allflameReceiverRegion, label: '永火接收舱标题区域', color: 'green' }
   ] })
 }
 

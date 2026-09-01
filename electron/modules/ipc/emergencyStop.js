@@ -3,7 +3,7 @@
 import { ipcMain } from 'electron'
 import { EmergencyStopCoordinator } from '../automation/emergencyStop.js'
 import { stopCurrentScript } from './python.js'
-import { stopBagStashAutomation } from './bag.js'
+import { stopBagStashAutomation, stopBatchInventoryScan } from './bag.js'
 import { stopPotionAutomation, stopLoopAutomation, stopPortalAutomation } from './combat.js'
 
 function managerAction(id, label, manager, activeStatuses = ['running']) {
@@ -19,12 +19,14 @@ function managerAction(id, label, manager, activeStatuses = ['running']) {
   }
 }
 
-export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfeng, puzzle }) {
+export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfeng, faustus, puzzle }) {
   return new EmergencyStopCoordinator([
     { id: 'script', label: '制作/地图', stop: stopCurrentScript },
     { id: 'bag-stash', label: '自动入库', stop: stopBagStashAutomation },
+    { id: 'batch-inventory-scan', label: '批量背包扫描', stop: stopBatchInventoryScan },
     managerAction('stash-pickup', '仓库取件', stashPickup),
     managerAction('junfeng', '君锋镇取件', junfeng),
+    managerAction('faustus', '浮士德市集改价', faustus),
     managerAction('chaos-recipe', '混沌配方取件', chaosRecipe?.automation, ['running', 'paused']),
     { id: 'potion', label: '自动喝药', stop: stopPotionAutomation },
     { id: 'combat-loop', label: '主动循环', stop: stopLoopAutomation },

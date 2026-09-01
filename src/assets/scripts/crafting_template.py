@@ -43,6 +43,7 @@ try:
     import json
     import os
     import signal
+    import unicodedata
     print("[启动] 基础模块导入成功")
 except ImportError as e:
     print(f"[错误] 基础模块导入失败: {e}")
@@ -205,6 +206,9 @@ fatal_error_reason = None
 foreground_failure_emitted = False
 crafting_operation_session_id = f"items-{os.getpid()}-{time.time_ns()}"
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
+batch_config = json.loads({{BATCH_CONFIG_JSON}})
+batch_completed_ids = list(dict.fromkeys(batch_config.get("completedIds") or []))
+batch_current_target = None
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
@@ -381,10 +385,143 @@ def focus_game_window(timeout_seconds=2.0):
         return False
     return False
 
+BATCH_CATEGORY_NAMES = {
+    "helmet": {"头盔"},
+    "bodyArmour": {"胸甲", "身体护甲"},
+    "gloves": {"手套"},
+    "boots": {"鞋子", "长靴"},
+    "shield": {"盾", "盾牌"},
+    "oneHandWeapon": {"爪", "匕首", "符文匕首", "法杖", "单手剑", "细剑", "单手斧", "单手锤", "短杖"},
+    "twoHandWeapon": {"双手剑", "双手斧", "双手锤", "长杖", "战杖"},
+    "bow": {"弓"},
+    "quiver": {"箭袋"},
+    "ring": {"戒指"},
+    "amulet": {"项链"},
+    "belt": {"腰带"},
+    "jewel": {"珠宝", "深渊珠宝", "星团珠宝"},
+    "flask": {"生命药剂", "魔力药剂", "复合药剂", "功能药剂"}
+}
+
+def normalized_identity_text(value):
+    return " ".join(unicodedata.normalize("NFKC", str(value or "")).strip().casefold().split())
+
+def batch_base_type_matches(expected_base, parsed_base, parsed_name):
+    expected = normalized_identity_text(expected_base)
+    actual_base = normalized_identity_text(parsed_base)
+    if not expected:
+        return False
+    if actual_base:
+        return actual_base == expected
+    actual_name = normalized_identity_text(parsed_name)
+    return actual_name == expected or actual_name.endswith(expected)
+
+def emit_batch_event(event, target=None, reason="", code=""):
+    if not batch_config.get("enabled"):
+        return
+    targets = list(batch_config.get("targets") or [])
+    current = target or batch_current_target
+    payload = {
+        "event": event, "mode": "items", "batchId": batch_config.get("batchId", ""),
+        "total": len(targets),
+        "completed": len(batch_completed_ids),
+        "remaining": max(0, len(targets) - len([item for item in targets if item.get("id") in batch_completed_ids])),
+        "currentItem": current, "reason": reason, "code": code
+    }
+    print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
+
+def fail_batch_preflight(target, reason, code="BATCH_IDENTITY_MISMATCH"):
+    global is_running, fatal_error_reason, batch_current_target
+    batch_current_target = target
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    emit_batch_event("crafting-batch-preflight-failed", target, reason, code)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def batch_category_matches(category_id, actual_category):
+    normalized = normalized_identity_text(actual_category)
+    return normalized in {normalized_identity_text(value) for value in BATCH_CATEGORY_NAMES.get(category_id, set())}
+
+def batch_target_identity_issue(target, result, prefix):
+    if not isinstance(result, dict) or result.get("error") or result.get("unchanged"):
+        detail = result.get("error", "未复制到物品") if isinstance(result, dict) else "未复制到物品"
+        return {
+            "reason": f"{prefix} 物品缺失或无法读取：{detail}",
+            "code": "BATCH_ITEM_MISSING"
+        }
+    if not batch_category_matches(target.get("categoryId"), result.get("category")):
+        return {
+            "reason": f"{prefix} 类别不符：需要 {target.get('categoryId')}，实际 {result.get('category') or '未知'}",
+            "code": "BATCH_CATEGORY_MISMATCH"
+        }
+    if not batch_base_type_matches(target.get("baseType"), result.get("baseName"), result.get("name")):
+        return {
+            "reason": f"{prefix} 底材不符：需要 {target.get('baseType')}，实际 {result.get('baseName') or result.get('name') or '未知'}",
+            "code": "BATCH_BASE_TYPE_MISMATCH"
+        }
+    footprint = result.get("footprint") if isinstance(result.get("footprint"), dict) else {}
+    footprint_source = target.get("footprintSource", "")
+    footprint_mismatch = (
+        int(footprint.get("width", 0)) != int(target.get("width", 0)) or
+        int(footprint.get("height", 0)) != int(target.get("height", 0))
+    )
+    if footprint_source == "inferred-single" and not footprint:
+        footprint_mismatch = False
+    if footprint_mismatch:
+        return {
+            "reason": f"{prefix} 尺寸不符：需要 {target.get('width')}x{target.get('height')}，实际 {footprint.get('width', '?')}x{footprint.get('height', '?')}",
+            "code": "BATCH_SIZE_MISMATCH"
+        }
+    return None
+
+def read_batch_preflight_target(target, prefix):
+    position = dict(target.get("position") or {})
+    if not move_mouse(position.get("x", 0), position.get("y", 0)):
+        return None, {"reason": f"{prefix} 无法定位", "code": "BATCH_POSITION_FAILED"}
+    try:
+        # 批量扫描会恢复扫描前的剪贴板；正式预检必须先建立空白边界，
+        # 只接受当前格本次 Ctrl+C 产生的非空文本，不能沿用上一批残留。
+        pyperclip.copy("")
+    except Exception:
+        return None, {
+            "reason": f"{prefix} 无法清空剪贴板以核对当前物品",
+            "code": "BATCH_ITEM_MISSING"
+        }
+    result = read_current_item(allow_unchanged_text=True, verify_freshness=False)
+    return result, batch_target_identity_issue(target, result, prefix)
+
+def preflight_batch_targets():
+    global item_position, batch_current_target
+    if not batch_config.get("enabled"):
+        return True
+    targets = [
+        target for target in list(batch_config.get("targets") or [])
+        if target.get("id") not in batch_completed_ids
+    ]
+    if not targets:
+        return fail_batch_preflight(None, "当前批次没有可制作物品", "BATCH_EMPTY")
+    emit_batch_event("crafting-batch-preflight-started")
+    for target in targets:
+        if not is_running:
+            return False
+        batch_current_target = target
+        item_position = dict(target.get("position") or {})
+        grid = f"({target.get('x')}, {target.get('y')})"
+        prefix = f"背包格 {grid}"
+        _result, issue = read_batch_preflight_target(target, prefix)
+        if issue:
+            return fail_batch_preflight(target, issue["reason"], issue["code"])
+        emit_batch_event("crafting-batch-preflight-item-succeeded", target)
+    batch_current_target = None
+    emit_batch_event("crafting-batch-preflight-succeeded")
+    return True
+
 # 主函数
 def start_crafting():
     # 开始制作
-    global is_running, fatal_error_reason
+    global is_running, fatal_error_reason, item_position, batch_current_target
     is_running = True
     
     # 注册停止快捷键监听
@@ -483,12 +620,27 @@ def start_crafting():
         is_running = False
         return
 
+    # 批量模式必须先核对整批物品；在全部通过以前不会进行任何通货输入。
+    if not preflight_batch_targets():
+        return False
+
     if not select_currency_stash_tab("items"):
         return False
 
     if not preflight_required_currencies():
         return False
 
+    targets = list(batch_config.get("targets") or []) if batch_config.get("enabled") else [{
+        "id": "single", "displayName": "当前物品", "position": dict(item_position)
+    }]
+    pending_targets = [target for target in targets if target.get("id") not in batch_completed_ids]
+    if not pending_targets:
+        batch_current_target = None
+        emit_batch_event("crafting-batch-completed")
+        return True
+    first_target = pending_targets[0]
+    batch_current_target = first_target if batch_config.get("enabled") else None
+    item_position = dict(first_target.get("position") or item_position)
     initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
     if initial_item_result is None:
         return False
@@ -496,28 +648,27 @@ def start_crafting():
     print("EVENT " + json.dumps({
         "event": "crafting-startup-succeeded", "mode": "items"
     }, ensure_ascii=False), flush=True)
-    
-    success = True
 
-    if eldritch_enabled:
-        success = craft_eldritch_implicits(initial_item_result)
-        if not success:
+    for target_index, target in enumerate(pending_targets):
+        if not is_running:
+            return False
+        batch_current_target = target if batch_config.get("enabled") else None
+        item_position = dict(target.get("position") or item_position)
+        emit_batch_event("crafting-batch-item-started", target)
+        if target_index > 0:
+            initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
+            if initial_item_result is None:
+                return False
+        if not craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_enabled):
             is_running = False
-            return
-    
-    # 词缀匹配
-    if affix_enabled:
-        success = craft_affixes(initial_item_result)
-        if not success:
-            is_running = False
-            return
-    
-    # 插槽制作（顺序执行）
-    if socket_enabled:
-        success = craft_sockets(initial_item_result)
-        if not success:
-            is_running = False
-            return
+            return False
+        if batch_config.get("enabled"):
+            if target.get("id") not in batch_completed_ids:
+                batch_completed_ids.append(target.get("id"))
+            emit_batch_event("crafting-batch-item-completed", target)
+
+    batch_current_target = None
+    emit_batch_event("crafting-batch-completed")
     
     print("[完成] 所有制作流程完成！")
     print("EVENT " + json.dumps({
@@ -526,6 +677,15 @@ def start_crafting():
     play_success_sound()
     time.sleep(2)
     is_running = False
+    return True
+
+def craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_enabled):
+    if eldritch_enabled and not craft_eldritch_implicits(initial_item_result):
+        return False
+    if affix_enabled and not craft_affixes(initial_item_result):
+        return False
+    if socket_enabled and not craft_sockets(initial_item_result):
+        return False
     return True
 
 {{AFFIX_CRAFTING_FUNC}}
@@ -1264,7 +1424,7 @@ def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
     release_all_keys()
     print("EVENT " + json.dumps({
         "event": "crafting-runtime-stopped", "mode": "items",
-        "termination": "abnormal", "code": code, "reason": reason
+        "termination": "abnormal", "code": code, "reason": reason,
     }, ensure_ascii=False), flush=True)
     print(f"[停止] {reason}")
     play_error_sound()

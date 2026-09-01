@@ -146,6 +146,7 @@ test('模板文件名按运行模式隔离：安装版固定名，开发版追�
   assert.equal(resolveTemplateFileName('stash_title.png', false), 'stash_title.dev.png')
   assert.equal(assertBagTemplateTarget('inventoryTitle', false), 'inventory_title.dev.png')
   assert.equal(assertBagTemplateTarget('junfengRewardTitle', false), 'junfeng_reward_title.dev.png')
+  assert.equal(assertBagTemplateTarget('allflameReceiverTitle', false), 'allflame_receiver_title.dev.png')
   assert.throws(() => assertBagTemplateTarget('../../evil', false), /不支持的模板目标/)
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bag-template-mode-'))
   try {

@@ -40,6 +40,7 @@ test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
     templates: { stashTitle: 'stash.png', inventoryTitle: 'inventory.png' }
   })
   assert.equal(settings.moduleEnabled, true)
+  assert.equal(settings.allflameReceiverEnabled, false)
   assert.equal(settings.forceUniqueStash, false)
   assert.equal('immediateStash' in settings, false)
   assert.equal('showStashButtonOnlyWhenReady' in settings, false)
@@ -47,6 +48,7 @@ test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
   assert.deepEqual(settings.blacklist, [])
   assert.equal('buttonPosition' in settings, false)
   assert.equal(settings.templates.stashTitle, 'stash.png')
+  assert.equal(settings.templates.allflameReceiverTitle, '')
   assert.deepEqual(settings.inventoryLayout, {
     extraEnabled: false,
     extraColumns: 6,
@@ -162,6 +164,8 @@ test('运行配置包含模板区域、网格、黑名单和全局自动操作�
   assert.equal(config.blacklist[0].enabled, false)
   assert.equal(config.operationDelayMs, 180)
   assert.equal(config.forceUniqueStash, true)
+  assert.equal(config.moduleEnabled, false)
+  assert.equal(config.allflameReceiverEnabled, false)
   assert.equal('immediateStash' in config, false)
   assert.equal('showStashButtonOnlyWhenReady' in config, false)
   assert.equal('delays' in config, false)
@@ -203,7 +207,7 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /matchMode: draftRule\.value\.matchMode,[\s\S]*enabled: true/)
 })
 
-test('存取页面合并启用条件、提供传奇强制入库并统一基础开关与问号说明', () => {
+test('存取页面并列普通与接收舱入库并共享扫描规则', () => {
   const source = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
   assert.match(source, /传奇强入/)
   assert.match(source, /bagStore\.forceUniqueStash/)
@@ -211,9 +215,13 @@ test('存取页面合并启用条件、提供传奇强制入库并统一基础�
   assert.doesNotMatch(source, /立即执行入库|满足条件显示|immediateStash|showStashButtonOnlyWhenReady/)
   assert.doesNotMatch(source, /active-text|inactive-text|inline-prompt/)
   assert.match(source, /QuestionFilled/)
-  assert.match(source, /content="持续检测仓库与背包，并提供游戏内入库按钮"/)
-  assert.match(source, /aria-label="启用模块说明"/)
-  assert.match(source, /content="仅当传奇物品仓库页已满而无法正常入库时，才会追加 Shift 强制将该传奇物品放入当前仓库"/)
+  assert.match(source, /content="持续检测普通仓库与背包，并在游戏内提供自动入库按钮"/)
+  assert.match(source, /aria-label="背包安全入库启用说明"/)
+  assert.match(source, /永火接收舱一键入库/)
+  assert.match(source, /bagStore\.allflameReceiverEnabled/)
+  assert.match(source, /type="allflameReceiverTitle"/)
+  assert.match(source, /region-key="allflameReceiverRegion"/)
+  assert.match(source, /content="两种入库共用：仅当传奇物品无法正常转移时，才会追加 Shift 强制转移到当前目标界面"/)
   assert.match(source, /aria-label="传奇强入说明"/)
   assert.match(source, /content="点击格子可切换是否执行自动入库。"/)
   assert.match(source, /aria-label="背包格子布局说明"/)
@@ -730,6 +738,70 @@ print(json.dumps({
   assert.deepEqual(outcome.empty_no_seq, ['empty', ''])
 })
 
+test('Python 永火接收舱与背包连续三次匹配后独立就绪', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+events = []
+class Matcher:
+    valid = True
+    checks = 0
+    def __init__(self, config): pass
+    def check_interface(self):
+        Matcher.checks += 1
+        return {
+            "stashMatched": False,
+            "rewardMatched": False,
+            "inventoryMatched": True,
+            "allflameReceiverMatched": True
+        }, {"stashScore": 0, "inventoryScore": 1, "rewardScore": 0, "allflameReceiverScore": 1}
+module.InterfaceMatcher = Matcher
+module.is_game_foreground = lambda: True
+module.get_game_client_bounds = lambda: {"left": 1}
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+def sleep(_delay):
+    if Matcher.checks >= 3:
+        module.is_running = False
+module.time.sleep = sleep
+result = module.run_detection({})
+print(json.dumps({"result": result, "events": events}))
+`
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const values = JSON.parse(result.stdout)
+  assert.equal(values.result, 0)
+  assert.equal(values.events.at(-1).ready, false)
+  assert.equal(values.events.at(-1).stashReady, false)
+  assert.equal(values.events.at(-1).allflameReceiverReady, true)
+})
+
+test('永火接收舱设置独立迁移并按已启用目标校验模板', () => {
+  const settings = normalizeBagSettings({
+    allflameReceiverEnabled: true,
+    templates: {
+      inventoryTitle: 'inventory.png',
+      allflameReceiverTitle: 'receiver.png',
+      inventoryRegion: { left: 1, top: 1, right: 10, bottom: 10 },
+      allflameReceiverRegion: { left: 2, top: 2, right: 12, bottom: 12 }
+    }
+  })
+  assert.equal(settings.moduleEnabled, false)
+  assert.equal(settings.allflameReceiverEnabled, true)
+  assert.equal(settings.templates.allflameReceiverCapture, null)
+
+  const config = buildBagRuntimeConfig(settings, {
+    inventory: { startPos: { x: 10, y: 20 }, slotSize: { w: 30, h: 40 } }
+  })
+  assert.equal(validateBagRuntimeConfig(config), '')
+  assert.equal(validateBagRuntimeConfig({
+    ...config,
+    templates: { ...config.templates, allflameReceiverTitle: '' }
+  }), '请先配置永火接收舱标题模板')
+})
+
 test('Python Ctrl+C 无响应一次即判空格，不再重复确认', () => {
   const code = `
 import importlib.util, json, sys
@@ -1049,9 +1121,9 @@ samples = [
 print(json.dumps([module.parse_item_header(text) for text in samples], ensure_ascii=False))
 `
   assert.deepEqual(runPython(code), [
-    { category: '项链', rarity: 'unique', name: '永恒诅咒', baseName: '海灵护身符' },
-    { category: 'Rings', rarity: 'unique', name: 'Blackheart', baseName: 'Iron Ring' },
-    { category: 'Currency', rarity: 'Currency', name: 'Chaos Orb', baseName: '' }
+    { category: '项链', rarity: 'unique', name: '永恒诅咒', baseName: '海灵护身符', itemLevel: 0 },
+    { category: 'Rings', rarity: 'unique', name: 'Blackheart', baseName: 'Iron Ring', itemLevel: 0 },
+    { category: 'Currency', rarity: 'Currency', name: 'Chaos Orb', baseName: '', itemLevel: 0 }
   ])
 })
 
@@ -1545,6 +1617,153 @@ test('完整背包运行时配置热更新检测并保留当前入库进程快�
   assert.doesNotMatch(bagView, /:disabled="bagStore\.moduleEnabled"/)
   assert.doesNotMatch(bagView, /请先关闭模块再修改黑名单/)
   assert.doesNotMatch(bagView, /新规则从下一轮入库生效/)
+})
+
+test('本地背包扫描按列优先跳过已知占位，并阻塞相邻相同文本歧义区', () => {
+  const code = `
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+helmet = "物品类别: 头盔\\n稀 有 度: 稀有\\n铁锻重盔\\n--------\\n物品等级: 84"
+ring = "物品类别: 戒指\\n稀 有 度: 稀有\\n金光戒指\\n--------\\n物品等级: 82"
+events = []
+clipboard = {"value": "用户原剪贴板"}
+class Clipboard:
+    @staticmethod
+    def paste(): return clipboard["value"]
+    @staticmethod
+    def copy(value): clipboard["value"] = value
+class Controller:
+    current = None
+    moves = []
+    released = False
+    def __init__(self, config): pass
+    def move(self, x, y):
+        Controller.current = (x - 10, y - 10)
+        Controller.moves.append(Controller.current)
+        return True
+    def copy_item_text(self, clear_first=False):
+        if Controller.current == (0, 0): return "copied", helmet
+        if Controller.current in {(3, 0), (3, 1)}: return "copied", ring
+        return "empty", ""
+    def release_all(self): Controller.released = True
+module.pyperclip = Clipboard
+module.InputController = Controller
+module.focus_game_window = lambda: True
+module.is_game_foreground = lambda: True
+module.is_running = True
+module.resolve_item_footprint = lambda parsed, catalog: ({"width": 2, "height": 2} if "铁锻重盔" in (parsed.get("baseName"), parsed.get("name")) else None)
+module.classify_inventory_empty_slots = lambda config: ({(2, 4)}, {
+  "mode": "model", "modelVersion": "test-model", "threshold": 0.995,
+  "skippedModelEmpty": 1, "skippedOccupied": 0, "fallbackReason": ""
+})
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+status = module.run_inventory_scan({"inventory": {"startPos": {"x": 10, "y": 10}, "slotSize": {"w": 1, "h": 1}}})
+snapshot = next(event["snapshot"] for event in events if event["event"] == "inventory-scan-completed")
+print(json.dumps({
+  "status": status, "moves": Controller.moves, "released": Controller.released,
+  "clipboard": clipboard["value"], "snapshot": snapshot
+}, ensure_ascii=False))
+`
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(payload.status, 0)
+  assert.equal(payload.released, true)
+  assert.equal(payload.clipboard, '用户原剪贴板')
+  assert.deepEqual(payload.snapshot.layout, { columns: 12, rows: 5 })
+  assert.equal(payload.moves.some(([x, y]) => (x === 0 && y === 1) || (x === 1 && y < 2)), false)
+  assert.equal(payload.moves.some(([x, y]) => x === 2 && y === 4), false)
+  assert.equal(payload.snapshot.scanOptimization.skippedModelEmpty, 1)
+  assert.equal(payload.snapshot.scanOptimization.skippedOccupied, 3)
+  assert.equal(payload.snapshot.items[0].width, 2)
+  const ambiguous = payload.snapshot.items.find(item => item.issueCode === 'AMBIGUOUS_FOOTPRINT')
+  assert.deepEqual({ x: ambiguous.x, y: ambiguous.y, width: ambiguous.width, height: ambiguous.height }, { x: 3, y: 0, width: 1, height: 2 })
+  assert.equal(ambiguous.selectable, false)
+  assert.equal('identityFingerprint' in ambiguous, false)
+  assert.doesNotMatch(JSON.stringify(payload.snapshot), /物品类别: 头盔/)
+})
+
+test('背包模型判空只选择高置信度空格并在配置缺失时安全回退', () => {
+  const code = `
+import hashlib, importlib.util, json, os, sys, tempfile
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+model_file = tempfile.NamedTemporaryFile(delete=False)
+model_file.write(b"model-fixture")
+model_file.close()
+manifest_file = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json", delete=False)
+json.dump({
+  "schemaVersion": 1, "architectureVersion": 1,
+  "modelVersion": "test-model", "classes": ["highlighted", "dimmed", "empty"],
+  "inputName": "input", "inputSize": {"width": 8, "height": 8},
+  "outputs": {"logits": "logits"},
+  "sha256": hashlib.sha256(b"model-fixture").hexdigest()
+}, manifest_file)
+manifest_file.close()
+class Input:
+    name = "input"
+class Session:
+    def get_inputs(self): return [Input()]
+    def run(self, names, values):
+        logits = module.np.zeros((60, 3), dtype=module.np.float32)
+        logits[:, 1] = 20.0
+        logits[0] = [0.0, 0.0, 20.0]
+        logits[1] = [0.0, 0.0, 5.0]
+        return [logits]
+config = {
+  "inventory": {"startPos": {"x": 100, "y": 100}, "slotSize": {"w": 10, "h": 10}},
+  "emptySlotModel": {"modelPath": model_file.name, "manifestPath": manifest_file.name, "threshold": 0.995}
+}
+try:
+    skipped, summary = module.classify_inventory_empty_slots(
+        config,
+        capture_image=lambda *args: module.np.zeros((50, 120, 3), dtype=module.np.uint8),
+        session_factory=lambda path: Session())
+    fallback, fallback_summary = module.classify_inventory_empty_slots({})
+    print(json.dumps({
+      "skipped": sorted([list(value) for value in skipped]), "summary": summary,
+      "fallback": sorted([list(value) for value in fallback]), "fallbackSummary": fallback_summary
+    }))
+finally:
+    os.unlink(model_file.name)
+    os.unlink(manifest_file.name)
+`
+  const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.deepEqual(payload.skipped, [[0, 0]])
+  assert.equal(payload.summary.mode, 'model')
+  assert.equal(payload.summary.skippedModelEmpty, 1)
+  assert.deepEqual(payload.fallback, [])
+  assert.equal(payload.fallbackSummary.mode, 'fallback')
+  assert.equal(payload.fallbackSummary.fallbackReason, 'model-config-missing')
+})
+
+test('扫描控制只聚焦和读取既有页面，不发送背包快捷键或切换仓库页', () => {
+  const source = readFileSync(scriptUrl, 'utf8')
+  const scanBody = source.slice(source.indexOf('def run_inventory_scan('), source.indexOf('def load_config('))
+  assert.match(scanBody, /for column in range\(12\):[\s\S]*for row in range\(5\):/)
+  assert.match(scanBody, /pyperclip\.copy\(original_clipboard\)/)
+  assert.doesNotMatch(scanBody, /select_currency_stash_tab|ctrl_click|keyboard\.press|keyboard\.send|open_inventory|open_stash/)
+})
+
+test('普通入库与永火接收舱共用单一检测消费者和执行接口', () => {
+  const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  const serviceSource = readFileSync(new URL('../src/utils/bagService.js', import.meta.url), 'utf8')
+  const action = readFileSync(scriptUrl, 'utf8').slice(readFileSync(scriptUrl, 'utf8').indexOf('def run_stash'))
+  assert.match(ipcSource, /config\?\.module_enabled && \(state\?\.stashReady \?\? state\?\.ready\)/)
+  assert.match(ipcSource, /config\?\.allflame_receiver_enabled && state\?\.allflameReceiverReady/)
+  assert.match(ipcSource, /applyDetectionState\(state\)/)
+  assert.match(serviceSource, /bagStore\.moduleEnabled \|\| bagStore\.allflameReceiverEnabled/)
+  assert.match(serviceSource, /updateBagRuntimeConfig\(\{ moduleEnabled: false \}\)/)
+  assert.match(serviceSource, /updateBagRuntimeConfig\(\{ allflameReceiverEnabled: false \}\)/)
+  assert.equal((ipcSource.match(/ipcMain\.handle\('start-bag-stash'/g) || []).length, 1)
+  assert.doesNotMatch(action, /allflame|receiver|InterfaceMatcher|check_interface/)
 })
 
 test('正式包携带背包脚本并从稳定路径解析', () => {

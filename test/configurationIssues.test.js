@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CONFIGURATION_ACTIONS,
+  collectAllflameReceiverConfigurationIssues,
   collectBagConfigurationIssues,
   collectCombatConfigurationIssues,
   collectCraftingConfigurationIssues,
@@ -20,8 +21,8 @@ const point = { x: 100, y: 200 }
 const region = { left: 10, top: 10, right: 110, bottom: 110 }
 const grid = { startPos: point, slotSize: { w: 40, h: 40 } }
 const templates = {
-  stashTitle: 'stash.png', inventoryTitle: 'inventory.png', junfengRewardTitle: 'reward.png',
-  stashRegion: region, inventoryRegion: region, junfengRewardRegion: region
+  stashTitle: 'stash.png', inventoryTitle: 'inventory.png', junfengRewardTitle: 'reward.png', allflameReceiverTitle: 'receiver.png',
+  stashRegion: region, inventoryRegion: region, junfengRewardRegion: region, allflameReceiverRegion: region
 }
 
 function ids(result) { return result.issues.map(issue => issue.id) }
@@ -60,6 +61,37 @@ test('改造制作使用完整 preflight 清单而不是旧的部分坐标校验
   ])
 })
 
+test('背包批量制作只要求本地扫描、类别和候选，不要求账号角色或赛季', () => {
+  const base = {
+    inventory: grid,
+    currencyPositions: { wisdom: point, transmutation: point, scouring: point, alteration: point },
+    stashTabSelection: { enabled: false },
+    preset: {
+      batchCrafting: { enabled: true, categoryIds: ['ring'] },
+      moduleTwo: { enabled: true, mode: 'alteration', affixGroups: [{ enabled: true, selectedAffixes: ['生命'] }] },
+      moduleThree: { enabled: false }, moduleEldritch: { enabled: false }
+    }
+  }
+  assert.deepEqual(ids(collectCraftingConfigurationIssues(base)).slice(0, 1), ['preset.items.batch-scan'])
+  const ready = collectCraftingConfigurationIssues({
+    ...base,
+    authenticated: false,
+    league: '',
+    batchSnapshot: { scanId: 'scan-1' },
+    batchCandidateCount: 1
+  })
+  assert.equal(ready.ok, true)
+  assert.doesNotMatch(ready.errors.join(' '), /账号|角色|赛季/)
+
+  const missingCategory = collectCraftingConfigurationIssues({
+    ...base,
+    batchSnapshot: { scanId: 'scan-1' },
+    preset: { ...base.preset, batchCrafting: { enabled: true, categoryIds: [] } }
+  })
+  const categoryIssue = missingCategory.issues.find(issue => issue.id === 'preset.items.batch-categories')
+  assert.equal(categoryIssue.editorId, 'preset.items.batch-categories')
+})
+
 test('地图问题包含背包网格、完整通货和已启用仓库选择', () => {
   const result = collectMapConfigurationIssues({
     mapConfig: { method: 'chaos', vaal: { enabled: true } },
@@ -77,6 +109,10 @@ test('背包、仓库拾取与君锋按各自真实配置列出问题', () => {
   assert.deepEqual(ids(collectBagConfigurationIssues({ templates: {}, inventory: {} })), [
     'template.stash-title', 'template.inventory-title', 'inventory.grid'
   ])
+  assert.deepEqual(ids(collectAllflameReceiverConfigurationIssues({ templates: {}, inventory: {} })), [
+    'template.allflame-receiver-title', 'template.inventory-title', 'inventory.grid'
+  ])
+  assert.equal(collectAllflameReceiverConfigurationIssues({ templates, inventory: grid }).ok, true)
   assert.deepEqual(ids(collectStashPickupConfigurationIssues({ templates, calibration: {} })), ['stash-grid.any'])
   assert.deepEqual(ids(collectJunfengConfigurationIssues({ templates, gridRegion: null })), ['junfeng.grid'])
   assert.equal(collectBagConfigurationIssues({ templates, inventory: grid }).ok, true)

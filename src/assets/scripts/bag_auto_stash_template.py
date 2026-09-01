@@ -5,6 +5,7 @@
 import argparse
 import ctypes
 from ctypes import wintypes
+import hashlib
 import io
 import json
 import math
@@ -14,6 +15,7 @@ import sys
 import time
 import traceback
 import unicodedata
+import uuid
 
 
 def enable_per_monitor_dpi_awareness():
@@ -213,7 +215,9 @@ def emit(event, **payload):
 
 
 def error_event(mode):
-    return "detection-error" if mode == "detect" else "stash-error"
+    if mode == "detect":
+        return "detection-error"
+    return "inventory-scan-error" if mode == "scan" else "stash-error"
 
 
 def normalize_operation_delay(value=None):
@@ -260,12 +264,51 @@ def parse_item_header(text):
             header.append(line)
     if not category or not header:
         return None
+    item_level = 0
+    for line in lines:
+        if line.startswith("物品等级:") or line.startswith("Item Level:"):
+            try:
+                item_level = int(line.split(":", 1)[1].strip())
+            except (TypeError, ValueError):
+                item_level = 0
+            break
     return {
         "category": category,
         "rarity": rarity,
         "name": header[0],
-        "baseName": header[1] if len(header) > 1 else ""
+        "baseName": header[1] if len(header) > 1 else "",
+        "itemLevel": item_level
     }
+
+
+BATCH_CATEGORY_ALIASES = {
+    "头盔": ("helmet", "头盔"),
+    "身体护甲": ("bodyArmour", "胸甲"), "胸甲": ("bodyArmour", "胸甲"),
+    "手套": ("gloves", "手套"), "鞋子": ("boots", "鞋子"),
+    "盾": ("shield", "盾牌"), "盾牌": ("shield", "盾牌"),
+    "单手剑": ("oneHandWeapon", "单手武器"), "单手斧": ("oneHandWeapon", "单手武器"),
+    "单手锤": ("oneHandWeapon", "单手武器"), "匕首": ("oneHandWeapon", "单手武器"),
+    "符文匕首": ("oneHandWeapon", "单手武器"), "爪": ("oneHandWeapon", "单手武器"),
+    "法杖": ("oneHandWeapon", "单手武器"), "短杖": ("oneHandWeapon", "单手武器"),
+    "双手剑": ("twoHandWeapon", "双手武器"), "双手斧": ("twoHandWeapon", "双手武器"),
+    "双手锤": ("twoHandWeapon", "双手武器"), "长杖": ("twoHandWeapon", "双手武器"),
+    "战杖": ("twoHandWeapon", "双手武器"), "弓": ("bow", "弓"),
+    "箭袋": ("quiver", "箭袋"), "戒指": ("ring", "戒指"),
+    "项链": ("amulet", "项链"), "腰带": ("belt", "腰带"),
+    "珠宝": ("jewel", "珠宝"), "深渊珠宝": ("jewel", "珠宝"),
+    "星团珠宝": ("jewel", "珠宝"), "生命药剂": ("flask", "药剂"),
+    "魔力药剂": ("flask", "药剂"), "复合药剂": ("flask", "药剂"),
+    "功能药剂": ("flask", "药剂")
+}
+
+
+def resolve_batch_category(category):
+    return BATCH_CATEGORY_ALIASES.get(str(category or "").strip(), ("", "不支持"))
+
+
+def clipboard_fingerprint(text):
+    normalized = unicodedata.normalize("NFKC", str(text or "")).replace("\r\n", "\n").strip()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:20]
 
 
 def normalize_footprint_text(value):
@@ -305,6 +348,30 @@ def resolve_item_footprint(item, catalog):
             if footprint:
                 return footprint
     return valid_footprint(categories.get(normalize_footprint_text(category)))
+
+
+def resolve_catalog_base_type(item, catalog):
+    explicit_base = str((item or {}).get("baseName") or "").strip()
+    if explicit_base:
+        return explicit_base
+    display_name = str((item or {}).get("name") or "").strip()
+    normalized_name = normalize_footprint_text(display_name)
+    if not normalized_name or not isinstance(catalog, dict) or catalog.get("schemaVersion") != 1:
+        return display_name
+    items = catalog.get("items", {})
+    if not isinstance(items, dict):
+        return display_name
+    normalized_category = normalize_footprint_text((item or {}).get("category"))
+    candidates = []
+    for key in items:
+        if not isinstance(key, str) or "\x1f" not in key:
+            continue
+        key_category, key_name = key.split("\x1f", 1)
+        if key_category not in ("*", normalized_category):
+            continue
+        if normalized_name == key_name or normalized_name.endswith(key_name):
+            candidates.append(key_name)
+    return max(candidates, key=len) if candidates else display_name
 
 
 def resolved_footprint_slots(target, footprint, phase, ambiguous_slots):
@@ -541,7 +608,8 @@ class InterfaceMatcher:
         definitions = {
             "stash": self.config.get("templates", {}).get("stash_title", ""),
             "inventory": self.config.get("templates", {}).get("inventory_title", ""),
-            "reward": self.config.get("templates", {}).get("junfeng_reward_title", "")
+            "reward": self.config.get("templates", {}).get("junfeng_reward_title", ""),
+            "allflame_receiver": self.config.get("templates", {}).get("allflame_receiver_title", "")
         }
         for name, image_path in definitions.items():
             if image_path and os.path.exists(image_path):
@@ -551,7 +619,9 @@ class InterfaceMatcher:
 
     @property
     def valid(self):
-        return "inventory" in self.templates and ("stash" in self.templates or "reward" in self.templates)
+        return "inventory" in self.templates and any(
+            name in self.templates for name in ("stash", "reward", "allflame_receiver")
+        )
 
     def _capture(self, region):
         width = int(region.get("right", 0)) - int(region.get("left", 0))
@@ -581,14 +651,18 @@ class InterfaceMatcher:
         stash_ok, stash_score = self._match("stash", templates.get("stash_region", {}))
         inventory_ok, inventory_score = self._match("inventory", templates.get("inventory_region", {}))
         reward_ok, reward_score = self._match("reward", templates.get("junfeng_reward_region", {}))
+        allflame_receiver_ok, allflame_receiver_score = self._match(
+            "allflame_receiver", templates.get("allflame_receiver_region", {}))
         return {
             "stashMatched": stash_ok and inventory_ok,
             "rewardMatched": reward_ok,
             "inventoryMatched": inventory_ok,
+            "allflameReceiverMatched": allflame_receiver_ok and inventory_ok,
         }, {
             "stashScore": stash_score,
             "inventoryScore": inventory_score,
             "rewardScore": reward_score,
+            "allflameReceiverScore": allflame_receiver_score,
         }
 
     def check_ready(self, mode):
@@ -919,33 +993,40 @@ def run_detection(config):
             issue_id = "template.inventory-title"
         elif templates.get("stash_title") and "stash" not in matcher.templates:
             issue_id = "template.stash-title"
+        elif templates.get("allflame_receiver_title") and "allflame_receiver" not in matcher.templates:
+            issue_id = "template.allflame-receiver-title"
         else:
             issue_id = "template.junfeng-reward-title"
         emit("detection-error", reason="界面标题模板无法加载",
              failureCode="TEMPLATE_INVALID", configurationIssueId=issue_id)
         return 2
     stash_ready = False
+    allflame_receiver_ready = False
     reward_detected = False
     last_foreground = is_game_foreground()
     last_game_bounds = get_game_client_bounds()
     last_inventory_matched = False
     stash_matched_count = stash_missed_count = 0
+    allflame_receiver_matched_count = allflame_receiver_missed_count = 0
     reward_matched_count = reward_missed_count = 0
     emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
-         junfengReady=False, foreground=last_foreground, gameBounds=last_game_bounds)
+         junfengReady=False, allflameReceiverReady=False,
+         foreground=last_foreground, gameBounds=last_game_bounds)
     while is_running:
         try:
             foreground = is_game_foreground()
             game_bounds = get_game_client_bounds()
             if not foreground:
-                changed = stash_ready or reward_detected or foreground != last_foreground or game_bounds != last_game_bounds
-                stash_ready = reward_detected = False
+                changed = stash_ready or allflame_receiver_ready or reward_detected or foreground != last_foreground or game_bounds != last_game_bounds
+                stash_ready = allflame_receiver_ready = reward_detected = False
                 stash_matched_count = stash_missed_count = 0
+                allflame_receiver_matched_count = allflame_receiver_missed_count = 0
                 reward_matched_count = reward_missed_count = 0
                 last_inventory_matched = False
                 if changed:
                     emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
-                         junfengReady=False, foreground=False, gameBounds=game_bounds)
+                         junfengReady=False, allflameReceiverReady=False,
+                         foreground=False, gameBounds=game_bounds)
                 last_foreground = foreground
                 last_game_bounds = game_bounds
                 time.sleep(0.2)
@@ -953,16 +1034,21 @@ def run_detection(config):
 
             matches, scores = matcher.check_interface()
             if isinstance(matches, bool):
-                matches = {"stashMatched": matches, "rewardMatched": False, "inventoryMatched": matches}
+                matches = {"stashMatched": matches, "rewardMatched": False,
+                           "inventoryMatched": matches, "allflameReceiverMatched": False}
             stash_ready, stash_matched_count, stash_missed_count, stash_changed = advance_detection_state(
                 stash_ready, stash_matched_count, stash_missed_count, matches["stashMatched"])
             reward_detected, reward_matched_count, reward_missed_count, reward_changed = advance_detection_state(
                 reward_detected, reward_matched_count, reward_missed_count, matches["rewardMatched"])
+            allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count, allflame_receiver_changed = advance_detection_state(
+                allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count,
+                matches.get("allflameReceiverMatched", False))
             junfeng_ready = reward_detected and matches["inventoryMatched"]
             inventory_changed = matches["inventoryMatched"] != last_inventory_matched
-            if stash_changed or reward_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
+            if stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
                 emit("detection-state", ready=stash_ready, stashReady=stash_ready,
                      rewardDetected=reward_detected, junfengReady=junfeng_ready,
+                     allflameReceiverReady=allflame_receiver_ready,
                      foreground=foreground, gameBounds=game_bounds, **scores)
             last_foreground = foreground
             last_game_bounds = game_bounds
@@ -1086,6 +1172,347 @@ def run_stash(config):
         controller.release_all()
 
 
+def _scan_item(target, parsed, fingerprint, catalog, footprint=None, selectable=True, issue_code="", issue=""):
+    category_id, category_label = resolve_batch_category(parsed.get("category"))
+    width = int((footprint or {}).get("width", 1))
+    height = int((footprint or {}).get("height", 1))
+    if not category_id:
+        selectable = False
+        issue_code = issue_code or "UNSUPPORTED_CATEGORY"
+        issue = issue or "该物品类别不支持批量制作"
+    return {
+        "id": "",
+        "categoryId": category_id,
+        "categoryLabel": category_label,
+        "categoryRaw": parsed.get("category", ""),
+        "rarity": parsed.get("rarity", ""),
+        "name": parsed.get("name") or parsed.get("baseName") or "未知物品",
+        "displayName": parsed.get("name") or parsed.get("baseName") or "未知物品",
+        "baseType": resolve_catalog_base_type(parsed, catalog),
+        "itemLevel": int(parsed.get("itemLevel") or 0),
+        "x": int(target["column"]), "y": int(target["row"]),
+        "width": width, "height": height,
+        "footprintSource": "catalog" if footprint else "inferred-single",
+        "selectable": bool(selectable),
+        "issueCode": issue_code, "issue": issue,
+        "identityFingerprint": fingerprint
+    }
+
+
+EMPTY_SLOT_MODEL_LABELS = ("highlighted", "dimmed", "empty")
+
+
+def _file_sha256(file_path):
+    digest = hashlib.sha256()
+    with open(file_path, "rb") as stream:
+        while True:
+            chunk = stream.read(1024 * 1024)
+            if not chunk:
+                return digest.hexdigest()
+            digest.update(chunk)
+
+
+def _capture_inventory_grid(start_x, start_y, slot_width, slot_height):
+    left = int(round(start_x - slot_width / 2.0))
+    top = int(round(start_y - slot_height / 2.0))
+    capture_width = int(round(slot_width * 12))
+    capture_height = int(round(slot_height * 5))
+    if capture_width <= 0 or capture_height <= 0:
+        raise RuntimeError("inventory-capture-invalid")
+    with mss.MSS() as screen:
+        shot = screen.grab({
+            "left": left, "top": top,
+            "width": capture_width, "height": capture_height
+        })
+    image = cv2.cvtColor(np.asarray(shot), cv2.COLOR_BGRA2BGR)
+    if image is None or not image.size:
+        raise RuntimeError("inventory-capture-empty")
+    return image
+
+
+def _inventory_model_tiles(image):
+    tiles = []
+    for column in range(12):
+        for row in range(5):
+            x0 = int(round(column * image.shape[1] / 12))
+            x1 = int(round((column + 1) * image.shape[1] / 12))
+            y0 = int(round(row * image.shape[0] / 5))
+            y1 = int(round((row + 1) * image.shape[0] / 5))
+            margin_x = max(1, int(round((x1 - x0) * 0.08)))
+            margin_y = max(1, int(round((y1 - y0) * 0.08)))
+            tile = image[y0 + margin_y:y1 - margin_y, x0 + margin_x:x1 - margin_x]
+            if tile is None or not tile.size:
+                raise RuntimeError("inventory-tile-empty")
+            tiles.append(((column, row), tile))
+    return tiles
+
+
+def select_high_confidence_empty_slots(probabilities, threshold):
+    skipped = set()
+    for index, values in enumerate(np.asarray(probabilities, dtype=np.float32)):
+        if values.shape[0] != len(EMPTY_SLOT_MODEL_LABELS):
+            raise RuntimeError("model-output-invalid")
+        label_index = int(np.argmax(values))
+        if label_index == 2 and float(values[label_index]) >= float(threshold):
+            skipped.add((index // 5, index % 5))
+    return skipped
+
+
+def classify_inventory_empty_slots(config, capture_image=None, session_factory=None):
+    model_config = config.get("emptySlotModel", {}) if isinstance(config, dict) else {}
+    threshold = float(model_config.get("threshold", 0.995))
+    summary = {
+        "mode": "fallback", "modelVersion": "", "threshold": threshold,
+        "skippedModelEmpty": 0, "skippedOccupied": 0,
+        "fallbackReason": "model-config-missing"
+    }
+    model_path = str(model_config.get("modelPath", ""))
+    manifest_path = str(model_config.get("manifestPath", ""))
+    try:
+        if not model_path or not manifest_path:
+            return set(), summary
+        if not os.path.isfile(manifest_path):
+            summary["fallbackReason"] = "model-manifest-missing"
+            return set(), summary
+        with open(manifest_path, "r", encoding="utf-8") as stream:
+            manifest = json.load(stream)
+        summary["modelVersion"] = str(manifest.get("modelVersion", ""))
+        if (manifest.get("schemaVersion") != 1 or manifest.get("architectureVersion") != 1 or
+                tuple(manifest.get("classes", ())) != EMPTY_SLOT_MODEL_LABELS):
+            summary["fallbackReason"] = "model-contract-invalid"
+            return set(), summary
+        if not os.path.isfile(model_path):
+            summary["fallbackReason"] = "model-file-missing"
+            return set(), summary
+        expected_hash = str(manifest.get("sha256", "")).lower()
+        if not expected_hash or _file_sha256(model_path).lower() != expected_hash:
+            summary["fallbackReason"] = "model-checksum-mismatch"
+            return set(), summary
+        input_size = manifest.get("inputSize", {})
+        input_width = int(input_size.get("width", 0))
+        input_height = int(input_size.get("height", 0))
+        if input_width <= 0 or input_height <= 0:
+            summary["fallbackReason"] = "model-input-invalid"
+            return set(), summary
+        if session_factory is None:
+            import onnxruntime as ort
+            session_factory = lambda candidate: ort.InferenceSession(candidate, providers=["CPUExecutionProvider"])
+        session = session_factory(model_path)
+        inventory = config.get("inventory", {})
+        start = inventory.get("startPos", {})
+        slot = inventory.get("slotSize", {})
+        image = (capture_image or _capture_inventory_grid)(
+            int(start.get("x", 0)), int(start.get("y", 0)),
+            int(slot.get("w", 0)), int(slot.get("h", 0)))
+        tensors = []
+        for _position, tile in _inventory_model_tiles(image):
+            resized = cv2.resize(tile, (input_width, input_height), interpolation=cv2.INTER_AREA)
+            rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+            tensors.append(np.transpose(rgb, (2, 0, 1)))
+        batch = np.ascontiguousarray(np.stack(tensors), dtype=np.float32)
+        outputs = manifest.get("outputs", {})
+        input_name = str(manifest.get("inputName") or session.get_inputs()[0].name)
+        logits_name = str(outputs.get("logits", "logits"))
+        logits = np.asarray(session.run([logits_name], {input_name: batch})[0], dtype=np.float32)
+        if logits.shape != (60, 3):
+            summary["fallbackReason"] = "model-output-invalid"
+            return set(), summary
+        shifted = logits - np.max(logits, axis=1, keepdims=True)
+        exp = np.exp(shifted)
+        probabilities = exp / np.maximum(np.sum(exp, axis=1, keepdims=True), 1e-8)
+        skipped = select_high_confidence_empty_slots(probabilities, threshold)
+        summary.update({
+            "mode": "model", "skippedModelEmpty": len(skipped), "fallbackReason": ""
+        })
+        return skipped, summary
+    except Exception as exc:
+        reason = str(exc)
+        if reason.startswith("inventory-capture") or reason.startswith("inventory-tile"):
+            summary["fallbackReason"] = "model-capture-failed"
+        elif "onnxruntime" in reason.lower():
+            summary["fallbackReason"] = "model-runtime-missing"
+        else:
+            summary["fallbackReason"] = "model-inference-failed"
+        return set(), summary
+
+
+def _unknown_components(items):
+    by_cell = {(item["x"], item["y"]): item for item in items}
+    visited = set()
+    components = []
+    for cell, item in by_cell.items():
+        if cell in visited:
+            continue
+        stack = [cell]
+        component = []
+        visited.add(cell)
+        while stack:
+            current = stack.pop()
+            current_item = by_cell[current]
+            component.append(current_item)
+            x, y = current
+            for neighbor in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                neighbor_item = by_cell.get(neighbor)
+                if neighbor in visited or not neighbor_item:
+                    continue
+                if neighbor_item["identityFingerprint"] != item["identityFingerprint"]:
+                    continue
+                visited.add(neighbor)
+                stack.append(neighbor)
+        components.append(component)
+    return components
+
+
+def run_inventory_scan(config):
+    """只读扫描原生 12x5 背包；不发送开包键、不打开仓库且不点击页签。"""
+    global runtime_stop_reason
+    runtime_stop_reason = ""
+    apply_fixed_timing(config)
+    if not focus_game_window():
+        emit("inventory-scan-error", code="GAME_NOT_FOREGROUND", reason="无法聚焦游戏窗口")
+        return 1
+    inventory = config.get("inventory", {})
+    start = inventory.get("startPos", {})
+    slot = inventory.get("slotSize", {})
+    start_x, start_y = int(start.get("x", 0)), int(start.get("y", 0))
+    width, height = int(slot.get("w", 0)), int(slot.get("h", 0))
+    if min(start_x, start_y, width, height) <= 0:
+        emit("inventory-scan-error", code="INVENTORY_GRID_INVALID", reason="请先配置背包网格")
+        return 1
+    scan_id = str(uuid.uuid4())
+    controller = InputController(config)
+    catalog = inventory.get("itemFootprints", {})
+    model_empty_slots, scan_optimization = classify_inventory_empty_slots(config)
+    occupied = set()
+    known_items = []
+    unknown_items = []
+    issues = []
+    scanned = 0
+    skipped = 0
+    skipped_model_empty = 0
+    original_clipboard = ""
+    try:
+        original_clipboard = str(pyperclip.paste() or "")
+    except Exception:
+        original_clipboard = ""
+    try:
+        for column in range(12):
+            for row in range(5):
+                if not is_running:
+                    emit("inventory-scan-stopped", code="USER_STOPPED", reason=runtime_stop_reason or "扫描已停止")
+                    return 1
+                if not is_game_foreground():
+                    emit("inventory-scan-error", code="GAME_NOT_FOREGROUND", reason="扫描期间游戏失去前台")
+                    return 1
+                if (column, row) in occupied:
+                    skipped += 1
+                    scanned += 1
+                    emit("inventory-scan-progress", scanned=scanned, total=60,
+                         skippedOccupied=skipped, skippedModelEmpty=skipped_model_empty)
+                    continue
+                if (column, row) in model_empty_slots:
+                    skipped_model_empty += 1
+                    scanned += 1
+                    emit("inventory-scan-progress", scanned=scanned, total=60,
+                         skippedOccupied=skipped, skippedModelEmpty=skipped_model_empty)
+                    continue
+                target = {"column": column, "row": row}
+                if not controller.move(start_x + column * width, start_y + row * height):
+                    emit("inventory-scan-error", code="POINTER_MOVE_FAILED", reason=f"无法定位第 {column + 1} 列第 {row + 1} 行")
+                    return 1
+                copy_status, text = controller.copy_item_text(clear_first=True)
+                scanned += 1
+                if copy_status == "copied":
+                    parsed = parse_item_header(text)
+                    if not parsed:
+                        issues.append({"code": "ITEM_UNREADABLE", "x": column, "y": row, "message": "复制文本无法解析"})
+                    else:
+                        fingerprint = clipboard_fingerprint(text)
+                        footprint = resolve_item_footprint(parsed, catalog)
+                        if footprint:
+                            rectangle = {
+                                (column + dx, row + dy)
+                                for dx in range(int(footprint["width"]))
+                                for dy in range(int(footprint["height"]))
+                            }
+                            if any(x < 0 or x >= 12 or y < 0 or y >= 5 for x, y in rectangle):
+                                known_items.append(_scan_item(
+                                    target, parsed, fingerprint, catalog, footprint, False,
+                                    "FOOTPRINT_OUT_OF_BOUNDS", "物品尺寸超出原生背包范围"))
+                                issues.append({"code": "FOOTPRINT_OUT_OF_BOUNDS", "x": column, "y": row, "message": "物品尺寸超出原生背包范围"})
+                            elif rectangle.intersection(occupied):
+                                known_items.append(_scan_item(
+                                    target, parsed, fingerprint, catalog, footprint, False,
+                                    "FOOTPRINT_OVERLAP", "物品占位与已识别物品重叠"))
+                                issues.append({"code": "FOOTPRINT_OVERLAP", "x": column, "y": row, "message": "物品占位发生重叠"})
+                            else:
+                                occupied.update(rectangle)
+                                known_items.append(_scan_item(target, parsed, fingerprint, catalog, footprint))
+                        else:
+                            unknown_items.append(_scan_item(target, parsed, fingerprint, catalog))
+                elif copy_status not in ("empty", "no-response"):
+                    issues.append({"code": "ITEM_UNREADABLE", "x": column, "y": row, "message": "该格无法复制识别"})
+                emit("inventory-scan-progress", scanned=scanned, total=60,
+                     skippedOccupied=skipped, skippedModelEmpty=skipped_model_empty)
+
+        items = list(known_items)
+        for component in _unknown_components(unknown_items):
+            if len(component) == 1:
+                items.append(component[0])
+                continue
+            first = component[0]
+            min_x = min(item["x"] for item in component)
+            max_x = max(item["x"] for item in component)
+            min_y = min(item["y"] for item in component)
+            max_y = max(item["y"] for item in component)
+            ambiguous = {
+                **first,
+                "x": min_x, "y": min_y,
+                "width": max_x - min_x + 1, "height": max_y - min_y + 1,
+                "footprintSource": "ambiguous",
+                "selectable": False,
+                "issueCode": "AMBIGUOUS_FOOTPRINT",
+                "issue": "无法区分多格物品和相邻的相同单格物品，请移开后重新扫描"
+            }
+            items.append(ambiguous)
+            issues.append({"code": "AMBIGUOUS_FOOTPRINT", "x": min_x, "y": min_y, "message": ambiguous["issue"]})
+
+        items.sort(key=lambda item: (item["x"], item["y"], item["displayName"]))
+        category_counts = {}
+        for item in items:
+            item["id"] = f"{scan_id}:{item['x']}:{item['y']}"
+            item.pop("identityFingerprint", None)
+            if item["categoryId"] and item["selectable"]:
+                key = (item["categoryId"], item["categoryLabel"])
+                category_counts[key] = category_counts.get(key, 0) + 1
+        categories = [
+            {"id": key[0], "label": key[1], "count": count}
+            for key, count in sorted(category_counts.items(), key=lambda entry: entry[0][1])
+        ]
+        scan_optimization.update({
+            "skippedModelEmpty": skipped_model_empty,
+            "skippedOccupied": skipped
+        })
+        emit("inventory-scan-completed", snapshot={
+            "scanId": scan_id,
+            "scannedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "columns": 12, "rows": 5, "layout": {"columns": 12, "rows": 5},
+            "items": items, "categories": categories, "issues": issues,
+            "scanOptimization": scan_optimization
+        })
+        return 0
+    except Exception as exc:
+        emit("inventory-scan-error", code="SCAN_FAILED", reason=str(exc))
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
+        return 2
+    finally:
+        controller.release_all()
+        try:
+            pyperclip.copy(original_clipboard)
+        except Exception:
+            pass
+
+
 def load_config(path):
     with open(path, "r", encoding="utf-8") as file:
         return json.load(file)
@@ -1094,14 +1521,16 @@ def load_config(path):
 def main():
     parser = argparse.ArgumentParser(description="背包安全入库")
     parser.add_argument("--config", required=True)
-    parser.add_argument("--mode", choices=("detect", "stash"), required=True)
+    parser.add_argument("--mode", choices=("detect", "stash", "scan"), required=True)
     args = parser.parse_args()
     if DEPENDENCY_ERROR:
         emit(error_event(args.mode), reason=f"Python 依赖缺失: {DEPENDENCY_ERROR}")
         return 2
     try:
         config = load_config(args.config)
-        return run_detection(config) if args.mode == "detect" else run_stash(config)
+        if args.mode == "detect":
+            return run_detection(config)
+        return run_inventory_scan(config) if args.mode == "scan" else run_stash(config)
     except Exception as exc:
         emit(error_event(args.mode), reason=str(exc))
         return 2

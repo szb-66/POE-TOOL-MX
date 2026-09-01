@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { restartCraftingWithLatestConfig, retryAutomationWithLatestConfig } from '../src/utils/craftingRestart.js'
+import { createItemCraftingRunPreset } from '../src/utils/itemPreset.js'
 
 function source(relativePath) {
   return readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -113,7 +114,7 @@ test('旧物品制作快照重启 IPC 已删除且浮窗仍阻止重复点击', 
   assert.match(view, /function restoreStoppedState\(snapshot, error\)[\s\S]*recoveryCheckpoint\.value = snapshot\.recovery[\s\S]*stopReason\.value = error/)
   assert.match(service, /return \{ success: false, error \}/)
   assert.match(service, /return \{ \.\.\.result, success: true \}/)
-  assert.match(service, /const effectivePreset = JSON\.parse\(JSON\.stringify\(currentPreset\)\)[\s\S]*if \(forceInitialCheck\) effectivePreset\.checkInitialItem = true/)
+  assert.match(service, /createItemCraftingRunPreset\(currentPreset, \{ forceInitialCheck, singleItemOnly \}\)/)
   assert.match(ipc, /termination: 'manual'[\s\S]*termination,[\s\S]*errorCode: termination === 'abnormal'/)
 })
 
@@ -140,11 +141,69 @@ test('异常恢复重载最新配置，装备只对本次强制首次判断，�
     startCrafting: () => { throw new Error('装备启动不应执行') },
     startMapRolling: options => { calls.push(['map', options]); return { success: true } }
   })
+  const batchRecovery = { usageSessionId: 'usage-batch', targets: [{ id: 'target-2' }], completedIds: ['target-1'] }
+  const batchResult = await retryAutomationWithLatestConfig({
+    mode: 'items',
+    batchRecovery,
+    usageSessionId: 'ignored-usage',
+    ...stores,
+    startCrafting: options => { calls.push(['batch', options]); return { success: true } },
+    startMapRolling: () => { throw new Error('地图启动不应执行') }
+  })
 
   assert.equal(itemResult.success, true)
   assert.equal(mapResult.success, true)
+  assert.equal(batchResult.success, true)
   assert.deepEqual(calls, [
-    'preset', 'settings', ['items', { forceInitialCheck: true, usageSessionId: 'usage-items', continueCurrencyUsage: true }],
-    'preset', 'settings', ['map', { recovery, usageSessionId: 'usage-map', continueCurrencyUsage: true }]
+    'preset', 'settings', ['items', { forceInitialCheck: true, usageSessionId: 'usage-items', continueCurrencyUsage: true, configurationGuideBypass: true, singleItemOnly: true }],
+    'preset', 'settings', ['map', { recovery, usageSessionId: 'usage-map', continueCurrencyUsage: true, configurationGuideBypass: true }],
+    'preset', 'settings', ['batch', { forceInitialCheck: true, usageSessionId: 'usage-batch', continueCurrencyUsage: true, configurationGuideBypass: true, batchRecovery }]
   ])
+})
+
+test('单件异常重试仅在本次运行副本中关闭最新预设的批量模式', () => {
+  const preset = {
+    checkInitialItem: false,
+    batchCrafting: { enabled: true, categoryIds: ['jewel'] },
+    moduleTwo: { enabled: true, groups: [{ id: 'latest-group' }] }
+  }
+
+  const effectivePreset = createItemCraftingRunPreset(preset, {
+    forceInitialCheck: true,
+    singleItemOnly: true
+  })
+
+  assert.equal(effectivePreset.checkInitialItem, true)
+  assert.equal(effectivePreset.batchCrafting.enabled, false)
+  assert.deepEqual(effectivePreset.batchCrafting.categoryIds, ['jewel'])
+  assert.deepEqual(effectivePreset.moduleTwo.groups, [{ id: 'latest-group' }])
+  assert.equal(preset.batchCrafting.enabled, true)
+})
+
+test('批量异常优先读取主进程检查点续作，同时保留主动重新扫描入口', () => {
+  const overlay = source('../src/domains/overlay/OverlayView.vue')
+  const content = source('../src/domains/overlay/components/OverlayContent.vue')
+  const runtime = source('../src/startup/mainRuntime.js')
+  const preload = source('../electron/preload.cjs')
+  const api = source('../src/api/electron.js')
+  const ipc = source('../electron/modules/ipc/window.js')
+  const restart = source('../src/utils/craftingRestart.js')
+
+  const retryBody = overlay.slice(overlay.indexOf('async function handleRetry'), overlay.indexOf('async function handleBatchResume'))
+  assert.doesNotMatch(retryBody, /batchRecovery/)
+  assert.match(content, /v-if="canResumeBatch"[^>]*\$emit\('resume-batch'\)[\s\S]*继续批量制作/)
+  assert.match(content, /返回重新扫描/)
+  assert.match(overlay, /const canRetry = computed\([\s\S]*!batchRecoveryCheckpoint\.value/)
+  assert.match(overlay, /async function refreshBatchRecovery\(\)[\s\S]*batchCrafting\.getRecovery\(\)/)
+  assert.match(overlay, /async function handleBatchResume\(\)[\s\S]*refreshBatchRecovery\(\)[\s\S]*retryAutomationWithLatestConfig\(\{[\s\S]*batchRecovery: checkpoint/)
+  assert.match(overlay, /async function handleBatchRescan\(\)[\s\S]*batchCrafting\.returnToScan\(\)/)
+  assert.match(runtime, /batchCrafting\.onScanRequested[\s\S]*router\.push\('\/items'\)/)
+  assert.match(preload, /returnToBatchCraftingScan[\s\S]*crafting-batch-return-to-scan/)
+  assert.match(api, /returnToScan:\s*\(\) => window\.electronAPI\.returnToBatchCraftingScan/)
+  assert.match(restart, /batchRecovery \? \{[\s\S]*batchRecovery[\s\S]*singleItemOnly: true/)
+  assert.match(preload, /getBatchCraftingRecovery[\s\S]*crafting-batch-recovery-get/)
+  assert.match(api, /getRecovery:\s*\(\) => window\.electronAPI\.getBatchCraftingRecovery/)
+  assert.match(ipc, /overlay\.webContents !== event\.sender/)
+  assert.match(ipc, /mainWindow\.webContents\.send\('crafting-batch-scan-requested'/)
+  assert.match(ipc, /ipcMain\.handle\('crafting-batch-return-to-scan'/)
 })

@@ -46,6 +46,17 @@ test('设置页、功能页与引导共用真实配置组件', () => {
   }
 })
 
+test('批量制作未选类别时引导直接显示扫描类别而不显示词缀配置', () => {
+  const guide = source('src/domains/configurationGuide/ConfigurationIssueEditor.vue')
+  const categoryBranch = guide.slice(
+    guide.indexOf(`issue.editorId === 'preset.items.batch-categories'`),
+    guide.indexOf(`issue.editorId === 'preset.items'`)
+  )
+  assert.match(categoryBranch, /batchCategories/)
+  assert.match(categoryBranch, /saveBatchCategories/)
+  assert.doesNotMatch(categoryBranch, /ModuleTwo|ModuleEldritch|ModuleThree/)
+})
+
 test('详情页、仪表盘和全局快捷键复用受保护的动作入口', () => {
   const guardedFiles = [
     'src/utils/scriptService.js',

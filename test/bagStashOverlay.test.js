@@ -18,11 +18,15 @@ test('浮层仅在就绪或入库中显示，入库时禁用', () => {
     foreground: false
   }), {
     visible: false,
+    normalEnabled: true,
+    allflameReceiverEnabled: false,
+    stashReady: false,
+    allflameReceiverReady: false,
     ready: false,
     foreground: false,
     stashing: false,
     disabled: true,
-    disabledReason: '等待仓库与背包同时打开',
+    disabledReason: '等待入库目标与背包同时打开',
     label: '自动入库'
   })
 
@@ -43,6 +47,24 @@ test('浮层仅在就绪或入库中显示，入库时禁用', () => {
   assert.equal(stashing.visible, true)
   assert.equal(stashing.disabled, true)
   assert.equal(stashing.label, '入库中')
+})
+
+test('普通仓库与永火接收舱状态共用唯一浮层快照', () => {
+  const receiver = createBagOverlaySnapshot({
+    moduleEnabled: true,
+    normalEnabled: false,
+    allflameReceiverEnabled: true,
+    stashReady: false,
+    allflameReceiverReady: true,
+    ready: true,
+    foreground: true
+  })
+  assert.equal(receiver.visible, true)
+  assert.equal(receiver.disabled, false)
+  assert.equal(receiver.normalEnabled, false)
+  assert.equal(receiver.allflameReceiverEnabled, true)
+  assert.equal(receiver.allflameReceiverReady, true)
+  assert.equal(receiver.label, '自动入库')
 })
 
 test('模块运行但条件不足时不提供常驻禁用按钮', () => {

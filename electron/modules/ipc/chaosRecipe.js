@@ -104,9 +104,11 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
         stash_title: String(templates.stashTitle),
         inventory_title: String(templates.inventoryTitle),
         junfeng_reward_title: String(templates.junfengRewardTitle || ''),
+        allflame_receiver_title: String(templates.allflameReceiverTitle || ''),
         stash_region: templates.stashRegion || {},
         inventory_region: templates.inventoryRegion || {},
-        junfeng_reward_region: templates.junfengRewardRegion || {}
+        junfeng_reward_region: templates.junfengRewardRegion || {},
+        allflame_receiver_region: templates.allflameReceiverRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     }
@@ -194,9 +196,11 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
         stash_title: String(templates.stashTitle || ''),
         inventory_title: String(templates.inventoryTitle || ''),
         junfeng_reward_title: String(templates.junfengRewardTitle || ''),
+        allflame_receiver_title: String(templates.allflameReceiverTitle || ''),
         stash_region: templates.stashRegion || {},
         inventory_region: templates.inventoryRegion || {},
-        junfeng_reward_region: templates.junfengRewardRegion || {}
+        junfeng_reward_region: templates.junfengRewardRegion || {},
+        allflame_receiver_region: templates.allflameReceiverRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     }) || {}

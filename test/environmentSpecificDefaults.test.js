@@ -70,6 +70,43 @@ test('制作和地图在零坐标下预检失败且运行路径先校验后调�
   assert.ok(mapStart.indexOf('validateMapRollingConfig') < mapStart.indexOf('generateMapRollingScript'))
 })
 
+test('批量制作公共校验保留背包网格并解除账号赛季依赖', () => {
+  const point = { x: 100, y: 200 }
+  const result = validateCraftingConfig({
+    itemPosition: point,
+    inventory: { startPos: point, slotSize: { w: 50, h: 50 } },
+    authenticated: true,
+    league: 'S30',
+    batchSnapshot: { scanId: 'scan-1' },
+    batchCandidateCount: 3,
+    currencyPositions: { wisdom: point, transmutation: point, scouring: point, alteration: point },
+    stashTabSelection: { enabled: false },
+    preset: {
+      batchCrafting: { enabled: true, categoryIds: ['flask'] },
+      moduleTwo: {
+        enabled: true,
+        mode: 'alteration',
+        affixGroups: [{ enabled: true, selectedAffixes: ['生命'] }]
+      },
+      moduleThree: { enabled: false },
+      moduleEldritch: { enabled: false }
+    }
+  })
+
+  assert.equal(result.isValid, true, result.errors.join('\n'))
+  assert.doesNotMatch(result.errors.join('\n'), /国服账号登录|国服赛季|背包网格|本地背包扫描/)
+
+  const service = readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
+  const validationCall = service.slice(
+    service.indexOf('const validation = validateCraftingConfig({'),
+    service.indexOf('if (!validation.isValid)')
+  )
+  assert.match(validationCall, /inventory: settingsStore\.inventory/)
+  assert.match(validationCall, /batchSnapshot: batchRecovery \? \{ scanId: batchRecovery\.scanId \} : batchStore\.snapshot/)
+  assert.match(validationCall, /batchCandidateCount: batchRecovery[\s\S]*batchStore\.candidates\.length/)
+  assert.doesNotMatch(validationCall, /authenticated:|accountStore|league:/)
+})
+
 test('新安装、已有保存值和重置设置遵循兼容策略', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
   try {
@@ -82,6 +119,7 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(fresh.inventory.startPos, { x: 0, y: 0 })
     assert.deepEqual(fresh.inventory.slotSize, { w: 0, h: 0 })
     assert.equal(fresh.operationDelayMs, OPERATION_DELAY.default)
+    assert.equal(fresh.batchScanConfirmationSuppressed, false)
     assert.deepEqual(fresh.fixedTiming, FIXED_TIMING.defaults)
     assert.equal('adaptiveTiming' in fresh, false)
     assert.equal('adaptiveTimeoutMs' in fresh, false)
@@ -96,6 +134,7 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
       adaptiveTiming: true,
       adaptiveTimeoutMs: 999,
       fixedTiming: { modifierSettleMs: 34, keyHoldMs: 12 },
+      batchScanConfirmationSuppressed: true,
       combatAssist: {
         potion: {
           health: { point: { x: 11, y: 22 }, keys: ['1'] },
@@ -115,6 +154,10 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(existing.combatAssist.potion.health.point, { x: 11, y: 22 })
     assert.equal(existing.combatAssist.portal.openKey, 'Numpad1')
     assert.equal(existing.operationDelayMs, 73)
+    assert.equal(existing.batchScanConfirmationSuppressed, true)
+    existing.updateBatchScanConfirmationSuppressed(false)
+    assert.equal(JSON.parse(savedStorage.get('settings')).batchScanConfirmationSuppressed, false)
+    existing.updateBatchScanConfirmationSuppressed(true)
     assert.deepEqual(existing.fixedTiming, {
       ...FIXED_TIMING.defaults,
       modifierSettleMs: 34,
@@ -135,6 +178,7 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.deepEqual(existing.combatAssist.potion.health.keys, [])
     assert.equal(existing.combatAssist.portal.openKey, '')
     assert.equal(existing.operationDelayMs, OPERATION_DELAY.default)
+    assert.equal(existing.batchScanConfirmationSuppressed, false)
     assert.deepEqual(existing.fixedTiming, FIXED_TIMING.defaults)
     assert.equal('adaptiveTiming' in existing, false)
     assert.equal('adaptiveTimeoutMs' in existing, false)

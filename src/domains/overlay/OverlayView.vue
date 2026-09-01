@@ -10,14 +10,19 @@
       :is-stopped="isStopped"
       :is-restarting="isRestarting"
       :can-retry="canRetry"
+      :can-resume-batch="canResumeBatch"
+      :can-rescan="canRescan"
       :can-relocate="canRelocate"
       :stop-reason="stopReason"
       :failure-detail="failureDetail"
       :allow-drag="true"
       :map-stats="mapStats"
+      :batch-progress="batchProgress"
       @confirm="handleConfirmCompletion"
       @restart="handleRestart"
       @retry="handleRetry"
+      @resume-batch="handleBatchResume"
+      @rescan="handleBatchRescan"
       @relocate="handleRelocate"
       @toggle-operation-log="operationLogExpanded = !operationLogExpanded"
       @close="handleClose"
@@ -62,9 +67,14 @@ const stopTermination = ref(null)
 const failureDetail = ref(null)
 const recoveryCheckpoint = ref(null)
 const mapStats = ref(null) // 地图统计信息
+const batchProgress = ref(null)
+const batchRecoveryCheckpoint = ref(null)
+const batchRecoveryChecked = ref(false)
 let outputLineBuffer = ''
 const isMapCategory = (category) => category === '异界地图' || category === '地图' || category === '海图'
-const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal')
+const canResumeBatch = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value?.recoverable))
+const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && batchRecoveryChecked.value && !batchRecoveryCheckpoint.value && !batchProgress.value)
+const canRescan = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value || batchProgress.value))
 const canRelocate = computed(() => canRetry.value && isCorrectableConfigurationFailure({
   moduleId: stopMode.value === 'map' ? 'map' : 'items',
   actionId: 'start',
@@ -105,7 +115,41 @@ function resetOverlayState({ resetCurrencyUsage = true } = {}) {
   recoveryCheckpoint.value = null
   failureDetail.value = null
   mapStats.value = null
+  batchProgress.value = null
+  batchRecoveryCheckpoint.value = null
+  batchRecoveryChecked.value = false
   outputLineBuffer = ''
+}
+
+function applyBatchRecoveryCheckpoint(checkpoint) {
+  batchRecoveryCheckpoint.value = checkpoint?.recoverable ? checkpoint : null
+  if (!batchRecoveryCheckpoint.value) return
+  const completedIds = new Set(batchRecoveryCheckpoint.value.completedIds || [])
+  const currentItem = batchRecoveryCheckpoint.value.targets.find(target => target.id === batchRecoveryCheckpoint.value.currentItemId && !completedIds.has(target.id))
+    || batchRecoveryCheckpoint.value.targets.find(target => !completedIds.has(target.id))
+    || null
+  batchProgress.value = {
+    total: batchRecoveryCheckpoint.value.targets.length,
+    completed: completedIds.size,
+    remaining: Math.max(0, batchRecoveryCheckpoint.value.targets.length - completedIds.size),
+    currentItem
+  }
+}
+
+async function refreshBatchRecovery() {
+  try {
+    const result = await electronApi.batchCrafting.getRecovery()
+    if (!result?.success) {
+      batchRecoveryChecked.value = false
+      return undefined
+    }
+    applyBatchRecoveryCheckpoint(result.checkpoint)
+    batchRecoveryChecked.value = true
+    return batchRecoveryCheckpoint.value
+  } catch {
+    batchRecoveryChecked.value = false
+    return undefined
+  }
 }
 
 function applyCurrencyUsageSnapshot(data) {
@@ -148,14 +192,27 @@ function applyStructuredScriptEvent(line) {
       stopReason.value = event.reason || '用户主动停止制作'
       isStopped.value = true
       isCompleted.value = false
+      batchRecoveryCheckpoint.value = null
+      batchRecoveryChecked.value = true
       return
     }
     if (event.event === 'crafting-completed') {
       stopMode.value = event.mode || stopMode.value
       stopTermination.value = 'completed'
+      batchRecoveryCheckpoint.value = null
+      batchRecoveryChecked.value = true
       return
     }
-    if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed'].includes(event.event)) return
+    if (event.event?.startsWith('crafting-batch-')) {
+      batchProgress.value = {
+        total: event.total,
+        completed: event.completed,
+        remaining: event.remaining,
+        currentItem: event.currentItem || null
+      }
+      if (event.event !== 'crafting-batch-preflight-failed') return
+    }
+    if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed', 'crafting-batch-preflight-failed'].includes(event.event)) return
     stopMode.value = event.mode || stopMode.value
     stopTermination.value = 'abnormal'
     recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
@@ -176,6 +233,8 @@ function applyStructuredScriptEvent(line) {
           : '制作脚本启动失败')
     isStopped.value = true
     isCompleted.value = false
+    batchRecoveryChecked.value = false
+    void refreshBatchRecovery()
   } catch {
     // 非完整或非 JSON 日志继续按普通文本展示
   }
@@ -241,6 +300,8 @@ function stoppedSnapshot() {
     stopMode: stopMode.value,
     stopTermination: stopTermination.value,
     recovery: recoveryCheckpoint.value,
+    batchRecovery: batchRecoveryCheckpoint.value,
+    batchProgress: batchProgress.value,
     failureDetail: failureDetail.value ? { ...failureDetail.value } : null,
     reason: stopReason.value
   }
@@ -254,6 +315,9 @@ function restoreStoppedState(snapshot, error) {
   stopMode.value = snapshot.stopMode
   stopTermination.value = snapshot.stopTermination
   recoveryCheckpoint.value = snapshot.recovery
+  batchRecoveryCheckpoint.value = snapshot.batchRecovery
+  batchProgress.value = snapshot.batchProgress
+  batchRecoveryChecked.value = true
   failureDetail.value = snapshot.failureDetail
   stopReason.value = error || snapshot.reason || '重新启动制作失败'
   isCompleted.value = false
@@ -290,16 +354,16 @@ async function handleRetry() {
   isRestarting.value = true
   try {
     const result = await retryAutomationWithLatestConfig({
-      mode: stopMode.value === 'map' ? 'map' : 'items',
-      recovery: stopMode.value === 'map' ? recoveryCheckpoint.value : null,
-      usageSessionId: usageSessionId.value,
-      presetStore,
-      settingsStore,
-      startCrafting,
-      startMapRolling
-    })
+          mode: stopMode.value === 'map' ? 'map' : 'items',
+          recovery: recoveryCheckpoint.value,
+          usageSessionId: usageSessionId.value,
+          presetStore,
+          settingsStore,
+          startCrafting,
+          startMapRolling
+        })
     if (!result?.success) {
-      restoreStoppedState(snapshot, result?.error)
+      restoreStoppedState(snapshot, result?.error?.message || result?.error)
       return
     }
     stopReason.value = ''
@@ -310,6 +374,56 @@ async function handleRetry() {
   } finally {
     isRestarting.value = false
   }
+}
+
+async function handleBatchResume() {
+  if (isRestarting.value || !canResumeBatch.value) return
+  const snapshot = stoppedSnapshot()
+  isRestarting.value = true
+  try {
+    const checkpoint = await refreshBatchRecovery()
+    if (checkpoint === undefined) {
+      restoreStoppedState(snapshot, '无法读取批量恢复状态，请稍后重试')
+      return
+    }
+    if (!checkpoint) {
+      restoreStoppedState(snapshot, '批量恢复检查点已失效，请返回重新扫描')
+      return
+    }
+    const result = await retryAutomationWithLatestConfig({
+      mode: 'items',
+      batchRecovery: checkpoint,
+      usageSessionId: checkpoint.usageSessionId,
+      presetStore,
+      settingsStore,
+      startCrafting,
+      startMapRolling
+    })
+    if (!result?.success) {
+      restoreStoppedState(snapshot, result?.error?.message || result?.error)
+      return
+    }
+    batchRecoveryCheckpoint.value = null
+    batchRecoveryChecked.value = false
+    stopReason.value = ''
+    stopTermination.value = null
+    isStopped.value = false
+  } catch (error) {
+    restoreStoppedState(snapshot, error?.message)
+  } finally {
+    isRestarting.value = false
+  }
+}
+
+async function handleBatchRescan() {
+  if (isRestarting.value || !canRescan.value) return
+  const result = await electronApi.batchCrafting.returnToScan()
+  if (!result?.success) {
+    stopReason.value = result?.error || '无法返回批量制作页'
+    return
+  }
+  batchRecoveryCheckpoint.value = null
+  batchRecoveryChecked.value = true
 }
 
 async function handleRelocate() {
@@ -328,7 +442,8 @@ function handleClose() {
   electronApi.window.closeOverlay()
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await refreshBatchRecovery()
   // 监听主进程发来的物品更新事件
   electronApi.events.onUpdateOverlay((data) => {
     if (data.reset) {
@@ -338,6 +453,15 @@ onMounted(() => {
     }
 
     applyCurrencyUsageSnapshot(data)
+
+    if (data.event?.startsWith('crafting-batch-')) {
+      batchProgress.value = {
+        total: data.total,
+        completed: data.completed,
+        remaining: data.remaining,
+        currentItem: data.currentItem || null
+      }
+    }
 
     if (data.mapStats) {
       activeOperationMode.value = 'map'
@@ -364,8 +488,9 @@ onMounted(() => {
 
   // 监听脚本停止事件（用于获取最终的地图统计信息）
   if (electronApi.events.onScriptStopped) {
-    electronApi.events.onScriptStopped((data) => {
+    electronApi.events.onScriptStopped(async (data) => {
       applyCurrencyUsageSnapshot(data)
+      await refreshBatchRecovery()
       // 判断是否是地图制作模式
       const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category) || data.mapStats !== null
       

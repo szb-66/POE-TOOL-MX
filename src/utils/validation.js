@@ -12,9 +12,12 @@ import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 
 export const validateCraftingConfig = (config = {}) => collectCraftingConfigurationIssues({
   itemPosition: config.itemPosition,
+  inventory: config.inventory,
   currencyPositions: config.currencyPositions,
   preset: config.preset,
-  stashTabSelection: config.stashTabSelection
+  stashTabSelection: config.stashTabSelection,
+  batchSnapshot: config.batchSnapshot,
+  batchCandidateCount: config.batchCandidateCount
 })
 
 export const validateMapRollingConfig = (config = {}) => collectMapConfigurationIssues({

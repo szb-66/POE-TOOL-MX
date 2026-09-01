@@ -26,6 +26,8 @@ test('商城首次默认配方并只恢复合法的最后选择', () => {
   assert.ok(recipeTab >= 0 && recipeTab < regexTab)
   assert.match(shop, /readPersistentTab\('shopActiveTool', SHOP_TABS, 'chaos'\)/)
   assert.match(shop, /writePersistentTab\('shopActiveTool', value, SHOP_TABS, 'chaos'\)/)
+  assert.doesNotMatch(shop, /class="about-card"/)
+  assert.doesNotMatch(shop, /本功能为离线、非官方工具/)
 })
 
 test('应用级初始化恢复配方账号、元数据和运行时', async () => {

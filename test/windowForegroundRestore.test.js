@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
-import { restoreWindowToForeground } from '../electron/modules/window/foregroundRestore.js'
+import {
+  restoreWindowToForeground,
+  restoreWindowsNativeWindowFocus
+} from '../electron/modules/window/foregroundRestore.js'
 
 class FakeWindow extends EventEmitter {
   constructor({ minimized = false, alwaysOnTop = false, focusAfter = 1, minimizeDelayMs = null } = {}) {
@@ -83,4 +86,59 @@ test('窗口不存在、已销毁或两次均未聚焦时返回失败', async ()
   assert.equal(refused.calls.filter(([name]) => name === 'minimize').length, 1)
   assert.equal(refused.calls.filter(([name]) => name === 'restore').length, 1)
   assert.equal(refused.alwaysOnTop, false)
+})
+
+test('Windows 恢复优先使用原生前台切换，避免普通聚焦只闪任务栏', async () => {
+  const window = new FakeWindow({ focusAfter: Number.POSITIVE_INFINITY })
+  let nativeAttempts = 0
+  const nativeFocusFn = async (target) => {
+    assert.equal(target, window)
+    nativeAttempts += 1
+    window.focusAfter = 0
+    return true
+  }
+
+  assert.equal(await restoreWindowToForeground(window, { yieldFn, nativeFocusFn }), true)
+  assert.equal(nativeAttempts, 1)
+  assert.deepEqual(window.calls, [])
+})
+
+test('原生前台切换未生效时才退回普通最小化恢复', async () => {
+  const window = new FakeWindow({ focusAfter: 2 })
+  const nativeFocusFn = async () => false
+
+  assert.equal(await restoreWindowToForeground(window, { yieldFn, nativeFocusFn }), true)
+  assert.deepEqual(window.calls, [
+    ['show'], ['moveTop'], ['focus'],
+    ['minimize'], ['restore'], ['show'], ['moveTop'], ['focus']
+  ])
+})
+
+test('Windows 原生补偿使用主窗口句柄并核验前台切换结果', async () => {
+  const handle = Buffer.alloc(8)
+  handle.writeBigUInt64LE(0x123456789n)
+  const window = { getNativeWindowHandle: () => handle }
+  let invocation = null
+  const execFileImpl = (executable, args, options, callback) => {
+    invocation = { executable, args, options }
+    callback(null)
+  }
+
+  assert.equal(await restoreWindowsNativeWindowFocus(window, {
+    platform: 'win32',
+    pythonPath: 'python.exe',
+    execFileImpl
+  }), true)
+  assert.equal(invocation.executable, 'python.exe')
+  assert.equal(invocation.args.at(-1), '4886718345')
+  assert.match(invocation.args[1], /AttachThreadInput/)
+  assert.match(invocation.args[1], /GetForegroundWindow\(\) == hwnd_value/)
+  assert.equal(invocation.options.windowsHide, true)
+
+  assert.equal(await restoreWindowsNativeWindowFocus(window, {
+    platform: 'win32',
+    pythonPath: 'python.exe',
+    execFileImpl: (_executable, _args, _options, callback) => callback(new Error('refused'))
+  }), false)
+  assert.equal(await restoreWindowsNativeWindowFocus(window, { platform: 'linux', pythonPath: 'python.exe' }), false)
 })

@@ -25,6 +25,12 @@
         <el-button v-if="canRetry" type="primary" size="small" :loading="isRestarting" @click="$emit('retry')">
           重试
         </el-button>
+        <el-button v-if="canResumeBatch" type="primary" size="small" :loading="isRestarting" @click="$emit('resume-batch')">
+          继续批量制作
+        </el-button>
+        <el-button v-if="canRescan" size="small" :disabled="isRestarting" @click="$emit('rescan')">
+          返回重新扫描
+        </el-button>
         <el-button type="danger" size="small" :disabled="isRestarting" @click="$emit('close')">
           关闭
         </el-button>
@@ -50,6 +56,16 @@
         </span>
       </div>
       <div v-else class="currency-usage-empty">本次未消耗通货</div>
+    </section>
+
+    <section v-if="batchProgress" class="batch-progress" aria-label="背包批量制作进度">
+      <div class="batch-progress-title">背包批量制作</div>
+      <div>已完成 {{ batchProgress.completed || 0 }}/{{ batchProgress.total || 0 }}</div>
+      <div v-if="batchProgress.currentItem" class="batch-progress-current">
+        当前：{{ batchProgress.currentItem.displayName || batchProgress.currentItem.baseType }}
+        （格 {{ batchProgress.currentItem.x }}, {{ batchProgress.currentItem.y }}）
+      </div>
+      <div>剩余 {{ batchProgress.remaining || 0 }} 件</div>
     </section>
 
     <!-- 地图制作模式：显示统计信息 -->
@@ -126,11 +142,12 @@
           </div>
         </div>
         <!-- 详细词缀信息 -->
-        <div v-for="(mod, index) in itemInfo.detailedMods" :key="index" class="mod-line"
-          :class="{ 'matched-highlight': isModMatched(mod) }">
-          <span class="mod-tier" :class="mod.type">
-            {{ mod.type === 'prefix' ? 'P' : 'S' }}{{ mod.tier }}
+        <div v-for="(mod, index) in displayedModifiers" :key="`${mod.type}-${mod.name}-${index}`" class="mod-line"
+          :class="{ 'matched-highlight': isModMatched(mod), 'fractured-mod': mod.type === 'fractured' }">
+          <span class="mod-tier" :class="[craftingModifierAffixType(mod), { fractured: mod.type === 'fractured' }]">
+            {{ craftingModifierTierLabel(mod) }}
           </span>
+          <span v-if="mod.type === 'fractured'" class="fractured-badge">破碎</span>
           <span class="mod-text">{{ mod.text }}</span>
           <span class="mod-tags" v-if="mod.tags && mod.tags.length">
             {{ mod.tags.join(', ') }}
@@ -138,7 +155,7 @@
         </div>
 
         <!-- 如果没有详细信息，显示普通词缀 -->
-        <div v-if="!itemInfo.detailedMods || itemInfo.detailedMods.length === 0">
+        <div v-if="displayedModifiers.length === 0">
           <div v-for="(mod, index) in itemInfo.explicitMods" :key="'exp-' + index" class="mod-line"
             :class="{ 'matched-highlight': isModMatched(mod) }">
             <span class="mod-text">{{ mod }}</span>
@@ -220,6 +237,11 @@ import { createOverlayDrag } from '@/utils/useOverlayDrag'
 import { normalizeOverlaySettings, overlayBackgroundMedia } from '../../../../shared/overlayBackground.js'
 import { CRAFTING_CURRENCY_CATALOG, normalizeCurrencyUsage } from '../../../../shared/craftingCurrencyCatalog.js'
 import { CRAFTING_CURRENCY_ICONS } from '../craftingCurrencyIcons.js'
+import {
+  craftingModifierAffixType,
+  craftingModifierTierLabel,
+  craftingPanelModifiers
+} from '../craftingPanelModifiers.js'
 
 const props = defineProps({
   itemInfo: {
@@ -263,6 +285,14 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  canResumeBatch: {
+    type: Boolean,
+    default: false
+  },
+  canRescan: {
+    type: Boolean,
+    default: false
+  },
   canRelocate: {
     type: Boolean,
     default: false
@@ -282,10 +312,14 @@ const props = defineProps({
   mapStats: {
     type: Object,
     default: null
+  },
+  batchProgress: {
+    type: Object,
+    default: null
   }
 })
 
-const emit = defineEmits(['confirm', 'restart', 'retry', 'relocate', 'toggle-operation-log', 'close'])
+const emit = defineEmits(['confirm', 'restart', 'retry', 'resume-batch', 'rescan', 'relocate', 'toggle-operation-log', 'close'])
 const drag = createOverlayDrag((message) => electronApi.window.moveOverlay(message))
 const operationLogList = ref(null)
 const operationPhaseLabels = {
@@ -361,6 +395,8 @@ const currencyUsageEntries = computed(() => {
 const showZeroCurrencyUsage = computed(() => (
   (props.isCompleted || props.isStopped) && currencyUsageEntries.value.length === 0
 ))
+
+const displayedModifiers = computed(() => craftingPanelModifiers(props.itemInfo || {}))
 
 const hasContent = computed(() => {
   if (isMapMode.value) {
@@ -564,6 +600,21 @@ function isModMatched(mod) {
   padding-bottom: 38px;
 }
 
+.batch-progress {
+  margin-bottom: var(--overlay-space-3);
+  padding: var(--overlay-space-3);
+  border: 1px solid color-mix(in srgb, var(--brand-color) 60%, transparent);
+  border-radius: var(--overlay-radius-md);
+  background: color-mix(in srgb, var(--brand-color) 12%, var(--overlay-surface));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.batch-progress-title {
+  color: var(--brand-color);
+  font-weight: 700;
+}
+
 .operation-log-expanded .overlay-content {
   padding-bottom: 170px;
 }
@@ -681,6 +732,21 @@ function isModMatched(mod) {
     background: rgba(255, 64, 64, 0.3);
     color: #ffaaaa;
   }
+
+  &.fractured {
+    background: rgba(190, 150, 65, 0.3);
+    color: #f2d58a;
+  }
+}
+
+.fractured-badge {
+  flex: none;
+  padding: 0 4px;
+  border: 1px solid rgba(242, 213, 138, 0.7);
+  border-radius: 2px;
+  color: #f2d58a;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .mod-text {

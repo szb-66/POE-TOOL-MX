@@ -132,6 +132,25 @@ export class ItemFootprintRegistry {
     })
   }
 
+  resolve(category, name) {
+    const normalizedName = normalizeFootprintText(name)
+    if (!normalizedName) return null
+    const normalizedCategory = normalizeFootprintText(category)
+    const keys = [
+      createFootprintKey(normalizedCategory, normalizedName),
+      createFootprintKey('', normalizedName)
+    ].filter(Boolean)
+    for (const key of keys) {
+      if (this.conflicts.has(key)) return null
+      const item = this.items.get(key)
+      if (item) return { width: item.width, height: item.height, source: item.source }
+    }
+    const categoryEntry = this.categories.get(normalizedCategory)
+    return categoryEntry
+      ? { width: categoryEntry.width, height: categoryEntry.height, source: categoryEntry.source }
+      : null
+  }
+
   snapshot() {
     return {
       schemaVersion: ITEM_FOOTPRINT_SCHEMA_VERSION,

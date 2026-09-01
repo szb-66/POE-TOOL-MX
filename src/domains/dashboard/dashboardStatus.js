@@ -79,15 +79,19 @@ export function evaluateItemsStatus(input = {}) {
     id: 'items',
     title: '制作',
     route: '/items',
-    description: '按当前预设自动完成词缀、古灵隐式与插槽制作。',
+    description: input.batchEnabled
+      ? '本地扫描原生背包，并按当前预设逐件处理所选类别物品。'
+      : '按当前预设自动完成词缀、古灵隐式与插槽制作。',
     error: input.lastError && input.lastMode === 'items' ? input.lastError : '',
     running: input.scriptRunning && input.scriptMode === 'items',
     issues: input.validation?.errors,
     readyText: occupied
       ? (input.scriptMode === 'map' ? '共享脚本正被地图模块占用' : '共享脚本正在运行')
       : '配置完整，可启动',
-    runningText: '物品制作脚本运行中',
-    metrics: []
+    runningText: input.batchEnabled
+      ? `背包批量制作中 · ${input.batchProgress?.completed || 0}/${input.batchProgress?.total || input.batchCount || 0}`
+      : '物品制作脚本运行中',
+    metrics: input.batchEnabled ? [{ label: '背包候选', value: `${input.batchCount || 0} 件` }] : []
   })
 }
 

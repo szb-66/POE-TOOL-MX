@@ -8,6 +8,7 @@ import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
 import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
 import {
   collectBagConfigurationIssues,
+  collectAllflameReceiverConfigurationIssues,
   CONFIGURATION_ACTIONS,
   CONFIGURATION_MODULES
 } from '@/domains/configurationGuide/configurationIssues.js'
@@ -21,6 +22,7 @@ function currentConfig(overrides = {}) {
   const { inventory, operationDelayMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
+    allflameReceiverEnabled: bagStore.allflameReceiverEnabled,
     forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
@@ -40,7 +42,7 @@ export function updateBagRuntimeConfig(patch = {}) {
   const bagStore = useBagStore()
   const commit = async () => {
     const candidate = currentConfig(patch)
-    if (bagStore.moduleEnabled) {
+    if (candidate.moduleEnabled || candidate.allflameReceiverEnabled) {
       const error = validateBagRuntimeConfig(candidate)
       if (error) return { success: false, error }
       const result = await electronApi.bag.updateRuntimeConfig(candidate)
@@ -49,6 +51,8 @@ export function updateBagRuntimeConfig(patch = {}) {
     if ('blacklist' in patch) bagStore.setBlacklist(patch.blacklist)
     if ('inventoryLayout' in patch) bagStore.setInventoryLayout(patch.inventoryLayout)
     if ('forceUniqueStash' in patch) bagStore.setForceUniqueStash(patch.forceUniqueStash)
+    if ('moduleEnabled' in patch) bagStore.setModuleEnabled(patch.moduleEnabled)
+    if ('allflameReceiverEnabled' in patch) bagStore.setAllflameReceiverEnabled(patch.allflameReceiverEnabled)
     const settingsStore = useSettingsStore()
     if ('inventory' in patch) settingsStore.updateInventorySettings(patch.inventory)
     if (['operationDelayMs', 'fixedTiming'].some((key) => key in patch)) {
@@ -64,9 +68,9 @@ export function updateBagRuntimeConfig(patch = {}) {
   return bagRuntimeQueue
 }
 
-export async function startBagDetection({ silent = false } = {}) {
+export async function startBagDetection({ silent = false, overrides = {} } = {}) {
   const bagStore = useBagStore()
-  const config = currentConfig()
+  const config = currentConfig(overrides)
   const error = validateBagRuntimeConfig(config)
   if (error) {
     if (!silent) ElMessage.warning(error)
@@ -85,10 +89,13 @@ export async function startBagDetection({ silent = false } = {}) {
   return result
 }
 
-function collectBagConfiguration(actionId = CONFIGURATION_ACTIONS.enable) {
+function collectBagConfiguration(actionId = CONFIGURATION_ACTIONS.enable, target = 'stash') {
   const interfaceStore = useInterfaceDetectionStore()
   const settingsStore = useSettingsStore()
-  return collectBagConfigurationIssues({
+  const collect = target === 'allflameReceiver'
+    ? collectAllflameReceiverConfigurationIssues
+    : collectBagConfigurationIssues
+  return collect({
     actionId,
     templates: interfaceStore.templates,
     inventory: settingsStore.inventory
@@ -111,16 +118,55 @@ export async function setBagModuleEnabled(enabled, { configurationGuideBypass = 
         })
       }
     }
-    const result = await startBagDetection()
+    const result = await startBagDetection({ overrides: { moduleEnabled: true } })
     if (!result?.success) return false
     bagStore.setModuleEnabled(true)
     ElMessage.success('背包安全入库已启用')
     return true
   }
-  await electronApi.bag.stopDetection()
-  bagStore.setModuleEnabled(false)
-  bagStore.resetStates()
+  if (bagStore.allflameReceiverEnabled) {
+    const result = await updateBagRuntimeConfig({ moduleEnabled: false })
+    if (!result.success) return false
+  } else {
+    await electronApi.bag.stopDetection()
+    bagStore.setModuleEnabled(false)
+    bagStore.resetStates()
+  }
   ElMessage.success('背包安全入库已关闭')
+  return true
+}
+
+export async function setAllflameReceiverEnabled(enabled, { configurationGuideBypass = false } = {}) {
+  const bagStore = useBagStore()
+  if (enabled) {
+    if (!configurationGuideBypass) {
+      const check = collectBagConfiguration(CONFIGURATION_ACTIONS.enable, 'allflameReceiver')
+      if (!check.ok) {
+        return runWithConfigurationGuide({
+          moduleId: CONFIGURATION_MODULES.bag,
+          actionId: CONFIGURATION_ACTIONS.enable,
+          title: '完成永火接收舱一键入库配置',
+          actionLabel: '启用',
+          collect: () => collectBagConfiguration(CONFIGURATION_ACTIONS.enable, 'allflameReceiver'),
+          execute: () => setAllflameReceiverEnabled(true, { configurationGuideBypass: true })
+        })
+      }
+    }
+    const result = await startBagDetection({ overrides: { allflameReceiverEnabled: true } })
+    if (!result?.success) return false
+    bagStore.setAllflameReceiverEnabled(true)
+    ElMessage.success('永火接收舱一键入库已启用')
+    return true
+  }
+  if (bagStore.moduleEnabled) {
+    const result = await updateBagRuntimeConfig({ allflameReceiverEnabled: false })
+    if (!result.success) return false
+  } else {
+    await electronApi.bag.stopDetection()
+    bagStore.setAllflameReceiverEnabled(false)
+    bagStore.resetStates()
+  }
+  ElMessage.success('永火接收舱一键入库已关闭')
   return true
 }
 
@@ -128,14 +174,17 @@ export async function startBagStash({ configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (bagStore.isStashing) return { success: false, error: '入库正在进行中' }
   if (!configurationGuideBypass) {
-    const check = collectBagConfiguration(CONFIGURATION_ACTIONS.start)
+    const target = bagStore.allflameReceiverEnabled && bagStore.isAllflameReceiverMatched && !bagStore.isStashMatched
+      ? 'allflameReceiver'
+      : 'stash'
+    const check = collectBagConfiguration(CONFIGURATION_ACTIONS.start, target)
     if (!check.ok) {
       return runWithConfigurationGuide({
         moduleId: CONFIGURATION_MODULES.bag,
         actionId: CONFIGURATION_ACTIONS.start,
         title: '完成背包入库配置',
         actionLabel: '开始入库',
-        collect: () => collectBagConfiguration(CONFIGURATION_ACTIONS.start),
+        collect: () => collectBagConfiguration(CONFIGURATION_ACTIONS.start, target),
         execute: () => startBagStash({ configurationGuideBypass: true })
       })
     }
@@ -172,7 +221,7 @@ export async function initBagAutomation() {
   const bagStore = useBagStore()
   disposers = [
     electronApi.events.onBagDetectionMatch((data) => {
-      bagStore.setMatchedStatus(Boolean(data.matched))
+      bagStore.setMatchedStatus(Boolean(data.matched), data)
     }),
     electronApi.events.onBagDetectionStopped((data) => {
       bagStore.setDetectionStatus(false)
@@ -197,7 +246,7 @@ export async function initBagAutomation() {
     })
   ].filter(Boolean)
 
-  if (bagStore.moduleEnabled) {
+  if (bagStore.moduleEnabled || bagStore.allflameReceiverEnabled) {
     try {
       await startBagDetection({ silent: true })
     } catch (error) {
