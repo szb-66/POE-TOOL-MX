@@ -16,6 +16,12 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  loadingFeedback: {
+    begin: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持加载反馈' }),
+    finish: () => Promise.resolve({ success: false }),
+    getState: () => Promise.resolve({ visible: false, target: 'app', label: '', current: 0, total: 0, activeCount: 0 }),
+    onState: () => () => {}
+  },
   emergencyStopAll: () => Promise.resolve({ success: true, stopped: [], failed: [] }),
   batchCrafting: {
     scanInventory: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持背包扫描' }),
@@ -146,6 +152,7 @@ const mockApi = {
     }),
     startAutoPlacement: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '海图自动放置仅支持 Electron 客户端' } }),
     stopAutoPlacement: () => Promise.resolve({ success: true, status: 'stopped' }),
+    stopAll: () => Promise.resolve({ success: true, stopped: [] }),
     getAutoPlacementStatus: () => Promise.resolve({ status: 'idle' }),
     completeChart: () => Promise.resolve({ success: true }),
     probeBorderMods: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '边缘词缀识别仅支持 Electron 客户端' } }),
@@ -241,7 +248,6 @@ const mockApi = {
   faustus: {
     getStatus: () => Promise.resolve({ success: true, data: { status: 'idle', reasonCode: '', processed: 0, total: 0 } }),
     pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
-    testPriceWindow: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持价格窗口识别' } }),
     start: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持浮士德改价' } }),
     stop: () => Promise.resolve({ success: true, data: { status: 'stopped' } }),
     onEvent: () => () => {}
@@ -267,6 +273,7 @@ const mockApi = {
     deleteTrainingSession: () => Promise.resolve({ success: false, error: { message: '仅 Electron 开发版支持训练会话删除' } }),
     getTrainingStatus: () => Promise.resolve({ success: true, data: { status: 'idle', available: false } }),
     trainModel: () => Promise.resolve({ success: false, error: { message: '仅 Electron 开发版支持模型训练' } }),
+    stopTraining: () => Promise.resolve({ success: true, data: { stopped: false, status: 'idle' } }),
     evaluateModel: () => Promise.resolve({ success: false, error: { message: '仅 Electron 开发版支持模型最终测试' } }),
     onTrainingEvent: () => () => {},
     onEvent: () => () => {}
@@ -302,6 +309,7 @@ const mockApi = {
     updatePotionConfig: (config) => Promise.resolve({ success: true, config, revision: 1, running: false }),
     startLoop: () => Promise.reject(new Error('非 Electron 环境')),
     stopLoop: () => Promise.resolve({ success: true }),
+    stopPortal: () => Promise.resolve({ success: true }),
     getLoopStatus: () => Promise.resolve({ running: false, processId: null }),
     updateLoopConfig: (config) => Promise.resolve({ success: true, config, revision: 1, running: false }),
     samplePixel: () => Promise.reject(new Error('非 Electron 环境')),
@@ -371,6 +379,12 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  loadingFeedback: {
+    begin: (operationId) => window.electronAPI.beginLoadingFeedback?.(String(operationId || '')),
+    finish: (token) => window.electronAPI.finishLoadingFeedback?.(String(token || '')),
+    getState: () => window.electronAPI.getLoadingFeedbackState?.(),
+    onState: (callback) => window.electronAPI.onLoadingFeedbackState?.(callback) || (() => {})
+  },
   emergencyStopAll: () => window.electronAPI.emergencyStopAll?.(),
   batchCrafting: {
     scanInventory: (config) => window.electronAPI.scanBatchCraftingInventory?.(craftingIpcPayload(config)),
@@ -498,6 +512,7 @@ export const electronApi = isElectron ? {
     analyze: (request) => window.electronAPI.analyzePuzzle?.(craftingIpcPayload(request)),
     startAutoPlacement: (request) => window.electronAPI.startPuzzleAutoPlacement?.(craftingIpcPayload(request)),
     stopAutoPlacement: (reason) => window.electronAPI.stopPuzzleAutoPlacement?.(reason),
+    stopAll: (reason) => window.electronAPI.stopPuzzleAll?.(reason),
     getAutoPlacementStatus: () => window.electronAPI.getPuzzleAutoPlacementStatus?.(),
     completeChart: () => window.electronAPI.completePuzzleChart?.(),
     probeBorderMods: (request) => window.electronAPI.probePuzzleBorderMods?.(craftingIpcPayload(request)),
@@ -601,7 +616,6 @@ export const electronApi = isElectron ? {
   faustus: {
     getStatus: () => window.electronAPI.getFaustusStatus?.(),
     pickGridRegion: () => window.electronAPI.pickFaustusGridRegion?.(),
-    testPriceWindow: (request) => window.electronAPI.testFaustusPriceWindow?.(craftingIpcPayload(request)),
     start: (request) => window.electronAPI.startFaustusRepricing?.(craftingIpcPayload(request)),
     stop: (reason) => window.electronAPI.stopFaustusRepricing?.(String(reason || 'user')),
     onEvent: (callback) => window.electronAPI.onFaustusEvent?.(callback) || (() => {})
@@ -627,6 +641,7 @@ export const electronApi = isElectron ? {
     deleteTrainingSession: (id) => window.electronAPI.deleteJunfengTrainingSession?.(String(id || '')),
     getTrainingStatus: () => window.electronAPI.getJunfengTrainingStatus?.(),
     trainModel: (value) => window.electronAPI.trainJunfengModel?.(craftingIpcPayload(value)),
+    stopTraining: () => window.electronAPI.stopJunfengTraining?.(),
     evaluateModel: () => window.electronAPI.evaluateJunfengModel?.(),
     onTrainingEvent: (callback) => window.electronAPI.onJunfengTrainingEvent?.(callback) || (() => {}),
     onEvent: (callback) => window.electronAPI.onJunfengEvent?.(callback) || (() => {})
@@ -672,6 +687,7 @@ export const electronApi = isElectron ? {
     updateLoopConfig: (config) => window.electronAPI.updateLoopAssistConfig?.(craftingIpcPayload(config)),
     samplePixel: (payload) => window.electronAPI.sampleCombatPixel?.(payload),
     executePortal: (payload) => window.electronAPI.executePortalAssist?.(craftingIpcPayload(payload)),
+    stopPortal: () => window.electronAPI.stopPortalAssist?.(),
     onStatus: (callback) => window.electronAPI.onCombatStatus?.(callback) || (() => {})
   },
 

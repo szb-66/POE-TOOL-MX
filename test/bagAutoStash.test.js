@@ -373,9 +373,9 @@ print(json.dumps({"result": result, "checks": Matcher.checks, "events": events})
   assert.equal(values.events.at(-1).foreground, true)
 })
 
-test('Python 入库从助手启动时先聚焦游戏，运行中失焦会停止且释放输入', () => {
+test('Python 入库启动时只校验游戏前台，运行中失焦会停止且释放输入', () => {
   const source = readFileSync(new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url), 'utf8')
-  assert.match(source, /def run_stash\(config\):[\s\S]*?if not focus_game_window\(\):[\s\S]*?game-not-foreground/)
+  assert.match(source, /def run_stash\(config\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?game-not-foreground/)
   assert.match(source, /def move\(self, x, y\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?stop_for_foreground_loss\(self\)/)
   assert.match(source, /def begin_ctrl\(self\):[\s\S]*?if not is_game_foreground\(\):[\s\S]*?self\.press_key\(Key\.ctrl\)[\s\S]*?if not is_game_foreground\(\):/)
   assert.match(source, /def _send_copy\(self, ctrl_held=False\):[\s\S]*?if not self\.begin_ctrl\(\):/)
@@ -1651,7 +1651,7 @@ class Controller:
     def release_all(self): Controller.released = True
 module.pyperclip = Clipboard
 module.InputController = Controller
-module.focus_game_window = lambda: True
+module.is_game_foreground = lambda: True
 module.is_game_foreground = lambda: True
 module.is_running = True
 module.resolve_item_footprint = lambda parsed, catalog: ({"width": 2, "height": 2} if "铁锻重盔" in (parsed.get("baseName"), parsed.get("name")) else None)

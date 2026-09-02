@@ -56,6 +56,8 @@ import {
   UPDATE_MODE_MANUAL,
   UPDATE_SOURCE_CNB
 } from '@/utils/applicationUpdate'
+import { useFeatureModulesStore } from '@/stores/featureModules'
+import { enableFeatureModule } from '@/features/featureRuntime'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -86,6 +88,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const fixedTiming = ref({ ...FIXED_TIMING.defaults })
 
   const itemPosition = ref(createEmptyItemPosition())
+  const essenceItemPosition = ref(createEmptyItemPosition())
+  const harvestItemPosition = ref(createEmptyItemPosition())
+  const harvestCraftButtonPosition = ref(createEmptyItemPosition())
 
   const dpiMode = ref(DPI_MODE_AUTO)
   const manualDpiScale = ref(1)
@@ -362,6 +367,21 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  function updateEssenceItemPosition(position) {
+    essenceItemPosition.value = { ...position }
+    saveSettings()
+  }
+
+  function updateHarvestItemPosition(position) {
+    harvestItemPosition.value = { ...position }
+    saveSettings()
+  }
+
+  function updateHarvestCraftButtonPosition(position) {
+    harvestCraftButtonPosition.value = { ...position }
+    saveSettings()
+  }
+
   function updateBatchScanConfirmationSuppressed(suppressed) {
     batchScanConfirmationSuppressed.value = Boolean(suppressed)
     saveSettings()
@@ -388,6 +408,9 @@ export const useSettingsStore = defineStore('settings', () => {
         operationTimingVersion: OPERATION_TIMING_VERSION,
         fixedTiming: fixedTiming.value,
         itemPosition: itemPosition.value,
+        essenceItemPosition: essenceItemPosition.value,
+        harvestItemPosition: harvestItemPosition.value,
+        harvestCraftButtonPosition: harvestCraftButtonPosition.value,
         gameWindowTitles: gameWindowTitles.value,
         gameWindowProcessNames: gameWindowProcessNames.value,
         dpiScale: dpiScale.value,
@@ -428,7 +451,9 @@ export const useSettingsStore = defineStore('settings', () => {
         }
         if (data.globalShortcuts) {
           const mergedShortcuts = mergeGlobalShortcutSettings(data.globalShortcuts)
-          shortcutSettingsMigrated = Object.keys(DEFAULT_GLOBAL_SHORTCUTS).some(key => (
+          shortcutSettingsMigrated = Object.keys(data.globalShortcuts).some(key => (
+            !Object.hasOwn(DEFAULT_GLOBAL_SHORTCUTS, key)
+          )) || Object.keys(DEFAULT_GLOBAL_SHORTCUTS).some(key => (
             Object.hasOwn(data.globalShortcuts, key) && data.globalShortcuts[key] !== mergedShortcuts[key]
           ))
           globalShortcuts.value = mergedShortcuts
@@ -453,6 +478,9 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.itemPosition) {
           itemPosition.value = { ...data.itemPosition }
         }
+        if (data.essenceItemPosition) essenceItemPosition.value = { ...data.essenceItemPosition }
+        if (data.harvestItemPosition) harvestItemPosition.value = { ...data.harvestItemPosition }
+        if (data.harvestCraftButtonPosition) harvestCraftButtonPosition.value = { ...data.harvestCraftButtonPosition }
         gameWindowTitles.value = normalizeGameWindowTitles(data.gameWindowTitles)
         gameWindowProcessNames.value = normalizeGameWindowProcessNames(data.gameWindowProcessNames)
         const dpiSettings = loadDpiSettings(data)
@@ -523,6 +551,9 @@ export const useSettingsStore = defineStore('settings', () => {
     operationDelayMs.value = OPERATION_DELAY.default
     fixedTiming.value = { ...FIXED_TIMING.defaults }
     itemPosition.value = createEmptyItemPosition()
+    essenceItemPosition.value = createEmptyItemPosition()
+    harvestItemPosition.value = createEmptyItemPosition()
+    harvestCraftButtonPosition.value = createEmptyItemPosition()
     gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
     gameWindowProcessNames.value = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
     dpiMode.value = DPI_MODE_AUTO
@@ -545,6 +576,10 @@ export const useSettingsStore = defineStore('settings', () => {
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
     stashTabSelection.value = createDefaultStashTabSelection()
+    const featureStore = useFeatureModulesStore()
+    const disabledFeatureIds = [...featureStore.disabledFeatureIds]
+    featureStore.reset()
+    const featureRecovery = Promise.all(disabledFeatureIds.map(id => enableFeatureModule(id, { store: featureStore })))
     saveSettings()
     electronApi.automationTiming.update(normalizeAutomationTiming({
       operationDelayMs: operationDelayMs.value,
@@ -564,6 +599,12 @@ export const useSettingsStore = defineStore('settings', () => {
     }
     electronApi.window.setDevToolsVisible(false)
     electronApi.update.configure({ mode: updateMode.value, source: updateSource.value }).catch(() => {})
+    return featureRecovery.then(results => ({
+      warnings: results.flatMap((result, index) => (result?.warnings || []).map(message => ({
+        id: `feature:${disabledFeatureIds[index]}`,
+        message
+      })))
+    }))
   }
 
   function updateDebugMode(enabled) {
@@ -618,6 +659,9 @@ export const useSettingsStore = defineStore('settings', () => {
     operationDelayMs,
     fixedTiming,
     itemPosition,
+    essenceItemPosition,
+    harvestItemPosition,
+    harvestCraftButtonPosition,
     gameWindowTitles,
     gameWindowProcessNames,
     dpiScale,
@@ -651,6 +695,9 @@ export const useSettingsStore = defineStore('settings', () => {
     updateAutomationTiming,
     updateFixedTiming,
     updateItemPosition,
+    updateEssenceItemPosition,
+    updateHarvestItemPosition,
+    updateHarvestCraftButtonPosition,
     updateGameWindowTitles,
     syncGameWindowTitles,
     updateGameWindowProcessNames,

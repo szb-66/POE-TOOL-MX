@@ -2,6 +2,14 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  beginLoadingFeedback: (operationId) => ipcRenderer.invoke('loading-feedback:begin', operationId),
+  finishLoadingFeedback: (token) => ipcRenderer.invoke('loading-feedback:finish', token),
+  getLoadingFeedbackState: () => ipcRenderer.invoke('loading-feedback:state'),
+  onLoadingFeedbackState: (callback) => {
+    const listener = (_event, snapshot) => callback(snapshot)
+    ipcRenderer.on('loading-feedback-state', listener)
+    return () => ipcRenderer.removeListener('loading-feedback-state', listener)
+  },
   emergencyStopAll: () => ipcRenderer.invoke('emergency-stop-all'),
   scanBatchCraftingInventory: (config) => ipcRenderer.invoke('batch-crafting-scan-inventory', config),
   stopBatchCraftingInventoryScan: () => ipcRenderer.invoke('batch-crafting-stop-scan'),
@@ -195,6 +203,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   probePuzzleBorderMods: (request) => ipcRenderer.invoke('puzzle-probe-border-mods', request),
   startPuzzleAutoPlacement: (request) => ipcRenderer.invoke('puzzle-auto-placement-start', request),
   stopPuzzleAutoPlacement: (reason) => ipcRenderer.invoke('puzzle-auto-placement-stop', reason),
+  stopPuzzleAll: (reason) => ipcRenderer.invoke('puzzle-stop-all', reason),
   getPuzzleAutoPlacementStatus: () => ipcRenderer.invoke('puzzle-auto-placement-status'),
   completePuzzleChart: () => ipcRenderer.invoke('puzzle-complete-chart'),
   onPuzzleAnalysisUpdated: (callback) => {
@@ -353,7 +362,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getFaustusStatus: () => ipcRenderer.invoke('faustus-status'),
   pickFaustusGridRegion: () => ipcRenderer.invoke('faustus-grid-pick'),
-  testFaustusPriceWindow: (request) => ipcRenderer.invoke('faustus-price-window-test', request),
   startFaustusRepricing: (request) => ipcRenderer.invoke('faustus-start', request),
   stopFaustusRepricing: (reason) => ipcRenderer.invoke('faustus-stop', reason),
   onFaustusEvent: (callback) => {
@@ -385,6 +393,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteJunfengTrainingSession: (id) => ipcRenderer.invoke('junfeng-training-delete-session', id),
   getJunfengTrainingStatus: () => ipcRenderer.invoke('junfeng-training-status'),
   trainJunfengModel: (value) => ipcRenderer.invoke('junfeng-training-start', value),
+  stopJunfengTraining: () => ipcRenderer.invoke('junfeng-training-stop'),
   evaluateJunfengModel: () => ipcRenderer.invoke('junfeng-training-evaluate'),
   onJunfengEvent: (callback) => {
     const listener = (_event, data) => callback(data)
@@ -437,6 +446,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateLoopAssistConfig: (config) => ipcRenderer.invoke('combat-update-loop-config', config),
   sampleCombatPixel: (payload) => ipcRenderer.invoke('combat-sample-pixel', payload),
   executePortalAssist: (payload) => ipcRenderer.invoke('combat-execute-portal', payload),
+  stopPortalAssist: () => ipcRenderer.invoke('combat-stop-portal'),
   onCombatStatus: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('combat-status', listener)

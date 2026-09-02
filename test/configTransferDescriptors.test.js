@@ -16,8 +16,12 @@ function mockContext() {
   const storage = memoryStorage()
   const presetStore = {
     itemPresets: [{ id: 'item-current', name: '做装', checkInitialItem: true, moduleTwo: {}, moduleThree: {}, moduleEldritch: {} }],
+    essencePresets: [{ id: 'essence-current', name: '精华', affixGroups: [], essencePosition: { x: 10, y: 20 } }],
+    harvestPresets: [{ id: 'harvest-current', name: '花园', affixGroups: [] }],
     mapPresets: [{ id: 'map-current', name: '地图', map: { method: 'alchemy', grid: {} } }],
     currentItemPresetId: 'item-current',
+    currentEssencePresetId: 'essence-current',
+    currentHarvestPresetId: 'harvest-current',
     currentMapPresetId: 'map-current',
     savePresets() { storage.setItem('mapPresets', JSON.stringify(this.mapPresets)) }
   }
@@ -31,10 +35,10 @@ function mockContext() {
   return { storage, presetStore, storyStore, createToolSiteId: () => 'imported-site' }
 }
 
-test('descriptor registry exposes only the five supported transfer sections', () => {
+test('descriptor registry exposes only the seven supported transfer sections', () => {
   const registry = createSectionDescriptorRegistry(mockContext())
   assert.deepEqual([...registry.keys()], [
-    'preset.item', 'preset.map', 'preset.story', 'preset.storySkill', 'settings.toolSites'
+    'preset.item', 'preset.essence', 'preset.harvest', 'preset.map', 'preset.story', 'preset.storySkill', 'settings.toolSites'
   ])
   for (const removed of ['preset.chart', 'preset.shop', 'settings.automation', 'device.shortcuts']) {
     assert.equal(registry.has(removed), false)

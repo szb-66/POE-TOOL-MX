@@ -10,6 +10,12 @@ import {
 
 test('全局快捷键仅保留紧急停止默认值', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.stashStart, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.potionStart, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.potionStop, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.puzzleAnalyze, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStart, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipePause, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStop, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.end, 'Alt+3')
   for (const [key, value] of Object.entries(DEFAULT_GLOBAL_SHORTCUTS)) {
     if (key !== 'end') assert.equal(value, '', `${key} 不应提供内置快捷键`)
@@ -20,6 +26,17 @@ test('全局快捷键只接受当前格式字段', () => {
   assert.equal(mergeGlobalShortcutSettings({ stashShortcut: 'F6' }).stashStart, undefined)
   assert.equal(mergeGlobalShortcutSettings({ stashStart: 'F7' }).stashStart, undefined)
   assert.equal(mergeGlobalShortcutSettings({ unknown: 'F9' }).unknown, undefined)
+  const migrated = mergeGlobalShortcutSettings({
+    potionStart: 'F7',
+    potionStop: 'F8',
+    puzzleAnalyze: 'Alt+7',
+    chaosRecipeStart: 'Alt+4',
+    chaosRecipePause: 'Alt+5',
+    chaosRecipeStop: 'Alt+6'
+  })
+  for (const key of ['potionStart', 'potionStop', 'puzzleAnalyze', 'chaosRecipeStart', 'chaosRecipePause', 'chaosRecipeStop']) {
+    assert.equal(migrated[key], undefined)
+  }
 })
 
 test('普通快捷键保留空值且历史空紧急停止恢复默认值', () => {
@@ -36,7 +53,7 @@ test('快捷键提交先注册规范化候选再持久化成功值', () => {
   const commit = service.match(/export async function commitGlobalShortcut[\s\S]*?\n\}/)?.[0] || ''
   assert.match(commit, /normalizeGlobalShortcutSettings/)
   assert.ok(commit.indexOf('await updateShortcuts(candidate)') < commit.indexOf('settingsStore.updateGlobalShortcuts'))
-  assert.match(commit, /if \(key === 'priceCheck'\) await usePriceCheckStore\(\)\.syncRuntime\(\{ shortcut: candidate\[key\] \}\)/)
+  assert.match(commit, /key === 'priceCheck' && useFeatureModulesStore\(\)\.isEnabled\('price-check'\)[\s\S]*usePriceCheckStore\(\)\.syncRuntime\(\{ shortcut: candidate\[key\] \}\)/)
   assert.match(commit, /catch \(error\)[\s\S]*settingsStore\.updateGlobalShortcuts\(\{ \[key\]: previous\[key\] \}\)[\s\S]*await updateShortcuts\(previous\)/)
   assert.match(service, /validateShortcuts\(shortcuts, \{ requiredKeys: \['end'\] \}\)/)
   assert.match(store, /function updateGlobalShortcuts[\s\S]*normalizeGlobalShortcutSettings[\s\S]*if \(!candidate\.end\) throw new Error\('全局紧急停止快捷键不能为空'\)/)

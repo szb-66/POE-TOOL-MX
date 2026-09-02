@@ -4,11 +4,11 @@
 TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose after archive.
 ## Requirements
 ### Requirement: 商城混沌配方界面
-系统 SHALL 在商城页保留商店正则并提供独立的混沌配方标签。
+系统 SHALL 在独立配方页直接展示商城配方工作台，并 SHALL 保留现有仓库刷新、配方状态、预览、取件、校准及游戏内浮窗同步能力。配方页 MUST NOT 再包含商城正则标签。
 
 #### Scenario: 查看配方状态
 - **WHEN** 用户完成认证、选择赛季及仓库页并刷新
-- **THEN** 页面显示各部位数量、缺件、可出售套数、低等级装备警告和刷新状态
+- **THEN** 配方页显示各部位数量、缺件、可出售套数、低等级装备警告和刷新状态
 
 ### Requirement: 仓库高亮浮窗
 系统 SHALL 根据已校准仓库矩形和标签布局高亮取件计划中的物品格子。

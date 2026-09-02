@@ -277,7 +277,10 @@ test('过渡版本嵌套海图配置拆分为独立预设并清理地图预设',
 })
 
 test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
-  assert.equal(evaluateBagStatus({ configError: '缺少模板' }).state, 'attention')
+  const bag = evaluateBagStatus({ configError: '缺少模板', stashedSlots: 12 })
+  assert.equal(bag.state, 'attention')
+  assert.deepEqual(bag.metrics, [])
+  assert.match(bag.description, /永火接收舱/)
   assert.equal(evaluateBagStatus({ moduleEnabled: true, isDetecting: true, isMatched: true }).state, 'running')
   assert.equal(evaluateBagStatus({
     moduleEnabled: true,
@@ -329,7 +332,7 @@ test('商城配方状态覆盖配置、快照、运行和异常优先级', () =>
   }
   const ready = evaluateShopStatus({ ...readyInput, regex: '' })
   assert.equal(ready.state, 'ready')
-  assert.equal(ready.title, '商城配方')
+  assert.equal(ready.title, '配方')
   assert.deepEqual(ready.metrics, [
     { label: '可取数量', value: '3 套' },
     { label: '预计奖励', value: 6 }
@@ -415,6 +418,7 @@ test('共享脚本进程状态保存并清除运行类型', () => {
 test('首页路由、侧栏入口和脚本生命周期桥接已接入', () => {
   const router = readFileSync(new URL('../src/router/index.js', import.meta.url), 'utf8')
   const sidebar = readFileSync(new URL('../src/components/Layout/Sidebar.vue', import.meta.url), 'utf8')
+  const catalog = readFileSync(new URL('../src/features/featureCatalog.js', import.meta.url), 'utf8')
   const preload = readFileSync(new URL('../electron/preload.cjs', import.meta.url), 'utf8')
   const ipc = readFileSync(new URL('../electron/modules/ipc/python.js', import.meta.url), 'utf8')
 
@@ -422,9 +426,10 @@ test('首页路由、侧栏入口和脚本生命周期桥接已接入', () => {
   assert.match(sidebar, /index="\/"[\s\S]*首页/)
   assert.match(sidebar, /overflow-y: auto/)
   assert.doesNotMatch(sidebar, /\b\w*Filled\b/)
-  assert.match(sidebar, /index="\/bag"[\s\S]*<SuitcaseLine \/>/)
-  assert.match(sidebar, /index="\/craft-planner"[\s\S]*<SetUp \/>/)
-  assert.match(sidebar, /index="\/puzzle"[\s\S]*<Guide \/>/)
+  assert.match(sidebar, /featureStore\.enabledFeatures/)
+  assert.match(catalog, /id: 'bag'[\s\S]*route: '\/bag'[\s\S]*icon: 'SuitcaseLine'/)
+  assert.match(catalog, /id: 'craft-planner'[\s\S]*route: '\/craft-planner'[\s\S]*icon: 'SetUp'/)
+  assert.match(catalog, /id: 'puzzle'[\s\S]*route: '\/puzzle'[\s\S]*icon: 'Guide'/)
   assert.match(preload, /onScriptStatusChanged/)
   assert.match(ipc, /script-status-changed/)
   assert.match(ipc, /status: 'running'/)
@@ -471,28 +476,35 @@ test('首页账号健康状态声明并初始化所读取的账号状态源', ()
   assert.match(dashboard, /authenticated: accountStore\.status\.authenticated/)
 })
 
-test('首页存取卡片分别启停背包入库、仓库取件和君锋镇取件', () => {
+test('首页存取卡片使用四个开关分别启停入库与取件功能', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
   const card = readFileSync(
     new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
     'utf8'
   )
-  const bagActions = dashboard.slice(
-    dashboard.indexOf("if (module.id === 'bag')", dashboard.indexOf('function actionsFor')),
-    dashboard.indexOf("if (module.id === 'combat')", dashboard.indexOf('function actionsFor'))
+  const bagControls = dashboard.slice(
+    dashboard.indexOf("if (module.id === 'bag')", dashboard.indexOf('function controlsFor')),
+    dashboard.indexOf("if (module.id === 'items')", dashboard.indexOf('function controlsFor'))
   )
+  const actionsFor = dashboard.slice(dashboard.indexOf('function actionsFor'), dashboard.indexOf('async function runAction'))
 
   assert.match(dashboard, /useStashPickupStore/)
   assert.match(dashboard, /useJunfengStore/)
-  assert.match(bagActions, /bagStore\.moduleEnabled \? '关闭背包入库' : '启用背包入库'/)
-  assert.match(bagActions, /stashPickupStore\.settings\.enabled \? '关闭仓库取件' : '启用仓库取件'/)
-  assert.match(bagActions, /junfengStore\.settings\.enabled \? '关闭君锋镇取件' : '启用君锋镇取件'/)
-  assert.match(bagActions, /setBagModuleEnabled\(!bagStore\.moduleEnabled\)/)
-  assert.match(bagActions, /stashPickupStore\.setEnabled\(!stashPickupStore\.settings\.enabled\)/)
-  assert.match(bagActions, /junfengStore\.setEnabled\(!junfengStore\.settings\.enabled\)/)
-  assert.equal([...bagActions.matchAll(/disabled:/g)].length, 0)
-  assert.doesNotMatch(bagActions, /disabled: !bagStore\.moduleEnabled && module\.issues\.length > 0/)
-  assert.match(card, /\.card-actions \{[\s\S]*?flex-wrap: wrap;/)
+  assert.match(dashboard, /setAllflameReceiverEnabled/)
+  for (const label of ['背包入库', '永火接收舱', '仓库取件', '君锋镇取件']) {
+    assert.match(bagControls, new RegExp(`label: '${label}'`))
+  }
+  assert.equal([...bagControls.matchAll(/type: 'switch'/g)].length, 4)
+  assert.match(bagControls, /value: bagStore\.moduleEnabled/)
+  assert.match(bagControls, /value: bagStore\.allflameReceiverEnabled/)
+  assert.match(bagControls, /value: stashPickupStore\.settings\.enabled/)
+  assert.match(bagControls, /value: junfengStore\.settings\.enabled/)
+  assert.match(bagControls, /setBagModuleEnabled\(value\)/)
+  assert.match(bagControls, /setAllflameReceiverEnabled\(value\)/)
+  assert.match(bagControls, /stashPickupStore\.setEnabled\(value\)/)
+  assert.match(bagControls, /junfengStore\.setEnabled\(value\)/)
+  assert.doesNotMatch(actionsFor, /module\.id === 'bag'/)
+  assert.match(card, /\.quick-controls \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
 })
 
 test('首页模块卡片的单项快捷控件占满宽度且操作区底部对齐', () => {

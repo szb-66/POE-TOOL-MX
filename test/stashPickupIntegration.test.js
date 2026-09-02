@@ -43,11 +43,11 @@ test('背包页说明仓库默认按搜索高亮取件且不再展示统计阈�
   assert.match(view, /转移未确认/)
 })
 
-test('检测预览允许从主窗口触发并交由脚本自动激活游戏', () => {
+test('检测预览由主进程激活游戏，脚本只保留前台校验', () => {
   const manager = source('electron/modules/stashPickup/manager.js')
   const script = source('src/assets/scripts/stash_pickup_template.py')
-  assert.match(manager, /preview\(\)\s*{\s*this\.ensureReady\(\{ requireForeground: false \}\)/)
-  assert.match(script, /def focus_game_window\(/)
+  assert.match(manager, /async preview\(\)[\s\S]*windowActivation\?\.activateGame/)
+  assert.doesNotMatch(script, /def focus_game_window\(/)
   assert.match(script, /def require_game_foreground\(\):[\s\S]*raise RuntimeError\("game-not-foreground"\)/)
 })
 

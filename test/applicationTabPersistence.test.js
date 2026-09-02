@@ -4,19 +4,19 @@ import { readFileSync } from 'node:fs'
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('设置、存取和商城 Tab 使用容错本机持久化并保留既有默认项', () => {
+test('设置、存取和正则 Tab 使用容错本机持久化并保留既有默认项', () => {
   const settings = source('src/domains/settings/SettingsView.vue')
   const bag = source('src/domains/bag/BagView.vue')
-  const shop = source('src/domains/shop/ShopView.vue')
+  const regex = source('src/domains/regex/RegexView.vue')
 
-  for (const view of [settings, bag, shop]) {
+  for (const view of [settings, bag, regex]) {
     assert.match(view, /readPersistentTab/)
     assert.match(view, /writePersistentTab/)
   }
   assert.doesNotMatch(settings, /sessionStorage/)
   assert.match(settings, /readPersistentTab\(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'\)/)
   assert.match(bag, /readPersistentTab\(STORAGE_TAB_STORAGE_KEY, STORAGE_TABS, 'inbound'\)/)
-  assert.match(shop, /readPersistentTab\('shopActiveTool', SHOP_TABS, 'chaos'\)/)
+  assert.match(regex, /readPersistentTab\('regexActiveTab', TABS, 'vendor'\)/)
 })
 
 test('制作动作目录和动态词缀 Tab 使用稳定名称及相互隔离的持久化状态', () => {

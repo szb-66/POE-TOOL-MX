@@ -30,26 +30,28 @@ import { registerEmergencyStopHandlers } from './emergencyStop.js'
 import { registerConfigTransferHandlers } from './configTransfer.js'
 import { registerConfigurationGuideHandlers } from './configurationGuide.js'
 import { registerFaustusHandlers } from './faustus.js'
+import { registerLoadingFeedbackHandlers } from './loadingFeedback.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng, faustus,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
-    applicationUpdate, feedback, failureEvidence, getMainWindow, enableJunfengTraining = false
+    applicationUpdate, feedback, failureEvidence, windowActivation, loadingFeedback, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
-  registerWindowHandlers(window)
+  registerWindowHandlers(window, { windowActivation })
+  if (loadingFeedback) registerLoadingFeedbackHandlers(loadingFeedback, getMainWindow)
   registerPythonHandlers(python, window, fileWatcher)
   registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting)
   registerShortcutHandlers(shortcut, window)
-  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock })
+  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback })
   registerCombatHandlers(python, window, fileWatcher)
   registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, getMainWindow })
   if (faustus) registerFaustusHandlers(faustus, window, getMainWindow)
   registerConfigTransferHandlers({ getMainWindow })
-  registerConfigurationGuideHandlers(window)
+  registerConfigurationGuideHandlers(window, { windowActivation })
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
   const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics, failureEvidence)

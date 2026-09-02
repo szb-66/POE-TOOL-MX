@@ -100,6 +100,8 @@ test('end 快捷键接入全自动化停止并保留前台作用域配置', () =
 
   assert.match(scriptService, /end:\s*emergencyStopAll/)
   assert.doesNotMatch(scriptService, /end:\s*stopCrafting/)
+  assert.doesNotMatch(scriptService, /chaosRecipeStart:|chaosRecipePause:|chaosRecipeStop:/)
+  assert.match(emergencyIpc, /managerAction\('chaos-recipe', '混沌配方取件', chaosRecipe\?\.automation, \['running', 'paused'\]\)/)
   for (const id of ['script', 'batch-inventory-scan', 'bag-stash', 'stash-pickup', 'junfeng', 'faustus', 'chaos-recipe', 'potion', 'combat-loop', 'portal', 'puzzle']) {
     assert.match(emergencyIpc, new RegExp(`['"]${id}['"]`))
   }

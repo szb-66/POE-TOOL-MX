@@ -32,7 +32,7 @@ test('帮助专题使用唯一稳定 ID 并保留标题摘要', () => {
 test('模块指南覆盖全部侧栏业务路由', () => {
   assert.deepEqual(
     MODULE_TOPICS.map(topic => topic.route),
-    ['/', '/items', '/bag', '/map', '/combat', '/story', '/shop', '/craft-planner', '/price-check', '/puzzle', '/tools', '/settings']
+    ['/', '/items', '/bag', '/map', '/combat', '/story', '/regex', '/recipe', '/craft-planner', '/price-check', '/puzzle', '/tools', '/settings']
   )
   for (const topic of MODULE_TOPICS) {
     assert.ok(topic.module.purpose)
@@ -40,7 +40,7 @@ test('模块指南覆盖全部侧栏业务路由', () => {
     assert.equal(topic.module.steps.length, 3)
     assert.ok(topic.module.risk)
   }
-  assert.equal(MODULE_TOPICS.length, 12)
+  assert.equal(MODULE_TOPICS.length, 13)
 })
 
 test('moduleTopicById 按 id 返回模块主题', () => {
@@ -59,7 +59,8 @@ test('moduleHelpTopicsById 返回稳定有序的新手主题集合', () => {
     map: ['异界地图', '航海海图', '黑名单词缀', '符合条件存仓'],
     combat: ['检测间隔', '被动喝药', '主动喝药', '一键回城'],
     story: ['剧情预设', '技能预设', '剧情浮窗'],
-    shop: ['商城配方', '商城正则', '复制正则'],
+    regex: ['商城正则', '地图正则', '复制正则'],
+    recipe: ['商城配方', '仓库快照', '全局紧急停止'],
     crafting: ['分类', '底材', '制作历史', '撤销', '重做'],
     'price-check': ['国服账号', '全局赛季', '国服查价', '公开挂单'],
     puzzle: ['本机校准', '锁定', '相对收益', '自动放置'],
@@ -110,7 +111,8 @@ test('帮助内容就近分配到对应一级页面', () => {
     ['src/domains/map/MapView.vue', /helpTopics = moduleHelpTopicsById\('map'\)/],
     ['src/domains/combat/CombatView.vue', /helpTopics = moduleHelpTopicsById\('combat'\)/],
     ['src/domains/story/StoryView.vue', /helpTopics = moduleHelpTopicsById\('story'\)/],
-    ['src/domains/shop/ShopView.vue', /helpTopics = moduleHelpTopicsById\('shop'\)/],
+    ['src/domains/regex/RegexView.vue', /helpTopics = moduleHelpTopicsById\('regex'\)/],
+    ['src/domains/shop/RecipeView.vue', /helpTopics = moduleHelpTopicsById\('recipe'\)/],
     ['src/domains/crafting/CraftPlannerView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('crafting'\), \.\.\.CRAFTING_TOPICS\]/],
     ['src/domains/priceCheck/PriceCheckView.vue', /helpTopics = \[\.\.\.moduleHelpTopicsById\('price-check'\), CRAFTING_PRICE_CHECK_TOPIC\]/],
     ['src/domains/puzzle/PuzzleView.vue', /helpTopics = moduleHelpTopicsById\('puzzle'\)/],

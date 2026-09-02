@@ -2,15 +2,9 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   itemStart: '',
   mapStart: '',
   end: 'Alt+3',
-  potionStart: '',
-  potionStop: '',
   portal: '',
   storyPrevious: '',
   storyNext: '',
-  chaosRecipeStart: '',
-  chaosRecipePause: '',
-  chaosRecipeStop: '',
-  puzzleAnalyze: '',
   priceCheck: ''
 })
 

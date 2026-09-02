@@ -82,6 +82,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
   const { getMainWindow, getOverlayWindow } = window
   const intentionallyStopped = new WeakSet()
   const currencyUsageLedger = new CraftingCurrencyUsageLedger()
+  let activeCraftingKind = null
 
   const sendScriptStatus = (payload) => {
     const mainWindow = getMainWindow()
@@ -143,6 +144,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       try {
         const pid = currentScriptProcess.pid
         const mode = getCurrentScriptMode()
+        const craftingKind = activeCraftingKind
         intentionallyStopped.add(currentScriptProcess)
 
         const stopped = await stopPythonProcess(currentScriptProcess, { killTree: killPythonProcessTree })
@@ -190,6 +192,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           overlayWindow.webContents.send('script-stopped', {
             code: null,
             mode,
+            craftingKind,
             termination: 'manual',
             errorCode: null,
             error: null,
@@ -209,18 +212,21 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         sendScriptStatus({
           status: 'stopped',
           mode,
+          craftingKind,
           processId: pid,
           exitCode: null
         })
         return { success: true, stopped: true }
       } catch (error) {
         const mode = getCurrentScriptMode()
+        const craftingKind = activeCraftingKind
         const processId = currentScriptProcess.pid
         clearCurrentScriptProcess()
         fileWatcher.stopFileWatcher()
         sendScriptStatus({
           status: 'error',
           mode,
+          craftingKind,
           processId,
           exitCode: null,
           error: error.message
@@ -268,7 +274,8 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       return {
         isRunning: true,
         processId: currentScriptProcess.pid,
-        mode
+        mode,
+        craftingKind: mode === 'items' ? activeCraftingKind || 'general' : null
       }
     }
     
@@ -292,6 +299,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
       const mode = config?.mode === 'items' || config?.mode === 'map' ? config.mode : null
+      const craftingKind = mode === 'items' ? (['essence', 'harvest'].includes(config?.craftingKind) ? config.craftingKind : 'general') : null
       
       // 如果已有脚本在运行，先停止
       const currentScriptProcess = getCurrentScriptProcess()
@@ -316,6 +324,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         sendScriptStatus({
           status: 'stopped',
           mode: previousMode,
+          craftingKind: activeCraftingKind,
           processId: previousProcessId,
           exitCode: null
         })
@@ -341,6 +350,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         return { success: false, error: requireStashTabOcr
           ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
           : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
+      }
+
+      const activation = await window.activateGameWindow('generated-automation')
+      if (!activation.success) {
+        if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: '无法激活游戏窗口', code: activation.code })
+        return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       }
 
       const usageSnapshot = currencyUsageLedger.begin({
@@ -379,6 +394,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       })
 
       setCurrentScriptProcess(pythonProcess, mode)
+      activeCraftingKind = craftingKind
 
       // 捕获标准输出
       // 确保输出事件在进程创建后立即绑定
@@ -427,6 +443,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
                 currentOverlayWindow.webContents.send('script-stopped', {
                   code: null,
                   mode,
+                  craftingKind,
                   termination: 'manual',
                   errorCode: null,
                   error: null,
@@ -460,6 +477,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           sendScriptStatus({
             status: 'error',
             mode,
+            craftingKind,
             processId: pythonProcess.pid ?? null,
             exitCode: null,
             error: runtimeError
@@ -543,6 +561,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           sendScriptStatus({
             status: failed ? 'error' : 'stopped',
             mode,
+            craftingKind,
             processId: pythonProcess.pid ?? null,
             exitCode: code,
             error: failed
@@ -588,6 +607,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           currentOverlayWindow.webContents.send('script-stopped', {
             code,
             mode,
+            craftingKind,
             termination,
             errorCode: termination === 'abnormal' ? runtimeErrorCode : null,
             error: termination === 'abnormal' ? runtimeError : null,
@@ -651,6 +671,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         sendScriptStatus({
           status: 'error',
           mode,
+          craftingKind,
           processId: pythonProcess.pid ?? null,
           exitCode: pythonProcess.exitCode ?? null,
           error: startupError
@@ -660,6 +681,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
           failedOverlayWindow.webContents.send('script-stopped', {
             code: pythonProcess.exitCode ?? null,
             mode,
+            craftingKind,
             termination: 'abnormal',
             errorCode: 'PROCESS_START_FAILED',
             error: startupError,
@@ -674,11 +696,12 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       sendScriptStatus({
         status: 'running',
         mode,
+        craftingKind,
         processId: pythonProcess.pid,
         exitCode: null
       })
 
-      return { success: true, processId: pythonProcess.pid, mode, ...currencyUsageLedger.snapshot() }
+      return { success: true, processId: pythonProcess.pid, mode, craftingKind, ...currencyUsageLedger.snapshot() }
     } catch (error) {
       if (config?.mode === 'items') batchRecoveryStore.markAbnormal({ reason: error.message, code: 'SCRIPT_START_FAILED' })
       fileWatcher.stopFileWatcher()

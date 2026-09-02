@@ -43,16 +43,19 @@ function terminate(child) {
 }
 
 export class StashPickupManager {
-  constructor({ python, fileWatcher, getMainWindow, interfaceDetection, automationLock, calibration, onStatusChange }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange }) {
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
+    this.windowActivation = windowActivation
+    this.loadingFeedback = loadingFeedback
     this.interfaceDetection = interfaceDetection
     this.automationLock = automationLock
     this.calibration = calibration
     this.onStatusChange = onStatusChange
     this.runtime = { enabled: false, calibration: {}, operationDelayMs: OPERATION_DELAY.default }
     this.child = null
+    this.preparationToken = null
     this.allowingFocusTransition = false
     this.status = {
       status: 'idle', layout: 0, method: 'highlight-model', candidateCells: 0,
@@ -135,32 +138,47 @@ export class StashPickupManager {
     return child
   }
 
-  preview() {
+  async preview() {
     this.ensureReady({ requireForeground: false })
-    const configPath = this.writeConfig()
-    return new Promise((resolve, reject) => {
-      let settled = false
-      const child = this.spawnProcess(['--config', configPath, '--preview'], event => {
-        if (event.event === 'preview') {
-          settled = true
-          resolve(this.normalizeEvent(event))
-        } else if (event.event === 'error') {
-          settled = true
-          reject(eventError(event, '检测预览失败'))
-        }
+    let token = null
+    try {
+      const activation = await this.windowActivation?.activateGame({ source: 'stash-pickup-preview' })
+      if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
+      token = this.loadingFeedback?.begin('stash-pickup.preview', { owner: 'stash-pickup-preview' }) || null
+      this.loadingFeedback?.update(token, { stage: 'model' })
+      const configPath = this.writeConfig()
+      return await new Promise((resolve, reject) => {
+        let settled = false
+        const child = this.spawnProcess(['--config', configPath, '--preview'], event => {
+          if (event.event === 'preview') {
+            settled = true
+            resolve(this.normalizeEvent(event))
+          } else if (event.event === 'error') {
+            settled = true
+            reject(eventError(event, '检测预览失败'))
+          }
+        })
+        child.on('error', reject)
+        child.on('close', code => {
+          if (!settled) reject(new Error(`检测预览进程异常退出（${code}）`))
+        })
       })
-      child.on('error', reject)
-      child.on('close', code => {
-        if (!settled) reject(new Error(`检测预览进程异常退出（${code}）`))
-      })
-    })
+    } finally {
+      this.loadingFeedback?.finish(token)
+    }
   }
 
-  start() {
+  async start() {
     if (this.status.status === 'running') throw new Error('仓库自动取件正在运行')
     this.ensureReady({ requireForeground: false })
     const gate = this.automationLock?.acquire(OWNER) || { success: true }
     if (!gate.success) throw new Error(gate.error)
+    const activation = await this.windowActivation?.activateGame({ source: 'stash-pickup-start' })
+    if (!activation?.success) {
+      this.automationLock?.release(OWNER)
+      throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
+    }
+    this.preparationToken = this.loadingFeedback?.begin('stash-pickup.start', { owner: OWNER }) || null
     this.status = {
       ...this.status, status: 'running', method: 'highlight-model', candidateCells: 0,
       remainingCells: 0, pickedItems: 0, currentIndex: 0, uncertainCells: 0,
@@ -168,6 +186,7 @@ export class StashPickupManager {
     }
     this.allowingFocusTransition = true
     try {
+      this.loadingFeedback?.update(this.preparationToken, { stage: 'model' })
       const configPath = this.writeConfig()
       const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event))
       this.child = child
@@ -182,6 +201,7 @@ export class StashPickupManager {
     } catch (error) {
       this.allowingFocusTransition = false
       this.automationLock?.release(OWNER)
+      this.finishPreparation()
       this.status.status = 'stopped'
       throw error
     }
@@ -189,6 +209,7 @@ export class StashPickupManager {
 
   handleEvent(child, event) {
     if (this.child !== child) return
+    this.finishPreparation()
     event = this.normalizeEvent(event)
     this.allowingFocusTransition = false
     Object.assign(this.status, {
@@ -230,6 +251,7 @@ export class StashPickupManager {
   }
 
   stop(reason = 'user') {
+    this.finishPreparation()
     this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
@@ -240,6 +262,7 @@ export class StashPickupManager {
   }
 
   fail(reason, failure = {}) {
+    this.finishPreparation()
     this.allowingFocusTransition = false
     terminate(this.child)
     this.child = null
@@ -258,7 +281,13 @@ export class StashPickupManager {
     return structuredClone(this.status)
   }
 
+  finishPreparation() {
+    if (this.preparationToken) this.loadingFeedback?.finish(this.preparationToken)
+    this.preparationToken = null
+  }
+
   cleanup() {
+    this.finishPreparation()
     if (this.child || this.status.status === 'running') this.stop('application-exit')
     else this.automationLock?.release(OWNER)
     this.disposeDetection?.()

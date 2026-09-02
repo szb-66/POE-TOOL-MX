@@ -55,3 +55,23 @@ test('快捷键重注册失败时保留本地设置避免形成分叉状态', as
   }), /Alt\+3 注册失败/)
   assert.deepEqual(calls, ['shortcuts'])
 })
+
+test('本地重置会等待模块恢复并把警告返回页面', async () => {
+  const calls = []
+  const result = await resetApplicationSettings({
+    stopAutomations: async () => ({ success: true, stopped: [], failed: [] }),
+    resetStoredSettings: async () => {
+      calls.push('settings:start')
+      await Promise.resolve()
+      calls.push('settings:end')
+      return { warnings: [{ id: 'feature:bag', message: '存取后台恢复失败' }] }
+    },
+    resetInterfaceDetection: () => calls.push('interface'),
+    resetControlOverlayOffset: async () => calls.push('offset'),
+    syncPriceCheckShortcut: async () => calls.push('price-check-shortcut'),
+    syncShortcuts: async () => calls.push('shortcuts')
+  })
+
+  assert.deepEqual(calls.slice(0, 4), ['shortcuts', 'settings:start', 'settings:end', 'interface'])
+  assert.deepEqual(result.warnings, [{ id: 'feature:bag', message: '存取后台恢复失败' }])
+})

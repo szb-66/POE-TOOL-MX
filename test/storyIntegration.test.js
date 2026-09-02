@@ -358,6 +358,7 @@ test('快捷键捕获提供显式清空并允许紧急停止禁用清空', () =>
   assert.match(capture, /allowEmpty: \{ type: Boolean, default: true \}/)
   assert.match(capture, /aria-label="清空快捷键"/)
   assert.match(capture, /result\.type === 'clear' && !props\.allowEmpty/)
-  assert.match(settings, /:model-value="shortcuts\.end" :allow-empty="false"/)
+  assert.match(settings, /\{ key: 'end', label: '全局紧急停止' \}/)
+  assert.match(settings, /:allow-empty="field\.key !== 'end'"/)
   assert.match(map, /:model-value="shortcuts\.end" :allow-empty="false"/)
 })

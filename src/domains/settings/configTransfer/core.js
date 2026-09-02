@@ -13,7 +13,9 @@ export {
 }
 
 export const CONFIG_SECTION_DEFINITIONS = Object.freeze([
-  { id: 'preset.item', group: 'preset', label: '物品制作预设', itemized: true },
+  { id: 'preset.item', group: 'preset', label: '通用制作预设', itemized: true },
+  { id: 'preset.essence', group: 'preset', label: '精华制作预设', itemized: true },
+  { id: 'preset.harvest', group: 'preset', label: '花园工艺预设', itemized: true },
   { id: 'preset.map', group: 'preset', label: '地图预设', itemized: true, supportsDeviceGrid: true },
   { id: 'preset.story', group: 'preset', label: '剧情预设', itemized: true },
   { id: 'preset.storySkill', group: 'preset', label: '剧情技能预设', itemized: true },

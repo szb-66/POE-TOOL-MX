@@ -65,48 +65,13 @@
               </div>
             </el-form-item>
             <el-row class="independent-short-fields app-grid" :gutter="16">
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="制作开始">
-                  <KeyCaptureInput :model-value="shortcuts.itemStart" @change="handleShortcutsChange('itemStart', $event)" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="地图开始">
-                  <KeyCaptureInput :model-value="shortcuts.mapStart" @change="handleShortcutsChange('mapStart', $event)" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="全局紧急停止">
-                  <KeyCaptureInput :model-value="shortcuts.end" :allow-empty="false" @change="handleShortcutsChange('end', $event)" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row class="independent-short-fields app-grid" :gutter="16">
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="配方开始">
-                  <KeyCaptureInput :model-value="shortcuts.chaosRecipeStart" @change="handleShortcutsChange('chaosRecipeStart', $event)" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="配方暂停/继续">
-                  <KeyCaptureInput :model-value="shortcuts.chaosRecipePause" @change="handleShortcutsChange('chaosRecipePause', $event)" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="配方紧急停止">
-                  <KeyCaptureInput :model-value="shortcuts.chaosRecipeStop" @change="handleShortcutsChange('chaosRecipeStop', $event)" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row class="independent-short-fields app-grid" :gutter="16">
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="国服查价">
-                  <KeyCaptureInput :model-value="shortcuts.priceCheck" @change="handleShortcutsChange('priceCheck', $event)" />
-                </el-form-item>
-              </el-col>
-              <el-col :xs="24" :sm="12" :md="8">
-                <el-form-item label="海图分析">
-                  <KeyCaptureInput :model-value="shortcuts.puzzleAnalyze" @change="handleShortcutsChange('puzzleAnalyze', $event)" />
+              <el-col v-for="field in shortcutFields" :key="field.key" :xs="24" :sm="12" :md="8">
+                <el-form-item :label="field.label">
+                  <KeyCaptureInput
+                    :model-value="shortcuts[field.key]"
+                    :allow-empty="field.key !== 'end'"
+                    @change="handleShortcutsChange(field.key, $event)"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -634,6 +599,15 @@ const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
 const activeTab = ref(readPersistentTab(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'))
 const settingsScrollbar = ref(null)
 
+const shortcutFields = Object.freeze([
+  { key: 'itemStart', label: '制作开始' },
+  { key: 'mapStart', label: '地图开始' },
+  { key: 'end', label: '全局紧急停止' },
+  { key: 'portal', label: '一键回城' },
+  { key: 'storyPrevious', label: '剧情上一步' },
+  { key: 'storyNext', label: '剧情下一步' },
+  { key: 'priceCheck', label: '国服查价' }
+])
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)
 const positions = ref({ ...settingsStore.currencyPositions })
@@ -1136,7 +1110,8 @@ async function handleReset() {
     backgroundHistory.value = []
 
     if (resetResult.warnings.length) {
-      ElMessage.warning('设置已重置；部分浮窗状态同步失败，将在下次启动时应用')
+      const warningText = resetResult.warnings.map(item => item.message).filter(Boolean).join('；')
+      ElMessage.warning(`设置已重置；${warningText || '部分后台能力恢复失败，可重启应用后重试'}`)
     } else {
       ElMessage.success('设置已重置，设备相关项已清空，紧急停止快捷键已重新注册')
     }

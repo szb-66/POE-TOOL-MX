@@ -53,7 +53,7 @@ test('证据清单固定随机标识、相对文件名、逐次指标、图片�
 
 test('仓库原子提交、读取摘要和新证据替换不留下旧目录', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'puzzle-evidence-'))
-  const repository = new PuzzleFailureEvidenceRepository({ root })
+  const repository = new PuzzleFailureEvidenceRepository({ root, now: () => Date.parse('2026-08-26T01:02:03Z') })
   const first = await repository.createWorkspace()
   await writeFile(path.join(first.directory, 'page-1-attempt-1-crop.png'), 'png')
   assert.equal((await repository.commit(first, manifest(first.evidenceId))).success, true)
@@ -68,7 +68,7 @@ test('仓库原子提交、读取摘要和新证据替换不留下旧目录', as
 
 test('反馈失败保留、成功或用户取消只清理对应证据且不暴露完整路径', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'puzzle-evidence-clear-'))
-  const repository = new PuzzleFailureEvidenceRepository({ root })
+  const repository = new PuzzleFailureEvidenceRepository({ root, now: () => Date.parse('2026-08-26T01:02:03Z') })
   const workspace = await repository.createWorkspace()
   await writeFile(path.join(workspace.directory, 'page-1-attempt-1-crop.png'), 'png')
   await repository.commit(workspace, manifest(workspace.evidenceId))

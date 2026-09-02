@@ -5,9 +5,11 @@ import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diag
 export const useScriptStore = defineStore('script', () => {
   const isRunning = ref(false)
   const mode = ref(null)
+  const craftingKind = ref(null)
   const processId = ref(null)
   const lastError = ref('')
   const lastMode = ref(null)
+  const lastCraftingKind = ref(null)
   const itemRuntime = ref({ eldritchImplicitMatch: false, matchedEldritchTargetName: '', error: '' })
   const batchRuntime = ref({
     active: false, total: 0, completed: 0, remaining: 0, currentItem: null,
@@ -74,7 +76,9 @@ export const useScriptStore = defineStore('script', () => {
     const running = status.isRunning === true || status.status === 'running'
     isRunning.value = running
     mode.value = running && (status.mode === 'items' || status.mode === 'map') ? status.mode : null
+    craftingKind.value = running && status.mode === 'items' ? (status.craftingKind || 'general') : null
     if (status.mode === 'items' || status.mode === 'map') lastMode.value = status.mode
+    if (status.mode === 'items') lastCraftingKind.value = status.craftingKind || lastCraftingKind.value || 'general'
     processId.value = running ? (status.processId ?? null) : null
     if (status.status === 'error') {
       lastError.value = status.error || '制作脚本异常退出'
@@ -88,18 +92,22 @@ export const useScriptStore = defineStore('script', () => {
   function reset() {
     isRunning.value = false
     mode.value = null
+    craftingKind.value = null
     processId.value = null
     lastError.value = ''
     lastMode.value = null
+    lastCraftingKind.value = null
     resetItemRuntime()
   }
 
   return {
     isRunning,
     mode,
+    craftingKind,
     processId,
     lastError,
     lastMode,
+    lastCraftingKind,
     itemRuntime,
     batchRuntime,
     beginBatch,

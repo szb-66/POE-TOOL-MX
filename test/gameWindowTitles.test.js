@@ -117,6 +117,35 @@ test('共享文件写入失败时不替换上一份内存配置', () => {
   assert.deepEqual(registry.getTitles(), [...DEFAULT_GAME_WINDOW_TITLES])
 })
 
+test('Windows 短暂占用共享文件时重试原子替换', () => {
+  let renameAttempts = 0
+  const retryDelays = []
+  const fileSystem = {
+    writeFileSync() {},
+    renameSync() {
+      renameAttempts += 1
+      if (renameAttempts < 3) {
+        throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' })
+      }
+    },
+    unlinkSync() {
+      assert.fail('重试成功后不应删除临时文件')
+    }
+  }
+  const registry = new GameWindowTitleRegistry({
+    userDataPath: 'C:\\runtime',
+    fileSystem,
+    environment: {},
+    sleep: delay => retryDelays.push(delay)
+  })
+
+  const result = registry.updateProcessNames(['PathOfExile_x64.exe'])
+
+  assert.deepEqual(result.processNames, ['PathOfExile_x64.exe'])
+  assert.equal(renameAttempts, 3)
+  assert.deepEqual(retryDelays, [10, 25])
+})
+
 test('设置持久化、启动同步和编辑器覆盖新增编辑删除与拖拽', () => {
   const store = source('../src/domains/settings/settingsStore.js')
   const runtime = source('../src/startup/mainRuntime.js')
@@ -165,7 +194,8 @@ test('IPC 与全部 Python 窗口识别脚本接入同一热更新契约', () =>
     'stash_pickup_template.py',
     'puzzle_analyzer.py',
     'stash_tab_selector.py',
-    'foreground_watcher.py'
+    'foreground_watcher.py',
+    'faustus_market_repricing.py'
   ].map(name => source(`../src/assets/scripts/${name}`))
 
   for (const script of scripts) {

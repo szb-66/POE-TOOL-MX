@@ -5,14 +5,14 @@ import { acquireCrossProcessInstanceLock } from '../electron/modules/app/singleI
 
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
-test('应用在创建窗口前获取单实例锁并聚焦已有主窗口', () => {
+test('应用在创建窗口前获取单实例锁并通过公共服务激活已有主窗口', () => {
   const main = source('../electron/main.js')
   assert.match(main, /app\.requestSingleInstanceLock\(\)/)
   assert.match(main, /if \(!hasSingleInstanceLock\) process\.exit\(0\)/)
   assert.match(main, /app\.on\('second-instance'/)
   assert.match(main, /acquireCrossProcessInstanceLock/)
-  assert.match(main, /existingWindow\.restore\(\)/)
-  assert.match(main, /existingWindow\.focus\(\)/)
+  assert.match(main, /windowActivation\?\.activateMain\(\{ source: 'second-instance' \}\)/)
+  assert.doesNotMatch(main, /existingWindow\.(?:restore|focus)\(\)/)
 })
 
 test('开发版与打包版共用固定应用数据目录', () => {

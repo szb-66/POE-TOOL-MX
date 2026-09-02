@@ -4,6 +4,7 @@ import { electronApi } from '../api/electron.js'
 import { normalizeStashPickupSettings } from '../utils/stashPickupConfig.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
+import { useFeatureModulesStore } from './featureModules.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
 import {
@@ -61,7 +62,9 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   }
 
   async function syncRuntime(overrides = {}) {
-    state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.updateRuntime(runtime(overrides))) }
+    const requested = runtime(overrides)
+    requested.enabled = useFeatureModulesStore().isEnabled('bag') && Boolean(requested.enabled)
+    state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.updateRuntime(requested)) }
     return state.value
   }
 
@@ -220,10 +223,16 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     })
   }
 
-  async function initializeRuntime() {
-    try { await syncRuntime() } catch {
-      settings.value.enabled = false
-      save()
+  async function initializeRuntime({ preserveEnabledOnFailure = false } = {}) {
+    try {
+      await syncRuntime()
+      return { success: true }
+    } catch (error) {
+      if (!preserveEnabledOnFailure) {
+        settings.value.enabled = false
+        save()
+      }
+      return { success: false, error: error?.message || String(error) }
     }
   }
 

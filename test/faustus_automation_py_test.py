@@ -66,6 +66,9 @@ class FakeRunAdapter(FakeAdapter):
     def validate_grid_structure(self):
         self.actions.append("validate_grid")
 
+    def clear_grid_hover(self):
+        self.actions.append("clear_grid_hover")
+
     def copy_item_at(self, column, row):
         return self.ITEM_TEXT if (column, row) == (0, 0) else ""
 
@@ -80,15 +83,6 @@ class FakeRunAdapter(FakeAdapter):
     def submission_result(self):
         self.actions.append("submission_result")
         return "repriced"
-
-
-class FakePrioritizedAdapter(FakeRunAdapter):
-    def candidate_cells(self):
-        return [(5, 4), (0, 0)]
-
-    def copy_item_at(self, column, row):
-        self.actions.append(f"copy:{column},{row}")
-        return self.ITEM_TEXT if (column, row) == (5, 4) else ""
 
 
 class GridRunAdapter(FakeRunAdapter):
@@ -144,6 +138,29 @@ class GridRunAdapter(FakeRunAdapter):
         self.window_open = False
 
 
+class ProbeGridRunAdapter(GridRunAdapter):
+    OTHER_ITEM_TEXT = "物品类别: 护甲\n稀有度: 稀有\n其他物品\n术士长袍\n--------\n护甲: 200"
+
+    def __init__(self, candidates, item_text_by_cell, *, copy_sequences=None):
+        super().__init__(candidates, shared_item=False, mutate_text=False)
+        self.item_text_by_cell = dict(item_text_by_cell)
+        self.copy_sequences = {
+            cell: iter(values) for cell, values in (copy_sequences or {}).items()
+        }
+        self.cell_prices = {cell: 100 for cell in self.item_text_by_cell}
+
+    def copy_item_at(self, column, row):
+        cell = (column, row)
+        self.actions.append(f"copy:{column},{row}")
+        sequence = self.copy_sequences.get(cell)
+        if sequence is not None:
+            try:
+                return next(sequence)
+            except StopIteration:
+                self.copy_sequences.pop(cell, None)
+        return self.item_text_by_cell.get(cell, "")
+
+
 class FakePreflightAdapter:
     def __init__(self):
         self.actions = []
@@ -189,6 +206,18 @@ class FaustusAutomationTests(unittest.TestCase):
         adapter.write_clipboard = lambda value: adapter.actions.append(("write", str(value)))
         return adapter
 
+    def test_game_window_match_requires_both_title_and_process_name(self):
+        self.mod.game_window_titles = lambda: ("流放之路", "Path of Exile")
+        self.mod.game_window_process_names = lambda: ("PathOfExile.exe",)
+
+        self.mod._window_title = lambda _hwnd: "流放之路攻略 - 浏览器"
+        self.mod.window_process_name = lambda _hwnd: "msedge.exe"
+        self.assertFalse(self.mod.window_matches_game(101))
+
+        self.mod._window_title = lambda _hwnd: "流放之路"
+        self.mod.window_process_name = lambda _hwnd: "pathofexile.exe"
+        self.assertTrue(self.mod.window_matches_game(202))
+
     @staticmethod
     def repricing_config(item_name="术士长袍", width=2, height=2):
         return {
@@ -228,28 +257,24 @@ class FaustusAutomationTests(unittest.TestCase):
         )
         self.assertEqual(self.mod.validate_grid_calibration({"left": 10, "top": 20, "right": 1210, "bottom": 900, "scaleFactor": 1})[0], False)
 
-    def test_recognition_preflight_activates_game_before_any_adapter_input(self):
+    def test_recognition_preflight_only_checks_foreground_before_any_adapter_input(self):
         config = {
-            "activateGameWindow": True,
             "gridCalibration": {"left": 10, "top": 20, "right": 1210, "bottom": 1220, "scaleFactor": 1},
         }
-        original_activate = self.mod.activate_game_window
         original_foreground = self.mod.is_game_foreground
         try:
             adapter = FakePreflightAdapter()
-            self.mod.activate_game_window = lambda: True
             self.mod.is_game_foreground = lambda: True
             self.mod.perform_readonly_preflight(config, adapter)
             self.assertEqual(adapter.actions, ["validate_page", "validate_grid"])
 
             blocked = FakePreflightAdapter()
-            self.mod.activate_game_window = lambda: False
+            self.mod.is_game_foreground = lambda: False
             with self.assertRaises(self.mod.PageAbort) as failure:
                 self.mod.perform_readonly_preflight(config, blocked)
-            self.assertEqual(failure.exception.reason_code, "game_activation_failed")
+            self.assertEqual(failure.exception.reason_code, "game_not_foreground")
             self.assertEqual(blocked.actions, [])
         finally:
-            self.mod.activate_game_window = original_activate
             self.mod.is_game_foreground = original_foreground
 
     def test_item_identity_returns_only_safe_display_name(self):
@@ -261,51 +286,96 @@ class FaustusAutomationTests(unittest.TestCase):
         self.assertEqual(self.mod.best_effort_item_name(copied), "测试物品")
         self.assertEqual(self.mod.identify_copied_item("任意非空文本")["itemName"], "任意非空文本")
 
-    def test_price_test_uses_visual_candidate_order_and_emits_visible_progress(self):
-        original_gate = self.mod.require_game_foreground
-        self.mod.require_game_foreground = lambda: None
-        try:
-            adapter = FakePrioritizedAdapter()
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                column, row, item = self.mod._find_first_item(adapter)
-            self.assertEqual((column, row, item["itemName"]), (5, 4, "测试物品"))
-            self.assertEqual(adapter.actions, ["copy:5,4"])
-            event = json.loads(next(line[6:] for line in output.getvalue().splitlines()
-                                    if line.startswith("EVENT ")))
-            self.assertEqual(event, {
-                "event": "scan-progress", "current": 1, "total": 2, "column": 6, "row": 5,
-            })
-        finally:
-            self.mod.require_game_foreground = original_gate
+    def test_price_window_test_mode_and_helpers_are_removed(self):
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn('"price-window-test"', source)
+        self.assertFalse(hasattr(self.mod, "run_price_window_test"))
+        self.assertFalse(hasattr(self.mod, "_find_first_item"))
 
-    def test_candidate_scan_accepts_any_fresh_nonempty_clipboard_without_format_validation(self):
-        original_gate = self.mod.require_game_foreground
-        self.mod.require_game_foreground = lambda: None
-        try:
-            adapter = FakePrioritizedAdapter()
-            adapter.copy_item_at = lambda column, row: "任意非空文本" if (column, row) == (5, 4) else ""
-            with contextlib.redirect_stdout(io.StringIO()):
-                column, row, item = self.mod._find_first_item(adapter)
-            self.assertEqual((column, row, item["itemName"]), (5, 4, "任意非空文本"))
-
-            empty = FakePrioritizedAdapter()
-            empty.copy_item_at = lambda _column, _row: ""
-            with contextlib.redirect_stdout(io.StringIO()):
-                with self.assertRaises(self.mod.PageAbort) as missing:
-                    self.mod._find_first_item(empty)
-            self.assertEqual(missing.exception.reason_code, "no_market_item_found")
-        finally:
-            self.mod.require_game_foreground = original_gate
-
-    def test_generic_model_skips_every_cell_classified_as_empty(self):
-        probabilities = [[0.01, 0.01, 0.98] for _ in range(144)]
+    def test_generic_model_only_skips_high_confidence_empty_cells(self):
+        probabilities = [[0.0005, 0.0005, 0.999] for _ in range(144)]
         probabilities[0] = [0.90, 0.05, 0.05]
         probabilities[1] = [0.05, 0.90, 0.05]
         probabilities[2] = [0.10, 0.10, 0.80]
         cells, skipped = self.mod.select_market_candidate_cells(probabilities)
-        self.assertEqual(cells, [(0, 0), (1, 0)])
-        self.assertEqual(skipped, 142)
+        self.assertEqual(cells, [(0, 0), (1, 0), (2, 0)])
+        self.assertEqual(skipped, 141)
+
+    def test_clipboard_probe_recovers_multicell_item_from_internal_visual_hit(self):
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            occupied = {
+                (column, row): GridRunAdapter.ITEM_TEXT
+                for row in range(2) for column in range(2)
+            }
+            adapter = ProbeGridRunAdapter([(1, 1)], occupied)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.mod.run_repricing(self.repricing_config(), adapter)
+            self.assertEqual(adapter.actions.count("click_submit"), 1)
+            self.assertEqual(sum(action.startswith("open:") for action in adapter.actions), 1)
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_clipboard_probe_separates_adjacent_items_with_different_text(self):
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            occupied = {
+                **{(column, row): GridRunAdapter.ITEM_TEXT for row in range(2) for column in range(2)},
+                **{(column, row): ProbeGridRunAdapter.OTHER_ITEM_TEXT for row in range(2) for column in range(2, 4)},
+            }
+            adapter = ProbeGridRunAdapter([(1, 0), (2, 0)], occupied)
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.mod.run_repricing(self.repricing_config(), adapter)
+            self.assertEqual(adapter.actions.count("click_submit"), 2)
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_clipboard_probe_keeps_identical_multicell_multiple_placements_ambiguous(self):
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            occupied = {(column, 0): GridRunAdapter.ITEM_TEXT for column in range(3)}
+            adapter = ProbeGridRunAdapter([(1, 0)], occupied)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.mod.run_repricing(self.repricing_config(width=2, height=1), adapter)
+            self.assertFalse(any(action.startswith("open:") for action in adapter.actions))
+            self.assertIn('"reasonCode": "item_footprint_ambiguous"', output.getvalue())
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_clipboard_probe_retries_one_transient_empty_result(self):
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            occupied = {(0, 0): GridRunAdapter.ITEM_TEXT, (1, 0): GridRunAdapter.ITEM_TEXT}
+            adapter = ProbeGridRunAdapter(
+                [(0, 0)], occupied,
+                copy_sequences={(1, 0): ["", GridRunAdapter.ITEM_TEXT]},
+            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.mod.run_repricing(self.repricing_config(width=2, height=1), adapter)
+            self.assertEqual(adapter.actions.count("copy:1,0"), 2)
+            self.assertEqual(adapter.actions.count("click_submit"), 1)
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_clipboard_probe_persistent_empty_is_cached_and_safely_skipped(self):
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            occupied = {(0, 0): GridRunAdapter.ITEM_TEXT}
+            adapter = ProbeGridRunAdapter([(0, 0)], occupied)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.mod.run_repricing(self.repricing_config(width=2, height=1), adapter)
+            self.assertEqual(adapter.actions.count("copy:1,0"), 2)
+            self.assertFalse(any(action.startswith("open:") for action in adapter.actions))
+            self.assertIn('"reasonCode": "item_footprint_ambiguous"', output.getvalue())
+        finally:
+            self.mod.require_game_foreground = original_gate
 
     def test_multicell_item_is_repriced_once_even_when_copied_text_changes_after_submit(self):
         original_gate = self.mod.require_game_foreground
@@ -354,25 +424,91 @@ class FaustusAutomationTests(unittest.TestCase):
         finally:
             self.mod.require_game_foreground = original_gate
 
-    def test_footprint_geometry_rejects_multiple_out_of_bounds_and_conflicting_rectangles(self):
+    def test_locked_item_without_price_window_is_skipped_and_next_item_is_repriced(self):
+        self_module = self.mod
+
+        class LockedFirstAdapter(GridRunAdapter):
+            def __init__(self):
+                super().__init__([(0, 0), (1, 0)], shared_item=False, mutate_text=False)
+
+            def open_price_at(self, column, row):
+                if (column, row) == (0, 0):
+                    self.actions.append("open:0,0")
+                    self.window_open = False
+                    raise self_module.ItemSkip("price_window_anchor_missing")
+                super().open_price_at(column, row)
+
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            adapter = LockedFirstAdapter()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.mod.run_repricing(self.repricing_config(width=1, height=1), adapter)
+            events = [json.loads(line[6:]) for line in output.getvalue().splitlines()
+                      if line.startswith("EVENT ")]
+            items = [event for event in events if event["event"] == "item"]
+            self.assertEqual([item["reasonCode"] for item in items],
+                             ["price_window_anchor_missing", "repriced"])
+            self.assertEqual(adapter.actions.count("click_submit"), 1)
+            self.assertEqual(events[-1]["event"], "completed")
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_periodic_validation_clears_hover_after_skipped_item(self):
+        self_module = self.mod
+
+        class HoverSensitiveAdapter(GridRunAdapter):
+            UNKNOWN_TEXT = "物品类别: 未知\n稀有度: 稀有\n未知物品\n--------"
+
+            def __init__(self):
+                super().__init__([(column, 0) for column in range(12)] + [(0, 1)],
+                                 shared_item=False, mutate_text=False)
+                self.hovering_grid = False
+
+            def copy_item_at(self, column, row):
+                self.hovering_grid = True
+                if (column, row) == (11, 0):
+                    return self.UNKNOWN_TEXT
+                return super().copy_item_at(column, row)
+
+            def clear_grid_hover(self):
+                self.actions.append("clear_grid_hover")
+                self.hovering_grid = False
+
+            def validate_grid_structure(self):
+                if self.hovering_grid:
+                    raise self_module.PageAbort("grid_structure_invalid")
+                super().validate_grid_structure()
+
+        original_gate = self.mod.require_game_foreground
+        self.mod.require_game_foreground = lambda: None
+        try:
+            adapter = HoverSensitiveAdapter()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.mod.run_repricing(self.repricing_config(width=1, height=1), adapter)
+            events = [json.loads(line[6:]) for line in output.getvalue().splitlines()
+                      if line.startswith("EVENT ")]
+            reasons = [event.get("reasonCode") for event in events if event["event"] == "item"]
+            self.assertIn("item_footprint_unknown", reasons)
+            self.assertEqual(adapter.actions.count("clear_grid_hover"), 2)
+            self.assertEqual(events[-1]["event"], "completed")
+        finally:
+            self.mod.require_game_foreground = original_gate
+
+    def test_footprint_geometry_enumerates_in_bounds_non_overlapping_rectangles(self):
         footprint = {"width": 2, "height": 2}
-        exact = {(4, 4), (5, 4), (4, 5), (5, 5)}
+        rectangles = self.mod.candidate_footprint_rectangles((4, 4), footprint, set())
+        self.assertEqual(len(rectangles), 4)
+        self.assertIn({(4, 4), (5, 4), (4, 5), (5, 5)}, rectangles)
         self.assertEqual(
-            self.mod.unique_footprint_slots((4, 4), footprint, exact, set(), set()),
-            exact,
+            self.mod.candidate_footprint_rectangles((0, 0), footprint, set()),
+            [{(0, 0), (1, 0), (0, 1), (1, 1)}],
         )
-        multiple = {(4, 4), (5, 4), (6, 4), (4, 5), (5, 5), (6, 5)}
-        self.assertEqual(
-            self.mod.unique_footprint_slots((5, 4), footprint, multiple, set(), set()),
-            set(),
-        )
-        self.assertEqual(
-            self.mod.unique_footprint_slots((11, 11), footprint, {(11, 11)}, set(), set()),
-            set(),
-        )
-        self.assertEqual(
-            self.mod.unique_footprint_slots((4, 4), footprint, exact, {(5, 5)}, set()),
-            set(),
+        self.assertNotIn(
+            {(4, 4), (5, 4), (4, 5), (5, 5)},
+            self.mod.candidate_footprint_rectangles((4, 4), footprint, {(5, 5)}),
         )
 
     def test_failed_multicell_item_is_not_retried_from_another_covered_cell(self):
@@ -426,33 +562,32 @@ class FaustusAutomationTests(unittest.TestCase):
         self.assertIn("000", [item["text"] for item in truncated])
         self.assertEqual(self.mod.read_full_price(FakeAdapter(clipboard_values=["1000"])), 1000)
 
-    def test_transaction_rechecks_value_and_currency_then_submits_once(self):
-        adapter = FakeAdapter(clipboard_values=["360"], currencies=["chaos"])
+    def test_currency_change_selects_currency_then_writes_price_and_submits_once(self):
+        adapter = FakeAdapter()
         result = self.mod.execute_price_transaction(adapter, {"newPrice": 360, "newCurrency": "chaos", "oldCurrency": "divine"})
         self.assertEqual(result, "repriced")
-        self.assertEqual(adapter.actions.count("click_submit"), 1)
-        self.assertLess(adapter.actions.index("choose_currency:chaos"), adapter.actions.index("recognize_currency"))
-        self.assertLess(adapter.actions.index("recognize_currency"), adapter.actions.index("click_submit"))
+        self.assertEqual(adapter.actions, [
+            "choose_currency:chaos",
+            "double_click_price", "hotkey:ctrl+a", "write_clipboard:360", "hotkey:ctrl+v",
+            "click_submit",
+        ])
 
-        mismatch = FakeAdapter(clipboard_values=["359"], currencies=["chaos"])
-        with self.assertRaises(self.mod.ItemSkip):
-            self.mod.execute_price_transaction(mismatch, {"newPrice": 360, "newCurrency": "chaos", "oldCurrency": "divine"})
-        self.assertNotIn("click_submit", mismatch.actions)
+    def test_same_currency_writes_price_and_submits_without_rechecking(self):
+        adapter = FakeAdapter()
+        result = self.mod.execute_price_transaction(adapter, {
+            "newPrice": 90, "newCurrency": "chaos", "oldCurrency": "chaos",
+        })
+        self.assertEqual(result, "repriced")
+        self.assertEqual(adapter.actions, [
+            "double_click_price", "hotkey:ctrl+a", "write_clipboard:90", "hotkey:ctrl+v",
+            "click_submit",
+        ])
 
-        currency_mismatch = FakeAdapter(clipboard_values=["360"], currencies=["divine"])
-        with self.assertRaises(self.mod.ItemSkip):
-            self.mod.execute_price_transaction(
-                currency_mismatch,
-                {"newPrice": 360, "newCurrency": "chaos", "oldCurrency": "divine"},
-            )
-        self.assertNotIn("click_submit", currency_mismatch.actions)
-
-    def test_successful_same_currency_repricing_uses_three_ocr_passes(self):
+    def test_successful_same_currency_repricing_uses_two_ocr_passes(self):
         adapter = self.make_counting_game_adapter([
             self.price_candidates("混沌石"),
-            [self.price_candidates("混沌石")[1]],
             [],
-        ], ["100", "90"])
+        ], ["100"])
 
         adapter.open_price_at(0, 0)
         old_price = self.mod.read_full_price(adapter)
@@ -463,20 +598,19 @@ class FaustusAutomationTests(unittest.TestCase):
         })
         self.assertEqual(adapter.submission_result(), "repriced")
 
-        self.assertEqual(adapter.ocr_count, 3)
+        self.assertEqual(adapter.ocr_count, 2)
         self.assertIsNone(adapter._price_context)
         self.assertFalse(adapter.price_window_open())
-        self.assertEqual(adapter.ocr_count, 3)
+        self.assertEqual(adapter.ocr_count, 2)
 
-    def test_successful_currency_change_repricing_uses_four_ocr_passes(self):
+    def test_successful_currency_change_repricing_uses_three_ocr_passes(self):
         divine_option = self.price_candidates("神圣石")[1]
         divine_option["box"] = [[600, 270], [680, 270], [680, 295], [600, 295]]
         adapter = self.make_counting_game_adapter([
             self.price_candidates("混沌石"),
             [divine_option],
-            [self.price_candidates("神圣石")[1]],
             [],
-        ], ["200", "1"])
+        ], ["200"])
 
         adapter.open_price_at(0, 0)
         self.assertEqual(self.mod.read_full_price(adapter), 200)
@@ -486,7 +620,7 @@ class FaustusAutomationTests(unittest.TestCase):
         })
         self.assertEqual(adapter.submission_result(), "repriced")
 
-        self.assertEqual(adapter.ocr_count, 4)
+        self.assertEqual(adapter.ocr_count, 3)
         self.assertIsNone(adapter._price_context)
 
     def test_submission_result_reuses_one_snapshot_for_warning_and_window_state(self):

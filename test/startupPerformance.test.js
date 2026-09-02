@@ -63,7 +63,8 @@ test('主窗口运行时复用初始化任务、先接监听器并统一逆序�
   const titleSync = runtime.indexOf('await settingsStore.syncGameWindowTitles()')
   const parallelSync = runtime.indexOf('await Promise.all([')
   assert.ok(listeners >= 0 && titleSync > listeners && parallelSync > titleSync)
-  assert.match(runtime, /settleSubsystem\('junfeng'/)
+  assert.match(runtime, /settleSubsystem\('feature-modules'/)
+  assert.match(runtime, /installFeatureRuntime/)
   assert.match(runtime, /warnings\.push/)
 })
 

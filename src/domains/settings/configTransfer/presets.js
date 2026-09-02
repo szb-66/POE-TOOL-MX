@@ -1,4 +1,5 @@
 import { normalizeItemPreset } from '../../../utils/itemPreset.js'
+import { normalizeSpecializedPreset } from '../../../utils/specializedCraftingPreset.js'
 import { cleanMigratedMapConfig } from '../../../utils/mapPresetMigration.js'
 import { createSkillPreset, createStoryPreset } from '../../../utils/storyGuide.js'
 import {
@@ -11,6 +12,8 @@ import { normalizeSectionData } from './sections.js'
 
 export const PRESET_SECTION_CONFIGS = Object.freeze({
   'preset.item': Object.freeze({ collectionKey: 'itemPresets', activeKey: 'currentItemPresetId', dataKey: '' }),
+  'preset.essence': Object.freeze({ collectionKey: 'essencePresets', activeKey: 'currentEssencePresetId', dataKey: '' }),
+  'preset.harvest': Object.freeze({ collectionKey: 'harvestPresets', activeKey: 'currentHarvestPresetId', dataKey: '' }),
   'preset.map': Object.freeze({ collectionKey: 'mapPresets', activeKey: 'currentMapPresetId', dataKey: 'map' }),
   'preset.story': Object.freeze({ collectionKey: 'storyPresets', activeKey: 'currentStoryPresetId', dataKey: '' }),
   'preset.storySkill': Object.freeze({ collectionKey: 'skillPresets', activeKey: 'currentSkillPresetId', dataKey: '' })
@@ -47,6 +50,8 @@ export function createPresetSectionData(sectionId, presets, {
 function importOptions(sectionId) {
   switch (sectionId) {
     case 'preset.item': return { normalizeData: normalizeItemPreset }
+    case 'preset.essence': return { normalizeData: value => normalizeSpecializedPreset('essence', value) }
+    case 'preset.harvest': return { normalizeData: value => normalizeSpecializedPreset('harvest', value) }
     case 'preset.map': return { normalizeData: cleanMigratedMapConfig }
     case 'preset.story': return { transformPreset: preset => createStoryPreset(preset.name, preset) }
     case 'preset.storySkill': return { transformPreset: preset => createSkillPreset(preset.name, preset) }

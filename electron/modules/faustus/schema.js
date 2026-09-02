@@ -10,8 +10,3 @@ export function normalizeFaustusStartRequest(value) {
   assertOnlyKeys(value, ['config'])
   return { config: createFaustusRunSnapshot(value.config) }
 }
-
-export function normalizeFaustusPriceWindowTestRequest(value = {}) {
-  assertOnlyKeys(value, ['gridCalibration'])
-  return { gridCalibration: structuredClone(value.gridCalibration || null) }
-}

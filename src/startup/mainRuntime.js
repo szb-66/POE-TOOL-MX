@@ -4,18 +4,11 @@ import ReleaseNotesContent from '../components/common/ReleaseNotesContent.vue'
 import { electronApi } from '../api/electron'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { initShortcuts } from '../utils/scriptService'
-import { initCombatAssist } from '../utils/combatService'
-import { disposeBagAutomation, initBagAutomation } from '../utils/bagService'
-import { useChaosRecipeStore } from '../stores/chaosRecipe'
-import { usePriceCheckStore } from '../stores/priceCheck'
 import { usePoeCnAccountStore } from '../stores/poeCnAccount'
-import { useBatchCraftingStore } from '../stores/batchCrafting'
-import { useStashPickupStore } from '../stores/stashPickup'
-import { useJunfengStore } from '../stores/junfeng'
-import { usePuzzleStore } from '../stores/puzzle'
 import { useApplicationUpdateStore } from '../stores/applicationUpdate'
 import { useFeedbackRepliesStore } from '../stores/feedbackReplies'
 import { markMainRuntimeSettled, resetMainRuntimeReadiness } from './readiness'
+import { installFeatureRuntime } from '../features/installFeatureRuntime'
 
 let initializationPromise = null
 let activeDisposers = []
@@ -30,7 +23,6 @@ function disposeActiveRuntime() {
   for (const dispose of disposers) {
     try { dispose() } catch {}
   }
-  disposeBagAutomation()
   initializationPromise = null
   resetMainRuntimeReadiness()
 }
@@ -56,18 +48,9 @@ async function startMainRuntime({ router }) {
   // 先接收生命周期事件，再查询当前状态，避免同步期间漏掉进程事件。
   const accountStore = usePoeCnAccountStore()
   addDisposer(accountStore.listenStatus())
-  const batchCraftingStore = useBatchCraftingStore()
-  addDisposer(batchCraftingStore.listen())
-  addDisposer(electronApi.batchCrafting.onScanRequested(() => { void router.push('/items') }))
-  const chaosStore = useChaosRecipeStore()
-  addDisposer(chaosStore.listenAutomation())
-  const stashPickupStore = useStashPickupStore()
-  addDisposer(stashPickupStore.listen())
-  const junfengStore = useJunfengStore()
-  addDisposer(junfengStore.listen())
-  const priceCheckStore = usePriceCheckStore()
-  addDisposer(priceCheckStore.listenOverlay())
-  addDisposer(usePuzzleStore().listen(() => { void router.push('/puzzle') }))
+  await settleSubsystem('account', () => accountStore.restore(), warnings)
+  const featureRuntime = installFeatureRuntime({ router })
+  addDisposer(() => featureRuntime.dispose())
   addDisposer(electronApi.window.onDevToolsVisibilityChanged?.((visible) => {
     settingsStore.updateDebugMode(visible)
   }))
@@ -130,14 +113,7 @@ async function startMainRuntime({ router }) {
   await Promise.all([
     settleSubsystem('dpi', () => settingsStore.refreshDpiScale(), warnings),
     settleSubsystem('shortcuts', () => initShortcuts(), warnings),
-    settleSubsystem('combat', () => initCombatAssist(), warnings),
-    settleSubsystem('bag', () => initBagAutomation(), warnings),
-    settleSubsystem('chaos-recipe', () => chaosStore.initializeRuntime(), warnings),
-    settleSubsystem('stash-pickup', () => stashPickupStore.initializeRuntime(), warnings),
-    settleSubsystem('junfeng', () => junfengStore.initializeRuntime(), warnings),
-    settleSubsystem('price-check', async () => {
-      try { await priceCheckStore.syncRuntime() } catch { await priceCheckStore.refreshStatus() }
-    }, warnings),
+    settleSubsystem('feature-modules', async () => { warnings.push(...await featureRuntime.initialize()) }, warnings),
     settleSubsystem('devtools', () => electronApi.window.setDevToolsVisible(settingsStore.debugMode), warnings)
   ])
 

@@ -17,7 +17,7 @@ test('物品制作完成浮窗提供重新开始按钮且地图完成态不受�
   assert.match(content, /\$emit\('restart'\)/)
   assert.match(content, /:loading="isRestarting"/)
   assert.match(view, /@restart="handleRestart"/)
-  assert.match(view, /restartCraftingWithLatestConfig\(\{ presetStore, settingsStore, startCrafting \}\)/)
+  assert.match(view, /restartCraftingWithLatestConfig\(\{ presetStore, settingsStore, startCrafting, craftingKind: stopCraftingKind\.value \}\)/)
   assert.match(view, /function restoreCompletedState\(snapshot, error\)[\s\S]*itemInfo\.value = snapshot\.itemInfo/)
   assert.match(view, /if \(!result\?\.success\)[\s\S]*restoreCompletedState\(completedSnapshot, result\?\.error\)/)
 
@@ -155,9 +155,9 @@ test('异常恢复重载最新配置，装备只对本次强制首次判断，�
   assert.equal(mapResult.success, true)
   assert.equal(batchResult.success, true)
   assert.deepEqual(calls, [
-    'preset', 'settings', ['items', { forceInitialCheck: true, usageSessionId: 'usage-items', continueCurrencyUsage: true, configurationGuideBypass: true, singleItemOnly: true }],
+    'preset', 'settings', ['items', { craftingKind: 'general', forceInitialCheck: true, usageSessionId: 'usage-items', continueCurrencyUsage: true, configurationGuideBypass: true, singleItemOnly: true }],
     'preset', 'settings', ['map', { recovery, usageSessionId: 'usage-map', continueCurrencyUsage: true, configurationGuideBypass: true }],
-    'preset', 'settings', ['batch', { forceInitialCheck: true, usageSessionId: 'usage-batch', continueCurrencyUsage: true, configurationGuideBypass: true, batchRecovery }]
+    'preset', 'settings', ['batch', { craftingKind: 'general', forceInitialCheck: true, usageSessionId: 'usage-batch', continueCurrencyUsage: true, configurationGuideBypass: true, batchRecovery }]
   ])
 })
 
@@ -183,7 +183,7 @@ test('单件异常重试仅在本次运行副本中关闭最新预设的批量�
 test('批量异常优先读取主进程检查点续作，同时保留主动重新扫描入口', () => {
   const overlay = source('../src/domains/overlay/OverlayView.vue')
   const content = source('../src/domains/overlay/components/OverlayContent.vue')
-  const runtime = source('../src/startup/mainRuntime.js')
+  const runtime = source('../src/features/installFeatureRuntime.js')
   const preload = source('../electron/preload.cjs')
   const api = source('../src/api/electron.js')
   const ipc = source('../electron/modules/ipc/window.js')

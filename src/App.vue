@@ -1,5 +1,6 @@
 <template>
   <div class="app-root" :class="appThemeClass">
+    <ContextLoadingFeedback v-if="!route.meta.noLayout" />
     <template v-if="!route.meta.noLayout">
       <TitleBar />
       <div class="main-content-wrapper">
@@ -19,6 +20,7 @@ import { useRoute, useRouter } from 'vue-router'
 import MainLayout from './components/Layout/MainLayout.vue'
 import TitleBar from './components/Layout/TitleBar.vue'
 import ConfigurationGuideDialog from './domains/configurationGuide/ConfigurationGuideDialog.vue'
+import ContextLoadingFeedback from './components/common/ContextLoadingFeedback.vue'
 import { reportStartupEvent } from './utils/startupReporter'
 import { markMainRuntimeSettled } from './startup/readiness'
 import { resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'

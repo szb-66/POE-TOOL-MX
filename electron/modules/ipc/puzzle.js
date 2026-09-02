@@ -14,6 +14,7 @@ export function registerPuzzleHandlers(service) {
   ipcMain.handle('puzzle-probe-border-mods', (_event, payload) => service.probeBorderMods(payload || {}))
   ipcMain.handle('puzzle-auto-placement-start', (_event, payload) => service.startAutoPlacement(payload || {}))
   ipcMain.handle('puzzle-auto-placement-stop', (_event, reason) => service.stopAutoPlacement(reason))
+  ipcMain.handle('puzzle-stop-all', (_event, reason) => service.emergencyStop(reason || 'module-disabled'))
   ipcMain.handle('puzzle-auto-placement-status', () => service.getAutoPlacementStatus())
   ipcMain.handle('puzzle-complete-chart', () => service.resetExecution())
 }

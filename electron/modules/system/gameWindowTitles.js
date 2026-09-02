@@ -11,10 +11,18 @@ import {
 
 export const GAME_WINDOW_TITLES_ENV = 'POE_GAME_WINDOW_TITLES_FILE'
 
+const REPLACE_RETRY_DELAYS_MS = [10, 25, 50, 100, 200]
+const TRANSIENT_REPLACE_ERROR_CODES = new Set(['EACCES', 'EBUSY', 'EPERM'])
+
+function sleepSync(delay) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay)
+}
+
 export class GameWindowTitleRegistry {
-  constructor({ userDataPath, fileSystem = fs, environment = process.env } = {}) {
+  constructor({ userDataPath, fileSystem = fs, environment = process.env, sleep = sleepSync } = {}) {
     this.fileSystem = fileSystem
     this.environment = environment
+    this.sleep = sleep
     this.filePath = path.join(String(userDataPath || ''), 'game-window-titles.json')
     this.titles = [...DEFAULT_GAME_WINDOW_TITLES]
     this.processNames = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
@@ -65,7 +73,16 @@ export class GameWindowTitleRegistry {
         }, null, 2)}\n`,
         'utf8'
       )
-      this.fileSystem.renameSync(temporaryPath, this.filePath)
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          this.fileSystem.renameSync(temporaryPath, this.filePath)
+          break
+        } catch (error) {
+          const delay = REPLACE_RETRY_DELAYS_MS[attempt]
+          if (!TRANSIENT_REPLACE_ERROR_CODES.has(error?.code) || delay === undefined) throw error
+          this.sleep(delay)
+        }
+      }
     } catch (error) {
       try { this.fileSystem.unlinkSync(temporaryPath) } catch {}
       throw error

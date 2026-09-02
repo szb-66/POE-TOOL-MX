@@ -277,10 +277,10 @@ test('制作配置允许 Windows 虚拟桌面的负坐标', () => {
   assert.equal(result.errors.some(error => error.includes('坐标无效')), false)
 })
 
-test('快捷键校验覆盖战斗辅助键、格式和大小写冲突', () => {
-  assert.equal(validateShortcuts({ itemStart: 'Alt+1', potionStart: 'Numpad7', portal: 'Numpad2' }).isValid, true)
-  assert.equal(validateShortcuts({ itemStart: 'Alt+1', potionStart: 'alt+1' }).isValid, false)
-  assert.equal(validateShortcuts({ potionStart: 'Numpad7', portal: 'num7' }).isValid, false)
+test('快捷键校验覆盖受支持功能、格式和大小写冲突', () => {
+  assert.equal(validateShortcuts({ itemStart: 'Alt+1', storyPrevious: 'Numpad7', portal: 'Numpad2' }).isValid, true)
+  assert.equal(validateShortcuts({ itemStart: 'Alt+1', storyPrevious: 'alt+1' }).isValid, false)
+  assert.equal(validateShortcuts({ storyPrevious: 'Numpad7', portal: 'num7' }).isValid, false)
   assert.equal(validateShortcuts({ portal: 'not a shortcut' }).isValid, false)
 })
 

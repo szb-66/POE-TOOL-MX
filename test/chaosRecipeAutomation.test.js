@@ -81,7 +81,7 @@ class FakeController:
     def release_all(self): pass
 controller = FakeController()
 module.InputController = lambda _delay: controller
-module.focus_game_window = lambda: True
+module.is_game_foreground = lambda: True
 module.transfer_item = lambda *_args: (False, ("INVENTORY_FULL", "背包空间不足，请清空背包后继续"))
 module.emit = lambda event, **payload: events.append({"event": event, **payload})
 exit_code = module.run({"items": [
@@ -118,30 +118,9 @@ print(json.dumps({
   }])
 })
 
-test('聚焦游戏只恢复最小化窗口，不移动普通窗口', () => {
-  const code = `
-import importlib.util, json, sys
-sys.dont_write_bytecode = True
-spec = importlib.util.spec_from_file_location("recipe", ${JSON.stringify(scriptPath)})
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-class FakeUser32:
-    def __init__(self, iconic):
-        self.iconic = iconic
-        self.calls = []
-    def IsIconic(self, hwnd):
-        return self.iconic
-    def ShowWindow(self, hwnd, command):
-        self.calls.append([hwnd, command])
-normal = FakeUser32(False)
-minimized = FakeUser32(True)
-module.restore_game_window_if_minimized(normal, 101)
-module.restore_game_window_if_minimized(minimized, 202)
-print(json.dumps([normal.calls, minimized.calls]))
-`
-  const result = spawnSync(pythonPath, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
-  assert.equal(result.status, 0, result.stderr)
-  assert.deepEqual(JSON.parse(result.stdout), [[], [[202, 9]]])
+test('配方脚本不再恢复或激活游戏窗口', () => {
+  const source = readFileSync(scriptUrl, 'utf8')
+  assert.doesNotMatch(source, /find_game_window|focus_game_window|restore_game_window_if_minimized|SetForegroundWindow/)
 })
 
 test('取件失败会关闭不可交互浮窗而不是留下卡死提示', () => {
@@ -169,7 +148,7 @@ test('配方取件每次移动、复制和点击前检查前台，失焦时释�
   assert.match(source, /except GameNotForegroundError as error:[\s\S]*?code="GAME_NOT_FOREGROUND"/)
 })
 
-test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢复', () => {
+test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢复', async () => {
   const AutomationManager = loadAutomationManager()
   let releases = 0
   const overlays = []
@@ -179,7 +158,8 @@ test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢�
       create: value => overlays.push(value),
       close() {}
     },
-    automationLock: { release: () => { releases += 1 } }
+    automationLock: { release: () => { releases += 1 } },
+    windowActivation: { activateGame: async () => ({ success: true }) }
   })
   manager.plan = {
     itemCount: 2,
@@ -213,18 +193,19 @@ test('满包暂停保留游标、计划、锁和高亮，并从当前物品恢�
     resumedIds = this.currentTab().items.slice(this.itemOffset).map(item => item.id)
     return { success: true, status: this.status }
   }
-  manager.resume()
+  await manager.resume()
   assert.deepEqual(resumedIds, ['b'])
   assert.equal(manager.code, '')
 })
 
-test('游戏失焦暂停保留当前物品游标并允许继续', () => {
+test('游戏失焦暂停保留当前物品游标并允许继续', async () => {
   const AutomationManager = loadAutomationManager()
   const overlays = []
   const manager = new AutomationManager({
     getMainWindow: () => null,
     overlay: { create: value => overlays.push(value), close() {} },
-    automationLock: { release() {} }
+    automationLock: { release() {} },
+    windowActivation: { activateGame: async () => ({ success: true }) }
   })
   manager.plan = {
     itemCount: 2,
@@ -251,8 +232,24 @@ test('游戏失焦暂停保留当前物品游标并允许继续', () => {
     resumedIds = this.currentTab().items.slice(this.itemOffset).map(item => item.id)
     return { success: true, status: this.status }
   }
-  manager.resume()
+  await manager.resume()
   assert.deepEqual(resumedIds, ['b'])
+})
+
+test('配方取件激活失败时释放锁且不创建子进程', async () => {
+  const AutomationManager = loadAutomationManager()
+  let releases = 0
+  let spawned = 0
+  const manager = new AutomationManager({
+    getMainWindow: () => null,
+    overlay: { create() {}, close() {} },
+    automationLock: { acquire: () => ({ success: true }), release: () => { releases += 1 } },
+    windowActivation: { activateGame: async () => ({ success: false, code: 'focus-refused' }) }
+  })
+  manager.spawnCurrentTab = () => { spawned += 1 }
+  await assert.rejects(() => manager.start({ itemCount: 0, tabs: [] }, {}), /GAME_NOT_FOREGROUND/)
+  assert.equal(spawned, 0)
+  assert.equal(releases, 1)
 })
 
 test('手动停止、普通错误和重置会清除断点并忽略迟到事件', () => {

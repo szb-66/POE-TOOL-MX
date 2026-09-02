@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { electronApi } from '../api/electron.js'
 import { useSettingsStore } from '../domains/settings/settingsStore.js'
 import { usePoeCnAccountStore } from './poeCnAccount.js'
+import { useFeatureModulesStore } from './featureModules.js'
 import {
   DEFAULT_PRICE_CHECK_SETTINGS,
   normalizePriceCheckSettings
@@ -91,12 +92,18 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   }
 
   async function syncRuntime(overrides = {}) {
-    status.value = unwrap(await electronApi.priceCheck.updateRuntime({
+    const moduleEnabled = useFeatureModulesStore().isEnabled('price-check')
+    const requested = {
       enabled: settings.value.enabled,
       league: league.value,
       options: options.value,
       shortcut: appSettings.globalShortcuts.priceCheck,
       ...overrides
+    }
+    status.value = unwrap(await electronApi.priceCheck.updateRuntime({
+      ...requested,
+      enabled: moduleEnabled && Boolean(requested.enabled),
+      shortcut: moduleEnabled ? requested.shortcut : ''
     }))
     return status.value
   }
@@ -111,6 +118,9 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
 
   async function setEnabled(value, { configurationGuideBypass = false } = {}) {
     const enabled = Boolean(value)
+    if (enabled && !useFeatureModulesStore().isEnabled('price-check')) {
+      throw new Error('查价功能尚未添加，请先从侧边栏“更多”中添加')
+    }
     if (enabled === settings.value.enabled) return enabled
     if (enabled && !configurationGuideBypass) {
       const check = collectConfiguration(CONFIGURATION_ACTIONS.enable)
@@ -181,6 +191,9 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   }
 
   async function checkHoveredItem({ configurationGuideBypass = false } = {}) {
+    if (!useFeatureModulesStore().isEnabled('price-check')) {
+      throw new Error('查价功能尚未添加，请先从侧边栏“更多”中添加')
+    }
     if (!settings.value.enabled) throw new Error('国服查价器尚未启用')
     if (!configurationGuideBypass) {
       const check = collectConfiguration(CONFIGURATION_ACTIONS.capture)

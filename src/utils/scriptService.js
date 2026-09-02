@@ -8,22 +8,17 @@
  */
 
 import { generatePythonScript, generateMapRollingScript } from './python.js'
-import { validateCraftingConfig, validateMapRollingConfig } from './validation.js'
+import { validateCraftingConfig, validateMapRollingConfig, validateSpecializedCraftingConfig } from './validation.js'
 import { electronApi } from '../api/electron.js'
 import { usePresetStore } from '../stores/preset'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { useScriptStore } from '../stores/script'
 import { ElMessage } from 'element-plus'
-import { executePortalAssist, startPotionAssist, stopPotionAssist } from './combatService.js'
+import { executePortalAssist } from './combatService.js'
 import { useStoryStore } from '../stores/story'
 import { validateShortcuts } from './shortcutValidator.js'
 import { dispatchShortcutAction, normalizeGlobalShortcutSettings } from './shortcutConfig.js'
 import { isSuccessfulScriptStart } from './scriptStartResult.js'
-import {
-  startChaosRecipePicking,
-  stopChaosRecipePicking,
-  toggleChaosRecipePicking
-} from './chaosRecipeService.js'
 import { usePriceCheckStore } from '../stores/priceCheck'
 import { validateStashTabSelection } from './stashTabSelection.js'
 import { usePuzzleStore } from '../stores/puzzle.js'
@@ -32,7 +27,10 @@ import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 import { isEmergencyCancellation } from './emergencyStopResult.js'
 import { validateMapRecovery } from './craftingRecovery.js'
 import { createItemCraftingRunPreset } from './itemPreset.js'
+import { normalizeItemCraftingKind, specializedPresetToExecutionPreset } from './specializedCraftingPreset.js'
 import { useBatchCraftingStore } from '../stores/batchCrafting.js'
+import { useFeatureModulesStore } from '../stores/featureModules.js'
+import { filterFeatureShortcuts, shortcutFeatureId } from '../features/featureCatalog.js'
 import { freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
 import {
@@ -86,8 +84,9 @@ export async function initShortcuts() {
     shortcutScopeListenerRegistered = true
   }
 
+  const featureStore = useFeatureModulesStore()
   const shortcuts = settingsStore.globalShortcuts
-  const registeredShortcuts = { ...shortcuts }
+  const registeredShortcuts = filterFeatureShortcuts(shortcuts, id => featureStore.isEnabled(id))
   if (!usePriceCheckStore().settings.enabled) delete registeredShortcuts.priceCheck
 
   // 从设置中初始化快捷键
@@ -113,19 +112,15 @@ export async function initShortcuts() {
   // 监听快捷键触发事件
   if (!shortcutListenerRegistered) {
     electronApi.shortcut.onTriggered((accelerator) => {
+      const featureId = shortcutFeatureId(accelerator)
+      if (featureId && !useFeatureModulesStore().isEnabled(featureId)) return
       dispatchShortcutAction(accelerator, {
         itemStart: startCrafting,
         mapStart: startMapRolling,
         end: emergencyStopAll,
-        potionStart: startPotionAssist,
-        potionStop: stopPotionAssist,
         portal: executePortalAssist,
         storyPrevious: () => useStoryStore().previous(),
         storyNext: () => useStoryStore().next(),
-        chaosRecipeStart: startChaosRecipePicking,
-        chaosRecipePause: toggleChaosRecipePicking,
-        chaosRecipeStop: stopChaosRecipePicking,
-        puzzleAnalyze: startPuzzleAnalysis,
         priceCheck: startPriceCheck
       })
     })
@@ -205,7 +200,85 @@ export function emergencyStopAll() {
 /**
  * 开始制作
  */
-export async function startCrafting({
+export async function startCrafting(options = {}) {
+  const presetStore = usePresetStore()
+  const craftingKind = normalizeItemCraftingKind(options.craftingKind || presetStore.itemCraftingKind)
+  return craftingKind === 'general'
+    ? startGeneralCrafting({ ...options, craftingKind })
+    : startSpecializedCrafting(craftingKind, options)
+}
+
+async function startSpecializedCrafting(craftingKind, {
+  forceInitialCheck = false,
+  usageSessionId = null,
+  continueCurrencyUsage = false
+} = {}) {
+  const scriptStore = useScriptStore()
+  const presetStore = usePresetStore()
+  const settingsStore = useSettingsStore()
+  scriptStore.resetItemRuntime()
+
+  const status = await electronApi.script.getStatus()
+  scriptStore.applyStatus(status)
+  if (status.isRunning) {
+    const error = '脚本已在运行中'
+    ElMessage.warning(error)
+    return { success: false, error }
+  }
+
+  const sourcePreset = craftingKind === 'essence' ? presetStore.currentEssencePreset : presetStore.currentHarvestPreset
+  const itemPosition = craftingKind === 'essence' ? settingsStore.essenceItemPosition : settingsStore.harvestItemPosition
+  const actionPosition = craftingKind === 'essence' ? sourcePreset?.essencePosition : settingsStore.harvestCraftButtonPosition
+  const validation = validateSpecializedCraftingConfig({ kind: craftingKind, preset: sourcePreset, itemPosition, actionPosition })
+  if (!validation.isValid) {
+    const error = validation.errors[0]
+    ElMessage.error(error)
+    return { success: false, error }
+  }
+
+  const checkInitialItem = forceInitialCheck || presetStore.craftingInitialChecks[craftingKind]
+  const effectivePreset = specializedPresetToExecutionPreset(sourcePreset, checkInitialItem)
+  try {
+    await refreshDpiForAutomation(settingsStore)
+    const filePaths = await electronApi.file.getPaths()
+    const scriptContent = generatePythonScript({
+      globalShortcuts: settingsStore.globalShortcuts,
+      currencyPositions: {},
+      operationDelayMs: settingsStore.operationDelayMs,
+      fixedTiming: settingsStore.fixedTiming,
+      itemPosition,
+      actionPosition,
+      craftingKind,
+      dpiScale: settingsStore.dpiScale,
+      preset: effectivePreset,
+      filePaths
+    })
+    const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
+    const result = await electronApi.script.generateAndExecute({
+      scriptContent,
+      preset: effectivePreset,
+      mode: 'items',
+      craftingKind,
+      usageSessionId: requestedUsageSessionId,
+      continueCurrencyUsage,
+      requiresStashTabOcr: false
+    })
+    if (!isSuccessfulScriptStart(result)) {
+      const error = result?.error || '后台进程未返回有效进程标识'
+      ElMessage.error('脚本执行失败: ' + error)
+      return { ...(result || {}), success: false, error }
+    }
+    scriptStore.applyStatus({ status: 'running', ...result, craftingKind })
+    ElMessage.success(craftingKind === 'essence' ? '精华制作已启动' : '花园工艺已启动')
+    return { ...result, success: true, craftingKind }
+  } catch (error) {
+    ElMessage.error('启动制作失败: ' + error.message)
+    return { success: false, error: error.message || String(error) }
+  }
+}
+
+async function startGeneralCrafting({
+  craftingKind = 'general',
   forceInitialCheck = false,
   usageSessionId = null,
   continueCurrencyUsage = false,
@@ -231,6 +304,7 @@ export async function startCrafting({
   // 检查是否有启用的模块
   const currentPreset = presetStore.currentItemPreset
   const effectivePreset = createItemCraftingRunPreset(currentPreset, { forceInitialCheck, singleItemOnly })
+  effectivePreset.checkInitialItem = forceInitialCheck || presetStore.craftingInitialChecks.general
   if (batchRecovery) {
     effectivePreset.batchCrafting = {
       enabled: true,
@@ -261,6 +335,7 @@ export async function startCrafting({
         actionLabel: '开始批量制作',
         collect: collectBatchPrerequisites,
         execute: () => startCrafting({
+          craftingKind,
           forceInitialCheck, usageSessionId, continueCurrencyUsage,
           configurationGuideBypass: true
         })
@@ -319,6 +394,7 @@ export async function startCrafting({
       actionLabel: '开始制作',
       collect: collectConfiguration,
       execute: () => startCrafting({
+        craftingKind,
         forceInitialCheck,
         usageSessionId,
         continueCurrencyUsage,
@@ -384,6 +460,7 @@ export async function startCrafting({
       scriptContent,
       preset: plainPreset,
       mode: 'items',
+      craftingKind,
       usageSessionId: requestedUsageSessionId,
       continueCurrencyUsage,
       batchRecoveryContext: batchConfig,
@@ -394,7 +471,7 @@ export async function startCrafting({
       scriptStore.applyStatus({ status: 'running', ...result })
       ElMessage.success('脚本执行成功')
       void reportDiagnosticRecovery('items', 'script_start')
-      return { ...result, success: true }
+      return { ...result, success: true, craftingKind }
     } else {
       const error = result?.error || '后台进程未返回有效进程标识'
       ElMessage.error('脚本执行失败: ' + error)
@@ -609,7 +686,8 @@ export async function updateShortcuts(candidateShortcuts = null) {
   if (!validation.isValid) throw new Error(validation.error)
 
   // 从设置中重新初始化快捷键
-  const registeredShortcuts = { ...shortcuts }
+  const featureStore = useFeatureModulesStore()
+  const registeredShortcuts = filterFeatureShortcuts(shortcuts, id => featureStore.isEnabled(id))
   if (!usePriceCheckStore().settings.enabled) delete registeredShortcuts.priceCheck
   const result = await electronApi.shortcut.initFromSettings(registeredShortcuts)
   if (!result?.success) {
@@ -628,12 +706,16 @@ export async function commitGlobalShortcut(key, value) {
   await updateShortcuts(candidate)
   settingsStore.updateGlobalShortcuts({ [key]: candidate[key] })
   try {
-    if (key === 'priceCheck') await usePriceCheckStore().syncRuntime({ shortcut: candidate[key] })
+    if (key === 'priceCheck' && useFeatureModulesStore().isEnabled('price-check')) {
+      await usePriceCheckStore().syncRuntime({ shortcut: candidate[key] })
+    }
   } catch (error) {
     settingsStore.updateGlobalShortcuts({ [key]: previous[key] })
     try {
       await updateShortcuts(previous)
-      await usePriceCheckStore().syncRuntime({ shortcut: previous[key] })
+      if (useFeatureModulesStore().isEnabled('price-check')) {
+        await usePriceCheckStore().syncRuntime({ shortcut: previous[key] })
+      }
     } catch (rollbackError) {
       throw new Error(`${error.message}；恢复原快捷键失败：${rollbackError.message}`, { cause: error })
     }

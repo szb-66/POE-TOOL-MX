@@ -123,7 +123,7 @@ test('renderer 只有在成功结果包含有效进程标识时才进入运行�
   assert.equal(isSuccessfulScriptStart({ success: false, processId: 123 }), false)
 })
 
-test('物品与地图快捷键分别只分发一次公共启动动作', () => {
+test('物品与地图快捷键分别只分发一次公共启动动作，制作入口覆盖通用与专用分支', () => {
   const calls = []
   const handlers = {
     itemStart: () => calls.push('item'),
@@ -134,5 +134,5 @@ test('物品与地图快捷键分别只分发一次公共启动动作', () => {
   assert.deepEqual(calls, ['item', 'map'])
 
   const service = readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
-  assert.equal((service.match(/isSuccessfulScriptStart\(result\)/g) || []).length, 2)
+  assert.equal((service.match(/isSuccessfulScriptStart\(result\)/g) || []).length, 3)
 })

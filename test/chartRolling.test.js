@@ -41,7 +41,7 @@ test('航海海图黑名单优先于白名单且基底始终需要满足', () =>
 
 test('地图页面提供独立内部 Tab 且不新增侧栏入口', () => {
   const view = readFileSync(new URL('../src/domains/map/MapView.vue', import.meta.url), 'utf8')
-  const sidebar = readFileSync(new URL('../src/components/Layout/Sidebar.vue', import.meta.url), 'utf8')
+  const catalog = readFileSync(new URL('../src/features/featureCatalog.js', import.meta.url), 'utf8')
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
   const presetStore = readFileSync(new URL('../src/stores/preset.js', import.meta.url), 'utf8')
   const scriptService = readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
@@ -49,7 +49,7 @@ test('地图页面提供独立内部 Tab 且不新增侧栏入口', () => {
   assert.match(view, /label="航海海图" name="chart"/)
   assert.match(view, /MapRollingProfilePanel/)
   assert.match(view, /:type="activeKind === 'chart' \? 'chart' : 'map'"/)
-  assert.equal((sidebar.match(/<span>海图<\/span>/g) || []).length, 1)
+  assert.equal((catalog.match(/label: '海图'/g) || []).length, 1)
   assert.match(dashboard, /航海海图/)
   assert.match(dashboard, /activeMapConfig/)
   assert.match(dashboard, /presetStore\.chartPresets/)

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { SEASON_BASELINE, S30_SKILL_SENTINELS, S30_UNIQUE_SENTINELS } from '../shared/seasonBaseline.js'
 import { CURRENT_RULESET } from '../electron/modules/crafting/seasonalRules.js'
-import { VENDOR_DATA_META } from '../src/domains/shop/vendorData.js'
+import { VENDOR_DATA_META } from '../src/domains/regex/vendorData.js'
 
 const readJson = async (file) => JSON.parse(await readFile(file, 'utf8'))
 

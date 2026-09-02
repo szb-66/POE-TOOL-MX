@@ -116,7 +116,8 @@ export function normalizeModuleTwo(input = {}) {
     affixGroups: affixGroups.length ? affixGroups : [createDefaultAffixGroup(0)],
     enableAugmentation: Boolean(input.enableAugmentation),
     enableRegal: Boolean(input.enableRegal),
-    enableExalted: Boolean(input.enableExalted)
+    enableExalted: Boolean(input.enableExalted),
+    enableBinding: Boolean(input.enableBinding)
   }
 }
 

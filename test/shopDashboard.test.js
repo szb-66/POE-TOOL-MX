@@ -18,16 +18,10 @@ function installStorage(initial = {}) {
   return values
 }
 
-test('商城首次默认配方并只恢复合法的最后选择', () => {
-  const shop = readFileSync(new URL('../src/domains/shop/ShopView.vue', import.meta.url), 'utf8')
-  const recipeTab = shop.indexOf('label="商城配方"')
-  const regexTab = shop.indexOf('label="商城正则"')
-
-  assert.ok(recipeTab >= 0 && recipeTab < regexTab)
-  assert.match(shop, /readPersistentTab\('shopActiveTool', SHOP_TABS, 'chaos'\)/)
-  assert.match(shop, /writePersistentTab\('shopActiveTool', value, SHOP_TABS, 'chaos'\)/)
-  assert.doesNotMatch(shop, /class="about-card"/)
-  assert.doesNotMatch(shop, /本功能为离线、非官方工具/)
+test('配方页独立展示配方面板且不再承载正则标签', () => {
+  const recipe = readFileSync(new URL('../src/domains/shop/RecipeView.vue', import.meta.url), 'utf8')
+  assert.match(recipe, /<ChaosRecipePanel/)
+  assert.doesNotMatch(recipe, /el-tab-pane|商城正则/)
 })
 
 test('应用级初始化恢复配方账号、元数据和运行时', async () => {
@@ -469,12 +463,12 @@ test('运行时同步只携带全局固定自动化时序字段', async () => {
 
 test('商城配方页不再重复恢复账号', () => {
   const panel = readFileSync(new URL('../src/domains/shop/ChaosRecipePanel.vue', import.meta.url), 'utf8')
-  const runtime = readFileSync(new URL('../src/startup/mainRuntime.js', import.meta.url), 'utf8')
+  const runtime = readFileSync(new URL('../src/features/installFeatureRuntime.js', import.meta.url), 'utf8')
   const store = readFileSync(new URL('../src/stores/chaosRecipe.js', import.meta.url), 'utf8')
 
   assert.doesNotMatch(panel, /onMounted|store\.restoreAuth/)
-  assert.match(runtime, /chaosStore\.initializeRuntime\(\)/)
-  assert.match(store, /async function initializeRuntime\(\)[\s\S]*await accountStore\.restore\(\)[\s\S]*await syncRuntime\(\)/)
+  assert.match(runtime, /chaosStore\.initializeRuntime\(\{ preserveEnabledOnFailure: true \}\)/)
+  assert.match(store, /async function initializeRuntime\([^)]*\)[\s\S]*await accountStore\.restore\(\)[\s\S]*await syncRuntime\(\)/)
   assert.doesNotMatch(store, /async function (?:openWebLogin|completeWebLogin|loginWithToken|logout)/)
 })
 

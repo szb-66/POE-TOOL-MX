@@ -41,6 +41,12 @@ def configure_output():
 
 configure_output()
 
+if sys.platform == "win32":
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        pass
+
 
 def game_window_titles():
     global _game_window_titles_cache, _game_window_titles_mtime_ns
@@ -166,14 +172,33 @@ def window_match_reason(hwnd):
     return "game-foreground", process_name
 
 
+def window_bounds(hwnd):
+    if not hwnd:
+        return None
+    try:
+        rectangle = wintypes.RECT()
+        if not ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(rectangle)):
+            return None
+        if rectangle.right <= rectangle.left or rectangle.bottom <= rectangle.top:
+            return None
+        return {
+            "left": int(rectangle.left),
+            "top": int(rectangle.top),
+            "right": int(rectangle.right),
+            "bottom": int(rectangle.bottom),
+        }
+    except Exception:
+        return None
+
+
 def foreground_game_state():
     if sys.platform != "win32":
-        return False, "", "unsupported-platform", ""
+        return False, "", "unsupported-platform", "", None
     user32 = ctypes.windll.user32
     user32.GetForegroundWindow.restype = wintypes.HWND
     hwnd = user32.GetForegroundWindow()
     if not hwnd:
-        return False, "", "no-foreground-window", ""
+        return False, "", "no-foreground-window", "", None
     user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
     user32.GetWindowTextLengthW.restype = ctypes.c_int
     user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
@@ -183,7 +208,8 @@ def foreground_game_state():
     user32.GetWindowTextW(hwnd, buffer, length + 1)
     title = buffer.value.strip()
     reason, process_name = window_match_reason(hwnd)
-    return reason == "game-foreground", title, reason, process_name
+    game = reason == "game-foreground"
+    return game, title, reason, process_name, window_bounds(hwnd) if game else None
 
 
 def emit(event, **payload):
@@ -201,16 +227,16 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 def main():
     global _last_foreground_state
-    game, title, reason, process_name = foreground_game_state()
-    _last_foreground_state = (game, reason, process_name)
-    emit("foreground", game=game, title=title, reason=reason, processName=process_name)
+    game, title, reason, process_name, bounds = foreground_game_state()
+    _last_foreground_state = (game, reason, process_name, bounds)
+    emit("foreground", game=game, title=title, reason=reason, processName=process_name, bounds=bounds)
     while is_running:
         time.sleep(POLL_INTERVAL_SECONDS)
-        game, title, reason, process_name = foreground_game_state()
-        foreground_state = (game, reason, process_name)
+        game, title, reason, process_name, bounds = foreground_game_state()
+        foreground_state = (game, reason, process_name, bounds)
         if foreground_state != _last_foreground_state:
             _last_foreground_state = foreground_state
-            emit("foreground", game=game, title=title, reason=reason, processName=process_name)
+            emit("foreground", game=game, title=title, reason=reason, processName=process_name, bounds=bounds)
     return 0
 
 

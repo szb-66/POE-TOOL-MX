@@ -15,7 +15,7 @@
     <el-alert
       v-else-if="!regionMetadata"
       title="首次使用请先框选完整的 6×10 碎片仓库。"
-      :description="`标定两个仓库页签后，识别按钮会自动切换并读取两页；也可按 ${puzzleShortcut} 触发。`"
+      description="标定两个仓库页签后，点击识别按钮会自动切换并读取两页。"
       type="info"
       show-icon
       :closable="false"
@@ -67,7 +67,7 @@
         </article>
       </el-col>
     </el-row>
-    <div v-if="regionMetadata" class="region-line"><span>快捷键 {{ puzzleShortcut }} 可自动切换并识别两页；{{ emergencyStopShortcut }} 可全局紧急停止</span></div>
+    <div v-if="regionMetadata" class="region-line"><span>{{ emergencyStopShortcut }} 可全局紧急停止</span></div>
 
     <el-alert v-if="executing || ['completed', 'stopped', 'error'].includes(execution.status)" :type="execution.status === 'completed' ? 'success' : execution.status === 'error' ? 'error' : 'info'" :closable="false" show-icon class="status-alert" :title="executionText" />
 
@@ -494,7 +494,6 @@ const selectedBorderModIndex = ref(null)
 const savingBorderMod = ref(false)
 
 const occupiedCount = computed(() => Object.values(counts.value).reduce((sum, count) => sum + count, 0))
-const puzzleShortcut = computed(() => settingsStore.globalShortcuts.puzzleAnalyze || '未设置')
 const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end)
 const uncertainCount = computed(() => slots.value.filter(slot => slot.uncertain).length)
 const currentPageState = computed(() => inventoryPages.value[selectedInventoryPage.value])

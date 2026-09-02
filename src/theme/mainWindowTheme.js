@@ -3,6 +3,7 @@ export const SHARED_DARK_THEME_CLASS = 'app-dark-theme'
 export const BUSINESS_OVERLAY_THEME_CLASS = 'business-overlay-theme'
 
 export const BUSINESS_OVERLAY_ROUTES = Object.freeze([
+  '/loading-feedback-overlay',
   '/puzzle-overlay',
   '/chart-recognition-feedback',
   '/overlay',

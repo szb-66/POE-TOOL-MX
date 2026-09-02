@@ -42,6 +42,9 @@
       </div>
 
         <div class="header-bottom">
+          <el-checkbox v-if="activeProfile.method === 'alchemy'" v-model="activeProfile.binding.enabled" label="高阶点金石" size="large">
+            <template #default><div class="checkbox-label">使用高阶点金石</div></template>
+          </el-checkbox>
           <el-checkbox v-model="activeProfile.exalted.enabled" label="崇高石" size="large">
             <template #default><div class="checkbox-label"><img :src="exaltedIcon" alt="崇高石" class="icon-image" />崇高石</div></template>
           </el-checkbox>

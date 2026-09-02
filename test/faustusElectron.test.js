@@ -34,24 +34,25 @@ function childProcess() {
   return child
 }
 
-function markPriceRecognitionReady(manager, config = validConfig()) {
-  const calibration = config.gridCalibration
-  manager.priceRecognitionCalibrationKey = JSON.stringify([
-    Number(calibration.left), Number(calibration.top), Number(calibration.right), Number(calibration.bottom),
-    String(calibration.displayId || ''), Number(calibration.scaleFactor)
-  ])
-}
+const createActivation = (overrides = {}) => ({
+  activateGame: async () => ({ success: true, code: 'game-activated' }),
+  activateMain: async () => ({ success: true, code: 'main-activated' }),
+  ...overrides
+})
 
 test('浮士德 preload 与 IPC 只暴露固定操作且每个处理器校验主窗口 sender', () => {
   const preload = source('electron/preload.cjs')
   const ipc = source('electron/modules/ipc/faustus.js')
+  const api = source('src/api/electron.js')
+  const schema = source('electron/modules/faustus/schema.js')
+  const manager = source('electron/modules/faustus/manager.js')
   const index = source('electron/modules/ipc/index.js')
   for (const token of [
-    'faustus-status', 'faustus-grid-pick', 'faustus-price-window-test',
-    'faustus-start', 'faustus-stop', 'faustus-event'
+    'faustus-status', 'faustus-grid-pick', 'faustus-start', 'faustus-stop', 'faustus-event'
   ]) assert.match(`${preload}\n${ipc}`, new RegExp(token))
+  assert.doesNotMatch(`${preload}\n${ipc}\n${api}\n${schema}\n${manager}`, /faustus-price-window-test|testFaustusPriceWindow|testPriceWindow|priceRecognitionCalibrationKey|normalizeFaustusPriceWindowTestRequest/)
   assert.match(ipc, /assertMainWindowSender\(event, getMainWindow\)/)
-  assert.equal((ipc.match(/ipcMain\.handle\([^\n]+invoke\(getMainWindow/g) || []).length, 5)
+  assert.equal((ipc.match(/ipcMain\.handle\([^\n]+invoke\(getMainWindow/g) || []).length, 4)
   assert.match(index, /registerFaustusHandlers\(faustus, window, getMainWindow\)/)
   assert.doesNotMatch(preload, /faustus.*(?:scriptPath|permission|mouse|keyboard)/i)
   const main = source('electron/main.js')
@@ -78,6 +79,7 @@ test('manager 取得锁后只启动一个包含预检与输入的固定进程', 
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
     automationLock: {
       acquire: owner => { locks.push(['acquire', owner]); return { success: true } },
@@ -93,7 +95,6 @@ test('manager 取得锁后只启动一个包含预检与输入的固定进程', 
     scriptPath: () => 'fixed-faustus.py'
   })
 
-  markPriceRecognitionReady(manager)
   const state = await manager.start({ config: validConfig() })
   assert.equal(state.status, 'running')
   assert.deepEqual(modes, ['run'])
@@ -112,6 +113,12 @@ test('整页改价正常完成后恢复并聚焦助手窗口', async () => {
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation({
+      activateMain: async () => {
+        actions.push('restore', 'show', 'focus')
+        return { success: true, code: 'main-activated' }
+      }
+    }),
     foregroundState: () => ({ available: true, gameForeground: true }),
     automationLock: { acquire: () => ({ success: true }), release: () => {} },
     fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: () => {} },
@@ -127,7 +134,6 @@ test('整页改价正常完成后恢复并聚焦助手窗口', async () => {
     scriptPath: () => 'fixed-faustus.py'
   })
 
-  markPriceRecognitionReady(manager)
   await manager.start({ config: validConfig() })
   runChild.stdout.emit('data', 'EVENT {"event":"completed","processed":3,"total":3}\n')
   assert.equal(manager.getStatus().status, 'completed')
@@ -139,6 +145,7 @@ test('manager 在配置、DPI 或 OCR 依赖失败时不创建进程和输入', 
   const make = overrides => new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
     automationLock: { acquire: () => ({ success: true }), release: () => {} },
     fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {} },
@@ -153,77 +160,56 @@ test('manager 在配置、DPI 或 OCR 依赖失败时不创建进程和输入', 
   assert.equal(spawned, 0)
 })
 
-test('正式改价必须先通过与当前网格绑定的价格窗口识别测试', async () => {
+test('游戏激活失败时释放浮士德锁且不写配置、不创建进程', async () => {
   let spawned = 0
+  let written = 0
+  let released = 0
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
-    foregroundState: () => ({ available: true, gameForeground: true }),
-    automationLock: { acquire: () => ({ success: true }), release: () => {} },
-    fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {} },
+    windowActivation: createActivation({ activateGame: async () => ({ success: false, code: 'focus-refused' }) }),
+    automationLock: { acquire: () => ({ success: true }), release: () => { released += 1 } },
+    fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => { written += 1 } },
     processFactory: () => { spawned += 1; return childProcess() },
     scriptPath: () => 'fixed-faustus.py'
   })
-
-  await assert.rejects(() => manager.start({ config: validConfig() }), /价格窗口识别测试/)
-  markPriceRecognitionReady(manager)
-  const changedGrid = {
-    ...validConfig(),
-    gridCalibration: { ...validConfig().gridCalibration, right: 1200 }
-  }
-  await assert.rejects(() => manager.start({ config: changedGrid }), /价格窗口识别测试/)
+  await assert.rejects(() => manager.start({ config: validConfig() }), /focus-refused/)
   assert.equal(spawned, 0)
+  assert.equal(written, 0)
+  assert.equal(released, 1)
 })
 
-test('价格窗口识别测试允许从助手前台激活游戏并在结束后恢复助手窗口', async () => {
-  let gameForeground = false
-  const windowActions = []
-  const feedback = []
+test('浮士德准备反馈持续到专用识别浮层真实显示后再交接', async () => {
+  const feedbackEvents = []
+  let onVisible = null
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
-    foregroundState: () => ({ available: true, gameForeground }),
-    automationLock: { acquire: () => ({ success: true }), release: () => {} },
-    fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: () => {} },
-    getMainWindow: () => ({
-      isDestroyed: () => false,
-      isMinimized: () => true,
-      restore: () => windowActions.push('restore'),
-      show: () => windowActions.push('show'),
-      focus: () => windowActions.push('focus'),
-      webContents: { isDestroyed: () => false, send: () => {} }
+    windowActivation: createActivation({
+      activateGame: async () => { feedbackEvents.push('activate'); return { success: true, code: 'game-activated' } }
     }),
+    loadingFeedback: {
+      begin: () => { feedbackEvents.push('begin'); return 'faustus-loading' },
+      finish: () => feedbackEvents.push('finish'),
+      handoff: () => feedbackEvents.push('handoff')
+    },
     feedbackOverlay: {
-      showRunning: snapshot => { feedback.push(['running', snapshot]); return 7 },
-      updateProgress: (sessionId, snapshot) => feedback.push(['progress', sessionId, snapshot]),
-      showResult: (sessionId, snapshot) => { feedback.push(['result', sessionId, snapshot]); return true },
-      hide: sessionId => feedback.push(['hide', sessionId])
+      showRunning: (_snapshot, options) => { onVisible = options?.onVisible; return 1 },
+      hide: () => {}
     },
     resolveDisplayBounds: () => ({ x: 0, y: 0, width: 1920, height: 1080 }),
-    waitForFeedback: async () => {},
-    processFactory: ({ mode }) => {
-      const child = childProcess()
-      if (mode === 'price-window-test') queueMicrotask(() => {
-        gameForeground = true
-        child.stdout.emit('data', 'EVENT {"event":"scan-progress","current":1,"total":144,"column":2,"row":3}\n')
-        child.stdout.emit('data', 'EVENT {"event":"price-window-test","price":1000,"currency":"chaos"}\n')
-      })
-      return child
-    },
+    automationLock: { acquire: () => ({ success: true }), release: () => {} },
+    fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: () => {} },
+    processFactory: () => childProcess(),
     scriptPath: () => 'fixed-faustus.py'
   })
 
-  assert.deepEqual(await manager.testPriceWindow({ gridCalibration: validConfig().gridCalibration }), {
-    price: 1000,
-    currency: 'chaos'
-  })
-  assert.equal(feedback[0][0], 'running')
-  assert.deepEqual(feedback.find(entry => entry[0] === 'progress')?.slice(1), [7, {
-    stage: 'grid', current: 1, total: 144, label: '正在扫描市集格子 2,3'
-  }])
-  assert.equal(feedback.some(entry => entry[0] === 'result' && entry[2].status === 'success'), true)
-  assert.deepEqual(feedback.at(-1), ['hide', 7])
-  assert.deepEqual(windowActions, ['restore', 'show', 'focus'])
+  await manager.start({ config: validConfig() })
+  assert.deepEqual(feedbackEvents, ['activate', 'begin'])
+  assert.equal(typeof onVisible, 'function')
+  onVisible()
+  assert.deepEqual(feedbackEvents, ['activate', 'begin', 'handoff'])
+  manager.stop('user')
 })
 
 test('manager 只从固定资源注入通用格子模型和冻结占位且不接受 renderer 路径', async () => {
@@ -232,51 +218,21 @@ test('manager 只从固定资源注入通用格子模型和冻结占位且不接
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
-    foregroundState: () => ({ available: true, gameForeground: false }),
+    windowActivation: createActivation(),
+    foregroundState: () => ({ available: true, gameForeground: true }),
     automationLock: { acquire: () => ({ success: true }), release: () => {} },
     fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: (_path, value) => { written = JSON.parse(value) }, rmSync: () => {} },
-    processFactory: () => {
-      queueMicrotask(() => child.stdout.emit('data', 'EVENT {"event":"price-window-test","price":1,"currency":"chaos"}\n'))
-      return child
-    },
+    processFactory: () => child,
     scriptPath: () => 'fixed-faustus.py'
   })
-  await manager.testPriceWindow({
-    gridCalibration: validConfig().gridCalibration,
-    occupancyModel: { modelPath: 'renderer-injected.onnx' }
-  })
+  await manager.start({ config: { ...validConfig(), occupancyModel: { modelPath: 'renderer-injected.onnx' } } })
   assert.match(written.model_path, /src[\\/]assets[\\/]models[\\/]junfeng-highlight[\\/]model\.onnx$/)
   assert.match(written.manifest_path, /src[\\/]assets[\\/]models[\\/]junfeng-highlight[\\/]manifest\.json$/)
   assert.equal(written.item_footprints.schemaVersion, 1)
   assert.ok(Object.keys(written.item_footprints.items).length > 0)
   assert.doesNotMatch(JSON.stringify(written), /renderer-injected/)
   assert.equal(Object.hasOwn(written, 'emptyConfidenceThreshold'), false)
-})
-
-test('manager 将通用格子模型各阶段失败转换为可定位且不泄露路径的提示', async () => {
-  for (const [reasonCode, expected] of [
-    ['occupancy_model_validation_failed', '校验失败'],
-    ['occupancy_grid_capture_failed', '截取当前市集网格'],
-    ['occupancy_model_inference_failed', '格子分类失败']
-  ]) {
-    const child = childProcess()
-    const manager = new FaustusManager({
-      python: { detectPythonPathWithModules: () => 'python.exe' },
-      fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
-      foregroundState: () => ({ available: true, gameForeground: false }),
-      automationLock: { acquire: () => ({ success: true }), release: () => {} },
-      fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: () => {} },
-      processFactory: () => {
-        queueMicrotask(() => child.stdout.emit('data', `EVENT {"event":"aborted","reasonCode":"${reasonCode}"}\n`))
-        return child
-      },
-      scriptPath: () => 'fixed-faustus.py'
-    })
-    await assert.rejects(
-      () => manager.testPriceWindow({ gridCalibration: validConfig().gridCalibration }),
-      new RegExp(expected)
-    )
-  }
+  manager.stop('user')
 })
 
 test('manager 仅转发字段白名单并在前台丢失、紧急停止和清理时释放输入', async () => {
@@ -286,6 +242,7 @@ test('manager 仅转发字段白名单并在前台丢失、紧急停止和清理
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
     subscribeForeground: listener => { listeners.push(listener); return () => listeners.splice(0) },
     automationLock: { acquire: () => ({ success: true }), release: () => {} },
@@ -294,7 +251,6 @@ test('manager 仅转发字段白名单并在前台丢失、紧急停止和清理
     processFactory: () => runChild,
     scriptPath: () => 'fixed-faustus.py'
   })
-  markPriceRecognitionReady(manager)
   await manager.start({ config: validConfig() })
   runChild.stdout.emit('data', 'EVENT {"event":"item","itemName":"短名","grid":"2,3","oldPrice":100,"oldCurrency":"chaos","newPrice":90,"newCurrency":"chaos","reasonCode":"repriced","clipboard":"secret","fingerprint":"secret"}\n')
   const item = sent.find(([, payload]) => payload?.type === 'item')?.[1]?.item
@@ -322,6 +278,7 @@ test('manager 对脚本成功、跳过与终止事件只转发稳定原因码和
   const manager = new FaustusManager({
     python: { detectPythonPathWithModules: () => 'python.exe' },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
     automationLock: { acquire: () => ({ success: true }), release: () => {} },
     fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: path => removed.push(path) },
@@ -329,7 +286,6 @@ test('manager 对脚本成功、跳过与终止事件只转发稳定原因码和
     processFactory: () => runChild,
     scriptPath: () => 'fixed-faustus.py'
   })
-  markPriceRecognitionReady(manager)
   await manager.start({ config: validConfig() })
   runChild.stdout.emit('data', 'EVENT {"event":"progress","processed":1,"total":144}\n')
   runChild.stdout.emit('data', 'EVENT {"event":"item","itemName":"测试","grid":"1,1","reasonCode":"no_matching_band"}\n')

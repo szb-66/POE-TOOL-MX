@@ -11,13 +11,13 @@ const topicText = topic => [
 const helpContentText = () => [...MODULE_TOPICS, ...CRAFTING_TOPICS].map(topicText).join('\n')
 
 test('模拟页面以选择底材、手动通货、装备变化和三级目录为主流程', async () => {
-  const [router, sidebar, view] = await Promise.all([
+  const [router, catalog, view] = await Promise.all([
     readFile('src/router/index.js', 'utf8'),
-    readFile('src/components/Layout/Sidebar.vue', 'utf8'),
+    readFile('src/features/featureCatalog.js', 'utf8'),
     readFile('src/domains/crafting/CraftPlannerView.vue', 'utf8')
   ])
   assert.match(router, /path: '\/craft-planner'/)
-  assert.match(sidebar, /index="\/craft-planner"/)
+  assert.match(catalog, /id: 'craft-planner'[\s\S]*route: '\/craft-planner'/)
   for (const label of ['更新 POEDB 数据', '选择底材', '当前装备', '手动使用通货', '制作历史', '词缀目录', '价格数据已停用']) {
     assert.match(view, new RegExp(label))
   }

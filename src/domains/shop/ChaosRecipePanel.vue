@@ -1,12 +1,5 @@
 <template>
   <div class="chaos-panel">
-    <el-alert
-      title="实验性国服接口：自动取件会连续向游戏发送输入，使用前请确认你理解账号风险。"
-      type="warning"
-      :closable="false"
-      show-icon
-    />
-
     <el-card class="block">
       <template #header><span>游戏内商店配方控制</span></template>
       <el-form label-width="130px">
@@ -38,7 +31,7 @@
     <el-card class="block">
       <template #header>
         <div class="card-header">
-          <span>共享国服账号</span>
+          <span>国服账号</span>
           <el-tag :type="store.auth.authenticated ? 'success' : 'info'">
             {{ store.auth.authenticated ? `已登录 · ${store.auth.accountName}` : '未登录' }}
           </el-tag>
@@ -46,7 +39,7 @@
       </template>
       <div class="auth-actions">
         <el-button type="primary" plain @click="$router.push(settingsRoute('general'))">前往账号设置</el-button>
-        <span class="muted">账号和赛季已收拢到设置页，商城正则本身不需要账号。</span>
+        <span class="muted">账号和赛季已收拢到设置页，正则工具不需要账号。</span>
       </div>
     </el-card>
 

@@ -81,5 +81,6 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection, e
   ipcMain.handle('junfeng-training-delete-session', invoke(id => manager.deleteTrainingSession(id)))
   ipcMain.handle('junfeng-training-status', invoke(() => manager.getTrainingStatus()))
   ipcMain.handle('junfeng-training-start', invoke(value => manager.trainModel(value || {})))
+  ipcMain.handle('junfeng-training-stop', invoke(() => manager.stopTraining('module-disabled')))
   ipcMain.handle('junfeng-training-evaluate', invoke(() => manager.evaluateModel()))
 }

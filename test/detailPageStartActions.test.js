@@ -15,7 +15,7 @@ test('物品制作详情页复用制作启动服务并阻止重复或并行启�
   assert.match(view, /:loading="starting"/)
   assert.match(view, /:disabled="starting \|\| scriptStore\.isRunning"/)
   assert.match(view, /\{\{ isCurrentModeRunning \? '运行中' : '启动' \}\}/)
-  assert.match(view, /async function handleStart\(\)[\s\S]*starting\.value = true[\s\S]*await startCrafting\(\)[\s\S]*starting\.value = false/)
+  assert.match(view, /async function handleStart\(\)[\s\S]*starting\.value = true[\s\S]*await startCrafting\(\{ craftingKind: 'general' \}\)[\s\S]*starting\.value = false/)
 })
 
 test('物品制作页顶部提供被制作物品坐标并复用持久化取点流程', () => {

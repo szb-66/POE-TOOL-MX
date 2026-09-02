@@ -15,6 +15,7 @@ export const CURRENCY_TYPES = {
   CHAOS: 'chaos',                  // 混沌石
   EXALTED: 'exalted',              // 崇高石
   ALCHEMY: 'alchemy',              // 点金石
+  BINDING: 'binding',              // 高阶点金石
   SCOURING: 'scouring',            // 重铸石
   TRANSMUTATION: 'transmutation',  // 蜕变石
   JEWELLERS: 'jewellers',         // 工匠石
@@ -40,6 +41,7 @@ export const CURRENCY_NAMES = {
   [CURRENCY_TYPES.CHAOS]: '混沌石',
   [CURRENCY_TYPES.EXALTED]: '崇高石',
   [CURRENCY_TYPES.ALCHEMY]: '点金石',
+  [CURRENCY_TYPES.BINDING]: '高阶点金石',
   [CURRENCY_TYPES.SCOURING]: '重铸石',
   [CURRENCY_TYPES.TRANSMUTATION]: '蜕变石',
   [CURRENCY_TYPES.JEWELLERS]: '工匠石',

@@ -731,7 +731,7 @@ GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda _mapping: types.SimpleNamespace(start=lambda: None))
 pyperclip = types.SimpleNamespace(paste=lambda: "地图")
 time = types.SimpleNamespace(sleep=lambda _value: None)
-def focus_game_window(): return True
+def is_game_foreground(): return True
 def select_currency_stash_tab(_mode): return True
 def preflight_required_currencies(): return True
 def move_mouse(x, y): events.append(["move", x, y]); return True
@@ -778,7 +778,7 @@ fatal_error_reason = None
 GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda _mapping: types.SimpleNamespace(start=lambda: None))
 time = types.SimpleNamespace(sleep=lambda _value: None)
-def focus_game_window(): return True
+def is_game_foreground(): return True
 def select_currency_stash_tab(_mode): return True
 def preflight_required_currencies(): return True
 def move_mouse(x, y): events.append(["move", x, y]); return True

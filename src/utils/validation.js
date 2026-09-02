@@ -6,7 +6,8 @@
  */
 import {
   collectCraftingConfigurationIssues,
-  collectMapConfigurationIssues
+  collectMapConfigurationIssues,
+  collectSpecializedCraftingConfigurationIssues
 } from '../domains/configurationGuide/configurationIssues.js'
 import { getActiveMapRollingConfig } from './mapPresetMigration.js'
 
@@ -19,6 +20,8 @@ export const validateCraftingConfig = (config = {}) => collectCraftingConfigurat
   batchSnapshot: config.batchSnapshot,
   batchCandidateCount: config.batchCandidateCount
 })
+
+export const validateSpecializedCraftingConfig = (config = {}) => collectSpecializedCraftingConfigurationIssues(config)
 
 export const validateMapRollingConfig = (config = {}) => collectMapConfigurationIssues({
   inventory: config.inventory,

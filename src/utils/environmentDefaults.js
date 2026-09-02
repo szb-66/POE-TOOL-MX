@@ -1,7 +1,7 @@
 import { EMPTY_SLOT_THRESHOLD } from './inventorySettings.js'
 
 export const CURRENCY_POSITION_KEYS = Object.freeze([
-  'alteration', 'augmentation', 'regal', 'chaos', 'exalted', 'alchemy', 'scouring',
+  'alteration', 'augmentation', 'regal', 'chaos', 'exalted', 'alchemy', 'binding', 'scouring',
   'transmutation', 'jewellers', 'fusing', 'chromic', 'vaal', 'wisdom',
   'lesser-eldritch-ember', 'greater-eldritch-ember', 'grand-eldritch-ember',
   'exceptional-eldritch-ember', 'lesser-eldritch-ichor', 'greater-eldritch-ichor',

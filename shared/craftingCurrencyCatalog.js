@@ -5,6 +5,7 @@ export const CRAFTING_CURRENCY_CATALOG = Object.freeze([
   { key: 'augmentation', name: '增幅石', tradeId: 'aug', iconFile: 'augmentation.png' },
   { key: 'regal', name: '富豪石', tradeId: 'regal', iconFile: 'regal.png' },
   { key: 'alchemy', name: '点金石', tradeId: 'alch', iconFile: 'alchemy.png' },
+  { key: 'binding', name: '高阶点金石', tradeId: 'orb-of-binding', iconFile: 'binding.png' },
   { key: 'scouring', name: '重铸石', tradeId: 'scour', iconFile: 'scouring.png' },
   { key: 'chaos', name: '混沌石', tradeId: 'chaos', iconFile: 'chaos.png' },
   { key: 'exalted', name: '崇高石', tradeId: 'exalted', iconFile: 'exalted.png' },

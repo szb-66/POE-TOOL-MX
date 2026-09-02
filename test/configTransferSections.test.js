@@ -13,10 +13,10 @@ import {
 import { ConfigTransferError, EMPTY_PRESET_GRID } from '../src/domains/settings/configTransfer/core.js'
 
 const supportedIds = [
-  'preset.item', 'preset.map', 'preset.story', 'preset.storySkill', 'settings.toolSites'
+  'preset.item', 'preset.essence', 'preset.harvest', 'preset.map', 'preset.story', 'preset.storySkill', 'settings.toolSites'
 ]
 
-test('section normalizers expose exactly five field allowlists and reject removed ids', () => {
+test('section normalizers expose exactly seven field allowlists and reject removed ids', () => {
   assert.deepEqual(Object.keys(SECTION_FIELD_WHITELISTS), supportedIds)
   for (const sectionId of ['preset.chart', 'preset.shop', 'settings.general', 'device.shortcuts']) {
     assert.throws(
@@ -99,4 +99,24 @@ test('repeated item preset import advances suffixes and never overwrites', () =>
   assert.equal(first.imported[0].name, '做装（导入）')
   assert.equal(second.imported[0].name, '做装（导入 2）')
   assert.notEqual(first.imported[0].id, second.imported[0].id)
+})
+
+test('精华与花园预设独立导入，精华保留目标坐标而花园只保留词缀', () => {
+  const essenceData = createPresetSectionData('preset.essence', [{
+    id: 'essence-one', name: '精华生命', essencePosition: { x: 120, y: 240 }, affixGroups: [{
+      id: 'life', name: '生命', enabled: true, requiredAffixes: ['最大生命'], selectedAffixes: [], selectedCount: 1
+    }]
+  }], { recordKeyFactory: () => 'essence-record' })
+  const essence = planPresetImport('preset.essence', essenceData, []).imported[0]
+  assert.deepEqual(essence.essencePosition, { x: 120, y: 240 })
+  assert.equal(essence.affixGroups[0].requiredAffixes[0].keyword, '最大生命')
+
+  const harvestData = createPresetSectionData('preset.harvest', [{
+    id: 'harvest-one', name: '花园生命', essencePosition: { x: 999, y: 999 }, affixGroups: [{
+      id: 'life', name: '生命', enabled: true, requiredAffixes: ['最大生命'], selectedAffixes: [], selectedCount: 1
+    }]
+  }], { recordKeyFactory: () => 'harvest-record' })
+  const harvest = planPresetImport('preset.harvest', harvestData, []).imported[0]
+  assert.equal(Object.hasOwn(harvest, 'essencePosition'), false)
+  assert.equal(harvest.affixGroups[0].requiredAffixes[0].keyword, '最大生命')
 })

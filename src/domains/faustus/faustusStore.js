@@ -27,7 +27,6 @@ export const useFaustusStore = defineStore('faustus', () => {
   const state = ref({ status: 'idle', reasonCode: '', processed: 0, total: 0 })
   const logs = ref([])
   const busy = ref(false)
-  const recognition = ref(null)
   let unsubscribe = null
 
   const validation = computed(() => validateFaustusConfig(config.value))
@@ -76,7 +75,6 @@ export const useFaustusStore = defineStore('faustus', () => {
 
   async function calibrateGrid() {
     busy.value = true
-    recognition.value = null
     try {
       const result = unwrap(await electronApi.faustus.pickGridRegion(), '市集网格校准失败')
       if (!result?.canceled) updateConfig({ gridCalibration: result })
@@ -84,20 +82,10 @@ export const useFaustusStore = defineStore('faustus', () => {
     } finally { busy.value = false }
   }
 
-  async function testPriceWindow() {
-    busy.value = true
-    recognition.value = null
-    try {
-      recognition.value = unwrap(await electronApi.faustus.testPriceWindow({ gridCalibration: config.value.gridCalibration }), '价格窗口识别失败')
-      return recognition.value
-    } finally { busy.value = false }
-  }
-
   async function start() {
     cancelBandReorder()
     const snapshot = createFaustusRunSnapshot(config.value)
     if (!snapshot.gridCalibration) throw Object.assign(new Error('请先校准市集网格'), { code: 'MISSING_GRID_CALIBRATION' })
-    if (!recognition.value) throw Object.assign(new Error('请先完成价格窗口识别测试'), { code: 'PRICE_RECOGNITION_REQUIRED' })
     busy.value = true
     logs.value = []
     try {
@@ -130,9 +118,9 @@ export const useFaustusStore = defineStore('faustus', () => {
   }
 
   return {
-    config, state, logs, busy, recognition, validation, running,
+    config, state, logs, busy, validation, running,
     updateConfig, updateBand, addBand, removeBand, moveBand,
     beginBandReorder, previewBandReorder, commitBandReorder, cancelBandReorder,
-    calibrateGrid, testPriceWindow, start, stop, connect, disconnect
+    calibrateGrid, start, stop, connect, disconnect
   }
 })

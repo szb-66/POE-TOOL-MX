@@ -320,6 +320,8 @@ def window_matches_game(hwnd):
 
 # 物品位置坐标（确保坐标值为整数）
 item_position = {{ITEM_POSITION}}
+action_position = {{ACTION_POSITION}}
+crafting_kind = "{{CRAFTING_KIND}}"
 
 # 创建鼠标和键盘控制器
 mouse_controller = mouse.Controller()
@@ -344,45 +346,10 @@ def require_game_foreground():
         foreground_failure_emitted = True
         print("EVENT " + json.dumps({
             "event": "crafting-runtime-stopped", "mode": "items",
+            "craftingKind": globals().get("crafting_kind", "general"),
             "termination": "abnormal", "code": "GAME_NOT_FOREGROUND", "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
-    return False
-
-def focus_game_window(timeout_seconds=2.0):
-    if is_game_foreground():
-        return True
-    if sys.platform != "win32":
-        return False
-    matches = []
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-    def visit(hwnd, _lparam):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        priority = game_window_title_priority(buffer.value)
-        if priority >= 0 and window_matches_game(hwnd):
-            matches.append((priority, hwnd))
-        return True
-    try:
-        user32.EnumWindows(callback_type(visit), 0)
-        if not matches:
-            return False
-        matches.sort(key=lambda entry: entry[0])
-        hwnd = matches[0][1]
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)
-        user32.BringWindowToTop(hwnd)
-        user32.SetForegroundWindow(hwnd)
-        deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
-        while time.monotonic() < deadline:
-            if is_game_foreground():
-                return True
-            time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
-    except Exception:
-        return False
     return False
 
 BATCH_CATEGORY_NAMES = {
@@ -421,7 +388,7 @@ def emit_batch_event(event, target=None, reason="", code=""):
     targets = list(batch_config.get("targets") or [])
     current = target or batch_current_target
     payload = {
-        "event": event, "mode": "items", "batchId": batch_config.get("batchId", ""),
+        "event": event, "mode": "items", "craftingKind": globals().get("crafting_kind", "general"), "batchId": batch_config.get("batchId", ""),
         "total": len(targets),
         "completed": len(batch_completed_ids),
         "remaining": max(0, len(targets) - len([item for item in targets if item.get("id") in batch_completed_ids])),
@@ -532,6 +499,7 @@ def start_crafting():
             print("\n[快捷键] 监测到停止快捷键 ({{STOP_SHORTCUT}})")
             print("EVENT " + json.dumps({
                 "event": "crafting-manual-stopped", "mode": "items",
+                "craftingKind": globals().get("crafting_kind", "general"),
                 "termination": "manual", "reason": "用户主动停止制作"
             }, ensure_ascii=False), flush=True)
             is_running = False
@@ -559,12 +527,13 @@ def start_crafting():
     if "emit_crafting_operation" in globals():
         emit_crafting_operation("session", "start", "started", summary="装备制作会话开始")
 
-    if not focus_game_window():
+    if not is_game_foreground():
         fatal_error_reason = "无法激活游戏窗口，请确认《流放之路》已启动且窗口可见"
         is_running = False
         release_all_keys()
         print("EVENT " + json.dumps({
             "event": "crafting-startup-failed", "mode": "items",
+            "craftingKind": globals().get("crafting_kind", "general"),
             "termination": "abnormal", "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
@@ -620,15 +589,14 @@ def start_crafting():
         is_running = False
         return
 
-    # 批量模式必须先核对整批物品；在全部通过以前不会进行任何通货输入。
-    if not preflight_batch_targets():
-        return False
-
-    if not select_currency_stash_tab("items"):
-        return False
-
-    if not preflight_required_currencies():
-        return False
+    if crafting_kind == "general":
+        # 批量模式必须先核对整批物品；在全部通过以前不会进行任何通货输入。
+        if not preflight_batch_targets():
+            return False
+        if not select_currency_stash_tab("items"):
+            return False
+        if not preflight_required_currencies():
+            return False
 
     targets = list(batch_config.get("targets") or []) if batch_config.get("enabled") else [{
         "id": "single", "displayName": "当前物品", "position": dict(item_position)
@@ -646,7 +614,7 @@ def start_crafting():
         return False
 
     print("EVENT " + json.dumps({
-        "event": "crafting-startup-succeeded", "mode": "items"
+        "event": "crafting-startup-succeeded", "mode": "items", "craftingKind": crafting_kind
     }, ensure_ascii=False), flush=True)
 
     for target_index, target in enumerate(pending_targets):
@@ -672,7 +640,7 @@ def start_crafting():
     
     print("[完成] 所有制作流程完成！")
     print("EVENT " + json.dumps({
-        "event": "crafting-completed", "mode": "items", "termination": "completed"
+        "event": "crafting-completed", "mode": "items", "craftingKind": crafting_kind, "termination": "completed"
     }, ensure_ascii=False), flush=True)
     play_success_sound()
     time.sleep(2)
@@ -680,6 +648,8 @@ def start_crafting():
     return True
 
 def craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_enabled):
+    if crafting_kind != "general":
+        return craft_specialized(initial_item_result)
     if eldritch_enabled and not craft_eldritch_implicits(initial_item_result):
         return False
     if affix_enabled and not craft_affixes(initial_item_result):
@@ -689,6 +659,8 @@ def craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_
     return True
 
 {{AFFIX_CRAFTING_FUNC}}
+
+{{SPECIALIZED_CRAFTING_FUNC}}
 
 {{ELDRITCH_CRAFTING_FUNC}}
 
@@ -825,6 +797,7 @@ def select_currency_stash_tab(mode):
         release_all_keys()
         print("EVENT " + json.dumps({
             "event": "stash-tab-selection-failed", "mode": mode,
+            "craftingKind": globals().get("crafting_kind", "general"),
             "termination": "abnormal",
             "code": response.get("code", "selection-failed"), "reason": fatal_error_reason
         }, ensure_ascii=False), flush=True)
@@ -833,6 +806,7 @@ def select_currency_stash_tab(mode):
         return False
     print("EVENT " + json.dumps({
         "event": "stash-tab-selection-succeeded", "mode": mode,
+        "craftingKind": globals().get("crafting_kind", "general"),
         "targetName": response.get("targetName"), "scrollStep": response.get("scrollStep", 0)
     }, ensure_ascii=False), flush=True)
     return True
@@ -844,6 +818,7 @@ CURRENCY_NAMES = {
     "chaos": "混沌石",
     "exalted": "崇高石",
     "alchemy": "点金石",
+    "binding": "高阶点金石",
     "scouring": "重铸石",
     "transmutation": "蜕变石",
     "jewellers": "工匠石",
@@ -871,6 +846,7 @@ def emit_crafting_operation(phase, action, outcome, code="", summary=""):
     print("EVENT " + json.dumps({
         "event": "crafting-operation",
         "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "sessionId": globals().get("crafting_operation_session_id", "items-test-session"),
         "timestamp": int(__import__("time").time() * 1000),
         "phase": str(phase),
@@ -886,6 +862,7 @@ def record_currency_usage(currency):
     print("EVENT " + json.dumps({
         "event": "crafting-currency-used",
         "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "currency": currency,
         "amount": 1
     }, ensure_ascii=False), flush=True)
@@ -922,6 +899,7 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品", failu
     payload = {
         "event": "currency-preflight-failed",
         "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "termination": "abnormal",
         "currency": currency,
         "expected": expected,
@@ -1009,6 +987,7 @@ def preflight_required_currencies():
     print("EVENT " + json.dumps({
         "event": "currency-preflight-succeeded",
         "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "currencies": required_currency_types
     }, ensure_ascii=False), flush=True)
     print("[预检] 固定通货全部验证通过，开始正式制作")
@@ -1424,6 +1403,7 @@ def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
     release_all_keys()
     print("EVENT " + json.dumps({
         "event": "crafting-runtime-stopped", "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "termination": "abnormal", "code": code, "reason": reason,
     }, ensure_ascii=False), flush=True)
     print(f"[停止] {reason}")
@@ -1485,6 +1465,7 @@ def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
     print("EVENT " + json.dumps({
         "event": "crafting-startup-failed",
         "mode": "items",
+        "craftingKind": globals().get("crafting_kind", "general"),
         "termination": "abnormal",
         "code": code,
         "reason": reason

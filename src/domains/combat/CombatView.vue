@@ -5,24 +5,14 @@
         <div class="module-header">
           <div class="module-title">
             <strong>战斗辅助配置</strong>
-            <el-tooltip content="配置被动喝药启停与一键回城快捷键，以及药剂检测频率和触发保护。" placement="top">
+            <el-tooltip content="配置药剂检测频率和触发保护。" placement="top">
               <el-icon class="module-help" tabindex="0" aria-label="查看战斗辅助配置说明"><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
         </div>
       </template>
 
-      <div class="subsection-title">快捷键</div>
-      <el-row class="shortcut-grid app-grid" :gutter="16">
-        <el-col v-for="item in shortcutFields" :key="item.key" :xs="24" :sm="12" :md="8">
-          <div class="shortcut-field">
-            <span>{{ item.label }}</span>
-            <KeyCaptureInput :model-value="shortcuts[item.key]" @change="saveShortcut(item.key, $event)" />
-          </div>
-        </el-col>
-      </el-row>
-
-      <div class="subsection-title frequency-title">频率保护</div>
+      <div class="subsection-title">频率保护</div>
       <el-form inline class="frequency-form">
         <el-form-item label="检测间隔">
           <el-input-number v-model="config.potion.scanIntervalMs" :min="10" :step="10" />
@@ -194,6 +184,9 @@
         </el-button>
       </div>
       <el-form label-width="150px" label-position="left">
+        <el-form-item label="全局触发快捷键">
+          <KeyCaptureInput :model-value="shortcuts.portal" @change="saveShortcut('portal', $event)" />
+        </el-form-item>
         <el-form-item label="游戏内开启传送门键">
           <KeyCaptureInput v-model="config.portal.openKey" mode="action" class="short-input" />
         </el-form-item>
@@ -286,12 +279,6 @@ const resources = [
   { key: 'mana', label: '魔力药剂', channelLabel: '蓝色分量', component: 'b' }
 ]
 
-const shortcutFields = [
-  { key: 'potionStart', label: '自动喝药开始' },
-  { key: 'potionStop', label: '自动喝药停止' },
-  { key: 'portal', label: '一键回城宏' }
-]
-
 let saveTimer = null
 let suppressConfigWatch = false
 watch(config, () => {
@@ -361,7 +348,7 @@ function removeLoopItem(index) {
 async function saveShortcut(key, value) {
   try {
     await commitGlobalShortcut(key, value)
-    ElMessage.success('战斗辅助快捷键已更新')
+    ElMessage.success('一键回城快捷键已更新')
   } catch (error) {
     ElMessage.error(error.message)
   }
@@ -376,7 +363,7 @@ async function saveShortcut(key, value) {
   background: var(--bg-secondary);
 }
 
-.module-header, .module-title, .card-title, .module-action, .position-row, .shortcut-field {
+.module-header, .module-title, .card-title, .module-action, .position-row {
   display: flex;
   align-items: center;
 }
@@ -408,13 +395,11 @@ async function saveShortcut(key, value) {
 .position-row { gap: 8px; flex-wrap: wrap; }
 .combat-coordinate-field { width: auto; }
 .card-title { justify-content: space-between; width: 100%; }
-.shortcut-grid, .resource-grid { margin: 0; }
-.shortcut-grid > .el-col, .resource-grid > .el-col { display: flex; }
+.resource-grid { margin: 0; }
+.resource-grid > .el-col { display: flex; }
 .resource-grid .el-card { width: 100%; }
-.shortcut-field { justify-content: space-between; gap: 12px; width: 100%; span { white-space: nowrap; } }
 .section-card { margin-bottom: 18px; }
 .subsection-title { margin-bottom: 12px; font-weight: 600; }
-.frequency-title { margin-top: 18px; }
 .frequency-form :deep(.el-form-item) { margin-bottom: 12px; }
 .loop-list { display: grid; gap: 10px; }
 .loop-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }

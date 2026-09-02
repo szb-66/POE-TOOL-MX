@@ -5,7 +5,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
-import { restoreMainWindowToForeground } from '../window/manager.js'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import {
   gridCellCenter,
@@ -92,11 +91,13 @@ function currentDisplays() {
 }
 
 export class PuzzleAnalysisService {
-  constructor({ python, window, fileWatcher, getMainWindow, automationLock = null, overlay = null, feedbackOverlay = null, calibration = null, failureEvidence = null }) {
+  constructor({ python, window, fileWatcher, getMainWindow, windowActivation, loadingFeedback, automationLock = null, overlay = null, feedbackOverlay = null, calibration = null, failureEvidence = null }) {
     this.python = python
     this.window = window
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
+    this.windowActivation = windowActivation
+    this.loadingFeedback = loadingFeedback
     this.automationLock = automationLock
     this.overlay = overlay
     this.feedbackOverlay = feedbackOverlay
@@ -405,7 +406,7 @@ export class PuzzleAnalysisService {
     }
   }
 
-  startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, operationDelayMs = OPERATION_DELAY.default, fixedTiming = {}, resume = false } = {}) {
+  async startAutoPlacement({ inventoryRegionMetadata, atlasRegionMetadata, inventoryTabPoints, targets, sourceSlots, operationDelayMs = OPERATION_DELAY.default, fixedTiming = {}, resume = false } = {}) {
     if (this.automationChild || ['validating', 'running'].includes(this.execution.status)) {
       return { ...this.getAutoPlacementStatus(), success: false, error: { code: 'AUTO_PLACEMENT_BUSY', message: '海图自动放置正在运行' } }
     }
@@ -426,6 +427,8 @@ export class PuzzleAnalysisService {
         const validation = validatePuzzleTabPoint(tabPoints[page], inventoryRegionMetadata, page, tabPoints[page === 1 ? 2 : 1])
         if (!validation.valid) throw codedError(validation.code, validation.message)
       }
+      const activation = await this.windowActivation?.activateGame({ source: 'puzzle-auto-placement' })
+      if (!activation?.success) throw codedError(activation?.code || 'ACTIVATION_UNAVAILABLE', '无法激活游戏窗口')
       const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'puzzle-auto-place-')
       fs.writeFileSync(configPath, JSON.stringify({
         inventoryRegion: inventory.selectedRegion,
@@ -828,15 +831,21 @@ export class PuzzleAnalysisService {
       return fail('AUTOMATION_LOCKED', gate.error, gate.error, { owner: gate.owner })
     }
     const stopGeneration = this.stopGeneration
-    const feedbackSessionId = this.feedbackOverlay?.showRunning?.({
-      displayBounds: normalizeAtlas.displayPhysicalBounds,
-      stage: 'border',
-      current: 0,
-      total: 12
-    }) || null
+    let preparationToken = null
+    let feedbackSessionId = null
     let automationStarted = false
     try {
       this.overlay?.close?.()
+      const activation = await this.windowActivation?.activateGame({ source: 'puzzle-border-probe' })
+      if (!activation?.success) throw codedError(activation?.code || 'ACTIVATION_UNAVAILABLE', '无法激活游戏窗口')
+      preparationToken = this.loadingFeedback?.begin('puzzle.border', { owner: MOD_PROBE_OWNER }) || null
+      this.loadingFeedback?.finish(preparationToken)
+      feedbackSessionId = this.feedbackOverlay?.showRunning?.({
+        displayBounds: normalizeAtlas.displayPhysicalBounds,
+        stage: 'border',
+        current: 0,
+        total: 12
+      }) || null
       const result = await this.runBorderProbe(normalizeAtlas, feedbackSessionId, () => { automationStarted = true })
       if (stopGeneration !== this.stopGeneration) throw codedError('EMERGENCY_STOPPED', '海图词缀探测已紧急停止')
       console.log('[海图边缘词缀]', JSON.stringify({ borderProbe: result.borderProbe }))
@@ -856,8 +865,9 @@ export class PuzzleAnalysisService {
         }
       }
     } finally {
+      this.loadingFeedback?.finish(preparationToken)
       this.automationLock?.release(MOD_PROBE_OWNER)
-      if (automationStarted) await restoreMainWindowToForeground()
+      if (automationStarted) await this.windowActivation?.activateMain({ source: 'puzzle-border-probe' })
     }
   }
 
@@ -879,6 +889,7 @@ export class PuzzleAnalysisService {
     const displayBounds = this.feedbackDisplayBounds(regionMetadata)
     let feedbackSessionId = null
     let automationStarted = false
+    let preparationToken = null
     const evidenceSession = new PuzzleFailureEvidenceSession(this.failureEvidence)
     try {
       const metadata = this.validateRegion(regionMetadata)
@@ -888,6 +899,10 @@ export class PuzzleAnalysisService {
         const validation = validatePuzzleTabPoint(tabPoints[currentPage], metadata, currentPage, tabPoints[currentPage === 1 ? 2 : 1])
         if (!validation.valid) throw codedError(validation.code, validation.message)
       }
+      const activation = await this.windowActivation?.activateGame({ source: 'puzzle-analysis' })
+      if (!activation?.success) throw codedError(activation?.code || 'ACTIVATION_UNAVAILABLE', '无法激活游戏窗口')
+      preparationToken = this.loadingFeedback?.begin('puzzle.analysis', { owner: 'puzzle-analysis' }) || null
+      this.loadingFeedback?.finish(preparationToken)
       const evidenceWorkspace = await evidenceSession.start()
       feedbackSessionId = this.feedbackOverlay?.showRunning?.({
         displayBounds: metadata.displayPhysicalBounds,
@@ -984,9 +999,10 @@ export class PuzzleAnalysisService {
       this.publish(payload)
       return payload
     } finally {
+      this.loadingFeedback?.finish(preparationToken)
       await evidenceSession.discard()
       this.busy = false
-      if (automationStarted) await restoreMainWindowToForeground()
+      if (automationStarted) await this.windowActivation?.activateMain({ source: 'puzzle-analysis' })
     }
   }
 

@@ -26,12 +26,14 @@ import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 let stashProcess = null
 let batchScanProcess = null
+let batchScanPreparationToken = null
 const batchScanStopRequests = new WeakMap()
 let latestConfig = null
 let getMainWindowRef = null
 let bagWindowApi = null
 let interfaceDetection = null
 let automationLock = null
+let loadingFeedback = null
 let disposeDetectionState = null
 let moduleRunning = false
 let bagConfigRevision = 0
@@ -148,6 +150,8 @@ export function stopBatchInventoryScan(reason = 'user') {
   const child = batchScanProcess
   const stopped = Boolean(child)
   if (child) batchScanStopRequests.set(child, { reason: String(reason || 'user') })
+  if (batchScanPreparationToken) loadingFeedback?.finish(batchScanPreparationToken)
+  batchScanPreparationToken = null
   stopChild(child)
   return { success: true, stopped }
 }
@@ -273,7 +277,7 @@ function bindCommonProcessLogging(child, label) {
   return diagnostics
 }
 
-function startStashProcess(python, fileWatcher) {
+async function startStashProcess(python, fileWatcher) {
   const gate = session.beginManual()
   if (!gate.success) return gate
   const automationGate = automationLock?.acquire('自动入库') || { success: true }
@@ -291,6 +295,13 @@ function startStashProcess(python, fileWatcher) {
     session.finishStash()
     automationLock?.release('自动入库')
     return { success: false, ...validation }
+  }
+
+  const activation = await bagWindowApi.activateGameWindow('bag-auto-stash')
+  if (!activation.success) {
+    session.finishStash()
+    automationLock?.release('自动入库')
+    return { success: false, error: bagWindowApi.describeGameActivationFailure(activation.code), errorCode: activation.code }
   }
 
   let child
@@ -348,6 +359,7 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
     automationLock?.release('批量背包扫描')
     return Promise.resolve({ success: false, error: '请先配置背包网格', errorCode: 'INVENTORY_GRID_INVALID' })
   }
+
   const frozenConfig = {
     inventory: {
       startPos: { x: Number(inventory.startPos.x), y: Number(inventory.startPos.y) },
@@ -363,13 +375,22 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
   let configPath = ''
   let child
   let windowPrepared = false
+  const finishPreparation = () => {
+    if (batchScanPreparationToken) loadingFeedback?.finish(batchScanPreparationToken)
+    batchScanPreparationToken = null
+  }
   try {
     windowPrepared = await bagWindowApi.minimizeMainWindowForAutomation()
     if (!windowPrepared) throw new Error('无法为背包扫描准备应用窗口')
+    const activation = await bagWindowApi.activateGameWindow('batch-inventory-scan')
+    if (!activation.success) throw Object.assign(new Error(bagWindowApi.describeGameActivationFailure(activation.code)), { code: activation.code })
+    batchScanPreparationToken = loadingFeedback?.begin('batch-inventory.scan', { owner: '批量背包扫描' }) || null
     configPath = writeConfig(fileWatcher, `batch_inventory_scan_${Date.now()}.json`, frozenConfig)
+    loadingFeedback?.update(batchScanPreparationToken, { stage: 'model' })
     child = spawnPython(python, 'scan', configPath)
     batchScanProcess = child
   } catch (error) {
+    finishPreparation()
     automationLock?.release('批量背包扫描')
     if (configPath) fs.rmSync(configPath, { force: true })
     if (windowPrepared) await bagWindowApi.restoreMainWindowToForeground()
@@ -380,6 +401,7 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
     let stderr = ''
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', createEventLineParser((event) => {
+      if (['inventory-scan-progress', 'inventory-scan-completed', 'inventory-scan-error', 'inventory-scan-stopped'].includes(event.event)) finishPreparation()
       if (event.event === 'inventory-scan-progress') {
         send('batch-crafting-scan-progress', event)
       } else if (event.event === 'inventory-scan-completed') {
@@ -395,9 +417,11 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', data => { stderr = `${stderr}${String(data)}`.slice(-2000) })
     child.on('error', error => {
+      finishPreparation()
       terminal = { success: false, error: error.message, errorCode: 'SCAN_PROCESS_ERROR' }
     })
     child.on('close', async code => {
+      finishPreparation()
       if (batchScanProcess === child) batchScanProcess = null
       automationLock?.release('批量背包扫描')
       if (configPath) fs.rmSync(configPath, { force: true })
@@ -452,6 +476,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   bagWindowApi = window
   interfaceDetection = shared.interfaceDetection
   automationLock = shared.automationLock
+  loadingFeedback = shared.loadingFeedback
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return
@@ -695,6 +720,8 @@ export async function cleanupBagProcesses() {
   const scanning = batchScanProcess
   stashProcess = null
   batchScanProcess = null
+  if (batchScanPreparationToken) loadingFeedback?.finish(batchScanPreparationToken)
+  batchScanPreparationToken = null
   moduleRunning = false
   latestDetectionState = { ready: false, stashReady: false, allflameReceiverReady: false, foreground: false }
   interfaceDetection?.unregisterConsumer('bag')

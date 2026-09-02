@@ -20,13 +20,15 @@ import {
 
 const supportedIds = [
   'preset.item',
+  'preset.essence',
+  'preset.harvest',
   'preset.map',
   'preset.story',
   'preset.storySkill',
   'settings.toolSites'
 ]
 
-test('configuration transfer exposes exactly the four presets and tool sites', () => {
+test('configuration transfer exposes exactly the six presets and tool sites', () => {
   assert.deepEqual(CONFIG_SECTION_DEFINITIONS.map(section => section.id), supportedIds)
 })
 

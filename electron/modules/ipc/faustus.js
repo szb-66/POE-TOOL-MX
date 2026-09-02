@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { normalizeFaustusPriceWindowTestRequest, normalizeFaustusStartRequest } from '../faustus/schema.js'
+import { normalizeFaustusStartRequest } from '../faustus/schema.js'
 
 const ok = data => ({ success: true, data })
 
@@ -33,7 +33,6 @@ export function registerFaustusHandlers(manager, window, getMainWindow) {
       displayPhysicalBounds: result.displayPhysicalBounds || null, capturedAt: new Date().toISOString()
     }
   }))
-  ipcMain.handle('faustus-price-window-test', invoke(getMainWindow, request => manager.testPriceWindow(normalizeFaustusPriceWindowTestRequest(request))))
   ipcMain.handle('faustus-start', invoke(getMainWindow, request => manager.start(normalizeFaustusStartRequest(request))))
   ipcMain.handle('faustus-stop', invoke(getMainWindow, reason => manager.stop(String(reason || 'user'))))
 }

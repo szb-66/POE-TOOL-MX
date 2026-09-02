@@ -78,12 +78,10 @@ test('详情页、仪表盘和全局快捷键复用受保护的动作入口', ()
   for (const binding of [
     /itemStart: startCrafting/,
     /mapStart: startMapRolling/,
-    /potionStart: startPotionAssist/,
     /portal: executePortalAssist/,
-    /chaosRecipeStart: startChaosRecipePicking/,
-    /puzzleAnalyze: startPuzzleAnalysis/,
     /priceCheck: startPriceCheck/
   ]) assert.match(shortcuts, binding)
+  assert.doesNotMatch(shortcuts, /potionStart:|potionStop:|puzzleAnalyze:|chaosRecipeStart:|chaosRecipePause:|chaosRecipeStop:/)
 
   const dashboard = source('src/domains/dashboard/useDashboard.js')
   for (const action of [

@@ -92,15 +92,17 @@ test('识别反馈窗口按目标显示器 DPI 顶部居中并保持不可交互
 
 test('预加载期间缓存最新快照，加载完成后才显示并推送', () => {
   const { manager } = createManager()
+  let visibleCount = 0
   assert.equal(FakeWindow.instances.length, 0)
   const sessionId = manager.showRunning({
     displayBounds: { x: 0, y: 0, width: 2560, height: 1440 },
     stage: 'shape', current: 1, total: 2
-  })
+  }, { onVisible: () => { visibleCount += 1 } })
   const window = FakeWindow.instances[0]
   assert.ok(window)
   manager.updateProgress(sessionId, { stage: 'copy', current: 3, total: 9 })
   assert.equal(window.webContents.sent.length, 0)
+  assert.equal(visibleCount, 0)
   assert.equal(window.calls.some(([name]) => name === 'showInactive'), false)
 
   window.webContents.loading = false
@@ -110,6 +112,9 @@ test('预加载期间缓存最新快照，加载完成后才显示并推送', ()
   assert.equal(window.webContents.sent[0][1].stage, 'copy')
   assert.equal(window.webContents.sent[0][1].current, 3)
   assert.equal(window.calls.filter(([name]) => name === 'showInactive').length, 1)
+  assert.equal(visibleCount, 1)
+  manager.updateProgress(sessionId, { current: 4 })
+  assert.equal(visibleCount, 1)
 })
 
 test('结果时长、计时取消和会话代次隔离相邻识别', () => {

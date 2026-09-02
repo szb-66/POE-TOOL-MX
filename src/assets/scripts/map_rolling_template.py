@@ -442,6 +442,7 @@ CURRENCY_NAMES = {
     "chaos": "混沌石",
     "exalted": "崇高石",
     "alchemy": "点金石",
+    "binding": "高阶点金石",
     "scouring": "重铸石",
     "transmutation": "蜕变石",
     "jewellers": "工匠石",
@@ -628,74 +629,6 @@ def require_game_foreground():
             "reason": fatal_error_reason, "recovery": globals().get("current_recovery_checkpoint")
         }, ensure_ascii=False), flush=True)
         print(f"[停止] {fatal_error_reason}")
-    return False
-
-def find_game_window():
-    if sys.platform != "win32":
-        return 0
-    matches = []
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-
-    def visit(hwnd, _lparam):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return True
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        priority = game_window_title_priority(buffer.value)
-        if priority >= 0 and window_matches_game(hwnd):
-            matches.append((priority, hwnd))
-        return True
-
-    try:
-        user32.EnumWindows(callback_type(visit), 0)
-    except Exception:
-        return 0
-    matches.sort(key=lambda entry: entry[0])
-    return matches[0][1] if matches else 0
-
-def focus_game_window(timeout_seconds=2.0):
-    if is_game_foreground():
-        return True
-    if sys.platform != "win32":
-        return False
-
-    hwnd = find_game_window()
-    if not hwnd:
-        return False
-
-    kernel32 = ctypes.windll.kernel32
-    foreground = user32.GetForegroundWindow()
-    current_thread = kernel32.GetCurrentThreadId()
-    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
-    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
-    attached_foreground = bool(
-        foreground_thread and foreground_thread != current_thread and
-        user32.AttachThreadInput(current_thread, foreground_thread, True)
-    )
-    attached_target = bool(
-        target_thread and target_thread != current_thread and target_thread != foreground_thread and
-        user32.AttachThreadInput(current_thread, target_thread, True)
-    )
-    try:
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)  # SW_RESTORE
-        user32.BringWindowToTop(hwnd)
-        user32.SetForegroundWindow(hwnd)
-        user32.SetFocus(hwnd)
-    finally:
-        if attached_target:
-            user32.AttachThreadInput(current_thread, target_thread, False)
-        if attached_foreground:
-            user32.AttachThreadInput(current_thread, foreground_thread, False)
-
-    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
-    while is_running and time.monotonic() < deadline:
-        if is_game_foreground():
-            return True
-        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
     return False
 
 def right_click_currency(currency):
@@ -1093,7 +1026,7 @@ def start_map_rolling():
     except Exception as e:
         print(f"[警告] 快捷键注册失败: {e}")
 
-    if not focus_game_window():
+    if not is_game_foreground():
         fatal_error_reason = "无法激活游戏窗口，请确认《流放之路》已启动且窗口可见"
         is_running = False
         release_all_keys()
@@ -1273,6 +1206,12 @@ def process_single_map(initial_result, slot_x, slot_y):
     """
     
     current_result = initial_result
+    alchemy_currency = (
+        "binding"
+        if map_config.get("method") == "alchemy" and map_config.get("binding", {}).get("enabled")
+        else "alchemy"
+    )
+    alchemy_currency_name = "高阶点金石" if alchemy_currency == "binding" else "点金石"
     iteration = 0
     max_iterations = 200 # 防止死循环
     
@@ -1393,8 +1332,8 @@ def process_single_map(initial_result, slot_x, slot_y):
             # 此时应该是普通品质 (或已满足条件的稀有，但已在上面check过，如果到这里说明不满足)
             # 如果是普通 -> 点金
             if rarity == '普通':
-                print("  > [操作] 使用点金石")
-                current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
+                print(f"  > [操作] 使用{alchemy_currency_name}")
+                current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                 if current_result.get("error"):
                     return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                 # 更新状态
@@ -1440,8 +1379,8 @@ def process_single_map(initial_result, slot_x, slot_y):
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查基底
-                    print("  > [操作] 基底不满足，使用点金石")
-                    current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
+                    print(f"  > [操作] 基底不满足，使用{alchemy_currency_name}")
+                    current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                     if current_result.get("error"):
                         return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue
@@ -1469,8 +1408,8 @@ def process_single_map(initial_result, slot_x, slot_y):
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查词缀
-                    print("  > [操作] 词缀不满足，使用点金石")
-                    current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
+                    print(f"  > [操作] 词缀不满足，使用{alchemy_currency_name}")
+                    current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                     if current_result.get("error"):
                         return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
                     continue

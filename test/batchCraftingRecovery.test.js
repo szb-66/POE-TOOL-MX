@@ -90,7 +90,7 @@ test('主进程在启动前建立检查点并按脚本终态推进或清除', ()
   assert.match(ipc, /termination === 'abnormal'[\s\S]*batchRecoveryStore\.markAbnormal/)
   assert.match(ipc, /scriptEvent\?\.event === 'crafting-manual-stopped'[\s\S]*batchRecoveryStore\.clear\(\)/)
   assert.match(ipc, /scriptEvent\?\.event === 'crafting-completed'[\s\S]*batchRecoveryStore\.clear\(\)/)
-  assert.match(windowIpc, /crafting-batch-return-to-scan[\s\S]*batchRecoveryStore\.clear\(\)/)
+  assert.match(windowIpc, /crafting-batch-return-to-scan[\s\S]*activateMain[\s\S]*crafting-batch-scan-requested[\s\S]*batchRecoveryStore\.clear\(\)/)
   assert.match(ipc, /const stopScript = async \(\) =>[\s\S]*mode === 'items'[\s\S]*batchRecoveryStore\.clear\(\)/)
 })
 

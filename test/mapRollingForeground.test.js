@@ -38,7 +38,7 @@ print(json.dumps({"first": require_game_foreground(), "second": require_game_for
   return { event: JSON.parse(lines[0].slice(6)), result: JSON.parse(lines.at(-1)) }
 }
 
-function runMapStart(focusResult) {
+function runMapStart(foregroundResult) {
   const start = mapTemplate.indexOf('def start_map_rolling():')
   const end = mapTemplate.indexOf('def process_single_map(')
   const block = mapTemplate.slice(start, end)
@@ -55,7 +55,7 @@ GetClipboardSequenceNumber = None
 keyboard = types.SimpleNamespace(GlobalHotKeys=lambda mapping: types.SimpleNamespace(start=lambda: None))
 pyperclip = types.SimpleNamespace(paste=lambda: "")
 time = types.SimpleNamespace(sleep=lambda value: None)
-def focus_game_window(): events.append("focus"); return ${focusResult ? 'True' : 'False'}
+def is_game_foreground(): events.append("guard"); return ${foregroundResult ? 'True' : 'False'}
 def select_currency_stash_tab(mode): events.append("stash"); return True
 def preflight_required_currencies(): events.append("preflight"); return True
 def move_mouse(x, y): events.append("move"); return True
@@ -83,29 +83,26 @@ print(json.dumps(events))
   }
 }
 
-test('地图洗练从应用启动时先保障游戏前台，再执行鼠标与复制操作', () => {
+test('地图洗练启动时只校验游戏前台，再执行鼠标与复制操作', () => {
   const result = runMapStart(true)
-  assert.deepEqual(result.events, ['focus', 'stash', 'preflight', 'move', 'copy'])
+  assert.deepEqual(result.events, ['guard', 'stash', 'preflight', 'move', 'copy'])
 })
 
-test('地图洗练使用 Win32 查找、恢复、激活并验证中英文游戏窗口', () => {
+test('地图洗练不再自行枚举和激活窗口，只保留标题与进程双重前台门禁', () => {
   assert.match(mapTemplate, /GAME_WINDOW_TITLES = \("流放之路", "Path of Exile"\)/)
-  assert.match(mapTemplate, /def find_game_window\(\):[\s\S]*user32\.EnumWindows/)
-  assert.match(mapTemplate, /user32\.IsIconic\(hwnd\)[\s\S]*user32\.ShowWindow\(hwnd, 9\)/)
-  assert.match(mapTemplate, /user32\.BringWindowToTop\(hwnd\)/)
-  assert.match(mapTemplate, /user32\.SetForegroundWindow\(hwnd\)/)
-  assert.match(mapTemplate, /while is_running[\s\S]*is_game_foreground\(\)/)
+  assert.match(mapTemplate, /def window_matches_game\([\s\S]*window_process_name/)
+  assert.doesNotMatch(mapTemplate, /def (?:find_game_window|focus_game_window)|SetForegroundWindow/)
 
   const start = mapTemplate.indexOf('def start_map_rolling():')
-  const focus = mapTemplate.indexOf('if not focus_game_window():', start)
+  const focus = mapTemplate.indexOf('if not is_game_foreground():', start)
   const scan = mapTemplate.indexOf('while is_running and current_col', start)
   assert.ok(start < focus && focus < scan)
 })
 
 test('地图洗练无法激活游戏时安全停止，不进入鼠标和剪贴板判空流程', () => {
   const result = runMapStart(false)
-  assert.deepEqual(result.events, ['focus'])
-  assert.match(result.output, /无法激活游戏窗口/)
+  assert.deepEqual(result.events, ['guard'])
+  assert.match(result.output, /无法激活游戏窗口|不在前台/)
   assert.doesNotMatch(result.output, /连续空格候选/)
 })
 

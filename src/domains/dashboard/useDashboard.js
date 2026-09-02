@@ -15,13 +15,14 @@ import { useCraftingStore } from '@/domains/crafting/craftingStore'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
+import { useFeatureModulesStore } from '@/stores/featureModules'
 import { inventoryItemPosition, validateBatchInventoryLayout, validateBatchCategoryCompatibility } from '@/domains/items/batchCrafting'
-import { validateCraftingConfig, validateMapRollingConfig } from '@/utils/validation'
+import { validateCraftingConfig, validateMapRollingConfig, validateSpecializedCraftingConfig } from '@/utils/validation'
 import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
-import { setBagModuleEnabled } from '@/utils/bagService'
+import { setAllflameReceiverEnabled, setBagModuleEnabled } from '@/utils/bagService'
 import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService'
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
@@ -87,11 +88,22 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const priceCheckStore = usePriceCheckStore()
   const accountStore = usePoeCnAccountStore()
   const batchCraftingStore = useBatchCraftingStore()
+  const featureModulesStore = useFeatureModulesStore()
   const pending = reactive({})
   const refreshing = ref(false)
   let dashboardCombatQueue = Promise.resolve()
 
   const itemValidation = computed(() => {
+    if (presetStore.itemCraftingKind !== 'general') {
+      const kind = presetStore.itemCraftingKind
+      const preset = kind === 'essence' ? presetStore.currentEssencePreset : presetStore.currentHarvestPreset
+      return validateSpecializedCraftingConfig({
+        kind,
+        preset,
+        itemPosition: kind === 'essence' ? settingsStore.essenceItemPosition : settingsStore.harvestItemPosition,
+        actionPosition: kind === 'essence' ? preset?.essencePosition : settingsStore.harvestCraftButtonPosition
+      })
+    }
     const preset = presetStore.currentItemPreset
     if (!preset?.batchCrafting?.enabled) return validateCraftingConfig({
       itemPosition: settingsStore.itemPosition,
@@ -151,7 +163,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         scriptMode: scriptStore.mode,
         lastError: scriptStore.lastError,
         lastMode: scriptStore.lastMode,
-        batchEnabled: presetStore.currentItemPreset?.batchCrafting?.enabled,
+        batchEnabled: presetStore.itemCraftingKind === 'general' && presetStore.currentItemPreset?.batchCrafting?.enabled,
         batchCount: batchCraftingStore.candidates.length,
         batchProgress: scriptStore.batchRuntime
       }),
@@ -162,7 +174,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         isMatched: bagStore.isMatched,
         isStashing: bagStore.isStashing,
         progress: bagStore.stashProgress,
-        stashedSlots: bagStore.stashStats.stashedSlots,
         lastStopReason: bagStore.lastStopReason
       }),
       evaluateMapStatus({
@@ -225,13 +236,31 @@ export function useDashboard({ openHelp = () => {} } = {}) {
       })
     ]
 
-    return values.map(module => ({
-      ...module,
-      reasonCode: moduleDiagnosticReason(module),
-      pending: Boolean(pending[module.id]),
-      controls: controlsFor(module, activeRecipeId),
-      actions: actionsFor(module)
-    }))
+    const featureIdByDashboardId = {
+      items: 'items', bag: 'bag', map: 'map', combat: 'combat', story: 'story',
+      shop: 'recipe', priceCheck: 'price-check', crafting: 'craft-planner'
+    }
+    return values.map(module => {
+      const featureId = featureIdByDashboardId[module.id]
+      if (featureId && !featureModulesStore.isEnabled(featureId)) {
+        return {
+          ...module,
+          featureId,
+          featureDisabled: true,
+          state: 'disabled',
+          statusText: '未添加，请从侧边栏“更多”中添加',
+          issues: [], metrics: [], controls: [], actions: [], pending: false, reasonCode: null
+        }
+      }
+      return {
+        ...module,
+        featureId,
+        reasonCode: moduleDiagnosticReason(module),
+        pending: Boolean(pending[module.id]),
+        controls: controlsFor(module, activeRecipeId),
+        actions: actionsFor(module)
+      }
+    })
   })
 
   const summary = computed(() => summarizeModules(modules.value))
@@ -317,19 +346,73 @@ export function useDashboard({ openHelp = () => {} } = {}) {
 
   function controlsFor(module, activeRecipeId) {
     const modulePending = Boolean(pending[module.id])
+    if (module.id === 'bag') {
+      return [
+        {
+          id: 'bag-stash-enabled',
+          type: 'switch',
+          label: '背包入库',
+          value: bagStore.moduleEnabled,
+          disabled: modulePending,
+          run: value => setBagModuleEnabled(value)
+        },
+        {
+          id: 'allflame-receiver-enabled',
+          type: 'switch',
+          label: '永火接收舱',
+          value: bagStore.allflameReceiverEnabled,
+          disabled: modulePending,
+          run: value => setAllflameReceiverEnabled(value)
+        },
+        {
+          id: 'stash-pickup-enabled',
+          type: 'switch',
+          label: '仓库取件',
+          value: stashPickupStore.settings.enabled,
+          disabled: modulePending,
+          run: value => stashPickupStore.setEnabled(value)
+        },
+        {
+          id: 'junfeng-enabled',
+          type: 'switch',
+          label: '君锋镇取件',
+          value: junfengStore.settings.enabled,
+          disabled: modulePending,
+          run: value => junfengStore.setEnabled(value)
+        }
+      ]
+    }
     if (module.id === 'items') {
       const disabled = modulePending || (scriptStore.isRunning && scriptStore.mode === 'items')
-      return [
+      const kind = presetStore.itemCraftingKind
+      const collection = kind === 'essence' ? presetStore.essencePresets : kind === 'harvest' ? presetStore.harvestPresets : presetStore.itemPresets
+      const currentId = kind === 'essence' ? presetStore.currentEssencePresetId : kind === 'harvest' ? presetStore.currentHarvestPresetId : presetStore.currentItemPresetId
+      const switchPreset = kind === 'essence' ? presetStore.switchEssencePreset : kind === 'harvest' ? presetStore.switchHarvestPreset : presetStore.switchItemPreset
+      const controls = [
+        {
+          id: 'item-crafting-kind',
+          type: 'select',
+          label: '制作类型',
+          value: kind,
+          disabled,
+          options: [
+            { label: '通用', value: 'general' },
+            { label: '精华', value: 'essence' },
+            { label: '花园工艺', value: 'harvest' }
+          ],
+          run: value => presetStore.setItemCraftingKind(value)
+        },
         {
           id: 'item-preset',
           type: 'select',
-          label: '物品预设',
-          value: presetStore.currentItemPresetId,
+          label: kind === 'essence' ? '精华预设' : kind === 'harvest' ? '花园预设' : '通用预设',
+          value: currentId,
           disabled,
-          options: selectOptions(presetStore.itemPresets),
-          run: value => presetStore.switchItemPreset(value)
-        },
-        {
+          options: selectOptions(collection),
+          run: switchPreset
+        }
+      ]
+      if (kind === 'general') controls.push({
           id: 'item-mode',
           type: 'select',
           label: '制作方式',
@@ -339,8 +422,8 @@ export function useDashboard({ openHelp = () => {} } = {}) {
           run: value => presetStore.updateCurrentItemPreset({
             moduleTwo: { ...presetStore.currentItemPreset.moduleTwo, mode: value }
           })
-        }
-      ]
+        })
+      return controls
     }
     if (module.id === 'map') {
       const disabled = modulePending || (scriptStore.isRunning && scriptStore.mode === 'map')
@@ -441,28 +524,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
       return scriptStore.isRunning && scriptStore.mode === 'map'
         ? [{ id: 'stop', label: '停止', type: 'danger', run: stopCrafting }]
         : [{ id: 'start', label: '启动', type: 'primary', disabled: sharedScriptOccupied('map'), run: startMapRolling }]
-    }
-    if (module.id === 'bag') {
-      return [
-        {
-          id: 'toggle-bag-stash',
-          label: bagStore.moduleEnabled ? '关闭背包入库' : '启用背包入库',
-          type: bagStore.moduleEnabled ? 'danger' : 'primary',
-          run: () => setBagModuleEnabled(!bagStore.moduleEnabled)
-        },
-        {
-          id: 'toggle-stash-pickup',
-          label: stashPickupStore.settings.enabled ? '关闭仓库取件' : '启用仓库取件',
-          type: stashPickupStore.settings.enabled ? 'danger' : 'primary',
-          run: () => stashPickupStore.setEnabled(!stashPickupStore.settings.enabled)
-        },
-        {
-          id: 'toggle-junfeng',
-          label: junfengStore.settings.enabled ? '关闭君锋镇取件' : '启用君锋镇取件',
-          type: junfengStore.settings.enabled ? 'danger' : 'primary',
-          run: () => junfengStore.setEnabled(!junfengStore.settings.enabled)
-        }
-      ]
     }
     if (module.id === 'combat') {
       const actions = []
@@ -623,7 +684,13 @@ export function useDashboard({ openHelp = () => {} } = {}) {
     }
   }
 
-  const openModule = module => router.push(module.route)
+  const openModule = module => {
+    if (module.featureDisabled) {
+      ElMessage.warning(`${module.title}尚未添加，请从侧边栏“更多”中添加后使用`)
+      return undefined
+    }
+    return router.push(module.route)
+  }
   const openHealthAction = action => {
     if (action?.type === 'settings') return router.push(settingsRoute(action.target))
     if (action?.type === 'help') return openHelp(action.target)

@@ -295,6 +295,7 @@ import { CATALYST_LABELS, displayedCatalystEntry } from '../../../electron/modul
 import { VAAL_OUTCOME_LABELS } from '../../../electron/modules/crafting/vaalRules.js'
 import { affixTierSummary, effectLines, formatProbability, rolledTextWithRanges } from './displayFormat.js'
 import { readPersistentTab, readPersistentTabMap, writePersistentTab, writePersistentTabMap } from '@/utils/tabPersistence'
+import { electronApi } from '@/api/electron.js'
 
 const store = useCraftingStore()
 const helpTopics = [...moduleHelpTopicsById('crafting'), ...CRAFTING_TOPICS]
@@ -447,8 +448,28 @@ const fossilSelectionReason = computed(() => {
 const categoryOptions = (items = []) => items.map((item) => ({ value: item.itemClass || item.name, label: `${item.name} (${item.count})`, ...(item.children?.length ? { children: categoryOptions(item.children) } : {}) }))
 const baseCategoryOptions = computed(() => categoryOptions(store.categories))
 
-onMounted(async () => { try { await store.initialize(); await loadBases() } catch (error) { pageError.value = error?.message || '模拟数据初始化失败' } })
-onBeforeUnmount(() => { clearTimeout(catalogTimer); store.dispose() })
+let initializationFeedbackToken = ''
+let viewDisposed = false
+onMounted(async () => {
+  try {
+    const feedback = await electronApi.loadingFeedback.begin('crafting.initialize')
+    initializationFeedbackToken = feedback?.token || ''
+    if (viewDisposed && initializationFeedbackToken) return void electronApi.loadingFeedback.finish(initializationFeedbackToken)
+    await store.initialize()
+    await loadBases()
+  } catch (error) {
+    pageError.value = error?.message || '模拟数据初始化失败'
+  } finally {
+    if (initializationFeedbackToken) void electronApi.loadingFeedback.finish(initializationFeedbackToken)
+    initializationFeedbackToken = ''
+  }
+})
+onBeforeUnmount(() => {
+  viewDisposed = true
+  if (initializationFeedbackToken) void electronApi.loadingFeedback.finish(initializationFeedbackToken)
+  clearTimeout(catalogTimer)
+  store.dispose()
+})
 watch(resonatorSockets, (count) => { selectedFossilIds.value = selectedFossilIds.value.slice(0, count) })
 watch(() => store.currentState?.influences?.join('|'), () => { if (store.session) prepareDonorOptions() })
 watch(showCraftDetails, (value) => localStorage.setItem('crafting:show-details', String(value)))

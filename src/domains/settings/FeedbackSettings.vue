@@ -260,7 +260,7 @@ const captureAreas = [
   { value: 'system', label: '系统环境' }, { value: 'shortcuts', label: '快捷键' },
   { value: 'items', label: '物品制作' }, { value: 'bag', label: '背包入库' },
   { value: 'map', label: '地图洗图' }, { value: 'combat', label: '战斗辅助' },
-  { value: 'story', label: '剧情指引' }, { value: 'shop', label: '商城配方' },
+  { value: 'story', label: '剧情指引' }, { value: 'regex', label: '正则' }, { value: 'shop', label: '配方' },
   { value: 'priceCheck', label: '国服查价' }, { value: 'crafting', label: '做装模拟' },
   { value: 'stashPickup', label: '仓库取件' }, { value: 'puzzle', label: '海图拼图' },
   { value: 'junfeng', label: '君锋镇取件' }

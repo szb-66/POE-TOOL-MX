@@ -179,7 +179,7 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 clock=[0.0]
 m.time.monotonic=lambda: clock[0]
 m.time.sleep=lambda seconds: clock.__setitem__(0,clock[0]+max(float(seconds),.001))
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
@@ -285,7 +285,7 @@ sys.path.insert(0, ${JSON.stringify(pythonDir)})
 import stash_pickup_template as shared
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
@@ -335,7 +335,7 @@ import importlib.util, json, numpy as np, sys
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
 m.choose_layout=lambda *_args: {
@@ -372,7 +372,7 @@ sys.path.insert(0, ${JSON.stringify(pythonDir)})
 import stash_pickup_template as shared
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
@@ -426,7 +426,7 @@ sys.path.insert(0, ${JSON.stringify(pythonDir)})
 import stash_pickup_template as shared
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
@@ -485,7 +485,7 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 clock=[0.0]
 m.time.monotonic=lambda: clock[0]
 m.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds), 0.001))
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
@@ -556,7 +556,7 @@ sys.path.insert(0, ${JSON.stringify(pythonDir)})
 import stash_pickup_template as shared
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
@@ -612,7 +612,7 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 clock=[0.0]
 m.time.monotonic=lambda: clock[0]
 m.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds), 0.001))
-m.focus_game_window=lambda: True
+m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
 m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")

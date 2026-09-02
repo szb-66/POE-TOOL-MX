@@ -13,8 +13,9 @@ function readFunctionBody(source, functionName) {
 }
 
 test('物品词缀界面提供多组合、全库联想、自由关键词和最低 T 编辑', async () => {
-  const [moduleTwo, conditionRow, preload, api, fileIpc, runtime] = await Promise.all([
+  const [moduleTwo, goalEditor, conditionRow, preload, api, fileIpc, runtime] = await Promise.all([
     readFile('src/domains/items/components/ModuleTwo.vue', 'utf8'),
+    readFile('src/domains/items/components/AffixGoalEditor.vue', 'utf8'),
     readFile('src/domains/items/components/AffixConditionRow.vue', 'utf8'),
     readFile('electron/preload.cjs', 'utf8'),
     readFile('src/api/electron.js', 'utf8'),
@@ -22,7 +23,7 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     readFile('src/utils/python.js', 'utf8')
   ])
 
-  const view = `${moduleTwo}\n${conditionRow}`
+  const view = `${moduleTwo}\n${goalEditor}\n${conditionRow}`
   for (const text of [
     'form.affixGroups',
     '新增达标组合',
@@ -46,15 +47,15 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     '不限 T',
     '最低 T'
   ]) assert.match(view, new RegExp(text))
-  assert.match(moduleTwo, /v-if="!isGroupCollapsed\(group\.id\)"/)
-  const headerGroups = moduleTwo.match(/<div class="group-title">([\s\S]*?)<\/div>\s*<div class="group-actions">([\s\S]*?)<\/div>\s*<\/header>/)
+  assert.match(goalEditor, /v-if="!isGroupCollapsed\(group\.id\)"/)
+  const headerGroups = goalEditor.match(/<div class="group-title">([\s\S]*?)<\/div>\s*<div class="group-actions">([\s\S]*?)<\/div>\s*<\/header>/)
   assert.ok(headerGroups, '组合标题栏应包含左右两个操作区')
   assert.match(headerGroups[1], /duplicateGroup\(groupIndex\)/)
   assert.match(headerGroups[1], /removeGroup\(groupIndex\)/)
   assert.doesNotMatch(headerGroups[1], /toggleGroupCollapse/)
   assert.match(headerGroups[2], /toggleGroupCollapse\(group\.id\)/)
   assert.doesNotMatch(headerGroups[2], /duplicateGroup|removeGroup/)
-  assert.match(moduleTwo, /\.group-title :deep\(\.el-button \+ \.el-button\) \{\s*margin-left: 0;/)
+  assert.match(goalEditor, /\.group-title :deep\(\.el-button \+ \.el-button\) \{\s*margin-left: 0;/)
   assert.match(preload, /searchCraftingAffixSuggestions/)
   assert.match(api, /searchAffixSuggestions/)
   assert.match(fileIpc, /matchedGroupName/)
@@ -63,7 +64,7 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
 })
 
 test('达标组合折叠保持为独立界面状态', async () => {
-  const source = await readFile('src/domains/items/components/ModuleTwo.vue', 'utf8')
+  const source = await readFile('src/domains/items/components/AffixGoalEditor.vue', 'utf8')
   const toggleBody = readFunctionBody(source, 'toggleGroupCollapse')
   const forgetBody = readFunctionBody(source, 'forgetGroupCollapse')
   const addBody = readFunctionBody(source, 'addGroup')

@@ -3,10 +3,6 @@
     <div class="module-content">
       <div class="form-row">
         <div class="form-item">
-          <label class="form-label">制作开始</label>
-          <KeyCaptureInput :model-value="form.itemStart" class="form-input" @change="handleSave" />
-        </div>
-        <div class="form-item">
           <label class="form-label">预设</label>
           <PresetSelector type="item" />
         </div>
@@ -42,6 +38,10 @@
             {{ isCurrentModeRunning ? '运行中' : '启动' }}
           </el-button>
         </div>
+        <div class="form-item">
+          <label class="form-label">启动快捷键</label>
+          <KeyCaptureInput :model-value="form.itemStart" class="form-input" @change="handleSave" />
+        </div>
       </div>
     </div>
   </div>
@@ -67,8 +67,8 @@ const itemPositionPicking = ref(false)
 const isCurrentModeRunning = computed(() => scriptStore.isRunning && scriptStore.mode === 'items')
 const batchEnabled = computed(() => Boolean(presetStore.currentItemPreset.batchCrafting?.enabled))
 const checkInitialItem = computed({
-  get: () => presetStore.currentItemPreset.checkInitialItem !== false,
-  set: value => presetStore.updateCurrentItemPreset({ checkInitialItem: Boolean(value) })
+  get: () => presetStore.craftingInitialChecks.general,
+  set: value => presetStore.updateCraftingInitialCheck('general', value)
 })
 
 const form = ref({
@@ -121,7 +121,8 @@ async function handleStart() {
   if (starting.value || scriptStore.isRunning) return
   starting.value = true
   try {
-    await startCrafting()
+    presetStore.setItemCraftingKind('general')
+    await startCrafting({ craftingKind: 'general' })
   } finally {
     starting.value = false
   }

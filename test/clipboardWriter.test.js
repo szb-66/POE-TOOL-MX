@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeClipboardText } from '../electron/modules/clipboardWriter.js'
 import { writeTextToClipboard } from '../src/utils/clipboardWriter.js'
-import { generateVendorRegex } from '../src/domains/shop/vendorRegex.js'
+import { generateVendorRegex } from '../src/domains/regex/vendorRegex.js'
 
 test('Electron 剪贴板适配器只写入收到的非空文本', () => {
   const written = []
@@ -30,7 +30,7 @@ test('前端优先使用 Electron，并支持浏览器成功与失败传播', as
 
 test('改变 Vendor 选项只生成结果，不会调用剪贴板', () => {
   let writes = 0
-  const result = generateVendorRegex({ movement: ['movement_10'] })
+  const result = generateVendorRegex({ movement: { mode: 'include', selectedIds: ['movement_10'] } })
   assert.ok(result.regex)
   assert.equal(writes, 0)
 })

@@ -63,6 +63,7 @@ const isStopped = ref(false) // 是否已停止
 const isRestarting = ref(false) // 是否正在重新启动制作
 const stopReason = ref('') // 结构化运行失败原因
 const stopMode = ref(null)
+const stopCraftingKind = ref(null)
 const stopTermination = ref(null)
 const failureDetail = ref(null)
 const recoveryCheckpoint = ref(null)
@@ -111,6 +112,7 @@ function resetOverlayState({ resetCurrencyUsage = true } = {}) {
   isStopped.value = false
   stopReason.value = ''
   stopMode.value = null
+  stopCraftingKind.value = null
   stopTermination.value = null
   recoveryCheckpoint.value = null
   failureDetail.value = null
@@ -188,6 +190,7 @@ function applyStructuredScriptEvent(line) {
     }
     if (event.event === 'crafting-manual-stopped') {
       stopMode.value = event.mode || stopMode.value
+      stopCraftingKind.value = event.craftingKind || stopCraftingKind.value
       stopTermination.value = 'manual'
       stopReason.value = event.reason || '用户主动停止制作'
       isStopped.value = true
@@ -198,6 +201,7 @@ function applyStructuredScriptEvent(line) {
     }
     if (event.event === 'crafting-completed') {
       stopMode.value = event.mode || stopMode.value
+      stopCraftingKind.value = event.craftingKind || stopCraftingKind.value
       stopTermination.value = 'completed'
       batchRecoveryCheckpoint.value = null
       batchRecoveryChecked.value = true
@@ -214,6 +218,7 @@ function applyStructuredScriptEvent(line) {
     }
     if (!['crafting-startup-failed', 'crafting-runtime-stopped', 'currency-preflight-failed', 'stash-tab-selection-failed', 'crafting-batch-preflight-failed'].includes(event.event)) return
     stopMode.value = event.mode || stopMode.value
+    stopCraftingKind.value = event.craftingKind || stopCraftingKind.value
     stopTermination.value = 'abnormal'
     recoveryCheckpoint.value = event.recovery || recoveryCheckpoint.value
     failureDetail.value = event.configurationIssueId ? {
@@ -298,6 +303,7 @@ function stoppedSnapshot() {
     currencyUsage: { ...currencyUsage.value },
     mapStats: mapStats.value,
     stopMode: stopMode.value,
+    stopCraftingKind: stopCraftingKind.value,
     stopTermination: stopTermination.value,
     recovery: recoveryCheckpoint.value,
     batchRecovery: batchRecoveryCheckpoint.value,
@@ -313,6 +319,7 @@ function restoreStoppedState(snapshot, error) {
   currencyUsage.value = snapshot.currencyUsage
   mapStats.value = snapshot.mapStats
   stopMode.value = snapshot.stopMode
+  stopCraftingKind.value = snapshot.stopCraftingKind
   stopTermination.value = snapshot.stopTermination
   recoveryCheckpoint.value = snapshot.recovery
   batchRecoveryCheckpoint.value = snapshot.batchRecovery
@@ -337,7 +344,7 @@ async function handleRestart() {
   isRestarting.value = true
   stopReason.value = ''
   try {
-    const result = await restartCraftingWithLatestConfig({ presetStore, settingsStore, startCrafting })
+    const result = await restartCraftingWithLatestConfig({ presetStore, settingsStore, startCrafting, craftingKind: stopCraftingKind.value })
     if (!result?.success) {
       restoreCompletedState(completedSnapshot, result?.error)
     }
@@ -355,6 +362,7 @@ async function handleRetry() {
   try {
     const result = await retryAutomationWithLatestConfig({
           mode: stopMode.value === 'map' ? 'map' : 'items',
+          craftingKind: stopCraftingKind.value,
           recovery: recoveryCheckpoint.value,
           usageSessionId: usageSessionId.value,
           presetStore,
@@ -528,6 +536,7 @@ onMounted(async () => {
       }
 
       stopMode.value = data.mode || (isMapMode ? 'map' : 'items')
+      stopCraftingKind.value = data.craftingKind || stopCraftingKind.value || 'general'
       stopTermination.value = data.termination || 'abnormal'
       recoveryCheckpoint.value = data.recovery || recoveryCheckpoint.value
       if (data.configurationIssueId) {

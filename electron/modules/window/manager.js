@@ -38,9 +38,6 @@ import {
   resolveCaptureSources,
   toGlobalDipPoint
 } from './coordinates.js'
-import { restoreWindowsGameFocus } from '../priceCheck/clipboardCapture.js'
-import { detectPythonPath } from '../python/detector.js'
-import { restoreWindowToForeground, restoreWindowsNativeWindowFocus } from './foregroundRestore.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -54,6 +51,7 @@ let storyOverlaySize = { width: 460, height: 220 }
 let storyOverlayLayout = null
 let storyOverlayDividerRatio = DEFAULT_STORY_DIVIDER_RATIO
 let storyOverlayOpacity = 100
+let windowActivation = null
 const CRAFTING_OVERLAY_SIZE = Object.freeze({ width: 300, height: 400 })
 
 const craftingOverlayDragPassthrough = new OverlayDragPassthroughController({
@@ -306,6 +304,10 @@ export function closeOverlayWindow() {
 
 export function getMainWindow() {
   return mainWindow
+}
+
+export function configureWindowActivation(service) {
+  windowActivation = service
 }
 
 export function getOverlayWindow() {
@@ -664,9 +666,19 @@ let screenPickerSession = null
 let pickerPreparing = false
 
 export function restoreMainWindowToForeground() {
-  return restoreWindowToForeground(mainWindow, {
-    nativeFocusFn: window => restoreWindowsNativeWindowFocus(window, { pythonPath: detectPythonPath() })
+  return windowActivation?.activateMain({ source: 'window-manager' })
+    .then(result => result.success) ?? Promise.resolve(false)
+}
+
+export function activateGameWindow(source = 'window-manager') {
+  return windowActivation?.activateGame({ source }) ?? Promise.resolve({
+    success: false,
+    code: 'activation-unavailable'
   })
+}
+
+export function describeGameActivationFailure(code) {
+  return windowActivation?.gameFailureMessage?.(code) || `无法激活游戏窗口（${code || 'unknown'}）`
 }
 
 function waitMinimized(win, capMs = 300) {
@@ -690,13 +702,14 @@ export function minimizeMainWindowForAutomation() {
 
 async function preparePickerSession() {
   const minimized = minimizeMainWindowForAutomation()
-  if (process.platform !== 'win32') {
-    await minimized
-    return
-  }
-  const [activated] = await Promise.all([restoreWindowsGameFocus(detectPythonPath()), minimized])
-  if (!activated) {
-    throw Object.assign(new Error('未找到游戏窗口，请先启动游戏'), { code: 'GAME_NOT_FOUND' })
+  const [activation] = await Promise.all([
+    windowActivation?.activateGame({ source: 'screen-picker' }),
+    minimized
+  ])
+  if (!activation?.success) {
+    throw Object.assign(new Error(describeGameActivationFailure(activation?.code)), {
+      code: activation?.code || 'game-activation-unavailable'
+    })
   }
 }
 
@@ -877,7 +890,7 @@ async function runScreenPicker(mode, options = {}) {
     return await promise
   } finally {
     pickerPreparing = false
-    await restoreMainWindowToForeground()
+    await windowActivation?.activateMain({ source: `screen-picker:${mode}` })
   }
 }
 

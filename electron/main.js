@@ -54,7 +54,6 @@ import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
 import {
   assertWindowsGameForeground,
   capturePoeItemText,
-  restoreWindowsGameFocus,
   sendWindowsCopy
 } from './modules/priceCheck/clipboardCapture.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
@@ -68,6 +67,7 @@ import { PuzzleOverlayManager } from './modules/puzzle/overlay.js'
 import { RecognitionFeedbackOverlayManager } from './modules/puzzle/recognitionFeedbackOverlay.js'
 import { getDisplayPhysicalBounds } from './modules/window/coordinates.js'
 import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
+import { WindowActivationService } from './modules/window/activation.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
@@ -78,6 +78,9 @@ import { FeedbackAuthClient } from './modules/feedback/auth.js'
 import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
 import { FeedbackService } from './modules/feedback/service.js'
 import { DailyUsageService } from './modules/dailyUsage/service.js'
+import { LoadingFeedbackCoordinator } from './modules/loadingFeedback/coordinator.js'
+import { LoadingFeedbackOverlayManager } from './modules/loadingFeedback/overlay.js'
+import { LOADING_FEEDBACK_CHANNEL } from '../shared/loadingFeedback.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -209,11 +212,7 @@ startupLog.record({
 if (!hasSingleInstanceLock) process.exit(0)
 
 function showExistingMainWindow() {
-  const existingWindow = getMainWindow()
-  if (!existingWindow || existingWindow.isDestroyed()) return
-  if (existingWindow.isMinimized()) existingWindow.restore()
-  existingWindow.show()
-  existingWindow.focus()
+  void windowActivation?.activateMain({ source: 'second-instance' })
 }
 
 app.on('second-instance', showExistingMainWindow)
@@ -231,11 +230,27 @@ let junfengHighlight = null
 let faustusManager = null
 let puzzleService = null
 let gameWindowTitles = null
+let windowActivation = null
 let diagnosticEvents = null
 let foregroundWatcher = null
 let applicationUpdate = null
 let feedbackService = null
 let dailyUsageService = null
+let loadingFeedback = null
+let loadingFeedbackOverlay = null
+let lastGameWindowBounds = null
+
+function syncLoadingFeedbackForeground({ available = true } = {}) {
+  if (!loadingFeedback) return
+  const main = getMainWindow()
+  if (main && !main.isDestroyed() && main.isFocused()) {
+    loadingFeedback.setForeground({ kind: 'app' })
+  } else if (shortcutManager.getScopeState().gameForeground && lastGameWindowBounds) {
+    loadingFeedback.setForeground({ kind: 'game', gameBounds: lastGameWindowBounds })
+  } else {
+    loadingFeedback.setForeground({ kind: available ? 'other' : 'unavailable' })
+  }
+}
 
 function resolveForegroundWatcherScriptPath() {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -285,6 +300,7 @@ async function cleanupApplicationResources() {
     },
     cleanupBagProcesses,
     () => foregroundWatcher?.stop(),
+    () => loadingFeedback?.close(),
     pythonManager.cleanup,
     () => fileWatcher.stopFileWatcher(),
     () => shortcutManager.unregisterAll(),
@@ -298,6 +314,8 @@ async function cleanupApplicationResources() {
     () => windowManager.closeBagStashOverlayWindow(),
     () => windowManager.closeDebugWindow()
   ], errors)
+  loadingFeedbackOverlay?.close()
+  loadingFeedbackOverlay = null
 
   const mainWindow = getMainWindow()
   const auxiliaryWindows = BrowserWindow.getAllWindows()
@@ -364,6 +382,8 @@ function createApplicationWindow() {
     requestForceRefresh: () => applicationRestartController.requestRestart()
   })
   window.on('close', shutdownController.handleMainWindowClose)
+  window.on('focus', () => syncLoadingFeedbackForeground())
+  window.on('blur', () => syncLoadingFeedbackForeground())
   startupLog.record({ phase: 'main-window', outcome: 'succeeded', reasonCode: 'none' })
   if (developmentFaultEnabled('--diagnostic-crash-renderer')) {
     window.webContents.once('did-finish-load', () => {
@@ -398,6 +418,12 @@ async function startApplication() {
   startupLog.record({ phase: 'cross-process-lock', outcome: 'succeeded', reasonCode: 'none' })
   gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
   gameWindowTitles.initialize()
+  windowActivation = new WindowActivationService({
+    gameWindowRegistry: gameWindowTitles,
+    getMainWindow,
+    pythonPathProvider: () => pythonDetector.detectPythonPath()
+  })
+  windowManager.configureWindowActivation(windowActivation)
   diagnosticEvents = new DiagnosticEventStore({
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion()
@@ -461,6 +487,14 @@ async function startApplication() {
   const puzzleOverlay = new PuzzleOverlayManager()
   const recognitionFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
   const faustusFeedbackOverlay = new RecognitionFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
+  loadingFeedbackOverlay = new LoadingFeedbackOverlayManager({ BrowserWindowClass: BrowserWindow, screenApi: screen })
+  loadingFeedback = new LoadingFeedbackCoordinator({
+    publishApp: snapshot => {
+      const main = getMainWindow()
+      if (main && !main.isDestroyed() && !main.webContents.isDestroyed()) main.webContents.send(LOADING_FEEDBACK_CHANNEL, snapshot)
+    },
+    publishGame: (snapshot, bounds) => loadingFeedbackOverlay?.publish(snapshot, bounds)
+  })
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
@@ -482,6 +516,7 @@ async function startApplication() {
     overlay: chaosOverlay,
     onItemPicked: (itemId) => chaosRecipeService?.consumeItem(itemId),
     automationLock,
+    windowActivation,
     onStatusChange: (payload) => {
       chaosControlOverlay?.sync()
       if (payload?.event !== 'completed' && payload?.event !== 'stopped') return
@@ -507,6 +542,8 @@ async function startApplication() {
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
+    windowActivation,
+    loadingFeedback,
     interfaceDetection,
     automationLock,
     calibration: highlightCalibration,
@@ -516,6 +553,8 @@ async function startApplication() {
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
+    windowActivation,
+    loadingFeedback,
     interfaceDetection,
     automationLock,
     calibration: highlightCalibration,
@@ -525,6 +564,8 @@ async function startApplication() {
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
+    windowActivation,
+    loadingFeedback,
     foregroundState: () => shortcutManager.getScopeState(),
     automationLock,
     feedbackOverlay: faustusFeedbackOverlay,
@@ -542,6 +583,8 @@ async function startApplication() {
     window: windowManager,
     fileWatcher,
     getMainWindow,
+    windowActivation,
+    loadingFeedback,
     automationLock,
     overlay: puzzleOverlay,
     feedbackOverlay: recognitionFeedbackOverlay,
@@ -574,7 +617,7 @@ async function startApplication() {
     warning: ['正在加载腾讯官方词缀目录…', uniqueImageWarning].filter(Boolean).join('；')
   }
   const priceCheckOverlay = new PriceCheckOverlayManager({
-    restoreGameFocus: () => restoreWindowsGameFocus(pythonDetector.detectPythonPath())
+    restoreGameFocus: async () => (await windowActivation.activateGame({ source: 'price-check-overlay-close' })).success
   })
   priceCheckService = new PriceCheckService({
     auth: chaosAuth,
@@ -599,11 +642,17 @@ async function startApplication() {
     },
     overlay: priceCheckOverlay,
     shell,
-    captureClipboard: () => capturePoeItemText({
-      clipboard,
-      assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
-      sendCopy: () => sendWindowsCopy(pythonDetector.detectPythonPath())
-    })
+    captureClipboard: async () => {
+      const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
+      if (!activation.success) {
+        throw new Error(windowActivation.gameFailureMessage(activation.code))
+      }
+      return capturePoeItemText({
+        clipboard,
+        assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
+        sendCopy: () => sendWindowsCopy(pythonDetector.detectPythonPath())
+      })
+    }
   })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
@@ -634,6 +683,8 @@ async function startApplication() {
     applicationUpdate,
     feedback: feedbackService,
     failureEvidence: puzzleFailureEvidence,
+    windowActivation,
+    loadingFeedback,
     getMainWindow,
     enableJunfengTraining: !app.isPackaged
   })
@@ -647,8 +698,10 @@ async function startApplication() {
     foregroundWatcher = startForegroundWatcher({
       pythonPath: pythonDetector.detectPythonPath(),
       scriptPath: resolveForegroundWatcherScriptPath(),
-      onStateChange: ({ game, title, reason, processName }) => {
+      onStateChange: ({ game, title, reason, processName, bounds }) => {
+        lastGameWindowBounds = game ? bounds : null
         const result = shortcutManager.setScopeActive(game, { title, reason, processName })
+        syncLoadingFeedbackForeground()
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('shortcut-scope-changed', {
@@ -666,7 +719,9 @@ async function startApplication() {
         }
       },
       onFailure: (error) => {
+        lastGameWindowBounds = null
         shortcutManager.setScopeAvailable(false)
+        syncLoadingFeedbackForeground({ available: false })
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('shortcut-scope-changed', {

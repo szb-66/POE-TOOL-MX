@@ -8,6 +8,7 @@
 
 import argparse
 import ctypes
+from ctypes import wintypes
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 import hashlib
 import io
@@ -24,9 +25,22 @@ import unicodedata
 CURRENCY_TEXT = {"混沌石": "chaos", "神圣石": "divine"}
 CURRENCY_NAME = {value: key for key, value in CURRENCY_TEXT.items()}
 MIN_OCR_SCORE = 0.85
+EMPTY_SLOT_CONFIDENCE = 0.995
 GRID_COLUMNS = 12
 GRID_ROWS = 12
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
+_game_window_titles_cache = GAME_WINDOW_TITLES
+_game_window_titles_mtime_ns = None
+GAME_WINDOW_PROCESS_NAMES = (
+    "PathOfExile.exe",
+    "PathOfExile_x64.exe",
+    "PathOfExileSteam.exe",
+    "PathOfExile_x64Steam.exe",
+    "PathOfExileEGS.exe",
+    "PathOfExile_x64EGS.exe",
+)
+_game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
+_game_window_process_names_mtime_ns = None
 OCCUPANCY_LABELS = ("highlighted", "dimmed", "empty")
 STOP_REQUESTED = False
 
@@ -177,9 +191,8 @@ def select_market_candidate_cells(probabilities):
     skipped_empty = 0
     for index, values in enumerate(probabilities):
         scores = [float(value) for value in values]
-        label_index = max(range(len(scores)), key=scores.__getitem__)
         column, row = index % GRID_COLUMNS, index // GRID_COLUMNS
-        if OCCUPANCY_LABELS[label_index] == "empty":
+        if scores[OCCUPANCY_LABELS.index("empty")] >= EMPTY_SLOT_CONFIDENCE:
             skipped_empty += 1
             continue
         nonempty_score = max(scores[0], scores[1])
@@ -334,6 +347,11 @@ def normalize_footprint_text(value):
     return " ".join(unicodedata.normalize("NFKC", str(value or "")).strip().casefold().split())
 
 
+def normalize_item_identity(value):
+    normalized = unicodedata.normalize("NFKC", str(value or "")).replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(" ".join(line.split()) for line in normalized.splitlines()).strip()
+
+
 def footprint_key(category, name):
     normalized_name = normalize_footprint_text(name)
     if not normalized_name:
@@ -368,19 +386,11 @@ def resolve_item_footprint(item, catalog):
     return valid_footprint(categories.get(normalize_footprint_text(category)))
 
 
-def unique_footprint_slots(target, footprint, candidate_slots, resolved_slots, ambiguous_slots):
+def candidate_footprint_rectangles(target, footprint, resolved_slots):
     if not footprint:
-        return set()
+        return []
     column, row = target
     width, height = footprint["width"], footprint["height"]
-    possible_predecessors = {
-        (candidate_column, candidate_row)
-        for candidate_column in range(column - width + 1, column + 1)
-        for candidate_row in range(row - height + 1, row + 1)
-        if candidate_column < column or (candidate_column == column and candidate_row < row)
-    }
-    if possible_predecessors.intersection(ambiguous_slots):
-        return set()
     rectangles = []
     for left in range(column - width + 1, column + 1):
         for top in range(row - height + 1, row + 1):
@@ -391,10 +401,34 @@ def unique_footprint_slots(target, footprint, candidate_slots, resolved_slots, a
             }
             if any(x < 0 or x >= GRID_COLUMNS or y < 0 or y >= GRID_ROWS for x, y in rectangle):
                 continue
-            if not rectangle.issubset(candidate_slots) or rectangle.intersection(resolved_slots):
+            if rectangle.intersection(resolved_slots):
                 continue
             rectangles.append(rectangle)
-    return rectangles[0] if len(rectangles) == 1 else set()
+    return rectangles
+
+
+def probe_item_identity(adapter, cell, probe_cache):
+    if cell in probe_cache:
+        return probe_cache[cell]
+    copied = adapter.copy_item_at(*cell)
+    identity = normalize_item_identity(copied)
+    if not identity:
+        copied = adapter.copy_item_at(*cell)
+        identity = normalize_item_identity(copied)
+    probe_cache[cell] = identity
+    return identity
+
+
+def resolve_probed_footprint_slots(adapter, target, footprint, resolved_slots, probe_cache, copied_text):
+    identity = normalize_item_identity(copied_text)
+    if not identity:
+        return set()
+    probe_cache[target] = identity
+    matches = []
+    for rectangle in candidate_footprint_rectangles(target, footprint, resolved_slots):
+        if all(probe_item_identity(adapter, cell, probe_cache) == identity for cell in rectangle):
+            matches.append(rectangle)
+    return matches[0] if len(matches) == 1 else set()
 
 
 def _decimal(value, reason_code):
@@ -470,16 +504,12 @@ def build_price_plan(config, old_price, old_currency):
 
 
 def execute_price_transaction(adapter, plan):
+    if plan["newCurrency"] != plan["oldCurrency"]:
+        adapter.choose_currency(plan["newCurrency"])
     adapter.double_click_price()
     adapter.hotkey("ctrl", "a")
     adapter.write_clipboard(str(plan["newPrice"]))
     adapter.hotkey("ctrl", "v")
-    if plan["newCurrency"] != plan["oldCurrency"]:
-        adapter.choose_currency(plan["newCurrency"])
-    verified_price = read_full_price(adapter)
-    verified_currency = adapter.recognize_current_currency(force_refresh=True)
-    if verified_price != int(plan["newPrice"]) or verified_currency != plan["newCurrency"]:
-        raise ItemSkip("verification_mismatch")
     adapter.click_submit_once()
     return "repriced"
 
@@ -496,17 +526,96 @@ def safe_close_price_window(adapter):
     raise PageAbort("price_window_close_failed")
 
 
-def _game_window_titles():
-    path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
-    if not path:
+def game_window_titles():
+    global _game_window_titles_cache, _game_window_titles_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
         return GAME_WINDOW_TITLES
     try:
-        payload = json.loads(Path(path).read_text(encoding="utf-8"))
-        values = payload.get("titles") if isinstance(payload, dict) else payload
-        titles = tuple(str(value).strip() for value in values if str(value).strip())
-        return titles or GAME_WINDOW_TITLES
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_titles_mtime_ns:
+            payload = json.loads(Path(config_path).read_text(encoding="utf-8"))
+            values = payload.get("titles") if isinstance(payload, dict) else payload
+            titles = tuple(str(value).strip() for value in values) if isinstance(values, list) else ()
+            if not titles or any(not title for title in titles) or len({title.casefold() for title in titles}) != len(titles):
+                raise ValueError("invalid game window titles")
+            _game_window_titles_cache = titles
+            _game_window_titles_mtime_ns = mtime_ns
+        return _game_window_titles_cache
     except Exception:
+        _game_window_titles_cache = GAME_WINDOW_TITLES
+        _game_window_titles_mtime_ns = None
         return GAME_WINDOW_TITLES
+
+
+def game_window_title_priority(title):
+    folded = str(title or "").casefold()
+    return next((priority for priority, expected in enumerate(game_window_titles())
+                 if expected.casefold() in folded), -1)
+
+
+def game_window_process_names():
+    global _game_window_process_names_cache, _game_window_process_names_mtime_ns
+    config_path = os.environ.get("POE_GAME_WINDOW_TITLES_FILE", "")
+    if not config_path:
+        return GAME_WINDOW_PROCESS_NAMES
+    try:
+        mtime_ns = os.stat(config_path).st_mtime_ns
+        if mtime_ns != _game_window_process_names_mtime_ns:
+            payload = json.loads(Path(config_path).read_text(encoding="utf-8"))
+            values = payload.get("processNames") if isinstance(payload, dict) else None
+            process_names = tuple(str(value).strip().rsplit("\\", 1)[-1].rsplit("/", 1)[-1]
+                                  for value in values) if isinstance(values, list) else ()
+            if (not process_names or any(not name for name in process_names)
+                    or len({name.casefold() for name in process_names}) != len(process_names)):
+                raise ValueError("invalid game window process names")
+            _game_window_process_names_cache = process_names
+            _game_window_process_names_mtime_ns = mtime_ns
+        return _game_window_process_names_cache
+    except Exception:
+        _game_window_process_names_cache = GAME_WINDOW_PROCESS_NAMES
+        _game_window_process_names_mtime_ns = None
+        return GAME_WINDOW_PROCESS_NAMES
+
+
+def window_process_name(hwnd):
+    if sys.platform != "win32" or not hwnd:
+        return ""
+    try:
+        user32 = ctypes.windll.user32
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if not pid.value:
+            return ""
+        kernel32 = ctypes.windll.kernel32
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        handle = kernel32.OpenProcess(0x1000, False, pid.value)
+        if not handle:
+            return ""
+        try:
+            size = wintypes.DWORD(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            kernel32.QueryFullProcessImageNameW.argtypes = [
+                wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)
+            ]
+            kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+            if kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                return buffer.value.rsplit("\\", 1)[-1].rsplit("/", 1)[-1].casefold()
+        finally:
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle(handle)
+    except Exception:
+        return ""
+    return ""
+
+
+def window_matches_game(hwnd):
+    if game_window_title_priority(_window_title(hwnd)) < 0:
+        return False
+    allowed_processes = {name.casefold() for name in game_window_process_names()}
+    return window_process_name(hwnd) in allowed_processes
 
 
 def _window_title(hwnd):
@@ -522,96 +631,13 @@ def _window_title(hwnd):
         return ""
 
 
-def find_game_window():
-    """只按受控标题列表寻找可见游戏顶层窗口，不接受 renderer 坐标或句柄。"""
-    if sys.platform != "win32":
-        return None
-    user32 = ctypes.windll.user32
-    candidates = []
-    expected_titles = _game_window_titles()
-
-    class Rect(ctypes.Structure):
-        _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
-                    ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
-
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-
-    def visit(hwnd, _lparam):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        title = _window_title(hwnd)
-        folded = title.casefold()
-        priority = next((index for index, expected in enumerate(expected_titles)
-                         if expected.casefold() in folded), -1)
-        if priority < 0:
-            return True
-        rect = Rect()
-        area = 0
-        if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            area = max(0, rect.right - rect.left) * max(0, rect.bottom - rect.top)
-        candidates.append((priority, -area, int(hwnd)))
-        return True
-
-    callback = callback_type(visit)
-    user32.EnumWindows(callback, 0)
-    if not candidates:
-        return None
-    candidates.sort()
-    return candidates[0][2]
-
-
-def activate_game_window(timeout_seconds=1.5):
-    """激活已核对的游戏窗口；此函数不产生任何游戏键盘或鼠标输入。"""
-    if sys.platform != "win32":
-        return False
-    hwnd = find_game_window()
-    if not hwnd:
-        return False
-    user32 = ctypes.windll.user32
-    kernel32 = ctypes.windll.kernel32
-    hwnd_value = ctypes.c_void_p(hwnd)
-    try:
-        user32.GetForegroundWindow.restype = ctypes.c_void_p
-        if user32.IsIconic(hwnd_value):
-            user32.ShowWindow(hwnd_value, 9)  # SW_RESTORE
-        user32.AllowSetForegroundWindow(-1)
-        foreground = user32.GetForegroundWindow()
-        current_thread = kernel32.GetCurrentThreadId()
-        foreground_thread = user32.GetWindowThreadProcessId(ctypes.c_void_p(foreground), None) if foreground else 0
-        target_thread = user32.GetWindowThreadProcessId(hwnd_value, None)
-        attached_foreground = bool(foreground_thread and foreground_thread != current_thread
-                                   and user32.AttachThreadInput(current_thread, foreground_thread, True))
-        attached_target = bool(target_thread and target_thread != current_thread
-                               and target_thread != foreground_thread
-                               and user32.AttachThreadInput(current_thread, target_thread, True))
-        try:
-            user32.BringWindowToTop(hwnd_value)
-            user32.SetForegroundWindow(hwnd_value)
-            user32.SetActiveWindow(hwnd_value)
-            user32.SetFocus(hwnd_value)
-        finally:
-            if attached_target:
-                user32.AttachThreadInput(current_thread, target_thread, False)
-            if attached_foreground:
-                user32.AttachThreadInput(current_thread, foreground_thread, False)
-    except Exception:
-        return False
-    deadline = time.monotonic() + max(0.1, float(timeout_seconds))
-    while time.monotonic() < deadline:
-        if is_game_foreground():
-            return True
-        time.sleep(0.05)
-    return False
-
-
 def is_game_foreground():
     if sys.platform != "win32":
         return False
     try:
         ctypes.windll.user32.GetForegroundWindow.restype = ctypes.c_void_p
         hwnd = ctypes.windll.user32.GetForegroundWindow()
-        title = _window_title(hwnd).casefold()
-        return any(expected.casefold() in title for expected in _game_window_titles())
+        return window_matches_game(hwnd)
     except Exception:
         return False
 
@@ -918,6 +944,35 @@ class GameAdapter:
             self.grid["top"] + (row + 0.5) * self.grid["height"] / GRID_ROWS,
         )
 
+    def clear_grid_hover(self):
+        """将鼠标移出市集网格，避免物品提示层干扰后续页面与网格复检。"""
+        monitor = self._monitor()
+        margin = max(8, int(round(min(
+            self.grid["width"] / GRID_COLUMNS,
+            self.grid["height"] / GRID_ROWS,
+        ) * 0.35)))
+        center_x = self.grid["left"] + self.grid["width"] / 2
+        center_y = self.grid["top"] + self.grid["height"] / 2
+        candidates = (
+            (self.grid["left"] - margin, center_y),
+            (self.grid["left"] + self.grid["width"] + margin, center_y),
+            (center_x, self.grid["top"] - margin),
+            (center_x, self.grid["top"] + self.grid["height"] + margin),
+            (self.grid["left"] - margin, self.grid["top"] - margin),
+            (self.grid["left"] + self.grid["width"] + margin, self.grid["top"] - margin),
+            (self.grid["left"] - margin, self.grid["top"] + self.grid["height"] + margin),
+            (self.grid["left"] + self.grid["width"] + margin,
+             self.grid["top"] + self.grid["height"] + margin),
+        )
+        monitor_right = monitor["left"] + monitor["width"]
+        monitor_bottom = monitor["top"] + monitor["height"]
+        point = next((candidate for candidate in candidates
+                      if monitor["left"] <= candidate[0] < monitor_right
+                      and monitor["top"] <= candidate[1] < monitor_bottom), None)
+        if point is None:
+            raise PageAbort("grid_invalid")
+        self.move(point)
+
     def copy_item_at(self, column, row):
         point = self.grid_center(column, row)
         self.move(point)
@@ -993,8 +1048,6 @@ def perform_readonly_preflight(config, adapter):
     ok, reason = validate_grid_calibration(config.get("gridCalibration"))
     if not ok:
         raise PageAbort(reason)
-    if config.get("activateGameWindow") and not activate_game_window():
-        raise PageAbort("game_activation_failed")
     require_game_foreground()
     adapter.validate_page()
     adapter.validate_grid_structure()
@@ -1014,77 +1067,47 @@ def _item_event(item_name, grid, reason_code, plan=None, old_price=None, old_cur
     )
 
 
-def _find_first_item(adapter):
-    cells = (adapter.candidate_cells() if hasattr(adapter, "candidate_cells")
-             else [(column, row) for row in range(GRID_ROWS) for column in range(GRID_COLUMNS)])
-    total = len(cells)
-    for index, (column, row) in enumerate(cells, start=1):
-        require_game_foreground()
-        emit("scan-progress", current=index, total=total, column=column + 1, row=row + 1)
-        copied = adapter.copy_item_at(column, row)
-        if not copied:
-            continue
-        try:
-            item = identify_copied_item(copied)
-        except ItemSkip:
-            continue
-        return column, row, item
-    raise PageAbort("no_market_item_found")
-
-
-def run_price_window_test(config, adapter):
-    column, row, _item = _find_first_item(adapter)
-    adapter.open_price_at(column, row)
-    try:
-        price = read_full_price(adapter)
-        currency = adapter.recognize_current_currency()
-    except ItemSkip:
-        safe_close_price_window(adapter)
-        raise
-    safe_close_price_window(adapter)
-    emit("price-window-test", price=price, currency=currency)
-
-
 def run_repricing(config, adapter):
     validate_pricing_config(config)
     cells = (adapter.candidate_cells() if hasattr(adapter, "candidate_cells")
              else [(column, row) for row in range(GRID_ROWS) for column in range(GRID_COLUMNS)])
     cells = sorted(cells, key=lambda cell: (cell[1], cell[0]))
-    candidate_slots = set(cells)
     resolved_slots = set()
-    ambiguous_slots = set()
+    attempted_slots = set()
+    probe_cache = {}
     item_footprints = config.get("item_footprints", {})
     total = len(cells)
     processed = 0
     for column, row in cells:
         if processed % GRID_COLUMNS == 0:
             require_game_foreground()
+            adapter.clear_grid_hover()
             adapter.validate_page()
             adapter.validate_grid_structure()
         require_game_foreground()
         processed += 1
         grid_label = f"{column + 1},{row + 1}"
         candidate_key = (column, row)
-        if candidate_key in resolved_slots or candidate_key in ambiguous_slots:
+        if candidate_key in resolved_slots or candidate_key in attempted_slots:
             emit("progress", processed=processed, total=total)
             continue
         copied = adapter.copy_item_at(column, row)
         if not copied:
-            ambiguous_slots.add(candidate_key)
+            attempted_slots.add(candidate_key)
             emit("progress", processed=processed, total=total)
             continue
         parsed_item = parse_item_header(copied)
         item_name = best_effort_item_name(copied)
         footprint = resolve_item_footprint(parsed_item, item_footprints)
         if not footprint:
-            ambiguous_slots.add(candidate_key)
+            attempted_slots.add(candidate_key)
             _item_event(item_name, grid_label, "item_footprint_unknown")
             emit("progress", processed=processed, total=total)
             continue
-        footprint_slots = unique_footprint_slots(
-            candidate_key, footprint, candidate_slots, resolved_slots, ambiguous_slots)
+        footprint_slots = resolve_probed_footprint_slots(
+            adapter, candidate_key, footprint, resolved_slots, probe_cache, copied)
         if not footprint_slots:
-            ambiguous_slots.add(candidate_key)
+            attempted_slots.add(candidate_key)
             _item_event(item_name, grid_label, "item_footprint_ambiguous")
             emit("progress", processed=processed, total=total)
             continue
@@ -1109,8 +1132,9 @@ def run_repricing(config, adapter):
                 _item_event(item_name, grid_label, "repriced", plan, old_price, old_currency)
         except ItemSkip as exc:
             if not window_opened:
-                raise PageAbort("price_window_unknown") from exc
-            safe_close_price_window(adapter)
+                window_opened = adapter.price_window_open()
+            if window_opened:
+                safe_close_price_window(adapter)
             _item_event(item_name, grid_label, exc.reason_code, plan, old_price, old_currency)
         emit("progress", processed=processed, total=total)
     emit("completed", processed=processed, total=total)
@@ -1130,7 +1154,7 @@ def load_config(path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("preflight", "price-window-test", "run"), required=True)
+    parser.add_argument("--mode", choices=("preflight", "run"), required=True)
     parser.add_argument("--config", required=True)
     args = parser.parse_args(argv)
     signal.signal(signal.SIGTERM, _signal_stop)
@@ -1145,8 +1169,6 @@ def main(argv=None):
         perform_readonly_preflight(config, adapter)
         if args.mode == "preflight":
             emit("preflight-ok")
-        elif args.mode == "price-window-test":
-            run_price_window_test(config, adapter)
         else:
             run_repricing(config, adapter)
         return 0

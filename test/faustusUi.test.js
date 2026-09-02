@@ -7,28 +7,38 @@ const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 test('浮士德作为独立一级页面接入路由、预加载和商人语义导航', () => {
   const router = source('src/router/index.js')
   const loaders = source('src/router/pageLoaders.js')
-  const sidebar = source('src/components/Layout/Sidebar.vue')
+  const catalog = source('src/features/featureCatalog.js')
   assert.match(router, /path: '\/faustus',[\s\S]*?name: 'Faustus'/)
   assert.match(loaders, /'\/faustus': \(\) => import\('\.\.\/domains\/faustus\/FaustusView\.vue'\)/)
-  assert.match(sidebar, /index="\/faustus"[\s\S]*?<el-icon><PriceTag \/><\/el-icon>[\s\S]*?<span>浮士德<\/span>/)
+  assert.match(catalog, /id: 'faustus'[\s\S]*label: '浮士德'[\s\S]*route: '\/faustus'[\s\S]*icon: 'PriceTag'/)
 })
 
-test('浮士德页面提供完整配置、校准、测试、开始和日志控制', () => {
+test('浮士德页面提供完整配置、校准、开始和日志控制', () => {
   const view = source('src/domains/faustus/FaustusView.vue')
   assert.match(view, /faustus-page primary-page primary-page--column/)
   assert.match(view, /primary-page__scroll[\s\S]*primary-page__content/)
-  for (const text of ['神圣石兑混沌石', '价格分段', '市集网格校准', '价格窗口识别测试', '开始改价', '逐件结果日志']) {
+  for (const text of ['神圣石兑混沌石', '价格分段', '市集网格校准', '开始改价', '逐件结果日志']) {
     assert.match(view, new RegExp(text))
   }
   assert.match(view, /config-flow[\s\S]*?config-step__index">01[\s\S]*?config-step__index">02/)
-  assert.match(view, /calibration-actions[\s\S]*?runAction\(store\.calibrateGrid\)[\s\S]*?runAction\(store\.testPriceWindow\)/)
-  assert.match(view, /!store\.recognition/)
+  assert.match(view, /calibration-actions[\s\S]*?runAction\(store\.calibrateGrid\)/)
+  assert.doesNotMatch(view, /价格窗口识别测试|store\.testPriceWindow|store\.recognition/)
   assert.match(view, /store\.running/)
   assert.match(view, /紧急停止请使用全局快捷键/)
   assert.match(view, /settingsStore\.globalShortcuts\.end/)
   assert.doesNotMatch(view, /runAction\(store\.stop\)/)
   assert.match(view, /混沌石/)
   assert.match(view, /神圣石/)
+})
+
+test('开始改价被禁用时在运行控制区直接显示具体原因', () => {
+  const view = source('src/domains/faustus/FaustusView.vue')
+  assert.match(view, /const startBlockedReason = computed/)
+  assert.match(view, /请先修正价格配置/)
+  assert.match(view, /请先选择市集网格区域/)
+  assert.doesNotMatch(view, /价格窗口识别测试|!store\.recognition/)
+  assert.match(view, /v-if="startBlockedReason" class="start-blocked-reason"/)
+  assert.match(view, /:title="startBlockedReason"/)
 })
 
 test('浮士德价格分段使用线性抓手拖拽、键盘排序和明确的降价百分比语义', () => {
@@ -56,8 +66,7 @@ test('浮士德 store 持久化配置、保存独立校准并订阅结构化事�
   assert.match(store, /createFaustusRunSnapshot/)
   assert.match(store, /gridCalibration/)
   assert.match(store, /electronApi\.faustus\.pickGridRegion/)
-  assert.match(store, /electronApi\.faustus\.testPriceWindow/)
-  assert.match(store, /PRICE_RECOGNITION_REQUIRED/)
+  assert.doesNotMatch(store, /testPriceWindow|PRICE_RECOGNITION_REQUIRED|recognition\.value/)
   assert.match(store, /electronApi\.faustus\.start/)
   assert.match(store, /electronApi\.faustus\.stop/)
   assert.match(store, /electronApi\.faustus\.onEvent/)

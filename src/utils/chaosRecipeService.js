@@ -10,7 +10,7 @@ export async function startChaosRecipePicking() {
   const settingsStore = useSettingsStore()
 
   if (!store.snapshot?.fullSetCount) {
-    ElMessage.warning('请先在商城的混沌配方页刷新仓库并生成可取套装')
+    ElMessage.warning('请先在配方页刷新仓库并生成可取套装')
     return
   }
   try {

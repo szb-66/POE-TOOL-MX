@@ -17,7 +17,7 @@ if SCRIPT_DIRECTORY not in sys.path:
 from stash_pickup_template import (
     apply_fixed_timing,
     capture,
-    focus_game_window,
+    is_game_foreground,
     region_rect,
     require_game_foreground,
     choose_layout,
@@ -306,7 +306,7 @@ def park_cursor_position(region, rect):
 
 def run(config, preview=False):
     apply_fixed_timing({"fixed_timing": config.get("fixed_timing", {})})
-    if not focus_game_window():
+    if not is_game_foreground():
         raise RuntimeError("game-not-foreground")
     model, model_error = validate_model(config)
     from pynput.mouse import Controller as MouseController

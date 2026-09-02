@@ -201,10 +201,13 @@ test('仓库页配置注入后的两类 Python 模板保持可解析且关闭路
     ['crafting_template.py', {
       ...common,
       ITEM_POSITION: "{'x': 1, 'y': 1}",
+      ACTION_POSITION: "{'x': 0, 'y': 0}",
+      CRAFTING_KIND: 'general',
       ENABLE_AFFIX: 'False',
       ENABLE_ELDRITCH: 'False',
       ENABLE_SOCKET: 'False',
       AFFIX_CRAFTING_FUNC: 'def craft_affixes():\n    return True',
+      SPECIALIZED_CRAFTING_FUNC: 'def craft_specialized():\n    return True',
       ELDRITCH_CRAFTING_FUNC: 'def craft_eldritch_implicits():\n    return True',
       SOCKET_CRAFTING_FUNC: 'def craft_sockets():\n    return True'
     }],

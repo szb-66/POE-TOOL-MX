@@ -9,6 +9,8 @@ import {
 
 export const SECTION_FIELD_WHITELISTS = Object.freeze({
   'preset.item': Object.freeze(['items']),
+  'preset.essence': Object.freeze(['items']),
+  'preset.harvest': Object.freeze(['items']),
   'preset.map': Object.freeze(['items']),
   'preset.story': Object.freeze(['items']),
   'preset.storySkill': Object.freeze(['items']),
@@ -16,7 +18,7 @@ export const SECTION_FIELD_WHITELISTS = Object.freeze({
 })
 
 const PRESET_SECTION_IDS = new Set([
-  'preset.item', 'preset.map', 'preset.story', 'preset.storySkill'
+  'preset.item', 'preset.essence', 'preset.harvest', 'preset.map', 'preset.story', 'preset.storySkill'
 ])
 
 function clone(value) {

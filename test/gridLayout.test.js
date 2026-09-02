@@ -12,7 +12,8 @@ const primaryViews = [
   'src/domains/map/MapView.vue',
   'src/domains/combat/CombatView.vue',
   'src/domains/story/StoryView.vue',
-  'src/domains/shop/ShopView.vue',
+  'src/domains/regex/RegexView.vue',
+  'src/domains/shop/RecipeView.vue',
   'src/domains/crafting/CraftPlannerView.vue',
   'src/domains/priceCheck/PriceCheckView.vue',
   'src/domains/puzzle/PuzzleView.vue',
@@ -48,7 +49,6 @@ test('已迁移的页面级布局不再由局部 grid-template-columns 控制', 
     ['src/domains/combat/CombatView.vue', 'resource-grid'],
     ['src/domains/crafting/CraftPlannerView.vue', 'workbench'],
     ['src/domains/puzzle/PuzzleView.vue', 'workspace'],
-    ['src/domains/shop/ShopView.vue', 'content-grid'],
     ['src/domains/story/StoryView.vue', 'story-workspace'],
     ['src/domains/settings/FeedbackSettings.vue', 'feedback-grid']
   ]

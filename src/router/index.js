@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { pageLoaders } from './pageLoaders'
 import { routeTransition } from './transitionState'
+import { useFeatureModulesStore } from '@/stores/featureModules'
 
 const developmentRoutes = import.meta.env.DEV ? [
   {
@@ -43,9 +45,18 @@ const routes = [
     component: pageLoaders['/story']
   },
   {
+    path: '/regex',
+    name: 'Regex',
+    component: pageLoaders['/regex']
+  },
+  {
+    path: '/recipe',
+    name: 'Recipe',
+    component: pageLoaders['/recipe']
+  },
+  {
     path: '/shop',
-    name: 'Shop',
-    component: pageLoaders['/shop']
+    redirect: { path: '/recipe', replace: true }
   },
   {
     path: '/craft-planner',
@@ -71,6 +82,12 @@ const routes = [
     path: '/tools',
     name: 'Tools',
     component: pageLoaders['/tools']
+  },
+  {
+    path: '/loading-feedback-overlay',
+    name: 'LoadingFeedbackOverlay',
+    component: () => import('../domains/overlay/LoadingFeedbackOverlayView.vue'),
+    meta: { noLayout: true }
   },
   {
     path: '/puzzle-overlay',
@@ -164,6 +181,12 @@ const navigationTokens = new WeakMap()
 
 router.beforeEach((to, from) => {
   if (!import.meta.env.DEV && to.path === '/highlight-model-training') return { path: '/', replace: true }
+  const featureStore = useFeatureModulesStore()
+  const feature = featureStore.moduleForRoute(to.path)
+  if (feature && !featureStore.isEnabled(feature.id)) {
+    ElMessage.warning(`${feature.label}尚未添加，请从侧边栏“更多”中添加后使用`)
+    return from.matched.length ? false : { path: '/', replace: true }
+  }
   if (to.meta.noLayout || to.fullPath === from.fullPath) return true
   navigationTokens.set(to, routeTransition.start())
   return true

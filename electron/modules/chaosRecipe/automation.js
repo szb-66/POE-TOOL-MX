@@ -34,7 +34,7 @@ function stopChild(child) {
 export class ChaosRecipeAutomationManager {
   constructor({
     python, fileWatcher, getMainWindow, overlay, onItemPicked = null,
-    automationLock = null, onStatusChange = null
+    automationLock = null, onStatusChange = null, windowActivation = null
   }) {
     this.python = python
     this.fileWatcher = fileWatcher
@@ -42,6 +42,7 @@ export class ChaosRecipeAutomationManager {
     this.overlay = overlay
     this.onItemPicked = onItemPicked
     this.automationLock = automationLock
+    this.windowActivation = windowActivation
     this.onStatusChange = onStatusChange
     this.child = null
     this.plan = null
@@ -118,13 +119,19 @@ export class ChaosRecipeAutomationManager {
     })
   }
 
-  start(plan, config = {}) {
+  async start(plan, config = {}) {
     if (this.status !== 'idle' && this.status !== 'stopped' && this.status !== 'completed') {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.AUTOMATION_RUNNING, '商店配方取件正在运行')
     }
     const gate = this.automationLock?.acquire('混沌配方取件') || { success: true }
     if (!gate.success) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.AUTOMATION_RUNNING, gate.error)
+    }
+    const activation = await this.windowActivation?.activateGame({ source: 'chaos-recipe-pickup' })
+    if (!activation?.success) {
+      this.automationLock?.release('混沌配方取件')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND,
+        this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
     }
     this.plan = structuredClone(plan)
     this.config = structuredClone(config)
@@ -267,8 +274,15 @@ export class ChaosRecipeAutomationManager {
     return { success: true, status: this.status }
   }
 
-  resume() {
+  async resume() {
     if (this.status !== 'paused') return { success: false, status: this.status }
+    const activation = await this.windowActivation?.activateGame({ source: 'chaos-recipe-resume' })
+    if (!activation?.success) {
+      this.code = CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND
+      this.reason = this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`
+      this.overlayCurrent(this.reason)
+      return { success: false, status: this.status, code: this.code, reason: this.reason }
+    }
     this.status = 'running'
     this.code = ''
     this.reason = ''

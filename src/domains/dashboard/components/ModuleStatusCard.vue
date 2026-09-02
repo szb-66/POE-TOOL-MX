@@ -77,7 +77,7 @@
         {{ action.label }}
       </el-button>
       <el-button size="small" text type="primary" @click="$emit('open', module)">
-        详细配置
+        {{ module.featureDisabled ? '添加后使用' : '详细配置' }}
         <el-icon><ArrowRight /></el-icon>
       </el-button>
     </div>
@@ -96,12 +96,14 @@ defineEmits(['action', 'open', 'control'])
 
 const showIssues = ref(false)
 const stateLabel = computed(() => ({
+  disabled: '未添加',
   error: '异常',
   running: '运行中',
   attention: '需配置',
   ready: '可用'
 })[props.module.state] || '未知')
 const tagType = computed(() => ({
+  disabled: 'info',
   error: 'danger',
   running: 'success',
   attention: 'warning',
@@ -126,6 +128,7 @@ const tagType = computed(() => ({
   &.state-running { border-top-color: var(--el-color-success); }
   &.state-attention { border-top-color: var(--el-color-warning); }
   &.state-ready { border-top-color: var(--el-color-info); }
+  &.state-disabled { border-top-color: var(--border-base); opacity: .78; }
 }
 .module-card :deep(.el-card__body) {
   display: flex;

@@ -130,7 +130,7 @@ test('启动与脚本运行前触发检测，脚本只在 pynput 回退路径使
   assert.match(runtime, /settingsStore\.refreshDpiScale\(\)/)
   assert.match(runtime, /window\.addEventListener\('focus', refreshGameWindowOnFocus\)/)
   assert.match(runtime, /window\.removeEventListener\('focus', refreshGameWindowOnFocus\)/)
-  assert.equal((service.match(/await refreshDpiForAutomation\(settingsStore\)/g) || []).length, 2)
+  assert.equal((service.match(/await refreshDpiForAutomation\(settingsStore\)/g) || []).length, 3)
   assert.equal((generator.match(/'\{\{DPI_SCALE_FACTOR\}\}'/g) || []).length, 2)
   for (const template of [crafting, mapRolling]) {
     assert.match(template, /dpi_scale_factor = \{\{DPI_SCALE_FACTOR\}\}/)

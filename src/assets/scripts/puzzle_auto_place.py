@@ -19,7 +19,6 @@ if str(SCRIPT_DIR) not in sys.path:
 from puzzle_analyzer import (
     analyze_image,
     capture_region,
-    focus_game_window,
     is_game_foreground,
     load_json,
 )
@@ -528,9 +527,8 @@ def run_placement(config: dict[str, Any]) -> int:
     clipboard_confirm_seconds = max(0.0, float(fixed_timing.get("clipboard_confirm_ms", 10))) / 1000.0
     stash_tab_settle_seconds = max(0.0, float(fixed_timing.get("stash_tab_settle_ms", 10))) / 1000.0
     patch_verify_seconds = max(0.0, float(fixed_timing.get("patch_verify_ms", 10))) / 1000.0
-    focused, focus_error = focus_game_window()
-    if not focused:
-        return fail(focus_error, "无法激活流放之路游戏窗口")
+    if not is_game_foreground():
+        return fail("GAME_NOT_FOREGROUND", "流放之路游戏窗口不在前台")
 
     resume_pending = bool(config.get("resume"))
     initial_atlas = capture_analyze(atlas_region, templates, "atlas")

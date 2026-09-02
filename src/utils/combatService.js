@@ -12,14 +12,11 @@ import {
   CONFIGURATION_MODULES
 } from '@/domains/configurationGuide/configurationIssues.js'
 
-let statusListenerRegistered = false
+let removeStatusListener = null
 
 export async function initCombatAssist() {
   const store = useCombatStore()
-  if (!statusListenerRegistered) {
-    electronApi.combat.onStatus(status => store.applyStatus(status))
-    statusListenerRegistered = true
-  }
+  if (!removeStatusListener) removeStatusListener = electronApi.combat.onStatus(status => store.applyStatus(status))
   const [potionStatus, loopStatus] = await Promise.all([
     electronApi.combat.getPotionStatus(),
     electronApi.combat.getLoopStatus()
@@ -33,6 +30,11 @@ function collectCombatConfiguration(actionId) {
     actionId,
     config: useSettingsStore().combatAssist
   })
+}
+
+export function disposeCombatAssist() {
+  removeStatusListener?.()
+  removeStatusListener = null
 }
 
 export async function startPotionAssist({ configurationGuideBypass = false } = {}) {

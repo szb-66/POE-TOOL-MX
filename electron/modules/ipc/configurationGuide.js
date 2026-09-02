@@ -1,10 +1,10 @@
 import { ipcMain } from 'electron'
 import { sanitizeOverlayGuideRequest } from '../../../shared/configurationGuideRequest.js'
 
-export function registerConfigurationGuideHandlers(window) {
+export function registerConfigurationGuideHandlers(window, { windowActivation } = {}) {
   const { getMainWindow, getOverlayWindow } = window
 
-  ipcMain.handle('configuration-guide:open-from-overlay', (event, request) => {
+  ipcMain.handle('configuration-guide:open-from-overlay', async (event, request) => {
     const overlay = getOverlayWindow?.()
     if (!overlay || overlay.isDestroyed() || overlay.webContents !== event.sender) {
       return { success: false, error: { code: 'GUIDE_SENDER_REJECTED', message: '仅制作浮窗可以请求重新定位' } }
@@ -17,9 +17,10 @@ export function registerConfigurationGuideHandlers(window) {
     if (!main || main.isDestroyed()) {
       return { success: false, error: { code: 'GUIDE_MAIN_WINDOW_UNAVAILABLE', message: '主窗口不可用' } }
     }
-    if (main.isMinimized()) main.restore()
-    main.show()
-    main.focus()
+    const activation = await windowActivation?.activateMain({ source: 'configuration-guide' })
+    if (!activation?.success) {
+      return { success: false, error: { code: activation?.code || 'ACTIVATION_UNAVAILABLE', message: '无法恢复主窗口' } }
+    }
     overlay.hide()
     main.webContents.send('configuration-guide:requested', sanitized)
     return { success: true }

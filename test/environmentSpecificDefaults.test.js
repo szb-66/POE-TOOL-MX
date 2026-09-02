@@ -14,6 +14,7 @@ import { FIXED_TIMING, OPERATION_DELAY, OPERATION_TIMING_VERSION } from '../src/
 import { normalizeChaosRecipeSettings } from '../src/stores/chaosRecipe.js'
 import { validateCraftingConfig, validateMapRollingConfig } from '../src/utils/validation.js'
 import { createDefaultMapConfig } from '../src/utils/mapPresetMigration.js'
+import { useFeatureModulesStore } from '../src/stores/featureModules.js'
 
 function installStorage(settings) {
   const values = new Map()
@@ -64,8 +65,10 @@ test('制作和地图在零坐标下预检失败且运行路径先校验后调�
   assert.match(map.errors.join('\n'), /背包单格宽高未配置/)
 
   const service = readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
-  const itemStart = service.slice(service.indexOf('export async function startCrafting'), service.indexOf('export async function startMapRolling'))
+  const specializedStart = service.slice(service.indexOf('async function startSpecializedCrafting'), service.indexOf('async function startGeneralCrafting'))
+  const itemStart = service.slice(service.indexOf('async function startGeneralCrafting'), service.indexOf('export async function startMapRolling'))
   const mapStart = service.slice(service.indexOf('export async function startMapRolling'), service.indexOf('export async function stopCrafting'))
+  assert.ok(specializedStart.indexOf('validateSpecializedCraftingConfig') < specializedStart.indexOf('generatePythonScript'))
   assert.ok(itemStart.indexOf('validateCraftingConfig') < itemStart.indexOf('generatePythonScript'))
   assert.ok(mapStart.indexOf('validateMapRollingConfig') < mapStart.indexOf('generateMapRollingScript'))
 })
@@ -97,10 +100,8 @@ test('批量制作公共校验保留背包网格并解除账号赛季依赖', ()
   assert.doesNotMatch(result.errors.join('\n'), /国服账号登录|国服赛季|背包网格|本地背包扫描/)
 
   const service = readFileSync(new URL('../src/utils/scriptService.js', import.meta.url), 'utf8')
-  const validationCall = service.slice(
-    service.indexOf('const validation = validateCraftingConfig({'),
-    service.indexOf('if (!validation.isValid)')
-  )
+  const validationStart = service.indexOf('const validation = validateCraftingConfig({')
+  const validationCall = service.slice(validationStart, service.indexOf('if (!validation.isValid)', validationStart))
   assert.match(validationCall, /inventory: settingsStore\.inventory/)
   assert.match(validationCall, /batchSnapshot: batchRecovery \? \{ scanId: batchRecovery\.scanId \} : batchStore\.snapshot/)
   assert.match(validationCall, /batchCandidateCount: batchRecovery[\s\S]*batchStore\.candidates\.length/)
@@ -125,7 +126,18 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.equal('adaptiveTimeoutMs' in fresh, false)
 
     const saved = {
-      globalShortcuts: { ...DEFAULT_GLOBAL_SHORTCUTS, itemStart: 'F6', priceCheck: 'F8' },
+      globalShortcuts: {
+        ...DEFAULT_GLOBAL_SHORTCUTS,
+        itemStart: 'F6',
+        portal: 'B',
+        priceCheck: 'F8',
+        potionStart: 'F9',
+        potionStop: 'F10',
+        puzzleAnalyze: 'Alt+7',
+        chaosRecipeStart: 'Alt+4',
+        chaosRecipePause: 'Alt+5',
+        chaosRecipeStop: 'Alt+6'
+      },
       currencyPositions: { chaos: { x: 321, y: 654 } },
       inventory: { startPos: { x: 101, y: 202 }, slotSize: { w: 33, h: 44 } },
       itemPosition: { x: 777, y: 888 },
@@ -144,9 +156,20 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
       }
     }
     const savedStorage = installStorage(saved)
-    const existing = useSettingsStore(createPinia())
+    savedStorage.set('featureModules:v1', JSON.stringify({ version: 1, disabledFeatureIds: ['tools'] }))
+    const existingPinia = createPinia()
+    const existing = useSettingsStore(existingPinia)
+    const featureModules = useFeatureModulesStore(existingPinia)
+    assert.equal(featureModules.isEnabled('tools'), false)
     assert.equal(existing.globalShortcuts.itemStart, 'F6')
+    assert.equal(existing.globalShortcuts.portal, 'B')
     assert.equal(existing.globalShortcuts.priceCheck, 'F8')
+    assert.equal('potionStart' in existing.globalShortcuts, false)
+    assert.equal('potionStop' in existing.globalShortcuts, false)
+    assert.equal('puzzleAnalyze' in existing.globalShortcuts, false)
+    assert.equal('chaosRecipeStart' in existing.globalShortcuts, false)
+    assert.equal('chaosRecipePause' in existing.globalShortcuts, false)
+    assert.equal('chaosRecipeStop' in existing.globalShortcuts, false)
     assert.deepEqual(existing.currencyPositions.chaos, { x: 321, y: 654 })
     assert.deepEqual(existing.inventory.startPos, { x: 101, y: 202 })
     assert.deepEqual(existing.inventory.slotSize, { w: 33, h: 44 })
@@ -167,10 +190,21 @@ test('新安装、已有保存值和重置设置遵循兼容策略', async () =>
     assert.equal('adaptiveTimeoutMs' in existing, false)
     const migrated = JSON.parse(savedStorage.get('settings'))
     assert.equal(migrated.operationTimingVersion, OPERATION_TIMING_VERSION)
+    assert.equal(migrated.globalShortcuts.itemStart, 'F6')
+    assert.equal(migrated.globalShortcuts.portal, 'B')
+    assert.equal(migrated.globalShortcuts.priceCheck, 'F8')
+    assert.equal('potionStart' in migrated.globalShortcuts, false)
+    assert.equal('potionStop' in migrated.globalShortcuts, false)
+    assert.equal('puzzleAnalyze' in migrated.globalShortcuts, false)
+    assert.equal('chaosRecipeStart' in migrated.globalShortcuts, false)
+    assert.equal('chaosRecipePause' in migrated.globalShortcuts, false)
+    assert.equal('chaosRecipeStop' in migrated.globalShortcuts, false)
     assert.equal('adaptiveTiming' in migrated, false)
     assert.equal('adaptiveTimeoutMs' in migrated, false)
 
     existing.resetSettings()
+    assert.equal(featureModules.isEnabled('tools'), true)
+    assert.equal(savedStorage.has('featureModules:v1'), false)
     assert.deepEqual(existing.globalShortcuts, DEFAULT_GLOBAL_SHORTCUTS)
     assert.deepEqual(existing.itemPosition, { x: 0, y: 0 })
     assert.deepEqual(existing.inventory.startPos, { x: 0, y: 0 })

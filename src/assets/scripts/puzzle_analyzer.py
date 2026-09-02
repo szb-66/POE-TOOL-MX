@@ -206,72 +206,6 @@ def is_game_foreground() -> bool:
     return window_matches_game(ctypes.windll.user32.GetForegroundWindow())
 
 
-def find_game_window() -> int:
-    if os.name != "nt":
-        return 0
-    user32 = ctypes.windll.user32
-    matches: list[int] = []
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
-
-    def visit(hwnd: int, _lparam: int) -> bool:
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return True
-        title = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, title, length + 1)
-        priority = game_window_title_priority(title.value)
-        if priority >= 0 and window_matches_game(hwnd):
-            matches.append((priority, hwnd))
-        return True
-
-    user32.EnumWindows(callback_type(visit), 0)
-    matches.sort(key=lambda entry: entry[0])
-    return matches[0][1] if matches else 0
-
-
-def focus_game_window(timeout_seconds: float = 2.0) -> tuple[bool, str]:
-    if is_game_foreground():
-        return True, ""
-    if os.name != "nt":
-        return False, "UNSUPPORTED_PLATFORM"
-    user32 = ctypes.windll.user32
-    kernel32 = ctypes.windll.kernel32
-    hwnd = find_game_window()
-    if not hwnd:
-        return False, "GAME_WINDOW_NOT_FOUND"
-    foreground = user32.GetForegroundWindow()
-    current_thread = kernel32.GetCurrentThreadId()
-    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
-    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
-    attached_foreground = bool(
-        foreground_thread and foreground_thread != current_thread and
-        user32.AttachThreadInput(current_thread, foreground_thread, True)
-    )
-    attached_target = bool(
-        target_thread and target_thread != current_thread and target_thread != foreground_thread and
-        user32.AttachThreadInput(current_thread, target_thread, True)
-    )
-    try:
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)
-        user32.BringWindowToTop(hwnd)
-        user32.SetForegroundWindow(hwnd)
-        user32.SetFocus(hwnd)
-    finally:
-        if attached_target:
-            user32.AttachThreadInput(current_thread, target_thread, False)
-        if attached_foreground:
-            user32.AttachThreadInput(current_thread, foreground_thread, False)
-    deadline = time.monotonic() + max(0.2, float(timeout_seconds))
-    while time.monotonic() < deadline:
-        if is_game_foreground():
-            return True, ""
-        time.sleep(0.05)
-    return False, "GAME_FOCUS_FAILED"
-
-
 def rectangle_edges(rectangle: dict[str, Any]) -> tuple[int, int, int, int]:
     left = int(round(float(rectangle.get("left", rectangle.get("x", 0)))))
     top = int(round(float(rectangle.get("top", rectangle.get("y", 0)))))
@@ -1056,14 +990,8 @@ def main() -> int:
             )
         else:
             if config.get("requireGameForeground", True):
-                focused, focus_error = focus_game_window()
-                if not focused:
-                    messages = {
-                        "GAME_WINDOW_NOT_FOUND": "未找到流放之路游戏窗口，未执行海图截图",
-                        "GAME_FOCUS_FAILED": "无法自动将游戏窗口置于前台，未执行海图截图",
-                        "UNSUPPORTED_PLATFORM": "海图识别目前仅支持 Windows",
-                    }
-                    emit(fail(focus_error, messages.get(focus_error, "无法激活游戏窗口")))
+                if not is_game_foreground():
+                    emit(fail("GAME_NOT_FOREGROUND", "流放之路游戏窗口不在前台，未执行海图截图"))
                     return 2
             tab_point = config.get("tabPoint")
             if tab_point is not None:

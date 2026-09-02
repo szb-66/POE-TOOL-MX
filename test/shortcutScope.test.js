@@ -482,6 +482,6 @@ test('打包资源与运行时清单包含前台监视脚本', () => {
   assert.match(main, /startForegroundWatcher/)
   assert.match(main, /foregroundWatcher\?\.stop\(\)/)
   const watcherScript = source('../src/assets/scripts/foreground_watcher.py')
-  assert.match(watcherScript, /foreground_state = \(game, reason, process_name\)/)
+  assert.match(watcherScript, /foreground_state = \(game, reason, process_name, bounds\)/)
   assert.match(watcherScript, /if foreground_state != _last_foreground_state:/)
 })

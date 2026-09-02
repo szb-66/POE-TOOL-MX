@@ -49,7 +49,7 @@ const props = defineProps({
   type: {
     type: String,
     default: 'item',
-    validator: (value) => ['item', 'map', 'chart', 'shop'].includes(value)
+    validator: (value) => ['item', 'essence', 'harvest', 'map', 'chart'].includes(value)
   }
 })
 
@@ -64,6 +64,24 @@ const presetAccess = computed(() => ({
     remove: presetStore.deleteItemPreset,
     switchTo: presetStore.switchItemPreset,
     update: presetStore.updateCurrentItemPreset
+  },
+  essence: {
+    presets: presetStore.essencePresets,
+    currentId: presetStore.currentEssencePresetId,
+    current: presetStore.currentEssencePreset,
+    add: presetStore.addEssencePreset,
+    remove: presetStore.deleteEssencePreset,
+    switchTo: presetStore.switchEssencePreset,
+    update: presetStore.updateCurrentEssencePreset
+  },
+  harvest: {
+    presets: presetStore.harvestPresets,
+    currentId: presetStore.currentHarvestPresetId,
+    current: presetStore.currentHarvestPreset,
+    add: presetStore.addHarvestPreset,
+    remove: presetStore.deleteHarvestPreset,
+    switchTo: presetStore.switchHarvestPreset,
+    update: presetStore.updateCurrentHarvestPreset
   },
   map: {
     presets: presetStore.mapPresets,
@@ -82,15 +100,6 @@ const presetAccess = computed(() => ({
     remove: presetStore.deleteChartPreset,
     switchTo: presetStore.switchChartPreset,
     update: presetStore.updateCurrentChartPreset
-  },
-  shop: {
-    presets: presetStore.shopPresets,
-    currentId: presetStore.currentShopPresetId,
-    current: presetStore.currentShopPreset,
-    add: presetStore.addShopPreset,
-    remove: presetStore.deleteShopPreset,
-    switchTo: presetStore.switchShopPreset,
-    update: presetStore.updateCurrentShopPreset
   }
 })[props.type])
 

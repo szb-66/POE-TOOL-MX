@@ -15,15 +15,24 @@ import {
   createDefaultChartConfig,
   createDefaultMapConfig
 } from '../utils/mapPresetMigration.js'
-import { cleanShopPresets, createDefaultShopPreset } from '../domains/shop/vendorConfig.js'
 import {
   createDefaultItemPreset,
   normalizeItemPreset
 } from '../utils/itemPreset.js'
+import {
+  createDefaultSpecializedPreset,
+  normalizeCraftingInitialChecks,
+  normalizeItemCraftingKind,
+  normalizeSpecializedPreset
+} from '../utils/specializedCraftingPreset.js'
+
+let specializedPresetIdSequence = 0
 
 export const usePresetStore = defineStore('preset', () => {
   // 物品预设
   const itemPresets = ref([createDefaultItemPreset()])
+  const essencePresets = ref([createDefaultSpecializedPreset('essence')])
+  const harvestPresets = ref([createDefaultSpecializedPreset('harvest')])
 
   // 地图预设
   const mapPresets = ref([
@@ -43,17 +52,20 @@ export const usePresetStore = defineStore('preset', () => {
     }
   ])
 
-  const shopPresets = ref([createDefaultShopPreset()])
-  
   const currentItemPresetId = ref('default')
+  const currentEssencePresetId = ref('default')
+  const currentHarvestPresetId = ref('default')
+  const itemCraftingKind = ref('general')
+  const craftingInitialChecks = ref(normalizeCraftingInitialChecks())
   const currentMapPresetId = ref('default')
   const currentChartPresetId = ref('default')
   const mapRollingKind = ref('atlas')
-  const currentShopPresetId = ref('default')
 
   const currentItemPreset = computed(() => {
     return itemPresets.value.find(p => p.id === currentItemPresetId.value) || itemPresets.value[0]
   })
+  const currentEssencePreset = computed(() => essencePresets.value.find(p => p.id === currentEssencePresetId.value) || essencePresets.value[0])
+  const currentHarvestPreset = computed(() => harvestPresets.value.find(p => p.id === currentHarvestPresetId.value) || harvestPresets.value[0])
 
   const currentMapPreset = computed(() => {
     return mapPresets.value.find(p => p.id === currentMapPresetId.value) || mapPresets.value[0]
@@ -61,10 +73,6 @@ export const usePresetStore = defineStore('preset', () => {
 
   const currentChartPreset = computed(() => {
     return chartPresets.value.find(p => p.id === currentChartPresetId.value) || chartPresets.value[0]
-  })
-
-  const currentShopPreset = computed(() => {
-    return shopPresets.value.find(p => p.id === currentShopPresetId.value) || shopPresets.value[0]
   })
 
   // 统一的 currentPreset 访问器 (为了保持部分向后兼容性或根据上下文切换)
@@ -81,6 +89,23 @@ export const usePresetStore = defineStore('preset', () => {
     savePresets()
     return newPreset
   }
+
+  function addSpecializedPreset(kind, name) {
+    const collection = kind === 'essence' ? essencePresets : harvestPresets
+    const currentId = kind === 'essence' ? currentEssencePresetId : currentHarvestPresetId
+    const newPreset = createDefaultSpecializedPreset(
+      kind,
+      `${kind}_preset_${Date.now()}_${++specializedPresetIdSequence}`,
+      name || `预设${collection.value.length}`
+    )
+    collection.value.push(newPreset)
+    currentId.value = newPreset.id
+    savePresets()
+    return newPreset
+  }
+
+  const addEssencePreset = name => addSpecializedPreset('essence', name)
+  const addHarvestPreset = name => addSpecializedPreset('harvest', name)
 
   function addMapPreset(name) {
     const newPreset = {
@@ -106,14 +131,6 @@ export const usePresetStore = defineStore('preset', () => {
     return newPreset
   }
 
-  function addShopPreset(name) {
-    const newPreset = createDefaultShopPreset(`shop_preset_${Date.now()}`, name || `预设${shopPresets.value.length}`)
-    shopPresets.value.push(newPreset)
-    currentShopPresetId.value = newPreset.id
-    savePresets()
-    return newPreset
-  }
-
   function deleteItemPreset(id) {
     if (id === 'default') return false
     const index = itemPresets.value.findIndex(p => p.id === id)
@@ -127,6 +144,21 @@ export const usePresetStore = defineStore('preset', () => {
     }
     return false
   }
+
+  function deleteSpecializedPreset(kind, id) {
+    if (id === 'default') return false
+    const collection = kind === 'essence' ? essencePresets : harvestPresets
+    const currentId = kind === 'essence' ? currentEssencePresetId : currentHarvestPresetId
+    const index = collection.value.findIndex(preset => preset.id === id)
+    if (index < 0) return false
+    collection.value.splice(index, 1)
+    if (currentId.value === id) currentId.value = 'default'
+    savePresets()
+    return true
+  }
+
+  const deleteEssencePreset = id => deleteSpecializedPreset('essence', id)
+  const deleteHarvestPreset = id => deleteSpecializedPreset('harvest', id)
 
   function deleteMapPreset(id) {
     if (id === 'default') return false
@@ -154,18 +186,6 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
-  function deleteShopPreset(id) {
-    if (id === 'default') return false
-    const index = shopPresets.value.findIndex(p => p.id === id)
-    if (index > -1) {
-      shopPresets.value.splice(index, 1)
-      if (currentShopPresetId.value === id) currentShopPresetId.value = 'default'
-      savePresets()
-      return true
-    }
-    return false
-  }
-
   function switchItemPreset(id) {
     const preset = itemPresets.value.find(p => p.id === id)
     if (preset) {
@@ -174,6 +194,29 @@ export const usePresetStore = defineStore('preset', () => {
       return true
     }
     return false
+  }
+
+  function switchSpecializedPreset(kind, id) {
+    const collection = kind === 'essence' ? essencePresets : harvestPresets
+    const currentId = kind === 'essence' ? currentEssencePresetId : currentHarvestPresetId
+    if (!collection.value.some(preset => preset.id === id)) return false
+    currentId.value = id
+    savePresets()
+    return true
+  }
+
+  const switchEssencePreset = id => switchSpecializedPreset('essence', id)
+  const switchHarvestPreset = id => switchSpecializedPreset('harvest', id)
+
+  function setItemCraftingKind(kind) {
+    itemCraftingKind.value = normalizeItemCraftingKind(kind)
+    savePresets()
+  }
+
+  function updateCraftingInitialCheck(kind, value) {
+    const normalizedKind = normalizeItemCraftingKind(kind)
+    craftingInitialChecks.value = { ...craftingInitialChecks.value, [normalizedKind]: Boolean(value) }
+    savePresets()
   }
 
   function switchMapPreset(id) {
@@ -201,14 +244,6 @@ export const usePresetStore = defineStore('preset', () => {
     savePresets()
   }
 
-  function switchShopPreset(id) {
-    const preset = shopPresets.value.find(p => p.id === id)
-    if (!preset) return false
-    currentShopPresetId.value = id
-    savePresets()
-    return true
-  }
-
   function updateCurrentItemPreset(data) {
     const preset = currentItemPreset.value
     if (preset) {
@@ -223,6 +258,16 @@ export const usePresetStore = defineStore('preset', () => {
       savePresets()
     }
   }
+
+  function updateCurrentSpecializedPreset(kind, data) {
+    const preset = kind === 'essence' ? currentEssencePreset.value : currentHarvestPreset.value
+    if (!preset) return
+    Object.assign(preset, normalizeSpecializedPreset(kind, { ...preset, ...data }))
+    savePresets()
+  }
+
+  const updateCurrentEssencePreset = data => updateCurrentSpecializedPreset('essence', data)
+  const updateCurrentHarvestPreset = data => updateCurrentSpecializedPreset('harvest', data)
 
   function updateCurrentMapPreset(data) {
     const preset = currentMapPreset.value
@@ -240,25 +285,21 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
-  function updateCurrentShopPreset(data) {
-    const preset = currentShopPreset.value
-    if (preset) {
-      Object.assign(preset, data)
-      savePresets()
-    }
-  }
-
   function savePresets() {
     try {
       localStorage.setItem('itemPresets', JSON.stringify(itemPresets.value))
       localStorage.setItem('currentItemPresetId', currentItemPresetId.value)
+      localStorage.setItem('essencePresets', JSON.stringify(essencePresets.value))
+      localStorage.setItem('currentEssencePresetId', currentEssencePresetId.value)
+      localStorage.setItem('harvestPresets', JSON.stringify(harvestPresets.value))
+      localStorage.setItem('currentHarvestPresetId', currentHarvestPresetId.value)
+      localStorage.setItem('itemCraftingKind', itemCraftingKind.value)
+      localStorage.setItem('craftingInitialChecks', JSON.stringify(craftingInitialChecks.value))
       localStorage.setItem('mapPresets', JSON.stringify(mapPresets.value))
       localStorage.setItem('currentMapPresetId', currentMapPresetId.value)
       localStorage.setItem('chartPresets', JSON.stringify(chartPresets.value))
       localStorage.setItem('currentChartPresetId', currentChartPresetId.value)
       localStorage.setItem('mapRollingKind', mapRollingKind.value)
-      localStorage.setItem('shopPresets', JSON.stringify(shopPresets.value))
-      localStorage.setItem('currentShopPresetId', currentShopPresetId.value)
     } catch (error) {
       // 保存预设失败
     }
@@ -268,6 +309,12 @@ export const usePresetStore = defineStore('preset', () => {
     try {
       const savedItemPresets = localStorage.getItem('itemPresets')
       const savedCurrentItemId = localStorage.getItem('currentItemPresetId')
+      const savedEssencePresets = localStorage.getItem('essencePresets')
+      const savedCurrentEssenceId = localStorage.getItem('currentEssencePresetId')
+      const savedHarvestPresets = localStorage.getItem('harvestPresets')
+      const savedCurrentHarvestId = localStorage.getItem('currentHarvestPresetId')
+      const savedItemCraftingKind = localStorage.getItem('itemCraftingKind')
+      const savedInitialChecks = localStorage.getItem('craftingInitialChecks')
       const savedMapPresets = localStorage.getItem('mapPresets')
       const savedCurrentMapId = localStorage.getItem('currentMapPresetId')
       const savedChartPresets = localStorage.getItem('chartPresets')
@@ -291,13 +338,37 @@ export const usePresetStore = defineStore('preset', () => {
         })
         itemPresets.value = loaded
       }
-      itemPresets.value = itemPresets.value.map(normalizeItemPreset)
-
       if (savedCurrentItemId) {
         currentItemPresetId.value = savedCurrentItemId
       } else if (oldCurrentId && itemPresets.value.find(p => p.id === oldCurrentId)) {
         currentItemPresetId.value = oldCurrentId
       }
+      const legacyCurrentPreset = itemPresets.value.find(preset => preset.id === currentItemPresetId.value) || itemPresets.value[0]
+      const legacyInitialCheck = typeof legacyCurrentPreset?.checkInitialItem === 'boolean'
+        ? legacyCurrentPreset.checkInitialItem
+        : legacyCurrentPreset?.moduleTwo?.checkInitialAffixes !== false
+      craftingInitialChecks.value = normalizeCraftingInitialChecks(
+        savedInitialChecks ? JSON.parse(savedInitialChecks) : {},
+        legacyInitialCheck
+      )
+      itemPresets.value = itemPresets.value.map(normalizeItemPreset)
+      if (!itemPresets.value.some(preset => preset.id === currentItemPresetId.value)) currentItemPresetId.value = 'default'
+
+      essencePresets.value = savedEssencePresets
+        ? JSON.parse(savedEssencePresets).map(preset => normalizeSpecializedPreset('essence', preset))
+        : [createDefaultSpecializedPreset('essence')]
+      harvestPresets.value = savedHarvestPresets
+        ? JSON.parse(savedHarvestPresets).map(preset => normalizeSpecializedPreset('harvest', preset))
+        : [createDefaultSpecializedPreset('harvest')]
+      if (!essencePresets.value.length) essencePresets.value = [createDefaultSpecializedPreset('essence')]
+      if (!harvestPresets.value.length) harvestPresets.value = [createDefaultSpecializedPreset('harvest')]
+      currentEssencePresetId.value = essencePresets.value.some(preset => preset.id === savedCurrentEssenceId)
+        ? savedCurrentEssenceId
+        : essencePresets.value[0].id
+      currentHarvestPresetId.value = harvestPresets.value.some(preset => preset.id === savedCurrentHarvestId)
+        ? savedCurrentHarvestId
+        : harvestPresets.value[0].id
+      itemCraftingKind.value = normalizeItemCraftingKind(savedItemCraftingKind)
 
       let loadedMapPresets = null
       if (savedMapPresets) {
@@ -344,7 +415,7 @@ export const usePresetStore = defineStore('preset', () => {
       if (!mapPresets.value.some(preset => preset.id === currentMapPresetId.value)) currentMapPresetId.value = 'default'
       if (!chartPresets.value.some(preset => preset.id === currentChartPresetId.value)) currentChartPresetId.value = 'default'
 
-      if (!savedChartPresets || loadedMapPresets?.some(preset => preset.map?.chart || preset.map?.activeKind)) {
+      if (!savedChartPresets || !savedEssencePresets || !savedHarvestPresets || !savedInitialChecks || loadedMapPresets?.some(preset => preset.map?.chart || preset.map?.activeKind)) {
         savePresets()
       }
     } catch (error) {
@@ -352,38 +423,28 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
-  function loadShopPresets() {
-    try {
-      const savedPresets = localStorage.getItem('shopPresets')
-      const savedCurrentId = localStorage.getItem('currentShopPresetId')
-      shopPresets.value = savedPresets ? cleanShopPresets(JSON.parse(savedPresets)) : [createDefaultShopPreset()]
-      currentShopPresetId.value = shopPresets.value.some(preset => preset.id === savedCurrentId)
-        ? savedCurrentId
-        : 'default'
-    } catch (error) {
-      shopPresets.value = [createDefaultShopPreset()]
-      currentShopPresetId.value = 'default'
-    }
-  }
-
   // 初始化时加载
   loadPresets()
-  loadShopPresets()
 
   return {
     itemPresets,
+    essencePresets,
+    harvestPresets,
     mapPresets,
     chartPresets,
-    shopPresets,
     currentItemPresetId,
+    currentEssencePresetId,
+    currentHarvestPresetId,
+    itemCraftingKind,
+    craftingInitialChecks,
     currentMapPresetId,
     currentChartPresetId,
     mapRollingKind,
-    currentShopPresetId,
     currentItemPreset,
+    currentEssencePreset,
+    currentHarvestPreset,
     currentMapPreset,
     currentChartPreset,
-    currentShopPreset,
     // 兼容旧代码的别名，逐步替换
     presets: itemPresets,
     currentPresetId: currentItemPresetId,
@@ -395,24 +456,29 @@ export const usePresetStore = defineStore('preset', () => {
     
     // 新方法
     addItemPreset,
+    addEssencePreset,
+    addHarvestPreset,
     addMapPreset,
     addChartPreset,
-    addShopPreset,
     deleteItemPreset,
+    deleteEssencePreset,
+    deleteHarvestPreset,
     deleteMapPreset,
     deleteChartPreset,
-    deleteShopPreset,
     switchItemPreset,
+    switchEssencePreset,
+    switchHarvestPreset,
+    setItemCraftingKind,
+    updateCraftingInitialCheck,
     switchMapPreset,
     switchChartPreset,
     setMapRollingKind,
-    switchShopPreset,
     updateCurrentItemPreset,
+    updateCurrentEssencePreset,
+    updateCurrentHarvestPreset,
     updateCurrentMapPreset,
     updateCurrentChartPreset,
-    updateCurrentShopPreset,
     savePresets,
-    loadPresets,
-    loadShopPresets
+    loadPresets
   }
 })

@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '@/api/electron'
 import { useInterfaceDetectionStore } from './interfaceDetection'
+import { useFeatureModulesStore } from './featureModules.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { normalizeJunfengSettings } from '@/utils/junfengConfig'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '@/utils/diagnostics.js'
@@ -66,7 +67,9 @@ export const useJunfengStore = defineStore('junfeng', () => {
   function persist() { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings.value)) }
 
   async function sync(overrides = {}) {
-    state.value = { ...state.value, ...unwrap(await electronApi.junfeng.updateRuntime(runtime(overrides))) }
+    const requested = runtime(overrides)
+    requested.enabled = useFeatureModulesStore().isEnabled('bag') && Boolean(requested.enabled)
+    state.value = { ...state.value, ...unwrap(await electronApi.junfeng.updateRuntime(requested)) }
     return state.value
   }
 
@@ -299,11 +302,20 @@ export const useJunfengStore = defineStore('junfeng', () => {
     return () => { removePickup(); removeTraining() }
   }
 
-  async function initializeRuntime() {
-    try { await sync(); await loadCorrections(); await loadTrainingStatus(); await loadTrainingSessions() } catch {
-      settings.value.enabled = false
-      persist()
-      try { await electronApi.junfeng.updateRuntime(runtime({ enabled: false })) } catch {}
+  async function initializeRuntime({ preserveEnabledOnFailure = false } = {}) {
+    try {
+      await sync()
+      await loadCorrections()
+      await loadTrainingStatus()
+      await loadTrainingSessions()
+      return { success: true }
+    } catch (error) {
+      if (!preserveEnabledOnFailure) {
+        settings.value.enabled = false
+        persist()
+        try { await electronApi.junfeng.updateRuntime(runtime({ enabled: false })) } catch {}
+      }
+      return { success: false, error: error?.message || String(error) }
     }
   }
 

@@ -27,7 +27,7 @@ export function buildCraftingCurrencyPreflight(preset = {}) {
       currencies.push('alchemy', 'scouring', 'chaos')
       if (affix.enableExalted) currencies.push('exalted')
     } else if (mode === 'alchemy') {
-      currencies.push('scouring', 'alchemy')
+      currencies.push('scouring', affix.enableBinding ? 'binding' : 'alchemy')
     }
   }
 
@@ -52,7 +52,7 @@ export function buildMapCurrencyPreflight(mapConfig = {}) {
   const method = mapConfig.method || 'alchemy'
 
   if (method === 'alchemy') {
-    currencies.push('scouring', 'alchemy')
+    currencies.push('scouring', mapConfig.binding?.enabled ? 'binding' : 'alchemy')
   } else if (method === 'chaos') {
     currencies.push('scouring', 'alchemy', 'chaos')
   }

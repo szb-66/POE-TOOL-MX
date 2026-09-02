@@ -95,7 +95,9 @@ for (const [label, file, mode] of [
     const succeeded = runApplyCurrency(template, mode)
     assert.equal(succeeded.result, true)
     assert.deepEqual(succeeded.events.filter(event => event.event === 'crafting-currency-used'), [{
-      event: 'crafting-currency-used', mode, currency: 'alteration', amount: 1
+      event: 'crafting-currency-used', mode,
+      ...(mode === 'items' ? { craftingKind: 'general' } : {}),
+      currency: 'alteration', amount: 1
     }])
     assert.deepEqual(
       succeeded.events.filter(event => event.event === 'crafting-operation').map(event => ({

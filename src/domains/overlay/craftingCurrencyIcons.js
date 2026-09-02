@@ -4,6 +4,7 @@ import alteration from '@/assets/images/crafting-currency/alteration.png'
 import augmentation from '@/assets/images/crafting-currency/augmentation.png'
 import regal from '@/assets/images/crafting-currency/regal.png'
 import alchemy from '@/assets/images/crafting-currency/alchemy.png'
+import binding from '@/assets/images/crafting-currency/binding.png'
 import scouring from '@/assets/images/crafting-currency/scouring.png'
 import chaos from '@/assets/images/crafting-currency/chaos.png'
 import exalted from '@/assets/images/crafting-currency/exalted.png'
@@ -27,6 +28,7 @@ export const CRAFTING_CURRENCY_ICONS = Object.freeze({
   augmentation,
   regal,
   alchemy,
+  binding,
   scouring,
   chaos,
   exalted,

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { usePoeCnAccountStore } from './poeCnAccount.js'
+import { useFeatureModulesStore } from './featureModules.js'
 import { normalizeAutomationTiming } from '../utils/operationDelay.js'
 import {
   CHAOS_GRID_LAYOUT_LABELS,
@@ -171,7 +172,9 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   }
 
   async function syncRuntime(overrides = {}) {
-    return unwrap(await electronApi.chaosRecipe.updateRuntime(runtimePayload(overrides)))
+    const requested = runtimePayload(overrides)
+    requested.enabled = useFeatureModulesStore().isEnabled('recipe') && Boolean(requested.enabled)
+    return unwrap(await electronApi.chaosRecipe.updateRuntime(requested))
   }
 
   async function resetControlOverlayOffset() {
@@ -218,17 +221,19 @@ export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
     }
   }
 
-  async function initializeRuntime() {
+  async function initializeRuntime({ preserveEnabledOnFailure = false } = {}) {
     try {
       await accountStore.restore()
       if (accountStore.status.authenticated && league.value) await loadTabs()
       await syncRuntime()
+      return { success: true }
     } catch (error) {
-      if (settings.value.enabled) {
+      if (!preserveEnabledOnFailure && settings.value.enabled) {
         settings.value.enabled = false
         save()
       }
       setError(error)
+      return { success: false, error: error?.message || String(error) }
     }
   }
 

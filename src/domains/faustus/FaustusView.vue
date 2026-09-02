@@ -56,10 +56,6 @@
                     <p class="muted">框选当前浮士德市集的完整网格区域。该区域独立保存，不复用普通仓库坐标。</p>
                     <div class="calibration-actions">
                       <el-button :loading="store.busy" :disabled="store.running" @click="runAction(store.calibrateGrid)">选择网格区域</el-button>
-                      <el-button :loading="store.busy" :disabled="store.running || !store.config.gridCalibration" @click="runAction(store.testPriceWindow)">价格窗口识别测试</el-button>
-                    </div>
-                    <div v-if="store.recognition" class="recognition-result">
-                      识别结果：{{ store.recognition.price }} {{ currencyLabel(store.recognition.currency) }}
                     </div>
                   </div>
                 </section>
@@ -116,7 +112,8 @@
             <el-card shadow="never">
               <template #header><strong>运行控制</strong></template>
               <div class="run-controls">
-                <el-button type="primary" :loading="store.busy" :disabled="store.running || !store.validation.valid || !store.config.gridCalibration || !store.recognition" @click="runAction(store.start)">开始改价</el-button>
+                <el-button type="primary" :loading="store.busy" :disabled="Boolean(startBlockedReason)" :title="startBlockedReason" @click="runAction(store.start)">开始改价</el-button>
+                <span v-if="startBlockedReason" class="start-blocked-reason">{{ startBlockedReason }}</span>
                 <span class="emergency-stop-hint">紧急停止请使用全局快捷键 <kbd>{{ emergencyStopShortcut }}</kbd></span>
                 <span class="muted">进度：{{ store.state.processed || 0 }} / {{ store.state.total || 0 }}</span>
               </div>
@@ -161,6 +158,12 @@ const statusLabel = computed(() => ({ idle: '空闲', running: '运行中', stop
 const validationSummary = computed(() => store.validation.errors
   .map(item => formatFaustusValidationError(item, store.config))
   .join('；'))
+const startBlockedReason = computed(() => {
+  if (store.running) return '改价正在运行，请使用全局紧急停止快捷键结束'
+  if (!store.validation.valid) return validationSummary.value || '请先修正价格配置'
+  if (!store.config.gridCalibration) return '请先选择市集网格区域'
+  return ''
+})
 const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end)
 
 function currencyLabel(value) { return FAUSTUS_CURRENCY_LABELS[value] || value || '—' }
@@ -222,7 +225,6 @@ h1 { margin: 0 0 6px; font-size: 25px; }
 .exchange-form :deep(.el-form-item__error) { position: static; padding-top: 7px; }
 .calibration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .calibration-actions .el-button { margin-left: 0; }
-.recognition-result { margin-top: 12px; padding: 9px 11px; border-left: 2px solid var(--el-color-success); background: color-mix(in srgb, var(--el-color-success) 8%, transparent); color: var(--el-color-success); font-size: 13px; }
 .band-list { overflow-x: auto; }
 .band-row { display: grid; grid-template-columns: 28px 28px minmax(88px, 1fr) max-content minmax(116px, 1.2fr) 110px auto; grid-template-rows: auto auto; align-items: center; gap: 8px; min-width: 600px; padding: 12px 0; border-bottom: 1px solid var(--border-base); transition: background-color .15s ease, opacity .15s ease; }
 .band-row.is-dragging { background: color-mix(in srgb, var(--brand-color) 9%, transparent); opacity: .72; }
@@ -241,6 +243,7 @@ h1 { margin: 0 0 6px; font-size: 25px; }
 .band-actions { grid-column: 7; grid-row: 1 / 3; display: flex; white-space: nowrap; }
 .validation-alert { margin-top: 14px; }
 .run-controls { flex-wrap: wrap; gap: 10px; }
+.start-blocked-reason { color: var(--el-color-warning); font-size: 13px; }
 .emergency-stop-hint { color: var(--text-secondary); font-size: 13px; }
 .emergency-stop-hint kbd { margin-left: 4px; padding: 2px 7px; border: 1px solid var(--border-base); border-bottom-width: 2px; border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
 @media (max-width: 520px) { .config-step { grid-template-columns: 1fr; } .config-step__index { margin-bottom: -2px; } .calibration-actions { flex-direction: column; } .calibration-actions .el-button { width: 100%; } }

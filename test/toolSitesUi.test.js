@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { availableFeatureCatalog } from '../src/features/featureCatalog.js'
 
 const view = readFileSync(new URL('../src/domains/tools/ToolsView.vue', import.meta.url), 'utf8')
 const router = readFileSync(new URL('../src/router/index.js', import.meta.url), 'utf8')
@@ -33,7 +34,7 @@ test('工具站路由、预加载和侧栏导航已接线', () => {
   assert.match(router, /path: '\/tools'/)
   assert.match(router, /component: pageLoaders\['\/tools'\]/)
   assert.match(loaders, /'\/tools': \(\) => import\('\.\.\/domains\/tools\/ToolsView\.vue'\)/)
-  assert.match(sidebar, /index="\/tools"/)
-  assert.match(sidebar, /warmRoute\('\/tools'\)/)
-  assert.match(sidebar, />工具站<\/span>/)
+  const tools = availableFeatureCatalog().find(item => item.id === 'tools')
+  assert.deepEqual({ route: tools.route, label: tools.label }, { route: '/tools', label: '工具站' })
+  assert.match(sidebar, /warmRoute\(feature\.route\)/)
 })

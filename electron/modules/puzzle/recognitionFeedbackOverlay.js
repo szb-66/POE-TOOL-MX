@@ -52,6 +52,7 @@ export class RecognitionFeedbackOverlayManager {
     this.snapshot = null
     this.generation = 0
     this.closeTimer = null
+    this.visibleCallback = null
   }
 
   prime() {
@@ -111,10 +112,15 @@ export class RecognitionFeedbackOverlayManager {
     window.setBounds(snapshot.bounds, false)
     window.webContents.send(RECOGNITION_FEEDBACK_CHANNEL, structuredClone(snapshot))
     window.showInactive()
+    if (this.visibleCallback?.sessionId === snapshot.sessionId) {
+      const callback = this.visibleCallback.callback
+      this.visibleCallback = null
+      try { callback() } catch {}
+    }
     return true
   }
 
-  begin(snapshot) {
+  begin(snapshot, { onVisible } = {}) {
     const bounds = recognitionFeedbackBounds(snapshot?.displayBounds, this.screenApi)
     if (!bounds) return null
     this.cancelCloseTimer()
@@ -128,13 +134,14 @@ export class RecognitionFeedbackOverlayManager {
       ...structuredClone(snapshot),
       bounds
     }
+    this.visibleCallback = typeof onVisible === 'function' ? { sessionId, callback: onVisible } : null
     this.prime()
     this.publishCurrent()
     return sessionId
   }
 
-  showRunning(snapshot) {
-    return this.begin({ ...snapshot, kind: 'running' })
+  showRunning(snapshot, options) {
+    return this.begin({ ...snapshot, kind: 'running' }, options)
   }
 
   updateProgress(sessionId, patch) {
@@ -159,6 +166,7 @@ export class RecognitionFeedbackOverlayManager {
     const bounds = recognitionFeedbackBounds(snapshot?.displayBounds, this.screenApi)
     if (!bounds) return null
     this.cancelCloseTimer()
+    this.visibleCallback = null
     const sessionId = ++this.generation
     this.snapshot = {
       sessionId,
@@ -175,6 +183,7 @@ export class RecognitionFeedbackOverlayManager {
     if (sessionId && sessionId !== this.generation) return false
     this.cancelCloseTimer()
     this.snapshot = null
+    this.visibleCallback = null
     const window = this.window
     if (window && !window.isDestroyed()) window.hide()
     return true
@@ -184,6 +193,7 @@ export class RecognitionFeedbackOverlayManager {
     this.cancelCloseTimer()
     this.generation += 1
     this.snapshot = null
+    this.visibleCallback = null
     const window = this.window
     this.window = null
     if (window && !window.isDestroyed()) window.close()

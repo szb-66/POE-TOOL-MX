@@ -93,7 +93,7 @@ test('查价浮窗按关闭原因选择性归还游戏焦点', async () => {
   assert.match(overlay, /preserveForExternalAction\(\)[\s\S]*this\.focusSession\.preserveForExternalAction\(\)/)
   const closeBody = overlay.match(/close\(reason[\s\S]*?\n  \}/)?.[0] || ''
   assert.ok(closeBody.indexOf('this.presentation?.park()') < closeBody.indexOf('this.restoreGameFocus()'))
-  assert.match(main, /restoreGameFocus:\s*\(\) => restoreWindowsGameFocus/)
+  assert.match(main, /restoreGameFocus:\s*async \(\) => \(await windowActivation\.activateGame/)
 })
 
 test('查价浮窗靠近鼠标定位、边缘翻转并支持负坐标显示器', () => {
@@ -469,7 +469,7 @@ test('真实查价浮窗从主进程快照读取最新快捷键', async () => {
     source('src/stores/priceCheck.js'),
     source('src/domains/priceCheck/PriceCheckOverlayView.vue')
   ])
-  assert.match(store, /updateRuntime\(\{[\s\S]*shortcut:\s*appSettings\.globalShortcuts\.priceCheck/)
+  assert.match(store, /shortcut:\s*appSettings\.globalShortcuts\.priceCheck[\s\S]*updateRuntime\(\{[\s\S]*\.\.\.requested/)
   assert.match(view, /props\.previewMode[\s\S]*appSettings\.globalShortcuts\.priceCheck[\s\S]*state\.value\?\.shortcut/)
 })
 
@@ -501,7 +501,8 @@ test('查价快捷键字段默认未设置并进入设置页与统一动作派�
     source('src/utils/scriptService.js')
   ])
   assert.match(config, /priceCheck: ''/)
-  assert.match(settings, /shortcuts\.priceCheck[\s\S]*handleShortcutsChange\('priceCheck'/)
+  assert.match(settings, /\{ key: 'priceCheck', label: '国服查价' \}/)
+  assert.match(settings, /:model-value="shortcuts\[field\.key\]"[\s\S]*handleShortcutsChange\(field\.key, \$event\)/)
   assert.match(service, /priceCheck:\s*startPriceCheck/)
   assert.match(service, /checkHoveredItem\(\)/)
 })

@@ -9,10 +9,9 @@ export const FAUSTUS_REASON_LABELS = Object.freeze({
   user: '用户已停止',
   game_not_foreground: '游戏窗口不在前台',
   game_activation_failed: '无法将游戏窗口切换到前台',
-  no_market_item_found: '当前市集页未找到可处理物品',
   item_footprint_unknown: '无法确定物品占位，已安全跳过',
   item_footprint_ambiguous: '物品占位与视觉格子不一致，已安全跳过',
-  price_window_anchor_missing: '未识别到价格设置窗口',
+  price_window_anchor_missing: '价格窗口未打开，物品可能处于锁定期，已跳过',
   price_clipboard_invalid: '无法读取完整价格数字',
   currency_ocr_uncertain: '无法确定当前价格单位',
   currency_option_uncertain: '无法在单位列表中确定目标单位',
@@ -20,7 +19,6 @@ export const FAUSTUS_REASON_LABELS = Object.freeze({
   no_matching_band: '当前价格没有匹配的价格分段',
   result_below_one: '降价结果小于 1，已跳过',
   not_lower: '计算结果没有真正降低价格',
-  verification_mismatch: '提交前复核的价格或单位不一致',
   submit_warning: '游戏提示警告，本物品未重试',
   submit_abnormal: '游戏提交结果异常，本物品未重试'
 })

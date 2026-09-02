@@ -1,58 +1,64 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  buildVendorExpressions,
-  exceedsVendorRegexLimit,
-  finalizeVendorRegex,
-  generateVendorRegex,
-  optimizeVendorExpressions,
-  VENDOR_REGEX_LIMIT
-} from '../src/domains/shop/vendorRegex.js'
-import { createDefaultVendorConfig } from '../src/domains/shop/vendorConfig.js'
+import { buildVendorTokens, generateVendorRegex, REGEX_LENGTH_LIMIT } from '../src/domains/regex/vendorRegex.js'
+import { cleanVendorConfig, createDefaultVendorConfig, migrateLegacyVendorConfig } from '../src/domains/regex/vendorConfig.js'
+import { VENDOR_GROUPS, VENDOR_REGEX_CORPUS } from '../src/domains/regex/vendorData.js'
+import { expressionMatches, hasMinimumHanFragment } from '../src/domains/regex/compactExpression.js'
 
-test('Vendor 空配置返回稳定的空结果', () => {
+test('商城正则空配置返回统一结果结构', () => {
   assert.deepEqual(generateVendorRegex(createDefaultVendorConfig()), {
-    regex: '', length: 0, overLimit: false, warnings: []
+    regex: '', length: 0, overLimit: false, warnings: [], includeCount: 0, excludeCount: 0
   })
 })
 
-test('Vendor 各筛选分类都生成表达式并忽略未知选项', () => {
-  const expressions = buildVendorExpressions({
-    threeLinks: ['rgb', 'unknown'],
-    twoLinks: ['rb'],
-    anyLinks: ['any_four'],
-    exactColors: { enabled: true, red: 1, green: 1, blue: 1 },
-    movement: ['movement_10'],
-    plusGems: ['plus_fire'],
-    damage: ['physical_damage'],
-    weaponTypes: ['wand']
+test('商城分类分别生成包括与排除片段并去除未知项', () => {
+  const config = cleanVendorConfig({
+    rarity: { mode: 'include', selectedIds: ['rare', 'unknown'] },
+    resistance: { mode: 'exclude', selectedIds: ['res_fire'] },
+    movement: { mode: 'include', selectedIds: ['movement_15'] }
   })
-  assert.equal(expressions.length, 8)
-  assert.ok(expressions.some(value => value.includes('r-g-b')))
-  assert.ok(expressions.some(value => value.includes('移动速度')))
-  assert.ok(expressions.some(value => value.includes('技能石等级')))
-  assert.ok(expressions.some(value => value.includes('物品类别')))
+  const built = buildVendorTokens(config)
+  assert.equal(built.includeCount, 2)
+  assert.equal(built.excludeCount, 1)
+  assert.ok(built.tokens.some(token => token.includes('稀有$')))
+  assert.ok(built.tokens.some(token => token.includes('!焰抗')))
+  assert.ok(built.tokens.some(token => token.includes('移动.*15%')))
 })
 
-test('任意三连覆盖具体三连，最终表达式去空去重并按需加引号', () => {
-  const expressions = buildVendorExpressions({ anyLinks: ['any_three'], threeLinks: ['rgb'] })
-  assert.deepEqual(optimizeVendorExpressions(expressions), ['-[rgbw]-'])
-  assert.equal(finalizeVendorRegex(['r-r', '', 'r-r']), 'r-r')
-  assert.equal(finalizeVendorRegex(['移动 速度', '"测试"']), '"移动 速度|测试"')
+test('全部商城紧凑表达式命中目标语料且不误命中其他选项', () => {
+  for (const option of VENDOR_GROUPS.flatMap(group => group.options)) {
+    const positiveIds = new Set([option.id, ...option.matchIds])
+    assert.equal(hasMinimumHanFragment(option.compactExpression), true, `${option.id} 不得使用单字表达式`)
+    for (const candidate of VENDOR_REGEX_CORPUS) {
+      for (const variant of candidate.variants) {
+        assert.equal(
+          expressionMatches(option.compactExpression, variant),
+          positiveIds.has(candidate.id),
+          `${option.id} 对 ${candidate.id} 的匹配结果错误：${option.compactExpression}`
+        )
+      }
+    }
+  }
 })
 
-test('字符数边界以 50 为限，超长仅警告不清空结果', () => {
-  assert.equal(exceedsVendorRegexLimit('x'.repeat(VENDOR_REGEX_LIMIT)), false)
-  assert.equal(exceedsVendorRegexLimit('x'.repeat(VENDOR_REGEX_LIMIT + 1)), true)
-
-  const result = generateVendorRegex({ threeLinks: ['rgb'], weaponTypes: ['wand'] })
+test('商城正则统一使用 250 字符阈值且超长不截断', () => {
+  const config = createDefaultVendorConfig()
+  config.damage.selectedIds = ['physical_damage', 'spell_damage', 'elemental_damage', 'cold_damage', 'fire_damage', 'lightning_damage', 'chaos_damage', 'fire_dot', 'cold_dot', 'chaos_dot']
+  const result = generateVendorRegex(config)
+  assert.equal(REGEX_LENGTH_LIMIT, 250)
   assert.equal(result.length, result.regex.length)
-  assert.equal(result.overLimit, result.length > VENDOR_REGEX_LIMIT)
-  if (result.overLimit) assert.ok(result.warnings.some(value => value.includes('50')))
+  assert.equal(result.overLimit, result.length > 250)
 })
 
-test('重复选择被配置清理，冲突组合给出提示', () => {
-  const result = generateVendorRegex({ plusGems: ['plus_any', 'plus_any'], weaponTypes: ['wand'] })
-  assert.equal(result.regex.split('所有法术.*技能石等级').length - 1, 1)
-  assert.ok(result.warnings.some(value => value.includes('全部法杖')))
+test('旧商城配置只迁移非孔色字段', () => {
+  const migrated = migrateLegacyVendorConfig({
+    threeLinks: ['rgb'], anyLinks: ['any_six'], exactColors: { enabled: true, red: 1 },
+    movement: ['movement_15'], plusGems: ['plus_fire'], damage: ['physical_damage'], weaponTypes: ['wand']
+  })
+  assert.deepEqual(migrated.movement.selectedIds, ['movement_15'])
+  assert.deepEqual(migrated.common.selectedIds, ['plus_fire'])
+  assert.deepEqual(migrated.damage.selectedIds, ['physical_damage'])
+  assert.deepEqual(migrated.oneHanded.selectedIds, ['wand'])
+  assert.equal('threeLinks' in migrated, false)
+  assert.equal('exactColors' in migrated, false)
 })

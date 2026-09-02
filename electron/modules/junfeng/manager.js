@@ -54,20 +54,24 @@ function parser(onEvent, onLog) {
 }
 
 export class JunfengHighlightManager {
-  constructor({ python, fileWatcher, getMainWindow, interfaceDetection, automationLock, calibration, onStatusChange }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange }) {
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
+    this.windowActivation = windowActivation
+    this.loadingFeedback = loadingFeedback
     this.interfaceDetection = interfaceDetection
     this.automationLock = automationLock
     this.calibration = calibration
     this.onStatusChange = onStatusChange
     this.runtime = { enabled: false, gridRegion: null, grid: { columns: 12, rows: 11 }, operationDelayMs: OPERATION_DELAY.default }
     this.child = null
+    this.preparationToken = null
     this.lastPreview = new Map()
     this.lastPreviewId = ''
     this.lastTrainingPreview = null
     this.trainingChild = null
+    this.trainingCancelled = false
     this.trainingStatus = { status: 'idle', stage: '', reason: '', report: null, modelVersion: '' }
     this.status = this.initialStatus()
     this.disposeDetection = interfaceDetection?.subscribe(state => {
@@ -226,28 +230,39 @@ export class JunfengHighlightManager {
     return child
   }
 
-  preview() {
+  async preview() {
     this.ensureReady({ modelRequired: false, requireReward: false })
-    return new Promise((resolve, reject) => {
-      let settled = false
-      const child = this.spawn(['--config', this.writeConfig(), '--preview'], event => {
-        if (event.event === 'preview') {
-          settled = true
-          this.lastPreviewId = crypto.createHash('sha256').update(String(event.imageDataUrl || '')).digest('hex').slice(0, 24)
-          this.lastPreview = new Map((event.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
-          resolve(event)
-        } else if (event.event === 'error') { settled = true; reject(eventError(event, '君锋镇预览失败')) }
+    let token = null
+    try {
+      const activation = await this.windowActivation?.activateGame({ source: 'junfeng-preview' })
+      if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
+      token = this.loadingFeedback?.begin('junfeng.preview', { owner: 'junfeng-preview' }) || null
+      this.loadingFeedback?.update(token, { stage: 'model' })
+      return await new Promise((resolve, reject) => {
+        let settled = false
+        const child = this.spawn(['--config', this.writeConfig(), '--preview'], event => {
+          if (event.event === 'preview') {
+            settled = true
+            this.lastPreviewId = crypto.createHash('sha256').update(String(event.imageDataUrl || '')).digest('hex').slice(0, 24)
+            this.lastPreview = new Map((event.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
+            resolve(event)
+          } else if (event.event === 'error') { settled = true; reject(eventError(event, '君锋镇预览失败')) }
+        })
+        child.on('error', reject)
+        child.on('close', code => { if (!settled) reject(new Error(`君锋镇预览进程异常退出（${code}）`)) })
       })
-      child.on('error', reject)
-      child.on('close', code => { if (!settled) reject(new Error(`君锋镇预览进程异常退出（${code}）`)) })
-    })
+    } finally {
+      this.loadingFeedback?.finish(token)
+    }
   }
 
-  previewTraining({ domain, gridRegion, partition = 'train' } = {}) {
+  async previewTraining({ domain, gridRegion, partition = 'train' } = {}) {
     if (app.isPackaged) throw new Error('训练工作台仅在开发版可用')
     const grid = TRAINING_PROFILES[String(domain || '')]
     if (!grid) throw new Error('训练来源无效')
     if (!gridRegion) throw new Error('请先框选当前训练来源的完整网格')
+    const activation = await this.windowActivation?.activateGame({ source: 'junfeng-training-preview' })
+    if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
     return new Promise((resolve, reject) => {
       let settled = false
       const child = this.spawn(['--config', this.writeConfig({ gridRegion, grid, disableCalibration: true }), '--preview'], event => {
@@ -376,6 +391,7 @@ export class JunfengHighlightManager {
     if (!fs.existsSync(paths.python)) throw new Error('未找到 .runtime/junfeng-training GPU 训练环境')
     if (!fs.existsSync(paths.base)) throw new Error('缺少基础训练数据 artifacts/junfeng/combined.npz')
     const modelVersion = `junfeng-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`
+    this.trainingCancelled = false
     this.publishTraining({ status: 'running', stage: '导出本机标注', reason: '', report: null, modelVersion })
     try {
       await this.runTrainingCommand(paths.python, [paths.build, '--root', this.calibration.root, '--output', paths.local])
@@ -401,9 +417,21 @@ export class JunfengHighlightManager {
         reason: report?.passed ? '' : '验证结果未达到建议标准，请人工复核后使用' })
       return this.getTrainingStatus()
     } catch (error) {
+      if (this.trainingCancelled) {
+        this.trainingCancelled = false
+        this.publishTraining({ status: 'stopped', stage: '训练已停止', reason: 'module-disabled' })
+        return this.getTrainingStatus()
+      }
       this.publishTraining({ status: 'failed', stage: '训练失败', reason: error.message })
       throw error
     }
+  }
+
+  stopTraining(reason = 'user') {
+    if (!this.trainingChild) return { ...this.getTrainingStatus(), stopped: false }
+    this.trainingCancelled = true
+    stopChild(this.trainingChild)
+    return { ...this.getTrainingStatus(), stopped: true, reason }
   }
 
   async evaluateModel() {
@@ -429,14 +457,21 @@ export class JunfengHighlightManager {
       modelVersion: cell.modelVersion || modelVersion || '', previewId: previewId || this.lastPreviewId })
   }
 
-  start() {
+  async start() {
     if (this.trainingChild) throw new Error('模型训练正在进行，不能启动自动取件')
     if (this.child) throw new Error('君锋镇高亮取件正在运行')
     this.ensureReady()
     const gate = this.automationLock?.acquire(OWNER) || { success: true }
     if (!gate.success) throw new Error(gate.error)
+    const activation = await this.windowActivation?.activateGame({ source: 'junfeng-pickup-start' })
+    if (!activation?.success) {
+      this.automationLock?.release(OWNER)
+      throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
+    }
+    this.preparationToken = this.loadingFeedback?.begin('junfeng.start', { owner: OWNER }) || null
     this.status = { ...this.initialStatus(), status: 'running' }
     try {
+      this.loadingFeedback?.update(this.preparationToken, { stage: 'model' })
       const child = this.spawn(['--config', this.writeConfig()], event => this.handleEvent(child, event))
       this.child = child
       child.on('error', error => this.fail(error.message))
@@ -444,6 +479,7 @@ export class JunfengHighlightManager {
       this.publish({ event: 'starting' })
       return this.getStatus()
     } catch (error) {
+      this.finishPreparation()
       this.automationLock?.release(OWNER)
       throw error
     }
@@ -451,6 +487,7 @@ export class JunfengHighlightManager {
 
   handleEvent(child, event) {
     if (this.child !== child) return
+    this.finishPreparation()
     const progress = normalizeJunfengProgress(
       event.currentIndex ?? this.status.processedItems,
       event.candidateItems ?? this.status.candidateItems
@@ -481,6 +518,7 @@ export class JunfengHighlightManager {
   }
 
   stop(reason = 'user') {
+    this.finishPreparation()
     stopChild(this.child)
     this.child = null
     this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
@@ -490,6 +528,7 @@ export class JunfengHighlightManager {
   }
 
   fail(reason, failure = {}) {
+    this.finishPreparation()
     stopChild(this.child)
     this.child = null
     this.status = {
@@ -503,6 +542,10 @@ export class JunfengHighlightManager {
     this.publish({ event: 'error', reason, failureCode: this.status.failureCode, configurationIssueId: this.status.configurationIssueId })
   }
   getStatus() { return structuredClone(this.status) }
+  finishPreparation() {
+    if (this.preparationToken) this.loadingFeedback?.finish(this.preparationToken)
+    this.preparationToken = null
+  }
   listCorrections() { return this.calibration.listWithImages() }
   removeCorrection(id) { return this.calibration.remove(id) }
   resetCorrections() { this.calibration.reset(); return [] }
@@ -511,5 +554,5 @@ export class JunfengHighlightManager {
     try { modelVersion = JSON.parse(fs.readFileSync(this.modelPaths().manifest, 'utf8')).modelVersion || '' } catch {}
     return this.calibration.markForReembed(modelVersion)
   }
-  cleanup() { if (this.child) this.stop('application-exit'); stopChild(this.trainingChild); this.disposeDetection?.() }
+  cleanup() { this.finishPreparation(); if (this.child) this.stop('application-exit'); this.stopTraining('application-exit'); this.disposeDetection?.() }
 }

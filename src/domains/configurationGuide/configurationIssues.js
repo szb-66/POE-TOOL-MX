@@ -213,6 +213,26 @@ export function collectCraftingConfigurationIssues(context = {}) {
   return createConfigurationCheck(issues, context)
 }
 
+export function collectSpecializedCraftingConfigurationIssues(context = {}) {
+  const moduleId = CONFIGURATION_MODULES.items
+  const actionId = CONFIGURATION_ACTIONS.start
+  const issues = []
+  const kind = context.kind === 'harvest' ? 'harvest' : 'essence'
+  const label = kind === 'essence' ? '精华制作' : '花园工艺'
+  if (!isConfiguredPoint(context.itemPosition)) {
+    issues.push(issue(moduleId, actionId, `${kind}.item-position`, 'coordinate', `${label}物品位置`, `请先抓取${label}的被制作物品位置`, `${kind}.item-position`))
+  }
+  if (!isConfiguredPoint(context.actionPosition)) {
+    issues.push(issue(moduleId, actionId, `${kind}.action-position`, 'coordinate', kind === 'essence' ? '目标精华位置' : '工艺按钮位置', kind === 'essence' ? '请先抓取目标使用精华的位置' : '请先抓取花园工艺按钮位置', `${kind}.action-position`))
+  }
+  if (!context.preset) {
+    issues.push(issue(moduleId, actionId, `preset.${kind}`, 'preset', `${label}预设`, `请选择有效的${label}预设`, `preset.${kind}`))
+  } else if (!hasEffectiveAffixGroups({ enabled: true, affixGroups: context.preset.affixGroups })) {
+    issues.push(issue(moduleId, actionId, `preset.${kind}.targets`, 'preset', `${label}词缀目标`, '请至少配置一个有效的达标组合', `preset.${kind}`, 'invalid'))
+  }
+  return createConfigurationCheck(issues, context)
+}
+
 export function collectMapConfigurationIssues(context = {}) {
   const moduleId = CONFIGURATION_MODULES.map
   const actionId = CONFIGURATION_ACTIONS.start

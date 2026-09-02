@@ -75,6 +75,7 @@ test('浮士德配置校验与运行原因显示明确中文提示', () => {
   assert.equal(formatFaustusReasonCode('no_matching_band'), '当前价格没有匹配的价格分段')
   assert.equal(formatFaustusReasonCode('item_footprint_unknown'), '无法确定物品占位，已安全跳过')
   assert.equal(formatFaustusReasonCode('item_footprint_ambiguous'), '物品占位与视觉格子不一致，已安全跳过')
+  assert.equal(formatFaustusReasonCode('price_window_anchor_missing'), '价格窗口未打开，物品可能处于锁定期，已跳过')
 })
 
 test('浮士德配置拒绝非法比例、折扣、零边界和不支持单位', () => {

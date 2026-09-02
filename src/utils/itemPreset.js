@@ -40,7 +40,6 @@ export function createDefaultItemPreset(id = 'default', name = '默认预设') {
   return normalizeItemPreset({
     id,
     name,
-    checkInitialItem: true,
     batchCrafting: normalizeBatchCrafting(),
     moduleTwo: createDefaultModuleTwo(),
     moduleThree: createDefaultModuleThree(),
@@ -49,9 +48,6 @@ export function createDefaultItemPreset(id = 'default', name = '默认预设') {
 }
 
 export function normalizeItemPreset(preset = {}) {
-  const checkInitialItem = typeof preset.checkInitialItem === 'boolean'
-    ? preset.checkInitialItem
-    : preset.moduleTwo?.checkInitialAffixes !== false
   const moduleEldritch = normalizeEldritchModule(preset.moduleEldritch)
   const batchCrafting = normalizeBatchCrafting(preset.batchCrafting)
   const moduleTwo = normalizeModuleTwo(preset.moduleTwo)
@@ -68,5 +64,6 @@ export function normalizeItemPreset(preset = {}) {
     moduleTwo.enabled = false
     moduleThree.enabled = false
   }
-  return { ...preset, checkInitialItem, batchCrafting, moduleTwo, moduleThree, moduleEldritch }
+  const { checkInitialItem: _legacyCheckInitialItem, ...rest } = preset
+  return { ...rest, batchCrafting, moduleTwo, moduleThree, moduleEldritch }
 }

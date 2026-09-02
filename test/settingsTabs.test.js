@@ -120,6 +120,22 @@ test('背包字段说明收进问号提示且设置页不再编辑物品位置',
   assert.doesNotMatch(view, /物品位置|itemPosition|handleItemPositionChange|updateItemPositionDraft/)
 })
 
+test('通用页集中展示全部七个受支持全局快捷键', () => {
+  const fields = view.match(/const shortcutFields = Object\.freeze\(\[([\s\S]*?)\]\)/)?.[1] || ''
+  const keys = [...fields.matchAll(/key: '([^']+)'/g)].map(match => match[1])
+  assert.deepEqual(keys, [
+    'itemStart',
+    'mapStart',
+    'end',
+    'portal',
+    'storyPrevious',
+    'storyNext',
+    'priceCheck'
+  ])
+  assert.match(view, /v-for="field in shortcutFields"/)
+  assert.doesNotMatch(fields, /potionStart|potionStop|puzzleAnalyze|chaosRecipeStart|chaosRecipePause|chaosRecipeStop/)
+})
+
 test('自动操作等待仅保留固定时序并提供键盘可访问说明', () => {
   const operationStart = view.indexOf('<!-- 操作延迟 -->')
   const operationEnd = view.indexOf('<div v-show="activeTab === \'overlay\'"', operationStart)

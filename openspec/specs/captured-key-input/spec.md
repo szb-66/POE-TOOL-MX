@@ -43,11 +43,11 @@ The system SHALL validate shortcuts after normalization across every feature, in
 - **THEN** the system stores and registers the corresponding valid Electron accelerator
 
 ### Requirement: Register and dispatch shortcuts centrally
-The system SHALL register every non-empty shortcut in the application shortcut collection and SHALL dispatch each trigger by its feature identifier through one renderer listener. Empty optional shortcuts SHALL remain stored but MUST NOT be registered or dispatched.
+The system SHALL register every non-empty shortcut in the supported application shortcut collection and SHALL dispatch each trigger by its feature identifier through one renderer listener. Empty optional shortcuts SHALL remain stored but MUST NOT be registered or dispatched. The supported collection SHALL include item start, map start, global emergency stop, portal, story previous/next, and price check; it MUST NOT include automatic-potion start/stop, chart analysis, or chaos-recipe start/pause/stop.
 
 #### Scenario: Register shortcuts on startup
 - **WHEN** the application main renderer is ready
-- **THEN** every non-empty item, map, stop, combat, portal, story, chaos-recipe and price-check shortcut permitted by its module state is registered without requiring its page to be opened
+- **THEN** every non-empty supported shortcut permitted by its module state is registered without requiring its page to be opened
 
 #### Scenario: Start with empty optional shortcuts
 - **WHEN** stored optional shortcuts are empty at application startup
@@ -60,6 +60,28 @@ The system SHALL register every non-empty shortcut in the application shortcut c
 #### Scenario: Registration fails
 - **WHEN** Electron cannot register any non-empty shortcut in a proposed collection
 - **THEN** the system restores the previous successfully registered collection and reports the failing accelerator
+
+### Requirement: 集中展示所有受支持全局快捷键
+系统 SHALL 在设置通用页展示全部受支持的用户全局动作快捷键，并 SHALL 让一键回城模块与设置页编辑同一个回城快捷键值。游戏动作按键和开发调试快捷键 MUST NOT 混入该集合。
+
+#### Scenario: 查看通用快捷键设置
+- **WHEN** 用户进入设置通用页
+- **THEN** 页面展示制作、地图、全局紧急停止、一键回城、剧情上一步与下一步以及国服查价快捷键
+
+#### Scenario: 从两个入口修改回城快捷键
+- **WHEN** 用户在设置页或一键回城模块成功修改回城快捷键
+- **THEN** 另一入口立即显示同一值且系统只注册该组合一次
+
+### Requirement: 清理废弃快捷键
+系统 MUST 在加载旧设置时删除自动喝药开始、自动喝药停止、海图分析以及配方开始、暂停/继续、紧急停止快捷键，MUST 不再注册或分发这些字段，并 SHALL 保留其他受支持的用户自定义快捷键。
+
+#### Scenario: 升级旧设置
+- **WHEN** 已保存的全局快捷键包含任意废弃字段
+- **THEN** 系统剥离废弃字段、持久化清理后的集合并保证对应旧组合不再触发动作
+
+#### Scenario: 保留其他自定义快捷键
+- **WHEN** 旧设置同时包含废弃字段和受支持的自定义快捷键
+- **THEN** 系统仅删除废弃字段并原样保留规范化后的受支持值
 
 ### Requirement: Capture game action keys
 The system SHALL use capture controls for single game action keys and an ordered tag editor for multi-key potion sequences.
@@ -75,21 +97,6 @@ The system SHALL use capture controls for single game action keys and an ordered
 #### Scenario: Reorder a potion key sequence
 - **WHEN** the user drags a potion key tag to a new position
 - **THEN** the persisted sequence and runtime send order match the new tag order
-
-### Requirement: 混沌配方取件快捷键
-系统 SHALL 为自动取件提供开始、暂停/继续和紧急停止三个不冲突的全局快捷键。
-
-#### Scenario: 触发开始
-- **WHEN** 用户触发开始快捷键且存在有效计划和校准
-- **THEN** 系统开始当前选中套装的取件流程
-
-#### Scenario: 暂停与继续
-- **WHEN** 用户在运行中触发暂停/继续快捷键
-- **THEN** 系统在下一件物品前暂停或从当前计划位置继续
-
-#### Scenario: 紧急停止
-- **WHEN** 用户触发混沌配方停止快捷键
-- **THEN** 系统终止取件子进程并释放输入状态
 
 ### Requirement: 国服查价快捷键
 系统 SHALL 为查价提供一个默认 `Ctrl+D` 且可配置的不冲突全局快捷键。
@@ -116,17 +123,6 @@ The system SHALL use capture controls for single game action keys and an ordered
 #### Scenario: 空快捷键下启用查价
 - **WHEN** 查价快捷键为空且用户启用查价模块
 - **THEN** 系统保持模块启用但不注册快捷键，等待用户之后设置非空组合
-
-### Requirement: 九宫格分析快捷键
-系统 SHALL 为九宫格识别提供默认 `Alt+7` 且可配置、不冲突的全局快捷键。
-
-#### Scenario: 启动九宫格分析
-- **WHEN** 用户在游戏前台触发九宫格快捷键
-- **THEN** 系统通过统一快捷键分发器启动一次九宫格仓库分析
-
-#### Scenario: 修改九宫格快捷键
-- **WHEN** 用户通过快捷键捕获控件修改九宫格快捷键
-- **THEN** 系统随完整快捷键集合一起校验、保存并事务式重新注册该组合
 
 ### Requirement: 全局紧急停止全部游戏自动化
 系统 SHALL 将非空的全局结束快捷键作为统一紧急停止入口，一次触发停止所有当前正在产生或可能继续产生游戏键鼠输入的自动化任务，包括制作/地图、自动入库、仓库取件、君锋镇取件、浮士德市集改价、混沌配方取件、自动喝药、主动循环、一键回城、海图识别、海图词缀探测和海图自动放入。系统 MUST 拒绝将该快捷键保存为空，并 MUST 将历史损坏的空值恢复为默认 `Alt+3`。

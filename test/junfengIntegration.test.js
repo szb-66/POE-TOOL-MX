@@ -213,7 +213,7 @@ test('历史标注会话可按来源和用途组合筛选并保留全量测试�
 test('独立训练页面可视化复核历史会话并直接更新当前模型', () => {
   const router = source('src/router/index.js')
   const pageLoaders = source('src/router/pageLoaders.js')
-  const sidebar = source('src/components/Layout/Sidebar.vue')
+  const catalog = source('src/features/featureCatalog.js')
   const bagView = source('src/domains/bag/BagView.vue')
   const view = source('src/domains/bag/HighlightModelTrainingView.vue')
   const repository = source('electron/modules/junfeng/calibrationRepository.js')
@@ -222,8 +222,7 @@ test('独立训练页面可视化复核历史会话并直接更新当前模型',
   assert.match(router, /path: '\/highlight-model-training'/)
   assert.match(router, /!import\.meta\.env\.DEV && to\.path === '\/highlight-model-training'[\s\S]*path: '\/'/)
   assert.match(pageLoaders, /import\.meta\.env\.DEV \? \{[\s\S]*'\/highlight-model-training':[\s\S]*HighlightModelTrainingView\.vue/)
-  assert.match(sidebar, /v-if="isModelTrainingEnabled"[\s\S]*模型训练/)
-  assert.match(sidebar, /const isModelTrainingEnabled = import\.meta\.env\.DEV/)
+  assert.match(catalog, /id: 'highlight-model-training'[\s\S]*developmentOnly: true/)
   assert.doesNotMatch(bagView, /历史标注会话|GPU 训练并更新当前模型/)
   assert.match(view, /历史标注会话/)
   assert.match(view, /保存复核修改/)

@@ -128,16 +128,12 @@ export function evaluateBagStatus(input = {}) {
     id: 'bag',
     title: '存取',
     route: '/bag',
-    description: '管理安全入库、仓库取件与君锋镇取件。',
+    description: '管理背包与永火接收舱入库、仓库取件与君锋镇取件。',
     error: runtimeError,
     running: input.moduleEnabled && (input.isDetecting || input.isStashing),
     issues: input.configError ? [input.configError] : [],
     readyText: '配置完整，模块已关闭',
-    runningText,
-    metrics: [
-      { label: '模块', value: input.moduleEnabled ? '已启用' : '已关闭' },
-      { label: '最近入库', value: `${Number(input.stashedSlots) || 0} 格` }
-    ]
+    runningText
   })
 }
 
@@ -199,7 +195,7 @@ export function evaluateStoryStatus(input = {}) {
 
 export function evaluateShopStatus(input = {}) {
   const issues = []
-  if (!input.authenticated) issues.push('请先在商城页登录国服账号')
+  if (!input.authenticated) issues.push('请先在设置页登录国服账号')
   if (!input.league) issues.push('请选择国服赛季')
   if (!Number(input.selectedTabCount)) issues.push('请至少选择一个仓库页')
   if (!input.snapshot) issues.push('尚未刷新商城配方仓库数据')
@@ -220,8 +216,8 @@ export function evaluateShopStatus(input = {}) {
 
   return createModuleStatus({
     id: 'shop',
-    title: '商城配方',
-    route: '/shop',
+    title: '配方',
+    route: '/recipe',
     description: '计算七种商城配方并控制游戏内自动取件。',
     error,
     running,

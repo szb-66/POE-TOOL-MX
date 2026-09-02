@@ -28,7 +28,7 @@ test('物品制作界面公开默认保护开关，启动门禁先准备物品�
   assert.doesNotMatch(affixConfig, /checkInitialAffixes:/)
   assert.doesNotMatch(moduleTwo, /checkInitialAffixes|首次识别达标即停止/)
   assert.doesNotMatch(itemsView, /initial-recognition-section|currentItemPreset\.checkInitialItem/)
-  assert.match(moduleOne, /currentItemPreset\.checkInitialItem/)
+  assert.match(moduleOne, /craftingInitialChecks\.general/)
   assert.match(moduleOne, /首次识别[\s\S]*checkInitialItem">开启</)
   assert.doesNotMatch(moduleOne, /达标即停止|统一控制词缀、古灵隐式和插槽制作/)
 
@@ -59,13 +59,15 @@ test('页面级首次识别配置默认开启并迁移模块级临时关闭值',
   }
   setActivePinia(createPinia())
   const store = usePresetStore()
-  assert.equal(store.currentItemPreset.checkInitialItem, false)
+  assert.equal(store.craftingInitialChecks.general, false)
+  assert.equal(Object.hasOwn(store.currentItemPreset, 'checkInitialItem'), false)
   assert.equal(Object.hasOwn(store.currentItemPreset.moduleTwo, 'checkInitialAffixes'), false)
 
-  store.updateCurrentItemPreset({ checkInitialItem: true })
+  store.updateCraftingInitialCheck('general', true)
   setActivePinia(createPinia())
   const restored = usePresetStore()
-  assert.equal(restored.currentItemPreset.checkInitialItem, true)
+  assert.equal(restored.craftingInitialChecks.general, true)
+  assert.equal(Object.hasOwn(restored.currentItemPreset, 'checkInitialItem'), false)
 })
 
 test('制作前准备仅鉴定未鉴定物品一次，并对失败发出启动错误', () => {
@@ -377,6 +379,102 @@ print(json.dumps({"kept": refreshed, "refreshed": [ok2, len(refreshed_result.get
 `)
     assert.deepEqual(runAugment.kept, [true, false, 1, ['augmentation'], []])
     assert.deepEqual(runAugment.refreshed, [true, 2, ['augmentation', 'augmentation']])
+  } finally {
+    await server.close()
+  }
+})
+
+test('破碎物品在所有重铸预处理入口点击前停止', async () => {
+  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
+  try {
+    const { generatePythonScript } = await server.ssrLoadModule('/src/utils/python.js')
+    const generate = (mode) => generatePythonScript({
+      globalShortcuts: { end: 'Alt+3' },
+      currencyPositions: {
+        scouring: { x: 1, y: 1 },
+        transmutation: { x: 2, y: 2 },
+        alteration: { x: 3, y: 3 },
+        alchemy: { x: 4, y: 4 }
+      },
+      operationDelayMs: 50,
+      fixedTiming: {},
+      itemPosition: { x: 30, y: 40 },
+      preset: {
+        checkInitialItem: true,
+        moduleTwo: {
+          enabled: true,
+          mode,
+          affixGroups: [{ id: 'goal', name: '目标', requiredAffixes: ['生命'], selectedAffixes: [], selectedCount: 1 }]
+        },
+        moduleThree: { enabled: false },
+        moduleEldritch: { enabled: false }
+      },
+      filePaths: { itemInfoFile: 'item.txt', itemInfoResultFile: 'result.json' },
+      stashTabSelection: { enabled: false }
+    })
+
+    const runAffix = (generated, initial, readResults = [], stopCurrency = '') => {
+      const helperStart = generated.indexOf('def fail_item_runtime(')
+      const helperEnd = generated.indexOf('def fail_item_preparation(', helperStart)
+      const logicStart = generated.indexOf('def has_fractured_affix(')
+      const logicEnd = generated.indexOf('def craft_eldritch_implicits(', logicStart)
+      assert.ok(helperStart >= 0 && helperEnd > helperStart && logicStart >= 0 && logicEnd > logicStart)
+      return runPython(`
+import json, time
+${generated.slice(helperStart, helperEnd)}
+${generated.slice(logicStart, logicEnd)}
+is_running = True
+fatal = []
+applied = []
+queue = json.loads(r'''${JSON.stringify(readResults)}''')
+def fail_item_runtime(reason, code="ITEM_READ_FAILED"):
+    fatal.append({"reason": reason, "code": code})
+    globals()["is_running"] = False
+    return False
+def apply_currency(currency):
+    applied.append(currency)
+    if currency == "${stopCurrency}":
+        globals()["is_running"] = False
+    return True
+def read_current_item(*_args, **_kwargs):
+    return queue.pop(0) if queue else {"unchanged": True}
+time.sleep = lambda _seconds: None
+success = craft_affixes(json.loads(r'''${JSON.stringify(initial)}'''))
+print(json.dumps({"success": bool(success), "applied": applied, "fatal": fatal}, ensure_ascii=False))
+`)
+    }
+
+    const expectedReason = '检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品，已停止制作'
+    const expectedFailure = [{ reason: expectedReason, code: 'FRACTURED_ITEM_PREPARATION_UNSUPPORTED' }]
+
+    const structured = runAffix(generate('alteration'), {
+      rarity: '稀有', affixMatch: false,
+      modifiers: [{ type: 'fractured', text: '+100 最大生命' }]
+    })
+    assert.equal(structured.success, false)
+    assert.deepEqual(structured.applied, [])
+    assert.deepEqual(structured.fatal, expectedFailure)
+
+    const flagged = runAffix(generate('alteration'), {
+      rarity: '稀有', affixMatch: false, isFractured: true, modifiers: []
+    })
+    assert.deepEqual(flagged.applied, [])
+    assert.deepEqual(flagged.fatal, expectedFailure)
+
+    const alchemyLoop = runAffix(generate('alchemy'), {
+      rarity: '普通', affixMatch: false, modifiers: []
+    }, [{
+      rarity: '稀有', affixMatch: false,
+      modifiers: [{ type: 'fractured', text: '+100 最大生命' }]
+    }])
+    assert.deepEqual(alchemyLoop.applied, ['alchemy'])
+    assert.deepEqual(alchemyLoop.fatal, expectedFailure)
+
+    const ordinary = runAffix(generate('alteration'), {
+      rarity: '稀有', affixMatch: false, modifiers: [{ type: 'prefix', text: '+100 最大生命' }]
+    }, [{ rarity: '魔法', affixMatch: false, modifiers: [] }], 'alteration')
+    assert.deepEqual(ordinary.applied, ['scouring', 'alteration'])
+    assert.deepEqual(ordinary.fatal, [])
   } finally {
     await server.close()
   }

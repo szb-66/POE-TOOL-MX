@@ -20,15 +20,18 @@ export async function resetApplicationSettings({
   }
 
   await syncShortcuts()
-  resetStoredSettings()
+  const storedResetResult = await resetStoredSettings()
   resetInterfaceDetection()
   const operations = [
     ['control-overlay-offset', resetControlOverlayOffset],
     ['price-check-shortcut', syncPriceCheckShortcut]
   ]
   const results = await Promise.allSettled(operations.map(([, operation]) => operation()))
-  const warnings = results.flatMap((result, index) => result.status === 'rejected'
-    ? [{ id: operations[index][0], message: result.reason?.message || String(result.reason) }]
-    : [])
+  const warnings = [
+    ...(Array.isArray(storedResetResult?.warnings) ? storedResetResult.warnings : []),
+    ...results.flatMap((result, index) => result.status === 'rejected'
+      ? [{ id: operations[index][0], message: result.reason?.message || String(result.reason) }]
+      : [])
+  ]
   return { stopResult, warnings }
 }

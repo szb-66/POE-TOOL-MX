@@ -212,6 +212,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     try {
       const config = normalizeValidPotionConfig(payload.config)
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
+      const activation = await window.activateGameWindow('combat-potion-start')
+      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const handle = spawnCombatProcess({
         mode: 'potion',
         config: combatRuntimeConfig(config),
@@ -276,6 +278,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
       const validation = validateLoopAssist(config)
       if (!validation.isValid) throw new Error(validation.errors[0] || '循环按键配置无效')
+      const activation = await window.activateGameWindow('combat-loop-start')
+      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const handle = spawnCombatProcess({
         mode: 'loop',
         config: combatRuntimeConfig(config),
@@ -336,6 +340,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     try {
       const pythonPath = python.detectPythonPath()
       if (!pythonPath) return { success: false, error: '未找到Python可执行文件' }
+      const activation = await window.activateGameWindow('combat-sample-pixel')
+      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, { point: payload.point }, 'sample')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'sample', configPath)
       return result
@@ -351,6 +357,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       if (!validation.isValid) return { success: false, error: validation.errors[0] || '回城配置无效' }
       const pythonPath = python.detectPythonPath()
       if (!pythonPath) return { success: false, error: '未找到Python可执行文件' }
+      const activation = await window.activateGameWindow('combat-portal')
+      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const portalTiming = pythonAutomationTiming(payload.automationTiming)
       const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, combatRuntimeConfig(config, portalTiming), 'portal')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'portal', configPath)
@@ -361,6 +369,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       return { success: false, error: error.message }
     }
   })
+  ipcMain.handle('combat-stop-portal', async () => stopPortalAutomation())
 }
 
 export async function cleanupCombatProcesses() {

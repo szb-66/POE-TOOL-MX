@@ -70,6 +70,8 @@ export function generatePythonScript(config) {
     operationDelayMs,
     fixedTiming = {},
     itemPosition,
+    actionPosition = { x: 0, y: 0 },
+    craftingKind = 'general',
     preset,
     batchConfig = null,
     filePaths,
@@ -145,6 +147,7 @@ export function generatePythonScript(config) {
 
   // 生成词缀匹配逻辑
   const generateAffixMatchingLogic = () => {
+    if (craftingKind !== 'general') return 'def craft_affixes(initial_result=None):\n    return True'
     if (!preset.moduleTwo || !preset.moduleTwo.enabled) {
       return 'def craft_affixes(initial_result=None):\n    return True'
     }
@@ -153,8 +156,28 @@ export function generatePythonScript(config) {
     const enableAugmentation = preset.moduleTwo.enableAugmentation || false
     const enableRegal = preset.moduleTwo.enableRegal || false
     const enableExalted = preset.moduleTwo.enableExalted || false
+    const alchemyCurrency = mode === 'alchemy' && preset.moduleTwo.enableBinding ? 'binding' : 'alchemy'
 
-    let finishLogic = `def explicit_affix_count(result):
+    let finishLogic = `def has_fractured_affix(result):
+    if not isinstance(result, dict):
+        return False
+    if result.get("isFractured", False):
+        return True
+    modifiers = result.get("modifiers", [])
+    return isinstance(modifiers, list) and any(
+        isinstance(modifier, dict) and modifier.get("type") == "fractured"
+        for modifier in modifiers
+    )
+
+def ensure_scouring_preprocessable(result):
+    if not has_fractured_affix(result):
+        return True
+    return fail_item_runtime(
+        "检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品，已停止制作",
+        "FRACTURED_ITEM_PREPARATION_UNSUPPORTED"
+    )
+
+def explicit_affix_count(result):
     modifiers = result.get("modifiers", []) if isinstance(result, dict) else []
     if isinstance(modifiers, list) and modifiers:
         counted_types = {"prefix", "suffix", "fractured", "crafted"}
@@ -313,6 +336,8 @@ def craft_affixes(initial_result=None):
                     print("[错误] 使用点金石失败")
                     return False
             elif action_needed == "scouring":
+                if not ensure_scouring_preprocessable(result):
+                    return False
                 print(f"[预处理] {rarity}物品 -> 使用重铸石")
                 if not apply_currency("scouring"):
                     print("[错误] 使用重铸石失败")
@@ -385,15 +410,17 @@ def craft_affixes(initial_result=None):
             # 如果物品不是普通品质（例如已经是稀有），先重铸
             current_rarity = result.get("rarity", "").replace(" ", "")
             if current_rarity != "普通":
+                if not ensure_scouring_preprocessable(result):
+                    return False
                 print(f"[操作] 第 {iteration} 次 - 物品非普通 ({current_rarity})，使用重铸石")
                 if not apply_currency("scouring"):
                     print("[错误] 使用重铸石失败，跳过")
                     continue
             
-            # 使用点金石
-            print(f"[操作] 第 {iteration} 次 - 使用点金石")
-            if not apply_currency("alchemy"):
-                print("[错误] 使用点金石失败，跳过本次循环")
+            # 使用当前点金通货
+            print(f"[操作] 第 {iteration} 次 - 使用${alchemyCurrency === 'binding' ? '高阶点金石' : '点金石'}")
+            if not apply_currency("${alchemyCurrency}"):
+                print("[错误] 使用${alchemyCurrency === 'binding' ? '高阶点金石' : '点金石'}失败，跳过本次循环")
                 continue
 `
     }
@@ -457,6 +484,69 @@ def craft_affixes(initial_result=None):
 `
 
     return logic
+  }
+
+  const generateSpecializedCraftingLogic = () => {
+    if (craftingKind === 'general') return `def craft_specialized(initial_result=None):
+    return True`
+    const isEssence = craftingKind === 'essence'
+    const label = isEssence ? '精华制作' : '花园工艺'
+    const action = isEssence
+      ? `if not move_mouse(int(action_position["x"]), int(action_position["y"])) or not click_mouse("right"):
+            return fail_item_runtime("无法取得目标精华", "SPECIALIZED_ACTION_FAILED")
+        if not move_mouse(int(item_position["x"]), int(item_position["y"])) or not click_mouse("left"):
+            return fail_item_runtime("无法将精华用于目标物品", "SPECIALIZED_ACTION_FAILED")`
+      : `if not move_mouse(int(action_position["x"]), int(action_position["y"])) or not click_mouse("left"):
+            return fail_item_runtime("无法点击花园工艺按钮", "SPECIALIZED_ACTION_FAILED")
+        if not move_mouse(int(item_position["x"]), int(item_position["y"])):
+            return fail_item_runtime("无法移动到花园工艺物品", "ITEM_POSITION_FAILED")`
+    const preflight = isEssence ? `def preflight_specialized_action():
+    if GetClipboardSequenceNumber is None:
+        return fail_item_runtime("无法验证目标精华位置", "CLIPBOARD_UNAVAILABLE")
+    if not move_mouse(int(action_position["x"]), int(action_position["y"])):
+        return fail_item_runtime("无法移动到目标精华位置", "ESSENCE_POSITION_FAILED")
+    before_seq = GetClipboardSequenceNumber()
+    before_text = str(pyperclip.paste() or "")
+    clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text=True)
+    if not clipboard_text or GetClipboardSequenceNumber() == before_seq:
+        return fail_item_runtime("目标精华位置没有可复制物品", "ESSENCE_NOT_FOUND")
+    actual = detected_item_name(copied_item_header(clipboard_text))
+    if "精华" not in actual:
+        return fail_item_runtime(f"目标位置不是精华：{actual or '未识别'}", "ESSENCE_TYPE_MISMATCH")
+    print(f"[预检] 目标精华验证通过：{actual}")
+    return True
+` : `def preflight_specialized_action():
+    return True
+`
+    return `${preflight}
+def craft_specialized(initial_result=None):
+    if not isinstance(initial_result, dict) or initial_result.get("error"):
+        return fail_item_runtime("缺少有效的制作前物品结果", "ITEM_READ_FAILED")
+    result = initial_result
+    if result.get("isLegendary", False):
+        return fail_item_runtime("传奇物品无法进行${label}", "ITEM_UNMODIFIABLE")
+    if not preflight_specialized_action():
+        return False
+    if ${checkInitialItem ? 'True' : 'False'} and result.get("affixMatch", False):
+        print("[完成] 首次识别已满足词缀目标，未执行${label}")
+        return True
+    for iteration in range(1, 1001):
+        if not is_running:
+            return False
+        print(f"[操作] ${label}第 {iteration} 次")
+        ${action}
+        read_result = read_current_item(verify_freshness=True)
+        if not isinstance(read_result, dict) or read_result.get("error"):
+            reason = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+            return fail_item_runtime(f"${label}后无法读取物品：{reason}", "ITEM_READ_FAILED")
+        if read_result.get("unchanged"):
+            return fail_item_runtime("${isEssence ? '使用精华后物品文本未变化，请检查物品/精华坐标与精华堆叠数量' : '点击工艺按钮后物品文本未变化，请检查物品/按钮坐标与工艺可用性'}", "SPECIALIZED_ITEM_UNCHANGED")
+        result = read_result
+        if result.get("affixMatch", False):
+            group_name = result.get("matchedGroupName") or "目标组合"
+            print(f"[完成] ${label}命中：{group_name}（第 {iteration} 次）")
+            return True
+    return fail_item_runtime("达到最大循环次数 (1000)，仍未命中目标词缀", "SPECIALIZED_MAX_ITERATIONS")`
   }
 
   // 生成插槽制作逻辑
@@ -735,6 +825,10 @@ def craft_eldritch_implicits(initial_result=None):
     x: Math.floor(itemPosition?.x || 0),
     y: Math.floor(itemPosition?.y || 0)
   }
+  const safeActionPosition = {
+    x: Math.floor(actionPosition?.x || 0),
+    y: Math.floor(actionPosition?.y || 0)
+  }
   const requiredCurrencyTypes = buildCraftingCurrencyPreflight(preset)
   const safeBatchConfig = batchConfig?.enabled ? {
     enabled: true,
@@ -779,6 +873,8 @@ def craft_eldritch_implicits(initial_result=None):
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
+    '{{ACTION_POSITION}}': jsonToPython(JSON.stringify(safeActionPosition)),
+    '{{CRAFTING_KIND}}': craftingKind,
     '{{BATCH_CONFIG_JSON}}': JSON.stringify(JSON.stringify(safeBatchConfig)),
     '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
     '{{STOP_SHORTCUT}}': stopShortcut,
@@ -787,6 +883,7 @@ def craft_eldritch_implicits(initial_result=None):
     '{{ENABLE_SOCKET}}': preset.moduleThree?.enabled ? 'True' : 'False',
     '{{ENABLE_ELDRITCH}}': preset.moduleEldritch?.enabled ? 'True' : 'False',
     '{{AFFIX_CRAFTING_FUNC}}': generateAffixMatchingLogic(),
+    '{{SPECIALIZED_CRAFTING_FUNC}}': generateSpecializedCraftingLogic(),
     '{{ELDRITCH_CRAFTING_FUNC}}': generateEldritchCraftingLogic(),
     '{{SOCKET_CRAFTING_FUNC}}': generateSocketCraftingLogic(),
     '{{DPI_AWARENESS}}': DPI_AWARENESS

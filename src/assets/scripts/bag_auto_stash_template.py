@@ -454,73 +454,6 @@ def is_game_foreground():
     return window_matches_game(user32.GetForegroundWindow())
 
 
-def find_game_window():
-    if sys.platform != "win32":
-        return 0
-    user32 = ctypes.windll.user32
-    matches = []
-    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
-
-    @callback_type
-    def visit(hwnd, _lparam):
-        if not user32.IsWindowVisible(hwnd):
-            return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return True
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        priority = game_window_title_priority(buffer.value)
-        if priority >= 0 and window_matches_game(hwnd):
-            matches.append((priority, hwnd))
-        return True
-
-    user32.EnumWindows(visit, 0)
-    matches.sort(key=lambda entry: entry[0])
-    return matches[0][1] if matches else 0
-
-
-def focus_game_window(timeout_seconds=2.0):
-    if is_game_foreground():
-        return True
-    if sys.platform != "win32":
-        return False
-    user32 = ctypes.windll.user32
-    kernel32 = ctypes.windll.kernel32
-    hwnd = find_game_window()
-    if not hwnd:
-        return False
-    foreground = user32.GetForegroundWindow()
-    current_thread = kernel32.GetCurrentThreadId()
-    foreground_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
-    target_thread = user32.GetWindowThreadProcessId(hwnd, None)
-    attached_foreground = bool(
-        foreground_thread and foreground_thread != current_thread and
-        user32.AttachThreadInput(current_thread, foreground_thread, True)
-    )
-    attached_target = bool(
-        target_thread and target_thread != current_thread and target_thread != foreground_thread and
-        user32.AttachThreadInput(current_thread, target_thread, True)
-    )
-    try:
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, 9)
-        user32.BringWindowToTop(hwnd)
-        user32.SetForegroundWindow(hwnd)
-        user32.SetFocus(hwnd)
-    finally:
-        if attached_target:
-            user32.AttachThreadInput(current_thread, target_thread, False)
-        if attached_foreground:
-            user32.AttachThreadInput(current_thread, foreground_thread, False)
-    deadline = time.monotonic() + max(FOCUS_ACTIVATION_MIN_SECONDS, float(timeout_seconds))
-    while is_running and time.monotonic() < deadline:
-        if is_game_foreground():
-            return True
-        time.sleep(FOREGROUND_POLL_INTERVAL_SECONDS)
-    return False
-
-
 def stop_for_foreground_loss(controller=None):
     global is_running, runtime_stop_reason
     is_running = False
@@ -1070,7 +1003,7 @@ def run_stash(config):
     runtime_stop_reason = ""
     stats = empty_stats()
     apply_fixed_timing(config)
-    if not focus_game_window():
+    if not is_game_foreground():
         return abort("game-not-foreground", stats)
     controller = InputController(config)
     inventory = config.get("inventory", {})
@@ -1368,7 +1301,7 @@ def run_inventory_scan(config):
     global runtime_stop_reason
     runtime_stop_reason = ""
     apply_fixed_timing(config)
-    if not focus_game_window():
+    if not is_game_foreground():
         emit("inventory-scan-error", code="GAME_NOT_FOREGROUND", reason="无法聚焦游戏窗口")
         return 1
     inventory = config.get("inventory", {})

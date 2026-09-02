@@ -55,8 +55,8 @@ test('碎片完整、部分、失败和停止终态共用自动化后的单一�
   assert.match(analyze, /let automationStarted = false[\s\S]*validateRegion[\s\S]*runAnalyzer\([\s\S]*automationStarted = true/)
   assert.match(analyze, /fragmentRecognitionResult\(mods\.fragmentProbe, candidateTotal\)/)
   assert.match(analyze, /recognitionFailureResult|showFeedbackFailure/)
-  assert.match(analyze, /finally \{[\s\S]*if \(automationStarted\) await restoreMainWindowToForeground\(\)/)
-  assert.equal((analyze.match(/restoreMainWindowToForeground\(\)/g) || []).length, 1)
+  assert.match(analyze, /finally \{[\s\S]*if \(automationStarted\) await this\.windowActivation\?\.activateMain/)
+  assert.equal((analyze.match(/windowActivation\?\.activateMain/g) || []).length, 1)
   assert.doesNotMatch(publish, /restoreMainWindowToForeground/)
 })
 

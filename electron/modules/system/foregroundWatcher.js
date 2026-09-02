@@ -65,8 +65,17 @@ export function startForegroundWatcher({
     const game = Boolean(payload.game)
     const reason = String(payload.reason || '')
     const processName = String(payload.processName || '')
+    const rawBounds = payload.bounds
+    const bounds = rawBounds && ['left', 'top', 'right', 'bottom'].every(key => Number.isFinite(Number(rawBounds[key])))
+      ? Object.fromEntries(['left', 'top', 'right', 'bottom'].map(key => [key, Math.round(Number(rawBounds[key]))]))
+      : null
     state = { state: 'ready', game, reason, processName }
-    onStateChange({ game, title: String(payload.title || ''), reason, processName })
+    const foregroundState = { game, title: String(payload.title || ''), reason, processName }
+    if (bounds) {
+      state.bounds = bounds
+      foregroundState.bounds = bounds
+    }
+    onStateChange(foregroundState)
   }
 
   function handleExit(error) {

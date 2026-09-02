@@ -49,7 +49,7 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   const api = source('../src/api/electron.js')
   const main = source('../electron/main.js')
   const router = source('../src/router/index.js')
-  const runtime = source('../src/startup/mainRuntime.js')
+  const runtime = source('../src/features/installFeatureRuntime.js')
 
   for (const channel of ['puzzle-pick-inventory-region', 'puzzle-analyze', 'puzzle-clear-region']) {
     assert.match(ipc, new RegExp(channel))
@@ -63,7 +63,10 @@ test('IPC、preload、渲染 API、路由和主进程服务使用同一分析协
   assert.match(source('../electron/modules/puzzle/service.js'), /async analyze[\s\S]*requireGameForeground: true/)
   assert.match(source('../electron/modules/puzzle/service.js'), /region: metadata\.selectedRegion,[\s\S]*displayBounds: metadata\.displayPhysicalBounds/)
   assert.match(source('../electron/modules/puzzle/service.js'), /requestedPages[\s\S]*\[1, 2\][\s\S]*pages: results/)
-  assert.match(source('../src/utils/scriptService.js'), /puzzleAnalyze: startPuzzleAnalysis/)
+  assert.doesNotMatch(source('../src/utils/scriptService.js'), /puzzleAnalyze: startPuzzleAnalysis/)
+  const puzzleView = source('../src/domains/puzzle/PuzzleView.vue')
+  assert.match(puzzleView, /@click="startAnalysis"/)
+  assert.doesNotMatch(puzzleView, /puzzleShortcut|puzzleAnalyze|也可按.*触发|快捷键.*识别两页/)
   assert.match(router, /path: '\/puzzle'/)
   assert.match(runtime, /router\.push\('\/puzzle'\)/)
 })
@@ -390,18 +393,18 @@ test('边缘词缀识别结束后恢复主窗口前台且早期校验失败不�
   const probe = service.match(/async probeBorderMods\(\{ atlasRegionMetadata \} = \{\}\)[\s\S]*?\n  \}/)?.[0] || ''
   const finallyBlock = probe.match(/finally \{([\s\S]*?)\n    \}/)?.[1] || ''
 
-  assert.match(manager, /export function restoreMainWindowToForeground\(\) \{[\s\S]*?restoreWindowToForeground\(mainWindow,/)
+  assert.match(manager, /export function restoreMainWindowToForeground\(\) \{[\s\S]*?windowActivation\?\.activateMain/)
   assert.match(foreground, /window\.show\(\)[\s\S]*window\.moveTop\?\.\(\)[\s\S]*window\.focus\(\)/)
   assert.match(foreground, /window\.isFocused\?\.\(\)[\s\S]*window\.minimize\(\)[\s\S]*window\.restore\(\)/)
   assert.doesNotMatch(foreground, /setAlwaysOnTop/)
   assert.match(finallyBlock, /this\.automationLock\?\.release\(MOD_PROBE_OWNER\)/)
-  assert.match(finallyBlock, /if \(automationStarted\) await restoreMainWindowToForeground\(\)/)
-  assert.equal((probe.match(/restoreMainWindowToForeground\(\)/g) || []).length, 1)
+  assert.match(finallyBlock, /if \(automationStarted\) await this\.windowActivation\?\.activateMain/)
+  assert.equal((probe.match(/windowActivation\?\.activateMain/g) || []).length, 1)
   assert.ok(probe.indexOf("if (this.busy) return fail") < probe.indexOf('let automationStarted = false'))
 
   const analyze = service.match(/async analyze\([\s\S]*?\n  \}/)?.[0] || ''
   assert.match(analyze, /runAnalyzer\([\s\S]*?\(\) => \{ automationStarted = true \}\)/)
-  assert.match(analyze, /finally \{[\s\S]*?if \(automationStarted\) await restoreMainWindowToForeground\(\)/)
+  assert.match(analyze, /finally \{[\s\S]*?if \(automationStarted\) await this\.windowActivation\?\.activateMain/)
   const publish = service.match(/publish\(payload\) \{([\s\S]*?)\n  \}/)?.[1] || ''
   assert.doesNotMatch(publish, /restoreMainWindowToForeground/)
 })

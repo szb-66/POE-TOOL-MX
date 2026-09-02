@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { availableFeatureCatalog } from '../src/features/featureCatalog.js'
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -11,7 +12,8 @@ test('存取模块在关联入口使用统一名称并保留内部路由', () =>
   const settings = source('src/domains/settings/SettingsView.vue')
   const bagService = source('src/utils/bagService.js')
 
-  assert.match(sidebar, /index="\/bag"[\s\S]*?<span>存取<\/span>/)
+  assert.equal(availableFeatureCatalog().find(item => item.id === 'bag')?.label, '存取')
+  assert.match(sidebar, /featureStore\.enabledFeatures/)
   assert.match(dashboard, /id: 'bag',[\s\S]*?title: '存取',[\s\S]*?route: '\/bag'/)
   assert.match(help, /id: 'bag', title: '存取'/)
   assert.match(settings, /前往“存取”页面进行配置/)

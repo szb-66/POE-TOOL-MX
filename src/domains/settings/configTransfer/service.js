@@ -19,6 +19,8 @@ import {
 
 export const CONFIG_TRANSFER_STORAGE_KEYS = Object.freeze([
   'itemPresets', 'currentItemPresetId',
+  'essencePresets', 'currentEssencePresetId',
+  'harvestPresets', 'currentHarvestPresetId',
   'mapPresets', 'currentMapPresetId',
   'storyGuide:v1',
   'toolSiteDirectory'
