@@ -5,6 +5,7 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   portal: '',
   storyPrevious: '',
   storyNext: '',
+  storyTimerToggle: '',
   priceCheck: ''
 })
 

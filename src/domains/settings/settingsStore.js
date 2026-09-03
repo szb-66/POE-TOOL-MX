@@ -122,6 +122,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const storyOverlayLayoutVersion = ref(STORY_OVERLAY_LAYOUT_VERSION)
   const storyOverlayOpacity = ref(DEFAULT_STORY_OVERLAY_OPACITY)
   const storyShowSkillRequiredLevel = ref(DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL)
+  const storyOverlayStoryEnabled = ref(true)
+  const storyOverlaySkillsEnabled = ref(true)
+  const storyTimerOverlayEnabled = ref(false)
+  const storyTimerPauseInBackground = ref(true)
 
   // 背景历史记录
   const backgroundHistory = ref([])
@@ -426,6 +430,10 @@ export const useSettingsStore = defineStore('settings', () => {
         storyOverlayLayoutVersion: storyOverlayLayoutVersion.value,
         storyOverlayOpacity: storyOverlayOpacity.value,
         storyShowSkillRequiredLevel: storyShowSkillRequiredLevel.value,
+        storyOverlayStoryEnabled: storyOverlayStoryEnabled.value,
+        storyOverlaySkillsEnabled: storyOverlaySkillsEnabled.value,
+        storyTimerOverlayEnabled: storyTimerOverlayEnabled.value,
+        storyTimerPauseInBackground: storyTimerPauseInBackground.value,
         backgroundHistory: backgroundHistory.value,
         combatAssist: combatAssist.value,
         stashTabSelection: stashTabSelection.value
@@ -507,6 +515,10 @@ export const useSettingsStore = defineStore('settings', () => {
         storyOverlayLayoutVersion.value = storyOverlayLayout.layoutVersion
         storyOverlayOpacity.value = normalizeStoryOverlayOpacity(data.storyOverlayOpacity)
         storyShowSkillRequiredLevel.value = normalizeStoryShowSkillRequiredLevel(data.storyShowSkillRequiredLevel)
+        storyOverlayStoryEnabled.value = data.storyOverlayStoryEnabled !== false
+        storyOverlaySkillsEnabled.value = data.storyOverlaySkillsEnabled !== false
+        storyTimerOverlayEnabled.value = data.storyTimerOverlayEnabled === true
+        storyTimerPauseInBackground.value = data.storyTimerPauseInBackground !== false
         combatAssist.value = normalizeCombatAssist(data.combatAssist)
         stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
         if (operationTimingMigrated || storyOverlayLayout.migrated || shortcutSettingsMigrated) saveSettings()
@@ -534,6 +546,23 @@ export const useSettingsStore = defineStore('settings', () => {
     storyOverlayOpacity.value = normalizeStoryOverlayOpacity(opacity)
     saveSettings()
     electronApi.storyOverlay.setOpacity(storyOverlayOpacity.value)
+  }
+
+  const updateStoryOverlayModule = (module, enabled) => {
+    const target = {
+      story: storyOverlayStoryEnabled,
+      skills: storyOverlaySkillsEnabled,
+      timer: storyTimerOverlayEnabled
+    }[module]
+    if (!target) return false
+    target.value = Boolean(enabled)
+    saveSettings()
+    return true
+  }
+
+  const updateStoryTimerPauseInBackground = (enabled) => {
+    storyTimerPauseInBackground.value = Boolean(enabled)
+    saveSettings()
   }
 
   const defaultOverlaySettings = normalizeOverlaySettings()
@@ -573,6 +602,10 @@ export const useSettingsStore = defineStore('settings', () => {
     storyOverlayLayoutVersion.value = STORY_OVERLAY_LAYOUT_VERSION
     storyOverlayOpacity.value = DEFAULT_STORY_OVERLAY_OPACITY
     storyShowSkillRequiredLevel.value = DEFAULT_STORY_SHOW_SKILL_REQUIRED_LEVEL
+    storyOverlayStoryEnabled.value = true
+    storyOverlaySkillsEnabled.value = true
+    storyTimerOverlayEnabled.value = false
+    storyTimerPauseInBackground.value = true
     backgroundHistory.value = []
     combatAssist.value = createDefaultCombatAssist()
     stashTabSelection.value = createDefaultStashTabSelection()
@@ -682,6 +715,10 @@ export const useSettingsStore = defineStore('settings', () => {
     storyOverlayWidth,
     storyOverlayOpacity,
     storyShowSkillRequiredLevel,
+    storyOverlayStoryEnabled,
+    storyOverlaySkillsEnabled,
+    storyTimerOverlayEnabled,
+    storyTimerPauseInBackground,
     backgroundHistory,
     updateGlobalShortcuts,
     updateShortcutHealth,
@@ -713,6 +750,8 @@ export const useSettingsStore = defineStore('settings', () => {
     updateStoryOverlayWidth,
     updateStoryOverlayOpacity,
     updateStoryShowSkillRequiredLevel,
+    updateStoryOverlayModule,
+    updateStoryTimerPauseInBackground,
     removeHistoryItem,
     saveSettings,
     loadSettings,

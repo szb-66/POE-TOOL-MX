@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
+import { useStoryTimerStore } from '@/stores/storyTimer'
 import {
   buildStoryFlow,
   buildStorySnapshot,
@@ -22,6 +23,7 @@ import {
 export const useStoryStore = defineStore('story', () => {
   const initial = readStoryData()
   const settings = useSettingsStore()
+  const timer = useStoryTimerStore()
   const storyPresets = ref(initial.storyPresets)
   const skillPresets = ref(initial.skillPresets)
   const currentStoryPresetId = ref(initial.currentStoryPresetId)
@@ -58,14 +60,28 @@ export const useStoryStore = defineStore('story', () => {
   const viewedSkillGroups = computed(() =>
     currentSkillPreset.value?.chapterSkills?.[viewedChapterIndex.value]?.skillGroups || []
   )
-  const snapshot = computed(() => buildStorySnapshot(
-    chapters.value,
-    currentStepId.value,
-    currentSkillGroups.value,
-    {
-      currentChapterId: currentChapterId.value,
-      showRequiredLevel: settings.storyShowSkillRequiredLevel
+  const snapshot = computed(() => ({
+    ...buildStorySnapshot(
+      chapters.value,
+      currentStepId.value,
+      currentSkillGroups.value,
+      {
+        currentChapterId: currentChapterId.value,
+        showRequiredLevel: settings.storyShowSkillRequiredLevel
+      }
+    ),
+    modules: {
+      story: settings.storyOverlayStoryEnabled,
+      skills: settings.storyOverlaySkillsEnabled
+    },
+    timer: {
+      enabled: settings.storyTimerOverlayEnabled,
+      status: timer.status,
+      elapsedMs: timer.currentElapsedMs
     }
+  }))
+  const hasOverlayModule = computed(() => (
+    settings.storyOverlayStoryEnabled || settings.storyOverlaySkillsEnabled || settings.storyTimerOverlayEnabled
   ))
   const canCopySkillsToNextChapter = computed(() =>
     viewedChapterIndex.value >= 0 && viewedChapterIndex.value < chapters.value.length - 1
@@ -327,6 +343,7 @@ export const useStoryStore = defineStore('story', () => {
   const next = () => move(1)
 
   async function showOverlay(width = settings.storyOverlayWidth, opacity = settings.storyOverlayOpacity) {
+    if (!hasOverlayModule.value) return { success: false, error: '请至少开启一个浮窗模块' }
     const result = await electronApi.storyOverlay.open(
       JSON.parse(JSON.stringify(snapshot.value)),
       { width, opacity }
@@ -341,6 +358,9 @@ export const useStoryStore = defineStore('story', () => {
   }
 
   watch(snapshot, syncOverlay, { deep: true })
+  watch(hasOverlayModule, enabled => {
+    if (!enabled && overlayVisible.value) void hideOverlay()
+  })
 
   return {
     storyPresets,
@@ -362,6 +382,7 @@ export const useStoryStore = defineStore('story', () => {
     viewedSkillGroups,
     overlayVisible,
     snapshot,
+    hasOverlayModule,
     canCopySkillsToNextChapter,
     save,
     syncOverlay,

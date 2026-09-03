@@ -83,7 +83,7 @@ test('位置抓手复用自动入库的固定起点拖动且始终恢复规范�
   assert.doesNotMatch(storyWindow, /setPosition|window-move|getStoryOverlayPositionFromGrip/)
   assert.doesNotMatch(manager, /storyOverlayGripWindow/)
   assert.match(manager, /requestedHeight == null \? storyOverlaySize\.height/)
-  assert.match(manager, /requestedWidth == null \? storyOverlaySize\.width/)
+  assert.match(manager, /desiredWidth = getStoryOverlayRequestedWidth\(storyOverlaySnapshot, storyOverlayContentWidth\)/)
   assert.match(manager, /export function setStoryOverlayDragging[\s\S]*storyOverlayDragPassthrough\.setDragging\(dragging\)/)
   assert.match(manager, /export function moveStoryOverlayTo[\s\S]*getFixedOverlayDragBounds\(point, display\.workArea, storyOverlaySize\)/)
   assert.match(ipc, /const storyOverlayDrag = new OverlayDragSession\(\)/)

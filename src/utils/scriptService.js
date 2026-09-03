@@ -16,6 +16,7 @@ import { useScriptStore } from '../stores/script'
 import { ElMessage } from 'element-plus'
 import { executePortalAssist } from './combatService.js'
 import { useStoryStore } from '../stores/story'
+import { useStoryTimerStore } from '../stores/storyTimer'
 import { validateShortcuts } from './shortcutValidator.js'
 import { dispatchShortcutAction, normalizeGlobalShortcutSettings } from './shortcutConfig.js'
 import { isSuccessfulScriptStart } from './scriptStartResult.js'
@@ -65,6 +66,7 @@ async function refreshDpiForAutomation(settingsStore) {
 export async function initShortcuts() {
   // 使用 electronApi 封装
   const settingsStore = useSettingsStore()
+  useStoryTimerStore()
 
   // 同步“仅在游戏窗口前台生效”开关与当前前台状态
   try {
@@ -121,6 +123,12 @@ export async function initShortcuts() {
         portal: executePortalAssist,
         storyPrevious: () => useStoryStore().previous(),
         storyNext: () => useStoryStore().next(),
+        storyTimerToggle: () => {
+          const story = useStoryStore()
+          const result = useStoryTimerStore().toggle(story.currentStoryPreset)
+          if (result?.reason === 'game-background') ElMessage.warning('请切换到游戏前台后开始或继续计时')
+          if (result?.reason === 'feature-disabled') ElMessage.warning('请先开启计时浮窗模块')
+        },
         priceCheck: startPriceCheck
       })
     })

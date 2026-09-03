@@ -1,7 +1,7 @@
 <template>
   <div ref="content" class="story-overlay">
     <div class="overlay-heading">
-      <span>{{ state.chapter?.name || '剧情攻略' }}</span>
+      <span>{{ hasContent ? (state.chapter?.name || '剧情攻略') : '剧情计时' }}</span>
       <div class="story-position-grip" title="拖动剧情浮窗"
         @pointerdown="drag.pointerDown"
         @pointermove="drag.pointerMove"
@@ -11,8 +11,14 @@
       </div>
     </div>
 
-    <div ref="body" class="overlay-body" :style="bodyStyle">
-      <div v-if="state.current" class="steps">
+    <div class="overlay-modules" :class="{ 'has-timer': state.timer.enabled, 'has-content': hasContent }">
+      <section v-if="state.timer.enabled" class="timer-section">
+        <strong>{{ formattedTimer }}</strong>
+        <span v-if="state.timer.status !== 'running'" class="timer-state">{{ timerStatusLabel }}</span>
+      </section>
+
+      <div v-if="hasContent" ref="body" class="overlay-body" :class="{ single: !showDivider }" :style="bodyStyle">
+      <div v-if="state.modules.story && state.current" class="steps">
         <div class="step neighbor">
           <span class="direction">上一步</span>
           <span v-if="state.previous" class="step-text">
@@ -34,9 +40,9 @@
           <span v-else class="boundary">已经是最后一步</span>
         </div>
       </div>
-      <div v-else class="empty-state">暂无剧情步骤</div>
+      <div v-else-if="state.modules.story" class="empty-state">暂无剧情步骤</div>
 
-      <div v-if="state.chapter?.skillGroups?.length" class="skills-section">
+      <div v-if="state.modules.skills && state.chapter?.skillGroups?.length" class="skills-section">
         <div v-for="group in state.chapter.skillGroups" :key="group.id" class="skill-group">
           <span class="group-name">{{ group.name || '未命名技能组' }}</span>
           <div class="skill-tags">
@@ -46,11 +52,13 @@
           </div>
         </div>
       </div>
-      <div class="story-divider-grip" :style="dividerStyle" title="拖动调整剧情与技能栏宽"
+      <div v-else-if="state.modules.skills" class="skills-section empty-state">本章暂无技能</div>
+      <div v-if="showDivider" class="story-divider-grip" :style="dividerStyle" title="拖动调整剧情与技能栏宽"
         @pointerdown="dividerDrag.pointerDown"
         @pointermove="dividerDrag.pointerMove"
         @pointerup="dividerDrag.pointerUp"
         @pointercancel="dividerDrag.pointerUp"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -60,13 +68,25 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { electronApi } from '@/api/electron'
 import { createOverlayDrag } from '@/utils/useOverlayDrag'
 import { createStoryOverlayGeometryReporter } from './storyOverlayGeometry.js'
+import { formatStoryTimerDuration } from '@/utils/storyTimer'
 
 const content = ref(null)
 const body = ref(null)
 const dividerRatio = ref(0.64)
-const state = reactive({ previous: null, current: null, next: null, chapter: null })
+const state = reactive({
+  previous: null,
+  current: null,
+  next: null,
+  chapter: null,
+  modules: { story: true, skills: true },
+  timer: { enabled: false, status: 'idle', elapsedMs: 0 }
+})
+const hasContent = computed(() => state.modules.story || state.modules.skills)
+const showDivider = computed(() => state.modules.story && state.modules.skills)
+const formattedTimer = computed(() => formatStoryTimerDuration(state.timer.elapsedMs))
+const timerStatusLabel = computed(() => state.timer.status === 'running' ? '计时中' : state.timer.status === 'paused' ? '已暂停' : '未开始')
 const bodyStyle = computed(() => ({
-  gridTemplateColumns: `${dividerRatio.value}fr ${1 - dividerRatio.value}fr`
+  gridTemplateColumns: showDivider.value ? `${dividerRatio.value}fr ${1 - dividerRatio.value}fr` : '1fr'
 }))
 const dividerStyle = computed(() => ({ left: `${dividerRatio.value * 100}%` }))
 const drag = createOverlayDrag((message) => electronApi.storyOverlay.move(message))
@@ -85,6 +105,15 @@ function applyState(snapshot = {}) {
   state.current = snapshot.current || null
   state.next = snapshot.next || null
   state.chapter = snapshot.chapter || null
+  state.modules = {
+    story: snapshot.modules?.story !== false,
+    skills: snapshot.modules?.skills !== false
+  }
+  state.timer = {
+    enabled: snapshot.timer?.enabled === true,
+    status: ['idle', 'running', 'paused'].includes(snapshot.timer?.status) ? snapshot.timer.status : 'idle',
+    elapsedMs: Math.max(0, Number(snapshot.timer?.elapsedMs) || 0)
+  }
   nextTick(scheduleGeometryReport)
 }
 
@@ -100,7 +129,10 @@ function applyDividerRatio(value) {
 function measureGeometry() {
   if (!content.value) return
   if (!body.value) {
-    reportGeometry({ height: content.value.scrollHeight + 4 })
+    reportGeometry({
+      height: content.value.scrollHeight + 4,
+      layout: { stacked: true, left: 0, top: 0, width: 0, height: 0 }
+    })
     return
   }
   const contentRect = content.value.getBoundingClientRect()
@@ -109,7 +141,7 @@ function measureGeometry() {
   reportGeometry({
     height: content.value.scrollHeight + 4,
     layout: {
-      stacked: columns.length < 2,
+      stacked: !showDivider.value || columns.length < 2,
       left: bodyRect.left - contentRect.left,
       top: bodyRect.top - contentRect.top,
       width: bodyRect.width,
@@ -156,6 +188,12 @@ onBeforeUnmount(() => {
 .story-position-grip:active { cursor: grabbing; }
 .story-position-grip span { z-index: 1; width: 4px; height: 4px; border-radius: 50%; background: var(--brand-color); box-shadow: 0 0 4px color-mix(in srgb, var(--brand-color) 70%, transparent); }
 .overlay-heading { display: flex; min-height: 24px; align-items: center; padding: 0 var(--overlay-space-1) var(--overlay-space-1); font-size: var(--overlay-font-size); font-weight: 700; color: color-mix(in srgb, var(--brand-color) 78%, white); }
+.overlay-modules { min-width: 0; }
+.overlay-modules.has-timer.has-content { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-items: stretch; }
+.timer-section { display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: var(--overlay-space-2); box-sizing: border-box; text-align: center; }
+.overlay-modules.has-content .timer-section { border-right: 1px solid rgba(255, 255, 255, .12); }
+.timer-section strong { font-family: Consolas, monospace; font-size: 22px; line-height: 1.15; color: color-mix(in srgb, var(--brand-color) 82%, white); }
+.timer-state { font-size: 10px; color: #a7afbf; }
 .overlay-body { position: relative; display: grid; gap: 0; align-items: start; }
 .story-divider-grip { position: absolute; top: 0; bottom: 0; z-index: 3; width: 14px; transform: translateX(-50%); cursor: ew-resize; touch-action: none; user-select: none; -webkit-app-region: no-drag; }
 .steps { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding-right: var(--overlay-space-2); }
@@ -168,6 +206,7 @@ onBeforeUnmount(() => {
 .boundary { color: #727b8d; }
 .empty-state { padding: 24px 8px; text-align: center; font-size: 11px; color: #8790a0; }
 .skills-section { min-width: 0; padding: 5px var(--overlay-space-2) 1px; border-left: 1px solid rgba(255, 255, 255, .12); container-type: inline-size; }
+.overlay-body.single .skills-section { border-left: 0; }
 .skill-group { display: grid; grid-template-columns: minmax(48px, 70px) minmax(0, 1fr); gap: 5px; margin-bottom: 5px; align-items: start; }
 .group-name { min-width: 0; padding-top: 2px; overflow: hidden; color: #c6cedb; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .skill-tags { display: flex; min-width: 0; flex-wrap: wrap; gap: 3px; overflow-x: visible; }
@@ -185,5 +224,9 @@ onBeforeUnmount(() => {
   .story-divider-grip { display: none; }
   .steps { padding-right: 0; }
   .skills-section { border-top: 1px solid rgba(255, 255, 255, .12); border-left: 0; }
+}
+@media (max-width: 439px) {
+  .overlay-modules.has-timer.has-content { grid-template-columns: 1fr; }
+  .overlay-modules.has-content .timer-section { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, .12); }
 }
 </style>

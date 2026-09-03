@@ -15,7 +15,7 @@ export const FEATURE_CATALOG = Object.freeze([
   feature({ id: 'highlight-model-training', label: '模型训练', route: '/highlight-model-training', icon: 'DataAnalysis', developmentOnly: true, relatedRoutes: Object.freeze(['/highlight-model-training']) }),
   feature({ id: 'map', label: '地图', route: '/map', icon: 'MapLocation', shortcutKeys: Object.freeze(['mapStart']), relatedRoutes: Object.freeze(['/map']) }),
   feature({ id: 'combat', label: '战斗', route: '/combat', icon: 'FirstAidKit', shortcutKeys: Object.freeze(['portal']), relatedRoutes: Object.freeze(['/combat']) }),
-  feature({ id: 'story', label: '剧情', route: '/story', icon: 'Notebook', shortcutKeys: Object.freeze(['storyPrevious', 'storyNext']), relatedRoutes: Object.freeze(['/story']) }),
+  feature({ id: 'story', label: '剧情', route: '/story', icon: 'Notebook', shortcutKeys: Object.freeze(['storyPrevious', 'storyNext', 'storyTimerToggle']), relatedRoutes: Object.freeze(['/story']) }),
   feature({ id: 'regex', label: '正则', route: '/regex', icon: 'Operation', relatedRoutes: Object.freeze(['/regex']) }),
   feature({ id: 'recipe', label: '配方', route: '/recipe', icon: 'ShoppingBag', relatedRoutes: Object.freeze(['/recipe', '/shop']) }),
   feature({ id: 'craft-planner', label: '模拟', route: '/craft-planner', icon: 'SetUp', relatedRoutes: Object.freeze(['/craft-planner']) }),

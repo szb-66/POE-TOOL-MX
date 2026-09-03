@@ -21,6 +21,7 @@ import {
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
 import { getCraftingOverlayBounds } from './craftingOverlayPosition.js'
+import { STORY_TIMER_ONLY_WIDTH, getStoryOverlayRequestedWidth } from './storyOverlayWidth.js'
 import { dispatchReloadAction, getReloadAction } from './refreshShortcut.js'
 import {
   OverlayDragPassthroughController,
@@ -48,6 +49,7 @@ let bagStashOverlayWindow = null
 let bagStashOverlaySnapshot = null
 let storyOverlaySnapshot = null
 let storyOverlaySize = { width: 460, height: 220 }
+let storyOverlayContentWidth = 460
 let storyOverlayLayout = null
 let storyOverlayDividerRatio = DEFAULT_STORY_DIVIDER_RATIO
 let storyOverlayOpacity = 100
@@ -449,6 +451,7 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     storyOverlayOpacity = Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 100
   }
   storyOverlayDividerRatio = normalizeStoryDividerRatio(loadWindowState().storyOverlayDividerRatio)
+  storyOverlayContentWidth = Math.max(320, Math.min(1200, Math.round(Number(configuredWidth) || storyOverlayContentWidth || 460)))
   if (initialSnapshot) storyOverlaySnapshot = initialSnapshot
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
     resizeStoryOverlay({ width: configuredWidth })
@@ -460,7 +463,7 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
     return storyOverlayWindow
   }
 
-  const width = Math.max(320, Math.min(1200, Math.round(Number(configuredWidth) || 460)))
+  const width = getStoryOverlayRequestedWidth(storyOverlaySnapshot, storyOverlayContentWidth)
   const height = 220
   storyOverlaySize = { width, height }
   storyOverlayWindow = new BrowserWindow({
@@ -524,8 +527,12 @@ export function resizeStoryOverlay(size) {
   const requestedHeight = typeof size === 'object' ? size?.height : size
   const requestedWidth = typeof size === 'object' ? size?.width : null
   const nextHeight = requestedHeight == null ? storyOverlaySize.height : Math.max(150, Math.min(maxHeight, Math.round(Number(requestedHeight) || 220)))
-  const maxWidth = Math.max(320, display.workArea.width)
-  const nextWidth = requestedWidth == null ? storyOverlaySize.width : Math.max(320, Math.min(maxWidth, Math.round(Number(requestedWidth) || 460)))
+  if (requestedWidth != null) {
+    storyOverlayContentWidth = Math.max(320, Math.min(1200, Math.round(Number(requestedWidth) || 460)))
+  }
+  const maxWidth = Math.max(STORY_TIMER_ONLY_WIDTH, display.workArea.width)
+  const desiredWidth = getStoryOverlayRequestedWidth(storyOverlaySnapshot, storyOverlayContentWidth)
+  const nextWidth = Math.max(STORY_TIMER_ONLY_WIDTH, Math.min(maxWidth, desiredWidth))
   storyOverlaySize = { width: nextWidth, height: nextHeight }
   const maxX = display.workArea.x + display.workArea.width - nextWidth
   const nextX = Math.max(display.workArea.x, Math.min(maxX, bounds.x))
@@ -601,6 +608,7 @@ export function updateStoryOverlayLayout(layout) {
 export function updateStoryOverlay(snapshot) {
   storyOverlaySnapshot = snapshot || null
   if (storyOverlayWindow && !storyOverlayWindow.isDestroyed()) {
+    resizeStoryOverlay({})
     storyOverlayWindow.webContents.send('story-overlay-state', storyOverlaySnapshot)
   }
   return true

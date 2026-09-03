@@ -11,12 +11,16 @@
         <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="320" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
         <label>透明度 <el-input-number :model-value="settings.storyOverlayOpacity" :min="0" :max="100" :step="5" controls-position="right" @change="settings.updateStoryOverlayOpacity" />%</label>
         <span>游戏浮窗</span>
-        <el-switch :model-value="story.overlayVisible" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
+        <el-switch :model-value="story.overlayVisible" :disabled="!story.hasOverlayModule" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
       </div>
     </div>
 
     <el-row class="story-workspace app-grid" :gutter="16">
-      <el-col :xs="24" :lg="16"><el-card class="story-guide-panel" shadow="never">
+      <el-col :xs="24" :lg="16" class="story-left-column"><el-card class="story-guide-panel" shadow="never">
+        <div class="module-title-row story-module-title">
+          <strong>剧情路线</strong>
+          <label class="module-switch">浮窗显示 <el-switch :model-value="settings.storyOverlayStoryEnabled" @change="setOverlayModule('story', $event)" /></label>
+        </div>
         <div class="story-guide-layout">
           <aside class="chapter-directory">
             <div class="preset-bar chapter-preset-bar">
@@ -97,6 +101,31 @@
             <el-empty description="添加或选择章节后开始编辑" />
           </div>
         </div>
+      </el-card>
+
+      <el-card class="story-timer-panel" shadow="never">
+        <template #header>
+          <div class="module-title-row">
+            <strong>流程计时</strong>
+            <label class="module-switch">浮窗显示 <el-switch :model-value="settings.storyTimerOverlayEnabled" @change="setOverlayModule('timer', $event)" /></label>
+          </div>
+        </template>
+        <div class="timer-content">
+          <div class="timer-display">
+            <span class="timer-value">{{ timer.formattedElapsed }}</span>
+            <span class="timer-status">{{ timer.statusLabel }}</span>
+          </div>
+          <div class="timer-actions">
+            <el-button type="primary" :disabled="!settings.storyTimerOverlayEnabled" @click="toggleTimer">{{ timer.status === 'running' || timer.awaitingForeground ? '停止' : timer.currentElapsedMs > 0 ? '继续' : '开始' }}</el-button>
+            <el-button :disabled="timer.currentElapsedMs <= 0" @click="timer.reset">重置</el-button>
+            <el-button @click="historyVisible = true">历史记录</el-button>
+          </div>
+          <div class="timer-settings">
+            <label><el-checkbox :model-value="settings.storyTimerPauseInBackground" @change="settings.updateStoryTimerPauseInBackground">游戏后台停止计时</el-checkbox></label>
+            <label class="timer-shortcut">启停快捷键 <KeyCaptureInput :model-value="settings.globalShortcuts.storyTimerToggle" @change="saveShortcut('storyTimerToggle', $event)" /></label>
+          </div>
+          <el-alert v-if="timer.foregroundWarning" class="timer-warning" :title="timer.foregroundWarning" type="warning" :closable="false" show-icon />
+        </div>
       </el-card></el-col>
 
       <el-col :xs="24" :lg="8"><el-card class="skills-panel" shadow="never">
@@ -112,6 +141,7 @@
                 <el-button size="small" :icon="Delete" circle type="danger" title="删除技能预设" :disabled="story.currentSkillPresetId === 'default'" @click="deletePreset('skill')" />
               </div>
               <div class="panel-header">
+                <label class="module-switch">浮窗显示 <el-switch :model-value="settings.storyOverlaySkillsEnabled" @change="setOverlayModule('skills', $event)" /></label>
                 <label class="level-toggle">
                   <span>显示最低购买等级</span>
                   <el-switch :model-value="settings.storyShowSkillRequiredLevel" @change="settings.updateStoryShowSkillRequiredLevel" />
@@ -175,6 +205,16 @@
       </el-card></el-col>
     </el-row>
 
+    <el-dialog v-model="historyVisible" title="剧情计时历史" width="620px">
+      <el-empty v-if="!timer.history.length" description="暂无历史记录" :image-size="72" />
+      <el-table v-else :data="timer.history" max-height="420">
+        <el-table-column prop="presetName" label="剧情预设" min-width="180" />
+        <el-table-column label="完成时间" min-width="180"><template #default="{ row }">{{ formatCompletedAt(row.completedAt) }}</template></el-table-column>
+        <el-table-column label="总用时" width="110"><template #default="{ row }">{{ formatDuration(row.durationMs) }}</template></el-table-column>
+        <el-table-column class-name="history-action-column" label="操作" width="96" align="center"><template #default="{ row }"><el-button text type="danger" @click="confirmDeleteHistory(row)">删除</el-button></template></el-table-column>
+      </el-table>
+    </el-dialog>
+
     <PageHelpDrawer :topics="helpTopics" />
   </div>
 </template>
@@ -185,9 +225,11 @@ import { CopyDocument, Delete, Edit, Plus } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useStoryStore } from '@/stores/story'
+import { useStoryTimerStore } from '@/stores/storyTimer'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
+import { formatStoryTimerDuration } from '@/utils/storyTimer'
 import skillCatalog from './skillCatalog.json'
 import {
   applySkillCatalogSelection,
@@ -199,10 +241,12 @@ import {
 } from './skillCatalog'
 
 const story = useStoryStore()
+const timer = useStoryTimerStore()
 const settings = useSettingsStore()
 const helpTopics = moduleHelpTopicsById('story')
 let saveTimer = null
 const dragPreview = ref(null)
+const historyVisible = ref(false)
 const stepInputRefs = {}
 const displayedChapters = computed(() => orderPreviewItems('chapter', story.chapters))
 const displayedSteps = computed(() => orderPreviewItems('step', story.viewedChapter?.steps || []))
@@ -400,6 +444,32 @@ async function toggleOverlay(visible) {
   }
 }
 
+function setOverlayModule(module, enabled) {
+  settings.updateStoryOverlayModule(module, enabled)
+  if (!story.hasOverlayModule) ElMessage.info('请至少开启一个浮窗模块')
+}
+
+function toggleTimer() {
+  const result = timer.toggleFromPage(story.currentStoryPreset)
+  if (result?.reason === 'game-background') ElMessage.warning('请切换到游戏前台后开始或继续计时')
+  if (result?.reason === 'feature-disabled') ElMessage.warning('请先开启计时浮窗模块')
+}
+
+function formatDuration(durationMs) {
+  return formatStoryTimerDuration(durationMs)
+}
+
+function formatCompletedAt(timestamp) {
+  return new Date(timestamp).toLocaleString('zh-CN', { hour12: false })
+}
+
+async function confirmDeleteHistory(record) {
+  try {
+    await ElMessageBox.confirm(`删除“${record.presetName}”的计时记录？`, '删除历史记录', { type: 'warning' })
+    timer.deleteHistory(record.id)
+  } catch {}
+}
+
 async function saveShortcut(key, value) {
   try {
     await commitGlobalShortcut(key, value)
@@ -434,12 +504,16 @@ async function confirmDeleteGroup(group) {
 .story-workspace { min-height: 0; flex: 1; align-items: stretch; overflow: hidden; }
 .story-workspace > .el-col { display: flex; min-height: 0; }
 .story-workspace > .el-col > .el-card { width: 100%; height: 100%; overflow: hidden; }
+.story-left-column { flex-direction: column; gap: 16px; }
+.story-workspace > .story-left-column > .story-guide-panel { height: auto; flex: 1 1 0; }
+.story-workspace > .story-left-column > .story-timer-panel { height: auto; flex: 0 0 auto; }
 .story-guide-panel, .skills-panel { display: flex; min-height: 0; flex-direction: column; }
 .story-guide-panel :deep(.el-card__header), .skills-panel :deep(.el-card__header) { flex: 0 0 auto; }
 .story-guide-panel :deep(.el-card__body), .skills-panel :deep(.el-card__body) { min-height: 0; flex: 1 1 0; }
-.story-guide-panel :deep(.el-card__body) { overflow: hidden; padding: 0; }
+.story-guide-panel :deep(.el-card__body) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .skills-panel :deep(.el-card__body) { overflow-y: auto; }
-.story-guide-layout { display: grid; height: 100%; min-height: 0; padding: 12px; gap: 12px; box-sizing: border-box; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.story-module-title { flex: 0 0 auto; padding: 10px 12px; border-bottom: 1px solid var(--border-color); }
+.story-guide-layout { display: grid; height: auto; min-height: 0; flex: 1 1 0; padding: 12px; gap: 12px; box-sizing: border-box; grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .chapter-directory, .chapter-details {
   min-width: 0;
   min-height: 0;
@@ -456,6 +530,19 @@ async function confirmDeleteGroup(group) {
 .chapter-details-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 12px; }
 .empty-details { align-items: center; justify-content: center; }
 .preset-panel-header { display: grid; gap: 9px; }
+.module-title-row, .module-switch { display: flex; align-items: center; }
+.module-title-row { justify-content: space-between; gap: 12px; }
+.module-switch { gap: 7px; color: var(--text-secondary); font-size: 12px; white-space: nowrap; }
+.timer-content { display: grid; grid-template-columns: minmax(150px, .7fr) auto minmax(245px, 1fr); align-items: center; gap: 18px; }
+.timer-display { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.timer-value { color: var(--primary-color); font-family: Consolas, monospace; font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+.timer-status { color: var(--text-secondary); font-size: 12px; }
+.timer-actions { display: flex; gap: 8px; }
+.timer-actions :deep(.el-button + .el-button) { margin-left: 0; }
+.timer-settings { display: flex; flex-direction: column; gap: 8px; }
+.timer-shortcut { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+.timer-warning { grid-column: 1 / -1; }
+:deep(.history-action-column .cell) { overflow: visible; }
 .preset-bar { gap: 6px; min-width: 0; }
 .preset-bar strong { margin-right: auto; white-space: nowrap; }
 .preset-bar :deep(.el-select) { min-width: 0; flex: 1; }
@@ -506,6 +593,7 @@ async function confirmDeleteGroup(group) {
   .story-workspace > .el-col > .el-card { height: auto; }
   .story-workspace > .el-col > .story-guide-panel { height: 560px; }
   .skills-panel { min-height: 360px; }
+  .timer-content { grid-template-columns: minmax(150px, .7fr) auto minmax(245px, 1fr); }
 }
 @media (max-width: 720px) {
   .story-page { padding: 14px; }
@@ -516,5 +604,7 @@ async function confirmDeleteGroup(group) {
   .story-guide-layout { height: auto; grid-template-columns: 1fr; }
   .chapter-directory { max-height: 240px; }
   .chapter-details-scroll { max-height: 520px; }
+  .timer-content { grid-template-columns: 1fr; }
+  .timer-actions { justify-content: center; }
 }
 </style>
