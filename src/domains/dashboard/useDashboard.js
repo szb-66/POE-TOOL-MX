@@ -9,9 +9,7 @@ import { useStashPickupStore } from '@/stores/stashPickup'
 import { useJunfengStore } from '@/stores/junfeng'
 import { useCombatStore } from '@/stores/combat'
 import { useChaosRecipeStore } from '@/stores/chaosRecipe'
-import { useStoryStore } from '@/stores/story'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
-import { useCraftingStore } from '@/domains/crafting/craftingStore'
 import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
@@ -34,14 +32,12 @@ import { describeGameDisplayMode } from '../../../shared/gameDisplayMode.js'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
-  evaluateCraftingStatus,
   evaluateItemsStatus,
   evaluateMapStatus,
   evaluateMapTrackerStatus,
   evaluatePriceCheckStatus,
   evaluateShortcutHealth,
   evaluateShopStatus,
-  evaluateStoryStatus,
   ITEM_CRAFTING_MODE_OPTIONS,
   MAP_ROLLING_METHOD_OPTIONS,
   RECOVERY_MODE_OPTIONS,
@@ -86,8 +82,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const junfengStore = useJunfengStore()
   const combatStore = useCombatStore()
   const chaosRecipeStore = useChaosRecipeStore()
-  const storyStore = useStoryStore()
-  const craftingStore = useCraftingStore()
   const priceCheckStore = usePriceCheckStore()
   const accountStore = usePoeCnAccountStore()
   const batchCraftingStore = useBatchCraftingStore()
@@ -206,12 +200,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         healthTriggers: combatStore.healthTriggers,
         manaTriggers: combatStore.manaTriggers
       }),
-      evaluateStoryStatus({
-        chapters: storyStore.chapters,
-        currentChapter: storyStore.currentChapter,
-        currentStep: storyStore.currentStep,
-        overlayVisible: storyStore.overlayVisible
-      }),
       evaluateShopStatus({
         authenticated: chaosRecipeStore.auth.authenticated,
         league: chaosRecipeStore.league,
@@ -237,17 +225,12 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         catalog: priceCheckStore.catalog,
         latest: priceCheckStore.status?.latest,
         error: priceCheckStore.error
-      }),
-      evaluateCraftingStatus({
-        status: craftingStore.status,
-        updateError: craftingStore.updateError,
-        session: craftingStore.session
       })
     ]
 
     const featureIdByDashboardId = {
-      items: 'items', bag: 'bag', map: 'map', combat: 'combat', story: 'story',
-      shop: 'recipe', priceCheck: 'price-check', crafting: 'craft-planner', mapTracker: 'map-tracker'
+      items: 'items', bag: 'bag', map: 'map', combat: 'combat',
+      shop: 'recipe', priceCheck: 'price-check', mapTracker: 'map-tracker'
     }
     return values.map(module => {
       const featureId = featureIdByDashboardId[module.id]
@@ -558,17 +541,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         actions.push({ id: 'start-loop', label: '启动循环', type: 'primary', run: startLoopAssist })
       }
       return actions
-    }
-    if (module.id === 'story') {
-      return storyStore.overlayVisible
-        ? [{ id: 'hide', label: '隐藏浮窗', type: 'default', run: storyStore.hideOverlay }]
-        : [{
-            id: 'show',
-            label: '显示浮窗',
-            type: 'primary',
-            disabled: module.issues.length > 0,
-            run: () => storyStore.showOverlay(settingsStore.storyOverlayWidth)
-          }]
     }
     if (module.id === 'shop') {
       return [

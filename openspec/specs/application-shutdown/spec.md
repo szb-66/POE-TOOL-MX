@@ -1,7 +1,8 @@
 # application-shutdown Specification
 
 ## Purpose
-TBD - created by archiving change fix-app-shutdown-lifecycle. Update Purpose after archive.
+定义助手完整退出时的生命周期与清理顺序，确保自动化任务、子进程、监听器、快捷键及辅助窗口在退出前可靠停止，避免后台残留。
+
 ## Requirements
 ### Requirement: Closing the main window exits the application
 The application SHALL treat closing the main window as a request to exit the complete application, regardless of whether auxiliary windows are open.

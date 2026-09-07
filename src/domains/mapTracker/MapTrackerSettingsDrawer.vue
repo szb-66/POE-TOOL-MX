@@ -10,7 +10,7 @@
       </section>
       <section>
         <h3>游戏内浮窗</h3>
-        <el-switch :model-value="store.snapshot.settings.overlay?.enabled !== false" :disabled="store.busy" active-text="启用游戏内浮窗" @change="value => act(() => store.commitSettings({ overlay: { enabled: value } }))" />
+        <el-switch :model-value="store.snapshot.settings.overlay?.enabled === true" :disabled="store.busy" active-text="启用游戏内浮窗" @change="value => act(() => store.commitSettings({ overlay: { enabled: value } }))" />
         <p>游戏前台显示，拖动顶部抓手调整位置。</p>
         <el-button @click="act(() => electronApi.mapTracker.controlOverlay('reset'))">恢复默认位置</el-button>
       </section>

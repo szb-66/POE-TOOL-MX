@@ -1,7 +1,8 @@
 # cn-chaos-recipe-stash Specification
 
 ## Purpose
-TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose after archive.
+通过国服旧版仓库接口读取已登录账号所选赛季的仓库列表与物品详情，统一刷新顺序和标签索引，为配方计算提供可靠的仓库物品池。
+
 ## Requirements
 ### Requirement: 国服旧版仓库接口
 系统 SHALL 仅使用国服旧版 `get-stash-items` 接口读取仓库列表和详情，不请求需要开发者 OAuth 的新版仓库接口。

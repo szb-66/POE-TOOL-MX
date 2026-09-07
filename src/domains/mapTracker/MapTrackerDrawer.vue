@@ -7,9 +7,7 @@
         <el-alert v-for="message in store.history.errors" :key="message" :title="message" type="error" :closable="false" />
         <el-table :data="store.history.items" stripe>
           <el-table-column type="expand"><template #default="{ row }"><dl class="details"><div><dt>内部区域 ID</dt><dd>{{ row.areaId }}</dd></div><div><dt>结束原因</dt><dd>{{ endReason(row.endReason) }}</dd></div></dl></template></el-table-column>
-          <el-table-column prop="startedAt" label="日期时间" width="170" show-overflow-tooltip /><el-table-column label="地图" min-width="130" show-overflow-tooltip><template #default="{ row }">{{ mapLabel(row.areaName) }}</template></el-table-column><el-table-column label="阶级/等级" width="100"><template #default="{ row }">{{ tierAndLevel(row) }}</template></el-table-column><el-table-column label="时长" width="80"><template #default="{ row }">{{ duration(row.activeDurationMs) }}</template></el-table-column><el-table-column label="等级收益系数" width="90"><template #default="{ row }">{{ row.experienceEfficiency == null ? '未采集' : `${Math.round(row.experienceEfficiency * 100)}%` }}</template></el-table-column><el-table-column prop="deaths" label="死亡" width="65" /><el-table-column prop="portalsUsed" label="传送门" width="75" />
-          <el-table-column label="本图采样净经验" width="130"><template #default="{ row }">{{ runExperienceDelta(row)?.toLocaleString() ?? '未采集' }}</template></el-table-column>
-          <el-table-column label="采样折算经验/时" width="130"><template #default="{ row }">{{ runExperiencePerHour(row)?.toLocaleString() ?? '未采集' }}</template></el-table-column>
+          <el-table-column prop="startedAt" label="日期时间" width="170" show-overflow-tooltip /><el-table-column label="地图" min-width="130" show-overflow-tooltip><template #default="{ row }">{{ mapLabel(row.areaName) }}</template></el-table-column><el-table-column label="阶级/等级" width="100"><template #default="{ row }">{{ tierAndLevel(row) }}</template></el-table-column><el-table-column label="时长" width="80"><template #default="{ row }">{{ duration(row.activeDurationMs) }}</template></el-table-column><el-table-column prop="deaths" label="死亡" width="65" /><el-table-column prop="portalsUsed" label="传送门" width="75" />
           <el-table-column label="操作" width="130" fixed="right"><template #default="{ row }"><el-button link type="danger" @click="remove(row)">删除</el-button></template></el-table-column>
         </el-table>
         <el-pagination v-model:current-page="filters.page" v-model:page-size="filters.pageSize" layout="total, sizes, prev, pager, next" :total="store.history.total" :page-sizes="[15, 25, 50, 100]" @change="search" />
@@ -20,7 +18,6 @@
 <script setup>
 import { mapLabel } from '../../../shared/mapTrackerLabels.js'
 import { reactive, ref, watch } from 'vue'
-import { runExperienceDelta, runExperiencePerHour } from '../../../shared/experienceStatistics.js'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { electronApi } from '@/api/electron.js'
 import { useMapTrackerStore } from '@/stores/mapTracker.js'

@@ -385,24 +385,23 @@ test('八模块汇总每张卡只计入一个类别', () => {
   assert.deepEqual(summarizeModules(modules), { error: 1, running: 2, attention: 2, ready: 3 })
 })
 
-test('首页按检测、制造、其他分组且每个模块只出现一次', () => {
+test('首页仅按检测、制造分组且排除其他模块', () => {
   const modules = ['items', 'bag', 'map', 'combat', 'story', 'shop', 'priceCheck', 'crafting']
     .map(id => ({ id }))
   const groups = groupDashboardModules(modules)
 
   assert.deepEqual(
     DASHBOARD_MODULE_GROUPS.map(group => group.title),
-    ['检测', '制造', '其他']
+    ['检测', '制造']
   )
   assert.deepEqual(
     groups.map(group => group.modules.map(module => module.id)),
     [
       ['bag', 'combat', 'shop', 'priceCheck'],
-      ['map', 'items'],
-      ['story', 'crafting']
+      ['map', 'items']
     ]
   )
-  assert.equal(new Set(groups.flatMap(group => group.modules)).size, modules.length)
+  assert.equal(new Set(groups.flatMap(group => group.modules)).size, modules.length - 2)
 })
 
 test('共享脚本进程状态保存并清除运行类型', () => {

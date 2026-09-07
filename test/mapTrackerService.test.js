@@ -9,8 +9,8 @@ import { MapTrackerService, sanitizeTrackedItem } from '../electron/modules/mapT
 class Events { constructor(){ this.listener = null } onEvent(listener){ this.listener = listener; return () => { this.listener = null } } emit(event){ this.listener?.(event) } }
 const setup = async ({ commandSender = async () => {} } = {}) => {
   let now = 10000; const events = new Events(); const repository = new MapTrackerRepository(await mkdtemp(path.join(os.tmpdir(), 'map-service-')))
-  const service = new MapTrackerService({ repository, clientEvents: events, commandSender, characterProvider: async () => [{ name: 's30、嘎嘎嘎', accountName: 'test', level: 98, className: '元素使', league: 'S30赛季' }], now: () => now, idleProvider: () => 0 })
-  await service.initialize(); await service.updateSettings({ enabled: true, enhancements: { character: true, loot: true } }); service.setForeground(true)
+  const service = new MapTrackerService({ repository, clientEvents: events, commandSender, now: () => now, idleProvider: () => 0 })
+  await service.initialize(); await service.updateSettings({ enabled: true, enhancements: { loot: true } }); service.setForeground(true)
   await service.handleEvent({ type: 'area-entered', areaId: 'MapWorldsCemetery', seed: '1', areaLevel: 83, mapTier: 16 })
   return { service, repository, events, setNow: (value) => { now = value } }
 }
@@ -73,70 +73,7 @@ test('结算写入失败保留待保存记录，后续定时任务恢复', async
   assert.equal(await repository.getActiveRun(), null)
 })
 
-test('经验缺失不清除有效基准，死亡后恢复采样仍保留净损失', async (t) => {
-  const { service, repository, setNow } = await setup()
-  t.after(() => service.shutdown({ normal: false }))
-  const character = { name: 's30、嘎嘎嘎', accountName: 'test', league: 'S30赛季', level: 98 }
-  let experience = 1000
-  service.characterProvider = async () => [{ ...character, experience }]
-  await service.updateSettings({ selectedCharacter: character })
-  await service.listCharacters({ sampleExperience: true })
-  setNow(70000)
-  experience = 900
-  await service.listCharacters({ sampleExperience: true })
-  assert.equal(service.snapshot().summary.experienceGrowth, -100)
-  const observation = service.snapshot().settings.experienceObservation
-  setNow(130000)
-  experience = null
-  await service.listCharacters({ sampleExperience: true })
-  assert.deepEqual(service.snapshot().settings.experienceObservation, observation)
-  assert.deepEqual((await repository.getSettings()).experienceObservation, observation)
-  assert.equal(service.snapshot().activeRun.experienceSampleCount, 2)
-  setNow(190000)
-  experience = 950
-  await service.listCharacters({ sampleExperience: true })
-  assert.equal(service.snapshot().summary.experienceGrowth, -50)
-  assert.equal(service.snapshot().activeRun.experienceStart, 1000)
-  assert.equal(service.snapshot().activeRun.experienceEnd, 950)
-  assert.equal((await repository.getActiveRun()).experienceSampleCount, 3)
-})
 
-test('刷图期间不轮询经验，离开立即结算并在每次进入建立基准', async (t) => {
-  const { service, repository, setNow } = await setup()
-  t.after(() => service.shutdown({ normal: false }))
-  await service.finish('area-left')
-  const character = { name: 's30、嘎嘎嘎', accountName: 'test', league: 'S30赛季', level: 98 }
-  let experience = 1000
-  let requests = 0
-  service.characterProvider = async () => { requests++; return [{ ...character, experience }] }
-  await service.updateSettings({ selectedCharacter: character })
-  await service.handleEvent({ type: 'area-entered', areaId: 'MapWorldsCemetery', seed: 'a', areaLevel: 83 })
-  assert.equal(requests, 1)
-  setNow(70000)
-  await service.tick()
-  setNow(130000)
-  await service.tick()
-  assert.equal(requests, 1)
-  experience = 900
-  await service.handleEvent({ type: 'area-entered', areaId: 'Hideout', seed: 'h', areaLevel: 60 })
-  await Promise.allSettled([...service.inFlight])
-  assert.equal(requests, 2)
-  await service.handleEvent({ type: 'area-entered', areaId: 'MapWorldsMuseum', seed: 'b', areaLevel: 83 })
-  await Promise.allSettled([...service.inFlight])
-  assert.equal(requests, 3)
-  const completed = (await repository.all()).runs.find(run => run.instanceKey.endsWith(':a'))
-  assert.equal(completed.experienceEnd - completed.experienceStart, -100)
-  assert.equal(service.snapshot().activeRun.experienceStart, 900)
-  experience = 950
-  setNow(190000)
-  const last = await service.finish()
-  assert.equal(requests, 4)
-  assert.equal(last.experienceEnd - last.experienceStart, 50)
-  assert.equal(service.snapshot().summary.experienceGrowth, -50)
-  await service.finish()
-  await service.tick()
-  assert.equal(requests, 4)
-})
 
 test('服务订阅事件、保存草稿并在新地图原子结算', async () => {
   const { service, repository } = await setup()
@@ -159,4 +96,23 @@ test('独立入库只保存最小白名单并按数量累计，切换地图不�
   await service.recordStashedItem({ name: '混沌石', quantity: 23 }, 'batch:2')
   assert.equal(service.snapshot().summary.todayLoot, 25)
   assert.deepEqual(sanitizeTrackedItem(item), { name: '墓地地图', baseType: '墓地地图', rarity: '稀有', quantity: 2 })
+})
+
+test('旧经验配置不恢复采样，地图结算保留计时和死亡', async t => {
+  const { service, repository, setNow } = await setup()
+  t.after(() => service.shutdown({ normal: false }))
+  let requests = 0
+  service.characterProvider = () => { requests++; throw new Error('不应查询经验') }
+  await service.updateSettings({ enhancements: { character: true }, experienceObservation: { first: 100, latest: 200 }, selectedCharacter: { name: '旧角色' } })
+  setNow(70000)
+  await service.handleEvent({ type: 'player-death' })
+  await service.handleEvent({ type: 'character-level', level: 99 })
+  await service.handleEvent({ type: 'area-entered', areaId: 'Hideout' })
+  const result = (await repository.all()).runs[0]
+  assert.equal(result.activeDurationMs, 60000)
+  assert.equal(result.deaths, 1)
+  assert.equal(requests, 0)
+  assert.doesNotMatch(JSON.stringify(service.snapshot()), /experience/i)
+  assert.doesNotMatch(JSON.stringify(result), /experience/i)
+  assert.equal(Object.hasOwn(service.snapshot().settings.enhancements, 'character'), false)
 })

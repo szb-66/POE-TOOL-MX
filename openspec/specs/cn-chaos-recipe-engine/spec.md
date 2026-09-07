@@ -1,7 +1,8 @@
 # cn-chaos-recipe-engine Specification
 
 ## Purpose
-TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose after archive.
+根据统一仓库物品池与用户配置筛选混沌配方候选，生成满足部位、物品等级及武器组合约束的套装，并避免与其他配方重复分配物品。
+
 ## Requirements
 ### Requirement: 混沌配方候选过滤
 系统 SHALL 从统一仓库物品池派生符合配置的混沌配方候选，并 MUST 排除已经分配给插槽配方的物品和具有经典势力的装备。

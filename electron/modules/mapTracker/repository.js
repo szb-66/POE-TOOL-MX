@@ -2,9 +2,10 @@ import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/pro
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { createMapRun, normalizeMapTrackerSettings } from './model.js'
-import { runExperienceDelta } from '../../../shared/experienceStatistics.js'
 
 const SCHEMA_VERSION = 1
+// Legacy experience records are excluded before normalization, including null fields.
+const hasLegacyExperience = run => Object.keys(run || {}).some(key => key.startsWith('experience'))
 const EDITABLE_FIELDS = new Set(['areaName'])
 
 function safeSegment(value) {
@@ -71,9 +72,9 @@ export function csvEscape(value) {
 }
 
 export function runsToCsv(runs) {
-  const columns = ['startedAt', 'endedAt', 'areaName', 'areaId', 'areaLevel', 'mapTier', 'activeDurationMs', 'experienceEfficiency', 'deaths', 'portalsUsed', 'character', 'endReason', 'experienceStart', 'experienceEnd', 'experienceSampleCount', 'experienceGrowth']
+  const columns = ['startedAt', 'endedAt', 'areaName', 'areaId', 'areaLevel', 'mapTier', 'activeDurationMs', 'deaths', 'portalsUsed', 'character', 'endReason']
   const rows = runs.map((run) => columns.map((key) => {
-    const value = key === 'character' ? run.character?.name || '' : key === 'experienceGrowth' ? runExperienceDelta(run) : run[key]
+    const value = key === 'character' ? run.character?.name || '' : run[key]
     return csvEscape(value)
   }).join(','))
   return `\uFEFF${columns.join(',')}\r\n${rows.join('\r\n')}${rows.length ? '\r\n' : ''}`
@@ -175,7 +176,7 @@ export class MapTrackerRepository {
       try {
         const shard = await readJson(filePath, null)
         if (shard?.schemaVersion !== SCHEMA_VERSION || !Array.isArray(shard.runs)) throw new Error('schema')
-        runs.push(...shard.runs.map(createMapRun))
+        runs.push(...shard.runs.filter(run => !hasLegacyExperience(run)).map(createMapRun))
       } catch { errors.push(`地图记录分片损坏：${this.relative(filePath)}`) }
     }
     const needle = String(filters.map || '').trim().toLocaleLowerCase()
@@ -192,7 +193,7 @@ export class MapTrackerRepository {
       let shard
       try { shard = await readJson(filePath, null) } catch { continue }
       if (shard?.schemaVersion !== SCHEMA_VERSION || !Array.isArray(shard.runs)) continue
-      const index = shard.runs.findIndex((run) => run.id === id); if (index >= 0) return { filePath, shard, index }
+      const index = shard.runs.findIndex((run) => run.id === id && !hasLegacyExperience(run)); if (index >= 0) return { filePath, shard, index }
     }
     throw new Error('未找到地图记录')
   }

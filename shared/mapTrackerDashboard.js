@@ -20,16 +20,6 @@ export function mergeDashboardRuns(runs) {
   return [...merged.values()]
 }
 
-function experienceWindow(observation, start, end) {
-  const points = (observation?.points || []).filter(point => Number.isFinite(time(point.at)) && time(point.at) <= end && Number.isSafeInteger(point.experience) && point.experience >= 0).sort((a, b) => time(a.at) - time(b.at))
-  const before = points.filter(point => time(point.at) <= start).at(-1)
-  const inside = points.filter(point => time(point.at) > start)
-  const selected = before ? [{ ...before, at: new Date(start).toISOString() }, ...inside] : inside
-  if (selected.length < 2) return { points: [], delta: null }
-  const baseline = selected[0].experience
-  return { points: selected.map(point => ({ at: point.at, value: point.experience - baseline })), delta: selected.at(-1).experience - baseline }
-}
-
 function aggregate(runs, loot, start, end, bucketMs) {
   const completed = runs.filter(run => time(run.endedAt) >= start && time(run.endedAt) <= end)
   const entries = loot.filter(entry => entry.at >= start && entry.at <= end)
@@ -58,7 +48,7 @@ function aggregate(runs, loot, start, end, bucketMs) {
   }
 }
 
-export function buildDashboardSummary({ runs = [], activeRun = null, stashEvents = [], observation = null, now = Date.now() } = {}) {
+export function buildDashboardSummary({ runs = [], activeRun = null, stashEvents = [], now = Date.now() } = {}) {
   // Saved records take precedence during the transition from draft to history.
   const unique = new Map(runs.map(run => [run.id, run]))
   if (activeRun) {
@@ -75,7 +65,7 @@ export function buildDashboardSummary({ runs = [], activeRun = null, stashEvents
   const today = aggregate(completed, loot, start.getTime(), now, HOUR)
   const windows = Object.fromEntries([24, 6, 1].map(hours => {
     const from = now - hours * HOUR
-    return [hours, { ...aggregate(completed, loot, from, now, hours === 24 ? HOUR : hours === 6 ? HOUR / 4 : HOUR / 12), experience: experienceWindow(observation, from, now) }]
+    return [hours, { ...aggregate(completed, loot, from, now, hours === 24 ? HOUR : hours === 6 ? HOUR / 4 : HOUR / 12) }]
   }))
   return { todayCount: today.count, todayLoot: today.loot, averageDurationMs: today.averageDurationMs, windows }
 }

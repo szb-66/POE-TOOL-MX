@@ -8,11 +8,6 @@ export const DASHBOARD_MODULE_GROUPS = Object.freeze([
     id: 'manufacturing',
     title: '制造',
     moduleIds: Object.freeze(['map', 'items'])
-  }),
-  Object.freeze({
-    id: 'other',
-    title: '其他',
-    moduleIds: Object.freeze(['story', 'crafting'])
   })
 ])
 

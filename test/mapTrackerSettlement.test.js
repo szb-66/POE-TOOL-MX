@@ -122,19 +122,6 @@ test('已确认日志会话可跨启动恢复实例，草稿恢复不自动计�
   assert.equal(machine.activeRun.activeDurationMs, next.machine.activeRun.activeDurationMs)
 })
 
-test('慢经验请求不阻塞结算且切换区间后的结果不写入新地图', async t => {
-  let release
-  const { service, repository } = await setup(t, { characterProvider: () => new Promise(resolve => { release = resolve }) })
-  await service.updateSettings({ enhancements: { character: true } }); await service.handleEvent(area())
-  await new Promise(resolve => setImmediate(resolve))
-  const firstRelease = release
-  await service.handleEvent(disconnected)
-  assert.equal((await repository.all()).runs.length, 1)
-  await service.updateSettings({ enhancements: { character: false } }); await service.handleEvent(area('2'))
-  firstRelease([{ ...character, experience: 1000 }]); await flush(service)
-  assert.equal(service.machine.activeRun.experienceSampleCount, 0)
-  assert.equal((await repository.all()).runs[0].experienceSampleCount, 0)
-})
 
 test('入库不补写历史，重入和跨地图不改变独立统计', async t => {
   const { service, repository } = await setup(t)
@@ -149,16 +136,6 @@ test('入库不补写历史，重入和跨地图不改变独立统计', async t 
   assert.equal(Object.hasOwn(service.snapshot(), 'lootRunId'), false)
 })
 
-test('实例累计经验排除两次进图之间的变化并保留死亡损失', async t => {
-  let experience = 1000
-  const { service, repository } = await setup(t, { characterProvider: async () => [{ ...character, experience }] })
-  await service.updateSettings({ enhancements: { character: true } })
-  await service.handleEvent(area()); await flush(service)
-  experience = 1100; await service.handleEvent(town()); await flush(service)
-  experience = 1500; await service.handleEvent(area()); await flush(service)
-  experience = 1450; await service.handleEvent(town()); await flush(service)
-  assert.equal((await repository.all()).runs[0].experienceGain, 50)
-})
 
 test('结算写入期间收到新区域和断线，不会在旧队列放行任何输入', async t => {
   const sent = []

@@ -37,30 +37,31 @@ function mountDashboard(store) {
   return { app, root, text, find: predicate => flatten(root).find(predicate), buttons: () => flatten(root).filter(target => target.type === 'button') }
 }
 
-test('实际 Vue 组件四指标和三时段切换，今日数字固定且跨指标保留时间选择', async (t) => {
+test('实际 Vue 组件三指标和三时段切换，今日数字固定且跨指标保留时间选择', async (t) => {
   const now = new Date(2026, 8, 7, 12).getTime()
   const iso = value => new Date(value).toISOString()
   const runs = [1, 2].map(id => ({ id: String(id), areaName: '墓地', mapTier: 16, startedAt: iso(now - id * 3600000), endedAt: iso(now - id * 1800000), activeDurationMs: 60000 * id, loot: [{ name: '混沌石', quantity: id * 10, recordedAt: iso(now - id * 1800000) }] }))
-  const store = Vue.reactive({ snapshot: { settings: {}, summary: { ...buildDashboardSummary({ runs, stashEvents: runs.flatMap(run => run.loot), now }), experienceGrowth: -50 } }, enabled: true, activeRun: null })
+  const store = Vue.reactive({ snapshot: { settings: {}, summary: { ...buildDashboardSummary({ runs, stashEvents: runs.flatMap(run => run.loot), now }) } }, enabled: true, activeRun: null })
   const view = mountDashboard(store); t.after(() => view.app.unmount())
   const button = label => view.buttons().find(target => view.text(target).startsWith(label))
   const click = async label => { button(label).props.onClick(); await Vue.nextTick() }
   const currentPanel = () => view.find(target => target.props.id === 'mapping-metric-content')
+  assert.equal(button('今日经验'), undefined)
   assert.equal(button('今日完成').props['aria-pressed'], true)
   assert.equal(button('24 小时').props['aria-pressed'], true)
-  const initialNumbers = ['今日完成', '今日入库', '今日经验', '平均用时'].map(label => view.text(button(label)))
+  const initialNumbers = ['今日完成', '今日入库', '平均用时'].map(label => view.text(button(label)))
   for (const hours of [6, 1, 24]) {
     await click(`${hours} 小时`)
-    for (const [label, title] of [['今日入库', '入库物品记录'], ['今日经验', '经验增长走势'], ['平均用时', '各地图平均用时'], ['今日完成', '完成地图趋势']]) {
+    for (const [label, title] of [['今日入库', '入库物品记录'], ['平均用时', '各地图平均用时'], ['今日完成', '完成地图趋势']]) {
       await click(label)
       assert.equal(currentPanel().props['aria-label'], title)
       assert.equal(button(`${hours} 小时`).props['aria-pressed'], true)
-      assert.deepEqual(['今日完成', '今日入库', '今日经验', '平均用时'].map(name => view.text(button(name))), initialNumbers)
+      assert.deepEqual(['今日完成', '今日入库', '平均用时'].map(name => view.text(button(name))), initialNumbers)
     }
   }
   await click('今日入库')
   assert.equal(view.find(target => target.props['aria-label'] === '入库物品明细').props.data[0].quantity, 30)
-  store.snapshot.summary = { ...buildDashboardSummary({ now }), experienceGrowth: null }
+  store.snapshot.summary = { ...buildDashboardSummary({ now }) }
   await Vue.nextTick()
   assert.match(view.text(currentPanel()), /所选时段暂无入库记录/)
 })

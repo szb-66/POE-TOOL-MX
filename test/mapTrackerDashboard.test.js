@@ -1,8 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { buildDashboardSummary, mergeDashboardRuns } from '../shared/mapTrackerDashboard.js'
-import { observeCharacterExperience, characterExperienceGrowth } from '../electron/modules/mapTracker/experience.js'
-import { normalizeMapTrackerSettings } from '../electron/modules/mapTracker/model.js'
 
 const HOUR = 3600000
 const now = new Date(2026, 8, 7, 12).getTime()
@@ -52,20 +50,4 @@ test('旧地图入库不计数，独立事件不受地图删除影响', () => {
   assert.equal(buildDashboardSummary({ runs: [old], now }).todayLoot, 0)
   assert.equal(buildDashboardSummary({ runs: [old], stashEvents: events, now }).todayLoot, 2)
   assert.equal(buildDashboardSummary({ stashEvents: events, now }).todayLoot, 2)
-})
-
-test('经验保留跨日采样和窗口前基准，支持负增长及角色隔离', () => {
-  const at = new Date(2026, 8, 7, 0, 30).getTime()
-  let observation = observeCharacterExperience(null, { ...character, experience: 1000 }, at - 25 * HOUR)
-  observation = observeCharacterExperience(observation, { ...character, experience: 1100 }, at - HOUR)
-  observation = observeCharacterExperience(observation, { ...character, experience: 900 }, at)
-  const restored = normalizeMapTrackerSettings({ experienceObservation: observation }).experienceObservation
-  assert.equal(restored.points.length, 3)
-  assert.equal(characterExperienceGrowth(restored, at), null)
-  const summary = buildDashboardSummary({ observation: restored, now: at })
-  assert.equal(summary.windows[24].experience.delta, -100)
-  assert.equal(summary.windows[1].experience.delta, -200)
-  const switched = observeCharacterExperience(restored, { ...character, name: '其他角色', experience: 500 }, at)
-  assert.equal(buildDashboardSummary({ observation: switched, now: at }).windows[24].experience.delta, null)
-  assert.equal(buildDashboardSummary({ observation: restored, now: at + 26 * HOUR }).windows[24].experience.delta, null)
 })

@@ -1,7 +1,8 @@
 # inventory-grid-coordinate Specification
 
 ## Purpose
-TBD - created by archiving change unify-inventory-center-coordinate. Update Purpose after archive.
+统一地图制作与背包自动入库的网格坐标语义，以首格中心和格子间距计算 Windows 虚拟桌面物理像素位置，并保持已有坐标配置可用。
+
 ## Requirements
 ### Requirement: 统一背包网格中心坐标
 系统 MUST 将 `inventory.startPos` 解释为背包左上角第一格中心的 Windows 虚拟桌面物理像素坐标，并让地图制作和背包自动入库使用相同网格公式。

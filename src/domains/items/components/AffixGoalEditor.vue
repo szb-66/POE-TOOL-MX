@@ -104,7 +104,7 @@ function removeGroup(index) {
 .affix-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-lg); padding-top: var(--spacing-md); }
 .column-header { min-height: 32px; margin-bottom: var(--spacing-sm); font-weight: 600; }
 .column-header .count-selector { margin-left: auto; font-size: var(--font-size-xs); font-weight: normal; }
-:deep(.affix-condition-row) { display: grid; grid-template-columns: minmax(0, 1fr) 112px auto; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+:deep(.affix-condition-row) { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
 .add-group { width: 100%; }
 :global(.affix-suggestion-popper .el-autocomplete-suggestion__wrap), :global(.affix-tier-popper .el-select-dropdown__wrap) { max-height: min(420px, 60vh) !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; }
 :global(.affix-suggestion-popper .el-scrollbar__bar.is-vertical), :global(.affix-tier-popper .el-scrollbar__bar.is-vertical) { opacity: 1; }

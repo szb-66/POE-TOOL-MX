@@ -3,7 +3,7 @@
     <header class="page-heading">
       <div>
         <h1>数据看板</h1>
-        <p>记录每一张地图，观察今日刷图节奏与角色成长。</p>
+        <p>记录每一张地图，观察今日刷图节奏与入库记录。</p>
       </div>
     </header>
 
@@ -90,10 +90,8 @@ import {
   MapLocation,
   LocationInformation,
   Monitor,
-  Notebook,
   Refresh,
   ShoppingBag,
-  Tools,
   VideoPlay,
   WarningFilled
 } from '@element-plus/icons-vue'
@@ -116,10 +114,8 @@ const moduleIcons = {
   map: MapLocation,
   mapTracker: LocationInformation,
   combat: FirstAidKit,
-  story: Notebook,
   shop: ShoppingBag,
-  priceCheck: Coin,
-  crafting: Tools
+  priceCheck: Coin
 }
 const summaryItems = [
   { state: 'running', label: '运行中', icon: VideoPlay },

@@ -1,7 +1,8 @@
 # cn-chaos-recipe-auth Specification
 
 ## Purpose
-TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose after archive.
+为国服配方与查价提供共享且隔离的账号认证能力，统一网页登录、手动会话凭证验证和赛季状态，防止敏感凭证泄露到渲染进程。
+
 ## Requirements
 ### Requirement: 国服专用会话认证
 系统 MUST 使用与主应用隔离的持久化 Electron Session 管理共享国服账号，混沌配方与查价 MUST 使用同一认证实例，并支持自动完成的网页登录和手动 `POESESSID`。

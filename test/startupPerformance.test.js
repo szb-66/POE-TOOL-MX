@@ -88,7 +88,7 @@ test('启动与首页状态刷新不预热完整做装数据', () => {
   assert.match(main, /craftingService\.registerImageProtocol\(\)/)
   assert.doesNotMatch(main, /await craftingService\.initialize\(\)/)
   assert.doesNotMatch(dashboard, /electronApi\.crafting\.getStatus\(\)/)
-  assert.match(dashboard, /status: craftingStore\.status/)
+  assert.doesNotMatch(dashboard, /craftingStore|useCraftingStore|evaluateCraftingStatus/)
 })
 
 test('首页复用主运行时的 DPI 探测结果', () => {

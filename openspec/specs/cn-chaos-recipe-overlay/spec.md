@@ -1,7 +1,8 @@
 # cn-chaos-recipe-overlay Specification
 
 ## Purpose
-TBD - created by archiving change integrate-cn-chaos-recipe. Update Purpose after archive.
+提供国服配方工作台和游戏内仓库高亮浮窗，展示候选数量、缺件、预览及取件状态，并通过仓库校准让取件计划与实际格子保持一致。
+
 ## Requirements
 ### Requirement: 商城混沌配方界面
 系统 SHALL 在独立配方页直接展示商城配方工作台，并 SHALL 保留现有仓库刷新、配方状态、预览、取件、校准及游戏内浮窗同步能力。配方页 MUST NOT 再包含商城正则标签。

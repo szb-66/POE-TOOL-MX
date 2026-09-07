@@ -1,7 +1,8 @@
 # crafting-script-startup Specification
 
 ## Purpose
-TBD - created by archiving change fix-crafting-start-execution. Update Purpose after archive.
+统一物品与地图制作的配置校验、脚本生成、后台进程启动及运行状态同步，在仓库选择和通货预检完成前阻止正式制作输入，确保启动结果真实可追踪。
+
 ## Requirements
 ### Requirement: 制作脚本可靠启动
 系统 SHALL 在物品制作或地图制作被触发时，完成配置校验、脚本生成、后台进程启动、可选仓库页自动选择和启动通货预检，并且仅在后台进程已确认成功启动后报告进程创建成功。系统 MUST 在共享进程状态中保存对应运行类型，并在进程完整生命周期内同步 renderer 状态；正式制作输入 MUST 等待仓库页选择和启动通货预检全部通过。

@@ -1,7 +1,8 @@
 # vendor-recipe-automation Specification
 
 ## Purpose
-TBD - created by archiving change expand-vendor-recipe-automation. Update Purpose after archive.
+统一七种商店配方的候选计算、奖励展示和自动取件计划，按装备部位、物品等级与插槽等条件生成可取内容，避免把独立配方结果错误相加。
+
 ## Requirements
 ### Requirement: 统一商店配方目录
 系统 SHALL 定义机会石、混沌石、富豪石、崇高石、幻色石、工匠石和链结石七种稳定配方，并在一次仓库刷新后为每种配方输出独立结果。

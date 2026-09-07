@@ -27,8 +27,9 @@
     </el-autocomplete>
 
     <el-select
-      :model-value="condition.minTier"
-      placeholder="不限 T"
+      :model-value="isCatalog ? condition.minTier : null"
+      :placeholder="affixTierItemLevelLabel(condition)"
+      :disabled="!isCatalog"
       clearable
       class="tier-select"
       popper-class="affix-tier-popper"
@@ -38,7 +39,7 @@
       <el-option
         v-for="tier in tierOptions"
         :key="tier.tier"
-        :label="`最低 T${tier.tier}`"
+        :label="affixTierItemLevelLabel(condition, tier.tier)"
         :value="tier.tier"
       />
     </el-select>
@@ -50,6 +51,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
+import { affixTierItemLevelLabel } from '../affixConfig.js'
 
 const props = defineProps({
   condition: { type: Object, required: true },
@@ -59,7 +61,8 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'change', 'remove'])
 
-const tierOptions = computed(() => props.condition.tiers?.length
+const isCatalog = computed(() => props.condition.kind === 'catalog')
+const tierOptions = computed(() => !isCatalog.value ? [] : props.condition.tiers?.length
   ? props.condition.tiers
   : Array.from({ length: 20 }, (_, index) => ({ tier: index + 1, name: `T${index + 1}` })))
 
@@ -74,6 +77,7 @@ function updateKeyword(value) {
     props.condition.sourceLabel = ''
     props.condition.profileId = ''
     props.condition.applicableLabel = ''
+    props.condition.minTier = null
     props.condition.tiers = []
   }
 }

@@ -749,7 +749,6 @@ async function startApplication() {
   const mapTrackerRepository = new MapTrackerRepository(app.getPath('userData'))
   mapTrackerService = new MapTrackerService({
     repository: mapTrackerRepository,
-    characterProvider: options => chaosStashClient.listCharacters(options),
     clientEvents: clientEventsService,
 
   })

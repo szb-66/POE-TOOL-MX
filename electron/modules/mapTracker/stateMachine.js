@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { classifyArea } from './areaCatalog.js'
-import { calculateExperienceEfficiency, createMapRun } from './model.js'
+import { createMapRun } from './model.js'
 
-export const characterIdentity = value => value?.name ? JSON.stringify([value.accountName || '', value.league || '', value.name]) : null
 const mapTypes = ['map', 'boss', 'side-area']
 
 export class MapTrackerStateMachine {
-  constructor({ now = () => Date.now(), characterLevel = null } = {}) {
-    this.now = now; this.characterLevel = characterLevel
+  constructor({ now = () => Date.now() } = {}) {
+    this.now = now
     this.activeRun = null; this.currentArea = null; this.enabled = false; this.paused = false
     this.gameForeground = false; this.gameState = 'unknown'; this.idleMs = 0; this.lastTick = this.now(); this.completed = []
     this.character = null; this.instances = new Map(); this.lastSettledRun = null
@@ -76,7 +75,7 @@ export class MapTrackerStateMachine {
     this.lastSettledRun = null
     this.restored = false
     this.activeRun = saved ? createMapRun({ ...saved, endedAt: null, endReason: null, portalsUsed: saved.portalsUsed + (event.recovered ? 0 : 1) })
-      : createMapRun({ ...event, instanceKey, sessionKey, character: this.character, areaName: area.areaName, portalsUsed: 1, startedAt: new Date(at).toISOString(), experienceEfficiency: calculateExperienceEfficiency(this.characterLevel, event.areaLevel) })
+      : createMapRun({ ...event, instanceKey, sessionKey, character: this.character, areaName: area.areaName, portalsUsed: 1, startedAt: new Date(at).toISOString() })
     return { action: saved ? 'resumed' : 'started', run: this.activeRun }
   }
   handleEvent(event, at = this.now()) {
@@ -86,7 +85,6 @@ export class MapTrackerStateMachine {
     this.tick(at)
     if (!this.enabled || this.paused || this.gameState !== 'in-game' || !this.activeRun || !mapTypes.includes(this.currentArea?.type)) return null
     if (event.type === 'player-death') this.activeRun.deaths += 1
-    if (event.type === 'character-level') { this.characterLevel = event.level; this.activeRun.experienceEfficiency = calculateExperienceEfficiency(event.level, this.activeRun.areaLevel) }
     return null
   }
   finish(reason = 'manual', at = this.now()) {

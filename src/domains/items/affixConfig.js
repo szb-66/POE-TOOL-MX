@@ -23,7 +23,7 @@ function normalizeTierOptions(values) {
     return tier ? [tier, {
       tier,
       name: text(typeof entry === 'object' ? entry.name : `T${tier}`) || `T${tier}`,
-      requiredLevel: Math.max(1, Math.trunc(Number(typeof entry === 'object' ? entry.requiredLevel : 1) || 1)),
+      requiredLevel: positiveTier(typeof entry === 'object' ? entry.requiredLevel : null),
       text: text(typeof entry === 'object' ? entry.text : '')
     }] : null
   }).filter(Boolean)).values()].sort((a, b) => a.tier - b.tier)
@@ -61,9 +61,22 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
     sourceLabel: text(input.sourceLabel),
     profileId: text(input.profileId),
     applicableLabel: text(input.applicableLabel),
-    minTier: positiveTier(input.minTier),
-    tiers: normalizeTierOptions(input.tiers)
+    minTier: kind === 'catalog' ? positiveTier(input.minTier) : null,
+    tiers: kind === 'catalog' ? normalizeTierOptions(input.tiers) : []
   }
+}
+
+export function affixTierItemLevelLabel(condition, minTier = null) {
+  if (condition?.kind !== 'catalog') return ''
+  const tiers = (condition.tiers ?? []).filter(entry => positiveTier(entry?.tier))
+  const selectedTier = positiveTier(minTier)
+  const levels = tiers
+    .filter(entry => selectedTier == null || Number(entry.tier) <= selectedTier)
+    .map(entry => positiveTier(entry.requiredLevel))
+  const level = levels.length && levels.every(value => value != null)
+    ? Math.min(...levels)
+    : '未知'
+  return `${selectedTier == null ? '不限 T' : `最低 T${selectedTier}`} (${level})`
 }
 
 function effectiveCondition(condition) {

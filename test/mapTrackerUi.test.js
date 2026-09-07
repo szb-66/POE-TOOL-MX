@@ -24,11 +24,11 @@ test('浮窗只展示计时、地图和传送门且无交互模式', () => {
   assert.match(overlay, /text-overflow:ellipsis/)
 })
 
-test('废弃接口从端到端移除而经验 provider 保留', () => {
+test('废弃接口及经验 provider 从端到端移除', () => {
   const ipc = source('electron/modules/ipc/mapTracker.js')
   assert.doesNotMatch(ipc, /map-tracker:(?:characters|select-character|capture-chat|finish|discard|command)/)
   const service = source('electron/modules/mapTracker/service.js')
   assert.doesNotMatch(service, /kills|whois|requestCommand|selectCharacter/)
-  assert.match(service, /characterProvider/)
+  assert.doesNotMatch(service, /characterProvider|sampleExperience/)
   assert.doesNotMatch(source('src/domains/dashboard/useDashboard.js'), /refreshKills|refreshCharacter/)
 })

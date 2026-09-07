@@ -1,5 +1,5 @@
 export function shouldShowMapTrackerOverlay(snapshot) {
-  return Boolean(snapshot?.foreground && snapshot?.settings?.enabled && snapshot?.settings?.overlay?.enabled !== false)
+  return Boolean(snapshot?.foreground && snapshot?.settings?.enabled && snapshot?.settings?.overlay?.enabled === true)
 }
 
 export function defaultMapTrackerOverlayBounds(workArea, size = { width: 240, height: 88 }) {

@@ -23,7 +23,8 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     readFile('src/utils/python.js', 'utf8')
   ])
 
-  const view = `${moduleTwo}\n${goalEditor}\n${conditionRow}`
+  const config = await readFile('src/domains/items/affixConfig.js', 'utf8')
+  const view = `${moduleTwo}\n${goalEditor}\n${conditionRow}\n${config}`
   for (const text of [
     'form.affixGroups',
     '新增达标组合',

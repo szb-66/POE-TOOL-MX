@@ -29,10 +29,10 @@ async function setup(t, initial = area() + ready, ids = [123]) {
   return { service, repository, client, root, file, append, flush, advance: ms => { now += ms } }
 }
 
-test('旧字段静默移除且经验旧配置保留', () => {
+test('旧字段及经验开关静默移除，保留角色身份', () => {
   const settings = normalizeMapTrackerSettings({ overlay: { interactive: true }, enhancements: { kills: true, character: true }, chat: { inputReady: {} }, selectedCharacter: { name: '旧角色', level: 90 } })
   assert.equal(settings.overlay.interactive, undefined); assert.equal(settings.enhancements.kills, undefined)
-  assert.equal(settings.chat, undefined); assert.equal(settings.enhancements.character, true)
+  assert.equal(settings.chat, undefined); assert.equal(settings.enhancements.character, undefined)
   assert.equal(settings.selectedCharacter.name, '旧角色'); assert.equal(createMapRun({ kills: 500 }).kills, undefined)
 })
 

@@ -91,11 +91,31 @@ test('CSV 使用 BOM、稳定列和标准转义', () => {
   assert.doesNotMatch(csv, /mapModifiers|notes|mechanics|deviceInputs/)
 })
 
-test('CSV 不再导出入库但保留经验采样字段', () => {
-  const csv = runsToCsv([run({ loot: [{ name: '混沌石', quantity: 23 }], experienceStart: 1000, experienceEnd: 1200, experienceSampleCount: 2 })])
-  assert.doesNotMatch(csv, /loot|混沌石/)
-  assert.match(csv, /experienceStart,experienceEnd,experienceSampleCount,experienceGrowth/)
-  assert.match(csv, /1000,1200,2,200\r\n/)
-  const loss = runsToCsv([run({ experienceStart: 1000, experienceEnd: 900, experienceSampleCount: 2 })])
-  assert.match(loss, /1000,900,2,-100\r\n/)
+test('CSV 删除经验列并保持其余列顺序', () => {
+  const csv = runsToCsv([run()])
+  assert.equal(csv.split('\r\n')[0], '\uFEFFstartedAt,endedAt,areaName,areaId,areaLevel,mapTier,activeDurationMs,deaths,portalsUsed,character,endReason')
+})
+
+test('旧经验记录整条过滤，包含空字段；读取不改写文件，新记录正常导出', async () => {
+  const repository = new MapTrackerRepository(await makeRoot())
+  const good = run({ id: 'new-record', deaths: 2, portalsUsed: 3, activeDurationMs: 60000 })
+  await repository.saveRun(good)
+  const file = repository.shardPath(good)
+  const legacy = ['experienceEfficiency', 'experienceStart', 'experienceEnd', 'experienceGain', 'experienceSampleCount', 'experienceFirstSampleAt', 'experienceLastSampleAt'].map((key, index) => ({ ...good, id: `legacy-${index}`, [key]: index % 2 ? 100 : null }))
+  const original = JSON.stringify({ schemaVersion: 1, runs: [...legacy, good] })
+  await writeFile(file, original)
+  assert.deepEqual((await repository.all()).runs, [good])
+  assert.equal((await repository.query()).total, 1)
+  const target = path.join(repository.root, 'export.csv')
+  assert.deepEqual(await repository.exportCsv({}, target), { count: 1 })
+  assert.doesNotMatch(await readFile(target, 'utf8'), /experience/)
+  assert.equal(await readFile(file, 'utf8'), original)
+})
+
+test('旧经验草稿保留地图与计时但剥离经验字段', async () => {
+  const repository = new MapTrackerRepository(await makeRoot())
+  const draft = run({ activeDurationMs: 120000, deaths: 2, portalsUsed: 4 })
+  await mkdir(repository.root, { recursive: true })
+  await writeFile(repository.activePath, JSON.stringify({ schemaVersion: 1, run: { ...draft, experienceStart: 100 } }))
+  assert.deepEqual(await repository.getActiveRun(), draft)
 })
