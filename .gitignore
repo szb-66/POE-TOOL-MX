@@ -14,6 +14,3 @@ __pycache__/
 .opencode/
 .agents/skills/
 
-# OpenSpec 需求实施历史（主规格 openspec/specs 继续跟踪）
-openspec/changes/
-
