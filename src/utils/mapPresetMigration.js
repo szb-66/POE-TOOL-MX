@@ -14,6 +14,14 @@ export const CHART_BASE_STATS = {
   '亡者硫磺': 'deadmanSulphur'
 }
 
+export const HEIST_BASE_STATS = {
+  '物品数量': 'quantity',
+  '物品稀有度': 'rarity',
+  '警报等级衰减': 'alertLevelReduction',
+  '封锁前的时间': 'timeBeforeLockdown',
+  '最大存活援军': 'maximumAliveReinforcements'
+}
+
 const COMMON_MIGRATIONS = {
   quantity: ['quantity', 'quantityNormal', 'quantityT17'],
   rarity: ['rarity', 'rarityNormal', 'rarityT17'],
@@ -48,6 +56,10 @@ function migrateStats(stats = {}, keys = Object.values(MAP_BASE_STATS)) {
   for (const key of SPECIAL_KEYS) {
     if (!keys.includes(key)) continue
     migrated[key] = normalizeStat(stats[key])
+  }
+
+  for (const key of ['alertLevelReduction', 'timeBeforeLockdown', 'maximumAliveReinforcements']) {
+    if (keys.includes(key)) migrated[key] = normalizeStat(stats[key])
   }
 
   if (keys.includes('deadmanSulphur')) {
@@ -93,6 +105,15 @@ function migrateRollingProfile(rawProfile = {}, statKeys) {
       optionalStats: migrateStats(match.optionalStats, statKeys)
     }
   }
+}
+
+export function createDefaultHeistConfig() {
+  return { ...createRollingProfile(Object.values(HEIST_BASE_STATS)), grid: { ...DEFAULT_GRID } }
+}
+
+export function cleanMigratedHeistConfig(raw = {}) {
+  const profile = migrateRollingProfile(raw, Object.values(HEIST_BASE_STATS))
+  return { ...profile, binding: { enabled: false }, exalted: { enabled: false }, vaal: { enabled: false, checkAfter: false }, grid: { ...DEFAULT_GRID, ...(raw.grid || {}) } }
 }
 
 export function createDefaultChartConfig() {
@@ -152,6 +173,7 @@ export function cleanMigratedChartConfig(rawChart = {}, fallbackGrid = {}) {
 }
 
 export function getActiveMapRollingConfig(rawMap = {}, rawChart = null, requestedKind = null) {
+  if (requestedKind === 'heist' || rawMap.targetKind === 'heist') return { ...cleanMigratedHeistConfig(rawMap), targetKind: 'heist' }
   if (rawMap.targetKind === 'chart' || rawMap.targetKind === 'atlas') return rawMap
   const targetKind = requestedKind || rawMap.activeKind
   if (targetKind === 'chart') {

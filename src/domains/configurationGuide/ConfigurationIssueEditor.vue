@@ -64,6 +64,11 @@
       @configured="configured"
     />
 
+    <div v-else-if="issue.editorId === 'map-tracker.client-log'" class="configuration-issue-editor__row">
+      <el-button :loading="picking === issue.editorId" @click="enableClientLog">自动检测并启用</el-button>
+      <el-button :loading="picking === issue.editorId" @click="selectClientLog">选择 Client.txt</el-button>
+    </div>
+
     <ShopStashTabConfigurationField
       v-else-if="issue.editorId === 'shop.stash-tabs'"
       :tabs="chaos.supportedTabs"
@@ -229,6 +234,7 @@ import { useJunfengStore } from '@/stores/junfeng'
 import { usePuzzleStore } from '@/stores/puzzle'
 import { usePresetStore } from '@/stores/preset'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
+import { useMapTrackerStore } from '@/stores/mapTracker'
 import { CURRENCY_NAMES } from '@/utils/constants'
 import { deriveInventoryGridFromRegion } from '@/utils/inventorySettings'
 import { updateBagRuntimeConfig } from '@/utils/bagService'
@@ -258,6 +264,7 @@ const junfeng = useJunfengStore()
 const puzzle = usePuzzleStore()
 const presets = usePresetStore()
 const batchCrafting = useBatchCraftingStore()
+const mapTracker = useMapTrackerStore()
 const picking = ref('')
 const combatDraft = ref(JSON.parse(JSON.stringify(settings.combatAssist)))
 const combatResources = [
@@ -400,6 +407,22 @@ async function loadShopTabs() {
   } catch (error) {
     ElMessage.error(error?.message || '加载仓库页失败')
   }
+}
+
+async function enableClientLog() {
+  if (picking.value) return
+  picking.value = props.issue.editorId
+  try { const result = await electronApi.clientEvents.updateSettings({ enabled: true }); if (result?.success === false) throw new Error(result.error?.message || '启用失败'); await mapTracker.refreshClient(); configured() }
+  catch (error) { ElMessage.error(error?.message || '启用 Client.txt 监听失败') }
+  finally { picking.value = '' }
+}
+
+async function selectClientLog() {
+  if (picking.value) return
+  picking.value = props.issue.editorId
+  try { const result = await electronApi.clientEvents.selectLogFile(); if (result?.success === false) throw new Error(result.error?.message || '选择失败'); await electronApi.clientEvents.updateSettings({ enabled: true }); await mapTracker.refreshClient(); configured() }
+  catch (error) { ElMessage.error(error?.message || '选择 Client.txt 失败') }
+  finally { picking.value = '' }
 }
 
 async function saveShopTabs(values) {

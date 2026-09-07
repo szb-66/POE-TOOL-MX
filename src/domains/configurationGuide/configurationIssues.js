@@ -14,7 +14,8 @@ export const CONFIGURATION_MODULES = Object.freeze({
   combat: 'combat',
   shop: 'shop',
   priceCheck: 'price-check',
-  puzzle: 'puzzle'
+  puzzle: 'puzzle',
+  mapTracker: 'map-tracker'
 })
 
 export const CONFIGURATION_ACTIONS = Object.freeze({
@@ -26,7 +27,8 @@ export const CONFIGURATION_ACTIONS = Object.freeze({
   capture: 'capture',
   analyze: 'analyze',
   border: 'border',
-  autoPlace: 'auto-place'
+  autoPlace: 'auto-place',
+  mapTrackerEnable: 'enable'
 })
 
 const ISSUE_STATES = new Set(['missing', 'invalid', 'suspect'])

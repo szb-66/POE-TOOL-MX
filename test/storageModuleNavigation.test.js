@@ -13,7 +13,7 @@ test('存取模块在关联入口使用统一名称并保留内部路由', () =>
   const bagService = source('src/utils/bagService.js')
 
   assert.equal(availableFeatureCatalog().find(item => item.id === 'bag')?.label, '存取')
-  assert.match(sidebar, /featureStore\.enabledFeatures/)
+  assert.match(sidebar, /featureStore\.enabledNavigationFeatures/)
   assert.match(dashboard, /id: 'bag',[\s\S]*?title: '存取',[\s\S]*?route: '\/bag'/)
   assert.match(help, /id: 'bag', title: '存取'/)
   assert.match(settings, /前往“存取”页面进行配置/)

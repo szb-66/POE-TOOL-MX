@@ -425,7 +425,7 @@ test('IPC、preload 与渲染 API 暴露前台门禁协议', () => {
   assert.match(api, /getScopeState/)
   assert.match(api, /onScopeChanged/)
   assert.match(api, /initFromSettings: \(shortcuts, options\)/)
-  assert.match(scriptService, /initFromSettings\(registeredShortcuts, \{ rollbackOnFailure: false \}\)/)
+  assert.match(scriptService, /initFromSettings\(registeredShortcuts, \{[\s\S]*?rollbackOnFailure: false,[\s\S]*?\}\)/)
 })
 
 test('设置页、首页状态与设置存储展示前台门禁', () => {

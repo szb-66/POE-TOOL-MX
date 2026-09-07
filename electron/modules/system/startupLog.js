@@ -34,6 +34,7 @@ export function createStartupLogger({
   fileSystem = fs,
   now = () => new Date(),
   homeDirectory = os.homedir(),
+  onRecord = () => {},
   maxBytes = DEFAULT_MAX_LOG_BYTES,
   maxMessageLength = DEFAULT_MAX_MESSAGE_LENGTH
 } = {}) {
@@ -90,6 +91,7 @@ export function createStartupLogger({
         message: sanitizeMessage(candidate.message, candidate.error)
       }
       fileSystem.appendFileSync(filePath, `${JSON.stringify(event)}\n`, 'utf8')
+      try { onRecord(event) } catch { /* Observers cannot break logging. */ }
       return true
     } catch {
       return false

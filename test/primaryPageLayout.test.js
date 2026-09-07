@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { parse } from '@vue/compiler-sfc'
-import { availableFeatureCatalog } from '../src/features/featureCatalog.js'
+import { availableNavigationFeatureCatalog } from '../src/features/featureCatalog.js'
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -108,12 +108,14 @@ test('主布局和导航保持 76px、原顺序、预加载与非交互视觉分
   const sidebar = source('src/components/Layout/Sidebar.vue')
 
   assert.match(layout, /computed\(\(\) => '76px'\)/)
-  assert.deepEqual(availableFeatureCatalog({ development: true }).map(item => [item.route, item.label]), [
+  assert.deepEqual(availableNavigationFeatureCatalog({ development: true }).map(item => [item.route, item.label]), [
     ['/items', '制作'], ['/bag', '存取'], ['/highlight-model-training', '模型训练'], ['/map', '地图'],
     ['/combat', '战斗'], ['/story', '剧情'], ['/regex', '正则'], ['/recipe', '配方'],
     ['/craft-planner', '模拟'], ['/price-check', '查价'], ['/faustus', '浮士德'], ['/puzzle', '海图'], ['/tools', '工具站']
   ])
-  assert.match(sidebar, /v-for="feature in featureStore\.enabledFeatures"/)
+  assert.match(sidebar, /v-for="feature in featureStore\.enabledNavigationFeatures"/)
+  const moreFeatures = source('src/components/Layout/MoreFeaturesDialog.vue')
+  assert.match(moreFeatures, /if \(!feature\.navigation \|\| !feature\.route\) return/)
   assert.match(sidebar, /sidebar-menu--top/)
   assert.match(sidebar, /sidebar-menu--footer/)
   assert.match(sidebar, /overflow-y:\s*auto/)

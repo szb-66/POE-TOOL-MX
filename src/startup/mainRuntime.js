@@ -38,6 +38,55 @@ async function settleSubsystem(name, operation, warnings) {
 async function startMainRuntime({ router }) {
   const warnings = []
   const settingsStore = useSettingsStore()
+  let closeChoiceOpen = false
+
+  addDisposer(electronApi.window.onCloseChoiceRequested(async () => {
+    if (closeChoiceOpen) return
+    closeChoiceOpen = true
+    let rememberChoice = false
+    const content = h('div', { class: 'window-close-choice' }, [
+      h('p', '请选择关闭主窗口后的操作。'),
+      h('p', { style: 'color: var(--el-text-color-secondary);' }, '以后可以在“设置 → 系统 → 系统设置”中修改。'),
+      h('label', { style: 'display: inline-flex; align-items: center; gap: 8px; cursor: pointer;' }, [
+        h('input', {
+          type: 'checkbox',
+          onChange: event => { rememberChoice = event.target.checked === true }
+        }),
+        h('span', '不再提示')
+      ])
+    ])
+
+    const resolveChoice = async (behavior) => {
+      if (rememberChoice) settingsStore.rememberWindowCloseChoice(behavior)
+      const result = await electronApi.window.resolveCloseChoice({ behavior, remember: rememberChoice })
+      if (!result?.success) throw new Error(result?.error || '关闭选择处理失败')
+    }
+
+    try {
+      await ElMessageBox.confirm(content, '关闭流放助手', {
+        confirmButtonText: '最小化到托盘',
+        cancelButtonText: '直接退出',
+        distinguishCancelAndClose: true,
+        closeOnClickModal: false,
+        type: 'info'
+      })
+      await resolveChoice('tray')
+    } catch (action) {
+      try {
+        if (action === 'cancel') {
+          await resolveChoice('exit')
+        } else {
+          await electronApi.window.cancelCloseChoice()
+          if (action instanceof Error) ElMessage.error(action.message)
+        }
+      } catch (error) {
+        await electronApi.window.cancelCloseChoice().catch(() => {})
+        ElMessage.error(error?.message || '关闭选择处理失败')
+      }
+    } finally {
+      closeChoiceOpen = false
+    }
+  }))
 
   const refreshGameWindowOnFocus = () => {
     if (settingsStore.dpiMode === 'auto') void settingsStore.refreshDpiScale()
@@ -112,9 +161,16 @@ async function startMainRuntime({ router }) {
 
   await Promise.all([
     settleSubsystem('dpi', () => settingsStore.refreshDpiScale(), warnings),
-    settleSubsystem('shortcuts', () => initShortcuts(), warnings),
-    settleSubsystem('feature-modules', async () => { warnings.push(...await featureRuntime.initialize()) }, warnings),
-    settleSubsystem('devtools', () => electronApi.window.setDevToolsVisible(settingsStore.debugMode), warnings)
+    (async () => {
+      // 快捷键可触发后台操作，必须在持久化功能配置恢复完成后注册。
+      await settleSubsystem('feature-modules', async () => { warnings.push(...await featureRuntime.initialize()) }, warnings)
+      await settleSubsystem('shortcuts', () => initShortcuts(), warnings)
+    })(),
+    settleSubsystem('devtools', () => electronApi.window.setDevToolsVisible(settingsStore.debugMode), warnings),
+    settleSubsystem('window-close', () => electronApi.window.setCloseBehavior({
+      behavior: settingsStore.windowCloseBehavior,
+      promptSuppressed: settingsStore.windowClosePromptSuppressed
+    }), warnings)
   ])
 
   markMainRuntimeSettled(warnings)

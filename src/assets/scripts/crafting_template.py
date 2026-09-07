@@ -207,6 +207,7 @@ foreground_failure_emitted = False
 crafting_operation_session_id = f"items-{os.getpid()}-{time.time_ns()}"
 stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 batch_config = json.loads({{BATCH_CONFIG_JSON}})
+affix_item_level_requirements = list(batch_config.get("affixItemLevelRequirements") or [])
 batch_completed_ids = list(dict.fromkeys(batch_config.get("completedIds") or []))
 batch_current_target = None
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
@@ -407,6 +408,33 @@ def fail_batch_preflight(target, reason, code="BATCH_IDENTITY_MISMATCH"):
     play_error_sound()
     return False
 
+def affix_item_level_issue(result, prefix=""):
+    requirements = globals().get("affix_item_level_requirements", [])
+    if not requirements or not isinstance(result, dict):
+        return None
+    try:
+        item_level = int(result.get("level"))
+    except (TypeError, ValueError):
+        return None
+    insufficient = [
+        requirement for requirement in requirements
+        if item_level < int(requirement.get("level", 0))
+    ]
+    if not insufficient:
+        return None
+    details = "、".join(
+        f"{requirement.get('name') or '未命名组合'} 需要 {int(requirement.get('level', 0))}"
+        for requirement in insufficient
+    )
+    subject = f"{prefix} " if prefix else ""
+    return f"{subject}物品等级 {item_level} 不足：{details}，已停止制作"
+
+def validate_affix_item_level(result, prefix=""):
+    issue = affix_item_level_issue(result, prefix)
+    if not issue:
+        return True
+    return fail_item_runtime(issue, "AFFIX_ITEM_LEVEL_INSUFFICIENT")
+
 def batch_category_matches(category_id, actual_category):
     normalized = normalized_identity_text(actual_category)
     return normalized in {normalized_identity_text(value) for value in BATCH_CATEGORY_NAMES.get(category_id, set())}
@@ -480,6 +508,8 @@ def preflight_batch_targets():
         _result, issue = read_batch_preflight_target(target, prefix)
         if issue:
             return fail_batch_preflight(target, issue["reason"], issue["code"])
+        if not validate_affix_item_level(_result, prefix):
+            return False
         emit_batch_event("crafting-batch-preflight-item-succeeded", target)
     batch_current_target = None
     emit_batch_event("crafting-batch-preflight-succeeded")
@@ -1485,6 +1515,8 @@ def prepare_item_for_crafting(identify_unidentified=True):
             f"无法读取待制作物品：{result.get('error')}",
             "ITEM_READ_FAILED"
         )
+    if "validate_affix_item_level" in globals() and not validate_affix_item_level(result):
+        return None
 
     if not result.get("isUnidentified", False):
         print("[准备] 目标物品已经鉴定")

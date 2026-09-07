@@ -67,6 +67,18 @@ Copyright (c) 2020 Dominique Alexandre.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, subject to inclusion of the above copyright notice and permission notice in substantial portions.
 
+## Exile-UI
+
+- 项目地址：https://github.com/Lailloken/Exile-UI
+- 上游许可证：MIT
+- Map-Tracker 行为参考：日志自动统计与用户显式触发采集的边界、历史表格信息层级。地图实例状态机、区域目录、经验效率、持久化、输入门禁、模板识别及 Electron/Vue 界面均为本项目独立实现；未复制其 AHK 算法、地图映射数据或图标素材。
+
+Copyright (c) Lailloken and Exile-UI contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to inclusion of the copyright and permission notice in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## OpenCC / opencc-js
 
 - 项目地址：https://github.com/BYVoid/OpenCC 、https://github.com/nk2028/opencc-js

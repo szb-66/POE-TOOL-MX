@@ -16,6 +16,7 @@ test('全局快捷键仅保留紧急停止默认值', () => {
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStart, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipePause, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.chaosRecipeStop, undefined)
+  assert.equal(DEFAULT_GLOBAL_SHORTCUTS.mapTrackerOverlay, undefined)
   assert.equal(DEFAULT_GLOBAL_SHORTCUTS.end, 'Alt+3')
   for (const [key, value] of Object.entries(DEFAULT_GLOBAL_SHORTCUTS)) {
     if (key !== 'end') assert.equal(value, '', `${key} 不应提供内置快捷键`)
@@ -45,6 +46,13 @@ test('普通快捷键保留空值且历史空紧急停止恢复默认值', () =>
   assert.equal(merged.mapStart, 'Alt+9')
   assert.equal(merged.end, DEFAULT_GLOBAL_SHORTCUTS.end)
   assert.equal(normalizeGlobalShortcutSettings({ ...DEFAULT_GLOBAL_SHORTCUTS, portal: '  ' }).portal, '')
+})
+
+test('历史物品捕获快捷键使用 Ctrl+C 时迁移为空值', () => {
+  const merged = mergeGlobalShortcutSettings({ end: 'Alt+3', itemContextMenu: 'Ctrl+C', mapTrackerKills: 'F8', priceCheck: 'Control+C' })
+  assert.equal(merged.itemContextMenu, undefined)
+  assert.equal(merged.mapTrackerKills, undefined)
+  assert.equal(merged.priceCheck, '')
 })
 
 test('快捷键提交先注册规范化候选再持久化成功值', () => {

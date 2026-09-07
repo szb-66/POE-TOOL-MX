@@ -11,7 +11,8 @@ export const BUSINESS_OVERLAY_ROUTES = Object.freeze([
   '/bag-stash-overlay',
   '/chaos-recipe-overlay',
   '/chaos-recipe-control-overlay',
-  '/price-check-overlay'
+  '/price-check-overlay',
+  '/map-tracker-overlay'
 ])
 
 export function resolveWindowTheme(route) {

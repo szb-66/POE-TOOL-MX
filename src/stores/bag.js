@@ -114,6 +114,8 @@ export const useBagStore = defineStore('bag', () => {
   }
   function setStopReason(reason = '', failure = {}) {
     lastStopReason.value = String(reason)
+    const exitCode = Number(failure?.exitCode)
+    const metadata = Number.isFinite(exitCode) ? { exitCode } : null
     lastFailure.value = {
       failureCode: String(failure.failureCode || failure.code || ''),
       configurationIssueId: String(failure.configurationIssueId || '')
@@ -122,7 +124,7 @@ export const useBagStore = defineStore('bag', () => {
       lastFailure.value = { failureCode: '', configurationIssueId: '' }
       void reportDiagnosticRecovery('bag', 'script_runtime')
     } else {
-      void reportDiagnosticFailure('bag', 'script_runtime', {}, 'process_exit')
+      void reportDiagnosticFailure('bag', 'script_runtime', {}, 'process_exit', metadata)
     }
   }
   function resetRunStats() {

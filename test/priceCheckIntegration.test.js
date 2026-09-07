@@ -191,7 +191,7 @@ test('查价浮窗提供当前物品状态三态控件与完整来源标签', as
 
 test('查价物品属性固定两列并保留整行选择和输入隔离', async () => {
   const view = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
-  assert.match(view, /class="property-grid">[\s\S]*v-for="property in state\.model\.properties"/)
+  assert.match(view, /class="property-grid">[\s\S]*v-for="property in propertyRows"/)
   assert.match(view, /\.property-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/)
   assert.match(view, /\.property-row \{[^}]*grid-template-columns: minmax\(0, 1fr\) 52px 52px;[^}]*background: var\(--surface-2\);[^}]*border-color: var\(--border-base\);/)
   assert.match(view, /class="filter-name" :title="property\.label"/)
@@ -350,7 +350,7 @@ test('查价设置跨页面双向同步并提供价格分布和候选选择', as
 
 test('等价官方词缀在浮窗中只显示一条可编辑逻辑条件', async () => {
   const overlay = await source('src/domains/priceCheck/PriceCheckOverlayView.vue')
-  const statRow = overlay.match(/v-for="stat in state\.model\.stats"[\s\S]*?<\/div>/)?.[0] || ''
+  const statRow = overlay.match(/v-for="stat in statRows"[\s\S]*?<\/div>/)?.[0] || ''
   assert.match(statRow, /:key="stat\.key"/)
   assert.match(statRow, /\{\{ stat\.text \}\}/)
   assert.match(statRow, /stat\.queryVariants\?\.length > 1[\s\S]*已合并多个官方同文案过滤项/)

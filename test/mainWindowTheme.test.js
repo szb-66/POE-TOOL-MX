@@ -44,14 +44,15 @@ test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔�
   const expectedRoutes = [
     '/loading-feedback-overlay', '/puzzle-overlay', '/chart-recognition-feedback', '/overlay', '/debug-overlay', '/story-overlay',
     '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
-    '/coordinate-picker', '/price-check-overlay'
+    '/coordinate-picker', '/price-check-overlay', '/map-tracker-overlay'
   ]
   assert.deepEqual(noLayoutRoutePaths(router), expectedRoutes)
   const crlfRouter = router.replace(/\r\n?/g, '\n').replace(/\n/g, '\r\n')
   assert.deepEqual(noLayoutRoutePaths(crlfRouter), expectedRoutes)
   for (const path of [
     '/loading-feedback-overlay', '/puzzle-overlay', '/chart-recognition-feedback', '/overlay', '/story-overlay', '/bag-stash-overlay',
-    '/chaos-recipe-overlay', '/chaos-recipe-control-overlay', '/price-check-overlay'
+    '/chaos-recipe-overlay', '/chaos-recipe-control-overlay', '/price-check-overlay',
+    '/map-tracker-overlay'
   ]) assert.match(theme, new RegExp(`'${path.replaceAll('/', '\\/')}'`))
   assert.doesNotMatch(theme, /BUSINESS_OVERLAY_ROUTES[\s\S]*?'\/debug-overlay'/)
   assert.doesNotMatch(theme, /BUSINESS_OVERLAY_ROUTES[\s\S]*?'\/coordinate-picker'/)

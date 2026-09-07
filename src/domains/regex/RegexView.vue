@@ -4,12 +4,14 @@
       <el-tabs v-model="activeTab" class="regex-tabs">
         <el-tab-pane label="商城" name="vendor" />
         <el-tab-pane label="地图" name="map" />
+        <el-tab-pane label="野兽" name="beast" />
       </el-tabs>
     </div>
     <div class="primary-page__scroll primary-page__content">
       <el-row class="app-grid" :gutter="16"><el-col :span="24">
         <VendorRegexPanel v-if="activeTab === 'vendor'" />
-        <MapRegexPanel v-else />
+        <MapRegexPanel v-else-if="activeTab === 'map'" />
+        <BeastRegexPanel v-else />
       </el-col></el-row>
     </div>
     <PageHelpDrawer :topics="helpTopics" />
@@ -21,10 +23,11 @@ import { ref, watch } from 'vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence.js'
+import BeastRegexPanel from './BeastRegexPanel.vue'
 import MapRegexPanel from './MapRegexPanel.vue'
 import VendorRegexPanel from './VendorRegexPanel.vue'
 
-const TABS = ['vendor', 'map']
+const TABS = ['vendor', 'map', 'beast']
 const activeTab = ref(readPersistentTab('regexActiveTab', TABS, 'vendor'))
 const helpTopics = moduleHelpTopicsById('regex')
 watch(activeTab, value => { activeTab.value = writePersistentTab('regexActiveTab', value, TABS, 'vendor') })

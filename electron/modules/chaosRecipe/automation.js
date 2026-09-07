@@ -149,6 +149,7 @@ export class ChaosRecipeAutomationManager {
       this.code = error?.code || ''
       this.reason = error?.message || '启动自动取件失败'
       this.clearCheckpoint()
+      this.overlay.close()
       this.automationLock?.release('混沌配方取件')
       throw error
     }

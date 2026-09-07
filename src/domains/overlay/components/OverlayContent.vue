@@ -376,11 +376,11 @@ watch(() => props.isStopped, (v) => {
 
 // 判断是否为地图制作模式
 const isMapMode = computed(() => {
-  return ['异界地图', '地图', '海图'].includes(props.itemInfo?.category) || props.mapStats !== null
+  return ['异界地图', '地图', '海图', '契约', '蓝图'].includes(props.itemInfo?.category) || props.mapStats !== null
 })
 
 const rollingTargetLabel = computed(() => (
-  props.itemInfo?.rollingTarget === 'chart' || props.itemInfo?.category === '海图'
+  props.itemInfo?.rollingTarget === 'heist' || ['契约', '蓝图'].includes(props.itemInfo?.category) ? '契约蓝图' : props.itemInfo?.rollingTarget === 'chart' || props.itemInfo?.category === '海图'
     ? '航海海图'
     : '地图'
 ))

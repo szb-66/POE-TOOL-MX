@@ -237,12 +237,53 @@
           </el-form>
         </el-card>
 
+        <div class="section-header">
+          <h3 class="section-title">Client.txt 事件中心</h3>
+        </div>
+        <el-card class="section-card">
+          <el-form label-width="120px" label-position="left">
+            <el-form-item label="启用读取">
+              <el-switch :model-value="clientEvents.enabled" @change="handleClientEventsEnabled" />
+              <span class="hint-text">默认关闭；开启后只读取新增日志并在内存中保留最近 50 条脱敏事件。</span>
+            </el-form-item>
+            <el-form-item label="日志文件">
+              <div class="update-settings">
+                <span class="hint-text" :title="clientEvents.logPath">{{ clientEvents.logPath || '尚未检测到 Client.txt' }}</span>
+                <el-button @click="handleSelectClientLog">选择 Client.txt</el-button>
+              </div>
+            </el-form-item>
+            <el-form-item label="连接状态">
+              <el-tag :type="clientEvents.state === 'started' ? 'success' : clientEvents.state === 'error' ? 'danger' : 'info'">{{ clientEventStateText }}</el-tag>
+              <el-tag>{{ clientGameStateText }}</el-tag>
+              <span v-if="clientEvents.error" class="hint-text">{{ clientEvents.error }}</span>
+            </el-form-item>
+            <el-form-item label="最近事件">
+              <el-table :data="clientEvents.events" max-height="240" empty-text="尚无新增事件" style="width:100%">
+                <el-table-column prop="sequence" label="#" width="60" />
+                <el-table-column prop="receivedAt" label="接收时间" width="190" />
+                <el-table-column label="事件">
+                  <template #default="scope">{{ formatClientEvent(scope.row) }}</template>
+                </el-table-column>
+              </el-table>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
         <!-- 系统设置 -->
         <div class="section-header">
           <h3 class="section-title">系统设置</h3>
         </div>
         <el-card class="section-card">
           <el-form label-width="120px" label-position="left">
+            <el-form-item label="关闭主窗口时">
+              <div class="update-settings">
+                <el-radio-group :model-value="settingsStore.windowCloseBehavior" @change="handleWindowCloseBehaviorChange">
+                  <el-radio-button value="exit">彻底退出</el-radio-button>
+                  <el-radio-button value="tray">最小化到系统托盘</el-radio-button>
+                </el-radio-group>
+                <span class="hint-text">最小化到托盘后，后台快捷键、自动化和游戏浮窗会继续运行；单击托盘图标可恢复主窗口。</span>
+              </div>
+            </el-form-item>
             <el-form-item label="游戏窗口名称">
               <GameWindowTitleSettings />
             </el-form-item>
@@ -540,6 +581,8 @@
 </template>
 
 <script setup>
+import { mapLabel } from '../../../shared/mapTrackerLabels.js'
+import { classifyArea } from '../../../shared/mapTrackerAreaCatalog.js'
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
@@ -598,6 +641,10 @@ const { state: updateState, busy: updateBusy } = storeToRefs(applicationUpdate)
 const SETTINGS_TAB_STORAGE_KEY = 'settings.activeTab'
 const activeTab = ref(readPersistentTab(SETTINGS_TAB_STORAGE_KEY, SETTINGS_TABS, 'general'))
 const settingsScrollbar = ref(null)
+const clientEvents = ref({ enabled: false, logPath: '', state: 'stopped', error: '', events: [] })
+let disposeClientEvents = null
+const clientEventStateText = computed(() => ({ started: '监听中', waiting: '等待文件', resyncing: '正在重新同步', stopped: '已停止', error: '读取错误' })[clientEvents.value.state] || '未知')
+const clientGameStateText = computed(() => ({ 'in-game': '游戏已进入区域', loading: '游戏加载中', disconnected: '游戏已断开', unknown: '游戏状态未知' })[clientEvents.value.gameState] || '游戏状态未知')
 
 const shortcutFields = Object.freeze([
   { key: 'itemStart', label: '制作开始' },
@@ -606,7 +653,7 @@ const shortcutFields = Object.freeze([
   { key: 'portal', label: '一键回城' },
   { key: 'storyPrevious', label: '剧情上一步' },
   { key: 'storyNext', label: '剧情下一步' },
-  { key: 'priceCheck', label: '国服查价' }
+  { key: 'priceCheck', label: '国服查价' },
 ])
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)
@@ -660,12 +707,35 @@ watch(() => route.query.tab, (tab) => {
 onMounted(async () => {
   window.addEventListener('dragover', preventBackgroundFileNavigation)
   window.addEventListener('drop', preventBackgroundFileNavigation)
+  disposeClientEvents = electronApi.clientEvents.onSnapshot((snapshot) => { clientEvents.value = snapshot })
+  const response = await electronApi.clientEvents.getStatus()
+  if (response?.success) clientEvents.value = response.data
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('dragover', preventBackgroundFileNavigation)
   window.removeEventListener('drop', preventBackgroundFileNavigation)
+  disposeClientEvents?.()
 })
+
+async function handleClientEventsEnabled(enabled) {
+  const result = await electronApi.clientEvents.updateSettings({ enabled })
+  if (result?.success) clientEvents.value = result.data
+  else ElMessage.error(result?.error?.message || '事件中心设置失败')
+}
+
+async function handleSelectClientLog() {
+  const result = await electronApi.clientEvents.selectLogFile()
+  if (result?.success) clientEvents.value = result.data
+  else ElMessage.error(result?.error?.message || '选择 Client.txt 失败')
+}
+
+function formatClientEvent(event) {
+  if (event.type === 'game-state') return ({ 'in-game': '游戏已进入区域', loading: '游戏加载中', disconnected: '游戏已断开', unknown: '游戏状态未知' })[event.state] || '游戏状态未知'
+  if (event.type === 'area-entered') return `进入 ${mapLabel(event.areaId)} · 区域等级 ${event.areaLevel}${event.mapTier && classifyArea(event.areaId).type === 'map' ? ` · 地图 T${event.mapTier}` : ''}`
+  if (event.type === 'character-level') return `角色升至 ${event.level} 级`
+  return `客户端：${({ started: '监听中', waiting: '等待', resyncing: '重新同步', stopped: '停止', error: '错误' })[event.state] || event.state}`
+}
 
 // 监听store变化，同步到本地ref（使用 immediate: false 避免初始化时触发）
 watch(() => settingsStore.globalShortcuts, (val) => {
@@ -922,6 +992,11 @@ function formatUpdateBytes(value) {
 async function handleOperationDelayChange(value) {
   const result = await settingsStore.updateOperationDelay(value)
   operationDelayMs.value = settingsStore.operationDelayMs
+  if (!result.success) ElMessage.error(result.error)
+}
+
+async function handleWindowCloseBehaviorChange(behavior) {
+  const result = await settingsStore.updateWindowCloseBehavior(behavior)
   if (!result.success) ElMessage.error(result.error)
 }
 

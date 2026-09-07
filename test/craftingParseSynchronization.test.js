@@ -717,7 +717,7 @@ with tempfile.TemporaryDirectory() as directory:
 }
 
 test('地图和海图单张处理失败后停止且不移动到第二格', () => {
-  const startBlock = block(mapTemplate, 'def start_map_rolling():', 'def process_single_map(')
+  const startBlock = block(mapTemplate, 'def rolling_item_level_label(', 'def completed_map_result(') + block(mapTemplate, 'def start_map_rolling():', 'def process_single_map(')
   const result = runPython(`
 import json, types
 ${startBlock}
@@ -761,7 +761,7 @@ print(json.dumps({"events": events, "reason": fatal_error_reason}, ensure_ascii=
 })
 
 test('地图恢复从检查点失败格继续并仅提交该格一次统计', () => {
-  const startBlock = block(mapTemplate, 'def start_map_rolling():', 'def process_single_map(')
+  const startBlock = block(mapTemplate, 'def rolling_item_level_label(', 'def completed_map_result(') + block(mapTemplate, 'def start_map_rolling():', 'def process_single_map(')
   const result = runPython(`
 import json, types
 ${startBlock}

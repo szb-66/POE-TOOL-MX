@@ -20,6 +20,7 @@ import {
   buildMapCurrencyPreflight
 } from '@/utils/currencyPreflight.js'
 import { eldritchCurrencyType } from '@/domains/items/eldritchConfig.js'
+import { enabledAffixGroupItemLevelRequirements } from '@/domains/items/affixConfig.js'
 
 const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
     """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
@@ -90,6 +91,9 @@ export function generatePythonScript(config) {
     ...pythonAutomationTiming(normalizedTiming)
   }
   const checkInitialItem = preset?.checkInitialItem !== false
+  const affixItemLevelRequirements = craftingKind !== 'general' || preset?.moduleTwo?.enabled
+    ? enabledAffixGroupItemLevelRequirements(preset?.moduleTwo?.affixGroups)
+    : []
 
   // 转义文件路径中的反斜杠（Python使用原始字符串）
   const escapePath = (path) => path.replace(/\\/g, '\\\\')
@@ -848,6 +852,7 @@ def craft_eldritch_implicits(initial_result=None):
       position: { x: Math.floor(target.position?.x || 0), y: Math.floor(target.position?.y || 0) }
     }))
   } : { enabled: false, targets: [] }
+  safeBatchConfig.affixItemLevelRequirements = affixItemLevelRequirements
 
   // 填充模板
   let script = craftingTemplate

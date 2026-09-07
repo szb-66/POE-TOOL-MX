@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { usePresetStore } from '@/stores/preset'
@@ -72,7 +72,7 @@ const batchProgress = ref(null)
 const batchRecoveryCheckpoint = ref(null)
 const batchRecoveryChecked = ref(false)
 let outputLineBuffer = ''
-const isMapCategory = (category) => category === '异界地图' || category === '地图' || category === '海图'
+const isMapCategory = (category) => category === '异界地图' || category === '地图' || ['海图', '契约', '蓝图'].includes(category)
 const canResumeBatch = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value?.recoverable))
 const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && batchRecoveryChecked.value && !batchRecoveryCheckpoint.value && !batchProgress.value)
 const canRescan = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value || batchProgress.value))
@@ -286,6 +286,13 @@ function handleConfirmCompletion() {
   electronApi.window.closeOverlay()
 }
 
+// 完成状态布防"点击外部自动关闭"：点击浮窗外任意位置失焦即关闭；
+// 重新开始/重新运行时解除布防，防止游戏窗口抢焦点误关浮窗
+watch(isCompleted, (completed) => {
+  if (completed) electronApi.window.armOverlayOutsideClickClose()
+  else electronApi.window.disarmOverlayOutsideClickClose()
+})
+
 function restoreCompletedState(snapshot, error) {
   itemInfo.value = snapshot.itemInfo
   usageSessionId.value = snapshot.usageSessionId
@@ -294,6 +301,7 @@ function restoreCompletedState(snapshot, error) {
   isCompleted.value = true
   isStopped.value = false
   stopReason.value = error || '重新开始物品制作失败'
+  electronApi.window.armOverlayOutsideClickClose()
 }
 
 function stoppedSnapshot() {
@@ -343,6 +351,7 @@ async function handleRestart() {
 
   isRestarting.value = true
   stopReason.value = ''
+  electronApi.window.disarmOverlayOutsideClickClose()
   try {
     const result = await restartCraftingWithLatestConfig({ presetStore, settingsStore, startCrafting, craftingKind: stopCraftingKind.value })
     if (!result?.success) {

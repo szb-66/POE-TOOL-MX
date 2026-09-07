@@ -1,7 +1,7 @@
 <template>
   <div class="module-two">
     <div class="top-row">
-      <el-checkbox v-model="form.enabled" @change="commit"><span v-if="!form.enabled">启用词缀制作</span></el-checkbox>
+      <el-checkbox v-model="form.enabled" @change="commit">启用词缀制作</el-checkbox>
       <template v-if="form.enabled">
         <el-select v-model="form.mode" class="mode-selector" @change="commit">
           <el-option label="改造石模式" value="alteration" />

@@ -112,7 +112,10 @@ export async function captureFreshClipboardText({
     const deadline = Date.now() + timeoutMs
     do {
       const current = clipboard.readText()
-      if (current && current !== sentinel) return current
+      if (current && current !== sentinel) {
+        if (clipboard.readText() === current) clipboard.writeText(previous)
+        return current
+      }
       await wait(pollMs)
     } while (Date.now() < deadline)
     throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有从游戏捕获到物品，请确认鼠标正悬停在物品上')

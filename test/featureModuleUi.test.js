@@ -9,7 +9,7 @@ test('侧边栏使用固定顶部、滚动功能区和固定底部', () => {
   const sidebar = source('src/components/Layout/Sidebar.vue')
   assert.match(sidebar, /sidebar-menu--top/)
   assert.match(sidebar, /sidebar-menu--features/)
-  assert.match(sidebar, /v-for="feature in featureStore\.enabledFeatures"/)
+  assert.match(sidebar, /v-for="feature in featureStore\.enabledNavigationFeatures"/)
   assert.match(sidebar, /sidebar-menu--footer/)
   assert.match(sidebar, />更多</)
   assert.match(sidebar, />设置</)

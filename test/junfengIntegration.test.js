@@ -143,7 +143,8 @@ test('有效模型可直接用于正式取件且准确率报告只作为质量�
   assert.match(script, /validate_model\(config\)/)
   assert.doesNotMatch(script, /model-not-approved|require_approved/)
   assert.doesNotMatch(manager, /!manifest\.automationEnabled|!manifest\.benchmark\?\.passed/)
-  assert.match(manager, /fileSha256\(paths\.model\)/)
+  assert.match(manager, /this\.modelAvailability\.getState\(\)/)
+  assert.doesNotMatch(source('electron/modules/junfeng/modelAvailability.js'), /!manifest\.automationEnabled|!manifest\.benchmark\?\.passed/)
 })
 
 test('检测预览在截图前把鼠标停到当前显示器且位于网格之外', () => {

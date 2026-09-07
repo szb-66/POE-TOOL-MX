@@ -13,8 +13,8 @@ import { importOverlayBackground } from '../window/backgroundImport.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
 import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 
-export function registerWindowHandlers(window, { windowActivation } = {}) {
-  const { getMainWindow, getOverlayWindow, closeOverlayWindow } = window
+export function registerWindowHandlers(window, { windowActivation, windowClose } = {}) {
+  const { getMainWindow, getOverlayWindow, closeOverlayWindow, armOverlayOutsideClickClose, disarmOverlayOutsideClickClose } = window
   const craftingOverlayDrag = new OverlayDragSession()
   const storyOverlayDrag = new OverlayDragSession()
   const storyOverlayDividerDrag = new OverlayDragSession()
@@ -44,6 +44,26 @@ export function registerWindowHandlers(window, { windowActivation } = {}) {
   ipcMain.handle('close-overlay-window', () => {
     closeOverlayWindow()
   })
+
+  ipcMain.handle('arm-overlay-outside-click-close', () => {
+    armOverlayOutsideClickClose()
+  })
+
+  ipcMain.handle('disarm-overlay-outside-click-close', () => {
+    disarmOverlayOutsideClickClose()
+  })
+
+  ipcMain.handle('window-close-behavior-update', (_event, input) => (
+    windowClose?.configure(input) || { success: false, error: '窗口关闭行为控制器不可用' }
+  ))
+
+  ipcMain.handle('window-close-choice-resolve', (_event, input) => (
+    windowClose?.resolveCloseChoice(input) || { success: false, error: '窗口关闭行为控制器不可用' }
+  ))
+
+  ipcMain.handle('window-close-choice-cancel', () => (
+    windowClose?.cancelCloseChoice() || { success: false, error: '窗口关闭行为控制器不可用' }
+  ))
 
   ipcMain.handle('crafting-batch-return-to-scan', async (event) => {
     const overlay = getOverlayWindow()

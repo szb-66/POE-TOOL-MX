@@ -10,6 +10,7 @@ import io
 import json
 import math
 import os
+import re
 import signal
 import sys
 import time
@@ -49,6 +50,10 @@ try:
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 except Exception:
     pass
+
+import faulthandler
+
+faulthandler.enable()
 
 try:
     import cv2
@@ -552,9 +557,9 @@ class InterfaceMatcher:
 
     @property
     def valid(self):
-        return "inventory" in self.templates and any(
+        return "inventory" in self.templates and (self.config.get("inventory_only") is True or any(
             name in self.templates for name in ("stash", "reward", "allflame_receiver")
-        )
+        ))
 
     def _capture(self, region):
         width = int(region.get("right", 0)) - int(region.get("left", 0))
@@ -942,7 +947,7 @@ def run_detection(config):
     stash_matched_count = stash_missed_count = 0
     allflame_receiver_matched_count = allflame_receiver_missed_count = 0
     reward_matched_count = reward_missed_count = 0
-    emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
+    emit("detection-state", ready=False, inventoryReady=False, stashReady=False, rewardDetected=False,
          junfengReady=False, allflameReceiverReady=False,
          foreground=last_foreground, gameBounds=last_game_bounds)
     while is_running:
@@ -957,7 +962,7 @@ def run_detection(config):
                 reward_matched_count = reward_missed_count = 0
                 last_inventory_matched = False
                 if changed:
-                    emit("detection-state", ready=False, stashReady=False, rewardDetected=False,
+                    emit("detection-state", ready=False, inventoryReady=False, stashReady=False, rewardDetected=False,
                          junfengReady=False, allflameReceiverReady=False,
                          foreground=False, gameBounds=game_bounds)
                 last_foreground = foreground
@@ -979,7 +984,7 @@ def run_detection(config):
             junfeng_ready = reward_detected and matches["inventoryMatched"]
             inventory_changed = matches["inventoryMatched"] != last_inventory_matched
             if stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
-                emit("detection-state", ready=stash_ready, stashReady=stash_ready,
+                emit("detection-state", ready=stash_ready, inventoryReady=matches["inventoryMatched"], stashReady=stash_ready,
                      rewardDetected=reward_detected, junfengReady=junfeng_ready,
                      allflameReceiverReady=allflame_receiver_ready,
                      foreground=foreground, gameBounds=game_bounds, **scores)
@@ -988,6 +993,7 @@ def run_detection(config):
             last_inventory_matched = matches["inventoryMatched"]
             time.sleep(0.2)
         except Exception as exc:
+            print(traceback.format_exc(), file=sys.stderr, flush=True)
             emit("detection-error", reason=str(exc))
             time.sleep(1)
     return 0
@@ -1074,6 +1080,10 @@ def run_stash(config):
                                 emit_progress(stats, total_slots)
                                 return abort(reason, stats)
                             stats["stashedSlots"] += 1
+                            quantity_match = re.search(r"(?:堆叠数量|堆疊數量|Stack Size)\s*[:：]\s*([\d,]+)", text)
+                            tracked_item = dict(item)
+                            tracked_item["quantity"] = int(quantity_match.group(1).replace(",", "")) if quantity_match else 1
+                            emit("stash-item-transferred", item=tracked_item)
                             handled_item = item
                 if not is_running:
                     return abort(runtime_stop_reason or "user-stopped", stats)
@@ -1465,6 +1475,7 @@ def main():
             return run_detection(config)
         return run_inventory_scan(config) if args.mode == "scan" else run_stash(config)
     except Exception as exc:
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
         emit(error_event(args.mode), reason=str(exc))
         return 2
 

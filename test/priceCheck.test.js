@@ -2579,6 +2579,28 @@ test('Ctrl+D 手动模式只准备浮窗，立即模式直接查询', async () =
   assert.equal(states.at(-1).status, 'ready')
 })
 
+test('独立查价从剪贴板捕获文本且只捕获一次', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  let captures = 0
+  const text = ('物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------')
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true, accountName: 'me' }), registerCacheClearer: () => {} },
+    client: {
+      clearCache() {},
+      search: async () => ({ id: 'shared-capture', total: 0, result: [] }),
+      fetch: async () => ({ result: [] })
+    },
+    catalog,
+    catalogStatus: status,
+    captureClipboard: async () => { captures += 1; return text }
+  })
+  service.updateRuntime({ enabled: true })
+
+  await service.captureAndCheck({ league: 'S30', queryImmediately: true })
+
+  assert.equal(captures, 1)
+})
+
 test('手动模式选择词缀候选不查询，点击搜索后才提交', async () => {
   const { catalog, status } = await loadTradeCatalog(catalogPath)
   let searches = 0

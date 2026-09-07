@@ -81,10 +81,14 @@ export async function initShortcuts() {
   }
   if (!shortcutScopeListenerRegistered) {
     electronApi.shortcut.onScopeChanged((state) => {
-      if (state) settingsStore.applyShortcutScopeState(state)
+      if (!state) return
+      settingsStore.applyShortcutScopeState(state)
+      // 前台/窗口 bounds 变化（含游戏内切换显示模式）时同步刷新游戏显示模式
+      void settingsStore.refreshGameDisplayMode()
     })
     shortcutScopeListenerRegistered = true
   }
+  void settingsStore.refreshGameDisplayMode()
 
   const featureStore = useFeatureModulesStore()
   const shortcuts = settingsStore.globalShortcuts
@@ -93,7 +97,9 @@ export async function initShortcuts() {
 
   // 从设置中初始化快捷键
   try {
-    const result = await electronApi.shortcut.initFromSettings(registeredShortcuts, { rollbackOnFailure: false })
+    const result = await electronApi.shortcut.initFromSettings(registeredShortcuts, {
+      rollbackOnFailure: false,
+    })
     settingsStore.applyShortcutScopeState(result)
     if (!result?.success) {
       const names = formatShortcutError(result)
@@ -129,7 +135,7 @@ export async function initShortcuts() {
           if (result?.reason === 'game-background') ElMessage.warning('请切换到游戏前台后开始或继续计时')
           if (result?.reason === 'feature-disabled') ElMessage.warning('请先开启计时浮窗模块')
         },
-        priceCheck: startPriceCheck
+        priceCheck: startPriceCheck,
       })
     })
     shortcutListenerRegistered = true
@@ -517,10 +523,10 @@ export async function startMapRolling({
 
   // 获取当前预设和配置
   const targetKind = presetStore.mapRollingKind
-  const currentPreset = targetKind === 'chart'
+  const currentPreset = targetKind === 'heist' ? presetStore.currentHeistPreset : targetKind === 'chart'
     ? presetStore.currentChartPreset
     : presetStore.currentMapPreset
-  const storedMapConfig = targetKind === 'chart'
+  const storedMapConfig = targetKind === 'heist' ? currentPreset.heist : targetKind === 'chart'
     ? currentPreset.chart
     : currentPreset.map
 
@@ -536,10 +542,10 @@ export async function startMapRolling({
     const latestPresets = usePresetStore()
     const latestSettings = useSettingsStore()
     const latestKind = latestPresets.mapRollingKind
-    const latestPreset = latestKind === 'chart'
+    const latestPreset = latestKind === 'heist' ? latestPresets.currentHeistPreset : latestKind === 'chart'
       ? latestPresets.currentChartPreset
       : latestPresets.currentMapPreset
-    const latestStored = latestKind === 'chart' ? latestPreset.chart : latestPreset.map
+    const latestStored = latestKind === 'heist' ? latestPreset.heist : latestKind === 'chart' ? latestPreset.chart : latestPreset.map
     const latestMapConfig = latestStored
       ? getActiveMapRollingConfig(
         latestKind === 'chart' ? {} : latestStored,
@@ -559,7 +565,7 @@ export async function startMapRolling({
     return runWithConfigurationGuide({
       moduleId: CONFIGURATION_MODULES.map,
       actionId: CONFIGURATION_ACTIONS.start,
-      title: targetKind === 'chart' ? '完成航海海图配置' : '完成地图制作配置',
+      title: targetKind === 'heist' ? '完成契约蓝图配置' : targetKind === 'chart' ? '完成航海海图配置' : '完成地图制作配置',
       actionLabel: '开始制作',
       collect: collectConfiguration,
       execute: () => startMapRolling({

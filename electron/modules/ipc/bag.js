@@ -23,6 +23,7 @@ import {
 } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
+import { createStashStatisticsBatch } from '../bag/stashStatistics.js'
 
 let stashProcess = null
 let batchScanProcess = null
@@ -34,6 +35,7 @@ let bagWindowApi = null
 let interfaceDetection = null
 let automationLock = null
 let loadingFeedback = null
+let mapTracker = null
 let disposeDetectionState = null
 let moduleRunning = false
 let bagConfigRevision = 0
@@ -319,15 +321,24 @@ async function startStashProcess(python, fileWatcher) {
   }
 
   let terminalEventSent = false
+  const statistics = createStashStatisticsBatch(
+    (item, id) => mapTracker?.recordStashedItem(item, id),
+    error => mapTracker?.report(error)
+  )
+  const sendTerminal = (channel, event) => {
+    void statistics.finish().then(result => send(channel, { ...event, ...result })).catch(error => mapTracker?.report(error))
+  }
   child.stdout.setEncoding('utf8')
   child.stdout.on('data', createEventLineParser((event) => {
-    if (event.event === 'stash-progress') send('bag-stash-progress', event)
+    if (event.event === 'stash-item-transferred') {
+      statistics.record(event.item)
+    } else if (event.event === 'stash-progress') send('bag-stash-progress', event)
     else if (event.event === 'stash-completed') {
       terminalEventSent = true
-      send('bag-stash-completed', event)
+      sendTerminal('bag-stash-completed', event)
     } else if (event.event === 'stash-aborted' || event.event === 'stash-error') {
       terminalEventSent = true
-      send('bag-stash-stopped', event)
+      sendTerminal('bag-stash-stopped', event)
     }
   }, (line) => console.log('[自动入库]', line)))
   bindCommonProcessLogging(child, '自动入库')
@@ -336,16 +347,18 @@ async function startStashProcess(python, fileWatcher) {
     skippedOccupiedSlots: 0, blacklistedSlots: 0, emptySlots: 0, unreadableSlots: 0, progress: 0
   })
   child.on('close', (code) => {
-    const wasCurrent = stashProcess === child
-    if (wasCurrent) stashProcess = null
-    if (wasCurrent) {
-      session.finishStash()
-      automationLock?.release('自动入库')
-      syncBagOverlay()
-      if (!terminalEventSent) send('bag-stash-stopped', { reason: code === 0 ? 'process-ended' : 'process-exited', code })
-    }
+    void statistics.finish().then(() => {
+      const wasCurrent = stashProcess === child
+      if (wasCurrent) stashProcess = null
+      if (wasCurrent) {
+        session.finishStash()
+        automationLock?.release('自动入库')
+        syncBagOverlay()
+        if (!terminalEventSent) sendTerminal('bag-stash-stopped', { reason: code === 0 ? 'process-ended' : 'process-exited', code })
+      }
+    }).catch(error => mapTracker?.report(error))
   })
-  return { success: true, processId: child.pid, mode }
+  return { success: true, processId: child.pid }
 }
 
 async function startBatchInventoryScan(python, fileWatcher, config = {}) {
@@ -477,6 +490,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   interfaceDetection = shared.interfaceDetection
   automationLock = shared.automationLock
   loadingFeedback = shared.loadingFeedback
+  mapTracker = shared.mapTracker
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return
@@ -484,6 +498,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     if (!state.running && !state.reloading && state.reason) {
       send('bag-detection-stopped', {
         reason: state.reason,
+        exitCode: Number.isFinite(state.exitCode) ? state.exitCode : null,
         failureCode: state.failureCode || '',
         configurationIssueId: state.configurationIssueId || ''
       })

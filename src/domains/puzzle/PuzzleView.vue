@@ -320,6 +320,11 @@
           </div>
         </template>
         <div class="chart-action-stack">
+          <div class="chart-steps">
+            <span>① 点击「识别边缘词缀」</span>
+            <span>② 点击「自动放入」</span>
+            <span>③ 点击「当前海图已完成」，扣除已使用的碎片</span>
+          </div>
           <div class="chart-complete-row">
             <el-button type="primary" :loading="probingBorder && !borderProbeProgressText" :disabled="probingBorder || executing || analyzing || resumeIndex > 0" :title="probeBorderBlockedTitle" @click="handleProbeBorderMods">{{ probingBorder && borderProbeProgressText ? borderProbeProgressText : '识别边缘词缀' }}</el-button>
             <el-button v-if="!executing" type="success" :disabled="autoPlaceButtonDisabled" :title="autoPlaceButtonTitle" @click="startAutoPlacement">
@@ -1267,6 +1272,7 @@ const nextSolution = store.nextSolution
 .solution-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 10px; font-size: 13px; }
 .solution-pager { justify-content: center; }
 .chart-action-stack { display: grid; justify-items: center; gap: 8px; margin-top: 12px; }
+.chart-steps { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--el-text-color-secondary); }
 .chart-complete-row { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 .chart-complete-row > .el-button + .el-button { margin-left: 0; }
 .chart-action-options { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 12px; }

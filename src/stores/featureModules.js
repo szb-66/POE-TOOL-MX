@@ -15,6 +15,7 @@ export const useFeatureModulesStore = defineStore('featureModules', () => {
   const disabledFeatureIds = ref([...initial.disabledFeatureIds])
   const disabledSet = computed(() => new Set(disabledFeatureIds.value))
   const enabledFeatures = computed(() => catalog.filter(item => !disabledSet.value.has(item.id)))
+  const enabledNavigationFeatures = computed(() => enabledFeatures.value.filter(item => item.navigation && item.route))
   const disabledFeatures = computed(() => catalog.filter(item => disabledSet.value.has(item.id)))
 
   function isEnabled(id) {
@@ -52,6 +53,7 @@ export const useFeatureModulesStore = defineStore('featureModules', () => {
     catalog,
     disabledFeatureIds,
     enabledFeatures,
+    enabledNavigationFeatures,
     disabledFeatures,
     isEnabled,
     disable,

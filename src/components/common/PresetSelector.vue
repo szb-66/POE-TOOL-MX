@@ -49,7 +49,7 @@ const props = defineProps({
   type: {
     type: String,
     default: 'item',
-    validator: (value) => ['item', 'essence', 'harvest', 'map', 'chart'].includes(value)
+    validator: (value) => ['item', 'essence', 'harvest', 'map', 'chart', 'heist'].includes(value)
   }
 })
 
@@ -91,6 +91,15 @@ const presetAccess = computed(() => ({
     remove: presetStore.deleteMapPreset,
     switchTo: presetStore.switchMapPreset,
     update: presetStore.updateCurrentMapPreset
+  },
+  heist: {
+    presets: presetStore.heistPresets,
+    currentId: presetStore.currentHeistPresetId,
+    current: presetStore.currentHeistPreset,
+    add: presetStore.addHeistPreset,
+    remove: presetStore.deleteHeistPreset,
+    switchTo: presetStore.switchHeistPreset,
+    update: presetStore.updateCurrentHeistPreset
   },
   chart: {
     presets: presetStore.chartPresets,

@@ -105,6 +105,10 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       enabled: moduleEnabled && Boolean(requested.enabled),
       shortcut: moduleEnabled ? requested.shortcut : ''
     }))
+    if (status.value.enabled && error.value === '国服查价器尚未启用') {
+      error.value = ''
+      failure.value = null
+    }
     return status.value
   }
 
@@ -212,6 +216,8 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     error.value = ''
     failure.value = null
     try {
+      // 重启恢复尚未完成或恢复失败时，先同步后台开关再捕获物品。
+      if (status.value?.enabled !== true) await syncRuntime()
       const data = unwrap(await electronApi.priceCheck.capture({
         league: league.value,
         queryImmediately: settings.value.queryImmediately,

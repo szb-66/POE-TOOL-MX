@@ -30,9 +30,21 @@ export class ChaosRecipeOverlayManager {
 
   create(snapshot) {
     const region = normalizeGridRegion(snapshot?.region)
-    if (!region) return false
+    if (!region) {
+      console.log('[商城配方高亮]', JSON.stringify({ event: 'create-skipped', reason: 'invalid-region' }))
+      return false
+    }
     const bounds = regionToDipBounds(region)
     this.snapshot = { ...snapshot, region }
+    const reusable = Boolean(this.window && !this.window.isDestroyed())
+    const crashed = Boolean(reusable && this.window.webContents?.isCrashed?.())
+    if (crashed) {
+      console.log('[商城配方高亮]', JSON.stringify({ event: 'renderer-crashed', action: 'recreate' }))
+      const crashedWindow = this.window
+      this.window = null
+      if (!crashedWindow.isDestroyed()) crashedWindow.destroy()
+    }
+    const reused = Boolean(this.window && !this.window.isDestroyed())
     if (!this.window || this.window.isDestroyed()) {
       this.window = new BrowserWindow({
         ...bounds,
@@ -52,8 +64,17 @@ export class ChaosRecipeOverlayManager {
           webSecurity: false
         }
       })
+      this.window.setAlwaysOnTop(true, 'screen-saver')
       this.window.setIgnoreMouseEvents(true, { forward: true })
-      this.window.on('closed', () => { this.window = null })
+      const createdWindow = this.window
+      createdWindow.on('closed', () => {
+        if (this.window !== createdWindow) return
+        this.window = null
+        this.snapshot = null
+      })
+      createdWindow.webContents.on('render-process-gone', () => {
+        console.log('[商城配方高亮]', JSON.stringify({ event: 'renderer-crashed' }))
+      })
       this.window.once('ready-to-show', () => this.window?.showInactive())
       const devServerUrl = process.env.VITE_DEV_SERVER_URL
       if (process.env.NODE_ENV === 'development' && devServerUrl) {
@@ -65,6 +86,12 @@ export class ChaosRecipeOverlayManager {
       this.window.setBounds(bounds)
       this.window.showInactive()
     }
+    console.log('[商城配方高亮]', JSON.stringify({
+      event: 'show',
+      status: this.snapshot.status || '',
+      itemCount: Array.isArray(this.snapshot.items) ? this.snapshot.items.length : 0,
+      reused
+    }))
     this.publish()
     return true
   }
@@ -92,6 +119,9 @@ export class ChaosRecipeOverlayManager {
   close() {
     this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
+    if (this.snapshot) {
+      console.log('[商城配方高亮]', JSON.stringify({ event: 'close', hadStatus: this.snapshot.status || '' }))
+    }
     this.window = null
     this.snapshot = null
   }

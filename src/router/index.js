@@ -169,6 +169,12 @@ const routes = [
     meta: {
       noLayout: true
     }
+  },
+  {
+    path: '/map-tracker-overlay',
+    name: 'MapTrackerOverlay',
+    component: () => import('../domains/mapTracker/MapTrackerOverlayView.vue'),
+    meta: { noLayout: true }
   }
 ]
 

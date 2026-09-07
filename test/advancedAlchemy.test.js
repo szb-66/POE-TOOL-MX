@@ -36,7 +36,7 @@ test('页面只在点金石模式显示高阶点金石选项', () => {
   const itemView = source('../src/domains/items/components/ModuleTwo.vue')
   const mapView = source('../src/domains/map/MapView.vue')
   assert.match(itemView, /v-if="form\.mode === 'alchemy'"[\s\S]*?v-model="form\.enableBinding"[\s\S]*?使用高阶点金石/)
-  assert.match(mapView, /v-if="activeProfile\.method === 'alchemy'"[\s\S]*?v-model="activeProfile\.binding\.enabled"[\s\S]*?使用高阶点金石/)
+  assert.match(mapView, /v-if="activeKind !== 'heist' && activeProfile\.method === 'alchemy'"[\s\S]*?v-model="activeProfile\.binding\.enabled"[\s\S]*?使用高阶点金石/)
 })
 
 test('高阶点金石拥有独立坐标和中文名称', () => {

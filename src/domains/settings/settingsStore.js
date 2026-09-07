@@ -58,6 +58,10 @@ import {
 } from '@/utils/applicationUpdate'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 import { enableFeatureModule } from '@/features/featureRuntime'
+import {
+  WINDOW_CLOSE_BEHAVIOR_EXIT,
+  normalizeWindowCloseBehavior
+} from '../../../shared/windowCloseBehavior.js'
 
 function sanitizeCurrencyPositions(positions = {}) {
   const { chisel, ...rest } = positions
@@ -100,6 +104,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const dpiDetectionStatus = ref('idle')
   const dpiWindowTitle = ref('')
   const dpiDetectionError = ref('')
+  const gameDisplayMode = ref(null)
+  const gameDisplayModeSupported = ref(false)
   const effectiveDpi = computed(() => resolveEffectiveDpi({
     mode: dpiMode.value,
     manualScale: manualDpiScale.value,
@@ -113,6 +119,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const batchScanConfirmationSuppressed = ref(false)
   const updateMode = ref(UPDATE_MODE_MANUAL)
   const updateSource = ref(UPDATE_SOURCE_CNB)
+  const windowCloseBehavior = ref(WINDOW_CLOSE_BEHAVIOR_EXIT)
+  const windowClosePromptSuppressed = ref(false)
 
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
@@ -321,6 +329,12 @@ export const useSettingsStore = defineStore('settings', () => {
     saveSettings()
   }
 
+  function applyGameDisplayMode(result) {
+    const found = Boolean(result?.found)
+    gameDisplayMode.value = found ? (result.displayMode || null) : null
+    gameDisplayModeSupported.value = found && Boolean(result.displayModeSupported)
+  }
+
   async function refreshDpiScale() {
     if (dpiMode.value !== DPI_MODE_AUTO) {
       return { success: true, skipped: true, scaleFactor: dpiScale.value, source: dpiSource.value }
@@ -351,6 +365,15 @@ export const useSettingsStore = defineStore('settings', () => {
     }
     saveSettings()
     return { success: false, scaleFactor: dpiScale.value, source: dpiSource.value, error: dpiDetectionError.value }
+  }
+
+  async function refreshGameDisplayMode() {
+    try {
+      const result = await electronApi.system.detectGameDpi()
+      applyGameDisplayMode(result)
+    } catch {
+      applyGameDisplayMode(null)
+    }
   }
 
   function updateOverlaySettings(settings) {
@@ -425,6 +448,8 @@ export const useSettingsStore = defineStore('settings', () => {
         batchScanConfirmationSuppressed: batchScanConfirmationSuppressed.value,
         updateMode: updateMode.value,
         updateSource: updateSource.value,
+        windowCloseBehavior: windowCloseBehavior.value,
+        windowClosePromptSuppressed: windowClosePromptSuppressed.value,
         overlaySettings: overlaySettings.value,
         storyOverlayWidth: storyOverlayWidth.value,
         storyOverlayLayoutVersion: storyOverlayLayoutVersion.value,
@@ -501,6 +526,8 @@ export const useSettingsStore = defineStore('settings', () => {
         batchScanConfirmationSuppressed.value = data.batchScanConfirmationSuppressed === true
         updateMode.value = normalizeUpdateMode(data.updateMode)
         updateSource.value = normalizeUpdateSource(data.updateSource)
+        windowCloseBehavior.value = normalizeWindowCloseBehavior(data.windowCloseBehavior)
+        windowClosePromptSuppressed.value = data.windowClosePromptSuppressed === true
         if (data.overlaySettings) {
           overlaySettings.value = normalizeOverlaySettings(data.overlaySettings)
         }
@@ -593,10 +620,14 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiDetectionStatus.value = 'idle'
     dpiWindowTitle.value = ''
     dpiDetectionError.value = ''
+    gameDisplayMode.value = null
+    gameDisplayModeSupported.value = false
     debugMode.value = false
     batchScanConfirmationSuppressed.value = false
     updateMode.value = UPDATE_MODE_MANUAL
     updateSource.value = UPDATE_SOURCE_CNB
+    windowCloseBehavior.value = WINDOW_CLOSE_BEHAVIOR_EXIT
+    windowClosePromptSuppressed.value = false
     overlaySettings.value = { ...defaultOverlaySettings }
     storyOverlayWidth.value = DEFAULT_STORY_OVERLAY_WIDTH
     storyOverlayLayoutVersion.value = STORY_OVERLAY_LAYOUT_VERSION
@@ -632,6 +663,10 @@ export const useSettingsStore = defineStore('settings', () => {
     }
     electronApi.window.setDevToolsVisible(false)
     electronApi.update.configure({ mode: updateMode.value, source: updateSource.value }).catch(() => {})
+    electronApi.window.setCloseBehavior({
+      behavior: windowCloseBehavior.value,
+      promptSuppressed: windowClosePromptSuppressed.value
+    })?.catch(() => {})
     return featureRecovery.then(results => ({
       warnings: results.flatMap((result, index) => (result?.warnings || []).map(message => ({
         id: `feature:${disabledFeatureIds[index]}`,
@@ -673,6 +708,31 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  async function updateWindowCloseBehavior(value) {
+    const previous = windowCloseBehavior.value
+    const previousPromptSuppressed = windowClosePromptSuppressed.value
+    const candidate = normalizeWindowCloseBehavior(value)
+    try {
+      const result = await electronApi.window.setCloseBehavior({ behavior: candidate, promptSuppressed: true })
+      if (!result?.success) throw new Error(result?.error || '窗口关闭行为同步失败')
+      windowCloseBehavior.value = candidate
+      windowClosePromptSuppressed.value = true
+      saveSettings()
+      return { success: true, behavior: candidate }
+    } catch (error) {
+      windowCloseBehavior.value = previous
+      windowClosePromptSuppressed.value = previousPromptSuppressed
+      return { success: false, error: error?.message || '窗口关闭行为同步失败' }
+    }
+  }
+
+  function rememberWindowCloseChoice(value) {
+    windowCloseBehavior.value = normalizeWindowCloseBehavior(value)
+    windowClosePromptSuppressed.value = true
+    saveSettings()
+    return windowCloseBehavior.value
+  }
+
   // 初始化时加载
   loadSettings()
 
@@ -707,10 +767,15 @@ export const useSettingsStore = defineStore('settings', () => {
     dpiDetectionStatus,
     dpiWindowTitle,
     dpiDetectionError,
+    gameDisplayMode,
+    gameDisplayModeSupported,
+    refreshGameDisplayMode,
     debugMode,
     batchScanConfirmationSuppressed,
     updateMode,
     updateSource,
+    windowCloseBehavior,
+    windowClosePromptSuppressed,
     overlaySettings,
     storyOverlayWidth,
     storyOverlayOpacity,
@@ -746,6 +811,8 @@ export const useSettingsStore = defineStore('settings', () => {
     updateBatchScanConfirmationSuppressed,
     updateApplicationUpdateMode,
     updateApplicationUpdateSource,
+    updateWindowCloseBehavior,
+    rememberWindowCloseChoice,
     updateOverlaySettings,
     updateStoryOverlayWidth,
     updateStoryOverlayOpacity,

@@ -5,6 +5,7 @@ import {
   createStartupHealth,
   evaluateAdministrator,
   evaluateDisplays,
+  evaluateGameDisplayMode,
   evaluateNetworkInterfaces,
   evaluateWindowsSupport
 } from '../electron/modules/system/health.js'
@@ -46,10 +47,21 @@ test('统一启动健康检查覆盖系统、目录、权限、显示、网络�
     displays: [{ bounds: { x: 0, y: 0, width: 1920, height: 1080 }, scaleFactor: 1 }],
     networkInterfaces: { Ethernet: [{ family: 'IPv4', internal: false }] },
     runtime: { ready: true, source: 'bundled', version: '3.13.14' },
-    gameDpi: { found: true, dpi: 144, scaleFactor: 1.5 }
+    gameDpi: { found: true, dpi: 144, scaleFactor: 1.5, displayMode: 'fullscreen', displayModeSupported: true }
   })
   assert.deepEqual(result.items.map((entry) => entry.id), [
-    'platform', 'userData', 'administrator', 'displays', 'network', 'runtime', 'game'
+    'platform', 'userData', 'administrator', 'displays', 'network', 'runtime', 'game', 'gameDisplayMode'
   ])
   assert.ok(result.items.every((entry) => entry.status === 'ready'))
+})
+
+test('游戏显示模式健康项区分支持模式、独占全屏、最小化与未检测到', () => {
+  assert.equal(evaluateGameDisplayMode({ found: true, displayMode: 'windowed', displayModeSupported: true }).status, 'ready')
+  assert.equal(evaluateGameDisplayMode({ found: true, displayMode: 'fullscreen', displayModeSupported: true }).status, 'ready')
+  assert.equal(evaluateGameDisplayMode({ found: true, displayMode: 'borderless', displayModeSupported: true }).status, 'ready')
+  const exclusive = evaluateGameDisplayMode({ found: true, displayMode: 'exclusive', displayModeSupported: false })
+  assert.equal(exclusive.status, 'attention')
+  assert.match(exclusive.text, /无边框全屏|窗口模式/)
+  assert.equal(evaluateGameDisplayMode({ found: true, displayMode: 'unknown', displayModeSupported: false }).status, 'attention')
+  assert.equal(evaluateGameDisplayMode({ found: false, error: '未找到匹配的游戏窗口' }).status, 'attention')
 })

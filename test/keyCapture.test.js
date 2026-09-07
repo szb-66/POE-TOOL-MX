@@ -35,6 +35,15 @@ test('快捷键验证接受翻页键并拒绝别名冲突和保留键', () => {
   assert.equal(validateShortcuts({ debug: 'Ctrl+Shift+I' }).isValid, false)
 })
 
+test('物品菜单和查价快捷键拒绝内部使用的 Ctrl+C', () => {
+  for (const key of ['priceCheck']) {
+    const result = validateShortcuts({ [key]: 'Ctrl+C', end: 'Alt+3' }, { requiredKeys: ['end'] })
+    assert.equal(result.isValid, false)
+    assert.match(result.error, /Ctrl\+C.*读取物品/)
+  }
+  assert.equal(validateShortcuts({ priceCheck: 'Ctrl+Alt+C', end: 'Alt+3' }, { requiredKeys: ['end'] }).isValid, true)
+})
+
 test('完整应用快捷键允许普通空值但拒绝空紧急停止', () => {
   assert.equal(validateShortcuts({ end: 'Alt+3', itemStart: '', mapStart: '  ' }, { requiredKeys: ['end'] }).isValid, true)
   assert.deepEqual(

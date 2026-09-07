@@ -15,7 +15,7 @@ function normalizeStats(value) {
 
 export function validateMapRecovery(recovery, { targetKind, rows, cols }) {
   if (recovery == null) return { valid: true, value: null }
-  const expectedTargetKind = targetKind === 'chart' ? 'chart' : 'atlas'
+  const expectedTargetKind = ['chart', 'heist'].includes(targetKind) ? targetKind : 'atlas'
   const blacklistStats = normalizeStats(recovery.blacklistStats)
   const whitelistStats = normalizeStats(recovery.whitelistStats)
   const valid = recovery.targetKind === expectedTargetKind &&
@@ -27,7 +27,7 @@ export function validateMapRecovery(recovery, { targetKind, rows, cols }) {
     blacklistStats !== null && whitelistStats !== null
 
   if (!valid) {
-    return { valid: false, error: '地图或海图恢复检查点无效，请重新开始本次洗练' }
+    return { valid: false, error: '洗图恢复检查点无效，请重新开始本次洗练' }
   }
 
   return {

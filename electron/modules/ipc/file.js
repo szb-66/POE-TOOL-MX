@@ -19,14 +19,14 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
   const { getMainWindow, getOverlayWindow } = window
   const { getFilePaths } = fileWatcher
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
-  const isRollingCategory = (category) => isMapCategory(category) || category === '海图'
+  const isRollingCategory = (category) => isMapCategory(category) || ['海图', '契约', '蓝图'].includes(category)
   const activeMapConfig = (map = {}) => {
-    if (map.targetKind === 'chart' || map.targetKind === 'atlas') return map
+    if (['chart', 'atlas', 'heist'].includes(map.targetKind)) return map
     return map.activeKind === 'chart'
       ? { ...(map.chart || {}), targetKind: 'chart' }
       : { ...map, targetKind: 'atlas' }
   }
-  const rollingTarget = (config) => activeMapConfig(config?.map || {}).targetKind === 'chart' ? 'chart' : 'atlas'
+  const rollingTarget = (config) => activeMapConfig(config?.map || {}).targetKind
   const sendItemResult = (result, config) => {
     const overlayWindow = getOverlayWindow()
     if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.webContents.send('update-overlay', result)
@@ -186,6 +186,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         socketsCount: itemInfo.socketsCount,
         links: itemInfo.links,
         socketsColors: itemInfo.socketsColors,
+        heistStats: itemInfo.heistStats,
+        isQuestItem: itemInfo.isQuestItem,
+        isLegendary,
         itemQuantity: itemInfo.itemQuantity,
         itemRarity: itemInfo.itemRarity,
         monsterPackSize: itemInfo.monsterPackSize,
@@ -274,7 +277,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         }
         // 确保 category 存在，以便前端正确识别为地图模式
         if (!result.category) {
-          result.category = rollingTarget(config) === 'chart' ? '海图' : '地图'
+          result.category = rollingTarget(config) === 'heist' ? '契约' : rollingTarget(config) === 'chart' ? '海图' : '地图'
         }
         result.rollingTarget = rollingTarget(config)
       }

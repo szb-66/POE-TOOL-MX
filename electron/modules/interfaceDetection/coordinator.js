@@ -22,14 +22,16 @@ function stopChild(child) {
 function stableConfig(config = {}) {
   return JSON.stringify({
     templates: config.templates || {},
-    match_threshold: Number(config.match_threshold ?? config.matchThreshold ?? 0.8)
+    match_threshold: Number(config.match_threshold ?? config.matchThreshold ?? 0.8),
+    inventory_only: config.inventory_only === true
   })
 }
 
 export class InterfaceDetectionCoordinator {
-  constructor({ python, fileWatcher }) {
+  constructor({ python, fileWatcher, logger = console } = {}) {
     this.python = python
     this.fileWatcher = fileWatcher
+    this.logger = logger
     this.child = null
     this.consumers = new Set()
     this.listeners = new Set()
@@ -39,6 +41,7 @@ export class InterfaceDetectionCoordinator {
       running: false,
       reloading: false,
       ready: false,
+      inventoryReady: false,
       stashReady: false,
       allflameReceiverReady: false,
       rewardDetected: false,
@@ -46,6 +49,7 @@ export class InterfaceDetectionCoordinator {
       foreground: false,
       gameBounds: null,
       reason: '',
+      exitCode: null,
       failureCode: '',
       configurationIssueId: ''
     }
@@ -148,6 +152,7 @@ export class InterfaceDetectionCoordinator {
           running: true,
           reloading: false,
           ready: Boolean(event.ready),
+          inventoryReady: Boolean(event.inventoryReady),
           stashReady: Boolean(event.stashReady ?? event.ready),
           allflameReceiverReady: Boolean(event.allflameReceiverReady),
           rewardDetected: Boolean(event.rewardDetected),
@@ -158,11 +163,18 @@ export class InterfaceDetectionCoordinator {
           inventoryScore: event.inventoryScore,
           rewardScore: event.rewardScore,
           reason: '',
+          exitCode: null,
           failureCode: '',
           configurationIssueId: ''
         })
       } else if (event.event === 'detection-error') {
         terminalReason = event.reason || '检测器报告错误'
+        this.logger.record?.({
+          phase: 'interface-detection-error',
+          outcome: 'warning',
+          reasonCode: 'detection_error_reported',
+          message: `failureCode=${event.failureCode || ''} ${terminalReason}`
+        })
         this.publish({
           reason: terminalReason,
           failureCode: String(event.failureCode || ''),
@@ -181,28 +193,41 @@ export class InterfaceDetectionCoordinator {
     child.on('close', (code) => {
       if (this.child !== child) return
       this.child = null
+      const reason = code === 0 ? 'process-ended' : (terminalReason || describeDetectionExit({ code, stderr, spawnError }))
+      console.error(`[公共界面检测] 检测进程意外退出 code=${code} stderr=${stderr.slice(-600).trim() || '(空)'}`)
+      this.logger.record?.({
+        phase: 'interface-detection-exit',
+        outcome: 'failed',
+        reasonCode: Number.isFinite(code) ? `exit_code_${code}` : 'exit_code_unknown',
+        message: `code=${code} reason=${reason} stderr=${stderr.slice(-3500).trim()}`
+      })
       this.publish({
         running: false,
         reloading: false,
         ready: false,
+        inventoryReady: false,
         stashReady: false,
         allflameReceiverReady: false,
         rewardDetected: false,
         junfengReady: false,
         foreground: false,
-        reason: terminalReason || describeDetectionExit({ code, stderr, spawnError })
+        reason,
+        exitCode: Number.isFinite(code) ? code : null,
+        failureCode: '',
+        configurationIssueId: ''
       })
     })
     try {
       await waitForDetectionStartup(child, {
         getFailureReason: (code) => describeDetectionExit({ code, terminalReason, stderr, spawnError })
       })
-      this.publish({ running: true, reloading: false, reason: '', failureCode: '', configurationIssueId: '' })
+      this.publish({ running: true, reloading: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
       return this.getState()
     } catch (error) {
-      if (this.child === child) this.child = null
+      if (this.child !== child) return this.getState()
+      this.child = null
       stopChild(child)
-      this.publish({ running: false, reloading: false, ready: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: error.message })
+      this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: error.message })
       throw error
     }
   }
@@ -211,7 +236,7 @@ export class InterfaceDetectionCoordinator {
     const previous = this.child
     this.child = null
     stopChild(previous)
-    this.publish({ running: false, reloading: true, ready: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '', failureCode: '', configurationIssueId: '' })
+    this.publish({ running: false, reloading: true, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
     return this.start()
   }
 
@@ -219,7 +244,7 @@ export class InterfaceDetectionCoordinator {
     const child = this.child
     this.child = null
     stopChild(child)
-    this.publish({ running: false, reloading: false, ready: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '', failureCode: '', configurationIssueId: '' })
+    this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
   }
 
   cleanup() {

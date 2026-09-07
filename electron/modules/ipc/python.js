@@ -17,56 +17,13 @@ import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEven
 import { CraftingCurrencyUsageLedger } from '../python/currencyUsageLedger.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
 import { batchRecoveryStore } from '../crafting/batchRecovery.js'
+import { prepareCraftingOverlay } from '../window/craftingOverlayLifecycle.js'
 
 let stopScriptHandler = null
 
 export function stopCurrentScript() {
   if (!stopScriptHandler) return Promise.resolve({ success: true, stopped: false })
   return stopScriptHandler()
-}
-
-async function prepareCraftingOverlay(window, getOverlayWindow, currencyUsageSnapshot) {
-  let overlayWindow = getOverlayWindow()
-  if (!overlayWindow || overlayWindow.isDestroyed()) {
-    overlayWindow = window.createOverlayWindow()
-  }
-  if (!overlayWindow || overlayWindow.isDestroyed()) {
-    throw new Error('无法创建制作浮层')
-  }
-
-  const contents = overlayWindow.webContents
-  const loading = typeof contents.isLoadingMainFrame === 'function'
-    ? contents.isLoadingMainFrame()
-    : contents.isLoading()
-  if (loading) {
-    await new Promise((resolve, reject) => {
-      const cleanup = () => {
-        clearTimeout(timer)
-        contents.removeListener('did-finish-load', handleLoaded)
-        contents.removeListener('did-fail-load', handleFailed)
-        contents.removeListener('destroyed', handleDestroyed)
-      }
-      const finish = (error) => {
-        cleanup()
-        if (error) reject(error)
-        else resolve()
-      }
-      const handleLoaded = () => finish()
-      const handleFailed = (_event, _code, description, _url, isMainFrame) => {
-        if (isMainFrame === false) return
-        finish(new Error(`制作浮层加载失败: ${description || '未知错误'}`))
-      }
-      const handleDestroyed = () => finish(new Error('制作浮层在加载期间被关闭'))
-      const timer = setTimeout(() => finish(new Error('制作浮层加载超时')), 15000)
-      contents.once('did-finish-load', handleLoaded)
-      contents.on('did-fail-load', handleFailed)
-      contents.once('destroyed', handleDestroyed)
-    })
-  }
-
-  if (overlayWindow.isDestroyed()) throw new Error('制作浮层已关闭')
-  overlayWindow.webContents.send('update-overlay', { reset: true, ...currencyUsageSnapshot })
-  return overlayWindow
 }
 
 export function registerPythonHandlers(python, window, fileWatcher) {

@@ -6,6 +6,7 @@ const feature = (definition) => Object.freeze({
   shortcutKeys: Object.freeze([]),
   relatedRoutes: Object.freeze([]),
   developmentOnly: false,
+  navigation: true,
   ...definition
 })
 
@@ -14,6 +15,7 @@ export const FEATURE_CATALOG = Object.freeze([
   feature({ id: 'bag', label: '存取', route: '/bag', icon: 'SuitcaseLine', relatedRoutes: Object.freeze(['/bag']) }),
   feature({ id: 'highlight-model-training', label: '模型训练', route: '/highlight-model-training', icon: 'DataAnalysis', developmentOnly: true, relatedRoutes: Object.freeze(['/highlight-model-training']) }),
   feature({ id: 'map', label: '地图', route: '/map', icon: 'MapLocation', shortcutKeys: Object.freeze(['mapStart']), relatedRoutes: Object.freeze(['/map']) }),
+  feature({ id: 'map-tracker', label: '地图跟踪', route: null, icon: 'MapLocation', navigation: false, shortcutKeys: Object.freeze([]), relatedRoutes: Object.freeze([]) }),
   feature({ id: 'combat', label: '战斗', route: '/combat', icon: 'FirstAidKit', shortcutKeys: Object.freeze(['portal']), relatedRoutes: Object.freeze(['/combat']) }),
   feature({ id: 'story', label: '剧情', route: '/story', icon: 'Notebook', shortcutKeys: Object.freeze(['storyPrevious', 'storyNext', 'storyTimerToggle']), relatedRoutes: Object.freeze(['/story']) }),
   feature({ id: 'regex', label: '正则', route: '/regex', icon: 'Operation', relatedRoutes: Object.freeze(['/regex']) }),
@@ -27,6 +29,10 @@ export const FEATURE_CATALOG = Object.freeze([
 
 export function availableFeatureCatalog({ development = false } = {}) {
   return FEATURE_CATALOG.filter(item => development || !item.developmentOnly)
+}
+
+export function availableNavigationFeatureCatalog(options) {
+  return availableFeatureCatalog(options).filter(item => item.navigation && item.route)
 }
 
 export function featureById(id, options) {

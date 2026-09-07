@@ -16,6 +16,7 @@ import { usePriceCheckStore } from '@/stores/priceCheck'
 import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { useFeatureModulesStore } from '@/stores/featureModules'
+import { useMapTrackerStore } from '@/stores/mapTracker'
 import { inventoryItemPosition, validateBatchInventoryLayout, validateBatchCategoryCompatibility } from '@/domains/items/batchCrafting'
 import { validateCraftingConfig, validateMapRollingConfig, validateSpecializedCraftingConfig } from '@/utils/validation'
 import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
@@ -29,12 +30,14 @@ import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import { setRendererDiagnosticContext } from '@/utils/diagnosticContext'
 import { settingsRoute } from '@/router/settingsNavigation'
 import { healthActionForItem } from './healthActions.js'
+import { describeGameDisplayMode } from '../../../shared/gameDisplayMode.js'
 import {
   evaluateBagStatus,
   evaluateCombatStatus,
   evaluateCraftingStatus,
   evaluateItemsStatus,
   evaluateMapStatus,
+  evaluateMapTrackerStatus,
   evaluatePriceCheckStatus,
   evaluateShortcutHealth,
   evaluateShopStatus,
@@ -89,6 +92,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const accountStore = usePoeCnAccountStore()
   const batchCraftingStore = useBatchCraftingStore()
   const featureModulesStore = useFeatureModulesStore()
+  const mapTrackerStore = useMapTrackerStore()
   const pending = reactive({})
   const refreshing = ref(false)
   let dashboardCombatQueue = Promise.resolve()
@@ -184,6 +188,11 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         lastError: scriptStore.lastError,
         lastMode: scriptStore.lastMode
       }),
+      evaluateMapTrackerStatus({
+        snapshot: mapTrackerStore.snapshot,
+        clientReady: mapTrackerStore.clientStatus.enabled && ['started', 'resyncing'].includes(mapTrackerStore.clientStatus.state),
+        error: mapTrackerStore.error
+      }),
       evaluateCombatStatus({
         validation: combatValidation.value,
         running: combatStore.running,
@@ -238,7 +247,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
 
     const featureIdByDashboardId = {
       items: 'items', bag: 'bag', map: 'map', combat: 'combat', story: 'story',
-      shop: 'recipe', priceCheck: 'price-check', crafting: 'craft-planner'
+      shop: 'recipe', priceCheck: 'price-check', crafting: 'craft-planner', mapTracker: 'map-tracker'
     }
     return values.map(module => {
       const featureId = featureIdByDashboardId[module.id]
@@ -280,13 +289,19 @@ export function useDashboard({ openHelp = () => {} } = {}) {
       scopeAvailable: settingsStore.shortcutScopeAvailable,
       gameForeground: settingsStore.gameForeground
     })
+    // 与 DPI 同源：跟随主窗口 focus 触发的 DPI 检测自动更新（显示模式探测与 DPI 模式无关）
+    const displayModeStatus = settingsStore.dpiDetectionStatus === 'detecting'
+      ? { status: 'pending', text: '正在识别游戏窗口' }
+      : describeGameDisplayMode(settingsStore.gameDisplayMode) ||
+        { status: 'attention', text: '未检测到游戏窗口，无法判断显示模式' }
     const extraHealth = startupHealth.value.filter(item => (
-      !['runtime', 'game'].includes(item.id)
+      !['runtime', 'game'].includes(item.id) && !(displayModeStatus && item.id === 'gameDisplayMode')
     ))
     return [
       { id: 'python', label: 'Python', ...pythonHealth.value },
       { id: 'shortcuts', label: '快捷键', ...shortcutStatus },
       { id: 'dpi', label: '游戏窗口 / DPI', ...dpiStatus },
+      ...(displayModeStatus ? [{ id: 'gameDisplayMode', label: '游戏显示模式', ...displayModeStatus }] : []),
       ...extraHealth
     ].map(item => ({ ...item, action: healthActionForItem(item) }))
   })
@@ -515,6 +530,11 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   }
 
   function actionsFor(module) {
+    if (module.id === 'mapTracker') {
+      const actions = [{ id: 'toggle', label: mapTrackerStore.enabled ? '关闭' : '启用', type: mapTrackerStore.enabled ? 'danger' : 'primary', run: () => mapTrackerStore.setEnabled(!mapTrackerStore.enabled) }]
+      if (mapTrackerStore.enabled) actions.push({ id: 'pause', label: mapTrackerStore.paused ? '继续' : '暂停', type: 'default', run: () => mapTrackerStore.setPaused(!mapTrackerStore.paused) })
+      return actions
+    }
     if (module.id === 'items') {
       return scriptStore.isRunning && scriptStore.mode === 'items'
         ? [{ id: 'stop', label: '停止', type: 'danger', run: stopCrafting }]
@@ -624,7 +644,9 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         electronApi.combat.getPotionStatus(),
         electronApi.combat.getLoopStatus(),
         electronApi.script.detectPythonPath(),
-        electronApi.system.getStartupHealth()
+        electronApi.system.getStartupHealth(),
+        mapTrackerStore.refresh(),
+        settingsStore.refreshGameDisplayMode()
       ])
       if (scriptResult.status === 'fulfilled') scriptStore.applyStatus(scriptResult.value)
       else scriptStore.applyStatus({ status: 'error', error: scriptResult.reason?.message || '脚本状态读取失败' })
@@ -698,7 +720,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   }
 
   onMounted(() => {
-    void refresh()
+    void mapTrackerStore.initialize().finally(refresh)
   })
 
   return {

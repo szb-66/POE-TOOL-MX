@@ -9,10 +9,10 @@ import { normalizeJunfengRegion, validateJunfengGridEnvironment } from '../../..
 import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig.js'
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
 import { normalizeJunfengProgress } from './progress.js'
+import { ModelAvailability } from './modelAvailability.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '君锋镇取出高亮'
-const MODEL_CLASSES = ['highlighted', 'dimmed', 'empty']
 const TRAINING_PROFILES = {
   junfeng: { columns: 12, rows: 11 },
   'small-stash': { columns: 12, rows: 12 },
@@ -28,10 +28,6 @@ function eventError(event, fallback) {
     failureCode: String(event?.failureCode || ''),
     configurationIssueId: String(event?.configurationIssueId || '')
   })
-}
-
-function fileSha256(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')
 }
 
 function stopChild(child) {
@@ -74,6 +70,10 @@ export class JunfengHighlightManager {
     this.trainingCancelled = false
     this.trainingStatus = { status: 'idle', stage: '', reason: '', report: null, modelVersion: '' }
     this.status = this.initialStatus()
+    this.modelAvailability = new ModelAvailability(this.modelPaths(), {
+      onChange: () => this.onStatusChange?.(),
+      log: event => { if (!app.isPackaged) console.debug('[君锋镇性能]', event) }
+    })
     this.disposeDetection = interfaceDetection?.subscribe(state => {
       if (this.status.status === 'running' && !state.foreground) {
         this.stop('game-not-foreground')
@@ -114,6 +114,7 @@ export class JunfengHighlightManager {
   setRuntime(runtime = {}) {
     const previousGrid = JSON.stringify(this.runtime.gridRegion || null)
     this.runtime = { ...this.runtime, ...structuredClone(runtime) }
+    this.modelAvailability.setEnabled(Boolean(this.runtime.enabled))
     if (this.status.status === 'running' && previousGrid !== JSON.stringify(this.runtime.gridRegion || null)) {
       this.stop('grid-changed')
     }
@@ -138,22 +139,7 @@ export class JunfengHighlightManager {
   getAvailability() {
     const configuration = this.getConfigurationAvailability()
     if (!configuration.ready) return configuration
-    const paths = this.modelPaths()
-    if (!fs.existsSync(paths.manifest)) return { ready: false, reason: '君锋镇高亮模型清单不存在' }
-    try {
-      const manifest = JSON.parse(fs.readFileSync(paths.manifest, 'utf8'))
-      if (manifest.schemaVersion !== 1 || manifest.architectureVersion !== 1 ||
-          JSON.stringify(manifest.classes) !== JSON.stringify(MODEL_CLASSES)) {
-        return { ready: false, reason: '君锋镇高亮模型契约不兼容' }
-      }
-      if (!fs.existsSync(paths.model)) return { ready: false, reason: '君锋镇高亮模型文件不存在' }
-      if (!/^[a-f0-9]{64}$/i.test(String(manifest.sha256 || '')) || fileSha256(paths.model) !== String(manifest.sha256).toLowerCase()) {
-        return { ready: false, reason: '君锋镇高亮模型校验失败' }
-      }
-      return { ready: true, reason: '', modelVersion: String(manifest.modelVersion || '') }
-    } catch {
-      return { ready: false, reason: '君锋镇高亮模型清单损坏' }
-    }
+    return this.modelAvailability.getState()
   }
 
   currentDisplays() {
@@ -350,6 +336,7 @@ export class JunfengHighlightManager {
   }
 
   publishCandidateModel(candidate) {
+    this.modelAvailability.invalidate()
     const model = this.modelPaths()
     const targets = [
       [candidate.model, model.model],
@@ -554,5 +541,5 @@ export class JunfengHighlightManager {
     try { modelVersion = JSON.parse(fs.readFileSync(this.modelPaths().manifest, 'utf8')).modelVersion || '' } catch {}
     return this.calibration.markForReembed(modelVersion)
   }
-  cleanup() { this.finishPreparation(); if (this.child) this.stop('application-exit'); this.stopTraining('application-exit'); this.disposeDetection?.() }
+  cleanup() { this.modelAvailability.dispose(); this.finishPreparation(); if (this.child) this.stop('application-exit'); this.stopTraining('application-exit'); this.disposeDetection?.() }
 }

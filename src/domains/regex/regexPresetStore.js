@@ -1,3 +1,4 @@
+import { cleanBeastRegexPresets, createDefaultBeastRegexPreset } from './beastRegex.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import {
@@ -10,6 +11,8 @@ import { cleanMapRegexPresets, createDefaultMapRegexPreset } from './mapRegex.js
 export const REGEX_STORAGE_KEYS = Object.freeze({
   vendorPresets: 'vendorRegexPresets',
   vendorCurrent: 'currentVendorRegexPresetId',
+  beastPresets: 'beastRegexPresets',
+  beastCurrent: 'currentBeastRegexPresetId',
   mapPresets: 'mapRegexPresets',
   mapCurrent: 'currentMapRegexPresetId'
 })
@@ -19,6 +22,9 @@ const currentFrom = (presets, requested) => presets.some(preset => preset.id ===
 export const useRegexPresetStore = defineStore('regexPresets', () => {
   const vendorPresets = ref([createDefaultVendorPreset()])
   const mapRegexPresets = ref([createDefaultMapRegexPreset()])
+  const beastRegexPresets = ref([createDefaultBeastRegexPreset()])
+  const currentBeastRegexPresetId = ref('default')
+  const currentBeastRegexPreset = computed(() => beastRegexPresets.value.find(item => item.id === currentBeastRegexPresetId.value) || beastRegexPresets.value[0])
   const currentVendorPresetId = ref('default')
   const currentMapRegexPresetId = ref('default')
 
@@ -42,6 +48,10 @@ export const useRegexPresetStore = defineStore('regexPresets', () => {
   function save() {
     saveVendor()
     saveMap()
+    try {
+      localStorage.setItem(REGEX_STORAGE_KEYS.beastPresets, JSON.stringify(beastRegexPresets.value))
+      localStorage.setItem(REGEX_STORAGE_KEYS.beastCurrent, currentBeastRegexPresetId.value)
+    } catch {}
   }
 
   function loadVendor() {
@@ -73,53 +83,64 @@ export const useRegexPresetStore = defineStore('regexPresets', () => {
     }
   }
 
+  function stateFor(kind) {
+    if (kind === 'beast') return { presets: beastRegexPresets, currentId: currentBeastRegexPresetId, create: createDefaultBeastRegexPreset }
+    if (kind === 'map') return { presets: mapRegexPresets, currentId: currentMapRegexPresetId, create: createDefaultMapRegexPreset }
+    if (kind === 'vendor') return { presets: vendorPresets, currentId: currentVendorPresetId, create: createDefaultVendorPreset }
+    throw new Error(`未知正则预设类型：${kind}`)
+  }
+
   function add(kind, name) {
-    const isMap = kind === 'map'
-    const presets = isMap ? mapRegexPresets : vendorPresets
-    const created = isMap
-      ? createDefaultMapRegexPreset(`map_regex_${Date.now()}`, name || `预设${presets.value.length}`)
-      : createDefaultVendorPreset(`vendor_regex_${Date.now()}`, name || `预设${presets.value.length}`)
-    presets.value.push(created)
-    if (isMap) currentMapRegexPresetId.value = created.id
-    else currentVendorPresetId.value = created.id
+    const state = stateFor(kind)
+    const created = state.create(`${kind}_regex_${crypto.randomUUID()}`, name || `预设${state.presets.value.length}`)
+    state.presets.value.push(created)
+    state.currentId.value = created.id
     save()
     return created
   }
 
   function remove(kind, id) {
     if (id === 'default') return false
-    const isMap = kind === 'map'
-    const presets = isMap ? mapRegexPresets : vendorPresets
-    const index = presets.value.findIndex(item => item.id === id)
+    const state = stateFor(kind)
+    const index = state.presets.value.findIndex(item => item.id === id)
     if (index < 0) return false
-    presets.value.splice(index, 1)
-    if (isMap && currentMapRegexPresetId.value === id) currentMapRegexPresetId.value = 'default'
-    if (!isMap && currentVendorPresetId.value === id) currentVendorPresetId.value = 'default'
+    state.presets.value.splice(index, 1)
+    if (state.currentId.value === id) state.currentId.value = 'default'
     save()
     return true
   }
 
   function switchTo(kind, id) {
-    const isMap = kind === 'map'
-    const presets = isMap ? mapRegexPresets.value : vendorPresets.value
-    if (!presets.some(item => item.id === id)) return false
-    if (isMap) currentMapRegexPresetId.value = id
-    else currentVendorPresetId.value = id
+    const state = stateFor(kind)
+    if (!state.presets.value.some(item => item.id === id)) return false
+    state.currentId.value = id
     save()
     return true
   }
 
   function update(kind, data) {
-    const current = kind === 'map' ? currentMapRegexPreset.value : currentVendorPreset.value
+    const state = stateFor(kind)
+    const current = state.presets.value.find(item => item.id === state.currentId.value)
     if (!current) return
     Object.assign(current, data)
     save()
+  }
+
+  try {
+    const saved = localStorage.getItem(REGEX_STORAGE_KEYS.beastPresets)
+    beastRegexPresets.value = cleanBeastRegexPresets(saved ? JSON.parse(saved) : null)
+    currentBeastRegexPresetId.value = currentFrom(beastRegexPresets.value, localStorage.getItem(REGEX_STORAGE_KEYS.beastCurrent))
+  } catch {
+    beastRegexPresets.value = [createDefaultBeastRegexPreset()]
   }
 
   loadVendor()
   loadMap()
 
   return {
+    beastRegexPresets,
+    currentBeastRegexPresetId,
+    currentBeastRegexPreset,
     vendorPresets,
     mapRegexPresets,
     currentVendorPresetId,

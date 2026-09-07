@@ -18,6 +18,7 @@ function runMapScan(emptySlotThreshold, statuses, cols = 8) {
   const block = mapTemplate.slice(start, end)
   const code = `
 import json, types
+${mapTemplate.slice(mapTemplate.indexOf('def rolling_item_level_label('), mapTemplate.indexOf('def completed_map_result('))}
 ${block}
 grid_config = {"startX": 0, "startY": 0, "offsetX": 1, "offsetY": 1, "rows": 1, "cols": ${cols}, "emptySlotThreshold": ${emptySlotThreshold}}
 map_config = {"targetKind": "atlas"}

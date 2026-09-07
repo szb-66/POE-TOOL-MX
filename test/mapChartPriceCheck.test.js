@@ -15,6 +15,7 @@ import {
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
+  refreshPseudoStats,
   sanitizePriceCheckModel
 } from '../electron/modules/priceCheck/query.js'
 import { CHART_FORMAT_EXAMPLES } from '../src/utils/supportedItemFormats.js'
@@ -44,22 +45,75 @@ test('便签和真实反馈中的地图格式统一按判别身份、精确阶�
     assert.equal(miscFilters.corrupted?.option, item.isCorrupted ? 'true' : undefined, fixture.id)
     if (item.rarity === '稀有') assert.equal(query.name, undefined, fixture.id)
   }
-  const unidentifiedUnique = createPriceCheckModel(parseItemInfo(MAP_PRICE_CHECK_FIXTURES[0].text), catalog)
+  const unidentifiedUnique = createPriceCheckModel(parseItemInfo(MAP_PRICE_CHECK_FIXTURES.find(({ id }) => id === 'unidentified-unique').text), catalog)
   assert.equal(unidentifiedUnique.identityResolution.required, false)
   assert.equal(buildOfficialTradeQuery(unidentifiedUnique).query.filters.type_filters.filters.rarity.option, 'unique')
-  const identifiedUnique = buildOfficialTradeQuery(createPriceCheckModel(parseItemInfo(MAP_PRICE_CHECK_FIXTURES[1].text), catalog)).query
+  const identifiedUnique = buildOfficialTradeQuery(createPriceCheckModel(parseItemInfo(MAP_PRICE_CHECK_FIXTURES.find(({ id }) => id === 'identified-unique').text), catalog)).query
   assert.deepEqual(identifiedUnique.name, { discriminator: 'map', option: '亡者之财' })
 })
 
-test('地图默认只勾选阶级和可识别特殊基底，奖励字段仅展示', async () => {
+test('地图默认只勾选阶级和可识别特殊基底，奖励可选查价', async () => {
   const catalog = await catalogPromise
   const fixture = MAP_PRICE_CHECK_FIXTURES.find(({ id }) => id === 'originator-memory')
   const model = createPriceCheckModel(parseItemInfo(fixture.text), catalog)
   assert.deepEqual(model.properties.filter(({ enabled }) => enabled).map(({ id }) => id), ['map.tier'])
   assert.ok(model.stats.some(({ enabled, type }) => enabled && type === 'implicit'))
   assert.ok(model.stats.every(({ enabled, type }) => !enabled || type === 'implicit'))
-  assert.deepEqual(model.information, [{ id: 'moreMaps', label: '更多地图', value: 75, suffix: '%' }])
+  assert.deepEqual(model.information, [])
+  assert.equal(model.stats.find(({ id }) => id === 'pseudo.pseudo_map_more_map_drops').min, 75)
   assert.equal(JSON.stringify(buildOfficialTradeQuery(model)).includes('moreMaps'), false)
+})
+
+test('地图奖励支持独立及组合范围查询，清理和刷新保留选择', async () => {
+  const catalog = await catalogPromise
+  const rewards = [
+    ['更多地图', 'pseudo.pseudo_map_more_map_drops', 105],
+    ['更多圣甲虫', 'pseudo.pseudo_map_more_scarab_drops', 70],
+    ['更多通货', 'pseudo.pseudo_map_more_currency_drops', 45]
+  ]
+  for (const selected of [[], ...rewards.map((reward) => [reward]), rewards]) {
+    const text = `物品类别: 地图\n稀 有 度: 稀有\n幽暗雕刻\n地图（16阶）\n-------\n${selected.map(([label, , value]) => `${label}: +${value}% (augmented)`).join('\n')}\n-------\n物品等级: 84`
+    const model = createPriceCheckModel(parseItemInfo(text), catalog)
+    const rewardStats = model.stats.filter(({ id }) => rewards.some(([, expected]) => id === expected))
+    assert.equal(rewardStats.length, selected.length)
+    assert.deepEqual(model.information, [])
+    assert.ok(rewardStats.every((stat) => !stat.enabled && stat.max === undefined))
+    assert.ok(!JSON.stringify(buildOfficialTradeQuery(model)).includes('pseudo_map_more_'))
+    for (const stat of rewardStats) { stat.enabled = true; stat.max = stat.min + 20 }
+    const clean = sanitizePriceCheckModel(model, catalog, model.facts, model.item.category, model)
+    refreshPseudoStats(clean, catalog)
+    refreshPseudoStats(clean, catalog)
+    const filters = buildOfficialTradeQuery(clean).query.stats.flatMap((group) => group.filters)
+    for (const [, id, value] of selected) {
+      assert.equal(clean.stats.filter((stat) => stat.id === id).length, 1)
+      assert.deepEqual(filters.find((stat) => stat.id === id).value, { min: value, max: value + 20, option: undefined })
+    }
+    clean.stats.forEach((stat) => { stat.enabled = false })
+    assert.ok(!JSON.stringify(buildOfficialTradeQuery(clean)).includes('pseudo_map_more_'))
+  }
+})
+
+test('奖励目录缺失时回退只读信息', async () => {
+  const catalog = await catalogPromise
+  const withoutRewards = { ...catalog, stats: catalog.stats.filter((entry) => !String(entry.ids?.pseudo).includes('pseudo_map_more_')) }
+  const fixture = MAP_PRICE_CHECK_FIXTURES.find(({ id }) => id === 'originator-memory')
+  const model = createPriceCheckModel(parseItemInfo(fixture.text), withoutRewards)
+  assert.deepEqual(model.information, [{ id: 'moreMaps', label: '更多地图', value: 75, suffix: '%' }])
+  assert.ok(!model.stats.some(({ id }) => id.includes('pseudo_map_more_')))
+})
+
+test('完整 T16 反馈样本以更多地图 105 为最低值查询', async () => {
+  const catalog = await catalogPromise
+  const fixture = MAP_PRICE_CHECK_FIXTURES.find(({ id }) => id === 'originator-memory-more-maps-105')
+  const model = createPriceCheckModel(parseItemInfo(fixture.text), catalog)
+  const reward = model.stats.find(({ id }) => id === 'pseudo.pseudo_map_more_map_drops')
+  assert.equal(reward.min, 105)
+  assert.equal(reward.enabled, false)
+  reward.enabled = true
+  const query = buildOfficialTradeQuery(model).query
+  assert.equal(query.filters.map_filters.filters.map_tier.min, 16)
+  assert.equal(query.stats.flatMap((group) => group.filters).find(({ id }) => id === reward.id).value.min, 105)
+  assert.ok(model.stats.some(({ type, enabled }) => type === 'implicit' && enabled))
 })
 
 test('传奇地图保留真实属性但不把说明文字加入搜索', async () => {

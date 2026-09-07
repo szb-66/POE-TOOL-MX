@@ -5,6 +5,9 @@
         <div class="group-title">
           <el-switch v-model="group.enabled" @change="commit" />
           <el-input v-model="group.name" maxlength="40" class="group-name" @change="commit" />
+          <el-tooltip v-if="groupRequirement(group).hasEffectiveConditions" :content="groupRequirementTooltip(group)" placement="top">
+            <el-tag class="group-item-level" size="small" :type="groupRequirement(group).hasUnknown ? 'warning' : 'info'">{{ groupRequirementLabel(group) }}</el-tag>
+          </el-tooltip>
           <el-button size="small" :icon="CopyDocument" @click="duplicateGroup(groupIndex)">复制</el-button>
           <el-button size="small" type="danger" plain :icon="Delete" :disabled="groups.length === 1" @click="removeGroup(groupIndex)">删除</el-button>
         </div>
@@ -34,15 +37,28 @@ import { ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { electronApi } from '../../../api/electron.js'
 import AffixConditionRow from './AffixConditionRow.vue'
-import { cloneAffixGroup, createAffixConfigId, createDefaultAffixGroup, normalizeAffixCondition, normalizeAffixGroup } from '../affixConfig.js'
+import { affixGroupItemLevelRequirement, cloneAffixGroup, createAffixConfigId, createDefaultAffixGroup, normalizeAffixCondition, normalizeAffixGroup } from '../affixConfig.js'
 
-const props = defineProps({ modelValue: { type: Array, required: true } })
+const props = defineProps({
+  modelValue: { type: Array, required: true }
+})
 const emit = defineEmits(['update:modelValue', 'change'])
 const cloneGroups = value => (Array.isArray(value) && value.length ? value : [createDefaultAffixGroup(0)]).map((group, index) => normalizeAffixGroup(group, index))
 const groups = ref(cloneGroups(props.modelValue))
 const collapsedGroupIds = ref(new Set())
 watch(() => props.modelValue, value => { groups.value = cloneGroups(value) }, { deep: true })
 function commit() { groups.value = cloneGroups(groups.value); emit('update:modelValue', groups.value); emit('change', groups.value) }
+function groupRequirement(group) { return affixGroupItemLevelRequirement(group) }
+function groupRequirementLabel(group) {
+  const requirement = groupRequirement(group)
+  if (requirement.level == null) return '最低物等：未知'
+  return requirement.hasUnknown ? `最低物等：至少 ${requirement.level}（含未知项）` : `最低物等：${requirement.level}`
+}
+function groupRequirementTooltip(group) {
+  return groupRequirement(group).hasUnknown
+    ? '自定义关键词没有目录阶级数据，不参与物等计算和运行拦截'
+    : '组合内全部目录词缀可出现所需物品等级的最高值'
+}
 function isGroupCollapsed(id) { return collapsedGroupIds.value.has(id) }
 function toggleGroupCollapse(id) {
   const next = new Set(collapsedGroupIds.value)
@@ -83,6 +99,7 @@ function removeGroup(index) {
 .is-collapsed .group-header { padding-bottom: 0; border-bottom: 0; }
 .group-name { max-width: 280px; }
 .group-name :deep(.el-input__inner) { font-weight: 600; }
+.group-item-level { flex: none; }
 .group-title :deep(.el-button + .el-button) { margin-left: 0; }
 .affix-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-lg); padding-top: var(--spacing-md); }
 .column-header { min-height: 32px; margin-bottom: var(--spacing-sm); font-weight: 600; }

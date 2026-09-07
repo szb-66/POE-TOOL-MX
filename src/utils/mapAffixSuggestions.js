@@ -1,5 +1,6 @@
 import { FRAGMENT_CHART_MODS } from '../data/chartModsData.js'
 import { ATLAS_MAP_AFFIX_SUGGESTIONS } from '../data/mapAffixSuggestionsData.js'
+import { HEIST_AFFIX_SUGGESTIONS } from '../data/heistAffixSuggestionsData.js'
 
 const CHART_REWARD_LINE = /^\u76f8\u90bb\u533a\u57df(?:\u4e2d\u627e\u5230\u7684(?:\u7269\u54c1\u6570\u91cf|\u7269\u54c1\u7a00\u6709\u5ea6|\u4ea1\u8005\u786b\u78fa)|\u7684\u602a\u7269\u7fa4\u89c4\u6a21)\u63d0\u9ad8/
 const UNVEILED_TEXT = '\u822a\u884c\u8bcd\u7f00\u5c06\u5728\u5b8c\u6210\u6d4b\u7ed8\u540e\u63ed\u793a'
@@ -94,6 +95,7 @@ export const CHART_AFFIX_SUGGESTIONS = Object.freeze(
 export function affixSuggestionsForKind(targetKind) {
   if (targetKind === 'atlas') return ATLAS_MAP_AFFIX_SUGGESTIONS
   if (targetKind === 'chart') return CHART_AFFIX_SUGGESTIONS
+  if (targetKind === 'heist') return HEIST_AFFIX_SUGGESTIONS
   return []
 }
 

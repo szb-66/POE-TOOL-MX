@@ -3,53 +3,33 @@
     <header class="page-heading">
       <div>
         <h1>数据看板</h1>
-        <p>集中查看模块运行、配置完整性与系统环境，并快速处理常用操作。</p>
-      </div>
-      <div class="heading-actions">
-        <el-button :icon="Refresh" :loading="refreshing" @click="refresh">刷新状态</el-button>
+        <p>记录每一张地图，观察今日刷图节奏与角色成长。</p>
       </div>
     </header>
 
-    <el-row class="summary-band" :gutter="0" aria-label="模块状态汇总">
-      <el-col v-for="item in summaryItems" :key="item.state" tag="article" :xs="24" :sm="12" :md="6" :class="`summary-${item.state}`">
-        <span class="summary-icon"><component :is="item.icon" /></span>
-        <div><strong>{{ summary[item.state] }}</strong><span>{{ item.label }}</span></div>
-      </el-col>
-    </el-row>
+    <MapTrackerDashboard @configure="mapTrackerSettingsVisible = true; mapTrackerDetailsVisible = false" @history="mapTrackerDetailsVisible = true; mapTrackerSettingsVisible = false" />
+
 
     <section class="health-panel" :class="{ warning: healthHasIssues }">
       <header>
         <div>
           <el-icon><Monitor /></el-icon>
-          <strong>系统环境</strong>
+          <strong>运行与系统环境</strong>
           <el-tag v-if="healthHasIssues" size="small" type="warning">需要关注</el-tag>
           <el-tag v-else size="small" type="success">全部正常</el-tag>
         </div>
-        <div>
-          <el-button size="small" text @click="healthExpanded = !healthExpanded">
-            {{ healthExpanded ? '收起' : '查看' }}
-          </el-button>
-        </div>
+        <el-button size="small" :icon="Refresh" :loading="refreshing" @click="refresh">刷新状态</el-button>
       </header>
-      <el-collapse-transition>
-        <el-row v-if="healthExpanded" class="health-list" :gutter="10">
-          <el-col v-for="item in healthItems" :key="item.id" :xs="24" :sm="12" :md="8">
-            <article class="health-card">
-              <span class="health-dot" :class="item.status" />
-              <div class="health-content"><strong>{{ item.label }}</strong><p>{{ item.text }}</p></div>
-              <el-button
-                v-if="item.action"
-                class="health-action"
-                size="small"
-                text
-                type="primary"
-                :aria-label="`${item.label}：${item.action.label}`"
-                @click="openHealthAction(item.action)"
-              >{{ item.action.label }}</el-button>
-            </article>
-          </el-col>
-        </el-row>
-      </el-collapse-transition>
+      <div class="summary-band" aria-label="模块状态汇总">
+        <button v-for="item in summaryItems" :key="item.state" type="button" :class="`summary-${item.state}`" aria-haspopup="dialog" @click="selectedState = item.state">
+          <span class="summary-icon"><component :is="item.icon" /></span>
+          <span class="summary-copy">
+            <strong>{{ item.state === 'environment' ? (healthHasIssues ? '需要关注' : '全部正常') : summary[item.state] }}</strong>
+            <span>{{ item.label }}</span>
+          </span>
+          <el-icon class="summary-arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
     </section>
 
     <section class="business-sections" aria-label="业务模块">
@@ -72,7 +52,7 @@
               :module="module"
               :icon="moduleIcons[module.id]"
               @action="runAction"
-              @open="openModule"
+              @open="openDashboardModule"
               @control="changeModuleControl"
             />
           </el-col>
@@ -80,18 +60,35 @@
       </section>
     </section>
 
+    <DashboardStatusDialog
+      v-for="item in summaryItems"
+      :key="item.state"
+      :model-value="selectedState === item.state"
+      :kind="item.state"
+      :modules="modules.filter(module => module.state === item.state)"
+      :health-items="healthItems"
+      :module-icons="moduleIcons"
+      @update:model-value="value => { if (!value) selectedState = '' }"
+      @open-module="module => openAfterDetailsClose(() => openDashboardModule(module))"
+      @open-health="action => openAfterDetailsClose(() => openHealthAction(action))"
+      @closed="finishDetailsClose"
+    />
+    <MapTrackerDrawer v-model="mapTrackerDetailsVisible" />
+    <MapTrackerSettingsDrawer v-model="mapTrackerSettingsVisible" />
+
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import {
+  ArrowRight,
   Box,
   Briefcase,
-  CircleCheck,
   Coin,
   FirstAidKit,
   MapLocation,
+  LocationInformation,
   Monitor,
   Notebook,
   Refresh,
@@ -100,17 +97,24 @@ import {
   VideoPlay,
   WarningFilled
 } from '@element-plus/icons-vue'
+import DashboardStatusDialog from './components/DashboardStatusDialog.vue'
 import ModuleStatusCard from './components/ModuleStatusCard.vue'
+import MapTrackerSettingsDrawer from '@/domains/mapTracker/MapTrackerSettingsDrawer.vue'
+import MapTrackerDrawer from '@/domains/mapTracker/MapTrackerDrawer.vue'
+import MapTrackerDashboard from '@/domains/mapTracker/MapTrackerDashboard.vue'
 import { groupDashboardModules } from './dashboardGroups'
 import { useDashboard } from './useDashboard'
 import { reportStartupEvent } from '../../utils/startupReporter'
 
 const emit = defineEmits(['open-health-help'])
-const healthExpanded = ref(false)
+const selectedState = ref('')
+const mapTrackerDetailsVisible = ref(false)
+const mapTrackerSettingsVisible = ref(false)
 const moduleIcons = {
   items: Box,
   bag: Briefcase,
   map: MapLocation,
+  mapTracker: LocationInformation,
   combat: FirstAidKit,
   story: Notebook,
   shop: ShoppingBag,
@@ -119,9 +123,8 @@ const moduleIcons = {
 }
 const summaryItems = [
   { state: 'running', label: '运行中', icon: VideoPlay },
-  { state: 'ready', label: '可用', icon: CircleCheck },
-  { state: 'attention', label: '需配置', icon: Tools },
-  { state: 'error', label: '异常', icon: WarningFilled }
+  { state: 'error', label: '异常', icon: WarningFilled },
+  { state: 'environment', label: '系统环境', icon: Monitor }
 ]
 
 const {
@@ -137,7 +140,22 @@ const {
   openHealthAction
 } = useDashboard({ openHelp: topicId => emit('open-health-help', topicId) })
 
+let pendingDetailsAction = null
+const openAfterDetailsClose = action => {
+  pendingDetailsAction = action
+  selectedState.value = ''
+}
+const finishDetailsClose = () => {
+  const action = pendingDetailsAction
+  pendingDetailsAction = null
+  action?.()
+}
+
 const moduleGroups = computed(() => groupDashboardModules(modules.value))
+const openDashboardModule = module => {
+  if (module.id === 'mapTracker' && !module.featureDisabled) { mapTrackerSettingsVisible.value = true; return }
+  return openModule(module)
+}
 
 onMounted(() => reportStartupEvent('dashboard-ready'))
 </script>
@@ -160,43 +178,47 @@ onMounted(() => reportStartupEvent('dashboard-ready'))
   align-items: center;
 }
 .page-heading { justify-content: space-between; gap: 20px; margin-bottom: 18px; }
-.heading-actions { display: flex; gap: 8px; }
 h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 .page-heading p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 
 .summary-band {
-  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 16px 16px;
   overflow: hidden;
   border: 1px solid var(--border-base);
   border-radius: 8px;
   background: var(--surface-1, var(--bg-primary));
-  box-shadow: inset 0 1px rgba(255,255,255,.025);
 }
-.summary-band > .el-col {
+.summary-band > button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  min-height: 60px;
-  padding: 10px 14px;
+  min-height: 76px;
+  padding: 14px 18px;
+  border: 0;
   border-right: 1px solid var(--border-base);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s ease;
 }
-.summary-band > .el-col:last-child { border-right: 0; }
-.summary-icon {
-  display: grid;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border-radius: 6px;
-  font-size: 19px;
-}
-.summary-band strong { display: block; font-family: var(--font-numeric); font-size: 20px; line-height: 1; }
-.summary-band span { color: var(--text-secondary); font-size: 12px; }
+.summary-band > button:last-child { border-right: 0; }
+.summary-band > button:hover { background: var(--surface-2, var(--el-fill-color-light)); }
+.summary-band > button:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: -3px; }
+.summary-icon { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; }
+.summary-icon svg { width: 28px; height: 28px; }
+.summary-copy { min-width: 0; }
+.summary-copy strong { display: block; font-family: var(--font-numeric); font-size: 22px; line-height: 1.3; }
+.summary-copy > span { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
+.summary-arrow { margin-left: auto; color: var(--text-secondary); }
 .summary-running .summary-icon { color: var(--el-color-success); }
-.summary-ready .summary-icon { color: var(--el-color-primary); }
-.summary-attention .summary-icon { color: var(--el-color-warning); }
 .summary-error .summary-icon { color: var(--el-color-danger); }
+.summary-environment .summary-icon { color: var(--el-color-primary); }
+.summary-environment .summary-copy strong { font-family: inherit; font-size: 16px; }
 
 .health-panel {
   margin-bottom: 20px;
@@ -207,37 +229,8 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
   overflow: hidden;
 }
 .health-panel.warning { border-color: var(--el-color-warning-light-5); }
-.health-panel header { justify-content: space-between; min-height: 48px; padding: 0 14px; }
-.health-panel header > div { gap: 8px; }
-.health-list {
-  margin: 0 !important;
-  row-gap: 10px;
-  padding: 10px 5px;
-  border-top: 1px solid var(--border-base);
-  background: var(--surface-1, var(--bg-primary));
-}
-.health-list > .el-col { min-width: 0; }
-.health-card {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-  min-height: 58px;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border-base);
-  border-radius: 6px;
-  background: var(--surface-2, var(--el-fill-color-light));
-}
-.health-content { flex: 1 1 auto; min-width: 0; }
-.health-action { flex: 0 0 auto; margin-left: auto; }
-.health-list strong { font-size: 12px; }
-.health-list p { overflow: hidden; margin: 3px 0 0; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.health-dot { flex: 0 0 8px; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--el-color-info); }
-.health-dot.ready { background: var(--el-color-success); }
-.health-dot.attention, .health-dot.pending { background: var(--el-color-warning); }
-.health-dot.error { background: var(--el-color-danger); }
+.health-panel header { justify-content: space-between; gap: 12px; min-height: 52px; padding: 0 16px; }
+.health-panel header > div { gap: 8px; flex-wrap: wrap; }
 
 .business-sections { display: grid; gap: 22px; padding-bottom: 4px; }
 .module-section { min-width: 0; }
@@ -252,13 +245,11 @@ h1 { margin: 0 0 5px; font-size: 25px; letter-spacing: .02em; }
 @media (max-width: 780px) {
   .dashboard-page { padding: 15px; }
   .page-heading { align-items: flex-start; }
-  .summary-band > .el-col:nth-child(2) { border-right: 0; }
-  .summary-band > .el-col:nth-child(-n+2) { border-bottom: 1px solid var(--border-base); }
+  .summary-band { grid-template-columns: 1fr; }
+  .summary-band > button { border-right: 0; border-bottom: 1px solid var(--border-base); }
+  .summary-band > button:last-child { border-bottom: 0; }
 }
 @media (max-width: 500px) {
-  .page-heading { flex-direction: column; }
-  .heading-actions { width: 100%; }
-  .summary-band > .el-col { border-right: 0; border-bottom: 1px solid var(--border-base); }
-  .summary-band > .el-col:last-child { border-bottom: 0; }
+  .health-panel header { align-items: flex-start; padding-top: 12px; padding-bottom: 12px; }
 }
 </style>

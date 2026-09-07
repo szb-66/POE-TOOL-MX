@@ -46,7 +46,7 @@ test('正则页默认商城并提供地图标签、固定结果栏和 250 字符
 test('新增页面组件均可被 Vue 编译器解析', () => {
   for (const path of [
     'src/domains/regex/RegexView.vue', 'src/domains/regex/VendorRegexPanel.vue',
-    'src/domains/regex/MapRegexPanel.vue', 'src/domains/regex/RegexResultCard.vue',
+    'src/domains/regex/MapRegexPanel.vue', 'src/domains/regex/BeastRegexPanel.vue', 'src/domains/regex/RegexResultCard.vue',
     'src/domains/regex/RegexPresetSelector.vue', 'src/domains/shop/RecipeView.vue'
   ]) {
     assert.deepEqual(parse(source(path), { filename: path }).errors, [], path)

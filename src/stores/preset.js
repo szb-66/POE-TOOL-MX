@@ -10,6 +10,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import {
+  cleanMigratedHeistConfig,
+  createDefaultHeistConfig,
   cleanMigratedChartConfig,
   cleanMigratedMapConfig,
   createDefaultChartConfig,
@@ -52,6 +54,14 @@ export const usePresetStore = defineStore('preset', () => {
     }
   ])
 
+  const heistPresets = ref([
+    {
+      id: 'default',
+      name: '默认预设',
+      heist: createDefaultHeistConfig()
+    }
+  ])
+
   const currentItemPresetId = ref('default')
   const currentEssencePresetId = ref('default')
   const currentHarvestPresetId = ref('default')
@@ -59,6 +69,7 @@ export const usePresetStore = defineStore('preset', () => {
   const craftingInitialChecks = ref(normalizeCraftingInitialChecks())
   const currentMapPresetId = ref('default')
   const currentChartPresetId = ref('default')
+  const currentHeistPresetId = ref('default')
   const mapRollingKind = ref('atlas')
 
   const currentItemPreset = computed(() => {
@@ -73,6 +84,10 @@ export const usePresetStore = defineStore('preset', () => {
 
   const currentChartPreset = computed(() => {
     return chartPresets.value.find(p => p.id === currentChartPresetId.value) || chartPresets.value[0]
+  })
+
+  const currentHeistPreset = computed(() => {
+    return heistPresets.value.find(p => p.id === currentHeistPresetId.value) || heistPresets.value[0]
   })
 
   // 统一的 currentPreset 访问器 (为了保持部分向后兼容性或根据上下文切换)
@@ -127,6 +142,18 @@ export const usePresetStore = defineStore('preset', () => {
     }
     chartPresets.value.push(newPreset)
     currentChartPresetId.value = newPreset.id
+    savePresets()
+    return newPreset
+  }
+
+  function addHeistPreset(name) {
+    const newPreset = {
+      id: `heist_preset_${Date.now()}`,
+      name: name || `预设${heistPresets.value.length}`,
+      heist: createDefaultHeistConfig()
+    }
+    heistPresets.value.push(newPreset)
+    currentHeistPresetId.value = newPreset.id
     savePresets()
     return newPreset
   }
@@ -186,6 +213,18 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
+  function deleteHeistPreset(id) {
+    if (id === 'default') return false
+    const index = heistPresets.value.findIndex(p => p.id === id)
+    if (index > -1) {
+      heistPresets.value.splice(index, 1)
+      if (currentHeistPresetId.value === id) currentHeistPresetId.value = 'default'
+      savePresets()
+      return true
+    }
+    return false
+  }
+
   function switchItemPreset(id) {
     const preset = itemPresets.value.find(p => p.id === id)
     if (preset) {
@@ -239,8 +278,18 @@ export const usePresetStore = defineStore('preset', () => {
     return false
   }
 
+  function switchHeistPreset(id) {
+    const preset = heistPresets.value.find(p => p.id === id)
+    if (preset) {
+      currentHeistPresetId.value = id
+      savePresets()
+      return true
+    }
+    return false
+  }
+
   function setMapRollingKind(kind) {
-    mapRollingKind.value = kind === 'chart' ? 'chart' : 'atlas'
+    mapRollingKind.value = ['chart', 'heist'].includes(kind) ? kind : 'atlas'
     savePresets()
   }
 
@@ -285,6 +334,14 @@ export const usePresetStore = defineStore('preset', () => {
     }
   }
 
+  function updateCurrentHeistPreset(data) {
+    const preset = currentHeistPreset.value
+    if (preset) {
+      Object.assign(preset, data)
+      savePresets()
+    }
+  }
+
   function savePresets() {
     try {
       localStorage.setItem('itemPresets', JSON.stringify(itemPresets.value))
@@ -299,6 +356,8 @@ export const usePresetStore = defineStore('preset', () => {
       localStorage.setItem('currentMapPresetId', currentMapPresetId.value)
       localStorage.setItem('chartPresets', JSON.stringify(chartPresets.value))
       localStorage.setItem('currentChartPresetId', currentChartPresetId.value)
+      localStorage.setItem('heistPresets', JSON.stringify(heistPresets.value))
+      localStorage.setItem('currentHeistPresetId', currentHeistPresetId.value)
       localStorage.setItem('mapRollingKind', mapRollingKind.value)
     } catch (error) {
       // 保存预设失败
@@ -406,16 +465,22 @@ export const usePresetStore = defineStore('preset', () => {
       } else if (!savedChartPresets && chartPresets.value.some(preset => preset.id === currentMapPresetId.value)) {
         currentChartPresetId.value = currentMapPresetId.value
       }
+      const savedHeist = localStorage.getItem('heistPresets')
+      const loadedHeist = savedHeist ? JSON.parse(savedHeist) : []
+      heistPresets.value = Array.isArray(loadedHeist) ? loadedHeist.map(p => ({ ...p, heist: cleanMigratedHeistConfig(p.heist) })) : []
+      if (!heistPresets.value.some(p => p.id === 'default')) heistPresets.value.unshift({ id: 'default', name: '默认预设', heist: createDefaultHeistConfig() })
+      const savedHeistId = localStorage.getItem('currentHeistPresetId')
+      currentHeistPresetId.value = heistPresets.value.some(p => p.id === savedHeistId) ? savedHeistId : 'default'
       const legacyActiveKind = loadedMapPresets
         ?.find(preset => preset.id === currentMapPresetId.value)?.map?.activeKind
-      mapRollingKind.value = savedMapRollingKind === 'chart' || (!savedMapRollingKind && legacyActiveKind === 'chart')
+      mapRollingKind.value = savedMapRollingKind === 'heist' ? 'heist' : savedMapRollingKind === 'chart' || (!savedMapRollingKind && legacyActiveKind === 'chart')
         ? 'chart'
         : 'atlas'
 
       if (!mapPresets.value.some(preset => preset.id === currentMapPresetId.value)) currentMapPresetId.value = 'default'
       if (!chartPresets.value.some(preset => preset.id === currentChartPresetId.value)) currentChartPresetId.value = 'default'
 
-      if (!savedChartPresets || !savedEssencePresets || !savedHarvestPresets || !savedInitialChecks || loadedMapPresets?.some(preset => preset.map?.chart || preset.map?.activeKind)) {
+      if (!savedHeist || !savedChartPresets || !savedEssencePresets || !savedHarvestPresets || !savedInitialChecks || loadedMapPresets?.some(preset => preset.map?.chart || preset.map?.activeKind)) {
         savePresets()
       }
     } catch (error) {
@@ -432,6 +497,7 @@ export const usePresetStore = defineStore('preset', () => {
     harvestPresets,
     mapPresets,
     chartPresets,
+    heistPresets,
     currentItemPresetId,
     currentEssencePresetId,
     currentHarvestPresetId,
@@ -439,12 +505,14 @@ export const usePresetStore = defineStore('preset', () => {
     craftingInitialChecks,
     currentMapPresetId,
     currentChartPresetId,
+    currentHeistPresetId,
     mapRollingKind,
     currentItemPreset,
     currentEssencePreset,
     currentHarvestPreset,
     currentMapPreset,
     currentChartPreset,
+    currentHeistPreset,
     // 兼容旧代码的别名，逐步替换
     presets: itemPresets,
     currentPresetId: currentItemPresetId,
@@ -460,11 +528,13 @@ export const usePresetStore = defineStore('preset', () => {
     addHarvestPreset,
     addMapPreset,
     addChartPreset,
+    addHeistPreset,
     deleteItemPreset,
     deleteEssencePreset,
     deleteHarvestPreset,
     deleteMapPreset,
     deleteChartPreset,
+    deleteHeistPreset,
     switchItemPreset,
     switchEssencePreset,
     switchHarvestPreset,
@@ -472,12 +542,14 @@ export const usePresetStore = defineStore('preset', () => {
     updateCraftingInitialCheck,
     switchMapPreset,
     switchChartPreset,
+    switchHeistPreset,
     setMapRollingKind,
     updateCurrentItemPreset,
     updateCurrentEssencePreset,
     updateCurrentHarvestPreset,
     updateCurrentMapPreset,
     updateCurrentChartPreset,
+    updateCurrentHeistPreset,
     savePresets,
     loadPresets
   }

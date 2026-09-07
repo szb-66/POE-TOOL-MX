@@ -235,9 +235,11 @@ export async function initBagAutomation() {
     electronApi.events.onBagStashCompleted((data) => {
       bagStore.setStashingStatus(false, data)
       bagStore.setStopReason('')
-      ElMessage.success(`自动入库完成：入库 ${data.stashedSlots || 0} 格，黑名单保留 ${data.blacklistedSlots || 0} 格`)
+      if (data.statisticsError) ElMessage.warning('入库已完成，统计保存失败')
+      else ElMessage.success(`自动入库完成：入库 ${data.stashedSlots || 0} 格，黑名单保留 ${data.blacklistedSlots || 0} 格`)
     }),
     electronApi.events.onBagStashStopped((data) => {
+      if (data.statisticsError) ElMessage.warning('入库已停止，统计保存失败')
       bagStore.setStashingStatus(false, data)
       bagStore.setStopReason(data?.reason || '未知原因', data)
       if (data?.reason && data.reason !== 'user-stopped' && data.reason !== 'process-ended') {

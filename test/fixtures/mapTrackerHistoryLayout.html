@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body><div id="app"></div><script type="module">
+import { createApp, h } from 'vue'
+import { createPinia } from 'pinia'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import '../../src/styles/index.less'
+import Drawer from '../../src/domains/mapTracker/MapTrackerDrawer.vue'
+import { useMapTrackerStore } from '../../src/stores/mapTracker.js'
+const pinia=createPinia()
+const store=useMapTrackerStore(pinia)
+const normal={startedAt:'2026-09-07T10:42:59.338Z',areaName:'危城广场',areaId:'MapWorldsCitySquare',mapTier:16,areaLevel:83,activeDurationMs:173000,deaths:0,portalsUsed:1,loot:[]}
+store.history={items:[{...normal,id:'short'},{...normal,id:'long',loot:Array.from({length:100},(_,i)=>({name:'测试入库物品'+i,quantity:1}))},{...normal,id:'last'}],total:3,errors:[]}
+store.refresh=async()=>store.snapshot
+store.query=async()=>store.history
+createApp({render:()=>h(Drawer,{modelValue:true})}).use(pinia).use(ElementPlus).mount('#app')
+</script></body></html>

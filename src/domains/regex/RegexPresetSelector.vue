@@ -14,13 +14,13 @@ import { computed } from 'vue'
 import { Delete, Edit, Plus } from '@element-plus/icons-vue'
 import { useRegexPresetStore } from './regexPresetStore.js'
 
-const props = defineProps({ kind: { type: String, required: true, validator: value => ['vendor', 'map'].includes(value) } })
+const props = defineProps({ kind: { type: String, required: true, validator: value => ['vendor', 'map', 'beast'].includes(value) } })
 const store = useRegexPresetStore()
 const isMap = computed(() => props.kind === 'map')
-const presets = computed(() => isMap.value ? store.mapRegexPresets : store.vendorPresets)
-const current = computed(() => isMap.value ? store.currentMapRegexPreset : store.currentVendorPreset)
+const presets = computed(() => props.kind === 'beast' ? store.beastRegexPresets : isMap.value ? store.mapRegexPresets : store.vendorPresets)
+const current = computed(() => props.kind === 'beast' ? store.currentBeastRegexPreset : isMap.value ? store.currentMapRegexPreset : store.currentVendorPreset)
 const currentId = computed({
-  get: () => isMap.value ? store.currentMapRegexPresetId : store.currentVendorPresetId,
+  get: () => props.kind === 'beast' ? store.currentBeastRegexPresetId : isMap.value ? store.currentMapRegexPresetId : store.currentVendorPresetId,
   set: value => store.switchTo(props.kind, value)
 })
 

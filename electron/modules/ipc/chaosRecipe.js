@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js'
+import { CHAOS_ERROR_CODES, ChaosRecipeError, serializeChaosError } from '../chaosRecipe/errors.js'
 import { resolveStashGridLayout } from '../chaosRecipe/layout.js'
 import { selectAllSingleRecipeItems } from '../chaosRecipe/engine.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
@@ -158,7 +158,7 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
       const plan = service.createPlan(runtimePlanRequest(runtime))
       const tab = plan.tabs[0]
       const { region } = resolveStashGridLayout(tab, runtime.calibration)
-      service.overlay.create({
+      const created = service.overlay.create({
         region,
         tabId: tab.tabId,
         tabName: tab.tabName,
@@ -169,6 +169,12 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
         recipeLabel: plan.recipeLabel,
         message: planMessage(plan)
       })
+      if (!created) {
+        throw new ChaosRecipeError(
+          CHAOS_ERROR_CODES.INVALID_REQUEST,
+          '无法定位仓库区域，请重新校准仓库网格'
+        )
+      }
       return plan
     } finally {
       control?.sync()

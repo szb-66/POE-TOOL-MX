@@ -19,6 +19,12 @@ const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
 const MERCENARY_WARRANT_DISCRIMINATOR = 'mercenary_warrant'
 const IDENTITY_DISCRIMINATORS = new Set(['map', 'chart', MERCENARY_WARRANT_DISCRIMINATOR])
 const CLASSIC_INFLUENCE_STAT_IDS = new Set(PRICE_CHECK_CLASSIC_INFLUENCES.map(({ statId }) => statId))
+const MAP_REWARD_STATS = [
+  ['moreMaps', '更多地图', 'pseudo.pseudo_map_more_map_drops'],
+  ['moreScarabs', '更多圣甲虫', 'pseudo.pseudo_map_more_scarab_drops'],
+  ['moreCurrency', '更多通货', 'pseudo.pseudo_map_more_currency_drops']
+]
+const MAP_REWARD_STAT_IDS = new Set(MAP_REWARD_STATS.map(([, , id]) => id))
 const catalogStatRefIndexes = new WeakMap()
 
 const safeText = (value, max = 180) => String(value || '').trim().slice(0, max)
@@ -250,6 +256,7 @@ export function mergeStatIntoList(stats, stat) {
 export function refreshPseudoStats(model, catalog, options = {}) {
   const rawStats = (model.stats || []).filter((stat) => stat.type !== 'pseudo')
   const influenceStats = (model.stats || []).filter((stat) => CLASSIC_INFLUENCE_STAT_IDS.has(stat.id))
+  const rewardStats = (model.stats || []).filter((stat) => MAP_REWARD_STAT_IDS.has(stat.id))
   const previous = new Map((model.stats || []).filter((stat) => stat.type === 'pseudo').map((stat) => [stat.id, stat]))
   const generated = createPseudoStats(rawStats, catalog, options, originalValueBounds)
   for (const stat of generated.stats) {
@@ -265,7 +272,7 @@ export function refreshPseudoStats(model, catalog, options = {}) {
   for (const stat of rawStats) {
     if (absorbedKeys.has(stat.key)) stat.enabled = false
   }
-  model.stats = [...generated.stats, ...influenceStats, ...rawStats]
+  model.stats = [...generated.stats, ...rewardStats, ...influenceStats, ...rawStats]
   return model
 }
 
@@ -528,13 +535,22 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     stats: mergedStats,
     unknownStats
   }
-  model.information = [
-    ['moreMaps', '更多地图'],
-    ['moreScarabs', '更多圣甲虫'],
-    ['moreCurrency', '更多通货']
-  ].map(([field, label]) => Number(item[field]) > 0
-    ? { id: field, label, value: Number(item[field]), suffix: '%' }
-    : null).filter(Boolean)
+  model.information = []
+  for (const [field, label, id] of MAP_REWARD_STATS) {
+    const value = Number(item[field])
+    if (!Number.isFinite(value) || value <= 0) continue
+    if (officialCategory?.category !== 'map' || !catalog || !catalogHasStat(catalog, id, 'pseudo')) {
+      model.information.push({ id: field, label, value, suffix: '%' })
+      continue
+    }
+    const refs = catalogRefsForStat(catalog, id, 'pseudo') || []
+    model.stats.push({
+      key: `map-reward:${field}`, id, label, text: `${label}: +${value}%`,
+      type: 'pseudo', refs, ref: refs.length === 1 ? refs[0] : null,
+      tier: null, tags: [], enabled: false, values: [value],
+      valueMultiplier: 1, min: value, max: undefined, sources: []
+    })
+  }
   refreshPseudoStats(model, catalog, options)
   model.stats.push(...createClassicInfluenceStats(item.influences, catalog))
   return resolveUnidentifiedUnique(model, catalog)

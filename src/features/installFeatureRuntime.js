@@ -11,6 +11,7 @@ import { useScriptStore } from '@/stores/script.js'
 import { useStashPickupStore } from '@/stores/stashPickup.js'
 import { useStoryStore } from '@/stores/story.js'
 import { useFaustusStore } from '@/domains/faustus/faustusStore.js'
+import { useMapTrackerStore } from '@/stores/mapTracker.js'
 import { disposeBagAutomation, initBagAutomation } from '@/utils/bagService.js'
 import { disposeCombatAssist, initCombatAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService.js'
 import { updateShortcuts } from '@/utils/scriptService.js'
@@ -31,6 +32,7 @@ export function installFeatureRuntime({ router }) {
   const priceStore = usePriceCheckStore()
   const puzzleStore = usePuzzleStore()
   const faustusStore = useFaustusStore()
+  const mapTrackerStore = useMapTrackerStore()
   const featureDisposers = new Map()
   const adapterDisposers = []
   const junfengConsumers = new Set()
@@ -116,6 +118,7 @@ export function installFeatureRuntime({ router }) {
     return { success: true }
   }
   async function attachFaustus() { return { success: true } }
+  async function attachMapTracker() { if (!featureDisposers.has('map-tracker')) setFeatureDisposer('map-tracker', mapTrackerStore.listen()); await mapTrackerStore.refresh(); return { success: true } }
   async function attachTraining() {
     useJunfengListener('highlight-model-training')
     const results = await Promise.allSettled([junfengStore.loadTrainingStatus(), junfengStore.loadTrainingSessions()])
@@ -130,6 +133,7 @@ export function installFeatureRuntime({ router }) {
       resume: attachItems
     },
     map: { isBusy: () => scriptStore.isRunning && scriptStore.mode === 'map', suspend: () => collectResults([() => stopScriptMode('map'), () => electronApi.window.closeOverlay()]), resume: async () => ({ success: true }) },
+    'map-tracker': { isBusy: () => Boolean(mapTrackerStore.activeRun), suspend: async () => { const result = await collectResults([() => mapTrackerStore.setPaused(true), () => mapTrackerStore.setEnabled(false), () => electronApi.mapTracker.controlOverlay('hide')]); if (result.success) disposeFeature('map-tracker'); return result }, resume: attachMapTracker },
     bag: {
       isBusy: () => bagStore.isStashing || stashStore.running || junfengStore.running,
       suspend: async () => {

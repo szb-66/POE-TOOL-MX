@@ -873,16 +873,20 @@ def update_map_stats(processed_count, qualified_count, blacklist_stats, whitelis
         pass
 
 def rolling_target_label():
-    return "航海海图" if map_config.get("targetKind") == "chart" else "地图"
+    return "契约蓝图" if map_config.get("targetKind") == "heist" else "航海海图" if map_config.get("targetKind") == "chart" else "地图"
 
 def item_matches_rolling_target(item_data):
     category = str((item_data or {}).get("category") or (item_data or {}).get("itemClass") or "")
+    if map_config.get("targetKind") == "heist":
+        return category in ("契约", "蓝图")
     if map_config.get("targetKind") == "chart":
         return category == "海图"
-    return category in ("异界地图", "地图")
+    return category in ("异界地图", "地图", "裂隙之石") and not (item_data or {}).get("isQuestItem")
 
 def rolling_item_level_label(item_data):
-    if map_config.get("targetKind") == "chart":
+    if ((item_data or {}).get("category") or (item_data or {}).get("itemClass")) == "裂隙之石":
+        return f"物品等级 {int((item_data or {}).get('level', 0))}"
+    if map_config.get("targetKind") in ("chart", "heist"):
         return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
     return f"T{int((item_data or {}).get('mapTier', 0))}"
 
@@ -940,6 +944,8 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
                 if operation_logger:
                     operation_logger("confirmation", "read-current-item", "confirmed", summary=f"当前{rolling_target_label()}读取并解析成功")
                 return result
+            if empty_on_copy_failure and not result.get("error") and map_config.get("targetKind") == "heist" and result.get("category") and not item_matches_rolling_target(result):
+                return {"skip": True, "category": result.get("category")}
             if result.get("isLegendary"):
                 if operation_logger:
                     operation_logger("confirmation", "read-current-item", "confirmed", summary="当前目标为传奇物品")
@@ -995,12 +1001,10 @@ def start_map_rolling():
     global is_running, fatal_error_reason
     is_running = True
     target_kind = map_config.get("targetKind")
-    target_label = "航海海图" if target_kind == "chart" else "地图"
+    target_label = "契约蓝图" if target_kind == "heist" else "航海海图" if target_kind == "chart" else "地图"
 
     def scan_item_level_label(item_data):
-        if target_kind == "chart":
-            return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
-        return f"T{int((item_data or {}).get('mapTier', 0))}"
+        return rolling_item_level_label(item_data)
     
     print(f"[启动] 开始执行地图洗练脚本")
     if "emit_crafting_operation" in globals():
@@ -1092,6 +1096,15 @@ def start_map_rolling():
             if consecutive_empty_slots >= empty_slot_threshold:
                 print(f"[完成] 连续空格达到配置阈值 {empty_slot_threshold}，流程结束")
                 break
+            current_row += 1
+            if current_row >= grid_config['rows']:
+                current_row = 0
+                current_col += 1
+            continue
+
+        if result.get("skip"):
+            consecutive_empty_slots = 0
+            print(f"[跳过] 非当前目标物品：{result.get('category')}")
             current_row += 1
             if current_row >= grid_config['rows']:
                 current_row = 0
@@ -1213,7 +1226,7 @@ def process_single_map(initial_result, slot_x, slot_y):
     )
     alchemy_currency_name = "高阶点金石" if alchemy_currency == "binding" else "点金石"
     iteration = 0
-    max_iterations = 200 # 防止死循环
+    max_iterations = 2147483647 # 解除单张地图制作次数限制
     
     while is_running and iteration < max_iterations:
         iteration += 1
@@ -1228,9 +1241,18 @@ def process_single_map(initial_result, slot_x, slot_y):
         rarity = current_result.get("rarity", "普通").replace(" ", "")
         tier = int(current_result.get("mapTier", 0))
         quality = int(current_result.get("quality", 0))
-        is_legendary = current_result.get("isLegendary", False)
+        is_legendary = current_result.get("isLegendary", False) or rarity == "传奇"
         
         print(f"  > [状态] {rolling_item_level_label(current_result)} {rarity} 品质:{quality}% 腐化:{is_corrupted} 传奇:{is_legendary}")
+
+        if map_config.get('targetKind') == 'heist':
+            if current_result.get('isQuestItem') or rarity == '任务':
+                print("  > [跳过] 任务契约")
+                return completed_map_result()
+            if not current_result.get('isUnidentified') and rarity in ('魔法', '稀有') and not is_legendary and not is_unmodifiable:
+                missing = heist_unreadable_stats(current_result)
+                if missing:
+                    return failed_map_result("契约蓝图属性无法读取：" + ", ".join(missing), "HEIST_STATS_UNREADABLE")
 
         # 0. 传奇地图跳过
         if is_legendary:
@@ -1242,7 +1264,7 @@ def process_single_map(initial_result, slot_x, slot_y):
             return completed_map_result()
 
         # 0.1 T17 + 点金模式 检查
-        if map_config.get('targetKind') != 'chart' and tier == 17 and map_config['method'] == 'alchemy':
+        if map_config.get('targetKind', 'atlas') == 'atlas' and tier == 17 and map_config['method'] == 'alchemy':
              print("  > [错误] T17地图不能使用点金模式")
              return completed_map_result()
 
@@ -1289,7 +1311,10 @@ def process_single_map(initial_result, slot_x, slot_y):
             tier = int(current_result.get("mapTier", 0))
             quality = int(current_result.get("quality", 0))
             is_corrupted = current_result.get("isCorrupted", False)
-            print(f"  > [鉴定完成] 鉴定后状态: T{tier} {rarity} 品质:{quality}% 腐化:{is_corrupted}")
+            print(f"  > [鉴定完成] 鉴定后状态: {rolling_item_level_label(current_result)} {rarity} 品质:{quality}% 腐化:{is_corrupted}")
+
+            if map_config.get('targetKind') == 'heist':
+                continue
 
         # 1. 预处理 (Scouring)
         # 点金模式：魔法或稀有 -> 重铸
@@ -1481,7 +1506,11 @@ def check_map_base(item_data):
     Edge cases: 缺失属性按零处理；必选与挑选冲突时取较大值且不重复计数。
     """
     match_config = map_config['match']
+    if map_config.get('targetKind') == 'heist' and heist_unreadable_stats(item_data):
+        return False
     valid_keys = (
+        ('quantity', 'rarity', 'alertLevelReduction', 'timeBeforeLockdown', 'maximumAliveReinforcements')
+        if map_config.get('targetKind') == 'heist' else
         ('quantity', 'rarity', 'packSize', 'deadmanSulphur')
         if map_config.get('targetKind') == 'chart'
         else ('quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency')
@@ -1560,6 +1589,9 @@ def check_map_mods(item_data):
                 
     # 2. 检查白名单 (Whitelist) - 优先级最高
     whitelist = match_config.get('whitelist', [])
+    if map_config.get('targetKind') == 'heist':
+        terms = [term for term in whitelist if term and term.strip()]
+        return not terms or any(term in mod for term in terms for mod in explicit_mods)
     if whitelist:
         for mod in explicit_mods:
             for white_term in whitelist:
@@ -1605,7 +1637,16 @@ def check_map_requirements(item_data):
         return False
     return True
 
+def heist_unreadable_stats(item_data):
+    keys = ('quantity', 'rarity', 'alertLevelReduction', 'timeBeforeLockdown', 'maximumAliveReinforcements')
+    stats = item_data.get('heistStats') or {}
+    match = map_config.get('match', {})
+    return [key for key in keys if any(match.get(group, {}).get(key, {}).get('enabled') for group in ('mandatoryStats', 'optionalStats')) and (not isinstance(stats.get(key), (int, float)) or isinstance(stats.get(key), bool))]
+
 def get_stat_value(item_data, key):
+    if map_config.get('targetKind') == 'heist':
+        return (item_data.get('heistStats') or {}).get(key, 0)
+
     # 从item_data中提取属性值
     # key映射: quantity -> itemQuantity, rarity -> itemRarity, packSize -> monsterPackSize
     val = 0

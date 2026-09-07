@@ -42,6 +42,34 @@ export function selectGameWindowCandidate(
     Number(right.foreground) - Number(left.foreground) || right.area - left.area)[0]
 }
 
+const WS_CAPTION = 0x00C00000
+const QUNS_RUNNING_D3D_FULL_SCREEN = 3
+const MONITOR_COVERAGE_RATIO = 0.95
+
+function windowCoverageRatio(windowRect, monitorRect) {
+  if (!windowRect || !monitorRect) return null
+  const windowArea = Math.max(0, windowRect.right - windowRect.left) * Math.max(0, windowRect.bottom - windowRect.top)
+  const monitorArea = Math.max(0, monitorRect.right - monitorRect.left) * Math.max(0, monitorRect.bottom - monitorRect.top)
+  if (monitorArea <= 0) return null
+  return windowArea / monitorArea
+}
+
+// ponytail: 独占全屏判定依赖"前台+铺满+系统D3D全屏信号"同时成立，QUNS 信号仅前台可靠；
+// 游戏后台铺满时按无边框处理（只漏报不误报），需更精确时在游戏前台轮询处复查 QUNS
+export function classifyGameDisplayMode(candidate = null) {
+  if (!candidate) return { mode: null, supported: false }
+  if (candidate.minimized) return { mode: 'unknown', supported: false }
+  if ((Number(candidate.style) & WS_CAPTION) !== 0) return { mode: 'windowed', supported: true }
+  const coverage = windowCoverageRatio(candidate.windowRect, candidate.monitorRect)
+  if (coverage !== null && coverage >= MONITOR_COVERAGE_RATIO) {
+    if (candidate.foreground && Number(candidate.notificationState) === QUNS_RUNNING_D3D_FULL_SCREEN) {
+      return { mode: 'exclusive', supported: false }
+    }
+    return { mode: 'fullscreen', supported: true }
+  }
+  return { mode: 'borderless', supported: true }
+}
+
 export function createCachedGameDpiDetector(detect, {
   cacheDurationMs = 2000,
   now = Date.now
@@ -94,6 +122,39 @@ user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
 user32.GetWindowRect.restype = wintypes.BOOL
 user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
 user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+user32.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+user32.GetWindowLongW.restype = ctypes.c_long
+user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+user32.MonitorFromWindow.restype = wintypes.HANDLE
+
+class MONITORINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.DWORD),
+        ("rcMonitor", wintypes.RECT),
+        ("rcWork", wintypes.RECT),
+        ("dwFlags", wintypes.DWORD)
+    ]
+
+user32.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MONITORINFO)]
+user32.GetMonitorInfoW.restype = wintypes.BOOL
+
+
+def query_notification_state():
+    for dll_name in ("SHCore", "shell32"):
+        try:
+            fn = getattr(ctypes.WinDLL(dll_name), "SHQueryUserNotificationState")
+            fn.argtypes = [ctypes.POINTER(ctypes.c_int)]
+            fn.restype = ctypes.HRESULT
+            state = ctypes.c_int(-1)
+            if fn(ctypes.byref(state)) == 0:
+                return state.value
+            return -1
+        except Exception:
+            continue
+    return -1
+
+
+notification_state = query_notification_state()
 enum_windows_proc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 user32.EnumWindows.argtypes = [enum_windows_proc, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
@@ -117,8 +178,30 @@ def visit(hwnd, _lparam):
     title = buffer.value.strip()
     rect = wintypes.RECT()
     area = 0
+    window_rect = None
     if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
         area = max(0, rect.right - rect.left) * max(0, rect.bottom - rect.top)
+        window_rect = {
+            "left": rect.left, "top": rect.top, "right": rect.right, "bottom": rect.bottom
+        }
+    monitor_rect = None
+    try:
+        monitor = user32.MonitorFromWindow(hwnd, 2)
+        if monitor:
+            info = MONITORINFO()
+            info.cbSize = ctypes.sizeof(MONITORINFO)
+            if user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                rc = info.rcMonitor
+                monitor_rect = {
+                    "left": rc.left, "top": rc.top, "right": rc.right, "bottom": rc.bottom
+                }
+    except Exception:
+        monitor_rect = None
+    style = 0
+    try:
+        style = user32.GetWindowLongW(hwnd, -16)
+    except Exception:
+        style = 0
     dpi = int(get_dpi_for_window(hwnd)) if get_dpi_for_window else 0
     process_name = ""
     pid = wintypes.DWORD()
@@ -144,7 +227,11 @@ def visit(hwnd, _lparam):
         "foreground": hwnd == foreground,
         "minimized": bool(user32.IsIconic(hwnd)),
         "area": area,
-        "dpi": dpi
+        "dpi": dpi,
+        "style": int(style),
+        "windowRect": window_rect,
+        "monitorRect": monitor_rect,
+        "notificationState": int(notification_state)
     })
     return True
 
@@ -181,11 +268,14 @@ export async function detectGameDpi({
     const dpi = Number(selected?.dpi)
     if (!selected) return { found: false, error: '未找到匹配的游戏窗口' }
     if (!Number.isFinite(dpi) || dpi <= 0) return { found: false, windowTitle: selected.title, error: '无法读取游戏窗口 DPI' }
+    const displayMode = classifyGameDisplayMode(selected)
     return {
       found: true,
       dpi,
       scaleFactor: Number((dpi / 96).toFixed(4)),
-      windowTitle: selected.title
+      windowTitle: selected.title,
+      displayMode: displayMode.mode,
+      displayModeSupported: displayMode.supported
     }
   } catch (error) {
     return { found: false, error: `识别游戏窗口 DPI 失败：${error.message}` }

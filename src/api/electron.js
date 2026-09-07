@@ -119,6 +119,10 @@ const mockApi = {
     minimize: () => { },
     maximize: () => { },
     close: () => { },
+    setCloseBehavior: (input) => Promise.resolve({ success: true, behavior: input?.behavior, promptSuppressed: input?.promptSuppressed === true }),
+    resolveCloseChoice: (input) => Promise.resolve({ success: true, ...input }),
+    cancelCloseChoice: () => Promise.resolve({ success: true }),
+    onCloseChoiceRequested: () => () => {},
     toggleAlwaysOnTop: () => Promise.resolve(false),
     isAlwaysOnTop: () => Promise.resolve(false),
     onMaximized: () => { },
@@ -302,6 +306,22 @@ const mockApi = {
     rendered: (_generation) => {},
     onOverlayState: () => () => {}
   },
+  clientEvents: {
+    getStatus: () => Promise.resolve({ success: true, data: { enabled: false, logPath: '', state: 'stopped', error: '', events: [] } }),
+    updateSettings: () => Promise.reject(new Error('仅 Electron 客户端支持事件中心')),
+    selectLogFile: () => Promise.reject(new Error('仅 Electron 客户端支持选择日志')),
+    onSnapshot: () => () => {}
+  },
+  mapTracker: {
+    getStatus: () => Promise.resolve({ success: true, data: { settings: { enabled: false, paused: false, enhancements: {} }, activeRun: null, foreground: false, errors: [] } }),
+    updateSettings: () => Promise.reject(new Error('仅 Electron 客户端支持地图跟踪')),
+    query: () => Promise.resolve({ success: true, data: { items: [], total: 0, page: 1, pageSize: 25, errors: [] } }),
+    edit: () => Promise.reject(new Error('仅 Electron 客户端支持地图跟踪')),
+    remove: () => Promise.reject(new Error('仅 Electron 客户端支持地图跟踪')),
+    exportCsv: () => Promise.reject(new Error('仅 Electron 客户端支持地图跟踪')),
+    controlOverlay: () => Promise.resolve({ success: true, data: { available: false } }),
+    onSnapshot: () => () => {}
+  },
   combat: {
     startPotion: () => Promise.reject(new Error('非 Electron 环境')),
     stopPotion: () => Promise.resolve({ success: true }),
@@ -480,7 +500,13 @@ export const electronApi = isElectron ? {
     minimize: () => window.electronAPI.minimizeWindow(),
     maximize: () => window.electronAPI.maximizeWindow(),
     close: () => window.electronAPI.closeWindow(),
+    setCloseBehavior: (input) => window.electronAPI.updateWindowCloseBehavior?.(craftingIpcPayload(input)),
+    resolveCloseChoice: (input) => window.electronAPI.resolveWindowCloseChoice?.(craftingIpcPayload(input)),
+    cancelCloseChoice: () => window.electronAPI.cancelWindowCloseChoice?.(),
+    onCloseChoiceRequested: (callback) => window.electronAPI.onWindowCloseChoiceRequested?.(callback) || (() => {}),
     closeOverlay: () => window.electronAPI.closeOverlayWindow(),
+    armOverlayOutsideClickClose: () => window.electronAPI.armOverlayOutsideClickClose?.(),
+    disarmOverlayOutsideClickClose: () => window.electronAPI.disarmOverlayOutsideClickClose?.(),
     toggleAlwaysOnTop: () => window.electronAPI.toggleAlwaysOnTop(),
     isAlwaysOnTop: () => window.electronAPI.isAlwaysOnTop(),
     onMaximized: (callback) => window.electronAPI.onWindowMaximized(callback),
@@ -674,6 +700,23 @@ export const electronApi = isElectron ? {
     onOverlayState: (callback) => window.electronAPI.onPriceCheckOverlayState?.(callback) || (() => {}),
     onSettingsChanged: (callback) => window.electronAPI.onPriceCheckSettingsChanged?.(callback) || (() => {}),
     onCatalogUpdated: (callback) => window.electronAPI.onPriceCheckCatalogUpdated?.(callback) || (() => {})
+  },
+  clientEvents: {
+    getStatus: () => window.electronAPI.getClientEventsStatus?.(),
+    updateSettings: (input) => window.electronAPI.updateClientEventsSettings?.(craftingIpcPayload(input)),
+    selectLogFile: () => window.electronAPI.selectClientEventsLogFile?.(),
+    onSnapshot: (callback) => window.electronAPI.onClientEventsSnapshot?.(callback) || (() => {})
+  },
+  mapTracker: {
+    getStatus: () => window.electronAPI.getMapTrackerStatus?.(),
+    updateSettings: (input) => window.electronAPI.updateMapTrackerSettings?.(craftingIpcPayload(input)),
+    query: (input) => window.electronAPI.queryMapTrackerRuns?.(craftingIpcPayload(input)),
+    edit: (id, input) => window.electronAPI.editMapTrackerRun?.(String(id || ''), craftingIpcPayload(input)),
+    remove: (id, confirmed = false) => window.electronAPI.deleteMapTrackerRun?.(String(id || ''), confirmed === true),
+    exportCsv: (input) => window.electronAPI.exportMapTrackerRuns?.(craftingIpcPayload(input)),
+    controlOverlay: (action) => window.electronAPI.controlMapTrackerOverlay?.(String(action || '')),
+    moveOverlay: (drag) => window.electronAPI.moveMapTrackerOverlay?.(craftingIpcPayload(drag)),
+    onSnapshot: (callback) => window.electronAPI.onMapTrackerSnapshot?.(callback) || (() => {})
   },
 
   combat: {

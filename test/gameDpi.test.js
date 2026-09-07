@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
+  classifyGameDisplayMode,
   createCachedGameDpiDetector,
   isGameWindowTitle,
   selectGameWindowCandidate
@@ -74,6 +75,35 @@ test('并发和短时间重复 DPI 探测复用同一任务与结果', async () 
   assert.equal(calls, 2)
   release({ found: true, scaleFactor: 1.25 })
   assert.equal((await third).scaleFactor, 1.25)
+})
+
+test('显示模式分类覆盖窗口、无边框、独占全屏与异常场景', () => {
+  const WS_CAPTION = 0x00C00000
+  const WS_POPUP = 0x80000000
+  const fullMonitor = { left: 0, top: 0, right: 1920, bottom: 1080 }
+  const assertMode = (candidate, mode, supported) => {
+    assert.deepEqual(classifyGameDisplayMode(candidate), { mode, supported })
+  }
+  assertMode(null, null, false)
+  assertMode({ title: '流放之路', minimized: true, style: WS_CAPTION }, 'unknown', false)
+  assertMode({ title: '流放之路', style: WS_CAPTION }, 'windowed', true)
+  assertMode({
+    title: '流放之路', style: WS_POPUP, foreground: false, notificationState: -1,
+    windowRect: fullMonitor, monitorRect: fullMonitor
+  }, 'fullscreen', true)
+  assertMode({
+    title: '流放之路', style: WS_POPUP, foreground: true, notificationState: 3,
+    windowRect: fullMonitor, monitorRect: fullMonitor
+  }, 'exclusive', false)
+  assertMode({
+    title: '流放之路', style: WS_POPUP, foreground: false, notificationState: 3,
+    windowRect: fullMonitor, monitorRect: fullMonitor
+  }, 'fullscreen', true)
+  assertMode({
+    title: '流放之路', style: WS_POPUP, foreground: true, notificationState: 3,
+    windowRect: { left: 0, top: 0, right: 960, bottom: 540 }, monitorRect: fullMonitor
+  }, 'borderless', true)
+  assertMode({ title: '流放之路', style: WS_POPUP, windowRect: null, monitorRect: fullMonitor }, 'borderless', true)
 })
 
 test('浏览器等非游戏进程即使标题匹配也不作为 DPI 候选', () => {

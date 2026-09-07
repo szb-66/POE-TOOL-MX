@@ -118,6 +118,7 @@ export class PriceCheckOverlayManager {
       }
     })
     this.window = window
+    window.setAlwaysOnTop(true, 'screen-saver')
     this.presentation = new PriceCheckOverlayPresentation(window)
     window.webContents.setBackgroundThrottling(false)
     this.ready = false

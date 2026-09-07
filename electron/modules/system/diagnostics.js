@@ -56,7 +56,7 @@ const MODULE_IDS = new Set([
 const MODULE_STATES = new Set(['running', 'ready', 'attention', 'error'])
 const HEALTH_IDS = new Set([
   'platform', 'userData', 'administrator', 'displays', 'network', 'runtime', 'game',
-  'python', 'shortcuts', 'dpi', 'diagnosticEvents'
+  'gameDisplayMode', 'python', 'shortcuts', 'dpi', 'diagnosticEvents'
 ])
 const HEALTH_STATES = new Set(['ready', 'attention', 'error', 'pending'])
 const EVENT_OUTCOMES = new Set(['failed', 'recovered'])

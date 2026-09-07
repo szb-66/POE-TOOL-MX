@@ -33,6 +33,7 @@ export function registerShortcutHandlers(shortcut, window) {
   // IPC: 注册全局快捷键
   ipcMain.handle('register-global-shortcut', async (event, accelerator, callbackId) => {
     const key = callbackId || accelerator
+    if (['itemContextMenu', 'mapTrackerKills'].includes(key)) return { success: false, error: '该快捷键功能已移除' }
     const result = registerConfiguredShortcut(accelerator, key, () => sendTriggered(key))
     return { success: result.success, deferred: Boolean(result.deferred), error: result.error || '' }
   })
@@ -46,6 +47,7 @@ export function registerShortcutHandlers(shortcut, window) {
   // IPC: 初始化快捷键（从设置中读取）
   ipcMain.handle('init-shortcuts-from-settings', async (event, shortcuts, options = {}) => {
     const entries = Object.entries(shortcuts || {})
+      .filter(([key]) => !['itemContextMenu', 'mapTrackerKills'].includes(key))
       .filter(([, accelerator]) => Boolean(accelerator))
       .map(([key, accelerator]) => ({ key, accelerator, callback: () => sendTriggered(key) }))
     const rollbackOnFailure = options?.rollbackOnFailure !== false

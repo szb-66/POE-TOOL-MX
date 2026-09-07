@@ -3,7 +3,7 @@
     <section class="feature-section" aria-labelledby="enabled-feature-heading">
       <h3 id="enabled-feature-heading">已添加功能</h3>
       <div v-if="featureStore.enabledFeatures.length" class="feature-grid">
-        <article v-for="feature in featureStore.enabledFeatures" :key="feature.id" class="feature-card is-enabled" tabindex="0" role="button" :aria-label="`打开${feature.label}`" @click="openFeature(feature)" @keydown.enter.prevent="openFeature(feature)" @keydown.space.prevent="openFeature(feature)">
+        <article v-for="feature in featureStore.enabledFeatures" :key="feature.id" class="feature-card is-enabled" :class="{ 'is-navigation': feature.navigation }" :tabindex="feature.navigation ? 0 : undefined" :role="feature.navigation ? 'button' : undefined" :aria-label="feature.navigation ? `打开${feature.label}` : `${feature.label}模块`" @click="openFeature(feature)" @keydown.enter.prevent="openFeature(feature)" @keydown.space.prevent="openFeature(feature)">
           <el-button class="feature-toggle" circle text type="danger" :loading="pendingId === feature.id" :aria-label="`取消添加${feature.label}`" :title="`取消添加${feature.label}`" @click.stop="removeFeature(feature)"><el-icon><Minus /></el-icon></el-button>
           <el-icon class="feature-icon"><component :is="featureIcons[feature.icon]" /></el-icon><span>{{ feature.label }}</span>
         </article>
@@ -27,7 +27,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Box, Coin, Connection, DataAnalysis, FirstAidKit, Guide, MapLocation, Minus, Notebook, Operation, Plus, PriceTag, SetUp, ShoppingBag, SuitcaseLine } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Guide, MapLocation, Minus, Notebook, Operation, Plus, PriceTag, SetUp, ShoppingBag, SuitcaseLine } from '@element-plus/icons-vue'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 import { disableFeatureModule, enableFeatureModule, isFeatureRuntimeBusy } from '@/features/featureRuntime.js'
 
@@ -36,9 +36,13 @@ const emit = defineEmits(['update:modelValue'])
 const router = useRouter()
 const featureStore = useFeatureModulesStore()
 const pendingId = ref('')
-const featureIcons = { Box, Coin, Connection, DataAnalysis, FirstAidKit, Guide, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, SuitcaseLine }
+const featureIcons = { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Guide, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, SuitcaseLine }
 
-function openFeature(feature) { emit('update:modelValue', false); void router.push(feature.route) }
+function openFeature(feature) {
+  if (!feature.navigation || !feature.route) return
+  emit('update:modelValue', false)
+  void router.push(feature.route)
+}
 
 async function removeFeature(feature) {
   if (pendingId.value) return
@@ -69,8 +73,8 @@ async function addFeature(feature) {
 .feature-section h3 { margin: 0 0 10px; color: var(--text-secondary); font-size: 13px; font-weight: 500; }
 .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
 .feature-card { position: relative; display: flex; min-height: 92px; box-sizing: border-box; flex-direction: column; align-items: center; justify-content: center; gap: 9px; border: 1px solid var(--border-base); border-radius: 10px; color: var(--text-primary); background: var(--surface-2, var(--bg-secondary)); cursor: default; transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
-.feature-card.is-enabled { cursor: pointer; }
-.feature-card.is-enabled:hover { background: var(--surface-hover); transform: translateY(-1px); }
+.feature-card.is-enabled.is-navigation { cursor: pointer; }
+.feature-card.is-enabled.is-navigation:hover { background: var(--surface-hover); transform: translateY(-1px); }
 .feature-card:focus-visible { outline: 2px solid var(--brand-color); outline-offset: 2px; }
 .feature-card.is-disabled { color: var(--text-secondary); }
 .feature-icon { font-size: 26px; }

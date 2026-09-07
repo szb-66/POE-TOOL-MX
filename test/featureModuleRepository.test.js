@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   FEATURE_MODULE_STORAGE_KEY,
   availableFeatureCatalog,
+  availableNavigationFeatureCatalog,
   featureForRoute,
   filterFeatureShortcuts,
   shortcutFeatureId
@@ -29,11 +30,16 @@ test('功能目录保持正式顺序并只在开发版提供模型训练', () =>
   assert.equal(production.some(item => item.id === 'highlight-model-training'), false)
   assert.equal(development.some(item => item.id === 'highlight-model-training'), true)
   assert.deepEqual(production.map(item => item.route), [
-    '/items', '/bag', '/map', '/combat', '/story', '/regex', '/recipe',
+    '/items', '/bag', '/map', null, '/combat', '/story', '/regex', '/recipe',
     '/craft-planner', '/price-check', '/faustus', '/puzzle', '/tools'
   ])
+  assert.equal(production.find(item => item.id === 'map-tracker')?.navigation, false)
+  assert.equal(availableNavigationFeatureCatalog().some(item => item.id === 'map-tracker'), false)
+  assert.equal(new Set(availableNavigationFeatureCatalog().map(item => item.route)).size, availableNavigationFeatureCatalog().length)
   assert.equal(featureForRoute('/shop')?.id, 'recipe')
   assert.equal(shortcutFeatureId('storyNext'), 'story')
+  assert.equal(shortcutFeatureId('itemContextMenu'), null)
+  assert.equal(shortcutFeatureId('mapTrackerKills'), null)
 })
 
 test('功能偏好默认全部启用且损坏记录安全回退', () => {

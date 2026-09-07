@@ -45,9 +45,13 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     'el-autocomplete-suggestion li:hover',
     'el-select-dropdown__item:hover',
     '不限 T',
-    '最低 T'
+    '最低 T',
+    '最低物等'
   ]) assert.match(view, new RegExp(text))
   assert.match(goalEditor, /v-if="!isGroupCollapsed\(group\.id\)"/)
+  assert.match(goalEditor, /<el-input[^>]*class="group-name"[\s\S]*?<el-tooltip[^>]*groupRequirement\(group\)\.hasEffectiveConditions[\s\S]*?<el-button[^>]*duplicateGroup\(groupIndex\)/)
+  assert.match(goalEditor, /最低物等：至少 \$\{requirement\.level\}（含未知项）/)
+  assert.match(goalEditor, /自定义关键词没有目录阶级数据，不参与物等计算和运行拦截/)
   const headerGroups = goalEditor.match(/<div class="group-title">([\s\S]*?)<\/div>\s*<div class="group-actions">([\s\S]*?)<\/div>\s*<\/header>/)
   assert.ok(headerGroups, '组合标题栏应包含左右两个操作区')
   assert.match(headerGroups[1], /duplicateGroup\(groupIndex\)/)

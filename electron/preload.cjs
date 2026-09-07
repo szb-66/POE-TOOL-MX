@@ -174,7 +174,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow: () => ipcRenderer.invoke('window-minimize'),
   maximizeWindow: () => ipcRenderer.invoke('window-maximize'),
   closeWindow: () => ipcRenderer.invoke('window-close'),
+  updateWindowCloseBehavior: (input) => ipcRenderer.invoke('window-close-behavior-update', input),
+  resolveWindowCloseChoice: (input) => ipcRenderer.invoke('window-close-choice-resolve', input),
+  cancelWindowCloseChoice: () => ipcRenderer.invoke('window-close-choice-cancel'),
+  onWindowCloseChoiceRequested: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('window-close-choice-requested', listener)
+    return () => ipcRenderer.removeListener('window-close-choice-requested', listener)
+  },
   closeOverlayWindow: () => ipcRenderer.invoke('close-overlay-window'),
+  armOverlayOutsideClickClose: () => ipcRenderer.invoke('arm-overlay-outside-click-close'),
+  disarmOverlayOutsideClickClose: () => ipcRenderer.invoke('disarm-overlay-outside-click-close'),
   toggleAlwaysOnTop: () => ipcRenderer.invoke('window-toggle-always-on-top'),
   isAlwaysOnTop: () => ipcRenderer.invoke('window-is-always-on-top'),
   setDevToolsVisible: (visible) => ipcRenderer.invoke('set-devtools-visible', visible),
@@ -425,6 +435,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('price-check-overlay-state', listener)
   },
   notifyPriceCheckOverlayRendered: (generation) => ipcRenderer.send('price-check-overlay-rendered', generation),
+  getClientEventsStatus: () => ipcRenderer.invoke('client-events-status'),
+  updateClientEventsSettings: (input) => ipcRenderer.invoke('client-events-settings-update', input),
+  selectClientEventsLogFile: () => ipcRenderer.invoke('client-events-select-log'),
+  onClientEventsSnapshot: (callback) => {
+    const listener = (_event, snapshot) => callback(snapshot)
+    ipcRenderer.on('client-events-snapshot', listener)
+    return () => ipcRenderer.removeListener('client-events-snapshot', listener)
+  },
+  getMapTrackerStatus: () => ipcRenderer.invoke('map-tracker:status'),
+  updateMapTrackerSettings: (input) => ipcRenderer.invoke('map-tracker:settings', input),
+  queryMapTrackerRuns: (input) => ipcRenderer.invoke('map-tracker:query', input),
+  editMapTrackerRun: (id, input) => ipcRenderer.invoke('map-tracker:edit', id, input),
+  deleteMapTrackerRun: (id, confirmed) => ipcRenderer.invoke('map-tracker:delete', id, confirmed),
+  exportMapTrackerRuns: (input) => ipcRenderer.invoke('map-tracker:export', input),
+  controlMapTrackerOverlay: (action) => ipcRenderer.invoke('map-tracker:overlay', action),
+  moveMapTrackerOverlay: (point) => ipcRenderer.send('map-tracker:overlay-move', point),
+  onMapTrackerSnapshot: (callback) => {
+    const listener = (_event, snapshot) => callback(snapshot)
+    ipcRenderer.on('map-tracker:snapshot', listener)
+    return () => ipcRenderer.removeListener('map-tracker:snapshot', listener)
+  },
   onPriceCheckSettingsChanged: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('price-check-settings-changed', listener)

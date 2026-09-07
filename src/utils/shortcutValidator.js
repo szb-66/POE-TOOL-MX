@@ -9,6 +9,13 @@
 
 import { toElectronAccelerator } from './electronAccelerator.js'
 
+const ITEM_COPY_ACCELERATORS = new Set(['ctrl+c', 'control+c', 'commandorcontrol+c', 'cmdorctrl+c'])
+
+export function isReservedItemCopyAccelerator(value) {
+  if (typeof value !== 'string' || !value.trim()) return false
+  return ITEM_COPY_ACCELERATORS.has(String(toElectronAccelerator(value)).toLowerCase())
+}
+
 /**
  * Purpose: 验证快捷键是否重复
  * Inputs: shortcuts (object) - 快捷键对象
@@ -42,6 +49,14 @@ export function validateShortcuts(shortcuts, { requiredKeys = [] } = {}) {
     return {
       isValid: false,
       error: `快捷键 ${shortcutValues[reservedIndex]} 为应用保留快捷键`
+    }
+  }
+
+  const itemCopyConflict = ['priceCheck'].find(key => isReservedItemCopyAccelerator(shortcuts?.[key]))
+  if (itemCopyConflict) {
+    return {
+      isValid: false,
+      error: `快捷键 ${shortcuts[itemCopyConflict]} 与读取物品使用的 Ctrl+C 冲突，请更换组合键`
     }
   }
 

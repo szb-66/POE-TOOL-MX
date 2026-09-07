@@ -137,6 +137,30 @@ export function evaluateBagStatus(input = {}) {
   })
 }
 
+export function evaluateMapTrackerStatus(input = {}) {
+  const settings = input.snapshot?.settings || {}
+  const active = input.snapshot?.activeRun
+  const summary = input.snapshot?.summary || {}
+  const issues = []
+  if (!input.clientReady) issues.push('Client.txt 日志监听尚未就绪')
+  return createModuleStatus({
+    id: 'mapTracker', title: '地图跟踪器', route: '/', description: '记录地图实例、有效时长、死亡、传送门及用户启用的增强统计。',
+    error: input.snapshot?.errors?.[0] || input.error || '', running: Boolean(settings.enabled && !settings.paused), issues: settings.enabled ? issues : [],
+    readyText: settings.enabled ? '地图跟踪已暂停' : '默认关闭，启用后开始记录',
+    runningText: active ? `${active.areaName || active.areaId} · T${active.mapTier ?? '—'}` : '等待进入地图',
+    metrics: [
+      { label: '当前计时', value: formatMapTrackerDuration(active?.activeDurationMs || 0) },
+      { label: '今日地图', value: Number(summary.todayCount) || 0 },
+      { label: '平均耗时', value: formatMapTrackerDuration(summary.averageDurationMs || 0) }
+    ]
+  })
+}
+
+export function formatMapTrackerDuration(value) {
+  const seconds = Math.max(0, Math.floor(Number(value) / 1000)); const minutes = Math.floor(seconds / 60)
+  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
+}
+
 export function evaluateCombatStatus(input = {}) {
   const potionRunning = Boolean(input.running)
   const loopRunning = Boolean(input.loopRunning)

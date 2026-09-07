@@ -66,6 +66,51 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
   }
 }
 
+function effectiveCondition(condition) {
+  if (typeof condition === 'string') return Boolean(text(condition))
+  return Boolean(text(condition?.keyword || condition?.displayName || condition?.effectPattern))
+}
+
+export function affixConditionItemLevelRequirement(condition) {
+  if (!effectiveCondition(condition)) return { level: null, hasUnknown: false, effective: false }
+  if (condition?.kind !== 'catalog' || !Array.isArray(condition.tiers) || !condition.tiers.length) {
+    return { level: null, hasUnknown: true, effective: true }
+  }
+  const minTier = positiveTier(condition.minTier)
+  const levels = condition.tiers
+    .filter((tier) => minTier == null || positiveTier(tier?.tier) <= minTier)
+    .map((tier) => Math.trunc(Number(tier?.requiredLevel)))
+    .filter((level) => Number.isInteger(level) && level > 0)
+  return levels.length
+    ? { level: Math.min(...levels), hasUnknown: false, effective: true }
+    : { level: null, hasUnknown: true, effective: true }
+}
+
+export function affixGroupItemLevelRequirement(group) {
+  const conditions = [...(group?.requiredAffixes ?? []), ...(group?.selectedAffixes ?? [])]
+  const requirements = conditions.map(affixConditionItemLevelRequirement)
+  const levels = requirements.map((entry) => entry.level).filter((level) => level != null)
+  return {
+    level: levels.length ? Math.max(...levels) : null,
+    hasUnknown: requirements.some((entry) => entry.hasUnknown),
+    hasEffectiveConditions: requirements.some((entry) => entry.effective)
+  }
+}
+
+export function enabledAffixGroupItemLevelRequirements(groups) {
+  return (Array.isArray(groups) ? groups : [])
+    .filter((group) => group?.enabled !== false)
+    .map((group, index) => {
+      const requirement = affixGroupItemLevelRequirement(group)
+      return {
+        id: text(group?.id) || `affix_group_${index + 1}`,
+        name: text(group?.name) || `组合 ${index + 1}`,
+        ...requirement
+      }
+    })
+    .filter((group) => group.hasEffectiveConditions && group.level != null)
+}
+
 function uniqueConditions(values, groupId, kind) {
   const seen = new Set()
   return (Array.isArray(values) ? values : []).map((entry, index) => normalizeAffixCondition(entry, `${groupId}_${kind}_${index + 1}`))

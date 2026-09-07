@@ -1,3 +1,4 @@
+import { parseHeistMetadata } from './heist.js'
 import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
 
 const CLASSIC_INFLUENCE_LABELS = Object.freeze(Object.fromEntries(
@@ -79,7 +80,9 @@ export function parseItemInfo(clipboardText) {
   }
 
   const lines = clipboardText.split('\n').map(line => line.trim()).filter(line => line)
+    .map(line => /^-{3,}$/.test(line) ? '--------' : line)
   const mercenaryVoucher = parseMercenaryVoucher(lines)
+  const heist = parseHeistMetadata(lines)
   
   const itemInfo = {
     category: '',
@@ -108,10 +111,12 @@ export function parseItemInfo(clipboardText) {
     evasion: 0,
     energyShield: 0,
     baseDefencePercentile: 0,
+    baseDefencePercentileTrusted: false,
     ward: 0,
     block: 0,
     physicalDamage: null,
     elementalDamages: [],
+    chaosDamages: [],
     criticalStrikeChance: 0,
     attacksPerSecond: 0,
     moreMaps: 0,
@@ -131,6 +136,7 @@ export function parseItemInfo(clipboardText) {
     craftedMods: [],
     detailedMods: [],
     modifiers: [],
+    uniqueModifiers: [],
     influences: [],
     isUnmodifiable: false,
     isLegendary: false
@@ -181,6 +187,7 @@ export function parseItemInfo(clipboardText) {
       name: activeModifier.name,
       tier: activeModifier.tier,
       tags: activeModifier.tags,
+      sourceSubtype: activeModifier.sourceSubtype || null,
       lines: [...activeModifier.lines],
       text: activeModifier.lines.join('\n'),
       originalLines: [...activeModifier.originalLines]
@@ -281,6 +288,7 @@ export function parseItemInfo(clipboardText) {
     const line = lines[i]
 
     if (mercenaryVoucher?.consumedIndexes.has(i)) continue
+    if (heist?.consumedIndexes.has(i)) { flushModifier(); continue }
 
     const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
     if (chartShapeMatch) {
@@ -309,6 +317,7 @@ export function parseItemInfo(clipboardText) {
         [/大师级|工艺(?:属性|词缀)|\b(?:Master Crafted|Crafted)\b/i, 'crafted'],
         [/附魔(?:属性|词缀)|\bEnchant(?:ment)?\b/i, 'enchant'],
         [/焚界者基底词缀|灭界者基底词缀|\b(?:Searing Exarch|Eater of Worlds) Implicit Modifier\b/i, 'implicit'],
+        [/腐化基底|瓦尔基底|\bCorrupted Implicit\b/i, 'implicit'],
         [/隐式(?:属性|词缀)|\bImplicit\b/i, 'implicit'],
         [/基底(?:属性|词缀)|\bBase Modifier\b/i, 'base'],
         [/传奇(?:属性|词缀)|\bUnique Modifier\b/i, 'unique'],
@@ -340,6 +349,15 @@ export function parseItemInfo(clipboardText) {
             name,
             tier,
             tags,
+            sourceSubtype: /焚界者|Searing Exarch/i.test(semanticHeader)
+              ? 'searing-exarch'
+              : /灭界者|Eater of Worlds/i.test(semanticHeader)
+                ? 'eater-of-worlds'
+                : /腐化|瓦尔|Corrupted/i.test(semanticHeader)
+                  ? 'corrupted'
+                  : type === 'enchant'
+                    ? 'enchant'
+                    : null,
             lineIndex: i,
             lines: [],
             originalLines: []
@@ -387,6 +405,7 @@ export function parseItemInfo(clipboardText) {
     const scalar = scalarProperties.find(([pattern]) => pattern.test(line))
     if (scalar) {
       itemInfo[scalar[1]] = parseNumber(line.match(scalar[0])[1])
+      if (scalar[1] === 'baseDefencePercentile') itemInfo.baseDefencePercentileTrusted = true
       continue
     }
     if (/^物理伤害:/.test(line)) {
@@ -395,7 +414,8 @@ export function parseItemInfo(clipboardText) {
     }
     if (/^(?:元素|(?:火焰|冰霜|闪电|混沌)(?:[，,]\s*(?:火焰|冰霜|闪电|混沌))*)伤害:/.test(line)) {
       const ranges = [...line.matchAll(/(-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)/g)]
-      itemInfo.elementalDamages.push(...ranges.map((match) => ({ min: Number(match[1]), max: Number(match[2]) })))
+      const target = /^混沌伤害:/.test(line) ? itemInfo.chaosDamages : itemInfo.elementalDamages
+      target.push(...ranges.map((match) => ({ min: Number(match[1]), max: Number(match[2]) })))
       continue
     }
 
@@ -570,6 +590,8 @@ export function parseItemInfo(clipboardText) {
       }
     }
     else if (line && line.length > 2) { // 稍微放宽长度限制，有些词缀可能很短
+      // 详细邀请文本的词缀由属性头明确界定；段落外文字是背景描述。
+      if (itemInfo.category === '裂隙之石' && sawAffixHeader) continue
       
       // 检查是否包含在忽略列表中
       let shouldIgnore = false;
@@ -594,6 +616,31 @@ export function parseItemInfo(clipboardText) {
   }
 
   flushModifier()
+  itemInfo.isLegendary = itemInfo.rarity.replace(/\s/g, '') === '传奇'
+  if (itemInfo.isLegendary) {
+    itemInfo.uniqueModifiers = itemInfo.explicitMods.map((original) => ({
+      type: 'unique',
+      affixType: null,
+      name: '',
+      tier: 0,
+      tags: [],
+      sourceSubtype: 'unique',
+      lines: [cleanModifierLine(original)],
+      text: cleanModifierLine(original),
+      originalLines: [original]
+    }))
+  }
+  if (isClusterJewel()) {
+    if (!itemInfo.baseName) itemInfo.baseName = itemInfo.name
+    const clusterLines = itemInfo.modifiers.flatMap((modifier) => modifier.originalLines || [])
+    const passiveLine = clusterLines.find((text) => /增加\s*\d+\s*个天赋技能/.test(text)) || ''
+    itemInfo.cluster = {
+      size: /大型/.test(itemInfo.baseName) ? 'large' : /中型/.test(itemInfo.baseName) ? 'medium' : 'small',
+      addedPassives: Number(passiveLine.match(/增加\s*(\d+)\s*个天赋技能/)?.[1]) || null
+    }
+  } else {
+    itemInfo.cluster = null
+  }
   itemInfo.isFractured ||= itemInfo.modifiers.some((modifier) => modifier.type === 'fractured')
   // 词缀补丁未适配检测：有词缀头但零结构化词缀（头部措辞未识别），或魔法/稀有物品未识别出任何词缀
   const affixBearingRarity = ['魔法', '稀有'].includes(itemInfo.rarity.replace(/\s/g, ''))
@@ -608,9 +655,19 @@ export function parseItemInfo(clipboardText) {
   itemInfo.elementalDps = itemInfo.attacksPerSecond
     ? Math.round(itemInfo.elementalDamages.reduce((sum, range) => sum + average(range), 0) * itemInfo.attacksPerSecond * 100) / 100
     : 0
-  itemInfo.totalDps = Math.round((itemInfo.physicalDps + itemInfo.elementalDps) * 100) / 100
-  itemInfo.isLegendary = itemInfo.rarity.replace(/\s/g, '') === '传奇'
+  itemInfo.chaosDps = itemInfo.attacksPerSecond
+    ? Math.round(itemInfo.chaosDamages.reduce((sum, range) => sum + average(range), 0) * itemInfo.attacksPerSecond * 100) / 100
+    : 0
+  itemInfo.totalDps = Math.round((itemInfo.physicalDps + itemInfo.elementalDps + itemInfo.chaosDps) * 100) / 100
 
+  if (heist) {
+    itemInfo.category = heist.category
+    itemInfo.heistStats = heist.heistStats
+    itemInfo.isQuestItem = heist.isQuestItem
+    itemInfo.areaLevel = heist.areaLevel
+    itemInfo.itemQuantity = heist.heistStats.quantity ?? 0
+    itemInfo.itemRarity = heist.heistStats.rarity ?? 0
+  }
   return itemInfo
 }
 

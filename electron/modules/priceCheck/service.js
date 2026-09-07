@@ -250,18 +250,14 @@ export class PriceCheckService {
   async captureAndCheck(request) {
     this.assertEnabled()
     const captureSequence = ++this.captureSequence
-    if (!this.captureClipboard) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境不支持从游戏捕获物品')
+    if (!this.captureClipboard) {
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境不支持从游戏捕获物品')
+    }
     try {
       const text = await this.captureClipboard()
       if (captureSequence !== this.captureSequence) throw new DOMException('查询已取消', 'AbortError')
       const queryImmediately = request?.queryImmediately === true
-      return this.check({
-        ...request,
-        text,
-        model: undefined,
-        execute: queryImmediately,
-        queryImmediately
-      })
+      return this.check({ ...request, text, model: undefined, execute: queryImmediately, queryImmediately })
     } catch (error) {
       if (captureSequence === this.captureSequence && error?.name !== 'AbortError') this.createOverlay({
         status: 'error',
@@ -277,6 +273,7 @@ export class PriceCheckService {
   getStatus() {
     return {
       enabled: this.runtime.enabled,
+      league: this.runtime.league,
       shortcut: this.runtime.shortcut,
       options: structuredClone(this.runtime.options),
       settingsRevision: this.settingsRevision,
@@ -377,6 +374,18 @@ export class PriceCheckService {
     } catch (error) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error.message || '剪贴板物品无法用于查价')
     }
+  }
+
+  modelFromItem(item, options = {}) {
+    try {
+      return createPriceCheckModel(structuredClone(item), this.catalog, options)
+    } catch (error) {
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error.message || '物品无法用于查价')
+    }
+  }
+
+  async checkCapturedItem({ item, ...request }) {
+    return this.check({ ...request, model: this.modelFromItem(item, request.options) })
   }
 
   async check({ text, league, model, options = {}, reposition = true, execute = true, queryImmediately = true }) {

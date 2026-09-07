@@ -21,6 +21,7 @@ import {
 } from './storyGrip.js'
 import { getBagOverlayBounds } from './bagOverlay.js'
 import { getCraftingOverlayBounds } from './craftingOverlayPosition.js'
+import { createOverlayOutsideClickCloser } from './overlayOutsideClickClose.js'
 import { STORY_TIMER_ONLY_WIDTH, getStoryOverlayRequestedWidth } from './storyOverlayWidth.js'
 import { dispatchReloadAction, getReloadAction } from './refreshShortcut.js'
 import {
@@ -61,6 +62,15 @@ const craftingOverlayDragPassthrough = new OverlayDragPassthroughController({
   getCursorPoint: () => screen.getCursorScreenPoint(),
   isPointInHandle: (point, bounds) => isPointInCenteredOverlayDragHandle(point, bounds)
 })
+
+const overlayOutsideClickCloser = createOverlayOutsideClickCloser({
+  onClose: () => closeOverlayWindow(),
+  getCursorPoint: () => screen.getCursorScreenPoint()
+})
+
+export function configureOverlayOutsideClickCloser({ pythonPath, scriptPath } = {}) {
+  overlayOutsideClickCloser.configure({ pythonPath, scriptPath })
+}
 
 const storyOverlayDragPassthrough = new OverlayDragPassthroughController({
   getWindow: () => storyOverlayWindow,
@@ -220,7 +230,8 @@ export function createMainWindow({
 }
 
 export function createOverlayWindow() {
-  if (overlayWindow) return overlayWindow
+  if (overlayWindow && !overlayWindow.isDestroyed()) return overlayWindow
+  overlayWindow = null
 
   const displays = screen.getAllDisplays().map((display) => ({
     ...display,
@@ -245,6 +256,7 @@ export function createOverlayWindow() {
     skipTaskbar: true,
     focusable: false, // 不获取焦点
     resizable: false,
+    show: false,
     icon: icon.isEmpty() ? undefined : icon, // 如果图标加载失败则不设置
     webPreferences: {
       preload: path.join(__dirname, '../../preload.cjs'),
@@ -262,6 +274,7 @@ export function createOverlayWindow() {
     overlayWindow.loadFile(path.join(__dirname, '../../../dist/index.html'), { hash: '/overlay' })
   }
 
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver')
   overlayWindow.setIgnoreMouseEvents(true, { forward: true }) // 允许鼠标事件转发，实现部分区域可交互
   craftingOverlayDragPassthrough.setEnabled(true)
   craftingOverlayDragPassthrough.start()
@@ -289,19 +302,30 @@ export function createOverlayWindow() {
   craftingWindow.on('close', savePosition)
   craftingWindow.on('closed', () => {
     clearTimeout(saveTimer)
+    if (overlayWindow !== craftingWindow) return
+    overlayWindow = null
     craftingOverlayDragPassthrough.stop()
-    if (overlayWindow === craftingWindow) overlayWindow = null
   })
 
   return overlayWindow
 }
 
 export function closeOverlayWindow() {
+  const craftingWindow = overlayWindow
+  if (!craftingWindow) return
+  overlayWindow = null
+  overlayOutsideClickCloser.disarm()
   craftingOverlayDragPassthrough.stop()
-  if (overlayWindow) {
-    overlayWindow.close()
-    overlayWindow = null
-  }
+  if (!craftingWindow.isDestroyed()) craftingWindow.close()
+}
+
+export function armOverlayOutsideClickClose() {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return
+  overlayOutsideClickCloser.arm(overlayWindow)
+}
+
+export function disarmOverlayOutsideClickClose() {
+  overlayOutsideClickCloser.disarm()
 }
 
 export function getMainWindow() {
@@ -483,6 +507,7 @@ export function createStoryOverlayWindow(initialSnapshot = null, options = {}) {
       webSecurity: false
     }
   })
+  storyOverlayWindow.setAlwaysOnTop(true, 'screen-saver')
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
   if (process.env.NODE_ENV === 'development' && devServerUrl) {
     storyOverlayWindow.loadURL(`${devServerUrl}#/story-overlay`)
@@ -1006,6 +1031,8 @@ export function createDebugWindow() {
       webSecurity: false
     }
   })
+
+  debugWindow.setAlwaysOnTop(true, 'screen-saver')
 
   // 加载路由
   const devServerUrl = process.env.VITE_DEV_SERVER_URL

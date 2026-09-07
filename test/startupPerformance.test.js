@@ -28,13 +28,15 @@ test('开发服务器首次预构建 Element Plus 组件样式，避免冷启动
   assert.ok(viteConfig.includes("'element-plus/es/components/*/style/css'"))
 })
 
-test('启动基准只清理本仓库旧 Electron 开发实例', () => {
+test('启动基准使用真实开发入口且不会搜索并终止已有开发实例', () => {
   const benchmark = source('../scripts/startupBenchmark.js')
-  assert.match(benchmark, /closeOldDevelopmentProcesses/)
-  assert.match(benchmark, /\.Name -eq 'electron\.exe'/)
-  assert.match(benchmark, /electronMainPath/)
+  assert.doesNotMatch(benchmark, /closeOldDevelopmentProcesses|Get-CimInstance/)
+  assert.match(benchmark, /scripts\/dev\.js/)
   assert.match(benchmark, /taskkill\.exe/)
-  assert.match(benchmark, /spawn\(process\.execPath,[\s\S]*?viteBinPath/)
+  assert.match(benchmark, /String\(child\.pid\)/)
+  assert.match(benchmark, /boot-first/)
+  assert.match(benchmark, /process-restart/)
+  assert.match(benchmark, /electron-restart/)
   assert.doesNotMatch(benchmark, /Get-NetTCPConnection|LocalPort\s+-eq\s+3000/)
 })
 

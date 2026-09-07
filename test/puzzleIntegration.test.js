@@ -273,6 +273,7 @@ test('本机校准控件归入碎片仓库，方案动作按新布局归入最�
   assert.match(chartActions, /chart-action-options[\s\S]*<el-checkbox :model-value="autoProbeBorderMods"[\s\S]*完成后自动识别/)
   assert.match(chartActions, /auto-blocked-reason[\s\S]*autoPlaceBlockedReason/)
   assert.match(solutionCard, /<\/template>\s*<div class="chart-action-stack">/)
+  assert.match(chartActions, /chart-steps[\s\S]*识别边缘词缀[\s\S]*自动放入[\s\S]*当前海图已完成/)
   assert.match(exitTitleRow, /<strong>边缘词缀<\/strong>/)
 })
 

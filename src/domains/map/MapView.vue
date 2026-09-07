@@ -4,6 +4,7 @@
       <el-tabs v-model="activeKind" class="kind-tabs">
         <el-tab-pane label="异界地图" name="atlas" />
         <el-tab-pane label="航海海图" name="chart" />
+        <el-tab-pane label="契约蓝图" name="heist" />
       </el-tabs>
     </div>
 
@@ -12,7 +13,7 @@
         <div class="header-top">
         <div class="form-item">
           <label class="form-label">洗图目标</label>
-          <strong>{{ activeKind === 'chart' ? '航海海图' : '异界地图' }}</strong>
+          <strong>{{ activeKind === 'heist' ? '契约蓝图' : activeKind === 'chart' ? '航海海图' : '异界地图' }}</strong>
         </div>
         <div class="form-item">
           <label class="form-label">洗图方法</label>
@@ -31,7 +32,7 @@
         </div>
         <div class="form-item">
           <label class="form-label">预设</label>
-          <PresetSelector :type="activeKind === 'chart' ? 'chart' : 'map'" />
+          <PresetSelector :type="activeKind === 'atlas' ? 'map' : activeKind" />
         </div>
         <div class="form-item">
           <label class="form-label">操作</label>
@@ -42,13 +43,13 @@
       </div>
 
         <div class="header-bottom">
-          <el-checkbox v-if="activeProfile.method === 'alchemy'" v-model="activeProfile.binding.enabled" label="高阶点金石" size="large">
+          <el-checkbox v-if="activeKind !== 'heist' && activeProfile.method === 'alchemy'" v-model="activeProfile.binding.enabled" label="高阶点金石" size="large">
             <template #default><div class="checkbox-label">使用高阶点金石</div></template>
           </el-checkbox>
-          <el-checkbox v-model="activeProfile.exalted.enabled" label="崇高石" size="large">
+          <el-checkbox v-if="activeKind !== 'heist'" v-model="activeProfile.exalted.enabled" label="崇高石" size="large">
             <template #default><div class="checkbox-label"><img :src="exaltedIcon" alt="崇高石" class="icon-image" />崇高石</div></template>
           </el-checkbox>
-          <el-checkbox v-model="activeProfile.vaal.enabled" label="瓦尔宝珠" size="large">
+          <el-checkbox v-if="activeKind !== 'heist'" v-model="activeProfile.vaal.enabled" label="瓦尔宝珠" size="large">
             <template #default><div class="checkbox-label"><img :src="vaalIcon" alt="瓦尔宝珠" class="icon-image" />瓦尔宝珠</div></template>
           </el-checkbox>
           <el-checkbox v-model="activeProfile.autoStash" label="符合条件存仓" size="large">
@@ -61,8 +62,8 @@
         :profile="activeProfile"
         :stat-keys="activeStatKeys"
         :target-kind="activeKind"
-        :title="activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
-        :tooltip="activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
+        :title="activeKind === 'heist' ? '契约蓝图属性' : activeKind === 'chart' ? '航海海图奖励' : '地图基底'"
+        :tooltip="activeKind === 'heist' ? '仅筛选可洗出的五项百分比属性，所有条件使用大于等于' : activeKind === 'chart' ? '区域等级不会被普通通货改变，因此不参与筛选' : '设置地图的基本属性要求'"
       />
     </el-col></el-row>
 
@@ -80,7 +81,7 @@ import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
 import exaltedIcon from '@/assets/images/crafting-currency/exalted.png'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
-import { CHART_BASE_STATS, MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
+import { HEIST_BASE_STATS, createDefaultHeistConfig, CHART_BASE_STATS, MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { useScriptStore } from '@/stores/script'
 import { commitGlobalShortcut, startMapRolling } from '@/utils/scriptService'
@@ -106,12 +107,18 @@ const chartConfig = computed(() => {
   return preset.chart
 })
 
+const heistConfig = computed(() => {
+  const preset = presetStore.currentHeistPreset
+  if (!preset.heist) preset.heist = createDefaultHeistConfig()
+  return preset.heist
+})
+
 const activeKind = computed({
   get: () => presetStore.mapRollingKind,
   set: value => presetStore.setMapRollingKind(value)
 })
-const activeProfile = computed(() => activeKind.value === 'chart' ? chartConfig.value : mapConfig.value)
-const activeStatKeys = computed(() => activeKind.value === 'chart' ? CHART_BASE_STATS : MAP_BASE_STATS)
+const activeProfile = computed(() => activeKind.value === 'heist' ? heistConfig.value : activeKind.value === 'chart' ? chartConfig.value : mapConfig.value)
+const activeStatKeys = computed(() => activeKind.value === 'heist' ? HEIST_BASE_STATS : activeKind.value === 'chart' ? CHART_BASE_STATS : MAP_BASE_STATS)
 async function saveShortcut(key, value) {
   try { await commitGlobalShortcut(key, value) } catch (error) { ElMessage.error(error.message) }
 }
@@ -123,7 +130,7 @@ async function handleStart() {
 }
 
 watch(
-  [() => presetStore.currentMapPreset, () => presetStore.currentChartPreset],
+  [() => presetStore.currentMapPreset, () => presetStore.currentChartPreset, () => presetStore.currentHeistPreset],
   () => presetStore.savePresets(),
   { deep: true }
 )

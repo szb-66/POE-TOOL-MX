@@ -37,7 +37,8 @@ test('模块指南覆盖全部侧栏业务路由', () => {
   for (const topic of MODULE_TOPICS) {
     assert.ok(topic.module.purpose)
     assert.ok(topic.module.prerequisite)
-    assert.equal(topic.module.steps.length, 3)
+    assert.ok(topic.module.steps.length >= 3, `${topic.id} 应提供完整操作步骤`)
+    assert.ok(topic.module.steps.every(step => typeof step === 'string' && step.trim()), `${topic.id} 步骤不能为空`)
     assert.ok(topic.module.risk)
   }
   assert.equal(MODULE_TOPICS.length, 13)

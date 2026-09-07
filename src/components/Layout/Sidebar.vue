@@ -6,7 +6,7 @@
       </el-menu-item>
     </el-menu>
     <el-menu :default-active="activeMenu" class="sidebar-menu sidebar-menu--features" router>
-      <el-menu-item v-for="feature in featureStore.enabledFeatures" :key="feature.id" :index="feature.route" :class="{ 'nav-group-start': ['items', 'tools'].includes(feature.id) }" @pointerenter="warmRoute(feature.route)" @focusin="warmRoute(feature.route)">
+      <el-menu-item v-for="feature in featureStore.enabledNavigationFeatures" :key="feature.id" :index="feature.route" :class="{ 'nav-group-start': ['items', 'tools'].includes(feature.id) }" @pointerenter="warmRoute(feature.route)" @focusin="warmRoute(feature.route)">
         <el-icon><component :is="featureIcons[feature.icon]" /></el-icon><span>{{ feature.label }}</span>
       </el-menu-item>
     </el-menu>
@@ -26,7 +26,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Box, Coin, Connection, DataAnalysis, FirstAidKit, Grid, Guide, House, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, Setting, SuitcaseLine } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Grid, Guide, House, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, Setting, SuitcaseLine } from '@element-plus/icons-vue'
 import { preloadPage } from '@/router/pageLoaders'
 import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 import { useFeatureModulesStore } from '@/stores/featureModules'
@@ -38,7 +38,7 @@ const feedbackRepliesStore = useFeedbackRepliesStore()
 const featureStore = useFeatureModulesStore()
 const moreDialogVisible = ref(false)
 const activeMenu = computed(() => route.path)
-const featureIcons = { Box, Coin, Connection, DataAnalysis, FirstAidKit, Guide, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, SuitcaseLine }
+const featureIcons = { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Guide, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, SuitcaseLine }
 function warmRoute(path) { void preloadPage(path) }
 </script>
 

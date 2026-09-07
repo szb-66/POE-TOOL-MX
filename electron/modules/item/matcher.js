@@ -133,8 +133,8 @@ export function matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, s
   const groupResults = groups
     .filter((group) => group.enabled !== false)
     .map((group, index) => {
-    const required = (group.requiredAffixes ?? []).map(conditionValue).filter(Boolean)
-    const selected = (group.selectedAffixes ?? []).map(conditionValue).filter(Boolean)
+    const required = (group.requiredAffixes ?? []).map((condition) => conditionValue(condition)).filter(Boolean)
+    const selected = (group.selectedAffixes ?? []).map((condition) => conditionValue(condition)).filter(Boolean)
     if (!required.length && !selected.length) return null
     const requiredMatches = required.map((condition) => matchCondition(condition, candidates))
     const selectedMatches = selected.map((condition) => matchCondition(condition, candidates))
@@ -207,10 +207,10 @@ export function matchMapRequirements(itemInfo, mapConfig) {
     return { isMatch: false }
   }
 
-  const targetKind = mapConfig.targetKind === 'chart' ? 'chart' : 'atlas'
-  const categoryMatches = targetKind === 'chart'
+  const targetKind = ['chart', 'heist'].includes(mapConfig.targetKind) ? mapConfig.targetKind : 'atlas'
+  const categoryMatches = targetKind === 'heist' ? ['契约', '蓝图'].includes(itemInfo.category) && !itemInfo.isQuestItem : targetKind === 'chart'
     ? itemInfo.category === '海图'
-    : ['异界地图', '地图'].includes(itemInfo.category)
+    : ['异界地图', '地图', '裂隙之石'].includes(itemInfo.category) && !itemInfo.isQuestItem
   if (!categoryMatches) return { isMatch: false, reason: 'category' }
 
   const matchConfig = mapConfig.match || {}
@@ -230,11 +230,21 @@ export function matchMapRequirements(itemInfo, mapConfig) {
   const whitelist = matchConfig.whitelist || []
   const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => mod.includes(term)))
 
-  const validKeys = targetKind === 'chart'
+  if (targetKind === 'heist' && whitelist.some(term => term?.trim()) && !whitelistMatched) return { isMatch: false, reason: 'whitelist' }
+
+  const validKeys = targetKind === 'heist'
+    ? ['quantity', 'rarity', 'alertLevelReduction', 'timeBeforeLockdown', 'maximumAliveReinforcements']
+    : targetKind === 'chart'
     ? ['quantity', 'rarity', 'packSize', 'deadmanSulphur']
     : ['quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency']
-  const mandatory = Object.fromEntries(Object.entries(matchConfig.mandatoryStats || {}).filter(([key]) => validKeys.includes(key)))
-  const optional = Object.fromEntries(Object.entries(matchConfig.optionalStats || {}).filter(([key]) => validKeys.includes(key)))
+  const mandatory = Object.fromEntries(Object.entries(matchConfig.mandatoryStats || {}).filter(([key]) => validKeys.includes(key)).map(([key, value]) => [key, { ...value }]))
+  const optional = Object.fromEntries(Object.entries(matchConfig.optionalStats || {}).filter(([key]) => validKeys.includes(key)).map(([key, value]) => [key, { ...value }]))
+
+  if (targetKind === 'heist') {
+    for (const [key, condition] of [...Object.entries(mandatory), ...Object.entries(optional)]) {
+      if (condition?.enabled && !Number.isFinite(itemInfo.heistStats?.[key])) return { isMatch: false, reason: 'unreadable-stat', failedStat: key }
+    }
+  }
 
   // 解决冲突：如果必选和挑选有相同key，取最大值作为必选，并从挑选移除
   const conflictKeys = Object.keys(mandatory).filter(key => optional[key])
@@ -284,6 +294,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
 
 // 获取地图属性值
 export function getMapStatValue(itemInfo, key) {
+  if (itemInfo.heistStats && Number.isFinite(itemInfo.heistStats[key])) return itemInfo.heistStats[key]
   let val = 0
 
   // 尝试直接从顶层属性获取

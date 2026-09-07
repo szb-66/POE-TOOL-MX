@@ -31,24 +31,26 @@ import { registerConfigTransferHandlers } from './configTransfer.js'
 import { registerConfigurationGuideHandlers } from './configurationGuide.js'
 import { registerFaustusHandlers } from './faustus.js'
 import { registerLoadingFeedbackHandlers } from './loadingFeedback.js'
+import { registerClientEventsHandlers } from './clientEvents.js'
+import { registerMapTrackerHandlers } from './mapTracker.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng, faustus,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
-    applicationUpdate, feedback, failureEvidence, windowActivation, loadingFeedback, getMainWindow, enableJunfengTraining = false
+    applicationUpdate, feedback, failureEvidence, windowActivation, windowClose, loadingFeedback, clientEvents, mapTracker, mapTrackerOverlay, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
-  registerWindowHandlers(window, { windowActivation })
+  registerWindowHandlers(window, { windowActivation, windowClose })
   if (loadingFeedback) registerLoadingFeedbackHandlers(loadingFeedback, getMainWindow)
   registerPythonHandlers(python, window, fileWatcher)
   registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting)
   registerShortcutHandlers(shortcut, window)
-  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback })
+  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker })
   registerCombatHandlers(python, window, fileWatcher)
-  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, getMainWindow })
+  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, getMainWindow })
   if (faustus) registerFaustusHandlers(faustus, window, getMainWindow)
   registerConfigTransferHandlers({ getMainWindow })
   registerConfigurationGuideHandlers(window, { windowActivation })
@@ -60,6 +62,8 @@ export function registerIpcHandlers(dependencies) {
   if (crafting) registerCraftingHandlers(crafting)
   if (chaosRecipe) registerChaosRecipeHandlers(chaosRecipe, window, { interfaceDetection, automationLock })
   if (priceCheck) registerPriceCheckHandlers(priceCheck)
+  if (clientEvents) registerClientEventsHandlers(clientEvents)
+  if (mapTracker) registerMapTrackerHandlers(mapTracker, { getMainWindow, overlay: mapTrackerOverlay, windowApi: window })
   if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
   if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection, enableTraining: enableJunfengTraining })

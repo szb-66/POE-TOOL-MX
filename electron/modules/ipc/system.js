@@ -13,7 +13,8 @@ import { sanitizeStartupReport } from '../system/startupEvent.js'
 
 const HEALTH_OPERATIONS = {
   platform: 'platform_check', userData: 'user_data_check', administrator: 'administrator_check',
-  displays: 'display_check', network: 'network_check', runtime: 'runtime_check', game: 'game_window_check'
+  displays: 'display_check', network: 'network_check', runtime: 'runtime_check', game: 'game_window_check',
+  gameDisplayMode: 'game_display_mode_check'
 }
 
 function healthReasonCode(item) {
@@ -24,6 +25,7 @@ function healthReasonCode(item) {
   if (item.id === 'network') return 'network_unavailable'
   if (item.id === 'runtime') return 'runtime_unavailable'
   if (item.id === 'game') return 'game_window_not_found'
+  if (item.id === 'gameDisplayMode') return 'unsupported_display_mode'
   return 'unavailable'
 }
 

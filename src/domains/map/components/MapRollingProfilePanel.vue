@@ -79,7 +79,7 @@
       </el-card>
 
       <el-card class="section-card modifier-card">
-        <template #header><div class="card-header"><span class="title">白名单词缀</span><el-tooltip content="包含任一词缀时通过（黑名单仍优先）" placement="top"><el-icon class="help-icon"><QuestionFilled /></el-icon></el-tooltip></div></template>
+        <template #header><div class="card-header"><span class="title">白名单词缀</span><el-tooltip :content="targetKind === 'heist' ? '非空白名单至少命中一条，且满足数值条件；黑名单优先' : '包含任一词缀时通过（黑名单仍优先）'" placement="top"><el-icon class="help-icon"><QuestionFilled /></el-icon></el-tooltip></div></template>
         <div class="modifier-list">
           <div v-for="(_, index) in profile.match.whitelist" :key="index" class="modifier-item">
             <el-autocomplete
@@ -119,7 +119,7 @@ const props = defineProps({
   statKeys: { type: Object, required: true },
   title: { type: String, required: true },
   tooltip: { type: String, required: true },
-  targetKind: { type: String, required: true, validator: value => ['atlas', 'chart'].includes(value) }
+  targetKind: { type: String, required: true, validator: value => ['atlas', 'chart', 'heist'].includes(value) }
 })
 
 const statCount = computed(() => Object.keys(props.statKeys).length)

@@ -1,4 +1,4 @@
-import { BrowserWindow, screen } from 'electron'
+import { app, BrowserWindow, screen } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -233,7 +233,8 @@ export class ChaosRecipeControlOverlay {
       junfengRunning,
       canJunfeng,
       junfengReason,
-      junfengButtonLabel: formatJunfengButtonLabel(junfengAutomation),
+      junfengButtonLabel: !junfengRunning && junfengAvailability.reason === '模型准备中'
+        ? '模型准备中' : formatJunfengButtonLabel(junfengAutomation),
       junfengAutomation,
       ready: Boolean(this.detection.ready),
       foreground: Boolean(this.detection.foreground),
@@ -307,6 +308,7 @@ export class ChaosRecipeControlOverlay {
   }
 
   sync() {
+    const started = performance.now()
     const state = this.computeState()
     if (!state.enabled) {
       this.close()
@@ -335,6 +337,11 @@ export class ChaosRecipeControlOverlay {
     })
     if (state.visible && placement) window.showInactive()
     else window.hide()
+    if (!app.isPackaged && (state.rewardDetected !== this.lastPerformanceRewardDetected || performance.now() - started >= 16)) {
+      console.debug('[君锋镇性能]', { phase: 'overlay-sync', rewardDetected: state.rewardDetected,
+        durationMs: performance.now() - started })
+    }
+    this.lastPerformanceRewardDetected = state.rewardDetected
     return state
   }
 

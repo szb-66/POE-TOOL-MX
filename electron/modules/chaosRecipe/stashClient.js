@@ -79,6 +79,30 @@ export class PoeCnStashClient {
     return leagues
   }
 
+  async listCharacters({ experienceCharacterName = '' } = {}) {
+    const auth = this.assertAuthenticated()
+    const query = new URLSearchParams({ accountName: auth.accountName, realm: 'pc' })
+    const payload = await this.request(`${ORIGIN}/character-window/get-characters?${query}`)
+    const characters = Array.isArray(payload) ? payload : payload?.characters
+    if (!Array.isArray(characters)) throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服角色接口未返回角色列表')
+    const result = characters.filter(character => typeof character?.name === 'string' && character.name.trim()).map(character => ({
+      name: character.name.trim(), accountName: auth.accountName,
+      league: String(character.league || ''), className: String(character.class || character.className || ''),
+      level: Number.isInteger(character.level) ? character.level : null,
+      experience: Number.isSafeInteger(character.experience) && character.experience >= 0 ? character.experience : null
+    }))
+    const selected = result.find(character => character.name === experienceCharacterName)
+    if (selected && selected.experience === null) {
+      const detailQuery = new URLSearchParams({ accountName: auth.accountName, character: selected.name, realm: 'pc' })
+      const detail = await this.request(`${ORIGIN}/character-window/get-items?${detailQuery}`)
+      const character = detail?.character
+      if (character?.name === selected.name && character?.league === selected.league && Number.isSafeInteger(character.experience) && character.experience >= 0) {
+        selected.experience = character.experience
+      }
+    }
+    return result
+  }
+
   async tryLegacyTabs(league, accountName) {
     const query = new URLSearchParams({
       accountName,

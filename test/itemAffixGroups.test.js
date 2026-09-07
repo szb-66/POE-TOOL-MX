@@ -2,7 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { matchAffixes } from '../electron/modules/item/matcher.js'
 import {
+  affixConditionItemLevelRequirement,
+  affixGroupItemLevelRequirement,
   cloneAffixGroup,
+  enabledAffixGroupItemLevelRequirements,
   hasEffectiveAffixGroups,
   normalizeModuleTwo
 } from '../src/domains/items/affixConfig.js'
@@ -26,6 +29,45 @@ const catalog = (id, effectPattern, minTier = null) => ({
   displayName: effectPattern,
   effectPattern,
   minTier
+})
+
+test('词缀组合物等要求按阶级门槛和全部条件最高值派生', () => {
+  const tiered = (id, minTier, tiers) => ({
+    ...catalog(id, `效果 ${id}`, minTier),
+    tiers
+  })
+  assert.deepEqual(affixConditionItemLevelRequirement(tiered('不限', null, [
+    { tier: 1, requiredLevel: 84 }, { tier: 3, requiredLevel: 60 }, { tier: 7, requiredLevel: 1 }
+  ])), { level: 1, hasUnknown: false, effective: true })
+  assert.deepEqual(affixConditionItemLevelRequirement(tiered('最低T3', 3, [
+    { tier: 1, requiredLevel: 84 }, { tier: 3, requiredLevel: 60 }, { tier: 7, requiredLevel: 1 }
+  ])), { level: 60, hasUnknown: false, effective: true })
+  assert.deepEqual(affixConditionItemLevelRequirement(tiered('稀疏', 3, [
+    { tier: 1, requiredLevel: 82 }, { tier: 5, requiredLevel: 20 }
+  ])), { level: 82, hasUnknown: false, effective: true })
+
+  const requirement = affixGroupItemLevelRequirement({
+    requiredAffixes: [tiered('生命', 3, [{ tier: 3, requiredLevel: 60 }])],
+    selectedAffixes: [tiered('速度', 1, [{ tier: 1, requiredLevel: 84 }]), '自定义词缀'],
+    selectedCount: 1
+  })
+  assert.deepEqual(requirement, { level: 84, hasUnknown: true, hasEffectiveConditions: true })
+  assert.deepEqual(affixGroupItemLevelRequirement({ requiredAffixes: [], selectedAffixes: [] }), {
+    level: null, hasUnknown: false, hasEffectiveConditions: false
+  })
+})
+
+test('运行物等要求只返回启用且可计算的非空组合', () => {
+  const known = { ...catalog('生命', '+# 最大生命'), tiers: [{ tier: 1, requiredLevel: 82 }] }
+  const groups = [
+    { id: 'enabled', name: '启用', enabled: true, requiredAffixes: [known], selectedAffixes: [] },
+    { id: 'disabled', name: '停用', enabled: false, requiredAffixes: [known], selectedAffixes: [] },
+    { id: 'unknown', name: '未知', enabled: true, requiredAffixes: ['自定义'], selectedAffixes: [] },
+    { id: 'empty', name: '空', enabled: true, requiredAffixes: [], selectedAffixes: [] }
+  ]
+  assert.deepEqual(enabledAffixGroupItemLevelRequirements(groups), [{
+    id: 'enabled', name: '启用', level: 82, hasUnknown: false, hasEffectiveConditions: true
+  }])
 })
 
 test('旧单组字符串配置迁移为组合并清理空条件', () => {

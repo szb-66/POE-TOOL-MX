@@ -1,3 +1,5 @@
+import { isReservedItemCopyAccelerator } from './shortcutValidator.js'
+
 export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   itemStart: '',
   mapStart: '',
@@ -6,7 +8,7 @@ export const DEFAULT_GLOBAL_SHORTCUTS = Object.freeze({
   storyPrevious: '',
   storyNext: '',
   storyTimerToggle: '',
-  priceCheck: ''
+  priceCheck: '',
 })
 
 export const normalizeGlobalShortcutValue = (value) => (
@@ -26,6 +28,10 @@ export const mergeGlobalShortcutSettings = (saved = {}) => {
   for (const key of Object.keys(DEFAULT_GLOBAL_SHORTCUTS)) {
     if (!Object.hasOwn(saved || {}, key)) continue
     const normalized = normalizeGlobalShortcutValue(saved[key])
+    if (key === 'priceCheck' && isReservedItemCopyAccelerator(normalized)) {
+      merged[key] = ''
+      continue
+    }
     merged[key] = key === 'end' && !normalized
       ? DEFAULT_GLOBAL_SHORTCUTS.end
       : normalized

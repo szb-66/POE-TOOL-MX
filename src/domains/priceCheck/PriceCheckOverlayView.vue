@@ -123,11 +123,11 @@
           </div>
         </section>
 
-        <section v-if="state.model.properties?.length" class="panel filter-list">
+        <section v-if="propertyRows.length" class="panel filter-list">
           <h3>物品属性</h3>
           <div class="property-grid">
             <div
-              v-for="property in state.model.properties"
+              v-for="property in propertyRows"
               :key="property.id"
               class="filter-row property-row"
               :class="{ enabled: property.enabled }"
@@ -197,10 +197,10 @@
           <small>官方过滤目录没有对应字段，不会写入查询。</small>
         </section>
 
-        <section v-if="state.model.stats?.length || state.model.unknownStats?.length" class="panel filter-list">
+        <section v-if="statRows.length || state.model.unknownStats?.length" class="panel filter-list">
           <h3>词缀</h3>
           <div
-            v-for="stat in state.model.stats"
+            v-for="stat in statRows"
             :key="stat.key"
             class="filter-row stat-row"
             :class="{ enabled: stat.enabled }"
@@ -335,6 +335,17 @@ function clonePreviewInput(value) {
 }
 
 const state = ref(props.previewMode ? clonePreviewInput(props.previewState) : null)
+const mapRewardIds = new Set([
+  'pseudo.pseudo_map_more_map_drops',
+  'pseudo.pseudo_map_more_scarab_drops',
+  'pseudo.pseudo_map_more_currency_drops'
+])
+// 奖励沿用官方 pseudo 查询模型，界面归入物品属性；保留原对象以同步编辑。
+const propertyRows = computed(() => [
+  ...(state.value?.model?.properties || []),
+  ...(state.value?.model?.stats || []).filter((stat) => mapRewardIds.has(stat.id))
+])
+const statRows = computed(() => (state.value?.model?.stats || []).filter((stat) => !mapRewardIds.has(stat.id)))
 const priceCheckShortcutText = computed(() => (
   props.previewMode
     ? appSettings.globalShortcuts.priceCheck || '未设置'

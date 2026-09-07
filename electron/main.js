@@ -5,7 +5,7 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
-import { app, BrowserWindow, Menu, clipboard, crashReporter, dialog, globalShortcut, protocol, net, screen, shell, session } from 'electron'
+import { app, BrowserWindow, Menu, Tray, clipboard, crashReporter, dialog, globalShortcut, nativeImage, protocol, net, screen, shell, session } from 'electron'
 import electronUpdater from 'electron-updater'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -37,6 +37,7 @@ import { InterfaceDetectionCoordinator } from './modules/interfaceDetection/coor
 import { AutomationLock } from './modules/automation/lock.js'
 import { ChaosRecipeControlOverlay } from './modules/chaosRecipe/controlOverlay.js'
 import { createShutdownController } from './modules/lifecycle/shutdown.js'
+import { createApplicationTrayController } from './modules/lifecycle/tray.js'
 import {
   createApplicationRestartController,
   DEVELOPMENT_RESTART_EXIT_CODE
@@ -56,6 +57,13 @@ import {
   capturePoeItemText,
   sendWindowsCopy
 } from './modules/priceCheck/clipboardCapture.js'
+import { ClientEventSettingsRepository } from './modules/clientEvents/settingsRepository.js'
+import { ClientEventsService } from './modules/clientEvents/service.js'
+import { detectRunningClientLogPath } from './modules/clientEvents/pathDetection.js'
+import { detectClientProcessSessions } from './modules/clientEvents/processDetection.js'
+import { MapTrackerRepository } from './modules/mapTracker/repository.js'
+import { MapTrackerService } from './modules/mapTracker/service.js'
+import { MapTrackerOverlayManager } from './modules/mapTracker/overlay.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
@@ -70,6 +78,7 @@ import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { WindowActivationService } from './modules/window/activation.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
+import { createDevelopmentStartupTrace } from '../shared/developmentStartupTrace.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
 import { InstalledUpdateRepository } from './modules/update/installedUpdateRepository.js'
@@ -116,7 +125,11 @@ function resolveApplicationVersion() {
 if (startupSafeMode) app.disableHardwareAcceleration()
 app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
 const crashDumpsPath = path.join(app.getPath('userData'), 'crashes')
-const startupLog = createStartupLogger({ userDataPath: app.getPath('userData') })
+const startupTrace = createDevelopmentStartupTrace({ env: app.isPackaged ? {} : process.env })
+const startupLog = createStartupLogger({
+  userDataPath: app.getPath('userData'),
+  onRecord: event => startupTrace.record(event.phase, event.outcome, event.reasonCode)
+})
 const applicationVersion = resolveApplicationVersion()
 try {
   fs.mkdirSync(crashDumpsPath, { recursive: true })
@@ -173,11 +186,26 @@ const crashGuard = createCrashGuard({
 })
 crashGuard.install()
 
+let startupDashboardReady = false
+let startupRuntimeSettled = false
+let startupInteractiveRecorded = false
 const startupDiagnostics = {
   record(event, sender) {
     const mainWindow = getMainWindow()
     if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents !== sender) return false
     const recorded = startupLog.record(event)
+    if (event?.phase === 'dashboard' && event?.outcome === 'succeeded') startupDashboardReady = true
+    if (event?.phase === 'renderer-runtime' && ['succeeded', 'failed'].includes(event?.outcome)) startupRuntimeSettled = true
+    if (!startupInteractiveRecorded && startupDashboardReady && startupRuntimeSettled) {
+      startupInteractiveRecorded = true
+      startupTrace.record('interactive', 'succeeded')
+      if (developmentFaultEnabled('--diagnostic-exit-after-interactive')) {
+        setImmediate(() => {
+          void shutdownController.requestShutdown()
+          setTimeout(() => app.exit(0), 3000).unref()
+        })
+      }
+    }
     if (developmentFaultEnabled('--diagnostic-startup-json')) {
       console.log(`@@POE_STARTUP@@${JSON.stringify({ timestamp: new Date().toISOString(), ...event })}`)
     }
@@ -224,6 +252,9 @@ let interfaceDetection = null
 let automationLock = null
 let chaosControlOverlay = null
 let priceCheckService = null
+let clientEventsService = null
+let mapTrackerService = null
+let mapTrackerOverlay = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let junfengHighlight = null
@@ -231,6 +262,7 @@ let faustusManager = null
 let puzzleService = null
 let gameWindowTitles = null
 let windowActivation = null
+let applicationTray = null
 let diagnosticEvents = null
 let foregroundWatcher = null
 let applicationUpdate = null
@@ -264,6 +296,14 @@ function resolveForegroundWatcherScriptPath() {
   return candidates.find((candidate) => fs.existsSync(candidate)) || ''
 }
 
+
+
+function resolveOverlayOutsideClickScriptPath() {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = app.isPackaged ? [path.join(process.resourcesPath, 'overlay_outside_click.py')] : [path.resolve(moduleDir, '../src/assets/scripts/overlay_outside_click.py'), path.join(app.getAppPath(), 'src/assets/scripts/overlay_outside_click.py')]
+  return candidates.find((candidate) => fs.existsSync(candidate)) || ''
+}
+
 async function settleCleanupPhase(operations, errors) {
   const results = await Promise.allSettled(
     operations.map(operation => Promise.resolve().then(operation))
@@ -278,6 +318,7 @@ async function cleanupApplicationResources() {
 
   await settleCleanupPhase([
     () => dailyUsageService?.stop(),
+    () => applicationTray?.dispose(),
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
     () => junfengHighlight?.cleanup(),
@@ -285,6 +326,9 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.destroyOverlay(),
+    () => mapTrackerOverlay?.destroy(),
+    () => mapTrackerService?.shutdown({ normal: true }),
+    () => clientEventsService?.stop(),
     () => puzzleService?.cleanup(),
     () => interfaceDetection?.cleanup(),
     () => craftingService?.cleanup(),
@@ -377,11 +421,18 @@ const applicationRestartController = createApplicationRestartController({
 function createApplicationWindow() {
   startupLog.record({ phase: 'main-window', outcome: 'started', reasonCode: 'none' })
   const window = createMainWindow({
-    beforeLoad: candidate => crashGuard.observeWindow(candidate),
+    beforeLoad: candidate => {
+      crashGuard.observeWindow(candidate)
+      if (candidate.isVisible()) startupTrace.record('window-visible')
+      else candidate.once('show', () => startupTrace.record('window-visible'))
+    },
     diagnosticFailLoad: developmentFaultEnabled('--diagnostic-fail-load'),
     requestForceRefresh: () => applicationRestartController.requestRestart()
   })
-  window.on('close', shutdownController.handleMainWindowClose)
+  window.on('close', (event) => {
+    if (applicationTray?.handleMainWindowClose(event, window)) return
+    shutdownController.handleMainWindowClose()
+  })
   window.on('focus', () => syncLoadingFeedbackForeground())
   window.on('blur', () => syncLoadingFeedbackForeground())
   startupLog.record({ phase: 'main-window', outcome: 'succeeded', reasonCode: 'none' })
@@ -416,6 +467,9 @@ async function startApplication() {
     return
   }
   startupLog.record({ phase: 'cross-process-lock', outcome: 'succeeded', reasonCode: 'none' })
+  // Start probing concurrently with independent service setup; no synchronous subprocess on this path.
+  const pythonRuntimePending = startupTrace.measure('python-runtime', () => pythonDetector.resolvePythonRuntimeAsync())
+  void pythonRuntimePending.catch(() => {})
   gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
   gameWindowTitles.initialize()
   windowActivation = new WindowActivationService({
@@ -424,12 +478,31 @@ async function startApplication() {
     pythonPathProvider: () => pythonDetector.detectPythonPath()
   })
   windowManager.configureWindowActivation(windowActivation)
+  const trayIcon = nativeImage.createFromPath(path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../src/assets/images/LOGO-dark.png'
+  ))
+  applicationTray = createApplicationTrayController({
+    app,
+    icon: trayIcon,
+    createTray: value => new Tray(value),
+    createMenu: template => Menu.buildFromTemplate(template),
+    getMainWindow,
+    activateMain: () => windowActivation.activateMain({ source: 'tray' }),
+    requestCloseChoice: () => {
+      const window = getMainWindow()
+      if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send('window-close-choice-requested')
+      }
+    },
+    isQuitting: () => applicationShuttingDown || shutdownController.state !== 'idle'
+  })
   diagnosticEvents = new DiagnosticEventStore({
     userDataPath: app.getPath('userData'),
     appVersion: app.getVersion()
   })
   const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
-  const installedUpdate = await installedUpdateRepository.loadForVersion(app.getVersion())
+  const installedUpdate = await startupTrace.measure('installed-update', () => installedUpdateRepository.loadForVersion(app.getVersion()))
   applicationUpdate = new ApplicationUpdateService({
     updater: electronUpdater.autoUpdater,
     currentVersion: app.getVersion(),
@@ -453,7 +526,6 @@ async function startApplication() {
   const puzzleFailureEvidence = new PuzzleFailureEvidenceRepository({
     root: path.join(app.getPath('userData'), 'diagnostic-evidence', 'puzzle-recognition')
   })
-  await puzzleFailureEvidence.cleanup()
   feedbackService = new FeedbackService({
     config: FEEDBACK_CLOUDBASE_CONFIG,
     auth: feedbackAuth,
@@ -498,7 +570,8 @@ async function startApplication() {
   automationLock = new AutomationLock()
   interfaceDetection = new InterfaceDetectionCoordinator({
     python: { ...pythonManager, ...pythonDetector },
-    fileWatcher
+    fileWatcher,
+    logger: startupLog
   })
   const chaosAuth = new PoeCnAuthService({
     session: poeCnSession,
@@ -598,14 +671,17 @@ async function startApplication() {
   const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
   const uniqueItemImages = new UniqueItemImageRepository()
   let uniqueImageWarning = ''
+  const tradeCatalogPending = startupTrace.measure('trade-catalog', () => loadTradeCatalog())
+  // Attach a rejection handler immediately while the independent image read is in flight.
+  void tradeCatalogPending.catch(() => {})
   try {
-    await uniqueItemImages.load()
+    await startupTrace.measure('unique-images', () => uniqueItemImages.load())
   } catch (error) {
     uniqueItemImages.useFallback()
     uniqueImageWarning = `本地传奇图片与属性目录不可用：${error.message}`
   }
   // 首次查价前先用本地传奇快照增强内置目录，官方目录仍在后台刷新后替换。
-  const tradeCatalogBundle = await loadTradeCatalog()
+  const tradeCatalogBundle = await tradeCatalogPending
   tradeCatalogBundle.catalog.items = enrichOfficialItemsWithImages(
     tradeCatalogBundle.catalog.items,
     uniqueItemImages.catalog
@@ -644,9 +720,7 @@ async function startApplication() {
     shell,
     captureClipboard: async () => {
       const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
-      if (!activation.success) {
-        throw new Error(windowActivation.gameFailureMessage(activation.code))
-      }
+      if (!activation.success) throw new Error(windowActivation.gameFailureMessage(activation.code))
       return capturePoeItemText({
         clipboard,
         assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
@@ -654,6 +728,33 @@ async function startApplication() {
       })
     }
   })
+  const startupPythonPath = (await pythonRuntimePending).path
+  if (!startupPythonPath) startupTrace.record('python-runtime', 'failed', 'runtime_unavailable')
+  windowManager.configureOverlayOutsideClickCloser({
+    pythonPath: startupPythonPath,
+    scriptPath: resolveOverlayOutsideClickScriptPath()
+  })
+  clientEventsService = new ClientEventsService({
+    processProvider: detectClientProcessSessions,
+    settings: new ClientEventSettingsRepository(path.join(app.getPath('userData'), 'client-events-settings.json')),
+    detectPath: detectRunningClientLogPath,
+    selectFile: async () => {
+      const result = await dialog.showOpenDialog(getMainWindow(), {
+        title: '选择 Client.txt', properties: ['openFile'], filters: [{ name: 'Path of Exile Client.txt', extensions: ['txt'] }]
+      })
+      return result.canceled ? '' : String(result.filePaths[0] || '')
+    }
+  })
+  await startupTrace.measure('client-events', () => clientEventsService.initialize())
+  const mapTrackerRepository = new MapTrackerRepository(app.getPath('userData'))
+  mapTrackerService = new MapTrackerService({
+    repository: mapTrackerRepository,
+    characterProvider: options => chaosStashClient.listCharacters(options),
+    clientEvents: clientEventsService,
+
+  })
+  await startupTrace.measure('map-tracker', () => mapTrackerService.initialize())
+  mapTrackerOverlay = new MapTrackerOverlayManager({ service: mapTrackerService })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
@@ -667,6 +768,9 @@ async function startApplication() {
     crafting: craftingService,
     chaosRecipe: chaosRecipeService,
     priceCheck: priceCheckService,
+    clientEvents: clientEventsService,
+    mapTracker: mapTrackerService,
+    mapTrackerOverlay,
     poeCnAccount: {
       auth: chaosAuth,
       listLeagues: () => chaosStashClient.listLeagues()
@@ -684,6 +788,7 @@ async function startApplication() {
     feedback: feedbackService,
     failureEvidence: puzzleFailureEvidence,
     windowActivation,
+    windowClose: applicationTray,
     loadingFeedback,
     getMainWindow,
     enableJunfengTraining: !app.isPackaged
@@ -691,16 +796,23 @@ async function startApplication() {
 
   dailyUsageService?.start()
   createApplicationWindow()
+  setImmediate(() => {
+    if (applicationShuttingDown) return
+    void startupTrace.measure('evidence-cleanup', () => puzzleFailureEvidence.cleanup()).catch(error => {
+      startupLog.warn('evidence-cleanup', '历史诊断文件清理失败', error)
+    })
+  })
 
   // 启动游戏前台监视器：门禁开启时仅在游戏窗口位于前台注册用户全局快捷键。
   // 放到窗口创建后的下一个事件循环，避免同步探测 Python 阻塞窗口显示。
   setImmediate(() => {
     foregroundWatcher = startForegroundWatcher({
-      pythonPath: pythonDetector.detectPythonPath(),
+      pythonPath: startupPythonPath,
       scriptPath: resolveForegroundWatcherScriptPath(),
       onStateChange: ({ game, title, reason, processName, bounds }) => {
         lastGameWindowBounds = game ? bounds : null
         const result = shortcutManager.setScopeActive(game, { title, reason, processName })
+        mapTrackerService?.setForeground(game)
         syncLoadingFeedbackForeground()
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -721,6 +833,7 @@ async function startApplication() {
       onFailure: (error) => {
         lastGameWindowBounds = null
         shortcutManager.setScopeAvailable(false)
+        mapTrackerService?.setForeground(false)
         syncLoadingFeedbackForeground({ available: false })
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {

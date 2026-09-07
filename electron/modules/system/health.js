@@ -1,6 +1,7 @@
 import { access } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import os from 'node:os'
+import { describeGameDisplayMode } from '../../../shared/gameDisplayMode.js'
 
 const SUPPORTED_SCALE_FACTORS = new Set([1, 1.25, 1.5, 2])
 
@@ -71,6 +72,15 @@ export function evaluateGameWindow(gameDpi = {}) {
     : item('game', '游戏窗口 / DPI', 'attention', gameDpi.error || '未检测到游戏窗口')
 }
 
+export function evaluateGameDisplayMode(gameDpi = {}) {
+  const mode = gameDpi.displayMode
+  if (!gameDpi.found || !mode) {
+    return item('gameDisplayMode', '游戏显示模式', 'attention', gameDpi.error || '未检测到游戏窗口，无法判断显示模式')
+  }
+  const described = describeGameDisplayMode(mode)
+  return item('gameDisplayMode', '游戏显示模式', described.status, described.text, { displayMode: mode })
+}
+
 export async function evaluateUserDataDirectory(userDataPath) {
   try {
     await access(userDataPath, constants.W_OK)
@@ -100,7 +110,8 @@ export async function createStartupHealth({
       evaluateDisplays(displays),
       evaluateNetworkInterfaces(networkInterfaces),
       evaluateRuntime(runtime),
-      evaluateGameWindow(gameDpi)
+      evaluateGameWindow(gameDpi),
+      evaluateGameDisplayMode(gameDpi)
     ]
   }
 }

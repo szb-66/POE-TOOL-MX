@@ -148,7 +148,8 @@ test('主进程接入统一退出控制且不会扫描终止系统中的其他 P
   const pythonProcess = readFileSync(new URL('../electron/modules/python/process.js', import.meta.url), 'utf8')
 
   assert.match(main, /createShutdownController/)
-  assert.match(main, /window\.on\('close', shutdownController\.handleMainWindowClose\)/)
+  assert.match(main, /applicationTray\?\.handleMainWindowClose\(event, window\)/)
+  assert.match(main, /shutdownController\.handleMainWindowClose\(\)/)
   assert.match(main, /BrowserWindow\.getAllWindows\(\)/)
   assert.match(main, /throw new AggregateError\(errors/)
   assert.match(main, /applicationCleanupPromise/)

@@ -1106,6 +1106,47 @@ test('Python 入库对空格、无效文本和安全门禁采用失败关闭策�
   assert.ok(source.indexOf('if not is_game_foreground():') < source.indexOf('transfer_stash_item('))
 })
 
+test('检测脚本启用 faulthandler 并为异常输出完整堆栈', () => {
+  const source = readFileSync(scriptUrl, 'utf8')
+  assert.match(source, /import faulthandler[\s\S]*faulthandler\.enable\(\)[\s\S]*import cv2/)
+  const detection = source.slice(source.indexOf('def run_detection(config):'), source.indexOf('def abort('))
+  assert.match(detection, /print\(traceback\.format_exc\(\), file=sys\.stderr, flush=True\)[\s\S]*emit\("detection-error"/)
+  const main = source.slice(source.indexOf('def main():'))
+  assert.match(main, /print\(traceback\.format_exc\(\), file=sys\.stderr, flush=True\)/)
+})
+
+test('协调器记录检测进程意外退出并透传 exitCode 到诊断事件', () => {
+  const coordinator = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
+  assert.match(coordinator, /检测进程意外退出 code=\$\{code\}/)
+  assert.match(coordinator, /exitCode: Number\.isFinite\(code\) \? code : null/)
+  const bagIpc = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
+  assert.match(bagIpc, /exitCode: Number\.isFinite\(state\.exitCode\) \? state\.exitCode : null/)
+  const store = readFileSync(new URL('../src/stores/bag.js', import.meta.url), 'utf8')
+  assert.match(store, /const metadata = Number\.isFinite\(exitCode\) \? \{ exitCode \} : null/)
+  assert.match(store, /reportDiagnosticFailure\('bag', 'script_runtime', \{\}, 'process_exit', metadata\)/)
+})
+
+test('协调器将退出证据持久化到结构化启动日志', () => {
+  const coordinator = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
+  assert.match(coordinator, /constructor\(\{ python, fileWatcher, logger = console \} = \{\}\)/)
+  assert.match(coordinator, /this\.logger = logger/)
+  assert.match(coordinator, /phase: 'interface-detection-exit'/)
+  assert.match(coordinator, /reasonCode: Number\.isFinite\(code\) \? `exit_code_\$\{code\}` : 'exit_code_unknown'/)
+  assert.match(coordinator, /message: `code=\$\{code\} reason=\$\{reason\} stderr=\$\{stderr\.slice\(-3500\)\.trim\(\)\}`/)
+  assert.match(coordinator, /phase: 'interface-detection-error'/)
+  assert.match(coordinator, /message: `failureCode=\$\{event\.failureCode \|\| ''\} \$\{terminalReason\}`/)
+  const main = readFileSync(new URL('../electron/main.js', import.meta.url), 'utf8')
+  assert.match(main, /new InterfaceDetectionCoordinator\(\{[\s\S]*logger: startupLog[\s\S]*\}\)/)
+})
+
+test('协调器不把启动竞态与干净退出误报为异常退出', () => {
+  const coordinator = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
+  const startCatch = coordinator.slice(coordinator.indexOf('await waitForDetectionStartup'))
+  assert.match(startCatch, /catch \(error\) \{\s*\n\s*if \(this\.child !== child\) return this\.getState\(\)/)
+  const closeHandler = coordinator.slice(coordinator.indexOf("child.on('close'"), coordinator.indexOf('try {'))
+  assert.match(closeHandler, /code === 0 \? 'process-ended' : \(terminalReason \|\| describeDetectionExit/)
+})
+
 test('Python 物品头可靠识别中英文传奇稀有度', () => {
   const code = `
 import importlib.util, json, sys

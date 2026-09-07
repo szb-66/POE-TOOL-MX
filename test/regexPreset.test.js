@@ -67,3 +67,28 @@ test('旧地图正则预设补空价格配置且新价格配置可持久化', ()
   const saved = JSON.parse(values.get('mapRegexPresets'))
   assert.deepEqual(saved[0].mapRegex.priceRange, { min: 10, max: 25, currencies: ['ch', 'div'] })
 })
+
+
+test('野兽预设增删改切换及恢复与其他预设隔离', () => {
+  const { store, values } = createStore()
+  const beast = store.add('beast', '野兽方案')
+  store.update('beast', { name: '已改名' })
+  store.currentBeastRegexPreset.beastRegex.priceRange = { min: 5, max: 20, currencies: ['div'] }
+  store.save()
+  store.switchTo('beast', 'default')
+  store.switchTo('beast', beast.id)
+  const restored = createStore(Object.fromEntries(values)).store
+  assert.equal(restored.currentBeastRegexPreset.name, '已改名')
+  assert.deepEqual(restored.currentBeastRegexPreset.beastRegex.priceRange, { min: 5, max: 20, currencies: ['div'] })
+  assert.equal(restored.currentMapRegexPresetId, 'default')
+  assert.equal(restored.currentVendorPresetId, 'default')
+  assert.equal(restored.remove('beast', 'default'), false)
+  assert.equal(restored.remove('beast', beast.id), true)
+  assert.equal(restored.currentBeastRegexPresetId, 'default')
+})
+
+test('损坏或未知的野兽预设状态回退默认值', () => {
+  const { store } = createStore({ beastRegexPresets: '{broken', currentBeastRegexPresetId: 'missing' })
+  assert.equal(store.currentBeastRegexPreset.id, 'default')
+  assert.deepEqual(store.currentBeastRegexPreset.beastRegex.includeIds, [])
+})
