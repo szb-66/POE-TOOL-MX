@@ -2,6 +2,7 @@ import { isCatalogStatQueryable, isTradeStatId, resolveCatalogStat, resolveChart
 import { CHART_SHAPES, resolveChartShape } from './chartRegions.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
 import { createPseudoStats } from './pseudo.js'
+import { SPECIAL_DISCRIMINATORS, resolveSpecialItemIdentity, addLogbookStats, isLogbookStat } from './specialItems.js'
 import {
   PRICE_CHECK_CLASSIC_INFLUENCES,
   PRICE_CHECK_STATE_FILTERS,
@@ -17,7 +18,7 @@ import {
 
 const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
 const MERCENARY_WARRANT_DISCRIMINATOR = 'mercenary_warrant'
-const IDENTITY_DISCRIMINATORS = new Set(['map', 'chart', MERCENARY_WARRANT_DISCRIMINATOR])
+const IDENTITY_DISCRIMINATORS = new Set(['map', 'chart', MERCENARY_WARRANT_DISCRIMINATOR, ...SPECIAL_DISCRIMINATORS])
 const CLASSIC_INFLUENCE_STAT_IDS = new Set(PRICE_CHECK_CLASSIC_INFLUENCES.map(({ statId }) => statId))
 const MAP_REWARD_STATS = [
   ['moreMaps', '更多地图', 'pseudo.pseudo_map_more_map_drops'],
@@ -257,6 +258,7 @@ export function refreshPseudoStats(model, catalog, options = {}) {
   const rawStats = (model.stats || []).filter((stat) => stat.type !== 'pseudo')
   const influenceStats = (model.stats || []).filter((stat) => CLASSIC_INFLUENCE_STAT_IDS.has(stat.id))
   const rewardStats = (model.stats || []).filter((stat) => MAP_REWARD_STAT_IDS.has(stat.id))
+  const logbookStats = (model.stats || []).filter(isLogbookStat)
   const previous = new Map((model.stats || []).filter((stat) => stat.type === 'pseudo').map((stat) => [stat.id, stat]))
   const generated = createPseudoStats(rawStats, catalog, options, originalValueBounds)
   for (const stat of generated.stats) {
@@ -272,7 +274,7 @@ export function refreshPseudoStats(model, catalog, options = {}) {
   for (const stat of rawStats) {
     if (absorbedKeys.has(stat.key)) stat.enabled = false
   }
-  model.stats = [...generated.stats, ...rewardStats, ...influenceStats, ...rawStats]
+  model.stats = [...generated.stats, ...rewardStats, ...influenceStats, ...rawStats, ...logbookStats]
   return model
 }
 
@@ -282,9 +284,11 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   const category = safeText(item.category)
   const officialCategory = resolvePriceCheckCategory(category)
   const mercenaryWarrant = resolveMercenaryWarrantIdentity(item, catalog)
-  const identityDiscriminator = mercenaryWarrant?.type
+  const specialIdentity = resolveSpecialItemIdentity(item, catalog)
+  const isLogbook = officialCategory?.category === 'logbook'
+  const identityDiscriminator = specialIdentity?.discriminator || (mercenaryWarrant?.type
     ? MERCENARY_WARRANT_DISCRIMINATOR
-    : discriminatorForCategory(officialCategory)
+    : discriminatorForCategory(officialCategory))
   const isMap = officialCategory?.category === 'map'
   const isChart = officialCategory?.category === 'chart'
   const chartRegion = isChart ? resolveChartRegion(catalog, item.areaName) : null
@@ -292,7 +296,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     throw new Error(`无法识别海图区域“${safeText(item.areaName) || '未知'}”，已阻止按物理底材误查`)
   }
   const fixedIdentity = rarity === '传奇' && (!isMap || !item.isUnidentified) ? item.name : ''
-  const baseType = mercenaryWarrant?.type || (isChart
+  const baseType = specialIdentity?.type || mercenaryWarrant?.type || (isChart
     ? chartRegion.type
     : (isMap ? '地图' : resolveNonUniqueBaseType(item, catalog)))
   const isClusterJewel = /^(?:大型|中型|小型)星团珠宝$/.test(baseType)
@@ -393,8 +397,10 @@ export function createPriceCheckModel(item, catalog, options = {}) {
           key: `${match.id}:${stats.length}`,
           id: match.id,
           type,
-          text: effect.text,
-          name: modifier.name || '',
+          text: modifier.sourceContext
+            ? `${modifier.sourceContext}：${(modifier.originalLines || [effect.text]).join('\n')}`
+            : effect.text,
+          name: modifier.sourceContext || modifier.name || '',
           values: match.values,
           valueMultiplier: match.valueMultiplier,
           refs: [...(match.refs || [])],
@@ -402,13 +408,13 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         }],
         enabled: options.initialSelection === 'all' || (
           (options.initialSelection || 'auto') === 'auto' &&
-          ((isMap || isChart)
+          (isLogbook || ((isMap || isChart)
             ? ['base', 'implicit'].includes(modifier.type)
             : ((isClusterJewel && modifier.type === 'enchant') || modifier.type === 'fractured' || (
             ['prefix', 'suffix'].includes(modifier.type) &&
             Number(modifier.tier) > 0 &&
             Number(modifier.tier) <= 2
-          )))
+          ))))
         ),
         ...originalValueBounds(match.values)
       })
@@ -416,6 +422,15 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   }
   const mergedStats = []
   for (const stat of stats) mergeStatIntoList(mergedStats, stat)
+  if (isLogbook) {
+    for (const stat of mergedStats) {
+      const match = resolveCatalogStat(catalog, tradeStatText(stat.text), stat.type).match
+      if (match) {
+        let index = 0
+        stat.text = match.matcher.replace(/#/g, () => String(Math.abs(stat.values[index++] ?? 0)))
+      }
+    }
+  }
   const categoryPropertyIds = isMap
     ? new Set(['map.tier', 'map.iiq', 'map.iir', 'map.packSize', 'misc.itemLevel'])
     : (isChart
@@ -438,7 +453,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
           id,
           label,
           value,
-          enabled: isMemoryLevel || defaultPropertyIds.has(id),
+          enabled: isMemoryLevel || defaultPropertyIds.has(id) || (isLogbook && id === 'misc.itemLevel' && options.initialSelection !== 'none'),
           min: value,
           max: defaultPropertyIds.has(id) ? value : undefined
         }
@@ -498,6 +513,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       monsterPackSize: Number(item.monsterPackSize) || 0,
       areaLevel: Number(item.areaLevel) || 0,
       areaName: safeText(item.areaName),
+      blightType: safeText(item.blightType),
       chartShape: safeText(item.chartShape),
       deadmanSulphur: Number(item.deadmanSulphur) || 0,
       memoryLevel: item.memoryLevel == null ? null : Math.max(0, Number(item.memoryLevel) || 0),
@@ -513,7 +529,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     identity: {
       name: fixedIdentity,
       type: baseType,
-      ...(mercenaryWarrant
+      ...(specialIdentity ? { displayName: specialIdentity.displayName } : mercenaryWarrant
         ? { displayName: mercenaryWarrant.displayText }
         : (isChart ? { displayName: chartRegion.displayName } : {})),
       ...(identityDiscriminator ? { discriminator: identityDiscriminator } : {}),
@@ -552,7 +568,12 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     })
   }
   refreshPseudoStats(model, catalog, options)
+  if (isLogbook) addLogbookStats(model, item.logbookRegions, catalog, options.initialSelection !== 'none')
   model.stats.push(...createClassicInfluenceStats(item.influences, catalog))
+  if (rarity === '传奇' && /^退化/.test(baseType)) {
+    model.identityPrecision = { requiresConsent: true, allowNameOnly: false,
+      message: '当前无法精准区分退化版本。仅按传奇名称查询可能包含普通版本。' }
+  }
   return resolveUnidentifiedUnique(model, catalog)
 }
 
@@ -606,6 +627,7 @@ export function resolveUnidentifiedUnique(model, catalog) {
 
 export function buildOfficialTradeQuery(model, options = {}) {
   if (!model?.item || !model?.identity) throw new Error('查价模型无效')
+  if (model.identityPrecision?.requiresConsent && !model.identityPrecision.allowNameOnly) throw new Error(model.identityPrecision.message)
   if (model.identityResolution?.required) throw new Error(model.identityResolution.message || '请先选择未鉴定传奇名称')
   const category = safeText(model.item.category)
   const officialCategory = resolvePriceCheckCategory(category)
@@ -620,8 +642,8 @@ export function buildOfficialTradeQuery(model, options = {}) {
       listed: options.listed && options.listed !== 'any' ? safeText(options.listed, 24) : undefined,
       collapse: options.collapseListings === true
     },
-    name: nameEnabled && model.identity.name ? safeText(model.identity.name) : undefined,
-    baseType: nameEnabled && model.identity.type ? safeText(model.identity.type) : undefined,
+    name: (nameEnabled || model.identityPrecision?.allowNameOnly) && model.identity.name ? safeText(model.identity.name) : undefined,
+    baseType: !model.identityPrecision?.allowNameOnly && nameEnabled && model.identity.type ? safeText(model.identity.type) : undefined,
     discriminator: IDENTITY_DISCRIMINATORS.has(model.identity.discriminator)
       ? model.identity.discriminator
       : discriminatorForCategory(officialCategory),
@@ -790,8 +812,8 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       enabled: Boolean(stat.enabled),
       values,
       valueMultiplier,
-      min: safeDisplayBoundary(stat.min),
-      max: safeDisplayBoundary(stat.max),
+      min: isLogbookStat(stat) ? undefined : safeDisplayBoundary(stat.min),
+      max: isLogbookStat(stat) ? undefined : safeDisplayBoundary(stat.max),
       sources: Array.isArray(stat.sources)
         ? stat.sources.slice(0, 48).map((source) => {
             const sourceId = safeText(source.id, 80)
@@ -912,15 +934,28 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
   const officialCategory = resolvePriceCheckCategory(sourceCategory)
   const trustedDiscriminator = safeText(trustedModel?.identity?.discriminator, 40)
   const submittedDiscriminator = safeText(value.identity?.discriminator, 40)
-  const discriminator = trustedDiscriminator === MERCENARY_WARRANT_DISCRIMINATOR
+  const catalogSpecialIdentity = SPECIAL_DISCRIMINATORS.includes(submittedDiscriminator) &&
+    (catalog?.items || []).some((entry) => entry.discriminator === submittedDiscriminator &&
+      entry.baseType === value.identity?.type && (
+        (entry.category === 'gem' && officialCategory?.category.startsWith('gem.')) ||
+        (entry.category === 'map' && officialCategory?.category === 'map')
+      ))
+  const discriminator = IDENTITY_DISCRIMINATORS.has(trustedDiscriminator)
     ? trustedDiscriminator
-    : (submittedDiscriminator === MERCENARY_WARRANT_DISCRIMINATOR && sourceCategory === '地图碎片'
+    : (!trustedModel && (catalogSpecialIdentity ||
+        (submittedDiscriminator === MERCENARY_WARRANT_DISCRIMINATOR && sourceCategory === '地图碎片'))
         ? submittedDiscriminator
         : discriminatorForCategory(officialCategory))
   const name = safeText(trustedModel?.identity?.name ?? value.identity?.name)
   const nameEnabled = value.identity?.nameEnabled === false && officialCategory ? false : true
   const mercenarySkillGroups = sanitizeMercenarySkillGroups(value, catalog, trustedModel)
   return {
+    identityPrecision: (() => {
+      const required = trustedModel?.identityPrecision?.requiresConsent ||
+        ((trustedModel?.item?.rarity ?? value.item?.rarity) === '传奇' && /^退化/.test(trustedModel?.identity?.type ?? value.identity?.type ?? ''))
+      return required ? { requiresConsent: true, allowNameOnly: value.identityPrecision?.allowNameOnly === true,
+        message: '当前无法精准区分退化版本。仅按传奇名称查询可能包含普通版本。' } : undefined
+    })(),
     item: { ...(value.item || {}), ...(trustedModel?.item || {}), category: sourceCategory, ...flags },
     identity: {
       name,

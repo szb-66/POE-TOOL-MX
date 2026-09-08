@@ -743,18 +743,39 @@ export class PuzzleAnalysisService {
               error: copyResponse?.error || codedError('MOD_PROBE_FAILED', fragmentStats.reason)
             })
           } else {
+            const retryCells = copyCells.filter(cell => {
+              const text = copyResponse?.texts?.[cell.key] || ''
+              return !text || matchFragmentMods(text.split(/\r?\n/)).status === 'unknown'
+            })
+            let retryTexts = {}
+            if (retryCells.length && probeGeneration === this.stopGeneration) {
+              const retryPages = pages.map(page => ({ ...page,
+                cells: page.cells.filter(cell => retryCells.some(candidate => candidate.key === cell.key))
+              })).filter(page => page.cells.length)
+              try {
+                const retry = await this.runProbe({ mode: 'copy', pages: retryPages,
+                  copyTimeoutMs: 900, settleMs: 260 }, feedbackSessionId)
+                if (retry?.success !== false) retryTexts = retry?.texts || {}
+              } catch {
+                // Retry failure must not discard results from the first copy pass.
+                this.assertCurrentGeneration(probeGeneration, '海图识别已紧急停止')
+              }
+            }
+            this.assertCurrentGeneration(probeGeneration, '海图识别已紧急停止')
             for (const cell of copyCells) {
               const text = copyResponse?.texts?.[cell.key] || ''
               Object.assign(cell.slot, resolveFragmentCopy(cell.slot, text))
-              const match = text ? matchFragmentMods(text.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
+              const retryText = retryTexts[cell.key] || ''
+              if (!cell.slot.type && retryText) Object.assign(cell.slot, resolveFragmentCopy(cell.slot, retryText))
+              const modText = retryText || text
+              const match = modText ? matchFragmentMods(modText.split(/\r?\n/)) : { status: 'unknown', confidence: 0 }
               fragmentMods[cell.key] = {
                 status: match.status,
                 mod: match.mod || null,
                 confidence: match.confidence || 0,
-                rawText: text ? text.slice(0, 600) : ''
+                rawText: modText ? modText.slice(0, 600) : ''
               }
-              if (!cell.slot.type) fragmentStats.unknown += 1
-              else if (match.status === 'matched') fragmentStats.matched += 1
+              if (match.status === 'matched') fragmentStats.matched += 1
               else if (match.status === 'unveiled') fragmentStats.unveiled += 1
               else fragmentStats.unknown += 1
             }

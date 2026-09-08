@@ -1,3 +1,5 @@
+import { FAUSTUS_STAGE_LABELS } from './faustusStages.js'
+
 export const LOADING_FEEDBACK_CHANNEL = 'loading-feedback-state'
 
 const operation = (target, label, priority = 0, stages = {}) => Object.freeze({
@@ -21,7 +23,7 @@ export const LOADING_FEEDBACK_OPERATIONS = Object.freeze({
   'junfeng.preview': operation('game', '正在准备君锋镇检测预览', 20, { model: '正在加载君锋镇识别模型' }),
   'junfeng.start': operation('game', '正在准备君锋镇自动取件', 30, { model: '正在加载君锋镇识别模型' }),
   'batch-inventory.scan': operation('game', '正在准备背包批量扫描', 30, { model: '正在加载背包识别模型' }),
-  'faustus.start': operation('game', '正在加载浮士德市集识别组件', 40),
+  'faustus.start': operation('game', '正在准备改价', 40, FAUSTUS_STAGE_LABELS),
   'puzzle.analysis': operation('game', '正在加载海图识别组件', 30),
   'puzzle.border': operation('game', '正在加载边缘词缀识别组件', 30)
 })

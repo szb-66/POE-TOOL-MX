@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { normalizeMapName } from '../../../shared/mapTrackerAreaCatalog.js'
 
 export const DEFAULT_MAP_TRACKER_SETTINGS = Object.freeze({
   schemaVersion: 1, enabled: false, paused: false,
@@ -27,7 +28,7 @@ export function createMapRun(input = {}) {
   const now = input.startedAt || new Date().toISOString()
   return {
     id: cleanText(input.id, 80) || randomUUID(), instanceKey: cleanText(input.instanceKey, 180), sessionKey: cleanText(input.sessionKey, 1000), areaId: cleanText(input.areaId, 160),
-    areaName: cleanText(input.areaName, 160), areaLevel: Number.isInteger(input.areaLevel) ? input.areaLevel : null,
+    areaName: normalizeMapName(input.areaId, cleanText(input.areaName, 160)), areaLevel: Number.isInteger(input.areaLevel) ? input.areaLevel : null,
     mapTier: Number.isInteger(input.mapTier) ? input.mapTier : null, startedAt: now, endedAt: input.endedAt || null,
     activeDurationMs: Math.max(0, Number(input.activeDurationMs) || 0),
     deaths: Math.max(0, Number(input.deaths) || 0), portalsUsed: Math.max(0, Number(input.portalsUsed) || 0),

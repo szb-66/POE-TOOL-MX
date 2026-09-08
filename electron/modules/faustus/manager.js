@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createFaustusRunSnapshot } from '../../../src/utils/faustusConfig.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
+import { FAUSTUS_STAGE_LABELS } from '../../../shared/faustusStages.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -107,9 +108,10 @@ export class FaustusManager {
     this.resolveDisplayBounds = resolveDisplayBounds
     this.feedbackSessionId = null
     this.preparationToken = null
+    this.startAttempt = null
     this.resolveScriptPath = scriptPath || (() => this.defaultScriptPath())
     this.processFactory = processFactory || (options => spawn(options.pythonPath, [options.scriptPath, ...options.args], {
-      shell: false, windowsHide: true, env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
+      shell: false, windowsHide: true, env: { ...process.env, FAUSTUS_TIMING: this.isPackaged ? '0' : process.env.FAUSTUS_TIMING, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
     }))
     this.child = null
     this.lockHeld = false
@@ -150,8 +152,9 @@ export class FaustusManager {
     }
   }
 
-  pythonPath() {
-    const found = this.python?.detectPythonPathWithModules?.([...REQUIRED_MODULES])
+  async pythonPath() {
+    const result = await this.python?.resolvePythonRuntimeAsync?.([...REQUIRED_MODULES])
+    const found = result?.ready && result.path
     if (!found) throw new Error('未找到具备 OCR 与输入依赖的 Python 运行时')
     return found
   }
@@ -169,9 +172,9 @@ export class FaustusManager {
     if (!state.gameForeground) throw new Error('游戏不在前台')
   }
 
-  ensureStaticReady(config) {
+  async ensureStaticReady(config) {
     this.assertGridCalibration(config?.gridCalibration)
-    const pythonPath = this.pythonPath()
+    const pythonPath = await this.pythonPath()
     const scriptPath = this.resolveScriptPath()
     return { pythonPath, scriptPath }
   }
@@ -186,8 +189,7 @@ export class FaustusManager {
     return configPath
   }
 
-  spawnMode(mode, config, onEvent) {
-    const runtime = this.ensureStaticReady(config)
+  spawnMode(mode, config, onEvent, runtime) {
     const configPath = this.writeConfig(config)
     const args = ['--mode', mode, '--config', configPath]
     const child = this.processFactory({ ...runtime, args, mode, configPath })
@@ -221,7 +223,7 @@ export class FaustusManager {
       if (!displayBounds) return null
       this.feedbackSessionId = this.feedbackOverlay?.showRunning?.({
         scope: 'faustus', displayBounds, stage: 'starting', current: 0, total: 0,
-        label, detail: '测试正在游戏内执行，请勿操作鼠标和键盘'
+        label, detail: '改价正在游戏内执行，请勿操作鼠标和键盘'
       }, { onVisible }) || null
     } catch {
       this.feedbackSessionId = null
@@ -253,22 +255,37 @@ export class FaustusManager {
   }
 
   async start(request) {
-    if (this.status.status === 'running' || this.child) throw new Error('浮士德市集改价正在运行')
+    if (this.startAttempt || this.status.status === 'running' || this.child) throw new Error('浮士德市集改价正在运行')
     const config = this.internalRuntimeConfig(createFaustusRunSnapshot(request?.config))
-    this.ensureStaticReady(config)
+    this.assertGridCalibration(config?.gridCalibration)
     this.acquireLock()
-    this.preparationToken = null
+    const attempt = {}
+    this.startAttempt = attempt
+    this.status = { status: 'preparing', stage: 'preparing', reasonCode: '', processed: 0, total: 0 }
     try {
-      const activation = await this.windowActivation?.activateGame({ source: 'faustus-start' })
-      if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
       this.preparationToken = this.loadingFeedback?.begin('faustus.start', { owner: OWNER }) || null
-      this.status = { status: 'running', reasonCode: '', processed: 0, total: 0 }
+      this.publishState()
+      const started = performance.now()
+      const runtime = await this.ensureStaticReady(config)
+      if (this.startAttempt !== attempt) return this.getStatus()
+      this.traceTiming('runtime_ready', started)
+      this.setStage('activating')
+      const activation = await this.windowActivation?.activateGame({ source: 'faustus-start' })
+      if (this.startAttempt !== attempt) return this.getStatus()
+      if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
+      this.status = { ...this.status, status: 'running', stage: 'loading' }
+      this.setStage('loading')
       this.beginFeedback(
         config.gridCalibration,
         '正在加载浮士德市集识别组件',
-        () => this.finishPreparation({ handoff: true })
+        () => {
+          if (this.startAttempt === attempt) {
+            this.traceTiming('startup_feedback_visible', started)
+            this.finishPreparation({ handoff: true })
+          }
+        }
       )
-      const child = this.spawnMode('run', config, event => this.handleEvent(child, event))
+      const child = this.spawnMode('run', config, event => this.handleEvent(child, event), runtime)
       this.child = child
       child.once?.('error', error => this.fail('process_error', error.message))
       child.once?.('close', code => {
@@ -279,13 +296,33 @@ export class FaustusManager {
       this.publishState()
       return this.getStatus()
     } catch (error) {
+      if (this.startAttempt !== attempt) return this.getStatus()
+      this.startAttempt = null
       this.finishPreparation()
       this.hideFeedback()
       this.removeConfig()
       this.releaseLock()
-      this.status = { ...this.status, status: 'stopped', reasonCode: 'start_failed' }
+      this.status = { ...this.status, status: 'stopped', stage: '', reasonCode: 'start_failed' }
+      this.publishState()
       throw error
     }
+  }
+
+  traceTiming(stage, started) {
+    if (!this.isPackaged && process.env.FAUSTUS_TIMING === '1') {
+      console.log('FAUSTUS_TIMING', JSON.stringify({ stage, ms: Math.round((performance.now() - started) * 100) / 100 }))
+    }
+  }
+
+  setStage(stage) {
+    if (!Object.hasOwn(FAUSTUS_STAGE_LABELS, stage)) return
+    this.status = { ...this.status, stage }
+    this.loadingFeedback?.update?.(this.preparationToken, { stage })
+    this.publishState()
+    if (this.feedbackSessionId) this.feedbackOverlay?.updateProgress?.(this.feedbackSessionId, {
+      stage: 'grid', current: this.status.processed, total: this.status.total,
+      label: FAUSTUS_STAGE_LABELS[stage]
+    })
   }
 
   startForegroundMonitor() {
@@ -307,6 +344,10 @@ export class FaustusManager {
     if (this.child !== child) return
     if (!this.feedbackSessionId) this.finishPreparation({ handoff: true })
     this.handleFeedbackEvent(event)
+    if (event.event === 'stage') {
+      this.setStage(event.stage)
+      return
+    }
     if (event.event === 'item') {
       this.publish({ type: 'item', item: sanitizeFaustusItemEvent(event) })
       return
@@ -315,6 +356,7 @@ export class FaustusManager {
       this.startForegroundMonitor()
       this.status = {
         ...this.status,
+        stage: 'scanning',
         processed: Math.max(0, Number(event.processed) || 0),
         total: Math.max(0, Number(event.total) || 0)
       }
@@ -337,6 +379,7 @@ export class FaustusManager {
   }
 
   finish(status, reasonCode) {
+    this.startAttempt = null
     this.finishPreparation()
     const child = this.child
     this.child = null
@@ -345,7 +388,7 @@ export class FaustusManager {
     this.releaseLock()
     this.removeConfig()
     this.hideFeedback()
-    this.status = { ...this.status, status, reasonCode: reasonCode === 'completed' ? 'completed' : reasonCode }
+    this.status = { ...this.status, status, stage: '', reasonCode: reasonCode === 'completed' ? 'completed' : reasonCode }
     this.publishState()
     void this.windowActivation?.activateMain({ source: 'faustus-finish' })
   }
@@ -367,8 +410,9 @@ export class FaustusManager {
   }
 
   stop(reason = 'user') {
+    this.startAttempt = null
     this.finishPreparation()
-    const wasRunning = Boolean(this.child) || this.status.status === 'running'
+    const wasRunning = Boolean(this.child) || ['running', 'preparing'].includes(this.status.status)
     const child = this.child
     this.child = null
     terminate(child)
@@ -376,7 +420,7 @@ export class FaustusManager {
     this.releaseLock()
     this.removeConfig()
     this.hideFeedback()
-    this.status = { ...this.status, status: 'stopped', reasonCode: reasonCode(reason, 'user') }
+    this.status = { ...this.status, status: 'stopped', stage: '', reasonCode: reasonCode(reason, 'user') }
     if (wasRunning) this.publishState()
     if (wasRunning) void this.windowActivation?.activateMain({ source: 'faustus-stop' })
     return this.getStatus()

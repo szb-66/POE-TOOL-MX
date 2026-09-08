@@ -555,7 +555,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
     const incomingSlots = normalizeSlots(response.slots, page)
     for (const slot of incomingSlots) {
       const probed = response.fragmentMods?.[`${page}:${slot.row}:${slot.column}`]
-      slot.mods = probed ? normalizeSlotMods(probed) : null
+      slot.mods = probed ? normalizeSlotMods(probed) : slot.mods
     }
     const otherPage = page === 1 ? 2 : 1
     if (inventoryPages.value[otherPage].recognized && slotSignature(incomingSlots) === slotSignature(inventoryPages.value[otherPage].slots)) {
@@ -605,7 +605,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
       const slots = normalizeSlots(pageResponse.slots, page)
       if (response.fragmentMods) {
         for (const slot of slots) {
-          slot.mods = normalizeSlotMods(response.fragmentMods[`${page}:${slot.row}:${slot.column}`])
+          slot.mods = normalizeSlotMods(response.fragmentMods[`${page}:${slot.row}:${slot.column}`]) || slot.mods
         }
       }
       return [page, {

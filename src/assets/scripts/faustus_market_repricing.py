@@ -407,7 +407,7 @@ def candidate_footprint_rectangles(target, footprint, resolved_slots):
     return rectangles
 
 
-def probe_item_identity(adapter, cell, probe_cache):
+def probe_item_identity(adapter, cell, probe_cache, text_cache=None):
     if cell in probe_cache:
         return probe_cache[cell]
     copied = adapter.copy_item_at(*cell)
@@ -416,17 +416,19 @@ def probe_item_identity(adapter, cell, probe_cache):
         copied = adapter.copy_item_at(*cell)
         identity = normalize_item_identity(copied)
     probe_cache[cell] = identity
+    if text_cache is not None and identity:
+        text_cache[cell] = copied
     return identity
 
 
-def resolve_probed_footprint_slots(adapter, target, footprint, resolved_slots, probe_cache, copied_text):
+def resolve_probed_footprint_slots(adapter, target, footprint, resolved_slots, probe_cache, copied_text, text_cache=None):
     identity = normalize_item_identity(copied_text)
     if not identity:
         return set()
     probe_cache[target] = identity
     matches = []
     for rectangle in candidate_footprint_rectangles(target, footprint, resolved_slots):
-        if all(probe_item_identity(adapter, cell, probe_cache) == identity for cell in rectangle):
+        if all(probe_item_identity(adapter, cell, probe_cache, text_cache) == identity for cell in rectangle):
             matches.append(rectangle)
     return matches[0] if len(matches) == 1 else set()
 
@@ -504,12 +506,11 @@ def build_price_plan(config, old_price, old_currency):
 
 
 def execute_price_transaction(adapter, plan):
-    if plan["newCurrency"] != plan["oldCurrency"]:
-        adapter.choose_currency(plan["newCurrency"])
-    adapter.double_click_price()
-    adapter.hotkey("ctrl", "a")
+    # read_full_price 已聚焦并全选；读取通货和计算计划不改变焦点。
     adapter.write_clipboard(str(plan["newPrice"]))
     adapter.hotkey("ctrl", "v")
+    if plan["newCurrency"] != plan["oldCurrency"]:
+        adapter.choose_currency(plan["newCurrency"])
     adapter.click_submit_once()
     return "repriced"
 
@@ -679,6 +680,15 @@ class GameAdapter:
         self.grid = _grid_region(config["gridCalibration"])
         self._price_context = None
         self._price_window_open_observation = None
+        self._price_layout = None
+        self._price_open_started = None
+
+    def trace_timing(self, stage, started, **metrics):
+        if os.environ.get("FAUSTUS_TIMING") == "1" and started is not None:
+            print("FAUSTUS_TIMING " + json.dumps({
+                "stage": stage, "ms": round((time.perf_counter() - started) * 1000, 2),
+                **metrics,
+            }), file=sys.stderr, flush=True)
 
     def sleep(self, seconds=0.08):
         time.sleep(seconds)
@@ -699,7 +709,11 @@ class GameAdapter:
         return self.cv2.cvtColor(pixels, self.cv2.COLOR_BGRA2BGR)
 
     def capture_ocr(self, region):
-        return ocr_image(self.capture(region), (region["left"], region["top"]))
+        started = time.perf_counter()
+        try:
+            return ocr_image(self.capture(region), (region["left"], region["top"]))
+        finally:
+            self.trace_timing("ocr", started, pixels=region["width"] * region["height"])
 
     def page_candidates(self):
         height = self.grid["height"]
@@ -809,13 +823,55 @@ class GameAdapter:
         height = max(1, rect["bottom"] - rect["top"])
         return self._bounded_region(rect, width * 0.75, height * 0.25)
 
+    def _layout_anchor_matches(self, current, previous, currency=False):
+        rect, old = _box_rect(current["box"]), _box_rect(previous["box"])
+        height = max(1, old["bottom"] - old["top"])
+        tolerance = max(2, height * 0.20)
+        edges = ("left", "top", "bottom") if currency else ("left", "top", "right", "bottom")
+        return all(abs(rect[edge] - old[edge]) <= tolerance for edge in edges)
+
+    def _local_price_context(self, layout):
+        rect = _box_rect(layout["title"]["box"])
+        height = max(1, rect["bottom"] - rect["top"])
+        region = self._bounded_region(rect, height * 1.75, height * 0.80,
+                                      rect["bottom"] + height * 0.80)
+        title = _unique_exact(self.capture_ocr(region), "设置物品价格", "price_window_anchor_missing", 0.75)
+        if not self._layout_anchor_matches(title, layout["title"]):
+            raise ItemSkip("price_window_layout_changed")
+        candidates = self.capture_ocr(self._currency_region(layout))
+        currency = select_unique_currency(candidates)
+        candidate = _unique_exact(candidates, CURRENCY_NAME[currency], "currency_ocr_uncertain")
+        if not self._layout_anchor_matches(candidate, layout["currency"], currency=True):
+            raise ItemSkip("price_window_layout_changed")
+        return {"title": title, "currency": candidate, "currencyCode": currency,
+                "submit": layout["submit"], "candidates": [title, candidate, layout["submit"]]}
+
     def price_context(self):
         if self._price_context is not None:
             return self._price_context
-        candidates = self.capture_ocr(self._popup_region())
-        context = self._price_context_from_candidates(candidates)
+        started = time.perf_counter()
+        popup = self._popup_region()
+        context = None
+        recognition_path = "local"
+        layout = self._price_layout
+        if layout is not None and layout["popup"] == popup:
+            try:
+                context = self._local_price_context(layout)
+            except ItemSkip:
+                self._price_layout = None
+        if context is None:
+            recognition_path = "full"
+            self._price_layout = None
+            candidates = self.capture_ocr(popup)
+            context = self._price_context_from_candidates(candidates)
+            # 独立拷贝几何，不把当前通货代码或物品状态带到下一件。
+            self._price_layout = {key: {"box": [list(point) for point in context[key]["box"]]}
+                                  for key in ("title", "currency", "submit")}
+            self._price_layout["submit"].update(text="上架物品", score=context["submit"]["score"])
+            self._price_layout["popup"] = dict(popup)
         self._price_context = context
         self._price_window_open_observation = True
+        self.trace_timing("price_context", started, recognition=recognition_path)
         return context
 
     def price_window_open(self):
@@ -858,6 +914,8 @@ class GameAdapter:
     def click(self, point, button=None, count=1):
         require_game_foreground()
         self.move(point)
+        if button == self.Button.right:
+            self._price_open_started = time.perf_counter()
         self.mouse.click(button or self.Button.left, count)
         self.sleep(0.10)
 
@@ -881,6 +939,8 @@ class GameAdapter:
                 except Exception:
                     pass
         self.sleep(0.08)
+        if keys == ("ctrl", "v"):
+            self.trace_timing("right_click_to_price_written", self._price_open_started)
 
     def read_clipboard(self):
         self.sleep(0.05)
@@ -1007,7 +1067,10 @@ class GameAdapter:
         self.price_context()
 
     def submission_result(self):
+        started = time.perf_counter()
         candidates = self.capture_ocr(self._popup_region())
+        self.trace_timing("submission_ocr", started)
+        self.trace_timing("open_to_submission_result", self._price_open_started)
         warning_words = ("冷却", "频繁", "警告", "错误", "无法")
         has_warning = any(any(word in normalize_text(candidate.get("text")) for word in warning_words)
                           and float(candidate.get("score", 0)) >= 0.70 for candidate in candidates)
@@ -1067,23 +1130,39 @@ def _item_event(item_name, grid, reason_code, plan=None, old_price=None, old_cur
     )
 
 
-def run_repricing(config, adapter):
+def trace_run_timing(stage, started, **metrics):
+    if os.environ.get("FAUSTUS_TIMING") == "1" and started is not None:
+        print("FAUSTUS_TIMING " + json.dumps({
+            "stage": stage, "ms": round((time.perf_counter() - started) * 1000, 2),
+            **metrics,
+        }), file=sys.stderr, flush=True)
+
+
+def run_repricing(config, adapter, preflight_done=False):
     validate_pricing_config(config)
+    emit("stage", stage="scanning")
+    scan_started = time.perf_counter()
     cells = (adapter.candidate_cells() if hasattr(adapter, "candidate_cells")
              else [(column, row) for row in range(GRID_ROWS) for column in range(GRID_COLUMNS)])
     cells = sorted(cells, key=lambda cell: (cell[1], cell[0]))
+    trace_run_timing("occupancy_scan", scan_started)
     resolved_slots = set()
     attempted_slots = set()
     probe_cache = {}
+    text_cache = {}
+    previous_submit_started = None
     item_footprints = config.get("item_footprints", {})
     total = len(cells)
     processed = 0
     for column, row in cells:
-        if processed % GRID_COLUMNS == 0:
+        if processed % GRID_COLUMNS == 0 and (processed > 0 or not preflight_done):
+            emit("stage", stage="preflight")
+            started = time.perf_counter()
             require_game_foreground()
             adapter.clear_grid_hover()
             adapter.validate_page()
             adapter.validate_grid_structure()
+            trace_run_timing("page_recheck", started)
         require_game_foreground()
         processed += 1
         grid_label = f"{column + 1},{row + 1}"
@@ -1091,7 +1170,10 @@ def run_repricing(config, adapter):
         if candidate_key in resolved_slots or candidate_key in attempted_slots:
             emit("progress", processed=processed, total=total)
             continue
-        copied = adapter.copy_item_at(column, row)
+        emit("stage", stage="probing")
+        probe_started = time.perf_counter()
+        cached = candidate_key in text_cache
+        copied = text_cache.get(candidate_key) or adapter.copy_item_at(column, row)
         if not copied:
             attempted_slots.add(candidate_key)
             emit("progress", processed=processed, total=total)
@@ -1105,7 +1187,8 @@ def run_repricing(config, adapter):
             emit("progress", processed=processed, total=total)
             continue
         footprint_slots = resolve_probed_footprint_slots(
-            adapter, candidate_key, footprint, resolved_slots, probe_cache, copied)
+            adapter, candidate_key, footprint, resolved_slots, probe_cache, copied, text_cache)
+        trace_run_timing("footprint_probe", probe_started, cached=cached)
         if not footprint_slots:
             attempted_slots.add(candidate_key)
             _item_event(item_name, grid_label, "item_footprint_ambiguous")
@@ -1117,13 +1200,22 @@ def run_repricing(config, adapter):
         plan = None
         window_opened = False
         try:
+            emit("stage", stage="opening")
+            open_started = time.perf_counter()
             adapter.open_price_at(column, row)
+            trace_run_timing("open_price_window", open_started)
+            trace_run_timing("submit_to_next_window", previous_submit_started)
+            previous_submit_started = None
             window_opened = True
+            emit("stage", stage="pricing")
             old_price = read_full_price(adapter)
             old_currency = adapter.recognize_current_currency()
             plan = build_price_plan(config, old_price, old_currency)
             execute_price_transaction(adapter, plan)
+            emit("stage", stage="submitting")
+            previous_submit_started = time.perf_counter()
             result = adapter.submission_result()
+            trace_run_timing("submission_check", previous_submit_started)
             if result != "repriced":
                 if adapter.price_window_open():
                     safe_close_price_window(adapter)
@@ -1164,13 +1256,19 @@ def main(argv=None):
     previous_clipboard = None
     try:
         config = load_config(args.config)
+        emit("stage", stage="loading")
+        started = time.perf_counter()
         adapter = GameAdapter(config)
+        trace_run_timing("adapter_load", started)
         previous_clipboard = adapter.read_clipboard()
+        emit("stage", stage="preflight")
+        started = time.perf_counter()
         perform_readonly_preflight(config, adapter)
+        trace_run_timing("initial_preflight", started)
         if args.mode == "preflight":
             emit("preflight-ok")
         else:
-            run_repricing(config, adapter)
+            run_repricing(config, adapter, preflight_done=True)
         return 0
     except PageAbort as exc:
         emit("aborted", reasonCode=exc.reason_code)

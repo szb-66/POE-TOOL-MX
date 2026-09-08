@@ -26,7 +26,7 @@ export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfe
     { id: 'batch-inventory-scan', label: '批量背包扫描', stop: stopBatchInventoryScan },
     managerAction('stash-pickup', '仓库取件', stashPickup),
     managerAction('junfeng', '君锋镇取件', junfeng),
-    managerAction('faustus', '浮士德市集改价', faustus),
+    managerAction('faustus', '浮士德市集改价', faustus, ['preparing', 'running']),
     managerAction('chaos-recipe', '混沌配方取件', chaosRecipe?.automation, ['running', 'paused']),
     { id: 'potion', label: '自动喝药', stop: stopPotionAutomation },
     { id: 'combat-loop', label: '主动循环', stop: stopLoopAutomation },

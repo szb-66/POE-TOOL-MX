@@ -1,0 +1,371 @@
+{
+  "source": "https://poedb.tw/cn/Atlas_of_Worlds",
+  "checkedAt": "2026-09-08",
+  "page": {
+    "Mausoleum": "王陵",
+    "TropicalIsland": "晴空幽岛",
+    "IvoryTemple": "白玉神庙",
+    "Excavation": "挖掘场",
+    "Springs": "孢子空谷",
+    "Caldera": "寂灵之渊",
+    "TortureChamber": "远古街区",
+    "CoralRuins": "珊瑚遗迹",
+    "Desert": "贫瘠之地",
+    "Iceberg": "极寒冰原",
+    "Factory": "工厂遗迹",
+    "Cage": "恶念牢笼",
+    "Bazaar": "远古市集",
+    "Graveyard": "堕影墓场",
+    "InfestedValley": "疫源林谷",
+    "Belfry": "钟楼",
+    "Courthouse": "失序教院",
+    "Terrace": "海滨台地",
+    "Reef": "危机海礁",
+    "Temple": "夺魂之殿",
+    "Colonnade": "激战柱廊",
+    "Cells": "幽魂监牢",
+    "DesertSpring": "荒漠绿洲",
+    "Park": "寂夜林苑",
+    "RelicChambers": "古藏密室",
+    "Silo": "圆形秘窖",
+    "Museum": "古博物馆",
+    "Channel": "秘密通道",
+    "Arsenal": "古兵工厂",
+    "Waterways": "危机水道",
+    "AridLake": "荒芜湖域",
+    "SpiderLair": "巨蛛巢穴",
+    "Laboratory": "实验密室",
+    "Conservatory": "古塔内堂",
+    "Ghetto": "赤贫居所",
+    "HauntedMansion": "幽魂宅邸",
+    "DarkForest": "夜语幽林",
+    "Plateau": "海风高原",
+    "GraveTrough": "荒坟凹地",
+    "Lookout": "危墙之地",
+    "ArachnidNest": "异蛛巢穴",
+    "Gardens": "花园迷宫",
+    "BurialChambers": "幽闭墓领",
+    "Geode": "水晶洞穴",
+    "Promenade": "月色回廊",
+    "Summit": "寒顶之巅",
+    "PrimordialPool": "起源之池",
+    "SulphurVents": "硫磺蚀岸",
+    "ColdRiver_": "寒霜之河",
+    "ToxicSewer": "剧毒水道",
+    "Colosseum": "大决斗场",
+    "ForkingRiver": "分叉之河",
+    "CrystalOre": "冰冷通道",
+    "FrozenCabins": "冻结之舱",
+    "Core": "核心",
+    "OvergrownShrine": "密草神殿",
+    "Vault": "机关宝库",
+    "Ramparts": "奇迹之墙",
+    "FloodedMine": "积水矿坑",
+    "CitySquare": "城中广场",
+    "Dunes": "暮色沙丘",
+    "LavaLake": "熔岩之湖",
+    "VaalPyramid": "瓦尔金字塔",
+    "BrambleValley": "黑棘谷地",
+    "ForbiddenWoods": "禁断之林",
+    "Shipyard": "炽炎船坞",
+    "Mesa": "赤红山地",
+    "Alleyways": "危城巷弄",
+    "Atoll": "滨海山丘",
+    "Foundry": "锻晶车间",
+    "Tribunal": "陨坑",
+    "Cemetery": "晨曦墓地",
+    "Lair": "巢穴",
+    "JungleValley": "剧毒林谷",
+    "ArachnidTomb": "灵虫墓穴",
+    "Palace": "神域之殿",
+    "Siege": "围城",
+    "Stagnation": "停滞区",
+    "Orchard": "密林果园",
+    "Grotto": "幽暗地穴",
+    "Fields": "无边原野",
+    "SunkenCity": "沉沦之城",
+    "Marshes": "绝望沼泽",
+    "Residence": "神主居所",
+    "Port": "中转码头",
+    "Arcade": "崩坏长廊",
+    "Strand": "致命岩滩",
+    "Malformation": "畸形亡域",
+    "Pier": "怒浪之港",
+    "Tower": "高塔",
+    "Basilica": "神圣大教堂",
+    "Plaza": "广场",
+    "Estuary": "赤寒河岸",
+    "Pit": "巨坑",
+    "MineralPools": "废弃矿山",
+    "Chateau": "古堡",
+    "Beach": "危岩海滩",
+    "Phantasmagoria": "魔灵幻狱",
+    "Chimera": "奇美拉领域",
+    "Hydra": "九头蛇巢穴",
+    "Minotaur": "牛头人迷宫",
+    "Phoenix": "不死鸟锻台",
+    "VaalTemple": "瓦尔密殿",
+    "Sanctuary": "没落圣所",
+    "Citadel": "幽闭城塞",
+    "Fortress": "上古堡垒",
+    "Abomination": "憎恨之地",
+    "Ziggurat": "灵祭塔庙",
+    "StrandUnique": "禁闭祭坛",
+    "AtollUnique": "混沌之渊",
+    "CemeteryUnique": "魔诅之域",
+    "DunesUnique": "阿尔伦神柱",
+    "BoneCryptUnique": "远古之印",
+    "UndergroundRiverUnique": "塞尔.布雷德狼穴",
+    "VaalPyramidUnique": "阿兹里的秘宝库",
+    "CourtyardUnique": "维克塔广场",
+    "ShoreUnique": "贼窝",
+    "MoonTempleUnique": "暮光古庙",
+    "TempleUnique": "沉沦之间",
+    "MuseumUnique": "幽秘博物馆",
+    "CursedCryptUnique": "懦者的试验",
+    "PromenadeUnique": "元帅殿堂",
+    "OvergrownShrineUnique": "轮回的梦魇",
+    "TortureChamberUnique": "欧霸的咒怨宝库",
+    "NecropolisUnique": "亡者之财"
+  },
+  "changes": [
+    {
+      "areaId": "MapWorldsBeach",
+      "oldName": "沙滩",
+      "name": "危岩海滩"
+    },
+    {
+      "areaId": "MapWorldsStrand",
+      "oldName": "滨海山丘",
+      "name": "致命岩滩"
+    },
+    {
+      "areaId": "MapWorldsDesert",
+      "oldName": "荒漠",
+      "name": "贫瘠之地"
+    },
+    {
+      "areaId": "MapWorldsJungleValley",
+      "oldName": "丛林山谷",
+      "name": "剧毒林谷"
+    },
+    {
+      "areaId": "MapWorldsTropicalIsland",
+      "oldName": "热带岛屿",
+      "name": "晴空幽岛"
+    },
+    {
+      "areaId": "MapWorldsAtoll",
+      "oldName": "环礁",
+      "name": "滨海山丘"
+    },
+    {
+      "areaId": "MapWorldsMesa",
+      "oldName": "平顶荒漠",
+      "name": "赤红山地"
+    },
+    {
+      "areaId": "MapWorldsCitySquare",
+      "oldName": "危城广场",
+      "name": "城中广场"
+    },
+    {
+      "areaId": "MapWorldsPlateau",
+      "oldName": "高原",
+      "name": "海风高原"
+    },
+    {
+      "areaId": "MapWorldsFrozenCabins",
+      "oldName": "冰封小屋",
+      "name": "冻结之舱"
+    },
+    {
+      "areaId": "MapWorldsPark",
+      "oldName": "园林",
+      "name": "寂夜林苑"
+    },
+    {
+      "areaId": "MapWorldsGardens",
+      "oldName": "花园",
+      "name": "花园迷宫"
+    },
+    {
+      "areaId": "MapWorldsPromenade",
+      "oldName": "长廊",
+      "name": "月色回廊"
+    },
+    {
+      "areaId": "MapWorldsColonnade",
+      "oldName": "柱廊",
+      "name": "激战柱廊"
+    },
+    {
+      "areaId": "MapWorldsArcade",
+      "oldName": "拱廊",
+      "name": "崩坏长廊"
+    },
+    {
+      "areaId": "MapWorldsArsenal",
+      "oldName": "军械库",
+      "name": "古兵工厂"
+    },
+    {
+      "areaId": "MapWorldsCells",
+      "oldName": "禁魂炎狱",
+      "name": "幽魂监牢"
+    },
+    {
+      "areaId": "MapWorldsGraveyard",
+      "oldName": "墓园",
+      "name": "堕影墓场"
+    },
+    {
+      "areaId": "MapWorldsSpiderLair",
+      "oldName": "蜘蛛巢穴",
+      "name": "巨蛛巢穴"
+    },
+    {
+      "areaId": "MapWorldsArachnidNest",
+      "oldName": "蛛网巢穴",
+      "name": "异蛛巢穴"
+    },
+    {
+      "areaId": "MapWorldsArachnidTomb",
+      "oldName": "蛛网墓穴",
+      "name": "灵虫墓穴"
+    },
+    {
+      "areaId": "MapWorldsOrchard",
+      "oldName": "果园",
+      "name": "密林果园"
+    },
+    {
+      "areaId": "MapWorldsTerrace",
+      "oldName": "露台",
+      "name": "海滨台地"
+    },
+    {
+      "areaId": "MapWorldsResidence",
+      "oldName": "宅邸",
+      "name": "神主居所"
+    },
+    {
+      "areaId": "MapWorldsPier",
+      "oldName": "码头",
+      "name": "怒浪之港"
+    },
+    {
+      "areaId": "MapWorldsPort",
+      "oldName": "港口",
+      "name": "中转码头"
+    },
+    {
+      "areaId": "MapWorldsShipyard",
+      "oldName": "造船厂",
+      "name": "炽炎船坞"
+    },
+    {
+      "areaId": "MapWorldsReef",
+      "oldName": "珊瑚遗迹",
+      "name": "危机海礁"
+    },
+    {
+      "areaId": "MapWorldsGrotto",
+      "oldName": "岩洞",
+      "name": "幽暗地穴"
+    },
+    {
+      "areaId": "MapWorldsWaterways",
+      "oldName": "水道",
+      "name": "危机水道"
+    },
+    {
+      "areaId": "MapWorldsMarshes",
+      "oldName": "湿地",
+      "name": "绝望沼泽"
+    },
+    {
+      "areaId": "MapWorldsEstuary",
+      "oldName": "河口",
+      "name": "赤寒河岸"
+    },
+    {
+      "areaId": "MapWorldsSilo",
+      "oldName": "筒仓",
+      "name": "圆形秘窖"
+    },
+    {
+      "areaId": "MapWorldsFactory",
+      "oldName": "工厂",
+      "name": "工厂遗迹"
+    },
+    {
+      "areaId": "MapWorldsFoundry",
+      "oldName": "铸造厂",
+      "name": "锻晶车间"
+    },
+    {
+      "areaId": "MapWorldsLaboratory",
+      "oldName": "实验室",
+      "name": "实验密室"
+    },
+    {
+      "areaId": "MapWorldsLavaLake",
+      "oldName": "熔岩湖",
+      "name": "熔岩之湖"
+    },
+    {
+      "areaId": "MapWorldsCaldera",
+      "oldName": "火山口",
+      "name": "寂灵之渊"
+    },
+    {
+      "areaId": "MapWorldsSummit",
+      "oldName": "山顶",
+      "name": "寒顶之巅"
+    },
+    {
+      "areaId": "MapWorldsVaalTemple",
+      "oldName": "瓦尔神殿",
+      "name": "瓦尔密殿"
+    },
+    {
+      "areaId": "MapWorldsMuseum",
+      "oldName": "博物馆",
+      "name": "古博物馆"
+    },
+    {
+      "areaId": "MapWorldsGraveTrough",
+      "oldName": "墓穴地沟",
+      "name": "荒坟凹地"
+    }
+  ],
+  "unlisted": [
+    "Island",
+    "Canyon",
+    "CrimsonTemple",
+    "DefiledCathedral",
+    "UndergroundSea",
+    "UndergroundRiver",
+    "DriedLake",
+    "Glacier",
+    "City",
+    "Courtyard",
+    "Armoury",
+    "Dungeon",
+    "Crypt",
+    "Catacombs",
+    "SpiderForest",
+    "AshenWood",
+    "Woods",
+    "Villa",
+    "Lighthouse",
+    "Shore",
+    "Wharf",
+    "WastePool",
+    "Sewer",
+    "Volcano",
+    "Coves",
+    "Bog"
+  ]
+}

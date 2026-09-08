@@ -50,11 +50,11 @@
 - **THEN** 浮窗位置更新并持久化，游戏继续保持前台
 
 ### Requirement: 共享检测不采集后台窗口
-共享界面检测 MUST 在确认游戏位于前台后才截图和匹配，后台期间 SHALL 保持进程和消费者注册但发布 `ready=false`。
+共享界面检测 MUST 遵循 [统一前台策略](../game-foreground-runtime-policy/spec.md)的持续检测规则；后台期间 SHALL 保留消费者注册并向全部消费者发布 `ready=false`，恢复前台后 MUST 重新积累稳定命中。
 
 #### Scenario: 共享检测进入后台
 - **WHEN** 任一消费者使用共享检测且游戏进入后台
-- **THEN** 系统不调用界面截图或匹配并向全部消费者发布未就绪状态
+- **THEN** 系统保留全部消费者注册，并向它们广播 `ready=false`
 
 #### Scenario: 共享检测返回前台
 - **WHEN** 游戏重新位于前台

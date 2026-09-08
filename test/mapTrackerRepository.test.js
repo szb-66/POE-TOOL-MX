@@ -63,7 +63,7 @@ test('仓储保存设置、活动草稿和月度记录', async () => {
   const active = run(); await repository.saveActiveRun(active); assert.equal((await repository.getActiveRun()).id, active.id)
   await repository.clearActiveRun(); assert.equal(await repository.getActiveRun(), null)
   await repository.saveRun(active); const result = await repository.query()
-  assert.equal(result.total, 1); assert.equal(result.items[0].areaName, '墓地')
+  assert.equal(result.total, 1); assert.equal(result.items[0].areaName, '晨曦墓地')
 })
 
 test('查询支持筛选分页、编辑允许字段和删除', async () => {
@@ -72,7 +72,7 @@ test('查询支持筛选分页、编辑允许字段和删除', async () => {
   await repository.saveRun(first); await repository.saveRun(second)
   const page = await repository.query({ map: '墓', pageSize: 1 }); assert.equal(page.total, 1)
   const edited = await repository.editRun(first.id, { areaName: '新名称', deaths: 99 })
-  assert.equal(edited.areaName, '新名称'); assert.equal(edited.deaths, 0); assert.equal('deviceInputs' in edited, false)
+  assert.equal(edited.areaName, '晨曦墓地'); assert.equal(edited.deaths, 0); assert.equal('deviceInputs' in edited, false)
   await repository.deleteRun(second.id); assert.equal((await repository.query()).total, 1)
 })
 
@@ -86,7 +86,7 @@ test('损坏分片只读隔离且不影响其他月份', async () => {
 
 test('CSV 使用 BOM、稳定列和标准转义', () => {
   assert.equal(csvEscape('a,"b"'), '"a,""b"""')
-  const csv = runsToCsv([run({ areaName: '第一行\n第二行' })])
+  const csv = runsToCsv([run({ areaId: 'MapWorldsUnknown', areaName: '第一行\n第二行' })])
   assert.equal(csv.charCodeAt(0), 0xFEFF); assert.match(csv, /startedAt,endedAt,areaName/); assert.match(csv, /"第一行\n第二行"/)
   assert.doesNotMatch(csv, /mapModifiers|notes|mechanics|deviceInputs/)
 })

@@ -5,6 +5,7 @@ import json
 import pathlib
 import types
 import unittest
+from unittest.mock import patch
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -185,6 +186,8 @@ class FaustusAutomationTests(unittest.TestCase):
         adapter.keyboard = types.SimpleNamespace(press=lambda key: None, release=lambda key: None)
         adapter._price_context = None
         adapter._price_window_open_observation = None
+        adapter._price_layout = None
+        adapter._price_open_started = None
         adapter.ocr_count = 0
         adapter.actions = []
         batches = iter(ocr_batches)
@@ -232,6 +235,52 @@ class FaustusAutomationTests(unittest.TestCase):
                 "categories": {},
             },
         }
+
+    def test_probe_text_reused_by_next_candidate_but_not_next_run(self):
+        neighbor = "物品类别: 通货\n稀有度: 通货\n混沌石\n--------"
+        config = self.repricing_config(width=2, height=1)
+        config["item_footprints"]["items"]["*\x1f混沌石"] = {"width": 1, "height": 1}
+        adapter = ProbeGridRunAdapter([(0, 0), (1, 0)], {
+            (0, 0): GridRunAdapter.ITEM_TEXT, (1, 0): neighbor,
+        })
+        with patch.object(self.mod, "require_game_foreground", lambda: None), contextlib.redirect_stdout(io.StringIO()):
+            self.mod.run_repricing(config, adapter, preflight_done=True)
+            self.assertEqual(adapter.actions.count("copy:1,0"), 1)
+            self.assertEqual(adapter.actions.count("open:1,0"), 1)
+            self.mod.run_repricing(config, adapter, preflight_done=True)
+        self.assertEqual(adapter.actions.count("copy:1,0"), 2)
+        self.assertEqual(adapter.actions.count("open:1,0"), 2)
+
+    def test_preflight_done_skips_first_check_but_retains_periodic_check(self):
+        adapter = GridRunAdapter([(column, 0) for column in range(12)] + [(0, 1)],
+                                 shared_item=False, mutate_text=False)
+        with patch.object(self.mod, "require_game_foreground", lambda: None), contextlib.redirect_stdout(io.StringIO()):
+            self.mod.run_repricing(self.repricing_config(width=1, height=1), adapter, preflight_done=True)
+        self.assertEqual(adapter.actions.count("validate_page"), 1)
+        self.assertEqual(adapter.actions.count("validate_grid"), 1)
+        self.assertEqual(adapter.actions.count("clear_grid_hover"), 1)
+        self.assertEqual(adapter.actions.count("click_submit"), 13)
+
+    def test_run_stages_and_opt_in_timing_preserve_submission_checks(self):
+        output, timing = io.StringIO(), io.StringIO()
+        adapter = GridRunAdapter([(0, 0), (1, 0)], shared_item=False, mutate_text=False)
+        with patch.object(self.mod, "require_game_foreground", lambda: None), \
+                patch.dict(self.mod.os.environ, {"FAUSTUS_TIMING": "1"}), \
+                contextlib.redirect_stdout(output), contextlib.redirect_stderr(timing):
+            self.mod.run_repricing(self.repricing_config(width=1, height=1), adapter, preflight_done=True)
+        events = [json.loads(line[6:]) for line in output.getvalue().splitlines() if line.startswith("EVENT ")]
+        stages = [event["stage"] for event in events if event["event"] == "stage"]
+        self.assertEqual(stages, ["scanning"] + ["probing", "opening", "pricing", "submitting"] * 2)
+        measurements = [json.loads(line[len("FAUSTUS_TIMING "):]) for line in timing.getvalue().splitlines()]
+        self.assertTrue({"occupancy_scan", "footprint_probe", "open_price_window", "submission_check", "submit_to_next_window"}
+                        .issubset({entry["stage"] for entry in measurements}))
+        self.assertNotIn("术士长袍", timing.getvalue())
+        for measurement in measurements:
+            self.assertTrue(set(measurement).issubset({"stage", "ms", "cached"}))
+        silent = io.StringIO()
+        with patch.dict(self.mod.os.environ, {"FAUSTUS_TIMING": "0"}), contextlib.redirect_stderr(silent):
+            self.mod.trace_run_timing("probe", self.mod.time.perf_counter())
+        self.assertEqual(silent.getvalue(), "")
 
     @staticmethod
     def price_candidates(currency="混沌石"):
@@ -562,15 +611,17 @@ class FaustusAutomationTests(unittest.TestCase):
         self.assertIn("000", [item["text"] for item in truncated])
         self.assertEqual(self.mod.read_full_price(FakeAdapter(clipboard_values=["1000"])), 1000)
 
-    def test_currency_change_selects_currency_then_writes_price_and_submits_once(self):
-        adapter = FakeAdapter()
-        result = self.mod.execute_price_transaction(adapter, {"newPrice": 360, "newCurrency": "chaos", "oldCurrency": "divine"})
-        self.assertEqual(result, "repriced")
-        self.assertEqual(adapter.actions, [
-            "choose_currency:chaos",
-            "double_click_price", "hotkey:ctrl+a", "write_clipboard:360", "hotkey:ctrl+v",
-            "click_submit",
-        ])
+    def test_currency_change_writes_price_then_selects_currency_and_submits_once(self):
+        for old, new in (("divine", "chaos"), ("chaos", "divine")):
+            with self.subTest(old=old, new=new):
+                adapter = FakeAdapter()
+                result = self.mod.execute_price_transaction(adapter, {
+                    "newPrice": 360, "newCurrency": new, "oldCurrency": old})
+                self.assertEqual(result, "repriced")
+                self.assertEqual(adapter.actions, [
+                    "write_clipboard:360", "hotkey:ctrl+v",
+                    "choose_currency:" + new, "click_submit",
+                ])
 
     def test_same_currency_writes_price_and_submits_without_rechecking(self):
         adapter = FakeAdapter()
@@ -579,7 +630,7 @@ class FaustusAutomationTests(unittest.TestCase):
         })
         self.assertEqual(result, "repriced")
         self.assertEqual(adapter.actions, [
-            "double_click_price", "hotkey:ctrl+a", "write_clipboard:90", "hotkey:ctrl+v",
+            "write_clipboard:90", "hotkey:ctrl+v",
             "click_submit",
         ])
 
@@ -644,12 +695,13 @@ class FaustusAutomationTests(unittest.TestCase):
     def test_price_context_is_invalidated_between_items_and_after_close(self):
         adapter = self.make_counting_game_adapter([
             self.price_candidates("混沌石"),
-            self.price_candidates("混沌石"),
+            [self.price_candidates()[0]],
+            [self.price_candidates()[1]],
         ], [])
         adapter.open_price_at(0, 0)
         first_context = adapter._price_context
         adapter.open_price_at(1, 0)
-        self.assertEqual(adapter.ocr_count, 2)
+        self.assertEqual(adapter.ocr_count, 3)
         self.assertIsNot(adapter._price_context, first_context)
 
         closing = self.make_counting_game_adapter([
@@ -666,6 +718,111 @@ class FaustusAutomationTests(unittest.TestCase):
             self.assertFalse(closing._price_window_open_observation)
         finally:
             self.mod.require_game_foreground = original_gate
+
+    def test_layout_reuse_reads_each_items_currency_and_price_in_small_regions(self):
+        first, second = self.price_candidates(), self.price_candidates("神圣石")
+        adapter = self.make_counting_game_adapter([first, [], [second[0]], [second[1]]], ["1000", "2"])
+        adapter.open_price_at(0, 0)
+        self.assertEqual(self.mod.read_full_price(adapter), 1000)
+        self.assertEqual(adapter.recognize_current_currency(), "chaos")
+        self.mod.execute_price_transaction(adapter, {"oldCurrency": "chaos", "newCurrency": "chaos", "newPrice": 900})
+        self.assertEqual(adapter.submission_result(), "repriced")
+        layout = adapter._price_layout
+        adapter.open_price_at(1, 0)
+        self.assertEqual(self.mod.read_full_price(adapter), 2)
+        self.assertEqual(adapter.recognize_current_currency(), "divine")
+        self.assertIs(adapter._price_layout, layout)
+        self.assertNotIn("currencyCode", layout)
+        regions = [action[1] for action in adapter.actions if action[0] == "ocr"]
+        self.assertLess(sum(r["width"] * r["height"] for r in regions[-2:]), 800000 * 0.1)
+        fresh = self.make_counting_game_adapter([second], [])
+        fresh.open_price_at(0, 0)
+        self.assertEqual(fresh.actions[1], ("ocr", fresh._popup_region()))
+
+    def test_local_uncertainty_and_geometry_changes_fall_back_to_full_recognition(self):
+        first = self.price_candidates()
+        moved = self.price_candidates("神圣石")
+        for candidate in moved:
+            candidate["box"] = [[x + 15, y + 15] for x, y in candidate["box"]]
+        low = {**first[1], "score": 0.2}
+        cases = ([[]], [[moved[0]]], [[first[0]], []],
+                 [[first[0]], [low]], [[first[0]], [first[1], first[1]]],
+                 [[first[0]], [moved[1]]])
+        for local in cases:
+            with self.subTest(local=local):
+                adapter = self.make_counting_game_adapter([first, *local, moved], [])
+                adapter.open_price_at(0, 0)
+                old_layout = adapter._price_layout
+                adapter.open_price_at(1, 0)
+                self.assertEqual(adapter.recognize_current_currency(), "divine")
+                self.assertIsNot(adapter._price_layout, old_layout)
+                self.assertEqual(adapter._price_layout["title"]["box"], moved[0]["box"])
+                self.assertEqual(adapter.actions[-1], ("ocr", adapter._popup_region()))
+
+    def test_popup_bounds_change_bypasses_local_layout_and_failure_never_types(self):
+        adapter = self.make_counting_game_adapter([self.price_candidates(), []], [])
+        adapter.open_price_at(0, 0)
+        adapter._popup_region = lambda: {"left": 10, "top": 0, "width": 1000, "height": 800}
+        with self.assertRaises(self.mod.ItemSkip):
+            adapter.open_price_at(1, 0)
+        self.assertIsNone(adapter._price_context)
+        self.assertIsNone(adapter._price_layout)
+        self.assertFalse(any(action[0] in ("hotkey", "write") for action in adapter.actions))
+        self.assertEqual(adapter.ocr_count, 2)
+
+    def test_local_and_full_failure_clear_layout_without_price_input(self):
+        adapter = self.make_counting_game_adapter([self.price_candidates(), [], []], [])
+        adapter.open_price_at(0, 0)
+        with self.assertRaises(self.mod.ItemSkip):
+            adapter.open_price_at(1, 0)
+        self.assertIsNone(adapter._price_layout)
+        self.assertIsNone(adapter._price_context)
+        self.assertFalse(any(action[0] in ("hotkey", "write") for action in adapter.actions))
+
+    def test_direct_paste_replaces_selected_price_before_changing_currency(self):
+        class SelectedPriceAdapter(FakeAdapter):
+            def __init__(self, price):
+                super().__init__()
+                self.value, self.clipboard, self.selected = price, "", False
+
+            def hotkey(self, *keys):
+                super().hotkey(*keys)
+                if keys == ("ctrl", "a"):
+                    self.selected = True
+                elif keys == ("ctrl", "c"):
+                    self.clipboard = self.value if self.selected else ""
+                elif keys == ("ctrl", "v"):
+                    self.value = self.clipboard if self.selected else self.value + self.clipboard
+                    self.selected = False
+
+            def read_clipboard(self):
+                return self.clipboard
+
+            def write_clipboard(self, value):
+                self.clipboard = value
+
+        for old_price, new_price in (("1000", 9), ("2", 360), ("100", 90)):
+            for old, new in (("chaos", "chaos"), ("chaos", "divine"), ("divine", "chaos")):
+                with self.subTest(price=old_price, old=old, new=new):
+                    adapter = SelectedPriceAdapter(old_price)
+                    self.assertEqual(self.mod.read_full_price(adapter), int(old_price))
+                    self.mod.execute_price_transaction(adapter, {
+                        "oldCurrency": old, "newCurrency": new, "newPrice": new_price})
+                    self.assertEqual(adapter.value, str(new_price))
+                    self.assertEqual(adapter.actions.count("double_click_price"), 1)
+                    self.assertEqual(adapter.actions.count("hotkey:ctrl+a"), 1)
+                    self.assertEqual(adapter.actions.count("click_submit"), 1)
+
+    def test_timing_is_opt_in_and_contains_only_numeric_metrics(self):
+        adapter = self.make_counting_game_adapter([], [])
+        with patch.dict(self.mod.os.environ, {"FAUSTUS_TIMING": "0"}), contextlib.redirect_stderr(io.StringIO()) as output:
+            adapter.trace_timing("ocr", self.mod.time.perf_counter(), pixels=100)
+        self.assertEqual(output.getvalue(), "")
+        with patch.dict(self.mod.os.environ, {"FAUSTUS_TIMING": "1"}), contextlib.redirect_stderr(io.StringIO()) as output:
+            adapter.trace_timing("ocr", self.mod.time.perf_counter(), pixels=100)
+        data = json.loads(output.getvalue().removeprefix("FAUSTUS_TIMING "))
+        self.assertEqual(set(data), {"stage", "ms", "pixels"})
+        self.assertGreaterEqual(data["ms"], 0)
 
     def test_currency_dropdown_failure_never_submits(self):
         adapter = self.make_counting_game_adapter([

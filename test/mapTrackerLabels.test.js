@@ -7,7 +7,7 @@ import { parseClientLogLine } from '../electron/modules/clientEvents/parser.js'
 test('最近事件与刷图界面共用区域名称转换', () => {
   assert.equal(mapLabel('MapWorldsCemetery'), '晨曦墓地')
   assert.equal(mapLabel('Cemetery'), '晨曦墓地')
-  assert.equal(mapLabel('MapWorldsMuseum'), '博物馆')
+  assert.equal(mapLabel('MapWorldsMuseum'), '古博物馆')
   assert.equal(mapLabel('墓地'), '墓地')
   assert.equal(mapLabel(''), '')
   const settings = readFileSync(new URL('../src/domains/settings/SettingsView.vue', import.meta.url), 'utf8')
@@ -23,7 +23,7 @@ test('剧情城镇卡鲁海滩显示中文且不推算地图阶级', () => {
 })
 
 test('扩展地图名称目录并保留异界地图阶级', () => {
-  assert.equal(mapLabel('MapWorldsBeach'), '沙滩')
+  assert.equal(mapLabel('MapWorldsBeach'), '危岩海滩')
   assert.equal(mapLabel('MapWorldsCrimsonTemple'), '玫红神殿')
   assert.equal(parseClientLogLine('2026/09/07 10:00:00 [INFO Client 1] Generating level 69 area "MapWorldsBeach"').mapTier, 2)
 })

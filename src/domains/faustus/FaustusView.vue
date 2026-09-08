@@ -143,6 +143,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Plus, Rank } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useFaustusStore } from './faustusStore.js'
+import { FAUSTUS_STAGE_LABELS } from '../../../shared/faustusStages.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore.js'
 import {
   FAUSTUS_CURRENCY_LABELS,
@@ -154,7 +155,7 @@ const store = useFaustusStore()
 const settingsStore = useSettingsStore()
 const draggedBandId = ref('')
 const currencyOptions = Object.entries(FAUSTUS_CURRENCY_LABELS).map(([value, label]) => ({ value, label }))
-const statusLabel = computed(() => ({ idle: '空闲', running: '运行中', stopping: '停止中', stopped: '已停止', completed: '已完成', failed: '失败' }[store.state.status] || store.state.status))
+const statusLabel = computed(() => FAUSTUS_STAGE_LABELS[store.state.stage] || ({ idle: '空闲', preparing: '正在准备改价', running: '运行中', stopping: '停止中', stopped: '已停止', completed: '已完成', failed: '失败' }[store.state.status] || store.state.status))
 const validationSummary = computed(() => store.validation.errors
   .map(item => formatFaustusValidationError(item, store.config))
   .join('；'))

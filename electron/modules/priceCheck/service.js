@@ -438,7 +438,7 @@ export class PriceCheckService {
       void this.refreshDcRate()
       return structuredClone(this.latest)
     }
-    if (execute === false) {
+    if (execute === false || (currentModel.identityPrecision?.requiresConsent && !currentModel.identityPrecision.allowNameOnly)) {
       this.latest = {
         league,
         model: currentModel,

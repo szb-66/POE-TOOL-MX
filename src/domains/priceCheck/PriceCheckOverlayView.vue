@@ -99,6 +99,11 @@
         </button>
       </section>
 
+      <section v-if="state.model?.identityPrecision?.requiresConsent" class="panel identity-resolver">
+        <p>{{ state.model.identityPrecision.message }}</p>
+        <label><input v-model="state.model.identityPrecision.allowNameOnly" type="checkbox">仅按传奇名称查询（可能包含普通版本）</label>
+      </section>
+
       <template v-if="state.model && !filtersCollapsed">
         <section class="panel state-filter-panel">
           <button
@@ -213,13 +218,13 @@
           >
             <span class="stat-source" :class="statTypeClass(stat.type)">{{ typeLabel(stat.type) }}</span>
             <span class="tier" :class="{ known: stat.tier }">{{ stat.tier ? `T${stat.tier}` : '—' }}</span>
-            <span class="filter-name">
+            <span class="filter-name" :title="stat.sources?.map(source => source.text).join('\n')">
               {{ stat.text }}
               <small v-if="stat.tags?.length">{{ stat.tags.join('、') }}</small>
               <small v-if="stat.queryVariants?.length > 1" class="equivalence-hint">已合并多个官方同文案过滤项</small>
             </span>
-            <el-input-number :model-value="stat.min" class="number" size="small" :min="0" :controls="false" placeholder="最小" @update:model-value="setNumericField(stat, 'min', $event)" @click.stop @keydown.stop />
-            <el-input-number :model-value="stat.max" class="number" size="small" :min="0" :controls="false" placeholder="最大" @update:model-value="setNumericField(stat, 'max', $event)" @click.stop @keydown.stop />
+            <el-input-number v-if="!stat.id?.startsWith('pseudo.pseudo_logbook_')" :model-value="stat.min" class="number" size="small" :min="0" :controls="false" placeholder="最小" @update:model-value="setNumericField(stat, 'min', $event)" @click.stop @keydown.stop />
+            <el-input-number v-if="!stat.id?.startsWith('pseudo.pseudo_logbook_')" :model-value="stat.max" class="number" size="small" :min="0" :controls="false" placeholder="最大" @update:model-value="setNumericField(stat, 'max', $event)" @click.stop @keydown.stop />
           </div>
           <div v-for="unknown in state.model.unknownStats || []" :key="unknown.key || `${unknown.type}:${unknown.text}`" class="unknown-block">
             <div class="filter-row unknown">
@@ -242,7 +247,7 @@
       </template>
 
       <section class="action-row">
-        <button class="primary" :disabled="props.previewMode || busy || !state.model || state.status === 'identity-required'" :title="props.previewMode ? '预览模式不会发起查询' : '按当前条件搜索'" @click="rerun">搜索</button>
+        <button class="primary" :disabled="props.previewMode || busy || !state.model || state.status === 'identity-required' || (state.model?.identityPrecision?.requiresConsent && !state.model.identityPrecision.allowNameOnly)" :title="props.previewMode ? '预览模式不会发起查询' : '按当前条件搜索'" @click="rerun">搜索</button>
         <button class="secondary" @click="filtersCollapsed = !filtersCollapsed">{{ filtersCollapsed ? '展开过滤器' : '折叠过滤器' }}</button>
         <button class="secondary" :disabled="props.previewMode || state.status !== 'ready'" :title="props.previewMode ? '预览模式不会打开网页' : '打开官方网页市集'" @click="openOfficial">网页市集</button>
       </section>

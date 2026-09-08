@@ -498,7 +498,7 @@ test('碎片悬浮使用 Element Plus 浮层并覆盖缺失数据', () => {
   assert.match(view, /<el-tooltip[\s\S]*slotTooltipLines\(slot\)/)
   assert.doesNotMatch(view, /:title="slotTitle\(slot\)"/)
   assert.match(store, /rawText: typeof value\.rawText === 'string'/)
-  assert.match(service, /rawText: text \? text\.slice\(0, 600\) : ''/)
+  assert.match(service, /rawText: modText \? modText\.slice\(0, 600\) : ''/)
   assert.match(service, /fragmentMods\[cell\.key\] = unknownFragmentMod\(\)/)
 })
 

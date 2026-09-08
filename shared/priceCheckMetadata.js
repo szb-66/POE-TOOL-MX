@@ -84,7 +84,12 @@ const PRICE_CHECK_CATEGORY_ENTRIES = Object.freeze([
   [['圣甲虫'], 'map.scarab', '圣甲虫'],
   [['命运卡'], 'card', '命运卡'],
   [['通货'], 'currency', '通货'],
-  [['酊剂'], 'tincture', '酊剂']
+  [['酊剂'], 'tincture', '酊剂'],
+  [['先祖秘藏日志'], 'logbook', '先祖秘藏日志'],
+  [['赏金猎人装备'], 'heistequipment.heistweapon', '赏金猎人装备'],
+  [['赏金猎人工具'], 'heistequipment.heisttool', '赏金猎人工具'],
+  [['赏金猎人披风'], 'heistequipment.heistutility', '赏金猎人披风'],
+  [['赏金猎人胸针'], 'heistequipment.heistreward', '赏金猎人胸针']
 ])
 
 export const PRICE_CHECK_CATEGORIES = Object.freeze(Object.fromEntries(

@@ -30,7 +30,7 @@ export const useFaustusStore = defineStore('faustus', () => {
   let unsubscribe = null
 
   const validation = computed(() => validateFaustusConfig(config.value))
-  const running = computed(() => state.value.status === 'running' || state.value.status === 'stopping')
+  const running = computed(() => ['preparing', 'running', 'stopping'].includes(state.value.status))
 
   const bandReorder = createFaustusBandReorderTransaction({
     getBands: () => config.value.bands,
@@ -88,9 +88,13 @@ export const useFaustusStore = defineStore('faustus', () => {
     if (!snapshot.gridCalibration) throw Object.assign(new Error('请先校准市集网格'), { code: 'MISSING_GRID_CALIBRATION' })
     busy.value = true
     logs.value = []
+    state.value = { status: 'preparing', stage: 'preparing', reasonCode: '', processed: 0, total: 0 }
     try {
       state.value = unwrap(await electronApi.faustus.start({ config: snapshot }), '启动浮士德改价失败')
       return state.value
+    } catch (error) {
+      if (state.value.status === 'preparing') state.value = { ...state.value, status: 'failed', stage: '', reasonCode: 'start_failed' }
+      throw error
     } finally { busy.value = false }
   }
 

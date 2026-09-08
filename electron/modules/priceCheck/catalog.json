@@ -93516,7 +93516,8 @@
       },
       "availability": "both",
       "negatedMatchers": [
-        "减少 #% 工作速度"
+        "减少 #% 工作速度",
+        "任务速度减慢 #%"
       ],
       "local": false
     },
@@ -130426,7 +130427,9 @@
       "availability": "both",
       "negatedMatchers": [
         "减少 #% 盗贼的雇用费",
-        "#% reduced Hiring Fee"
+        "#% reduced Hiring Fee",
+        "招募费用减少 #%",
+        "赏金猎人招募费用降低 #%"
       ],
       "local": false,
       "refs": [
@@ -131223,7 +131226,8 @@
       "availability": "both",
       "negatedMatchers": [
         "劫盗时减少 #% 物品掉落稀有度",
-        "减少 #% 物品掉落稀有度"
+        "减少 #% 物品掉落稀有度",
+        "夺宝冒险中掉落的物品稀有度降低 #%"
       ],
       "local": false
     },
@@ -139722,7 +139726,8 @@
       },
       "availability": "both",
       "negatedMatchers": [
-        "劫盗时减少 #% 物品掉落数量"
+        "劫盗时减少 #% 物品掉落数量",
+        "夺宝冒险中掉落的物品数量降低 #%"
       ],
       "local": false
     },
@@ -141167,7 +141172,10 @@
         "explicit": "explicit.stat_3569230441"
       },
       "availability": "both",
-      "local": false
+      "local": false,
+      "negatedMatchers": [
+        "任务经验获取率降低 #%"
+      ]
     },
     {
       "key": "official-explicit-explicit-stat-1496370423",
@@ -223629,7 +223637,8 @@
       "availability": "both",
       "negatedMatchers": [
         "劫盗时减少 #% 物品掉落稀有度",
-        "减少 #% 物品掉落稀有度"
+        "减少 #% 物品掉落稀有度",
+        "夺宝冒险中掉落的物品稀有度降低 #%"
       ],
       "local": false
     },
@@ -273034,7 +273043,8 @@
       },
       "availability": "both",
       "negatedMatchers": [
-        "减少 #% 工作速度"
+        "减少 #% 工作速度",
+        "任务速度减慢 #%"
       ],
       "local": false
     },
@@ -275884,7 +275894,9 @@
       "availability": "both",
       "negatedMatchers": [
         "减少 #% 盗贼的雇用费",
-        "#% reduced Hiring Fee"
+        "#% reduced Hiring Fee",
+        "招募费用减少 #%",
+        "赏金猎人招募费用降低 #%"
       ],
       "local": false,
       "refs": [
@@ -282005,7 +282017,10 @@
         "fractured": "fractured.stat_3569230441"
       },
       "availability": "both",
-      "local": false
+      "local": false,
+      "negatedMatchers": [
+        "任务经验获取率降低 #%"
+      ]
     },
     {
       "key": "official-fractured-fractured-stat-2622946553",
@@ -284745,7 +284760,8 @@
       "availability": "both",
       "negatedMatchers": [
         "劫盗时减少 #% 物品掉落稀有度",
-        "减少 #% 物品掉落稀有度"
+        "减少 #% 物品掉落稀有度",
+        "夺宝冒险中掉落的物品稀有度降低 #%"
       ],
       "local": false
     },
@@ -286095,7 +286111,8 @@
       },
       "availability": "both",
       "negatedMatchers": [
-        "劫盗时减少 #% 物品掉落数量"
+        "劫盗时减少 #% 物品掉落数量",
+        "夺宝冒险中掉落的物品数量降低 #%"
       ],
       "local": false
     },

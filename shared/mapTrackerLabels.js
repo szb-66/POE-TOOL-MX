@@ -1,4 +1,4 @@
-import { classifyArea } from './mapTrackerAreaCatalog.js'
+import { classifyArea, normalizeMapName } from './mapTrackerAreaCatalog.js'
 
 const classes = Object.freeze({
   Marauder: '野蛮人', Ranger: '游侠', Witch: '女巫', Duelist: '决斗者',
@@ -19,7 +19,7 @@ export function classLabel(value) {
 export function mapLabel(value) {
   const name = String(value || '').trim()
   if (name === '监守高塔') return '狱卒之塔'
-  if (!name || /\p{Script=Han}/u.test(name)) return name
+  if (!name || /\p{Script=Han}/u.test(name)) return normalizeMapName('', name)
   const area = classifyArea(name)
   if (area.supported) return area.areaName
   return classifyArea(`MapWorlds${name.replace(/\s+/g, '')}`).areaName

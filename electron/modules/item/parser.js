@@ -1,4 +1,5 @@
 import { parseHeistMetadata } from './heist.js'
+import { parseLogbookMetadata } from './logbook.js'
 import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
 
 const CLASSIC_INFLUENCE_LABELS = Object.freeze(Object.fromEntries(
@@ -83,6 +84,7 @@ export function parseItemInfo(clipboardText) {
     .map(line => /^-{3,}$/.test(line) ? '--------' : line)
   const mercenaryVoucher = parseMercenaryVoucher(lines)
   const heist = parseHeistMetadata(lines)
+  const logbook = parseLogbookMetadata(lines)
   
   const itemInfo = {
     category: '',
@@ -92,6 +94,9 @@ export function parseItemInfo(clipboardText) {
     quality: 0,
     level: 0,
     gemLevel: 0,
+    gemVariant: false,
+    blightType: '',
+    logbookRegions: logbook?.regions || [],
     sockets: '',
     socketsCount: 0,
     socketsColors: {
@@ -215,6 +220,8 @@ export function parseItemInfo(clipboardText) {
   // 需要被过滤的常见描述性文本（出现在底部）
   const ignorePatterns = [
     '点击右键',
+    '只能给赏金猎人同伴装备',
+    '在您的藏身处里把它交给丹宁',
     '在私人地图装置',
     '放入一个物品',
     '出售获得通货',
@@ -289,6 +296,28 @@ export function parseItemInfo(clipboardText) {
 
     if (mercenaryVoucher?.consumedIndexes.has(i)) continue
     if (heist?.consumedIndexes.has(i)) { flushModifier(); continue }
+    if (logbook?.consumedIndexes.has(i)) { flushModifier(); continue }
+
+    // Gem body lines describe the skill, not equipment modifiers. Requirements
+    // have their own level and must never overwrite the gem's level.
+    if (itemInfo.category.includes('宝石') && !identityHeaderOpen) {
+      const previousSeparator = lines.lastIndexOf('--------', i - 1)
+      const section = lines.slice(previousSeparator + 1, i)
+      if (/^等级:\s*\d+/.test(line) && !section.some((text) => /^需求:/.test(text))) {
+        itemInfo.gemLevel ||= Number(line.match(/\d+/)[0])
+      }
+      if (/^(?:##\s*)?品质:/.test(line)) itemInfo.quality = Number(line.match(/\d+/)?.[0]) || 0
+      if (/^(?:##\s*)?改造$/.test(line)) itemInfo.gemVariant = true
+      if (line.includes('已腐化')) itemInfo.isCorrupted = true
+      if (!/^物品类别:|^稀\s*有\s*度:/.test(line)) continue
+    }
+
+    if (isMapCategory(itemInfo.category)) {
+      const region = line.match(/^(?:##\s*)?地图区域[：:]\s*(.+)$/)
+      if (region) { itemInfo.areaName = region[1].trim(); continue }
+      if (identityHeaderOpen && /^菌潮灭绝\s*地图/.test(line)) itemInfo.blightType = 'uberblighted'
+      else if (identityHeaderOpen && /^菌潮\s*地图/.test(line)) itemInfo.blightType = 'blighted'
+    }
 
     const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
     if (chartShapeMatch) {
@@ -543,9 +572,13 @@ export function parseItemInfo(clipboardText) {
       itemInfo.mapTier = extractMapTier(line)
     }
     else if (line.includes('(implicit)')) {
-      const mod = line.replace(/\s*\(implicit\)\s*$/, '').trim()
+      const mod = cleanModifierLine(line.replace(/\s*\(implicit\)\s*$/, ''))
       if (mod) {
         itemInfo.implicitMods.push(mod)
+        if (logbook) {
+          itemInfo.modifiers.push({ type: 'implicit', text: mod, lines: [mod], originalLines: [line],
+            sourceContext: logbook.modifierContexts.get(i) || '' })
+        }
       }
     }
     else if (line.includes('(crafted)')) {
@@ -590,6 +623,7 @@ export function parseItemInfo(clipboardText) {
       }
     }
     else if (line && line.length > 2) { // 稍微放宽长度限制，有些词缀可能很短
+      if (sawAffixHeader && /^##\s/.test(line)) continue
       // 详细邀请文本的词缀由属性头明确界定；段落外文字是背景描述。
       if (itemInfo.category === '裂隙之石' && sawAffixHeader) continue
       

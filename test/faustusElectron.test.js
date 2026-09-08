@@ -40,6 +40,125 @@ const createActivation = (overrides = {}) => ({
   ...overrides
 })
 
+const deferred = () => {
+  let resolve, reject
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej })
+  return { promise, resolve, reject }
+}
+
+function startupFixture(overrides = {}) {
+  const events = [], children = [], locks = [], feedback = []
+  const visible = []
+  const manager = new FaustusManager({
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
+    fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    fileSystem: { existsSync: () => true, mkdirSync() {}, writeFileSync() {}, rmSync() {} },
+    scriptPath: () => 'fixed-faustus.py',
+    windowActivation: createActivation(),
+    foregroundState: () => ({ available: true, gameForeground: true }),
+    automationLock: {
+      acquire: () => { locks.push('acquire'); return { success: true } },
+      release: () => locks.push('release')
+    },
+    getMainWindow: () => ({ isDestroyed: () => false, webContents: { send: (_channel, event) => events.push(event) } }),
+    processFactory: runtime => { const child = childProcess(); children.push({ child, runtime }); return child },
+    loadingFeedback: {
+      begin: () => { const token = `token-${feedback.length}`; feedback.push(['begin', token]); return token },
+      finish: token => feedback.push(['finish', token]),
+      handoff: token => feedback.push(['handoff', token]),
+      update() {}
+    },
+    resolveDisplayBounds: () => ({ x: 0, y: 0, width: 1920, height: 1080 }),
+    feedbackOverlay: {
+      showRunning: (_state, { onVisible }) => { visible.push(onVisible); return `session-${visible.length}` },
+      updateProgress: (_id, state) => feedback.push(['progress', state]),
+      hide() {}
+    },
+    ...overrides
+  })
+  return { manager, events, children, locks, feedback, visible }
+}
+
+test('慢依赖检测期间立即反馈、拒绝重入，停止后不启动旧任务', async () => {
+  const pending = deferred()
+  const f = startupFixture({ python: { resolvePythonRuntimeAsync: () => pending.promise } })
+  const start = f.manager.start({ config: validConfig() })
+  assert.equal(f.manager.getStatus().status, 'preparing')
+  assert.equal(f.events[0].state.stage, 'preparing')
+  assert.equal(f.feedback[0][0], 'begin')
+  await new Promise(resolve => setImmediate(resolve))
+  await assert.rejects(f.manager.start({ config: validConfig() }), /正在运行/)
+  assert.equal(f.children.length, 0)
+  f.manager.stop('shortcut')
+  pending.resolve({ ready: true, path: 'python.exe' })
+  assert.equal((await start).status, 'stopped')
+  assert.equal(f.children.length, 0)
+  assert.deepEqual(f.locks, ['acquire', 'release'])
+})
+
+test('旧准备请求迟到失败不清理新运行，运行时只解析一次', async () => {
+  const pending = deferred()
+  let calls = 0
+  const f = startupFixture({ python: {
+    resolvePythonRuntimeAsync: () => ++calls === 1 ? pending.promise : Promise.resolve({ ready: true, path: 'resolved.exe' })
+  } })
+  const old = f.manager.start({ config: validConfig() })
+  f.manager.stop('shortcut')
+  await f.manager.start({ config: validConfig() })
+  pending.reject(new Error('old runtime failure'))
+  await old
+  assert.equal(calls, 2)
+  assert.equal(f.children.length, 1)
+  assert.equal(f.children[0].runtime.pythonPath, 'resolved.exe')
+  assert.equal(f.manager.getStatus().status, 'running')
+  assert.deepEqual(f.locks, ['acquire', 'release', 'acquire'])
+  f.manager.stop()
+})
+
+test('游戏激活等待中停止后不启动，旧浮窗可见回调不结束新准备', async () => {
+  const activation = deferred(), runtime = deferred()
+  let calls = 0
+  const f = startupFixture({
+    python: { resolvePythonRuntimeAsync: () => ++calls === 3 ? runtime.promise : Promise.resolve({ ready: true, path: 'python.exe' }) },
+    windowActivation: createActivation({ activateGame: () => calls === 1 ? activation.promise : Promise.resolve({ success: true }) })
+  })
+  const old = f.manager.start({ config: validConfig() })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(f.manager.getStatus().stage, 'activating')
+  f.manager.stop('shortcut')
+  activation.resolve({ success: true })
+  await old
+  assert.equal(f.children.length, 0)
+  await f.manager.start({ config: validConfig() })
+  const oldVisible = f.visible[0]
+  f.manager.stop()
+  const next = f.manager.start({ config: validConfig() })
+  oldVisible()
+  assert.equal(f.feedback.filter(([kind]) => kind === 'handoff').length, 0)
+  f.manager.stop()
+  runtime.resolve({ ready: true, path: 'python.exe' })
+  await next
+})
+
+test('阶段事件同步到页面和浮窗，失败清理准备反馈与锁', async () => {
+  const f = startupFixture()
+  await f.manager.start({ config: validConfig() })
+  const child = f.children[0].child
+  child.stdout.emit('data', 'EVENT {"event":"stage","stage":"submitting"}\n')
+  assert.equal(f.manager.getStatus().stage, 'submitting')
+  assert.equal(f.feedback.at(-1)[1].label, '正在确认提交结果')
+  child.stdout.emit('data', 'EVENT {"event":"stage","stage":"untrusted"}\n')
+  assert.equal(f.manager.getStatus().stage, 'submitting')
+  f.manager.stop()
+  assert.equal(f.manager.getStatus().stage, '')
+  const failed = startupFixture({ python: { resolvePythonRuntimeAsync: async () => { throw new Error('runtime failed') } } })
+  await assert.rejects(failed.manager.start({ config: validConfig() }), /runtime failed/)
+  assert.deepEqual(failed.locks, ['acquire', 'release'])
+  assert.equal(failed.feedback.at(-1)[0], 'finish')
+  assert.equal(failed.events.at(-1).state.reasonCode, 'start_failed')
+  assert.equal(failed.children.length, 0)
+})
+
 test('浮士德 preload 与 IPC 只暴露固定操作且每个处理器校验主窗口 sender', () => {
   const preload = source('electron/preload.cjs')
   const ipc = source('electron/modules/ipc/faustus.js')
@@ -60,7 +179,7 @@ test('浮士德 preload 与 IPC 只暴露固定操作且每个处理器校验主
   assert.match(main, /new FaustusManager\(/)
   assert.match(main, /faustus:\s*faustusManager/)
   assert.match(main, /faustusManager\?\.cleanup\(\)/)
-  assert.match(emergency, /managerAction\('faustus', '浮士德市集改价', faustus\)/)
+  assert.match(emergency, /managerAction\('faustus', '浮士德市集改价', faustus, \['preparing', 'running'\]\)/)
 })
 
 test('浮士德开始请求拒绝 renderer 注入脚本、权限和通用输入字段', () => {
@@ -77,7 +196,7 @@ test('manager 取得锁后只启动一个包含预检与输入的固定进程', 
   const children = []
   const locks = []
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
@@ -111,7 +230,7 @@ test('整页改价正常完成后恢复并聚焦助手窗口', async () => {
   const actions = []
   const runChild = childProcess()
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation({
       activateMain: async () => {
@@ -143,7 +262,7 @@ test('整页改价正常完成后恢复并聚焦助手窗口', async () => {
 test('manager 在配置、DPI 或 OCR 依赖失败时不创建进程和输入', async () => {
   let spawned = 0
   const make = overrides => new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
@@ -154,7 +273,7 @@ test('manager 在配置、DPI 或 OCR 依赖失败时不创建进程和输入', 
     ...overrides
   })
 
-  await assert.rejects(() => make({ python: { detectPythonPathWithModules: () => null } }).start({ config: validConfig() }), /OCR/)
+  await assert.rejects(() => make({ python: { resolvePythonRuntimeAsync: async () => ({ ready: false, path: null }) } }).start({ config: validConfig() }), /OCR/)
   await assert.rejects(() => make().start({ config: { ...validConfig(), gridCalibration: null } }), /校准/)
   await assert.rejects(() => make().start({ config: { ...validConfig(), gridCalibration: { ...validConfig().gridCalibration, scaleFactor: 0 } } }), /DPI/)
   assert.equal(spawned, 0)
@@ -165,7 +284,7 @@ test('游戏激活失败时释放浮士德锁且不写配置、不创建进程',
   let written = 0
   let released = 0
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation({ activateGame: async () => ({ success: false, code: 'focus-refused' }) }),
     automationLock: { acquire: () => ({ success: true }), release: () => { released += 1 } },
@@ -183,7 +302,7 @@ test('浮士德准备反馈持续到专用识别浮层真实显示后再交接',
   const feedbackEvents = []
   let onVisible = null
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation({
       activateGame: async () => { feedbackEvents.push('activate'); return { success: true, code: 'game-activated' } }
@@ -205,10 +324,10 @@ test('浮士德准备反馈持续到专用识别浮层真实显示后再交接',
   })
 
   await manager.start({ config: validConfig() })
-  assert.deepEqual(feedbackEvents, ['activate', 'begin'])
+  assert.deepEqual(feedbackEvents, ['begin', 'activate'])
   assert.equal(typeof onVisible, 'function')
   onVisible()
-  assert.deepEqual(feedbackEvents, ['activate', 'begin', 'handoff'])
+  assert.deepEqual(feedbackEvents, ['begin', 'activate', 'handoff'])
   manager.stop('user')
 })
 
@@ -216,7 +335,7 @@ test('manager 只从固定资源注入通用格子模型和冻结占位且不接
   let written = null
   const child = childProcess()
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
@@ -240,7 +359,7 @@ test('manager 仅转发字段白名单并在前台丢失、紧急停止和清理
   const listeners = []
   const runChild = childProcess()
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),
@@ -276,7 +395,7 @@ test('manager 对脚本成功、跳过与终止事件只转发稳定原因码和
   const removed = []
   const runChild = childProcess()
   const manager = new FaustusManager({
-    python: { detectPythonPathWithModules: () => 'python.exe' },
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
     fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
     windowActivation: createActivation(),
     foregroundState: () => ({ available: true, gameForeground: true }),

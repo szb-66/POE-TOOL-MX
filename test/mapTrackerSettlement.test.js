@@ -166,11 +166,11 @@ test('日志不可用暂停计时与输入，恢复监听本身不等于恢复�
   assert.equal(service.requestCommand, undefined)
 })
 
-test('删除结算记录后不会通过入库或实例索引复活，重入修改名称得以保留', async t => {
+test('删除结算记录后不会通过入库或实例索引复活，重入使用标准名称', async t => {
   const { service, repository } = await setup(t)
   await service.handleEvent(area()); const id = service.machine.activeRun.id
   await service.handleEvent(town()); await service.editRun(id, { areaName: '自定义地图名' })
-  await service.handleEvent(area()); assert.equal(service.machine.activeRun.areaName, '自定义地图名')
+  await service.handleEvent(area()); assert.equal(service.machine.activeRun.areaName, '晨曦墓地')
   await service.handleEvent(town()); await service.deleteRun(id)
   assert.equal(await service.recordStashedItem({ name: '混沌石' }, 'deleted-map-batch:1'), true)
   await service.handleEvent(area()); assert.notEqual(service.machine.activeRun.id, id)
