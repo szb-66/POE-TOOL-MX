@@ -1050,13 +1050,13 @@ const nextSolution = store.nextSolution
   padding: 9px;
   border: 1px solid var(--el-border-color);
   border-radius: 5px;
-  background: #13251f;
-  color: #72ffb4;
+  background: var(--el-color-success-light-9);
+  color: var(--success-color);
   cursor: pointer;
 }
 .inventory-slot:hover { border-color: var(--el-color-primary); }
 .inventory-slot.empty { background: var(--el-fill-color-lighter); color: var(--el-text-color-placeholder); }
-.inventory-slot.candidate { border-style: dashed; border-color: var(--el-color-warning); background: #313131; color: var(--el-color-warning); }
+.inventory-slot.candidate { border-style: dashed; border-color: var(--el-color-warning); background: var(--surface-2); color: var(--el-color-warning); }
 .inventory-slot.locked {
   border-color: var(--el-color-warning);
   filter: saturate(0.45);
@@ -1073,14 +1073,14 @@ const nextSolution = store.nextSolution
 .inventory-slot.uncertain {
   border-style: dashed;
   border-color: var(--el-color-warning);
-  background: #313131;
+  background: var(--surface-2);
 }
 .inventory-slot.corrected::after { content: ''; position: absolute; right: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--el-color-primary); }
 .inventory-slot.selected { border-width: 5px; border-color: var(--el-color-primary); }
 .inventory-slot.selected.uncertain {
   border-width: 5px;
   border-color: var(--el-color-primary);
-  background: #313131;
+  background: var(--surface-2);
 }
 .empty-mark { font-size: 24px; }
 .candidate-mark { font-size: 24px; font-weight: 700; }
@@ -1125,7 +1125,7 @@ const nextSolution = store.nextSolution
   text-align: center;
   line-height: 1.2;
 }
-.orientation-badge { position: absolute; right: 2px; bottom: 1px; color: #d1fae5; font-size: 9px; font-style: normal; }
+.orientation-badge { position: absolute; right: 2px; bottom: 1px; color: var(--success-color); font-size: 9px; font-style: normal; }
 .calibration-mark { position: absolute; right: 23px; top: 2px; color: var(--el-color-success); font-size: 10px; font-style: normal; font-weight: 700; }
 .slot-lock-button {
   position: absolute;

@@ -610,7 +610,7 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .unveil-panel { display: grid; gap: 10px; margin-top: 14px; padding-top: 13px; border-top: 1px solid #755a93; }
 .unveil-heading { display: flex; justify-content: space-between; gap: 12px; div { display: grid; gap: 3px; } small { color: var(--text-secondary); } }
 .unveil-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.unveil-option { display: grid; gap: 6px; padding: 11px; border: 1px solid #755a93; border-radius: 7px; background: #15111a; color: var(--text-primary); text-align: left; cursor: pointer; strong { display: grid; gap: 2px; color: #cbb1f0; span { color: #9c84c8; font-size: 11px; } } p { min-height: 44px; margin: 0; color: #b9b9ff; white-space: pre-line; } small { color: var(--text-secondary); } > em { color: #cbb1f0; font-style: normal; text-align: right; } &:hover:not(:disabled) { border-color: #b99bd9; transform: translateY(-1px); } &:disabled { opacity: .55; cursor: not-allowed; } }
+.unveil-option { display: grid; gap: 6px; padding: 11px; border: 1px solid #755a93; border-radius: 7px; background: var(--surface-2); color: var(--text-primary); text-align: left; cursor: pointer; strong { display: grid; gap: 2px; color: #cbb1f0; span { color: #9c84c8; font-size: 11px; } } p { min-height: 44px; margin: 0; color: #b9b9ff; white-space: pre-line; } small { color: var(--text-secondary); } > em { color: #cbb1f0; font-style: normal; text-align: right; } &:hover:not(:disabled) { border-color: #b99bd9; transform: translateY(-1px); } &:disabled { opacity: .55; cursor: not-allowed; } }
 .donor-builder { display: grid; gap: 10px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--el-border-color); }
 .donor-heading { display: flex; justify-content: space-between; gap: 12px; > div { display: grid; gap: 3px; } small { color: var(--text-secondary); } }
 .donor-form { display: grid; grid-template-columns: 1fr 120px 120px minmax(220px, 1.5fr) auto; gap: 7px; :deep(.el-input-number) { width: 100%; } }
@@ -618,8 +618,8 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .split-result { display: grid; gap: 3px; margin-top: 8px; padding: 9px 11px; border: 1px solid #8876bc; border-radius: 6px; span, small { color: var(--text-secondary); } }
 .mirror-result { border-color: #659bbd; background: rgba(76, 137, 174, 0.08); }
 .enchantment-result { display: grid; gap: 3px; margin-top: 8px; padding: 9px 11px; border: 1px solid #9b7a43; border-radius: 6px; background: rgba(155, 122, 67, 0.08); span, small { color: var(--text-secondary); } }
-.split-picker { display: grid; gap: 8px; margin-top: 10px; padding: 11px; border: 1px solid #8876bc; border-radius: 7px; > small { color: var(--text-secondary); } button { display: grid; gap: 3px; padding: 9px; border: 1px solid #685993; border-radius: 6px; background: #15121b; color: var(--text-primary); text-align: left; cursor: pointer; span, small { color: var(--text-secondary); } &:hover { border-color: #b49be6; } } }
-.currency-preview { display: grid; gap: 3px; margin-top: 5px; padding: 7px; border: 1px solid #76549b; border-radius: 5px; background: #17111e; b { color: #cf9cff; } }
+.split-picker { display: grid; gap: 8px; margin-top: 10px; padding: 11px; border: 1px solid #8876bc; border-radius: 7px; > small { color: var(--text-secondary); } button { display: grid; gap: 3px; padding: 9px; border: 1px solid #685993; border-radius: 6px; background: var(--surface-2); color: var(--text-primary); text-align: left; cursor: pointer; span, small { color: var(--text-secondary); } &:hover { border-color: #b49be6; } } }
+.currency-preview { display: grid; gap: 3px; margin-top: 5px; padding: 7px; border: 1px solid #76549b; border-radius: 5px; background: var(--surface-2); b { color: #cf9cff; } }
 .beast-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; p { margin-bottom: 3px; } small { color: var(--text-secondary); } }
 .beast-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 640px; gap: 8px; overflow: auto; padding-right: 3px; }
 .beast-card { strong { display: flex; justify-content: space-between; gap: 8px; i { color: #85b99b; font-size: 11px; font-style: normal; } } &.unsupported { border-style: dashed; } }
@@ -637,4 +637,18 @@ function formatDate(value) { return value ? new Date(value).toLocaleString('zh-C
 .unavailable { color: var(--text-secondary); text-decoration: line-through; & + small { display: block; color: var(--el-color-danger); } }
 @media (max-width: 1050px) { .currency-panel { position: static; } .donor-form { grid-template-columns: 1fr 120px 120px; } .donor-form > :nth-child(4) { grid-column: 1 / 3; } }
 @media (max-width: 650px) { .craft-page { padding: 12px; } .page-heading, .card-heading, .donor-heading, .unveil-heading, .beast-heading { align-items: flex-start; flex-direction: column; } .currency-grid, .harvest-grid, .eldritch-grid, .influence-grid, .veiled-grid, .unveil-options, .beast-grid { grid-template-columns: 1fr; } .bench-filters, .harvest-filters, .donor-form { grid-template-columns: 1fr; } .donor-form > :nth-child(4) { grid-column: auto; } .family-main { flex-direction: column; } .family-metrics { justify-content: flex-start; } }
+</style>
+
+<style scoped lang="less">
+:global(html.app-light-theme .craft-page .selected-target-heading b) ,
+:global(html.app-light-theme .craft-page .currency-card strong) { color: var(--brand-color); }
+:global(html.app-light-theme .craft-page .selected-target-effect) ,
+:global(html.app-light-theme .craft-page .guaranteed-effect) ,
+:global(html.app-light-theme .craft-page .unveil-option p) { color: #51468B; }
+:global(html.app-light-theme .craft-page .currency-card strong i) ,
+:global(html.app-light-theme .craft-page .unveil-option strong) ,
+:global(html.app-light-theme .craft-page .unveil-option strong span) ,
+:global(html.app-light-theme .craft-page .unveil-option > em) ,
+:global(html.app-light-theme .craft-page .currency-preview b) ,
+:global(html.app-light-theme .craft-page .fossil-slots .filled) { color: #694681; }
 </style>

@@ -118,19 +118,19 @@ html.main-window-theme #app {
   background: var(--app-bg) !important;
   color: var(--text-primary);
   font-family: var(--font-ui);
-  color-scheme: dark;
+  color-scheme: var(--theme-color-scheme, dark);
 }
 
-html.app-dark-theme body {
+html:is(.app-dark-theme, .app-light-theme) body {
   color: var(--text-primary);
   font-family: var(--font-ui);
   font-variant-numeric: tabular-nums;
-  color-scheme: dark;
+  color-scheme: var(--theme-color-scheme, dark);
 }
-html.app-dark-theme ::-webkit-scrollbar-thumb { background: #3A424D; }
-html.app-dark-theme ::-webkit-scrollbar-thumb:hover { background: #4A5562; }
+html:is(.app-dark-theme, .app-light-theme) ::-webkit-scrollbar-thumb { background: var(--theme-scrollbar); }
+html:is(.app-dark-theme, .app-light-theme) ::-webkit-scrollbar-thumb:hover { background: var(--theme-scrollbar-hover); }
 
-html.app-dark-theme {
+html:is(.app-dark-theme, .app-light-theme) {
   :focus-visible:not(.el-input__inner):not(.el-select__input):not(.el-cascader__search-input):not(.el-textarea__inner) {
     outline: 2px solid var(--brand-color);
     outline-offset: 2px;
@@ -157,9 +157,9 @@ html.business-overlay-theme #app {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html.app-dark-theme *,
-  html.app-dark-theme *::before,
-  html.app-dark-theme *::after {
+  html:is(.app-dark-theme, .app-light-theme) *,
+  html:is(.app-dark-theme, .app-light-theme) *::before,
+  html:is(.app-dark-theme, .app-light-theme) *::after {
     scroll-behavior: auto !important;
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;

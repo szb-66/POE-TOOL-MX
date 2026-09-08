@@ -123,7 +123,7 @@ const tagType = computed(() => ({
   background: var(--surface-1, var(--bg-primary));
   transition: border-color .18s ease, transform .18s ease;
 
-  &:hover { border-color: #3A434F; transform: translateY(-1px); }
+  &:hover { border-color: var(--control-hover-border); transform: translateY(-1px); }
   &.state-error { border-top-color: var(--el-color-danger); }
   &.state-running { border-top-color: var(--el-color-success); }
   &.state-attention { border-top-color: var(--el-color-warning); }

@@ -1,5 +1,6 @@
 <template>
   <div class="profile-content">
+    <MapFeasibilityNotice :profile="profile" :target-kind="targetKind" />
     <el-card class="section-card">
       <template #header>
         <div class="card-header">
@@ -111,6 +112,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import MapFeasibilityNotice from './MapFeasibilityNotice.vue'
 import { Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { searchMapAffixSuggestions } from '@/utils/mapAffixSuggestions.js'
 

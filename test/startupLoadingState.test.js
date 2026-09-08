@@ -20,12 +20,12 @@ test('主窗口启动加载块位于 #app 内且包含加载动画', () => {
 })
 
 test('加载块样式与主窗口背景色一致，避免白屏', () => {
-  assert.match(indexHtml, /#app-loading[\s\S]*?background:\s*#0E1013/)
-  assert.match(indexHtml, /loading-spinner[\s\S]*?border-top-color:\s*#C5A46D/)
-  assert.match(managerSource, /backgroundColor:\s*'#0E1013'/)
+  assert.match(indexHtml, /#app-loading[\s\S]*?background:\s*var\(--app-bg, var\(--startup-bg\)\)/)
+  assert.match(indexHtml, /loading-spinner[\s\S]*?border-top-color:\s*var\(--startup-brand\)/)
+  assert.match(managerSource, /show: false/); assert.match(managerSource, /openingWindow\.once\('ready-to-show'/)
 })
 
 test('覆盖层路由不显示主窗口加载块', () => {
-  assert.match(indexHtml, /location\.hash && location\.hash !== '#\/'/)
+  assert.ok(indexHtml.includes("dataset.startupWindow === 'standalone'"))
   assert.match(indexHtml, /document\.getElementById\('app-loading'\)\?\.remove\(\)/)
 })

@@ -34,21 +34,10 @@
   box-shadow: 0 0 0 1px @brand-color inset !important;
 }
 
-html.app-dark-theme {
+html:is(.app-dark-theme, .app-light-theme) {
   .el-card { border-color: var(--border-base); border-radius: 8px; background: var(--surface-1); box-shadow: inset 0 1px rgba(255, 255, 255, .025); }
   .el-card__header { border-color: var(--border-base); }
-  .el-empty {
-    --el-empty-fill-color-0: #111419;
-    --el-empty-fill-color-1: #46515a;
-    --el-empty-fill-color-2: #343c47;
-    --el-empty-fill-color-3: #1c2129;
-    --el-empty-fill-color-4: #2c333d;
-    --el-empty-fill-color-5: #242b35;
-    --el-empty-fill-color-6: #252c35;
-    --el-empty-fill-color-7: #181d24;
-    --el-empty-fill-color-8: #20262e;
-    --el-empty-fill-color-9: #161a20;
-  }
+
   .el-button, .el-input__wrapper, .el-textarea__inner, .el-select__wrapper, .el-input-number, .el-dialog, .el-message-box, .el-popper, .el-dropdown-menu { border-radius: 6px; }
   .el-input__wrapper, .el-select__wrapper, .el-textarea__inner {
     background: var(--surface-2);
@@ -90,7 +79,7 @@ html.app-dark-theme {
     transition: color .15s ease, border-color .15s ease, background-color .15s ease, transform .15s ease;
 
     &:not(.is-disabled):hover {
-      border-color: #4A5562;
+      border-color: var(--control-hover-border);
       background: var(--surface-hover);
       color: var(--text-primary);
     }
@@ -115,8 +104,8 @@ html.app-dark-theme {
         color: var(--brand-on-color);
 
         &:not(.is-disabled):hover {
-          border-color: color-mix(in srgb, var(--theme-button-accent) 84%, white);
-          background: color-mix(in srgb, var(--theme-button-accent) 84%, white);
+          border-color: color-mix(in srgb, var(--theme-button-accent) 84%, var(--theme-accent-mix));
+          background: color-mix(in srgb, var(--theme-button-accent) 84%, var(--theme-accent-mix));
           color: var(--brand-on-color);
         }
 
@@ -130,7 +119,7 @@ html.app-dark-theme {
       &.is-plain {
         border-color: var(--theme-button-accent);
         background: color-mix(in srgb, var(--theme-button-accent) 13%, var(--surface-1));
-        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, var(--theme-accent-mix));
 
         &:not(.is-disabled):hover {
           border-color: var(--theme-button-accent);
@@ -148,36 +137,36 @@ html.app-dark-theme {
       &.is-text {
         border-color: transparent;
         background: transparent;
-        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, var(--theme-accent-mix));
 
         &:not(.is-disabled):hover {
           border-color: transparent;
           background: color-mix(in srgb, var(--theme-button-accent) 13%, transparent);
-          color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+          color: color-mix(in srgb, var(--theme-button-accent) 78%, var(--theme-accent-mix));
         }
 
         &:not(.is-disabled):active {
           border-color: transparent;
           background: color-mix(in srgb, var(--theme-button-accent) 18%, transparent);
-          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, var(--theme-accent-mix));
         }
       }
 
       &.is-link {
         border-color: transparent;
         background: transparent;
-        color: color-mix(in srgb, var(--theme-button-accent) 78%, white);
+        color: color-mix(in srgb, var(--theme-button-accent) 78%, var(--theme-accent-mix));
 
         &:not(.is-disabled):hover {
           border-color: transparent;
           background: transparent;
-          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, var(--theme-accent-mix));
         }
 
         &:not(.is-disabled):active {
           border-color: transparent;
           background: transparent;
-          color: color-mix(in srgb, var(--theme-button-accent) 72%, white);
+          color: color-mix(in srgb, var(--theme-button-accent) 72%, var(--theme-accent-mix));
         }
       }
     }
@@ -188,7 +177,7 @@ html.app-dark-theme {
   .el-cascader__dropdown,
   .el-cascader-panel {
     --el-cascader-menu-text-color: var(--text-regular);
-    --el-cascader-menu-selected-text-color: #D8BF92;
+    --el-cascader-menu-selected-text-color: var(--theme-selected-text);
     --el-cascader-menu-fill: var(--surface-2);
     --el-cascader-menu-border: solid 1px var(--border-base);
     --el-cascader-menu-shadow: var(--el-box-shadow-light);
@@ -208,7 +197,7 @@ html.app-dark-theme {
   .el-cascader-node.is-selectable.in-checked-path,
   .el-cascader__suggestion-item.is-checked {
     background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-2));
-    color: #D8BF92;
+    color: var(--theme-selected-text);
     font-weight: 600;
   }
   .el-select-dropdown__item {
@@ -222,12 +211,12 @@ html.app-dark-theme {
 
     &.is-selected {
       background: color-mix(in srgb, var(--brand-color) 14%, var(--surface-2));
-      color: #D8BF92;
+      color: var(--theme-selected-text);
 
       &:not(.is-disabled):hover,
       &.is-hovering:not(.is-disabled) {
         background: color-mix(in srgb, var(--brand-color) 20%, var(--surface-hover));
-        color: #D8BF92;
+        color: var(--theme-selected-text);
       }
     }
   }
@@ -244,4 +233,19 @@ html.app-dark-theme {
   max-height: 50vh;
   overflow-y: auto;
   white-space: pre-wrap;
+}
+
+html.app-dark-theme {
+  .el-empty {
+    --el-empty-fill-color-0: #111419;
+    --el-empty-fill-color-1: #46515a;
+    --el-empty-fill-color-2: #343c47;
+    --el-empty-fill-color-3: #1c2129;
+    --el-empty-fill-color-4: #2c333d;
+    --el-empty-fill-color-5: #242b35;
+    --el-empty-fill-color-6: #252c35;
+    --el-empty-fill-color-7: #181d24;
+    --el-empty-fill-color-8: #20262e;
+    --el-empty-fill-color-9: #161a20;
+  }
 }

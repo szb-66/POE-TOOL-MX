@@ -95,7 +95,8 @@ export function createMainWindow({
     width: state.width || 1200,
     height: state.height || 800,
     frame: false,
-    backgroundColor: '#0E1013', // 页面加载前也显示主窗口深色底，避免白屏
+    show: false, // 等首帧启动占位已解析主题再显示，避免亮色偏好先闪深色底。
+    backgroundColor: '#0E1013',
     icon: icon.isEmpty() ? undefined : icon, // 如果图标加载失败则不设置
     webPreferences: {
       preload: path.join(__dirname, '../../preload.cjs'),
@@ -122,6 +123,14 @@ export function createMainWindow({
   }
 
   mainWindow = new BrowserWindow(options)
+  const openingWindow = mainWindow
+  openingWindow.once('ready-to-show', () => {
+    if (openingWindow.isDestroyed()) return
+    // maximize() 会显示隐藏窗口，必须等主题首帧就绪后再恢复窗口状态。
+    if (state.isMaximized) openingWindow.maximize()
+    if (state.isFullScreen) openingWindow.setFullScreen(true)
+    openingWindow.show()
+  })
   beforeLoad?.(mainWindow)
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
@@ -143,13 +152,7 @@ export function createMainWindow({
   mainWindow.webContents.on('devtools-opened', () => notifyDevToolsVisibility(true))
   mainWindow.webContents.on('devtools-closed', () => notifyDevToolsVisibility(false))
 
-  // 恢复状态
-  if (state.isMaximized) {
-    mainWindow.maximize()
-  }
-  if (state.isFullScreen) {
-    mainWindow.setFullScreen(true)
-  }
+  // 置顶可在隐藏时恢复；最大化和全屏在 ready-to-show 后恢复。
   if (state.alwaysOnTop) {
     mainWindow.setAlwaysOnTop(true)
   }

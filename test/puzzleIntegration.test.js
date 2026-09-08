@@ -147,7 +147,7 @@ test('待确认与已拼入海图来源格具有独立且可叠加样式', () =>
   assert.match(view, /class="uncertain-mark">\?<\/em>/)
   const uncertain = view.match(/\.inventory-slot\.uncertain\s*\{([^}]*)\}/)?.[1] || ''
   assert.match(uncertain, /border-style: dashed/)
-  assert.match(uncertain, /background: #313131/)
+  assert.match(uncertain, /background: var\(--surface-2\)/)
   const selected = view.match(/\.inventory-slot\.selected\s*\{([^}]*)\}/)?.[1] || ''
   assert.match(selected, /border-width: 5px/)
   assert.match(selected, /border-color: var\(--el-color-primary\)/)

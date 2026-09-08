@@ -208,8 +208,8 @@ test('查价浮窗表单控件复用全局主题并保留数值空值语义', as
 
   assert.doesNotMatch(view, /<select\b|<option\b/)
   assert.doesNotMatch(view, /<input[^>]*type="number"/)
-  assert.match(view, /<el-select v-model="queryOptions\.status"[^>]*popper-class="price-check-select-popper"[^>]*@change="syncSetting\('status'\)"/)
-  assert.match(view, /<el-select v-model="state\.model\.stateFilters\[definition\.key\]"[^>]*popper-class="price-check-select-popper"/)
+  assert.match(view, /<el-select v-model="queryOptions\.status"[^>]*popper-class="price-check-select-popper business-overlay-theme"[^>]*@change="syncSetting\('status'\)"/)
+  assert.match(view, /<el-select v-model="state\.model\.stateFilters\[definition\.key\]"[^>]*popper-class="price-check-select-popper business-overlay-theme"/)
   assert.match(view, /<el-select v-model="property\.value"[^>]*class="property-option"[^>]*@click\.stop @keydown\.stop/)
   assert.equal((view.match(/<el-input-number/g) || []).length, 5)
   assert.equal((view.match(/<el-input-number[^>]*size="small"/g) || []).length, 5)
@@ -218,7 +218,7 @@ test('查价浮窗表单控件复用全局主题并保留数值空值语义', as
   assert.match(view, /\.number :deep\(\.el-input\),\s*\.setting-number :deep\(\.el-input\) \{ height: 24px; \}/)
   assert.match(view, /\.number :deep\(\.el-input__wrapper\),\s*\.setting-number :deep\(\.el-input__wrapper\) \{ min-height: 22px; padding-top: 0; padding-bottom: 0; \}/)
   assert.doesNotMatch(view, /select:not\(:disabled\)|select:focus-visible/)
-  assert.match(elementTheme, /html\.app-dark-theme[\s\S]*\.el-select__wrapper[\s\S]*background: var\(--surface-2\)/)
+  assert.match(elementTheme, /html:is\(\.app-dark-theme, \.app-light-theme\)[\s\S]*\.el-select__wrapper[\s\S]*background: var\(--surface-2\)/)
   assert.match(elementTheme, /\.el-select-dropdown__item[\s\S]*&\.is-hovering[\s\S]*&\.is-selected/)
 })
 

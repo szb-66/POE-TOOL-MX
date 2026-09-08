@@ -29,7 +29,7 @@ test('级联选择器和远程选择器复用统一焦点与弹层选中状态',
   assert.match(overrides, /\.el-cascader__dropdown,\s*\.el-cascader-panel\s*\{[\s\S]*--el-cascader-menu-fill:\s*var\(--surface-2\);/)
   assert.match(overrides, /\.el-cascader-node:not\(\.is-disabled\):hover,[\s\S]*\.el-cascader-node:not\(\.is-disabled\):focus/)
   assert.match(overrides, /\.el-cascader-node\.in-active-path,[\s\S]*\.el-cascader-node\.is-active,[\s\S]*\.el-cascader-node\.is-selectable\.in-checked-path/)
-  assert.match(overrides, /&\.is-selected\s*\{\s*background:\s*color-mix\(in srgb, var\(--brand-color\) 14%, var\(--surface-2\)\);\s*color:\s*#D8BF92;/)
+  assert.match(overrides, /&\.is-selected\s*\{\s*background:\s*color-mix\(in srgb, var\(--brand-color\) 14%, var\(--surface-2\)\);\s*color:\s*var\(--theme-selected-text\);/)
 })
 
 test('查价表单控件与快捷键录入遵循相同的悬浮和聚焦层级', () => {

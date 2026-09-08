@@ -31,13 +31,13 @@ test('主布局首帧和路由变化挂载窗口主题类，热更新后重申�
   assert.match(theme, /MAIN_WINDOW_THEME_CLASS,[\s\S]*?BUSINESS_OVERLAY_THEME_CLASS/)
 })
 
-test('引导失败时由内联看门狗兜底显示深色提示', () => {
+test('引导失败时由内联看门狗兜底显示当前主题提示', () => {
   assert.match(main, /window\.__appBootstrapped = true/)
   assert.match(main, /window\.__bootstrapError = String\(error/)
   assert.match(indexHtml, /__appBootstrapped/)
   assert.match(indexHtml, /app-boot-fallback/)
   assert.match(indexHtml, /界面加载失败，请按 F5 刷新重试/)
-  assert.match(indexHtml, /background:#0E1013/)
+  assert.ok(indexHtml.includes("background:var(--app-bg,var(--startup-bg))"))
 })
 
 test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔离', () => {

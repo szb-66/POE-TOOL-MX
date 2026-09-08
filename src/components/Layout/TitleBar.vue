@@ -13,6 +13,12 @@
       >{{ updateEntryText }}</button>
     </div>
     <div class="window-controls">
+      <button class="control-btn theme-toggle" type="button"
+        :title="resolvedTheme === 'dark' ? '切换至亮色' : '切换至暗色'"
+        :aria-label="resolvedTheme === 'dark' ? '切换至亮色' : '切换至暗色'"
+        @click="toggleTheme">
+        <el-icon><Sunny v-if="resolvedTheme === 'dark'" /><Moon v-else /></el-icon>
+      </button>
       <div 
         class="control-btn" 
         :class="{ active: isAlwaysOnTop }"
@@ -47,6 +53,9 @@
 </template>
 
 <script setup>
+import { Sunny, Moon } from '@element-plus/icons-vue'
+import { useTheme } from '../../theme/useTheme'
+const { resolvedTheme, toggleTheme } = useTheme()
 import { computed, h, ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -266,4 +275,8 @@ onMounted(async () => {
     }
   }
 }
+</style>
+
+<style scoped>
+.theme-toggle { border: 0; background: transparent; color: inherit; font: inherit; -webkit-app-region: no-drag; }
 </style>

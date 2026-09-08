@@ -57,7 +57,11 @@
 }
 
 /* 主窗口与业务悬浮窗共享的深色视觉令牌。窗口专属布局由各自作用域负责。 */
-html.app-dark-theme {
+.dark-theme-tokens() {
+  --theme-accent-mix: white;
+  --theme-selected-text: #D8BF92;
+  --theme-scrollbar: #3A424D;
+  --theme-scrollbar-hover: #4A5562;
   --app-bg: #0E1013;
   --nav-bg: #111419;
   --surface-1: #161A20;
@@ -150,7 +154,17 @@ html.app-dark-theme {
   --el-box-shadow: 0 8px 22px rgba(0, 0, 0, .28);
   --el-box-shadow-light: 0 5px 16px rgba(0, 0, 0, .22);
   --el-box-shadow-lighter: 0 3px 10px rgba(0, 0, 0, .18);
+  --theme-color-scheme: dark;
 }
+
+html.app-dark-theme { .dark-theme-tokens(); }
+
+.business-overlay-theme {
+  .dark-theme-tokens();
+  color-scheme: dark;
+  color: var(--text-primary);
+}
+
 
 html.business-overlay-theme,
 .business-overlay-theme {
@@ -167,4 +181,108 @@ html.business-overlay-theme,
   --overlay-surface-raised: rgba(28, 33, 41, .96);
   --overlay-border: rgba(197, 164, 109, .38);
   --overlay-shadow: 0 4px 12px rgba(0, 0, 0, .34);
+}
+
+
+html.app-light-theme {
+  --app-bg: #F5F4F1;
+  --nav-bg: #EEECE6;
+  --surface-1: #FFFFFF;
+  --surface-2: #F6F5F2;
+  --surface-hover: #E8E5DE;
+  --control-hover-border: #81796A;
+  --border-base: #C9C4B9;
+  --border-lighter: #DEDAD2;
+  --text-primary: #25231F;
+  --text-regular: #514C43;
+  --text-secondary: #696256;
+  --brand-color: #806025;
+  --primary-color: #806025;
+  --brand-on-color: #FFFFFF;
+  --checkbox-checked-bg: #806025;
+  --checkbox-check-color: #FFFFFF;
+  --checkbox-focus-ring: #806025;
+  --success-color: #357243;
+  --warning-color: #875B17;
+  --danger-color: #B23D38;
+  --info-color: #376C9E;
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F5F4F1;
+  --bg-tertiary: #F6F5F2;
+  --el-bg-color: #FFFFFF;
+  --el-bg-color-page: #F5F4F1;
+  --el-bg-color-overlay: #FFFFFF;
+  --el-fill-color: #E8E5DE;
+  --el-fill-color-light: #F0EEE9;
+  --el-fill-color-lighter: #F6F5F2;
+  --el-fill-color-extra-light: #FAF9F7;
+  --el-fill-color-dark: #DEDAD2;
+  --el-fill-color-darker: #C9C4B9;
+  --el-fill-color-blank: #FFFFFF;
+  --el-border-color: #C9C4B9;
+  --el-border-color-light: #D4CFC5;
+  --el-border-color-lighter: #DEDAD2;
+  --el-border-color-extra-light: #E8E5DE;
+  --el-border-color-dark: #A49C8D;
+  --el-border-color-darker: #81796A;
+  --el-text-color-primary: #25231F;
+  --el-text-color-regular: #514C43;
+  --el-text-color-secondary: #696256;
+  --el-text-color-placeholder: #696256;
+  --el-text-color-disabled: #8A8378;
+  --el-mask-color: rgba(35, 31, 25, .45);
+  --el-mask-color-extra-light: rgba(35, 31, 25, .2);
+  --el-box-shadow: 0 8px 22px rgba(35,31,25,.14);
+  --el-box-shadow-light: 0 5px 16px rgba(35,31,25,.1);
+  --el-box-shadow-lighter: 0 3px 10px rgba(35,31,25,.08);
+  --font-ui: "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
+  --font-numeric: "Cascadia Mono", Consolas, monospace;
+  --status-radius: 4px;
+  --theme-accent-mix: black;
+  --theme-selected-text: #806025;
+  --theme-scrollbar: #B9B2A5;
+  --theme-scrollbar-hover: #938979;
+  --theme-color-scheme: light;
+  --el-color-primary: #806025;
+  --el-color-primary-light-3: color-mix(in srgb, #806025 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, #806025 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, #806025 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, #806025 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, #806025 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, #806025 80%, black);
+  --el-color-success: #357243;
+  --el-color-success-light-3: color-mix(in srgb, #357243 70%, white);
+  --el-color-success-light-5: color-mix(in srgb, #357243 50%, white);
+  --el-color-success-light-7: color-mix(in srgb, #357243 30%, white);
+  --el-color-success-light-8: color-mix(in srgb, #357243 20%, white);
+  --el-color-success-light-9: color-mix(in srgb, #357243 10%, white);
+  --el-color-success-dark-2: color-mix(in srgb, #357243 80%, black);
+  --el-color-warning: #875B17;
+  --el-color-warning-light-3: color-mix(in srgb, #875B17 70%, white);
+  --el-color-warning-light-5: color-mix(in srgb, #875B17 50%, white);
+  --el-color-warning-light-7: color-mix(in srgb, #875B17 30%, white);
+  --el-color-warning-light-8: color-mix(in srgb, #875B17 20%, white);
+  --el-color-warning-light-9: color-mix(in srgb, #875B17 10%, white);
+  --el-color-warning-dark-2: color-mix(in srgb, #875B17 80%, black);
+  --el-color-danger: #B23D38;
+  --el-color-danger-light-3: color-mix(in srgb, #B23D38 70%, white);
+  --el-color-danger-light-5: color-mix(in srgb, #B23D38 50%, white);
+  --el-color-danger-light-7: color-mix(in srgb, #B23D38 30%, white);
+  --el-color-danger-light-8: color-mix(in srgb, #B23D38 20%, white);
+  --el-color-danger-light-9: color-mix(in srgb, #B23D38 10%, white);
+  --el-color-danger-dark-2: color-mix(in srgb, #B23D38 80%, black);
+  --el-color-error: #B23D38;
+  --el-color-error-light-3: color-mix(in srgb, #B23D38 70%, white);
+  --el-color-error-light-5: color-mix(in srgb, #B23D38 50%, white);
+  --el-color-error-light-7: color-mix(in srgb, #B23D38 30%, white);
+  --el-color-error-light-8: color-mix(in srgb, #B23D38 20%, white);
+  --el-color-error-light-9: color-mix(in srgb, #B23D38 10%, white);
+  --el-color-error-dark-2: color-mix(in srgb, #B23D38 80%, black);
+  --el-color-info: #376C9E;
+  --el-color-info-light-3: color-mix(in srgb, #376C9E 70%, white);
+  --el-color-info-light-5: color-mix(in srgb, #376C9E 50%, white);
+  --el-color-info-light-7: color-mix(in srgb, #376C9E 30%, white);
+  --el-color-info-light-8: color-mix(in srgb, #376C9E 20%, white);
+  --el-color-info-light-9: color-mix(in srgb, #376C9E 10%, white);
+  --el-color-info-dark-2: color-mix(in srgb, #376C9E 80%, black);
 }

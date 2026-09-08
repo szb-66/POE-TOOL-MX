@@ -1,3 +1,5 @@
+import { themeController } from './useTheme.js'
+
 export const MAIN_WINDOW_THEME_CLASS = 'main-window-theme'
 export const SHARED_DARK_THEME_CLASS = 'app-dark-theme'
 export const BUSINESS_OVERLAY_THEME_CLASS = 'business-overlay-theme'
@@ -20,10 +22,19 @@ export function resolveWindowTheme(route) {
   return BUSINESS_OVERLAY_ROUTES.includes(route.path) ? 'overlay' : 'none'
 }
 
+let currentRoute
+const unsubscribe = themeController.subscribe(() => {
+  if (currentRoute) syncMainWindowTheme(currentRoute)
+})
+if (import.meta.hot) import.meta.hot.dispose(unsubscribe)
+
 export function syncMainWindowTheme(route) {
+  currentRoute = route
   const theme = resolveWindowTheme(route)
   const root = document.documentElement
-  root.classList.toggle(SHARED_DARK_THEME_CLASS, theme !== 'none')
+  const dark = theme === 'overlay' || (theme === 'main' && themeController.snapshot().resolved === 'dark')
+  root.classList.toggle(SHARED_DARK_THEME_CLASS, dark)
+  root.classList.toggle('app-light-theme', theme === 'main' && !dark)
   root.classList.toggle(MAIN_WINDOW_THEME_CLASS, theme === 'main')
   root.classList.toggle(BUSINESS_OVERLAY_THEME_CLASS, theme === 'overlay')
   return theme

@@ -11,14 +11,14 @@
     <main v-if="state" class="content">
       <section v-if="!settingsCollapsed" class="panel settings-grid">
         <label>在线状态
-          <el-select v-model="queryOptions.status" popper-class="price-check-select-popper" @change="syncSetting('status')">
+          <el-select v-model="queryOptions.status" popper-class="price-check-select-popper business-overlay-theme" @change="syncSetting('status')">
             <el-option label="在线可交易" value="available" />
             <el-option label="即时购买" value="instant" />
             <el-option label="包含离线" value="any" />
           </el-select>
         </label>
         <label>挂单时间
-          <el-select v-model="queryOptions.listed" popper-class="price-check-select-popper" @change="syncSetting('listed')">
+          <el-select v-model="queryOptions.listed" popper-class="price-check-select-popper business-overlay-theme" @change="syncSetting('listed')">
             <el-option label="所有时间" value="any" />
             <el-option label="1 天内" value="1day" />
             <el-option label="3 天内" value="3days" />
@@ -29,7 +29,7 @@
           </el-select>
         </label>
         <label>通货
-          <el-select v-model="queryOptions.currency" popper-class="price-check-select-popper" @change="syncSetting('currency')">
+          <el-select v-model="queryOptions.currency" popper-class="price-check-select-popper business-overlay-theme" @change="syncSetting('currency')">
             <el-option label="任意通货" value="any" />
             <el-option label="混沌石" value="chaos" />
             <el-option label="神圣石" value="divine" />
@@ -37,7 +37,7 @@
           </el-select>
         </label>
         <label>词缀初选
-          <el-select v-model="queryOptions.initialSelection" popper-class="price-check-select-popper" @change="syncSetting('initialSelection')">
+          <el-select v-model="queryOptions.initialSelection" popper-class="price-check-select-popper business-overlay-theme" @change="syncSetting('initialSelection')">
             <el-option label="自动" value="auto" />
             <el-option label="全部" value="all" />
             <el-option label="无" value="none" />
@@ -114,7 +114,7 @@
           <div v-if="!stateFiltersCollapsed" id="price-check-state-filters" class="state-filter-grid">
             <label v-for="definition in stateDefinitions" :key="definition.key">
               <span>{{ definition.label }}</span>
-              <el-select v-model="state.model.stateFilters[definition.key]" popper-class="price-check-select-popper">
+              <el-select v-model="state.model.stateFilters[definition.key]" popper-class="price-check-select-popper business-overlay-theme">
                 <el-option label="任意" value="any" />
                 <el-option label="是" value="true" />
                 <el-option label="否" value="false" />
@@ -140,7 +140,7 @@
             >
               <span class="filter-name" :title="property.label">{{ property.label }}</span>
               <template v-if="property.options?.length">
-                <el-select v-model="property.value" class="property-option" popper-class="price-check-select-popper" @click.stop @keydown.stop>
+                <el-select v-model="property.value" class="property-option" popper-class="price-check-select-popper business-overlay-theme" @click.stop @keydown.stop>
                   <el-option v-for="option in property.options" :key="option.id" :label="option.label" :value="option.id" />
                 </el-select>
               </template>

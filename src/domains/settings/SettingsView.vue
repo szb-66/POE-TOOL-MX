@@ -34,6 +34,21 @@
 
         <div v-show="activeTab === 'general'" class="settings-tab-panel settings-panel settings-panel--general">
         <div class="section-header">
+          <h3 class="section-title">外观</h3>
+        </div>
+        <el-card class="section-card">
+          <el-form label-width="120px" label-position="left">
+            <el-form-item label="应用主题">
+              <el-radio-group :model-value="themePreference" @update:model-value="setThemePreference" aria-label="应用主题">
+                <el-radio-button label="system">跟随系统</el-radio-button>
+                <el-radio-button label="light">亮色</el-radio-button>
+                <el-radio-button label="dark">暗色</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+            <div class="hint-text">仅影响主窗口，游戏内浮窗保持深色。标题栏切换会改为手动模式。</div>
+          </el-form>
+        </el-card>
+        <div class="section-header">
           <h3 class="section-title">国服账号</h3>
         </div>
         <el-card class="section-card">
@@ -581,6 +596,8 @@
 </template>
 
 <script setup>
+import { useTheme } from '../../theme/useTheme'
+const { themePreference, setThemePreference } = useTheme()
 import { mapLabel } from '../../../shared/mapTrackerLabels.js'
 import { classifyArea } from '../../../shared/mapTrackerAreaCatalog.js'
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
@@ -1166,7 +1183,7 @@ async function handleReset() {
     const resetResult = await resetApplicationSettings({
       stopAutomations: () => electronApi.emergencyStopAll(),
       syncShortcuts: () => updateShortcuts(DEFAULT_GLOBAL_SHORTCUTS),
-      resetStoredSettings: () => settingsStore.resetSettings(),
+      resetStoredSettings: () => { settingsStore.resetSettings(); setThemePreference('system') },
       resetInterfaceDetection: () => interfaceDetectionStore.reset(),
       resetControlOverlayOffset: () => chaosRecipeStore.resetControlOverlayOffset(),
       syncPriceCheckShortcut: () => priceCheckStore.syncRuntime({ shortcut: DEFAULT_GLOBAL_SHORTCUTS.priceCheck })

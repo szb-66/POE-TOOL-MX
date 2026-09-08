@@ -650,7 +650,7 @@ onBeforeUnmount(() => {
   .puzzle-evidence-alert p { margin: 6px 0; line-height: 1.6; }
   .submit-row { justify-content: flex-end; min-height: 32px; }
   .progress-text { color: var(--text-secondary); font-size: 13px; margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .submit-error { color: #F0AAA6; background: color-mix(in srgb, var(--el-color-danger) 13%, var(--surface-1)); border: 1px solid var(--el-color-danger); padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; }
+  .submit-error { color: var(--danger-color); background: color-mix(in srgb, var(--el-color-danger) 13%, var(--surface-1)); border: 1px solid var(--el-color-danger); padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; }
   .diagnostic-capture-alert { margin-bottom: 12px; }
   .diagnostic-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
   .diagnostic-actions :deep(.el-button) { width: 100%; margin-left: 0; }

@@ -6,7 +6,7 @@ const variables = readFileSync(new URL('../src/styles/variables.less', import.me
 const elementOverrides = readFileSync(new URL('../src/styles/element-override.less', import.meta.url), 'utf8')
 
 function themeColor(name) {
-  const themeStart = variables.indexOf('html.app-dark-theme')
+  const themeStart = variables.indexOf('.dark-theme-tokens()')
   const match = variables.slice(themeStart).match(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`))
   assert.ok(match, `缺少主题颜色 --${name}`)
   return match[1]
@@ -67,7 +67,7 @@ test('深色按钮全部语义类型和交互状态达到 WCAG AA 文字对比�
   }
 
   assert.match(elementOverrides, /var\(--theme-button-accent\) 94%, black/)
-  assert.match(elementOverrides, /var\(--theme-button-accent\) 78%, white/)
+  assert.match(elementOverrides, /var\(--theme-button-accent\) 78%, var\(--theme-accent-mix\)/)
   assert.doesNotMatch(elementOverrides, /var\(--theme-button-accent\) (?:86|88)%, black/)
 })
 

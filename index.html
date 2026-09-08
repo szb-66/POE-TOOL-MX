@@ -6,7 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: file: blob: price-check-image:; media-src 'self' file: blob: data:; font-src 'self' data:;">
     <title>流放助手</title>
+    <script>
+      // 在模块加载前解析用户偏好，启动占位与首个页面保持一致。
+      let startupPreference = 'system'
+      try { startupPreference = localStorage.getItem('app-theme-preference') || 'system' } catch {}
+      let startupDark = false
+      try { startupDark = window.matchMedia('(prefers-color-scheme: dark)').matches } catch {}
+      if (startupPreference === 'light' || startupPreference === 'dark') startupDark = startupPreference === 'dark'
+      document.documentElement.dataset.startupTheme = startupDark ? 'dark' : 'light'
+      const standalonePaths = new Set([
+        '/loading-feedback-overlay', '/puzzle-overlay', '/chart-recognition-feedback', '/overlay',
+        '/story-overlay', '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
+        '/price-check-overlay', '/map-tracker-overlay', '/debug-overlay', '/coordinate-picker'
+      ])
+      const startupPath = location.hash.slice(1).split('?')[0] || '/'
+      document.documentElement.dataset.startupWindow = standalonePaths.has(startupPath) ? 'standalone' : 'main'
+    </script>
     <style>
+      :root { --startup-bg: #F5F4F1; --startup-text: #514C43; --startup-border: #C9C4B9; --startup-brand: #806025; }
+      :root[data-startup-theme="dark"] { --startup-bg: #0E1013; --startup-text: #AEB4BD; --startup-border: #2C333D; --startup-brand: #C5A46D; }
+      html[data-startup-window="main"], html[data-startup-window="main"] body { background: var(--app-bg, var(--startup-bg)); }
+      html[data-startup-window="standalone"] #app-loading { display: none; }
       #app-loading {
         position: fixed;
         inset: 0;
@@ -16,16 +36,16 @@
         align-items: center;
         justify-content: center;
         gap: 12px;
-        background: #0E1013;
-        color: #AEB4BD;
+        background: var(--app-bg, var(--startup-bg));
+        color: var(--text-regular, var(--startup-text));
         font-family: 'Segoe UI Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
       }
 
       #app-loading .loading-spinner {
         width: 32px;
         height: 32px;
-        border: 3px solid #2C333D;
-        border-top-color: #C5A46D;
+        border: 3px solid var(--startup-border);
+        border-top-color: var(--startup-brand);
         border-radius: 50%;
         animation: app-loading-spin 0.8s linear infinite;
       }
@@ -51,15 +71,15 @@
     </div>
     <script>
       // 覆盖层窗口与主窗口共用同一份 HTML：覆盖层路由不应显示主窗口专用加载占位。
-      if (location.hash && location.hash !== '#/') {
+      if (document.documentElement.dataset.startupWindow === 'standalone') {
         document.getElementById('app-loading')?.remove()
       }
-      // 引导失败兜底：模块加载或 bootstrap 失败时补一块深色提示，避免停留在白屏。
+      // 引导失败兜底：模块加载或 bootstrap 失败时补一块匹配主题的提示，避免停留在白屏。
       setTimeout(() => {
         if (window.__appBootstrapped || document.getElementById('app-boot-fallback')) return
         const fallback = document.createElement('div')
         fallback.id = 'app-boot-fallback'
-        fallback.setAttribute('style', 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0E1013;color:#AEB4BD;font-family:\'Segoe UI Variable\',\'Microsoft YaHei UI\',\'PingFang SC\',sans-serif;font-size:13px;line-height:1.6;text-align:center;padding:0 24px;')
+        fallback.setAttribute('style', 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--app-bg,var(--startup-bg));color:var(--text-regular,var(--startup-text));font-family:\'Segoe UI Variable\',\'Microsoft YaHei UI\',\'PingFang SC\',sans-serif;font-size:13px;line-height:1.6;text-align:center;padding:0 24px;')
         fallback.textContent = '界面加载失败，请按 F5 刷新重试' +
           (window.__bootstrapError ? `（${window.__bootstrapError}）` : '')
         document.getElementById('app')?.appendChild(fallback)

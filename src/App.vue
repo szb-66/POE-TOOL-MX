@@ -34,7 +34,7 @@ const appThemeClass = computed(() => `${resolveWindowTheme(route)}-window`)
 
 watch(() => route.fullPath, () => syncMainWindowTheme(route), { immediate: true })
 
-// ponytail: HMR 批次后重申主题类，防止热更新链路打掉 html 深色类后停在亮色
+// ponytail: HMR 批次后重申主题类，防止热更新链路移除主题类后丢失当前配色
 if (import.meta.hot) {
   import.meta.hot.on('vite:afterUpdate', () => syncMainWindowTheme(route))
 }

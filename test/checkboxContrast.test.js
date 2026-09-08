@@ -7,7 +7,7 @@ const elementOverrides = readFileSync(new URL('../src/styles/element-override.le
 const priceOverlay = readFileSync(new URL('../src/domains/priceCheck/PriceCheckOverlayView.vue', import.meta.url), 'utf8')
 
 function themeColor(name) {
-  const themeStart = variables.indexOf('html.app-dark-theme')
+  const themeStart = variables.indexOf('.dark-theme-tokens()')
   const match = variables.slice(themeStart).match(new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`))
   assert.ok(match, `缺少主题颜色 --${name}`)
   return match[1]
