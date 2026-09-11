@@ -1,0 +1,1371 @@
+{
+  "patch": "3.29",
+  "reviewedAt": "2026-09-09T04:26:22.934Z",
+  "method": "核对正式站遗物列表、各底材 Metadata/Items/Relics 标识和词缀表；传奇名称与项目 3.29 离线目录交叉核对。此审核不代替国服实机文本验证。",
+  "entries": {
+    "room:MerchantIcon": {
+      "digest": "6d50b7a62f85666ec18b3e9c0bef2c9a312ad06d23cd4f8b1a025e83585384ff",
+      "roomType": "merchant",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：MerchantIcon 与包含商人；2026-09-09 核对，不代替实机文本验收"
+      ]
+    },
+    "room:LyciaPactIcon": {
+      "digest": "0ba8f5692e6af89f7f5d5af4e4f183bac61fb00e3395fb9c44651881a7fbebfc",
+      "roomType": "pact",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：LyciaPactIcon 与包含遭诅契约；2026-09-09 核对"
+      ]
+    },
+    "room:HealingFountainIcon": {
+      "digest": "acec180e2e411bfb5efbd7408597cc49ab70a0e4bf03d914c1004e138e3d33b8",
+      "roomType": "fountain",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：HealingFountainIcon 与包含喷泉；2026-09-09 核对，不推断恢复数值"
+      ]
+    },
+    "room:CurseFountainIcon": {
+      "digest": "33aa3ee0933dc198d6e2cad3e0bdcc29d5724791e65522bf22f2c1f5f4f485eb",
+      "roomType": "fountain",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：CurseFountainIcon 与包含痛苦喷泉；2026-09-09 核对，不推断恢复数值"
+      ]
+    },
+    "room:BoonFountainIcon": {
+      "digest": "d791048fc7d402834afa8c9e8e8fbe024f0435c3bdd8fa6624abc9455cdc7377",
+      "roomType": "fountain",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：BoonFountainIcon 与包含仁慈喷泉；2026-09-09 核对，不推断恢复数值"
+      ]
+    },
+    "room:RainbowFountainIcon": {
+      "digest": "de62c747ce266be3abcd1b6770074368167af566674b3a5b768fa964590d2927",
+      "roomType": "fountain",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：RainbowFountainIcon 与包含耀光喷泉；2026-09-09 核对，不推断恢复数值"
+      ]
+    },
+    "room:CurrencyRewardIcon": {
+      "digest": "541273c4899ff08cc722abd2e28eb945aa29516d365c2ede64f420b177ef779e",
+      "roomType": "reward",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：CurrencyRewardIcon 与完成后提供物品；2026-09-09 核对，不推断奖励数量"
+      ]
+    },
+    "room:TreasureIcon": {
+      "digest": "7ca7f7c82453cbd19e582401c2d90576891e287bef5371ac150ac147027f6d21",
+      "roomType": "treasure",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：TreasureIcon 与包含主要宝物奖励；2026-09-09 核对"
+      ]
+    },
+    "room:MinorTreasureIcon": {
+      "digest": "3c26b55c0e98770e39fc936692ac5050452cb9af5ce2e328a64d674a4b570952",
+      "roomType": "treasure",
+      "ruleSupport": "name-and-type",
+      "evidence": [
+        "https://poedb.tw/cn/Sanctum_league#Rooms：MinorTreasureIcon 与包含次要宝物奖励；2026-09-09 核对"
+      ]
+    },
+    "base:SanctumRelic1x2": {
+      "digest": "76d7337ebd01beeffab98e540d5bb6fbf9ba2aaf7b82be4ff6ac86f2a4b52e5a",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Censer_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic1x3": {
+      "digest": "cb6a7d4135ef4e27289e84589e731156a41a3f21854c9b5447970e8211006ea0",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Processional_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic1x4": {
+      "digest": "1d10643d5dec41a1b29e84bdcc35904c9547a125cf0cabef1af0b4b452da5304",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Candlestick_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic2x1": {
+      "digest": "3188b7d50058e529116757616a867875039ec3ff05c9ca7788249eeaf5c7eaa1",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Urn_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic2x2": {
+      "digest": "4f3cbe4d68277c9e59f5b3f67a4a2b80d0f0ce20355b778223882da0a52cc94c",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Coffer_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic3x1": {
+      "digest": "c3d56d0525c7519066ab23618bff0640c99097297a7952fa464a9f6f82a2d856",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Tome_Relic#Type"
+      ]
+    },
+    "base:SanctumRelic4x1": {
+      "digest": "7cd47b8d7fd5b7cdecdef4466b4aa91f1f87f9eb1268e14984a39339890e07ba",
+      "ruleSupport": "footprint",
+      "evidence": [
+        "Relics#遗物物品",
+        "Papyrus_Relic#Type"
+      ]
+    },
+    "modifier:9c16c23d71ce36ad": {
+      "digest": "dcb3a04336253d76beda117ac2ee5df0b6460acda8265cceacd9348e933a3585",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:82f9bdc3992e57cf": {
+      "digest": "c3c5e532678239299eb0f898b4a747e3907685751d96f34af1dc9454641f6ba5",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:a8962a400fa75dc7": {
+      "digest": "bf205a96febce5adf3f8eea306b29eca96a22076e95eae51530ce90a9586dde8",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:88fb1f45cb2266de": {
+      "digest": "09286fb99b50c6b951051d6d91fef075a1caea9ff9865f18026b8a2191cb8081",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:d1ef76b376747746": {
+      "digest": "2ab7a134d67edab78b7f85c45a25721e0e436e149b08045f0e428c68ab7914dc",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:8cfd0a11920de7a6": {
+      "digest": "f393d5d38bc9866ccce6808d6c999fb5e580cf74acc79c23f07ddeb42c9d3281",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:b401aa107a175b30": {
+      "digest": "d2d4db582e5cc11d60bbc231f941064822d0a536d0a33ecc0dc114ea7a8a966f",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods"
+      ]
+    },
+    "modifier:d7082e7b0d445c49": {
+      "digest": "4f6cfd4389cfb571bd108c7c99319e48dc05d92aac6ae4bc42ef54bafb22515a",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Censer_Relic#圣物Mods",
+        "Processional_Relic#圣物Mods",
+        "Candlestick_Relic#圣物Mods",
+        "Urn_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:593747a52095b520": {
+      "digest": "9cd88ba9c7fc02a070af44dbc6b58a1d9518fc4115d879d061bfe884dacdae64",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:0eb936da5f5430ac": {
+      "digest": "0ec732baed69b2d0d22e393c0300bc1472a6f96900e4edac8a60867cffd48b95",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:319cee49ef5df63c": {
+      "digest": "c4183584b3cb94eb607d7a59ec02900eaba03e6ddd3614533261cac0f387847d",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:1759faa33d8c2467": {
+      "digest": "296418118d5e329c63b1ed16f9396ae4da18f4a0bb173127ed16ddf202aedd2e",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:6798f3d18c740fcf": {
+      "digest": "7b6eb9d34010df6666b895875a30e0339fd6c83f2f866b2ccde8fd96ee7b497f",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:b183417387944157": {
+      "digest": "9595bd44244b1eb8f053746fe48a671f47ad36b665f75cb8dd55bd0d590fefea",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:2a91afda62177410": {
+      "digest": "bdc380f0e31ba3b3607f6c1b4cfb6fffa5e51bd8aa4fe67c5e04eb9d0083c947",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:3329cee8dc7c0ec4": {
+      "digest": "7517730317c6418eb0278c08c8cd84f62335d07a778d9093f90d1db24bd06b9c",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:9eef6afcab8a8cb9": {
+      "digest": "08394caf1efc2cb25377bd35dd50cf9170a01d51a7a55a88aa5e4c3b79e0577c",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:3920eb3682aa21ad": {
+      "digest": "ca661049d9f14451c603bf972c2eaa80c80bd886fa8288778549f06ffcf72c7b",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:1d31912921f4ed08": {
+      "digest": "0e12309161f9ae6f6033fcfcba38fa9b81bb7f6835ae9b06e0f05532ba12e400",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:7c3e84e666bf87b8": {
+      "digest": "88321afa2cbe2d48f7c2ac893908c62f5d532cb17ef688179c6d0932fd0fe070",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:fc3aad60fe9b3329": {
+      "digest": "3315a6da342d99c6b5ef09925b7458bcfabe4e33ce6485f200eb3c0ba0c3c72c",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:82d11b5f04cffb8f": {
+      "digest": "0cad84a8760d08d2c5aed726c8cfe57d5cb915bd2f463a3645f4537e5a647fdf",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:438f53c6a6f65f3f": {
+      "digest": "a4102f4b7a6e611757d2a931ae22e42dd024897b580237b2a1fdf6b6e6a2b1ea",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:625e2055bf314c15": {
+      "digest": "2f959060f7260588701de87ba5b0d3b056a42bbd8be8bd3c11d0afd8ef46e8aa",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:f83ae9332d0c0f3a": {
+      "digest": "e888f3706ff791f3f7d43aa1de9231b617579f71a72cbaf55e860d47665242c2",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Processional_Relic#圣物Mods",
+        "Tome_Relic#圣物Mods"
+      ]
+    },
+    "modifier:c0544bf04979afbf": {
+      "digest": "47d16c18bd4cc8c9176c4de6bcc2e8c1b3194d856560bf84f266e05e85a45b9d",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:07e043a026854662": {
+      "digest": "b5cb727f553844cb5e7ee4f5cde72085308633ad4922cc233d46d0f999983be7",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:6fd6339c557dc988": {
+      "digest": "e87e2e167a00f54fdc0ec9e8fc16d451a5c54ad06d91f7c4c1868fe77c19534c",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:167f7a6081e70335": {
+      "digest": "1502849d7ffe62ee3a750eaad50e656cd29ea68e79ff5617d1ee10d29fe4b37f",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:7869a38e41e6ffed": {
+      "digest": "c7e968d2ebdb0ffb7d7480182d5e63ee738c28627459a53ecaec0af3035097ef",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:f778e9e2c21ba9d9": {
+      "digest": "d7b8e167d8737effb12688f85ae49756bb1f736ff9b64d9a7b1aa51e4a0c2e04",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:41af1c8a432115f3": {
+      "digest": "7138e9c99d1f99875938776e5062a802aff69b738a6e5a519065d0acc70905cf",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "modifier:50a86f78c36e94d4": {
+      "digest": "b1986d2d36d9584c3a054b4676450e47de37327c500769e08bbbc6ea43a11b12",
+      "ruleSupport": "scalar-preference",
+      "evidence": [
+        "Candlestick_Relic#圣物Mods",
+        "Coffer_Relic#圣物Mods",
+        "Papyrus_Relic#圣物Mods"
+      ]
+    },
+    "unique:The_Hour_of_Divinity": {
+      "digest": "b70a3f7de2e9d9eee3334c907b1d8ab5cdf6bee3205d6ff0ac47a146aebe4018",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Blood_of_Innocence": {
+      "digest": "89c6fac6d3a5939df367f684f233cc274051669e69ac1e4dcf2ba4d860c370b6",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Gilded_Chalice": {
+      "digest": "909e05227be8aa5fb1ece202f7c6b5aef788d409b8534aa7e070dad20b6824f1",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Chains_of_Castigation": {
+      "digest": "41c57352d9ff5fb732eced42ebaaa1178f0311a5e9db893af6418a8c542805d2",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Second_Sacrament": {
+      "digest": "d68865805002211062490fc835a36f0d5bc86df97bde60b598f9aabe53c8bdb7",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Night_Lamp": {
+      "digest": "a6704aa3a2e1a7855fd9b6e4c01940451437d40c47086dac8903ad3621e1dde8",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_First_Crest": {
+      "digest": "9a7afa684760cc105d7e3fc1bf703c5ddb02ef401d186838aef8d4c62f9e3cae",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Broken_Censer": {
+      "digest": "dc94351e409a0d801a3c207453b6940ae404e13cfd3f559b0ef49a2b8f2b4f4f",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Power_and_the_Promise": {
+      "digest": "3f2f71214c636ad97b1f5900c60fc0844a93f0be8e69061177924e7131ce0434",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "unique:The_Original_Scripture": {
+      "digest": "a3cceb9ca9c272500cfe1a3f68bff962600010ae944d6730e0e1a9339a21785f",
+      "ruleSupport": "partial",
+      "evidence": [
+        "Relics#遗物传奇",
+        "electron/assets/unique-items/catalog.json@3.29"
+      ]
+    },
+    "floor:0": {
+      "digest": "78cfe94c7e8a34542b2e2fbd94565ce1c34b49b7f2c908905be2dd2dd81f6262",
+      "ruleSupport": "name-only",
+      "evidence": [
+        "Sanctum_league#Floors",
+        "Sanctum_league#圣地地区（别名指向同一链接）",
+        "test/fixtures/sanctum/supplied-samples.json（显示名称；不证明本轮身份）"
+      ]
+    },
+    "floor:1": {
+      "digest": "950e3cc867b736d13e935cff17f3377e8faff226b874eccc3a89e5db1c48517f",
+      "ruleSupport": "name-only",
+      "evidence": [
+        "Sanctum_league#Floors",
+        "Sanctum_league#圣地地区（别名指向同一链接）",
+        "test/fixtures/sanctum/supplied-samples.json（显示名称；不证明本轮身份）"
+      ]
+    },
+    "boon:BoonCrystalShardIcon": {
+      "digest": "9023cad74ba1f372068cf67c8f782c99fc8a3a548363619b5b80a655701fb568",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：水晶碎片；你获得的下一个痛苦转换为一个随机次要恩赐；规则 convertNextAffliction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonCrystalChaliceIcon": {
+      "digest": "aaffe2e8d708833c4c4bfef27881cf37385e699224921901c964c6395147d60a",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：水晶圣杯；你不能再获得更多次要痛苦；规则 minorAfflictionImmune。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonScryingCrystalIcon": {
+      "digest": "31b98c0223ddae051d95c5e30c316a41571ee6af2716572516f0fd621a205ee3",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：探知水晶；你在禁域地图上看到的房间增加一个；规则 visionIncreased。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGlassShardIcon": {
+      "digest": "724cc4e4c928ec1a52e9708e5996d9e06ca1a409eb6ee3327b1688c207a3210c",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：玻璃碎片；你获得的下一个恩赐转换为一个随机次要痛苦；规则 convertNextBoon。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseUnholyUrnIcon": {
+      "digest": "b75fd44626607c493805bf0e25d5fe4214d1e5a648a248f1e26519e28b5b3e01",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：不洁之瓮；你的圣物效果降低50%；规则 relicEffectReduction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseMirrorIcon": {
+      "digest": "27e3108ac3ee26241bf793b74b0ad9823932fcba9deb0852a196fd691a29bdaf",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：欺诈之镜；你不是每次都能进入你选择的房间；规则 randomDestination。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseUnassumingBrickIcon": {
+      "digest": "e8650cd0be2512bdf9211e7cfc5db03bc7076648d69ab5e77e7815f4eadd7cb6",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：朴实之砖；你不能再获得更多恩赐；规则 cannotGainBoons。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CursePurpleSmokeIcon": {
+      "digest": "c1571644680bc8db49707b0580138cac13da4602bc33aea64620f48a8daba759",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：紫色烟雾；圣所地图上的痛苦变为未知；规则 afflictionsHidden。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGoldenSmokeIcon": {
+      "digest": "fa967ec3e27d1deb10a4b2d5ff4bc1fda2b60808318edc7ecf2ad9d5c3593cff",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：金色烟雾；圣所地图上的奖励变为未知；规则 rewardsHidden。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseRedSmokeIcon": {
+      "digest": "ab2988cee09238da8016cf20cd4e54bf09a382f645db5c769af28a0192b848fa",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：红色烟雾；圣所地图上的房间类型变为未知；规则 typesHidden。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseVeiledSightIcon": {
+      "digest": "f93e1cb39cf3f13851562114154ce1a74d19788399a2f717519087cc893900a9",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：视线受阻；禁域地图上的房间变为未知；规则 roomsHidden。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseBlackSmokeIcon": {
+      "digest": "c3d99e0360455f7a38ba6f5aebd6d6ed0118d24690ad26d21cca08b1d504fcec",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：黑烟蔽目；你在禁域地图上看到的房间减少一个；规则 visionReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseUnquenchedThirstIcon": {
+      "digest": "f107ea31af724c8f5789a27ddd1920bc19a04aa96e4d85acb9553f5ac7d0e9d5",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：不灭渴望；坚毅恢复降低50%；规则 recoveryReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDemonicSkullIcon": {
+      "digest": "58854d47ad3920bc8273ea7a9e586f07b832b6dce382132a3bb6803bfd5383f2",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：恶魔颅骨；不能恢复坚毅；规则 cannotRecover。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseHungryFangsIcon": {
+      "digest": "f317fc75f3ead65acc3afeab750f6e1c8474b5293673de2e7b04644ee6654b80",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：饥饿之牙；怪物对坚毅的影响提高25%；规则 dangerousMonsters。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDarkPitIcon": {
+      "digest": "cb938eef34c3110282c654ddf5568d2499fa878cfa961e9a6bf0f8498a266d7b",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：黑暗深坑；陷阱对坚毅的影响提高 200%；规则 dangerousTraps。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseHeightenedSecurityIcon": {
+      "digest": "c9dc7c44ebf2700d893325a336a203a36b45dfb29fb0fb4540182bd3e86991c9",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：致命陷阱；陷阱对坚毅的影响无限；规则 lethalTraps。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseHonedClawsIcon": {
+      "digest": "26142be34a173dcffb8e08fac019606675e99f6d4880ce19f423051dd12529ec",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：牙尖爪利；怪物伤害总增 50%；规则 dangerousMonsters。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseNameIllusionIcon": {
+      "digest": "48a8e132c57cf04d7b2d098694b78ae025622a258ff98eaa7e6a7c226fc3799e",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：幽影幻象；所有房间赋予一个随机次要痛苦。\n（完成房间后移除该效果赋予的痛苦）；规则 randomAfflictionEachRoom。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseHaemorrhageIcon": {
+      "digest": "a01e07a860ea256f14cf3ae742e53f048e39ea308b9a8925712cc63b22022da2",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：血流不止；你不能再恢复坚毅（消灭下一楼层的首领后移除）；规则 cannotRecover。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseSpikedEntranceIcon": {
+      "digest": "bd236009f54e69be6410efee7722aa7e206f07d9efe0d3d1e78987d6625447b2",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：尖刺出口；完成一个房间后失去5%当前坚毅；规则 completionResolveLossPercent。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGhastlyScytheIcon:4f5db1680197be01": {
+      "digest": "51d0e41df9ebed7bffbe2ce3c28670f64de5ece3c4e870fa7c3210af53b00434",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：幽暗镰刀；失去坚毅使你的禁域结束\n（1个房间后移除）；规则 endsOnResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGhastlyScytheIcon:0dd9bd4c6cf7b077": {
+      "digest": "ec2c5a36587519ae84593ae6bda48c5fc650cbbe7c0740544985ee68dd6959f6",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：幽暗镰刀；失去坚毅使你的禁域结束\n（2个房间后移除）；规则 endsOnResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGhastlyScytheIcon:3acda56b2f745ff3": {
+      "digest": "af53033f010b277e1f86eb1e336b1ba1307c844c4510d30ee1beaf123a3fbcd9",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：幽暗镰刀；失去坚毅使你的禁域结束\n（3个房间后移除）；规则 endsOnResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:8800cf209b96e391": {
+      "digest": "ff7f7d1c0669a25fc847737c9b2c4661e5da9389f10d3dfce7a036ead2e1feb5",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成下间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:831fc707c61481e8": {
+      "digest": "19efcebb0deb348942420aea4652115e31b973ac56ef4f8a80fb43ec63d95f62",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 2 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:07e64b48424bcc98": {
+      "digest": "6f6d8f5668f5fd47267269a05474da1a2ea8c4333b3c88bff7cae4463b4f7431",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 3 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:9542d44188ca9c59": {
+      "digest": "fd1b2ec3720434261d310087557e2cffc7fc78d65c7de26ac6ff96a36a6a6c97",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 4 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:46af2aaec33be8a5": {
+      "digest": "c903844758922620a80b3742bdac27120852c64a35c4ac64f9baa85413fc646a",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 5 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:da836144770d3325": {
+      "digest": "0fa8fac2ff5c838d8734a29c1eb95584a8c2179f8b3adaa6f76a047da07500fd",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 6 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:4a56ec1c454f99d2": {
+      "digest": "2a92d0cbd4d812e3b3dc7fd89ce379ae49eeb11142dd28c87456ea9c37da69e9",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 7 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:ff492299774543f0": {
+      "digest": "db198acfccc08f023bfd301732963dabe6ebaa670af79fcb88334f694c7ea120",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；完成 8 间房间后失去 250 坚毅；规则 resolveLossCountdown。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonEnchantedUrnIcon": {
+      "digest": "4dccb3f7852995894f256842e2d68f3d43f7e40d1a8b76817e72fa7bdb46f89b",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：附魔之瓮；你的圣物效果提高30%；规则 relicEffectIncrease。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAllSeeingEyeIcon": {
+      "digest": "a37abaf1329d15f3cb1e0f9a8efc41dfcbbc93b437f5ab98f4ab194ac8153b5f",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：全知之眼；圣所地图现在完全显示了；规则 fullMapRevealed。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonPrayerBeadsIcon": {
+      "digest": "c0dc8235e8ddf46d2e0c57d2c4dad4fc1d0dc7e214901c3e315b72f8cf59c3ef",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：祈祷念珠；下个房间内不会失去坚毅；规则 preventResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonLustrousLacquerIcon": {
+      "digest": "350730693662ec85f64882412a446d1a1924d95a7828667b6fb30887b37aa501",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：光辉漆彩；防御总增 50%；规则 defencesMore。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonMustyWineIcon": {
+      "digest": "65e94962d196979a452c112c13e14a9f383bcdcdd06007c731f59f94bb47169f",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：霉烂果酒；每个房间开始时，对你施加一个随机的神龛效果；规则 randomShrine。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSacredMirrorIcon": {
+      "digest": "3fb5a5b6bd1aac9d440d02487c76c22264196d2095024f193d1d8e654f7841eb",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：神圣之镜；最多复制3项随机贡品奖励；规则 copyTributes。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGoldTrophyIcon": {
+      "digest": "537da31247545cfe45fa449b3230c0142304617b0297a6b99b564f5b16ecc501",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：金制奖杯；完成房间时你获得的耀金币提高10%\n（从商人处购买物品后移除）；规则 completionCoinsIncrease。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonChippedDiceIcon": {
+      "digest": "7767fce94b6ae3127bd29111a20396ade2a3e34b70a61f6f425502a22c7af957",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：破损骰子；商人的商店可以被重随了；规则 merchantReroll。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonCallistasGiftIcon": {
+      "digest": "bfd87739a066e0b87855f5f9be409cf9e7f02c03bf407392630ffe4caa6f3f14",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：圣神赐福；你在商人处的下一次购买不会产生消耗；规则 freePurchase。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonUntunedLuteIcon": {
+      "digest": "3240ac833295dd880acc245bea8a1c1cda6a95729f43d62c7ae1b7385152be0f",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：不谐诗琴；增加 +100 层启迪；规则 gainInspiration。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonBlackPearlIcon": {
+      "digest": "0c5f4a392bfd5c27973b6b9c47646ee425d7db2bbd776a28b335bca7f8e771d5",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：黑色珍珠；陷阱对坚毅的影响降低50%；规则 trapResolveModifier。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSliverChaliceIcon": {
+      "digest": "4cf86065364183c971bd5b160f25b81f542a8a345dac50f184a1ededb7a0c986",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：银制圣杯；你获得的下一个次要恩赐转换为一个随机主要恩赐；规则 upgradeNextBoon。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonFountainOfYouthIcon": {
+      "digest": "7edfa9eb4cc4d000856ebfab609f30ca359f8ec6250ab004a84871b82620cee8",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：青春之泉；每次你使用喷泉时，获得+40最大坚毅；规则 fountainMaxResolve。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonHolyWaterIcon": {
+      "digest": "56fe55335a7011fa2281ff16709588ec6b725ee7d667fb860cc0088c1a08241c",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：圣水之灵；当你使用喷泉时获得一个随机次要恩赐；规则 fountainBoon。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonTarnishedDescryIcon": {
+      "digest": "ac60420b2874a0e05443abf6c3f98c27abf7ad936fca3d4f6bb9fc2cb888b416",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：晦暗圣印；增加 +150 最大坚毅；规则 gainMaxResolve。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonArcaneAegisIcon": {
+      "digest": "5145062f70e0f904deb0d715187cdd21d4c793aaea27335388219381d447a337",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：奥术圣盾；当你的启迪变为0时，触发奥术增幅者；规则 arcaneAegis。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonMirrorOfFortuneIcon": {
+      "digest": "d9704a6eb9117c5b0033fa44b2743f156b22cbc77b8f4ee7fb2cdeef18268519",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：命运之镜；复制一个随机贡品奖励；规则 copyTributes。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAdrenalineVialIcon": {
+      "digest": "fa187f0661ff6ce02e0668e0bd6e3c9c023d6e8fd11d6db492999a778c9e2fb1",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：肾上腺素；进入首领房间时恢复50%最大坚毅；规则 bossRecoveryPercent。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonEngravedOrbIcon": {
+      "digest": "453616b7e9ff49b4defa3f405462d6de33998c3af65fec6ceca67eb543a193a0",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：铭印宝珠；坚毅低于50%时，恢复的坚毅增加100%；规则 lowResolveRecovery。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonTarnishedCoinIcon": {
+      "digest": "88355e24c1292eefe2506a84ead34c5b631966feab0289b03ca95a5070d26dd2",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：晦暗硬币；坚毅低于50%时，获得的耀金币提高100%；规则 lowResolveCoins。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:c365b6d51acfa4f6": {
+      "digest": "e2ae97c6789581b12f14fca22dc4cb919ddf158b84d956c74ca17fc37932e7c4",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:5e8ddeaceedfa2ec": {
+      "digest": "46ee92f7091d99d2edf28ea49690daf2846efc3d16edfbe49c71301866819985",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的2个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:542546b96890bf4f": {
+      "digest": "f7a7c5a425fa101b90d4eb2d3865c0032a34f2619897273188497a9b57de128f",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的3个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:9977dfad490295e3": {
+      "digest": "5c34f5f056200f5bfc9ea47d5569f736130fad55c53766d536addeaaaaae31bf",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的4个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:5fddd58a48e91cb9": {
+      "digest": "540bd4628a8ee370b4ce0607af45839ba16848a84dbefae18607542496766c58",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的5个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:b0d07ca8f00b8551": {
+      "digest": "5d319165fb25ec4709c93c853c3ee5eabd15890d1de7e411115a1285b347f2e5",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的6个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:95fe4b39d580008a": {
+      "digest": "780d08a036462120860445b206a95dc7eb1ef97c78043878fead7aa77c547186",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的7个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:e0de507274707a29": {
+      "digest": "0bbed0d736898b8967461b2dde7921a9624710cb2b3ae543199131191e473f50",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的8个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:d7d3f12b4578acc7": {
+      "digest": "9845a6485e49ef059cd4e94a6d1dea10a2fa791624feb853d42311c7950e9437",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的9个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonAssassinsBladeIcon:4d8fa558b56026fd": {
+      "digest": "e006560a36489ad9b35b07d663e555e9939592b74ac50604596bf0d207d1c7d6",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：刺客之刃；你下次攻击的10个守卫将立即死亡；规则 guardKill。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonFancyDaggerIcon": {
+      "digest": "54254df9d3b39eb8ea046ec614f27ced39aab90aaf01ed8112b56dc0c6c308b7",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：华丽匕首；你和你的召唤生物伤害增加50%；规则 playerDamageIncrease。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSanguineVialIcon": {
+      "digest": "a7f62d434ca1e4c64f544d7dbec246422eba7560b4933785ba65a3c6b6b38acb",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：鲜血之瓶；怪物的生命上限降低30%；规则 monsterLifeReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonWoodenEffigyIcon": {
+      "digest": "f14ffe3533153812808987e883976d510e10797a5541de4537f0cb5aea95965d",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：木质塑像；怪物对坚毅的影响降低25%；规则 monsterResolveModifier。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonViciousIchorIcon": {
+      "digest": "e04ac9d6437e44b268d816e636688bfebdf375bfa0b5534034820beacc71afdf",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：粘性溶液；怪物的行动速度降低20%；规则 monsterActionSlow。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonLustrousPearlIcon": {
+      "digest": "d3e0e8dd75093d46cdc3f01e96cf949dd94a75038548b71b17e5ddcd58ad89b4",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：光辉珍珠；陷阱现在更慢了；规则 slowTraps。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGoldCoinIcon": {
+      "digest": "5db2aeb061c82f4b0882481809a632e41304dffbee7286566b9a3e97e4e705f9",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：金制硬币；获得的耀金币翻倍；规则 coinsDouble。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGoldMineIcon": {
+      "digest": "60a61f9c496460c86ea6bbcc7d07b4c6a7446bcb4e683ab57d73f6abb8c7bb6a",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：黄金矿石；本楼层获得的耀金币翻倍；规则 coinsDoubleFloor。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonBronzeCoinIcon": {
+      "digest": "942e88cedb32d486e419eb20674b853c7062bf89ea3b1d0cadbc9ba494b5531b",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：铜制硬币；拾取耀金币时恢复坚毅；规则 coinPickupRecovery。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonHolyDescryIcon": {
+      "digest": "7f41097124aaf2ed62c70ae3ca0556a598870d9c03f4bc1d14620c62b6dc6ead",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：神圣圣印；当坚毅变为0时，恢复所有坚毅，然后失去50%当前最大坚毅，并移除一个随机恩赐；规则 reviveSacred。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonPriestsDescryIcon": {
+      "digest": "7a3c91f04c9ed35bcb7ce46a5e78bdadb9134fc513052adf364518aa9497d378",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：祭司圣印；当坚毅变为0时，恢复到75%最大坚毅一次；规则 reviveOnce。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonLiltingMelodyIcon:d1cf37177d322bfa": {
+      "digest": "0f52bee3d223a3e3c6c757f0b54e1f68e21a26f33b07854005fe98d8f277cd46",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：轻快旋律；如果你完成接下来 1 个房间并且未失去坚毅或启迪，获得 150 层启迪；规则 flawlessInspiration。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonLiltingMelodyIcon:75ee9c94781f3d32": {
+      "digest": "f01ee11639d914600bac23cdea8098458420c1d4cd077a8b4cf0054b4f8541fe",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：轻快旋律；如果你完成接下来 2 个房间并且未失去坚毅或启迪，获得 150 层启迪；规则 flawlessInspiration。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonMellifluousChorusIcon": {
+      "digest": "ba6c10b9f66fcb21ac7f35889d2e7df89444382625705c361001ffe3892f4274",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：悦耳和声；你拥有启迪时失去的坚毅减少40%；规则 inspiredResolveReduction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonRustedChimesIcon": {
+      "digest": "ebd08c94e5ba26acd53053a5913a94e0a59001140845e1035cfebcaa7f438984",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：锈蚀钟琴；当你获得痛苦时，获得 +30 层启迪；规则 inspirationOnAffliction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGildedLyreIcon": {
+      "digest": "314658747ad8769fe5737f14736d844b6f462ebbeb82902319bd6fd6176ff758",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：镀金竖琴；每个楼层开始时获得 +100 层启迪；规则 inspirationOnFloor。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGlowOrbIcon": {
+      "digest": "e9d104b6c0a55116e1a1fee5f26398245c0651347e22633894249ae5ee10c15b",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：光亮宝珠；下次你的坚毅低于20%时，恢复50%坚毅；规则 lowResolveRescue。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonBronzeDescryIcon": {
+      "digest": "58df8a2e77add31f91c0ba4f0acc90064cd7fb1d74650ca393a59337383c550b",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：铜制圣印；被击中而失去坚毅后的1秒内不会再失去坚毅；规则 hitGracePeriod。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGoldenDescryIcon": {
+      "digest": "101b11faff4e10f6bbb5f6defdac3f2983eeac9dc5c00608344997631655ea23",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：金制圣印；在完成房间时恢复+15坚毅；规则 recoveryOnRoom。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSilverDescryIcon": {
+      "digest": "54766125783cf20b90f97315d38932303baeb1d1e656964c48db548d4637dbeb",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：银制圣印；每个房间内首次承受伤害不会失去坚毅；规则 firstHitImmune。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonImperialSealIcon": {
+      "digest": "712850f472184a292e1ea81449bbd9b0a5bbd55217088ed83ea38393b0ccfc3e",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：帝国封印；陷阱现在失效了；规则 trapsDisabled。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSilverTongueIcon": {
+      "digest": "d364ba52c13629e3a48c99fa1079c3c65869939ceb99bdc72a5a0f0c33ab11ca",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：巧舌如簧；商人处的出售价格降低50%；规则 merchantPrice。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonRustyDescryIcon": {
+      "digest": "8f88ddd2557b8740e9ce49d319bd7196d67c33a2a0731772e45d75a78f9f8ec7",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：锈蚀圣印；坚毅恢复提高50%；规则 recoveryIncrease。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonSilverCoinIcon": {
+      "digest": "622b1d6af9480452398c23d48a153715504640423e6ab1cc8c79966d3c8c74ce",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：银铸硬币；当你被击中而失去坚毅时，获得 10 枚耀金币；规则 coinsOnHit。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonGoldMagnetIcon": {
+      "digest": "afcf61a9b72f0bb12507353a5846392f73ca4a81f1d0ea5cb3387888e2581371",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：金币磁铁；找到的耀金币数量增加50%；规则 coinsFoundModifier。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonHareFootIcon": {
+      "digest": "ee483e11457361aee1eedf1ba185e0a57ef1273f0903e2a72edf068aeb6d61cc",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：野兔之足；移动速度提高60%；规则 movementSpeedIncrease。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "boon:BoonFrightMaskIcon": {
+      "digest": "90e8d0f1137aef2988cb5a427763417bbff3358f292c78ac8e1729d84c9a0be8",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 恩赐 表逐项核对：恐惧面罩；怪物伤害减少40%；规则 monsterDamageReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseCorrosiveConcoctionIcon": {
+      "digest": "a50658949415ec0b2ab95a592172322594d75fc0347a68fc5c73fe03643aef47",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：腐蚀药剂；无坚毅缓阻或坚毅护盾，无法避免失去坚毅；规则 noResolveDefences。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseShatteredShieldIcon": {
+      "digest": "3782d2ea119948aa09dcea9f146680e1c9adcf53f8498ced6cd7c8d93e5fe825",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：破碎盾牌；无法获得坚毅护盾；规则 noResolveAegis。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseSharpenedArrowheadIcon": {
+      "digest": "5b31238aea2234a9c7aeded8fbd93dadd6630317f26bba8761ee85a9a5245adc",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：锋利箭头；敌人击中无视你的坚毅缓阻；规则 ignoreResolveMitigation。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseIronManaclesIcon": {
+      "digest": "c82961972543662587be4d5e3eb52fa111d1c029e63ceb0302297c898839c657",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：钢铁镣铐；无法避免被敌人击中造成的坚毅损失；规则 noResolveAvoidance。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseChiselledStoneIcon": {
+      "digest": "4ac465e17d3b226ace509c1296e906c362287ea4af3220b5e36a53118d175860",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：凿刻之石；怪物击中时使用石化；规则 petrifyingHit。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseRustedCoinIcon": {
+      "digest": "a9ca21c9c9e7893ae77d7c80678c863d4b61d7cae4ce571b08d224ae88eb056a",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：锈蚀硬币；商人仅提供一个选项；规则 merchantOneOption。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseOrbOfNegationIcon": {
+      "digest": "4d83efe874f903f1f83571aa66847340a0530224528e68267ca2a5a1675e563c",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：否定宝珠；非传奇物品失去效果；规则 nonUniqueItemsDisabled。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseWornSandalsIcon": {
+      "digest": "b568f042490f58a1e13cf58a4a4cab5f3405f73f76f390352824fecfefa561c6",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：破烂凉鞋；移动速度降低40%。；规则 movementSpeedReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseCorruptedLockpickIcon": {
+      "digest": "f263f06315a144d3860d66c7b08f917e2b0f39de127554a6671c8d7949acd582",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：腐化撬具；房间内的宝箱被打开时会爆炸；规则 explodingChests。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseGargoyleTotemIcon": {
+      "digest": "8488cd3abd4d0deafd719b4071631a376a42a383381f90c6ba39d41ef7a609b9",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：石像图腾；守卫们有一个石像鬼陪伴；规则 gargoyleGuards。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseFiendishWingsIcon": {
+      "digest": "3a5f951beee667fced6be90070e3b98cfb258fd043442d859b9c26b4e1a3320f",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：恶魔之翼；怪物的行动速度减缓不会低于基础速度\n怪物的攻击，施法，移动速度提高30%；规则 monsterSpeedFloor。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseWeakenedFleshIcon": {
+      "digest": "85dee5982faf45a6f6323a4a8aad8c739743a2a6f5f4dd775f9398ca43990076",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：弱化血肉；减少100最大坚毅；规则 gainMaxResolve。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseRustedMalletIcon": {
+      "digest": "2fb2189fad4ea2e22dbe60887a441e72c51dd976beaf222261c6b6f6d8558d78",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：锈蚀重锤；怪物总会击退\n怪物造成的击退距离提高；规则 monsterKnockback。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseMarkOfTerrorIcon": {
+      "digest": "085dc8e73bd25f5e108aecb5ea9dfdc1f9026fb8bf3421378de0be62486ed59d",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：恐惧之印；怪物击中时施加坚毅要害；规则 resolveWeakness。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseConcealedAnomalyIcon": {
+      "digest": "91a054b8fa2c4af01ff5f73db98eed5c52c03b533b516f80ec127ab46d8f84f3",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：隐蔽异动；守卫死亡时释放一个异动奇点；规则 deathAnomaly。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseChainOfBindingIcon": {
+      "digest": "7efc825d29e0ee51f548bdcf1b4104bb8e0da05116b9be90efb5e36de7edd218",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：拘束锁链；怪物击中时施加束缚之链；规则 bindingHit。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseLiquidCowardiceIcon": {
+      "digest": "b2b9a0e0ad6c0fe227b24ca2552598e9ccaee3f1c8ec8a84bee1bed83f27e3ad",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：液化懦弱；使用药剂时失去10层坚毅；规则 flaskResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CursePoisonedWaterIcon": {
+      "digest": "abb31f1a6f8247cbf84e06e02810c78d415f0dfcbec6d60b617899bfd2b3bc33",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：毒水侵袭；当你使用喷泉时获得一个随机次要痛苦；规则 fountainAffliction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseAccursedPrismIcon": {
+      "digest": "8c47335186132afa73a8000d717ee7c481839e257981e9e9efbb2240ba474531",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：诅咒棱镜；当你获得痛苦时，获得一个额外的随机次要痛苦；规则 extraAffliction。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseUnhallowedAmuletIcon": {
+      "digest": "cbaa070da244e32b4d39edddcc04d7a204032d3eb0a3f6cf9ec4a8b2de705be6",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：不洁吊坠；商人提供的选项减少50%；规则 merchantOptionsReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseTightCollarIcon": {
+      "digest": "4763fd501e93961f1bbd3cdd394a45ff92ac23384254f6396de8c2d1a8cfd767",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：紧缚项圈；你最多可以拥有5个恩赐；规则 boonLimit。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseVoodooDollIcon": {
+      "digest": "614e047a45e37eeabad740b1a68386c2105a1361cc57e4f39bd736df29ab5605",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：巫毒人偶；坚毅低于50%时，失去的坚毅增加100%；规则 lowResolveLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseCutpurseIcon": {
+      "digest": "287b7259bc697b1997b793f8249fa4d157117f7c62eb18197abb3abdc0ad02db",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：钱包失窃；你无法获得耀金币；规则 cannotGainCoins。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseTatteredBlindfoldIcon": {
+      "digest": "857a1a8912846b36dc3e9e46f04cb86769087ee542c55a8f7b1433fed3c49860",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：破烂眼罩；能见度降低90%\n隐藏小地图；规则 localVisibilityReduced。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseFloorTaxIcon": {
+      "digest": "efd687981cfeeefd1dfc5ca28e3643f026de79ec4188763b8ca618d0d74245fe",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：楼层税款；在完成楼层时损失所有的耀金币；规则 floorCoinLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseUnhallowedRingIcon": {
+      "digest": "091145ef6008edfa3f30292fc30f8b586ff9f1787c0934eab8d6bd33750961c1",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：不洁指环；商人处的出售价格提高50%；规则 merchantPrice。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseSpikedShellIcon": {
+      "digest": "a5791f1ff1d01dc39134a03650de7afad06b82abe974094289fa2c13311a8f96",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：尖刺外壳；怪物的生命上限总增 50%；规则 monsterLifeMore。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseEmptyTroveIcon": {
+      "digest": "0c39fa7cb57c5f8415e8951f06171e84525bc3ed34877304fcc33873394a5344",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：空白珍宝；宝箱不再掉落耀金币；规则 noChestCoins。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDeathTollIcon:605e7262e925cb55": {
+      "digest": "f5e7ae8e21ff5de8df5021d542c7209638c1928c5a24f752d7a287da7cec27e1",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：伤亡代价；怪物不再掉落耀金币；规则 noMonsterCoins。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseDoorTaxIcon": {
+      "digest": "4c41019d4ff2be539555ff6aa8e89348d44d374a2d1ccbe3f42cc6d337af3366",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：过门税款；完成房间时损失30枚耀金币；规则 completionCoinLoss。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseSpiltPurseIcon": {
+      "digest": "0c3e9169a5e13643f1d499f34a570d3dbfbabbb556ed0bf7f54937b6cd35b282",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：钱包过满；当你被击中而失去坚毅时，损失20枚耀金币；规则 coinsOnHit。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseAnomalyAttractorIcon": {
+      "digest": "d8678f1e53258a8f8799c1354f0d11579648b84ef0ffb8288aedf4d65c5e5418",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：异动引子；房间内会生成异动奇点；规则 roomAnomaly。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseRapidQuicksandIcon": {
+      "digest": "7e48374c7c575fe5ec92e9e4b28d1037d5c9c677b38ef18ebdafe037eadc3484",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：急速流沙；陷阱现在更快了；规则 fastTraps。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseBluntSwordIcon": {
+      "digest": "386706d0929034cac1a5357d9e8948759457077d6900856a259b7e546f254e1b",
+      "ruleSupport": "conditional",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：钝化之剑；你和你的召唤生物伤害总降 40%；规则 playerDamageLess。非历史正文；不代替国服实机验收。"
+      ]
+    },
+    "affliction:CurseCharredCoinIcon": {
+      "digest": "526323014c27ed619c3ba358261c13c89e13b686492ad2ad7cc366e606777131",
+      "ruleSupport": "numeric-or-structural",
+      "evidence": [
+        "2026-09-11 https://poedb.tw/cn/Sanctum_league 的 Affliction 表逐项核对：焦化硬币；找到的耀金币数量减少50%；规则 coinsFoundModifier。非历史正文；不代替国服实机验收。"
+      ]
+    }
+  }
+}

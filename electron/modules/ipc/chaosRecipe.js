@@ -2,7 +2,6 @@ import { ipcMain } from 'electron'
 import { CHAOS_ERROR_CODES, ChaosRecipeError, serializeChaosError } from '../chaosRecipe/errors.js'
 import { resolveStashGridLayout } from '../chaosRecipe/layout.js'
 import { selectAllSingleRecipeItems } from '../chaosRecipe/engine.js'
-import { OverlayDragSession } from '../window/overlayDrag.js'
 
 const ok = (data = {}) => ({ success: true, data })
 const runtimePlanRequest = (runtime = {}) => ({
@@ -18,7 +17,6 @@ const planMessage = (plan) => plan.kind === 'single'
 export function registerChaosRecipeHandlers(service, window, shared = {}) {
   const interfaceDetection = shared.interfaceDetection
   const control = service.control
-  const controlDrag = new OverlayDragSession()
   const invoke = (handler) => async (_event, ...args) => {
     try {
       return ok(await handler(...args))
@@ -213,16 +211,6 @@ export function registerChaosRecipeHandlers(service, window, shared = {}) {
   }))
   ipcMain.on('chaos-recipe-control-move', (event, point = {}) => {
     if (!control?.window || control.window.isDestroyed() || control.window.webContents !== event.sender) return
-    if (point.phase === 'start') {
-      controlDrag.begin(event.sender.id, point, control.window.getBounds())
-      return
-    }
-    if (point.phase === 'end') {
-      controlDrag.end(event.sender.id)
-      return
-    }
-    if (point.phase !== 'move') return
-    const target = controlDrag.move(event.sender.id, point)
-    if (target) control.moveToDip(target.x, target.y)
+    control.handleDrag(event.sender.id, point)
   })
 }

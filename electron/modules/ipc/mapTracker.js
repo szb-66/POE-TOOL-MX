@@ -8,18 +8,26 @@ const invoke = (handler) => async (_event, ...args) => {
 }
 
 export function registerMapTrackerHandlers(service, { getMainWindow = () => null, overlay = null } = {}) {
+  const ready = handler => invoke(async (...args) => { await service.whenReady(); return handler(...args) })
   service.onSnapshot((snapshot) => { for (const window of BrowserWindow.getAllWindows()) if (!window.isDestroyed()) window.webContents.send('map-tracker:snapshot', snapshot) })
-  ipcMain.handle('map-tracker:status', invoke(() => service.snapshot()))
+  ipcMain.handle('map-tracker:status', invoke(async (options) => {
+    if (options?.waitForReady === true) await service.whenReady()
+    return service.snapshot()
+  }))
   ipcMain.handle('map-tracker:settings', invoke((patch) => service.updateSettings(sanitizeMapTrackerPatch(patch))))
-  ipcMain.handle('map-tracker:query', invoke((filters) => service.query(sanitizeMapTrackerQuery(filters))))
-  ipcMain.handle('map-tracker:edit', invoke((id, patch) => service.editRun(text(id, 80), object(patch))))
-  ipcMain.handle('map-tracker:delete', invoke((id, confirmed) => { if (confirmed !== true) throw new Error('删除操作需要确认'); return service.deleteRun(text(id, 80)) }))
-  ipcMain.handle('map-tracker:export', invoke(async (filters) => {
+  ipcMain.handle('map-tracker:query', ready((filters) => service.query(sanitizeMapTrackerQuery(filters))))
+  ipcMain.handle('map-tracker:edit', ready((id, patch) => service.editRun(text(id, 80), object(patch))))
+  ipcMain.handle('map-tracker:delete', ready((id, confirmed) => { if (confirmed !== true) throw new Error('删除操作需要确认'); return service.deleteRun(text(id, 80)) }))
+  ipcMain.handle('map-tracker:export', ready(async (filters) => {
     const result = await dialog.showSaveDialog(getMainWindow(), { title: '导出地图记录', defaultPath: 'map-tracker.csv', filters: [{ name: 'CSV', extensions: ['csv'] }] })
     if (result.canceled || !result.filePath) return { canceled: true, count: 0 }
     return { canceled: false, ...await service.exportCsv(sanitizeMapTrackerQuery(filters), result.filePath) }
   }))
-  ipcMain.handle('map-tracker:overlay', invoke((action) => { if (!['show', 'hide', 'reset'].includes(action)) throw new Error('浮窗动作无效'); return overlay?.control(action) || { available: false } }))
+  ipcMain.handle('map-tracker:overlay', invoke(async (action) => {
+    if (!['show', 'hide', 'reset'].includes(action)) throw new Error('浮窗动作无效')
+    if (action !== 'hide') await service.whenReady()
+    return overlay?.control(action) || { available: false }
+  }))
   ipcMain.on('map-tracker:overlay-move', (event, point = {}) => {
     const win = overlay?.getWindow?.()
     if (!win || win.webContents !== event.sender) return

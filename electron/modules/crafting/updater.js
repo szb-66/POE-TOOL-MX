@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, mergeModifierGoals, parsePoedbBases, parsePoedbCrafts, parsePoedbEldritchImplicits, parsePoedbModifiers } from './poedbParser.js'
 import { CRAFTING_SCHEMA_VERSION, normalizeCraftingDataset, stableCraftingId } from './model.js'
 import { POEDB_BASE_PAGES, POEDB_MODIFIER_PAGES, SPECIAL_MODIFIER_PROFILES } from './poedbSources.js'
 import { createFossilCrafts } from './fossilRules.js'
@@ -30,10 +29,11 @@ function detectLeague(html) {
 }
 
 export class CraftingDataUpdater {
-  constructor({ repository, storageRoot, fetchImpl = fetch }) {
+  constructor({ repository, storageRoot, fetchImpl = fetch, loadParser = () => import('./poedbParser.js') }) {
     this.repository = repository
     this.storageRoot = storageRoot
     this.fetchImpl = fetchImpl
+    this.loadParser = loadParser
     this.controller = null
   }
 
@@ -47,6 +47,8 @@ export class CraftingDataUpdater {
     const signal = this.controller.signal
     const staging = path.join(this.storageRoot, `.staging-${Date.now()}`)
     try {
+      const { createCoreCurrencyCrafts, finalizePoedbBases, groupModifierFamilies, mergeModifierGoals, parsePoedbBases, parsePoedbCrafts, parsePoedbEldritchImplicits, parsePoedbModifiers } = await this.loadParser()
+      signal.throwIfAborted()
       await mkdir(path.join(staging, 'images'), { recursive: true })
       const pageResults = []
       for (let index = 0; index < POEDB_BASE_PAGES.length; index += 1) {

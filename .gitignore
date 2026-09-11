@@ -6,6 +6,8 @@ dist-electron-*/
 artifacts/
 __pycache__/
 *.py[cod]
+.cache/
+vite.config.js.timestamp-*
 
 # 本地 AI / 编辑器工作流配置
 .claude/

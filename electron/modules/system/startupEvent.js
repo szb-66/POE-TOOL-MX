@@ -5,6 +5,8 @@
  */
 
 const MAX_MESSAGE_LENGTH = 1024
+const FEATURE_IDS = new Set(['sanctum', 'items', 'map', 'map-tracker', 'bag', 'combat', 'story', 'recipe', 'price-check', 'faustus', 'puzzle', 'highlight-model-training'])
+const FEATURE_OUTCOMES = Object.freeze({ 'feature-runtime-started': 'started', 'feature-runtime-ready': 'succeeded', 'feature-runtime-failed': 'failed' })
 const STARTUP_EVENT_TYPES = Object.freeze({
   'renderer-mounted': { phase: 'renderer', outcome: 'succeeded', reasonCode: 'none' },
   'renderer-error': { phase: 'renderer', outcome: 'failed', reasonCode: 'renderer_error' },
@@ -18,6 +20,11 @@ const STARTUP_EVENT_TYPES = Object.freeze({
 
 export function sanitizeStartupReport(candidate) {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
+  if (Object.hasOwn(FEATURE_OUTCOMES, candidate.type)) {
+    if (!FEATURE_IDS.has(candidate.featureId)) return null
+    const outcome = FEATURE_OUTCOMES[candidate.type]
+    return { phase: `renderer-feature-${candidate.featureId}`, outcome, reasonCode: outcome === 'failed' ? 'feature_restore_failed' : 'none', message: '' }
+  }
   const template = STARTUP_EVENT_TYPES[candidate.type]
   if (!template) return null
   if (candidate.message != null && typeof candidate.message !== 'string') return null

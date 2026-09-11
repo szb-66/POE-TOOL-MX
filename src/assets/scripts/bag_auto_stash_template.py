@@ -17,6 +17,7 @@ import time
 import traceback
 import unicodedata
 import uuid
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
 def enable_per_monitor_dpi_awareness():
@@ -504,7 +505,8 @@ def get_game_client_bounds():
                 "right": int(origin.x + width),
                 "bottom": int(origin.y + height),
                 "width": width,
-                "height": height
+                "height": height,
+                "dpi": int(user32.GetDpiForWindow(hwnd))
             }))
         return True
 
@@ -557,7 +559,7 @@ class InterfaceMatcher:
 
     @property
     def valid(self):
-        return "inventory" in self.templates and (self.config.get("inventory_only") is True or any(
+        return bool(self.config.get("interface_titles")) or "inventory" in self.templates and (self.config.get("inventory_only") is True or any(
             name in self.templates for name in ("stash", "reward", "allflame_receiver")
         ))
 
@@ -602,6 +604,37 @@ class InterfaceMatcher:
             "rewardScore": reward_score,
             "allflameReceiverScore": allflame_receiver_score,
         }
+
+    def check_titles(self, bounds):
+        self.title_issues = {}
+        if not self.config.get('interface_titles') or not bounds:
+            return {}
+        from interface_titles import decoded_title, title_region, match_titles
+        result = {}
+        for key, entry in self.config['interface_titles'].items():
+            try:
+                if any(entry.get('environment', {}).get(k) != bounds.get(k) for k in ('width', 'height', 'dpi')):
+                    self.title_issues[key] = '分辨率或 DPI 与框选时不一致，请重新框选'
+                    continue
+                raw = entry.get('png', '')
+                if not isinstance(raw, str) or len(raw) > 1400000:
+                    raise ValueError('标题模板无效')
+                template = decoded_title(raw)
+                if template is None:
+                    raise ValueError('标题模板无效')
+                r = title_region(entry, template)
+                x, y = max(0, r['x']-8), max(0, r['y']-8)
+                right = min(bounds['width'], r['x']+r['width']+8)
+                bottom = min(bounds['height'], r['y']+r['height']+8)
+                image = self._capture({'left': bounds['left']+x, 'top': bounds['top']+y,
+                                       'right': bounds['left']+right, 'bottom': bounds['top']+bottom})
+                if image is not None:
+                    result.update(match_titles(image, {key: entry}, bounds,
+                        float(self.config.get('match_threshold', .8)), anchored=True,
+                        issues=self.title_issues, origin=(x, y), report_unmatched=True))
+            except (ValueError, TypeError, KeyError, AttributeError, cv2.error):
+                self.title_issues[key] = '标题模板或框选区域无效，请重新框选'
+        return result
 
     def check_ready(self, mode):
         templates = self.config.get("templates", {})
@@ -983,11 +1016,13 @@ def run_detection(config):
                 matches.get("allflameReceiverMatched", False))
             junfeng_ready = reward_detected and matches["inventoryMatched"]
             inventory_changed = matches["inventoryMatched"] != last_inventory_matched
-            if stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
+            if config.get("interface_titles") or stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
                 emit("detection-state", ready=stash_ready, inventoryReady=matches["inventoryMatched"], stashReady=stash_ready,
                      rewardDetected=reward_detected, junfengReady=junfeng_ready,
                      allflameReceiverReady=allflame_receiver_ready,
-                     foreground=foreground, gameBounds=game_bounds, **scores)
+                     foreground=foreground, gameBounds=game_bounds,
+                     interfaces=matcher.check_titles(game_bounds) if config.get("interface_titles") else {},
+                     titleIssues=getattr(matcher, 'title_issues', {}), **scores)
             last_foreground = foreground
             last_game_bounds = game_bounds
             last_inventory_matched = matches["inventoryMatched"]

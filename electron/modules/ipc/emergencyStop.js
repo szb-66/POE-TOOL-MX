@@ -19,7 +19,7 @@ function managerAction(id, label, manager, activeStatuses = ['running']) {
   }
 }
 
-export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker }) {
+export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum }) {
   return new EmergencyStopCoordinator([
     { id: 'script', label: '制作/地图', stop: stopCurrentScript },
     { id: 'bag-stash', label: '自动入库', stop: stopBagStashAutomation },
@@ -32,7 +32,8 @@ export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfe
     { id: 'combat-loop', label: '主动循环', stop: stopLoopAutomation },
     { id: 'portal', label: '一键回城', stop: stopPortalAutomation },
     { id: 'puzzle', label: '海图自动化', stop: reason => puzzle?.emergencyStop?.(reason) || { success: true, stopped: false } },
-    { id: 'map-tracker', label: '地图跟踪增强采集', stop: () => mapTracker?.emergencyStop?.() || { success: true, stopped: false } }
+    { id: 'map-tracker', label: '地图跟踪增强采集', stop: () => mapTracker?.emergencyStop?.() || { success: true, stopped: false } },
+    { id: 'sanctum', label: '圣所', stop: () => sanctum?.emergencyStop?.() || { success: true, stopped: false } }
   ])
 }
 

@@ -15,6 +15,7 @@
       if (startupPreference === 'light' || startupPreference === 'dark') startupDark = startupPreference === 'dark'
       document.documentElement.dataset.startupTheme = startupDark ? 'dark' : 'light'
       const standalonePaths = new Set([
+        '/sanctum-overlay', '/sanctum-control-overlay',
         '/loading-feedback-overlay', '/puzzle-overlay', '/chart-recognition-feedback', '/overlay',
         '/story-overlay', '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
         '/price-check-overlay', '/map-tracker-overlay', '/debug-overlay', '/coordinate-picker'

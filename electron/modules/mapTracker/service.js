@@ -14,7 +14,7 @@ export function sanitizeTrackedItem(item = {}) {
 }
 
 export class MapTrackerService {
-  constructor({ repository, clientEvents, now = () => Date.now() } = {}) {
+  constructor({ repository, clientEvents, now = () => Date.now(), trace = null } = {}) {
     this.repository = repository; this.clientEvents = clientEvents
     this.now = now; this.settings = normalizeMapTrackerSettings(); this.machine = null
     this.foreground = false; this.listeners = new Set(); this.unsubscribeEvents = null; this.tickTimer = null
@@ -29,21 +29,64 @@ export class MapTrackerService {
     this.historyRevision = 0
     this.liveGameState = 'unknown'
     this.seenEvents = new Set()
+    this.trace = trace
+    this.initializationPromise = null
+    this.initializationState = 'pending'
   }
-  async initialize() {
+  initialize() {
+    if (!this.initializationPromise) {
+      this.initializationState = 'initializing'
+      const operation = async () => {
+        if (this.stopping) return this.snapshot()
+        if (this.clientEvents?.whenReady) await this.clientEvents.whenReady()
+        else await this.clientEvents?.initialize?.()
+        if (this.stopping) return this.snapshot()
+        return this.initializeState()
+      }
+      const pending = (this.trace ? this.trace.measure('map-tracker', operation) : operation()).then(() => {
+        this.initializationState = this.stopping ? 'stopped' : 'ready'
+        return this.publish()
+      }, error => {
+        this.unsubscribeEvents?.(); this.unsubscribeEvents = null
+        this.initializationState = this.stopping ? 'stopped' : 'failed'
+        this.report(new Error('地图跟踪初始化失败'))
+        if (this.initializationPromise === pending) this.initializationPromise = null
+        throw error
+      })
+      this.initializationPromise = pending
+    }
+    return this.initializationPromise
+  }
+  async whenReady() {
+    if (this.stopping) throw new Error('地图跟踪已停止')
+    await this.initialize()
+    if (this.stopping) throw new Error('地图跟踪已停止')
+  }
+  async initializeState() {
     this.settings = await this.repository.getSettings()
+    if (this.stopping) return
     try { this.errors.push(...await this.repository.clearLegacyLoot()) } catch { this.errors.push('旧入库数据清理失败，将在下次启动重试') }
     await this.refreshStashEvents()
+    if (this.stopping) return
     this.machine = new MapTrackerStateMachine({ now: this.now })
+    this.machine.setForeground(this.foreground, this.now())
     this.machine.setEnabled(this.settings.enabled); this.machine.setPaused(this.settings.paused)
     const draft = await this.repository.getActiveRun(); if (draft) this.machine.restore(draft)
+    if (this.stopping) return
     this.machine.setCharacter(this.settings.selectedCharacter)
     await this.refreshSummary()
+    if (this.stopping) return
     this.machine.loadHistory(this.dashboardRuns)
     this.unsubscribeEvents = this.clientEvents?.onEvent?.((event) => {
       if (!this.stopping) void this.handleEvent(event).catch((error) => this.report(error))
     }) || null
-    if (this.settings.enabled) { try { await this.clientEvents?.ensureStarted?.(); this.restoreClientContext() } catch (error) { this.report(error) } }
+    if (this.settings.enabled) {
+      try {
+        await this.clientEvents?.ensureStarted?.()
+        if (!this.stopping) this.restoreClientContext()
+      } catch (error) { if (!this.stopping) this.report(error) }
+    }
+    if (this.stopping) return
     this.tickTimer = setInterval(() => { void this.runScheduledTick() }, 1000); this.tickTimer.unref?.()
     return this.publish()
   }
@@ -57,7 +100,7 @@ export class MapTrackerService {
   snapshot() {
     const active = this.machine?.activeRun ? structuredClone(this.machine.activeRun) : null
     const dashboard = buildDashboardSummary({ runs: this.dashboardRuns, activeRun: active, stashEvents: this.stashEvents, now: this.now() })
-    return structuredClone({ settings: this.settings, activeRun: active, gameState: this.liveGameState, historyRevision: this.historyRevision, foreground: this.foreground, summary: dashboard, errors: this.errors })
+    return structuredClone({ settings: this.settings, initializationState: this.initializationState, activeRun: active, gameState: this.liveGameState, historyRevision: this.historyRevision, foreground: this.foreground, summary: dashboard, errors: this.errors })
   }
   publish() { const value = this.snapshot(); for (const listener of this.listeners) listener(value); return value }
   onSnapshot(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener) }
@@ -129,7 +172,8 @@ export class MapTrackerService {
     await this.persistCurrentTransition()
     this.publish()
   }
-  updateSettings(patch = {}) {
+  async updateSettings(patch = {}) {
+    await this.whenReady()
     return this.enqueue(() => this.applySettings(patch))
   }
   async applySettings(patch = {}) {
@@ -183,12 +227,14 @@ export class MapTrackerService {
   exportCsv(filters, filePath) { return this.repository.exportCsv(filters, filePath) }
   async shutdown({ normal = true } = {}) {
     this.stopping = true
+    this.initializationState = 'stopped'
     this.unsubscribeEvents?.(); this.unsubscribeEvents = null
     if (this.tickTimer) clearInterval(this.tickTimer)
     this.tickTimer = null
+    await this.initializationPromise?.catch(() => {})
     await this.workQueue
     while (this.inFlight.size) await Promise.allSettled([...this.inFlight])
     if (normal && this.machine?.activeRun) this.machine.finish('app-exit', this.now())
-    await this.persistTransition()
+    if (this.machine) await this.persistTransition()
   }
 }

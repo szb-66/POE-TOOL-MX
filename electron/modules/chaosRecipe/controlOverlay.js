@@ -17,6 +17,7 @@ import {
   VENDOR_RECIPE_IDS
 } from './engine.js'
 import { createLoadAwarePublisher } from '../window/loadAwarePublisher.js'
+import { OverlayDragSession } from '../window/overlayDrag.js'
 import { normalizeAutomationTiming } from '../../../src/utils/operationDelay.js'
 import { formatJunfengButtonLabel } from '../junfeng/progress.js'
 
@@ -46,6 +47,8 @@ export class ChaosRecipeControlOverlay {
     this.stashPickup = null
     this.junfeng = null
     this.window = null
+    this.dragSession = new OverlayDragSession()
+    this.dragMoved = false
     this.statePublisher = createLoadAwarePublisher()
     this.contentSize = { ...CHAOS_CONTROL_DIP_SIZE }
     this.enabled = false
@@ -87,6 +90,7 @@ export class ChaosRecipeControlOverlay {
   }
 
   setRuntime(runtime = {}) {
+    const dragOffset = this.dragSession.active ? this.runtime.controlOverlayOffset : undefined
     this.enabled = Boolean(runtime.enabled)
     this.runtime = {
       ...this.runtime,
@@ -96,6 +100,7 @@ export class ChaosRecipeControlOverlay {
         ? normalizeControlOffset(runtime.controlOverlayOffset)
         : this.runtime.controlOverlayOffset
     }
+    if (this.dragSession.active) this.runtime.controlOverlayOffset = dragOffset
     this.sync()
     return this.getState()
   }
@@ -295,7 +300,9 @@ export class ChaosRecipeControlOverlay {
       }
     })
     this.window.setAlwaysOnTop(true, 'screen-saver')
-    this.window.on('closed', () => { this.window = null })
+    this.window.on('close', () => this.finishDrag())
+    this.window.on('closed', () => { this.finishDrag(); this.window = null })
+    this.window.webContents.on('render-process-gone', () => this.finishDrag())
     const devServerUrl = process.env.VITE_DEV_SERVER_URL
     if (process.env.NODE_ENV === 'development' && devServerUrl) {
       void this.window.loadURL(`${devServerUrl}#/chaos-recipe-control-overlay`)
@@ -315,9 +322,32 @@ export class ChaosRecipeControlOverlay {
       return state
     }
     const window = this.createWindow()
+    const placement = this.applyPosition()
+    if (placement && this.dragSession.active && this.dragMoved) {
+      this.runtime.controlOverlayOffset = placement.offset
+    }
+    this.statePublisher.publish(window.webContents, () => {
+      if (!window.isDestroyed()) window.webContents.send('chaos-recipe-control-state', {
+        ...state,
+        offset: normalizeControlOffset(this.runtime.controlOverlayOffset)
+      })
+    })
+    if (state.visible && placement) {
+      if (!window.isVisible()) window.showInactive()
+    } else { this.finishDrag(); if (window.isVisible()) window.hide() }
+    if (!app.isPackaged && (state.rewardDetected !== this.lastPerformanceRewardDetected || performance.now() - started >= 16)) {
+      console.debug('[君锋镇性能]', { phase: 'overlay-sync', rewardDetected: state.rewardDetected,
+        durationMs: performance.now() - started })
+    }
+    this.lastPerformanceRewardDetected = state.rewardDetected
+    return state
+  }
+
+  applyPosition(offset = this.runtime.controlOverlayOffset) {
+    if (!this.window || this.window.isDestroyed()) return null
     const placement = placeControlInDip(
       this.detection.gameBounds,
-      this.runtime.controlOverlayOffset,
+      offset,
       process.platform === 'win32'
         ? {
             screenToDipPoint: (point) => screen.screenToDipPoint(point),
@@ -327,22 +357,13 @@ export class ChaosRecipeControlOverlay {
       this.contentSize
     )
     if (placement) {
-      window.setBounds(placement)
+      const { x, y, width, height } = placement
+      const current = this.window.getBounds()
+      if (current.x !== x || current.y !== y || current.width !== width || current.height !== height) {
+        this.window.setBounds({ x, y, width, height }, false)
+      }
     }
-    this.statePublisher.publish(window.webContents, () => {
-      if (!window.isDestroyed()) window.webContents.send('chaos-recipe-control-state', {
-        ...state,
-        offset: normalizeControlOffset(this.runtime.controlOverlayOffset)
-      })
-    })
-    if (state.visible && placement) window.showInactive()
-    else window.hide()
-    if (!app.isPackaged && (state.rewardDetected !== this.lastPerformanceRewardDetected || performance.now() - started >= 16)) {
-      console.debug('[君锋镇性能]', { phase: 'overlay-sync', rewardDetected: state.rewardDetected,
-        durationMs: performance.now() - started })
-    }
-    this.lastPerformanceRewardDetected = state.rewardDetected
-    return state
+    return placement
   }
 
   getState() {
@@ -376,14 +397,47 @@ export class ChaosRecipeControlOverlay {
 
   moveToDip(x, y) {
     if (!this.window || this.window.isDestroyed() || !this.detection.gameBounds) return null
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null
+    const current = this.window.getBounds()
+    if (current.x === Math.round(x) && current.y === Math.round(y)) return null
     const physical = process.platform === 'win32'
       ? screen.dipToScreenPoint({ x: Math.round(x), y: Math.round(y) })
       : { x: Math.round(x), y: Math.round(y) }
-    this.runtime.controlOverlayOffset = normalizeControlOffset({
+    const placement = this.applyPosition({
       x: physical.x - this.detection.gameBounds.left,
       y: physical.y - this.detection.gameBounds.top
     })
-    this.sync()
+    if (!placement || (current.x === placement.x && current.y === placement.y)) return null
+    this.runtime.controlOverlayOffset = placement.offset
+    this.dragMoved = true
+    return this.runtime.controlOverlayOffset
+  }
+
+  handleDrag(senderId, point = {}) {
+    if (!this.window || this.window.isDestroyed() || this.window.webContents.id !== senderId) return
+    if (point.phase === 'start') {
+      if (!this.dragSession.active) {
+        this.dragMoved = false
+        this.dragSession.begin(senderId, point, this.window.getBounds())
+      }
+      return
+    }
+    if (point.phase !== 'move' && point.phase !== 'end') return
+    // 结束消息可不带坐标（取消、捕获丢失或旧客户端）。
+    if (typeof point.screenX === 'number' && typeof point.screenY === 'number') {
+      const target = this.dragSession.move(senderId, point)
+      if (target) this.moveToDip(target.x, target.y)
+    }
+    if (point.phase === 'end' && this.dragSession.active?.senderId === senderId) this.finishDrag()
+  }
+
+  finishDrag() {
+    const session = this.dragSession.active
+    if (!session) return
+    this.dragSession.end(session.senderId)
+    const moved = this.dragMoved
+    this.dragMoved = false
+    if (!moved) return
     const mainWindow = this.getMainWindow?.()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chaos-recipe-control-offset', this.runtime.controlOverlayOffset)
@@ -392,6 +446,7 @@ export class ChaosRecipeControlOverlay {
   }
 
   close() {
+    this.finishDrag()
     this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
     this.window = null

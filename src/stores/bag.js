@@ -75,9 +75,6 @@ export const useBagStore = defineStore('bag', () => {
   function setAllflameReceiverEnabled(enabled) { allflameReceiverEnabled.value = Boolean(enabled); saveSettings() }
   function setForceUniqueStash(enabled) { forceUniqueStash.value = Boolean(enabled); saveSettings() }
   function clearCaptureMetadata(type) { interfaceDetectionStore.clearCaptureMetadata(type) }
-  function setTemplate(type, path) {
-    interfaceDetectionStore.setTemplate(type, path)
-  }
   function setTemplateRegion(type, region) {
     interfaceDetectionStore.setTemplateRegion(type, region)
   }
@@ -150,7 +147,7 @@ export const useBagStore = defineStore('bag', () => {
     moduleEnabled, allflameReceiverEnabled, forceUniqueStash, templates, matchThreshold, blacklist, inventoryLayout,
     isDetecting, isMatched, isStashMatched, isAllflameReceiverMatched, isStashing, stashProgress, stashStats, lastStopReason, lastFailure,
     setModuleEnabled, setAllflameReceiverEnabled, setForceUniqueStash,
-    setTemplate, setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
+    setTemplateRegion, applyTemplateCapture, clearCaptureMetadata, setMatchThreshold, setBlacklist, setInventoryLayout,
     setDetectionStatus, setMatchedStatus, setStashingStatus, setStopReason,
     resetRunStats, resetStates, saveSettings, loadSettings, resetSettings
   }

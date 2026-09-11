@@ -1,3 +1,4 @@
+import { normalizePickerPresentation } from './coordinates.js'
 /**
  * Purpose: 窗口管理模块，负责创建和管理主窗口和覆盖层窗口
  * Inputs: 无（通过函数调用）
@@ -427,8 +428,9 @@ export function updateBagStashOverlay(snapshot) {
   const overlay = createBagStashOverlayWindow(snapshot)
   if (overlay.webContents.isLoadingMainFrame()) return true
   publishBagStashOverlayState()
-  if (snapshot.visible) overlay.showInactive()
-  else overlay.hide()
+  if (snapshot.visible) {
+    if (!overlay.isVisible()) overlay.showInactive()
+  } else if (overlay.isVisible()) overlay.hide()
   return true
 }
 
@@ -862,6 +864,7 @@ function openScreenPickerWindows(mode, displays) {
       session.contexts.set(pickerWindow.webContents.id, {
         mode,
         purpose: session.options?.purpose || '',
+        grid: session.options?.grid, title: session.options?.title, hint: session.options?.hint,
         displayId: String(display.id),
         scaleFactor: display.scaleFactor,
         displayDipBounds: display.bounds,
@@ -903,6 +906,7 @@ function revealPickerWindows() {
 }
 
 async function runScreenPicker(mode, options = {}) {
+  options = { ...options, ...normalizePickerPresentation(options) }
   if (screenPickerSession) return createScreenPickerSession(mode)
   if (pickerPreparing) return pickerBusyFailure()
   pickerPreparing = true
@@ -913,7 +917,9 @@ async function runScreenPicker(mode, options = {}) {
     try {
       await preparePickerSession()
       if (mode === 'region') {
+        await options.beforeCapture?.()
         const screenshots = await captureDisplays(displays)
+        await options.afterCapture?.()
         screenshots.forEach((image, displayId) => screenPickerSession?.screenshots.set(displayId, image))
       }
     } catch (error) {

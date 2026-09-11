@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
+    "sanctum:data": "node scripts/generateSanctumCatalog.js",
+    "sanctum:data:refresh": "node scripts/generateSanctumCatalog.js --refresh",
     "crafting:data": "node scripts/generateCraftingData.js",
     "crafting:data:missing": "node scripts/generateCraftingData.js --fetch-missing",
     "crafting:data:refresh": "node scripts/generateCraftingData.js --live",

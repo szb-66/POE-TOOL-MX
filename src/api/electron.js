@@ -189,7 +189,6 @@ const mockApi = {
     updateOperationDelay: () => Promise.resolve({ success: true }),
     updateEmptySlotThreshold: (emptySlotThreshold) => Promise.resolve({ success: true, emptySlotThreshold }),
     updateRuntimeConfig: (config) => Promise.resolve({ success: true, config, revision: 1 }),
-    uploadTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     captureTemplate: () => Promise.reject(new Error('非 Electron 环境')),
     getOverlayState: () => Promise.resolve(null),
     onOverlayState: () => () => {},
@@ -576,7 +575,6 @@ export const electronApi = isElectron ? {
     updateOperationDelay: (operationDelayMs) => window.electronAPI.updateBagOperationDelay?.(operationDelayMs),
     updateEmptySlotThreshold: (emptySlotThreshold) => window.electronAPI.updateBagEmptySlotThreshold?.(emptySlotThreshold),
     updateRuntimeConfig: (config) => window.electronAPI.updateBagRuntimeConfig?.(craftingIpcPayload(config)),
-    uploadTemplate: (path, type) => window.electronAPI.uploadBagTemplate?.(path, type),
     captureTemplate: (type) => window.electronAPI.captureBagTemplate?.(type),
     getOverlayState: () => window.electronAPI.getBagStashOverlayState?.(),
     onOverlayState: (callback) => window.electronAPI.onBagStashOverlayState?.(callback) || (() => {}),
@@ -708,7 +706,7 @@ export const electronApi = isElectron ? {
     onSnapshot: (callback) => window.electronAPI.onClientEventsSnapshot?.(callback) || (() => {})
   },
   mapTracker: {
-    getStatus: () => window.electronAPI.getMapTrackerStatus?.(),
+    getStatus: (options) => window.electronAPI.getMapTrackerStatus?.(craftingIpcPayload(options)),
     updateSettings: (input) => window.electronAPI.updateMapTrackerSettings?.(craftingIpcPayload(input)),
     query: (input) => window.electronAPI.queryMapTrackerRuns?.(craftingIpcPayload(input)),
     edit: (id, input) => window.electronAPI.editMapTrackerRun?.(String(id || ''), craftingIpcPayload(input)),

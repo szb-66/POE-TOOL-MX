@@ -53,12 +53,6 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     electronApi.junfeng.updateRuntime(runtime())?.catch(() => {})
   }
 
-  function setTemplate(type, value) {
-    templates.value[type] = String(value || '')
-    templates.value[templateKeys(type).capture] = null
-    save()
-  }
-
   function setTemplateRegion(type, region) {
     const keys = templateKeys(type)
     templates.value[keys.region] = { ...region }
@@ -116,7 +110,6 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     stashGridCalibration,
     runtime,
     save,
-    setTemplate,
     setTemplateRegion,
     applyTemplateCapture,
     clearCaptureMetadata,

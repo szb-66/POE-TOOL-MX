@@ -48,8 +48,7 @@ test('混沌控制浮窗未拖动时动态定位且不会持久化初始位置',
 
   const manager = source('../electron/modules/chaosRecipe/controlOverlay.js')
   assert.match(manager, /controlOverlayOffset:\s*null/)
-  const sync = manager.slice(manager.indexOf('sync() {'), manager.indexOf('setVisible(visible)'))
-  assert.doesNotMatch(sync, /this\.runtime\.controlOverlayOffset\s*=\s*placement\.offset/)
+  // 默认偏移不被同步改写的行为由 controlOverlayDrag.test.js 验证。
 
   const settings = source('../src/domains/settings/SettingsView.vue')
   const store = source('../src/stores/chaosRecipe.js')
@@ -98,7 +97,7 @@ test('检测进程由公共协调器持有且两个功能只注册消费者', ()
   const bagIpc = source('../electron/modules/ipc/bag.js')
   const chaosIpc = source('../electron/modules/ipc/chaosRecipe.js')
   assert.match(coordinator, /this\.consumers = new Set\(\)/)
-  assert.match(coordinator, /registerConsumer\(consumer, config\)/)
+  assert.match(coordinator, /registerConsumer\(consumer, config(?: =[^)]*)?\)/)
   assert.match(coordinator, /this\.consumers\.size === 0/)
   assert.doesNotMatch(bagIpc, /let detectionProcess/)
   assert.match(bagIpc, /registerConsumer\('bag'/)

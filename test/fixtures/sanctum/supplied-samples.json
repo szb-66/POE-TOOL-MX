@@ -1,0 +1,274 @@
+{
+  "schemaVersion": 1,
+  "samples": [
+    {
+      "file": "archives-progress-1.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1640
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": 3
+    },
+    {
+      "file": "archives-progress-2.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1640
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": 4
+    },
+    {
+      "file": "archives-progress-3.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1640
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": 5
+    },
+    {
+      "file": "archives-progress-4.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1640
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": true,
+      "dpi": null,
+      "userColumn": 5
+    },
+    {
+      "file": "archives-progress-5.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1640
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": true,
+      "dpi": null,
+      "userColumn": 5
+    },
+    {
+      "file": "offering-choice.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        975,
+        244,
+        2869,
+        1584
+      ],
+      "displayedTitle": null,
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": null
+    },
+    {
+      "file": "relic-locker.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        9,
+        37,
+        1256,
+        1678
+      ],
+      "displayedTitle": null,
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": null
+    },
+    {
+      "file": "relic-altar.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        2128,
+        515,
+        2962,
+        1312
+      ],
+      "displayedTitle": null,
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": null
+    },
+    {
+      "file": "archives-initial-user-labelled-first.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1696
+      ],
+      "displayedTitle": "圣所档案室",
+      "floorNumber": null,
+      "floorLabelStatus": "column-not-floor-confirmed-by-user",
+      "hasTooltip": false,
+      "dpi": null,
+      "userColumn": 1
+    },
+    {
+      "file": "vault-entry.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1696
+      ],
+      "displayedTitle": "圣所宝库",
+      "stage": "entry",
+      "pairId": "vault-83-pair",
+      "areaLevel": 83,
+      "hasTooltip": false,
+      "dpi": null,
+      "researchTextBinding": null
+    },
+    {
+      "file": "vault-progress.png",
+      "source": "user-supplied-game-screenshot",
+      "sourceSize": [
+        3840,
+        2088
+      ],
+      "crop": [
+        788,
+        206,
+        3038,
+        1696
+      ],
+      "displayedTitle": "圣所宝库",
+      "stage": "progress",
+      "pairId": "vault-83-pair",
+      "areaLevel": 83,
+      "hasTooltip": false,
+      "dpi": null,
+      "researchTextBinding": null
+    },
+    {
+      "file": "reward-alchemy-chaos.png",
+      "source": "user-supplied-app-screenshot-game-tooltip-crop",
+      "sourceSize": [
+        1071,
+        1029
+      ],
+      "crop": [
+        65,
+        640,
+        969,
+        751
+      ],
+      "expectedCurrencies": [
+        "点金石",
+        "点金石",
+        "混沌石"
+      ],
+      "quantityStatus": "not-shown",
+      "dpi": null
+    },
+    {
+      "file": "reward-fusing-binding-jewellers.png",
+      "source": "user-supplied-app-screenshot-game-tooltip-crop",
+      "sourceSize": [
+        1022,
+        895
+      ],
+      "crop": [
+        50,
+        551,
+        954,
+        664
+      ],
+      "expectedCurrencies": [
+        "链结石",
+        "高阶点金石",
+        "工匠石"
+      ],
+      "quantityStatus": "not-shown",
+      "dpi": null
+    }
+  ],
+  "notes": [
+    "用户已确认层指同一张地图从左往右的房间列；整轮楼层编号未提供。",
+    "原始分辨率保留；DPI 未知。",
+    "裁剪排除了队伍、聊天与外围游戏界面。"
+  ]
+}

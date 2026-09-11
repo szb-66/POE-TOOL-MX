@@ -51,6 +51,19 @@ test('图内开启自动定位日志，只恢复当前状态，不回放死亡�
   assert.ok(run.sessionKey); assert.equal(run.character, null)
 })
 
+test('手动恢复共享日志上下文不新增刷图记录、死亡或传送门次数', async t => {
+  const { service, client, flush, append } = await setup(t)
+  await service.updateSettings({ enabled: true }); await flush()
+  await append(log(': You have died'))
+  const before = service.snapshot().activeRun
+  client.setGameState('disconnected', 'process-exit'); await flush()
+  await client.ensureCurrentContext(123); await flush()
+  const after = service.snapshot().activeRun
+  assert.equal(after.id, before.id)
+  assert.equal(after.deaths, before.deaths)
+  assert.equal(after.portalsUsed, before.portalsUsed)
+})
+
 test('旧 PID 或缺少就绪状态不能冒充正在地图内', async t => {
   const { service, flush } = await setup(t, area() + ready, [456])
   await service.updateSettings({ enabled: true }); await flush()
@@ -131,12 +144,12 @@ test('共享日志准备幂等且无效路径自动回退检测', async t => {
   await client.ensureStarted(); assert.equal(client.tailer, tailer)
 })
 
-test('进程会话检测隐藏启动窗口且只保留有效 PID 和创建时间', async () => {
+test('进程会话检测隐藏启动窗口，创建时间未知仍保留 PID', async () => {
   const result = await detectClientProcessSessions({ platform: 'win32', execFileImpl: (_exe, _args, options, callback) => {
     assert.equal(options.windowsHide, true)
     callback(null, JSON.stringify([{ id: 123, startedAt: '2026-09-07T00:00:00Z' }, { id: 456, startedAt: 'invalid' }]))
   } })
-  assert.deepEqual(result, [{ id: 123, startedAt: '2026-09-07T00:00:00Z' }])
+  assert.deepEqual(result, [{ id: 123, startedAt: '2026-09-07T00:00:00Z' }, { id: 456, startedAt: null }])
 })
 
 test('同 PID 的新进程不能恢复创建之前的旧日志', async () => {

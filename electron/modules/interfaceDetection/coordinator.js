@@ -9,21 +9,26 @@ import {
   waitForDetectionStartup
 } from '../bag/orchestrator.js'
 
+import { InterfaceTitleRegistry } from './titleRegistry.js'
+
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
 function stopChild(child) {
-  if (!child || child.killed) return
-  child.kill('SIGTERM')
-  setTimeout(() => {
-    if (child.exitCode === null) child.kill('SIGKILL')
-  }, 2000)
+  if (!child || child.exitCode !== null || child.signalCode) return Promise.resolve()
+  return new Promise(resolve => {
+    const timer = setTimeout(() => child.kill('SIGKILL'), 2000)
+    timer.unref?.()
+    child.once('close', () => { clearTimeout(timer); resolve() })
+    if (!child.killed) child.kill('SIGTERM')
+  })
 }
 
 function stableConfig(config = {}) {
   return JSON.stringify({
     templates: config.templates || {},
     match_threshold: Number(config.match_threshold ?? config.matchThreshold ?? 0.8),
-    inventory_only: config.inventory_only === true
+    inventory_only: config.inventory_only === true,
+    interface_titles: config.interface_titles || {}
   })
 }
 
@@ -35,8 +40,11 @@ export class InterfaceDetectionCoordinator {
     this.child = null
     this.consumers = new Set()
     this.listeners = new Set()
+    this.titleRegistry = new InterfaceTitleRegistry(path.join(app.getPath('userData'), 'interface-titles.json'))
     this.config = null
     this.configFingerprint = ''
+    this.lifecycle = Promise.resolve()
+    this.draining = Promise.resolve()
     this.state = {
       running: false,
       reloading: false,
@@ -80,6 +88,8 @@ export class InterfaceDetectionCoordinator {
       ...patch,
       consumers: [...this.consumers]
     }
+    if (!this.state.running || !this.state.foreground || this.state.reloading || this.state.reason) { this.state.interfaces = {}; this.state.receivedAt = 0 }
+    if (!this.consumers.has('sanctum-control')) { this.state.interfaces = {}; this.state.titleIssues = {} }
     const snapshot = this.getState()
     for (const listener of this.listeners) listener(snapshot)
   }
@@ -94,39 +104,82 @@ export class InterfaceDetectionCoordinator {
     return structuredClone({ ...this.state, consumers: [...this.consumers] })
   }
 
-  async registerConsumer(consumer, config) {
-    const id = String(consumer || '')
-    if (!id) throw new Error('检测消费者不能为空')
-    const fingerprint = stableConfig(config)
-    const configChanged = fingerprint !== this.configFingerprint
-    this.consumers.add(id)
-    this.config = structuredClone(config)
-    this.configFingerprint = fingerprint
+  getTitleConfig() {
+    const issues = { ...this.state.titleIssues }
+    for (const [key, entry] of Object.entries(this.titleRegistry.templates)) {
+      const r = entry.region, env = entry.environment
+      if (!r || !env || !['x', 'y', 'width', 'height'].every(k => Number.isInteger(r[k]))
+        || r.x < 0 || r.y < 0 || r.width < 2 || r.height < 2
+        || r.x + r.width > env.width || r.y + r.height > env.height) {
+        issues[key] = '标题框选区域无效，请重新框选'
+      }
+    }
+    return { templates: structuredClone(this.titleRegistry.templates), issues, threshold: Number(this.config?.match_threshold ?? this.config?.matchThreshold ?? .8) }
+  }
+
+  enqueue(operation) {
+    const task = this.lifecycle.then(operation)
+    this.lifecycle = task.catch(() => {})
+    return task
+  }
+
+  effectiveConfig() {
+    const map = this.titleRegistry.templates['sanctum-map']
+    return { ...this.config, interface_titles: this.consumers.has('sanctum-control') && map ? { 'sanctum-map': map } : {} }
+  }
+
+  async reconcile() {
+    await this.draining
+    if (this.consumers.size === 0) return this.getState()
+    const fingerprint = stableConfig(this.effectiveConfig())
     if (!this.child) await this.start()
-    else if (configChanged) await this.restart()
+    else if (fingerprint !== this.configFingerprint) await this.restart()
     this.publish()
     return this.getState()
+  }
+
+  setTitle(key, capture) {
+    return this.enqueue(async () => {
+      const previous = this.titleRegistry.templates[key]
+      this.titleRegistry.set(key, capture)
+      const titleIssues = { ...this.state.titleIssues }
+      delete titleIssues[key]
+      this.publish({ titleIssues })
+      try { await this.reconcile() }
+      catch (error) { this.titleRegistry.set(key, previous); throw error }
+      this.publish()
+      return this.getTitleConfig()
+    })
+  }
+
+  async registerConsumer(consumer, config = this.config || {}) {
+    const id = String(consumer || '')
+    if (!id) throw new Error('检测消费者不能为空')
+    this.consumers.add(id)
+    this.config = structuredClone(config)
+    return this.enqueue(() => this.reconcile())
   }
 
   unregisterConsumer(consumer) {
     this.consumers.delete(String(consumer || ''))
     if (this.consumers.size === 0) this.stop()
-    else this.publish()
+    else {
+      this.publish()
+      void this.enqueue(() => this.reconcile()).catch(error => {
+        this.publish({ reason: error.message })
+      })
+    }
     return this.getState()
   }
 
   async updateConfig(config) {
-    const fingerprint = stableConfig(config)
-    if (fingerprint === this.configFingerprint) return this.getState()
     this.config = structuredClone(config)
-    this.configFingerprint = fingerprint
-    if (this.child) await this.restart()
-    return this.getState()
+    return this.enqueue(() => this.reconcile())
   }
 
   writeConfig() {
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'interface_detection_config.json')
-    fs.writeFileSync(configPath, JSON.stringify(this.config, null, 2), 'utf8')
+    fs.writeFileSync(configPath, JSON.stringify(this.effectiveConfig(), null, 2), 'utf8')
     return configPath
   }
 
@@ -140,6 +193,8 @@ export class InterfaceDetectionCoordinator {
       env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
     })
     this.child = child
+    this.configFingerprint = stableConfig(this.effectiveConfig())
+    const childFingerprint = this.configFingerprint
     let terminalReason = ''
     let stderr = ''
     let spawnError = ''
@@ -147,6 +202,7 @@ export class InterfaceDetectionCoordinator {
     child.stderr.setEncoding('utf8')
     child.stdout.on('data', createEventLineParser((event) => {
       if (this.child !== child) return
+      if (childFingerprint !== stableConfig(this.effectiveConfig())) return
       if (event.event === 'detection-state') {
         this.publish({
           running: true,
@@ -159,6 +215,8 @@ export class InterfaceDetectionCoordinator {
           junfengReady: Boolean(event.junfengReady),
           foreground: Boolean(event.foreground),
           gameBounds: event.gameBounds || null,
+          interfaces: event.interfaces || {}, receivedAt: Date.now(),
+          titleIssues: event.titleIssues || {},
           stashScore: event.stashScore,
           inventoryScore: event.inventoryScore,
           rewardScore: event.rewardScore,
@@ -221,12 +279,14 @@ export class InterfaceDetectionCoordinator {
       await waitForDetectionStartup(child, {
         getFailureReason: (code) => describeDetectionExit({ code, terminalReason, stderr, spawnError })
       })
+      if (this.child !== child) return this.getState()
       this.publish({ running: true, reloading: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
       return this.getState()
     } catch (error) {
       if (this.child !== child) return this.getState()
       this.child = null
-      stopChild(child)
+      this.draining = stopChild(child)
+      await this.draining
       this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: error.message })
       throw error
     }
@@ -235,15 +295,16 @@ export class InterfaceDetectionCoordinator {
   async restart() {
     const previous = this.child
     this.child = null
-    stopChild(previous)
+    this.draining = stopChild(previous)
     this.publish({ running: false, reloading: true, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
+    await this.draining
     return this.start()
   }
 
   stop() {
     const child = this.child
     this.child = null
-    stopChild(child)
+    if (child) this.draining = stopChild(child)
     this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
   }
 

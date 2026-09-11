@@ -37,6 +37,10 @@ async function settleSubsystem(name, operation, warnings) {
 
 async function startMainRuntime({ router }) {
   const warnings = []
+  const backgroundReady = settleSubsystem('background-services', async () => {
+    const result = await electronApi.mapTracker.getStatus({ waitForReady: true })
+    if (result?.success === false) throw new Error(result.error?.message || '后台服务初始化失败')
+  }, warnings)
   const settingsStore = useSettingsStore()
   let closeChoiceOpen = false
 
@@ -163,6 +167,7 @@ async function startMainRuntime({ router }) {
     settleSubsystem('dpi', () => settingsStore.refreshDpiScale(), warnings),
     (async () => {
       // 快捷键可触发后台操作，必须在持久化功能配置恢复完成后注册。
+      await backgroundReady
       await settleSubsystem('feature-modules', async () => { warnings.push(...await featureRuntime.initialize()) }, warnings)
       await settleSubsystem('shortcuts', () => initShortcuts(), warnings)
     })(),

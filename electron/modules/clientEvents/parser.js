@@ -17,6 +17,7 @@ export function parseClientLogLine(line) {
   const system = text.match(/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2} .*?\[(?:INFO|DEBUG) Client(?: \d+)?\]\s+(.*)$/)?.[1]
   if (system?.startsWith('Abnormal disconnect:')) return { type: 'game-state', logTime: timestamp, state: 'disconnected', reason: 'disconnect' }
   if (system?.startsWith('Connecting to instance server at ')) return { type: 'game-state', logTime: timestamp, state: 'loading', reason: 'area-loading' }
+  if (/^\[LOADING SCREEN\] \([^\r\n]+\) Duration = \d+(?:\.\d+)? seconds$/.test(system || '')) return { type: 'game-state', logTime: timestamp, state: 'in-game', reason: 'area-ready' }
   if (/^:\s*(?:你已进入[：:]|你已進入[：:]|You have entered\b)/.test(system || '')) return { type: 'game-state', logTime: timestamp, state: 'in-game', reason: 'area-ready' }
   if (!system) return null
   const area = system.match(/^Generating level\s+(\d+)\s+area\s+"([^"]+)"(?:\s+with seed\s+(\d+))?/i)

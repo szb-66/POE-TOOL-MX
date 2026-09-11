@@ -33,11 +33,12 @@ import { registerFaustusHandlers } from './faustus.js'
 import { registerLoadingFeedbackHandlers } from './loadingFeedback.js'
 import { registerClientEventsHandlers } from './clientEvents.js'
 import { registerMapTrackerHandlers } from './mapTracker.js'
+import { registerSanctumHandlers } from './sanctum.js'
 
 export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
-    poeCnAccount, stashPickup, junfeng, faustus,
+    poeCnAccount, stashPickup, junfeng, faustus, sanctum,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
     applicationUpdate, feedback, failureEvidence, windowActivation, windowClose, loadingFeedback, clientEvents, mapTracker, mapTrackerOverlay, getMainWindow, enableJunfengTraining = false
   } = dependencies
@@ -50,7 +51,8 @@ export function registerIpcHandlers(dependencies) {
   registerShortcutHandlers(shortcut, window)
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker })
   registerCombatHandlers(python, window, fileWatcher)
-  registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, getMainWindow })
+  const emergencyStop = registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum, getMainWindow })
+  if (sanctum) registerSanctumHandlers(sanctum, { getMainWindow, emergencyStop })
   if (faustus) registerFaustusHandlers(faustus, window, getMainWindow)
   registerConfigTransferHandlers({ getMainWindow })
   registerConfigurationGuideHandlers(window, { windowActivation })

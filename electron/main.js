@@ -60,10 +60,17 @@ import {
 import { ClientEventSettingsRepository } from './modules/clientEvents/settingsRepository.js'
 import { ClientEventsService } from './modules/clientEvents/service.js'
 import { detectRunningClientLogPath } from './modules/clientEvents/pathDetection.js'
-import { detectClientProcessSessions } from './modules/clientEvents/processDetection.js'
+import { detectClientProcessSessions, detectClientProcessExists } from './modules/clientEvents/processDetection.js'
 import { MapTrackerRepository } from './modules/mapTracker/repository.js'
 import { MapTrackerService } from './modules/mapTracker/service.js'
 import { MapTrackerOverlayManager } from './modules/mapTracker/overlay.js'
+import { SanctumRepository } from './modules/sanctum/repository.js'
+import { SanctumService } from './modules/sanctum/service.js'
+import { SanctumControlOverlay } from './modules/sanctum/controlOverlay.js'
+import { SanctumOverlay } from './modules/sanctum/overlay.js'
+import { SanctumCalibrationEditor } from './modules/sanctum/calibration.js'
+import { SanctumLiveDriver } from './modules/sanctum/liveDriver.js'
+import { listSanctumSamples, replaySanctumSample } from './modules/sanctum/replay.js'
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
@@ -255,6 +262,9 @@ let priceCheckService = null
 let clientEventsService = null
 let mapTrackerService = null
 let mapTrackerOverlay = null
+let sanctumService = null
+let sanctumOverlay = null
+let sanctumControlOverlay = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let junfengHighlight = null
@@ -327,6 +337,9 @@ async function cleanupApplicationResources() {
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.destroyOverlay(),
     () => mapTrackerOverlay?.destroy(),
+    () => sanctumService?.shutdown(),
+    () => sanctumOverlay?.destroy(),
+    () => sanctumControlOverlay?.destroy(),
     () => mapTrackerService?.shutdown({ normal: true }),
     () => clientEventsService?.stop(),
     () => puzzleService?.cleanup(),
@@ -735,7 +748,9 @@ async function startApplication() {
     scriptPath: resolveOverlayOutsideClickScriptPath()
   })
   clientEventsService = new ClientEventsService({
+    trace: startupTrace,
     processProvider: detectClientProcessSessions,
+    processPresenceProvider: detectClientProcessExists,
     settings: new ClientEventSettingsRepository(path.join(app.getPath('userData'), 'client-events-settings.json')),
     detectPath: detectRunningClientLogPath,
     selectFile: async () => {
@@ -745,15 +760,38 @@ async function startApplication() {
       return result.canceled ? '' : String(result.filePaths[0] || '')
     }
   })
-  await startupTrace.measure('client-events', () => clientEventsService.initialize())
   const mapTrackerRepository = new MapTrackerRepository(app.getPath('userData'))
   mapTrackerService = new MapTrackerService({
     repository: mapTrackerRepository,
     clientEvents: clientEventsService,
+    trace: startupTrace,
 
   })
-  await startupTrace.measure('map-tracker', () => mapTrackerService.initialize())
   mapTrackerOverlay = new MapTrackerOverlayManager({ service: mapTrackerService })
+  if (!app.isPackaged) {
+    // ponytail: catalog.json 缺失或损坏只降级圣所功能，不让应用启动失败
+    try {
+      sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(app.getPath('userData')),
+        replay: replaySanctumSample, samples: listSanctumSamples, automationLock,
+        catalog: JSON.parse(fs.readFileSync(new URL('./assets/sanctum/catalog.json', import.meta.url), 'utf8')) })
+    } catch (error) { console.warn('圣所服务未启动：无法加载 catalog.json', error) }
+  }
+  if (sanctumService) sanctumOverlay = new SanctumOverlay({ service: sanctumService, detection: interfaceDetection, BrowserWindowClass: BrowserWindow, screenApi: screen, commandLine: app.commandLine })
+  if (sanctumService) {
+    sanctumControlOverlay = new SanctumControlOverlay({ service: sanctumService, detection: interfaceDetection, automationLock, BrowserWindowClass: BrowserWindow, screenApi: screen, commandLine: app.commandLine })
+    sanctumService.controlOverlay = sanctumControlOverlay
+  }
+  if (sanctumService) sanctumService.attachLiveDriver(new SanctumLiveDriver({ catalog: sanctumService.catalog, clientEvents: clientEventsService, windowActivation,
+    captureWindows: () => [sanctumControlOverlay, sanctumOverlay].flatMap(overlay => {
+      const window = overlay?.window
+      if (!window || window.isDestroyed()) return []
+      const handle = window.getNativeWindowHandle()
+      return [{ handle:(handle.length === 8 ? handle.readBigUInt64LE() : BigInt(handle.readUInt32LE())).toString(), processId:process.pid, role:overlay === sanctumControlOverlay ? 'control' : 'graph' }]
+    }),
+    withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)), detection: interfaceDetection }), automationLock)
+  if (sanctumService) sanctumService.calibrationEditor = new SanctumCalibrationEditor({ service: sanctumService,
+    picker: windowManager.pickScreenRegion, cancelPicker: windowManager.cancelCoordinatePicker, detection: interfaceDetection, nativeImage,
+    withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)) })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
@@ -770,6 +808,7 @@ async function startApplication() {
     clientEvents: clientEventsService,
     mapTracker: mapTrackerService,
     mapTrackerOverlay,
+    sanctum: sanctumService,
     poeCnAccount: {
       auth: chaosAuth,
       listLeagues: () => chaosStashClient.listLeagues()
@@ -795,6 +834,13 @@ async function startApplication() {
 
   dailyUsageService?.start()
   createApplicationWindow()
+  // Register IPC before loading the window, then restore business services in the background.
+  setImmediate(() => {
+    if (applicationShuttingDown) return
+    void startupTrace.measure('client-events', () => clientEventsService.initialize())
+      .then(() => { if (!applicationShuttingDown) return mapTrackerService.initialize() })
+      .catch(error => startupLog.warn('background-services', '后台服务初始化失败', error))
+  })
   setImmediate(() => {
     if (applicationShuttingDown) return
     void startupTrace.measure('evidence-cleanup', () => puzzleFailureEvidence.cleanup()).catch(error => {
@@ -812,6 +858,7 @@ async function startApplication() {
         lastGameWindowBounds = game ? bounds : null
         const result = shortcutManager.setScopeActive(game, { title, reason, processName })
         mapTrackerService?.setForeground(game)
+        sanctumService?.setForeground(game)
         syncLoadingFeedbackForeground()
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
@@ -833,6 +880,7 @@ async function startApplication() {
         lastGameWindowBounds = null
         shortcutManager.setScopeAvailable(false)
         mapTrackerService?.setForeground(false)
+        sanctumService?.setForeground(false)
         syncLoadingFeedbackForeground({ available: false })
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {

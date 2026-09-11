@@ -1,4 +1,5 @@
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
+import { encodeTradeQueryId } from './queryId.js'
 
 const ORIGIN = 'https://poe.game.qq.com'
 const LOGIN_HTML_PATTERN = /<title>流放之路<\/title>|需要登录|\/login\?redir=/i
@@ -118,7 +119,8 @@ export class PoeCnTradeClient {
     const cached = this.cache.get(cacheKey)
     if (cached && this.now() - cached.createdAt < CACHE_TTL_MS) return structuredClone(cached.value)
     const value = await this.request(`/api/trade/search/${encodeURIComponent(safeLeague)}`, { method: 'POST', body: query, signal })
-    if (!value?.id || (!Array.isArray(value.result) && !value.result)) {
+    encodeTradeQueryId(value?.id)
+    if (!value.result || typeof value.result !== 'object') {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易搜索响应缺少查询编号或结果')
     }
     this.cache.set(cacheKey, { createdAt: this.now(), value })
@@ -142,9 +144,13 @@ export class PoeCnTradeClient {
   }
 
   async fetch(queryId, resultIds, { signal } = {}) {
-    const ids = Array.isArray(resultIds) ? resultIds.filter((id) => /^[a-zA-Z0-9]+$/.test(String(id))).slice(0, 10) : []
-    if (!/^[a-zA-Z0-9]+$/.test(String(queryId || '')) || !ids.length) return { result: [] }
-    const value = await this.request(`/api/trade/fetch/${ids.join(',')}?query=${encodeURIComponent(queryId)}`, { signal })
+    const encodedQueryId = encodeTradeQueryId(queryId)
+    if (!Array.isArray(resultIds) || resultIds.some((id) => typeof id !== 'string' || !/^[a-zA-Z0-9]+$/.test(id))) {
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易响应包含无效的挂单编号')
+    }
+    const ids = resultIds.slice(0, 10)
+    if (!ids.length) return { result: [] }
+    const value = await this.request(`/api/trade/fetch/${ids.join(',')}?query=${encodedQueryId}`, { signal })
     if (!Array.isArray(value?.result)) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易挂单响应结构不兼容')
     }

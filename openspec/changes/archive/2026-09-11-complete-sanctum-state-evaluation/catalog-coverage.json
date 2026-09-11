@@ -1,0 +1,2346 @@
+{
+  "source": "https://poedb.tw/cn/Sanctum_league",
+  "reviewedAt": "2026-09-11",
+  "entries": [
+    {
+      "id": "boon:BoonLustrousLacquerIcon",
+      "name": "光辉漆彩",
+      "descriptions": [
+        "防御总增 50%"
+      ],
+      "digest": "350730693662ec85f64882412a446d1a1924d95a7828667b6fb30887b37aa501",
+      "rules": [
+        {
+          "rule": "defencesMore",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonMustyWineIcon",
+      "name": "霉烂果酒",
+      "descriptions": [
+        "每个房间开始时，对你施加一个随机的神龛效果"
+      ],
+      "digest": "65e94962d196979a452c112c13e14a9f383bcdcdd06007c731f59f94bb47169f",
+      "rules": [
+        {
+          "rule": "randomShrine",
+          "mode": "conditional",
+          "event": "entry",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "random": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonCrystalShardIcon",
+      "name": "水晶碎片",
+      "descriptions": [
+        "你获得的下一个痛苦转换为一个随机次要恩赐"
+      ],
+      "digest": "9023cad74ba1f372068cf67c8f782c99fc8a3a548363619b5b80a655701fb568",
+      "rules": [
+        {
+          "rule": "convertNextAffliction",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "affliction",
+          "direction": 1,
+          "reason": "下一痛苦转换为随机次要恩赐，结果需重新读取"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSacredMirrorIcon",
+      "name": "神圣之镜",
+      "descriptions": [
+        "最多复制3项随机贡品奖励"
+      ],
+      "digest": "3fb5a5b6bd1aac9d440d02487c76c22264196d2095024f193d1d8e654f7841eb",
+      "rules": [
+        {
+          "rule": "copyTributes",
+          "mode": "conditional",
+          "event": "acquire",
+          "scope": "reward",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 3,
+          "random": true,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGoldTrophyIcon",
+      "name": "金制奖杯",
+      "descriptions": [
+        "完成房间时你获得的耀金币提高10%\n（从商人处购买物品后移除）"
+      ],
+      "digest": "537da31247545cfe45fa449b3230c0142304617b0297a6b99b564f5b16ecc501",
+      "rules": [
+        {
+          "rule": "completionCoinsIncrease",
+          "mode": "numeric",
+          "event": "completion",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 10,
+          "expires": "purchase"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonChippedDiceIcon",
+      "name": "破损骰子",
+      "descriptions": [
+        "商人的商店可以被重随了"
+      ],
+      "digest": "7767fce94b6ae3127bd29111a20396ade2a3e34b70a61f6f425502a22c7af957",
+      "rules": [
+        {
+          "rule": "merchantReroll",
+          "mode": "conditional",
+          "event": "purchase",
+          "scope": "merchant",
+          "stacking": "unique",
+          "direction": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonCallistasGiftIcon",
+      "name": "圣神赐福",
+      "descriptions": [
+        "你在商人处的下一次购买不会产生消耗"
+      ],
+      "digest": "bfd87739a066e0b87855f5f9be409cf9e7f02c03bf407392630ffe4caa6f3f14",
+      "rules": [
+        {
+          "rule": "freePurchase",
+          "mode": "conditional",
+          "event": "purchase",
+          "scope": "merchant",
+          "stacking": "unique",
+          "direction": 1,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonUntunedLuteIcon",
+      "name": "不谐诗琴",
+      "descriptions": [
+        "增加 +100 层启迪"
+      ],
+      "digest": "3240ac833295dd880acc245bea8a1c1cda6a95729f43d62c7ae1b7385152be0f",
+      "rules": [
+        {
+          "rule": "gainInspiration",
+          "mode": "numeric",
+          "event": "acquire",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonBlackPearlIcon",
+      "name": "黑色珍珠",
+      "descriptions": [
+        "陷阱对坚毅的影响降低50%"
+      ],
+      "digest": "0c5f4a392bfd5c27973b6b9c47646ee425d7db2bbd776a28b335bca7f8e771d5",
+      "rules": [
+        {
+          "rule": "trapResolveModifier",
+          "mode": "numeric",
+          "event": "resolveLoss",
+          "scope": "trap",
+          "stacking": "unique",
+          "value": -50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSliverChaliceIcon",
+      "name": "银制圣杯",
+      "descriptions": [
+        "你获得的下一个次要恩赐转换为一个随机主要恩赐"
+      ],
+      "digest": "4cf86065364183c971bd5b160f25b81f542a8a345dac50f184a1ededb7a0c986",
+      "rules": [
+        {
+          "rule": "upgradeNextBoon",
+          "mode": "conditional",
+          "event": "gainBoon",
+          "scope": "boon",
+          "stacking": "unique",
+          "direction": 1,
+          "once": true,
+          "random": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonFountainOfYouthIcon",
+      "name": "青春之泉",
+      "descriptions": [
+        "每次你使用喷泉时，获得+40最大坚毅"
+      ],
+      "digest": "7edfa9eb4cc4d000856ebfab609f30ca359f8ec6250ab004a84871b82620cee8",
+      "rules": [
+        {
+          "rule": "fountainMaxResolve",
+          "mode": "numeric",
+          "event": "fountain",
+          "scope": "fountain",
+          "stacking": "unique",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonHolyWaterIcon",
+      "name": "圣水之灵",
+      "descriptions": [
+        "当你使用喷泉时获得一个随机次要恩赐"
+      ],
+      "digest": "56fe55335a7011fa2281ff16709588ec6b725ee7d667fb860cc0088c1a08241c",
+      "rules": [
+        {
+          "rule": "fountainBoon",
+          "mode": "conditional",
+          "event": "fountain",
+          "scope": "fountain",
+          "stacking": "unique",
+          "direction": 1,
+          "random": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonTarnishedDescryIcon",
+      "name": "晦暗圣印",
+      "descriptions": [
+        "增加 +150 最大坚毅"
+      ],
+      "digest": "ac60420b2874a0e05443abf6c3f98c27abf7ad936fca3d4f6bb9fc2cb888b416",
+      "rules": [
+        {
+          "rule": "gainMaxResolve",
+          "mode": "numeric",
+          "event": "acquire",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 150
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonArcaneAegisIcon",
+      "name": "奥术圣盾",
+      "descriptions": [
+        "当你的启迪变为0时，触发奥术增幅者"
+      ],
+      "digest": "5145062f70e0f904deb0d715187cdd21d4c793aaea27335388219381d447a337",
+      "rules": [
+        {
+          "rule": "arcaneAegis",
+          "mode": "conditional",
+          "event": "inspirationDepleted",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonMirrorOfFortuneIcon",
+      "name": "命运之镜",
+      "descriptions": [
+        "复制一个随机贡品奖励"
+      ],
+      "digest": "d9704a6eb9117c5b0033fa44b2743f156b22cbc77b8f4ee7fb2cdeef18268519",
+      "rules": [
+        {
+          "rule": "copyTributes",
+          "mode": "conditional",
+          "event": "acquire",
+          "scope": "reward",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 1,
+          "random": true,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAdrenalineVialIcon",
+      "name": "肾上腺素",
+      "descriptions": [
+        "进入首领房间时恢复50%最大坚毅"
+      ],
+      "digest": "fa187f0661ff6ce02e0668e0bd6e3c9c023d6e8fd11d6db492999a778c9e2fb1",
+      "rules": [
+        {
+          "rule": "bossRecoveryPercent",
+          "mode": "numeric",
+          "event": "entry",
+          "scope": "boss",
+          "stacking": "unique",
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonEngravedOrbIcon",
+      "name": "铭印宝珠",
+      "descriptions": [
+        "坚毅低于50%时，恢复的坚毅增加100%"
+      ],
+      "digest": "453616b7e9ff49b4defa3f405462d6de33998c3af65fec6ceca67eb543a193a0",
+      "rules": [
+        {
+          "rule": "lowResolveRecovery",
+          "mode": "numeric",
+          "event": "recovery",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100,
+          "threshold": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonTarnishedCoinIcon",
+      "name": "晦暗硬币",
+      "descriptions": [
+        "坚毅低于50%时，获得的耀金币提高100%"
+      ],
+      "digest": "88355e24c1292eefe2506a84ead34c5b631966feab0289b03ca95a5070d26dd2",
+      "rules": [
+        {
+          "rule": "lowResolveCoins",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100,
+          "threshold": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonEnchantedUrnIcon",
+      "name": "附魔之瓮",
+      "descriptions": [
+        "你的圣物效果提高30%"
+      ],
+      "digest": "4dccb3f7852995894f256842e2d68f3d43f7e40d1a8b76817e72fa7bdb46f89b",
+      "rules": [
+        {
+          "rule": "relicEffectIncrease",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "relic",
+          "direction": 1,
+          "reason": "已装备圣物效果提高"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:c365b6d51acfa4f6",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的守卫将立即死亡"
+      ],
+      "digest": "e2ae97c6789581b12f14fca22dc4cb919ddf158b84d956c74ca17fc37932e7c4",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 1,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:5e8ddeaceedfa2ec",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的2个守卫将立即死亡"
+      ],
+      "digest": "46ee92f7091d99d2edf28ea49690daf2846efc3d16edfbe49c71301866819985",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 2,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:542546b96890bf4f",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的3个守卫将立即死亡"
+      ],
+      "digest": "f7a7c5a425fa101b90d4eb2d3865c0032a34f2619897273188497a9b57de128f",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 3,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:9977dfad490295e3",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的4个守卫将立即死亡"
+      ],
+      "digest": "5c34f5f056200f5bfc9ea47d5569f736130fad55c53766d536addeaaaaae31bf",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 4,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:5fddd58a48e91cb9",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的5个守卫将立即死亡"
+      ],
+      "digest": "540bd4628a8ee370b4ce0607af45839ba16848a84dbefae18607542496766c58",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 5,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:b0d07ca8f00b8551",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的6个守卫将立即死亡"
+      ],
+      "digest": "5d319165fb25ec4709c93c853c3ee5eabd15890d1de7e411115a1285b347f2e5",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 6,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:95fe4b39d580008a",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的7个守卫将立即死亡"
+      ],
+      "digest": "780d08a036462120860445b206a95dc7eb1ef97c78043878fead7aa77c547186",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 7,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:e0de507274707a29",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的8个守卫将立即死亡"
+      ],
+      "digest": "0bbed0d736898b8967461b2dde7921a9624710cb2b3ae543199131191e473f50",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 8,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:d7d3f12b4578acc7",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的9个守卫将立即死亡"
+      ],
+      "digest": "9845a6485e49ef059cd4e94a6d1dea10a2fa791624feb853d42311c7950e9437",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 9,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAssassinsBladeIcon:4d8fa558b56026fd",
+      "name": "刺客之刃",
+      "descriptions": [
+        "你下次攻击的10个守卫将立即死亡"
+      ],
+      "digest": "e006560a36489ad9b35b07d663e555e9939592b74ac50604596bf0d207d1c7d6",
+      "rules": [
+        {
+          "rule": "guardKill",
+          "mode": "conditional",
+          "event": "guardAttack",
+          "scope": "guards",
+          "direction": 1,
+          "remainingUses": 10,
+          "stacking": "unique"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonFancyDaggerIcon",
+      "name": "华丽匕首",
+      "descriptions": [
+        "你和你的召唤生物伤害增加50%"
+      ],
+      "digest": "54254df9d3b39eb8ea046ec614f27ced39aab90aaf01ed8112b56dc0c6c308b7",
+      "rules": [
+        {
+          "rule": "playerDamageIncrease",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSanguineVialIcon",
+      "name": "鲜血之瓶",
+      "descriptions": [
+        "怪物的生命上限降低30%"
+      ],
+      "digest": "a7f62d434ca1e4c64f544d7dbec246422eba7560b4933785ba65a3c6b6b38acb",
+      "rules": [
+        {
+          "rule": "monsterLifeReduced",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 30
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonWoodenEffigyIcon",
+      "name": "木质塑像",
+      "descriptions": [
+        "怪物对坚毅的影响降低25%"
+      ],
+      "digest": "f14ffe3533153812808987e883976d510e10797a5541de4537f0cb5aea95965d",
+      "rules": [
+        {
+          "rule": "monsterResolveModifier",
+          "mode": "numeric",
+          "event": "resolveLoss",
+          "scope": "combat",
+          "stacking": "unique",
+          "value": -25
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonViciousIchorIcon",
+      "name": "粘性溶液",
+      "descriptions": [
+        "怪物的行动速度降低20%"
+      ],
+      "digest": "e04ac9d6437e44b268d816e636688bfebdf375bfa0b5534034820beacc71afdf",
+      "rules": [
+        {
+          "rule": "monsterActionSlow",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 20
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonLustrousPearlIcon",
+      "name": "光辉珍珠",
+      "descriptions": [
+        "陷阱现在更慢了"
+      ],
+      "digest": "d3e0e8dd75093d46cdc3f01e96cf949dd94a75038548b71b17e5ddcd58ad89b4",
+      "rules": [
+        {
+          "rule": "slowTraps",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "trap",
+          "stacking": "unique",
+          "direction": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonAllSeeingEyeIcon",
+      "name": "全知之眼",
+      "descriptions": [
+        "圣所地图现在完全显示了"
+      ],
+      "digest": "a37abaf1329d15f3cb1e0f9a8efc41dfcbbc93b437f5ab98f4ab194ac8153b5f",
+      "rules": [
+        {
+          "rule": "fullMapRevealed",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": 1,
+          "reason": "地图完全显示，提供后续读取与分支选择机会"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGoldCoinIcon",
+      "name": "金制硬币",
+      "descriptions": [
+        "获得的耀金币翻倍"
+      ],
+      "digest": "5db2aeb061c82f4b0882481809a632e41304dffbee7286566b9a3e97e4e705f9",
+      "rules": [
+        {
+          "rule": "coinsDouble",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGoldMineIcon",
+      "name": "黄金矿石",
+      "descriptions": [
+        "本楼层获得的耀金币翻倍"
+      ],
+      "digest": "60a61f9c496460c86ea6bbcc7d07b4c6a7446bcb4e683ab57d73f6abb8c7bb6a",
+      "rules": [
+        {
+          "rule": "coinsDoubleFloor",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 2,
+          "expires": "floor"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonBronzeCoinIcon",
+      "name": "铜制硬币",
+      "descriptions": [
+        "拾取耀金币时恢复坚毅"
+      ],
+      "digest": "942e88cedb32d486e419eb20674b853c7062bf89ea3b1d0cadbc9ba494b5531b",
+      "rules": [
+        {
+          "rule": "coinPickupRecovery",
+          "mode": "conditional",
+          "event": "coinPickup",
+          "scope": "coins",
+          "stacking": "unique",
+          "direction": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonPrayerBeadsIcon",
+      "name": "祈祷念珠",
+      "descriptions": [
+        "下个房间内不会失去坚毅"
+      ],
+      "digest": "c0dc8235e8ddf46d2e0c57d2c4dad4fc1d0dc7e214901c3e315b72f8cf59c3ef",
+      "rules": [
+        {
+          "rule": "preventResolveLoss",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": 1,
+          "reason": "本房间不会失去坚毅",
+          "remainingRooms": 1,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonCrystalChaliceIcon",
+      "name": "水晶圣杯",
+      "descriptions": [
+        "你不能再获得更多次要痛苦"
+      ],
+      "digest": "aaffe2e8d708833c4c4bfef27881cf37385e699224921901c964c6395147d60a",
+      "rules": [
+        {
+          "rule": "minorAfflictionImmune",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "affliction",
+          "direction": 1,
+          "reason": "不能再获得次要痛苦"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonHolyDescryIcon",
+      "name": "神圣圣印",
+      "descriptions": [
+        "当坚毅变为0时，恢复所有坚毅，然后失去50%当前最大坚毅，并移除一个随机恩赐"
+      ],
+      "digest": "7f41097124aaf2ed62c70ae3ca0556a598870d9c03f4bc1d14620c62b6dc6ead",
+      "rules": [
+        {
+          "rule": "reviveSacred",
+          "mode": "numeric",
+          "event": "resolveDepleted",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100,
+          "random": true,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonPriestsDescryIcon",
+      "name": "祭司圣印",
+      "descriptions": [
+        "当坚毅变为0时，恢复到75%最大坚毅一次"
+      ],
+      "digest": "7a3c91f04c9ed35bcb7ce46a5e78bdadb9134fc513052adf364518aa9497d378",
+      "rules": [
+        {
+          "rule": "reviveOnce",
+          "mode": "numeric",
+          "event": "resolveDepleted",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 75,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonLiltingMelodyIcon:d1cf37177d322bfa",
+      "name": "轻快旋律",
+      "descriptions": [
+        "如果你完成接下来 1 个房间并且未失去坚毅或启迪，获得 150 层启迪"
+      ],
+      "digest": "0f52bee3d223a3e3c6c757f0b54e1f68e21a26f33b07854005fe98d8f277cd46",
+      "rules": [
+        {
+          "rule": "flawlessInspiration",
+          "mode": "conditional",
+          "event": "completion",
+          "scope": "any",
+          "direction": 1,
+          "remainingRooms": 1,
+          "value": 150,
+          "stacking": "unique",
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonLiltingMelodyIcon:75ee9c94781f3d32",
+      "name": "轻快旋律",
+      "descriptions": [
+        "如果你完成接下来 2 个房间并且未失去坚毅或启迪，获得 150 层启迪"
+      ],
+      "digest": "f01ee11639d914600bac23cdea8098458420c1d4cd077a8b4cf0054b4f8541fe",
+      "rules": [
+        {
+          "rule": "flawlessInspiration",
+          "mode": "conditional",
+          "event": "completion",
+          "scope": "any",
+          "direction": 1,
+          "remainingRooms": 2,
+          "value": 150,
+          "stacking": "unique",
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonMellifluousChorusIcon",
+      "name": "悦耳和声",
+      "descriptions": [
+        "你拥有启迪时失去的坚毅减少40%"
+      ],
+      "digest": "ba6c10b9f66fcb21ac7f35889d2e7df89444382625705c361001ffe3892f4274",
+      "rules": [
+        {
+          "rule": "inspiredResolveReduction",
+          "mode": "numeric",
+          "event": "resolveLoss",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonRustedChimesIcon",
+      "name": "锈蚀钟琴",
+      "descriptions": [
+        "当你获得痛苦时，获得 +30 层启迪"
+      ],
+      "digest": "ebd08c94e5ba26acd53053a5913a94e0a59001140845e1035cfebcaa7f438984",
+      "rules": [
+        {
+          "rule": "inspirationOnAffliction",
+          "mode": "numeric",
+          "event": "gainAffliction",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 30
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGildedLyreIcon",
+      "name": "镀金竖琴",
+      "descriptions": [
+        "每个楼层开始时获得 +100 层启迪"
+      ],
+      "digest": "314658747ad8769fe5737f14736d844b6f462ebbeb82902319bd6fd6176ff758",
+      "rules": [
+        {
+          "rule": "inspirationOnFloor",
+          "mode": "numeric",
+          "event": "floorStart",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGlowOrbIcon",
+      "name": "光亮宝珠",
+      "descriptions": [
+        "下次你的坚毅低于20%时，恢复50%坚毅"
+      ],
+      "digest": "e9d104b6c0a55116e1a1fee5f26398245c0651347e22633894249ae5ee10c15b",
+      "rules": [
+        {
+          "rule": "lowResolveRescue",
+          "mode": "numeric",
+          "event": "resolveLoss",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 50,
+          "threshold": 20,
+          "once": true
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonBronzeDescryIcon",
+      "name": "铜制圣印",
+      "descriptions": [
+        "被击中而失去坚毅后的1秒内不会再失去坚毅"
+      ],
+      "digest": "58df8a2e77add31f91c0ba4f0acc90064cd7fb1d74650ca393a59337383c550b",
+      "rules": [
+        {
+          "rule": "hitGracePeriod",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGoldenDescryIcon",
+      "name": "金制圣印",
+      "descriptions": [
+        "在完成房间时恢复+15坚毅"
+      ],
+      "digest": "101b11faff4e10f6bbb5f6defdac3f2983eeac9dc5c00608344997631655ea23",
+      "rules": [
+        {
+          "rule": "recoveryOnRoom",
+          "mode": "numeric",
+          "event": "completion",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSilverDescryIcon",
+      "name": "银制圣印",
+      "descriptions": [
+        "每个房间内首次承受伤害不会失去坚毅"
+      ],
+      "digest": "54766125783cf20b90f97315d38932303baeb1d1e656964c48db548d4637dbeb",
+      "rules": [
+        {
+          "rule": "firstHitImmune",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "usesPerRoom": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonImperialSealIcon",
+      "name": "帝国封印",
+      "descriptions": [
+        "陷阱现在失效了"
+      ],
+      "digest": "712850f472184a292e1ea81449bbd9b0a5bbd55217088ed83ea38393b0ccfc3e",
+      "rules": [
+        {
+          "rule": "trapsDisabled",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "trap",
+          "stacking": "unique",
+          "direction": 1
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSilverTongueIcon",
+      "name": "巧舌如簧",
+      "descriptions": [
+        "商人处的出售价格降低50%"
+      ],
+      "digest": "d364ba52c13629e3a48c99fa1079c3c65869939ceb99bdc72a5a0f0c33ab11ca",
+      "rules": [
+        {
+          "rule": "merchantPrice",
+          "mode": "numeric",
+          "event": "purchase",
+          "scope": "merchant",
+          "stacking": "unique",
+          "value": -50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonScryingCrystalIcon",
+      "name": "探知水晶",
+      "descriptions": [
+        "你在禁域地图上看到的房间增加一个"
+      ],
+      "digest": "31b98c0223ddae051d95c5e30c316a41571ee6af2716572516f0fd621a205ee3",
+      "rules": [
+        {
+          "rule": "visionIncreased",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": 1,
+          "reason": "可见房间增加，提供后续读取机会，不推算未显示内容"
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonRustyDescryIcon",
+      "name": "锈蚀圣印",
+      "descriptions": [
+        "坚毅恢复提高50%"
+      ],
+      "digest": "8f88ddd2557b8740e9ce49d319bd7196d67c33a2a0731772e45d75a78f9f8ec7",
+      "rules": [
+        {
+          "rule": "recoveryIncrease",
+          "mode": "numeric",
+          "event": "recovery",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonSilverCoinIcon",
+      "name": "银铸硬币",
+      "descriptions": [
+        "当你被击中而失去坚毅时，获得 10 枚耀金币"
+      ],
+      "digest": "622b1d6af9480452398c23d48a153715504640423e6ab1cc8c79966d3c8c74ce",
+      "rules": [
+        {
+          "rule": "coinsOnHit",
+          "mode": "numeric",
+          "event": "hitResolveLoss",
+          "scope": "combat",
+          "stacking": "unique",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonGoldMagnetIcon",
+      "name": "金币磁铁",
+      "descriptions": [
+        "找到的耀金币数量增加50%"
+      ],
+      "digest": "afcf61a9b72f0bb12507353a5846392f73ca4a81f1d0ea5cb3387888e2581371",
+      "rules": [
+        {
+          "rule": "coinsFoundModifier",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonHareFootIcon",
+      "name": "野兔之足",
+      "descriptions": [
+        "移动速度提高60%"
+      ],
+      "digest": "ee483e11457361aee1eedf1ba185e0a57ef1273f0903e2a72edf068aeb6d61cc",
+      "rules": [
+        {
+          "rule": "movementSpeedIncrease",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "any",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 60
+        }
+      ]
+    },
+    {
+      "id": "boon:BoonFrightMaskIcon",
+      "name": "恐惧面罩",
+      "descriptions": [
+        "怪物伤害减少40%"
+      ],
+      "digest": "90e8d0f1137aef2988cb5a427763417bbff3358f292c78ac8e1729d84c9a0be8",
+      "rules": [
+        {
+          "rule": "monsterDamageReduced",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": 1,
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseCorrosiveConcoctionIcon",
+      "name": "腐蚀药剂",
+      "descriptions": [
+        "无坚毅缓阻或坚毅护盾，无法避免失去坚毅"
+      ],
+      "digest": "a50658949415ec0b2ab95a592172322594d75fc0347a68fc5c73fe03643aef47",
+      "rules": [
+        {
+          "rule": "noResolveDefences",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseShatteredShieldIcon",
+      "name": "破碎盾牌",
+      "descriptions": [
+        "无法获得坚毅护盾"
+      ],
+      "digest": "3782d2ea119948aa09dcea9f146680e1c9adcf53f8498ced6cd7c8d93e5fe825",
+      "rules": [
+        {
+          "rule": "noResolveAegis",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseSharpenedArrowheadIcon",
+      "name": "锋利箭头",
+      "descriptions": [
+        "敌人击中无视你的坚毅缓阻"
+      ],
+      "digest": "5b31238aea2234a9c7aeded8fbd93dadd6630317f26bba8761ee85a9a5245adc",
+      "rules": [
+        {
+          "rule": "ignoreResolveMitigation",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseIronManaclesIcon",
+      "name": "钢铁镣铐",
+      "descriptions": [
+        "无法避免被敌人击中造成的坚毅损失"
+      ],
+      "digest": "c82961972543662587be4d5e3eb52fa111d1c029e63ceb0302297c898839c657",
+      "rules": [
+        {
+          "rule": "noResolveAvoidance",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGlassShardIcon",
+      "name": "玻璃碎片",
+      "descriptions": [
+        "你获得的下一个恩赐转换为一个随机次要痛苦"
+      ],
+      "digest": "724cc4e4c928ec1a52e9708e5996d9e06ca1a409eb6ee3327b1688c207a3210c",
+      "rules": [
+        {
+          "rule": "convertNextBoon",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "boon",
+          "direction": -1,
+          "reason": "下一恩赐转换为随机次要痛苦，结果需重新读取"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseChiselledStoneIcon",
+      "name": "凿刻之石",
+      "descriptions": [
+        "怪物击中时使用石化"
+      ],
+      "digest": "4ac465e17d3b226ace509c1296e906c362287ea4af3220b5e36a53118d175860",
+      "rules": [
+        {
+          "rule": "petrifyingHit",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseRustedCoinIcon",
+      "name": "锈蚀硬币",
+      "descriptions": [
+        "商人仅提供一个选项"
+      ],
+      "digest": "a9ca21c9c9e7893ae77d7c80678c863d4b61d7cae4ce571b08d224ae88eb056a",
+      "rules": [
+        {
+          "rule": "merchantOneOption",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "merchant",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseOrbOfNegationIcon",
+      "name": "否定宝珠",
+      "descriptions": [
+        "非传奇物品失去效果"
+      ],
+      "digest": "4d83efe874f903f1f83571aa66847340a0530224528e68267ca2a5a1675e563c",
+      "rules": [
+        {
+          "rule": "nonUniqueItemsDisabled",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseWornSandalsIcon",
+      "name": "破烂凉鞋",
+      "descriptions": [
+        "移动速度降低40%。"
+      ],
+      "digest": "b568f042490f58a1e13cf58a4a4cab5f3405f73f76f390352824fecfefa561c6",
+      "rules": [
+        {
+          "rule": "movementSpeedReduced",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "any",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseCorruptedLockpickIcon",
+      "name": "腐化撬具",
+      "descriptions": [
+        "房间内的宝箱被打开时会爆炸"
+      ],
+      "digest": "f263f06315a144d3860d66c7b08f917e2b0f39de127554a6671c8d7949acd582",
+      "rules": [
+        {
+          "rule": "explodingChests",
+          "mode": "conditional",
+          "event": "chestOpen",
+          "scope": "chest",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseNameIllusionIcon",
+      "name": "幽影幻象",
+      "descriptions": [
+        "所有房间赋予一个随机次要痛苦。\n（完成房间后移除该效果赋予的痛苦）"
+      ],
+      "digest": "48a8e132c57cf04d7b2d098694b78ae025622a258ff98eaa7e6a7c226fc3799e",
+      "rules": [
+        {
+          "rule": "randomAfflictionEachRoom",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "本房间随机临时痛苦；完成房间移除，不假定具体随机结果"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGargoyleTotemIcon",
+      "name": "石像图腾",
+      "descriptions": [
+        "守卫们有一个石像鬼陪伴"
+      ],
+      "digest": "8488cd3abd4d0deafd719b4071631a376a42a383381f90c6ba39d41ef7a609b9",
+      "rules": [
+        {
+          "rule": "gargoyleGuards",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseFiendishWingsIcon",
+      "name": "恶魔之翼",
+      "descriptions": [
+        "怪物的行动速度减缓不会低于基础速度\n怪物的攻击，施法，移动速度提高30%"
+      ],
+      "digest": "3a5f951beee667fced6be90070e3b98cfb258fd043442d859b9c26b4e1a3320f",
+      "rules": [
+        {
+          "rule": "monsterSpeedFloor",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 30
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseWeakenedFleshIcon",
+      "name": "弱化血肉",
+      "descriptions": [
+        "减少100最大坚毅"
+      ],
+      "digest": "85dee5982faf45a6f6323a4a8aad8c739743a2a6f5f4dd775f9398ca43990076",
+      "rules": [
+        {
+          "rule": "gainMaxResolve",
+          "mode": "numeric",
+          "event": "acquire",
+          "scope": "any",
+          "stacking": "unique",
+          "value": -100
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseRustedMalletIcon",
+      "name": "锈蚀重锤",
+      "descriptions": [
+        "怪物总会击退\n怪物造成的击退距离提高"
+      ],
+      "digest": "2fb2189fad4ea2e22dbe60887a441e72c51dd976beaf222261c6b6f6d8558d78",
+      "rules": [
+        {
+          "rule": "monsterKnockback",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseMarkOfTerrorIcon",
+      "name": "恐惧之印",
+      "descriptions": [
+        "怪物击中时施加坚毅要害"
+      ],
+      "digest": "085dc8e73bd25f5e108aecb5ea9dfdc1f9026fb8bf3421378de0be62486ed59d",
+      "rules": [
+        {
+          "rule": "resolveWeakness",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseConcealedAnomalyIcon",
+      "name": "隐蔽异动",
+      "descriptions": [
+        "守卫死亡时释放一个异动奇点"
+      ],
+      "digest": "91a054b8fa2c4af01ff5f73db98eed5c52c03b533b516f80ec127ab46d8f84f3",
+      "rules": [
+        {
+          "rule": "deathAnomaly",
+          "mode": "conditional",
+          "event": "guardDeath",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseChainOfBindingIcon",
+      "name": "拘束锁链",
+      "descriptions": [
+        "怪物击中时施加束缚之链"
+      ],
+      "digest": "7efc825d29e0ee51f548bdcf1b4104bb8e0da05116b9be90efb5e36de7edd218",
+      "rules": [
+        {
+          "rule": "bindingHit",
+          "mode": "conditional",
+          "event": "hit",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseLiquidCowardiceIcon",
+      "name": "液化懦弱",
+      "descriptions": [
+        "使用药剂时失去10层坚毅"
+      ],
+      "digest": "b2b9a0e0ad6c0fe227b24ca2552598e9ccaee3f1c8ec8a84bee1bed83f27e3ad",
+      "rules": [
+        {
+          "rule": "flaskResolveLoss",
+          "mode": "numeric",
+          "event": "flask",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 10
+        }
+      ]
+    },
+    {
+      "id": "affliction:CursePoisonedWaterIcon",
+      "name": "毒水侵袭",
+      "descriptions": [
+        "当你使用喷泉时获得一个随机次要痛苦"
+      ],
+      "digest": "abb31f1a6f8247cbf84e06e02810c78d415f0dfcbec6d60b617899bfd2b3bc33",
+      "rules": [
+        {
+          "rule": "fountainAffliction",
+          "mode": "conditional",
+          "event": "fountain",
+          "scope": "fountain",
+          "stacking": "unique",
+          "direction": -1,
+          "random": true
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseAccursedPrismIcon",
+      "name": "诅咒棱镜",
+      "descriptions": [
+        "当你获得痛苦时，获得一个额外的随机次要痛苦"
+      ],
+      "digest": "8c47335186132afa73a8000d717ee7c481839e257981e9e9efbb2240ba474531",
+      "rules": [
+        {
+          "rule": "extraAffliction",
+          "mode": "conditional",
+          "event": "gainAffliction",
+          "scope": "affliction",
+          "stacking": "unique",
+          "direction": -1,
+          "random": true
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseUnhallowedAmuletIcon",
+      "name": "不洁吊坠",
+      "descriptions": [
+        "商人提供的选项减少50%"
+      ],
+      "digest": "cbaa070da244e32b4d39edddcc04d7a204032d3eb0a3f6cf9ec4a8b2de705be6",
+      "rules": [
+        {
+          "rule": "merchantOptionsReduced",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "merchant",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseTightCollarIcon",
+      "name": "紧缚项圈",
+      "descriptions": [
+        "你最多可以拥有5个恩赐"
+      ],
+      "digest": "4763fd501e93961f1bbd3cdd394a45ff92ac23384254f6396de8c2d1a8cfd767",
+      "rules": [
+        {
+          "rule": "boonLimit",
+          "mode": "conditional",
+          "event": "gainBoon",
+          "scope": "boon",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseUnholyUrnIcon",
+      "name": "不洁之瓮",
+      "descriptions": [
+        "你的圣物效果降低50%"
+      ],
+      "digest": "b75fd44626607c493805bf0e25d5fe4214d1e5a648a248f1e26519e28b5b3e01",
+      "rules": [
+        {
+          "rule": "relicEffectReduction",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "relic",
+          "direction": -1,
+          "reason": "已装备圣物效果降低"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseHaemorrhageIcon",
+      "name": "血流不止",
+      "descriptions": [
+        "你不能再恢复坚毅（消灭下一楼层的首领后移除）"
+      ],
+      "digest": "a01e07a860ea256f14cf3ae742e53f048e39ea308b9a8925712cc63b22022da2",
+      "rules": [
+        {
+          "rule": "cannotRecover",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "recovery",
+          "direction": -1,
+          "reason": "无法恢复坚毅，恢复机会失效",
+          "expires": "floorBoss"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseMirrorIcon",
+      "name": "欺诈之镜",
+      "descriptions": [
+        "你不是每次都能进入你选择的房间"
+      ],
+      "digest": "27e3108ac3ee26241bf793b74b0ad9823932fcba9deb0852a196fd691a29bdaf",
+      "rules": [
+        {
+          "rule": "randomDestination",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "可能进入随机房间，所选路线和目标不保证到达"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseVoodooDollIcon",
+      "name": "巫毒人偶",
+      "descriptions": [
+        "坚毅低于50%时，失去的坚毅增加100%"
+      ],
+      "digest": "614e047a45e37eeabad740b1a68386c2105a1361cc57e4f39bd736df29ab5605",
+      "rules": [
+        {
+          "rule": "lowResolveLoss",
+          "mode": "numeric",
+          "event": "resolveLoss",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100,
+          "threshold": 50
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseCutpurseIcon",
+      "name": "钱包失窃",
+      "descriptions": [
+        "你无法获得耀金币"
+      ],
+      "digest": "287b7259bc697b1997b793f8249fa4d157117f7c62eb18197abb3abdc0ad02db",
+      "rules": [
+        {
+          "rule": "cannotGainCoins",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseTatteredBlindfoldIcon",
+      "name": "破烂眼罩",
+      "descriptions": [
+        "能见度降低90%\n隐藏小地图"
+      ],
+      "digest": "857a1a8912846b36dc3e9e46f04cb86769087ee542c55a8f7b1433fed3c49860",
+      "rules": [
+        {
+          "rule": "localVisibilityReduced",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "any",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 90
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseSpikedEntranceIcon",
+      "name": "尖刺出口",
+      "descriptions": [
+        "完成一个房间后失去5%当前坚毅"
+      ],
+      "digest": "bd236009f54e69be6410efee7722aa7e206f07d9efe0d3d1e78987d6625447b2",
+      "rules": [
+        {
+          "rule": "completionResolveLossPercent",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "完成房间按当前坚毅失去坚毅",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseUnassumingBrickIcon",
+      "name": "朴实之砖",
+      "descriptions": [
+        "你不能再获得更多恩赐"
+      ],
+      "digest": "e8650cd0be2512bdf9211e7cfc5db03bc7076648d69ab5e77e7815f4eadd7cb6",
+      "rules": [
+        {
+          "rule": "cannotGainBoons",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "boon",
+          "direction": -1,
+          "reason": "不能获得恩赐，相关房间的恩赐机会失效"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGhastlyScytheIcon:4f5db1680197be01",
+      "name": "幽暗镰刀",
+      "descriptions": [
+        "失去坚毅使你的禁域结束\n（1个房间后移除）"
+      ],
+      "digest": "51d0e41df9ebed7bffbe2ce3c28670f64de5ece3c4e870fa7c3210af53b00434",
+      "rules": [
+        {
+          "rule": "endsOnResolveLoss",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "失去坚毅即结束本轮，无法假定无伤",
+          "remainingRooms": 1,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGhastlyScytheIcon:0dd9bd4c6cf7b077",
+      "name": "幽暗镰刀",
+      "descriptions": [
+        "失去坚毅使你的禁域结束\n（2个房间后移除）"
+      ],
+      "digest": "ec2c5a36587519ae84593ae6bda48c5fc650cbbe7c0740544985ee68dd6959f6",
+      "rules": [
+        {
+          "rule": "endsOnResolveLoss",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "失去坚毅即结束本轮，无法假定无伤",
+          "remainingRooms": 2,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGhastlyScytheIcon:3acda56b2f745ff3",
+      "name": "幽暗镰刀",
+      "descriptions": [
+        "失去坚毅使你的禁域结束\n（3个房间后移除）"
+      ],
+      "digest": "af53033f010b277e1f86eb1e336b1ba1307c844c4510d30ee1beaf123a3fbcd9",
+      "rules": [
+        {
+          "rule": "endsOnResolveLoss",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "失去坚毅即结束本轮，无法假定无伤",
+          "remainingRooms": 3,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CursePurpleSmokeIcon",
+      "name": "紫色烟雾",
+      "descriptions": [
+        "圣所地图上的痛苦变为未知"
+      ],
+      "digest": "c1571644680bc8db49707b0580138cac13da4602bc33aea64620f48a8daba759",
+      "rules": [
+        {
+          "rule": "afflictionsHidden",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "后续痛苦隐藏，无法保证风险已知"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseGoldenSmokeIcon",
+      "name": "金色烟雾",
+      "descriptions": [
+        "圣所地图上的奖励变为未知"
+      ],
+      "digest": "fa967ec3e27d1deb10a4b2d5ff4bc1fda2b60808318edc7ecf2ad9d5c3593cff",
+      "rules": [
+        {
+          "rule": "rewardsHidden",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "reward",
+          "direction": -1,
+          "reason": "奖励隐藏，无法比较未读取奖励"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseRedSmokeIcon",
+      "name": "红色烟雾",
+      "descriptions": [
+        "圣所地图上的房间类型变为未知"
+      ],
+      "digest": "ab2988cee09238da8016cf20cd4e54bf09a382f645db5c769af28a0192b848fa",
+      "rules": [
+        {
+          "rule": "typesHidden",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "房型隐藏，后续布局选择不确定"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseVeiledSightIcon",
+      "name": "视线受阻",
+      "descriptions": [
+        "禁域地图上的房间变为未知"
+      ],
+      "digest": "f93e1cb39cf3f13851562114154ce1a74d19788399a2f717519087cc893900a9",
+      "rules": [
+        {
+          "rule": "roomsHidden",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "房间内容隐藏，不推断未知房间"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseFloorTaxIcon",
+      "name": "楼层税款",
+      "descriptions": [
+        "在完成楼层时损失所有的耀金币"
+      ],
+      "digest": "efd687981cfeeefd1dfc5ca28e3643f026de79ec4188763b8ca618d0d74245fe",
+      "rules": [
+        {
+          "rule": "floorCoinLoss",
+          "mode": "numeric",
+          "event": "floorEnd",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 100
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseUnhallowedRingIcon",
+      "name": "不洁指环",
+      "descriptions": [
+        "商人处的出售价格提高50%"
+      ],
+      "digest": "091145ef6008edfa3f30292fc30f8b586ff9f1787c0934eab8d6bd33750961c1",
+      "rules": [
+        {
+          "rule": "merchantPrice",
+          "mode": "numeric",
+          "event": "purchase",
+          "scope": "merchant",
+          "stacking": "unique",
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseBlackSmokeIcon",
+      "name": "黑烟蔽目",
+      "descriptions": [
+        "你在禁域地图上看到的房间减少一个"
+      ],
+      "digest": "c3d99e0360455f7a38ba6f5aebd6d6ed0118d24690ad26d21cca08b1d504fcec",
+      "rules": [
+        {
+          "rule": "visionReduced",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "可见房间减少，降低后续选择的信息完整性"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseUnquenchedThirstIcon",
+      "name": "不灭渴望",
+      "descriptions": [
+        "坚毅恢复降低50%"
+      ],
+      "digest": "f107ea31af724c8f5789a27ddd1920bc19a04aa96e4d85acb9553f5ac7d0e9d5",
+      "rules": [
+        {
+          "rule": "recoveryReduced",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "recovery",
+          "direction": -1,
+          "reason": "坚毅恢复降低50%"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDemonicSkullIcon",
+      "name": "恶魔颅骨",
+      "descriptions": [
+        "不能恢复坚毅"
+      ],
+      "digest": "58854d47ad3920bc8273ea7a9e586f07b832b6dce382132a3bb6803bfd5383f2",
+      "rules": [
+        {
+          "rule": "cannotRecover",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "recovery",
+          "direction": -1,
+          "reason": "无法恢复坚毅，恢复机会失效"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseHungryFangsIcon",
+      "name": "饥饿之牙",
+      "descriptions": [
+        "怪物对坚毅的影响提高25%"
+      ],
+      "digest": "f317fc75f3ead65acc3afeab750f6e1c8474b5293673de2e7b04644ee6654b80",
+      "rules": [
+        {
+          "rule": "dangerousMonsters",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "combat",
+          "direction": -1,
+          "reason": "怪物危险效果在战斗房间生效"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseSpikedShellIcon",
+      "name": "尖刺外壳",
+      "descriptions": [
+        "怪物的生命上限总增 50%"
+      ],
+      "digest": "a5791f1ff1d01dc39134a03650de7afad06b82abe974094289fa2c13311a8f96",
+      "rules": [
+        {
+          "rule": "monsterLifeMore",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 50
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseEmptyTroveIcon",
+      "name": "空白珍宝",
+      "descriptions": [
+        "宝箱不再掉落耀金币"
+      ],
+      "digest": "0c39fa7cb57c5f8415e8951f06171e84525bc3ed34877304fcc33873394a5344",
+      "rules": [
+        {
+          "rule": "noChestCoins",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "chest",
+          "stacking": "unique",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:8800cf209b96e391",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成下间房间后失去 250 坚毅"
+      ],
+      "digest": "ff7f7d1c0669a25fc847737c9b2c4661e5da9389f10d3dfce7a036ead2e1feb5",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 1,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:831fc707c61481e8",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 2 间房间后失去 250 坚毅"
+      ],
+      "digest": "19efcebb0deb348942420aea4652115e31b973ac56ef4f8a80fb43ec63d95f62",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 2,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:07e64b48424bcc98",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 3 间房间后失去 250 坚毅"
+      ],
+      "digest": "6f6d8f5668f5fd47267269a05474da1a2ea8c4333b3c88bff7cae4463b4f7431",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 3,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:9542d44188ca9c59",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 4 间房间后失去 250 坚毅"
+      ],
+      "digest": "fd1b2ec3720434261d310087557e2cffc7fc78d65c7de26ac6ff96a36a6a6c97",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 4,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:46af2aaec33be8a5",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 5 间房间后失去 250 坚毅"
+      ],
+      "digest": "c903844758922620a80b3742bdac27120852c64a35c4ac64f9baa85413fc646a",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 5,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:da836144770d3325",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 6 间房间后失去 250 坚毅"
+      ],
+      "digest": "0fa8fac2ff5c838d8734a29c1eb95584a8c2179f8b3adaa6f76a047da07500fd",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 6,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:4a56ec1c454f99d2",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 7 间房间后失去 250 坚毅"
+      ],
+      "digest": "2a92d0cbd4d812e3b3dc7fd89ce379ae49eeb11142dd28c87456ea9c37da69e9",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 7,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:ff492299774543f0",
+      "name": "伤亡代价",
+      "descriptions": [
+        "完成 8 间房间后失去 250 坚毅"
+      ],
+      "digest": "db198acfccc08f023bfd301732963dabe6ebaa670af79fcb88334f694c7ea120",
+      "rules": [
+        {
+          "rule": "resolveLossCountdown",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "any",
+          "direction": -1,
+          "reason": "到期完成房间会失去坚毅",
+          "remainingRooms": 8,
+          "value": 250,
+          "expires": "rooms"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDeathTollIcon:605e7262e925cb55",
+      "name": "伤亡代价",
+      "descriptions": [
+        "怪物不再掉落耀金币"
+      ],
+      "digest": "f5e7ae8e21ff5de8df5021d542c7209638c1928c5a24f752d7a287da7cec27e1",
+      "rules": [
+        {
+          "rule": "noMonsterCoins",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "combat",
+          "stacking": "unique",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDoorTaxIcon",
+      "name": "过门税款",
+      "descriptions": [
+        "完成房间时损失30枚耀金币"
+      ],
+      "digest": "4c41019d4ff2be539555ff6aa8e89348d44d374a2d1ccbe3f42cc6d337af3366",
+      "rules": [
+        {
+          "rule": "completionCoinLoss",
+          "mode": "numeric",
+          "event": "completion",
+          "scope": "any",
+          "stacking": "unique",
+          "value": 30
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseSpiltPurseIcon",
+      "name": "钱包过满",
+      "descriptions": [
+        "当你被击中而失去坚毅时，损失20枚耀金币"
+      ],
+      "digest": "0c3e9169a5e13643f1d499f34a570d3dbfbabbb556ed0bf7f54937b6cd35b282",
+      "rules": [
+        {
+          "rule": "coinsOnHit",
+          "mode": "numeric",
+          "event": "hitResolveLoss",
+          "scope": "combat",
+          "stacking": "unique",
+          "value": -20
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseAnomalyAttractorIcon",
+      "name": "异动引子",
+      "descriptions": [
+        "房间内会生成异动奇点"
+      ],
+      "digest": "d8678f1e53258a8f8799c1354f0d11579648b84ef0ffb8288aedf4d65c5e5418",
+      "rules": [
+        {
+          "rule": "roomAnomaly",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "any",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseRapidQuicksandIcon",
+      "name": "急速流沙",
+      "descriptions": [
+        "陷阱现在更快了"
+      ],
+      "digest": "7e48374c7c575fe5ec92e9e4b28d1037d5c9c677b38ef18ebdafe037eadc3484",
+      "rules": [
+        {
+          "rule": "fastTraps",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "trap",
+          "stacking": "unique",
+          "direction": -1
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseBluntSwordIcon",
+      "name": "钝化之剑",
+      "descriptions": [
+        "你和你的召唤生物伤害总降 40%"
+      ],
+      "digest": "386706d0929034cac1a5357d9e8948759457077d6900856a259b7e546f254e1b",
+      "rules": [
+        {
+          "rule": "playerDamageLess",
+          "mode": "conditional",
+          "event": "room",
+          "scope": "combat",
+          "stacking": "unique",
+          "direction": -1,
+          "value": 40
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseCharredCoinIcon",
+      "name": "焦化硬币",
+      "descriptions": [
+        "找到的耀金币数量减少50%"
+      ],
+      "digest": "526323014c27ed619c3ba358261c13c89e13b686492ad2ad7cc366e606777131",
+      "rules": [
+        {
+          "rule": "coinsFoundModifier",
+          "mode": "numeric",
+          "event": "coinGain",
+          "scope": "any",
+          "stacking": "unique",
+          "value": -50
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseDarkPitIcon",
+      "name": "黑暗深坑",
+      "descriptions": [
+        "陷阱对坚毅的影响提高 200%"
+      ],
+      "digest": "cb938eef34c3110282c654ddf5568d2499fa878cfa961e9a6bf0f8498a266d7b",
+      "rules": [
+        {
+          "rule": "dangerousTraps",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "trap",
+          "direction": -1,
+          "reason": "陷阱对坚毅影响提高"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseHeightenedSecurityIcon",
+      "name": "致命陷阱",
+      "descriptions": [
+        "陷阱对坚毅的影响无限"
+      ],
+      "digest": "c9dc7c44ebf2700d893325a336a203a36b45dfb29fb0fb4540182bd3e86991c9",
+      "rules": [
+        {
+          "rule": "lethalTraps",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "trap",
+          "direction": -1,
+          "reason": "陷阱会结束本轮"
+        }
+      ]
+    },
+    {
+      "id": "affliction:CurseHonedClawsIcon",
+      "name": "牙尖爪利",
+      "descriptions": [
+        "怪物伤害总增 50%"
+      ],
+      "digest": "26142be34a173dcffb8e08fac019606675e99f6d4880ce19f423051dd12529ec",
+      "rules": [
+        {
+          "rule": "dangerousMonsters",
+          "mode": "conditional",
+          "event": "room",
+          "stacking": "unique",
+          "scope": "combat",
+          "direction": -1,
+          "reason": "怪物危险效果在战斗房间生效",
+          "damageDomain": "life",
+          "value": 50
+        }
+      ]
+    }
+  ]
+}

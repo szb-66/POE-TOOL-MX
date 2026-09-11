@@ -1,6 +1,8 @@
 import { parseItemInfo } from '../item/parser.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 import { PRICE_CHECK_OVERLAY_CLOSE_REASONS } from './overlayFocus.js'
+import { encodeTradeQueryId } from './queryId.js'
+import { POE_CN_TRADE_ORIGIN } from './client.js'
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
@@ -737,11 +739,8 @@ export class PriceCheckService {
   async openOfficial() {
     this.assertEnabled()
     if (!this.latest) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可打开的查价查询')
-    const queryId = String(this.latest.result?.queryId || '')
-    if (!/^[a-zA-Z0-9]+$/.test(queryId)) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '当前查价结果缺少可打开的官方查询编号')
-    }
-    const url = `https://poe.game.qq.com/trade/search/${encodeURIComponent(this.latest.league)}/${encodeURIComponent(queryId)}`
+    const queryId = encodeTradeQueryId(this.latest.result?.queryId)
+    const url = `${POE_CN_TRADE_ORIGIN}/trade/search/${encodeURIComponent(this.latest.league)}/${queryId}`
     this.overlay?.preserveForExternalAction?.()
     await this.shell.openExternal(url)
     this.closeOverlay(PRICE_CHECK_OVERLAY_CLOSE_REASONS.EXTERNAL_ACTION)

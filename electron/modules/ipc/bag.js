@@ -671,26 +671,6 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
 
   ipcMain.handle('stop-bag-stash', async () => stopBagStashAutomation())
 
-  ipcMain.handle('upload-bag-template', async (_event, sourcePath, type) => {
-    try {
-      if (stashProcess) throw new Error('入库进行中，暂时不能替换模板')
-      assertBagTemplateTarget(type)
-      const templateDir = path.join(app.getPath('userData'), 'templates')
-      if (!fs.existsSync(templateDir)) fs.mkdirSync(templateDir, { recursive: true })
-      const ext = path.extname(sourcePath)
-      const fileName = path.basename(assertBagTemplateTarget(type, app.isPackaged), '.png') + ext
-      const targetPath = path.join(templateDir, fileName)
-      fs.copyFileSync(sourcePath, targetPath)
-      updateRuntimeTemplate(type, targetPath)
-      let reloaded = false
-      let reloadError = ''
-      try { reloaded = await reloadDetectionForTemplateChange(python, fileWatcher) } catch (error) { reloadError = error.message }
-      return { success: true, path: targetPath, version: Date.now(), reloaded, reloadError }
-    } catch (error) {
-      return { success: false, error: error.message }
-    }
-  })
-
   ipcMain.handle('capture-bag-template', async (_event, type) => {
     try {
       if (stashProcess) throw new Error('入库进行中，暂时不能替换模板')

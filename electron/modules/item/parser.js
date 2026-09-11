@@ -626,6 +626,9 @@ export function parseItemInfo(clipboardText) {
       if (sawAffixHeader && /^##\s/.test(line)) continue
       // 详细邀请文本的词缀由属性头明确界定；段落外文字是背景描述。
       if (itemInfo.category === '裂隙之石' && sawAffixHeader) continue
+      // 传奇详细文本的正文已由 activeModifier 收集；块外引文与署名不属于词缀。
+      // 状态行和带显式标记的词缀在上方处理，普通复制仍使用下面的兜底逻辑。
+      if (sawAffixHeader && itemInfo.rarity.replace(/\s/g, '') === '传奇') continue
       
       // 检查是否包含在忽略列表中
       let shouldIgnore = false;

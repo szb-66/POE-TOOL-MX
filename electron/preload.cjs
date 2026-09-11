@@ -257,7 +257,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateAutomationTiming: (timing) => ipcRenderer.invoke('automation-timing-update', timing),
   updateBagEmptySlotThreshold: (emptySlotThreshold) => ipcRenderer.invoke('update-bag-empty-slot-threshold', emptySlotThreshold),
   updateBagRuntimeConfig: (config) => ipcRenderer.invoke('update-bag-runtime-config', config),
-  uploadBagTemplate: (path, type) => ipcRenderer.invoke('upload-bag-template', path, type),
   captureBagTemplate: (type) => ipcRenderer.invoke('capture-bag-template', type),
   onBagDetectionMatch: (callback) => {
     const listener = (_event, data) => callback(data)
@@ -443,7 +442,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('client-events-snapshot', listener)
     return () => ipcRenderer.removeListener('client-events-snapshot', listener)
   },
-  getMapTrackerStatus: () => ipcRenderer.invoke('map-tracker:status'),
+  getMapTrackerStatus: (options) => ipcRenderer.invoke('map-tracker:status', options),
+  sanctum: Object.fromEntries(['rescanEffects', 'correctRunResources', 'correctRewardLedger', 'readRunPanel', 'getState', 'getRoomEvidence', 'getEffectEvidence', 'setEnabled', 'setModuleEnabled', 'samples', 'stop', 'rescan', 'resetRun', 'correctRoom',
+    'setMarks', 'rescanRoom', 'setCurrentRoom', 'saveStrategy', 'saveLoadoutPreferences', 'solveLoadout', 'cancelSolve', 'previewLoadout', 'calibrate', 'clearCalibration', 'highlightRelic', 'captureCalibration', 'clearLiveCalibration', 'saveGridCells', 'selectSampleCell', 'selectPathColor', 'startLive', 'scanRelics', 'getControlState', 'moveControlOverlay']
+    .map(name => [name, (...args) => ipcRenderer.invoke(`sanctum:${name}`, ...args)])),
+  onSanctumState: callback => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('sanctum:state', listener)
+    return () => ipcRenderer.removeListener('sanctum:state', listener)
+  },
+  onSanctumControlState: callback => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('sanctum:controlState', listener)
+    return () => ipcRenderer.removeListener('sanctum:controlState', listener)
+  },
+  onSanctumOverlay: callback => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('sanctum:overlay', listener)
+    return () => ipcRenderer.removeListener('sanctum:overlay', listener)
+  },
   updateMapTrackerSettings: (input) => ipcRenderer.invoke('map-tracker:settings', input),
   queryMapTrackerRuns: (input) => ipcRenderer.invoke('map-tracker:query', input),
   editMapTrackerRun: (id, input) => ipcRenderer.invoke('map-tracker:edit', id, input),

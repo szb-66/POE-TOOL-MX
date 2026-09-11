@@ -274,7 +274,7 @@ export function resolveCaptureDisplay(metadata, displays, scaleTolerance = 0) {
 }
 
 export function validateTemplateCaptureEnvironment(label, templatePath, region, metadata, displays = []) {
-  if (!metadata) return templatePath ? { error: '', warning: `${label}使用手动上传模板，无法校验采集显示环境` } : { error: '', warning: '' }
+  if (!metadata) return templatePath ? { error: '', warning: `${label}缺少采集环境信息，无法校验采集显示环境` } : { error: '', warning: '' }
   const exactIdExists = displays.some((item) => String(item.id) === String(metadata.displayId))
   const display = resolveCaptureDisplay(metadata, displays)
   if (!display) return {

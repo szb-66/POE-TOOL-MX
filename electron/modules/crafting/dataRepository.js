@@ -211,14 +211,14 @@ export class CraftingDataRepository {
         requiredLevel: Number(tier.requiredLevel) || 1,
         text: tier.text
       }])).values()].filter((tier) => tier.tier > 0).sort((a, b) => a.tier - b.tier)
-      const displayName = modifier.name || pattern.replaceAll('#', '').replace(/\s+/g, ' ').trim()
+      const displayName = pattern
       const searchable = [
-        displayName, pattern, ...tiers.map((tier) => `${tier.name} ${tier.text}`),
+        displayName, modifier.name, ...tiers.map((tier) => `${tier.name} ${tier.text}`),
         ...(modifier.displayTags ?? []).map((tag) => tag.label),
         AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain, applicableLabel
       ].join(' ').toLocaleLowerCase('zh-CN')
-      if (needle && !searchable.includes(needle)) return
       rows.push({
+        searchable,
         id: `${modifier.id}:${sourceDomain}${suffix}`,
         modifierId: modifier.id,
         displayName,
@@ -240,7 +240,7 @@ export class CraftingDataRepository {
     const merged = new Map()
     rows.forEach((row) => {
       const tierSignature = row.tiers.map((tier) => `${tier.tier}:${tier.requiredLevel}:${effectPattern(tier.text)}`).join('|')
-      const key = `${row.effectPattern}\u0000${row.affixType}\u0000${row.source}\u0000${tierSignature}`
+      const key = `${row.effectPattern}\u0000${row.affixType}\u0000${tierSignature}`
       const current = merged.get(key)
       if (!current) {
         merged.set(key, row)
@@ -248,8 +248,12 @@ export class CraftingDataRepository {
       }
       const labels = new Set(`${current.applicableLabel} / ${row.applicableLabel}`.split(' / ').filter(Boolean))
       current.applicableLabel = [...labels].join(' / ')
+      current.sourceLabel = [...new Set(`${current.sourceLabel} / ${row.sourceLabel}`.split(' / ').filter(Boolean))].join(' / ')
+      current.searchable += `\n${row.searchable}`
     })
     const suggestions = [...merged.values()]
+      .filter((row) => !needle || row.searchable.includes(needle))
+      .map(({ searchable, ...row }) => row)
     suggestions.sort((a, b) => {
       const aStarts = needle && `${a.displayName} ${a.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
       const bStarts = needle && `${b.displayName} ${b.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1

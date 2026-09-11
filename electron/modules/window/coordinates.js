@@ -169,3 +169,11 @@ export function hasUsefulPixelVariance(bitmap, minimumRange = 8) {
   }
   return maximum - minimum >= minimumRange
 }
+
+export function normalizePickerPresentation(options = {}) {
+  const grid = options.grid
+  if (grid != null && (!Number.isInteger(grid.columns) || !Number.isInteger(grid.rows) || grid.columns < 1 || grid.columns > 24 || grid.rows < 1 || grid.rows > 24)) throw new Error('框选网格行列数无效')
+  return { grid: grid ? { columns: grid.columns, rows: grid.rows } : undefined,
+    title: typeof options.title === 'string' ? options.title.slice(0, 120) : undefined,
+    hint: typeof options.hint === 'string' ? options.hint.slice(0, 240) : undefined }
+}

@@ -15,3 +15,7 @@ export function reportStartupEvent(type, value = '') {
     // 启动诊断不可反向阻断页面挂载。
   }
 }
+
+export function reportFeatureStartupEvent(featureId, outcome) {
+  try { window.electronAPI?.reportStartupEvent?.({ type: `feature-runtime-${outcome}`, featureId }) } catch { /* Diagnostics cannot interrupt restoration. */ }
+}

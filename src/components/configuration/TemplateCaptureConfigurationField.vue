@@ -3,14 +3,6 @@
     <div class="template-capture-field__header">
       <strong>{{ label }}</strong>
       <div class="template-capture-field__actions">
-        <el-upload
-          :auto-upload="false"
-          :show-file-list="false"
-          accept="image/*"
-          :on-change="uploadTemplate"
-        >
-          <el-button :disabled="capturing">上传</el-button>
-        </el-upload>
         <el-button type="primary" :loading="capturing" @click="captureTemplate">
           {{ configured ? '重新框选' : '框选' }}
         </el-button>
@@ -59,21 +51,6 @@ const previewUrl = computed(() => {
   const url = path.startsWith('file:') ? path : `file:///${path.replace(/\\/g, '/')}`
   return version.value ? `${url}?v=${encodeURIComponent(version.value)}` : url
 })
-
-async function uploadTemplate(file) {
-  const path = file?.raw?.path
-  if (!path) return
-  try {
-    const result = await electronApi.bag.uploadTemplate(path, props.type)
-    if (!result?.success) return ElMessage.error(result?.error || '上传失败')
-    store.setTemplate(props.type, result.path)
-    version.value = result.version || Date.now()
-    if (result.reloadError) ElMessage.warning(`模板已保存，但检测器重载失败：${result.reloadError}`)
-    emit('configured')
-  } catch (error) {
-    ElMessage.error(error?.message || '上传失败')
-  }
-}
 
 async function captureTemplate() {
   if (capturing.value) return

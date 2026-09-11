@@ -11,6 +11,7 @@
       @pointermove="drag.pointerMove"
       @pointerup="drag.pointerUp"
       @pointercancel="drag.pointerUp"
+      @lostpointercapture="drag.pointerUp"
     >
       <span></span><span></span><span></span>
     </div>
@@ -132,7 +133,7 @@ let resizeObserver
 let pendingActionFailure = ''
 let pendingJunfengFailure = ''
 let pendingSelectionFailure = ''
-const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(message))
+const drag = createOverlayDrag((message) => electronApi.chaosRecipe.moveControl(message), { finalCoordinates: true })
 
 function applyState(response) {
   const snapshot = response?.success ? response.data : response
@@ -222,6 +223,7 @@ onMounted(async () => {
   applyState(await electronApi.chaosRecipe.getControlState())
 })
 onUnmounted(() => {
+  drag.dispose()
   resizeObserver?.disconnect()
   disposeState?.()
 })

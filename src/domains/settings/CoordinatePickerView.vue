@@ -39,7 +39,7 @@ const physicalSize = computed(() => ({
 const selectionValid = computed(() => physicalSize.value.width >= context.minimumSize.width && physicalSize.value.height >= context.minimumSize.height)
 const selectionStyle = computed(() => {
   const region = normalizedSelection.value
-  const grid = REGION_GRIDS[context.purpose] || null
+  const grid = context.grid || REGION_GRIDS[context.purpose] || null
   return region ? {
     left: `${region.left}px`, top: `${region.top}px`,
     width: `${region.right - region.left}px`, height: `${region.bottom - region.top}px`,
@@ -51,6 +51,7 @@ const selectionStyle = computed(() => {
 })
 const pickerTitle = computed(() => {
   if (context.mode !== 'region') return '点击选取坐标'
+  if (context.title) return context.title
   if (context.purpose === 'puzzle-inventory') return '框选完整的 6×10 碎片仓库'
   if (context.purpose === 'puzzle-atlas') return '框选完整的 3×3 海图区'
   if (context.purpose === 'bag-inventory') return '框选完整的 12×5 背包'
@@ -58,13 +59,13 @@ const pickerTitle = computed(() => {
 })
 const regionHint = computed(() => selection.value
   ? `${physicalSize.value.width} × ${physicalSize.value.height} 物理像素${selectionValid.value ? '，按 Enter 或点击确认' : `，最小 ${context.minimumSize.width} × ${context.minimumSize.height}`}`
-  : context.purpose === 'puzzle-inventory'
+  : context.hint || (context.purpose === 'puzzle-inventory'
     ? '贴近仓库网格外边框，从左上角拖到右下角，包含全部 60 格'
     : context.purpose === 'puzzle-atlas'
       ? '贴近海图网格外边框，从左上角拖到右下角，包含完整九格'
       : context.purpose === 'bag-inventory'
         ? '贴近背包网格外边框，从左上角拖到右下角，包含全部 60 格'
-        : '拖动框选完整标题，按 Esc 取消')
+        : '拖动框选完整标题，按 Esc 取消'))
 
 const handlePick = (event) => {
   if (context.mode !== 'point') return

@@ -73,6 +73,8 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 - 上游许可证：MIT
 - Map-Tracker 行为参考：日志自动统计与用户显式触发采集的边界、历史表格信息层级。地图实例状态机、区域目录、经验效率、持久化、输入门禁、模板识别及 Electron/Vue 界面均为本项目独立实现；未复制其 AHK 算法、地图映射数据或图标素材。
 
+- 圣所行为参考：按 Client.txt 内部区域 ID 区分四层及编号入口、检测已保存图与当前层的变化。日志事件绑定、进程核验及采集取消为独立实现；未复制其 AHK 实现或素材。
+
 Copyright (c) Lailloken and Exile-UI contributors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files, to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, subject to inclusion of the copyright and permission notice in all copies or substantial portions of the Software.
@@ -104,3 +106,12 @@ Copyright (c) 2016 brather1ng.
 - 部分 PoEDB 图片地址不可用时，生成器从 `web.poecdn.com` 获取相同的 Path of Exile 官方物品美术资源。
 
 PoEDB 页面和 Path of Exile 官方交易目录仅作为开发期数据/美术来源；物品名称和美术资源的相关权利归其各自权利人所有。本项目不会在应用运行时请求 PoEDB、`web.poecdn.com` 或官方交易目录以显示账单图标。
+
+## PoEDB 圣所数据与用户提供的游戏截图
+
+- 奖励通货美术：按 PoEDB Rewards 表收录 35 种 StackableCurrency，复用原有 13 种通货图标，其余从官方 `web.poecdn.com` 同资源路径获取。具体来源及 SHA-256 见 `electron/assets/sanctum/currency/manifest.json`，开发期生成器为 `scripts/sanctum/generateCurrencyIcons.js`；运行时识别与卡片绘制均使用本地资源。
+
+- 来源：[圣所数据表](https://poedb.tw/cn/Sanctum_league)、[遗物目录](https://poedb.tw/cn/Relics)及其中七种底材详情页；具体 URL、采集时间和 SHA-256 保存在 `electron/assets/sanctum/catalog.json`。
+- 用途：开发期生成离线名称、底材尺寸、词缀数值和传奇限制目录。未复制社区 Wiki 历史正文或外部项目代码。游戏数据和截图的相关权利归各自权利人。
+- 识别样本由用户提供，裁剪范围与缺失的环境信息记录在 `test/fixtures/sanctum/supplied-samples.json`；首领图形模板的具体来源见 `src/assets/sanctum/README.md`。
+- 运行时解析、回放和评分不请求上述站点。已核对数据和未支持效果分别标记，不将旧赛季或 PTR 数据自动当成当前规则。

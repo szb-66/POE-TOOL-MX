@@ -21,6 +21,7 @@ const primaryPages = [
   'src/domains/priceCheck/PriceCheckView.vue',
   'src/domains/faustus/FaustusView.vue',
   'src/domains/puzzle/PuzzleView.vue',
+  'src/domains/sanctum/SanctumView.vue',
   'src/domains/tools/ToolsView.vue',
   'src/domains/settings/SettingsView.vue'
 ]
@@ -111,7 +112,7 @@ test('主布局和导航保持 76px、原顺序、预加载与非交互视觉分
   assert.deepEqual(availableNavigationFeatureCatalog({ development: true }).map(item => [item.route, item.label]), [
     ['/items', '制作'], ['/bag', '存取'], ['/highlight-model-training', '模型训练'], ['/map', '地图'],
     ['/combat', '战斗'], ['/story', '剧情'], ['/regex', '正则'], ['/recipe', '配方'],
-    ['/craft-planner', '模拟'], ['/price-check', '查价'], ['/faustus', '浮士德'], ['/puzzle', '海图'], ['/tools', '工具站']
+    ['/craft-planner', '模拟'], ['/price-check', '查价'], ['/faustus', '浮士德'], ['/puzzle', '海图'], ['/sanctum', '圣所'], ['/tools', '工具站']
   ])
   assert.match(sidebar, /v-for="feature in featureStore\.enabledNavigationFeatures"/)
   const moreFeatures = source('src/components/Layout/MoreFeaturesDialog.vue')

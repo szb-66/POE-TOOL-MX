@@ -249,11 +249,12 @@
       <section class="action-row">
         <button class="primary" :disabled="props.previewMode || busy || !state.model || state.status === 'identity-required' || (state.model?.identityPrecision?.requiresConsent && !state.model.identityPrecision.allowNameOnly)" :title="props.previewMode ? '预览模式不会发起查询' : '按当前条件搜索'" @click="rerun">搜索</button>
         <button class="secondary" @click="filtersCollapsed = !filtersCollapsed">{{ filtersCollapsed ? '展开过滤器' : '折叠过滤器' }}</button>
-        <button class="secondary" :disabled="props.previewMode || state.status !== 'ready'" :title="props.previewMode ? '预览模式不会打开网页' : '打开官方网页市集'" @click="openOfficial">网页市集</button>
+        <button class="secondary" :disabled="props.previewMode || state.status !== 'ready' || openingOfficial" :title="props.previewMode ? '预览模式不会打开网页' : '打开官方网页市集'" @click="openOfficial">网页市集</button>
       </section>
 
       <div v-if="state.status === 'loading'" class="state-message" aria-live="polite">正在查询官方挂单…</div>
       <div v-else-if="state.status === 'error'" class="state-message error" role="alert">{{ stateErrorText }}</div>
+      <div v-if="actionError" class="state-message error" role="alert">{{ actionError }}</div>
       <div v-if="rateLimitText" class="warning rate-limit-warning" role="alert">{{ rateLimitText }}</div>
 
       <section v-if="state.result" class="results">
@@ -357,6 +358,9 @@ const priceCheckShortcutText = computed(() => (
     : state.value?.shortcut || '未设置'
 ))
 const busy = ref(false)
+const openingOfficial = ref(false)
+const actionError = ref('')
+watch(() => [state.value?.status, state.value?.result?.queryId], () => { actionError.value = '' })
 const filtersCollapsed = ref(false)
 const stateFiltersCollapsed = ref(false)
 const settingsCollapsed = ref(true)
@@ -500,9 +504,18 @@ function close() {
   if (props.previewMode) return
   void electronApi.priceCheck.closeOverlay()
 }
-function openOfficial() {
-  if (props.previewMode) return
-  void electronApi.priceCheck.openOfficial()
+async function openOfficial() {
+  if (props.previewMode || openingOfficial.value) return
+  openingOfficial.value = true
+  actionError.value = ''
+  try {
+    const response = await electronApi.priceCheck.openOfficial()
+    if (!response?.success) actionError.value = response?.error?.message || '无法打开网页市集，请重试'
+  } catch (error) {
+    actionError.value = error?.message || '无法打开网页市集，请重试'
+  } finally {
+    openingOfficial.value = false
+  }
 }
 function copyWhisper(text) {
   if (props.previewMode) return

@@ -1,9 +1,9 @@
+import { parsePoedbUniqueItems } from './uniqueItemParser.js'
 import { createHash } from 'node:crypto'
 import { access, copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  parsePoedbUniqueItems,
   UNIQUE_ITEM_PLACEHOLDER_ID,
   UNIQUE_ITEM_SNAPSHOT_SCHEMA_VERSION,
   validateUniqueItemCatalog,

@@ -39,7 +39,7 @@ test('真实系统断线和区域就绪可解析，聊天与普通网络连接�
 
 test('进程退出独立于前台，检测失败不报告退出且重复退出幂等', async () => {
   let ids = [123]
-  const client = new ClientEventsService({ processProvider: async () => ids })
+  const client = new ClientEventsService({ processProvider: async () => ids, processPresenceProvider: async () => false })
   client.status.enabled = true
   await client.pollProcess()
   client.acceptLine(log('Generating level 83 area "MapWorldsCemetery" with seed 1'))

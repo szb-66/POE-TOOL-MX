@@ -1,0 +1,334 @@
+{
+  "source": "PoEDB Sanctum Rewards; existing official crafting art reused",
+  "sourceUrl": "https://poedb.tw/cn/Sanctum_league#Rewards",
+  "entries": [
+    {
+      "key": "blacksmiths-whetstone",
+      "name": "磨刀石",
+      "iconFile": "blacksmiths-whetstone.png",
+      "order": 1,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyWeaponQuality.png",
+      "pageUrl": "https://poedb.tw/cn/Blacksmiths_Whetstone",
+      "sha256": "6026cd926122661900eecd8342252c51ac44456b0cf961318c0c8843d1a0ec43"
+    },
+    {
+      "key": "armourers-scrap",
+      "name": "护甲片",
+      "iconFile": "armourers-scrap.png",
+      "order": 2,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyArmourQuality.png",
+      "pageUrl": "https://poedb.tw/cn/Armourers_Scrap",
+      "sha256": "8718515d19b790494b4e77cc323c9ffcd595aece371f80f217d0c4383f534e1f"
+    },
+    {
+      "key": "transmutation",
+      "name": "蜕变石",
+      "tradeId": "transmute",
+      "iconFile": "transmutation.png",
+      "order": 3,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeToMagic.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Transmutation",
+      "sha256": "9c5e64e2188d327e702a31bbd178db5fd4c3c8a1b2a2911f04a996d4e64a8ae3"
+    },
+    {
+      "key": "augmentation",
+      "name": "增幅石",
+      "tradeId": "aug",
+      "iconFile": "augmentation.png",
+      "order": 4,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyAddModToMagic.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Augmentation",
+      "sha256": "8b4f420af2e679c308030364dfb9f7d822d1d2438a133ea0b1284e7744ce5b4c"
+    },
+    {
+      "key": "alteration",
+      "name": "改造石",
+      "tradeId": "alt",
+      "iconFile": "alteration.png",
+      "order": 5,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyRerollMagic.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Alteration",
+      "sha256": "8697550c66e66b60d9a2a09abbaaa6aafb11c6cf65991ce2fb75343e21b3eeb1"
+    },
+    {
+      "key": "orb-of-chance",
+      "name": "机会石",
+      "iconFile": "orb-of-chance.png",
+      "order": 6,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeRandomly.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Chance",
+      "sha256": "b680d50ac4554ee9b4695ab1ccf9e15efe6d4fddbf219e6f0ce70da351e2bf3b"
+    },
+    {
+      "key": "glassblowers-bauble",
+      "name": "玻璃弹珠",
+      "iconFile": "glassblowers-bauble.png",
+      "order": 7,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyFlaskQuality.png",
+      "pageUrl": "https://poedb.tw/cn/Glassblowers_Bauble",
+      "sha256": "1c1e176bbe6803c92fbc2edbe2260ef3c6e498643b01428fc659de1a5a71546b"
+    },
+    {
+      "key": "chromic",
+      "name": "幻色石",
+      "tradeId": "chrome",
+      "iconFile": "chromic.png",
+      "order": 8,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyRerollSocketColours.png",
+      "pageUrl": "https://poedb.tw/cn/Chromatic_Orb",
+      "sha256": "840661a1ed64246a1df33ec923a51c4d32d73dc378bb1178fd846f1742441a50"
+    },
+    {
+      "key": "jewellers",
+      "name": "工匠石",
+      "tradeId": "jewellers",
+      "iconFile": "jewellers.png",
+      "order": 9,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyRerollSocketNumbers.png",
+      "pageUrl": "https://poedb.tw/cn/Jewellers_Orb",
+      "sha256": "51aa6129c6c297d46c766e0ab8878cc224793840b0fdf51e740213d20a67b35f"
+    },
+    {
+      "key": "alchemy",
+      "name": "点金石",
+      "tradeId": "alch",
+      "iconFile": "alchemy.png",
+      "order": 10,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeToRare.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Alchemy",
+      "sha256": "e8ea04578e155638b0130b8cea5875758caa3f9936f5bd19af63fd2fee424db8"
+    },
+    {
+      "key": "fusing",
+      "name": "链结石",
+      "tradeId": "fusing",
+      "iconFile": "fusing.png",
+      "order": 11,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyRerollSocketLinks.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Fusing",
+      "sha256": "aafae68738f090c6de9323e0e0bb39e8019f6e3dbc4e289b66ca78454e7db4af"
+    },
+    {
+      "key": "scouring",
+      "name": "重铸石",
+      "tradeId": "scour",
+      "iconFile": "scouring.png",
+      "order": 12,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyConvertToNormal.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Scouring",
+      "sha256": "2d52511f23a879c90c1f8e93b382c6fe49029a21ac53964664cd48a0d1d8e397"
+    },
+    {
+      "key": "cartographers-chisel",
+      "name": "制图钉",
+      "iconFile": "cartographers-chisel.png",
+      "order": 13,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyMapQuality.png",
+      "pageUrl": "https://poedb.tw/cn/Cartographers_Chisel",
+      "sha256": "2cb0108d2083bbef3f0b5f01bef9b9cea76b03c96d88262d1ea1a48ae254a3b1"
+    },
+    {
+      "key": "chaos",
+      "name": "混沌石",
+      "tradeId": "chaos",
+      "iconFile": "chaos.png",
+      "order": 14,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyRerollRare.png",
+      "pageUrl": "https://poedb.tw/cn/Chaos_Orb",
+      "sha256": "c7e6f10bf03dfd8916380390e948ddef2ed67444399a51420e04ac94f022ee02"
+    },
+    {
+      "key": "binding",
+      "name": "高阶点金石",
+      "tradeId": "orb-of-binding",
+      "iconFile": "binding.png",
+      "order": 15,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/BindingOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Binding",
+      "sha256": "f018e605b3bd72ec289eaa1a619b0ec76c2541260f57d047ff2727cf0017a723"
+    },
+    {
+      "key": "orb-of-regret",
+      "name": "后悔石",
+      "iconFile": "orb-of-regret.png",
+      "order": 16,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyPassiveSkillRefund.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Regret",
+      "sha256": "a42a90cfa2d25a1c780bfd1f9b906e274f58bbc8fdd5494019f24f140b3f94ab"
+    },
+    {
+      "key": "gemcutters-prism",
+      "name": "宝石匠的棱镜",
+      "iconFile": "gemcutters-prism.png",
+      "order": 17,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyGemQuality.png",
+      "pageUrl": "https://poedb.tw/cn/Gemcutters_Prism",
+      "sha256": "79d3e74a66800dd57df232d554f29d16a33b7e0e82df98c77bba4112b20f2686"
+    },
+    {
+      "key": "blessed-orb",
+      "name": "祝福石",
+      "iconFile": "blessed-orb.png",
+      "order": 18,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyImplicitMod.png",
+      "pageUrl": "https://poedb.tw/cn/Blessed_Orb",
+      "sha256": "996ea464f70f69754114b628782da84e17cea356904c4c158dd57830e9b99fbc"
+    },
+    {
+      "key": "vaal",
+      "name": "瓦尔宝珠",
+      "tradeId": "vaal",
+      "iconFile": "vaal.png",
+      "order": 19,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyVaal.png",
+      "pageUrl": "https://poedb.tw/cn/Vaal_Orb",
+      "sha256": "01999b840b5ee00b3df8f10cf260023801e2c9ca1eec0785d4cce88af1e427ec"
+    },
+    {
+      "key": "orb-of-horizons",
+      "name": "平行石",
+      "iconFile": "orb-of-horizons.png",
+      "order": 20,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/HorizonOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Horizons",
+      "sha256": "03ff6efec79def2b9d5642cffc48a744978d54f39e9afbb40e88ec1f9d142686"
+    },
+    {
+      "key": "instilling-orb",
+      "name": "灌顶石",
+      "iconFile": "instilling-orb.png",
+      "order": 21,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/Expedition/FlaskInjector.png",
+      "pageUrl": "https://poedb.tw/cn/Instilling_Orb",
+      "sha256": "21acc6ac2defa060b77c6c9a42f2ed0eb5b532a35ec18bfacc1c0d2e3be7b32f"
+    },
+    {
+      "key": "regal",
+      "name": "富豪石",
+      "tradeId": "regal",
+      "iconFile": "regal.png",
+      "order": 22,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeMagicToRare.png",
+      "pageUrl": "https://poedb.tw/cn/Regal_Orb",
+      "sha256": "8e6723ab45860d9eab25f99cb725d2149e2a0c7f3bd2f1188bfb2f5953667e31"
+    },
+    {
+      "key": "exalted",
+      "name": "崇高石",
+      "tradeId": "exalted",
+      "iconFile": "exalted.png",
+      "order": 23,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyAddModToRare.png",
+      "pageUrl": "https://poedb.tw/cn/Exalted_Orb",
+      "sha256": "e6cbbedcec4dd95a56d18cb8c076b1c4094659317348bd7c7ad800126f17d629"
+    },
+    {
+      "key": "enkindling-orb",
+      "name": "启明石",
+      "iconFile": "enkindling-orb.png",
+      "order": 24,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/Expedition/FlaskPlate.png",
+      "pageUrl": "https://poedb.tw/cn/Enkindling_Orb",
+      "sha256": "83482873c92c7021be2f9fdf493f6702f00d9602ab8516c33d6eb87edd7d146c"
+    },
+    {
+      "key": "orb-of-unmaking",
+      "name": "粉碎石",
+      "iconFile": "orb-of-unmaking.png",
+      "order": 25,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/RegretOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Unmaking",
+      "sha256": "b78d4f0778e3330cfdaf82c9c3bf90aa7b8c23194ab87580a94bbf4b33c85209"
+    },
+    {
+      "key": "veiled-scarab",
+      "name": "加密圣甲虫",
+      "iconFile": "veiled-scarab.png",
+      "order": 26,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/Scarabs/StackedScarab.png",
+      "pageUrl": "https://poedb.tw/cn/Veiled_Scarab",
+      "sha256": "36c7f1aeb04514982cd0af2dae636250214cb73ec546c592829d939fde002b79"
+    },
+    {
+      "key": "stacked-deck",
+      "name": "未知的命运卡",
+      "iconFile": "stacked-deck.png",
+      "order": 27,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Divination/Deck.png",
+      "pageUrl": "https://poedb.tw/cn/Stacked_Deck",
+      "sha256": "35c521ec1bbba7bd7dbf684b57cf3527164bb3685c34a2667613840d4f1364c9"
+    },
+    {
+      "key": "veiled-exalted-orb",
+      "name": "加密崇高石",
+      "iconFile": "veiled-exalted-orb.png",
+      "order": 28,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/VeiledExaltedOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Veiled_Exalted_Orb",
+      "sha256": "7c2b3e40c4db30dbd61a36d16806e1e748c0ea1b0f9d67145a17cf64e9207abf"
+    },
+    {
+      "key": "orb-of-annulment",
+      "name": "剥离石",
+      "iconFile": "orb-of-annulment.png",
+      "order": 29,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/AnnullOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Orb_of_Annulment",
+      "sha256": "8eb58393e883687ffcc92d6a59df7f037379711aadc65ac2a4e3ceca6c6df781"
+    },
+    {
+      "key": "divine-orb",
+      "name": "神圣石",
+      "iconFile": "divine-orb.png",
+      "order": 30,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyModValues.png",
+      "pageUrl": "https://poedb.tw/cn/Divine_Orb",
+      "sha256": "b5bff273d5808b52e1af0928bdcee4b61a7c3049e55d2576509a5b0e8a152f00"
+    },
+    {
+      "key": "sacred-orb",
+      "name": "崇神石",
+      "iconFile": "sacred-orb.png",
+      "order": 31,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/SacredOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Sacred_Orb",
+      "sha256": "c810e71d8ac8e8969b2b0d7bb9555e04f7dc204a273ccab0c5c9f7307a3086b8"
+    },
+    {
+      "key": "mirror-of-kalandra",
+      "name": "卡兰德的魔镜",
+      "iconFile": "mirror-of-kalandra.png",
+      "order": 32,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyDuplicate.png",
+      "pageUrl": "https://poedb.tw/cn/Mirror_of_Kalandra",
+      "sha256": "5421c2ec216a289665fe07fa4925743e2abb8d144e26c62e8e8a25cc13c26446"
+    },
+    {
+      "key": "ancient-orb",
+      "name": "远古石",
+      "iconFile": "ancient-orb.png",
+      "order": 33,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/AncientOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Ancient_Orb",
+      "sha256": "a7f969be5c5be8e5755c82374647026f7df7d0a4d7bd88a1e7823f4b702f504d"
+    },
+    {
+      "key": "fracturing-orb",
+      "name": "破溃宝珠",
+      "iconFile": "fracturing-orb.png",
+      "order": 34,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/FracturingOrbCombined.png",
+      "pageUrl": "https://poedb.tw/cn/Fracturing_Orb",
+      "sha256": "d2b4e237b8f452b05d10112fb3016c1458bb95bdc38e7353f55af3fdc2aa45d2"
+    },
+    {
+      "key": "volatile-vaal-orb",
+      "name": "无常瓦尔宝珠",
+      "iconFile": "volatile-vaal-orb.png",
+      "order": 35,
+      "sourceUrl": "https://web.poecdn.com/image/Art/2DItems/Currency/VolatileVaalOrb.png",
+      "pageUrl": "https://poedb.tw/cn/Volatile_Vaal_Orb",
+      "sha256": "221ef186f68b4b37df05a4a8b1e5b8a2584c4f7be719fb5a065b01439a9ff83a"
+    }
+  ]
+}

@@ -162,7 +162,7 @@ test('模板文件名按运行模式隔离：安装版固定名，开发版追�
   }
 })
 
-test('当前采集元数据可校验环境变化与区域尺寸，手动模板返回明确提示', () => {
+test('当前采集元数据可校验环境变化与区域尺寸，缺少元数据时返回中性提示', () => {
   const metadata = {
     displayId: '2', scaleFactor: 1.5,
     displayPhysicalSize: { width: 1920, height: 1080 },
@@ -172,7 +172,9 @@ test('当前采集元数据可校验环境变化与区域尺寸，手动模板�
   }
   const settings = normalizeBagSettings({ templates: { stashTitle: 's.png', stashCapture: metadata } })
   assert.deepEqual(settings.templates.stashCapture, metadata)
-  assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', settings.templates.stashRegion, null, []).warning, /手动上传模板/)
+  assert.deepEqual(validateTemplateCaptureEnvironment('仓库标题', 's.png', settings.templates.stashRegion, null, []), {
+    error: '', warning: '仓库标题缺少采集环境信息，无法校验采集显示环境'
+  })
   assert.match(validateTemplateCaptureEnvironment('仓库标题', 's.png', { left: 0, top: 0, right: 100, bottom: 20 }, metadata, [
     { id: '2', scaleFactor: 1.5, physicalSize: { width: 1920, height: 1080 } }
   ]).error, /小于模板尺寸/)
@@ -278,8 +280,7 @@ test('区域选框的确认按钮可点击且不会触发拖拽选区', () => {
   assert.match(picker, /\.coordinate-picker__tip button \{[\s\S]*pointer-events: auto;/)
 })
 
-test('高级上传和手工区域修改都会清除对应采集元数据', () => {
+test('手工区域修改仍清除对应采集元数据', () => {
   const store = readFileSync(new URL('../src/stores/interfaceDetection.js', import.meta.url), 'utf8')
-  assert.match(store, /function setTemplate\([\s\S]*stashCapture[\s\S]*save\(\)/)
   assert.match(store, /function setTemplateRegion\([\s\S]*inventoryCapture[\s\S]*save\(\)/)
 })

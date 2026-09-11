@@ -18,9 +18,9 @@
             <el-tag size="small" :type="item.affixType === 'prefix' ? 'success' : 'warning'">
               {{ item.affixType === 'prefix' ? '前缀' : '后缀' }}
             </el-tag>
-            <el-tag size="small" type="info">{{ item.sourceLabel }}</el-tag>
+            <el-tag size="small" type="info" class="suggestion-sources">{{ item.sourceLabel }}</el-tag>
           </div>
-          <p>{{ item.exampleText }}</p>
+          <p>示例：{{ item.exampleText }}</p>
           <small>{{ suggestionSummary(item) }}</small>
         </div>
       </template>
@@ -91,3 +91,16 @@ function suggestionSummary(item) {
   return `${item.applicableLabel} · ${maxTier ? `T1–T${maxTier}` : '无阶级'}`
 }
 </script>
+
+<style scoped lang="less">
+.suggestion-title {
+  flex-wrap: wrap;
+  white-space: pre-line;
+}
+.suggestion-sources {
+  height: auto;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.5;
+}
+</style>

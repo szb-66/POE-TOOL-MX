@@ -122,6 +122,31 @@ test('自动检测路径持久化并在重启后恢复监听', async () => {
   await second.stop(false)
 })
 
+test('初始化失败后可重试，修复路径后恢复监听', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-client-retry-'))
+  const file = path.join(root, 'Client.txt')
+  await writeFile(file, '', 'utf8')
+  let detect = false
+  class FakeTailer {
+    constructor(options) { this.options = options }
+    async start() { this.options.onState({ state: 'started' }) }
+    stop() { this.options.onState({ state: 'stopped' }) }
+  }
+  const service = new ClientEventsService({
+    settings: new ClientEventSettingsRepository(path.join(root, 'settings.json')),
+    detectPath: async () => { if (!detect) throw new Error('detect failed'); return file },
+    selectFile: async () => '', Tailer: FakeTailer
+  })
+  await service.settings.save({ enabled: true })
+  await assert.rejects(service.initialize(), /detect failed/)
+  assert.equal((await service.getStatus()).state, 'error')
+  detect = true
+  const status = await service.updateSettings({ enabled: true })
+  assert.equal(status.state, 'started')
+  assert.equal((await service.whenReady()).state, 'started')
+  await service.stop(false)
+})
+
 test('设置默认关闭且只接受 Client.txt 路径', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-client-settings-'))
   const repository = new ClientEventSettingsRepository(path.join(root, 'settings.json'))

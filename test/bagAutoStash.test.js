@@ -1143,7 +1143,8 @@ test('协调器不把启动竞态与干净退出误报为异常退出', () => {
   const coordinator = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
   const startCatch = coordinator.slice(coordinator.indexOf('await waitForDetectionStartup'))
   assert.match(startCatch, /catch \(error\) \{\s*\n\s*if \(this\.child !== child\) return this\.getState\(\)/)
-  const closeHandler = coordinator.slice(coordinator.indexOf("child.on('close'"), coordinator.indexOf('try {'))
+  const closeStart = coordinator.indexOf("child.on('close'")
+  const closeHandler = coordinator.slice(closeStart, coordinator.indexOf('try {', closeStart))
   assert.match(closeHandler, /code === 0 \? 'process-ended' : \(terminalReason \|\| describeDetectionExit/)
 })
 

@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { load } from 'cheerio'
 
 export const UNIQUE_ITEM_SNAPSHOT_SCHEMA_VERSION = 2
 export const UNIQUE_ITEM_PLACEHOLDER_ID = 'placeholder'
@@ -26,37 +25,6 @@ export function safeUniqueItemImageId(value) {
   return /^(?:placeholder|unique-[a-f0-9]{20})$/.test(String(value || ''))
     ? String(value)
     : UNIQUE_ITEM_PLACEHOLDER_ID
-}
-
-export function parsePoedbUniqueItems(html) {
-  const $ = load(String(html || ''))
-  const records = []
-  $('a.UniqueItem').each((_, anchor) => {
-    const node = $(anchor)
-    const name = cleanText(node.find('.uniqueName').first().text())
-    const baseType = cleanText(node.find('.uniqueTypeLine').first().text())
-    if (!name && !baseType) return
-    const column = node.closest('.col')
-    const imageUrl = cleanText(column.find('a.UniqueItems img, a.UniqueItem img').first().attr('src'))
-    const modifierMatchers = []
-    column.find('.explicitMod').each((_, modifierNode) => {
-      const modifier = $(modifierNode)
-      if (modifier.find('.item_description').length) return
-      const normalized = modifier.clone()
-      normalized.find('.mod-value').replaceWith('#')
-      const matcher = cleanText(normalized.text())
-      if (matcher && !modifierMatchers.includes(matcher)) modifierMatchers.push(matcher)
-    })
-    records.push({
-      key: identityKey(name, baseType),
-      name,
-      baseType,
-      modifierMatchers,
-      imageId: imageUrl ? uniqueItemImageId(imageUrl) : '',
-      imageUrl
-    })
-  })
-  return records
 }
 
 export function validateUniqueItemRecords(records, { requireSentinels = true, requireImageUrl = true } = {}) {

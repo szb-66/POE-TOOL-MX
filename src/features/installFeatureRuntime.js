@@ -16,8 +16,16 @@ import { disposeBagAutomation, initBagAutomation } from '@/utils/bagService.js'
 import { disposeCombatAssist, initCombatAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService.js'
 import { updateShortcuts } from '@/utils/scriptService.js'
 import { registerFeatureRuntimeAdapter, setFeatureShortcutSynchronizer } from './featureRuntime.js'
+import { reportFeatureStartupEvent } from '@/utils/startupReporter.js'
 
 const successful = result => result !== false && result?.success !== false
+
+// ponytail: 圣所为 developmentOnly，动态加载避免其运行时进入生产主包
+let sanctumStore = null
+const loadSanctumStore = async () => {
+  if (!sanctumStore) sanctumStore = (await import('@/domains/sanctum/sanctumStore.js')).useSanctumStore()
+  return sanctumStore
+}
 
 export function installFeatureRuntime({ router }) {
   const featureStore = useFeatureModulesStore()
@@ -127,6 +135,7 @@ export function installFeatureRuntime({ router }) {
   }
 
   const adapters = {
+    sanctum: { isBusy: async () => (await loadSanctumStore()).busy, suspend: async () => (await loadSanctumStore()).suspend(), resume: async () => { await (await loadSanctumStore()).initialize(); return { success: true } } },
     items: {
       isBusy: () => (scriptStore.isRunning && scriptStore.mode === 'items') || batchStore.busy,
       suspend: async () => { const result = await collectResults([() => stopScriptMode('items'), () => batchStore.stopScan(), () => electronApi.window.closeOverlay()]); if (result.success) disposeFeature('items'); return result },
@@ -176,15 +185,21 @@ export function installFeatureRuntime({ router }) {
     for (const feature of featureStore.enabledFeatures) {
       const adapter = adapters[feature.id]
       if (!adapter?.resume) continue
+      reportFeatureStartupEvent(feature.id, 'started')
       try {
         const result = await adapter.resume()
+        reportFeatureStartupEvent(feature.id, successful(result) ? 'ready' : 'failed')
         if (!successful(result)) warnings.push({ name: feature.id, error: result?.error || '模块恢复失败' })
-      } catch (error) { warnings.push({ name: feature.id, error: error?.message || String(error) }) }
+      } catch (error) {
+        reportFeatureStartupEvent(feature.id, 'failed')
+        warnings.push({ name: feature.id, error: error?.message || String(error) })
+      }
     }
     return warnings
   }
 
   function dispose() {
+    sanctumStore?.disconnect()
     for (const id of [...featureDisposers.keys()]) disposeFeature(id)
     disposeBagAutomation()
     disposeCombatAssist()
