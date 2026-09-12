@@ -6,6 +6,7 @@ import { validateSanctumCalibrations } from '../../../shared/sanctumCalibration.
 import { liveProfile, relicProfile } from '../../../shared/sanctumLive.js'
 import { savedSanctumFloor, savedSanctumResult, withoutSanctumEvidence } from './savedResult.js'
 import { SanctumEvidenceStore } from './evidence.js'
+import { readEffectMemory } from './effectMemory.js'
 
 // A malformed optional observation must not prevent preferences from loading.
 function optionalSnapshot(read) {
@@ -24,6 +25,7 @@ export class SanctumRepository {
     try {
       const data = JSON.parse(fs.readFileSync(this.file, 'utf8'))
       if (data.schemaVersion !== SANCTUM_SCHEMA_VERSION) throw new Error('圣所存储版本不兼容')
+      state.effectCorrectionMemory = readEffectMemory(data.effectCorrectionMemory)
       this.evidence.restore(data.evidenceRecords)
       const saved = optionalSnapshot(() => withoutSanctumEvidence(data.lastCapture))
       const floor = optionalSnapshot(() => savedSanctumFloor(saved?.floor))
@@ -66,6 +68,7 @@ export class SanctumRepository {
 
   save(state, { routeResult = state.persistedRoute, overlayResult = state.persistedOverlay } = {}) {
     const data = { schemaVersion: SANCTUM_SCHEMA_VERSION, enabled: state.enabled === true, strategy: validateSanctumStrategy(state.strategy),
+      effectCorrectionMemory:readEffectMemory(state.effectCorrectionMemory),
       inventory: state.inventory, calibration: validateSanctumCalibrations(state.calibration), altar: state.altar, loadoutPreferences: state.loadoutPreferences,
       lastCapture: state.floor ? withoutSanctumEvidence({ floor: state.floor, currentEffects: state.currentEffects, runObservation:state.runObservation, rewardLedger:state.rewardLedger, marks: state.marks, progress: state.progress, savedAt: state.restoredFromSave ? state.savedAt : state.savedAt ?? Date.now() }) : null,
       savedRoute: savedSanctumResult(routeResult), savedOverlay: savedSanctumResult(overlayResult, { overlay: true }),
@@ -82,5 +85,16 @@ export class SanctumRepository {
     } finally {
       if (fs.existsSync(temporary)) fs.unlinkSync(temporary)
     }
+  }
+
+  saveEffectMemory(memory) {
+    if (!fs.existsSync(this.file)) return
+    const data=JSON.parse(fs.readFileSync(this.file,'utf8'))
+    data.effectCorrectionMemory=readEffectMemory(memory)
+    const temporary=`${this.file}.${randomUUID()}.tmp`
+    try {
+      fs.writeFileSync(temporary,JSON.stringify(data,null,2),'utf8')
+      fs.renameSync(temporary,this.file)
+    } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary) }
   }
 }

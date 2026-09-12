@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { captureButton, observationBinding, resourceSummary, rewardSummary, sanctumPageDisplay, calibrationIssues } from '../shared/sanctumPresentation.js'
+import { captureButton, observationBinding, resourceSummary, rewardSummary, sanctumPageDisplay, calibrationIssues, sanctumDisplayFloors } from '../shared/sanctumPresentation.js'
+import { sanctumPositionUnconfirmed } from '../shared/sanctumDisplay.js'
 import { sanctumControlState } from '../electron/modules/sanctum/controlOverlay.js'
 import { SanctumService } from '../electron/modules/sanctum/service.js'
 
@@ -56,6 +57,25 @@ test('有公共配置时，缺失地图截图和标题给出具体校准缺口',
   state.publicTitles.templates['sanctum-map'] = {}
   assert.deepEqual(calibrationIssues(state), [])
   assert.equal(captureButton(state).disabled, false)
+})
+test('重识别未确认位置时以实时结果为准，不沿用历史快照的当前位置', () => {
+  const live = { identityConfirmed: true, runId: 'r2', floorId: 'f', revision: 2, positionStatus: 'unknown', currentRoomId: null, rooms: [] }
+  const saved = { floor: { identityConfirmed: true, runId: 'r1', floorId: 'f', revision: 1, positionStatus: 'confirmed', currentRoomId: 'old' } }
+  const state = { floor: live, savedRoute: saved, restoredFromSave: false }
+  const views = sanctumDisplayFloors(state)
+  assert.equal(views.live, live)
+  assert.equal(views.history, null)
+  assert.equal(views.floor, live)
+  assert.equal(sanctumPositionUnconfirmed(live), true)
+  const stopped = { ...live, identityConfirmed: false }
+  const history = sanctumDisplayFloors({ ...state, floor: stopped })
+  assert.equal(history.live, null)
+  assert.equal(history.history, saved)
+  assert.equal(history.floor, saved.floor)
+  assert.equal(sanctumPositionUnconfirmed(stopped), false)
+  assert.equal(sanctumPositionUnconfirmed({ ...live, positionStatus: 'confirmed', currentRoomId: 'a' }), false)
+  assert.equal(sanctumPositionUnconfirmed({ ...live, positionStatus: 'initial', initialSelection: true }), false)
+  assert.equal(sanctumPositionUnconfirmed({ ...live, identityConfirmed: false }), false)
 })
 test('采集异常保留主窗口详细原因，并让按钮显示失败重试', async () => {
   const service = new SanctumService({})

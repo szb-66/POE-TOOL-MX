@@ -1,7 +1,7 @@
 import { CAPTURE_KEYS, liveEnvironment, liveProfile, relicProfile, gridDimensions, cellStates, region } from '../../../shared/sanctumLive.js'
 import { TITLE_KEYS } from '../interfaceDetection/titleRegistry.js'
 
-const labels = { resourcesRegion:'实际资源数值范围', rewardPanelRegion:'奖励列表范围', mapRegion: '地图范围', effectIconsRegion: '独立状态栏效果图标', mapEffectIconsRegion: '地图内状态栏效果图标', roomSize: '房间内框', pathColor: '路径颜色样本' }
+const labels = { coinsRegion:'地图内金币图标与数量', mapResourcesRegion:'地图内坚毅与启迪完整模块', hudResourcesRegion:'独立完整状态栏', mapRegion: '地图范围', effectIconsRegion: '独立状态栏状态及奖励图标', mapEffectIconsRegion: '地图内状态栏状态及奖励图标', roomSize: '房间内框', pathColor: '路径颜色样本' }
 const sameEnvironment = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 // Only the main process supplies captures, client metadata and sample pixels.

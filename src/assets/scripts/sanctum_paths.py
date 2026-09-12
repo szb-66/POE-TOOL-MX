@@ -71,14 +71,42 @@ def locate_position(rooms, edges):
             if len(seen) == len(walked)+1 and by_id[next(iter(starts))]['column'] == first:
                 result.update(currentRoomId=node, positionStatus='confirmed')
         return result
-    # Complete untraversed map evidence, not merely absence of a detected path.
-    confirmed = [e for e in edges if e['status'] == 'matched']
-    if rooms and confirmed and all(e.get('traversal') == 'available' for e in confirmed):
-        columns = {r['column'] for r in rooms}
-        sources = {e['from'] for e in confirmed}
-        targets = {e['to'] for e in confirmed}
-        first, last = min(columns), max(columns)
-        if len(columns) == 8 and first == 0 and any(r.get('evidence') in ('vault-boss-template', 'archives-boss-template') for r in rooms) and all(r['id'] in sources for r in rooms if r['column'] == first) and all(any(by_id[e['from']]['column'] == col for e in confirmed) for col in range(first, last)):
-            result.update(initialSelection=True, positionStatus='initial',
-                          startRoomIds=[r['id'] for r in rooms if r['column'] == first])
+    # No walked chain: the entered first-column room is the only one whose
+    # candidate exits are still reachable; unchosen first-column rooms are
+    # blocked. Multiple candidates mean the player has not committed yet.
+    first = min((room['column'] for room in rooms), default=None)
+    candidates = [room for room in rooms if first == 0 and room['column'] == 0 and any(
+        edge['from'] == room['id'] and edge.get('status') == 'matched'
+        and edge.get('availability') == 'gold' and edge.get('traversal') == 'available'
+        for edge in edges)]
+    if len(candidates) == 1:
+        result.update(currentRoomId=candidates[0]['id'], positionStatus='confirmed')
+        return result
+    # Entry is a complete untraversed graph, independent of the boss artwork.
+    # Do not discard unknown edges: they are evidence that entry is not confirmed.
+    if complete_initial_map(rooms, edges):
+        result.update(initialSelection=True, positionStatus='initial',
+                      startRoomIds=[r['id'] for r in rooms if r['column'] == 0])
     return result
+
+
+def complete_initial_map(rooms, edges):
+    by_id = {room['id']: room for room in rooms}
+    if (not edges or len(by_id) != len(rooms)
+            or {r['column'] for r in rooms} != set(range(8))
+            or sum(r['column'] == 0 for r in rooms) < 2
+            or sum(r['column'] == 7 for r in rooms) != 1
+            or any(r.get('occluded') for r in rooms)):
+        return False
+    for edge in edges:
+        source, target = by_id.get(edge['from']), by_id.get(edge['to'])
+        if (not source or not target or target['column'] != source['column'] + 1
+                or edge.get('occluded') or edge.get('status') != 'matched'
+                or edge.get('availability') != 'gold' or edge.get('traversal') != 'available'):
+            return False
+    incoming = {edge['to'] for edge in edges}
+    outgoing = {edge['from'] for edge in edges}
+    # Adjacent columns form a DAG. Requiring every interior room to have both
+    # sides proves all rooms belong to a path from an entrance to the last room.
+    return all((r['column'] == 0 or r['id'] in incoming)
+               and (r['column'] == 7 or r['id'] in outgoing) for r in rooms)

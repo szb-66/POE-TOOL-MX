@@ -103,7 +103,7 @@ export class SanctumCapture {
       try { checkSafety(this.driver.inspect(),expected) }
       catch (error) { interrupt(error); throw error }
     }
-    const keys = ['knowledge','layout','recoveryCost','name','nameCandidates','rewardEvidence','readStages','captureMetrics','failureReason',
+    const keys = ['knowledge','layout','traps','layoutPreferenceKey','roomProfile','recoveryCost','name','nameCandidates','rewardEvidence','readStages','captureMetrics','failureReason',
       'tooltipRegion','diagnosticId','recognition','calculationStatus','type','recovery','relicScore','rewards','effects','afflictions','detailsStatus','rawText','confidence']
     const merge = (room,detail) => {
       for (const key of keys) delete room[key]
@@ -271,6 +271,8 @@ export class SanctumCapture {
             }})
             // Room jobs mutate result while effect OCR runs. Never restore an earlier copy of rooms.
             for (const field of ['currentEffects','effectScan']) if (finalized?.[field]) result[field] = finalized[field]
+            // Null is an explicit new observation too; never retain stale resources.
+            if (finalized && Object.hasOwn(finalized, 'runObservation')) result.runObservation = finalized.runObservation
             stopReason ||= result.effectScan?.targets?.find(target => target.stage === 'skipped')?.reason
           } else if (this.driver.finalizeFloor && result.effectScan?.complete !== true) {
             stopReason ||= captureSignal.reason?.message || '采集上下文恢复失败'

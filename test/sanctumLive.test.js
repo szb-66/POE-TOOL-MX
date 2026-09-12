@@ -14,7 +14,7 @@ const environment = { windowId: 'game', processId: 123, width: 1920, height: 108
 const nativeEnvironment = { environment, clientBounds: { x: 0, y: 0, width: 1920, height: 1080 } }
 const regions = { mapRegion: { x: 0, y: 0, width: 1500, height: 800 }, titleRegion: { x: 0, y: 0, width: 500, height: 100 },
   effectIconsRegion: { x: 0, y: 0, width: 1920, height: 1080 }, anchorRegion: { x: 0, y: 0, width: 100, height: 50 } }
-const png = fs.readFileSync(new URL('../src/assets/sanctum/vault-boss.png', import.meta.url)).toString('base64')
+const png = fs.readFileSync(new URL('./fixtures/sanctum/map-entry-label.png', import.meta.url)).toString('base64')
 const profile = () => liveProfile({ version: 1, environment, ...regions, anchor: { png }, captures: Object.fromEntries(['mapRegion','effectIconsRegion'].map(key => [key, { png, region: regions[key], environment }])) })
 const entry = (kind, id, name) => ({ kind, id, name, aliases: [], descriptions: [], sourceId: 's', applicability: 'current', reviewedPatch: SEASON_BASELINE.patch })
 const catalog = { schemaVersion: 1, game: 'poe1', patch: SEASON_BASELINE.patch, sources: [{ id: 's', channel: 'official' }],

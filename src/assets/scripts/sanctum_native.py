@@ -23,7 +23,7 @@ from sanctum_rewards import recognize_currency_icons
 from sanctum_frames import FramePool, open_mapping, frame_view
 from sanctum_postprocess import process_image
 from sanctum_ocr import read_frozen
-from interface_titles import match_titles
+from interface_titles import match_titles, unique_title
 from sanctum_grid import inspect_grid, hover_footprint, copy_keys
 
 
@@ -152,7 +152,7 @@ class NativeSession:
                     w,h = rect.right-rect.left,rect.bottom-rect.top
                     b = current['clientBounds']
                     options = getattr(self,'capture_options',{})
-                    forbidden = [options.get(k) for k in ('mapRegion','effectIconsRegion','mapEffectIconsRegion')]
+                    forbidden = [options.get(k) for k in ('mapRegion','effectIconsRegion','mapEffectIconsRegion','coinsRegion','mapResourcesRegion','hudResourcesRegion')]
                     forbidden += [t.get('region') for t in options.get('interfaceTitles',{}).values()]
                     candidates = [(12,12),(12,b['height']-h-12),(b['width']-w-12,12),(b['width']-w-12,b['height']-h-12)]
                     place = next(((x,y) for x,y in candidates if x>=0 and y>=0 and x+w<=b['width'] and y+h<=b['height'] and not any(r and x<r['x']+r['width'] and x+w>r['x'] and y<r['y']+r['height'] and y+h>r['y'] for r in forbidden)),None)
@@ -269,12 +269,15 @@ class NativeSession:
         self.surface_snapshot = (image,current)
         matched = match_titles(image, options.get('interfaceTitles', {}), current['environment'], options.get('matchThreshold', .8), anchored=True)
         map_open = bool(matched.get('sanctum-map'))
-        key = 'sanctum-map-hud' if map_open else 'sanctum-hud'
+        # Within the guarded Sanctum session, closing the map exposes the HUD.
+        if not map_open:
+            return {**current, 'mapOpen': False, 'hudVisible': True, 'hudLayout': 'standalone'}
+        key = 'sanctum-map-hud'
         hit = matched.get(key)
         expected = options.get('interfaceTitles', {}).get(key, {}).get('region')
         # Matching the same decoration elsewhere does not identify its layout.
         visible = bool(hit and expected and all(abs(hit['region'][axis] - expected[axis]) <= 8 for axis in ('x', 'y')))
-        layout = ('map' if map_open else 'standalone') if visible else None
+        layout = 'map' if visible else None
         return {**current, 'mapOpen': map_open, 'hudVisible': visible, 'hudLayout': layout}
 
     def move_cursor(self, point):
@@ -325,8 +328,14 @@ class NativeSession:
 
     def validate_surface(self, image, current, options, mode):
         matches = match_titles(image, options.get('interfaceTitles',{}), current['environment'], options.get('matchThreshold',.8), anchored=True)
-        key = 'sanctum-map' if mode == 'map' else 'sanctum-map-hud' if options.get('hudLayout') == 'map' else 'sanctum-hud'
-        if not matches.get(key):
+        map_open = bool(matches.get('sanctum-map'))
+        if mode == 'map':
+            valid = map_open
+        elif options.get('hudLayout') == 'map':
+            valid = bool(matches.get('sanctum-map-hud'))
+        else:
+            valid = not map_open
+        if not valid:
             raise NativeError('圣所界面已关闭或变化')
         self.surface({**current,'mapOpen':bool(matches.get('sanctum-map')),'foreground':True,'interfaceMatched':True})
 
@@ -340,17 +349,38 @@ class NativeSession:
                 raise NativeError('独立状态栏未确认，不能打开地图')
         elif not before['mapOpen']:
             raise NativeError('圣所地图未确认，不能关闭地图')
+        entry = None
+        if target == 'map':
+            image, current = self.image()
+            template = options.get('interfaceTitles', {}).get('sanctum-map-entry')
+            if not template:
+                raise NativeError('请先校准禁域地图入口', 'STEP_FAILED')
+            try:
+                entry = unique_title(image, template, current['environment'], options.get('matchThreshold', .8))
+            except (ValueError, TypeError, KeyError, cv2.error) as error:
+                raise NativeError(str(error), 'STEP_FAILED') from error
+            for x,y,w,h in getattr(self, 'capture_masks', []):
+                if entry['x'] < x+w and entry['x']+entry['width'] > x and entry['y'] < y+h and entry['y']+entry['height'] > y:
+                    raise NativeError('禁域地图入口被浮窗遮挡', 'STEP_FAILED')
         with self.input_lock:
-            self.check()
+            current = self.check()
             if any(self.u.GetAsyncKeyState(key) & 0x8000 for key in (0x10, 0x11, 0x12, 0x56, 1, 2)):
                 raise NativeError('用户正在按键，请松开后手动重新开始', 'SAFETY_INTERRUPTED')
-            # Balanced key-up is required even when cancellation arrives during
-            # the press; no recovery toggle is issued after cancellation.
-            try:
-                self.u.keybd_event(0x56, 0, 0, 0)
-            finally:
-                self.u.keybd_event(0x56, 0, 2, 0)
-        # One key press, bounded observation of the target surface. The shared
+            if entry is not None:
+                b = current['clientBounds']
+                if not self.u.SetCursorPos(b['x']+entry['x']+entry['width']//2, b['y']+entry['y']+entry['height']//2):
+                    raise NativeError('无法移动鼠标到禁域地图入口')
+                self.check()
+                try:
+                    self.u.mouse_event(0x0002, 0, 0, 0, 0)
+                finally:
+                    self.u.mouse_event(0x0004, 0, 0, 0, 0)
+            else:
+                try:
+                    self.u.keybd_event(0x56, 0, 0, 0)
+                finally:
+                    self.u.keybd_event(0x56, 0, 2, 0)
+        # One input, bounded observation of the target surface. The shared
         # capture deadline can shorten this wait but is never extended by it.
         deadline = time.monotonic() + 1.5
         delay = .15
@@ -368,7 +398,7 @@ class NativeSession:
             if (current['mapOpen'] if target == 'map' else not current['mapOpen'] and current['hudVisible']):
                 return current
             delay = .05
-        raise NativeError('V 切换界面超时', 'STEP_FAILED')
+        raise NativeError('点击禁域地图后开启超时' if target == 'map' else 'V 关闭地图超时', 'STEP_FAILED')
 
     def inspect_effects(self, options):
         self.check()
@@ -415,19 +445,30 @@ class NativeSession:
         if command == 'readRunPanel':
             if self.expected is None:
                 raise NativeError('实际状态读取未预检')
-            image, current = self.image()
-            if not self.match_title(image, options, current):
-                raise NativeError('实际状态面板标题未确认')
-            r = options.get('panelRegion')
-            if not r or r['x'] < 0 or r['y'] < 0 or r['width'] <= 0 or r['height'] <= 0 or r['x']+r['width'] > image.shape[1] or r['y']+r['height'] > image.shape[0]:
-                raise NativeError('实际状态范围无效')
-            for x,y,w,h in getattr(self, 'capture_masks', []):
-                if r['x'] < x+w and r['x']+r['width'] > x and r['y'] < y+h and r['y']+r['height'] > y:
-                    raise NativeError('实际状态被浮窗遮挡')
-            ok, png = cv2.imencode('.png', crop(image, r))
-            if not ok:
-                raise NativeError('实际状态截图失败')
-            return {**current, 'region':r, 'status':'located', 'png':base64.b64encode(png).decode('ascii')}
+            if getattr(self, 'room_tooltip_pending', False):
+                self.interface_state(options)
+            image, current = getattr(self, 'surface_snapshot', None) or self.image()
+            self.surface_snapshot = None
+            map_open = self.match_title(image, {**options, 'interfaceKind':'sanctum-map'}, current)
+            regions = {}
+            for key in (('coinsRegion', 'mapResourcesRegion') if map_open else ('hudResourcesRegion',)):
+                r = options.get(key)
+                if r is None:
+                    continue
+                try:
+                    selected = crop(image, r)
+                    for x,y,w,h in getattr(self, 'capture_masks', []):
+                        if r['x'] < x+w and r['x']+r['width'] > x and r['y'] < y+h and r['y']+r['height'] > y:
+                            raise NativeError('实际资源被浮窗遮挡')
+                    ok, png = cv2.imencode('.png', selected)
+                    if not ok:
+                        raise NativeError('实际资源截图失败')
+                    regions[key] = {'region':r, 'status':'located', 'png':base64.b64encode(png).decode('ascii')}
+                except NativeError as error:
+                    regions[key] = {'region':r, 'status':'unknown', 'reason':str(error), 'texts':[]}
+            if not regions:
+                raise NativeError('请先配置资源数值选区')
+            return {**current, 'regions':regions, 'resourceLayout':'map' if map_open else 'standalone'}
         if command in ('interfaceState', 'toggleMap', 'inspectEffects', 'hoverEffect'):
             return {'interfaceState': self.interface_state, 'toggleMap': self.toggle_map, 'inspectEffects': self.inspect_effects, 'hoverEffect': self.hover_effect}[command](options)
         if command == 'neutralGrid':

@@ -3,6 +3,9 @@ import assert from 'node:assert/strict'
 import { SanctumCapture, validateSanctumEnvironment } from '../electron/modules/sanctum/capture.js'
 import { AutomationLock } from '../electron/modules/automation/lock.js'
 import { SanctumService } from '../electron/modules/sanctum/service.js'
+import { resourceSummary } from '../shared/sanctumPresentation.js'
+import { validateRunResources } from '../electron/modules/sanctum/runObservation.js'
+import { recognizeRoomProfile } from '../shared/sanctumRoomProfiles.js'
 
 const environment = { windowId: 'game', width: 1920, height: 1080, dpi: 96 }
 const safety = () => ({ foreground: true, userTakeover: false, mapOpen: true, interfaceMatched: true, overlayExcluded: true, environment: { ...environment } })
@@ -63,6 +66,65 @@ function fixture(frames) {
   const lock = new AutomationLock()
   return { data, driver, lock, notify: value => { data.safety = value; listener?.(value) }, capture: new SanctumCapture({ driver, automationLock: lock }) }
 }
+
+test('采集结果保留独立玩法、陷阱、偏好与来源并绑定当前地图', async () => {
+  const f=frame(0),item=fixture([f])
+  f.floor.floorId='floor:0';f.floor.mapKey='profile-map'
+  const profile=recognizeRoomProfile(['圣光试炼'],'floor:0')
+  item.driver.hover=async()=>({patch:{...profile,detailsStatus:'matched',knowledge:Object.fromEntries(
+    ['layout','traps','layoutPreferenceKey','roomProfile'].map(key=>[key,{status:'known',source:'observed'}]))}})
+  const outputs=[]
+  await item.capture.run(environment,value=>outputs.push(value))
+  const saved=outputs.at(-1).rooms[0]
+  assert.equal(saved.layout,'exit');assert.equal(saved.layoutPreferenceKey,'trap')
+  assert.deepEqual(saved.traps,['lightning-floor'])
+  assert.deepEqual(saved.roomProfile,profile.roomProfile)
+  assert.equal(saved.knowledge.traps.mapKey,outputs.at(-1).mapKey)
+})
+
+test('完整采集经服务传递资源至页面：零值、部分未知、空结果、过期绑定和效果复用', async t => {
+  for (const mode of ['complete','partial','empty','stale','reuse']) {
+    const f=frame(0),item=fixture([f])
+    const service=new SanctumService({captureDriver:item.driver,automationLock:item.lock})
+    t.after(()=>service.shutdown())
+    service.setEnabled(true)
+    service.state.runObservation=validateRunResources({resolve:99,maxResolve:300,inspiration:50,coins:999},f.floor)
+    let returned
+    item.driver.finalizeFloor=async value=>{
+      returned=mode==='empty'?null:{...validateRunResources({resolve:416,maxResolve:418,inspiration:0,coins:mode==='partial'?null:270},value,'observed'),
+        ...(mode==='partial'?{reason:'金币读取失败'}:{})}
+      if(mode==='stale') returned.key='other-position'
+      return {...value,runObservation:returned,currentEffects:[],effectScan:{complete:true,updateMode:mode==='reuse'?'reuse':'scan'}}
+    }
+    await service.startCapture(environment)
+    const state=service.getState(),summary=resourceSummary(state)
+    assert.deepEqual(state.floor.runObservation,returned,mode)
+    const unknown=['empty','stale'].includes(mode)
+    assert.deepEqual([summary.resolve,summary.maxResolve,summary.inspiration,summary.coins],
+      unknown?[null,null,null,null]:[416,418,0,mode==='partial'?null:270],mode)
+    if(mode==='partial')assert.equal(state.runObservation.reason,'金币读取失败')
+    if(unknown)assert.equal(state.runObservation,null)
+  }
+})
+
+test('合并资源保留最终阶段并发完成的房间详情', async () => {
+  const item=fixture([frame(0)]),pending=deferred(),committed=deferred()
+  item.driver.captureRoom=async()=>({recognition:pending.promise})
+  item.driver.finalizeFloor=async value=>{
+    const earlier=structuredClone(value)
+    pending.resolve({patch:{detailsStatus:'matched',name:'异步识别完成',rawText:'新正文'}})
+    await committed.promise
+    return {...earlier,runObservation:validateRunResources({inspiration:0,coins:270},value,'observed'),effectScan:{complete:true}}
+  }
+  let last
+  await item.capture.run(environment,value=>{
+    last=value
+    if(value.rooms[0].name==='异步识别完成')committed.resolve()
+  })
+  assert.equal(last.rooms[0].name,'异步识别完成')
+  assert.equal(last.rooms[0].rawText,'新正文')
+  assert.equal(last.runObservation.inspiration,0)
+})
 
 test('隐藏房间的 OCR 不能建立历史知识，真正揭示后必须重新读取',async()=>{
   const f=frame(0),item=fixture([f]);f.floor.mapKey='map'

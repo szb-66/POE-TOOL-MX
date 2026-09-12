@@ -5,7 +5,8 @@ export function liveEnvironment(value) {
     || value.width > 16384 || value.height > 16384 || !Number.isFinite(value.dpi) || value.dpi < 48 || value.dpi > 768) throw new Error('实时窗口环境无效')
   return { width: value.width, height: value.height, dpi: value.dpi }
 }
-export const CAPTURE_KEYS = ['mapRegion', 'effectIconsRegion', 'mapEffectIconsRegion', 'resourcesRegion', 'rewardPanelRegion', 'roomSize', 'pathColor']
+export const RESOURCE_REGION_KEYS = ['coinsRegion', 'mapResourcesRegion', 'hudResourcesRegion']
+export const CAPTURE_KEYS = ['mapRegion', 'effectIconsRegion', 'mapEffectIconsRegion', ...RESOURCE_REGION_KEYS, 'roomSize', 'pathColor']
 export function region(value, environment) {
   const env = liveEnvironment(environment), r = value
   if (!r || !['x', 'y', 'width', 'height'].every(key => Number.isInteger(r[key])) || r.x < 0 || r.y < 0
@@ -14,7 +15,7 @@ export function region(value, environment) {
 }
 export function liveRegions(value, environment) {
   const result = {}
-  for (const key of ['mapRegion', 'effectIconsRegion', 'mapEffectIconsRegion', 'resourcesRegion', 'rewardPanelRegion']) if (value?.[key]) result[key] = region(value[key], environment)
+  for (const key of ['mapRegion', 'effectIconsRegion', 'mapEffectIconsRegion', ...RESOURCE_REGION_KEYS]) if (value?.[key]) result[key] = region(value[key], environment)
   if (value?.calibration && result.mapRegion) {
     const imageSize = [result.mapRegion.width, result.mapRegion.height]
     const valid = validateSanctumCalibration({ version: 1, scope: 'sample', sampleId: 'validation.png', imageSize,
@@ -28,14 +29,14 @@ export function calibrationPng(png) {
   return png
 }
 export function liveProfile(value) {
-  if (!value || ![1, 2, 3, 4].includes(value.version)) throw new Error('实时校准版本无效')
+  if (!value || ![1, 2, 3, 4, 5, 6].includes(value.version)) throw new Error('实时校准版本无效')
   const environment = liveEnvironment(value.environment), captures = {}
   for (const key of CAPTURE_KEYS) if (value.captures?.[key]) {
     const c = value.captures[key]
     captures[key] = { ...c, environment: liveEnvironment(c.environment), region: region(c.region, c.environment), png: calibrationPng(c.png) }
   }
   // Legacy text crops cannot serve as icon locations; the whitelist discards them.
-  return { version: 4, environment, ...liveRegions(value, environment), captures }
+  return { version: 6, environment, ...liveRegions(value, environment), captures }
 }
 export function gridDimensions(value) {
   if (!value || !['altar', 'locker'].includes(value.regionId) || !Number.isInteger(value.columns) || !Number.isInteger(value.rows)

@@ -1,5 +1,6 @@
 import { textSimilarity } from '../../../src/utils/chartModMatcher.js'
 import { isCurrentSanctumEntry, sanctumRule } from './catalog.js'
+import { isRoomProfileTitle } from '../../../shared/sanctumRoomProfiles.js'
 
 const kinds = new Set(['room', 'reward', 'boon', 'affliction'])
 export const normalizeRoomText = value => String(value).normalize('NFKC').replace(/[\s\p{P}]/gu, '').toLowerCase()
@@ -40,7 +41,7 @@ export function recognizeRoomTexts(texts, catalog, blocks = []) {
   const entries = (catalog?.entries || []).filter(e => e.kind !== 'room' || e.descriptions?.length)
   const roomNames = new Set((catalog?.entries || []).filter(e => e.kind === 'room' && !e.descriptions?.length)
     .flatMap(e => [e.name, ...(e.aliases || [])]).map(normalizeRoomText))
-  const title = text => roomNames.has(normalizeRoomText(text))
+  const title = text => isRoomProfileTitle(text) || roomNames.has(normalizeRoomText(text))
     || text.split('、').length > 1 && text.split('、').every(part => /^[\p{L}]{2,9}$/u.test(part.trim()))
   const classify = text => /^包含|^完成后(?:提供|获得)/.test(text) ? 'room'
     : /^在你进入时受到.+折磨$/.test(text) ? 'affliction' : null
@@ -50,9 +51,9 @@ export function recognizeRoomTexts(texts, catalog, blocks = []) {
     const match = matchRoomText(lookup, { ...catalog, entries: entries.filter(e => !kind || e.kind === kind) })
     return match ? { ...match, rawText:text, role:kind === 'room' ? 'content' : 'effect' } : null
   }
-  const matches = []
+  const matches = [], titles = []
   for (let i = 0; i < lines.length;) {
-    if (title(lines[i])) { i++; continue }
+    if (title(lines[i])) { titles.push(lines[i]); i++; continue }
     let match = matchLine(lines[i]), count = 1
     // Join wrapped descriptions only when they improve on every constituent
     // match. Independent complete effects therefore remain separate entries.
@@ -80,5 +81,5 @@ export function recognizeRoomTexts(texts, catalog, blocks = []) {
   }
   return { status: !lines.length ? 'empty' : !matches.length ? (entries.length ? 'empty':'no-catalog') : 'matched',
     reason: !lines.length ? '框内未识别到文字' : !matches.length ? (entries.length ? '框内没有可识别正文':'本地词库没有可匹配词条') : null,
-    blocks, matches }
+    blocks, matches, titles }
 }

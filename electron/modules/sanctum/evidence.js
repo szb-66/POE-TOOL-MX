@@ -56,7 +56,12 @@ export class SanctumEvidenceStore {
       const record=this.records.get(id)
       if (record && (!latest.has(targetKey(record)) || latest.get(targetKey(record)).createdAt < record.createdAt)) latest.set(targetKey(record),record)
     }
-    return [...latest.values()].flatMap(record=> {
+    // Long-term correction provenance can refer to older crops of the same
+    // target. Keep those exact evidence versions rather than only the latest.
+    const retained=new Map([...latest.values()].map(record=>[record.evidenceId,record]))
+    ids.clear();visit(value.effectCorrectionMemory)
+    for (const id of ids) if (this.records.has(id)) retained.set(id,this.records.get(id))
+    return [...retained.values()].flatMap(record=> {
       if (!record) return []
       const {buffer,sessionId,...metadata}=record
       return [metadata]

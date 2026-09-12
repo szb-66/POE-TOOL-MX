@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { runPython } from './helpers/python.js'
 
-test('宝库实机推进图恢复首领，遮挡样本不补造房间', () => {
+test('宝库实机推进图及入口局部遮挡通过真实边框恢复房间', () => {
   const results = runPython(`
 import sys,json
 sys.path.insert(0,'src/assets/scripts')
@@ -13,7 +13,7 @@ print(json.dumps([analyze_floor(load_image('test/fixtures/sanctum/'+n+'.png')) f
   // Manual count from the supplied screenshots, left to right and top to bottom.
   const counts = floor => Array.from({length: 8}, (_, col) => floor.rooms.filter(room => room.column === col).length)
   assert.deepEqual(counts(progress), [3, 3, 6, 5, 3, 3, 3, 1])
-  assert.deepEqual(counts(entry), [3, 3, 5, 5, 3, 3, 3, 1])
+  assert.deepEqual(counts(entry), [3, 3, 6, 5, 3, 3, 3, 1])
   assert.equal(entry.status, 'partial')
   assert.equal(progress.status, 'partial')
   const edge = (floor, from, to) => floor.edges.find(item => item.from === from && item.to === to)

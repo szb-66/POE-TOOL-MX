@@ -6,6 +6,10 @@ const knownEdge = edge => confirmed(edge) && edge.availability !== 'unknown' && 
 const labels = { completed: '✓ 已完成', unreachable: '× 不可达', reachable: '可达', unknown: '未知' }
 const detailLabels = { manual: '已修正', matched: '已识别', partial: '部分成功', queued: '等待识别', reading: '读取中', failed: '读取失败' }
 
+// 最近一次实时识别已确认身份、且不是入口待选，却没有确认当前位置。
+export const sanctumPositionUnconfirmed = floor => floor?.identityConfirmed === true
+  && floor.initialSelection !== true && !(floor.positionStatus === 'confirmed' && Boolean(floor.currentRoomId))
+
 export function sanctumRoomLabel(room) {
   return [room.current ? '当前' : room.next ? '推荐' : room.recommended ? '推荐路径' : labels[room.displayState],
     room.target ? '目标' : '', room.avoided ? '避让' : ''].filter(Boolean).join(' · ')

@@ -15,7 +15,7 @@ export function createSanctumStrategy(preset = 'reveal') {
     preset: selected, weights: { ...SANCTUM_PRESETS[selected] },
     currencyWeights: ['reveal','quantity'].includes(selected) ? {} : { '神圣石': 100, '混沌石': 1, '崇高石': 5 },
     targetPriority: { '卡兰德的魔镜': 3, '神圣石': 2 },
-    toleratedAfflictions: [], layoutPreference: { exit: 2, guards: 1, arena: 0, trap: -1 },
+    toleratedAfflictions: [], layoutPreference: { exit: 2, guards: 1, arena: 0, trap: -1, miniboss: 0 },
     timing: { immediate: 1, floor: .9, run: .75 },
     bannedAfflictions: [], afflictionWeights: {},
     roomWeights: {}, relicWeights: {}

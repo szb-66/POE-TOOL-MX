@@ -9,7 +9,7 @@ import { runPython } from './helpers/python.js'
 import { SanctumService } from '../electron/modules/sanctum/service.js'
 
 const catalog = JSON.parse(fs.readFileSync(new URL('../electron/assets/sanctum/catalog.json', import.meta.url)))
-const png = fs.readFileSync(new URL('../src/assets/sanctum/vault-boss.png', import.meta.url)).toString('base64')
+const png = fs.readFileSync(new URL('./fixtures/sanctum/map-entry-label.png', import.meta.url)).toString('base64')
 const environment = { width: 800, height: 600, dpi: 96 }
 const region = { x: 0, y: 0, width: 120, height: 80 }
 const profile = relicProfile({ version: 1, environment, regionId: 'locker', columns: 3, rows: 2,

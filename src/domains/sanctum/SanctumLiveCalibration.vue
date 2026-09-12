@@ -39,18 +39,16 @@ const groups = [
     { key: 'roomSize', label: '房间内框', hint: '框选一个房间的内框，确定房间尺寸。' },
     { key: 'pathColor', label: '路径颜色', hint: '框选路径样本后，展开截图并点击路径颜色。' }
   ] },
-  { id: 'observations', label:'实际资源与奖励', hint:'资源在地图中读取；奖励请先打开实际奖励列表。读取缺口需人工核对。', items:[
-    {key:'resourcesRegion',label:'实际资源范围',hint:'包含坚毅、最大坚毅、启迪、耀金币文字与数值。'},
-    {key:'sanctum-rewards',label:'奖励列表标题',hint:'框选实际奖励列表的稳定标题，避开奖励行。'},
-    {key:'rewardPanelRegion',label:'奖励列表范围',hint:'覆盖当前可见奖励；滚动区域不能作为完整账本证据。'}
-  ] },
-  { id: 'embedded', label: '地图内状态栏', hint: '地图和状态栏同时显示时配置，两个选区都在此画面中框选。', items: [
+  { id: 'embedded', label: '地图内状态栏', hint: '地图与状态栏同时显示时配置。金币与坚毅启迪分开框选；完整识别时自动更新资源。旧坚毅、启迪小框已停用，请重新框选完整模块。', items: [
+    {key:'coinsRegion',label:'金币图标与数量',hint:'框选地图右上角完整金币面板，包含金币图标及其右侧数量。'},
+    {key:'mapResourcesRegion',label:'坚毅与启迪完整模块',hint:'包含文字、数值、完整边框及少量边距，覆盖启迪出现及坚毅上下移动的位置。'},
     { key: 'sanctum-map-hud', label: '状态栏识别锚点', hint: '框选稳定装饰，避开数值与效果图标。' },
-    { key: 'mapEffectIconsRegion', label: '效果图标范围', hint: '覆盖所有类别图标可能占用的位置，并留少量边距。' }
+    { key: 'mapEffectIconsRegion', label: '状态及奖励图标范围', hint: '覆盖状态和奖励入口图标可能占用的位置，并留少量边距。读取时自动悬停展开，无需框选弹框。' }
   ] },
   { id: 'standalone', label: '独立状态栏', hint: '关闭地图后配置。此布局的位置与地图内状态栏分别保存。', items: [
-    { key: 'sanctum-hud', label: '状态栏识别锚点', hint: '框选稳定装饰，避开坚毅、金币数值和文字弹框。' },
-    { key: 'effectIconsRegion', label: '效果图标范围', hint: '覆盖整条类别图标可能占用的范围，无需展开文字。' }
+    {key:'hudResourcesRegion',label:'完整状态栏资源',hint:'一次框住整个状态栏，包含金币图标及数量、坚毅与启迪文字数值，保留完整边框和少量边距。'},
+    {key:'sanctum-map-entry',label:'禁域地图入口',hint:'地图关闭时框选场景中的“禁域地图”文字。读取独立状态栏后，将识别并点击此入口恢复可选房地图。'},
+    { key: 'effectIconsRegion', label: '状态及奖励图标范围', hint: '覆盖整条状态和奖励入口图标可能占用的范围。读取时自动悬停展开，无需框选弹框。' }
   ] }
 ]
 const visibleGroups = computed(() => groups.filter(group => props.section === 'map' ? group.id === 'map' : group.id !== 'map'))

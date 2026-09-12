@@ -2,7 +2,8 @@ import { SEASON_BASELINE } from '../shared/seasonBaseline.js'
 import { sanctumError } from '../electron/modules/sanctum/errors.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SanctumLiveDriver, parseSanctumEffectGroup } from '../electron/modules/sanctum/liveDriver.js'
+import { readFileSync } from 'node:fs'
+import { SanctumLiveDriver, parseSanctumEffectGroup, parseSanctumRoomTexts } from '../electron/modules/sanctum/liveDriver.js'
 import { liveProfile } from '../shared/sanctumLive.js'
 import { AutomationLock } from '../electron/modules/automation/lock.js'
 import { sanctumLogEvents } from './helpers/sanctumLog.js'
@@ -27,7 +28,7 @@ function fixture(t, initial = 'map') {
     floor: { currentRoomId:'a',positionStatus:'confirmed',rooms: [{id:'a',column:0,row:0}], edges: [] } })
   const driver = new SanctumLiveDriver({ catalog, withHidden: async action => action(), clientEvents: log.events, wait: async () => {},
     windowActivation: { async activateGame() { return { success: true } } },
-    detection: { getTitleConfig: () => ({ threshold: .8, templates: { 'sanctum-map': { png, environment }, 'sanctum-hud': { png, environment }, 'sanctum-map-hud': { png, environment } } }),
+    detection: { getTitleConfig: () => ({ threshold: .8, templates: { 'sanctum-map': { png, environment }, 'sanctum-map-hud': { png, environment } } }),
       registerConsumer: async () => {}, unregisterConsumer() {}, subscribe: () => () => {},
       getState: () => ({ running: true, foreground: true, receivedAt: Date.now(), interfaces: {
         'sanctum-map': { matched: mode === 'map' }, 'sanctum-hud': { matched: mode === 'effects' } } }) },
@@ -54,6 +55,147 @@ async function collect(f, sig = signal()) {
   try { return await f.driver.finalizeFloor(f.driver.latest.floor, sig) }
   finally { f.lock.release('test-collector') }
 }
+
+test('完整识别即使复用效果也重新读取资源，只在独立扫描后恢复地图', async t => {
+  for (const mode of ['both','map']) {
+    const f=fixture(t,mode),sig=signal(),events=[]
+    const input=profile();input.coinsRegion={x:10,y:10,width:100,height:40}
+    input.mapResourcesRegion={x:120,y:10,width:100,height:80}
+    input.hudResourcesRegion={x:10,y:100,width:300,height:100}
+    await f.driver.prepare(input,sig,f.lock)
+    let reads=0
+    f.hooks.readRunPanel=()=>{
+      reads++;events.push('resource')
+      return {environment,regions:{mapResourcesRegion:{status:'located',texts:[`坚毅 ${100+reads}/300`,'启迪12']}}}
+    }
+    f.hooks.hoverEffect=()=>{events.push('effect');return {environment,status:'located',texts:['次要痛苦','不能恢复坚毅']}}
+    f.lock.acquire('test-collector')
+    try {
+      const first=await f.driver.finalizeFloor(f.driver.latest.floor,sig)
+      assert.equal(first.runObservation.resolve,mode==='both'?101:102)
+      assert.equal(f.commands.filter(c=>c==='toggleMap').length,mode==='both'?0:2)
+      const second=await f.driver.finalizeFloor(first,sig)
+      assert.equal(second.runObservation.resolve,mode==='both'?102:103)
+      assert.equal(events.filter(e=>e==='effect').length,1)
+      assert.equal(f.commands.filter(c=>c==='toggleMap').length,mode==='both'?0:2)
+    } finally {f.lock.release('test-collector')}
+  }
+})
+
+test('最近实战房间回归：毒水侵袭不触发宝藏房扫描，明确痛苦加入，喷泉和手动刷新重读', async t => {
+  const sample=JSON.parse(readFileSync(new URL('./fixtures/sanctum/conditional-effect-room-sequence.json',import.meta.url),'utf8'))
+  const realCatalog=JSON.parse(readFileSync(new URL('../electron/assets/sanctum/catalog.json',import.meta.url),'utf8'))
+  const f=fixture(t,'both'),messages=[]
+  await f.driver.prepare(profile(),signal(),f.lock)
+  f.driver.catalog=realCatalog
+  f.driver.progress=message=>messages.push(message)
+  const base=structuredClone(f.driver.latest.floor)
+  base.currentRoomId=sample.rooms[0].id
+  base.rooms=sample.rooms.map(({texts,...room})=>{
+    if(!texts)return room
+    const patch=parseSanctumRoomTexts(texts,realCatalog)
+    for(const fact of Object.values(patch.knowledge))fact.mapKey=base.mapKey
+    return {...room,revealed:true,...patch}
+  })
+  base.edges=sample.rooms.slice(1).map((room,i)=>({from:sample.rooms[i].id,to:room.id,status:'matched',traversal:'available'}))
+  f.hooks.hoverEffect=()=>({environment,status:'located',texts:sample.baselineEffects.flatMap(e=>[e.name,e.rawText])})
+  f.lock.acquire('test-collector')
+  try {
+    const initial=await f.driver.finalizeFloor(base,signal())
+    assert.equal(initial.effectScan.complete,true)
+    assert.equal(initial.currentEffects.length,sample.baselineEffects.length)
+    for(const [index,mode,count] of [[1,'reuse',1],[2,'append',1],[3,'scan',2]]) {
+      const next=structuredClone(base);next.currentRoomId=sample.rooms[index].id
+      next.rooms[index]={...sample.rooms[index],texts:undefined,captureSkipReason:'completed'}
+      f.hooks.observe=()=>({environment,foreground:true,mapOpen:true,interfaceMatched:true,floor:next})
+      const observed=(await f.driver.observe(signal())).floor
+      const result=await f.driver.finalizeFloor(observed,signal())
+      assert.equal(result.effectScan.updateMode,mode)
+      assert.equal(f.commands.filter(c=>c==='inspectEffects').length,count)
+      if(mode!=='scan') {
+        assert.deepEqual(result.currentEffects,observed.currentEffects)
+        assert.deepEqual(result.effectScan,observed.effectScan)
+        await f.driver.finalizeFloor(result,signal())
+        assert.equal(f.commands.filter(c=>c==='inspectEffects').length,count)
+      }
+      if(mode==='append') {
+        const effect=result.currentEffects.find(e=>e.name==='隐蔽异动')
+        assert.equal(effect.rule,'deathAnomaly')
+        assert.equal(effect.source.roomId,'4:0')
+        assert.equal(result.currentEffects.filter(e=>e.name==='隐蔽异动').length,1)
+      }
+      if(mode==='scan')assert.match(result.effectScan.scanReason,/仁慈喷泉/)
+    }
+    assert.ok(messages.some(message=>message.includes('正在读取当前位置的实际效果：已完成仁慈喷泉')))
+    f.driver.requestEffectRescan()
+    const last={...base,currentRoomId:sample.rooms.at(-1).id}
+    f.hooks.inspectEffects=()=>({environment,coverageConfirmed:true,icons:[]})
+    const refreshed=await f.driver.finalizeFloor(last,signal())
+    assert.deepEqual(refreshed.currentEffects,[])
+    assert.equal(f.commands.filter(c=>c==='inspectEffects').length,3)
+    assert.match(refreshed.effectScan.scanReason,/手动重读/)
+  } finally { f.lock.release('test-collector') }
+})
+
+test('完成房间的观察与最终采集一致：跳过扫描、加入痛苦、连续推进和手动重读', async t => {
+  const f=fixture(t,'both')
+  await f.driver.prepare(profile(),signal(),f.lock)
+  const floor=structuredClone(f.driver.latest.floor)
+  floor.rooms.push(...['b','c'].map((id,index)=>{
+    const patch=parseSanctumRoomTexts(['完成后提供奖励',...(id==='b'?['不能获得恩赐']:[])],catalog)
+    for(const fact of Object.values(patch.knowledge)) fact.mapKey=floor.mapKey
+    return {id,column:index+1,row:0,revealed:true,...patch}
+  }))
+  floor.edges=[{from:'a',to:'b',status:'matched',traversal:'available'},{from:'b',to:'c',status:'matched',traversal:'available'}]
+  f.lock.acquire('test-collector')
+  try {
+    await f.driver.finalizeFloor(floor,signal())
+    assert.equal(f.commands.filter(c=>c==='inspectEffects').length,1)
+    const next=structuredClone(floor); next.currentRoomId='b'
+    next.rooms[1]={id:'b',column:1,row:0}
+    f.hooks.observe=()=>({environment,foreground:true,mapOpen:true,interfaceMatched:true,floor:next})
+    const observed=await f.driver.observe(signal())
+    assert.equal(observed.floor.effectScan.updateMode,'append')
+    assert.ok(observed.floor.currentEffects.some(e=>e.rule==='cannotGainBoons'))
+    const finalized=await f.driver.finalizeFloor(observed.floor,signal())
+    assert.deepEqual(finalized.currentEffects,observed.floor.currentEffects)
+    assert.deepEqual(finalized.effectScan,observed.floor.effectScan)
+    assert.equal(f.commands.filter(c=>c==='inspectEffects').length,1)
+    next.currentRoomId='c'
+    const third=await f.driver.observe(signal())
+    await f.driver.finalizeFloor(third.floor,signal())
+    assert.equal(f.commands.filter(c=>c==='inspectEffects').length,1)
+    f.driver.requestEffectRescan()
+    const reread=await f.driver.finalizeFloor(third.floor,signal())
+    assert.equal(f.commands.filter(c=>c==='inspectEffects').length,2)
+    assert.equal(reread.effectScan.updateMode,'scan')
+    assert.equal(reread.currentEffects.some(e=>e.rule==='cannotGainBoons'),false)
+  } finally { f.lock.release('test-collector') }
+})
+
+test('商人或特殊效果触发真实扫描，失败后不会用旧效果补齐', async t => {
+  for (const special of [false,true]) {
+    const f=fixture(t,'both')
+    await f.driver.prepare(profile(),signal(),f.lock)
+    const floor=structuredClone(f.driver.latest.floor)
+    floor.rooms.push({id:'b',column:1,row:0,type:special?'reward':'merchant',effects:[],afflictions:[],
+      knowledge:Object.fromEntries(['type','effects','afflictions'].map(key=>[key,{status:'known',source:'observed',mapKey:floor.mapKey}]))})
+    floor.edges=[{from:'a',to:'b',status:'matched',traversal:'available'}]
+    f.lock.acquire('test-collector')
+    try {
+      await f.driver.finalizeFloor(floor,signal())
+      if(special) f.driver.effectLedger.effects.push({rule:'randomAfflictionEachRoom',name:'每房随机痛苦',status:'matched'})
+      const next={...floor,currentRoomId:'b'}
+      f.hooks.inspectEffects=()=>({environment,coverageConfirmed:false,icons:[],reason:'扫描失败'})
+      const result=await f.driver.finalizeFloor(next,signal())
+      assert.equal(f.commands.filter(c=>c==='inspectEffects').length,2)
+      assert.equal(result.effectScan.complete,false)
+      assert.equal(result.currentEffects.some(e=>e.rule==='cannotRecover'),false)
+      assert.ok(result.currentEffects.some(e=>e.status==='unknown'))
+      assert.match(result.effectScan.scanReason,special?/每房随机痛苦/:/merchant/)
+    } finally { f.lock.release('test-collector') }
+  }
+})
 
 test('关图后进程启动时间不可读或列表漏检，不中断状态悬停并正常恢复地图', async t => {
   for (const processes of [[{ id: 123, startedAt: null }], []]) {
@@ -86,6 +228,7 @@ test('未完成效果仅在下次主动采集重读，确认空效果后整轮�
   f.hooks.inspectEffects = () => ({ environment, icons: [], coverageConfirmed: true })
   floor = await collect(f)
   assert.equal(floor.effectScan.complete, true)
+  assert.equal(floor.effectScan.scanReason,'上一份状态未完整读取')
   assert.deepEqual(floor.currentEffects, [])
   assert.ok(floor.effectScan.groups.every(g => g.status === 'absent' && g.complete))
   await collect(f)
@@ -126,7 +269,7 @@ test('效果完成同时要求覆盖证据和每个图标读取成功', async t 
 test('v3 清除无效旧文字选区，不推断图标位置，保留地图校准', () => {
   const value = liveProfile({ ...profile(), version: 2, tooltipRegion: 'bad', currentEffectsRegion: 'bad',
     captures: { ...profile().captures, tooltipRegion: { png: 'bad' }, currentEffectsRegion: {} } })
-  assert.equal(value.version, 4)
+  assert.equal(value.version, 6)
   assert.equal(value.tooltipRegion, undefined)
   assert.equal(value.captures.currentEffectsRegion, undefined)
   assert.deepEqual(value.mapRegion, region)
@@ -218,8 +361,8 @@ def run(cancel=False,unknown=False,success=False):
     def require(*a):
         if unknown:raise NativeError('unknown')
     s.require_mode=require;s.cancelled=types.SimpleNamespace(wait=lambda _:cancel)
-    s.interface_state=lambda _: {'mapOpen':bool(keys) and success, 'hudVisible':not unknown}
-    try:s.toggle_map({'targetMode':'map'});error=False
+    s.interface_state=lambda _: {'mapOpen':not unknown and not (bool(keys) and success), 'hudVisible':not unknown}
+    try:s.toggle_map({'targetMode':'effects'});error=False
     except NativeError:error=True
     return [keys,error]
 print(json.dumps([run(success=True),run(),run(cancel=True),run(unknown=True)]))

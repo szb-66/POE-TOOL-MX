@@ -74,6 +74,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 - Map-Tracker 行为参考：日志自动统计与用户显式触发采集的边界、历史表格信息层级。地图实例状态机、区域目录、经验效率、持久化、输入门禁、模板识别及 Electron/Vue 界面均为本项目独立实现；未复制其 AHK 算法、地图映射数据或图标素材。
 
 - 圣所行为参考：按 Client.txt 内部区域 ID 区分四层及编号入口、检测已保存图与当前层的变化。日志事件绑定、进程核验及采集取消为独立实现；未复制其 AHK 实现或素材。
+- 圣所房间玩法目录：2026-09-13 核对 Exile-UI `data/english/UI.txt` 的五类速查分类，并与编年史中英文 Rooms 行及社区房型表对应。派生映射位于 `shared/sanctumRoomProfiles.js`；保留小首领、出口、清理守卫、穿越陷阱和竞技场分类及来源，不复制 UI 或图像。
 
 Copyright (c) Lailloken and Exile-UI contributors.
 

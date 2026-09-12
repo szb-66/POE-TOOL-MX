@@ -1,6 +1,6 @@
 <template>
   <p v-if="room.previousCapture">上次采集 · {{ room.failureReason || '本次采集尚未完成' }}</p>
-  <SanctumRecognitionImage :binding="binding" kind="room" :region="shown.recognition?.bodyRegion || shown.recognition?.region" :texts="[shown.rawText].filter(Boolean)" :stage="stage" :reason="room.failureReason" />
+  <SanctumRecognitionImage :binding="binding" kind="room" :region="shown.recognition?.titleRegion ? shown.recognition.region : shown.recognition?.bodyRegion || shown.recognition?.region" :texts="[shown.rawText].filter(Boolean)" :stage="stage" :reason="room.failureReason" />
 </template>
 <script setup>
 import {computed} from 'vue'

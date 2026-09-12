@@ -111,11 +111,18 @@ def read_frozen(options, engine=None):
     import time
     started = time.perf_counter()
     icons_only = options.get('iconsOnly', False)
+    # One OCR pass, with the gold rule separating title evidence from prose.
     text = {'texts': [], 'ocrBlocks': [], 'ocrLines': []} if icons_only else read_room_ocr(
-        engine if engine is not None else create_sanctum_ocr_engine(), panel[by:by+bh,bx:bx+bw])
+        engine if engine is not None else create_sanctum_ocr_engine(), panel)
+    title_texts = [line['text'] for line in text['ocrLines']
+                   if by and line['region']['y'] + line['region']['height']/2 < by]
+    for key in ('ocrBlocks', 'ocrLines'):
+        text[key] = [block for block in text[key]
+                     if block['region']['y'] + block['region']['height']/2 >= by]
+    text['texts'] = [line['text'] for line in text['ocrLines']]
     for block in [*text['ocrBlocks'], *text['ocrLines']]:
-        block['region']['x'] += x+bx
-        block['region']['y'] += y+by
+        block['region']['x'] += x
+        block['region']['y'] += y
     ocr_ms = (time.perf_counter()-started)*1000
     started = time.perf_counter()
     scan_icons = icons_only or options.get('includeIcons',True) and has_currency_offer(text['texts'])
@@ -123,7 +130,13 @@ def read_frozen(options, engine=None):
     for icon in icons:
         icon['region']['x'] += x+bx
         icon['region']['y'] += y+by
+    evidence = {}
+    if options.get('resources'):
+        from sanctum_resources import resource_evidence
+        evidence = resource_evidence(image, text['ocrLines'])
     return {**text, 'region':region, 'bodyRegion':{**body,'x':x+bx,'y':y+by},
+            'titleTexts':title_texts, 'titleRegion':{'x':x,'y':y,'width':w,'height':by} if by else None,
+            **({'resourceEvidence': evidence} if options.get('resources') else {}),
             'status':'located', 'currencyIcons':icons, 'hasCurrencyOffer':has_currency_offer(text['texts']),
             'captureMetrics':{'ocrMs':round(ocr_ms,2),'iconsMs':round((time.perf_counter()-started)*1000,2),'ocrCalls':int(not icons_only),'iconCalls':int(bool(scan_icons))}}
 

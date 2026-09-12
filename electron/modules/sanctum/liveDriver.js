@@ -1,15 +1,16 @@
 import { parseStatusTooltip } from './statusRecognition.js'
+import { recognizeRoomProfile } from '../../../shared/sanctumRoomProfiles.js'
 import { observationKey } from './runObservation.js'
 import { SANCTUM_TIMEOUTS, sanctumError, isStepTimeout, isSafetyError, isForegroundLoss } from './errors.js'
-import { emptyEffectGroups, mergeEffectGroups, completedEffectGroups, effectReadIssues, effectScanFinished } from '../../../shared/sanctumEffects.js'
-import { reuseSanctumEffects, effectMapKey } from './effectLedger.js'
-import { parseRunPanel } from './runObservation.js'
+import { emptyEffectGroups, mergeEffectGroups } from '../../../shared/sanctumEffects.js'
+import { decideSanctumEffects, effectMapKey, sanctumEffectScan } from './effectLedger.js'
+import { parseResourceRegions } from './runObservation.js'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { SanctumNativeClient } from './nativeClient.js'
 import { SanctumFramePipeline } from './framePipeline.js'
 import { sanctumLogFloor, SanctumLogContext } from './logContext.js'
-import { liveProfile, liveEnvironment, relicProfile, footprintUsable } from '../../../shared/sanctumLive.js'
+import { liveProfile, liveEnvironment, relicProfile, footprintUsable, RESOURCE_REGION_KEYS } from '../../../shared/sanctumLive.js'
 import { parseSanctumRelic } from './relicParser.js'
 import { resolveSanctumCatalogText, sanctumRule } from './catalog.js'
 import { recognizeRoomTexts } from './textRecognition.js'
@@ -59,7 +60,10 @@ export function parseSanctumRoomTexts(texts, catalog, currencyIcons = [], ocr = 
   const lines = (Array.isArray(texts) ? texts : []).filter(t => typeof t === 'string' && t.trim() && t.length <= 1000).slice(0,80)
   const recognition = recognizeRoomTexts(lines, catalog, ocr.ocrLines)
   recognition.blocks = ocr.ocrBlocks || []
-  const result = { rawText:lines.join('\n'), recognition, nameCandidates:[], rewards:[], effects:[], afflictions:[], rewardEvidence:[] }
+  const profile = recognizeRoomProfile([...(ocr.titleTexts || []), ...(recognition.titles || [])], ocr.floorId)
+  const result = { rawText:[...(ocr.titleTexts || []), ...lines].join('\n'), recognition,
+    ...profile, rewards:[], effects:[], afflictions:[], rewardEvidence:[] }
+  recognition.titleRegion = ocr.titleRegion
   const roomTypes = new Set(), gaps = []
   let structuredCount = 0
   // Structured values and icon offers remain usable even if the text catalog is unavailable.
@@ -124,8 +128,11 @@ export function parseSanctumRoomTexts(texts, catalog, currencyIcons = [], ocr = 
   result.readStages = {ocr:lines.length ? 'matched':'empty',parse:result.detailsStatus,...(icons.length ? {icons:'matched'} : {})}
   result.calculationStatus = result.effects.some(e=>e.status==='unknown') || gaps.length || rewardGap ? 'unsupported':'supported'
   result.knowledge = Object.fromEntries(['layout','type','rewards','afflictions','effects','recovery','recoveryCost'].map(field=>[field,{
-    status: field === 'rewards' && rewardGap ? 'failed' : !['layout','recoveryCost'].includes(field) && (result[field] !== undefined || result.detailsStatus === 'matched') ? 'known':'failed',source:'observed'
+    status: field === 'rewards' && rewardGap ? 'failed' : identified && !['layout','recoveryCost'].includes(field) && (result[field] !== undefined || result.detailsStatus === 'matched') ? 'known':'failed',source:'observed'
   }]))
+  for (const field of ['layout','traps','layoutPreferenceKey','roomProfile']) result.knowledge[field] = {
+    status: profile[field] !== undefined ? 'known' : 'failed', source:'observed'
+  }
   return result
 }
 
@@ -232,7 +239,7 @@ export class SanctumLiveDriver {
   titleOptions(profile) {
     const config = this.detection?.getTitleConfig()
     const kind = profile.regionId ? `sanctum-${profile.regionId}` : 'sanctum-map'
-    const templates = Object.fromEntries(Object.entries(config?.templates || {}).filter(([key]) => key === kind || !profile.regionId && ['sanctum-hud', 'sanctum-map-hud'].includes(key)))
+    const templates = Object.fromEntries(Object.entries(config?.templates || {}).filter(([key]) => key === kind || !profile.regionId && ['sanctum-map-hud', 'sanctum-map-entry'].includes(key)))
     if (!Object.keys(templates).length) throw new Error('请补充公共界面标题截图')
     const { captures, preview, ...runtime } = profile
     return { ...runtime, roomSample: captures?.roomSize?.png, interfaceKind: kind, interfaceTitles: templates, matchThreshold: config.threshold }
@@ -307,7 +314,7 @@ export class SanctumLiveDriver {
     signal.throwIfAborted()
     const started = performance.now()
     const stage = command === 'toggleMap' ? options.targetMode === 'effects' ? 'closing-map' : 'opening-map'
-      : command === 'inspectEffects' ? 'scanning-effects' : command === 'hoverEffect' ? 'capturing-effect' : 'checking-interface'
+      : command === 'readRunPanel' ? 'reading-resources' : command === 'inspectEffects' ? 'scanning-effects' : command === 'hoverEffect' ? 'capturing-effect' : 'checking-interface'
     const report = (outcome, reason) => {
       for (const listener of this.progressListeners) listener({ stage, diagnostic: { stage, outcome, reason,
         elapsedMs: Math.round(performance.now()-started), remainingMs: Math.max(0,SANCTUM_TIMEOUTS.capture-(performance.now()-started)) } })
@@ -339,23 +346,28 @@ export class SanctumLiveDriver {
   }
   async finalizeFloor(floor, signal, {captureSignal = signal, finishCapture = async () => {}, onTaskProgress = () => {}} = {}) {
     signal.throwIfAborted(); this.assertLog()
+    floor = {...floor, runObservation:await this.readCurrentResources(floor, signal, captureSignal)}
     const context = this.logContext.context
     const scope = JSON.stringify([context.sessionKey, context.processId, context.areaId, context.seed, floor.floorId, this.profile.environment])
     const key = scope + effectMapKey(floor)
-    const advanced = reuseSanctumEffects(this.effectLedger, floor, scope)
+    const decision = decideSanctumEffects(this.effectLedger, floor, scope, this.catalog)
+    const advanced = decision.snapshot
     if (advanced?.complete === true) {
       this.effectLedger = advanced
+      this.effectLedger.floor = structuredClone(floor)
+      this.correctionKey = key
+      if (advanced.updateMode === 'append') this.progress?.('已按完成房间加入明确痛苦，无需重读状态栏')
+      else if (advanced.updateMode === 'reuse') this.progress?.('已完成房间没有不确定效果变化，沿用当前状态')
     } else if (this.correctionKey !== key) {
       this.correctionKey = key
-      this.effectLedger = { scope, floor: structuredClone(floor), effects: [{ status: 'unknown', rawText: '当前效果尚未完整确认' }], complete: false, groups: emptyEffectGroups() }
-      this.progress?.('正在读取当前位置的实际效果')
+      this.effectLedger = { scope, floor: structuredClone(floor), effects: [{ status: 'unknown', rawText: '当前效果尚未完整确认' }], complete: false, groups: emptyEffectGroups(),scanReason:decision.reason }
+      this.progress?.(`正在读取当前位置的实际效果：${decision.reason}`)
       const initial = await this.sessionRequest('interfaceState', {}, captureSignal)
       const layout = initial.hudLayout
       const embedded = layout === 'map'
       const regionKey = embedded ? 'mapEffectIconsRegion' : 'effectIconsRegion'
-      const titleKey = embedded ? 'sanctum-map-hud' : 'sanctum-hud'
-      if (!this.profile.interfaceTitles[titleKey] || !this.profile[regionKey]) {
-        const reason = embedded ? '请补充地图内状态栏识别与效果图标校准' : '请补充独立状态栏识别与效果图标校准'
+      if ((embedded && !this.profile.interfaceTitles['sanctum-map-hud']) || !this.profile[regionKey]) {
+        const reason = embedded ? '请补充地图内状态栏识别与效果图标校准' : '请补充独立状态栏效果图标校准'
         this.effectLedger.groups = emptyEffectGroups(reason)
         this.effectLedger.reason = reason
         return this.withEffects(floor)
@@ -370,6 +382,7 @@ export class SanctumLiveDriver {
       }
       try {
         if (!embedded && initial.mapOpen) { this.progress?.('正在关闭地图，读取独立状态栏'); await this.switchMode('effects', captureSignal) }
+        if (!embedded) floor.runObservation = await this.readCurrentResources(floor, signal, captureSignal)
         this.progress?.('正在确认状态栏和效果入口')
         scan = await this.sessionRequest('inspectEffects', scanOptions, captureSignal)
         onTaskProgress({kind:'targets',total:scan.icons.length})
@@ -405,11 +418,13 @@ export class SanctumLiveDriver {
             return this.recognizeCaptured(value,signal,false,{onReading:()=>{target.stage='reading';reportEffect(targetId)}})
           }).then(read => {
             signal.throwIfAborted(); this.assertLog()
-            const {effectGroup,rewardGroup,classificationComplete}=parseStatusTooltip({...read,targetId,iconIndex:index+1,evidenceId:context.evidenceId},this.catalog)
+            const {effectGroup,originalEffectGroup,memoryHits,rewardGroup,classificationComplete}=parseStatusTooltip({...read,targetId,iconIndex:index+1,evidenceId:context.evidenceId},this.catalog,this.effectCorrectionMemory)
             if (effectGroup) groups.push(effectGroup)
             if (rewardGroup) rewardGroups.push({...rewardGroup,targetId,evidenceId:context.evidenceId})
             const complete = (!effectGroup || effectGroup.complete) && (!rewardGroup || rewardGroup.complete)
             Object.assign(target,{stage:complete && !context.evidenceError?'matched':'failed',classificationComplete,
+              readStatus:read.status,effectGroup:originalEffectGroup ? structuredClone(originalEffectGroup):null,captureIssue:context.evidenceError || null,
+              rememberedGroup:effectGroup ? structuredClone(effectGroup):null,memoryHits,memoryRevision:this.effectCorrectionMemory?.revision || 0,
               contentKind:rewardGroup ? effectGroup ? 'mixed':'reward':'effect',
               texts:read.texts,entries:effectGroup?.entries || [],reason:[effectGroup?.reason,rewardGroup?.reason].filter(Boolean).join('；') || null,region:read.region || null})
             if (context.evidenceError) { target.reason=context.evidenceError; target.classificationComplete=false }
@@ -482,19 +497,14 @@ export class SanctumLiveDriver {
 
       signal.throwIfAborted(); this.assertLog()
       this.effectLedger = { scope, floor: structuredClone(floor), effects, complete, finished:true,reason:scan?.reason,groups: categorized, targets,
-        rewardGroups, effectsComplete, classificationComplete, coverageConfirmed:scan?.coverageConfirmed === true, binding:observationKey(floor) }
+        rewardGroups, effectsComplete, classificationComplete, coverageConfirmed:scan?.coverageConfirmed === true, binding:observationKey(floor),scanReason:decision.reason }
       this.correctionKey = key
     }
     return this.withEffects(floor)
   }
   withEffects(floor) {
     this.currentEffects = structuredClone(this.effectLedger?.effects || [{ status: 'unknown', rawText: '当前效果尚未确认' }])
-    this.effectScan = { complete: this.effectLedger?.complete === true, finished:effectScanFinished(this.effectLedger),reason:this.effectLedger?.reason,
-      groups: completedEffectGroups(this.effectLedger?.groups, effectScanFinished(this.effectLedger)), targets: this.effectLedger?.targets || [],
-      rewardGroups:this.effectLedger?.rewardGroups || [], effectsComplete:this.effectLedger?.effectsComplete === true,
-      classificationComplete:this.effectLedger?.classificationComplete === true, coverageConfirmed:this.effectLedger?.coverageConfirmed === true,
-      binding:this.effectLedger?.binding }
-    this.effectScan.issues = effectReadIssues(this.effectScan)
+    this.effectScan = sanctumEffectScan(this.effectLedger)
     return { ...floor, currentEffects: structuredClone(this.currentEffects), effectScan: structuredClone(this.effectScan) }
   }
   async scanRelics(value, signal, lock, progress = () => {}) {
@@ -560,23 +570,47 @@ export class SanctumLiveDriver {
     } catch (error) { throw sanctumError('CONTEXT_CHANGED',error.message) }
   }
   async readRunPanel(profile, floor, kind, signal) {
-    const valid = liveProfile(profile), regionKey = kind === 'resources' ? 'resourcesRegion' : 'rewardPanelRegion'
-    const titleKey = kind === 'resources' ? 'sanctum-map' : 'sanctum-rewards'
+    if (kind !== 'resources') throw new Error('奖励请通过状态栏悬停采集')
+    const valid = liveProfile(profile), titleKey = 'sanctum-map'
     const titles = this.detection?.getTitleConfig()
-    if (!valid[regionKey] || !titles?.templates?.[titleKey]) throw new Error('请先校准实际状态范围和对应标题')
+    if (!RESOURCE_REGION_KEYS.some(key => valid[key]) || !titles?.templates?.[titleKey]) throw new Error('请先框选资源区域并校准地图标题')
     await this.open()
     try {
       const initial = await this.awaitGame(signal)
       if (JSON.stringify(liveEnvironment(initial.environment)) !== JSON.stringify(valid.environment)) throw new Error('窗口或 DPI 与校准不符')
       this.logContext = new SanctumLogContext(this.clientEvents, initial.environment.processId, error => this.client?.abort?.(error))
       if (!floor.logContextKey || floor.logContextKey !== this.logContext.key) throw new Error('地图记录与当前游戏区域不一致，请先重新采集地图')
-      this.profile = { ...valid, panelRegion: valid[regionKey], interfaceKind:titleKey, interfaceTitles:titles.templates, matchThreshold:titles.threshold }
+      this.profile = { ...valid, interfaceKind:titleKey, interfaceTitles:Object.fromEntries(Object.entries(titles.templates).filter(([key]) => key !== 'sanctum-hud')), matchThreshold:titles.threshold }
       await this.client.request('arm', initial, {signal})
-      const captured = await this.sessionRequest('readRunPanel', {}, signal)
-      const read = await this.recognizeCaptured(captured, signal, kind === 'rewards')
-      this.assertLog(); signal.throwIfAborted()
-      return { ...parseRunPanel(read.texts, floor, kind, this.catalog, read.currencyIcons || []), rawText:(read.texts || []).join('\n') }
+      return await this.readCurrentResources(floor, signal)
     } finally { await this.close() }
+  }
+  async readCurrentResources(floor, signal, captureSignal = signal) {
+    if (!floor?.identityConfirmed || !floor.currentRoomId && !floor.initialSelection) return null
+    const empty = parseResourceRegions({}, floor)
+    if (!RESOURCE_REGION_KEYS.some(key => this.profile?.[key])) return empty
+    try {
+      const captured = await this.sessionRequest('readRunPanel', {}, captureSignal)
+      const reads = {}
+      for (const key of RESOURCE_REGION_KEYS) {
+        const value = captured.regions?.[key]
+        if (!value) continue
+        try { reads[key] = await this.recognizeCaptured(value, signal, false, {resources:true}) }
+        catch (error) {
+          signal.throwIfAborted(); captureSignal.throwIfAborted(); this.assertLog()
+          if (isSafetyError(error)) throw error
+          reads[key] = {texts:[],reason:error.message}
+        }
+      }
+      this.assertLog(); signal.throwIfAborted(); captureSignal.throwIfAborted()
+      return {...parseResourceRegions(reads, floor), layout:captured.resourceLayout,
+        rawText:RESOURCE_REGION_KEYS.filter(key=>reads[key]).map(key=>`${key}: ${(reads[key].texts || []).join(' / ')}`).join('\n')}
+    } catch (error) {
+      signal.throwIfAborted(); captureSignal.throwIfAborted(); this.assertLog()
+      if (isSafetyError(error)) throw error
+      for (const listener of this.progressListeners) listener({diagnostic:{stage:'resources',outcome:'failed',reason:error.message}})
+      return {...empty,reason:error.message}
+    }
   }
   async observe(signal) {
     const identity = this.assertLog()
@@ -602,9 +636,11 @@ export class SanctumLiveDriver {
     if (this.positionOverride && data.floor.rooms.some(room => room.id === this.positionOverride.id)) {
       Object.assign(data.floor, { currentRoomId: this.positionOverride.id, positionSource: 'manual', positionStatus: 'confirmed', initialSelection: false })
     }
-    const cached = reuseSanctumEffects(this.effectLedger, data.floor, this.effectScope())
+    const decision = decideSanctumEffects(this.effectLedger, data.floor, this.effectScope(), this.catalog)
+    const cached = decision.snapshot
     data.floor.currentEffects = structuredClone(cached?.effects || [{ status: 'unknown', rawText: '当前位置实际效果尚未识别' }])
-    data.floor.effectScan = { complete: cached?.complete === true, groups: cached?.groups || emptyEffectGroups() }
+    data.floor.effectScan = sanctumEffectScan(cached)
+    if (!cached) data.floor.effectScan.scanReason = decision.reason
     this.latest = { ...data, overlayExcluded: true }
     return this.latest
   }
@@ -688,11 +724,12 @@ export class SanctumLiveDriver {
       options.onReading?.()
       const {width,height} = data.region, started = performance.now()
       const read = await this.ocrClient.request('readFrozen', {png:data.png,region:{x:0,y:0,width,height},
-        includeIcons,room:options.room ?? includeIcons,iconsOnly:options.iconsOnly === true}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+        includeIcons,room:options.room ?? includeIcons,iconsOnly:options.iconsOnly === true,resources:options.resources === true}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
       signal.throwIfAborted(); this.assertLog()
       const offset = region => region ? {...region,x:region.x+data.region.x,y:region.y+data.region.y} : null
       return {...data,...read,png:undefined,region:data.region,status:data.status,
-        bodyRegion:offset(read.bodyRegion),
+        bodyRegion:offset(read.bodyRegion),titleRegion:offset(read.titleRegion),
+        resourceEvidence:read.resourceEvidence ? {...read.resourceEvidence,coinRegion:offset(read.resourceEvidence.coinRegion),resolvePanel:offset(read.resourceEvidence.resolvePanel)} : undefined,
         ocrBlocks:(read.ocrBlocks || []).map(b=>({...b,region:offset(b.region)})),
         ocrLines:(read.ocrLines || []).map(b=>({...b,region:offset(b.region)})),
         currencyIcons:(read.currencyIcons || []).map(b=>({...b,region:offset(b.region)})),
@@ -722,7 +759,7 @@ export class SanctumLiveDriver {
     let textRead, textPatch, frozenData
     const parse = read => {
       const started = performance.now()
-      const patch = parseSanctumRoomTexts(read.texts,this.catalog,read.currencyIcons,read)
+      const patch = parseSanctumRoomTexts(read.texts,this.catalog,read.currencyIcons,{...read,floorId:context.floorId})
       patch.recognition = {...patch.recognition,evidenceId:context.evidenceId,region:read.region || null,bodyRegion:read.bodyRegion}
       patch.tooltipRegion = read.bodyRegion || read.region
       patch.captureMetrics = {...read.captureMetrics,parseMs:performance.now()-started}

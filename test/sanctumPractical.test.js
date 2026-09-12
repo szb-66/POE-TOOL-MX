@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createSanctumStrategy, validateSanctumStrategy } from '../shared/sanctum.js'
 import { planSanctumFloor } from '../electron/modules/sanctum/planner.js'
 import { reuseSanctumEffects } from '../electron/modules/sanctum/effectLedger.js'
-import { validateRunResources, validateRewardLedger, hourAdvice, parseRunPanel, observationKey } from '../electron/modules/sanctum/runObservation.js'
+import { validateRunResources, validateRewardLedger, hourAdvice, parseResourceRegions, observationKey } from '../electron/modules/sanctum/runObservation.js'
 import { parseSanctumRoomTexts } from '../electron/modules/sanctum/liveDriver.js'
 import { parseSanctumCurrentEffects } from '../electron/modules/sanctum/liveDriver.js'
 import { SanctumService } from '../electron/modules/sanctum/service.js'
@@ -90,17 +90,17 @@ test('神圣之刻只认实际装备；不同待领奖励最多复制两项，�
   const saved=structuredClone(ledger);plan(f,undefined,[],{altar,rewardLedger:ledger});assert.deepEqual(ledger,saved)
   assert.throws(()=>validateRewardLedger({...input,items:[input.items[1],input.items[1]]},f),/重复/)
 })
-test('名称不再推断战斗布局，扩展通货保留图标未知数量',()=>{
+test('缺少楼层上下文时名称不推断玩法，扩展通货保留图标未知数量',()=>{
   const value=parseSanctumRoomTexts(['废弃图书馆','完成本轮时获得 1 无常瓦尔宝珠'],catalog,[{currency:'神圣石',confidence:1}])
   assert.equal(value.layout,undefined)
   assert.equal(value.rewards.find(x=>x.currency==='无常瓦尔宝珠').quantity,1)
   assert.equal(value.rewards.find(x=>x.currency==='神圣石').quantity,null)
 })
 test('读取资源缺失不会复活旧值，账本不完整仍允许普通选路',()=>{
-  const f=map(),resources=parseRunPanel(['坚毅 30 / 300','启迪：12'],f,'resources')
+  const f=map(),resources=parseResourceRegions({mapResourcesRegion:{texts:['坚毅 30 / 300','启迪：12']}},f)
   assert.equal(resources.resolve,30);assert.equal(resources.coins,null)
   assert.equal(resources.key,observationKey(f))
-  assert.equal(parseRunPanel(['耀金币：10','耀金币：20'],f,'resources').coins,null)
+  assert.equal(parseResourceRegions({coinsRegion:{texts:['10','20']}},f).coins,null)
   const result=plan(f,undefined,[],{rewardLedger:{complete:false}})
   assert.ok(result.paths.length)
 })
@@ -183,18 +183,20 @@ s=NativeSession.__new__(NativeSession)
 s.expected=None
 s.image=lambda:(np.zeros((200,300,3),np.uint8),{'environment':{'width':300,'height':200}})
 s.match_title=lambda *args:True
-options={'panelRegion':{'x':10,'y':20,'width':50,'height':30}}
+options={'coinsRegion':{'x':10,'y':20,'width':50,'height':30}}
 rejected=[]
 try:s.dispatch('readRunPanel',options)
 except NativeError:rejected.append('unarmed')
 s.expected={}
 value=s.dispatch('readRunPanel',options)
-image=cv2.imdecode(np.frombuffer(base64.b64decode(value['png']),np.uint8),cv2.IMREAD_COLOR)
+image=cv2.imdecode(np.frombuffer(base64.b64decode(value['regions']['coinsRegion']['png']),np.uint8),cv2.IMREAD_COLOR)
 s.match_title=lambda *args:False
 try:s.dispatch('readRunPanel',options)
 except NativeError:rejected.append('title')
 s.match_title=lambda *args:True
-try:s.dispatch('readRunPanel',{'panelRegion':{'x':299,'y':0,'width':10,'height':10}})
+try:
+ value=s.dispatch('readRunPanel',{'coinsRegion':{'x':299,'y':0,'width':10,'height':10}})
+ if value['regions']['coinsRegion']['status']=='unknown':rejected.append('bounds')
 except NativeError:rejected.append('bounds')
 print(json.dumps({'shape':list(image.shape),'rejected':rejected}))
 `)

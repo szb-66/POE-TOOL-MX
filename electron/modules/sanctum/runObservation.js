@@ -82,35 +82,46 @@ export function hourAdvice(altar, ledger, floor) {
     reason:eligible.length>2?'符合条件的待领取奖励超过两项，有稀释高价值奖励复制机会的风险；新增奖励应按价值取舍':`当前有 ${eligible.length} 项符合条件的待领取奖励，最多复制 ${Math.min(2,eligible.length)} 个不同奖励项`}
 }
 
-// Strict label/value parsing. Missing fields stay null; no prior observation is
-// merged into a supposedly complete screenshot. Reward rows require explicit
-// state labels; a currency icon cannot establish a selected or claimed reward.
-export function parseRunPanel(texts, floor, kind, catalog = {entries:[]}, icons = []) {
-  const lines=Array.isArray(texts)?texts.filter(x=>typeof x==='string').slice(0,300):[]
-  if (kind==='resources') {
-    const input={}
-    const seen=new Set(),conflicts=new Set()
-    const record=(key,value)=>{if(seen.has(key)&&input[key]!==value)conflicts.add(key);seen.add(key);input[key]=value}
-    const labels={坚毅:'resolve',最大坚毅:'maxResolve',启迪:'inspiration',耀金币:'coins'}
-    for(const line of lines) {
-      const pair=/^坚毅\s*[:：]?\s*(\d+)\s*\/\s*(\d+)$/.exec(line.trim())
-      if (pair) {record('resolve',Number(pair[1]));record('maxResolve',Number(pair[2]));continue}
-      const match=/^(最大坚毅|坚毅|启迪|耀金币)\s*[:：]?\s*(\d+)$/.exec(line.trim())
-      if(match) record(labels[match[1]],Number(match[2]))
+// Labels follow the values as the HUD changes layout; bare HUD counters are not resources.
+export function parseResourceRegions(reads, floor) {
+  const input = {}, issues = []
+  const compact = text => text.replace(/\s/g, '').replaceAll('啟迪','启迪')
+  const numeric = value => Number(value.replace(/[,，]/g, ''))
+  const unique = values => values.length && values.every(v => JSON.stringify(v) === JSON.stringify(values[0])) ? values[0] : null
+  for (const key of ['coinsRegion','mapResourcesRegion','hudResourcesRegion']) {
+    const read = reads?.[key]
+    if (!read || read.reason || read.status && read.status !== 'located') {
+      if (read?.reason) issues.push(read.reason)
+      continue
     }
-    for(const key of conflicts) input[key]=null
-    return validateRunResources(input,floor,'observed')
-  }
-  const items=[]
-  for(const [index,line] of lines.entries()) {
-    const match=/^(候选|已选未领|已领取)\s*[:：]\s*(.+?)\s*[x×]\s*(\d+)\s*[（(](立即|本层|本轮)[）)]$/.exec(line.trim())
-    if(match) items.push({id:`observed:${index}`,currency:match[2],quantity:Number(match[3]),state:{候选:'candidate',已选未领:'pending',已领取:'claimed'}[match[1]],timing:{立即:'immediate',本层:'floor',本轮:'run'}[match[4]],eligible:false})
-    else {
-      const plain=/^(.+?)\s*[x×]\s*(\d+)$/.exec(line.trim())
-      if(plain && catalog.entries.some(e=>e.kind==='reward' && e.name===plain[1].trim())) items.push({id:`observed:${index}`,currency:plain[1].trim(),quantity:Number(plain[2]),state:'candidate',timing:'unknown',eligible:false})
+    const lines = read.ocrLines?.length ? read.ocrLines : (read.texts || []).map(text => ({text}))
+    if (key !== 'coinsRegion') {
+      const resolveLines = lines.filter(line => /坚毅/.test(line.text))
+      const values = resolveLines.map(line => /^坚毅[:：]?(\d+)\/(\d+)$/.exec(compact(line.text)))
+      const resolved = values.length && values.every(Boolean) ? unique(values.map(m=>[Number(m[1]),Number(m[2])])) : null
+      if (resolved && resolved[0] <= resolved[1] && resolved[1] <= 1e9) [input.resolve,input.maxResolve] = resolved
+      const inspirationLines = lines.filter(line => /启|啟/.test(line.text))
+      const inspiration = inspirationLines.map(line => /^启迪[:：]?(\d+)$/.exec(compact(line.text)))
+      const inspired = inspiration.length && inspiration.every(Boolean) ? unique(inspiration.map(m=>Number(m[1]))) : null
+      if (inspired !== null && inspired <= 1e9) input.inspiration = inspired
+      else if (!inspirationLines.length && resolved && input.resolve !== undefined && read.resourceEvidence?.noInspiration === true) input.inspiration = 0
     }
+    if (key === 'mapResourcesRegion') continue
+    const icon = read.resourceEvidence?.coinRegion
+    if (!icon) continue
+    // Use blocks to isolate the coin row even when OCR grouped distant labels together.
+    const blocks = (read.ocrBlocks?.length ? read.ocrBlocks : lines).filter(line => {
+      const r = line.region
+      return r && r.x >= icon.x + icon.width*.75 && r.x < icon.x+icon.width*14
+        && Math.abs(r.y+r.height/2-(icon.y+icon.height/2)) < Math.max(r.height,icon.height)*.55
+    }).sort((a,b)=>a.region.x-b.region.x)
+    if (blocks.some(b=>/\d\s+\d/.test(b.text)) || blocks.filter(b=>/^\d+$/.test(compact(b.text))).length > 1
+      || blocks.some((b,i)=>i && b.region.x-(blocks[i-1].region.x+blocks[i-1].region.width)>b.region.height)) continue
+    const text = compact(blocks.map(b=>b.text).join(''))
+    const match = /^(?:耀金币[:：]?)?(\d+|\d{1,3}(?:[,，]\d{3})+)(?:[（(][+＋-]?\d+[）)])?$/.exec(text)
+    if (match && numeric(match[1]) <= 1e9) input.coins = numeric(match[1])
   }
-  for(const [index,icon] of icons.entries()) if(icon.confidence >= .94 && typeof icon.currency==='string' && !items.some(item=>item.currency===icon.currency)) items.push({id:`icon:${index}`,currency:icon.currency,quantity:null,state:'candidate',timing:'unknown',eligible:false})
-  // Scrolled/clipped panels cannot establish ledger completeness or eligibility.
-  return validateRewardLedger({items,complete:false},floor,'observed')
+  const result = validateRunResources(input, floor, 'observed')
+  const missing = ['coins','resolve','maxResolve','inspiration'].filter(key => result[key] === null)
+  return {...result, ...(issues.length || missing.length ? {reason:[...new Set(issues), ...(missing.length ? ['部分资源未配置或未能可靠识别'] : [])].join('；')} : {})}
 }

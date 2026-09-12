@@ -119,12 +119,14 @@ def effect_panels(image, target):
     return unique
 
 
-def changed_panel_boundary(baseline, image, region):
+def changed_panel_boundary(baseline, image, region, darkened=None):
     """Require a complete panel boundary plus evidence of a new tooltip.
 
     Text/ornaments can interrupt an edge. Compare bands instead of requiring
     individual pixels to be black; an internal contour has no new outer edge.
     Screen edges remain partial candidates, never evidence of completeness.
+    With the darkening mask, translucent low-contrast edges may miss both band
+    tests; the coverage step at the rectangle boundary then carries the side.
     """
     height, width = image.shape[:2]
     x, y, w, h = (region[k] for k in ('x', 'y', 'width', 'height'))
@@ -151,11 +153,56 @@ def changed_panel_boundary(baseline, image, region):
         return [[float(np.mean(side > 8)) for side in axis] for axis in (horizontal, vertical)]
     edges = edge_support(-after)
     changes = edge_support(before-after)
+    steps = [[], []]
+    if darkened is not None:
+        band = max(4, gap*2)
+        # darkened keeps full-frame coordinates while x, y are crop-relative.
+        rowcov = np.mean(darkened[top:bottom, left+x:left+x+w], axis=1)
+        colcov = np.mean(darkened[top+y:top+y+h, left:right], axis=0)
+        def step(inner, outer):
+            if inner.size == 0 or outer.size == 0:
+                return 0.0
+            return 1.0 if np.mean(inner) >= .5 and np.mean(outer) < .45 else 0.0
+        if y >= gap*2:
+            steps[0].append(step(rowcov[y:y+band], rowcov[max(0,y-band):y]))
+        if y+h+gap*2 <= rowcov.shape[0]:
+            steps[0].append(step(rowcov[max(0,y+h-band):y+h], rowcov[y+h:y+h+band]))
+        if x >= gap*2:
+            steps[1].append(step(colcov[x:x+band], colcov[max(0,x-band):x]))
+        if x+w+gap*2 <= colcov.shape[0]:
+            steps[1].append(step(colcov[max(0,x+w-band):x+w], colcov[x+w:x+w+band]))
     # Consecutive tooltips can share a bottom or side with the baseline tooltip.
     # Require a new horizontal AND vertical edge, not four newly changed sides.
-    return (all(axis and all(max(edge, change) >= .65 for edge, change in zip(axis, changed))
-                for axis, changed in zip(edges, changes))
-            and all(axis and max(axis) >= .3 for axis in changes))
+    # A coverage step proves the same freshness where band contrasts fade.
+    return (all(axis and all(max(edge, change, step) >= .65 for edge, change, step in zip(axis, changed, stepped))
+                for axis, changed, stepped in ((edges[0], changes[0], steps[0]), (edges[1], changes[1], steps[1])))
+            and all(axis and max(axis) >= .3 for axis in (changes[0]+steps[0], changes[1]+steps[1])))
+
+
+def darkened_core(darkened, x, y, w, h, tx=None, width=None):
+    """Trim a darkening blob to its solid rectangle: the tooltip body.
+
+    Scene changes between the frozen baseline and the hover frame can chain
+    into one component. Row coverage is measured in the column band above the
+    hovered icon, where the panel must live; chained noise outside the band
+    or below half coverage never keeps a row. Text holes never drop an inner
+    row below the thresholds, so only outer rows are trimmed away.
+    """
+    for _ in range(2):
+        lo = max(x, int(tx-width*.12)) if tx is not None and width else x
+        hi = min(x+w, int(tx+width*.12)+1) if tx is not None and width else x+w
+        if hi > lo:
+            rows = np.mean(darkened[y:y+h, lo:hi], axis=1)
+            keep = np.flatnonzero(rows >= .45)
+            if not len(keep):
+                break
+            y, h = y+int(keep[0]), int(keep[-1])-int(keep[0])+1
+        cols = np.mean(darkened[y:y+h, x:x+w], axis=0)
+        keep = np.flatnonzero(cols >= .55)
+        if not len(keep):
+            break
+        x, w = x+int(keep[0]), int(keep[-1])-int(keep[0])+1
+    return x, y, w, h
 
 
 def locate_tooltip(baseline, image, target, header_only=False, plain=False):
@@ -182,11 +229,16 @@ def locate_tooltip(baseline, image, target, header_only=False, plain=False):
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
     contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     height, width = gray.shape
+    darkened = None
     if plain:
-        # Static dark cards can attach to the tooltip's black contour. Recover
-        # the newly darkened body as well, bridging text holes horizontally.
+        # Static dark cards can attach to the tooltip's black contour, and in
+        # dark rooms the whole frame is one dark blob. Darkening against the
+        # frozen baseline is the only scene-independent signal; a rectangle
+        # belongs to the new panel when it is solidly darkened, whatever the
+        # component outline looks like.
         before = cv2.cvtColor(baseline, cv2.COLOR_BGR2GRAY).astype(np.int16)
-        changed = np.uint8(before-gray.astype(np.int16) > 8)*255
+        darkened = before-gray.astype(np.int16) > 6
+        changed = np.uint8(darkened)*255
         changed = cv2.morphologyEx(changed, cv2.MORPH_CLOSE,
                                   np.ones((5,max(15,round(width*.02)) | 1),np.uint8))
         new_contours, _ = cv2.findContours(changed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -197,16 +249,22 @@ def locate_tooltip(baseline, image, target, header_only=False, plain=False):
         x, y, w, h = cv2.boundingRect(contour)
         if w < max(80, width * .06) or h < 35 or w > width * .85 or h > height * .95:
             continue
-        if cv2.contourArea(contour) / (w * h) < .72:
+        if plain:
+            x, y, w, h = darkened_core(darkened, x, y, w, h, tx, width)
+            if w < max(80, width * .06) or h < 35 or w > width * .85 or h > height * .95:
+                continue
+            if np.mean(darkened[y:y+h, x:x+w]) < .5:
+                continue
+        elif cv2.contourArea(contour) / (w * h) < .72:
             continue
         if not x - w * .25 <= tx <= x + w * 1.25:
             continue
         if min(abs(ty - y), abs(ty - y - h)) > max(100, height * .18):
             continue
-        if np.mean(delta[y:y+h, x:x+w]) < .18:
+        if not plain and np.mean(delta[y:y+h, x:x+w]) < .18:
             continue
         rect = {'x': x, 'y': y, 'width': w, 'height': h}
-        if plain and not changed_panel_boundary(baseline, image, rect):
+        if plain and not changed_panel_boundary(baseline, image, rect, darkened):
             continue
         if not any(abs(x-r['x']) < 8 and abs(y-r['y']) < 8
                    and abs(w-r['width']) < 16 and abs(h-r['height']) < 16 for r in candidates):

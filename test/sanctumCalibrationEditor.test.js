@@ -59,6 +59,25 @@ test('公共标题独立保存和清除，不复制进圣所区域配置', async
   assert.ok(f.titles['sanctum-altar'])
 })
 
+test('三个资源选区独立保存清除，重新框选取消不影响已有资源', async () => {
+  const f = fixture()
+  for (const [index, key] of ['coinsRegion','mapResourcesRegion','hudResourcesRegion'].entries()) {
+    f.rect({left:-1800+index*100,top:100,right:-1750+index*100,bottom:125})
+    await f.editor.capture(key)
+  }
+  const before = structuredClone(f.service.state.liveCalibration)
+  assert.equal(before.version,6)
+  assert.deepEqual([before.coinsRegion.x,before.mapResourcesRegion.x,before.hudResourcesRegion.x],[120,220,320])
+  f.cancel()
+  await f.editor.capture('coinsRegion')
+  assert.deepEqual(f.service.state.liveCalibration,before)
+  await f.editor.clear('mapResourcesRegion')
+  assert.equal(f.service.state.liveCalibration.mapResourcesRegion,undefined)
+  assert.equal(f.service.state.liveCalibration.captures.mapResourcesRegion,undefined)
+  assert.deepEqual(f.service.state.liveCalibration.coinsRegion,before.coinsRegion)
+  assert.deepEqual(f.service.state.liveCalibration.hudResourcesRegion,before.hudResourcesRegion)
+})
+
 test('网格三态、样本点击独立，编辑保留历史并撤销确认；重框重置', async () => {
   const f = fixture()
   await f.editor.capture('altar', { columns: 5, rows: 4 })

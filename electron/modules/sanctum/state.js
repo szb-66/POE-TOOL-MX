@@ -1,6 +1,6 @@
 import { emptySanctumState } from '../../../shared/sanctum.js'
 import { planSanctumFloor } from './planner.js'
-import { syncStatusRewards } from './runObservation.js'
+import { syncStatusRewards, currentRunObservation } from './runObservation.js'
 
 export function acceptSanctumFloor(state, snapshot) {
   const next = structuredClone(state)
@@ -38,6 +38,7 @@ export function acceptSanctumFloor(state, snapshot) {
   // because a detected ordinal happens to equal one from an earlier screenshot.
   next.currentEffects = structuredClone(snapshot.currentEffects || [])
   next.rewardLedger = syncStatusRewards(next.rewardLedger, snapshot)
+  if (Object.hasOwn(snapshot, 'runObservation')) next.runObservation = structuredClone(currentRunObservation(snapshot.runObservation, snapshot))
   const equippedEffects = next.altar.confirmed ? next.altar.items.flatMap(item => (item.effects || []).map(e=>({...e,source:'relic',unique:item.unique}))) : []
   next.recommendation = planSanctumFloor(next.floor, next.strategy, next.marks, [...next.currentEffects, ...equippedEffects], {altar:next.altar,runObservation:next.runObservation,rewardLedger:next.rewardLedger})
   next.status = next.recommendation.status
@@ -47,7 +48,7 @@ export function acceptSanctumFloor(state, snapshot) {
 
 export function resetSanctumRun(state) {
   const next = emptySanctumState()
-  for (const key of ['enabled', 'inventory', 'strategy', 'calibration', 'liveCalibration', 'relicCalibrations', 'altar', 'loadoutPreferences', 'controlOverlayBounds']) next[key] = structuredClone(state[key])
+  for (const key of ['enabled', 'inventory', 'strategy', 'calibration', 'liveCalibration', 'relicCalibrations', 'altar', 'loadoutPreferences', 'controlOverlayBounds', 'effectCorrectionMemory']) next[key] = structuredClone(state[key])
   next.altar.confirmed = false
   return next
 }

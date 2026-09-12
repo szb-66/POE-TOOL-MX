@@ -66,3 +66,19 @@ def match_title(gray, entry, environment, threshold, anchored, origin=(0, 0)):
     if score >= threshold:
         return {'score': score, 'region': {'x': point[0], 'y': point[1], 'width': w, 'height': h}}
     return None
+
+
+def unique_title(image, entry, environment, threshold=.8):
+    """Full-client search for an input target, rejecting a second distinct match."""
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+    match = match_title(gray, entry, environment, threshold, False)
+    if not match:
+        raise ValueError('未找到禁域地图入口，请确认入口可见且校准环境一致')
+    template = decoded_title(entry['png'])
+    title_region(entry, template)
+    scores = cv2.matchTemplate(gray, template, cv2.TM_CCOEFF_NORMED)
+    r = match['region']; x,y,w,h = (r[k] for k in ('x','y','width','height'))
+    scores[max(0,y-h//2):y+h//2+1,max(0,x-w//2):x+w//2+1] = -1
+    if cv2.minMaxLoc(scores)[1] >= threshold:
+        raise ValueError('禁域地图入口匹配不唯一，未点击')
+    return r

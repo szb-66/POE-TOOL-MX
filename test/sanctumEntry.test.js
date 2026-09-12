@@ -77,7 +77,7 @@ test('圣所浮窗拖动独立持久化、重启恢复、截图隐藏及调用�
   assert.equal(restored.ensureWindow().getBounds().x, original.x - 100)
 })
 
-test('原生两种状态栏只接受各自校准位置，地图与状态独立可见', () => {
+test('地图内状态栏要求校准位置，地图关闭无需独立锚点', () => {
   const result = runPython(`
 import sys,json,numpy as np
 sys.path.insert(0,'src/assets/scripts')
@@ -86,11 +86,14 @@ s=n.NativeSession.__new__(n.NativeSession)
 s.image=lambda:(np.zeros((10,10,3),np.uint8),{'environment':{}})
 options={'interfaceTitles':{'sanctum-map-hud':{'region':{'x':100,'y':200}},'sanctum-hud':{'region':{'x':500,'y':600}}}}
 out=[]
-for opened,x,y in [(True,100,200),(False,500,600),(True,500,600)]:
+for opened,x,y in [(True,100,200),(False,500,600),(True,500,600),(False,0,0)]:
     key='sanctum-map-hud' if opened else 'sanctum-hud'
     n.match_titles=lambda *a,**kw: {**({'sanctum-map':{'matched':True}} if opened else {}),key:{'region':{'x':x,'y':y}}}
+    if not opened:
+        options['interfaceTitles'].pop('sanctum-hud',None)
+        n.match_titles=lambda *a,**kw: {}
     state=s.interface_state(options);out.append([state['mapOpen'],state['hudVisible'],state['hudLayout']])
 print(json.dumps(out))
 `)
-  assert.deepEqual(result, [[true, true, 'map'], [false, true, 'standalone'], [true, false, null]])
+  assert.deepEqual(result, [[true, true, 'map'], [false, true, 'standalone'], [true, false, null], [false, true, 'standalone']])
 })

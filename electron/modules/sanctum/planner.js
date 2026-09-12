@@ -89,7 +89,7 @@ export function planSanctumFloor(floor, strategy = createSanctumStrategy(), mark
     const { id, ids, parts, effects: inheritedEffects, evaluationState } = stack.pop()
     const original = rooms.get(id), observed = knownRoom(original, floor, applySanctumEffects(inheritedEffects), ['rewards', 'afflictions'])
     const room = {...original, ...observed}
-    for (const field of ['afflictions','effects','rewards','recovery','relicScore','type']) if (observed.knowledge[field] !== 'known') delete room[field]
+    for (const field of ['afflictions','effects','rewards','recovery','relicScore','type','layout','traps','layoutPreferenceKey','roomProfile']) if (observed.knowledge[field] !== 'known') delete room[field]
     if (id !== start && (avoid.has(id) || (room.afflictions || []).some(a => banned.has(a.id)))) continue
     const updatedIds = [...ids, id]
     // Afflictions acquired upon entry affect the current room and subsequent rooms.

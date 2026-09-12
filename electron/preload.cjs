@@ -443,7 +443,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('client-events-snapshot', listener)
   },
   getMapTrackerStatus: (options) => ipcRenderer.invoke('map-tracker:status', options),
-  sanctum: Object.fromEntries(['rescanEffects', 'correctRunResources', 'correctRewardLedger', 'readRunPanel', 'getState', 'getRoomEvidence', 'getEffectEvidence', 'setEnabled', 'setModuleEnabled', 'samples', 'stop', 'rescan', 'resetRun', 'correctRoom',
+  sanctum: Object.fromEntries(['getEffectCorrectionRules', 'updateEffectCorrectionRule', 'deleteEffectCorrectionRule', 'getEffectReview', 'correctEffectTarget', 'rescanEffects', 'correctRunResources', 'correctRewardLedger', 'readRunPanel', 'getState', 'getRoomEvidence', 'getEffectEvidence', 'setEnabled', 'setModuleEnabled', 'samples', 'stop', 'rescan', 'resetRun', 'correctRoom',
     'setMarks', 'rescanRoom', 'setCurrentRoom', 'saveStrategy', 'saveLoadoutPreferences', 'solveLoadout', 'cancelSolve', 'previewLoadout', 'calibrate', 'clearCalibration', 'highlightRelic', 'captureCalibration', 'clearLiveCalibration', 'saveGridCells', 'selectSampleCell', 'selectPathColor', 'startLive', 'scanRelics', 'getControlState', 'moveControlOverlay']
     .map(name => [name, (...args) => ipcRenderer.invoke(`sanctum:${name}`, ...args)])),
   onSanctumState: callback => {

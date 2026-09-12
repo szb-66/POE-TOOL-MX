@@ -1,4 +1,5 @@
 import { SANCTUM_TIMEOUTS } from './errors.js'
+import { isCurrentSanctumEntry } from './catalog.js'
 import { observationKey, validateRunResources, validateRewardLedger } from './runObservation.js'
 import { emptySanctumState, validateSanctumStrategy } from '../../../shared/sanctum.js'
 import { acceptSanctumFloor, resetSanctumRun } from './state.js'
@@ -10,9 +11,11 @@ import { sanctumRelicWeight } from './relicScoring.js'
 import { SanctumCapture, incompleteSanctumCapture } from './capture.js'
 import { bindSanctumCalibration } from '../../../shared/sanctumCalibration.js'
 import { sanctumResultObservation, sanctumResultTitle, sanctumPenultimateRoom, sanctumResultEnvironmentMatches } from './resultObservation.js'
-import { sanctumDisplay } from '../../../shared/sanctumDisplay.js'
+import { sanctumDisplay, sanctumPositionUnconfirmed } from '../../../shared/sanctumDisplay.js'
 import { preservePreviousCapture } from './previousCapture.js'
 import { effectEvidenceTargets } from '../../../shared/sanctumEffects.js'
+import { originalEffectGroup, correctedEffectGroup, validateEffectCorrection, validateSourceCorrection, rebuildCorrectedScan } from './effectCorrection.js'
+import { readEffectMemory, migrateEffectMemory, effectSources, effectMemoryKey, effectRuleStatus, rememberEffectRule, forgetEffectRule } from './effectMemory.js'
 
 const object = value => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('圣所参数必须为对象')
@@ -43,6 +46,12 @@ export class SanctumService {
     this.samples = samples
     this.solver = solver
     this.catalog = catalog
+    const memory=readEffectMemory(this.state.effectCorrectionMemory)
+    this.state.effectCorrectionMemory=migrateEffectMemory(memory,[this.state.floor,this.routeResult?.floor,this.overlayResult?.floor],catalog,target=>originalEffectGroup(target,catalog))
+    if (!memory.migrated) {
+      try { this.repository?.saveEffectMemory?.(this.state.effectCorrectionMemory) }
+      catch { this.state.saveError='纠正记忆迁移保存失败，请检查磁盘访问权限' }
+    }
     this.listeners = new Set()
     this.moduleEnabled = moduleEnabled
     this.enabled = moduleEnabled && this.state.enabled === true
@@ -52,6 +61,7 @@ export class SanctumService {
     this.captureTask = null
     this.foreground = false
     this.observation = null
+    this.lastMapObservation = null
     this.highlight = null
     this.liveDriver = null
     this.liveTask = null
@@ -61,6 +71,7 @@ export class SanctumService {
   }
 
   getState() { return structuredClone({ ...this.state, configuredEnabled: this.state.enabled === true, enabled: this.enabled, liveCaptureAvailable: Boolean(this.capture),
+    effectCorrectionMemory: {revision:this.state.effectCorrectionMemory.revision},
     savedRoute: !this.state.running && this.routeResult && (!this.state.floor?.identityConfirmed
       || !sanctumDisplay(this.state.floor, this.state.recommendation, this.state.marks).nextRoomId) ? this.routeResult : null,
     captureDraining: Boolean(!this.state.running && (this.startTask || this.liveTask || this.captureTask)),
@@ -68,6 +79,8 @@ export class SanctumService {
     liveEnvironment: this.liveEnvironment, publicTitles: this.calibrationEditor?.detection.getTitleConfig(),
     inventorySummary: summarizeSanctumRelics(this.state.inventory), catalogSummary: { patch: this.catalog.patch,
       total: this.catalog.entries.length, reviewed: this.catalog.entries.filter(entry => entry.applicability === 'current').length,
+      afflictions: this.catalog.entries.filter(entry => entry.kind === 'affliction' && isCurrentSanctumEntry(this.catalog, entry))
+        .map(entry => ({ id: entry.id, label: entry.name, descriptions: entry.descriptions || [] })),
       modifiers: this.catalog.entries.filter(entry => entry.kind === 'modifier').map(entry => ({ id: entry.id, label: entry.name })) } }) }
   subscribe(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   publish() { const state = this.getState(); for (const listener of this.listeners) listener(state); return state }
@@ -109,7 +122,7 @@ export class SanctumService {
     this.routeResult = structuredClone({ floor: this.state.floor, recommendation: this.state.recommendation, marks: this.state.marks,
       currentEffects: this.state.currentEffects, runObservation: this.state.runObservation, rewardLedger: this.state.rewardLedger, savedAt: Date.now(),
       reason: '上次识别路线，仅供历史参考', incomplete: incompleteSanctumCapture(this.state.floor) })
-    if (this.captureEnvironment && this.observation?.mapRegion) this.retainOverlayResult(this.captureEnvironment)
+    if (this.captureEnvironment && (this.observation?.mapRegion || this.lastMapObservation)) this.retainOverlayResult(this.captureEnvironment)
   }
   markRouteInterrupted() {
     for (const result of [this.routeResult, this.overlayResult]) if (result) {
@@ -181,6 +194,7 @@ export class SanctumService {
     this.automationLock = automationLock
     this.liveSafetyUnsubscribe?.()
     this.liveDriver = driver
+    driver.effectCorrectionMemory=structuredClone(this.state.effectCorrectionMemory)
     if (this.repository?.evidence) { driver.evidence?.clear(); driver.evidence = this.repository.evidence }
     this.liveSurfaceUnsubscribe?.()
     this.liveSurfaceUnsubscribe = driver.subscribeSurface?.(surface => {
@@ -370,15 +384,22 @@ export class SanctumService {
     // Only a newly recognized route replaces them; they are not live position evidence.
     const display = sanctumDisplay(floor, this.state.recommendation, this.state.marks)
     if (!display.nextRoomId && (this.overlayResult || !display.rooms.some(room => room.current))) return
-    if (!this.observation?.mapRegion || !environment) return
+    // The live observation may have been reset by a live action; fall back to
+    // the last map-bearing observation so manual corrections still refresh
+    // the saved overlay. Environment checks still gate the restored display.
+    const observation = this.observation?.mapRegion ? this.observation : this.lastMapObservation
+    if (!observation?.mapRegion || !environment) return
     this.overlayResult = structuredClone({ floor, recommendation: this.state.recommendation, marks: this.state.marks,
       currentEffects: this.state.currentEffects, runObservation: this.state.runObservation, rewardLedger: this.state.rewardLedger,
-      progress: { ...this.state.progress, stage: incompleteSanctumCapture(floor) ? 'partial' : 'complete' }, observation: this.observation, environment,
+      progress: { ...this.state.progress, stage: incompleteSanctumCapture(floor) ? 'partial' : 'complete' }, observation, environment,
       incomplete: incompleteSanctumCapture(floor),
       savedAt: now, clearOnMapClose: sanctumPenultimateRoom(floor, display.nextRoomId) })
   }
   getResultState(detection, now = Date.now()) {
     if (!this.enabled || this.state.running || !this.overlayResult) return null
+    // 最近一次实时识别明确未确认位置时隐藏历史当前/下一房标记；快照保留，
+    // 手动定位或后续识别确认位置后自然恢复。
+    if (sanctumPositionUnconfirmed(this.state.floor)) return null
     const warning = detection?.gameBounds && !sanctumResultEnvironmentMatches(this.overlayResult.observation, detection, this.overlayResult.environment)
       ? '游戏窗口位置、尺寸或缩放已变化，已隐藏保存的悬浮标记；请再次采集更新' : ''
     if ((this.state.overlayRestoreWarning || '') !== warning) {
@@ -396,7 +417,7 @@ export class SanctumService {
     return { ...this.getState(), ...this.overlayResult, observation, foreground: true,
       reason: this.overlayResult.reason || (this.overlayResult.incomplete ? '状态识别不完整；上次识别路线，仅供历史参考' : '上次识别结果；再次采集可更新路线') }
   }
-  resetRun() { this.assertEnabled(); this.stop(); this.routeResult = null; this.overlayResult = null; this.liveDriver?.resetEffects?.(); this.relicEvidence.clear(); this.state = resetSanctumRun(this.state); const state=this.persist(); this.repository?.evidence?.reset(); return state }
+  resetRun() { this.assertEnabled(); this.stop(); this.lastMapObservation = null; this.routeResult = null; this.overlayResult = null; this.liveDriver?.resetEffects?.(); this.relicEvidence.clear(); this.state = resetSanctumRun(this.state); const state=this.persist(); this.repository?.evidence?.clear(); return state }
   setForeground(value) {
     this.foreground = value === true
     if (!this.foreground && this.captureTask) this.capture?.stopInput('游戏已失去前台')
@@ -406,6 +427,9 @@ export class SanctumService {
     this.observation = value ? structuredClone({ foreground: value.foreground, interfaceMatched: value.interfaceMatched,
       mapOpen: value.mapOpen, clientBounds: value.clientBounds, mapRegion: value.mapRegion,
       regions: value.regions, receivedAt: Date.now() }) : null
+    // Result-overlay retention must survive observation resets from live
+    // actions; remember the last map-bearing observation for that purpose.
+    if (this.observation?.mapRegion) this.lastMapObservation = this.observation
     if (!value) this.state.recommendation = null
     else if (this.state.running && this.captureEnvironment) this.rememberRoute()
     return this.publish()
@@ -469,6 +493,122 @@ export class SanctumService {
     this.state.runObservation = validateRunResources(input,this.state.floor)
     this.recalculate(); return this.persist()
   }
+  getEffectReview(binding) {
+    object(binding)
+    let selected
+    for (const floor of [this.state.floor,this.routeResult?.floor].filter(Boolean)) {
+      for (const target of effectEvidenceTargets(floor)) {
+        const candidates = [{target,previous:false},...(target.previousCapture ? [{target:target.previousCapture.result,previous:true,binding:target.previousCapture.binding}]:[])]
+        for (const candidate of candidates) {
+          const value = candidate.binding || {...candidate.target,runId:candidate.target.runId || floor.runId,floorId:candidate.target.floorId || floor.floorId}
+          if (['runId','floorId','targetId','evidenceId'].every(key=>(value[key] ?? null) === (binding[key] ?? null))) {
+            selected ||= {...candidate,floor}
+          }
+        }
+      }
+    }
+    if (!selected) return {editable:false,reason:'本次没有可核对的浮窗记录，请重读状态栏',binding,original:null,group:null,options:[]}
+    const {target,floor,previous} = selected, scan = floor.effectScan
+    const original = structuredClone(originalEffectGroup(target,this.catalog))
+    if (original && !original.unresolved) original.unresolved = original.effects.filter(e=>!e.entryId && e.reason).map((e,i)=>({...e,id:e.id || `legacy:${i}`}))
+    const current = floor === this.state.floor && !previous && !target.previousCapture && !this.state.restoredFromSave
+      && floor.identityConfirmed && (scan.effectBinding || scan.binding) === observationKey(floor)
+    const editable = Boolean(current && original && target.evidenceId && !this.state.running && !this.startTask && !this.liveTask && !this.captureTask && this.enabled)
+    const sources=effectSources(original,[...(target.memoryHits || []),...(target.correction?.sourceEdits || [])]).map(source=>{
+      const local=target.correction?.sourceEdits?.find(edit=>edit.sourceId === source.id)
+      const hit=target.memoryHits?.find(rule=>rule.key === effectMemoryKey(source.rawText))
+      const legacy=target.correction?.resolutions?.find(edit=>edit.id === source.id)
+      const processing=local || hit || legacy
+      return {...source,selection:processing ? processing.action === 'ignore'?'ignore':processing.action === 'keep'?'keep':processing.entryId : source.entryId || 'keep',ruleId:hit?.id,local:Boolean(local)}
+    })
+    return structuredClone({binding:{...binding,observationKey:observationKey(floor),correctionRevision:target.correction?.revision || 0,memoryRevision:this.state.effectCorrectionMemory.revision},
+      editable,reason:editable ? null : !current ? '历史或位置已变化的结果仅供查看，请重新采集' : !original ? '此浮窗没有可纠正的效果词条' : '请等待采集结束并确认功能已开启；缺少证据时需重读',
+      target,original,sources,group:correctedEffectGroup(target,this.catalog),previous,
+      options:this.catalog.entries.filter(entry=>['boon','affliction'].includes(entry.kind)).map(entry=>({id:entry.id,name:entry.name,descriptions:entry.descriptions || [],tier:entry.tier,kind:entry.kind}))})
+  }
+  correctEffectTarget(binding, input) {
+    this.assertEnabled(); object(binding)
+    if (this.state.running || this.startTask || this.liveTask || this.captureTask) throw new Error('请先停止并等待采集退出')
+    const review = this.getEffectReview(binding)
+    if (!review.editable || binding.observationKey !== observationKey(this.state.floor)) throw new Error(review.reason || '当前位置已变化，修正未应用')
+    if (binding.correctionRevision !== review.binding.correctionRevision) throw new Error('效果已被纠正，请重新打开核对窗口')
+    if (input?.sourceEdits) return this.correctEffectSources(binding,input,review)
+    const correction = validateEffectCorrection(input,review.original,this.catalog)
+    const scan = structuredClone(this.state.floor.effectScan)
+    const target = scan.targets.find(target=>target.targetId === binding.targetId && target.evidenceId === binding.evidenceId)
+    target.effectGroup ||= review.original
+    target.correction = {...correction,revision:review.binding.correctionRevision+1,updatedAt:Date.now()}
+    const group = correctedEffectGroup(target,this.catalog)
+    const reward = scan.rewardGroups?.find(item=>item.targetId === target.targetId)
+    target.entries = group.entries
+    target.classificationComplete = group.complete && group.entries.every(entry=>entry.category)
+    target.reason = [group.reason,reward?.reason].filter(Boolean).join('；') || null
+    // A manual identity correction cannot repair capture, OCR or restore failures.
+    if (['matched','failed'].includes(target.stage) && !target.captureIssue) target.stage = group.complete && (!reward || reward.complete) ? 'matched':'failed'
+    const next = rebuildCorrectedScan(scan,this.catalog)
+    this.applyCorrectedScan(next)
+    this.recalculate()
+    return this.persist()
+  }
+  applyCorrectedScan(next) {
+    this.state.floor.effectScan = next.scan
+    this.state.floor.currentEffects = structuredClone(next.effects)
+    this.state.currentEffects = structuredClone(next.effects)
+    if (this.liveDriver?.effectLedger) {
+      this.liveDriver.effectLedger = {...this.liveDriver.effectLedger,...structuredClone(next.scan),effects:structuredClone(next.effects),floor:structuredClone(this.state.floor)}
+      this.liveDriver.effectScan = structuredClone(next.scan)
+      this.liveDriver.currentEffects = structuredClone(next.effects)
+    }
+  }
+  correctEffectSources(binding,input,review) {
+    if (binding.memoryRevision !== this.state.effectCorrectionMemory.revision) throw new Error('纠正规则已更新，请重新打开核对窗口')
+    const correction=validateSourceCorrection(input,review.original,this.catalog,review.sources)
+    const memory=structuredClone(this.state.effectCorrectionMemory),scan=structuredClone(this.state.floor.effectScan)
+    const target=scan.targets.find(target=>target.targetId === binding.targetId && target.evidenceId === binding.evidenceId)
+    const local=[]
+    for (const edit of correction.sourceEdits) {
+      if (correction.remember && edit.action !== 'keep') rememberEffectRule(memory,edit.rawText,edit.action,edit.entryId,this.catalog,Date.now(),
+        {...review.binding,sourceId:edit.sourceId,texts:review.target.texts,region:review.target.region})
+      else if (correction.remember) {
+        const key=effectMemoryKey(edit.rawText)
+        const rule=memory.rules.find(rule=>rule.key === key)
+        if (rule) forgetEffectRule(memory,rule.id)
+      }
+      else local.push(edit)
+    }
+    target.effectGroup ||= review.original
+    // The local record stores only this-capture overrides. Remembered actions
+    // must not pin an old result after their rule is edited or deleted.
+    target.correction={sourceEdits:local,addedEntryIds:correction.addedEntryIds,revision:review.binding.correctionRevision+1,updatedAt:Date.now()}
+    target.correctionHistory=[...(target.correctionHistory || []),{...correction,revision:target.correction.revision,updatedAt:target.correction.updatedAt}]
+    this.state.effectCorrectionMemory=memory
+    if (this.liveDriver) this.liveDriver.effectCorrectionMemory=structuredClone(memory)
+    this.applyCorrectedScan(rebuildCorrectedScan(scan,this.catalog,memory))
+    this.recalculate();return this.persist()
+  }
+  getEffectCorrectionRules() {
+    const memory=this.state.effectCorrectionMemory
+    return structuredClone({revision:memory.revision,rules:memory.rules.map(rule=>({...rule,...effectRuleStatus(rule,this.catalog)})),
+      options:this.catalog.entries.filter(entry=>['boon','affliction'].includes(entry.kind)).map(entry=>({id:entry.id,name:entry.name,descriptions:entry.descriptions || [],tier:entry.tier,kind:entry.kind}))})
+  }
+  editEffectCorrectionRule(binding,patch) {
+    this.assertEnabled();object(binding)
+    if (this.state.running || this.startTask || this.liveTask || this.captureTask) throw new Error('请等待采集结束后修改纠正规则')
+    const memory=structuredClone(this.state.effectCorrectionMemory),rule=memory.rules.find(rule=>rule.id === binding.id)
+    if (!rule || binding.revision !== rule.revision || binding.memoryRevision !== memory.revision) throw new Error('纠正规则已更新或删除，请刷新后再修改')
+    if (patch === null) forgetEffectRule(memory,rule.id)
+    else { object(patch);rememberEffectRule(memory,rule.rawText,patch.action,patch.entryId,this.catalog) }
+    this.state.effectCorrectionMemory=memory
+    if (this.liveDriver) this.liveDriver.effectCorrectionMemory=structuredClone(memory)
+    const floor=this.state.floor,scan=floor?.effectScan
+    if (!this.state.restoredFromSave && floor?.identityConfirmed && (scan?.effectBinding || scan?.binding) === observationKey(floor) && scan?.targets) {
+      this.applyCorrectedScan(rebuildCorrectedScan(structuredClone(scan),this.catalog,memory))
+      this.recalculate()
+    }
+    return this.persist()
+  }
+  updateEffectCorrectionRule(binding,patch) { return this.editEffectCorrectionRule(binding,patch) }
+  deleteEffectCorrectionRule(binding) { return this.editEffectCorrectionRule(binding,null) }
   correctRewardLedger(binding, input) {
     this.assertEnabled()
     if (binding !== observationKey(this.state.floor)) throw new Error('当前位置已变化，修正未应用')
@@ -479,14 +619,15 @@ export class SanctumService {
     if (!['resources','rewards'].includes(kind)) throw new Error('未知实际状态面板')
     const floor = structuredClone(this.state.floor), key = observationKey(floor)
     if (!floor?.identityConfirmed) throw new Error('请先采集并确认当前位置')
+    if (kind === 'rewards') return this.rescanEffects()
     await this.runLiveAction(signal => this.liveDriver.readRunPanel(this.state.liveCalibration, floor, kind, signal), result => {
       if (key !== observationKey(this.state.floor)) throw new Error('当前位置已变化，读取结果未应用')
       // runLiveAction stops the capture; the native reader independently verifies
       // the same log context before and after the screenshot.
       this.state.floor.identityConfirmed = true
-      this.state[kind === 'resources' ? 'runObservation' : 'rewardLedger'] = result
+      this.state.runObservation = result
       this.recalculate(); this.persist()
-    }, '请切回游戏并打开相应面板；按已校准区域读取当前资源或奖励')
+    }, '请切回游戏并打开圣所地图；分别读取已校准的金币、坚毅和启迪数值')
     return this.getState()
   }
   saveStrategy(value) {
@@ -554,9 +695,22 @@ export class SanctumService {
     if (patch.rewards !== undefined && (!Array.isArray(patch.rewards) || patch.rewards.length > 20 || patch.rewards.some(reward =>
       !reward || typeof reward.currency !== 'string' || reward.currency.length > 100 || reward.quantity !== null && !Number.isFinite(reward.quantity)
       || reward.quantity < 0 || reward.quantity > 1e6 || !['immediate', 'floor', 'run', 'unknown', null].includes(reward.timing) || reward.groupId != null && (typeof reward.groupId !== 'string' || reward.groupId.length > 160)))) throw new Error('奖励格式无效')
+    const changedProfile = ['name','layout'].some(field => patch[field] !== undefined && patch[field] !== room[field])
+    if (changedProfile) {
+      for (const field of ['layout','traps','layoutPreferenceKey','roomProfile']) {
+        delete room[field]
+        room.knowledge ||= {}
+        room.knowledge[field] = { status:'failed', source:'manual' }
+      }
+      room.nameCandidates = []
+    }
     Object.assign(room, structuredClone(patch), { detailsStatus: 'manual' })
     room.knowledge ||= {}
     for (const field of Object.keys(patch)) room.knowledge[field] = { status:'known', source:'manual' }
+    if (changedProfile && patch.layout) {
+      room.layoutPreferenceKey = patch.layout
+      room.knowledge.layoutPreferenceKey = { status:'known', source:'manual' }
+    }
     this.state.floor.revision = (this.state.floor.revision || 0) + 1
     this.recalculate()
     return this.publish()
@@ -570,6 +724,10 @@ export class SanctumService {
     return room
   }
   getRoomEvidence(binding) {
+    const source = [this.state.floor,this.routeResult?.floor].flatMap(floor=>floor?.effectScan?.groups || [])
+      .flatMap(group=>group.entries || []).map(entry=>entry.source).find(source=>source?.kind === 'room'
+        && binding?.evidenceId && ['runId','floorId','roomId','evidenceId'].every(key=>source[key] === binding[key]))
+    if (source) return (this.repository?.evidence || this.liveDriver?.evidence).image(binding)
     const previous = [this.state.floor,this.routeResult?.floor].flatMap(floor=>floor?.rooms || []).find(room=>room.previousCapture?.binding.evidenceId === binding?.evidenceId)?.previousCapture
     if (previous && ['runId','floorId','roomId','evidenceId'].every(key=>previous.binding[key] === binding[key])) {
       return {...(this.repository?.evidence || this.liveDriver?.evidence).image(binding),previousCapture:true}
@@ -580,14 +738,20 @@ export class SanctumService {
     return { ...image, region: image.kind === 'room-crop' ? image.region : room.recognition.region ?? image.region }
   }
   getEffectEvidence(binding) {
-    const previous = effectEvidenceTargets(this.state.floor).find(target=>target.previousCapture?.binding.evidenceId === binding?.evidenceId)?.previousCapture
+    const floors = [this.state.floor,this.routeResult?.floor].filter(Boolean)
+    const evidence = this.repository?.evidence || this.liveDriver?.evidence
+    if (!evidence) throw new Error('未保存截图；重新采集后可核对')
+    const previous = floors.flatMap(floor=>effectEvidenceTargets(floor)).find(target=>target.previousCapture?.binding.evidenceId === binding?.evidenceId)?.previousCapture
     if (previous && ['runId','floorId','targetId','evidenceId'].every(key=>previous.binding[key] === binding[key])) {
-      return {...(this.repository?.evidence || this.liveDriver?.evidence).image({...binding,roomId:binding.targetId}),previousCapture:true}
+      return {...evidence.image({...binding,roomId:binding.targetId}),previousCapture:true}
     }
-    const floor=this.state.floor
-    const target=floor?.effectScan?.targets?.find(t=>t.targetId===binding?.targetId && t.evidenceId===binding.evidenceId)
-    if (!target || !binding.evidenceId || floor.runId!==binding.runId || floor.floorId!==binding.floorId) throw new Error('效果截图已过期，请重新采集')
-    const image = (this.repository?.evidence || this.liveDriver?.evidence).image({...binding,roomId:binding.targetId})
+    const found = floors.some(floor=>floor.effectScan?.targets?.some(target=>target.targetId === binding?.targetId
+      && target.evidenceId === binding.evidenceId && (target.runId || floor.runId) === binding.runId && (target.floorId || floor.floorId) === binding.floorId))
+    const memory=this.state.effectCorrectionMemory
+    const remembered=[...(memory?.rules || []),...(memory?.history || []).map(change=>change.rule)]
+      .some(rule=>rule?.source && ['runId','floorId','targetId','evidenceId'].every(key=>rule.source[key] === binding?.[key]))
+    if ((!found && !remembered) || !binding.evidenceId) throw new Error('效果截图已过期，请重新采集')
+    const image = evidence.image({...binding,roomId:binding.targetId})
     if (image.kind !== 'effect-crop') throw new Error('本次未保存独立效果浮窗，请重新采集')
     return image
   }

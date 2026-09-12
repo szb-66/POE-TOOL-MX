@@ -22,7 +22,9 @@ export function mergeEffectGroups(groups, finished = false) {
     })
     const unresolved = groups.flatMap(g => [
       ...(g.entries || []).filter(e => !e.category).map(e => ({...g,category:null,label:e.name,entries:[e],texts:[e.name],effects:e.effects,complete:false,status:'unmatched',reason:'词库缺少级别资料'})),
-      ...(!g.complete ? [{...g,category:null,label:effectTargetLabel(g),entries:[],effects:g.effects.filter(e=>!e.entryId)}] : [])])
+      ...(!g.complete ? [{...g,category:null,label:'待核对内容',entries:[],
+        texts:(g.unresolved || g.effects.filter(e=>!e.entryId && e.reason)).map(e=>e.rawText),
+        effects:g.effects.filter(e=>!e.entryId)}] : [])])
     return result.concat(unresolved)
   }
   return emptyEffectGroups().map(empty => {

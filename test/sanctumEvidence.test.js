@@ -42,6 +42,17 @@ test('停止后只读截图，重扫和楼层变化拒绝旧引用，无改框�
   service.state.floor.rooms[0].recognition.evidenceId='new'
   assert.throws(()=>service.getRoomEvidence(binding),/过期/)
 })
+
+test('自动痛苦的房间证据按原始来源读取，不能伪造其他房间绑定',()=>{
+  const {service,binding}=fixture()
+  service.state.floor.runId='next-capture'
+  service.state.floor.rooms=[]
+  service.state.floor.effectScan={groups:[{entries:[{entryId:'pain',source:{kind:'room',...binding}}]}]}
+  assert.ok(service.getRoomEvidence(binding).dataUrl)
+  assert.throws(()=>service.getRoomEvidence({...binding,roomId:'other'}),/变化|过期/)
+  service.state.floor.effectScan.groups=[]
+  assert.throws(()=>service.getRoomEvidence(binding),/变化|过期/)
+})
 test('效果图片按楼层、目标和截图校验，只返回局部图且拒绝旧整屏证据',()=>{
   const {service}=fixture()
   const target={...context,roomId:'effect:1'}

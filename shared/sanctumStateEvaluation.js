@@ -5,12 +5,12 @@ const n = value => finite(value) ? value : 0
 const identity = e => e.entryId || e.id || `${e.rule}:${e.value ?? ''}`
 export const isExtendedEffect = e => Boolean(SANCTUM_EXTENDED_RULES[e?.rule])
 export const isEvaluatedEffect = e => isExtendedEffect(e) || Boolean(SANCTUM_BASE_RULES[e?.rule])
-const combat = room => ['guards','arena','boss'].includes(room.layout) || room.type === 'boss'
+const combat = room => ['guards','arena','boss','miniboss'].includes(room.layout) || room.type === 'boss'
 function applicable(scope, room) {
   switch (scope) {
     case 'combat': return combat(room)
     case 'guards': return ['guards','arena'].includes(room.layout) && room.type !== 'boss'
-    case 'trap': return room.layout === 'trap'
+    case 'trap': return room.layout === 'trap' || room.traps?.length > 0
     case 'boss': return room.layout === 'boss' || room.type === 'boss'
     case 'merchant': case 'fountain': return room.type === scope
     case 'chest': return ['treasure','reward'].includes(room.type)
@@ -123,6 +123,8 @@ export function advanceSanctumRoom(previous, room, {strategy = {}, events = [], 
   const additions=(room.effects || []).filter(e=>['entry','completion'].includes(e.trigger))
   additions.filter(e=>e.trigger==='entry').forEach(acquire)
   const activeEffects=state.effects.map(e=>({...e}))
+  if (!applicable('trap',room) && state.effects.some(e => (SANCTUM_EXTENDED_RULES[e.rule] || SANCTUM_BASE_RULES[e.rule])?.scope === 'trap')
+    && !has('trapsDisabled')) unknown.push('陷阱特征未确认，未列出陷阱不代表无陷阱；相关效果尚不能完整评估')
   unknown.push(...(room.effects || []).filter(e=>e.status==='unknown').map(e=>e.rawText || '已读效果规则未知'))
   if (applicable('boss',room)) heal(n(state.maxResolve)*sum('bossRecoveryPercent')/100)
 

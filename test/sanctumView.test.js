@@ -11,7 +11,7 @@ test('圣所页面及运行时通过 Vite 开发转换，正式导航不提前�
     server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
   try {
     assert.ok((await server.transformRequest('/src/domains/sanctum/SanctumRoomRecognition.vue'))?.code)
-    for (const name of ['SanctumRecognitionImage', 'SanctumMapGraph', 'SanctumMapLegend', 'SanctumSettings', 'SanctumRelics', 'SanctumRoomDetails', 'SanctumAltarGrid', 'SanctumRunObservation', 'SanctumView']) {
+    for (const name of ['SanctumEffectRules', 'SanctumEffectReview', 'SanctumRecognitionImage', 'SanctumMapGraph', 'SanctumMapLegend', 'SanctumSettings', 'SanctumRelics', 'SanctumRoomDetails', 'SanctumAltarGrid', 'SanctumRunObservation', 'SanctumView']) {
       assert.ok((await server.transformRequest(`/src/domains/sanctum/${name}.vue`))?.code)
       assert.ok((await server.transformRequest(`/src/domains/sanctum/${name}.vue?vue&type=style&index=0&scoped=true&lang.less`))?.code)
     }

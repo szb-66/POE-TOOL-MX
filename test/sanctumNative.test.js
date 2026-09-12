@@ -117,6 +117,23 @@ with patch('sanctum_native.match_titles',return_value={}):
     try:s.inspect_effects(options)
     except NativeError:pass
     else:raise AssertionError('invalid title accepted')
+    standalone={**options,'hudLayout':'standalone'}
+    assert s.inspect_effects(standalone)['coverageConfirmed'] is True
+    s.capture_masks=[(20,30,20,20)]
+    assert s.inspect_effects(standalone)['coverageConfirmed'] is False
+    s.capture_masks=[]
+    for region in [None,{'x':190,'y':20,'width':100,'height':80}]:
+        try:s.inspect_effects({**standalone,'effectIconsRegion':region})
+        except NativeError:pass
+        else:raise AssertionError('invalid standalone region accepted')
+    with patch('sanctum_native.icon_candidates',side_effect=NativeError('scan failed')):
+        try:s.inspect_effects(standalone)
+        except NativeError:pass
+        else:raise AssertionError('failed scan accepted')
+with patch('sanctum_native.match_titles',return_value={'sanctum-map':True}):
+    try:s.inspect_effects(standalone)
+    except NativeError:pass
+    else:raise AssertionError('open map accepted as standalone')
 print(json.dumps({'empty':empty['coverageConfirmed'],'blocked':blocked['coverageConfirmed']}))
 `)
   assert.deepEqual(result, { empty: true, blocked: false })

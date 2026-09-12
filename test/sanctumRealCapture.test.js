@@ -39,7 +39,7 @@ print(json.dumps(out))`)
   }
 })
 
-test('真实半透明弹框定位与 OCR 保留截图文字，名称不进入语义且图标奖励保留未知', () => {
+test('真实半透明弹框保留名称候选，按楼层确认玩法且图标奖励保留未知', () => {
   const result = runPython(`
 import sys,json,numpy as np
 sys.path.insert(0,'src/assets/scripts')
@@ -60,8 +60,11 @@ print(json.dumps(r))`)
   assert.ok(result.region.y >= 500 && result.region.y <= 525)
   assert.deepEqual(result.texts,['遗弃的图书馆、破旧的地窖、礼拜堂、地下室','完成后提供物品'])
   const parsed = parseSanctumRoomTexts(result.texts,{ entries:[] })
-  assert.equal(parsed.nameCandidates.length,0)
+  assert.equal(parsed.nameCandidates.length,4)
   assert.equal(parsed.layout,undefined)
+  const withFloor = parseSanctumRoomTexts(result.texts,{ entries:[] },[],{floorId:'floor:0'})
+  assert.equal(withFloor.layout,'exit')
+  assert.deepEqual(withFloor.traps,['ice-ring'])
   assert.equal(parsed.type,'reward')
   assert.equal(parsed.detailsStatus,'partial')
   assert.deepEqual(parsed.rewards,[])

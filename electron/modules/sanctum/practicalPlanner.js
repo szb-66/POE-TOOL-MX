@@ -1,3 +1,5 @@
+import { roomLayoutPreference } from '../../../shared/sanctumRoomProfiles.js'
+import { layoutLabels } from '../../../shared/sanctumPresentation.js'
 import { initialEffectState, advanceSanctumRoom, isExtendedEffect, isEvaluatedEffect } from '../../../shared/sanctumStateEvaluation.js'
 import { applySanctumEffects } from '../../../shared/sanctum.js'
 import { knownRoom, rewardReadingGaps } from './knowledge.js'
@@ -130,7 +132,7 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
       nextState.risk+=risks.length
       nextState.recovery+=recovery
       if(effects.endsOnResolveLoss) missing.push('当前失去坚毅即结束本轮，无法保证无伤完成')
-      nextState.breakdown.push({roomId:id,score:0,parts:{reward:0,risk:-risks.length,recovery,options:0,preference:0,relic:0},unknown:missing,limitations,risks,disruptions,conditions:assessed.conditions,opportunities:assessed.opportunities,resources:{resolve:assessed.state.resolve,maxResolve:assessed.state.maxResolve,inspiration:assessed.state.inspiration,coins:assessed.state.coins}})
+      nextState.breakdown.push({roomId:id,layout:room.layout,type:room.type,layoutPreference:roomLayoutPreference(room,strategy),score:0,parts:{reward:0,risk:-risks.length,recovery,options:0,preference:0,relic:0},unknown:missing,limitations,risks,disruptions,conditions:assessed.conditions,opportunities:assessed.opportunities,resources:{resolve:assessed.state.resolve,maxResolve:assessed.state.maxResolve,inspiration:assessed.state.inspiration,coins:assessed.state.coins}})
     }
     const forward=applySanctumEffects(nextState.effects)
     const successors=(adj.get(id)||[]).filter(nextId=>legal(nextId,forward))
@@ -148,11 +150,12 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
       if ((adj.get(id)||[]).length && !complete && !frontier) continue
       const route=nextState.rooms.filter(x=>x!=='__entry__'), nextRoomId=initial?route[0]:route[1]
       if (!nextRoomId) continue
-      const first=knownRoom(rooms.get(nextRoomId),floor,forward), choiceCount=(adj.get(nextRoomId)||[]).filter(x=>legal(x,forward)).length, reachable=reach(nextRoomId,forward)
-      const layout=first.layout && Number.isFinite(strategy.layoutPreference?.[first.layout]) ? strategy.layoutPreference[first.layout] : 0
-      const opportunity=['pact','boon'].includes(first.type)?1:0
+      const choiceCount=(adj.get(nextRoomId)||[]).filter(x=>legal(x,forward)).length, reachable=reach(nextRoomId,forward)
+      const firstStep=nextState.breakdown[0], layout=firstStep?.layoutPreference || 0
+      const laterLayout=nextState.breakdown.slice(1).reduce((sum,step)=>sum+step.layoutPreference,0)
+      const opportunity=['pact','boon'].includes(firstStep?.type)?1:0
       const target=targetVector(nextState.offers,strategy), hasTarget=target.some(x=>x>0)
-      const tail=strategy.preset==='quantity' && !hasTarget ? [layout,choiceCount,reachable,opportunity] : [choiceCount,reachable,opportunity,layout]
+      const tail=strategy.preset==='quantity' ? [layout,laterLayout,choiceCount,reachable,opportunity] : [choiceCount,reachable,opportunity,layout,laterLayout]
       const lethal=nextState.breakdown.flatMap(x=>x.risks).filter(x=>x==='陷阱会结束本轮'||x==='已知完成效果会结束本轮').length
       const disruptions=nextState.breakdown.flatMap(x=>x.disruptions)
       const vector=[-lethal,-disruptions.length,-nextState.risk,...target,nextState.recovery,nextState.opportunity,...tail]
@@ -160,7 +163,7 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
       if (!complete && !frontier) unknown.push('后续连通性尚未确认')
       paths.push({rooms:route,nextRoomId,complete,conditional:true,score:0,vector,risks:nextState.breakdown.flatMap(x=>x.risks),breakdown:nextState.breakdown,unknown,
         limitations:[...nextState.breakdown.flatMap(x=>x.limitations || []),...targetMessages.limitations],
-        conditions:nextState.breakdown.flatMap(x=>x.conditions || []),opportunities:nextState.breakdown.flatMap(x=>x.opportunities || []),offers:nextState.offers,riskVector:[-lethal,-disruptions.length,-nextState.risk],tailVector:[nextState.recovery,...tail],choiceCount,reachable, reasons:[...disruptions,nextState.risk?`已知路径有 ${nextState.risk} 项未容忍风险`:'已知信息中无新增未容忍风险',hasTarget?'保留同一路线上可兼得的目标奖励':strategy.preset==='quantity'?'优先配置的短房型与稳定完成':'优先推进后的选择空间',`推进后 ${choiceCount} 个直接选项，后续 ${reachable} 个去重可达房间`]})
+        conditions:nextState.breakdown.flatMap(x=>x.conditions || []),opportunities:nextState.breakdown.flatMap(x=>x.opportunities || []),offers:nextState.offers,riskVector:[-lethal,-disruptions.length,-nextState.risk],tailVector:[nextState.recovery,...tail],choiceCount,reachable, reasons:[...disruptions,`下一间${layoutLabels[firstStep?.layout] || '玩法未知'}：偏好 ${layout}；后续已知房间偏好合计 ${laterLayout}`, nextState.risk?`已知路径有 ${nextState.risk} 项未容忍风险`:'已知信息中无新增未容忍风险',hasTarget?'保留同一路线上可兼得的目标奖励':strategy.preset==='quantity'?'优先配置的短房型与稳定完成':'优先推进后的选择空间',`推进后 ${choiceCount} 个直接选项，后续 ${reachable} 个去重可达房间`]})
     }
   }
   const compare=(a,b)=>Number(b.complete)-Number(a.complete)||compareVector(a.riskVector,b.riskVector)||compareTargets(a,b,strategy)||compareVector(a.tailVector,b.tailVector)

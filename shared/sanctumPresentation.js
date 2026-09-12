@@ -2,6 +2,12 @@ import { sanctumPhaseLabel } from './sanctumProgress.js'
 import { sanctumDisplay, sanctumRoomDetail } from './sanctumDisplay.js'
 
 // Presentation only; never feeds recognition, reachability or strategy scoring.
+// 实时识别身份优先；停止、未读到地图或重启恢复时才用保存/历史快照展示。
+export function sanctumDisplayFloors(state) {
+  const live = state?.floor?.identityConfirmed === true ? state.floor : null
+  const history = live ? null : state?.savedRoute || null
+  return { live, history, floor: live || history?.floor || state?.floor || null }
+}
 export function sanctumPageDisplay(floor, recommendation, marks, progress) {
   const columns = new Map()
   for (const room of floor?.rooms || []) {
@@ -16,7 +22,7 @@ export function sanctumPageDisplay(floor, recommendation, marks, progress) {
   return { ...sanctumDisplay(floor ? { ...floor, rooms } : null, recommendation, marks, progress), minWidth: Math.max(540, columns.size * 140) }
 }
 export const roomTypeLabels = { boss: '首领', fountain: '喷泉', merchant: '商人', pact: '契约', reward: '奖励', treasure: '宝藏' }
-export const layoutLabels = { exit: '寻找出口', guards: '击败守卫', arena: '竞技场', trap: '陷阱', boss: '首领' }
+export const layoutLabels = { exit: '寻找出口', guards: '击败守卫', arena: '竞技场', trap: '穿越陷阱', miniboss: '击败小首领', boss: '楼层首领' }
 export const timingLabels = { unknown: '尚未确认', immediate: '立即领取', floor: '楼层结束', run: '整轮结束' }
 export const roomTitle = room => room?.name || roomTypeLabels[room?.type] || layoutLabels[room?.layout] || '待识别房间'
 export const rewardSummary = room => (room?.rewards || []).map(r => r.currency || '未知奖励').join(' / ')

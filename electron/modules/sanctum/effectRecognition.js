@@ -1,12 +1,23 @@
 import { matchRoomText, normalizeRoomText } from './textRecognition.js'
 import { SANCTUM_EFFECT_CATEGORIES } from '../../../shared/sanctumEffects.js'
 
+export function effectContextLine(text, catalog) {
+  const normalized = normalizeRoomText(text)
+  const exact = entry => [entry.name, ...(entry.aliases || []), ...(entry.descriptions || [])]
+    .some(value => normalizeRoomText(value) === normalized)
+  return !(catalog?.entries || []).some(entry => ['boon','affliction'].includes(entry.kind) && exact(entry))
+    && (catalog?.entries || []).some(entry => entry.kind === 'floor'
+      && [entry.name,...(entry.aliases || [])].some(value => normalizeRoomText(value) === normalized))
+}
+
 export function parseEffectTooltip(evidence, catalog) {
-  const texts = (Array.isArray(evidence?.texts) ? evidence.texts : []).filter(t => typeof t === 'string' && t.trim()).slice(0, 80)
+  const originalTexts = (Array.isArray(evidence?.texts) ? evidence.texts : []).filter(t => typeof t === 'string' && t.trim()).slice(0, 80)
+  const texts = originalTexts.filter(text => !effectContextLine(text, catalog))
   const entries = (catalog?.entries || []).filter(e => ['boon', 'affliction'].includes(e.kind))
   const rank = text => entries.map(entry => matchRoomText(text, {...catalog, entries:[entry]}))
     .filter(Boolean).sort((a,b) => b.similarity-a.similarity)
-  const found = new Map(), unknown = []
+  const found = new Map(), unknown = [], sources = []
+  let variantHeading = null
   for (let i=0; i<texts.length;) {
     // The tooltip's close cross can be returned as a standalone Latin X.
     // Keep it in the raw evidence, but it is not an effect phrase.
@@ -32,7 +43,7 @@ export function parseEffectTooltip(evidence, catalog) {
         if(candidates.length===1) {
           // Let the ordinary description path produce the record, while the
           // raw OCR evidence still retains the heading for screenshot review.
-          i++;resolved=true;break
+          variantHeading=texts[i];i++;resolved=true;break
         }
       }
       if(resolved) continue
@@ -40,18 +51,26 @@ export function parseEffectTooltip(evidence, catalog) {
     // Preserve ambiguous variants and unrelated OCR instead of silently choosing an ID.
     const match=exact.length === 1 ? exact[0] : !exact.length && best?.similarity >= .7
       && (!ranked[1] || best.similarity-ranked[1].similarity >= .05) ? best : null
-    if (!match) unknown.push({rawText,status:'unknown',reason:exact.length>1?'词条存在歧义':'未匹配词条'})
+    if (!match) {
+      const item={id:`line:${i}`,rawText,status:'unknown',reason:exact.length>1?'词条存在歧义':'未匹配词条'}
+      unknown.push(item);sources.push({...item,texts:texts.slice(i,i+count)})
+    }
     else {
       const previous=found.get(match.entryId), entry=entries.find(e => e.id === match.entryId)
       const category=['major','minor'].includes(entry.tier) ? entry.tier+(entry.kind==='boon'?'Boon':'Affliction') : null
       const supported=match.calculationStatus==='supported' && previous?.numericCompatible !== false
+      const last=sources.at(-1),sourceText=[variantHeading,rawText].filter(Boolean).join('\n')
+      const sourceTexts=[...(variantHeading ? [variantHeading]:[]),...texts.slice(i,i+count)]
+      if (last?.entryId === match.entryId) {last.rawText+='\n'+sourceText;last.texts.push(...sourceTexts)}
+      else sources.push({id:`source:${variantHeading ? i-1:i}`,rawText:sourceText,texts:sourceTexts,entryId:match.entryId,name:match.name})
       found.set(match.entryId,{...match,category,tier:entry.tier || null,
         calculationStatus:supported?'supported':'unsupported',
         numericCompatible:match.numericCompatible && previous?.numericCompatible !== false,
-        rawText:previous ? previous.rawText+'\n'+rawText : rawText,
+        rawText:[previous?.rawText,variantHeading,rawText].filter(Boolean).join('\n'),
         effects:supported ? match.effects
           : [{entryId:entry.id,kind:entry.kind,name:entry.name,status:'unknown',rawText:`已识别：${entry.name}；计算暂不支持`}]})
     }
+    variantHeading=null
     i+=count
   }
   const items=[...found.values()]
@@ -63,6 +82,6 @@ export function parseEffectTooltip(evidence, catalog) {
       : evidence?.status !== 'located' ? `浮窗未完整定位；已识别文字：「${texts.join('；')}」` : null)
   const effects=[...items.flatMap(item=>item.effects.map(e=>({...e,category:item.category,tier:item.tier}))),...unknown]
   if (!complete) effects.push({status:'unknown',rawText:reason || '词缀范围未完整读取'})
-  return {category,...SANCTUM_EFFECT_CATEGORIES[category],targetId:evidence?.targetId,evidenceId:evidence?.evidenceId,iconIndex:evidence?.iconIndex,texts,entries:items,effects,complete,reason,
+  return {category,...SANCTUM_EFFECT_CATEGORIES[category],targetId:evidence?.targetId,evidenceId:evidence?.evidenceId,iconIndex:evidence?.iconIndex,texts:originalTexts,sources,unresolved:unknown,entries:items,effects,complete,reason,
     region:evidence?.region,status:evidence?.status!=='located' || !items.length && !unknown.length?'failed':unknown.length?'unmatched':'read'}
 }

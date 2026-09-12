@@ -18,7 +18,7 @@ export function preservePreviousCapture(floor, previous) {
   }
   const retained=new Map((previous.previousEffectTargets || []).map(target=>[target.targetId,target]))
   for(const target of previous.effectScan?.targets || []) {
-    if(target.stage==='matched' && target.evidenceId) retained.set(target.targetId,target)
+    if((target.stage==='matched' || target.correction || target.memoryHits?.length) && target.evidenceId) retained.set(target.targetId,target)
     else if(target.previousCapture) retained.set(target.targetId,{...target.previousCapture.result,...target.previousCapture.binding})
   }
   const oldTargets = [...retained.values()]
@@ -26,8 +26,9 @@ export function preservePreviousCapture(floor, previous) {
   for (const target of floor.effectScan?.targets || []) {
     const old = oldTargets.find(item=>item.targetId === target.targetId)
     if (!old) continue
-    if (target.stage === 'matched' && target.evidenceId) { delete target.previousCapture; continue }
-    const saved = old.previousCapture || (old.stage === 'matched' && old.evidenceId ? {
+    const captured=target.stage === 'matched' || target.stage === 'failed' && target.readStatus === 'located' && !target.captureIssue
+    if (captured && target.evidenceId) { delete target.previousCapture; continue }
+    const saved = old.previousCapture || ((old.stage === 'matched' || old.correction || old.memoryHits?.length) && old.evidenceId ? {
       result:copy(old),binding:{runId:old.runId || previous.runId,floorId:old.floorId || previous.floorId,targetId:old.targetId,evidenceId:old.evidenceId}
     } : null)
     if (saved) target.previousCapture = structuredClone(saved)

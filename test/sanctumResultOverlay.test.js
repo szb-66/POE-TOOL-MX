@@ -50,6 +50,30 @@ test('倒数第二列下一房本次显示，明确关图后永久清空', () =>
   assert.equal(result(service), null)
 })
 
+test('实时观察失效后手动设定当前位置仍刷新结果遮罩', () => {
+  const service = setup(0)
+  service.captureEnvironment = environment
+  save(service)
+  assert.deepEqual(result(service).rooms.map(room => room.id), ['r0', 'r1'])
+  service.updateObservation(null)
+  service.setCurrentRoom({ id: 'r2', runId: 'r', floorId: 'f', revision: 1 })
+  assert.equal(service.observation, null)
+  assert.ok(service.overlayResult)
+  const view = result(service)
+  assert.deepEqual(view.rooms.map(room => room.id), ['r2', 'r3'])
+  assert.ok(view.rooms.find(room => room.id === 'r2' && room.current))
+  assert.ok(view.rooms.find(room => room.id === 'r3' && room.next))
+})
+
+test('从未有地图观察时手动设定不生成遮罩', () => {
+  const service = setup(0)
+  service.captureEnvironment = environment
+  service.observation = null
+  service.lastMapObservation = null
+  service.setCurrentRoom({ id: 'r2', runId: 'r', floorId: 'f', revision: 1 })
+  assert.equal(service.overlayResult, null)
+})
+
 test('失焦、过期、缺少标题、环境变化和旧关图事件不清空结果', () => {
   const invalid = [d => { d.foreground = false }, d => { d.running = false }, d => { d.reloading = true },
     d => { d.receivedAt = 0 }, d => { d.receivedAt = 3000 }, d => { d.interfaces = {} },
@@ -176,6 +200,18 @@ test('地图生成路线后效果识别失败，页面和浮窗保留本轮路�
   service.resetRun()
   assert.equal(service.getState().savedRoute, null)
   assert.equal(service.overlayResult, null)
+})
+
+test('重识别确认地图但未定位时隐藏旧遮罩，快照保留且手动定位后恢复', () => {
+  const service = setup(0)
+  save(service)
+  assert.ok(result(service))
+  service.state.floor = { ...service.state.floor, captureSessionId: 'recapture', revision: 2, positionStatus: 'unknown', currentRoomId: null }
+  assert.equal(service.getResultState(detection(), 2000), null)
+  assert.ok(service.overlayResult)
+  service.captureEnvironment = environment
+  service.setCurrentRoom({ id: 'r3', runId: 'r', floorId: 'f', revision: 2 })
+  assert.deepEqual(result(service).rooms.map(room => room.id), ['r3', 'r4'])
 })
 
 test('新一轮无路线或迟到回调不替换旧快照，有效新路线才替换', async () => {
