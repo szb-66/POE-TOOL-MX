@@ -14,21 +14,23 @@ const region = { x: 0, y: 0, width: 1000, height: 700 }
 const profile = () => liveProfile({ version: 2, environment, mapRegion: region, effectIconsRegion: region,
   captures: { mapRegion: { png, environment, region }, effectIconsRegion: { png, environment, region } } })
 const signal = () => new AbortController().signal
+const captureCommands = commands => commands.filter(command=>!['prepareIcons','prepareOcr'].includes(command))
 const tick = () => new Promise(resolve => setImmediate(resolve))
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 
-test('启动在环境检查前调用全局激活一次，配置失败不激活，激活失败不发原生命令', async t => {
+test('启动在环境检查前调用全局激活一次，配置失败不激活，激活失败不发采集命令，模型准备允许并行', async t => {
   const f = fixture(t), calls = []
-  f.driver.windowActivation = { async activateGame(options) { calls.push(options); assert.deepEqual(f.commands, []); return { success: true } } }
+  f.driver.windowActivation = { async activateGame(options) { calls.push(options); assert.deepEqual(captureCommands(f.commands), []); return { success: true } } }
   await assert.rejects(f.driver.prepare({}, signal(), new AutomationLock()))
   assert.deepEqual(calls, [])
+  assert.deepEqual(f.commands, [])
   await f.driver.prepare(profile(), signal(), new AutomationLock())
   assert.deepEqual(calls, [{ source: 'sanctum-start' }])
   await f.driver.dispose()
   f.commands.length = 0
   f.driver.windowActivation = { async activateGame() { return { success: false, code: 'focus-refused' } }, gameFailureMessage: code => `激活失败：${code}` }
   await assert.rejects(f.driver.prepare(profile(), signal(), new AutomationLock()), /激活失败：focus-refused/)
-  assert.deepEqual(f.commands, [])
+  assert.deepEqual(captureCommands(f.commands), [])
 })
 
 test('等待全局激活或环境结果时停止，不继续 arm；恢复焦点不会自动激活', async t => {
@@ -47,7 +49,7 @@ test('等待全局激活或环境结果时停止，不继续 arm；恢复焦点�
     await assert.rejects(preparing, /abort/i)
     assert.equal(activations, 1)
     assert.equal(f.commands.includes('arm'), false)
-    if (stage === 'activation') assert.deepEqual(f.commands, [])
+    if (stage === 'activation') assert.deepEqual(captureCommands(f.commands), [])
   }
 })
 
@@ -68,6 +70,7 @@ function fixture(t) {
     makeClient: () => ({ abort() { aborted++ }, shutdown: async () => {}, async request(command, input) {
       commands.push(command)
       if (hooks[command]) return hooks[command]()
+      if (['prepareIcons','prepareOcr','resetImages'].includes(command)) return {}
       if (command === 'prepareFrames') return {count:8}
       if (command === 'freezeBaseline') return {baselineVersion:1}
       if (command === 'environment' || command === 'arm') return { environment }
@@ -144,7 +147,7 @@ test('停止等待日志准备后，迟到的启动结果不会进入原生采�
   controller.abort()
   pending.resolve()
   await assert.rejects(preparing, /abort/i)
-  assert.deepEqual(f.commands, [])
+  assert.deepEqual(captureCommands(f.commands), [])
 })
 
 test('地图准备首次启用共享监听，再次采集复用监听而不重启或关闭', async t => {

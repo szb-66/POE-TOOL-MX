@@ -55,6 +55,12 @@ OpenSpec 变更 add-poe1-sanctum-planner 的第 23 节记录本次实施与验�
 状态区域固定提供“管理已记住的纠正”，已读效果仍有核对入口。核对默认将明确原文到词条或忽略的处理保存在本机 effectCorrectionMemory，取消勾选仅作用本次；无原文的额外添加不创建记忆。匹配只统一全半角和空白，保留数字与标点，按完整来源精确复用，不跨奖励行或递归套用。规则可搜索、修改、删除；修改从原始 OCR 更新当前效果及路线，历史结果不改写。词库目标描述或级别变化时停用规则；截图失败、覆盖不足及计算未支持仍保留原因。
 独立状态栏普通失败后检查实际界面并尝试恢复地图，停止或环境失效后不再按键。主进程和 preload 修改需要重启 Electron 开发版生效；不打包。
 
+### 识别性能回放
+
+`node scripts/sanctum/benchmarkRecognition.mjs --mode=compare --runs=5 --baseline-ref=<提交>` 使用固定裁剪图通过实际驱动与真实 Python 工作进程对照，`--scenario=rewards` 测奖励密集输入，`--mode=matrix` 比较工作进程和 OCR 线程配置。报告保存到 `.cache/sanctum-speed/benchmark.json`，识别事实不一致或出现失败时以非零状态退出。它不控制游戏，不能替代实机整轮验收；实现记录见 OpenSpec 的 `archive/2026-09-13-accelerate-sanctum-recognition/verification.md`。
+
+后台文字与图标通道独立，图标扫描保持全部模板及评分规则并有限并行。已解码的房间图片通过带会话/目标/帧身份的内存引用供图标使用，最多八个待完成房间任务及 128 MiB 解码图片；引用不进入用户存档。必要图标结束前按钮不会提前完成。
+
 完整状态评估与图片持久化的验收记录见 openspec/changes/archive/2026-09-11-complete-sanctum-state-evaluation/verification.md。
 
 ## 房间玩法与推荐
@@ -62,3 +68,17 @@ OpenSpec 变更 add-poe1-sanctum-planner 的第 23 节记录本次实施与验�
 房间标题与正文由一次 OCR 分区输出，标题仅匹配有来源的四层名称目录。实机标题同时列出四层对应名称时，要求全部候选可核实且包含当前楼层，只采用共同属性。名称、通关目标、已知陷阱与奖励功能分别保存；未列陷阱不代表无陷阱，小首领与楼层首领分开。
 
 揭图收益在选择空间之后比较房型，圣物数量速刷在同等奖励与主要风险下先比较房型；依次比较下一间偏好和后续已知偏好合计。偏好在逐房推演时保存，后续隐藏不反向改写前面房间。详情显示来源，修正名称或玩法清除旧属性。
+
+### 前台采集性能
+
+150ms 悬停等待保持不变。截图只受原始帧及待识别图片缓冲容量限制，不再绑定八个完整房间任务；原始帧沿用 512MiB 上限，待识别 PNG 为 128MiB / 128 项，已解码图像为 128MiB / 8 项。后处理输出获得预算后释放原始帧，OCR 后释放 PNG，必要图标完成后释放解码图像。
+
+资源截图与资源 OCR 分离，布局与效果图标定位复用同一有效帧。截图采集结束可释放鼠标，界面完成仍等待资源、房间、效果及图标处理。采集通道只在首次配置传递静态标题和校准，动态目标、身份、截止时间及窗口检查逐次保留。
+
+成功完整识别后，OCR 和图标进程保温最多 60 秒，图片与采集进程立即释放。超时、失败、停止、过期或退出不得复用模型进程。打开新采集时更换采集会话和图像队列，保温进程仅保留静态模型/模板。
+
+`captureMetrics` 新增 `prepareStages`、`warmWorkers`、`clickToFirstMoveMs`、`moves`（原生单调时钟的相邻移动间隔）、`effectsCaptureMs`、`effectsTotalMs`、`resources`（截图、队列、识别和总耗时）。首移时间以主进程收到实际移动事件为准，包含事件传输耗时。各阶段会重叠，不应相加作为整轮耗时。
+
+`node scripts/sanctum/benchmarkForeground.mjs --mode=startup --runs=5` 使用本轮本地基线对照四类真实工作进程的就绪耗时，不操作游戏输入，也不属于实机采集验收。基线位于 `.cache/sanctum-speed/foreground-baseline`，含修改前代码与 SHA256 清单；清单摘要和启动数据保存在本变更的 `foreground-performance.json`。此启动测试固定解释器，不包含依赖探测或游戏激活；不得把它称为应用冷启动成绩。
+
+实机验收使用 `node scripts/sanctum/benchmarkForeground.mjs --mode=live --input=<records.json> --output=<report.json>`。输入为按实际采集顺序排列的数组，每条含 `version`（baseline/current）、`scenario`（cold/continuous/rewards/effects）、`pair`、`live:true`、`loadComparable:true`、`environment:{machine,scene,width,height,dpi}`、冷启动场景的 `appCold:true`、经样本人工核对的 `accuracy`、`failures`，以及该轮 `captureMetrics` 作为 `metrics`。每对相邻记录的机器、场景与分辨率须相同；每场景至少五对。准确率、负载确认与实机标记必须来自实际验证，不由脚本推断。报告分别列中位数、P95、鼠标占用、准确率与失败数；缺数据、退化或不足 50% 返回非零退出码。原始整轮 50% 验收仍单独保留。

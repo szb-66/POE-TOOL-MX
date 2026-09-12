@@ -17,6 +17,7 @@ const timeout = () => sanctumError('STEP_TIMEOUT','当前步骤超时')
 
 test('34 个目标正常推进超过 20 秒，OCR 收尾超过 20 秒仍完整完成',async t=>{
   t.mock.timers.enable({apis:['Date','setTimeout'],now:1000})
+  t.mock.method(performance,'now',()=>Date.now())
   const calls=[], lock=new AutomationLock(), updates=[]
   let release
   const finalRead=new Promise(resolve=>{release=resolve})
@@ -97,7 +98,7 @@ test('恢复时窗口变化是安全中断，后续房间不能输入',async t=>
 })
 
 test('单张 OCR 超时回收旧进程，新客户端处理下一张，排队不使用整轮截止时间',async t=>{
-  const calls=[],driver=new SanctumLiveDriver({makeClient:()=>{
+  const calls=[],driver=new SanctumLiveDriver({recognitionWorkers:1,makeClient:()=>{
     const id=calls.filter(x=>x==='create').length;calls.push('create')
     return {async request(command,_input,options){calls.push(command);assert.equal(options.timeoutMs,command==='prepareOcr'?20000:40000);if(command==='prepareOcr')return {ready:true};if(id===0)throw timeout();return {texts:['下一张'],captureMetrics:{}}},async shutdown(){calls.push('exit')}}
   }})

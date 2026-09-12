@@ -68,7 +68,7 @@ export class SanctumFramePipeline {
       lease?.release(); baseline.refs--; this.releaseBaseline(baseline); throw error
     }
   }
-  process(frozen, signal) {
+  process(frozen, signal, accept = value => value) {
     const queuedAt = performance.now()
     const work = this.tail.then(async()=>{
       signal.throwIfAborted()
@@ -79,7 +79,8 @@ export class SanctumFramePipeline {
         const identity = Object.fromEntries(['runId','floorId','roomId','sessionId','frameId','baselineVersion'].map(key=>[key,binding[key]]))
         const input = {...data.frozenFrame, binding:identity,
           captureMetrics:{...data.captureMetrics,postprocessQueueMs:performance.now()-queuedAt}}
-        return await this.client.request('processFrame',input,{signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+        const value = await this.client.request('processFrame',input,{signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+        return await accept(value)
       } catch (error) {
         // A dead worker invalidates its shared mapping and every queued frame.
         if (!this.client.child && this.client.closed !== undefined) this.failure = error

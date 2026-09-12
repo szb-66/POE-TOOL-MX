@@ -122,9 +122,9 @@ im=np.arange(300*200*3,dtype=np.uint8).reshape((200,300,3))
 def image():
  frames.append(1);return im,{'environment':{'width':300,'height':200}}
 s.image=image
-def match(im,opts,current):
- return opts['interfaceKind']=='sanctum-map'
-s.match_title=match
+def layout(opts,snapshot=None):
+ return {'mapOpen':True}
+s.interface_state=layout
 regions={'coinsRegion':dict(x=220,y=10,width=40,height=20),'mapResourcesRegion':dict(x=210,y=140,width=70,height=50)}
 value=s.dispatch('readRunPanel',regions)
 assert len(frames)==1
@@ -132,18 +132,18 @@ for key,r in regions.items():
  decoded=cv2.imdecode(np.frombuffer(base64.b64decode(value['regions'][key]['png']),np.uint8),cv2.IMREAD_COLOR)
  assert np.array_equal(decoded,im[r['y']:r['y']+r['height'],r['x']:r['x']+r['width']])
 assert list(s.dispatch('readRunPanel',{'coinsRegion':regions['coinsRegion']})['regions'])==['coinsRegion']
-s.match_title=lambda im,opts,current:False
+s.interface_state=lambda opts,snapshot=None:{'mapOpen':False}
 hud=dict(x=40,y=120,width=240,height=60)
 value=s.dispatch('readRunPanel',{**regions,'hudResourcesRegion':hud})
 assert value['resourceLayout']=='standalone'
 assert list(value['regions'])==['hudResourcesRegion']
 rejected=[]
 for case in ['empty','bounds','mask','title','unarmed']:
- opts=regions.copy();s.capture_masks=[];s.expected={};s.match_title=match
+ opts=regions.copy();s.capture_masks=[];s.expected={};s.interface_state=layout
  if case=='empty':opts={}
  if case=='bounds':opts['coinsRegion']=dict(x=299,y=10,width=40,height=20)
  if case=='mask':s.capture_masks=[(220,10,40,20)]
- if case=='title':s.match_title=lambda *args:False
+ if case=='title':s.interface_state=lambda opts,snapshot=None:{'mapOpen':False}
  if case=='unarmed':s.expected=None
  try:
   value=s.dispatch('readRunPanel',opts)

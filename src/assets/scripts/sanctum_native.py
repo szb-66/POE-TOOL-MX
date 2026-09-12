@@ -17,14 +17,9 @@ import numpy as np
 # The bundled Windows runtime uses an isolated _pth and does not implicitly
 # add the script directory, unlike the development system Python.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from sanctum_recognition import analyze_floor
 from sanctum_tooltip import icon_candidates
-from sanctum_rewards import recognize_currency_icons
 from sanctum_frames import FramePool, open_mapping, frame_view
-from sanctum_postprocess import process_image
-from sanctum_ocr import read_frozen
 from interface_titles import match_titles, unique_title
-from sanctum_grid import inspect_grid, hover_footprint, copy_keys
 
 
 class NativeError(Exception):
@@ -237,6 +232,7 @@ class NativeSession:
         if calibration and hasattr(self, 'room_colors'):
             calibration['roomColors'] = self.room_colors
         stamp = time.perf_counter()
+        from sanctum_recognition import analyze_floor
         floor = analyze_floor(view, calibration or None)
         map_ms = (time.perf_counter()-stamp)*1000
         self.last_floor = floor
@@ -255,7 +251,7 @@ class NativeSession:
         return {**evidence, 'observation': {**self.check(), 'foreground':True, 'userTakeover':False,
                 'mapOpen':True, 'interfaceMatched':True}}
 
-    def interface_state(self, options):
+    def interface_state(self, options, snapshot=None):
         if getattr(self, 'room_tooltip_pending', False):
             # Layout/title checks need a clear map, not the last hovered panel.
             b = self.check()['clientBounds']
@@ -265,7 +261,7 @@ class NativeSession:
             self.check()
             self.room_tooltip_pending = False
             self.surface_snapshot = None
-        image, current = self.image()
+        image, current = snapshot or self.image()
         self.surface_snapshot = (image,current)
         matched = match_titles(image, options.get('interfaceTitles', {}), current['environment'], options.get('matchThreshold', .8), anchored=True)
         map_open = bool(matched.get('sanctum-map'))
@@ -281,6 +277,7 @@ class NativeSession:
         return {**current, 'mapOpen': map_open, 'hudVisible': visible, 'hudLayout': layout}
 
     def move_cursor(self, point):
+        self.surface_snapshot = None
         with self.input_lock:
             self.check()
             if not self.u.SetCursorPos(*point):
@@ -305,7 +302,7 @@ class NativeSession:
             metrics['moveIntervalMs'] = (moved-previous)*1000
         self.last_move_at = moved
         self.room_tooltip_pending = True
-        self.progress('waiting-tooltip')
+        self.progress('waiting-tooltip', moveTimeMs=moved*1000)
         stamp = time.perf_counter()
         if self.cancelled.wait(.15):
             raise NativeError('采集已停止', 'SAFETY_INTERRUPTED')
@@ -380,6 +377,7 @@ class NativeSession:
                     self.u.keybd_event(0x56, 0, 0, 0)
                 finally:
                     self.u.keybd_event(0x56, 0, 2, 0)
+        self.surface_snapshot = None
         # One input, bounded observation of the target surface. The shared
         # capture deadline can shorten this wait but is never extended by it.
         deadline = time.monotonic() + 1.5
@@ -425,6 +423,10 @@ class NativeSession:
                             options.get('matchThreshold', .8), anchored=True).get(options.get('interfaceKind'))
 
     def dispatch(self, command, options):
+        if command == 'configure':
+            self.static_options = {k: v for k, v in options.items() if k not in ('deadlineAt', 'captureWindows')}
+            return {'configured': True}
+        options = {**getattr(self, 'static_options', {}), **options}
         self.capture_windows = options.get('captureWindows', [])
         self.capture_options = options
         self.deadline_at = options.get('deadlineAt')
@@ -445,11 +447,11 @@ class NativeSession:
         if command == 'readRunPanel':
             if self.expected is None:
                 raise NativeError('实际状态读取未预检')
-            if getattr(self, 'room_tooltip_pending', False):
-                self.interface_state(options)
+            layout = self.interface_state(options) if getattr(self, 'room_tooltip_pending', False) else None
             image, current = getattr(self, 'surface_snapshot', None) or self.image()
             self.surface_snapshot = None
-            map_open = self.match_title(image, {**options, 'interfaceKind':'sanctum-map'}, current)
+            layout = layout or self.interface_state(options, snapshot=(image, current))
+            map_open = layout['mapOpen']
             regions = {}
             for key in (('coinsRegion', 'mapResourcesRegion') if map_open else ('hudResourcesRegion',)):
                 r = options.get(key)
@@ -468,7 +470,8 @@ class NativeSession:
                     regions[key] = {'region':r, 'status':'unknown', 'reason':str(error), 'texts':[]}
             if not regions:
                 raise NativeError('请先配置资源数值选区')
-            return {**current, 'regions':regions, 'resourceLayout':'map' if map_open else 'standalone'}
+            self.surface_snapshot = (image, current)
+            return {**current, 'regions':regions, 'interfaceState':layout, 'resourceLayout':'map' if map_open else 'standalone'}
         if command in ('interfaceState', 'toggleMap', 'inspectEffects', 'hoverEffect'):
             return {'interfaceState': self.interface_state, 'toggleMap': self.toggle_map, 'inspectEffects': self.inspect_effects, 'hoverEffect': self.hover_effect}[command](options)
         if command == 'neutralGrid':
@@ -499,6 +502,7 @@ class NativeSession:
         raise NativeError('不支持的圣所原生操作')
 
     def inspect_grid(self, options):
+        from sanctum_grid import inspect_grid
         image, current = self.image()
         if not self.match_title(image, options, current):
             raise NativeError('圣物公共标题失配或已关闭')
@@ -506,6 +510,7 @@ class NativeSession:
         return {**current, **result}
 
     def copy_cell(self, options):
+        from sanctum_grid import inspect_grid, hover_footprint, copy_keys
         if self.expected is None:
             raise NativeError('圣物采集未预检')
         image, current = self.image()
@@ -571,6 +576,8 @@ class NativeSession:
 
 
 def main():
+    from sanctum_frozen_image import FrozenImages
+    images = FrozenImages()
     session = None
     ocr_engine = None
     frame_pool = None
@@ -580,9 +587,14 @@ def main():
             if len(line) > 26 * 1024 * 1024:
                 raise NativeError('圣所请求过大')
             request = json.loads(line)
+            if request.get('command') == 'resetImages':
+                images.close()
+                emit({'id': request['id'], 'success': True, 'data': {'released': True}})
+                continue
             if request.get('command') in ('prepareFrames', 'processFrame'):
                 options = request.get('input', {})
                 if request['command'] == 'prepareFrames':
+                    from sanctum_postprocess import process_image
                     if frame_pool:
                         frame_pool.close()
                     frame_pool = FramePool(options['width'], options['height'])
@@ -596,15 +608,26 @@ def main():
                     context = dict(id=request['id'], sessionId=request.get('sessionId'),
                                    targetId=binding['roomId'], frameId=binding['frameId'],
                                    captureSessionId=binding['sessionId'], baselineVersion=binding['baselineVersion'])
+                    from sanctum_postprocess import process_image
                     result = process_image(frame_pool.view(options['baselineSlot']), frame_pool.view(options['slot']), options,
                                            lambda frame: emit(dict(event='evidence', **context, **frame)))
                 emit({'id': request['id'], 'success': True, 'data': result})
                 continue
-            if request.get('command') in ('readFrozen', 'prepareOcr'):
+            if request.get('command') == 'releaseImage':
+                images.release(request.get('input', {}))
+                emit({'id': request['id'], 'success': True, 'data': {'released': True}})
+                continue
+            if request.get('command') in ('readFrozen', 'prepareOcr', 'prepareIcons'):
+                from sanctum_ocr import read_frozen
+                if request['command'] == 'prepareIcons':
+                    cv2.setNumThreads(1)
+                    emit({'id': request['id'], 'success': True, 'data': {'ready': True}})
+                    continue
                 if ocr_engine is None and not request.get('input', {}).get('iconsOnly'):
                     from sanctum_ocr import create_sanctum_ocr_engine
-                    ocr_engine = create_sanctum_ocr_engine()
-                result = {'ready': True} if request['command'] == 'prepareOcr' else read_frozen(request.get('input', {}), ocr_engine)
+                    cv2.setNumThreads(1)
+                    ocr_engine = create_sanctum_ocr_engine(request.get('input', {}).get('threads', 2))
+                result = {'ready': True} if request['command'] == 'prepareOcr' else read_frozen(request.get('input', {}), ocr_engine, images)
                 emit({'id': request['id'], 'success': True, 'data': result})
                 continue
             if session is None:
@@ -620,6 +643,7 @@ def main():
             emit({'id': request.get('id'), 'success': False, 'error': str(error), 'code': error.code})
         except Exception:
             emit({'id': request.get('id'), 'success': False, 'error': '圣所原生识别失败，请检查区域和运行环境'})
+    images.close()
     if frame_pool:
         frame_pool.close()
     if session:

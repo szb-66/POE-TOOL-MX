@@ -54,6 +54,8 @@ export class SanctumCapture {
     this.session = session
     const {signal} = session.controller, captureSignal = AbortSignal.any([signal,session.inputController.signal])
     const startedAt = Date.now(), collected = this.collected, jobs = [], supplements = [], diagnostics = []
+    const startedTick = performance.now()
+    let inputLeaseStarted
     const progress = new SanctumProgress()
     const failed = room => room.detailsStatus !== 'matched' || Object.values(room.readStages || {}).some(s=>['failed','timeout','skipped'].includes(s))
     let stopReason, finalOutcome, lastInputStage = 'rooms', phaseStartedAt = startedAt
@@ -71,18 +73,22 @@ export class SanctumCapture {
       result.revision = ++revision
       if (['complete','partial','completing'].includes(stage)) progress.stage = stage
       result.captureProgress = progress.snapshot(extra)
-      result.captureMetrics = {...result.captureMetrics,totalMs:Date.now()-startedAt}
+      result.captureMetrics = {...result.captureMetrics,totalMs:performance.now()-startedTick}
       onFloor(structuredClone(result))
     }
     let captureEnd
     const finishCapture = () => {
       if (captureEnd) return captureEnd
+      if (result) result.captureMetrics = {...result.captureMetrics,captureMs:performance.now()-startedTick}
       draining = true
       progress.finishCapture()
       unsubscribeLease?.(); unsubscribeLease = null
       captureEnd = Promise.resolve().then(async () => {
         try { await this.driver.endCapture?.() }
-        finally { if (this.lock.getState().owner === session.owner) this.lock.release(session.owner) }
+        finally {
+          if (this.lock.getState().owner === session.owner) this.lock.release(session.owner)
+          if (result && inputLeaseStarted !== undefined) result.captureMetrics = {...result.captureMetrics,mouseOwnedMs:performance.now()-inputLeaseStarted}
+        }
       })
       publish('recognizing')
       return captureEnd
@@ -111,6 +117,13 @@ export class SanctumCapture {
     }
     try {
       unsubscribeProgress = this.driver.subscribeProgress?.(event => {
+        if (!signal.aborted && result && event.stage === 'waiting-tooltip' && Number.isFinite(event.moveTimeMs)) {
+          const metrics = result.captureMetrics ||= {}
+          metrics.firstMoveMs ??= performance.now()-startedTick
+          metrics.moves ||= []
+          const previous = metrics.moves.at(-1)
+          metrics.moves.push({targetId:event.targetId,timeMs:event.moveTimeMs,intervalMs:previous ? event.moveTimeMs-previous.timeMs:null})
+        }
         if (event.diagnostic) {
           const entry = event.diagnostic
           lastInputStage = entry.stage
@@ -163,6 +176,7 @@ export class SanctumCapture {
         progress.rooms(pending.length)
         const acquire = () => {
           if (!this.lock.acquire(session.owner).success) throw new Error('另一项自动化正在运行，圣所采集已暂停')
+          inputLeaseStarted = performance.now()
           unsubscribeLease = this.lock.subscribe(state => {
             if (state.owner !== session.owner) { safetyError = new Error('圣所自动化锁已失效'); session.controller.abort(safetyError) }
           })
@@ -270,6 +284,7 @@ export class SanctumCapture {
               publish(progress.stage)
             }})
             // Room jobs mutate result while effect OCR runs. Never restore an earlier copy of rooms.
+            if (finalized?.captureMetrics) result.captureMetrics = {...result.captureMetrics,...finalized.captureMetrics}
             for (const field of ['currentEffects','effectScan']) if (finalized?.[field]) result[field] = finalized[field]
             // Null is an explicit new observation too; never retain stale resources.
             if (finalized && Object.hasOwn(finalized, 'runObservation')) result.runObservation = finalized.runObservation
@@ -297,7 +312,9 @@ export class SanctumCapture {
         for (const room of result.rooms) if (room.detailsStatus === 'reading') merge(room,{...room,detailsStatus:'failed',failureReason:'未执行：房间读取未完成',readStages:{...room.readStages,ocr:'skipped'}})
         const incomplete = Boolean(stopReason) || result.rooms.some(r=>!r.captureSkipReason && failed(r)) || result.effectScan?.complete === false
         publish('completing')
-        await this.driver.finishProcessing?.()
+        const cleanupStarted = performance.now()
+        await this.driver.finishProcessing?.({keepWarm:!incomplete && !signal.aborted,signal})
+        result.captureMetrics = {...result.captureMetrics,cleanupMs:performance.now()-cleanupStarted}
         signal.throwIfAborted()
         finalOutcome = incomplete ? 'partial':'complete'
         publish(finalOutcome,completed,pending.length,{reason:stopReason})

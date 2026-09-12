@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { SanctumNativeClient } from './nativeClient.js'
 import { SanctumFramePipeline } from './framePipeline.js'
+import { SanctumImageCapacity } from './imageCapacity.js'
 import { sanctumLogFloor, SanctumLogContext } from './logContext.js'
 import { liveProfile, liveEnvironment, relicProfile, footprintUsable, RESOURCE_REGION_KEYS } from '../../../shared/sanctumLive.js'
 import { parseSanctumRelic } from './relicParser.js'
@@ -137,8 +138,9 @@ export function parseSanctumRoomTexts(texts, catalog, currencyIcons = [], ocr = 
 }
 
 export class SanctumLiveDriver {
-  constructor({ catalog, withHidden, captureWindows = () => [], makeClient = options => new SanctumNativeClient(options), wait = delay, detection = null, clientEvents = null, windowActivation = null }) {
+  constructor({ catalog, withHidden, captureWindows = () => [], makeClient = options => new SanctumNativeClient(options), wait = delay, detection = null, clientEvents = null, windowActivation = null, recognitionWorkers = 2, ocrThreads = 2 }) {
     Object.assign(this, { catalog, withHidden, makeClient, wait, detection, clientEvents, windowActivation })
+    this.recognitionWorkers = recognitionWorkers; this.ocrThreads = ocrThreads
     this.listeners = new Set(); this.client = null; this.latest = null; this.profile = null
     this.captureWindows = captureWindows
     this.progressListeners = new Set()
@@ -156,8 +158,19 @@ export class SanctumLiveDriver {
   }
   async dispose() { await this.close(); this.runWatch?.(); this.runWatch=null }
   async open() {
+    let warm = this.warmWorkers
+    this.warmWorkers = null
+    clearTimeout(this.warmTimer)
     await this.close()
+    if (warm && (warm.expiresAt <= performance.now() || warm.ocr?.child === null || warm.ocr?.closed || warm.icons?.child === null || warm.icons?.closed)) {
+      await Promise.allSettled([warm.ocr?.shutdown(),warm.icons?.shutdown()]);warm=null
+    }
+    if (warm) { this.ocrClient = warm.ocr; this.iconClient = warm.icons }
+    this.usedWarmWorkers = Boolean(warm)
+    this.recognitionFailed = false
     this.ocrClosing = false
+    this.imageCapacity = new SanctumImageCapacity()
+    this.queuedImages = new SanctumImageCapacity({count:128,bytes:128 * 1024 * 1024})
     this.client = this.createCaptureClient()
   }
   createCaptureClient() {
@@ -254,26 +267,31 @@ export class SanctumLiveDriver {
     for (const title of Object.values(this.profile.interfaceTitles)) {
       if (JSON.stringify(liveEnvironment(title.environment)) !== JSON.stringify(valid.environment)) throw new Error('公共标题与校准窗口或 DPI 不一致')
     }
-    await this.open()
+    const stages = {}
+    const measure = async (key, work) => { const start=performance.now();try { return await work() } finally { stages[key]=performance.now()-start } }
+    await measure('openMs',()=>this.open())
     this.client.deadlineAt = this.deadlineAt
+    const prepareStarted = performance.now()
+    this.prepareOcr(signal)
 
     const owner = `sanctum-effects:${randomUUID()}`, lease = new AbortController()
     signal = AbortSignal.any([signal, lease.signal])
     let unsubscribe
     try {
       if (!this.clientEvents) throw new Error('游戏日志监听不可用，请在设置中配置 Client.txt')
-      await this.clientEvents.ensureStarted()
+      await measure('logStartMs',()=>this.clientEvents.ensureStarted())
       signal.throwIfAborted()
       progress('正在切回游戏并校验圣所区域')
-      const activation = await this.windowActivation?.activateGame({ source: 'sanctum-start' })
+      const activation = await measure('activationMs',()=>this.windowActivation?.activateGame({ source: 'sanctum-start' }))
       signal.throwIfAborted()
       if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage(activation?.code) || '游戏窗口激活服务不可用')
-      const current = await this.awaitGame(signal)
+      const current = await measure('environmentMs',()=>this.awaitGame(signal))
       this.recoveryEnvironment = structuredClone(current)
       signal.throwIfAborted()
-      await this.clientEvents.ensureCurrentContext(current.environment.processId, signal)
+      const framesReady = measure('framesInitMs',()=>this.prepareFrames(current.environment, signal))
+      framesReady.catch(() => {})
+      await measure('logContextMs',()=>this.clientEvents.ensureCurrentContext(current.environment.processId, signal))
       signal.throwIfAborted()
-      this.prepareOcr(signal)
       this.logContext = new SanctumLogContext(this.clientEvents, current.environment.processId, error => {
         this.latest = { foreground: false, interfaceMatched: false, logError: error.message }
         this.client?.abort?.(error)
@@ -282,7 +300,8 @@ export class SanctumLiveDriver {
       if (JSON.stringify(liveEnvironment(current.environment)) !== JSON.stringify(this.profile.environment)) throw new Error('窗口尺寸或 DPI 与校准不符')
       this.assertLog()
       signal.throwIfAborted()
-      const initial = await this.sessionRequest('interfaceState', {}, signal)
+      await this.client.configure?.(this.profile, signal)
+      const initial = await measure('interfaceMs',()=>this.sessionRequest('interfaceState', {}, signal))
       if (!initial.mapOpen) throw new Error('未检测到圣所地图，请打开地图后重试')
       if (!lock?.acquire(owner).success) throw new Error('另一项自动化正在运行或自动化锁不可用')
       unsubscribe = lock.subscribe(state => { if (state.owner !== owner) { lease.abort(); this.client?.abort?.(new Error('自动化锁已失效')) } })
@@ -303,8 +322,9 @@ export class SanctumLiveDriver {
       this.progress = progress
       this.correctionKey = null
 
-      await this.observe(signal)
-      await this.prepareFrames(current.environment, signal)
+      await measure('mapMs',()=>this.observe(signal))
+      await framesReady
+      this.latest.floor.captureMetrics = {...this.latest.floor.captureMetrics,nativePrepareMs:performance.now()-prepareStarted,warmWorkers:this.usedWarmWorkers,prepareStages:stages}
       return current.environment
     } catch (error) { await this.close(); throw error }
     finally { this.deadlineAt = null; if (this.client) this.client.deadlineAt = null; unsubscribe?.(); lock?.release(owner) }
@@ -344,9 +364,36 @@ export class SanctumLiveDriver {
     const context = this.logContext.context
     return JSON.stringify([context.sessionKey, context.processId, context.areaId, context.seed, this.assertLog().floorId, this.profile.environment])
   }
-  async finalizeFloor(floor, signal, {captureSignal = signal, finishCapture = async () => {}, onTaskProgress = () => {}} = {}) {
+  async finalizeFloor(floor, signal, options = {}) {
+    const started = performance.now(), resourceJobs = [], resourceTimings = []
+    let capturedAt, result, inputFinished
+    const finishCapture = () => {
+      if (!inputFinished) {
+        capturedAt = performance.now()
+        inputFinished = Promise.resolve().then(()=>options.finishCapture?.())
+      }
+      return inputFinished
+    }
+    const queueResources = async () => {
+      const captured = await this.captureCurrentResources(floor, signal, options.captureSignal || signal)
+      resourceJobs.push(captured.recognition)
+      if (captured.timings) resourceTimings.push(captured.timings)
+      captured.recognition.catch(() => {})
+      return captured.interfaceState
+    }
+    try {
+      result = await this.finalizeCapturedFloor({...floor}, signal, {...options,finishCapture,queueResources})
+    } finally {
+      try { await finishCapture() }
+      finally { await Promise.allSettled(resourceJobs) }
+    }
+    const observations = await Promise.all(resourceJobs)
+    return {...result,runObservation:observations.at(-1) ?? null,
+      captureMetrics:{...result.captureMetrics,effectsCaptureMs:capturedAt-started,effectsTotalMs:performance.now()-started,resources:resourceTimings}}
+  }
+  async finalizeCapturedFloor(floor, signal, {captureSignal = signal, finishCapture = async () => {}, onTaskProgress = () => {}, queueResources} = {}) {
     signal.throwIfAborted(); this.assertLog()
-    floor = {...floor, runObservation:await this.readCurrentResources(floor, signal, captureSignal)}
+    const resourceLayout = await queueResources()
     const context = this.logContext.context
     const scope = JSON.stringify([context.sessionKey, context.processId, context.areaId, context.seed, floor.floorId, this.profile.environment])
     const key = scope + effectMapKey(floor)
@@ -362,7 +409,7 @@ export class SanctumLiveDriver {
       this.correctionKey = key
       this.effectLedger = { scope, floor: structuredClone(floor), effects: [{ status: 'unknown', rawText: '当前效果尚未完整确认' }], complete: false, groups: emptyEffectGroups(),scanReason:decision.reason }
       this.progress?.(`正在读取当前位置的实际效果：${decision.reason}`)
-      const initial = await this.sessionRequest('interfaceState', {}, captureSignal)
+      const initial = resourceLayout || await this.sessionRequest('interfaceState', {}, captureSignal)
       const layout = initial.hudLayout
       const embedded = layout === 'map'
       const regionKey = embedded ? 'mapEffectIconsRegion' : 'effectIconsRegion'
@@ -382,7 +429,7 @@ export class SanctumLiveDriver {
       }
       try {
         if (!embedded && initial.mapOpen) { this.progress?.('正在关闭地图，读取独立状态栏'); await this.switchMode('effects', captureSignal) }
-        if (!embedded) floor.runObservation = await this.readCurrentResources(floor, signal, captureSignal)
+        if (!embedded) await queueResources()
         this.progress?.('正在确认状态栏和效果入口')
         scan = await this.sessionRequest('inspectEffects', scanOptions, captureSignal)
         onTaskProgress({kind:'targets',total:scan.icons.length})
@@ -586,27 +633,48 @@ export class SanctumLiveDriver {
     } finally { await this.close() }
   }
   async readCurrentResources(floor, signal, captureSignal = signal) {
-    if (!floor?.identityConfirmed || !floor.currentRoomId && !floor.initialSelection) return null
+    const captured = await this.captureCurrentResources(floor, signal, captureSignal)
+    return captured.recognition
+  }
+  async captureCurrentResources(floor, signal, captureSignal = signal) {
+    if (!floor?.identityConfirmed || !floor.currentRoomId && !floor.initialSelection) return {recognition:Promise.resolve(null)}
     const empty = parseResourceRegions({}, floor)
-    if (!RESOURCE_REGION_KEYS.some(key => this.profile?.[key])) return empty
+    if (!RESOURCE_REGION_KEYS.some(key => this.profile?.[key])) return {recognition:Promise.resolve(empty)}
     try {
+      const started = performance.now()
       const captured = await this.sessionRequest('readRunPanel', {}, captureSignal)
+      const timings = {captureMs:performance.now()-started,queueMs:0,ocrMs:0}
+      const recognition = this.parseCapturedResources(captured, floor, signal, timings).finally(()=>{timings.totalMs=performance.now()-started})
+      recognition.catch(() => {})
+      return {recognition,interfaceState:captured.interfaceState,timings}
+    } catch (error) {
+      signal.throwIfAborted(); captureSignal.throwIfAborted(); this.assertLog()
+      if (isSafetyError(error)) throw error
+      return {recognition:Promise.resolve({...empty,reason:error.message})}
+    }
+  }
+  async parseCapturedResources(captured, floor, signal, timings) {
+    const empty = parseResourceRegions({}, floor)
+    try {
       const reads = {}
       for (const key of RESOURCE_REGION_KEYS) {
         const value = captured.regions?.[key]
         if (!value) continue
-        try { reads[key] = await this.recognizeCaptured(value, signal, false, {resources:true}) }
+        try {
+          reads[key] = await this.recognizeCaptured(value, signal, false, {resources:true})
+          if (timings) { timings.queueMs += reads[key].captureMetrics?.queueMs || 0;timings.ocrMs += reads[key].captureMetrics?.recognitionMs || 0 }
+        }
         catch (error) {
-          signal.throwIfAborted(); captureSignal.throwIfAborted(); this.assertLog()
+          signal.throwIfAborted(); this.assertLog()
           if (isSafetyError(error)) throw error
           reads[key] = {texts:[],reason:error.message}
         }
       }
-      this.assertLog(); signal.throwIfAborted(); captureSignal.throwIfAborted()
+      this.assertLog(); signal.throwIfAborted()
       return {...parseResourceRegions(reads, floor), layout:captured.resourceLayout,
         rawText:RESOURCE_REGION_KEYS.filter(key=>reads[key]).map(key=>`${key}: ${(reads[key].texts || []).join(' / ')}`).join('\n')}
     } catch (error) {
-      signal.throwIfAborted(); captureSignal.throwIfAborted(); this.assertLog()
+      signal.throwIfAborted(); this.assertLog()
       if (isSafetyError(error)) throw error
       for (const listener of this.progressListeners) listener({diagnostic:{stage:'resources',outcome:'failed',reason:error.message}})
       return {...empty,reason:error.message}
@@ -673,7 +741,7 @@ export class SanctumLiveDriver {
   async *frames({ signal }) {
     try {
       yield this.latest?.floor ? this.latest : await this.observe(signal)
-    } finally { await this.close() }
+    } finally { await this.close({keepWarm:true}) }
   }
   async prepareFrames(environment, signal) {
     let pipeline
@@ -695,13 +763,28 @@ export class SanctumLiveDriver {
     }
     return this.framePipeline.freeze(this.client,command,input,context,signal)
   }
-  processTarget(frozen, signal) {
-    if (!frozen.data.frozenFrame) { frozen.release?.(); return Promise.resolve(frozen.data) }
-    return this.framePipeline.process(frozen,signal)
+  async processTarget(frozen, signal) {
+    const accept = async value => {
+      if (!value.png) return value
+      const started = performance.now()
+      const releaseQueued = await (this.queuedImages ||= new SanctumImageCapacity({count:128,bytes:128 * 1024 * 1024}))
+        .acquire(Buffer.byteLength(value.png, 'utf8'), signal)
+      return {...value,releaseQueued,captureMetrics:{...value.captureMetrics,encodedCapacityWaitMs:performance.now()-started}}
+    }
+    if (!frozen.data.frozenFrame) {
+      try { return await accept(frozen.data) } finally { frozen.release?.() }
+    }
+    return this.framePipeline.process(frozen,signal,accept)
   }
   prepareOcr(signal) {
-    if (!this.ocrClient) this.ocrClient = this.makeClient({})
-    this.ocrReady = this.ocrClient.request('prepareOcr', {}, {signal,timeoutMs:SANCTUM_TIMEOUTS.prepare})
+    if (this.recognitionWorkers !== 1 && !this.iconClient) {
+      this.iconClient = this.makeClient({})
+      this.iconReady = this.iconClient.request('prepareIcons', {}, {signal,timeoutMs:SANCTUM_TIMEOUTS.prepare})
+      this.iconReady.catch(()=>{})
+    }
+    if (this.ocrClient) return this.ocrReady || Promise.resolve()
+    this.ocrClient = this.makeClient({})
+    this.ocrReady = this.ocrClient.request('prepareOcr', {threads:this.ocrThreads}, {signal,timeoutMs:SANCTUM_TIMEOUTS.prepare})
     this.ocrReady.catch(() => {})
     return this.ocrReady
   }
@@ -712,22 +795,61 @@ export class SanctumLiveDriver {
     await client?.shutdown()
     this.framePipeline?.invalidateBaseline()
   }
-  recognizeCaptured(data, signal, includeIcons = true, options = {}) {
+  async recognizeCaptured(data, signal, includeIcons = true, options = {}) {
+    let read
+    try { read = await this.recognizeQueued(data, signal, includeIcons, options);return read }
+    finally {
+      const needsEncodedSupplement = options.retainImage && read?.hasCurrencyOffer && !read.imageRef
+      if (!needsEncodedSupplement) { data.releaseQueued?.(); if (data.releaseQueued) data.png = undefined }
+    }
+  }
+  async recognizeQueued(data, signal, includeIcons = true, options = {}) {
     const queuedAt = performance.now()
-    if (!data.png || !data.region) return Promise.resolve(data)
-    const work = (this.ocrTail || Promise.resolve()).then(async () => {
+    if ((!data.png && !data.imageRef) || !data.region) return data
+    const iconsOnly = options.iconsOnly === true
+    const separateIcons = iconsOnly && this.recognitionWorkers !== 1
+    const lane = separateIcons ? 'iconTail' : 'ocrTail'
+    const clientKey = separateIcons ? 'iconClient' : 'ocrClient'
+    const releaseCapacity = options.retainImage
+      ? await (this.imageCapacity ||= new SanctumImageCapacity()).acquire(data.region.width * data.region.height * 3, signal) : () => {}
+    let retained = false, releaseRetained
+    const work = (this[lane] || Promise.resolve()).then(async () => {
       signal.throwIfAborted(); this.assertLog()
       if (this.ocrClosing) throw new Error('识别进程正在退出')
-      if (!this.ocrClient) this.prepareOcr(signal)
-      if (this.ocrReady) { const ready = this.ocrReady; this.ocrReady = null; await ready }
+      if (separateIcons) {
+        if (!this.iconClient) {
+          this.iconClient = this.makeClient({})
+          await this.iconClient.request('prepareIcons', {}, {signal,timeoutMs:SANCTUM_TIMEOUTS.prepare})
+        }
+        if (this.iconReady) { const ready=this.iconReady;this.iconReady=null;await ready }
+      } else {
+        if (!this.ocrClient) this.prepareOcr(signal)
+        if (this.ocrReady) { const ready = this.ocrReady; this.ocrReady = null; await ready }
+      }
       signal.throwIfAborted()
       options.onReading?.()
       const {width,height} = data.region, started = performance.now()
-      const read = await this.ocrClient.request('readFrozen', {png:data.png,region:{x:0,y:0,width,height},
-        includeIcons,room:options.room ?? includeIcons,iconsOnly:options.iconsOnly === true,resources:options.resources === true}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+      const owner = this[clientKey]
+      const read = await owner.request('readFrozen', {...(data.imageRef ? {imageRef:data.imageRef} : {png:data.png}),
+        binding:options.binding,retainImage:options.retainImage === true,region:{x:0,y:0,width,height},
+        includeIcons,room:options.room ?? includeIcons,iconsOnly,resources:options.resources === true}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+      let releaseImage
+      if (read.imageRef) {
+        retained = true
+        let released = false
+        releaseImage = releaseRetained = async () => {
+          if (released) return
+          released = true
+          const release = (this.ocrTail || Promise.resolve()).then(async () => {
+            if (owner === this.ocrClient && !owner.closed && owner.child !== null) await owner.request('releaseImage', read.imageRef, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+          }).finally(releaseCapacity)
+          this.ocrTail = release.catch(() => {})
+          await release
+        }
+      }
       signal.throwIfAborted(); this.assertLog()
       const offset = region => region ? {...region,x:region.x+data.region.x,y:region.y+data.region.y} : null
-      return {...data,...read,png:undefined,region:data.region,status:data.status,
+      return {...data,...read,releaseImage,png:undefined,region:data.region,status:data.status,
         bodyRegion:offset(read.bodyRegion),titleRegion:offset(read.titleRegion),
         resourceEvidence:read.resourceEvidence ? {...read.resourceEvidence,coinRegion:offset(read.resourceEvidence.coinRegion),resolvePanel:offset(read.resourceEvidence.resolvePanel)} : undefined,
         ocrBlocks:(read.ocrBlocks || []).map(b=>({...b,region:offset(b.region)})),
@@ -736,13 +858,15 @@ export class SanctumLiveDriver {
         captureMetrics:{...data.captureMetrics,...read.captureMetrics,queueMs:started-queuedAt,recognitionMs:performance.now()-started}}
     })
     const settled = work.catch(async error => {
-      if (isStepTimeout(error)) {
-        const client = this.ocrClient; this.ocrClient = null; this.ocrReady = null
+      this.recognitionFailed = true
+      releaseRetained?.().catch(()=>{})
+      if (isStepTimeout(error) || this[clientKey]?.child === null) {
+        const client = this[clientKey]; this[clientKey] = null; if (!iconsOnly) this.ocrReady = null
         await client?.shutdown()
       }
       throw error
-    })
-    this.ocrTail = settled.catch(() => {})
+    }).finally(() => { if (!retained) releaseCapacity() })
+    this[lane] = settled.catch(() => {})
     return settled
   }
   async captureRoom(room, {signal, captureSignal = signal, guard, onReading}) {
@@ -756,7 +880,8 @@ export class SanctumLiveDriver {
     processed.catch(()=>{})
     signal.throwIfAborted(); this.assertLog(data.observation?.environment?.processId ?? null)
     if (!captureSignal.aborted) this.latest = {...this.latest,...data.observation,overlayExcluded:true}
-    let textRead, textPatch, frozenData
+    let textRead, textPatch, frozenData, supplementTask
+    const binding = {runId:context.runId,floorId:context.floorId,roomId:context.roomId,sessionId:context.sessionId,frameId:context.frameId || randomUUID()}
     const parse = read => {
       const started = performance.now()
       const patch = parseSanctumRoomTexts(read.texts,this.catalog,read.currencyIcons,{...read,floorId:context.floorId})
@@ -770,10 +895,29 @@ export class SanctumLiveDriver {
       if (read.hasCurrencyOffer) patch.readStages.icons = 'queued'
       return patch
     }
-    const recognition = processed.then(value=>{frozenData=value;return this.recognizeCaptured(value,signal,false,{room:true,onReading})}).then(read => {
+    const supplement = async () => {
+      try {
+        const icons = await this.recognizeCaptured({...frozenData,imageRef:textRead.imageRef},signal,false,{room:true,iconsOnly:true,binding})
+        const patch = parse({...textRead,currencyIcons:icons.currencyIcons})
+        patch.readStages.icons = icons.currencyIcons.length ? 'matched':'empty'
+        patch.captureMetrics = {...patch.captureMetrics,iconsMs:icons.captureMetrics.iconsMs,iconQueueMs:icons.captureMetrics.queueMs,iconCalls:1}
+        return {patch}
+      } catch (error) {
+        signal.throwIfAborted(); this.assertLog()
+        return {patch:{...textPatch,readStages:{...textPatch.readStages,icons:isStepTimeout(error)?'timeout':'failed'},failureReason:isStepTimeout(error)?'文字已识别；奖励图标识别超时':'文字已识别；奖励图标识别失败'}}
+      } finally {
+        try { await textRead?.releaseImage?.() }
+        finally { frozenData?.releaseQueued?.(); if (frozenData) frozenData.png = undefined }
+      }
+    }
+    const recognition = processed.then(value=>{frozenData=value;return this.recognizeCaptured(value,signal,false,{room:true,onReading,retainImage:true,binding})}).then(read => {
       textRead = read; textPatch = parse(read)
+      if (read.hasCurrencyOffer) { supplementTask = supplement(); supplementTask.catch(()=>{}) }
+      else { read.releaseImage?.() }
       return {patch:textPatch}
     }).catch(error => {
+      textRead?.releaseImage?.().catch(()=>{})
+      frozenData?.releaseQueued?.(); if (frozenData) frozenData.png = undefined
       signal.throwIfAborted(); this.assertLog()
       const postFailed = Boolean(data.frozenFrame && !frozenData)
       textPatch = {detailsStatus:'failed',rawText:'',readStages:{...(postFailed ? {locate:isStepTimeout(error)?'timeout':'failed'} : {}),ocr:postFailed?'skipped':isStepTimeout(error)?'timeout':'failed',parse:'failed'},
@@ -782,28 +926,42 @@ export class SanctumLiveDriver {
         recognition:{status:'failed',matches:[],evidenceId:context.evidenceId,region:frozenData?.region}}
       return {patch:textPatch}
     })
-    return {recognition, needsSupplement:()=>textRead?.hasCurrencyOffer === true, supplement:async () => {
-      if (!textRead?.hasCurrencyOffer) return null
-      try {
-        const icons = await this.recognizeCaptured(frozenData,signal,false,{room:true,iconsOnly:true})
-        const patch = parse({...textRead,currencyIcons:icons.currencyIcons})
-        patch.readStages.icons = icons.currencyIcons.length ? 'matched':'empty'
-        patch.captureMetrics = {...patch.captureMetrics,iconsMs:icons.captureMetrics.iconsMs,iconCalls:1}
-        return {patch}
-      } catch (error) {
-        signal.throwIfAborted(); this.assertLog()
-        return {patch:{...textPatch,readStages:{...textPatch.readStages,icons:isStepTimeout(error)?'timeout':'failed'},failureReason:isStepTimeout(error)?'文字已识别；奖励图标识别超时':'文字已识别；奖励图标识别失败'}}
-      }
-    }}
+    return {recognition, needsSupplement:()=>textRead?.hasCurrencyOffer === true, supplement:async () => supplementTask || null}
   }
   async hover(room, options) {
     const captured = await this.captureRoom(room, options)
     const text = await captured.recognition
     return await captured.supplement?.() || text
   }
-  async finishProcessing() {
-    const frames=this.framePipeline; this.framePipeline=null; await frames?.close()
-    this.ocrClosing=true; const ocr=this.ocrClient; this.ocrClient=null; await ocr?.shutdown(); await this.ocrTail; this.ocrTail=null; this.ocrReady=null
+  async discardWarmWorkers() {
+    clearTimeout(this.warmTimer)
+    const warm = this.warmWorkers; this.warmWorkers = null
+    await Promise.allSettled([warm?.ocr?.shutdown(),warm?.icons?.shutdown()])
   }
-  async close() { await this.finishProcessing(); this.captureContexts.clear(); this.currentEffects = null; this.effectScan = null; this.logContext?.close(); this.logContext = null; const client = this.client; this.client = null; if (client) await client.shutdown() }
+  async finishProcessing({keepWarm = false, signal} = {}) {
+    this.ocrClosing = true
+    this.imageCapacity?.close()
+    this.queuedImages?.close()
+    const frames=this.framePipeline; this.framePipeline=null; await frames?.close()
+    if (keepWarm && !signal?.aborted && !this.recognitionFailed && this.ocrClient && !this.ocrClient.closed && this.ocrClient.child !== null) {
+      await Promise.all([this.ocrTail,this.iconTail,this.ocrReady,this.iconReady])
+      try {
+        await this.ocrClient.request('resetImages', {}, {signal,timeoutMs:SANCTUM_TIMEOUTS.prepare})
+        await this.discardWarmWorkers()
+        signal?.throwIfAborted()
+        this.warmWorkers = {ocr:this.ocrClient,icons:this.iconClient,expiresAt:performance.now()+60000}
+        this.ocrClient=null;this.iconClient=null
+        this.warmTimer=setTimeout(()=>{void this.discardWarmWorkers()},60000)
+        this.warmTimer.unref?.()
+      } catch { /* A failed reset cannot be reused. Close both workers below. */ }
+    }
+    const icons=this.iconClient;this.iconClient=null;await icons?.shutdown();await this.iconTail;this.iconTail=null;this.iconReady=null
+    const ocr=this.ocrClient;this.ocrClient=null;await ocr?.shutdown();await this.ocrTail;this.ocrTail=null;this.ocrReady=null
+  }
+  async close({keepWarm = false} = {}) {
+    if (!keepWarm) await this.discardWarmWorkers()
+    await this.finishProcessing()
+    this.captureContexts.clear();this.currentEffects=null;this.effectScan=null;this.logContext?.close();this.logContext=null
+    const client=this.client;this.client=null;if(client)await client.shutdown()
+  }
 }

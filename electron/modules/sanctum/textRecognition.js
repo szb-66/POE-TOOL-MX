@@ -5,16 +5,32 @@ import { isRoomProfileTitle } from '../../../shared/sanctumRoomProfiles.js'
 const kinds = new Set(['room', 'reward', 'boon', 'affliction'])
 export const normalizeRoomText = value => String(value).normalize('NFKC').replace(/[\s\p{P}]/gu, '').toLowerCase()
 const compareId = (a, b) => a < b ? -1 : a > b ? 1 : 0
+const preparedCatalogs = new WeakMap()
 
-export function matchRoomText(rawText, catalog) {
+function prepareCatalog(catalog) {
+  const entries = catalog?.entries || []
+  // Catalogs can be corrected in place. Identity alone is not a version.
+  const version = JSON.stringify(entries)
+  const cached = catalog && preparedCatalogs.get(catalog)
+  if (cached?.version === version) return cached.rows
+  const rows = entries.filter(entry => kinds.has(entry.kind)).map(entry => ({entry,
+    values: [entry.name, ...(entry.aliases || []), ...(entry.descriptions || [])]
+      .filter(value => typeof value === 'string' && normalizeRoomText(value))
+      .map(value => ({value, normalized: normalizeRoomText(value)}))}))
+  if (catalog) preparedCatalogs.set(catalog, {version, rows})
+  return rows
+}
+
+export function matchRoomText(rawText, catalog, prepared = prepareCatalog(catalog)) {
   const text = normalizeRoomText(rawText)
   if (!text) return null
   let best
-  for (const entry of catalog?.entries || []) {
-    if (!kinds.has(entry.kind)) continue
-    for (const value of [entry.name, ...(entry.aliases || []), ...(entry.descriptions || [])]) {
-      if (typeof value !== 'string' || !normalizeRoomText(value)) continue
-      const similarity = textSimilarity(text, normalizeRoomText(value))
+  for (const {entry, values} of prepared) {
+    for (const {value, normalized} of values) {
+      // Edit distance cannot be smaller than the length difference.
+      const upper = 1 - Math.abs(text.length-normalized.length) / Math.max(text.length, normalized.length)
+      if (best && (upper < best.similarity || upper === best.similarity && compareId(entry.id, best.entry.id) >= 0)) continue
+      const similarity = textSimilarity(text, normalized)
       if (!best || similarity > best.similarity || similarity === best.similarity && compareId(entry.id, best.entry.id) < 0) best = { entry, text: value, similarity }
     }
   }
@@ -39,6 +55,8 @@ export function matchRoomText(rawText, catalog) {
 export function recognizeRoomTexts(texts, catalog, blocks = []) {
   const lines = (Array.isArray(texts) ? texts : []).filter(t => typeof t === 'string' && t.trim()).slice(0, 80)
   const entries = (catalog?.entries || []).filter(e => e.kind !== 'room' || e.descriptions?.length)
+  const prepared = prepareCatalog(catalog).filter(({entry}) => entry.kind !== 'room' || entry.descriptions?.length)
+  const queries = new Map()
   const roomNames = new Set((catalog?.entries || []).filter(e => e.kind === 'room' && !e.descriptions?.length)
     .flatMap(e => [e.name, ...(e.aliases || [])]).map(normalizeRoomText))
   const title = text => isRoomProfileTitle(text) || roomNames.has(normalizeRoomText(text))
@@ -46,10 +64,13 @@ export function recognizeRoomTexts(texts, catalog, blocks = []) {
   const classify = text => /^包含|^完成后(?:提供|获得)/.test(text) ? 'room'
     : /^在你进入时受到.+折磨$/.test(text) ? 'affliction' : null
   const matchLine = text => {
+    if (queries.has(text)) return queries.get(text)
     const kind = classify(text)
     const lookup = text.replace(/^在你进入时受到(.+)折磨$/, '$1')
-    const match = matchRoomText(lookup, { ...catalog, entries: entries.filter(e => !kind || e.kind === kind) })
-    return match ? { ...match, rawText:text, role:kind === 'room' ? 'content' : 'effect' } : null
+    const match = matchRoomText(lookup, catalog, prepared.filter(({entry}) => !kind || entry.kind === kind))
+    const result = match ? { ...match, rawText:text, role:kind === 'room' ? 'content' : 'effect' } : null
+    queries.set(text, result)
+    return result
   }
   const matches = [], titles = []
   for (let i = 0; i < lines.length;) {

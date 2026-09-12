@@ -41,13 +41,15 @@ def has_currency_offer(texts):
                for line in texts)
 
 
-def create_sanctum_ocr_engine():
+def create_sanctum_ocr_engine(threads=2):
     from pathlib import Path
     import rapidocr
     from rapidocr import RapidOCR
     # Tooltips are wide and short. Short-side scaling inflates them severalfold.
     return RapidOCR(params={"Global.model_root_dir": str(Path(rapidocr.__file__).resolve().parent / "models"),
-                            "Det.limit_type": "max"})
+                            "Det.limit_type": "max",
+                            "EngineConfig.onnxruntime.intra_op_num_threads": threads,
+                            "EngineConfig.onnxruntime.inter_op_num_threads": 1})
 
 
 def read_room_ocr(engine, image):
@@ -87,7 +89,22 @@ def read_room_ocr(engine, image):
     return {'texts': [line['text'] for line in lines], 'ocrBlocks': ordered, 'ocrLines': lines}
 
 
-def read_frozen(options, engine=None):
+def read_frozen(options, engine=None, images=None):
+    import time
+    started = time.perf_counter()
+    if options.get('imageRef'):
+        from sanctum_frozen_image import open_image
+        mapping, image = open_image(options['imageRef'], options.get('binding'))
+        try:
+            return read_image(options, image, engine, images, (time.perf_counter()-started)*1000)
+        finally:
+            del image
+            mapping.close()
+    image = decode_frozen(options)
+    return read_image(options, image, engine, images, (time.perf_counter()-started)*1000)
+
+
+def decode_frozen(options):
     png = options.get('png')
     if not isinstance(png, str) or len(png) > 24*1024*1024:
         raise ValueError('冻结截图无效')
@@ -98,6 +115,13 @@ def read_frozen(options, engine=None):
     if width < 1 or height < 1 or width*height > 40_000_000:
         raise ValueError('冻结截图尺寸无效')
     image = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        raise ValueError('冻结截图无效')
+    return image
+
+
+def read_image(options, image, engine=None, images=None, decode_ms=0):
+    height, width = image.shape[:2]
     region = options.get('region', {})
     if image is None or any(type(region.get(k)) is not int for k in ('x','y','width','height')):
         raise ValueError('识别区域无效')
@@ -134,9 +158,11 @@ def read_frozen(options, engine=None):
     if options.get('resources'):
         from sanctum_resources import resource_evidence
         evidence = resource_evidence(image, text['ocrLines'])
+    image_ref = images.retain(image, options['binding']) if images is not None and options.get('retainImage') and has_currency_offer(text['texts']) else None
     return {**text, 'region':region, 'bodyRegion':{**body,'x':x+bx,'y':y+by},
+            **({'imageRef': image_ref} if image_ref else {}),
             'titleTexts':title_texts, 'titleRegion':{'x':x,'y':y,'width':w,'height':by} if by else None,
             **({'resourceEvidence': evidence} if options.get('resources') else {}),
             'status':'located', 'currencyIcons':icons, 'hasCurrencyOffer':has_currency_offer(text['texts']),
-            'captureMetrics':{'ocrMs':round(ocr_ms,2),'iconsMs':round((time.perf_counter()-started)*1000,2),'ocrCalls':int(not icons_only),'iconCalls':int(bool(scan_icons))}}
+            'captureMetrics':{'decodeMs':round(decode_ms,2),'decodeCalls':int(not options.get('imageRef')),'ocrMs':round(ocr_ms,2),'iconsMs':round((time.perf_counter()-started)*1000,2),'ocrCalls':int(not icons_only),'iconCalls':int(bool(scan_icons))}}
 

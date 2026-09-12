@@ -21,6 +21,26 @@ function fixture() {
 }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 
+test('静态配置只传一次，动态身份始终发送；重新配置和进程替换不会沿用旧配置', async () => {
+  const {client,children}=fixture(), configuration={interfaceKind:'sanctum-map',interfaceTitles:{sample:'image'}}
+  const first=client.configure(configuration)
+  await tick();let child=children[0]
+  assert.deepEqual(child.requests[0].input.interfaceTitles,configuration.interfaceTitles)
+  child.reply({id:1,success:true,data:{}});await first
+  const read=client.request('hover',{...configuration,roomId:'a'})
+  await tick();assert.equal(child.requests[1].input.interfaceTitles,undefined);assert.equal(child.requests[1].input.roomId,'a')
+  child.reply({id:2,success:true,data:{}});await read
+  const reset=client.configure(configuration)
+  await tick();assert.deepEqual(child.requests[2].input.interfaceTitles,configuration.interfaceTitles)
+  child.reply({id:3,success:true,data:{}});await reset
+  client.abort();child.emit('close')
+  const next=client.request('hover',{...configuration,roomId:'b'})
+  await tick();child=children[1]
+  assert.deepEqual(child.requests[0].input.interfaceTitles,configuration.interfaceTitles)
+  child.reply({id:4,success:true,data:{}});await next
+  const closed=client.shutdown();child.emit('close');await closed
+})
+
 test('房间详情结束后先移开并等待再匹配布局，初始预检不移动，停止或环境失效不继续', () => {
   const result = runPython(`
 import sys,json,threading,copy,time

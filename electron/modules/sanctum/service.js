@@ -155,7 +155,8 @@ export class SanctumService {
     this.stop()
     this.calibrationEditor?.cancel()
   }
-  stop(reason = '用户主动停止') {
+  stop(reason = '用户主动停止', {preserveWarm = false} = {}) {
+    if (!preserveWarm) void this.liveDriver?.discardWarmWorkers?.()
     if (this.state.running) this.markRouteInterrupted()
     if (this.state.running && this.state.floor) {
       const entries = this.state.floor.captureDiagnostics || [], previous = entries.at(-1), now = Date.now()
@@ -208,12 +209,12 @@ export class SanctumService {
     })
     this.capture = new SanctumCapture({ driver, automationLock })
   }
-  async runLiveAction(action, onSuccess, preparingReason = '请在 15 秒内切回游戏并打开圣所界面；可使用全局紧急停止快捷键停止') {
+  async runLiveAction(action, onSuccess, preparingReason = '请在 15 秒内切回游戏并打开圣所界面；可使用全局紧急停止快捷键停止', preserveWarm = false) {
     this.assertEnabled()
     if (!this.liveDriver) throw new Error('实时采集不可用')
     if (this.calibrationEditor?.picking) throw new Error('请先完成或取消框选')
     if (this.liveTask || this.captureTask) throw new Error('上次采集尚未退出，请先停止并稍后开始')
-    this.stop()
+    this.stop(undefined,{preserveWarm})
     const generation = this.generation, controller = new AbortController()
     this.liveController = controller
     this.state.running = true; this.state.status = 'preparing'
@@ -262,6 +263,9 @@ export class SanctumService {
   }
   async performStartLive() {
     if (!this.state.liveCalibration) throw new Error('请先完成实时校准')
+    const started = performance.now()
+    const previousSession = this.state.floor?.captureSessionId
+    let preparedMs = null
     this.captureDeadlineExpired = false
     const timer = setTimeout(() => {
       this.captureDeadlineExpired = true
@@ -272,7 +276,7 @@ export class SanctumService {
     try {
       const result = await this.runLiveAction(signal => this.liveDriver.prepare(this.state.liveCalibration, signal, this.automationLock, reason => {
         if (!signal.aborted) { this.state.reason = reason; this.publish() }
-      }), undefined, '正在检查圣所配置，检查通过后自动切回游戏；可使用全局紧急停止快捷键停止')
+      }), undefined, '正在检查圣所配置，检查通过后自动切回游戏；可使用全局紧急停止快捷键停止', true)
       if (result.generation !== this.generation || this.captureDeadlineExpired) {
         if (this.captureDeadlineExpired) {
           this.state.progress = { ...this.state.progress, stage:'timeout', step:null }
@@ -282,8 +286,19 @@ export class SanctumService {
         return this.getState()
       }
       clearTimeout(timer)
+      preparedMs = performance.now() - started
       return await this.startCapture(result.value)
-    } finally { clearTimeout(timer); await this.liveDriver?.close() }
+    } finally {
+      clearTimeout(timer)
+      const cleanup = performance.now()
+      await this.liveDriver?.close({keepWarm:this.state.status === 'ready'})
+      if (this.state.floor?.captureSessionId && this.state.floor.captureSessionId !== previousSession) {
+        this.state.floor.captureMetrics = {...this.state.floor.captureMetrics,prepareMs:preparedMs,
+          finalCleanupMs:performance.now()-cleanup,roundTripMs:performance.now()-started,
+          clickToFirstMoveMs:preparedMs !== null && Number.isFinite(this.state.floor.captureMetrics?.firstMoveMs) ? preparedMs+this.state.floor.captureMetrics.firstMoveMs:null}
+        this.saveCapture()
+      }
+    }
   }
   async scanRelics(regionId) {
     const profile = this.state.relicCalibrations?.[regionId]

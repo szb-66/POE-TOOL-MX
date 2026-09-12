@@ -134,15 +134,15 @@ for(const mode of ['stop']) test(`识别阶段${mode}保留已提交文字、清
   assert.equal(f.capture.session,null)
 })
 
-test('真实驱动先提交文字，只有物品奖励延后扫描图标且不重复OCR',async()=>{
+test('真实驱动先提交文字，物品奖励独立扫描且不重复OCR',async()=>{
   const commands=[]
-  const driver=new SanctumLiveDriver({catalog,makeClient:()=>({async request(command,input){if(command==='prepareOcr')return {ready:true};commands.push([command,input]);return input.iconsOnly?{currencyIcons:[],captureMetrics:{iconsMs:2}}:{texts:['完成后提供物品'],hasCurrencyOffer:true,status:'located',captureMetrics:{ocrCalls:1}}},shutdown:async()=>{}})})
+  const driver=new SanctumLiveDriver({catalog,makeClient:()=>({async request(command,input){if(command.startsWith('prepare'))return {ready:true};commands.push([command,input]);return input.iconsOnly?{currencyIcons:[],captureMetrics:{iconsMs:2}}:{texts:['完成后提供物品'],hasCurrencyOffer:true,status:'located',captureMetrics:{ocrCalls:1}}},shutdown:async()=>{}})})
   driver.assertLog=()=>({floorId:'f'});driver.profile={};driver.runId='r'
   driver.client={sessionId:'s',request:async()=>({png:'fixture',region:{x:10,y:20,width:100,height:50},status:'located'}),shutdown:async()=>{}}
   const captured=await driver.captureRoom({id:'a'},{signal:new AbortController().signal,guard:()=>{}})
   const text=await captured.recognition
   assert.equal(text.patch.type,'reward');assert.equal(text.patch.readStages.icons,'queued')
-  assert.equal(commands.length,1);assert.equal(commands[0][1].includeIcons,false)
+  assert.equal(commands.filter(([,input])=>!input.iconsOnly).length,1);assert.equal(commands[0][1].includeIcons,false)
   await captured.supplement()
   assert.equal(commands.length,2);assert.equal(commands[1][1].iconsOnly,true)
   await driver.close()

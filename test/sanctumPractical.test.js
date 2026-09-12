@@ -182,7 +182,7 @@ from sanctum_native import NativeSession,NativeError
 s=NativeSession.__new__(NativeSession)
 s.expected=None
 s.image=lambda:(np.zeros((200,300,3),np.uint8),{'environment':{'width':300,'height':200}})
-s.match_title=lambda *args:True
+s.interface_state=lambda options,snapshot=None:{'mapOpen':True}
 options={'coinsRegion':{'x':10,'y':20,'width':50,'height':30}}
 rejected=[]
 try:s.dispatch('readRunPanel',options)
@@ -190,10 +190,10 @@ except NativeError:rejected.append('unarmed')
 s.expected={}
 value=s.dispatch('readRunPanel',options)
 image=cv2.imdecode(np.frombuffer(base64.b64decode(value['regions']['coinsRegion']['png']),np.uint8),cv2.IMREAD_COLOR)
-s.match_title=lambda *args:False
+s.interface_state=lambda options,snapshot=None:{'mapOpen':False}
 try:s.dispatch('readRunPanel',options)
 except NativeError:rejected.append('title')
-s.match_title=lambda *args:True
+s.interface_state=lambda options,snapshot=None:{'mapOpen':True}
 try:
  value=s.dispatch('readRunPanel',{'coinsRegion':{'x':299,'y':0,'width':10,'height':10}})
  if value['regions']['coinsRegion']['status']=='unknown':rejected.append('bounds')

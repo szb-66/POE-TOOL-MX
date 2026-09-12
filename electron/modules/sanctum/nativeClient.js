@@ -26,6 +26,7 @@ export class SanctumNativeClient {
       const { process: child, started } = this.launch({ pythonPath: runtime.path,
         scriptPath: fileURLToPath(new URL('../../../src/assets/scripts/sanctum_native.py', import.meta.url)), stdin: 'pipe', env: this.env })
       this.child = child
+      this.configuration = null
       this.drain = new Promise(resolve => child.once('close', resolve))
       let buffer = ''
       child.stdout.setEncoding('utf8')
@@ -69,6 +70,10 @@ export class SanctumNativeClient {
     this.starting = task
     try { await task } finally { if (this.starting === task) this.starting = null }
   }
+  async configure(configuration, signal) {
+    await this.request('configure', configuration, {signal})
+    this.configuration = configuration
+  }
   async request(command, input = {}, { signal, timeoutMs = SANCTUM_TIMEOUTS.capture } = {}) {
     const remaining = this.deadlineAt ? this.deadlineAt - Date.now() : timeoutMs
     if (remaining <= 0) { this.abort(sanctumError('STEP_TIMEOUT','当前步骤超时')); await this.drain; throw sanctumError('STEP_TIMEOUT','当前步骤超时') }
@@ -100,7 +105,8 @@ export class SanctumNativeClient {
       this.pending = { id, resolve, reject, cleanup }
       signal?.addEventListener('abort', abort, { once: true })
       try {
-        child.stdin.write(`${JSON.stringify({ id, sessionId: this.sessionId, command, input: { ...input, deadlineAt, captureWindows: this.captureWindows() } })}\n`, error => {
+        const payload = Object.fromEntries(Object.entries(input).filter(([key,value]) => command === 'configure' || !this.configuration || value !== this.configuration[key]))
+        child.stdin.write(`${JSON.stringify({ id, sessionId: this.sessionId, command, input: { ...payload, deadlineAt, captureWindows: this.captureWindows() } })}\n`, error => {
           if (error && child === this.child) this.abort(new Error('圣所原生通道写入失败'))
         })
       } catch { this.abort(new Error('圣所原生参数或通道无效')) }

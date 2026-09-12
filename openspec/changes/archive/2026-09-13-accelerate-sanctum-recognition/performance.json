@@ -1,0 +1,2457 @@
+{
+  "scope": "offline-frozen-crop-replay",
+  "liveAcceptance": "not-measured",
+  "reports": [
+    {
+      "name": "final-matrix",
+      "mode": "offline-production-driver",
+      "baselineRef": null,
+      "scenario": "rooms",
+      "liveAcceptance": "not-measured",
+      "equalFacts": true,
+      "summary": [
+        {
+          "workers": 1,
+          "threads": 1,
+          "medianMs": 6390.716,
+          "p95Ms": 6447.642599999999,
+          "failures": 0
+        },
+        {
+          "workers": 1,
+          "threads": 2,
+          "medianMs": 5103.864950000001,
+          "p95Ms": 5222.071600000003,
+          "failures": 0
+        },
+        {
+          "workers": 1,
+          "threads": 4,
+          "medianMs": 5311.624099999998,
+          "p95Ms": 5470.982299999996,
+          "failures": 0
+        },
+        {
+          "workers": 2,
+          "threads": 1,
+          "medianMs": 5432.613799999999,
+          "p95Ms": 5521.169199999997,
+          "failures": 0
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "medianMs": 4344.419199999997,
+          "p95Ms": 4434.444299999996,
+          "failures": 0
+        },
+        {
+          "workers": 2,
+          "threads": 4,
+          "medianMs": 5388.788049999999,
+          "p95Ms": 5585.871299999999,
+          "failures": 0
+        }
+      ],
+      "runs": [
+        {
+          "workers": 1,
+          "threads": 1,
+          "repeat": 0,
+          "initMs": 1136.7631,
+          "cleanupMs": 20.545500000000175,
+          "totalMs": 6333.789400000001,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.71,
+                "decodeCalls": 1,
+                "ocrMs": 1002.31,
+                "iconsMs": 1128.27,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.35809999999992215,
+                "recognitionMs": 1016.0184999999999,
+                "parseMs": 1.0339999999996508,
+                "iconQueueMs": 3012.5815000000002
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.5,
+                "decodeCalls": 1,
+                "ocrMs": 1106.35,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1015.8694,
+                "recognitionMs": 1126.1479,
+                "parseMs": 6.789299999999912
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.38,
+                "decodeCalls": 1,
+                "ocrMs": 910.91,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2141.1236,
+                "recognitionMs": 926.8942999999999,
+                "parseMs": 1.1630000000004657
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.09,
+                "decodeCalls": 1,
+                "ocrMs": 957.63,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3067.9806,
+                "recognitionMs": 967.5398999999998,
+                "parseMs": 1.114400000000387
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 1,
+          "threads": 2,
+          "repeat": 0,
+          "initMs": 1076.1401000000005,
+          "cleanupMs": 18.803600000001097,
+          "totalMs": 4985.6583,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.76,
+                "decodeCalls": 1,
+                "ocrMs": 748,
+                "iconsMs": 1197.39,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.03149999999914144,
+                "recognitionMs": 763.1355000000012,
+                "parseMs": 1.1472000000012486,
+                "iconQueueMs": 1918.226200000001
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.69,
+                "decodeCalls": 1,
+                "ocrMs": 783.23,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 763.0316000000003,
+                "recognitionMs": 796.7083000000002,
+                "parseMs": 5.6718999999993684
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.73,
+                "decodeCalls": 1,
+                "ocrMs": 591.84,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1558.824199999999,
+                "recognitionMs": 608.8592000000008,
+                "parseMs": 1.3374000000003434
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.12,
+                "decodeCalls": 1,
+                "ocrMs": 503.94,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2167.654700000001,
+                "recognitionMs": 514.3431999999993,
+                "parseMs": 1.4192000000002736
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 1,
+          "threads": 4,
+          "repeat": 0,
+          "initMs": 1180.6363999999994,
+          "cleanupMs": 17.85150000000067,
+          "totalMs": 5152.2659,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.95,
+                "decodeCalls": 1,
+                "ocrMs": 550.37,
+                "iconsMs": 1379.36,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.07040000000051805,
+                "recognitionMs": 565.4014999999999,
+                "parseMs": 1.2128999999986263,
+                "iconQueueMs": 1997.6953999999987
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.06,
+                "decodeCalls": 1,
+                "ocrMs": 745.96,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 565.3297999999995,
+                "recognitionMs": 759.9650999999994,
+                "parseMs": 4.303100000000995
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.19,
+                "decodeCalls": 1,
+                "ocrMs": 636.07,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1324.0432,
+                "recognitionMs": 652.1779000000006,
+                "parseMs": 1.3053999999992811
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.93,
+                "decodeCalls": 1,
+                "ocrMs": 574.24,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1976.1979999999985,
+                "recognitionMs": 586.7862999999998,
+                "parseMs": 1.3716000000003987
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 1,
+          "repeat": 0,
+          "initMs": 1055.113300000001,
+          "cleanupMs": 26.927000000003318,
+          "totalMs": 5344.058400000002,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.07,
+                "decodeCalls": 1,
+                "ocrMs": 1000.42,
+                "iconsMs": 1360.5,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.0496000000021013,
+                "recognitionMs": 1015.4556999999986,
+                "parseMs": 1.506999999997788,
+                "iconQueueMs": 1.0852000000013504
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 3.86,
+                "decodeCalls": 1,
+                "ocrMs": 1339.38,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1015.3907999999974,
+                "recognitionMs": 1351.8896999999997,
+                "parseMs": 2.6369999999988067
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 2.79,
+                "decodeCalls": 1,
+                "ocrMs": 930.65,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2365.8534,
+                "recognitionMs": 941.8911000000007,
+                "parseMs": 1.4447000000000116
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4.01,
+                "decodeCalls": 1,
+                "ocrMs": 937.4,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3307.7206000000006,
+                "recognitionMs": 950.3880000000026,
+                "parseMs": 1.4369999999980791
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 0,
+          "initMs": 1274.0420999999988,
+          "cleanupMs": 38.084499999997206,
+          "totalMs": 4254.394099999998,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.33,
+                "decodeCalls": 1,
+                "ocrMs": 671.15,
+                "iconsMs": 1557.57,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.05429999999978463,
+                "recognitionMs": 684.8285000000033,
+                "parseMs": 1.0200000000004366,
+                "iconQueueMs": 1.265400000000227
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.97,
+                "decodeCalls": 1,
+                "ocrMs": 926.65,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 684.7412999999979,
+                "recognitionMs": 941.2871000000014,
+                "parseMs": 4.556400000001304
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.83,
+                "decodeCalls": 1,
+                "ocrMs": 713.43,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1624.6362000000008,
+                "recognitionMs": 728.3728999999985,
+                "parseMs": 1.4565000000002328
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.13,
+                "decodeCalls": 1,
+                "ocrMs": 573.54,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2353,
+                "recognitionMs": 585.1736999999994,
+                "parseMs": 1.5597000000016124
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 4,
+          "repeat": 0,
+          "initMs": 1541.6667000000016,
+          "cleanupMs": 57.21399999999994,
+          "totalMs": 5585.871299999999,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.98,
+                "decodeCalls": 1,
+                "ocrMs": 936.27,
+                "iconsMs": 1895.07,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.030099999999947613,
+                "recognitionMs": 960.5776000000005,
+                "parseMs": 1.4508999999998196,
+                "iconQueueMs": 1.2459000000017113
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.24,
+                "decodeCalls": 1,
+                "ocrMs": 1368.31,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 960.5108,
+                "recognitionMs": 1383.1058999999987,
+                "parseMs": 4.3562999999994645
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.02,
+                "decodeCalls": 1,
+                "ocrMs": 939.94,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2342.2896,
+                "recognitionMs": 955.6316000000006,
+                "parseMs": 1.3915999999990163
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4.57,
+                "decodeCalls": 1,
+                "ocrMs": 671.85,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3297.9099000000024,
+                "recognitionMs": 685.489999999998,
+                "parseMs": 1.3983999999982188
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 4,
+          "repeat": 1,
+          "initMs": 1705.0961000000025,
+          "cleanupMs": 50.65869999999995,
+          "totalMs": 5191.7047999999995,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.96,
+                "decodeCalls": 1,
+                "ocrMs": 553.81,
+                "iconsMs": 2031.35,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.048199999997450504,
+                "recognitionMs": 569.1511000000028,
+                "parseMs": 1.0675000000046566,
+                "iconQueueMs": 1.5021000000051572
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.82,
+                "decodeCalls": 1,
+                "ocrMs": 1175.97,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 568.9370999999956,
+                "recognitionMs": 1191.134100000003,
+                "parseMs": 4.014400000000023
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.41,
+                "decodeCalls": 1,
+                "ocrMs": 961.89,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1758.676800000001,
+                "recognitionMs": 975.2560999999987,
+                "parseMs": 1.4829000000027008
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 5.31,
+                "decodeCalls": 1,
+                "ocrMs": 683.8,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2733.9268999999986,
+                "recognitionMs": 698.547599999998,
+                "parseMs": 1.1392000000050757
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 1,
+          "initMs": 1211.3869999999952,
+          "cleanupMs": 34.588599999995495,
+          "totalMs": 4434.444299999996,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.34,
+                "decodeCalls": 1,
+                "ocrMs": 614.83,
+                "iconsMs": 1630.86,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.019499999994877726,
+                "recognitionMs": 627.6117999999988,
+                "parseMs": 1.4992999999958556,
+                "iconQueueMs": 1.7557999999989988
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 3.97,
+                "decodeCalls": 1,
+                "ocrMs": 1158.56,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 627.5676999999996,
+                "recognitionMs": 1170.8132000000041,
+                "parseMs": 4.34610000000248
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.77,
+                "decodeCalls": 1,
+                "ocrMs": 731.39,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1797.426400000004,
+                "recognitionMs": 746.2885999999999,
+                "parseMs": 1.589399999997113
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.29,
+                "decodeCalls": 1,
+                "ocrMs": 631.03,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2543.7056999999986,
+                "recognitionMs": 642.1744000000035,
+                "parseMs": 0.8931999999986147
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 1,
+          "repeat": 1,
+          "initMs": 1202.883299999994,
+          "cleanupMs": 30.03859999999986,
+          "totalMs": 5521.169199999997,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.81,
+                "decodeCalls": 1,
+                "ocrMs": 981.64,
+                "iconsMs": 1364.3,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.05689999999594875,
+                "recognitionMs": 994.4055000000008,
+                "parseMs": 0.9150000000008731,
+                "iconQueueMs": 1.0579999999972642
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.35,
+                "decodeCalls": 1,
+                "ocrMs": 1301.81,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 994.3331999999937,
+                "recognitionMs": 1316.0675000000047,
+                "parseMs": 4.627399999997579
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.7,
+                "decodeCalls": 1,
+                "ocrMs": 1012.33,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2309.2926000000007,
+                "recognitionMs": 1028.602199999994,
+                "parseMs": 1.4812999999994645
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.82,
+                "decodeCalls": 1,
+                "ocrMs": 934.12,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3337.8852000000043,
+                "recognitionMs": 947.6714999999967,
+                "parseMs": 0.8470999999990454
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 1,
+          "threads": 4,
+          "repeat": 1,
+          "initMs": 1176.9714999999997,
+          "cleanupMs": 21.2896999999939,
+          "totalMs": 5470.982299999996,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.7,
+                "decodeCalls": 1,
+                "ocrMs": 773.89,
+                "iconsMs": 1314.81,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.03530000000318978,
+                "recognitionMs": 788.8911999999982,
+                "parseMs": 0.995599999994738,
+                "iconQueueMs": 2140.7136000000028
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.05,
+                "decodeCalls": 1,
+                "ocrMs": 853.57,
+                "iconsMs": 0.03,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 788.8292000000001,
+                "recognitionMs": 868.0305000000008,
+                "parseMs": 3.4354000000021188
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.6,
+                "decodeCalls": 1,
+                "ocrMs": 701.28,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1654.7494000000006,
+                "recognitionMs": 714.7454999999973,
+                "parseMs": 1.132499999999709
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.6,
+                "decodeCalls": 1,
+                "ocrMs": 548.14,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2369.476499999997,
+                "recognitionMs": 559.3058999999994,
+                "parseMs": 1.3466000000044005
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 1,
+          "threads": 2,
+          "repeat": 1,
+          "initMs": 1258.5083000000013,
+          "cleanupMs": 22.60450000000128,
+          "totalMs": 5222.071600000003,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.63,
+                "decodeCalls": 1,
+                "ocrMs": 646.51,
+                "iconsMs": 1295.68,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.029999999998835847,
+                "recognitionMs": 662.2121000000043,
+                "parseMs": 0.9363999999986845,
+                "iconQueueMs": 1971.5721000000049
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.6,
+                "decodeCalls": 1,
+                "ocrMs": 708.81,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 662.1137000000017,
+                "recognitionMs": 721.4825000000055,
+                "parseMs": 4.068200000001525
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.57,
+                "decodeCalls": 1,
+                "ocrMs": 614.09,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1381.9588000000003,
+                "recognitionMs": 627.802300000003,
+                "parseMs": 1.499500000005355
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.4,
+                "decodeCalls": 1,
+                "ocrMs": 609.17,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2009.7496000000028,
+                "recognitionMs": 623.4277000000002,
+                "parseMs": 1.5973999999987427
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 1,
+          "threads": 1,
+          "repeat": 1,
+          "initMs": 1229.9565000000002,
+          "cleanupMs": 18.641199999998207,
+          "totalMs": 6447.642599999999,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.86,
+                "decodeCalls": 1,
+                "ocrMs": 1142.62,
+                "iconsMs": 1050.03,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.025600000000849832,
+                "recognitionMs": 1158.909599999999,
+                "parseMs": 0.8297999999995227,
+                "iconQueueMs": 2980.5884000000005
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.57,
+                "decodeCalls": 1,
+                "ocrMs": 1096.4,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1158.8237999999983,
+                "recognitionMs": 1109.1301000000021,
+                "parseMs": 4.00959999999759
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.06,
+                "decodeCalls": 1,
+                "ocrMs": 958.75,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2266.4126000000033,
+                "recognitionMs": 974.196299999996,
+                "parseMs": 1.7714999999952852
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 3.77,
+                "decodeCalls": 1,
+                "ocrMs": 884.93,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3240.589500000002,
+                "recognitionMs": 898.1975999999995,
+                "parseMs": 1.0786999999982072
+              },
+              "status": "matched"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "final-comparison",
+      "mode": "offline-production-driver",
+      "baselineRef": "7856b6caa3e96e32e7caa2ad3559b0e269e392a1",
+      "scenario": "rooms",
+      "liveAcceptance": "not-measured",
+      "equalFacts": true,
+      "summary": [
+        {
+          "baseline": true,
+          "medianMs": 9889.8059,
+          "p95Ms": 9938.637300000002,
+          "failures": 0
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "medianMs": 4502.5639999999985,
+          "p95Ms": 4523.756399999998,
+          "failures": 0
+        }
+      ],
+      "runs": [
+        {
+          "baseline": true,
+          "repeat": 0,
+          "initMs": 1353.1970999999999,
+          "cleanupMs": 21.73700000000099,
+          "totalMs": 9099.3185,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 957.74,
+                "iconsMs": 3486.93,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.10349999999993997,
+                "recognitionMs": 981.9687999999999,
+                "parseMs": 1.9421999999995023
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "ocrMs": 1149.96,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 981.8498999999999,
+                "recognitionMs": 1170.1187,
+                "parseMs": 15.933500000000095
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "ocrMs": 1033.61,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2150.7795,
+                "recognitionMs": 1060.4706999999999,
+                "parseMs": 0.9106000000001586
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "ocrMs": 997.85,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3211.2169000000004,
+                "recognitionMs": 1009.1925999999994,
+                "parseMs": 0.9075999999995474
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 0,
+          "initMs": 1380.1335,
+          "cleanupMs": 32.13730000000032,
+          "totalMs": 4522.2015999999985,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.45,
+                "decodeCalls": 1,
+                "ocrMs": 645.46,
+                "iconsMs": 1541.6,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.2888999999995576,
+                "recognitionMs": 658.8606,
+                "parseMs": 1.6673000000009779,
+                "iconQueueMs": 0.8904999999995198
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.22,
+                "decodeCalls": 1,
+                "ocrMs": 948.88,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 658.782799999999,
+                "recognitionMs": 966.6208000000006,
+                "parseMs": 6.299000000000888
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.87,
+                "decodeCalls": 1,
+                "ocrMs": 798.16,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1624.747299999999,
+                "recognitionMs": 814.7130000000016,
+                "parseMs": 1.0946999999996478
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4.08,
+                "decodeCalls": 1,
+                "ocrMs": 655.85,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2439.4287000000004,
+                "recognitionMs": 666.7428,
+                "parseMs": 1.2101999999995314
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 1,
+          "initMs": 1330.5710999999992,
+          "cleanupMs": 30.050100000000384,
+          "totalMs": 4502.5639999999985,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.13,
+                "decodeCalls": 1,
+                "ocrMs": 620.67,
+                "iconsMs": 1567.99,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.03709999999955471,
+                "recognitionMs": 634.6178999999993,
+                "parseMs": 1.5217000000011467,
+                "iconQueueMs": 1.4169999999994616
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.74,
+                "decodeCalls": 1,
+                "ocrMs": 1093.94,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 634.5470999999998,
+                "recognitionMs": 1107.8634000000002,
+                "parseMs": 5.140499999997701
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.54,
+                "decodeCalls": 1,
+                "ocrMs": 790.89,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1741.0650000000023,
+                "recognitionMs": 806.7353999999978,
+                "parseMs": 0.8826999999982945
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 2.9,
+                "decodeCalls": 1,
+                "ocrMs": 578.61,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2547.8091000000004,
+                "recognitionMs": 589.6140999999989,
+                "parseMs": 2.007499999999709
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 1,
+          "initMs": 1361.5288999999975,
+          "cleanupMs": 18.54699999999866,
+          "totalMs": 9889.8059,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1251.51,
+                "iconsMs": 3769.31,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.017599999999220017,
+                "recognitionMs": 1276.2062000000005,
+                "parseMs": 0.449399999997695
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "ocrMs": 1157.99,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1276.1382999999987,
+                "recognitionMs": 1174.6660999999986,
+                "parseMs": 11.082199999997101
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "ocrMs": 1257.58,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2449.5185999999994,
+                "recognitionMs": 1280.7193000000007,
+                "parseMs": 0.7387999999991735
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "ocrMs": 974.53,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3730.2203999999983,
+                "recognitionMs": 995.1540000000023,
+                "parseMs": 0.526400000002468
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 2,
+          "initMs": 1336.4367999999995,
+          "cleanupMs": 18.172200000000885,
+          "totalMs": 9917.068099999997,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1480.31,
+                "iconsMs": 3597.03,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.18130000000019209,
+                "recognitionMs": 1512.8232000000025,
+                "parseMs": 0.4081000000005588
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "ocrMs": 1218.86,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1512.7357999999986,
+                "recognitionMs": 1232.2112000000016,
+                "parseMs": 8.217400000001362
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "ocrMs": 1075.58,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2743.8151,
+                "recognitionMs": 1093.2229999999981,
+                "parseMs": 0.9078000000008615
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "ocrMs": 1095.1,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3837.021399999998,
+                "recognitionMs": 1106.5648,
+                "parseMs": 0.6156000000046333
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 2,
+          "initMs": 1212.1463999999978,
+          "cleanupMs": 29.244599999998172,
+          "totalMs": 4407.789499999999,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.01,
+                "decodeCalls": 1,
+                "ocrMs": 611.6,
+                "iconsMs": 1707.46,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.07459999999991851,
+                "recognitionMs": 625.0069999999978,
+                "parseMs": 1.693700000003446,
+                "iconQueueMs": 0.9709999999977299
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 6.41,
+                "decodeCalls": 1,
+                "ocrMs": 1026.59,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 624.9331999999995,
+                "recognitionMs": 1042.148699999998,
+                "parseMs": 4.173600000001898
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.12,
+                "decodeCalls": 1,
+                "ocrMs": 857.53,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1666.4442000000054,
+                "recognitionMs": 874.5368999999992,
+                "parseMs": 1.3237000000008265
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4,
+                "decodeCalls": 1,
+                "ocrMs": 609.95,
+                "iconsMs": 0.28,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2540.9535000000033,
+                "recognitionMs": 622.3027999999977,
+                "parseMs": 1.4091000000044005
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 3,
+          "initMs": 1216.0219999999972,
+          "cleanupMs": 27.137399999999616,
+          "totalMs": 4424.104899999998,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.71,
+                "decodeCalls": 1,
+                "ocrMs": 729.58,
+                "iconsMs": 1531.6,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.09850000000005821,
+                "recognitionMs": 744.1961999999985,
+                "parseMs": 1.3528000000005704,
+                "iconQueueMs": 1.096400000002177
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 5.48,
+                "decodeCalls": 1,
+                "ocrMs": 1056.82,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 744.1131999999998,
+                "recognitionMs": 1070.9416999999958,
+                "parseMs": 4.136699999995471
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 4.16,
+                "decodeCalls": 1,
+                "ocrMs": 755.24,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1813.3071000000054,
+                "recognitionMs": 769.7497000000003,
+                "parseMs": 1.2471999999979744
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4.01,
+                "decodeCalls": 1,
+                "ocrMs": 581.71,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2583.048799999997,
+                "recognitionMs": 594.2079000000012,
+                "parseMs": 1.111300000004121
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 3,
+          "initMs": 1259.993699999999,
+          "cleanupMs": 20.83640000000014,
+          "totalMs": 9938.637300000002,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1160.58,
+                "iconsMs": 3973.72,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.013700000003154855,
+                "recognitionMs": 1190.0890999999974,
+                "parseMs": 0.488100000002305
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "ocrMs": 1374.1,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1190.0214999999953,
+                "recognitionMs": 1387.8760000000038,
+                "parseMs": 9.514500000004773
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "ocrMs": 1161.35,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2576.4357999999993,
+                "recognitionMs": 1180.499100000001,
+                "parseMs": 0.5112000000008265
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "ocrMs": 876.12,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3756.9251000000004,
+                "recognitionMs": 887.0351999999984,
+                "parseMs": 0.5148000000044703
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 4,
+          "initMs": 1294.9757000000027,
+          "cleanupMs": 23.300800000011805,
+          "totalMs": 9223.120799999997,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 960.56,
+                "iconsMs": 3680.72,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.008099999999103602,
+                "recognitionMs": 1000.1900999999998,
+                "parseMs": 0.41799999999057036
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "ocrMs": 1197.46,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1000.097299999994,
+                "recognitionMs": 1212.790700000005,
+                "parseMs": 8.597900000000664
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "ocrMs": 1041.96,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2211.9617999999973,
+                "recognitionMs": 1060.4204000000027,
+                "parseMs": 0.654500000004191
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "ocrMs": 926.23,
+                "iconsMs": 0.01,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 3272.376199999999,
+                "recognitionMs": 936.6959999999963,
+                "parseMs": 0.6080999999976484
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 4,
+          "initMs": 1193.219499999992,
+          "cleanupMs": 47.11250000000291,
+          "totalMs": 4523.756399999998,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "59a848e862205dc1ac4f223a275922d47e2eca030cc6d03066f33c39d9ba8e53",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.54,
+                "decodeCalls": 1,
+                "ocrMs": 696.35,
+                "iconsMs": 1526.33,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.03899999998975545,
+                "recognitionMs": 713.1469999999972,
+                "parseMs": 2.3959999999933643,
+                "iconQueueMs": 0.7195999999967171
+              },
+              "status": "matched"
+            },
+            {
+              "name": "purse",
+              "metrics": {
+                "decodeMs": 4.96,
+                "decodeCalls": 1,
+                "ocrMs": 1103.77,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 713.0261000000028,
+                "recognitionMs": 1117.8012000000017,
+                "parseMs": 4.077499999999418
+              },
+              "status": "matched"
+            },
+            {
+              "name": "pact",
+              "metrics": {
+                "decodeMs": 3.53,
+                "decodeCalls": 1,
+                "ocrMs": 736.85,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 1829.696299999996,
+                "recognitionMs": 750.4762000000046,
+                "parseMs": 1.2272000000084518
+              },
+              "status": "matched"
+            },
+            {
+              "name": "fountain",
+              "metrics": {
+                "decodeMs": 4.03,
+                "decodeCalls": 1,
+                "ocrMs": 689.18,
+                "iconsMs": 0.02,
+                "ocrCalls": 1,
+                "iconCalls": 0,
+                "queueMs": 2580.155799999993,
+                "recognitionMs": 700.0538000000088,
+                "parseMs": 1.126299999988987
+              },
+              "status": "matched"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rewards-comparison",
+      "mode": "offline-production-driver",
+      "baselineRef": "7856b6caa3e96e32e7caa2ad3559b0e269e392a1",
+      "scenario": "rewards",
+      "liveAcceptance": "not-measured",
+      "equalFacts": true,
+      "summary": [
+        {
+          "baseline": true,
+          "medianMs": 19064.790500000003,
+          "p95Ms": 19088.7276,
+          "failures": 0
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "medianMs": 6892.305300000007,
+          "p95Ms": 7195.187300000001,
+          "failures": 0
+        }
+      ],
+      "runs": [
+        {
+          "baseline": true,
+          "repeat": 0,
+          "initMs": 1371.5895,
+          "cleanupMs": 22.757000000001426,
+          "totalMs": 19086.2444,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1131.89,
+                "iconsMs": 3508.7,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.10170000000016444,
+                "recognitionMs": 1158.4560999999999,
+                "parseMs": 1.263600000000224
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 917.64,
+                "iconsMs": 3446.26,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1158.3361000000002,
+                "recognitionMs": 936.1787999999997,
+                "parseMs": 1.0174000000006345
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 993.07,
+                "iconsMs": 3236.89,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2093.0483,
+                "recognitionMs": 1009.0617000000002,
+                "parseMs": 0.7422999999998865
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 977.96,
+                "iconsMs": 3352.95,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 3102.0802000000003,
+                "recognitionMs": 990.2267999999995,
+                "parseMs": 0.8326999999990221
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 0,
+          "initMs": 1341.038800000002,
+          "cleanupMs": 31.807300000000396,
+          "totalMs": 6877.157300000003,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.48,
+                "decodeCalls": 1,
+                "ocrMs": 651.21,
+                "iconsMs": 1479,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.2558000000026368,
+                "recognitionMs": 666.5003999999972,
+                "parseMs": 1.4056000000018685,
+                "iconQueueMs": 1.1103000000002794
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.18,
+                "decodeCalls": 1,
+                "ocrMs": 559.36,
+                "iconsMs": 1158.79,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 665.5324,
+                "recognitionMs": 575.744200000001,
+                "parseMs": 1.1749999999992724,
+                "iconQueueMs": 915.0895999999993
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.64,
+                "decodeCalls": 1,
+                "ocrMs": 636.62,
+                "iconsMs": 1046.69,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1241.2335999999996,
+                "recognitionMs": 651.1686000000009,
+                "parseMs": 1.4019999999982247,
+                "iconQueueMs": 1430.882999999998
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.44,
+                "decodeCalls": 1,
+                "ocrMs": 703.78,
+                "iconsMs": 1111.44,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1892.3897999999972,
+                "recognitionMs": 721.9469000000026,
+                "parseMs": 0.9612999999990279,
+                "iconQueueMs": 1762.8813999999984
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 1,
+          "initMs": 1364.7541999999994,
+          "cleanupMs": 32.599600000001374,
+          "totalMs": 7195.187300000001,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.54,
+                "decodeCalls": 1,
+                "ocrMs": 623.51,
+                "iconsMs": 1670.82,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.04550000000017462,
+                "recognitionMs": 636.5417000000016,
+                "parseMs": 1.4686000000001513,
+                "iconQueueMs": 1.164600000000064
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.88,
+                "decodeCalls": 1,
+                "ocrMs": 666.82,
+                "iconsMs": 1299.81,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 635.8152999999984,
+                "recognitionMs": 682.5018000000018,
+                "parseMs": 0.8486999999986438,
+                "iconQueueMs": 997.2579000000005
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 6.51,
+                "decodeCalls": 1,
+                "ocrMs": 733.45,
+                "iconsMs": 1048.71,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1318.273500000003,
+                "recognitionMs": 750.1345000000001,
+                "parseMs": 0.8270999999986088,
+                "iconQueueMs": 1558.131400000002
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.13,
+                "decodeCalls": 1,
+                "ocrMs": 987.47,
+                "iconsMs": 1103.22,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2068.4033999999992,
+                "recognitionMs": 1005.7072999999982,
+                "parseMs": 0.9556000000011409,
+                "iconQueueMs": 1607.287900000003
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 1,
+          "initMs": 1368.187300000005,
+          "cleanupMs": 20.01249999999709,
+          "totalMs": 18971.8508,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1272.88,
+                "iconsMs": 3849.39,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.01989999999932479,
+                "recognitionMs": 1300.3680000000022,
+                "parseMs": 0.713000000003376
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 855.15,
+                "iconsMs": 3339.74,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1300.3234999999986,
+                "recognitionMs": 870.2788999999975,
+                "parseMs": 0.41410000000178115
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 901,
+                "iconsMs": 3294.52,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2169.7598999999973,
+                "recognitionMs": 916.6434000000008,
+                "parseMs": 0.42590000000200234
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 633.13,
+                "iconsMs": 3305.37,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 3086.3840999999957,
+                "recognitionMs": 648.3979000000036,
+                "parseMs": 0.6431999999986147
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 2,
+          "initMs": 1248.3421000000017,
+          "cleanupMs": 24.92290000000503,
+          "totalMs": 19088.7276,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1331.39,
+                "iconsMs": 3725.72,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.0503000000026077,
+                "recognitionMs": 1359.124100000001,
+                "parseMs": 0.4548999999969965
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 978.44,
+                "iconsMs": 3403.98,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1359.0328999999983,
+                "recognitionMs": 990.0023000000001,
+                "parseMs": 0.6851999999998952
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 714.81,
+                "iconsMs": 3390.28,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2348.0859999999957,
+                "recognitionMs": 728.7049000000043,
+                "parseMs": 0.5665999999910127
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 664.85,
+                "iconsMs": 3483.21,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 3076.773500000003,
+                "recognitionMs": 677.7891999999993,
+                "parseMs": 0.40769999999611173
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 2,
+          "initMs": 1096.3562999999995,
+          "cleanupMs": 43.64519999999902,
+          "totalMs": 6742.318299999999,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.08,
+                "decodeCalls": 1,
+                "ocrMs": 631.07,
+                "iconsMs": 1649.77,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.04239999999117572,
+                "recognitionMs": 644.5222000000067,
+                "parseMs": 1.3530999999929918,
+                "iconQueueMs": 1.2899000000033993
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 6.11,
+                "decodeCalls": 1,
+                "ocrMs": 598.42,
+                "iconsMs": 1151.58,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 643.2752000000037,
+                "recognitionMs": 615.2884000000049,
+                "parseMs": 0.9082000000053085,
+                "iconQueueMs": 1043.7817000000068
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.14,
+                "decodeCalls": 1,
+                "ocrMs": 664.64,
+                "iconsMs": 966.78,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1258.4809999999998,
+                "recognitionMs": 680.9526000000042,
+                "parseMs": 1.1719000000011874,
+                "iconQueueMs": 1523.400999999998
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 6.19,
+                "decodeCalls": 1,
+                "ocrMs": 662.51,
+                "iconsMs": 1152.68,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1939.4205999999976,
+                "recognitionMs": 681.0148000000045,
+                "parseMs": 1.3359000000054948,
+                "iconQueueMs": 1817.274700000009
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 3,
+          "initMs": 1308.0160000000033,
+          "cleanupMs": 28.344700000001467,
+          "totalMs": 6892.305300000007,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.86,
+                "decodeCalls": 1,
+                "ocrMs": 560.69,
+                "iconsMs": 1736.77,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.023499999995692633,
+                "recognitionMs": 575.991399999999,
+                "parseMs": 1.2532000000064727,
+                "iconQueueMs": 1.0129000000015367
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.8,
+                "decodeCalls": 1,
+                "ocrMs": 619.53,
+                "iconsMs": 1173.14,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 574.1396999999997,
+                "recognitionMs": 633.7546000000002,
+                "parseMs": 0.860899999999674,
+                "iconQueueMs": 1111.7724999999919
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 6.65,
+                "decodeCalls": 1,
+                "ocrMs": 659.5,
+                "iconsMs": 960.96,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1207.8680000000022,
+                "recognitionMs": 677.2197000000015,
+                "parseMs": 1.1732999999949243,
+                "iconQueueMs": 1621.871800000008
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.98,
+                "decodeCalls": 1,
+                "ocrMs": 776.31,
+                "iconsMs": 1067.33,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1885.0898000000016,
+                "recognitionMs": 792.1442999999999,
+                "parseMs": 0.8516999999992549,
+                "iconQueueMs": 1797.8001000000077
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 3,
+          "initMs": 1389.3675000000076,
+          "cleanupMs": 18.300699999992503,
+          "totalMs": 19026.30810000001,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1042.55,
+                "iconsMs": 4034.71,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.011299999998300336,
+                "recognitionMs": 1088.8157999999967,
+                "parseMs": 0.8974999999918509
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 893.85,
+                "iconsMs": 3293.28,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1088.7485000000015,
+                "recognitionMs": 915.7365999999893,
+                "parseMs": 0.8845000000001164
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 868.56,
+                "iconsMs": 3271.35,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2003.4719999999943,
+                "recognitionMs": 881.8478000000032,
+                "parseMs": 0.718799999987823
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 782.33,
+                "iconsMs": 3243.9,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2885.313399999999,
+                "recognitionMs": 797.5627999999997,
+                "parseMs": 0.8371999999944819
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "baseline": true,
+          "repeat": 4,
+          "initMs": 1290.5191999999952,
+          "cleanupMs": 20.341599999999744,
+          "totalMs": 19064.790500000003,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 1272.67,
+                "iconsMs": 3602.2,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.008600000001024455,
+                "recognitionMs": 1300.1867999999959,
+                "parseMs": 0.6257999999943422
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 744.33,
+                "iconsMs": 3320.9,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1299.9587000000029,
+                "recognitionMs": 759.7097999999969,
+                "parseMs": 0.42770000000018626
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 821.34,
+                "iconsMs": 3419.59,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2058.3358000000007,
+                "recognitionMs": 834.1468000000023,
+                "parseMs": 0.5335000000050059
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "ocrMs": 829.87,
+                "iconsMs": 3614.63,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2892.4756999999954,
+                "recognitionMs": 842.4603000000061,
+                "parseMs": 0.631199999988894
+              },
+              "status": "matched"
+            }
+          ]
+        },
+        {
+          "workers": 2,
+          "threads": 2,
+          "repeat": 4,
+          "initMs": 1215.7399000000005,
+          "cleanupMs": 31.03090000001248,
+          "totalMs": 6994.881399999998,
+          "captureMs": null,
+          "locateMs": null,
+          "liveRoundTripMs": null,
+          "failures": 0,
+          "factsSha256": "646eb7c33a44ad2a2e556708d04f4484f3ac785fe298a2555564564a80a4ef7b",
+          "rows": [
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 4.5,
+                "decodeCalls": 1,
+                "ocrMs": 602.43,
+                "iconsMs": 1639.5,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 0.025800000003073364,
+                "recognitionMs": 616.9603999999963,
+                "parseMs": 1.8090999999985797,
+                "iconQueueMs": 0.9205000000074506
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 7.25,
+                "decodeCalls": 1,
+                "ocrMs": 716.81,
+                "iconsMs": 1168.7,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 616.3625999999931,
+                "recognitionMs": 735.5450000000128,
+                "parseMs": 0.8261999999958789,
+                "iconQueueMs": 914.6825000000099
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 7.01,
+                "decodeCalls": 1,
+                "ocrMs": 705.7,
+                "iconsMs": 1081.93,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 1351.8320999999996,
+                "recognitionMs": 723.258600000001,
+                "parseMs": 1.2364999999990687,
+                "iconQueueMs": 1370.9554000000062
+              },
+              "status": "matched"
+            },
+            {
+              "name": "reward",
+              "metrics": {
+                "decodeMs": 5.24,
+                "decodeCalls": 1,
+                "ocrMs": 772.96,
+                "iconsMs": 1198.91,
+                "ocrCalls": 1,
+                "iconCalls": 1,
+                "queueMs": 2075.0927999999985,
+                "recognitionMs": 791.925900000002,
+                "parseMs": 0.9124999999912689,
+                "iconQueueMs": 1668.5251000000135
+              },
+              "status": "matched"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
