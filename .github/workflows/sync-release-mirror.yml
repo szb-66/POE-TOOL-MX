@@ -1,6 +1,9 @@
 name: Sync published release to CNB
 
 on:
+  push:
+    tags:
+      - 'cnb-sync/v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -15,10 +18,22 @@ jobs:
   sync:
     runs-on: windows-latest
     steps:
+      - name: Resolve release tag
+        id: release
+        shell: pwsh
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+          SOURCE_REF: ${{ github.ref_name }}
+        run: |
+          $tag = $env:REQUESTED_TAG
+          if ([string]::IsNullOrWhiteSpace($tag)) { $tag = $env:SOURCE_REF -replace '^cnb-sync/', '' }
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw 'Invalid release tag' }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+
       - name: Check out release tag
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ steps.release.outputs.tag }}
           fetch-depth: 0
 
       - name: Verify published release and sync tag
@@ -26,7 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           $ErrorActionPreference = 'Stop'
