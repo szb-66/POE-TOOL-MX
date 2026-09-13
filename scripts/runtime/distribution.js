@@ -8,7 +8,10 @@ export const frontendPackages = ['vue', 'vue-router', 'pinia', 'element-plus', '
 
 export function runtimeFilter(root, config) {
   const resource = config.build.extraResources.find(entry => entry.to === 'python-runtime')
-  return new FileMatcher(path.resolve(root), '', value => value, resource.filter || ['**/*']).createFilter()
+  const matcher = new FileMatcher(path.resolve(root), '', value => value, resource.filter || ['**/*'])
+  // builder-util's copyDir walker skips these names before applying FileMatcher.
+  matcher.addPattern('!**/{.gitkeep,.DS_Store}{,/**/*}')
+  return matcher.createFilter()
 }
 
 export async function inventory(root, filter = () => true) {

@@ -3,9 +3,33 @@ import assert from 'node:assert/strict'
 import { readFile, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { copyRuntime, inventory, assertRuntimeDistribution, assertNoFrontendPackages, assertApplicationDependencies, frontendPackages } from '../scripts/runtime/distribution.js'
 
 const config = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+const { FileMatcher, copyFiles } = createRequire(import.meta.url)('app-builder-lib/out/fileMatcher.js')
+
+test('分发清单匹配打包器实际复制：忽略占位文件但检测模型缺失', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-builder-filter-'))
+  const source = path.join(root, 'source')
+  const destination = path.join(root, 'copy')
+  const model = 'Lib/site-packages/rapidocr/models/model.onnx'
+  const placeholders = ['.gitkeep', 'Lib/site-packages/rapidocr/models/.gitkeep', 'Lib/.DS_Store']
+  try {
+    for (const name of [model, 'python313.dll', ...placeholders]) {
+      await mkdir(path.dirname(path.join(source, name)), { recursive: true })
+      await writeFile(path.join(source, name), 'fixture')
+    }
+    const resource = config.build.extraResources.find(entry => entry.to === 'python-runtime')
+    await copyFiles([new FileMatcher(source, destination, value => value, resource.filter)], null, false)
+    assert.deepEqual((await inventory(destination)).map(entry => entry.path).sort(), [model, 'python313.dll'].sort())
+    await assertRuntimeDistribution(source, destination, config)
+    await rm(path.join(destination, model))
+    await assert.rejects(assertRuntimeDistribution(source, destination, config), /model.onnx/)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
 
 test('分发副本排除测试和缓存，保留运行模块、元数据、许可证与模型，源文件不变', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-filter-'))
