@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { createServer, loadConfigFromFile } from 'vite'
 import { availableFeatureCatalog, featureForRoute } from '../src/features/featureCatalog.js'
 
-test('圣所页面及运行时通过 Vite 开发转换，正式导航不提前开放', async () => {
-  assert.equal(availableFeatureCatalog().some(feature => feature.id === 'sanctum'), false)
+test('圣所页面及运行时通过 Vite 开发转换，正式导航包含圣所', async () => {
+  assert.equal(availableFeatureCatalog().some(feature => feature.id === 'sanctum'), true)
   assert.equal(featureForRoute('/sanctum', { development: true }).id, 'sanctum')
   const { config } = await loadConfigFromFile({ command: 'serve', mode: 'development' })
   const server = await createServer({ ...config, configFile: false, optimizeDeps: { noDiscovery: true, include: [] },

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
 
 const app = readFileSync(new URL('../src/App.vue', import.meta.url), 'utf8')
 const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8')
@@ -12,12 +13,11 @@ const commonStyles = readFileSync(new URL('../src/styles/common.less', import.me
 const indexHtml = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
 
 function noLayoutRoutePaths(source) {
-  const normalized = source.replace(/\r\n?/g, '\n')
-  const routeStarts = [...normalized.matchAll(/\n  \{\n    path: '([^']+)'/g)]
-  return routeStarts.flatMap((match, index) => {
-    const end = routeStarts[index + 1]?.index ?? normalized.indexOf('\n]', match.index)
-    return /noLayout:\s*true/.test(normalized.slice(match.index, end)) ? [match[1]] : []
+  const definitions = source.slice(source.indexOf('const developmentRoutes'), source.indexOf('const router'))
+  const routes = vm.runInNewContext(definitions.replaceAll('import.meta.env.DEV', 'true') + '\nroutes', {
+    pageLoaders: new Proxy({}, { get: () => () => {} })
   })
+  return Array.from(routes).filter(route => route.meta?.noLayout).map(route => route.path)
 }
 
 test('主布局首帧和路由变化挂载窗口主题类，热更新后重申且不清理', () => {
@@ -42,6 +42,7 @@ test('引导失败时由内联看门狗兜底显示当前主题提示', () => {
 
 test('业务悬浮路由获得紧凑主题且调试和坐标选择器保持隔离', () => {
   const expectedRoutes = [
+    '/sanctum-control-overlay', '/sanctum-overlay',
     '/loading-feedback-overlay', '/puzzle-overlay', '/chart-recognition-feedback', '/overlay', '/debug-overlay', '/story-overlay',
     '/bag-stash-overlay', '/chaos-recipe-overlay', '/chaos-recipe-control-overlay',
     '/coordinate-picker', '/price-check-overlay', '/map-tracker-overlay'

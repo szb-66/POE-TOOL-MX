@@ -5,9 +5,6 @@ import { routeTransition } from './transitionState'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 
 const developmentRoutes = import.meta.env.DEV ? [
-  { path: '/sanctum-control-overlay', name: 'SanctumControlOverlay', component: () => import('../domains/sanctum/SanctumControlOverlayView.vue'), meta: { noLayout: true } },
-  { path: '/sanctum-overlay', name: 'SanctumOverlay', component: () => import('../domains/sanctum/SanctumOverlayView.vue'), meta: { noLayout: true } },
-  { path: '/sanctum', name: 'Sanctum', component: pageLoaders['/sanctum'] },
   {
     path: '/highlight-model-training',
     name: 'HighlightModelTraining',
@@ -16,6 +13,9 @@ const developmentRoutes = import.meta.env.DEV ? [
 ] : []
 
 const routes = [
+  { path: '/sanctum-control-overlay', name: 'SanctumControlOverlay', component: () => import('../domains/sanctum/SanctumControlOverlayView.vue'), meta: { noLayout: true } },
+  { path: '/sanctum-overlay', name: 'SanctumOverlay', component: () => import('../domains/sanctum/SanctumOverlayView.vue'), meta: { noLayout: true } },
+  { path: '/sanctum', name: 'Sanctum', component: pageLoaders['/sanctum'] },
   {
     path: '/',
     name: 'Dashboard',

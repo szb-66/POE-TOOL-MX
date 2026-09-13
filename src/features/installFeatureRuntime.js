@@ -20,7 +20,7 @@ import { reportFeatureStartupEvent } from '@/utils/startupReporter.js'
 
 const successful = result => result !== false && result?.success !== false
 
-// ponytail: 圣所为 developmentOnly，动态加载避免其运行时进入生产主包
+// 按需加载圣所运行时。
 let sanctumStore = null
 const loadSanctumStore = async () => {
   if (!sanctumStore) sanctumStore = (await import('@/domains/sanctum/sanctumStore.js')).useSanctumStore()

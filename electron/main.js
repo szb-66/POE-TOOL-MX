@@ -769,14 +769,12 @@ async function startApplication() {
 
   })
   mapTrackerOverlay = new MapTrackerOverlayManager({ service: mapTrackerService })
-  if (!app.isPackaged) {
-    // ponytail: catalog.json 缺失或损坏只降级圣所功能，不让应用启动失败
-    try {
-      sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(app.getPath('userData')),
-        replay: replaySanctumSample, samples: listSanctumSamples, automationLock,
-        catalog: JSON.parse(fs.readFileSync(new URL('./assets/sanctum/catalog.json', import.meta.url), 'utf8')) })
-    } catch (error) { console.warn('圣所服务未启动：无法加载 catalog.json', error) }
-  }
+  // ponytail: catalog.json 缺失或损坏只降级圣所功能，不让应用启动失败
+  try {
+    sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(app.getPath('userData')),
+      replay: replaySanctumSample, samples: listSanctumSamples, automationLock,
+      catalog: JSON.parse(fs.readFileSync(new URL('./assets/sanctum/catalog.json', import.meta.url), 'utf8')) })
+  } catch (error) { console.warn('圣所服务未启动：无法加载 catalog.json', error) }
   if (sanctumService) sanctumOverlay = new SanctumOverlay({ service: sanctumService, detection: interfaceDetection, BrowserWindowClass: BrowserWindow, screenApi: screen, commandLine: app.commandLine })
   if (sanctumService) {
     sanctumControlOverlay = new SanctumControlOverlay({ service: sanctumService, detection: interfaceDetection, automationLock, BrowserWindowClass: BrowserWindow, screenApi: screen, commandLine: app.commandLine })

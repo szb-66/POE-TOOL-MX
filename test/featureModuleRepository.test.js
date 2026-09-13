@@ -27,11 +27,12 @@ function memoryStorage(initial = {}) {
 test('功能目录保持正式顺序并只在开发版提供模型训练', () => {
   const production = availableFeatureCatalog()
   const development = availableFeatureCatalog({ development: true })
+  assert.deepEqual(development.filter(item => item.developmentOnly).map(item => item.id), ['highlight-model-training'])
   assert.equal(production.some(item => item.id === 'highlight-model-training'), false)
   assert.equal(development.some(item => item.id === 'highlight-model-training'), true)
   assert.deepEqual(production.map(item => item.route), [
     '/items', '/bag', '/map', null, '/combat', '/story', '/regex', '/recipe',
-    '/craft-planner', '/price-check', '/faustus', '/puzzle', '/tools'
+    '/craft-planner', '/price-check', '/faustus', '/puzzle', '/sanctum', '/tools'
   ])
   assert.equal(production.find(item => item.id === 'map-tracker')?.navigation, false)
   assert.equal(availableNavigationFeatureCatalog().some(item => item.id === 'map-tracker'), false)

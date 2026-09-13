@@ -170,19 +170,18 @@ test('已知形状的未知词缀使用独立角标且不替代形状与既有�
   assert.match(view, /\.uncertain-mark\s*\{/)
 })
 
-test('碎片仓库使用同一尺寸计算固定六列方格与行列间距', () => {
+test('碎片仓库由列宽撑开十行方格，避免百分比行高使警告重叠', () => {
   const view = source('../src/domains/puzzle/PuzzleView.vue')
   const grid = view.match(/\.inventory-grid\s*\{([^}]*)\}/)?.[1] || ''
   const shell = view.match(/\.inventory-slot-shell\s*\{([^}]*)\}/)?.[1] || ''
   const slot = view.match(/\.inventory-slot\s*\{([^}]*)\}/)?.[1] || ''
 
   assert.match(grid, /--inventory-grid-gap:\s*4px/)
-  assert.match(grid, /--inventory-cell-size:\s*min\(90px,\s*calc\(\(100% - \(5 \* var\(--inventory-grid-gap\)\)\) \/ 6\)\)/)
-  assert.match(grid, /grid-template-columns:\s*repeat\(6,\s*var\(--inventory-cell-size\)\)/)
-  assert.match(grid, /grid-auto-rows:\s*var\(--inventory-cell-size\)/)
+  assert.match(grid, /grid-template-columns:\s*repeat\(6,\s*minmax\(0,\s*1fr\)\)/)
+  assert.doesNotMatch(grid, /--inventory-cell-size|grid-auto-rows/)
   assert.match(grid, /gap:\s*var\(--inventory-grid-gap\)/)
-  assert.match(shell, /height:\s*100%/)
-  assert.doesNotMatch(shell, /aspect-ratio/)
+  assert.doesNotMatch(shell, /height:\s*100%/)
+  assert.match(shell, /aspect-ratio:\s*1/)
   assert.match(slot, /height:\s*100%/)
   assert.doesNotMatch(slot, /aspect-ratio/)
 })

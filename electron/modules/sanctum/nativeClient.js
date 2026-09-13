@@ -4,6 +4,11 @@ import { createPythonProcess } from '../python/launcher.js'
 import { resolvePythonRuntimeAsync } from '../python/detector.js'
 import { randomUUID } from 'node:crypto'
 
+export function sanctumNativeScriptPath(moduleUrl = import.meta.url) {
+  return fileURLToPath(new URL('../../../src/assets/scripts/sanctum_native.py', moduleUrl))
+    .replace(/([\\/])app\.asar([\\/])/, '$1app.asar.unpacked$2')
+}
+
 // One sequential native session, never a shell. An aborted request tears down
 // its process; no late response can be applied to a replacement session.
 export class SanctumNativeClient {
@@ -24,7 +29,7 @@ export class SanctumNativeClient {
       signal?.throwIfAborted()
       if (this.closed) throw new Error('圣所原生通道已关闭')
       const { process: child, started } = this.launch({ pythonPath: runtime.path,
-        scriptPath: fileURLToPath(new URL('../../../src/assets/scripts/sanctum_native.py', import.meta.url)), stdin: 'pipe', env: this.env })
+        scriptPath: sanctumNativeScriptPath(), stdin: 'pipe', env: this.env })
       this.child = child
       this.configuration = null
       this.drain = new Promise(resolve => child.once('close', resolve))

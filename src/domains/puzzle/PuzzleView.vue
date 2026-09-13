@@ -1028,10 +1028,8 @@ const nextSolution = store.nextSolution
 
 .inventory-grid {
   --inventory-grid-gap: 4px;
-  --inventory-cell-size: min(90px, calc((100% - (5 * var(--inventory-grid-gap))) / 6));
   display: grid;
-  grid-template-columns: repeat(6, var(--inventory-cell-size));
-  grid-auto-rows: var(--inventory-cell-size);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   justify-content: center;
   gap: var(--inventory-grid-gap);
   width: 100%;
@@ -1039,7 +1037,7 @@ const nextSolution = store.nextSolution
   margin: 0 auto;
 }
 
-.inventory-slot-shell { position: relative; width: 100%; height: 100%; }
+.inventory-slot-shell { position: relative; min-width: 0; aspect-ratio: 1; }
 .inventory-slot-shell :deep(.el-dropdown) { display: block; width: 100%; height: 100%; }
 
 .inventory-slot {

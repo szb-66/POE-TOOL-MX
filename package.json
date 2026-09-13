@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -96,7 +96,12 @@
       "electron/assets/item-footprints.json",
       "package.json",
       "LICENSE.md",
-      "THIRD_PARTY_NOTICES.md"
+      "THIRD_PARTY_NOTICES.md",
+      "src/assets/scripts/sanctum_*.py",
+      "src/assets/scripts/interface_titles.py",
+      "src/assets/scripts/foreground_watcher.py",
+      "src/assets/scripts/chart_mods_probe.py",
+      "src/assets/images/sanctum-calibration/**/*"
     ],
     "extraResources": [
       {
@@ -180,6 +185,14 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "include": "build/installer.nsh"
-    }
+    },
+    "asarUnpack": [
+      "src/assets/scripts/sanctum_*.py",
+      "src/assets/scripts/interface_titles.py",
+      "src/assets/scripts/foreground_watcher.py",
+      "src/assets/scripts/chart_mods_probe.py",
+      "src/assets/images/sanctum-calibration/**/*",
+      "electron/assets/sanctum/currency/**/*"
+    ]
   }
 }

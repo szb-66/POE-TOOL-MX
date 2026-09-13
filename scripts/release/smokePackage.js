@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, globSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +14,15 @@ const required = [
   path.join(runtimeRoot, 'runtime-manifest.json'),
   path.join(resourcesRoot, 'bag_auto_stash_template.py'),
   path.join(resourcesRoot, 'chaos_recipe_pick_template.py'),
-  path.join(resourcesRoot, 'stash_pickup_template.py')
+  path.join(resourcesRoot, 'stash_pickup_template.py'),
+  ...globSync([
+    'src/assets/scripts/sanctum_*.py',
+    'src/assets/scripts/interface_titles.py',
+    'src/assets/scripts/foreground_watcher.py',
+    'src/assets/scripts/chart_mods_probe.py',
+    'src/assets/images/sanctum-calibration/**/*',
+    'electron/assets/sanctum/currency/**/*'
+  ], { cwd: projectRoot }).map(file => path.join(resourcesRoot, 'app.asar.unpacked', file))
 ]
 const missing = required.filter((filePath) => !existsSync(filePath))
 if (missing.length) throw new Error(`正式包结构不完整: ${missing.map((entry) => path.relative(unpackedRoot, entry)).join(', ')}`)
