@@ -29,6 +29,13 @@ Windows 安装包包含以下运行时组件：
 CPython 的 `LICENSE.txt` 和各 wheel 的 `*.dist-info` 元数据、许可证文件保留在安装包的
 `resources/python-runtime` 中。上述项目的版权归各自作者和贡献者所有。
 
+## cn-poe-utils
+
+- 版本：0.0.9，作者：me1ting，许可证：MIT。
+- 项目：https://github.com/cn-poe-community/cn-poe-utils
+- 用途：国服 PoE 1 装备和技能翻译、PoB 构筑转换；在本机执行。
+- 额外游戏文本中英映射来自 PoeCharm（Chuanhsing/PoeCharm）；固定提交及文件摘要保存在 `electron/assets/pob-export/compatibility.json`，由 `scripts/generatePobCompatibilityData.py` 提取。转换逻辑仍使用 cn-poe-utils，保留上游消歧规则。
+
 ## ChaosRecipeEnhancer
 
 - 项目地址：https://github.com/ChaosRecipeEnhancer/ChaosRecipeEnhancer
@@ -116,3 +123,10 @@ PoEDB 页面和 Path of Exile 官方交易目录仅作为开发期数据/美术�
 - 用途：开发期生成离线名称、底材尺寸、词缀数值和传奇限制目录。未复制社区 Wiki 历史正文或外部项目代码。游戏数据和截图的相关权利归各自权利人。
 - 识别样本由用户提供，裁剪范围与缺失的环境信息记录在 `test/fixtures/sanctum/supplied-samples.json`；首领图形模板的具体来源见 `src/assets/sanctum/README.md`。
 - 运行时解析、回放和评分不请求上述站点。已核对数据和未支持效果分别标记，不将旧赛季或 PTR 数据自动当成当前规则。
+
+## PoB 启动助手的 ZIP 依赖及下载来源
+
+- yauzl 2.10.0：MIT，https://github.com/thejoshwolfe/yauzl ，用于解压前检查归档路径和文件类型（含构建期内置运行时准备）。
+- PoeCharm：https://github.com/Chuanhsing/PoeCharm ，用户主动安装或更新时下载官方提交归档。
+- Path of Building Community：https://github.com/PathOfBuildingCommunity/PathOfBuilding ，用户主动安装或更新时下载官方稳定版 Portable 资产。
+- 两个外部工具不随助手打包，保留下载归档中的许可证及说明文件。

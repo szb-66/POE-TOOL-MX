@@ -2,6 +2,18 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  getPobLauncherState: () => ipcRenderer.invoke('pob-launcher:state'),
+  setPobLauncherDirectory: directory => ipcRenderer.invoke('pob-launcher:directory', directory),
+  pickPobLauncherDirectory: () => ipcRenderer.invoke('pob-launcher:pick'),
+  installPobLauncher: () => ipcRenderer.invoke('pob-launcher:install'),
+  updatePobLauncher: () => ipcRenderer.invoke('pob-launcher:update'),
+  startPobLauncher: () => ipcRenderer.invoke('pob-launcher:start'),
+  stopPobLauncher: operationId => ipcRenderer.invoke('pob-launcher:stop', operationId),
+  onPobLauncherState: callback => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('pob-launcher:state-changed', listener)
+    return () => ipcRenderer.removeListener('pob-launcher:state-changed', listener)
+  },
   beginLoadingFeedback: (operationId) => ipcRenderer.invoke('loading-feedback:begin', operationId),
   finishLoadingFeedback: (token) => ipcRenderer.invoke('loading-feedback:finish', token),
   getLoadingFeedbackState: () => ipcRenderer.invoke('loading-feedback:state'),
@@ -293,6 +305,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateBagInterfaceConfig: (config) => ipcRenderer.invoke('update-bag-interface-config', config),
   // 国服账号与全局赛季
   getPoeCnAccountStatus: () => ipcRenderer.invoke('poe-cn-account-status'),
+  listPobExportCharacters: (input) => ipcRenderer.invoke('pob-export-list-characters', input),
+  exportPobBuild: (input) => ipcRenderer.invoke('pob-export-build', input),
   restorePoeCnAccount: () => ipcRenderer.invoke('poe-cn-account-restore'),
   openPoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-open-web'),
   completePoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-complete-web'),

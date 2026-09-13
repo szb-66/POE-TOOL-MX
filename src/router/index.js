@@ -86,6 +86,7 @@ const routes = [
     name: 'Tools',
     component: pageLoaders['/tools']
   },
+  { path: '/pob-export', name: 'PobExport', component: pageLoaders['/pob-export'] },
   {
     path: '/loading-feedback-overlay',
     name: 'LoadingFeedbackOverlay',

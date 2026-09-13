@@ -10,11 +10,12 @@ function retryAfterSeconds(headers) {
   return Number.isFinite(date) ? Math.max(0, Math.ceil((date - Date.now()) / 1000)) : 60
 }
 
-export async function requestPoeCnJson(session, url, { signal, headers = {} } = {}) {
+export async function requestPoeCnJson(session, url, { signal, headers = {}, method = 'GET', body } = {}) {
   let response
   try {
     response = await session.fetch(url, {
-      method: 'GET',
+      method,
+      ...(body === undefined ? {} : { body }),
       cache: 'no-store',
       signal,
       headers: {

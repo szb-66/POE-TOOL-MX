@@ -19,6 +19,8 @@ import { registerSystemHandlers } from './system.js'
 import { registerChaosRecipeHandlers } from './chaosRecipe.js'
 import { registerPriceCheckHandlers } from './priceCheck.js'
 import { registerPoeCnAccountHandlers } from './poeCnAccount.js'
+import { registerPobExportHandlers } from './pobExport.js'
+import { registerPobLauncherHandlers } from './pobLauncher.js'
 import { registerStashPickupHandlers } from './stashPickup.js'
 import { registerStashTabHandlers } from './stashTabs.js'
 import { registerPuzzleHandlers } from './puzzle.js'
@@ -67,6 +69,8 @@ export function registerIpcHandlers(dependencies) {
   if (clientEvents) registerClientEventsHandlers(clientEvents)
   if (mapTracker) registerMapTrackerHandlers(mapTracker, { getMainWindow, overlay: mapTrackerOverlay, windowApi: window })
   if (poeCnAccount) registerPoeCnAccountHandlers(poeCnAccount, window)
+  if (dependencies.pobExport) registerPobExportHandlers(dependencies.pobExport)
+  if (dependencies.pobLauncher) registerPobLauncherHandlers(dependencies.pobLauncher, getMainWindow)
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
   if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection, enableTraining: enableJunfengTraining })
   if (puzzle) registerPuzzleHandlers(puzzle)

@@ -3,7 +3,7 @@ import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import extract from 'extract-zip'
+import { extractArchive } from '../../electron/modules/pobLauncher/download.js'
 import {
   assertInsideGeneratedRoot,
   assertProjectFiles,
@@ -62,11 +62,11 @@ async function main() {
 
   await rm(runtimeRoot, { recursive: true, force: true })
   await mkdir(runtimeRoot, { recursive: true })
-  await extract(downloaded.get(manifest.python.filename), { dir: runtimeRoot })
+  await extractArchive(downloaded.get(manifest.python.filename), runtimeRoot)
   const sitePackages = path.join(runtimeRoot, 'Lib', 'site-packages')
   await mkdir(sitePackages, { recursive: true })
   for (const packageInfo of manifest.packages) {
-    await extract(downloaded.get(packageInfo.filename), { dir: sitePackages })
+    await extractArchive(downloaded.get(packageInfo.filename), sitePackages)
   }
   await enableSitePackages(runtimeRoot)
   await copyFile(manifestPath, path.join(runtimeRoot, 'runtime-manifest.json'))

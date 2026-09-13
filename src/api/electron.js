@@ -16,6 +16,16 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  pobLauncher: {
+    getState: () => Promise.resolve({ success: true, state: { directory: '', charm: { installed: false, version: '' }, pob: { installed: false, version: '' }, supported: false, busy: false } }),
+    setDirectory: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    pickDirectory: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    install: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    update: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    start: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    stop: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
+    onState: () => () => {}
+  },
   loadingFeedback: {
     begin: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持加载反馈' }),
     finish: () => Promise.resolve({ success: false }),
@@ -197,6 +207,10 @@ const mockApi = {
   },
   automationTiming: {
     update: () => Promise.resolve({ success: false, error: '非 Electron 环境' })
+  },
+  pobExport: {
+    listCharacters: () => Promise.resolve({ success: false, error: { message: '请在桌面开发版中加载国服角色' } }),
+    exportBuild: () => Promise.resolve({ success: false, error: { message: '请在桌面开发版中导出 PoB' } })
   },
   poeCnAccount: {
     getStatus: () => Promise.resolve({ success: true, data: { authenticated: false, mode: null, accountName: '' } }),
@@ -398,6 +412,16 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  pobLauncher: {
+    getState: () => window.electronAPI.getPobLauncherState(),
+    setDirectory: directory => window.electronAPI.setPobLauncherDirectory(directory),
+    pickDirectory: () => window.electronAPI.pickPobLauncherDirectory(),
+    install: () => window.electronAPI.installPobLauncher(),
+    update: () => window.electronAPI.updatePobLauncher(),
+    start: () => window.electronAPI.startPobLauncher(),
+    stop: operationId => window.electronAPI.stopPobLauncher(operationId),
+    onState: callback => window.electronAPI.onPobLauncherState(callback)
+  },
   loadingFeedback: {
     begin: (operationId) => window.electronAPI.beginLoadingFeedback?.(String(operationId || '')),
     finish: (token) => window.electronAPI.finishLoadingFeedback?.(String(token || '')),
@@ -583,6 +607,10 @@ export const electronApi = isElectron ? {
   },
   automationTiming: {
     update: (timing) => window.electronAPI.updateAutomationTiming?.(craftingIpcPayload(timing))
+  },
+  pobExport: {
+    listCharacters: (input) => window.electronAPI.listPobExportCharacters(craftingIpcPayload(input)),
+    exportBuild: (input) => window.electronAPI.exportPobBuild(craftingIpcPayload(input))
   },
   poeCnAccount: {
     getStatus: () => window.electronAPI.getPoeCnAccountStatus?.(),

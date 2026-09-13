@@ -25,7 +25,8 @@ export const FEATURE_CATALOG = Object.freeze([
   feature({ id: 'faustus', label: '浮士德', route: '/faustus', icon: 'PriceTag', relatedRoutes: Object.freeze(['/faustus']) }),
   feature({ id: 'puzzle', label: '海图', route: '/puzzle', icon: 'Guide', relatedRoutes: Object.freeze(['/puzzle']) }),
   feature({ id: 'sanctum', label: '圣所', route: '/sanctum', icon: 'Guide', relatedRoutes: Object.freeze(['/sanctum']) }),
-  feature({ id: 'tools', label: '工具站', route: '/tools', icon: 'Connection', relatedRoutes: Object.freeze(['/tools']) })
+  feature({ id: 'tools', label: '工具站', route: '/tools', icon: 'Connection', relatedRoutes: Object.freeze(['/tools']) }),
+  feature({ id: 'pob-export', label: 'POB', route: '/pob-export', icon: 'DocumentChecked', relatedRoutes: Object.freeze(['/pob-export']) })
 ])
 
 export function availableFeatureCatalog({ development = false } = {}) {

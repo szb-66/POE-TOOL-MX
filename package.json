@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -40,17 +40,18 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "cheerio": "^1.0.0",
+    "cn-poe-utils": "0.0.9",
     "electron-updater": "^6.8.9",
     "element-plus": "^2.6.3",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "yauzl": "2.10.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
     "electron": "43.0.0",
     "electron-builder": "26.15.3",
-    "extract-zip": "2.0.1",
     "less": "^4.4.2",
     "opencc-js": "^1.4.1",
     "unplugin-auto-import": "^21.0.0",

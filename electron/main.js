@@ -29,6 +29,8 @@ import { cleanupBagProcesses } from './modules/ipc/bag.js'
 import { CraftingService } from './modules/crafting/service.js'
 import { resolveUserDataPath } from './modules/storage/userDataPath.js'
 import { PoeCnAuthService } from './modules/chaosRecipe/auth.js'
+import { PobExportService } from './modules/pobExport/service.js'
+import { PobLauncherService } from './modules/pobLauncher/service.js'
 import { PoeCnStashClient } from './modules/chaosRecipe/stashClient.js'
 import { ChaosRecipeService } from './modules/chaosRecipe/service.js'
 import { ChaosRecipeOverlayManager } from './modules/chaosRecipe/overlay.js'
@@ -815,6 +817,8 @@ async function startApplication() {
       auth: chaosAuth,
       listLeagues: () => chaosStashClient.listLeagues()
     },
+    pobExport: new PobExportService({ session: poeCnSession, auth: chaosAuth }),
+    pobLauncher: new PobLauncherService({ userData: app.getPath('userData') }),
     stashPickup,
     junfeng: junfengHighlight,
     faustus: faustusManager,

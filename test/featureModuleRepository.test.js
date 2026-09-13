@@ -32,7 +32,7 @@ test('功能目录保持正式顺序并只在开发版提供模型训练', () =>
   assert.equal(development.some(item => item.id === 'highlight-model-training'), true)
   assert.deepEqual(production.map(item => item.route), [
     '/items', '/bag', '/map', null, '/combat', '/story', '/regex', '/recipe',
-    '/craft-planner', '/price-check', '/faustus', '/puzzle', '/sanctum', '/tools'
+    '/craft-planner', '/price-check', '/faustus', '/puzzle', '/sanctum', '/tools', '/pob-export'
   ])
   assert.equal(production.find(item => item.id === 'map-tracker')?.navigation, false)
   assert.equal(availableNavigationFeatureCatalog().some(item => item.id === 'map-tracker'), false)

@@ -18,6 +18,7 @@ export const pageLoaders = Object.freeze({
   '/faustus': () => import('../domains/faustus/FaustusView.vue'),
   '/puzzle': () => import('../domains/puzzle/PuzzleView.vue'),
   '/tools': () => import('../domains/tools/ToolsView.vue'),
+  '/pob-export': () => import('../domains/pobExport/PobExportView.vue'),
   '/settings': () => import('../domains/settings/SettingsView.vue')
 })
 
