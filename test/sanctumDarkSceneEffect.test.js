@@ -53,18 +53,16 @@ print(json.dumps(dict(points=points,results=out),ensure_ascii=False))`)
     assert.ok(Math.abs(result.region.height-(result.name.includes('rewards')?149:372))<8,JSON.stringify(result))
   }
   for(const result of byName['status-dark-afflictions-hover']){
-    const {effectGroup,rewardGroup}=parseStatusTooltip({status:'located',texts:result.texts},catalog)
-    assert.equal(rewardGroup,null)
+    const {effectGroup,hasRewardContext}=parseStatusTooltip({status:'located',texts:result.texts},catalog)
+    assert.equal(hasRewardContext,false)
     assert.equal(effectGroup.complete,true)
     assert.deepEqual(effectGroup.entries.map(e=>e.name),['黑暗深坑','焦化硬币','钱包过满','巫毒人偶','弱化血肉'])
     assert.ok(effectGroup.entries.every(e=>e.category==='minorAffliction'))
   }
   for(const result of byName['status-dark-rewards-hover']){
-    const {effectGroup,rewardGroup}=parseStatusTooltip({status:'located',texts:result.texts},catalog)
+    const {effectGroup,hasRewardContext}=parseStatusTooltip({status:'located',texts:result.texts},catalog)
     assert.equal(effectGroup,null)
-    assert.equal(rewardGroup.complete,true)
-    assert.deepEqual(rewardGroup.rewards.map(r=>[r.currency,r.quantity,r.timing,r.state]),
-      [['工匠石',60,'run','pending'],['改造石',30,'run','pending'],['混沌石',14,'run','pending']])
+    assert.equal(hasRewardContext,true)
   }
 })
 

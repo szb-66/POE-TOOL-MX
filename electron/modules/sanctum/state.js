@@ -1,6 +1,6 @@
 import { emptySanctumState } from '../../../shared/sanctum.js'
 import { planSanctumFloor } from './planner.js'
-import { syncStatusRewards, currentRunObservation } from './runObservation.js'
+import { currentRunObservation } from './runObservation.js'
 
 export function acceptSanctumFloor(state, snapshot) {
   const next = structuredClone(state)
@@ -23,12 +23,6 @@ export function acceptSanctumFloor(state, snapshot) {
   }
   next.floor = structuredClone(snapshot)
   next.restoredFromSave = false
-  const runId = snapshot.sanctumRunId || snapshot.runId
-  if (next.altar.confirmed && next.altar.runId && next.altar.runId !== runId) next.altar.confirmed = false
-  if (next.altar.confirmed && next.altar.pendingRun) {
-    next.altar.runId = runId
-    next.altar.pendingRun = false
-  }
   const previousDecision = next.decisions?.at(-1)
   if (previousDecision && !previousDecision.observedNextRoomId && previousDecision.runId === (snapshot.sanctumRunId || snapshot.runId)
     && previousDecision.floorId === snapshot.floorId && snapshot.currentRoomId && previousDecision.currentRoomId !== snapshot.currentRoomId) {
@@ -37,10 +31,8 @@ export function acceptSanctumFloor(state, snapshot) {
   // A snapshot is a full observation. Do not carry forward room details merely
   // because a detected ordinal happens to equal one from an earlier screenshot.
   next.currentEffects = structuredClone(snapshot.currentEffects || [])
-  next.rewardLedger = syncStatusRewards(next.rewardLedger, snapshot)
   if (Object.hasOwn(snapshot, 'runObservation')) next.runObservation = structuredClone(currentRunObservation(snapshot.runObservation, snapshot))
-  const equippedEffects = next.altar.confirmed ? next.altar.items.flatMap(item => (item.effects || []).map(e=>({...e,source:'relic',unique:item.unique}))) : []
-  next.recommendation = planSanctumFloor(next.floor, next.strategy, next.marks, [...next.currentEffects, ...equippedEffects], {altar:next.altar,runObservation:next.runObservation,rewardLedger:next.rewardLedger})
+  next.recommendation = planSanctumFloor(next.floor, next.strategy, next.marks, next.currentEffects, {runObservation:next.runObservation})
   next.status = next.recommendation.status
   next.reason = next.recommendation.reason
   return next
@@ -48,7 +40,6 @@ export function acceptSanctumFloor(state, snapshot) {
 
 export function resetSanctumRun(state) {
   const next = emptySanctumState()
-  for (const key of ['enabled', 'inventory', 'strategy', 'calibration', 'liveCalibration', 'relicCalibrations', 'altar', 'loadoutPreferences', 'controlOverlayBounds', 'effectCorrectionMemory']) next[key] = structuredClone(state[key])
-  next.altar.confirmed = false
+  for (const key of ['enabled', 'strategy', 'calibration', 'liveCalibration', 'controlOverlayBounds', 'effectCorrectionMemory']) next[key] = structuredClone(state[key])
   return next
 }

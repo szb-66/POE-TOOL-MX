@@ -178,7 +178,7 @@ for (const last of [false,true]) test(`真实状态驱动第${last?'最后':'一
   assert.equal(f.service.state.floor.effectScan.targets[0].stage,'matched')
   assert.ok(f.service.state.currentEffects.some(effect=>effect.name==='焦化硬币'))
   if(!last)assert.equal(f.service.state.floor.effectScan.targets[1].stage,'skipped')
-  else assert.equal(f.service.state.floor.effectScan.rewardGroups[0].rewards[0].quantity,60)
+  else assert.equal(f.service.state.floor.effectScan.targets[1].contentKind,'reward')
   assert.equal(f.service.state.status,last?'ready':'partial')
   assert.deepEqual(f.counts(),{ends:1,releases:1})
   await driver.close()

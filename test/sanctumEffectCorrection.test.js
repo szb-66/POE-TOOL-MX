@@ -22,7 +22,7 @@ function setup({texts=['钝化之剑','无关天气预报','未登记文字甲']
   const group=parseEffectTooltip({status,texts,targetId:'effect:1',evidenceId:'image',reason:status==='partial'?'截断':null},dictionary)
   const target={targetId:'effect:1',evidenceId:'image',runId:'r',floorId:'f',readStatus:status,stage:group.complete?'matched':'failed',
     texts,region:{x:0,y:0,width:100,height:100},entries:group.entries,effectGroup:group,reason:group.reason,classificationComplete:group.complete}
-  floor.effectScan={targets:[target],groups:mergeEffectGroups([group],true),rewardGroups:[],binding:observationKey(floor),finished:true,coverageConfirmed:true,complete:group.complete}
+  floor.effectScan={targets:[target],groups:mergeEffectGroups([group],true),binding:observationKey(floor),finished:true,coverageConfirmed:true,complete:group.complete}
   floor.currentEffects=group.effects;service.state.floor=floor;service.state.currentEffects=group.effects
   service.liveDriver={effectLedger:{...floor.effectScan,effects:group.effects,scope:'s',floor:structuredClone(floor)}}
   const binding=()=>service.getEffectReview({runId:'r',floorId:'f',targetId:'effect:1',evidenceId:'image'}).binding
@@ -42,7 +42,7 @@ test('九条效果混入楼层名仍完整，原文保留且不重复显示',()=
   const wrapped=parseEffectTooltip({status:'located',texts:['圣所地图现在','禁域墓场','完全显示了']},catalog)
   assert.equal(wrapped.entries[0].name,'全知之眼');assert.equal(wrapped.complete,true)
   const reward=parseStatusTooltip({status:'located',texts:['禁域墓场','完成禁域时获得60×工匠石']},catalog)
-  assert.equal(reward.effectGroup,null);assert.equal(reward.rewardGroup.complete,true)
+  assert.equal(reward.effectGroup,null);assert.equal(reward.hasRewardContext,true)
   const collision={...catalog,entries:[...catalog.entries,{...entry('钝化之剑'),id:'collision',name:'禁域墓场'}]}
   assert.equal(parseEffectTooltip({status:'located',texts:['禁域墓场']},collision).entries[0].entryId,'collision')
   const alias={...catalog,entries:catalog.entries.map(e=>e.kind==='floor'?{...e,aliases:['楼层别名']}:e)}
@@ -136,16 +136,15 @@ test('部分人工修正也保留为失败重读的历史记录，缺图明确�
   assert.throws(()=>service.getEffectEvidence(binding()),/未保存截图/)
 })
 
-test('纠正一个来源保留其他浮窗、房间增量和奖励问题',()=>{
+test('纠正一个来源保留其他浮窗和房间增量',()=>{
   const {service,binding}=setup({texts:['钝化之剑']})
   const other=parseEffectTooltip({status:'located',texts:['钱包失窃'],targetId:'effect:2',evidenceId:'other'},catalog)
   const scan=service.state.floor.effectScan
   scan.targets.push({targetId:'effect:2',evidenceId:'other',readStatus:'located',stage:'matched',texts:other.texts,effectGroup:other,classificationComplete:true})
   const addition={...catalogEffect(entry('巫毒人偶'),catalog),source:{kind:'room',roomId:'a'}}
   scan.groups=mergeEffectGroups([{entries:[addition],effects:addition.effects,complete:true},...scan.groups],true)
-  scan.rewardGroups=[{targetId:'effect:3',complete:false,reason:'奖励数量未知'}]
   const next=service.correctEffectTarget(binding(),{entryIds:[eye],resolutions:[]})
   assert.deepEqual(new Set(next.currentEffects.filter(e=>e.entryId).map(e=>e.entryId)),new Set([eye,entry('钱包失窃').id,entry('巫毒人偶').id]))
-  assert.equal(next.floor.effectScan.complete,false)
-  assert.equal(next.floor.effectScan.rewardGroups[0].reason,'奖励数量未知')
+  assert.equal(next.floor.effectScan.complete,true)
+  assert.equal(next.floor.effectScan.rewardGroups,undefined)
 })

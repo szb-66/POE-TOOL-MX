@@ -18,7 +18,7 @@ export function sanctumOverlaySnapshot(state, now = Date.now()) {
     || observation.interfaceMatched !== true || !Number.isFinite(observation.receivedAt) || now < observation.receivedAt || now - observation.receivedAt > 1500
     || !rectangle(observation.clientBounds)) return null
   const { width, height } = observation.clientBounds
-  const snapshot = { width, height, rooms: [], lines: [], highlight: null, reason: '', unknown: [], nextRoom: '' }
+  const snapshot = { width, height, rooms: [], lines: [], reason: '', unknown: [], nextRoom: '' }
   const resultMode = !state.running && ['complete', 'partial', 'timeout'].includes(state.progress?.stage)
   if (observation.mapOpen === true && (state.running || resultMode) && !state.floor?.sampleId && state.floor?.identityConfirmed) {
     const floor = state.floor, region = observation.mapRegion
@@ -47,19 +47,6 @@ export function sanctumOverlaySnapshot(state, now = Date.now()) {
     snapshot.readIssues = state.running ? [] : effectReadIssues(floor.effectScan)
     snapshot.unknown = [...new Set([...snapshot.readIssues.map(effectIssueText), ...(state.recommendation?.unknown || [])])]
     snapshot.avoided = state.marks.avoid.join('、')
-    return snapshot
-  }
-  if (state.highlight && state.highlight.expiresAt > now) {
-    const item = state.inventory.find(item => item.id === state.highlight.id && item.status === 'matched')
-    const grid = item && observation.regions?.[item.regionId]
-    if (!grid || !grid.scanId || item.scanId !== grid.scanId || !inside(grid, width, height)
-      || !Number.isInteger(grid.columns) || grid.columns < 1 || !Number.isInteger(grid.rows) || grid.rows < 1) return null
-    const highlight = { x: grid.x + item.x * grid.width / grid.columns, y: grid.y + item.y * grid.height / grid.rows,
-      width: item.width * grid.width / grid.columns, height: item.height * grid.height / grid.rows }
-    if (!inside(highlight, width, height) || item.x < 0 || item.y < 0
-      || item.x + item.width > grid.columns || item.y + item.height > grid.rows) return null
-    snapshot.highlight = highlight
-    snapshot.reason = item.name || '所选圣物位置'
     return snapshot
   }
   return null
@@ -96,7 +83,7 @@ export class SanctumOverlay {
   sync() {
     if (this.closed) return false
     let state = this.service.getState()
-    if (!state.running && !state.highlight && this.service.getResultState) {
+    if (!state.running && this.service.getResultState) {
       state = this.service.getResultState?.(this.detection?.getState(), this.now())
       if (!state) { this.hide(); return false }
     }

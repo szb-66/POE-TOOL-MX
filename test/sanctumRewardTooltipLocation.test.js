@@ -5,7 +5,7 @@ import {runPython} from './helpers/python.js'
 import {parseStatusTooltip} from '../electron/modules/sanctum/statusRecognition.js'
 import {SanctumLiveDriver} from '../electron/modules/sanctum/liveDriver.js'
 import {effectReadIssues} from '../shared/sanctumEffects.js'
-import {syncStatusRewards,observationKey} from '../electron/modules/sanctum/runObservation.js'
+import {observationKey} from '../electron/modules/sanctum/runObservation.js'
 
 const catalog=JSON.parse(fs.readFileSync('electron/assets/sanctum/catalog.json','utf8'))
 
@@ -49,9 +49,7 @@ print(json.dumps(out))`)
   for(const read of results) {
     const parsed=parseStatusTooltip(read,catalog)
     assert.equal(parsed.effectGroup,null)
-    assert.equal(parsed.rewardGroup.complete,true)
-    assert.deepEqual(parsed.rewardGroup.rewards.map(r=>[r.currency,r.quantity,r.timing,r.state]),[
-      ['工匠石',60,'run','pending'],['改造石',30,'run','pending']])
+    assert.equal(parsed.hasRewardContext,true)
   }
 })
 
@@ -101,7 +99,7 @@ print(json.dumps(out))`)
   assert.equal(regions.length,4)
 })
 
-test('奖励重采替换旧浮窗失败，分类不依赖序号，同位置不重复入账',async t=>{
+test('奖励重采替换旧浮窗失败，分类不依赖序号，不生成账本',async t=>{
   let texts=[]
   const driver=new SanctumLiveDriver({catalog,makeClient:()=>({sessionId:'s',async shutdown(){},async request(command){
     if(command==='interfaceState')return {mapOpen:true,hudLayout:'map'}
@@ -121,7 +119,5 @@ test('奖励重采替换旧浮窗失败，分类不依赖序号，同位置不�
   assert.equal(read.effectScan.targets[0].contentKind,'reward')
   assert.equal(read.effectScan.effectsComplete,true)
   read.effectScan.binding=observationKey(read)
-  const ledger=syncStatusRewards(null,read)
-  assert.deepEqual(ledger.items.map(r=>[r.currency,r.quantity]),[['工匠石',60],['改造石',30]])
-  assert.deepEqual(syncStatusRewards(ledger,read),ledger)
+  assert.equal(read.effectScan.rewardGroups,undefined)
 })

@@ -24,7 +24,6 @@ export const SANCTUM_RULE_TEXT = Object.freeze({
   '陷阱对坚毅的影响提高 200%': 'dangerousTraps',
   '怪物对坚毅的影响提高25%': 'dangerousMonsters',
   '怪物伤害总增 50%': 'dangerousMonsters',
-  '击败天灾先驱时复制最多 2 个随机贡品奖励': 'duplicateOffers'
 })
 
 function parseRule(rawText) {

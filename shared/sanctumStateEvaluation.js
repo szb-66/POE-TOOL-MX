@@ -27,17 +27,17 @@ function applicable(scope, room) {
 
 export function initialEffectState(resources, effects = []) {
   return {resolve:resources?.resolve,maxResolve:resources?.maxResolve,inspiration:resources?.inspiration,coins:resources?.coins,
-    effects:effects.filter(e=>e?.status !== 'unknown').map(e=>({...e})),uncertain:[]}
+    effects:effects.filter(e=>e?.status !== 'unknown' && e?.source !== 'relic').map(e=>({...e})),uncertain:[]}
 }
 
 // Deterministic resources and conditional opportunities are deliberately kept
 // separate. The latter affect ranking but never invent a hit count or a roll.
-export function advanceSanctumRoom(previous, room, {strategy = {}, events = [], rewardLedger = null, altar = null} = {}) {
+export function advanceSanctumRoom(previous, room, {strategy = {}, events = []} = {}) {
   const state = {...previous,effects:previous.effects.map(e=>({...e})),uncertain:[...(previous.uncertain || [])]}
   const risks=[], opportunities=[], conditions=[], unknown=[...state.uncertain], contributions=[]
   let recovery=0, directLoss=0, fatal=false
   const has = rule => state.effects.some(e=>e.rule === rule)
-  const sum = rule => state.effects.filter(e=>e.rule === rule).reduce((total,e)=>total+n(e.value)*(e.source==='relic' && !e.unique ? Math.max(0,1+(has('relicEffectIncrease')?.3:0)-(has('relicEffectReduction')?.5:0)) : 1),0)
+  const sum = rule => state.effects.filter(e=>e.rule === rule).reduce((total,e)=>total+n(e.value),0)
   const remove = rule => {state.effects=state.effects.filter(e=>e.rule !== rule)}
   const low = (threshold = 50) => finite(state.resolve) && finite(state.maxResolve) ? state.resolve < state.maxResolve*threshold/100 : null
   const describe = e => e.name || e.rawText || e.entryId || e.rule
@@ -112,8 +112,7 @@ export function advanceSanctumRoom(previous, room, {strategy = {}, events = [], 
     if (e.rule === 'gainMaxResolve') {maxResolve(n(e.value));emit(e,Math.sign(e.value),'获取时调整最大坚毅');state.effects.push({...e,acquisitionApplied:true});return}
     if (e.rule === 'gainInspiration') {gainInspiration(n(e.value));state.effects.push({...e,acquisitionApplied:true});return}
     if (e.rule === 'copyTributes') {
-      if (rewardLedger?.items?.some(item=>item.state==='pending')) emit(e,1,`获取时从已选贡品中随机复制最多${e.value}项；具体奖励需读取确认`)
-      else unknown.push(`${describe(e)}：已选未领奖励尚未确认，无法评估复制机会`)
+      conditions.push(`${describe(e)}：获取时从已选贡品中随机复制最多${e.value}项；不评估具体复制收益`)
       state.effects.push({...e,acquisitionApplied:true});return
     }
     // Re-reading one effect/description cannot stack it. Distinct effects that
@@ -133,7 +132,7 @@ export function advanceSanctumRoom(previous, room, {strategy = {}, events = [], 
     if (!definition) {
       const base=SANCTUM_BASE_RULES[e.rule]
       if (base && applicable(base.scope,room)) {
-        if (base.scope==='relic' && !altar?.confirmed && !state.effects.some(item=>item.source==='relic')) continue
+        if (base.scope==='relic') { conditions.push(`${describe(e)}：${base.reason}；未评估装备圣物影响`); continue }
         if (['lethalTraps','dangerousTraps'].includes(e.rule) && (has('trapsDisabled')||has('preventResolveLoss'))) continue
         if (['resolveLossCountdown','completionResolveLossPercent'].includes(e.rule)) continue // exact completion loss below
         emit(e,base.direction,base.reason)
@@ -147,7 +146,7 @@ export function advanceSanctumRoom(previous, room, {strategy = {}, events = [], 
     if (meta.mode === 'conditional') {
       if (['fountainBoon','upgradeNextBoon'].includes(rule) && has('cannotGainBoons') || rule==='fountainAffliction' && has('minorAfflictionImmune')) continue
       if (rule==='boonLimit' && new Set(state.effects.filter(x=>x.kind==='boon').map(identity)).size < 5) continue
-      if (rule==='copyTributes') continue // already reflected in actual ledger
+      if (rule==='copyTributes') continue // Acquisition is described without estimating copied rewards.
       if (rule==='guardKill' && e.conditionalUsed) {conditions.push(`${describe(e)}：此前战斗可能已消耗，剩余次数需下次读取`);continue}
       if (rule==='flawlessInspiration' && (e.remainingRooms !== 1 || e.flawless === false)) continue
       emit(e,meta.direction,`${e.rawText || '条件效果'}${meta.random?'；随机结果待实际读取':'；按房间条件评估，不预估战斗次数或耗时'}`)

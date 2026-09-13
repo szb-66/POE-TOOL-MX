@@ -3,11 +3,10 @@ import assert from 'node:assert/strict'
 import { createSanctumStrategy, validateSanctumStrategy } from '../shared/sanctum.js'
 import { planSanctumFloor } from '../electron/modules/sanctum/planner.js'
 import { reuseSanctumEffects } from '../electron/modules/sanctum/effectLedger.js'
-import { validateRunResources, validateRewardLedger, hourAdvice, parseResourceRegions, observationKey } from '../electron/modules/sanctum/runObservation.js'
+import { validateRunResources, parseResourceRegions, observationKey } from '../electron/modules/sanctum/runObservation.js'
 import { parseSanctumRoomTexts } from '../electron/modules/sanctum/liveDriver.js'
 import { parseSanctumCurrentEffects } from '../electron/modules/sanctum/liveDriver.js'
 import { SanctumService } from '../electron/modules/sanctum/service.js'
-import { sanctumRelicWeight } from '../electron/modules/sanctum/relicScoring.js'
 import { runPython } from './helpers/python.js'
 import fs from 'node:fs'
 const catalog=JSON.parse(fs.readFileSync(new URL('../electron/assets/sanctum/catalog.json',import.meta.url)))
@@ -18,14 +17,13 @@ const map=()=>({identityConfirmed:true,runId:'batch-context',sanctumRunId:'whole
   edges:[edge('s','a'),edge('s','b'),edge('a','c'),edge('a','d'),edge('b','c'),edge('c','z'),edge('d','z')]})
 const plan=(f,s=createSanctumStrategy(),effects=[],context={})=>planSanctumFloor(f,s,{},effects,context)
 
-test('默认是揭图策略；旧自定义价格保留，不迁移成行情',()=>{
+test('默认是揭图策略；不提供旧自定义价格',()=>{
   assert.equal(createSanctumStrategy().preset,'reveal')
-  assert.deepEqual(createSanctumStrategy().currencyWeights,{})
-  const legacy=createSanctumStrategy('currency');legacy.currencyWeights.神圣石=123
-  assert.equal(validateSanctumStrategy(legacy).currencyWeights.神圣石,123)
+  assert.equal(createSanctumStrategy().currencyWeights,undefined)
+  assert.throws(()=>validateSanctumStrategy({...createSanctumStrategy(),preset:'currency'}),/无效/)
 })
 test('隐藏房间注入奖励、痛苦、恢复、效果不改变排名或禁选',()=>{
-  for (const preset of ['reveal','quantity','survival']) {
+  for (const preset of ['reveal','quantity']) {
     const f=map(),s=createSanctumStrategy(preset);s.bannedAfflictions=['banned']
     f.rooms[1].revealed=false
     const before=plan(f,s)
@@ -77,31 +75,18 @@ test('同位置不完整快照仍复用；变化、未知、切层、整轮变�
   for(const change of [{currentRoomId:'a'},{floorId:'next'},{sanctumRunId:'new'},{positionStatus:'unknown'}]) assert.equal(reuseSanctumEffects(snapshot,{...f,...change},'session'),null)
   assert.equal(reuseSanctumEffects(snapshot,f,'restarted'),null)
 })
-test('神圣之刻只认实际装备；不同待领奖励最多复制两项，领取/新位置使账本需重确认',()=>{
-  const f=map(),altar={confirmed:true,runId:'whole-run',items:[{status:'matched',uniqueId:'unique:The_Hour_of_Divinity'}]}
-  const input={complete:true,items:[{id:'one',currency:'神圣石',quantity:2,state:'pending',timing:'run',eligible:true}]}
-  let ledger=validateRewardLedger(input,f)
-  assert.equal(hourAdvice(altar,ledger,f).copyLimit,1)
-  input.items.push({...input.items[0],id:'two'},{...input.items[0],id:'three'})
-  ledger=validateRewardLedger(input,f);assert.equal(hourAdvice(altar,ledger,f).copyLimit,2);assert.equal(hourAdvice(altar,ledger,f).dilution,true)
-  input.items[0].state='claimed';ledger=validateRewardLedger(input,f);assert.equal(hourAdvice(altar,ledger,f).dilution,false)
-  assert.equal(hourAdvice(altar,ledger,{...f,currentRoomId:'a'}).known,false)
-  assert.equal(hourAdvice({...altar,confirmed:false},ledger,f).active,false)
-  const saved=structuredClone(ledger);plan(f,undefined,[],{altar,rewardLedger:ledger});assert.deepEqual(ledger,saved)
-  assert.throws(()=>validateRewardLedger({...input,items:[input.items[1],input.items[1]]},f),/重复/)
-})
 test('缺少楼层上下文时名称不推断玩法，扩展通货保留图标未知数量',()=>{
   const value=parseSanctumRoomTexts(['废弃图书馆','完成本轮时获得 1 无常瓦尔宝珠'],catalog,[{currency:'神圣石',confidence:1}])
   assert.equal(value.layout,undefined)
   assert.equal(value.rewards.find(x=>x.currency==='无常瓦尔宝珠').quantity,1)
   assert.equal(value.rewards.find(x=>x.currency==='神圣石').quantity,null)
 })
-test('读取资源缺失不会复活旧值，账本不完整仍允许普通选路',()=>{
+test('读取资源缺失不会复活旧值，资源未知仍允许普通选路',()=>{
   const f=map(),resources=parseResourceRegions({mapResourcesRegion:{texts:['坚毅 30 / 300','启迪：12']}},f)
   assert.equal(resources.resolve,30);assert.equal(resources.coins,null)
   assert.equal(resources.key,observationKey(f))
   assert.equal(parseResourceRegions({coinsRegion:{texts:['10','20']}},f).coins,null)
-  const result=plan(f,undefined,[],{rewardLedger:{complete:false}})
+  const result=plan(f)
   assert.ok(result.paths.length)
 })
 test('所有可选路径有负面仍推荐较低风险；硬禁选冲突才阻断',()=>{
@@ -160,19 +145,12 @@ test('同种已知奖励比较可兼得总量，不能把两项小奖励当成�
   f.rooms[3].rewards=[{currency:'神圣石',quantity:1,timing:'run'}]
   assert.equal(plan(f).paths[0].nextRoomId,'a')
 })
-test('实际状态修正绑定位置；神圣之刻缺账本继续，旧装备不作用于新轮',async()=>{
+test('实际状态修正绑定位置',async()=>{
   const s=new SanctumService({});s.setEnabled(true);s.state.floor=map()
   s.correctRunResources(observationKey(s.state.floor),{resolve:20,maxResolve:100,inspiration:5,coins:0})
   const old=observationKey(s.state.floor);s.state.floor.currentRoomId='a'
   assert.throws(()=>s.correctRunResources(old,{resolve:100}),/位置已变化/)
-  assert.equal(hourAdvice({confirmed:true,runId:'old',items:[{status:'matched',uniqueId:'unique:The_Hour_of_Divinity'}]},null,s.state.floor).active,false)
   await s.shutdown()
-})
-test('圣物新目标只比较揭示房间或数量，不把续航和金币折算成虚构利润',()=>{
-  const reveal=createSanctumStrategy(),quantity=createSanctumStrategy('quantity')
-  const names=['禁域地图上揭晓了 # 个额外的房间','怪物掉落的遗物数量提高 #%','当你完成一个房间时获得 # 枚耀金币']
-  assert.deepEqual(names.map(name=>sanctumRelicWeight({name},reveal)),[1,0,0])
-  assert.deepEqual(names.map(name=>sanctumRelicWeight({name},quantity)),[0,1,0])
 })
 test('实际面板读取先校验预检、标题和范围，只返回当前截图',()=>{
   const result=runPython(`

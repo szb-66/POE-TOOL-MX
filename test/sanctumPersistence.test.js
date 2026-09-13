@@ -26,7 +26,6 @@ function fixture(t) {
     effectScan: { complete: true, targets: [{ evidenceId: 'effect-image', texts: ['状态原文'] }] } }
   const key = observationKey(service.state.floor)
   service.state.runObservation = { key, status: 'confirmed', resolve: 0, maxResolve: 100, coins: 20, inspiration: 50 }
-  service.state.rewardLedger = { key, runId: 'run', complete: true, items: [{ id: 'reward', state: 'pending', currency: '混沌石', quantity: 3 }] }
   service.state.currentEffects = [{ rule: 'cannotRecover' }]
   service.state.progress = { stage: 'complete' }
   service.updateObservation({ foreground: true, interfaceMatched: true, mapOpen: true,
@@ -37,7 +36,7 @@ function fixture(t) {
   return { service, repository, restart: () => new SanctumService({ repository }) }
 }
 
-test('连续重启保留配套路线、资源、奖励、时间与标记，实时证据不复用', async t => {
+test('连续重启保留配套路线、资源、时间与标记，实时证据不复用', async t => {
   const { service, repository, restart } = fixture(t)
   const originalRoute = JSON.parse(JSON.stringify(service.routeResult.recommendation))
   const savedAt = service.state.savedAt
@@ -45,14 +44,11 @@ test('连续重启保留配套路线、资源、奖励、时间与标记，实�
   for (let i = 0; i < 3; i++) {
     const restored = restart(), state = restored.getState()
     assert.equal(state.running, false)
-    assert.equal(state.solving, false)
+    assert.equal(state.solving, undefined)
     assert.equal(state.floor.identityConfirmed, false)
     assert.equal(state.floor.currentRoomId, 'r2')
     assert.deepEqual(state.savedRoute.recommendation, originalRoute)
     assert.equal(state.savedRoute.runObservation.coins, 20)
-    assert.equal(state.rewardLedger.items[0].quantity, 3)
-    assert.equal(state.rewardLedger.complete, false)
-    assert.equal(state.rewardLedger.savedComplete, true)
     assert.equal(currentRunObservation(state.runObservation, state.floor), null)
     assert.deepEqual(resourceSummary(state), { resolve: 0, maxResolve: 100, inspiration: 50, coins: 20, percent: 0 })
     assert.equal(state.savedAt, savedAt)

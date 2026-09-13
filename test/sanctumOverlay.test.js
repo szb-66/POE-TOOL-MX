@@ -67,19 +67,6 @@ test('离线图、停用、切出、关图、过期或缺失证据及尺寸失�
   for (const change of cases) { const value = state(); change(value); assert.equal(sanctumOverlaySnapshot(value, 1000), null) }
 })
 
-test('圣物高亮按当前扫描批次定位多格物品，旧批次和越界拒绝', () => {
-  const value = state()
-  value.observation.mapOpen = false
-  value.observation.regions = { altar: { x: 800, y: 400, width: 500, height: 400, columns: 5, rows: 4, scanId: 'scan' } }
-  value.inventory = [{ id: 'item', status: 'matched', regionId: 'altar', scanId: 'scan', x: 1, y: 1, width: 2, height: 3 }]
-  value.highlight = { id: 'item', expiresAt: 5000 }
-  assert.deepEqual(sanctumOverlaySnapshot(value, 1000).highlight, { x: 900, y: 500, width: 200, height: 300 })
-  value.inventory[0].scanId = 'old'
-  assert.equal(sanctumOverlaySnapshot(value, 1000), null)
-  value.inventory[0].scanId = 'scan'; value.inventory[0].x = 4
-  assert.equal(sanctumOverlaySnapshot(value, 1000), null)
-})
-
 function fixture() {
   let current = state(), now = 1000, changed, tick
   const windows = []
@@ -153,19 +140,4 @@ test('加载期间切出不会迟到显示，截图期间禁止重显且异常�
   await f.overlay.withHidden(async () => { f.change({ ...state(), enabled: false }) })
   assert.equal(window.visible, false)
   f.overlay.destroy()
-})
-
-test('服务高亮不接受任意坐标，必须匹配新鲜的已确认扫描实例', async () => {
-  const service = new SanctumService({})
-  service.setEnabled(true)
-  service.state.inventory = [{ id: 'item', regionId: 'altar', status: 'matched', scanId: 'scan' }]
-  assert.throws(() => service.highlightRelic('item'), /重新扫描/)
-  service.updateObservation({ foreground: true, interfaceMatched: true, regions: { altar: { scanId: 'scan' } } })
-  service.highlightRelic('item')
-  assert.equal(service.getState().highlight.id, 'item')
-  assert.throws(() => service.highlightRelic({ x: 10, y: 10 }), /重新扫描/)
-  service.stop()
-  assert.equal(service.getState().highlight, null)
-  assert.equal(service.getState().observation, null)
-  await service.shutdown()
 })

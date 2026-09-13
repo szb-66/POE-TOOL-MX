@@ -4,7 +4,7 @@ import { decideSanctumEffects, reuseSanctumEffects, sanctumEffectScan } from '..
 import { parseSanctumRoomTexts } from '../electron/modules/sanctum/liveDriver.js'
 import { emptyEffectGroups } from '../shared/sanctumEffects.js'
 import { applySanctumEffects } from '../shared/sanctum.js'
-import { observationKey, syncStatusRewards, currentRunObservation } from '../electron/modules/sanctum/runObservation.js'
+import { observationKey, currentRunObservation } from '../electron/modules/sanctum/runObservation.js'
 import { SEASON_BASELINE } from '../shared/seasonBaseline.js'
 
 const catalog = {schemaVersion:1,game:'poe1',patch:SEASON_BASELINE.patch,sources:[{id:'test',channel:'official'}],entries:[
@@ -24,22 +24,20 @@ function fixture(pain = null) {
     edges:[{from:'a',to:'b',status:'matched',traversal:'available'},{from:'b',to:'c',status:'matched',traversal:'available'}]}
   const ledger = {scope:'scope',floor,complete:true,finished:true,effectsComplete:true,classificationComplete:true,
     coverageConfirmed:true,effects:[],groups:emptyEffectGroups().map(g=>({...g,complete:true,status:'absent'})),
-    targets:[],binding:observationKey(floor),rewardGroups:[{targetId:'effect:1',complete:true,rewards:[{currency:'神圣石',quantity:2,timing:'run',row:0}]}]}
+    targets:[],binding:observationKey(floor)}
   const next = structuredClone(floor); next.currentRoomId = 'b'
   // Completed rooms are no longer hovered by the real capture pipeline.
   next.rooms[1] = {id:'b',column:1,row:0,captureSkipReason:'completed'}
   return {ledger,next}
 }
 
-test('奖励房沿用整个效果基线，但不更新奖励和资源观测', () => {
+test('奖励房沿用整个效果基线，但不更新资源观测', () => {
   const {ledger,next} = fixture()
   const advanced = reuseSanctumEffects(ledger,next,'scope',catalog)
   assert.equal(advanced.updateMode,'reuse')
   assert.deepEqual(advanced.effects,[])
   assert.equal(advanced.effectBinding,observationKey(next))
   assert.equal(advanced.binding,observationKey(ledger.floor))
-  const oldRewards = syncStatusRewards(null,{...ledger.floor,effectScan:sanctumEffectScan(ledger)})
-  assert.equal(syncStatusRewards(oldRewards,{...next,effectScan:sanctumEffectScan(advanced)}),oldRewards)
   assert.equal(currentRunObservation({key:observationKey(ledger.floor),status:'confirmed',coins:100},next),null)
   assert.equal(reuseSanctumEffects(advanced,next,'scope',catalog),advanced)
   const third = structuredClone(next); third.currentRoomId = 'c'

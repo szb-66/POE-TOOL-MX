@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const TITLE_KEYS = ['sanctum-hud', 'sanctum-map-hud', 'sanctum-map', 'sanctum-map-entry', 'sanctum-altar', 'sanctum-locker']
+export const TITLE_KEYS = ['sanctum-hud', 'sanctum-map-hud', 'sanctum-map', 'sanctum-map-entry']
 export class InterfaceTitleRegistry {
   constructor(file) {
     this.file = file

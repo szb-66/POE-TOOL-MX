@@ -1,14 +1,16 @@
-import { CAPTURE_KEYS, liveEnvironment, liveProfile, relicProfile, gridDimensions, cellStates, region } from '../../../shared/sanctumLive.js'
+import { CAPTURE_KEYS, liveEnvironment, liveProfile, region } from '../../../shared/sanctumLive.js'
 import { TITLE_KEYS } from '../interfaceDetection/titleRegistry.js'
+import { SanctumCalibrationCollection } from './calibrationCollection.js'
 
 const labels = { coinsRegion:'地图内金币图标与数量', mapResourcesRegion:'地图内坚毅与启迪完整模块', hudResourcesRegion:'独立完整状态栏', mapRegion: '地图范围', effectIconsRegion: '独立状态栏状态及奖励图标', mapEffectIconsRegion: '地图内状态栏状态及奖励图标', roomSize: '房间内框', pathColor: '路径颜色样本' }
 const sameEnvironment = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 // Only the main process supplies captures, client metadata and sample pixels.
 export class SanctumCalibrationEditor {
-  constructor({ service, picker, cancelPicker, detection, nativeImage, withHidden }) {
-    Object.assign(this, { service, picker, cancelPicker, detection, nativeImage, withHidden })
+  constructor({ service, picker, cancelPicker, detection, nativeImage, withHidden, withScreenshotHidden }) {
+    Object.assign(this, { service, picker, cancelPicker, detection, nativeImage, withHidden, withScreenshotHidden })
     this.picking = false
+    this.collection = new SanctumCalibrationCollection(this)
   }
   cancel() {
     if (!this.captureController) return
@@ -17,28 +19,22 @@ export class SanctumCalibrationEditor {
   }
   assertEditable() {
     this.service.assertEnabled()
-    if (this.picking || this.service.state.running || this.service.state.solving || this.service.liveTask || this.service.captureTask) throw new Error('运行中不能修改校准，请先停止')
+    if (this.picking || this.service.state.running || this.service.liveTask || this.service.captureTask) throw new Error('运行中不能修改校准，请先停止')
   }
-  invalidate(regionId) {
+  invalidate() {
     const s = this.service
     s.stop()
     s.liveDriver?.resetEffects?.()
-    s.relicEvidence.clear()
-    s.state.loadouts = null
-    s.state.altar.confirmed = false
-    s.state.altar.unlocked = []
-    s.state.inventory = s.state.inventory.map(item => !regionId || item.regionId === regionId
-      ? { ...item, status: 'unknown', reason: '校准已修改，请重新扫描确认位置' } : item)
     s.recalculate()
   }
-  commit(previous, regionId) {
-    try { this.invalidate(regionId); return this.service.persist() }
+  commit(previous) {
+    try { this.invalidate(); return this.service.persist() }
     catch (error) { this.service.state = previous; this.service.publish(); throw error }
   }
-  async capture(key, dimensions) {
+  async capture(key) {
     this.assertEditable()
-    const title = TITLE_KEYS.includes(key), grid = ['altar', 'locker'].includes(key) ? gridDimensions({ ...dimensions, regionId: key }) : null
-    if (!title && !grid && !CAPTURE_KEYS.includes(key)) throw new Error('未知校准项')
+    const title = TITLE_KEYS.includes(key)
+    if (!title && !CAPTURE_KEYS.includes(key)) throw new Error('未知校准项')
     this.picking = true
     const controller = new AbortController()
     this.captureController = controller
@@ -55,9 +51,9 @@ export class SanctumCalibrationEditor {
         controller.signal.throwIfAborted()
         this.pickerActive = true
         return this.picker({ purpose: 'sanctum',
-        title: grid ? `框选完整 ${grid.columns}×${grid.rows} ${key === 'altar' ? '祭坛' : '圣物仓库'}` : `框选${title ? '公共标题' : labels[key]}`,
-        hint: '贴近目标边框拖动，Enter 确认，Esc 取消', grid,
-        minimumSize: grid ? { width: grid.columns * 16, height: grid.rows * 16 } : { width: 20, height: 10 },
+        title: `框选${title ? '公共标题' : labels[key]}`,
+        hint: '贴近目标边框拖动，Enter 确认，Esc 取消',
+        minimumSize: { width: 20, height: 10 },
         beforeCapture: async () => { before = await read() },
         afterCapture: async () => { if (!sameEnvironment(before, await read())) throw new Error('截图期间窗口或 DPI 已变化') }
       }) })
@@ -73,7 +69,6 @@ export class SanctumCalibrationEditor {
         clientBounds: bounds, displayId: capture.displayId, scaleFactor: capture.scaleFactor, displayPhysicalBounds: capture.displayPhysicalBounds }
       previous = structuredClone(this.service.state)
       if (title) { oldTitle = this.detection.getTitleConfig().templates[key]; await this.detection.setTitle(key, value); titleChanged = true }
-      else if (grid) this.service.state.relicCalibrations[key] = relicProfile({ version: 2, environment, ...grid, mapRegion: selected, preview: value })
       else {
         const previous = this.service.state.liveCalibration || { version: 2, environment, captures: {} }
         const next = { ...previous, environment, captures: { ...previous.captures, [key]: value } }
@@ -83,7 +78,7 @@ export class SanctumCalibrationEditor {
         this.service.state.liveCalibration = liveProfile(next)
       }
       if (generation !== this.service.generation) { if (titleChanged) await this.detection.setTitle(key, oldTitle); return this.service.getState() }
-      return this.commit(previous, grid?.regionId)
+      return this.commit(previous)
     } catch (error) {
       if (titleChanged) await this.detection.setTitle(key, oldTitle)
       if (controller.signal.aborted) return this.service.getState()
@@ -104,7 +99,6 @@ export class SanctumCalibrationEditor {
           return this.service.getState()
         }
       }
-      else if (['altar', 'locker'].includes(key)) delete this.service.state.relicCalibrations[key]
       else if (CAPTURE_KEYS.includes(key)) {
         const p = this.service.state.liveCalibration
         if (p) {
@@ -113,32 +107,11 @@ export class SanctumCalibrationEditor {
           if (key === 'pathColor' && p.calibration) delete p.calibration.pathHsv
         }
       } else throw new Error('未知校准项')
-      return this.commit(previous, ['altar', 'locker'].includes(key) ? key : undefined)
+      return this.commit(previous)
     } catch (error) {
       if (title) await this.detection.setTitle(key, oldTitle)
       throw error
     } finally { this.picking = false }
-  }
-  saveCells(id, values) {
-    this.assertEditable()
-    const previous = structuredClone(this.service.state)
-    const p = this.service.state.relicCalibrations[id]
-    if (!p?.preview) throw new Error('请先框选网格截图')
-    p.cellStates = cellStates(values, p.columns * p.rows)
-    return this.commit(previous, id)
-  }
-  sample(id, kind, index) {
-    this.assertEditable()
-    const previous = structuredClone(this.service.state)
-    const p = this.service.state.relicCalibrations[id]
-    if (!p?.preview || !['empty', 'locked'].includes(kind) || !Number.isInteger(index) || index < 0 || index >= p.columns * p.rows) throw new Error('样本格无效')
-    const image = this.nativeImage.createFromBuffer(Buffer.from(p.preview.png, 'base64'))
-    const size = image.getSize(), x = index % p.columns, y = Math.floor(index / p.columns)
-    const left = Math.round(x * size.width / p.columns) + 3, top = Math.round(y * size.height / p.rows) + 3
-    const png = image.crop({ x: left, y: top, width: Math.round((x + 1) * size.width / p.columns) - 3 - left,
-      height: Math.round((y + 1) * size.height / p.rows) - 3 - top }).toPNG().toString('base64')
-    p.templates[kind] = png
-    return this.commit(previous, id)
   }
   pathColor(point) {
     this.assertEditable()

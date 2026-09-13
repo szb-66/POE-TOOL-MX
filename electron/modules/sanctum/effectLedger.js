@@ -108,7 +108,7 @@ export function decideSanctumEffects(snapshot, floor, scope, catalog) {
   next.updateMode = additions.length ? 'append' : 'reuse'
   next.sourceRoomId = room.id
   delete next.scanReason
-  // binding and rewardGroups keep their actual scan position. They must never
+  // The binding keeps the actual scan position. It must never
   // make old rewards look newly observed when only effects advanced.
   return {mode:next.updateMode,snapshot:next,reason:null}
 }
@@ -120,7 +120,7 @@ export function reuseSanctumEffects(snapshot, floor, scope, catalog) {
 export function sanctumEffectScan(snapshot) {
   const scan = {complete:snapshot?.complete === true,finished:effectScanFinished(snapshot),reason:snapshot?.reason,
     groups:completedEffectGroups(snapshot?.groups,effectScanFinished(snapshot)),targets:snapshot?.targets || [],
-    rewardGroups:snapshot?.rewardGroups || [],effectsComplete:snapshot?.effectsComplete === true,
+    effectsComplete:snapshot?.effectsComplete === true,
     classificationComplete:snapshot?.classificationComplete === true,coverageConfirmed:snapshot?.coverageConfirmed === true,
     binding:snapshot?.binding,effectBinding:snapshot?.effectBinding || snapshot?.binding,
     updateMode:snapshot?.updateMode || 'scan',sourceRoomId:snapshot?.sourceRoomId,scanReason:snapshot?.scanReason}

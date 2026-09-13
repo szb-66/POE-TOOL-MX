@@ -64,7 +64,6 @@ export function captureButton(state, { locked = false } = {}) {
       : progress.stage === 'map' ? '读取地图' : progress.stage === 'completing' ? '正在完成' : '正在准备'
     return { label, disabled: true }
   }
-  if (state.solving) return { label: '正在计算搭配', disabled: true }
   if (!state.liveCalibration) return { label: '请先完成校准', disabled: true }
   if (state.publicTitles && calibrationIssues(state).length) return { label: '请补充地图校准', disabled: true }
   if (locked) return { label: '其他任务运行中', disabled: true }

@@ -133,8 +133,8 @@ export function matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, s
   const groupResults = groups
     .filter((group) => group.enabled !== false)
     .map((group, index) => {
-    const required = (group.requiredAffixes ?? []).map((condition) => conditionValue(condition)).filter(Boolean)
-    const selected = (group.selectedAffixes ?? []).map((condition) => conditionValue(condition)).filter(Boolean)
+    const required = (group.requiredAffixes ?? []).filter((condition) => condition?.enabled !== false).map((condition) => conditionValue(condition)).filter(Boolean)
+    const selected = (group.selectedAffixes ?? []).filter((condition) => condition?.enabled !== false).map((condition) => conditionValue(condition)).filter(Boolean)
     if (!required.length && !selected.length) return null
     const requiredMatches = required.map((condition) => matchCondition(condition, candidates))
     const selectedMatches = selected.map((condition) => matchCondition(condition, candidates))

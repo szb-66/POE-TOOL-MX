@@ -12,7 +12,7 @@ function fixture() {
     edges: [['s','a'],['a','u'],['u','z']].map(([from,to]) => ({ from, to, status: 'matched' })) }
 }
 
-for (const preset of ['reveal', 'quantity', 'survival']) {
+for (const preset of ['reveal', 'quantity']) {
   const plan = (floor, marks = {}, effects = []) => planSanctumFloor(floor, createSanctumStrategy(preset), marks, effects)
 
   test(`${preset}: 未揭示边界和远处目标只作普通说明，硬约束不变`, () => {

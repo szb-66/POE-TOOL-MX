@@ -1,5 +1,11 @@
 <template>
-  <div class="affix-condition-row">
+  <div class="affix-condition-row" :class="{ 'is-disabled': condition.enabled === false }">
+    <el-switch
+      :model-value="condition.enabled !== false"
+      size="small"
+      :aria-label="`启用词缀 ${condition.keyword || '未填写'}`"
+      @update:model-value="updateEnabled"
+    />
     <el-autocomplete
       :model-value="condition.keyword"
       :placeholder="placeholder"
@@ -82,6 +88,11 @@ function updateKeyword(value) {
   }
 }
 
+function updateEnabled(value) {
+  props.condition.enabled = value
+  emit('change')
+}
+
 function updateMinTier(value) {
   props.condition.minTier = value
 }
@@ -93,6 +104,9 @@ function suggestionSummary(item) {
 </script>
 
 <style scoped lang="less">
+.is-disabled > :not(.el-switch) {
+  opacity: 0.5;
+}
 .suggestion-title {
   flex-wrap: wrap;
   white-space: pre-line;

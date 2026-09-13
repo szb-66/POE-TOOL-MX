@@ -20,7 +20,7 @@ function capture(service,texts=['错误甲'],{runId='r',floorId='f',targetId='ef
   const floor={runId,floorId,mapKey:'m',revision:1,identityConfirmed:true,positionStatus:'confirmed',currentRoomId:'a',rooms:[{id:'a',column:0,row:0},{id:'b',column:1,row:0,terminal:true,detailsStatus:'matched'}],edges:[{from:'a',to:'b',status:'matched'}]}
   const read=parseStatusTooltip({texts,status,targetId,evidenceId,reason:status === 'partial'?'截断':null},catalog,service.state.effectCorrectionMemory)
   const target={runId,floorId,targetId,evidenceId,readStatus:status,texts,captureIssue,stage:read.effectGroup?.complete?'matched':'failed',effectGroup:read.originalEffectGroup,rememberedGroup:read.effectGroup,memoryHits:read.memoryHits,region:{x:0,y:0,width:100,height:100}}
-  const next=rebuildCorrectedScan({targets:[target],groups:[],rewardGroups:read.rewardGroup?[read.rewardGroup]:[],binding:observationKey(floor),finished:true,coverageConfirmed:true},catalog,service.state.effectCorrectionMemory)
+  const next=rebuildCorrectedScan({targets:[target],groups:[],binding:observationKey(floor),finished:true,coverageConfirmed:true},catalog,service.state.effectCorrectionMemory)
   floor.effectScan=next.scan;floor.currentEffects=next.effects
   service.state.floor=floor;service.state.currentEffects=next.effects;service.state.restoredFromSave=false
   service.liveDriver={effectCorrectionMemory:structuredClone(service.state.effectCorrectionMemory),effectLedger:{...next.scan,effects:next.effects,floor:structuredClone(floor)}}
@@ -58,10 +58,10 @@ test('完整原文可跨 OCR 换行匹配，但不能跨过奖励行或替换奖
   const memory=emptyEffectMemory();rememberEffectRule(memory,'错误甲错误乙','replace',eye,catalog)
   assert.equal(parse(['错误甲','错误乙'],memory).hits.length,1)
   const result=parseStatusTooltip({status:'located',texts:['错误甲','完成禁域时获得60×工匠石','错误乙']},catalog,memory)
-  assert.equal(result.memoryHits.length,0);assert.equal(result.rewardGroup.rewards[0].quantity,60)
+  assert.equal(result.memoryHits.length,0);assert.equal(result.hasRewardContext,true)
   rememberEffectRule(memory,'完成禁域时获得60×工匠石','ignore',null,catalog)
   const reward=parseStatusTooltip({status:'located',texts:['完成禁域时获得60×工匠石']},catalog,memory)
-  assert.equal(reward.effectGroup,null);assert.equal(reward.rewardGroup.complete,true)
+  assert.equal(reward.effectGroup,null);assert.equal(reward.hasRewardContext,true)
   const service=setup();service.state.effectCorrectionMemory=memory
   const review=capture(service,['错误甲','完成禁域时获得60×工匠石','错误乙'])()
   assert.equal(review.target.memoryHits.length,0)
@@ -263,7 +263,7 @@ test('已确认空栏在规则编辑删除后保持完整，未覆盖和失败�
   const service=setup()
   rememberEffectRule(service.state.effectCorrectionMemory,'错误甲','ignore',null,catalog)
   capture(service)
-  service.state.floor.effectScan={targets:[],groups:[],rewardGroups:[],binding:observationKey(service.state.floor),coverageConfirmed:true,finished:true,complete:true}
+  service.state.floor.effectScan={targets:[],groups:[],binding:observationKey(service.state.floor),coverageConfirmed:true,finished:true,complete:true}
   for (const action of ['update','delete']) {
     if (action === 'delete') service.deleteEffectCorrectionRule(ruleBinding(service))
     else service.updateEffectCorrectionRule(ruleBinding(service),{action:'replace',entryId:eye})

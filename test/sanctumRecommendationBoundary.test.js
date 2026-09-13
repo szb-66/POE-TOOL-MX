@@ -16,7 +16,7 @@ function fixture() {
     edges: [edge('s', 'a'), edge('a', 'u'), edge('u', 'z')] }
 }
 
-for (const preset of ['reveal', 'quantity', 'survival']) {
+for (const preset of ['reveal', 'quantity']) {
   const plan = (f, marks = {}) => planSanctumFloor(f, createSanctumStrategy(preset), marks)
   test(`${preset}: 已知段结束，未知内容及远处出口不进入结果`, () => {
     const f = fixture(), before = plan(f)

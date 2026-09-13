@@ -37,7 +37,7 @@ export const useSanctumStore = defineStore('sanctum', () => {
       error.value = failure
     } finally { toggling.value = false }
   }
-  const busy = computed(() => state.value.running || state.value.solving || state.value.captureDraining)
+  const busy = computed(() => state.value.running || state.value.captureDraining)
   const readOnly = computed(() => !state.value.enabled || toggling.value)
   return { state, error, busy, readOnly, toggling, setEnabled, call, action, refresh, initialize, suspend, disconnect }
 })

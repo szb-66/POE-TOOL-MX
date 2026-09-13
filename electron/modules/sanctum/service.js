@@ -1,13 +1,9 @@
 import { SANCTUM_TIMEOUTS } from './errors.js'
 import { isCurrentSanctumEntry } from './catalog.js'
-import { observationKey, validateRunResources, validateRewardLedger } from './runObservation.js'
+import { observationKey, validateRunResources } from './runObservation.js'
 import { emptySanctumState, validateSanctumStrategy } from '../../../shared/sanctum.js'
 import { acceptSanctumFloor, resetSanctumRun } from './state.js'
 import { planSanctumFloor } from './planner.js'
-import { SanctumLoadoutService } from './loadoutService.js'
-import { summarizeSanctumRelics } from './inventory.js'
-import { mergeSanctumTextScan } from './relicScan.js'
-import { sanctumRelicWeight } from './relicScoring.js'
 import { SanctumCapture, incompleteSanctumCapture } from './capture.js'
 import { bindSanctumCalibration } from '../../../shared/sanctumCalibration.js'
 import { sanctumResultObservation, sanctumResultTitle, sanctumPenultimateRoom, sanctumResultEnvironmentMatches } from './resultObservation.js'
@@ -35,7 +31,7 @@ function interruptRoomRead(room) {
 }
 
 export class SanctumService {
-  constructor({ repository, moduleEnabled = true, replay = null, samples = () => [], solver = new SanctumLoadoutService(), catalog = { entries: [] }, captureDriver = null, automationLock = null }) {
+  constructor({ repository, moduleEnabled = true, replay = null, samples = () => [], catalog = { entries: [] }, captureDriver = null, automationLock = null }) {
     this.repository = repository
     this.state = repository?.load() || emptySanctumState()
     this.routeResult = this.state.persistedRoute || null
@@ -44,7 +40,6 @@ export class SanctumService {
     delete this.state.persistedOverlay
     this.replay = replay
     this.samples = samples
-    this.solver = solver
     this.catalog = catalog
     const memory=readEffectMemory(this.state.effectCorrectionMemory)
     this.state.effectCorrectionMemory=migrateEffectMemory(memory,[this.state.floor,this.routeResult?.floor,this.overlayResult?.floor],catalog,target=>originalEffectGroup(target,catalog))
@@ -62,12 +57,10 @@ export class SanctumService {
     this.foreground = false
     this.observation = null
     this.lastMapObservation = null
-    this.highlight = null
     this.liveDriver = null
     this.liveTask = null
     this.liveController = null
     this.liveEnvironment = null
-    this.relicEvidence = new Map()
   }
 
   getState() { return structuredClone({ ...this.state, configuredEnabled: this.state.enabled === true, enabled: this.enabled, liveCaptureAvailable: Boolean(this.capture),
@@ -75,13 +68,12 @@ export class SanctumService {
     savedRoute: !this.state.running && this.routeResult && (!this.state.floor?.identityConfirmed
       || !sanctumDisplay(this.state.floor, this.state.recommendation, this.state.marks).nextRoomId) ? this.routeResult : null,
     captureDraining: Boolean(!this.state.running && (this.startTask || this.liveTask || this.captureTask)),
-    foreground: this.foreground, observation: this.observation, highlight: this.highlight,
+    foreground: this.foreground, observation: this.observation,
     liveEnvironment: this.liveEnvironment, publicTitles: this.calibrationEditor?.detection.getTitleConfig(),
-    inventorySummary: summarizeSanctumRelics(this.state.inventory), catalogSummary: { patch: this.catalog.patch,
+    catalogSummary: { patch: this.catalog.patch,
       total: this.catalog.entries.length, reviewed: this.catalog.entries.filter(entry => entry.applicability === 'current').length,
       afflictions: this.catalog.entries.filter(entry => entry.kind === 'affliction' && isCurrentSanctumEntry(this.catalog, entry))
-        .map(entry => ({ id: entry.id, label: entry.name, descriptions: entry.descriptions || [] })),
-      modifiers: this.catalog.entries.filter(entry => entry.kind === 'modifier').map(entry => ({ id: entry.id, label: entry.name })) } }) }
+        .map(entry => ({ id: entry.id, label: entry.name, descriptions: entry.descriptions || [] })) } }) }
   subscribe(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   publish() { const state = this.getState(); for (const listener of this.listeners) listener(state); return state }
   writeSnapshot(state = this.state) {
@@ -106,9 +98,8 @@ export class SanctumService {
   assertEnabled() { if (!this.enabled) throw new Error('圣所功能未启用') }
   recalculate() {
     if (this.state.floor?.identityConfirmed) this.state.savedAt = Date.now()
-    const equipped = this.state.altar.confirmed ? this.state.altar.items.flatMap(item => (item.effects || []).map(e=>({...e,source:'relic',unique:item.unique}))) : []
     this.state.recommendation = this.state.floor?.identityConfirmed
-      ? planSanctumFloor(this.state.floor, this.state.strategy, this.state.marks, [...this.state.currentEffects, ...equipped], { altar:this.state.altar, runObservation:this.state.runObservation, rewardLedger:this.state.rewardLedger }) : null
+      ? planSanctumFloor(this.state.floor, this.state.strategy, this.state.marks, this.state.currentEffects, { runObservation:this.state.runObservation }) : null
     this.rememberRoute()
   }
   rememberRoute() {
@@ -120,7 +111,7 @@ export class SanctumService {
     }
     if (!display.nextRoomId) return
     this.routeResult = structuredClone({ floor: this.state.floor, recommendation: this.state.recommendation, marks: this.state.marks,
-      currentEffects: this.state.currentEffects, runObservation: this.state.runObservation, rewardLedger: this.state.rewardLedger, savedAt: Date.now(),
+      currentEffects: this.state.currentEffects, runObservation: this.state.runObservation, savedAt: Date.now(),
       reason: '上次识别路线，仅供历史参考', incomplete: incompleteSanctumCapture(this.state.floor) })
     if (this.captureEnvironment && (this.observation?.mapRegion || this.lastMapObservation)) this.retainOverlayResult(this.captureEnvironment)
   }
@@ -169,7 +160,6 @@ export class SanctumService {
     if (this.liveDriver) this.liveDriver.positionOverride = null
     if (this.state.progress) this.state.progress = { ...this.state.progress, stage: 'stopped', step: null }
     this.observation = null
-    this.highlight = null
     this.liveController?.abort()
     if (this.state.floor && (this.captureTask || this.state.status === 'capturing' || this.state.floor.identitySource === 'client-log')) {
       this.state.floor = { ...this.state.floor, captureStopped:true, identityConfirmed:false }
@@ -179,15 +169,13 @@ export class SanctumService {
     this.replayController?.abort()
     this.replayController = null
     this.capture?.stop()
-    this.solver.cancel()
     this.state.running = false
-    this.state.solving = false
     this.state.status = 'paused'
     this.state.reason = `${reason}；已停止，已保留识别结果；需手动重新开始`
     return this.saveCapture()
   }
   emergencyStop() {
-    const stopped = this.state.running || this.state.solving
+    const stopped = this.state.running
     this.stop()
     return { success: true, stopped }
   }
@@ -300,22 +288,6 @@ export class SanctumService {
       }
     }
   }
-  async scanRelics(regionId) {
-    const profile = this.state.relicCalibrations?.[regionId]
-    if (!['altar', 'locker'].includes(regionId) || !profile) throw new Error('请先校准目标圣物区域')
-    await this.runLiveAction(signal => this.liveDriver.scanRelics(profile, signal, this.automationLock, progress => {
-      if (signal.aborted) return
-      this.state.progress = progress; this.state.reason = `圣物扫描 ${progress.current}/${progress.total}`; this.publish()
-    }), scan => {
-      this.acceptRelicScan(scan)
-      const evidence = scan.observation?.regions?.[scan.regionId]
-      if (evidence) this.relicEvidence.set(scan.regionId, structuredClone(evidence))
-      this.updateObservation(scan.observation)
-      this.state.reason = '圣物扫描结束；未知格保留，只有完整祭坛扫描才确认装备'
-      this.publish()
-    })
-    return this.getState()
-  }
   async startCapture(environment) {
     this.assertEnabled()
     if (!this.capture) throw new Error('实机采集器尚未启用')
@@ -363,7 +335,7 @@ export class SanctumService {
             recordedAt:new Date().toISOString(),runId:this.state.floor.sanctumRunId || this.state.floor.runId,
             floorId:this.state.floor.floorId,currentRoomId:this.state.floor.currentRoomId,
             floor:structuredClone(this.state.floor),currentEffects:structuredClone(this.state.currentEffects),
-            resources:structuredClone(this.state.runObservation),rewardLedger:structuredClone(this.state.rewardLedger),
+            resources:structuredClone(this.state.runObservation),
             strategy:structuredClone(this.state.strategy),recommendation:structuredClone(this.state.recommendation),
             observedNextRoomId:null,gameplayAccepted:false
           }].slice(-20)
@@ -405,7 +377,7 @@ export class SanctumService {
     const observation = this.observation?.mapRegion ? this.observation : this.lastMapObservation
     if (!observation?.mapRegion || !environment) return
     this.overlayResult = structuredClone({ floor, recommendation: this.state.recommendation, marks: this.state.marks,
-      currentEffects: this.state.currentEffects, runObservation: this.state.runObservation, rewardLedger: this.state.rewardLedger,
+      currentEffects: this.state.currentEffects, runObservation: this.state.runObservation,
       progress: { ...this.state.progress, stage: incompleteSanctumCapture(floor) ? 'partial' : 'complete' }, observation, environment,
       incomplete: incompleteSanctumCapture(floor),
       savedAt: now, clearOnMapClose: sanctumPenultimateRoom(floor, display.nextRoomId) })
@@ -432,7 +404,7 @@ export class SanctumService {
     return { ...this.getState(), ...this.overlayResult, observation, foreground: true,
       reason: this.overlayResult.reason || (this.overlayResult.incomplete ? '状态识别不完整；上次识别路线，仅供历史参考' : '上次识别结果；再次采集可更新路线') }
   }
-  resetRun() { this.assertEnabled(); this.stop(); this.lastMapObservation = null; this.routeResult = null; this.overlayResult = null; this.liveDriver?.resetEffects?.(); this.relicEvidence.clear(); this.state = resetSanctumRun(this.state); const state=this.persist(); this.repository?.evidence?.clear(); return state }
+  resetRun() { this.assertEnabled(); this.stop(); this.lastMapObservation = null; this.routeResult = null; this.overlayResult = null; this.liveDriver?.resetEffects?.(); this.state = resetSanctumRun(this.state); const state=this.persist(); this.repository?.evidence?.clear(); return state }
   setForeground(value) {
     this.foreground = value === true
     if (!this.foreground && this.captureTask) this.capture?.stopInput('游戏已失去前台')
@@ -448,53 +420,6 @@ export class SanctumService {
     if (!value) this.state.recommendation = null
     else if (this.state.running && this.captureEnvironment) this.rememberRoute()
     return this.publish()
-  }
-  highlightRelic(id) {
-    this.assertEnabled()
-    const item = this.state.inventory.find(item => item.id === id && item.status === 'matched')
-    const evidence = item && this.relicEvidence.get(item.regionId)
-    if (this.liveDriver?.watchRelic && evidence?.scanId === item?.scanId && evidence?.scanId) return this.watchRelic(item, evidence)
-    const region = item && this.observation?.regions?.[item.regionId]
-    if (!region?.scanId || item.scanId !== region.scanId || Date.now() - this.observation.receivedAt > 1500) throw new Error('圣物位置未在当前界面确认，请先重新扫描')
-    this.highlight = { id, expiresAt: Date.now() + 5000 }
-    return this.publish()
-  }
-  async watchRelic(item, evidence) {
-    let started = false
-    try {
-      await this.runLiveAction(signal => {
-        started = true
-        return this.liveDriver.watchRelic(this.state.relicCalibrations[item.regionId], evidence, signal, observation => {
-        if (signal.aborted) return
-        if (!this.highlight) this.highlight = { id: item.id, expiresAt: Date.now() + 5000 }
-        this.state.reason = '正在高亮圣物位置；可使用全局紧急停止快捷键停止'
-        this.updateObservation(observation)
-        })
-      }, () => { this.state.status = 'idle'; this.state.reason = '位置高亮已结束' })
-    } finally { if (started) { this.highlight = null; this.observation = null; this.publish() } }
-    return this.getState()
-  }
-  acceptRelicScan(scan) {
-    this.assertEnabled()
-    const result = mergeSanctumTextScan(this.state.inventory, scan, this.catalog)
-    this.stop()
-    this.relicEvidence.delete(scan.regionId)
-    this.state.inventory = result.inventory
-    this.state.loadouts = null
-    if (scan.regionId === 'altar') {
-      // A partial altar observation withdraws confirmation rather than keeping
-      // old effects active. Only a full collector scan may confirm equipment.
-      this.state.altar.confirmed = false
-      if (result.complete && scan.width === this.state.altar.width && scan.height === this.state.altar.height) {
-        this.state.altar.items = result.inventory.filter(item => item.regionId === 'altar' && item.status === 'matched')
-        this.state.altar.unlocked = result.unlocked
-        this.state.altar.confirmed = true
-        this.state.altar.runId = this.state.floor?.identityConfirmed ? this.state.floor.sanctumRunId || this.state.floor.runId : null
-        this.state.altar.pendingRun = !this.state.altar.runId
-      }
-    }
-    this.recalculate()
-    return this.persist()
   }
   async rescanEffects() {
     this.assertEnabled()
@@ -554,12 +479,11 @@ export class SanctumService {
     target.effectGroup ||= review.original
     target.correction = {...correction,revision:review.binding.correctionRevision+1,updatedAt:Date.now()}
     const group = correctedEffectGroup(target,this.catalog)
-    const reward = scan.rewardGroups?.find(item=>item.targetId === target.targetId)
     target.entries = group.entries
     target.classificationComplete = group.complete && group.entries.every(entry=>entry.category)
-    target.reason = [group.reason,reward?.reason].filter(Boolean).join('；') || null
+    target.reason = group.reason || null
     // A manual identity correction cannot repair capture, OCR or restore failures.
-    if (['matched','failed'].includes(target.stage) && !target.captureIssue) target.stage = group.complete && (!reward || reward.complete) ? 'matched':'failed'
+    if (['matched','failed'].includes(target.stage) && !target.captureIssue) target.stage = group.complete ? 'matched':'failed'
     const next = rebuildCorrectedScan(scan,this.catalog)
     this.applyCorrectedScan(next)
     this.recalculate()
@@ -624,17 +548,10 @@ export class SanctumService {
   }
   updateEffectCorrectionRule(binding,patch) { return this.editEffectCorrectionRule(binding,patch) }
   deleteEffectCorrectionRule(binding) { return this.editEffectCorrectionRule(binding,null) }
-  correctRewardLedger(binding, input) {
-    this.assertEnabled()
-    if (binding !== observationKey(this.state.floor)) throw new Error('当前位置已变化，修正未应用')
-    this.state.rewardLedger = validateRewardLedger(input,this.state.floor)
-    this.recalculate(); return this.persist()
-  }
   async readRunPanel(kind) {
-    if (!['resources','rewards'].includes(kind)) throw new Error('未知实际状态面板')
+    if (kind !== 'resources') throw new Error('未知实际状态面板')
     const floor = structuredClone(this.state.floor), key = observationKey(floor)
     if (!floor?.identityConfirmed) throw new Error('请先采集并确认当前位置')
-    if (kind === 'rewards') return this.rescanEffects()
     await this.runLiveAction(signal => this.liveDriver.readRunPanel(this.state.liveCalibration, floor, kind, signal), result => {
       if (key !== observationKey(this.state.floor)) throw new Error('当前位置已变化，读取结果未应用')
       // runLiveAction stops the capture; the native reader independently verifies
@@ -650,7 +567,6 @@ export class SanctumService {
     const strategy = validateSanctumStrategy(value)
     this.stop()
     this.state.strategy = strategy
-    this.state.loadouts = null
     this.recalculate()
     return this.persist()
   }
@@ -703,10 +619,10 @@ export class SanctumService {
     this.assertEnabled(); object(patch)
     const room = this.state.floor?.rooms?.find(room => room.id === id)
     if (!room) throw new Error('修正房间不存在')
-    const allowed = ['name', 'type', 'layout', 'recoveryCost', 'recovery', 'relicScore', 'rewards']
+    const allowed = ['name', 'type', 'layout', 'recoveryCost', 'recovery', 'rewards']
     if (Object.keys(patch).some(key => !allowed.includes(key))) throw new Error('不支持的房间修正字段')
     for (const key of ['name', 'type', 'layout']) if (patch[key] !== undefined && (typeof patch[key] !== 'string' || patch[key].length > 160)) throw new Error('房间文字无效')
-    for (const key of ['recovery', 'recoveryCost', 'relicScore']) if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0 || patch[key] > 1e6)) throw new Error('房间数值无效')
+    for (const key of ['recovery', 'recoveryCost']) if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0 || patch[key] > 1e6)) throw new Error('房间数值无效')
     if (patch.rewards !== undefined && (!Array.isArray(patch.rewards) || patch.rewards.length > 20 || patch.rewards.some(reward =>
       !reward || typeof reward.currency !== 'string' || reward.currency.length > 100 || reward.quantity !== null && !Number.isFinite(reward.quantity)
       || reward.quantity < 0 || reward.quantity > 1e6 || !['immediate', 'floor', 'run', 'unknown', null].includes(reward.timing) || reward.groupId != null && (typeof reward.groupId !== 'string' || reward.groupId.length > 160)))) throw new Error('奖励格式无效')
@@ -797,20 +713,6 @@ export class SanctumService {
     }
     return this.getState()
   }
-  saveLoadoutPreferences(value) {
-    this.assertEnabled(); object(value)
-    const preferences = { fixed: ids(value.fixed), excluded: ids(value.excluded), selectedUniques: ids(value.selectedUniques) }
-    const targetAreaLevel = value.targetAreaLevel ?? null
-    if (targetAreaLevel !== null && (!Number.isInteger(targetAreaLevel) || targetAreaLevel < 1 || targetAreaLevel > 100)) throw new Error('搭配目标区域等级无效')
-    preferences.targetAreaLevel = targetAreaLevel
-    const known = new Map(this.state.inventory.map(item => [item.id, item]))
-    if ([...preferences.fixed, ...preferences.excluded, ...preferences.selectedUniques].some(id => !known.has(id))) throw new Error('圣物不存在')
-    if (preferences.selectedUniques.some(id => !known.get(id).unique)) throw new Error('指定传奇包含普通圣物')
-    this.cancelSolve()
-    this.state.loadoutPreferences = preferences
-    this.state.loadouts = null
-    return this.persist()
-  }
   calibrate(value) {
     this.assertEnabled()
     const calibration = bindSanctumCalibration(value, this.samples().find(sample => sample.id === value?.sampleId))
@@ -827,48 +729,5 @@ export class SanctumService {
     this.state.reason = '已恢复此样本的自动识别参数，请重新回放'
     return this.persist()
   }
-  async solveLoadout() {
-    this.assertEnabled()
-    const targetAreaLevel = this.state.loadoutPreferences.targetAreaLevel ?? null
-    const observedAreaLevel = this.state.floor?.identityConfirmed ? this.state.floor.areaLevel ?? null : null
-    this.stop()
-    const generation = this.generation
-    this.state.solving = true
-    this.state.loadouts = null
-    this.publish()
-    const items = this.state.inventory.map(item => {
-      let score = 0, recoveryScore = 0, recoveryPreferenceScore = 0, inspirationScore = 0
-      const effects = [...(item.effects || [])]
-      for (const modifier of item.modifiers || []) {
-        const weight = sanctumRelicWeight(modifier, this.state.strategy)
-        if (modifier.status === 'matched' && Number.isFinite(modifier.value) && Number.isFinite(weight)) {
-          const value = modifier.value * weight
-          if (modifier.scoreChannel === 'recovery') recoveryScore += value
-          else if (modifier.scoreChannel === 'recoveryMultiplier') recoveryPreferenceScore += value
-          else if (modifier.scoreChannel === 'inspiration') inspirationScore += value
-          else score += value
-        }
-        else effects.push({ status: 'unknown', rawText: modifier.rawText || '圣物词缀权重未配置' })
-      }
-      return { ...item, score, recoveryScore, recoveryPreferenceScore, inspirationScore, effects }
-    })
-    try {
-      const result = await this.solver.solve({ ...this.state.altar, ...this.state.loadoutPreferences, items,
-        areaLevel: targetAreaLevel ?? observedAreaLevel })
-      if (generation === this.generation) this.state.loadouts = { ...result, areaLevel: targetAreaLevel ?? observedAreaLevel,
-        areaLevelSource: targetAreaLevel !== null ? 'target' : observedAreaLevel !== null ? 'observed' : 'unknown' }
-    } finally {
-      if (generation === this.generation) { this.state.solving = false; this.publish() }
-    }
-    return this.getState()
-  }
-  cancelSolve() { return this.stop() }
-  previewLoadout(index) {
-    const candidate = this.state.loadouts?.candidates?.[index]
-    if (!Number.isInteger(index) || !candidate) throw new Error('候选搭配不存在')
-    const effects = this.state.inventory.filter(item => candidate.itemIds.includes(item.id)).flatMap(item => item.effects || [])
-    return { hypothetical: true, label: '假设已装备的路线预览', recommendation: planSanctumFloor(this.state.floor, this.state.strategy,
-      this.state.marks, [...this.state.currentEffects, ...effects]) }
-  }
-  async shutdown() { this.stop(); await Promise.allSettled([this.startTask, this.restartTask, this.liveTask, this.captureTask, this.solver.shutdown()]); await (this.liveDriver?.dispose?.() || this.liveDriver?.close()); this.liveDriver?.evidence?.clear(); this.liveSafetyUnsubscribe?.(); this.liveSafetyUnsubscribe = null; this.liveSurfaceUnsubscribe?.(); this.liveSurfaceUnsubscribe = null; this.listeners.clear() }
+  async shutdown() { this.stop(); await Promise.allSettled([this.startTask, this.restartTask, this.liveTask, this.captureTask]); await (this.liveDriver?.dispose?.() || this.liveDriver?.close()); this.liveDriver?.evidence?.clear(); this.liveSafetyUnsubscribe?.(); this.liveSafetyUnsubscribe = null; this.liveSurfaceUnsubscribe?.(); this.liveSurfaceUnsubscribe = null; this.listeners.clear() }
 }

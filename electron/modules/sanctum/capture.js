@@ -110,7 +110,7 @@ export class SanctumCapture {
       catch (error) { interrupt(error); throw error }
     }
     const keys = ['knowledge','layout','traps','layoutPreferenceKey','roomProfile','recoveryCost','name','nameCandidates','rewardEvidence','readStages','captureMetrics','failureReason',
-      'tooltipRegion','diagnosticId','recognition','calculationStatus','type','recovery','relicScore','rewards','effects','afflictions','detailsStatus','rawText','confidence']
+      'tooltipRegion','diagnosticId','recognition','calculationStatus','type','recovery','rewards','effects','afflictions','detailsStatus','rawText','confidence']
     const merge = (room,detail) => {
       for (const key of keys) delete room[key]
       for (const key of keys) if (detail?.[key] !== undefined) room[key] = structuredClone(detail[key])

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import {runPython} from './helpers/python.js'
 import {parseStatusTooltip} from '../electron/modules/sanctum/statusRecognition.js'
-import {observationKey,syncStatusRewards,validateRewardLedger} from '../electron/modules/sanctum/runObservation.js'
+import {observationKey} from '../electron/modules/sanctum/runObservation.js'
 import {SanctumLiveDriver} from '../electron/modules/sanctum/liveDriver.js'
 import {acceptSanctumFloor} from '../electron/modules/sanctum/state.js'
 import {emptySanctumState} from '../shared/sanctum.js'
@@ -11,10 +11,8 @@ import {effectReadIssues,effectIssueText,effectTargetLabel,completedEffectGroups
 const catalog=JSON.parse(fs.readFileSync('electron/assets/sanctum/catalog.json','utf8'))
 const promise='完成禁域时获得 14× 混沌石'
 const base=()=>({identityConfirmed:true,runId:'batch',sanctumRunId:'run',floorId:'f',mapKey:'m',currentRoomId:'1:1',positionStatus:'confirmed',revision:1,rooms:[],edges:[]})
-const scanned=(texts=[promise],floor=base())=>({...floor,effectScan:{binding:observationKey(floor),rewardGroups:[{
-  ...parseStatusTooltip({status:'located',texts},catalog).rewardGroup,targetId:'effect:3',evidenceId:'proof'}]}})
 
-test('真实奖励截图 OCR 分流为三项本轮待领奖励，保留数量和来源行',()=>{
+test('真实奖励截图 OCR 识别为奖励上下文，不生成效果或账本',()=>{
   const ocr=runPython(`
 import sys,json
 sys.path.insert(0,'src/assets/scripts')
@@ -25,20 +23,15 @@ print(json.dumps(read_room_ocr(create_sanctum_ocr_engine(),im[49:333,76:733])))`
   const result=parseStatusTooltip({status:'located',...ocr},catalog)
   assert.equal(result.effectGroup,null)
   assert.equal(result.classificationComplete,true)
-  assert.equal(result.rewardGroup.complete,true)
-  assert.deepEqual(result.rewardGroup.rewards.map(r=>[r.currency,r.quantity,r.timing,r.state]),[
-    ['混沌石',14,'run','pending'],['机会石',30,'run','pending'],['点金石',40,'run','pending']])
+  assert.equal(result.hasRewardContext,true)
+  assert.equal(result.rewardGroup,undefined)
 })
 
 test('奖励换行、同币种独立行及截断不污染效果，未知类型保持缺口',()=>{
   const result=parseStatusTooltip({status:'located',texts:['楼层结束时获得','14×','混沌石',promise,promise]},catalog)
-  assert.deepEqual(result.rewardGroup.rewards.map(r=>r.timing),['floor','run','run'])
-  assert.equal(result.rewardGroup.complete,true)
   const partial=parseStatusTooltip({status:'partial',texts:['完成禁域时获得 ?×未知物品'],reason:'截断'},catalog)
   assert.equal(partial.classificationComplete,true)
   assert.equal(partial.effectGroup,null)
-  assert.equal(partial.rewardGroup.complete,false)
-  assert.equal(partial.rewardGroup.rewards.length,0)
   assert.equal(parseStatusTooltip({status:'located',texts:['未知文字']},catalog).classificationComplete,false)
   assert.equal(parseStatusTooltip({status:'partial',texts:['全知之眼']},catalog).classificationComplete,false)
 })
@@ -71,13 +64,13 @@ test('空 OCR 只报具体浮窗，分类结果为空不影响整体未知，截
   assert.equal(group.evidenceId,floor.effectScan.targets[1].evidenceId)
 })
 
-test('部分未知文字显示原文且不污染已识别类别，混合奖励失败合并原因',async t=>{
+test('部分未知文字显示原文且不污染已识别类别，排除奖励内容',async t=>{
   const floor=await readStatus(t,[['钝化之剑','测试无法匹配的描述','完成禁域时获得 ?×混沌石']])
   const issues=effectReadIssues(floor.effectScan)
   assert.equal(issues.length,1)
   assert.equal(issues[0].label,'钝化之剑')
   assert.match(issues[0].reason,/测试无法匹配的描述/)
-  assert.match(issues[0].reason,/完成禁域时获得 \?×混沌石/)
+  assert.doesNotMatch(issues[0].reason,/完成禁域时获得/)
   assert.equal(floor.effectScan.groups.find(g=>g.category==='minorAffliction').status,'read')
 })
 
@@ -121,63 +114,18 @@ test('解析保留截图绑定，装饰文字不算读取成功，同一目标�
   assert.match(issues[0].reason,/文字识别超时；OCR 进程退出/)
 })
 
-test('真实驱动分开效果完成与奖励失败：缺失类别为无，奖励不生成未知效果',async t=>{
+test('真实驱动忽略奖励数量缺口，奖励不生成未知效果或账本',async t=>{
   const floor=await readStatus(t,[['全知之眼'],['钝化之剑'],[promise],['楼层结束时获得 ?×点金石']])
-  assert.equal(floor.effectScan.complete,false)
+  assert.equal(floor.effectScan.complete,true)
   assert.equal(floor.effectScan.effectsComplete,true)
   assert.deepEqual(floor.effectScan.groups.map(g=>g.status),['read','absent','absent','read'])
-  assert.equal(floor.effectScan.rewardGroups.length,2)
+  assert.equal(floor.effectScan.rewardGroups,undefined)
   assert.ok(floor.currentEffects.every(e=>e.entryId))
   const state=acceptSanctumFloor(emptySanctumState(),floor)
-  assert.equal(state.rewardLedger.items.length,1)
-  assert.equal(state.rewardLedger.items[0].state,'pending')
-  assert.equal(state.rewardLedger.complete,false)
+  assert.equal(state.rewardLedger,undefined)
   const unknown=await readStatus(t,[['全知之眼'],['未认识的入口']])
   assert.equal(unknown.effectScan.groups.find(g=>g.category==='minorBoon').status,'absent')
   const uncovered=await readStatus(t,[[promise]],false)
   assert.equal(uncovered.effectScan.effectsComplete,false)
   assert.ok(uncovered.effectScan.groups.every(g=>g.status==='absent'))
-})
-
-test('奖励快照重复替换、不合并独立行，保留手动记录且不会确认全账本',()=>{
-  const floor=scanned([promise,promise])
-  const first=syncStatusRewards(null,floor)
-  assert.equal(first.items.length,2)
-  assert.deepEqual(syncStatusRewards(first,floor),first)
-  const manual=validateRewardLedger({complete:true,items:[{id:'manual',currency:'混沌石',quantity:14,state:'pending',timing:'run',eligible:true}]},base())
-  const mixed=syncStatusRewards(manual,floor)
-  assert.equal(mixed.items.length,2)
-  assert.equal(mixed.items[0].id,'manual')
-  assert.equal(mixed.items[0].eligible,true)
-  assert.equal(mixed.complete,false)
-  assert.deepEqual(syncStatusRewards(mixed,floor),mixed)
-  const corrected=validateRewardLedger({complete:true,items:mixed.items},floor)
-  assert.equal(syncStatusRewards(corrected,floor).items.length,2)
-  assert.equal(syncStatusRewards(corrected,floor).complete,true)
-  const changed=scanned(['楼层结束时获得 8× 点金石'])
-  changed.effectScan.rewardGroups[0].evidenceId='new-proof'
-  const combined=syncStatusRewards(corrected,changed)
-  assert.equal(new Set(combined.items.map(item=>item.id)).size,combined.items.length)
-  assert.doesNotThrow(()=>validateRewardLedger({items:combined.items,complete:true},changed))
-  const fewer=syncStatusRewards(first,scanned([promise]))
-  assert.equal(fewer.items.length,1)
-  const failed=syncStatusRewards(first,scanned(['完成禁域时获得 ?×混沌石']))
-  assert.equal(failed.items.length,0)
-})
-
-test('自动奖励随位置及楼层重新观测，过期绑定与迟到版本拒收，跨轮不带旧账本',()=>{
-  const firstFloor=scanned(),first=syncStatusRewards(null,firstFloor)
-  const moved={...base(),currentRoomId:'2:1',revision:2}
-  assert.equal(syncStatusRewards(first,{...moved,effectScan:firstFloor.effectScan}),first)
-  const next=syncStatusRewards(first,scanned(['楼层结束时获得 8× 点金石'],moved))
-  assert.deepEqual(next.items.map(r=>r.currency),['点金石'])
-  const level=syncStatusRewards(next,scanned([promise],{...moved,floorId:'f2'}))
-  assert.equal(level.items.length,1)
-  assert.equal(level.items[0].currency,'混沌石')
-  const other=syncStatusRewards(level,scanned([promise],{...base(),sanctumRunId:'new'}))
-  assert.equal(other.runId,'new');assert.equal(other.items.length,1)
-  assert.equal(syncStatusRewards(first,{...firstFloor,identityConfirmed:false}),first)
-  let state=acceptSanctumFloor(emptySanctumState(),firstFloor)
-  state=acceptSanctumFloor(state,{...scanned(['楼层结束时获得 8× 点金石'],moved),revision:2})
-  assert.deepEqual(acceptSanctumFloor(state,firstFloor).rewardLedger,state.rewardLedger)
 })

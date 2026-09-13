@@ -22,7 +22,7 @@
           <el-button text :icon="Plus" @click="addCondition(group, 'requiredAffixes')">添加必选词缀</el-button>
         </div>
         <div class="affix-column">
-          <div class="column-header"><span>挑选词缀</span><el-tooltip content="本组合满足其中指定数量即可" placement="top"><el-icon><QuestionFilled /></el-icon></el-tooltip><div class="count-selector"><span>包含数</span><el-input-number v-model="group.selectedCount" :min="1" :max="Math.max(group.selectedAffixes.length, 1)" controls-position="right" size="small" @change="commit" /></div></div>
+          <div class="column-header"><span>挑选词缀</span><el-tooltip content="本组合满足其中指定数量即可" placement="top"><el-icon><QuestionFilled /></el-icon></el-tooltip><div class="count-selector"><span>包含数</span><el-input-number v-model="group.selectedCount" :min="1" :max="Math.max(enabledAffixConditionCount(group.selectedAffixes), 1)" :disabled="!enabledAffixConditionCount(group.selectedAffixes)" controls-position="right" size="small" @change="commit" /></div></div>
           <AffixConditionRow v-for="(condition, index) in group.selectedAffixes" :key="condition.id" :condition="condition" placeholder="搜索或输入挑选词缀" :fetch-suggestions="fetchSuggestions" @select="selectSuggestion(group, 'selectedAffixes', index, $event)" @change="commit" @remove="removeCondition(group, 'selectedAffixes', index)" />
           <el-button text :icon="Plus" @click="addCondition(group, 'selectedAffixes')">添加挑选词缀</el-button>
         </div>
@@ -37,7 +37,7 @@ import { ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { electronApi } from '../../../api/electron.js'
 import AffixConditionRow from './AffixConditionRow.vue'
-import { affixGroupItemLevelRequirement, cloneAffixGroup, createAffixConfigId, createDefaultAffixGroup, normalizeAffixCondition, normalizeAffixGroup } from '../affixConfig.js'
+import { affixGroupItemLevelRequirement, cloneAffixGroup, createAffixConfigId, createDefaultAffixGroup, enabledAffixConditionCount, normalizeAffixCondition, normalizeAffixGroup } from '../affixConfig.js'
 
 const props = defineProps({
   modelValue: { type: Array, required: true }
@@ -46,8 +46,15 @@ const emit = defineEmits(['update:modelValue', 'change'])
 const cloneGroups = value => (Array.isArray(value) && value.length ? value : [createDefaultAffixGroup(0)]).map((group, index) => normalizeAffixGroup(group, index))
 const groups = ref(cloneGroups(props.modelValue))
 const collapsedGroupIds = ref(new Set())
-watch(() => props.modelValue, value => { groups.value = cloneGroups(value) }, { deep: true })
-function commit() { groups.value = cloneGroups(groups.value); emit('update:modelValue', groups.value); emit('change', groups.value) }
+watch(() => props.modelValue, value => {
+  if (JSON.stringify(cloneGroups(value)) !== JSON.stringify(cloneGroups(groups.value))) groups.value = cloneGroups(value)
+}, { deep: true })
+function commit() {
+  const normalized = cloneGroups(groups.value)
+  groups.value.forEach((group, index) => { group.selectedCount = normalized[index].selectedCount })
+  emit('update:modelValue', normalized)
+  emit('change', normalized)
+}
 function groupRequirement(group) { return affixGroupItemLevelRequirement(group) }
 function groupRequirementLabel(group) {
   const requirement = groupRequirement(group)
@@ -71,10 +78,10 @@ function forgetGroupCollapse(id) {
   next.delete(id)
   collapsedGroupIds.value = next
 }
-function blankCondition() { return { id: createAffixConfigId('condition'), kind: 'keyword', keyword: '', displayName: '', effectPattern: '', source: '', sourceLabel: '', profileId: '', applicableLabel: '', minTier: null, tiers: [] } }
+function blankCondition() { return { id: createAffixConfigId('condition'), enabled: true, kind: 'keyword', keyword: '', displayName: '', effectPattern: '', source: '', sourceLabel: '', profileId: '', applicableLabel: '', minTier: null, tiers: [] } }
 function addCondition(group, key) { group[key].push(blankCondition()) }
 function removeCondition(group, key, index) { group[key].splice(index, 1); if (key === 'selectedAffixes') group.selectedCount = Math.max(1, Math.min(group.selectedCount, group.selectedAffixes.length || 1)); commit() }
-function selectSuggestion(group, key, index, suggestion) { group[key][index] = normalizeAffixCondition({ ...suggestion, id: group[key][index]?.id || createAffixConfigId('condition'), kind: 'catalog', keyword: suggestion.displayName, minTier: null }); commit() }
+function selectSuggestion(group, key, index, suggestion) { group[key][index] = normalizeAffixCondition({ ...suggestion, enabled: group[key][index]?.enabled !== false, id: group[key][index]?.id || createAffixConfigId('condition'), kind: 'catalog', keyword: suggestion.displayName, minTier: null }); commit() }
 async function fetchSuggestions(query, callback) { const keyword = String(query || '').trim(); if (!keyword) return callback([]); try { const result = await electronApi.crafting.searchAffixSuggestions({ query: keyword, limit: 50 }); callback((result?.items ?? []).map(item => ({ ...item, value: item.displayName }))) } catch { callback([]) } }
 function addGroup() {
   groups.value.push(createDefaultAffixGroup(groups.value.length))
@@ -104,7 +111,7 @@ function removeGroup(index) {
 .affix-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-lg); padding-top: var(--spacing-md); }
 .column-header { min-height: 32px; margin-bottom: var(--spacing-sm); font-weight: 600; }
 .column-header .count-selector { margin-left: auto; font-size: var(--font-size-xs); font-weight: normal; }
-:deep(.affix-condition-row) { display: grid; grid-template-columns: minmax(0, 1fr) 170px auto; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
+:deep(.affix-condition-row) { display: grid; grid-template-columns: auto minmax(0, 1fr) 170px auto; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm); }
 .add-group { width: 100%; }
 :global(.affix-suggestion-popper .el-autocomplete-suggestion__wrap), :global(.affix-tier-popper .el-select-dropdown__wrap) { max-height: min(420px, 60vh) !important; overflow-y: auto !important; overscroll-behavior: contain; scrollbar-gutter: stable; }
 :global(.affix-suggestion-popper .el-scrollbar__bar.is-vertical), :global(.affix-tier-popper .el-scrollbar__bar.is-vertical) { opacity: 1; }

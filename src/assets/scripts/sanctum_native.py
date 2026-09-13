@@ -423,6 +423,24 @@ class NativeSession:
                             options.get('matchThreshold', .8), anchored=True).get(options.get('interfaceKind'))
 
     def dispatch(self, command, options):
+        if command == 'captureCalibrationFrame':
+            before = self.check()
+            self.calibration_frame, current = self.image()
+            if before != current or self.check() != before:
+                self.calibration_frame = None
+                raise NativeError('截图期间窗口或 DPI 已变化', 'SAFETY_INTERRUPTED')
+            ok, encoded = cv2.imencode('.png', self.calibration_frame)
+            if not ok:
+                raise NativeError('截图编码失败')
+            return {**current, 'png': base64.b64encode(encoded).decode('ascii')}
+        if command == 'analyzeCalibrationFrame':
+            from sanctum_calibration_collection import analyze_calibration
+            if getattr(self, 'calibration_frame', None) is None:
+                raise NativeError('请重新获取校准截图')
+            try:
+                return analyze_calibration(self.calibration_frame)
+            finally:
+                self.calibration_frame = None
         if command == 'configure':
             self.static_options = {k: v for k, v in options.items() if k not in ('deadlineAt', 'captureWindows')}
             return {'configured': True}
@@ -474,23 +492,6 @@ class NativeSession:
             return {**current, 'regions':regions, 'interfaceState':layout, 'resourceLayout':'map' if map_open else 'standalone'}
         if command in ('interfaceState', 'toggleMap', 'inspectEffects', 'hoverEffect'):
             return {'interfaceState': self.interface_state, 'toggleMap': self.toggle_map, 'inspectEffects': self.inspect_effects, 'hoverEffect': self.hover_effect}[command](options)
-        if command == 'neutralGrid':
-            if self.expected is None:
-                raise NativeError('圣物采集未预检')
-            observed = self.inspect_grid(options)
-            bounds = observed['clientBounds']
-            with self.input_lock:
-                self.check()
-                point = (bounds['x']+bounds['width']-2, bounds['y']+bounds['height']-2)
-                if not self.u.SetCursorPos(*point):
-                    raise NativeError('无法离开圣物网格')
-            if self.cancelled.wait(.15):
-                raise NativeError('扫描已停止')
-            return self.inspect_grid(options)
-        if command == 'inspectGrid':
-            return self.inspect_grid(options)
-        if command == 'copyCell':
-            return self.copy_cell(options)
         if command == 'environment':
             return self.environment()
         if command == 'arm':
@@ -500,79 +501,6 @@ class NativeSession:
         if command == 'hover':
             return self.hover(options)
         raise NativeError('不支持的圣所原生操作')
-
-    def inspect_grid(self, options):
-        from sanctum_grid import inspect_grid
-        image, current = self.image()
-        if not self.match_title(image, options, current):
-            raise NativeError('圣物公共标题失配或已关闭')
-        result = inspect_grid(crop(image, options['mapRegion']), options['columns'], options['rows'], options.get('templates', {}))
-        return {**current, **result}
-
-    def copy_cell(self, options):
-        from sanctum_grid import inspect_grid, hover_footprint, copy_keys
-        if self.expected is None:
-            raise NativeError('圣物采集未预检')
-        image, current = self.image()
-        if not self.match_title(image, options, current):
-            raise NativeError('圣物界面已关闭')
-        region = options['mapRegion']
-        grid = crop(image, region)
-        result = inspect_grid(grid, options['columns'], options['rows'], options.get('templates', {}))
-        if result['fingerprint'] != options['expectedFingerprint']:
-            raise NativeError('圣物网格发生变化')
-        x, y = options['x'], options['y']
-        if type(x) is not int or type(y) is not int or not 0 <= x < options['columns'] or not 0 <= y < options['rows']:
-            raise NativeError('圣物格子越界')
-        if options.get('cellStates', [])[y * options['columns'] + x] != 'usable':
-            raise NativeError('此格禁止扫描')
-        bounds = current['clientBounds']
-        point = (round(bounds['x']+region['x']+(x+.5)*region['width']/options['columns']),
-                 round(bounds['y']+region['y']+(y+.5)*region['height']/options['rows']))
-        with self.input_lock:
-            self.check()
-            if not self.u.SetCursorPos(*point):
-                raise NativeError('无法悬停圣物')
-        if self.cancelled.wait(.2):
-            raise NativeError('扫描已停止')
-        hovered, _ = self.image()
-        if not self.match_title(hovered, options, current):
-            raise NativeError('圣物界面已关闭')
-        footprint = hover_footprint(grid, crop(hovered, region), x, y, options['columns'], options['rows'])
-        sequence = self.u.GetClipboardSequenceNumber()
-        if not sequence:
-            raise NativeError('剪贴板不可用')
-        with self.input_lock:
-            self.check()
-            copy_keys(self.u)
-        raw = ''
-        import pyperclip
-        for _ in range(32):
-            if self.cancelled.wait(.025):
-                raise NativeError('扫描已停止')
-            self.check()
-            if self.u.GetClipboardSequenceNumber() != sequence:
-                text = pyperclip.paste()
-                if isinstance(text, str) and len(text) <= 20000:
-                    raw = text
-                break
-        latest, _ = self.image()
-        if not self.match_title(latest, options, current):
-            raise NativeError('圣物界面已关闭')
-        second = hover_footprint(grid, crop(latest, region), x, y, options['columns'], options['rows'])
-        if second != footprint:
-            footprint = None
-        with self.input_lock:
-            self.check()
-            neutral = (bounds['x']+bounds['width']-2, bounds['y']+bounds['height']-2)
-            if not self.u.SetCursorPos(*neutral):
-                raise NativeError('无法结束圣物悬停')
-        if self.cancelled.wait(.15):
-            raise NativeError('扫描已停止')
-        after = self.inspect_grid(options)
-        if after['fingerprint'] != result['fingerprint']:
-            raise NativeError('复制期间网格变化')
-        return {'rawText': raw, 'footprint': footprint, 'fingerprint': after['fingerprint']}
 
 
 def main():

@@ -130,7 +130,6 @@ export const SANCTUM_BASE_RULES = Object.freeze({
   preventResolveLoss:{scope:'any',direction:1,reason:'本房间不会失去坚毅'},
   resolveLossCountdown:{scope:'any',direction:-1,reason:'到期完成房间会失去坚毅'},
   completionResolveLossPercent:{scope:'any',direction:-1,reason:'完成房间按当前坚毅失去坚毅'},
-  duplicateOffers:{scope:'reward',direction:1,reason:'按已确认贡品账本评估复制机会'}
 })
 
 export const SANCTUM_STATE_RULES = Object.freeze(Object.fromEntries([

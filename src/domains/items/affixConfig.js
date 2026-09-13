@@ -34,6 +34,7 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
     const keyword = text(input)
     return keyword ? {
       id: fallbackId,
+      enabled: true,
       kind: 'keyword',
       keyword,
       displayName: keyword,
@@ -53,6 +54,7 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
   const kind = input.kind === 'catalog' && effectPattern ? 'catalog' : 'keyword'
   return {
     id: text(input.id) || fallbackId,
+    enabled: input.enabled !== false,
     kind,
     keyword,
     displayName: text(input.displayName) || keyword || effectPattern,
@@ -79,9 +81,14 @@ export function affixTierItemLevelLabel(condition, minTier = null) {
   return `${selectedTier == null ? '不限 T' : `最低 T${selectedTier}`} (${level})`
 }
 
-function effectiveCondition(condition) {
+export function effectiveCondition(condition) {
+  if (condition?.enabled === false) return false
   if (typeof condition === 'string') return Boolean(text(condition))
   return Boolean(text(condition?.keyword || condition?.displayName || condition?.effectPattern))
+}
+
+export function enabledAffixConditionCount(conditions) {
+  return (Array.isArray(conditions) ? conditions : []).filter(effectiveCondition).length
 }
 
 export function affixConditionItemLevelRequirement(condition) {
@@ -140,8 +147,9 @@ export function normalizeAffixGroup(input = {}, index = 0) {
   const id = text(input.id) || `affix_group_${index + 1}`
   const requiredAffixes = uniqueConditions(input.requiredAffixes, id, 'required')
   const selectedAffixes = uniqueConditions(input.selectedAffixes, id, 'selected')
-  const selectedCount = selectedAffixes.length
-    ? Math.max(1, Math.min(selectedAffixes.length, Math.trunc(Number(input.selectedCount) || 1)))
+  const enabledSelectedCount = enabledAffixConditionCount(selectedAffixes)
+  const selectedCount = enabledSelectedCount
+    ? Math.max(1, Math.min(enabledSelectedCount, Math.trunc(Number(input.selectedCount) || 1)))
     : 1
   return {
     id,
@@ -204,5 +212,5 @@ export function cloneAffixGroup(group, index) {
 
 export function hasEffectiveAffixGroups(moduleTwo) {
   return normalizeModuleTwo(moduleTwo).affixGroups
-    .some((group) => group.enabled !== false && (group.requiredAffixes.length || group.selectedAffixes.length))
+    .some((group) => group.enabled !== false && (enabledAffixConditionCount(group.requiredAffixes) || enabledAffixConditionCount(group.selectedAffixes)))
 }

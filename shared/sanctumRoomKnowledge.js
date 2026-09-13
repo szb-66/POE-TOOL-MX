@@ -21,7 +21,7 @@ export const isMechanicUnknown = status => ['hidden', 'unrevealed', 'not-shown']
 
 export function knownRoom(room, floor, effects = {}, reportFields = ['rewards', 'afflictions', 'layout']) {
   const result = { id: room.id, column: room.column, row: room.row, knowledge: {}, missing: [], limitations: [] }
-  for (const field of ['layout', 'traps', 'layoutPreferenceKey', 'roomProfile', 'type', 'rewards', 'afflictions', 'effects', 'recovery', 'recoveryCost', 'relicScore']) {
+  for (const field of ['layout', 'traps', 'layoutPreferenceKey', 'roomProfile', 'type', 'rewards', 'afflictions', 'effects', 'recovery', 'recoveryCost']) {
     const fact = roomFact(room, field, floor, effects)
     result.knowledge[field] = fact.status
     if (fact.status === 'known') result[field] = fact.value

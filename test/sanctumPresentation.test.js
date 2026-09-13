@@ -9,7 +9,7 @@ test('按钮退出优先于旧完成状态，锁与识别任务阻止重复启�
   const state = { liveCalibration: {}, progress: { stage: 'complete' } }
   assert.deepEqual(captureButton({ ...state, captureDraining: true }), { label: '正在完成', disabled: true })
   assert.equal(captureButton(state).label, '分析完成·再次采集')
-  for (const field of ['solving', 'running']) assert.equal(captureButton({ ...state, [field]: true }).disabled, true)
+  for (const field of ['running']) assert.equal(captureButton({ ...state, [field]: true }).disabled, true)
   assert.equal(captureButton(state, { locked: true }).disabled, true)
   assert.equal(captureButton({ ...state, liveCalibration: null }).disabled, true)
 })

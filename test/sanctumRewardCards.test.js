@@ -7,8 +7,8 @@ import { runPython } from './helpers/python.js'
 import { parseSanctumRoomTexts, SanctumLiveDriver } from '../electron/modules/sanctum/liveDriver.js'
 import { roomCardSummary, rewardDetail } from '../shared/sanctumPresentation.js'
 import { SanctumRepository } from '../electron/modules/sanctum/repository.js'
-import { emptySanctumState, createSanctumStrategy, applySanctumEffects } from '../shared/sanctum.js'
-import { scoreRoom } from '../electron/modules/sanctum/planner.js'
+import { emptySanctumState } from '../shared/sanctum.js'
+import { rewardReadingGaps } from '../electron/modules/sanctum/knowledge.js'
 
 test('两组用户截图原尺寸与125%保留三个选项，空白与装饰不产生通货', () => {
   const result = runPython(`
@@ -36,7 +36,7 @@ print(json.dumps({'results':results,'negative':negative,'blank':blank,'count':le
     assert.deepEqual(room.rewards.map(r=>r.currency),expected[Math.floor(index/2)])
     assert.equal(new Set(room.rewards.map(r=>r.offerId)).size,3)
     assert.ok(room.rewards.every(r=>r.quantity===null && r.quantityStatus==='not-shown' && r.region))
-    assert.equal(scoreRoom({...room,id:'0:0'},createSanctumStrategy(),applySanctumEffects([])).unknown.length,0)
+    assert.equal(rewardReadingGaps({...room,id:'0:0'}).length,0)
   })
   assert.equal(result.count,35)
   assert.deepEqual(result.negative,[])

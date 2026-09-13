@@ -1,6 +1,6 @@
 <template>
   <section class="primary-page sanctum-page"><div class="primary-page__content">
-    <header class="section-heading"><div><h2>圣所</h2><p>看清路线，从容选择</p></div><div class="toolbar">
+    <header class="section-heading"><div><h2>圣所</h2></div><div class="toolbar">
       <el-tag>{{ store.state.running ? '采集中' : store.state.enabled ? '已开启' : '已关闭' }}</el-tag>
       <label for="sanctum-enabled">启用圣所</label><el-switch id="sanctum-enabled" :model-value="store.state.configuredEnabled === true" :loading="store.toggling" :disabled="store.toggling" @change="store.setEnabled" />
     </div></header>
@@ -16,13 +16,13 @@
           <article><span>当前楼层</span><strong>{{ visibleIdentity ? `第 ${floor.floorNumber ?? '?'} 层` : '待确认' }}</strong></article>
           <article><span>区域等级</span><strong>{{ visibleIdentity ? floor.areaLevel ?? '未知' : '待确认' }}</strong></article>
           <article><span>当前位置</span><strong>{{ visibleIdentity ? floor.initialSelection ? '选择首个房间' : floor.currentRoomId || '待确认' : '待确认' }}</strong></article>
-          <article><span>当前策略</span><strong>{{ SANCTUM_PRESETS[store.state.strategy.preset]?.label || '自定义' }}</strong></article>
+          <article><span>当前策略</span><strong>{{ SANCTUM_PRESETS[store.state.strategy.preset]?.label || '待确认' }}</strong></article>
         </div>
         <div class="section-heading"><div class="toolbar">
           <el-button type="primary" :loading="store.state.running" :disabled="store.readOnly || store.busy || button.disabled || !store.state.liveCaptureAvailable" @click="perform('startLive')">{{ button.label }}</el-button>
-          <el-button :disabled="store.readOnly || store.busy" @click="perform('resetRun')">重置本轮</el-button><el-button link @click="openCalibration">识别设置</el-button>
+          <el-button :disabled="store.readOnly || store.busy" @click="perform('resetRun')">重置本轮</el-button><el-button link @click="openCalibration">识别校准</el-button>
         </div><small>停止快捷键：{{ settings.globalShortcuts.end || '未设置' }}</small></div>
-        <div v-if="missingCalibration.length || !store.state.liveCaptureAvailable" class="setup-hint"><span>{{ !store.state.liveCaptureAvailable ? '采集服务未就绪，请检查应用运行状态' : `待配置：${missingCalibration.join('、')}` }}</span><el-button link type="primary" @click="openCalibration">前往设置</el-button></div>
+        <div v-if="missingCalibration.length || !store.state.liveCaptureAvailable" class="setup-hint"><span>{{ !store.state.liveCaptureAvailable ? '采集服务未就绪，请检查应用运行状态' : `待配置：${missingCalibration.join('、')}` }}</span><el-button link type="primary" @click="openCalibration">前往校准</el-button></div>
         <div v-else-if="!visibleIdentity" class="setup-hint"><span>打开圣所地图后开始采集，楼层与等级由游戏日志确认。</span><router-link to="/settings">配置游戏日志</router-link></div>
         <div v-if="store.state.progress || store.state.reason" class="capture-progress" role="status">{{ store.state.running || store.state.captureDraining ? sanctumProgressText(store.state.progress) || '正在准备采集' : store.state.reason }}<el-progress v-if="store.state.running && progressPercent !== null" :percentage="progressPercent" :show-text="false" /></div>
         <details v-if="store.state.floor?.captureDiagnostics?.length"><summary>本次采集记录</summary><p v-for="(entry, index) in store.state.floor.captureDiagnostics" :key="index">{{ sanctumProgressText({ stage: entry.stage }) }} · {{ { started:'开始', complete:'完成', failed:'失败', partial:'部分完成', stopped:'停止' }[entry.outcome] }}<span v-if="Number.isFinite(entry.elapsedMs)"> · {{ entry.elapsedMs }}ms</span><span v-if="Number.isFinite(entry.remainingMs)"> · 剩余 {{ entry.remainingMs }}ms</span><span v-if="entry.reason"> · {{ entry.reason }}</span></p></details>
@@ -48,8 +48,8 @@
         <SanctumRunObservation :state="store.state" :disabled="store.readOnly || store.busy || !identity" :action="perform" @review="openEffectReview($event,store.state.floor)" @manage-rules="openEffectRules" />
         <el-drawer :model-value="Boolean(selectedRoom)" title="房间详情" size="min(720px, 100vw)" append-to-body @close="selectedId = ''"><SanctumRoomDetails v-if="selectedRoom" :key="`${floor.runId}:${floor.floorId}:${selectedId}`" :room="selectedRoom" :floor="floor" /></el-drawer>
       </el-tab-pane>
-      <el-tab-pane label="圣物管理" name="relics"><SanctumRelics /></el-tab-pane>
-      <el-tab-pane label="设置" name="settings"><SanctumSettings v-model:section="settingsSection" /></el-tab-pane>
+      <el-tab-pane label="路线策略" name="strategy"><SanctumStrategy /></el-tab-pane>
+      <el-tab-pane label="识别校准" name="calibration"><SanctumRecognitionCalibration /></el-tab-pane>
     </el-tabs>
     <SanctumEffectReview :selection="effectSelection" @close="effectSelection=null" @manage-rules="openEffectRules" />
     <SanctumEffectRules :open="effectRulesOpen" @close="effectRulesOpen=false" />
@@ -70,8 +70,8 @@ import SanctumRoomDetails from './SanctumRoomDetails.vue'
 import SanctumRunObservation from './SanctumRunObservation.vue'
 import SanctumEffectReview from './SanctumEffectReview.vue'
 import SanctumEffectRules from './SanctumEffectRules.vue'
-import SanctumRelics from './SanctumRelics.vue'
-import SanctumSettings from './SanctumSettings.vue'
+import SanctumStrategy from './SanctumStrategy.vue'
+import SanctumRecognitionCalibration from './SanctumRecognitionCalibration.vue'
 const { store, perform } = useSanctumActions(), settings = useSettingsStore()
 const effectSelection = ref(null)
 const effectRulesOpen = ref(false)
@@ -80,8 +80,8 @@ function openEffectReview(source,sourceFloor) {
   const target=effectEvidenceTargets(sourceFloor).find(target=>target.targetId === source.targetId && (!source.evidenceId || target.evidenceId === source.evidenceId))
   effectSelection.value=target?.previousCapture?.binding || {runId:target?.runId || sourceFloor?.runId,floorId:target?.floorId || sourceFloor?.floorId,targetId:source.targetId,evidenceId:source.evidenceId || target?.evidenceId}
 }
-const tab = ref('floor'), selectedId = ref(''), settingsSection = ref('strategy')
-function openCalibration() { settingsSection.value = 'calibration'; tab.value = 'settings' }
+const tab = ref('floor'), selectedId = ref('')
+function openCalibration() { tab.value = 'calibration' }
 const views = computed(() => sanctumDisplayFloors(store.state))
 const floor = computed(() => views.value.floor), identity = computed(() => store.state.floor?.identityConfirmed === true)
 const visibleIdentity = computed(() => Boolean(floor.value && (floor.value.identityConfirmed || store.state.restoredFromSave)))

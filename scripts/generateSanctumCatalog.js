@@ -2,8 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseSanctumCatalogHtml, SANCTUM_CATALOG_URL } from './sanctum/catalogParser.js'
-import { SANCTUM_RELIC_PAGES, parseSanctumRelicSources, applySanctumCatalogReviews } from './sanctum/relicCatalogParser.js'
-import { createHash } from 'node:crypto'
+import { applySanctumCatalogReviews } from './sanctum/catalogReview.js'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const args = process.argv.slice(2)
@@ -12,7 +11,7 @@ const cache = path.join(root, '.cache/sanctum-catalog')
 const output = path.join(root, 'electron/assets/sanctum/catalog.json')
 await fs.mkdir(cache, { recursive: true })
 if (args.includes('--refresh')) {
-  for (const [id, url] of [['source', SANCTUM_CATALOG_URL], ...SANCTUM_RELIC_PAGES.map(id => [id, `https://poedb.tw/cn/${id}`])]) {
+  for (const [id, url] of [['source', SANCTUM_CATALOG_URL]]) {
     let lastError
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -31,15 +30,6 @@ if (args.includes('--refresh')) {
 }
 const [html, metadata] = await Promise.all([fs.readFile(path.join(cache, 'source.html'), 'utf8'), fs.readFile(path.join(cache, 'source.json'), 'utf8')])
 let catalog = parseSanctumCatalogHtml(html, JSON.parse(metadata))
-const relicSources = {}
-for (const id of SANCTUM_RELIC_PAGES) {
-  const [html, metadata] = await Promise.all([fs.readFile(path.join(cache, `${id}.html`), 'utf8'), fs.readFile(path.join(cache, `${id}.json`), 'utf8')])
-  const source = JSON.parse(metadata)
-  if (source.url !== `https://poedb.tw/cn/${id}` || !Number.isFinite(Date.parse(source.fetchedAt))) throw new Error('圣物快照来源不匹配')
-  relicSources[id] = { html, ...source }
-  catalog.sources.push({ id, ...source, channel: 'official', sha256: createHash('sha256').update(html).digest('hex') })
-}
-catalog.entries.push(...parseSanctumRelicSources(relicSources))
 const reviews = JSON.parse(await fs.readFile(path.join(root, 'scripts/sanctum/catalogReviews.json'), 'utf8'))
 catalog = applySanctumCatalogReviews(catalog, reviews)
 catalog.notes = ['正式站数据表与社区历史正文分开；条目内容匹配本赛季审核指纹后才启用，刷新不会自动批准变化的条目。']

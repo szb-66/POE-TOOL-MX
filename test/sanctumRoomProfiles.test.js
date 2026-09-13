@@ -118,13 +118,6 @@ test('下一间相同偏好时比较后续已知房间，后续隐藏不反向�
   assert.ok(path.reasons.some(x=>x.includes('后续已知房间偏好合计')))
 })
 
-test('旧版自定义排序不使用新增房型偏好', () => {
-  const f=floor(), custom=strategy('currency')
-  const before=planSanctumFloor(f,custom).paths.map(p=>p.nextRoomId)
-  custom.layoutPreference={exit:-100,arena:100,trap:100}
-  assert.deepEqual(planSanctumFloor(f,custom).paths.map(p=>p.nextRoomId),before)
-})
-
 test('人工修改玩法清理旧陷阱与来源，修改奖励保留目录属性', () => {
   const room=node('a',1,'圣光试炼')
   const service={assertEnabled(){},state:{floor:{rooms:[room]}},recalculate(){},publish(){}}

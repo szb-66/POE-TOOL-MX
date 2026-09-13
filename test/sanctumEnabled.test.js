@@ -43,31 +43,30 @@ test('首次和旧配置默认关闭，重启恢复偏好但不运行，模块�
   await service.shutdown()
 })
 
-test('保存失败：开启不生效，关闭先停止并丢弃迟到求解，保留配置和偏好状态', async t => {
+test('保存失败：开启不生效，关闭先停止并丢弃迟到回放，保留配置和偏好状态', async t => {
   let fail = true
   const pending = deferred()
   const service = new SanctumService({ repository: { load: () => null, save() { if (fail) throw new Error('disk failure') } },
-    solver: { solve: () => pending.promise, cancel() {}, async shutdown() {} } })
+    replay: () => pending.promise })
   t.after(() => service.shutdown())
   assert.throws(() => service.setEnabled(true), /保存失败/)
   assert.equal(service.enabled, false)
   fail = false
   service.setEnabled(true)
   const strategy = structuredClone(service.state.strategy)
-  const run = service.solveLoadout()
+  const run = service.rescan('sample')
   fail = true
   assert.throws(() => service.setEnabled(false), /本次已关闭/)
   assert.equal(service.enabled, false)
   assert.equal(service.getState().configuredEnabled, false)
-  assert.equal(service.state.solving, false)
-  pending.resolve({ candidates: [{ itemIds: ['late'] }] })
+  assert.equal(service.state.running, false)
+  pending.resolve({rooms:[],edges:[]})
   await run
-  assert.equal(service.state.loadouts, null)
+  assert.equal(service.state.floor, null)
   assert.deepEqual(service.state.strategy, strategy)
   assert.throws(() => service.resetRun(), /未启用/)
   assert.throws(() => service.saveStrategy(createSanctumStrategy()), /未启用/)
   await assert.rejects(service.rescan('sample'), /未启用/)
-  await assert.rejects(service.solveLoadout(), /未启用/)
   fail = false
   service.setEnabled(true)
   service.stop()

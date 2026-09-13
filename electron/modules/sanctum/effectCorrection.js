@@ -97,10 +97,9 @@ export function rebuildCorrectedScan(scan, catalog, memory) {
     refreshTargetMemory(target,catalog,memory)
     const group=correctedEffectGroup(target,catalog)
     if (!group) continue
-    const reward=scan.rewardGroups?.find(item=>item.targetId === target.targetId)
     target.entries=group.entries;target.classificationComplete=group.complete && group.entries.every(entry=>entry.category)
-    target.reason=[group.reason,reward?.reason].filter(Boolean).join('；') || null
-    if (['matched','failed'].includes(target.stage) && !target.captureIssue) target.stage=group.complete && (!reward || reward.complete)?'matched':'failed'
+    target.reason=group.reason || null
+    if (['matched','failed'].includes(target.stage) && !target.captureIssue) target.stage=group.complete?'matched':'failed'
   }
   const groups = scan.targets.map(target=>correctedEffectGroup(target,catalog)).filter(Boolean)
   const additions = (scan.groups || []).flatMap(group=>(group.entries || []).filter(entry=>entry.source?.kind === 'room'))
@@ -109,7 +108,7 @@ export function rebuildCorrectedScan(scan, catalog, memory) {
   const icons = scan.targets.filter(target=>/^effect:\d+$/.test(target.targetId))
   const classificationComplete = scan.coverageConfirmed === true && icons.every(target=>target.classificationComplete === true)
   const effectsComplete = classificationComplete && categorized.every(group=>group.complete)
-  const complete = effectsComplete && (scan.rewardGroups || []).every(group=>group.complete)
+  const complete = effectsComplete
     && !scan.targets.some(target=>target.stage.endsWith('failed') || target.stage === 'skipped')
   const result = {...scan,groups:categorized,classificationComplete,effectsComplete,complete}
   result.issues = effectReadIssues(result)

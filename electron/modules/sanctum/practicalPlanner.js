@@ -5,7 +5,7 @@ import { applySanctumEffects } from '../../../shared/sanctum.js'
 import { knownRoom, rewardReadingGaps } from './knowledge.js'
 import { hasSanctumRoomContents } from '../../../shared/sanctumRecommendation.js'
 import { pendingRouteTargets, routeBoundary, pendingTargetMessages, noKnownRoomReason, boundaryReason, withRecommendationNotes } from './recommendationBoundary.js'
-import { hourAdvice, currentRunObservation } from './runObservation.js'
+import { currentRunObservation } from './runObservation.js'
 
 const value = n => Number.isFinite(n) ? n : 0
 const keyOf = item => item.currency
@@ -15,8 +15,8 @@ const compareVector = (a, b) => {
 }
 
 // One offer per choice group. The selected alternative remains a conditional
-// preview and never becomes a reward-ledger entry.
-export function chooseRewardOptions(room, strategy, hour = {}) {
+// preview, not an observed selection.
+export function chooseRewardOptions(room, strategy) {
   const groups = new Map()
   for (const item of room.rewards || []) {
     const group = item.groupId || 'offer'
@@ -25,7 +25,6 @@ export function chooseRewardOptions(room, strategy, hour = {}) {
   }
   const priority = item => value(strategy.targetPriority?.[keyOf(item)])
   return [...groups.values()].map(items => items.toSorted((a,b) => priority(b)-priority(a)
-    || (hour.known && hour.eligibleIds.length >= 2 && priority(a) <= 0 ? Number(b.timing === 'immediate') - Number(a.timing === 'immediate') : 0)
     || (a.currency === b.currency && Number.isFinite(a.quantity) && Number.isFinite(b.quantity) ? b.quantity-a.quantity : 0))[0])
 }
 
@@ -68,8 +67,7 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
   }
   const targets = new Set(marks.targets || []), avoid = new Set(marks.avoid || []), bans = new Set(strategy.bannedAfflictions || [])
   if ([...targets].some(id=>!rooms.has(id) || avoid.has(id))) return none('blocked','目标不存在或与避让冲突；未放宽硬约束')
-  const hour = hourAdvice(context.altar, context.rewardLedger, floor)
-  const actual = hour.active ? [...currentEffects.filter(e=>e.kind!=='boon'), { rule:'cannotGainBoons',status:'matched' }] : currentEffects
+  const actual = currentEffects.filter(e => e?.source !== 'relic')
   const active = applySanctumEffects(actual)
   gaps.push(...active.unknown)
   const legal = (id, fx = active) => !avoid.has(id) && (!hasSanctumRoomContents(rooms.get(id), floor)
@@ -93,7 +91,7 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
       const room=knownRoom(rooms.get(id),floor,before), missing=[...room.missing], limitations=[...room.limitations], risks=[], disruptions=[]
       for (const e of room.effects || []) if (e.status === 'unknown') missing.push(e.rawText || '已读效果的规则尚未支持')
       if (rooms.get(id).status && !['matched','manual'].includes(rooms.get(id).status)) missing.push(`${id}：房间位置未确认`)
-      const assessed=advanceSanctumRoom(state.evaluationState, {...room,terminal:rooms.get(id).terminal}, {strategy,rewardLedger:context.rewardLedger,altar:context.altar})
+      const assessed=advanceSanctumRoom(state.evaluationState, {...room,terminal:rooms.get(id).terminal}, {strategy})
       nextState.evaluationState=assessed.state
       nextState.effects=assessed.state.effects
       missing.push(...assessed.unknown); risks.push(...assessed.risks)
@@ -115,18 +113,15 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
         // Affliction-specific relevance is evaluated by rule; no hidden severity
         // number or arbitrary risk multiplier is accepted from a room fixture.
         if (a.rule === 'cannotGainBoons' && before.cannotGainBoons) continue
-        if (a.rule === 'relicEffectReduction' && !context.altar?.confirmed) { missing.push('实际圣物未确认，无法判断圣物削弱影响'); continue }
         if (['lethalTraps','dangerousTraps','dangerousMonsters'].includes(a.rule)) continue
         if (a.rule === 'randomDestination') disruptions.push('无法保证进入所选房间')
         if (a.rule === 'rewardsHidden' && strategy.preset === 'reveal') disruptions.push('后续揭图目标奖励被隐藏')
         if (a.rule === 'typesHidden' && strategy.preset === 'quantity') disruptions.push('后续速刷房型被隐藏')
-        if (a.rule === 'relicEffectReduction' && context.altar?.confirmed && context.altar.items?.some(item=>!item.unique)) disruptions.push('已装备普通圣物效果降低')
         if (a.rule === 'rewardsHidden' && strategy.preset==='quantity') limitations.push('奖励隐藏降低后续目标可知度')
         if (!isEvaluatedEffect(a)) risks.push(a.name||a.rawText||a.id)
       }
       const recovery=assessed.recovery
-      const offers=chooseRewardOptions(room,strategy,hour)
-      if (hour.known && hour.eligibleIds.length >= 2 && offers.some(o=>['floor','run'].includes(o.timing))) missing.push(`${id}：若选择延后奖励会扩大复制池，请保留高价值复制机会；新高价值奖励仍可选择`)
+      const offers=chooseRewardOptions(room,strategy)
       missing.push(...rewardReadingGaps({ id, rewards: offers }))
       nextState.offers.push(...offers.map(o=>({...o,roomId:id})))
       nextState.risk+=risks.length
@@ -175,5 +170,5 @@ export function planPracticalFloor(floor, strategy, marks = {}, currentEffects =
   const reason=withRecommendationNotes(top.some(path=>!path.complete)?boundaryReason:'按当前可见信息推荐',[
     ...(initial?['待选择首个房间']:[]),...(tied?['当前已知条件并列']:[]),...top.flatMap(path=>path.limitations)])
   return {status:unknown.length||top.some(path=>path.limitations.length)||!exhausted||!top[0].complete?'partial':'ready',reason,
-    runId:floor.runId,floorId:floor.floorId,revision:floor.revision,paths:top,unknown,optimal:exhausted&&!unknown.length&&!tied,tied,hour}
+    runId:floor.runId,floorId:floor.floorId,revision:floor.revision,paths:top,unknown,optimal:exhausted&&!unknown.length&&!tied,tied}
 }

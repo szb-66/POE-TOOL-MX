@@ -41,7 +41,7 @@ test('123个现行条目及变体有明确规则，正文完整识别且不是�
   }
 })
 
-test('每个目录条目在适用事件或房间中实际改变资源、风险或机会',()=>{
+test('每个目录条目在适用事件或房间中提供资源、风险、机会或机制说明',()=>{
   const observations=[resources,{...resources,resolve:10,inspiration:100}, {...resources,resolve:280}]
   const rooms=[room,{...room,type:'reward',rewards:[{currency:'混沌石',quantity:5}]},{...room,type:'merchant'},{...room,type:'fountain',recovery:80,recoveryCost:10},
     {...room,layout:'trap'},{...room,layout:'boss',terminal:true},
@@ -52,7 +52,7 @@ test('每个目录条目在适用事件或房间中实际改变资源、风险�
     [{type:'purchase',cost:20}],[{type:'fountain',recovery:20}],[{type:'resolveLoss',amount:20,source:'trap'}],
     [{type:'hitResolveLoss',amount:30}],[{type:'resolveLoss',amount:500}],[{type:'flask'}],[{type:'floorStart'}]]
   const projection = result => JSON.stringify({resolve:result.state.resolve,maxResolve:result.state.maxResolve,inspiration:result.state.inspiration,coins:result.state.coins,
-    risks:result.risks,opportunities:result.opportunities,fatal:result.fatal})
+    risks:result.risks,opportunities:result.opportunities,conditions:result.conditions,fatal:result.fatal})
   for(const entry of catalog.entries.filter(e=>['boon','affliction'].includes(e.kind))) {
     const rules=entryEffects(entry)
     let changed=false
@@ -61,7 +61,7 @@ test('每个目录条目在适用事件或房间中实际改变资源、风险�
       for(const target of rooms) {
         if(changed) break
         for(const events of eventSets) {
-          const options={events,altar:{confirmed:true,items:[{unique:false}]},rewardLedger:{items:[{state:'pending'}]}}
+          const options={events}
           const baseline=projection(advanceSanctumRoom(initialEffectState(observed),target,options))
           const current=projection(advanceSanctumRoom(initialEffectState(observed,rules),target,options))
           const gained=projection(advanceSanctumRoom(initialEffectState(observed),{...target,effects:[...(target.effects || []),...rules.map(e=>({...e,trigger:'entry'}))]},options))
@@ -128,7 +128,7 @@ test('免疫、转换、启迪、复活、倒计时和使用次数',()=>{
 })
 
 test('两套策略中条件战斗效果改变实际推荐，输入未被修改',()=>{
-  for(const preset of ['reveal','survival']) {
+  for(const preset of ['reveal','quantity']) {
     const f={identityConfirmed:true,runId:'run',floorId:'floor',revision:1,currentRoomId:'s',positionStatus:'confirmed',exitRoomIds:['a','b'],
       rooms:[{id:'s',column:0},{id:'a',column:1,layout:'guards',terminal:true},{id:'b',column:1,layout:'trap',terminal:true}].map(r=>({...r,type:'treasure',status:'matched',detailsStatus:'matched',revealed:true,rewards:[],afflictions:[],effects:[]})),
       edges:[{from:'s',to:'a',status:'matched'},{from:'s',to:'b',status:'matched'}]}

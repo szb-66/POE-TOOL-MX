@@ -25,7 +25,6 @@
               <el-form-item label="通关目标"><el-select v-model="roomDraft.layout" placeholder="待确认" clearable style="width:150px"><el-option v-for="(label,key) in layoutLabels" :key="key" :label="label" :value="key" /></el-select></el-form-item>
               <el-form-item label="喷泉费用（未知留空）"><el-input-number v-model="roomDraft.recoveryCost" :min="0" :max="1000000" /></el-form-item>
               <el-form-item label="坚毅恢复量"><el-input-number v-model="roomDraft.recovery" :min="0" :max="1000000" :disabled="store.readOnly || store.busy || !store.state.floor?.identityConfirmed" /></el-form-item>
-              <el-form-item label="圣物偏好分"><el-input-number v-model="roomDraft.relicScore" :min="0" :max="1000000" :disabled="store.readOnly || store.busy || !store.state.floor?.identityConfirmed" /></el-form-item>
             </el-form>
             <div v-for="(reward, index) in roomDraft.rewards" :key="index" class="toolbar">
               <el-input v-model="reward.currency" maxlength="100" placeholder="奖励名称" aria-label="奖励名称" style="width: 180px" :disabled="store.readOnly || store.busy || !store.state.floor?.identityConfirmed" />
@@ -64,9 +63,9 @@ const selectedRoom = computed(() => props.room), selectedId = computed(() => pro
 const shownResult = computed(() => selectedRoom.value.previousCapture?.result || selectedRoom.value)
 const shownGameplay = computed(() => knownRoom(shownResult.value, props.floor, selectedRoom.value.previousCapture ? {} : applySanctumEffects(store.state.currentEffects || [])))
 const visibleMatches = computed(() => (shownResult.value.recognition?.matches || []).filter(match => match.role !== 'value'))
-const roomDraft = reactive({ layout:'',recoveryCost:null, name: '', type: '', recovery: 0, relicScore: 0, rewards: [] })
+const roomDraft = reactive({ layout:'',recoveryCost:null, name: '', type: '', recovery: 0, rewards: [] })
 function selectRoom(room) { Object.assign(roomDraft, { layout:room.layout||'',recoveryCost:room.recoveryCost??null,name: room.name || '', type: room.type || '', recovery: room.recovery || 0,
-  relicScore: room.relicScore || 0, rewards: JSON.parse(JSON.stringify(room.rewards || [])) }) }
+  rewards: JSON.parse(JSON.stringify(room.rewards || [])) }) }
 function mark(key) {
   const marks = JSON.parse(JSON.stringify(store.state.marks))
   marks[key] = marks[key].includes(selectedId.value) ? marks[key].filter(id => id !== selectedId.value) : [...marks[key], selectedId.value]

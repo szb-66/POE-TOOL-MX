@@ -85,6 +85,7 @@ import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { WindowActivationService } from './modules/window/activation.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
+import { withCalibrationGameWindow } from './modules/sanctum/calibrationWindow.js'
 import { createDevelopmentStartupTrace } from '../shared/developmentStartupTrace.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
@@ -791,6 +792,9 @@ async function startApplication() {
     withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)), detection: interfaceDetection }), automationLock)
   if (sanctumService) sanctumService.calibrationEditor = new SanctumCalibrationEditor({ service: sanctumService,
     picker: windowManager.pickScreenRegion, cancelPicker: windowManager.cancelCoordinatePicker, detection: interfaceDetection, nativeImage,
+    withScreenshotHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(() =>
+      withCalibrationGameWindow({ getMainWindow, minimizeMainWindow: windowManager.minimizeMainWindowForAutomation,
+        activation: windowActivation }, operation))),
     withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)) })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 

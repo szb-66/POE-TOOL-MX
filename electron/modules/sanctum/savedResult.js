@@ -1,8 +1,8 @@
 // Disk snapshots contain observations, never reusable native-session evidence.
 const object = value => value && typeof value === 'object' && !Array.isArray(value)
-const transient = new Set(['captureSessionId', 'logContextKey', 'sessionId', 'png', 'pngBase64', 'imageBase64', 'dataUrl', 'buffer'])
+const transient = new Set(['captureSessionId', 'logContextKey', 'sessionId', 'png', 'pngBase64', 'imageBase64', 'dataUrl', 'buffer', 'rewardLedger', 'rewardGroups', 'altar', 'inventory', 'loadoutPreferences', 'loadouts', 'relicCalibrations', 'relicScore'])
 export function withoutSanctumEvidence(value) {
-  if (Array.isArray(value)) return value.map(withoutSanctumEvidence)
+  if (Array.isArray(value)) return value.filter(item => item?.source !== 'relic').map(withoutSanctumEvidence)
   if (!object(value)) return value
   return Object.fromEntries(Object.entries(value).filter(([key,item]) => !transient.has(key)
     && (key !== 'evidenceId' || /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(item)))
@@ -42,7 +42,6 @@ export function savedSanctumResult(value, { overlay = false } = {}) {
       avoid: Array.isArray(value.marks?.avoid) ? value.marks.avoid.filter(id => ids.has(id)) : [] },
     currentEffects: Array.isArray(value.currentEffects) ? value.currentEffects : [],
     runObservation: object(value.runObservation) ? value.runObservation : null,
-    rewardLedger: object(value.rewardLedger) ? value.rewardLedger : null,
     savedAt: Number.isFinite(value.savedAt) ? value.savedAt : null,
     reason: typeof value.reason === 'string' ? value.reason : '上次保存的路线', incomplete: value.incomplete === true })
   if (overlay) {

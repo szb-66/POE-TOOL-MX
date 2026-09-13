@@ -38,34 +38,3 @@ export function liveProfile(value) {
   // Legacy text crops cannot serve as icon locations; the whitelist discards them.
   return { version: 6, environment, ...liveRegions(value, environment), captures }
 }
-export function gridDimensions(value) {
-  if (!value || !['altar', 'locker'].includes(value.regionId) || !Number.isInteger(value.columns) || !Number.isInteger(value.rows)
-    || value.columns < 1 || value.rows < 1 || value.columns > 24 || value.rows > 24
-    || value.regionId === 'altar' && (value.columns !== 5 || value.rows !== 4)) throw new Error('圣物网格配置无效：祭坛固定 5×4')
-  return { regionId: value.regionId, columns: value.columns, rows: value.rows }
-}
-export function cellStates(value, count) {
-  if (value === undefined) return Array(count).fill('usable')
-  if (!Array.isArray(value) || value.length !== count || value.some(cell => !['usable', 'locked', 'ignored'].includes(cell))) throw new Error('格子属性无效')
-  return [...value]
-}
-export function relicGrid(value, environment) {
-  const grid = gridDimensions(value), mapRegion = region(value.mapRegion, environment)
-  if (mapRegion.width / grid.columns < 16 || mapRegion.height / grid.rows < 16) throw new Error('圣物格子尺寸过小')
-  return { ...grid, mapRegion, cellStates: cellStates(value.cellStates, grid.columns * grid.rows) }
-}
-export function relicProfile(value) {
-  const environment = liveEnvironment(value.environment), grid = relicGrid(value, environment), templates = {}
-  for (const key of ['empty', 'locked']) if (value.templates?.[key]) {
-    if (value.templates[key].length > 1400000) throw new Error('圣物格子样本过大')
-    templates[key] = calibrationPng(value.templates[key])
-  }
-  return { version: 2, environment, ...grid, templates,
-    ...(value.preview ? { preview: { ...value.preview, png: calibrationPng(value.preview.png) } } : {}) }
-}
-export function footprintUsable(profile, rect) {
-  for (let y = rect.y; y < rect.y + rect.height; y++) for (let x = rect.x; x < rect.x + rect.width; x++) {
-    if (x < 0 || y < 0 || x >= profile.columns || y >= profile.rows || profile.cellStates[y * profile.columns + x] !== 'usable') return false
-  }
-  return true
-}

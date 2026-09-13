@@ -63,7 +63,7 @@ export function effectReadIssues(scan, finished = true) {
     issues.push({targetId:target.targetId,evidenceId:target.evidenceId,stage:target.stage,label:effectTargetLabel(target),
       reason:effectReadReason(target)})
   }
-  for (const group of [...(scan.groups || []), ...(scan.rewardGroups || [])]) if (!group.complete && (finished || group.status === 'failed')) {
+  for (const group of (scan.groups || [])) if (!group.complete && (finished || group.status === 'failed')) {
     // Legacy snapshots stored the same failure twice without a group targetId.
     if (group.category) continue
     const target = targets.find(t => group.targetId ? t.targetId === group.targetId

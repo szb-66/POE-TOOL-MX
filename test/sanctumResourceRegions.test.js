@@ -97,20 +97,6 @@ test('v1 至 v5 保留地图金币及无关配置，旧小框不拼接，新区�
   assert.deepEqual(liveProfile(JSON.parse(JSON.stringify(value))),value)
 })
 
-test('主动奖励读取使已有缓存失效并启动现有采集，不调用资源驱动', async () => {
-  const service=new SanctumService({})
-  service.setEnabled(true);service.state.floor=structuredClone(floor)
-  const calls=[]
-  service.liveDriver={requestEffectRescan(){calls.push('invalidate')},readRunPanel(){assert.fail('不应读取固定奖励区域')}}
-  service.startLive=async()=>{calls.push('scan');return 'scanned'}
-  assert.equal(await service.readRunPanel('rewards'),'scanned')
-  assert.equal(await service.readRunPanel('rewards'),'scanned')
-  assert.deepEqual(calls,['invalidate','scan','invalidate','scan'])
-  service.state.running=true
-  await assert.rejects(service.readRunPanel('rewards'),/停止/)
-  assert.equal(calls.length,4)
-})
-
 test('原生按布局从同一帧裁剪，独立布局无需锚点，缺项越界遮挡及未预检拒绝', () => {
   const result=runPython(`
 import sys,json,base64,cv2,numpy as np

@@ -15,7 +15,7 @@ export function sanctumControlState(service, detection, lock, now = Date.now()) 
   const visible = service.enabled && (active || detection.running && detection.foreground && !detection.reloading
     && Number.isFinite(detection.receivedAt) && now >= detection.receivedAt && now - detection.receivedAt <= 1500
     && detection.interfaces?.['sanctum-map']?.matched === true)
-  const busy = service.running || service.solving || service.captureDraining
+  const busy = service.running || service.captureDraining
   const reason = !service.liveCalibration ? '请先在圣所页面完成实时校准'
     : lock?.locked && !busy ? '另一项自动化正在运行' : ''
   return { visible: Boolean(visible), running:service.running, ...captureButton(service, { locked: lock?.locked }),

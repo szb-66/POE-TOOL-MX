@@ -11,8 +11,7 @@ import { SanctumNativeClient } from './nativeClient.js'
 import { SanctumFramePipeline } from './framePipeline.js'
 import { SanctumImageCapacity } from './imageCapacity.js'
 import { sanctumLogFloor, SanctumLogContext } from './logContext.js'
-import { liveProfile, liveEnvironment, relicProfile, footprintUsable, RESOURCE_REGION_KEYS } from '../../../shared/sanctumLive.js'
-import { parseSanctumRelic } from './relicParser.js'
+import { liveProfile, liveEnvironment, RESOURCE_REGION_KEYS } from '../../../shared/sanctumLive.js'
 import { resolveSanctumCatalogText, sanctumRule } from './catalog.js'
 import { recognizeRoomTexts } from './textRecognition.js'
 import { SanctumEvidenceStore } from './evidence.js'
@@ -420,12 +419,12 @@ export class SanctumLiveDriver {
         return this.withEffects(floor)
       }
       const scanOptions = { hudLayout: embedded ? 'map' : 'standalone', effectIconsRegion: this.profile[regionKey] }
-      const groups = [], rewardGroups = [], jobs = [], targets = []
+      const groups = [], jobs = [], targets = []
       let scan, processed = 0, inputAvailable = true, safetyInterrupted = false
       const reportEffect = (targetId, reason, code) => {
         if (reason) for (const listener of this.progressListeners) listener({diagnostic:{stage:'effects',targetId,outcome:'failed',reason,code}})
         for (const listener of this.progressListeners) listener({stage:'effects',targetId,current:processed,total:scan?.icons.length || 0,reason,
-          effectScan:{complete:false,groups:mergeEffectGroups(groups),rewardGroups:structuredClone(rewardGroups),binding:observationKey(floor),targets:structuredClone(targets)},currentEffects:[...groups.flatMap(group=>group.effects),{status:'unknown',rawText:'效果尚未完整读取'}]})
+          effectScan:{complete:false,groups:mergeEffectGroups(groups),binding:observationKey(floor),targets:structuredClone(targets)},currentEffects:[...groups.flatMap(group=>group.effects),{status:'unknown',rawText:'效果尚未完整读取'}]})
       }
       try {
         if (!embedded && initial.mapOpen) { this.progress?.('正在关闭地图，读取独立状态栏'); await this.switchMode('effects', captureSignal) }
@@ -465,15 +464,14 @@ export class SanctumLiveDriver {
             return this.recognizeCaptured(value,signal,false,{onReading:()=>{target.stage='reading';reportEffect(targetId)}})
           }).then(read => {
             signal.throwIfAborted(); this.assertLog()
-            const {effectGroup,originalEffectGroup,memoryHits,rewardGroup,classificationComplete}=parseStatusTooltip({...read,targetId,iconIndex:index+1,evidenceId:context.evidenceId},this.catalog,this.effectCorrectionMemory)
+            const {effectGroup,originalEffectGroup,memoryHits,hasRewardContext,classificationComplete}=parseStatusTooltip({...read,targetId,iconIndex:index+1,evidenceId:context.evidenceId},this.catalog,this.effectCorrectionMemory)
             if (effectGroup) groups.push(effectGroup)
-            if (rewardGroup) rewardGroups.push({...rewardGroup,targetId,evidenceId:context.evidenceId})
-            const complete = (!effectGroup || effectGroup.complete) && (!rewardGroup || rewardGroup.complete)
+            const complete = (!effectGroup || effectGroup.complete)
             Object.assign(target,{stage:complete && !context.evidenceError?'matched':'failed',classificationComplete,
               readStatus:read.status,effectGroup:originalEffectGroup ? structuredClone(originalEffectGroup):null,captureIssue:context.evidenceError || null,
               rememberedGroup:effectGroup ? structuredClone(effectGroup):null,memoryHits,memoryRevision:this.effectCorrectionMemory?.revision || 0,
-              contentKind:rewardGroup ? effectGroup ? 'mixed':'reward':'effect',
-              texts:read.texts,entries:effectGroup?.entries || [],reason:[effectGroup?.reason,rewardGroup?.reason].filter(Boolean).join('；') || null,region:read.region || null})
+              contentKind:hasRewardContext ? effectGroup ? 'mixed':'reward':'effect',
+              texts:read.texts,entries:effectGroup?.entries || [],reason:[effectGroup?.reason].filter(Boolean).join('；') || null,region:read.region || null})
             if (context.evidenceError) { target.reason=context.evidenceError; target.classificationComplete=false }
             processed++; reportEffect(targetId)
           }).catch(error => {
@@ -537,14 +535,14 @@ export class SanctumLiveDriver {
         && iconTargets.every(target => target.classificationComplete === true)
       const categorized = mergeEffectGroups(groups, true)
       const effectsComplete = classificationComplete && categorized.every(group => group.complete)
-      const complete = effectsComplete && rewardGroups.every(group => group.complete)
+      const complete = effectsComplete
         && !targets.some(target => target.stage.endsWith('failed') || target.stage === 'skipped')
       const effects = categorized.flatMap(group => group.effects)
       if (!effectsComplete) effects.push({ status: 'unknown', rawText: '当前效果采集不完整，无法确认的内容保留未知' })
 
       signal.throwIfAborted(); this.assertLog()
       this.effectLedger = { scope, floor: structuredClone(floor), effects, complete, finished:true,reason:scan?.reason,groups: categorized, targets,
-        rewardGroups, effectsComplete, classificationComplete, coverageConfirmed:scan?.coverageConfirmed === true, binding:observationKey(floor),scanReason:decision.reason }
+        effectsComplete, classificationComplete, coverageConfirmed:scan?.coverageConfirmed === true, binding:observationKey(floor),scanReason:decision.reason }
       this.correctionKey = key
     }
     return this.withEffects(floor)
@@ -554,62 +552,6 @@ export class SanctumLiveDriver {
     this.effectScan = sanctumEffectScan(this.effectLedger)
     return { ...floor, currentEffects: structuredClone(this.currentEffects), effectScan: structuredClone(this.effectScan) }
   }
-  async scanRelics(value, signal, lock, progress = () => {}) {
-    const profile = this.titleOptions(relicProfile(value)), owner = `sanctum-relics:${randomUUID()}`, scanId = randomUUID()
-    if (!value.preview) throw new Error('请重新框选圣物网格以补充预览')
-    const leaseController = new AbortController()
-    signal = AbortSignal.any([signal, leaseController.signal])
-    let unsubscribe
-    await this.open()
-    try {
-      const current = await this.awaitGame(signal)
-      if (JSON.stringify(liveEnvironment(current.environment)) !== JSON.stringify(profile.environment)) throw new Error('圣物校准尺寸或 DPI 失配')
-      if (!lock.acquire(owner).success) throw new Error('另一项自动化正在运行')
-      unsubscribe = lock.subscribe(state => {
-        if (state.owner !== owner) leaseController.abort(new Error('圣物扫描锁已失效'))
-      })
-      const guard = () => {
-        signal.throwIfAborted()
-        if (lock.getState().owner !== owner) throw new Error('圣物扫描锁已失效')
-      }
-      await this.client.request('arm', current, { signal })
-      guard()
-      await this.withHidden(() => { guard(); return this.client.request('neutralGrid', profile, { signal }) })
-      const inspect = () => this.withHidden(() => { guard(); return this.client.request('inspectGrid', profile, { signal }) })
-      const first = await inspect()
-      await this.wait(300, undefined, { signal })
-      const stable = await inspect()
-      guard()
-      if (first.fingerprint !== stable.fingerprint) throw new Error('圣物网格尚未稳定，请重新扫描')
-      const observations = [], covered = new Set()
-      for (const cell of stable.cells) {
-        guard()
-        const index = cell.y * profile.columns + cell.x
-        if (covered.has(index)) continue
-        if (profile.cellStates[index] !== 'usable') observations.push({ x: cell.x, y: cell.y, status: profile.cellStates[index] === 'locked' ? 'disabled' : 'ignored' })
-        else if (cell.status === 'empty' || cell.status === 'locked') observations.push({ x: cell.x, y: cell.y, status: cell.status })
-        else {
-          const copied = await this.withHidden(() => { guard(); return this.client.request('copyCell', { ...profile, x: cell.x, y: cell.y, expectedFingerprint: stable.fingerprint }, { signal }) })
-          guard()
-          if (copied.fingerprint !== stable.fingerprint) throw new Error('复制期间网格已变化，未应用结果')
-          const parsed = parseSanctumRelic(copied.rawText || '', this.catalog), rect = copied.footprint
-          if (parsed.status === 'matched' && rect?.x === cell.x && rect.y === cell.y && rect.width === parsed.width && rect.height === parsed.height
-            && footprintUsable(profile, rect)) {
-            observations.push({ x: cell.x, y: cell.y, status: 'copied', originConfirmed: true, rawText: copied.rawText })
-            for (let y = rect.y; y < rect.y + rect.height; y++) for (let x = rect.x; x < rect.x + rect.width; x++) covered.add(y * profile.columns + x)
-          } else observations.push({ x: cell.x, y: cell.y, status: 'unknown' })
-        }
-        covered.add(index)
-        progress({ current: covered.size, total: profile.columns * profile.rows })
-      }
-      const final = await inspect()
-      guard()
-      if (final.fingerprint !== stable.fingerprint) throw new Error('扫描结束时网格已变化，未应用结果')
-      return { regionId: profile.regionId, width: profile.columns, height: profile.rows, observations, scanId, scannedAt: new Date().toISOString(),
-        observation: { foreground: true, interfaceMatched: true, mapOpen: false, clientBounds: final.clientBounds,
-          regions: { [profile.regionId]: { ...profile.mapRegion, columns: profile.columns, rows: profile.rows, scanId, fingerprint: final.fingerprint } } } }
-    } finally { await this.close(); unsubscribe?.(); lock.release(owner) }
-  }
   assertLog(processId) {
     try {
       if (!this.logContext) throw new Error('圣所采集尚未绑定当前游戏日志')
@@ -617,7 +559,7 @@ export class SanctumLiveDriver {
     } catch (error) { throw sanctumError('CONTEXT_CHANGED',error.message) }
   }
   async readRunPanel(profile, floor, kind, signal) {
-    if (kind !== 'resources') throw new Error('奖励请通过状态栏悬停采集')
+    if (kind !== 'resources') throw new Error('未知实际资源读取类型')
     const valid = liveProfile(profile), titleKey = 'sanctum-map'
     const titles = this.detection?.getTitleConfig()
     if (!RESOURCE_REGION_KEYS.some(key => valid[key]) || !titles?.templates?.[titleKey]) throw new Error('请先框选资源区域并校准地图标题')
@@ -711,28 +653,6 @@ export class SanctumLiveDriver {
     if (!cached) data.floor.effectScan.scanReason = decision.reason
     this.latest = { ...data, overlayExcluded: true }
     return this.latest
-  }
-  async watchRelic(value, evidence, signal, onObservation) {
-    const profile = this.titleOptions(relicProfile(value))
-    await this.open()
-    try {
-      const initial = await this.awaitGame(signal)
-      if (JSON.stringify(liveEnvironment(initial.environment)) !== JSON.stringify(profile.environment)) throw new Error('圣物校准尺寸或 DPI 失配')
-      for (let frame = 0; frame < 15; frame++) {
-
-        signal.throwIfAborted()
-        const current = await this.withHidden(() => this.client.request('inspectGrid', profile, { signal }))
-        signal.throwIfAborted()
-        if (JSON.stringify(current.environment) !== JSON.stringify(initial.environment)
-          || JSON.stringify(current.clientBounds) !== JSON.stringify(initial.clientBounds)
-          || current.fingerprint !== evidence.fingerprint) throw new Error('圣物界面或位置已变化，请重新扫描')
-
-        onObservation({ foreground: true, interfaceMatched: true, mapOpen: false, clientBounds: current.clientBounds,
-          regions: { [profile.regionId]: { ...profile.mapRegion, columns: profile.columns, rows: profile.rows,
-            scanId: evidence.scanId, fingerprint: evidence.fingerprint } } })
-        await this.wait(350, undefined, { signal })
-      }
-    } finally { await this.close() }
   }
   inspect() { return this.latest }
   subscribeSafety(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener) }
