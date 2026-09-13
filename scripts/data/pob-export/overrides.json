@@ -1,0 +1,188 @@
+{
+  "aliases": [
+    {
+      "zh": "暗鸦咒符",
+      "en": "Corvine Charm",
+      "source": "https://poedb.tw/cn/Corvine_Charm"
+    },
+    {
+      "zh": "幽狼咒符",
+      "en": "Lupine Charm",
+      "source": "https://poedb.tw/cn/Lupine_Charm"
+    },
+    {
+      "zh": "蛮熊咒符",
+      "en": "Ursine Charm",
+      "source": "https://poedb.tw/cn/Ursine_Charm"
+    },
+    {
+      "zh": "刺客印记",
+      "en": "Assassin's Mark",
+      "source": "国服交易目录 gem 条目；PoB Metadata/Items/Gems/SkillGemAssassinsMark；现有词缀 Trigger Level Assassin's Mark 的国服译名"
+    },
+    {
+      "zh": "持续时间总降(辅)",
+      "en": "Less Duration Support",
+      "source": "https://poedb.tw/cn/Less_Duration_Support"
+    },
+    {
+      "zh": "刺客之影",
+      "en": "Assassin's Haste",
+      "source": "https://poedb.tw/cn/Assassins_Haste"
+    },
+    {
+      "zh": "尸鬼提灯",
+      "en": "The Draugur's Lantern",
+      "source": "https://poedb.tw/cn/The_Draugurs_Lantern"
+    },
+    {
+      "zh": "玛塔之指教【仿品】",
+      "en": "Replica Maata's Teaching",
+      "source": "https://poedb.tw/cn/Replica_Maatas_Teaching"
+    },
+    {
+      "zh": "风暴的艾许之嫁接",
+      "en": "Storming Eshgraft",
+      "source": "https://poedb.tw/cn/Storming_Eshgraft"
+    },
+    {
+      "zh": "复制的艾许之嫁接",
+      "en": "Replicating Eshgraft",
+      "source": "https://poedb.tw/cn/Replicating_Eshgraft"
+    },
+    {
+      "zh": "汲取的艾许之嫁接",
+      "en": "Draining Eshgraft",
+      "source": "https://poedb.tw/cn/Draining_Eshgraft"
+    },
+    {
+      "zh": "震击的艾许之嫁接",
+      "en": "Jolting Eshgraft",
+      "source": "https://poedb.tw/cn/Jolting_Eshgraft"
+    },
+    {
+      "zh": "狂啸的托沃之嫁接",
+      "en": "Squalling Tulgraft",
+      "source": "https://poedb.tw/cn/Squalling_Tulgraft"
+    },
+    {
+      "zh": "急冻的托沃之嫁接",
+      "en": "Freezing Tulgraft",
+      "source": "https://poedb.tw/cn/Freezing_Tulgraft"
+    },
+    {
+      "zh": "召唤的托沃之嫁接",
+      "en": "Summoning Tulgraft",
+      "source": "https://poedb.tw/cn/Summoning_Tulgraft"
+    },
+    {
+      "zh": "护盾的托沃之嫁接",
+      "en": "Aegis Tulgraft",
+      "source": "https://poedb.tw/cn/Aegis_Tulgraft"
+    },
+    {
+      "zh": "冲撞的乌尔尼多之嫁接",
+      "en": "Battering Uulgraft",
+      "source": "https://poedb.tw/cn/Battering_Uulgraft"
+    },
+    {
+      "zh": "刺击的乌尔尼多之嫁接",
+      "en": "Spiking Uulgraft",
+      "source": "https://poedb.tw/cn/Spiking_Uulgraft"
+    },
+    {
+      "zh": "穿刺的乌尔尼多之嫁接",
+      "en": "Impaling Uulgraft",
+      "source": "https://poedb.tw/cn/Impaling_Uulgraft"
+    },
+    {
+      "zh": "硬化的乌尔尼多之嫁接",
+      "en": "Hardening Uulgraft",
+      "source": "https://poedb.tw/cn/Hardening_Uulgraft"
+    },
+    {
+      "zh": "熔火的索伏之嫁接",
+      "en": "Molten Xophgraft",
+      "source": "https://poedb.tw/cn/Molten_Xophgraft"
+    },
+    {
+      "zh": "喷发的索伏之嫁接",
+      "en": "Erupting Xophgraft",
+      "source": "https://poedb.tw/cn/Erupting_Xophgraft"
+    },
+    {
+      "zh": "唤火者的索伏之嫁接",
+      "en": "Flamecaller Xophgraft",
+      "source": "https://poedb.tw/cn/Flamecaller_Xophgraft"
+    },
+    {
+      "zh": "司炉的索伏之嫁接",
+      "en": "Stoking Xophgraft",
+      "source": "https://poedb.tw/cn/Stoking_Xophgraft"
+    }
+  ],
+  "properties": [
+    {
+      "zh": "[Intangibility|虚化]",
+      "en": "Intangibility"
+    }
+  ],
+  "stats": [
+    {
+      "zh": "击中时施加冰霜曝露，使冰霜抗性降低 {0}%",
+      "en": "Inflict Cold Exposure on Hit, applying {0}% to Cold Resistance"
+    },
+    {
+      "zh": "获得范围内所有未配置小天赋的全部加成",
+      "en": "Grants all bonuses of Unallocated Small Passive Skills in Radius"
+    },
+    {
+      "zh": "你头盔中镶嵌的技能由 {0} 级的{1}辅助",
+      "en": "Skills Socketed in your Helmet are Supported by level {0} {1}",
+      "refs": {
+        "1": "display_indexable_support"
+      }
+    }
+  ],
+  "extraUniques": [
+    {
+      "zh": "索魂钩",
+      "en": "The Wellhook",
+      "base": "Fishing Rod",
+      "source": "https://poedb.tw/cn/The_Wellhook"
+    }
+  ],
+  "contextualUniques": [
+    {
+      "zh": "雷霆圣杖",
+      "base": "Imperial Staff",
+      "source": "国服交易目录 official-item-4883；PoB 四向 Agnerod 词缀定义",
+      "candidates": [
+        {
+          "en": "Agnerod East",
+          "matchMods": [
+            "increased (?:Lightning Ailment|Shock) Duration"
+          ]
+        },
+        {
+          "en": "Agnerod North",
+          "matchMods": [
+            "[Cc]hance to Shock"
+          ]
+        },
+        {
+          "en": "Agnerod South",
+          "matchMods": [
+            "to maximum Lightning Resistance"
+          ]
+        },
+        {
+          "en": "Agnerod West",
+          "matchMods": [
+            "Adds .* Lightning Damage to Spells"
+          ]
+        }
+      ]
+    }
+  ]
+}

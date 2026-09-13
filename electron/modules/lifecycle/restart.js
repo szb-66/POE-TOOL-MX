@@ -9,12 +9,14 @@ export function createApplicationRestartController({
   restart,
   terminateAfterFailure,
   onError = () => {},
+  exitDiagnostics,
   timeoutMs = 8000
 }) {
   let restartPromise = null
 
   const requestRestart = () => {
     if (restartPromise) return restartPromise
+    exitDiagnostics?.request('application_restart')
 
     restartPromise = (async () => {
       try {

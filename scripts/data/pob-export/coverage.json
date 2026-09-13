@@ -1,0 +1,865 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "3.29",
+  "pobVersion": "2.67.2",
+  "sources": [
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Accessories.txt.csv",
+      "sha256": "a936c8ec2c1f0565dda65bf57f0da997d1d81041f5c1a8f64d2ac535e043761c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Armour.txt.csv",
+      "sha256": "c50115f831648a936c216119713a1e01b0dcc82f2dd0e49ae5f5d9df53082005"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Flasks.txt.csv",
+      "sha256": "8de7b3a559f2caff444f5616d4bd004278cedf12e7f15a5af349b618dc0fcb6d"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Jewels.txt.csv",
+      "sha256": "197cf7e06a1c3733feaca29e98c6f660d0d152ddbf56204aed1596a3fa35421a"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Weapons.txt.csv",
+      "sha256": "807701335020439ad7bbad899473b0261b04cbdeabedda4afaf10f97942689d8"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Uniques.txt.csv",
+      "sha256": "150c56137f3f1e4e6effd9f8f9ab87b8231f60732e98dc9b725b894eb14ffa81"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Gems_data.txt.csv",
+      "sha256": "076a74168205c6a3dd079944aa7e17ba2fdf875815ceeac9075a893d5722d560"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Items_Gems.txt.csv",
+      "sha256": "8319e16a663e1c0c4c56f48fd48a67af1f126975d16f34c8fc39655aa92cbc84"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/passiveTree.csv",
+      "sha256": "31dd83f2a6bd3d67c410a05ef6be24f87d86a463733f508a7ab9dcc24824938a"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/tree_dn.csv",
+      "sha256": "d5a378710035c2d79c0b42be97d2e1d9cbfcf8f772e0cbdefeb115aca23b11d7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/tree_sd.csv",
+      "sha256": "6b10e07a5b800169b23f5fb2c5e27f5a51441bb6f141c58f6c7481677499f91f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/statDescriptions.csv",
+      "sha256": "7253cf937b5e29efde21449d54d3a44e1e9f33096f29ab0e71fc42ceed130943"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Data.csv",
+      "sha256": "26d336c258d17b9ba45f9650482196bb4580a75989c389099bc6595bdbe0a748"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/Chuanhsing/PoeCharm/ac05b82ca47009780c1ebd6518108e876ccd44b5/Data/Translate/zh-rCN/Tatto.csv",
+      "sha256": "f6b7b12f9cb9287a88457c6e2497ad961fe81e8fff28ea86cb0e9ade072d961c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/amulet.lua",
+      "sha256": "d444319e41c3af2bdd6bc4abfb09575b43e6c17315fdc71f56111aeaa2a62ed8",
+      "localSha256": "dcc6f48d8a7aaea4d75a18b0557ca1f8bfceaf6e83e5b83638b7745d03cf850c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/axe.lua",
+      "sha256": "7ab5989bee5b724654fb866392734c570119a7aa011e2b3400360d60ec14d0b8",
+      "localSha256": "846afc5c96e328a7bc2ffc9a91c87524fbf6d2cfe92191649fd3eab4d4bcd8ef"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/belt.lua",
+      "sha256": "871e016058eab586ed80eafb20f2c1da1eb02581af47091dd6230379f1dc6070",
+      "localSha256": "a1133ee49ea1beb658e6b7dbd8a2c2677c1ffdae42f868a6cb023994e1f01cc6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/body.lua",
+      "sha256": "0fc22dcc06091f248ea249e1f2049728a5bb19c723567fc531776e8d34fb2a65",
+      "localSha256": "b764b6065a41af36d8433dd26838a6290ce0abd17431c3b7090ab935534f9557"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/boots.lua",
+      "sha256": "d977be666213b31721331e314f1efaf43beaf0a0af842feb9413fa4f0bffec65",
+      "localSha256": "7634f2c366c79a83614520dbee74239fd3a742a4297d1e1c166a78610be68eb7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/bow.lua",
+      "sha256": "355d04fc1090b2c72588b754f5087e49b24914844cfe4cfba24f71857900698b",
+      "localSha256": "ad420096d028a4aadaef230e880f7b9d5feb57fbe8613d8e3722b3b4238e38f0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/claw.lua",
+      "sha256": "7ea6073d12518c117f91ea4ec3267c928438b6cc52cdde00f81d2cf990107194",
+      "localSha256": "41f4f17efdf94ad4204c6bc332b91f5f68d2bbf43811692914bb0d3c3f802641"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/dagger.lua",
+      "sha256": "c6be35c200041c75f007d660aa981c999d4a5c23c12aa31600d0dabc96df3c23",
+      "localSha256": "93ee30a90ba5722c5ae8e18279094befc4e3d35834a9e7279f9834676e616ae0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/fishing.lua",
+      "sha256": "277aae28d72b00f5db82074ea6dc253c57b155ffcee32791178df1d5bd8494a1",
+      "localSha256": "3e7e54725bf0a86cf50036920bec0875bc9ec5df3ac23529518763e5158dbea2"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/flask.lua",
+      "sha256": "d629a0a9f24b41bd3d22d024cf6677317d91e3d712bda06ff1003c24d4e02805",
+      "localSha256": "afc246384f7148f1a28e3c1fe644895949e5f2f371c66bd2d369e1666ac5588a"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/gloves.lua",
+      "sha256": "1cd2cbc7850f700e2d46da29a5fe0179698cf57fd7896f2edac24f955607f412",
+      "localSha256": "6c251c4582062109de151ad9c7b5bf9583c4b51fb6fa27e7f9d1648d6ead2217"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/graft.lua",
+      "sha256": "251006c471e19429b817a2e2c78dbd5b21c899fa4b980d6d71ed89ec719582eb",
+      "localSha256": "eed3cea6a8cf8593cb2cd78b87675be33e7ff04a7e6c5e836d2896751e3d81f0"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/helmet.lua",
+      "sha256": "87e7ca473084c1c08e4f9c199dd75f616941f3df265440b5fa3b0b46a0eb04b6",
+      "localSha256": "bb5f8a66c491ae5073350d9c5b0c45edafc137712d5a555435a9421d0419db8e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/jewel.lua",
+      "sha256": "79549fa69fb7215217f7fe3ac7b76aa6a91d613991787662b2a94e0c9e6780ea",
+      "localSha256": "26ec2bb2a143aa35b2fed909f1aefac752228da3cb9410620cda7e500be34fef"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/mace.lua",
+      "sha256": "9c901d86399ab77adc0a29dc71706383fc2bca2c3e3b2875840ffe6c9e933651",
+      "localSha256": "24390eb446d37593833390d1998ab8a12995eadc38607ee5fb2410b6952230a7"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/quiver.lua",
+      "sha256": "b1349c4b9b29885084bc5e47e197d5d880ec5a97fd92c787d3a34710cba7f416",
+      "localSha256": "dec328e30df12f07540b40220797fca85de4f48028d7ce44b60ab5000d99450c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/ring.lua",
+      "sha256": "864f4ac29b1773593f9a0c28da17a80da979c1505da509d2c86b9bd54cd15327",
+      "localSha256": "6db93137a173e81f2e16374ba96e845536004903bc01f12443bd754785bca86d"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/shield.lua",
+      "sha256": "223c8e481de9364edbdc4e6060f81dd78c86b6509bbb1025019b02684464ae87",
+      "localSha256": "baaaa4c69531e4ddc80eb2afbdb03853d7e068538be9955ecbb650f9f62e1078"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/staff.lua",
+      "sha256": "5e1743d247892cfd3993e359883b4ad254f0e52cd1999cd3637f70fa65f477a6",
+      "localSha256": "95d22d97649bb248bb7b1ae95c1356dbf5ac76386678162bcfa303a975e6628b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/sword.lua",
+      "sha256": "8455d3a459f96d2e0eeb7598cb8f3d3d477fa0220a53954eb27563c2166cfe08",
+      "localSha256": "e1e9b53bfb4601dfdd281ed047eed876db6280ec9e17d94946b4ad4896516686"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/tincture.lua",
+      "sha256": "c99fd9582cc69608de99687e73df0d7e39be933327262c87db38e76c7e486d4f",
+      "localSha256": "3f0a219bd85c9b0043d6dd115670441b763fcadce59b76221cb1e2f300f6170f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Bases/wand.lua",
+      "sha256": "f852fefcb3b893185c22b94d405f745e053247bf100bf29898af22869ad305d9",
+      "localSha256": "695ec103d66683c5276a25f04a1aa74a40234038de7f1c733d059c1815fe85b1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/amulet.lua",
+      "sha256": "c65381adf47addcd0c62cf769e633d99e426fe83c571ed4a45d5d0298e97a349",
+      "localSha256": "2468fb3046a093d8e9b1d2a246fa48cab2e1cca50af9536b7c927cd8d9104975"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/axe.lua",
+      "sha256": "6fc996de4e209a1d3e62b658e20da1f88fa2ea88f57f9bd88de2a4055118ce3d",
+      "localSha256": "00d75709c4f982b73168d31cd2213313880e7546afb13d9a260d64062beb493e"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/belt.lua",
+      "sha256": "72096736481cc7c69a9fc233f201fc2fec5034580a4c955f18576591701286b8",
+      "localSha256": "0ae50f23370d42fa532deb89ff439fab6914fb1a0ddf2282717f2fcbce0a5816"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/body.lua",
+      "sha256": "e81a5a9a41043d3c66dbb0873b2b58ffba2e47c75c56e18dc5fb020750129194",
+      "localSha256": "5014a08e9ccfad23a68573aaf1045ee5d884abd308915df00096ddcafb293398"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/boots.lua",
+      "sha256": "4c3892f9a10d71c082778fe2aef872cd37cbf3c3245f6c0ed8f8c30a4ecc8139",
+      "localSha256": "71a709f6560c8326c2d19103304a44d201bd5ed2cdedd29a3fba4576b7dc4390"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/bow.lua",
+      "sha256": "46d672b2a3fad677b9b083abf0067e63d6fa369645a4af2aa01604be763d5576",
+      "localSha256": "41a1c15818fd185bb9522e30a9f977f01c21b0c9dde8633c67b97f05f01d0717"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/claw.lua",
+      "sha256": "99e441ac1ef34bc728978e45df2a9fa9bc203c93b80ce1d6cab72e08d4efd3b7",
+      "localSha256": "d46dfc505d5358c6a099eff3073def5d6ee4265efc2800b53b2c343c2784821a"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/dagger.lua",
+      "sha256": "10267f86ee9d663a18b1829d7bd57265291ec9952a49ea603e944ed0b4e5b415",
+      "localSha256": "118addf85b93d72d8df7265d446d8feded8c4a0fcd8f26c8596a9c1e8b4e3904"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/fishing.lua",
+      "sha256": "da89db80334ee20f53ce4bb27ba427f8858cfa7c3d3660fec5afd4740a8347f5",
+      "localSha256": "6d2712bb154672941eafa6a9c557768e12416825e6dbbc584385c99a4b4d6d93"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/flask.lua",
+      "sha256": "036f0917037aba13bf96bb7a67ed52a0dbf53d8f7cebcfa4743a2e8ae4cef5d8",
+      "localSha256": "571e8b84c7b3a99d297b516c5ae93ec80e480fac71d6492d08b06949f86da134"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/gloves.lua",
+      "sha256": "54a613bcfdb37aa2aff2d40d29adeed87aed399c53f9dd01b14ca5766a82288d",
+      "localSha256": "aee6cdf2b8d7aadfe02e25fc5d6851b0cd4625f29dc9daf3e95cb67b93b52fb3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/graft.lua",
+      "sha256": "fce873d9e292821c75cf9bdeefc0a438468777dcf23406f2e8e843b068eb4342",
+      "localSha256": "7a88044fa0cd66ff4cc3f6669714b06bf1cce6786e6e21485a0ca99f9fabc647"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/helmet.lua",
+      "sha256": "0501fb1cac9109277b05eb877489974ed56b6d663d0015779c7d1bf2c6223aac",
+      "localSha256": "166b074911ea8f92bfeb73c0c01990afbea14bab3751a18376c9eb26b9c26d36"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/jewel.lua",
+      "sha256": "df756545c1ecf52f2e8aecbe0683687e85ab8b1feeda517d0c78cd50cdc6ad70",
+      "localSha256": "a900d27d55d4e43b45fa81b9d35e543e3c251dea8e04028984f26e304b2856bf"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/mace.lua",
+      "sha256": "f8ce3f515927f6db0804feb7e9e58bddfae9f79859d44c05340ccf2b7209e6bb",
+      "localSha256": "8a9cdbfa7c5506d9ecf418a5cf3b84020cb981d302af2283c9dd6a8b87dbd03f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/quiver.lua",
+      "sha256": "8e1f9dd9d2ce0c040fac9875f2408aa0297b1ff3755b1c0831c7ee2bd08f6b8c",
+      "localSha256": "699a1c926969cadb1af464ce0b1e98e3441d5b3e7e3ec6975b279f2222a6d3f1"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/ring.lua",
+      "sha256": "2efe63989041e068585c7cb364bc2dedaf07f24af948773a38473519dd66aa1a",
+      "localSha256": "2c13afee5fe33cfc698bc3544b8ccc88fb557156b1324631d9f4a0dcd6741d29"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/shield.lua",
+      "sha256": "784bb366b1787c4369248c87584132e7927cc007a7b4cf17f45fd05730c4e005",
+      "localSha256": "59a37db75456983a77ffc9a818839486dcd1ea977c287b2d5b041a0f4f8e635b"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/staff.lua",
+      "sha256": "ccc2d440d9f7571b0c06175249533d11f14d6cca9d1bf33398fdc75d3060132e",
+      "localSha256": "bddfef2e3bfbc479444462f7b46c34951a212badb5ea49b24e4e3e462bbee0a3"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/sword.lua",
+      "sha256": "d8b68da4fe8a336a6cace31e3d4cf423ad31d95cc75cab7706589cce1c3e066d",
+      "localSha256": "20481280d4b70b49c20aeca16448382cdef2383509b5f1f01a3ae9d6cc331e8f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/tincture.lua",
+      "sha256": "4fe13fc683c82d8b2b56e96e6ac6e5bbabc6b897c97308572008388328785345",
+      "localSha256": "3e19b1e76964d0badaffc04530d5a01f8d1fefdc90e5b8d5588606bda1de27c6"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Uniques/wand.lua",
+      "sha256": "dfaa0f769cd2c1dab3e004a2a70695791c6133edecbfbe3580a89c84e1b62538",
+      "localSha256": "04bfcff29170df049c0686246375a77ecbb69dea87add79a7e38532deef1b18f"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/Data/Gems.lua",
+      "sha256": "4fa0f59c65778e469a07d4a4b2c0ef1ea63cba58014775a9363673b17ad775ef",
+      "localSha256": "4a33b0d559593748d926e0f8263d9dba0357e425e40ce047fd4b7ee5730a83fc"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/b32759ab0f31a1c8499a0d420cb0f0633d4fe478/src/TreeData/3_29/tree.lua",
+      "sha256": "5138c2c84f0bff4ec3061383d08263079c346f8345d40fb70d25ea8689f8cd74",
+      "localSha256": "ffb9a0ea0cc8886d8c24f7190c693f9f4295febdc85f85f528789a68045ba34c"
+    },
+    {
+      "path": "cn-poe-utils@0.0.9/data/poe",
+      "sha256": "9ce1e8b02e5972b848b1887d76554c42b65a8edd3cdf7dd84a019f6372b9b6cc"
+    },
+    {
+      "path": "electron/assets/crafting-data/dataset.json",
+      "sha256": "9dd68609ce01eda4e185823f72904f37221e0359609c5ba0b7ec01d92f32643e"
+    },
+    {
+      "path": "electron/modules/priceCheck/catalog.json",
+      "sha256": "f35ed510d036a6556f6a14d98f995aa25d62901fba99e5a723176e48354e10ec"
+    },
+    {
+      "path": "src/domains/story/skillCatalog.json",
+      "sha256": "870d9723004bd6866daad5bb4b17798a3e2ed1a404a74238fa849ca1a4a48882"
+    },
+    {
+      "path": "electron/assets/unique-items-raw/3.29/pages/unique-items-fea31768dcaebbae.html.gz",
+      "sha256": "0d0b71b4fa13c1b47a03dbcc5c5752d02ccfe2c1ea3d49385e1f15e77c0f2b7f"
+    },
+    {
+      "path": "scripts/data/pob-export/overrides.json",
+      "sha256": "0e1d9be655281988d49f86293050d78459a782a62b0d6debf5ed15a673fb1cb6"
+    }
+  ],
+  "categories": {
+    "amulets": {
+      "total": 89,
+      "covered": 47,
+      "added": 42,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "anointed": {
+      "total": 801,
+      "covered": 470,
+      "added": 327,
+      "missing": 0,
+      "conflict": 4,
+      "unsupported": 0
+    },
+    "ascendant": {
+      "total": 582,
+      "covered": 290,
+      "added": 290,
+      "missing": 0,
+      "conflict": 2,
+      "unsupported": 0
+    },
+    "attributes": {
+      "total": 20,
+      "covered": 20,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "baseSources": {
+      "total": 6,
+      "covered": 0,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 6
+    },
+    "bases": {
+      "total": 4,
+      "covered": 0,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 4
+    },
+    "belts": {
+      "total": 14,
+      "covered": 14,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "bodyArmours": {
+      "total": 124,
+      "covered": 123,
+      "added": 1,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "boots": {
+      "total": 82,
+      "covered": 81,
+      "added": 1,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "cnItems": {
+      "total": 3363,
+      "covered": 3361,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 2
+    },
+    "flasks": {
+      "total": 48,
+      "covered": 48,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "gemSkills": {
+      "total": 1651,
+      "covered": 604,
+      "added": 1046,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 1
+    },
+    "gloves": {
+      "total": 81,
+      "covered": 80,
+      "added": 1,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "grafts": {
+      "total": 16,
+      "covered": 16,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "helmets": {
+      "total": 95,
+      "covered": 95,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "indexableSupports": {
+      "total": 740,
+      "covered": 365,
+      "added": 375,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "jewels": {
+      "total": 33,
+      "covered": 12,
+      "added": 21,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "keystones": {
+      "total": 63,
+      "covered": 54,
+      "added": 9,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "properties": {
+      "total": 66,
+      "covered": 62,
+      "added": 4,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "quivers": {
+      "total": 21,
+      "covered": 19,
+      "added": 2,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "requirementSuffixes": {
+      "total": 2,
+      "covered": 2,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "requirements": {
+      "total": 5,
+      "covered": 5,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "rings": {
+      "total": 43,
+      "covered": 42,
+      "added": 1,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "shields": {
+      "total": 98,
+      "covered": 98,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "skillSources": {
+      "total": 7,
+      "covered": 0,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 7
+    },
+    "stats": {
+      "total": 61189,
+      "covered": 9839,
+      "added": 41669,
+      "missing": 0,
+      "conflict": 7477,
+      "unsupported": 2204
+    },
+    "strings": {
+      "total": 6,
+      "covered": 6,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "tattoos": {
+      "total": 132,
+      "covered": 125,
+      "added": 7,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "tinctures": {
+      "total": 10,
+      "covered": 10,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "tradeStats": {
+      "total": 11218,
+      "covered": 0,
+      "added": 0,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 11218
+    },
+    "transfiguredSkills": {
+      "total": 213,
+      "covered": 208,
+      "added": 5,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "uniques": {
+      "total": 1433,
+      "covered": 1365,
+      "added": 68,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    },
+    "weapons": {
+      "total": 364,
+      "covered": 360,
+      "added": 4,
+      "missing": 0,
+      "conflict": 0,
+      "unsupported": 0
+    }
+  },
+  "templateConflicts": [
+    {
+      "zh": "+{0}% 中毒持续伤害加成",
+      "en": "+{0}% to Damage over Time Multiplier",
+      "actual": "+17% to Damage over Time Multiplier for Poison"
+    },
+    {
+      "zh": "+{0}% 法术暴击率",
+      "en": "+{0}% to Spell Critical Strike Chance",
+      "actual": "+17% Critical Strike Chance"
+    },
+    {
+      "zh": "+{0}% 闪电持续伤害加成",
+      "en": "+{0}% to Damage over Time Multiplier",
+      "actual": "+17% to Lightning Damage over Time Multiplier"
+    },
+    {
+      "zh": "以夏巴夸亚的名义用 {0} 名祭品之血浸染 范围内的天赋被瓦尔抑制",
+      "en": "Bathed in the blood of {0} sacrificed in the name of Xibaqua",
+      "actual": "Bathed in the blood of 17 sacrificed in the name of Xibaqua\nPassives in radius are Conquered by the Vaal"
+    },
+    {
+      "zh": "以多里亚尼的名义用 {0} 名祭品之血浸染 范围内的天赋被瓦尔抑制",
+      "en": "Bathed in the blood of {0} sacrificed in the name of Doryani",
+      "actual": "Bathed in the blood of 17 sacrificed in the name of Doryani\nPassives in radius are Conquered by the Vaal"
+    },
+    {
+      "zh": "以阿华纳的名义用 {0} 名祭品之血浸染 范围内的天赋被瓦尔抑制",
+      "en": "Bathed in the blood of {0} sacrificed in the name of Ahuana",
+      "actual": "Bathed in the blood of 17 sacrificed in the name of Ahuana\nPassives in radius are Conquered by the Vaal"
+    },
+    {
+      "zh": "在娜斯玛的阿卡拉中指派 {0} 名德卡拉的服务 范围中的天赋被马拉克斯抑制",
+      "en": "Denoted service of {0} dekhara in the akhara of Nasima",
+      "actual": "Denoted service of 17 dekhara in the akhara of Nasima\nPassives in radius are Conquered by the Maraketh"
+    },
+    {
+      "zh": "在安赛娜丝的阿卡拉中指派 {0} 名德卡拉的服务 范围中的天赋被马拉克斯抑制",
+      "en": "Denoted service of {0} dekhara in the akhara of Asenath",
+      "actual": "Denoted service of 17 dekhara in the akhara of Asenath\nPassives in radius are Conquered by the Maraketh"
+    },
+    {
+      "zh": "在巴巴拉的阿卡拉中指派 {0} 名德卡拉的服务 范围中的天赋被马拉克斯抑制",
+      "en": "Denoted service of {0} dekhara in the akhara of Balbala",
+      "actual": "Denoted service of 17 dekhara in the akhara of Balbala\nPassives in radius are Conquered by the Maraketh"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 全部抗性上限",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to all maximum Resistances",
+      "actual": "While a Unique Enemy is in your Presence, 17% to all maximum Resistances"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 冰霜抗性",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Cold Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Cold Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 冰霜抗性上限",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to maximum Cold Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to maximum Cold Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 冰霜持续伤害加成",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Cold Damage over Time Multiplier",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Cold Damage over Time Multiplier"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 混沌抗性",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Chaos Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Chaos Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 混沌抗性上限",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to maximum Chaos Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to maximum Chaos Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 混沌持续伤害加成",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Chaos Damage over Time Multiplier",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Chaos Damage over Time Multiplier"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 火焰抗性",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Fire Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Fire Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 火焰抗性上限",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to maximum Fire Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to maximum Fire Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 火焰持续伤害加成",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Fire Damage over Time Multiplier",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Fire Damage over Time Multiplier"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 物理持续伤害加成",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Physical Damage over Time Multiplier",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Physical Damage over Time Multiplier"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 闪电抗性",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Lightning Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Lightning Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：{0}% 闪电抗性上限",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to maximum Lightning Resistance",
+      "actual": "While a Unique Enemy is in your Presence, 17% to maximum Lightning Resistance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：你的奉献效果降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased effect of Offerings",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced effect of Offerings"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：召唤生物的伤害降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, Minions deal {0}% increased Damage",
+      "actual": "While a Unique Enemy is in your Presence, Minions deal 17% reduced Damage"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：效果区域缩小 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Area of Effect",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Area of Effect"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：每个暴击球使伤害降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Damage per Power Charge",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Damage per Power Charge"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：每个狂怒球使伤害降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Damage per Frenzy Charge",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Damage per Frenzy Charge"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：每个耐力球使伤害降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Damage per Endurance Charge",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Damage per Endurance Charge"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：法术伤害的暴击伤害加成 {0}%",
+      "en": "While a Unique Enemy is in your Presence, +{0}% to Critical Strike Multiplier for Spell Damage",
+      "actual": "While a Unique Enemy is in your Presence, 17% to Critical Strike Multiplier for Spell Damage"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：法术暴击几率降低 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Spell Critical Strike Chance",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Spell Critical Strike Chance"
+    },
+    {
+      "zh": "有一个传奇怪物出现在你面前：行动速度减慢 {0}%",
+      "en": "While a Unique Enemy is in your Presence, {0}% increased Action Speed",
+      "actual": "While a Unique Enemy is in your Presence, 17% reduced Action Speed"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：{0}% 所有元素抗性",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, +{0}% to all Elemental Resistances",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% to all Elemental Resistances"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：战吼施法速度减慢 {0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% increased Warcry Speed",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% reduced Warcry Speed"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：护甲降低 {0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% increased Armour",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% reduced Armour"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：法术伤害压制率 {0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, +{0}% chance to Suppress Spell Damage",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% chance to Suppress Spell Damage"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：火焰伤害击中时有 {0}% 的几率点燃敌人",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% chance to Ignite",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, Attacks have 17% chance to Ignite"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：致盲效果减少{0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% increased Blind Effect",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% reduced Blind Effect"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：该装备的护甲降低 {0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% increased Armour",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% reduced Armour"
+    },
+    {
+      "zh": "有一个异界图鉴最终首领出现在你面前：闪避值降低 {0}%",
+      "en": "While a Pinnacle Atlas Boss is in your Presence, {0}% increased Evasion Rating",
+      "actual": "While a Pinnacle Atlas Boss is in your Presence, 17% reduced Evasion Rating"
+    },
+    {
+      "zh": "每有一个影响你的凶残之凝珠宝， 你的主手暴击几率降低 {0}%",
+      "en": "{0}% increased Main Hand Critical Strike Chance per Murderous Eye Jewel affecting you, up to a maximum of 200%",
+      "actual": "17% reduced Main Hand Critical Strike Chance per\nMurderous Eye Jewel affecting you"
+    },
+    {
+      "zh": "每有一个影响你的凶残之凝珠宝，你的 副手暴击加成 {0}%，最多 100%",
+      "en": "+{0}% to Off Hand Critical Strike Multiplier per Murderous Eye Jewel affecting you, up to a maximum of +100%",
+      "actual": "17% to Off Hand Critical Strike Multiplier per\nMurderous Eye Jewel affecting you, up to a maximum of +100%"
+    },
+    {
+      "zh": "每第五次施放法术使你获得 等同于其预支花费的能量护盾",
+      "en": "Spells cause you to gain Energy Shield equal to their Upfront Cost every third time you Pay it",
+      "actual": "Spells cause you to gain Energy Shield equal to their Upfront\nCost every fifth time you Pay it"
+    },
+    {
+      "zh": "用 {0} 枚金币纪念卡斯皮罗 范围内的天赋被永恒帝国抑制",
+      "en": "Commissioned {0} coins to commemorate Caspiro",
+      "actual": "Commissioned 17 coins to commemorate Caspiro\nPassives in radius are Conquered by the Eternal Empire"
+    },
+    {
+      "zh": "用 {0} 枚金币纪念卡迪罗 范围内的天赋被永恒帝国抑制",
+      "en": "Commissioned {0} coins to commemorate Cadiro",
+      "actual": "Commissioned 17 coins to commemorate Cadiro\nPassives in radius are Conquered by the Eternal Empire"
+    },
+    {
+      "zh": "用 {0} 枚金币纪念维多里奥 范围内的天赋被永恒帝国抑制",
+      "en": "Commissioned {0} coins to commemorate Victario",
+      "actual": "Commissioned 17 coins to commemorate Victario\nPassives in radius are Conquered by the Eternal Empire"
+    },
+    {
+      "zh": "移动时留下燃烧地面，在 {0} 秒内每秒造成 {1} 点火焰伤害",
+      "en": "Drops Burning Ground while moving, dealing {0} Fire Damage per second for {1} second",
+      "actual": "Drops Burning Ground while moving, dealing 29 Fire Damage per second for 17 seconds"
+    },
+    {
+      "zh": "若装备 4 件督军物品切近期被击中， 每秒获得 {0} 个耐力球",
+      "en": "Gain {0} Endurance Charge every second if you've been Hit Recently and 4 Warlord Items are Equipped",
+      "actual": "Gain 17 Endurance Charges every second if you've been Hit Recently and\n4 Warlord Items are Equipped"
+    },
+    {
+      "zh": "获得冈姆麾下 {0} 名武士的领导权 范围内的天赋被卡鲁抑制",
+      "en": "Commanded leadership over {0} warriors under Kaom",
+      "actual": "Commanded leadership over 17 warriors under Kaom\nPassives in radius are Conquered by the Karui"
+    },
+    {
+      "zh": "获得拉凯尔塔麾下 {0} 名武士的领导权 范围内的天赋被卡鲁抑制",
+      "en": "Commanded leadership over {0} warriors under Rakiata",
+      "actual": "Commanded leadership over 17 warriors under Rakiata\nPassives in radius are Conquered by the Karui"
+    },
+    {
+      "zh": "获得阿克雅麾下 {0} 名武士的领导权 范围内的天赋被卡鲁抑制",
+      "en": "Commanded leadership over {0} warriors under Akoya",
+      "actual": "Commanded leadership over 17 warriors under Akoya\nPassives in radius are Conquered by the Karui"
+    },
+    {
+      "zh": "装备时触发等级20幽鬼之灵， 幽鬼之灵的数量上限 {0}",
+      "en": "Triggers Level 20 Spectral Spirits when Equipped +{0} to maximum number of Spectral Spirits",
+      "actual": "Triggers Level 20 Spectral Spirits when Equipped\n17 to maximum number of Spectral Spirits"
+    },
+    {
+      "zh": "赞美 {0} 名被神主多米纳斯转化的新信徒 范围内的天赋被圣堂教团抑制",
+      "en": "Carved to glorify {0} new faithful converted by High Templar Dominus",
+      "actual": "Carved to glorify 17 new faithful converted by High Templar Dominus\nPassives in radius are Conquered by the Templars"
+    },
+    {
+      "zh": "赞美 {0} 名被神主玛萨留斯转化的新信徒 范围内的天赋被圣堂教团抑制",
+      "en": "Carved to glorify {0} new faithful converted by High Templar Maxarius",
+      "actual": "Carved to glorify 17 new faithful converted by High Templar Maxarius\nPassives in radius are Conquered by the Templars"
+    },
+    {
+      "zh": "赞美 {0} 名被神主阿瓦留斯转化的新信徒 范围内的天赋被圣堂教团抑制",
+      "en": "Carved to glorify {0} new faithful converted by High Templar Avarius",
+      "actual": "Carved to glorify 17 new faithful converted by High Templar Avarius\nPassives in radius are Conquered by the Templars"
+    },
+    {
+      "zh": "近战物理伤害提高 3%",
+      "en": "Physical Damage per 10 Strength",
+      "actual": "3% increased Melee Physical Damage"
+    }
+  ],
+  "details": {
+    "path": "coverage-details.json.gz",
+    "sha256": "cd89d6d6ff130eb477b8977bfcf9322334f45e7b855bc46b8c0dc36d28cc8057",
+    "entries": 82619
+  }
+}

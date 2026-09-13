@@ -6,6 +6,7 @@ import vm from 'node:vm'
 import { EventEmitter } from 'node:events'
 import { runPython } from './helpers/python.js'
 import { createEventLineParser, waitForDetectionStartup, describeDetectionExit } from '../electron/modules/bag/orchestrator.js'
+import { createDetectionProcessDiagnostics } from '../electron/modules/interfaceDetection/processDiagnostics.js'
 
 const read = file => fs.readFileSync(new URL(file, import.meta.url), 'utf8')
 
@@ -114,7 +115,7 @@ function coordinatorFixture() {
   const Coordinator = vm.runInNewContext(`${source}\nInterfaceDetectionCoordinator`, {
     app: { getPath: () => '.', getAppPath: () => '.', isPackaged: false }, path,
     fs: { existsSync: () => true, writeFileSync: (_file, value) => writes.push(JSON.parse(value)) },
-    InterfaceTitleRegistry: Registry, createEventLineParser, waitForDetectionStartup, describeDetectionExit,
+    InterfaceTitleRegistry: Registry, createEventLineParser, waitForDetectionStartup, describeDetectionExit, createDetectionProcessDiagnostics,
     structuredClone, setTimeout, clearTimeout, process: { env: {} }, console: { log() {}, error() {} },
     spawn: () => {
       if (fail) { fail = false; throw new Error('injected spawn failure') }

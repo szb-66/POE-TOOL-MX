@@ -41,11 +41,11 @@ export function registerIpcHandlers(dependencies) {
   const {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng, faustus, sanctum,
-    interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics,
+    interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics, exitDiagnostics,
     applicationUpdate, feedback, failureEvidence, windowActivation, windowClose, loadingFeedback, clientEvents, mapTracker, mapTrackerOverlay, getMainWindow, enableJunfengTraining = false
   } = dependencies
 
-  registerWindowHandlers(window, { windowActivation, windowClose })
+  registerWindowHandlers(window, { windowActivation, windowClose, exitDiagnostics })
   if (loadingFeedback) registerLoadingFeedbackHandlers(loadingFeedback, getMainWindow)
   registerPythonHandlers(python, window, fileWatcher)
   registerStashTabHandlers(python, window, fileWatcher)

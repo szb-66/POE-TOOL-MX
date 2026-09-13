@@ -12,6 +12,7 @@ export function createApplicationTrayController({
   getMainWindow,
   activateMain = async () => {},
   requestCloseChoice = () => {},
+  exitDiagnostics,
   isQuitting = () => false
 }) {
   let behavior = WINDOW_CLOSE_BEHAVIOR_EXIT
@@ -34,7 +35,10 @@ export function createApplicationTrayController({
     tray = null
   }
 
-  const requestQuit = () => app.quit()
+  const requestQuit = (source = 'tray_exit') => {
+    exitDiagnostics?.request(source)
+    app.quit()
+  }
 
   const ensureTray = () => {
     if (tray) return tray
@@ -43,7 +47,7 @@ export function createApplicationTrayController({
     tray.setContextMenu(createMenu([
       { label: '显示主窗口', click: () => { void showMainWindow() } },
       { type: 'separator' },
-      { label: '退出应用', click: requestQuit }
+      { label: '退出应用', click: () => requestQuit() }
     ]))
     tray.on('click', () => { void showMainWindow() })
     return tray
@@ -86,7 +90,7 @@ export function createApplicationTrayController({
       const window = getMainWindow()
       if (window && !window.isDestroyed()) window.hide()
     } else {
-      requestQuit()
+      requestQuit('close_choice_exit')
     }
     return { success: true, behavior: selectedBehavior, remembered: input.remember === true }
   }

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const runtimePython = path.join(projectRoot, '.runtime', 'python-runtime', 'python.exe')
 
-export const pythonPath = existsSync(runtimePython) ? runtimePython : 'python'
+export const pythonPath = process.env.POE_TEST_PYTHON || (existsSync(runtimePython) ? runtimePython : 'python')
 
 export function runPython(code, options = {}) {
   const result = spawnSync(pythonPath, ['-c', code], {

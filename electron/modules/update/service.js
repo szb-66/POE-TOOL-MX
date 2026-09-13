@@ -87,6 +87,7 @@ export class ApplicationUpdateService extends EventEmitter {
     cleanupTimeoutMs = 8000,
     markCleanupComplete = () => {},
     requestShutdown = () => {},
+    exitDiagnostics,
     installedUpdateRepository = null,
     installedUpdate = null
   }) {
@@ -98,6 +99,7 @@ export class ApplicationUpdateService extends EventEmitter {
     this.cleanupTimeoutMs = cleanupTimeoutMs
     this.markCleanupComplete = markCleanupComplete
     this.requestShutdown = requestShutdown
+    this.exitDiagnostics = exitDiagnostics
     this.installedUpdateRepository = installedUpdateRepository
     this.intervalTimer = null
     this.operation = null
@@ -285,6 +287,7 @@ export class ApplicationUpdateService extends EventEmitter {
       }
     }
     try {
+      this.exitDiagnostics?.request('update_install')
       await runStrictCleanup(this.cleanup, this.cleanupTimeoutMs)
       this.markCleanupComplete()
       this.updater.quitAndInstall(false, true)

@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -38,17 +38,17 @@
     "release:win": "npm run release:check && npm run runtime:prepare && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:notes && npm run release:smoke && npm run release:checksum"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
     "cheerio": "^1.0.0",
     "cn-poe-utils": "0.0.9",
     "electron-updater": "^6.8.9",
+    "yauzl": "2.10.0"
+  },
+  "devDependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.6.3",
     "pinia": "^2.1.7",
     "vue": "^3.4.21",
     "vue-router": "^4.3.0",
-    "yauzl": "2.10.0"
-  },
-  "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
     "electron": "43.0.0",
     "electron-builder": "26.15.3",
@@ -163,7 +163,13 @@
       },
       {
         "from": ".runtime/python-runtime",
-        "to": "python-runtime"
+        "to": "python-runtime",
+        "filter": [
+          "**/*",
+          "!**/__pycache__{,/**/*}",
+          "!**/*.{pyc,pyo}",
+          "!Lib/site-packages/{numpy,shapely,colorama,certifi}/**/tests{,/**/*}"
+        ]
       }
     ],
     "win": {

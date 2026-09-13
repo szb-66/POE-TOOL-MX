@@ -2,11 +2,18 @@ import { existsSync, globSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { assertRuntimeDistribution, assertApplicationDependencies } from '../runtime/distribution.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const unpackedRoot = path.join(projectRoot, 'dist-electron', 'win-unpacked')
 const resourcesRoot = path.join(unpackedRoot, 'resources')
 const runtimeRoot = path.join(resourcesRoot, 'python-runtime')
+const config = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
+await assertRuntimeDistribution(path.join(projectRoot, '.runtime/python-runtime'), runtimeRoot, config)
+const require = createRequire(import.meta.url)
+assertApplicationDependencies(require('@electron/asar').listPackage(path.join(resourcesRoot, 'app.asar')), config)
 const required = [
   path.join(unpackedRoot, '流放助手.exe'),
   path.join(resourcesRoot, 'app.asar'),
@@ -29,8 +36,10 @@ if (missing.length) throw new Error(`正式包结构不完整: ${missing.map((en
 
 const probe = spawnSync(path.join(runtimeRoot, 'python.exe'), [
   '-I',
+  '-B',
   '-c',
-  'import cv2, mss, numpy, pynput, pyperclip; print("runtime-ok")'
+  [...JSON.parse(readFileSync(path.join(runtimeRoot, 'runtime-manifest.json'), 'utf8')).packages
+    .map(entry => `import ${entry.importName}`), 'print("runtime-ok")'].join('; ')
 ], { encoding: 'utf8', windowsHide: true, timeout: 30000 })
 if (probe.error) throw probe.error
 if (probe.status !== 0 || !probe.stdout.includes('runtime-ok')) {

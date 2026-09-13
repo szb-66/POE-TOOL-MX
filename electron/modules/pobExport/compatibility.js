@@ -1,23 +1,21 @@
 import { DATA } from 'cn-poe-utils/data/poe'
+import { DATA as POB_DATA } from 'cn-poe-utils/data/pob'
 import compatibility from '../../assets/pob-export/compatibility.json' with { type: 'json' }
 
-// Reuse upstream's translator and template engine with current game-text data.
-// Keep the pinned baseline first, so its disambiguations continue to take priority.
-DATA.gemSkills.push(...compatibility.skills)
-DATA.stats.push(...compatibility.stats)
-DATA.properties.push({ zh: '[Intangibility|虚化]', en: 'Intangibility' })
+// Merge before constructing any translator or serializer indices. Base records
+// include their unique associations; replacing that same identity avoids duplicates.
+for (const [category, entries] of Object.entries(compatibility.data)) {
+  const index = new Map(DATA[category].map((entry, i) => [`${entry.zh}\0${entry.en}`, i]))
+  for (const entry of entries) {
+    const i = index.get(`${entry.zh}\0${entry.en}`)
+    if (i === undefined) DATA[category].push(entry)
+    else DATA[category][i] = entry
+  }
+}
+POB_DATA.tree.classes = compatibility.pob.classes
+POB_DATA.tree.jewelSlots = compatibility.pob.jewelSlots
+// Slot names and relic rarities follow PoB 2.67.2 Classes/ImportTab.lua.
+Object.assign(POB_DATA.slotMap, { Ring3: 'Ring 3', BrequelGrafts: 'Graft 1', BrequelGrafts2: 'Graft 2' })
+Object.assign(POB_DATA.rarityMap, { 9: 'RELIC', 10: 'RELIC' })
 
-// Current CN API wording differs from the corresponding PoeCharm display text.
-// Keep the source template's signed resistance value (e.g. -12) unchanged.
-DATA.stats.push(
-  { zh: '击中时施加冰霜曝露，使冰霜抗性降低 {0}%', en: 'Inflict Cold Exposure on Hit, applying {0}% to Cold Resistance' },
-  { zh: '获得范围内所有未配置小天赋的全部加成', en: 'Grants all bonuses of Unallocated Small Passive Skills in Radius' }
-)
-
-// PoeCharm's display template repeats {0} for two different reference types.
-// cn-poe-utils requires distinct indices plus the existing support-name resolver.
-DATA.stats.push({
-  zh: '你头盔中镶嵌的技能由 {0} 级的{1}辅助',
-  en: 'Skills Socketed in your Helmet are Supported by level {0} {1}',
-  refs: { 1: 'display_indexable_support' }
-})
+export const pobIdentities = compatibility.pob

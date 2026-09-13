@@ -48,6 +48,7 @@ export function buildSafeModeArgs(args = []) {
 export function createCrashGuard({
   app,
   log = null,
+  exitDiagnostics,
   processObject = process,
   startedAt = Date.now(),
   now = () => Date.now(),
@@ -76,6 +77,7 @@ export function createCrashGuard({
     })
     if (!recoverable) return false
     recoveryRequested = true
+    exitDiagnostics?.request('startup_recovery')
     record({
       phase: 'startup-recovery',
       outcome: 'recovered',
@@ -119,6 +121,7 @@ export function createCrashGuard({
   function requestFatalExit(reasonCodeValue, error) {
     if (fatalExitRequested) return
     fatalExitRequested = true
+    exitDiagnostics?.request(reasonCodeValue)
     record({ phase: 'main-process', outcome: 'failed', reasonCode: reasonCodeValue, error })
     try {
       app?.exit?.(1)

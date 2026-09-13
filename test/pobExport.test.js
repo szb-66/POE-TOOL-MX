@@ -72,7 +72,7 @@ test('未知底材和缺失技能等级、天赋数据阻止成功', () => {
   assert.throws(() => convertBuild(fixture), error => error.code === 'CONVERSION_FAILED' && error.details.warnings.length > 0)
   const noLevel = buildFixture()
   noLevel.items.items[0].socketedItems[0].properties = []
-  assert.throws(() => convertBuild(noLevel), /技能等级/)
+  assert.throws(() => convertBuild(noLevel), e => e.details.warnings.some(w => w.includes('技能等级')))
   assert.throws(() => convertBuild({ items: {}, passiveSkills: {} }), /数据不完整/)
 })
 
@@ -88,7 +88,7 @@ test('官网新版 description 对象词缀与旧字符串等价，包括嵌套�
   current.passiveSkills.items[0].explicitMods = [{ description: '+10 最大魔力' }]
   assert.equal(convertBuild(current).code, convertBuild(legacy).code)
   current.items.items[0].explicitMods = [{ invalid: true }]
-  assert.throws(() => convertBuild(current), /词缀数据格式/)
+  assert.throws(() => convertBuild(current), e => e.details.warnings.some(w => w.includes('词缀数据格式')))
 })
 
 function setup({ request, convert } = {}) {

@@ -9,6 +9,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { redactDiagnosticText } from './diagnostics.js'
 
 const DEFAULT_MAX_LOG_BYTES = 2 * 1024 * 1024
@@ -35,6 +36,8 @@ export function createStartupLogger({
   now = () => new Date(),
   homeDirectory = os.homedir(),
   onRecord = () => {},
+  sessionId = randomUUID(),
+  pid = process.pid,
   maxBytes = DEFAULT_MAX_LOG_BYTES,
   maxMessageLength = DEFAULT_MAX_MESSAGE_LENGTH
 } = {}) {
@@ -85,6 +88,8 @@ export function createStartupLogger({
         : now().toISOString()
       const event = {
         timestamp,
+        sessionId: safeToken(sessionId, 'unknown'),
+        pid,
         phase: safeToken(candidate.phase, 'unknown'),
         outcome: safeToken(candidate.outcome, 'info'),
         reasonCode: safeToken(candidate.reasonCode, 'none'),

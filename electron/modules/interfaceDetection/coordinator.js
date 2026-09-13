@@ -10,6 +10,7 @@ import {
 } from '../bag/orchestrator.js'
 
 import { InterfaceTitleRegistry } from './titleRegistry.js'
+import { createDetectionProcessDiagnostics } from './processDiagnostics.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -37,6 +38,7 @@ export class InterfaceDetectionCoordinator {
     this.python = python
     this.fileWatcher = fileWatcher
     this.logger = logger
+    this.childDiagnostics = new WeakMap()
     this.child = null
     this.consumers = new Set()
     this.listeners = new Set()
@@ -162,7 +164,7 @@ export class InterfaceDetectionCoordinator {
 
   unregisterConsumer(consumer) {
     this.consumers.delete(String(consumer || ''))
-    if (this.consumers.size === 0) this.stop()
+    if (this.consumers.size === 0) this.stop('no_consumers')
     else {
       this.publish()
       void this.enqueue(() => this.reconcile()).catch(error => {
@@ -185,13 +187,25 @@ export class InterfaceDetectionCoordinator {
 
   async start() {
     if (this.child || this.consumers.size === 0) return this.getState()
-    const child = spawn(this.pythonPath(), [
-      this.scriptPath(), '--mode', 'detect', '--config', this.writeConfig()
-    ], {
-      shell: false,
-      windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
-    })
+    const diagnostic = createDetectionProcessDiagnostics({ logger: this.logger, getConsumers: () => [...this.consumers] })
+    diagnostic.record({ phase: 'interface-detection-start', outcome: 'started', reasonCode: 'spawn_requested' })
+    let child
+    try {
+      child = spawn(this.pythonPath(), [
+        this.scriptPath(), '--mode', 'detect', '--config', this.writeConfig()
+      ], {
+        shell: false,
+        windowsHide: true,
+        env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONFAULTHANDLER: '1' }
+      })
+    } catch (error) {
+      diagnostic.record({ phase: 'interface-detection-error', outcome: 'failed', reasonCode: 'spawn_failed', error })
+      throw error
+    }
+    diagnostic.bind(child)
+    this.childDiagnostics.set(child, diagnostic)
+    child.once('spawn', () => diagnostic.record({ phase: 'interface-detection-start', outcome: 'succeeded', reasonCode: 'spawned' }))
+    child.on('exit', (code, signal) => diagnostic.lifecycle('process-exit', `code=${code} signal=${signal || 'none'}`))
     this.child = child
     this.configFingerprint = stableConfig(this.effectiveConfig())
     const childFingerprint = this.configFingerprint
@@ -201,6 +215,7 @@ export class InterfaceDetectionCoordinator {
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
     child.stdout.on('data', createEventLineParser((event) => {
+      diagnostic.event()
       if (this.child !== child) return
       if (childFingerprint !== stableConfig(this.effectiveConfig())) return
       if (event.event === 'detection-state') {
@@ -227,7 +242,7 @@ export class InterfaceDetectionCoordinator {
         })
       } else if (event.event === 'detection-error') {
         terminalReason = event.reason || '检测器报告错误'
-        this.logger.record?.({
+        diagnostic.record({
           phase: 'interface-detection-error',
           outcome: 'warning',
           reasonCode: 'detection_error_reported',
@@ -246,14 +261,16 @@ export class InterfaceDetectionCoordinator {
     })
     child.on('error', (error) => {
       spawnError = error.message
+      diagnostic.record({ phase: 'interface-detection-error', outcome: 'failed', reasonCode: 'process_error', error })
       console.error('[公共界面检测] 进程错误:', error)
     })
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
+      diagnostic.lifecycle('close', `code=${code} signal=${signal || 'none'} stderr=${stderr.slice(-3500).trim()}`)
       if (this.child !== child) return
       this.child = null
       const reason = code === 0 ? 'process-ended' : (terminalReason || describeDetectionExit({ code, stderr, spawnError }))
       console.error(`[公共界面检测] 检测进程意外退出 code=${code} stderr=${stderr.slice(-600).trim() || '(空)'}`)
-      this.logger.record?.({
+      diagnostic.record({
         phase: 'interface-detection-exit',
         outcome: 'failed',
         reasonCode: Number.isFinite(code) ? `exit_code_${code}` : 'exit_code_unknown',
@@ -279,12 +296,14 @@ export class InterfaceDetectionCoordinator {
       await waitForDetectionStartup(child, {
         getFailureReason: (code) => describeDetectionExit({ code, terminalReason, stderr, spawnError })
       })
+      diagnostic.record({ phase: 'interface-detection-ready', outcome: 'succeeded', reasonCode: 'startup_complete' })
       if (this.child !== child) return this.getState()
       this.publish({ running: true, reloading: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
       return this.getState()
     } catch (error) {
       if (this.child !== child) return this.getState()
       this.child = null
+      diagnostic.stop('startup_failed')
       this.draining = stopChild(child)
       await this.draining
       this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: error.message })
@@ -295,22 +314,24 @@ export class InterfaceDetectionCoordinator {
   async restart() {
     const previous = this.child
     this.child = null
+    if (previous) this.childDiagnostics.get(previous)?.stop('config_restart')
     this.draining = stopChild(previous)
     this.publish({ running: false, reloading: true, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
     await this.draining
     return this.start()
   }
 
-  stop() {
+  stop(reason = 'explicit_stop') {
     const child = this.child
     this.child = null
+    if (child) this.childDiagnostics.get(child)?.stop(reason)
     if (child) this.draining = stopChild(child)
     this.publish({ running: false, reloading: false, ready: false, inventoryReady: false, stashReady: false, allflameReceiverReady: false, rewardDetected: false, junfengReady: false, foreground: false, gameBounds: null, reason: '', exitCode: null, failureCode: '', configurationIssueId: '' })
   }
 
   cleanup() {
     this.consumers.clear()
-    this.stop()
+    this.stop('application_cleanup')
     this.listeners.clear()
   }
 }

@@ -87,6 +87,7 @@ import { GameWindowTitleRegistry } from './modules/system/gameWindowTitles.js'
 import { WindowActivationService } from './modules/window/activation.js'
 import { DiagnosticEventStore } from './modules/system/diagnosticEventStore.js'
 import { createStartupLogger } from './modules/system/startupLog.js'
+import { createExitDiagnostics } from './modules/system/exitDiagnostics.js'
 import { withCalibrationGameWindow } from './modules/sanctum/calibrationWindow.js'
 import { createDevelopmentStartupTrace } from '../shared/developmentStartupTrace.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
@@ -141,6 +142,7 @@ const startupLog = createStartupLogger({
   onRecord: event => startupTrace.record(event.phase, event.outcome, event.reasonCode)
 })
 const applicationVersion = resolveApplicationVersion()
+const exitDiagnostics = createExitDiagnostics({ app, log: startupLog })
 try {
   fs.mkdirSync(crashDumpsPath, { recursive: true })
   app.setPath('crashDumps', crashDumpsPath)
@@ -170,6 +172,7 @@ function showStartupFailure({ reasonCode = 'startup_failed' } = {}) {
     message: '已向用户显示本地诊断材料位置'
   })
   if (developmentFaultEnabled('--diagnostic-exit-on-unrecoverable')) {
+    exitDiagnostics.request('diagnostic_unrecoverable')
     applicationShuttingDown = true
     app.exit(2)
     return
@@ -183,12 +186,14 @@ function showStartupFailure({ reasonCode = 'startup_failed' } = {}) {
     // 原生提示不可用时仍保留已落盘日志。
   }
   applicationShuttingDown = true
+  exitDiagnostics.request('startup_failure')
   app.exit(1)
 }
 
 const crashGuard = createCrashGuard({
   app,
   log: startupLog,
+  exitDiagnostics,
   startedAt: startupStartedAt,
   safeMode: startupSafeMode,
   onUnrecoverable: showStartupFailure,
@@ -211,6 +216,7 @@ const startupDiagnostics = {
       startupTrace.record('interactive', 'succeeded')
       if (developmentFaultEnabled('--diagnostic-exit-after-interactive')) {
         setImmediate(() => {
+          exitDiagnostics.request('diagnostic_interactive')
           void shutdownController.requestShutdown()
           setTimeout(() => app.exit(0), 3000).unref()
         })
@@ -224,11 +230,12 @@ const startupDiagnostics = {
     }
     if (event?.reasonCode === 'none' && event?.phase === 'renderer' && event?.outcome === 'succeeded' &&
         developmentFaultEnabled('--diagnostic-exit-after-mounted')) {
-      setImmediate(() => app.quit())
+      setImmediate(() => { exitDiagnostics.request('diagnostic_mounted'); app.quit() })
     }
     if (event?.reasonCode === 'none' && event?.phase === 'dashboard' && event?.outcome === 'succeeded' &&
         developmentFaultEnabled('--diagnostic-exit-after-dashboard-ready')) {
       setImmediate(() => {
+        exitDiagnostics.request('diagnostic_dashboard')
         void shutdownController.requestShutdown()
         // 仅诊断基准使用：给正常清理短暂窗口，避免后台网络恢复让六轮基准长期挂起。
         setTimeout(() => app.exit(0), 3000).unref()
@@ -247,7 +254,7 @@ startupLog.record({
   phase: 'instance-lock', outcome: hasSingleInstanceLock ? 'succeeded' : 'stopped',
   reasonCode: hasSingleInstanceLock ? 'none' : 'existing_instance'
 })
-if (!hasSingleInstanceLock) process.exit(0)
+if (!hasSingleInstanceLock) { exitDiagnostics.request('single_instance'); process.exit(0) }
 
 function showExistingMainWindow() {
   void windowActivation?.activateMain({ source: 'second-instance' })
@@ -392,7 +399,7 @@ async function cleanupApplicationResources() {
 
 let applicationCleanupPromise = null
 function cleanupApplicationResourcesOnce() {
-  if (!applicationCleanupPromise) applicationCleanupPromise = cleanupApplicationResources()
+  if (!applicationCleanupPromise) applicationCleanupPromise = exitDiagnostics.cleanup(cleanupApplicationResources)
   return applicationCleanupPromise
 }
 
@@ -411,6 +418,7 @@ function exitApplicationImmediately(code) {
 }
 
 const applicationRestartController = createApplicationRestartController({
+  exitDiagnostics,
   cleanup: cleanupApplicationResourcesOnce,
   clearCache: async () => {
     const mainWindow = getMainWindow()
@@ -446,7 +454,10 @@ function createApplicationWindow() {
     requestForceRefresh: () => applicationRestartController.requestRestart()
   })
   window.on('close', (event) => {
+    const source = exitDiagnostics.windowCloseSource(window)
+    exitDiagnostics.record('window-close-request', source)
     if (applicationTray?.handleMainWindowClose(event, window)) return
+    exitDiagnostics.request(source)
     shutdownController.handleMainWindowClose()
   })
   window.on('focus', () => syncLoadingFeedbackForeground())
@@ -478,6 +489,7 @@ async function startApplication() {
     onSecondInstance: showExistingMainWindow
   })
   if (!crossProcessInstanceLock.acquired) {
+    exitDiagnostics.request('cross_process_instance')
     startupLog.record({ phase: 'cross-process-lock', outcome: 'stopped', reasonCode: 'existing_instance' })
     process.exit(0)
     return
@@ -500,6 +512,7 @@ async function startApplication() {
   ))
   applicationTray = createApplicationTrayController({
     app,
+    exitDiagnostics,
     icon: trayIcon,
     createTray: value => new Tray(value),
     createMenu: template => Menu.buildFromTemplate(template),
@@ -520,6 +533,7 @@ async function startApplication() {
   const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
   const installedUpdate = await startupTrace.measure('installed-update', () => installedUpdateRepository.loadForVersion(app.getVersion()))
   applicationUpdate = new ApplicationUpdateService({
+    exitDiagnostics,
     updater: electronUpdater.autoUpdater,
     currentVersion: app.getVersion(),
     isPackaged: app.isPackaged,
@@ -833,6 +847,7 @@ async function startApplication() {
     failureEvidence: puzzleFailureEvidence,
     windowActivation,
     windowClose: applicationTray,
+    exitDiagnostics,
     loadingFeedback,
     getMainWindow,
     enableJunfengTraining: !app.isPackaged
@@ -962,6 +977,7 @@ async function startApplication() {
 }
 
 app.whenReady().then(startApplication).catch((error) => {
+  exitDiagnostics.request('startup_initialization_failed')
   startupLog.record({ phase: 'app-ready', outcome: 'failed', reasonCode: 'startup_initialization_failed', error })
   showStartupFailure({ reasonCode: 'startup_initialization_failed' })
   app.exit(1)
@@ -983,6 +999,7 @@ app.on('will-quit', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    exitDiagnostics.request('window_all_closed')
     app.quit()
   }
 })

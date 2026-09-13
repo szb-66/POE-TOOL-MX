@@ -13,7 +13,7 @@ import { importOverlayBackground } from '../window/backgroundImport.js'
 import { OverlayDragSession } from '../window/overlayDrag.js'
 import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 
-export function registerWindowHandlers(window, { windowActivation, windowClose } = {}) {
+export function registerWindowHandlers(window, { windowActivation, windowClose, exitDiagnostics } = {}) {
   const { getMainWindow, getOverlayWindow, closeOverlayWindow, armOverlayOutsideClickClose, disarmOverlayOutsideClickClose } = window
   const craftingOverlayDrag = new OverlayDragSession()
   const storyOverlayDrag = new OverlayDragSession()
@@ -38,7 +38,10 @@ export function registerWindowHandlers(window, { windowActivation, windowClose }
 
   ipcMain.handle('window-close', () => {
     const mainWindow = getMainWindow()
-    if (mainWindow) mainWindow.close()
+    if (mainWindow) {
+      if (exitDiagnostics) exitDiagnostics.withWindowCloseSource(mainWindow, () => mainWindow.close())
+      else mainWindow.close()
+    }
   })
 
   ipcMain.handle('close-overlay-window', () => {
