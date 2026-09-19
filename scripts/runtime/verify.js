@@ -2,8 +2,10 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
+import { verifyStagedScripts } from './scriptDistribution.js'
 import {
   assertProjectFiles,
+  projectRoot,
   loadManifest,
   runtimeExecutable,
   runtimeRoot
@@ -51,6 +53,7 @@ async function main() {
     throw new Error('内置运行时清单与仓库清单不一致，请重新执行 runtime:prepare')
   }
   const result = verifyRuntime(runtimeRoot, manifest)
+  await verifyStagedScripts(projectRoot, manifest, result.path)
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 }
 

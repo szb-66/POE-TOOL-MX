@@ -101,7 +101,8 @@ function mergeMapStats(previousStats, incomingStats) {
   }
 }
 
-function resetOverlayState({ resetCurrencyUsage = true } = {}) {
+function resetOverlayState({ resetCurrencyUsage = true, resetOutputBuffer = true } = {}) {
+  electronApi.window.disarmOverlayOutsideClickClose()
   itemInfo.value = null
   operationLogExpanded.value = false
   if (resetCurrencyUsage) {
@@ -120,7 +121,7 @@ function resetOverlayState({ resetCurrencyUsage = true } = {}) {
   batchProgress.value = null
   batchRecoveryCheckpoint.value = null
   batchRecoveryChecked.value = false
-  outputLineBuffer = ''
+  if (resetOutputBuffer) outputLineBuffer = ''
 }
 
 function applyBatchRecoveryCheckpoint(checkpoint) {
@@ -205,6 +206,8 @@ function applyStructuredScriptEvent(line) {
       stopTermination.value = 'completed'
       batchRecoveryCheckpoint.value = null
       batchRecoveryChecked.value = true
+      isCompleted.value = true
+      isStopped.value = false
       return
     }
     if (event.event?.startsWith('crafting-batch-')) {
@@ -213,6 +216,13 @@ function applyStructuredScriptEvent(line) {
         completed: event.completed,
         remaining: event.remaining,
         currentItem: event.currentItem || null
+      }
+      if (event.event === 'crafting-batch-completed') {
+        stopTermination.value = 'completed'
+        isCompleted.value = true
+        isStopped.value = false
+        batchRecoveryCheckpoint.value = null
+        batchRecoveryChecked.value = true
       }
       if (event.event !== 'crafting-batch-preflight-failed') return
     }
@@ -251,33 +261,20 @@ const handleScriptOutput = (data) => {
     outputLineBuffer += data.data
     const completeLines = outputLineBuffer.split(/\r?\n/)
     outputLineBuffer = completeLines.pop() || ''
-    completeLines.forEach(applyStructuredScriptEvent)
-
-    // 判断是否为地图制作模式
-    const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category)
-    
-    // 匹配完成信号
-    // 对于地图制作模式，只有整个流程结束（包含"地图洗练结束"）才设置完成状态
-    // 对于物品制作模式，任何[完成]都表示完成
-    if (data.data.includes('[完成]')) {
-      if (isMapMode) {
-        // 地图制作模式：只有整个流程结束才设置完成
-        if (data.data.includes('地图洗练结束')) {
-          isCompleted.value = true
-        }
-        // 单张地图完成时不设置完成状态，保持制作中
-      } else {
-        // 物品制作模式：任何[完成]都表示完成
+    for (const line of completeLines) {
+      // 流程事件与文本按行处理，物品阶段的“[完成]”只作为日志。
+      if (line.trim().startsWith('EVENT ')) {
+        applyStructuredScriptEvent(line)
+        continue
+      }
+      if (line.includes('[开始]') && !stopReason.value) {
+        resetOverlayState({ resetCurrencyUsage: false, resetOutputBuffer: false })
+      }
+      const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category)
+      if (isMapMode && line.includes('[完成]') && line.includes('地图洗练结束')) {
         isCompleted.value = true
       }
-
     }
-    
-    // 匹配开始信号，重置状态
-    if (data.data.includes('[开始]') && !stopReason.value) {
-      resetOverlayState({ resetCurrencyUsage: false })
-    }
-    
   }
 }
 
@@ -509,7 +506,7 @@ onMounted(async () => {
       applyCurrencyUsageSnapshot(data)
       await refreshBatchRecovery()
       // 判断是否是地图制作模式
-      const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category) || data.mapStats !== null
+      const isMapMode = data.mode === 'map' || mapStats.value !== null || isMapCategory(itemInfo.value?.category) || data.mapStats != null
       
       if (isMapMode) {
         // 地图制作模式：如果已完成，保持完成状态；如果未完成，标记为已停止
@@ -522,16 +519,9 @@ onMounted(async () => {
           isCompleted.value = false
         }
       } else {
-        // 物品制作模式：如果制作成功，不标记为已停止，保持成功状态
-        if (itemInfo.value?.affixMatch || itemInfo.value?.socketMatch || itemInfo.value?.eldritchImplicitMatch) {
-          // 制作成功，保持完成状态，不设置isStopped
-          isCompleted.value = true
-          isStopped.value = false
-        } else {
-          // 制作未成功时停止，标记为已停止
-          isStopped.value = true
-          isCompleted.value = false
-        }
+        // 单件匹配结果不能代表整个批次成功，以主进程的终止原因为准。
+        isCompleted.value = data.termination === 'completed'
+        isStopped.value = !isCompleted.value
       }
       
       if (data.mapStats) {

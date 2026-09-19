@@ -1,6 +1,6 @@
 {
   "name": "poe-cn-helper",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "license": "GPL-3.0-or-later",
   "description": "流放之路物品制作助手工具",
   "type": "module",
@@ -105,6 +105,10 @@
       "src/assets/images/sanctum-calibration/**/*"
     ],
     "extraResources": [
+      {
+        "from": "src/assets/scripts/interface_titles.py",
+        "to": "interface_titles.py"
+      },
       {
         "from": "src/assets/scripts/bag_auto_stash_template.py",
         "to": "bag_auto_stash_template.py"

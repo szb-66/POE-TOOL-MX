@@ -5,12 +5,15 @@ import { fileURLToPath } from 'node:url'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { assertRuntimeDistribution, assertApplicationDependencies } from '../runtime/distribution.js'
+import { assertScriptDistribution, scriptDistribution } from '../runtime/scriptDistribution.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const unpackedRoot = path.join(projectRoot, 'dist-electron', 'win-unpacked')
 const resourcesRoot = path.join(unpackedRoot, 'resources')
 const runtimeRoot = path.join(resourcesRoot, 'python-runtime')
 const config = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
+const scriptManifest = JSON.parse(readFileSync(path.join(projectRoot, 'scripts/runtime/manifest.json'), 'utf8'))
+assertScriptDistribution(resourcesRoot, scriptDistribution(projectRoot, config, scriptManifest), path.join(runtimeRoot, 'python.exe'))
 await assertRuntimeDistribution(path.join(projectRoot, '.runtime/python-runtime'), runtimeRoot, config)
 const require = createRequire(import.meta.url)
 assertApplicationDependencies(require('@electron/asar').listPackage(path.join(resourcesRoot, 'app.asar')), config)

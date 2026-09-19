@@ -173,6 +173,84 @@ function observedWindow() {
   return window
 }
 
+function gpuCrashHarness({ now = 2000, safeMode = false, shuttingDown = false } = {}) {
+  const records = [], failures = [], exits = [], relaunches = []
+  const app = new EventEmitter()
+  app.exit = code => exits.push(code)
+  app.relaunch = options => relaunches.push(options)
+  const processObject = new EventEmitter()
+  processObject.argv = ['app.exe']
+  const guard = createCrashGuard({
+    app, processObject, startedAt: 1000, now: () => now, safeMode,
+    log: { record: event => records.push(event) },
+    onUnrecoverable: failure => failures.push(failure),
+    isShuttingDown: () => shuttingDown
+  })
+  guard.install()
+  const emit = (reason = 'crashed', type = 'GPU') => app.emit('child-process-gone', {}, { type, reason, exitCode: 34 })
+  return { guard, emit, records, failures, exits, relaunches }
+}
+
+for (const now of [2000, 31000, 31001, 841000]) {
+  for (const safeMode of [false, true]) {
+    test(`首次挂载后 GPU 重复故障只记录：elapsed=${now - 1000} safeMode=${safeMode}`, () => {
+      const h = gpuCrashHarness({ now, safeMode })
+      try {
+        h.guard.markStartupComplete()
+        h.emit()
+        h.emit('abnormal-exit', 'gpu')
+        assert.deepEqual(h.records.map(event => [event.phase, event.reasonCode, event.message]), [
+          ['chromium-child-process', 'child_crashed', 'reason=crashed type=GPU exitCode=34'],
+          ['chromium-child-process', 'child_abnormal_exit', 'reason=abnormal-exit type=gpu exitCode=34']
+        ])
+        assert.deepEqual(h.failures, [])
+        assert.deepEqual(h.exits, [])
+        assert.deepEqual(h.relaunches, [])
+        assert.equal(h.guard.recoveryRequested, false)
+      } finally { h.guard.dispose() }
+    })
+  }
+}
+
+test('首次挂载前 GPU 故障仍只恢复一次', () => {
+  const h = gpuCrashHarness()
+  try {
+    h.emit()
+    h.emit()
+    assert.deepEqual(h.relaunches, [{ args: ['--disable-gpu', '--startup-safe-mode'] }])
+    assert.deepEqual(h.exits, [0])
+    assert.equal(h.failures.length, 1)
+    assert.equal(h.failures[0].reasonCode, 'child_crashed')
+  } finally { h.guard.dispose() }
+})
+
+for (const options of [{ safeMode: true }, { now: 31001 }]) {
+  test(`首次挂载前不能恢复的 GPU 故障仍提示失败：${JSON.stringify(options)}`, () => {
+    const h = gpuCrashHarness(options)
+    try {
+      h.emit()
+      assert.equal(h.failures.length, 1)
+      assert.equal(h.failures[0].reasonCode, 'child_crashed')
+      assert.deepEqual(h.relaunches, [])
+    } finally { h.guard.dispose() }
+  })
+}
+
+for (const shuttingDown of [false, true]) {
+  test(`GPU 正常退出或应用关闭保持静默：shuttingDown=${shuttingDown}`, () => {
+    const h = gpuCrashHarness({ shuttingDown })
+    try {
+      h.emit(shuttingDown ? 'crashed' : 'clean-exit')
+      h.guard.markStartupComplete()
+      h.emit(shuttingDown ? 'crashed' : 'clean-exit')
+      assert.deepEqual(h.records, [])
+      assert.deepEqual(h.failures, [])
+      assert.deepEqual(h.exits, [])
+      assert.deepEqual(h.relaunches, [])
+    } finally { h.guard.dispose() }
+  })
+}
+
 test('页面加载失败只在首次挂载前对真实主框架错误执行致命诊断', () => {
   const failures = []
   const records = []

@@ -13,20 +13,20 @@ const area = entry('Generating level 83 area "SanctumVaults" with seed 1')
 const ready = entry('[LOADING SCREEN] (圣所宝库) Duration = 1.1 seconds')
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done }); return { promise, resolve } }
 const options = output => ({ platform: 'win32', execFileImpl: (_exe, _args, config, callback) => {
-  assert.equal(config.windowsHide, true); assert.equal(config.timeout, 3000); callback(null, output)
+  assert.equal(config.windowsHide, true); assert.equal(config.timeout, 10000); callback(null, output)
 } })
 
 test('启动时间未知保留PID，空输出／损坏／超时与明确空列表分开', async () => {
   assert.deepEqual(await detectClientProcessSessions(options('[{"id":123,"startedAt":null}]')), [{ id: 123, startedAt: null }])
-  for (const output of ['', 'garbage', 'null', '[{}]']) assert.equal(await detectClientProcessSessions(options(output)), null)
+  for (const output of ['', 'garbage', 'null', '[{}]']) await assert.rejects(detectClientProcessSessions(options(output)), { code: 'parse' })
   assert.deepEqual(await detectClientProcessSessions(options('[]')), [])
-  assert.equal(await detectClientProcessSessions({ platform: 'win32', execFileImpl: (_e, _a, _o, cb) => cb(new Error('timeout')) }), null)
+  await assert.rejects(detectClientProcessSessions({ platform: 'win32', execFileImpl: (_e, _a, _o, cb) => cb(Object.assign(new Error('timeout'), { killed: true })) }), { code: 'timeout' })
 })
 
 test('独立PID查询只接受明确布尔结果，错误或空输出不确认退出', async () => {
   assert.equal(await detectClientProcessExists(123, options('{"exists":true}')), true)
   assert.equal(await detectClientProcessExists(123, options('{"exists":false}')), false)
-  for (const output of ['', '{}', 'false', 'garbage']) assert.equal(await detectClientProcessExists(123, options(output)), null)
+  for (const output of ['', '{}', 'false', 'garbage']) await assert.rejects(detectClientProcessExists(123, options(output)), { code: 'parse' })
 })
 
 function boundService(provider, presence = async () => null) {

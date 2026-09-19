@@ -3,9 +3,10 @@ import path from 'node:path'
 import { stat } from 'node:fs/promises'
 import { ClientLogTailer } from './tailer.js'
 import { parseClientLogLine } from './parser.js'
+import { ProcessProbeError } from './processDetection.js'
 
 export class ClientEventsService {
-  constructor({ settings, selectFile, detectPath = async () => '', processProvider = null, processPresenceProvider = async () => null, Tailer = ClientLogTailer, now = () => new Date().toISOString(), trace = null } = {}) {
+  constructor({ settings, selectFile, detectPath = async () => '', processProvider = null, processPresenceProvider = async () => null, Tailer = ClientLogTailer, now = () => new Date().toISOString(), trace = null, logger = null } = {}) {
     this.settings = settings
     this.selectFile = selectFile
     this.detectPath = detectPath
@@ -14,6 +15,9 @@ export class ClientEventsService {
     this.processProvider = processProvider
     this.processPresenceProvider = processPresenceProvider
     this.trace = trace
+    this.logger = logger
+    this.probeErrors = new Map()
+    this.probeDiagnostics = new Map()
     this.initializationPromise = null
     this.settingsPending = null
     this.ensurePending = null
@@ -70,13 +74,17 @@ export class ClientEventsService {
     if (stamp !== this.processStamp() || tailer !== this.tailer) throw new Error('游戏区域或会话在核验期间变化，请重新开始')
     if (!Array.isArray(result)) {
       this.setProbeState('unavailable')
-      throw new Error('游戏进程探测暂不可用，请稍后重新开始')
+      throw this.probeErrors.get('sessions') || new ProcessProbeError()
     }
     const session = result.find(entry => entry?.id === processId)
     if (!session) {
-      const exists = await Promise.resolve().then(() => this.processPresenceProvider(processId)).catch(() => null)
+      const exists = await this.probePresence(processId)
       signal?.throwIfAborted()
       if (stamp !== this.processStamp()) throw new Error('游戏区域或会话在核验期间变化，请重新开始')
+      if (exists === null) {
+        this.setProbeState('unavailable')
+        throw this.probeErrors.get('presence') || new ProcessProbeError()
+      }
       if (exists === false) {
         this.processSessions.delete(processId); this.processId = null
         this.setGameState('disconnected', 'process-exit')
@@ -109,16 +117,63 @@ export class ClientEventsService {
   }
   probeProcesses(diagnostic = false) {
     if (!this.processProbe) {
+      const generation = this.generation
       const operation = async () => {
-        const result = await this.processProvider?.()
-        if (this.processProvider && !Array.isArray(result)) throw new Error('process_probe_unavailable')
-        return result ?? null
+        const result = await this.runProbe('sessions', () => this.processProvider?.(), Array.isArray, generation)
+        if (result === null && this.processProvider && generation === this.generation) throw this.probeErrors.get('sessions') || new ProcessProbeError()
+        return result
       }
       const pending = (diagnostic && this.trace ? this.trace.measure('client-process-probe', operation) : Promise.resolve().then(operation)).catch(() => null)
       this.processProbe = pending
       void pending.then(() => { if (this.processProbe === pending) this.processProbe = null })
     }
     return this.processProbe
+  }
+  async runProbe(kind, provider, valid, generation = this.generation) {
+    if (generation !== this.generation) return null
+    const started = performance.now()
+    try {
+      const result = await provider()
+      if (!valid(result)) throw new ProcessProbeError('unknown', { elapsedMs: Math.round(performance.now() - started) })
+      if (generation === this.generation) {
+        this.probeErrors.delete(kind)
+        if (this.probeDiagnostics.has(kind)) {
+          this.recordProbe(kind, 'recovered', null, Math.round(performance.now() - started))
+          this.probeDiagnostics.delete(kind)
+        }
+      }
+      return result
+    } catch (error) {
+      const failure = error instanceof ProcessProbeError ? error : new ProcessProbeError('unknown', { elapsedMs: Math.round(performance.now() - started) })
+      if (generation === this.generation) {
+        this.probeErrors.set(kind, failure)
+        const previous = this.probeDiagnostics.get(kind), now = Date.now()
+        if (!previous || previous.code !== failure.code || now - previous.at >= 60000) {
+          this.recordProbe(kind, 'failed', failure, failure.elapsedMs)
+          this.probeDiagnostics.set(kind, { code: failure.code, at: now })
+        }
+      }
+      return null
+    }
+  }
+  recordProbe(kind, outcome, error, elapsedMs) {
+    try {
+      this.logger?.record({ phase: `client-process-${kind}`, outcome, reasonCode: error?.code || 'none',
+        message: JSON.stringify({ elapsedMs, exitCode: error?.exitCode ?? null, signal: error?.signal ?? null }) })
+    } catch { /* Diagnostics must not interrupt game state tracking. */ }
+  }
+  probePresence(processId) {
+    return this.runProbe('presence', () => this.processPresenceProvider(processId), value => typeof value === 'boolean')
+  }
+  scheduleProcessPoll(generation) {
+    if (generation !== this.generation || !this.status.enabled) return
+    this.processTimer = setTimeout(async () => {
+      if (generation !== this.generation) return
+      this.processTimer = null
+      try { await this.pollProcess() }
+      finally { this.scheduleProcessPoll(generation) }
+    }, 1000)
+    this.processTimer.unref?.()
   }
   async recover(entries, processes, generation = this.generation) {
     const result = processes === undefined ? await this.probeProcesses() : await processes
@@ -198,7 +253,7 @@ export class ClientEventsService {
       if (!Array.isArray(result)) { this.setProbeState('unavailable'); return }
       const ids = result.map(entry => typeof entry === 'number' ? entry : entry.id)
       if (processId != null && !ids.includes(processId)) {
-        const exists = await Promise.resolve().then(() => this.processPresenceProvider(processId)).catch(() => null)
+        const exists = await this.probePresence(processId)
         if (stamp !== this.processStamp()) return
         this.setProbeState(exists === null ? 'unavailable' : 'available')
         if (exists === false) {
@@ -274,8 +329,7 @@ export class ClientEventsService {
       if (this.processProvider) {
         await this.pollProcess(processes)
         if (generation !== this.generation) return this.snapshot()
-        this.processTimer = setInterval(() => { void this.pollProcess() }, 1000)
-        this.processTimer.unref?.()
+        this.scheduleProcessPoll(generation)
       }
       starting = false
     } else this.status.state = stored.enabled ? 'waiting' : 'stopped'
@@ -323,7 +377,8 @@ export class ClientEventsService {
     this.generation++
     this.ensurePending = null
     this.processProbe = null; this.processPoll = null
-    if (this.processTimer) clearInterval(this.processTimer)
+    this.probeErrors.clear()
+    if (this.processTimer) clearTimeout(this.processTimer)
     this.processTimer = null; this.processId = null
     this.tailer?.stop(); this.tailer = null
     this.setState({ state: 'stopped' })

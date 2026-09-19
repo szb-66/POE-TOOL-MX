@@ -767,6 +767,7 @@ async function startApplication() {
   clientEventsService = new ClientEventsService({
     trace: startupTrace,
     processProvider: detectClientProcessSessions,
+    logger: startupLog,
     processPresenceProvider: detectClientProcessExists,
     settings: new ClientEventSettingsRepository(path.join(app.getPath('userData'), 'client-events-settings.json')),
     detectPath: detectRunningClientLogPath,

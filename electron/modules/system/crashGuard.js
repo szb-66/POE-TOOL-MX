@@ -104,8 +104,11 @@ export function createCrashGuard({
       reasonCode: reasonCode(source, details),
       message: `reason=${reason} type=${details?.type || 'unknown'} exitCode=${details?.exitCode ?? 'unknown'}`
     })
+    const gpuChild = source === 'child' && String(details?.type || '').toLowerCase() === 'gpu'
+    // 首次挂载后的 GPU 故障只保留诊断，不进入启动恢复或失败退出。
+    if (startupComplete && gpuChild) return false
     if (requestRecovery(source, details)) return true
-    const startupCritical = source === 'renderer' || String(details?.type || '').toLowerCase() === 'gpu'
+    const startupCritical = source === 'renderer' || gpuChild
     if (startupCritical) onUnrecoverable({ source, details, reasonCode: reasonCode(source, details) })
     return false
   }

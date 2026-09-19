@@ -6,8 +6,8 @@ const CLASSIC_INFLUENCE_LABELS = Object.freeze(Object.fromEntries(
   PRICE_CHECK_CLASSIC_INFLUENCES.flatMap(({ key, aliases }) => aliases.map((alias) => [alias, key]))
 ))
 
-const stripInjectedPriceTag = (value) => String(value || '')
-  .replace(/\s*\[(?:\d+(?:\.\d+)?\s*[cd]\s*)+\]\s*$/i, '')
+const stripInjectedNameTags = (value) => String(value || '')
+  .replace(/\[[^\[\]]*\]/g, '')
   .trim()
 
 function parseMercenaryVoucher(lines) {
@@ -15,7 +15,7 @@ function parseMercenaryVoucher(lines) {
   if (firstSeparator < 0) return null
   const header = lines.slice(0, firstSeparator)
   const category = header.find((line) => line.startsWith('物品类别:'))?.replace('物品类别:', '').trim()
-  if (category !== '地图碎片' || !header.some((line) => stripInjectedPriceTag(line) === '佣兵凭证')) return null
+  if (category !== '地图碎片' || !header.some((line) => stripInjectedNameTags(line) === '佣兵凭证')) return null
 
   const sections = []
   let current = []
@@ -292,7 +292,10 @@ export function parseItemInfo(clipboardText) {
   }
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+    // Normalize only identity-header candidates, before interpreting injected punctuation or state words.
+    const line = identityHeaderOpen && itemInfo.category && itemInfo.rarity && !itemInfo.baseName
+      ? stripInjectedNameTags(lines[i])
+      : lines[i]
 
     if (mercenaryVoucher?.consumedIndexes.has(i)) continue
     if (heist?.consumedIndexes.has(i)) { flushModifier(); continue }
@@ -488,10 +491,10 @@ export function parseItemInfo(clipboardText) {
     }
     else if (identityHeaderOpen && itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {
       itemInfo.baseName = line
-      if (!itemInfo.name) itemInfo.name = line
+      if (!itemInfo.name) itemInfo.name = itemInfo.baseName
     }
     else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
-      itemInfo.name = stripInjectedPriceTag(line)
+      itemInfo.name = line
     }
     else if (identityHeaderOpen && itemInfo.name && !itemInfo.baseName && line && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line
