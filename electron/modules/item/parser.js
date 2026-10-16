@@ -232,8 +232,6 @@ export function parseItemInfo(clipboardText) {
     '只能被使用一次',
     '不可改变',
     '已腐化',
-    '秽生',
-    'Foulborn',
     ...Object.keys(CLASSIC_INFLUENCE_LABELS),
     '焚界者物品',
     '灭界者物品',
@@ -381,15 +379,17 @@ export function parseItemInfo(clipboardText) {
             name,
             tier,
             tags,
-            sourceSubtype: /焚界者|Searing Exarch/i.test(semanticHeader)
-              ? 'searing-exarch'
-              : /灭界者|Eater of Worlds/i.test(semanticHeader)
-                ? 'eater-of-worlds'
-                : /腐化|瓦尔|Corrupted/i.test(semanticHeader)
-                  ? 'corrupted'
-                  : type === 'enchant'
-                    ? 'enchant'
-                    : null,
+            sourceSubtype: /秽生|\bFoulborn\b/i.test(semanticHeader)
+              ? 'foulborn'
+              : /焚界者|Searing Exarch/i.test(semanticHeader)
+                ? 'searing-exarch'
+                : /灭界者|Eater of Worlds/i.test(semanticHeader)
+                  ? 'eater-of-worlds'
+                  : /腐化|瓦尔|Corrupted/i.test(semanticHeader)
+                    ? 'corrupted'
+                    : type === 'enchant'
+                      ? 'enchant'
+                      : null,
             lineIndex: i,
             lines: [],
             originalLines: []
@@ -495,6 +495,7 @@ export function parseItemInfo(clipboardText) {
     }
     else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
       itemInfo.name = line
+      if (itemInfo.rarity.replace(/\s/g, '') === '传奇' && /^秽生/.test(line)) itemInfo.isMutated = true
     }
     else if (identityHeaderOpen && itemInfo.name && !itemInfo.baseName && line && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line

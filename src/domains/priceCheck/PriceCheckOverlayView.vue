@@ -393,7 +393,7 @@ const toggleableIdentityName = computed(() => {
   const model = state.value?.model
   const identity = model?.identity
   const item = model?.item
-  if (identity?.name) return identity.name
+  if (identity?.name) return identity.displayName || identity.name
   if (item?.rarity === '传奇') return ''
   if (identity?.category === 'map' || identity?.category === 'chart' || identity?.displayName) return ''
   return item?.name || ''

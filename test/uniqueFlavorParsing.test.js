@@ -36,7 +36,12 @@ test('完整秽生传奇文本只解析六条真实属性，查价与去除描�
 
 test('块外描述不依赖引号、数字或传奇目录，块内未知属性仍保留', () => {
   for (const description of ['没有引号的背景故事\n第二行故事\n- 叙述者', '历经 100 年\n伤害提高 60%\n第 15 位见证者']) {
-    const text = body.replace('秽生马雷格罗的染血之环', '测试未收录传奇') + description
+    const foulbornText = body.replace('秽生马雷格罗的染血之环', '测试未收录传奇') + description
+    assert.deepEqual(parseItemInfo(foulbornText).modifiers.map(m => m.text), realMods)
+    assert.throws(() => createPriceCheckModel(parseItemInfo(foulbornText), catalog), /无法识别秽生传奇/)
+    // Uncatalogued ordinary uniques still exercise flavor parsing independently
+    // of the stricter identity requirement for Foulborn variants.
+    const text = foulbornText.replaceAll('秽生', '')
     const item = parseItemInfo(text)
     assert.deepEqual(item.modifiers.map(m => m.text), realMods)
     assert.deepEqual(item.explicitMods, [])

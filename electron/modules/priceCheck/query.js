@@ -40,7 +40,7 @@ function discriminatorForCategory(officialCategory) {
 
 function resolveNonUniqueBaseType(item, catalog) {
   const fallback = safeText(item.baseName || item.name)
-  if (item.baseName || item.rarity?.replace(/\s/g, '') === '传奇') return fallback
+  if (item.baseName || item.category === '通货' || item.rarity?.replace(/\s/g, '') === '传奇') return fallback
 
   const fullName = safeText(item.name)
   if (!fullName) return fallback
@@ -119,9 +119,25 @@ function createMercenarySkillGroups(item, catalog) {
   })
 }
 
-function resolveUniqueModifierSnapshot(item, catalog, baseType) {
-  if (item?.isUnidentified || item?.rarity?.replace(/\s/g, '') !== '传奇') return null
+function resolveFoulbornUniqueName(item, catalog, baseType) {
   const name = safeText(item.name)
+  if (item.isUnidentified || item.rarity?.replace(/\s/g, '') !== '传奇' || !item.isMutated) return name
+  const find = (candidate) => (catalog?.items || []).filter((entry) => (
+    entry.unique === true && safeText(entry.name) === candidate &&
+    safeText(entry.baseType || entry.type) === safeText(baseType)
+  ))
+  const exact = find(name)
+  if (exact.length === 1) return name
+  if (!exact.length && /^秽生/.test(name)) {
+    const originalName = name.replace(/^秽生\s*/, '')
+    if (find(originalName).length === 1) return originalName
+  }
+  throw new Error(`无法识别秽生传奇“${name}”的官方查询身份`)
+}
+
+function resolveUniqueModifierSnapshot(item, catalog, baseType, identityName = item.name) {
+  if (item?.isUnidentified || item?.rarity?.replace(/\s/g, '') !== '传奇') return null
+  const name = safeText(identityName)
   const type = safeText(baseType)
   if (!name || !type) return null
   const snapshot = (catalog?.items || []).find((entry) => (
@@ -249,6 +265,7 @@ export function mergeStatIntoList(stats, stat) {
     existing.tags = stat.tags
   }
   existing.valueMultiplier = nextMultiplier
+  if (stat.sourceSubtype === 'foulborn') existing.sourceSubtype = 'foulborn'
   Object.assign(existing, originalValueBounds(existing.values))
   existing.enabled ||= stat.enabled
   return existing
@@ -260,9 +277,13 @@ export function refreshPseudoStats(model, catalog, options = {}) {
   const rewardStats = (model.stats || []).filter((stat) => MAP_REWARD_STAT_IDS.has(stat.id))
   const logbookStats = (model.stats || []).filter(isLogbookStat)
   const previous = new Map((model.stats || []).filter((stat) => stat.type === 'pseudo').map((stat) => [stat.id, stat]))
+  const foulbornKeys = new Set(rawStats.filter(stat => stat.sourceSubtype === 'foulborn').map(stat => stat.key))
   const generated = createPseudoStats(rawStats, catalog, options, originalValueBounds)
   for (const stat of generated.stats) {
     const existing = previous.get(stat.id)
+    // Keep variant-defining Foulborn modifiers as direct filters by default.
+    if (!existing && (options.initialSelection || 'auto') === 'auto' &&
+        stat.sources.some(source => foulbornKeys.has(source.key))) stat.enabled = false
     if (!existing) continue
     stat.enabled = existing.enabled
     stat.min = existing.min
@@ -272,7 +293,7 @@ export function refreshPseudoStats(model, catalog, options = {}) {
     .filter((stat) => stat.enabled)
     .flatMap((stat) => stat.sources.map(({ key }) => key)))
   for (const stat of rawStats) {
-    if (absorbedKeys.has(stat.key)) stat.enabled = false
+    if (absorbedKeys.has(stat.key) && !foulbornKeys.has(stat.key)) stat.enabled = false
   }
   model.stats = [...generated.stats, ...rewardStats, ...influenceStats, ...rawStats, ...logbookStats]
   return model
@@ -295,12 +316,13 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   if (isChart && !chartRegion) {
     throw new Error(`无法识别海图区域“${safeText(item.areaName) || '未知'}”，已阻止按物理底材误查`)
   }
-  const fixedIdentity = rarity === '传奇' && (!isMap || !item.isUnidentified) ? item.name : ''
   const baseType = specialIdentity?.type || mercenaryWarrant?.type || (isChart
     ? chartRegion.type
     : (isMap ? '地图' : resolveNonUniqueBaseType(item, catalog)))
   const isClusterJewel = /^(?:大型|中型|小型)星团珠宝$/.test(baseType)
-  const uniqueModifierSnapshot = resolveUniqueModifierSnapshot(item, catalog, baseType)
+  const fixedIdentity = rarity === '传奇' && (!isMap || !item.isUnidentified)
+    ? resolveFoulbornUniqueName(item, catalog, baseType) : ''
+  const uniqueModifierSnapshot = resolveUniqueModifierSnapshot(item, catalog, baseType, fixedIdentity)
   const stats = []
   const unknownStats = []
   const modifiers = [...(item.modifiers || [])]
@@ -346,6 +368,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       if (!match) {
         if (
           isUniquePropertyLine &&
+          modifier.sourceSubtype !== 'foulborn' &&
           effect.resolution.reason === 'not-found' &&
           effect.resolution.candidates.length === 0 &&
           uniqueModifierSnapshot &&
@@ -385,6 +408,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         text: effect.text,
         type,
         refs: [...(match.refs || [])],
+        ...(modifier.sourceSubtype === 'foulborn' ? { sourceSubtype: 'foulborn' } : {}),
         ref: match.ref,
         tier: Number(modifier.tier) || null,
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
@@ -408,7 +432,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         }],
         enabled: options.initialSelection === 'all' || (
           (options.initialSelection || 'auto') === 'auto' &&
-          (isLogbook || ((isMap || isChart)
+          (modifier.sourceSubtype === 'foulborn' || isLogbook || ((isMap || isChart)
             ? ['base', 'implicit'].includes(modifier.type)
             : ((isClusterJewel && modifier.type === 'enchant') || modifier.type === 'fractured' || (
             ['prefix', 'suffix'].includes(modifier.type) &&
@@ -531,7 +555,8 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       type: baseType,
       ...(specialIdentity ? { displayName: specialIdentity.displayName } : mercenaryWarrant
         ? { displayName: mercenaryWarrant.displayText }
-        : (isChart ? { displayName: chartRegion.displayName } : {})),
+        : (isChart ? { displayName: chartRegion.displayName }
+          : (fixedIdentity && fixedIdentity !== safeText(item.name) ? { displayName: safeText(item.name) } : {}))),
       ...(identityDiscriminator ? { discriminator: identityDiscriminator } : {}),
       category: officialCategory?.category || '',
       categoryLabel: officialCategory?.categoryLabel || category,
@@ -791,6 +816,8 @@ function sanitizeMercenarySkillGroups(value, catalog, trustedModel) {
 
 export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = null, trustedCategory = null, trustedModel = null) {
   if (!value || typeof value !== 'object') throw new Error('查价请求无效')
+  const trustedFoulbornKeys = new Set((trustedModel?.stats || [])
+    .filter(stat => stat.sourceSubtype === 'foulborn').map(stat => stat.key))
   let stats = Array.isArray(value.stats) ? value.stats.slice(0, 24).map((stat) => {
     const id = safeText(stat.id, 80)
     const type = safeText(stat.type, 24)
@@ -805,6 +832,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       label: safeText(stat.label),
       text: safeText(stat.text, 500),
       type,
+      ...(trustedFoulbornKeys.has(stat.key) ? { sourceSubtype: 'foulborn' } : {}),
       refs,
       ref: refs.length === 1 ? refs[0] : null,
       tier: Number.isInteger(Number(stat.tier)) && Number(stat.tier) > 0 ? Number(stat.tier) : null,
