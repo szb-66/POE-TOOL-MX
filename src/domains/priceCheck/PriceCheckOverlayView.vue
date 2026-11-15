@@ -1,5 +1,5 @@
 <template>
-  <div class="overlay-shell" :class="{ preview: props.previewMode }">
+  <div class="overlay-shell" :class="{ preview: props.previewMode, 'game-text-english': state?.model?.presentation?.language === 'en' }">
     <header class="topbar">
       <button class="icon-button" title="显示或隐藏查询设置" @click="settingsCollapsed = !settingsCollapsed">⚙</button>
       <div class="dc-rate">{{ dcRateText }}</div>
@@ -31,9 +31,9 @@
         <label>通货
           <el-select v-model="queryOptions.currency" popper-class="price-check-select-popper business-overlay-theme" @change="syncSetting('currency')">
             <el-option label="任意通货" value="any" />
-            <el-option label="混沌石" value="chaos" />
-            <el-option label="神圣石" value="divine" />
-            <el-option label="混沌或神圣" value="chaos_divine" />
+            <el-option :label="gameText('混沌石')" value="chaos" />
+            <el-option :label="gameText('神圣石')" value="divine" />
+            <el-option :label="`${gameText('混沌石')} / ${gameText('神圣石')}`" value="chaos_divine" />
           </el-select>
         </label>
         <label>词缀初选
@@ -66,9 +66,9 @@
             <strong>{{ toggleableIdentityName }}</strong>
             <small v-if="!canToggleName">大类不可用，名称必须保留</small>
           </button>
-          <strong v-else class="identity-static-name">{{ state.model.identity?.displayName || state.model.item.name || state.model.item.baseType }}</strong>
+          <strong v-else class="identity-static-name">{{ gameText(state.model.identity?.displayName || state.model.item.name || state.model.item.baseType) }}</strong>
           <span class="identity-meta">
-            {{ state.model.item.rarity }} · {{ state.model.identity?.categoryLabel || state.model.item.category || '未知大类' }} · {{ state.model.item.baseType }} · {{ state.league }}
+            {{ gameText(state.model.item.rarity) }} · {{ gameText(state.model.identity?.categoryLabel || state.model.item.category || '未知大类') }} · {{ gameText(state.model.item.baseType) }} · {{ gameText(state.league) }}
           </span>
         </div>
         <div v-if="activeFlags.length" class="identity-side">
@@ -80,7 +80,7 @@
 
       <section v-if="state.status === 'identity-required'" class="panel identity-resolver">
         <h3>请选择未鉴定传奇</h3>
-        <p>{{ state.model.identityResolution?.baseType }} 可能对应以下物品：</p>
+        <p>{{ gameText(state.model.identityResolution?.baseType) }} 可能对应以下物品：</p>
         <button
           v-for="candidate in state.model.identityResolution?.candidates || []"
           :key="candidate.key"
@@ -88,13 +88,13 @@
           :disabled="busy"
           @click="resolveIdentity(candidate.key)"
         >
-          <img :src="candidate.imageUrl" :alt="candidate.name" @error="useCandidatePlaceholder">
+          <img :src="candidate.imageUrl" :alt="gameText(candidate.name)" @error="useCandidatePlaceholder">
           <span class="candidate-label">
             <span class="candidate-title">
-              <strong>{{ candidate.name }}</strong>
-              <span v-if="candidate.legacy" class="legacy-tag">遗产</span>
+              <strong>{{ gameText(candidate.name) }}</strong>
+              <span v-if="candidate.legacy" class="legacy-tag">{{ gameText('遗产') }}</span>
             </span>
-            <small>{{ candidate.baseType }}</small>
+            <small>{{ gameText(candidate.baseType) }}</small>
           </span>
         </button>
       </section>
@@ -118,7 +118,7 @@
           </button>
           <div v-if="!stateFiltersCollapsed" id="price-check-state-filters" class="state-filter-grid">
             <label v-for="definition in stateDefinitions" :key="definition.key">
-              <span>{{ definition.label }}</span>
+              <span :title="gameText(definition.label)">{{ gameText(definition.label) }}</span>
               <el-select v-model="state.model.stateFilters[definition.key]" popper-class="price-check-select-popper business-overlay-theme">
                 <el-option label="任意" value="any" />
                 <el-option label="是" value="true" />
@@ -143,10 +143,10 @@
               @keydown.enter.prevent="toggleFilter(property)"
               @keydown.space.prevent="toggleFilter(property)"
             >
-              <span class="filter-name" :title="property.label">{{ property.label }}</span>
+              <span class="filter-name" :title="gameText(property.label)">{{ gameText(property.label) }}</span>
               <template v-if="property.options?.length">
                 <el-select v-model="property.value" class="property-option" popper-class="price-check-select-popper business-overlay-theme" @click.stop @keydown.stop>
-                  <el-option v-for="option in property.options" :key="option.id" :label="option.label" :value="option.id" />
+                  <el-option v-for="option in property.options" :key="option.id" :label="gameText(option.label)" :value="option.id" />
                 </el-select>
               </template>
               <template v-else>
@@ -175,7 +175,7 @@
               @keydown.space.prevent="toggleMercenaryGroup(group)"
             >
               <span class="mercenary-label">技能组</span>
-              <strong>{{ group.skill.text }}</strong>
+              <strong>{{ gameText(group.skill.text) }}</strong>
             </div>
             <div v-if="group.supports?.length" class="mercenary-supports">
               <button
@@ -186,7 +186,7 @@
                 :class="{ enabled: support.enabled }"
                 :aria-pressed="support.enabled"
                 @click="toggleMercenarySupport(group, support)"
-              >{{ support.name }}<small v-if="support.tier">（等阶 {{ support.tier }}）</small></button>
+              >{{ gameText(support.name) }}<small v-if="support.tier">（{{ gameText('等阶') }} {{ support.tier }}）</small></button>
             </div>
             <small v-else class="mercenary-empty">此主动技能没有辅助技能</small>
           </div>
@@ -196,7 +196,7 @@
           <h3>仅供参考</h3>
           <div class="information-grid">
             <span v-for="entry in state.model.information" :key="entry.id">
-              {{ entry.label }}：{{ entry.value }}{{ entry.suffix }}
+              {{ gameText(entry.label) }}：{{ entry.value }}{{ entry.suffix }}
             </span>
           </div>
           <small>官方过滤目录没有对应字段，不会写入查询。</small>
@@ -218,8 +218,8 @@
           >
             <span class="stat-source" :class="statTypeClass(stat.type)">{{ typeLabel(stat.type) }}</span>
             <span class="tier" :class="{ known: stat.tier }">{{ stat.tier ? `T${stat.tier}` : '—' }}</span>
-            <span class="filter-name" :title="stat.sources?.map(source => source.text).join('\n')">
-              {{ stat.text }}
+            <span class="filter-name" :title="stat.sources?.map(source => source.displayText || gameText(source.text)).join('\n')">
+              {{ stat.displayText || gameText(stat.text) }}
               <small v-if="stat.tags?.length">{{ stat.tags.join('、') }}</small>
               <small v-if="stat.queryVariants?.length > 1" class="equivalence-hint">已合并多个官方同文案过滤项</small>
             </span>
@@ -230,7 +230,7 @@
             <div class="filter-row unknown">
               <span class="stat-source" :class="statTypeClass(unknown.type)">{{ typeLabel(unknown.type) }}</span>
               <span class="tier">T{{ unknown.tier || '?' }}</span>
-              <span class="filter-name">{{ unknown.text }}<small>未加入本次查询 · {{ unknown.reason }}</small></span>
+              <span class="filter-name">{{ unknown.displayText || gameText(unknown.text) }}<small>未加入本次查询 · {{ unknown.reason }}</small></span>
               <span></span><span></span>
             </div>
             <div v-if="unknown.candidates?.length" class="stat-candidates">
@@ -240,7 +240,7 @@
                 :disabled="busy"
                 :title="candidate.id"
                 @click="selectStatCandidate(unknown, candidate)"
-              >使用 {{ candidate.label }}</button>
+              >使用 {{ gameText(candidate.label) }}</button>
             </div>
           </div>
         </section>
@@ -313,7 +313,7 @@
         <button v-if="state.catalog.degraded && !state.catalog.loading" :disabled="busy" @click="retryCatalog">重试目录</button>
       </div>
       <div v-if="state.catalog" class="catalog-status">
-        目录：{{ state.catalog.provider === 'official' ? '腾讯官方' : '内置' }}
+        目录：{{ state.catalog.provider === 'official' ? '官方' : '内置' }}
         · {{ state.catalog.gameVersion || '未知版本' }}
         · {{ state.catalog.counts?.stats || 0 }} 条词缀
       </div>
@@ -341,6 +341,7 @@ function clonePreviewInput(value) {
 }
 
 const state = ref(props.previewMode ? clonePreviewInput(props.previewState) : null)
+const gameText = value => state.value?.model?.presentation?.texts?.[value] || value
 const mapRewardIds = new Set([
   'pseudo.pseudo_map_more_map_drops',
   'pseudo.pseudo_map_more_scarab_drops',
@@ -384,7 +385,7 @@ let activeDisplayGeneration = null
 const stateDefinitions = PRICE_CHECK_STATE_FILTERS
 const activeFlags = computed(() => stateDefinitions
   .filter(({ key }) => key !== 'identified' && state.value?.model?.facts?.[key])
-  .map(({ label }) => label))
+  .map(({ label }) => gameText(label)))
 const nameFilterEnabled = computed(() => {
   const identity = state.value?.model?.identity
   return !identity?.category || identity.nameEnabled !== false
@@ -393,10 +394,10 @@ const toggleableIdentityName = computed(() => {
   const model = state.value?.model
   const identity = model?.identity
   const item = model?.item
-  if (identity?.name) return identity.displayName || identity.name
+  if (identity?.name) return gameText(identity.displayName || identity.name)
   if (item?.rarity === '传奇') return ''
   if (identity?.category === 'map' || identity?.category === 'chart' || identity?.displayName) return ''
-  return item?.name || ''
+  return gameText(item?.name) || ''
 })
 const canToggleName = computed(() => Boolean(
   toggleableIdentityName.value && state.value?.model?.identity?.category
@@ -537,11 +538,12 @@ function setNameFilterEnabled(enabled) {
   identity.nameEnabled = enabled !== false
 }
 function typeLabel(type) {
-  return PRICE_CHECK_STAT_TYPES[type]?.label || '其他'
+  if (type === 'fractured') return gameText('Fractured')
+  return gameText(PRICE_CHECK_STAT_TYPES[type]?.label || '其他')
 }
 function statTypeClass(type) { return `stat-source-${PRICE_CHECK_STAT_TYPES[type]?.token || 'unknown'}` }
 function currencyLabel(currency, localized = '') {
-  return localized || ({ chaos: '混沌石', divine: '神圣石' })[currency] || currency
+  return gameText(localized || ({ chaos: '混沌石', divine: '神圣石' })[currency] || currency)
 }
 function distributionPrice(group) {
   if (group.currency === 'chaos') {
@@ -618,7 +620,9 @@ onUnmounted(() => {
 .panel-toggle-icon { flex: 0 0 auto; margin-right: var(--overlay-space-1); transform: rotate(-90deg); transition: transform .15s ease; }
 .panel-toggle-icon.expanded { transform: rotate(0deg); }
 .state-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-.state-filter-grid label { display: grid; grid-template-columns: minmax(48px, auto) 1fr; align-items: center; gap: var(--overlay-space-1); color: var(--text-regular); }
+.state-filter-grid label { display: grid; min-width: 0; grid-template-columns: minmax(48px, 1fr) minmax(68px, 1fr); align-items: center; gap: var(--overlay-space-1); color: var(--text-regular); }
+.state-filter-grid label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-text-english .state-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .settings-grid :deep(.el-select),
 .settings-grid :deep(.el-input-number),
 .state-filter-grid :deep(.el-select),
@@ -674,6 +678,7 @@ h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 var(--overlay-space-1); p
 .mercenary-support small { margin-left: 3px; color: inherit; }
 .mercenary-empty { display: block; padding: 2px 5px 0 82px; color: #747985; }
 .stat-row, .unknown { grid-template-columns: 46px 34px minmax(0, 1fr) 64px 64px; }
+.game-text-english .stat-row, .game-text-english .unknown { grid-template-columns: 78px 34px minmax(0, 1fr) 64px 64px; }
 .stat-source { display: inline-flex; justify-content: center; padding: 3px 4px; border: 1px solid currentColor; border-radius: 3px; font-size: 10px; font-weight: 700; }
 .stat-source-pseudo { color: #d9a5ff; background: #342444; }
 .stat-source-explicit { color: #85bcf4; background: #1d3145; }

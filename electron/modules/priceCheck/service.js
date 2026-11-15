@@ -2,8 +2,11 @@ import { parseItemInfo } from '../item/parser.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 import { PRICE_CHECK_OVERLAY_CLOSE_REASONS } from './overlayFocus.js'
 import { createLocalizationTextResolver } from './localizationText.js'
+import { applyOriginalModifierText } from './displayText.js'
+import { applyGameTextPresentation } from './gameText.js'
 import { encodeTradeQueryId } from './queryId.js'
 import { POE_CN_TRADE_ORIGIN } from './client.js'
+import { resolveCatalogStat } from './catalog.js'
 import {
   buildOfficialTradeQuery,
   createPriceCheckModel,
@@ -57,7 +60,7 @@ function withoutBaseType(query) {
 function errorSnapshot(error, fallbackCode = 'NETWORK_ERROR') {
   return {
     code: error?.code || fallbackCode,
-    message: error?.message || '国服查价失败',
+    message: error?.message || '查价失败',
     details: structuredClone(error?.details || {})
   }
 }
@@ -175,6 +178,7 @@ export class PriceCheckService {
     dcRateProvider = null,
     catalogRefresher = null,
     manualInputOnly = false,
+    allowManualQueries = manualInputOnly,
     localizationProvider = () => [],
     localizationRevisionProvider = () => '',
     now = () => Date.now(),
@@ -189,6 +193,7 @@ export class PriceCheckService {
     this.captureClipboard = captureClipboard
     this.dcRateProvider = dcRateProvider
     this.catalogRefresher = catalogRefresher
+    this.allowManualQueries = allowManualQueries
     this.manualInputOnly = manualInputOnly
     this.localizationProvider = localizationProvider
     this.localizationRevisionProvider = localizationRevisionProvider
@@ -220,8 +225,8 @@ export class PriceCheckService {
   }
 
   assertEnabled() {
-    if (!this.runtime.enabled && !this.manualInputOnly) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '国服查价器尚未启用')
+    if (!this.runtime.enabled && !this.allowManualQueries) {
+      throw new ChaosRecipeError('PRICE_CHECK_DISABLED', '查价器尚未启用')
     }
   }
 
@@ -259,8 +264,8 @@ export class PriceCheckService {
   }
 
   async captureAndCheck(request) {
-    if (this.manualInputOnly) throw new ChaosRecipeError('SERVER_FEATURE_UNAVAILABLE', '国际服游戏内捕获尚未验证，请手动粘贴物品文本查价')
-    this.assertEnabled()
+    if (this.manualInputOnly) throw new ChaosRecipeError('SERVER_FEATURE_UNAVAILABLE', '当前查价服务仅支持手动输入')
+    if (!this.runtime.enabled) throw new ChaosRecipeError('PRICE_CHECK_DISABLED', '查价器尚未启用')
     const captureSequence = ++this.captureSequence
     if (!this.captureClipboard) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境不支持从游戏捕获物品')
@@ -385,11 +390,21 @@ export class PriceCheckService {
     this.syncLocalizationRevision()
     let input = String(text || '')
     let localized = false
+    let lineMappings = []
     if (this.client.server?.id === 'international') {
       this.localizationResolver ||= createLocalizationTextResolver(this.localizationProvider())
-      const resolved = this.localizationResolver.resolve(input)
+      const resolved = this.localizationResolver.resolve(input, { normalizeStatSigns: true, catalog: this.catalog,
+        resolveStatAmbiguity: (candidates, { type }) => {
+          const supported = candidates.filter(candidate => {
+            const text = candidate.replace(/(-?\d+(?:\.\d+)?)[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '$1')
+            return resolveCatalogStat(this.catalog, text, type).candidates.length > 0
+          })
+          return supported.length === 1 ? supported[0] : null
+        }
+      })
       input = resolved.text
       localized = resolved.localized
+      lineMappings = resolved.lineMappings || []
     }
     const item = parseItemInfo(input)
     if (!item) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '剪贴板中没有可识别的物品')
@@ -399,15 +414,21 @@ export class PriceCheckService {
         const identity = model.identity
         // Do not let the generic model's suffix fallback reduce an unknown translated base to "Ring".
         const copiedBase = String(item.baseName || item.name || '')
+        const mapIdentity = identity.discriminator === 'map' && copiedBase === '地图' && identity.type === 'Map'
         const candidates = (this.catalog.items || []).filter(entry => (
-          String(entry.baseType || entry.type || '') === copiedBase &&
+          ((String(entry.baseType || entry.type || '') === copiedBase && copiedBase === identity.type) ||
+            (entry.discriminator === identity.discriminator && entry.baseType === identity.type && entry.text === copiedBase) ||
+            (mapIdentity && entry.baseType === 'Map' && entry.discriminator === 'map')) &&
           (!identity.name || String(entry.name || '') === identity.name)
         ))
-        if ((!candidates.length || copiedBase !== identity.type) && !model.identityResolution?.required) {
+        if (!candidates.length && !model.identityResolution?.required) {
           throw new Error('中文物品身份未匹配国际服交易目录，已阻止查询；请更新目录与汉化资源')
         }
       }
-      return model
+      applyOriginalModifierText(model, lineMappings)
+      return this.client.server?.id === 'international'
+        ? applyGameTextPresentation(model, { source: text, lineMappings, resolver: this.localizationResolver, catalog: this.catalog })
+        : model
     } catch (error) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error.message || '剪贴板物品无法用于查价')
     }
@@ -460,6 +481,10 @@ export class PriceCheckService {
     let currentModel
     try {
       currentModel = model ? sanitizePriceCheckModel(model, this.catalog) : this.parse(text, options)
+      if (this.client.server?.id === 'international') {
+        this.localizationResolver ||= createLocalizationTextResolver(this.localizationProvider())
+        applyGameTextPresentation(currentModel, { resolver: this.localizationResolver, catalog: this.catalog, texts: [league] })
+      }
     } catch (error) {
       this.createOverlay({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
@@ -697,6 +722,7 @@ export class PriceCheckService {
       id: candidate.id,
       label: candidate.label,
       text: unknown.text,
+      ...(unknown.displayText ? { displayText: unknown.displayText } : {}),
       type: candidate.type,
       refs: candidate.refs || [],
       ref: candidate.ref,
@@ -710,6 +736,7 @@ export class PriceCheckService {
         id: candidate.id,
         type: candidate.type,
         text: unknown.text,
+        ...(unknown.displayText ? { displayText: unknown.displayText } : {}),
         name: candidate.label,
         values: candidate.values || [],
         valueMultiplier: candidate.valueMultiplier,

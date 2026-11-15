@@ -94,7 +94,7 @@ export async function generateInternationalMapData({ gameVersion, catalog, fetch
     if (kind === 'atlas' && html.includes('Atlas Drops')) currentMapSentinel = true
     const mods = parseInternationalMods(html, domain)
     if (mods.length < 30) throw new Error(`${page}: 英文普通词缀覆盖不足`)
-    records[kind].push({ mods, region: page === 'Maps_uber_tier' ? 't17' : 'normal' })
+    records[kind].push({ mods, region: kind === 'atlas' ? 'atlas' : 'normal' })
   }
   if (!currentMapSentinel) throw new Error('英文地图来源缺少 3.30 Atlas Drops 哨兵')
   const chart = parseInternationalChart(await get('Sandy_Seabed_Chart'))

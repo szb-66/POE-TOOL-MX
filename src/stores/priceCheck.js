@@ -21,7 +21,7 @@ const STORAGE_KEY = 'priceCheckSettings'
 
 function unwrap(response) {
   if (response?.success) return response.data
-  const error = new Error(response?.error?.message || '国服查价失败')
+  const error = new Error(response?.error?.message || '查价失败')
   error.code = response?.error?.code
   error.details = response?.error?.details
   error.failureCode = response?.error?.failureCode || error.code || ''
@@ -106,7 +106,9 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       enabled: moduleEnabled && Boolean(requested.enabled),
       shortcut: moduleEnabled ? requested.shortcut : ''
     }))
-    if (status.value.enabled && error.value === '国服查价器尚未启用') {
+    const disabledFailure = failure.value?.failureCode === 'PRICE_CHECK_DISABLED'
+      || /^(?:国服|国际服)?查价器尚未启用$/.test(error.value)
+    if (status.value.enabled && disabledFailure) {
       error.value = ''
       failure.value = null
     }
@@ -133,7 +135,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
         return runWithConfigurationGuide({
           moduleId: CONFIGURATION_MODULES.priceCheck,
           actionId: CONFIGURATION_ACTIONS.enable,
-          title: '完成国服查价配置',
+          title: '完成查价配置',
           actionLabel: '启用',
           collect: () => collectConfiguration(CONFIGURATION_ACTIONS.enable),
           execute: () => setEnabled(true, { configurationGuideBypass: true })
@@ -199,14 +201,14 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
     if (!useFeatureModulesStore().isEnabled('price-check')) {
       throw new Error('查价功能尚未添加，请先从侧边栏“更多”中添加')
     }
-    if (!settings.value.enabled) throw new Error('国服查价器尚未启用')
+    if (!settings.value.enabled) throw Object.assign(new Error('查价器尚未启用'), { code: 'PRICE_CHECK_DISABLED' })
     if (!configurationGuideBypass) {
       const check = collectConfiguration(CONFIGURATION_ACTIONS.capture)
       if (!check.ok) {
         return runWithConfigurationGuide({
           moduleId: CONFIGURATION_MODULES.priceCheck,
           actionId: CONFIGURATION_ACTIONS.capture,
-          title: '完成国服查价配置',
+          title: '完成查价配置',
           actionLabel: '开始查价',
           collect: () => collectConfiguration(CONFIGURATION_ACTIONS.capture),
           execute: () => checkHoveredItem({ configurationGuideBypass: true })

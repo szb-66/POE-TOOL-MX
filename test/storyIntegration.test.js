@@ -227,7 +227,7 @@ test('剧情技能编辑器使用离线联想并将等级设置同步到浮层',
   assert.match(storyView, /skillCatalog\.skills/)
   assert.match(storyView, /显示最低购买等级/)
   assert.match(storyView, /settings\.storyShowSkillRequiredLevel/)
-  assert.match(storyView, /skillSuggestionLabel\(skill\)/)
+  assert.match(storyView, /skillSuggestionLabel\(\{ \.\.\.skill, displayName \}\)/)
   assert.match(overlayView, /skill\.requiredLevel/)
 })
 

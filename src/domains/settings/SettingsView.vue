@@ -678,7 +678,7 @@ const shortcutFields = Object.freeze([
   { key: 'portal', label: '一键回城' },
   { key: 'storyPrevious', label: '剧情上一步' },
   { key: 'storyNext', label: '剧情下一步' },
-  { key: 'priceCheck', label: '国服查价' },
+  { key: 'priceCheck', label: `${currentServer.label}查价` },
 ])
 const shortcuts = ref({ ...settingsStore.globalShortcuts })
 const shortcutScopeEnabled = ref(settingsStore.shortcutScopeEnabled)

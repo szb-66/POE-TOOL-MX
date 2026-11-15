@@ -16,12 +16,18 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  marketLocalization: {
+    status: () => Promise.resolve({ success: true, data: { supported: false, enabled: false, state: 'disabled', helperAvailable: false } }),
+    enable: () => Promise.reject(new Error('请在桌面版中启用市集翻译')),
+    disable: () => Promise.resolve({ success: true, data: { supported: false, enabled: false, state: 'disabled' } }),
+    onState: () => () => {}
+  },
   localization: {
+    catalog: () => Promise.resolve({ success: true, data: { revision: '', aliases: [] } }),
     status: () => Promise.resolve({ success: true, data: { supported: false, busy: false, helperAvailable: false } }),
     scan: () => Promise.reject(new Error('请在桌面版中扫描游戏资源')),
     check: () => Promise.reject(new Error('请在桌面版中检查翻译资源')),
     download: () => Promise.reject(new Error('请在桌面版中下载翻译资源')),
-    preview: () => Promise.reject(new Error('请在桌面版中预览游戏汉化')),
     apply: () => Promise.reject(new Error('请在桌面版中应用游戏汉化')),
     restore: () => Promise.reject(new Error('请在桌面版中恢复游戏原版')),
     pickDirectory: () => Promise.reject(new Error('请在桌面版中选择游戏目录')),
@@ -424,12 +430,18 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  marketLocalization: {
+    status: () => window.electronAPI.marketLocalization.status(),
+    enable: () => window.electronAPI.marketLocalization.enable(),
+    disable: () => window.electronAPI.marketLocalization.disable(),
+    onState: callback => window.electronAPI.marketLocalization.onState(callback)
+  },
   localization: {
     status: () => window.electronAPI.localization.status(),
+    catalog: input => window.electronAPI.localization.catalog(craftingIpcPayload(input)),
     scan: input => window.electronAPI.localization.scan(craftingIpcPayload(input)),
     check: () => window.electronAPI.localization.check(),
     download: () => window.electronAPI.localization.download(),
-    preview: input => window.electronAPI.localization.preview(craftingIpcPayload(input)),
     apply: input => window.electronAPI.localization.apply(craftingIpcPayload(input)),
     restore: input => window.electronAPI.localization.restore(craftingIpcPayload(input)),
     pickDirectory: () => window.electronAPI.localization.pickDirectory(),

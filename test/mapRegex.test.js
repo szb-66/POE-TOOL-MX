@@ -93,7 +93,7 @@ test('不完整、越界、倒置或无币种的价格配置不进入正则', ()
   }
 })
 
-test('地图词缀目录提供普通与 T17 离线分类', () => {
-  assert.ok(MAP_REGEX_AFFIXES.some(item => item.regions.includes('normal')))
-  assert.ok(MAP_REGEX_AFFIXES.some(item => item.regions.includes('t17')))
+test('地图词缀目录统一为异界地图且不再分普通与 T17', () => {
+  assert.ok(MAP_REGEX_AFFIXES.length > 0)
+  assert.ok(MAP_REGEX_AFFIXES.every(item => item.regions.length === 1 && item.regions[0] === 'atlas'))
 })

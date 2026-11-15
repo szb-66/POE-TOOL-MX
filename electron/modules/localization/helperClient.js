@@ -26,7 +26,7 @@ export class LocalizationHelperClient {
         clearTimeout(timer)
         if (error) reject(error); else resolve(data)
       }
-      const timer = setTimeout(() => { child.kill(); finish(new Error('汉化资源处理超时，请重新扫描确认状态')) }, this.timeoutMs)
+      const timer = setTimeout(() => { child.kill(); finish(new Error('汉化资源处理超时，请重试刚才的操作以确认状态')) }, this.timeoutMs)
       const fail = error => { child.kill(); finish(error) }
       child.on('error', () => finish(new Error('无法启动汉化资源读写组件')))
       child.stdout.setEncoding('utf8')
@@ -51,7 +51,7 @@ export class LocalizationHelperClient {
       child.stderr.resume()
       child.on('close', code => {
         if (buffer.trim()) return finish(new Error('汉化组件响应不完整'))
-        if (!result) return finish(new Error('汉化组件未返回完整结果，请重新扫描确认状态'))
+        if (!result) return finish(new Error('汉化组件未返回完整结果，请重试刚才的操作以确认状态'))
         if (code !== 0 || result.success !== true) return finish(Object.assign(new Error(result.error?.message || '汉化资源处理失败'), { code: result.error?.code || 'LOCALIZATION_HELPER_ERROR' }))
         finish(null, result.data)
       })

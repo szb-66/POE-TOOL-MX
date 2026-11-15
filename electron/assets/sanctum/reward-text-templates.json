@@ -1,0 +1,71 @@
+{
+  "protocolVersion": 1,
+  "table": "clientstrings",
+  "field": "Text",
+  "templates": [
+    {
+      "id": "SanctumSingularCurrentFloorReward",
+      "en": "Receive 1x {0} at the end of the Floor",
+      "sourceHash": "b1208267472ebd4ce6e6db9de2e6841fa884389b74cbea0b40910444de4d005c",
+      "quantityParameter": null,
+      "currencyParameter": 0,
+      "timing": "floor"
+    },
+    {
+      "id": "SanctumMultiNowReward",
+      "en": "Receive {0}x {1} right now",
+      "sourceHash": "2d1e566c208d74a3223a85989859e402687b15129e13acb607296dfe1bcac3e8",
+      "quantityParameter": 0,
+      "currencyParameter": 1,
+      "timing": "immediate"
+    },
+    {
+      "id": "SanctumMultiNextFloorReward",
+      "en": "Receive {0}x {1} at the end of the next Floor",
+      "sourceHash": "45175bf76957f555c9a2c112e1dcd4980797ebdc72c6d35d2cf2b3f26df161aa",
+      "quantityParameter": 0,
+      "currencyParameter": 1,
+      "timing": "next-floor"
+    },
+    {
+      "id": "SanctumMultiCurrentFloorReward",
+      "en": "Receive {0}x {1} at the end of the Floor",
+      "sourceHash": "ca7891480f9f4a1a41f43dee7264af5f0300f69c4e788ef2b8ac6c40ccd1d4b7",
+      "quantityParameter": 0,
+      "currencyParameter": 1,
+      "timing": "floor"
+    },
+    {
+      "id": "SanctumMultiDungeonReward",
+      "en": "Receive {0}x {1} on completing the Sanctum",
+      "sourceHash": "0a4b372bc4d15c77392c7ced1cf56bbb55e07363a0fa19817a1375d489440ce8",
+      "quantityParameter": 0,
+      "currencyParameter": 1,
+      "timing": "run"
+    },
+    {
+      "id": "SanctumSingularNextFloorReward",
+      "en": "Receive 1x {0} at the end of the next Floor",
+      "sourceHash": "3dff8afd2128d610426f548e36ea987b97a2afea47a3a184a272077e0430a245",
+      "quantityParameter": null,
+      "currencyParameter": 0,
+      "timing": "next-floor"
+    },
+    {
+      "id": "SanctumSingularDungeonReward",
+      "en": "Receive 1x {0} on completing the Sanctum",
+      "sourceHash": "0e3ca0cf076e372878c72881dc15b71e288807aabdff23da46c9d3445570bd9b",
+      "quantityParameter": null,
+      "currencyParameter": 0,
+      "timing": "run"
+    },
+    {
+      "id": "SanctumSingularNowReward",
+      "en": "Receive 1x {0} right now",
+      "sourceHash": "3e7bbc38075730089a24bb0c601e9f5fa463fe02ec0737bfc5849ca3b74dec82",
+      "quantityParameter": null,
+      "currencyParameter": 0,
+      "timing": "immediate"
+    }
+  ]
+}

@@ -1,11 +1,14 @@
 // Research text is a separate observation, never proof that a displayed floor
 // belongs to the same run. Effects remain unresolved until matched to a catalog.
-export function parseSanctumResearch(rawText) {
+import { normalizeSanctumText } from './localization.js'
+
+export function parseSanctumResearch(rawText, catalog) {
   if (typeof rawText !== 'string' || rawText.length > 100000) throw new Error('禁域研究文本无效')
-  const lines = rawText.replace(/\r/g, '').split('\n').map(line => line.replace(/^\s*##\s*/, '').trim())
-  const field = name => lines.filter(line => line.startsWith(`${name}:`) || line.startsWith(`${name}：`))
+  const lines = rawText.replace(/\r/g, '').split('\n').map(line => normalizeSanctumText(line.replace(/^\s*##\s*/, '').trim(), catalog))
+  const aliases = { 物品类别:['物品種類','物品類別','Item Class'], 稀有度:['Rarity'], 坚毅:['堅毅','Resolve'], 启迪:['啟迪','Inspiration'], 耀金币:['耀金幣','Aureus','Aureus Coins'], 区域等级:['區域等級','Area Level'], 次要恩赐:['次要恩賜','Minor Boons'], 主要恩赐:['主要恩賜','Major Boons'], 次要痛苦:['Minor Afflictions'], 主要痛苦:['Major Afflictions'] }
+  const field = name => lines.filter(line => [name,...(aliases[name] || [])].some(alias => line.startsWith(`${alias}:`) || line.startsWith(`${alias}：`)))
     .map(line => line.slice(line.search(/[:：]/) + 1).trim())
-  if (field('物品类别')[0] !== '禁域研究') return { status: 'unknown', reason: 'NOT_SANCTUM_RESEARCH', rawText }
+  if (!['禁域研究','Sanctum Research','Sanctum Researches'].includes(field('物品类别')[0])) return { status: 'unknown', reason: 'NOT_SANCTUM_RESEARCH', rawText }
   const issues = []
   const single = name => {
     const values = field(name)
@@ -30,7 +33,7 @@ export function parseSanctumResearch(rawText) {
       effects.push({ kind, category: name, rawText: label, status: 'unknown', rule: null })
     }
   }
-  const rarityIndex = lines.findIndex(line => /^稀\s*有\s*度\s*[:：]/.test(line))
+  const rarityIndex = lines.findIndex(line => /^(?:稀\s*有\s*度|Rarity)\s*[:：]/i.test(line))
   const name = rarityIndex < 0 ? null : lines[rarityIndex + 1] || null
   // Advanced-copy modifier descriptions are delimited by a brace metadata line
   // and the next separator. Flavor text and instructions are not modifiers.

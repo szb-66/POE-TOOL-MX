@@ -12,6 +12,7 @@ export function parsePoedbUniqueItems(html) {
     const name = cleanText(node.find('.uniqueName').first().text())
     const baseType = cleanText(node.find('.uniqueTypeLine').first().text())
     if (!name && !baseType) return
+    const englishSlug = decodeURIComponent(String(node.attr('href') || '').split(/[?#]/)[0].split('/').at(-1) || '')
     const column = node.closest('.col')
     const imageUrl = cleanText(column.find('a.UniqueItems img, a.UniqueItem img').first().attr('src'))
     const modifierMatchers = []
@@ -26,6 +27,7 @@ export function parsePoedbUniqueItems(html) {
     records.push({
       key: identityKey(name, baseType),
       name,
+      ...(englishSlug ? { englishSlug } : {}),
       baseType,
       modifierMatchers,
       imageId: imageUrl ? uniqueItemImageId(imageUrl) : '',

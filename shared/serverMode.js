@@ -19,9 +19,9 @@ export const SERVER_FEATURES = Object.freeze({
   puzzle: '海图', 'map-tracker': '地图跟踪', 'stash-pickup': '仓库取件', junfeng: '君锋镇'
 })
 
-export const INTERNATIONAL_AUTOMATION_FEATURES = Object.freeze(['items', 'map', 'bag', 'stash-pickup', 'junfeng', 'combat', 'story'])
+export const INTERNATIONAL_AUTOMATION_FEATURES = Object.freeze(['items', 'map', 'bag', 'stash-pickup', 'junfeng', 'combat', 'story', 'price-check', 'recipe', 'map-tracker', 'sanctum', 'faustus'])
 
-// 仅主进程读取启动参数；打包版和渲染端传参均不能开放待验收的游戏输入。
+// 保留旧开发参数兼容；正式能力不再由验收参数决定。
 export function internationalVerificationFeatures(args = [], { isPackaged = true } = {}) {
   if (isPackaged) return []
   const values = args.filter(arg => arg.startsWith('--verify-international-features='))
@@ -30,25 +30,20 @@ export function internationalVerificationFeatures(args = [], { isPackaged = true
   return [...new Set(values)]
 }
 
-export function featureAvailability(serverId, feature, { verificationFeatures = [] } = {}) {
+export function featureAvailability(serverId, feature) {
   requireServerId(serverId)
   if (!Object.hasOwn(SERVER_FEATURES, feature)) return { available: false, reason: '未知功能' }
   if (serverId === 'cn') return { available: true, gameInputAvailable: true, state: 'verified', reason: '' }
   const readOnlyReasons = {
     account: '支持独立网页登录和赛季选择',
-    'price-check': '支持手动粘贴英文物品查价；游戏内捕获暂未开放',
-    recipe: '支持仓库读取与配方计算；自动取件暂未开放',
     'pob-export': '支持读取官网角色并导出 PoB',
-    regex: '支持英文商店、地图与野兽正则'
+    regex: '支持英文原版与当前受管汉化的商店、地图及野兽正则'
   }
-  if (readOnlyReasons[feature]) return { available: true, gameInputAvailable: false, state: 'verified', reason: readOnlyReasons[feature] }
+  if (readOnlyReasons[feature]) return { available: true, gameInputAvailable: false, state: 'ready', reason: readOnlyReasons[feature] }
   if (INTERNATIONAL_AUTOMATION_FEATURES.includes(feature)) {
-    const testing = verificationFeatures.includes(feature)
-    return { available: true, gameInputAvailable: testing, state: testing ? 'verification' : 'pending-client', reason: testing
-      ? '开发版验收模式：仅在手动启动后运行，尚未完成英文客户端实测'
-      : '已实现英文适配，可配置；游戏操作待实测，请使用开发版验收参数' }
+    return { available: true, gameInputAvailable: true, state: 'ready', reason: '已开放，完成离线适配与验证；未进行游戏内实测' }
   }
-  return { available: false, reason: `${SERVER_FEATURES[feature]}尚未完成国际服英文客户端实测，暂不可用` }
+  return { available: false, gameInputAvailable: false, state: 'unsupported', reason: feature === 'puzzle' ? '国际服本赛季不适配海图，已有预设保留' : '国际服暂不开放做装模拟，制作词缀联想仍可使用' }
 }
 
 export function serverContext(id = 'cn', options = {}) {

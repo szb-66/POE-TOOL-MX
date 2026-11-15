@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""国服浮士德当前市集页安全分段改价。
+"""浮士德当前市集页安全分段改价。
 
 仅接受 Electron 主进程写入的固定配置文件，通过 ``EVENT <json>`` 输出有限事件。
 价格数值只从已聚焦输入框的剪贴板读取；OCR 不参与数字定价。
@@ -24,6 +24,12 @@ import unicodedata
 
 CURRENCY_TEXT = {"混沌石": "chaos", "神圣石": "divine"}
 CURRENCY_NAME = {value: key for key, value in CURRENCY_TEXT.items()}
+DEFAULT_LANGUAGE = {
+    "anchors": {"merchant": ["商人"], "shop": ["商店"],
+                "priceTitle": ["设置物品价格"], "submit": ["上架物品"]},
+    "currencies": {"chaos": ["混沌石"], "divine": ["神圣石"]},
+    "itemBaseAliases": {},
+}
 MIN_OCR_SCORE = 0.85
 EMPTY_SLOT_CONFIDENCE = 0.995
 GRID_COLUMNS = 12
@@ -91,7 +97,18 @@ def emit(event, **payload):
 
 
 def normalize_text(value):
-    return "".join(unicodedata.normalize("NFKC", str(value or "")).split())
+    return "".join(unicodedata.normalize("NFKC", str(value or "")).split()).casefold()
+
+
+def currency_text_map(language=None):
+    result = {}
+    for code, aliases in (language or DEFAULT_LANGUAGE)["currencies"].items():
+        for alias in aliases:
+            key = normalize_text(alias)
+            if key in result and result[key] != code:
+                raise PageAbort("currency_ocr_uncertain")
+            result[key] = code
+    return result
 
 
 def _box_rect(box):
@@ -141,33 +158,37 @@ def ocr_image(image_or_path, offset=(0, 0)):
 
 
 def _unique_exact(candidates, expected, reason_code, min_score=MIN_OCR_SCORE):
+    expected = {normalize_text(value) for value in (expected if isinstance(expected, (list, tuple)) else [expected])}
     matches = [candidate for candidate in candidates
-               if normalize_text(candidate.get("text")) == expected and float(candidate.get("score", 0)) >= min_score]
+               if normalize_text(candidate.get("text")) in expected and float(candidate.get("score", 0)) >= min_score]
     if len(matches) != 1:
         raise ItemSkip(reason_code)
     return matches[0]
 
 
-def select_unique_currency(candidates, min_score=MIN_OCR_SCORE):
+def select_unique_currency(candidates, min_score=MIN_OCR_SCORE, language=None):
+    names = currency_text_map(language)
     matches = [candidate for candidate in candidates
-               if normalize_text(candidate.get("text")) in CURRENCY_TEXT
+               if normalize_text(candidate.get("text")) in names
                and float(candidate.get("score", 0)) >= min_score]
     if len(matches) != 1:
         raise ItemSkip("currency_ocr_uncertain")
-    return CURRENCY_TEXT[normalize_text(matches[0]["text"])]
+    return names[normalize_text(matches[0]["text"])]
 
 
-def find_dropdown_currencies(candidates, min_score=MIN_OCR_SCORE):
-    return sorted({CURRENCY_TEXT[normalize_text(candidate.get("text"))]
+def find_dropdown_currencies(candidates, min_score=MIN_OCR_SCORE, language=None):
+    names = currency_text_map(language)
+    return sorted({names[normalize_text(candidate.get("text"))]
                    for candidate in candidates
-                   if normalize_text(candidate.get("text")) in CURRENCY_TEXT
+                   if normalize_text(candidate.get("text")) in names
                    and float(candidate.get("score", 0)) >= min_score})
 
 
-def validate_page_anchors(candidates):
+def validate_page_anchors(candidates, language=None):
     trusted = {normalize_text(candidate.get("text")) for candidate in candidates
                if float(candidate.get("score", 0)) >= 0.75}
-    if "商人" not in trusted or "商店" not in trusted:
+    anchors = (language or DEFAULT_LANGUAGE)["anchors"]
+    if not all(any(normalize_text(alias) in trusted for alias in anchors[key]) for key in ("merchant", "shop")):
         return False, "page_anchor_missing"
     return True, "page_ok"
 
@@ -318,13 +339,13 @@ def identify_copied_item(copied_text):
     return {"itemName": best_effort_item_name(normalized)}
 
 
-def parse_item_header(copied_text):
+def parse_item_header(copied_text, aliases=None):
     lines = [line.strip() for line in str(copied_text or "").splitlines() if line.strip()]
+    lines = [unicodedata.normalize("NFKC", line) for line in lines]
     category_index = next((index for index, line in enumerate(lines)
-                           if line.startswith("物品类别:") or line.startswith("Item Class:")), -1)
+                           if re.match(r"^(?:物品类别|物品種類|物品种类|物品類別|Item Class):", line)), -1)
     rarity_index = next((index for index, line in enumerate(lines)
-                         if line.startswith("稀 有 度:") or line.startswith("稀有度:")
-                         or line.startswith("Rarity:")), -1)
+                         if re.match(r"^(?:稀\s*有\s*度|Rarity):", line)), -1)
     if category_index < 0 or rarity_index < 0:
         return None
     category = lines[category_index].split(":", 1)[1].strip()
@@ -336,10 +357,44 @@ def parse_item_header(copied_text):
             header.append(line)
     if not category or not header:
         return None
+    base_name = header[1] if len(header) > 1 else header[0]
+    if aliases:
+        normalize_base = lambda value: " ".join(unicodedata.normalize("NFKC", str(value or "")).casefold().split())
+        normalized_aliases = {}
+        for alias, english in aliases.items():
+            key = normalize_base(alias)
+            normalized_aliases.setdefault(key, set()).add(english)
+        key = normalize_base(base_name)
+        if key in normalized_aliases:
+            values = normalized_aliases[key]
+            base_name = next(iter(values)) if len(values) == 1 and None not in values else ""
+        elif len(header) == 1:
+            # A nested short base is not a second identity; disjoint bases remain ambiguous.
+            def latin_word(character):
+                return bool(character) and (character == "_" or character.isdecimal() or
+                                           "LATIN" in unicodedata.name(character, ""))
+            matches = []
+            for alias, values in normalized_aliases.items():
+                if not alias:
+                    continue
+                start = key.find(alias)
+                while start >= 0:
+                    end = start + len(alias)
+                    before = key[start - 1] if start else ""
+                    after = key[end] if end < len(key) else ""
+                    if not ((latin_word(alias[0]) and latin_word(before)) or
+                            (latin_word(alias[-1]) and latin_word(after))):
+                        matches.append((start, end, values))
+                    start = key.find(alias, start + 1)
+            maximal = [match for match in matches if not any(
+                other[0] <= match[0] and other[1] >= match[1] and other[1] - other[0] > match[1] - match[0]
+                for other in matches)]
+            candidates = {english for _, _, values in maximal for english in values}
+            base_name = next(iter(candidates)) if len(candidates) == 1 and None not in candidates else ""
     return {
         "category": category,
         "name": header[0],
-        "baseName": header[1] if len(header) > 1 else "",
+        "baseName": base_name,
     }
 
 
@@ -683,6 +738,15 @@ class GameAdapter:
         self._price_layout = None
         self._price_open_started = None
 
+    def language(self):
+        return getattr(self, "config", {}).get("runtime_language") or DEFAULT_LANGUAGE
+
+    def anchor(self, key):
+        return self.language()["anchors"][key]
+
+    def currency_aliases(self, code):
+        return self.language()["currencies"][code]
+
     def trace_timing(self, stage, started, **metrics):
         if os.environ.get("FAUSTUS_TIMING") == "1" and started is not None:
             print("FAUSTUS_TIMING " + json.dumps({
@@ -727,7 +791,7 @@ class GameAdapter:
         return self.capture_ocr(region)
 
     def validate_page(self):
-        ok, reason = validate_page_anchors(self.page_candidates())
+        ok, reason = validate_page_anchors(self.page_candidates(), self.language())
         if not ok:
             raise PageAbort(reason)
 
@@ -784,13 +848,13 @@ class GameAdapter:
         }
 
     def _price_context_from_candidates(self, candidates):
-        title = _unique_exact(candidates, "设置物品价格", "price_window_anchor_missing", 0.75)
+        title = _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
         currency_candidates = [candidate for candidate in candidates
-                               if normalize_text(candidate.get("text")) in CURRENCY_TEXT]
-        currency = select_unique_currency(currency_candidates)
-        currency_text = CURRENCY_NAME[currency]
+                               if normalize_text(candidate.get("text")) in currency_text_map(self.language())]
+        currency = select_unique_currency(currency_candidates, language=self.language())
+        currency_text = self.currency_aliases(currency)
         currency_candidate = _unique_exact(currency_candidates, currency_text, "currency_ocr_uncertain")
-        submit = _unique_exact(candidates, "上架物品", "submit_anchor_missing", 0.75)
+        submit = _unique_exact(candidates, self.anchor("submit"), "submit_anchor_missing", 0.75)
         context = {
             "candidates": candidates,
             "title": title,
@@ -835,12 +899,12 @@ class GameAdapter:
         height = max(1, rect["bottom"] - rect["top"])
         region = self._bounded_region(rect, height * 1.75, height * 0.80,
                                       rect["bottom"] + height * 0.80)
-        title = _unique_exact(self.capture_ocr(region), "设置物品价格", "price_window_anchor_missing", 0.75)
+        title = _unique_exact(self.capture_ocr(region), self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
         if not self._layout_anchor_matches(title, layout["title"]):
             raise ItemSkip("price_window_layout_changed")
         candidates = self.capture_ocr(self._currency_region(layout))
-        currency = select_unique_currency(candidates)
-        candidate = _unique_exact(candidates, CURRENCY_NAME[currency], "currency_ocr_uncertain")
+        currency = select_unique_currency(candidates, language=self.language())
+        candidate = _unique_exact(candidates, self.currency_aliases(currency), "currency_ocr_uncertain")
         if not self._layout_anchor_matches(candidate, layout["currency"], currency=True):
             raise ItemSkip("price_window_layout_changed")
         return {"title": title, "currency": candidate, "currencyCode": currency,
@@ -867,7 +931,7 @@ class GameAdapter:
             # 独立拷贝几何，不把当前通货代码或物品状态带到下一件。
             self._price_layout = {key: {"box": [list(point) for point in context[key]["box"]]}
                                   for key in ("title", "currency", "submit")}
-            self._price_layout["submit"].update(text="上架物品", score=context["submit"]["score"])
+            self._price_layout["submit"].update(text=context["submit"]["text"], score=context["submit"]["score"])
             self._price_layout["popup"] = dict(popup)
         self._price_context = context
         self._price_window_open_observation = True
@@ -879,7 +943,7 @@ class GameAdapter:
             return self._price_window_open_observation
         candidates = self.capture_ocr(self._popup_region())
         try:
-            _unique_exact(candidates, "设置物品价格", "price_window_anchor_missing", 0.75)
+            _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
             is_open = True
         except ItemSkip:
             is_open = False
@@ -954,8 +1018,8 @@ class GameAdapter:
         context = self.price_context()
         if force_refresh or not context.get("currencyCode"):
             candidates = self.capture_ocr(self._currency_region(context))
-            currency = select_unique_currency(candidates)
-            currency_text = CURRENCY_NAME[currency]
+            currency = select_unique_currency(candidates, language=self.language())
+            currency_text = self.currency_aliases(currency)
             currency_candidate = _unique_exact(candidates, currency_text, "currency_ocr_uncertain")
             context = {**context, "currency": currency_candidate, "currencyCode": currency}
             self._price_context = context
@@ -969,10 +1033,10 @@ class GameAdapter:
         selector_rect = _box_rect(context["currency"]["box"])
         self.click(_box_center(context["currency"]["box"]))
         candidates = self.capture_ocr(self._currency_dropdown_region(context))
-        expected = CURRENCY_NAME[currency]
+        expected = {normalize_text(value) for value in self.currency_aliases(currency)}
         dropdown = []
         for candidate in candidates:
-            if normalize_text(candidate.get("text")) != expected or float(candidate.get("score", 0)) < MIN_OCR_SCORE:
+            if normalize_text(candidate.get("text")) not in expected or float(candidate.get("score", 0)) < MIN_OCR_SCORE:
                 continue
             rect = _box_rect(candidate["box"])
             if rect["top"] > selector_rect["bottom"] and rect["left"] < selector_rect["right"] + (selector_rect["right"] - selector_rect["left"]):
@@ -1071,11 +1135,12 @@ class GameAdapter:
         candidates = self.capture_ocr(self._popup_region())
         self.trace_timing("submission_ocr", started)
         self.trace_timing("open_to_submission_result", self._price_open_started)
-        warning_words = ("冷却", "频繁", "警告", "错误", "无法")
+        warning_words = ("冷却", "频繁", "警告", "错误", "无法", "冷卻", "頻繁", "錯誤", "無法",
+                         "cooldown", "toooften", "warning", "error", "cannot", "unable", "ratelimit")
         has_warning = any(any(word in normalize_text(candidate.get("text")) for word in warning_words)
                           and float(candidate.get("score", 0)) >= 0.70 for candidate in candidates)
         try:
-            _unique_exact(candidates, "设置物品价格", "price_window_anchor_missing", 0.75)
+            _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
             window_open = True
         except ItemSkip:
             window_open = False
@@ -1178,7 +1243,7 @@ def run_repricing(config, adapter, preflight_done=False):
             attempted_slots.add(candidate_key)
             emit("progress", processed=processed, total=total)
             continue
-        parsed_item = parse_item_header(copied)
+        parsed_item = parse_item_header(copied, (config.get("runtime_language") or {}).get("itemBaseAliases"))
         item_name = best_effort_item_name(copied)
         footprint = resolve_item_footprint(parsed_item, item_footprints)
         if not footprint:

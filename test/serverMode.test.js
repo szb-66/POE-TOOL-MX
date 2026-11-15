@@ -13,7 +13,6 @@ import { PoeCnTradeClient } from '../electron/modules/priceCheck/client.js'
 import { PoeCnStashClient } from '../electron/modules/chaosRecipe/stashClient.js'
 import { PoeCnAuthService } from '../electron/modules/chaosRecipe/auth.js'
 import { isPoeCnAllowedUrl } from '../electron/modules/chaosRecipe/http.js'
-import { probeServerCapabilities } from '../electron/modules/app/serverProbe.js'
 import { createConfigBundle, parseConfigBundle } from '../src/domains/settings/configTransfer/core.js'
 
 const memory = () => {
@@ -31,11 +30,11 @@ test('默认国服，国际服独立描述，未知服务器拒绝', () => {
   assert.equal(getServer('international').language, 'en')
   assert.throws(() => getServer('other'))
   const capabilities = serverContext('international').capabilities
-  assert.ok(['account', 'price-check', 'recipe', 'pob-export'].every(key => capabilities[key].available && capabilities[key].gameInputAvailable === false))
+  assert.ok(['account', 'pob-export'].every(key => capabilities[key].available && capabilities[key].gameInputAvailable === false))
   assert.equal(capabilities.items.available, true)
-  assert.equal(capabilities.items.gameInputAvailable, false)
-  assert.equal(capabilities.items.state, 'pending-client')
-  assert.equal(capabilities.sanctum.available, false)
+  assert.equal(capabilities.items.gameInputAvailable, true)
+  assert.equal(capabilities.items.state, 'ready')
+  assert.equal(capabilities.sanctum.available, true)
 })
 
 test('严格停止失败不写模式，成功后重启，运行中上下文不热切换', async t => {
@@ -85,14 +84,14 @@ test('已有国服配置保留，国际服坐标与文字预设独立，快捷�
 
 test('国际服直接 IPC 和浮窗不能绕过门禁，切换时国服也拒绝新任务，停止始终可用', async () => {
   assert.equal(serverChannelFailure(serverContext(), 'execute-python'), null)
-  for (const channel of ['execute-python', 'generate-and-execute-script', 'combat-start-potion', 'chaos-recipe-control-action', 'price-check-capture', 'faustus-start']) {
+  for (const channel of ['execute-python', 'generate-and-execute-script', 'crafting-create-manual-session', 'puzzle-analyze']) {
     assert.equal(serverChannelFailure(serverContext('international'), channel).code, 'SERVER_FEATURE_UNAVAILABLE')
   }
   assert.equal(serverChannelFailure(serverContext(), 'execute-python', true).code, 'SERVER_SWITCHING')
   assert.equal(serverChannelFailure(serverContext(), 'emergency-stop-all', true), null)
   for (const channel of ['price-check-text', 'price-check-load-more', 'pob-export-build', 'chaos-recipe-refresh']) assert.equal(serverChannelFailure(serverContext('international'), channel), null)
   assert.equal(serverChannelFailure(serverContext('international'), 'chaos-recipe-runtime-update', false, [{ enabled: false }]), null)
-  for (const enabled of [true, 'true', 1]) assert.equal(serverChannelFailure(serverContext('international'), 'chaos-recipe-runtime-update', false, [{ enabled }]).code, 'SERVER_FEATURE_UNAVAILABLE')
+  for (const enabled of [true, 'true', 1]) assert.equal(serverChannelFailure(serverContext('international'), 'chaos-recipe-runtime-update', false, [{ enabled }]), null)
   const handlers = new Map()
   const ipc = { handle: (channel, handler) => handlers.set(channel, handler), on() {} }
   installServerIpcPolicy(ipc, { context: serverContext('international') })
@@ -148,16 +147,6 @@ test('国际服拒绝访问、登录 HTML 和限流有明确状态且不重试',
     await assert.rejects(client.getStats(), error => error.code === code)
     assert.equal(calls, 1)
   }
-})
-
-test('逐接口验证报告不包含账号、响应正文或异常信息，也不把认证成功当作仓库成功', async () => {
-  const report = await probeServerCapabilities({
-    auth: { validate: async () => ({ accountName: 'private-fixture' }) },
-    stash: { listLeagues: async () => [{ id: 'Standard' }], listTabs: async () => { throw Object.assign(Error('private-fixture'), { code: 'ACCESS_DENIED', details: { status: 403 } }) } },
-    trade: { getStats: async () => ({}), search: async () => ({}) }, characters: async () => []
-  })
-  assert.equal(report.find(entry => entry.capability === 'stash').state, 'ACCESS_DENIED')
-  assert.equal(JSON.stringify(report).includes('private-fixture'), false)
 })
 
 test('配置包记录服务器，旧配置按国服兼容且凭据被剔除', () => {

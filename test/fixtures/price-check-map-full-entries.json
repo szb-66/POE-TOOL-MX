@@ -1,0 +1,1989 @@
+[
+  {
+    "table": "activeskills",
+    "id": "thunderstorm",
+    "field": "Description",
+    "en": "Fires an arrow into the air to land at a targeted location. On impact, deals area damage and creates a thunderstorm which blinds enemies within it. Entering the thunderstorm will cause it to gain stages, and leaving it will cause it to dissipate. Leaving the storm while it is at maximum stages will cause it to explode, dealing damage and triggering Thunderburst. You must use this skill yourself, it cannot be used by Totems, Traps, Mines, or other objects that use skills for you.",
+    "kind": "dat",
+    "sourceHash": "9dfafdb340b3dbee19697c5d67fe4e419995a807c98eb2924621abf83d7771a7",
+    "tw": "向空中射出箭矢，在目標區域周圍落下，命中時造成範圍傷害，並在該區域生成雷暴，使其中的敵人致盲。進入雷暴會使其累積階段，再次離開則會使其逐漸消散。當你在雷暴達到最大階段時離開，它將會爆炸，造成傷害並觸發雷霆爆裂。此技能必須由你親自施放，無法由圖騰、陷阱、地雷或其他代替你施放技能的物體使用。",
+    "cn": "向天空射箭在指定的地点落下。造成范围伤害，并且形成雷霆风暴，使敌人致盲。进入雷霆风暴范围时开始充能，离开时便会消散。当雷霆风暴等级达到最大值时，离开时会剧烈爆炸，造成范围伤害，并触发雷霆爆裂技能。这个技能必须由你手动施放，不能通过图腾、陷阱、地雷或其他物品来使用。"
+  },
+  {
+    "table": "activeskills",
+    "id": "kinetic_rain",
+    "field": "Description",
+    "en": "Swing your wand to cause a number of projectiles to rain down within a large area in front of you, directly targeting the locations of enemies in the area. The locations where each projectile will land are shown with markers before they fall. Each projectile explodes when hitting the ground, dealing area damage and triggering Kinetic Anomaly. Cannot be used by Totems, Traps, or Mines.",
+    "kind": "dat",
+    "sourceHash": "2ee00db595e6f5fcb5a2ab2f10322e35221f67b6622cdf4e62479cd773323abf",
+    "tw": "揮舞你的法杖，使複數投射物在你前方的大片區域灑落， 並且鎖定區域內的敵人位置。 投射物掉落的位置會在落下前預先標記。 每一個掉落的投射物都會在落地時爆炸，造成範圍傷害並觸發力量反常。此技能無法被觸發，或被陷阱、地雷、或圖騰施放。",
+    "cn": "挥动法杖在前方大范围内降下多个投射物，可直接锁定区域内敌人的位置。所有投射物在落地前会显示预判落点标记，触地时爆炸造成范围伤害，并触发动能异变技能。此技能无法被陷阱、地雷或图腾使用。"
+  },
+  {
+    "table": "activeskills",
+    "id": "siege_ballista_alt_y",
+    "field": "Description",
+    "en": "Summons a ring of ballista totems around a targeted location. These ballistae fire once at the targeted location and then expire. Requires a Bow.",
+    "kind": "dat",
+    "sourceHash": "f07d1227859ae1404d55173855f1ceaf6bac9510057b403d4cfdf09cb989557e",
+    "tw": "在目標區域周圍召喚一道砲塔圖騰環。這些砲塔對目標區域開火一次後消失。需要裝備弓。",
+    "cn": "在目标地点周围召唤一圈弩炮图腾。这些弩炮会向目标地点射击一次后消失。需要弓类武器。"
+  },
+  {
+    "table": "activeskills",
+    "id": "ball_lightning_alt_y",
+    "field": "Description",
+    "en": "Creates a ball of lightning at a location that damages each enemy in an area around it repeatedly with bolts of lightning. Cannot be supported by Spell Echo or used by Totems.",
+    "kind": "dat",
+    "sourceHash": "ef764381b6ebb3296c998918fd4f28c5e6612ba4950d19a2f3ccfaf7efafdcb3",
+    "tw": "在指定區域製造天雷之珠，對區域內的每個敵人反覆雷擊造成傷害。無法以施放迴響輔助或讓圖騰使用。",
+    "cn": "在一个位置创造天雷之珠，对周围的每个敌人反复施放闪电并造成伤害。无法被施法回响辅助或被图腾使用。"
+  },
+  {
+    "table": "ultimatummodifiers",
+    "id": "MonsterResistancesCannotBePenetrated",
+    "field": "Description",
+    "en": "Monster Elemental Resistances cannot be Penetrated",
+    "kind": "dat",
+    "sourceHash": "49016f3e33c1684ffcbe9b664a538cce0ba632b4be5030dcde6d59e9623b1f0d",
+    "tw": "怪物的元素抗性無法被穿透",
+    "cn": "怪物的元素抗性无法被穿透"
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_monster_life_+%_final_from_deadly_atlas",
+    "field": "variant:1",
+    "en": "Monsters in your Maps have {0}% less Life",
+    "kind": "stat",
+    "sourceHash": "72b661306f8a8ddd0d18c2230ddc241b7822039960709d657490e4b63cfa0132",
+    "tw": "你地圖中的怪物有 {0}% 更少生命",
+    "cn": "你地图中的怪物生命总降 {0}%",
+    "stats": {
+      "ids": [
+        "map_monster_life_+%_final_from_deadly_atlas"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_atlas_extra_content_small_node_effect_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Effect of Small Atlas Passive Skills for Extra Content",
+    "kind": "stat",
+    "sourceHash": "6543860d8bdd9d8503965acc1b9906814d91454b55f62cce6a9f18d009ebf9c7",
+    "tw": "增加 {0}% 小輿圖天賦對額外內容的效果",
+    "cn": "额外内容的异界小型天赋的效果提高 {0}%",
+    "stats": {
+      "ids": [
+        "map_atlas_extra_content_small_node_effect_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_monster_life_+%_final_from_deadly_atlas",
+    "field": "variant:0",
+    "en": "Monsters in your Maps have {0}% more Life",
+    "kind": "stat",
+    "sourceHash": "2832cfa4fcebbbea9a0bc55c2d2f191bbdaf1fe2d765d74e862b1e8e70e8c1ea",
+    "tw": "你地圖中的怪物有 {0}% 更多生命",
+    "cn": "你地图中的怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_monster_life_+%_final_from_deadly_atlas"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "display_notable_atlas_passives_grant_nothing",
+    "field": "variant:0",
+    "en": "Notable Atlas Passive Skills grant nothing",
+    "kind": "stat",
+    "sourceHash": "c3b29c65bb10c510f2bc91953d51659ce13bce090ef173e149796dfe54469cc9",
+    "tw": "核心輿圖天賦沒有效果",
+    "cn": "核心异界天赋不提供效果",
+    "stats": {
+      "ids": [
+        "display_notable_atlas_passives_grant_nothing"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_atlas_extra_content_small_node_effect_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Effect of Small Atlas Passive Skills for Extra Content",
+    "kind": "stat",
+    "sourceHash": "81f34475ba310c3de1d5ce7348e7bf5e73cba9c8a0cdc8a7e31a0787e4e91180",
+    "tw": "減少 {0}% 小輿圖天賦對額外內容的效果",
+    "cn": "额外内容的异界小型天赋的效果降低 {0}%",
+    "stats": {
+      "ids": [
+        "map_atlas_extra_content_small_node_effect_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "small_atlas_passive_effect_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced effect of Small Atlas Passive Skills",
+    "kind": "stat",
+    "sourceHash": "90ce5cce7d8758dfdd476d24e0bff0ce674980dfb1e5d8a1378983d382ccee2c",
+    "tw": "減少 {0}% 小輿圖天賦的效果",
+    "cn": "小型异界天赋的效果降低{0}%",
+    "stats": {
+      "ids": [
+        "small_atlas_passive_effect_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "display_small_atlas_passives_grant_nothing",
+    "field": "variant:0",
+    "en": "Small Atlas Passive Skills grant nothing",
+    "kind": "stat",
+    "sourceHash": "aeab65ffcf2ee68010ebbb107b0f35892300f64c7f25ac9d4c13b68df517173c",
+    "tw": "小輿圖天賦沒有效果",
+    "cn": "小型异界天赋不提供效果",
+    "stats": {
+      "ids": [
+        "display_small_atlas_passives_grant_nothing"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "small_atlas_passive_effect_+%",
+    "field": "variant:0",
+    "en": "{0}% increased effect of Small Atlas Passive Skills",
+    "kind": "stat",
+    "sourceHash": "8010ef73a7485a6680faf27520a87c71341498e0a6b253376fb692a40b44c822",
+    "tw": "增加 {0}% 小輿圖天賦的效果",
+    "cn": "小型异界天赋的效果提高{0}%",
+    "stats": {
+      "ids": [
+        "small_atlas_passive_effect_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextSmallAtlasPassives",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_monster_life_+%_final_from_vital_atlas",
+    "field": "variant:0",
+    "en": "Monsters in your Maps have {0}% more Life",
+    "kind": "stat",
+    "sourceHash": "2832cfa4fcebbbea9a0bc55c2d2f191bbdaf1fe2d765d74e862b1e8e70e8c1ea",
+    "tw": "你地圖中的怪物有 {0}% 更多生命",
+    "cn": "你地图中的怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_monster_life_+%_final_from_vital_atlas"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/atlas_stat_descriptions.csd",
+    "id": "map_monster_life_+%_final_from_vital_atlas",
+    "field": "variant:1",
+    "en": "Monsters in your Maps have {0}% less Life",
+    "kind": "stat",
+    "sourceHash": "72b661306f8a8ddd0d18c2230ddc241b7822039960709d657490e4b63cfa0132",
+    "tw": "你地圖中的怪物有 {0}% 更少生命",
+    "cn": "你地图中的怪物生命总降 {0}%",
+    "stats": {
+      "ids": [
+        "map_monster_life_+%_final_from_vital_atlas"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextLifeModifierNoCorpse",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_percent_increased_effect_of_atlas_passives",
+    "field": "variant:1",
+    "en": "Atlas Passives have {0}% increased Effect on Area",
+    "kind": "stat",
+    "sourceHash": "b133f5da67c65d19b6ba2ffe88d877f1a5b416af6f57e7f51bd7053c160fb6f0",
+    "tw": "輿圖天賦對區域的效果增加 {0}%",
+    "cn": "异界天赋的范围效果提高 {0}%",
+    "stats": {
+      "ids": [
+        "map_percent_increased_effect_of_atlas_passives"
+      ],
+      "variants": [
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_hellscape_monster_life_+%_final",
+    "field": "variant:0",
+    "en": "Monsters in Nightmare have {0}% more Maximum Life",
+    "kind": "stat",
+    "sourceHash": "e700a4b6db7d3f8fb63c0533fbe56bd0255581ac290ceec03698e8707393487b",
+    "tw": "夢魘中的怪物有 {0}% 更多最大生命",
+    "cn": "梦魇里的怪物生命上限总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_hellscape_monster_life_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_packs_are_str_mission_totems",
+    "field": "variant:0",
+    "en": "Area has Damaging Totems",
+    "kind": "stat",
+    "sourceHash": "4eb2ec7bbf66538ce72d1aab0363306f600f942fe7c87be8fac226c70bdfe493",
+    "tw": "區域含有攻擊性圖騰",
+    "cn": "区域内有攻击性图腾",
+    "stats": {
+      "ids": [
+        "map_packs_are_str_mission_totems"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_heist_monster_life_+%_final_from_sextant",
+    "field": "variant:0",
+    "en": "Monsters have {0}% more Life",
+    "kind": "stat",
+    "sourceHash": "93e8405e8b51d526b2bb86d226174195164b0f8117479d374d5df5ca4beb43cf",
+    "tw": "怪物有 {0}% 更多生命",
+    "cn": "怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_heist_monster_life_+%_final_from_sextant"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_additional_elemental_resistance",
+    "field": "variant:0",
+    "en": "+{0}% Monster Elemental Resistances",
+    "kind": "stat",
+    "sourceHash": "ab0c2ebfab471a87f1d3ccf964ccb928378212feb5d8ccf6fd72ca1f6277e8b9",
+    "tw": "+{0}% 怪物的元素抗性",
+    "cn": "+{0}% 怪物的元素抗性",
+    "stats": {
+      "ids": [
+        "map_monsters_additional_elemental_resistance"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_treat_enemy_resistances_as_negated_on_elemental_damage_hit",
+    "field": "variant:0",
+    "en": "Treats Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "51a256fe1674c70c29a980bde4505fcdcc543a4f165463c2a7b94dd9ae136e04",
+    "tw": "對待敵人怪物元素抗性的值為顛倒",
+    "cn": "将敌方怪物的元素抗性值视作反转",
+    "stats": {
+      "ids": [
+        "local_treat_enemy_resistances_as_negated_on_elemental_damage_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_player_no_regeneration",
+    "field": "variant:0",
+    "en": "Players have no Life or Mana Regeneration",
+    "kind": "stat",
+    "sourceHash": "e779c0bd405383c09c3b1e08698530c0aa55a257fd6d1b53fd10b152852ba57e",
+    "tw": "玩家不會回復生命或魔力",
+    "cn": "玩家无法再生生命或魔力",
+    "stats": {
+      "ids": [
+        "map_player_no_regeneration"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_immune_to_a_random_status_ailment_or_stun",
+    "field": "variant:0",
+    "en": "Monsters are Immune to randomly chosen Elemental Ailments or Stun",
+    "kind": "stat",
+    "sourceHash": "ffb7f423ab64f64baaaa9bbf3d9d959837bec1d51278d7b373e9e0dd1c6783f4",
+    "tw": "怪物免疫隨機的元素異常狀態或暈眩",
+    "cn": "怪物免疫元素异常状态和晕眩",
+    "stats": {
+      "ids": [
+        "map_monsters_immune_to_a_random_status_ailment_or_stun"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextElementalAilments",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_life_+%",
+    "field": "variant:1",
+    "en": "{0}% less Monster Life",
+    "kind": "stat",
+    "sourceHash": "cd17a120d04d99488a160e480547e843f7d5312a6295163af5f423cfd582504f",
+    "tw": "{0}% 更少怪物生命",
+    "cn": "怪物生命总降 {0}%",
+    "stats": {
+      "ids": [
+        "map_monsters_life_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_life_leech_resistance_%",
+    "field": "variant:1",
+    "en": "Cannot Leech Life from Monsters",
+    "kind": "stat",
+    "sourceHash": "f17999f4ce0e169d7af8a433428470a5ae01b4d46553c00e3c379a48d4cd416f",
+    "tw": "不能偷取怪物生命",
+    "cn": "无法偷取怪物生命",
+    "stats": {
+      "ids": [
+        "map_monsters_life_leech_resistance_%"
+      ],
+      "variants": [
+        {
+          "condition": "#|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "canonical_line",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_players_no_regeneration_including_es",
+    "field": "variant:0",
+    "en": "Players cannot Regenerate Life, Mana or Energy Shield",
+    "kind": "stat",
+    "sourceHash": "486a68dd1caed796c11ffa68de1ab92d8de87ba7701adf6e2f676254ee1659c2",
+    "tw": "玩家不能回復生命、魔力和能量護盾",
+    "cn": "玩家无法再生生命、魔力和能量护盾",
+    "stats": {
+      "ids": [
+        "map_players_no_regeneration_including_es"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_shrine_monster_life_+%_final",
+    "field": "variant:0",
+    "en": "Monsters worshipping Shrines have {0}% more Life",
+    "kind": "stat",
+    "sourceHash": "c923d1ef6306d2f748443f49e3abf96471287058645daf2f5ecbd7e2be04e728",
+    "tw": "敬拜神殿的怪物有 {0}% 更多生命",
+    "cn": "敬拜神殿的怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_shrine_monster_life_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_packs_are_totems",
+    "field": "variant:0",
+    "en": "Area contains many Totems",
+    "kind": "stat",
+    "sourceHash": "6664187e5dd3398898a9029fad5d6941b481b88581c06e097f15dba269996e18",
+    "tw": "區域含有許多圖騰",
+    "cn": "区域内有许多图腾",
+    "stats": {
+      "ids": [
+        "map_packs_are_totems"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_additional_chaos_resistance",
+    "field": "variant:0",
+    "en": "+{0}% Monster Chaos Resistance",
+    "kind": "stat",
+    "sourceHash": "c72e54785c49d8817c94da49e3191118b34ec917e94840d4bed4272c72e3e6e6",
+    "tw": "+{0}% 怪物的混沌抗性",
+    "cn": "+{0}% 怪物的混沌抗性",
+    "stats": {
+      "ids": [
+        "map_monsters_additional_chaos_resistance"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_life_+%",
+    "field": "variant:0",
+    "en": "{0}% more Monster Life",
+    "kind": "stat",
+    "sourceHash": "1dfd3deeb7dda192053326ff2e5e5087e9a2b628f98c1644e58c2a486dbc6414",
+    "tw": "{0}% 更多怪物生命",
+    "cn": "怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_monsters_life_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_hellscape_monster_life_+%_final",
+    "field": "variant:1",
+    "en": "Monsters in Nightmare have {0}% less Maximum Life",
+    "kind": "stat",
+    "sourceHash": "3f42aa21311e03889e8f0740beddc56e1dab30993e5a6c4ec4ddc1463703528c",
+    "tw": "夢魘中的怪物有 {0}% 更少最大生命",
+    "cn": "梦魇里的怪物生命上限总降 {0}%",
+    "stats": {
+      "ids": [
+        "map_hellscape_monster_life_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "minion_hits_ignore_enemy_elemental_resistances_while_has_energy_shield",
+    "field": "variant:0",
+    "en": "While Minions have Energy Shield, their Hits Ignore Monster Elemental Resistances",
+    "kind": "stat",
+    "sourceHash": "53d0dc4fa1a09eb6b6e231eb77bf7cd33d8000c8781ab4da06bec913520c1339",
+    "tw": "召喚物有能量護盾時，他們的擊中無視怪物的元素抗性",
+    "cn": "召唤生物有能量护盾时，它们的击中无视怪物的元素抗性",
+    "stats": {
+      "ids": [
+        "minion_hits_ignore_enemy_elemental_resistances_while_has_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "f4e5f2689ace8cd8b823f662e60b2f2c0e65b74f4aa45c891ae6b5e67dd4741a",
+    "tw": "擊中有 {0}% 機率將敵人怪物元素抗性的值視為顛倒",
+    "cn": "击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_watchstone_monsters_life_+%_final",
+    "field": "variant:0",
+    "en": "{0}% more Monster Life",
+    "kind": "stat",
+    "sourceHash": "1dfd3deeb7dda192053326ff2e5e5087e9a2b628f98c1644e58c2a486dbc6414",
+    "tw": "{0}% 更多怪物生命",
+    "cn": "怪物的生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_watchstone_monsters_life_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "maximum_life_+%_to_grant_packmate_on_death",
+    "field": "variant:0",
+    "en": "{0}% increased Life granted to Pack members on death",
+    "kind": "stat",
+    "sourceHash": "65f5153353f55723a5ab28b515c29c7d2672e7e7d7a954e7c47febc48011376a",
+    "tw": "死亡時怪物群成員生命增加 {0}%",
+    "cn": "被击败时使怪物群的怪物生命提高 {0}%",
+    "stats": {
+      "ids": [
+        "maximum_life_+%_to_grant_packmate_on_death"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "hits_ignore_enemy_chaos_resistance_if_all_shaper_items_equipped",
+    "field": "variant:0",
+    "en": "Hits ignore Enemy Monster Chaos Resistance if all Equipped Items are Shaper Items",
+    "kind": "stat",
+    "sourceHash": "49b186107a08c1b842aa1b449e72446c8a037af6b10e665ed7fad14dd9c14554",
+    "tw": "若全部裝備的物品為塑者之物，擊中無視怪物敵人的混沌抗性",
+    "cn": "若全部装备为塑界者物品，则击中无视敌方怪物的混沌抗性",
+    "stats": {
+      "ids": [
+        "hits_ignore_enemy_chaos_resistance_if_all_shaper_items_equipped"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_treat_treat_enemy_chaos_resistances_as_negated_on_hit",
+    "field": "variant:0",
+    "en": "Treats Enemy Monster Chaos Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "e4d1ce0b15164138f81041c2a4c4417cfa674f383d8de7264c5219896f17c42c",
+    "tw": "視敵人的怪物混沌抗性為顛倒",
+    "cn": "将敌方怪物的混沌抗性视作反转",
+    "stats": {
+      "ids": [
+        "local_treat_treat_enemy_chaos_resistances_as_negated_on_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_percent_increased_effect_of_atlas_passives",
+    "field": "variant:0",
+    "en": "Atlas Passives have {0}% reduced Effect on Area",
+    "kind": "stat",
+    "sourceHash": "37d92df2fac4b5b4eb8e46cba90043e19742e152eb7ad5b107e1f6f07acb36f1",
+    "tw": "輿圖天賦對區域的效果減少 {0}%",
+    "cn": "异界天赋的范围效果降低 {0}%",
+    "stats": {
+      "ids": [
+        "map_percent_increased_effect_of_atlas_passives"
+      ],
+      "variants": [
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "b78ce12f10c2b85f17020204bb7ee735ac39efc16a2b28f467fb59c843d3554b",
+    "tw": "擊中將敵人怪物元素抗性的值視為顛倒",
+    "cn": "击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_heist_monster_life_+%_final_from_sextant",
+    "field": "variant:1",
+    "en": "Monsters have {0}% less Life",
+    "kind": "stat",
+    "sourceHash": "18f523550efe0046e66b550f391ffd406a6a7dcd070bb81356c01992e25cf64e",
+    "tw": "怪物有 {0}% 更少生命",
+    "cn": "怪物生命总降 {0}%",
+    "stats": {
+      "ids": [
+        "map_heist_monster_life_+%_final_from_sextant"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_cannot_be_stunned",
+    "field": "variant:0",
+    "en": "Monsters cannot be Stunned",
+    "kind": "stat",
+    "sourceHash": "fbb9c0ef1f5e2841ebc079be5a72ed2d7132bf8671cd7f146e9398cb3d740977",
+    "tw": "怪物不會被暈眩",
+    "cn": "怪物免疫晕眩",
+    "stats": {
+      "ids": [
+        "map_monsters_cannot_be_stunned"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_packs_have_detonate_dead_totems",
+    "field": "variant:0",
+    "en": "Area contains many Detonation Totems",
+    "kind": "stat",
+    "sourceHash": "c29cf8e5028d24753da757fe9788f2ce1316cfd3b216bafe95c3afa6587aebe6",
+    "tw": "區域含有許多圖騰：爆裂",
+    "cn": "区域包含许多爆裂图腾",
+    "stats": {
+      "ids": [
+        "map_packs_have_detonate_dead_totems"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "maximum_life_+%_to_grant_packmate_on_death",
+    "field": "variant:1",
+    "en": "{0}% increased Life granted to Pack members on death",
+    "kind": "stat",
+    "sourceHash": "65f5153353f55723a5ab28b515c29c7d2672e7e7d7a954e7c47febc48011376a",
+    "tw": "死亡時怪物群成員生命增加 {0}%",
+    "cn": "被击败时使怪物群的怪物生命提高 {0}%",
+    "stats": {
+      "ids": [
+        "maximum_life_+%_to_grant_packmate_on_death"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits from this Attack and Minions treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "407b5ec1b46e8de7bef7f456c1feb35e0a5115da71093a1ff863d664007a4e69",
+    "tw": "來自此攻擊和召喚物的擊中對待敵人怪物元素抗性的值為顛倒",
+    "cn": "此攻击和召唤生物的击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits from this Attack and Minions have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "c6da3f6804f6030baa9509e8b5f575b092c955650be2effa03da7b9a54a309da",
+    "tw": "來自此攻擊和召喚物的擊中有{0}%機率對待敵人怪物元素抗性的值為顛倒",
+    "cn": "此攻击和召唤生物的击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "gemeffects",
+    "id": "SupportSpellCascadeRoyale",
+    "field": "SupportText",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。",
+    "cn": "辅助对目标位置造成范围效果的法术技能。无法辅助瓦尔技能、图腾，陷阱和地雷使用的技能。无法影响召唤生物的技能。"
+  },
+  {
+    "table": "gemeffects",
+    "id": "SupportSpellCascade",
+    "field": "SupportText",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。",
+    "cn": "辅助对目标位置造成范围效果的法术技能。无法辅助瓦尔技能、图腾，陷阱和地雷使用的技能。无法影响召唤生物的技能。"
+  },
+  {
+    "table": "gemeffects",
+    "id": "SupportAwakenedSpellCascade",
+    "field": "SupportText",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。",
+    "cn": "辅助对目标位置造成范围效果的法术技能。无法辅助瓦尔技能、图腾，陷阱和地雷使用的技能。无法影响召唤生物的技能。"
+  },
+  {
+    "table": "grantedeffects",
+    "id": "SupportAwakenedSpellCascade",
+    "field": "SupportDescription",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。"
+  },
+  {
+    "table": "grantedeffects",
+    "id": "SupportSpellCascade",
+    "field": "SupportDescription",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。"
+  },
+  {
+    "table": "grantedeffects",
+    "id": "SupportSpellCascadeRoyale",
+    "field": "SupportDescription",
+    "en": "Supports spell skills that apply an effect to an area around a targeted location. Cannot support Vaal skills or skills used by totems, traps, or mines. Cannot modify the skills of minions.",
+    "kind": "dat",
+    "sourceHash": "c0871f44e37933f72b189c513577cddbb28346bd0e39bce6beea2dceeefd976c",
+    "tw": "輔助能對目標附近區域的法術技能。不能輔助瓦爾、召喚物、圖騰、陷阱或地雷技能。無法調整召喚物的技能。"
+  },
+  {
+    "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+    "id": "cannot_have_life_leeched_from",
+    "field": "variant:0",
+    "en": "Damage cannot Leech Life from Monsters",
+    "kind": "stat",
+    "sourceHash": "44971cd3d26f9829d7dac6785561e17950459bbc09523ac90acfddff42263193",
+    "tw": "傷害不能偷取怪物生命",
+    "cn": "伤害不能偷取怪物的生命",
+    "stats": {
+      "ids": [
+        "cannot_have_life_leeched_from"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "f4e5f2689ace8cd8b823f662e60b2f2c0e65b74f4aa45c891ae6b5e67dd4741a",
+    "tw": "擊中有 {0}% 機率將敵人怪物元素抗性的值視為顛倒",
+    "cn": "击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "infernal_cry_%_max_life_as_fire_on_death",
+    "field": "variant:0",
+    "en": "Explosion deals Base Fire Damage equal to {0}% of the Monster's maximum Life",
+    "kind": "stat",
+    "sourceHash": "3b27f71bb23c15489eb30297699c02b4e166d098bc7f629661e8331e774b1b41",
+    "tw": "爆炸造成等同怪物最大生命 {0}% 的基礎火焰傷害",
+    "cn": "爆炸造成相当于怪物生命上限 {0}% 的基础火焰伤害",
+    "stats": {
+      "ids": [
+        "infernal_cry_%_max_life_as_fire_on_death"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "b78ce12f10c2b85f17020204bb7ee735ac39efc16a2b28f467fb59c843d3554b",
+    "tw": "擊中將敵人怪物元素抗性的值視為顛倒",
+    "cn": "击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits from Supported Skills have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "bc4f3d5bacb1ca200a92dc5465d8926b39a67b7b2f834efbdf5650e0965b832d",
+    "tw": "來自被輔助技能的擊中有{0}%機率對待敵人怪物元素抗性的值為顛倒",
+    "cn": "被辅助技能的击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits from Supported Skills treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "6bfc91bbce4398f0d43cdf46543808564068b09893d2058f9c3ebcddad491e72",
+    "tw": "來自被輔助技能的擊中對待敵人怪物元素抗性的值為顛倒",
+    "cn": "被辅助技能的击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisAtlasBossFlawless1_4",
+    "field": "Name",
+    "en": "The Infinite Hunger while the area has \"more Monster Life\"",
+    "kind": "dat",
+    "sourceHash": "b58fb1d00f375a4f486dbc43f2c6202f666a73ea01e1f13e114fe6c866a72df3",
+    "tw": "在帶有「更多怪物生命」詞綴的區域內擊敗無盡渴望",
+    "cn": "无限饥渴区域内怪物有更高生命"
+  },
+  {
+    "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits from Minions treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "20503f41010ec3e1d08ecd5c994e2232cedbb742da600a535c70b59569478e46",
+    "tw": "來自召喚物的擊中對待敵人怪物元素抗性的值為顛倒",
+    "cn": "召唤生物的击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits from Minions have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "296ca1176a91967d95fb062f14dbb0f136cd6324ee6a858b3ddb41e2341df8db",
+    "tw": "來自召喚物的擊中有{0}%機率對待敵人怪物元素抗性的值為顛倒",
+    "cn": "召唤生物的击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/TradeProxy/MapKey",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionMap",
+    "field": "Text",
+    "en": "Travel to a Map of this tier or lower by using this in a personal Map Device. Maps can only be used once. ",
+    "kind": "dat",
+    "sourceHash": "f31b2a6ccebf30c1c35c1ca62d9160c32a5acc3010fca72fecadea1ef71300f3",
+    "tw": "透過個人的地圖裝置來使用這張地圖以前往這個階級或更低的該地圖。每張地圖只能被使用一次。",
+    "cn": "在私人地图装置中使用该物品，前往该等阶或更低等阶的地图。只能被使用一次。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "OptionsShowResistanceIconsPopup",
+    "field": "Text",
+    "en": "Show Monster Resistance Icons under the monster's life bar",
+    "kind": "dat",
+    "sourceHash": "de33396a231439853c863d1736bde9dbb606e7b873aaa881970ccd8cf72545cd",
+    "tw": "在怪物生命條下方顯示怪物抗性圖示",
+    "cn": "在怪物的生命条下方显示怪物抗性图标"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayMapDropScalingBonus",
+    "field": "Text",
+    "en": "[AtlasDropScaling|Atlas Drops]",
+    "kind": "dat",
+    "sourceHash": "a61180dfb0be622168fe971e8a4dfba1d58f7603c70d35d6857d664230092a84",
+    "tw": "[AtlasDropScaling|輿圖掉落物]"
+  },
+  {
+    "table": "clientstrings",
+    "id": "PartyModifierInfoHoverMonsterHealth",
+    "field": "Text",
+    "en": "Monster life is increased:\n<magic>{{+{0}% Normal Monster Life\n+{1}% Magic Monster Life\n+{2}% Rare Monster Life\n+{3}% Unique Monster Life}}",
+    "kind": "dat",
+    "sourceHash": "26a71b9f140a16dd0837a951d310fb9509b05230f3ad8a360c37ba0006a6cef2",
+    "tw": "增加怪物的生命：\n<magic>{{+{0}% 普通怪物生命\n+{1}% 魔法怪物生命\n+{2}% 稀有怪物生命\n+{3}% 傳奇怪物生命}}",
+    "cn": "怪物生命提高：\n<magic>{{+{0}% 普通怪物生命\n+{1}% 魔法怪物生命\n+{2}% 稀有怪物生命\n+{3}% 传奇怪物生命}}"
+  },
+  {
+    "table": "itemclasses",
+    "id": "MapKey",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Map",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "異界地圖",
+    "cn": "异界地图"
+  },
+  {
+    "table": "metadata/statdescriptions/minion_spell_damage_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:1",
+    "en": "Hits from this Spell and Minions treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "13b4228fdcc5ace2b55f76b7b080674a9dca09832e2641f65c68a37421372f25",
+    "tw": "來自此法術和召喚物的擊中對待敵人怪物元素抗性的值為顛倒",
+    "cn": "此法术和召唤生物的击中将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/minion_spell_damage_skill_stat_descriptions.csd",
+    "id": "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance",
+    "field": "variant:0",
+    "en": "Hits from this Spell and Minions have {0}% chance to treat Enemy Monster Elemental Resistance values as inverted",
+    "kind": "stat",
+    "sourceHash": "ef836226091e29c936008a785a7b53399fc0162d37b8b6c2490398ce5d070eb2",
+    "tw": "來自此法術和召喚物的擊中有{0}%機率對待敵人怪物元素抗性的值為顛倒",
+    "cn": "此法术和召唤生物的击中有 {0}% 的几率将敌方怪物的元素抗性视作反转",
+    "stats": {
+      "ids": [
+        "treat_enemy_resistances_as_negated_on_elemental_damage_hit_%_chance"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextOverkill",
+    "field": "Text",
+    "en": "(Overkill Damage is any Damage from a Hit in excess of the Enemy's remaining Life)",
+    "kind": "dat",
+    "sourceHash": "f6b649f0c36072ca3876789753070b727eb3da80f4814d5481281b809395c8b6",
+    "tw": "（擊殺怪物時超出怪物生命的傷害為溢出傷害）",
+    "cn": "(溢出伤害是造成的伤害超出怪物剩余生命的部分)"
+  },
+  {
+    "table": "passiveskills",
+    "id": "EquipmentNode2c",
+    "field": "NameHardmode",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_path_45",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_boss_adjacent_maps_11",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_map_drops_6_",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mod_effect_16__",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mod_effect_6",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "EquipmentNode3",
+    "field": "NameHardmode",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_boss_adjacent_maps_5",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_boss_adjacent_maps_6",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_path_80",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "EquipmentNode3a",
+    "field": "NameHardmode",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mod_effect_10",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "EquipmentNode2b",
+    "field": "NameHardmode",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mod_effect_5",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_boss_adjacent_maps_8",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_boss_adjacent_maps_4",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_map_drops_8",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayMapPackSizeIncrease",
+    "field": "Text",
+    "en": "Monster Pack Size",
+    "kind": "dat",
+    "sourceHash": "cbd877de5ab63205eb9e31ec2a6dec412f6c530d250387670a8e9a48486c2115",
+    "tw": "怪物群大小",
+    "cn": "怪物群大小"
+  },
+  {
+    "table": "clientstrings",
+    "id": "TutorialPanelRarityTiersTitle",
+    "field": "Text",
+    "en": "Rarity Tiers",
+    "kind": "dat",
+    "sourceHash": "b89a8f47b5bfdc64695a90fd1c0eaa8537453b46988b3b8d47cf6194ebe849ea",
+    "tw": "物品稀有度",
+    "cn": "物品稀有等阶"
+  },
+  {
+    "table": "clientstrings",
+    "id": "RitualStoneLevel",
+    "field": "Text",
+    "en": "Monster Level",
+    "kind": "dat",
+    "sourceHash": "4c9556e858b3c9be3bf91cfd650a8988bf0e2a3a067594abe102993ce3027137",
+    "tw": "怪物等級",
+    "cn": "怪物等级"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayMapRarityIncrease",
+    "field": "Text",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "flask_bonus_item_rarity",
+    "field": "Name",
+    "en": "Item Rarity",
+    "kind": "dat",
+    "sourceHash": "b3186b1c4aae22a54bcc2fdf6c8c12ac7a4471a21c7d20781b41ab529f823845",
+    "tw": "物品稀有度",
+    "cn": "物品稀有度"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "elemental_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Elemental Damage",
+    "kind": "stat",
+    "sourceHash": "d86060c1e6f91c28bf68adee1ff87f4d1b75714c4101b9f0bfe1f6b90e0df121",
+    "tw": "增加 {0}% 元素傷害",
+    "cn": "元素伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "elemental_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_elemental_damage_+%",
+    "field": "variant:0",
+    "en": "Has {0}% increased Elemental Damage",
+    "kind": "stat",
+    "sourceHash": "d79cd3031c7d7a709d76c836c5ac01a2fa012d048e0d75931149afcbc9cd44c1",
+    "tw": "有增加 {0}% 的元素傷害",
+    "cn": "元素伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_elemental_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "canonical_line",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "-99|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+    "id": "elemental_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Elemental Damage",
+    "kind": "stat",
+    "sourceHash": "d86060c1e6f91c28bf68adee1ff87f4d1b75714c4101b9f0bfe1f6b90e0df121",
+    "tw": "增加 {0}% 元素傷害",
+    "cn": "元素伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "elemental_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "recover_%_maximum_life_on_kill",
+    "field": "variant:0",
+    "en": "Recover {0}% of Life on Kill",
+    "kind": "stat",
+    "sourceHash": "ef0bac96f68b33d56bbc948e8dac8bbea16b52b455e1f3ad462da0e16dd86dc8",
+    "tw": "擊殺時恢復 {0}% 生命",
+    "cn": "生命在击败敌人时恢复 {0}%",
+    "stats": {
+      "ids": [
+        "recover_%_maximum_life_on_kill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "recover_%_maximum_life_on_kill",
+    "field": "variant:1",
+    "en": "Lose {0}% of Life on Kill",
+    "kind": "stat",
+    "sourceHash": "f016aa96f0e9cada9bacdce41ab0d42a059ac4f1dcc13a91fcdbcd4779372593",
+    "tw": "擊殺時失去 {0}% 生命",
+    "cn": "生命在击败敌人时失去 {0}%",
+    "stats": {
+      "ids": [
+        "recover_%_maximum_life_on_kill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  }
+]

@@ -1,7 +1,7 @@
 <template>
   <div class="regex-panel">
     <div class="panel-heading">
-      <div><h2>地图正则</h2><p>组合地图数值、状态与普通或 T17 词缀。</p></div>
+      <div><h2>地图正则</h2><p>统一配置异界地图的数值、状态与词缀。</p></div>
       <RegexPresetSelector kind="map" />
     </div>
     <div class="workspace-grid">
@@ -65,19 +65,18 @@
           </template>
           <div class="affix-toolbar">
             <el-checkbox-group v-model="config.affixTypes"><el-checkbox value="prefix">前缀</el-checkbox><el-checkbox value="suffix">后缀</el-checkbox></el-checkbox-group>
-            <el-radio-group v-model="config.region" size="small"><el-radio-button value="normal">普通</el-radio-button><el-radio-button value="t17">T17</el-radio-button></el-radio-group>
             <el-input v-model="query" :prefix-icon="Search" clearable placeholder="搜索词缀描述或标签" class="affix-search" />
           </div>
           <div v-if="selectedAffixes.length" class="selected-summary">
             <el-tag v-for="item in selectedAffixes" :key="`${item.kind}-${item.id}`" :type="item.kind === 'exclude' ? 'danger' : 'success'" closable @close="removeAffix(item.id)">
-              {{ item.kind === 'exclude' ? '排除' : '想要' }} · {{ item.value }}
+              {{ item.kind === 'exclude' ? '排除' : '想要' }} · {{ displayAffix(item.value) }}
             </el-tag>
           </div>
           <div class="affix-list">
             <div v-for="affix in filteredAffixes" :key="affix.id" class="affix-row">
               <div class="affix-copy">
-                <strong>{{ affix.value }}</strong>
-                <span>{{ affix.example }}</span>
+                <strong>{{ displayAffix(affix.value) }}</strong>
+                <span>{{ displayAffix(affix.example) }}</span>
               </div>
               <el-tag size="small" type="info">{{ affix.affixType === 'suffix' ? '后缀' : affix.affixType === 'prefix' ? '前缀' : '混合' }}</el-tag>
               <div class="affix-actions">
@@ -102,7 +101,10 @@ import { electronApi } from '@/api/electron.js'
 import RegexPresetSelector from './RegexPresetSelector.vue'
 import RegexResultCard from './RegexResultCard.vue'
 import { useRegexPresetStore } from './regexPresetStore.js'
-import { createDefaultMapRegexConfig, generateMapRegex, MAP_PRICE_CURRENCIES, MAP_RARITY_OPTIONS, MAP_REGEX_AFFIXES, MAP_REGEX_STATS, validateMapPriceRange } from './mapRegex.js'
+import { createDefaultMapRegexConfig, filterMapRegexAffixes, generateMapRegex, mapRegexLocalizationTexts, MAP_PRICE_CURRENCIES, MAP_RARITY_OPTIONS, MAP_REGEX_AFFIXES, MAP_REGEX_STATS, validateMapPriceRange } from './mapRegex.js'
+import { catalogDisplayText, useLocalizedCatalog } from '../../utils/localizedCatalog.js'
+import { currentServer } from '../../utils/serverContext.js'
+import { localizedResultState } from './localizedRegex.js'
 
 const ModeButtons = defineComponent({
   props: { modelValue: { type: String, required: true } },
@@ -116,16 +118,13 @@ const ModeButtons = defineComponent({
 })
 
 const store = useRegexPresetStore()
+const localization = useLocalizedCatalog(mapRegexLocalizationTexts())
+const displayAffix = text => catalogDisplayText(text, localization.aliases.value)
 const query = ref('')
 const config = computed(() => store.currentMapRegexPreset.mapRegex)
-const result = computed(() => generateMapRegex(config.value))
+const result = computed(() => localizedResultState(generateMapRegex(config.value, currentServer.language, localization.revision.value ? localization.aliases.value : null), localization))
 const priceStatus = computed(() => validateMapPriceRange(config.value.priceRange))
-const filteredAffixes = computed(() => {
-  const keyword = query.value.trim().toLocaleLowerCase('zh-CN')
-  return MAP_REGEX_AFFIXES.filter(item => item.regions.includes(config.value.region))
-    .filter(item => item.affixType === 'mixed' || config.value.affixTypes.includes(item.affixType))
-    .filter(item => !keyword || `${item.value} ${item.example} ${(item.tags || []).join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
-})
+const filteredAffixes = computed(() => filterMapRegexAffixes(config.value, query.value, currentServer.language, localization.aliases.value))
 const selectedAffixes = computed(() => [
   ...config.value.includeAffixIds.map(id => ({ ...MAP_REGEX_AFFIXES.find(item => item.id === id), kind: 'include' })),
   ...config.value.excludeAffixIds.map(id => ({ ...MAP_REGEX_AFFIXES.find(item => item.id === id), kind: 'exclude' }))

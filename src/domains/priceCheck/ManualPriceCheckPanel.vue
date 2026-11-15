@@ -1,6 +1,6 @@
 <template>
   <div class="manual-price primary-page primary-page__scroll primary-page__content">
-    <header class="page-heading"><h2>国际服手动查价</h2><p>粘贴英文或当前汉化资源对应的简体、繁体混合物品文本，查询国际服官网挂单。无需启动游戏，不执行游戏内捕获或键鼠操作。</p></header>
+    <header class="page-heading"><h2>国际服手动查价</h2><p>粘贴英文或当前汉化资源对应的简体、繁体混合物品文本，查询国际服官网挂单。此入口无需启动游戏，关闭快捷查价后仍可使用。</p></header>
     <el-card>
       <AccountLeagueConfigurationField />
       <p>交易目录：{{ catalog?.counts?.stats || 0 }} 条词缀（{{ catalog?.gameVersion === 'live' ? '官网实时快照' : catalog?.gameVersion || '尚未加载' }}）</p>
@@ -20,7 +20,7 @@
       <el-form v-if="result?.model?.identityResolution?.required" label-position="top">
         <el-form-item label="选择未鉴定传奇的实际名称">
           <div class="actions identity-candidates">
-            <el-button v-for="candidate in result.model.identityResolution.candidates" :key="candidate.key" :disabled="busy" @click="resolveIdentity(candidate.key)">{{ candidate.name }}{{ candidate.legacy ? '（遗产）' : '' }}</el-button>
+            <el-button v-for="candidate in result.model.identityResolution.candidates" :key="candidate.key" :disabled="busy" @click="resolveIdentity(candidate.key)">{{ gameText(candidate.name) }}{{ candidate.legacy ? `（${gameText('遗产')}）` : '' }}</el-button>
           </div>
         </el-form-item>
       </el-form>
@@ -28,7 +28,7 @@
       <template v-if="result?.result">
         <p>官方匹配 {{ result.result.total }} 条；当前显示 {{ result.result.listings.length }} 条去重挂单。结果不是实际成交价。</p>
         <el-table :data="result.result.listings" empty-text="没有符合条件的公开挂单">
-          <el-table-column prop="amount" label="价格" width="100" /><el-table-column label="通货"><template #default="{ row }">{{ row.currencyLabel || row.currency }}</template></el-table-column>
+          <el-table-column prop="amount" label="价格" width="100" /><el-table-column label="通货"><template #default="{ row }">{{ gameText(row.currencyLabel || row.currency) }}</template></el-table-column>
           <el-table-column prop="seller" label="卖家" /><el-table-column label="联系"><template #default="{ row }"><el-button :disabled="!row.whisper" link @click="copyWhisper(row.whisper)">复制私聊</el-button></template></el-table-column>
         </el-table>
         <el-button :loading="busy" :disabled="!result.remainingResultIds?.length" @click="loadMore">加载更多</el-button>
@@ -50,6 +50,7 @@ const initialSelection = ref('auto')
 const busy = ref(false)
 const error = ref('')
 const result = ref(null)
+const gameText = value => result.value?.model?.presentation?.texts?.[value] || value
 const catalog = ref(null)
 let disposed = false
 let generation = 0

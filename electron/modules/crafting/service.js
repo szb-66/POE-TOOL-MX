@@ -8,11 +8,11 @@ import { getServer } from '../../../shared/serverMode.js'
 import { applyManualBeastcraft, applyManualBenchCraft, applyManualCurrency, applyManualEldritchCraft, applyManualEssence, applyManualFossils, applyManualHarvestCraft, applyManualInfluenceCraft, applyManualVeiledCraft, clearManualAwakenerDonor, configureManualAwakenerDonor, createManualSession, inspectManualCurrencies, listManualAwakenerDonorCandidates, listManualBeastcrafts, listManualBenchCrafts, listManualEldritchCrafts, listManualEssences, listManualFossils, listManualHarvestCrafts, listManualInfluenceCrafts, listManualVeiledCrafts, previewManualCurrency, redoManualAction, resetManualSession, selectManualSplitResult, selectManualVeiledOption, undoManualAction } from './manualCrafting.js'
 
 export class CraftingService {
-  constructor({ storageRoot, protocol, net, fetchImpl = fetch, server = getServer() }) {
+  constructor({ storageRoot, protocol, net, fetchImpl = fetch, server = getServer(), localizationRuntime = null }) {
     this.storageRoot = storageRoot
     this.protocol = protocol
     this.net = net
-    this.repository = new CraftingDataRepository({ userDataRoot: path.join(storageRoot, 'datasets'), server })
+    this.repository = new CraftingDataRepository({ userDataRoot: path.join(storageRoot, 'datasets'), server, localizationRuntime })
     this.prices = new CraftingPriceService({
       storageRoot: path.join(storageRoot, 'prices'),
       fetchImpl,

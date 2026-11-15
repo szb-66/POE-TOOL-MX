@@ -2,12 +2,22 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  marketLocalization: {
+    status: () => ipcRenderer.invoke('localization:market-status'),
+    enable: () => ipcRenderer.invoke('localization:market-enable'),
+    disable: () => ipcRenderer.invoke('localization:market-disable'),
+    onState: callback => {
+      const listener = (_event, state) => callback(state)
+      ipcRenderer.on('localization:market-state-changed', listener)
+      return () => ipcRenderer.removeListener('localization:market-state-changed', listener)
+    }
+  },
   localization: {
+    catalog: input => ipcRenderer.invoke('localization:catalog', input),
     status: () => ipcRenderer.invoke('localization:status'),
     scan: input => ipcRenderer.invoke('localization:scan', input),
     check: () => ipcRenderer.invoke('localization:check'),
     download: () => ipcRenderer.invoke('localization:download'),
-    preview: input => ipcRenderer.invoke('localization:preview', input),
     apply: input => ipcRenderer.invoke('localization:apply', input),
     restore: input => ipcRenderer.invoke('localization:restore', input),
     pickDirectory: () => ipcRenderer.invoke('localization:pick-directory'),
@@ -17,7 +27,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       return () => ipcRenderer.removeListener('localization:state-changed', listener)
     }
   },
-  probeServerCapabilities: league => ipcRenderer.invoke('server-mode:probe', league),
   checkItemText: request => ipcRenderer.invoke('price-check-text', request),
   serverContext: ipcRenderer.sendSync?.('server-mode:context'),
   switchServerMode: id => ipcRenderer.invoke('server-mode:switch', id),

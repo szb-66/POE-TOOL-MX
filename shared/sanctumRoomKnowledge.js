@@ -37,6 +37,7 @@ export function knownRoom(room, floor, effects = {}, reportFields = ['rewards', 
 
 export function rewardReadingGaps(room) {
   return (room.rewards || []).flatMap(item => {
+    if (item.timing === 'next-floor') return [`${room.id}：${item.currency || '奖励'}在下一楼层结束时领取，当前楼层路线无法确认兑现`]
     const fields = []
     if (!Number.isFinite(item.quantity) && item.quantityStatus !== 'not-shown') fields.push('数量')
     if (!item.timing && item.timingStatus !== 'not-shown') fields.push('领取时机')

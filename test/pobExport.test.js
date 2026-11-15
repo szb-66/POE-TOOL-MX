@@ -25,19 +25,22 @@ test('英文 API 保留原文且不产生假翻译警告，之后国服转换仍
   fixture.passiveSkills.items[0].explicitMods = ['+10 to maximum Mana']
   const result = convertBuild(fixture)
   assert.equal(result.warnings.length, 1)
-  assert.match(result.warnings[0], /内置 3\.29 数据.*生成导入码不代表装备、技能和天赋已兼容/)
+  assert.match(result.warnings[0], /独立 PoB 3\.30 开发版数据/)
   const $ = load(decode(result.code), { xml: true })
   assert.match($('Item').first().text(), /Driftwood Wand/)
   assert.equal($('Gem').first().attr('nameSpec'), 'Fireball')
   assert.equal($('Gem').eq(1).attr('nameSpec'), 'Added Lightning Damage')
   assert.equal($('Skill').length, 2)
+  assert.equal($('Spec').attr('treeVersion'), '3_30')
   const cnResult = convertBuild(buildFixture())
   assert.match(decode(cnResult.code), /Driftwood Wand/)
   assert.deepEqual(cnResult.warnings, [])
   weapon.socketedItems[0].baseType = weapon.socketedItems[0].typeLine = 'Arcane Link'
+  assert.match(decode(convertBuild(fixture).code), /Arcane Link/)
+  weapon.socketedItems[0].baseType = weapon.socketedItems[0].typeLine = 'Unreleased Fixture Skill'
   assert.throws(() => convertBuild(fixture), error => error.code === 'CONVERSION_FAILED' &&
-    error.details.warnings.some(warning => warning.includes('内置 3.29 数据')) &&
-    error.details.warnings.some(warning => warning.includes('Arcane Link')))
+    error.details.warnings.some(warning => warning.includes('独立 PoB 3.30')) &&
+    error.details.warnings.some(warning => warning.includes('Unreleased Fixture Skill')))
 })
 
 test('国服翻译、装备、技能连线、等级品质、天赋与珠宝编码往返', () => {

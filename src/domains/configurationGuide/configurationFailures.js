@@ -1,5 +1,6 @@
 import { CRAFTING_CURRENCY_BY_KEY } from '../../../shared/craftingCurrencyCatalog.js'
 import { createConfigurationIssue } from './configurationIssues.js'
+import { currentServer } from '../../utils/serverContext.js'
 
 const TEMPORARY_FAILURE_CODES = new Set([
   'GAME_NOT_FOREGROUND',
@@ -29,8 +30,8 @@ const ISSUE_DEFINITIONS = Object.freeze({
   'stash-grid.root': ['region', '文件夹外仓库网格', 'stash-grid.root'],
   'stash-grid.folder': ['region', '文件夹内仓库网格', 'stash-grid.folder'],
   'junfeng.grid': ['region', '君锋镇奖励网格', 'junfeng.grid'],
-  'account.poe-cn': ['account', '国服账号', 'account.poe-cn'],
-  'account.league': ['selection', '国服赛季', 'account.league'],
+  'account.poe-cn': ['account', '账号', 'account.poe-cn'],
+  'account.league': ['selection', '赛季', 'account.league'],
   'shop.stash-tabs': ['selection', '仓库页', 'shop.stash-tabs'],
   'combat.potion.resources': ['selection', '药剂检测项目', 'combat.potion'],
   'combat.potion.health.position': ['coordinate', '生命药剂检测坐标', 'combat.potion.health.position'],
@@ -124,7 +125,8 @@ export function configurationIssueFromFailure({
   if (!issueBelongsToAction(String(moduleId || ''), String(actionId || ''), issueId)) return null
   const definition = ISSUE_DEFINITIONS[issueId] || currencyDefinition(issueId) || puzzleTabDefinition(issueId)
   if (!definition) return null
-  const [kind, title, editorId] = definition
+  const [kind, label, editorId] = definition
+  const title = issueId.startsWith('account.') ? `${currentServer.label}${label}` : label
   return createConfigurationIssue({
     id: issueId,
     moduleId,

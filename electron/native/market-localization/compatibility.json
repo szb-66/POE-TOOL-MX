@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "game": "poe1",
+  "buildId": "26673341",
+  "gameVersion": "3.30.0b",
+  "sha256": "c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031",
+  "validatedInGame": true,
+  "image": {
+    "imageBase": "0x140000000",
+    "sizeOfImage": "0x4e21000",
+    "timeDateStamp": "0x6af8cf2f"
+  },
+  "lookup": {
+    "rva": "0x8a4fc0",
+    "prologue": "40534883ec30803a00488bd9488bc2448bc2740b48ffc04c8bc080380075f5442bc20f57c00f11442420b8050400004489442420668944242e4c8d442420488b44242848b9000000000000ffff4823c1488bcb480bc2488d5424404889442428e80b5700008b0348baffffffffffff00"
+  },
+  "searchBuilder": {
+    "rva": "0x890fd0",
+    "prologue": "48895c2408488974241048897c2418554154415541564157488d6c24804881ec80010000488bf24c8be94533e40f57c00f1145e066448965ee660f7f45f00f57"
+  },
+  "stringCtor": {
+    "rva": "0x147f50",
+    "prologue": "48896c2410488974241848897c242041564883ec2048bdffffffffffffff7f498bf84c8bf2488bf14c3bc50f87810000004983f80f77174c89411048c741180f"
+  },
+  "stringDtor": {
+    "rva": "0x1387e0",
+    "prologue": "40534883ec20488b5118488bd94883fa0f762c488b0948ffc24881fa0010000072184c8b41f84883c227492bc8488d41f84883f81f7721498bc8e8d1c8b90248"
+  },
+  "sites": [
+    {
+      "section": "items",
+      "field": "label",
+      "callRva": "0x861aaa",
+      "returnRva": "0x861aaf",
+      "callBytes": "e811350400",
+      "contextBytes": "488d15396a9602488bcbe811350400488bd00fb7480e0fb7c1",
+      "contextRva": "0x861aa0"
+    },
+    {
+      "section": "items",
+      "field": "type",
+      "callRva": "0x861c02",
+      "returnRva": "0x861c07",
+      "callBytes": "e8b9330400",
+      "contextBytes": "488d1599689602488bcbe8b9330400488bd00fb7480e0fb7c1",
+      "contextRva": "0x861bf8"
+    },
+    {
+      "section": "items",
+      "field": "text",
+      "callRva": "0x861ce0",
+      "returnRva": "0x861ce5",
+      "callBytes": "e8db320400",
+      "contextBytes": "488d15c3679602488bcbe8db320400488bd00fb7480e0fb7c1",
+      "contextRva": "0x861cd6"
+    },
+    {
+      "section": "items",
+      "field": "name",
+      "callRva": "0x861de5",
+      "returnRva": "0x861dea",
+      "callBytes": "e8d6310400",
+      "contextBytes": "488d15c6669602488bcbe8d6310400488bd00fb7480e0fb7c1",
+      "contextRva": "0x861ddb"
+    },
+    {
+      "section": "stats",
+      "field": "label",
+      "callRva": "0x8622c8",
+      "returnRva": "0x8622cd",
+      "callBytes": "e8f32c0400",
+      "contextBytes": "488d151b629602488bcbe8f32c0400488bd00fb7480e0fb7c1",
+      "contextRva": "0x8622be"
+    },
+    {
+      "section": "stats",
+      "field": "text",
+      "callRva": "0x8624ad",
+      "returnRva": "0x8624b2",
+      "callBytes": "e80e2b0400",
+      "contextBytes": "488d15f65f9602488bcbe80e2b0400488bd00fb7480e0fb7c1",
+      "contextRva": "0x8624a3"
+    },
+    {
+      "section": "stats",
+      "field": "type",
+      "callRva": "0x862546",
+      "returnRva": "0x86254b",
+      "callBytes": "e8752a0400",
+      "contextBytes": "488d15555f9602488bcbe8752a0400488bd00fb7480e0fb7c1",
+      "contextRva": "0x86253c"
+    },
+    {
+      "section": "stats",
+      "field": "text",
+      "callRva": "0x8627a5",
+      "returnRva": "0x8627aa",
+      "callBytes": "e816280400",
+      "contextBytes": "488d15fe5c9602488bcbe816280400488bd00fb7480e0fb7c1",
+      "contextRva": "0x86279b"
+    },
+    {
+      "section": "filters",
+      "field": "title",
+      "callRva": "0x862bac",
+      "returnRva": "0x862bb1",
+      "callBytes": "e80f240400",
+      "contextBytes": "488d1547599602488bcbe80f240400488bd00fb7480e0fb7c1",
+      "contextRva": "0x862ba2"
+    },
+    {
+      "section": "filters",
+      "field": "text",
+      "callRva": "0x862e3d",
+      "returnRva": "0x862e42",
+      "callBytes": "e87e210400",
+      "contextBytes": "488d1566569602498bcee87e210400488bd00fb7480e0fb7c1",
+      "contextRva": "0x862e33"
+    },
+    {
+      "section": "filters",
+      "field": "text",
+      "callRva": "0x863146",
+      "returnRva": "0x86314b",
+      "callBytes": "e8751e0400",
+      "contextBytes": "488d155d539602498bcee8751e0400488bd00fb7480e0fb7c1",
+      "contextRva": "0x86313c"
+    },
+    {
+      "section": "filters",
+      "field": "placeholder",
+      "callRva": "0x86339d",
+      "returnRva": "0x8633a2",
+      "callBytes": "e81e1c0400",
+      "contextBytes": "488d15ae519602488bc8e81e1c0400488bd00fb7480e0fb7c1",
+      "contextRva": "0x863393"
+    }
+  ]
+}

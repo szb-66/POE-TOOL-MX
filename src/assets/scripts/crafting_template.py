@@ -201,6 +201,7 @@ SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
+localization_snapshot = json.loads({{LOCALIZATION_SNAPSHOT_JSON}})
 currency_expected_names = {{CURRENCY_EXPECTED_NAMES}}
 verified_currency_types = set()
 fatal_error_reason = None
@@ -920,11 +921,15 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
-def currency_identity_matches(currency, actual):
+def normalized_copied_item_name(actual):
     import re
+    return re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
+
+
+def currency_identity_matches(currency, actual):
     expected = globals().get("currency_expected_names", {}).get(currency, CURRENCY_NAMES.get(currency))
-    name = re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
-    return bool(expected) and name == expected
+    name = normalized_copied_item_name(actual)
+    return bool(expected) and name in (expected if isinstance(expected, list) else [expected])
 
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason

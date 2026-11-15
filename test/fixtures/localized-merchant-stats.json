@@ -1,0 +1,2466 @@
+{
+  "resourceVersion": "3.30.0b",
+  "note": "Read-only excerpts of verified managed resource; source hashes retained, never activated by tests.",
+  "entries": [
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_cold_damage_resistance_%",
+      "field": "variant:0",
+      "en": "{0:+d}% to Cold Resistance",
+      "cn": "{0:+d}% 冰霜抗性",
+      "tw": "{0:+d}% 冰冷抗性",
+      "kind": "stat",
+      "sourceHash": "a74fac06880f9b5e4d297cf2d9b28e58719a544b81d6d7c9d8d6c24bc56dbb33"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "{0:+d}% to Fire Resistance",
+      "cn": "{0:+d}% 火焰抗性",
+      "tw": "{0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "c3fb6745a2fe34dcccbecd88ba7e784ef7df28f6a1c2eb77e3e1ff56e34913be"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Damage Penetrates {0}% Fire Resistance",
+      "cn": "伤害穿透 {0}% 火焰抗性",
+      "tw": "傷害穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "4cefaabb6826860ef864b89056c1458b7ab6f6525206212db2a0fb3797dade00"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_monsters_additional_fire_resistance",
+      "field": "variant:0",
+      "en": "+{0}% Monster Fire Resistance",
+      "cn": "+{0}% 怪物火焰抗性",
+      "tw": "+{0}% 怪物火焰抗性",
+      "kind": "stat",
+      "sourceHash": "1711dd94f0768faccc3c49a6d92b40a6c0af1ae073af957614bef3c5adb8d491"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_players_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Players have {0}% reduced Movement Speed",
+      "cn": "玩家的移动速度降低 {0}%",
+      "tw": "玩家減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "39bfad323d685d2889beae6cc9a9a656db32dedf34a0e5ad22bc42af2600a918"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_affected_by_grace",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while affected by Grace",
+      "cn": "受到优雅影响时，移动速度减慢 {0}%",
+      "tw": "被優雅影響時，減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0ba8e32ff7738c8b42f04ec7438e316106a4df3a07edb578b59fbd9d212474e0"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_ignited",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Ignited",
+      "cn": "被点燃时移动速度加快 {0}%",
+      "tw": "被點燃時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "5dfbeea6815b108c79f35cbf0c09aef7f7d270c6ec27bdaae18e1bad6d8adeaa"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "enemies_you_shock_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Enemies you Shock have {0}% reduced Movement Speed",
+      "cn": "被你感电的敌人移动速度减慢 {0}%",
+      "tw": "被你感電的敵人减少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c8c78af4847dd9236bbd29aedffd027519f67c58d650b81bbbc18a46702ba916"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_damage_resistance_is_%",
+      "field": "variant:0",
+      "en": "Fire Resistance is {0}%",
+      "cn": "火焰抗性 {0}%",
+      "tw": "火焰抗性為 {0}%",
+      "kind": "stat",
+      "sourceHash": "c0ace6eab57335bfc728811059f349f08e2f0bd41d084ddc95008f4666cb4cfc"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_spell_skill_gem_level_+",
+      "field": "variant:0",
+      "en": "{0:+d} to Level of all Fire Spell Skill Gems",
+      "cn": "所有火焰法术主动技能石等级 {0:+d}",
+      "tw": "全部火焰法術技能寶石等級 {0:+d}",
+      "kind": "stat",
+      "sourceHash": "5e63bb580f0705d6b86941bd7fddbbdf4558d30c13b4517217c9128ae921cb62"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_life_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced maximum Life",
+      "cn": "生命上限降低 {0}%",
+      "tw": "減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "87f7f2a96ae4973124067c40128c64f15cdf4a527850c0b0744149a71ecb1ca6"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_maximum_life_+%",
+      "field": "variant:0",
+      "en": "Minions have {0}% increased maximum Life",
+      "cn": "召唤生物的最大生命提高 {0}%",
+      "tw": "召喚物增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "9b00f4c66a303e07a14a644f8b4fd965ea48623124393682cd7428bb7cefda5f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_poisoned",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Poisoned",
+      "cn": "中毒时，移动速度减慢 {0}%",
+      "tw": "中毒時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "50c6cc63a9737c01ddfcc75c9a9d1e7f464f1f01e183a968b85c25c2e1c46e4f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_poison_up_to_50%",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed for each Poison on you",
+      "cn": "你身上每层中毒效果都使移动速度减慢 {0}%",
+      "tw": "你身上每層中毒減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c80ebc277c17246d6c8fa28d65574b1d3aae4cb032afd4b5d87db61a37d1e0c4"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_maximum_life_+%_if_item_corrupted",
+      "field": "variant:0",
+      "en": "{0}% increased maximum Life if Corrupted",
+      "cn": "生命上限在腐化的情况下提高 {0}%",
+      "tw": "若已汙染增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "12a1494d9779ed7a4267b3113af42f04d88227949231c621230071ba4206272c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_labyrinth_monsters_life_+%",
+      "field": "variant:1",
+      "en": "Labyrinth Monsters have {0}% reduced maximum Life",
+      "cn": "帝王迷宫怪物的生命上限减少 {0}%",
+      "tw": "帝王迷宮怪物減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "ee58b8735bfabbe80c816dad29e5b1306fd4863b92c048bf69cd903e6c58e513"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_tormented_spirits_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Tormented Spirits have {0}% reduced Movement Speed",
+      "cn": "罪魂移动速度减慢 {0}%",
+      "tw": "罪魂減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f1da5e981230c01049d6cf88c99e9293e4292dcfb33dea3940fdbe0a9a6c62d3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_endurance_charge",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Endurance Charge",
+      "cn": "每个耐力球使移动速度加快 {0}%",
+      "tw": "每顆耐力球增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "2b4083641b38154e6c84f703595a6da791be7a9a7e0a4dbe0c37a42cd298f60d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_bleeding",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Bleeding",
+      "cn": "流血时移动速度加快 {0}%",
+      "tw": "流血時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c3d029e5f06c127b2625037533bc76dcf6dfcdf7330cb2600b7100c4b0b2c0d2"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_dual_wielding",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Dual Wielding",
+      "cn": "移动速度在双持武器时加快 {0}%",
+      "tw": "雙持時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "10f14e8f95332377193c3130e8e5739db5b09f1aed5e6ec6dd9947951ffd0efb"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_chilled",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Chilled",
+      "cn": "冰缓时，移动速度加快 {0}%",
+      "tw": "被冰緩時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c62355977e49c0de406d86e6e6598309e6d17ad55fcfaaed225e7620a65aa41a"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "tornado_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Tornado has {0}% reduced Movement Speed",
+      "cn": "龙卷旋风的移动速度减慢 {0}%",
+      "tw": "龍捲風減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "175cb5dd7059134309d6a79f3629d1a59fada40afbf9d54c9ee37f37a116b20a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_fire_elemental_maximum_life_+%",
+      "field": "variant:0",
+      "en": "Fire Elementals have {0}% increased maximum Life",
+      "cn": "火元素的最大生命提高 {0}%",
+      "tw": "火元素增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "3c9ec363cb6f6ba7ea606986689569c470bf61f004fc1e5c674fb8b3a278bf54"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed",
+      "cn": "移动速度加快 {0}%",
+      "tw": "增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "49f4687105e74ec37410b7d8cd393836ed2e7d0394377abe6c1a5cfae2a87924"
+    },
+    {
+      "table": "metadata/statdescriptions/map_stat_descriptions.csd",
+      "id": "metamorphosis_boss_move_speed_+%_final_permyriad",
+      "field": "variant:0",
+      "en": "{0}% more Movement Speed",
+      "cn": "移动速度总增 {0}%",
+      "tw": "{0}% 更多移動速度",
+      "kind": "stat",
+      "sourceHash": "6e545e8211794c11c8703404990825ed37b4049e00e73705c1f7c0bc1c7fae0c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "enemies_you_shock_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Enemies you Shock have {0}% increased Movement Speed",
+      "cn": "被你感电的敌人移动速度加快 {0}%",
+      "tw": "被你感電的敵人增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c179e287fa040de13d3a66d967b282e269eb8b86d13ea52a66c8d1b571a14f91"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_fire_resistance_%_per_2%_quality",
+      "field": "variant:0",
+      "en": "Grants {0:+d}% to Fire Resistance per 2% Quality",
+      "cn": "每 2% 品质 {0:+d}% 火焰抗性",
+      "tw": "每 2% 品質 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "966d8b5424526ac6672f73159f7c0bbcb7a6138acb284b27d858fb937735cac6"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_monsters_movement_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Monster Movement Speed",
+      "cn": "怪物移动速度减慢 {0}%",
+      "tw": "減少 {0}% 怪物移動速度",
+      "kind": "stat",
+      "sourceHash": "289747dfd4df63542b2ff0edcb66ed65420f9774796058ccb357807595579c5b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_monsters_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Monster Damage penetrates {0}% of Fire Resistance",
+      "cn": "怪物伤害穿透 {0}% 火焰抗性",
+      "tw": "怪物傷害穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "885b0c66083821db6eeee71c563f5d7a5d6889e0b5422066cb6e6349aa63506d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_movement_speed_+%_per_50_dex",
+      "field": "variant:0",
+      "en": "{0}% increased Minion Movement Speed per 50 Dexterity",
+      "cn": "每 50 点敏捷可使召唤生物的移动速度加快 {0}%",
+      "tw": "每 50 點敏捷，增加召喚物 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "7c9812f13f23a109fbf36c37c2cd9ee0b1a2567965c784e81d838067ec684baf"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_power_charge",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed per Power Charge",
+      "cn": "每个暴击球使移动速度减慢 {0}%",
+      "tw": "每顆暴擊球減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "d30618f470943e852df02fb435509d62bb709e4c3c40a822dd12b9281675444c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_summoned_phantasm",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Summoned Phantasm",
+      "cn": "每个召唤的幻灵使移动速度提高 {0}%",
+      "tw": "每1召喚幻影，增加{0}%移動速度",
+      "kind": "stat",
+      "sourceHash": "76c204c72c4a76f0145b350ecab96d0870a4685c0636dd104143058689a6ea3f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_when_on_full_life",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed when on Full Life",
+      "cn": "满血时移动速度减慢 {0}%",
+      "tw": "滿血時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0126c87130c6d5d007196a36b856f2f116d9f32047c0c6503699984ae452b3df"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_ignited",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Ignited",
+      "cn": "被点燃时移动速度减慢 {0}%",
+      "tw": "被點燃時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0fc301b893c93575a99f5cc85133cb04f980df33e59646b9bef0659c977b76d8"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_phasing",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Phasing",
+      "cn": "迷踪状态时移动速度减慢 {0}%",
+      "tw": "迷蹤效果下減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "7762b6e5b4e7b15c44f4d24df2ee52cf00bcc01583fd0197826565e00393079c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:0",
+      "en": "Minions have {0}% more maximum Life",
+      "cn": "召唤生物的最大生命总值总增 {0}%",
+      "tw": "召喚物有 {0}% 更多最大生命",
+      "kind": "stat",
+      "sourceHash": "cceba957c502810d9d75b279ae450a091f258185a7eb722937e9fe633da13db5"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "charged_dash_movement_speed_+%_final",
+      "field": "variant:0",
+      "en": "Charged Dash has {0}% more Movement Speed",
+      "cn": "蓄力疾风闪的移动速度总增 {0}%",
+      "tw": "雷霆衝鋒有 {0}% 更多移動速度",
+      "kind": "stat",
+      "sourceHash": "d0a0f3b06926c2f8a7c27e5fcb69ebd660ce24094c3d2864a00ea7014d5adac0"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_damage_resistance_%_when_on_low_life",
+      "field": "variant:1",
+      "en": "{0:+d}% to Fire Resistance while on Low Life",
+      "cn": "低血时 {0:+d}% 火焰抗性",
+      "tw": "貧血時 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "f5f46c25830d90507ba8cb1d3082ef8c305c0de3eb4b8b6428437ab7de1d081b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_resistance_cannot_be_penetrated",
+      "field": "variant:0",
+      "en": "Fire Resistance cannot be Penetrated",
+      "cn": "火焰抗性无法被穿透",
+      "tw": "火焰抗性無法被穿透",
+      "kind": "stat",
+      "sourceHash": "86684d9d55fb5fefdb92c5c2661f794d92e8789318e0bf71d18b9002b716afce"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "heist_reinforcements_movements_speed_+%",
+      "field": "variant:1",
+      "en": "Reinforcements have {0}% reduced Movement Speed",
+      "cn": "援军的移动速度减慢 {0}%",
+      "tw": "支援減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "3899aceccd1bac9bbf0e8103b0e26ca722a40b0c8d10b346bf5ed4769411b714"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "{0}% of Damage Leeched as Life",
+      "cn": "伤害的 {0}% 转化为生命偷取",
+      "tw": "{0}% 傷害偷取生命",
+      "kind": "stat",
+      "sourceHash": "9a62e0ae82fcc1c777c90b4fa2f83fa6c85a8e0430d9d7105de39facc3386d40"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_labyrinth_monsters_life_+%",
+      "field": "variant:0",
+      "en": "Labyrinth Monsters have {0}% increased maximum Life",
+      "cn": "帝王迷宫怪物的生命上限提高 {0}%",
+      "tw": "帝王迷宮怪物增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "a81337c59522a9fcc968eb1d676e4de3250fefc94cca8774197ee287b9443645"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_life_+%",
+      "field": "variant:0",
+      "en": "{0}% increased maximum Life",
+      "cn": "生命上限提高 {0}%",
+      "tw": "增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "407cb9898d201779668754a3ab49bae5cb56972cd29d1889d92882c2d6dba507"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Minions have {0:+d}% to Fire Resistance",
+      "cn": "召唤生物的火焰抗性 {0:+d}%",
+      "tw": "召喚物 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "7f4cf730857f0757a5f7255f202877778094772f96e567782a4846440b41d90c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_during_flask_effect",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed during any Flask Effect",
+      "cn": "药剂持续期间，移动速度加快 {0}%",
+      "tw": "任何藥劑效果持續時間內，增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "25ed7d9e12719cbd07a450525e3a19814cc3284e48d8206d252104f179846edb"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "skeleton_movement_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Skeleton Movement Speed",
+      "cn": "魔侍的移动速度减慢 {0}%",
+      "tw": "減少 {0}% 骷髏移動",
+      "kind": "stat",
+      "sourceHash": "e81879bd8eeaf97857703a90ea967392132b10029e0c47f9f5c035fd1ec76e26"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "frost_globe_health_per_stage",
+      "field": "variant:0",
+      "en": "Frost Shield has {0:+d} to maximum Life per Stage",
+      "cn": "冰霜护盾每层最大生命 {0:+d}",
+      "tw": "寒霜護盾每層 {0:+d} 最大生命",
+      "kind": "stat",
+      "sourceHash": "e9ddd73404dfa9ebf975b96055f90b91889351d54563d692b51fbfe26985ecc3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "heist_player_fire_resistance_%_per_25%_alert_level",
+      "field": "variant:0",
+      "en": "{0:+d}% Player Fire Resistance per 25% Alert Level",
+      "cn": "每 25% 警报等级便使玩家的火焰抗性 {0:+d}%",
+      "tw": "每 25% 警戒等級，{0:+d}% 玩家火焰抗性",
+      "kind": "stat",
+      "sourceHash": "c687ee1c843ffc9603d3c86e25036ca06bedd7a1cb04e72212366b7a893ba921"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_you_have_infusion",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while you have Infusion",
+      "cn": "灌注效果下，移动速度加快 {0}%",
+      "tw": "你有注入時，增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "35c8b11fbfbe271c860f5778a68a5e73c9858e3c5a1d675d277405b99405f25d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_when_on_low_life",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed when on Low Life",
+      "cn": "低血时移动速度减慢 {0}%",
+      "tw": "貧血時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "073daca9155735de52b990aef935544251fb14910bd9772c92bf34c79036628f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "zombie_maximum_life_+",
+      "field": "variant:0",
+      "en": "Raised Zombies have {0:+d} to maximum Life",
+      "cn": "{0:+d} 魔卫复苏最大生命",
+      "tw": "殭屍復甦 {0:+d} 最大生命",
+      "kind": "stat",
+      "sourceHash": "f4c8586e5bcf14c922005a2e2d6bd17044bce3acb40a99a40bc922ec6842c945"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Cast Speed",
+      "cn": "施法速度减慢 {0}%",
+      "tw": "減少 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "76ed1ffcf7a8f263a5e1e22e6184f3aeb6018adec2cbdc2a749693611a1f7336"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_maximum_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "{0:+d}% to maximum Fire Resistance",
+      "cn": "{0:+d}% 火焰抗性上限",
+      "tw": "{0:+d}% 最大火焰抗性",
+      "kind": "stat",
+      "sourceHash": "b3cb64762549909969ee06147fee7b113077b02e3fd492d70de805331460111e"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "chaos_damage_resistance_%_per_1%_fire_resistance",
+      "field": "variant:0",
+      "en": "{0:+d}% to Chaos Resistance per 1% Fire Resistance",
+      "cn": "每 1% 火焰抗性使混沌抗性 {0:+d}%",
+      "tw": "每 1% 火焰抗性 {0:+d}% 混沌抗性",
+      "kind": "stat",
+      "sourceHash": "8f5075eebb36cbf43def97dc86a28ba55bd07cf752c5c099eef9796aaaf74716"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "golem_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Golems have {0}% increased Movement Speed",
+      "cn": "魔像移动速度加快 {0}%",
+      "tw": "魔像增加 {0}%移動速度",
+      "kind": "stat",
+      "sourceHash": "dcd50a1e33c0fa08f6cf4e8f57f0df9e96150eba357551b388d4db79d74d4d94"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "ignores_enemy_fire_resistance",
+      "field": "variant:0",
+      "en": "Hits ignore Enemy Fire Resistance",
+      "cn": "击中无视敌人的火焰抗性",
+      "tw": "擊中無視敵人火焰抗性",
+      "kind": "stat",
+      "sourceHash": "7911cf089368e04cd17a449739d48b390b22f85d7f10d3bf4c4281f88a1a597b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_labyrinth_izaro_life_+%",
+      "field": "variant:1",
+      "en": "Izaro has {0}% reduced maximum Life",
+      "cn": "伊泽洛的生命上限减少 {0}%",
+      "tw": "伊澤洛減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "9b8bf53da9d4abd00fe65fa5c3ccb0e8360c483bbc17f430a4847b651f50c392"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_players_and_monsters_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Player and Monster Movement Speed",
+      "cn": "玩家和怪物的移动速度加快 {0}%",
+      "tw": "增加玩家和怪物 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f9834907e18190885ceef4c1acb2c3c9da8b21951546adccea76d6abe71bb3df"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "monster_life_+%_final_from_map",
+      "field": "variant:0",
+      "en": "{0}% more maximum Life",
+      "cn": "生命上限总增 {0}%",
+      "tw": "{0}% 更多最大生命",
+      "kind": "stat",
+      "sourceHash": "5b8b0c6d1d34aabe36d87139dec645abb1bdec04680515355a60065835da4cdf"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_if_below_100_dexterity",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed if Dexterity is below 100",
+      "cn": "若敏捷低于 100 点，移动速度减慢 {0}%",
+      "tw": "若敏捷低於 100，減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f082c6a4aa8d619446821f30434f412a9946f95bbd6b708c2c0d845138844492"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_5_rage",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per 5 Rage",
+      "cn": "每 5 点怒火使移动速度提高 {0}%",
+      "tw": "每 5 層盛怒增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "b4ad7832d5ab77956c4e4a3d06e72d316867003280db823702c83a0410551ef7"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_power_charge",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Power Charge",
+      "cn": "每个暴击球使移动速度加快 {0}%",
+      "tw": "每顆暴擊球增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "05fd66a33d3b88bee5080175b9dc63164559bb35977db223b8b9b64ac8258d1e"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_summoned_phantasm",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed per Summoned Phantasm",
+      "cn": "每个召唤的幻灵使移动速度降低 {0}%",
+      "tw": "每1召喚幻影，減少{0}%移動速度",
+      "kind": "stat",
+      "sourceHash": "b77b1c85ff293ef99e4ec5c4765c223c3beae64f56bd5bffd325b20d8727b560"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_fortified",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Fortified",
+      "cn": "护体状态下移动速度加快 {0}%",
+      "tw": "護體時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "ae17789ae8f96103e700a1f926c5dff530321b842cf3b8caf368e0bfb018c11d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_cannot_be_reduced_below_base",
+      "field": "variant:0",
+      "en": "Movement Speed cannot be modified to below Base Value",
+      "cn": "你的移动速度加成不会让你减速至基础速度以下",
+      "tw": "你的移動速度加成不會讓你降至基礎速度以下",
+      "kind": "stat",
+      "sourceHash": "2ecb71a27e5f5f47a6f20456af3d945484d5993e758bcf91da5935e5267038c3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_cursed",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Cursed",
+      "cn": "被诅咒时的移动速度加快 {0}%",
+      "tw": "增加 {0}% 被詛咒時的移動速度",
+      "kind": "stat",
+      "sourceHash": "a6742841d0d6831d4092ac54b51b60276bea2982d14313ac9f4039b1032c3c68"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "spell_skill_gem_level_+",
+      "field": "variant:0",
+      "en": "{0:+d} to Level of all Spell Skill Gems",
+      "cn": "所有法术主动技能石等级 {0:+d}",
+      "tw": "全部法術技能寶石等級 {0:+d}",
+      "kind": "stat",
+      "sourceHash": "9e699a1ecf273db9a52b3cea3591ca5f431dd9a5ccfe266d830556d1ba1befd3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_spectre_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Raised Spectres have {0}% reduced maximum Life",
+      "cn": "灵体的最大生命降低 {0}%",
+      "tw": "幽魂減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "d415d92514b188ea0bbe53882c9acd0f78460ab4d621bc95767d3975dd58655e"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "charged_dash_movement_speed_+%_final",
+      "field": "variant:1",
+      "en": "Charged Dash has {0}% less Movement Speed",
+      "cn": "蓄力疾风闪的移动速度总降 {0}%",
+      "tw": "雷霆衝鋒有 {0}% 更少移動速度",
+      "kind": "stat",
+      "sourceHash": "1accd929a96487b04f583892904d30379c6696f8e787a051efabaacd9e2bc5c9"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "cyclone_max_stages_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% more Movement Speed while at maximum Stages",
+      "cn": "最大层数时，移动速度总增 {0}%",
+      "tw": "最大層時有 {0}% 更多移動速度",
+      "kind": "stat",
+      "sourceHash": "2e7114bb5829fff2d1837fc8b496475b00bed69e9f8d635a95bd2cb200f4c315"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_damage_resistance_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Fire Resistance",
+      "cn": "火焰抗性提高 {0}%",
+      "tw": "增加 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "c014c3d34243e2edccbe4b7f52510b405c321784b9fa8d7ed9e5850a054c5190"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Minions have {0}% reduced Movement Speed",
+      "cn": "召唤生物的移动速度减慢 {0}%",
+      "tw": "召喚物減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c19f01e63d981c40571b7891645edc1010764e1e6d41fef803a04e75ff3a4ab7"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_if_enemy_killed_recently",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed if you've Killed Recently",
+      "cn": "若你近期内有击败敌人，则移动速度减慢 {0}%",
+      "tw": "若近期內有擊殺減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "5cb9d5a3252ca5e77c89b2db6a3868ef9f0a1267c6c0a7066fe875e0430a2cb8"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_you_have_infusion",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while you have Infusion",
+      "cn": "灌注效果下，移动速度减慢 {0}%",
+      "tw": "你有注入時，減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "18e7c2bd53d70f2899425248c73dfb725117bf80b107e0beac7f0ea3b33a1452"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "reduce_enemy_fire_resistance_with_weapons_%",
+      "field": "variant:0",
+      "en": "Damage with Weapons Penetrates {0}% Fire Resistance",
+      "cn": "武器造成的伤害穿透 {0}% 火焰抗性",
+      "tw": "武器造成的傷害穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "ed223b3adcb9ed89fc9c6172e62bd9260bb9b7097c47412604b19c7fd21caf10"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Cast Speed",
+      "cn": "施法速度加快 {0}%",
+      "tw": "增加 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "0f6f156a5324343f3453b61c89e0aaddfff97d7405f6a11360cd462cfe66dd5e"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "cyclone_max_stages_movement_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% less Movement Speed while at maximum Stages",
+      "cn": "最大层数时，移动速度总降 {0}%",
+      "tw": "最大層時有 {0}% 更少移動速度",
+      "kind": "stat",
+      "sourceHash": "b7ef863bd01a2de853157cb4e493f70030a3cd4b1945477204e0ea86a75899b3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "heist_reinforcements_movements_speed_+%",
+      "field": "variant:0",
+      "en": "Reinforcements have {0}% increased Movement Speed",
+      "cn": "援军的移动速度加快 {0}%",
+      "tw": "支援增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "e5a01752b42c8567f0957813c963b49b77d0603798b4a3f574926bd8539fd047"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_movement_speed_+%_per_50_dex",
+      "field": "variant:1",
+      "en": "{0}% reduced Minion Movement Speed per 50 Dexterity",
+      "cn": "每 50 点敏捷可使召唤生物的移动速度减慢 {0}%",
+      "tw": "每 50 點敏捷，減少召喚物 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "bbf66d889377a332c5546ca61a6b864b28facba6b13b82a4ee8f9999e1e42141"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_bleeding",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Bleeding",
+      "cn": "流血时移动速度减慢 {0}%",
+      "tw": "流血時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "b093ba51cf779af39b8402ac509a4218941b6e33fac7eadbf54c136290e7827a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_poison_stack",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed for each Poison on you",
+      "cn": "你身上每层中毒效果都使移动速度加快 {0}%",
+      "tw": "你身上每層中毒增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "4e6b7e8b77e7089969cb011b80c635a3ee120087d391a58252a21375c7d112e1"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_shock",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Shocked",
+      "cn": "感电时移动速度加快 {0}%",
+      "tw": "感電時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "d82fef21e4416ec8f0b6fa3b3fde808be2557a7d56f4b5695e69be12d263a136"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_chilled",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Chilled",
+      "cn": "冰缓时，移动速度减慢 {0}%",
+      "tw": "被冰緩時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c9c9670f122fbce994c81c8975dbbb67dc4b4f60f08e6599cfc29c0b5ed901f5"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Attack Speed",
+      "cn": "攻击速度加快 {0}%",
+      "tw": "增加 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "8fdd8006f46d667d3d0759e95dcc155f16555e14b09d4e3e38988f0654da7a10"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_maximum_life",
+      "field": "variant:0",
+      "en": "{0:+d} to maximum Life",
+      "cn": "{0:+d} 最大生命",
+      "tw": "{0:+d} 最大生命",
+      "kind": "stat",
+      "sourceHash": "1ce6941d397159fd1a49856855968b0c309dbed4dc2dad2d98a598a501cfb067"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_raven_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Ravens have {0}% reduced maximum Life",
+      "cn": "乌鸦的最大生命降低 {0}%",
+      "tw": "烏鴉減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "7348bd3b4c20af9f7d85b1d821491b0419d5379cbc6ed861a792d10be7188c57"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_spectre_maximum_life_+%",
+      "field": "variant:0",
+      "en": "Raised Spectres have {0}% increased maximum Life",
+      "cn": "灵体的最大生命提高 {0}%",
+      "tw": "幽魂增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "da82fbfc27af1c6ddda7755d017e5543876b21a602b8c00bb4f76ddfdccc4339"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "delve_biome_boss_life_+%_final",
+      "field": "variant:0",
+      "en": "Unique Boss has {0}% more maximum Life",
+      "cn": "传奇首领的生命上限总增 {0}%",
+      "tw": "傳奇頭目有 {0}% 更多最大生命",
+      "kind": "stat",
+      "sourceHash": "096b9fba1d83a3bf421d364762b5e3c0e5759ded5e8910644875026f31590e39"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_maximum_life_+%_if_item_corrupted",
+      "field": "variant:1",
+      "en": "{0}% reduced maximum Life if Corrupted",
+      "cn": "生命上限在腐化的情况下降低 {0}%",
+      "tw": "若已汙染減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "2108593f5fb425d5a156d9e56cd34fd2e93b0cb2c2539caea731d54150f5f508"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_labyrinth_izaro_life_+%",
+      "field": "variant:0",
+      "en": "Izaro has {0}% increased maximum Life",
+      "cn": "伊泽洛的生命上限提高 {0}%",
+      "tw": "伊澤洛增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "682607336d473b7f385c7e6399122997b8f329535692743d8f7d07a9886001ac"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_players_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Players have {0}% increased Movement Speed",
+      "cn": "玩家的移动速度提高 {0}%",
+      "tw": "玩家增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "e9e384fa59067600614bc1d4a0f3f1f642a487ed2ccf9f2d391878c7fde06d0d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_life_per_10_levels",
+      "field": "variant:0",
+      "en": "{0:+d} to maximum Life per 10 Levels",
+      "cn": "每 10 级 {0:+d} 最大生命",
+      "tw": "每 10 等級 {0:+d} 最大生命",
+      "kind": "stat",
+      "sourceHash": "1669fad38f2eea87c35caf5bcbab6decb3928a9faf812c659472072a0b91edd9"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Minions have {0}% increased Movement Speed",
+      "cn": "召唤生物的移动速度加快 {0}%",
+      "tw": "召喚物增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "743161c4f7b9dca79cce279b28afd07c78fc537956a9553542b7587f1790e203"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_affected_by_grace",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while affected by Grace",
+      "cn": "受到优雅影响时，移动速度加快 {0}%",
+      "tw": "被優雅影響時，增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "640b16b365af3301a398bbcf615c2a5c2e36ea7af61be43b4723851deaacd2b0"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_holding_shield",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while holding a Shield",
+      "cn": "持盾牌时，移动速度减慢 {0}%",
+      "tw": "持盾時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "04f93bbd13496b4d735b81c42f68f59e58b1180ed6119c9aa12fe561c5ac0c8f"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "tornado_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Tornado has {0}% increased Movement Speed",
+      "cn": "龙卷旋风的移动速度加快 {0}%",
+      "tw": "龍捲風增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "ca49b7e05287ccbe1ce7285f2d7ef0a4152ef49be05c3f0dea712b2a07ae05fd"
+    },
+    {
+      "table": "metadata/statdescriptions/map_stat_descriptions.csd",
+      "id": "metamorphosis_boss_move_speed_+%_final_permyriad",
+      "field": "variant:1",
+      "en": "{0}% less Movement Speed",
+      "cn": "移动速度总降 {0}%",
+      "tw": "{0}% 更少移動速度",
+      "kind": "stat",
+      "sourceHash": "14c0fc50b4425dcc25214be08adc4177d4a78079128c78df76acf98a25dcfbd0"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "fire_damage_resistance_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Fire Resistance",
+      "cn": "火焰抗性降低 {0}%",
+      "tw": "減少 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "422945aabc3701c6eaddf09ab52f6b655a3ed97d279f135f8b4d6847d5334628"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_movement_speed_+%_if_item_corrupted",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed if Corrupted",
+      "cn": "若腐化，则移动速度减慢 {0}%",
+      "tw": "若已汙染減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "82e34db1860937427ee451cddaa9bb453728ffe20618374844f6de85ed507b60"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_minion_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Players' Minions have {0}% more Movement Speed",
+      "cn": "玩家的召唤生物的移动速度总增 {0}%",
+      "tw": "玩家的召喚物增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "e31599bf90603c853bcf602a7f35c8ff8cf4f22514e6b8d1e8251969de6dcc75"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_on_burning_ground",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while on Burning Ground",
+      "cn": "在燃烧地面上时，移动速度加快 {0}%",
+      "tw": "在燃燒地面上時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "dcbfa194d29893e00ae5466b91caeda5de2f8ec6153155c25232df8bd5e419cc"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_when_on_low_life",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed when on Low Life",
+      "cn": "低血时移动速度加快 {0}%",
+      "tw": "貧血時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "8c25ceca211a9f83a9d4c4ac895758071087a372d744b31ec61d26e3d5b6f1ac"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_phasing",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Phasing",
+      "cn": "迷踪状态时移动速度加快 {0}%",
+      "tw": "迷蹤效果下增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "a5ebd5c7f9a60c3693ec658d7ec5ad66450e15225c2789e049a083f0fcf3498e"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_maximum_mana",
+      "field": "variant:0",
+      "en": "{0:+d} to maximum Mana",
+      "cn": "{0:+d} 最大魔力",
+      "tw": "{0:+d} 最大魔力",
+      "kind": "stat",
+      "sourceHash": "c9e51b8b0f043ab6e4a09ed4a0c452625a373722142766ee170e51ad448f31f1"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_zombie_maximum_life_+%",
+      "field": "variant:0",
+      "en": "Raised Zombies have {0}% increased maximum Life",
+      "cn": "魔卫复苏最大生命提高 {0}%",
+      "tw": "殭屍增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "c63b02c0080bcb2b60ab49a08168863406d3310e8fec16bd1e60853e10f64cf5"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "display_minion_maximum_life",
+      "field": "variant:0",
+      "en": "Minions have {0} maximum Life",
+      "cn": "召唤生物拥有 {0} 最大生命",
+      "tw": "召喚物有 {0} 最大生命",
+      "kind": "stat",
+      "sourceHash": "62263205be05f2ebc17af6dd269417dc1c2674f686f10f5fb812ade5ceb27436"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_tormented_spirits_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Tormented Spirits have {0}% increased Movement Speed",
+      "cn": "罪魂移动速度加快 {0}%",
+      "tw": "罪魂增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "4f3bf5856b5080ccc99d2693fa6f9406f1db71c5e793800b865cf0837965ea72"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_during_flask_effect",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed during any Flask Effect",
+      "cn": "药剂持续期间，移动速度减慢 {0}%",
+      "tw": "任何藥劑效果持續時間內，減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "9ca86b62f655110386f5e98773e6f07100901a669f005d8485154dd236ac3fb8"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_is_%_of_base",
+      "field": "variant:0",
+      "en": "Your Movement Speed is {0}% of its base value",
+      "cn": "你的移动速度变为基础值的 {0}%",
+      "tw": "你的移動速度為 {0}% 它的基礎值",
+      "kind": "stat",
+      "sourceHash": "c21dc7e22bcfd362b428f1a750aa0e5c71466beb5c5f3c53b979a9ba25520209"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "totem_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Totems have {0}% reduced Movement Speed",
+      "cn": "图腾的移动速度降低 {0}%",
+      "tw": "減少 {0}% 圖騰的移動速度",
+      "kind": "stat",
+      "sourceHash": "773a80bc8444d6ab1244ea8624c39cbe97652b8e67f215ffb0588492fd7b0413"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_attack_damage_penetrates_fire_resist_%",
+      "field": "variant:0",
+      "en": "Attack Damage Penetrates {0}% of Enemy Fire Resistance",
+      "cn": "攻击伤害穿透敌人 {0}% 的火焰抗性",
+      "tw": "攻擊傷害穿透 {0}% 敵人的火焰抗性",
+      "kind": "stat",
+      "sourceHash": "4bab2d46884fd72373f16bbf615de19577711b734c945a60de646b8d72a0ec70"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed",
+      "cn": "移动速度减慢 {0}%",
+      "tw": "減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "2db32c73a20c77345544c3c49e385b85fd4b86de0a1c112eb7c994bda0679d54"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_raven_maximum_life_+%",
+      "field": "variant:0",
+      "en": "Ravens have {0}% increased maximum Life",
+      "cn": "乌鸦的最大生命提高 {0}%",
+      "tw": "烏鴉增加 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "2bb38e1979eacd42f46d8fd39b05d56c51f025ac20ed9de0fdc3bb7d20b0ad5d"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_zombie_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Raised Zombies have {0}% reduced maximum Life",
+      "cn": "魔卫复苏的最大生命降低 {0}%",
+      "tw": "殭屍減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "29b6fc0b8abc1b5dc448dc55f59cf7d1ad7ce5406fcb21f4a8fd4f8786732aa2"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "golem_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Golems have {0}% reduced Movement Speed",
+      "cn": "魔像移动速度减慢 {0}%",
+      "tw": "魔像減少 {0}%移動速度",
+      "kind": "stat",
+      "sourceHash": "9d35f6f05bdfd5f2dacdcb8572acc4519fa3194ce48c7f4f15888727bdab92e0"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_raging_spirit_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Summoned Raging Spirits have {0}% reduced maximum Life",
+      "cn": "愤怒狂灵的最大生命降低 {0}%",
+      "tw": "召喚憤怒狂靈減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "7587de631c7cee27c9f145d067ea3a826e9c52d965996ba0161bb90523b596a1"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_dual_wielding",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Dual Wielding",
+      "cn": "移动速度在双持武器时减慢 {0}%",
+      "tw": "雙持時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "2245024ac108b1063b19868b095ec02347ae4bf191109e7625942613b00c2d4c"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_on_burning_ground",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while on Burning Ground",
+      "cn": "在燃烧地面上时，移动速度减慢 {0}%",
+      "tw": "在燃燒地面上時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "23707695b5cf6d2f6f87b721c2cf429c15c78220317f107d3bd9766577c38e88"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_poisoned",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while Poisoned",
+      "cn": "中毒时，移动速度加快 {0}%",
+      "tw": "中毒時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "4b840e2a29c86019e7387969fb2b429c7c8886cad43b769cdbfeafe2dfeb886a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_frenzy_charge",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Frenzy Charge",
+      "cn": "每个狂怒球使移动速度加快 {0}%",
+      "tw": "每個狂怒球增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "a29f1c76ac37738e19c2af6c4607711004972816eb3b786d5ac3bae0951e5af1"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_shock",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Shocked",
+      "cn": "感电时移动速度减慢 {0}%",
+      "tw": "感電時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "eb0cde7d89c0dcb771fd7adf2d7c9609b149d66a3f2c8448cb494bac27428276"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_while_cursed",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Cursed",
+      "cn": "被诅咒时的移动速度减慢 {0}%",
+      "tw": "減少 {0}% 被詛咒時的移動速度",
+      "kind": "stat",
+      "sourceHash": "c69ab9005ecbc0449e7907c69809fb7beb785b8512cc21d587bd36a9fec181ca"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Attack Speed",
+      "cn": "攻击速度减慢 {0}%",
+      "tw": "減少 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "6551e58cbbce681dcda45a3c95454fc68c584d30178cbfd2b0a5c58850804210"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_movement_speed_+%_if_item_corrupted",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed if Corrupted",
+      "cn": "若腐化，则移动速度加快 {0}%",
+      "tw": "若已汙染增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "c46c132bdde0906d24a76a72f8199036154656b919c524438a0529d36c9cecf3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "monster_life_+%_final_from_map",
+      "field": "variant:1",
+      "en": "{0}% less maximum Life",
+      "cn": "生命上限总降 {0}%",
+      "tw": "{0}% 更少最大生命",
+      "kind": "stat",
+      "sourceHash": "c248805463211f18cad8eae68f5907bc94c6071fa9b87b08a6998abc33fdfa15"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_holding_shield",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed while holding a Shield",
+      "cn": "持盾牌时，移动速度加快 {0}%",
+      "tw": "持盾時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "61072b7241081d1cdf86f89428d974682056ad761a01e76a618fbfb8b21b97fc"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_totem",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed per Summoned Totem",
+      "cn": "每个召唤的图腾使移动速度减慢 {0}%",
+      "tw": "每個召喚的圖騰減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "d7df673520a02808939b1a97302c8d249fe68f2e325fbd9526e46464b5ffd02a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_when_on_full_life",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed when on Full Life",
+      "cn": "满血时移动速度加快 {0}%",
+      "tw": "滿血時增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "50ac21d31ca77b91bccb45fae06531e7bd9f053327a84e9178184797b33c3115"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "totem_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Totems have {0}% increased Movement Speed",
+      "cn": "图腾的移动速度提高 {0}%",
+      "tw": "增加 {0}% 圖騰的移動速度",
+      "kind": "stat",
+      "sourceHash": "935f8424af7bc3774997b91e167c7153a4c81eccd844f66a24e71793489fbb01"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "armour_increased_by_overcapped_fire_resistance",
+      "field": "variant:0",
+      "en": "Armour is increased by Overcapped Fire Resistance",
+      "cn": "护甲值随超量火焰抗性提高",
+      "tw": "護甲被超過上限的火焰抗性增加",
+      "kind": "stat",
+      "sourceHash": "09e1e090fd28e3853378703f556eacb2e7c4654cbd8360e846e47976fe8041ff"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "ignites_apply_fire_resistance_+",
+      "field": "variant:0",
+      "en": "Enemies Ignited by you have {0:+d}% to Fire Resistance",
+      "cn": "被你点燃的敌人 {0:+d}% 火焰抗性",
+      "tw": "被你點燃的敵人 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "cd9354b5f34703683a0dd80bdf1c428b4f6a55c28ddf39430e74f0ad0caa6cb5"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_flask_movement_speed_+%_while_healing",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed during Effect",
+      "cn": "生效期间，移动速度加快 {0}%",
+      "tw": "效果持續時間內，增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "648b29fda70ce19046560392f84f0d13010e57e180e22089480081d249f9f07a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Minions have {0}% reduced maximum Life",
+      "cn": "召唤生物的最大生命降低 {0}%",
+      "tw": "召喚物減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "edadab7bbf812f7068c87c83254d9a6a73f9d673e8ad5f637364d060eb281e93"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_chest_opened_recently",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed per Chest opened Recently",
+      "cn": "近期内每打开 1 个箱子，移动速度减慢 {0}%",
+      "tw": "近期每打開一個箱子減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "897ba369c754ed81f71486fb49322afdf557ab69c1a2ffa848de9937bca6d42b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_per_endurance_charge",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed per Endurance Charge",
+      "cn": "每个耐力球使移动速度减慢 {0}%",
+      "tw": "每顆耐力球減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0ea06e5973b8d3dc728f843985c61789305eeea65a9b5042e540d9b52abe447b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_speed_+%_while_fortified",
+      "field": "variant:1",
+      "en": "{0}% reduced Movement Speed while Fortified",
+      "cn": "护体状态下移动速度减慢 {0}%",
+      "tw": "護體時減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "60eec903ae34830ad712ad252ba68b2d0998a9c2d4e2c075fcdfc4de59b193a4"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "skeleton_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Skeleton Movement Speed",
+      "cn": "魔侍的移动速度加快 {0}%",
+      "tw": "增加 {0}% 骷髏移動速度",
+      "kind": "stat",
+      "sourceHash": "2345da39bc7d48f2faeee5d193ff5dfa3bed8fbefdd327af412b25248eefaab6"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "base_fire_elemental_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Fire Elementals have {0}% reduced maximum Life",
+      "cn": "火元素的最大生命降低 {0}%",
+      "tw": "火元素減少 {0}% 最大生命",
+      "kind": "stat",
+      "sourceHash": "d0475ef2ed5862d72f9b9cf0be2ab6be64d40d85cdc8f7ca80c10fc1ce3ac48b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_minion_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Players' Minions have {0}% less Movement Speed",
+      "cn": "玩家的召唤生物的移动速度总降 {0}%",
+      "tw": "玩家的召喚物減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "b9763d3ba78a0b08a8e701dae3691f298842d0eaf4a33baffd540b45e2d96c42"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "map_monsters_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Monster Movement Speed",
+      "cn": "怪物移动速度加快 {0}%",
+      "tw": "增加 {0}% 怪物移動速度",
+      "kind": "stat",
+      "sourceHash": "c6a551f7501ea137f210410d2108360cc5d88ceea8cb2e632d0cdaa46e00ae1f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "modifiers_to_minion_movement_speed_also_affect_you",
+      "field": "variant:0",
+      "en": "Modifiers to Minion Movement Speed also affect you",
+      "cn": "你能获得召唤生物的移动速度词缀效果",
+      "tw": "召喚物移動速度的加成同時套用在你身上",
+      "kind": "stat",
+      "sourceHash": "983bf8d43e660f710e85edd2b517b1a9ccdd4cde8148884eea7d71ee626f37df"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_per_totem",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Summoned Totem",
+      "cn": "每个召唤的图腾使移动速度加快 {0}%",
+      "tw": "每個召喚的圖騰增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f5c4e164c1713a42dffe317f9ccc3618fc68f5b26d8198e6f435b3bd8b1cb459"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "movement_velocity_+%_when_on_shocked_ground",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed on Shocked Ground",
+      "cn": "在感电地面上的移动速度加快 {0}%",
+      "tw": "在感電地面上增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f29ca17a962429773e2e40ff6150013723acefc1eb579f48245c2f7250a9ad29"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "spectre_maximum_life_+",
+      "field": "variant:0",
+      "en": "{0:+d} to Spectre maximum Life",
+      "cn": "{0:+d} 灵体最大生命",
+      "tw": "{0:+d} 幽魂最大生命",
+      "kind": "stat",
+      "sourceHash": "2b9e84b48ee6d464b39433583c66e847e17a391ebdf188c62787a87c451ae79e"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:1",
+      "en": "Minions have {0}% less maximum Life",
+      "cn": "召唤生物的最大生命总值总降 {0}%",
+      "tw": "召喚物有 {0}% 更多最大生命",
+      "kind": "stat",
+      "sourceHash": "f0ab17cc1f6107febd784157b6a10d09e9edccf2414546af4a3c78b506285130"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:0",
+      "en": "This Attack and Minions have {0}% increased Attack Speed",
+      "cn": "此攻击与召唤生物的攻击速度加快 {0}%",
+      "tw": "攻擊與召喚物增加 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "7fbf367f7bc1521b9397309e7989464f1fa6a6e4c3fcda65a1cd4be3eaec5d97"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "This Attack and Minions Penetrate {0}% Fire Resistance",
+      "cn": "此攻击与召唤生物穿透 {0}% 火焰抗性",
+      "tw": "攻擊與召喚物穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "fb74ca2635f2e311ec9f7d677df0f03a9eada4a6a6ca624f0906a36a06b3ea5f"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "This Attack and Minions Leech {0}% of Damage as Life",
+      "cn": "此攻击与召唤生物造成 {0}% 生命偷取",
+      "tw": "攻擊與召喚物偷取 {0}% 生命",
+      "kind": "stat",
+      "sourceHash": "d10fd87c50423f8a675a773de6ec744938b545ef413f881adb6ba3abb32882fd"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_attack_skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "This Attack and Minions have {0}% reduced Attack Speed",
+      "cn": "此攻击与召唤生物的攻击速度减慢 {0}%",
+      "tw": "攻擊與召喚物減少 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "44be239b9f497b643a4bda8a3be1abdf6f150deaba6b30e11f132226c69b6afc"
+    },
+    {
+      "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "You and nearby allies gain {0}% reduced Movement Speed",
+      "cn": "你与周围友军的移动速度减慢 {0}%",
+      "tw": "你與附近的友方減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "16c027e34b22ce5434c28e2688d6d70ea9995ee9f4adf9086ec72291ec22b9f8"
+    },
+    {
+      "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "You and nearby allies gain {0}% increased Movement Speed",
+      "cn": "你与周围友军的移动速度加快 {0}%",
+      "tw": "你與附近的友方獲得 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "b547858d7ece1e5a1f55d7eb384542ddd16aad2ad05df01d9a4c0ea1b8fde759"
+    },
+    {
+      "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+      "id": "base_cold_damage_resistance_%",
+      "field": "variant:0",
+      "en": "You and nearby allies gain {0}% additional Cold Resistance",
+      "cn": "你与周围友军的冰霜抗性提高 {0}%",
+      "tw": "你與附近的友方獲得 {0}% 額外冰冷抗性",
+      "kind": "stat",
+      "sourceHash": "710765b0bac659cea9317e0a28fdc8aa5f47055967f3c59270950ddd2b138a4d"
+    },
+    {
+      "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+      "id": "hits_ignore_my_fire_resistance",
+      "field": "variant:0",
+      "en": "Nearby Enemies' Fire Resistance is Ignored by Hits",
+      "cn": "击中周围敌人时无视其火焰抗性",
+      "tw": "擊中附近敵人無視他們的火焰抗性",
+      "kind": "stat",
+      "sourceHash": "e97f3863152079cff95e946c9dd82e7c4f6d7484adcf7778162fceb468ff7f39"
+    },
+    {
+      "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+      "id": "base_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "You and nearby allies gain {0}% additional Fire Resistance",
+      "cn": "你与周围友军的火焰抗性提高 {0}%",
+      "tw": "你與附近的友方獲得 {0}% 額外火焰抗性",
+      "kind": "stat",
+      "sourceHash": "044a746ab59180956474a125a322fcc397de3f861ffeddba089915f30c682c62"
+    },
+    {
+      "table": "metadata/statdescriptions/tincture_stat_descriptions.csd",
+      "id": "reduce_enemy_fire_resistance_with_tinctured_weapons_%",
+      "field": "variant:0",
+      "en": "Melee Weapon Damage Penetrates {0}% Fire Resistance",
+      "cn": "近战武器伤害穿透 {0}% 火焰抗性",
+      "tw": "近戰武器傷害穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "2bd0b213d217c0aeb4268a8e6c5b66386c4187b690ab4febf852d11d56984048"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "skill_base_chaos_damage_%_maximum_life",
+      "field": "variant:0",
+      "en": "Deals {0}% of your maximum Life as base Chaos Damage",
+      "cn": "造成基础混沌伤害，等于你最大生命的 {0}%",
+      "tw": "造成 {0}% 你最大生命的基礎混沌傷害",
+      "kind": "stat",
+      "sourceHash": "245bd45545ef3b2ed20f85b548da257e00182d79264c0b6341207b074d8773d4"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Penetrates {0}% Fire Resistance",
+      "cn": "{0}% 火焰抗性穿透",
+      "tw": "穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "1a10428f5a67a5244dc593b9a86ff6f3f6458fe92ae782fd35d49e102a56992f"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "display_minion_base_maximum_life",
+      "field": "variant:0",
+      "en": "Minions have {0} base maximum Life",
+      "cn": "召唤生物拥有 {0} 基础最大生命",
+      "tw": "召喚物擁有 {0} 基本最大生命",
+      "kind": "stat",
+      "sourceHash": "fe7b27f2af272be1e14af588764ef8b282165fb21b2585e4baddeae86259d7ef"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "soulfeast_take_%_maximum_life_as_chaos_damage soulfeast_take_%_maximum_energy_shield_as_chaos_damage",
+      "field": "variant:1",
+      "en": "Take {0}% of maximum Life as Chaos Damage",
+      "cn": "受到相当于生命上限 {0}% 的混沌伤害",
+      "tw": "承受 {0}% 最大生命的混沌傷害",
+      "kind": "stat",
+      "sourceHash": "6ab1c497f5cfe04c1c7584fd29eb14a68f240fc4d34a02ad747b1a046c960861"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Attack Speed",
+      "cn": "攻击速度减慢 {0}%",
+      "tw": "減少{0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "6551e58cbbce681dcda45a3c95454fc68c584d30178cbfd2b0a5c58850804210"
+    },
+    {
+      "table": "metadata/statdescriptions/single_minion_spell_skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "Minion Leeches {0}% of Damage as Life",
+      "cn": "召唤生物伤害的 {0}% 会转化为生命偷取",
+      "tw": "召喚物偷取 {0}% 傷害為生命",
+      "kind": "stat",
+      "sourceHash": "91a06b82506f8237698e1e67b2ccac69dff32a8b43230f38f610b7ed35c91fca"
+    },
+    {
+      "table": "metadata/statdescriptions/passive_skill_aura_stat_descriptions.csd",
+      "id": "base_cold_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Nearby Enemies have {0:+d}% to Cold Resistance",
+      "cn": "周围敌人获得 {0:+d}% 冰霜抗性",
+      "tw": "附近敵人 {0:+d}% 冰冷抗性",
+      "kind": "stat",
+      "sourceHash": "c176631d3edadc0a9ab661a8bb5ef7c298030f14e15d7fc9685bf6766d70eb52"
+    },
+    {
+      "table": "metadata/statdescriptions/passive_skill_aura_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "You and nearby Allies have {0}% increased Movement Speed",
+      "cn": "你和周围友军的移动速度加快 {0}%",
+      "tw": "你和友方增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "d91601cdb702f267fb4dbc63b06bb23d51d04992cc3c6d875153da1e1457d64f"
+    },
+    {
+      "table": "metadata/statdescriptions/passive_skill_aura_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "You and nearby Allies have {0}% reduced Movement Speed",
+      "cn": "你和周围友军的移动速度减慢 {0}%",
+      "tw": "你和友方減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0c6c20121360bd9e7512abc047f9c6df2eafda3cafa95ccd96051eb3615bfe62"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:0",
+      "en": "Monsters have {0}% increased Cast Speed",
+      "cn": "怪物的施法速度加快 {0}%",
+      "tw": "怪物增加 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "eec71b81b5a9cbae8ba0787a04589ce7dadd93486b796923147bb23b0d51f365"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:0",
+      "en": "Monsters have {0}% increased Attack Speed",
+      "cn": "怪物的攻击速度加快 {0}%",
+      "tw": "怪物增加 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "51f5d93ce01068fde1b24d00c9719464982c98229513268082aaa237edcb378c"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Monsters Penetrate {0}% Fire Resistance",
+      "cn": "怪物穿透 {0}% 的火焰抗性",
+      "tw": "怪物穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "42a321a26f09bfe96a1bbacbb8959896881462889f61b3b9b51291e8cc24d919"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Monsters have {0}% increased Movement Speed",
+      "cn": "怪物的移动速度加快 {0}%",
+      "tw": "怪物增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "2a4852d3771a2d0c3d2ade14ed817e40f9d1b58780ebf15850f6815389a8da43"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:1",
+      "en": "Monsters have {0}% reduced Cast Speed",
+      "cn": "怪物的施法速度减慢 {0}%",
+      "tw": "怪物減少 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "84a877d26b3830ecd7ca6867c4d9dc34b869506febc7fb8fa3dd1f21609b611d"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Monsters have {0}% reduced Movement Speed",
+      "cn": "怪物的移动速度减慢 {0}%",
+      "tw": "怪物減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "5fc1bcb0b0656916ca4e51bbfb2e446260120e5a2406a00c4f3061815baab030"
+    },
+    {
+      "table": "metadata/statdescriptions/expedition_relic_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "Monsters have {0}% reduced Attack Speed",
+      "cn": "怪物的攻击速度减慢 {0}%",
+      "tw": "怪物減少 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "d7f76da5c1370fe4f3efa365fcaa80a2fe88648c89b7d3e22634b0c39eae3efc"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "flicker_strike_buff_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Buff grants {0}% increased Movement Speed",
+      "cn": "增益效果使移动速度加快 {0}%",
+      "tw": "增益效果增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "21e45c2c364d538009113f8c0112835519b2b53b2d1d76f3feed31f382ed9d96"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "flicker_strike_buff_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Buff grants {0}% reduced Movement Speed",
+      "cn": "增益效果使移动速度减慢 {0}%",
+      "tw": "增益效果減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "f256ac157315c5120e71513d6323bde3dc3428514c8914a8e0de2a34e8710488"
+    },
+    {
+      "table": "metadata/statdescriptions/mercenary_support_stat_descriptions.csd",
+      "id": "cyclone_movement_speed_+%_final",
+      "field": "variant:1",
+      "en": "{0}% less Movement Speed while using Supported Skill",
+      "cn": "使用被辅助技能时移动速度总降 {0}%",
+      "tw": "使用被輔助的技能時有 {0}% 更少移動速度",
+      "kind": "stat",
+      "sourceHash": "8a18c3382cddaaf05d48c201fb2389a1d93d8194f6252eb47fd232398c48d0d5"
+    },
+    {
+      "table": "metadata/statdescriptions/mercenary_support_stat_descriptions.csd",
+      "id": "cyclone_movement_speed_+%_final",
+      "field": "variant:0",
+      "en": "{0}% more Movement Speed while using Supported Skill",
+      "cn": "使用被辅助技能时移动速度总增 {0}%",
+      "tw": "使用被輔助的技能時有 {0}% 更多移動速度",
+      "kind": "stat",
+      "sourceHash": "471930483f75d356043e31aae30914b7102702f8bd211d8171b7535137fed046"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "doubles_have_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Doubles have {0}% increased Movement Speed",
+      "cn": "复生体移动速度加快 {0}%",
+      "tw": "連擊增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "6fb4a9ae7205011a6e2bb907459b0c83886194eb5884f533290d819ef515a00d"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "predict_totem_maximum_life",
+      "field": "variant:0",
+      "en": "Totems have {0} maximum Life",
+      "cn": "图腾的生命上限为 {0}",
+      "tw": "圖騰有 {0} 最大生命",
+      "kind": "stat",
+      "sourceHash": "188f3126b00e80bb826598bf65ab1b865abfa24534223b20d9b0494cd6668732"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "chilling_area_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Chilling Area has {0}% reduced Movement Speed",
+      "cn": "冰缓区域可使移动速度减慢 {0}%",
+      "tw": "冰緩區域減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "01c8ec8d6d0d4cc5f3f280d7966aa05ba5e8b9c17cf61595c10b3b7a4de6b0d7"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "death_wish_movement_speed_+%",
+      "field": "variant:0",
+      "en": "Affected Minions have {0}% increased Movement Speed",
+      "cn": "召唤生物受影响时，它们的移动速度加快 {0}%",
+      "tw": "被影響的召喚物增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "abe5fda2fddc8a4b59e6d816b90495faa78e1f472f1793b79a40d13ad3856017"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "spiritual_cry_double_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Mirage Warriors have {0}% increased Movement Speed",
+      "cn": "蜃影武士的移动速度加快 {0}%",
+      "tw": "幻影戰士增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "d15151fd23884478e8a77c1caa4a641e74e2eafa6c5604ca48a1b0c6534bc7ee"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "abyssal_cry_movement_velocity_+%_per_one_hundred_nearby_enemies",
+      "field": "variant:0",
+      "en": "{0}% increased Movement Speed per Nearby Enemy",
+      "cn": "周围每有 1 个敌人，敌人的移动速度便提高 {0}%",
+      "tw": "每個附近敵人使你增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "07d204890a17f3b93ea36648e44eb469c6d6c031ecc63a0bb8bfc248fa0d6b40"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "abyssal_cry_movement_velocity_+%_per_one_hundred_nearby_enemies",
+      "field": "variant:2",
+      "en": "{0}% reduced Movement Speed per Nearby Enemy",
+      "cn": "周围每有 1 个敌人，敌人的移动速度便降低 {0}%",
+      "tw": "每個附近敵人使你減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "01f0512736d93b1f6c86edc5d087290666b3b793dcdf05b57ee654e425784b90"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "death_wish_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Affected Minions have {0}% reduced Movement Speed",
+      "cn": "召唤生物受影响时，它们的移动速度减慢 {0}%",
+      "tw": "被影響的召喚物減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "4911f45e04ef5ed188b78a3979860e5c04ab35f60a989cf59842bcdb46bfbe55"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "plague_bearer_movement_speed_+%_while_infecting",
+      "field": "variant:0",
+      "en": "You have {0}% increased Movement Speed while Infecting",
+      "cn": "传染时，你的移动速度加快 {0}%",
+      "tw": "感染時，你增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "964aebc64808af2a4d4b901bc7ea1d0fee8d832dd9f1b21d2b8356e523f16f2f"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:0",
+      "en": "{0}% more Minion maximum Life",
+      "cn": "召唤生物最大生命总增 {0}%",
+      "tw": "{0}% 更多召喚物最大生命",
+      "kind": "stat",
+      "sourceHash": "657066653c6db6b293773eae1dc4ac7f525f586b0eb79b44d344372c838dc42b"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "spiritual_cry_double_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Mirage Warriors have {0}% reduced Movement Speed",
+      "cn": "蜃影武士的移动速度减慢 {0}%",
+      "tw": "幻影戰士減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "948bc711fbca75dde4f8433bcbef39784e83ad613cf096da782e9c61f2df5bda"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "pyroclast_mine_aura_fire_exposure_%_to_apply",
+      "field": "variant:0",
+      "en": "Fire Exposure Aura applies {0:+d}% to Fire Resistance",
+      "cn": "火焰曝露光环施加 {0:+d}% 火焰抗性",
+      "tw": "火焰曝曬光環施加 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "21b20de57d6c805665956acde65135993af216ff7fe26d4645526282d7fb777c"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "volatile_dead_core_movement_speed_+%",
+      "field": "variant:1",
+      "en": "{}% reduced Orb Movement Speed",
+      "cn": "法珠移动速度减慢 {}%",
+      "tw": "減少球 {}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "628097fed9f7417eab8b00906c82fbf7ed872121926f1ec02e4b6269725f5513"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "doubles_have_movement_speed_+%",
+      "field": "variant:1",
+      "en": "Doubles have {0}% reduced Movement Speed",
+      "cn": "复生体移动速度减慢 {0}%",
+      "tw": "連擊減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "52e90775f2dfa1d1954911a90e275e2d2d7218ee099a0cbdbc1410816304e7f8"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "movement_velocity_cap",
+      "field": "variant:0",
+      "en": "Minion Movement Speed is Capped",
+      "cn": "召唤生物移动速度达到极限",
+      "tw": "召喚物移動速度已達極限",
+      "kind": "stat",
+      "sourceHash": "56ae056d557a57f2579a949395b3c342b14715493e43c940d2ded461bbeb02f1"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "active_skill_minion_movement_velocity_+%_final",
+      "field": "variant:0",
+      "en": "{0}% more Minion Movement Speed",
+      "cn": "召唤生物移动速度总增 {0}%",
+      "tw": "{0}% 更多召喚物移動速度",
+      "kind": "stat",
+      "sourceHash": "269ed55573fb750647a1795e71be882ada00e573eadf726e8e29f61b5652b801"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "active_skill_minion_movement_velocity_+%_final",
+      "field": "variant:1",
+      "en": "{0}% less Minion Movement Speed",
+      "cn": "召唤生物移动速度总降 {0}%",
+      "tw": "{0}% 更少召喚物移動速度",
+      "kind": "stat",
+      "sourceHash": "0503553789cbd19f15a09b37e746af1472c3708515b9ad0e6342a7082f48fd3b"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "fire_beam_enemy_fire_resistance_%_per_stack",
+      "field": "variant:0",
+      "en": "Debuff applies {0:+d}% Fire Resistance per stage",
+      "cn": "每层减益减少 {0:+d}% 火焰抗性",
+      "tw": "每層負面效果附加 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "3e7fc0afc81bb9f6ac95537c6061126c53ef8262df85aac420b2662e768e5e5f"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "frost_globe_health_per_stage",
+      "field": "variant:0",
+      "en": "Frost Shield has {0} maximum Life per Stage",
+      "cn": "冰霜护盾每层最大生命为 {0}",
+      "tw": "每層使寒霜護盾有 {0} 最大生命",
+      "kind": "stat",
+      "sourceHash": "7867155c0810882655d85e98da3526c933fdb7816f2194da0b96c980a9b11187"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "volatile_dead_core_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{}% increased Orb Movement Speed",
+      "cn": "法珠移动速度加快 {}%",
+      "tw": "增加球 {}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "3906637acb5f677e8edbef57088add3640e0b7d1b464358904a91fac1678d1ba"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "cyclone_movement_speed_+%_final_per_stage",
+      "field": "variant:0",
+      "en": "{0}% more Movement Speed per Stage",
+      "cn": "每阶使移动速度总增 {0}%",
+      "tw": "每層有 {0}% 更多移動速度",
+      "kind": "stat",
+      "sourceHash": "9be4608bf8c725c5d535870d9fca69e0dec553e2eed288c43df26c052ac79865"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "penetrate_%_fire_resistance_per_100_dexterity",
+      "field": "variant:0",
+      "en": "Penetrate {0}% Fire Resistance per 100 Dexterity",
+      "cn": "每 100 点敏捷穿透 {0}% 的火焰抗性",
+      "tw": "每 100 敏捷穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "16410e947746c468e3e5d5c3904ce0763e67432c4fd58b1f525ed5c1c16e1d6d"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "charged_dash_skill_inherent_movement_speed_+%_final quality_display_chaged_dash_is_gem",
+      "field": "variant:1",
+      "en": "Illusion moves at {0}% of your Movement Speed",
+      "cn": "幻象以你移动速度的 {0}% 前进",
+      "tw": "幻影以 {0}% 你的移動速度來移動",
+      "kind": "stat",
+      "sourceHash": "300e997c65ea54e30e7ff92603a9f268064403a40ee51c554366c09d5a262e11"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "cyclone_movement_speed_+%_final_per_stage",
+      "field": "variant:1",
+      "en": "{0}% less Movement Speed per Stage",
+      "cn": "每阶使移动速度总降 {0}%",
+      "tw": "每層有 {0}% 更少移動速度",
+      "kind": "stat",
+      "sourceHash": "75869065be31c4615aae7e1062431c4c115bbe7d7741de5dd030695fa545674f"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "minion_movement_speed_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Minion Movement Speed",
+      "cn": "召唤生物移动速度加快 {0}%",
+      "tw": "增加 {0}% 召喚物移動速度",
+      "kind": "stat",
+      "sourceHash": "f294814dfb281fd6849896d197d9d1fc455060ca80a52dfb5fcded0ac047caa9"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:1",
+      "en": "{0}% less Minion maximum Life",
+      "cn": "召唤生物最大生命总降 {0}%",
+      "tw": "{0}% 更少召喚物最大生",
+      "kind": "stat",
+      "sourceHash": "4fde410632c3b7c63b70bfa2bec0872a573caa1d2fbfefd7ce85a9680b45e2d5"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "chilling_area_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Chilling Area has {0}% increased Movement Speed",
+      "cn": "冰缓区域可使移动速度加快 {0}%",
+      "tw": "冰緩區域增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "0e520a73c6f0e6ebb8fbdee3dc0fc8638060b837d3d2c05fa4decbcbe08c47f9"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "minion_movement_speed_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced Minion Movement Speed",
+      "cn": "召唤生物移动速度减慢 {0}%",
+      "tw": "減少 {0}% 召喚物移動速度",
+      "kind": "stat",
+      "sourceHash": "f6e4c42f191010bbe8de162d53bcedd213fdeb0dd6eba2085d99d0f03bf2fa42"
+    },
+    {
+      "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+      "id": "plague_bearer_movement_speed_+%_while_infecting",
+      "field": "variant:1",
+      "en": "You have {0}% reduced Movement Speed while Infecting",
+      "cn": "传染时，你的移动速度减慢 {0}%",
+      "tw": "感染時，你減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "6e4728f35f669ea1fe82500c546110b9c203dbeec599a4e5598a2cda01ed31f5"
+    },
+    {
+      "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Grants Minions {0}% increased Movement Speed",
+      "cn": "召唤生物的移动速度加快 {0}%",
+      "tw": "召喚物增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "44f39abbd9c33970a5a575d103e270a2ff1063ea616ddd03b09f39aec93af1a3"
+    },
+    {
+      "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "Grants Minions {0}% of Damage Leeched as Life",
+      "cn": "将召唤生物伤害的 {0}% 转化为生命偷取",
+      "tw": "召喚物 {0}% 的傷害偷取生命",
+      "kind": "stat",
+      "sourceHash": "ed0862605c30957d30d8b1fee9bbd466f7e143b32a767d782f984b98ed78e340"
+    },
+    {
+      "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Grants Minions {0}% reduced Movement Speed",
+      "cn": "召唤生物的移动速度减慢 {0}%",
+      "tw": "召喚物減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "667639be9984978d83ed5bbb32adcd8ddc20990fbc1ee2571a5a49400a1317f7"
+    },
+    {
+      "table": "metadata/statdescriptions/curse_skill_stat_descriptions.csd",
+      "id": "base_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Cursed enemies have {0:+d}% to Fire Resistance",
+      "cn": "被诅咒的敌人的火焰抗性 {0:+d}%",
+      "tw": "被詛咒的敵人有 {0:+d}% 的火焰抗性",
+      "kind": "stat",
+      "sourceHash": "e2d26640eb753ad840fe4667499237ac30b798661f007daf68f6254e93916d8a"
+    },
+    {
+      "table": "metadata/statdescriptions/curse_skill_stat_descriptions.csd",
+      "id": "base_cold_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Cursed enemies have {0:+d}% to Cold Resistance",
+      "cn": "被诅咒的敌人的冰霜抗性 {0:+d}%",
+      "tw": "被詛咒的敵人有 {0:+d}% 的冰冷抗性",
+      "kind": "stat",
+      "sourceHash": "0aeb7e872661e9de75ba8f6a9688bb7173de0e335566512ce5fbe322f68ee967"
+    },
+    {
+      "table": "metadata/statdescriptions/map_stat_descriptions.csd",
+      "id": "metamorphosis_boss_life_+%_final_permyriad",
+      "field": "variant:0",
+      "en": "{0}% more maximum Life",
+      "cn": "最大生命总增 {0}%",
+      "tw": "{0}% 更多最大生命",
+      "kind": "stat",
+      "sourceHash": "5b8b0c6d1d34aabe36d87139dec645abb1bdec04680515355a60065835da4cdf"
+    },
+    {
+      "table": "metadata/statdescriptions/map_stat_descriptions.csd",
+      "id": "metamorphosis_boss_life_+%_final_permyriad",
+      "field": "variant:1",
+      "en": "{0}% less maximum Life",
+      "cn": "最大生命总降 {0}%",
+      "tw": "{0}% 更少最大生命",
+      "kind": "stat",
+      "sourceHash": "c248805463211f18cad8eae68f5907bc94c6071fa9b87b08a6998abc33fdfa15"
+    },
+    {
+      "table": "metadata/statdescriptions/banner_aura_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:0",
+      "en": "Banner grants {0}% increased Movement Speed to You and Allies",
+      "cn": "旗帜使你和友军的移动速度加快 {0}%",
+      "tw": "鬥旗使你和友方增加 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "90e65acfe04db368559b263355a9a7ff102ed3e57cef536fd139c83b5627fb28"
+    },
+    {
+      "table": "metadata/statdescriptions/banner_aura_skill_stat_descriptions.csd",
+      "id": "base_movement_velocity_+%",
+      "field": "variant:1",
+      "en": "Banner grants {0}% reduced Movement Speed to You and Allies",
+      "cn": "旗帜使你和友军的移动速度减慢 {0}%",
+      "tw": "鬥旗使你和友方減少 {0}% 移動速度",
+      "kind": "stat",
+      "sourceHash": "5960b1630dbbd97e9040bfe7bed8605bd596c90200c8bc521b6e49fbd176e536"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "Supported Skills have {0}% of Damage Leeched as Life",
+      "cn": "被辅助技能的 {0}% 伤害会转化为生命偷取",
+      "tw": "被輔助的技能有 {0}% 傷害為生命偷取",
+      "kind": "stat",
+      "sourceHash": "c6b3c9f9a847c2ecf69bd315ad5d35776e76f28ef621b0d6e37284897a319f9d"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:0",
+      "en": "Supported Skills have {0}% increased Attack Speed",
+      "cn": "被辅助技能的攻击速度加快 {0}%",
+      "tw": "被輔助的技能增加 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "4417250cd3c2dbab3a11bd894c29bb8c7064e366163764d6aa0e30b4a73bc63c"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:1",
+      "en": "Supported Skills have {0}% reduced Cast Speed",
+      "cn": "被辅助技能的施法速度减慢 {0}%",
+      "tw": "被輔助的技能減少 {0}% 施法速度",
+      "kind": "stat",
+      "sourceHash": "cd25e5c4a2983b0a2ceefa94d6994e07b5f3942e3c68065b5e05c6d55f9f9217"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "minion_maximum_life_+%",
+      "field": "variant:1",
+      "en": "Supported Skills have {0}% reduced Minion maximum Life",
+      "cn": "被辅助技能的召唤生物最大生命降低 {0}%",
+      "tw": "被輔助的技能減少 {0}% 召喚物最大生命",
+      "kind": "stat",
+      "sourceHash": "72bdefbb0c3621be9b34e6fbd173a4a2003bd848ec39c312d0894f9a16c52192"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:1",
+      "en": "Supported Skills have {0}% less Minion maximum Life",
+      "cn": "被辅助技能的召唤生物最大生命总值总降 {0}%",
+      "tw": "被輔助的技能有 {0}% 更少召喚物最大生命",
+      "kind": "stat",
+      "sourceHash": "ffa5aeaf6ce0ed9274188fd4ed41ac389834cb58b3621a60b9cc48d0d11c30f9"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Supported Skills Penetrate {0}% Fire Resistance",
+      "cn": "被辅助技能可以穿透 {0}% 火焰抗性",
+      "tw": "被輔助的技能穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "e0595fad620454f85692cc49ec28ab3e9d4b8ab8364986693f30da9e43e53a8d"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "Supported Skills have {0}% reduced Attack Speed",
+      "cn": "被辅助技能的攻击速度减慢 {0}%",
+      "tw": "被輔助的技能減少 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "ee6809e2609c080759d62c30178d32ab7dc0075c4ced12a8240efb3aca5d96ad"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:0",
+      "en": "Supported Skills have {0}% increased Cast Speed",
+      "cn": "被辅助技能的施法速度加快 {0}%",
+      "tw": "被輔助的技能增加 {0}% 施法速度",
+      "kind": "stat",
+      "sourceHash": "13882ee195ac13ca78efc2277dcee03f7f33577c42e26f488cacfb4d0ed96981"
+    },
+    {
+      "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+      "id": "support_minion_maximum_life_+%_final",
+      "field": "variant:0",
+      "en": "Supported Skills have {0}% more Minion maximum Life",
+      "cn": "被辅助技能的召唤生物最大生命总值总增 {0}%",
+      "tw": "被輔助的技能有 {0}% 更多召喚物最大生命",
+      "kind": "stat",
+      "sourceHash": "2190b196a22333809bd63c83520eaf3f00d4761bea8da86425cc1bf3e17d2158"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:1",
+      "en": "Minions have {0}% reduced Attack Speed",
+      "cn": "召唤生物的攻击速度减慢 {0}%",
+      "tw": "召喚物減少 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "e6db3d87aa35065e185ce3833742fd989b18a0f011bfa4733d70dbba203e3d63"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:0",
+      "en": "Minions have {0}% increased Cast Speed",
+      "cn": "召唤生物的施法速度加快 {0}%",
+      "tw": "召喚物增加 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "b7956643cc41a883b4794b35f664ddcedeb54264f8bee1b8c8f1fee4bdf7ccb3"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "Minions Penetrate {0}% Fire Resistance",
+      "cn": "召唤生物穿透 {0}% 火焰抗性",
+      "tw": "召喚物穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "4e1fb27662e252bbaed209c8e31c0cabf7b17d9e682da06829596a80a540cdeb"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:1",
+      "en": "Minions have {0}% reduced Cast Speed",
+      "cn": "召唤生物的施法速度减慢 {0}%",
+      "tw": "召喚物減少 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "9ffbfdbc3729083ea22b7ec3ad3505cfa40cae229421df7b452ce502753498c1"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "Minions Leech {0}% of Damage as Life",
+      "cn": "召唤生物获得 {0}% 生命偷取",
+      "tw": "召喚物偷取 {0}% 生命",
+      "kind": "stat",
+      "sourceHash": "00bf6921a554411d3be168403582df4abeeb9a00d7b9fb1761463dfb7a752f7d"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+      "id": "attack_speed_+%",
+      "field": "variant:0",
+      "en": "Minions have {0}% increased Attack Speed",
+      "cn": "召唤生物的攻击速度加快 {0}%",
+      "tw": "召喚物增加 {0}% 攻擊速度",
+      "kind": "stat",
+      "sourceHash": "3d845fd1ded827cda53083036af9f52fcf57795ee2b1eabbdaf96def44180a23"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_spell_damage_skill_stat_descriptions.csd",
+      "id": "life_leech_from_any_damage_permyriad",
+      "field": "variant:0",
+      "en": "This Spell and Minions Leech {0}% of Damage as Life",
+      "cn": "该法术和召唤生物将伤害的 {0}% 转化为生命偷取",
+      "tw": "此法術和召喚物的 {0}% 傷害偷取為生命",
+      "kind": "stat",
+      "sourceHash": "ac906bae0f3cded2647dd3296b34d3891f01be100b89970e3835bde845fe78a6"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_spell_damage_skill_stat_descriptions.csd",
+      "id": "base_reduce_enemy_fire_resistance_%",
+      "field": "variant:0",
+      "en": "This Spell and Minions Penetrate {0}% Fire Resistance",
+      "cn": "该法术和召唤生物穿透 {0}% 的火焰抗性",
+      "tw": "此法術和召喚物穿透 {0}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "0a6e8add2cc8f8e0f9ae1e36dd316225fb7fb80f922afbed88da5cc4a11f1d35"
+    },
+    {
+      "table": "metadata/statdescriptions/debuff_skill_stat_descriptions.csd",
+      "id": "base_cold_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Cold Exposure applies {0:+d}% to Cold Resistance",
+      "cn": "冰霜曝露 {0:+d}% 冰霜抗性",
+      "tw": "冰冷曝曬 {0:+d}% 冰冷抗性",
+      "kind": "stat",
+      "sourceHash": "13494cbc7997ff1ee917137f533f47229a492ead6f8880ef749b0321737f4692"
+    },
+    {
+      "table": "metadata/statdescriptions/debuff_skill_stat_descriptions.csd",
+      "id": "base_fire_damage_resistance_%",
+      "field": "variant:0",
+      "en": "Fire Exposure applies {0:+d}% to Fire Resistance",
+      "cn": "火焰曝露 {0:+d}% 火焰抗性",
+      "tw": "火焰曝曬 {0:+d}% 火焰抗性",
+      "kind": "stat",
+      "sourceHash": "4de0ab864c01ac02f2518d47d055351e7e835f0d8c1bde7a1e5c13e933fd7389"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_spell_skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:0",
+      "en": "This Spell and Minions have {0}% increased Cast Speed",
+      "cn": "该法术与召唤生物的施法速度加快 {0}%",
+      "tw": "法術與召喚物增加 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "e24344b4474c83cc1477b4a966d6f53fdfaeb0eacbcbffc3e4ad5f21496a3613"
+    },
+    {
+      "table": "metadata/statdescriptions/minion_spell_skill_stat_descriptions.csd",
+      "id": "base_cast_speed_+%",
+      "field": "variant:1",
+      "en": "This Spell and Minions have {0}% reduced Cast Speed",
+      "cn": "该法术与召唤生物的施法速度减慢 {0}%",
+      "tw": "法術與召喚物減少 {0}% 施放速度",
+      "kind": "stat",
+      "sourceHash": "2e6c4f7a01bb97dfd733c8b2fcb9c2917e28521a09bf1ee8baef9cab9f321524"
+    },
+    {
+      "table": "remindertext",
+      "id": "ReminderTextCullingStrike",
+      "field": "Text",
+      "en": "(Culling Strike means enemies that are on 10% or lower life after your Hit are Killed)",
+      "cn": "( 对生命等于或少于 10% 生命上限的敌人可以造成终结，敌人将直接死亡 )",
+      "tw": "（ 對生命等於或少於 10% 最大生命的敵人可以造成撲殺，敵人將直接死亡 ）",
+      "kind": "dat",
+      "sourceHash": "ecb552bc8860349eb63b360e76e3c9c30ad7e0abb4d73e04e2c06a7a7da6a3e8"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_right_ring_slot_maximum_mana",
+      "field": "variant:0",
+      "en": "Right ring slot: {0:+d} to maximum Mana",
+      "cn": "右戒指栏位：{0:+d} 最大魔力",
+      "tw": "右戒指欄位：{0:+d} 最大魔力",
+      "kind": "stat",
+      "sourceHash": "f8d4a1c94706ba807168d431500cb5618aeda119f1fff8aec1fe6c8993a2bbf3"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_mana_+%",
+      "field": "variant:0",
+      "en": "{0}% increased maximum Mana",
+      "cn": "魔力上限提高 {0}%",
+      "tw": "增加 {0}% 最大魔力",
+      "kind": "stat",
+      "sourceHash": "5fdb7937420d2567d2d5abd0bced745892de87d4bf0c87463e33d32f0eb5b77a"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "weapon_tree_maximum_mana_+%_final",
+      "field": "variant:1",
+      "en": "{0}% less maximum Mana",
+      "cn": "魔力上限总降 {0}%",
+      "tw": "{0}% 更少最大魔力",
+      "kind": "stat",
+      "sourceHash": "6342f615c2dc341ce9793d04910f1e25e7a50262ded1031724238d8f8f16c7ca"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "mana_%_gained_on_block",
+      "field": "variant:0",
+      "en": "Recover {0}% of your maximum Mana when you Block",
+      "cn": "格挡时回复 {0}% 最大魔力",
+      "tw": "格擋恢復 {0}% 最大魔力",
+      "kind": "stat",
+      "sourceHash": "5691f8ac2208befde74d944db5e1b4960f977006f7db698c299041444e7cb0b7"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_mana_+%",
+      "field": "variant:1",
+      "en": "{0}% reduced maximum Mana",
+      "cn": "魔力上限降低 {0}%",
+      "tw": "減少 {0}% 最大魔力",
+      "kind": "stat",
+      "sourceHash": "3924089d7d91f7f8338417977d5c8f326a826687f65924bdc164b79ffdbaa12b"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "maximum_mana_+_per_2_intelligence",
+      "field": "variant:0",
+      "en": "{:+d} to maximum Mana per 2 Intelligence",
+      "cn": "每 2 点智慧使魔力上限 {:+d}",
+      "tw": "每 2 點智慧 {:+d} 最大魔力",
+      "kind": "stat",
+      "sourceHash": "e15c07c683752498afd149569490ae6b989fb5950ed62cfc509fe77a0b4d1ccb"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_maximum_mana_+%",
+      "field": "variant:0",
+      "en": "Minions have {0}% increased maximum Mana",
+      "cn": "召唤生物的魔力提高 {0}%",
+      "tw": "召喚物增加 {0}% 最大魔力",
+      "kind": "stat",
+      "sourceHash": "2cf28a02efb9ea99caf8f6c9ff60470183cffa6083380a245dfd573228a019d9"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "weapon_tree_maximum_mana_+%_final",
+      "field": "variant:0",
+      "en": "{0}% more maximum Mana",
+      "cn": "魔力上限总增 {0}%",
+      "tw": "{0}% 更多最大魔力",
+      "kind": "stat",
+      "sourceHash": "d2933cb9e1e41bc398f919c6b4f06a6d563ac7124184a0ece1b016553fabaf4f"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "local_left_ring_slot_maximum_mana",
+      "field": "variant:0",
+      "en": "Left ring slot: {0:+d} to maximum Mana",
+      "cn": "左戒指栏位：{0:+d} 最大魔力",
+      "tw": "左戒指欄位： {0:+d} 最大魔力",
+      "kind": "stat",
+      "sourceHash": "c0db22d64c4472c150438e26681c4ed88b59407490f0620338ee586d51b37d67"
+    },
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "minion_maximum_mana_+%",
+      "field": "variant:1",
+      "en": "Minions have {0}% reduced maximum Mana",
+      "cn": "召唤生物的魔力降低 {0}%",
+      "tw": "召喚物減少 {0}% 最大魔力",
+      "kind": "stat",
+      "sourceHash": "4e8bc08c1970a650fc1528235dfaa737acaa572ce0bf66d05cd599e1dd8144d0"
+    },
+    {
+      "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+      "id": "bladefall_volley_frequency_+%_per_100_maximum_mana",
+      "field": "variant:0",
+      "en": "{0}% increased Volley frequency per 100 maximum Mana",
+      "cn": "每 100 魔力上限使飞刃频率提高 {0}%",
+      "tw": "每 100 最大魔力增加 {0}% 齊射頻率",
+      "kind": "stat",
+      "sourceHash": "e12c007e8f2afb7f489a28603a382cd5ae948970e11a62131bd46f9abc2e95c2"
+    }
+  ]
+}

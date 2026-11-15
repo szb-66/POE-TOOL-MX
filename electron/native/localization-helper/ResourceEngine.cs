@@ -9,7 +9,172 @@ namespace LocalizationHelper;
 
 internal sealed class ResourceEngine {
     private readonly JsonArray schemas;
-    public ResourceEngine() { schemas = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"schema.json")))!["tables"]!.AsArray(); }
+    private JsonArray? sourceSchemas;
+    public ResourceEngine() {
+        schemas = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"schema.json")))!["tables"]!.AsArray();
+        EnableDisplayTextFields(schemas);
+    }
+    internal static void EnableDisplayTextFields(JsonArray tables) {
+        // Upstream localized flags omit many display strings. Keep an explicit
+        // allowlist so identifiers, mechanics and resource paths remain immutable.
+        var fields = new Dictionary<string,string[]>(StringComparer.OrdinalIgnoreCase) {
+            ["ActiveSkills"]=["DisplayedName","Description"],
+            ["GrantedEffects"]=["SupportName","SupportDescription"],
+            ["GemEffects"]=["Name","SupportText","SupportName"],
+            ["SkillGemInfo"]=["Description"],
+            ["PassiveSkills"]=["Name","FlavourText","NameHardmode"],
+            ["AlternatePassiveSkills"]=["Name","FlavourText"],
+            ["PassiveSkillOverrides"]=["Name"],
+            ["PassiveOverrideLimits"]=["Description"],
+            ["PassiveSkillFilterCatagories"]=["Name"],
+            ["PassiveSkillFilterOptions"]=["Name"],
+            ["PassiveSkillStatCategories"]=["Name"],
+            ["PassiveSkillTreeTutorial"]=["ChoiceA_Description","ChoiceB_Description"],
+            ["PassiveSkillTattooTargetSets"]=["Name"],
+            ["AtlasPassiveSkillSubTrees"]=["Description"],
+            ["AtlasTrees"]=["Name"],
+            ["AlternateTreeVersions"]=["Name"],
+            ["Ascendancy"]=["Name","FlavourText","LeagueName","LeagueFlavourText"],
+            ["Descendancy"]=["Name","FlavourText"],
+            ["Archetypes"]=["AscendancyClassName","Description"],
+            ["ItemClasses"]=["Name"],
+            ["ItemClassCategories"]=["Text"],
+            ["Words"]=["Text","Text2"],
+            ["Mods"]=["Name"],
+            ["FlavourText"]=["Text"],
+            ["MonsterVarieties"]=["Name"],
+            ["NPCs"]=["Name","ShortName"],
+            ["NPCTextAudio"]=["Text"],
+            ["CharacterTextAudio"]=["Text"],
+            ["WorldAreas"]=["Name"],
+            ["Chests"]=["Name"],
+            ["BuffDefinitions"]=["Name","Description"],
+            ["BuffVisuals"]=["BuffName","BuffDescription"],
+            ["LabyrinthCraftOptions"]=["Text"],
+            ["LabyrinthSecrets"]=["Name"],
+            ["PantheonPanelLayout"]=["GodName1","GodName2","GodName3","GodName4"],
+            ["ElderGuardians"]=["Name"],
+            ["BestiaryFamilies"]=["Name","FlavourText"],
+            ["BestiaryGenus"]=["Name","Name2"],
+            ["BestiaryGroups"]=["Name","Description"],
+            ["BestiaryRecipes"]=["Description"],
+            ["BestiaryRecipeCategories"]=["Text"],
+            ["IncursionRooms"]=["Name","FlavourText","Description"],
+            ["DelveBiomes"]=["Name"],
+            ["DelveCraftingModifierDescriptions"]=["Description"],
+            ["DelveFeatures"]=["Name","Description"],
+            ["BetrayalChoices"]=["Text"],
+            ["BetrayalJobs"]=["Text"],
+            ["BetrayalRanks"]=["Text"],
+            ["BetrayalRelationshipState"]=["Text"],
+            ["BetrayalTargets"]=["FullName","ShortName"],
+            ["BetrayalUpgrades"]=["Name","Description"],
+            ["BYOCrafting"]=["Description","DescriptionRuthless"],
+            ["SafehouseCraftingSpreeType"]=["ItemClassText"],
+            ["SynthesisAreas"]=["Name"],
+            ["SynthesisRewardTypes"]=["Description"],
+            ["BlightTowers"]=["Name","Description"],
+            ["AtlasExiles"]=["CitadelName"],
+            ["AlternateQualityTypes"]=["Description"],
+            ["AfflictionRewardTypeVisuals"]=["Name"],
+            ["HarvestCraftOptions"]=["Text","Description"],
+            ["HarvestCraftFilters"]=["Name"],
+            ["HeistChestRewardTypes"]=["RewardTypeName","RewardRoomName2"],
+            ["HeistJobs"]=["Name","Description"],
+            ["RitualRuneTypes"]=["Description"],
+            ["UltimatumEncounters"]=["Description"],
+            ["UltimatumEncounterTypes"]=["Name","ProgressBarText"],
+            ["UltimatumItemisedRewards"]=["RewardText","SacrificeText"],
+            ["UltimatumModifiers"]=["Name","Description"],
+            ["ExpeditionFactions"]=["Name"],
+            ["ExpeditionRelics"]=["Name"],
+            ["DroneTypes"]=["DeployText","SocketableText","NotPoweredText"],
+            ["SanctumDefenceIcons"]=["Description"],
+            ["SanctumFloors"]=["Description"],
+            ["SanctumPersistentEffects"]=["Name","BoonDesc","CurseDesc"],
+            ["SanctumPersistentEffectCategories"]=["Name"],
+            ["SanctumRoomTypes"]=["Description"],
+            ["AncestralTrialFieldItems"]=["Description"],
+            ["AncestralTrialItems"]=["Name","FlavorText"],
+            ["AncestralTrialPositionType"]=["Name"],
+            ["AncestralTrialTribes"]=["TribeName","Name"],
+            ["AncestralTrialUnits"]=["Name","Description"],
+            ["AzmeriWoodsDustType"]=["Text"],
+            ["NecropolisCraftBases"]=["Name"],
+            ["NecropolisCraftItemTypes"]=["Name"],
+            ["NecropolisPackImplicits"]=["Text"],
+            ["NecropolisPackModTiers"]=["Name"],
+            ["NecropolisPacks"]=["Name","Description"],
+            ["CurrencyExchangeCategories"]=["Name"],
+            ["VillageExports"]=["Name","Name2"],
+            ["VillageJobTypes"]=["StateText"],
+            ["VillageShippingFailures"]=["Text","SubText"],
+            ["VillageShippingPorts"]=["Name"],
+            ["VillageTownLayout"]=["Name"],
+            ["VillageUpgradeCategories"]=["Name","Text"],
+            ["MercenaryAttributes"]=["Name"],
+            ["MercenaryBuilds"]=["Name"],
+            ["MercenaryBuildStatsCategories"]=["Name"],
+            ["MercenaryClasses"]=["HouseName"],
+            ["MercenaryFlavourText"]=["Description"],
+            ["MercenarySupports"]=["Name"],
+            ["BrequelEncounterSkills"]=["Description"],
+            ["BrequelFruitRewardTypes"]=["Name","Description"],
+            ["BrequelLockerLayout"]=["Name"],
+            ["FaridunWishes"]=["Description"],
+            ["DeepwaterRooms"]=["Name"],
+            ["AuguryCards"]=["Name"],
+            ["AuguryFactions"]=["Name"],
+            ["AuguryPinnacleCards"]=["Name"],
+            ["AuguryRewardOutcomes"]=["Description"],
+            ["Achievements"]=["Description"],
+            ["AchievementItems"]=["Name"],
+            ["AchievementSetRewards"]=["HideoutName"],
+            ["AdvancedSkillsTutorial"]=["Description"],
+            ["AwardDisplay"]=["Text"],
+            ["BackendErrors"]=["Text"],
+            ["BindableVirtualKeys"]=["Name"],
+            ["BreachStashTabSubStashGroup"]=["Name"],
+            ["BuiltInItemFilters"]=["Name"],
+            ["CharacterPanelStats"]=["Text"],
+            ["CharacterPanelTabs"]=["Text"],
+            ["CharacterStartStates"]=["Description","InfoText"],
+            ["Commands"]=["Description"],
+            ["CostTypes"]=["FormatText"],
+            ["CraftingBenchUnlockCategories"]=["ObtainingDescription"],
+            ["CraftingItemClassCategories"]=["Text"],
+            ["DynamicCraftingBenchTypes"]=["Name","Description"],
+            ["HideoutRarity"]=["Text"],
+            ["MapPins"]=["Name","FlavourText"],
+            ["MapSeries"]=["Name"],
+            ["MapStashSpecialSubStashGroup"]=["Name"],
+            ["MicrotransactionCategory"]=["Name"],
+            ["Music"]=["Name"],
+            ["MusicCategories"]=["Name"],
+            ["PackSizes"]=["Description"],
+            ["Realms"]=["Name","ShortName"],
+            ["SocketNotches"]=["Description"],
+            ["Tips"]=["Text","TextXBox"],
+            ["UITalkText"]=["Text"],
+            ["VoteState"]=["Text"],
+            ["VoteType"]=["Text","AcceptText","RejectText"],
+            ["BattlePassRewards"]=["RewardDescription"],
+            ["BattlePassTracks"]=["Description"],
+            ["CountdownTimers"]=["Text"],
+            ["MapStashSubstashGroup"]=["Description"],
+            ["MinionDoublingStatTypes"]=["Name"],
+            ["RelicItemEffectVariations"]=["Description"],
+            ["TypeTags"]=["Name"]
+        };
+        foreach (var node in tables) {
+            if (!fields.TryGetValue(node?["name"]?.GetValue<string>() ?? "",out var names)) continue;
+            foreach (var column in node!["columns"]!.AsArray())
+                if (names.Contains(column?["name"]?.GetValue<string>(),StringComparer.Ordinal)
+                    && column?["type"]?.GetValue<string>() == "string" && column?["array"]?.GetValue<bool>() != true
+                    && column?["interval"]?.GetValue<bool>() != true && column?["file"] == null && column?["files"] == null)
+                    column!["localized"] = true;
+        }
+    }
     private static readonly Regex Tokens = new(@"\{\d+(?::[^}]+)?\}|(?<!\w)#(?!\w)|%",RegexOptions.CultureInvariant);
     private static bool SameTokens(string a,string b) => Tokens.Matches(a).Select(m=>m.Value).Order(StringComparer.Ordinal).SequenceEqual(Tokens.Matches(b).Select(m=>m.Value).Order(StringComparer.Ordinal));
     private static string Text(JsonObject e,string key) => e[key]?.GetValue<string>() ?? "";
@@ -23,10 +188,36 @@ internal sealed class ResourceEngine {
         try { return table.ReadText(id,field); }
         catch(Exception error) when(error is InvalidDataException or DecoderFallbackException) { return null; }
     }
-    internal JsonObject Export(string game,string? cnGame) {
-        using var index = Program.Open(game);
+    private (DatTable? Table,string? Reason) ReadSourceTable(BundleIndex index,string path,JsonObject schema) {
+        try { return (ReadTable(index,path,schema,false),null); }
+        catch(Exception error) when(error is InvalidDataException or DecoderFallbackException) {
+            string file=Path.Combine(AppContext.BaseDirectory,"source-schema-cn.json");
+            if (!File.Exists(file)) return (null,error.Message);
+            if(sourceSchemas==null) {
+                sourceSchemas=JsonNode.Parse(File.ReadAllText(file))!["tables"]!.AsArray();
+                EnableDisplayTextFields(sourceSchemas);
+            }
+            var sourceSchema=sourceSchemas.FirstOrDefault(node=>node?["name"]?.GetValue<string>()==schema["name"]?.GetValue<string>())?.AsObject();
+            if (sourceSchema==null) return (null,error.Message);
+            try { return (ReadTable(index,path,sourceSchema,false),null); }
+            catch(Exception sourceError) when(sourceError is InvalidDataException or DecoderFallbackException) { return (null,sourceError.Message); }
+        }
+    }
+    internal static string? SelectSimplified(string original,string? native,string? sourceEnglish,string? external) {
+        if (!string.IsNullOrWhiteSpace(native) && native!=original && SameTokens(original,native)) return native;
+        if (sourceEnglish==original && !string.IsNullOrWhiteSpace(external) && external!=original && SameTokens(original,external)) return external;
+        return null;
+    }
+    internal static void RequireOriginalExportSource(BundleIndex index) {
+        foreach(var bundle in index.Bundles.Span)
+            if(bundle.Path.StartsWith("PoEHelper/",StringComparison.OrdinalIgnoreCase) || bundle.Path.StartsWith("LibGGPK3/",StringComparison.OrdinalIgnoreCase))
+                throw new UserError("当前游戏已应用汉化，请指定同版本应用前备份作为导出来源");
+    }
+    internal JsonObject Export(string game,string? cnGame,string? sourceIndex=null) {
+        using var index = Program.Open(game,indexPath:sourceIndex);
+        RequireOriginalExportSource(index);
         using var cnIndex = cnGame == null ? null : Program.Open(cnGame);
-        var entries = new JsonArray(); var skipped = new List<string>(); var skippedReasons=new JsonArray();
+        var entries = new JsonArray(); var skipped = new List<string>(); var skippedReasons=new JsonArray(); var tableReports=new JsonArray();
         int completed = 0;
         foreach (var node in schemas) {
             var schema = node!.AsObject(); string name = schema["name"]!.GetValue<string>().ToLowerInvariant();
@@ -35,18 +226,27 @@ internal sealed class ResourceEngine {
                 var en = ReadTable(index,$"data/{name}.datc64",schema,false);
                 if (en == null || en.LocalizedFields.Count == 0) continue;
                 var tw = ReadTable(index,$"data/traditional chinese/{name}.datc64",schema,false);
+                DatTable? nativeCn=null;
+                try { nativeCn=ReadTable(index,$"data/simplified chinese/{name}.datc64",schema,false); }
+                catch(Exception error) when(error is InvalidDataException or DecoderFallbackException) { /* Invalid native text falls back to the independently checked CN source. */ }
                 DatTable? cn = null, cnEn = null;
-                if (cnIndex != null) { try { cn = ReadTable(cnIndex,$"data/simplified chinese/{name}.datc64",schema,false); cnEn = ReadTable(cnIndex,$"data/{name}.datc64",schema,false); } catch (Exception error) when(error is InvalidDataException or DecoderFallbackException) { /* Old CN structure is not guessed. */ } }
+                string? cnReason=null;
+                if (cnIndex != null) {
+                    var simplifiedSource=ReadSourceTable(cnIndex,$"data/simplified chinese/{name}.datc64",schema);
+                    var englishSource=ReadSourceTable(cnIndex,$"data/{name}.datc64",schema);
+                    cn=simplifiedSource.Table; cnEn=englishSource.Table; cnReason=simplifiedSource.Reason ?? englishSource.Reason;
+                }
+                int tableEntries=0,tableSimplified=0;
                 foreach (var id in en.RowsById.Keys) foreach (string field in en.LocalizedFields) {
                     string? original = Read(en,id,field); if (string.IsNullOrWhiteSpace(original)) continue;
-                    string? traditional = Read(tw,id,field), simplified = Read(cn,id,field);
-                    // A matching key is insufficient when the original source changed.
-                    if (Read(cnEn,id,field) != original || simplified == null || simplified == original || !SameTokens(original,simplified)) simplified = null;
+                    string? traditional = Read(tw,id,field), simplified = SelectSimplified(original,Read(nativeCn,id,field),Read(cnEn,id,field),Read(cn,id,field));
                     var entry = new JsonObject { ["table"]=name,["id"]=id,["field"]=field,["en"]=original,["kind"]="dat",["sourceHash"]=Program.Hash(Encoding.UTF8.GetBytes(original)) };
                     if (!string.IsNullOrEmpty(traditional)) entry["tw"] = traditional;
                     if (!string.IsNullOrEmpty(simplified)) entry["cn"] = simplified;
                     entries.Add(entry);
+                    tableEntries++; if(simplified!=null)tableSimplified++;
                 }
+                tableReports.Add(new JsonObject{["table"]=name,["entries"]=tableEntries,["simplified"]=tableSimplified,["fallback"]=tableEntries-tableSimplified,["cnReadError"]=cnReason});
             } catch (Exception e) when (e is InvalidDataException or DecoderFallbackException) { skipped.Add(name);skippedReasons.Add(new JsonObject{["table"]=name,["reason"]=e.Message}); }
             if (++completed % 20 == 0) Program.Progress("extract-tables",completed,schemas.Count);
         }
@@ -60,7 +260,7 @@ internal sealed class ResourceEngine {
         }
         if (entries.Count == 0) throw new UserError("没有可校验的语言条目，未生成资源包");
         return new JsonObject { ["protocolVersion"]=1,["engineVersion"]=1,["gameVersion"]=Program.GameVersion(game),["cnGameVersion"]=cnGame == null ? null : Program.GameVersion(cnGame),["entries"]=entries,
-            ["report"]=new JsonObject { ["entries"]=entries.Count,["simplified"]=entries.Count(e=>e?["cn"] != null),["traditional"]=entries.Count(e=>e?["tw"] != null),["skippedTables"]=new JsonArray(skipped.Select(s=>(JsonNode?)JsonValue.Create(s)).ToArray()),["skippedReasons"]=skippedReasons } };
+            ["report"]=new JsonObject { ["entries"]=entries.Count,["simplified"]=entries.Count(e=>e?["cn"] != null),["traditional"]=entries.Count(e=>e?["tw"] != null),["tables"]=tableReports,["skippedTables"]=new JsonArray(skipped.Select(s=>(JsonNode?)JsonValue.Create(s)).ToArray()),["skippedReasons"]=skippedReasons } };
     }
     internal Dictionary<string,byte[]> Build(BundleIndex index,JsonArray entries,out object counts) {
         var outputs = new Dictionary<string,byte[]>(StringComparer.OrdinalIgnoreCase);

@@ -1,14 +1,13 @@
 <template>
-  <ManualPriceCheckPanel v-if="currentServer.id === 'international'" />
-  <div v-else class="price-check-page primary-page primary-page--column">
+  <div class="price-check-page primary-page primary-page--column">
     <div class="primary-page__scroll">
       <div class="primary-page__content">
       <el-row class="price-check-content app-grid" :gutter="16">
         <el-col :span="24"><div class="page-heading">
       <div class="page-heading__title">
-        <h2>国服查价</h2>
+        <h2>{{ currentServer.label }}查价</h2>
         <el-tooltip content="配置游戏内快捷键打开查价浮层；快捷键未设置时不会触发物品捕获。" placement="top">
-          <el-icon class="page-heading__help" tabindex="0" aria-label="查看国服查价说明"><QuestionFilled /></el-icon>
+          <el-icon class="page-heading__help" tabindex="0" aria-label="查看查价说明"><QuestionFilled /></el-icon>
         </el-tooltip>
       </div>
       <el-switch
@@ -121,7 +120,7 @@
         <el-col :xs="24" :md="8"><el-card>
       <template #header><strong>使用说明与诊断</strong></template>
       <ol class="instructions">
-        <li>在设置页登录国服账号并选择全局赛季。</li>
+        <li>在设置页登录{{ currentServer.label }}账号并选择全局赛季。</li>
         <li v-if="appSettings.globalShortcuts.priceCheck">开启查价器后，将鼠标悬停在游戏物品上，按 {{ priceCheckShortcutText }}。</li>
         <li v-else>当前未设置查价快捷键；可保持查价器启用，并前往设置页录入快捷键后使用。</li>
         <li>助手发送 Ctrl+C 读取物品详细文本；“立即查价”关闭时，请在浮窗确认条件后点击“搜索”。</li>
@@ -132,6 +131,7 @@
       </div>
     </div>
 
+    <el-collapse v-if="currentServer.id === 'international'" class="manual-query-panel"><el-collapse-item title="手动粘贴物品查价" name="manual"><ManualPriceCheckPanel /></el-collapse-item></el-collapse>
     <PageHelpDrawer :topics="helpTopics" title="查价帮助" />
   </div>
 </template>
@@ -155,7 +155,7 @@ import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/c
 const CRAFTING_PRICE_CHECK_TOPIC = CRAFTING_TOPICS.find(topic => topic.id === 'crafting-price-check')
 const helpTopics = [...moduleHelpTopicsById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
 
-const store = currentServer.id === 'international' ? null : usePriceCheckStore()
+const store = usePriceCheckStore()
 const account = usePoeAccountStore()
 const appSettings = useSettingsStore()
 
@@ -177,7 +177,7 @@ function openPriceCorrection() {
   openConfigurationCorrectionGuide({
     moduleId: CONFIGURATION_MODULES.priceCheck,
     actionId: CONFIGURATION_ACTIONS.capture,
-    title: '重新配置国服查价',
+    title: `重新配置${currentServer.label}查价`,
     failure: store.failure,
     collect: () => collectPriceCheckConfigurationIssues({
       actionId: CONFIGURATION_ACTIONS.capture,
@@ -191,7 +191,7 @@ async function toggleEnabled(enabled) {
   try {
     const result = await store.setEnabled(enabled)
     if (result?.configurationRequired) return
-    ElMessage.success(enabled ? '国服查价器已启用' : '国服查价器已关闭')
+    ElMessage.success(enabled ? '查价器已启用' : '查价器已关闭')
   } catch (error) {
     ElMessage.error(error.message)
   }

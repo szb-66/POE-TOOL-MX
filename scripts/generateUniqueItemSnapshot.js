@@ -208,9 +208,10 @@ async function buildOutput({ patch, records, rawImages, generatedAt, targetRoot,
     patch,
     generatedAt,
     sources: [PAGE_SOURCE.url],
-    items: records.map(({ key, name, baseType, modifierMatchers, imageId }) => ({
+    items: records.map(({ key, name, englishSlug, baseType, modifierMatchers, imageId }) => ({
       key,
       name,
+      ...(englishSlug ? { englishSlug } : {}),
       baseType,
       modifierMatchers,
       imageId

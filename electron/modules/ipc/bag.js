@@ -38,6 +38,7 @@ let automationLock = null
 let loadingFeedback = null
 let mapTracker = null
 let highlightModelRoot = null
+let localizationRuntime = null
 let disposeDetectionState = null
 let moduleRunning = false
 let bagConfigRevision = 0
@@ -309,6 +310,7 @@ async function startStashProcess(python, fileWatcher) {
   let child
   try {
     const frozenConfig = structuredClone(latestConfig)
+    frozenConfig.localizationSnapshot = localizationRuntime?.snapshot()
     frozenConfig.inventory.itemFootprints = itemFootprintRegistry.snapshot()
     const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', frozenConfig)
     child = spawnPython(python, 'stash', configPath)
@@ -374,6 +376,7 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
   }
 
   const frozenConfig = {
+    localizationSnapshot: localizationRuntime?.snapshot(),
     inventory: {
       startPos: { x: Number(inventory.startPos.x), y: Number(inventory.startPos.y) },
       slotSize: { w: Number(inventory.slotSize.w), h: Number(inventory.slotSize.h) },
@@ -492,6 +495,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   loadingFeedback = shared.loadingFeedback
   mapTracker = shared.mapTracker
   highlightModelRoot = shared.highlightModelRoot || null
+  localizationRuntime = shared.localizationRuntime || null
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return

@@ -17,7 +17,7 @@ test('共享生成器可在无window和Vite的Node环境生成，两种语言可
   assert.equal(globalThis.window, undefined)
   const english = generatePythonScript({ ...base, serverId: 'cn', language: 'en' }, craftingTemplate)
   const chinese = generatePythonScript({ ...base, serverId: 'international', language: 'zh-CN' }, craftingTemplate)
-  assert.match(english, /"alteration":\s*"Orb of Alteration"/)
+  assert.match(english, /"alteration":\s*\["Orb of Alteration"\]/)
   assert.match(chinese, /currency_expected_names = \{\}/)
   assert.match(generateMapRollingScript({ ...base, language: 'en' }, mapTemplate), /Orb of Alteration/)
   assert.throws(() => generateMapRollingScript({ ...base, language: 'unknown' }, mapTemplate), /语言/)

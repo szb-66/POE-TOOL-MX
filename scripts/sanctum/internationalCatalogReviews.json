@@ -1,0 +1,976 @@
+{
+  "patch": "3.30.0",
+  "reviewedAt": "2026-11-15",
+  "method": "逐项核对当前中英文正文的作用对象、否定、increased/reduced与more/less、数值、触发事件、持续条件与随机性；对照既有状态引擎实际运算。内容指纹改变必须重新审核，不能凭图标、相同数字或抓取时间自动批准。",
+  "entries": {
+    "boon:BoonLustrousLacquerIcon:2e1d14319eae5be6": {
+      "englishSha256": "2e1d14319eae5be660fc061f63e696c667bd91d85c42c5aa9d66c6f407ede080",
+      "chineseSha256": "a47b4d8c441b48781767c153d3332627eccbea112bd1b9e940e4c7af5955f3b8",
+      "rulesSha256": "3c50923b5c1da22f99c363eea8f1f3407be11c1ac41f40f7e6747717bd3155a1",
+      "supported": true
+    },
+    "boon:BoonMustyWineIcon:fd88e3b1c770e8a0": {
+      "englishSha256": "fd88e3b1c770e8a08e5095647732cdfc568e9f95847dfaf9f30f9703167e24bc",
+      "chineseSha256": "b8b396c8b2e3a3e6712029bb019575d63e9464820aa56804c521212607937c8c",
+      "rulesSha256": "95f4aac59ccd90ce1152e765e2cbedce718f62950e4d22d70be19b107592ac99",
+      "supported": true
+    },
+    "boon:BoonCrystalShardIcon:24fa4466ea38706e": {
+      "englishSha256": "24fa4466ea38706e5f197fee29b4189fb498001e4fb6bb49d9077ac7b7fc8839",
+      "chineseSha256": "1e8a163dae2e4bd5e7360bb1e353c71d99058fa233f367a44abf135411da4c99",
+      "rulesSha256": "d393768b225d02e8d41a6e087edc43f3b9cb1b849381339d7b0f63ac1fa9bbe1",
+      "supported": true
+    },
+    "boon:BoonSacredMirrorIcon:265b3bf76a450824": {
+      "englishSha256": "265b3bf76a450824e905f3a1c240dfe6743a33742902892011701fe5b97c9f74",
+      "chineseSha256": "ae6d1998ad00a5c58df22cf2597a99c1a8588ad3bce005be37b97a324d691683",
+      "rulesSha256": "37940d46d539cd52c4e8dc639d661ccadc31e20efbe5f10a83ee56789b52eeeb",
+      "supported": true
+    },
+    "boon:BoonGoldTrophyIcon:4170bb601f9f20a4": {
+      "englishSha256": "4170bb601f9f20a465ddf6d8325a019982a267da2484d680cf9f5a72a60b19ba",
+      "chineseSha256": "c4dc1169398b91ea8e0d4e1550dd0e0cfef2ccb7f19c185c60f64ba1f0c11eab",
+      "rulesSha256": "9f7c7c10d45e8784b1e430efcf4edceea2bf2960e49657cfab9c0ec06b2e73cb",
+      "supported": false,
+      "reason": "英文在完成房间时增加持有金币；既有规则只提高本次金币收益，触发基数不同。"
+    },
+    "boon:BoonChippedDiceIcon:670274d37a2bcc82": {
+      "englishSha256": "670274d37a2bcc8264c5f5d63ba42171b7840a0636e342e8d23bfb8ecfc44900",
+      "chineseSha256": "4e7a9603bea3b8c83b665c673d4759c36f2686b08850a364ca622b0c30649e67",
+      "rulesSha256": "0567c2d0382acc42751deb01ca6a8ba55d2d79600cff46b101813cb8c684eb60",
+      "supported": true
+    },
+    "boon:BoonCallistasGiftIcon:144139c81b7e3076": {
+      "englishSha256": "144139c81b7e30766afdbdddfed3a7cf7ebd8e12efa76519ee5f0406b56e7417",
+      "chineseSha256": "30aaeee8f24f7628c3c61f7f36d864682e4293560da23f99c1f7b3ca0c2a84bf",
+      "rulesSha256": "248958e11067c456fa15345f63b1d989893035c0d0b99c9a31e4721c5c6f9132",
+      "supported": true
+    },
+    "boon:BoonUntunedLuteIcon:9ba44eb03365c6a2": {
+      "englishSha256": "9ba44eb03365c6a2d637349e74704e03c28ab57f5400ef4e3909f2961b56917f",
+      "chineseSha256": "468f7ef3c3607261b63cc377e9b743f6363e7b82d6c36eaf21f4cb5875382c47",
+      "rulesSha256": "35cb56d08a9c0d09d0deb57bc52a894dffb72cab0a43592a89a81269b48051c2",
+      "supported": true
+    },
+    "boon:BoonBlackPearlIcon:c6444964a8b09649": {
+      "englishSha256": "c6444964a8b09649c60e533bed52140d4f554c3df1f621ee38963e884eb9ad52",
+      "chineseSha256": "368a02e30bd524a52ec935315f7443fa9001d78a5aae6fa9d5358180eeba4321",
+      "rulesSha256": "478de2ad2824f5040d6542b277c3afd05d65a60c4d6ce3116fcd35ec6a498247",
+      "supported": true
+    },
+    "boon:BoonSliverChaliceIcon:54c578bbc73f9a21": {
+      "englishSha256": "54c578bbc73f9a21a52efad67c333c9d0b34501714ae3fa185ee6094e53725b1",
+      "chineseSha256": "b6837518f499cb853c8cd6f6c61a27e4b964f3602867428274acdfe5d1578fd4",
+      "rulesSha256": "8852fe53c42e4d9f47ea10ecf63cc99793ced0d34b7259d8b1d8e81ed10b2ee8",
+      "supported": true
+    },
+    "boon:BoonFountainOfYouthIcon:802e4a2cee48f831": {
+      "englishSha256": "802e4a2cee48f83111555fc86c71c88c9e2a13d2467a7602387bb2f2e5a4487c",
+      "chineseSha256": "8a7358eaaaa7ff6290be6998ccf3dd8a5567671ce3b2770641c7146b26fab2bb",
+      "rulesSha256": "43873e9eb5bcb243683fd5ac8d33d6d04c407e7af29c9018fc04996f69eb2974",
+      "supported": true
+    },
+    "boon:BoonHolyWaterIcon:5d9e1c9ff6481bda": {
+      "englishSha256": "5d9e1c9ff6481bda52effff42399c2063b19cae334be2eafb205fbe2a1f08f30",
+      "chineseSha256": "a5b396354489c71e794807b13539c0a6e7b3849e61bf4113416411bf0efcebc2",
+      "rulesSha256": "056d3217e6b82c0773b36b6e4b476ebe7d0fd3abe8ba658e559dedbf4cb03361",
+      "supported": true
+    },
+    "boon:BoonTarnishedDescryIcon:ecddc5eadcfd9b11": {
+      "englishSha256": "ecddc5eadcfd9b1104af19960f11c6563bd27db666224d984b0f7465acf3b827",
+      "chineseSha256": "e047b738813e9ab7a01bc5a9f39f871ad5a71b89d8b3e6260f97c53efa6b9d39",
+      "rulesSha256": "b94036d5b637f0518e011a93d320d05890c7046b11b035e8be1c40f2c543a092",
+      "supported": true
+    },
+    "boon:BoonArcaneAegisIcon:18e94387e0536802": {
+      "englishSha256": "18e94387e053680235580c5c98c46dfe3d466ae65899a1fede676ef06b77935e",
+      "chineseSha256": "6419d8cb02f85cf410af4958aa0601510d02687b889cf67eff6ebc505e607ab1",
+      "rulesSha256": "6a300b28465ad2412117b1b5d43fb980ac25d6b0f80b54a3bfd8088f3092ebcf",
+      "supported": true
+    },
+    "boon:BoonMirrorOfFortuneIcon:b3eca87d7bba67ab": {
+      "englishSha256": "b3eca87d7bba67ab1bea9d680e9a349e804c1b81c8948b313328542470de5633",
+      "chineseSha256": "5cbd41bd9c41084752a03b7f0b7782ab886685b4a12e507fffb77478e7a60b4f",
+      "rulesSha256": "8f924427aa10cbadc3febc1cccc6f1e778d9ac65af2d5e7934f9573b07d7c8a1",
+      "supported": true
+    },
+    "boon:BoonAdrenalineVialIcon:2488a730892c5f59": {
+      "englishSha256": "2488a730892c5f592bc0c959b24885b2af0bded42388acae879e049d79d0018d",
+      "chineseSha256": "ff98cbf7610c70e8a10584e79b8027627e9c07db0c0196d63eaf90e01f88e46d",
+      "rulesSha256": "37ee3cacc7c7056db80252292433be66f23f89edb9e8e4531ed19074ed3365e6",
+      "supported": true
+    },
+    "boon:BoonEngravedOrbIcon:9bc5236c76f33d9b": {
+      "englishSha256": "9bc5236c76f33d9b37876b01efe92d6718f7c5feda14c727fb9ea562c701d3cd",
+      "chineseSha256": "59cbe86bbb41fb82e607b82b1c3cdafe4d7024d4343d82a5216757576b827c63",
+      "rulesSha256": "796a4757c15bdf61326d748aae4c9722beca28afe3f874212f1a7f77a547c7b7",
+      "supported": true
+    },
+    "boon:BoonTarnishedCoinIcon:6a9761b19051f125": {
+      "englishSha256": "6a9761b19051f12515728537e2882bbfaa0cb9f767ac1844ea7ce56ee158a370",
+      "chineseSha256": "4c974606374d5687b69f745f89e2fa2b221b9748224657baee2b91910186cf44",
+      "rulesSha256": "ec75d4a6a6a262689aa00f26e9b33540350fd7c7cba2d3df910b49fab4fcde92",
+      "supported": true
+    },
+    "boon:BoonEnchantedUrnIcon:f1398e40cb7733b4": {
+      "englishSha256": "f1398e40cb7733b44df2c32ca5dcb699c53ebff56d7e24b23908f5c67decf8d0",
+      "chineseSha256": "2e4ed8cf273339e6f4a577e6527f36bf7f0dc1e46af7f8569dd3c43216ad0a9d",
+      "rulesSha256": "921f8a5a61d33b78473b273ac87691c4db410064655351d518c01f2eac988c40",
+      "supported": false,
+      "reason": "英文明确只提高非传奇圣物效果；既有规则没有非传奇范围条件。"
+    },
+    "boon:BoonAssassinsBladeIcon:90ef4357c8f99ecf": {
+      "englishSha256": "90ef4357c8f99ecf66b5f82f16432f5bb9147af4ba3e8ed41892d713afaee43a",
+      "chineseSha256": "037dfd5344203db3922bc57560c1858e9f44fdc2f64116f096a756bd6b6fd0e6",
+      "rulesSha256": "c45c84fe7dfb7d1f3f099a46b04faf164b9f42bb7b47af05ac70e5fc7221b360",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:229f083cb75bc24b": {
+      "englishSha256": "229f083cb75bc24bc4c42786edba99c3e05c081cf8d6148579958e438283b271",
+      "chineseSha256": "d69286f535d15fea537ac1b6bc7f4b4937b21bbf629fcbb56dac83306ed74de7",
+      "rulesSha256": "5dc1c25608888e8128422b214dbd0d295198e4e27049d210bc33882d8959cd96",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:a59e910203753f8c": {
+      "englishSha256": "a59e910203753f8c9b8988576e0226ee72084603e100241dcd96064bdc8fa95b",
+      "chineseSha256": "b8e22ff258611a8739841a4ed2652011f1e09773060e51a6ba3bb2a5334a46f9",
+      "rulesSha256": "6657e2b7d7215171f0c17e7a297d1013208c536ce4724b01c3fc67f2a3a84f22",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:fd554c6110958b5d": {
+      "englishSha256": "fd554c6110958b5d3ba5ba6680d8b1be227c40a1b4f53da600a3b9bd3ca2455e",
+      "chineseSha256": "538c1fd9472b226373f9362288a28cd37f69131a4857ee714303dc824fd3ae79",
+      "rulesSha256": "d8ca8173473dfbf34f573243c6335176e32c436a0673f4f3be5f46e048ed547d",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:9c3805513ae24f8e": {
+      "englishSha256": "9c3805513ae24f8ece2b0b5e488ee15ee3602f48ad5a08af1eaace25d6660d32",
+      "chineseSha256": "23b076278946e31f2f62e51f448f5b6a65198d8467661fb9cf15744f88c6f7a9",
+      "rulesSha256": "bdd3cdf47f17e96be453ee71a7748a7bd5ec74e5e602129ecaa61fa0139c0881",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:1971963843ebb623": {
+      "englishSha256": "1971963843ebb623dfb058ac7c28780eea519f62490c2f9706598fb4c645c56e",
+      "chineseSha256": "d725ec88564599d00aa6880369100f723977eaf7ae1b6fdd0487d1a851db1330",
+      "rulesSha256": "08b928da9534ac90436bdce49646922f2537632a6e33f9f45299b1cb862cce4e",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:4ff49b39f165ad8a": {
+      "englishSha256": "4ff49b39f165ad8a16112ae71585b75ef140f491df5dcb6823f45c32193d1070",
+      "chineseSha256": "644dc0b1ec7488aacba01160b517e63b89173c13915ff5fb32031f6861a2caef",
+      "rulesSha256": "8cf0ad77eb957cba3dc6275fd9a5124ad800dc8bdfef51bd042f6184a13e7268",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:bfaacd39e6ab034f": {
+      "englishSha256": "bfaacd39e6ab034f2d9165268c43750a0e5098f8d6e58f0915f6d3d9545d1330",
+      "chineseSha256": "88f7373d2b563ace6b285589d8ab3f13c6eed4c7b6bdc0ef4cdb8d8cfb6dc397",
+      "rulesSha256": "d0979208a9c6bc5d5de9cd888715e135c8ac02ef5c3e952046f9c55d87af9dea",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:fe2ce709299e0d07": {
+      "englishSha256": "fe2ce709299e0d07033c9518f28dc9b1d766df39e0799035f89213491e9c8cdb",
+      "chineseSha256": "11620f959817df69d7852b80e343343f1a32e96e83dbbde8eaaf90d19daef80b",
+      "rulesSha256": "1f68e86a9e707467ff74105a3d9bba25638af7c46d152bab3b54946913e8a643",
+      "supported": true
+    },
+    "boon:BoonAssassinsBladeIcon:cb5e7d2d2ac1d6c9": {
+      "englishSha256": "cb5e7d2d2ac1d6c982590dc86f17b704c02d432225921e07f84f753fb5e0b77b",
+      "chineseSha256": "710f8cad434df196dab36597c9f9359d41d80b31ebb1b71d7f31f7d01cec741a",
+      "rulesSha256": "9d8f4197b4e8232974af737beca3ca62012909950338764caab5f1ee16f494df",
+      "supported": true
+    },
+    "boon:BoonFancyDaggerIcon:027b60ac857053d7": {
+      "englishSha256": "027b60ac857053d791a67367905c313be99d86ab373b234f61d8f0fd1da3fa59",
+      "chineseSha256": "b71035036bd8f5ac04362eb78e069774cf5d483e77ad0007d96786b357b7af18",
+      "rulesSha256": "4d4b4e2a4b78556b79589561edb25ba806d933e04d78574a135c553826decec9",
+      "supported": true
+    },
+    "boon:BoonSanguineVialIcon:4979e20dc292fde3": {
+      "englishSha256": "4979e20dc292fde3e940314be3ee678be76c3f9603760359a308a8afeea036bd",
+      "chineseSha256": "ee3ea5e857c6cc8a1d3d8f96a1ac6fbc3144925cb34a1e9fbf5548b9279386e0",
+      "rulesSha256": "bdb01b1bbc2a41721a9f2dc1b2176a0120daadaa88d0752de27c93b5c5dec1c6",
+      "supported": true
+    },
+    "boon:BoonWoodenEffigyIcon:0882530848bdc62c": {
+      "englishSha256": "0882530848bdc62c5174bc1b7ca6b68c31205f3d4b183c4b701ef0fc06f134cf",
+      "chineseSha256": "f7e3798b6acc908e7d3ab4f243946af6bd1f1ed067af45694664a1caff5572f1",
+      "rulesSha256": "fb49dd41d4aed58f8e25cbf21e35850a7848d2b5a4aba03d37d7fe901a3b5e89",
+      "supported": false,
+      "reason": "英文为怪物坚毅损失less独立倍率；既有损失计算与其他增减加算。"
+    },
+    "boon:BoonViciousIchorIcon:01d1ea0ff7f9f7f7": {
+      "englishSha256": "01d1ea0ff7f9f7f77db89e30ed79e9b64c986af6c3388f98dfe659e7fcd976d8",
+      "chineseSha256": "d65f78831256042fe7cc5fdf510c667514c32b0fc79bc42f3afdbed58a891ee3",
+      "rulesSha256": "10e042b7838b4547554fb99d0c84762e30442a7de888a08ca78ea04e8c93d43b",
+      "supported": true
+    },
+    "boon:BoonLustrousPearlIcon:5e396c093283b4a7": {
+      "englishSha256": "5e396c093283b4a76fb74225746586ea172a7f75063ead5cd3df4452bb4f23f3",
+      "chineseSha256": "cb90e75410642f51d36ab0fffe6824493ae220aa3ed6a11ba2008ea6d97eeef6",
+      "rulesSha256": "c25362060e8abec98ccc413f44f7bcce329a70e6f1533afe228660a018031e09",
+      "supported": true
+    },
+    "boon:BoonAllSeeingEyeIcon:9c49b76578728d86": {
+      "englishSha256": "9c49b76578728d86083155ab45185082bfe5887bcd19d34e42a5428e01db8fd0",
+      "chineseSha256": "12c556765062368ceb6045d7e76f33997d2564aa2786066ca624e2a1be474449",
+      "rulesSha256": "03483a81728bc7d0b3940ee9b73c245da5a49e0025aa7a9b4b7a6a8f7fb23f41",
+      "supported": true
+    },
+    "boon:BoonGoldCoinIcon:b61e4aa6a6c116ed": {
+      "englishSha256": "b61e4aa6a6c116ede3b70ad920929295a29b19690bdc19824a76e272eb8e2cb7",
+      "chineseSha256": "043126abcb318de31134940092039bbbf2a8fa58bc45a2d339384404a5672207",
+      "rulesSha256": "978d27d757dfbed9e054bc5bd963ae5430d54badaf46855fef55d30b86ec9ffe",
+      "supported": true
+    },
+    "boon:BoonGoldMineIcon:d741b496164b51af": {
+      "englishSha256": "d741b496164b51afa0620cd950e1c63fdc118069041152799c3dd987a011d3fa",
+      "chineseSha256": "524e74db2ec17efb430ea74b2b692ecc1d7e0901d230d5420a2205193af0382f",
+      "rulesSha256": "aeac5de137511530e93db664c194657c6c5eeae5782ef75052c0312371582895",
+      "supported": true
+    },
+    "boon:BoonBronzeCoinIcon:89fc1bfb6f008bf1": {
+      "englishSha256": "89fc1bfb6f008bf14e632afc565d968114c964c13984a876b48864988b0585b6",
+      "chineseSha256": "75906d30318b059732e8c78782354a995d9033317310a98c3bb049620d151d7b",
+      "rulesSha256": "bf9108291fdc86a793b1c52e4b10610f09f253c26e8b52607b91a55b4cfd7db0",
+      "supported": true
+    },
+    "boon:BoonPrayerBeadsIcon:e95875dd22292338": {
+      "englishSha256": "e95875dd222923383f42462c6e4e4185935f7a8c0561b416af5ed2900699a87f",
+      "chineseSha256": "2701255a5b3b3fb72e7b7bedc3e1ee3df47c9a4e14c3ce6096ddbfcfcc6bcb92",
+      "rulesSha256": "8283ab971b1de1f59129002eeb0d416a144fdd1ba82813b66344109074fbb3d2",
+      "supported": true
+    },
+    "boon:BoonCrystalChaliceIcon:c66b87f2cacf3d18": {
+      "englishSha256": "c66b87f2cacf3d1823355fd73037682a4c14db7305a8e9ba639b88adb6809ed8",
+      "chineseSha256": "5e397e03fbb8415498630425bdc7712b32dd792d1107da77279c6a77ae917ebf",
+      "rulesSha256": "4f1fc51ca27cc3d8a9abc5b43b4e31280a94c1505280ad894c1b27cd77672a23",
+      "supported": true
+    },
+    "boon:BoonHolyDescryIcon:c74bbf4d5b9053e3": {
+      "englishSha256": "c74bbf4d5b9053e373914066853f50a2aae5512e46e3ce39b418f0331a86915a",
+      "chineseSha256": "a4f78b07e1561888b6f8de6afe0e6416e42147c7969e4529d75a9d40d9df0cc9",
+      "rulesSha256": "8bdfc4667d669078519410d5eb1bbb0e2eb04b89791eae81943c0777e35bde87",
+      "supported": true
+    },
+    "boon:BoonPriestsDescryIcon:e2f38ef3c06fdd8a": {
+      "englishSha256": "e2f38ef3c06fdd8aa9e7ef749962dc6e74f5bf12256168e72bfdb57eeccbee7f",
+      "chineseSha256": "d8c73e8c33ab1fe9d96ca99e438505d88c11c6d7d4f250e3112ff8131f9cd6ca",
+      "rulesSha256": "320bac7f075cec16976ebfcf3fe79c467070e3cc7faa99bb3e641150a0188af2",
+      "supported": true
+    },
+    "boon:BoonLiltingMelodyIcon:bc02c5f2bbc51107": {
+      "englishSha256": "bc02c5f2bbc5110763b9355e624d89146dd57cb63b5add1c23065786a964eaef",
+      "chineseSha256": "577e5aafaf691a7884c8cc3d79481bd94d7b1cf36ff6188b86fa93f10a7fd9bd",
+      "rulesSha256": "782cfafdfcdef5fb46181b1d2826cdac06b2a9008b264105a2fdd3870702f946",
+      "supported": true
+    },
+    "boon:BoonLiltingMelodyIcon:de4cd4032ae34772": {
+      "englishSha256": "de4cd4032ae34772db2a8bbe3d131668e5e2597711c775ff77e9e75e8d476d8d",
+      "chineseSha256": "0e8df18e321c7ac861d2c101009ba1876796c1cd1bbb70d6c6789aabadbc3d7e",
+      "rulesSha256": "93ea3013cd36b95f7146654d0fcf33de9b00fd09a366246899d290103febb15d",
+      "supported": true
+    },
+    "boon:BoonMellifluousChorusIcon:46a236289de6125e": {
+      "englishSha256": "46a236289de6125efe07bf6e7fd6263fa38e931f138c1f646d040009ca37a93d",
+      "chineseSha256": "7d0318cc93a27bfe93d002a9dff4f51018ccd2cfa76b8ca1ec00ff0cbb1bf7e2",
+      "rulesSha256": "4e900d5ced9170b7e7ebbbb25daa341273d682899a4341c09bf68469694fb03d",
+      "supported": true
+    },
+    "boon:BoonRustedChimesIcon:4ec4851210845f95": {
+      "englishSha256": "4ec4851210845f95b50a34b7f4584109bf8f8237aa06c52c94e2fc709c7d4176",
+      "chineseSha256": "cbe994e31f492eab8ff3af49bb6996b921d6b2d4036606ce56c4eb85aafd8730",
+      "rulesSha256": "542db1261c804f962948f70ba3c38834b425628cf154d0a3942e2ce379e6d77d",
+      "supported": true
+    },
+    "boon:BoonGildedLyreIcon:09f233bc0fd125df": {
+      "englishSha256": "09f233bc0fd125df001a0ccfef70e7b4709b66ebfe4369d7ed78e38953c76155",
+      "chineseSha256": "807b5fe2b474cb46771c762915f1c80c428db6d6240fe05391aa4cadffa002ab",
+      "rulesSha256": "6007c3e894bef0b23e4e11b0a4b116c14ea2522eca06b0d7c1362a4e71238dc6",
+      "supported": true
+    },
+    "boon:BoonGlowOrbIcon:67987eec57f67667": {
+      "englishSha256": "67987eec57f676674f097d74f9eeca935564d82f651e4784b3ab7a41ec1f2d08",
+      "chineseSha256": "af3334c73a1391a668bf7750e0fcc539f408527c41e2326d6589b440b6ac7e56",
+      "rulesSha256": "78bfad5eb8d0227ca22f2eda8d6d1aaf4e9a11285a77ea36167343eab5df18f0",
+      "supported": true
+    },
+    "boon:BoonBronzeDescryIcon:179336f68c9f6392": {
+      "englishSha256": "179336f68c9f63924158ca8599124b85c6006e6cb2982ac7aa59903926170b88",
+      "chineseSha256": "db3483a8def75f24b0099ef47468fbac94b29bfb0993250f4b6847ed7c2811b7",
+      "rulesSha256": "fc98555b7cd061af5bb0a6519457132a5bfe9ce9fa5bf27ab6c42196c051b640",
+      "supported": true
+    },
+    "boon:BoonGoldenDescryIcon:cacb351fcf3376ba": {
+      "englishSha256": "cacb351fcf3376bad9db9d116ea61fb750686c7831cc92c5be665b91a722a990",
+      "chineseSha256": "a365e4a59dc61195d5e557a3b9e5c1936c3b2572bbb2a3879ad1f0f42fbc5fd9",
+      "rulesSha256": "ef6adb44b184f8a2f5b9d1bd4c8683eb4846f766dd493afc96e0e9f5545ed1f5",
+      "supported": true
+    },
+    "boon:BoonSilverDescryIcon:1b94ac0f2ee2985b": {
+      "englishSha256": "1b94ac0f2ee2985b12cede4056d719083d983db737510d434a23a09894fc6a91",
+      "chineseSha256": "062a3b187173518a5456a0b6b0ef6ac6ee694587e14a2d847ad0733f37c7db9b",
+      "rulesSha256": "4766608f0c9304e25205532f49a3eaff98da02c027d853de4c6b7849f5a75541",
+      "supported": true
+    },
+    "boon:BoonImperialSealIcon:82397954b93d5634": {
+      "englishSha256": "82397954b93d5634d4a6fb8fabe7db501de655be49faf1e25207bf80f8b242cc",
+      "chineseSha256": "ad5ed7f19dd23979d272814e0d5381cb6f1c538cafa20d149782556c6416dcfc",
+      "rulesSha256": "29aad2bf1c417460af92ecbd658c2145902c77b2cad179539195b3cb5aed12e0",
+      "supported": true
+    },
+    "boon:BoonSilverTongueIcon:e14424eac8e537ef": {
+      "englishSha256": "e14424eac8e537efa3d3cc6a8546a359a865d2cdd69c0ab8be600baae474e0da",
+      "chineseSha256": "05033fd5a0e8b505d08a1d5300ef503230ed21309585aa1caa7d872bf8231553",
+      "rulesSha256": "d0a853a697311354bf302314cba94ef2217e727fbda8c589e76e08113f375fb1",
+      "supported": true
+    },
+    "boon:BoonScryingCrystalIcon:5c7cf6a6d52b98d5": {
+      "englishSha256": "5c7cf6a6d52b98d5d81aeb026a5345e0892fb59f9ac621aae9e00bc23ef62602",
+      "chineseSha256": "918ed3bd4a66a3f1ea99820cdfceb5e8cd2476a53cbfa294d1013b9722758302",
+      "rulesSha256": "811c3ac0bb88d52870641ed73a677671649724fb181784b60e2a2d1018cdb9ba",
+      "supported": true
+    },
+    "boon:BoonRustyDescryIcon:4fa33d2227043159": {
+      "englishSha256": "4fa33d22270431594fb8c96f23e3904731295768ac62e54a3fac0b74b3bf8e3e",
+      "chineseSha256": "bf9e79a110aba3a973378ba8d6f16ebaf5f949b9c8577a874aa16b14d4c621b8",
+      "rulesSha256": "3ba9294cebded19c7a6b253a9a01061ce249df26bb543e3b439566fbd6d6bf02",
+      "supported": true
+    },
+    "boon:BoonSilverCoinIcon:1f7e4bb9b9fd761b": {
+      "englishSha256": "1f7e4bb9b9fd761b1068d10996fee8cb6d793fdf3172860696dd19a54cd40fd3",
+      "chineseSha256": "61a32f4c1de759335448fa9d83652949937348e15344cb9bef2c6b5b9f8d5ea4",
+      "rulesSha256": "4cb2e984d186e83a1fe99122dc9e6f63732cd6bba46fb02d6b38a2ed747a1050",
+      "supported": true
+    },
+    "boon:BoonGoldMagnetIcon:534106d7f8eb928f": {
+      "englishSha256": "534106d7f8eb928f656740a05c99d0a2d8c04055bd0f5f78e12e8edbf788971f",
+      "chineseSha256": "cfebec9d4c7089daf2e5a962d34be374ab84ed95beffb76dc258ec059c832b40",
+      "rulesSha256": "da86d20d6ca8e17c7f96737a4c7289c03c980380166f6c31c21f1ed521bfbe4f",
+      "supported": false,
+      "reason": "英文为more独立倍率；既有金币规则与increased加算，组合计算不等价。"
+    },
+    "boon:BoonHareFootIcon:78bfd791560dd4fe": {
+      "englishSha256": "78bfd791560dd4fe26fd5069398f0a98d11dd2ee0df00793a796c4379a94f226",
+      "chineseSha256": "6ec8cfe673e8407fbdb666681912509c3ed5df15f27790f75fd0cd901cf89b5b",
+      "rulesSha256": "a6bce0db2ecdfd22c2d9153c82045b375e285adec3c2e938d7c55cae829cd675",
+      "supported": true
+    },
+    "boon:BoonFrightMaskIcon:347b600299c98e39": {
+      "englishSha256": "347b600299c98e39256a60832ea62f7b1c0eab0451f207c694efa1a4bbd3aa3e",
+      "chineseSha256": "ada2e329ef0ff318beff01c734a96c41841869c0be787228f0116fc8232ae097",
+      "rulesSha256": "83ecc9b139c955bbd5af1b187fbb07c3e56cb31fb5701e6fe9c0e328984d7814",
+      "supported": true
+    },
+    "affliction:CurseCorrosiveConcoctionIcon:7ba124c1b69932aa": {
+      "englishSha256": "7ba124c1b69932aa77fed091a9a20b520d0b75f4356e1f799ea4d54cc088d32e",
+      "chineseSha256": "4fc1ea5506fa87611a8f9f6550d81671d1697c93472cf62cbf0c48378ab9977a",
+      "rulesSha256": "238309f0762cb231629fa646ff4fdc0c9f7382c702bb66bf56bcdd12bebc9098",
+      "supported": true
+    },
+    "affliction:CurseShatteredShieldIcon:7e690ff32dac683b": {
+      "englishSha256": "7e690ff32dac683bc9def488830ce90943060ca18a72d1b1b3197c51d36e423a",
+      "chineseSha256": "cbb0d744ffc1bf53d7fe638e7970cd2b45c376861c1ae2aceb87cd24b9c8ddef",
+      "rulesSha256": "c0123416005ea2ef19c29c1eb9bd6eece6f149bedc78d2cc6e52892057211598",
+      "supported": true
+    },
+    "affliction:CurseSharpenedArrowheadIcon:0b8bfeaadb40ad9d": {
+      "englishSha256": "0b8bfeaadb40ad9de0b0f0836289fa0ca5097a17715b470d180eef74e6a1203d",
+      "chineseSha256": "e97ca5a313b84ac8e38983bd5a9bdb40f6ec6609a269e06d5593ed91ed25788f",
+      "rulesSha256": "52ea69b1bfa265ca7e8bc4efa6135dab2b3a1c02a4df81869f6aa6edff9097c9",
+      "supported": true
+    },
+    "affliction:CurseIronManaclesIcon:c16425fd64aea200": {
+      "englishSha256": "c16425fd64aea200aa121c85ec73267cc92e03982908ee703aff3b58084150e2",
+      "chineseSha256": "08898d7f2cd851d90ea9cee4eaccd22b1de7d955b2d1bb89acdfdf764833d9e5",
+      "rulesSha256": "0a8f9141dc33bba934e87cf7736cdf7ce098f7219d02131025db4d182930f455",
+      "supported": true
+    },
+    "affliction:CurseGlassShardIcon:ff1b97a69b91fc50": {
+      "englishSha256": "ff1b97a69b91fc5000257632d59725485eda753f9d4df6e4904898e5a48312dd",
+      "chineseSha256": "2ed0cae4b8284904a7f1fc0cc883314792f6b8d27b029fa72ddf4b5d0ad9f713",
+      "rulesSha256": "cb628f53be226988bc9b8cc5ff8ce982d6b46d43129fcaf2ac2a3f8c429b8ed7",
+      "supported": true
+    },
+    "affliction:CurseChiselledStoneIcon:9ed5886f6a8958cc": {
+      "englishSha256": "9ed5886f6a8958ccc62131a0b11662f150739b5d8f79f0b32662c501b919239c",
+      "chineseSha256": "e9bff7fa08405ddd87066d318dba0394808a65601216d110f2b74e70f6f500f7",
+      "rulesSha256": "629bcbde600257640bb6aa7efbc23ee02758442f8efde5beb25426e14517c6cb",
+      "supported": true
+    },
+    "affliction:CurseRustedCoinIcon:0e30f151e80e5d53": {
+      "englishSha256": "0e30f151e80e5d53f3b26030d206bfa2c3a78339501be42b68971dfdb76647a4",
+      "chineseSha256": "7c948e2b593714b77feb5b1dbd071e205392475cf0b3497a056af72b9fa1d4eb",
+      "rulesSha256": "197fc5c2c0c12b5c690fa4b299240ade088deaad0e71c799840d8e2494d760c0",
+      "supported": true
+    },
+    "affliction:CurseOrbOfNegationIcon:93ef0aa76683756b": {
+      "englishSha256": "93ef0aa76683756b3826166e92ff1b7bb65d06a4a31749a09383f2342b466685",
+      "chineseSha256": "8b68586b2666b1905ac0ad9f986f9f5c3e340f76b3dce2a0dbbaea8b586fc678",
+      "rulesSha256": "2ffe90b9315f6e0ec6b63bc5e589a28fad3528afa2784b9724c42702e01a026c",
+      "supported": false,
+      "reason": "英文只禁用非传奇圣物；既有规则禁用非传奇装备，作用对象不同。"
+    },
+    "affliction:CurseWornSandalsIcon:323cd12bab077d1f": {
+      "englishSha256": "323cd12bab077d1fa1baac9ab91265d58224e51f8097af2c932d27babf06ccd1",
+      "chineseSha256": "5573bb8b768a375c193cbeb1272e4e922325a9e2fef82568228a2136890a7dbd",
+      "rulesSha256": "9a42d13202e1b0b5213a3a53433138bbc83f1a57577928c93f09377db6ac297f",
+      "supported": true
+    },
+    "affliction:CurseCorruptedLockpickIcon:9b45b9caa4f41a9b": {
+      "englishSha256": "9b45b9caa4f41a9b58a470f6aa6a84a840eee3def57f4ec223dfc3e78d36a09a",
+      "chineseSha256": "f92b42428ae32c19dbd108dae63c427272b7dc8d6700fb2d62e799d993ab3468",
+      "rulesSha256": "4f83fc49d4a2fcacaae53d2dbe418d08d86e855f98032e6acc69236b0ba110dd",
+      "supported": true
+    },
+    "affliction:CurseNameIllusionIcon:19aed64cfab303a3": {
+      "englishSha256": "19aed64cfab303a3d2e318f4cb233c9018349af664f55a5e76bd3fb0cfb9fa38",
+      "chineseSha256": "7ca2ba2bc3c6de75afd84649c9f3f14f40265d903593c76002bac960f05dd02d",
+      "rulesSha256": "d74cc982301556ace5bb21af32b70f7e2e2af7f8a466b22e2f185557b22ea64b",
+      "supported": true
+    },
+    "affliction:CurseGargoyleTotemIcon:ca74ca18c0153b17": {
+      "englishSha256": "ca74ca18c0153b1788cd884fdf6620c1b1ccc091a142026bad389da0a37e66ce",
+      "chineseSha256": "38b81ed73aab49f6b9a3ec4d4dd17b59b98dced36ec834f1bcb92516101922e7",
+      "rulesSha256": "f538f8178c027d622abcef4fef216aaca563458e404a5cf4bfd597a5e8e30e25",
+      "supported": true
+    },
+    "affliction:CurseFiendishWingsIcon:e176e1cb5de02ae6": {
+      "englishSha256": "e176e1cb5de02ae6da3921b971f9daf4bb3d22e0697833ddb818b732ec9232f0",
+      "chineseSha256": "10423cd842c9d5af5e6d4c86362b6e5a972a58d2ccbbd0440ba86010cd1b2dfe",
+      "rulesSha256": "c82e954ab7c492d788c542f29bd89c479dcfcf93803fc2f3f4b1b19ab0ac24b2",
+      "supported": true
+    },
+    "affliction:CurseWeakenedFleshIcon:6d44d0f1ce9e4d2f": {
+      "englishSha256": "6d44d0f1ce9e4d2ffc67bb108639d06a32e32d25725c45d793a8a95f3f2f96d4",
+      "chineseSha256": "b1a63978cf65d8d5f2727e641612128258ce04f9ac66a93634f40355a872b03e",
+      "rulesSha256": "7e20c71cff70b814a6ffa6485c9d9153ff379829fe33ca1077b0d195702e9ce1",
+      "supported": true
+    },
+    "affliction:CurseRustedMalletIcon:3c648095e0e9318c": {
+      "englishSha256": "3c648095e0e9318c72039bd2a332a9394e1085e3e5cf0baca652384bb87e4710",
+      "chineseSha256": "be1ed58becb96489b8805f3c948f7ab57bd2ced0f87a029576a64ea0fb761b4c",
+      "rulesSha256": "34772c0265e782e747eb60057e6cb8797461c8c8aa72f30ab19dd7abf95470ee",
+      "supported": true
+    },
+    "affliction:CurseMarkOfTerrorIcon:393bc401351326e1": {
+      "englishSha256": "393bc401351326e1e832bae55d1fcce1649fec0bc89a3c2d8740f9bfce277b0d",
+      "chineseSha256": "6a671e3a73d6ef97bd484f445eab0d973813ab6206a3f62685cdc44fd4dbf80f",
+      "rulesSha256": "fc9ddcd7b3f44f98b8170adb43993e4acf3784a8d37c670f718f894c6bc5e6f5",
+      "supported": true
+    },
+    "affliction:CurseConcealedAnomalyIcon:0b4fb74b5d17dfc3": {
+      "englishSha256": "0b4fb74b5d17dfc3612bf05aeb9685e318fe6b13bfdcf5f32767e7a6ae772c46",
+      "chineseSha256": "839b5c65bcf5edd33f834ead96e126ad703bc3178ff417d7bdbaad111a45a248",
+      "rulesSha256": "2628c9c8e3988e3710cd9225f3f902dc9ab0ff1ee0bfefe508268c8459e37892",
+      "supported": true
+    },
+    "affliction:CurseChainOfBindingIcon:6b62cd6e214aeef6": {
+      "englishSha256": "6b62cd6e214aeef6468e084f073e93587df63262f21171c26bcb50764bb1ab30",
+      "chineseSha256": "37b89f6c3dcdf44b5d2141df50004488551ded3fee1fd93d741fae0f70e5db2a",
+      "rulesSha256": "df2bbeb8d1f8d1affeb7f0942ea39d02cec24480a100740636430efd38038630",
+      "supported": true
+    },
+    "affliction:CurseLiquidCowardiceIcon:de86668f94857140": {
+      "englishSha256": "de86668f9485714016d34dfabe602ed2cc335efd710106aa92ce4f815366c2be",
+      "chineseSha256": "2d0f9ed27af77b4d352a91fa9303a19cd99e7b3b0dd88b1cbdab5b7cfd2325d0",
+      "rulesSha256": "5c872923786f27bf2b48f669de59441b1589c63abe0dd8a1ce0475d1439cf196",
+      "supported": true
+    },
+    "affliction:CursePoisonedWaterIcon:e0fcb1ebd79b0aea": {
+      "englishSha256": "e0fcb1ebd79b0aea97f8a6ba83b2f0d3d56457ed52bcab2940dfe20e9e446fc9",
+      "chineseSha256": "0b3fd245e22c5f3a8405fd3b703ec3fe80ca4cd6e550bf0cea1259fa2d1084b1",
+      "rulesSha256": "7c9685dd5909c0441feed1545467757fad9c12216188db3c84814cbd12cdc647",
+      "supported": true
+    },
+    "affliction:CurseAccursedPrismIcon:d27311f391acd39d": {
+      "englishSha256": "d27311f391acd39d9cc8ea443e8decbc55a98b6af25945021621962c0ed062f5",
+      "chineseSha256": "1a28245ac8a2d2faf94279f16c5084a5e6698880365076248253ea7b9c58e6e1",
+      "rulesSha256": "0c5cb4dad500de029d7015afbf8406025bc1a443b97954fdbe741685699f5dd4",
+      "supported": true
+    },
+    "affliction:CurseUnhallowedAmuletIcon:7328e88a39c5de8d": {
+      "englishSha256": "7328e88a39c5de8df1a2e36b21586ccf2d67aadd3a18b562203f288e463f418d",
+      "chineseSha256": "94366dbd7df8bedf523daa226b1f8493cb7b2c47b4d2d336aad4675fa5094348",
+      "rulesSha256": "c60f7e0911e1d9a1cc291265aaea7cf51c656ca480568a6c7c0fc1ebad9070d8",
+      "supported": true
+    },
+    "affliction:CurseTightCollarIcon:d4cf2cd79c43fbed": {
+      "englishSha256": "d4cf2cd79c43fbed0e76b0b74e429ec150d81be7901d5a38f9f7557b08d0037f",
+      "chineseSha256": "2daee7868eafaafae6e8e35b35a90ed5663532fa31a9638d07ea6cf9fbcf6ef4",
+      "rulesSha256": "2de7ee9e750d527769e8a3cda5c470016de258e2fcf71373470b1af3f83eca99",
+      "supported": true
+    },
+    "affliction:CurseUnholyUrnIcon:7a3875ee85e684e9": {
+      "englishSha256": "7a3875ee85e684e9a67a15d1953a84d1a60431a3712d0ace393660b5e53489ee",
+      "chineseSha256": "ae0a7e4563e22d0e1d71c4faf2c0565e235f5cbd19b1b9fac6bb91d663e486e1",
+      "rulesSha256": "069a625a2da2201277a92c977e75d711c3875e20c9883b7a3a06cd990586c920",
+      "supported": false,
+      "reason": "英文明确只降低非传奇圣物效果；既有规则没有非传奇范围条件。"
+    },
+    "affliction:CurseHaemorrhageIcon:ace6a06ff43e9a10": {
+      "englishSha256": "ace6a06ff43e9a10b9a4bd9ba9ead6a0501b6a4021722f0f13c8b0bb7d8027bf",
+      "chineseSha256": "1e5e49fca51bf0227d9194d7b51da81fe84de0f40befb10cdd835a6687f70fa4",
+      "rulesSha256": "dd8697ffbdbfa674a0d94af0013e2ba2671738e9f44cd5e0553f40ef90af9441",
+      "supported": true
+    },
+    "affliction:CurseMirrorIcon:9756e2b31f88c47c": {
+      "englishSha256": "9756e2b31f88c47cf43e5a73d13270d5fdacf083591bd7c32c101a569729e7b8",
+      "chineseSha256": "76169b897f96f3029ed4651e6db9aedc7cf7ad51d8ef80324d9dcad2fc97f662",
+      "rulesSha256": "e87536be23cd6b4b281a72c43ce746324bdec5f5aa198f7feab76588ba708537",
+      "supported": true
+    },
+    "affliction:CurseVoodooDollIcon:f4d3d50a7f728bca": {
+      "englishSha256": "f4d3d50a7f728bcad0afb9a49434f6cdf52cc50ab5f3e1bf5cf728a5a9f82576",
+      "chineseSha256": "c7c4850daa373b44cb5ab542c6adfd4a4d60fea1b3e1b3929dedf83d5f0c03ed",
+      "rulesSha256": "a56e8c8ed987f50afb1f5f6bf4abc325cdd0f5614fca304f5403124d6950cfa9",
+      "supported": false,
+      "reason": "英文为低坚毅损失more独立倍率；既有损失计算与来源增减加算。"
+    },
+    "affliction:CurseCutpurseIcon:a0429c07c39e2fca": {
+      "englishSha256": "a0429c07c39e2fca9acf3065a5b9353bd258f4620dd079814ce2b0d035f0e236",
+      "chineseSha256": "06d668e61e5e44227c54d3c8c53e5eac03a660091e9a5b870e2e9f8a676ace2e",
+      "rulesSha256": "190320532521b0d32c8be152177c05662b569cdd37b9ac0e8d2be0fd4eda27b6",
+      "supported": true
+    },
+    "affliction:CurseTatteredBlindfoldIcon:ac720d04aa5046dc": {
+      "englishSha256": "ac720d04aa5046dc28b5f4a8769249777b51ee88b646178089e38675abdd5d5a",
+      "chineseSha256": "f6e5658b57ddf6699d2c8c2a521c9489c628d8f64630de2fe2a293fa52a6f54a",
+      "rulesSha256": "99a744dc38228878483544f0227aa6515b3bdd33fc6d08b6b92efa6f3ed2b506",
+      "supported": true
+    },
+    "affliction:CurseSpikedEntranceIcon:58b7f59907fd8443": {
+      "englishSha256": "58b7f59907fd844316728364844d72aa4458e407e6eb79f857b5a8723fcbb241",
+      "chineseSha256": "14d6236e1c437eb8d3c6691a7ba382652c220de569c2525923272d585663cceb",
+      "rulesSha256": "44f1700ef876caf627e1b96da5b67a2fbca6addaa00115f6602a9a5cece27312",
+      "supported": true
+    },
+    "affliction:CurseUnassumingBrickIcon:4102ec55e1526cc8": {
+      "englishSha256": "4102ec55e1526cc8d0846a76f210b49df2c4013752af566d22ab9870f9ac5734",
+      "chineseSha256": "e78a78141b67bd4d159c22f90cd91759714303499eb5c40d5c644b502a8102b2",
+      "rulesSha256": "ed150b9691741f4078295d5d79e18caed895443a9abbfafac03e6231af01a18c",
+      "supported": true
+    },
+    "affliction:CurseGhastlyScytheIcon:70e21b7d3273edc8": {
+      "englishSha256": "70e21b7d3273edc80c0f81aeb64975eaebef2b0ee3d851d250b3815994e8506b",
+      "chineseSha256": "d758a3723001053d263bf5de95f9e1e9f3e01564a5ecffaa6e4d431dadc2f01c",
+      "rulesSha256": "37b52b918ebba70e1b167599c134ff3881d27d3dea0051c54a2b302ebf77bd87",
+      "supported": true
+    },
+    "affliction:CurseGhastlyScytheIcon:239e294fd51f3595": {
+      "englishSha256": "239e294fd51f3595dc04e36eebfd0f1a918d681f9cdf4fe62b2f34e971c6eb20",
+      "chineseSha256": "d7a6d2e0266c3c466317212eb5d072730d2effaffde7659f65e7235234cac889",
+      "rulesSha256": "559c6573fe6e17e6a44d8fb6afb41da37bb1713b398ca1e38a6a188db6c8119f",
+      "supported": true
+    },
+    "affliction:CurseGhastlyScytheIcon:f1dc60492dcd69f3": {
+      "englishSha256": "f1dc60492dcd69f3a864067a1130e530fe13fd5f82aec2834e4851ebc02fc533",
+      "chineseSha256": "a3c42283300b75206077c3a99f286ea56db9b50bb56bd71c3362ff3b8bb01e78",
+      "rulesSha256": "61a2554df77827d45756dd6076ebe051eb147491c723f633ad71e6cd3f662d52",
+      "supported": true
+    },
+    "affliction:CursePurpleSmokeIcon:7112c13937dc1c26": {
+      "englishSha256": "7112c13937dc1c2649e0aaa915cd6b94ffdf19e14bdbaffa2a48769fed2beb73",
+      "chineseSha256": "8f3cd33443ac69d4bb2215dde9ce0cc2d3c21b0b57df8b0080251e73e2513d95",
+      "rulesSha256": "2db46a258242b2eab7b056707cac523cae18d215f8f6a8fc05f5573c625a510e",
+      "supported": true
+    },
+    "affliction:CurseGoldenSmokeIcon:8ea684c7cfdc7c7e": {
+      "englishSha256": "8ea684c7cfdc7c7eae4585bc169ada217e8b53626cbb142378ff35380afc0d1c",
+      "chineseSha256": "693361d8ea0d5af2b2e39234276ffa07df3a3365010ff3966d8dcec55dc4b61c",
+      "rulesSha256": "0b7023197727f67b4dcf1539769f26e73c2ee22e3e5b20a1534018b62fa28a5f",
+      "supported": true
+    },
+    "affliction:CurseRedSmokeIcon:1771138da4fdff63": {
+      "englishSha256": "1771138da4fdff633a78f8a0aff9fd59269644fe7179cb0dc4e7ea4da49584a4",
+      "chineseSha256": "6289e14ee605639a242aff45f10fdd413da23b6ae68ac7d5d664ce166e344a6b",
+      "rulesSha256": "3cb9ee3166a248030a3022fd77d852754ad60ed81c3cf672d07c347dd342a124",
+      "supported": true
+    },
+    "affliction:CurseVeiledSightIcon:d75b5da45ff36ce2": {
+      "englishSha256": "d75b5da45ff36ce294479e6dbfac288e4404161432a61166a2dcd2406bf3cab6",
+      "chineseSha256": "b6779aebdfe458e9cb8842a0e5e6ad1eb3424ec3627d7aaa45c9365f63e2d8a1",
+      "rulesSha256": "91495c629cd270edf45f6b4e9facd0c09f622740adb0ffe833a72b8b75f9060f",
+      "supported": true
+    },
+    "affliction:CurseFloorTaxIcon:81307c97b1da0692": {
+      "englishSha256": "81307c97b1da069286f4fddaa19d1652e1dfde9732b983a1addd29578cd0b827",
+      "chineseSha256": "c8acfd3cb2a4f38656ceed3e74d75edc55ff7068392986ea3e35737f4d04e435",
+      "rulesSha256": "dbc533da07a52291086ea8b36bfb9afb346b398ed932bd9fa92c95aca1c7759c",
+      "supported": true
+    },
+    "affliction:CurseUnhallowedRingIcon:bf035de4d56ed5b7": {
+      "englishSha256": "bf035de4d56ed5b7160ddcd606fc55e8ec838846fb77209e9a4332186aaeda85",
+      "chineseSha256": "e88ddf2e5389c9bb51fddcfd492d39d23bb1c36056d99227a083563a8c71e43c",
+      "rulesSha256": "519f834ad4d72604bfc5186aaaab23c438d64a31aff70f3912fbaa1bea8a0da5",
+      "supported": true
+    },
+    "affliction:CurseBlackSmokeIcon:4ac1644807510d31": {
+      "englishSha256": "4ac1644807510d31d5d00aaf2e8222ad60cb2eae2a94ae561e79a96ae1d9a93f",
+      "chineseSha256": "e7feefeda2d75976167f326d9e7f5c1837fceb46b9fe82ad654d16d13ea73a93",
+      "rulesSha256": "d36f9f30a17d030d3e1794ec995ec292559cdda9987c87150581a91f1325aab9",
+      "supported": true
+    },
+    "affliction:CurseUnquenchedThirstIcon:f708e1005f2c5bba": {
+      "englishSha256": "f708e1005f2c5bbae3fc68587ef10abcb984597305be1c1d8cf8b7ad662cb28e",
+      "chineseSha256": "914db137367693d243978104a81478c55fc9797e152a9c9dff2ab95e75e48130",
+      "rulesSha256": "c50879319e231d2010b2b8370e1c1947cd97ec2a59bfac229c5d2d548e5b858c",
+      "supported": true
+    },
+    "affliction:CurseDemonicSkullIcon:2d30b03606bf704d": {
+      "englishSha256": "2d30b03606bf704d6f025a820794bb09c1accc00a74b011fdfc66afda4202f0b",
+      "chineseSha256": "468f5cf68d9e546eec2734ac328c51c81160853c52d855d4b38d9f7e3eec52eb",
+      "rulesSha256": "92649cd3158852d16d3d6507c44cab8afa71c60905ff38d4146e6c89fbc32dfc",
+      "supported": true
+    },
+    "affliction:CurseHungryFangsIcon:9e253c33894f29e5": {
+      "englishSha256": "9e253c33894f29e5a9939116c01c8667dae7d227afd06dfba12926d53c06379f",
+      "chineseSha256": "1b449c6a0c59f9d944a77d4d2aeac2f804ccc98530a566936c24ae6b661dcf4f",
+      "rulesSha256": "ab80bf920686e8088a2c1ebf5a0bb7888abb3ece343fdd72716265d9dde9eda9",
+      "supported": false,
+      "reason": "英文为怪物坚毅损失more独立倍率；既有损失计算与其他增减加算。"
+    },
+    "affliction:CurseSpikedShellIcon:19beafcaf957ea4b": {
+      "englishSha256": "19beafcaf957ea4be86f85215ac8fffcfd8d417e8f2c73b08d32b7aaa954d1b2",
+      "chineseSha256": "baccf0eb87b96f6dcb82e73cf4117a24227ed3a87a99880cff9f944844023126",
+      "rulesSha256": "0eb9fe6eccbdc1ff74f9cf151e0b5325356dc7f98c1fce4fa2450c3a886f71d0",
+      "supported": true
+    },
+    "affliction:CurseEmptyTroveIcon:974265a1bcd516bb": {
+      "englishSha256": "974265a1bcd516bbb8afc9053a809bcf73dee53ae5a8aaba3816ac29d5c408b1",
+      "chineseSha256": "6a7b56a1a1ae61998a31726a17bc730a278aa672602307fab3e06c44fdf13bed",
+      "rulesSha256": "8ebb49804c7ee1fdda332027fa00b44e35c23ff478d2b4c4cc6bf6bd6c99f122",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:3aa3ef4ee89768ed": {
+      "englishSha256": "3aa3ef4ee89768ed211673410202f7c76e3c9bea8c2f5c0595c78514748051b8",
+      "chineseSha256": "0e43d08104db42ec36c3662bf8ae3e567e3016c23a6eb202588e3e7668107dbc",
+      "rulesSha256": "c54dbe04a01def422017f4b67c52131ae4efa7518772cf79a29ac741e4c3c54a",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:b59ecd413dc36d35": {
+      "englishSha256": "b59ecd413dc36d353f8b569ef9f3fc187682135ab51555b58c423539028134f7",
+      "chineseSha256": "1f6b148183e2cb4fbbff60f1b11a366318ddf61ea8ee652703efab3f8dc1bdeb",
+      "rulesSha256": "891362b0aea255703d74ced616d643d7fd4bb6ad4ec530f08df001dd71bd1e48",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:12c7edb53f5a2b46": {
+      "englishSha256": "12c7edb53f5a2b4626b2b0b3b1bf6fadc2ed5eb4e3933846656a2fe96bb2362d",
+      "chineseSha256": "09846b5a25e92d743c397a8ec4302217e5ed41f72713a75544cdb2beed062b86",
+      "rulesSha256": "3ee24bee79b40c406aa17fabdf9b9199ad4893f4f11e571e042793c8e6904442",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:d4225283331e415e": {
+      "englishSha256": "d4225283331e415e95faf0d288b95674632053568fab6e9611b18161ff0abbd5",
+      "chineseSha256": "480bbcb49bfe72b02a9affd98b74dc32d5978b9d8f57c7cab2ea84a9593b4f32",
+      "rulesSha256": "e42af67f8366ca91b83478da5002f1c90ecfee1b5b02e77042a6bbd7e543378d",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:e8927f3e559a16ba": {
+      "englishSha256": "e8927f3e559a16ba1ea2e85b6ac5ed080319df257a135329bd246cb69444a606",
+      "chineseSha256": "d1aef01eb4d93a63cbf19b0e605fc27d4459e00f1eb27f8ae34965d1a4cc1ef8",
+      "rulesSha256": "c42706e686e19d64777ebea733c5dbbcd97f36ff50f6a9bdfaa84fbe10233dd5",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:cd3c62f1f88c0c7f": {
+      "englishSha256": "cd3c62f1f88c0c7f15b0e9eac2a550977236b33dc68751ea3e0e52f05bed8205",
+      "chineseSha256": "b75e31d5257c737c83cee42120dd4751e66b4d2670019e06f2e5d6c54e6192f7",
+      "rulesSha256": "9aed323281333959604a1f750cda9c54dd1bc175f82951090dea3143688834fe",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:268b57b64067d92c": {
+      "englishSha256": "268b57b64067d92c6333b8d1f0e924ed08601e31b96cf6a4f2419b65417c5087",
+      "chineseSha256": "89eedbc56920241011614a01c4433871e682e80b368951f631e1fa3eff4b0434",
+      "rulesSha256": "ef0e61e07aefb3af21ff549cca917b33988d550e93c02c1be44ef9cea184b674",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:a6b831390b8b900a": {
+      "englishSha256": "a6b831390b8b900abfcd790abc3a62625e5c0b4b49cc9f65ba9e354531136230",
+      "chineseSha256": "7c992bb6cffae98c00282a0a5d8880da3db3660735af1ddb67fdf21772ef526e",
+      "rulesSha256": "38e931dcdb4f6db47e589d040420c3775fd20ee090d98b3066674e337cce5627",
+      "supported": true
+    },
+    "affliction:CurseDeathTollIcon:492615277abb918d": {
+      "englishSha256": "492615277abb918d281249b7f22a2000ca5be3be829eff281a3fccfb9226a916",
+      "chineseSha256": "7f0429373e1cf2e75e77a0eb70c3b414e49ed65976eed71d80e3df2ac664f655",
+      "rulesSha256": "9abcb5d490c6d00628e53b9324af1b44ee835f82a75f9c815bb04407fbe4a048",
+      "supported": true
+    },
+    "affliction:CurseDoorTaxIcon:2c67711320ab7971": {
+      "englishSha256": "2c67711320ab797158bd4dfc8a55335e814462e8e4eb3e175d3570399a877607",
+      "chineseSha256": "e5bc43d519cbf8286d0f0ae137aaad3eaf04426373d1cc9b26791309e91f80ee",
+      "rulesSha256": "7fa9a79f05fe5e702b36e7c9ac2f7a302b5fc63d3458d745b40dc24777310d7f",
+      "supported": true
+    },
+    "affliction:CurseSpiltPurseIcon:00248a21f4d67645": {
+      "englishSha256": "00248a21f4d676456d5d772a5c4df05736df0b7501c1b22994a32e30472e358e",
+      "chineseSha256": "0f2628bf0e290cd0122e86aa3b6b493d7e17d7b24eabba714e4c985a2d7feb99",
+      "rulesSha256": "0980d4a1f5e33b0be1d78b75272485ca3dd013808d5abbba4e607a4d3499f6e8",
+      "supported": true
+    },
+    "affliction:CurseAnomalyAttractorIcon:73a4a219541ad272": {
+      "englishSha256": "73a4a219541ad27209991734631f335db0c167c68920575b08e960652c7ceca7",
+      "chineseSha256": "246e4b3af84e11b1f8816866dae430ed6f13fb406678ca8c2a29b6bea02796d2",
+      "rulesSha256": "ebd1ed51aee78da20b23e4a159fa650d148b7d96889d5ff28ed444e629eaca4f",
+      "supported": true
+    },
+    "affliction:CurseRapidQuicksandIcon:bdc62641b3c759f2": {
+      "englishSha256": "bdc62641b3c759f208288b520d218eb8825dcec715ae501a3bc60e0b6443e949",
+      "chineseSha256": "cb4c13f512a0419937cc4394133be7fc5ec264466a09b96170f6903049b464cb",
+      "rulesSha256": "5bd3b88497570d8061ea3e6ecc44811a22077f7e1b732fd985c0e8e77d84f21e",
+      "supported": true
+    },
+    "affliction:CurseBluntSwordIcon:39a576ebf610b79f": {
+      "englishSha256": "39a576ebf610b79f437bea3938b7676306c9ec94104edac2163d1e46891e1304",
+      "chineseSha256": "fafccd90edebc08e652dc3addb131575ed2fc8e8759344ae517e4383657de125",
+      "rulesSha256": "9b6fa98d05b62d467daa35567f8a64584760cd502c4124d4a10c50e7477e4153",
+      "supported": true
+    },
+    "affliction:CurseCharredCoinIcon:6671c1aad565b17c": {
+      "englishSha256": "6671c1aad565b17c22c9de9250048e53d27e75a3c87d972fdcb1b0b3cafbd23e",
+      "chineseSha256": "23b59a4f891d79b0f9d9b2991efca08ee20d8ec350d8921b4cb27c24e127aefc",
+      "rulesSha256": "d4b9966917fd84240182de0b3a499fef8b4fe4a67838a490c414ef0baff11005",
+      "supported": false,
+      "reason": "英文为less独立倍率；既有金币规则与increased加算，组合计算不等价。"
+    },
+    "affliction:CurseDarkPitIcon:cffb9a8c82c458a3": {
+      "englishSha256": "cffb9a8c82c458a3038efc0c302139be92f7de610923977fee5cab086b3b5ec0",
+      "chineseSha256": "3d37ce5e1904e96fad94b0f43d475dbba09d4fda7745411615d4cdb8408e4119",
+      "rulesSha256": "5efd06a03f9c5d39eec36653d918e9744d9e4665340fb9521a39406816560396",
+      "supported": true
+    },
+    "affliction:CurseHeightenedSecurityIcon:ecc0ccaa175cc23b": {
+      "englishSha256": "ecc0ccaa175cc23b2eb8a5a531076d5702b0ed592a13bcefadf0f5cea522e11e",
+      "chineseSha256": "b14de2589d888ecd8cc29ea200efcf39187f716233bdae65bc102103998ebd02",
+      "rulesSha256": "1e9896488f7df5ee1501badef26e1be887f5f4c48f334edb3592ae50e4236915",
+      "supported": true
+    },
+    "affliction:CurseHonedClawsIcon:6e23023962794077": {
+      "englishSha256": "6e2302396279407783d3077dde7211703eead807b34b90bf200f3dcfa65481eb",
+      "chineseSha256": "1491ee94e16c08ed860d2aa09cd344ef4a21db4ebcbeca4de8d07f4705711c26",
+      "rulesSha256": "32d82332564b8b19586e42386b1487c15feb6a1ea043fdc0cf42cf148fb26578",
+      "supported": true
+    },
+    "room:Abandoned-Library:285d44e3b706af3c": {
+      "englishSha256": "285d44e3b706af3ceaa867aad8c13c81094990873027f6ea19e0745ca652f673",
+      "chineseSha256": "e0a38b5e9334fe0b62e5c6848ea3b0934750029431dfc3fd53fda246dca2ca61",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Templar-Annals:0106bbbc210a4784": {
+      "englishSha256": "0106bbbc210a4784549dd999e1e6af17feb07ba2423f322816de8b6d587259c4",
+      "chineseSha256": "72427f54111ff4126e715c85dedbbdd97dc2b006b331a32b89df1cff88b503ce",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Chambers-of-Inscription:adb3ed8771d5f29e": {
+      "englishSha256": "adb3ed8771d5f29ea26abdbed8d5e493102a82b41049035830f4f1665db67c4a",
+      "chineseSha256": "b603288eca4b2f24d33071f674121c7d53df07e1ff237c7acc5e6d4fd9f6f95b",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Holy-Trials:87d70263ef6a88ae": {
+      "englishSha256": "87d70263ef6a88ae969a7b378c4fc4ee33d4846499f8c3d86f8fa7b25e1ebe86",
+      "chineseSha256": "c5156e5823c5d8f0b0f32707199f804a9bff751ddafffa66c4d8f7e740e6d620",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Scriptorium:ebf01f7d0be065f8": {
+      "englishSha256": "ebf01f7d0be065f822e46564340fd1c02edcafc924d22f22161a1e5e7271955b",
+      "chineseSha256": "4cbbff378b2bdb1a6cb534192f29f69c25416a83e3d9c97dc96512998caedfc6",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Candlelit-Chapel:9fa244035a64191e": {
+      "englishSha256": "9fa244035a64191e465af53baca456142c38a7cb8757eaedba16ad73c86877d3",
+      "chineseSha256": "8cc0e799b4ea2f4c9e0c64d158dbca3524a6bbe4705e452cd987df603140e2ff",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:MerchantIcon:e490e65db20f3fdf": {
+      "englishSha256": "e490e65db20f3fdf2ebbe86b71db3cc55a32273d7f400920dd1bff89a5f64687",
+      "chineseSha256": "574f6c83faf0443fbe443621819a67e7414142396883cde582e38490185648ce",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:LyciaPactIcon:f9afae3e5d05a40b": {
+      "englishSha256": "f9afae3e5d05a40b2eaac3a3b897ba104e25127f05c4883ccacd3817236b8df6",
+      "chineseSha256": "727f4e4eda9ec4f48dc9e39e9e3a12c6ff907433e3fd524046acf548a84fedaf",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:HealingFountainIcon:e5facf30c6f94f59": {
+      "englishSha256": "e5facf30c6f94f59c2b9f10d8123ef4c49cb7ce5b767a25fc32d9518d2585120",
+      "chineseSha256": "e64dfdb66758c214cda5dbd47793b5e2965f71a3b60945790a59dab60d04ca93",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:CurseFountainIcon:e602acd072ef048c": {
+      "englishSha256": "e602acd072ef048caa67d2840e6c4e268b69a0334d96beb3a7e3ae4fe1cde47b",
+      "chineseSha256": "381701ef3ef8205a7cd1ceb8ccd183b86130e39745f85b4e8a8eab821dc2c693",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:BoonFountainIcon:0cc628c7c04ebfe3": {
+      "englishSha256": "0cc628c7c04ebfe3268957d34f2200d9741b96d259021d13b71ad10334b068ff",
+      "chineseSha256": "ce988c0c99dea9d86542e32283d24241fed6b51bb579b0618756588657a98b87",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:RainbowFountainIcon:6ca8645c4bb4d043": {
+      "englishSha256": "6ca8645c4bb4d0439ef5928df9cbf876ac07f1866399d614d0143ce2d87a76c6",
+      "chineseSha256": "1a431e960b9067533d187f4e489037bd938c4448e31b871dcd248b4c75e56d4c",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:CurrencyRewardIcon:50ef99fb411a58ec": {
+      "englishSha256": "50ef99fb411a58ec8b7ba338f547d8eccb80eec90a758c9e95ac6170aa7e1ef0",
+      "chineseSha256": "5e2da74dc37d6dc00cf19a0cd9d50fb82692d06338f1ac399efe2a4d1ee0abbd",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:TreasureIcon:942b675d43b8b194": {
+      "englishSha256": "942b675d43b8b194a07d5c27facedd0b5cf773bee9018ca3c2e9cf9cb72f160c",
+      "chineseSha256": "4c17e60fa78322877146243f02d2361b8fa220a7b3a7485892426ea33d95fd9b",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:MinorTreasureIcon:f6be945de43d7512": {
+      "englishSha256": "f6be945de43d751223fcb9564b583d51884dc10201b44c6bb009c8359f96e47f",
+      "chineseSha256": "075035cb480e3d1d182a4a382cae1b368ed761c3599e586a1b34663829b61337",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:GargoyleBossIcon:05a9cb2964d20216": {
+      "englishSha256": "05a9cb2964d20216b74ca239e6a1589b63b3d2e0c386978feb338efbe57a0536",
+      "chineseSha256": "42c91f49ed3819b390ecd3c1cad94eaadf26ff42cd923641e2d10597abad51e2",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:Battleground:a92403e0247f0aef": {
+      "englishSha256": "a92403e0247f0aefedbb76437a04b3a6633487415d5e25e2134d0a51ed2e0fc0",
+      "chineseSha256": "2a285ab73c693ca269f84ff0d4fd5a6d11c81f974be0778a8900dba7aeac9364",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Decrepit-Cellar:ada53dcb97e5e7d3": {
+      "englishSha256": "ada53dcb97e5e7d384f2728f14bc2ec7c42ea793185a2d88eb6178cc2d959709",
+      "chineseSha256": "581cb72f3cd4dc0d28f6bdf242d5cdf3b5303232839bb5baa0f7cfa1f2459cd8",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Derelict-Caverns:fe02d2f48f1bafb8": {
+      "englishSha256": "fe02d2f48f1bafb8241f9afdf33aa5ac6d6cd87a804ad3047b0e48cec0fd427d",
+      "chineseSha256": "6800e9d91f359fa499cdbac6d55faf460eb396e24a16546754cfe0ae2bfd300e",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Gauntlet:b34363892a7ee1e2": {
+      "englishSha256": "b34363892a7ee1e22cd5f65e62c32e9d0caafd28335c35fccf9a202c9a2fd4a3",
+      "chineseSha256": "c9a8d4a5902f92fd29ae153640c6aa64f849461a256f6d9f3b516b53bc365848",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Reliquary:b0343541bd796b72": {
+      "englishSha256": "b0343541bd796b723603ed549630a9aebc7c6e6e11c81a76ca6ee81b064e8eea",
+      "chineseSha256": "5650a35f94971b94e30878846a8ba53a94b5ab729e3587b44bc8e0f49494dff7",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Experimentation-Chamber:b490da7ea433edfd": {
+      "englishSha256": "b490da7ea433edfdc7a834152e4c33738840767278cb3a0f786149c644c9df70",
+      "chineseSha256": "628a29ec575f7d82ab6ece217f0dc89b08a5dc350ea2258e12a5e59a66a7934b",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:DoubleBossIcon:ed7f4a616f255989": {
+      "englishSha256": "ed7f4a616f2559893681686f8863c2de76b95d4767e70d9bf27cb3f566513b09",
+      "chineseSha256": "575430a70ab6cae9747a1d3da45685ec9b0418e203c95e8c90eff95e76b119e1",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:Halls-of-Worship:d319cb7067855287": {
+      "englishSha256": "d319cb7067855287293d525868d0422c5ec85b63e7476943a128416afd0c2ec2",
+      "chineseSha256": "f22a56e4aa22e1e01f3ef35945119b872a7dbea7d18f610451e6224eb9db6b8f",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Unholy-Lair:7b4d935be2790472": {
+      "englishSha256": "7b4d935be2790472f549b71b456cbded0b1a76f02b308358684f99a41c99b96a",
+      "chineseSha256": "30af5239c1f962f6dda1bf18ff1dd9e5db772c0abe0579890e4e03e701172453",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Infernum:e26f0abaf6c6c477": {
+      "englishSha256": "e26f0abaf6c6c4778d01f46f2124776b611b8887f654cc78b034ceb636bd4d80",
+      "chineseSha256": "aff22c389cc6ba93012ddce14bce265ace7710729dbe6c268e5bd72c7c8d21f2",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Crucible:f2c4232a2b1fec94": {
+      "englishSha256": "f2c4232a2b1fec94e74eacccbde4d37cce2ddaa7e1e0024f48ae4652e32adbae",
+      "chineseSha256": "14bc9820081639030a9a3aeb5dd4695efdd8b0d89bd7d93499fa7a1533aa365c",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Sanctum-Bellum:0bfdba36a74524cb": {
+      "englishSha256": "0bfdba36a74524cb63f6400a86dc9bbf06bca04b3ebc30d3b817a49d0b1f3a82",
+      "chineseSha256": "bd32b318c50cf978ede0ad5b70edce301c0a5fcfb49d1a9871488197b48a3563",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Hall-of-Mirrors:1272dcbc801dd537": {
+      "englishSha256": "1272dcbc801dd53776de00fb89270b1bffdb2613d23b4ff5ac0417cf51a569ed",
+      "chineseSha256": "d74a727e4981218a24fcee1671727aa484044872812cc9e3ca08dca582221371",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:ReaperBossIcon:fc4a4421605f22c1": {
+      "englishSha256": "fc4a4421605f22c1655e3901829f5cb287ddbf34e8c57e9c4529b1fe41f57e39",
+      "chineseSha256": "5040e21df0269f829c7e64ed43a6e0a25a81ed19dd8a5439e7d5f3e4b106d2e2",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    },
+    "room:Lost-Catacombs:9946f5fa3ca4e72f": {
+      "englishSha256": "9946f5fa3ca4e72f2409c845dbcfe4ccc22037e2669ab9733d9d76f21b85ecdd",
+      "chineseSha256": "6105f6e4e31f843c48979136a3820e841883ed8b6d7c25bd6db7dff2e52e50ad",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Desecrated-Crypts:8ed859747d9c2778": {
+      "englishSha256": "8ed859747d9c2778fa1774466931f3b00b8a23a1be75768ec316ed01a8eacec5",
+      "chineseSha256": "6e1c178d94aea46358f843860f53aa0d4a253535ea49e51cd0a7801cbd555327",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Undercroft:fa18b9e9b5beed68": {
+      "englishSha256": "fa18b9e9b5beed68a13d353feeb97c7903b9f45bfb4199bc107c8c494b8d3993",
+      "chineseSha256": "e1520e31b08373982addd5d31bc2a1e37a38c596a17080c3866817be130e368f",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Entombment:9036968658f89c89": {
+      "englishSha256": "9036968658f89c8954c465a38058a2ad618e417bc7fbb5ed4dda15c64bdcab37",
+      "chineseSha256": "fb92ff2a485e6b191c97108f4b2cd83089f3a2c5dbddd07accb26e89ea3aa5c3",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Mausoleum:601560435763b7c4": {
+      "englishSha256": "601560435763b7c46d367db09d1716f6cb3501cecc78a3256a0f69bbdf4208dc",
+      "chineseSha256": "87858bcf78a833bda4cfd36da8a3da069ddb13553737dd28d0dcfb567c03ffad",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:Sanctum-Sanctorum:295a7be8aa5f7de2": {
+      "englishSha256": "295a7be8aa5f7de25395119e169634387b4e684f560e2310f3bce08141c88ead",
+      "chineseSha256": "302b067a267b5284aebfc7c952708c0a3ec8666f6c22b6bd1e590c25f221567c",
+      "rulesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "supported": true
+    },
+    "room:LyciaBossIcon:b6692c6ffb1e556a": {
+      "englishSha256": "b6692c6ffb1e556af474ff6a21f98ce9bda4f4889f5ab1d19aaba7be5ca20aff",
+      "chineseSha256": "3f501e593f1da7194dd3e73d11e63b82760de340d699a9275cc9e05ee547af2f",
+      "rulesSha256": "1d8fc6ceb1f94c6326d6d5483d258fcb2e179e9869325b245d105c2219bf69fd",
+      "supported": true
+    }
+  }
+}

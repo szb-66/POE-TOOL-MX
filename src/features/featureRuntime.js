@@ -39,6 +39,7 @@ export async function disableFeatureModule(featureId, { store, router } = {}) {
 
 export async function enableFeatureModule(featureId, { store } = {}) {
   store.enable(featureId)
+  if (!store.isEnabled(featureId)) return { success: false, warnings: ['功能不可用，未能添加'] }
   const warnings = []
   try {
     const result = await runtimeAdapters.get(featureId)?.resume?.()

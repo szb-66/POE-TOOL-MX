@@ -4,6 +4,7 @@ import { hasEffectiveAffixGroups } from '../items/affixConfig.js'
 import { hasEffectiveEldritchTargets, normalizeEldritchModule } from '../items/eldritchConfig.js'
 import { validateStashTabSelection } from '../../utils/stashTabSelection.js'
 import { normalizePuzzleRegionMetadata, validatePuzzleTabPoint } from '../../utils/puzzleConfig.js'
+import { currentServer } from '../../utils/serverContext.js'
 
 export const CONFIGURATION_MODULES = Object.freeze({
   items: 'items',
@@ -337,8 +338,9 @@ export function collectCombatConfigurationIssues(context = {}) {
 
 function accountIssues(moduleId, actionId, context) {
   const issues = []
-  if (!context.authenticated) issues.push(issue(moduleId, actionId, 'account.poe-cn', 'account', '国服账号', '请先完成国服账号登录', 'account.poe-cn'))
-  if (!text(context.league)) issues.push(issue(moduleId, actionId, 'account.league', 'selection', '国服赛季', '请选择国服赛季', 'account.league'))
+  const label = currentServer.label
+  if (!context.authenticated) issues.push(issue(moduleId, actionId, 'account.poe-cn', 'account', `${label}账号`, `请先完成${label}账号登录`, 'account.poe-cn'))
+  if (!text(context.league)) issues.push(issue(moduleId, actionId, 'account.league', 'selection', `${label}赛季`, `请选择${label}赛季`, 'account.league'))
   return issues
 }
 

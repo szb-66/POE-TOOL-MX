@@ -1,0 +1,47 @@
+[
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring2",
+    "field": "Name",
+    "en": "Coral Ring",
+    "kind": "dat",
+    "sourceHash": "a465be58d6c05267d6f3c4c08ea099c97d4283b6852dd020912d411cc2553003",
+    "tw": "珊瑚戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Maps/Map2Tier6_3",
+    "field": "Name",
+    "en": "Strand Map",
+    "kind": "dat",
+    "sourceHash": "a1a5a5efaf1213bda25e6ceb84f61464d137119edb6d52d504fdce80da3bfac8",
+    "tw": "致命岩灘"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Maps/MapWorldsFortress",
+    "field": "Name",
+    "en": "Fortress Map",
+    "kind": "dat",
+    "sourceHash": "29b65fee74e0e79d306ec89a5a35e97b1996f838f1830a691f98c384c8fa26bc",
+    "tw": "堡壘地圖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/TradeProxy/MapKey",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Maps/MapKeyNightmareBoss",
+    "field": "Name",
+    "en": "Nightmare Map",
+    "kind": "dat",
+    "sourceHash": "31a606c12e696bcdfeda22982799eff3e938da37a19c9e66dd53ba70ada5b98f",
+    "tw": "夢魘地圖"
+  }
+]

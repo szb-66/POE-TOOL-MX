@@ -42,6 +42,7 @@ export default defineConfig({
     },
     watch: {
       ignored: [
+        '**/.cache/**',
         '**/.runtime/**',
         '**/dist/**',
         '**/dist-electron/**',

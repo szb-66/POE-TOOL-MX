@@ -8,7 +8,7 @@
       </el-tabs>
     </div>
     <div class="primary-page__scroll primary-page__content">
-      <el-alert v-if="international" title="国际服商店、地图与野兽正则使用英文词库，仅复制文本。地图与红兽／首领词库对应 3.30；请在英文客户端中核对匹配结果。" type="info" :closable="false" />
+      <el-alert v-if="international" title="国际服正则支持英文原版与当前受管汉化；已应用汉化时使用完整中英文映射。缺少映射或完整表达式超长时会提示，不省略条件。" type="info" :closable="false" />
       <el-row class="app-grid" :gutter="16"><el-col :span="24">
         <VendorRegexPanel v-if="activeTab === 'vendor'" />
         <MapRegexPanel v-else-if="activeTab === 'map'" />

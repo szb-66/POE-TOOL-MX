@@ -1,13 +1,16 @@
 import { generateServerTradeCatalog, writeServerTradeCatalog } from '../scripts/generateServerTradeCatalog.js'
-import { probeServerCapabilities } from './modules/app/serverProbe.js'
 import { loadInternationalTradeCatalog } from './modules/priceCheck/catalog.js'
 import { createEmergencyStopCoordinator } from './modules/ipc/emergencyStop.js'
 import { ServerModeController } from './modules/app/serverMode.js'
 import { LocalizationService } from './modules/localization/service.js'
+import { LocalizationRuntime } from './modules/localization/runtime.js'
+import { createLocalizedSanctumCatalog } from './modules/sanctum/localization.js'
 import { registerLocalizationHandlers } from './modules/ipc/localization.js'
+import { MarketLocalizationService } from './modules/marketLocalization/service.js'
+import { registerMarketLocalizationHandlers } from './modules/marketLocalization/ipc.js'
 import { installServerIpcPolicy, serverShortcutAllowed } from './modules/app/serverIpcPolicy.js'
 import { internationalVerificationFeatures } from '../shared/serverMode.js'
-import { configureItemFootprintRegistry } from './modules/items/footprintRegistry.js'
+import { configureItemFootprintRegistry, itemFootprintRegistry } from './modules/items/footprintRegistry.js'
 /**
  * Purpose: Electron 主进程入口，负责窗口创建、模块依赖注册、生命周期清理与全局快捷键。
  * Inputs: Electron app 生命周期事件；渲染进程通过 IPC 调用暴露的模块方法。
@@ -127,7 +130,6 @@ const developmentFaultEnabled = (argument) => (
 const managedDevelopmentRestart = (
   process.env.NODE_ENV === 'development' && Boolean(process.env.VITE_DEV_SERVER_URL)
 )
-let serverProbePending = false
 let applicationShuttingDown = false
 let startupFailureShown = false
 
@@ -153,7 +155,7 @@ app.setPath('userData', feedbackInternalTest
 const serverMode = new ServerModeController({
   userDataPath: app.getPath('userData'),
   verificationFeatures: internationalVerificationFeatures(process.argv, { isPackaged: app.isPackaged }),
-  prepareCleanup: () => localization?.shutdown(),
+  prepareCleanup: prepareLocalizationShutdown,
   cleanup: async () => {
     priceCheckService?.clear()
     const result = await createEmergencyStopCoordinator({ chaosRecipe: chaosRecipeService, stashPickup, junfeng: junfengHighlight, faustus: faustusManager, puzzle: puzzleService, mapTracker: mapTrackerService, sanctum: sanctumService }).stopAll('server-switch')
@@ -332,6 +334,7 @@ let automationLock = null
 let chaosControlOverlay = null
 let priceCheckService = null
 let localization = null
+let marketLocalization = null
 let clientEventsService = null
 let mapTrackerService = null
 let mapTrackerOverlay = null
@@ -396,10 +399,15 @@ async function settleCleanupPhase(operations, errors) {
   }
 }
 
+async function prepareLocalizationShutdown() {
+  await Promise.all([localization?.shutdown(), marketLocalization?.shutdown()])
+}
+
 async function cleanupApplicationResources() {
   const errors = []
 
   await settleCleanupPhase([
+    () => marketLocalization?.shutdown(),
     () => dailyUsageService?.stop(),
     () => applicationTray?.dispose(),
     () => chaosRecipeService?.automation?.cleanup(),
@@ -468,7 +476,7 @@ function cleanupApplicationResourcesOnce() {
 
 const shutdownController = createShutdownController({
   app,
-  prepareCleanup: () => localization?.shutdown(),
+  prepareCleanup: prepareLocalizationShutdown,
   cleanup: cleanupApplicationResourcesOnce
 })
 
@@ -482,7 +490,7 @@ function exitApplicationImmediately(code) {
 }
 
 const applicationRestartController = createApplicationRestartController({
-  prepareCleanup: () => localization?.shutdown(),
+  prepareCleanup: prepareLocalizationShutdown,
   exitDiagnostics,
   cleanup: cleanupApplicationResourcesOnce,
   clearCache: async () => {
@@ -598,7 +606,7 @@ async function startApplication() {
   const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
   const installedUpdate = await startupTrace.measure('installed-update', () => installedUpdateRepository.loadForVersion(app.getVersion()))
   applicationUpdate = new ApplicationUpdateService({
-    prepareCleanup: () => localization?.shutdown(),
+    prepareCleanup: prepareLocalizationShutdown,
     exitDiagnostics,
     updater: electronUpdater.autoUpdater,
     currentVersion: app.getVersion(),
@@ -644,9 +652,18 @@ async function startApplication() {
 
   poeCnSession = session.fromPartition(serverMode.server.partition)
 
+  const localizationRuntime = new LocalizationRuntime({ serverId: serverMode.mode,
+    entries: () => localization?.getActiveEntries() || [], revision: () => localization?.getActiveRevision() || '',
+    baseNames: () => {
+      const names = Object.keys(itemFootprintRegistry.snapshot().items).map(key => key.split('\u001f')[1]).filter(Boolean)
+      try { names.push(...craftingService.repository.getDataset().bases.map(base => base.name)) } catch { /* builtin footprint identities remain available before crafting initializes */ }
+      return [...new Set(names)]
+    }
+  })
   craftingService = new CraftingService({
     storageRoot: serverMode.dataPath('crafting'),
     server: serverMode.server,
+    localizationRuntime,
     protocol,
     net
   })
@@ -734,6 +751,9 @@ async function startApplication() {
     onStatusChange: () => chaosControlOverlay?.sync()
   })
   faustusManager = new FaustusManager({
+    server: serverMode.server,
+    localizationProvider: () => localization?.getActiveEntries() || [],
+    localizationRevisionProvider: () => localization?.getActiveRevision() || '',
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
@@ -785,6 +805,7 @@ async function startApplication() {
   if (serverMode.mode === 'international') {
     Object.assign(tradeCatalogBundle, await loadInternationalTradeCatalog({
       baseCatalog: tradeCatalogBundle.catalog,
+      uniqueItemCatalog: uniqueItemImages.catalog,
       cacheFile: serverMode.dataPath('trade-catalog.international.json')
     }))
   } else {
@@ -805,11 +826,18 @@ async function startApplication() {
   localization = new LocalizationService({
     serverId: serverMode.mode,
     storageRoot: serverMode.dataPath('localization'),
-    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(app.getAppPath(), '.runtime'), 'localization-helper', 'LocalizationHelper.exe'),
+    executable: app.isPackaged ? path.join(process.resourcesPath, 'localization-helper', 'LocalizationHelper.exe') : fileURLToPath(new URL('../.runtime/localization-helper/LocalizationHelper.exe', import.meta.url)),
     configPath: path.join(app.getPath('documents'), 'My Games', 'Path of Exile', 'production_Config.ini'),
     baseUrl: process.env.LOCALIZATION_RESOURCE_BASE_URL || 'http://127.0.0.1:44317',
     allowLoopbackHttp: process.env.LOCALIZATION_ALLOW_LOOPBACK_HTTP !== '0',
-    publicKeyFile: process.env.LOCALIZATION_PUBLIC_KEY_FILE || path.join(app.getAppPath(), 'electron', 'assets', 'localization-public-key.pem')
+    publicKeyFile: process.env.LOCALIZATION_PUBLIC_KEY_FILE || fileURLToPath(new URL('./assets/localization-public-key.pem', import.meta.url))
+  })
+  marketLocalization = new MarketLocalizationService({
+    serverId: serverMode.mode,
+    localization,
+    storageRoot: serverMode.dataPath('localization'),
+    executable: app.isPackaged ? path.join(process.resourcesPath, 'localization-helper', 'LocalizationHelper.exe') : fileURLToPath(new URL('../.runtime/localization-helper/LocalizationHelper.exe', import.meta.url)),
+    catalogPath: fileURLToPath(new URL('./assets/market-localization/catalog.json', import.meta.url))
   })
   priceCheckService = new PriceCheckService({
     localizationProvider: () => localization.getActiveEntries(),
@@ -824,10 +852,10 @@ async function startApplication() {
       const snapshot = await craftingService.prices.refresh()
       return snapshot.records.find((record) => record.resourceId === 'currency:divine') || null
     },
-    manualInputOnly: serverMode.mode === 'international',
+    allowManualQueries: serverMode.mode === 'international',
     catalogRefresher: async () => {
       if (serverMode.mode === 'international') {
-        const generated = await generateServerTradeCatalog({ server: 'international', gameVersion: 'live', baseCatalog: tradeCatalogBundle.catalog, fetchImpl: (url, options) => poeCnSession.fetch(url, options) })
+        const generated = await generateServerTradeCatalog({ server: 'international', gameVersion: 'live', baseCatalog: tradeCatalogBundle.catalog, uniqueItemCatalog: uniqueItemImages.catalog, fetchImpl: (url, options) => poeCnSession.fetch(url, options) })
         await writeServerTradeCatalog(serverMode.dataPath('trade-catalog.international.json'), generated.catalog)
         return generated
       }
@@ -841,7 +869,7 @@ async function startApplication() {
         uniqueItemImages.catalog
       )
     },
-    overlay: serverMode.mode === 'international' ? null : priceCheckOverlay,
+    overlay: priceCheckOverlay,
     shell,
     captureClipboard: async () => {
       const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
@@ -883,9 +911,13 @@ async function startApplication() {
   mapTrackerOverlay = new MapTrackerOverlayManager({ service: mapTrackerService })
   // ponytail: catalog.json 缺失或损坏只降级圣所功能，不让应用启动失败
   try {
+    const sanctumCatalog = JSON.parse(fs.readFileSync(new URL(serverMode.mode === 'international'
+      ? './assets/sanctum/catalog.international.json' : './assets/sanctum/catalog.json', import.meta.url), 'utf8'))
     sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(serverMode.dataPath()),
       replay: replaySanctumSample, samples: listSanctumSamples, automationLock,
-      catalog: JSON.parse(fs.readFileSync(new URL('./assets/sanctum/catalog.json', import.meta.url), 'utf8')) })
+      catalog: serverMode.mode === 'international' ? createLocalizedSanctumCatalog(sanctumCatalog, {
+        entriesProvider: () => localization.getActiveEntries(), revisionProvider: () => localization.getActiveRevision()
+      }) : sanctumCatalog })
   } catch (error) { console.warn('圣所服务未启动：无法加载 catalog.json', error) }
   if (sanctumService) sanctumOverlay = new SanctumOverlay({ service: sanctumService, detection: interfaceDetection, BrowserWindowClass: BrowserWindow, screenApi: screen, commandLine: app.commandLine })
   if (sanctumService) {
@@ -908,30 +940,36 @@ async function startApplication() {
     withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)) })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
-  ipcMain.handle('server-mode:probe', async (event, league = '') => {
-    if (app.isPackaged || serverMode.mode !== 'international' || event.sender !== getMainWindow()?.webContents) return { success: false, error: '请在国际服桌面开发版主窗口验证' }
-    if (serverProbePending) return { success: false, error: '接口验证正在进行，请稍候' }
-    serverProbePending = true
-    try {
-      const characters = new PobExportService({ session: poeCnSession, server: serverMode.server, auth: chaosAuth })
-      return { success: true, data: await probeServerCapabilities({ auth: chaosAuth, stash: chaosStashClient, trade: priceCheckClient, league, characters: () => characters.listCharacters({ source: 'self' }) }) }
-    } finally { serverProbePending = false }
-  })
 
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
-  registerLocalizationHandlers(localization, getMainWindow)
+  registerLocalizationHandlers(localization, getMainWindow, localizationRuntime)
+  registerMarketLocalizationHandlers(marketLocalization, getMainWindow, ipcMain)
+  void marketLocalization.initialize()
   let localizationRevision = localization.getActiveRevision()
-  localization.on('state', () => {
+  const localizationStop = createEmergencyStopCoordinator({ chaosRecipe: chaosRecipeService, stashPickup, junfeng: junfengHighlight,
+    faustus: faustusManager, puzzle: puzzleService, mapTracker: mapTrackerService, sanctum: sanctumService })
+  const synchronizeLocalization = () => {
     if (localizationRevision === localization.getActiveRevision()) return
     localizationRevision = localization.getActiveRevision()
     priceCheckService.clear()
+    void localizationStop.stopAll('localization-changed').catch(error => startupLog.warn('localization', '汉化变更后停止任务失败', error))
     for (const window of BrowserWindow.getAllWindows()) {
-      try { if (!window.isDestroyed()) window.webContents.send('price-check-catalog-updated', priceCheckService.getStatus().catalog) }
+      try { if (!window.isDestroyed()) {
+        window.webContents.send('price-check-catalog-updated', priceCheckService.getStatus().catalog)
+        window.webContents.send('localization:state-changed', localization.getStatus())
+      } }
       catch { /* 窗口退出不影响已提交的汉化事务 */ }
     }
-  })
+  }
+  localization.on('state', synchronizeLocalization)
+  if (serverMode.mode === 'international') {
+    const timer = setInterval(synchronizeLocalization, 500)
+    timer.unref()
+    app.once('will-quit', () => clearInterval(timer))
+  }
   registerIpcHandlers({
     server: serverMode.server,
+    localizationRuntime,
     highlightModelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
     window: windowManager,
     python: { ...pythonManager, ...pythonDetector },

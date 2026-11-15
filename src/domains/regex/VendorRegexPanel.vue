@@ -35,13 +35,16 @@ import { useRegexPresetStore } from './regexPresetStore.js'
 import { VENDOR_GROUPS as sourceGroups } from './vendorData.js'
 import { localizeVendorGroups } from './vendorLanguage.js'
 import { currentServer } from '../../utils/serverContext.js'
-const VENDOR_GROUPS = localizeVendorGroups(sourceGroups, currentServer.language)
+import { useLocalizedCatalog } from '../../utils/localizedCatalog.js'
+import { localizedResultState } from './localizedRegex.js'
+const localization = useLocalizedCatalog(localizeVendorGroups(sourceGroups, 'en').flatMap(group => group.options.map(item => item.localizationText)), { match: 'contains' })
+const VENDOR_GROUPS = computed(() => localizeVendorGroups(sourceGroups, currentServer.language, localization.revision.value ? localization.aliases.value : null))
 import { createDefaultVendorConfig } from './vendorConfig.js'
 import { generateVendorRegex } from './vendorRegex.js'
 
 const store = useRegexPresetStore()
 const vendor = computed(() => store.currentVendorPreset.vendor)
-const result = computed(() => generateVendorRegex(vendor.value))
+const result = computed(() => localizedResultState(generateVendorRegex(vendor.value, currentServer.language, localization.revision.value ? localization.aliases.value : null), localization))
 let saveTimer
 watch(vendor, () => { clearTimeout(saveTimer); saveTimer = setTimeout(store.save, 250) }, { deep: true })
 

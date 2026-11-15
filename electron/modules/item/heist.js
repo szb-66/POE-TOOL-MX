@@ -6,6 +6,10 @@ const STAT_LABELS = {
   timeBeforeLockdown: ['封锁前的时间', '封锁前时间', '封锁时间', '封锁倒计时'],
   maximumAliveReinforcements: ['最大存活援军数量', '最大存活援军', '最大存活增援数量', '最大存活增援', '最大增援数量']
 }
+const FOOTERS = new Set([
+  'Give this Contract to Adiyah in the Rogue Harbour to embark on the Heist.',
+  'Use Intelligence to Reveal additional Wings and Rooms by talking to certain NPCs in the Rogue Harbour. Give this Blueprint to Adiyah to embark on the Grand Heist.'
+])
 
 export function parseHeistMetadata(lines) {
   const headerEnd = lines.findIndex(line => /^-{3,}$/.test(line))
@@ -26,7 +30,7 @@ export function parseHeistMetadata(lines) {
         consumedIndexes.add(index)
       }
     }
-    if (/^(?:#{1,6}\s*)?(?:在黄金港跟 NPC 对话|Travel to the Rogue Harbour|Talk to .+ in the Rogue Harbour)/.test(line)) consumedIndexes.add(index)
+    if (FOOTERS.has(line) || /^(?:#{1,6}\s*)?(?:在黄金港跟 NPC 对话|Travel to the Rogue Harbour|Talk to .+ in the Rogue Harbour)/.test(line)) consumedIndexes.add(index)
     if (/^(?:客户|委托人)[：:]/.test(line)) isQuestItem = true
     const area = line.match(/^区域等级[：:]\s*(\d+)$/)
     if (area) areaLevel = Number(area[1])

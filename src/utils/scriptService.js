@@ -34,7 +34,7 @@ import { useFeatureModulesStore } from '../stores/featureModules.js'
 import { filterFeatureShortcuts, shortcutFeatureId } from '../features/featureCatalog.js'
 import { freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
-import { canUseGameInput } from './serverContext.js'
+import { currentServer, canUseGameInput } from './serverContext.js'
 import {
   collectCraftingConfigurationIssues,
   collectMapConfigurationIssues,
@@ -217,7 +217,7 @@ export function emergencyStopAll() {
  */
 export async function startCrafting(options = {}) {
   if (!canUseGameInput('items')) {
-    const error = '物品制作已适配英文，游戏操作仍待开发版实测'
+    const error = '当前服务器暂未开放物品制作'
     ElMessage.warning(error)
     return { success: false, error }
   }
@@ -519,7 +519,7 @@ export async function startMapRolling({
   configurationGuideBypass = false
 } = {}) {
   if (!canUseGameInput('map')) {
-    const error = '地图制作已适配英文，游戏操作仍待开发版实测'
+    const error = '当前服务器暂未开放地图制作'
     ElMessage.warning(error)
     return { success: false, error }
   }
@@ -538,6 +538,11 @@ export async function startMapRolling({
 
   // 获取当前预设和配置
   const targetKind = presetStore.mapRollingKind
+  if (currentServer.id === 'international' && targetKind === 'chart') {
+    const error = '国际服本赛季不适配海图制作，请选择异界地图或契约蓝图；已有预设保留'
+    ElMessage.warning(error)
+    return { success: false, error }
+  }
   const currentPreset = targetKind === 'heist' ? presetStore.currentHeistPreset : targetKind === 'chart'
     ? presetStore.currentChartPreset
     : presetStore.currentMapPreset

@@ -1,0 +1,140 @@
+[
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyUpgradeToMagic",
+    "field": "Name",
+    "en": "Orb of Transmutation",
+    "kind": "dat",
+    "sourceHash": "bf6c2523b3da63c7dd1c7a73d72a25cade0192e0555ddbd877a6c3da34ebd34d",
+    "tw": "蛻變石",
+    "cn": "蜕变石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Helmets/HelmetDexInt4",
+    "field": "Name",
+    "en": "Festival Mask",
+    "kind": "dat",
+    "sourceHash": "125791a75015721789bcf9c6650dbade4e809c3d6c3cb22f1bccc0d1bdc208f1",
+    "tw": "節慶之面",
+    "cn": "节庆之面"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyModValues",
+    "field": "Name",
+    "en": "Divine Orb",
+    "kind": "dat",
+    "sourceHash": "839e88e8238abf2e5cdde0e97b0e145b81dedda7c57ac455f660adaa1df5f045",
+    "tw": "神聖石",
+    "cn": "神圣石"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayStringRarity",
+    "field": "Text",
+    "en": "Rarity",
+    "kind": "dat",
+    "sourceHash": "feddcf308625463b129c9019c7ff68dbac24d299d33320828a498a2cf365f38a",
+    "tw": "稀有度",
+    "cn": "稀 有 度"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayStringClass",
+    "field": "Text",
+    "en": "Item Class",
+    "kind": "dat",
+    "sourceHash": "b187136bcf2a6b210ddd0f198666c809157cbc0a69be603ababe0afe68a39442",
+    "tw": "物品種類",
+    "cn": "物品类别"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemPopupUnidentified",
+    "field": "Text",
+    "en": "Unidentified",
+    "kind": "dat",
+    "sourceHash": "dd599b1675327720fe4f138b71ff44ebdcac6d7fa553e19a3de27843c46db01c",
+    "tw": "未鑑定",
+    "cn": "未鉴定"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemPopupCorrupted",
+    "field": "Text",
+    "en": "Corrupted",
+    "kind": "dat",
+    "sourceHash": "f020e0a7485a88e88002e77d3ee30841e899ebe02d97aa4a224e3cec41781e00",
+    "tw": "已汙染",
+    "cn": "已腐化"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayStringItemLevel",
+    "field": "Text",
+    "en": "Item Level",
+    "kind": "dat",
+    "sourceHash": "7e2ae81ad6a4d5b9211a13c2c68e8171bba74b14ec83df914a7cf5cba9926752",
+    "tw": "物品等級",
+    "cn": "物品等级"
+  },
+  {
+    "table": "words",
+    "id": "hash:00c94c07",
+    "field": "Text2",
+    "en": "Leer Cast",
+    "kind": "dat",
+    "sourceHash": "93074e6e027765c4489af18dffb9f6da89ea5d817fd9ecfb011a5a275724c399",
+    "tw": "共鳴之面",
+    "cn": "共鸣之面"
+  },
+  {
+    "table": "words",
+    "id": "hash:378f162b",
+    "field": "Text",
+    "en": "Replica Leer Cast",
+    "kind": "dat",
+    "sourceHash": "04eeee7673f045dbd90491b360df43cf124e2c1c5c867056835a13a248e4dd80",
+    "tw": "Replica Leer Cast"
+  },
+  {
+    "table": "words",
+    "id": "hash:378f162b",
+    "field": "Text2",
+    "en": "Replica Leer Cast",
+    "kind": "dat",
+    "sourceHash": "04eeee7673f045dbd90491b360df43cf124e2c1c5c867056835a13a248e4dd80",
+    "tw": "贗品．共鳴之面",
+    "cn": "共鸣之面【仿品】"
+  },
+  {
+    "table": "words",
+    "id": "hash:00c94c07",
+    "field": "Text",
+    "en": "Leer Cast",
+    "kind": "dat",
+    "sourceHash": "93074e6e027765c4489af18dffb9f6da89ea5d817fd9ecfb011a5a275724c399",
+    "tw": "Leer Cast"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Helmet",
+    "field": "Name",
+    "en": "Helmets",
+    "kind": "dat",
+    "sourceHash": "244284e3263e10ebc6fb777042ae5850eef509cc9b72d501ae0f6a254e359e66",
+    "tw": "頭部",
+    "cn": "头部"
+  }
+]

@@ -23,6 +23,7 @@
     "runtime:prepare": "node scripts/runtime/prepare.js",
     "runtime:verify": "node scripts/runtime/verify.js",
     "localization:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/buildLocalizationHelper.ps1",
+    "market:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/buildMarketLocalization.ps1",
     "junfeng:dataset": "python scripts/junfeng/build_dataset.py",
     "junfeng:train": "python scripts/junfeng/train_model.py",
     "junfeng:benchmark": "python scripts/junfeng/benchmark_model.py",

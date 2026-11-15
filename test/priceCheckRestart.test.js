@@ -54,6 +54,18 @@ test('重启恢复期间查价先启用后台，恢复失败不捕获，成功�
   await store.syncRuntime()
   assert.equal(store.error, '')
   assert.equal(store.failure, null)
+  for (const message of ['查价器尚未启用', '国际服查价器尚未启用']) {
+    store.error = message
+    store.failure = { message }
+    await store.syncRuntime()
+    assert.equal(store.error, '')
+    assert.equal(store.failure, null)
+  }
+  store.error = '查价尚未运行，请启用'
+  store.failure = { failureCode: 'PRICE_CHECK_DISABLED', message: store.error }
+  await store.syncRuntime()
+  assert.equal(store.error, '')
+  assert.equal(store.failure, null)
   store.error = '网络错误'
   await store.syncRuntime()
   assert.equal(store.error, '网络错误')

@@ -1,0 +1,250 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "gain_adrenaline_for_X_seconds_on_kill",
+    "field": "variant:0",
+    "en": "Gain Adrenaline for {0} second on Kill",
+    "kind": "stat",
+    "sourceHash": "d789d5c97314bea9cc6bd91b501888847d8e6449afabd16423ee17ca8db88a7d",
+    "stats": {
+      "ids": [
+        "gain_adrenaline_for_X_seconds_on_kill"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "reminderstring ReminderTextAdrenaline",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextAdrenaline",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "擊殺時獲得腎上腺素 {0} 秒",
+    "cn": "击败敌人时能获得肾上腺素，持续{0}秒"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "herald_scorpion_number_of_additional_projectiles",
+    "field": "variant:0",
+    "en": "Summoned Agony Crawler fires {0} additional Projectile",
+    "kind": "stat",
+    "sourceHash": "1ce8029172a8f6283c3831274a4a731c4c75c12dee0871ee8660f3966b5dd6b4",
+    "stats": {
+      "ids": [
+        "herald_scorpion_number_of_additional_projectiles"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚的苦痛潛伏者發射 {0} 個額外投射物",
+    "cn": "召唤的苦痛爬行者额外发射 {0} 的投射物"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_ignite_proliferation_radius_during_effect",
+    "field": "variant:0",
+    "en": "Ignites you inflict during Effect spread to other Enemies within {0} metre",
+    "kind": "stat",
+    "sourceHash": "449f09c5fc3e984947e82af51d7ab8c380278c70357c4a8c12ac5a387868a270",
+    "stats": {
+      "ids": [
+        "local_flask_ignite_proliferation_radius_during_effect"
+      ],
+      "variants": [
+        {
+          "condition": "10",
+          "handlers": "locations_to_metres 1",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#",
+          "handlers": "locations_to_metres 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "效果期間由你造成的點燃會擴散到 {0} 公尺內的其他敵人身上",
+    "cn": "生效期间，你造成的点燃会扩散给 {0} 米内的其他敌人"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "gain_adrenaline_for_X_seconds_on_kill",
+    "field": "variant:1",
+    "en": "Gain Adrenaline for {0} seconds on Kill",
+    "kind": "stat",
+    "sourceHash": "d4236464474c534d35ae3b56b39ab355397197f85314e4b889a758bf9dcad932",
+    "stats": {
+      "ids": [
+        "gain_adrenaline_for_X_seconds_on_kill"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "reminderstring ReminderTextAdrenaline",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextAdrenaline",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "擊殺時獲得腎上腺素 {0} 秒",
+    "cn": "击败敌人时能获得肾上腺素，持续{0}秒"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_gain_X_charges_when_hit",
+    "field": "variant:1",
+    "en": "Gain {0} Charges when you are Hit by an Enemy",
+    "kind": "stat",
+    "sourceHash": "5b3eb71e5cc77f5a4a8d12f8f8bade6508d6efb23f363990292feaa105cde6c4",
+    "stats": {
+      "ids": [
+        "local_flask_gain_X_charges_when_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "當你被敵人擊中時獲得 {0} 充能",
+    "cn": "你被敌人击中时获得 {0} 次充能"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_ignite_proliferation_radius_during_effect",
+    "field": "variant:1",
+    "en": "Ignites you inflict during Effect spread to other Enemies within {0} metres",
+    "kind": "stat",
+    "sourceHash": "1ccbbb772db999f6b35a67f42b2f869efb509c792f88b57afbe22b6a1c7e91c2",
+    "stats": {
+      "ids": [
+        "local_flask_ignite_proliferation_radius_during_effect"
+      ],
+      "variants": [
+        {
+          "condition": "10",
+          "handlers": "locations_to_metres 1",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#",
+          "handlers": "locations_to_metres 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "效果期間由你造成的點燃會擴散到 {0} 公尺內的其他敵人身上",
+    "cn": "生效期间，你造成的点燃会扩散给 {0} 米内的其他敌人"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "herald_scorpion_number_of_additional_projectiles",
+    "field": "variant:1",
+    "en": "Summoned Agony Crawler fires {0} additional Projectiles",
+    "kind": "stat",
+    "sourceHash": "2da45934b90dc05613c14cc62fd5501d483075a5f0e56a12ca5e496b83b0af45",
+    "stats": {
+      "ids": [
+        "herald_scorpion_number_of_additional_projectiles"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚的苦痛潛伏者發射 {0} 個額外投射物",
+    "cn": "召唤的苦痛爬行者额外发射 {0} 的投射物"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_gain_X_charges_when_hit",
+    "field": "variant:0",
+    "en": "Gain {0} Charge when you are Hit by an Enemy",
+    "kind": "stat",
+    "sourceHash": "89377182c5b07658bf3b4cc0b99d3621174fc163eca0f9f411d07408fb9972c4",
+    "stats": {
+      "ids": [
+        "local_flask_gain_X_charges_when_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "當你被敵人擊中時獲得 {0} 充能",
+    "cn": "你被敌人击中时获得 {0} 次充能"
+  }
+]

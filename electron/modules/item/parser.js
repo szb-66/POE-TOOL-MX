@@ -160,6 +160,7 @@ export function parseItemInfo(clipboardText) {
 
     const tierPatterns = [
       /地图阶级:\s*(\d+)/,
+      /Map \(Tier\s+(\d+)\)/i,
       /地图[（(]\s*(\d+)\s*阶[）)]/
     ]
 
@@ -183,8 +184,8 @@ export function parseItemInfo(clipboardText) {
   const cleanModifierLine = (text) => text
     .replace(/^[▲▽]\s*/, '')
     .replace(/(?:\s*(?:\[[^\]]*\]|\([^()\]]*★[^()\]]*\)))+\s*$/g, '')
-    .replace(/(-?\d+(?:\.\d+)?)\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '$1')
-    .replace(/\((-?\d+(?:\.\d+)?)-(-?\d+(?:\.\d+)?)\)/g, '')
+    .replace(/(-?\d+(?:\.\d+)?)[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '$1')
+    .replace(/[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '')
     .trim()
 
   const flushModifier = () => {
@@ -251,11 +252,11 @@ export function parseItemInfo(clipboardText) {
     '怪物群大小:', // 地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
     '区域等级:',
     '亡者硫磺:',
-    '更多地图:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤，防止解析失败时被误处理）
-    '更多圣甲虫:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
+    '更多地图:', // 地图额外收益属性（已专门解析，保留过滤以免解析失败时误作词缀）
+    '更多圣甲虫:', // 地图额外收益属性（已专门解析，保留过滤以免解析失败时误作词缀）
     '更多丝线:',
     '异界掉落:',
-    '更多通货:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
+    '更多通货:', // 地图额外收益属性（已专门解析，保留过滤以免解析失败时误作词缀）
     '怪物等级:', // 地图属性
     '品质:',
     '护甲:',
@@ -512,9 +513,9 @@ export function parseItemInfo(clipboardText) {
       itemInfo.baseName = line
       if (!itemInfo.name) itemInfo.name = itemInfo.baseName
     }
-    else if (identityHeaderOpen && !itemInfo.name && line && !line.includes(':') && !isIgnoredTextLine(line)) {
+    else if (identityHeaderOpen && !itemInfo.name && line && !isIgnoredTextLine(line)) {
       itemInfo.name = line
-      if (itemInfo.rarity.replace(/\s/g, '') === '传奇' && /^秽生/.test(line)) itemInfo.isMutated = true
+      if (itemInfo.rarity.replace(/\s/g, '') === '传奇' && /^(?:秽生|Foulborn\s+)/.test(line)) itemInfo.isMutated = true
     }
     else if (identityHeaderOpen && itemInfo.name && !itemInfo.baseName && line && !isIgnoredTextLine(line)) {
       itemInfo.baseName = line

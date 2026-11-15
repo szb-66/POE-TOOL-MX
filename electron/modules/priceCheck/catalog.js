@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { enrichOfficialItemsWithImages } from './uniqueItemSnapshot.js'
+import { enrichOfficialItemsWithImages, enrichInternationalItemsWithImages } from './uniqueItemSnapshot.js'
 import {
   CHART_BASE_TYPES,
   CHART_REGION_ALIASES_VERSION,
@@ -371,7 +371,7 @@ export async function loadTradeCatalog(file = path.join(moduleDir, 'catalog.json
   return { catalog, status: tradeCatalogStatus(catalog, now) }
 }
 
-export async function loadInternationalTradeCatalog({ baseCatalog, cacheFile, bundledFile = path.join(moduleDir, 'catalog.international.json'), now = Date.now() }) {
+export async function loadInternationalTradeCatalog({ baseCatalog, cacheFile, bundledFile = path.join(moduleDir, 'catalog.international.json'), uniqueItemCatalog = null, now = Date.now() }) {
   for (const [file, provider] of [[cacheFile, 'cached'], [bundledFile, 'bundled']]) {
     if (!file) continue
     try {
@@ -380,6 +380,7 @@ export async function loadInternationalTradeCatalog({ baseCatalog, cacheFile, bu
       if (catalog.provider !== 'poe-international' || catalog.locale !== 'en' ||
           catalog.manifest?.server !== 'international' || catalog.manifest.language !== 'en' ||
           catalog.manifest.gameVersion !== catalog.gameVersion) continue
+      catalog.items = enrichInternationalItemsWithImages(catalog.items, uniqueItemCatalog)
       return { catalog, status: { ...status, provider, degraded: status.stale, loading: false,
         warning: status.stale ? '国际服交易目录快照已过期，请刷新官方目录' : '' } }
     } catch { /* 缓存损坏时继续读取国际服内置快照，绝不加载国服目录。 */ }
@@ -558,13 +559,14 @@ export function emptyInternationalTradeCatalog(baseCatalog) {
   }
 }
 
-export function createInternationalTradeCatalog(baseCatalog, statsPayload, itemsPayload, staticPayload, gameVersion, now = Date.now()) {
+export function createInternationalTradeCatalog(baseCatalog, statsPayload, itemsPayload, staticPayload, gameVersion, now = Date.now(), uniqueItemCatalog = null) {
   if (!gameVersion || gameVersion === 'unverified') throw new Error('请明确指定国际服补丁版本')
   const base = emptyInternationalTradeCatalog(baseCatalog)
   base.gameVersion = String(gameVersion)
   const result = createOfficialTradeCatalog(base, statsPayload, now, itemsPayload)
   result.catalog.provider = 'poe-international'
   result.catalog.locale = 'en'
+  result.catalog.items = enrichInternationalItemsWithImages(result.catalog.items, uniqueItemCatalog)
   result.catalog.sources = ['https://www.pathofexile.com/api/trade/data/stats', 'https://www.pathofexile.com/api/trade/data/items', 'https://www.pathofexile.com/api/trade/data/static']
   result.catalog.stats = result.catalog.stats.map(entry => ({ ...entry, availability: 'international' }))
   result.catalog.statEquivalenceGroups = createStatEquivalenceGroups(statsPayload).map(group => ({ ...group, key: group.key.replace(/^poe-cn:/, 'poe-international:') }))

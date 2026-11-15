@@ -6,7 +6,7 @@ import { getServer } from '../shared/serverMode.js'
 import { createInternationalTradeCatalog, validateTradeCatalog } from '../electron/modules/priceCheck/catalog.js'
 import { refreshOfficialTradeCatalog } from './generateTradeCatalog.js'
 
-export async function generateServerTradeCatalog({ server: id, gameVersion, baseCatalog, fetchImpl = fetch, now = Date.now() }) {
+export async function generateServerTradeCatalog({ server: id, gameVersion, baseCatalog, uniqueItemCatalog = null, fetchImpl = fetch, now = Date.now() }) {
   const server = getServer(id)
   // 实时交易目录没有官方补丁号字段；live 明确表示在线快照，不能用于离线规则或 PoB 版本推断。
   if (!(id === 'international' && gameVersion === 'live') && !/^\d+\.\d+(?:\.\d+)?$/.test(gameVersion || '')) throw new Error('必须指定有效的游戏补丁版本')
@@ -34,7 +34,7 @@ export async function generateServerTradeCatalog({ server: id, gameVersion, base
     sources.push({ url, sha256: createHash('sha256').update(body).digest('hex') })
     payloads.push(payload)
   }
-  const result = createInternationalTradeCatalog(baseCatalog, ...payloads, gameVersion, now)
+  const result = createInternationalTradeCatalog(baseCatalog, ...payloads, gameVersion, now, uniqueItemCatalog)
   if (result.catalog.items.length < 100 || !Object.keys(result.catalog.currencyLabels).length) throw new Error('国际服物品或通货目录覆盖不足')
   result.catalog.manifest = { server: id, language: server.language, gameVersion, generatedAt: new Date(now).toISOString(), sources }
   return result

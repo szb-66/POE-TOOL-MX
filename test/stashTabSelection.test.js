@@ -192,7 +192,7 @@ test('仓库页配置注入后的两类 Python 模板保持可解析且关闭路
     MODIFIER_SETTLE_MS: '50', KEY_HOLD_MS: '20', BUTTON_HOLD_MS: '20', RELEASE_SETTLE_MS: '20',
     ADAPTIVE_TIMEOUT_MS: '1000',
     CLIPBOARD_CONFIRM_MS: '250', STASH_TAB_SETTLE_MS: '250', STASH_SETTLE_MS: '200',
-    CURRENCY_POSITIONS: '{}', REQUIRED_CURRENCY_TYPES: '[]', CURRENCY_EXPECTED_NAMES: '{}', DPI_SCALE_FACTOR: '1',
+    CURRENCY_POSITIONS: '{}', REQUIRED_CURRENCY_TYPES: '[]', CURRENCY_EXPECTED_NAMES: '{}', LOCALIZATION_SNAPSHOT_JSON: '"{}"', DPI_SCALE_FACTOR: '1',
     STOP_SHORTCUT: 'Alt+3', PYNPUT_STOP_SHORTCUT: '<alt>+3',
     BATCH_CONFIG_JSON: JSON.stringify(JSON.stringify({ enabled: false, targets: [], completedIds: [], memberIds: [] })),
     STASH_TAB_SELECTION_JSON: JSON.stringify(JSON.stringify({ enabled: false, names: { currency: '通货' } }))

@@ -31,7 +31,7 @@
           <p class="hint">包括项匹配任意一种野兽；价格与名称同时满足。共 {{ options.length }} 种野兽。</p>
           <div class="beast-list">
             <div v-for="beast in filtered" :key="beast.id" class="beast-row">
-              <span>{{ beast.name }}</span>
+              <span>{{ displayBeastName(beast) }}</span>
               <div class="actions">
                 <el-button size="small" :type="config.includeIds.includes(beast.id) ? 'success' : 'default'" @click="toggle(beast.id, 'include')">包括</el-button>
                 <el-button size="small" :type="config.excludeIds.includes(beast.id) ? 'danger' : 'default'" @click="toggle(beast.id, 'exclude')">排除</el-button>
@@ -56,17 +56,22 @@ import RegexResultCard from './RegexResultCard.vue'
 import { useRegexPresetStore } from './regexPresetStore.js'
 import { MAP_PRICE_CURRENCIES, validateMapPriceRange } from './mapRegex.js'
 import { BEAST_REGEX_OPTIONS, createDefaultBeastRegexConfig, generateBeastRegex } from './beastRegex.js'
+import { catalogDisplayText, catalogSearchText, useLocalizedCatalog } from '../../utils/localizedCatalog.js'
+import { currentServer } from '../../utils/serverContext.js'
+import { localizedResultState } from './localizedRegex.js'
 
 const store = useRegexPresetStore()
 const options = BEAST_REGEX_OPTIONS
+const localization = useLocalizedCatalog(options.map(beast => beast.name))
+const displayBeastName = beast => catalogDisplayText(beast.name, localization.aliases.value)
 const query = ref('')
 const config = computed(() => store.currentBeastRegexPreset.beastRegex)
-const result = computed(() => generateBeastRegex(config.value))
+const result = computed(() => localizedResultState(generateBeastRegex(config.value, currentServer.language, localization.revision.value ? localization.aliases.value : null), localization))
 const priceStatus = computed(() => validateMapPriceRange(config.value.priceRange))
-const filtered = computed(() => options.filter(item => item.name.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase())))
+const filtered = computed(() => options.filter(item => catalogSearchText([item.name], localization.aliases.value).includes(query.value.trim().toLocaleLowerCase())))
 const selected = computed(() => [
-  ...config.value.includeIds.map(id => ({ id, name: options.find(item => item.id === id)?.name || id, mode: 'include' })),
-  ...config.value.excludeIds.map(id => ({ id, name: options.find(item => item.id === id)?.name || id, mode: 'exclude' }))
+  ...config.value.includeIds.map(id => ({ id, name: displayBeastName(options.find(item => item.id === id) || { name: id }), mode: 'include' })),
+  ...config.value.excludeIds.map(id => ({ id, name: displayBeastName(options.find(item => item.id === id) || { name: id }), mode: 'exclude' }))
 ])
 let saveTimer
 watch(config, () => { clearTimeout(saveTimer); saveTimer = setTimeout(store.save, 250) }, { deep: true })

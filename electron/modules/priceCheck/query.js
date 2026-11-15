@@ -1,5 +1,6 @@
 import { isCatalogStatQueryable, isTradeStatId, resolveCatalogStat, resolveChartRegion } from './catalog.js'
 import { CHART_SHAPES, resolveChartShape } from './chartRegions.js'
+import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
 import { createPseudoStats } from './pseudo.js'
 import { SPECIAL_DISCRIMINATORS, resolveSpecialItemIdentity, addLogbookStats, isLogbookStat } from './specialItems.js'
@@ -29,9 +30,7 @@ const MAP_REWARD_STAT_IDS = new Set(MAP_REWARD_STATS.map(([, , id]) => id))
 const catalogStatRefIndexes = new WeakMap()
 
 const safeText = (value, max = 180) => String(value || '').trim().slice(0, max)
-const tradeStatText = (value) => String(value || '')
-  .replace(/\s*[—–]\s*数值不可调整\s*$/, '')
-  .trim()
+const tradeStatText = value => stripFixedValueAnnotation(value).trim()
 
 function discriminatorForCategory(officialCategory) {
   const category = officialCategory?.category
@@ -44,6 +43,27 @@ function resolveNonUniqueBaseType(item, catalog) {
 
   const fullName = safeText(item.name)
   if (!fullName) return fallback
+  if (catalog?.locale === 'en' && item.rarity?.replace(/\s/g, '') === '魔法') {
+    const family = resolvePriceCheckCategory(item.category)?.category.split('.')[0]
+    const normalized = fullName.replace(/\s+/g, ' ').toLowerCase()
+    const word = value => /[\p{Script=Latin}\p{N}_]/u.test(value || '')
+    const matches = []
+    for (const entry of catalog.items || []) {
+      if (entry.unique || (family && entry.category !== family)) continue
+      const baseType = safeText(entry.baseType || entry.type)
+      const needle = baseType.replace(/\s+/g, ' ').toLowerCase()
+      if (!needle) continue
+      for (let start = normalized.indexOf(needle); start >= 0; start = normalized.indexOf(needle, start + 1)) {
+        const end = start + needle.length
+        if (word(normalized[start - 1]) || word(normalized[end])) continue
+        matches.push({ start, end, baseType })
+      }
+    }
+    const maximal = matches.filter(match => !matches.some(other => other.start <= match.start && other.end >= match.end && other.end - other.start > match.end - match.start))
+    const identities = new Set(maximal.map(match => match.baseType))
+    if (identities.size > 1) throw new Error('魔法物品名称含多个底材候选，已阻止查询')
+    return identities.size === 1 ? identities.values().next().value : fallback
+  }
   const candidates = new Set()
   for (const entry of catalog?.items || []) {
     if (entry?.unique === true) continue
@@ -128,8 +148,8 @@ function resolveFoulbornUniqueName(item, catalog, baseType) {
   ))
   const exact = find(name)
   if (exact.length === 1) return name
-  if (!exact.length && /^秽生/.test(name)) {
-    const originalName = name.replace(/^秽生\s*/, '')
+  if (!exact.length && /^(?:秽生|Foulborn\s+)/.test(name)) {
+    const originalName = name.replace(/^(?:秽生\s*|Foulborn\s+)/, '')
     if (find(originalName).length === 1) return originalName
   }
   throw new Error(`无法识别秽生传奇“${name}”的官方查询身份`)
@@ -159,6 +179,18 @@ function multiplierForMergedValues(values, fallback = 1) {
   if (value < 0) return -1
   if (value > 0) return 1
   return normalizeValueMultiplier(fallback)
+}
+
+function statQueryMetadata(match, values = match.values) {
+  const valueMultiplier = multiplierForMergedValues(values, match.valueMultiplier)
+  const direction = valueMultiplier * normalizeValueMultiplier(match.valueMultiplier)
+  return {
+    valueMultiplier,
+    ...(match.equivalenceGroup ? { equivalenceGroup: match.equivalenceGroup } : {}),
+    ...(match.queryVariants?.length > 1 ? { queryVariants: match.queryVariants.map(variant => ({
+      ...variant, valueMultiplier: normalizeValueMultiplier(variant.valueMultiplier) * direction
+    })) } : {})
+  }
 }
 
 function originalValueBounds(values) {
@@ -236,18 +268,11 @@ export function mergeStatIntoList(stats, stat) {
     : `${value.type}\u0000${value.id}`
   const existing = stats.find((entry) => identity(entry) === identity(stat))
   if (!existing) {
-    stats.push({ ...stat, key: `${stat.type}:${stat.id}`, valueMultiplier: normalizeValueMultiplier(stat.valueMultiplier) })
+    stats.push({ ...stat, key: `${stat.type}:${stat.id}`, valueMultiplier: multiplierForMergedValues(stat.values, stat.valueMultiplier) })
     return stats.at(-1)
   }
   existing.sources.push(...(stat.sources || []))
   existing.refs = [...new Set([...(existing.refs || []), ...(stat.refs || [])])]
-  if (existing.equivalenceGroup && stat.equivalenceGroup === existing.equivalenceGroup) {
-    existing.queryVariants = [...new Map([
-      ...(existing.queryVariants || []),
-      ...(stat.queryVariants || [])
-    ].map((variant) => [variant.id, variant])).values()]
-      .sort((a, b) => a.id.localeCompare(b.id, 'en'))
-  }
   existing.ref = existing.refs.length === 1 ? existing.refs[0] : null
   const mergeValue = existing.merge === 'max'
     ? (left, right) => Math.max(left ?? -Infinity, right ?? -Infinity)
@@ -257,7 +282,18 @@ export function mergeStatIntoList(stats, stat) {
     (_, index) => mergeValue(existing.values[index], stat.values[index])
   )
   const previousMultiplier = normalizeValueMultiplier(existing.valueMultiplier)
-  const nextMultiplier = multiplierForMergedValues(existing.values, previousMultiplier)
+  const nextMultiplier = multiplierForMergedValues(existing.values)
+  if (existing.equivalenceGroup && stat.equivalenceGroup === existing.equivalenceGroup) {
+    // Each source's variants use its own display direction; align them with the merged values.
+    const variants = source => (source.queryVariants || []).map(variant => ({
+      ...variant,
+      valueMultiplier: normalizeValueMultiplier(variant.valueMultiplier) * normalizeValueMultiplier(source.valueMultiplier) * nextMultiplier
+    }))
+    existing.queryVariants = [...new Map([
+      ...variants(existing), ...variants(stat)
+    ].map(variant => [variant.id, variant])).values()]
+      .sort((a, b) => a.id.localeCompare(b.id, 'en'))
+  }
   if (nextMultiplier !== previousMultiplier && normalizeValueMultiplier(stat.valueMultiplier) === nextMultiplier) {
     existing.label = stat.label
     existing.text = stat.text
@@ -318,7 +354,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   }
   const baseType = specialIdentity?.type || mercenaryWarrant?.type || (isChart
     ? chartRegion.type
-    : (isMap ? '地图' : resolveNonUniqueBaseType(item, catalog)))
+    : (isMap ? (catalog?.locale === 'en' ? 'Map' : '地图') : resolveNonUniqueBaseType(item, catalog)))
   const isClusterJewel = /^(?:大型|中型|小型)星团珠宝$/.test(baseType)
   const fixedIdentity = rarity === '传奇' && (!isMap || !item.isUnidentified)
     ? resolveFoulbornUniqueName(item, catalog, baseType) : ''
@@ -413,9 +449,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         tier: Number(modifier.tier) || null,
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
         values: match.values,
-        valueMultiplier: match.valueMultiplier,
-        ...(match.equivalenceGroup ? { equivalenceGroup: match.equivalenceGroup } : {}),
-        ...(match.queryVariants?.length > 1 ? { queryVariants: structuredClone(match.queryVariants) } : {}),
+        ...statQueryMetadata(match),
         merge: match.merge,
         sources: [{
           key: `${match.id}:${stats.length}`,
@@ -426,7 +460,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
             : effect.text,
           name: modifier.sourceContext || modifier.name || '',
           values: match.values,
-          valueMultiplier: match.valueMultiplier,
+          valueMultiplier: multiplierForMergedValues(match.values, match.valueMultiplier),
           refs: [...(match.refs || [])],
           ref: match.ref
         }],
@@ -605,8 +639,9 @@ export function createPriceCheckModel(item, catalog, options = {}) {
 export function resolveUnidentifiedUnique(model, catalog) {
   if (model?.item?.rarity !== '传奇' || !model.item.unidentified) return model
   if (model.identity?.category === 'map') {
-    model.identity = { ...model.identity, name: '', type: '地图', discriminator: 'map', nameEnabled: true }
-    model.identityResolution = { required: false, baseType: '地图', candidates: [] }
+    const baseType = catalog?.locale === 'en' ? 'Map' : '地图'
+    model.identity = { ...model.identity, name: '', type: baseType, discriminator: 'map', nameEnabled: true }
+    model.identityResolution = { required: false, baseType, candidates: [] }
     return model
   }
   const baseType = safeText(model.identity?.type || model.item.baseType)
@@ -734,9 +769,7 @@ function trustedQueryMetadata(catalog, stat) {
   return {
     id: match.id,
     type: match.type,
-    valueMultiplier: match.valueMultiplier,
-    equivalenceGroup: match.equivalenceGroup,
-    queryVariants: structuredClone(match.queryVariants)
+    ...statQueryMetadata(match, stat.values)
   }
 }
 
@@ -831,6 +864,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       id,
       label: safeText(stat.label),
       text: safeText(stat.text, 500),
+      ...(stat.displayText ? { displayText: safeText(stat.displayText, 500) } : {}),
       type,
       ...(trustedFoulbornKeys.has(stat.key) ? { sourceSubtype: 'foulborn' } : {}),
       refs,
@@ -854,6 +888,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
               id: sourceId,
               type: sourceType,
               text: safeText(source.text, 500),
+              ...(source.displayText ? { displayText: safeText(source.displayText, 500) } : {}),
               name: safeText(source.name, 120),
               refs: sourceRefs,
               ref: sourceRefs.length === 1 ? sourceRefs[0] : null,
@@ -966,7 +1001,8 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
     (catalog?.items || []).some((entry) => entry.discriminator === submittedDiscriminator &&
       entry.baseType === value.identity?.type && (
         (entry.category === 'gem' && officialCategory?.category.startsWith('gem.')) ||
-        (entry.category === 'map' && officialCategory?.category === 'map')
+        (entry.category === 'map' && officialCategory?.category === 'map') ||
+        (entry.category === 'currency' && officialCategory?.category === 'currency')
       ))
   const discriminator = IDENTITY_DISCRIMINATORS.has(trustedDiscriminator)
     ? trustedDiscriminator
@@ -977,7 +1013,16 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
   const name = safeText(trustedModel?.identity?.name ?? value.identity?.name)
   const nameEnabled = value.identity?.nameEnabled === false && officialCategory ? false : true
   const mercenarySkillGroups = sanitizeMercenarySkillGroups(value, catalog, trustedModel)
+  const presentation = trustedModel?.presentation || value.presentation
   return {
+    ...(['cn', 'tw', 'en'].includes(presentation?.language) ? {
+      presentation: {
+        language: presentation.language,
+        texts: Object.fromEntries(Object.entries(presentation.texts || {}).slice(0, 2048)
+          .filter(([key, text]) => typeof text === 'string' && key.length <= 500)
+          .map(([key, text]) => [key, safeText(text, 500)]))
+      }
+    } : {}),
     identityPrecision: (() => {
       const required = trustedModel?.identityPrecision?.requiresConsent ||
         ((trustedModel?.item?.rarity ?? value.item?.rarity) === '传奇' && /^退化/.test(trustedModel?.identity?.type ?? value.identity?.type ?? ''))
@@ -1030,6 +1075,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       return {
         key: safeText(unknown.key, 500),
         text: safeText(unknown.text, 500),
+        ...(unknown.displayText ? { displayText: safeText(unknown.displayText, 500) } : {}),
         type,
         tier: Number.isInteger(Number(unknown.tier)) && Number(unknown.tier) > 0 ? Number(unknown.tier) : null,
         tags: Array.isArray(unknown.tags) ? unknown.tags.slice(0, 12).map((tag) => safeText(tag, 40)).filter(Boolean) : [],

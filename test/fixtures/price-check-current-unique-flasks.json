@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-11-15T17:43:35.303Z",
+  "sources": [
+    "https://www.pathofexile.com/api/trade/data/stats",
+    "https://www.pathofexile.com/api/trade/data/items",
+    "https://www.pathofexile.com/api/trade/data/static"
+  ],
+  "items": [
+    {
+      "key": "official-item-2852",
+      "name": "Dreadmaidens' Sacrament",
+      "baseType": "Basalt Flask",
+      "text": "Dreadmaidens' Sacrament Basalt Flask",
+      "discriminator": "",
+      "category": "flask",
+      "unique": true,
+      "legacy": false,
+      "imageId": "placeholder",
+      "imageUrl": "price-check-image://snapshot/placeholder"
+    }
+  ],
+  "stats": [
+    {
+      "key": "official-explicit-explicit-stat-1582728645",
+      "label": "Gain 数值 Charge when you are Hit by an Enemy",
+      "matchers": [
+        "Gain # Charge when you are Hit by an Enemy"
+      ],
+      "ids": {
+        "explicit": "explicit.stat_1582728645"
+      },
+      "availability": "international"
+    },
+    {
+      "key": "official-explicit-explicit-stat-3860231079",
+      "label": "Removes 数值% of Life when Used",
+      "matchers": [
+        "Removes #% of Life when Used"
+      ],
+      "ids": {
+        "explicit": "explicit.stat_3860231079"
+      },
+      "availability": "international"
+    },
+    {
+      "key": "official-explicit-explicit-stat-86321750",
+      "label": "数值% chance for a damaging Retaliation skill to become usable for every 100 life removed this way",
+      "matchers": [
+        "#% chance for a damaging Retaliation skill to become usable for every 100 life removed this way"
+      ],
+      "ids": {
+        "explicit": "explicit.stat_86321750"
+      },
+      "availability": "international"
+    },
+    {
+      "key": "official-implicit-implicit-stat-2005503156",
+      "label": "Taunts Enemies within 数值 metres on use",
+      "matchers": [
+        "Taunts Enemies within # metres on use"
+      ],
+      "ids": {
+        "implicit": "implicit.stat_2005503156"
+      },
+      "availability": "international"
+    }
+  ]
+}

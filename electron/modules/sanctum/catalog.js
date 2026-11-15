@@ -50,9 +50,19 @@ export function sanctumRule(rawText) {
 }
 
 export function isCurrentSanctumEntry(catalog, entry) {
-  return catalog?.schemaVersion === 1 && catalog.game === 'poe1' && catalog.patch === SEASON_BASELINE.patch
+  return isCurrentSanctumCatalog(catalog)
     && entry?.applicability === 'current' && entry.reviewedPatch === catalog.patch
     && catalog.sources?.some(source => source.id === entry.sourceId && source.channel === 'official')
+}
+
+export function isCurrentSanctumCatalog(catalog) {
+  const patch = catalog?.server === 'international' ? '3.30.0' : SEASON_BASELINE.patch
+  return catalog?.schemaVersion === 1 && catalog.game === 'poe1' && catalog.patch === patch
+    && (catalog.server !== 'international' || catalog.versionEvidence?.patch === patch && catalog.language === 'en')
+}
+
+export function sanctumEntryRules(entry) {
+  return entry.rules || (entry.descriptions || []).map(sanctumRule)
 }
 
 // Matching names is separate from accepting a rule as current. Never use fuzzy
@@ -60,15 +70,16 @@ export function isCurrentSanctumEntry(catalog, entry) {
 export function resolveSanctumCatalogText(catalog, kind, rawText) {
   if (typeof rawText !== 'string' || rawText.length > 10000) throw new Error('圣所目录文本无效')
   const unknown = reason => ({ status: 'unknown', reason, rawText, rule: null })
-  if (catalog?.schemaVersion !== 1 || catalog.game !== 'poe1' || catalog.patch !== SEASON_BASELINE.patch) return unknown('CATALOG_VERSION_MISMATCH')
+  if (!isCurrentSanctumCatalog(catalog)) return unknown('CATALOG_VERSION_MISMATCH')
   const text = rawText.normalize('NFC').trim()
   const candidates = (catalog.entries || []).filter(entry => entry.kind === kind &&
     [entry.name, ...(entry.aliases || [])].some(name => name.normalize('NFC').trim() === text))
   if (candidates.length !== 1) return { ...unknown(candidates.length ? 'AMBIGUOUS' : 'NOT_FOUND'), candidates: candidates.map(entry => entry.id) }
   const entry = candidates[0]
   if (!isCurrentSanctumEntry(catalog, entry)) return { ...unknown('UNVERIFIED_OR_HISTORICAL'), id: entry.id }
-  const effects = (entry.descriptions || []).map(rawText => ({ rawText, entryId:entry.id, kind, ...sanctumRule(rawText),
-    status: sanctumRule(rawText) ? 'matched' : 'unknown' }))
+  const rules = sanctumEntryRules(entry)
+  const effects = (entry.descriptions || []).map((rawText, index) => ({ rawText, entryId:entry.id, kind, ...rules[index],
+    status: rules[index] ? 'matched' : 'unknown' }))
   return { status: 'matched', id: entry.id, name: entry.name, rawText, effects,
     scoringComplete: effects.every(effect => effect.status === 'matched'), sourceId: entry.sourceId }
 }

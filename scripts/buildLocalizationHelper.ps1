@@ -60,7 +60,14 @@ if ($SkipPublish) {
     Copy-Item -LiteralPath $codecDll -Destination (Join-Path $runtimeRoot 'oo2core.dll')
     Copy-Item -LiteralPath (Join-Path $bundleRoot 'LICENSE') -Destination (Join-Path $runtimeRoot 'LibBundle3-LICENSE.txt')
     Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE.md') -Destination (Join-Path $runtimeRoot 'ooz-LICENSE.txt')
-    $metadata = @{ protocolVersion=1; engineVersion=1; libBundleCommit=$bundleCommit; codecCommit=$codecCommit; schemaSha256=(Get-FileHash -LiteralPath (Join-Path $helperRoot 'schema.json') -Algorithm SHA256).Hash.ToLowerInvariant(); codec='open-source-ooz-with-raw-frame-writer' }
+    $schemaHasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $schemaHash = [BitConverter]::ToString($schemaHasher.ComputeHash([IO.File]::ReadAllBytes((Join-Path $helperRoot 'schema.json')))).Replace('-','').ToLowerInvariant()
+        $sourceSchemaHash = [BitConverter]::ToString($schemaHasher.ComputeHash([IO.File]::ReadAllBytes((Join-Path $helperRoot 'source-schema-cn.json')))).Replace('-','').ToLowerInvariant()
+    }
+    finally { $schemaHasher.Dispose() }
+    $metadata = @{ protocolVersion=1; engineVersion=1; libBundleCommit=$bundleCommit; codecCommit=$codecCommit; schemaSha256=$schemaHash; sourceSchemaSha256=$sourceSchemaHash; codec='open-source-ooz-with-raw-frame-writer' }
     [IO.File]::WriteAllText((Join-Path $runtimeRoot 'dependencies.json'),($metadata | ConvertTo-Json),[Text.UTF8Encoding]::new($false))
     Write-Output 'Localization helper ready; run its self-test before applying to a game.'
+    & (Join-Path $PSScriptRoot 'buildMarketLocalization.ps1')
 }

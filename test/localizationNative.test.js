@@ -5,7 +5,7 @@ import path from 'node:path'
 import { LocalizationHelperClient } from '../electron/modules/localization/helperClient.js'
 
 const executable = path.resolve('.runtime/localization-helper/LocalizationHelper.exe')
-test('built native helper verifies codec frames, DAT safety, applied previews and repeated-apply language recovery', { skip: !fs.existsSync(executable) }, async () => {
+test('built native helper verifies codec frames, DAT safety, automatic backups, external-change protection and repeated-apply language recovery', { skip: !fs.existsSync(executable) }, async () => {
   const helper = new LocalizationHelperClient({ executable, timeoutMs: 60000 })
   const result = await helper.run('self-test', {})
   assert.equal(result.passed, true)

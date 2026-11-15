@@ -1,0 +1,357 @@
+[
+  {
+    "table": "metadata/statdescriptions/tincture_stat_descriptions.csd",
+    "id": "life_gained_on_killing_enemies_with_tinctured_weapons",
+    "field": "variant:0",
+    "en": "Gain {0} Life per Enemy Killed with Melee Weapons",
+    "kind": "stat",
+    "sourceHash": "aefab99103703d99ca4bf1f7e15b3db17ea641000fa8b5d27b7375e7054c8383",
+    "tw": "每用近戰武器殺死一個敵人，獲得 {0} 生命",
+    "cn": "近战武器每击败一名敌人获得 {0} 点生命",
+    "stats": {
+      "ids": [
+        "life_gained_on_killing_enemies_with_tinctured_weapons"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/tincture_stat_descriptions.csd",
+    "id": "ignite_damage_+%_with_tinctured_weapons",
+    "field": "variant:0",
+    "en": "{0}% increased Damage with Ignite from Melee Weapons",
+    "kind": "stat",
+    "sourceHash": "6f20b9249670fcc0117b28fac5ede1ec07c7b05d0368e449d7f8cf1d6ecf294b",
+    "tw": "近戰武器造成的點燃增加 {0}% 傷害",
+    "cn": "近战武器造成的点燃伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "ignite_damage_+%_with_tinctured_weapons"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextIgniteNonHitNoDuration",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextIgniteNonHitNoDuration",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/tincture_stat_descriptions.csd",
+    "id": "chance_to_ignite_%_with_tinctured_weapons",
+    "field": "variant:0",
+    "en": "{0}% chance to Ignite with Melee Weapons",
+    "kind": "stat",
+    "sourceHash": "fe315eea12f99d53efdb827e41db3f913c435237762f8af85e39a2cac6b87be0",
+    "tw": "近戰武器有 {0}% 機率造成點燃",
+    "cn": "近战武器有 {0}% 的几率造成点燃",
+    "stats": {
+      "ids": [
+        "chance_to_ignite_%_with_tinctured_weapons"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextIgnite",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/tincture_stat_descriptions.csd",
+    "id": "ignite_damage_+%_with_tinctured_weapons",
+    "field": "variant:1",
+    "en": "{0}% reduced Damage with Ignite from Melee Weapons",
+    "kind": "stat",
+    "sourceHash": "6e0037dfb03ecf2327e7c412afa1fd6419067315a4e23477ed636f672a740491",
+    "tw": "近戰武器造成的點燃減少 {0}% 傷害",
+    "cn": "近战武器造成的点燃伤害降低 {0}%",
+    "stats": {
+      "ids": [
+        "ignite_damage_+%_with_tinctured_weapons"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextIgniteNonHitNoDuration",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1 reminderstring ReminderTextIgniteNonHitNoDuration",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "mods",
+    "id": "SentinelDroneRewardCount1",
+    "field": "Name",
+    "en": "of Success",
+    "kind": "dat",
+    "sourceHash": "581da11ae96800d84a3f8419033a20eb0f4c152d39f2d56f0602a81befeba5bc",
+    "tw": "成功之",
+    "cn": "成功之"
+  },
+  {
+    "table": "mods",
+    "id": "TinctureLifeGainedFromEnemyDeath1",
+    "field": "Name",
+    "en": "of Success",
+    "kind": "dat",
+    "sourceHash": "581da11ae96800d84a3f8419033a20eb0f4c152d39f2d56f0602a81befeba5bc",
+    "tw": "成功之",
+    "cn": "成功之"
+  },
+  {
+    "table": "mods",
+    "id": "LifeGainedFromEnemyDeath1",
+    "field": "Name",
+    "en": "of Success",
+    "kind": "dat",
+    "sourceHash": "581da11ae96800d84a3f8419033a20eb0f4c152d39f2d56f0602a81befeba5bc",
+    "tw": "成功之",
+    "cn": "成功之"
+  },
+  {
+    "table": "mods",
+    "id": "SanctumResolveOnBossKill1",
+    "field": "Name",
+    "en": "of Success",
+    "kind": "dat",
+    "sourceHash": "581da11ae96800d84a3f8419033a20eb0f4c152d39f2d56f0602a81befeba5bc",
+    "tw": "成功之",
+    "cn": "成功之"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Tinctures/TinctureIgnite",
+    "field": "Name",
+    "en": "Ashbark Tincture",
+    "kind": "dat",
+    "sourceHash": "94d461543b6a9e84bf3f64d68d3b0eb123326c4ff306b3d607ac6ad4183cd7b4",
+    "tw": "灰樹皮萃取物",
+    "cn": "烬皮酊剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Tinctures/Tincture4",
+    "field": "Name",
+    "en": "Ashbark Tincture",
+    "kind": "dat",
+    "sourceHash": "94d461543b6a9e84bf3f64d68d3b0eb123326c4ff306b3d607ac6ad4183cd7b4",
+    "tw": "灰樹皮萃取物",
+    "cn": "烬皮酊剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayTinctureToxicity1Second",
+    "field": "Text",
+    "en": "Inflicts Mana Burn every {0} Second",
+    "kind": "dat",
+    "sourceHash": "2242e25ac9919eb2d9970abb944285330fed5951ce4b840a178580a82f60c865",
+    "tw": "每 {0} 秒造成魔力灼燒",
+    "cn": "每 {0} 秒造成魔力燃烧"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayTinctureCooldownNSeconds",
+    "field": "Text",
+    "en": "{0} Second Cooldown when Deactivated",
+    "kind": "dat",
+    "sourceHash": "a43e350e5adec239acdb65802d0a1d8bf1379d67bab76da55c0ea5e816731c22",
+    "tw": "解除時有 {0} 秒冷卻時間",
+    "cn": "失效后冷却时间 {0} 秒"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionTincture",
+    "field": "Text",
+    "en": "Right click to activate. Only one Tincture in your belt can be active at a time. Mana Burn causes you to lose 1% of your maximum Mana per stack per second. Can be deactivated manually, or will automatically deactivate when you reach 0 Mana.",
+    "kind": "dat",
+    "sourceHash": "1a4ecfed07c9f4dfef7c6e3932846bc8298d88abd72604e2ed76944488f29f7e",
+    "tw": "用滑鼠右鍵點擊啟用。每次只能啟動一種腰帶裡的萃取物。每層魔力灼燒會使你每秒失去 1% 最大魔力。可以手動停用，或當魔力降至 0 時自動停用。",
+    "cn": "右键点击激活。同一时间只能有一种腰带中的酊剂激活。每层魔力燃烧使你每秒损失 1% 的魔力上限。可以手动取消，或在魔力降至 0 时自动取消。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayTinctureCooldown1Second",
+    "field": "Text",
+    "en": "{0} Second Cooldown when Deactivated",
+    "kind": "dat",
+    "sourceHash": "a43e350e5adec239acdb65802d0a1d8bf1379d67bab76da55c0ea5e816731c22",
+    "tw": "解除時有 {0} 秒冷卻時間",
+    "cn": "失效后冷却时间 {0} 秒"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayTinctureToxicityNSeconds",
+    "field": "Text",
+    "en": "Inflicts Mana Burn every {0} Seconds",
+    "kind": "dat",
+    "sourceHash": "f36dcec654c95234913373e6b7db2c63616c8b2b4b252be95e262484ce60101f",
+    "tw": "每 {0} 秒造成魔力灼燒",
+    "cn": "每 {0} 秒造成魔力燃烧"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionTincture",
+    "field": "XBoxText",
+    "en": "Press bound button to activate. Only one Tincture in your belt can be active at a time. Mana Burn causes you to lose 1% of your maximum Mana per stack per second. Can be deactivated manually, or will automatically deactivate when you reach 0 Mana.",
+    "kind": "dat",
+    "sourceHash": "83cc8b18413275ecf2bd5cda202d0f62433a5fe94fa2db1e251ec9b1e25377cd",
+    "tw": "點選綁定按鈕啟用。每次只能啟動一種腰帶裡的萃取物。每層魔力灼燒會使你每秒失去 1% 最大魔力。可以手動停用，或當魔力降至 0 時自動停用。",
+    "cn": "按下绑定按钮以激活。同一时间只能有一种腰带中的酊剂激活。每层魔力燃烧使你每秒损失 1% 的魔力上限。可以手动取消，或在魔力降至 0 时自动取消。"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Tincture",
+    "field": "Name",
+    "en": "Tinctures",
+    "kind": "dat",
+    "sourceHash": "716b9cb1819efc3450edb08d58b8e952da6ad339ac516cf282b5f5d225c81e57",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextAilments",
+    "field": "Text",
+    "en": "(Ailments are Bleeding, Ignited, Scorched, Chilled, Frozen, Brittle, Shocked, Sapped, and Poisoned)",
+    "kind": "dat",
+    "sourceHash": "56daeb36091e5d8f76d3a934b16e33268963cef183a9db62467a0323703247a8",
+    "tw": "（異常狀態包含流血、點燃、焦灼、冰緩、冰凍、易碎、感電、殘喘和中毒）",
+    "cn": "(异常状态包括流血、点燃、冰缓、冰冻、感电、中毒、脆弱、精疲力尽和烧灼)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextElementalConflux",
+    "field": "Text",
+    "en": "(While you have Elemental Conflux, all Damage from Hits will cause Chill, Shock, and Ignite)",
+    "kind": "dat",
+    "sourceHash": "4069441a91680f4149989ef3c09004b4c591826153e8f65746922fb6cde1870e",
+    "tw": "（ 當你有元素匯流時，你所有擊中造成的傷害皆能造成感電、冰緩，和點燃 ）",
+    "cn": "( 当你有元素汇流时, 你所有击中造成的伤害皆能造成感电, 冰缓, 和点燃 )"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextIgnite",
+    "field": "Text",
+    "en": "(Ignite deals Fire Damage over time, based on the base Fire Damage of the Skill, for 4 seconds)",
+    "kind": "dat",
+    "sourceHash": "9e897af174f54d6c413b98d864aa435d0efa29ac6df57757c3f6605b22767b9d",
+    "tw": "（點燃根據技能的基礎火焰傷害，造成持續火焰傷害，持續4秒）",
+    "cn": "(点燃会造成持续燃烧的火焰伤害, 取决于技能的基础火焰伤害, 持续4秒)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextFireAilments",
+    "field": "Text",
+    "en": "(Fire Ailments are Ignited and Scorched)",
+    "kind": "dat",
+    "sourceHash": "a4ed696237405db6b871949a5a61cbb0d885ed7c858d5f3a94553c814c91f3c6",
+    "tw": "（ 火焰異常狀態為點燃和焦灼 ）",
+    "cn": "（火焰异常状态指点燃和烧灼）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextDamagingAilments",
+    "field": "Text",
+    "en": "(Ailments that deal Damage are Bleeding, Ignited, and Poisoned)",
+    "kind": "dat",
+    "sourceHash": "e7b71601132ff6be52e5defc1ec17ec2fb1b4d2f6f7dd532d4e9a47eeff9f090",
+    "tw": "（造成傷害的異常狀態包含流血、點燃和中毒）",
+    "cn": "(伤害类异常状态包括流血、点燃和中毒)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextCurseFlammability",
+    "field": "Text",
+    "en": "(Flammability is a Hex which inflicts -17% to Fire Resistance and causes Hits to have +25% chance to Ignite the target. It lasts 8 seconds)",
+    "kind": "dat",
+    "sourceHash": "1017b5a929f33a71500155fa5994608d56724a1157d8a1d990e50692703fc504",
+    "tw": "（易燃為咒術，-17% 火焰抗性，並使擊中目標 +25% 點燃機率。持續 8 秒）",
+    "cn": "（易燃是一种魔蛊，可以给目标施加-17%火焰抗性，并使击中点燃目标的几率+25%。它持续8秒）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextElementalAilments",
+    "field": "Text",
+    "en": "(Elemental Ailments are Ignited, Scorched, Chilled, Frozen, Brittle, Shocked, and Sapped)",
+    "kind": "dat",
+    "sourceHash": "a33b292019c0242143f209afbdc611e2671b5582f8f06ff01476dc96f89023ca",
+    "tw": "（元素異常狀態包含點燃、焦灼、冰緩、冰凍、易碎、感電和殘喘）",
+    "cn": "(被点燃、烧灼、冰缓、冰冻、脆弱、感电和精疲力尽统称为元素异常状态)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextExpectedIgniteDamage",
+    "field": "Text",
+    "en": "(The Expected Damage of Ignite is its Damage per second multiplied by its Duration)",
+    "kind": "dat",
+    "sourceHash": "3796c60cfa9176800991b2d3d1aa14acb5aed7cafca7f9b0cd4af71ae529e164",
+    "tw": "（點燃的預計傷害為每秒傷害乘以持續時間）",
+    "cn": "（预期点燃伤害指它的每秒伤害乘以持续时间）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextHerEmbrace",
+    "field": "Text",
+    "en": "(Her Embrace grants the following:\nCannot be Stunned\n123% of Sword Physical Damage gained as Extra Fire Damage\nUnaffected by Burning Ground\nImmune to Freeze, Chill and Ignite\n20% increased Attack, Cast and Movement Speed)",
+    "kind": "dat",
+    "sourceHash": "68706868e7b07d59a7b25ad72b20cd43fdf36a261e950181738fc2550dd662d5",
+    "tw": "（女神擁抱獲得以下效果:\n無法被暈眩\n獲得等同於劍物理傷害123%的額外火焰傷害\n不受燃燒地面影響\n免疫冰凍、冰緩和點燃\n增加 20% 攻擊、施放和移動速度）",
+    "cn": "（女神之拥给予以下效果：\n无法被晕眩\n获得等同剑物理伤害123%的额外火焰伤害\n不受燃烧地面影响\n免疫冰冻，冰缓和点燃\n增加 20% 攻击，施法和移动速度）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextIgniteNonHitNoDuration",
+    "field": "Text",
+    "en": "(Ignite deals Fire Damage over time)",
+    "kind": "dat",
+    "sourceHash": "1098d3ad5301ff323a61ab4a10581106df43708e3b9677361eb2053f288ced4e",
+    "tw": "（點燃造成火焰持續傷害）",
+    "cn": "(点燃会造成持续燃烧的火焰伤害)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextKeystoneSecretsOfSuffering",
+    "field": "Text",
+    "en": "(Cannot Ignite, Chill, Freeze or Shock\nCritical Strikes inflict Scorch, Brittle and Sapped)",
+    "kind": "dat",
+    "sourceHash": "72a1984a059102badef335790edf7adcf0f93b3a4d96e3ed87d4e08e8eab69f9",
+    "tw": "（ 不能點燃、冰緩、冰凍或感電\n暴擊造成焦灼、易碎和殘喘 ）",
+    "cn": "（无法点燃、冰缓、冻结、感电\n暴击施加灼烧、脆弱、精疲力尽）"
+  }
+]

@@ -239,8 +239,8 @@
           </el-tab-pane>
           <el-tab-pane label="取件" name="pickup">
             <el-alert v-if="pickupPending" type="warning" :closable="false" show-icon class="pickup-verification-note"
-              title="国际服仓库取件与君锋镇待英文客户端验收"
-              description="请先校准当前服务器的英文标题和网格，并在开发版单项验收模式中检查预览与停止行为。基础高亮模型可复用，英文样本尚未完成独立评估。" />
+              title="当前服务器暂未开放仓库取件或君锋镇"
+              description="本服标题模板、网格和高亮模型分别保存；请查看设置页的功能可用状态。" />
             <div class="pickup-feature-grid">
               <section class="pickup-feature">
                 <div class="section-header">

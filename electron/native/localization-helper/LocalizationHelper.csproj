@@ -9,5 +9,6 @@
     <Compile Include="$(LibBundleSource)/**/*.cs" Exclude="$(LibBundleSource)/obj/**;$(LibBundleSource)/bin/**" LinkBase="LibBundle3" />
     <PackageReference Include="aianlinb.SystemExtensions" Version="1.8.0" />
     <None Include="schema.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="source-schema-cn.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

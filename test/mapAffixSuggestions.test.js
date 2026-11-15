@@ -155,7 +155,7 @@ test('地图黑白名单界面使用可自由编辑的分类自动完成', () =>
   assert.match(panel, /v-model="profile\.match\.whitelist\[index\]"/)
   assert.match(panel, /:fetch-suggestions="fetchSuggestions"/)
   assert.match(panel, /:trigger-on-focus="false"/)
-  assert.match(panel, /searchMapAffixSuggestions\(props\.targetKind, query\)/)
+  assert.match(panel, /searchMapAffixSuggestions\(props\.targetKind, query, 50, undefined, localizedCatalog\.aliases\.value\)/)
   assert.match(panel, /map-affix-suggestion-popper/)
   assert.match(panel, /item\.value/)
   assert.match(panel, /item\.example/)

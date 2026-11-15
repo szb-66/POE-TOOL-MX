@@ -20,6 +20,15 @@
       </div>
       <el-empty v-else :image-size="42" description="全部功能均已添加" />
     </section>
+    <section v-if="featureStore.unsupportedFeatures.length" class="feature-section" aria-labelledby="unsupported-feature-heading">
+      <h3 id="unsupported-feature-heading">未适配功能</h3>
+      <div class="feature-grid">
+        <article v-for="feature in featureStore.unsupportedFeatures" :key="feature.id" class="feature-card is-unsupported" aria-disabled="true" :aria-label="`${feature.label}，当前服务器未适配`" :title="feature.unavailableReason">
+          <el-icon class="feature-icon"><component :is="featureIcons[feature.icon]" /></el-icon><span>{{ feature.label }}</span>
+          <small>当前服务器未适配</small>
+        </article>
+      </div>
+    </section>
   </el-dialog>
 </template>
 
@@ -39,7 +48,7 @@ const pendingId = ref('')
 const featureIcons = { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Guide, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, SuitcaseLine }
 
 function openFeature(feature) {
-  if (!feature.navigation || !feature.route) return
+  if (!featureStore.isEnabled(feature.id) || !feature.navigation || !feature.route) return
   emit('update:modelValue', false)
   void router.push(feature.route)
 }
@@ -59,10 +68,11 @@ async function removeFeature(feature) {
 }
 
 async function addFeature(feature) {
-  if (pendingId.value) return
+  if (pendingId.value || !featureStore.isSupported(feature.id)) return
   pendingId.value = feature.id
   try {
     const result = await enableFeatureModule(feature.id, { store: featureStore })
+    if (!result.success) return ElMessage.error(`${feature.label}添加失败：${result.warnings.join('；')}`)
     if (result.warnings.length) ElMessage.warning(`${feature.label}已添加；${result.warnings.join('；')}`)
   } finally { pendingId.value = '' }
 }
@@ -77,6 +87,8 @@ async function addFeature(feature) {
 .feature-card.is-enabled.is-navigation:hover { background: var(--surface-hover); transform: translateY(-1px); }
 .feature-card:focus-visible { outline: 2px solid var(--brand-color); outline-offset: 2px; }
 .feature-card.is-disabled { color: var(--text-secondary); }
+.feature-card.is-unsupported { color: var(--text-secondary); opacity: .5; cursor: not-allowed; }
+.feature-card.is-unsupported small { font-size: 11px; }
 .feature-icon { font-size: 26px; }
 .feature-card > span { font-size: 13px; }
 .feature-toggle { position: absolute; top: 5px; right: 5px; opacity: 0; transform: scale(.82); transition: opacity .15s ease, transform .15s ease; }

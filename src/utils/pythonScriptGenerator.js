@@ -13,6 +13,12 @@ import { eldritchCurrencyType } from '../domains/items/eldritchConfig.js'
 import { enabledAffixGroupItemLevelRequirements } from '../domains/items/affixConfig.js'
 import { getServer } from '../../shared/serverMode.js'
 
+function runtimeCurrencyNames(serverId, snapshot) {
+  return Object.fromEntries(Object.entries(currencyExpectedNames(serverId)).map(([id, name]) => [id,
+    [...new Set([name, ...Object.entries(snapshot?.nameAliases || {}).filter(([, canonical]) => canonical === name).map(([alias]) => alias)])]
+  ]))
+}
+
 function rawPathContent(value) {
   if (typeof value !== 'string' || /["\r\n\0]/.test(value)) throw new Error('脚本通信路径无效')
   return value.replace(/\\/g, '\\\\')
@@ -519,8 +525,10 @@ def craft_affixes(initial_result=None):
     clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text=True)
     if not clipboard_text or GetClipboardSequenceNumber() == before_seq:
         return fail_item_runtime("目标精华位置没有可复制物品", "ESSENCE_NOT_FOUND")
-    actual = detected_item_name(copied_item_header(clipboard_text))
-    if not (${language === 'en' ? 'True' : 'False'} and __import__('re').match(r"^(?:(?:Whispering|Muttering|Weeping|Wailing|Screaming|Shrieking|Deafening) )?Essence of .+", actual) or ${language === 'en' ? 'False' : 'True'} and "精华" in actual):
+    actual = normalized_copied_item_name(detected_item_name(copied_item_header(clipboard_text)))
+    snapshot = globals().get("localization_snapshot", {})
+    canonical_names = {str(name).strip().casefold() for name in snapshot.get("canonicalEssenceNames", [])}
+    if not (${language === 'en' ? 'True' : 'False'} and (actual.casefold() in canonical_names or actual in snapshot.get("essenceNames", [])) or ${language === 'en' ? 'False' : 'True'} and "精华" in actual):
         return fail_item_runtime(f"目标位置不是精华：{actual or '未识别'}", "ESSENCE_TYPE_MISMATCH")
     print(f"[预检] 目标精华验证通过：{actual}")
     return True
@@ -882,7 +890,8 @@ def craft_eldritch_implicits(initial_result=None):
     '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
-    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(currencyExpectedNames(language === 'en' ? 'international' : 'cn')),
+    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(runtimeCurrencyNames(language === 'en' ? 'international' : 'cn', config.localizationSnapshot)),
+    '{{LOCALIZATION_SNAPSHOT_JSON}}': JSON.stringify(JSON.stringify(config.localizationSnapshot || {})),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
     '{{ACTION_POSITION}}': jsonToPython(JSON.stringify(safeActionPosition)),
@@ -1015,7 +1024,8 @@ export function generateMapRollingScript(config, mapRollingTemplate) {
     '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
     '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
     '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
-    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(currencyExpectedNames(language === 'en' ? 'international' : 'cn')),
+    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(runtimeCurrencyNames(language === 'en' ? 'international' : 'cn', config.localizationSnapshot)),
+    '{{LOCALIZATION_SNAPSHOT_JSON}}': JSON.stringify(JSON.stringify(config.localizationSnapshot || {})),
     '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
     '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
     '{{MAP_CONFIG}}': jsonToPython(JSON.stringify({ ...mapConfig, serverId })),

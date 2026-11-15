@@ -15,6 +15,7 @@ import { liveProfile, liveEnvironment, RESOURCE_REGION_KEYS } from '../../../sha
 import { resolveSanctumCatalogText, sanctumRule } from './catalog.js'
 import { recognizeRoomTexts } from './textRecognition.js'
 import { SanctumEvidenceStore } from './evidence.js'
+import { normalizeSanctumEvidence, normalizeSanctumText, isUnconfirmedSanctumReward } from './localization.js'
 
 function textBlocks(lines, catalog) {
   const compact = text => text.replace(/\s/g, '')
@@ -39,10 +40,11 @@ function effectEntry(catalog, kind, text) {
 }
 
 export function parseSanctumCurrentEffects(texts, catalog, complete = false) {
+  if (Array.isArray(texts)) texts = texts.map(text => typeof text === 'string' ? normalizeSanctumText(text, catalog) : text)
   if (!Array.isArray(texts) || texts.length > 80 || texts.some(text => typeof text !== 'string' || text.length > 1000)) complete = false
   const effects = [], lines = Array.isArray(texts) ? [...new Set(texts.filter(text => typeof text === 'string' && text.length <= 1000))].slice(0, 80) : []
   for (const rawText of textBlocks(lines,catalog)) {
-    const rule = sanctumRule(rawText.trim())
+    const rule = catalog?.server === 'international' ? null : sanctumRule(rawText.trim())
     if (rule) { effects.push({ rawText, ...rule, status: 'matched' }); continue }
     const matches = ['boon', 'affliction'].map(kind => effectEntry(catalog, kind, rawText)).filter(entry => entry.status === 'matched')
     if (matches.length === 1 && matches[0].effects.length) effects.push(...matches[0].effects)
@@ -57,24 +59,50 @@ export function parseSanctumCurrentEffects(texts, catalog, complete = false) {
 export { parseEffectTooltip as parseSanctumEffectGroup } from './effectRecognition.js'
 
 export function parseSanctumRoomTexts(texts, catalog, currencyIcons = [], ocr = {}) {
-  const lines = (Array.isArray(texts) ? texts : []).filter(t => typeof t === 'string' && t.trim() && t.length <= 1000).slice(0,80)
+  const localized = normalizeSanctumEvidence({ ...ocr, texts, currencyIcons }, catalog)
+  texts = localized.texts; currencyIcons = localized.currencyIcons; ocr = localized
+  const sourceLines = (Array.isArray(texts) ? texts : []).filter(t => typeof t === 'string' && t.trim() && t.length <= 1000).slice(0,80)
+  const lines = []
+  for (let index=0;index<sourceLines.length;index++) {
+    let reward, count=1
+    if (catalog?.parseReward) for (;count<=Math.min(4,sourceLines.length-index);count++) {
+      reward = catalog.parseReward(sourceLines.slice(index,index+count).join(' '))
+      if (reward?.status === 'matched') break
+    }
+    if (reward?.status === 'matched') {lines.push(reward.text);index+=count-1}
+    else lines.push(sourceLines[index])
+  }
   const recognition = recognizeRoomTexts(lines, catalog, ocr.ocrLines)
   recognition.blocks = ocr.ocrBlocks || []
   const profile = recognizeRoomProfile([...(ocr.titleTexts || []), ...(recognition.titles || [])], ocr.floorId)
-  const result = { rawText:[...(ocr.titleTexts || []), ...lines].join('\n'), recognition,
+  const result = { rawText:[...(ocr.titleTexts || []), ...(ocr.originalTexts || lines)].join('\n'), recognition,
     ...profile, rewards:[], effects:[], afflictions:[], rewardEvidence:[] }
   recognition.titleRegion = ocr.titleRegion
   const roomTypes = new Set(), gaps = []
   let structuredCount = 0
   // Structured values and icon offers remain usable even if the text catalog is unavailable.
-  const structuredLines = lines.filter(text => /^(恢复|立即获得|完成本层时获得|完成本轮时获得|完成后(?:提供物品|获得物品|提供奖励))/.test(text.trim())
+  const structuredLines = lines.filter(text => (/^(恢复|立即获得|完成本层时获得|完成本轮时获得|完成后(?:提供物品|获得物品|提供奖励)|(?:Recover|Restore|Gain|Receive|Immediately gain|Offers Items on Completion)\b)/i.test(text.trim()) || catalog?.parseReward?.(text))
     && !recognition.matches.some(match => match.rawText.includes(text)))
   for (const match of [...recognition.matches, ...structuredLines.map(rawText => ({rawText}))]) {
     const text = match.rawText.trim().normalize('NFKC')
-    const recovery = /^恢复\s*(\d+)\s*(?:点)?坚毅$/.exec(text)
-    const reward = /^(立即获得|完成本层时获得|完成本轮时获得)\s*(\d+)\s*[x×]?\s*(.+)$/.exec(text)
+    const managedReward = catalog?.parseReward?.(text)
+    if (managedReward) {
+      if (managedReward.status === 'matched') {
+        result.rewards.push({groupId:'offer',currency:managedReward.currency,quantity:managedReward.quantity,timing:managedReward.timing})
+        structuredCount++
+      } else { gaps.push(managedReward.reason); result.effects.push({rawText:text,status:'unknown'}) }
+      match.role='value'; continue
+    }
+    const recovery = /^恢复\s*(\d+)\s*(?:点)?坚毅$/.exec(text) || /^(?:Recover|Restore|Gain)\s+(\d+)\s+Resolve$/i.exec(text)
+    const wrappedInternational = catalog?.server === 'international' && catalog.parseReward
+    const englishReward = !wrappedInternational && /^(?:Receive|Gain|Immediately gain)\s+(\d+)\s*[x×]?\s*(.+?)(?:\s+(?:on|upon)\s+(?:completing\s+)?(?:the\s+)?(Floor|Sanctum)(?:\s+Completion)?)?$/i.exec(text)
+    const reward = !wrappedInternational && /^(立即获得|完成本层时获得|完成本轮时获得)\s*(\d+)\s*[x×]?\s*(.+)$/.exec(text)
+      || (englishReward ? [englishReward[0], englishReward[3]?.toLowerCase() === 'floor' ? '完成本层时获得' : englishReward[3] ? '完成本轮时获得' : '立即获得', englishReward[1], englishReward[2]] : null)
     if (recovery && Number(recovery[1]) <= 1e6) { result.recovery = Number(recovery[1]); structuredCount++; match.role='value'; continue }
-    if (reward && Number(reward[2]) <= 1e6 && catalog?.entries?.some(e => e.kind === 'reward' && e.name === reward[3])) {
+    if (isUnconfirmedSanctumReward(text,catalog)) {
+      gaps.push('奖励文本未匹配当前受管模板或唯一通货'); result.effects.push({rawText:text,status:'unknown'}); match.role='value'; continue
+    }
+    if (reward && Number(reward[2]) > 0 && Number(reward[2]) <= 1e6 && catalog?.entries?.filter(e => e.kind === 'reward' && e.name === reward[3]).length === 1) {
       result.rewards.push({groupId:'offer',currency:reward[3],quantity:Number(reward[2]),
         timing:{立即获得:'immediate',完成本层时获得:'floor',完成本轮时获得:'run'}[reward[1]]})
       match.role='value'; structuredCount++; continue
@@ -82,7 +110,7 @@ export function parseSanctumRoomTexts(texts, catalog, currencyIcons = [], ocr = 
     if (/^(恢复|立即获得|完成本层时获得|完成本轮时获得)/.test(text)) {
       gaps.push('数值或领取信息未完整识别'); result.effects.push({rawText:text,status:'unknown'}); match.role='value'; continue
     }
-    if (/^完成后(?:提供物品|获得物品|提供奖励)$/.test(text)) {
+    if (/^完成后(?:提供物品|获得物品|提供奖励)$|^Offers Items on Completion$/i.test(text)) {
       roomTypes.add('reward')
       structuredCount++
       result.rewardEvidence.push({rawText:text,status:'unknown',reason:'奖励图标尚未识别',field:'currency'})
@@ -361,7 +389,9 @@ export class SanctumLiveDriver {
   resetEffects() { this.sanctumRunId=null; this.runContext=null; this.runContinuity=false; this.effectLedger = null; this.correctionKey = null; this.resumeKey = null; this.evidence.clear() }
   effectScope() {
     const context = this.logContext.context
-    return JSON.stringify([context.sessionKey, context.processId, context.areaId, context.seed, this.assertLog().floorId, this.profile.environment])
+    const scope = [context.sessionKey, context.processId, context.areaId, context.seed, this.assertLog().floorId, this.profile.environment]
+    if (this.catalog?.server === 'international') scope.push(this.catalog.patch, this.catalog.localizationRevision)
+    return JSON.stringify(scope)
   }
   async finalizeFloor(floor, signal, options = {}) {
     const started = performance.now(), resourceJobs = [], resourceTimings = []
@@ -393,8 +423,7 @@ export class SanctumLiveDriver {
   async finalizeCapturedFloor(floor, signal, {captureSignal = signal, finishCapture = async () => {}, onTaskProgress = () => {}, queueResources} = {}) {
     signal.throwIfAborted(); this.assertLog()
     const resourceLayout = await queueResources()
-    const context = this.logContext.context
-    const scope = JSON.stringify([context.sessionKey, context.processId, context.areaId, context.seed, floor.floorId, this.profile.environment])
+    const scope = this.effectScope()
     const key = scope + effectMapKey(floor)
     const decision = decideSanctumEffects(this.effectLedger, floor, scope, this.catalog)
     const advanced = decision.snapshot
@@ -613,7 +642,7 @@ export class SanctumLiveDriver {
         }
       }
       this.assertLog(); signal.throwIfAborted()
-      return {...parseResourceRegions(reads, floor), layout:captured.resourceLayout,
+      return {...parseResourceRegions(reads, floor, this.catalog), layout:captured.resourceLayout,
         rawText:RESOURCE_REGION_KEYS.filter(key=>reads[key]).map(key=>`${key}: ${(reads[key].texts || []).join(' / ')}`).join('\n')}
     } catch (error) {
       signal.throwIfAborted(); this.assertLog()
@@ -752,7 +781,8 @@ export class SanctumLiveDriver {
       const owner = this[clientKey]
       const read = await owner.request('readFrozen', {...(data.imageRef ? {imageRef:data.imageRef} : {png:data.png}),
         binding:options.binding,retainImage:options.retainImage === true,region:{x:0,y:0,width,height},
-        includeIcons,room:options.room ?? includeIcons,iconsOnly,resources:options.resources === true}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
+        includeIcons,room:options.room ?? includeIcons,iconsOnly,resources:options.resources === true,
+        languageText:this.catalog?.nativeText?.()}, {signal,timeoutMs:SANCTUM_TIMEOUTS.ocr})
       let releaseImage
       if (read.imageRef) {
         retained = true

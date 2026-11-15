@@ -1,23 +1,32 @@
 import { resolveCatalogStat } from './catalog.js'
+import { resolvePriceCheckCategory } from '../../../shared/priceCheckMetadata.js'
 
-export const SPECIAL_DISCRIMINATORS = ['alt_x', 'alt_y', 'alt_z', 'blighted', 'uberblighted']
+export const SPECIAL_DISCRIMINATORS = ['alt_x', 'alt_y', 'alt_z', 'blighted', 'uberblighted', 'scrying_orb']
 export const isLogbookStat = (stat) => /^pseudo\.pseudo_logbook_(?:area|faction)_/.test(stat.id)
 
 export function resolveSpecialItemIdentity(item, catalog) {
-  let candidates
-  let displayName
-  if (item.blightType) {
+  const category = resolvePriceCheckCategory(item.category)?.category
+  const catalogCategory = category?.startsWith('gem.') ? 'gem' : category
+  const allowed = catalogCategory === 'gem' ? ['alt_x', 'alt_y', 'alt_z']
+    : catalogCategory === 'map' ? ['blighted', 'uberblighted']
+      : catalogCategory === 'currency' ? ['scrying_orb'] : []
+  if (!allowed.length) return null
+
+  const displayNames = new Set([item.baseName, item.name].filter(Boolean))
+  let displayName = item.baseName || item.name
+  if (catalogCategory === 'map' && item.blightType) {
     displayName = `${item.blightType === 'uberblighted' ? '菌潮灭绝' : '菌潮'}地图（${item.areaName || '未知'}）`
-    candidates = (catalog.items || []).filter((entry) => entry.discriminator === item.blightType && entry.text === displayName)
-  } else if (item.category?.includes('宝石')) {
-    displayName = item.name
-    candidates = (catalog.items || []).filter((entry) => entry.category === 'gem' &&
-      /^alt_[xyz]$/.test(entry.discriminator) && entry.text === displayName)
-    if (!candidates.length && !item.gemVariant && !/^特拉特斯之/.test(displayName)) return null
-  } else return null
+    displayNames.add(displayName)
+    displayNames.add(`${item.blightType === 'uberblighted' ? 'Blight-ravaged' : 'Blighted'} Map (${item.areaName || 'Unknown'})`)
+  }
+  const candidates = (catalog.items || []).filter((entry) => entry.category === catalogCategory &&
+    allowed.includes(entry.discriminator) && (!item.blightType || entry.discriminator === item.blightType) &&
+    displayNames.has(entry.text))
+  if (!candidates.length && !item.blightType &&
+    !(catalogCategory === 'gem' && (item.gemVariant || /^特拉特斯之/.test(displayName)))) return null
   const unique = [...new Map(candidates.map((entry) => [`${entry.baseType}\0${entry.discriminator}`, entry])).values()]
   if (unique.length !== 1) throw new Error(`无法唯一识别特殊物品“${displayName}”，已阻止按普通版本误查`)
-  return { type: unique[0].baseType, discriminator: unique[0].discriminator, displayName }
+  return { type: unique[0].baseType, discriminator: unique[0].discriminator, displayName: unique[0].text }
 }
 
 export function addLogbookStats(model, regions, catalog, enabled) {

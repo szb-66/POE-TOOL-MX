@@ -101,9 +101,10 @@ export function normalizeAndInspect(items, passive, issues) {
   for (const item of [...items.items.filter(isEquipment), ...passive.items]) inspect(item)
 }
 
-export function checkTranslatedGem(gem, issues) {
-  const name = pobIdentities.gemNameMap[gem.baseType] ?? gem.baseType
-  if (!name || hasChinese(name) || !gemNames.has(name)) issues.push(`未识别的技能：${itemLabel(gem)}`)
+export function checkTranslatedGem(gem, issues, identities = pobIdentities) {
+  const name = identities.gemNameMap[gem.baseType] ?? gem.baseType
+  const names = identities === pobIdentities ? gemNames : new Set(identities.gemNames)
+  if (!name || hasChinese(name) || !names.has(name)) issues.push(`未识别的技能：${itemLabel(gem)}`)
   if (gem.hybrid && (!gem.hybrid.baseTypeName || hasChinese(gem.hybrid.baseTypeName))) issues.push(`未识别的混合技能：${gem.hybrid.baseTypeName || itemLabel(gem)}`)
   if (gem.builtInSupport && !/^Supported by Level \d+ .+/.test(gem.builtInSupport)) issues.push(`未识别的内置辅助技能：${gem.builtInSupport}`)
 }
@@ -126,7 +127,7 @@ export function preserveExtraMods(item, warnings) {
   for (const child of item.socketedItems || []) if (child.abyssJewel) preserveExtraMods(child, warnings)
 }
 
-export function inspectBuilding(building, items, passive, expectedNodes, issues) {
+export function inspectBuilding(building, items, passive, expectedNodes, issues, identities = pobIdentities) {
   const equipment = items.items.filter(isEquipment)
   const expectedItems = [...equipment, ...passive.items, ...equipment.flatMap(item => (item.socketedItems || []).filter(x => x.abyssJewel))]
   if (building.items.itemList.length !== expectedItems.length) issues.push('转换后装备或珠宝数量不一致')
@@ -139,7 +140,7 @@ export function inspectBuilding(building, items, passive, expectedNodes, issues)
     if (!actual) continue
     // PoB deliberately calls Barrage's support "Barrage Support" to distinguish
     // the active gem. Upstream removes every Support suffix indiscriminately.
-    if (!expected.hybrid?.isVaalGem) actual.nameSpec = pobIdentities.gemNameMap[expected.baseType] ?? actual.nameSpec
+    if (!expected.hybrid?.isVaalGem) actual.nameSpec = identities.gemNameMap[expected.baseType] ?? actual.nameSpec
     const level = expected.properties?.find(x => x.name === 'Level')?.values?.[0]?.[0]
     const quality = expected.properties?.find(x => x.name === 'Quality')?.values?.[0]?.[0] ?? '0'
     if (actual.level !== parseInt(level) || actual.quality !== parseInt(quality)) issues.push(`转换后技能等级或品质不一致：${expected.baseType}`)

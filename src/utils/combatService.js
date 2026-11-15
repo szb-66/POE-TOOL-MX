@@ -16,7 +16,7 @@ let removeStatusListener = null
 
 function combatInputAllowed() {
   if (canUseGameInput('combat')) return true
-  ElMessage.warning('战斗辅助已接入英文客户端，游戏操作仍待开发版实测')
+  ElMessage.warning('当前服务器暂未开放战斗辅助')
   return false
 }
 

@@ -1,0 +1,357 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "fire_damage_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Fire Damage",
+    "kind": "stat",
+    "sourceHash": "fca0829852be0a65ed4cb70a6ef7986444d6751d85c4abaad082866896c0c8cc",
+    "tw": "減少 {0}% 火焰傷害",
+    "cn": "火焰伤害降低 {0}%",
+    "stats": {
+      "ids": [
+        "fire_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "fire_spell_skill_gem_level_+",
+    "field": "variant:0",
+    "en": "{0:+d} to Level of all Fire Spell Skill Gems",
+    "kind": "stat",
+    "sourceHash": "5e63bb580f0705d6b86941bd7fddbbdf4558d30c13b4517217c9128ae921cb62",
+    "tw": "全部火焰法術技能寶石等級 {0:+d}",
+    "cn": "所有火焰法术主动技能石等级 {0:+d}",
+    "stats": {
+      "ids": [
+        "fire_spell_skill_gem_level_+"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_fire_damage_%_to_convert_to_chaos",
+    "field": "variant:0",
+    "en": "{0}% of Fire Damage Converted to Chaos Damage",
+    "kind": "stat",
+    "sourceHash": "8834153e285590cdb21ef664852e8b073a52da78aa6e5034364b6ab6227c4e6c",
+    "tw": "{0}% 火焰傷害轉換為混沌傷害",
+    "cn": "{0}% 的火焰伤害转换为混沌伤害",
+    "stats": {
+      "ids": [
+        "base_fire_damage_%_to_convert_to_chaos"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Global Critical Strike Chance",
+    "kind": "stat",
+    "sourceHash": "64022adba6c11ac44ee9f23f3a113e2cfe674c418b35ab872a99a0e514db54b3",
+    "tw": "減少 {0}% 全域暴擊率",
+    "cn": "全域暴击率降低 {0}%",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "chaos_damage_chance_to_poison_%",
+    "field": "variant:0",
+    "en": "Your Chaos Damage has {0}% chance to Poison Enemies",
+    "kind": "stat",
+    "sourceHash": "64513fdfbb8c973dda1de7ba298fd853e69300449eb555c037f90704ded009b3",
+    "tw": "你的混沌傷害有 {0}% 機率造成敵人中毒",
+    "cn": "你的混沌伤害有 {0}% 的几率使敌人中毒",
+    "stats": {
+      "ids": [
+        "chaos_damage_chance_to_poison_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "reminderstring ReminderTextPoison",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "reminderstring ReminderTextPoison",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Global Critical Strike Chance",
+    "kind": "stat",
+    "sourceHash": "1a94277784cf4b501da61f23a4d46550983a3a2d32e088154e48f3a3827b50bf",
+    "tw": "增加 {0}% 全域暴擊率",
+    "cn": "全域暴击率提高 {0}%",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_intelligence",
+    "field": "variant:0",
+    "en": "{0:+d} to Intelligence",
+    "kind": "stat",
+    "sourceHash": "62eb50e582b48575cdf7e1f4dec7d4ff3e09f6326dfa31704739834239f90e6f",
+    "tw": "{0:+d} 智慧",
+    "cn": "{0:+d} 智慧",
+    "stats": {
+      "ids": [
+        "additional_intelligence"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "fire_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Fire Damage",
+    "kind": "stat",
+    "sourceHash": "7c175acf8ee91f6d2d6ce4e977367e875a85a42c9375edd1ecef7e3c716e1794",
+    "tw": "增加 {0}% 火焰傷害",
+    "cn": "火焰伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "fire_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "chaos_damage_chance_to_poison_%",
+    "field": "variant:1",
+    "en": "Your Chaos Damage Poisons Enemies",
+    "kind": "stat",
+    "sourceHash": "9cf741a9bf5b5145c57a6c4f4a2fcf93d6a2d4e684e441781e50a92442f5a639",
+    "tw": "你的混沌傷害造成敵人中毒",
+    "cn": "你的混沌伤害会使敌人中毒",
+    "stats": {
+      "ids": [
+        "chaos_damage_chance_to_poison_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "reminderstring ReminderTextPoison",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "reminderstring ReminderTextPoison",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueDagger10",
+    "field": "Text",
+    "en": "The brightest flames cast the darkest shadows.",
+    "kind": "dat",
+    "sourceHash": "201e9181c2cb34391e90edf20c91ff6d7ce6970d22e9723ee48992174165b324",
+    "tw": "至耀之炎映照極黯之影。",
+    "cn": "至耀之炎映照极黯之影。"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "RuneDagger",
+    "field": "Name",
+    "en": "Rune Dagger",
+    "kind": "dat",
+    "sourceHash": "c9e974c2893e339bce43e04e057d28a92fa3797e0e7d9bbc46aeb289eefbfa20",
+    "tw": "符紋匕首",
+    "cn": "符文匕首"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/Daggers/Dagger15",
+    "field": "Name",
+    "en": "Fiend Dagger",
+    "kind": "dat",
+    "sourceHash": "f91aa2ef59d8257dbb01ac1175d1ad485b7dba28d440dc16c0f3fe5c2393edb7",
+    "tw": "妖魔短匕",
+    "cn": "兽血短匕"
+  },
+  {
+    "table": "clientstrings",
+    "id": "WeaponClassDisplayNameRuneDagger",
+    "field": "Text",
+    "en": "Rune Dagger",
+    "kind": "dat",
+    "sourceHash": "c9e974c2893e339bce43e04e057d28a92fa3797e0e7d9bbc46aeb289eefbfa20",
+    "tw": "符紋匕首",
+    "cn": "符文匕首"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayWeaponRange1",
+    "field": "Text",
+    "en": "Weapon Range: {0} metre",
+    "kind": "dat",
+    "sourceHash": "5bd311c3f116fe547c7798c0707ee756340c0d20dd7cf4371c5cb435650108df",
+    "tw": "武器距離: {0} 米",
+    "cn": "武器范围：{0} 米"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayWeaponRange",
+    "field": "Text",
+    "en": "Weapon Range: {0} metres",
+    "kind": "dat",
+    "sourceHash": "214df38d6387725ced2645958e9d6593fe2c19da9bee91f96bd8cb52e345b097",
+    "tw": "武器距離: {0} 米",
+    "cn": "武器范围：{0} 米"
+  },
+  {
+    "table": "words",
+    "id": "hash:696c7522",
+    "field": "Text2",
+    "en": "The Consuming Dark",
+    "kind": "dat",
+    "sourceHash": "9017ede6501055b52aa9183de59fe4f06337b6fb5ea866e0c3b9ce9707785c9d",
+    "tw": "蠶食之闇",
+    "cn": "蚕食之暗"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Rune Dagger",
+    "field": "Name",
+    "en": "Rune Daggers",
+    "kind": "dat",
+    "sourceHash": "ea82ab58a9360d6f432e0a0d4a340fee0a8671f5eb623959e4c3d378197fddb8",
+    "tw": "符紋匕首",
+    "cn": "符文匕首"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextPoison",
+    "field": "Text",
+    "en": "(Poison deals Chaos Damage over time, based on the base Physical and Chaos Damage of the Skill. Multiple instances of Poison stack)",
+    "kind": "dat",
+    "sourceHash": "9fd080ec40fdddcbe001020e4588a2118b07e4b1da738688935f01865eb69b16",
+    "tw": "（ 中毒造成持續性混沌傷害，傷害取決於初始的物理和混沌傷害總和。中毒效果可以疊加 ）",
+    "cn": "( 中毒造成持续混沌伤害, 伤害取决于技能初始的物理和混沌伤害。中毒效果可以叠加 )"
+  }
+]

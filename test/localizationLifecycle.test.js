@@ -23,14 +23,15 @@ test('汉化退出等待原生操作及词库激活完成，并拒绝新操作',
   const bundle = { manifest: { releaseId: 'next' }, entries: [], envelope: {} }
   const service = new LocalizationService({
     serverId: 'international', storageRoot: 'unused-lifecycle-test',
-    downloader: { load: file => file === 'ready.json' ? bundle : null, activate() { calls.push('activate') } },
-    helper: { available: () => true, run: () => native.promise, waitForIdle: async () => { calls.push('native-closed') } },
+    downloader: { load: file => file === 'ready.json' ? bundle : null, check: async () => ({ releaseId: 'next', missingObjects: 0 }), download: async () => ({ downloadedBytes: 0 }), activate() { calls.push('activate') } },
+    helper: { available: () => true, run: operation => operation === 'scan' ? { applied: false } : native.promise, waitForIdle: async () => { calls.push('native-closed') } },
+    discover: async () => [],
     inspect: () => ({ gameDirectory: 'unused' }), assertWritable: async () => ({ gameDirectory: 'unused' }),
     verifyInstalled: () => ({ ready: true })
   })
   // Replace only directory selection; apply, activation and shutdown remain real.
   service.selectedGame = () => ({ gameDirectory: 'unused' })
-  const pending = service.apply()
+  const pending = service.apply({ gameDirectory: 'unused' })
   await flush()
   const shutdown = service.shutdown().then(() => calls.push('shutdown'))
   await flush()
@@ -108,5 +109,6 @@ for (const kind of ['quit', 'restart', 'switch', 'install']) {
 test('主进程为退出、重启、切服和更新安装接入同一个汉化准备步骤', () => {
   const source = readFileSync(new URL('../electron/main.js', import.meta.url), 'utf8')
   assert.match(source, /let localization = null/)
-  assert.equal((source.match(/prepareCleanup: \(\) => localization\?\.shutdown\(\)/g) || []).length, 4)
+  assert.equal((source.match(/prepareCleanup: prepareLocalizationShutdown/g) || []).length, 4)
+  assert.match(source, /await Promise\.all\(\[localization\?\.shutdown\(\), marketLocalization\?\.shutdown\(\)\]\)/)
 })

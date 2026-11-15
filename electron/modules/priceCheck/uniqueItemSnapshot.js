@@ -116,6 +116,25 @@ export function enrichOfficialItemsWithImages(items, catalog) {
   })
 }
 
+export function enrichInternationalItemsWithImages(items, catalog) {
+  // PoEDB's canonical English paths omit apostrophes and use underscores for spaces.
+  const slug = name => cleanText(name).replace(/['’]/g, '').replaceAll(' ', '_')
+  const imagesByName = new Map()
+  for (const snapshot of catalog?.items || []) {
+    const name = cleanText(snapshot.englishSlug)
+    if (!name || safeUniqueItemImageId(snapshot.imageId) !== snapshot.imageId) continue
+    if (!imagesByName.has(name)) imagesByName.set(name, new Set())
+    imagesByName.get(name).add(snapshot.imageId)
+  }
+  return (items || []).map(entry => {
+    const images = entry.unique === true && imagesByName.get(slug(entry.name))
+    const imageId = images?.size === 1 ? [...images][0] : UNIQUE_ITEM_PLACEHOLDER_ID
+    // The local snapshot's modifiers are Chinese and must not suppress English query conditions.
+    const { uniqueModifierMatchers: _oldMatchers, uniqueSnapshotCovered: _oldCoverage, ...baseEntry } = entry
+    return { ...baseEntry, imageId, imageUrl: uniqueItemImageUrl(imageId) }
+  })
+}
+
 export function matchesUniqueModifier(text, matchers) {
   const value = cleanText(text)
   if (!value || !Array.isArray(matchers)) return false

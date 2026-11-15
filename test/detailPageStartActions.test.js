@@ -48,7 +48,7 @@ test('地图制作详情页复用地图启动服务并阻止重复或并行启�
   assert.match(view, /const starting = ref\(false\)/)
   assert.match(view, /const isCurrentModeRunning = computed\(\(\) => scriptStore\.isRunning && scriptStore\.mode === 'map'\)/)
   assert.match(view, /:loading="starting"/)
-  assert.match(view, /:disabled="starting \|\| scriptStore\.isRunning \|\| !canUseGameInput\('map'\)"/)
+  assert.match(view, /:disabled="starting \|\| scriptStore\.isRunning \|\| !canUseGameInput\('map'\) \|\| \(currentServer\.id === 'international' && activeKind === 'chart'\)"/)
   assert.match(view, /import \{ currentServer, canUseGameInput \} from ['"]@\/utils\/serverContext\.js['"]/)
   assert.match(view, /\{\{ isCurrentModeRunning \? '运行中' : '启动' \}\}/)
   assert.match(view, /async function handleStart\(\)[\s\S]*starting\.value = true[\s\S]*await startMapRolling\(\)[\s\S]*starting\.value = false/)

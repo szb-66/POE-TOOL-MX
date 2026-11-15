@@ -218,7 +218,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         rewardTotal: activeRecipe?.rewardTotal
       }),
       evaluatePriceCheckStatus({
-        manualInputOnly: currentServer.id === 'international',
+        serverLabel: currentServer.label,
         enabled: priceCheckStore.settings.enabled,
         authenticated: accountStore.status.authenticated,
         accountName: accountStore.status.accountName,
@@ -518,8 +518,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
     if (currentServer.id === 'international') {
       const capability = currentServer.capabilities[String(module.route || '').slice(1)]
       if (capability && !capability.available) return []
-      if (module.id === 'priceCheck') return [{ id: 'manual-query', label: '手动查价', type: 'primary', run: () => router.push('/price-check') }]
-      if (module.id === 'shop') return [{ id: 'read-stash', label: '查看仓库配方', type: 'primary', run: () => router.push('/recipe') }]
     }
     if (module.id === 'mapTracker') {
       const actions = [{ id: 'toggle', label: mapTrackerStore.enabled ? '关闭' : '启用', type: mapTrackerStore.enabled ? 'danger' : 'primary', run: () => mapTrackerStore.setEnabled(!mapTrackerStore.enabled) }]
@@ -589,7 +587,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
           const enabled = !priceCheckStore.settings.enabled
           const result = await priceCheckStore.setEnabled(enabled)
           if (result?.configurationRequired) return
-          ElMessage.success(enabled ? '国服查价器已启用' : '国服查价器已关闭')
+          ElMessage.success(enabled ? '查价器已启用' : '查价器已关闭')
         }
       }]
     }

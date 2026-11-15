@@ -9,8 +9,9 @@ using BundleIndex = LibBundle3.Index;
 namespace LocalizationHelper;
 
 public static class Program {
-    internal static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    public static int Main() {
+    internal static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All) };
+    public static int Main(string[] args) {
+        if (args.Length == 1 && args[0] == "--market-host") return MarketHost.Run();
         Console.InputEncoding = new UTF8Encoding(false); Console.OutputEncoding = new UTF8Encoding(false);
         try {
             string line = Console.ReadLine() ?? throw new InvalidDataException("Missing request");
@@ -21,7 +22,6 @@ public static class Program {
                 "scan" => Scan(request),
                 "self-test" => SelfTest(),
                 "export" => Export(request),
-                "preview" => Preview(request),
                 "apply" => Apply(request),
                 "restore" => Restore(request),
                 _ => throw new InvalidDataException("Unsupported operation")
@@ -69,7 +69,7 @@ public static class Program {
             result["resourceVersion"]=snapshot.ReleaseId;
             var coverage=Path.Combine(storage.GetValue<string>(),"applied-coverage.json");
             if(snapshot.Applied && File.Exists(coverage)) { var summary=JsonNode.Parse(File.ReadAllText(coverage));if(summary?["indexHash"]?.GetValue<string>()==snapshot.IndexHash)result["counts"]=summary["counts"]?.DeepClone(); }
-        } else result["baseline"]=new JsonObject{["ready"]=false,["reason"]="首次应用前请通过Steam验证游戏完整性"};
+        } else result["baseline"]=new JsonObject{["ready"]=false,["reason"]="应用汉化时将自动检查并备份游戏资源"};
         return result;
     }
     internal static object SelfTest() {
@@ -84,41 +84,40 @@ public static class Program {
     internal static void Progress(string phase,int completed,int total) => Console.WriteLine(JsonSerializer.Serialize(new{protocolVersion=1,type="progress",phase,completed,total},Json));
     internal static string GameVersion(string game) {
         string file=Path.Combine(game,"logs","LatestClient.txt"); if(!File.Exists(file))file=Path.Combine(game,"logs","Client.txt");
-        if(File.Exists(file)){ var log=File.ReadAllText(file); var matches=Regex.Matches(log,@"release/tags/([a-zA-Z0-9._-]+)");if(matches.Count>0)return matches[^1].Groups[1].Value; }
+        if(File.Exists(file)) return VersionFromLog(File.ReadAllText(file));
         return "unverified";
+    }
+    internal static string VersionFromLog(string log) {
+        var matches=Regex.Matches(log,@"(?:release|poe1_production2_tc)/tags/([a-zA-Z0-9._-]+)");
+        return matches.Count>0 ? matches[^1].Groups[1].Value : "unverified";
     }
     private static GameTransaction Transaction(JsonObject request) => new(request["gameDirectory"]!.GetValue<string>(),request["storageRoot"]!.GetValue<string>(),request["configPath"]?.GetValue<string>());
     private static object Export(JsonObject request) {
-        var result=new ResourceEngine().Export(request["gameDirectory"]!.GetValue<string>(),request["cnGameDirectory"]?.GetValue<string>());
+        string? sourceIndex=request["storageRoot"] == null ? null : Transaction(request).BaselineIndexPath;
+        var result=new ResourceEngine().Export(request["gameDirectory"]!.GetValue<string>(),request["cnGameDirectory"]?.GetValue<string>(),sourceIndex);
         string file=Path.GetFullPath(request["outputPath"]!.GetValue<string>()); Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         File.WriteAllText(file, result.ToJsonString(Json),new UTF8Encoding(false));return result["report"]!;
     }
-    internal static object Preview(JsonObject request, GameTransaction? transaction = null) {
-        transaction ??= Transaction(request);
-        var snapshot=transaction.Inspect();
-        // Preview the same pristine inputs used by Apply, including after a previous patch.
-        using var index=Open(request["gameDirectory"]!.GetValue<string>(), indexPath: snapshot.Baseline.Ready ? transaction.BaselineIndexPath : null);
-        new ResourceEngine().Build(index,request["entries"]?.AsArray() ?? new JsonArray(),out var counts);
-        return new { counts, snapshot.Baseline, snapshot.GameVersion,snapshot.BuildId, resourceVersion=request["manifest"]?["releaseId"]?.GetValue<string>() ?? "", canApply=snapshot.Baseline.Ready };
-    }
     internal static object Apply(JsonObject request, GameTransaction? transaction = null) {
+        string? requestedMode = !request.ContainsKey("mode") ? "simplified" : request["mode"] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+        string mode=GameTransaction.ValidateMode(requestedMode);
         transaction ??= Transaction(request); transaction.RequireWritable(); transaction.Recover();
         var snapshot=transaction.EstablishBaseline();
         string game=request["gameDirectory"]!.GetValue<string>(),storage=request["storageRoot"]!.GetValue<string>();
         string release=request["manifest"]?["releaseId"]?.GetValue<string>() ?? "native-tw";
-        if(snapshot.Applied && snapshot.ReleaseId==release) { var unchanged=JsonSerializer.SerializeToNode(transaction.EnsureAppliedLanguage(release),Json)!.AsObject();unchanged["resourceVersion"]=release;unchanged["unchanged"]=true;return unchanged; }
+        if(snapshot.Applied && snapshot.ReleaseId==release && snapshot.Mode==mode) { var unchanged=JsonSerializer.SerializeToNode(transaction.EnsureAppliedLanguage(release,mode),Json)!.AsObject();unchanged["resourceVersion"]=release;unchanged["unchanged"]=true;return unchanged; }
         string generation="g-"+Guid.NewGuid().ToString("N"),stage=Path.Combine(storage,"staging",generation);
         Directory.CreateDirectory(stage);
         var baseline=transaction.BaselineIndexPath;
         Dictionary<string,byte[]> outputs; object counts;
-        // Always rebuild from the original same-version baseline, never stack patches.
+        // Always rebuild from the same-version pre-apply backup, never stack patches.
         var prefix=typeof(BundleIndex).GetField("CUSTOM_BUNDLE_BASE_PATH",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public) ?? throw new UserError("原生组件未包含受管bundle路径支持");
         prefix.SetValue(null,"PoEHelper/"+generation+"/");
         var factory=new StageFactory(Path.Combine(game,"Bundles2"),stage,"PoEHelper/"+generation+"/");
         string candidate=Path.Combine(stage,"_.index.bin");
         var candidateMemory=new MemoryStream();candidateMemory.Write(NativeBundleValidation.ReadIndex(baseline));candidateMemory.Position=0;
         using(var index=new BundleIndex(candidateMemory,false,false,factory)) {
-            outputs=new ResourceEngine().Build(index,request["entries"]?.AsArray() ?? new JsonArray(),out counts);
+            outputs=new ResourceEngine().Build(index,mode=="traditional" ? new JsonArray() : request["entries"]?.AsArray() ?? new JsonArray(),out counts);
             int done=0;foreach(var output in outputs){ if(!index.TryGetFile(output.Key,out var record))throw new UserError("目标语言资源消失，请重新验证游戏");record.Write(output.Value);Progress("write-candidate",++done,outputs.Count); }
             index.Save();
             // Serialize completed index into a candidate file without touching original.
@@ -129,7 +128,7 @@ public static class Program {
         }
         using(var check=new BundleIndex(new MemoryStream(NativeBundleValidation.ReadIndex(candidate)),false,false,factory)) foreach(var output in outputs) if(!check.TryGetFile(output.Key,out var record)||!record.Read().Span.SequenceEqual(output.Value)) throw new InvalidDataException("Candidate readback mismatch");
         File.WriteAllText(Path.Combine(storage,"applied-coverage.json"),JsonSerializer.Serialize(new {indexHash=HashFile(candidate),counts},Json));
-        var final=transaction.Commit(candidate,Path.Combine(stage,"PoEHelper",generation),release,generation);
+        var final=transaction.Commit(candidate,Path.Combine(stage,"PoEHelper",generation),release,generation,mode);
         var result=JsonSerializer.SerializeToNode(final,Json)!.AsObject();result["resourceVersion"]=final.ReleaseId;result["counts"]=JsonSerializer.SerializeToNode(counts,Json);return result;
     }
     private static object Restore(JsonObject request) { var snapshot=Transaction(request).Restore();var result=JsonSerializer.SerializeToNode(snapshot,Json)!.AsObject();result["restored"]=true;result["resourceVersion"]=snapshot.ReleaseId;return result; }

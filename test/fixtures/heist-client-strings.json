@@ -1,0 +1,152 @@
+[
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistContractJob",
+    "field": "Text",
+    "en": "Requires {1} (Level {0})",
+    "kind": "dat",
+    "sourceHash": "9bbaf5f79ab5c75f268771a8b231614d6881c963e3d380e324bc32d8e61ff302",
+    "tw": "需要 {1} (等級 {0})",
+    "cn": "需要 {1} (等级 {0})"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistContractLevel",
+    "field": "Text",
+    "en": "Area Level",
+    "kind": "dat",
+    "sourceHash": "539178ed97155f078a25f34ddc2d868be3123c0063d7efd2d4e853a6f37fe8a8",
+    "tw": "地區等級",
+    "cn": "区域等级"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistLockdownTimeIncrease",
+    "field": "Text",
+    "en": "Time Before Lockdown",
+    "kind": "dat",
+    "sourceHash": "5db78110e4758d7acdba1204f1a26a272f65cbfcffccde258a3d1ad9a28b30cf",
+    "tw": "封鎖前的時間",
+    "cn": "封锁前的时间"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistJobRequirement",
+    "field": "Text",
+    "en": "Level {0} in {1}",
+    "kind": "dat",
+    "sourceHash": "9239c039179ac1b1fd77c3fa39feb84a1a57c12ab278245522e979ea19fc78ed",
+    "tw": "等級 {0} 於 {1}",
+    "cn": "{1}（等级{0}）"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistBlueprintWings",
+    "field": "Text",
+    "en": "Wings Revealed",
+    "kind": "dat",
+    "sourceHash": "43323b1c10d6f9d922e0c39bbaa25ecc7226b72ec948554f2c7ac53e5bbf64b5",
+    "tw": "已揭露側廂",
+    "cn": "发现的侧厅"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistBlueprintRewardRooms",
+    "field": "Text",
+    "en": "Reward Rooms Revealed",
+    "kind": "dat",
+    "sourceHash": "b72e11436f51a82a8d6d6e925930d3440538d45f6f6320e494d13561f3d26e0a",
+    "tw": "已揭露獎勵房",
+    "cn": "破解的奖励室"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistContractObjective",
+    "field": "Text",
+    "en": "Heist Target: {0}",
+    "kind": "dat",
+    "sourceHash": "5fdb306e6625c5d29ea82488d0acdb50631284ad19b5661e6f795b2caa534317",
+    "tw": "劫盜目標：{0}",
+    "cn": "赏金目标：{0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistContractObjectiveWithValue",
+    "field": "Text",
+    "en": "Heist Target: {0} ({1})",
+    "kind": "dat",
+    "sourceHash": "f94bda8c823c2ca4014d923ab117fcf22d085478c339f8cede8a78ffd69298ad",
+    "tw": "劫盜目標：{0} ({1})",
+    "cn": "赏金目标： {0} ({1})"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistBlueprintEscapeRooms",
+    "field": "Text",
+    "en": "Escape Routes Revealed",
+    "kind": "dat",
+    "sourceHash": "009d7383777a63d72ca7562fa58013348f8d96d40d8c60cc97863e149f044ce7",
+    "tw": "揭露逃脫路線",
+    "cn": "发现逃亡路线"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistMaxReinforcements",
+    "field": "Text",
+    "en": "Maximum Alive Reinforcements",
+    "kind": "dat",
+    "sourceHash": "dc265be22af19cf07c66baf85394cbc2cbaa953e56639f628571f2cf97531fbe",
+    "tw": "最大生存支援",
+    "cn": "最大存活援军"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistContractNPC",
+    "field": "Text",
+    "en": "Requires {0}",
+    "kind": "dat",
+    "sourceHash": "e2bec0c84c30f5f2670df1ed687293c0a1caf15de01d6f5ad004bdfde8f840d3",
+    "tw": "需要 {0}",
+    "cn": "需要{0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistClient",
+    "field": "Text",
+    "en": "Client",
+    "kind": "dat",
+    "sourceHash": "0c77fe09ab336a3e57cc2b6804a9bac65e19a27782b5a9c815d585e894c3b7f2",
+    "tw": "顧客",
+    "cn": "客户"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistAlertLevelReduction",
+    "field": "Text",
+    "en": "Alert Level Reduction",
+    "kind": "dat",
+    "sourceHash": "2101906313a56a4a6294a9a579c89a7ae4e098200008cfc68dedf3a915ed633e",
+    "tw": "警戒等級減免",
+    "cn": "警报等级衰减"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionHeistContract",
+    "field": "Text",
+    "en": "Give this Contract to Adiyah in the Rogue Harbour to embark on the Heist.",
+    "kind": "dat",
+    "sourceHash": "208d79d2ffb5c37018518bd2c8332bbf559f0c3dad01536f49f4d9a17032b94f",
+    "tw": "將此契約書交給在盜賊港灣的阿迪雅，以開始劫盜任務。",
+    "cn": "在黄金港将契约交给艾蒂娅，开启夺宝冒险。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionHeistBlueprint",
+    "field": "Text",
+    "en": "Use Intelligence to Reveal additional Wings and Rooms by talking to certain NPCs in the Rogue Harbour. Give this Blueprint to Adiyah to embark on the Grand Heist.",
+    "kind": "dat",
+    "sourceHash": "82467bc83697152510ab044c37fc88b94788b53a81092d2a0921e635c5dceb49",
+    "tw": "在盜賊港灣與特定 NPC 對話，使用資訊來發現額外的側廂和房間。將此藍圖交給阿迪雅以開始劫盜之星。",
+    "cn": "在黄金港跟 NPC 对话，运用智慧破解更多侧厅和密室。将该蓝图交给艾蒂娅开启大型夺宝冒险。"
+  }
+]

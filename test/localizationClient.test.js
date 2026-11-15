@@ -113,9 +113,9 @@ test('构造和查询状态不联网，不自动扫描；仅手动应用成功�
   let helperCalls = 0
   let activated = 0
   const bundle = { manifest: { releaseId: 'new' }, entries: [entry('a')], envelope: {} }
-  const downloader = { load: file => file === 'ready.json' ? bundle : null, activate: () => { activated++ } }
-  const helper = { available: () => true, run: async operation => { helperCalls++; return operation === 'restore' ? { applied: false, restored: true } : { applied: true, resourceVersion: 'new' } } }
-  const service = new LocalizationService({ serverId: 'international', storageRoot: root, downloader, helper, inspect: () => ({ gameDirectory: root }), assertWritable: async () => ({ gameDirectory: root }), verifyInstalled: () => ({ ready: true }) })
+  const downloader = { load: file => file === 'ready.json' ? bundle : null, check: async () => ({ releaseId: 'new', missingObjects: 0 }), download: async () => ({ downloadedBytes: 0 }), activate: () => { activated++ } }
+  const helper = { available: () => true, run: async operation => { helperCalls++; return operation === 'scan' ? { applied: false } : operation === 'restore' ? { applied: false, restored: true } : { applied: true, resourceVersion: 'new' } } }
+  const service = new LocalizationService({ serverId: 'international', storageRoot: root, downloader, helper, discover: async () => [], inspect: () => ({ gameDirectory: root }), assertWritable: async () => ({ gameDirectory: root }), verifyInstalled: () => ({ ready: true }) })
   assert.equal(service.getStatus().busy, false)
   assert.equal(helperCalls, 0)
   assert.equal(service.getActiveEntries().length, 0)
@@ -179,6 +179,7 @@ test('启动时和运行期间只读核对原生事务、Steam版本与索引；
     helper: { available: () => true, run: () => { helperCalls++; throw new Error('Must not run helper automatically') } } }
   const service = new LocalizationService(options)
   assert.equal(service.getActiveRevision(), 'known')
+  assert.equal(service.getStatus().mode, 'simplified', '旧事务记录缺少mode时兼容为简体')
   assert.equal(service.getActiveEntries().length, 1)
   assert.equal(helperCalls, 0)
   fs.writeFileSync(index, 'externally-updated-index')
@@ -197,6 +198,30 @@ test('启动时和运行期间只读核对原生事务、Steam版本与索引；
   assert.match(service.getStatus().mappingWarning, /未完成/)
   assert.equal(helperCalls, 0)
   assert.deepEqual(JSON.parse(fs.readFileSync(activeFile, 'utf8')), active)
+  fs.unlinkSync(path.join(storageRoot, 'transaction.json'))
+  fs.writeFileSync(activeFile, JSON.stringify({ ...active, mode: 'traditional' }))
+  const cachedTraditional = new LocalizationService(options)
+  assert.equal(cachedTraditional.getStatus().mode, 'traditional')
+  assert.equal(cachedTraditional.getActiveRevision(), 'known', '同版缓存繁体映射在重启后仍可验证')
+  fs.writeFileSync(activeFile, JSON.stringify({ ...active, mode: 'traditional', releaseId: 'native-tw' }))
+  const localTraditional = new LocalizationService({ ...options, downloader: { load: () => null } })
+  assert.equal(localTraditional.getStatus().mode, 'traditional', '无词库也能只读恢复繁体模式状态')
+  assert.equal(localTraditional.getActiveRevision(), '')
+  assert.equal(localTraditional.getStatus().mappingState, 'none')
+  const mismatchedCache = new LocalizationService(options)
+  assert.equal(mismatchedCache.getStatus().mode, 'traditional')
+  assert.equal(mismatchedCache.getActiveRevision(), '', '本地繁体记录不能误激活其他版本缓存')
+  for (const mode of [null, 'english']) {
+    fs.writeFileSync(activeFile, JSON.stringify({ ...active, mode }))
+    const invalidMode = new LocalizationService(options)
+    assert.equal(invalidMode.getStatus().mode, null)
+    assert.equal(invalidMode.getActiveRevision(), '', '异常模式记录不能激活词库')
+  }
+  fs.writeFileSync(activeFile, JSON.stringify({ ...active, mode: 'traditional', releaseId: 'native-tw' }))
+  fs.writeFileSync(index, 'changed-after-traditional')
+  assert.equal(localTraditional.getStatus().mode, null)
+  assert.match(localTraditional.getStatus().mappingWarning, /索引已改变/)
+  assert.equal(helperCalls, 0, '恢复模式仅做本地校验，不启动组件或联网')
 })
 
 test('客户端国服服务拒绝执行，独立国际服设置不读写另一服目录', async t => {

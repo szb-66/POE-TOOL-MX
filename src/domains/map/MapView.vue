@@ -1,10 +1,11 @@
 <template>
   <div class="map-page primary-page primary-page--column">
-    <el-alert v-if="!canUseGameInput('map')" title="英文洗图适配已就绪，完成客户端手动验收后开放游戏操作；现在可配置条件与词缀。" type="info" :closable="false" />
+    <el-alert v-if="!canUseGameInput('map')" title="当前服务器暂未开放地图制作。" type="info" :closable="false" />
+    <el-alert v-if="currentServer.id === 'international' && activeKind === 'chart'" title="国际服本赛季不适配海图制作，已有预设保留；请选择异界地图或契约蓝图。" type="info" :closable="false" />
     <div class="primary-page__tabs">
       <el-tabs v-model="activeKind" class="kind-tabs">
         <el-tab-pane label="异界地图" name="atlas" />
-        <el-tab-pane label="航海海图" name="chart" />
+        <el-tab-pane label="航海海图" name="chart" :disabled="currentServer.id === 'international'" />
         <el-tab-pane label="契约蓝图" name="heist" />
       </el-tabs>
     </div>
@@ -37,7 +38,7 @@
         </div>
         <div class="form-item">
           <label class="form-label">操作</label>
-          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning || !canUseGameInput('map')" @click="handleStart">
+          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning || !canUseGameInput('map') || (currentServer.id === 'international' && activeKind === 'chart')" @click="handleStart">
             {{ isCurrentModeRunning ? '运行中' : '启动' }}
           </el-button>
         </div>

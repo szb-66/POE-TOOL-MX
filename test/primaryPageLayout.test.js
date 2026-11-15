@@ -117,7 +117,7 @@ test('主布局和导航保持 76px、原顺序、预加载与非交互视觉分
   ])
   assert.match(sidebar, /v-for="feature in featureStore\.enabledNavigationFeatures"/)
   const moreFeatures = source('src/components/Layout/MoreFeaturesDialog.vue')
-  assert.match(moreFeatures, /if \(!feature\.navigation \|\| !feature\.route\) return/)
+  assert.match(moreFeatures, /if \([^\r\n]*!feature\.navigation \|\| !feature\.route\) return/)
   assert.match(sidebar, /sidebar-menu--top/)
   assert.match(sidebar, /sidebar-menu--footer/)
   assert.match(sidebar, /overflow-y:\s*auto/)

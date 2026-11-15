@@ -1,5 +1,5 @@
 import { textSimilarity } from '../../../src/utils/chartModMatcher.js'
-import { isCurrentSanctumEntry, sanctumRule } from './catalog.js'
+import { isCurrentSanctumEntry, sanctumEntryRules } from './catalog.js'
 import { isRoomProfileTitle } from '../../../shared/sanctumRoomProfiles.js'
 
 const kinds = new Set(['room', 'reward', 'boon', 'affliction'])
@@ -14,7 +14,7 @@ function prepareCatalog(catalog) {
   const cached = catalog && preparedCatalogs.get(catalog)
   if (cached?.version === version) return cached.rows
   const rows = entries.filter(entry => kinds.has(entry.kind)).map(entry => ({entry,
-    values: [entry.name, ...(entry.aliases || []), ...(entry.descriptions || [])]
+    values: [entry.name, ...(entry.aliases || []), ...(entry.descriptions || []), ...(entry.descriptionAliases || [])]
       .filter(value => typeof value === 'string' && normalizeRoomText(value))
       .map(value => ({value, normalized: normalizeRoomText(value)}))}))
   if (catalog) preparedCatalogs.set(catalog, {version, rows})
@@ -40,16 +40,17 @@ export function matchRoomText(rawText, catalog, prepared = prepareCatalog(catalo
   const numeric = value => value.normalize('NFKC').match(/\d+(?:[.,]\d+)?/g)?.join('|') || ''
   const numericCompatible = numeric(rawText) === numeric(best.text)
   const descriptions = entry.descriptions || []
+  const rules = sanctumEntryRules(entry)
   const supported = verified && numericCompatible && descriptions.length > 0
-    && descriptions.every(value => sanctumRule(value))
+    && rules.length === descriptions.length && rules.every(Boolean)
   const source = catalog.sources?.find(value => value.id === entry.sourceId)
   return { rawText, entryId: entry.id, name: entry.name, kind: entry.kind, matchedText: best.text,
     descriptions, similarity, source: { id: entry.sourceId, label: '编年史词库快照', url: source?.url },
     versionStatus: verified ? 'verified' : 'unverified', calculationStatus: supported ? 'supported' : 'unsupported',
     numericCompatible, roomType: entry.roomType,
-    evaluationMode: supported ? descriptions.some(text=>sanctumRule(text)?.mode === 'conditional') ? 'conditional':'numeric' : null,
+    evaluationMode: supported ? rules.some(rule=>rule?.mode === 'conditional') ? 'conditional':'numeric' : null,
     supportReason: !verified ? '词条版本尚未核验' : !numericCompatible ? '识别数值与词条不一致' : !supported ? '缺少规则实现' : null,
-    effects: supported ? descriptions.map(rawText => ({ rawText, entryId:entry.id, name:entry.name, kind:entry.kind, tier:entry.tier, ...sanctumRule(rawText), status: 'matched' })) : [] }
+    effects: supported ? descriptions.map((rawText, index) => ({ rawText, entryId:entry.id, name:entry.name, kind:entry.kind, tier:entry.tier, ...rules[index], status: 'matched' })) : [] }
 }
 
 export function recognizeRoomTexts(texts, catalog, blocks = []) {
@@ -61,12 +62,12 @@ export function recognizeRoomTexts(texts, catalog, blocks = []) {
     .flatMap(e => [e.name, ...(e.aliases || [])]).map(normalizeRoomText))
   const title = text => isRoomProfileTitle(text) || roomNames.has(normalizeRoomText(text))
     || text.split('、').length > 1 && text.split('、').every(part => /^[\p{L}]{2,9}$/u.test(part.trim()))
-  const classify = text => /^包含|^完成后(?:提供|获得)/.test(text) ? 'room'
-    : /^在你进入时受到.+折磨$/.test(text) ? 'affliction' : null
+  const classify = text => /^包含|^完成后(?:提供|获得)|^Contains\b|^Offers Items on Completion$/i.test(text) ? 'room'
+    : /^在你进入时受到.+折磨$|^Afflicted with .+ on entering$/i.test(text) ? 'affliction' : null
   const matchLine = text => {
     if (queries.has(text)) return queries.get(text)
     const kind = classify(text)
-    const lookup = text.replace(/^在你进入时受到(.+)折磨$/, '$1')
+    const lookup = text.replace(/^在你进入时受到(.+)折磨$/, '$1').replace(/^Afflicted with (.+) on entering$/i, '$1')
     const match = matchRoomText(lookup, catalog, prepared.filter(({entry}) => !kind || entry.kind === kind))
     const result = match ? { ...match, rawText:text, role:kind === 'room' ? 'content' : 'effect' } : null
     queries.set(text, result)

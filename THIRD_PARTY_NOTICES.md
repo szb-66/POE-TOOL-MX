@@ -15,6 +15,7 @@
 | aianlinb.SystemExtensions | NuGet 1.8.0 | MIT | LibBundle3 基础依赖 |
 | ooz | powzix/ooz，commit `05038060aa68f9187ae9923b2388ca8db40e58d1` | GPL-3.0-or-later | Kraken/Mermaid/Selkie/Leviathan 等资源解码 |
 | PoE dat-schema | poe-tool-dev/dat-schema，commit `9f095ca68ae0c822e4b0d8be3525e0466ddec11d`，schema v7 | MIT | 已固定的 PoE1 数据表结构 |
+| PoE dat-schema 国服来源快照 | poe-tool-dev/dat-schema，commit `91e6578a63678faf1b6c980ed0d02a0c6ca5afee`，3.29.3 | MIT | 仅读取旧国服翻译，不用于国际服目标写入 |
 | .NET | Microsoft .NET 8，win-x64 自包含运行时 | 随运行时组件许可证 | helper 执行环境 |
 
 LibBundle3 的唯一源码适配是将自建 bundle 路径前缀开放给 helper，使用
@@ -152,3 +153,9 @@ PoEDB 页面和 Path of Exile 官方交易目录仅作为开发期数据/美术�
 - PoeCharm：https://github.com/Chuanhsing/PoeCharm ，用户主动安装或更新时下载官方提交归档。
 - Path of Building Community：https://github.com/PathOfBuildingCommunity/PathOfBuilding ，用户主动安装或更新时下载官方稳定版 Portable 资产。
 - 两个外部工具不随助手打包，保留下载归档中的许可证及说明文件。
+
+## 原生市集翻译组件
+
+- MinHook 1.3.4：https://github.com/TsudaKageyu/minhook ，固定提交 `c3fcafdc10146beb5919319d0683e44e3c30d537`，BSD 2-Clause。用于已实测 Windows x64 游戏版本的原生调用挂钩，完整许可随组件提供为 `MinHook-LICENSE.txt`。
+- nlohmann/json 3.11.3：https://github.com/nlohmann/json ，MIT。用于市集目录和查询 JSON 的解析，完整许可随组件提供为 `nlohmann-json-LICENSE.txt`。
+- 游戏目录名称与词缀按项目现有中文交易目录、受管资源及官方语言数据对齐；其游戏数据权利归 Grinding Gear Games 等相应权利人。第三方市集程序仅用于研究机制，不随本项目分发，不作为运行依赖，未复制其二进制或整套词库。

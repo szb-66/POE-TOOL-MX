@@ -57,6 +57,7 @@ function candidateModifiers(itemInfo) {
   const candidates = structured.map((modifier) => ({
     name: String(modifier.name || ''),
     text: cleanEffectText(modifier.text || modifier.lines?.join('\n') || ''),
+    aliases: [...(modifier.textAliases || []), ...(modifier.nameAliases || [])],
     tier: Math.trunc(Number(modifier.tier)) || 0
   }))
   const existingTexts = new Set(candidates.map((modifier) => modifier.text))
@@ -77,7 +78,7 @@ function matchCondition(conditionInput, candidates) {
   const candidate = candidates.find((modifier) => {
     const effectMatches = condition.kind === 'catalog'
       ? pattern.test(modifier.text)
-      : modifier.name.includes(condition.keyword) || modifier.text.includes(condition.keyword)
+      : modifier.name.includes(condition.keyword) || modifier.text.includes(condition.keyword) || modifier.aliases?.some(value => value.includes(condition.keyword))
     if (!effectMatches) return false
     return condition.minTier === null || (modifier.tier > 0 && modifier.tier <= condition.minTier)
   })
@@ -101,7 +102,7 @@ export function matchEldritchImplicits(itemInfo, targets = [], { naturalBaseImpl
     const pattern = condition.kind === 'catalog' || condition.effectPattern
       ? effectPatternRegex(condition.effectPattern)
       : null
-    const matchedText = candidates.find((candidate) => pattern ? pattern.test(candidate) : candidate.includes(condition.keyword))
+      const matchedText = candidates.find((candidate) => pattern ? pattern.test(candidate) : [candidate, ...(itemInfo.modTextAliases?.[candidate] || [])].some(value => value.includes(condition.keyword)))
     if (matchedText) {
       return {
         isMatch: true,
@@ -229,7 +230,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
   const blacklist = matchConfig.blacklist || []
   for (const mod of explicitMods) {
     for (const blackTerm of blacklist) {
-      if (blackTerm && matchMapTerm(mod, blackTerm)) {
+      if (blackTerm && [mod, ...(itemInfo.modTextAliases?.[mod] || [])].some(value => matchMapTerm(value, blackTerm))) {
         return { isMatch: false, reason: 'blacklist' }
       }
     }
@@ -237,7 +238,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
 
   // 白名单沿用既有“任一命中即通过词缀检查”语义；基底条件仍必须满足。
   const whitelist = matchConfig.whitelist || []
-  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => matchMapTerm(mod, term)))
+  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => [mod, ...(itemInfo.modTextAliases?.[mod] || [])].some(value => matchMapTerm(value, term))))
 
   if (targetKind === 'heist' && whitelist.some(term => term?.trim()) && !whitelistMatched) return { isMatch: false, reason: 'whitelist' }
 
@@ -316,7 +317,7 @@ export function getMapStatValue(itemInfo, key) {
   } else if (key === 'deadmanSulphur') {
     val = itemInfo.deadmanSulphur || 0
   } else if (key === 'moreMaps') {
-    // T17属性：更多地图
+    // 地图额外收益属性：更多地图
     // 优先从顶层属性获取（解析器已解析）
     val = itemInfo.moreMaps || 0
     // 如果顶层没有，尝试从词缀中提取（备用方案）
@@ -330,7 +331,7 @@ export function getMapStatValue(itemInfo, key) {
       }
     }
   } else if (key === 'moreScarabs') {
-    // T17属性：更多圣甲虫
+    // 地图额外收益属性：更多圣甲虫
     val = itemInfo.moreScarabs || 0
     if (val === 0) {
       const mods = [...(itemInfo.implicitMods || []), ...(itemInfo.explicitMods || [])]
@@ -346,7 +347,7 @@ export function getMapStatValue(itemInfo, key) {
   } else if (key === 'atlasDrops') {
     val = itemInfo.atlasDrops || 0
   } else if (key === 'moreCurrency') {
-    // T17属性：更多通货
+    // 地图额外收益属性：更多通货
     val = itemInfo.moreCurrency || 0
     if (val === 0) {
       const mods = [...(itemInfo.implicitMods || []), ...(itemInfo.explicitMods || [])]

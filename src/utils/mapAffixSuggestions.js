@@ -103,13 +103,18 @@ export function affixSuggestionsForKind(targetKind, language = currentServer.lan
   return []
 }
 
-export function searchMapAffixSuggestions(targetKind, query, limit = 50, language = currentServer.language) {
+export function searchMapAffixSuggestions(targetKind, query, limit = 50, language = currentServer.language, localizedCatalog = new Map()) {
   try {
     const keyword = String(query || '').trim().toLocaleLowerCase('zh-CN')
     if (!keyword) return []
     const safeLimit = Number.isFinite(Number(limit)) ? Math.max(0, Math.floor(Number(limit))) : 50
     return affixSuggestionsForKind(targetKind, language)
-      .filter(entry => `${entry.value} ${entry.example} ${(entry.tags || []).join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
+      .map(entry => ({ ...entry,
+        displayText: localizedCatalog.get(entry.value)?.displayText || entry.value,
+        example: localizedCatalog.get(entry.example)?.displayText || entry.example,
+        aliases: [...(localizedCatalog.get(entry.value)?.aliases || []), ...(localizedCatalog.get(entry.example)?.aliases || [])]
+      }))
+      .filter(entry => `${entry.value} ${entry.example} ${entry.displayText} ${entry.aliases.join(' ')} ${(entry.tags || []).join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
       .slice(0, safeLimit)
   } catch {
     return []

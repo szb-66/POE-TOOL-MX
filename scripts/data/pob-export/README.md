@@ -35,3 +35,10 @@ PoB 自己生成的随机剑与能量之刃计算底材不属于官网角色物�
 回归入口：`node --test test/pobExport.test.js test/pobExportCoverage.test.js test/pobExportState.test.js`。
 测试会解压导入码核对 XML，也检查整个固定角色目录、传奇底材关联和 PoB 宝石身份。
 它们不能代替用新增真实官网样本持续核验，更不能证明所有未来赛季或上游缺失内容都受支持。
+
+国际服使用独立的 `electron/assets/pob-export/international.json`，不覆盖上述国服目录。
+来源固定为官方 PathOfBuildingCommunity 仓库提交 `f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea`，
+包含当前 3.30 底材、传奇关联、技能、职业和普通／无情天赋树，逐文件记录 SHA-256。
+生成入口：`python scripts/generateInternationalPobData.py --lua-root <现有PoB运行时目录>`。
+追加 `--check` 可比较生成内容；下载缓存在 `.cache/pob-international`，执行前按固定 Git 对象哈希校验。
+只读取现有目录中的 `lua51.dll`，不会修改或启动 PoB。当前来源为开发版提交，导入时需要支持 3.30 的 PoB。

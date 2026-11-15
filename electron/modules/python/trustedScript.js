@@ -13,7 +13,7 @@ const failure = message => Object.assign(new Error(message), { code: 'INVALID_SC
 
 // Complete validation and generation before the caller stops any existing task.
 // Renderer script text, paths, language and communication files are never trusted.
-export function prepareTrustedScriptRequest({ event, config, mainWindow, filePaths, server = getServer() }) {
+export function prepareTrustedScriptRequest({ event, config, mainWindow, filePaths, server = getServer(), localizationSnapshot = null }) {
   if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents?.isDestroyed?.() || event?.sender !== mainWindow.webContents) {
     throw failure('仅主窗口可启动制作或地图任务')
   }
@@ -24,9 +24,14 @@ export function prepareTrustedScriptRequest({ event, config, mainWindow, filePat
   const selectedServer = getServer(server.id)
   const craftingKind = config.mode === 'items' ? config.craftingKind || 'general' : null
   const preset = structuredClone(config.preset)
+  preset.localizationRevision = selectedServer.id === 'international' ? localizationSnapshot?.revision || '' : ''
+  if (selectedServer.id === 'international' && config.mode === 'map' && (preset.map.targetKind === 'chart' || preset.map.activeKind === 'chart')) {
+    throw failure('国际服本赛季不适配海图制作，已有预设保留')
+  }
   const generationConfig = {
     ...structuredClone(config.generationConfig),
     filePaths: { ...filePaths }, serverId: selectedServer.id, language: selectedServer.language,
+    localizationSnapshot: selectedServer.id === 'international' ? localizationSnapshot : null,
     preset, craftingKind: craftingKind || 'general',
     ...(config.mode === 'map' ? { mapConfig: preset.map } : {})
   }

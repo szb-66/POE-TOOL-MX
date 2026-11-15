@@ -1,12 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import data from '../src/data/internationalMapData.js'
 import { mapRegexCatalog, createDefaultMapRegexConfig, cleanMapRegexConfig, generateMapRegex } from '../src/domains/regex/mapRegex.js'
 import { beastRegexOptions, cleanBeastRegexConfig, generateBeastRegex } from '../src/domains/regex/beastRegex.js'
 import { affixSuggestionsForKind, searchMapAffixSuggestions } from '../src/utils/mapAffixSuggestions.js'
 import { parseInternationalMods, parseInternationalChart, buildInternationalSuggestions, parseCurrentBeasts, generateInternationalMapData } from '../scripts/generateInternationalMapData.js'
 
-test('国际服地图词库记录独立3.30来源、普通/T17/契约/海图且保持完整数字模板', () => {
+test('国际服地图词库记录独立3.30来源、统一地图/契约/海图且保持完整数字模板', () => {
   assert.equal(data.manifest.server, 'international')
   assert.equal(data.manifest.gameVersion, '3.30.0')
   assert.equal(data.manifest.language, 'en')
@@ -24,11 +25,25 @@ test('国际服地图词库记录独立3.30来源、普通/T17/契约/海图且�
       assert.equal(/\p{Script=Han}/u.test(item.example), false)
     }
   }
-  assert.ok(data.atlas.some(item => item.regions.includes('normal')))
-  assert.ok(data.atlas.some(item => item.regions.includes('t17')))
+  assert.ok(data.atlas.every(item => JSON.stringify(item.regions) === '["atlas"]'))
   assert.equal(data.atlas.some(item => /Atlas Drops|more Threads found/i.test(item.value)), false, '每词缀的地图奖励贡献不是可洗条件')
   assert.ok(searchMapAffixSuggestions('heist', 'REINFORCEMENTS', 10, 'en').length)
   assert.equal(affixSuggestionsForKind('atlas', 'zh-CN').some(item => /\p{Script=Han}/u.test(item.value)), true)
+})
+
+test('四类地图合并不丢失当前131条稳定身份、完整数值及四页来源，离线重建一致', () => {
+  const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+  assert.equal(data.atlas.length, 131)
+  assert.equal(new Set(data.atlas.map(entry => entry.id)).size, 131)
+  assert.equal(digest(data.atlas.map(({ regions, ...entry }) => entry)), '476e1bfcfebe054324f9cec7c68f6df64a7f9357957c6564f2319044226d1297')
+  assert.deepEqual(data.manifest.sources.slice(0, 4), [
+    ['Maps_low_tier', '4c6e802465c93eb0cadeffb89502d79c2c9eeb9741340697555da78b51409b04'],
+    ['Maps_mid_tier', '80ce6b87f1286c425cc52137b14840b82092758e91b5bd0f430af5a12a9b47ee'],
+    ['Maps_top_tier', 'f71a2da51cc0b00478e9fe7b7c0979cf1ac7a864abbff2572627dacf11b87e54'],
+    ['Maps_uber_tier', '4e9c5926704e0bf174f554144305b392043ba25c181c1149efe1139f52feff67']
+  ].map(([page, sha256]) => ({ url: `https://poedb.tw/us/${page}`, sha256 })))
+  const rebuilt = buildInternationalSuggestions([{ region: 'atlas', mods: data.atlas.map(entry => ({ affixType: entry.affixType, lines: entry.variants, tags: entry.tags })) }], 'atlas')
+  assert.deepEqual(rebuilt, data.atlas)
 })
 
 test('每个英文地图表达式只命中全目录自身全部档位和边界样本，大小写不影响', () => {
@@ -104,7 +119,7 @@ test('英文生成器校验词缀域、忽略不可洗记录和奖励贡献，�
   assert.deepEqual(mods[0].lines, ['Monsters deal (10—20)% increased Damage'])
   assert.throws(() => parseInternationalMods(html, 22), /词缀域/)
   assert.throws(() => parseInternationalMods('<html/>', 5), /ModsView/)
-  const entries = buildInternationalSuggestions([{ mods, region: 'normal' }], 'atlas')
+  const entries = buildInternationalSuggestions([{ mods, region: 'atlas' }], 'atlas')
   assert.ok(entries[0].variants.includes('Monsters deal 10% increased Damage'))
   assert.ok(entries[0].variants.includes('Monsters deal 20% increased Damage'))
   const chart = parseInternationalChart('<table><thead><tr><th>Level</th><th>Pre/Suf</th><th>Description</th></tr></thead><tbody><tr><td>1</td><td>Prefix</td><td>More Monsters<br>20% increased Rarity of Items found in adjacent Areas</td></tr><tr><td>1</td><td>Unique</td><td>Legacy implicit</td></tr></tbody></table>')

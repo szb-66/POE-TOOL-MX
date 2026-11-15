@@ -625,7 +625,7 @@ export class SanctumService {
     for (const key of ['recovery', 'recoveryCost']) if (patch[key] !== undefined && patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0 || patch[key] > 1e6)) throw new Error('房间数值无效')
     if (patch.rewards !== undefined && (!Array.isArray(patch.rewards) || patch.rewards.length > 20 || patch.rewards.some(reward =>
       !reward || typeof reward.currency !== 'string' || reward.currency.length > 100 || reward.quantity !== null && !Number.isFinite(reward.quantity)
-      || reward.quantity < 0 || reward.quantity > 1e6 || !['immediate', 'floor', 'run', 'unknown', null].includes(reward.timing) || reward.groupId != null && (typeof reward.groupId !== 'string' || reward.groupId.length > 160)))) throw new Error('奖励格式无效')
+      || reward.quantity < 0 || reward.quantity > 1e6 || !['immediate', 'floor', 'next-floor', 'run', 'unknown', null].includes(reward.timing) || reward.groupId != null && (typeof reward.groupId !== 'string' || reward.groupId.length > 160)))) throw new Error('奖励格式无效')
     const changedProfile = ['name','layout'].some(field => patch[field] !== undefined && patch[field] !== room[field])
     if (changedProfile) {
       for (const field of ['layout','traps','layoutPreferenceKey','roomProfile']) {

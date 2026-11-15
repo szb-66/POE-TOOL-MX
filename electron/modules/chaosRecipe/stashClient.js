@@ -50,7 +50,7 @@ export class PoeCnStashClient {
   assertAuthenticated() {
     const auth = this.getAuthStatus()
     if (!auth?.authenticated) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, '请先登录国服账号')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, `请先登录${this.server.label}账号`)
     }
     if (Date.now() < this.rateLimitedUntil) {
       const retryAfter = Math.ceil((this.rateLimitedUntil - Date.now()) / 1000)

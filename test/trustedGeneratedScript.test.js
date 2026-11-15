@@ -36,8 +36,8 @@ test('主进程重新生成内置脚本，覆盖伪造正文、路径、服务�
     assert.equal(trusted.generationConfig.serverId, 'international')
     assert.equal(trusted.generationConfig.language, 'en')
     assert.deepEqual(trusted.generationConfig.filePaths, files)
-    assert.deepEqual(trusted.preset, config.preset)
-    assert.deepEqual(trusted.generationConfig.preset, config.preset)
+    assert.deepEqual(trusted.preset, { ...config.preset, localizationRevision: '' })
+    assert.deepEqual(trusted.generationConfig.preset, { ...config.preset, localizationRevision: '' })
     assert.equal(trusted.requireStashTabOcr, false)
     assert.doesNotMatch(trusted.scriptContent, /UNTRUSTED_/)
     assert.match(trusted.scriptContent, /Scroll of Wisdom/)
@@ -54,6 +54,28 @@ test('中文生成继续使用国服通货规则，OCR依赖取自实际生成�
   assert.equal(trusted.generationConfig.language, 'zh-CN')
   assert.equal(trusted.requireStashTabOcr, true)
   assert.match(trusted.scriptContent, /改造石/)
+})
+
+test('国际服可信生成只接收主进程汉化版本，保留海图预设但拒绝启动', () => {
+  const window = mainWindow()
+  const config = request('map')
+  const files = filePathsFor(path.resolve(os.tmpdir(), 'trusted-localization-test-only'))
+  config.preset.localizationRevision = 'renderer-version'
+  config.generationConfig.localizationSnapshot = { revision: 'renderer-version', entries: [] }
+  const snapshot = { revision: 'managed-version', entries: [] }
+  const create = server => prepareTrustedScriptRequest({ event: { sender: window.webContents }, config, mainWindow: window, filePaths: files, server: getServer(server), localizationSnapshot: snapshot })
+  const trusted = create('international')
+  assert.equal(trusted.preset.localizationRevision, 'managed-version')
+  assert.equal(trusted.generationConfig.localizationSnapshot, snapshot)
+  assert.equal(config.preset.localizationRevision, 'renderer-version')
+  assert.equal(create('cn').generationConfig.localizationSnapshot, null)
+  for (const field of ['targetKind', 'activeKind']) {
+    config.preset.map = { method: 'alchemy', [field]: 'chart' }
+    const before = structuredClone(config)
+    assert.throws(() => create('international'), /海图/)
+    assert.deepEqual(config, before)
+    assert.doesNotThrow(() => create('cn'))
+  }
 })
 
 function handlerHarness(t, { active = false, pythonAvailable = true } = {}) {
@@ -170,7 +192,7 @@ test('实际IPC写入和启动的均为主进程内置生成脚本，文件监�
   assert.equal(launch.scriptPath, path.join(harness.directory, 'map_rolling.py'))
   assert.doesNotMatch(launch.script, /UNTRUSTED_/)
   assert.match(launch.script, /Scroll of Wisdom/)
-  assert.deepEqual(harness.effects.watcherPresets, [config.preset])
+  assert.deepEqual(harness.effects.watcherPresets, [{ ...config.preset, localizationRevision: '' }])
   assert.equal(fs.existsSync(config.scriptPath), false)
 })
 

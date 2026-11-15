@@ -159,7 +159,7 @@ export const ITEM_FORMAT_EXAMPLES = [
 export const MAP_FORMAT_EXAMPLES = [
     {
       id: 'map-normal',
-      label: '常规三字段地图',
+      label: '国服三字段地图样例',
       text: `物品类别: 异界地图
 稀 有 度: 稀有
 危城广场
@@ -177,7 +177,7 @@ export const MAP_FORMAT_EXAMPLES = [
     },
     {
       id: 'map-t17',
-      label: '完整六字段地图',
+      label: '国服六字段地图样例',
       text: `物品类别: 地图
 稀有度: 稀有
 堡垒

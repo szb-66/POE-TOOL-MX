@@ -1,0 +1,886 @@
+[
+  {
+    "table": "metadata/statdescriptions/passive_skill_stat_descriptions.csd",
+    "id": "light_radius_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Light Radius",
+    "kind": "stat",
+    "sourceHash": "f7707834727b64dc80c8a7e4408253622e4eb8ec853d346d84a3913be6278f8d",
+    "tw": "增加 {0}% 照亮範圍",
+    "cn": "照亮范围扩大 {0}%",
+    "stats": {
+      "ids": [
+        "light_radius_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_dexterity",
+    "field": "variant:0",
+    "en": "{0:+d} to Dexterity",
+    "kind": "stat",
+    "sourceHash": "f7b1eee76b40222ddba5192ab19f78d02d3dac6629439945201062b87235a3c3",
+    "tw": "{0:+d} 敏捷",
+    "cn": "{0:+d} 敏捷",
+    "stats": {
+      "ids": [
+        "additional_dexterity"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "killed_monster_dropped_item_rarity_+%_on_crit",
+    "field": "variant:0",
+    "en": "{0:+d}% to [PlayerItemRarity|Rarity] of Items Dropped by Enemies killed with a Critical Strike",
+    "kind": "stat",
+    "sourceHash": "b66c51988c170adc1fe7d572d9c6d42221c77c843c8b5d77206d9e381bb2c89f",
+    "tw": "以暴擊擊殺敵人時會{0:+d}%掉落物品的[PlayerItemRarity|稀有度]",
+    "cn": "暴击击败的敌人掉落的物品[PlayerItemRarity|稀有度] {0:+d}%",
+    "stats": {
+      "ids": [
+        "killed_monster_dropped_item_rarity_+%_on_crit"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "light_radius_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Light Radius",
+    "kind": "stat",
+    "sourceHash": "f7707834727b64dc80c8a7e4408253622e4eb8ec853d346d84a3913be6278f8d",
+    "tw": "增加 {0}% 照亮範圍",
+    "cn": "照亮范围扩大 {0}%",
+    "stats": {
+      "ids": [
+        "light_radius_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "damage_+%_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "{0}% increased Damage while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "4615844790d014740319010df98468c5a5bf3154b460cd15731fc04688899dd0",
+    "tw": "在奉獻地面上時，增加 {0}% 傷害",
+    "cn": "在奉献地面上时，伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "damage_+%_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "elemental_damage_taken_+%_while_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "Take {0}% increased Elemental Damage while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "9f9b888a2119d2b3a74b404e8418117763dc199a51607fe716d4ebf48d657a92",
+    "tw": "在奉獻地面上時增加 {0}% 承受的元素傷害",
+    "cn": "在奉献地面上时，受到的元素伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "elemental_damage_taken_+%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "elemental_damage_taken_+%_while_on_consecrated_ground",
+    "field": "variant:1",
+    "en": "Take {0}% reduced Elemental Damage while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "dad672e1f968b79478232424d303551bdab5523c53ff4fa8eeb49c687864207b",
+    "tw": "在奉獻地面上時減少 {0}% 承受的元素傷害",
+    "cn": "在奉献地面上时，受到的元素伤害降低 {0}%",
+    "stats": {
+      "ids": [
+        "elemental_damage_taken_+%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "virtual_light_radius_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Light Radius",
+    "kind": "stat",
+    "sourceHash": "f7707834727b64dc80c8a7e4408253622e4eb8ec853d346d84a3913be6278f8d",
+    "tw": "增加 {0}% 照亮範圍",
+    "cn": "照亮范围扩大 {0}%",
+    "stats": {
+      "ids": [
+        "virtual_light_radius_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_block_%_while_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "{0:+d}% Chance to Block Attack Damage while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "ee6ca84fa7ae8c7104321c6149833e02b4016ddf870619f771eca00f5e5463bd",
+    "tw": "在奉獻地面上時 {0:+d}% 攻擊傷害格擋率",
+    "cn": "在奉献地面上时攻击伤害格挡几率 {0:+d}%",
+    "stats": {
+      "ids": [
+        "additional_block_%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Global Critical Strike Chance",
+    "kind": "stat",
+    "sourceHash": "64022adba6c11ac44ee9f23f3a113e2cfe674c418b35ab872a99a0e514db54b3",
+    "tw": "減少 {0}% 全域暴擊率",
+    "cn": "全域暴击率降低 {0}%",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "light_radius_+%_while_phased",
+    "field": "variant:0",
+    "en": "{0}% increased Light Radius while Phasing",
+    "kind": "stat",
+    "sourceHash": "1dc0557dd12b3a9f41f909a6d2b94710476178e5b248023f29aefece8fce5f5c",
+    "tw": "迷蹤效果時增加 {0}% 照亮範圍",
+    "cn": "迷踪状态时照亮范围扩大 {0}%",
+    "stats": {
+      "ids": [
+        "light_radius_+%_while_phased"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "attack_and_cast_speed_+%_while_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "{0}% increased Attack and Cast Speed while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "bf066321ef8409cfe72cf8c0d5c0567fe98203357907a1594f5dfd74349a25d8",
+    "tw": "在奉獻地面增加 {0}% 攻擊和施放速度",
+    "cn": "在奉献地面上时，攻击和施法速度加快 {0}%",
+    "stats": {
+      "ids": [
+        "attack_and_cast_speed_+%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Global Critical Strike Chance",
+    "kind": "stat",
+    "sourceHash": "1a94277784cf4b501da61f23a4d46550983a3a2d32e088154e48f3a3827b50bf",
+    "tw": "增加 {0}% 全域暴擊率",
+    "cn": "全域暴击率提高 {0}%",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Damage",
+    "kind": "stat",
+    "sourceHash": "c2fc814e6f68411d0fc8bfdc1cd9ee0240e79a56c5a614c2293c3dff8841ca0e",
+    "tw": "增加 {0}% 傷害",
+    "cn": "伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "attack_and_cast_speed_+%_while_on_consecrated_ground",
+    "field": "variant:1",
+    "en": "{0}% reduced Attack and Cast Speed while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "35387a09889897193768419e082a3599ec16b13726e15d91c385464920716797",
+    "tw": "在奉獻地面減少 {0}% 攻擊和施放速度",
+    "cn": "在奉献地面上时攻击和施法速度减慢 {0}%",
+    "stats": {
+      "ids": [
+        "attack_and_cast_speed_+%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "es_and_mana_regeneration_rate_per_minute_%_while_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "Regenerate {0}% of Mana and Energy Shield per second while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "253cbd5bcce2afc8c810d96dfe3adaa6feb5f3063704602b9dcc771a0e310ffd",
+    "tw": "當站在奉獻地面上時，每秒回復 {0}% 魔力和能量護盾",
+    "cn": "在奉献地面上时，每秒再生 {0}% 魔力和能量护盾",
+    "stats": {
+      "ids": [
+        "es_and_mana_regeneration_rate_per_minute_%_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "per_minute_to_per_second 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_life",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Life",
+    "kind": "stat",
+    "sourceHash": "1ce6941d397159fd1a49856855968b0c309dbed4dc2dad2d98a598a501cfb067",
+    "tw": "{0:+d} 最大生命",
+    "cn": "{0:+d} 最大生命",
+    "stats": {
+      "ids": [
+        "base_maximum_life"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "avoid_ailments_%_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "{0}% chance to Avoid Elemental Ailments while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "e7dbfca01c7c6be289a69d5b905ff73d35aec193bf7999adace83800b1e09bc6",
+    "tw": "在奉獻地面上時，{0}% 機率避免元素異常狀態",
+    "cn": "在奉献地面上时有 {0}% 几率避免元素异常状态",
+    "stats": {
+      "ids": [
+        "avoid_ailments_%_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextElementalAilments",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "inflict_hallowing_flame_on_hit_while_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "Inflict Hallowing Flame on Hit while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "110ca149b27b9062c0e9879600508804c19784cfd63420a01950be50851ecc42",
+    "tw": "位於奉獻地面上時擊中施加聖徒烈火",
+    "cn": "在奉献地面上时，击中施加崇敬烈焰",
+    "stats": {
+      "ids": [
+        "inflict_hallowing_flame_on_hit_while_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "reminderstring ReminderTextHallowingFlame",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "mana_cost_+%_on_consecrated_ground",
+    "field": "variant:0",
+    "en": "{0}% increased Mana Cost of Skills while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "ff00d923adf5241536d1731c3176addb3c3bf7a349c58eb578c0d3650e9f50b1",
+    "tw": "在奉獻地面上時，增加 {0}% 技能魔力消耗",
+    "cn": "在奉献地面上时，技能魔力消耗提高 {0}%",
+    "stats": {
+      "ids": [
+        "mana_cost_+%_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_mana",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Mana",
+    "kind": "stat",
+    "sourceHash": "c9e51b8b0f043ab6e4a09ed4a0c452625a373722142766ee170e51ad448f31f1",
+    "tw": "{0:+d} 最大魔力",
+    "cn": "{0:+d} 最大魔力",
+    "stats": {
+      "ids": [
+        "base_maximum_mana"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "damage_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Damage",
+    "kind": "stat",
+    "sourceHash": "86539332a05211769ae9825f5fedb53bccbcb2a4ded7abfede673a2952196abf",
+    "tw": "減少 {0}% 傷害",
+    "cn": "伤害降低 {0}%",
+    "stats": {
+      "ids": [
+        "damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "consecrated_ground_effect_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Effect of Consecrated Ground you create",
+    "kind": "stat",
+    "sourceHash": "21fc85bf281a1f786dcd26779fb5b7ee51fd9b18316133f2a783697dddc7722e",
+    "tw": "增加 {0}% 你製造奉獻地面的效果",
+    "cn": "你产生的奉献地面效果提高 {0}%",
+    "stats": {
+      "ids": [
+        "consecrated_ground_effect_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "damage_+%_on_consecrated_ground",
+    "field": "variant:1",
+    "en": "{0}% reduced Damage while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "423032b83c3e4dd7a43bab83dc88e325a4e48fceaa7ef9c068c28ebb9740d5fb",
+    "tw": "在奉獻地面上時，減少 {0}% 傷害",
+    "cn": "在奉献地面上时，伤害降低 {0}%",
+    "stats": {
+      "ids": [
+        "damage_+%_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_display_aura_damage_+%",
+    "field": "variant:0",
+    "en": "You and Allies within 7.5 metres gain {0}% increased Damage",
+    "kind": "stat",
+    "sourceHash": "ccde4f6dad3dd1d948b0fbb80efe054f4f806d57d9facd8d9e57a6d96dc383b6",
+    "tw": "你跟 7.5 公尺內的友方增加 {0}% 傷害",
+    "cn": "你和 7.5 米范围内的友军伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_display_aura_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "mana_cost_+%_on_consecrated_ground",
+    "field": "variant:1",
+    "en": "{0}% reduced Mana Cost of Skills while on Consecrated Ground",
+    "kind": "stat",
+    "sourceHash": "f529c48c1a75b1a6e6ecc7d998cef6d705285f91fc0ee0ba21f3f392c606913d",
+    "tw": "在奉獻地面上時，減少 {0}% 技能魔力消耗",
+    "cn": "在奉献地面上时，技能魔力消耗降低 {0}%",
+    "stats": {
+      "ids": [
+        "mana_cost_+%_on_consecrated_ground"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "flavourtext",
+    "id": "Ring11",
+    "field": "Text",
+    "en": "God blesses those who bless themselves.",
+    "kind": "dat",
+    "sourceHash": "3816e52e21b560dce31837cd08f84815abbec59b5fe1f791a3f69179446ac52d",
+    "tw": "自助而後天助。",
+    "cn": "自助而后天助。"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueHelmetDexInt2",
+    "field": "Text",
+    "en": "For none of us are as cruel as all of us.",
+    "kind": "dat",
+    "sourceHash": "0684e10e283fd57567b7b6a7073f9328b7585884d3f004ff2541f6b0a008a214",
+    "tw": "結群聚眾必然生成暴力之源。",
+    "cn": "结群聚众必然生成力量之源。"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring11",
+    "field": "Name",
+    "en": "Diamond Ring",
+    "kind": "dat",
+    "sourceHash": "6dc3a150cb443eba7f9f3a3b80cf316424c7721c6cbfc7d7624da22a2a3d74bc",
+    "tw": "寶鑽戒指",
+    "cn": "宝钻戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Helmets/HelmetDexInt4",
+    "field": "Name",
+    "en": "Festival Mask",
+    "kind": "dat",
+    "sourceHash": "125791a75015721789bcf9c6650dbade4e809c3d6c3cb22f1bccc0d1bdc208f1",
+    "tw": "節慶之面",
+    "cn": "节庆之面"
+  },
+  {
+    "table": "clientstrings",
+    "id": "DescriptionLabelFixedValueStat",
+    "field": "Text",
+    "en": "<italic>{<rgb(170,170,170)>{ — Unscalable Value}}",
+    "kind": "dat",
+    "sourceHash": "25589601c30f9b452c9224bae85c50d2e9b1b0bb0655566439aa60f08ada343e",
+    "tw": "<italic>{<rgb(170,170,170)>{ — 無法使用的值}}",
+    "cn": "<italic>{<rgb(170,170,170)>{ — 数值不可调整}}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "MutatedUniqueName",
+    "field": "Text",
+    "en": "Foulborn {0}",
+    "kind": "dat",
+    "sourceHash": "f156be9a27fe1960733a68086a51f422d74c5b66407f6400f0e8daf4df356fa4",
+    "tw": "穢生 {0}",
+    "cn": "秽生{0}"
+  },
+  {
+    "table": "words",
+    "id": "hash:00c94c07",
+    "field": "Text2",
+    "en": "Leer Cast",
+    "kind": "dat",
+    "sourceHash": "93074e6e027765c4489af18dffb9f6da89ea5d817fd9ecfb011a5a275724c399",
+    "tw": "共鳴之面",
+    "cn": "共鸣之面"
+  },
+  {
+    "table": "words",
+    "id": "hash:471abeb6",
+    "field": "Text2",
+    "en": "Gifts from Above",
+    "kind": "dat",
+    "sourceHash": "7edf173dc60f6f0ff3cf564122bd1bb553d5c951d9e268888c498d72a966586c",
+    "tw": "神賜",
+    "cn": "神赐"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_display_cast_level_X_consecrate_on_crit",
+    "field": "variant:0",
+    "en": "Trigger Level {0} [TriggeredConsecrate::{0}|Consecrate] when you deal a Critical Strike",
+    "kind": "stat",
+    "sourceHash": "907f1f48502d5d0caaec0719350c4cba40887a3ae7465997be2af3350b539f52",
+    "stats": {
+      "ids": [
+        "local_display_cast_level_X_consecrate_on_crit"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "cn": "暴击时触发 {0} 级的奉献",
+    "tw": "當你暴擊時觸發等級 {0} 的奉獻"
+  }
+]

@@ -42,7 +42,7 @@
           :model-value="account.settings.league"
           filterable
           :disabled="!account.status.authenticated"
-          placeholder="选择商城配方与查价共用赛季"
+          :placeholder="`选择${currentServer.label}赛季`"
           @change="changeLeague"
         >
           <el-option v-for="league in account.leagues" :key="league.id" :label="league.name" :value="league.id" />
@@ -74,7 +74,7 @@ async function run(action, successMessage = '') {
     if (successMessage) ElMessage.success(successMessage)
     emit('configured')
   } catch (error) {
-    ElMessage.error(error?.message || '国服账号操作失败')
+    ElMessage.error(error?.message || `${currentServer.label}账号操作失败`)
   }
 }
 

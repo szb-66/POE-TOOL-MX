@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   enrichOfficialItemsWithImages,
+  enrichInternationalItemsWithImages,
   registerUniqueItemImageProtocol,
   matchesUniqueModifier,
   UniqueItemImageRepository,
@@ -29,6 +30,7 @@ test('PoEDB 传奇页面解析中文名称、底材和稳定图片身份', async
     { name: '测试传奇甲', baseType: '测试戒指' },
     { name: '测试传奇乙', baseType: '测试戒指' }
   ])
+  assert.deepEqual(records.map(record => record.englishSlug), ['Test_Alpha', 'Test_Beta'])
   assert.equal(records[0].imageId, uniqueItemImageId(records[0].imageUrl))
   assert.match(records[0].imageId, /^unique-[a-f0-9]{20}$/)
   assert.deepEqual(records[0].modifierMatchers, ['# 最大生命', '获得 1 级测试技能'])
@@ -125,6 +127,26 @@ test('官方通用地图底材按同名唯一阶级快照增强且拒绝歧义',
   assert.equal(official[3].uniqueSnapshotCovered, undefined)
 })
 
+test('国际服图片只按唯一英文身份增强，冲突图片和无映射名称仍使用占位', () => {
+  const first = uniqueItemImageId('https://cdn.poedb.tw/image/Art/First.webp')
+  const second = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Second.webp')
+  const snapshot = { items: [
+    { name: '名称甲', englishSlug: 'Shared_Name', imageId: first },
+    { name: '名称乙', englishSlug: 'Shared_Name', imageId: second },
+    { name: '当前名称', englishSlug: 'Current_Name', imageId: first },
+    { name: '同图旧底材', englishSlug: 'Current_Name', imageId: first },
+    { name: '阿兹里圣徽', englishSlug: 'Atziris_Foible', imageId: second }
+  ] }
+  const enhanced = enrichInternationalItemsWithImages([
+    { name: 'Shared Name', baseType: 'Ring', unique: true },
+    { name: 'Unknown Name', baseType: 'Ring', unique: true },
+    { name: 'Current Name', baseType: 'Ring', unique: true, uniqueSnapshotCovered: true, uniqueModifierMatchers: ['中文属性'] },
+    { name: "Atziri's Foible", baseType: 'Paua Amulet', unique: true }
+  ], snapshot)
+  assert.deepEqual(enhanced.map(item => item.imageId), ['placeholder', 'placeholder', first, second])
+  assert.ok(enhanced.every(item => !item.uniqueSnapshotCovered && !item.uniqueModifierMatchers))
+})
+
 test('模型清理忽略任意候选 URL并只按合法图片 ID重建', () => {
   const imageId = uniqueItemImageId('https://cdn.poedb.tw/image/Art/Test.webp')
   const model = sanitizePriceCheckModel({
@@ -210,7 +232,7 @@ test('正式传奇目录可加载哨兵图片且主进程和浮层接入本地�
   assert.match(indexHtml, /img-src[^;]*price-check-image:/)
   assert.match(overlay, /candidate\.imageUrl/)
   assert.match(overlay, /candidate\.legacy/)
-  assert.match(overlay, />遗产</)
+  assert.match(overlay, /gameText\('遗产'\)/)
   assert.match(overlay, /width:\s*48px;\s*height:\s*48px;\s*object-fit:\s*contain/)
   assert.match(settings, /AccountLeagueConfigurationField show-token/)
   assert.match(accountField, /验证成功后窗口会自动关闭/)

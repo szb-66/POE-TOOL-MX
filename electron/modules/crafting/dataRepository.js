@@ -61,6 +61,18 @@ function effectPattern(text = '') {
     .trim()
 }
 
+function selectAffixSuggestions(rows, query, limit) {
+  const needle = String(query).trim().toLocaleLowerCase('zh-CN')
+  const suggestions = rows.filter(row => !needle || row.searchable.includes(needle)).map(({ searchable, ...row }) => row)
+  suggestions.sort((a, b) => {
+    const aStarts = needle && `${a.displayName} ${a.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
+    const bStarts = needle && `${b.displayName} ${b.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
+    return aStarts - bStarts || a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN')
+  })
+  const size = Math.max(1, Math.min(100, Number(limit) || 50))
+  return { items: suggestions.slice(0, size), total: suggestions.length }
+}
+
 async function exists(target) {
   try { await access(target); return true } catch { return false }
 }
@@ -79,8 +91,9 @@ async function loadDatasetRoot(root) {
 }
 
 export class CraftingDataRepository {
-  constructor({ builtinRoot, userDataRoot = null, server = getServer() } = {}) {
+  constructor({ builtinRoot, userDataRoot = null, server = getServer(), localizationRuntime = null } = {}) {
     this.server = server
+    this.localizationRuntime = localizationRuntime
     this.builtinRoot = path.resolve(builtinRoot || (server.id === 'international' ? `${DEFAULT_BUILTIN_ROOT}-international` : DEFAULT_BUILTIN_ROOT))
     this.userDataRoot = userDataRoot ? path.resolve(userDataRoot) : null
     this.active = null
@@ -120,6 +133,23 @@ export class CraftingDataRepository {
     return this.ensureReady().dataset
   }
 
+  getDictionary() {
+    return this.localizedDictionary || null
+  }
+
+  refreshLocalization() {
+    if (this.server.id !== 'international' || !this.localizationRuntime) return null
+    this.localizationRuntime.current()
+    this.localizedDictionary = this.localizationRuntime.dictionary
+  }
+
+  searchText(...values) {
+    const dictionary = this.getDictionary()
+    return values.flatMap(value => [value, ...(dictionary?.aliasesFor(String(value || '')) || [])]).join(' ').toLocaleLowerCase('zh-CN')
+  }
+
+  displayText(value) { return this.getDictionary()?.localize(value) || value }
+
   getStatus() {
     const { root, dataset } = this.ensureReady()
     return {
@@ -155,17 +185,19 @@ export class CraftingDataRepository {
   }
 
   searchBases({ query = '', category = '', itemClass = '', page = 1, pageSize = 30 } = {}) {
+    this.refreshLocalization()
     const needle = String(query).trim().toLocaleLowerCase('zh-CN')
     const size = Math.max(1, Math.min(100, Number(pageSize) || 30))
     const currentPage = Math.max(1, Number(page) || 1)
     const filtered = this.getDataset().bases.filter((base) => {
-      return (!category || base.categoryPath[0] === category) && (!itemClass || base.modifierProfileId === itemClass) && (!needle || `${base.name} ${base.displayName} ${base.sourceId}`.toLocaleLowerCase('zh-CN').includes(needle))
+      return (!category || base.categoryPath[0] === category) && (!itemClass || base.modifierProfileId === itemClass) && (!needle || this.searchText(base.name, base.displayName, base.sourceId).includes(needle))
     }).sort((a, b) => a.requiredLevel - b.requiredLevel || a.name.localeCompare(b.name, 'zh-CN'))
     const offset = (currentPage - 1) * size
-    return { items: filtered.slice(offset, offset + size).map((base) => ({ ...base, imageUrl: `crafting-image://snapshot/${encodeURIComponent(base.imageId)}` })), total: filtered.length, page: currentPage, pageSize: size }
+    return { items: filtered.slice(offset, offset + size).map((base) => ({ ...base, displayName: this.displayText(base.name), canonicalName: base.name, imageUrl: `crafting-image://snapshot/${encodeURIComponent(base.imageId)}` })), total: filtered.length, page: currentPage, pageSize: size }
   }
 
   searchModifiers({ baseId, itemLevel = 100, variant = { kind: 'normal' }, query = '', affixType = '', page = 1, pageSize = 50 } = {}) {
+    this.refreshLocalization()
     const base = this.getDataset().bases.find((entry) => entry.id === baseId)
     if (!base) throw new Error('底材不存在')
     const validity = validateBaseVariant(base, variant)
@@ -180,7 +212,7 @@ export class CraftingDataRepository {
           return { ...tier, available, unavailableReason: available ? '' : tier.requiredLevel > itemLevel ? `需要物品等级 ${tier.requiredLevel}` : '不参与天然生成' }
         })
       }))
-      const searchable = `${family.name} ${entries.flatMap((entry) => [entry.name, ...entry.tiers.map((tier) => tier.text), ...entry.displayTags.map((tag) => tag.label)]).join(' ')}`.toLocaleLowerCase('zh-CN')
+      const searchable = this.searchText(family.name, ...entries.flatMap((entry) => [entry.name, ...entry.tiers.map((tier) => tier.text), ...entry.displayTags.map((tag) => tag.label)]))
       const totalWeight = entries.flatMap((entry) => entry.tiers).filter((tier) => tier.available).reduce((sum, tier) => sum + tier.weight, 0)
       const hasAvailable = entries.some((entry) => entry.tiers.some((tier) => tier.available))
       const displayTags = [...new Map(entries.flatMap((entry) => [
@@ -197,8 +229,12 @@ export class CraftingDataRepository {
   }
 
   searchAffixSuggestions({ query = '', limit = 50 } = {}) {
+    this.refreshLocalization()
     const dataset = this.getDataset()
-    const needle = String(query).trim().toLocaleLowerCase('zh-CN')
+    const dictionary = this.getDictionary()
+    if (this.affixSuggestionsCache?.dataset === dataset && this.affixSuggestionsCache.dictionary === dictionary) {
+      return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit)
+    }
     const profileLabels = new Map()
     dataset.bases.forEach((base) => {
       const label = base.categoryPath?.join(' / ') || ITEM_CLASS_LABELS[base.itemClass] || base.itemClass
@@ -221,19 +257,20 @@ export class CraftingDataRepository {
         requiredLevel: Number(tier.requiredLevel) || 1,
         text: tier.text
       }])).values()].filter((tier) => tier.tier > 0).sort((a, b) => a.tier - b.tier)
-      const displayName = pattern
+      const displayName = this.displayText(pattern)
       const searchable = [
         displayName, modifier.name, ...tiers.map((tier) => `${tier.name} ${tier.text}`),
         ...(modifier.displayTags ?? []).map((tag) => tag.label),
         AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain, applicableLabel
-      ].join(' ').toLocaleLowerCase('zh-CN')
+      ].map(value => this.searchText(value)).join(' ')
       rows.push({
         searchable,
         id: `${modifier.id}:${sourceDomain}${suffix}`,
         modifierId: modifier.id,
         displayName,
         effectPattern: pattern,
-        exampleText: tiers[0]?.text || pattern,
+        exampleText: this.displayText(tiers[0]?.text || pattern),
+        canonicalDisplayName: pattern,
         affixType: modifier.affixType,
         source: sourceDomain,
         sourceLabel: AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain,
@@ -261,19 +298,12 @@ export class CraftingDataRepository {
       current.sourceLabel = [...new Set(`${current.sourceLabel} / ${row.sourceLabel}`.split(' / ').filter(Boolean))].join(' / ')
       current.searchable += `\n${row.searchable}`
     })
-    const suggestions = [...merged.values()]
-      .filter((row) => !needle || row.searchable.includes(needle))
-      .map(({ searchable, ...row }) => row)
-    suggestions.sort((a, b) => {
-      const aStarts = needle && `${a.displayName} ${a.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
-      const bStarts = needle && `${b.displayName} ${b.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
-      return aStarts - bStarts || a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN')
-    })
-    const size = Math.max(1, Math.min(100, Number(limit) || 50))
-    return { items: suggestions.slice(0, size), total: suggestions.length }
+    this.affixSuggestionsCache = { dataset, dictionary, rows: [...merged.values()] }
+    return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit)
   }
 
   searchEldritchImplicitSuggestions({ query = '', source = 'exarch', tier = 1, limit = 50 } = {}) {
+    this.refreshLocalization()
     const dataset = this.getDataset()
     const selectedSource = source === 'eater' ? 'eater' : 'exarch'
     const selectedTier = Math.max(1, Math.min(4, Math.trunc(Number(tier)) || 1))
@@ -285,14 +315,14 @@ export class CraftingDataRepository {
       const itemClasses = family.itemClasses.filter((itemClass) => Number(tierEntry.weights?.[itemClass]) > 0)
       if (!itemClasses.length) return []
       const pattern = effectPattern(family.effectKey || tierEntry.text)
-      const displayName = String(family.name || pattern.replaceAll('#', '')).replace(/\s+/g, ' ').trim()
+      const displayName = this.displayText(pattern) || String(family.name || pattern.replaceAll('#', '')).replace(/\s+/g, ' ').trim()
       const applicableLabel = itemClasses.map((itemClass) => ITEM_CLASS_LABELS[itemClass] || itemClass).join(' / ')
-      const searchable = `${displayName} ${pattern} ${tierEntry.text} ${applicableLabel}`.toLocaleLowerCase('zh-CN')
+      const searchable = this.searchText(displayName, pattern, tierEntry.text, applicableLabel)
       return needle && !searchable.includes(needle) ? [] : [{
         familyId: family.id,
         displayName,
         effectPattern: pattern,
-        exampleText: tierEntry.text,
+        exampleText: this.displayText(tierEntry.text),
         applicableLabel,
         source: selectedSource,
         tier: selectedTier
@@ -304,6 +334,7 @@ export class CraftingDataRepository {
   }
 
   searchModifierCatalog({ baseId, itemLevel = 100, query = '' } = {}) {
+    this.refreshLocalization()
     const dataset = this.getDataset()
     const base = dataset.bases.find((entry) => entry.id === baseId)
     if (!base) throw new Error('底材不存在')

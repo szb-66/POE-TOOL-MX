@@ -1,11 +1,9 @@
 using System.Diagnostics;
 using System.Buffers.Binary;
-using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Win32;
 
 namespace LocalizationHelper;
 
@@ -13,23 +11,23 @@ namespace LocalizationHelper;
 public sealed class GameTransaction {
     public sealed record BaselineStatus(bool Ready, string Reason);
     public sealed record Snapshot(string BuildId, string GameVersion, string IndexHash, BaselineStatus Baseline,
-        bool Applied, string? ReleaseId, bool RecoveryNeeded);
+        bool Applied, string? ReleaseId, bool RecoveryNeeded, string? Mode = null);
     private sealed record Baseline(int Version, string BuildId, string GameVersion, string IndexHash, string IndexFile,
         DateTime VerificationCompleted, string VerificationLogHash, string? OriginalLanguage);
-    private sealed record Active(int Version, string BuildId, string OutputHash, string ReleaseId, string Generation);
+    private sealed record Active(int Version, string BuildId, string OutputHash, string ReleaseId, string Generation, string Mode = "simplified");
     private sealed record Journal(int Version, string Operation, string BuildId, string BeforeHash, string AfterHash,
         string BeforeIndex, string? BeforeLanguage, string? Generation, Active? BeforeActive, Active? AfterActive);
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    private static readonly Regex Timestamp = new(@"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]", RegexOptions.CultureInvariant);
     private readonly string game, storage, config, steamapps, manifest, index, baselineFile, activeFile, journalFile;
     private readonly Func<bool> gameStopped;
-    private readonly Func<string> contentLog;
+
+    internal static string ValidateMode(string? mode) => mode is "simplified" or "traditional" ? mode : throw new UserError("汉化模式无效，请选择简体或繁体");
 
     public GameTransaction(string gameDirectory, string storageRoot, string? configPath = null)
         : this(gameDirectory, storageRoot, configPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "My Games", "Path of Exile", "production_Config.ini"), AreGameProcessesStopped, SteamContentLog) { }
+            "My Games", "Path of Exile", "production_Config.ini"), AreGameProcessesStopped) { }
 
-    private GameTransaction(string gameDirectory, string storageRoot, string configPath, Func<bool> stopped, Func<string> log) {
+    private GameTransaction(string gameDirectory, string storageRoot, string configPath, Func<bool> stopped) {
         game = Path.GetFullPath(gameDirectory).TrimEnd(Path.DirectorySeparatorChar);
         storage = Path.GetFullPath(storageRoot).TrimEnd(Path.DirectorySeparatorChar);
         config = Path.GetFullPath(configPath);
@@ -38,7 +36,7 @@ public sealed class GameTransaction {
         index = Path.Combine(game, "Bundles2", "_.index.bin");
         baselineFile = Path.Combine(storage, "baseline.json"); activeFile = Path.Combine(storage, "transaction-active.json");
         journalFile = Path.Combine(storage, "transaction.json");
-        gameStopped = stopped; contentLog = log;
+        gameStopped = stopped;
         if (Path.GetFileName(config) != "production_Config.ini" || Directory.GetParent(config)?.Name != "Path of Exile" ||
             Directory.GetParent(config)?.Parent?.Name != "My Games") throw new UserError("游戏语言配置路径无效");
         if (string.Equals(game, storage, StringComparison.OrdinalIgnoreCase) || Within(game, storage) || Within(storage, game)) throw new UserError("汉化缓存必须与游戏安装目录分离");
@@ -108,10 +106,10 @@ public sealed class GameTransaction {
     public Snapshot Inspect() {
         var build = Value(Manifest(), "buildid"); var hash = Hash(index);
         var baseline = Read<Baseline>(baselineFile); var active = Read<Active>(activeFile);
-        bool applied = active is { Version: 1 } && active.BuildId == build && active.OutputHash == hash;
+        bool applied = active is { Version: 1, Mode: "simplified" or "traditional" } && active.BuildId == build && active.OutputHash == hash;
         bool ready = ValidBaseline(baseline, build) && (hash == baseline!.IndexHash || applied);
-        return new(build, GameVersion(), hash, new(ready, ready ? "" : "首次应用或游戏更新后，请先在 Steam 验证游戏文件完整性"),
-            applied, applied ? active!.ReleaseId : null, File.Exists(journalFile));
+        return new(build, GameVersion(), hash, new(ready, ready ? "" : "应用汉化时将自动检查并备份游戏资源"),
+            applied, applied ? active!.ReleaseId : null, File.Exists(journalFile), applied ? active!.Mode : null);
     }
 
     public void RequireWritable() {
@@ -140,49 +138,6 @@ public sealed class GameTransaction {
         }
         return true;
     }
-    private static string SteamContentLog() {
-        if (!OperatingSystem.IsWindows()) throw new UserError("仅支持 Windows Steam 客户端");
-        var root = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) as string;
-        if (string.IsNullOrWhiteSpace(root)) throw new UserError("无法定位 Steam 完整性校验日志");
-        return Path.Combine(root, "logs", "content_log.txt");
-    }
-    private (DateTime Completed, string LogHash) VerificationEvidence(string build) {
-        var log = contentLog(); RequireOrdinaryPath(log);
-        if (!File.Exists(log) || new FileInfo(log).Length > 128 * 1024 * 1024) throw new UserError("未找到 Steam 完整性校验完成证据，请在 Steam 验证后重试");
-        // Steam keeps its log open for writing. Read a bounded snapshot with the
-        // same sharing semantics; hash that snapshot rather than reopening it.
-        byte[] logBytes;
-        using (var input = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)) {
-            int length = checked((int)Math.Min(input.Length, 64L * 1024 * 1024));
-            input.Position = input.Length - length; logBytes = new byte[length]; input.ReadExactly(logBytes);
-        }
-        var lines = Encoding.UTF8.GetString(logBytes).Split('\n'); DateTime? validating = null, finished = null, complete = null;
-        foreach (var line in lines) {
-            var stamp = Timestamp.Match(line);
-            if (!stamp.Success || !DateTime.TryParseExact(stamp.Groups[1].Value, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)) continue;
-            var start = Regex.Match(line, @"\bStart validating appID 238960 on BuildID (\d+)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-            if (start.Success) {
-                validating = start.Groups[1].Value == build ? time : null;
-                finished = complete = null;
-                continue;
-            }
-            if (!line.Contains("AppID 238960 ", StringComparison.Ordinal)) continue;
-            // "Verifying Installed" also appears in ordinary updates and is insufficient evidence.
-            if (Regex.IsMatch(line, @"\bValidating\b", RegexOptions.CultureInvariant)) { validating = time; finished = complete = null; }
-            if (validating != null && line.Contains("finished update", StringComparison.Ordinal)) {
-                if (line.Contains("(BuildID " + build + ")", StringComparison.Ordinal)) finished = time;
-                else validating = finished = null;
-            }
-            if (line.Contains("scheduler finished", StringComparison.Ordinal)) {
-                if (finished != null && line.Contains("result No Error", StringComparison.Ordinal)) complete = time;
-                validating = finished = null;
-            }
-        }
-        if (complete == null || complete > DateTime.Now.AddMinutes(5) || complete < DateTime.Now.AddDays(-1) ||
-            File.GetLastWriteTime(index) > complete.Value.AddSeconds(2))
-            throw new UserError("未找到当前游戏版本的 Steam 完整性校验成功记录，请验证游戏完整性后重试");
-        return (complete.Value, Convert.ToHexString(SHA256.HashData(logBytes)).ToLowerInvariant());
-    }
     private string? Language() {
         if (!File.Exists(config)) return null;
         var matches = Regex.Matches(File.ReadAllText(config), @"^[ \t]*language[ \t]*=[ \t]*([^\r\n]*)", RegexOptions.Multiline | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
@@ -207,22 +162,31 @@ public sealed class GameTransaction {
         using var guard = Lock(); RequireWritable();
         if (File.Exists(journalFile)) throw new UserError("存在未完成汉化事务，请先恢复事务");
         var snapshot = Inspect(); if (snapshot.Baseline.Ready) return snapshot;
-        var evidence = VerificationEvidence(snapshot.BuildId);
+        var previousBaseline = Read<Baseline>(baselineFile); var previousActive = Read<Active>(activeFile);
+        if (previousBaseline?.BuildId == snapshot.BuildId)
+            throw new UserError("游戏索引或应用前备份已发生外部变化，未覆盖原备份；请恢复修改或修复游戏文件后重试");
+        using (var current = Program.Open(game, paths: false)) foreach (var bundle in current.Bundles.Span) {
+            if (bundle.Path.StartsWith("PoEHelper/", StringComparison.OrdinalIgnoreCase) || bundle.Path.StartsWith("LibGGPK3/", StringComparison.OrdinalIgnoreCase))
+                throw new UserError("游戏资源仍引用旧补丁，无法建立应用前备份；请先恢复游戏文件");
+        }
         var relative = Path.Combine("baselines", snapshot.BuildId, snapshot.IndexHash + ".index.bin");
         DurableWrite(Stored(relative), File.ReadAllBytes(index));
-        if (Hash(index) != snapshot.IndexHash || Hash(Stored(relative)) != snapshot.IndexHash) throw new UserError("建立备份时游戏索引发生变化，未建立基线");
-        var previousBaseline = Read<Baseline>(baselineFile); var previousActive = Read<Active>(activeFile);
+        RequireWritable();
+        if (Value(Manifest(), "buildid") != snapshot.BuildId || Hash(index) != snapshot.IndexHash || Hash(Stored(relative)) != snapshot.IndexHash)
+            throw new UserError("建立备份时游戏版本或索引发生变化，未建立备份");
         var originalLanguage = previousActive != null && previousBaseline != null && Language() == "fr" ? previousBaseline.OriginalLanguage : Language();
-        Save(baselineFile, new Baseline(1, snapshot.BuildId, snapshot.GameVersion, snapshot.IndexHash, relative, evidence.Completed, evidence.LogHash, originalLanguage));
+        // Keep legacy metadata fields readable; automatic checks do not claim a Steam log verification.
+        Save(baselineFile, new Baseline(1, snapshot.BuildId, snapshot.GameVersion, snapshot.IndexHash, relative, DateTime.UtcNow, "", originalLanguage));
         if (File.Exists(activeFile)) File.Delete(activeFile);
         return Inspect();
     }
 
-    public Snapshot EnsureAppliedLanguage(string releaseId) {
+    public Snapshot EnsureAppliedLanguage(string releaseId, string mode = "simplified") {
+        ValidateMode(mode);
         using var guard = Lock(); RequireWritable();
         if (File.Exists(journalFile)) throw new UserError("存在未完成汉化事务，请先恢复事务");
         var snapshot = Inspect();
-        if (!snapshot.Baseline.Ready || !snapshot.Applied || snapshot.ReleaseId != releaseId)
+        if (!snapshot.Baseline.Ready || !snapshot.Applied || snapshot.ReleaseId != releaseId || snapshot.Mode != mode)
             throw new UserError("已应用汉化状态发生变化，请重新扫描后再试");
         // Only one atomic config replacement is needed; keep the original-language baseline intact.
         if (Language() != "fr") SetLanguage("fr");
@@ -248,14 +212,15 @@ public sealed class GameTransaction {
         }
     }
 
-    public Snapshot Commit(string candidateIndexPath, string candidateBundleRoot, string releaseId, string generation) {
+    public Snapshot Commit(string candidateIndexPath, string candidateBundleRoot, string releaseId, string generation, string mode = "simplified") {
+        ValidateMode(mode);
         using var guard = Lock(); RequireWritable();
         var staging = Path.Combine(storage, "staging"); var candidate = Path.GetFullPath(candidateIndexPath); var bundles = Path.GetFullPath(candidateBundleRoot);
         if (!Within(staging, candidate) || !Within(staging, bundles) || !File.Exists(candidate) || !Directory.Exists(bundles)) throw new UserError("补丁候选不属于受管暂存目录");
         if (!Regex.IsMatch(generation, @"^[A-Za-z0-9_-]{1,80}$") || !Regex.IsMatch(releaseId, @"^[A-Za-z0-9._-]{1,120}$")) throw new UserError("补丁版本或事务标识无效");
         RequireOrdinaryPath(candidate); RequireOrdinaryPath(bundles);
         if (File.Exists(journalFile)) throw new UserError("存在未完成汉化事务，请先恢复事务");
-        var snapshot = Inspect(); if (!snapshot.Baseline.Ready) throw new UserError("缺少当前游戏原版基线，请先在 Steam 验证游戏完整性");
+        var snapshot = Inspect(); if (!snapshot.Baseline.Ready) throw new UserError("缺少当前游戏版本的有效应用前备份，未替换游戏文件");
         var baseline = Read<Baseline>(baselineFile)!;
         var allFiles = CandidateFiles(bundles).ToArray();
         if (allFiles.Length == 0 || allFiles.Any(file => !file.EndsWith(".bundle.bin", StringComparison.OrdinalIgnoreCase))) throw new UserError("补丁候选包含无效资源文件");
@@ -267,7 +232,7 @@ public sealed class GameTransaction {
         RequireOrdinaryPath(destination);
         var outputHash = Hash(candidate); var before = Path.Combine("transactions", Guid.NewGuid().ToString("N") + ".index.bin");
         DurableWrite(Stored(before), File.ReadAllBytes(index));
-        var after = new Active(1, snapshot.BuildId, outputHash, releaseId, generation);
+        var after = new Active(1, snapshot.BuildId, outputHash, releaseId, generation, mode);
         var journal = new Journal(1, "apply", snapshot.BuildId, snapshot.IndexHash, outputHash, before, Language(), generation, Read<Active>(activeFile), after);
         Save(journalFile, journal);
         try {
@@ -339,30 +304,38 @@ public sealed class GameTransaction {
         var acf = Path.Combine(root, "library", "steamapps", "appmanifest_238960.acf");
         File.WriteAllText(acf, "\"AppState\" { \"appid\" \"238960\" \"installdir\" \"Path of Exile\" \"buildid\" \"123\" \"StateFlags\" \"4\" }");
         File.WriteAllBytes(Path.Combine(game, "PathOfExileSteam.exe"), []);
-        var targetIndex = Path.Combine(game, "Bundles2", "_.index.bin"); File.WriteAllText(targetIndex, "original");
+        var targetIndex = Path.Combine(game, "Bundles2", "_.index.bin");
+        var original = FixtureIndex(); File.WriteAllBytes(targetIndex, original);
         File.WriteAllText(ini, "[LANGUAGE]\r\nlanguage=en\r\nchat_language=en\r\n[OTHER]\r\nkeep=true\r\n");
-        var steamLog = Path.Combine(root, "content_log.txt");
-        string Stamp() => DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-        File.WriteAllText(steamLog, $"[{Stamp()}] AppID 238960 App update changed : Running Update,Verifying Installed,\n[{Stamp()}] AppID 238960 finished update, 2 mounted depots (BuildID 123)\n[{Stamp()}] AppID 238960 scheduler finished : removed from schedule (result No Error, state 0xc)\n");
-        var tx = new GameTransaction(game, store, ini, () => true, () => steamLog);
+        var tx = new GameTransaction(game, store, ini, () => true);
+        if (!tx.EstablishBaseline().Baseline.Ready) throw new InvalidDataException("Automatic baseline without Steam logs failed");
+        var savedBaseline = File.ReadAllBytes(tx.baselineFile);
+        File.WriteAllBytes(targetIndex, FixtureIndex("external"));
         bool blocked = false; try { tx.EstablishBaseline(); } catch (UserError) { blocked = true; }
-        if (!blocked) throw new InvalidDataException("Ordinary update accepted as verification");
-        File.WriteAllText(steamLog, File.ReadAllText(steamLog).Replace("Verifying Installed", "Validating"));
-        using (var steamWriter = new FileStream(steamLog, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete)) tx.EstablishBaseline();
-        File.WriteAllText(steamLog, $"[{Stamp()}] Start validating appID 238960 on BuildID 123\n[{Stamp()}] AppID 238960 App update changed : Running Update,Verifying Installed,\n[{Stamp()}] AppID 238960 finished update, 2 mounted depots (BuildID 123)\n[{Stamp()}] AppID 238960 scheduler finished : removed from schedule (result No Error, state 0xc)\n");
-        var explicitStart = new GameTransaction(game, Path.Combine(root, "explicit-start-cache"), ini, () => true, () => steamLog);
-        if (!explicitStart.EstablishBaseline().Baseline.Ready) throw new InvalidDataException("Explicit Steam validation start not accepted");
-        File.WriteAllText(steamLog, File.ReadAllText(steamLog).Replace("on BuildID 123", "on BuildID 124"));
-        var wrongStart = new GameTransaction(game, Path.Combine(root, "wrong-start-cache"), ini, () => true, () => steamLog);
-        blocked = false; try { wrongStart.EstablishBaseline(); } catch (UserError) { blocked = true; }
-        if (!blocked) throw new InvalidDataException("Wrong-build Steam validation start accepted");
+        if (!blocked || !savedBaseline.AsSpan().SequenceEqual(File.ReadAllBytes(tx.baselineFile))) throw new InvalidDataException("External index change overwrote original backup");
+        File.WriteAllBytes(targetIndex, original);
+        var originalBackup = tx.BaselineIndexPath;
+        File.WriteAllText(originalBackup, "damaged backup");
+        blocked = false; try { tx.EstablishBaseline(); } catch (UserError) { blocked = true; }
+        if (!blocked || File.ReadAllText(originalBackup) != "damaged backup") throw new InvalidDataException("Corrupt backup silently replaced");
+        File.WriteAllBytes(originalBackup, original);
+        var corruptStore = Path.Combine(root, "corrupt-cache");
+        File.WriteAllText(targetIndex, "invalid index");
+        var corrupt = new GameTransaction(game, corruptStore, ini, () => true);
+        blocked = false; try { corrupt.EstablishBaseline(); } catch (InvalidDataException) { blocked = true; }
+        if (!blocked || File.Exists(corrupt.baselineFile)) throw new InvalidDataException("Invalid index accepted as automatic baseline");
+        File.WriteAllBytes(targetIndex, FixtureIndex("PoEHelper/orphan/0"));
+        var orphaned = new GameTransaction(game, Path.Combine(root, "orphan-cache"), ini, () => true);
+        blocked = false; try { orphaned.EstablishBaseline(); } catch (UserError) { blocked = true; }
+        if (!blocked || File.Exists(orphaned.baselineFile)) throw new InvalidDataException("Untracked managed patch accepted as baseline");
+        File.WriteAllBytes(targetIndex, original);
         var stage = Path.Combine(store, "staging", "g1"); Directory.CreateDirectory(stage);
         var candidate = Path.Combine(stage, "candidate.index.bin"); File.WriteAllText(candidate, "patched");
         var bundle = Path.Combine(stage, "bundles"); Directory.CreateDirectory(bundle); File.WriteAllText(Path.Combine(bundle, "0.bundle.bin"), "bundle");
         tx.Commit(candidate, bundle, "fixture-v1", "fixture1");
         if (!tx.Inspect().Applied || !File.ReadAllText(ini).Contains("language=fr")) throw new InvalidDataException("Commit not visible");
         tx.Restore();
-        if (File.ReadAllText(targetIndex) != "original" || !File.ReadAllText(ini).Contains("language=en") || !File.ReadAllText(ini).Contains("keep=true")) throw new InvalidDataException("Restore failed");
+        if (!File.ReadAllBytes(targetIndex).AsSpan().SequenceEqual(original) || !File.ReadAllText(ini).Contains("language=en") || !File.ReadAllText(ini).Contains("keep=true")) throw new InvalidDataException("Restore failed");
         tx.Commit(candidate, bundle, "fixture-v1", "fixture2");
         File.WriteAllText(acf, File.ReadAllText(acf).Replace("\"123\"", "\"124\""));
         blocked = false; try { tx.Restore(); } catch (UserError) { blocked = true; }
@@ -371,26 +344,30 @@ public sealed class GameTransaction {
         var baseline = tx.Read<Baseline>(tx.baselineFile)!;
         tx.SaveTestInterruptedApply(baseline);
         tx.Recover();
-        if (File.ReadAllText(targetIndex) != "original" || tx.Inspect().Applied || tx.Inspect().RecoveryNeeded) throw new InvalidDataException("Crash rollback failed");
+        if (!File.ReadAllBytes(targetIndex).AsSpan().SequenceEqual(original) || tx.Inspect().Applied || tx.Inspect().RecoveryNeeded) throw new InvalidDataException("Crash rollback failed");
         File.WriteAllText(ini, "[LANGUAGE]");
         tx.Commit(candidate, bundle, "fixture-v1", "fixture3");
         if (!File.ReadAllText(ini).Contains("[LANGUAGE]\r\nlanguage=fr")) throw new InvalidDataException("Missing config newline");
-        File.WriteAllText(targetIndex, "original"); // Steam validation restored our index outside the helper.
+        File.WriteAllBytes(targetIndex, original); // Steam validation restored our index outside the helper.
         tx.Restore();
         if (tx.Inspect().Applied || !File.ReadAllText(ini).Contains("language=en")) throw new InvalidDataException("Steam-restored index left managed language active");
         File.WriteAllText(ini, "[LANGUAGE]\nlanguage=en\nlanguage=ko-KR\n");
         blocked = false; try { tx.Commit(candidate, bundle, "fixture-v1", "fixture4"); } catch (UserError) { blocked = true; }
-        if (!blocked || File.ReadAllText(targetIndex) != "original" || tx.Inspect().RecoveryNeeded) throw new InvalidDataException("Duplicate language keys accepted");
+        if (!blocked || !File.ReadAllBytes(targetIndex).AsSpan().SequenceEqual(original) || tx.Inspect().RecoveryNeeded) throw new InvalidDataException("Duplicate language keys accepted");
         File.WriteAllText(ini, "[LANGUAGE]\nlanguage=en\n");
         foreach (var probe in new Func<bool>[] { () => false, () => throw new IOException("unknown process state") }) {
-            var gated = new GameTransaction(game, store, ini, probe, () => steamLog);
+            var gated = new GameTransaction(game, store, ini, probe);
             blocked = false; try { gated.RequireWritable(); } catch (UserError) { blocked = true; }
             if (!blocked) throw new InvalidDataException("Unsafe process state accepted");
         }
+        string oldBackup = tx.BaselineIndexPath;
+        File.WriteAllText(acf, File.ReadAllText(acf).Replace("\"123\"", "\"125\""));
+        File.WriteAllBytes(targetIndex, FixtureIndex("newbuild"));
+        if (!tx.EstablishBaseline().Baseline.Ready || !File.ReadAllBytes(oldBackup).AsSpan().SequenceEqual(original)) throw new InvalidDataException("New build did not preserve previous backup");
         Directory.CreateDirectory(Path.Combine(root, "library", "steamapps", "downloading", "238960"));
         blocked = false; try { tx.RequireWritable(); } catch (UserError) { blocked = true; }
         if (!blocked) throw new InvalidDataException("Steam update stage accepted");
-        return new { passed = true, cases = 14 + WorkflowSelfTest(Path.Combine(root, "workflow")) };
+        return new { passed = true, cases = 18 + WorkflowSelfTest(Path.Combine(root, "workflow")) };
         } finally {
             if (Directory.Exists(root) && Within(Path.GetFullPath(directory), root) && Path.GetFileName(root).StartsWith("transaction-fixture-", StringComparison.Ordinal)) {
                 if (OperatingSystem.IsWindows()) Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(root, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
@@ -426,51 +403,104 @@ public sealed class GameTransaction {
             }
         }
         byte[] languageBytes = language.ToArray();
-        File.WriteAllBytes(Path.Combine(game, "Bundles2", "fixture.bundle.bin"), FixtureEnvelope(languageBytes));
-        byte[] pathBytes = Encoding.UTF8.GetBytes("data/languages.dat");
+        var resources = new[] { (Path: "data/languages.dat", Bytes: languageBytes),
+            (Path: "data/clientstrings.datc64", Bytes: FixtureClientStrings("Spark")),
+            (Path: "data/traditional chinese/clientstrings.datc64", Bytes: FixtureClientStrings("電球")) };
+        byte[] resourceBytes = resources.SelectMany(resource=>resource.Bytes).ToArray();
+        File.WriteAllBytes(Path.Combine(game, "Bundles2", "fixture.bundle.bin"), FixtureEnvelope(resourceBytes));
         using var paths = new MemoryStream();
-        using (var writer = new BinaryWriter(paths, Encoding.UTF8, true)) { writer.Write(1); writer.Write(pathBytes); writer.Write((byte)0); }
+        using (var writer = new BinaryWriter(paths, Encoding.UTF8, true)) foreach(var resource in resources) { writer.Write(1); writer.Write(Encoding.UTF8.GetBytes(resource.Path)); writer.Write((byte)0); }
         using var body = new MemoryStream();
         using (var writer = new BinaryWriter(body, Encoding.UTF8, true)) {
-            writer.Write(1); writer.Write(7); writer.Write(Encoding.UTF8.GetBytes("fixture")); writer.Write(languageBytes.Length);
-            ulong hash = 0xCBF29CE484222325ul;
-            foreach (byte value in pathBytes) hash = unchecked((hash ^ value) * 0x100000001B3ul);
-            hash = unchecked((((hash ^ '+') * 0x100000001B3ul) ^ '+') * 0x100000001B3ul);
-            writer.Write(1); writer.Write(hash); writer.Write(0); writer.Write(0); writer.Write(languageBytes.Length);
+            writer.Write(1); writer.Write(7); writer.Write(Encoding.UTF8.GetBytes("fixture")); writer.Write(resourceBytes.Length);
+            writer.Write(resources.Length); int offset=0;
+            foreach(var resource in resources) {
+                ulong hash = 0xCBF29CE484222325ul;
+                foreach (byte value in Encoding.UTF8.GetBytes(resource.Path)) hash = unchecked((hash ^ value) * 0x100000001B3ul);
+                hash = unchecked((((hash ^ '+') * 0x100000001B3ul) ^ '+') * 0x100000001B3ul);
+                writer.Write(hash); writer.Write(0); writer.Write(offset); writer.Write(resource.Bytes.Length); offset+=resource.Bytes.Length;
+            }
             writer.Write(1); writer.Write(0x07E47507B4A92E53ul); writer.Write(0); writer.Write((int)paths.Length); writer.Write((int)paths.Length);
             writer.Write(FixtureEnvelope(paths.ToArray()));
         }
         var index = Path.Combine(game, "Bundles2", "_.index.bin");
         File.WriteAllBytes(index, FixtureEnvelope(body.ToArray()));
-        var steamLog = Path.Combine(root, "content_log.txt");
-        string stamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
-        File.WriteAllText(steamLog, $"[{stamp}] Start validating appID 238960 on BuildID 456\n[{stamp}] AppID 238960 finished update, 2 mounted depots (BuildID 456)\n[{stamp}] AppID 238960 scheduler finished : removed from schedule (result No Error, state 0xc)\n");
-        var tx = new GameTransaction(game, store, ini, () => true, () => steamLog);
-        tx.EstablishBaseline();
+        var tx = new GameTransaction(game, store, ini, () => true);
         var request = new System.Text.Json.Nodes.JsonObject { ["gameDirectory"] = game, ["storageRoot"] = store, ["configPath"] = ini,
-            ["manifest"] = new System.Text.Json.Nodes.JsonObject { ["releaseId"] = "workflow-v1" }, ["entries"] = new System.Text.Json.Nodes.JsonArray() };
-        var initialPreview = JsonSerializer.SerializeToNode(Program.Preview(request, tx), Json)!;
+            ["manifest"] = new System.Text.Json.Nodes.JsonObject { ["releaseId"] = "workflow-v1" },
+            ["entries"] = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["kind"]="dat",["table"]="clientstrings",["id"]="ModeFixture",["field"]="Text",["en"]="Spark",["cn"]="电球",["sourceHash"]=Program.Hash(Encoding.UTF8.GetBytes("Spark")) }) };
+        var simplifiedEntries=request["entries"]!.DeepClone();
+        var clientStringsSchema=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"schema.json")))!["tables"]!.AsArray().First(table=>table?["name"]?.GetValue<string>()=="ClientStrings")!.AsObject();
+        string DisplayText() { using var current=Program.Open(game); if(!current.TryGetFile("data/traditional chinese/clientstrings.datc64",out var file))throw new InvalidDataException("Fixture text missing");return new DatTable(file.Read().ToArray(),clientStringsSchema,2).ReadText("ModeFixture","Text"); }
         Program.Apply(request, tx);
         var appliedHash = Hash(index);
         var errors = new List<string>();
-        try {
-            var preview = JsonSerializer.SerializeToNode(Program.Preview(request, tx), Json)!;
-            if (!System.Text.Json.Nodes.JsonNode.DeepEquals(initialPreview["counts"], preview["counts"]) || Hash(index) != appliedHash)
-                errors.Add("Preview changed applied resources or coverage");
-        } catch (Exception error) { errors.Add("Preview after apply failed: " + error.Message); }
+        if(tx.Inspect().Mode!="simplified" || DisplayText()!="电球") errors.Add("Simplified mode did not apply CN display text");
+        var originalBaseline=File.ReadAllBytes(tx.baselineFile);
+        var legacyActive=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(tx.activeFile))!.AsObject(); legacyActive.Remove("mode");
+        File.WriteAllText(tx.activeFile,legacyActive.ToJsonString(Json));
+        if(tx.Inspect().Mode!="simplified") errors.Add("Legacy active record without mode lost simplified compatibility");
+        bool exportBlocked=false;
+        try { new ResourceEngine().Export(game,null); }
+        catch(UserError error) { exportBlocked=error.Message.Contains("应用前备份",StringComparison.Ordinal); }
+        if(!exportBlocked) errors.Add("Managed translations were accepted as an original export source");
+        using(var originalSource=Program.Open(game,indexPath:tx.BaselineIndexPath)) ResourceEngine.RequireOriginalExportSource(originalSource);
         File.WriteAllText(ini, originalConfig);
         bool blocked = false; try { tx.EnsureAppliedLanguage("other-release"); } catch (UserError) { blocked = true; }
         if (!blocked || File.ReadAllText(ini) != originalConfig) errors.Add("Mismatched release changed the language");
-        var running = new GameTransaction(game, store, ini, () => false, () => steamLog);
+        var running = new GameTransaction(game, store, ini, () => false);
         blocked = false; try { running.EnsureAppliedLanguage("workflow-v1"); } catch (UserError) { blocked = true; }
         if (!blocked || File.ReadAllText(ini) != originalConfig) errors.Add("Repeated apply ignored a running game");
         var repeated = JsonSerializer.SerializeToNode(Program.Apply(request, tx), Json)!;
         if (repeated["unchanged"]?.GetValue<bool>() != true || !File.ReadAllText(ini).Contains("language=fr") || Hash(index) != appliedHash)
             errors.Add("Repeated apply did not restore the managed language without rewriting the index");
+        request["mode"]="traditional"; request["entries"]=new System.Text.Json.Nodes.JsonArray(System.Text.Json.Nodes.JsonValue.Create("must not be read"));
+        var traditional=JsonSerializer.SerializeToNode(Program.Apply(request,tx),Json)!;
+        if(traditional["unchanged"]?.GetValue<bool>()==true || tx.Inspect().Mode!="traditional" || tx.Inspect().ReleaseId!="workflow-v1" || DisplayText()!="電球")
+            errors.Add("Same-release switch to traditional reused simplified output or read server entries");
+        var traditionalHash=Hash(index); File.WriteAllText(ini,originalConfig);
+        var repeatedTraditional=JsonSerializer.SerializeToNode(Program.Apply(request,tx),Json)!;
+        if(repeatedTraditional["unchanged"]?.GetValue<bool>()!=true || Hash(index)!=traditionalHash || !File.ReadAllText(ini).Contains("language=fr"))
+            errors.Add("Repeated traditional apply rewrote the index or failed to restore language");
+        request["mode"]="simplified"; request["entries"]=simplifiedEntries.DeepClone();
+        Program.Apply(request,tx);
+        if(tx.Inspect().Mode!="simplified" || DisplayText()!="电球") errors.Add("Same-release switch back to simplified reused traditional output");
+        foreach(var invalidMode in new System.Text.Json.Nodes.JsonNode?[]{System.Text.Json.Nodes.JsonValue.Create("unknown"),System.Text.Json.Nodes.JsonValue.Create(7),null}) {
+            var beforeIndex=Hash(index);var beforeActive=File.ReadAllBytes(tx.activeFile);var beforeLanguage=File.ReadAllText(ini);
+            request["mode"]=invalidMode; bool modeBlocked=false;try { Program.Apply(request,tx); } catch(UserError) { modeBlocked=true; }
+            if(!modeBlocked || Hash(index)!=beforeIndex || !beforeActive.AsSpan().SequenceEqual(File.ReadAllBytes(tx.activeFile)) || File.ReadAllText(ini)!=beforeLanguage)
+                errors.Add("Invalid mode changed game state before rejection");
+        }
+        request["mode"]="traditional"; request.Remove("manifest");request["entries"]=new System.Text.Json.Nodes.JsonArray();
+        Program.Apply(request,tx);
+        if(tx.Inspect().Mode!="traditional" || tx.Inspect().ReleaseId!="native-tw" || DisplayText()!="電球")errors.Add("Traditional mode without a server manifest failed");
+        if(!originalBaseline.AsSpan().SequenceEqual(File.ReadAllBytes(tx.baselineFile))) errors.Add("Mode switches replaced the original baseline");
         tx.Restore();
-        if (File.ReadAllText(ini) != originalConfig) errors.Add("Repeated apply overwrote the original language backup");
+        if (File.ReadAllText(ini) != originalConfig || DisplayText()!="電球" || tx.Inspect().Mode!=null) errors.Add("Mode restore overwrote original language or text");
         if (errors.Count > 0) throw new InvalidDataException(string.Join("; ", errors));
-        return 5;
+        return 17;
+    }
+
+    private static byte[] FixtureClientStrings(string text) {
+        // One current-schema 52-byte row: only Id/Text pointers and a fixed mechanic hash are populated.
+        using var stream=new MemoryStream();stream.Write(new byte[64]);
+        BinaryPrimitives.WriteUInt32LittleEndian(stream.GetBuffer(),1);stream.GetBuffer().AsSpan(56,8).Fill(0xbb);
+        BinaryPrimitives.WriteUInt32LittleEndian(stream.GetBuffer().AsSpan(36,4),0x12345678);
+        foreach(var item in new[]{(Offset:4,Text:"ModeFixture"),(Offset:12,Text:text)}) {
+            ulong pointer=(ulong)(stream.Length-56);stream.Position=stream.Length;stream.Write(Encoding.Unicode.GetBytes(item.Text+"\0"));
+            BinaryPrimitives.WriteUInt64LittleEndian(stream.GetBuffer().AsSpan(item.Offset,8),pointer);
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] FixtureIndex(string? bundle = null) {
+        using var body = new MemoryStream();
+        using (var writer = new BinaryWriter(body, Encoding.UTF8, true)) {
+            writer.Write(bundle == null ? 0 : 1);
+            if (bundle != null) { var name = Encoding.UTF8.GetBytes(bundle); writer.Write(name.Length); writer.Write(name); writer.Write(0); }
+            writer.Write(0); writer.Write(0); writer.Write(FixtureEnvelope([]));
+        }
+        return FixtureEnvelope(body.ToArray());
     }
 
     private static byte[] FixtureEnvelope(byte[] payload) {

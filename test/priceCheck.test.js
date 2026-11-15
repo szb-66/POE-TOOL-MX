@@ -232,6 +232,38 @@ test('代表性官方重复词缀自动收敛为一条逻辑 stat', async () => 
   }
 })
 
+test('正负等价词缀合并后的首次查询与重查使用相同的合计数值方向', async () => {
+  const { catalog } = await loadTradeCatalog(catalogPath)
+  for (const values of [[17, -5], [-5, 17], [-17, 5], [5, -17], [17, -17], [-17, 17], [17, -5, -20], [-20, -5, 17], [-17, 17, 5]]) {
+    const queries = []
+    const service = new PriceCheckService({
+      catalog,
+      auth: { getStatus: () => ({ authenticated: true }) },
+      client: {
+        clearCache() {},
+        search: async (_league, query) => {
+          queries.push(structuredClone(query))
+          return { id: 'merged-direction', total: 0, result: [] }
+        },
+        fetch: async () => ({ result: [] })
+      }
+    })
+    service.updateRuntime({ enabled: true })
+    const text = `物品类别: 胸甲\n稀有度: 稀有\n测试装备\n暮光法衣\n--------\n物品等级: 84\n--------\n${values.map(value => `{ 前缀属性 "测试" (等阶：1) }\n若你近期内没有被击中，则移动速度加快 ${value}%`).join('\n')}`
+    const first = await service.check({ league: '测试赛季', text, options: { initialSelection: 'all' } })
+    const total = values.reduce((sum, value) => sum + value, 0)
+    assert.deepEqual(first.model.stats[0].values, [total])
+    const variants = queries[0].query.stats.find(group => group.type === 'count')?.filters
+    assert.ok(variants?.length > 1, '必须经过等价词缀的多过滤项查询')
+    for (const filter of variants) {
+      assert.equal(filter.value.min, total, JSON.stringify(values))
+      assert.equal(filter.value.max, undefined, JSON.stringify(values))
+    }
+    await service.rerun({ model: first.model, options: { initialSelection: 'all' } })
+    assert.deepEqual(queries[1], queries[0], JSON.stringify(values))
+  }
+})
+
 test('数值方向冲突的同文案候选仍要求人工消歧', () => {
   const catalog = {
     provider: 'poe-cn',

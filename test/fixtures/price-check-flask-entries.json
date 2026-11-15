@@ -1,0 +1,1322 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_extra_max_charges local_flask_consume_extra_max_charges_when_used",
+    "field": "variant:0",
+    "en": "{0:+d} to Maximum Charges",
+    "kind": "stat",
+    "sourceHash": "de0145d8b9870aaadc289c1363a9cf6abfab000d9adce6def9ee7f212d0c7104",
+    "tw": "{0:+d} 最大充能",
+    "cn": "最大充能 {0:+d}",
+    "stats": {
+      "ids": [
+        "local_extra_max_charges",
+        "local_flask_consume_extra_max_charges_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "# 0",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        },
+        {
+          "condition": "# !0",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood_s",
+    "field": "variant:0",
+    "en": "Grants Immunity to Bleeding for {0} seconds if used while Bleeding\\nGrants Immunity to Corrupted Blood for {0} seconds if used while affected by Corrupted Blood",
+    "kind": "stat",
+    "sourceHash": "f3d6f80c56ba69e77578fc33e62491a1f45c64a62b409b683d65941031c5059a",
+    "tw": "若使用時流血，獲得免疫流血 {0} 秒\\n若使用時被腐化之血影響，獲得免疫腐化之血 {0} 秒",
+    "cn": "在流血时使用可以在接下来 {0} 秒免疫流血\\n被腐化之血影响时使用可以在接下来 {0} 秒免疫腐化之血",
+    "stats": {
+      "ids": [
+        "local_flask_bleeding_immunity_if_bleeding_and_remove_corrupted_blood_s"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0}",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_extra_max_charges local_flask_consume_extra_max_charges_when_used",
+    "field": "variant:1",
+    "en": "{0:+d} to Maximum Charges. -1 to this value when used",
+    "kind": "stat",
+    "sourceHash": "9db0547fdec79de4977062cad96843dfffb80cef63e3507388b2a4b5c91760fb",
+    "tw": "{0:+d} 最大充能。使用時 -1 此數值",
+    "cn": "最大充能 {0:+d}，使用时该数值 -1",
+    "stats": {
+      "ids": [
+        "local_extra_max_charges",
+        "local_flask_consume_extra_max_charges_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "# 0",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        },
+        {
+          "condition": "# !0",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "mods",
+    "id": "MapAdditionalTormentedSpirits2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapLeaguestoneAdditionalSilverCoinMonsters2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "FlaskBleedCorruptingBloodImmunity1",
+    "field": "Name",
+    "en": "of Sealing",
+    "kind": "dat",
+    "sourceHash": "f88cb5b9412a2300c58c02d7d9568aa26d4d9d530ec5863f2355f940fb065112",
+    "tw": "密封之",
+    "cn": "封闭之"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalTalismans2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapLeaguestoneAdditionalStrongbox2_",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalWarbandPacks2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "FlaskExtraCharges2__",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐產的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalBreaches2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "SanctumMerchantExtraOptions1",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐產的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalPerandusChests2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapBeyondMonsterIncreasedItemQuantityAndRarity2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalMagicPacks2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "SentinelDroneRewardChance3",
+    "field": "Name",
+    "en": "of the Bounty",
+    "kind": "dat",
+    "sourceHash": "492c39cd37ae83eec950df12ff3e0d23bf4485be44b24dbf5d0cdb45d3d52e58",
+    "tw": "賞金之",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapAreaContainsAdditionalMonoliths2_",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "mods",
+    "id": "MapLeaguestoneAdditionalRogueExile2",
+    "field": "Name",
+    "en": "Plentiful",
+    "kind": "dat",
+    "sourceHash": "a801256adf077cdba0c4047d4d63774ead5034ec44b4e885151dd09591972b13",
+    "tw": "豐富的",
+    "cn": "丰富的"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskLife11",
+    "field": "Name",
+    "en": "Divine Life Flask",
+    "kind": "dat",
+    "sourceHash": "f04bb996677c8f82f7affc7600c5959fc5a392bd8ae51464646d1a7327257842",
+    "tw": "不朽生命藥劑",
+    "cn": "不朽生命药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskHybrid6",
+    "field": "Name",
+    "en": "Hallowed Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "a0af8ca1d83a29525c480ac6247563088759a360184d40a22436dd0222048761",
+    "tw": "祝福複合藥劑",
+    "cn": "祝福复合药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskMana11",
+    "field": "Name",
+    "en": "Divine Mana Flask",
+    "kind": "dat",
+    "sourceHash": "e08f3d03c18f9e5ef7e5cd7a8008812e669a84d44d8595dde9577d880a36748c",
+    "tw": "不朽魔力藥劑",
+    "cn": "不朽魔力药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility5",
+    "field": "Name",
+    "en": "Granite Flask",
+    "kind": "dat",
+    "sourceHash": "97230290a359baf311fe6ad8e23bb22410175416bc576ddaa43381afd7715e51",
+    "tw": "堅岩藥劑",
+    "cn": "坚岩药剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayCharges1Charge",
+    "field": "Text",
+    "en": "Currently has {0} Charge",
+    "kind": "dat",
+    "sourceHash": "ccd8f060446a877da482b0a8e62d5bb2871b4b8a83f12c6444370e228b439310",
+    "tw": "目前有 {0} 充能次數",
+    "cn": "目前有 {0} 充能次数"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayChargesCurrentOfMaxN",
+    "field": "Text",
+    "en": "Currently has {0} of {1} Charges",
+    "kind": "dat",
+    "sourceHash": "b7b26d7786b3060ff03276032d116d04ec2394c53ac1631b97aed806ae29b7c9",
+    "tw": "目前剩餘 {0} 分之 {1} 充能",
+    "cn": "目前剩余 {0} / {1} 充能"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskBuffDuration1Second",
+    "field": "Text",
+    "en": "Lasts {0} Second",
+    "kind": "dat",
+    "sourceHash": "10fb2730d4d8c5afc817b30b70a5fd5f439a40e5adc11bc2fd8f4d33d2faca91",
+    "tw": "持續 {0} 秒",
+    "cn": "持续 {0} 秒"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionFlaskUtility1",
+    "field": "XBoxText",
+    "en": "Press bound button to drink. Can only hold charges while in a flask slot. Refills as you kill monsters.",
+    "kind": "dat",
+    "sourceHash": "e29e93e0b25c70a9649f5b9a6b3475a46b5ad81ed3b93e140cb91086d99c3dbb",
+    "tw": "只限公會成員",
+    "cn": "点击绑定的按键来饮用。只有在腰带里才恢复使用次数。击败敌人时充满。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskLifeRecovery1Second",
+    "field": "Text",
+    "en": "Recovers {0} Life over {1} Second",
+    "kind": "dat",
+    "sourceHash": "000b64cd980794bf424696473088ce2f1dd95e2069c0dac731b19a2fa9b955bb",
+    "tw": "{1} 秒內回復 {0} 生命",
+    "cn": "{1} 秒内回复 {0} 生命"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskManaRecoveryNSeconds",
+    "field": "Text",
+    "en": "Recovers {0} Mana over {1} Seconds",
+    "kind": "dat",
+    "sourceHash": "bd0661dedb0d8f8815f41fe043a17db1e73b58dfe32501e565c1b86fc8d31a6d",
+    "tw": "{1} 秒內回復 {0} 魔力",
+    "cn": "{1} 秒内回复 {0} 魔力"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionFlask",
+    "field": "XBoxText",
+    "en": "Press bound button to drink. Can only hold charges while in a flask slot. Refills as you kill monsters.",
+    "kind": "dat",
+    "sourceHash": "e29e93e0b25c70a9649f5b9a6b3475a46b5ad81ed3b93e140cb91086d99c3dbb",
+    "tw": "只限公會成員",
+    "cn": "Press bound button to drink.Can only hold charges while in a flask slot.Refills as you kill monsters."
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionFlask",
+    "field": "Text",
+    "en": "Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.",
+    "kind": "dat",
+    "sourceHash": "db5962ad7c48ac43fdab744e43cbdb63f7323159218cdb2117d2a77139e2e3bc",
+    "tw": "點擊右鍵以喝下藥劑。只有裝備於腰帶上時才會充能。殺死怪物時會回復充能次數。",
+    "cn": "点击右键以喝下药剂。只有装备于腰带上时才会充能。击败怪物时会回复充能次数。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionFlaskUtility1",
+    "field": "Text",
+    "en": "Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.",
+    "kind": "dat",
+    "sourceHash": "db5962ad7c48ac43fdab744e43cbdb63f7323159218cdb2117d2a77139e2e3bc",
+    "tw": "點擊右鍵以喝下藥劑。只有裝備於腰帶上時才會充能。殺死怪物時會回復充能次數。",
+    "cn": "右键点击饮用。只有在腰带里才恢复使用次数。击败敌人时充满。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayChargesConsumptionOnUse1Charge",
+    "field": "Text",
+    "en": "Consumes {0} of {1} Charge on use",
+    "kind": "dat",
+    "sourceHash": "5a7faa400d09e891dcdbcc5edaa1563ff3d153091edbf6d8143a79d3e407fe3a",
+    "tw": "每次使用會從 {1} 充能次數中消耗 {0} 次",
+    "cn": "每次使用会从 {1} 充能次数中消耗 {0} 次"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayChargesConsumptionOnUseNCharges",
+    "field": "Text",
+    "en": "Consumes {0} of {1} Charges on use",
+    "kind": "dat",
+    "sourceHash": "4e9ae7d01b0720a41b05d39780e16bf5f778bcdeae3e0b3cf2278802b20a2fdd",
+    "tw": "每次使用會從 {1} 充能次數中消耗 {0} 次",
+    "cn": "每次使用会从 {1} 充能次数中消耗 {0} 次"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayChargesCurrentOfMax1",
+    "field": "Text",
+    "en": "Currently has {0} of {1} Charge",
+    "kind": "dat",
+    "sourceHash": "e8d83fa897848f83746289bcba06f3e19fc332cbe7ed0f1580e5945f27190112",
+    "tw": "目前剩餘 {0} 分之 {1} 充能",
+    "cn": "目前剩余 {0} / {1} 充能"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskLifeRecoveryNSeconds",
+    "field": "Text",
+    "en": "Recovers {0} Life over {1} Seconds",
+    "kind": "dat",
+    "sourceHash": "d8dec9e8001dbc27389d2402fea43796e82bb086214802e629eb0b3b8fa8b27f",
+    "tw": "{1} 秒內回復 {0} 生命",
+    "cn": "{1} 秒内回复 {0} 生命"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskManaRecovery1Second",
+    "field": "Text",
+    "en": "Recovers {0} Mana over {1} Second",
+    "kind": "dat",
+    "sourceHash": "3e71fc67d784ba003a84886d34b9c13312cfc3841e28188538ac3511f6a8ff58",
+    "tw": "{1} 秒內回復 {0} 魔力",
+    "cn": "{1} 秒内回复 {0} 魔力"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayChargesNCharges",
+    "field": "Text",
+    "en": "Currently has {0} Charges",
+    "kind": "dat",
+    "sourceHash": "5a062cf1e58594377010d996dbfce613b80bd121a11e398a7a1bc0c20620bfb8",
+    "tw": "目前有 {0} 充能次數",
+    "cn": "目前有 {0} 充能次数"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayFlaskBuffDurationNSeconds",
+    "field": "Text",
+    "en": "Lasts {0} Seconds",
+    "kind": "dat",
+    "sourceHash": "3d048fe8fe75039ac4510a3ef624656328d0b973416cc7aa14804723af0b1a4f",
+    "tw": "持續 {0} 秒",
+    "cn": "持续 {0} 秒"
+  },
+  {
+    "table": "itemclasses",
+    "id": "UtilityFlask",
+    "field": "Name",
+    "en": "Utility Flasks",
+    "kind": "dat",
+    "sourceHash": "f115f4cb0122abcbe15d0f42baee4928a702f6213b0229c153187f384e3dfc3d",
+    "tw": "功能藥劑",
+    "cn": "功能药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "LifeFlask",
+    "field": "Name",
+    "en": "Life Flasks",
+    "kind": "dat",
+    "sourceHash": "fa48babe80863c6b02ad61c036941fb4eaee74546aaea1c3a81460a0fb55e61e",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "ManaFlask",
+    "field": "Name",
+    "en": "Mana Flasks",
+    "kind": "dat",
+    "sourceHash": "c5afa86c324debbdf5df8f6fd17fba9c521c66dee13b1d11dbed7c2d45b20d2e",
+    "tw": "魔力藥劑",
+    "cn": "魔力药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HybridFlask",
+    "field": "Name",
+    "en": "Hybrid Flasks",
+    "kind": "dat",
+    "sourceHash": "b518296ba75fbe817c61ec74c7aea2cf79944b41907654f00550e6628adc85af",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_taunt_enemies_on_use_radius",
+    "field": "variant:0",
+    "en": "Taunts Enemies within {0} metres on use",
+    "kind": "stat",
+    "sourceHash": "79de853055ba894a110f29c6b085c798b2a59484d220465cef4f16b013b8fa20",
+    "stats": {
+      "ids": [
+        "local_flask_taunt_enemies_on_use_radius"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "locations_to_metres 1 reminderstring ReminderTextTaunt",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "使用時嘲諷 {0} 公尺內的敵人",
+    "cn": "使用时嘲讽 {0} 米范围内的敌人"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_unique_flask_chance_%_for_damaging_retaliation_skill_to_become_usable_per_100_life_lost",
+    "field": "variant:0",
+    "en": "{0}% chance for a damaging Retaliation skill to\\nbecome usable for every 100 life removed this way",
+    "kind": "stat",
+    "sourceHash": "7aaeaa13acccce4b85883855bd989d75463e2c616335bbdfc96c7fa8e2261755",
+    "stats": {
+      "ids": [
+        "local_unique_flask_chance_%_for_damaging_retaliation_skill_to_become_usable_per_100_life_lost"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "你每以此方式移除100生命，\\n反擊技能即有{0}%機率變為可用",
+    "cn": "每以该方式移除 100 点生命，伤害性反击技能\\n有 {0}% 的几率变为可用"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_unique_flask_kiaras_determination",
+    "field": "variant:0",
+    "en": "Immunity to Freeze, Chill, Curses and Stuns during Effect",
+    "kind": "stat",
+    "sourceHash": "37a363aa4fa68d95fd34fbb7f1cd5d4ddf24594a8860bcf09d8a249c2882f93c",
+    "stats": {
+      "ids": [
+        "local_unique_flask_kiaras_determination"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "效果持續時間內，免疫冰凍，冰緩，詛咒和擊暈",
+    "cn": "生效期间免疫冻结、冻缓、诅咒和晕眩"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_gain_X_charges_when_hit",
+    "field": "variant:1",
+    "en": "Gain {0} Charges when you are Hit by an Enemy",
+    "kind": "stat",
+    "sourceHash": "5b3eb71e5cc77f5a4a8d12f8f8bade6508d6efb23f363990292feaa105cde6c4",
+    "stats": {
+      "ids": [
+        "local_flask_gain_X_charges_when_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "當你被敵人擊中時獲得 {0} 充能",
+    "cn": "你被敌人击中时获得 {0} 次充能"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_unique_flask_instantly_removes_%_maximum_life",
+    "field": "variant:0",
+    "en": "Removes {0}% of Life when Used",
+    "kind": "stat",
+    "sourceHash": "20dcdca0cdae01992d3cd761737b418f1623c063dcdc095653f944470e0221c3",
+    "stats": {
+      "ids": [
+        "local_unique_flask_instantly_removes_%_maximum_life"
+      ],
+      "variants": [
+        {
+          "condition": "1|100",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "使用時扣除 {0}% 的生命",
+    "cn": "使用时移除 {0}% 生命"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_gain_X_charges_when_hit",
+    "field": "variant:0",
+    "en": "Gain {0} Charge when you are Hit by an Enemy",
+    "kind": "stat",
+    "sourceHash": "89377182c5b07658bf3b4cc0b99d3621174fc163eca0f9f411d07408fb9972c4",
+    "stats": {
+      "ids": [
+        "local_flask_gain_X_charges_when_hit"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        },
+        {
+          "condition": "2|#",
+          "handlers": "",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "當你被敵人擊中時獲得 {0} 充能",
+    "cn": "你被敌人击中时获得 {0} 次充能"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueFlask18",
+    "field": "Text",
+    "en": "Travelers of the deep wood speak of a witch\r\nwhose ale provides a different kind\r\nof liquid courage.",
+    "kind": "dat",
+    "sourceHash": "28ee02f8047c1c5d05015746732e4a7dca6156deffb13ce0950429bfff31ebb7",
+    "tw": "叢林深處的旅人述說著女巫\r\n她釀的酒能給你特別的\r\n借酒壯膽之勇氣。",
+    "cn": "丛林深处的旅人述说着女巫\r\n她酿的酒能给你特别的\r\n借酒壮胆之勇气。"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueFlask38",
+    "field": "Text",
+    "en": "\"For as long as blood flows through your veins,\r\nso too shall this cursed brew stain your lips –\r\ndraining ever more than it restores.\"\r\n- The Coven Queen",
+    "kind": "dat",
+    "sourceHash": "5622f0232e93aa07e5c6201c156127bf4a195a5aa8694fa6e81ce70fbeba7c6b",
+    "tw": "「只要鮮血仍在你的血管中流淌，\r\n這杯受詛咒的藥釀便會沾染你的雙唇——\r\n奪走的永遠比它恢復的更多。」\r\n- 巫會之后"
+  },
+  {
+    "table": "words",
+    "id": "hash:0d6792ea",
+    "field": "Text2",
+    "en": "Dreadmaidens' Sacrament",
+    "kind": "dat",
+    "sourceHash": "e68695b9a641cb58f0839887fa47b58ce97efb95ac8938196086a79f89be3ef6",
+    "tw": "恐懼仕女的聖禮"
+  },
+  {
+    "table": "words",
+    "id": "hash:452cc361",
+    "field": "Text2",
+    "en": "Kiara's Determination",
+    "kind": "dat",
+    "sourceHash": "d6ae91f4a4893203cfbcdf72b42be356db0ab02e22eba5e66206dd1869aec6da",
+    "tw": "奇亞拉的決心",
+    "cn": "奇亚拉的决心"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextTaunt",
+    "field": "Text",
+    "en": "(Enemies you Taunt can only target you, and deal 10% less damage to anyone else. Taunt lasts for 3 seconds)",
+    "kind": "dat",
+    "sourceHash": "c710b265d99847af8d63b7403112086716b1cbdb0641cd41c5fcea0663a2607d",
+    "tw": "（被你嘲諷敵人只能以你為目標，並對其他人造成 10% 較少傷害。嘲諷持續 3 秒）",
+    "cn": "(受你嘲讽的敌人只会攻击你, 并对你以外的其他人造成额外减少 10% 的总伤害, 嘲讽持续3秒)"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextOnslaught",
+    "field": "Text",
+    "en": "(Onslaught grants 20% increased Attack, Cast, and Movement Speed)",
+    "kind": "dat",
+    "sourceHash": "7e49789470f7b8a1c5d8fa297d31f5d2492fbf19e1297df8eafb146f4f125e0f",
+    "tw": "（ 猛攻增加你 20% 攻擊速度、施放速度，和移動速度 ）",
+    "cn": "( 猛攻赋予你额外你 20% 攻击速度, 施法速度, 和移动速度 )"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "basalt_flask_armour_+%_final",
+    "field": "variant:0",
+    "en": "{0}% more Armour",
+    "kind": "stat",
+    "sourceHash": "fa3308f8a44700aff4dd37a344a6fcb306c41ce59dca81fc5a6ea59e839cff90",
+    "stats": {
+      "ids": [
+        "basalt_flask_armour_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0}% 更多護甲",
+    "cn": "护甲总增 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:1",
+    "en": "{0}% reduced Duration",
+    "kind": "stat",
+    "sourceHash": "5557907e97bda2f98f8361385c51c4aa0f4494a23c3296a2a5e871bb832db4c0",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 持續時間",
+    "cn": "生效时间缩短 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_immune_to_freeze",
+    "field": "variant:0",
+    "en": "Immune to Freeze",
+    "kind": "stat",
+    "sourceHash": "676ee63c0c9ca0bee2c7f60bee984b5d607bd91237126fcc020f636cfef8295a",
+    "stats": {
+      "ids": [
+        "base_immune_to_freeze"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "免疫冰凍",
+    "cn": "免疫冻结"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "silver_flask_display_onslaught",
+    "field": "variant:0",
+    "en": "[Onslaught]",
+    "kind": "stat",
+    "sourceHash": "637467c243c9eedc009fb790e63e7f2f4372955b9467bf2e96ce2b19e4ac09da",
+    "stats": {
+      "ids": [
+        "silver_flask_display_onslaught"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "猛攻",
+    "cn": "猛攻"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_should_have_onslaught_from_stat",
+    "field": "variant:0",
+    "en": "[Onslaught]",
+    "kind": "stat",
+    "sourceHash": "637467c243c9eedc009fb790e63e7f2f4372955b9467bf2e96ce2b19e4ac09da",
+    "stats": {
+      "ids": [
+        "base_should_have_onslaught_from_stat"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "猛攻",
+    "cn": "猛攻"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AuguryLeagueChallenge5_11",
+    "field": "Name",
+    "en": "Dreadmaidens' Sacrament",
+    "kind": "dat",
+    "sourceHash": "e68695b9a641cb58f0839887fa47b58ce97efb95ac8938196086a79f89be3ef6",
+    "tw": "恐懼仕女的聖禮"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility10",
+    "field": "Name",
+    "en": "Basalt Flask",
+    "kind": "dat",
+    "sourceHash": "6e8935fe2f865b2d1c1cfaaf35dca80fe8fe0ba0659b322de4a6def9dc2069e0",
+    "tw": "石化藥劑",
+    "cn": "石化药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/DivinationCards/DivinationCardTheWitch",
+    "field": "Name",
+    "en": "The Witch",
+    "kind": "dat",
+    "sourceHash": "9747108e0acd626d290c1c8a9b1f6e9993d2e3a3540c37d4f39680b9b55df9c7",
+    "tw": "女巫",
+    "cn": "巫婆"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility14",
+    "field": "Name",
+    "en": "Silver Flask",
+    "kind": "dat",
+    "sourceHash": "cc233d3f4e733ee10e8d7c2fb1a97733be9033f5c9ed40b401f69433e5347184",
+    "tw": "真銀藥劑",
+    "cn": "真银药剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "CraftingWindowCost",
+    "field": "Text",
+    "en": "cost:",
+    "kind": "dat",
+    "sourceHash": "a3cd05e844e1f87c6f85211d3ca48d5ae752ecbf1005b2c3f5065b8e42a649aa",
+    "tw": "需求：",
+    "cn": "需求: "
+  },
+  {
+    "table": "words",
+    "id": "hash:8e38c14c",
+    "field": "Text2",
+    "en": "Cursed",
+    "kind": "dat",
+    "sourceHash": "05816dcff51e5d1f1b0c5a179f2ea902ae468aeea4efd9ba4f75bb9039c72f8c",
+    "tw": "詛咒",
+    "cn": "诅咒"
+  },
+  {
+    "table": "words",
+    "id": "hash:cc915ff7",
+    "field": "Text2",
+    "en": "Terror",
+    "kind": "dat",
+    "sourceHash": "43f7b0cbafad394c21cd2e4a9c65273cb14137a818da644c326d066c17519f12",
+    "tw": "恐懼",
+    "cn": "恐惧"
+  },
+  {
+    "table": "words",
+    "id": "hash:a8311245",
+    "field": "Text2",
+    "en": " Equipment",
+    "kind": "dat",
+    "sourceHash": "e476916766bd14a43bb041f88877d13c701c96bdafe0427fed1f7ded9393d3ec",
+    "tw": "  設備",
+    "cn": " 装备"
+  },
+  {
+    "table": "words",
+    "id": "hash:4ebc202f",
+    "field": "Text2",
+    "en": "blood",
+    "kind": "dat",
+    "sourceHash": "3e8e40c0af5f5ea5a94837f090631379e090fdb2fcf0c65a65859ae051e2c794",
+    "tw": "鮮血",
+    "cn": "鲜血"
+  },
+  {
+    "table": "words",
+    "id": "hash:e4a05cd8",
+    "field": "Text2",
+    "en": " Blood",
+    "kind": "dat",
+    "sourceHash": "a951856dd43b2e0b5021ed6c4e0cfb160e2fd9df4d5554c92fbada9ea0d34842",
+    "tw": "鮮血",
+    "cn": "鲜血"
+  },
+  {
+    "table": "words",
+    "id": "hash:1248fda2",
+    "field": "Text2",
+    "en": "Blood",
+    "kind": "dat",
+    "sourceHash": "8a7961ab59837fd7340327fc375f3e5160cc2ec8cb38340de75e5055ee8ba271",
+    "tw": "鮮血",
+    "cn": "鲜血"
+  },
+  {
+    "table": "words",
+    "id": "hash:8dc6dab9",
+    "field": "Text2",
+    "en": "Onslaught",
+    "kind": "dat",
+    "sourceHash": "3d956150539f05acad046c9b3b303490605a2e9f9546aa9bc58fb0b8256412a9",
+    "tw": "猛攻",
+    "cn": "冲锋"
+  },
+  {
+    "table": "words",
+    "id": "hash:5e9f101b",
+    "field": "Text2",
+    "en": "Fear",
+    "kind": "dat",
+    "sourceHash": "140262b32b0c98dfc6afb74b287d2df7f50e0645cea8c1dd907c793699180ee2",
+    "tw": "恐懼",
+    "cn": "恐惧"
+  },
+  {
+    "table": "words",
+    "id": "hash:dccb5bc2",
+    "field": "Text2",
+    "en": "Terror",
+    "kind": "dat",
+    "sourceHash": "43f7b0cbafad394c21cd2e4a9c65273cb14137a818da644c326d066c17519f12",
+    "tw": "恐懼",
+    "cn": "恐惧"
+  },
+  {
+    "table": "words",
+    "id": "hash:54b4733c",
+    "field": "Text2",
+    "en": "kill",
+    "kind": "dat",
+    "sourceHash": "2bda9b4dfbabfdb17cd74d827768da5198ae2b8155002a494524bbeaf6f5cdba",
+    "tw": "殘殺",
+    "cn": "击败"
+  },
+  {
+    "table": "words",
+    "id": "hash:bc35c6ea",
+    "field": "Text2",
+    "en": "Assault",
+    "kind": "dat",
+    "sourceHash": "dc5520573a9f4e46a7c42f1bdacc7a2ac40392969a4c2f244b2bc11807f4b8d1",
+    "tw": "攻擊",
+    "cn": "攻击"
+  },
+  {
+    "table": "words",
+    "id": "hash:13727943",
+    "field": "Text2",
+    "en": "Blood",
+    "kind": "dat",
+    "sourceHash": "8a7961ab59837fd7340327fc375f3e5160cc2ec8cb38340de75e5055ee8ba271",
+    "tw": "鮮血",
+    "cn": "鲜血"
+  },
+  {
+    "table": "words",
+    "id": "hash:9bb928d0",
+    "field": "Text2",
+    "en": "Terror",
+    "kind": "dat",
+    "sourceHash": "43f7b0cbafad394c21cd2e4a9c65273cb14137a818da644c326d066c17519f12",
+    "tw": "恐懼",
+    "cn": "恐惧"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "kiaras_determination",
+    "field": "Name",
+    "en": "Kiara's Determination",
+    "kind": "dat",
+    "sourceHash": "d6ae91f4a4893203cfbcdf72b42be356db0ab02e22eba5e66206dd1869aec6da",
+    "tw": "奇亞拉的決心",
+    "cn": "奇亚拉的决心"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "flask_utility_haste",
+    "field": "Name",
+    "en": "Silver Flask",
+    "kind": "dat",
+    "sourceHash": "cc233d3f4e733ee10e8d7c2fb1a97733be9033f5c9ed40b401f69433e5347184",
+    "tw": "真銀藥劑",
+    "cn": "真银药剂"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "onslaught",
+    "field": "Name",
+    "en": "Onslaught",
+    "kind": "dat",
+    "sourceHash": "3d956150539f05acad046c9b3b303490605a2e9f9546aa9bc58fb0b8256412a9",
+    "tw": "猛攻",
+    "cn": "猛攻"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "flask_utility_stone",
+    "field": "Name",
+    "en": "Basalt Flask",
+    "kind": "dat",
+    "sourceHash": "6e8935fe2f865b2d1c1cfaaf35dca80fe8fe0ba0659b322de4a6def9dc2069e0",
+    "tw": "石化藥劑",
+    "cn": "石化药剂"
+  },
+  {
+    "table": "metadata/statdescriptions/variable_duration_skill_stat_descriptions.csd",
+    "id": "skill_effect_duration_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Duration",
+    "kind": "stat",
+    "sourceHash": "5557907e97bda2f98f8361385c51c4aa0f4494a23c3296a2a5e871bb832db4c0",
+    "stats": {
+      "ids": [
+        "skill_effect_duration_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 持續時間",
+    "cn": "持续时间缩短 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:2",
+    "en": "{0}% increased Duration. -1% to this value when used",
+    "kind": "stat",
+    "sourceHash": "b3fc4edc770bda3c160afe95d9dc419f19f622130531e31f25629df52f0a1bf3",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 持續時間。使用時 -1% 此數值",
+    "cn": "生效时间延长 {0}%，使用时该数值 -1%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "basalt_flask_armour_+%_final",
+    "field": "variant:1",
+    "en": "{0}% less Armour",
+    "kind": "stat",
+    "sourceHash": "ed963fe0d6c482f2e426d8f31990d4c441917a5f1e3d8544f6d9c10312312c60",
+    "stats": {
+      "ids": [
+        "basalt_flask_armour_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0}% 更少護甲",
+    "cn": "护甲总降 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:0",
+    "en": "{0}% increased Duration",
+    "kind": "stat",
+    "sourceHash": "2fc482eb8c296ad02cdbfde34312fca85f80fe063ecd5ba110ceeea87a074dd7",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 持續時間",
+    "cn": "生效时间延长 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:3",
+    "en": "{0}% reduced Duration. -1% to this value when used",
+    "kind": "stat",
+    "sourceHash": "0638c6dd7cf91167a45814f3b027d03ce867f300f8e3366aa5f2268774c78247",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 持續時間。使用時 -1% 此數值",
+    "cn": "生效时间缩短 {0}%，使用时该数值 -1%"
+  },
+  {
+    "table": "metadata/statdescriptions/variable_duration_skill_stat_descriptions.csd",
+    "id": "skill_effect_duration_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Duration",
+    "kind": "stat",
+    "sourceHash": "2fc482eb8c296ad02cdbfde34312fca85f80fe063ecd5ba110ceeea87a074dd7",
+    "stats": {
+      "ids": [
+        "skill_effect_duration_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 持續時間",
+    "cn": "持续时间延长 {0}%"
+  }
+]

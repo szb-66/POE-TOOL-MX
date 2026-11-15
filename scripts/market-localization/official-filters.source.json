@@ -1,0 +1,8 @@
+{
+  "game": "poe1",
+  "locale": "zh-TW",
+  "url": "https://pathofexile.tw/api/trade/data/filters",
+  "retrievedDate": "2026-11-16",
+  "sha256": "f16b51a3df995e49238c98b0fd27e1745e1e190b4b8ecc9814ba884dcb1d521f",
+  "note": "Official filter IDs and Traditional Chinese display text; IDs and option values remain unchanged. Does not include dynamic knownItem lists."
+}

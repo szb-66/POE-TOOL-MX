@@ -62,7 +62,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -78,7 +78,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -98,8 +98,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -119,8 +118,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -145,8 +143,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -166,8 +163,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -186,8 +182,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -203,7 +198,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -235,8 +230,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -253,8 +247,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -271,8 +264,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -289,8 +281,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -315,8 +306,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -330,7 +320,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -344,7 +334,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -358,7 +348,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -372,7 +362,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -386,7 +376,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -400,7 +390,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -414,7 +404,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -428,7 +418,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -442,7 +432,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -456,7 +446,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -470,7 +460,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -484,7 +474,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -498,7 +488,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -512,7 +502,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -526,7 +516,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -540,7 +530,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -554,7 +544,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -568,7 +558,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -582,7 +572,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -596,7 +586,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -610,7 +600,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -624,7 +614,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -638,7 +628,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -652,7 +642,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -668,7 +658,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -682,7 +672,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -696,7 +686,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -710,7 +700,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -724,7 +714,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -738,7 +728,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -752,7 +742,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -766,7 +756,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -780,7 +770,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -794,7 +784,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -808,7 +798,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -822,7 +812,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -836,7 +826,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -850,7 +840,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -864,7 +854,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -881,8 +871,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -896,7 +885,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -910,7 +899,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -924,7 +913,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -938,7 +927,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -952,7 +941,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -966,7 +955,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -980,8 +969,7 @@ export default {
       "affixType": "mixed",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -995,7 +983,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1017,7 +1005,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1039,7 +1027,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1061,7 +1049,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1075,8 +1063,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1101,8 +1088,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1124,8 +1110,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1141,7 +1126,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1155,8 +1140,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1170,8 +1154,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1185,7 +1168,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1199,7 +1182,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1215,7 +1198,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1231,7 +1214,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1247,8 +1230,7 @@ export default {
       "affixType": "mixed",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1273,8 +1255,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1288,7 +1269,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1302,7 +1283,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1316,7 +1297,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1330,7 +1311,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1344,7 +1325,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1361,8 +1342,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1378,7 +1358,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1393,7 +1373,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1407,7 +1387,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1421,7 +1401,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1435,7 +1415,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1449,7 +1429,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1463,7 +1443,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1477,8 +1457,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1492,7 +1471,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1516,8 +1495,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1531,8 +1509,7 @@ export default {
       "affixType": "mixed",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1548,7 +1525,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1562,8 +1539,7 @@ export default {
       "affixType": "mixed",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1577,7 +1553,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1592,8 +1568,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1607,7 +1582,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1621,8 +1596,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1636,7 +1610,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1650,8 +1624,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1665,8 +1638,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1680,7 +1652,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1694,7 +1666,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1708,7 +1680,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1724,7 +1696,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1744,8 +1716,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1761,7 +1732,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1777,7 +1748,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1795,8 +1766,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1812,7 +1782,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1828,7 +1798,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1844,7 +1814,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1858,7 +1828,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1874,7 +1844,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1890,7 +1860,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1906,7 +1876,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -1922,7 +1892,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1936,7 +1906,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1953,8 +1923,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1971,8 +1940,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -1986,7 +1954,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -2000,7 +1968,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -2014,7 +1982,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -2028,7 +1996,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -2044,7 +2012,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -2060,7 +2028,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -2076,7 +2044,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -2092,7 +2060,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal"
+        "atlas"
       ]
     },
     {
@@ -2106,8 +2074,7 @@ export default {
       "affixType": "prefix",
       "tags": [],
       "regions": [
-        "normal",
-        "t17"
+        "atlas"
       ]
     },
     {
@@ -2121,7 +2088,7 @@ export default {
       "affixType": "suffix",
       "tags": [],
       "regions": [
-        "t17"
+        "atlas"
       ]
     }
   ],

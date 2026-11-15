@@ -15,6 +15,7 @@
       </div>
     </div>
 
+    <el-alert v-if="skillLocalization.error.value" :title="skillLocalization.error.value" type="warning" :closable="false" />
     <el-row class="story-workspace app-grid" :gutter="16">
       <el-col :xs="24" :lg="16" class="story-left-column"><el-card class="story-guide-panel" shadow="never">
         <div class="module-title-row story-module-title">
@@ -175,7 +176,7 @@
                     :fetch-suggestions="fetchSkillSuggestions"
                     :trigger-on-focus="false"
                     clearable
-                    placeholder="输入技能名称，如：劈"
+                    placeholder="输入英文或当前汉化技能名称"
                     @input="updateSkillName(skill, $event)"
                     @select="selectSkillSuggestion(skill, $event)"
                   >
@@ -233,6 +234,7 @@ import { formatStoryTimerDuration } from '@/utils/storyTimer'
 import cnSkillCatalog from './skillCatalog.json'
 import internationalSkillCatalog from './skillCatalog.international.json'
 import { currentServer, canUseGameInput } from '@/utils/serverContext.js'
+import { catalogDisplayText, useLocalizedCatalog } from '@/utils/localizedCatalog.js'
 import {
   applySkillCatalogSelection,
   searchSkillCatalog,
@@ -244,6 +246,7 @@ import {
 
 const story = useStoryStore()
 const skillCatalog = currentServer.id === 'international' ? internationalSkillCatalog : cnSkillCatalog
+const skillLocalization = useLocalizedCatalog(skillCatalog.skills.map(skill => skill.name))
 const timer = useStoryTimerStore()
 const settings = useSettingsStore()
 const helpTopics = moduleHelpTopicsById('story')
@@ -256,7 +259,7 @@ const displayedSteps = computed(() => orderPreviewItems('step', story.viewedChap
 const displayedSkillGroups = computed(() => orderPreviewItems('skill-group', story.viewedSkillGroups))
 
 function fetchSkillSuggestions(query, callback) {
-  callback(searchSkillCatalog(skillCatalog.skills, query))
+  callback(searchSkillCatalog(skillCatalog.skills, query, 30, skillLocalization.aliases.value))
 }
 
 function selectSkillSuggestion(skill, selected) {
@@ -269,10 +272,12 @@ function updateSkillName(skill, value) {
 }
 
 function skillDisplayValue(skill) {
+  const canonical = skillCatalog.skills.find(item => item.id === skill.gemId)
+  const displayName = canonical?.name === skill.name ? catalogDisplayText(skill.name, skillLocalization.aliases.value) : skill.name
   if (settings.storyShowSkillRequiredLevel && skill.gemId && Number.isInteger(skill.requiredLevel)) {
-    return skillSuggestionLabel(skill)
+    return skillSuggestionLabel({ ...skill, displayName })
   }
-  return skill.name
+  return displayName
 }
 
 function skillKindLabel(kind) {

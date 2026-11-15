@@ -1,0 +1,3910 @@
+[
+  {
+    "table": "itemclasses",
+    "id": "Ring",
+    "field": "Name",
+    "en": "Rings",
+    "kind": "dat",
+    "sourceHash": "bab4c75d0722c872ee0bc206f672c3ae2d20219a780e3d6cf5ef0e82a2d15ec4",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring2",
+    "field": "Name",
+    "en": "Coral Ring",
+    "kind": "dat",
+    "sourceHash": "a465be58d6c05267d6f3c4c08ea099c97d4283b6852dd020912d411cc2553003",
+    "tw": "珊瑚戒指",
+    "cn": "珊瑚戒指"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Amulet",
+    "field": "Name",
+    "en": "Amulets",
+    "kind": "dat",
+    "sourceHash": "a709b1d3efa929a10bd0b7f0289833c1cc2bc34e95aceed7db0a05f6d8cacafb",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Amulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Body Armour",
+    "field": "Name",
+    "en": "Body Armours",
+    "kind": "dat",
+    "sourceHash": "4b1f0c99ef2af67304a4eb6d41afb94847406e626091e37bf83bc9865296d05a",
+    "tw": "胸甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/BodyArmours/BodyDex1",
+    "field": "Name",
+    "en": "Shabby Jerkin",
+    "kind": "dat",
+    "sourceHash": "9f1205c5d271b58793300fd68de5436ab6518a84abc5e658910d2779ab09d865",
+    "tw": "破舊外套",
+    "cn": "破旧外套"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Helmet",
+    "field": "Name",
+    "en": "Helmets",
+    "kind": "dat",
+    "sourceHash": "244284e3263e10ebc6fb777042ae5850eef509cc9b72d501ae0f6a254e359e66",
+    "tw": "頭部",
+    "cn": "头部"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Helmets/HelmetStr1",
+    "field": "Name",
+    "en": "Iron Hat",
+    "kind": "dat",
+    "sourceHash": "7261e4105ec2dca0ff5e24730e48356732cbeab8610be3bd4cd0ce6673386484",
+    "tw": "粗鐵盔",
+    "cn": "粗铁盔"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Wand",
+    "field": "Name",
+    "en": "Wands",
+    "kind": "dat",
+    "sourceHash": "7edc4daecbea3b47759503b1b6215bcf419f91cc5aa688d272dffdad116f187f",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/Wands/Wand1",
+    "field": "Name",
+    "en": "Driftwood Wand",
+    "kind": "dat",
+    "sourceHash": "55ec1f12cc7fe7e078201197e6fcadaaec36dbf32bad6c92cb8adc7fbe89f32f",
+    "tw": "朽木法杖",
+    "cn": "朽木法杖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/Wands/Wand1Royale",
+    "field": "Name",
+    "en": "Driftwood Wand",
+    "kind": "dat",
+    "sourceHash": "55ec1f12cc7fe7e078201197e6fcadaaec36dbf32bad6c92cb8adc7fbe89f32f",
+    "tw": "朽木法杖",
+    "cn": "朽木法杖 "
+  },
+  {
+    "table": "itemclasses",
+    "id": "LifeFlask",
+    "field": "Name",
+    "en": "Life Flasks",
+    "kind": "dat",
+    "sourceHash": "fa48babe80863c6b02ad61c036941fb4eaee74546aaea1c3a81460a0fb55e61e",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskLife1Royale",
+    "field": "Name",
+    "en": "Small Life Flask",
+    "kind": "dat",
+    "sourceHash": "08a8bc4414abca47b8eec904b12b377f28de2a0864ce2424037ed8c7cab23bb9",
+    "tw": "生命藥劑（小）",
+    "cn": "小型生命药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskLife1",
+    "field": "Name",
+    "en": "Small Life Flask",
+    "kind": "dat",
+    "sourceHash": "08a8bc4414abca47b8eec904b12b377f28de2a0864ce2424037ed8c7cab23bb9",
+    "tw": "小型生命藥劑",
+    "cn": "小型生命药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HybridFlask",
+    "field": "Name",
+    "en": "Hybrid Flasks",
+    "kind": "dat",
+    "sourceHash": "b518296ba75fbe817c61ec74c7aea2cf79944b41907654f00550e6628adc85af",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskHybrid1",
+    "field": "Name",
+    "en": "Small Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "9ad7f032313996f3638e15c89b4535879d29fd8650a9229a8a1bb7f1a45b4aca",
+    "tw": "小型複合藥劑",
+    "cn": "小型复合药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "UtilityFlask",
+    "field": "Name",
+    "en": "Utility Flasks",
+    "kind": "dat",
+    "sourceHash": "f115f4cb0122abcbe15d0f42baee4928a702f6213b0229c153187f384e3dfc3d",
+    "tw": "功能藥劑",
+    "cn": "功能药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility6",
+    "field": "Name",
+    "en": "Quicksilver Flask",
+    "kind": "dat",
+    "sourceHash": "b0ed21011e6966886da6e9daffa096d3d173789ed482bea503eb3706d1f6a886",
+    "tw": "水銀藥劑",
+    "cn": "水银药剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Jewel",
+    "field": "Name",
+    "en": "Jewels",
+    "kind": "dat",
+    "sourceHash": "5e771087fd018d0b9c24ba0584855c6cd5d64f80f3ec9c9b67521391bb4a8500",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelInt",
+    "field": "Name",
+    "en": "Cobalt Jewel",
+    "kind": "dat",
+    "sourceHash": "b0484563af97f264c02a15f23385f744d39d3789bbba33453211940fc53386b0",
+    "tw": "鈷藍珠寶",
+    "cn": "钴蓝珠宝"
+  },
+  {
+    "table": "itemclasses",
+    "id": "AbyssJewel",
+    "field": "Name",
+    "en": "Abyss Jewels",
+    "kind": "dat",
+    "sourceHash": "5a25f77bc05d14e5ceb47b15a961628aa9b845249dbaca4ed76582838c1eb945",
+    "tw": "深淵珠寶",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelAbyssCaster",
+    "field": "Name",
+    "en": "Hypnotic Eye Jewel",
+    "kind": "dat",
+    "sourceHash": "8c95db65e78a2a99c58e6bd6b802b81e09d00e1ee4db83507d17cd3458ae66c6",
+    "tw": "催眠之眼珠寶",
+    "cn": "安睡之凝珠宝"
+  },
+  {
+    "table": "itemclasses",
+    "id": "StackableCurrency",
+    "field": "Name",
+    "en": "Stackable Currency",
+    "kind": "dat",
+    "sourceHash": "85b27d0755b5b613d9621dbb1e06e9f08ea2905a8ba057576796b452fa07822b",
+    "tw": "可堆疊通貨",
+    "cn": "可堆叠通货"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "DivinationCard",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/DivinationCards/DivinationCardTheDoctor",
+    "field": "Name",
+    "en": "The Doctor",
+    "kind": "dat",
+    "sourceHash": "8186e23220ae4adc4f7a478c214d56371b841c4c3575d0e3b4588f5b08783bfe",
+    "tw": "瘋醫",
+    "cn": "疯医"
+  },
+  {
+    "table": "itemclasses",
+    "id": "MapFragment",
+    "field": "Name",
+    "en": "Map Fragments",
+    "kind": "dat",
+    "sourceHash": "c662ddd2a1e129b083e0f73c677c22533c4897fb9fcf7550840d277fa1e1d3ce",
+    "tw": "地圖碎片",
+    "cn": "地图碎片"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/CurrencyVaalFragment1_4",
+    "field": "Name",
+    "en": "Sacrifice at Dusk",
+    "kind": "dat",
+    "sourceHash": "1f731dd0f361be4665008a8d38f59f406f2c997d117efc0d2074b4a7354b678c",
+    "tw": "黃昏的奉獻",
+    "cn": "黄昏的奉献"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/VaalFragment1_4",
+    "field": "Name",
+    "en": "Sacrifice at Dusk",
+    "kind": "dat",
+    "sourceHash": "1f731dd0f361be4665008a8d38f59f406f2c997d117efc0d2074b4a7354b678c",
+    "tw": "黃昏的奉獻",
+    "cn": "黄昏的奉献"
+  },
+  {
+    "table": "itemclasses",
+    "id": "MiscMapItem",
+    "field": "Name",
+    "en": "Misc Map Items",
+    "kind": "dat",
+    "sourceHash": "3d06918f2ccddc4e9df637bf60cfb74a1d795f309f9afad0cf002ccbfaa51b25",
+    "tw": "其它",
+    "cn": "裂隙之石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/Primordial/CurrencyCleansingFireBossKey",
+    "field": "Name",
+    "en": "Incandescent Invitation",
+    "kind": "dat",
+    "sourceHash": "be84fcfbb75417606d1c0c7b3a43d3d187d76af4c4018d6fe91c223224ee6234",
+    "tw": "熾熱之邀",
+    "cn": "炽焰的邀请"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/Primordial/QuestCleansingFireBossKey",
+    "field": "Name",
+    "en": "Incandescent Invitation",
+    "kind": "dat",
+    "sourceHash": "be84fcfbb75417606d1c0c7b3a43d3d187d76af4c4018d6fe91c223224ee6234",
+    "tw": "熾熱之邀",
+    "cn": "炽焰的邀请"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Breachstone",
+    "field": "Name",
+    "en": "Breachstones",
+    "kind": "dat",
+    "sourceHash": "612922912b73efae63419c425b9d39ff3e48ace69fa9a422327054a503b4857c",
+    "tw": "裂痕石",
+    "cn": "裂隙石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/BreachFragmentChaos",
+    "field": "Name",
+    "en": "Chayula's Breachstone",
+    "kind": "dat",
+    "sourceHash": "6e9d9158f60817ad32788df5cd60503378030e7816e5e3aca20b0617f997aa00",
+    "tw": "夏烏拉裂痕石",
+    "cn": "夏乌拉裂隙石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/CurrencyBreachFragmentChaos",
+    "field": "Name",
+    "en": "Chayula's Breachstone",
+    "kind": "dat",
+    "sourceHash": "6e9d9158f60817ad32788df5cd60503378030e7816e5e3aca20b0617f997aa00",
+    "tw": "夏烏拉裂痕石",
+    "cn": "夏乌拉裂隙石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HeistContract",
+    "field": "Name",
+    "en": "Contracts",
+    "kind": "dat",
+    "sourceHash": "0488acc63d8b513587cc45e2d7dd7c17cb873266452b23273c6dedb651764243",
+    "tw": "契約書",
+    "cn": "契约"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Heist/HeistContractLibrary",
+    "field": "Name",
+    "en": "Contract: Prohibited Library",
+    "kind": "dat",
+    "sourceHash": "b6d8d69d3bde38b7202386ef664ecebfa9486eeee27bcb78f1598b84edd94703",
+    "tw": "契約書：禁忌館藏",
+    "cn": "契约：禁断书库"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HeistBlueprint",
+    "field": "Name",
+    "en": "Blueprints",
+    "kind": "dat",
+    "sourceHash": "bdfcb9f749ddda36bf82aca38758293e7ed23702a046b05e64accd26b113441b",
+    "tw": "藍圖",
+    "cn": "蓝图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Heist/HeistBlueprintControlBlocks",
+    "field": "Name",
+    "en": "Blueprint: Bunker",
+    "kind": "dat",
+    "sourceHash": "59e123678e623966cfb96c5bb4fc09bb6a41fb7bfb761792b13682d24581bf5e",
+    "tw": "藍圖：碉堡",
+    "cn": "蓝图：堡垒"
+  },
+  {
+    "table": "itemclasses",
+    "id": "ExpeditionLogbook",
+    "field": "Name",
+    "en": "Expedition Logbooks",
+    "kind": "dat",
+    "sourceHash": "651c5dd7281543c4b46011ec368fed2e9f633bb4ecf57a9f71012b44c4d705c8",
+    "tw": "探險日誌",
+    "cn": "先祖秘藏日志"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Expedition/ExpeditionLogbook",
+    "field": "Name",
+    "en": "Expedition Logbook",
+    "kind": "dat",
+    "sourceHash": "d53d2d4d396dd87bc254b4eb0f86ffceb09a067319916df8765184e7a2c1a780",
+    "tw": "探險日誌",
+    "cn": "先祖秘藏日志"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Relic",
+    "field": "Name",
+    "en": "Relics",
+    "kind": "dat",
+    "sourceHash": "41c382b7c037603848a6321d042244ac43f0ea081c3137eed4946285a0ce35f0",
+    "tw": "聖物",
+    "cn": "遗物"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Relics/SanctumRelic1x2",
+    "field": "Name",
+    "en": "Censer Relic",
+    "kind": "dat",
+    "sourceHash": "83d51c5fa8d1132846b606ef1163b3894dffa00f75aa1d702bf475657cb04257",
+    "tw": "香爐聖物",
+    "cn": "香炉遗物"
+  },
+  {
+    "table": "itemclasses",
+    "id": "ItemisedSanctum",
+    "field": "Name",
+    "en": "Sanctum Research",
+    "kind": "dat",
+    "sourceHash": "a6e7164eb66bda486f5b87ff068792e507d508b130ad96da70cc585e5f5b7de4",
+    "tw": "聖域研究",
+    "cn": "禁域研究"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Sanctum/SanctumKey",
+    "field": "Name",
+    "en": "Forbidden Tome",
+    "kind": "dat",
+    "sourceHash": "7292e9c02f2af6bb6197fd8a7911258c9f0be578e9842537b6c3fbee8e9e20ab",
+    "tw": "禁忌之書",
+    "cn": "禁域典籍"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Tincture",
+    "field": "Name",
+    "en": "Tinctures",
+    "kind": "dat",
+    "sourceHash": "716b9cb1819efc3450edb08d58b8e952da6ad339ac516cf282b5f5d225c81e57",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Tinctures/Tincture1",
+    "field": "Name",
+    "en": "Prismatic Tincture",
+    "kind": "dat",
+    "sourceHash": "9b89a29ba67edad1b7cab76d9637726fa0ec3712785dc4a281a15e683ecdc714",
+    "tw": "三相萃取物",
+    "cn": "虹彩酊剂"
+  },
+  {
+    "table": "itemclasses",
+    "id": "IncubatorStackable",
+    "field": "Name",
+    "en": "Incubators",
+    "kind": "dat",
+    "sourceHash": "cb331b7a9e454ce1a7dc008e68af2863690ade1ada60846513d8717bf11b7adf",
+    "tw": "培育器",
+    "cn": "孕育石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Incubator",
+    "field": "Name",
+    "en": "Incubators",
+    "kind": "dat",
+    "sourceHash": "cb331b7a9e454ce1a7dc008e68af2863690ade1ada60846513d8717bf11b7adf",
+    "tw": "培育器",
+    "cn": "孕育石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyIncubationMaps",
+    "field": "Name",
+    "en": "Cartographer's Incubator",
+    "kind": "dat",
+    "sourceHash": "df5dc24e61b886d13f5e6896c9e896591f5716d03880e04c4cfb810c549761b4",
+    "tw": "製圖師的培育器",
+    "cn": "制图师的孕育石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyIncubationMapsStackable",
+    "field": "Name",
+    "en": "Cartographer's Incubator",
+    "kind": "dat",
+    "sourceHash": "df5dc24e61b886d13f5e6896c9e896591f5716d03880e04c4cfb810c549761b4",
+    "tw": "製圖師的培育器",
+    "cn": "制图师的孕育石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "AtlasRelic",
+    "field": "Name",
+    "en": "Idols",
+    "kind": "dat",
+    "sourceHash": "3ff8531bd26e3bd209bc6062de62188c1fa9aa0f28c5c62029643a502665aeb9",
+    "tw": "魔偶",
+    "cn": "雕像"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Relics/AtlasRelic1x1",
+    "field": "Name",
+    "en": "Minor Idol",
+    "kind": "dat",
+    "sourceHash": "e85dfae67a1a7479a8ef45cb7851a1324b263402e38fca0a58fa3fa8f2cc9692",
+    "tw": "次要魔偶",
+    "cn": "小型雕像"
+  },
+  {
+    "table": "itemclasses",
+    "id": "BrequelFruit",
+    "field": "Name",
+    "en": "Wombgifts",
+    "kind": "dat",
+    "sourceHash": "dbbb16c2f22447a9459248f04f60257aa1c64bac63f68f598f242d75fab210ea",
+    "tw": "胎贈",
+    "cn": "孕育赠礼"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Chayula/CurrencyFruit",
+    "field": "Name",
+    "en": "Lavish Wombgift",
+    "kind": "dat",
+    "sourceHash": "cc3c2b30ddf2201e245630fdd7ba2d7bffe3fec39d87a505f1d7000c99639685",
+    "tw": "奢華之胎贈",
+    "cn": "丰裕孕育赠礼"
+  },
+  {
+    "table": "itemclasses",
+    "id": "CocoonedItem",
+    "field": "Name",
+    "en": "Enshrouded Items",
+    "kind": "dat",
+    "sourceHash": "2a17628d58f78acea5e8105c741cc9ca27d7331b3e1aba3a2aa3f3e151a5ea8a",
+    "tw": "壟罩物品",
+    "cn": "雾隐物品"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Legion/CocoonedHelmet",
+    "field": "Name",
+    "en": "Enshrouded Helmet",
+    "kind": "dat",
+    "sourceHash": "9845e391f175ddcdb500f45b9dff7b15daff8c2de7965ae01a6ff56f8ba7fc42",
+    "tw": "壟罩的頭盔",
+    "cn": "雾隐头盔"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Leaguestone",
+    "field": "Name",
+    "en": "Leaguestones",
+    "kind": "dat",
+    "sourceHash": "7d91c9c3616ff67589a753f317b13e229167024ac6c4b51c126286e901ef030c",
+    "tw": "聯盟石",
+    "cn": "赛季石"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Leaguestones/AmbushLeaguestone",
+    "field": "Name",
+    "en": "Ambush Leaguestone",
+    "kind": "dat",
+    "sourceHash": "3c40379c720d15d45c8efde8060a96a7ad68db54d05f6881dea9d83d989e8b90",
+    "tw": "伏擊聯盟石",
+    "cn": "伏击赛季石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "ItemisedCorpse",
+    "field": "Name",
+    "en": "Corpses",
+    "kind": "dat",
+    "sourceHash": "b80332398bb30bdb0974e156ef4c6a62d967c30b51a96d9e5548db9dfda151b1",
+    "tw": "屍體",
+    "cn": "灵柩"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/ItemisedCorpses/AdmiralHigh",
+    "field": "Name",
+    "en": "Perfect Naval Officer",
+    "kind": "dat",
+    "sourceHash": "9245ecdcadf0e1eaa3c7f27708dab1cf2a09daad5f0a88f1128252edebc37554",
+    "tw": "完美海軍軍官",
+    "cn": "完美海军军官"
+  },
+  {
+    "table": "itemclasses",
+    "id": "MapKey",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Map",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "異界地圖",
+    "cn": "异界地图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/TradeProxy/MapKey",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Scarabs/ScarabAbyssNew1",
+    "field": "Name",
+    "en": "Abyss Scarab",
+    "kind": "dat",
+    "sourceHash": "72c0c6518399193aa3974929f354e259c2a1a71023a6d6f74350f9ed3ae02471",
+    "tw": "聖甲蟲：深淵",
+    "cn": "深渊圣甲虫"
+  },
+  {
+    "table": "itemclasses",
+    "id": "NecropolisPack",
+    "field": "Name",
+    "en": "Embers of the Allflame",
+    "kind": "dat",
+    "sourceHash": "b674d9df9f45c332d20e30aa3628bfa67ab2064cda4fdc3060d772a7753a964f",
+    "tw": "不滅之火餘燼",
+    "cn": "不灭余烬"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/ToadAllflamePack",
+    "field": "Name",
+    "en": "Allflame Ember of Toads",
+    "kind": "dat",
+    "sourceHash": "4424edf4eeb47ea7d3195a507fea38880529333d555ceb91ccc7f83d0c32ae6b",
+    "tw": "不滅之火蟾蜍餘燼",
+    "cn": "蟾蜍之不灭余烬"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Currency/CurrencyDelveCraftingLife",
+    "field": "Name",
+    "en": "Pristine Fossil",
+    "kind": "dat",
+    "sourceHash": "a30556f279916a9a3a2eaa28cb5612f00090e25d0061a0aa98b428d488b7c4b2",
+    "tw": "原始化石",
+    "cn": "原始化石"
+  },
+  {
+    "table": "itemclasses",
+    "id": "DelveStackableSocketableCurrency",
+    "field": "Name",
+    "en": "Delve Stackable Socketable Currency",
+    "kind": "dat",
+    "sourceHash": "2f503991a82997ccb22c266fcdd9e29473c1fb6f9d81c5a5f7e7458f0e10972e",
+    "tw": "掘獄可堆疊有插槽通貨",
+    "cn": "地心探索可堆叠可插入通货"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Delve/DelveStackableSocketableCurrencyReroll3",
+    "field": "Name",
+    "en": "Powerful Chaotic Resonator",
+    "kind": "dat",
+    "sourceHash": "45fc4f7b98c2e1363b8ac4fe34a46f44db2244ee7589ef0f8f13f46610b349da",
+    "tw": "強力混沌鑄新儀",
+    "cn": "巨能混乱共振器"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Delve/DelveSocketableCurrencyReroll3",
+    "field": "Name",
+    "en": "Powerful Chaotic Resonator",
+    "kind": "dat",
+    "sourceHash": "45fc4f7b98c2e1363b8ac4fe34a46f44db2244ee7589ef0f8f13f46610b349da",
+    "tw": "強力混沌鑄新儀",
+    "cn": "巨能混乱共振器"
+  },
+  {
+    "table": "itemclasses",
+    "id": "VaultKey",
+    "field": "Name",
+    "en": "Vault Keys",
+    "kind": "dat",
+    "sourceHash": "087793bf1b7a141a3c3e7758605886f6ced714be1d6de33b3fd17b1a0c9292c3",
+    "tw": "遺鑰",
+    "cn": "宝库钥匙"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/340VaultKey",
+    "field": "Name",
+    "en": "Timeworn Reliquary Key",
+    "kind": "dat",
+    "sourceHash": "b9a8249ae7ecdf10aaa69586f6335d0aee5ded975980d32012a858fc04d9e171",
+    "tw": "古朽遺鑰",
+    "cn": "尘封圣物厅钥匙"
+  },
+  {
+    "table": "itemclasses",
+    "id": "LabyrinthMapItem",
+    "field": "Name",
+    "en": "Labyrinth Map Items",
+    "kind": "dat",
+    "sourceHash": "f757939369397a90811c5a76faa1ff3b3d544cfadaa6b4c11ae14963fd793a88",
+    "tw": "異界迷宮物品",
+    "cn": "迷宫地图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Labyrinth/OfferingToTheGoddess",
+    "field": "Name",
+    "en": "Offering to the Goddess",
+    "kind": "dat",
+    "sourceHash": "e3c248b1c3bcbdeca0c56d910eda97bc2a56c6464c5b01f11089c42c103b3b6e",
+    "tw": "女神祭品",
+    "cn": "女神祭品"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/MapFragments/CurrencyOfferingToTheGoddess",
+    "field": "Name",
+    "en": "Offering to the Goddess",
+    "kind": "dat",
+    "sourceHash": "e3c248b1c3bcbdeca0c56d910eda97bc2a56c6464c5b01f11089c42c103b3b6e",
+    "tw": "女神祭品",
+    "cn": "女神祭品"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HeistEquipmentTool",
+    "field": "Name",
+    "en": "Heist Tools",
+    "kind": "dat",
+    "sourceHash": "04a1fee44753069660c81d632b036331797b90a371eb3c745f3ebcdf9e5df81a",
+    "tw": "劫盜工具",
+    "cn": "赏金猎人工具"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Heist/HeistEquipmentLockpicking3",
+    "field": "Name",
+    "en": "Fine Lockpick",
+    "kind": "dat",
+    "sourceHash": "09acc1d83c004826b65913bbecf76fbf341236198e76c68b7462d09d2d07ca0e",
+    "tw": "精良鎖撬",
+    "cn": "良好解密工具"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Trinket",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Trinkets/Trinket1",
+    "field": "Name",
+    "en": "Thief's Trinket",
+    "kind": "dat",
+    "sourceHash": "111fb047feb5127379ccf9c26f65d77473eb8c386e083256145253493cfbf6e0",
+    "tw": "盜賊飾品",
+    "cn": "赏金猎人饰品"
+  },
+  {
+    "table": "itemclasses",
+    "id": "DeepwaterChart",
+    "field": "Name",
+    "en": "Chart",
+    "kind": "dat",
+    "sourceHash": "3e5b90ae053ff3e7cd9b364f1ef4fc425d453150904d7d515198a6fb1b6a5be6",
+    "tw": "海圖",
+    "cn": "海图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Deepwater/ChartCoralForest",
+    "field": "Name",
+    "en": "Coral Forest Chart",
+    "kind": "dat",
+    "sourceHash": "3d8ca98b47a4298e63e141857d7b6a4f527492ee14f23f7979fb693e1e11d20e",
+    "tw": "珊瑚林海圖",
+    "cn": "珊瑚密林海图"
+  },
+  {
+    "table": "itemclasses",
+    "id": "UtilityFlaskCritical",
+    "field": "Name",
+    "en": "Critical Utility Flasks",
+    "kind": "dat",
+    "sourceHash": "956c387ed94cd9b4fa01bfe5f9ae170d0f6d962abe95905f3fcb4c806aee2d22",
+    "tw": "暴擊藥劑",
+    "cn": "暴击药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility1",
+    "field": "Name",
+    "en": "Diamond Flask",
+    "kind": "dat",
+    "sourceHash": "4bcc622243b36c9099eb8adfe1527e745354daa05a4724144ad6f375c85dea44",
+    "tw": "寶鑽藥劑",
+    "cn": "宝钻药剂"
+  },
+  {
+    "table": "hideoutdoodadtags",
+    "id": "Carcasses",
+    "field": "Name",
+    "en": "Carcasses",
+    "kind": "dat",
+    "sourceHash": "a4b0c4a140c83d87f9636d8861776a9f654d100528c7af4b002c0c040f0cddff",
+    "tw": "屍體",
+    "cn": "灵盒"
+  },
+  {
+    "table": "hideoutdoodadtags",
+    "id": "Statues",
+    "field": "Name",
+    "en": "Statues",
+    "kind": "dat",
+    "sourceHash": "1386fb0103fb24a7a11260c608d6ccad325d3fa20ff3307e0dc5227cf75c51b9",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "currencyexchangecategories",
+    "id": "DivinationCards",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "currencyexchangecategories",
+    "id": "BreachFragmentChayula",
+    "field": "Name",
+    "en": "Chayula Breachstones",
+    "kind": "dat",
+    "sourceHash": "9498d5e0ae76ce5daa7ea8a53e59f0de4e3101911fee1e08e5def0944e8244c0",
+    "tw": "夏烏拉裂痕石",
+    "cn": "夏乌拉裂隙石"
+  },
+  {
+    "table": "currencyexchangecategories",
+    "id": "Fragments",
+    "field": "Name",
+    "en": "Fragments",
+    "kind": "dat",
+    "sourceHash": "b4f6df3d63caa505900ed1a586effcf3e154cbb9a392794f18b7ea958abd4a01",
+    "tw": "碎片",
+    "cn": "地图碎片"
+  },
+  {
+    "table": "currencyexchangecategories",
+    "id": "AllflameEmbers",
+    "field": "Name",
+    "en": "Allflame Embers",
+    "kind": "dat",
+    "sourceHash": "1eddb6aaca4563c49b0cbcf1d0784f341141f8b1bc84914a3ac12a2265b3246f",
+    "tw": "不滅之火餘燼",
+    "cn": "不灭余烬"
+  },
+  {
+    "table": "monstervarieties",
+    "id": "Metadata/Monsters/LeagueAzmeri/SpecialCorpses/AdmiralHigh_",
+    "field": "Name",
+    "en": "Perfect Naval Officer",
+    "kind": "dat",
+    "sourceHash": "9245ecdcadf0e1eaa3c7f27708dab1cf2a09daad5f0a88f1128252edebc37554",
+    "tw": "完美海軍軍官",
+    "cn": "完美海军军官"
+  },
+  {
+    "table": "musiccategories",
+    "id": "Other",
+    "field": "Name",
+    "en": "Other",
+    "kind": "dat",
+    "sourceHash": "f97e9da0e3b879f0a9df979ae260a5f7e1371edb127c1862d4f861981166cdc1",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_3",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_5",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_8",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_6",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_2",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_1",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_1",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_divination_2",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_divination_3",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_map_tier_7",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_2",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_3",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_5_",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_divination_1",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "passiveskills",
+    "id": "atlas_mastery_modeffect_6__",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Jewel",
+    "field": "Text",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Ring",
+    "field": "Text",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Amulet",
+    "field": "Text",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Breachstone",
+    "field": "Text",
+    "en": "Breachstone",
+    "kind": "dat",
+    "sourceHash": "3289c7c75908f028b1f2308609066dffd884643107169e2a735965ba49e5f949",
+    "tw": "裂痕石",
+    "cn": "裂隙石"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "MapKey",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Map",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "BodyArmour",
+    "field": "Text",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "护甲"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "Tincture",
+    "field": "Text",
+    "en": "Tincture",
+    "kind": "dat",
+    "sourceHash": "05a7f36429cf733e1dce304c0ef8a2f07458d6957137a6e6df30f25df9d527a5",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "craftingitemclasscategories",
+    "id": "MapFragment",
+    "field": "Text",
+    "en": "Map Fragment",
+    "kind": "dat",
+    "sourceHash": "3a8c73540f131d047b87ca4f3c15ac2c9653a9d1feb28706b3dabde3389e59dc",
+    "tw": "地圖碎片",
+    "cn": "地图碎片"
+  },
+  {
+    "table": "breachstashtabsubstashgroup",
+    "id": "CurrencyWombgift",
+    "field": "Name",
+    "en": "Lavish Wombgift",
+    "kind": "dat",
+    "sourceHash": "cc3c2b30ddf2201e245630fdd7ba2d7bffe3fec39d87a505f1d7000c99639685",
+    "tw": "奢華之胎贈",
+    "cn": "丰裕孕育赠礼"
+  },
+  {
+    "table": "mods",
+    "id": "HeistNPCChestDoubleMap3",
+    "field": "Name",
+    "en": "of Maps",
+    "kind": "dat",
+    "sourceHash": "9291112ca294e24343706668c8d16c4687a65dae51e2ba5f46fef6ac3340fccd",
+    "tw": "地圖",
+    "cn": "地图之"
+  },
+  {
+    "table": "heistchestrewardtypes",
+    "id": "Maps",
+    "field": "RewardTypeName",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "heistchestrewardtypes",
+    "id": "HardModeTrinkets",
+    "field": "RewardTypeName",
+    "en": "Accessories",
+    "kind": "dat",
+    "sourceHash": "b08648dbd62b71bd0027809076ca755dbfe4f120553ce6f60d910143082d70db",
+    "tw": "飾品",
+    "cn": "配饰"
+  },
+  {
+    "table": "heistchestrewardtypes",
+    "id": "HardModeMaps",
+    "field": "RewardTypeName",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "heistchestrewardtypes",
+    "id": "DivinationCards",
+    "field": "RewardTypeName",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "heistchestrewardtypes",
+    "id": "Trinkets",
+    "field": "RewardTypeName",
+    "en": "Accessories",
+    "kind": "dat",
+    "sourceHash": "b08648dbd62b71bd0027809076ca755dbfe4f120553ce6f60d910143082d70db",
+    "tw": "飾品",
+    "cn": "配饰"
+  },
+  {
+    "table": "hideoutdoodadcategory",
+    "id": "Miscellaneous",
+    "field": "Name",
+    "en": "Miscellaneous",
+    "kind": "dat",
+    "sourceHash": "5cb0b42660589925c804543d433ba0764dab859487e5a9ed855481dcbfec1f06",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "hideoutdoodadcategory",
+    "id": "Reliquary",
+    "field": "Name",
+    "en": "Reliquary",
+    "kind": "dat",
+    "sourceHash": "e27e241e331b41c1940eecb1a6833b259ad0f0d1a4a869289dcfc1fec8a6a0cd",
+    "tw": "聖物",
+    "cn": "遗物厅"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "CocoonedItem",
+    "field": "Text",
+    "en": "Enshrouded Item",
+    "kind": "dat",
+    "sourceHash": "a9877696763838bb87a6e65af649cce32b09af0c3933a78d2b243de7a6784dd6",
+    "tw": "壟罩物品",
+    "cn": "雾隐物品"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "ExpeditionLogbook",
+    "field": "Text",
+    "en": "Expedition Logbook",
+    "kind": "dat",
+    "sourceHash": "d53d2d4d396dd87bc254b4eb0f86ffceb09a067319916df8765184e7a2c1a780",
+    "tw": "探險日誌",
+    "cn": "先祖秘藏日志"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "AtlasRelics",
+    "field": "Text",
+    "en": "Idol",
+    "kind": "dat",
+    "sourceHash": "a3ad519416268ade109a852cd01d0988c8f9d842e2c37bf8c3970e268f466783",
+    "tw": "魔偶",
+    "cn": "雕像"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Jewel",
+    "field": "Text",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Breachstone",
+    "field": "Text",
+    "en": "Breachstone",
+    "kind": "dat",
+    "sourceHash": "3289c7c75908f028b1f2308609066dffd884643107169e2a735965ba49e5f949",
+    "tw": "裂痕石",
+    "cn": "裂隙石"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Corpse",
+    "field": "Text",
+    "en": "Corpse",
+    "kind": "dat",
+    "sourceHash": "f48889357806eadf93e3d63916610106af87e65c8cf76238ad0d5ca251eaf29b",
+    "tw": "屍體",
+    "cn": "灵柩"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Relic",
+    "field": "Text",
+    "en": "Relic",
+    "kind": "dat",
+    "sourceHash": "8de6d1995bb7c126952f21652c5439d85d4c435199697b6a22adea64a24c5832",
+    "tw": "聖物",
+    "cn": "遗物"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "AbyssJewel",
+    "field": "Text",
+    "en": "Abyss Jewel",
+    "kind": "dat",
+    "sourceHash": "c3d26d5eeba7f7e760b89412bcacb8dfe125e8daec71ced70b3bddb18aff868b",
+    "tw": "深淵珠寶",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "DeepwaterChart",
+    "field": "Text",
+    "en": "Chart",
+    "kind": "dat",
+    "sourceHash": "3e5b90ae053ff3e7cd9b364f1ef4fc425d453150904d7d515198a6fb1b6a5be6",
+    "tw": "海圖",
+    "cn": "海图"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "MapFragment",
+    "field": "Text",
+    "en": "Map Fragment",
+    "kind": "dat",
+    "sourceHash": "3a8c73540f131d047b87ca4f3c15ac2c9653a9d1feb28706b3dabde3389e59dc",
+    "tw": "地圖碎片",
+    "cn": "地图碎片"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Amulet",
+    "field": "Text",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "HeistBlueprint",
+    "field": "Text",
+    "en": "Blueprint",
+    "kind": "dat",
+    "sourceHash": "696f52e5d1794d1ba26cd068e3506b47c694ebdf71fb8262d1a413f1b4e55b10",
+    "tw": "藍圖",
+    "cn": "宏图"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "HeistContract",
+    "field": "Text",
+    "en": "Contract",
+    "kind": "dat",
+    "sourceHash": "a6f5b0e592fa68e4ba8014ad5f62214f41153de6a5d51c78fc6148c54a1d6deb",
+    "tw": "契約書",
+    "cn": "契约"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "HeistEquipmentTool",
+    "field": "Text",
+    "en": "Heist Tool",
+    "kind": "dat",
+    "sourceHash": "370d4b8d5e0ccfa5c7156446a8bd4f975829cb23dfaeff11a2360cb23bc8da35",
+    "tw": "劫盜工具",
+    "cn": "赏金猎人工具"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Wand",
+    "field": "Text",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Map",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "BrequelFruit",
+    "field": "Text",
+    "en": "Wombgift",
+    "kind": "dat",
+    "sourceHash": "5cc1a49e01bfd6fac66466b9492a71bd8c5c31d294b6af7ec94ede7a02305f0a",
+    "tw": "胎贈",
+    "cn": "孕育赠礼"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Tincture",
+    "field": "Text",
+    "en": "Tincture",
+    "kind": "dat",
+    "sourceHash": "05a7f36429cf733e1dce304c0ef8a2f07458d6957137a6e6df30f25df9d527a5",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Trinket",
+    "field": "Text",
+    "en": "Trinket",
+    "kind": "dat",
+    "sourceHash": "ae23c10ce73df3c95f54835e819ce1f8a0e7d7c348cad46662f78e48bce99801",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Incubator",
+    "field": "Text",
+    "en": "Incubator",
+    "kind": "dat",
+    "sourceHash": "b7a34fb39f8a5daf7661d2021e8c8f833c4c00013e76e2b5ff77abbeaac7e481",
+    "tw": "培育器",
+    "cn": "孕育石"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Leaguestone",
+    "field": "Text",
+    "en": "Leaguestone",
+    "kind": "dat",
+    "sourceHash": "d82ab3e7677f9d37fa398e5e74bd63eb26f306995db9393700809d82365eb792",
+    "tw": "聯盟石",
+    "cn": "赛季石"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "NecropolisPack",
+    "field": "Text",
+    "en": "Ember of the Allflame",
+    "kind": "dat",
+    "sourceHash": "bb4a73b42f885609ffd15e4809c2fba7483d28744e0d178ef6f81b133ee61a9a",
+    "tw": "不滅之火餘燼",
+    "cn": "不灭余烬"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "DivinationCard",
+    "field": "Text",
+    "en": "Divination Card",
+    "kind": "dat",
+    "sourceHash": "92cee96ca39afb50eea7d5470e6bd2c95e60ffca4dbd4cdc3a299c18442bd074",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "MapKey",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Ring",
+    "field": "Text",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "Body Armour",
+    "field": "Text",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "itemclasscategories",
+    "id": "VaultKey",
+    "field": "Text",
+    "en": "Vault Key",
+    "kind": "dat",
+    "sourceHash": "f0ef82421f7f9baa89979ac21d896e16d9943097d79f7160b39616e2ec4d4938",
+    "tw": "遺鑰",
+    "cn": "宝库钥匙"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/ProdWounded4",
+    "field": "Name",
+    "en": "Corpse",
+    "kind": "dat",
+    "sourceHash": "f48889357806eadf93e3d63916610106af87e65c8cf76238ad0d5ca251eaf29b",
+    "tw": "屍體",
+    "cn": "流放者的遗体"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/DelveChests/DelveChestCityAbyssHighJewel",
+    "field": "Name",
+    "en": "Abyssal Jewellery",
+    "kind": "dat",
+    "sourceHash": "093f498abbd9aacfd2f80a04569cc8f626d95b13e5109a775ecbd2c7983345b7",
+    "tw": "深淵飾品",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/DelveChests/DelveChestCityAbyssJewels",
+    "field": "Name",
+    "en": "Abyssal Jewellery",
+    "kind": "dat",
+    "sourceHash": "093f498abbd9aacfd2f80a04569cc8f626d95b13e5109a775ecbd2c7983345b7",
+    "tw": "深淵飾品",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/ProdWounded3",
+    "field": "Name",
+    "en": "Corpse",
+    "kind": "dat",
+    "sourceHash": "f48889357806eadf93e3d63916610106af87e65c8cf76238ad0d5ca251eaf29b",
+    "tw": "屍體",
+    "cn": "流放者的遗体"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/ProdWounded1",
+    "field": "Name",
+    "en": "Corpse",
+    "kind": "dat",
+    "sourceHash": "f48889357806eadf93e3d63916610106af87e65c8cf76238ad0d5ca251eaf29b",
+    "tw": "屍體",
+    "cn": "流放者的遗体"
+  },
+  {
+    "table": "chests",
+    "id": "Metadata/Chests/ProdWounded2",
+    "field": "Name",
+    "en": "Corpse",
+    "kind": "dat",
+    "sourceHash": "f48889357806eadf93e3d63916610106af87e65c8cf76238ad0d5ca251eaf29b",
+    "tw": "屍體",
+    "cn": "流放者的遗体"
+  },
+  {
+    "table": "bestiaryrecipes",
+    "id": "EinharMasterCraft10",
+    "field": "Description",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "护甲"
+  },
+  {
+    "table": "bestiaryrecipes",
+    "id": "EinharMasterCraft22",
+    "field": "Description",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "bestiaryrecipes",
+    "id": "EinharMasterCraft6",
+    "field": "Description",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "bestiaryrecipes",
+    "id": "EinharMasterCraft21",
+    "field": "Description",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "bestiaryrecipes",
+    "id": "EinharMasterCraft5",
+    "field": "Description",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "microtransactioncategory",
+    "id": "21",
+    "field": "Name",
+    "en": "Miscellaneous",
+    "kind": "dat",
+    "sourceHash": "5cb0b42660589925c804543d433ba0764dab859487e5a9ed855481dcbfec1f06",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "Helmet",
+    "field": "Name",
+    "en": "Helmet",
+    "kind": "dat",
+    "sourceHash": "a47fdf6415fc436ee65ac597251edfa2e58a5ea60b53e65d2886ea6cb17ba374",
+    "tw": "頭部",
+    "cn": "头盔"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "BodyArmour",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "Ring",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "Wand",
+    "field": "Name",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "necropoliscraftitemtypes",
+    "id": "Amulet",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisCompleteVendorRecipes_4",
+    "field": "Name",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightIdentifyRareItems1_1",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumUseEssences1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "EquipMarakethWeaponsWand",
+    "field": "Name",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖:异教法杖，异徒法杖，亵渎法杖"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistCompleteVendorRecipes1_6",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistObtainHeistRewards1_4",
+    "field": "Name",
+    "en": "Jewellery",
+    "kind": "dat",
+    "sourceHash": "2303ba941c0d04c81e6d6136eebb971170a3f36697a98c5d21ce432e3aed48c4",
+    "tw": "珠寶",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryRuthlessLeagueChallenge2_1",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "身體護甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphCraftModifiers1_1",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphObtainRewardsFromMetamorphs1_5",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SanctumVendorRecipes1_1",
+    "field": "Name",
+    "en": "Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "cc49bbc551e60f31a78b088b9ff7825c7686f6edbfe019d816511de40cc0add8",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeGearUp3_3",
+    "field": "Name",
+    "en": "Heist Trinket",
+    "kind": "dat",
+    "sourceHash": "57a8a8f0f304fd891a47fda745a3760fb9d32de7ec7eb6c03ac9711496f5c8de",
+    "tw": "盜賊飾品",
+    "cn": "夺宝饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeTransformItems1_2",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "身體護甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TormentBloodlinesRecipeAmulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "VaalItemsSacrificeAtDuskFragment",
+    "field": "Name",
+    "en": "Sacrifice at Dusk",
+    "kind": "dat",
+    "sourceHash": "1f731dd0f361be4665008a8d38f59f406f2c997d117efc0d2074b4a7354b678c",
+    "tw": "黃昏的奉獻",
+    "cn": "黄昏的奉献"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ChayulaRuthlessLeagueChallenge1_3",
+    "field": "Name",
+    "en": "Lavish Wombgift",
+    "kind": "dat",
+    "sourceHash": "cc3c2b30ddf2201e245630fdd7ba2d7bffe3fec39d87a505f1d7000c99639685",
+    "tw": "奢華之胎贈",
+    "cn": "丰裕孕育赠礼"
+  },
+  {
+    "table": "achievementitems",
+    "id": "CrucibleVendorRecipes1_4",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HaveCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistEquipExperimentedBaseTypes1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphVendorRecipes_3",
+    "field": "Name",
+    "en": "Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "cc49bbc551e60f31a78b088b9ff7825c7686f6edbfe019d816511de40cc0add8",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphVendorRecipes_4",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualTurnInDivinationCards1_4",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AmbushInvasionRecipeAmulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisJewelMaster_2",
+    "field": "Name",
+    "en": "Abyss Jewel",
+    "kind": "dat",
+    "sourceHash": "c3d26d5eeba7f7e760b89412bcacb8dfe125e8daec71ced70b3bddb18aff868b",
+    "tw": "深淵珠寶",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ChayulaLeagueChallenge3_3",
+    "field": "Name",
+    "en": "Lavish Wombgift",
+    "kind": "dat",
+    "sourceHash": "cc3c2b30ddf2201e245630fdd7ba2d7bffe3fec39d87a505f1d7000c99639685",
+    "tw": "奢華之胎贈",
+    "cn": "丰裕孕育赠礼"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumUseEssences1_8",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "EssenceCraftChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HarvestCompleteVendorRecipes1_2",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TalismanUseCurrencyChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ChayulaVendorRecipes2_2",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistModifyContracts1_5",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "NecropolisLeagueChallenge4_17",
+    "field": "Name",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "魔杖"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RampageBeyondUseCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RecipeCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisEnchantedItems_6",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "護身符",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisEnchantedItems_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightAnointItems1_2",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightCraftModifiers1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightObtainBlightRewards1_5",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionCompleteExpeditionEncountersIV_13",
+    "field": "Name",
+    "en": "Divination",
+    "kind": "dat",
+    "sourceHash": "c80c49892e26ab7cf42ff5a80568129d1fbaf8450d9157c0e671cf7aeb9cb540",
+    "tw": "命運卡",
+    "cn": "命运"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistEquipReplicaUniqueItems1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "IncursionCorruptAmulet",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ProphecyCraftChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeTransformItems1_6",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "護身符",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TormentBloodlinesRecipeCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightAnointItems1_1",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionCompleteExpeditionEncountersIV_4",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistEquipReplicaUniqueItems1_8",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryRuthlessLeagueChallenge2_6",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphObtainRewardsFromMetamorphs1_17",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MirageAtlasStormRewards1_5",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "NecropolisLeagueChallenge4_4",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "护甲"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RecipeAmulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualCompleteVendorRecipes1_1",
+    "field": "Name",
+    "en": "Life Flask",
+    "kind": "dat",
+    "sourceHash": "7c1b614f78e10e45b8acc0a9c751f94e6a261c399e06c64a8bc74c30b6306ac8",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeCraft2_3",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TalismanVendorRecipeChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightObtainBlightRewards1_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumCraftItemsUsingCurrency1_4",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DominationNemesisUseCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionHaggleWithTujen1_16",
+    "field": "Name",
+    "en": "Incubator",
+    "kind": "dat",
+    "sourceHash": "b7a34fb39f8a5daf7661d2021e8c8f833c4c00013e76e2b5ff77abbeaac7e481",
+    "tw": "培育器",
+    "cn": "孕育石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "IncursionCorruptRing",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegacyCraftModOnRing",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualCompleteVendorRecipes1_3",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TalismanCraftModOnAmulet",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "WarbandsTempestCardTheDoctor",
+    "field": "Name",
+    "en": "The Doctor",
+    "kind": "dat",
+    "sourceHash": "8186e23220ae4adc4f7a478c214d56371b841c4c3575d0e3b4588f5b08783bfe",
+    "tw": "瘋醫",
+    "cn": "疯医"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AmbushInvasionRecipeCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BreachCraftChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistObtainHeistRewards1_5",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "IncursionCraftChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LakeEquipUnique1_3",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "護身符",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegionCompleteLegionEncounters4q",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryLeagueChallenge4_1",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "身體護甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphTurnInDivinationCards1_5",
+    "field": "Name",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "achievementitems",
+    "id": "NecropolisLeagueChallenge4_1",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeTransformItems1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SynthesisCraftMods1h",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightCraftModifiers1_8",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumObtainRewards1_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionCompleteExpeditionEncountersIV_7",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionCompleteVendorRecipes1_1",
+    "field": "Name",
+    "en": "Life Flask",
+    "kind": "dat",
+    "sourceHash": "7c1b614f78e10e45b8acc0a9c751f94e6a261c399e06c64a8bc74c30b6306ac8",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LakeCraftingBench1_3",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LakeLeagueVendorRecipes1_4",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegionCompleteLegionEncounters4d",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphCraftModifiers1_7",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MirageCraftingBench12",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightVendorRecipes1_8",
+    "field": "Name",
+    "en": "Life Flask",
+    "kind": "dat",
+    "sourceHash": "7c1b614f78e10e45b8acc0a9c751f94e6a261c399e06c64a8bc74c30b6306ac8",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DominationNemesisRecipeCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HarvestTurnInDivinationCards1_4",
+    "field": "Name",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistEquipExperimentedBaseTypes1_8",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegacyCraftLeaguestone",
+    "field": "Name",
+    "en": "Leaguestone",
+    "kind": "dat",
+    "sourceHash": "d82ab3e7677f9d37fa398e5e74bd63eb26f306995db9393700809d82365eb792",
+    "tw": "聯盟石",
+    "cn": "赛季石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SentinelCompleteInvitationsWithDeathWishAllocated1_4",
+    "field": "Name",
+    "en": "Incandescent Invitation",
+    "kind": "dat",
+    "sourceHash": "be84fcfbb75417606d1c0c7b3a43d3d187d76af4c4018d6fe91c223224ee6234",
+    "tw": "熾熱之邀",
+    "cn": "炽焰的邀请"
+  },
+  {
+    "table": "achievementitems",
+    "id": "UltimatumIntroTeachingChallenge1_1",
+    "field": "Name",
+    "en": "Coral Ring",
+    "kind": "dat",
+    "sourceHash": "a465be58d6c05267d6f3c4c08ea099c97d4283b6852dd020912d411cc2553003",
+    "tw": "珊瑚戒指",
+    "cn": "珊瑚戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "WarbandsTempestRecipeAmulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AncestralUseCurrencyItems1_12",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisCompleteVendorRecipes_3",
+    "field": "Name",
+    "en": "Hybrid flask",
+    "kind": "dat",
+    "sourceHash": "aae8e65180f2c6dbfc1a35abc37ddee1993157e9a739e71b9a4aabfa75644599",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightIdentifyRareItems1_2",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightObtainBlightRewards1_17",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightTurnInDivinationCards1_5",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "EssenceCurrencyChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionHaggleWithTujen1_4",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "IncursionCorruptBody",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "护甲"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegionCompleteLegionEncounters4v",
+    "field": "Name",
+    "en": "Incubators",
+    "kind": "dat",
+    "sourceHash": "cb331b7a9e454ce1a7dc008e68af2863690ade1ada60846513d8717bf11b7adf",
+    "tw": "培育器",
+    "cn": "孕育石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryLeagueChallenge4_5",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "NecropolisLeagueChallenge4_10",
+    "field": "Name",
+    "en": "Helmet",
+    "kind": "dat",
+    "sourceHash": "a47fdf6415fc436ee65ac597251edfa2e58a5ea60b53e65d2886ea6cb17ba374",
+    "tw": "頭部",
+    "cn": "头盔"
+  },
+  {
+    "table": "achievementitems",
+    "id": "NecropolisLeagueChallenge4_13",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ScourgeTransformItems1_9",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "UltimatumObtainUltimatumRewards1_13",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AuguryLeagueChallenge5_9",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphTurnInDivinationCards1_6",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualObtainRitualRewards1_16",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SanctumInvitationChallenge1_4",
+    "field": "Name",
+    "en": "Incandescent Invitation",
+    "kind": "dat",
+    "sourceHash": "be84fcfbb75417606d1c0c7b3a43d3d187d76af4c4018d6fe91c223224ee6234",
+    "tw": "熾熱之邀",
+    "cn": "炽焰的邀请"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SettlersCurrencyUses1_12",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "WarbandsTempestRecipeCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AncestralVendorRecipes1_2",
+    "field": "Name",
+    "en": "Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "cc49bbc551e60f31a78b088b9ff7825c7686f6edbfe019d816511de40cc0add8",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ArchnemesisDefeatRares4_27",
+    "field": "Name",
+    "en": "Effigy",
+    "kind": "dat",
+    "sourceHash": "00f10872ac380c85454c9dd564623cf3bc255716052dc905e74ed76a2d7aeb4f",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AuguryCurrencyUse_9",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightTurnInDivinationCards1_2",
+    "field": "Name",
+    "en": "Divination Card",
+    "kind": "dat",
+    "sourceHash": "92cee96ca39afb50eea7d5470e6bd2c95e60ffca4dbd4cdc3a299c18442bd074",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumVendorRecipes1_3",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionHaggleWithTujen1_22",
+    "field": "Name",
+    "en": "Contract",
+    "kind": "dat",
+    "sourceHash": "a6f5b0e592fa68e4ba8014ad5f62214f41153de6a5d51c78fc6148c54a1d6deb",
+    "tw": "契約書",
+    "cn": "契约"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionHaggleWithTujen1_23",
+    "field": "Name",
+    "en": "Blueprint",
+    "kind": "dat",
+    "sourceHash": "696f52e5d1794d1ba26cd068e3506b47c694ebdf71fb8262d1a413f1b4e55b10",
+    "tw": "藍圖",
+    "cn": "宏图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryRuthlessLeagueChallenge2_5",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "achievementitems",
+    "id": "PerandusVendorHybridFlask",
+    "field": "Name",
+    "en": "Hybrid Flask",
+    "kind": "dat",
+    "sourceHash": "cc49bbc551e60f31a78b088b9ff7825c7686f6edbfe019d816511de40cc0add8",
+    "tw": "複合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualIntroTeachingChallenge1_2",
+    "field": "Name",
+    "en": "Quicksilver Flask",
+    "kind": "dat",
+    "sourceHash": "b0ed21011e6966886da6e9daffa096d3d173789ed482bea503eb3706d1f6a886",
+    "tw": "水銀藥劑",
+    "cn": "水银药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualObtainRitualRewards1_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "UseCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AuguryVendorRecipes1_1",
+    "field": "Name",
+    "en": "Life Flask",
+    "kind": "dat",
+    "sourceHash": "7c1b614f78e10e45b8acc0a9c751f94e6a261c399e06c64a8bc74c30b6306ac8",
+    "tw": "生命藥劑"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumObtainRewards1_17",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionHaggleWithTujen1_7",
+    "field": "Name",
+    "en": "Abyss Jewel",
+    "kind": "dat",
+    "sourceHash": "c3d26d5eeba7f7e760b89412bcacb8dfe125e8daec71ced70b3bddb18aff868b",
+    "tw": "深淵珠寶",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HeistObtainHeistRewards1_6",
+    "field": "Name",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegionUseLegionIncubators4",
+    "field": "Name",
+    "en": "Cartographer's Incubator",
+    "kind": "dat",
+    "sourceHash": "df5dc24e61b886d13f5e6896c9e896591f5716d03880e04c4cfb810c549761b4",
+    "tw": "製圖師的培育器",
+    "cn": "制图师的孕育石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryLategameCoreLeagues1_1",
+    "field": "Name",
+    "en": "Breachstones",
+    "kind": "dat",
+    "sourceHash": "612922912b73efae63419c425b9d39ff3e48ace69fa9a422327054a503b4857c",
+    "tw": "裂痕石",
+    "cn": "裂隙石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MercenaryLeagueChallenge4_6",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RitualCompleteVendorRecipes1_5",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SettlersLategameCoreLeagues1_1",
+    "field": "Name",
+    "en": "Breachstones",
+    "kind": "dat",
+    "sourceHash": "612922912b73efae63419c425b9d39ff3e48ace69fa9a422327054a503b4857c",
+    "tw": "裂痕石",
+    "cn": "裂隙石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "UltimatumObtainUltimatumRewards1_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BestiaryCraftChaosOrb",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightVendorRecipes1_2",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "渾沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ChayulaCraftingBench12",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DelveFossil6",
+    "field": "Name",
+    "en": "Pristine Fossil",
+    "kind": "dat",
+    "sourceHash": "a30556f279916a9a3a2eaa28cb5612f00090e25d0061a0aa98b428d488b7c4b2",
+    "tw": "原始化石",
+    "cn": "原始化石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "MetamorphObtainRewardsFromMetamorphs1_4",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AmbushInvasionUseCurrencyRerollRare",
+    "field": "Name",
+    "en": "Chaos Orb",
+    "kind": "dat",
+    "sourceHash": "7fb7c720c0fbffe8e7c991b9d08813b20cfe0c9f8ebdce872babf8776f976f00",
+    "tw": "混沌石",
+    "cn": "混沌石"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AzmeriVendorRecipes1_1",
+    "field": "Name",
+    "en": "Life Flask",
+    "kind": "dat",
+    "sourceHash": "7c1b614f78e10e45b8acc0a9c751f94e6a261c399e06c64a8bc74c30b6306ac8",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "achievementitems",
+    "id": "BlightTurnInDivinationCards1_4",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "輿圖",
+    "cn": "地图"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DeliriumObtainRewards1_5",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DominationNemesisRecipeAmulet1",
+    "field": "Name",
+    "en": "Paua Amulet",
+    "kind": "dat",
+    "sourceHash": "bd51817db0f68f38e9289d7bb05058992c4b9807a758110c6fda5284ae7ab57b",
+    "tw": "海靈護身符",
+    "cn": "海灵护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LakeEquipUnique1_5",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LakeKillSpecialArchnemesis1_15",
+    "field": "Name",
+    "en": "Effigy",
+    "kind": "dat",
+    "sourceHash": "00f10872ac380c85454c9dd564623cf3bc255716052dc905e74ed76a2d7aeb4f",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegacyCraftModOnAmulet",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "LegionCompleteLegionEncounters4e",
+    "field": "Name",
+    "en": "Trinkets",
+    "kind": "dat",
+    "sourceHash": "e8322d923afd27c46685e74922f307ebb66bfd07eddaf2d1fe437728b7146510",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SentinelDefeatArchnemesisMonsters1_10",
+    "field": "Name",
+    "en": "Effigy",
+    "kind": "dat",
+    "sourceHash": "00f10872ac380c85454c9dd564623cf3bc255716052dc905e74ed76a2d7aeb4f",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "achievementitems",
+    "id": "SynthesisCraftMods1g",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TalismanCraftModOnRing",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Amulet",
+    "field": "Name",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Body Armour",
+    "field": "Name",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "护甲"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Ring",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "HeistContract",
+    "field": "Name",
+    "en": "Contract",
+    "kind": "dat",
+    "sourceHash": "a6f5b0e592fa68e4ba8014ad5f62214f41153de6a5d51c78fc6148c54a1d6deb",
+    "tw": "契約書",
+    "cn": "契约"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Tincture",
+    "field": "Name",
+    "en": "Tincture",
+    "kind": "dat",
+    "sourceHash": "05a7f36429cf733e1dce304c0ef8a2f07458d6957137a6e6df30f25df9d527a5",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Map",
+    "field": "Name",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Jewel",
+    "field": "Name",
+    "en": "Jewel",
+    "kind": "dat",
+    "sourceHash": "e5ff9cc64a8e43b86a1266f50360b938ae138db56480005de62f3e6af1d3b23b",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "uniquestashtypes",
+    "id": "Wand",
+    "field": "Name",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/TradeProxy/HeistBlueprint",
+    "field": "Name",
+    "en": "Blueprint",
+    "kind": "dat",
+    "sourceHash": "696f52e5d1794d1ba26cd068e3506b47c694ebdf71fb8262d1a413f1b4e55b10",
+    "tw": "藍圖",
+    "cn": "蓝图"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/DivinationCards/DivinationCardBijoux",
+    "field": "Name",
+    "en": "Bijoux",
+    "kind": "dat",
+    "sourceHash": "24de740307de4103b9995c29faa3561cfc8d6964ee50d3b06cd5bc5892873623",
+    "tw": "珠寶",
+    "cn": "地摊货"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Relics/Relic1x2",
+    "field": "Name",
+    "en": "[DO NOT USE] Censer Relic",
+    "kind": "dat",
+    "sourceHash": "e6d2bfc9c6be401538f411114b613287eca0c45f9e953e667589bab14354d4da",
+    "tw": "香爐聖物",
+    "cn": "[请勿使用]香炉遗物"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/BodyArmours/BodyStr2",
+    "field": "Name",
+    "en": "Chestplate",
+    "kind": "dat",
+    "sourceHash": "efd648433f738f60b2936fb190b108dd5bd87f39f5f24cc675373836feede10e",
+    "tw": "胸甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/MirrorRing",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/QuestItems/Act11/DominusKey",
+    "field": "Name",
+    "en": "Vault Key",
+    "kind": "dat",
+    "sourceHash": "f0ef82421f7f9baa89979ac21d896e16d9943097d79f7160b39616e2ec4d4938",
+    "tw": "寶庫鑰匙",
+    "cn": "宝库钥匙"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryRing",
+    "field": "Text",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "clientstrings",
+    "id": "FlaskStashFilterLife",
+    "field": "Text",
+    "en": "Life Flasks",
+    "kind": "dat",
+    "sourceHash": "fa48babe80863c6b02ad61c036941fb4eaee74546aaea1c3a81460a0fb55e61e",
+    "tw": "生命藥劑",
+    "cn": "生命药剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "TutorialPanelJewelsTitle1",
+    "field": "Text",
+    "en": "Jewels",
+    "kind": "dat",
+    "sourceHash": "5e771087fd018d0b9c24ba0584855c6cd5d64f80f3ec9c9b67521391bb4a8500",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "clientstrings",
+    "id": "MapLabyrinthTrialAct",
+    "field": "Text",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "NecropolisAreaPackModEditorTogglePackInventoryButtonHover",
+    "field": "Text",
+    "en": "Embers of the Allflame",
+    "kind": "dat",
+    "sourceHash": "b674d9df9f45c332d20e30aa3628bfa67ab2064cda4fdc3060d772a7753a964f",
+    "tw": "不滅之火餘燼",
+    "cn": "不灭余烬"
+  },
+  {
+    "table": "clientstrings",
+    "id": "TutorialPanelJewels",
+    "field": "Text",
+    "en": "Jewels",
+    "kind": "dat",
+    "sourceHash": "5e771087fd018d0b9c24ba0584855c6cd5d64f80f3ec9c9b67521391bb4a8500",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ActionToggleOverlayMap",
+    "field": "Text",
+    "en": "Overlay Map",
+    "kind": "dat",
+    "sourceHash": "95257e17d0f038cc475c071c893f659cc582febb38a2518455e677edffc0ac0c",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "UnifiedCraftingCategoryOther",
+    "field": "Text",
+    "en": "Other",
+    "kind": "dat",
+    "sourceHash": "f97e9da0e3b879f0a9df979ae260a5f7e1371edb127c1862d4f861981166cdc1",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "clientstrings",
+    "id": "FlaskStashFilterHybrid",
+    "field": "Text",
+    "en": "Hybrid Flasks",
+    "kind": "dat",
+    "sourceHash": "b518296ba75fbe817c61ec74c7aea2cf79944b41907654f00550e6628adc85af",
+    "tw": "混合藥劑",
+    "cn": "复合药剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayStringDivinationCard",
+    "field": "Text",
+    "en": "Divination Card",
+    "kind": "dat",
+    "sourceHash": "92cee96ca39afb50eea7d5470e6bd2c95e60ffca4dbd4cdc3a299c18442bd074",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "clientstrings",
+    "id": "NecropolisCraftWindowCraftCategoryJewellery",
+    "field": "Text",
+    "en": "Jewellery",
+    "kind": "dat",
+    "sourceHash": "2303ba941c0d04c81e6d6136eebb971170a3f36697a98c5d21ce432e3aed48c4",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "clientstrings",
+    "id": "QuestReliquaryVaultKey",
+    "field": "Text",
+    "en": "Vault Key",
+    "kind": "dat",
+    "sourceHash": "f0ef82421f7f9baa89979ac21d896e16d9943097d79f7160b39616e2ec4d4938",
+    "tw": "寶庫鑰匙",
+    "cn": "宝库钥匙"
+  },
+  {
+    "table": "clientstrings",
+    "id": "UIOptionsSectionTitleMap",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "WeaponClassDisplayNameWand",
+    "field": "Text",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "clientstrings",
+    "id": "MapKeyName",
+    "field": "Text",
+    "en": "Map",
+    "kind": "dat",
+    "sourceHash": "be176b0015c424b78e9f343f8bc3014a7a701cc2eb9000b6acbc04d67dbecb8f",
+    "tw": "地圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ObjectDisplayTextStatue",
+    "field": "Text",
+    "en": "Statue",
+    "kind": "dat",
+    "sourceHash": "b01e235a2869d5edfe1ad1402f38ffb795df8f6b439bc81ed27b712327e8f842",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryWand",
+    "field": "Text",
+    "en": "Wand",
+    "kind": "dat",
+    "sourceHash": "3e7962d21cc549dd9538eeb86fdc93b032f350a92ab7bb9dc0639e73b900db4b",
+    "tw": "法杖",
+    "cn": "法杖"
+  },
+  {
+    "table": "clientstrings",
+    "id": "HeistBlueprintWindowTitle",
+    "field": "Text",
+    "en": "Blueprint",
+    "kind": "dat",
+    "sourceHash": "696f52e5d1794d1ba26cd068e3506b47c694ebdf71fb8262d1a413f1b4e55b10",
+    "tw": "藍圖",
+    "cn": "蓝图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryJewellery",
+    "field": "Text",
+    "en": "Jewellery",
+    "kind": "dat",
+    "sourceHash": "2303ba941c0d04c81e6d6136eebb971170a3f36697a98c5d21ce432e3aed48c4",
+    "tw": "飾品",
+    "cn": "饰品"
+  },
+  {
+    "table": "clientstrings",
+    "id": "LabyrinthMapWindowTitle",
+    "field": "Text",
+    "en": "Labyrinth Map",
+    "kind": "dat",
+    "sourceHash": "e0f22d05c9c97cfec4e51884433e2706e1dfbc92b07181029c5844bafabc235d",
+    "tw": "迷宮地圖",
+    "cn": "迷宫地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "PassiveSkillTreePlannerJewelTitle",
+    "field": "Text",
+    "en": "Jewels",
+    "kind": "dat",
+    "sourceHash": "5e771087fd018d0b9c24ba0584855c6cd5d64f80f3ec9c9b67521391bb4a8500",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryBodyArmour",
+    "field": "Text",
+    "en": "Body Armour",
+    "kind": "dat",
+    "sourceHash": "63dcbcd830dde2e2cc06655746a7e8bca3d129b6315124293e37bea2df970d99",
+    "tw": "胸甲",
+    "cn": "胸甲"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryHelmet",
+    "field": "Text",
+    "en": "Helmet",
+    "kind": "dat",
+    "sourceHash": "a47fdf6415fc436ee65ac597251edfa2e58a5ea60b53e65d2886ea6cb17ba374",
+    "tw": "頭部",
+    "cn": "头部"
+  },
+  {
+    "table": "clientstrings",
+    "id": "FlaskStashFilterTinctures",
+    "field": "Text",
+    "en": "Tinctures",
+    "kind": "dat",
+    "sourceHash": "716b9cb1819efc3450edb08d58b8e952da6ad339ac516cf282b5f5d225c81e57",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "clientstrings",
+    "id": "TutorialPanelDivinationCards",
+    "field": "Text",
+    "en": "Divination Cards",
+    "kind": "dat",
+    "sourceHash": "5193dcfb96e69580c9ec85e1d7edd66564ecdcf294a217935fe6a705c34120d5",
+    "tw": "命運卡",
+    "cn": "命运卡"
+  },
+  {
+    "table": "clientstrings",
+    "id": "EssenceCategoryAmulet",
+    "field": "Text",
+    "en": "Amulet",
+    "kind": "dat",
+    "sourceHash": "e721e319e5f96d78f63f5e350d12f11140d307e03fcb6cbe01dad182906ff8c5",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "clientstrings",
+    "id": "TutorialPanelMapping",
+    "field": "Text",
+    "en": "Mapping",
+    "kind": "dat",
+    "sourceHash": "1ff9a5f8b4bd530e726c82924b08bf653263a5cf1a9084f782836e3700e73b22",
+    "tw": "刷圖",
+    "cn": "地图"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ReportWindowOther",
+    "field": "Text",
+    "en": "Other",
+    "kind": "dat",
+    "sourceHash": "f97e9da0e3b879f0a9df979ae260a5f7e1371edb127c1862d4f861981166cdc1",
+    "tw": "其它",
+    "cn": "其它"
+  },
+  {
+    "table": "words",
+    "id": "hash:c4427ddd",
+    "field": "Text2",
+    "en": "Relic",
+    "kind": "dat",
+    "sourceHash": "8de6d1995bb7c126952f21652c5439d85d4c435199697b6a22adea64a24c5832",
+    "tw": "聖物",
+    "cn": "圣物"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "divination_buff_the_doctor",
+    "field": "Name",
+    "en": "The Doctor",
+    "kind": "dat",
+    "sourceHash": "8186e23220ae4adc4f7a478c214d56371b841c4c3575d0e3b4588f5b08783bfe",
+    "tw": "瘋醫",
+    "cn": "疯医"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "tincture_prismatic",
+    "field": "Name",
+    "en": "Prismatic Tincture",
+    "kind": "dat",
+    "sourceHash": "9b89a29ba67edad1b7cab76d9637726fa0ec3712785dc4a281a15e683ecdc714",
+    "tw": "三相萃取物",
+    "cn": "虹彩酊剂"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "flask_utility_sprint",
+    "field": "Name",
+    "en": "Quicksilver Flask",
+    "kind": "dat",
+    "sourceHash": "b0ed21011e6966886da6e9daffa096d3d173789ed482bea503eb3706d1f6a886",
+    "tw": "水銀藥劑",
+    "cn": "水银药剂"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "stolen_mods_tincture",
+    "field": "Name",
+    "en": "Tincture",
+    "kind": "dat",
+    "sourceHash": "05a7f36429cf733e1dce304c0ef8a2f07458d6957137a6e6df30f25df9d527a5",
+    "tw": "萃取物",
+    "cn": "酊剂"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "archnemesis_voodoo_doll_debuff",
+    "field": "Name",
+    "en": "Effigy",
+    "kind": "dat",
+    "sourceHash": "00f10872ac380c85454c9dd564623cf3bc255716052dc905e74ed76a2d7aeb4f",
+    "tw": "雕像",
+    "cn": "雕像"
+  },
+  {
+    "table": "buffdefinitions",
+    "id": "flask_utility_critical_strike_chance",
+    "field": "Name",
+    "en": "Diamond Flask",
+    "kind": "dat",
+    "sourceHash": "4bcc622243b36c9099eb8adfe1527e745354daa05a4724144ad6f375c85dea44",
+    "tw": "寶鑽藥劑",
+    "cn": "宝钻药剂"
+  },
+  {
+    "table": "brequellockerlayout",
+    "id": "Fruit",
+    "field": "Name",
+    "en": "Wombgift",
+    "kind": "dat",
+    "sourceHash": "5cc1a49e01bfd6fac66466b9492a71bd8c5c31d294b6af7ec94ede7a02305f0a",
+    "tw": "胎贈",
+    "cn": "孕育赠礼"
+  },
+  {
+    "table": "shoptag",
+    "id": "PoE2WandSkin",
+    "field": "Name",
+    "en": "Wands",
+    "kind": "dat",
+    "sourceHash": "7edc4daecbea3b47759503b1b6215bcf419f91cc5aa688d272dffdad116f187f",
+    "tw": "法杖外觀",
+    "cn": "法杖"
+  },
+  {
+    "table": "shoptag",
+    "id": "Miscellaneous",
+    "field": "Name",
+    "en": "Miscellaneous",
+    "kind": "dat",
+    "sourceHash": "5cb0b42660589925c804543d433ba0764dab859487e5a9ed855481dcbfec1f06",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "shoptag",
+    "id": "ReliquaryTheme",
+    "field": "Name",
+    "en": "Reliquary",
+    "kind": "dat",
+    "sourceHash": "e27e241e331b41c1940eecb1a6833b259ad0f0d1a4a869289dcfc1fec8a6a0cd",
+    "tw": "聖物",
+    "cn": "遗物厅"
+  },
+  {
+    "table": "shoptag",
+    "id": "MiscellaneousTheme",
+    "field": "Name",
+    "en": "Miscellaneous",
+    "kind": "dat",
+    "sourceHash": "5cb0b42660589925c804543d433ba0764dab859487e5a9ed855481dcbfec1f06",
+    "tw": "其它",
+    "cn": "其他"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionHeistContract",
+    "field": "Text",
+    "en": "Give this Contract to Adiyah in the Rogue Harbour to embark on the Heist.",
+    "kind": "dat",
+    "sourceHash": "208d79d2ffb5c37018518bd2c8332bbf559f0c3dad01536f49f4d9a17032b94f",
+    "tw": "將此契約書交給在盜賊港灣的阿迪雅，以開始劫盜任務。",
+    "cn": "在黄金港将契约交给艾蒂娅，开启夺宝冒险。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionExpeditionLogbook",
+    "field": "Text",
+    "en": "Take this item to Dannig in your Hideout to open portals to an expedition.",
+    "kind": "dat",
+    "sourceHash": "8f3690fb1a1b7da352024ed8d63a2e7a11e4706812490cb2e27690c4c91f72f2",
+    "tw": "把此道具帶回你的藏身處給丹尼格，來開啟前往探險的傳送門。",
+    "cn": "在您的藏身处里把它交给丹宁，开启传送门开始探索先祖秘藏"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionBreachMapItemChaos",
+    "field": "Text",
+    "en": "Travel to Chayula's Domain by using this item in a personal Map Device. Can only be used once.",
+    "kind": "dat",
+    "sourceHash": "9a9f813fb010771d262444a8db5953f4b9e68e299362ef6b61295207f86061f5",
+    "tw": "透過個人的地圖裝置來使用此道具前往夏烏拉領域。只能被使用一次。",
+    "cn": "在私人地图装置中使用该物品，前往夏乌拉之域。只能被使用一次。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescription340VaultKey",
+    "field": "XBoxText",
+    "en": "Travel to the Timeworn Reliquary by using this item in a personal Map Device. Can only be used once.",
+    "kind": "dat",
+    "sourceHash": "8b66eab4ead82ea572327d0aa8fc7ffafe38d0da52cc045b20df7baeb69a7c68",
+    "tw": "透過個人的地圖裝置來使用此物品以前往進入古朽寶庫。此物品只能使用一次。在檢視你的輿圖時，<<xbox_button_a>>此物品以定位其所在。",
+    "cn": "在私人地图装置中使用该物品，前往尘封圣物厅。只能被使用一次。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemFunctionItemisedSanctum",
+    "field": "Text",
+    "en": "Right click this item to view details of the Sanctum in progress. Take this item to the Relic Altar in the Forbidden Sanctum to enter.",
+    "kind": "dat",
+    "sourceHash": "4ca4dd7b49aa533f5eebfd010371b93c1c694fa73198064c759eaca68d3b32a9",
+    "tw": "右鍵點擊此物品來查看進行中的聖域細節。將此物品帶到禁忌聖域的聖物祭壇以進入聖域。",
+    "cn": "右键点击该物品以查看进行中的禁域详细信息。将此物品带到永生禁域的遗物祭坛以进入禁域。"
+  },
+  {
+    "table": "achievementitems",
+    "id": "RecipeAmulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "DominationNemesisRecipeAmulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "TormentBloodlinesRecipeAmulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "WarbandsTempestRecipeAmulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "achievementitems",
+    "id": "AmbushInvasionRecipeAmulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring9",
+    "field": "Name",
+    "en": "Moonstone Ring",
+    "kind": "dat",
+    "sourceHash": "9c2e47e5430dba591defe208454c4690698feba424069e5538724492076976ab",
+    "tw": "月光石戒指",
+    "cn": "月光石戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Amulet8",
+    "field": "Name",
+    "en": "Turquoise Amulet",
+    "kind": "dat",
+    "sourceHash": "53922f8352665a19224116532bc62f48f2e3372844f3fe62cfba2964efdc66d8",
+    "tw": "青玉護身符",
+    "cn": "青玉护身符"
+  },
+  {
+    "table": "words",
+    "id": "hash:fd35f3b6",
+    "field": "Text",
+    "en": "Warped Timepiece",
+    "kind": "dat",
+    "sourceHash": "e751fb13a8648c13f81553031ed806938b8bc3f60d8742f7f9f33c2699a1db4e",
+    "tw": "Warped Timepiece"
+  },
+  {
+    "table": "words",
+    "id": "hash:96f1ea13",
+    "field": "Text",
+    "en": "Timetwist",
+    "kind": "dat",
+    "sourceHash": "ac2fb63ff2f91dfeeaaa6628e01c5453f40641558afeebfed50f6122baf1c986",
+    "tw": "Timetwist"
+  },
+  {
+    "table": "words",
+    "id": "hash:96f1ea13",
+    "field": "Text2",
+    "en": "Timetwist",
+    "kind": "dat",
+    "sourceHash": "ac2fb63ff2f91dfeeaaa6628e01c5453f40641558afeebfed50f6122baf1c986",
+    "tw": "時空扭曲",
+    "cn": "时空扭曲"
+  },
+  {
+    "table": "words",
+    "id": "hash:fd35f3b6",
+    "field": "Text2",
+    "en": "Warped Timepiece",
+    "kind": "dat",
+    "sourceHash": "e751fb13a8648c13f81553031ed806938b8bc3f60d8742f7f9f33c2699a1db4e",
+    "tw": "扭曲之鐘",
+    "cn": "时空扭曲"
+  }
+]

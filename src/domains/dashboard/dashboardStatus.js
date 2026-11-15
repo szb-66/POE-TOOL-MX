@@ -257,23 +257,23 @@ export function evaluateShopStatus(input = {}) {
 
 export function evaluatePriceCheckStatus(input = {}) {
   const issues = []
-  if (!input.authenticated) issues.push(input.manualInputOnly ? '请在设置页登录国际服账号' : '请在设置页登录国服账号')
+  if (!input.authenticated) issues.push(`请在设置页登录${input.serverLabel || '国服'}账号`)
   if (!input.league) issues.push('请在设置页选择全局赛季')
-  if (!input.shortcut && !input.manualInputOnly) issues.push('请先设置查价快捷键')
+  if (!input.shortcut) issues.push('请先设置查价快捷键')
   if (!input.catalog) issues.push('交易目录尚未加载')
   else if (input.catalog.degraded) issues.push('官方交易目录不可用，当前使用内置目录')
 
   return createModuleStatus({
     id: 'priceCheck',
-    title: input.manualInputOnly ? '国际服手动查价' : '国服查价',
+    title: `${input.serverLabel || '国服'}查价`,
     route: '/price-check',
-    description: input.manualInputOnly ? '手动粘贴英文物品文本查询国际服官方挂单。' : input.shortcut
-      ? `在游戏内按 ${input.shortcut} 查询腾讯官方市集挂单。`
-      : '设置游戏内查价快捷键后查询腾讯官方市集挂单。',
+    description: input.shortcut
+      ? `在游戏内按 ${input.shortcut} 查询当前服务器官方市集挂单。`
+      : '设置游戏内查价快捷键后查询当前服务器官方市集挂单。',
     error: input.error,
     running: Boolean(input.enabled && !issues.length),
     issues,
-    readyText: input.manualInputOnly ? '可粘贴物品文本查询' : input.enabled ? '查价器等待物品' : '查价器已关闭',
+    readyText: input.enabled ? '查价器等待物品' : '查价器已关闭',
     runningText: input.latest ? '查价器已启用 · 最近查询完成' : '查价器已启用',
     metrics: [
       { label: '账号', value: input.authenticated ? (input.accountName || '已登录') : '未登录' },

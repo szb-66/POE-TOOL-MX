@@ -250,6 +250,53 @@ signal.signal(signal.SIGTERM, signal_handler)
 
 
 def parse_item_header(text):
+    runtime = globals().get("localization_snapshot", {})
+    original_header = None
+    if runtime.get("serverId") == "international":
+        structure = runtime.get("structureAliases", {})
+        names = runtime.get("nameAliases", {})
+        converted = []
+        in_header = True
+        rarity = ""
+        raw_names = []
+        original_fields = {}
+        for raw in str(text or "").splitlines():
+            line = raw.strip()
+            if line == "--------":
+                in_header = False
+            field = re.match(r"^([^:：]+)[:：]\s*(.*)$", line)
+            if field:
+                label = structure.get(field.group(1).replace(" ", ""), field.group(1))
+                value = structure.get(field.group(2), field.group(2))
+                if label == "Rarity":
+                    rarity = value
+                    original_fields["rarity"] = field.group(2)
+                if label == "Item Class":
+                    original_fields["category"] = field.group(2)
+                line = label + ": " + value
+            elif in_header and line:
+                raw_names.append(line)
+                clean_name = re.sub(r"\[[^\[\]]*\]", "", line).strip()
+                canonical = names.get(clean_name, clean_name)
+                if rarity == "Magic" and canonical == clean_name:
+                    matches = [(alias, en) for alias, en in names.items() if alias and alias in clean_name]
+                    longest = max((len(alias) for alias, _ in matches), default=0)
+                    candidates = {en for alias, en in matches if len(alias) == longest}
+                    if len(candidates) == 1:
+                        canonical = next(iter(candidates))
+                line = canonical
+            converted.append(line)
+        # A rare random name may remain Chinese; a base identity may not.
+        if raw_names:
+            canonical_base = names.get(re.sub(r"\[[^\[\]]*\]", "", raw_names[-1]).strip())
+            if canonical_base is None and re.search(r"[\u3400-\u9fff]", raw_names[-1]):
+                if rarity != "Magic":
+                    return None
+                candidate_lines = [line for line in converted[:next((i for i, value in enumerate(converted) if value == "--------"), len(converted))] if ":" not in line]
+                if not candidate_lines or re.search(r"[\u3400-\u9fff]", candidate_lines[-1]):
+                    return None
+        original_header = {**original_fields, "name": raw_names[0] if raw_names else "", "baseName": raw_names[-1] if len(raw_names) > 1 else ""}
+        text = "\n".join(converted)
     lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
     category_index = next((i for i, line in enumerate(lines)
                            if line.startswith("物品类别:") or line.startswith("Item Class:")), -1)
@@ -288,6 +335,7 @@ def parse_item_header(text):
         "rarity": rarity,
         "name": header[0],
         "baseName": header[1] if len(header) > 1 else "",
+        **({"originalHeader": original_header} if original_header else {}),
         "itemLevel": item_level,
         **({"itemTier": item_tier} if item_tier is not None else {})
     }
@@ -369,7 +417,7 @@ def resolve_item_footprint(item, catalog):
     if not isinstance(items, dict) or not isinstance(categories, dict):
         return None
     category = item.get("category", "")
-    names = [item.get("baseName", ""), item.get("name", "")]
+    names = [item.get("baseName", ""), item.get("name", ""), resolve_catalog_base_type(item, catalog)]
     for name in names:
         for key in (footprint_key(category, name), footprint_key("", name)):
             footprint = valid_footprint(items.get(key))
@@ -397,9 +445,13 @@ def resolve_catalog_base_type(item, catalog):
         key_category, key_name = key.split("\x1f", 1)
         if key_category not in ("*", normalized_category):
             continue
-        if normalized_name == key_name or normalized_name.endswith(key_name):
+        magic = str((item or {}).get("rarity", "")).casefold() in ("magic", "魔法")
+        bounded = magic and not re.search(r"[\u3400-\u9fff]", key_name) and re.search(r"(?<!\w)" + re.escape(key_name) + r"(?!\w)", normalized_name)
+        if normalized_name == key_name or normalized_name.endswith(key_name) or bounded:
             candidates.append(key_name)
-    return max(candidates, key=len) if candidates else display_name
+    longest = max((len(value) for value in candidates), default=0)
+    values = {value for value in candidates if len(value) == longest}
+    return next(iter(values)) if len(values) == 1 else display_name
 
 
 def resolved_footprint_slots(target, footprint, phase, ambiguous_slots):
@@ -450,10 +502,10 @@ def find_blacklist_match(item, rules):
     for rule in normalize_blacklist(rules):
         if not rule["enabled"]:
             continue
-        value = str(item.get(rule["field"], "")).strip().casefold()
+        values = [str(item.get(rule["field"], "")).strip().casefold(), str(item.get("originalHeader", {}).get(rule["field"], "")).strip().casefold()]
         keyword = rule["keyword"].casefold()
-        matched = value == keyword if rule["matchMode"] == "exact" else keyword in value
-        if value and matched:
+        matched = any(value and (value == keyword if rule["matchMode"] == "exact" else keyword in value) for value in values)
+        if matched:
             return rule
     return None
 
@@ -1062,6 +1114,8 @@ def abort(reason, stats):
 
 
 def run_stash(config):
+    global localization_snapshot
+    localization_snapshot = config.get("localizationSnapshot") or {}
     global runtime_stop_reason
     runtime_stop_reason = ""
     stats = empty_stats()
@@ -1365,6 +1419,8 @@ def _unknown_components(items):
 
 
 def run_inventory_scan(config):
+    global localization_snapshot
+    localization_snapshot = config.get("localizationSnapshot") or {}
     """只读扫描原生 12x5 背包；不发送开包键、不打开仓库且不点击页签。"""
     global runtime_stop_reason
     runtime_stop_reason = ""

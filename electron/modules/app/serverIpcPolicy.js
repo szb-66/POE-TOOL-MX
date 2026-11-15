@@ -21,7 +21,7 @@ const READ_ONLY_CHANNELS = new Set([
   'select-overlay-background', 'import-overlay-background', 'set-devtools-visible', 'get-devtools-visible', 'open-debug-overlay'
 ])
 
-const SHORTCUT_FEATURES = Object.freeze({ itemStart: 'items', mapStart: 'map', portal: 'combat', storyPrevious: 'story', storyNext: 'story', storyTimerToggle: 'story' })
+const SHORTCUT_FEATURES = Object.freeze({ itemStart: 'items', mapStart: 'map', portal: 'combat', storyPrevious: 'story', storyNext: 'story', storyTimerToggle: 'story', priceCheck: 'price-check' })
 export function serverShortcutAllowed(context, key, switching = false) {
   if (key === 'end') return true
   if (switching) return false
@@ -36,6 +36,11 @@ function channelFeature(channel, args) {
   if (/^stash-pickup-/.test(channel)) return 'stash-pickup'
   if (/^(?:junfeng-|highlight-calibration-)/.test(channel)) return 'junfeng'
   if (/^combat-/.test(channel)) return 'combat'
+  if (/^price-check-/.test(channel)) return 'price-check'
+  if (/^chaos-recipe-/.test(channel)) return 'recipe'
+  if (/^(?:map-tracker:|client-events-)/.test(channel)) return 'map-tracker'
+  if (/^sanctum[:\-]/.test(channel)) return 'sanctum'
+  if (/^faustus[:\-]/.test(channel)) return 'faustus'
   if (channel.includes('story-overlay')) return 'story'
   return null
 }
@@ -46,10 +51,21 @@ export function serverChannelFailure(context, channel, switching = false, args =
     return context.id === 'international' ? null : { code: 'SERVER_FEATURE_UNAVAILABLE', message: '游戏汉化仅适用于国际服 Steam 客户端' }
   }
   if (STOP.test(channel)) return null
+  if (['sanctum:stop', 'sanctum:cancelCalibrationCollection'].includes(channel)) return null
+  if (['sanctum:setEnabled', 'sanctum:setModuleEnabled'].includes(channel) && args[0] === false) return null
+  if (channel === 'map-tracker:overlay' && args[0] === 'hide') return null
+  if (channel === 'map-tracker:settings' && args[0]?.enabled === false && Object.keys(args[0]).every(key => ['enabled', 'paused'].includes(key))) return null
+  if (channel === 'client-events-settings-update' && args[0]?.enabled === false && Object.keys(args[0]).every(key => key === 'enabled')) return null
   if (channel === 'shortcut-triggered' && args[0] === 'end') return null
   if (['chaos-recipe-runtime-update', 'price-check-runtime-update', 'stash-pickup-runtime-update', 'junfeng-runtime-update'].includes(channel) && args[0]?.enabled === false) return null
   if (switching && !channel.startsWith('server-mode:')) return { code: 'SERVER_SWITCHING', message: '正在切换服务器，暂不接受新任务' }
   if (context.id === 'cn' || COMMON.test(channel) || ACCOUNT.test(channel) || SHORTCUT_SETTINGS.test(channel)) return null
+  if (channel === 'generate-and-execute-script' && args[0]?.mode === 'map') {
+    const profiles = [args[0]?.preset?.map, args[0]?.generationConfig?.mapConfig]
+    if (profiles.some(profile => profile?.targetKind === 'chart' || profile?.activeKind === 'chart')) {
+      return { code: 'SERVER_FEATURE_UNAVAILABLE', message: '国际服本赛季不适配海图制作，已有预设保留' }
+    }
+  }
   if (READ_ONLY_CHANNELS.has(channel)) return null
   if (channel === 'shortcut-triggered' && serverShortcutAllowed(context, args[0], switching)) return null
   const feature = channelFeature(channel, args)
@@ -58,8 +74,8 @@ export function serverChannelFailure(context, channel, switching = false, args =
   if (['arm-overlay-outside-click-close', 'disarm-overlay-outside-click-close'].includes(channel) && (active('items') || active('map'))) return null
   if (['stash-tabs-pick-root-region', 'stash-tabs-preview'].includes(channel) && ['items', 'map', 'bag', 'stash-pickup'].some(active)) return null
   return { code: 'SERVER_FEATURE_UNAVAILABLE', message: feature
-    ? '此操作尚未完成英文客户端实测，请使用对应功能的开发版验收参数'
-    : '此功能尚未完成国际服英文客户端验证，暂不可用' }
+    ? '此操作未在当前服务器开放'
+    : '此功能未在国际服开放' }
 }
 
 // 在注册业务 IPC 之前统一安装门禁，涵盖主页面、浮窗和直接 IPC 调用。

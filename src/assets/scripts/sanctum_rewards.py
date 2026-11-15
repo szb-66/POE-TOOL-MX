@@ -26,6 +26,13 @@ def templates():
     return result
 
 
+@lru_cache(maxsize=1)
+def currency_keys():
+    root = Path(__file__).resolve().parents[3] / 'electron/assets/sanctum/currency'
+    catalog = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+    return {entry['name']: entry['key'] for entry in catalog['entries']}
+
+
 def masked_correlation(gray, squared, template, mask, statistics=None):
     """Binary-mask NCC via three unmasked correlations (OpenCV's fast path).
 
@@ -101,7 +108,7 @@ def recognize_currency_icons(panel, workers=None):
                     fine = masked_correlation(local, local_squared, ft, fm, scaled_statistics(name, fine_size))
                     _, confidence, _, (fx,fy) = cv2.minMaxLoc(fine)
                     if confidence >= .94:
-                        candidates.append({'currency': name, 'confidence': round(confidence, 4),
+                        candidates.append({'currency': name, 'key': currency_keys().get(name), 'confidence': round(confidence, 4),
                                            'region': {'x':left+fx, 'y':top+fy, 'width':fw, 'height':fine_size}})
                 score[max(0,y-size//2):y+size//2+1, max(0,x-w//2):x+w//2+1] = 0
         return candidates

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { createLocalizationTextResolver } from '../electron/modules/priceCheck/localizationText.js'
 import { PriceCheckService } from '../electron/modules/priceCheck/service.js'
+import { buildOfficialTradeQuery } from '../electron/modules/priceCheck/query.js'
 
 const catalog = JSON.parse(await readFile(new URL('../electron/modules/priceCheck/catalog.international.json', import.meta.url), 'utf8'))
 const entry = (id, en, tw, cn, extra = {}) => ({ kind: 'dat', table: 'BaseItemTypes', id, field: 'Name', en, tw, cn, sourceHash: createHash('sha256').update(en).digest('hex'), ...extra })
@@ -40,7 +41,30 @@ test('纯英文和英文头部混合中文词缀查询得到相同国际服标�
   const expected = service.parse(english, { initialSelection: 'all' })
   const mixed = service.parse(english.replace('+89 to maximum Life', '+89 最大生命'), { initialSelection: 'all' })
   assert.deepEqual(mixed.identity, expected.identity)
-  assert.deepEqual(mixed.stats, expected.stats)
+  assert.deepEqual(buildOfficialTradeQuery(mixed), buildOfficialTradeQuery(expected))
+  assert.equal(mixed.stats[0].displayText, '+89 最大生命')
+})
+
+test('国际服手动查价不要求快捷开关，启用后英文和受管汉化均可通过捕获打开浮窗', async () => {
+  let captured = 0
+  let text = english
+  const overlays = []
+  const { service } = serviceFixture({ manualInputOnly: false, allowManualQueries: true,
+    captureClipboard: async () => { captured++; return text },
+    overlay: { create: snapshot => overlays.push(snapshot), update() {}, prepare() {} } })
+  const manual = await service.check({ league: 'Covens', text: chinese })
+  assert.equal(manual.model.identity.type, 'Coral Ring')
+  await assert.rejects(service.captureAndCheck({ league: 'Covens' }), /尚未启用/)
+  assert.equal(captured, 0)
+  service.updateRuntime({ enabled: true, league: 'Covens' })
+  const original = await service.captureAndCheck({ league: 'Covens' })
+  text = chinese
+  const localized = await service.captureAndCheck({ league: 'Covens' })
+  assert.deepEqual(localized.model.identity, original.model.identity)
+  assert.deepEqual(buildOfficialTradeQuery(localized.model), buildOfficialTradeQuery(original.model))
+  assert.equal(localized.model.stats[0].displayText, '+89 最大生命')
+  assert.equal(captured, 2)
+  assert.ok(overlays.some(snapshot => snapshot.status === 'ready-to-query'))
 })
 
 test('魔法单行名称仅按稳定底材别名解析，详细繁体词缀头保留等阶和来源', () => {

@@ -1,3 +1,5 @@
+import { localizedExpression } from './localizedRegex.js'
+
 // 与现有条件共用稳定 ID；只替换实际复制到搜索框的客户端文本。
 const english = Object.freeze({
   rare: 'Rarity: Rare', magic: 'Rarity: Magic', normal: 'Rarity: Normal',
@@ -8,7 +10,7 @@ const english = Object.freeze({
   plus_any: '\\+1 to Level of all Spell Skill Gems', plus_lightning: '\\+1 to Level of all Lightning Spell Skill Gems',
   plus_fire: '\\+1 to Level of all Fire Spell Skill Gems', plus_cold: '\\+1 to Level of all Cold Spell Skill Gems',
   plus_physical: '\\+1 to Level of all Physical Spell Skill Gems', plus_chaos: '\\+1 to Level of all Chaos Spell Skill Gems',
-  max_life: 'maximum Life', max_mana: 'maximum Mana', item_rarity: 'Rarity of Items found',
+  max_life: 'maximum Life', max_mana: 'maximum Mana', item_rarity: 'Item Rarity',
   attack_speed: 'Attack Speed', cast_speed: 'Cast Speed', movement_any: 'Movement Speed',
   movement_30: '(^|[^0-9])30% increased Movement Speed', movement_25: '(^|[^0-9])25% increased Movement Speed',
   movement_20: '(^|[^0-9])20% increased Movement Speed', movement_15: '(^|[^0-9])15% increased Movement Speed', movement_10: '(^|[^0-9])10% increased Movement Speed',
@@ -19,11 +21,13 @@ const english = Object.freeze({
   quiver: 'Item Class: Quivers', shield: 'Item Class: Shields', helmet: 'Item Class: Helmets', body: 'Item Class: Body Armours', boots: 'Item Class: Boots', gloves: 'Item Class: Gloves'
 })
 
-export function localizeVendorGroups(groups, language = 'zh-CN') {
+export function localizeVendorGroups(groups, language = 'zh-CN', catalog = null) {
   if (language === 'zh-CN') return groups
   if (language !== 'en') throw new Error('不支持的客户端语言')
   return groups.map(group => ({ ...group, options: group.options.map(item => {
     if (!english[item.id]) throw new Error(`缺少英文商店条件：${item.id}`)
-    return { ...item, expression: english[item.id], compactExpression: english[item.id] }
+    const localizationText = english[item.id].replace('\\+', '+').replace('(^|[^0-9])', '')
+    const localized = localizedExpression(english[item.id], [localizationText], catalog, { includeTemplates: true })
+    return { ...item, localizationText, localizationMapped: localized.mapped, expression: localized.expression, compactExpression: localized.expression }
   }) }))
 }

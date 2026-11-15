@@ -66,7 +66,7 @@
               <template #default="{ item }">
                 <div class="affix-suggestion">
                   <div class="suggestion-heading">
-                    <strong>{{ item.value }}</strong>
+                    <strong>{{ item.displayText || item.value }}</strong>
                     <el-tag size="small" type="info">{{ affixTypeLabel(item.affixType) }}</el-tag>
                   </div>
                   <span class="suggestion-example">{{ item.example }}</span>
@@ -94,7 +94,7 @@
               <template #default="{ item }">
                 <div class="affix-suggestion">
                   <div class="suggestion-heading">
-                    <strong>{{ item.value }}</strong>
+                    <strong>{{ item.displayText || item.value }}</strong>
                     <el-tag size="small" type="info">{{ affixTypeLabel(item.affixType) }}</el-tag>
                   </div>
                   <span class="suggestion-example">{{ item.example }}</span>
@@ -114,7 +114,8 @@
 import { computed } from 'vue'
 import MapFeasibilityNotice from './MapFeasibilityNotice.vue'
 import { Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
-import { searchMapAffixSuggestions } from '@/utils/mapAffixSuggestions.js'
+import { searchMapAffixSuggestions, affixSuggestionsForKind } from '@/utils/mapAffixSuggestions.js'
+import { useLocalizedCatalog } from '@/utils/localizedCatalog.js'
 
 const props = defineProps({
   profile: { type: Object, required: true },
@@ -125,6 +126,7 @@ const props = defineProps({
 })
 
 const statCount = computed(() => Object.keys(props.statKeys).length)
+const localizedCatalog = useLocalizedCatalog(['atlas', 'heist'].flatMap(kind => affixSuggestionsForKind(kind).flatMap(entry => [entry.value, entry.example])))
 
 function ensureStat(group, key) {
   if (!props.profile.match[group][key]) props.profile.match[group][key] = { enabled: false, value: 0 }
@@ -137,7 +139,7 @@ const addModifier = type => props.profile.match[type].push('')
 const removeModifier = (type, index) => props.profile.match[type].splice(index, 1)
 
 function fetchSuggestions(query, callback) {
-  callback(searchMapAffixSuggestions(props.targetKind, query))
+  callback(searchMapAffixSuggestions(props.targetKind, query, 50, undefined, localizedCatalog.aliases.value))
 }
 
 function affixTypeLabel(type) {

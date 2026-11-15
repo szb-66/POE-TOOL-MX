@@ -20,6 +20,8 @@ public sealed class StatDescriptions {
     private static readonly Regex LanguageHeader = new("^lang\\s+\"([^\"]+)\"\\s*$",RegexOptions.CultureInvariant);
     private static readonly Regex QuotedLine = new("^\\s*(?<condition>[^\"]*?)\"(?<text>(?:\\\\.|[^\"\\\\])*)\"(?<handlers>.*)$",RegexOptions.CultureInvariant);
     private static readonly Regex Tokens = new(@"\{\d+(?::[^}]+)?\}|(?<!\w)#(?!\w)|%",RegexOptions.CultureInvariant);
+    private static readonly Regex DisplayLink = new(@"\[[^\[\]|]+\|([^\[\]]*)\]",RegexOptions.CultureInvariant);
+    private static readonly Regex DisplayReminder = new(@"(?<!\S)reminderstring\s+[A-Za-z_][A-Za-z0-9_]*(?!\S)",RegexOptions.CultureInvariant);
     public int Count => descriptions.Count;
     public int SkippedDescriptionCount { get; private set; }
     public int LastAppliedCount { get; private set; }
@@ -89,8 +91,15 @@ public sealed class StatDescriptions {
         return result;
     }
     private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
-    private static string[] Placeholders(string value) => Tokens.Matches(value).Select(match=>match.Value).Order(StringComparer.Ordinal).ToArray();
-    private static bool SameShape(List<Variant> first,List<Variant>? second) => second != null && first.Count == second.Count && first.Zip(second).All(pair => pair.First.Condition == pair.Second.Condition && pair.First.Handlers == pair.Second.Handlers && Placeholders(pair.First.Text).SequenceEqual(Placeholders(pair.Second.Text)));
+    private static string[] Placeholders(string value) {
+        // Link destinations can repeat a parameter that appears only once on screen.
+        string previous;
+        do { previous=value; value=DisplayLink.Replace(value,"$1"); } while(value!=previous);
+        return Tokens.Matches(value).Select(match=>match.Value).Order(StringComparer.Ordinal).ToArray();
+    }
+    // Some languages use a reminder tooltip where English uses a link in the display text.
+    private static string NumericHandlers(string value) => Normalize(DisplayReminder.Replace(value,""));
+    private static bool SameShape(List<Variant> first,List<Variant>? second) => second != null && first.Count == second.Count && first.Zip(second).All(pair => pair.First.Condition == pair.Second.Condition && NumericHandlers(pair.First.Handlers) == NumericHandlers(pair.Second.Handlers) && Placeholders(pair.First.Text).SequenceEqual(Placeholders(pair.Second.Text)));
     private static JsonObject Shape(Description description) => new() {
         ["ids"] = new JsonArray(description.Ids.Select(id=>(JsonNode?)JsonValue.Create(id)).ToArray()),
         ["variants"] = new JsonArray(description.Languages["English"].Select(variant=>(JsonNode?)new JsonObject {

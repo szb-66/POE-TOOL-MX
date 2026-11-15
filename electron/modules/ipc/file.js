@@ -15,7 +15,7 @@ import { matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirement
 import { attachParseRequestId } from '../watcher/fileWatcher.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
-export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null) {
+export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null, localizationRuntime = null) {
   const { getMainWindow, getOverlayWindow } = window
   const { getFilePaths } = fileWatcher
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
@@ -79,7 +79,9 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
     const writeCurrentParseResult = (result) => writeParseResult(attachParseRequestId(result, requestId))
     try {
       // 解析物品信息
-      const itemInfo = parseItemInfo(clipboardText)
+      const itemInfo = localizationRuntime
+        ? localizationRuntime.parseItem(clipboardText, config?.localizationRevision)
+        : parseItemInfo(clipboardText)
       
       if (!itemInfo) {
         writeCurrentParseResult({
@@ -176,6 +178,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       }
 
       const result = {
+        originalText: itemInfo.originalText,
+        modTextAliases: itemInfo.modTextAliases,
         itemTextLanguage: itemInfo.itemTextLanguage,
         category: itemInfo.category,
         rarity: itemInfo.rarity,
@@ -183,6 +187,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         baseName: itemInfo.baseName,
         footprint: itemFootprintRegistry.resolve(itemInfo.category, itemInfo.baseName || itemInfo.name),
         level: itemInfo.level,
+        ...(Number.isSafeInteger(itemInfo.itemTier) && itemInfo.itemTier > 0 ? { itemTier: itemInfo.itemTier } : {}),
         quality: itemInfo.quality,
         socketsCount: itemInfo.socketsCount,
         links: itemInfo.links,

@@ -1,9 +1,11 @@
 import { deflateSync } from 'node:zlib'
-import { pobIdentities, pobGameVersion } from './compatibility.js'
+import { pobIdentities } from './compatibility.js'
+import { DATA as POB_DATA } from 'cn-poe-utils/data/pob'
+import { internationalPobContext, resolveInternationalItemIdentity } from './internationalCompatibility.js'
 import { TranslatorFactory } from 'cn-poe-utils/translator/zh2en'
 import { transform } from 'cn-poe-utils/building'
 import { PobExportError } from './errors.js'
-import { resolveItemIdentity, normalizeAndInspect, checkTranslatedGem, preserveExtraMods, inspectBuilding, hasChinese } from './integrity.js'
+import { resolveItemIdentity, normalizeAndInspect, checkTranslatedGem, preserveExtraMods, inspectBuilding, hasChinese, isEquipment } from './integrity.js'
 import { guardStatTemplates } from './templateSafety.js'
 
 const factory = new TranslatorFactory()
@@ -52,9 +54,10 @@ export function convertBuild(input) {
   const issues = []
   normalizeAndInspect(items, passive, issues)
   const expectedNodes = [...passive.hashes]
-  const warnings = input.language === 'en'
-    ? [`国际服导出使用内置 ${pobGameVersion} 数据，尚未完整验证新赛季兼容性。生成导入码不代表装备、技能和天赋已兼容，请在支持当前赛季的 PoB 中核对。`]
-    : []
+  const international = input.language === 'en' ? internationalPobContext(items) : null
+  const identities = international || pobIdentities
+  if (international) items.items = items.items.filter(isEquipment)
+  const warnings = international ? ['国际服导出使用独立 PoB 3.30 开发版数据，请使用支持 3.30 的 PoB 导入。'] : []
   const translator = factory.getJsonTranslator()
   const basic = factory.getBasicTranslator()
   // 英文 API 已是 PoB 的输入语言，只让中文片段进入翻译器，保留共用的预处理和完整性检查。
@@ -70,7 +73,7 @@ export function convertBuild(input) {
   }
   const transItem = translator.transItem.bind(translator)
   translator.transItem = item => {
-    const identity = resolveItemIdentity(item, basic)
+    const identity = international ? resolveInternationalItemIdentity(item) : resolveItemIdentity(item, basic)
     if (identity.error) issues.push(identity.error)
     // Scope identity resolution to this item; recursive abyss jewels restore the
     // parent resolver on return. The factory and template engine remain reusable.
@@ -79,9 +82,15 @@ export function convertBuild(input) {
     try { transItem(item) } finally { basic.transNameAndBaseType = original }
   }
   const originalWarn = console.warn
+  const originalTree = { classes: POB_DATA.tree.classes, jewelSlots: POB_DATA.tree.jewelSlots }
   // The library is synchronous; capture warnings only during this conversion.
   console.warn = (...args) => warnings.push(`未识别数据：${args.map(String).join(' ')}`)
   try {
+    if (international) {
+      POB_DATA.tree.classes = international.classes
+      POB_DATA.tree.jewelSlots = international.jewelSlots
+      for (const id of passive.hashes) if (!international.nodeIds.has(id)) issues.push(`国际服当前天赋树不包含节点：${id}`)
+    }
     translator.transItems(items)
     translator.transPassiveSkills(passive)
     for (const item of [...items.items, ...passive.items]) {
@@ -89,7 +98,7 @@ export function convertBuild(input) {
       if (item.socketedItems) {
         item.socketedItems.sort((a, b) => a.socket - b.socket)
         for (const gem of item.socketedItems) {
-          if (!gem.abyssJewel) checkTranslatedGem(gem, issues)
+          if (!gem.abyssJewel) checkTranslatedGem(gem, issues, identities)
         }
       }
       preserveExtraMods(item, warnings)
@@ -97,8 +106,8 @@ export function convertBuild(input) {
     for (const [id, override] of Object.entries(passive.skill_overrides)) {
       if (!override.name || hasChinese(override.name)) issues.push(`未识别的天赋覆盖：${id} / ${override.name || '缺失名称'}`)
     }
-    const ascendancies = pobIdentities.classes[passive.character]?.ascendancies
-    if (passive.ascendancy < 0 || passive.ascendancy > ascendancies.length) issues.push('升华职业数据无效')
+    const ascendancies = identities.classes[passive.character]?.ascendancies
+    if (!ascendancies || passive.ascendancy < 0 || passive.ascendancy > ascendancies.length) issues.push('升华职业数据无效')
     if (issues.length) fail('角色存在未识别或不完整数据，无法完整导出', [...issues, ...warnings])
     const building = transform(items, passive)
     // Upstream creates an empty skill group when an abyss jewel precedes a gem.
@@ -106,12 +115,11 @@ export function convertBuild(input) {
     building.config.enemyIsBoss = undefined
     if (!building.build.ascendClassName) building.build.ascendClassName = 'None'
     building.tree.spec.secondaryAscendClassId = passive.alternate_ascendancy ?? 0
-    // This snapshot targets 3.29, not the live realm. All 60 jewel slots were
-    // checked against PoB 2.67.2 TreeData/3_29; newer realms remain unverified.
-    if (building.tree.spec.treeVersion === '3_28') building.tree.spec.treeVersion = '3_29'
-    inspectBuilding(building, items, passive, expectedNodes, issues)
+    // The serializer defaults to 3.28; select the independently loaded realm tree.
+    if (building.tree.spec.treeVersion === '3_28') building.tree.spec.treeVersion = international?.treeVersion || '3_29'
+    inspectBuilding(building, items, passive, expectedNodes, issues, identities)
     if (issues.length) fail('构筑转换后数据不完整，未生成导入码', [...issues, ...warnings])
-    if (building.tree.spec.treeVersion !== '3_29') warnings.push('该角色使用特殊天赋树，请在 PoB 中核对天赋版本。')
+    if (building.tree.spec.treeVersion !== (international?.treeVersion || '3_29')) warnings.push('该角色使用特殊天赋树，请在 PoB 中核对天赋版本。')
     if (passive.hashes_ex.length) warnings.push('星团珠宝节点由官网扩展节点换算，导入后请核对星团配置。')
     if (warnings.some(w => /untranslated|未识别词缀/.test(w))) warnings.push('未识别词缀已保留原文，可能影响 PoB 计算，请在导入后核对。')
     escapeStrings(building)
@@ -122,6 +130,8 @@ export function convertBuild(input) {
     if (error instanceof PobExportError) throw error
     fail('角色数据转换失败，可能包含当前版本不支持的装备、技能或天赋', [...issues, ...warnings])
   } finally {
+    POB_DATA.tree.classes = originalTree.classes
+    POB_DATA.tree.jewelSlots = originalTree.jewelSlots
     for (const [name, method] of Object.entries(englishMethods)) basic[name] = method
     console.warn = originalWarn
   }

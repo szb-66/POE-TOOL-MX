@@ -9,6 +9,7 @@ import { AutomationLock } from '../electron/modules/automation/lock.js'
 import { sanctumLogEvents } from './helpers/sanctumLog.js'
 import { runPython } from './helpers/python.js'
 import { SanctumCapture } from '../electron/modules/sanctum/capture.js'
+import { createLocalizedSanctumCatalog } from '../electron/modules/sanctum/localization.js'
 
 const environment = { windowId: 'game', processId: 123, width: 1000, height: 800, dpi: 96 }
 const region = { x: 0, y: 0, width: 800, height: 500 }, png = 'iVBORw0KGgoAAA='
@@ -55,6 +56,28 @@ async function collect(f, sig = signal()) {
   try { return await f.driver.finalizeFloor(f.driver.latest.floor, sig) }
   finally { f.lock.release('test-collector') }
 }
+
+test('国际服观测和最终采集共用词库版本scope，版本变化后必须重新读取效果',async t=>{
+  const f=fixture(t,'both'),sig=signal()
+  let revision='active-a'
+  const international=JSON.parse(readFileSync(new URL('../electron/assets/sanctum/catalog.international.json',import.meta.url),'utf8'))
+  f.driver.catalog=createLocalizedSanctumCatalog(international,{revisionProvider:()=>revision})
+  f.hooks.hoverEffect=()=>({environment,status:'located',texts:['Cannot recover Resolve']})
+  await f.driver.prepare(profile(),sig,f.lock)
+  f.lock.acquire('test-collector')
+  try {
+    const first=await f.driver.finalizeFloor(f.driver.latest.floor,sig)
+    assert.equal(first.effectScan.complete,true)
+    assert.equal(f.driver.effectLedger.scope,f.driver.effectScope())
+    await f.driver.finalizeFloor(first,sig)
+    assert.equal(f.commands.filter(command=>command==='inspectEffects').length,1)
+    revision='active-b'
+    const changed=await f.driver.finalizeFloor(first,sig)
+    assert.equal(changed.effectScan.complete,true)
+    assert.equal(f.commands.filter(command=>command==='inspectEffects').length,2)
+    assert.equal(f.driver.effectLedger.scope,f.driver.effectScope())
+  } finally {f.lock.release('test-collector')}
+})
 
 test('完整识别即使复用效果也重新读取资源，只在独立扫描后恢复地图', async t => {
   for (const mode of ['both','map']) {

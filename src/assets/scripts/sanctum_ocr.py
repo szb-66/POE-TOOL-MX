@@ -36,9 +36,12 @@ def room_body_region(image):
     return full
 
 
-def has_currency_offer(texts):
-    return any(''.join(line.split()) in ('完成后提供物品', '完成后获得物品', '完成后提供奖励')
-               for line in texts)
+def has_currency_offer(texts, language_text=None):
+    aliases = ['完成后提供物品', '完成后获得物品', '完成后提供奖励', 'Offers Items on Completion']
+    aliases.extend((language_text or {}).get('offers', []))
+    accepted = {''.join(value.split()).casefold() for value in aliases
+                if isinstance(value, str) and len(value) <= 1000}
+    return any(''.join(line.split()).casefold() in accepted for line in texts)
 
 
 def create_sanctum_ocr_engine(threads=2):
@@ -149,7 +152,8 @@ def read_image(options, image, engine=None, images=None, decode_ms=0):
         block['region']['y'] += y
     ocr_ms = (time.perf_counter()-started)*1000
     started = time.perf_counter()
-    scan_icons = icons_only or options.get('includeIcons',True) and has_currency_offer(text['texts'])
+    currency_offer = has_currency_offer(text['texts'], options.get('languageText'))
+    scan_icons = icons_only or options.get('includeIcons',True) and currency_offer
     icons = recognize_currency_icons(panel[by:by+bh,bx:bx+bw]) if scan_icons else []
     for icon in icons:
         icon['region']['x'] += x+bx
@@ -157,12 +161,12 @@ def read_image(options, image, engine=None, images=None, decode_ms=0):
     evidence = {}
     if options.get('resources'):
         from sanctum_resources import resource_evidence
-        evidence = resource_evidence(image, text['ocrLines'])
-    image_ref = images.retain(image, options['binding']) if images is not None and options.get('retainImage') and has_currency_offer(text['texts']) else None
+        evidence = resource_evidence(image, text['ocrLines'], options.get('languageText'))
+    image_ref = images.retain(image, options['binding']) if images is not None and options.get('retainImage') and currency_offer else None
     return {**text, 'region':region, 'bodyRegion':{**body,'x':x+bx,'y':y+by},
             **({'imageRef': image_ref} if image_ref else {}),
             'titleTexts':title_texts, 'titleRegion':{'x':x,'y':y,'width':w,'height':by} if by else None,
             **({'resourceEvidence': evidence} if options.get('resources') else {}),
-            'status':'located', 'currencyIcons':icons, 'hasCurrencyOffer':has_currency_offer(text['texts']),
+            'status':'located', 'currencyIcons':icons, 'hasCurrencyOffer':currency_offer,
             'captureMetrics':{'decodeMs':round(decode_ms,2),'decodeCalls':int(not options.get('imageRef')),'ocrMs':round(ocr_ms,2),'iconsMs':round((time.perf_counter()-started)*1000,2),'ocrCalls':int(not icons_only),'iconCalls':int(bool(scan_icons))}}
 

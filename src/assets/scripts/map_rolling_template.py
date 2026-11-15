@@ -281,6 +281,7 @@ SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}  # type: ignore
+localization_snapshot = json.loads({{LOCALIZATION_SNAPSHOT_JSON}})
 currency_expected_names = {{CURRENCY_EXPECTED_NAMES}}  # type: ignore
 verified_currency_types = set()
 fatal_error_reason = None
@@ -504,11 +505,15 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
-def currency_identity_matches(currency, actual):
+def normalized_copied_item_name(actual):
     import re
+    return re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
+
+
+def currency_identity_matches(currency, actual):
     expected = globals().get("currency_expected_names", {}).get(currency, CURRENCY_NAMES.get(currency))
-    name = re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
-    return bool(expected) and name == expected
+    name = normalized_copied_item_name(actual)
+    return bool(expected) and name in (expected if isinstance(expected, list) else [expected])
 
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
@@ -888,14 +893,19 @@ def item_matches_rolling_target(item_data):
         return category in ("契约", "蓝图")
     if map_config.get("targetKind") == "chart":
         return category == "海图"
-    return category in ("异界地图", "地图", "裂隙之石") and not (item_data or {}).get("isQuestItem")
+    if category not in ("异界地图", "地图", "裂隙之石"):
+        category = globals().get("localization_snapshot", {}).get("structureAliases", {}).get(category, category)
+    return category in ("异界地图", "地图", "裂隙之石", "Maps", "Maps (Low)", "Maps (Mid)", "Maps (Top)", "Maps (Uber)") and not (item_data or {}).get("isQuestItem")
 
 def rolling_item_level_label(item_data):
     if ((item_data or {}).get("category") or (item_data or {}).get("itemClass")) == "裂隙之石":
         return f"物品等级 {int((item_data or {}).get('level', 0))}"
     if map_config.get("targetKind") in ("chart", "heist"):
         return f"区域等级 {int((item_data or {}).get('areaLevel', 0))}"
-    return f"T{int((item_data or {}).get('mapTier', 0))}"
+    tier = (item_data or {}).get("itemTier")
+    if isinstance(tier, int) and not isinstance(tier, bool) and tier > 0:
+        return f"物品阶级 {tier}"
+    return f"物品等级 {int((item_data or {}).get('level', 0))}"
 
 def completed_map_result(qualified=False):
     return {
@@ -1222,7 +1232,7 @@ def process_single_map(initial_result, slot_x, slot_y):
     Inputs: initial_result(解析结果 dict)、slot_x/slot_y(像素坐标)；使用全局 map_config、apply_currency、read_and_parse。
     Outputs: 返回结构化终态（合格、不合格或失败）；可能触发鼠标键盘操作与文件写入。
     Preconditions: 鼠标可定位到 slot 坐标；通货坐标正确；map_config 配置完备。
-    Edge cases: 传奇地图直接跳过；T17 点金模式禁止；最大迭代 max_iterations 防止死循环。
+    Edge cases: 传奇地图直接跳过；最大迭代 max_iterations 防止死循环。
     """
     
     current_result = initial_result
@@ -1259,7 +1269,6 @@ def process_single_map(initial_result, slot_x, slot_y):
         is_corrupted = current_result.get("isCorrupted", False)
         is_unmodifiable = current_result.get("isUnmodifiable", False)
         rarity = current_result.get("rarity", "普通").replace(" ", "")
-        tier = int(current_result.get("mapTier", 0))
         quality = int(current_result.get("quality", 0))
         is_legendary = current_result.get("isLegendary", False) or rarity == "传奇"
         
@@ -1282,11 +1291,6 @@ def process_single_map(initial_result, slot_x, slot_y):
         if is_unmodifiable:
             print("  > [跳过] 地图不可改变，无法使用通货")
             return completed_map_result()
-
-        # 0.1 T17 + 点金模式 检查
-        if map_config.get('targetKind', 'atlas') == 'atlas' and tier == 17 and map_config['method'] == 'alchemy':
-             print("  > [错误] T17地图不能使用点金模式")
-             return completed_map_result()
 
         # 0.2 检查是否已腐化且不满足要求 (无法修改)
         # 如果是瓦尔后检查阶段，这个逻辑会在后面处理
@@ -1328,7 +1332,6 @@ def process_single_map(initial_result, slot_x, slot_y):
                 )
             # 更新状态
             rarity = current_result.get("rarity", "普通").replace(" ", "")
-            tier = int(current_result.get("mapTier", 0))
             quality = int(current_result.get("quality", 0))
             is_corrupted = current_result.get("isCorrupted", False)
             print(f"  > [鉴定完成] 鉴定后状态: {rolling_item_level_label(current_result)} {rarity} 品质:{quality}% 腐化:{is_corrupted}")
@@ -1592,7 +1595,9 @@ def check_map_base(item_data):
             
     return True
 
-def map_term_matches(mod, term):
+def map_term_matches(mod, term, aliases=None):
+    if aliases:
+        return any(map_term_matches(value, term) for value in [mod] + list(aliases))
     if not term:
         return False
     if '#' not in term:
@@ -1617,7 +1622,7 @@ def check_map_mods(item_data):
     blacklist = match_config.get('blacklist', [])
     for mod in explicit_mods:
         for black_term in blacklist:
-            if black_term and map_term_matches(mod, black_term):
+            if black_term and map_term_matches(mod, black_term, item_data.get('modTextAliases', {}).get(mod)):
                 # print(f"  > [匹配] 发现黑名单词缀: {mod}")
                 return False
                 
@@ -1625,11 +1630,11 @@ def check_map_mods(item_data):
     whitelist = match_config.get('whitelist', [])
     if map_config.get('targetKind') == 'heist':
         terms = [term for term in whitelist if term and term.strip()]
-        return not terms or any(map_term_matches(mod, term) for term in terms for mod in explicit_mods)
+        return not terms or any(map_term_matches(mod, term, item_data.get('modTextAliases', {}).get(mod)) for term in terms for mod in explicit_mods)
     if whitelist:
         for mod in explicit_mods:
             for white_term in whitelist:
-                if white_term and map_term_matches(mod, white_term):
+                if white_term and map_term_matches(mod, white_term, item_data.get('modTextAliases', {}).get(mod)):
                     print(f"  > [匹配] 命中白名单词缀: {mod}")
                     return True
                     
@@ -1647,7 +1652,7 @@ def count_affix_stats(item_data):
     blacklist = match_config.get('blacklist', [])
     for mod in explicit_mods:
         for black_term in blacklist:
-            if black_term and map_term_matches(mod, black_term):
+            if black_term and map_term_matches(mod, black_term, item_data.get('modTextAliases', {}).get(mod)):
                 blacklist_stats[black_term] = blacklist_stats.get(black_term, 0) + 1
                 break  # 每个词缀只统计一次
     
@@ -1656,7 +1661,7 @@ def count_affix_stats(item_data):
     if whitelist:
         for mod in explicit_mods:
             for white_term in whitelist:
-                if white_term and map_term_matches(mod, white_term):
+                if white_term and map_term_matches(mod, white_term, item_data.get('modTextAliases', {}).get(mod)):
                     whitelist_stats[white_term] = whitelist_stats.get(white_term, 0) + 1
                     break  # 每个词缀只统计一次
     

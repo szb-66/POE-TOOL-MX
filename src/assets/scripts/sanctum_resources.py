@@ -10,7 +10,7 @@ def coin_template():
     return cv2.imdecode(np.frombuffer(base64.b64decode(COIN_PNG), np.uint8), cv2.IMREAD_GRAYSCALE)
 
 
-def resource_evidence(image, lines):
+def resource_evidence(image, lines, language_text=None):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     template = coin_template()
     candidates = []
@@ -33,8 +33,12 @@ def resource_evidence(image, lines):
             continue
         distinct.append(r)
     result = {'coinRegion': distinct[0] if len(distinct) == 1 else None, 'noInspiration': False}
-    resolve = [line for line in lines if '坚毅' in line['text']]
-    if len(resolve) != 1 or any('启' in line['text'] or '啟' in line['text'] for line in lines):
+    labels = language_text or {}
+    resolve_labels = ['坚毅', '堅毅', 'Resolve', *labels.get('resolve', [])]
+    inspiration_labels = ['启', '啟', 'Inspiration', *labels.get('inspiration', [])]
+    contains = lambda text, values: any(isinstance(value, str) and value and value.casefold() in text.casefold() for value in values)
+    resolve = [line for line in lines if contains(line['text'], resolve_labels)]
+    if len(resolve) != 1 or any(contains(line['text'], inspiration_labels) for line in lines):
         return result
     r = resolve[0]['region']; lh = r['height']
     # Enclosing horizontal and vertical borders prove the single-row module.

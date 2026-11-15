@@ -1,7 +1,18 @@
 import { ipcMain, dialog } from 'electron'
+import { localizedSearchExpression } from '../localization/searchExpression.js'
 
-export function registerLocalizationHandlers(service, getMainWindow) {
-  const operations = { status: () => service.getStatus(), scan: value => service.scan(value), check: () => service.check(), download: () => service.download(), preview: value => service.preview(value), apply: value => service.apply(value), restore: value => service.restore(value) }
+export function registerLocalizationHandlers(service, getMainWindow, runtime = null) {
+  const operations = { status: () => service.getStatus(), scan: value => service.scan(value), check: () => service.check(), download: () => service.download(), apply: value => service.apply(value), restore: value => service.restore(value),
+    catalog: input => {
+      if (!Array.isArray(input?.texts) || input.texts.length > 2000 || input.texts.some(text => typeof text !== 'string' || text.length > 8192)) throw new Error('词库查询格式无效')
+      const revision = runtime?.current().revision || ''
+      const status = service.getStatus()
+      if (status.mappingState === 'unavailable') throw Object.assign(new Error(status.mappingWarning || '当前汉化资源已失效，请先切简体再生成兼容正则'), { code: 'LOCALIZATION_UNAVAILABLE' })
+      if (input.match != null && !['exact', 'contains'].includes(input.match)) throw new Error('词库匹配方式无效')
+      return { revision, mappingState: status.mappingState || 'none', aliases: input.texts.map(text => ({ text, aliases: runtime?.dictionary.aliasesFor(text) || [text], displayText: runtime?.dictionary.localize(text) || text,
+        ...(input.match === 'contains' ? { searchExpression: localizedSearchExpression(runtime?.dictionary, text) } : {}) })) }
+    }
+  }
   for (const [name, operation] of Object.entries(operations)) {
     ipcMain.handle(`localization:${name}`, async (event, input) => {
       const owner = getMainWindow()

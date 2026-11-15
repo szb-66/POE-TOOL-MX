@@ -27,7 +27,7 @@ export function stopCurrentScript() {
   return stopScriptHandler()
 }
 
-export function registerPythonHandlers(python, window, fileWatcher, { server } = {}) {
+export function registerPythonHandlers(python, window, fileWatcher, { server, localizationRuntime } = {}) {
   const {
     detectPythonPath,
     resolvePythonRuntime,
@@ -256,7 +256,8 @@ export function registerPythonHandlers(python, window, fileWatcher, { server } =
     let trusted
     let pythonPath
     try {
-      trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), filePaths: fileWatcher.getFilePaths(), server })
+      trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), filePaths: fileWatcher.getFilePaths(), server,
+        localizationSnapshot: localizationRuntime?.snapshot() })
       // Environment validation must not interrupt a task that is already running.
       pythonPath = resolveCraftingPython(python, trusted.requireStashTabOcr)
       if (!pythonPath) return { success: false, error: trusted.requireStashTabOcr

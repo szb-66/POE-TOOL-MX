@@ -23,7 +23,7 @@ export function sanctumPageDisplay(floor, recommendation, marks, progress) {
 }
 export const roomTypeLabels = { boss: '首领', fountain: '喷泉', merchant: '商人', pact: '契约', reward: '奖励', treasure: '宝藏' }
 export const layoutLabels = { exit: '寻找出口', guards: '击败守卫', arena: '竞技场', trap: '穿越陷阱', miniboss: '击败小首领', boss: '楼层首领' }
-export const timingLabels = { unknown: '尚未确认', immediate: '立即领取', floor: '楼层结束', run: '整轮结束' }
+export const timingLabels = { unknown: '尚未确认', immediate: '立即领取', floor: '楼层结束', 'next-floor': '下一楼层结束', run: '整轮结束' }
 export const roomTitle = room => room?.name || roomTypeLabels[room?.type] || layoutLabels[room?.layout] || '待识别房间'
 export const rewardSummary = room => (room?.rewards || []).map(r => r.currency || '未知奖励').join(' / ')
 export const roomEntrySummary = room => [...new Set((room?.recognition?.matches || [])

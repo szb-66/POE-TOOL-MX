@@ -38,6 +38,17 @@ test('路由和首页都阻止绕过停用模块', () => {
   assert.match(dashboard, /尚未添加，请从侧边栏“更多”中添加后使用/)
 })
 
+test('更多中的未适配功能置灰，卡片没有添加或导航操作', () => {
+  const dialog = source('src/components/Layout/MoreFeaturesDialog.vue')
+  const section = dialog.match(/<section v-if="featureStore\.unsupportedFeatures\.length"[\s\S]*?<\/section>/)?.[0]
+  assert.ok(section)
+  assert.match(section, /未适配功能/)
+  assert.match(section, /v-for="feature in featureStore\.unsupportedFeatures"/)
+  assert.match(section, /aria-disabled="true"/)
+  assert.doesNotMatch(section, /el-button|@click|@keydown|tabindex/)
+  assert.match(dialog, /\.feature-card\.is-unsupported \{[^}]*opacity: \.5;[^}]*cursor: not-allowed/)
+})
+
 test('运行时适配器覆盖需要暂停的模块和海图完整停止协议', () => {
   const runtime = source('src/features/installFeatureRuntime.js')
   const ipc = source('electron/modules/ipc/puzzle.js')

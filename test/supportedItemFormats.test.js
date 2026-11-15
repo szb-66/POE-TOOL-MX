@@ -49,7 +49,7 @@ test('物品详细复制样例可解析详细、隐式和工艺词缀', () => {
   assert.deepEqual(item.craftedMods, ['+20% 全域暴击伤害加成'])
 })
 
-test('普通地图样例可解析阶级、基础属性和外延词缀', () => {
+test('国服三字段地图样例可解析阶级、基础属性和外延词缀', () => {
   const item = parseItemInfo(byId['map-normal'])
   assert.equal(item.category, '异界地图')
   assert.equal(item.mapTier, 16)
@@ -61,7 +61,7 @@ test('普通地图样例可解析阶级、基础属性和外延词缀', () => {
 
 test('完整六字段地图样例可解析替代阶级写法和全部扩展基底', () => {
   const item = parseItemInfo(byId['map-t17'])
-  assert.equal(item.category, '地图')
+  assert.equal(item.category, '异界地图')
   assert.equal(item.mapTier, 17)
   assert.equal(item.moreMaps, 35)
   assert.equal(item.moreScarabs, 70)

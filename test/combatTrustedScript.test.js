@@ -103,14 +103,13 @@ test('国服和国际服录入战斗按键可保存配置，配置保存不会�
     }
     assert.equal(harness.launches.length, 0)
     assert.equal(harness.activations.length, 0)
-    if (server === 'international') {
-      for (const channel of ['combat-start-potion', 'combat-start-loop', 'combat-execute-portal']) {
-        const start = await harness.handlers.get(channel)({}, { config })
-        assert.equal(start.success, false)
-        assert.equal(start.error.code, 'SERVER_FEATURE_UNAVAILABLE')
-      }
-      assert.equal(harness.launches.length, 0)
+    for (const channel of ['combat-start-potion', 'combat-start-loop', 'combat-execute-portal']) {
+      const start = await harness.handlers.get(channel)({}, { config: combatConfig.createDefaultCombatAssist() })
+      assert.equal(start.success, false)
+      assert.equal(typeof start.error, 'string', `${server}: 应到达配置校验而非服务器门禁`)
     }
+    assert.equal(harness.launches.length, 0)
+    assert.equal(harness.activations.length, 0)
   }
 })
 

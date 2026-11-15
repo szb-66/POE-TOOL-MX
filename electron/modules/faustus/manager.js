@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url'
 import { createFaustusRunSnapshot } from '../../../src/utils/faustusConfig.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 import { FAUSTUS_STAGE_LABELS } from '../../../shared/faustusStages.js'
+import { getServer } from '../../../shared/serverMode.js'
+import { createFaustusRuntimeLanguage } from './runtimeLanguage.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -92,7 +94,8 @@ export class FaustusManager {
   constructor({
     python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, foregroundState, subscribeForeground, automationLock,
     processFactory, scriptPath, fileSystem = fs, isPackaged = false, resourcesPath = process.resourcesPath,
-    feedbackOverlay = null, resolveDisplayBounds = null
+    feedbackOverlay = null, resolveDisplayBounds = null, server = getServer(),
+    localizationProvider = () => [], localizationRevisionProvider = () => ''
   } = {}) {
     this.python = python
     this.fileWatcher = fileWatcher
@@ -106,6 +109,9 @@ export class FaustusManager {
     this.resourcesPath = resourcesPath
     this.feedbackOverlay = feedbackOverlay
     this.resolveDisplayBounds = resolveDisplayBounds
+    this.server = getServer(server.id)
+    this.localizationProvider = localizationProvider
+    this.localizationRevisionProvider = localizationRevisionProvider
     this.feedbackSessionId = null
     this.preparationToken = null
     this.startAttempt = null
@@ -144,11 +150,16 @@ export class FaustusManager {
     if (!this.fileSystem.existsSync?.(occupancyModel.modelPath) || !this.fileSystem.existsSync?.(occupancyModel.manifestPath)) {
       throw new Error('通用格子模型文件不完整，无法开始浮士德扫描')
     }
+    const footprints = itemFootprintRegistry.snapshot()
+    const revision = this.server.id === 'international' ? this.localizationRevisionProvider() : ''
+    const language = createFaustusRuntimeLanguage({ server: this.server, revision,
+      entries: revision ? this.localizationProvider() : [], footprints })
     return {
       ...config,
+      runtime_language: language,
       model_path: occupancyModel.modelPath,
       manifest_path: occupancyModel.manifestPath,
-      item_footprints: itemFootprintRegistry.snapshot()
+      item_footprints: footprints
     }
   }
 

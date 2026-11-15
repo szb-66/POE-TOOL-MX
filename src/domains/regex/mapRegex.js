@@ -1,8 +1,10 @@
 import { ATLAS_MAP_AFFIX_SUGGESTIONS } from '../../data/mapAffixSuggestionsData.js'
 import internationalMapData from '../../data/internationalMapData.js'
 import { currentServer } from '../../utils/serverContext.js'
+import { catalogSearchText } from '../../utils/localizedCatalog.js'
 import { compileCompactExpressions, escapeRegexText } from './compactExpression.js'
 import { finalizeRegex, quotedToken, REGEX_LENGTH_LIMIT } from './regexResult.js'
+import { finalizeLocalizedResult, localizedExpression } from './localizedRegex.js'
 
 export { REGEX_LENGTH_LIMIT }
 
@@ -21,25 +23,15 @@ const RAW_MAP_RARITIES = [
   { id: 'rare', label: '稀有', text: '稀有度: 稀有' }
 ]
 
-const T17_MARKERS = [
-  '3 次连锁', '额外随机元素伤害', '淹没法球', '焚界者符文', '迷宫陷阱',
-  '药剂效果总降', '格挡攻击伤害', '血痕锯刃魔', '塑界者触碰',
-  '虚空忆境首领', '缓速藤蔓', '无常之核', '贤主会干涉', '陨石的目标',
-  '不稳定的恶魔触手', '随机印记', '稀有怪物死亡时暂时复活'
-]
-
-const rawAffixes = ATLAS_MAP_AFFIX_SUGGESTIONS.map((entry) => {
-  const text = `${entry.value} ${entry.example} ${(entry.variants || []).join(' ')}`
-  return {
+const rawAffixes = ATLAS_MAP_AFFIX_SUGGESTIONS.map((entry) => ({
     id: entry.value,
     value: entry.value,
     example: entry.example,
     variants: entry.variants || [entry.example],
     affixType: entry.affixType,
     tags: entry.tags || [],
-    regions: T17_MARKERS.some(marker => text.includes(marker)) ? ['t17'] : ['normal']
-  }
-})
+    regions: ['atlas']
+}))
 
 const mapCorpusEntries = [
   ...RAW_MAP_STATS.map(item => ({ id: `stat:${item.id}`, source: item.label, variants: [item.sample], fallbackExpression: item.label })),
@@ -114,10 +106,10 @@ export function mapRegexCatalog(language = currentServer.language) {
   const expressions = compileCompactExpressions(entries, { language: 'en' })
   const catalog = {
     expressions: Object.freeze(Object.fromEntries(expressions)), corpus: entries.map(entry => ({ id: entry.id, variants: entry.variants })),
-    stats: stats.map(stat => ({ id: stat.id, label: stat.label, expression: `${escapeRegexText(stat.text)}:[ \\t+]*`, compactExpression: expressions.get(`stat:${stat.id}`), suffix: '%' })),
+    stats: stats.map(stat => ({ id: stat.id, label: stat.label, text: stat.text, expression: `${escapeRegexText(stat.text)}:[ \\t+]*`, compactExpression: expressions.get(`stat:${stat.id}`), suffix: '%' })),
     rarities: rarities.map(item => ({ ...item, expression: expressions.get(`rarity:${item.id}`) })),
     corrupted: expressions.get('state:corrupted'),
-    affixes: internationalMapData.atlas.map(item => ({ ...item, compactExpression: expressions.get(`affix:${item.id}`) }))
+    affixes: internationalMapData.atlas.map(item => ({ ...item, regions: ['atlas'], compactExpression: expressions.get(`affix:${item.id}`) }))
   }
   catalogs.set(language, catalog)
   return catalog
@@ -147,7 +139,7 @@ export function createDefaultMapRegexConfig(language = currentServer.language) {
     corrupted: { enabled: false, mode: 'include' },
     priceRange: { min: null, max: null, currencies: [] },
     affixMatch: 'any',
-    region: 'normal',
+    region: 'atlas',
     affixTypes: ['prefix', 'suffix'],
     includeAffixIds: [],
     excludeAffixIds: []
@@ -173,11 +165,20 @@ export function cleanMapRegexConfig(value, language = currentServer.language) {
       currencies: uniqueKnown(source.priceRange?.currencies, priceCurrencyIds)
     },
     affixMatch: source.affixMatch === 'all' ? 'all' : 'any',
-    region: source.region === 't17' ? 't17' : 'normal',
+    // Legacy normal/t17 presets retain their conditions in the unified catalog.
+    region: 'atlas',
     affixTypes: uniqueKnown(source.affixTypes, new Set(['prefix', 'suffix'])),
     includeAffixIds: uniqueKnown(source.includeAffixIds, affixIds),
     excludeAffixIds: uniqueKnown(source.excludeAffixIds, affixIds)
   }
+}
+
+export function filterMapRegexAffixes(config, query = '', language = currentServer.language, aliases = null) {
+  const keyword = query.trim().toLocaleLowerCase('zh-CN')
+  const types = config?.affixTypes || ['prefix', 'suffix']
+  return mapRegexCatalog(language).affixes
+    .filter(item => item.affixType === 'mixed' || types.includes(item.affixType))
+    .filter(item => !keyword || catalogSearchText([item.value, item.example, ...(item.variants || []), ...(item.tags || [])], aliases).includes(keyword))
 }
 
 export function createDefaultMapRegexPreset(id = 'default', name = '默认预设') {
@@ -274,29 +275,43 @@ export function generateMapPriceExpression(priceRange) {
   return `~b/o ${numericRangePattern(priceRange.min, priceRange.max)} ${currencyExpression}`
 }
 
-export function generateMapRegex(rawConfig, language = currentServer.language) {
+export function mapRegexLocalizationTexts() {
+  const catalog = mapRegexCatalog('en')
+  return [...catalog.stats.map(stat => `${stat.text}:`), ...catalog.rarities.map(item => item.text), 'Corrupted', ...catalog.affixes.flatMap(item => [item.value, item.example, ...(item.variants || [])])]
+}
+
+export function generateMapRegex(rawConfig, language = currentServer.language, aliases = null) {
   const config = cleanMapRegexConfig(rawConfig, language)
   const catalog = mapRegexCatalog(language)
   const tokens = []
   let includeCount = 0
   let excludeCount = 0
+  const missing = []
   const statExpressions = catalog.stats.filter(stat => config.stats[stat.id].enabled).map(stat => {
     includeCount += 1
-    return `${stat.expression}${numericAtLeastPattern(config.stats[stat.id].value, config.numericMode)}${stat.suffix}`
+    const localized = localizedExpression(stat.expression, [`${stat.text}:`], aliases, { suffix: '[ \\t+]*' })
+    if (aliases && !localized.mapped) missing.push(stat.label)
+    return `${localized.expression}${numericAtLeastPattern(config.stats[stat.id].value, config.numericMode)}${stat.suffix}`
   })
   if (statExpressions.length) {
     if (config.statMatch === 'any') tokens.push(quotedToken(statExpressions.join('|')))
     else tokens.push(...statExpressions.map(expression => quotedToken(expression)))
   }
 
-  const rarityExpressions = catalog.rarities.filter(item => config.rarity.selectedIds.includes(item.id)).map(item => item.expression)
+  const rarityExpressions = catalog.rarities.filter(item => config.rarity.selectedIds.includes(item.id)).map(item => {
+    const localized = localizedExpression(item.expression, [item.text], aliases)
+    if (aliases && !localized.mapped) missing.push(item.label)
+    return localized.expression
+  })
   if (rarityExpressions.length) {
     tokens.push(quotedToken(rarityExpressions.join('|'), config.rarity.mode === 'exclude'))
     if (config.rarity.mode === 'exclude') excludeCount += rarityExpressions.length
     else includeCount += rarityExpressions.length
   }
   if (config.corrupted.enabled) {
-    tokens.push(quotedToken(catalog.corrupted, config.corrupted.mode === 'exclude'))
+    const localized = localizedExpression(catalog.corrupted, ['Corrupted'], aliases)
+    if (aliases && !localized.mapped) missing.push('腐化状态')
+    tokens.push(quotedToken(localized.expression, config.corrupted.mode === 'exclude'))
     if (config.corrupted.mode === 'exclude') excludeCount += 1
     else includeCount += 1
   }
@@ -308,7 +323,13 @@ export function generateMapRegex(rawConfig, language = currentServer.language) {
     includeCount += 1
   }
 
-  const expressionForIds = ids => ids.map(id => catalog.affixes.find(item => item.id === id)?.compactExpression).filter(Boolean)
+  const expressionForIds = ids => ids.map(id => {
+    const item = catalog.affixes.find(item => item.id === id)
+    if (!item) return null
+    const localized = localizedExpression(item.compactExpression, [item.value, item.example, ...(item.variants || [])], aliases)
+    if (aliases && !localized.mapped) missing.push(item.value)
+    return localized.expression
+  }).filter(Boolean)
   const included = expressionForIds(config.includeAffixIds)
   const excluded = expressionForIds(config.excludeAffixIds)
   if (included.length) {
@@ -320,5 +341,5 @@ export function generateMapRegex(rawConfig, language = currentServer.language) {
     tokens.push(quotedToken(excluded.join('|'), true))
     excludeCount += excluded.length
   }
-  return finalizeRegex(tokens, { includeCount, excludeCount })
+  return finalizeLocalizedResult(finalizeRegex(tokens, { includeCount, excludeCount }), missing, Boolean(aliases))
 }

@@ -1,6 +1,6 @@
 <template>
   <div class="chaos-panel">
-    <el-alert v-if="readOnly" title="国际服当前支持仓库读取与配方计算；游戏内控制、网格校准和自动取件尚未开放。" type="info" :closable="false" />
+    <el-alert v-if="readOnly" title="当前服务器暂未开放游戏内配方控制。" type="info" :closable="false" />
     <el-card class="block">
       <template #header><span>游戏内商店配方控制</span></template>
       <el-form label-width="130px">
@@ -239,8 +239,8 @@
 </template>
 
 <script setup>
-import { currentServer } from '../../utils/serverContext.js'
-const readOnly = currentServer.id === 'international'
+import { currentServer, canUseGameInput } from '../../utils/serverContext.js'
+const readOnly = !canUseGameInput('recipe')
 import { computed } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
 import { settingsRoute } from '@/router/settingsNavigation'

@@ -1,3 +1,5 @@
+import { normalizeSanctumEvidence } from './localization.js'
+
 export const observationKey = floor => JSON.stringify([floor?.sanctumRunId || floor?.runId, floor?.floorId, floor?.mapKey || null, floor?.currentRoomId || (floor?.initialSelection ? '__entry__' : null)])
 
 export function currentRunObservation(observation, floor) {
@@ -17,25 +19,25 @@ export function validateRunResources(input, floor, source = 'manual') {
 }
 
 // Labels follow the values as the HUD changes layout; bare HUD counters are not resources.
-export function parseResourceRegions(reads, floor) {
+export function parseResourceRegions(reads, floor, catalog) {
   const input = {}, issues = []
   const compact = text => text.replace(/\s/g, '').replaceAll('啟迪','启迪')
   const numeric = value => Number(value.replace(/[,，]/g, ''))
   const unique = values => values.length && values.every(v => JSON.stringify(v) === JSON.stringify(values[0])) ? values[0] : null
   for (const key of ['coinsRegion','mapResourcesRegion','hudResourcesRegion']) {
-    const read = reads?.[key]
+    const read = reads?.[key] && normalizeSanctumEvidence(reads[key], catalog)
     if (!read || read.reason || read.status && read.status !== 'located') {
       if (read?.reason) issues.push(read.reason)
       continue
     }
     const lines = read.ocrLines?.length ? read.ocrLines : (read.texts || []).map(text => ({text}))
     if (key !== 'coinsRegion') {
-      const resolveLines = lines.filter(line => /坚毅/.test(line.text))
-      const values = resolveLines.map(line => /^坚毅[:：]?(\d+)\/(\d+)$/.exec(compact(line.text)))
+      const resolveLines = lines.filter(line => /坚毅|堅毅|\bResolve\b/i.test(line.text))
+      const values = resolveLines.map(line => /^(?:坚毅|堅毅|Resolve)[:：]?(\d+)\/(\d+)$/i.exec(compact(line.text)))
       const resolved = values.length && values.every(Boolean) ? unique(values.map(m=>[Number(m[1]),Number(m[2])])) : null
       if (resolved && resolved[0] <= resolved[1] && resolved[1] <= 1e9) [input.resolve,input.maxResolve] = resolved
-      const inspirationLines = lines.filter(line => /启|啟/.test(line.text))
-      const inspiration = inspirationLines.map(line => /^启迪[:：]?(\d+)$/.exec(compact(line.text)))
+      const inspirationLines = lines.filter(line => /启|啟|\bInspiration\b/i.test(line.text))
+      const inspiration = inspirationLines.map(line => /^(?:启迪|Inspiration)[:：]?(\d+)$/i.exec(compact(line.text)))
       const inspired = inspiration.length && inspiration.every(Boolean) ? unique(inspiration.map(m=>Number(m[1]))) : null
       if (inspired !== null && inspired <= 1e9) input.inspiration = inspired
       else if (!inspirationLines.length && resolved && input.resolve !== undefined && read.resourceEvidence?.noInspiration === true) input.inspiration = 0
@@ -52,7 +54,7 @@ export function parseResourceRegions(reads, floor) {
     if (blocks.some(b=>/\d\s+\d/.test(b.text)) || blocks.filter(b=>/^\d+$/.test(compact(b.text))).length > 1
       || blocks.some((b,i)=>i && b.region.x-(blocks[i-1].region.x+blocks[i-1].region.width)>b.region.height)) continue
     const text = compact(blocks.map(b=>b.text).join(''))
-    const match = /^(?:耀金币[:：]?)?(\d+|\d{1,3}(?:[,，]\d{3})+)(?:[（(][+＋-]?\d+[）)])?$/.exec(text)
+    const match = /^(?:(?:耀金币|耀金幣|Aureus(?:Coins)?)[:：]?)?(\d+|\d{1,3}(?:[,，]\d{3})+)(?:[（(][+＋-]?\d+[）)])?$/i.exec(text)
     if (match && numeric(match[1]) <= 1e9) input.coins = numeric(match[1])
   }
   const result = validateRunResources(input, floor, 'observed')

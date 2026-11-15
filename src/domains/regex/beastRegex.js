@@ -4,6 +4,7 @@ import { currentServer } from '../../utils/serverContext.js'
 import { compileCompactExpressions, escapeRegexText } from './compactExpression.js'
 import { cleanMapRegexConfig, generateMapPriceExpression } from './mapRegex.js'
 import { finalizeRegex, quotedToken } from './regexResult.js'
+import { finalizeLocalizedResult, localizedExpression } from './localizedRegex.js'
 
 const chineseExpressions = compileCompactExpressions(BEAST_NAMES.map(name => ({
   id: name, source: name, variants: [name], fallbackExpression: `^${escapeRegexText(name)}$`
@@ -52,13 +53,19 @@ export function cleanBeastRegexPresets(value) {
   return presets
 }
 
-export function generateBeastRegex(value, language = currentServer.language) {
+export function generateBeastRegex(value, language = currentServer.language, aliases = null) {
   const config = cleanBeastRegexConfig(value, language)
-  const expressions = new Map(beastRegexOptions(language).map(beast => [beast.id, beast.expression]))
+  const options = beastRegexOptions(language)
+  const missing = []
+  const expressions = new Map(options.map(beast => {
+    const localized = localizedExpression(beast.expression, [beast.name], aliases)
+    if (aliases && !localized.mapped && [...config.includeIds, ...config.excludeIds].includes(beast.id)) missing.push(beast.name)
+    return [beast.id, localized.expression]
+  }))
   const price = generateMapPriceExpression(config.priceRange)
-  return finalizeRegex([
+  return finalizeLocalizedResult(finalizeRegex([
     quotedToken(price),
     quotedToken(config.includeIds.map(id => expressions.get(id)).join('|')),
     quotedToken(config.excludeIds.map(id => expressions.get(id)).join('|'), true)
-  ], { includeCount: config.includeIds.length + Number(Boolean(price)), excludeCount: config.excludeIds.length })
+  ], { includeCount: config.includeIds.length + Number(Boolean(price)), excludeCount: config.excludeIds.length }), missing, Boolean(aliases))
 }

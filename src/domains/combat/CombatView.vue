@@ -1,6 +1,6 @@
 <template>
   <div class="combat-page primary-page primary-page__scroll primary-page__content">
-    <el-alert v-if="!combatInputEnabled" title="英文配置已接入；游戏操作待开发版实测，当前可先完成坐标与颜色采样。" type="info" :closable="false" />
+    <el-alert v-if="!combatInputEnabled" title="当前服务器暂未开放战斗辅助，可先保存配置。" type="info" :closable="false" />
     <el-card shadow="never" class="section-card combat-module" data-module="combat-settings">
       <template #header>
         <div class="module-header">
