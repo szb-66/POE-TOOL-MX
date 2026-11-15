@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 import { cleanBeastRegexPresets, createDefaultBeastRegexPreset } from './beastRegex.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'

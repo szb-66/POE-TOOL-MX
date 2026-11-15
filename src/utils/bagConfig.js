@@ -166,11 +166,15 @@ export function parseBagItemHeader(clipboardText) {
     if (!line.includes(':')) header.push(line)
   }
   if (!category || header.length === 0) return null
+  const tierLine = lines.find(line => /^(?:Item Tier|物品阶级)[：:]/.test(line))
+  const tierMatch = tierLine?.match(/^(?:Item Tier|物品阶级)[：:]\s*([0-9]+)\s*$/)
+  const itemTier = tierMatch ? Number(tierMatch[1]) : 0
 
   return {
     category,
     name: header[0],
-    baseName: header[1] || ''
+    baseName: header[1] || '',
+    ...(Number.isSafeInteger(itemTier) && itemTier > 0 ? { itemTier } : {})
   }
 }
 

@@ -215,10 +215,15 @@ export async function stopBagStash() {
   return result
 }
 
-export async function initBagAutomation() {
+export async function initBagAutomation({ restoreEnabled = true } = {}) {
   if (initialized) return
   initialized = true
   const bagStore = useBagStore()
+  if (!restoreEnabled) {
+    // 国际服每次启动须由用户手动启用；不重写保存的配置。
+    bagStore.moduleEnabled = false
+    bagStore.allflameReceiverEnabled = false
+  }
   disposers = [
     electronApi.events.onBagDetectionMatch((data) => {
       bagStore.setMatchedStatus(Boolean(data.matched), data)

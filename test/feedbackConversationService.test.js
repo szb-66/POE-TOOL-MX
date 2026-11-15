@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { FeedbackService } from '../electron/modules/feedback/service.js'
 
-const config = { envId: 'env', region: 'ap-shanghai', bucket: 'feedback', table: 'app_feedback', publishableKey: 'publishable' }
+const config = { baseUrl: 'https://feedback.example.test' }
 const feedbackId = '11111111-1111-4111-8111-111111111111'
 const clientMessageId = '22222222-2222-4222-8222-222222222222'
 
@@ -46,8 +46,9 @@ test('会话仅返回签名附件并保持原始问题和正序消息', async ()
   assert.equal(JSON.stringify(result).includes('objectKey'), false)
 })
 
-test('用户回复按消息路径上传，写入失败逆序回滚并保留选择令牌', async () => {
+test('用户回复按消息路径上传，写入失败逆序回滚并保留选择令牌', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-conversation-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const first = path.join(root, 'first.txt')
   const second = path.join(root, 'second.log')
   await writeFile(first, 'first')
@@ -68,8 +69,9 @@ test('用户回复按消息路径上传，写入失败逆序回滚并保留选�
   assert.ok(selected.every(item => instance.selections.has(item.token)))
 })
 
-test('幂等重复回复成功后只清理本次额外上传对象', async () => {
+test('幂等重复回复成功后只清理本次额外上传对象', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-idempotent-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const file = path.join(root, 'evidence.txt')
   await writeFile(file, 'evidence')
   const removed = []
@@ -81,8 +83,9 @@ test('幂等重复回复成功后只清理本次额外上传对象', async () =>
   assert.equal(instance.selections.has(selected.token), false)
 })
 
-test('消息已落库但响应丢失时保留消息引用的附件并返回幂等成功', async () => {
+test('消息已落库但响应丢失时保留消息引用的附件并返回幂等成功', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-ambiguous-reply-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const file = path.join(root, 'evidence.txt')
   await writeFile(file, 'evidence')
   const uploaded = []
@@ -104,8 +107,9 @@ test('消息已落库但响应丢失时保留消息引用的附件并返回幂�
   assert.equal(instance.selections.has(selected.token), false)
 })
 
-test('消息写入结果无法确认时不删除可能已被引用的附件', async () => {
+test('消息写入结果无法确认时不删除可能已被引用的附件', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-unknown-reply-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const file = path.join(root, 'evidence.txt')
   await writeFile(file, 'evidence')
   const removed = []
@@ -122,8 +126,9 @@ test('消息写入结果无法确认时不删除可能已被引用的附件', as
   assert.equal(instance.selections.has(selected.token), true)
 })
 
-test('无法确认的消息在重试前对账并清理确认未引用的旧上传', async () => {
+test('无法确认的消息在重试前对账并清理确认未引用的旧上传', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-retry-reconcile-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const file = path.join(root, 'evidence.txt')
   await writeFile(file, 'evidence')
   const uploaded = []

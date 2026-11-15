@@ -1,3 +1,4 @@
+import { normalizeItemTextLanguage } from '../../../shared/itemTextLanguage.js'
 import { parseHeistMetadata } from './heist.js'
 import { parseLogbookMetadata } from './logbook.js'
 import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
@@ -76,6 +77,8 @@ function parseMercenaryVoucher(lines) {
  */
 
 export function parseItemInfo(clipboardText) {
+  const itemTextLanguage = /^Item Class:/m.test(String(clipboardText || '')) ? 'en' : 'zh-CN'
+  clipboardText = normalizeItemTextLanguage(clipboardText)
   if (!clipboardText) {
     return null
   }
@@ -87,6 +90,7 @@ export function parseItemInfo(clipboardText) {
   const logbook = parseLogbookMetadata(lines)
   
   const itemInfo = {
+    itemTextLanguage,
     category: '',
     rarity: '',
     name: '',
@@ -126,6 +130,8 @@ export function parseItemInfo(clipboardText) {
     attacksPerSecond: 0,
     moreMaps: 0,
     moreScarabs: 0,
+    moreThreads: 0,
+    atlasDrops: 0,
     moreCurrency: 0,
     memoryLevel: null,
     mercenary: mercenaryVoucher?.value || null,
@@ -223,6 +229,7 @@ export function parseItemInfo(clipboardText) {
     '只能给赏金猎人同伴装备',
     '在您的藏身处里把它交给丹宁',
     '在私人地图装置',
+    'Voyage Modifier will be revealed once Charted',
     '放入一个物品',
     '出售获得通货',
     '将此物品带给瓦莱丽',
@@ -246,6 +253,8 @@ export function parseItemInfo(clipboardText) {
     '亡者硫磺:',
     '更多地图:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤，防止解析失败时被误处理）
     '更多圣甲虫:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
+    '更多丝线:',
+    '异界掉落:',
     '更多通货:', // T17地图属性（已专门解析，但保留在ignorePatterns中作为备用过滤）
     '怪物等级:', // 地图属性
     '品质:',
@@ -271,11 +280,13 @@ export function parseItemInfo(clipboardText) {
     '智慧:',
     '--------'
   ];
-  const isClusterJewel = () => /^(?:大型|中型|小型)星团珠宝$/.test(itemInfo.baseName || itemInfo.name)
+  const isClusterJewel = () => /^(?:(?:大型|中型|小型)星团珠宝|(?:Large|Medium|Small) Cluster Jewel)$/.test(itemInfo.baseName || itemInfo.name)
   const isClusterJewelDescriptionLine = (text) => isClusterJewel() &&
-    /^放入天赋树上配置好的.+珠宝槽。增加的天赋跟珠宝范围无关。可以右键点击从插槽中移除。$/.test(text)
+    (/^放入天赋树上配置好的.+珠宝槽。增加的天赋跟珠宝范围无关。可以右键点击从插槽中移除。$/.test(text) ||
+      /^Place into an allocated .+ jewel socket on the Passive Skill Tree\./.test(text))
   const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern)) ||
-    isClusterJewelDescriptionLine(text)
+    isClusterJewelDescriptionLine(text) ||
+    /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map|Can only (?:be used|hold)|You can only have|This item can be used)/.test(text)
   const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
   const influenceLabels = {
     ...CLASSIC_INFLUENCE_LABELS,
@@ -298,6 +309,14 @@ export function parseItemInfo(clipboardText) {
     if (mercenaryVoucher?.consumedIndexes.has(i)) continue
     if (heist?.consumedIndexes.has(i)) { flushModifier(); continue }
     if (logbook?.consumedIndexes.has(i)) { flushModifier(); continue }
+
+    if (/^物品阶级[：:]/.test(line)) {
+      flushModifier()
+      const tierMatch = line.match(/^物品阶级[：:]\s*([0-9]+)\s*$/)
+      const itemTier = tierMatch ? Number(tierMatch[1]) : 0
+      if (Number.isSafeInteger(itemTier) && itemTier > 0) itemInfo.itemTier = itemTier
+      continue
+    }
 
     // Gem body lines describe the skill, not equipment modifiers. Requirements
     // have their own level and must never overwrite the gem's level.
@@ -489,7 +508,7 @@ export function parseItemInfo(clipboardText) {
       itemInfo.baseName = '地图'
       continue
     }
-    else if (identityHeaderOpen && itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {
+    else if (identityHeaderOpen && itemInfo.category === '海图' && /(?:海图|Chart)$/.test(line) && !line.includes(':')) {
       itemInfo.baseName = line
       if (!itemInfo.name) itemInfo.name = itemInfo.baseName
     }
@@ -564,6 +583,14 @@ export function parseItemInfo(clipboardText) {
         itemInfo.moreScarabs = parseInt(match[1])
       }
       continue // 解析后跳过，避免被其他逻辑处理
+    }
+    else if (line.startsWith('更多丝线:')) {
+      const match = line.match(/更多丝线:\s*\+?(\d+)%/)
+      if (match) itemInfo.moreThreads = parseInt(match[1])
+    }
+    else if (line.startsWith('异界掉落:')) {
+      const match = line.match(/异界掉落:\s*\+?(\d+)%/)
+      if (match) itemInfo.atlasDrops = parseInt(match[1])
     }
     else if (line.includes('更多通货:')) {
       const match = line.match(/更多通货:\s*\+?(\d+)%/)

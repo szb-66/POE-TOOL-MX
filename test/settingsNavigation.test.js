@@ -9,9 +9,9 @@ import {
 
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('设置导航仅接受七个稳定 Tab 单值并为合法目标生成查询路由', () => {
+test('设置导航接受汉化页等稳定 Tab 单值并为合法目标生成查询路由', () => {
   assert.deepEqual(SETTINGS_TABS, [
-    'general', 'automation', 'detection', 'overlay', 'system', 'feedback', 'about'
+    'general', 'localization', 'automation', 'detection', 'overlay', 'system', 'feedback', 'about'
   ])
   for (const tab of SETTINGS_TABS) {
     assert.equal(resolveSettingsTab(tab), tab)

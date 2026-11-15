@@ -17,6 +17,7 @@ import { disposeCombatAssist, initCombatAssist, stopLoopAssist, stopPotionAssist
 import { updateShortcuts } from '@/utils/scriptService.js'
 import { registerFeatureRuntimeAdapter, setFeatureShortcutSynchronizer } from './featureRuntime.js'
 import { reportFeatureStartupEvent } from '@/utils/startupReporter.js'
+import { currentServer } from '@/utils/serverContext.js'
 
 const successful = result => result !== false && result?.success !== false
 
@@ -98,11 +99,11 @@ export function installFeatureRuntime({ router }) {
     if (!featureDisposers.has('bag')) {
       setFeatureDisposer('bag', stashStore.listen())
       useJunfengListener('bag')
-      await initBagAutomation()
+      await initBagAutomation({ restoreEnabled: currentServer.id === 'cn' })
     }
     const results = await Promise.all([
-      stashStore.initializeRuntime({ preserveEnabledOnFailure: true }),
-      junfengStore.initializeRuntime({ preserveEnabledOnFailure: true })
+      stashStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: currentServer.id === 'cn' }),
+      junfengStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: currentServer.id === 'cn' })
     ])
     const failure = results.find(result => !successful(result))
     return failure || { success: true }
@@ -183,6 +184,7 @@ export function installFeatureRuntime({ router }) {
   async function initialize() {
     const warnings = []
     for (const feature of featureStore.enabledFeatures) {
+      if (currentServer.id === 'international' && currentServer.capabilities[feature.id]?.available === false) continue
       const adapter = adapters[feature.id]
       if (!adapter?.resume) continue
       reportFeatureStartupEvent(feature.id, 'started')

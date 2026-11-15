@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { electronApi } from '../api/electron.js'

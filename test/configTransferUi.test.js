@@ -5,10 +5,14 @@ import { readFileSync } from 'node:fs'
 const component = readFileSync(new URL('../src/domains/settings/configTransfer/ConfigTransferCard.vue', import.meta.url), 'utf8')
 const settingsView = readFileSync(new URL('../src/domains/settings/SettingsView.vue', import.meta.url), 'utf8')
 
-test('settings system tab mounts one full configuration transfer card without adding a tab', () => {
+test('settings system tab keeps one configuration transfer card and localization is international-only', () => {
   assert.match(settingsView, /<ConfigTransferCard\s*\/>/)
   assert.match(settingsView, /import ConfigTransferCard from '\.\/configTransfer\/ConfigTransferCard\.vue'/)
-  assert.equal((settingsView.match(/<el-tab-pane/g) || []).length, 7)
+  const tabs = settingsView.match(/<el-tab-pane\b[^>]*>/g) || []
+  const localization = tabs.filter(tab => /name="localization"/.test(tab))
+  assert.equal(tabs.length - localization.length, 7)
+  assert.equal(localization.length, 1)
+  assert.match(localization[0], /v-if="currentServer\.id === 'international'"/)
   const systemStart = settingsView.indexOf("activeTab === 'system'")
   const card = settingsView.indexOf('<ConfigTransferCard />')
   const nextPanel = settingsView.indexOf("activeTab === 'automation'", systemStart)

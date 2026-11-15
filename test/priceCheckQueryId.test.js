@@ -8,6 +8,8 @@ import { loadTradeCatalog } from '../electron/modules/priceCheck/catalog.js'
 const longId = `H4sIAAAA${'query-opaque_'.repeat(30)}AQAA`
 const json = value => ({ ok: true, status: 200, text: async () => JSON.stringify(value) })
 const incompatible = error => error.code === 'API_INCOMPATIBLE'
+// Borrowed methods still run the real resource-revision guard, with explicit server context.
+const officialContext = value => ({ client: { server: { id: 'cn' } }, syncLocalizationRevision: PriceCheckService.prototype.syncLocalizationRevision, ...value })
 
 test('查询编号在搜索、首批、翻页、分布和网页 URL 中保真', async () => {
   const { catalog, status } = await loadTradeCatalog(fileURLToPath(new URL('../electron/modules/priceCheck/catalog.json', import.meta.url)))
@@ -55,7 +57,7 @@ test('缺失或非法编号在搜索、fetch 和跳转中报错，不伪造空�
     assert.equal(calls, 2, '非法搜索响应不应缓存')
     await assert.rejects(client.fetch(id, ['abc']), incompatible)
     assert.equal(calls, 2, '非法编号不应发送挂单请求')
-    await assert.rejects(PriceCheckService.prototype.openOfficial.call({ assertEnabled() {}, latest: { result: { queryId: id } } }), incompatible)
+    await assert.rejects(PriceCheckService.prototype.openOfficial.call(officialContext({ assertEnabled() {}, latest: { result: { queryId: id } } })), incompatible)
   }
 })
 
@@ -78,10 +80,10 @@ test('真实零结果和对象结果兼容，打开浏览器失败不关闭浮�
     assert.deepEqual((await client.search('S30', {})).result, result)
   }
   let closed = false
-  await assert.rejects(PriceCheckService.prototype.openOfficial.call({
+  await assert.rejects(PriceCheckService.prototype.openOfficial.call(officialContext({
     assertEnabled() {}, latest: { league: 'S30', result: { queryId: longId } },
     shell: { openExternal: async () => { throw new Error('browser unavailable') } },
     closeOverlay() { closed = true }
-  }), /browser unavailable/)
+  })), /browser unavailable/)
   assert.equal(closed, false)
 })

@@ -1,5 +1,6 @@
 <template>
   <div class="combat-page primary-page primary-page__scroll primary-page__content">
+    <el-alert v-if="!combatInputEnabled" title="英文配置已接入；游戏操作待开发版实测，当前可先完成坐标与颜色采样。" type="info" :closable="false" />
     <el-card shadow="never" class="section-card combat-module" data-module="combat-settings">
       <template #header>
         <div class="module-header">
@@ -43,7 +44,7 @@
           </div>
           <div class="module-action">
             <el-button v-if="combatStore.running" type="danger" @click="stopPotionAssist">停止</el-button>
-            <el-button v-else type="primary" @click="startPotionAssist">开始</el-button>
+            <el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startPotionAssist">开始</el-button>
           </div>
         </div>
       </template>
@@ -136,7 +137,7 @@
           </div>
           <div class="module-action">
             <el-button v-if="combatStore.loopRunning" type="danger" @click="stopLoopAssist">停止</el-button>
-            <el-button v-else type="primary" @click="startLoopAssist">开始</el-button>
+            <el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startLoopAssist">开始</el-button>
           </div>
         </div>
       </template>
@@ -173,7 +174,7 @@
             </el-tooltip>
           </div>
           <div class="module-action">
-            <el-button type="primary" @click="executePortalAssist">执行回城</el-button>
+            <el-button type="primary" :disabled="!combatInputEnabled" @click="executePortalAssist">执行回城</el-button>
           </div>
         </div>
       </template>
@@ -221,6 +222,7 @@ import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
+import { canUseGameInput } from '@/utils/serverContext.js'
 import { commitGlobalShortcut } from '@/utils/scriptService'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import KeySequenceCapture from '@/components/common/KeySequenceCapture.vue'
@@ -238,6 +240,7 @@ import {
 } from '@/utils/combatService'
 
 const settingsStore = useSettingsStore()
+const combatInputEnabled = canUseGameInput('combat')
 const combatStore = useCombatStore()
 const helpTopics = moduleHelpTopicsById('combat')
 const config = reactive(JSON.parse(JSON.stringify(settingsStore.combatAssist)))

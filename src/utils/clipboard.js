@@ -1,3 +1,4 @@
+import { normalizeItemTextLanguage } from '../../shared/itemTextLanguage.js'
 /**
  * Purpose: 解析剪切板中的物品信息（前端版本，用于浏览器环境）
  * Inputs: clipboardText (string) - 剪切板文本内容
@@ -8,6 +9,7 @@
  */
 
 export function parseItemInfo(clipboardText) {
+  clipboardText = normalizeItemTextLanguage(clipboardText)
   if (!clipboardText) {
     return null
   }
@@ -36,6 +38,11 @@ export function parseItemInfo(clipboardText) {
     areaLevel: 0,
     areaName: '',
     deadmanSulphur: 0,
+    atlasDrops: 0,
+    moreThreads: 0,
+    moreMaps: 0,
+    moreScarabs: 0,
+    moreCurrency: 0,
     isCorrupted: false,     // 是否已腐化
     isUnidentified: false,  // 是否未鉴定
     implicitMods: [],      // 固有词缀
@@ -54,6 +61,7 @@ export function parseItemInfo(clipboardText) {
     '放入一个物品',
     '出售获得通货',
     '航行词缀将在完成测绘后揭示',
+    'Voyage Modifier will be revealed once Charted',
     '将此物品带给瓦莱丽',
     '海图形状：',
     '海图形状:',
@@ -75,6 +83,8 @@ export function parseItemInfo(clipboardText) {
     '亡者硫磺:',
     '更多地图:',
     '更多圣甲虫:',
+    '更多丝线:',
+    '异界掉落:',
     '更多通货:',
     '怪物等级:',
     '品质:',
@@ -101,7 +111,7 @@ export function parseItemInfo(clipboardText) {
     '--------'
   ]
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
-  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern))
+  const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern)) || /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map)/.test(text)
   const extractMapTier = (text) => {
     if (!text) return 0
 
@@ -122,6 +132,12 @@ export function parseItemInfo(clipboardText) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (/^物品阶级[：:]/.test(line)) {
+      const match = line.match(/^物品阶级[：:]\s*([0-9]+)\s*$/)
+      const itemTier = match ? Number(match[1]) : 0
+      if (Number.isSafeInteger(itemTier) && itemTier > 0) itemInfo.itemTier = itemTier
+      continue
+    }
     
     // 物品类别
     if (line.startsWith('物品类别:')) {
@@ -159,7 +175,7 @@ export function parseItemInfo(clipboardText) {
       }
     }
     // 物品名称（在稀有度之后的第一行非空行，且不是分隔线，不是属性行）
-    else if (itemInfo.category === '海图' && line.endsWith('海图') && !line.includes(':')) {
+    else if (itemInfo.category === '海图' && /(?:海图|Chart)$/.test(line) && !line.includes(':')) {
       itemInfo.baseName = line
       itemInfo.name ||= line
       nameFound = true
@@ -216,6 +232,11 @@ export function parseItemInfo(clipboardText) {
     else if (line.includes('亡者硫磺:')) {
       const match = line.match(/亡者硫磺:\s*\+?(\d+)%/)
       if (match) itemInfo.deadmanSulphur = parseInt(match[1])
+    }
+    else if (/^(?:异界掉落|更多丝线|更多地图|更多圣甲虫|更多通货):/.test(line)) {
+      const keys = { '异界掉落': 'atlasDrops', '更多丝线': 'moreThreads', '更多地图': 'moreMaps', '更多圣甲虫': 'moreScarabs', '更多通货': 'moreCurrency' }
+      const match = line.match(/^([^:]+):\s*\+?(\d+)%/)
+      if (match) itemInfo[keys[match[1]]] = parseInt(match[2])
     }
     // 插槽信息
     else if (line.startsWith('插槽:')) {

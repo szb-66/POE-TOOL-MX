@@ -7,12 +7,29 @@ export const MAP_BASE_STATS = {
   '更多通货': 'moreCurrency'
 }
 
+export const INTERNATIONAL_MAP_BASE_STATS = Object.freeze({
+  '异界掉落（Atlas Drops）': 'atlasDrops',
+  '物品稀有度': 'rarity',
+  '怪物群大小': 'packSize',
+  '更多地图': 'moreMaps',
+  '更多丝线（Threads）': 'moreThreads',
+  '更多通货': 'moreCurrency'
+})
+
+const ALL_MAP_STAT_KEYS = [...new Set([...Object.values(MAP_BASE_STATS), ...Object.values(INTERNATIONAL_MAP_BASE_STATS)])]
+
 export const CHART_BASE_STATS = {
   '物品数量': 'quantity',
   '物品稀有度': 'rarity',
   '怪物群大小': 'packSize',
   '亡者硫磺': 'deadmanSulphur'
 }
+
+export const INTERNATIONAL_CHART_BASE_STATS = Object.freeze({
+  '相邻区域物品稀有度': 'rarity',
+  '相邻区域怪物群大小': 'packSize',
+  "亡者硫磺（Dead Man's Sulphur）": 'deadmanSulphur'
+})
 
 export const HEIST_BASE_STATS = {
   '物品数量': 'quantity',
@@ -28,7 +45,7 @@ const COMMON_MIGRATIONS = {
   packSize: ['packSize', 'packSizeNormal', 'packSizeT17']
 }
 
-const SPECIAL_KEYS = ['moreMaps', 'moreScarabs', 'moreCurrency']
+const SPECIAL_KEYS = ['moreMaps', 'moreScarabs', 'moreThreads', 'atlasDrops', 'moreCurrency']
 const DEFAULT_GRID = { startX: 0, startY: 0, offsetX: 0, offsetY: 0, rows: 5, cols: 12 }
 
 function normalizeStat(value) {
@@ -132,7 +149,9 @@ export function createDefaultMapConfig() {
 
 export function migrateMapConfig(rawMap = {}) {
   const defaults = createDefaultMapConfig()
-  const atlas = migrateRollingProfile(rawMap, Object.values(MAP_BASE_STATS))
+  // 保留两服各自字段，旧圣甲虫/数量阈值不能冒充新版丝线/异界掉落。
+  const statKeys = ALL_MAP_STAT_KEYS.filter(key => Object.values(MAP_BASE_STATS).includes(key) || rawMap.match?.mandatoryStats?.[key] || rawMap.match?.optionalStats?.[key])
+  const atlas = migrateRollingProfile(rawMap, statKeys)
 
   const migrated = {
     ...defaults,

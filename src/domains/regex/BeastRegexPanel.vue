@@ -26,7 +26,7 @@
           <template #header><span>野兽名称筛选</span></template>
           <el-input v-model="query" clearable placeholder="搜索野兽名称" :prefix-icon="Search" />
           <div v-if="selected.length" class="selected-summary">
-            <el-tag v-for="item in selected" :key="item.id" :type="item.mode === 'exclude' ? 'danger' : 'success'" closable @close="remove(item.id)">{{ item.mode === 'exclude' ? '排除' : '包括' }} · {{ item.id }}</el-tag>
+            <el-tag v-for="item in selected" :key="item.id" :type="item.mode === 'exclude' ? 'danger' : 'success'" closable @close="remove(item.id)">{{ item.mode === 'exclude' ? '排除' : '包括' }} · {{ item.name }}</el-tag>
           </div>
           <p class="hint">包括项匹配任意一种野兽；价格与名称同时满足。共 {{ options.length }} 种野兽。</p>
           <div class="beast-list">
@@ -63,10 +63,10 @@ const query = ref('')
 const config = computed(() => store.currentBeastRegexPreset.beastRegex)
 const result = computed(() => generateBeastRegex(config.value))
 const priceStatus = computed(() => validateMapPriceRange(config.value.priceRange))
-const filtered = computed(() => options.filter(item => item.name.includes(query.value.trim())))
+const filtered = computed(() => options.filter(item => item.name.toLocaleLowerCase().includes(query.value.trim().toLocaleLowerCase())))
 const selected = computed(() => [
-  ...config.value.includeIds.map(id => ({ id, mode: 'include' })),
-  ...config.value.excludeIds.map(id => ({ id, mode: 'exclude' }))
+  ...config.value.includeIds.map(id => ({ id, name: options.find(item => item.id === id)?.name || id, mode: 'include' })),
+  ...config.value.excludeIds.map(id => ({ id, name: options.find(item => item.id === id)?.name || id, mode: 'exclude' }))
 ])
 let saveTimer
 watch(config, () => { clearTimeout(saveTimer); saveTimer = setTimeout(store.save, 250) }, { deep: true })

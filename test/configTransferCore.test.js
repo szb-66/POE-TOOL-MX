@@ -42,7 +42,7 @@ test('builds and parses a versioned bundle with all compatible sections selected
     }
   })
   assert.equal(bundle.kind, CONFIG_BUNDLE_KIND)
-  assert.equal(bundle.formatVersion, 1)
+  assert.equal(bundle.formatVersion, 2)
   assert.equal(bundle.sections['preset.item'].schemaVersion, 1)
 
   const parsed = parseConfigBundle(serializeConfigBundle(bundle))
@@ -57,7 +57,7 @@ test('rejects empty, malformed, future and oversized bundles with stable error c
   )
   assert.throws(() => parseConfigBundle('{'), error => error.code === 'INVALID_JSON')
   assert.throws(
-    () => parseConfigBundle(JSON.stringify({ kind: CONFIG_BUNDLE_KIND, formatVersion: 2, sections: {} })),
+    () => parseConfigBundle(JSON.stringify({ kind: CONFIG_BUNDLE_KIND, formatVersion: 3, sections: {} })),
     error => error.code === 'FUTURE_FORMAT_VERSION'
   )
   const oversized = '中'.repeat(Math.ceil(CONFIG_BUNDLE_MAX_BYTES / utf8ByteLength('中')) + 1)

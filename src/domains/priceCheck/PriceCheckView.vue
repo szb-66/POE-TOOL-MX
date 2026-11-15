@@ -1,5 +1,6 @@
 <template>
-  <div class="price-check-page primary-page primary-page--column">
+  <ManualPriceCheckPanel v-if="currentServer.id === 'international'" />
+  <div v-else class="price-check-page primary-page primary-page--column">
     <div class="primary-page__scroll">
       <div class="primary-page__content">
       <el-row class="price-check-content app-grid" :gutter="16">
@@ -136,13 +137,15 @@
 </template>
 
 <script setup>
+import ManualPriceCheckPanel from './ManualPriceCheckPanel.vue'
+import { currentServer } from '../../utils/serverContext.js'
 import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { CRAFTING_TOPICS, moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { usePriceCheckStore } from '@/stores/priceCheck'
-import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { usePoeAccountStore } from '@/stores/poeAccount'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { settingsRoute } from '@/router/settingsNavigation'
 import { collectPriceCheckConfigurationIssues, CONFIGURATION_ACTIONS, CONFIGURATION_MODULES } from '@/domains/configurationGuide/configurationIssues.js'
@@ -152,8 +155,8 @@ import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/c
 const CRAFTING_PRICE_CHECK_TOPIC = CRAFTING_TOPICS.find(topic => topic.id === 'crafting-price-check')
 const helpTopics = [...moduleHelpTopicsById('price-check'), CRAFTING_PRICE_CHECK_TOPIC].filter(Boolean)
 
-const store = usePriceCheckStore()
-const account = usePoeCnAccountStore()
+const store = currentServer.id === 'international' ? null : usePriceCheckStore()
+const account = usePoeAccountStore()
 const appSettings = useSettingsStore()
 
 const authText = computed(() => account.status.authenticated ? account.status.accountName : '未登录')
@@ -208,7 +211,7 @@ async function retryCatalog() {
   }
 }
 
-onMounted(() => store.refreshStatus().catch(() => {}))
+onMounted(() => store?.refreshStatus().catch(() => {}))
 </script>
 
 <style scoped lang="less">

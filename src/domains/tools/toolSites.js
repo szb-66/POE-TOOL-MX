@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 export const TOOL_SITES_STORAGE_KEY = 'toolSiteDirectory'
 export const TOOL_SITES_STORAGE_VERSION = 1
 
@@ -71,7 +72,7 @@ export function parseStoredToolSites(value) {
   return sites
 }
 
-export function saveToolSites(sites, storage = globalThis.localStorage) {
+export function saveToolSites(sites, storage = localStorage) {
   try {
     storage?.setItem(TOOL_SITES_STORAGE_KEY, JSON.stringify({
       version: TOOL_SITES_STORAGE_VERSION,
@@ -83,7 +84,7 @@ export function saveToolSites(sites, storage = globalThis.localStorage) {
   }
 }
 
-export function loadToolSites(storage = globalThis.localStorage) {
+export function loadToolSites(storage = localStorage) {
   let stored = null
   try {
     const raw = storage?.getItem(TOOL_SITES_STORAGE_KEY)
@@ -98,7 +99,7 @@ export function loadToolSites(storage = globalThis.localStorage) {
   return defaults
 }
 
-export function readToolSites(storage = globalThis.localStorage) {
+export function readToolSites(storage = localStorage) {
   try {
     const raw = storage?.getItem(TOOL_SITES_STORAGE_KEY)
     if (raw != null) return parseStoredToolSites(JSON.parse(raw)) || cloneSites(DEFAULT_TOOL_SITES)

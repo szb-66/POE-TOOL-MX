@@ -1,8 +1,9 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
-import { usePoeCnAccountStore } from './poeCnAccount.js'
+import { usePoeAccountStore } from './poeAccount.js'
 import { useFeatureModulesStore } from './featureModules.js'
 import { normalizeAutomationTiming } from '../utils/operationDelay.js'
 import {
@@ -98,7 +99,7 @@ function unwrap(response) {
 
 export const useChaosRecipeStore = defineStore('chaosRecipe', () => {
   const interfaceDetectionStore = useInterfaceDetectionStore()
-  const accountStore = usePoeCnAccountStore()
+  const accountStore = usePoeAccountStore()
   const initial = loadSettings()
   const tabs = ref([])
   const snapshot = ref(null)

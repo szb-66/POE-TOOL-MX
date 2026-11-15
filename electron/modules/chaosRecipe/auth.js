@@ -1,9 +1,7 @@
+import { getServer } from '../../../shared/serverMode.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from './errors.js'
 import { isPoeCnAllowedUrl, requestPoeCnJson } from './http.js'
 
-const POE_CN_ORIGIN = 'https://poe.game.qq.com'
-const PROFILE_URL = `${POE_CN_ORIGIN}/api/profile`
-const LOGIN_URL = `${POE_CN_ORIGIN}/login`
 
 function profileSummary(payload, mode) {
   const profile = payload?.profile || payload
@@ -17,7 +15,8 @@ function profileSummary(payload, mode) {
 }
 
 export class PoeCnAuthService {
-  constructor({ session, BrowserWindow, parentWindow = () => null, webLoginDebounceMs = 250 }) {
+  constructor({ session, BrowserWindow, parentWindow = () => null, webLoginDebounceMs = 250, server = getServer() }) {
+    this.server = server
     this.session = session
     this.BrowserWindow = BrowserWindow
     this.parentWindow = parentWindow
@@ -68,7 +67,7 @@ export class PoeCnAuthService {
   }
 
   async validate(mode = this.status.mode || 'session') {
-    const profile = await requestPoeCnJson(this.session, PROFILE_URL)
+    const profile = await requestPoeCnJson(this.session, `${this.server.origin}/api/profile`)
     return this.setStatus(profileSummary(profile, mode))
   }
 
@@ -86,10 +85,10 @@ export class PoeCnAuthService {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, 'POESESSID 格式无效')
     }
     await this.session.cookies.set({
-      url: POE_CN_ORIGIN,
+      url: this.server.origin,
       name: 'POESESSID',
       value,
-      domain: 'poe.game.qq.com',
+      domain: new URL(this.server.origin).hostname,
       path: '/',
       secure: true,
       httpOnly: true,
@@ -121,7 +120,7 @@ export class PoeCnAuthService {
       if (
         removed ||
         cookie?.name !== 'POESESSID' ||
-        (domain !== 'poe.game.qq.com' && !domain.endsWith('.poe.game.qq.com')) ||
+        domain !== new URL(this.server.origin).hostname ||
         this.loginWindow !== window ||
         window.isDestroyed()
       ) return
@@ -141,7 +140,7 @@ export class PoeCnAuthService {
     if (this.loginValidation?.generation === generation) return this.loginValidation.promise
     const validation = { generation, promise: null }
     validation.promise = (async () => {
-      const profile = await requestPoeCnJson(this.session, PROFILE_URL)
+      const profile = await requestPoeCnJson(this.session, `${this.server.origin}/api/profile`)
       if (generation !== this.webLoginGeneration) throw new DOMException('网页登录验证已取消', 'AbortError')
       const result = this.setStatus(profileSummary(profile, 'web'))
       this.cleanupWebLoginWatcher()
@@ -166,7 +165,7 @@ export class PoeCnAuthService {
       parent: this.parentWindow() || undefined,
       modal: false,
       show: false,
-      title: '登录国服流放之路',
+      title: `登录${this.server.label}流放之路`,
       webPreferences: {
         session: this.session,
         nodeIntegration: false,
@@ -180,10 +179,10 @@ export class PoeCnAuthService {
     this.watchWebLoginCookies(window)
     window.removeMenu?.()
     window.webContents.setWindowOpenHandler(({ url }) => (
-      isPoeCnAllowedUrl(url) ? { action: 'allow' } : { action: 'deny' }
+      isPoeCnAllowedUrl(url, this.server) ? { action: 'allow' } : { action: 'deny' }
     ))
     window.webContents.on('will-navigate', (event, url) => {
-      if (!isPoeCnAllowedUrl(url)) event.preventDefault()
+      if (!isPoeCnAllowedUrl(url, this.server)) event.preventDefault()
     })
     window.once('ready-to-show', () => window.show())
     window.once('closed', () => {
@@ -194,7 +193,7 @@ export class PoeCnAuthService {
       }
     })
     try {
-      await window.loadURL(LOGIN_URL)
+      await window.loadURL(`${this.server.origin}/login`)
     } catch (error) {
       if (!window.isDestroyed()) window.close()
       throw error
@@ -217,7 +216,7 @@ export class PoeCnAuthService {
     this.cleanupWebLoginWatcher()
     if (this.loginWindow && !this.loginWindow.isDestroyed()) this.loginWindow.close()
     await this.session.clearStorageData({
-      origin: POE_CN_ORIGIN,
+      origin: this.server.origin,
       storages: ['cookies', 'localstorage', 'cachestorage', 'serviceworkers']
     })
     await this.session.clearCache()
@@ -228,3 +227,5 @@ export class PoeCnAuthService {
     return this.logout()
   }
 }
+
+export { PoeCnAuthService as PoeAccountAuthService }

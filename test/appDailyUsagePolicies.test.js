@@ -50,8 +50,8 @@ test('汇总仅统计北京时间当天正式版去重安装', () => {
 })
 
 test('客户端请求不包含 UID 或时间且开发版由主进程和服务双重短路', () => {
-  assert.match(service, /config\.dailyUsageTable/)
-  assert.match(service, /Prefer: 'return=minimal'/)
+  assert.match(service, /feedbackApiUrl\(this\.config, '\/usage'\)/)
+  assert.match(service, /redirect: 'error'/)
   assert.match(service, /runtime_mode: 'packaged'/)
   assert.doesNotMatch(service, /installation_uid:/)
   assert.doesNotMatch(service, /first_used_at:/)

@@ -16,6 +16,17 @@ const craftingIpcPayload = (value) => {
 }
 
 const mockApi = {
+  localization: {
+    status: () => Promise.resolve({ success: true, data: { supported: false, busy: false, helperAvailable: false } }),
+    scan: () => Promise.reject(new Error('请在桌面版中扫描游戏资源')),
+    check: () => Promise.reject(new Error('请在桌面版中检查翻译资源')),
+    download: () => Promise.reject(new Error('请在桌面版中下载翻译资源')),
+    preview: () => Promise.reject(new Error('请在桌面版中预览游戏汉化')),
+    apply: () => Promise.reject(new Error('请在桌面版中应用游戏汉化')),
+    restore: () => Promise.reject(new Error('请在桌面版中恢复游戏原版')),
+    pickDirectory: () => Promise.reject(new Error('请在桌面版中选择游戏目录')),
+    onState: () => () => {}
+  },
   pobLauncher: {
     getState: () => Promise.resolve({ success: true, state: { directory: '', charm: { installed: false, version: '' }, pob: { installed: false, version: '' }, supported: false, busy: false } }),
     setDirectory: () => Promise.resolve({ success: false, error: '请在桌面开发版中使用 PoB 启动助手' }),
@@ -306,6 +317,7 @@ const mockApi = {
     preview: () => Promise.resolve({ success: false, error: '仅 Electron 客户端支持仓库页识别' })
   },
   priceCheck: {
+    checkText: (request) => Promise.reject(new Error('请在桌面开发版中手动查价')),
     getStatus: () => Promise.resolve({ success: true, data: { auth: { authenticated: false }, catalog: null } }),
     updateRuntime: (runtime) => Promise.resolve({ success: true, data: { enabled: Boolean(runtime?.enabled) } }),
     capture: () => Promise.reject(new Error('仅 Electron 客户端支持国服查价')),
@@ -412,6 +424,17 @@ const mockApi = {
 }
 
 export const electronApi = isElectron ? {
+  localization: {
+    status: () => window.electronAPI.localization.status(),
+    scan: input => window.electronAPI.localization.scan(craftingIpcPayload(input)),
+    check: () => window.electronAPI.localization.check(),
+    download: () => window.electronAPI.localization.download(),
+    preview: input => window.electronAPI.localization.preview(craftingIpcPayload(input)),
+    apply: input => window.electronAPI.localization.apply(craftingIpcPayload(input)),
+    restore: input => window.electronAPI.localization.restore(craftingIpcPayload(input)),
+    pickDirectory: () => window.electronAPI.localization.pickDirectory(),
+    onState: callback => window.electronAPI.localization.onState(callback)
+  },
   pobLauncher: {
     getState: () => window.electronAPI.getPobLauncherState(),
     setDirectory: directory => window.electronAPI.setPobLauncherDirectory(directory),
@@ -709,6 +732,7 @@ export const electronApi = isElectron ? {
     preview: (config) => window.electronAPI.previewStashTabs?.(craftingIpcPayload(config))
   },
   priceCheck: {
+    checkText: (request) => window.electronAPI.checkItemText?.(craftingIpcPayload(request)),
     getStatus: () => window.electronAPI.getPriceCheckStatus?.(),
     updateRuntime: (runtime) => window.electronAPI.updatePriceCheckRuntime?.(craftingIpcPayload(runtime)),
     updateSettings: (patch) => window.electronAPI.updatePriceCheckSettings?.(craftingIpcPayload(patch)),
@@ -822,3 +846,6 @@ export const electronApi = isElectron ? {
     onPlanEvent: (callback) => window.electronAPI.onCraftingPlanEvent?.(callback) || (() => {})
   }
 } : mockApi
+
+// 通用账号入口；旧属性保留供当前版本内部兼容。
+electronApi.poeAccount = electronApi.poeCnAccount

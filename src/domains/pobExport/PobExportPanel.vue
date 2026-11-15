@@ -1,7 +1,7 @@
 <template>
   <section class="export-panel">
     <header>
-      <div><h2>{{ source === 'self' ? '我的角色' : '他人角色' }}</h2><p>{{ source === 'self' ? '使用助手当前登录的国服账号' : '输入国服论坛 ID，仅能访问官网公开的角色' }}</p></div>
+      <div><h2>{{ source === 'self' ? '我的角色' : '他人角色' }}</h2><p>{{ source === 'self' ? `使用助手当前登录的${currentServer.label}账号` : `输入${currentServer.label}论坛 ID，仅能访问官网公开的角色` }}</p></div>
       <el-tag v-if="source === 'self'" :type="authenticated ? 'success' : 'info'">{{ authenticated ? '已登录' : '未登录' }}</el-tag>
     </header>
     <el-form label-position="top" @submit.prevent="controller.load()">
@@ -24,7 +24,7 @@
           </el-select>
         </el-form-item>
       </div>
-      <p v-if="state.loaded && !state.characters.length" class="hint">该账号没有可导出的国服 PoE 1 角色。</p>
+      <p v-if="state.loaded && !state.characters.length" class="hint">该账号没有可导出的{{ currentServer.label }} PoE 1 角色。</p>
       <el-alert v-if="state.error" :title="state.error" type="error" :closable="false" show-icon />
       <div class="export-row">
         <el-button type="primary" :loading="state.busy === 'export'" :disabled="!state.character || Boolean(state.busy) || !canLoad" @click="controller.exportBuild()">导出 PoB</el-button>
@@ -42,6 +42,7 @@
 </template>
 
 <script setup>
+import { currentServer } from '../../utils/serverContext.js'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron.js'

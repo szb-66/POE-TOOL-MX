@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import {
@@ -11,15 +11,22 @@ import {
   millisecondsUntilNextBeijingReport
 } from '../electron/modules/dailyUsage/service.js'
 
-const config = {
-  envId: 'usage-env',
-  region: 'ap-shanghai',
-  dailyUsageTable: 'app_daily_usage_report',
-  publishableKey: 'publishable'
-}
+const config = { baseUrl: 'https://feedback.example.test' }
+
 const initialTime = Date.parse('2026-08-22T10:00:00.000Z')
 
 const flush = () => new Promise(resolve => setImmediate(resolve))
+
+test('旧云端当天成功标记不会跳过新服务首次上报', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-daily-usage-migration-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  await mkdir(path.join(root, 'feedback'))
+  await writeFile(path.join(root, 'feedback', 'daily-usage-date'), '2026-11-11\n')
+  const store = new DailyUsageDateStore({ userDataPath: root })
+  assert.equal(await store.read(), null)
+  await store.write('2026-11-11')
+  assert.equal(await store.read(), '2026-11-11')
+})
 
 function response(status, payload = {}) {
   return { ok: status >= 200 && status < 300, status, json: async () => payload }
@@ -75,8 +82,9 @@ test('北京时间日期与下一次 00:05 调度不依赖系统时区', () => {
   )
 })
 
-test('成功日期状态可跨启动读取并以原子替换方式更新', async () => {
+test('成功日期状态可跨启动读取并以原子替换方式更新', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-daily-usage-date-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const store = new DailyUsageDateStore({ userDataPath: root })
   assert.equal(await store.read(), null)
   await store.write('2026-08-22')
@@ -120,7 +128,7 @@ test('正式版当天首次启动只上报一次并持久化北京时间日期',
   assert.equal(requests.length, 1)
   assert.equal(store.value, '2026-08-22')
   assert.deepEqual(store.writes, ['2026-08-22'])
-  assert.equal(requests[0][0], 'https://usage-env.api.tcloudbasegateway.com/v1/rdb/rest/app_daily_usage_report')
+  assert.equal(requests[0][0], 'https://feedback.example.test/api/client/v1/usage')
   assert.deepEqual(JSON.parse(requests[0][1].body), {
     app_version: '1.2.0', platform: 'win32', arch: 'x64', runtime_mode: 'packaged'
   })
@@ -261,7 +269,7 @@ test('重叠请求合并，超时后释放进行中状态', async () => {
 test('配置缺失不启动，退出清理跨日和重试计时器', async () => {
   const missingHarness = schedulerHarness()
   const missing = new DailyUsageService(serviceOptions({
-    config: { ...config, dailyUsageTable: '' }, scheduler: missingHarness.scheduler
+    config: { ...config, baseUrl: '' }, scheduler: missingHarness.scheduler
   }))
   assert.equal(missing.start(), false)
   assert.equal(missingHarness.timers.length, 0)

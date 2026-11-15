@@ -10,10 +10,11 @@ function managerAction(id, label, manager, activeStatuses = ['running']) {
   return {
     id,
     label,
-    stop: reason => {
+    stop: async reason => {
       const status = manager?.getStatus?.()?.status
       if (!activeStatuses.includes(status)) return { success: true, stopped: false }
-      manager.stop(reason)
+      const result = await manager.stop(reason)
+      if (result?.success === false) return result
       return { success: true, stopped: true }
     }
   }

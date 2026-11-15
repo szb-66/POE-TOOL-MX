@@ -176,6 +176,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       }
 
       const result = {
+        itemTextLanguage: itemInfo.itemTextLanguage,
         category: itemInfo.category,
         rarity: itemInfo.rarity,
         name: itemInfo.name,
@@ -198,6 +199,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         mapTier: itemInfo.mapTier,
         moreMaps: itemInfo.moreMaps || 0,
         moreScarabs: itemInfo.moreScarabs || 0,
+        moreThreads: itemInfo.moreThreads || 0,
+        atlasDrops: itemInfo.atlasDrops || 0,
         moreCurrency: itemInfo.moreCurrency || 0,
         isCorrupted: isCorrupted,
         isMirrored: itemInfo.isMirrored,

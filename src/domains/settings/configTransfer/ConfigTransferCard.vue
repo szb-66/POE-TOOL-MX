@@ -194,6 +194,7 @@
 </template>
 
 <script setup>
+import { serverStorage as localStorage } from '../../../utils/serverStorage.js'
 import { computed, reactive, ref } from 'vue'
 import { Download, Loading, Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -207,7 +208,7 @@ const context = {
   presetStore: usePresetStore(),
   storyStore: useStoryStore(),
   electronApi,
-  storage: globalThis.localStorage
+  storage: localStorage
 }
 const transfer = createConfigTransferService({
   context,

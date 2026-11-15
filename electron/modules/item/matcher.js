@@ -19,6 +19,15 @@ function effectPatternRegex(pattern) {
   return new RegExp(`^${source}$`, 'u')
 }
 
+export function matchMapTerm(mod, term) {
+  if (!term) return false
+  if (!term.includes('#')) return mod.includes(term)
+  const shape = value => cleanEffectText(value)
+    .replace(/(\d+(?:\.\d+)?)\(\d+(?:\.\d+)?\s*[—–-]\s*\d+(?:\.\d+)?\)/g, '$1')
+    .replace(/\(?\d+(?:\.\d+)?(?:\s*[—–-]\s*\d+(?:\.\d+)?)?\)?/g, '#')
+  return shape(mod) === shape(term)
+}
+
 function naturalImplicitPattern(text) {
   return cleanEffectText(text)
     .replace(/([+\-]?)\(?\d+(?:\.\d+)?\s*[-–—]\s*\d+(?:\.\d+)?\)?/g, '$1#')
@@ -220,7 +229,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
   const blacklist = matchConfig.blacklist || []
   for (const mod of explicitMods) {
     for (const blackTerm of blacklist) {
-      if (blackTerm && mod.includes(blackTerm)) {
+      if (blackTerm && matchMapTerm(mod, blackTerm)) {
         return { isMatch: false, reason: 'blacklist' }
       }
     }
@@ -228,7 +237,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
 
   // 白名单沿用既有“任一命中即通过词缀检查”语义；基底条件仍必须满足。
   const whitelist = matchConfig.whitelist || []
-  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => mod.includes(term)))
+  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => matchMapTerm(mod, term)))
 
   if (targetKind === 'heist' && whitelist.some(term => term?.trim()) && !whitelistMatched) return { isMatch: false, reason: 'whitelist' }
 
@@ -236,7 +245,7 @@ export function matchMapRequirements(itemInfo, mapConfig) {
     ? ['quantity', 'rarity', 'alertLevelReduction', 'timeBeforeLockdown', 'maximumAliveReinforcements']
     : targetKind === 'chart'
     ? ['quantity', 'rarity', 'packSize', 'deadmanSulphur']
-    : ['quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency']
+    : ['quantity', 'rarity', 'packSize', 'atlasDrops', 'moreMaps', 'moreScarabs', 'moreThreads', 'moreCurrency']
   const mandatory = Object.fromEntries(Object.entries(matchConfig.mandatoryStats || {}).filter(([key]) => validKeys.includes(key)).map(([key, value]) => [key, { ...value }]))
   const optional = Object.fromEntries(Object.entries(matchConfig.optionalStats || {}).filter(([key]) => validKeys.includes(key)).map(([key, value]) => [key, { ...value }]))
 
@@ -332,6 +341,10 @@ export function getMapStatValue(itemInfo, key) {
         }
       }
     }
+  } else if (key === 'moreThreads') {
+    val = itemInfo.moreThreads || 0
+  } else if (key === 'atlasDrops') {
+    val = itemInfo.atlasDrops || 0
   } else if (key === 'moreCurrency') {
     // T17属性：更多通货
     val = itemInfo.moreCurrency || 0

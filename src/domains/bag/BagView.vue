@@ -238,6 +238,9 @@
             </div>
           </el-tab-pane>
           <el-tab-pane label="取件" name="pickup">
+            <el-alert v-if="pickupPending" type="warning" :closable="false" show-icon class="pickup-verification-note"
+              title="国际服仓库取件与君锋镇待英文客户端验收"
+              description="请先校准当前服务器的英文标题和网格，并在开发版单项验收模式中检查预览与停止行为。基础高亮模型可复用，英文样本尚未完成独立评估。" />
             <div class="pickup-feature-grid">
               <section class="pickup-feature">
                 <div class="section-header">
@@ -252,6 +255,7 @@
               <el-form label-width="140px" label-position="left" class="stash-pickup-settings">
                 <el-form-item label="启用功能">
                   <el-switch
+                    :disabled="!stashPickupInputAvailable"
                     :model-value="stashPickupStore.settings.enabled"
                     @change="toggleStashPickup"
                   />
@@ -327,6 +331,7 @@
               <el-form label-width="140px" label-position="left" class="junfeng-settings">
                 <el-form-item label="启用功能">
                   <el-switch
+                    :disabled="!junfengInputAvailable"
                     :model-value="junfengStore.settings.enabled"
                     @change="toggleJunfeng"
                   />
@@ -490,8 +495,12 @@ import {
 } from '@/domains/configurationGuide/configurationIssues.js'
 import { configurationIssueFromFailure } from '@/domains/configurationGuide/configurationFailures.js'
 import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/configurationCorrection.js'
+import { currentServer } from '@/utils/serverContext.js'
 
 const bagStore = useBagStore()
+const stashPickupInputAvailable = currentServer.id === 'cn' || currentServer.capabilities['stash-pickup']?.gameInputAvailable === true
+const junfengInputAvailable = currentServer.id === 'cn' || currentServer.capabilities.junfeng?.gameInputAvailable === true
+const pickupPending = currentServer.id === 'international' && (!stashPickupInputAvailable || !junfengInputAvailable)
 const stashPickupStore = useStashPickupStore()
 const junfengStore = useJunfengStore()
 const interfaceStore = useInterfaceDetectionStore()

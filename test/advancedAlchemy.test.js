@@ -114,7 +114,8 @@ test('生成脚本在点金模式使用 binding，混沌模式仍保留 alchemy'
         moduleThree: { enabled: false }, moduleEldritch: { enabled: false }
       }
     })
-    assert.match(itemScript, /required_currency_types = \["wisdom","scouring","binding"\]/)
+    const requiredCurrencies = script => JSON.parse(JSON.parse(script.match(/^required_currency_types = json\.loads\((.+)\)/m)[1]))
+    assert.deepEqual(requiredCurrencies(itemScript), ['wisdom', 'scouring', 'binding'])
     assert.match(itemScript, /apply_currency\("binding"\)/)
 
     const mapScript = generateMapRollingScript({
@@ -122,7 +123,7 @@ test('生成脚本在点金模式使用 binding，混沌模式仍保留 alchemy'
       inventory: { startPos: { x: 10, y: 20 }, slotSize: { w: 40, h: 40 } },
       mapConfig: { ...createDefaultMapConfig(), method: 'alchemy', binding: { enabled: true } }
     })
-    assert.match(mapScript, /required_currency_types = \["wisdom","scouring","binding"\]/)
+    assert.deepEqual(requiredCurrencies(mapScript), ['wisdom', 'scouring', 'binding'])
     assert.equal((mapScript.match(/apply_currency_and_read\(alchemy_currency/g) || []).length, 3)
     assert.equal((mapScript.match(/apply_currency_and_read\("alchemy"/g) || []).length, 1)
   } finally {

@@ -1,5 +1,5 @@
 import { deflateSync } from 'node:zlib'
-import { pobIdentities } from './compatibility.js'
+import { pobIdentities, pobGameVersion } from './compatibility.js'
 import { TranslatorFactory } from 'cn-poe-utils/translator/zh2en'
 import { transform } from 'cn-poe-utils/building'
 import { PobExportError } from './errors.js'
@@ -52,9 +52,22 @@ export function convertBuild(input) {
   const issues = []
   normalizeAndInspect(items, passive, issues)
   const expectedNodes = [...passive.hashes]
-  const warnings = []
+  const warnings = input.language === 'en'
+    ? [`国际服导出使用内置 ${pobGameVersion} 数据，尚未完整验证新赛季兼容性。生成导入码不代表装备、技能和天赋已兼容，请在支持当前赛季的 PoB 中核对。`]
+    : []
   const translator = factory.getJsonTranslator()
   const basic = factory.getBasicTranslator()
+  // 英文 API 已是 PoB 的输入语言，只让中文片段进入翻译器，保留共用的预处理和完整性检查。
+  const englishMethods = {}
+  if (input.language === 'en') {
+    for (const name of ['transMod', 'transRequirementName', 'transRequirementSuffix', 'transPropertyName', 'transSkill', 'transSkillProp', 'transBaseType', 'transKeystone', 'transBuiltInSupport']) {
+      if (typeof basic[name] !== 'function') continue
+      englishMethods[name] = basic[name]
+      basic[name] = function(value, ...args) {
+        return typeof value === 'string' && !hasChinese(value) ? value : englishMethods[name].call(this, value, ...args)
+      }
+    }
+  }
   const transItem = translator.transItem.bind(translator)
   translator.transItem = item => {
     const identity = resolveItemIdentity(item, basic)
@@ -93,8 +106,8 @@ export function convertBuild(input) {
     building.config.enemyIsBoss = undefined
     if (!building.build.ascendClassName) building.build.ascendClassName = 'None'
     building.tree.spec.secondaryAscendClassId = passive.alternate_ascendancy ?? 0
-    // The live realm and this project's game data are 3.29. Jewel-slot order was
-    // checked against PoB 2.67.2 TreeData/3_29 (all 60 slots match the baseline).
+    // This snapshot targets 3.29, not the live realm. All 60 jewel slots were
+    // checked against PoB 2.67.2 TreeData/3_29; newer realms remain unverified.
     if (building.tree.spec.treeVersion === '3_28') building.tree.spec.treeVersion = '3_29'
     inspectBuilding(building, items, passive, expectedNodes, issues)
     if (issues.length) fail('构筑转换后数据不完整，未生成导入码', [...issues, ...warnings])
@@ -109,6 +122,7 @@ export function convertBuild(input) {
     if (error instanceof PobExportError) throw error
     fail('角色数据转换失败，可能包含当前版本不支持的装备、技能或天赋', [...issues, ...warnings])
   } finally {
+    for (const [name, method] of Object.entries(englishMethods)) basic[name] = method
     console.warn = originalWarn
   }
 }

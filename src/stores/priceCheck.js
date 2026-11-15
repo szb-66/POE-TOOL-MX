@@ -1,8 +1,9 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '../api/electron.js'
 import { useSettingsStore } from '../domains/settings/settingsStore.js'
-import { usePoeCnAccountStore } from './poeCnAccount.js'
+import { usePoeAccountStore } from './poeAccount.js'
 import { useFeatureModulesStore } from './featureModules.js'
 import {
   DEFAULT_PRICE_CHECK_SETTINGS,
@@ -37,7 +38,7 @@ function loadSettings() {
 }
 
 export const usePriceCheckStore = defineStore('priceCheck', () => {
-  const account = usePoeCnAccountStore()
+  const account = usePoeAccountStore()
   const appSettings = useSettingsStore()
   const status = ref(null)
   const settings = ref(loadSettings())

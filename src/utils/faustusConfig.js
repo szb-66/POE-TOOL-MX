@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from './serverStorage.js'
 import { createDefaultFaustusConfig, normalizeFaustusConfig, validateFaustusConfig } from './faustusPricing.js'
 
 export const FAUSTUS_CONFIG_STORAGE_KEY = 'faustusMarketRepricingConfig'
@@ -9,7 +10,7 @@ function deepFreeze(value) {
   return value
 }
 
-export function createFaustusConfigRepository(storage = globalThis.localStorage) {
+export function createFaustusConfigRepository(storage = localStorage) {
   return {
     load() {
       try {

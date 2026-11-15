@@ -13,9 +13,7 @@ import os from 'os'
 import path from 'path'
 
 // 文件通信路径
-const tempDir = path.join(os.tmpdir(), 'exile-helper')
-const itemInfoFile = path.join(tempDir, 'item_info.txt')
-const itemInfoResultFile = path.join(tempDir, 'item_info_result.json')
+const defaultTempDir = path.join(os.tmpdir(), 'exile-helper')
 
 export function decodeItemInfoRequest(content) {
   const data = JSON.parse(content)
@@ -29,20 +27,23 @@ export function attachParseRequestId(result, requestId) {
   return requestId === null ? result : { ...result, requestId }
 }
 
-// 确保临时目录存在
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true })
-}
-
-class FileWatcher extends EventEmitter {
-  constructor() {
+export class FileWatcher extends EventEmitter {
+  constructor(directory = defaultTempDir) {
     super()
     this.fileWatcher = null
     this.resultFileWatcher = null
     this.currentConfig = null
+    this.configureDirectory(directory)
+  }
+
+  configureDirectory(directory) {
+    if (this.fileWatcher || this.resultFileWatcher) throw new Error('更改文件通信目录前必须停止监听')
+    this.directory = path.resolve(directory)
+    fs.mkdirSync(this.directory, { recursive: true })
   }
 
   startFileWatcher(config) {
+    const { itemInfoFile, itemInfoResultFile } = this.getFilePaths()
     // 停止旧的监听器
     this.stopFileWatcher()
     
@@ -141,9 +142,10 @@ class FileWatcher extends EventEmitter {
   }
 
   getFilePaths() {
+    const tempDir = this.directory
     return {
-      itemInfoFile,
-      itemInfoResultFile,
+      itemInfoFile: path.join(tempDir, 'item_info.txt'),
+      itemInfoResultFile: path.join(tempDir, 'item_info_result.json'),
       tempDir
     }
   }

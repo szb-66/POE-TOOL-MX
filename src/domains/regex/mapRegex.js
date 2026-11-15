@@ -1,4 +1,6 @@
 import { ATLAS_MAP_AFFIX_SUGGESTIONS } from '../../data/mapAffixSuggestionsData.js'
+import internationalMapData from '../../data/internationalMapData.js'
+import { currentServer } from '../../utils/serverContext.js'
 import { compileCompactExpressions, escapeRegexText } from './compactExpression.js'
 import { finalizeRegex, quotedToken, REGEX_LENGTH_LIMIT } from './regexResult.js'
 
@@ -47,14 +49,14 @@ const mapCorpusEntries = [
 ]
 const compactExpressions = compileCompactExpressions(mapCorpusEntries)
 
-export const MAP_COMPACT_EXPRESSIONS = Object.freeze(Object.fromEntries(compactExpressions))
+const CN_MAP_COMPACT_EXPRESSIONS = Object.freeze(Object.fromEntries(compactExpressions))
 
-export const MAP_REGEX_CORPUS = Object.freeze(mapCorpusEntries.map(entry => Object.freeze({
+const CN_MAP_REGEX_CORPUS = Object.freeze(mapCorpusEntries.map(entry => Object.freeze({
   id: entry.id,
   variants: Object.freeze([...entry.variants])
 })))
 
-export const MAP_REGEX_STATS = Object.freeze(RAW_MAP_STATS.map(item => Object.freeze({
+const CN_MAP_REGEX_STATS = Object.freeze(RAW_MAP_STATS.map(item => Object.freeze({
   id: item.id,
   label: item.label,
   expression: `${compactExpressions.get(`stat:${item.id}`)}.*`,
@@ -62,13 +64,13 @@ export const MAP_REGEX_STATS = Object.freeze(RAW_MAP_STATS.map(item => Object.fr
   suffix: '%'
 })))
 
-export const MAP_RARITY_OPTIONS = Object.freeze(RAW_MAP_RARITIES.map(item => Object.freeze({
+const CN_MAP_RARITY_OPTIONS = Object.freeze(RAW_MAP_RARITIES.map(item => Object.freeze({
   id: item.id,
   label: item.label,
   expression: compactExpressions.get(`rarity:${item.id}`)
 })))
 
-export const MAP_CORRUPTED_EXPRESSION = compactExpressions.get('state:corrupted')
+const CN_MAP_CORRUPTED_EXPRESSION = compactExpressions.get('state:corrupted')
 
 export const MAP_PRICE_CURRENCIES = Object.freeze([
   { id: 'ex', label: '崇高石' },
@@ -79,7 +81,7 @@ export const MAP_PRICE_CURRENCIES = Object.freeze([
   { id: 'va', label: '瓦尔宝珠' }
 ].map(item => Object.freeze(item)))
 
-export const MAP_REGEX_AFFIXES = Object.freeze(rawAffixes.map(item => Object.freeze({
+const CN_MAP_REGEX_AFFIXES = Object.freeze(rawAffixes.map(item => Object.freeze({
   id: item.id,
   value: item.value,
   example: item.example,
@@ -90,19 +92,57 @@ export const MAP_REGEX_AFFIXES = Object.freeze(rawAffixes.map(item => Object.fre
   regions: Object.freeze([...item.regions])
 })))
 
-const affixIds = new Set(MAP_REGEX_AFFIXES.map(item => item.id))
-const rarityIds = new Set(MAP_RARITY_OPTIONS.map(item => item.id))
+const catalogs = new Map([['zh-CN', { expressions: CN_MAP_COMPACT_EXPRESSIONS, corpus: CN_MAP_REGEX_CORPUS, stats: CN_MAP_REGEX_STATS, rarities: CN_MAP_RARITY_OPTIONS, corrupted: CN_MAP_CORRUPTED_EXPRESSION, affixes: CN_MAP_REGEX_AFFIXES }]])
+
+export function mapRegexCatalog(language = currentServer.language) {
+  if (catalogs.has(language)) return catalogs.get(language)
+  if (language !== 'en') throw new Error('不支持的客户端语言')
+  const stats = [
+    ['rarity', '物品稀有度', 'Item Rarity'], ['atlasDrops', '星界掉落', 'Atlas Drops'],
+    ['packSize', '怪物群大小', 'Monster Pack Size'], ['threads', '更多丝线', 'More Threads'],
+    ['maps', '更多地图', 'More Maps'], ['currency', '更多通货', 'More Currency'], ['quality', '地图品质', 'Quality']
+  ].map(([id, label, text]) => ({ id, label, text, sample: `${text}: +80%` }))
+  const rarities = [['normal', '普通', 'Normal'], ['magic', '魔法', 'Magic'], ['rare', '稀有', 'Rare']].map(([id, label, name]) => ({ id, label, text: `Rarity: ${name}` }))
+  const numericShape = text => text.replace(/\(-([\d.]+)[—–-]-([\d.]+)\)/g, '-($1—$2)').replace(/\(?\d+(?:\.\d+)?(?:\s*[—–-]\s*\d+(?:\.\d+)?)?\)?/g, '#')
+  const numericToken = '\\(?[+\\-]?\\d+(?:\\.\\d+)?(?:[—–-][+\\-]?\\d+(?:\\.\\d+)?)?\\)?'
+  const entries = [
+    ...stats.map(stat => ({ id: `stat:${stat.id}`, source: `${stat.text}:`, variants: [stat.sample], fallbackExpression: escapeRegexText(`${stat.text}:`) })),
+    ...rarities.map(item => ({ id: `rarity:${item.id}`, source: item.text, variants: [item.text], fallbackExpression: `^${escapeRegexText(item.text)}$` })),
+    { id: 'state:corrupted', source: 'Corrupted', variants: ['Corrupted'], fallbackExpression: '^Corrupted$' },
+    ...internationalMapData.atlas.map(item => ({ id: `affix:${item.id}`, source: item.example, variants: item.variants, fallbackExpression: `^${numericShape(item.example).split('#').map(escapeRegexText).join(numericToken)}$` }))
+  ]
+  const expressions = compileCompactExpressions(entries, { language: 'en' })
+  const catalog = {
+    expressions: Object.freeze(Object.fromEntries(expressions)), corpus: entries.map(entry => ({ id: entry.id, variants: entry.variants })),
+    stats: stats.map(stat => ({ id: stat.id, label: stat.label, expression: `${escapeRegexText(stat.text)}:[ \\t+]*`, compactExpression: expressions.get(`stat:${stat.id}`), suffix: '%' })),
+    rarities: rarities.map(item => ({ ...item, expression: expressions.get(`rarity:${item.id}`) })),
+    corrupted: expressions.get('state:corrupted'),
+    affixes: internationalMapData.atlas.map(item => ({ ...item, compactExpression: expressions.get(`affix:${item.id}`) }))
+  }
+  catalogs.set(language, catalog)
+  return catalog
+}
+
+const currentCatalog = mapRegexCatalog()
+export const MAP_COMPACT_EXPRESSIONS = currentCatalog.expressions
+export const MAP_REGEX_CORPUS = currentCatalog.corpus
+export const MAP_REGEX_STATS = currentCatalog.stats
+export const MAP_RARITY_OPTIONS = currentCatalog.rarities
+export const MAP_CORRUPTED_EXPRESSION = currentCatalog.corrupted
+export const MAP_REGEX_AFFIXES = currentCatalog.affixes
+
+const rarityIds = new Set(['normal', 'magic', 'rare'])
 const priceCurrencyIds = new Set(MAP_PRICE_CURRENCIES.map(item => item.id))
 const clampNumber = value => Math.max(0, Math.min(999, Math.trunc(Number(value) || 0)))
 const optionalInteger = value => value === '' || value == null || !Number.isInteger(Number(value)) ? null : Number(value)
 const uniqueKnown = (value, allowed) => Array.isArray(value) ? [...new Set(value.filter(id => allowed.has(id)))] : []
 const mode = value => value === 'exclude' ? 'exclude' : 'include'
 
-export function createDefaultMapRegexConfig() {
+export function createDefaultMapRegexConfig(language = currentServer.language) {
   return {
     statMatch: 'all',
     numericMode: 'optimized',
-    stats: Object.fromEntries(MAP_REGEX_STATS.map(stat => [stat.id, { enabled: false, value: 0 }])),
+    stats: Object.fromEntries(mapRegexCatalog(language).stats.map(stat => [stat.id, { enabled: false, value: 0 }])),
     rarity: { mode: 'include', selectedIds: [] },
     corrupted: { enabled: false, mode: 'include' },
     priceRange: { min: null, max: null, currencies: [] },
@@ -114,12 +154,14 @@ export function createDefaultMapRegexConfig() {
   }
 }
 
-export function cleanMapRegexConfig(value) {
+export function cleanMapRegexConfig(value, language = currentServer.language) {
   const source = value && typeof value === 'object' ? value : {}
+  const catalog = mapRegexCatalog(language)
+  const affixIds = new Set(catalog.affixes.map(item => item.id))
   return {
     statMatch: source.statMatch === 'any' ? 'any' : 'all',
     numericMode: source.numericMode === 'exact' ? 'exact' : 'optimized',
-    stats: Object.fromEntries(MAP_REGEX_STATS.map(stat => [stat.id, {
+    stats: Object.fromEntries(catalog.stats.map(stat => [stat.id, {
       enabled: Boolean(source.stats?.[stat.id]?.enabled),
       value: clampNumber(source.stats?.[stat.id]?.value)
     }])),
@@ -232,12 +274,13 @@ export function generateMapPriceExpression(priceRange) {
   return `~b/o ${numericRangePattern(priceRange.min, priceRange.max)} ${currencyExpression}`
 }
 
-export function generateMapRegex(rawConfig) {
-  const config = cleanMapRegexConfig(rawConfig)
+export function generateMapRegex(rawConfig, language = currentServer.language) {
+  const config = cleanMapRegexConfig(rawConfig, language)
+  const catalog = mapRegexCatalog(language)
   const tokens = []
   let includeCount = 0
   let excludeCount = 0
-  const statExpressions = MAP_REGEX_STATS.filter(stat => config.stats[stat.id].enabled).map(stat => {
+  const statExpressions = catalog.stats.filter(stat => config.stats[stat.id].enabled).map(stat => {
     includeCount += 1
     return `${stat.expression}${numericAtLeastPattern(config.stats[stat.id].value, config.numericMode)}${stat.suffix}`
   })
@@ -246,14 +289,14 @@ export function generateMapRegex(rawConfig) {
     else tokens.push(...statExpressions.map(expression => quotedToken(expression)))
   }
 
-  const rarityExpressions = MAP_RARITY_OPTIONS.filter(item => config.rarity.selectedIds.includes(item.id)).map(item => item.expression)
+  const rarityExpressions = catalog.rarities.filter(item => config.rarity.selectedIds.includes(item.id)).map(item => item.expression)
   if (rarityExpressions.length) {
     tokens.push(quotedToken(rarityExpressions.join('|'), config.rarity.mode === 'exclude'))
     if (config.rarity.mode === 'exclude') excludeCount += rarityExpressions.length
     else includeCount += rarityExpressions.length
   }
   if (config.corrupted.enabled) {
-    tokens.push(quotedToken(MAP_CORRUPTED_EXPRESSION, config.corrupted.mode === 'exclude'))
+    tokens.push(quotedToken(catalog.corrupted, config.corrupted.mode === 'exclude'))
     if (config.corrupted.mode === 'exclude') excludeCount += 1
     else includeCount += 1
   }
@@ -265,7 +308,7 @@ export function generateMapRegex(rawConfig) {
     includeCount += 1
   }
 
-  const expressionForIds = ids => ids.map(id => MAP_REGEX_AFFIXES.find(item => item.id === id)?.compactExpression).filter(Boolean)
+  const expressionForIds = ids => ids.map(id => catalog.affixes.find(item => item.id === id)?.compactExpression).filter(Boolean)
   const included = expressionForIds(config.includeAffixIds)
   const excluded = expressionForIds(config.excludeAffixIds)
   if (included.length) {

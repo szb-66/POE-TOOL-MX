@@ -286,6 +286,7 @@
 </template>
 
 <script setup>
+import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { CRAFTING_TOPICS, moduleHelpTopicsById } from '@/domains/help/helpContent.js'

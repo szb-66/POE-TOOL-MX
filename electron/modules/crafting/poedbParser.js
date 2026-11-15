@@ -81,9 +81,9 @@ function inferTags(itemClass, category, details = '') {
   const abyssKinds = [['melee', 'murderous_eye'], ['ranged', 'searching_eye'], ['caster', 'hypnotic_eye'], ['summoner', 'ghastly_eye']]
   abyssKinds.forEach(([kind, needle]) => { if (lowerDetails.includes(needle)) tags.add(`abyss_jewel_${kind}`) })
   const armourParts = []
-  if (/护甲/.test(details)) armourParts.push('str')
-  if (/闪避值/.test(details)) armourParts.push('dex')
-  if (/能量护盾/.test(details)) armourParts.push('int')
+  if (/护甲|Armour:/.test(details)) armourParts.push('str')
+  if (/闪避值|Evasion Rating:/.test(details)) armourParts.push('dex')
+  if (/能量护盾|Energy Shield:/.test(details)) armourParts.push('int')
   if (armourParts.length) tags.add(`${armourParts.join('_')}_${tags.has('shield') ? 'shield' : 'armour'}`)
   return [...tags]
 }
@@ -117,9 +117,9 @@ export function baseEquipmentRules(itemClass, sourceId = '') {
 
 export function parseBaseRequirements(text = '') {
   const source = cleanText(text)
-  const level = Number(source.match(/等级\s*(\d+)/)?.[1] ?? 1)
+  const level = Number(source.match(/(?:等级|Level)\s*(\d+)/i)?.[1] ?? 1)
   const before = (label) => Number(source.match(new RegExp(`(\\d+)\\s*${label}`))?.[1] ?? 0)
-  return { level, strength: before('力量'), dexterity: before('敏捷'), intelligence: before('智慧') }
+  return { level, strength: before('(?:力量|Str\\b|Strength\\b)'), dexterity: before('(?:敏捷|Dex\\b|Dexterity\\b)'), intelligence: before('(?:智慧|Int\\b|Intelligence\\b)') }
 }
 
 function baseValueRecord(sourceId, node, index, kind = 'property') {
@@ -127,7 +127,7 @@ function baseValueRecord(sourceId, node, index, kind = 'property') {
   const label = cleanText(sourceText.split(':')[0] || (kind === 'implicit' ? '固有词缀' : sourceText))
   let text = sourceText
   let values = numberRanges(sourceText)
-  if (kind === 'property' && /伤害/.test(label)) {
+  if (kind === 'property' && /伤害|Damage/i.test(label)) {
     const endpoints = [...sourceText.matchAll(/(-?\d+(?:\.\d+)?)\s*[—-]\s*(-?\d+(?:\.\d+)?)/g)]
     if (endpoints.length) {
       values = endpoints.flatMap((match) => [{ min: Number(match[1]), max: Number(match[1]) }, { min: Number(match[2]), max: Number(match[2]) }])
@@ -182,13 +182,13 @@ export function parsePoedbBases(html, { category = '装备' } = {}) {
   const structured = parseStructuredBases($, category)
   if (structured.length) return structured
 
-  const cards = $('.card').filter((_, element) => /物品\s*\/\s*\d+/.test(cleanText($(element).find('.card-header').first().text())))
+  const cards = $('.card').filter((_, element) => /(?:物品|Item)\s*\/\s*\d+/i.test(cleanText($(element).find('.card-header').first().text())))
   const results = []
   cards.each((_, card) => {
     $(card).find('.col').each((__, column) => {
       const imageAnchor = $(column).find('a.whiteitem:has(img)').first()
       if (!imageAnchor.length) return
-      const sourceId = cleanText(imageAnchor.attr('href')).replace(/^\/cn\//, '')
+      const sourceId = cleanText(imageAnchor.attr('href')).replace(/^\/(?:cn|us)\//, '')
       const nameAnchor = $(column).find('a.whiteitem').filter((___, anchor) => !$(anchor).find('img').length).first()
       const name = cleanText(nameAnchor.text())
       if (!sourceId || !name) return
@@ -455,6 +455,11 @@ export function parsePoedbModifiers(html, { profileId = '' } = {}) {
 
 function parseCost(text) {
   const normalized = cleanText(text)
+  const amountFirstCosts = [...normalized.matchAll(/([\d,.]+)\s*x\s*(.+?)(?=[\d,.]+\s*x\s*|$)/gi)]
+  if (amountFirstCosts.length > 1) return amountFirstCosts.map(match => {
+    const resourceName = cleanText(match[2])
+    return { resourceId: stableCraftingId('resource', resourceName), resourceName, amount: Number(match[1].replace(/,/g, '')) }
+  })
   const parts = normalized.split(/[;；]/).map(cleanText).filter(Boolean)
   return parts.flatMap((part) => {
     const amountFirst = part.match(/^([\d,.]+)\s*x\s*(.+)$/i)
@@ -488,6 +493,8 @@ function parseHarvestCostCell($, cell) {
 }
 
 const HARVEST_TAG_NAMES = [
+  ['defence', 'defences'], ['drop', 'drop'],
+  ...['minion', 'lightning', 'cold', 'fire', 'physical', 'life', 'defences', 'chaos', 'attack', 'caster', 'speed', 'critical', 'elemental', 'attribute', 'mana'].map(tag => [tag, tag]),
   ['召唤生物', 'minion'], ['闪电', 'lightning'], ['冰霜', 'cold'], ['火焰', 'fire'],
   ['物理', 'physical'], ['生命', 'life'], ['防御', 'defences'], ['混沌', 'chaos'],
   ['攻击', 'attack'], ['施法', 'caster'], ['速度', 'speed'], ['暴击', 'critical'],
@@ -495,6 +502,7 @@ const HARVEST_TAG_NAMES = [
 ]
 
 function harvestTagFromText(text) {
+  text = String(text).toLowerCase()
   return HARVEST_TAG_NAMES
     .map(([label, tag]) => ({ label, tag, index: text.indexOf(label) }))
     .filter((entry) => entry.index >= 0)
@@ -502,14 +510,14 @@ function harvestTagFromText(text) {
 }
 
 function inferHarvestParams(name, effectKind) {
-  const text = cleanText(name)
+  const text = cleanText(name).toLowerCase()
   if (['reforge_tag', 'remove_add_tag'].includes(effectKind)) return { tag: harvestTagFromText(text) }
   if (['convert_resistance', 'convert_damage'].includes(effectKind)) {
-    const elements = [...text.matchAll(/(火焰|冰霜|闪电)/g)].map((match) => harvestTagFromText(match[1]))
+    const elements = [...text.matchAll(/(火焰|冰霜|闪电|fire|cold|lightning)/g)].map((match) => harvestTagFromText(match[1]))
     return { fromTag: elements[0] ?? null, toTag: elements[1] ?? null }
   }
   if (effectKind === 'quality_enchant') {
-    const itemScope = /近战武器/.test(text) ? 'melee_weapon' : /武器/.test(text) ? 'weapon' : 'body_armour'
+    const itemScope = /近战武器|melee weapon/.test(text) ? 'melee_weapon' : /武器|weapon/.test(text) ? 'weapon' : 'body_armour'
     return { itemScope, qualityEffect: text }
   }
   return {}
@@ -610,8 +618,28 @@ export function groupModifierFamilies(goals) {
 }
 
 export function inferCraftEffectKind(name, provider) {
-  const text = cleanText(name)
+  const text = cleanText(name).toLowerCase()
   if (provider === 'harvest' && /随机插槽颜色.*白色|插槽.*白色/.test(text)) return 'white_socket'
+  if (provider === 'harvest' && /socket.*white/.test(text)) return 'white_socket'
+  if (provider === 'harvest' && /less likely to receive the same modifier types/.test(text)) return 'reforge_less_likely'
+  if (provider === 'harvest' && /more likely to receive the same modifier types/.test(text)) return 'reforge_more_likely'
+  if (provider === 'harvest' && /change a modifier.*resistance.*into.*resistance/.test(text)) return 'convert_resistance'
+  if (provider === 'harvest' && /change a modifier.*damage.*into.*damage/.test(text)) return 'convert_damage'
+  if (provider === 'harvest' && /randomi[sz]e the influence types/.test(text)) return 'randomize_influence'
+  if (provider === 'harvest' && /synthesi[sz]e.*item/.test(text)) return 'synthesize_item'
+  if (provider === 'harvest' && /enchant a (?:body armour|(?:melee )?weapon)/.test(text)) return 'quality_enchant'
+  if (provider === 'harvest' && /transform a support gem|sacrifice a corrupted gem/.test(text)) return 'gem_transform'
+  if (provider === 'harvest' && /sacrifice a rare corrupted map/.test(text)) return 'map_transform'
+  if (provider === 'harvest' && /change a stack|divination card/.test(text)) return 'inventory_transform'
+  if (/^[12] prefix modifiers? cannot be changed/.test(text)) return 'lock_prefixes_partial'
+  if (/^[12] suffix modifiers? cannot be changed/.test(text)) return 'lock_suffixes_partial'
+  if (/prefix(?:es| modifiers?) cannot be changed/.test(text)) return 'lock_prefixes'
+  if (/suffix(?:es| modifiers?) cannot be changed/.test(text)) return 'lock_suffixes'
+  if (/cannot roll attack/.test(text)) return 'cannot_roll_attack'
+  if (/cannot roll caster/.test(text)) return 'cannot_roll_caster'
+  if (/can have up to .*crafted modifiers/.test(text)) return 'multimod'
+  if (provider === 'harvest' && /reforge.*including.*modifier/.test(text)) return /influence/.test(text) ? 'reforge_influence' : 'reforge_tag'
+  if (provider === 'harvest' && /remove.*add|add.*remove/.test(text)) return 'remove_add_tag'
   if (/前缀无法被变更|锁前/.test(text)) return 'lock_prefixes'
   if (/后缀无法被变更|锁后/.test(text)) return 'lock_suffixes'
   if (/无法骰出攻击/.test(text)) return 'cannot_roll_attack'
@@ -636,6 +664,7 @@ export function inferCraftEffectKind(name, provider) {
 
 export function parsePoedbCrafts(html, { provider }) {
   const $ = load(html)
+  const benchClasses = { 'One Hand Melee': '单手近战', 'Two Hand Melee': '双手近战', 'One Hand Ranged': '单手远程', 'Two Hand Ranged': '双手远程', 'Body Armour': '护甲', Gloves: '手套', Boots: '鞋子', Helmet: '头盔', Shield: '盾', Ring: '戒指', Amulet: '项链', Belt: '腰带', Quiver: '箭袋' }
   const structured = $('[data-craft]').map((_, element) => {
     const node = $(element)
     const sourceId = node.attr('data-source-id') || node.attr('data-craft')
@@ -668,7 +697,7 @@ export function parsePoedbCrafts(html, { provider }) {
       provider,
       name,
       effectKind,
-      itemClasses: cleanText(cells.eq(2).text()).split('·').map(cleanText).filter(Boolean),
+      itemClasses: cleanText(cells.eq(2).text()).split('·').map(cleanText).filter(Boolean).map(label => benchClasses[label] || label),
       cost,
       params: {
         ...(provider === 'harvest' ? inferHarvestParams(name, effectKind) : {}),
@@ -677,7 +706,12 @@ export function parsePoedbCrafts(html, { provider }) {
       }
     }
   }).get().filter(Boolean)
-  return [...new Map(rows.map((craft) => [craft.id, craft])).values()]
+  const unique = new Map()
+  for (const craft of rows) {
+    const previous = unique.get(craft.id)
+    unique.set(craft.id, previous ? { ...craft, itemClasses: [...new Set([...previous.itemClasses, ...craft.itemClasses])] } : craft)
+  }
+  return [...unique.values()]
 }
 
 const ELDRITCH_ITEM_CLASSES = Object.freeze({
@@ -704,6 +738,12 @@ function eldritchTier(cell) {
 
 function eldritchEffectKey(text) {
   let key = modifierEffectKey(text)
+  if (!key.includes('chance to')) {
+    key = key.replace('Attacks always Maim on Hit', 'Attacks have #% chance to Maim on Hit')
+      .replace('Hinder Enemies on Hit with Spells', '#% chance to Hinder Enemies on Hit with Spells')
+      .replace('Intimidate Enemies for # seconds on Hit', '#% chance to Intimidate Enemies for # seconds on Hit')
+      .replace('Unnerve Enemies for # seconds on Hit', '#% chance to Unnerve Enemies for # seconds on Hit')
+  }
   // Four current T6 effects express 100% chance by dropping the chance phrase.
   // Canonicalise them to their T1-T5 structure without altering displayed text.
   if (!key.includes('几率')) {
@@ -789,7 +829,7 @@ function vaalWeights($, cell) {
 export function parsePoedbCorruptedImplicits(html) {
   const $ = load(html)
   const groups = new Map()
-  $('#瓦尔宝珠已腐化固定 table tbody tr').each((_, row) => {
+  $('#瓦尔宝珠已腐化固定 table tbody tr, #VaalOrbCorruptedImplicit table tbody tr').each((_, row) => {
     const cells = $(row).find('td')
     if (cells.length < 3) return
     const weights = vaalWeights($, cells.eq(2))

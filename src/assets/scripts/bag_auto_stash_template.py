@@ -271,23 +271,45 @@ def parse_item_header(text):
     if not category or not header:
         return None
     item_level = 0
+    item_tier = None
     for line in lines:
+        tier_match = re.fullmatch(r"(?:Item Tier|物品阶级)[：:]\s*([0-9]+)\s*", line)
+        if tier_match:
+            value = int(tier_match.group(1))
+            if 0 < value <= 9007199254740991:
+                item_tier = value
         if line.startswith("物品等级:") or line.startswith("Item Level:"):
             try:
                 item_level = int(line.split(":", 1)[1].strip())
             except (TypeError, ValueError):
                 item_level = 0
-            break
     return {
         "category": category,
         "rarity": rarity,
         "name": header[0],
         "baseName": header[1] if len(header) > 1 else "",
-        "itemLevel": item_level
+        "itemLevel": item_level,
+        **({"itemTier": item_tier} if item_tier is not None else {})
     }
 
 
 BATCH_CATEGORY_ALIASES = {
+    "Helmets": ("helmet", "头盔"), "头部": ("helmet", "头盔"),
+    "Body Armours": ("bodyArmour", "胸甲"), "Gloves": ("gloves", "手套"),
+    "Boots": ("boots", "鞋子"), "Shields": ("shield", "盾牌"),
+    "One Hand Swords": ("oneHandWeapon", "单手武器"),
+    "Thrusting One Hand Swords": ("oneHandWeapon", "单手武器"), "细剑": ("oneHandWeapon", "单手武器"),
+    "One Hand Axes": ("oneHandWeapon", "单手武器"), "One Hand Maces": ("oneHandWeapon", "单手武器"),
+    "Daggers": ("oneHandWeapon", "单手武器"), "Rune Daggers": ("oneHandWeapon", "单手武器"),
+    "Claws": ("oneHandWeapon", "单手武器"), "Wands": ("oneHandWeapon", "单手武器"),
+    "Sceptres": ("oneHandWeapon", "单手武器"), "权杖": ("oneHandWeapon", "单手武器"),
+    "Two Hand Swords": ("twoHandWeapon", "双手武器"), "Two Hand Axes": ("twoHandWeapon", "双手武器"),
+    "Two Hand Maces": ("twoHandWeapon", "双手武器"), "Staves": ("twoHandWeapon", "双手武器"),
+    "Warstaves": ("twoHandWeapon", "双手武器"), "Bows": ("bow", "弓"), "Quivers": ("quiver", "箭袋"),
+    "Rings": ("ring", "戒指"), "Amulets": ("amulet", "项链"), "护身符": ("amulet", "项链"),
+    "Belts": ("belt", "腰带"), "Jewels": ("jewel", "珠宝"), "Abyss Jewels": ("jewel", "珠宝"),
+    "Cluster Jewels": ("jewel", "珠宝"), "Life Flasks": ("flask", "药剂"),
+    "Mana Flasks": ("flask", "药剂"), "Hybrid Flasks": ("flask", "药剂"), "Utility Flasks": ("flask", "药剂"),
     "头盔": ("helmet", "头盔"),
     "身体护甲": ("bodyArmour", "胸甲"), "胸甲": ("bodyArmour", "胸甲"),
     "手套": ("gloves", "手套"), "鞋子": ("boots", "鞋子"),
@@ -1168,6 +1190,7 @@ def _scan_item(target, parsed, fingerprint, catalog, footprint=None, selectable=
         "displayName": parsed.get("name") or parsed.get("baseName") or "未知物品",
         "baseType": resolve_catalog_base_type(parsed, catalog),
         "itemLevel": int(parsed.get("itemLevel") or 0),
+        **({"itemTier": parsed["itemTier"]} if "itemTier" in parsed else {}),
         "x": int(target["column"]), "y": int(target["row"]),
         "width": width, "height": height,
         "footprintSource": "catalog" if footprint else "inferred-single",
@@ -1436,7 +1459,12 @@ def run_inventory_scan(config):
         items = list(known_items)
         for component in _unknown_components(unknown_items):
             if len(component) == 1:
-                items.append(component[0])
+                item = component[0]
+                if catalog.get("strictKnownItems", False):
+                    item = {**item, "selectable": False, "issueCode": "UNKNOWN_FOOTPRINT",
+                            "issue": "缺少该服已验证尺寸，请先读取含该物品的仓库后重新扫描"}
+                    issues.append({"code": "UNKNOWN_FOOTPRINT", "x": item["x"], "y": item["y"], "message": item["issue"]})
+                items.append(item)
                 continue
             first = component[0]
             min_x = min(item["x"] for item in component)

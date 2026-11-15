@@ -35,7 +35,7 @@ export const useApplicationUpdateStore = defineStore('applicationUpdate', () => 
 
   async function initialize() {
     if (initialized.value) return dispose
-    removeStateListener = electronApi.update.onStateChanged(applyState)
+    removeStateListener = electronApi.update.onStateChanged(snapshot => { applyState(snapshot) })
     try {
       applyState(await electronApi.update.getState())
       initialized.value = true

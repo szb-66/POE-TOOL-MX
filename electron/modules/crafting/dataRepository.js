@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { normalizeCraftingDataset } from './model.js'
 import { craftedOptionMatchesBase, modifierMatchesBase, validateBaseVariant } from './variantRules.js'
 import { MANUAL_SOURCE_GROUPS } from './manualCrafting.js'
+import { getServer } from '../../../shared/serverMode.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_BUILTIN_ROOT = path.resolve(dirname, '../../assets/crafting-data')
@@ -78,11 +79,20 @@ async function loadDatasetRoot(root) {
 }
 
 export class CraftingDataRepository {
-  constructor({ builtinRoot = DEFAULT_BUILTIN_ROOT, userDataRoot = null } = {}) {
-    this.builtinRoot = path.resolve(builtinRoot)
+  constructor({ builtinRoot, userDataRoot = null, server = getServer() } = {}) {
+    this.server = server
+    this.builtinRoot = path.resolve(builtinRoot || (server.id === 'international' ? `${DEFAULT_BUILTIN_ROOT}-international` : DEFAULT_BUILTIN_ROOT))
     this.userDataRoot = userDataRoot ? path.resolve(userDataRoot) : null
     this.active = null
     this.lastError = null
+  }
+
+  async load(root) {
+    const loaded = await loadDatasetRoot(root)
+    const manifest = loaded.dataset.manifest
+    if (manifest.locale !== this.server.language || (manifest.server && manifest.server !== this.server.id)) throw new Error('制作数据服务器或语言不匹配')
+    if (this.server.id === 'international' && (manifest.server !== 'international' || manifest.patch !== '3.30.0')) throw new Error('国际服制作数据缺少当前 3.30.0 基线')
+    return loaded
   }
 
   async initialize() {
@@ -91,13 +101,13 @@ export class CraftingDataRepository {
         const pointer = JSON.parse(await readFile(path.join(this.userDataRoot, 'active.json'), 'utf8'))
         const candidate = path.resolve(this.userDataRoot, pointer.directory)
         if (!candidate.startsWith(`${this.userDataRoot}${path.sep}`)) throw new Error('活动数据目录越界')
-        this.active = await loadDatasetRoot(candidate)
+        this.active = await this.load(candidate)
         return this.getStatus()
       } catch (error) {
         this.lastError = error.code === 'ENOENT' ? null : error.message
       }
     }
-    this.active = await loadDatasetRoot(this.builtinRoot)
+    this.active = await this.load(this.builtinRoot)
     return this.getStatus()
   }
 
@@ -396,7 +406,7 @@ export class CraftingDataRepository {
 
   async activateStaged(stagingRoot) {
     if (!this.userDataRoot) throw new Error('未配置用户数据目录')
-    const loaded = await loadDatasetRoot(stagingRoot)
+    const loaded = await this.load(stagingRoot)
     await mkdir(this.userDataRoot, { recursive: true })
     const versionName = `version-${Date.now()}`
     const destination = path.join(this.userDataRoot, versionName)

@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '@/api/electron'
@@ -302,7 +303,8 @@ export const useJunfengStore = defineStore('junfeng', () => {
     return () => { removePickup(); removeTraining() }
   }
 
-  async function initializeRuntime({ preserveEnabledOnFailure = false } = {}) {
+  async function initializeRuntime({ preserveEnabledOnFailure = false, restoreEnabled = true } = {}) {
+    if (!restoreEnabled) settings.value.enabled = false
     try {
       await sync()
       await loadCorrections()

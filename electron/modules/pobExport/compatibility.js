@@ -19,3 +19,4 @@ Object.assign(POB_DATA.slotMap, { Ring3: 'Ring 3', BrequelGrafts: 'Graft 1', Bre
 Object.assign(POB_DATA.rarityMap, { 9: 'RELIC', 10: 'RELIC' })
 
 export const pobIdentities = compatibility.pob
+export const pobGameVersion = compatibility.gameVersion

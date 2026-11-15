@@ -12,10 +12,11 @@ function containingPanel(marker) {
   return view.slice(panelStart, markerIndex)
 }
 
-test('设置页提供七个任务分类并在反馈分类隐藏全局重置入口', () => {
+test('设置页提供国际服汉化分类并在反馈分类隐藏全局重置入口', () => {
   const tabs = [...view.matchAll(/<el-tab-pane\b[^>]*\bname="([^"]+)"/g)].map(match => match[1])
   assert.deepEqual(tabs, [
     'general',
+    'localization',
     'automation',
     'detection',
     'overlay',
@@ -37,7 +38,7 @@ test('全局赛季选择与刷新按钮保持左右排列', () => {
 })
 
 test('现有设置区块按任务归入对应面板且使用 v-show 保持挂载', () => {
-  for (const marker of ['国服账号', '快捷键设置']) {
+  for (const marker of ['{{ currentServer.label }}账号', '快捷键设置']) {
     assert.match(containingPanel(marker), /activeTab === 'general'/)
   }
   for (const marker of ['背包设置', '通货坐标', '操作延迟']) {

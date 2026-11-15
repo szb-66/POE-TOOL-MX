@@ -1,8 +1,8 @@
+import { getServer } from '../../../shared/serverMode.js'
 import { requestPoeCnJson } from '../chaosRecipe/http.js'
 import { PobExportError } from './errors.js'
 import { convertInWorker } from './workerClient.js'
 
-const ORIGIN = 'https://poe.game.qq.com'
 const text = (value) => typeof value === 'string' ? value.trim() : ''
 function required(value, label) {
   const result = text(value)
@@ -13,8 +13,8 @@ function required(value, label) {
 }
 
 export class PobExportService {
-  constructor({ session, auth, request = requestPoeCnJson, convert = convertInWorker }) {
-    Object.assign(this, { session, auth, request, convert })
+  constructor({ session, auth, request = requestPoeCnJson, convert = convertInWorker, server = getServer() }) {
+    Object.assign(this, { session, auth, request, convert, server })
     this.generation = 0
     auth.subscribe?.(() => { this.generation++ })
   }
@@ -23,7 +23,7 @@ export class PobExportService {
     if (input?.source === 'other') return required(input.forumId, '论坛 ID')
     if (input?.source !== 'self') throw new PobExportError('INVALID_REQUEST', '请选择导出账号类型')
     const status = this.auth.getStatus()
-    if (!status.authenticated || !status.accountName) throw new PobExportError('UNAUTHENTICATED', '请先在设置中登录国服账号')
+    if (!status.authenticated || !status.accountName) throw new PobExportError('UNAUTHENTICATED', `请先在设置中登录${this.server.label}账号`)
     return status.accountName
   }
 
@@ -35,7 +35,7 @@ export class PobExportService {
     this.assertCurrent(generation)
     const body = new URLSearchParams({ accountName, realm: 'pc', ...(character ? { character } : {}) }).toString()
     try {
-      const data = await this.request(this.session, `${ORIGIN}/character-window/${endpoint}`, {
+      const data = await this.request(this.session, `${this.server.origin}/character-window/${endpoint}`, {
         method: 'POST', body, signal: AbortSignal.timeout(30000),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
@@ -53,7 +53,7 @@ export class PobExportService {
       if (error instanceof PobExportError) throw error
       if (error.code === 'SESSION_EXPIRED') {
         await this.auth.expire?.()
-        throw new PobExportError('SESSION_EXPIRED', '国服登录已过期，请重新登录')
+        throw new PobExportError('SESSION_EXPIRED', `${this.server.label}登录已过期，请重新登录`)
       }
       if (error.code === 'RATE_LIMITED') {
         const retryAfter = Number(error.details?.retryAfter) || 60
@@ -61,7 +61,7 @@ export class PobExportService {
       }
       if (error.details?.status === 403) throw new PobExportError('PRIVATE_PROFILE', '该账号不存在或角色资料未公开，请检查论坛 ID 和官网隐私设置')
       if (error.details?.status === 404) throw new PobExportError('CHARACTER_NOT_FOUND', '未找到账号或角色，请重新加载角色列表')
-      throw new PobExportError('NETWORK_ERROR', '无法获取国服角色数据，请检查网络后重试')
+      throw new PobExportError('NETWORK_ERROR', `无法获取${this.server.label}角色数据，请检查网络后重试`)
     }
   }
 
@@ -94,7 +94,7 @@ export class PobExportService {
     if (items?.character?.name !== name || items?.character?.league !== league) {
       throw new PobExportError('CHARACTER_MISMATCH', '官网返回的角色与选择不一致，请重新加载')
     }
-    const result = await this.convert({ items, passiveSkills })
+    const result = await this.convert({ items, passiveSkills, language: this.server.language })
     this.assertCurrent(generation)
     return { ...result, character: { ...character, level: items.character.level }, generatedAt: new Date().toISOString() }
   }

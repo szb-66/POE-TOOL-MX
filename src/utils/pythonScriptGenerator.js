@@ -1,0 +1,1031 @@
+// Shared script generation; callers supply bundled templates and server context.
+import {
+  normalizeAutomationTiming,
+  pythonAutomationTiming
+} from './operationDelay.js'
+import { normalizeEmptySlotThreshold } from './inventorySettings.js'
+import {
+  buildCraftingCurrencyPreflight,
+  buildMapCurrencyPreflight,
+  currencyExpectedNames
+} from './currencyPreflight.js'
+import { eldritchCurrencyType } from '../domains/items/eldritchConfig.js'
+import { enabledAffixGroupItemLevelRequirements } from '../domains/items/affixConfig.js'
+import { getServer } from '../../shared/serverMode.js'
+
+function rawPathContent(value) {
+  if (typeof value !== 'string' || /["\r\n\0]/.test(value)) throw new Error('脚本通信路径无效')
+  return value.replace(/\\/g, '\\\\')
+}
+
+function socketCount(value = 0) {
+  const count = Number(value)
+  if (!Number.isInteger(count) || count < 0 || count > 6) throw new Error('插槽数量必须是 0 至 6 的整数')
+  return count
+}
+
+function fillTemplate(template, replacements) {
+  if (typeof template !== 'string' || !template) throw new Error('缺少内置制作脚本模板')
+  // 只替换模板原有标记，配置中的同名文本始终作为数据保留。
+  return template.replace(/\{\{[A-Z0-9_]+\}\}/g, token => {
+    if (!Object.hasOwn(replacements, token)) throw new Error(`未知脚本模板字段：${token}`)
+    return replacements[token]
+  })
+}
+
+const DPI_AWARENESS = `def enable_per_monitor_dpi_awareness():
+    """让 Windows API 坐标始终按虚拟桌面的物理像素解释。"""
+    if sys.platform != 'win32':
+        return False
+    import ctypes
+    user32 = ctypes.windll.user32
+    try:
+        user32.SetProcessDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+        user32.SetProcessDpiAwarenessContext.restype = ctypes.c_bool
+        if user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4)):
+            return True
+    except Exception:
+        pass
+    try:
+        return ctypes.windll.shcore.SetProcessDpiAwareness(2) == 0
+    except Exception:
+        try:
+            return bool(user32.SetProcessDPIAware())
+        except Exception:
+            return False
+
+
+enable_per_monitor_dpi_awareness()
+`
+
+/**
+ * 生成Python脚本内容 (物品制作)
+ * @param {Object} config - 配置对象
+ * @returns {string} Python脚本内容
+ */
+export function generatePythonScript(config, craftingTemplate) {
+  const {
+    serverId = 'cn',
+    language = getServer(serverId).language,
+    globalShortcuts,
+    currencyPositions,
+    operationDelayMs,
+    fixedTiming = {},
+    itemPosition,
+    actionPosition = { x: 0, y: 0 },
+    craftingKind = 'general',
+    preset,
+    batchConfig = null,
+    filePaths,
+    stashTabSelection = { enabled: false },
+    dpiScale = 1.0 // 默认DPI缩放比例
+  } = config
+
+  getServer(serverId)
+  if (!['en', 'zh-CN'].includes(language)) throw new Error('不支持的物品文本语言')
+  if (!['general', 'essence', 'harvest'].includes(craftingKind)) throw new Error('无效的物品制作类型')
+
+  const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
+  const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, fixedTiming })
+  const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
+  const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
+  const normalizedFixedTiming = normalizedTiming.fixedTiming
+  const normalizedStashTabSelection = {
+    ...stashTabSelection,
+    ...pythonAutomationTiming(normalizedTiming)
+  }
+  const checkInitialItem = preset?.checkInitialItem !== false
+  const affixItemLevelRequirements = craftingKind !== 'general' || preset?.moduleTwo?.enabled
+    ? enabledAffixGroupItemLevelRequirements(preset?.moduleTwo?.affixGroups)
+    : []
+
+  // 转义文件路径中的反斜杠（Python使用原始字符串）
+  const escapePath = rawPathContent
+
+  // 转换Electron快捷键格式为pynput格式
+  const toPynputHotkey = (shortcut) => {
+    if (!shortcut) return null
+    
+    const parts = shortcut.split('+').map(p => p.trim())
+    const pynputParts = parts.map(part => {
+      const lower = part.toLowerCase()
+      switch(lower) {
+        case 'commandorcontrol':
+        case 'cmdorctrl':
+        case 'control':
+        case 'ctrl':
+          return '<ctrl>'
+        case 'alt':
+          return '<alt>'
+        case 'shift':
+          return '<shift>'
+        case 'meta':
+        case 'super':
+          return '<cmd>'
+        case 'space':
+          return '<space>'
+        case 'enter':
+        case 'return':
+          return '<enter>'
+        case 'esc':
+        case 'escape':
+          return '<esc>'
+        case 'tab':
+          return '<tab>'
+        case 'up':
+          return '<up>'
+        case 'down':
+          return '<down>'
+        case 'left':
+          return '<left>'
+        case 'right':
+          return '<right>'
+        default:
+          // F1-F12
+          if (/^f\d+$/.test(lower)) {
+            return '<' + lower + '>'
+          }
+          // Single characters
+          return lower
+      }
+    })
+    
+    return pynputParts.join('+')
+  }
+
+  // 生成词缀匹配逻辑
+  const generateAffixMatchingLogic = () => {
+    if (craftingKind !== 'general') return 'def craft_affixes(initial_result=None):\n    return True'
+    if (!preset.moduleTwo || !preset.moduleTwo.enabled) {
+      return 'def craft_affixes(initial_result=None):\n    return True'
+    }
+
+    const mode = preset.moduleTwo.mode || 'alteration'
+    const enableAugmentation = preset.moduleTwo.enableAugmentation || false
+    const enableRegal = preset.moduleTwo.enableRegal || false
+    const enableExalted = preset.moduleTwo.enableExalted || false
+    const alchemyCurrency = mode === 'alchemy' && preset.moduleTwo.enableBinding ? 'binding' : 'alchemy'
+
+    let finishLogic = `def has_fractured_affix(result):
+    if not isinstance(result, dict):
+        return False
+    if result.get("isFractured", False):
+        return True
+    modifiers = result.get("modifiers", [])
+    return isinstance(modifiers, list) and any(
+        isinstance(modifier, dict) and modifier.get("type") == "fractured"
+        for modifier in modifiers
+    )
+
+def ensure_scouring_preprocessable(result):
+    if not has_fractured_affix(result):
+        return True
+    return fail_item_runtime(
+        "检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品，已停止制作",
+        "FRACTURED_ITEM_PREPARATION_UNSUPPORTED"
+    )
+
+def explicit_affix_count(result):
+    modifiers = result.get("modifiers", []) if isinstance(result, dict) else []
+    if isinstance(modifiers, list) and modifiers:
+        counted_types = {"prefix", "suffix", "fractured", "crafted"}
+        structured = [
+            modifier for modifier in modifiers
+            if isinstance(modifier, dict) and modifier.get("type") in counted_types
+        ]
+        if structured:
+            return len(structured)
+
+    detailed_mods = result.get("detailedMods", []) if isinstance(result, dict) else []
+    if isinstance(detailed_mods, list) and detailed_mods:
+        return len(detailed_mods)
+
+    explicit_mods = result.get("explicitMods", []) if isinstance(result, dict) else []
+    if isinstance(explicit_mods, list) and len(explicit_mods) == 1:
+        return 1
+    return None
+
+def augment_single_affix_if_needed(result):
+    if not ${mode === 'alteration' && enableAugmentation ? 'True' : 'False'}:
+        return True, result
+    if not isinstance(result, dict) or result.get("rarity", "").replace(" ", "") != "魔法":
+        return True, result
+    affix_count = explicit_affix_count(result)
+    if affix_count is None:
+        print("[错误] 无法从结构化解析结果确认显式词缀数量，已停止以避免错误跳过增幅石")
+        return False, result
+    if affix_count != 1:
+        return True, result
+
+    print(f"[提示] 检测到单词缀，先使用增幅石（explicitMods: {len(result.get('explicitMods') or [])}, detailedMods: {len(result.get('detailedMods') or [])}）...")
+    if not apply_currency("augmentation"):
+        print("[错误] 使用增幅石失败")
+        return False, result
+
+    refreshed_result = read_current_item()
+    if not isinstance(refreshed_result, dict) or refreshed_result.get("error"):
+        error_msg = refreshed_result.get("error") if isinstance(refreshed_result, dict) else "无效结果"
+        fail_item_runtime(f"增幅后读取物品信息失败：{error_msg}", "ITEM_READ_FAILED")
+        return False, result
+    if refreshed_result.get("unchanged"):
+        # 增幅效果尚未反映在文本中：沿用增幅前结果，下一轮循环会重新判定
+        print("[提示] 增幅后文本未变化，沿用增幅前读取结果")
+        return True, result
+    return True, refreshed_result
+
+def finish_affix_match(result, iteration=0):
+    matched_group_name = result.get("matchedGroupName", "")
+    group_suffix = f" · {matched_group_name}" if matched_group_name else ""
+    stage = "首次识别" if iteration == 0 else f"第 {iteration} 次"
+    print(f"[成功] 词缀匹配成功{group_suffix}！（{stage}）")
+`
+
+    if (mode === 'alteration') {
+      if (enableRegal) {
+        finishLogic += `    print("[操作] 使用富豪石")
+    if not apply_currency("regal"):
+        print("[错误] 使用富豪石失败")
+        return False
+`
+      }
+    } else if (mode === 'chaos' && enableExalted) {
+      finishLogic += `    print("[操作] 使用崇高石")
+    if not apply_currency("exalted"):
+        print("[错误] 使用崇高石失败")
+        return False
+`
+    }
+
+    finishLogic += `    print("[完成] 词缀制作完成！")
+    time.sleep(2)
+    return True
+`
+
+    let logic = `${finishLogic}
+def craft_affixes(initial_result=None):
+    # 词缀匹配逻辑
+    try:
+        print(f"[开始] 词缀匹配流程")
+        if not isinstance(initial_result, dict):
+            print("[错误] 缺少制作前物品读取结果")
+            return False
+        result = initial_result
+        
+        if result.get("isLegendary", False):
+            print("[停止] 检测到传奇物品，无法制作")
+            time.sleep(3)
+            return False
+
+        if ${checkInitialItem ? 'True' : 'False'}:
+            augment_success, result = augment_single_affix_if_needed(result)
+            if not augment_success:
+                return False
+            if result.get("affixMatch", False):
+                return finish_affix_match(result, 0)
+        
+        # 预处理：确保物品进入正确的起始状态
+        # print("[预处理] 开始状态检查...")
+        preprocess_limit = 10
+        preprocess_count = 0
+        
+        while preprocess_count < preprocess_limit:
+            rarity = result.get("rarity", "").replace(" ", "")
+            
+            # 根据模式判断是否满足条件
+            is_ready = False
+            action_needed = None
+`
+
+    if (mode === 'alteration') {
+      logic += `
+            if rarity == "魔法":
+                is_ready = True
+            elif rarity == "普通":
+                action_needed = "transmutation"
+            else:
+                # 其他情况（如稀有）都需要重铸
+                action_needed = "scouring"
+`
+    } else if (mode === 'chaos') {
+      logic += `
+            if rarity == "稀有":
+                is_ready = True
+            elif rarity == "普通":
+                action_needed = "alchemy"
+            else:
+                # 魔法物品需要重铸
+                action_needed = "scouring"
+`
+    } else if (mode === 'alchemy') {
+      logic += `
+            # 点金模式：从普通开始点金
+            if rarity == "普通":
+                is_ready = True
+            else:
+                action_needed = "scouring"
+`
+    }
+
+    logic += `
+            if is_ready:
+                # print(f"[预处理] 物品状态符合要求 ({rarity})，准备开始")
+                break
+            
+            print(f"[预处理] 当前状态: {rarity}，执行操作: {action_needed}")
+            
+            if action_needed == "transmutation":
+                print("[预处理] 普通物品 -> 使用蜕变石")
+                if not apply_currency("transmutation"): 
+                    print("[错误] 使用蜕变石失败")
+                    return False
+            elif action_needed == "alchemy":
+                print("[预处理] 普通物品 -> 使用点金石")
+                if not apply_currency("alchemy"):
+                    print("[错误] 使用点金石失败")
+                    return False
+            elif action_needed == "scouring":
+                if not ensure_scouring_preprocessable(result):
+                    return False
+                print(f"[预处理] {rarity}物品 -> 使用重铸石")
+                if not apply_currency("scouring"):
+                    print("[错误] 使用重铸石失败")
+                    return False
+            
+            
+            # 重新读取物品信息（最多三次读取，不重复使用通货）
+            read_result = read_current_item()
+            if not isinstance(read_result, dict) or read_result.get("error"):
+                error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                print(f"[错误] 读取物品信息失败: {error_msg}")
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+            if read_result.get("unchanged"):
+                # 文本未变化说明状态未推进：沿用上次结果，仅消耗一次预处理尝试
+                print("[预处理] 物品文本未变化，沿用上次读取结果")
+            else:
+                result = read_result
+            preprocess_count += 1
+        
+        if preprocess_count >= preprocess_limit:
+            print("[警告] 预处理超时，尝试直接开始...")
+`
+        
+    logic += `
+        # 开始制作循环
+        max_iterations = 1000
+        iteration = 0
+        
+        print(f"[开始] 制作循环 (最大 {max_iterations} 次)")
+        # print("[调试] 进入循环，is_running =", is_running)
+        
+        while is_running:
+            iteration += 1
+            if iteration % 10 == 0 or iteration == 1:
+                print(f"[进度] 第 {iteration} 次")
+
+            # 检查是否应该停止
+            if not is_running:
+                print("[停止] 收到停止信号")
+                return False
+            
+            if iteration > max_iterations:
+                print(f"[停止] 达到最大循环次数 ({max_iterations})，停止制作")
+                time.sleep(3)
+                return False
+            
+            # print(f"[调试] 第 {iteration} 次循环开始，准备使用通货...")
+            
+`
+
+    if (mode === 'alteration') {
+      logic += `
+            # 使用改造石
+            print(f"[操作] 第 {iteration} 次 - 使用改造石")
+            if not apply_currency("alteration"):
+                print("[错误] 使用改造石失败，重试...")
+                continue
+`
+    } else if (mode === 'chaos') {
+      logic += `
+            # 使用混沌石
+            print(f"[操作] 第 {iteration} 次 - 使用混沌石")
+            if not apply_currency("chaos"):
+                print("[错误] 使用混沌石失败，跳过本次循环")
+                continue
+`
+    } else if (mode === 'alchemy') {
+      logic += `
+            # 点金石模式循环：检查是否需要重铸
+            # 如果物品不是普通品质（例如已经是稀有），先重铸
+            current_rarity = result.get("rarity", "").replace(" ", "")
+            if current_rarity != "普通":
+                if not ensure_scouring_preprocessable(result):
+                    return False
+                print(f"[操作] 第 {iteration} 次 - 物品非普通 ({current_rarity})，使用重铸石")
+                if not apply_currency("scouring"):
+                    print("[错误] 使用重铸石失败，跳过")
+                    continue
+            
+            # 使用当前点金通货
+            print(f"[操作] 第 {iteration} 次 - 使用${alchemyCurrency === 'binding' ? '高阶点金石' : '点金石'}")
+            if not apply_currency("${alchemyCurrency}"):
+                print("[错误] 使用${alchemyCurrency === 'binding' ? '高阶点金石' : '点金石'}失败，跳过本次循环")
+                continue
+`
+    }
+
+    logic += `
+            # 复制物品并读取（最多三次读取，不重复使用通货）
+            read_result = read_current_item()
+            if not isinstance(read_result, dict) or read_result.get("error"):
+                error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                print(f"[错误] 读取当前物品失败: {error_msg}")
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+            
+            if read_result.get("unchanged"):
+                # 文本未变化：匹配结论与上次一致，沿用上次结果，直接进入下一轮使用通货
+                if iteration % 10 == 0:
+                    print(f"[检查] 第 {iteration} 次 - 文本未变化，继续...")
+                continue
+            result = read_result
+            
+            # print(f"[调试] 第 {iteration} 次 - 解析成功，检查是否需要增幅...")
+            
+            if result.get("isLegendary", False):
+                print("[停止] 检测到传奇物品，停止制作")
+                time.sleep(3)
+                return False
+            
+            augment_success, result = augment_single_affix_if_needed(result)
+            if not augment_success:
+                return False
+
+            # 检查词缀匹配
+            affix_match = result.get("affixMatch", False)
+            required_all_matched = result.get("requiredAllMatched", False)
+            matched_selected_count = result.get("matchedSelectedCount", 0)
+            matched_group_name = result.get("matchedGroupName", "")
+            explicit_mods = result.get("explicitMods", [])
+            detailed_mods = result.get("detailedMods", [])
+            print(f"[调试] 第 {iteration} 次 - 词缀匹配检查:")
+            print(f"  - affixMatch: {affix_match}")
+            print(f"  - requiredAllMatched: {required_all_matched}")
+            print(f"  - matchedSelectedCount: {matched_selected_count}")
+            if matched_group_name:
+                print(f"  - 命中组合: {matched_group_name}")
+            print(f"  - explicitMods数量: {len(explicit_mods) if explicit_mods else 0}")
+            if explicit_mods:
+                print(f"  - explicitMods: {explicit_mods[:3]}...")  # 只显示前3个
+            if detailed_mods:
+                print(f"  - detailedMods数量: {len(detailed_mods)}")
+            if affix_match:
+                return finish_affix_match(result, iteration)
+
+            # 未匹配，继续循环
+            if iteration % 10 == 0:
+                print(f"[检查] 第 {iteration} 次 - 未匹配，继续...")
+            continue
+    except Exception as e:
+        print(f"词缀制作过程出错: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+`
+
+    return logic
+  }
+
+  const generateSpecializedCraftingLogic = () => {
+    if (craftingKind === 'general') return `def craft_specialized(initial_result=None):
+    return True`
+    const isEssence = craftingKind === 'essence'
+    const label = isEssence ? '精华制作' : '花园工艺'
+    const action = isEssence
+      ? `if not move_mouse(int(action_position["x"]), int(action_position["y"])) or not click_mouse("right"):
+            return fail_item_runtime("无法取得目标精华", "SPECIALIZED_ACTION_FAILED")
+        if not move_mouse(int(item_position["x"]), int(item_position["y"])) or not click_mouse("left"):
+            return fail_item_runtime("无法将精华用于目标物品", "SPECIALIZED_ACTION_FAILED")`
+      : `if not move_mouse(int(action_position["x"]), int(action_position["y"])) or not click_mouse("left"):
+            return fail_item_runtime("无法点击花园工艺按钮", "SPECIALIZED_ACTION_FAILED")
+        if not move_mouse(int(item_position["x"]), int(item_position["y"])):
+            return fail_item_runtime("无法移动到花园工艺物品", "ITEM_POSITION_FAILED")`
+    const preflight = isEssence ? `def preflight_specialized_action():
+    if GetClipboardSequenceNumber is None:
+        return fail_item_runtime("无法验证目标精华位置", "CLIPBOARD_UNAVAILABLE")
+    if not move_mouse(int(action_position["x"]), int(action_position["y"])):
+        return fail_item_runtime("无法移动到目标精华位置", "ESSENCE_POSITION_FAILED")
+    before_seq = GetClipboardSequenceNumber()
+    before_text = str(pyperclip.paste() or "")
+    clipboard_text = send_copy_command(before_seq, before_text, allow_unchanged_text=True)
+    if not clipboard_text or GetClipboardSequenceNumber() == before_seq:
+        return fail_item_runtime("目标精华位置没有可复制物品", "ESSENCE_NOT_FOUND")
+    actual = detected_item_name(copied_item_header(clipboard_text))
+    if not (${language === 'en' ? 'True' : 'False'} and __import__('re').match(r"^(?:(?:Whispering|Muttering|Weeping|Wailing|Screaming|Shrieking|Deafening) )?Essence of .+", actual) or ${language === 'en' ? 'False' : 'True'} and "精华" in actual):
+        return fail_item_runtime(f"目标位置不是精华：{actual or '未识别'}", "ESSENCE_TYPE_MISMATCH")
+    print(f"[预检] 目标精华验证通过：{actual}")
+    return True
+` : `def preflight_specialized_action():
+    return True
+`
+    return `${preflight}
+def craft_specialized(initial_result=None):
+    if not isinstance(initial_result, dict) or initial_result.get("error"):
+        return fail_item_runtime("缺少有效的制作前物品结果", "ITEM_READ_FAILED")
+    result = initial_result
+    if result.get("isLegendary", False):
+        return fail_item_runtime("传奇物品无法进行${label}", "ITEM_UNMODIFIABLE")
+    if not preflight_specialized_action():
+        return False
+    if ${checkInitialItem ? 'True' : 'False'} and result.get("affixMatch", False):
+        print("[完成] 首次识别已满足词缀目标，未执行${label}")
+        return True
+    for iteration in range(1, 1001):
+        if not is_running:
+            return False
+        print(f"[操作] ${label}第 {iteration} 次")
+        ${action}
+        read_result = read_current_item(verify_freshness=True)
+        if not isinstance(read_result, dict) or read_result.get("error"):
+            reason = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+            return fail_item_runtime(f"${label}后无法读取物品：{reason}", "ITEM_READ_FAILED")
+        if read_result.get("unchanged"):
+            return fail_item_runtime("${isEssence ? '使用精华后物品文本未变化，请检查物品/精华坐标与精华堆叠数量' : '点击工艺按钮后物品文本未变化，请检查物品/按钮坐标与工艺可用性'}", "SPECIALIZED_ITEM_UNCHANGED")
+        result = read_result
+        if result.get("affixMatch", False):
+            group_name = result.get("matchedGroupName") or "目标组合"
+            print(f"[完成] ${label}命中：{group_name}（第 {iteration} 次）")
+            return True
+    return fail_item_runtime("达到最大循环次数 (1000)，仍未命中目标词缀", "SPECIALIZED_MAX_ITERATIONS")`
+  }
+
+  // 生成插槽制作逻辑
+  const generateSocketCraftingLogic = () => {
+    if (!preset.moduleThree || !preset.moduleThree.enabled) {
+      return 'def craft_sockets(initial_result=None):\n    return True'
+    }
+
+    const socketConfig = { ...(preset.moduleThree.socket || {}), count: socketCount(preset.moduleThree.socket?.count) }
+    const linkConfig = { ...(preset.moduleThree.link || {}), count: socketCount(preset.moduleThree.link?.count) }
+    const colorConfig = { ...(preset.moduleThree.color || {}), red: socketCount(preset.moduleThree.color?.red), green: socketCount(preset.moduleThree.color?.green), blue: socketCount(preset.moduleThree.color?.blue) }
+
+    let logic = `def craft_sockets(initial_result=None):
+    # 插槽制作逻辑
+    if ${checkInitialItem ? 'True' : 'False'} and isinstance(initial_result, dict) and initial_result.get("socketMatch", False):
+        print("[完成] 当前物品插槽、连接和颜色已经满足全部目标，未消耗通货")
+        return True
+`
+
+    // 开孔流程
+    if (socketConfig.enabled && socketConfig.count > 0) {
+      logic += `
+    # 开孔流程
+    if craft_socket_count(${socketConfig.count}):
+`
+    } else {
+      logic += `
+    # 跳过开孔流程
+    if True:
+`
+    }
+
+    // 链接流程
+    if (linkConfig.enabled && linkConfig.count > 0) {
+      logic += `
+        # 链接流程
+        if craft_links(${linkConfig.count}):
+`
+    } else {
+      logic += `
+        # 跳过链接流程
+        if True:
+`
+    }
+
+    // 颜色流程
+    if (colorConfig.enabled && (colorConfig.red > 0 || colorConfig.green > 0 || colorConfig.blue > 0)) {
+      logic += `
+            # 颜色流程
+            if craft_colors(${colorConfig.red}, ${colorConfig.green}, ${colorConfig.blue}):
+                print("[完成] 插槽制作完成！")
+                time.sleep(2)
+                return True
+`
+    } else {
+      logic += `
+            # 跳过颜色流程
+            print("[完成] 插槽制作完成！")
+            time.sleep(2)
+            return True
+`
+    }
+
+    logic += `
+    return False
+
+def craft_socket_count(target_count):
+    # 开孔流程
+    print(f"[开始] 开孔流程 (目标: {target_count} 孔)")
+    max_iterations = 1000
+    iteration = 0
+    
+    while is_running:
+        iteration += 1
+        if not is_running:
+            print("[停止] 收到停止信号")
+            return False
+        
+        if iteration > max_iterations:
+            print(f"[停止] 开孔达到最大循环次数 ({max_iterations})")
+            time.sleep(3)
+            return False
+        
+        # 使用工匠石
+        print(f"[操作] 第 {iteration} 次 - 使用工匠石")
+        if not right_click_currency("jewellers"):
+            print("[错误] 右键点击工匠石失败，重试...")
+            continue
+        if not left_click_item():
+            print("[错误] 左键点击物品失败，重试...")
+            continue
+        record_currency_usage("jewellers")
+        
+        # 复制物品并读取；补读不重复使用工匠石
+        result = read_current_item(allow_unchanged_text=True)
+        if result.get("error"):
+            return fail_item_runtime(f"开孔后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+        
+        current_count = result.get("socketsCount", 0)
+        if current_count >= target_count:
+            print(f"[成功] 插槽数量达到目标 ({current_count}/{target_count})")
+            return True
+        elif iteration % 20 == 0:
+            print(f"[进度] 第 {iteration} 次 - 当前 {current_count}/{target_count} 孔")
+
+def craft_links(target_links):
+    # 链接流程
+    print(f"[开始] 链接流程 (目标: {target_links} 连)")
+    max_iterations = 1000
+    iteration = 0
+    
+    while is_running:
+        iteration += 1
+        if not is_running:
+            print("[停止] 收到停止信号")
+            return False
+            
+        if iteration > max_iterations:
+            print(f"[停止] 链接达到最大循环次数 ({max_iterations})")
+            time.sleep(3)
+            return False
+        
+        # 使用链结石
+        print(f"[操作] 第 {iteration} 次 - 使用链结石")
+        if not right_click_currency("fusing"):
+            print("[错误] 右键点击链结石失败，重试...")
+            continue
+        if not left_click_item():
+            print("[错误] 左键点击物品失败，重试...")
+            continue
+        record_currency_usage("fusing")
+        
+        # 复制物品并读取；补读不重复使用链结石
+        result = read_current_item(allow_unchanged_text=True)
+        if result.get("error"):
+            return fail_item_runtime(f"链接后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+        
+        current_links = result.get("links", 0)
+        if current_links >= target_links:
+            print(f"[成功] 链接数量达到目标 ({current_links}/{target_links})")
+            return True
+        elif iteration % 20 == 0:
+            print(f"[进度] 第 {iteration} 次 - 当前 {current_links}/{target_links} 连")
+
+def craft_colors(target_red, target_green, target_blue):
+    # 颜色流程
+    print(f"[开始] 颜色流程 (目标: 红{target_red} 绿{target_green} 蓝{target_blue})")
+    max_iterations = 1000
+    iteration = 0
+    
+    while is_running:
+        iteration += 1
+        if not is_running:
+            print("[停止] 收到停止信号")
+            return False
+            
+        if iteration > max_iterations:
+            print(f"[停止] 颜色达到最大循环次数 ({max_iterations})")
+            time.sleep(3)
+            return False
+        
+        # 使用幻色石
+        print(f"[操作] 第 {iteration} 次 - 使用幻色石")
+        if not right_click_currency("chromic"):
+            print("[错误] 右键点击幻色石失败，重试...")
+            continue
+        if not left_click_item():
+            print("[错误] 左键点击物品失败，重试...")
+            continue
+        record_currency_usage("chromic")
+        
+        # 复制物品并读取；补读不重复使用幻色石
+        result = read_current_item(allow_unchanged_text=True)
+        if result.get("error"):
+            return fail_item_runtime(f"染色后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+        
+        colors = result.get("socketsColors", {})
+        current_red = colors.get("red", 0)
+        current_green = colors.get("green", 0)
+        current_blue = colors.get("blue", 0)
+        
+        if (current_red >= target_red and 
+            current_green >= target_green and 
+            current_blue >= target_blue):
+            print(f"[成功] 颜色达到目标 (红{current_red} 绿{current_green} 蓝{current_blue})")
+            return True
+        elif iteration % 20 == 0:
+            print(f"[进度] 第 {iteration} 次 - 当前 红{current_red}/{target_red} 绿{current_green}/{target_green} 蓝{current_blue}/{target_blue}")
+`
+
+    return logic
+  }
+
+  const generateEldritchCraftingLogic = () => {
+    const module = preset.moduleEldritch || {}
+    if (!module.enabled) return 'def craft_eldritch_implicits(initial_result=None):\n    return True'
+    const currency = eldritchCurrencyType(module)
+    return `def fail_eldritch_crafting(reason, code="ELDRITCH_CRAFTING_FAILED"):
+    global is_running, fatal_error_reason
+    fatal_error_reason = reason
+    is_running = False
+    release_all_keys()
+    print("EVENT " + json.dumps({
+        "event": "crafting-runtime-stopped", "mode": "items",
+        "termination": "abnormal", "code": code, "reason": reason
+    }, ensure_ascii=False), flush=True)
+    print(f"[停止] {reason}")
+    play_error_sound()
+    return False
+
+def craft_eldritch_implicits(initial_result=None):
+    try:
+        if not isinstance(initial_result, dict):
+            return fail_eldritch_crafting("缺少制作前物品读取结果", "ITEM_PREPARATION_MISSING")
+        result = initial_result
+
+        category = str(result.get("category") or "").replace(" ", "")
+        if result.get("isLegendary"):
+            return fail_eldritch_crafting("传奇物品不能使用古灵直接通货", "ELDRITCH_UNSUPPORTED_RARITY")
+        if result.get("isCorrupted"):
+            return fail_eldritch_crafting("已腐化物品不能使用古灵直接通货", "ELDRITCH_CORRUPTED")
+        if result.get("isMirrored") or result.get("isUnmodifiable"):
+            return fail_eldritch_crafting("不可改变或镜像物品不能进行古灵制作", "ELDRITCH_UNMODIFIABLE")
+        if category not in {"头部", "头盔", "手套", "鞋子", "胸甲", "身体护甲"}:
+            return fail_eldritch_crafting("古灵直接通货只能用于头盔、手套、鞋子或胸甲", "ELDRITCH_UNSUPPORTED_BASE")
+        if result.get("influences"):
+            return fail_eldritch_crafting("势力或忆境物品不能使用古灵直接通货", "ELDRITCH_INFLUENCED")
+
+        if ${checkInitialItem ? 'True' : 'False'} and result.get("eldritchImplicitMatch"):
+            target = result.get("matchedEldritchTargetName") or "目标隐式"
+            print(f"[完成] 当前装备已经命中：{target}，未消耗通货")
+            return True
+
+        max_iterations = 1000
+        for iteration in range(1, max_iterations + 1):
+            if not is_running:
+                return False
+
+            print(f"[操作] 第 {iteration} 次 - 使用 ${currency}")
+            if not apply_currency("${currency}"):
+                return fail_eldritch_crafting("使用古灵通货失败", "ELDRITCH_CURRENCY_FAILED")
+            result = read_current_item(allow_unchanged_text=True)
+            if result.get("error"):
+                return fail_eldritch_crafting(f"使用通货后无法读取装备：{result.get('error')}", "ITEM_READ_FAILED")
+            if result.get("eldritchImplicitMatch"):
+                target = result.get("matchedEldritchTargetName") or "目标隐式"
+                print(f"[成功] 古灵隐式命中：{target}（第 {iteration} 次）")
+                return True
+
+        return fail_eldritch_crafting("达到最大循环次数 (1000)，仍未命中目标古灵隐式", "ELDRITCH_MAX_ITERATIONS")
+    except Exception as error:
+        return fail_eldritch_crafting(f"古灵隐式制作异常：{type(error).__name__}: {error}")
+`
+  }
+
+  // 准备替换数据
+  const stopShortcut = String(globalShortcuts?.end || '').trim()
+  if (!stopShortcut) throw new Error('全局紧急停止快捷键不能为空')
+  if (!/^(?:(?:ctrl|control|alt|shift|commandorcontrol|cmdorctrl|meta|super)\+)*(?:[a-z0-9]|f(?:[1-9]|1[0-9]|2[0-4])|num(?:pad)?[0-9]|space|enter|return|esc|escape|tab|up|down|left|right|pageup|pagedown|home|end|insert)$/i.test(stopShortcut)) throw new Error('全局紧急停止快捷键格式无效')
+  const pynputStopShortcut = toPynputHotkey(stopShortcut)
+  
+  // 构建通货坐标对象
+  const safeCurrencyPositions = {}
+  if (currencyPositions) {
+    for (const [key, val] of Object.entries(currencyPositions)) {
+      if (val) {
+        safeCurrencyPositions[key] = {
+          x: Math.floor(val.x || 0),
+          y: Math.floor(val.y || 0)
+        }
+      }
+    }
+  }
+
+  // 构建物品坐标对象
+  const safeItemPosition = {
+    x: Math.floor(itemPosition?.x || 0),
+    y: Math.floor(itemPosition?.y || 0)
+  }
+  const safeActionPosition = {
+    x: Math.floor(actionPosition?.x || 0),
+    y: Math.floor(actionPosition?.y || 0)
+  }
+  const requiredCurrencyTypes = buildCraftingCurrencyPreflight(preset)
+  const safeBatchConfig = batchConfig?.enabled ? {
+    enabled: true,
+    batchId: String(batchConfig.batchId || ''),
+    scanId: String(batchConfig.scanId || ''),
+    snapshotFingerprint: String(batchConfig.snapshotFingerprint || ''),
+    recovering: Boolean(batchConfig.recovering),
+    completedIds: (batchConfig.completedIds || []).map(String),
+    targets: (batchConfig.targets || []).map((target) => ({
+      id: String(target.id || ''),
+      categoryId: String(target.categoryId || ''),
+      baseType: String(target.baseType || ''),
+      displayName: String(target.displayName || target.baseType || ''),
+      x: Number(target.x), y: Number(target.y),
+      width: Number(target.width), height: Number(target.height),
+      footprintSource: String(target.footprintSource || ''),
+      position: { x: Math.floor(target.position?.x || 0), y: Math.floor(target.position?.y || 0) }
+    }))
+  } : { enabled: false, targets: [] }
+  safeBatchConfig.affixItemLevelRequirements = affixItemLevelRequirements
+
+  // 填充模板
+  let script = craftingTemplate
+
+  // JSON 解码让布尔值、空值和用户字符串始终作为数据注入。
+  const jsonToPython = (jsonStr) => {
+    return `json.loads(${JSON.stringify(jsonStr)})`
+  }
+
+  const replacements = {
+    '{{GEN_DATE}}': new Date().toLocaleString(),
+    '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
+    '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
+    '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
+    '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
+    '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
+    '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
+    '{{RELEASE_SETTLE_MS}}': String(normalizedFixedTiming.releaseSettleMs),
+    '{{CLIPBOARD_CONFIRM_MS}}': String(normalizedFixedTiming.clipboardConfirmMs),
+    '{{STASH_TAB_SETTLE_MS}}': String(normalizedFixedTiming.stashTabSettleMs),
+    '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
+    '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
+    '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
+    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(currencyExpectedNames(language === 'en' ? 'international' : 'cn')),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
+    '{{ITEM_POSITION}}': jsonToPython(JSON.stringify(safeItemPosition)),
+    '{{ACTION_POSITION}}': jsonToPython(JSON.stringify(safeActionPosition)),
+    '{{CRAFTING_KIND}}': craftingKind,
+    '{{BATCH_CONFIG_JSON}}': JSON.stringify(JSON.stringify(safeBatchConfig)),
+    '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
+    '{{STOP_SHORTCUT}}': stopShortcut,
+    '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
+    '{{ENABLE_AFFIX}}': preset.moduleTwo?.enabled ? 'True' : 'False',
+    '{{ENABLE_SOCKET}}': preset.moduleThree?.enabled ? 'True' : 'False',
+    '{{ENABLE_ELDRITCH}}': preset.moduleEldritch?.enabled ? 'True' : 'False',
+    '{{AFFIX_CRAFTING_FUNC}}': generateAffixMatchingLogic(),
+    '{{SPECIALIZED_CRAFTING_FUNC}}': generateSpecializedCraftingLogic(),
+    '{{ELDRITCH_CRAFTING_FUNC}}': generateEldritchCraftingLogic(),
+    '{{SOCKET_CRAFTING_FUNC}}': generateSocketCraftingLogic(),
+    '{{DPI_AWARENESS}}': DPI_AWARENESS
+  }
+
+  return fillTemplate(script, replacements)
+}
+
+/**
+ * 生成地图洗练Python脚本内容
+ * @param {Object} config - 配置对象
+ * @returns {string} Python脚本内容
+ */
+export function generateMapRollingScript(config, mapRollingTemplate) {
+  const {
+    serverId = 'cn',
+    language = getServer(serverId).language,
+    globalShortcuts,
+    currencyPositions,
+    inventory,
+    operationDelayMs,
+    fixedTiming = {},
+    mapConfig,
+    recovery = null,
+    filePaths,
+    stashTabSelection = { enabled: false },
+    dpiScale = 1.0
+  } = config
+
+  getServer(serverId)
+  if (!['en', 'zh-CN'].includes(language)) throw new Error('不支持的物品文本语言')
+
+  const itemInfoFile = filePaths?.itemInfoFile || 'temp/item_info.txt'
+  const itemInfoResultFile = filePaths?.itemInfoResultFile || 'temp/item_info_result.json'
+  const normalizedTiming = normalizeAutomationTiming({ operationDelayMs, fixedTiming })
+  const normalizedOperationDelayMs = normalizedTiming.operationDelayMs
+  const operationDelaySeconds = (normalizedOperationDelayMs / 1000).toFixed(3)
+  const normalizedFixedTiming = normalizedTiming.fixedTiming
+  const normalizedStashTabSelection = {
+    ...stashTabSelection,
+    ...pythonAutomationTiming(normalizedTiming)
+  }
+
+  const escapePath = rawPathContent
+
+  const toPynputHotkey = (shortcut) => {
+    if (!shortcut) return null
+    const parts = shortcut.split('+').map(p => p.trim())
+    return parts.map(part => {
+      const lower = part.toLowerCase()
+      const map = {
+        'ctrl': '<ctrl>', 'control': '<ctrl>',
+        'alt': '<alt>',
+        'shift': '<shift>',
+        'cmd': '<cmd>', 'meta': '<cmd>',
+        'enter': '<enter>', 'return': '<enter>',
+        'esc': '<esc>', 'escape': '<esc>',
+        'tab': '<tab>',
+        'up': '<up>', 'down': '<down>', 'left': '<left>', 'right': '<right>'
+      }
+      if (map[lower]) return map[lower]
+      if (/^f\d+$/.test(lower)) return '<' + lower + '>'
+      return lower
+    }).join('+')
+  }
+
+  const stopShortcut = String(globalShortcuts?.end || '').trim()
+  if (!stopShortcut) throw new Error('全局紧急停止快捷键不能为空')
+  if (!/^(?:(?:ctrl|control|alt|shift|commandorcontrol|cmdorctrl|meta|super)\+)*(?:[a-z0-9]|f(?:[1-9]|1[0-9]|2[0-4])|num(?:pad)?[0-9]|space|enter|return|esc|escape|tab|up|down|left|right|pageup|pagedown|home|end|insert)$/i.test(stopShortcut)) throw new Error('全局紧急停止快捷键格式无效')
+  const pynputStopShortcut = toPynputHotkey(stopShortcut)
+
+  // 构建通货坐标对象
+  const safeCurrencyPositions = {}
+  if (currencyPositions) {
+    for (const [key, val] of Object.entries(currencyPositions)) {
+      if (val) {
+        safeCurrencyPositions[key] = {
+          x: Math.floor(val.x || 0),
+          y: Math.floor(val.y || 0)
+        }
+      }
+    }
+  }
+
+  // 计算最终的网格配置 (强制使用全局设置)
+  const grid = mapConfig.grid || {}
+  const finalGridConfig = {
+    rows: grid.rows || 5,
+    cols: grid.cols || 12,
+    startX: inventory?.startPos?.x || 0,
+    startY: inventory?.startPos?.y || 0,
+    offsetX: inventory?.slotSize?.w || 0,
+    offsetY: inventory?.slotSize?.h || 0,
+    emptySlotThreshold: normalizeEmptySlotThreshold(inventory?.emptySlotThreshold)
+  }
+  const requiredCurrencyTypes = buildMapCurrencyPreflight(mapConfig)
+
+  // 填充模板
+  let script = mapRollingTemplate
+
+  // JSON 解码让布尔值、空值和用户字符串始终作为数据注入。
+  const jsonToPython = (jsonStr) => {
+    return `json.loads(${JSON.stringify(jsonStr)})`
+  }
+
+  const replacements = {
+    '{{GEN_DATE}}': new Date().toLocaleString(),
+    '{{ITEM_INFO_FILE}}': escapePath(itemInfoFile),
+    '{{ITEM_INFO_RESULT_FILE}}': escapePath(itemInfoResultFile),
+    '{{DELAY_MOUSE_MOVE}}': operationDelaySeconds,
+    '{{MODIFIER_SETTLE_MS}}': String(normalizedFixedTiming.modifierSettleMs),
+    '{{KEY_HOLD_MS}}': String(normalizedFixedTiming.keyHoldMs),
+    '{{BUTTON_HOLD_MS}}': String(normalizedFixedTiming.buttonHoldMs),
+    '{{RELEASE_SETTLE_MS}}': String(normalizedFixedTiming.releaseSettleMs),
+    '{{CLIPBOARD_CONFIRM_MS}}': String(normalizedFixedTiming.clipboardConfirmMs),
+    '{{STASH_TAB_SETTLE_MS}}': String(normalizedFixedTiming.stashTabSettleMs),
+    '{{STASH_SETTLE_MS}}': String(normalizedFixedTiming.stashSettleMs),
+    '{{CURRENCY_POSITIONS}}': jsonToPython(JSON.stringify(safeCurrencyPositions)),
+    '{{REQUIRED_CURRENCY_TYPES}}': jsonToPython(JSON.stringify(requiredCurrencyTypes)),
+    '{{CURRENCY_EXPECTED_NAMES}}': JSON.stringify(currencyExpectedNames(language === 'en' ? 'international' : 'cn')),
+    '{{STASH_TAB_SELECTION_JSON}}': JSON.stringify(JSON.stringify(normalizedStashTabSelection)),
+    '{{GRID_CONFIG}}': jsonToPython(JSON.stringify(finalGridConfig)),
+    '{{MAP_CONFIG}}': jsonToPython(JSON.stringify({ ...mapConfig, serverId })),
+    '{{RECOVERY_CONFIG}}': jsonToPython(JSON.stringify(recovery || {})),
+    '{{DPI_SCALE_FACTOR}}': String(Math.min(3, Math.max(1, Number(dpiScale) || 1))),
+    '{{STOP_SHORTCUT}}': stopShortcut,
+    '{{PYNPUT_STOP_SHORTCUT}}': pynputStopShortcut,
+    '{{DPI_AWARENESS}}': DPI_AWARENESS
+  }
+
+  return fillTemplate(script, replacements)
+}
+

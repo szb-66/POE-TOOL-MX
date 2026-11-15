@@ -1,8 +1,42 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 
 const source = relativePath => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+
+test('更新状态监听不把渲染层响应式回调结果返回给 contextBridge', () => {
+  let api
+  let registered
+  let removed
+  runInNewContext(source('../electron/preload.cjs'), {
+    require: name => {
+      assert.equal(name, 'electron')
+      return {
+        contextBridge: { exposeInMainWorld: (_name, value) => { api = value } },
+        ipcRenderer: {
+          sendSync: () => ({ id: 'cn' }),
+          on: (channel, listener) => { registered = { channel, listener } },
+          removeListener: (channel, listener) => { removed = { channel, listener } }
+        }
+      }
+    }
+  })
+  const reactiveState = new Proxy({}, {})
+  assert.throws(() => structuredClone(reactiveState), { name: 'DataCloneError' })
+  let received
+  const unsubscribe = api.onApplicationUpdateStateChanged(state => {
+    received = state
+    return reactiveState
+  })
+  const state = { supported: false, status: 'idle' }
+  assert.equal(registered.channel, 'update-state-changed')
+  assert.equal(registered.listener({}, state), undefined)
+  assert.equal(received, state)
+  unsubscribe()
+  assert.equal(removed.channel, registered.channel)
+  assert.equal(removed.listener, registered.listener)
+})
 
 test('更新 IPC 只暴露固定命令且校验主窗口、模式与来源', () => {
   const ipc = source('../electron/modules/ipc/update.js')

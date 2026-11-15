@@ -281,6 +281,7 @@ SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 # 坐标配置
 currency_positions = {{CURRENCY_POSITIONS}}  # type: ignore
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}  # type: ignore
+currency_expected_names = {{CURRENCY_EXPECTED_NAMES}}  # type: ignore
 verified_currency_types = set()
 fatal_error_reason = None
 foreground_failure_emitted = False
@@ -503,6 +504,12 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
+def currency_identity_matches(currency, actual):
+    import re
+    expected = globals().get("currency_expected_names", {}).get(currency, CURRENCY_NAMES.get(currency))
+    name = re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
+    return bool(expected) and name == expected
+
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
     expected = CURRENCY_NAMES.get(currency, currency)
@@ -588,7 +595,7 @@ def preflight_required_currencies():
 
         header = copied_item_header(clipboard_text)
         actual = detected_item_name(header)
-        if expected not in actual:
+        if not currency_identity_matches(currency, actual):
             return fail_currency_preflight(
                 currency,
                 f"通货位置错误：需要{expected}，实际检测到{actual}",
@@ -1219,6 +1226,17 @@ def process_single_map(initial_result, slot_x, slot_y):
     """
     
     current_result = initial_result
+    def invalid_affix_count(candidate):
+        # 3.30 九词仅限瓦尔后的地图；普通洗练和崇高补满仍为六词。
+        if map_config.get("serverId") != "international" or map_config.get("targetKind", "atlas") != "atlas":
+            return False
+        if candidate.get("affixFormatUnsupported"):
+            return True
+        detailed = candidate.get("detailedMods")
+        if not isinstance(detailed, list) or not detailed:
+            return False
+        count = sum(1 for mod in detailed if isinstance(mod, dict) and mod.get("type") in ("prefix", "suffix"))
+        return count > (9 if candidate.get("isCorrupted") else 6)
     alchemy_currency = (
         "binding"
         if map_config.get("method") == "alchemy" and map_config.get("binding", {}).get("enabled")
@@ -1234,6 +1252,8 @@ def process_single_map(initial_result, slot_x, slot_y):
         if not item_matches_rolling_target(current_result):
             print(f"  > [停止单件] 重新读取后的类别不是当前目标 {rolling_target_label()}，未继续使用通货")
             return failed_map_result(f"解析类别不是当前目标 {rolling_target_label()}", "MAP_TARGET_MISMATCH")
+        if invalid_affix_count(current_result):
+            return failed_map_result("地图词缀无法可靠识别或数量超出当前版本上限", "MAP_AFFIX_COUNT_INVALID")
         
         # 基本信息提取
         is_corrupted = current_result.get("isCorrupted", False)
@@ -1460,6 +1480,8 @@ def process_single_map(initial_result, slot_x, slot_y):
             current_result = apply_currency_and_read("vaal", slot_x, slot_y)
             if current_result.get("error"):
                 return failed_map_result(current_result.get("error"), "MAP_VAAL_READ_FAILED")
+            if invalid_affix_count(current_result):
+                return failed_map_result("瓦尔后地图词缀无法可靠识别或超过九条", "MAP_AFFIX_COUNT_INVALID")
             
             # 瓦尔后检查是否符合条件（先检查基底，再检查词缀）
             vaal_base_ok = check_map_base(current_result)
@@ -1513,7 +1535,7 @@ def check_map_base(item_data):
         if map_config.get('targetKind') == 'heist' else
         ('quantity', 'rarity', 'packSize', 'deadmanSulphur')
         if map_config.get('targetKind') == 'chart'
-        else ('quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency')
+        else ('quantity', 'rarity', 'packSize', 'atlasDrops', 'moreMaps', 'moreScarabs', 'moreThreads', 'moreCurrency')
     )
     mandatory = {
         key: dict(value) for key, value in match_config.get('mandatoryStats', {}).items()
@@ -1570,6 +1592,18 @@ def check_map_base(item_data):
             
     return True
 
+def map_term_matches(mod, term):
+    if not term:
+        return False
+    if '#' not in term:
+        return term in mod
+    import re
+    def shape(value):
+        value = ' '.join(str(value).split())
+        value = re.sub(r'(\d+(?:\.\d+)?)\(\d+(?:\.\d+)?\s*[—–-]\s*\d+(?:\.\d+)?\)', r'\1', value)
+        return re.sub(r'\(?\d+(?:\.\d+)?(?:\s*[—–-]\s*\d+(?:\.\d+)?)?\)?', '#', value)
+    return shape(mod) == shape(term)
+
 def check_map_mods(item_data):
     """Purpose: 基于黑白名单校验地图词缀。
     Inputs: item_data.explicitMods；map_config.match.blacklist / whitelist。
@@ -1583,7 +1617,7 @@ def check_map_mods(item_data):
     blacklist = match_config.get('blacklist', [])
     for mod in explicit_mods:
         for black_term in blacklist:
-            if black_term and black_term in mod:
+            if black_term and map_term_matches(mod, black_term):
                 # print(f"  > [匹配] 发现黑名单词缀: {mod}")
                 return False
                 
@@ -1591,11 +1625,11 @@ def check_map_mods(item_data):
     whitelist = match_config.get('whitelist', [])
     if map_config.get('targetKind') == 'heist':
         terms = [term for term in whitelist if term and term.strip()]
-        return not terms or any(term in mod for term in terms for mod in explicit_mods)
+        return not terms or any(map_term_matches(mod, term) for term in terms for mod in explicit_mods)
     if whitelist:
         for mod in explicit_mods:
             for white_term in whitelist:
-                if white_term and white_term in mod:
+                if white_term and map_term_matches(mod, white_term):
                     print(f"  > [匹配] 命中白名单词缀: {mod}")
                     return True
                     
@@ -1613,7 +1647,7 @@ def count_affix_stats(item_data):
     blacklist = match_config.get('blacklist', [])
     for mod in explicit_mods:
         for black_term in blacklist:
-            if black_term and black_term in mod:
+            if black_term and map_term_matches(mod, black_term):
                 blacklist_stats[black_term] = blacklist_stats.get(black_term, 0) + 1
                 break  # 每个词缀只统计一次
     
@@ -1622,7 +1656,7 @@ def count_affix_stats(item_data):
     if whitelist:
         for mod in explicit_mods:
             for white_term in whitelist:
-                if white_term and white_term in mod:
+                if white_term and map_term_matches(mod, white_term):
                     whitelist_stats[white_term] = whitelist_stats.get(white_term, 0) + 1
                     break  # 每个词缀只统计一次
     

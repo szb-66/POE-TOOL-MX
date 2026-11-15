@@ -26,6 +26,22 @@ function storageValue(values, key) {
   return JSON.parse(values.get(key))
 }
 
+test('首次使用新服务清除旧会话标记但保留新服务的未读状态', async t => {
+  const values = withStorage(t, {
+    'feedback.active': JSON.stringify(['old-feedback']),
+    'feedback.seen': JSON.stringify({ 'old-feedback': 1 }),
+    'feedback.aliyun-v1.active': JSON.stringify(['new-feedback']),
+    'feedback.aliyun-v1.seen': JSON.stringify({ 'new-feedback': 0 })
+  })
+  withFeedbackApi(t, { list: async () => ({ success: true, items: [{ id: 'new-feedback', adminReplyCount: 1, lastMessageAuthor: 'admin' }] }) })
+  setActivePinia(createPinia())
+  const store = useFeedbackRepliesStore()
+  await store.startupCheck()
+  assert.equal(values.has('feedback.active'), false)
+  assert.equal(values.has('feedback.seen'), false)
+  assert.deepEqual(store.unread.map(item => item.id), ['new-feedback'])
+})
+
 test('活跃集合为空时不发起反馈列表查询', async t => {
   withStorage(t)
   let listCalls = 0
@@ -39,8 +55,8 @@ test('活跃集合为空时不发起反馈列表查询', async t => {
 
 test('启动检查以管理员消息数差值识别未读并只通知一次', async t => {
   const values = withStorage(t, {
-    'feedback.seen': JSON.stringify({ 'fb-a': 1, 'fb-b': 1 }),
-    'feedback.active': JSON.stringify(['fb-a', 'fb-b', 'fb-gone'])
+    'feedback.aliyun-v1.seen': JSON.stringify({ 'fb-a': 1, 'fb-b': 1 }),
+    'feedback.aliyun-v1.active': JSON.stringify(['fb-a', 'fb-b', 'fb-gone'])
   })
   const listItems = [
     { id: 'fb-a', feedbackId: 'FBA', title: '海图识别失败', adminReplyCount: 2, lastMessageAuthor: 'admin' },
@@ -62,13 +78,13 @@ test('启动检查以管理员消息数差值识别未读并只通知一次', as
   assert.deepEqual(store.unread.map(item => item.id), ['fb-a'], '玩家追问(fb-b)与新反馈(fb-new)不算未读')
   assert.equal(notified.length, 1)
   assert.equal(notified[0][0].title, '海图识别失败')
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-a', 'fb-b'], '有未读与等待答复的保持活跃，列表外的 fb-gone 移出')
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-a', 'fb-b'], '有未读与等待答复的保持活跃，列表外的 fb-gone 移出')
 })
 
 test('管理员最后发言且已读的反馈在查询后沉寂，下次启动不再查询', async t => {
   const values = withStorage(t, {
-    'feedback.seen': JSON.stringify({ 'fb-a': 3 }),
-    'feedback.active': JSON.stringify(['fb-a'])
+    'feedback.aliyun-v1.seen': JSON.stringify({ 'fb-a': 3 }),
+    'feedback.aliyun-v1.active': JSON.stringify(['fb-a'])
   })
   let listCalls = 0
   withFeedbackApi(t, {
@@ -81,39 +97,39 @@ test('管理员最后发言且已读的反馈在查询后沉寂，下次启动�
   const store = useFeedbackRepliesStore()
   await store.startupCheck({ notify: () => {} })
   assert.equal(listCalls, 1)
-  assert.deepEqual(storageValue(values, 'feedback.active'), [], '已读沉寂后活跃集合清空')
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), [], '已读沉寂后活跃集合清空')
   await store.startupCheck()
   assert.equal(listCalls, 1, '沉寂反馈零查询')
 })
 
 test('markSeen 更新已见值、清零未读并按需收缩活跃集合', async t => {
   const values = withStorage(t, {
-    'feedback.seen': JSON.stringify({}),
-    'feedback.active': JSON.stringify(['fb-a', 'fb-b'])
+    'feedback.aliyun-v1.seen': JSON.stringify({}),
+    'feedback.aliyun-v1.active': JSON.stringify(['fb-a', 'fb-b'])
   })
   setActivePinia(createPinia())
   const store = useFeedbackRepliesStore()
   store.unread.push({ id: 'fb-a', title: 'A' }, { id: 'fb-b', title: 'B' })
   store.markSeen('fb-a', 3)
-  assert.deepEqual(storageValue(values, 'feedback.seen'), { 'fb-a': 3 })
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.seen'), { 'fb-a': 3 })
   assert.deepEqual(store.unread.map(item => item.id), ['fb-b'])
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-a', 'fb-b'], '未知最后发言方时保守保留活跃')
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-a', 'fb-b'], '未知最后发言方时保守保留活跃')
   store.markSeen('fb-a', 3, 'admin')
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-b'], '管理员最后发言且已读则移出活跃集合')
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-b'], '管理员最后发言且已读则移出活跃集合')
   store.markSeen('fb-b', 3, 'user')
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-b'], '等待答复的反馈保持活跃')
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-b'], '等待答复的反馈保持活跃')
 })
 
 test('reactivate 使反馈恢复启动检查资格且去重', async t => {
   const values = withStorage(t, {
-    'feedback.seen': JSON.stringify({ 'fb-a': 2 }),
-    'feedback.active': JSON.stringify([])
+    'feedback.aliyun-v1.seen': JSON.stringify({ 'fb-a': 2 }),
+    'feedback.aliyun-v1.active': JSON.stringify([])
   })
   setActivePinia(createPinia())
   const store = useFeedbackRepliesStore()
   store.reactivate('fb-a')
   store.reactivate('fb-a')
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-a'])
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-a'])
 })
 
 test('registerSubmitted 写入零已见值并加入活跃集合', async t => {
@@ -121,12 +137,12 @@ test('registerSubmitted 写入零已见值并加入活跃集合', async t => {
   setActivePinia(createPinia())
   const store = useFeedbackRepliesStore()
   store.registerSubmitted('fb-new')
-  assert.deepEqual(storageValue(values, 'feedback.seen'), { 'fb-new': 0 })
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-new'])
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.seen'), { 'fb-new': 0 })
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-new'])
 })
 
 test('查询失败或服务不可用时静默跳过且不通知', async t => {
-  withStorage(t, { 'feedback.active': JSON.stringify(['fb-a']) })
+  withStorage(t, { 'feedback.aliyun-v1.active': JSON.stringify(['fb-a']) })
   withFeedbackApi(t, { list: async () => { throw new Error('network down') } })
   setActivePinia(createPinia())
   const failingStore = useFeedbackRepliesStore()
@@ -137,7 +153,7 @@ test('查询失败或服务不可用时静默跳过且不通知', async t => {
 })
 
 test('损坏的本地 JSON 按空状态处理且不抛错', async t => {
-  const values = withStorage(t, { 'feedback.active': '{oops', 'feedback.seen': '###' })
+  const values = withStorage(t, { 'feedback.aliyun-v1.active': '{oops', 'feedback.aliyun-v1.seen': '###' })
   let listCalls = 0
   withFeedbackApi(t, { list: async () => { listCalls += 1; return { success: true, items: [] } } })
   setActivePinia(createPinia())
@@ -146,7 +162,7 @@ test('损坏的本地 JSON 按空状态处理且不抛错', async t => {
   assert.equal(listCalls, 0, '活跃集合损坏时视为空，跳过查询')
   assert.doesNotThrow(() => store.markSeen('fb-a', 1, 'admin'))
   assert.doesNotThrow(() => store.reactivate('fb-a'))
-  assert.deepEqual(storageValue(values, 'feedback.active'), ['fb-a'])
+  assert.deepEqual(storageValue(values, 'feedback.aliyun-v1.active'), ['fb-a'])
 })
 
 test('反馈页在打开会话、提交成功、回复成功时接入未读状态 store', () => {

@@ -1,8 +1,9 @@
+import { getServer } from '../../../shared/serverMode.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 import { encodeTradeQueryId } from './queryId.js'
 
 const ORIGIN = 'https://poe.game.qq.com'
-const LOGIN_HTML_PATTERN = /<title>流放之路<\/title>|需要登录|\/login\?redir=/i
+const LOGIN_HTML_PATTERN = /<title>流放之路<\/title>|需要登录|\/login\?redir=|<title>[^<]*(?:log in|sign in)[^<]*<\/title>/i
 const CACHE_TTL_MS = 15_000
 
 function retryAfterDetails(headers, now) {
@@ -22,18 +23,19 @@ function retryAfterDetails(headers, now) {
     : { retryAfter, retryAt: now + retryAfter * 1000 }
 }
 
-async function parseJsonResponse(response, now) {
+async function parseJsonResponse(response, now, serverLabel = '国服') {
   const text = await response.text()
   if (response.status === 401 || LOGIN_HTML_PATTERN.test(text)) {
-    throw new ChaosRecipeError(CHAOS_ERROR_CODES.SESSION_EXPIRED, '国服登录会话已失效')
+    throw new ChaosRecipeError(CHAOS_ERROR_CODES.SESSION_EXPIRED, `${serverLabel}登录会话已失效`)
   }
   if (response.status === 429) {
     const details = retryAfterDetails(response.headers, now)
     const message = details.retryAfter == null
-      ? '国服交易接口已限制请求频率，但未提供恢复时间'
-      : `国服交易接口已限制请求频率，请在 ${details.retryAfter} 秒后重试`
+      ? `${serverLabel}交易接口已限制请求频率，但未提供恢复时间`
+      : `${serverLabel}交易接口已限制请求频率，请在 ${details.retryAfter} 秒后重试`
     throw new ChaosRecipeError(CHAOS_ERROR_CODES.RATE_LIMITED, message, details)
   }
+  if (response.status === 403) throw new ChaosRecipeError('ACCESS_DENIED', '交易网站拒绝访问，当前会话或接口可能不受支持', { status: 403 })
   if (!response.ok) {
     let officialMessage = ''
     try {
@@ -45,17 +47,19 @@ async function parseJsonResponse(response, now) {
     const detail = officialMessage ? `：${officialMessage}` : ''
     throw new ChaosRecipeError(
       CHAOS_ERROR_CODES.API_INCOMPATIBLE,
-      `国服交易接口返回 HTTP ${response.status}${detail}`,
+      `${serverLabel}交易接口返回 HTTP ${response.status}${detail}`,
       { status: response.status, officialMessage }
     )
   }
   try { return JSON.parse(text) } catch {
-    throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易接口没有返回可识别的 JSON 数据')
+    throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${serverLabel}交易接口没有返回可识别的 JSON 数据`)
   }
 }
 
 export class PoeCnTradeClient {
-  constructor({ session, now = () => Date.now() }) {
+  constructor({ session, now = () => Date.now(), server = getServer() }) {
+    this.server = server
+    this.origin = server.origin
     this.session = session
     this.now = now
     this.cache = new Map()
@@ -74,7 +78,7 @@ export class PoeCnTradeClient {
     const retryAfter = Math.ceil((retryAt - now) / 1000)
     throw new ChaosRecipeError(
       CHAOS_ERROR_CODES.RATE_LIMITED,
-      `国服交易接口已限制请求频率，请在 ${retryAfter} 秒后重试`,
+      `${this.server.label}交易接口已限制请求频率，请在 ${retryAfter} 秒后重试`,
       { retryAfter, retryAt }
     )
   }
@@ -84,25 +88,25 @@ export class PoeCnTradeClient {
     this.assertNotRateLimited(group)
     let response
     try {
-      response = await this.session.fetch(`${ORIGIN}${path}`, {
+      response = await this.session.fetch(`${this.origin}${path}`, {
         method,
         cache: 'no-store',
-        signal,
+        signal: signal || AbortSignal.timeout(15000),
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
-          Origin: ORIGIN,
+          Origin: this.origin,
           'X-Requested-With': 'XMLHttpRequest'
         },
         body: body == null ? undefined : JSON.stringify(body)
       })
     } catch (error) {
       if (error?.name === 'AbortError') throw error
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.NETWORK_ERROR, `无法连接国服交易接口：${error.message}`)
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.NETWORK_ERROR, `无法连接${this.server.label}交易接口：${error.message}`)
     }
     try {
-      return await parseJsonResponse(response, this.now())
+      return await parseJsonResponse(response, this.now(), this.server.label)
     } catch (error) {
       const retryAt = Number(error?.details?.retryAt)
       if (error?.code === CHAOS_ERROR_CODES.RATE_LIMITED && Number.isFinite(retryAt)) {
@@ -114,14 +118,14 @@ export class PoeCnTradeClient {
 
   async search(league, query, { signal } = {}) {
     const safeLeague = String(league || '').trim()
-    if (!safeLeague || safeLeague.length > 80) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '请选择有效国服赛季')
+    if (!safeLeague || safeLeague.length > 80) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `请选择有效${this.server.label}赛季`)
     const cacheKey = JSON.stringify([safeLeague, query])
     const cached = this.cache.get(cacheKey)
     if (cached && this.now() - cached.createdAt < CACHE_TTL_MS) return structuredClone(cached.value)
     const value = await this.request(`/api/trade/search/${encodeURIComponent(safeLeague)}`, { method: 'POST', body: query, signal })
     encodeTradeQueryId(value?.id)
     if (!value.result || typeof value.result !== 'object') {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易搜索响应缺少查询编号或结果')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${this.server.label}交易搜索响应缺少查询编号或结果`)
     }
     this.cache.set(cacheKey, { createdAt: this.now(), value })
     return structuredClone(value)
@@ -130,7 +134,7 @@ export class PoeCnTradeClient {
   async getStats({ signal } = {}) {
     const value = await this.request('/api/trade/data/stats', { signal })
     if (!Array.isArray(value?.result)) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服官方词缀目录响应结构不兼容')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${this.server.label}官方词缀目录响应结构不兼容`)
     }
     return value
   }
@@ -138,7 +142,7 @@ export class PoeCnTradeClient {
   async getItems({ signal } = {}) {
     const value = await this.request('/api/trade/data/items', { signal })
     if (!Array.isArray(value?.result)) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服官方物品目录响应结构不兼容')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${this.server.label}官方物品目录响应结构不兼容`)
     }
     return value
   }
@@ -146,16 +150,18 @@ export class PoeCnTradeClient {
   async fetch(queryId, resultIds, { signal } = {}) {
     const encodedQueryId = encodeTradeQueryId(queryId)
     if (!Array.isArray(resultIds) || resultIds.some((id) => typeof id !== 'string' || !/^[a-zA-Z0-9]+$/.test(id))) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易响应包含无效的挂单编号')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${this.server.label}交易响应包含无效的挂单编号`)
     }
     const ids = resultIds.slice(0, 10)
     if (!ids.length) return { result: [] }
     const value = await this.request(`/api/trade/fetch/${ids.join(',')}?query=${encodedQueryId}`, { signal })
     if (!Array.isArray(value?.result)) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服交易挂单响应结构不兼容')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, `${this.server.label}交易挂单响应结构不兼容`)
     }
     return value
   }
 }
 
 export { ORIGIN as POE_CN_TRADE_ORIGIN }
+
+export { PoeCnTradeClient as PoeTradeClient }

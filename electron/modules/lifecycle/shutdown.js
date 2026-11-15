@@ -21,6 +21,7 @@ function runWithTimeout(task, timeoutMs) {
 export function createShutdownController({
   app,
   cleanup,
+  prepareCleanup,
   timeoutMs = 8000,
   onError = (error) => console.error('[shutdown]', error)
 }) {
@@ -39,7 +40,8 @@ export function createShutdownController({
     if (shutdownPromise) return shutdownPromise
 
     state = 'cleaning'
-    shutdownPromise = runWithTimeout(cleanup, timeoutMs)
+    const prepared = prepareCleanup ? Promise.resolve().then(prepareCleanup) : null
+    shutdownPromise = (prepared ? prepared.then(() => runWithTimeout(cleanup, timeoutMs)) : runWithTimeout(cleanup, timeoutMs))
       .catch(reportError)
       .finally(() => {
         state = 'ready'

@@ -116,7 +116,7 @@ for (const [label, file, mode] of [
 }
 
 test('孔连颜色在左键成功后计数，点击后解析失败与三次补读不会重计', async () => {
-  const generator = await source('src/utils/python.js')
+  const generator = await source('src/utils/pythonScriptGenerator.js')
   for (const [functionName, currency] of [
     ['craft_socket_count', 'jewellers'],
     ['craft_links', 'fusing'],
@@ -173,7 +173,7 @@ test('浮窗实时与终态快照都携带账本，旧跳数通道已移除', as
     source('electron/modules/ipc/python.js'),
     source('src/domains/overlay/OverlayView.vue'),
     source('src/domains/overlay/components/OverlayContent.vue'),
-    source('src/utils/python.js'),
+    source('src/utils/pythonScriptGenerator.js'),
     source('electron/modules/ipc/file.js'),
     source('src/domains/items/ItemsView.vue'),
     source('src/utils/craftingRestart.js')

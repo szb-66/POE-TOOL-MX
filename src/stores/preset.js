@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 /**
  * Purpose: 预设管理 Store，负责物品和地图预设的存储、加载和保存
  * Inputs: 通过函数调用传入预设数据

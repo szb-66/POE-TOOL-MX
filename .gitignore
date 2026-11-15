@@ -8,6 +8,8 @@ __pycache__/
 *.py[cod]
 .cache/
 vite.config.js.timestamp-*
+electron/native/localization-helper/bin/
+electron/native/localization-helper/obj/
 
 # 本地 AI / 编辑器工作流配置
 .claude/

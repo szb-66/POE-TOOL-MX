@@ -34,6 +34,7 @@ import { useFeatureModulesStore } from '../stores/featureModules.js'
 import { filterFeatureShortcuts, shortcutFeatureId } from '../features/featureCatalog.js'
 import { freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
+import { canUseGameInput } from './serverContext.js'
 import {
   collectCraftingConfigurationIssues,
   collectMapConfigurationIssues,
@@ -121,7 +122,7 @@ export async function initShortcuts() {
   if (!shortcutListenerRegistered) {
     electronApi.shortcut.onTriggered((accelerator) => {
       const featureId = shortcutFeatureId(accelerator)
-      if (featureId && !useFeatureModulesStore().isEnabled(featureId)) return
+      if (featureId && (!useFeatureModulesStore().isEnabled(featureId) || !canUseGameInput(featureId))) return
       dispatchShortcutAction(accelerator, {
         itemStart: startCrafting,
         mapStart: startMapRolling,
@@ -215,6 +216,11 @@ export function emergencyStopAll() {
  * 开始制作
  */
 export async function startCrafting(options = {}) {
+  if (!canUseGameInput('items')) {
+    const error = '物品制作已适配英文，游戏操作仍待开发版实测'
+    ElMessage.warning(error)
+    return { success: false, error }
+  }
   const presetStore = usePresetStore()
   const craftingKind = normalizeItemCraftingKind(options.craftingKind || presetStore.itemCraftingKind)
   return craftingKind === 'general'
@@ -255,7 +261,7 @@ async function startSpecializedCrafting(craftingKind, {
   try {
     await refreshDpiForAutomation(settingsStore)
     const filePaths = await electronApi.file.getPaths()
-    const scriptContent = generatePythonScript({
+    const generationConfig = {
       globalShortcuts: settingsStore.globalShortcuts,
       currencyPositions: {},
       operationDelayMs: settingsStore.operationDelayMs,
@@ -266,9 +272,11 @@ async function startSpecializedCrafting(craftingKind, {
       dpiScale: settingsStore.dpiScale,
       preset: effectivePreset,
       filePaths
-    })
+    }
+    const scriptContent = generatePythonScript(generationConfig)
     const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
     const result = await electronApi.script.generateAndExecute({
+      generationConfig: JSON.parse(JSON.stringify(generationConfig)),
       scriptContent,
       preset: effectivePreset,
       mode: 'items',
@@ -451,7 +459,7 @@ async function startGeneralCrafting({
     const filePaths = await electronApi.file.getPaths()
 
     // 生成脚本内容
-    const scriptContent = generatePythonScript({
+    const generationConfig = {
         globalShortcuts: settingsStore.globalShortcuts,
         currencyPositions: settingsStore.currencyPositions,
         operationDelayMs: settingsStore.operationDelayMs,
@@ -462,7 +470,8 @@ async function startGeneralCrafting({
       preset: effectivePreset,
       batchConfig,
       filePaths
-    })
+    }
+    const scriptContent = generatePythonScript(generationConfig)
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = effectivePreset
@@ -471,6 +480,7 @@ async function startGeneralCrafting({
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
+      generationConfig: JSON.parse(JSON.stringify(generationConfig)),
       scriptContent,
       preset: plainPreset,
       mode: 'items',
@@ -508,6 +518,11 @@ export async function startMapRolling({
   continueCurrencyUsage = false,
   configurationGuideBypass = false
 } = {}) {
+  if (!canUseGameInput('map')) {
+    const error = '地图制作已适配英文，游戏操作仍待开发版实测'
+    ElMessage.warning(error)
+    return { success: false, error }
+  }
   const scriptStore = useScriptStore()
   const presetStore = usePresetStore()
   const settingsStore = useSettingsStore()
@@ -618,7 +633,7 @@ export async function startMapRolling({
     const filePaths = await electronApi.file.getPaths()
 
     // 生成脚本内容
-    const scriptContent = generateMapRollingScript({
+    const generationConfig = {
       globalShortcuts: settingsStore.globalShortcuts,
         currencyPositions: settingsStore.currencyPositions,
         inventory: settingsStore.inventory,
@@ -629,7 +644,8 @@ export async function startMapRolling({
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       filePaths
-    })
+    }
+    const scriptContent = generateMapRollingScript(generationConfig)
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = JSON.parse(JSON.stringify({
@@ -641,6 +657,7 @@ export async function startMapRolling({
 
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
+      generationConfig: JSON.parse(JSON.stringify(generationConfig)),
       scriptContent,
       preset: plainPreset,
       mode: 'map',

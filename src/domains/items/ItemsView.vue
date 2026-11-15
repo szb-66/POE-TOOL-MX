@@ -9,6 +9,7 @@
     </div>
 
     <div class="items-content primary-page__scroll primary-page__content">
+      <el-alert v-if="!canUseGameInput('items')" title="英文制作适配已就绪，完成客户端手动验收后开放游戏操作；现在可配置预设与词缀。" type="info" :closable="false" />
       <el-row class="app-grid" :gutter="16"><el-col :span="24">
         <template v-if="activeKind === 'general'">
           <el-alert v-if="showEldritchRuntime" :title="eldritchRuntimeText" :type="scriptStore.itemRuntime.eldritchImplicitMatch ? 'success' : scriptStore.itemRuntime.error ? 'error' : 'info'" :closable="false" class="eldritch-runtime" />
@@ -37,6 +38,7 @@ import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
+import { canUseGameInput } from '@/utils/serverContext.js'
 
 const helpTopics = moduleHelpTopicsById('items')
 const presetStore = usePresetStore()

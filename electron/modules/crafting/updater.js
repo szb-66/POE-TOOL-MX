@@ -42,6 +42,7 @@ export class CraftingDataUpdater {
   }
 
   async update(onProgress = () => {}) {
+    if (this.repository.server?.id === 'international') throw new Error('国际服离线制作数据须使用带 --server international 和 --patch 的维护生成入口更新，禁止加载国服来源')
     if (this.controller) throw new Error('已有数据更新正在进行')
     this.controller = new AbortController()
     const signal = this.controller.signal

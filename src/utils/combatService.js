@@ -1,4 +1,3 @@
-import combatAssistTemplate from '@/assets/scripts/combat_assist_template.py?raw'
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
@@ -6,6 +5,7 @@ import { useCombatStore } from '@/stores/combat'
 import { validateLoopAssist, validatePotionAssist } from './combatConfig.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
+import { canUseGameInput } from './serverContext.js'
 import {
   collectCombatConfigurationIssues,
   CONFIGURATION_ACTIONS,
@@ -13,6 +13,12 @@ import {
 } from '@/domains/configurationGuide/configurationIssues.js'
 
 let removeStatusListener = null
+
+function combatInputAllowed() {
+  if (canUseGameInput('combat')) return true
+  ElMessage.warning('战斗辅助已接入英文客户端，游戏操作仍待开发版实测')
+  return false
+}
 
 export async function initCombatAssist() {
   const store = useCombatStore()
@@ -38,6 +44,7 @@ export function disposeCombatAssist() {
 }
 
 export async function startPotionAssist({ configurationGuideBypass = false } = {}) {
+  if (!combatInputAllowed()) return false
   const settings = useSettingsStore()
   const store = useCombatStore()
   if (!configurationGuideBypass) {
@@ -59,7 +66,6 @@ export async function startPotionAssist({ configurationGuideBypass = false } = {
     return false
   }
   const result = await electronApi.combat.startPotion({
-    scriptContent: combatAssistTemplate,
     config: JSON.parse(JSON.stringify(settings.combatAssist)),
       automationTiming: {
       operationDelayMs: settings.operationDelayMs,
@@ -97,6 +103,7 @@ export async function stopPotionAssist() {
 }
 
 export async function startLoopAssist({ configurationGuideBypass = false } = {}) {
+  if (!combatInputAllowed()) return false
   const settings = useSettingsStore()
   const store = useCombatStore()
   if (!configurationGuideBypass) {
@@ -118,7 +125,6 @@ export async function startLoopAssist({ configurationGuideBypass = false } = {})
     return false
   }
   const result = await electronApi.combat.startLoop({
-    scriptContent: combatAssistTemplate,
     config: JSON.parse(JSON.stringify(settings.combatAssist)),
       automationTiming: {
       operationDelayMs: settings.operationDelayMs,
@@ -158,12 +164,12 @@ export async function stopLoopAssist() {
 
 export async function sampleCombatPixel(point) {
   return electronApi.combat.samplePixel({
-    scriptContent: combatAssistTemplate,
     point: { x: Number(point?.x) || 0, y: Number(point?.y) || 0 }
   })
 }
 
 export async function executePortalAssist({ configurationGuideBypass = false } = {}) {
+  if (!combatInputAllowed()) return false
   const settings = useSettingsStore()
   const store = useCombatStore()
   if (!configurationGuideBypass) {
@@ -180,7 +186,6 @@ export async function executePortalAssist({ configurationGuideBypass = false } =
     }
   }
   const result = await electronApi.combat.executePortal({
-    scriptContent: combatAssistTemplate,
     config: { portal: JSON.parse(JSON.stringify(settings.combatAssist.portal)) },
       automationTiming: {
       operationDelayMs: settings.operationDelayMs,

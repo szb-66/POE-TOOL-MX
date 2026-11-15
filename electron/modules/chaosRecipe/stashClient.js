@@ -1,8 +1,8 @@
+import { getServer } from '../../../shared/serverMode.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from './errors.js'
 import { requestPoeCnJson } from './http.js'
 import { normalizeStashContents, normalizeStashTabs } from './normalizer.js'
 
-const ORIGIN = 'https://poe.game.qq.com'
 
 function leagueNames(payload) {
   const list = Array.isArray(payload) ? payload : payload?.leagues
@@ -22,7 +22,8 @@ function usableTabs(payload) {
 }
 
 export class PoeCnStashClient {
-  constructor({ session, getAuthStatus }) {
+  constructor({ session, getAuthStatus, server = getServer() }) {
+    this.server = server
     this.session = session
     this.getAuthStatus = getAuthStatus
     this.tabsByLeague = new Map()
@@ -71,7 +72,7 @@ export class PoeCnStashClient {
 
   async listLeagues() {
     this.assertAuthenticated()
-    const payload = await this.request(`${ORIGIN}/api/leagues?type=main&realm=pc`)
+    const payload = await this.request(`${this.server.origin}/api/leagues?type=main&realm=pc`)
     const leagues = leagueNames(payload)
     if (!leagues.length) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.API_INCOMPATIBLE, '国服赛季接口返回结构不受支持')
@@ -87,7 +88,7 @@ export class PoeCnStashClient {
       tabs: '1',
       tabIndex: '0'
     })
-    const payload = await this.request(`${ORIGIN}/character-window/get-stash-items?${query}`)
+    const payload = await this.request(`${this.server.origin}/character-window/get-stash-items?${query}`)
     return usableTabs(payload)
   }
 
@@ -120,7 +121,7 @@ export class PoeCnStashClient {
       tabs: '0',
       tabIndex: String(tab.index)
     })
-    const payload = await this.request(`${ORIGIN}/character-window/get-stash-items?${query}`)
+    const payload = await this.request(`${this.server.origin}/character-window/get-stash-items?${query}`)
     return normalizeStashContents(payload, tab)
   }
 
@@ -136,3 +137,5 @@ export class PoeCnStashClient {
     return results
   }
 }
+
+export { PoeCnStashClient as PoeStashClient }

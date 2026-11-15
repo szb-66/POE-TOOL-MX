@@ -32,7 +32,10 @@ import { electronApi } from '@/api/electron.js'
 import RegexPresetSelector from './RegexPresetSelector.vue'
 import RegexResultCard from './RegexResultCard.vue'
 import { useRegexPresetStore } from './regexPresetStore.js'
-import { VENDOR_GROUPS } from './vendorData.js'
+import { VENDOR_GROUPS as sourceGroups } from './vendorData.js'
+import { localizeVendorGroups } from './vendorLanguage.js'
+import { currentServer } from '../../utils/serverContext.js'
+const VENDOR_GROUPS = localizeVendorGroups(sourceGroups, currentServer.language)
 import { createDefaultVendorConfig } from './vendorConfig.js'
 import { generateVendorRegex } from './vendorRegex.js'
 

@@ -1,6 +1,6 @@
 <template>
   <div class="pob-page primary-page primary-page__scroll primary-page__content">
-    <header class="page-heading"><h1>POB</h1><p>将国服角色导出到 PoeCharm 中文版，复制导入码后在「导入／导出 BD」中粘贴。</p></header>
+    <header class="page-heading"><h1>POB</h1><p>将{{ currentServer.label }}角色导出到 PoeCharm 中文版，复制导入码后在「导入／导出 BD」中粘贴。</p></header>
     <PobLauncherPanel />
     <PobExportPanel source="self" :authenticated="account.status.authenticated" :account-name="account.status.accountName" :preferred-league="account.settings.league" />
     <PobExportPanel source="other" :authenticated="account.status.authenticated" :account-name="account.status.accountName" />
@@ -9,10 +9,11 @@
 </template>
 
 <script setup>
-import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { currentServer } from '../../utils/serverContext.js'
+import { usePoeAccountStore } from '@/stores/poeAccount'
 import PobExportPanel from './PobExportPanel.vue'
 import PobLauncherPanel from './PobLauncherPanel.vue'
-const account = usePoeCnAccountStore()
+const account = usePoeAccountStore()
 </script>
 
 <style scoped lang="less">

@@ -17,8 +17,10 @@ function colorFromLink(link) {
   return SKILL_GEM_COLORS.slice(0, 3).find((color) => link.hasClass(`gem_${color}`)) || 'white'
 }
 
-export function parseSkillGemPage(html, { kind }) {
+export function parseSkillGemPage(html, { kind, locale = 'zh-CN' }) {
   if (!SKILL_GEM_KINDS.includes(kind)) throw new Error(`未知宝石类型：${kind}`)
+  if (!['zh-CN', 'en'].includes(locale)) throw new Error(`未知技能目录语言：${locale}`)
+  const prefix = locale === 'en' ? '/us/' : '/cn/'
   const $ = cheerio.load(String(html || ''))
   const records = []
 
@@ -35,10 +37,10 @@ export function parseSkillGemPage(html, { kind }) {
     const levelMatch = cleanText(cellCopy.text()).match(/\((\d+)\)/)
     const requiredLevel = Number(levelMatch?.[1])
 
-    if (!name || !hasImage || !/^\/cn\/[^/?#]+$/.test(sourcePath)) return
+    if (!name || !hasImage || !sourcePath.startsWith(prefix) || !/^\/(?:cn|us)\/[^/?#]+$/.test(sourcePath)) return
     if (!Number.isInteger(requiredLevel) || requiredLevel < 1 || requiredLevel > 100) return
     records.push({
-      id: stableSkillId(kind, sourcePath),
+      id: stableSkillId(kind, sourcePath.replace(/^\/us\//, '/cn/')),
       name,
       requiredLevel,
       color,
@@ -54,7 +56,7 @@ export function parseSkillGemPage(html, { kind }) {
   }
   return [...unique.values()].sort((left, right) =>
     left.requiredLevel - right.requiredLevel
-    || left.name.localeCompare(right.name, 'zh-CN')
+    || left.name.localeCompare(right.name, locale)
     || left.kind.localeCompare(right.kind)
     || left.sourcePath.localeCompare(right.sourcePath)
   )
@@ -65,11 +67,12 @@ export function buildSkillGemCatalog({
   supportHtml,
   patch,
   generatedAt,
-  sources = []
+  sources = [],
+  locale = 'zh-CN'
 }) {
   const skills = [
-    ...parseSkillGemPage(activeHtml, { kind: 'active' }),
-    ...parseSkillGemPage(supportHtml, { kind: 'support' })
+    ...parseSkillGemPage(activeHtml, { kind: 'active', locale }),
+    ...parseSkillGemPage(supportHtml, { kind: 'support', locale })
   ]
   const unique = new Map()
   for (const skill of skills) {
@@ -87,11 +90,11 @@ export function buildSkillGemCatalog({
   return {
     schemaVersion: SKILL_CATALOG_SCHEMA_VERSION,
     patch,
-    locale: 'zh-CN',
+    locale,
     generatedAt,
     sources,
     skills: [...unique.values()].sort((left, right) =>
-      left.name.localeCompare(right.name, 'zh-CN')
+      left.name.localeCompare(right.name, locale)
       || left.requiredLevel - right.requiredLevel
       || left.kind.localeCompare(right.kind)
     )

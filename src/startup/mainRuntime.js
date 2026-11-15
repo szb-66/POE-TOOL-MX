@@ -4,7 +4,7 @@ import ReleaseNotesContent from '../components/common/ReleaseNotesContent.vue'
 import { electronApi } from '../api/electron'
 import { useSettingsStore } from '../domains/settings/settingsStore'
 import { initShortcuts } from '../utils/scriptService'
-import { usePoeCnAccountStore } from '../stores/poeCnAccount'
+import { usePoeAccountStore } from '../stores/poeAccount'
 import { useApplicationUpdateStore } from '../stores/applicationUpdate'
 import { useFeedbackRepliesStore } from '../stores/feedbackReplies'
 import { markMainRuntimeSettled, resetMainRuntimeReadiness } from './readiness'
@@ -99,7 +99,7 @@ async function startMainRuntime({ router }) {
   addDisposer(() => window.removeEventListener('focus', refreshGameWindowOnFocus))
 
   // 先接收生命周期事件，再查询当前状态，避免同步期间漏掉进程事件。
-  const accountStore = usePoeCnAccountStore()
+  const accountStore = usePoeAccountStore()
   addDisposer(accountStore.listenStatus())
   await settleSubsystem('account', () => accountStore.restore(), warnings)
   const featureRuntime = installFeatureRuntime({ router })

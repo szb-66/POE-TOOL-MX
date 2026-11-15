@@ -10,6 +10,27 @@ function withUpdateApi(t, overrides) {
   t.after(() => Object.assign(electronApi.update, original))
 }
 
+test('跨桥状态订阅回调本身返回 undefined，同时保留 applyState 的本地响应式返回值', async t => {
+  let emitThroughBridge
+  withUpdateApi(t, {
+    onStateChanged: callback => {
+      emitThroughBridge = snapshot => structuredClone(callback(snapshot))
+      return () => {}
+    },
+    getState: async () => ({ status: 'idle', supported: false })
+  })
+  setActivePinia(createPinia())
+  const store = useApplicationUpdateStore()
+  await store.initialize()
+  t.after(store.dispose)
+  const localState = store.applyState({ currentVersion: '1.9.2' })
+  assert.equal(localState, store.state)
+  assert.throws(() => structuredClone(localState), { name: 'DataCloneError' })
+  assert.equal(emitThroughBridge({ status: 'not-available', supported: false }), undefined)
+  assert.equal(store.state.status, 'not-available')
+  assert.equal(store.state.currentVersion, '1.9.2')
+})
+
 test('共享更新 store 先监听再读取快照且启动检查只执行一次', async t => {
   const order = []
   let checkCalls = 0

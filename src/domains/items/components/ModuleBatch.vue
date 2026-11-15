@@ -16,7 +16,7 @@
 
     <div v-if="enabled" class="batch-body">
       <div class="scan-controls">
-        <el-button type="primary" :loading="store.busy" :disabled="scriptStore.isRunning" @click="scanInventory">
+        <el-button type="primary" :loading="store.busy" :disabled="scriptStore.isRunning || !canUseGameInput('items')" @click="scanInventory">
           {{ store.snapshot ? '重新扫描' : '扫描背包' }}
         </el-button>
         <el-button v-if="store.busy" type="danger" plain @click="store.stopScan">停止扫描</el-button>
@@ -120,6 +120,7 @@ import { usePresetStore } from '@/stores/preset'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { useScriptStore } from '@/stores/script'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
+import { canUseGameInput } from '@/utils/serverContext.js'
 
 const presets = usePresetStore()
 const store = useBatchCraftingStore()

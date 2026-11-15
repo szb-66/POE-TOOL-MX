@@ -10,6 +10,8 @@ import { validateTemplateCaptureEnvironment } from '../../../src/utils/bagConfig
 import { getDisplayPhysicalBounds } from '../window/coordinates.js'
 import { normalizeJunfengProgress } from './progress.js'
 import { ModelAvailability } from './modelAvailability.js'
+import { highlightModelPaths, resolveHighlightModelPaths } from './modelProfile.js'
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '君锋镇取出高亮'
@@ -50,7 +52,9 @@ function parser(onEvent, onLog) {
 }
 
 export class JunfengHighlightManager {
-  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null, trainingArtifactsRoot = null }) {
+    this.modelRoot = modelRoot
+    this.trainingArtifactsRoot = trainingArtifactsRoot || (modelRoot ? path.join(path.dirname(modelRoot), 'highlight-training') : null)
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
@@ -70,10 +74,7 @@ export class JunfengHighlightManager {
     this.trainingCancelled = false
     this.trainingStatus = { status: 'idle', stage: '', reason: '', report: null, modelVersion: '' }
     this.status = this.initialStatus()
-    this.modelAvailability = new ModelAvailability(this.modelPaths(), {
-      onChange: () => this.onStatusChange?.(),
-      log: event => { if (!app.isPackaged) console.debug('[君锋镇性能]', event) }
-    })
+    this.resetModelAvailability()
     this.disposeDetection = interfaceDetection?.subscribe(state => {
       if (this.status.status === 'running' && !state.foreground) {
         this.stop('game-not-foreground')
@@ -102,7 +103,16 @@ export class JunfengHighlightManager {
     const root = app.isPackaged
       ? path.join(process.resourcesPath, 'junfeng-highlight-model')
       : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-    return { model: path.join(root, 'model.onnx'), manifest: path.join(root, 'manifest.json') }
+    return resolveHighlightModelPaths(root, this.modelRoot)
+  }
+
+  resetModelAvailability() {
+    this.modelAvailability?.dispose()
+    this.modelAvailability = new ModelAvailability(this.modelPaths(), {
+      onChange: () => this.onStatusChange?.(),
+      log: event => { if (!app.isPackaged) console.debug('[君锋镇性能]', event) }
+    })
+    this.modelAvailability.setEnabled(Boolean(this.runtime.enabled))
   }
 
   pythonPath() {
@@ -199,6 +209,7 @@ export class JunfengHighlightManager {
       calibration_root: overrides.disableCalibration ? '' : this.calibration.root,
       model_path: model.model,
       manifest_path: model.manifest,
+      item_footprints: itemFootprintRegistry.snapshot(),
       ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
     return configPath
@@ -296,11 +307,12 @@ export class JunfengHighlightManager {
 
   trainingPaths() {
     const projectRoot = path.resolve(moduleDir, '../../..')
-    const artifacts = path.join(projectRoot, 'artifacts', 'junfeng')
+    const sharedArtifacts = path.join(projectRoot, 'artifacts', 'junfeng')
+    const artifacts = this.trainingArtifactsRoot || sharedArtifacts
     return {
       projectRoot, artifacts,
       python: path.join(projectRoot, '.runtime', 'junfeng-training', 'Scripts', 'python.exe'),
-      base: path.join(artifacts, 'combined.npz'),
+      base: path.join(sharedArtifacts, 'combined.npz'),
       local: path.join(artifacts, 'workbench-local.npz'),
       merged: path.join(artifacts, 'workbench-combined.npz'),
       build: path.join(projectRoot, 'scripts', 'junfeng', 'build_calibration_dataset.py'),
@@ -337,7 +349,8 @@ export class JunfengHighlightManager {
 
   publishCandidateModel(candidate) {
     this.modelAvailability.invalidate()
-    const model = this.modelPaths()
+    const model = this.modelRoot ? highlightModelPaths(this.modelRoot) : this.modelPaths()
+    fs.mkdirSync(path.dirname(model.model), { recursive: true })
     const targets = [
       [candidate.model, model.model],
       [candidate.split, path.join(path.dirname(model.model), 'split.json')],
@@ -357,6 +370,7 @@ export class JunfengHighlightManager {
         entry.replaced = true
       }
       for (const entry of prepared) if (entry.existed && fs.existsSync(entry.backup)) fs.unlinkSync(entry.backup)
+      this.resetModelAvailability()
     } catch (error) {
       for (const entry of prepared.reverse()) {
         try {
@@ -375,6 +389,7 @@ export class JunfengHighlightManager {
     if (this.trainingChild || this.trainingStatus.status === 'running') throw new Error('模型训练正在进行')
     if (this.child) throw new Error('自动取件运行中，不能训练模型')
     const paths = this.trainingPaths()
+    fs.mkdirSync(paths.artifacts, { recursive: true })
     if (!fs.existsSync(paths.python)) throw new Error('未找到 .runtime/junfeng-training GPU 训练环境')
     if (!fs.existsSync(paths.base)) throw new Error('缺少基础训练数据 artifacts/junfeng/combined.npz')
     const modelVersion = `junfeng-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}`
@@ -396,8 +411,12 @@ export class JunfengHighlightManager {
             epochs: event.epochs, loss: event.loss }) })
       this.publishTraining({ stage: '独立验证候选模型' })
       await this.runTrainingCommand(paths.python, [paths.benchmark, '--dataset', paths.merged, '--model', candidate.model,
-        '--split', candidate.split, '--manifest', candidate.manifest], { acceptedCodes: [0, 2] })
+        '--split', candidate.split, '--manifest', candidate.manifest, ...(this.modelRoot ? ['--partition', 'test'] : [])], { acceptedCodes: [0, 2] })
       const report = JSON.parse(fs.readFileSync(candidate.manifest, 'utf8')).benchmark || null
+      if (this.modelRoot && !report?.passed) {
+        this.publishTraining({ report })
+        throw new Error('国际服候选模型未通过独立测试，保留当前模型；请补充英文标注和无高亮场景')
+      }
       this.publishTraining({ stage: '发布当前取件模型' })
       this.publishCandidateModel(candidate)
       this.publishTraining({ status: 'completed', stage: '当前取件模型已更新', report,
@@ -426,10 +445,15 @@ export class JunfengHighlightManager {
     if (this.trainingChild) throw new Error('模型训练正在进行')
     const paths = this.trainingPaths(); const model = this.modelPaths()
     if (!fs.existsSync(paths.merged)) throw new Error('没有可测试的最近训练结果')
+    const reportManifest = this.modelRoot ? path.join(paths.artifacts, 'evaluation-manifest.json') : model.manifest
+    if (this.modelRoot) {
+      fs.mkdirSync(paths.artifacts, { recursive: true })
+      fs.copyFileSync(model.manifest, reportManifest)
+    }
     await this.runTrainingCommand(paths.python, [paths.benchmark, '--dataset', paths.merged, '--model', model.model,
-      '--split', path.join(path.dirname(model.model), 'split.json'), '--manifest', model.manifest,
+      '--split', path.join(path.dirname(model.model), 'split.json'), '--manifest', reportManifest,
       '--partition', 'test'], { acceptedCodes: [0, 2] })
-    const report = JSON.parse(fs.readFileSync(model.manifest, 'utf8')).benchmark || null
+    const report = JSON.parse(fs.readFileSync(reportManifest, 'utf8')).benchmark || null
     this.publishTraining({ status: 'evaluated', stage: '最终测试完成', report, reason: '' })
     return this.getTrainingStatus()
   }

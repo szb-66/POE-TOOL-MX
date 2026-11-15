@@ -1,25 +1,38 @@
 import { BEAST_NAMES } from './beastData.js'
+import internationalMapData from '../../data/internationalMapData.js'
+import { currentServer } from '../../utils/serverContext.js'
 import { compileCompactExpressions, escapeRegexText } from './compactExpression.js'
 import { cleanMapRegexConfig, generateMapPriceExpression } from './mapRegex.js'
 import { finalizeRegex, quotedToken } from './regexResult.js'
 
-const expressions = compileCompactExpressions(BEAST_NAMES.map(name => ({
+const chineseExpressions = compileCompactExpressions(BEAST_NAMES.map(name => ({
   id: name, source: name, variants: [name], fallbackExpression: `^${escapeRegexText(name)}$`
 })), { minimumHanLength: 1 })
-export const BEAST_REGEX_OPTIONS = BEAST_NAMES.map(name => ({ id: name, name, expression: expressions.get(name) }))
-const knownIds = new Set(BEAST_NAMES)
-const cleanIds = value => [...new Set(Array.isArray(value) ? value.filter(id => knownIds.has(id)) : [])]
+const catalogs = new Map([['zh-CN', BEAST_NAMES.map(name => ({ id: name, name, expression: chineseExpressions.get(name) }))]])
+export function beastRegexOptions(language = currentServer.language) {
+  if (catalogs.has(language)) return catalogs.get(language)
+  if (language !== 'en') throw new Error('不支持的客户端语言')
+  const expressions = compileCompactExpressions(internationalMapData.beasts.map(beast => ({
+    id: beast.id, source: beast.name, variants: [beast.name], fallbackExpression: `^${escapeRegexText(beast.name)}$`
+  })), { language: 'en' })
+  const options = internationalMapData.beasts.map(beast => ({ ...beast, expression: expressions.get(beast.id) }))
+  catalogs.set(language, options)
+  return options
+}
+export const BEAST_REGEX_OPTIONS = beastRegexOptions()
+const cleanIds = (value, knownIds) => [...new Set(Array.isArray(value) ? value.filter(id => knownIds.has(id)) : [])]
 
 export function createDefaultBeastRegexConfig() {
   return { priceRange: { min: null, max: null, currencies: [] }, includeIds: [], excludeIds: [] }
 }
 
-export function cleanBeastRegexConfig(value) {
+export function cleanBeastRegexConfig(value, language = currentServer.language) {
   const source = value && typeof value === 'object' ? value : {}
-  const excludeIds = cleanIds(source.excludeIds)
+  const knownIds = new Set(beastRegexOptions(language).map(beast => beast.id))
+  const excludeIds = cleanIds(source.excludeIds, knownIds)
   return {
-    priceRange: cleanMapRegexConfig(source).priceRange,
-    includeIds: cleanIds(source.includeIds).filter(id => !excludeIds.includes(id)),
+    priceRange: cleanMapRegexConfig(source, language).priceRange,
+    includeIds: cleanIds(source.includeIds, knownIds).filter(id => !excludeIds.includes(id)),
     excludeIds
   }
 }
@@ -39,8 +52,9 @@ export function cleanBeastRegexPresets(value) {
   return presets
 }
 
-export function generateBeastRegex(value) {
-  const config = cleanBeastRegexConfig(value)
+export function generateBeastRegex(value, language = currentServer.language) {
+  const config = cleanBeastRegexConfig(value, language)
+  const expressions = new Map(beastRegexOptions(language).map(beast => [beast.id, beast.expression]))
   const price = generateMapPriceExpression(config.priceRange)
   return finalizeRegex([
     quotedToken(price),

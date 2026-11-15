@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from './serverStorage.js'
 function validOptions(options) {
   return new Set(Array.isArray(options) ? options.map(value => String(value)) : [])
 }
@@ -14,7 +15,7 @@ function normalizeTab(value, options, fallback) {
   return allowed.has(normalized) ? normalized : safeDefault(options, fallback)
 }
 
-export function readPersistentTab(key, options, fallback, storage = globalThis.localStorage) {
+export function readPersistentTab(key, options, fallback, storage = localStorage) {
   try {
     return normalizeTab(storage?.getItem?.(String(key)), options, fallback)
   } catch {
@@ -22,13 +23,13 @@ export function readPersistentTab(key, options, fallback, storage = globalThis.l
   }
 }
 
-export function writePersistentTab(key, value, options, fallback, storage = globalThis.localStorage) {
+export function writePersistentTab(key, value, options, fallback, storage = localStorage) {
   const normalized = normalizeTab(value, options, fallback)
   try { storage?.setItem?.(String(key), normalized) } catch {}
   return normalized
 }
 
-export function readPersistentTabMap(key, groupIds, options, fallback, storage = globalThis.localStorage) {
+export function readPersistentTabMap(key, groupIds, options, fallback, storage = localStorage) {
   let stored = {}
   try {
     const parsed = JSON.parse(storage?.getItem?.(String(key)) || '{}')
@@ -40,7 +41,7 @@ export function readPersistentTabMap(key, groupIds, options, fallback, storage =
   }))
 }
 
-export function writePersistentTabMap(key, values, groupIds, options, fallback, storage = globalThis.localStorage) {
+export function writePersistentTabMap(key, values, groupIds, options, fallback, storage = localStorage) {
   const normalized = Object.fromEntries((groupIds || []).map(groupId => {
     const id = String(groupId)
     return [id, normalizeTab(values?.[id], options, fallback)]

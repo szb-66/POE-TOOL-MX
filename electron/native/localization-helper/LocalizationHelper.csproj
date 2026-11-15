@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>LocalizationHelper</AssemblyName><InvariantGlobalization>true</InvariantGlobalization>
+    <LibBundleSource Condition="'$(LibBundleSource)' == ''">$(MSBuildProjectDirectory)/../../../.cache/localization-build/LibGGPK3/LibBundle3</LibBundleSource>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(LibBundleSource)/**/*.cs" Exclude="$(LibBundleSource)/obj/**;$(LibBundleSource)/bin/**" LinkBase="LibBundle3" />
+    <PackageReference Include="aianlinb.SystemExtensions" Version="1.8.0" />
+    <None Include="schema.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

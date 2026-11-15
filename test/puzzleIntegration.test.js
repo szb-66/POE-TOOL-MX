@@ -84,7 +84,7 @@ test('海图本机校准的仓储、IPC、页面识别和自动放入使用同�
   }
   assert.match(api, /listCalibration:/)
   assert.match(api, /saveCalibration:/)
-  assert.match(main, /new PuzzleCalibrationRepository\(path\.join\(app\.getPath\('userData'\), 'puzzle-calibration'\)\)/)
+  assert.match(main, /new PuzzleCalibrationRepository\(serverMode.dataPath\('puzzle-calibration'\)\)/)
   assert.match(service, /calibrationSamples: this\.calibrationSamples\(\)/)
   assert.match(auto, /calibration_samples = config\.get\("calibrationSamples"\) or \[\]/)
   assert.match(auto, /"inventory",[\s\S]*calibration_samples=calibration_samples,[\s\S]*recognition=/)
@@ -592,5 +592,5 @@ test('识别资源进入资源清单但测试不触发安装包构建', () => {
   const packageConfig = JSON.parse(source('../package.json'))
   assert.ok(packageConfig.build.extraResources.some(entry => entry.to === 'puzzle_analyzer.py'))
   assert.ok(packageConfig.build.extraResources.some(entry => entry.to === 'puzzle_templates.json'))
-  assert.equal(packageConfig.scripts.test, 'node --test')
+  assert.match(packageConfig.scripts.test, /^node --test(?: --test-concurrency=[1-9]\d*)?$/)
 })

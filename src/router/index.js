@@ -1,3 +1,4 @@
+import { currentServer } from '../utils/serverContext.js'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { pageLoaders } from './pageLoaders'
@@ -191,6 +192,11 @@ const navigationTokens = new WeakMap()
 
 router.beforeEach((to, from) => {
   if (!import.meta.env.DEV && to.path === '/highlight-model-training') return { path: '/', replace: true }
+  const capability = currentServer.capabilities[to.path.split('/')[1]]
+  if (capability && !capability.available) {
+    ElMessage.warning(capability.reason)
+    return { path: '/settings', replace: true }
+  }
   const featureStore = useFeatureModulesStore()
   const feature = featureStore.moduleForRoute(to.path)
   if (feature && !featureStore.isEnabled(feature.id)) {

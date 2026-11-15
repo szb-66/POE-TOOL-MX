@@ -1,9 +1,10 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
 
-const SEEN_KEY = 'feedback.seen'
-const ACTIVE_KEY = 'feedback.active'
+const SEEN_KEY = 'feedback.aliyun-v1.seen'
+const ACTIVE_KEY = 'feedback.aliyun-v1.active'
 
 function readJson(key, fallback) {
   try {
@@ -26,6 +27,11 @@ function replyCount(value) {
 }
 
 export const useFeedbackRepliesStore = defineStore('feedbackReplies', () => {
+  // 新服务从空库开始；旧会话标记不能用于认领新服务身份。
+  try {
+    localStorage.removeItem('feedback.seen')
+    localStorage.removeItem('feedback.active')
+  } catch { /* 存储不可用时仍使用独立的新命名空间。 */ }
   const unread = ref([])
   let startupCheckPromise = null
 

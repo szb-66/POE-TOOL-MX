@@ -4,6 +4,7 @@ export const DEVELOPMENT_RESTART_EXIT_CODE = 75
 
 export function createApplicationRestartController({
   cleanup,
+  prepareCleanup,
   clearCache,
   markCleanupComplete,
   restart,
@@ -20,6 +21,7 @@ export function createApplicationRestartController({
 
     restartPromise = (async () => {
       try {
+        if (prepareCleanup) await prepareCleanup()
         await runStrictCleanup(async () => {
           await cleanup()
           await clearCache()

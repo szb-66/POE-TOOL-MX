@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { verifyStagedScripts } from './scriptDistribution.js'
+import { verifyLocalizationRuntime } from './localizationDistribution.js'
 import {
   assertProjectFiles,
   projectRoot,
@@ -47,6 +48,7 @@ export function verifyRuntime(root, manifest) {
 }
 
 async function main() {
+  const localization = verifyLocalizationRuntime(projectRoot)
   const manifest = await loadManifest()
   const embeddedManifest = JSON.parse(await readFile(path.join(runtimeRoot, 'runtime-manifest.json'), 'utf8'))
   if (JSON.stringify(embeddedManifest) !== JSON.stringify(manifest)) {
@@ -54,7 +56,7 @@ async function main() {
   }
   const result = verifyRuntime(runtimeRoot, manifest)
   await verifyStagedScripts(projectRoot, manifest, result.path)
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify({ ...result, localization }, null, 2)}\n`)
 }
 
 main().catch((error) => {

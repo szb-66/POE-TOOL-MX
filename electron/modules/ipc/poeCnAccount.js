@@ -4,6 +4,10 @@ import { CHAOS_ERROR_CODES, serializeChaosError } from '../chaosRecipe/errors.js
 const ok = (data = {}) => ({ success: true, data })
 
 export function registerPoeCnAccountHandlers(account, window) {
+  const register = (channel, handler) => {
+    ipcMain.handle(channel, handler)
+    ipcMain.handle(channel.replace('poe-cn-account-', 'poe-account-'), handler)
+  }
   const invoke = (handler) => async (_event, ...args) => {
     try {
       return ok(await handler(...args))
@@ -15,14 +19,14 @@ export function registerPoeCnAccountHandlers(account, window) {
     }
   }
 
-  ipcMain.handle('poe-cn-account-status', invoke(() => account.auth.getStatus()))
-  ipcMain.handle('poe-cn-account-restore', invoke(() => account.auth.restore()))
-  ipcMain.handle('poe-cn-account-open-web', invoke(() => account.auth.openWebLogin()))
-  ipcMain.handle('poe-cn-account-complete-web', invoke(() => account.auth.completeWebLogin()))
-  ipcMain.handle('poe-cn-account-token', invoke((token) => account.auth.setSessionToken(token)))
-  ipcMain.handle('poe-cn-account-logout', invoke(() => account.auth.logout()))
-  ipcMain.handle('poe-cn-account-list-leagues', invoke(() => account.listLeagues()))
-  ipcMain.handle('poe-cn-account-set-league', invoke((league) => ({ league: String(league || '') })))
+  register('poe-cn-account-status', invoke(() => account.auth.getStatus()))
+  register('poe-cn-account-restore', invoke(() => account.auth.restore()))
+  register('poe-cn-account-open-web', invoke(() => account.auth.openWebLogin()))
+  register('poe-cn-account-complete-web', invoke(() => account.auth.completeWebLogin()))
+  register('poe-cn-account-token', invoke((token) => account.auth.setSessionToken(token)))
+  register('poe-cn-account-logout', invoke(() => account.auth.logout()))
+  register('poe-cn-account-list-leagues', invoke(() => account.listLeagues()))
+  register('poe-cn-account-set-league', invoke((league) => ({ league: String(league || '') })))
 
   account.auth.subscribe((status) => {
     const mainWindow = window.getMainWindow?.()

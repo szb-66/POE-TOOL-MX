@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
+import { resolveHighlightModelPaths } from '../junfeng/modelProfile.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
@@ -43,7 +44,8 @@ function terminate(child) {
 }
 
 export class StashPickupManager {
-  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null }) {
+    this.modelRoot = modelRoot
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
@@ -88,7 +90,7 @@ export class StashPickupManager {
     const root = app.isPackaged
       ? path.join(process.resourcesPath, 'junfeng-highlight-model')
       : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-    return { model: path.join(root, 'model.onnx'), manifest: path.join(root, 'manifest.json') }
+    return resolveHighlightModelPaths(root, this.modelRoot)
   }
 
   setRuntime(runtime = {}) {

@@ -18,6 +18,7 @@ import { CraftingCurrencyUsageLedger } from '../python/currencyUsageLedger.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
 import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 import { prepareCraftingOverlay } from '../window/craftingOverlayLifecycle.js'
+import { prepareTrustedScriptRequest } from '../python/trustedScript.js'
 
 let stopScriptHandler = null
 
@@ -26,7 +27,7 @@ export function stopCurrentScript() {
   return stopScriptHandler()
 }
 
-export function registerPythonHandlers(python, window, fileWatcher) {
+export function registerPythonHandlers(python, window, fileWatcher, { server } = {}) {
   const {
     detectPythonPath,
     resolvePythonRuntime,
@@ -252,11 +253,22 @@ export function registerPythonHandlers(python, window, fileWatcher) {
 
   // 生成并执行脚本
   const executeGeneratedScript = async (event, config) => {
+    let trusted
+    let pythonPath
+    try {
+      trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), filePaths: fileWatcher.getFilePaths(), server })
+      // Environment validation must not interrupt a task that is already running.
+      pythonPath = resolveCraftingPython(python, trusted.requireStashTabOcr)
+      if (!pythonPath) return { success: false, error: trusted.requireStashTabOcr
+        ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
+        : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
+    } catch (error) {
+      return { success: false, error: error.message, code: error.code || 'INVALID_SCRIPT_REQUEST' }
+    }
     try {
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
-      const mode = config?.mode === 'items' || config?.mode === 'map' ? config.mode : null
-      const craftingKind = mode === 'items' ? (['essence', 'harvest'].includes(config?.craftingKind) ? config.craftingKind : 'general') : null
+      const { mode, craftingKind, scriptContent, scriptPath, requireStashTabOcr } = trusted
       
       // 如果已有脚本在运行，先停止
       const currentScriptProcess = getCurrentScriptProcess()
@@ -287,26 +299,9 @@ export function registerPythonHandlers(python, window, fileWatcher) {
         })
       }
 
-      // 接收渲染进程传递的脚本内容
-      const scriptContent = config?.scriptContent
-      if (typeof scriptContent !== 'string' || !scriptContent.trim()) {
-        return { success: false, error: '生成的制作脚本为空，无法启动' }
-      }
-      const scriptPath = config.scriptPath || path.join(filePaths.tempDir, 'crafting.py')
-
       if (config?.batchRecoveryContext) {
         const checkpoint = batchRecoveryStore.begin(config.batchRecoveryContext, config.usageSessionId)
         if (!checkpoint.valid) return { success: false, error: checkpoint.error }
-      }
-
-      // 制作脚本同时依赖 pynput 与 pyperclip，不能回退到仅能执行 Python 的解释器。
-      const requireStashTabOcr = Boolean(config?.requiresStashTabOcr)
-      const pythonPath = resolveCraftingPython(python, requireStashTabOcr)
-      if (!pythonPath) {
-        if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: '制作脚本运行环境不可用', code: 'PYTHON_UNAVAILABLE' })
-        return { success: false, error: requireStashTabOcr
-          ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
-          : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
       }
 
       const activation = await window.activateGameWindow('generated-automation')
@@ -328,9 +323,7 @@ export function registerPythonHandlers(python, window, fileWatcher) {
       }
 
       // 启动文件监听
-      if (config.preset) {
-        fileWatcher.startFileWatcher(config.preset)
-      }
+      fileWatcher.startFileWatcher(trusted.preset)
 
       // 浮层必须先完成加载，否则启动阶段的结构化失败事件会在监听器挂载前丢失。
       await prepareCraftingOverlay(window, getOverlayWindow, usageSnapshot)

@@ -1,4 +1,5 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { currentServer } from '../../utils/serverContext.js'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
@@ -11,7 +12,7 @@ import { useCombatStore } from '@/stores/combat'
 import { useChaosRecipeStore } from '@/stores/chaosRecipe'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { usePriceCheckStore } from '@/stores/priceCheck'
-import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { usePoeAccountStore } from '@/stores/poeAccount'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 import { useMapTrackerStore } from '@/stores/mapTracker'
@@ -83,7 +84,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const combatStore = useCombatStore()
   const chaosRecipeStore = useChaosRecipeStore()
   const priceCheckStore = usePriceCheckStore()
-  const accountStore = usePoeCnAccountStore()
+  const accountStore = usePoeAccountStore()
   const batchCraftingStore = useBatchCraftingStore()
   const featureModulesStore = useFeatureModulesStore()
   const mapTrackerStore = useMapTrackerStore()
@@ -217,6 +218,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         rewardTotal: activeRecipe?.rewardTotal
       }),
       evaluatePriceCheckStatus({
+        manualInputOnly: currentServer.id === 'international',
         enabled: priceCheckStore.settings.enabled,
         authenticated: accountStore.status.authenticated,
         accountName: accountStore.status.accountName,
@@ -513,6 +515,12 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   }
 
   function actionsFor(module) {
+    if (currentServer.id === 'international') {
+      const capability = currentServer.capabilities[String(module.route || '').slice(1)]
+      if (capability && !capability.available) return []
+      if (module.id === 'priceCheck') return [{ id: 'manual-query', label: '手动查价', type: 'primary', run: () => router.push('/price-check') }]
+      if (module.id === 'shop') return [{ id: 'read-stash', label: '查看仓库配方', type: 'primary', run: () => router.push('/recipe') }]
+    }
     if (module.id === 'mapTracker') {
       const actions = [{ id: 'toggle', label: mapTrackerStore.enabled ? '关闭' : '启用', type: mapTrackerStore.enabled ? 'danger' : 'primary', run: () => mapTrackerStore.setEnabled(!mapTrackerStore.enabled) }]
       if (mapTrackerStore.enabled) actions.push({ id: 'pause', label: mapTrackerStore.paused ? '继续' : '暂停', type: 'default', run: () => mapTrackerStore.setPaused(!mapTrackerStore.paused) })

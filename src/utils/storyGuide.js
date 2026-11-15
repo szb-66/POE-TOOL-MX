@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from './serverStorage.js'
 export const STORY_STORAGE_KEY = 'storyGuide:v1'
 export const STORY_VERSION = 2
 export const DEFAULT_STORY_PRESET_ID = 'default'
@@ -167,7 +168,7 @@ export function normalizeStoryData(raw) {
   }
 }
 
-export function readStoryData(storage = globalThis.localStorage) {
+export function readStoryData(storage = localStorage) {
   if (!storage?.getItem) return createEmptyStoryData()
   try {
     const saved = storage.getItem(STORY_STORAGE_KEY)
@@ -177,7 +178,7 @@ export function readStoryData(storage = globalThis.localStorage) {
   }
 }
 
-export function writeStoryData(data, storage = globalThis.localStorage) {
+export function writeStoryData(data, storage = localStorage) {
   if (!storage?.setItem) return false
   try {
     storage.setItem(STORY_STORAGE_KEY, JSON.stringify(normalizeStoryData(data)))

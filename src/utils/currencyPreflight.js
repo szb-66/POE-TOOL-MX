@@ -5,6 +5,22 @@
  * Edge cases: 起始稀有度预处理和未鉴定地图等条件分支也必须纳入。
  */
 import { eldritchCurrencyType } from '../domains/items/eldritchConfig.js'
+import { requireServerId } from '../../shared/serverMode.js'
+
+const INTERNATIONAL_CURRENCY_NAMES = Object.freeze({
+  alteration: 'Orb of Alteration', augmentation: 'Orb of Augmentation', regal: 'Regal Orb',
+  chaos: 'Chaos Orb', exalted: 'Exalted Orb', alchemy: 'Orb of Alchemy', binding: 'Orb of Binding',
+  scouring: 'Orb of Scouring', transmutation: 'Orb of Transmutation', jewellers: "Jeweller's Orb",
+  fusing: 'Orb of Fusing', chromic: 'Chromatic Orb', vaal: 'Vaal Orb', wisdom: 'Scroll of Wisdom',
+  'lesser-eldritch-ember': 'Lesser Eldritch Ember', 'greater-eldritch-ember': 'Greater Eldritch Ember',
+  'grand-eldritch-ember': 'Grand Eldritch Ember', 'exceptional-eldritch-ember': 'Exceptional Eldritch Ember',
+  'lesser-eldritch-ichor': 'Lesser Eldritch Ichor', 'greater-eldritch-ichor': 'Greater Eldritch Ichor',
+  'grand-eldritch-ichor': 'Grand Eldritch Ichor', 'exceptional-eldritch-ichor': 'Exceptional Eldritch Ichor'
+})
+
+export function currencyExpectedNames(serverId = 'cn') {
+  return requireServerId(serverId) === 'international' ? { ...INTERNATIONAL_CURRENCY_NAMES } : {}
+}
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))]

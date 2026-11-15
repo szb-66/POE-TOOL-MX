@@ -1,5 +1,5 @@
 // Pure, bounded, deterministic solver. No game access or automation dependencies.
-export const STAT_LABELS = Object.freeze({ quantity: '物品数量', rarity: '物品稀有度', packSize: '怪物群大小', moreMaps: '更多地图', moreScarabs: '更多圣甲虫', moreCurrency: '更多通货', deadmanSulphur: '亡者硫磺', alertLevelReduction: '警报等级衰减', timeBeforeLockdown: '封锁前的时间', maximumAliveReinforcements: '最大存活援军' })
+export const STAT_LABELS = Object.freeze({ quantity: '物品数量', rarity: '物品稀有度', packSize: '怪物群大小', atlasDrops: '异界掉落', moreMaps: '更多地图', moreScarabs: '更多圣甲虫', moreThreads: '更多丝线', moreCurrency: '更多通货', deadmanSulphur: '亡者硫磺', alertLevelReduction: '警报等级衰减', timeBeforeLockdown: '封锁前的时间', maximumAliveReinforcements: '最大存活援军' })
 const KEYS = {
   atlas: ['quantity', 'rarity', 'packSize', 'moreMaps', 'moreScarabs', 'moreCurrency'],
   chart: ['quantity', 'rarity', 'packSize', 'deadmanSulphur'],
@@ -157,9 +157,10 @@ export function searchPool(pool, conditions, budget, forceSix = false) {
   }
 }
 
-export function analyzeMapFeasibility({ kind, profile = {}, catalog, maxNodes = 200000 }) {
+export function analyzeMapFeasibility({ kind, profile = {}, catalog, maxNodes = 200000, serverId = 'cn' }) {
   const meta = { snapshotDate: catalog?.snapshotDate, gameVersion: catalog?.gameVersion }
   const unknown = reasons => ({ status: 'unknown', reasons, ...meta })
+  if (serverId === 'international') return { status: 'unknown', reasons: ['新版国际服地图暂无理论上限估算，启动后仍按实际物品检查条件'] }
   try {
     if (!Number.isInteger(maxNodes) || maxNodes < 0 || maxNodes > 1000000) return unknown(['计算预算无效'])
     const conditions = normalizeConditions(kind, profile.match)

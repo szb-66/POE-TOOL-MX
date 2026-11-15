@@ -11,6 +11,8 @@ import {
 } from '../../../shared/combatAssist.js'
 import { normalizeAutomationTiming, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 
+const COMBAT_SCRIPT_TEMPLATE = new URL('../../../src/assets/scripts/combat_assist_template.py', import.meta.url)
+
 let potionProcess = null
 let loopProcess = null
 let portalProcess = null
@@ -34,10 +36,10 @@ function sendStatus(window, payload) {
   }
 }
 
-function spawnCombatProcess({ mode, config, suffix, scriptContent, origin, onStatus, onFailed, onClosed }) {
+function spawnCombatProcess({ mode, config, suffix, origin, onStatus, onFailed, onClosed }) {
   const pythonPath = processTools.python.detectPythonPath()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
-  const { scriptPath, configPath } = prepareFiles(processTools.fileWatcher, scriptContent, config, suffix)
+  const { scriptPath, configPath } = prepareFiles(processTools.fileWatcher, config, suffix)
   const child = spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
     shell: false,
     env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
@@ -166,12 +168,13 @@ function normalizeValidLoopConfig(value) {
   return normalizeCombatAssist(value)
 }
 
-function prepareFiles(fileWatcher, scriptContent, config, suffix) {
+function prepareFiles(fileWatcher, config, suffix) {
   const filePaths = fileWatcher.getFilePaths()
   const scriptPath = path.join(filePaths.tempDir, 'combat_assist.py')
   const configPath = path.join(filePaths.tempDir, `combat_${suffix}_config.json`)
   fs.mkdirSync(filePaths.tempDir, { recursive: true })
-  fs.writeFileSync(scriptPath, scriptContent, 'utf8')
+  // Even the read-only sampling IPC must never execute renderer-supplied Python.
+  fs.writeFileSync(scriptPath, fs.readFileSync(COMBAT_SCRIPT_TEMPLATE, 'utf8'), 'utf8')
   writeJsonAtomically(configPath, config)
   return { scriptPath, configPath }
 }
@@ -218,7 +221,6 @@ export function registerCombatHandlers(python, window, fileWatcher) {
         mode: 'potion',
         config: combatRuntimeConfig(config),
         suffix: 'potion',
-        scriptContent: payload.scriptContent,
         onStatus: payload => sendStatus(window, payload),
         onFailed: error => {
           potionProcess = null
@@ -284,7 +286,6 @@ export function registerCombatHandlers(python, window, fileWatcher) {
         mode: 'loop',
         config: combatRuntimeConfig(config),
         suffix: 'loop',
-        scriptContent: payload.scriptContent,
         origin: 'loop',
         onStatus: payload => sendStatus(window, payload),
         onFailed: error => {
@@ -338,11 +339,13 @@ export function registerCombatHandlers(python, window, fileWatcher) {
 
   ipcMain.handle('combat-sample-pixel', async (_event, payload) => {
     try {
+      const point = { x: Number(payload?.point?.x), y: Number(payload?.point?.y) }
+      if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return { success: false, error: '采样坐标无效' }
       const pythonPath = python.detectPythonPath()
       if (!pythonPath) return { success: false, error: '未找到Python可执行文件' }
       const activation = await window.activateGameWindow('combat-sample-pixel')
       if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
-      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, { point: payload.point }, 'sample')
+      const { scriptPath, configPath } = prepareFiles(fileWatcher, { point }, 'sample')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'sample', configPath)
       return result
     } catch (error) {
@@ -360,7 +363,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       const activation = await window.activateGameWindow('combat-portal')
       if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const portalTiming = pythonAutomationTiming(payload.automationTiming)
-      const { scriptPath, configPath } = prepareFiles(fileWatcher, payload.scriptContent, combatRuntimeConfig(config, portalTiming), 'portal')
+      const { scriptPath, configPath } = prepareFiles(fileWatcher, combatRuntimeConfig(config, portalTiming), 'portal')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'portal', configPath)
       portalProcess = null
       return result

@@ -1,3 +1,5 @@
+import { serverStorage as localStorage } from '../../../utils/serverStorage.js'
+import { currentServer } from '../../../utils/serverContext.js'
 import { createConfigFileName } from '../../../../shared/configTransfer.js'
 import {
   CONFIG_SECTION_DEFINITIONS,
@@ -26,7 +28,7 @@ export const CONFIG_TRANSFER_STORAGE_KEYS = Object.freeze([
   'toolSiteDirectory'
 ])
 
-export function createStorageStateController(storage = globalThis.localStorage) {
+export function createStorageStateController(storage = localStorage) {
   return {
     snapshot() {
       return Object.fromEntries(CONFIG_TRANSFER_STORAGE_KEYS.map(key => {
@@ -87,7 +89,7 @@ export function createConfigTransferService({ context, appVersion = '' }) {
         data: await descriptor.exportData(selection.bySection?.[sectionId] || {})
       }
     }
-    const bundle = createConfigBundle({ appVersion, sections })
+    const bundle = createConfigBundle({ appVersion, server: currentServer.id, sections })
     const content = serializeConfigBundle(bundle)
     const result = await context.electronApi.configTransfer.save({
       content,
@@ -106,6 +108,13 @@ export function createConfigTransferService({ context, appVersion = '' }) {
       throw new ConfigTransferError(result.errorCode || 'CONFIG_OPEN_FAILED', result.error || '打开配置文件失败')
     }
     const parsed = parseConfigBundle(result.content)
+    if ((parsed.bundle.server || 'cn') !== currentServer.id) {
+      parsed.sections = parsed.sections.map(section => section.id === 'settings.toolSites' ? section : {
+        ...section, selectable: false, reason: '此预设属于另一服务器，不能跨服导入'
+      })
+      parsed.compatibleSectionIds = parsed.sections.filter(section => section.selectable).map(section => section.id)
+      parsed.defaultSelectedSectionIds = [...parsed.compatibleSectionIds]
+    }
     return {
       canceled: false,
       fileName: String(result.fileName || ''),

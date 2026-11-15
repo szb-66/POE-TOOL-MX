@@ -98,6 +98,9 @@ export function compileCompactExpressions(entries, options = {}) {
     const positiveIds = new Set([entry.id, ...(entry.matchIds || [])])
     const positives = [...positiveIds].flatMap(id => variantsById.get(id) || [])
     const negatives = list.filter(candidate => !positiveIds.has(candidate.id)).flatMap(candidate => candidate.variants || [])
+    if (options.language === 'en') {
+      return [entry.id, shortestEnglishExpression(entry.source, positives, negatives, entry.fallbackExpression)]
+    }
     return [entry.id, shortestSafeExpression({
       source: entry.source,
       positives,
@@ -107,4 +110,25 @@ export function compileCompactExpressions(entries, options = {}) {
       minimumHanLength: options.minimumHanLength || 2
     })]
   }))
+}
+
+// The game's English search is case-insensitive. Validate against the entire
+// selected-language corpus before shortening, including the fallback.
+export function shortestEnglishExpression(source, positives, negatives, fallbackExpression) {
+  const positiveValues = positives.map(value => String(value).toLowerCase())
+  const negativeValues = negatives.map(value => String(value).toLowerCase())
+  const text = String(source || '').toLowerCase()
+  const seen = new Set()
+  for (let length = 3; length <= text.length; length += 1) {
+    for (let start = 0; start + length <= text.length; start += 1) {
+      const fragment = text.slice(start, start + length)
+      if (seen.has(fragment) || !/[a-z]/.test(fragment) || /^\s|\s$|[\d\n\r"]/u.test(fragment)) continue
+      seen.add(fragment)
+      if (positiveValues.every(value => value.includes(fragment)) && negativeValues.every(value => !value.includes(fragment))) return escapeRegexText(fragment)
+    }
+  }
+  const fallback = String(fallbackExpression || escapeRegexText(source))
+  const pattern = new RegExp(fallback, 'iu')
+  if (!positiveValues.every(value => pattern.test(value)) || negativeValues.some(value => pattern.test(value))) throw new Error(`英文条件没有唯一匹配表达式：${source}`)
+  return fallback
 }

@@ -52,6 +52,11 @@ export function registerPriceCheckHandlers(service) {
     queryImmediately: request?.queryImmediately === true,
     options: request?.options || {}
   })))
+  ipcMain.handle('price-check-text', invoke((request) => {
+    const text = String(request?.text || '')
+    if (!text || text.length > 100000) throw new Error('请粘贴有效的物品文本（不超过 100000 字符）')
+    return service.check({ text, league: String(request?.league || ''), options: request?.options || {} })
+  }))
   ipcMain.handle('price-check-rerun', invoke((request) => service.rerun(request || {})))
   ipcMain.handle('price-check-load-more', invoke(() => service.loadMore()))
   ipcMain.handle('price-check-load-distribution', invoke(() => service.loadDistribution()))

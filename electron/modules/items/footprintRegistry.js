@@ -38,6 +38,7 @@ export function loadBundledFootprintCatalog(catalogPath = bundledCatalogPath, ga
       gameVersion: String(parsed.gameVersion || ''),
       generatedAt: String(parsed.generatedAt || ''),
       sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+      ...(parsed.compatibilityMode ? { compatibilityMode: parsed.compatibilityMode, dimensionSourceVersion: parsed.dimensionSourceVersion } : {}),
       audit: parsed.audit && typeof parsed.audit === 'object' ? parsed.audit : {},
       categories: parsed.categories.filter((entry) =>
         Array.isArray(entry?.aliases) && entry.aliases.some(normalizeFootprintText) &&
@@ -54,6 +55,7 @@ export function loadBundledFootprintCatalog(catalogPath = bundledCatalogPath, ga
 
 export class ItemFootprintRegistry {
   constructor(catalog = loadBundledFootprintCatalog()) {
+    this.preferApiDimensions = catalog.compatibilityMode === 'known-items-only'
     this.items = new Map()
     this.categories = new Map()
     this.categoryGroups = new Map()
@@ -100,7 +102,8 @@ export class ItemFootprintRegistry {
     const keys = [...new Set([...keysForName.values()].flatMap((values) => [...values]))]
     const hasConflict = keys.some((key) => {
       const existing = this.items.get(key)
-      return this.conflicts.has(key) || (existing && (existing.width !== footprint.width || existing.height !== footprint.height))
+      const apiOverridesLegacy = this.preferApiDimensions && source === 'stash-api' && existing?.source === 'bundled'
+      return this.conflicts.has(key) || (existing && !apiOverridesLegacy && (existing.width !== footprint.width || existing.height !== footprint.height))
     })
     if (hasConflict) {
       for (const key of keys) {
@@ -154,10 +157,29 @@ export class ItemFootprintRegistry {
   snapshot() {
     return {
       schemaVersion: ITEM_FOOTPRINT_SCHEMA_VERSION,
+      ...(this.preferApiDimensions ? { strictKnownItems: true } : {}),
       items: Object.fromEntries([...this.items].map(([key, value]) => [key, { ...value }])),
       categories: Object.fromEntries([...this.categories].map(([key, value]) => [key, { ...value }]))
     }
   }
 }
 
-export const itemFootprintRegistry = new ItemFootprintRegistry()
+export function loadServerFootprintCatalog({ serverId = 'cn', gameVersion = serverId === 'international' ? '3.30.0' : SEASON_BASELINE.patch } = {}) {
+  if (!['cn', 'international'].includes(serverId)) throw new Error('无效的占位目录服务器')
+  if (serverId === 'cn') return loadBundledFootprintCatalog(bundledCatalogPath, gameVersion)
+  const file = path.resolve(moduleDir, '../../assets/item-footprints.international.json')
+  const empty = { schemaVersion: ITEM_FOOTPRINT_SCHEMA_VERSION, categories: [], items: [] }
+  try {
+    const metadata = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (metadata.server !== serverId || metadata.locale !== 'en' || metadata.compatibilityMode !== 'known-items-only') return empty
+    return loadBundledFootprintCatalog(file, gameVersion)
+  } catch { return empty }
+}
+
+export let itemFootprintRegistry = new ItemFootprintRegistry()
+
+// 模式切换会重启进程；初始化时替换整个目录，所有 ESM 消费者共享本服实时尺寸。
+export function configureItemFootprintRegistry(options) {
+  itemFootprintRegistry = new ItemFootprintRegistry(loadServerFootprintCatalog(options))
+  return itemFootprintRegistry
+}

@@ -68,13 +68,15 @@ export function normalizeDatasetManifest(input) {
     const item = object(source, `manifest.sources[${index}]`)
     return {
       id: string(item.id, `manifest.sources[${index}].id`),
-      url: string(item.url, `manifest.sources[${index}].url`)
+      url: string(item.url, `manifest.sources[${index}].url`),
+      ...(item.sha256 ? { sha256: /^[a-f0-9]{64}$/.test(item.sha256) ? item.sha256 : fail(`manifest.sources[${index}].sha256`, '无效 SHA-256') } : {})
     }
   }) : []
   return {
     schemaVersion: integer(value.schemaVersion, 'manifest.schemaVersion', { min: 1 }),
     game: value.game === 'poe1' ? 'poe1' : fail('manifest.game', '仅支持 poe1'),
-    locale: value.locale === 'zh-CN' ? 'zh-CN' : fail('manifest.locale', '仅支持 zh-CN'),
+    locale: ['zh-CN', 'en'].includes(value.locale) ? value.locale : fail('manifest.locale', '仅支持 zh-CN 或 en'),
+    ...(value.server ? { server: ['cn', 'international'].includes(value.server) ? value.server : fail('manifest.server', '无效服务器') } : {}),
     league: string(value.league, 'manifest.league'),
     patch: string(value.patch, 'manifest.patch', 'unknown'),
     generatedAt: string(value.generatedAt, 'manifest.generatedAt'),

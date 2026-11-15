@@ -1,11 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { FeedbackService } from '../electron/modules/feedback/service.js'
 
-const config = { envId: 'env', region: 'ap-shanghai', bucket: 'feedback', table: 'app_feedback', publishableKey: 'publishable' }
+const config = { baseUrl: 'https://feedback.example.test' }
 const validInput = { category: 'bug', title: '提交测试标题', description: '这里是一段足够长的问题描述，用于验证反馈提交服务。', contact: '', attachmentTokens: [] }
 
 function createService(cloud, overrides = {}) {
@@ -35,8 +35,9 @@ test('成功提交保存元数据且默认不生成诊断', async () => {
   assert.deepEqual(document.attachments, [])
 })
 
-test('附件上传部分失败会回滚且不写入反馈记录', async () => {
+test('附件上传部分失败会回滚且不写入反馈记录', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-service-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const first = path.join(root, 'first.txt')
   const second = path.join(root, 'second.log')
   await writeFile(first, 'first')
@@ -57,8 +58,9 @@ test('附件上传部分失败会回滚且不写入反馈记录', async () => {
   assert.match(deleted[0], /^uid-1\/FB-/)
 })
 
-test('写库失败回滚全部附件，文件变化和重复提交均被阻止', async () => {
+test('写库失败回滚全部附件，文件变化和重复提交均被阻止', async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-retry-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
   const file = path.join(root, 'evidence.txt')
   await writeFile(file, 'before')
   const deleted = []

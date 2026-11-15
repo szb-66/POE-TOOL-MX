@@ -127,7 +127,7 @@ const source = [
 ].join('\n')
 function runScenario(c, items, stop = false) {
   const script = `import json\n${source}\nmap_config = json.loads(${JSON.stringify(JSON.stringify(c))})\nitems = json.loads(${JSON.stringify(JSON.stringify(items))})\nis_running = ${stop ? 'False' : 'True'}\nfatal_error_reason = ''\nevents = []\ndef apply_currency_and_read(currency, x, y):\n    events.append(currency)\n    return items.pop(0) if items else {"error": "读取失败"}\ndef stash_item(x, y):\n    events.append('stash')\noutcome = process_single_map(items.pop(0), 10, 20)\nprint(json.dumps({"outcome": outcome, "events": events}, ensure_ascii=False))\n`
-  const result = spawnSync(pythonPath, ['-c', script], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  const result = spawnSync(pythonPath, ['-'], { input: script, encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)
   return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
 }

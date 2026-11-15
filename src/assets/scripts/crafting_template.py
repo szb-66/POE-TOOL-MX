@@ -201,6 +201,7 @@ SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 # 通货坐标（确保坐标值为整数）
 currency_positions = {{CURRENCY_POSITIONS}}
 required_currency_types = {{REQUIRED_CURRENCY_TYPES}}
+currency_expected_names = {{CURRENCY_EXPECTED_NAMES}}
 verified_currency_types = set()
 fatal_error_reason = None
 foreground_failure_emitted = False
@@ -354,17 +355,17 @@ def require_game_foreground():
     return False
 
 BATCH_CATEGORY_NAMES = {
-    "helmet": {"头盔"},
+    "helmet": {"头盔", "头部"},
     "bodyArmour": {"胸甲", "身体护甲"},
     "gloves": {"手套"},
     "boots": {"鞋子", "长靴"},
     "shield": {"盾", "盾牌"},
-    "oneHandWeapon": {"爪", "匕首", "符文匕首", "法杖", "单手剑", "细剑", "单手斧", "单手锤", "短杖"},
+    "oneHandWeapon": {"爪", "匕首", "符文匕首", "法杖", "单手剑", "细剑", "单手斧", "单手锤", "短杖", "权杖"},
     "twoHandWeapon": {"双手剑", "双手斧", "双手锤", "长杖", "战杖"},
     "bow": {"弓"},
     "quiver": {"箭袋"},
     "ring": {"戒指"},
-    "amulet": {"项链"},
+    "amulet": {"项链", "护身符"},
     "belt": {"腰带"},
     "jewel": {"珠宝", "深渊珠宝", "星团珠宝"},
     "flask": {"生命药剂", "魔力药剂", "复合药剂", "功能药剂"}
@@ -919,6 +920,12 @@ def detected_item_name(header_lines):
     ]
     return candidates[-1] if candidates else "未检测到物品"
 
+def currency_identity_matches(currency, actual):
+    import re
+    expected = globals().get("currency_expected_names", {}).get(currency, CURRENCY_NAMES.get(currency))
+    name = re.sub(r'(?:\s*(?:\[[^\]]*\]|\([^()]*★[^()]*\)))+\s*$', '', str(actual)).strip()
+    return bool(expected) and name == expected
+
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
     expected = CURRENCY_NAMES.get(currency, currency)
@@ -1004,7 +1011,7 @@ def preflight_required_currencies():
 
         header = copied_item_header(clipboard_text)
         actual = detected_item_name(header)
-        if expected not in actual:
+        if not currency_identity_matches(currency, actual):
             return fail_currency_preflight(
                 currency,
                 f"通货位置错误：需要{expected}，实际检测到{actual}",

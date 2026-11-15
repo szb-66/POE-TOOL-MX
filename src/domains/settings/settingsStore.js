@@ -1,3 +1,5 @@
+import { currentServer } from '../../utils/serverContext.js'
+import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
@@ -44,7 +46,6 @@ import {
 } from '@/utils/dpiSettings'
 import {
   DEFAULT_GAME_WINDOW_PROCESS_NAMES,
-  DEFAULT_GAME_WINDOW_TITLES,
   normalizeGameWindowProcessNames,
   normalizeGameWindowTitles,
   validateGameWindowProcessNames,
@@ -124,7 +125,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   // 覆盖层设置
   const overlaySettings = ref(normalizeOverlaySettings())
-  const gameWindowTitles = ref([...DEFAULT_GAME_WINDOW_TITLES])
+  const gameWindowTitles = ref([...currentServer.windowTitles])
   const gameWindowProcessNames = ref([...DEFAULT_GAME_WINDOW_PROCESS_NAMES])
   const storyOverlayWidth = ref(DEFAULT_STORY_OVERLAY_WIDTH)
   const storyOverlayLayoutVersion = ref(STORY_OVERLAY_LAYOUT_VERSION)
@@ -242,11 +243,11 @@ export const useSettingsStore = defineStore('settings', () => {
     const commit = async () => {
       try {
         const potionResult = await electronApi.combat.updatePotionConfig(candidate)
-        if (!potionResult?.success) throw new Error(potionResult?.error || '战斗辅助配置同步失败')
+        if (!potionResult?.success) throw new Error(potionResult?.error?.message || potionResult?.error || '战斗辅助配置同步失败')
         const loopResult = await electronApi.combat.updateLoopConfig(candidate)
         if (!loopResult?.success) {
           await electronApi.combat.updatePotionConfig(combatAssist.value)?.catch(() => {})
-          throw new Error(loopResult?.error || '主动循环配置同步失败')
+          throw new Error(loopResult?.error?.message || loopResult?.error || '主动循环配置同步失败')
         }
         const revision = Number(potionResult.revision) || 0
         if (revision >= combatConfigRevision) {
@@ -514,7 +515,7 @@ export const useSettingsStore = defineStore('settings', () => {
         if (data.essenceItemPosition) essenceItemPosition.value = { ...data.essenceItemPosition }
         if (data.harvestItemPosition) harvestItemPosition.value = { ...data.harvestItemPosition }
         if (data.harvestCraftButtonPosition) harvestCraftButtonPosition.value = { ...data.harvestCraftButtonPosition }
-        gameWindowTitles.value = normalizeGameWindowTitles(data.gameWindowTitles)
+        gameWindowTitles.value = normalizeGameWindowTitles(data.gameWindowTitles || currentServer.windowTitles)
         gameWindowProcessNames.value = normalizeGameWindowProcessNames(data.gameWindowProcessNames)
         const dpiSettings = loadDpiSettings(data)
         dpiMode.value = dpiSettings.mode
@@ -610,7 +611,7 @@ export const useSettingsStore = defineStore('settings', () => {
     essenceItemPosition.value = createEmptyItemPosition()
     harvestItemPosition.value = createEmptyItemPosition()
     harvestCraftButtonPosition.value = createEmptyItemPosition()
-    gameWindowTitles.value = [...DEFAULT_GAME_WINDOW_TITLES]
+    gameWindowTitles.value = [...currentServer.windowTitles]
     gameWindowProcessNames.value = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
     dpiMode.value = DPI_MODE_AUTO
     manualDpiScale.value = 1

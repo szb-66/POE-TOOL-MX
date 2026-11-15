@@ -11,7 +11,7 @@
         <label>浮窗宽度 <el-input-number :model-value="settings.storyOverlayWidth" :min="320" :max="1200" :step="20" controls-position="right" @change="settings.updateStoryOverlayWidth" /></label>
         <label>透明度 <el-input-number :model-value="settings.storyOverlayOpacity" :min="0" :max="100" :step="5" controls-position="right" @change="settings.updateStoryOverlayOpacity" />%</label>
         <span>游戏浮窗</span>
-        <el-switch :model-value="story.overlayVisible" :disabled="!story.hasOverlayModule" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
+        <el-switch :model-value="story.overlayVisible" :disabled="!story.overlayVisible && (!story.hasOverlayModule || !canUseGameInput('story'))" active-text="显示" inactive-text="隐藏" @change="toggleOverlay" />
       </div>
     </div>
 
@@ -116,7 +116,7 @@
             <span class="timer-status">{{ timer.statusLabel }}</span>
           </div>
           <div class="timer-actions">
-            <el-button type="primary" :disabled="!settings.storyTimerOverlayEnabled" @click="toggleTimer">{{ timer.status === 'running' || timer.awaitingForeground ? '停止' : timer.currentElapsedMs > 0 ? '继续' : '开始' }}</el-button>
+            <el-button type="primary" :disabled="!(timer.status === 'running' || timer.awaitingForeground) && (!settings.storyTimerOverlayEnabled || !canUseGameInput('story'))" @click="toggleTimer">{{ timer.status === 'running' || timer.awaitingForeground ? '停止' : timer.currentElapsedMs > 0 ? '继续' : '开始' }}</el-button>
             <el-button :disabled="timer.currentElapsedMs <= 0" @click="timer.reset">重置</el-button>
             <el-button @click="historyVisible = true">历史记录</el-button>
           </div>
@@ -230,7 +230,9 @@ import { useSettingsStore } from '@/domains/settings/settingsStore'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { commitGlobalShortcut } from '@/utils/scriptService'
 import { formatStoryTimerDuration } from '@/utils/storyTimer'
-import skillCatalog from './skillCatalog.json'
+import cnSkillCatalog from './skillCatalog.json'
+import internationalSkillCatalog from './skillCatalog.international.json'
+import { currentServer, canUseGameInput } from '@/utils/serverContext.js'
 import {
   applySkillCatalogSelection,
   searchSkillCatalog,
@@ -241,6 +243,7 @@ import {
 } from './skillCatalog'
 
 const story = useStoryStore()
+const skillCatalog = currentServer.id === 'international' ? internationalSkillCatalog : cnSkillCatalog
 const timer = useStoryTimerStore()
 const settings = useSettingsStore()
 const helpTopics = moduleHelpTopicsById('story')
@@ -436,6 +439,7 @@ watch([() => story.storyPresets, () => story.skillPresets], () => {
 }, { deep: true })
 
 async function toggleOverlay(visible) {
+  if (visible && !canUseGameInput('story')) return
   try {
     if (visible) await story.showOverlay(settings.storyOverlayWidth, settings.storyOverlayOpacity)
     else await story.hideOverlay()
@@ -450,6 +454,7 @@ function setOverlayModule(module, enabled) {
 }
 
 function toggleTimer() {
+  if (!(timer.status === 'running' || timer.awaitingForeground) && !canUseGameInput('story')) return
   const result = timer.toggleFromPage(story.currentStoryPreset)
   if (result?.reason === 'game-background') ElMessage.warning('请切换到游戏前台后开始或继续计时')
   if (result?.reason === 'feature-disabled') ElMessage.warning('请先开启计时浮窗模块')

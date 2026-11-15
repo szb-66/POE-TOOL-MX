@@ -28,7 +28,7 @@ test('所有游戏输入链路把完整协议送到实际 Python 脚本', () => 
     ['electron/modules/chaosRecipe/automation.js', /pythonAutomationTiming\(this\.config\)/],
     ['electron/modules/puzzle/service.js', /pythonAutomationTiming\(\{ operationDelayMs, fixedTiming \}\)/],
     ['electron/modules/ipc/combat.js', /pythonAutomationTiming\(payload\.automationTiming\)/],
-    ['src/utils/python.js', /pythonAutomationTiming\(normalizedTiming\)/]
+    ['src/utils/pythonScriptGenerator.js', /pythonAutomationTiming\(normalizedTiming\)/]
   ]
   for (const [file, pattern] of consumers) assert.match(source(file), pattern, file)
 
@@ -74,7 +74,7 @@ test('动作边界禁止重新引入裸数字等待或旧字段', () => {
     ['src/assets/scripts/stash_tab_selector.py', [/SCROLL_DELAY_SECONDS/, /mouse\.click\(/]],
     ['src/assets/scripts/map_rolling_template.py', [/TIMING_MODE/, /ADAPTIVE_TIMEOUT/, /clipboard_read_delay/]],
     ['src/assets/scripts/crafting_template.py', [/clipboard_read_delay/]],
-    ['src/utils/python.js', [/time\.sleep\(0\.05\)/, /DELAY_CLIPBOARD/]]
+    ['src/utils/pythonScriptGenerator.js', [/time\.sleep\(0\.05\)/, /DELAY_CLIPBOARD/]]
   ])
   for (const [file, patterns] of forbiddenByFile) {
     const content = source(file)

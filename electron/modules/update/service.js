@@ -82,6 +82,7 @@ export class ApplicationUpdateService extends EventEmitter {
     currentVersion,
     isPackaged,
     cleanup,
+    prepareCleanup,
     scheduler = defaultScheduler(),
     checkIntervalMs = DEFAULT_CHECK_INTERVAL_MS,
     cleanupTimeoutMs = 8000,
@@ -94,6 +95,7 @@ export class ApplicationUpdateService extends EventEmitter {
     super()
     this.updater = updater
     this.cleanup = cleanup
+    this.prepareCleanup = prepareCleanup
     this.scheduler = scheduler
     this.checkIntervalMs = checkIntervalMs
     this.cleanupTimeoutMs = cleanupTimeoutMs
@@ -288,6 +290,7 @@ export class ApplicationUpdateService extends EventEmitter {
     }
     try {
       this.exitDiagnostics?.request('update_install')
+      if (this.prepareCleanup) await this.prepareCleanup()
       await runStrictCleanup(this.cleanup, this.cleanupTimeoutMs)
       this.markCleanupComplete()
       this.updater.quitAndInstall(false, true)

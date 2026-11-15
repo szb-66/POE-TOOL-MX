@@ -5,7 +5,7 @@
   "description": "流放之路物品制作助手工具",
   "type": "module",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test --test-concurrency=4",
     "sanctum:data": "node scripts/generateSanctumCatalog.js",
     "sanctum:data:refresh": "node scripts/generateSanctumCatalog.js --refresh",
     "crafting:data": "node scripts/generateCraftingData.js",
@@ -22,6 +22,7 @@
     "item-footprints:data": "node scripts/generateItemFootprints.js --game-version 3.29",
     "runtime:prepare": "node scripts/runtime/prepare.js",
     "runtime:verify": "node scripts/runtime/verify.js",
+    "localization:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/buildLocalizationHelper.ps1",
     "junfeng:dataset": "python scripts/junfeng/build_dataset.py",
     "junfeng:train": "python scripts/junfeng/train_model.py",
     "junfeng:benchmark": "python scripts/junfeng/benchmark_model.py",
@@ -74,6 +75,8 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/native/localization-helper/bin/**/*",
+      "!electron/native/localization-helper/obj/**/*",
       "shared/**/*",
       "!electron/assets/crafting-raw/**/*",
       "!electron/assets/skill-raw/**/*",
@@ -85,6 +88,10 @@
       "src/utils/inventorySettings.js",
       "src/utils/junfengConfig.js",
       "src/utils/operationDelay.js",
+      "src/utils/pythonScriptGenerator.js",
+      "src/utils/currencyPreflight.js",
+      "src/domains/items/affixConfig.js",
+      "src/domains/items/eldritchConfig.js",
       "src/utils/puzzleConfig.js",
       "src/utils/chartModMatcher.js",
       "src/utils/chartEdgeGeometry.js",
@@ -93,6 +100,7 @@
       "src/utils/stashPickupConfig.js",
       "src/utils/stashTabSelection.js",
       "src/utils/faustusConfig.js",
+      "src/utils/serverStorage.js",
       "src/utils/faustusPricing.js",
       "electron/assets/item-footprints.json",
       "package.json",
@@ -101,10 +109,18 @@
       "src/assets/scripts/sanctum_*.py",
       "src/assets/scripts/interface_titles.py",
       "src/assets/scripts/foreground_watcher.py",
+      "src/assets/scripts/combat_assist_template.py",
+      "src/assets/scripts/crafting_template.py",
+      "src/assets/scripts/map_rolling_template.py",
       "src/assets/scripts/chart_mods_probe.py",
       "src/assets/images/sanctum-calibration/**/*"
     ],
     "extraResources": [
+      {
+        "from": ".runtime/localization-helper",
+        "to": "localization-helper",
+        "filter": ["**/*", "!**/*.pdb"]
+      },
       {
         "from": "src/assets/scripts/interface_titles.py",
         "to": "interface_titles.py"

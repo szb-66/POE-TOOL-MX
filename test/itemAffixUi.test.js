@@ -20,7 +20,7 @@ test('物品词缀界面提供多组合、全库联想、自由关键词和最�
     readFile('electron/preload.cjs', 'utf8'),
     readFile('src/api/electron.js', 'utf8'),
     readFile('electron/modules/ipc/file.js', 'utf8'),
-    readFile('src/utils/python.js', 'utf8')
+    readFile('src/utils/pythonScriptGenerator.js', 'utf8')
   ])
 
   const config = await readFile('src/domains/items/affixConfig.js', 'utf8')

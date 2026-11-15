@@ -1,5 +1,6 @@
 export const SETTINGS_TABS = Object.freeze([
   'general',
+  'localization',
   'automation',
   'detection',
   'overlay',

@@ -88,7 +88,7 @@ test('地图和自动入库运行配置使用规范化后的共享阈值', () =>
   })
   assert.equal(config.inventory.emptySlotThreshold, 7)
 
-  const generator = source('../src/utils/python.js')
+  const generator = source('../src/utils/pythonScriptGenerator.js')
   assert.match(generator, /emptySlotThreshold: normalizeEmptySlotThreshold\(inventory\?\.emptySlotThreshold\)/)
 })
 

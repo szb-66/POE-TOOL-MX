@@ -1,3 +1,4 @@
+import { requireServerId } from '../../../../shared/serverMode.js'
 import {
   CONFIG_BUNDLE_KIND,
   CONFIG_BUNDLE_MAX_BYTES,
@@ -120,7 +121,8 @@ function normalizeSectionForExport(sectionId, section) {
   }
 }
 
-export function createConfigBundle({ appVersion = '', exportedAt = new Date().toISOString(), sections = {} } = {}) {
+export function createConfigBundle({ appVersion = '', server = 'cn', exportedAt = new Date().toISOString(), sections = {} } = {}) {
+  requireServerId(server)
   if (!isPlainObject(sections) || Object.keys(sections).length === 0) {
     throw new ConfigTransferError('NO_SECTIONS_SELECTED', '请至少选择一个配置区块')
   }
@@ -132,6 +134,7 @@ export function createConfigBundle({ appVersion = '', exportedAt = new Date().to
   const bundle = {
     kind: CONFIG_BUNDLE_KIND,
     formatVersion: CONFIG_BUNDLE_VERSION,
+    server,
     appVersion: String(appVersion || ''),
     exportedAt: timestamp.toISOString(),
     sections: normalizedSections
@@ -164,7 +167,7 @@ function validateBundleEnvelope(bundle) {
   if (formatVersion > CONFIG_BUNDLE_VERSION) {
     throw new ConfigTransferError('FUTURE_FORMAT_VERSION', '配置文件由更高版本的流放助手生成', { formatVersion })
   }
-  if (formatVersion !== CONFIG_BUNDLE_VERSION) {
+  if (![1, CONFIG_BUNDLE_VERSION].includes(formatVersion)) {
     throw new ConfigTransferError('FORMAT_VERSION_UNSUPPORTED', '不支持该配置文件格式版本', { formatVersion })
   }
   if (!isPlainObject(bundle.sections)) throw new ConfigTransferError('INVALID_SECTIONS', '配置区块结构无效')
@@ -202,6 +205,8 @@ export function parseConfigBundle(content) {
     throw new ConfigTransferError('INVALID_JSON', '配置文件不是有效的 JSON')
   }
   validateBundleEnvelope(bundle)
+  if (Number(bundle.formatVersion) >= 2 && !bundle.server) throw new ConfigTransferError('INVALID_SERVER', '配置包缺少服务器标识')
+  requireServerId(bundle.server ?? 'cn')
   const sections = Object.entries(bundle.sections).map(([sectionId, section]) => inspectSection(sectionId, section))
   return {
     bundle,

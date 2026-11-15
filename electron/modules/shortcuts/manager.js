@@ -11,6 +11,9 @@
 import { globalShortcut } from 'electron'
 import { toElectronAccelerator } from '../../../src/utils/electronAccelerator.js'
 
+let serverInputAllowed = () => true
+export function setServerInputPolicy(policy) { serverInputAllowed = policy }
+
 // 当前已实际注册的快捷键：normalized accelerator -> callback
 const registeredShortcuts = new Map()
 // 用户配置的意图快捷键：normalized accelerator -> { key, callback }
@@ -42,10 +45,11 @@ function shouldRegister() {
 
 function tryRegister(accelerator, callback) {
   try {
+    if (!serverInputAllowed(intendedShortcuts.get(accelerator)?.key) && intendedShortcuts.get(accelerator)?.key !== 'end') return true
     if (registeredShortcuts.has(accelerator)) {
       globalShortcut.unregister(accelerator)
     }
-    const success = globalShortcut.register(accelerator, callback)
+    const success = globalShortcut.register(accelerator, () => { if (serverInputAllowed(intendedShortcuts.get(accelerator)?.key) || intendedShortcuts.get(accelerator)?.key === 'end') callback() })
     if (success) {
       registeredShortcuts.set(accelerator, callback)
     } else {

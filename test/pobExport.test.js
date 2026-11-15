@@ -10,6 +10,36 @@ import { buildFixture } from './fixtures/pobExport.js'
 
 const decode = code => inflateSync(Buffer.from(code.replace(/-/g, '+').replace(/_/g, '/'), 'base64')).toString('utf8')
 
+test('英文 API 保留原文且不产生假翻译警告，之后国服转换仍正常', () => {
+  const fixture = buildFixture()
+  fixture.language = 'en'
+  const weapon = fixture.items.items[0]
+  weapon.baseType = weapon.typeLine = 'Driftwood Wand'
+  weapon.explicitMods = ['+10 to maximum Mana']
+  const gemNames = ['Fireball', 'Added Lightning Damage Support', 'Ice Nova']
+  for (const [index, gem] of weapon.socketedItems.entries()) {
+    gem.baseType = gem.typeLine = gemNames[index]
+    gem.properties = gem.properties.map(prop => ({ ...prop, name: prop.name === '等级' ? 'Level' : 'Quality' }))
+  }
+  fixture.passiveSkills.items[0].baseType = fixture.passiveSkills.items[0].typeLine = 'Cobalt Jewel'
+  fixture.passiveSkills.items[0].explicitMods = ['+10 to maximum Mana']
+  const result = convertBuild(fixture)
+  assert.equal(result.warnings.length, 1)
+  assert.match(result.warnings[0], /内置 3\.29 数据.*生成导入码不代表装备、技能和天赋已兼容/)
+  const $ = load(decode(result.code), { xml: true })
+  assert.match($('Item').first().text(), /Driftwood Wand/)
+  assert.equal($('Gem').first().attr('nameSpec'), 'Fireball')
+  assert.equal($('Gem').eq(1).attr('nameSpec'), 'Added Lightning Damage')
+  assert.equal($('Skill').length, 2)
+  const cnResult = convertBuild(buildFixture())
+  assert.match(decode(cnResult.code), /Driftwood Wand/)
+  assert.deepEqual(cnResult.warnings, [])
+  weapon.socketedItems[0].baseType = weapon.socketedItems[0].typeLine = 'Arcane Link'
+  assert.throws(() => convertBuild(fixture), error => error.code === 'CONVERSION_FAILED' &&
+    error.details.warnings.some(warning => warning.includes('内置 3.29 数据')) &&
+    error.details.warnings.some(warning => warning.includes('Arcane Link')))
+})
+
 test('国服翻译、装备、技能连线、等级品质、天赋与珠宝编码往返', () => {
   const fixture = buildFixture()
   const before = structuredClone(fixture)

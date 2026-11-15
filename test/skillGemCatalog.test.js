@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { buildSkillGemCatalog, parseSkillGemPage } from '../scripts/skillGemCatalog.js'
 import {
   applySkillCatalogSelection,
@@ -86,4 +87,21 @@ test('选择目录技能补齐信息，自由编辑解除目录关联但保留�
   })
   updateSkillFreeText(skill, '自定义劈砍')
   assert.deepEqual(skill, { id: 'story-skill', name: '自定义劈砍', color: 'red' })
+})
+
+test('英文技能目录使用真实英文来源且与中文技能保留相同稳定 ID', () => {
+  const cn = parseSkillGemPage(page(row({ color: 'red', path: '/cn/Cleave', name: '劈砍', level: 1 })), { kind: 'active' })
+  const en = parseSkillGemPage(page(row({ color: 'red', path: '/us/Cleave', name: 'Cleave', level: 1 })), { kind: 'active', locale: 'en' })
+  assert.equal(en[0].id, cn[0].id)
+  assert.equal(en[0].sourcePath, '/us/Cleave')
+  assert.equal(parseSkillGemPage(page(row({ color: 'red', path: '/cn/Cleave', name: '劈砍', level: 1 })), { kind: 'active', locale: 'en' }).length, 0)
+  assert.throws(() => parseSkillGemPage('', { kind: 'active', locale: 'invalid' }))
+  const catalog = JSON.parse(readFileSync(new URL('../src/domains/story/skillCatalog.international.json', import.meta.url), 'utf8'))
+  assert.equal(catalog.patch, '3.30.0')
+  assert.equal(catalog.locale, 'en')
+  assert.ok(catalog.sources.every(source => /^https:\/\/poedb.tw\/us\//.test(source.url) && /^[a-f0-9]{64}$/.test(source.sha256)))
+  assert.ok(catalog.skills.length > 700)
+  assert.equal(searchSkillCatalog(catalog.skills, 'CLEAVE').find(skill => skill.name === 'Cleave')?.requiredLevel, 1)
+  assert.ok(catalog.skills.some(skill => skill.name === 'Holy Strike'))
+  assert.ok(catalog.skills.some(skill => skill.name === 'Hallow Support'))
 })

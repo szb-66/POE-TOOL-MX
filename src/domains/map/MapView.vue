@@ -1,5 +1,6 @@
 <template>
   <div class="map-page primary-page primary-page--column">
+    <el-alert v-if="!canUseGameInput('map')" title="英文洗图适配已就绪，完成客户端手动验收后开放游戏操作；现在可配置条件与词缀。" type="info" :closable="false" />
     <div class="primary-page__tabs">
       <el-tabs v-model="activeKind" class="kind-tabs">
         <el-tab-pane label="异界地图" name="atlas" />
@@ -36,7 +37,7 @@
         </div>
         <div class="form-item">
           <label class="form-label">操作</label>
-          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning" @click="handleStart">
+          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning || !canUseGameInput('map')" @click="handleStart">
             {{ isCurrentModeRunning ? '运行中' : '启动' }}
           </el-button>
         </div>
@@ -81,7 +82,8 @@ import { usePresetStore } from '../../stores/preset'
 import PresetSelector from '@/components/common/PresetSelector.vue'
 import exaltedIcon from '@/assets/images/crafting-currency/exalted.png'
 import vaalIcon from '@/assets/images/瓦尔宝珠.png'
-import { HEIST_BASE_STATS, createDefaultHeistConfig, CHART_BASE_STATS, MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
+import { HEIST_BASE_STATS, createDefaultHeistConfig, CHART_BASE_STATS, INTERNATIONAL_CHART_BASE_STATS, MAP_BASE_STATS, INTERNATIONAL_MAP_BASE_STATS, createDefaultChartConfig, createDefaultMapConfig } from '@/utils/mapPresetMigration'
+import { currentServer, canUseGameInput } from '@/utils/serverContext.js'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import { useScriptStore } from '@/stores/script'
 import { commitGlobalShortcut, startMapRolling } from '@/utils/scriptService'
@@ -118,7 +120,7 @@ const activeKind = computed({
   set: value => presetStore.setMapRollingKind(value)
 })
 const activeProfile = computed(() => activeKind.value === 'heist' ? heistConfig.value : activeKind.value === 'chart' ? chartConfig.value : mapConfig.value)
-const activeStatKeys = computed(() => activeKind.value === 'heist' ? HEIST_BASE_STATS : activeKind.value === 'chart' ? CHART_BASE_STATS : MAP_BASE_STATS)
+const activeStatKeys = computed(() => activeKind.value === 'heist' ? HEIST_BASE_STATS : activeKind.value === 'chart' ? (currentServer.id === 'international' ? INTERNATIONAL_CHART_BASE_STATS : CHART_BASE_STATS) : currentServer.id === 'international' ? INTERNATIONAL_MAP_BASE_STATS : MAP_BASE_STATS)
 async function saveShortcut(key, value) {
   try { await commitGlobalShortcut(key, value) } catch (error) { ElMessage.error(error.message) }
 }

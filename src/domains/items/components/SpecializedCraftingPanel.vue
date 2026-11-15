@@ -20,11 +20,11 @@
         </div>
         <div class="form-item">
           <label class="form-label">词缀参考</label>
-          <a href="https://poedb.tw/cn/Modifiers" target="_blank" rel="noopener noreferrer"><el-button type="primary" plain>国服流亡编年史·查看词缀</el-button></a>
+          <a :href="`https://poedb.tw/${currentServer.id === 'international' ? 'us' : 'cn'}/Modifiers`" target="_blank" rel="noopener noreferrer"><el-button type="primary" plain>{{ currentServer.id === 'international' ? '国际服' : '国服' }}流亡编年史·查看词缀</el-button></a>
         </div>
         <div class="form-item">
           <label class="form-label">操作</label>
-          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning" @click="handleStart">{{ isRunning ? '运行中' : '启动' }}</el-button>
+          <el-button type="primary" :loading="starting" :disabled="starting || scriptStore.isRunning || !canUseGameInput('items')" @click="handleStart">{{ isRunning ? '运行中' : '启动' }}</el-button>
         </div>
         <div class="form-item">
           <label class="form-label">启动快捷键</label>
@@ -54,6 +54,7 @@ import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { usePresetStore } from '@/stores/preset'
 import { useScriptStore } from '@/stores/script'
 import { commitGlobalShortcut, startCrafting } from '@/utils/scriptService'
+import { currentServer, canUseGameInput } from '@/utils/serverContext.js'
 import AffixGoalEditor from './AffixGoalEditor.vue'
 
 const props = defineProps({ kind: { type: String, required: true, validator: value => ['essence', 'harvest'].includes(value) } })

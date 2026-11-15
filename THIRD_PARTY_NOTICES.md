@@ -3,6 +3,28 @@
 本文件随源码和 Windows Release 一同发布。构建所用的精确版本、下载地址和 SHA-256 记录在
 [`scripts/runtime/manifest.json`](scripts/runtime/manifest.json) 中；内置运行时也保留各组件随包提供的许可证文本。
 
+## Steam 汉化原生组件
+
+汉化 helper 源码位于 `electron/native/localization-helper`，构建入口为
+`scripts/buildLocalizationHelper.ps1`，构建后精确依赖信息记录在
+`.runtime/localization-helper/dependencies.json`。翻译热更新不执行下载的程序。
+
+| 组件 | 固定来源 | 许可证 | 用途 |
+| --- | --- | --- | --- |
+| LibBundle3 | aianlinb/LibGGPK3，v2.7.5，commit `50c2d279b3806366f79e831acc1c03bc35bb6442` | AGPL-3.0-or-later | Steam Bundle 与索引读写 |
+| aianlinb.SystemExtensions | NuGet 1.8.0 | MIT | LibBundle3 基础依赖 |
+| ooz | powzix/ooz，commit `05038060aa68f9187ae9923b2388ca8db40e58d1` | GPL-3.0-or-later | Kraken/Mermaid/Selkie/Leviathan 等资源解码 |
+| PoE dat-schema | poe-tool-dev/dat-schema，commit `9f095ca68ae0c822e4b0d8be3525e0466ddec11d`，schema v7 | MIT | 已固定的 PoE1 数据表结构 |
+| .NET | Microsoft .NET 8，win-x64 自包含运行时 | 随运行时组件许可证 | helper 执行环境 |
+
+LibBundle3 的唯一源码适配是将自建 bundle 路径前缀开放给 helper，使用
+`PoEHelper/<generation>/` 隔离。适配过程完整保留在构建脚本中。
+`CodecBridge.cpp` 与所链接 ooz 源码通过 GPL-3.0-or-later 提供；生成的
+`oo2core.dll` 是本项目自行构建的开源 ABI 适配层，不是私有 Oodle 二进制。
+写回使用标准不压缩帧，因此本地候选可能较大；服务器翻译对象仍独立 gzip 压缩。
+原生组件附带 `LibBundle3-LICENSE.txt`、`ooz-LICENSE.txt`，可依固定提交和脚本重建源码。
+官方语言内容来自维护者已安装的游戏资源；本轮只在内部服务器分发测试数据。
+
 ## Python 运行时与模块
 
 Windows 安装包包含以下运行时组件：

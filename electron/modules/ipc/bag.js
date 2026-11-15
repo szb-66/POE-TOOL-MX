@@ -23,6 +23,7 @@ import {
 } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
+import { resolveHighlightModelPaths as resolveProfileModelPaths } from '../junfeng/modelProfile.js'
 import { createStashStatisticsBatch } from '../bag/stashStatistics.js'
 
 let stashProcess = null
@@ -36,6 +37,7 @@ let interfaceDetection = null
 let automationLock = null
 let loadingFeedback = null
 let mapTracker = null
+let highlightModelRoot = null
 let disposeDetectionState = null
 let moduleRunning = false
 let bagConfigRevision = 0
@@ -249,10 +251,8 @@ function resolveHighlightModelPaths() {
   const root = app.isPackaged
     ? path.join(process.resourcesPath, 'junfeng-highlight-model')
     : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-  return {
-    modelPath: path.join(root, 'model.onnx'),
-    manifestPath: path.join(root, 'manifest.json')
-  }
+  const model = resolveProfileModelPaths(root, highlightModelRoot)
+  return { modelPath: model.model, manifestPath: model.manifest }
 }
 
 function spawnPython(python, mode, configPath) {
@@ -491,6 +491,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   automationLock = shared.automationLock
   loadingFeedback = shared.loadingFeedback
   mapTracker = shared.mapTracker
+  highlightModelRoot = shared.highlightModelRoot || null
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {
     if (!moduleRunning) return

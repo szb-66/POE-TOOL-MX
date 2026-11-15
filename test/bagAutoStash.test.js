@@ -31,6 +31,66 @@ import { pythonPath as runtimePython, runPython } from './helpers/python.js'
 const scriptUrl = new URL('../src/assets/scripts/bag_auto_stash_template.py', import.meta.url)
 const scriptPath = fileURLToPath(scriptUrl)
 
+test('国际服未知尺寸保留扫描记录但不可批量制作，国服保留单格推断', () => {
+  const result = runPython(`
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+events = []
+class Clipboard:
+    @staticmethod
+    def paste(): return "original"
+    @staticmethod
+    def copy(value): pass
+class Controller:
+    current = None
+    def __init__(self, config): pass
+    def move(self, x, y):
+        Controller.current = (x, y)
+        return True
+    def copy_item_text(self, clear_first=False):
+        return ("copied", "Item Class: Jewels\\nRarity: Rare\\nUnknown New Jewel\\n--------") if Controller.current == (10, 10) else ("empty", "")
+    def release_all(self): pass
+module.pyperclip = Clipboard
+module.InputController = Controller
+module.is_game_foreground = lambda: True
+module.classify_inventory_empty_slots = lambda config: (set(), {})
+module.emit = lambda event, **payload: events.append({"event": event, **payload})
+results = []
+for strict in (True, False):
+    events.clear()
+    module.is_running = True
+    status = module.run_inventory_scan({"inventory": {"startPos": {"x": 10, "y": 10}, "slotSize": {"w": 1, "h": 1}, "itemFootprints": {"strictKnownItems": strict}}})
+    snapshot = next(event["snapshot"] for event in events if event["event"] == "inventory-scan-completed")
+    results.append({"status": status, "item": snapshot["items"][0]})
+print(json.dumps(results))
+`)
+  assert.equal(result[0].status, 0)
+  assert.equal(result[0].item.selectable, false)
+  assert.equal(result[0].item.issueCode, 'UNKNOWN_FOOTPRINT')
+  assert.match(result[0].item.issue, /读取.*仓库/)
+  assert.equal(result[1].item.selectable, true)
+})
+
+test('批量背包扫描对中英装备类别使用同一分类并拒绝非装备新类别', () => {
+  const result = runPython(`
+import ast, json
+tree = ast.parse(open(${JSON.stringify(scriptPath)}, encoding="utf-8").read())
+selected = [node for node in tree.body if (isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == "BATCH_CATEGORY_ALIASES" for target in node.targets)) or (isinstance(node, ast.FunctionDef) and node.name == "resolve_batch_category")]
+scope = {}
+exec(compile(ast.Module(body=selected, type_ignores=[]), "category-test", "exec"), scope)
+pairs = [("Helmets", "头盔"), ("Body Armours", "胸甲"), ("Thrusting One Hand Swords", "细剑"), ("Sceptres", "权杖"), ("Amulets", "护身符"), ("Warstaves", "战杖"), ("Cluster Jewels", "星团珠宝"), ("Utility Flasks", "功能药剂")]
+resolve = scope["resolve_batch_category"]
+assert all(resolve(en) == resolve(zh) and resolve(en)[0] for en, zh in pairs)
+assert resolve("Threads")[0] == ""
+assert resolve("unknown")[0] == ""
+print(json.dumps({"pairs": len(pairs)}))
+`)
+  assert.equal(result.pairs, 8)
+})
+
 test('背包设置只输出当前格式字段并补齐默认黑名单', () => {
   const settings = normalizeBagSettings({
     moduleEnabled: true,

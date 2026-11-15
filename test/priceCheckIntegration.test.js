@@ -43,8 +43,8 @@ test('查价 IPC、preload 和渲染层 API 使用同一组具名通道', async 
 
 test('主进程复用国服认证与 Session，并在退出时销毁查价覆盖层', async () => {
   const main = await source('electron/main.js')
-  assert.match(main, /const priceCheckClient = new PoeCnTradeClient\(\{ session: poeCnSession \}\)[\s\S]*new PriceCheckService\(\{[\s\S]*auth: chaosAuth[\s\S]*client: priceCheckClient/)
-  assert.equal((main.match(/session\.fromPartition\('persist:poe-cn-auth'\)/g) || []).length, 1)
+  assert.match(main, /const priceCheckClient = new PoeCnTradeClient\(\{ session: poeCnSession, server: serverMode.server \}\)[\s\S]*new PriceCheckService\(\{[\s\S]*auth: chaosAuth[\s\S]*client: priceCheckClient/)
+  assert.equal((main.match(/session\.fromPartition\(serverMode.server.partition\)/g) || []).length, 1)
   assert.match(main, /priceCheckService\?\.destroyOverlay\(\)/)
   assert.match(main, /catalogRefresher:[\s\S]*createCnOfficialTradeCatalog\(/)
 })
@@ -484,9 +484,9 @@ test('统一国服账号通道替代商城与查价重复认证入口', async ()
   ])
   for (const channel of ['status', 'restore', 'open-web', 'complete-web', 'token', 'logout', 'list-leagues', 'set-league']) {
     assert.match(accountIpc, new RegExp(`poe-cn-account-${channel}`))
-    assert.match(preload, new RegExp(`poe-cn-account-${channel}`))
+    assert.match(preload, new RegExp(`poe-account-${channel}`))
   }
-  assert.match(settings, /国服账号[\s\S]*AccountLeagueConfigurationField/)
+  assert.match(settings, /currentServer.label[\s\S]*AccountLeagueConfigurationField/)
   assert.match(accountField, /全局赛季/)
   assert.match(shop, /前往账号设置/)
   assert.match(price, /前往账号与快捷键设置/)

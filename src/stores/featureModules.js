@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { availableFeatureCatalog, featureForRoute } from '../features/featureCatalog.js'
@@ -11,7 +12,7 @@ const development = Boolean(import.meta.env?.DEV)
 
 export const useFeatureModulesStore = defineStore('featureModules', () => {
   const catalog = Object.freeze(availableFeatureCatalog({ development }))
-  const initial = readFeatureModuleState(globalThis.localStorage, { development })
+  const initial = readFeatureModuleState(localStorage, { development })
   const disabledFeatureIds = ref([...initial.disabledFeatureIds])
   const disabledSet = computed(() => new Set(disabledFeatureIds.value))
   const enabledFeatures = computed(() => catalog.filter(item => !disabledSet.value.has(item.id)))
@@ -25,7 +26,7 @@ export const useFeatureModulesStore = defineStore('featureModules', () => {
   function commit(nextIds) {
     const normalized = [...new Set(nextIds)].filter(id => catalog.some(item => item.id === id))
     disabledFeatureIds.value = normalized
-    saveFeatureModuleState({ version: 1, disabledFeatureIds: normalized }, globalThis.localStorage, { development })
+    saveFeatureModuleState({ version: 1, disabledFeatureIds: normalized }, localStorage, { development })
   }
 
   function disable(id) {
@@ -42,7 +43,7 @@ export const useFeatureModulesStore = defineStore('featureModules', () => {
 
   function reset() {
     disabledFeatureIds.value = []
-    resetFeatureModuleState(globalThis.localStorage)
+    resetFeatureModuleState(localStorage)
   }
 
   function moduleForRoute(path) {

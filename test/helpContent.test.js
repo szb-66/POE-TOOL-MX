@@ -92,7 +92,7 @@ test('做装参考保留完整专题和关键公开边界', () => {
 })
 
 test('常见问题与关于专题完整保留', () => {
-  assert.equal(FAQ_TOPICS.length, 9)
+  assert.equal(FAQ_TOPICS.length, 10)
   assert.equal(GENERAL_TOPICS.filter(topic => topic.category === 'about').length, 3)
   assert.ok(FAQ_TOPICS.every(topic => topic.blocks.length))
   const systemEnvironment = FAQ_TOPICS.find(topic => topic.id === 'faq-system-environment')

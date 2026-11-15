@@ -1,3 +1,13 @@
+import { generateServerTradeCatalog, writeServerTradeCatalog } from '../scripts/generateServerTradeCatalog.js'
+import { probeServerCapabilities } from './modules/app/serverProbe.js'
+import { loadInternationalTradeCatalog } from './modules/priceCheck/catalog.js'
+import { createEmergencyStopCoordinator } from './modules/ipc/emergencyStop.js'
+import { ServerModeController } from './modules/app/serverMode.js'
+import { LocalizationService } from './modules/localization/service.js'
+import { registerLocalizationHandlers } from './modules/ipc/localization.js'
+import { installServerIpcPolicy, serverShortcutAllowed } from './modules/app/serverIpcPolicy.js'
+import { internationalVerificationFeatures } from '../shared/serverMode.js'
+import { configureItemFootprintRegistry } from './modules/items/footprintRegistry.js'
 /**
  * Purpose: Electron 主进程入口，负责窗口创建、模块依赖注册、生命周期清理与全局快捷键。
  * Inputs: Electron app 生命周期事件；渲染进程通过 IPC 调用暴露的模块方法。
@@ -5,7 +15,7 @@
  * Preconditions: app.whenReady 触发后再创建窗口；各子模块可安全初始化（Python 环境探测、文件监听等）。
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
-import { app, BrowserWindow, Menu, Tray, clipboard, crashReporter, dialog, globalShortcut, nativeImage, protocol, net, screen, shell, session } from 'electron'
+import { app, BrowserWindow, Menu, Tray, clipboard, crashReporter, dialog, globalShortcut, nativeImage, protocol, net, screen, shell, session, ipcMain } from 'electron'
 import electronUpdater from 'electron-updater'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -93,7 +103,7 @@ import { createDevelopmentStartupTrace } from '../shared/developmentStartupTrace
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
 import { InstalledUpdateRepository } from './modules/update/installedUpdateRepository.js'
-import { FEEDBACK_CLOUDBASE_CONFIG } from './modules/feedback/config.js'
+import { FEEDBACK_CONFIG } from './modules/feedback/config.js'
 import { FeedbackAuthClient } from './modules/feedback/auth.js'
 import { FeedbackCloudClient } from './modules/feedback/cloudClient.js'
 import { FeedbackService } from './modules/feedback/service.js'
@@ -117,31 +127,61 @@ const developmentFaultEnabled = (argument) => (
 const managedDevelopmentRestart = (
   process.env.NODE_ENV === 'development' && Boolean(process.env.VITE_DEV_SERVER_URL)
 )
+let serverProbePending = false
 let applicationShuttingDown = false
 let startupFailureShown = false
 
-function resolveApplicationVersion() {
+function resolveApplicationMetadata() {
   try {
     const mainModuleDirectory = path.dirname(fileURLToPath(import.meta.url))
-    return JSON.parse(fs.readFileSync(path.resolve(mainModuleDirectory, '../package.json'), 'utf8')).version
+    return JSON.parse(fs.readFileSync(path.resolve(mainModuleDirectory, '../package.json'), 'utf8'))
   } catch {
     try {
-      return JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')).version
+      return JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8'))
     } catch {
-      return app.getVersion()
+      return { version: app.getVersion() }
     }
   }
 }
 
+const applicationMetadata = resolveApplicationMetadata()
+const feedbackInternalTest = applicationMetadata.feedbackInternalTest === true
 if (startupSafeMode) app.disableHardwareAcceleration()
-app.setPath('userData', resolveUserDataPath(app.getPath('appData')))
+app.setPath('userData', feedbackInternalTest
+  ? path.join(app.getPath('appData'), '流放助手-阿里云测试')
+  : resolveUserDataPath(app.getPath('appData')))
+const serverMode = new ServerModeController({
+  userDataPath: app.getPath('userData'),
+  verificationFeatures: internationalVerificationFeatures(process.argv, { isPackaged: app.isPackaged }),
+  prepareCleanup: () => localization?.shutdown(),
+  cleanup: async () => {
+    priceCheckService?.clear()
+    const result = await createEmergencyStopCoordinator({ chaosRecipe: chaosRecipeService, stashPickup, junfeng: junfengHighlight, faustus: faustusManager, puzzle: puzzleService, mapTracker: mapTrackerService, sanctum: sanctumService }).stopAll('server-switch')
+    if (!result.success) throw new Error('自动化未能停止')
+    await cleanupApplicationResources()
+  },
+  restart: () => {
+    shutdownController.markCleanupComplete()
+    if (managedDevelopmentRestart) exitApplicationImmediately(DEVELOPMENT_RESTART_EXIT_CODE)
+    else { app.relaunch(); app.quit() }
+  }
+})
+configureItemFootprintRegistry({ serverId: serverMode.mode, gameVersion: serverMode.mode === 'international' ? '3.30.0' : '3.29' })
+if (serverMode.mode === 'international') fileWatcher.configureDirectory(serverMode.dataPath('automation'))
+installServerIpcPolicy(ipcMain, serverMode)
+ipcMain.on('server-mode:context', event => { event.returnValue = serverMode.context })
+ipcMain.handle('server-mode:switch', (event, id) => {
+  if (event.sender !== getMainWindow()?.webContents) return { success: false, error: '只允许主窗口切换服务器' }
+  return serverMode.switchTo(id)
+})
+shortcutManager.setServerInputPolicy(key => serverShortcutAllowed(serverMode.context, key, serverMode.switching))
 const crashDumpsPath = path.join(app.getPath('userData'), 'crashes')
 const startupTrace = createDevelopmentStartupTrace({ env: app.isPackaged ? {} : process.env })
 const startupLog = createStartupLogger({
   userDataPath: app.getPath('userData'),
   onRecord: event => startupTrace.record(event.phase, event.outcome, event.reasonCode)
 })
-const applicationVersion = resolveApplicationVersion()
+const applicationVersion = applicationMetadata.version || app.getVersion()
 const exitDiagnostics = createExitDiagnostics({ app, log: startupLog })
 try {
   fs.mkdirSync(crashDumpsPath, { recursive: true })
@@ -214,6 +254,28 @@ const startupDiagnostics = {
     if (!startupInteractiveRecorded && startupDashboardReady && startupRuntimeSettled) {
       startupInteractiveRecorded = true
       startupTrace.record('interactive', 'succeeded')
+      if (developmentFaultEnabled('--diagnostic-server-roundtrip')) {
+        setImmediate(async () => {
+          const reportFile = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.cache', 'server-switch-verification.json')
+          try {
+            const report = JSON.parse(fs.readFileSync(reportFile, 'utf8'))
+            report.visited.push(serverMode.mode)
+            const target = report.sequence.shift()
+            fs.writeFileSync(reportFile, JSON.stringify(report))
+            if (target) {
+              const result = await serverMode.switchTo(target)
+              if (!result.success) throw new Error('switch-failed')
+            } else {
+              exitDiagnostics.request('diagnostic_server_roundtrip')
+              void shutdownController.requestShutdown()
+            }
+          } catch {
+            startupLog.record({ phase: 'server-switch-verification', outcome: 'failed', reasonCode: 'server_switch_failed' })
+            app.exit(1)
+          }
+        })
+        return recorded
+      }
       if (developmentFaultEnabled('--diagnostic-exit-after-interactive')) {
         setImmediate(() => {
           exitDiagnostics.request('diagnostic_interactive')
@@ -269,6 +331,7 @@ let interfaceDetection = null
 let automationLock = null
 let chaosControlOverlay = null
 let priceCheckService = null
+let localization = null
 let clientEventsService = null
 let mapTrackerService = null
 let mapTrackerOverlay = null
@@ -405,6 +468,7 @@ function cleanupApplicationResourcesOnce() {
 
 const shutdownController = createShutdownController({
   app,
+  prepareCleanup: () => localization?.shutdown(),
   cleanup: cleanupApplicationResourcesOnce
 })
 
@@ -418,6 +482,7 @@ function exitApplicationImmediately(code) {
 }
 
 const applicationRestartController = createApplicationRestartController({
+  prepareCleanup: () => localization?.shutdown(),
   exitDiagnostics,
   cleanup: cleanupApplicationResourcesOnce,
   clearCache: async () => {
@@ -498,7 +563,7 @@ async function startApplication() {
   // Start probing concurrently with independent service setup; no synchronous subprocess on this path.
   const pythonRuntimePending = startupTrace.measure('python-runtime', () => pythonDetector.resolvePythonRuntimeAsync())
   void pythonRuntimePending.catch(() => {})
-  gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: app.getPath('userData') })
+  gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: serverMode.dataPath(), defaultTitles: serverMode.server.windowTitles })
   gameWindowTitles.initialize()
   windowActivation = new WindowActivationService({
     gameWindowRegistry: gameWindowTitles,
@@ -533,10 +598,11 @@ async function startApplication() {
   const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
   const installedUpdate = await startupTrace.measure('installed-update', () => installedUpdateRepository.loadForVersion(app.getVersion()))
   applicationUpdate = new ApplicationUpdateService({
+    prepareCleanup: () => localization?.shutdown(),
     exitDiagnostics,
     updater: electronUpdater.autoUpdater,
     currentVersion: app.getVersion(),
-    isPackaged: app.isPackaged,
+    isPackaged: app.isPackaged && !feedbackInternalTest,
     cleanup: cleanupApplicationResourcesOnce,
     markCleanupComplete: () => shutdownController.markCleanupComplete(),
     requestShutdown: () => app.quit(),
@@ -550,23 +616,23 @@ async function startApplication() {
     }
   })
   const feedbackAuth = new FeedbackAuthClient({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
+    config: FEEDBACK_CONFIG,
     userDataPath: app.getPath('userData')
   })
   const puzzleFailureEvidence = new PuzzleFailureEvidenceRepository({
     root: path.join(app.getPath('userData'), 'diagnostic-evidence', 'puzzle-recognition')
   })
   feedbackService = new FeedbackService({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
+    config: FEEDBACK_CONFIG,
     auth: feedbackAuth,
-    cloud: new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth: feedbackAuth }),
+    cloud: new FeedbackCloudClient({ config: FEEDBACK_CONFIG, auth: feedbackAuth }),
     failureEvidence: puzzleFailureEvidence,
     appVersion: app.getVersion(),
     locale: app.getLocale()
   })
   if (app.isPackaged) {
     dailyUsageService = new DailyUsageService({
-      config: FEEDBACK_CLOUDBASE_CONFIG,
+      config: FEEDBACK_CONFIG,
       auth: feedbackAuth,
       appVersion: applicationVersion,
       runtimeMode: 'packaged',
@@ -576,10 +642,11 @@ async function startApplication() {
   // 禁用菜单栏，保持无干扰窗口
   Menu.setApplicationMenu(null)
 
-  poeCnSession = session.fromPartition('persist:poe-cn-auth')
+  poeCnSession = session.fromPartition(serverMode.server.partition)
 
   craftingService = new CraftingService({
-    storageRoot: path.join(app.getPath('userData'), 'crafting'),
+    storageRoot: serverMode.dataPath('crafting'),
+    server: serverMode.server,
     protocol,
     net
   })
@@ -604,12 +671,12 @@ async function startApplication() {
     logger: startupLog
   })
   const chaosAuth = new PoeCnAuthService({
-    session: poeCnSession,
+    session: poeCnSession, server: serverMode.server,
     BrowserWindow,
     parentWindow: getMainWindow
   })
   const chaosStashClient = new PoeCnStashClient({
-    session: poeCnSession,
+    session: poeCnSession, server: serverMode.server,
     getAuthStatus: () => chaosAuth.getStatus()
   })
   const chaosAutomation = new ChaosRecipeAutomationManager({
@@ -640,8 +707,9 @@ async function startApplication() {
     interfaceDetection,
     automationLock
   })
-  const highlightCalibration = new JunfengCalibrationRepository(path.join(app.getPath('userData'), 'junfeng-highlight'))
+  const highlightCalibration = new JunfengCalibrationRepository(serverMode.dataPath('junfeng-highlight'))
   stashPickup = new StashPickupManager({
+    modelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
@@ -653,6 +721,8 @@ async function startApplication() {
     onStatusChange: () => chaosControlOverlay?.sync()
   })
   junfengHighlight = new JunfengHighlightManager({
+    modelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
+    trainingArtifactsRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-training') : null,
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
     getMainWindow,
@@ -692,13 +762,13 @@ async function startApplication() {
     overlay: puzzleOverlay,
     feedbackOverlay: recognitionFeedbackOverlay,
     failureEvidence: puzzleFailureEvidence,
-    calibration: new PuzzleCalibrationRepository(path.join(app.getPath('userData'), 'puzzle-calibration'))
+    calibration: new PuzzleCalibrationRepository(serverMode.dataPath('puzzle-calibration'))
   })
   chaosControlOverlay.attachStashPickup?.(stashPickup)
   chaosControlOverlay.attachJunfeng?.(junfengHighlight)
   chaosControlOverlay.attachService(chaosRecipeService)
   chaosRecipeService.control = chaosControlOverlay
-  const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession })
+  const priceCheckClient = new PoeCnTradeClient({ session: poeCnSession, server: serverMode.server })
   const uniqueItemImages = new UniqueItemImageRepository()
   let uniqueImageWarning = ''
   const tradeCatalogPending = startupTrace.measure('trade-catalog', () => loadTradeCatalog())
@@ -712,30 +782,55 @@ async function startApplication() {
   }
   // 首次查价前先用本地传奇快照增强内置目录，官方目录仍在后台刷新后替换。
   const tradeCatalogBundle = await tradeCatalogPending
-  tradeCatalogBundle.catalog.items = enrichOfficialItemsWithImages(
-    tradeCatalogBundle.catalog.items,
-    uniqueItemImages.catalog
-  )
-  tradeCatalogBundle.status = {
-    ...tradeCatalogBundle.status,
-    provider: 'bundled',
-    degraded: true,
-    warning: ['正在加载腾讯官方词缀目录…', uniqueImageWarning].filter(Boolean).join('；')
+  if (serverMode.mode === 'international') {
+    Object.assign(tradeCatalogBundle, await loadInternationalTradeCatalog({
+      baseCatalog: tradeCatalogBundle.catalog,
+      cacheFile: serverMode.dataPath('trade-catalog.international.json')
+    }))
+  } else {
+    tradeCatalogBundle.catalog.items = enrichOfficialItemsWithImages(
+      tradeCatalogBundle.catalog.items,
+      uniqueItemImages.catalog
+    )
+    tradeCatalogBundle.status = {
+      ...tradeCatalogBundle.status,
+      provider: 'bundled',
+      degraded: true,
+      warning: ['正在加载腾讯官方词缀目录…', uniqueImageWarning].filter(Boolean).join('；')
+    }
   }
   const priceCheckOverlay = new PriceCheckOverlayManager({
     restoreGameFocus: async () => (await windowActivation.activateGame({ source: 'price-check-overlay-close' })).success
   })
+  localization = new LocalizationService({
+    serverId: serverMode.mode,
+    storageRoot: serverMode.dataPath('localization'),
+    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(app.getAppPath(), '.runtime'), 'localization-helper', 'LocalizationHelper.exe'),
+    configPath: path.join(app.getPath('documents'), 'My Games', 'Path of Exile', 'production_Config.ini'),
+    baseUrl: process.env.LOCALIZATION_RESOURCE_BASE_URL || 'http://127.0.0.1:44317',
+    allowLoopbackHttp: process.env.LOCALIZATION_ALLOW_LOOPBACK_HTTP !== '0',
+    publicKeyFile: process.env.LOCALIZATION_PUBLIC_KEY_FILE || path.join(app.getAppPath(), 'electron', 'assets', 'localization-public-key.pem')
+  })
   priceCheckService = new PriceCheckService({
+    localizationProvider: () => localization.getActiveEntries(),
+    localizationRevisionProvider: () => localization.getActiveRevision(),
     auth: chaosAuth,
     client: priceCheckClient,
     catalog: tradeCatalogBundle.catalog,
     catalogStatus: tradeCatalogBundle.status,
     dcRateProvider: async () => {
+      if (serverMode.mode === 'international') return null
       await craftingService.initializePrices()
       const snapshot = await craftingService.prices.refresh()
       return snapshot.records.find((record) => record.resourceId === 'currency:divine') || null
     },
+    manualInputOnly: serverMode.mode === 'international',
     catalogRefresher: async () => {
+      if (serverMode.mode === 'international') {
+        const generated = await generateServerTradeCatalog({ server: 'international', gameVersion: 'live', baseCatalog: tradeCatalogBundle.catalog, fetchImpl: (url, options) => poeCnSession.fetch(url, options) })
+        await writeServerTradeCatalog(serverMode.dataPath('trade-catalog.international.json'), generated.catalog)
+        return generated
+      }
       const officialStats = await priceCheckClient.getStats()
       const officialItems = await priceCheckClient.getItems()
       return createCnOfficialTradeCatalog(
@@ -746,7 +841,7 @@ async function startApplication() {
         uniqueItemImages.catalog
       )
     },
-    overlay: priceCheckOverlay,
+    overlay: serverMode.mode === 'international' ? null : priceCheckOverlay,
     shell,
     captureClipboard: async () => {
       const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
@@ -769,7 +864,7 @@ async function startApplication() {
     processProvider: detectClientProcessSessions,
     logger: startupLog,
     processPresenceProvider: detectClientProcessExists,
-    settings: new ClientEventSettingsRepository(path.join(app.getPath('userData'), 'client-events-settings.json')),
+    settings: new ClientEventSettingsRepository(serverMode.dataPath('client-events-settings.json')),
     detectPath: detectRunningClientLogPath,
     selectFile: async () => {
       const result = await dialog.showOpenDialog(getMainWindow(), {
@@ -778,7 +873,7 @@ async function startApplication() {
       return result.canceled ? '' : String(result.filePaths[0] || '')
     }
   })
-  const mapTrackerRepository = new MapTrackerRepository(app.getPath('userData'))
+  const mapTrackerRepository = new MapTrackerRepository(serverMode.dataPath())
   mapTrackerService = new MapTrackerService({
     repository: mapTrackerRepository,
     clientEvents: clientEventsService,
@@ -788,7 +883,7 @@ async function startApplication() {
   mapTrackerOverlay = new MapTrackerOverlayManager({ service: mapTrackerService })
   // ponytail: catalog.json 缺失或损坏只降级圣所功能，不让应用启动失败
   try {
-    sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(app.getPath('userData')),
+    sanctumService = new SanctumService({ moduleEnabled: false, repository: new SanctumRepository(serverMode.dataPath()),
       replay: replaySanctumSample, samples: listSanctumSamples, automationLock,
       catalog: JSON.parse(fs.readFileSync(new URL('./assets/sanctum/catalog.json', import.meta.url), 'utf8')) })
   } catch (error) { console.warn('圣所服务未启动：无法加载 catalog.json', error) }
@@ -813,8 +908,31 @@ async function startApplication() {
     withHidden: operation => sanctumControlOverlay.withHidden(() => sanctumOverlay.withHidden(operation)) })
   startupLog.record({ phase: 'services', outcome: 'succeeded', reasonCode: 'none' })
 
+  ipcMain.handle('server-mode:probe', async (event, league = '') => {
+    if (app.isPackaged || serverMode.mode !== 'international' || event.sender !== getMainWindow()?.webContents) return { success: false, error: '请在国际服桌面开发版主窗口验证' }
+    if (serverProbePending) return { success: false, error: '接口验证正在进行，请稍候' }
+    serverProbePending = true
+    try {
+      const characters = new PobExportService({ session: poeCnSession, server: serverMode.server, auth: chaosAuth })
+      return { success: true, data: await probeServerCapabilities({ auth: chaosAuth, stash: chaosStashClient, trade: priceCheckClient, league, characters: () => characters.listCharacters({ source: 'self' }) }) }
+    } finally { serverProbePending = false }
+  })
+
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
+  registerLocalizationHandlers(localization, getMainWindow)
+  let localizationRevision = localization.getActiveRevision()
+  localization.on('state', () => {
+    if (localizationRevision === localization.getActiveRevision()) return
+    localizationRevision = localization.getActiveRevision()
+    priceCheckService.clear()
+    for (const window of BrowserWindow.getAllWindows()) {
+      try { if (!window.isDestroyed()) window.webContents.send('price-check-catalog-updated', priceCheckService.getStatus().catalog) }
+      catch { /* 窗口退出不影响已提交的汉化事务 */ }
+    }
+  })
   registerIpcHandlers({
+    server: serverMode.server,
+    highlightModelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
     window: windowManager,
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
@@ -832,7 +950,7 @@ async function startApplication() {
       auth: chaosAuth,
       listLeagues: () => chaosStashClient.listLeagues()
     },
-    pobExport: new PobExportService({ session: poeCnSession, auth: chaosAuth }),
+    pobExport: new PobExportService({ session: poeCnSession, server: serverMode.server, auth: chaosAuth }),
     pobLauncher: new PobLauncherService({ userData: app.getPath('userData') }),
     stashPickup,
     junfeng: junfengHighlight,
@@ -963,7 +1081,7 @@ async function startApplication() {
         reasonCode: 'official_catalog_unavailable', error
       })
     }
-    if (uniqueImageWarning) {
+    if (uniqueImageWarning && serverMode.mode === 'cn') {
       priceCheckService.catalogStatus.warning = [priceCheckService.catalogStatus.warning, uniqueImageWarning].filter(Boolean).join('；')
     }
     for (const window of BrowserWindow.getAllWindows()) {

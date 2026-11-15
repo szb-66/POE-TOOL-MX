@@ -50,7 +50,7 @@ test('完整时序 IPC 统一更新消费者且旧背包接口复用同一更新
 })
 
 test('制作和地图脚本的悬停等待来自同一个真实值，点击与复制使用内部固定时序', () => {
-  const generator = source('../src/utils/python.js')
+  const generator = source('../src/utils/pythonScriptGenerator.js')
   assert.equal((generator.match(/normalizeAutomationTiming\(\{ operationDelayMs, fixedTiming \}\)/g) || []).length, 2)
   assert.equal((generator.match(/'\{\{DELAY_MOUSE_MOVE\}\}': operationDelaySeconds/g) || []).length, 2)
   assert.doesNotMatch(generator, /DELAY_CLIPBOARD|clipboard_read_delay/)

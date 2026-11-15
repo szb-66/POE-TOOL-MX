@@ -1,11 +1,13 @@
 <template>
   <div class="chaos-panel">
+    <el-alert v-if="readOnly" title="国际服当前支持仓库读取与配方计算；游戏内控制、网格校准和自动取件尚未开放。" type="info" :closable="false" />
     <el-card class="block">
       <template #header><span>游戏内商店配方控制</span></template>
       <el-form label-width="130px">
         <el-form-item label="是否开启">
           <el-switch
             :model-value="store.settings.enabled"
+            :disabled="readOnly"
             active-text="开启"
             inactive-text="关闭"
             @change="toggleEnabled"
@@ -31,7 +33,7 @@
     <el-card class="block">
       <template #header>
         <div class="card-header">
-          <span>国服账号</span>
+          <span>{{ currentServer.label }}账号</span>
           <el-tag :type="store.auth.authenticated ? 'success' : 'info'">
             {{ store.auth.authenticated ? `已登录 · ${store.auth.accountName}` : '未登录' }}
           </el-tag>
@@ -82,7 +84,7 @@
           </el-form>
         </el-card>
 
-        <el-card>
+        <el-card v-if="!readOnly">
           <template #header><span>仓库网格校准</span></template>
           <p class="muted">框选游戏中完整的物品格子区域，不包含标签页标题和仓库边框；普通与大型共用区域。</p>
           <StashGridConfigurationField
@@ -237,6 +239,8 @@
 </template>
 
 <script setup>
+import { currentServer } from '../../utils/serverContext.js'
+const readOnly = currentServer.id === 'international'
 import { computed } from 'vue'
 import { useChaosRecipeStore } from '../../stores/chaosRecipe.js'
 import { settingsRoute } from '@/router/settingsNavigation'

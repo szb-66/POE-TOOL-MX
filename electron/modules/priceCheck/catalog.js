@@ -190,7 +190,7 @@ export function validateTradeCatalog(catalog) {
   if (catalog.schemaVersion !== TRADE_CATALOG_SCHEMA_VERSION) {
     throw new Error(`交易目录 schema 不兼容：${catalog.schemaVersion}`)
   }
-  if (catalog.game !== 'poe1' || catalog.locale !== 'zh-CN') throw new Error('交易目录游戏或语言无效')
+  if (catalog.game !== 'poe1' || !['zh-CN', 'en'].includes(catalog.locale)) throw new Error('交易目录游戏或语言无效')
   if (!catalog.gameVersion || !Number.isFinite(Date.parse(catalog.generatedAt))) throw new Error('交易目录版本元数据缺失')
   if (!Array.isArray(catalog.items) || !Array.isArray(catalog.stats) || !Array.isArray(catalog.pseudoRules) ||
       !Array.isArray(catalog.statEquivalenceGroups) || !Array.isArray(catalog.unqueryableStats)) {
@@ -371,6 +371,24 @@ export async function loadTradeCatalog(file = path.join(moduleDir, 'catalog.json
   return { catalog, status: tradeCatalogStatus(catalog, now) }
 }
 
+export async function loadInternationalTradeCatalog({ baseCatalog, cacheFile, bundledFile = path.join(moduleDir, 'catalog.international.json'), now = Date.now() }) {
+  for (const [file, provider] of [[cacheFile, 'cached'], [bundledFile, 'bundled']]) {
+    if (!file) continue
+    try {
+      const bundle = await loadTradeCatalog(file, now)
+      const { catalog, status } = bundle
+      if (catalog.provider !== 'poe-international' || catalog.locale !== 'en' ||
+          catalog.manifest?.server !== 'international' || catalog.manifest.language !== 'en' ||
+          catalog.manifest.gameVersion !== catalog.gameVersion) continue
+      return { catalog, status: { ...status, provider, degraded: status.stale, loading: false,
+        warning: status.stale ? '国际服交易目录快照已过期，请刷新官方目录' : '' } }
+    } catch { /* 缓存损坏时继续读取国际服内置快照，绝不加载国服目录。 */ }
+  }
+  const catalog = emptyInternationalTradeCatalog(baseCatalog)
+  return { catalog, status: { ...tradeCatalogStatus(catalog, now), provider: 'unavailable', degraded: true,
+    loading: false, warning: '国际服交易目录不可用，请登录后刷新官方目录' } }
+}
+
 function officialItems(payload, uniqueItemCatalog = null) {
   if (!payload) return []
   if (!Array.isArray(payload?.result)) throw new Error('腾讯官方物品目录响应结构无效')
@@ -530,6 +548,30 @@ export function createCnOfficialTradeCatalog(
     coverage: auditOfficialTradeCatalog(cnStatsPayload, localized.catalog)
   }
   return localized
+}
+
+export function emptyInternationalTradeCatalog(baseCatalog) {
+  return {
+    ...structuredClone(baseCatalog), provider: 'poe-international', locale: 'en', gameVersion: 'unverified',
+    sources: [], items: [], stats: [], pseudoRules: [], statEquivalenceGroups: [], unqueryableStats: [],
+    currencyLabels: {}, itemCoverage: 'none'
+  }
+}
+
+export function createInternationalTradeCatalog(baseCatalog, statsPayload, itemsPayload, staticPayload, gameVersion, now = Date.now()) {
+  if (!gameVersion || gameVersion === 'unverified') throw new Error('请明确指定国际服补丁版本')
+  const base = emptyInternationalTradeCatalog(baseCatalog)
+  base.gameVersion = String(gameVersion)
+  const result = createOfficialTradeCatalog(base, statsPayload, now, itemsPayload)
+  result.catalog.provider = 'poe-international'
+  result.catalog.locale = 'en'
+  result.catalog.sources = ['https://www.pathofexile.com/api/trade/data/stats', 'https://www.pathofexile.com/api/trade/data/items', 'https://www.pathofexile.com/api/trade/data/static']
+  result.catalog.stats = result.catalog.stats.map(entry => ({ ...entry, availability: 'international' }))
+  result.catalog.statEquivalenceGroups = createStatEquivalenceGroups(statsPayload).map(group => ({ ...group, key: group.key.replace(/^poe-cn:/, 'poe-international:') }))
+  result.catalog.currencyLabels = officialCurrencyLabels(staticPayload)
+  validateTradeCatalog(result.catalog)
+  result.status = { ...result.status, ...tradeCatalogStatus(result.catalog, now) }
+  return result
 }
 
 export function createLocalizedOfficialTradeCatalog(

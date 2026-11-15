@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import {
   FEATURE_MODULE_STORAGE_KEY,
   FEATURE_MODULE_STORAGE_VERSION,
@@ -18,7 +19,7 @@ export function normalizeFeatureModuleState(value, { development = false } = {})
   return { version: FEATURE_MODULE_STORAGE_VERSION, disabledFeatureIds }
 }
 
-export function readFeatureModuleState(storage = globalThis.localStorage, options = {}) {
+export function readFeatureModuleState(storage = localStorage, options = {}) {
   try {
     const raw = storage?.getItem?.(FEATURE_MODULE_STORAGE_KEY)
     if (raw == null) return emptyState()
@@ -28,7 +29,7 @@ export function readFeatureModuleState(storage = globalThis.localStorage, option
   }
 }
 
-export function saveFeatureModuleState(state, storage = globalThis.localStorage, options = {}) {
+export function saveFeatureModuleState(state, storage = localStorage, options = {}) {
   const normalized = normalizeFeatureModuleState(state, options)
   try {
     storage?.setItem?.(FEATURE_MODULE_STORAGE_KEY, JSON.stringify(normalized))
@@ -38,7 +39,7 @@ export function saveFeatureModuleState(state, storage = globalThis.localStorage,
   }
 }
 
-export function resetFeatureModuleState(storage = globalThis.localStorage) {
+export function resetFeatureModuleState(storage = localStorage) {
   try {
     storage?.removeItem?.(FEATURE_MODULE_STORAGE_KEY)
     return Boolean(storage)

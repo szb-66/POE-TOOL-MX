@@ -2,6 +2,25 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
+  localization: {
+    status: () => ipcRenderer.invoke('localization:status'),
+    scan: input => ipcRenderer.invoke('localization:scan', input),
+    check: () => ipcRenderer.invoke('localization:check'),
+    download: () => ipcRenderer.invoke('localization:download'),
+    preview: input => ipcRenderer.invoke('localization:preview', input),
+    apply: input => ipcRenderer.invoke('localization:apply', input),
+    restore: input => ipcRenderer.invoke('localization:restore', input),
+    pickDirectory: () => ipcRenderer.invoke('localization:pick-directory'),
+    onState: callback => {
+      const listener = (_event, state) => callback(state)
+      ipcRenderer.on('localization:state-changed', listener)
+      return () => ipcRenderer.removeListener('localization:state-changed', listener)
+    }
+  },
+  probeServerCapabilities: league => ipcRenderer.invoke('server-mode:probe', league),
+  checkItemText: request => ipcRenderer.invoke('price-check-text', request),
+  serverContext: ipcRenderer.sendSync?.('server-mode:context'),
+  switchServerMode: id => ipcRenderer.invoke('server-mode:switch', id),
   getPobLauncherState: () => ipcRenderer.invoke('pob-launcher:state'),
   setPobLauncherDirectory: directory => ipcRenderer.invoke('pob-launcher:directory', directory),
   pickPobLauncherDirectory: () => ipcRenderer.invoke('pob-launcher:pick'),
@@ -102,7 +121,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restartAndInstallApplicationUpdate: () => ipcRenderer.invoke('update-restart-install'),
   acknowledgeInstalledApplicationUpdate: () => ipcRenderer.invoke('update-acknowledge-installed'),
   onApplicationUpdateStateChanged: (callback) => {
-    const listener = (_event, state) => callback(state)
+    const listener = (_event, state) => { callback(state) }
     ipcRenderer.on('update-state-changed', listener)
     return () => ipcRenderer.removeListener('update-state-changed', listener)
   },
@@ -304,16 +323,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveBagStashOverlay: (drag) => ipcRenderer.send('bag-stash-overlay-move', drag),
   updateBagInterfaceConfig: (config) => ipcRenderer.invoke('update-bag-interface-config', config),
   // 国服账号与全局赛季
-  getPoeCnAccountStatus: () => ipcRenderer.invoke('poe-cn-account-status'),
+  getPoeCnAccountStatus: () => ipcRenderer.invoke('poe-account-status'),
   listPobExportCharacters: (input) => ipcRenderer.invoke('pob-export-list-characters', input),
   exportPobBuild: (input) => ipcRenderer.invoke('pob-export-build', input),
-  restorePoeCnAccount: () => ipcRenderer.invoke('poe-cn-account-restore'),
-  openPoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-open-web'),
-  completePoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-cn-account-complete-web'),
-  setPoeCnAccountSessionToken: (token) => ipcRenderer.invoke('poe-cn-account-token', token),
-  logoutPoeCnAccount: () => ipcRenderer.invoke('poe-cn-account-logout'),
-  listPoeCnAccountLeagues: () => ipcRenderer.invoke('poe-cn-account-list-leagues'),
-  setPoeCnAccountLeague: (league) => ipcRenderer.invoke('poe-cn-account-set-league', league),
+  restorePoeCnAccount: () => ipcRenderer.invoke('poe-account-restore'),
+  openPoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-account-open-web'),
+  completePoeCnAccountWebLogin: () => ipcRenderer.invoke('poe-account-complete-web'),
+  setPoeCnAccountSessionToken: (token) => ipcRenderer.invoke('poe-account-token', token),
+  logoutPoeCnAccount: () => ipcRenderer.invoke('poe-account-logout'),
+  listPoeCnAccountLeagues: () => ipcRenderer.invoke('poe-account-list-leagues'),
+  setPoeCnAccountLeague: (league) => ipcRenderer.invoke('poe-account-set-league', league),
   onPoeCnAccountStatusChanged: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('poe-cn-account-status-changed', listener)

@@ -1,124 +1,85 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { randomUUID } from 'node:crypto'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { FEEDBACK_CLOUDBASE_CONFIG } from '../electron/modules/feedback/config.js'
 import { FeedbackAuthClient } from '../electron/modules/feedback/auth.js'
 import { FeedbackCloudClient } from '../electron/modules/feedback/cloudClient.js'
 import { FeedbackService } from '../electron/modules/feedback/service.js'
 
-const runCloud = process.env.FEEDBACK_CLOUD_INTEGRATION === '1'
-
-test('真实CloudBase开发环境反馈闭环', { skip: !runCloud, timeout: 120_000 }, async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-cloud-'))
-  const auth = new FeedbackAuthClient({ config: FEEDBACK_CLOUDBASE_CONFIG, userDataPath: root })
-  const cloud = new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth })
-  const service = new FeedbackService({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
-    auth,
-    cloud,
-    appVersion: '1.0.5-dev-test',
-    locale: 'zh-CN',
-    logger: { warn() {} }
+test('本机 HTTP 契约联调：身份、原始附件、反馈和回复使用自建服务', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-http-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const uid = randomUUID()
+  const token = 'z'.repeat(43)
+  const feedback = []
+  const messages = []
+  const uploads = new Map()
+  let origin
+  const server = createServer(async (request, response) => {
+    const url = new URL(request.url, origin)
+    const chunks = []
+    for await (const chunk of request) chunks.push(chunk)
+    const bytes = Buffer.concat(chunks)
+    const body = request.headers['content-type'] === 'application/json' ? JSON.parse(bytes.toString()) : null
+    const send = (value, status = 200) => { response.writeHead(status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(value)) }
+    const base = '/api/client/v1'
+    if (url.pathname === base + '/identity') return send({ uid, accessToken: token })
+    if (url.pathname === '/upload') {
+      assert.equal(request.headers.authorization, undefined)
+      uploads.set(url.searchParams.get('key'), bytes)
+      return send({})
+    }
+    if (request.headers.authorization !== 'Bearer ' + token) return send({ code: 'UNAUTHORIZED' }, 401)
+    if (url.pathname === base + '/session') return send({ uid })
+    if (url.pathname === base + '/attachments/authorize') return send({ uploadUrl: origin + '/upload?key=' + encodeURIComponent(body.objectKey) })
+    if (url.pathname === base + '/attachments/download-urls') return send(body.paths.map(objectKey => ({ path: objectKey, fullSignedURL: origin + '/download?key=' + encodeURIComponent(objectKey) })))
+    if (url.pathname === base + '/feedback' && request.method === 'POST') { feedback.push({ ...body, created_at: new Date().toISOString() }); return send({ id: body.id, feedbackId: body.feedback_id }) }
+    if (url.pathname === base + '/feedback') return send(feedback)
+    if (url.pathname.startsWith(base + '/feedback/')) return send(feedback.find(row => row.id === url.pathname.split('/').at(-1)) || null)
+    if (url.pathname === base + '/messages' && request.method === 'POST') {
+      const row = { ...body, id: randomUUID(), created_at: new Date().toISOString() }
+      messages.push(row)
+      return send(row)
+    }
+    if (url.pathname === base + '/messages') return send(messages.filter(row => !url.searchParams.get('feedbackId') || row.feedback_id === url.searchParams.get('feedbackId')))
+    return send({ code: 'NOT_FOUND' }, 404)
   })
-  const base = {
-    category: 'bug',
-    title: '开发环境反馈闭环测试',
-    description: '这是自动化开发环境验证生成的反馈，用于核对匿名身份、写库和附件链路。',
-    contact: '',
-    attachmentTokens: []
-  }
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  origin = 'http://127.0.0.1:' + server.address().port
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const config = { baseUrl: origin, allowLoopbackHttp: true }
+  const auth = new FeedbackAuthClient({ config, userDataPath: root })
+  const cloud = new FeedbackCloudClient({ config, auth })
+  const service = new FeedbackService({ config, auth, cloud, appVersion: 'test', locale: 'zh-CN' })
+  const file = path.join(root, 'evidence.txt')
+  await writeFile(file, 'private evidence')
+  const selected = await service.registerAttachments([file])
+  const result = await service.submit({ category: 'bug', title: '本机联调', description: '自建服务反馈上传', attachmentTokens: selected.map(value => value.token) })
+  assert.equal(result.success, true, JSON.stringify(result))
+  assert.equal(uploads.size, 1)
+  assert.equal([...uploads.values()][0].toString(), 'private evidence')
+  const reply = await service.reply({ feedbackId: result.id, clientMessageId: randomUUID(), body: '补充问题', attachmentTokens: [] })
+  assert.equal(reply.success, true, JSON.stringify(reply))
+  const conversation = await service.conversation(result.id)
+  assert.equal(conversation.success, true)
+  assert.equal(conversation.conversation.messages[0].body, '补充问题')
+  assert.ok(conversation.conversation.feedback.attachments[0].downloadUrl.startsWith(origin))
+})
 
-  const session = await auth.getSession()
-  const genericInsert = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${FEEDBACK_CLOUDBASE_CONFIG.publishableKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      feedback_id: 'FB-SECURITY-GENERIC', category: 'bug', title: '通用主体写入应被拒绝',
-      description: '这是一条只用于验证通用Publishable Key不能绕过匿名登录的测试数据。',
-      attachments: [], diagnostics_included: false, status: 'new', app_version: 'test',
-      platform: 'win32', arch: 'x64', locale: 'zh-CN', schema_version: 1
-    })
+test('真实 HTTP 重定向不能把身份注册请求转发到其他入口', async t => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-redirect-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  let redirectedRequests = 0
+  const server = createServer((request, response) => {
+    if (request.url === '/redirected') { redirectedRequests += 1; response.end('{}'); return }
+    response.writeHead(307, { Location: '/redirected' }); response.end()
   })
-  assert.equal(genericInsert.ok, false)
-  const allowedOwnRead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}?select=feedback_id`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` }
-  })
-  assert.equal(allowedOwnRead.ok, true)
-  const forbiddenManagementRead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/rdb/rest/${FEEDBACK_CLOUDBASE_CONFIG.table}?select=status,submitter_uid`, {
-    headers: { Authorization: `Bearer ${session.accessToken}` }
-  })
-  assert.equal(forbiddenManagementRead.ok, false)
-
-  const plain = await service.submit(base)
-  assert.equal(plain.success, true, JSON.stringify(plain))
-  const firstReplyId = crypto.randomUUID()
-  const replied = await service.reply({ feedbackId: plain.id, clientMessageId: firstReplyId, body: '开发环境用户连续回复验证', attachmentTokens: [] })
-  assert.equal(replied.success, true, JSON.stringify(replied))
-  const conversation = await service.conversation(plain.id)
-  assert.equal(conversation.success, true, JSON.stringify(conversation))
-  assert.equal(conversation.conversation.messages.at(-1).body, '开发环境用户连续回复验证')
-  assert.equal(JSON.stringify(conversation).includes('objectKey'), false)
-
-  const secondRoot = await mkdtemp(path.join(os.tmpdir(), 'poe-feedback-cloud-second-'))
-  const secondAuth = new FeedbackAuthClient({ config: FEEDBACK_CLOUDBASE_CONFIG, userDataPath: secondRoot })
-  const secondCloud = new FeedbackCloudClient({ config: FEEDBACK_CLOUDBASE_CONFIG, auth: secondAuth })
-  await secondAuth.getSession()
-  assert.equal(await secondCloud.getFeedback(plain.id), null)
-  await assert.rejects(secondCloud.createMessage({ feedback_id: plain.id, author_role: 'user', body: '跨身份回复应被拒绝', attachments: [], client_message_id: crypto.randomUUID(), schema_version: 1 }))
-  await assert.rejects(cloud.createMessage({ feedback_id: plain.id, author_role: 'admin', body: '伪造管理员应被拒绝', attachments: [], client_message_id: crypto.randomUUID(), schema_version: 1 }))
-
-  const textPath = path.join(root, 'evidence.txt')
-  await writeFile(textPath, 'CloudBase feedback integration evidence\n')
-  const imagePath = fileURLToPath(new URL('./fixtures/unique-items/images/test-alpha.webp', import.meta.url))
-  const selected = await service.registerAttachments([textPath, imagePath])
-  const withFiles = await service.submit({ ...base, title: '开发环境图片与文件反馈测试', attachmentTokens: selected.map(item => item.token) })
-  assert.equal(withFiles.success, true, JSON.stringify(withFiles))
-  const replySelection = await service.registerAttachments([textPath])
-  const attachmentReply = await service.reply({ feedbackId: withFiles.id, clientMessageId: crypto.randomUUID(), body: '用户附件回复验证', attachmentTokens: replySelection.map(item => item.token) })
-  assert.equal(attachmentReply.success, true, JSON.stringify(attachmentReply))
-  const attachmentConversation = await service.conversation(withFiles.id)
-  assert.equal(attachmentConversation.success, true, JSON.stringify(attachmentConversation))
-  assert.match(attachmentConversation.conversation.messages.at(-1).attachments[0].downloadUrl, /^https:\/\//)
-
-  for (let index = 0; index < 18; index += 1) {
-    const withinLimit = await service.reply({ feedbackId: plain.id, clientMessageId: crypto.randomUUID(), body: `回复限流验证 ${index + 1}`, attachmentTokens: [] })
-    assert.equal(withinLimit.success, true, JSON.stringify(withinLimit))
-  }
-  const rateLimited = await service.reply({ feedbackId: plain.id, clientMessageId: crypto.randomUUID(), body: '第 21 条回复应被拒绝', attachmentTokens: [] })
-  assert.equal(rateLimited.success, false)
-
-  const withDiagnostics = await service.submit({ ...base, title: '开发环境脱敏诊断反馈测试', includeDiagnostics: true }, {
-    buildDiagnostics: async () => ({ schemaVersion: 3, generatedAt: new Date().toISOString(), context: { mode: 'snapshot' }, safe: true })
-  })
-  assert.equal(withDiagnostics.success, true, JSON.stringify(withDiagnostics))
-
-  const rollbackSelection = await service.registerAttachments([textPath])
-  let rollbackObjectKey = ''
-  const rollbackCloud = {
-    uploadObject: async (...args) => { rollbackObjectKey = args[0].objectKey; return cloud.uploadObject(...args) },
-    deleteObject: (...args) => cloud.deleteObject(...args),
-    createFeedback: async () => { throw Object.assign(new Error('forced database failure'), { code: 'FORCED_DATABASE_FAILURE' }) }
-  }
-  const rollbackService = new FeedbackService({
-    config: FEEDBACK_CLOUDBASE_CONFIG,
-    auth,
-    cloud: rollbackCloud,
-    appVersion: '1.0.5-dev-test',
-    locale: 'zh-CN',
-    logger: { warn() {} }
-  })
-  rollbackService.selections = service.selections
-  const rolledBack = await rollbackService.submit({ ...base, title: '开发环境回滚测试', attachmentTokens: rollbackSelection.map(item => item.token) })
-  assert.equal(rolledBack.success, false)
-  assert.equal(rolledBack.errorCode, 'FORCED_DATABASE_FAILURE')
-  const encodedKey = rollbackObjectKey.split('/').map(encodeURIComponent).join('/')
-  const rollbackHead = await fetch(`https://${FEEDBACK_CLOUDBASE_CONFIG.envId}.api.tcloudbasegateway.com/v1/storages/object/${FEEDBACK_CLOUDBASE_CONFIG.bucket}/${encodedKey}`, {
-    method: 'HEAD', headers: { Authorization: `Bearer ${session.accessToken}` }
-  })
-  assert.equal(rollbackHead.status, 404)
-
-  console.log(JSON.stringify({ plain: plain.feedbackId, withFiles: withFiles.feedbackId, withDiagnostics: withDiagnostics.feedbackId }))
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const config = { baseUrl: 'http://127.0.0.1:' + server.address().port, allowLoopbackHttp: true }
+  await assert.rejects(new FeedbackAuthClient({ config, userDataPath: root }).getSession())
+  assert.equal(redirectedRequests, 0)
 })

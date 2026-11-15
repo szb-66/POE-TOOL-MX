@@ -90,9 +90,9 @@ test('被动与主动喝药使用三态标签和单一条件启停按钮', () =>
   const active = moduleSource('active-potion', 'portal')
 
   assert.match(passive, /combatStore\.running \? \(combatStore\.focused \? '已开始' : '已开始 · 等待游戏窗口'\) : '已停止'/)
-  assert.match(passive, /<el-button v-if="combatStore\.running" type="danger" @click="stopPotionAssist">停止<\/el-button>\s*<el-button v-else type="primary" @click="startPotionAssist">开始<\/el-button>/)
+  assert.match(passive, /<el-button v-if="combatStore\.running" type="danger" @click="stopPotionAssist">停止<\/el-button>\s*<el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startPotionAssist">开始<\/el-button>/)
   assert.match(active, /combatStore\.loopRunning \? \(combatStore\.loopFocused \? '已开始' : '已开始 · 等待游戏窗口'\) : '已停止'/)
-  assert.match(active, /<el-button v-if="combatStore\.loopRunning" type="danger" @click="stopLoopAssist">停止<\/el-button>\s*<el-button v-else type="primary" @click="startLoopAssist">开始<\/el-button>/)
+  assert.match(active, /<el-button v-if="combatStore\.loopRunning" type="danger" @click="stopLoopAssist">停止<\/el-button>\s*<el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startLoopAssist">开始<\/el-button>/)
 })
 
 test('主动喝药添加按钮始终位于循环列表末尾并使用默认样式', () => {

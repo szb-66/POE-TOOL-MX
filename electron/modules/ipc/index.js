@@ -47,11 +47,11 @@ export function registerIpcHandlers(dependencies) {
 
   registerWindowHandlers(window, { windowActivation, windowClose, exitDiagnostics })
   if (loadingFeedback) registerLoadingFeedbackHandlers(loadingFeedback, getMainWindow)
-  registerPythonHandlers(python, window, fileWatcher)
+  registerPythonHandlers(python, window, fileWatcher, { server: dependencies.server })
   registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting)
   registerShortcutHandlers(shortcut, window)
-  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker })
+  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, highlightModelRoot: dependencies.highlightModelRoot })
   registerCombatHandlers(python, window, fileWatcher)
   const emergencyStop = registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum, getMainWindow })
   if (sanctum) registerSanctumHandlers(sanctum, { getMainWindow, emergencyStop })

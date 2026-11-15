@@ -470,8 +470,8 @@ test('首页通用快捷控件接入物品、地图、战斗与商城状态源',
 test('首页账号健康状态声明并初始化所读取的账号状态源', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
 
-  assert.match(dashboard, /import \{ usePoeCnAccountStore \} from '@\/stores\/poeCnAccount'/)
-  assert.match(dashboard, /const accountStore = usePoeCnAccountStore\(\)/)
+  assert.match(dashboard, /import \{ usePoeAccountStore \} from '@\/stores\/poeAccount'/)
+  assert.match(dashboard, /const accountStore = usePoeAccountStore\(\)/)
   assert.match(dashboard, /authenticated: accountStore\.status\.authenticated/)
 })
 

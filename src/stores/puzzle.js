@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
@@ -165,7 +166,7 @@ function waitForNextPaint() {
 }
 
 function loadSettings() {
-  if (typeof localStorage === 'undefined') return {
+  if (!localStorage.available()) return {
     ...normalizePuzzleSettings(),
     inventoryPages: normalizeInventoryPages(),
     lockedSlots: [],
@@ -364,7 +365,7 @@ export const usePuzzleStore = defineStore('puzzle', () => {
   const calibrationQueueCount = computed(() => calibrationQueue.value.length)
 
   function persistRegions() {
-    if (typeof localStorage === 'undefined') return
+    if (!localStorage.available()) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       regionMetadata: inventoryRegionMetadata.value,
       inventoryRegionMetadata: inventoryRegionMetadata.value,

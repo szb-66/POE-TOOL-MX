@@ -247,6 +247,18 @@ function parseArguments(args) {
 }
 
 async function main() {
+  const serverIndex = process.argv.indexOf('--server')
+  if (serverIndex >= 0) {
+    const server = process.argv[serverIndex + 1]
+    if (server === 'international') {
+      const patchIndex = process.argv.indexOf('--patch')
+      const { generateInternationalCraftingData } = await import('./generateInternationalCraftingData.js')
+      const result = await generateInternationalCraftingData({ patch: patchIndex >= 0 ? process.argv[patchIndex + 1] : undefined, offline: !process.argv.includes('--live'), refresh: process.argv.includes('--live'), onProgress: p => process.stdout.write(`${p.completed}/${p.total} ${p.page}\n`) })
+      process.stdout.write(`${JSON.stringify(result)}\n`)
+      return
+    }
+    if (server !== 'cn') throw new Error('无效服务器模式')
+  }
   const options = parseArguments(process.argv.slice(2))
   const sources = createPoedbRawSources()
   const rawSnapshot = options.fixture ? null : await synchronizeRawSnapshot({
@@ -309,6 +321,11 @@ async function main() {
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 if (invokedDirectly) main().catch(async (error) => {
+  if (process.argv.includes('international')) {
+    process.stderr.write(`${error.stack || error.message}\n`)
+    process.exitCode = 1
+    return
+  }
   const stagingRoot = path.join(path.dirname(outputRoot), `.crafting-data-staging-${process.pid}`)
   const backupRoot = path.join(path.dirname(outputRoot), `.crafting-data-backup-${process.pid}`)
   await rm(stagingRoot, { recursive: true, force: true }).catch(() => {})

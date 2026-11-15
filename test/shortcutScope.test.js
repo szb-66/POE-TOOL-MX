@@ -36,6 +36,7 @@ function loadShortcutManager(globalShortcutMock) {
     .replaceAll('export function ', 'function ')
     .replaceAll('export const ', 'const ')
   const exports = [
+    'setServerInputPolicy',
     'registerConfiguredShortcut',
     'unregisterConfiguredShortcut',
     'setConfiguredShortcuts',
@@ -96,6 +97,27 @@ test('游戏前台注册全部意图，失焦立即全部注销', () => {
   manager.setScopeActive(false)
   assert.equal(mock.registered.size, 0)
   assert.equal(manager.getScopeState().gameForeground, false)
+})
+
+test('国际服不注册游戏操作快捷键，切换中已捕获的回调被阻断并保留紧急停止', () => {
+  const mock = createGlobalShortcutMock()
+  const manager = loadShortcutManager(mock)
+  let gameInputs = 0
+  let stops = 0
+  const entries = [
+    { key: 'portal', accelerator: 'B', callback: () => { gameInputs++ } },
+    { key: 'end', accelerator: 'Alt+3', callback: () => { stops++ } }
+  ]
+  manager.setScopeActive(true)
+  manager.setConfiguredShortcuts(entries)
+  const previousCallback = mock.registered.get('B')
+  manager.setServerInputPolicy(() => false)
+  previousCallback()
+  assert.equal(gameInputs, 0)
+  manager.setConfiguredShortcuts(entries)
+  assert.deepEqual([...mock.registered.keys()], ['Alt+3'])
+  mock.registered.get('Alt+3')()
+  assert.equal(stops, 1)
 })
 
 test('游戏前台部分快捷键冲突时保留其余快捷键并在后续状态同步时重试', () => {

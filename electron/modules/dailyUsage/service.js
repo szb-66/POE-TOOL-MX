@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { feedbackBaseUrl, isDailyUsageConfigured } from '../feedback/config.js'
+import { feedbackApiUrl, FEEDBACK_SERVICE_ID, isDailyUsageConfigured } from '../feedback/config.js'
 
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000
@@ -26,7 +26,7 @@ export function millisecondsUntilNextBeijingReport(now = Date.now()) {
 export class DailyUsageDateStore {
   constructor({ userDataPath, fs = { mkdir, readFile, rename, writeFile } }) {
     this.directory = path.join(userDataPath, 'feedback')
-    this.filePath = path.join(this.directory, 'daily-usage-date')
+    this.filePath = path.join(this.directory, `daily-usage-date-${FEEDBACK_SERVICE_ID}`)
     this.fs = fs
   }
 
@@ -229,14 +229,14 @@ export class DailyUsageService {
 
   send(session, signal) {
     return this.fetch(
-      `${feedbackBaseUrl(this.config)}/v1/rdb/rest/${encodeURIComponent(this.config.dailyUsageTable)}`,
+      feedbackApiUrl(this.config, '/usage'),
       {
         method: 'POST',
+        redirect: 'error',
         signal,
         headers: {
           Authorization: `Bearer ${session.accessToken}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(this.payload)
       }

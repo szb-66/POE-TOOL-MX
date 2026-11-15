@@ -1,0 +1,6726 @@
+{
+  "schemaVersion": 1,
+  "patch": "3.30.0",
+  "locale": "en",
+  "generatedAt": "2026-11-13T21:04:22.071Z",
+  "sources": [
+    {
+      "id": "gem:active",
+      "url": "https://poedb.tw/us/Skill_Gems",
+      "fetchedAt": "2026-11-13T21:04:22.071Z",
+      "sha256": "0e2b2dcdb2973b6db6afc2976e35920b075264c04937783765045739361d1464"
+    },
+    {
+      "id": "gem:support",
+      "url": "https://poedb.tw/us/Support_Gems",
+      "fetchedAt": "2026-11-13T21:04:21.638Z",
+      "sha256": "9fb3605d23ae34ca3c25a0825d9e0e73a93e665bf0aab9b818516b1e7e2bd7ea"
+    }
+  ],
+  "skills": [
+    {
+      "id": "gem:9cf96ac9e2cfc005",
+      "name": "Absolution",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Absolution"
+    },
+    {
+      "id": "gem:93cb08376cea56c9",
+      "name": "Absolution of Inspiring",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Absolution_of_Inspiring"
+    },
+    {
+      "id": "gem:d300240963ecad47",
+      "name": "Added Chaos Damage Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Added_Chaos_Damage_Support"
+    },
+    {
+      "id": "gem:4e503517a2a84f8f",
+      "name": "Added Cold Damage Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Added_Cold_Damage_Support"
+    },
+    {
+      "id": "gem:b395677ff4c8ce6c",
+      "name": "Added Fire Damage Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Added_Fire_Damage_Support"
+    },
+    {
+      "id": "gem:4cd05abfc9692ece",
+      "name": "Added Lightning Damage Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Added_Lightning_Damage_Support"
+    },
+    {
+      "id": "gem:ad9dce945677dd7a",
+      "name": "Additional Accuracy Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Additional_Accuracy_Support"
+    },
+    {
+      "id": "gem:8d33f59fa5c27d7f",
+      "name": "Advanced Traps Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Advanced_Traps_Support"
+    },
+    {
+      "id": "gem:196a07749f134b86",
+      "name": "Alchemist's Mark",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Alchemists_Mark"
+    },
+    {
+      "id": "gem:a5d3b8ac6785bbb5",
+      "name": "Ambush",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ambush"
+    },
+    {
+      "id": "gem:322d9eef8ff18109",
+      "name": "Ancestral Call Support",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:9f14e1362177047f",
+      "name": "Ancestral Cry",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ancestral_Cry"
+    },
+    {
+      "id": "gem:caf0e76d39b020eb",
+      "name": "Ancestral Protector",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ancestral_Protector"
+    },
+    {
+      "id": "gem:128d48a8844f8792",
+      "name": "Ancestral Warchief",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ancestral_Warchief"
+    },
+    {
+      "id": "gem:e9e15f5630c146c9",
+      "name": "Anger",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Anger"
+    },
+    {
+      "id": "gem:4455fd03ba9c203d",
+      "name": "Animate Guardian",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Animate_Guardian"
+    },
+    {
+      "id": "gem:eb19cdc3476583a9",
+      "name": "Animate Guardian of Smiting",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Animate_Guardian_of_Smiting"
+    },
+    {
+      "id": "gem:2c5e2d25288aaaa3",
+      "name": "Animate Weapon",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Animate_Weapon"
+    },
+    {
+      "id": "gem:2e4dd4cfe1ccf466",
+      "name": "Animate Weapon of Ranged Arms",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Animate_Weapon_of_Ranged_Arms"
+    },
+    {
+      "id": "gem:445a051346968d65",
+      "name": "Animate Weapon of Self Reflection",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Animate_Weapon_of_Self_Reflection"
+    },
+    {
+      "id": "gem:b2fff780f1e8d596",
+      "name": "Annihilation Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Annihilation_Support"
+    },
+    {
+      "id": "gem:fd0ce5f0949ae6d1",
+      "name": "Arc",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arc"
+    },
+    {
+      "id": "gem:8e8c4d49110d8008",
+      "name": "Arc of Oscillating",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arc_of_Oscillating"
+    },
+    {
+      "id": "gem:0bc6dc1059f7ae3e",
+      "name": "Arc of Surging",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arc_of_Surging"
+    },
+    {
+      "id": "gem:eeb30cb57626d533",
+      "name": "Arcane Cloak",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arcane_Cloak"
+    },
+    {
+      "id": "gem:ebd96a529488714a",
+      "name": "Arcane Link",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arcane_Link"
+    },
+    {
+      "id": "gem:be418e04b65a286b",
+      "name": "Arcane Surge Support",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Arcane_Surge_Support"
+    },
+    {
+      "id": "gem:d644350a685e383b",
+      "name": "Arcanist Brand",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Arcanist_Brand"
+    },
+    {
+      "id": "gem:cbbbb527bebe472c",
+      "name": "Archmage Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Archmage_Support"
+    },
+    {
+      "id": "gem:8c7a091904b0f54b",
+      "name": "Arctic Armour",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Old_Arctic_Armour"
+    },
+    {
+      "id": "gem:ad28f8d8748ca4fd",
+      "name": "Armageddon Brand",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Armageddon_Brand"
+    },
+    {
+      "id": "gem:3c5f137e28050b9d",
+      "name": "Armageddon Brand of Recall",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Armageddon_Brand_of_Recall"
+    },
+    {
+      "id": "gem:1950bad89a064e18",
+      "name": "Armageddon Brand of Volatility",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Armageddon_Brand_of_Volatility"
+    },
+    {
+      "id": "gem:7337310426fd6ff8",
+      "name": "Arrogance Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Arrogance_Support"
+    },
+    {
+      "id": "gem:2e029e0047eac4d9",
+      "name": "Arrow Nova Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Arrow_Nova_Support"
+    },
+    {
+      "id": "gem:02bc4aac0c8d004c",
+      "name": "Artillery Ballista",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Artillery_Ballista"
+    },
+    {
+      "id": "gem:c0c9b43d8aeb00e7",
+      "name": "Artillery Ballista of Cross Strafe",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Artillery_Ballista_of_Cross_Strafe"
+    },
+    {
+      "id": "gem:5d4e713a300c5034",
+      "name": "Artillery Ballista of Focus Fire",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Artillery_Ballista_of_Focus_Fire"
+    },
+    {
+      "id": "gem:77922994df622b4b",
+      "name": "Assassin's Mark",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Assassins_Mark"
+    },
+    {
+      "id": "gem:0679c2fc85d17d5b",
+      "name": "Autoexertion",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Autoexertion"
+    },
+    {
+      "id": "gem:8d116b82844f50fb",
+      "name": "Automation",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Automation"
+    },
+    {
+      "id": "gem:550f138a304e3bea",
+      "name": "Awakened Added Chaos Damage Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Added_Chaos_Damage_Support"
+    },
+    {
+      "id": "gem:ac54a00d48f2ca04",
+      "name": "Awakened Added Cold Damage Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Added_Cold_Damage_Support"
+    },
+    {
+      "id": "gem:9bb4d328398aef20",
+      "name": "Awakened Added Fire Damage Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Added_Fire_Damage_Support"
+    },
+    {
+      "id": "gem:c6ce295eff142576",
+      "name": "Awakened Added Lightning Damage Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Added_Lightning_Damage_Support"
+    },
+    {
+      "id": "gem:d59923bbc231968b",
+      "name": "Awakened Ancestral Call Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:1c5ccd5697a92367",
+      "name": "Awakened Arrow Nova Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Arrow_Nova_Support"
+    },
+    {
+      "id": "gem:a64a175a4a6afb38",
+      "name": "Awakened Blasphemy Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Blasphemy_Support"
+    },
+    {
+      "id": "gem:54baaa2982774100",
+      "name": "Awakened Brutality Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Brutality_Support"
+    },
+    {
+      "id": "gem:86e4cf7f5cfaac77",
+      "name": "Awakened Burning Damage Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Burning_Damage_Support"
+    },
+    {
+      "id": "gem:ac1b127aebcd0745",
+      "name": "Awakened Cast On Critical Strike Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Cast_On_Critical_Strike_Support"
+    },
+    {
+      "id": "gem:75a00de2c1fc424c",
+      "name": "Awakened Cast While Channelling Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Cast_While_Channelling_Support"
+    },
+    {
+      "id": "gem:43f2be134ce6502a",
+      "name": "Awakened Chain Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Chain_Support"
+    },
+    {
+      "id": "gem:6b3ff07d5b8042c8",
+      "name": "Awakened Cold Penetration Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Cold_Penetration_Support"
+    },
+    {
+      "id": "gem:de3eb7725d83241c",
+      "name": "Awakened Controlled Destruction Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Controlled_Destruction_Support"
+    },
+    {
+      "id": "gem:df418b2d50f42532",
+      "name": "Awakened Deadly Ailments Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Deadly_Ailments_Support"
+    },
+    {
+      "id": "gem:e75e9ab582af4d16",
+      "name": "Awakened Elemental Damage with Attacks Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Elemental_Damage_with_Attacks_Support"
+    },
+    {
+      "id": "gem:ec604d7c6817e7fb",
+      "name": "Awakened Elemental Focus Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Elemental_Focus_Support"
+    },
+    {
+      "id": "gem:91c43bcc27e3a667",
+      "name": "Awakened Empower Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Empower_Support"
+    },
+    {
+      "id": "gem:320663ecf2da05d1",
+      "name": "Awakened Enhance Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Enhance_Support"
+    },
+    {
+      "id": "gem:a586309046e49654",
+      "name": "Awakened Enlighten Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Enlighten_Support"
+    },
+    {
+      "id": "gem:a090131e888c9c2b",
+      "name": "Awakened Fire Penetration Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Fire_Penetration_Support"
+    },
+    {
+      "id": "gem:b61a56a416b533c2",
+      "name": "Awakened Fork Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Fork_Support"
+    },
+    {
+      "id": "gem:2725b293b504e680",
+      "name": "Awakened Generosity Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Generosity_Support"
+    },
+    {
+      "id": "gem:ed1bdfce5b0c674b",
+      "name": "Awakened Greater Multiple Projectiles Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Greater_Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:0d0a0147fdbfa7f5",
+      "name": "Awakened Hextouch Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Hextouch_Support"
+    },
+    {
+      "id": "gem:8f75324d1ca55188",
+      "name": "Awakened Increased Area of Effect Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Increased_Area_of_Effect_Support"
+    },
+    {
+      "id": "gem:bb3b354ad82a9a6e",
+      "name": "Awakened Lightning Penetration Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Lightning_Penetration_Support"
+    },
+    {
+      "id": "gem:77af0d96a67c89c3",
+      "name": "Awakened Melee Physical Damage Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Melee_Physical_Damage_Support"
+    },
+    {
+      "id": "gem:04868034088d5533",
+      "name": "Awakened Melee Splash Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Melee_Splash_Support"
+    },
+    {
+      "id": "gem:730c50a337d81885",
+      "name": "Awakened Minion Damage Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Minion_Damage_Support"
+    },
+    {
+      "id": "gem:b81dffda02ca83fb",
+      "name": "Awakened Multistrike Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Multistrike_Support"
+    },
+    {
+      "id": "gem:9fb5da1e3558fb22",
+      "name": "Awakened Spell Cascade Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:5f77dc09035f1969",
+      "name": "Awakened Spell Echo Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Spell_Echo_Support"
+    },
+    {
+      "id": "gem:58bc172e9d55a9c8",
+      "name": "Awakened Swift Affliction Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Swift_Affliction_Support"
+    },
+    {
+      "id": "gem:d42c5572a2adb776",
+      "name": "Awakened Unbound Ailments Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Unbound_Ailments_Support"
+    },
+    {
+      "id": "gem:7e7fd1f16c77cebf",
+      "name": "Awakened Unleash Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Unleash_Support"
+    },
+    {
+      "id": "gem:47bb7b254821f268",
+      "name": "Awakened Vicious Projectiles Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Vicious_Projectiles_Support"
+    },
+    {
+      "id": "gem:104b3a37883447e3",
+      "name": "Awakened Void Manipulation Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Awakened_Void_Manipulation_Support"
+    },
+    {
+      "id": "gem:1aea40cc4cbd00b1",
+      "name": "Ball Lightning",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ball_Lightning"
+    },
+    {
+      "id": "gem:1017a1f590217c1c",
+      "name": "Ball Lightning of Orbiting",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ball_Lightning_of_Orbiting"
+    },
+    {
+      "id": "gem:cb6ed882eec45135",
+      "name": "Ball Lightning of Static",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ball_Lightning_of_Static"
+    },
+    {
+      "id": "gem:4e7cf765c8ee3ea4",
+      "name": "Ballista Totem Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Ballista_Totem_Support"
+    },
+    {
+      "id": "gem:6037c0825ce5e2a2",
+      "name": "Bane",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Bane"
+    },
+    {
+      "id": "gem:1c4ace0149d61865",
+      "name": "Bane of Condemnation",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Bane_of_Condemnation"
+    },
+    {
+      "id": "gem:7df099fec9e08018",
+      "name": "Barrage",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Barrage"
+    },
+    {
+      "id": "gem:ea2000ac788a9dc5",
+      "name": "Barrage of Volley Fire",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Barrage_of_Volley_Fire"
+    },
+    {
+      "id": "gem:1564e7b2f8f85112",
+      "name": "Barrage Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Barrage_Support"
+    },
+    {
+      "id": "gem:b5111a9ef571048d",
+      "name": "Battlemage's Cry",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Battlemages_Cry"
+    },
+    {
+      "id": "gem:b3608b5581be9ef3",
+      "name": "Bear Trap",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bear_Trap"
+    },
+    {
+      "id": "gem:265ce5ac15e868d7",
+      "name": "Bear Trap of Skewers",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bear_Trap_of_Skewers"
+    },
+    {
+      "id": "gem:30a6fa7d8df12da5",
+      "name": "Behead Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Behead_Support"
+    },
+    {
+      "id": "gem:27c9649eae853a26",
+      "name": "Berserk",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Berserk"
+    },
+    {
+      "id": "gem:6a06799fd3b27348",
+      "name": "Blade Blast",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Blast"
+    },
+    {
+      "id": "gem:e34a0b6474bf3116",
+      "name": "Blade Blast of Dagger Detonation",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Blast_of_Dagger_Detonation"
+    },
+    {
+      "id": "gem:bd3f7571efc3cd69",
+      "name": "Blade Blast of Unloading",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Blast_of_Unloading"
+    },
+    {
+      "id": "gem:1441a65344b749e6",
+      "name": "Blade Flurry",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Flurry"
+    },
+    {
+      "id": "gem:a52fd1b8663feece",
+      "name": "Blade Flurry of Incision",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Flurry_of_Incision"
+    },
+    {
+      "id": "gem:da317473751839b1",
+      "name": "Blade Trap",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Trap"
+    },
+    {
+      "id": "gem:a0379fdd1fd93777",
+      "name": "Blade Trap of Greatswords",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Trap_of_Greatswords"
+    },
+    {
+      "id": "gem:d4b51759ba8d132d",
+      "name": "Blade Trap of Laceration",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Trap_of_Laceration"
+    },
+    {
+      "id": "gem:32959313464001d3",
+      "name": "Blade Vortex",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Vortex"
+    },
+    {
+      "id": "gem:d9de745a62e228e2",
+      "name": "Blade Vortex of the Scythe",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blade_Vortex_of_the_Scythe"
+    },
+    {
+      "id": "gem:5915dc71a8fbec68",
+      "name": "Bladefall",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bladefall"
+    },
+    {
+      "id": "gem:35e8777f0b4b46ca",
+      "name": "Bladefall of Impaling",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bladefall_of_Impaling"
+    },
+    {
+      "id": "gem:4feff49e7e2ec635",
+      "name": "Bladefall of Trarthus",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bladefall_of_Trarthus"
+    },
+    {
+      "id": "gem:bd0a0d754aa61d73",
+      "name": "Bladefall of Volleys",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Bladefall_of_Volleys"
+    },
+    {
+      "id": "gem:aa4842916f97443a",
+      "name": "Bladestorm",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Bladestorm"
+    },
+    {
+      "id": "gem:6d1af2436251fb04",
+      "name": "Bladestorm of Uncertainty",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Bladestorm_of_Uncertainty"
+    },
+    {
+      "id": "gem:87f561da18476395",
+      "name": "Blasphemy Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Blasphemy_Support"
+    },
+    {
+      "id": "gem:1d97341c5068323c",
+      "name": "Blast Rain",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blast_Rain"
+    },
+    {
+      "id": "gem:27b79d9197264fb1",
+      "name": "Blast Rain of Trarthus",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blast_Rain_of_Trarthus"
+    },
+    {
+      "id": "gem:a7c6b5734dc504a2",
+      "name": "Blastchain Mine Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Blastchain_Mine_Support"
+    },
+    {
+      "id": "gem:4dce1f7811fec963",
+      "name": "Blazing Salvo",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Blazing_Salvo"
+    },
+    {
+      "id": "gem:132f619e2d62deb2",
+      "name": "Blessed Call Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Blessed_Call_Support"
+    },
+    {
+      "id": "gem:72b3f21daca03e68",
+      "name": "Blight",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Blight"
+    },
+    {
+      "id": "gem:8428f2922ff70010",
+      "name": "Blight of Atrophy",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Blight_of_Atrophy"
+    },
+    {
+      "id": "gem:e795bc4ac3c33c55",
+      "name": "Blight of Contagion",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Blight_of_Contagion"
+    },
+    {
+      "id": "gem:c52605e7f6747beb",
+      "name": "Blind Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Blind_Support"
+    },
+    {
+      "id": "gem:98429e057c2cdb29",
+      "name": "Blink Arrow",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blink_Arrow"
+    },
+    {
+      "id": "gem:2472a28bb3d1f5fd",
+      "name": "Blink Arrow of Bombarding Clones",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blink_Arrow_of_Bombarding_Clones"
+    },
+    {
+      "id": "gem:5525fcb60ebf808a",
+      "name": "Blink Arrow of Prismatic Clones",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blink_Arrow_of_Prismatic_Clones"
+    },
+    {
+      "id": "gem:44ae5d3a37e536a0",
+      "name": "Block Chance Reduction Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Block_Chance_Reduction_Support"
+    },
+    {
+      "id": "gem:99bca949851f349c",
+      "name": "Blood and Sand",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Blood_and_Sand"
+    },
+    {
+      "id": "gem:50a978265bedef22",
+      "name": "Blood Rage",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Blood_Rage"
+    },
+    {
+      "id": "gem:bd64a90e1b1e8a7f",
+      "name": "Bloodlust Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Bloodlust_Support"
+    },
+    {
+      "id": "gem:76e544e87ddb817e",
+      "name": "Bloodsoaked Banner Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Bloodsoaked_Banner_Support"
+    },
+    {
+      "id": "gem:3d85a03f56cfda56",
+      "name": "Bloodthirst Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Bloodthirst_Support"
+    },
+    {
+      "id": "gem:d692d749fb1322cf",
+      "name": "Bodyswap",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Bodyswap"
+    },
+    {
+      "id": "gem:65fd009dbfed1d3f",
+      "name": "Bodyswap of Sacrifice",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Bodyswap_of_Sacrifice"
+    },
+    {
+      "id": "gem:fc8f91ddbc7d7d2a",
+      "name": "Bone Offering",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Bone_Offering"
+    },
+    {
+      "id": "gem:7f882ee6c2c55cec",
+      "name": "Bonechill Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Bonechill_Support"
+    },
+    {
+      "id": "gem:b58eab8e8870c939",
+      "name": "Boneshatter",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Boneshatter"
+    },
+    {
+      "id": "gem:e7c03ae230c80620",
+      "name": "Boneshatter of Carnage",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Boneshatter_of_Carnage"
+    },
+    {
+      "id": "gem:c1d0c929b6c397a9",
+      "name": "Boneshatter of Complex Trauma",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Boneshatter_of_Complex_Trauma"
+    },
+    {
+      "id": "gem:7ec325f252910ff3",
+      "name": "Bonespire Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Bonespire_Support"
+    },
+    {
+      "id": "gem:ec9722296cec4650",
+      "name": "Brand Recall",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Brand_Recall"
+    },
+    {
+      "id": "gem:c472c3b0c7466e38",
+      "name": "Brutality Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Brutality_Support"
+    },
+    {
+      "id": "gem:493427e723c728c1",
+      "name": "Burning Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Burning_Arrow"
+    },
+    {
+      "id": "gem:b1d0dbcf375b88f5",
+      "name": "Burning Arrow of Vigour",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Burning_Arrow_of_Vigour"
+    },
+    {
+      "id": "gem:37e6b59688533c54",
+      "name": "Burning Damage Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Burning_Damage_Support"
+    },
+    {
+      "id": "gem:4527875ce8bbb127",
+      "name": "Cast On Critical Strike Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cast_On_Critical_Strike_Support"
+    },
+    {
+      "id": "gem:b663b50e7671e583",
+      "name": "Cast on Death Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cast_on_Death_Support"
+    },
+    {
+      "id": "gem:39bcce54123f544b",
+      "name": "Cast on Melee Kill Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Cast_on_Melee_Kill_Support"
+    },
+    {
+      "id": "gem:8d2b3402dd0ad193",
+      "name": "Cast on Ward Break Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cast_on_Ward_Break_Support"
+    },
+    {
+      "id": "gem:f5b7c3b85af5de04",
+      "name": "Cast when Damage Taken Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Cast_when_Damage_Taken_Support"
+    },
+    {
+      "id": "gem:5e6872b924844bb2",
+      "name": "Cast when Stunned Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Cast_when_Stunned_Support"
+    },
+    {
+      "id": "gem:ea087f0b2ac755bb",
+      "name": "Cast while Channelling Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Cast_while_Channelling_Support"
+    },
+    {
+      "id": "gem:36490a0a17eb380c",
+      "name": "Caustic Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Caustic_Arrow"
+    },
+    {
+      "id": "gem:b8f3960f0e9be6fe",
+      "name": "Caustic Arrow of Poison",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Caustic_Arrow_of_Poison"
+    },
+    {
+      "id": "gem:2de2d3c1034e9e96",
+      "name": "Chain Hook",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Chain_Hook"
+    },
+    {
+      "id": "gem:9aca57acf48ff981",
+      "name": "Chain Hook of Angling",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Chain_Hook_of_Angling"
+    },
+    {
+      "id": "gem:aced636fbe45beed",
+      "name": "Chain Hook of Trarthus",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Chain_Hook_of_Trarthus"
+    },
+    {
+      "id": "gem:a3b0e4043d1668fc",
+      "name": "Chain Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Chain_Support"
+    },
+    {
+      "id": "gem:7a9726989f1d145e",
+      "name": "Chance to Bleed Support",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Chance_to_Bleed_Support"
+    },
+    {
+      "id": "gem:432f15ed1778e919",
+      "name": "Chance to Flee Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Chance_to_Flee_Support"
+    },
+    {
+      "id": "gem:4c201ffe623b16ef",
+      "name": "Chance to Poison Support",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Chance_to_Poison_Support"
+    },
+    {
+      "id": "gem:cb2f883dfcfbc482",
+      "name": "Charged Dash",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Charged_Dash"
+    },
+    {
+      "id": "gem:abf43040b0809243",
+      "name": "Charged Dash of Projection",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Charged_Dash_of_Projection"
+    },
+    {
+      "id": "gem:cfb0cd5d2b88abce",
+      "name": "Charged Mines Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Charged_Mines_Support"
+    },
+    {
+      "id": "gem:449424900c58c56d",
+      "name": "Charged Traps Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Charged_Traps_Support"
+    },
+    {
+      "id": "gem:6b1c28f8d2e2a47e",
+      "name": "Clarity",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Clarity"
+    },
+    {
+      "id": "gem:38031c04e372626b",
+      "name": "Cleave",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Cleave"
+    },
+    {
+      "id": "gem:616072bad0c510ab",
+      "name": "Cleave of Rage",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Cleave_of_Rage"
+    },
+    {
+      "id": "gem:142239bd0c09c801",
+      "name": "Close Combat Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Close_Combat_Support"
+    },
+    {
+      "id": "gem:f1748a0f9fa8ddad",
+      "name": "Cluster Traps Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cluster_Traps_Support"
+    },
+    {
+      "id": "gem:f2f810b16cc89b87",
+      "name": "Cobra Lash",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cobra_Lash"
+    },
+    {
+      "id": "gem:0474e88491e12d54",
+      "name": "Cold Penetration Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cold_Penetration_Support"
+    },
+    {
+      "id": "gem:f081fb57a8455880",
+      "name": "Cold Snap",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Cold_Snap"
+    },
+    {
+      "id": "gem:ce97bfd54255aa27",
+      "name": "Cold Snap of Power",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Cold_Snap_of_Power"
+    },
+    {
+      "id": "gem:eb8eb4b75fa980f6",
+      "name": "Cold to Fire Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Cold_to_Fire_Support"
+    },
+    {
+      "id": "gem:ca8fa53df6ab6e23",
+      "name": "Combustion Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Combustion_Support"
+    },
+    {
+      "id": "gem:38b6710a6c1ba280",
+      "name": "Communion Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Communion_Support"
+    },
+    {
+      "id": "gem:d8c673db03815234",
+      "name": "Companionship Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Companionship_Support"
+    },
+    {
+      "id": "gem:dc74ad1f5672da36",
+      "name": "Concentrated Effect Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Concentrated_Effect_Support"
+    },
+    {
+      "id": "gem:bcd8901fbdcef92d",
+      "name": "Conductivity",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Conductivity"
+    },
+    {
+      "id": "gem:7578ed5b2ff26b04",
+      "name": "Conflagration",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Conflagration"
+    },
+    {
+      "id": "gem:c7e40c64f45d26b7",
+      "name": "Congregation Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Congregation_Support"
+    },
+    {
+      "id": "gem:a70d38c751dcc7e0",
+      "name": "Consecrated Path",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Consecrated_Path"
+    },
+    {
+      "id": "gem:b7836afa0deaba2d",
+      "name": "Consecrated Path of Endurance",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Consecrated_Path_of_Endurance"
+    },
+    {
+      "id": "gem:6c3ad9fe5e7515ad",
+      "name": "Constriction Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Constriction_Support"
+    },
+    {
+      "id": "gem:1d2cdc0633dc87e5",
+      "name": "Contagion",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Contagion"
+    },
+    {
+      "id": "gem:8aa49ba703077747",
+      "name": "Contagion of Subsiding",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Contagion_of_Subsiding"
+    },
+    {
+      "id": "gem:7f3878a3424d6070",
+      "name": "Contagion of Transference",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Contagion_of_Transference"
+    },
+    {
+      "id": "gem:7c96657698c1b93f",
+      "name": "Controlled Blaze Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Controlled_Blaze_Support"
+    },
+    {
+      "id": "gem:3e192610561a9a71",
+      "name": "Controlled Destruction Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Controlled_Destruction_Support"
+    },
+    {
+      "id": "gem:338b7ec3422bbc09",
+      "name": "Conversion Trap",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Conversion_Trap"
+    },
+    {
+      "id": "gem:a5e5edc675502bf6",
+      "name": "Convocation",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Convocation"
+    },
+    {
+      "id": "gem:ad21b0cc291dd8dc",
+      "name": "Cooldown Recovery Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Cooldown_Recovery_Support"
+    },
+    {
+      "id": "gem:e68f732654341b1f",
+      "name": "Corrupting Cry Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Corrupting_Cry_Support"
+    },
+    {
+      "id": "gem:300bd3e31d286b3e",
+      "name": "Corrupting Fever",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Corrupting_Fever"
+    },
+    {
+      "id": "gem:ac7d618975ccdf33",
+      "name": "Coursing Current Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Coursing_Current_Support"
+    },
+    {
+      "id": "gem:fb4fb7b9d397ea44",
+      "name": "Crackling Lance",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Crackling_Lance"
+    },
+    {
+      "id": "gem:d5a3b31d7bd9e3a8",
+      "name": "Crackling Lance of Branching",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Crackling_Lance_of_Branching"
+    },
+    {
+      "id": "gem:a4f5c7b1a8aa2add",
+      "name": "Crackling Lance of Disintegration",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Crackling_Lance_of_Disintegration"
+    },
+    {
+      "id": "gem:210d263ab25a43c8",
+      "name": "Creeping Frost",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Creeping_Frost"
+    },
+    {
+      "id": "gem:1c0e579359e3416f",
+      "name": "Creeping Frost of Floes",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Creeping_Frost_of_Floes"
+    },
+    {
+      "id": "gem:3b03d6c5bdc374f3",
+      "name": "Cremation",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cremation"
+    },
+    {
+      "id": "gem:1e314e1e8a4e9432",
+      "name": "Cremation of Exhuming",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cremation_of_Exhuming"
+    },
+    {
+      "id": "gem:fc9670f4b6258370",
+      "name": "Cremation of the Volcano",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cremation_of_the_Volcano"
+    },
+    {
+      "id": "gem:bf969a15f53e3d6d",
+      "name": "Critical Strike Affliction Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Critical_Strike_Affliction_Support"
+    },
+    {
+      "id": "gem:10e62dd9c5b7b2d5",
+      "name": "Cruelty Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Cruelty_Support"
+    },
+    {
+      "id": "gem:4c24be5c398fab10",
+      "name": "Crushing Fist",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Crushing_Fist"
+    },
+    {
+      "id": "gem:ed3328c08a57a1e7",
+      "name": "Crystalfall Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Crystalfall_Support"
+    },
+    {
+      "id": "gem:d04ce9336c806a9d",
+      "name": "Cull the Weak Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Cull_the_Weak_Support"
+    },
+    {
+      "id": "gem:7d62728b6c14aa89",
+      "name": "Culling Strike Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Culling_Strike_Support"
+    },
+    {
+      "id": "gem:0ecc3d6e469fa2fa",
+      "name": "Cursed Ground Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Cursed_Ground_Support"
+    },
+    {
+      "id": "gem:3a804083d01b67b9",
+      "name": "Cyclone",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cyclone"
+    },
+    {
+      "id": "gem:d63b42d846590099",
+      "name": "Cyclone of Tumult",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Cyclone_of_Tumult"
+    },
+    {
+      "id": "gem:1be53c63b704aac0",
+      "name": "Damage on Full Life Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Damage_on_Full_Life_Support"
+    },
+    {
+      "id": "gem:455e9b03b76f8738",
+      "name": "Dark Bargain",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Dark_Bargain"
+    },
+    {
+      "id": "gem:32c6f2e16f5a0f3f",
+      "name": "Dark Bargain of Trarthus",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Dark_Bargain_of_Trarthus"
+    },
+    {
+      "id": "gem:e7b1bd98a9123b65",
+      "name": "Dash",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Dash"
+    },
+    {
+      "id": "gem:789fb0a2b9e062bb",
+      "name": "Deadly Ailments Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Deadly_Ailments_Support"
+    },
+    {
+      "id": "gem:34068d75a7e77677",
+      "name": "Decay Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Decay_Support"
+    },
+    {
+      "id": "gem:b709f19e2540c87f",
+      "name": "Decoy Totem",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Decoy_Totem"
+    },
+    {
+      "id": "gem:2cd9b1398bff60aa",
+      "name": "Defiance Banner",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Defiance_Banner"
+    },
+    {
+      "id": "gem:64063ba90d432386",
+      "name": "Desecrate",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Desecrate"
+    },
+    {
+      "id": "gem:e50177ca08eff2ba",
+      "name": "Despair",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Despair"
+    },
+    {
+      "id": "gem:cc4fff9368916864",
+      "name": "Destitution Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Destitution_Support"
+    },
+    {
+      "id": "gem:6fe500f417145f86",
+      "name": "Destructive Link",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Destructive_Link"
+    },
+    {
+      "id": "gem:dd8511d6cb6f9914",
+      "name": "Determination",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Determination"
+    },
+    {
+      "id": "gem:2d4badebeee3873f",
+      "name": "Detonate Dead",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Detonate_Dead"
+    },
+    {
+      "id": "gem:0404e0bb0d8916ea",
+      "name": "Detonate Dead of Chain Reaction",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Detonate_Dead_of_Chain_Reaction"
+    },
+    {
+      "id": "gem:6a784f4a4500e64f",
+      "name": "Detonate Dead of Scavenging",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Detonate_Dead_of_Scavenging"
+    },
+    {
+      "id": "gem:984c5ed87d1d452d",
+      "name": "Detonate Mines",
+      "requiredLevel": 8,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Detonate_Mines"
+    },
+    {
+      "id": "gem:3859561feeb0a134",
+      "name": "Devour Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Devour_Support"
+    },
+    {
+      "id": "gem:1f646571231ab51f",
+      "name": "Devouring Totem",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Devouring_Totem"
+    },
+    {
+      "id": "gem:5fddf5df792c315f",
+      "name": "Diminishment Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Diminishment_Support"
+    },
+    {
+      "id": "gem:c46b029a06b44646",
+      "name": "Discharge",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Discharge"
+    },
+    {
+      "id": "gem:849f43b7c94716f2",
+      "name": "Discharge of Misery",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Discharge_of_Misery"
+    },
+    {
+      "id": "gem:7532e821da912a94",
+      "name": "Discipline",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Discipline"
+    },
+    {
+      "id": "gem:14aa98f2c00599bc",
+      "name": "Disempower Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Disempower_Support"
+    },
+    {
+      "id": "gem:9b9110f2e0857d35",
+      "name": "Divine Blast",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Blast"
+    },
+    {
+      "id": "gem:484d21e2e0c8659a",
+      "name": "Divine Blast of Radiance",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Blast_of_Radiance"
+    },
+    {
+      "id": "gem:fc001c614e6b4242",
+      "name": "Divine Blessing Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Divine_Blessing_Support"
+    },
+    {
+      "id": "gem:6e30f5cdbce0a47b",
+      "name": "Divine Ire",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Ire"
+    },
+    {
+      "id": "gem:aeeb1cd8bfa131dc",
+      "name": "Divine Ire of Disintegration",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Ire_of_Disintegration"
+    },
+    {
+      "id": "gem:dddefb55bd2d5c8e",
+      "name": "Divine Ire of Holy Lightning",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Ire_of_Holy_Lightning"
+    },
+    {
+      "id": "gem:f59d4ba166f50783",
+      "name": "Divine Retribution",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Divine_Retribution"
+    },
+    {
+      "id": "gem:584bac6b1aeb8326",
+      "name": "Divine Sentinel Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Divine_Sentinel_Support"
+    },
+    {
+      "id": "gem:1831118bf7363ab8",
+      "name": "Dominating Blow",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Dominating_Blow"
+    },
+    {
+      "id": "gem:70826663d4e13fd2",
+      "name": "Dominating Blow of Inspiring",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Dominating_Blow_of_Inspiring"
+    },
+    {
+      "id": "gem:499c3fb30f48a70b",
+      "name": "Double Strike",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Double_Strike"
+    },
+    {
+      "id": "gem:b401d634b1d81f6d",
+      "name": "Double Strike of Impaling",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Double_Strike_of_Impaling"
+    },
+    {
+      "id": "gem:63fa18aea14ffff3",
+      "name": "Double Strike of Momentum",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Double_Strike_of_Momentum"
+    },
+    {
+      "id": "gem:c70b10c2b4923ffb",
+      "name": "Dread Banner",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Dread_Banner"
+    },
+    {
+      "id": "gem:c0b9b7a0cf17b91d",
+      "name": "Dual Strike",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Dual_Strike"
+    },
+    {
+      "id": "gem:5cfaca680b944f67",
+      "name": "Dual Strike of Ambidexterity",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Dual_Strike_of_Ambidexterity"
+    },
+    {
+      "id": "gem:727db7b74ebf5c55",
+      "name": "Earthbreaker Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Earthbreaker_Support"
+    },
+    {
+      "id": "gem:3a304206d08a7df0",
+      "name": "Earthquake",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Earthquake"
+    },
+    {
+      "id": "gem:3f51b55240c522a8",
+      "name": "Earthquake of Amplification",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Earthquake_of_Amplification"
+    },
+    {
+      "id": "gem:d433cee7d8d8af4e",
+      "name": "Earthshatter",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Earthshatter"
+    },
+    {
+      "id": "gem:4a557760d6bae239",
+      "name": "Earthshatter of Fragility",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Earthshatter_of_Fragility"
+    },
+    {
+      "id": "gem:3f548160ae08594c",
+      "name": "Earthshatter of Prominence",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Earthshatter_of_Prominence"
+    },
+    {
+      "id": "gem:e79d6e25f6756d12",
+      "name": "Eclipse Support",
+      "requiredLevel": 72,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Eclipse_Support"
+    },
+    {
+      "id": "gem:879072b7b55df951",
+      "name": "Efficacy Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Efficacy_Support"
+    },
+    {
+      "id": "gem:d342184858a8959d",
+      "name": "Eldritch Blasphemy Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Eldritch_Blasphemy_Support"
+    },
+    {
+      "id": "gem:4c7549ce943d3f9b",
+      "name": "Elemental Army Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Elemental_Army_Support"
+    },
+    {
+      "id": "gem:b98fa1b18917e601",
+      "name": "Elemental Damage with Attacks Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Elemental_Damage_with_Attacks_Support"
+    },
+    {
+      "id": "gem:a927e2af126f0f97",
+      "name": "Elemental Focus Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Elemental_Focus_Support"
+    },
+    {
+      "id": "gem:e73ec6d969aa7967",
+      "name": "Elemental Hit",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Elemental_Hit"
+    },
+    {
+      "id": "gem:c07d95cf8f2dd7af",
+      "name": "Elemental Hit of the Spectrum",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Elemental_Hit_of_the_Spectrum"
+    },
+    {
+      "id": "gem:ce49b476a119f15b",
+      "name": "Elemental Penetration Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Elemental_Penetration_Support"
+    },
+    {
+      "id": "gem:954d2399a5c4ec77",
+      "name": "Elemental Proliferation Support",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Elemental_Proliferation_Support"
+    },
+    {
+      "id": "gem:734867ee2c1aaeeb",
+      "name": "Elemental Weakness",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Elemental_Weakness"
+    },
+    {
+      "id": "gem:4956c1a01d009d4b",
+      "name": "Empower Support",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Empower_Support"
+    },
+    {
+      "id": "gem:a8febff0c466db49",
+      "name": "Encumbrance Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Encumbrance_Support"
+    },
+    {
+      "id": "gem:d04048eb39c6a98f",
+      "name": "Endurance Charge on Melee Stun Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Endurance_Charge_on_Melee_Stun_Support"
+    },
+    {
+      "id": "gem:7b5cfa764841f807",
+      "name": "Enduring Cry",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Enduring_Cry"
+    },
+    {
+      "id": "gem:bea75c6aa5e89e05",
+      "name": "Energy Blade",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Energy_Blade"
+    },
+    {
+      "id": "gem:5216238a807dbcaf",
+      "name": "Energy Leech Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Energy_Leech_Support"
+    },
+    {
+      "id": "gem:d492bf756d1f9e72",
+      "name": "Enfeeble",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Enfeeble"
+    },
+    {
+      "id": "gem:20dd504acfcb530b",
+      "name": "Enhance Support",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Enhance_Support"
+    },
+    {
+      "id": "gem:56aabb1d7b0c9a98",
+      "name": "Enlighten Support",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Enlighten_Support"
+    },
+    {
+      "id": "gem:a43c260f5fefc094",
+      "name": "Ensnaring Arrow",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ensnaring_Arrow"
+    },
+    {
+      "id": "gem:f93581f66d83a853",
+      "name": "Essence Drain",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Essence_Drain"
+    },
+    {
+      "id": "gem:4ca214c10863c7fc",
+      "name": "Essence Drain of Desperation",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Essence_Drain_of_Desperation"
+    },
+    {
+      "id": "gem:dfc43552d2a71d18",
+      "name": "Essence Drain of Wickedness",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Essence_Drain_of_Wickedness"
+    },
+    {
+      "id": "gem:213c3ab6b4cecf16",
+      "name": "Eternal Blessing Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Eternal_Blessing_Support"
+    },
+    {
+      "id": "gem:120ec4cec86c92d7",
+      "name": "Ethereal Knives",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ethereal_Knives"
+    },
+    {
+      "id": "gem:7d671f6a4eb56154",
+      "name": "Ethereal Knives of Lingering Blades",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ethereal_Knives_of_Lingering_Blades"
+    },
+    {
+      "id": "gem:7d45b7edc20b0190",
+      "name": "Ethereal Knives of the Massacre",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ethereal_Knives_of_the_Massacre"
+    },
+    {
+      "id": "gem:eed1570ad3336175",
+      "name": "Eviscerate",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Eviscerate"
+    },
+    {
+      "id": "gem:c2500b92b1ebe424",
+      "name": "Excommunicate Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Excommunicate_Support"
+    },
+    {
+      "id": "gem:4ee65c70d88202e4",
+      "name": "Exemplar Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Exemplar_Support"
+    },
+    {
+      "id": "gem:bd972d7557bad11b",
+      "name": "Expert Retaliation Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Expert_Retaliation_Support"
+    },
+    {
+      "id": "gem:51b71be95e974ee4",
+      "name": "Explosive Arrow",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Arrow"
+    },
+    {
+      "id": "gem:dc13e29a7d66d487",
+      "name": "Explosive Concoction",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Concoction"
+    },
+    {
+      "id": "gem:7338c1864608c1a0",
+      "name": "Explosive Concoction of Destruction",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Concoction_of_Destruction"
+    },
+    {
+      "id": "gem:0244e6f0e98ec30e",
+      "name": "Explosive Trap",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Trap"
+    },
+    {
+      "id": "gem:bdabe83e207473ae",
+      "name": "Explosive Trap of Magnitude",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Trap_of_Magnitude"
+    },
+    {
+      "id": "gem:265f6cf46e6e4d52",
+      "name": "Explosive Trap of Shrapnel",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Explosive_Trap_of_Shrapnel"
+    },
+    {
+      "id": "gem:49e34e4addb12b90",
+      "name": "Exsanguinate",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Exsanguinate"
+    },
+    {
+      "id": "gem:bf8a36e770fb5d13",
+      "name": "Exsanguinate of Transmission",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Exsanguinate_of_Transmission"
+    },
+    {
+      "id": "gem:30dc17d24ac9a147",
+      "name": "Eye of Winter",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Eye_of_Winter"
+    },
+    {
+      "id": "gem:122112bfd3efe796",
+      "name": "Eye of Winter of Finality",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Eye_of_Winter_of_Finality"
+    },
+    {
+      "id": "gem:4422db9a5580b1ac",
+      "name": "Eye of Winter of Transience",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Eye_of_Winter_of_Transience"
+    },
+    {
+      "id": "gem:a3866dbb1a5dee63",
+      "name": "Faster Attacks Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Faster_Attacks_Support"
+    },
+    {
+      "id": "gem:565d00f2edb200a4",
+      "name": "Faster Casting Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Faster_Casting_Support"
+    },
+    {
+      "id": "gem:782a4b90d32b34b8",
+      "name": "Faster Projectiles Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Faster_Projectiles_Support"
+    },
+    {
+      "id": "gem:0c13617ad9cb10b5",
+      "name": "Feeding Frenzy Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Feeding_Frenzy_Support"
+    },
+    {
+      "id": "gem:dd04bfa05a4ca057",
+      "name": "Fire Penetration Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Fire_Penetration_Support"
+    },
+    {
+      "id": "gem:d69de65364f27521",
+      "name": "Fire Trap",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Fire_Trap"
+    },
+    {
+      "id": "gem:c2b17acadd22a5e2",
+      "name": "Fire Trap of Blasting",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Fire_Trap_of_Blasting"
+    },
+    {
+      "id": "gem:7f10f461cc93b5b1",
+      "name": "Fireball",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Fireball"
+    },
+    {
+      "id": "gem:96cd0dc098e46726",
+      "name": "Fireball of Radiation",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Fireball_of_Radiation"
+    },
+    {
+      "id": "gem:d339eca604768a78",
+      "name": "Firestorm",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Firestorm"
+    },
+    {
+      "id": "gem:3d7c1a9ca82d12f6",
+      "name": "Firestorm of Meteors",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Firestorm_of_Meteors"
+    },
+    {
+      "id": "gem:007fef76512ccc68",
+      "name": "Firestorm of Pelting",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Firestorm_of_Pelting"
+    },
+    {
+      "id": "gem:406289736812c055",
+      "name": "Fissure Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Fissure_Support"
+    },
+    {
+      "id": "gem:92910232559b98fa",
+      "name": "Fist of War Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Fist_of_War_Support"
+    },
+    {
+      "id": "gem:c6abcac94f1e24e9",
+      "name": "Flame Dash",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Dash"
+    },
+    {
+      "id": "gem:68a7f23bf5caff73",
+      "name": "Flame Dash of Return",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Dash_of_Return"
+    },
+    {
+      "id": "gem:e2c8c2556b633698",
+      "name": "Flame Link",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Link"
+    },
+    {
+      "id": "gem:28ea846470bc128a",
+      "name": "Flame Surge",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Surge"
+    },
+    {
+      "id": "gem:7a0a3e99545f6772",
+      "name": "Flame Surge of Combusting",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Surge_of_Combusting"
+    },
+    {
+      "id": "gem:55c7e26f238c227e",
+      "name": "Flame Wall",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flame_Wall"
+    },
+    {
+      "id": "gem:ce9ccbb68f6a4498",
+      "name": "Flameblast",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flameblast"
+    },
+    {
+      "id": "gem:3811e436c52228fe",
+      "name": "Flameblast of Celerity",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flameblast_of_Celerity"
+    },
+    {
+      "id": "gem:0b33b10a5e01f448",
+      "name": "Flameblast of Contraction",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flameblast_of_Contraction"
+    },
+    {
+      "id": "gem:d3b5439b9f172fd6",
+      "name": "Flamethrower Trap",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Flamethrower_Trap"
+    },
+    {
+      "id": "gem:4ce0f1bc21dbe7a7",
+      "name": "Flamethrower Trap of Stability",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Flamethrower_Trap_of_Stability"
+    },
+    {
+      "id": "gem:47b85913cdf0f24b",
+      "name": "Flamewood Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Flamewood_Support"
+    },
+    {
+      "id": "gem:04bfade6cfe58006",
+      "name": "Flammability",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flammability"
+    },
+    {
+      "id": "gem:55ea8540f0718a33",
+      "name": "Flesh and Stone",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Flesh_and_Stone"
+    },
+    {
+      "id": "gem:e9c6aebe78052541",
+      "name": "Flesh Offering",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Flesh_Offering"
+    },
+    {
+      "id": "gem:c8f0887a16d28780",
+      "name": "Flicker Strike",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Flicker_Strike"
+    },
+    {
+      "id": "gem:3631395812463c3d",
+      "name": "Flicker Strike of Power",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Flicker_Strike_of_Power"
+    },
+    {
+      "id": "gem:78a50e264f3246b5",
+      "name": "Focused Ballista Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Focused_Ballista_Support"
+    },
+    {
+      "id": "gem:1bd0d511462ef77a",
+      "name": "Focused Channelling Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Focused_Channelling_Support"
+    },
+    {
+      "id": "gem:5c091c11aaa7d438",
+      "name": "Forbidden Rite",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Forbidden_Rite"
+    },
+    {
+      "id": "gem:3bb95c0887a224c9",
+      "name": "Forbidden Rite of Soul Sacrifice",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Forbidden_Rite_of_Soul_Sacrifice"
+    },
+    {
+      "id": "gem:ff9504f209f7ab82",
+      "name": "Fork Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Fork_Support"
+    },
+    {
+      "id": "gem:d004cb436f4b5d0e",
+      "name": "Fortify Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Fortify_Support"
+    },
+    {
+      "id": "gem:5e42031d94840d54",
+      "name": "Foulgrasp Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Foulgrasp_Support"
+    },
+    {
+      "id": "gem:e9f5f6652f5e036d",
+      "name": "Freezing Pulse",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Freezing_Pulse"
+    },
+    {
+      "id": "gem:4c1038fd43f39ee1",
+      "name": "Frenzy",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Frenzy"
+    },
+    {
+      "id": "gem:a6e736fd2c635bc6",
+      "name": "Frenzy of Onslaught",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Frenzy_of_Onslaught"
+    },
+    {
+      "id": "gem:425612257c9b06bd",
+      "name": "Fresh Meat Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Fresh_Meat_Support"
+    },
+    {
+      "id": "gem:c0c2e757b88ad43a",
+      "name": "Frigid Bond Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Frigid_Bond_Support"
+    },
+    {
+      "id": "gem:d1768d245b9a2776",
+      "name": "Frost Blades",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Blades"
+    },
+    {
+      "id": "gem:423c1d5d1af62296",
+      "name": "Frost Blades of Katabasis",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Blades_of_Katabasis"
+    },
+    {
+      "id": "gem:319e678c768c1b8f",
+      "name": "Frost Bomb",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Bomb"
+    },
+    {
+      "id": "gem:c51e30ef5505f274",
+      "name": "Frost Bomb of Forthcoming",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Bomb_of_Forthcoming"
+    },
+    {
+      "id": "gem:db198ca78c257976",
+      "name": "Frost Bomb of Instability",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Bomb_of_Instability"
+    },
+    {
+      "id": "gem:0454832e5a65d03e",
+      "name": "Frost Shield",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Shield"
+    },
+    {
+      "id": "gem:04b957193df66a00",
+      "name": "Frost Wall",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Wall"
+    },
+    {
+      "id": "gem:6c33c51a207ee5e0",
+      "name": "Frost Wall of Encroachment",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frost_Wall_of_Encroachment"
+    },
+    {
+      "id": "gem:711800a63cebfae9",
+      "name": "Frostbite",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frostbite"
+    },
+    {
+      "id": "gem:555fd0eda030241e",
+      "name": "Frostblink",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frostblink"
+    },
+    {
+      "id": "gem:2318c3d7abce8a38",
+      "name": "Frostblink of Wintry Blast",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frostblink_of_Wintry_Blast"
+    },
+    {
+      "id": "gem:4ad11f9400cb5338",
+      "name": "Frostbolt",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Frostbolt"
+    },
+    {
+      "id": "gem:42ff7d02acd6b7b3",
+      "name": "Frostmage Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Frostmage_Support"
+    },
+    {
+      "id": "gem:34d67dc55cf164cd",
+      "name": "Frozen Legion",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Frozen_Legion"
+    },
+    {
+      "id": "gem:2fbea8964cd5cf8c",
+      "name": "Frozen Legion of Rallying",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Frozen_Legion_of_Rallying"
+    },
+    {
+      "id": "gem:fb723d8e12eea753",
+      "name": "Galvanic Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Galvanic_Arrow"
+    },
+    {
+      "id": "gem:c2b7704451f32372",
+      "name": "Galvanic Arrow of Energy",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Galvanic_Arrow_of_Energy"
+    },
+    {
+      "id": "gem:d232ad4cb9cea383",
+      "name": "Galvanic Arrow of Surging",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Galvanic_Arrow_of_Surging"
+    },
+    {
+      "id": "gem:8a5950f01536dc08",
+      "name": "Galvanic Field",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Galvanic_Field"
+    },
+    {
+      "id": "gem:79e1cd66d33f2082",
+      "name": "Galvanic Field of Intensity",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Galvanic_Field_of_Intensity"
+    },
+    {
+      "id": "gem:2d5319174095ad0e",
+      "name": "General's Cry",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Generals_Cry"
+    },
+    {
+      "id": "gem:1df0377fb83ceb68",
+      "name": "Generosity Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Generosity_Support"
+    },
+    {
+      "id": "gem:035ba05ccc8a0464",
+      "name": "Glacial Cascade",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Glacial_Cascade"
+    },
+    {
+      "id": "gem:ef2f8c14865d6b7b",
+      "name": "Glacial Cascade of the Fissure",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Glacial_Cascade_of_the_Fissure"
+    },
+    {
+      "id": "gem:353f74b152852d96",
+      "name": "Glacial Hammer",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Glacial_Hammer"
+    },
+    {
+      "id": "gem:834e7ff885a1717a",
+      "name": "Glacial Hammer of Shattering",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Glacial_Hammer_of_Shattering"
+    },
+    {
+      "id": "gem:4063f2c09c040119",
+      "name": "Glacial Shield Swipe",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Glacial_Shield_Swipe"
+    },
+    {
+      "id": "gem:e4a8e28444af4e52",
+      "name": "Gluttony Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Gluttony_Support"
+    },
+    {
+      "id": "gem:c48f69e97f8ac08f",
+      "name": "Grace",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Grace"
+    },
+    {
+      "id": "gem:37119f6665bfb5c0",
+      "name": "Greater Ancestral Call Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Ancestral_Call_Support"
+    },
+    {
+      "id": "gem:aee6389b6c2b0d61",
+      "name": "Greater Chain Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Chain_Support"
+    },
+    {
+      "id": "gem:038efc76eb106452",
+      "name": "Greater Devour Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Devour_Support"
+    },
+    {
+      "id": "gem:73fdda6d7c401683",
+      "name": "Greater Fork Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Fork_Support"
+    },
+    {
+      "id": "gem:9f5f74d41516c6ac",
+      "name": "Greater Kinetic Instability Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Kinetic_Instability_Support"
+    },
+    {
+      "id": "gem:2927b8bfe76f5763",
+      "name": "Greater Multiple Projectiles Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:f5d5b3735e51cd35",
+      "name": "Greater Multistrike Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Multistrike_Support"
+    },
+    {
+      "id": "gem:792e84f4b2f1df2f",
+      "name": "Greater Spell Cascade Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:854577b1845eafea",
+      "name": "Greater Spell Echo Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Spell_Echo_Support"
+    },
+    {
+      "id": "gem:8c13e3912676560b",
+      "name": "Greater Unleash Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Unleash_Support"
+    },
+    {
+      "id": "gem:2662e702bd11f595",
+      "name": "Greater Volley Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Greater_Volley_Support"
+    },
+    {
+      "id": "gem:ff61e6c6c1bb24c6",
+      "name": "Ground Slam",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ground_Slam"
+    },
+    {
+      "id": "gem:18cc44ead0c41dc2",
+      "name": "Ground Slam of Earthshaking",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ground_Slam_of_Earthshaking"
+    },
+    {
+      "id": "gem:c197757a64e4f25a",
+      "name": "Guardian's Blessing Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Guardians_Blessing_Support"
+    },
+    {
+      "id": "gem:2240f3297f48fb02",
+      "name": "Hallow Support",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Hallow_Support"
+    },
+    {
+      "id": "gem:33c5e9cd50082a90",
+      "name": "Haste",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Haste"
+    },
+    {
+      "id": "gem:78939eab7ff18229",
+      "name": "Hatred",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Hatred"
+    },
+    {
+      "id": "gem:5042bb95d5f66b91",
+      "name": "Heavy Strike",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Heavy_Strike"
+    },
+    {
+      "id": "gem:f3136b2cbd6ef964",
+      "name": "Heavy Strike of Trarthus",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Heavy_Strike_of_Trarthus"
+    },
+    {
+      "id": "gem:f04814f8a5d22b10",
+      "name": "Herald of Agony",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Herald_of_Agony"
+    },
+    {
+      "id": "gem:061f2f9b8a0b1f2e",
+      "name": "Herald of Ash",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Herald_of_Ash"
+    },
+    {
+      "id": "gem:54524002b5c70c70",
+      "name": "Herald of Ice",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Herald_of_Ice"
+    },
+    {
+      "id": "gem:ae69722762d44bf1",
+      "name": "Herald of Purity",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Herald_of_Purity"
+    },
+    {
+      "id": "gem:60288900dc651f83",
+      "name": "Herald of Thunder",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Herald_of_Thunder"
+    },
+    {
+      "id": "gem:b0345adafbd43924",
+      "name": "Hex Bloom Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Hex_Bloom_Support"
+    },
+    {
+      "id": "gem:de02a8197eeb1fda",
+      "name": "Hexblast",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Hexblast"
+    },
+    {
+      "id": "gem:f91cd2c65ac9d46f",
+      "name": "Hexblast of Contradiction",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Hexblast_of_Contradiction"
+    },
+    {
+      "id": "gem:d5e33271304646b1",
+      "name": "Hexblast of Havoc",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Hexblast_of_Havoc"
+    },
+    {
+      "id": "gem:20f7584e5c8eafb0",
+      "name": "Hexpass Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Hexpass_Support"
+    },
+    {
+      "id": "gem:49343996d37dc4e4",
+      "name": "Hextoad Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Hextoad_Support"
+    },
+    {
+      "id": "gem:7b3919fa13fd7183",
+      "name": "Hextouch Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Hextouch_Support"
+    },
+    {
+      "id": "gem:c5a88badba90f1a0",
+      "name": "High-Impact Mine Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/High-Impact_Mine_Support"
+    },
+    {
+      "id": "gem:40c1f48f22006b1c",
+      "name": "Hiveborn Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Hiveborn_Support"
+    },
+    {
+      "id": "gem:9a4dd90a6dac402f",
+      "name": "Holy Flame Totem",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Flame_Totem"
+    },
+    {
+      "id": "gem:e3a82b0000cab060",
+      "name": "Holy Flame Totem of Ire",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Flame_Totem_of_Ire"
+    },
+    {
+      "id": "gem:31ebf8fe58ef1e9a",
+      "name": "Holy Hammers",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Hammers"
+    },
+    {
+      "id": "gem:5a44750f00c8fd94",
+      "name": "Holy Hammers of Spirals",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Hammers_of_Spirals"
+    },
+    {
+      "id": "gem:1c885e57bebc787b",
+      "name": "Holy Strike",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Strike"
+    },
+    {
+      "id": "gem:753e8d77bcf9123d",
+      "name": "Holy Sweep",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Sweep"
+    },
+    {
+      "id": "gem:8d2c893e427c6af4",
+      "name": "Holy Sweep of Hammerfalls",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Holy_Sweep_of_Hammerfalls"
+    },
+    {
+      "id": "gem:20235179fd5f9747",
+      "name": "Hydrosphere",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Hydrosphere"
+    },
+    {
+      "id": "gem:34483c1714bc638c",
+      "name": "Hypothermia Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Hypothermia_Support"
+    },
+    {
+      "id": "gem:4f5249f8b250f4e2",
+      "name": "Ice Bite Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Ice_Bite_Support"
+    },
+    {
+      "id": "gem:787a1e954c622a10",
+      "name": "Ice Crash",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Crash"
+    },
+    {
+      "id": "gem:c3cace9ac778fe21",
+      "name": "Ice Crash of Cadence",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Crash_of_Cadence"
+    },
+    {
+      "id": "gem:69f8a61fc959948a",
+      "name": "Ice Nova",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Nova"
+    },
+    {
+      "id": "gem:4f7b28e12bf4bf6b",
+      "name": "Ice Nova of Deep Freeze",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Nova_of_Deep_Freeze"
+    },
+    {
+      "id": "gem:e8d52ca829292e81",
+      "name": "Ice Nova of Frostbolts",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Nova_of_Frostbolts"
+    },
+    {
+      "id": "gem:b030dcdd8e147259",
+      "name": "Ice Shot",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Shot"
+    },
+    {
+      "id": "gem:5f401c426fd5b240",
+      "name": "Ice Shot of Penetration",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Shot_of_Penetration"
+    },
+    {
+      "id": "gem:987049500305a680",
+      "name": "Ice Spear",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Spear"
+    },
+    {
+      "id": "gem:ad81b963f01c5b7d",
+      "name": "Ice Spear of Splitting",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Spear_of_Splitting"
+    },
+    {
+      "id": "gem:3285ad9f4467a8a7",
+      "name": "Ice Trap",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Trap"
+    },
+    {
+      "id": "gem:fda00471df0bb8bc",
+      "name": "Ice Trap of Hollowness",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Ice_Trap_of_Hollowness"
+    },
+    {
+      "id": "gem:fc904c3313335f72",
+      "name": "Icicle Mine",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Icicle_Mine"
+    },
+    {
+      "id": "gem:41b892e7b5de1d85",
+      "name": "Icicle Mine of Fanning",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Icicle_Mine_of_Fanning"
+    },
+    {
+      "id": "gem:797ab65695e96dd1",
+      "name": "Icicle Mine of Sabotage",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Icicle_Mine_of_Sabotage"
+    },
+    {
+      "id": "gem:0a9abba678622019",
+      "name": "Ignite Proliferation Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Ignite_Proliferation_Support"
+    },
+    {
+      "id": "gem:319612b0c7de2b3c",
+      "name": "Immolate Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Immolate_Support"
+    },
+    {
+      "id": "gem:c586cd82bf572ad9",
+      "name": "Immortal Call",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Immortal_Call"
+    },
+    {
+      "id": "gem:f196321cb2f85259",
+      "name": "Impale Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Impale_Support"
+    },
+    {
+      "id": "gem:fb6623ef9e395d39",
+      "name": "Impending Doom Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Impending_Doom_Support"
+    },
+    {
+      "id": "gem:df5842bed4395e06",
+      "name": "Impotence Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Impotence_Support"
+    },
+    {
+      "id": "gem:d0aca9b024b14b28",
+      "name": "Incinerate",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Incinerate"
+    },
+    {
+      "id": "gem:80c50d573e4f8918",
+      "name": "Incinerate of Expanse",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Incinerate_of_Expanse"
+    },
+    {
+      "id": "gem:d91659ea5ae7c5e7",
+      "name": "Incinerate of Venting",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Incinerate_of_Venting"
+    },
+    {
+      "id": "gem:0581674eff421e9a",
+      "name": "Increased Area of Effect Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Increased_Area_of_Effect_Support"
+    },
+    {
+      "id": "gem:d65877ddfba8bff7",
+      "name": "Increased Critical Damage Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Increased_Critical_Damage_Support"
+    },
+    {
+      "id": "gem:f373728d33df3763",
+      "name": "Increased Critical Strikes Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Increased_Critical_Strikes_Support"
+    },
+    {
+      "id": "gem:0511ff51245c93c7",
+      "name": "Infernal Blow",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Infernal_Blow"
+    },
+    {
+      "id": "gem:58ad4c5ddea63b87",
+      "name": "Infernal Blow of Immolation",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Infernal_Blow_of_Immolation"
+    },
+    {
+      "id": "gem:77f4e57390342f52",
+      "name": "Infernal Cry",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Infernal_Cry"
+    },
+    {
+      "id": "gem:0d1fd0705eaa81b4",
+      "name": "Infernal Legion Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Infernal_Legion_Support"
+    },
+    {
+      "id": "gem:b1e1e8dc6ef8db0d",
+      "name": "Infused Channelling Support",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Infused_Channelling_Support"
+    },
+    {
+      "id": "gem:7f9e4a9436a64f3c",
+      "name": "Innervate Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Innervate_Support"
+    },
+    {
+      "id": "gem:0696811d6a08c0f8",
+      "name": "Inspiration Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Inspiration_Support"
+    },
+    {
+      "id": "gem:cce6f277fb1e68d5",
+      "name": "Intensify Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Intensify_Support"
+    },
+    {
+      "id": "gem:42e74d87bebc65f0",
+      "name": "Intimidating Cry",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Intimidating_Cry"
+    },
+    {
+      "id": "gem:4249427e127c82de",
+      "name": "Intuitive Link",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Intuitive_Link"
+    },
+    {
+      "id": "gem:160d72f752c3f27d",
+      "name": "Invention Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Invention_Support"
+    },
+    {
+      "id": "gem:0c2a4ce17412048d",
+      "name": "Invert the Rules Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Invert_the_Rules_Support"
+    },
+    {
+      "id": "gem:803b464774d94812",
+      "name": "Iron Grip Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Iron_Grip_Support"
+    },
+    {
+      "id": "gem:de47a102749bd931",
+      "name": "Iron Will Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Iron_Will_Support"
+    },
+    {
+      "id": "gem:b56cc296ba4095b5",
+      "name": "Item Rarity Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Item_Rarity_Support"
+    },
+    {
+      "id": "gem:c754a3a7513dc19b",
+      "name": "Kinetic Blast",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Blast"
+    },
+    {
+      "id": "gem:33e0cfa4293f6285",
+      "name": "Kinetic Blast of Clustering",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Blast_of_Clustering"
+    },
+    {
+      "id": "gem:7f6a5b5a981fa811",
+      "name": "Kinetic Bolt",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Bolt"
+    },
+    {
+      "id": "gem:56dafd2574db912c",
+      "name": "Kinetic Bolt of Fragmentation",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Bolt_of_Fragmentation"
+    },
+    {
+      "id": "gem:ceba5cfc55ff5334",
+      "name": "Kinetic Fusillade",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Fusillade"
+    },
+    {
+      "id": "gem:bb69f86dba88b58a",
+      "name": "Kinetic Fusillade of Detonation",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Fusillade_of_Detonation"
+    },
+    {
+      "id": "gem:5e7f516b093584f5",
+      "name": "Kinetic Instability Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Kinetic_Instability_Support"
+    },
+    {
+      "id": "gem:429dec1c41f870cf",
+      "name": "Kinetic Rain",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Rain"
+    },
+    {
+      "id": "gem:550d74acc7c746f9",
+      "name": "Kinetic Rain of Impact",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Kinetic_Rain_of_Impact"
+    },
+    {
+      "id": "gem:84ae57c464985fae",
+      "name": "Knockback Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Knockback_Support"
+    },
+    {
+      "id": "gem:ad15456f2b5edd14",
+      "name": "Lacerate",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lacerate"
+    },
+    {
+      "id": "gem:0bca8c3b8c8d63af",
+      "name": "Lacerate of Butchering",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lacerate_of_Butchering"
+    },
+    {
+      "id": "gem:e26b436af8d5cbbf",
+      "name": "Lacerate of Haemorrhage",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lacerate_of_Haemorrhage"
+    },
+    {
+      "id": "gem:c2a3b3281f82f72a",
+      "name": "Lancing Steel",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lancing_Steel"
+    },
+    {
+      "id": "gem:e288d3c92818d7fa",
+      "name": "Lancing Steel of Spraying",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lancing_Steel_of_Spraying"
+    },
+    {
+      "id": "gem:0f94c4c32ce4208c",
+      "name": "Leap Slam",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Leap_Slam"
+    },
+    {
+      "id": "gem:033683edb46ee5d6",
+      "name": "Leap Slam of Groundbreaking",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Leap_Slam_of_Groundbreaking"
+    },
+    {
+      "id": "gem:6cf91c427d573374",
+      "name": "Less Duration Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Less_Duration_Support"
+    },
+    {
+      "id": "gem:bf45d46e0bd8dd8c",
+      "name": "Lethal Dose Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Lethal_Dose_Support"
+    },
+    {
+      "id": "gem:cf2d2bd51ecf7106",
+      "name": "Lethargy Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Lethargy_Support"
+    },
+    {
+      "id": "gem:4481e8f00c621075",
+      "name": "Life Gain on Hit Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Life_Gain_on_Hit_Support"
+    },
+    {
+      "id": "gem:3caeec37359584f3",
+      "name": "Life Leech Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Life_Leech_Support"
+    },
+    {
+      "id": "gem:fb172443a019b0bc",
+      "name": "Lifetap Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Lifetap_Support"
+    },
+    {
+      "id": "gem:3af3a93137cb9ea6",
+      "name": "Lightning Arrow",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Arrow"
+    },
+    {
+      "id": "gem:cb4c11a3fa82ad9e",
+      "name": "Lightning Arrow of Electrocution",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Arrow_of_Electrocution"
+    },
+    {
+      "id": "gem:41f75c175d926554",
+      "name": "Lightning Conduit",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Conduit"
+    },
+    {
+      "id": "gem:5c8bf0332004c15c",
+      "name": "Lightning Conduit of the Heavens",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Conduit_of_the_Heavens"
+    },
+    {
+      "id": "gem:5d35d83b392e25f7",
+      "name": "Lightning Penetration Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Lightning_Penetration_Support"
+    },
+    {
+      "id": "gem:1c0f04424029c497",
+      "name": "Lightning Spire Trap",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Spire_Trap"
+    },
+    {
+      "id": "gem:0238b130295858dd",
+      "name": "Lightning Spire Trap of Overloading",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Spire_Trap_of_Overloading"
+    },
+    {
+      "id": "gem:85e7432742a199ac",
+      "name": "Lightning Spire Trap of Zapping",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Spire_Trap_of_Zapping"
+    },
+    {
+      "id": "gem:e0d5c6777bbd0648",
+      "name": "Lightning Strike",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Strike"
+    },
+    {
+      "id": "gem:5c3b4de78f7b34c3",
+      "name": "Lightning Strike of Arcing",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Strike_of_Arcing"
+    },
+    {
+      "id": "gem:6081b483f1efbc7a",
+      "name": "Lightning Tendrils",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Tendrils"
+    },
+    {
+      "id": "gem:224a80d9dce6a330",
+      "name": "Lightning Tendrils of Eccentricity",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Tendrils_of_Eccentricity"
+    },
+    {
+      "id": "gem:aded40b3366e31c6",
+      "name": "Lightning Tendrils of Escalation",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Tendrils_of_Escalation"
+    },
+    {
+      "id": "gem:8b45e222633286fb",
+      "name": "Lightning Trap",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Trap"
+    },
+    {
+      "id": "gem:edc92d43204d6f87",
+      "name": "Lightning Trap of Sparking",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Trap_of_Sparking"
+    },
+    {
+      "id": "gem:8a69e41b328f28fe",
+      "name": "Lightning Warp",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Lightning_Warp"
+    },
+    {
+      "id": "gem:d1a186f32ac924e1",
+      "name": "Living Lightning Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Living_Lightning_Support"
+    },
+    {
+      "id": "gem:8305c02ee38624ea",
+      "name": "Locus Mine Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Locus_Mine_Support"
+    },
+    {
+      "id": "gem:b87bfc4cfa491a08",
+      "name": "Machinations Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Machinations_Support"
+    },
+    {
+      "id": "gem:a0921b646678ee60",
+      "name": "Maim Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Maim_Support"
+    },
+    {
+      "id": "gem:b465582577a13c4f",
+      "name": "Malevolence",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Malevolence"
+    },
+    {
+      "id": "gem:5722fbea91e298d9",
+      "name": "Mana Leech Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Mana_Leech_Support"
+    },
+    {
+      "id": "gem:a4667fbf954414ee",
+      "name": "Mana-Infused Staff",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Mana-Infused_Staff"
+    },
+    {
+      "id": "gem:ec3fc9f78ecd270d",
+      "name": "Manabond",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Manabond"
+    },
+    {
+      "id": "gem:f0f0ea37b8dfa31f",
+      "name": "Manaforged Arrows Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Manaforged_Arrows_Support"
+    },
+    {
+      "id": "gem:87daddb53e92d0bd",
+      "name": "Mark On Hit Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Mark_On_Hit_Support"
+    },
+    {
+      "id": "gem:9c862fd4f85e7af0",
+      "name": "Meat Shield Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Meat_Shield_Support"
+    },
+    {
+      "id": "gem:e97ed857992902ca",
+      "name": "Mediocrity Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Mediocrity_Support"
+    },
+    {
+      "id": "gem:29ca84597373ed11",
+      "name": "Melee Physical Damage Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Melee_Physical_Damage_Support"
+    },
+    {
+      "id": "gem:2e9d6d0841de0973",
+      "name": "Melee Splash Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Melee_Splash_Support"
+    },
+    {
+      "id": "gem:f4f4e953d98131d2",
+      "name": "Minefield Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Minefield_Support"
+    },
+    {
+      "id": "gem:0f6e536c76b35368",
+      "name": "Minion Damage Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Minion_Damage_Support"
+    },
+    {
+      "id": "gem:2cb57109659de189",
+      "name": "Minion Life Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Minion_Life_Support"
+    },
+    {
+      "id": "gem:76a535cd410a98b0",
+      "name": "Minion Speed Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Minion_Speed_Support"
+    },
+    {
+      "id": "gem:b87e578042a01d8f",
+      "name": "Mirage Archer Support",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Mirage_Archer_Support"
+    },
+    {
+      "id": "gem:d139e5fda3c851f7",
+      "name": "Mirror Arrow",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Mirror_Arrow"
+    },
+    {
+      "id": "gem:6610f313916bfe30",
+      "name": "Mirror Arrow of Bombarding Clones",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Mirror_Arrow_of_Bombarding_Clones"
+    },
+    {
+      "id": "gem:7f57d9e48079dd60",
+      "name": "Mirror Arrow of Prismatic Clones",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Mirror_Arrow_of_Prismatic_Clones"
+    },
+    {
+      "id": "gem:6226ac529241541d",
+      "name": "Molten Shell",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Molten_Shell"
+    },
+    {
+      "id": "gem:1dd4df4082c9e82c",
+      "name": "Molten Strike",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Molten_Strike"
+    },
+    {
+      "id": "gem:11ec6c21627bf678",
+      "name": "Molten Strike of the Zenith",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Molten_Strike_of_the_Zenith"
+    },
+    {
+      "id": "gem:db010e82aeaa51ce",
+      "name": "Momentum Support",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Momentum_Support"
+    },
+    {
+      "id": "gem:649969723ffd5a62",
+      "name": "More Duration Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/More_Duration_Support"
+    },
+    {
+      "id": "gem:6a4c56fcb0dd17ba",
+      "name": "Multiple Projectiles Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Multiple_Projectiles_Support"
+    },
+    {
+      "id": "gem:f435dffc46e27ce4",
+      "name": "Multiple Totems Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Multiple_Totems_Support"
+    },
+    {
+      "id": "gem:b5dfe141a909e80e",
+      "name": "Multiple Traps Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Multiple_Traps_Support"
+    },
+    {
+      "id": "gem:7099fdf463a25936",
+      "name": "Multistrike Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Multistrike_Support"
+    },
+    {
+      "id": "gem:c59aeece98a3187d",
+      "name": "Nightblade Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Nightblade_Support"
+    },
+    {
+      "id": "gem:524273d55d263c28",
+      "name": "Nullification Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Nullification_Support"
+    },
+    {
+      "id": "gem:a18927a1cfb26513",
+      "name": "Orb of Storms",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Orb_of_Storms"
+    },
+    {
+      "id": "gem:4757e3854f1b5acf",
+      "name": "Orb of Storms of Squalls",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Orb_of_Storms_of_Squalls"
+    },
+    {
+      "id": "gem:3fe0df5046c2db27",
+      "name": "Overcharge Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Overcharge_Support"
+    },
+    {
+      "id": "gem:2850caa36bd9c61e",
+      "name": "Overexertion Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Overexertion_Support"
+    },
+    {
+      "id": "gem:ca1480cff63c6493",
+      "name": "Overheat Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Overheat_Support"
+    },
+    {
+      "id": "gem:fec5c422791b89f9",
+      "name": "Overloaded Intensity Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Overloaded_Intensity_Support"
+    },
+    {
+      "id": "gem:4c9c8bb777e3a8f4",
+      "name": "Pacifism Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Pacifism_Support"
+    },
+    {
+      "id": "gem:3da02d4997e15e5b",
+      "name": "Pact of Beidat",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Pact_of_Beidat"
+    },
+    {
+      "id": "gem:8984e1a42ca585bf",
+      "name": "Pact of Ghorr",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Pact_of_Ghorr"
+    },
+    {
+      "id": "gem:19e32b57e138f8c1",
+      "name": "Pact of K'Tash",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Pact_of_KTash"
+    },
+    {
+      "id": "gem:0061551093f883a2",
+      "name": "Pact of Lycia",
+      "requiredLevel": 24,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Pact_of_Lycia"
+    },
+    {
+      "id": "gem:978dbf3c257363f4",
+      "name": "Penance Brand",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Penance_Brand"
+    },
+    {
+      "id": "gem:6589b0d9659f1d42",
+      "name": "Penance Brand of Conduction",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Penance_Brand_of_Conduction"
+    },
+    {
+      "id": "gem:896d6882d0f6d1a4",
+      "name": "Penance Brand of Dissipation",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Penance_Brand_of_Dissipation"
+    },
+    {
+      "id": "gem:69e54c35893f53d4",
+      "name": "Penance Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Penance_Support"
+    },
+    {
+      "id": "gem:009d51a38af9ca0a",
+      "name": "Perforate",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Perforate"
+    },
+    {
+      "id": "gem:4930e87c238d7546",
+      "name": "Perforate of Bloodshed",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Perforate_of_Bloodshed"
+    },
+    {
+      "id": "gem:95b5e712b37289ad",
+      "name": "Perforate of Duality",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Perforate_of_Duality"
+    },
+    {
+      "id": "gem:e5fd2affc7d34e37",
+      "name": "Pestilent Strike",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Pestilent_Strike"
+    },
+    {
+      "id": "gem:3aedd81afebe7161",
+      "name": "Petrified Blood",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Petrified_Blood"
+    },
+    {
+      "id": "gem:c779187d7ea2b393",
+      "name": "Phase Run",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Old_Phase_Run"
+    },
+    {
+      "id": "gem:fa35f42e6ee40636",
+      "name": "Physical to Lightning Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Physical_to_Lightning_Support"
+    },
+    {
+      "id": "gem:30dccde215a1ed65",
+      "name": "Pierce Support",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Pierce_Support"
+    },
+    {
+      "id": "gem:4222e2dd3ba276d0",
+      "name": "Pinpoint Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Pinpoint_Support"
+    },
+    {
+      "id": "gem:3de2162add27b76f",
+      "name": "Plague Bearer",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Plague_Bearer"
+    },
+    {
+      "id": "gem:c2a59469b5ff5f3d",
+      "name": "Poacher's Mark",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Poachers_Mark"
+    },
+    {
+      "id": "gem:a2a72eb4de5448d1",
+      "name": "Point Blank Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Point_Blank_Support"
+    },
+    {
+      "id": "gem:3b19a10580576301",
+      "name": "Poisonous Concoction",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Poisonous_Concoction"
+    },
+    {
+      "id": "gem:d51ec6182398195f",
+      "name": "Poisonous Concoction of Bouncing",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Poisonous_Concoction_of_Bouncing"
+    },
+    {
+      "id": "gem:4a87f3d4abd1fdde",
+      "name": "Portal",
+      "requiredLevel": 10,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Portal"
+    },
+    {
+      "id": "gem:eda4cf8abac930e2",
+      "name": "Poverty Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Poverty_Support"
+    },
+    {
+      "id": "gem:8ffd0969feca61a5",
+      "name": "Power Charge On Critical Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Power_Charge_On_Critical_Support"
+    },
+    {
+      "id": "gem:b46e58ba1bd3620f",
+      "name": "Power Siphon",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Power_Siphon"
+    },
+    {
+      "id": "gem:2bde0faba77924ee",
+      "name": "Power Siphon of the Archmage",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Power_Siphon_of_the_Archmage"
+    },
+    {
+      "id": "gem:c291a69488ee9868",
+      "name": "Precision",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Precision"
+    },
+    {
+      "id": "gem:2ae9d41cf28dbdfa",
+      "name": "Predator Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Predator_Support"
+    },
+    {
+      "id": "gem:6b1564e6c45009d3",
+      "name": "Pride",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Pride"
+    },
+    {
+      "id": "gem:c2d2025d02f3617c",
+      "name": "Prismatic Burst Support",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Prismatic_Burst_Support"
+    },
+    {
+      "id": "gem:1e2220fa11507ee9",
+      "name": "Protective Link",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Protective_Link"
+    },
+    {
+      "id": "gem:23827e0ec0d1240c",
+      "name": "Pulverise Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Pulverise_Support"
+    },
+    {
+      "id": "gem:4c957b056bf3a186",
+      "name": "Puncture",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Puncture"
+    },
+    {
+      "id": "gem:db54f64ae3211544",
+      "name": "Puncture of Shanking",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Puncture_of_Shanking"
+    },
+    {
+      "id": "gem:87c2fbcc21794367",
+      "name": "Punishment",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Punishment"
+    },
+    {
+      "id": "gem:accee8ef7292963c",
+      "name": "Purifying Flame",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Purifying_Flame"
+    },
+    {
+      "id": "gem:13b5bb0aa60658d4",
+      "name": "Purifying Flame of Revelations",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Purifying_Flame_of_Revelations"
+    },
+    {
+      "id": "gem:3214cf724b1b6c5b",
+      "name": "Purity of Elements",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Purity_of_Elements"
+    },
+    {
+      "id": "gem:b870eda43bc788ef",
+      "name": "Purity of Fire",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Purity_of_Fire"
+    },
+    {
+      "id": "gem:28a3efcff1afee20",
+      "name": "Purity of Ice",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Purity_of_Ice"
+    },
+    {
+      "id": "gem:783536d4b8c18724",
+      "name": "Purity of Lightning",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Purity_of_Lightning"
+    },
+    {
+      "id": "gem:d4aee4225ab1f2dc",
+      "name": "Pyre Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Pyre_Support"
+    },
+    {
+      "id": "gem:3963271deb84715b",
+      "name": "Pyroclast Mine",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Pyroclast_Mine"
+    },
+    {
+      "id": "gem:702cfeea175d84d4",
+      "name": "Pyroclast Mine of Sabotage",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Pyroclast_Mine_of_Sabotage"
+    },
+    {
+      "id": "gem:431a33c88bbbc8b9",
+      "name": "Quickstep",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "active",
+      "sourcePath": "/us/Quickstep"
+    },
+    {
+      "id": "gem:804588e15d107b63",
+      "name": "Rage Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Rage_Support"
+    },
+    {
+      "id": "gem:0714a33d7c6e3356",
+      "name": "Rage Vortex",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Rage_Vortex"
+    },
+    {
+      "id": "gem:29a427f868de3ddd",
+      "name": "Rage Vortex of Berserking",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Rage_Vortex_of_Berserking"
+    },
+    {
+      "id": "gem:a8b6eaf8d947e0ca",
+      "name": "Rain of Arrows",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Rain_of_Arrows"
+    },
+    {
+      "id": "gem:a83b887ef373b43e",
+      "name": "Rain of Arrows of Artillery",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Rain_of_Arrows_of_Artillery"
+    },
+    {
+      "id": "gem:de1603b2bb184ab3",
+      "name": "Rain of Arrows of Saturation",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Rain_of_Arrows_of_Saturation"
+    },
+    {
+      "id": "gem:8a1eac60a87e3f17",
+      "name": "Raise Spectre",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Raise_Spectre"
+    },
+    {
+      "id": "gem:fedf53a1e607f7c0",
+      "name": "Raise Spectre of Transience",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Raise_Spectre_of_Transience"
+    },
+    {
+      "id": "gem:a3c1c732e076fdeb",
+      "name": "Raise Zombie",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Raise_Zombie"
+    },
+    {
+      "id": "gem:dc1dc57df6718b2c",
+      "name": "Raise Zombie of Falling",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Raise_Zombie_of_Falling"
+    },
+    {
+      "id": "gem:bd0b4bf1bcc57aca",
+      "name": "Raise Zombie of Slamming",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Raise_Zombie_of_Slamming"
+    },
+    {
+      "id": "gem:1024d60bf16fddc2",
+      "name": "Rallying Cry",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Rallying_Cry"
+    },
+    {
+      "id": "gem:3f2c690096363dca",
+      "name": "Reap",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Reap"
+    },
+    {
+      "id": "gem:e916667959c8251d",
+      "name": "Reap of Butchery",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Reap_of_Butchery"
+    },
+    {
+      "id": "gem:27b55e76d72305b0",
+      "name": "Reave",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Reave"
+    },
+    {
+      "id": "gem:e1eacd55c3b3a36c",
+      "name": "Reave of Refraction",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Reave_of_Refraction"
+    },
+    {
+      "id": "gem:02d42a91d67e843e",
+      "name": "Rejuvenation Totem",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Rejuvenation_Totem"
+    },
+    {
+      "id": "gem:45987ac01ac9e7d2",
+      "name": "Returning Projectiles Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Returning_Projectiles_Support"
+    },
+    {
+      "id": "gem:d433ed56d8539c5e",
+      "name": "Righteous Fire",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Righteous_Fire"
+    },
+    {
+      "id": "gem:776ef7f6f07d7e72",
+      "name": "Righteous Fire of Arcane Devotion",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Righteous_Fire_of_Arcane_Devotion"
+    },
+    {
+      "id": "gem:5838909a18b76082",
+      "name": "Rolling Magma",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Rolling_Magma"
+    },
+    {
+      "id": "gem:dfe3d4ab49d823b8",
+      "name": "Rupture Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Rupture_Support"
+    },
+    {
+      "id": "gem:85a6ae99699df2b9",
+      "name": "Ruthless Support",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Ruthless_Support"
+    },
+    {
+      "id": "gem:1193022c0b2d1f0e",
+      "name": "Sacred Wisps Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Sacred_Wisps_Support"
+    },
+    {
+      "id": "gem:20d103315061991f",
+      "name": "Sacrifice Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Sacrifice_Support"
+    },
+    {
+      "id": "gem:474c5c07760d53ca",
+      "name": "Sadism Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Sadism_Support"
+    },
+    {
+      "id": "gem:b3cbda624ff241c4",
+      "name": "Scorching Ray",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Scorching_Ray"
+    },
+    {
+      "id": "gem:f2047bbc800f4c5a",
+      "name": "Scorching Ray of Immolation",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Scorching_Ray_of_Immolation"
+    },
+    {
+      "id": "gem:4ef8852c2cda0e49",
+      "name": "Scornful Herald Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Scornful_Herald_Support"
+    },
+    {
+      "id": "gem:3a9ed805ecc16012",
+      "name": "Scourge Arrow",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Scourge_Arrow"
+    },
+    {
+      "id": "gem:6a1e2ebebacd4492",
+      "name": "Scourge Arrow of Menace",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Scourge_Arrow_of_Menace"
+    },
+    {
+      "id": "gem:ac58202d7c015226",
+      "name": "Searing Bond",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Searing_Bond"
+    },
+    {
+      "id": "gem:ebfafd44998c741b",
+      "name": "Searing Bond of Detonation",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Searing_Bond_of_Detonation"
+    },
+    {
+      "id": "gem:68a00b5e99a2eab0",
+      "name": "Second Wind Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Second_Wind_Support"
+    },
+    {
+      "id": "gem:171ac48ccf8399e4",
+      "name": "Seismic Cry",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Seismic_Cry"
+    },
+    {
+      "id": "gem:7da4e6f3d96149ae",
+      "name": "Seismic Trap",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Seismic_Trap"
+    },
+    {
+      "id": "gem:b5e5bf5969bdaf8b",
+      "name": "Seismic Trap of Swells",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Seismic_Trap_of_Swells"
+    },
+    {
+      "id": "gem:ffddf6f9f36bbce7",
+      "name": "Shattering Steel",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Shattering_Steel"
+    },
+    {
+      "id": "gem:89097c9332761dba",
+      "name": "Shattering Steel of Ammunition",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Shattering_Steel_of_Ammunition"
+    },
+    {
+      "id": "gem:8a6ccd55b95550bd",
+      "name": "Shield Charge",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shield_Charge"
+    },
+    {
+      "id": "gem:32afb62293051dc7",
+      "name": "Shield Crush",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shield_Crush"
+    },
+    {
+      "id": "gem:9ff7bfe2090f5d5f",
+      "name": "Shield Crush of the Chieftain",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shield_Crush_of_the_Chieftain"
+    },
+    {
+      "id": "gem:e5433ed4eba2fed2",
+      "name": "Shield of Light",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shield_of_Light"
+    },
+    {
+      "id": "gem:af62ed0de4afb24e",
+      "name": "Shock Nova",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Shock_Nova"
+    },
+    {
+      "id": "gem:9a44d979db7d6733",
+      "name": "Shock Nova of Procession",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Shock_Nova_of_Procession"
+    },
+    {
+      "id": "gem:6ce9fe1898556fe8",
+      "name": "Shockwave Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Shockwave_Support"
+    },
+    {
+      "id": "gem:66e7b23c8d94bcb2",
+      "name": "Shockwave Totem",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shockwave_Totem"
+    },
+    {
+      "id": "gem:4edda2cae1c4129e",
+      "name": "Shockwave Totem of Authority",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Shockwave_Totem_of_Authority"
+    },
+    {
+      "id": "gem:1341e08f10d2d646",
+      "name": "Shrapnel Ballista",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Shrapnel_Ballista"
+    },
+    {
+      "id": "gem:582c0fb2322b606d",
+      "name": "Shrapnel Ballista of Steel",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Shrapnel_Ballista_of_Steel"
+    },
+    {
+      "id": "gem:c7cc0da2eecedd98",
+      "name": "Siege Ballista",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Siege_Ballista"
+    },
+    {
+      "id": "gem:4db77ebb095dac48",
+      "name": "Siege Ballista of Splintering",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Siege_Ballista_of_Splintering"
+    },
+    {
+      "id": "gem:2c6c51cd0a362ef2",
+      "name": "Siege Ballista of Trarthus",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Siege_Ballista_of_Trarthus"
+    },
+    {
+      "id": "gem:ef13baf309360089",
+      "name": "Sigil of Power",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Sigil_of_Power"
+    },
+    {
+      "id": "gem:10ba35b8211fb5da",
+      "name": "Siphoning Trap",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Siphoning_Trap"
+    },
+    {
+      "id": "gem:b24db007965b3591",
+      "name": "Siphoning Trap of Pain",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Siphoning_Trap_of_Pain"
+    },
+    {
+      "id": "gem:6d954960d97d1cbf",
+      "name": "Slower Projectiles Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Slower_Projectiles_Support"
+    },
+    {
+      "id": "gem:fd6f0a3da8371649",
+      "name": "Smite",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Smite"
+    },
+    {
+      "id": "gem:9f5abba95982912c",
+      "name": "Smite of Divine Judgement",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Smite_of_Divine_Judgement"
+    },
+    {
+      "id": "gem:c8a3371d463ab908",
+      "name": "Smoke Mine",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Smoke_Mine"
+    },
+    {
+      "id": "gem:4823d25773ed1281",
+      "name": "Snipe",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Snipe"
+    },
+    {
+      "id": "gem:fd3a3a7a7c683723",
+      "name": "Sniper's Mark",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Snipers_Mark"
+    },
+    {
+      "id": "gem:b90da5d8936aa766",
+      "name": "Somatic Shell",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Somatic_Shell"
+    },
+    {
+      "id": "gem:9182b85a7e6f60e5",
+      "name": "Soul Link",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Soul_Link"
+    },
+    {
+      "id": "gem:af455057edafeb45",
+      "name": "Soulrend",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Soulrend"
+    },
+    {
+      "id": "gem:bbb41e1b485a9da0",
+      "name": "Soulrend of Reaping",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Soulrend_of_Reaping"
+    },
+    {
+      "id": "gem:d302798e42c2083d",
+      "name": "Soulrend of the Spiral",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Soulrend_of_the_Spiral"
+    },
+    {
+      "id": "gem:6d9b60aed74fe5b7",
+      "name": "Spark",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Spark"
+    },
+    {
+      "id": "gem:70cb4f76a9bf42a8",
+      "name": "Spark of the Nova",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Spark_of_the_Nova"
+    },
+    {
+      "id": "gem:b31a93974533fd38",
+      "name": "Spark of Unpredictability",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Spark_of_Unpredictability"
+    },
+    {
+      "id": "gem:e70c7979661d8868",
+      "name": "Spectral Helix",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Helix"
+    },
+    {
+      "id": "gem:350c8a5bfe2ba4e3",
+      "name": "Spectral Helix of Trarthus",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Helix_of_Trarthus"
+    },
+    {
+      "id": "gem:7b2384d24486cf18",
+      "name": "Spectral Shield Throw",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Shield_Throw"
+    },
+    {
+      "id": "gem:eb63d000e4d29585",
+      "name": "Spectral Shield Throw of Shattering",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Shield_Throw_of_Shattering"
+    },
+    {
+      "id": "gem:fb37aa9e8011edfb",
+      "name": "Spectral Shield Throw of Trarthus",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Shield_Throw_of_Trarthus"
+    },
+    {
+      "id": "gem:fc967ec0a2d78f30",
+      "name": "Spectral Throw",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Throw"
+    },
+    {
+      "id": "gem:5264af9d50577c52",
+      "name": "Spectral Throw of Materialising",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Throw_of_Materialising"
+    },
+    {
+      "id": "gem:91008bd54c8dd37c",
+      "name": "Spectral Throw of Trarthus",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Spectral_Throw_of_Trarthus"
+    },
+    {
+      "id": "gem:978f6335380c3af0",
+      "name": "Spell Cascade Support",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Spell_Cascade_Support"
+    },
+    {
+      "id": "gem:773e85a9bfbbdb53",
+      "name": "Spell Echo Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Spell_Echo_Support"
+    },
+    {
+      "id": "gem:87f5c3256e824870",
+      "name": "Spell Totem Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Spell_Totem_Support"
+    },
+    {
+      "id": "gem:14d049a1fc3859a8",
+      "name": "Spellblade Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Spellblade_Support"
+    },
+    {
+      "id": "gem:2f37c5b5d4b7b37b",
+      "name": "Spellslinger",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Spellslinger"
+    },
+    {
+      "id": "gem:ef513297ec72d428",
+      "name": "Spirit Offering",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Spirit_Offering"
+    },
+    {
+      "id": "gem:c968de59d788910d",
+      "name": "Split Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Split_Arrow"
+    },
+    {
+      "id": "gem:ec3c47316ee97274",
+      "name": "Split Arrow of Splitting",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Split_Arrow_of_Splitting"
+    },
+    {
+      "id": "gem:44d5b6bed75d1a50",
+      "name": "Splitting Steel",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Splitting_Steel"
+    },
+    {
+      "id": "gem:20b63904cc810228",
+      "name": "Splitting Steel of Ammunition",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Splitting_Steel_of_Ammunition"
+    },
+    {
+      "id": "gem:aa5c419976282aa3",
+      "name": "Static Strike",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Static_Strike"
+    },
+    {
+      "id": "gem:3d9555c967a19627",
+      "name": "Static Strike of Gathering Lightning",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Static_Strike_of_Gathering_Lightning"
+    },
+    {
+      "id": "gem:069d1f0a2fbef5b8",
+      "name": "Steelskin",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Steelskin"
+    },
+    {
+      "id": "gem:339e44983667b760",
+      "name": "Storm Brand",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Brand"
+    },
+    {
+      "id": "gem:47c0db27938dcbba",
+      "name": "Storm Brand of Indecision",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Brand_of_Indecision"
+    },
+    {
+      "id": "gem:0953400f73c3ab8b",
+      "name": "Storm Burst",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Burst"
+    },
+    {
+      "id": "gem:7c0744e54fef38ee",
+      "name": "Storm Burst of Repulsion",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Burst_of_Repulsion"
+    },
+    {
+      "id": "gem:29de1afec540c369",
+      "name": "Storm Call",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Call"
+    },
+    {
+      "id": "gem:fa57266ae4ff766d",
+      "name": "Storm Call of Trarthus",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Call_of_Trarthus"
+    },
+    {
+      "id": "gem:67aa4ae491238703",
+      "name": "Storm Rain",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Rain"
+    },
+    {
+      "id": "gem:ca5419e5bba468fc",
+      "name": "Storm Rain of the Conduit",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Rain_of_the_Conduit"
+    },
+    {
+      "id": "gem:43bfbd9baed5b2bb",
+      "name": "Storm Rain of the Fence",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Storm_Rain_of_the_Fence"
+    },
+    {
+      "id": "gem:3c626a6102d9aaa6",
+      "name": "Stormbind",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Stormbind"
+    },
+    {
+      "id": "gem:cb0ba4ea3c3d91d7",
+      "name": "Stormbind of Teleportation",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Stormbind_of_Teleportation"
+    },
+    {
+      "id": "gem:1378c15a5be710ae",
+      "name": "Stormblast Mine",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Stormblast_Mine"
+    },
+    {
+      "id": "gem:ae13932a066811d7",
+      "name": "Stun Support",
+      "requiredLevel": 8,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Stun_Support"
+    },
+    {
+      "id": "gem:1ebf064f48cf032d",
+      "name": "Summon Carrion Golem",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Carrion_Golem"
+    },
+    {
+      "id": "gem:6ba7195229578eb3",
+      "name": "Summon Carrion Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Carrion_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:f085ee78f4b37f2b",
+      "name": "Summon Carrion Golem of Scavenging",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Carrion_Golem_of_Scavenging"
+    },
+    {
+      "id": "gem:d293dc2ef495140d",
+      "name": "Summon Chaos Golem",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Chaos_Golem"
+    },
+    {
+      "id": "gem:b911308755b7543f",
+      "name": "Summon Chaos Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Chaos_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:0f84f81ab567e08e",
+      "name": "Summon Chaos Golem of the Maelström",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Chaos_Golem_of_the_Maelstr%C3%B6m"
+    },
+    {
+      "id": "gem:851d524b24e6dd70",
+      "name": "Summon Flame Golem",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Flame_Golem"
+    },
+    {
+      "id": "gem:dad524a17c1c2aa3",
+      "name": "Summon Flame Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Flame_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:a394a2c88074d0ce",
+      "name": "Summon Flame Golem of the Meteor",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Flame_Golem_of_the_Meteor"
+    },
+    {
+      "id": "gem:23711c633c9ac98f",
+      "name": "Summon Holy Relic",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Holy_Relic"
+    },
+    {
+      "id": "gem:fd4c12e9ea4a920a",
+      "name": "Summon Holy Relic of Conviction",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Holy_Relic_of_Conviction"
+    },
+    {
+      "id": "gem:6c5747490008a6f0",
+      "name": "Summon Ice Golem",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Ice_Golem"
+    },
+    {
+      "id": "gem:fc58507a5e00eeb1",
+      "name": "Summon Ice Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Ice_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:9e348b3d1634f906",
+      "name": "Summon Ice Golem of Shattering",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Ice_Golem_of_Shattering"
+    },
+    {
+      "id": "gem:c1da77cf71aeb49c",
+      "name": "Summon Lightning Golem",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Lightning_Golem"
+    },
+    {
+      "id": "gem:62bb2f6361be9c3a",
+      "name": "Summon Lightning Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Lightning_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:20665610c8148dab",
+      "name": "Summon Phantasm Support",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Summon_Phantasm_Support"
+    },
+    {
+      "id": "gem:b1d66bc9e34801cf",
+      "name": "Summon Raging Spirit",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Raging_Spirit"
+    },
+    {
+      "id": "gem:bbc70cec855f8091",
+      "name": "Summon Raging Spirit of Enormity",
+      "requiredLevel": 4,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Raging_Spirit_of_Enormity"
+    },
+    {
+      "id": "gem:f7ffec601430034f",
+      "name": "Summon Reaper",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Reaper"
+    },
+    {
+      "id": "gem:8bb142cd0cfc1eda",
+      "name": "Summon Reaper of Eviscerating",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Reaper_of_Eviscerating"
+    },
+    {
+      "id": "gem:aa712f1cb71ffa29",
+      "name": "Summon Reaper of Revenants",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Reaper_of_Revenants"
+    },
+    {
+      "id": "gem:fee2ad47947851cc",
+      "name": "Summon Skeletons",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Skeletons"
+    },
+    {
+      "id": "gem:8218305ca8554746",
+      "name": "Summon Skeletons of Archers",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Skeletons_of_Archers"
+    },
+    {
+      "id": "gem:17be7cb2cd033e43",
+      "name": "Summon Skeletons of Mages",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Skeletons_of_Mages"
+    },
+    {
+      "id": "gem:1e65bc46305aba5a",
+      "name": "Summon Skitterbots",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Skitterbots"
+    },
+    {
+      "id": "gem:e1d4d4ef721a4d80",
+      "name": "Summon Stone Golem",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Stone_Golem"
+    },
+    {
+      "id": "gem:dedfe0ef833acf28",
+      "name": "Summon Stone Golem of Hordes",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Stone_Golem_of_Hordes"
+    },
+    {
+      "id": "gem:b3404261d7afea05",
+      "name": "Summon Stone Golem of Safeguarding",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Summon_Stone_Golem_of_Safeguarding"
+    },
+    {
+      "id": "gem:cc269cbd2cf4f5ec",
+      "name": "Sunder",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Sunder"
+    },
+    {
+      "id": "gem:a5526a8a75869ce2",
+      "name": "Sunder of Earthbreaking",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Sunder_of_Earthbreaking"
+    },
+    {
+      "id": "gem:6bb0cbf5749fd749",
+      "name": "Sunder of Trarthus",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Sunder_of_Trarthus"
+    },
+    {
+      "id": "gem:e18bd0c7147f1e28",
+      "name": "Swift Affliction Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Swift_Affliction_Support"
+    },
+    {
+      "id": "gem:4c7ba6930a7be9c7",
+      "name": "Swift Assembly Support",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Swift_Assembly_Support"
+    },
+    {
+      "id": "gem:bbce1a56d2d180d3",
+      "name": "Swiftbrand Support",
+      "requiredLevel": 31,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Swiftbrand_Support"
+    },
+    {
+      "id": "gem:1a2ee6cb3da26ac0",
+      "name": "Swordstorm",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Swordstorm"
+    },
+    {
+      "id": "gem:8af8450e8bf47d14",
+      "name": "Taxation Support",
+      "requiredLevel": 1,
+      "color": "white",
+      "kind": "support",
+      "sourcePath": "/us/Taxation_Support"
+    },
+    {
+      "id": "gem:9ea298519ac3ac53",
+      "name": "Tectonic Slam",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Tectonic_Slam"
+    },
+    {
+      "id": "gem:7021144aa60e60e8",
+      "name": "Tectonic Slam of Cataclysm",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Tectonic_Slam_of_Cataclysm"
+    },
+    {
+      "id": "gem:5dac4d28d2a57a89",
+      "name": "Tempest Shield",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Tempest_Shield"
+    },
+    {
+      "id": "gem:e0f2b694950fe0df",
+      "name": "Temporal Chains",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Temporal_Chains"
+    },
+    {
+      "id": "gem:4f08e6dc39c6814b",
+      "name": "Temporal Rift",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Temporal_Rift"
+    },
+    {
+      "id": "gem:722a8ec011d5afc6",
+      "name": "Thunderstorm",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Thunderstorm"
+    },
+    {
+      "id": "gem:eeb7c7df84c3f3ff",
+      "name": "Tornado",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Tornado"
+    },
+    {
+      "id": "gem:30f8dee0750931b8",
+      "name": "Tornado of Elemental Turbulence",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Tornado_of_Elemental_Turbulence"
+    },
+    {
+      "id": "gem:7bf3f0f36af2d333",
+      "name": "Tornado Shot",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Tornado_Shot"
+    },
+    {
+      "id": "gem:f7f05046e519adba",
+      "name": "Tornado Shot of Cloudburst",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Tornado_Shot_of_Cloudburst"
+    },
+    {
+      "id": "gem:5a08625d447de0ce",
+      "name": "Toxic Rain",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Toxic_Rain"
+    },
+    {
+      "id": "gem:64f07e42f7dd9831",
+      "name": "Toxic Rain of Sporeburst",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Toxic_Rain_of_Sporeburst"
+    },
+    {
+      "id": "gem:f2b92791c6d9e8a6",
+      "name": "Toxic Rain of Withering",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Toxic_Rain_of_Withering"
+    },
+    {
+      "id": "gem:1d1b77ac37be531e",
+      "name": "Transfusion Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Transfusion_Support"
+    },
+    {
+      "id": "gem:1d7f19546877c8e2",
+      "name": "Trap and Mine Damage Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Trap_and_Mine_Damage_Support"
+    },
+    {
+      "id": "gem:8d94157204d42d61",
+      "name": "Trap Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Trap_Support"
+    },
+    {
+      "id": "gem:c501d20a31cbed73",
+      "name": "Trauma Support",
+      "requiredLevel": 38,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Trauma_Support"
+    },
+    {
+      "id": "gem:45000fb18760bfa4",
+      "name": "Trinity Support",
+      "requiredLevel": 18,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Trinity_Support"
+    },
+    {
+      "id": "gem:cdc03e168c73c7e4",
+      "name": "Unbound Ailments Support",
+      "requiredLevel": 8,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Unbound_Ailments_Support"
+    },
+    {
+      "id": "gem:580d37819c6b0463",
+      "name": "Unearth",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Unearth"
+    },
+    {
+      "id": "gem:481b4b04ced00e00",
+      "name": "Unholy Trinity Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Unholy_Trinity_Support"
+    },
+    {
+      "id": "gem:00ce2b7181d22dc1",
+      "name": "Unleash Support",
+      "requiredLevel": 38,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Unleash_Support"
+    },
+    {
+      "id": "gem:e17419bc347e6a05",
+      "name": "Urgent Orders Support",
+      "requiredLevel": 31,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Urgent_Orders_Support"
+    },
+    {
+      "id": "gem:b8286901ec4956fa",
+      "name": "Vaal Absolution",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Absolution"
+    },
+    {
+      "id": "gem:7d37b22086e0730f",
+      "name": "Vaal Ancestral Warchief",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Ancestral_Warchief"
+    },
+    {
+      "id": "gem:1bca4bf330bc5eb6",
+      "name": "Vaal Animate Weapon",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Animate_Weapon"
+    },
+    {
+      "id": "gem:bde8cb0ff68d9210",
+      "name": "Vaal Arc",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Arc"
+    },
+    {
+      "id": "gem:50ef09e7013e1d84",
+      "name": "Vaal Arctic Armour",
+      "requiredLevel": 16,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Arctic_Armour"
+    },
+    {
+      "id": "gem:21a6d7d40be372cd",
+      "name": "Vaal Blade Flurry",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Blade_Flurry"
+    },
+    {
+      "id": "gem:8ee25fcfdbf344bc",
+      "name": "Vaal Blade Vortex",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Blade_Vortex"
+    },
+    {
+      "id": "gem:c61b064908853660",
+      "name": "Vaal Blight",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Blight"
+    },
+    {
+      "id": "gem:3c00091860237c00",
+      "name": "Vaal Burning Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Burning_Arrow"
+    },
+    {
+      "id": "gem:8d93766160c9e285",
+      "name": "Vaal Caustic Arrow",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Caustic_Arrow"
+    },
+    {
+      "id": "gem:3b12b09a08428132",
+      "name": "Vaal Clarity",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Clarity"
+    },
+    {
+      "id": "gem:15388b09ab2388f3",
+      "name": "Vaal Cleave",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Cleave"
+    },
+    {
+      "id": "gem:14bd82022681f616",
+      "name": "Vaal Cold Snap",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Cold_Snap"
+    },
+    {
+      "id": "gem:91e9cf65a5467c68",
+      "name": "Vaal Cyclone",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Cyclone"
+    },
+    {
+      "id": "gem:7234d5da558312db",
+      "name": "Vaal Detonate Dead",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Detonate_Dead"
+    },
+    {
+      "id": "gem:d2772fd122b33c83",
+      "name": "Vaal Discipline",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Discipline"
+    },
+    {
+      "id": "gem:fdc14c1f7b2521b9",
+      "name": "Vaal Domination",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Domination"
+    },
+    {
+      "id": "gem:260432a848d64cd9",
+      "name": "Vaal Double Strike",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Double_Strike"
+    },
+    {
+      "id": "gem:ea46d4aaf6bb8989",
+      "name": "Vaal Earthquake",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Earthquake"
+    },
+    {
+      "id": "gem:edeac04a4d9f66f0",
+      "name": "Vaal Fireball",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Fireball"
+    },
+    {
+      "id": "gem:8f6f9e685b75a599",
+      "name": "Vaal Firestorm",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Firestorm"
+    },
+    {
+      "id": "gem:f03396e832b23eff",
+      "name": "Vaal Flameblast",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Flameblast"
+    },
+    {
+      "id": "gem:865503f267126df2",
+      "name": "Vaal Flicker Strike",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Flicker_Strike"
+    },
+    {
+      "id": "gem:3801e042559cba17",
+      "name": "Vaal Glacial Hammer",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Glacial_Hammer"
+    },
+    {
+      "id": "gem:4c0c0f270f937b70",
+      "name": "Vaal Grace",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Grace"
+    },
+    {
+      "id": "gem:800c146c9b32de6d",
+      "name": "Vaal Ground Slam",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Ground_Slam"
+    },
+    {
+      "id": "gem:262ea926df8763b9",
+      "name": "Vaal Haste",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Haste"
+    },
+    {
+      "id": "gem:d5c21775e6ce2463",
+      "name": "Vaal Ice Nova",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Ice_Nova"
+    },
+    {
+      "id": "gem:b9b5741a25ad2ade",
+      "name": "Vaal Ice Shot",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Ice_Shot"
+    },
+    {
+      "id": "gem:fbe0e4fc8740c1dc",
+      "name": "Vaal Immortal Call",
+      "requiredLevel": 34,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Immortal_Call"
+    },
+    {
+      "id": "gem:8f1a79d30f2cc477",
+      "name": "Vaal Impurity of Fire",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Impurity_of_Fire"
+    },
+    {
+      "id": "gem:b6033ef98894eabc",
+      "name": "Vaal Impurity of Ice",
+      "requiredLevel": 24,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Impurity_of_Ice"
+    },
+    {
+      "id": "gem:143d537f5483eaab",
+      "name": "Vaal Impurity of Lightning",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Impurity_of_Lightning"
+    },
+    {
+      "id": "gem:f2969b7fd56b508f",
+      "name": "Vaal Lightning Arrow",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Lightning_Arrow"
+    },
+    {
+      "id": "gem:7707d3e2865754f6",
+      "name": "Vaal Lightning Strike",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Lightning_Strike"
+    },
+    {
+      "id": "gem:dcb78a2484b2f35a",
+      "name": "Vaal Lightning Trap",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Lightning_Trap"
+    },
+    {
+      "id": "gem:49c24f36b07bc56b",
+      "name": "Vaal Lightning Warp",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Lightning_Warp"
+    },
+    {
+      "id": "gem:293b2ef43824b5eb",
+      "name": "Vaal Molten Shell",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Molten_Shell"
+    },
+    {
+      "id": "gem:787baadabfe3e65d",
+      "name": "Vaal Molten Strike",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Molten_Strike"
+    },
+    {
+      "id": "gem:874b7084a07b9d6f",
+      "name": "Vaal Power Siphon",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Power_Siphon"
+    },
+    {
+      "id": "gem:41d85af202056fcd",
+      "name": "Vaal Rain of Arrows",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Rain_of_Arrows"
+    },
+    {
+      "id": "gem:ba838561bccd89bc",
+      "name": "Vaal Reap",
+      "requiredLevel": 28,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Reap"
+    },
+    {
+      "id": "gem:e71d81b9279cf77c",
+      "name": "Vaal Reave",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Reave"
+    },
+    {
+      "id": "gem:f5960eb94facbb89",
+      "name": "Vaal Rejuvenation Totem",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Rejuvenation_Totem"
+    },
+    {
+      "id": "gem:74954cf37252d777",
+      "name": "Vaal Righteous Fire",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Righteous_Fire"
+    },
+    {
+      "id": "gem:344539c26f3d87da",
+      "name": "Vaal Sacrifice Support",
+      "requiredLevel": 72,
+      "color": "blue",
+      "kind": "support",
+      "sourcePath": "/us/Vaal_Sacrifice_Support"
+    },
+    {
+      "id": "gem:383b4664b7a2854b",
+      "name": "Vaal Smite",
+      "requiredLevel": 1,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Smite"
+    },
+    {
+      "id": "gem:537bf921e41709ec",
+      "name": "Vaal Spark",
+      "requiredLevel": 1,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Spark"
+    },
+    {
+      "id": "gem:c2adcb0d45e7056b",
+      "name": "Vaal Spectral Throw",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Spectral_Throw"
+    },
+    {
+      "id": "gem:b20d483dbb2703a0",
+      "name": "Vaal Storm Call",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Storm_Call"
+    },
+    {
+      "id": "gem:c11582bd6f1a7eda",
+      "name": "Vaal Summon Skeletons",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Summon_Skeletons"
+    },
+    {
+      "id": "gem:1a65a0e44de71e32",
+      "name": "Vaal Temptation Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Vaal_Temptation_Support"
+    },
+    {
+      "id": "gem:db8897decd2aa7f1",
+      "name": "Vaal Venom Gyre",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Venom_Gyre"
+    },
+    {
+      "id": "gem:efb0e14b536a0d33",
+      "name": "Vaal Volcanic Fissure",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vaal_Volcanic_Fissure"
+    },
+    {
+      "id": "gem:ce03baf674bcc347",
+      "name": "Vampiric Link",
+      "requiredLevel": 34,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Vampiric_Link"
+    },
+    {
+      "id": "gem:1afbab5b66197714",
+      "name": "Vengeful Cry",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vengeful_Cry"
+    },
+    {
+      "id": "gem:fb7906f3c3d93f66",
+      "name": "Venom Gyre",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Venom_Gyre"
+    },
+    {
+      "id": "gem:49fcf91762c9cb1f",
+      "name": "Vicious Projectiles Support",
+      "requiredLevel": 18,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Vicious_Projectiles_Support"
+    },
+    {
+      "id": "gem:e0c5b31e3cab9fd7",
+      "name": "Vigilant Strike",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vigilant_Strike"
+    },
+    {
+      "id": "gem:c25a4e729267a7e1",
+      "name": "Vile Toxins Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Vile_Toxins_Support"
+    },
+    {
+      "id": "gem:2707f9cb82f273c3",
+      "name": "Viper Strike",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Viper_Strike"
+    },
+    {
+      "id": "gem:b1991e5c19ce46ea",
+      "name": "Viper Strike of the Mamba",
+      "requiredLevel": 1,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Viper_Strike_of_the_Mamba"
+    },
+    {
+      "id": "gem:03093c607cb5a028",
+      "name": "Vitality",
+      "requiredLevel": 10,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vitality"
+    },
+    {
+      "id": "gem:4ead6ca0000ba998",
+      "name": "Void Manipulation Support",
+      "requiredLevel": 8,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Void_Manipulation_Support"
+    },
+    {
+      "id": "gem:5ab39563c7f2895e",
+      "name": "Void Shockwave Support",
+      "requiredLevel": 72,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Void_Shockwave_Support"
+    },
+    {
+      "id": "gem:45955dd60655e85a",
+      "name": "Void Sphere",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Void_Sphere"
+    },
+    {
+      "id": "gem:48b819c79e52c15c",
+      "name": "Void Sphere of Rending",
+      "requiredLevel": 34,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Void_Sphere_of_Rending"
+    },
+    {
+      "id": "gem:86f82912f8ff51e9",
+      "name": "Voidstorm Support",
+      "requiredLevel": 72,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Voidstorm_Support"
+    },
+    {
+      "id": "gem:706ed35f82ad777a",
+      "name": "Volatile Dead",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Volatile_Dead"
+    },
+    {
+      "id": "gem:3121dbd5d58d2ad5",
+      "name": "Volatile Dead of Confinement",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Volatile_Dead_of_Confinement"
+    },
+    {
+      "id": "gem:9ffdf1e0f550521e",
+      "name": "Volatile Dead of Seething",
+      "requiredLevel": 12,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Volatile_Dead_of_Seething"
+    },
+    {
+      "id": "gem:89e69bd985319873",
+      "name": "Volatility Support",
+      "requiredLevel": 18,
+      "color": "red",
+      "kind": "support",
+      "sourcePath": "/us/Volatility_Support"
+    },
+    {
+      "id": "gem:a1c8411fbb83e720",
+      "name": "Volcanic Fissure",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Volcanic_Fissure"
+    },
+    {
+      "id": "gem:bc8879b69b858fdf",
+      "name": "Volcanic Fissure of Snaking",
+      "requiredLevel": 12,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Volcanic_Fissure_of_Snaking"
+    },
+    {
+      "id": "gem:213f5e27f99e6c36",
+      "name": "Volley Support",
+      "requiredLevel": 4,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Volley_Support"
+    },
+    {
+      "id": "gem:e26a34bc5ee64f4a",
+      "name": "Voltaxic Burst",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Voltaxic_Burst"
+    },
+    {
+      "id": "gem:00917905a0e0bb28",
+      "name": "Vortex",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vortex"
+    },
+    {
+      "id": "gem:ef8d84d52d23d811",
+      "name": "Vortex of Projection",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Vortex_of_Projection"
+    },
+    {
+      "id": "gem:884e2b2b169c38e5",
+      "name": "Vulnerability",
+      "requiredLevel": 24,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Vulnerability"
+    },
+    {
+      "id": "gem:f6dfc66875371f0c",
+      "name": "Wall of Force",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wall_of_Force"
+    },
+    {
+      "id": "gem:65cd0b1cdf540b68",
+      "name": "War Banner",
+      "requiredLevel": 4,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/War_Banner"
+    },
+    {
+      "id": "gem:2d9474b592b1303f",
+      "name": "Warlord's Mark",
+      "requiredLevel": 16,
+      "color": "red",
+      "kind": "active",
+      "sourcePath": "/us/Warlords_Mark"
+    },
+    {
+      "id": "gem:ff74e0ddb1bc699c",
+      "name": "Wave of Conviction",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wave_of_Conviction"
+    },
+    {
+      "id": "gem:886fc367117b5902",
+      "name": "Wave of Conviction of Trarthus",
+      "requiredLevel": 16,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wave_of_Conviction_of_Trarthus"
+    },
+    {
+      "id": "gem:c380e4ef7ea2ccbb",
+      "name": "Whirling Blades",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Whirling_Blades"
+    },
+    {
+      "id": "gem:0a118042a06fdea4",
+      "name": "Wild Strike",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Wild_Strike"
+    },
+    {
+      "id": "gem:aea10ed69b938863",
+      "name": "Wild Strike of Extremes",
+      "requiredLevel": 28,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Wild_Strike_of_Extremes"
+    },
+    {
+      "id": "gem:7f2fbae07910be27",
+      "name": "Windburst Support",
+      "requiredLevel": 31,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Windburst_Support"
+    },
+    {
+      "id": "gem:a0b8cbced8e259bf",
+      "name": "Winter Orb",
+      "requiredLevel": 28,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Winter_Orb"
+    },
+    {
+      "id": "gem:3b103574ddb7f178",
+      "name": "Wintertide Brand",
+      "requiredLevel": 12,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wintertide_Brand"
+    },
+    {
+      "id": "gem:65d9f27c070defa9",
+      "name": "Wither",
+      "requiredLevel": 10,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wither"
+    },
+    {
+      "id": "gem:d5e6a396afac7434",
+      "name": "Withering Step",
+      "requiredLevel": 10,
+      "color": "green",
+      "kind": "active",
+      "sourcePath": "/us/Withering_Step"
+    },
+    {
+      "id": "gem:a9ada551793d8654",
+      "name": "Withering Touch Support",
+      "requiredLevel": 38,
+      "color": "green",
+      "kind": "support",
+      "sourcePath": "/us/Withering_Touch_Support"
+    },
+    {
+      "id": "gem:c60ccc8a48286f79",
+      "name": "Wrath",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Wrath"
+    },
+    {
+      "id": "gem:48d2f92a16bbd07d",
+      "name": "Zealotry",
+      "requiredLevel": 24,
+      "color": "blue",
+      "kind": "active",
+      "sourcePath": "/us/Zealotry"
+    }
+  ]
+}

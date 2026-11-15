@@ -1,6 +1,7 @@
 import { parseItemInfo } from '../item/parser.js'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
 import { PRICE_CHECK_OVERLAY_CLOSE_REASONS } from './overlayFocus.js'
+import { createLocalizationTextResolver } from './localizationText.js'
 import { encodeTradeQueryId } from './queryId.js'
 import { POE_CN_TRADE_ORIGIN } from './client.js'
 import {
@@ -173,6 +174,9 @@ export class PriceCheckService {
     captureClipboard = null,
     dcRateProvider = null,
     catalogRefresher = null,
+    manualInputOnly = false,
+    localizationProvider = () => [],
+    localizationRevisionProvider = () => '',
     now = () => Date.now(),
     distributionWait = waitForDistributionBatch
   }) {
@@ -185,6 +189,11 @@ export class PriceCheckService {
     this.captureClipboard = captureClipboard
     this.dcRateProvider = dcRateProvider
     this.catalogRefresher = catalogRefresher
+    this.manualInputOnly = manualInputOnly
+    this.localizationProvider = localizationProvider
+    this.localizationRevisionProvider = localizationRevisionProvider
+    this.localizationRevision = String(localizationRevisionProvider() || '')
+    this.localizationResolver = null
     this.now = now
     this.distributionWait = distributionWait
     this.catalogRefreshPending = null
@@ -211,7 +220,7 @@ export class PriceCheckService {
   }
 
   assertEnabled() {
-    if (!this.runtime.enabled) {
+    if (!this.runtime.enabled && !this.manualInputOnly) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '国服查价器尚未启用')
     }
   }
@@ -250,6 +259,7 @@ export class PriceCheckService {
   }
 
   async captureAndCheck(request) {
+    if (this.manualInputOnly) throw new ChaosRecipeError('SERVER_FEATURE_UNAVAILABLE', '国际服游戏内捕获尚未验证，请手动粘贴物品文本查价')
     this.assertEnabled()
     const captureSequence = ++this.captureSequence
     if (!this.captureClipboard) {
@@ -273,6 +283,7 @@ export class PriceCheckService {
   }
 
   getStatus() {
+    this.syncLocalizationRevision()
     return {
       enabled: this.runtime.enabled,
       league: this.runtime.league,
@@ -282,6 +293,7 @@ export class PriceCheckService {
       dcRate: this.currentDcRate(),
       auth: this.auth.getStatus(),
       catalog: this.catalogStatus,
+      localizationRevision: this.localizationRevision,
       latest: this.latest ? { league: this.latest.league, updatedAt: this.latest.updatedAt } : null
     }
   }
@@ -292,12 +304,13 @@ export class PriceCheckService {
     this.catalogStatus = {
       ...this.catalogStatus,
       loading: true,
-      warning: '正在刷新腾讯官方物品与词缀目录…'
+      warning: `正在刷新${this.client.server?.id === 'international' ? '国际服' : '腾讯'}官方物品与词缀目录…`
     }
     this.updateOverlay({ catalog: this.catalogStatus })
     this.catalogRefreshPending = Promise.resolve()
       .then(() => this.catalogRefresher())
       .then((bundle) => {
+        if (this.client.server?.id === 'international') this.clear()
         this.catalog = bundle.catalog
         this.catalogStatus = { ...bundle.status, loading: false, warning: '' }
         this.updateOverlay({ catalog: this.catalogStatus })
@@ -309,7 +322,7 @@ export class PriceCheckService {
           provider: this.catalogStatus.provider || 'bundled',
           degraded: true,
           loading: false,
-          warning: `腾讯官方交易目录不可用，继续使用当前目录：${error.message}`
+          warning: `${this.client.server?.id === 'international' ? '国际服' : '腾讯'}官方交易目录不可用，继续使用当前目录：${error.message}`
         }
         this.updateOverlay({ catalog: this.catalogStatus })
         throw error
@@ -369,13 +382,49 @@ export class PriceCheckService {
   }
 
   parse(text, options = {}) {
-    const item = parseItemInfo(String(text || ''))
+    this.syncLocalizationRevision()
+    let input = String(text || '')
+    let localized = false
+    if (this.client.server?.id === 'international') {
+      this.localizationResolver ||= createLocalizationTextResolver(this.localizationProvider())
+      const resolved = this.localizationResolver.resolve(input)
+      input = resolved.text
+      localized = resolved.localized
+    }
+    const item = parseItemInfo(input)
     if (!item) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '剪贴板中没有可识别的物品')
     try {
-      return createPriceCheckModel(item, this.catalog, options)
+      const model = createPriceCheckModel(item, this.catalog, options)
+      if (localized) {
+        const identity = model.identity
+        // Do not let the generic model's suffix fallback reduce an unknown translated base to "Ring".
+        const copiedBase = String(item.baseName || item.name || '')
+        const candidates = (this.catalog.items || []).filter(entry => (
+          String(entry.baseType || entry.type || '') === copiedBase &&
+          (!identity.name || String(entry.name || '') === identity.name)
+        ))
+        if ((!candidates.length || copiedBase !== identity.type) && !model.identityResolution?.required) {
+          throw new Error('中文物品身份未匹配国际服交易目录，已阻止查询；请更新目录与汉化资源')
+        }
+      }
+      return model
     } catch (error) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error.message || '剪贴板物品无法用于查价')
     }
+  }
+
+  syncLocalizationRevision() {
+    if (this.client.server?.id !== 'international') return
+    const revision = String(this.localizationRevisionProvider() || '')
+    if (revision === this.localizationRevision) return
+    this.localizationRevision = revision
+    this.localizationResolver = null
+    this.clear()
+  }
+
+  assertLocalizationRevision(revision) {
+    this.syncLocalizationRevision()
+    if (revision !== this.localizationRevision) throw new DOMException('汉化资源已更改，请重新查询', 'AbortError')
   }
 
   modelFromItem(item, options = {}) {
@@ -392,6 +441,8 @@ export class PriceCheckService {
 
   async check({ text, league, model, options = {}, reposition = true, execute = true, queryImmediately = true }) {
     this.assertEnabled()
+    this.syncLocalizationRevision()
+    const localizationRevision = this.localizationRevision
     options = sanitizePriceCheckOptions(options)
     queryImmediately = queryImmediately === true
     this.controller?.abort()
@@ -399,10 +450,10 @@ export class PriceCheckService {
     this.controller = controller
     const requestSequence = ++this.requestSequence
     if (!String(league || '').trim()) {
-      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '请选择国服赛季')
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `请选择${this.client.server?.label || '国服'}赛季`)
     }
     if (!this.auth.getStatus().authenticated) {
-      const error = new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, '请先登录国服账号')
+      const error = new ChaosRecipeError(CHAOS_ERROR_CODES.UNAUTHENTICATED, `请先登录${this.client.server?.label || '国服'}账号`)
       this.createOverlay({ status: 'error', error: error.toJSON(), catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
     }
@@ -412,6 +463,12 @@ export class PriceCheckService {
     } catch (error) {
       this.createOverlay({ status: 'error', error: { code: error.code || CHAOS_ERROR_CODES.INVALID_REQUEST, message: error.message }, catalog: this.catalogStatus, auth: this.auth.getStatus(), league }, { reposition })
       throw error
+    }
+    if (this.client.server?.id === 'international' && currentModel.unknownStats?.length) {
+      const unknown = currentModel.unknownStats
+      throw new ChaosRecipeError('LOCALIZATION_STATS_UNRESOLVED', `有 ${unknown.length} 条词缀无法唯一匹配国际服交易目录，已阻止省略条件查询：${unknown[0].text.slice(0, 120)}`, {
+        stats: unknown.map(({ text, reason }) => ({ text, reason })).slice(0, 24)
+      })
     }
     if (currentModel.identityResolution?.required) {
       this.latest = {
@@ -484,7 +541,7 @@ export class PriceCheckService {
               : '所选查询条件过多，官方交易接口认为查询过于复杂；请减少启用的筛选条件后重试',
             { officialMessage: error.details?.officialMessage }
           )
-        } else if (isUnknownBaseTypeError(error) && effectiveQuery.query?.name && effectiveQuery.query?.type) {
+        } else if (isUnknownBaseTypeError(error) && this.client.server?.id !== 'international' && effectiveQuery.query?.name && effectiveQuery.query?.type) {
           effectiveQuery = withoutBaseType(effectiveQuery)
           search = await this.client.search(league, effectiveQuery, { signal: controller.signal })
         } else if (isUnknownBaseTypeError(error)) {
@@ -493,7 +550,7 @@ export class PriceCheckService {
           ).trim()
           throw new ChaosRecipeError(
             CHAOS_ERROR_CODES.INVALID_REQUEST,
-            `国服交易接口不认识物品底材“${baseType || '未知'}”，请重新复制物品；如果这是通货，请使用游戏内货币兑换`,
+            `${this.client.server?.label || '国服'}交易接口不认识物品底材“${baseType || '未知'}”，请重新复制物品；如果这是通货，请使用游戏内货币兑换`,
             { baseType, officialMessage: error.details?.officialMessage }
           )
         } else {
@@ -503,6 +560,7 @@ export class PriceCheckService {
       const allIds = resultIds(search).slice(0, 100)
       const ids = allIds.slice(0, 10)
       const fetched = ids.length ? await this.client.fetch(search.id, ids, { signal: controller.signal }) : { result: [] }
+      this.assertLocalizationRevision(localizationRevision)
       if (requestSequence !== this.requestSequence) throw new DOMException('查询已取消', 'AbortError')
       const rawEntries = fetched.result.filter(Boolean)
       const result = this.createResult(search.id, Number(search.total) || resultIds(search).length, rawEntries)
@@ -523,6 +581,14 @@ export class PriceCheckService {
     } catch (error) {
       if (error?.name === 'AbortError') throw error
       if (error?.code === CHAOS_ERROR_CODES.SESSION_EXPIRED) await this.auth.expire?.()
+      this.syncLocalizationRevision()
+      if (requestSequence === this.requestSequence && !controller.signal.aborted && this.auth.getStatus().authenticated) {
+        // Keep the current model for retrying a failed search or identity choice.
+        this.latest = {
+          league, model: currentModel, queryImmediately, options: structuredClone(options),
+          result: null, rawEntries: [], remainingResultIds: [], updatedAt: new Date().toISOString()
+        }
+      }
       this.updateOverlay({ status: 'error', error: errorSnapshot(error), auth: this.auth.getStatus() })
       throw error
     }
@@ -669,25 +735,45 @@ export class PriceCheckService {
 
   async loadMore() {
     this.assertEnabled()
+    this.syncLocalizationRevision()
+    const localizationRevision = this.localizationRevision
     if (!this.latest?.result?.queryId) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可加载的查价结果')
     }
-    if (this.latest.rawEntries.length >= 50) return structuredClone(this.latest)
-    const ids = this.latest.remainingResultIds.splice(
+    const latest = this.latest
+    const requestSequence = this.requestSequence
+    const signal = this.controller?.signal
+    const assertCurrent = () => {
+      this.assertLocalizationRevision(localizationRevision)
+      if (signal?.aborted || requestSequence !== this.requestSequence || latest !== this.latest) {
+        throw new DOMException('查询已取消', 'AbortError')
+      }
+    }
+    if (latest.rawEntries.length >= 50) return structuredClone(latest)
+    const ids = latest.remainingResultIds.splice(
       0,
-      Math.min(10, 50 - this.latest.rawEntries.length)
+      Math.min(10, 50 - latest.rawEntries.length)
     )
-    if (!ids.length) return structuredClone(this.latest)
-    const fetched = await this.client.fetch(this.latest.result.queryId, ids)
-    this.latest.rawEntries.push(...fetched.result.filter(Boolean))
-    this.refreshLatestResult()
-    this.latest.updatedAt = new Date().toISOString()
-    this.updateOverlay({ status: 'ready', ...this.latest })
-    return structuredClone(this.latest)
+    if (!ids.length) return structuredClone(latest)
+    let fetched
+    try { fetched = await this.client.fetch(latest.result.queryId, ids, { signal }) }
+    catch (error) {
+      latest.remainingResultIds.unshift(...ids)
+      assertCurrent()
+      throw error
+    }
+    assertCurrent()
+    latest.rawEntries.push(...fetched.result.filter(Boolean))
+    this.refreshLatestResult(latest)
+    latest.updatedAt = new Date().toISOString()
+    this.updateOverlay({ status: 'ready', ...latest })
+    return structuredClone(latest)
   }
 
   async loadDistribution() {
     this.assertEnabled()
+    this.syncLocalizationRevision()
+    const localizationRevision = this.localizationRevision
     if (!this.latest?.result?.queryId) {
       throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可分析的查价结果')
     }
@@ -696,6 +782,7 @@ export class PriceCheckService {
     const signal = this.controller?.signal
     let previousRequestStartedAt = null
     const assertCurrent = () => {
+      this.assertLocalizationRevision(localizationRevision)
       if (signal?.aborted || requestSequence !== this.requestSequence || latest !== this.latest) {
         throw new DOMException('查询已取消', 'AbortError')
       }
@@ -738,9 +825,10 @@ export class PriceCheckService {
 
   async openOfficial() {
     this.assertEnabled()
+    this.syncLocalizationRevision()
     if (!this.latest) throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '没有可打开的查价查询')
     const queryId = encodeTradeQueryId(this.latest.result?.queryId)
-    const url = `${POE_CN_TRADE_ORIGIN}/trade/search/${encodeURIComponent(this.latest.league)}/${queryId}`
+    const url = `${this.client?.origin || POE_CN_TRADE_ORIGIN}/trade/search/${encodeURIComponent(this.latest.league)}/${queryId}`
     this.overlay?.preserveForExternalAction?.()
     await this.shell.openExternal(url)
     this.closeOverlay(PRICE_CHECK_OVERLAY_CLOSE_REASONS.EXTERNAL_ACTION)

@@ -6,13 +6,19 @@ import { buildSkillGemCatalog } from './skillGemCatalog.js'
 import { SEASON_BASELINE, S30_SKILL_SENTINELS } from '../shared/seasonBaseline.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const patch = process.env.POE_PATCH || SEASON_BASELINE.patch
-const rawSnapshotRoot = path.join(projectRoot, 'electron', 'assets', 'skill-raw')
-const outputFile = path.join(projectRoot, 'src', 'domains', 'story', 'skillCatalog.json')
+const argument = name => process.argv[process.argv.indexOf(name) + 1]
+const server = process.argv.includes('--server') ? argument('--server') : 'cn'
+if (!['cn', 'international'].includes(server)) throw new Error('无效的技能目录服务器')
+if (server === 'international' && !process.argv.includes('--game-version')) throw new Error('国际服技能目录必须显式指定 --game-version')
+const patch = process.argv.includes('--game-version') ? argument('--game-version') : process.env.POE_PATCH || SEASON_BASELINE.patch
+const locale = server === 'international' ? 'en' : 'zh-CN'
+const siteLocale = server === 'international' ? 'us' : 'cn'
+const rawSnapshotRoot = path.join(projectRoot, 'electron', 'assets', 'skill-raw', ...(server === 'international' ? ['international'] : []))
+const outputFile = path.join(projectRoot, 'src', 'domains', 'story', server === 'international' ? 'skillCatalog.international.json' : 'skillCatalog.json')
 
 export const SKILL_GEM_SOURCES = Object.freeze([
-  { id: 'gem:active', page: 'Skill_Gems', category: 'active', url: 'https://poedb.tw/cn/Skill_Gems' },
-  { id: 'gem:support', page: 'Support_Gems', category: 'support', url: 'https://poedb.tw/cn/Support_Gems' }
+  { id: 'gem:active', page: 'Skill_Gems', category: 'active', url: `https://poedb.tw/${siteLocale}/Skill_Gems` },
+  { id: 'gem:support', page: 'Support_Gems', category: 'support', url: `https://poedb.tw/${siteLocale}/Support_Gems` }
 ])
 
 function parseMode(argv) {
@@ -25,7 +31,7 @@ async function fetchText(url) {
   const response = await fetch(url, {
     headers: {
       'user-agent': 'Mozilla/5.0 (compatible; exile-helper-snapshot/1.0)',
-      'accept-language': 'zh-CN,zh;q=0.9'
+      'accept-language': locale === 'en' ? 'en-US,en;q=0.9' : 'zh-CN,zh;q=0.9'
     }
   })
   return { status: response.status, text: await response.text() }
@@ -37,17 +43,17 @@ function assertCatalog(catalog) {
   if (activeCount < 100 || supportCount < 50) {
     throw new Error(`技能目录数量异常：主动 ${activeCount}，辅助 ${supportCount}`)
   }
-  const cleave = catalog.skills.find(skill => skill.name === '劈砍' && skill.kind === 'active')
+  const cleave = catalog.skills.find(skill => skill.name === (locale === 'en' ? 'Cleave' : '劈砍') && skill.kind === 'active')
   if (!cleave || cleave.requiredLevel !== 1 || cleave.color !== 'red') {
     throw new Error('技能目录缺少“劈砍 / 1 / 红色”哨兵')
   }
-  const support = catalog.skills.find(skill => skill.name.includes('无情') && skill.kind === 'support')
+  const support = catalog.skills.find(skill => skill.name.includes(locale === 'en' ? 'Ruthless' : '无情') && skill.kind === 'support')
   if (!support) throw new Error('技能目录缺少“无情”辅助宝石哨兵')
-  const convocation = catalog.skills.find(skill => skill.name === '号召' && skill.kind === 'active')
+  const convocation = catalog.skills.find(skill => skill.name === (locale === 'en' ? 'Convocation' : '号召') && skill.kind === 'active')
   if (!convocation || convocation.requiredLevel !== 24 || convocation.color !== 'white') {
     throw new Error('技能目录缺少“号召 / 24 / 白色”哨兵')
   }
-  if (patch === SEASON_BASELINE.patch) {
+  if (locale === 'zh-CN' && patch === SEASON_BASELINE.patch) {
     const missing = S30_SKILL_SENTINELS.filter((sourcePath) => !catalog.skills.some((skill) => skill.sourcePath === sourcePath))
     if (missing.length) throw new Error(`技能目录缺少 S30 哨兵：${missing.join('、')}`)
   }
@@ -72,7 +78,8 @@ async function main() {
     supportHtml: raw.texts.get('gem:support'),
     patch,
     generatedAt,
-    sources: raw.manifest.sources.map(({ id, url, fetchedAt, sha256 }) => ({ id, url, fetchedAt, sha256 }))
+    sources: raw.manifest.sources.map(({ id, url, fetchedAt, sha256 }) => ({ id, url, fetchedAt, sha256 })),
+    locale
   })
   assertCatalog(catalog)
   await mkdir(path.dirname(outputFile), { recursive: true })

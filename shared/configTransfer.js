@@ -1,5 +1,5 @@
 export const CONFIG_BUNDLE_KIND = 'poe-cn-helper/config-bundle'
-export const CONFIG_BUNDLE_VERSION = 1
+export const CONFIG_BUNDLE_VERSION = 2
 export const CONFIG_SECTION_SCHEMA_VERSION = 1
 export const CONFIG_BUNDLE_MAX_BYTES = 5 * 1024 * 1024
 

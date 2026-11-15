@@ -19,12 +19,12 @@ function sleepSync(delay) {
 }
 
 export class GameWindowTitleRegistry {
-  constructor({ userDataPath, fileSystem = fs, environment = process.env, sleep = sleepSync } = {}) {
+  constructor({ userDataPath, fileSystem = fs, environment = process.env, sleep = sleepSync, defaultTitles = DEFAULT_GAME_WINDOW_TITLES } = {}) {
     this.fileSystem = fileSystem
     this.environment = environment
     this.sleep = sleep
     this.filePath = path.join(String(userDataPath || ''), 'game-window-titles.json')
-    this.titles = [...DEFAULT_GAME_WINDOW_TITLES]
+    this.titles = [...defaultTitles]
     this.processNames = [...DEFAULT_GAME_WINDOW_PROCESS_NAMES]
   }
 

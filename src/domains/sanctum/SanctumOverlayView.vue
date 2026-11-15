@@ -13,6 +13,7 @@
   </div>
 </template>
 <script setup>
+import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 import { onMounted, onUnmounted, ref } from 'vue'
 import SanctumMapGraph from './SanctumMapGraph.vue'
 import SanctumMapLegend from './SanctumMapLegend.vue'

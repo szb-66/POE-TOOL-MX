@@ -24,7 +24,7 @@
           type="password"
           show-password
           autocomplete="off"
-          placeholder="输入国服 POESESSID"
+          :placeholder="`输入${currentServer.label} POESESSID`"
           @keyup.enter="loginWithToken"
         />
         <el-button
@@ -60,11 +60,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { usePoeCnAccountStore } from '@/stores/poeCnAccount'
+import { currentServer } from '../../utils/serverContext.js'
+import { usePoeAccountStore } from '@/stores/poeAccount'
 
 defineProps({ showToken: { type: Boolean, default: false } })
 const emit = defineEmits(['configured'])
-const account = usePoeCnAccountStore()
+const account = usePoeAccountStore()
 const token = ref('')
 
 async function run(action, successMessage = '') {
@@ -80,23 +81,23 @@ async function run(action, successMessage = '') {
 function openLogin() {
   return run(
     () => account.openWebLogin(),
-    '请在新窗口完成 QQ/国服登录；验证成功后窗口会自动关闭，也可手动确认'
+    `请在新窗口完成${currentServer.label}登录；验证成功后窗口会自动关闭，也可手动确认`
   )
 }
 
 function completeLogin() {
-  return run(() => account.completeWebLogin(), '国服网页登录成功')
+  return run(() => account.completeWebLogin(), `${currentServer.label}网页登录成功`)
 }
 
 function loginWithToken() {
   const value = token.value
   token.value = ''
   if (!value.trim()) return
-  return run(() => account.setSessionToken(value), '国服会话验证成功')
+  return run(() => account.setSessionToken(value), `${currentServer.label}会话验证成功`)
 }
 
 function logout() {
-  return run(() => account.logout(), '已退出国服账号')
+  return run(() => account.logout(), `已退出${currentServer.label}账号`)
 }
 
 function refreshLeagues() {

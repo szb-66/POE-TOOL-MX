@@ -1,3 +1,4 @@
+import { serverStorage as localStorage } from '../utils/serverStorage.js'
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '../api/electron.js'
@@ -223,7 +224,8 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     })
   }
 
-  async function initializeRuntime({ preserveEnabledOnFailure = false } = {}) {
+  async function initializeRuntime({ preserveEnabledOnFailure = false, restoreEnabled = true } = {}) {
+    if (!restoreEnabled) settings.value.enabled = false
     try {
       await syncRuntime()
       return { success: true }
