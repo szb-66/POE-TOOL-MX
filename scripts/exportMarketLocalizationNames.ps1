@@ -11,9 +11,16 @@ if (!$InternationalCatalog) { $InternationalCatalog = Join-Path $projectRoot 'el
 if ($PSVersionTable.PSVersion.Major -lt 7 -or [Environment]::Version.Major -lt 8) { throw 'Use PowerShell 7 with .NET 8 or later for this read-only exporter.' }
 $helperRoot = [IO.Path]::GetFullPath($HelperDirectory)
 $gameRoot = [IO.Path]::GetFullPath($GameDirectory)
+$steamapps = Split-Path (Split-Path $gameRoot -Parent) -Parent
+if ((Split-Path (Split-Path $gameRoot -Parent) -Leaf) -ne 'common' -or (Split-Path $steamapps -Leaf) -ne 'steamapps') { throw 'Select the Steam steamapps/common game directory.' }
+$manifestPath = Join-Path $steamapps 'appmanifest_238960.acf'
+$manifestText = [IO.File]::ReadAllText($manifestPath)
+function Get-MarketManifestValue([string]$Key) { [regex]::Match($manifestText, '"' + [regex]::Escape($Key) + '"\s+"([^"]*)"').Groups[1].Value }
+$buildId = Get-MarketManifestValue 'buildid'
+if ((Get-MarketManifestValue 'appid') -ne '238960' -or (Get-MarketManifestValue 'installdir') -ne (Split-Path $gameRoot -Leaf) -or $buildId -ne '26694821') { throw 'The official name reader only supports Steam Build 26694821.' }
 $executable = Join-Path $gameRoot 'PathOfExileSteam.exe'
 $executableHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $executable).Hash.ToLowerInvariant()
-if ($executableHash -ne 'c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031') { throw 'The official name reader is pinned to the validated 3.30.0b executable.' }
+if ($executableHash -ne '7f762cadbe0a7315091e105121010d2f35296db8046294e0bf49aacfff67db3c') { throw 'The official name reader is pinned to the known Steam Build 26694821 executable.' }
 $indexPath = Join-Path $gameRoot 'Bundles2\_.index.bin'
 $indexHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $indexPath).Hash.ToLowerInvariant()
 $catalog = [IO.File]::ReadAllText($InternationalCatalog) | ConvertFrom-Json
@@ -62,8 +69,9 @@ try {
     }
 } finally { $index.Dispose() }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $indexPath).Hash.ToLowerInvariant() -ne $indexHash) { throw 'The game resource index changed during extraction; output was not saved.' }
+if ([IO.File]::ReadAllText($manifestPath) -ne $manifestText -or (Get-FileHash -Algorithm SHA256 -LiteralPath $executable).Hash.ToLowerInvariant() -ne $executableHash) { throw 'The Steam manifest or executable changed during extraction; output was not saved.' }
 $result = @{
-    schemaVersion=1; game='poe1'; gameVersion='3.30.0b'; buildId='26673341'; locale='fr';
+    schemaVersion=1; game='poe1'; gameVersion='3.30.0b'; buildId=$buildId; locale='fr';
     executableSha256=$executableHash; indexSha256=$indexHash;
     entries=@($entries | Sort-Object table,id,field); report=@($reports)
 }

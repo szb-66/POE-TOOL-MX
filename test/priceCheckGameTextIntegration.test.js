@@ -29,6 +29,7 @@ function fixture() {
 
 test('简繁英文未鉴定传奇的实际浮层显示随原文变化，官方身份与候选选择保持英文', async t => {
   const vite = await createServer({ configFile: false, plugins: [vue()],
+    optimizeDeps: { noDiscovery: true, include: [] },
     resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
     server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
   t.after(() => vite.close())

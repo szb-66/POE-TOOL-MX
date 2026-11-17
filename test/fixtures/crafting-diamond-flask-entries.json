@@ -1,0 +1,80 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Global Critical Strike Chance",
+    "kind": "stat",
+    "sourceHash": "1a94277784cf4b501da61f23a4d46550983a3a2d32e088154e48f3a3827b50bf",
+    "tw": "增加 {0}% 全域暴擊率",
+    "cn": "全域暴击率提高 {0}%",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_stun_recovery_+%_while_healing",
+    "field": "variant:0",
+    "en": "{0}% increased Block and Stun Recovery during Effect",
+    "kind": "stat",
+    "sourceHash": "983c7915df78835c48098dd4453daece1993daca304629ce4cde92471a9d13d3",
+    "tw": "效果持續時間內，增加 {0}% 格擋及暈眩恢復",
+    "cn": "生效期间，格挡及晕眩回复提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_stun_recovery_+%_while_healing"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "mods",
+    "id": "FlaskBuffStunRecoveryWhileHealing",
+    "field": "Name",
+    "en": "of Stiffness",
+    "kind": "dat",
+    "sourceHash": "d4e273485dec2f7c4d490ba47a0193b5ddfbe2c6a658c47656f74da6f4ba7e95",
+    "tw": "剛度之",
+    "cn": "僵固之"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility1",
+    "field": "Name",
+    "en": "Diamond Flask",
+    "kind": "dat",
+    "sourceHash": "4bcc622243b36c9099eb8adfe1527e745354daa05a4724144ad6f375c85dea44",
+    "tw": "寶鑽藥劑",
+    "cn": "宝钻药剂"
+  }
+]

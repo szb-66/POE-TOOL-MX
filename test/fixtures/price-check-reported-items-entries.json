@@ -1,0 +1,336 @@
+[
+  {
+    "table": "metadata/statdescriptions/heist_equipment_stat_descriptions.csd",
+    "id": "spell_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Spell Damage",
+    "kind": "stat",
+    "sourceHash": "0bb9e7af65e9dbd4ea9f404e7a5d5c4217cbf852b6b6e3fe6a2efdb6f08f0557",
+    "tw": "增加 {0}% 法術傷害",
+    "cn": "法术伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "spell_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_energy_shield_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Energy Shield",
+    "kind": "stat",
+    "sourceHash": "ecbffc401e02d11822ea0bc1a60d01038a98501b8381e7926761f59c8d0e837f",
+    "tw": "增加 {0}% 能量護盾",
+    "cn": "该装备的能量护盾提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_energy_shield_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "totem_life_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Totem Life",
+    "kind": "stat",
+    "sourceHash": "f27ff0cec1f41feebfb06f0bdaeab81a14d598e8ecd46f08a46c59e66d3275de",
+    "tw": "增加 {0}% 圖騰生命",
+    "cn": "图腾的生命提高 {0}%",
+    "stats": {
+      "ids": [
+        "totem_life_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "spell_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Spell Damage",
+    "kind": "stat",
+    "sourceHash": "0bb9e7af65e9dbd4ea9f404e7a5d5c4217cbf852b6b6e3fe6a2efdb6f08f0557",
+    "tw": "增加 {0}% 法術傷害",
+    "cn": "法术伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "spell_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "randomly_cursed_when_totems_die_curse_level",
+    "field": "variant:0",
+    "en": "Inflicts a random Hex on you when your Totems die",
+    "kind": "stat",
+    "sourceHash": "2b41e6f27612bc42d6fc837fda941d6f9fbc6eefbe5c5015d3a856cdb5a6d811",
+    "tw": "當你圖騰死亡時，對你造成 1 個隨機咒術",
+    "cn": "你的图腾死亡时对你施加一种随机魔蛊。",
+    "stats": {
+      "ids": [
+        "randomly_cursed_when_totems_die_curse_level"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/active_skill_gem_stat_descriptions.csd",
+    "id": "spell_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Spell Damage",
+    "kind": "stat",
+    "sourceHash": "0bb9e7af65e9dbd4ea9f404e7a5d5c4217cbf852b6b6e3fe6a2efdb6f08f0557",
+    "tw": "增加 {0}% 法術傷害",
+    "cn": "法术伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "spell_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "spell_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Spell Damage",
+    "kind": "stat",
+    "sourceHash": "0bb9e7af65e9dbd4ea9f404e7a5d5c4217cbf852b6b6e3fe6a2efdb6f08f0557",
+    "tw": "增加 {0}% 法術傷害",
+    "cn": "法术伤害提高 {0}%",
+    "stats": {
+      "ids": [
+        "spell_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "achievementitems",
+    "id": "DominationNemesisGuildHaveUniqueBodyInt7",
+    "field": "Name",
+    "en": "Soul Mantle",
+    "kind": "dat",
+    "sourceHash": "b661dd1594498a765870cc0e2df8b38d6d08756ba22eb1ec0cf5d14d2711ae4e",
+    "tw": "祖靈之約",
+    "cn": "祖灵之约"
+  },
+  {
+    "table": "achievementitems",
+    "id": "HaveUniqueBodyInt7",
+    "field": "Name",
+    "en": "Soul Mantle",
+    "kind": "dat",
+    "sourceHash": "b661dd1594498a765870cc0e2df8b38d6d08756ba22eb1ec0cf5d14d2711ae4e",
+    "tw": "祖靈之約",
+    "cn": "祖灵之约"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/BodyArmours/BodyInt11",
+    "field": "Name",
+    "en": "Spidersilk Robe",
+    "kind": "dat",
+    "sourceHash": "f9deb04c2962e8d35b89577fa4b964911e298c6ca034185ce554252490e5ac67",
+    "tw": "蛛絲之袍",
+    "cn": "蛛丝之袍"
+  },
+  {
+    "table": "clientstrings",
+    "id": "CraftingWindowCost",
+    "field": "Text",
+    "en": "cost:",
+    "kind": "dat",
+    "sourceHash": "a3cd05e844e1f87c6f85211d3ca48d5ae752ecbf1005b2c3f5065b8e42a649aa",
+    "tw": "需求：",
+    "cn": "需求: "
+  },
+  {
+    "table": "words",
+    "id": "hash:4708145b",
+    "field": "Text2",
+    "en": "Soul Mantle",
+    "kind": "dat",
+    "sourceHash": "b661dd1594498a765870cc0e2df8b38d6d08756ba22eb1ec0cf5d14d2711ae4e",
+    "tw": "祖靈之約",
+    "cn": "祖灵之约"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_random_support_gem_level local_random_support_gem_index",
+    "field": "variant:0",
+    "en": "Socketed Gems are Supported by Level {0} {1}",
+    "kind": "stat",
+    "sourceHash": "71d2c598c762b59644855b0acc6c34fb2cff7894787adb00fb32ace227ec69c3",
+    "tw": "插槽中的寶石被等級 {0} 的 {1} 輔助",
+    "cn": "插入的技能石被 {0} 级的{1}辅助",
+    "stats": {
+      "ids": [
+        "local_random_support_gem_level",
+        "local_random_support_gem_index"
+      ],
+      "variants": [
+        {
+          "condition": "# #",
+          "handlers": "display_indexable_support 2 1",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "grantedeffects",
+    "id": "SupportSpellTotem",
+    "field": "SupportName",
+    "en": "Spell Totem Support",
+    "kind": "dat",
+    "sourceHash": "68ae00b387e36d385c32471566cf0a7976ace1f8be798c498a5fca783769ead2",
+    "tw": "法術圖騰輔助"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Gems/SupportGemSpellTotem",
+    "field": "Name",
+    "en": "Spell Totem Support",
+    "kind": "dat",
+    "sourceHash": "68ae00b387e36d385c32471566cf0a7976ace1f8be798c498a5fca783769ead2",
+    "tw": "法術圖騰輔助",
+    "cn": "法术图腾(辅)"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ModGrantsSupportEffectWithLevel",
+    "field": "Text",
+    "en": "Socketed Gems are Supported by Level {1} {0}",
+    "kind": "dat",
+    "sourceHash": "e75280351d303c6790cea7ab96eecf1708d838e1c32f9df82c842622cb9ff98b",
+    "tw": "插槽中的寶石被等級 {1} 的 {0} 輔助"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueBodyInt7",
+    "field": "Text",
+    "en": "The greatest mistakes cause suffering \r\nlong after they have been made",
+    "kind": "dat",
+    "sourceHash": "33e04dc417b22d44837ebf71c18754970ed30b55baec92b4fbc798313cc798e4",
+    "tw": "最嚴重之過犯，讓人吃苦受難。\r\n即使事過境遷，依然陰魂不散。",
+    "cn": "最严重之过犯，让人吃苦受难。\r\n即使事过境迁，依然阴魂不散。"
+  }
+]

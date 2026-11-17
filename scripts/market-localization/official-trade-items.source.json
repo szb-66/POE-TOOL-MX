@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "game": "poe1",
+  "method": "Normal browser API response text; no verification bypass",
+  "sources": {
+    "en": {
+      "url": "https://www.pathofexile.com/api/trade/data/items",
+      "file": "official-trade-items.en.json.gz",
+      "recordedAt": "2026-11-16T16:32:12Z",
+      "sha256": "0058f9f981c08c034c239a061766de32e14e5b8c674d8deb1503b3f9d9df8ee4"
+    },
+    "fr": {
+      "url": "https://fr.pathofexile.com/api/trade/data/items",
+      "file": "official-trade-items.fr.json.gz",
+      "recordedAt": "2026-11-16T16:32:12Z",
+      "sha256": "e62030de3033e6a6cbf514c010a42d5b9d78ee33677278048ef8adc87457f524"
+    }
+  }
+}

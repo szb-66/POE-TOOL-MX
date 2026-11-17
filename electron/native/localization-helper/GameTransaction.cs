@@ -13,8 +13,9 @@ public sealed class GameTransaction {
     public sealed record Snapshot(string BuildId, string GameVersion, string IndexHash, BaselineStatus Baseline,
         bool Applied, string? ReleaseId, bool RecoveryNeeded, string? Mode = null);
     private sealed record Baseline(int Version, string BuildId, string GameVersion, string IndexHash, string IndexFile,
-        DateTime VerificationCompleted, string VerificationLogHash, string? OriginalLanguage);
-    private sealed record Active(int Version, string BuildId, string OutputHash, string ReleaseId, string Generation, string Mode = "simplified");
+        DateTime VerificationCompleted, string VerificationLogHash, string? OriginalLanguage, string? PendingIndexHash = null);
+    private sealed record Active(int Version, string BuildId, string OutputHash, string ReleaseId, string Generation, string Mode = "simplified",
+        string? IndexFile = null, Dictionary<string, string>? OriginalHashes = null);
     private sealed record Journal(int Version, string Operation, string BuildId, string BeforeHash, string AfterHash,
         string BeforeIndex, string? BeforeLanguage, string? Generation, Active? BeforeActive, Active? AfterActive);
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -107,7 +108,7 @@ public sealed class GameTransaction {
         var build = Value(Manifest(), "buildid"); var hash = Hash(index);
         var baseline = Read<Baseline>(baselineFile); var active = Read<Active>(activeFile);
         bool applied = active is { Version: 1, Mode: "simplified" or "traditional" } && active.BuildId == build && active.OutputHash == hash;
-        bool ready = ValidBaseline(baseline, build) && (hash == baseline!.IndexHash || applied);
+        bool ready = ValidBaseline(baseline, build) && (hash == baseline!.IndexHash || applied || hash == baseline.PendingIndexHash);
         return new(build, GameVersion(), hash, new(ready, ready ? "" : "应用汉化时将自动检查并备份游戏资源"),
             applied, applied ? active!.ReleaseId : null, File.Exists(journalFile), applied ? active!.Mode : null);
     }
@@ -159,24 +160,38 @@ public sealed class GameTransaction {
     }
 
     public Snapshot EstablishBaseline() {
-        using var guard = Lock(); RequireWritable();
+        using var guard = Lock();
+        return EstablishBaselineInternal();
+    }
+    private Snapshot EstablishBaselineInternal() {
+        RequireWritable();
         if (File.Exists(journalFile)) throw new UserError("存在未完成汉化事务，请先恢复事务");
         var snapshot = Inspect(); if (snapshot.Baseline.Ready) return snapshot;
         var previousBaseline = Read<Baseline>(baselineFile); var previousActive = Read<Active>(activeFile);
         if (previousBaseline?.BuildId == snapshot.BuildId)
             throw new UserError("游戏索引或应用前备份已发生外部变化，未覆盖原备份；请恢复修改或修复游戏文件后重试");
-        using (var current = Program.Open(game, paths: false)) foreach (var bundle in current.Bundles.Span) {
-            if (bundle.Path.StartsWith("PoEHelper/", StringComparison.OrdinalIgnoreCase) || bundle.Path.StartsWith("LibGGPK3/", StringComparison.OrdinalIgnoreCase))
-                throw new UserError("游戏资源仍引用旧补丁，无法建立应用前备份；请先恢复游戏文件");
-        }
-        var relative = Path.Combine("baselines", snapshot.BuildId, snapshot.IndexHash + ".index.bin");
-        DurableWrite(Stored(relative), File.ReadAllBytes(index));
+        byte[] baselineBytes;
+        if (ManagedPatchIndex.HasManagedReferences(game, index)) {
+            if (previousBaseline == null || previousActive == null || previousActive.BuildId != previousBaseline.BuildId ||
+                !ValidBaseline(previousBaseline, previousBaseline.BuildId) ||
+                (previousActive.OriginalHashes == null && snapshot.IndexHash != previousActive.OutputHash))
+                throw new UserError("旧汉化补丁缺少可靠恢复依据，请先使用 Steam 验证游戏文件完整性，再切换语言");
+            string recorded = previousActive.IndexFile == null ? index : Stored(previousActive.IndexFile);
+            if (!File.Exists(recorded) || Hash(recorded) != previousActive.OutputHash)
+                throw new UserError("旧汉化补丁记录缺失或损坏，请先使用 Steam 验证游戏文件完整性，再切换语言");
+            baselineBytes = ManagedPatchIndex.Rebase(game, index, Stored(previousBaseline.IndexFile), recorded,
+                previousActive.Generation, previousActive.OriginalHashes);
+        } else baselineBytes = File.ReadAllBytes(index);
+        string baselineHash = Program.Hash(baselineBytes);
+        var relative = Path.Combine("baselines", snapshot.BuildId, baselineHash + ".index.bin");
+        DurableWrite(Stored(relative), baselineBytes);
         RequireWritable();
-        if (Value(Manifest(), "buildid") != snapshot.BuildId || Hash(index) != snapshot.IndexHash || Hash(Stored(relative)) != snapshot.IndexHash)
+        if (Value(Manifest(), "buildid") != snapshot.BuildId || Hash(index) != snapshot.IndexHash || Hash(Stored(relative)) != baselineHash)
             throw new UserError("建立备份时游戏版本或索引发生变化，未建立备份");
         var originalLanguage = previousActive != null && previousBaseline != null && Language() == "fr" ? previousBaseline.OriginalLanguage : Language();
         // Keep legacy metadata fields readable; automatic checks do not claim a Steam log verification.
-        Save(baselineFile, new Baseline(1, snapshot.BuildId, snapshot.GameVersion, snapshot.IndexHash, relative, DateTime.UtcNow, "", originalLanguage));
+        Save(baselineFile, new Baseline(1, snapshot.BuildId, snapshot.GameVersion, baselineHash, relative, DateTime.UtcNow, "", originalLanguage,
+            baselineHash == snapshot.IndexHash ? null : snapshot.IndexHash));
         if (File.Exists(activeFile)) File.Delete(activeFile);
         return Inspect();
     }
@@ -212,7 +227,7 @@ public sealed class GameTransaction {
         }
     }
 
-    public Snapshot Commit(string candidateIndexPath, string candidateBundleRoot, string releaseId, string generation, string mode = "simplified") {
+    public Snapshot Commit(string candidateIndexPath, string candidateBundleRoot, string releaseId, string generation, string mode = "simplified", Dictionary<string, string>? originalHashes = null) {
         ValidateMode(mode);
         using var guard = Lock(); RequireWritable();
         var staging = Path.Combine(storage, "staging"); var candidate = Path.GetFullPath(candidateIndexPath); var bundles = Path.GetFullPath(candidateBundleRoot);
@@ -232,7 +247,9 @@ public sealed class GameTransaction {
         RequireOrdinaryPath(destination);
         var outputHash = Hash(candidate); var before = Path.Combine("transactions", Guid.NewGuid().ToString("N") + ".index.bin");
         DurableWrite(Stored(before), File.ReadAllBytes(index));
-        var after = new Active(1, snapshot.BuildId, outputHash, releaseId, generation, mode);
+        var recorded = Path.Combine("transactions", Guid.NewGuid().ToString("N") + ".applied.index.bin");
+        DurableWrite(Stored(recorded), File.ReadAllBytes(candidate));
+        var after = new Active(1, snapshot.BuildId, outputHash, releaseId, generation, mode, recorded, originalHashes);
         var journal = new Journal(1, "apply", snapshot.BuildId, snapshot.IndexHash, outputHash, before, Language(), generation, Read<Active>(activeFile), after);
         Save(journalFile, journal);
         try {
@@ -255,15 +272,16 @@ public sealed class GameTransaction {
         using var guard = Lock(); RequireWritable();
         if (File.Exists(journalFile)) RecoverInternal();
         var snapshot = Inspect(); var baseline = Read<Baseline>(baselineFile);
+        if (baseline?.BuildId != snapshot.BuildId) {
+            snapshot = EstablishBaselineInternal();
+            baseline = Read<Baseline>(baselineFile);
+        }
         if (!ValidBaseline(baseline, snapshot.BuildId)) throw new UserError("备份与当前 Steam 版本不同，禁止恢复旧版完整索引");
         if (!snapshot.Baseline.Ready) throw new UserError("游戏索引与受管状态不一致，禁止覆盖第三方修改");
-        if (!snapshot.Applied) {
+        if (!snapshot.Applied && snapshot.IndexHash == baseline!.IndexHash) {
             // Steam validation may already have restored the index; undo our remaining language setting too.
-            var previous = Read<Active>(activeFile);
-            if (previous?.BuildId == snapshot.BuildId && snapshot.IndexHash == baseline!.IndexHash) {
-                if (Language() == "fr") SetLanguage(baseline.OriginalLanguage);
-                File.Delete(activeFile);
-            }
+            if (Language() == "fr") SetLanguage(baseline.OriginalLanguage);
+            if (File.Exists(activeFile)) File.Delete(activeFile);
             return Inspect();
         }
         var before = Path.Combine("transactions", Guid.NewGuid().ToString("N") + ".index.bin");
@@ -326,8 +344,7 @@ public sealed class GameTransaction {
         if (!blocked || File.Exists(corrupt.baselineFile)) throw new InvalidDataException("Invalid index accepted as automatic baseline");
         File.WriteAllBytes(targetIndex, FixtureIndex("PoEHelper/orphan/0"));
         var orphaned = new GameTransaction(game, Path.Combine(root, "orphan-cache"), ini, () => true);
-        blocked = false; try { orphaned.EstablishBaseline(); } catch (UserError) { blocked = true; }
-        if (!blocked || File.Exists(orphaned.baselineFile)) throw new InvalidDataException("Untracked managed patch accepted as baseline");
+        if (!orphaned.EstablishBaseline().Baseline.Ready) throw new InvalidDataException("Unused patch bundle rejected as an active patch");
         File.WriteAllBytes(targetIndex, original);
         var stage = Path.Combine(store, "staging", "g1"); Directory.CreateDirectory(stage);
         var candidate = Path.Combine(stage, "candidate.index.bin"); File.WriteAllText(candidate, "patched");
@@ -338,7 +355,7 @@ public sealed class GameTransaction {
         if (!File.ReadAllBytes(targetIndex).AsSpan().SequenceEqual(original) || !File.ReadAllText(ini).Contains("language=en") || !File.ReadAllText(ini).Contains("keep=true")) throw new InvalidDataException("Restore failed");
         tx.Commit(candidate, bundle, "fixture-v1", "fixture2");
         File.WriteAllText(acf, File.ReadAllText(acf).Replace("\"123\"", "\"124\""));
-        blocked = false; try { tx.Restore(); } catch (UserError) { blocked = true; }
+        blocked = false; try { tx.Restore(); } catch (Exception error) when (error is UserError or InvalidDataException) { blocked = true; }
         if (!blocked || File.ReadAllText(targetIndex) != "patched") throw new InvalidDataException("Cross-version restore accepted");
         File.WriteAllText(acf, File.ReadAllText(acf).Replace("\"124\"", "\"123\""));
         var baseline = tx.Read<Baseline>(tx.baselineFile)!;
@@ -405,7 +422,8 @@ public sealed class GameTransaction {
         byte[] languageBytes = language.ToArray();
         var resources = new[] { (Path: "data/languages.dat", Bytes: languageBytes),
             (Path: "data/clientstrings.datc64", Bytes: FixtureClientStrings("Spark")),
-            (Path: "data/traditional chinese/clientstrings.datc64", Bytes: FixtureClientStrings("電球")) };
+            (Path: "data/traditional chinese/clientstrings.datc64", Bytes: FixtureClientStrings("電球")),
+            (Path: "data/extra.datc64", Bytes: FixtureClientStrings("Nova")) };
         byte[] resourceBytes = resources.SelectMany(resource=>resource.Bytes).ToArray();
         File.WriteAllBytes(Path.Combine(game, "Bundles2", "fixture.bundle.bin"), FixtureEnvelope(resourceBytes));
         using var paths = new MemoryStream();
@@ -478,7 +496,73 @@ public sealed class GameTransaction {
         tx.Restore();
         if (File.ReadAllText(ini) != originalConfig || DisplayText()!="電球" || tx.Inspect().Mode!=null) errors.Add("Mode restore overwrote original language or text");
         if (errors.Count > 0) throw new InvalidDataException(string.Join("; ", errors));
-        return 17;
+        // Steam can advance BuildID while retaining exactly our patched index.
+        request["mode"]="simplified"; request["manifest"]=new System.Text.Json.Nodes.JsonObject { ["releaseId"]="workflow-v1" };
+        request["entries"]=simplifiedEntries.DeepClone();
+        Program.Apply(request,tx);
+        var oldApplied=File.ReadAllBytes(index); var oldBackup=tx.BaselineIndexPath;
+        // Migrate records created before per-resource source hashes were available.
+        var legacy=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(tx.activeFile))!.AsObject();
+        legacy.Remove("indexFile"); legacy.Remove("originalHashes"); File.WriteAllText(tx.activeFile,legacy.ToJsonString(Json));
+        var unknown=new GameTransaction(game,Path.Combine(root,"unknown-cache"),ini,()=>true);
+        bool unknownBlocked=false; try { unknown.EstablishBaseline(); } catch(UserError) { unknownBlocked=true; }
+        if(!unknownBlocked || File.Exists(unknown.baselineFile)) throw new InvalidDataException("Unknown patch was accepted as an original baseline");
+        File.WriteAllText(manifest,File.ReadAllText(manifest).Replace("\"456\"","\"457\""));
+        if(tx.Inspect().Applied) throw new InvalidDataException("Updated build retained an unverified applied status");
+        var legacyChanged=resourceBytes.ToArray();
+        int legacyText=legacyChanged.AsSpan().IndexOf(Encoding.Unicode.GetBytes("電球"));
+        Encoding.Unicode.GetBytes("電珠").CopyTo(legacyChanged,legacyText);
+        File.WriteAllBytes(Path.Combine(game,"Bundles2","fixture.bundle.bin"),FixtureEnvelope(legacyChanged));
+        var legacyBaseline=File.ReadAllBytes(tx.baselineFile);
+        bool legacyBlocked=false; try { tx.EstablishBaseline(); } catch(UserError) { legacyBlocked=true; }
+        if(!legacyBlocked || !oldApplied.AsSpan().SequenceEqual(File.ReadAllBytes(index)) || !legacyBaseline.AsSpan().SequenceEqual(File.ReadAllBytes(tx.baselineFile)))
+            throw new InvalidDataException("Legacy migration trusted an unchanged index despite changed source bytes");
+        File.WriteAllBytes(Path.Combine(game,"Bundles2","fixture.bundle.bin"),FixtureEnvelope(resourceBytes));
+        var prepared=tx.EstablishBaseline();
+        if(!prepared.Baseline.Ready || !oldApplied.AsSpan().SequenceEqual(File.ReadAllBytes(index)) || !File.Exists(oldBackup))
+            throw new InvalidDataException("Cross-build preparation changed the live index or lost the old backup");
+        tx=new GameTransaction(game,store,ini,()=>true);
+        if(!tx.Inspect().Baseline.Ready || tx.Inspect().Applied) throw new InvalidDataException("Restart after cross-build preparation lost its pending state");
+        Program.Apply(request,tx);
+        if(tx.Inspect().BuildId!="457" || tx.Inspect().Mode!="simplified" || DisplayText()!="电球")
+            throw new InvalidDataException("Cross-build dictionary reuse failed");
+        tx.Restore();
+        if(DisplayText()!="電球" || File.ReadAllText(ini)!=originalConfig)
+            throw new InvalidDataException("Cross-build restore did not use the reconstructed current baseline");
+        Program.Apply(request,tx);
+        File.WriteAllText(manifest,File.ReadAllText(manifest).Replace("\"457\"","\"458\""));
+        var modifiedOfficial=resourceBytes.ToArray();
+        int originalText=modifiedOfficial.AsSpan().IndexOf(Encoding.Unicode.GetBytes("電球"));
+        Encoding.Unicode.GetBytes("電珠").CopyTo(modifiedOfficial,originalText);
+        File.WriteAllBytes(Path.Combine(game,"Bundles2","fixture.bundle.bin"),FixtureEnvelope(modifiedOfficial));
+        var beforeFailure=File.ReadAllBytes(index); var beforeBaseline=File.ReadAllBytes(tx.baselineFile);
+        bool sourceBlocked=false; try { tx.EstablishBaseline(); } catch(UserError) { sourceBlocked=true; }
+        if(!sourceBlocked || !beforeFailure.AsSpan().SequenceEqual(File.ReadAllBytes(index)) || !beforeBaseline.AsSpan().SequenceEqual(File.ReadAllBytes(tx.baselineFile)))
+            throw new InvalidDataException("Changed original bundle bypassed cross-build source verification");
+        File.WriteAllBytes(Path.Combine(game,"Bundles2","fixture.bundle.bin"),FixtureEnvelope(resourceBytes));
+        // Simulate Steam updating an unrelated resource reference while leaving the old patch in place.
+        using(var memory=new MemoryStream()) {
+            memory.Write(File.ReadAllBytes(index)); memory.Position=0;
+            using(var updated=new LibBundle3.Index(memory,true,false,new ReadOnlyFactory(Path.Combine(game,"Bundles2")))) {
+                updated.TryGetFile("data/clientstrings.datc64",out var english); updated.TryGetFile("data/extra.datc64",out var alternate);
+                english!.Redirect(alternate!.BundleRecord,alternate.Offset,alternate.Size); updated.Save();
+            }
+            File.WriteAllBytes(index,memory.ToArray());
+        }
+        Program.Apply(request,tx);
+        if(DisplayText()!="電球") throw new InvalidDataException("Changed English source received an incompatible old translation");
+        tx.Restore();
+        using(var restored=Program.Open(game)) {
+            restored.TryGetFile("data/clientstrings.datc64",out var english);
+            if(new DatTable(english!.Read().ToArray(),clientStringsSchema,2).ReadText("ModeFixture","Text")!="Nova")
+                throw new InvalidDataException("Cross-build rebase overwrote Steam's unrelated resource update");
+        }
+        Program.Apply(request,tx);
+        File.WriteAllText(manifest,File.ReadAllText(manifest).Replace("\"458\"","\"459\""));
+        tx.Restore();
+        if(tx.Inspect().Applied || !tx.Inspect().Baseline.Ready || DisplayText()!="電球" || File.ReadAllText(ini)!=originalConfig)
+            throw new InvalidDataException("Direct restore after a Steam update failed to migrate managed references");
+        return 27;
     }
 
     private static byte[] FixtureClientStrings(string text) {

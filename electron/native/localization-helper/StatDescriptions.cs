@@ -100,6 +100,31 @@ public sealed class StatDescriptions {
     // Some languages use a reminder tooltip where English uses a link in the display text.
     private static string NumericHandlers(string value) => Normalize(DisplayReminder.Replace(value,""));
     private static bool SameShape(List<Variant> first,List<Variant>? second) => second != null && first.Count == second.Count && first.Zip(second).All(pair => pair.First.Condition == pair.Second.Condition && NumericHandlers(pair.First.Handlers) == NumericHandlers(pair.Second.Handlers) && Placeholders(pair.First.Text).SequenceEqual(Placeholders(pair.Second.Text)));
+    internal bool MatchesLegacySource(StatDescriptions source) {
+        if (bom != source.bom || descriptions.Count != source.descriptions.Count || SkippedDescriptionCount != source.SkippedDescriptionCount) return false;
+        var currentText = new List<Variant>();
+        var originalText = new List<Variant>();
+        for (int index = 0; index < descriptions.Count; index++) {
+            var current = descriptions[index]; var original = source.descriptions[index];
+            if (current.Id != original.Id || !current.Ids.SequenceEqual(original.Ids) ||
+                !current.Languages.Keys.SequenceEqual(original.Languages.Keys)) return false;
+            foreach (var language in current.Languages) {
+                if (!SameShape(language.Value, original.Languages[language.Key])) return false;
+                if (language.Key == "Traditional Chinese") { currentText.AddRange(language.Value); originalText.AddRange(original.Languages[language.Key]); }
+            }
+        }
+        // The writer replaces only these quoted text spans; all language structure and other bytes survive.
+        static string Mask(string value, List<Variant> variants) {
+            var result = new StringBuilder(value.Length); int position = 0;
+            foreach (var variant in variants.OrderBy(item => item.TextOffset)) {
+                if (variant.TextOffset < position) throw new InvalidDataException("Overlapping legacy stat text");
+                result.Append(value, position, variant.TextOffset - position);
+                position = variant.TextOffset + variant.TextLength;
+            }
+            return result.Append(value, position, value.Length - position).ToString();
+        }
+        return Mask(text, currentText) == Mask(source.text, originalText);
+    }
     private static JsonObject Shape(Description description) => new() {
         ["ids"] = new JsonArray(description.Ids.Select(id=>(JsonNode?)JsonValue.Create(id)).ToArray()),
         ["variants"] = new JsonArray(description.Languages["English"].Select(variant=>(JsonNode?)new JsonObject {

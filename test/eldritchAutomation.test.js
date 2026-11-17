@@ -251,7 +251,7 @@ def run(results):
     success = craft_eldritch_implicits(initial_result)
     return {"success": bool(success), "applyCount": apply_count, "fatal": fatal_error_reason}
 
-valid = {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[]}
+valid = {"category":"头部", "rarity":"稀有", "isLegendary":False, "isCorrupted":False, "influences":[]}
 print(json.dumps({
   "initial": run([{**valid, "eldritchImplicitMatch":True, "matchedEldritchTargetName":"目标"}]),
   "invalid": run([{"category":"戒指", "isLegendary":False, "isCorrupted":False, "influences":[]}]),
@@ -292,7 +292,7 @@ def apply_currency(currency):
     return True
 def read_clipboard_to_file(allow_unchanged_text=False, **_kwargs): return True
 def wait_for_parse_result(_request_id=None):
-    return {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}
+    return {"category":"头部", "rarity":"稀有", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}
 time.sleep = lambda _seconds: None
 initial = {"category":"头部", "isLegendary":False, "isCorrupted":False, "influences":[], "eldritchImplicitMatch":True}
 success = craft_eldritch_implicits(initial)

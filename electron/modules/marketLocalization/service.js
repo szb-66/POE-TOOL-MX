@@ -5,6 +5,7 @@ import { EventEmitter } from 'node:events'
 import { createHash } from 'node:crypto'
 import { probeGameProcesses } from '../localization/steam.js'
 import { writeJsonAtomic } from '../localization/downloader.js'
+import { validateMarketCatalogSource, validateMarketStructureProfile } from '../../../shared/marketCompatibilityProfile.js'
 
 const unavailable = message => Object.assign(new Error(message), { code: 'MARKET_UNAVAILABLE' })
 const hashFile = file => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
@@ -174,10 +175,8 @@ export class MarketLocalizationService extends EventEmitter {
       const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'))
       const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'))
       if (metadata.protocolVersion !== 1 || !/^[a-f0-9]{64}$/.test(metadata.dllSha256 || '') || !/^[a-f0-9]{64}$/.test(metadata.profileSha256 || '')
-        || hashFile(path.join(root, 'MarketLocalizationHook.dll')) !== metadata.dllSha256 || hashFile(profilePath) !== metadata.profileSha256
-        || profile.schemaVersion !== 1 || profile.game !== 'poe1' || profile.buildId !== '26673341' || profile.gameVersion !== '3.30.0b'
-        || profile.sha256 !== 'c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031' || profile.validatedInGame !== true) throw new Error('identity')
-      return profile
+        || hashFile(path.join(root, 'MarketLocalizationHook.dll')) !== metadata.dllSha256 || hashFile(profilePath) !== metadata.profileSha256) throw new Error('identity')
+      return validateMarketStructureProfile(profile)
     } catch { throw unavailable('市集组件或兼容资料校验失败，请重新构建或安装完整桌面版') }
   }
   initialize() {
@@ -194,16 +193,10 @@ export class MarketLocalizationService extends EventEmitter {
     let catalog
     try { catalog = JSON.parse(fs.readFileSync(this.catalogPath, 'utf8')) }
     catch { throw unavailable('市集翻译词库读取失败，请重新安装完整词库') }
-    if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.rules) || !catalog.rules.length || catalog.rules.length > 100000) throw unavailable('市集翻译词库格式无效')
-    if (catalog.game !== 'poe1' || catalog.sourceLocale !== 'fr' || catalog.buildId !== profile.buildId
-      || catalog.gameVersion !== profile.gameVersion || catalog.executableSha256 !== profile.sha256)
-      throw unavailable('市集翻译词库与当前游戏或组件版本不匹配，请更新完整词库')
-    if (catalog.localizationReleaseId !== undefined) {
-      if (typeof catalog.localizationReleaseId !== 'string' || !/^[a-zA-Z0-9._-]{1,120}$/.test(catalog.localizationReleaseId))
-        throw unavailable('市集翻译词库资源版本标识无效')
-      if (managed.mode === 'simplified' && catalog.localizationReleaseId !== managed.resourceVersion)
-        throw unavailable('市集翻译词库对应的汉化资源版本已变化，请更新词库后重试')
-    }
+    // Build and release identify the verified sources. The host verifies the running game's structure,
+    // and the DLL requires each dynamic rule's exact source before displaying or reversing its text.
+    try { validateMarketCatalogSource(catalog, profile) }
+    catch (error) { throw unavailable(error.message) }
     if (identity !== this.fileIdentities()) throw unavailable('校验期间市集组件或词库发生变化，请重新启用')
     this.rules = catalog.rules
     this.identities = identity

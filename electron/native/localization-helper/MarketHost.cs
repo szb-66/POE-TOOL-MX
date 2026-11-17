@@ -14,8 +14,6 @@ namespace LocalizationHelper;
 
 /// <summary>A separate, explicit opt-in process mode; the resource transaction protocol stays unchanged.</summary>
 internal sealed partial class MarketHost : IDisposable {
-    private const string SupportedBuild = "26673341";
-    private const string SupportedHash = "c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031";
     private const int MaxPacket = 16 * 1024 * 1024;
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private static readonly JsonSerializerOptions Json = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All) };
@@ -117,7 +115,7 @@ internal sealed partial class MarketHost : IDisposable {
         var rules = ValidateRules(request["rules"]);
         string requestedRulesHash = RulesHash(rules);
         string requestedIdentity = ReadManagedIdentity(requestedGame, requestedStorage);
-        ValidateManagedGame(requestedGame, requestedStorage, requestedMode);
+        var compatibility = ValidateManagedGame(requestedGame, requestedStorage, requestedMode);
         if (ReadManagedIdentity(requestedGame, requestedStorage) != requestedIdentity) throw new UserError("核对期间游戏或汉化状态发生变化");
         using var candidate = FindUniqueGame(requestedGame);
         var modules = ReadModules(candidate);
@@ -135,7 +133,7 @@ internal sealed partial class MarketHost : IDisposable {
                 nativeState = await ExchangeAsync(new JsonObject { ["operation"] = "status" });
                 if (nativeState["state"]?.GetValue<string>() == "active") { state = "active"; reason = ""; return; }
             }
-            nativeState = await ExchangeAsync(new JsonObject { ["operation"] = "configure", ["mode"] = requestedMode, ["rules"] = rules });
+            nativeState = await ExchangeAsync(Configuration(requestedMode, rules, compatibility));
             rulesHash = requestedRulesHash;
             if (ReadManagedIdentity(gameDirectory, storageRoot) != requestedIdentity) throw new UserError("启用期间游戏或汉化状态发生变化");
             managedIdentity = requestedIdentity;
@@ -156,10 +154,13 @@ internal sealed partial class MarketHost : IDisposable {
             if (!GetNamedPipeClientProcessId(server.SafePipeHandle, out uint clientPid) || clientPid != candidate.Id)
                 throw new UserError("市集组件管道连接身份不匹配");
             // Recheck disk state after injection/connection, before enabling any replacement.
-            ValidateManagedGame(gameDirectory, storageRoot, mode);
+            compatibility = ValidateManagedGame(gameDirectory, storageRoot, mode);
+            var handshake = await ExchangeAsync(new JsonObject { ["operation"] = "status" });
+            if (handshake["structureVersion"]?.GetValue<int>() != 1 || handshake["abi"]?.GetValue<string>() != MarketCompatibility.Abi)
+                throw new ResumeUnavailable("游戏加载的是旧版市集组件，请完整重启游戏后生效");
             if (resumeOnly) ValidateResumeState(await ExchangeAsync(new JsonObject { ["operation"] = "status" }), mode);
             // The loaded DLL rejects configure when its retained language or canonical rules differ.
-            nativeState = await ExchangeAsync(new JsonObject { ["operation"] = "configure", ["mode"] = mode, ["rules"] = rules });
+            nativeState = await ExchangeAsync(Configuration(mode, rules, compatibility));
             rulesHash = requestedRulesHash;
             if (ReadManagedIdentity(gameDirectory, storageRoot) != requestedIdentity) throw new UserError("启用期间游戏或汉化状态发生变化");
             managedIdentity = requestedIdentity;
@@ -178,12 +179,18 @@ internal sealed partial class MarketHost : IDisposable {
         return loadedPath == null;
     }
     private static void ValidateResumeState(JsonObject snapshot, string requestedMode) {
+        if (snapshot["structureVersion"]?.GetValue<int>() != 1 || snapshot["abi"]?.GetValue<string>() != MarketCompatibility.Abi)
+            throw new ResumeUnavailable("游戏加载的是旧版市集组件，请完整重启游戏后生效");
         string? retainedMode = snapshot["mode"] is JsonValue modeValue && modeValue.TryGetValue<string>(out var text) ? text : null;
         string? retainedState = snapshot["state"] is JsonValue stateValue && stateValue.TryGetValue<string>(out var stateText) ? stateText : null;
         if (retainedMode is not ("simplified" or "traditional") || retainedState is not ("active" or "disabled") || snapshot["hits"] is not JsonObject)
             throw new ResumeUnavailable("游戏中没有可接续的市集翻译状态，请重启游戏后重试");
         if (retainedMode != requestedMode) throw new UserError("当前游戏缓存的市集语言与助手不一致，请重启游戏后重试");
     }
+
+    private static JsonObject Configuration(string requestedMode, JsonArray rules, JsonObject compatibility) => new() {
+        ["operation"] = "configure", ["mode"] = requestedMode, ["rules"] = rules.DeepClone(), ["compatibility"] = compatibility.DeepClone()
+    };
 
     private async Task RefreshAsync() {
         if (pipe == null || gameProcess == null) return;
@@ -315,6 +322,9 @@ internal sealed partial class MarketHost : IDisposable {
                 if (key is "id" or "source") identity = true; else translation = true;
             }
             if (!identity || !translation) throw new UserError("市集翻译条目缺少身份或译文");
+            if (section is "stats" or "items" && !IsFixedLabel(section, displayField, rule["id"]?.GetValue<string>()) &&
+                (!rule.ContainsKey("source") || section == "stats" && !rule.ContainsKey("id")))
+                throw new UserError("市集动态词库缺少精确原文证据，请更新完整目录");
             if (rule.ContainsKey("reverse")) {
                 if (rule["reverse"] is not JsonArray reverse || reverse.Count > 3) throw new UserError("市集搜索映射无效");
                 var fields = new HashSet<string>(StringComparer.Ordinal);
@@ -328,35 +338,45 @@ internal sealed partial class MarketHost : IDisposable {
         if (Utf8.GetByteCount(copy.ToJsonString()) > MaxPacket - 4096) throw new UserError("市集翻译词库过大");
         return copy;
     }
+    private static bool IsFixedLabel(string section, string field, string? id) => field == "label" &&
+        (section == "stats" && id is "pseudo" or "explicit" or "implicit" or "fractured" or "crafted" or "enchant" or "veiled" or "monster" or "crucible" or "necropolis" or "scourge"
+        || section == "items" && id is "weapon" or "armour" or "accessory" or "gem" or "jewel" or "flask" or "map" or "currency" or "card");
 
-    private static void ValidateManagedGame(string game, string storage, string expectedMode) {
+    private static JsonObject ValidateManagedGame(string game, string storage, string expectedMode) {
         string steamapps = Directory.GetParent(game)?.Parent?.FullName ?? "";
         if (Directory.GetParent(game)?.Name != "common" || Path.GetFileName(steamapps) != "steamapps") throw new UserError("仅支持 Steam 国际服游戏目录");
         if (SamePath(game, storage) || storage.StartsWith(game + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new UserError("汉化缓存不能位于游戏目录内");
         string manifest = Path.Combine(steamapps, "appmanifest_238960.acf"), executable = Path.Combine(game, "PathOfExileSteam.exe");
         OrdinaryPath(manifest); OrdinaryPath(executable);
         string manifestText = ReadSmallText(manifest, 1024 * 1024);
-        ValidateManifest(manifestText, Path.GetFileName(game));
+        string build = ValidateManifest(manifestText, Path.GetFileName(game));
         RequireX64Image(executable);
-        if (HashFile(executable) != SupportedHash) throw new UserError("市集翻译尚不支持当前游戏可执行文件版本");
+        if (new FileInfo(executable).Length > 268435456) throw new UserError("市集结构无法确认兼容，游戏可执行文件大小超出支持范围");
+        var compatibility = MarketCompatibility.Resolve(File.ReadAllBytes(executable), LoadCompatibilityProfile());
         string journal = Path.Combine(storage, "transaction.json"), activeFile = Path.Combine(storage, "transaction-active.json"), index = Path.Combine(game, "Bundles2", "_.index.bin");
         if (File.Exists(journal)) throw new UserError("汉化事务尚未完成，不能启用市集翻译");
         OrdinaryPath(activeFile); OrdinaryPath(index);
         string activeText = ReadSmallText(activeFile, 1024 * 1024);
         var active = JsonNode.Parse(activeText)?.AsObject() ?? throw new UserError("受管汉化状态无效");
         string activeMode = active.ContainsKey("mode") ? RequiredString(active, "mode", 32) : "simplified";
-        if (active["version"]?.GetValue<int>() != 1 || active["buildId"]?.GetValue<string>() != SupportedBuild || activeMode != expectedMode
+        if (active["version"]?.GetValue<int>() != 1 || active["buildId"]?.GetValue<string>() != build || activeMode != expectedMode
             || !Regex.IsMatch(active["releaseId"]?.GetValue<string>() ?? "", "^[a-zA-Z0-9._-]{1,120}$")) throw new UserError("请先完成对应简繁模式的受管汉化");
         string expectedHash = RequiredString(active, "outputHash", 64);
         if (!Regex.IsMatch(expectedHash, "^[a-f0-9]{64}$") || HashFile(index) != expectedHash) throw new UserError("游戏资源与受管汉化状态不符，请重新切换语言");
         if (File.Exists(journal) || ReadSmallText(activeFile, 1024 * 1024) != activeText || ReadSmallText(manifest, 1024 * 1024) != manifestText)
             throw new UserError("核对期间游戏或汉化状态发生变化");
+        compatibility["buildId"] = build;
+        return compatibility;
     }
-    private static void ValidateManifest(string text, string directoryName) {
+    private static string ValidateManifest(string text, string directoryName) {
         static string Read(string text, string key) => Regex.Match(text, "\"" + Regex.Escape(key) + "\"\\s+\"([^\"]*)\"", RegexOptions.CultureInvariant).Groups[1].Value;
-        if (Read(text, "appid") != "238960" || Read(text, "installdir") != directoryName || Read(text, "buildid") != SupportedBuild || Read(text, "StateFlags") != "4")
-            throw new UserError("市集翻译仅支持已验证的 Steam Build 26673341，请等待对应版本适配");
+        string build = Read(text, "buildid");
+        if (Read(text, "appid") != "238960" || Read(text, "installdir") != directoryName || !Regex.IsMatch(build,"^[0-9]{1,20}$") || Read(text, "StateFlags") != "4")
+            throw new UserError("市集翻译需要完整的 Steam 国际服安装，游戏更新完成后重试");
+        return build;
     }
+    private static JsonObject LoadCompatibilityProfile() => JsonNode.Parse(ReadSmallText(Path.Combine(AppContext.BaseDirectory,"market-compatibility.json"),256 * 1024))?.AsObject()
+        ?? throw new UserError("市集结构兼容基准缺失，请重新安装完整组件");
     private static string ReadSmallText(string path, int maximum) {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (stream.Length > maximum) throw new UserError("市集组件校验文件过大");
@@ -502,7 +522,7 @@ internal sealed partial class MarketHost : IDisposable {
         Require(!ShouldInject(true, ownDll, ownDll)); cases++;
         Reject(() => ShouldInject(true, null, ownDll));
         Reject(() => ShouldInject(true, Path.Combine(Path.GetTempPath(), "other-market", "MarketLocalizationHook.dll"), ownDll));
-        var retained = new JsonObject { ["state"] = "disabled", ["mode"] = "simplified", ["hits"] = new JsonObject() };
+        var retained = new JsonObject { ["state"] = "disabled", ["mode"] = "simplified", ["hits"] = new JsonObject(), ["structureVersion"] = 1, ["abi"] = MarketCompatibility.Abi };
         ValidateResumeState(retained, "simplified"); cases++;
         retained["state"] = "active"; ValidateResumeState(retained, "simplified"); cases++;
         Reject(() => ValidateResumeState(retained, "traditional"));
@@ -510,9 +530,10 @@ internal sealed partial class MarketHost : IDisposable {
         Reject(() => ValidateResumeState(new JsonObject { ["state"] = "unknown", ["mode"] = "simplified", ["hits"] = new JsonObject() }, "simplified"));
         Reject(() => ValidateResumeState(new JsonObject { ["state"] = "disabled", ["mode"] = "simplified" }, "simplified"));
         resumeCases = cases - beforeResume;
-        const string manifest = "\"appid\" \"238960\" \"installdir\" \"Path of Exile\" \"buildid\" \"26673341\" \"StateFlags\" \"4\"";
+        const string manifest = "\"appid\" \"238960\" \"installdir\" \"Path of Exile\" \"buildid\" \"26694821\" \"StateFlags\" \"4\"";
         ValidateManifest(manifest, "Path of Exile"); cases++;
-        Reject(() => ValidateManifest(manifest.Replace("26673341", "26673342"), "Path of Exile"));
+        Require(ValidateManifest(manifest.Replace("26694821", "26673342"), "Path of Exile") == "26673342"); cases++;
+        Reject(() => ValidateManifest(manifest.Replace("26694821", "unknown"), "Path of Exile"));
         Reject(() => ValidateManifest(manifest.Replace("\"4\"", "\"6\""), "Path of Exile"));
         using var packet = new MemoryStream();
         WritePacketAsync(packet, new JsonObject { ["operation"] = "configure", ["rules"] = rule.DeepClone() }, CancellationToken.None).GetAwaiter().GetResult();
@@ -537,7 +558,10 @@ internal sealed partial class MarketHost : IDisposable {
             pipeSecurityCases = MarketPipe.SelfTest();
             cases += pipeSecurityCases;
         }
-        return new { passed = true, cases, pipeSecurityCases, resumeCases, buildId = SupportedBuild, executableSha256 = SupportedHash };
+        int structureCases = MarketCompatibility.SelfTest();
+        var reference = LoadCompatibilityProfile();
+        return new { passed = true, cases = cases + structureCases, pipeSecurityCases, resumeCases, structureCases,
+            buildId = reference["buildId"]?.GetValue<string>(), executableSha256 = reference["sha256"]?.GetValue<string>() };
     }
 
     private static unsafe bool CheckLocalNativeApi() {

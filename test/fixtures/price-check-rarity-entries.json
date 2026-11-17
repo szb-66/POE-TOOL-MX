@@ -1,0 +1,275 @@
+[
+  {
+    "table": "metadata/statdescriptions/passive_skill_stat_descriptions.csd",
+    "id": "base_strength",
+    "field": "variant:0",
+    "en": "{0:+d} to Strength",
+    "kind": "stat",
+    "sourceHash": "b7a28fec6bb9988b1e7a3169f55ac0fcefd78c68e5487127271e50966cc71ba5",
+    "tw": "{0:+d} 力量",
+    "cn": "{0:+d} 力量",
+    "stats": {
+      "ids": [
+        "base_strength"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_strength",
+    "field": "variant:0",
+    "en": "{0:+d} to Strength",
+    "kind": "stat",
+    "sourceHash": "b7a28fec6bb9988b1e7a3169f55ac0fcefd78c68e5487127271e50966cc71ba5",
+    "tw": "{0:+d} 力量",
+    "cn": "{0:+d} 力量",
+    "stats": {
+      "ids": [
+        "additional_strength"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_item_found_rarity_+%",
+    "field": "variant:0",
+    "en": "{0:+d}% to [PlayerItemRarity|Item Rarity]",
+    "kind": "stat",
+    "sourceHash": "9160f6d1df8978068b265f538e40b9897c1bb8c04db2f6e12ea7b4d289d2e91a",
+    "tw": "{0:+d}%[PlayerItemRarity|物品稀有度]",
+    "cn": "[PlayerItemRarity|物品稀有度] {0:+d}%",
+    "stats": {
+      "ids": [
+        "base_item_found_rarity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾",
+    "stats": {
+      "ids": [
+        "base_maximum_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_implicit_item_drop_rarity_+%",
+    "field": "variant:0",
+    "en": "{0:+d}% Item Rarity",
+    "kind": "stat",
+    "sourceHash": "99a581c381dfc2e5770fc3a9a077d055ccc75df9ae3be291d4b20b1bc5a91415",
+    "tw": "{0:+d}% 物品稀有度",
+    "cn": "物品稀有度 {0:+d}%",
+    "stats": {
+      "ids": [
+        "map_implicit_item_drop_rarity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_all_attributes",
+    "field": "variant:0",
+    "en": "{0:+d} to all Attributes",
+    "kind": "stat",
+    "sourceHash": "3b8ce7b6e361dbeecb0df813169006c437bb21fe6c07f3b667c0e29bf35673b9",
+    "tw": "{0:+d} 全能力",
+    "cn": "{0:+d} 全属性",
+    "stats": {
+      "ids": [
+        "additional_all_attributes"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextAttributes",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_life_regeneration_rate_per_minute",
+    "field": "variant:0",
+    "en": "Regenerate {0} Life per second",
+    "kind": "stat",
+    "sourceHash": "cb9867e9f55504db23779273282885a52380588a0e38996950cdb5924439d1ec",
+    "tw": "{0} 每秒生命回復",
+    "cn": "每秒再生 {0} 生命",
+    "stats": {
+      "ids": [
+        "base_life_regeneration_rate_per_minute"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "per_minute_to_per_second 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "item_found_rarity_+%",
+    "field": "variant:0",
+    "en": "{0:+d}% to [PlayerItemRarity|Item Rarity]",
+    "kind": "stat",
+    "sourceHash": "9160f6d1df8978068b265f538e40b9897c1bb8c04db2f6e12ea7b4d289d2e91a",
+    "tw": "{0:+d}%[PlayerItemRarity|物品稀有度]",
+    "cn": "[PlayerItemRarity|物品稀有度] {0:+d}%",
+    "stats": {
+      "ids": [
+        "item_found_rarity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾",
+    "stats": {
+      "ids": [
+        "local_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "base_life_regeneration_rate_per_minute",
+    "field": "variant:0",
+    "en": "Regenerate {0} Life per second",
+    "kind": "stat",
+    "sourceHash": "cb9867e9f55504db23779273282885a52380588a0e38996950cdb5924439d1ec",
+    "tw": "{0} 每秒生命回復",
+    "cn": "每秒再生 {0} 生命",
+    "stats": {
+      "ids": [
+        "base_life_regeneration_rate_per_minute"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "per_minute_to_per_second 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Amulet6",
+    "field": "Name",
+    "en": "Gold Amulet",
+    "kind": "dat",
+    "sourceHash": "b6d78c8558d4d42c60561f53f5aee748dbdf253aaf0d9d1d3716dad33ccdd710",
+    "tw": "帝金護身符",
+    "cn": "帝金护身符"
+  },
+  {
+    "table": "clientstrings",
+    "id": "CraftingWindowCost",
+    "field": "Text",
+    "en": "cost:",
+    "kind": "dat",
+    "sourceHash": "a3cd05e844e1f87c6f85211d3ca48d5ae752ecbf1005b2c3f5065b8e42a649aa",
+    "tw": "需求：",
+    "cn": "需求: "
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextAttributes",
+    "field": "Text",
+    "en": "(Attributes are Strength, Dexterity, and Intelligence)",
+    "kind": "dat",
+    "sourceHash": "5785e20048004bfa120c8fdd5ff923bf66259f70039d78fe53caa1c47a3ec18a",
+    "tw": "（能力值是指力量、敏捷和智慧）",
+    "cn": "(属性分为力量，敏捷和智慧三种)"
+  }
+]

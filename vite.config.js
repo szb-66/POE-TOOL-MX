@@ -11,6 +11,8 @@ const isNodeTest = Boolean(process.env.NODE_TEST_CONTEXT)
 
 export default defineConfig({
   base: './',
+  // SSR 测试不能改写正在运行的开发服务器依赖缓存。
+  cacheDir: isNodeTest ? path.resolve(__dirname, 'node_modules/.vite-test', String(process.pid)) : undefined,
   plugins: [
     vue(),
     AutoImport({
@@ -54,11 +56,12 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
+    noDiscovery: isNodeTest,
     entries: isNodeTest ? undefined : [
       'index.html',
       'src/domains/dashboard/DashboardView.vue'
     ],
-    include: [
+    include: isNodeTest ? [] : [
       'vue',
       'pinia',
       'vue-router',

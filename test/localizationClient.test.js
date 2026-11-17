@@ -240,7 +240,7 @@ test('客户端国服服务拒绝执行，独立国际服设置不读写另一�
   await international.scan({ gameDirectory: 'chosen-steam' })
   assert.equal(calls, 1)
   assert.equal(fs.existsSync(path.join(cnRoot, 'settings.json')), false)
-  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(internationalRoot, 'settings.json'), 'utf8')), { gameDirectory: 'chosen-steam' })
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(internationalRoot, 'settings.json'), 'utf8')), { gameDirectory: 'chosen-steam', preferredMode: null })
   assert.equal(cn.getStatus().gameDirectory, '')
 })
 

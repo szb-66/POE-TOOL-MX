@@ -5,6 +5,7 @@ import { createLocalizationDictionary } from '../electron/modules/localization/t
 import { createFaustusRuntimeLanguage } from '../electron/modules/faustus/runtimeLanguage.js'
 import { getServer } from '../shared/serverMode.js'
 import { pythonPath } from './helpers/python.js'
+import { readFileSync } from 'node:fs'
 
 // Verbatim BaseItemTypes names from the signed 3.30.0b resource export.
 const entries = [
@@ -25,6 +26,26 @@ const cases = [
   ['強壯的superskean', null],
   ['強壯的Skean_extra', null]
 ]
+
+test('仅剥离有效详细头中位于魔法名称外缘的完整词缀，保留真实底材歧义', () => {
+  const entries = JSON.parse(readFileSync(new URL('./fixtures/crafting-hydra-flask-entries.json', import.meta.url)))
+  const dictionary = createLocalizationDictionary(entries)
+  const item = (name, modifier) => `物品类别: 功能药剂\n稀有度: 魔法\n${name}\n--------\n物品等级: 84\n--------\n{ 后缀属性 "${modifier}" (等阶：1) }`
+  for (const [name, modifier] of [
+    ['九头蛇之宝钻药剂', '九头蛇之'],
+    ['宝钻药剂九头蛇之', '九头蛇之'],
+    ['海星之寶鑽藥劑', '海星之'],
+    ['of the Starfish宝钻药剂', 'of the Starfish']
+  ]) assert.equal(dictionary.resolve(item(name, modifier)).text.split('\n')[2], 'Diamond Flask', name)
+  for (const [name, modifier] of [
+    ['九头蛇之宝钻药剂与九头蛇', '九头蛇之'],
+    ['九头蛇之宝钻药剂', '未知名称'],
+    ['九头蛇之宝钻药剂', '九头蛇'],
+    ['宝钻药剂九头蛇之额外文字', '九头蛇之']
+  ]) assert.throws(() => dictionary.resolve(item(name, modifier)), error => error.code === 'LOCALIZATION_AMBIGUOUS', name)
+  const untrusted = createLocalizationDictionary(entries.map(entry => entry.table === 'mods' ? { ...entry, sourceHash: '0'.repeat(64) } : entry))
+  assert.throws(() => untrusted.resolve(item('九头蛇之宝钻药剂', '九头蛇之')), error => error.code === 'LOCALIZATION_AMBIGUOUS')
+})
 
 test('魔法底材取嵌套名称的唯一最长完整匹配，真实多个底材或词中子串拒绝', () => {
   const dictionary = createLocalizationDictionary(entries)

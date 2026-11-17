@@ -1,0 +1,87 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_dispels_burning_and_ignite_immunity_during_effect",
+    "field": "variant:0",
+    "en": "Immunity to Ignite during Effect\\nRemoves Burning on use",
+    "kind": "stat",
+    "sourceHash": "655fc6cbc5bb2d10637351eba62f9f7bac284792904d2444397275c70f50201c",
+    "tw": "效果持續時間免疫點燃\\n使用時移除燃燒狀態",
+    "cn": "药剂持续期间免疫点燃\\n使用时移除燃烧效果",
+    "stats": {
+      "ids": [
+        "local_flask_dispels_burning_and_ignite_immunity_during_effect"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+%_final",
+    "field": "variant:1",
+    "en": "{0}% less Duration",
+    "kind": "stat",
+    "sourceHash": "689b174f3a548b7278a286a46e7dc2d95e9452302e98843288c86c88a0e83fe7",
+    "tw": "{0}% 更少持續時間",
+    "cn": "持续时间总降 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%_final"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "mods",
+    "id": "FlaskIgniteImmunityDuringEffect3",
+    "field": "Name",
+    "en": "of the Starfish",
+    "kind": "dat",
+    "sourceHash": "6cb7e2e8f3faf1e9b22c652a25a7845548130fd8dd14cc7a04c9a24cb9a5bd78",
+    "tw": "海星之",
+    "cn": "九头蛇之"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Flasks/FlaskUtility1",
+    "field": "Name",
+    "en": "Diamond Flask",
+    "kind": "dat",
+    "sourceHash": "4bcc622243b36c9099eb8adfe1527e745354daa05a4724144ad6f375c85dea44",
+    "tw": "寶鑽藥劑",
+    "cn": "宝钻药剂"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/ItemisedCorpses/HydraMid",
+    "field": "Name",
+    "en": "Hydra",
+    "kind": "dat",
+    "sourceHash": "0815efe9d8ce8046c3845f72b910f153581f25a399849df8c228b939847618d7",
+    "tw": "九頭蛇",
+    "cn": "九头蛇"
+  }
+]

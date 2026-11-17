@@ -125,10 +125,10 @@
     <!-- 物品制作模式：显示物品信息 -->
     <div v-else-if="hasContent" class="overlay-content">
       <div class="item-header">
-        <span :class="rarityClass">{{ itemInfo.name }}</span>
+        <span :class="rarityClass">{{ itemInfo.displayName || itemInfo.name }}</span>
         <div class="item-subheader">
           <span class="item-base">
-            {{ itemInfo.baseName }}{{ itemInfo.level ? '-' + itemInfo.level : '' }}
+            {{ itemInfo.displayBaseName || itemInfo.baseName }}{{ itemInfo.level ? '-' + itemInfo.level : '' }}
           </span>
         </div>
       </div>
@@ -138,7 +138,7 @@
           <div class="implicit-heading">隐式词缀</div>
           <div v-for="(mod, index) in itemInfo.implicitMods" :key="'imp-' + index" class="mod-line"
             :class="{ 'matched-highlight': itemInfo.eldritchImplicitMatch && mod === itemInfo.matchedEldritchText }">
-            <span class="mod-text">{{ mod }}</span>
+            <span class="mod-text">{{ itemInfo.displayImplicitMods?.[index] || mod }}</span>
           </div>
         </div>
         <!-- 详细词缀信息 -->
@@ -148,7 +148,7 @@
             {{ craftingModifierTierLabel(mod) }}
           </span>
           <span v-if="mod.type === 'fractured'" class="fractured-badge">破碎</span>
-          <span class="mod-text">{{ mod.text }}</span>
+          <span class="mod-text">{{ mod.displayText || mod.text }}</span>
           <span class="mod-tags" v-if="mod.tags && mod.tags.length">
             {{ mod.tags.join(', ') }}
           </span>
@@ -158,7 +158,7 @@
         <div v-if="displayedModifiers.length === 0">
           <div v-for="(mod, index) in itemInfo.explicitMods" :key="'exp-' + index" class="mod-line"
             :class="{ 'matched-highlight': isModMatched(mod) }">
-            <span class="mod-text">{{ mod }}</span>
+            <span class="mod-text">{{ itemInfo.displayExplicitMods?.[index] || mod }}</span>
           </div>
         </div>
       </div>

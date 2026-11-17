@@ -2,7 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 
-const profile = { schemaVersion: 1, game: 'poe1', gameVersion: '3.30.0b', validatedInGame: true, buildId: '26673341', sha256: 'a'.repeat(64) }
+export function marketStructureProof() {
+  return { structureVersion: 1, abi: 'poe1-market-json16-msvc-string32-v1',
+    ...Object.fromEntries(['lookup', 'searchBuilder', 'stringCtor', 'stringDtor', 'itemsReader', 'statsReader', 'filtersReader']
+      .map((name, index) => [name, { rva: `0x${(0x1000 + index * 0x100).toString(16)}`, prologue: 'ab'.repeat(64), bodySize: 64, bodySha256: 'b'.repeat(64) }])) }
+}
+const profile = { schemaVersion: 1, game: 'poe1', gameVersion: '3.30.0b', validatedInGame: true, buildId: '26673341', sha256: 'a'.repeat(64), ...marketStructureProof() }
 const hash = text => createHash('sha256').update(text).digest('hex')
 export function marketRuntimeFixture(root) {
   const runtime = path.join(root, '.runtime', 'localization-helper')
@@ -19,5 +24,5 @@ export function marketRuntimeFixture(root) {
 }
 export function successfulMarketRun(file, args, options) {
   if (path.basename(file) === 'MarketLocalizationSelfTest.exe') return { status: 0, stdout: 'market self-test: 23 cases passed\n' }
-  return { status: 0, stdout: JSON.stringify({ marketProtocolVersion: 1, type: 'result', success: true, data: { passed: true, pipeSecurityCases: 4, resumeCases: 4, validatedRules: JSON.parse(options.input).rules.length, buildId: profile.buildId, executableSha256: profile.sha256 } }) }
+  return { status: 0, stdout: JSON.stringify({ marketProtocolVersion: 1, type: 'result', success: true, data: { passed: true, pipeSecurityCases: 4, resumeCases: 4, structureCases: 1, validatedRules: JSON.parse(options.input).rules.length, buildId: profile.buildId, executableSha256: profile.sha256 } }) }
 }

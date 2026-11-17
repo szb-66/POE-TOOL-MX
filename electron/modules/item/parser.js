@@ -238,11 +238,6 @@ export function parseItemInfo(clipboardText) {
     '掉落的地图有几率转换为',
     '产生的区域不受你的异界天赋树影响',
     '只能被使用一次',
-    '不可改变',
-    '已腐化',
-    ...Object.keys(CLASSIC_INFLUENCE_LABELS),
-    '焚界者物品',
-    '灭界者物品',
     '只能使用',
     '无法使用',
     '无法拥有',
@@ -289,6 +284,8 @@ export function parseItemInfo(clipboardText) {
     isClusterJewelDescriptionLine(text) ||
     /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map|Can only (?:be used|hold)|You can only have|This item can be used)/.test(text)
   const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
+  const itemStateLines = new Set(['已腐化', '未鉴定', '不可改变', '已复制', '镜像复制', '已分裂', '分裂物品',
+    '分裂之物', '破碎之物', '破裂物品', 'Fractured Item'])
   const influenceLabels = {
     ...CLASSIC_INFLUENCE_LABELS,
     '忆境物品': 'synthesised',
@@ -329,7 +326,7 @@ export function parseItemInfo(clipboardText) {
       }
       if (/^(?:##\s*)?品质:/.test(line)) itemInfo.quality = Number(line.match(/\d+/)?.[0]) || 0
       if (/^(?:##\s*)?改造$/.test(line)) itemInfo.gemVariant = true
-      if (line.includes('已腐化')) itemInfo.isCorrupted = true
+      if (line === '已腐化') itemInfo.isCorrupted = true
       if (!/^物品类别:|^稀\s*有\s*度:/.test(line)) continue
     }
 
@@ -354,11 +351,11 @@ export function parseItemInfo(clipboardText) {
     if (line.startsWith('{') && line.endsWith('}')) {
       sawAffixHeader = true
       flushModifier()
-      const affixType = /前缀(?:属性|词缀)|Prefix Modifier/i.test(line)
-        ? 'prefix'
-        : (/后缀(?:属性|词缀)|Suffix Modifier/i.test(line) ? 'suffix' : null)
       const headerModifierName = line.match(/"([^"]*)"/)?.[1] || ''
-      const semanticHeader = line.replace(/"[^"]*"/g, '""')
+      const semanticHeader = line.replace(/"[^"]*"/g, '""').split('—')[0]
+      const affixType = /前缀(?:属性|词缀)|Prefix Modifier/i.test(semanticHeader)
+        ? 'prefix'
+        : (/后缀(?:属性|词缀)|Suffix Modifier/i.test(semanticHeader) ? 'suffix' : null)
       if (/秽生|\bFoulborn\b/i.test(semanticHeader)) itemInfo.isMutated = true
       // 当前游戏的详细复制会输出类似“破碎的 后缀属性”。语义来源必须先于
       // 前/后缀位置判断，否则破碎词缀会被错误归为 explicit。
@@ -387,7 +384,8 @@ export function parseItemInfo(clipboardText) {
           const nameMatch = line.match(/"([^"]+)"/);
           const name = nameMatch ? nameMatch[1] : '';
           
-          const tierMatch = line.match(/(?:等阶|等级)[：:]\s*(\d+)|\bTier:\s*(\d+)/i);
+          const tierMatch = semanticHeader.match(/(?:等阶|位阶|等階|位階|階級|階層)[：:]\s*(\d+)|\bTier\s*[：:]\s*(\d+)/i) ||
+            (type === 'crafted' ? semanticHeader.match(/(?:等级|等級|\bLvl)\s*[：:]\s*(\d+)/i) : null);
           const tier = tierMatch ? parseInt(tierMatch[1] || tierMatch[2]) : 0;
           
           const tagsPart = line.split('—')[1];
@@ -428,7 +426,7 @@ export function parseItemInfo(clipboardText) {
         continue
       }
       if (isExplanationLine(line)) continue
-      const boundary = isIgnoredTextLine(line) || line === '未鉴定' || line.includes('已腐化') ||
+      const boundary = isIgnoredTextLine(line) || itemStateLines.has(line) ||
         /^(?:秽生(?:物品)?|Foulborn(?: Item)?)$/i.test(line) ||
         line.includes('(implicit)') || line.includes('(fractured)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
       if (!boundary) {
@@ -477,19 +475,19 @@ export function parseItemInfo(clipboardText) {
     else if (line.startsWith('稀 有 度:') || line.startsWith('稀有度:')) {
       itemInfo.rarity = line.replace(/稀\s*有\s*度:/, '').trim()
     }
-    else if (line === '已腐化' || line.includes('已腐化')) {
+    else if (line === '已腐化') {
       itemInfo.isCorrupted = true
     }
     else if (line === '不可改变') {
       itemInfo.isUnmodifiable = true
     }
-    else if (line === '未鉴定' || line.includes('未鉴定')) {
+    else if (line === '未鉴定') {
       itemInfo.isUnidentified = true
     }
-    else if (line === '已复制' || line.includes('镜像复制')) {
+    else if (line === '已复制' || line === '镜像复制') {
       itemInfo.isMirrored = true
     }
-    else if (line === '已分裂' || line.includes('分裂物品')) {
+    else if (line === '已分裂' || line === '分裂物品') {
       itemInfo.isSplit = true
     }
     else if (line === '分裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {

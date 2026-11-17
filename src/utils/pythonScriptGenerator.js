@@ -232,7 +232,8 @@ def augment_single_affix_if_needed(result):
     refreshed_result = read_current_item()
     if not isinstance(refreshed_result, dict) or refreshed_result.get("error"):
         error_msg = refreshed_result.get("error") if isinstance(refreshed_result, dict) else "无效结果"
-        fail_item_runtime(f"增幅后读取物品信息失败：{error_msg}", "ITEM_READ_FAILED")
+        error_code = refreshed_result.get("errorCode") if isinstance(refreshed_result, dict) else None
+        fail_item_runtime(f"增幅后读取物品信息失败：{error_msg}", error_code or "ITEM_READ_FAILED")
         return False, result
     if refreshed_result.get("unchanged"):
         # 增幅效果尚未反映在文本中：沿用增幅前结果，下一轮循环会重新判定
@@ -364,7 +365,8 @@ def craft_affixes(initial_result=None):
             if not isinstance(read_result, dict) or read_result.get("error"):
                 error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
                 print(f"[错误] 读取物品信息失败: {error_msg}")
-                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+                error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
             if read_result.get("unchanged"):
                 # 文本未变化说明状态未推进：沿用上次结果，仅消耗一次预处理尝试
                 print("[预处理] 物品文本未变化，沿用上次读取结果")
@@ -446,7 +448,8 @@ def craft_affixes(initial_result=None):
             if not isinstance(read_result, dict) or read_result.get("error"):
                 error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
                 print(f"[错误] 读取当前物品失败: {error_msg}")
-                return fail_item_runtime(f"读取当前物品失败：{error_msg}", "ITEM_READ_FAILED")
+                error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
             
             if read_result.get("unchanged"):
                 # 文本未变化：匹配结论与上次一致，沿用上次结果，直接进入下一轮使用通货
@@ -555,7 +558,8 @@ def craft_specialized(initial_result=None):
         read_result = read_current_item(verify_freshness=True)
         if not isinstance(read_result, dict) or read_result.get("error"):
             reason = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
-            return fail_item_runtime(f"${label}后无法读取物品：{reason}", "ITEM_READ_FAILED")
+            error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+            return fail_item_runtime(f"${label}后无法读取物品：{reason}", error_code or "ITEM_READ_FAILED")
         if read_result.get("unchanged"):
             return fail_item_runtime("${isEssence ? '使用精华后物品文本未变化，请检查物品/精华坐标与精华堆叠数量' : '点击工艺按钮后物品文本未变化，请检查物品/按钮坐标与工艺可用性'}", "SPECIALIZED_ITEM_UNCHANGED")
         result = read_result
@@ -660,7 +664,7 @@ def craft_socket_count(target_count):
         # 复制物品并读取；补读不重复使用工匠石
         result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            return fail_item_runtime(f"开孔后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+            return fail_item_runtime(f"开孔后读取当前物品失败：{result.get('error')}", result.get("errorCode") or "ITEM_READ_FAILED")
         
         current_count = result.get("socketsCount", 0)
         if current_count >= target_count:
@@ -699,7 +703,7 @@ def craft_links(target_links):
         # 复制物品并读取；补读不重复使用链结石
         result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            return fail_item_runtime(f"链接后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+            return fail_item_runtime(f"链接后读取当前物品失败：{result.get('error')}", result.get("errorCode") or "ITEM_READ_FAILED")
         
         current_links = result.get("links", 0)
         if current_links >= target_links:
@@ -738,7 +742,7 @@ def craft_colors(target_red, target_green, target_blue):
         # 复制物品并读取；补读不重复使用幻色石
         result = read_current_item(allow_unchanged_text=True)
         if result.get("error"):
-            return fail_item_runtime(f"染色后读取当前物品失败：{result.get('error')}", "ITEM_READ_FAILED")
+            return fail_item_runtime(f"染色后读取当前物品失败：{result.get('error')}", result.get("errorCode") or "ITEM_READ_FAILED")
         
         colors = result.get("socketsColors", {})
         current_red = colors.get("red", 0)
@@ -807,7 +811,7 @@ def craft_eldritch_implicits(initial_result=None):
                 return fail_eldritch_crafting("使用古灵通货失败", "ELDRITCH_CURRENCY_FAILED")
             result = read_current_item(allow_unchanged_text=True)
             if result.get("error"):
-                return fail_eldritch_crafting(f"使用通货后无法读取装备：{result.get('error')}", "ITEM_READ_FAILED")
+                return fail_eldritch_crafting(f"使用通货后无法读取装备：{result.get('error')}", result.get("errorCode") or "ITEM_READ_FAILED")
             if result.get("eldritchImplicitMatch"):
                 target = result.get("matchedEldritchTargetName") or "目标隐式"
                 print(f"[成功] 古灵隐式命中：{target}（第 {iteration} 次）")

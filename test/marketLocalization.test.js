@@ -9,6 +9,7 @@ import { PassThrough, Writable } from 'node:stream'
 import { MarketHostClient, MarketLocalizationService } from '../electron/modules/marketLocalization/service.js'
 import { registerMarketLocalizationHandlers } from '../electron/modules/marketLocalization/ipc.js'
 import { serverChannelFailure } from '../electron/modules/app/serverIpcPolicy.js'
+import { marketStructureProof } from './fixtures/marketRuntime.js'
 
 const flush = () => new Promise(resolve => setImmediate(resolve))
 
@@ -20,12 +21,12 @@ function fixture(t) {
   fs.writeFileSync(executable, 'fixture')
   fs.writeFileSync(path.join(root, 'MarketLocalizationHook.dll'), 'fixture')
   const profilePath = path.join(root, 'market-compatibility.json')
-  fs.writeFileSync(profilePath, JSON.stringify({ schemaVersion: 1, game: 'poe1', buildId: '26673341', gameVersion: '3.30.0b', validatedInGame: true,
-    sha256: 'c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031' }))
+  fs.writeFileSync(profilePath, JSON.stringify({ schemaVersion: 1, game: 'poe1', buildId: '26694821', gameVersion: '3.30.0b', validatedInGame: true,
+    sha256: '7f762cadbe0a7315091e105121010d2f35296db8046294e0bf49aacfff67db3c', ...marketStructureProof() }))
   fs.writeFileSync(path.join(root, 'market-dependencies.json'), JSON.stringify({ protocolVersion: 1,
     dllSha256: createHash('sha256').update('fixture').digest('hex'), profileSha256: createHash('sha256').update(fs.readFileSync(profilePath)).digest('hex') }))
-  const catalog = { schemaVersion: 1, game: 'poe1', sourceLocale: 'fr', buildId: '26673341', gameVersion: '3.30.0b',
-    executableSha256: 'c86e4b153a93e573e7d800dcdf01a79b3392a52f73e29ca48d2bd8297ad28031', localizationReleaseId: 'release-one',
+  const catalog = { schemaVersion: 1, game: 'poe1', sourceLocale: 'fr', buildId: '26694821', gameVersion: '3.30.0b',
+    executableSha256: '7f762cadbe0a7315091e105121010d2f35296db8046294e0bf49aacfff67db3c', localizationReleaseId: 'release-one',
     rules: [{ section: 'filters', field: 'title', id: 'type', cn: '类型筛选', tw: '類型篩選' }] }
   fs.writeFileSync(catalogPath, JSON.stringify(catalog))
   const managed = { mode: 'simplified', gameDirectory: root, resourceVersion: 'release-one', mappingState: 'active' }
@@ -108,7 +109,7 @@ test('市集目录必须包含正确游戏、来源语言、Build、补丁及可
       if (missing) delete f.catalog[field]
       else f.catalog[field] = wrong
       fs.writeFileSync(f.catalogPath, JSON.stringify(f.catalog))
-      await assert.rejects(f.service.enable(), /词库与当前游戏或组件版本不匹配/)
+      await assert.rejects(f.service.enable(), /词库与兼容基准来源不匹配/)
       assert.equal(f.service.getStatus().enabled, false)
       assert.equal(f.timers.size, 0)
       assert.deepEqual(f.calls, [])
@@ -116,8 +117,8 @@ test('市集目录必须包含正确游戏、来源语言、Build、补丁及可
   }
 })
 
-test('简体市集目录绑定当前受管资源版本，陈旧目录和无效版本标识均不启用', async t => {
-  for (const [release, expected] of [['release-old', /汉化资源版本已变化/], [null, /版本标识无效/],
+test('市集目录保留来源版本格式校验，无效版本标识均不启用', async t => {
+  for (const [release, expected] of [[null, /版本标识无效/],
     ['', /版本标识无效/], [42, /版本标识无效/]]) {
     const f = fixture(t)
     f.catalog.localizationReleaseId = release
@@ -126,6 +127,58 @@ test('简体市集目录绑定当前受管资源版本，陈旧目录和无效�
     assert.equal(f.service.getStatus().enabled, false)
     assert.deepEqual(f.calls, [])
   }
+})
+
+test('兼容词库不因当前受管发布版本变化而失效，动态规则必须保留精确原文', async t => {
+  const f = fixture(t)
+  f.catalog.rules.push({ section: 'stats', field: 'text', id: 'explicit.fixture', source: '+#% de dégâts', cn: '伤害提高 #%' })
+  fs.writeFileSync(f.catalogPath, JSON.stringify(f.catalog))
+  f.managed.resourceVersion = 'release-next-game'
+  assert.equal((await f.service.enable()).state, 'waiting')
+  f.processes = [42]; await f.pulse()
+  assert.equal(f.service.getStatus().state, 'active')
+  assert.deepEqual(f.calls[0][1].rules, f.catalog.rules)
+})
+
+test('旧动态目录没有精确原文时停止，不能仅凭稳定ID套用译文', async t => {
+  for (const section of ['stats', 'items']) {
+    const f = fixture(t)
+    f.catalog.rules.push({ section, field: 'text', id: 'fixture', cn: '旧译文' })
+    fs.writeFileSync(f.catalogPath, JSON.stringify(f.catalog))
+    await assert.rejects(f.service.enable(), /动态词库缺少精确原文/)
+    assert.deepEqual(f.calls, [])
+    assert.equal(f.service.getStatus().enabled, false)
+  }
+})
+
+test('固定分类标签可按独立白名单复用，动态标签不能冒充固定分类', async t => {
+  const f = fixture(t)
+  f.catalog.rules.push({ section: 'stats', field: 'label', id: 'pseudo', cn: '综合' }, { section: 'items', field: 'label', id: 'weapon', cn: '武器' })
+  fs.writeFileSync(f.catalogPath, JSON.stringify(f.catalog))
+  assert.equal((await f.service.enable()).state, 'waiting')
+  await f.service.disable()
+  for (const rule of [
+    { section: 'stats', field: 'label', id: 'explicit.stat_fixture', cn: '新效果' },
+    { section: 'stats', field: 'text', id: 'pseudo', cn: '并非分类标签' },
+    { section: 'items', field: 'type', id: 'weapon', cn: '并非分类标签' }
+  ]) {
+    fs.writeFileSync(f.catalogPath, JSON.stringify({ ...f.catalog, rules: [rule] }))
+    await assert.rejects(f.service.enable(), /动态词库缺少精确原文/)
+  }
+})
+
+test('兼容基准缺少任一完整函数指纹时停止，不用前导指纹替代完整结构', async t => {
+  const f = fixture(t)
+  const profilePath = path.join(path.dirname(f.catalogPath), 'market-compatibility.json')
+  const metadataPath = path.join(path.dirname(f.catalogPath), 'market-dependencies.json')
+  const profile = JSON.parse(fs.readFileSync(profilePath, 'utf8'))
+  delete profile.filtersReader.bodySha256
+  fs.writeFileSync(profilePath, JSON.stringify(profile))
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'))
+  metadata.profileSha256 = createHash('sha256').update(fs.readFileSync(profilePath)).digest('hex')
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata))
+  await assert.rejects(f.service.enable(), /兼容资料校验失败/)
+  assert.deepEqual(f.calls, [])
 })
 
 test('native-tw繁体可使用同Build目录，不要求简体签名资源的release一致', async t => {
@@ -205,9 +258,11 @@ test('组件未确认请求的简繁模式和目标PID时不能显示已启用',
 test('版本或冲突失败不重试同一PID，游戏重启后自动开始新会话', async t => {
   const f = fixture(t)
   await f.service.enable(); f.processes = [42]
-  f.nativeError = new Error('尚不支持当前游戏可执行文件版本')
+  const nativeError = new Error('市集结构无法确认兼容：filtersReader 完整指纹不匹配，已停止翻译')
+  f.nativeError = nativeError
   await f.pulse()
   assert.equal(f.service.getStatus().state, 'error')
+  assert.equal(f.service.getStatus().reason, nativeError.message)
   assert.equal(f.service.getStatus().restartRequired, true)
   assert.equal(f.service.getStatus().autoEnabled, true)
   assert.equal(f.timers.size, 1)

@@ -95,6 +95,11 @@ description named_block
         Require(stats.Count==2 && entries.Count==3,"legacy/named description and # variants");
         Require(entries[0]!["cn"]!.GetValue<string>()=="伤害提高 {0}%" && entries[2]!["cn"]==null,"per-entry CN fallback");
         byte[] applied=stats.ApplyEntries(entries);
+        Require(new StatDescriptions(applied).MatchesLegacySource(new StatDescriptions(statBytes)),"legacy stat migration retains all non-TW source text");
+        var changedLegacySource=new StatDescriptions([0xff,0xfe,..Encoding.Unicode.GetBytes(fixture.Replace("\n","\r\n").Replace("increased Damage","increased Armour"))]);
+        Require(!new StatDescriptions(applied).MatchesLegacySource(changedLegacySource),"legacy stat migration rejects changed English source");
+        var changedLegacyMechanic=new StatDescriptions([0xff,0xfe,..Encoding.Unicode.GetBytes(fixture.Replace("\n","\r\n").Replace("negate 1","negate 2"))]);
+        Require(!new StatDescriptions(applied).MatchesLegacySource(changedLegacyMechanic),"legacy stat migration rejects changed numeric handlers");
         string result=Encoding.Unicode.GetString(applied.AsSpan(2));
         string expected=fixture.Replace("\n","\r\n").Replace("增加 {0}% 傷害","伤害提高 {0}%").Replace("減少 {0}% 傷害","伤害降低 {0}%");
         Require(result==expected && stats.LastAppliedCount==2,"only target display templates change");

@@ -20,6 +20,150 @@ function runPython(source) {
   return JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1))
 }
 
+test('制作汉化解析错误只复制一次、保留停止码且不使用通货', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', '# 自动启动制作')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  for (const code of ['LOCALIZATION_AMBIGUOUS', 'LOCALIZATION_UNRESOLVED', 'LOCALIZATION_CHANGED']) {
+    const result = runPython(`
+import json, builtins
+${snippet}
+is_running = True
+fatal_error_reason = None
+item_position = {"x": 1, "y": 2}
+copies = []
+currencies = []
+events = []
+def print(message="", **_kwargs):
+    if str(message).startswith("EVENT "): events.append(json.loads(message[6:]))
+def release_all_keys(): pass
+def play_error_sound(): pass
+def move_mouse(_x, _y): return True
+def apply_currency(currency): currencies.append(currency); return True
+def read_clipboard_to_file(**_kwargs): copies.append(1); return len(copies)
+def wait_for_parse_result(_request_id=None): return {"error": "汉化解析失败", "errorCode": "${code}"}
+result = prepare_item_for_crafting()
+builtins.print(json.dumps({"copies": copies, "currencies": currencies, "events": events, "running": is_running, "result": result}, ensure_ascii=False))
+`)
+    assert.equal(result.copies.length, 1)
+    assert.deepEqual(result.currencies, [])
+    assert.equal(result.running, false)
+    assert.equal(result.events.at(-1).code, code)
+    assert.match(result.events.at(-1).reason, /物品.*汉化/)
+  }
+})
+
+test('制作普通带错误码的解析失败仍补读，成功后不会误停止', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'False')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json
+${snippet}
+is_running = True
+fatal_error_reason = None
+copies = []
+results = [{"error": "结果暂未写完", "errorCode": "ITEM_PARSE_FAILED"}, {"rarity": "魔法"}]
+def read_clipboard_to_file(**_kwargs): copies.append(1); return len(copies)
+def wait_for_parse_result(_request_id=None): return results.pop(0)
+result = read_current_item()
+print(json.dumps({"copies": copies, "result": result, "running": is_running}, ensure_ascii=False))
+`)
+  assert.equal(result.copies.length, 2)
+  assert.equal(result.result.rarity, '魔法')
+  assert.equal(result.running, true)
+})
+
+test('制作收到不完整物品结果时仅补读，恢复后才允许使用且持续缺失时保留解析错误码', () => {
+  const snippet = block(craftingTemplate, 'def fail_item_runtime(', 'def fail_item_preparation(')
+    .replaceAll('{{ENABLE_AFFIX}}', 'True')
+    .replaceAll('{{ENABLE_ELDRITCH}}', 'False')
+  const result = runPython(`
+import json
+${snippet}
+is_running = True
+fatal_error_reason = None
+copies = []
+results = [{}, {"rarity": ""}, {"rarity": "魔法", "affixMatch": True}]
+def read_clipboard_to_file(**_kwargs): copies.append(1); return len(copies)
+def wait_for_parse_result(_request_id=None): return results.pop(0)
+recovered = read_current_item()
+recovered_copies = len(copies)
+results = [{"requestId": 1}, {"requestId": 2}, {"requestId": 3}]
+failed = read_current_item()
+print(json.dumps({"recovered": recovered, "recoveredCopies": recovered_copies, "failed": failed, "copies": len(copies)}))
+`)
+  assert.equal(result.recoveredCopies, 3)
+  assert.equal(result.recovered.affixMatch, true)
+  assert.equal(result.copies, 6)
+  assert.equal(result.failed.errorCode, 'ITEM_PARSE_INCOMPLETE')
+})
+
+test('词缀阶段结束后插槽阶段重读当前物品，不再沿用高阶点金前的插槽达标状态', () => {
+  const snippet = block(craftingTemplate, 'def craft_one_item(', '{{AFFIX_CRAFTING_FUNC}}')
+  const result = runPython(`
+import json
+${snippet}
+crafting_kind = "general"
+reads = []
+sockets = []
+failures = []
+latest = {"rarity": "稀有", "socketMatch": False, "socketsCount": 4}
+def craft_affixes(_initial): return True
+def craft_sockets(item): sockets.append(item); return True
+def read_current_item(**kwargs): reads.append(kwargs); return latest
+def fail_item_runtime(reason, code): failures.append({"reason": reason, "code": code}); return False
+initial = {"rarity": "普通", "socketMatch": True, "socketsCount": 6}
+success = craft_one_item(initial, True, True, False)
+latest = {"error": "词库已改变", "errorCode": "LOCALIZATION_CHANGED"}
+failed = craft_one_item(initial, True, True, False)
+print(json.dumps({"success": success, "failed": failed, "reads": reads, "sockets": sockets, "failures": failures}))
+`)
+  assert.equal(result.success, true)
+  assert.equal(result.failed, false)
+  assert.deepEqual(result.reads, [{ allow_unchanged_text: true }, { allow_unchanged_text: true }])
+  assert.deepEqual(result.sockets, [{ rarity: '稀有', socketMatch: false, socketsCount: 4 }])
+  assert.equal(result.failures[0].code, 'LOCALIZATION_CHANGED')
+})
+
+test('地图汉化解析错误不盲目补读、不当作空格且不重复使用通货', () => {
+  const error = { error: '汉化解析失败', errorCode: 'LOCALIZATION_AMBIGUOUS' }
+  const initial = runInitialTargetRead({ targetKind: 'atlas', category: '地图', copyResults: [1, 2, 3], parsedResults: [error, error, error] })
+  assert.equal(initial.copies.length, 1)
+  assert.equal(initial.result.errorCode, error.errorCode)
+  assert.equal(initial.result.empty, undefined)
+  const processing = runSingleTarget({ targetKind: 'atlas', category: '地图', method: 'alchemy', parsedResults: [error, error, error] })
+  assert.equal(processing.copies.length, 1)
+  assert.deepEqual(processing.currencies, ['alchemy'])
+  assert.equal(processing.result.code, error.errorCode)
+})
+
+test('装备与地图解析结果文件持续为空时有限等待后失败', () => {
+  for (const [template, end] of [[craftingTemplate, 'def fail_item_runtime('], [mapTemplate, 'def get_slot_position(']]) {
+    const snippet = block(template, 'def wait_for_parse_result(', end)
+    const result = runPython(`
+import json, os, tempfile, types
+${snippet}
+with tempfile.TemporaryDirectory() as directory:
+    item_info_file = os.path.join(directory, "item.json")
+    item_info_result_file = os.path.join(directory, "result.json")
+    open(item_info_file, "w").close()
+    open(item_info_result_file, "w").close()
+    is_running = True
+    pending_parse_request_id = 1
+    waits = []
+    def pause(_seconds):
+        waits.append(1)
+        if len(waits) > 105: raise RuntimeError("空结果文件等待超过上限")
+    time = types.SimpleNamespace(sleep=pause)
+    result = wait_for_parse_result(1)
+    print(json.dumps({"result": result, "waits": len(waits)}, ensure_ascii=False))
+`)
+    assert.match(result.result.error, /为空|等待超时/)
+    assert.ok(result.waits <= 101)
+  }
+})
+
 test('装备模板在复制到旧剪贴板内容时不写入解析请求', () => {
   const snippet = block(craftingTemplate, 'def read_clipboard_to_file(', 'def wait_for_parse_result(')
   const result = runPython(`

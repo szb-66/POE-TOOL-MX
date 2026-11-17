@@ -1,0 +1,152 @@
+[
+  {
+    "table": "mods",
+    "id": "AddedFireDamagePerEnduranceChargeInfluence1",
+    "field": "Name",
+    "en": "Warlord's",
+    "kind": "dat",
+    "sourceHash": "30e0523d4dddd8cc0124fd5fb7283555294fdac557f8092f9fe5681fed5dbdb7",
+    "tw": "總督軍的",
+    "cn": "督军的"
+  },
+  {
+    "table": "mods",
+    "id": "CrucibleMapMonsterFreezeChanceAndDuration",
+    "field": "Name",
+    "en": "of Frostbite",
+    "kind": "dat",
+    "sourceHash": "d71f867dec396ec8f67853cd85bb7d15e6d6f60f0726aa16f9dff39964a5e1f6",
+    "tw": "凍傷之",
+    "cn": "霜噬之"
+  },
+  {
+    "table": "mods",
+    "id": "CrucibleMapMonsterPhysicalDamageAddedAsChaosUber",
+    "field": "Name",
+    "en": "of Despair",
+    "kind": "dat",
+    "sourceHash": "500e3eaa7339aa48aa27afca1f85f65712ebac98571359bd2fcc18edf2fe765d",
+    "tw": "絕望之",
+    "cn": "绝望之"
+  },
+  {
+    "table": "mods",
+    "id": "DeepwaterHazardModMineCrit",
+    "field": "Name",
+    "en": "of Precision",
+    "kind": "dat",
+    "sourceHash": "1bdf28b19e4c251e1a18f49eaf48e77c26aee695512e74710830ef751aaea19f",
+    "tw": "精準之",
+    "cn": "精密之"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Gems/SkillGemPrecisionRoyale",
+    "field": "Name",
+    "en": "Precision",
+    "kind": "dat",
+    "sourceHash": "b5d65f0ae389b60297c51acb9d3f3ee1e5b846deeb84a90fd69ccdfadca7c331",
+    "tw": "精準",
+    "cn": "精准"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/ItemisedCorpses/OakMid",
+    "field": "Name",
+    "en": "Warlord",
+    "kind": "dat",
+    "sourceHash": "e0a8b24caf7e5739b8ea607f48f83983da079d6b29f12b9089b067c9518cade1",
+    "tw": "督軍",
+    "cn": "督军"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/Daggers/Dagger7",
+    "field": "Name",
+    "en": "Skean",
+    "kind": "dat",
+    "sourceHash": "6f1665a673e3c12cb76a568f8a6eea483bc2b1ca128f9ba5b8e0b8ac8d099951",
+    "tw": "雙刃匕",
+    "cn": "双刃匕"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Gems/SkillGemFrostbite",
+    "field": "Name",
+    "en": "Frostbite",
+    "kind": "dat",
+    "sourceHash": "28d0ed8f607a57aa58fed191221d4874c9ce0cf3a4d6bd047cebde66b5331f64",
+    "tw": "凍傷",
+    "cn": "冻伤"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Gems/SkillGemVulnerabilityRoyale",
+    "field": "Name",
+    "en": "Despair",
+    "kind": "dat",
+    "sourceHash": "7cb79bf782b9cfe0407b2b92bde5ec1dbcfe71d63fb18ea78b778fd12afc4dae",
+    "tw": "絕望",
+    "cn": "绝望"
+  },
+  {
+    "table": "mods",
+    "id": "DexMasterAddedPhysicalDamageCrafted2",
+    "field": "Name",
+    "en": "Honed",
+    "kind": "dat",
+    "sourceHash": "d3883a64198b63509fcae60f8127f6f98f7e845a5e2e2a56b3da745590870f28",
+    "tw": "砥礪的",
+    "cn": "砥砺的"
+  },
+  {
+    "table": "mods",
+    "id": "IncreasedManaWeapon5",
+    "field": "Name",
+    "en": "Cerulean",
+    "kind": "dat",
+    "sourceHash": "d52340a41917d21e42bac55110e22c7df80a0f694c8593f74d7f347e93364390",
+    "tw": "天藍的",
+    "cn": "天蓝的"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/RingAtlas4",
+    "field": "Name",
+    "en": "Cerulean Ring",
+    "kind": "dat",
+    "sourceHash": "2e84b183e4ab1cd2b2960be9b477c9b9ec2f92efca7c3912063d138500d5ef57",
+    "tw": "碧藍戒指",
+    "cn": "天蓝之戒"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/TwoHandWeapons/TwoHandAxes/TwoHandAxeE2",
+    "field": "Name",
+    "en": "Honed Cleaver",
+    "kind": "dat",
+    "sourceHash": "86a4290257c296a4159b314a8daa8e0154a46ca36a603bd9213f27181f93676e",
+    "tw": "珩磨砍斧",
+    "cn": "磨利砍刀"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/OneHandAxes/OneHandAxe4",
+    "field": "Name",
+    "en": "Cleaver",
+    "kind": "dat",
+    "sourceHash": "e50e0412f836e22ac959ce68ef057acb7a6f6bb2a7ee300c9f40e829036073af",
+    "tw": "切割者",
+    "cn": "切割者"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/MirrorRing",
+    "field": "Name",
+    "en": "Ring",
+    "kind": "dat",
+    "sourceHash": "b3f952e8b6787ce08c5b04c6969fa74919a86c47008d9130cce38483541337b1",
+    "tw": "戒指",
+    "cn": "戒指"
+  }
+]

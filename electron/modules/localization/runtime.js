@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { createLocalizationDictionary, localizationStructureAliases } from './text.js'
 import { parseItemInfo } from '../item/parser.js'
+import { applyCraftingDisplay } from '../item/craftingDisplay.js'
 
 const validEntry = entry => entry?.en && (!entry.sourceHash || entry.sourceHash === createHash('sha256').update(entry.en).digest('hex'))
 
@@ -55,7 +56,8 @@ export class LocalizationRuntime {
   parseItem(source, revision) {
     this.assertRevision(revision)
     const originalText = String(source || '')
-    const canonicalText = this.serverId === 'international' ? this.dictionary.resolve(originalText).text : originalText
+    const resolved = this.serverId === 'international' ? this.dictionary.resolve(originalText) : { text: originalText }
+    const canonicalText = resolved.text
     const item = parseItemInfo(canonicalText)
     if (!item) return item
     if (this.serverId === 'international' && ['异界地图', '地图'].includes(item.category) && item.baseName === '地图') {
@@ -64,23 +66,12 @@ export class LocalizationRuntime {
       item.baseName = header.filter(line => line.trim() && !/[:：]/.test(line)).at(-1)?.trim() || item.baseName
     }
     if (this.serverId === 'international' && item.rarity === '魔法') {
-      const name = String(item.baseName || item.name || '').toLowerCase()
-      const candidates = new Map()
-      for (const base of new Set([...this.baseNames(), ...Object.values(this.value.nameAliases)])) {
-        const normalized = String(base).toLowerCase()
-        if (!normalized) continue
-        for (let start = name.indexOf(normalized); start >= 0; start = name.indexOf(normalized, start + 1)) {
-          const end = start + normalized.length
-          if (!/[\p{L}\p{N}]$/u.test(name.slice(0, start)) && !/^[\p{L}\p{N}]/u.test(name.slice(end))) {
-            candidates.set(normalized, String(base))
-            break
-          }
-        }
-      }
-      const longest = Math.max(0, ...[...candidates.keys()].map(value => value.length))
-      const matches = [...candidates].filter(([value]) => value.length === longest)
-      if (matches.length > 1) throw new Error('魔法物品底材存在多个候选，已停止制作')
-      if (matches.length === 1) item.baseName = matches[0][1]
+      const lines = canonicalText.split(/\r?\n/)
+      const separator = lines.findIndex(line => /^-{3,}$/.test(line.trim()))
+      const names = lines.slice(0, separator).filter(line => line.trim() && !/[:：]/.test(line))
+      // 独立底材行已由身份解析确认，不能再次把底材自身的词剥成词缀。
+      item.baseName = resolved.magicBaseName || this.dictionary.resolveMagicBaseName(
+        item.baseName || item.name, names.length > 1 ? [] : lines, this.baseNames())
     }
     item.originalText = originalText
     item.canonicalText = canonicalText
@@ -89,13 +80,18 @@ export class LocalizationRuntime {
       for (const modifier of item.modifiers || []) {
         modifier.textAliases = this.dictionary.aliasesFor(modifier.text)
         const originalName = modifier.name
-        modifier.name = this.dictionary.toEnglish(modifier.name)
+        try {
+          modifier.name = this.dictionary.toEnglish(modifier.name)
+        } catch (error) {
+          // 名称不是效果身份；同名翻译保留原文，不能任取候选影响匹配。
+          if (error.code !== 'LOCALIZATION_AMBIGUOUS') throw error
+        }
         modifier.nameAliases = [...new Set([originalName, ...this.dictionary.aliasesFor(modifier.name)])]
       }
       for (const text of [...(item.explicitMods || []), ...(item.implicitMods || []), ...(item.craftedMods || [])]) {
         item.modTextAliases[text] = this.dictionary.aliasesFor(text)
       }
     }
-    return item
+    return applyCraftingDisplay(item, { source: originalText, lineMappings: resolved.lineMappings, dictionary: this.dictionary })
   }
 }

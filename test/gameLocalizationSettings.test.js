@@ -134,6 +134,25 @@ test('重开页面保留已验证汉化状态，外部修改使旧扫描失效�
   assert.match(view.text(view.root), /汉化状态已切换繁体/)
 })
 
+test('跨版本保留选择单独展示，尚未重新应用不展示成功，缓存复用标明来源', async t => {
+  let emitState
+  const initial = { helperAvailable: true, preferredMode: 'simplified', mode: null, mappingState: 'none', scan: { gameVersion: '3.30.0b', applied: false } }
+  const view = mountSettings({
+    status: async () => ({ success: true, data: initial }),
+    onState: callback => { emitState = callback; return () => {} }
+  })
+  t.after(() => view.app.unmount())
+  await flush()
+  assert.match(view.text(view.root), /语言选择简体（跨版本保留）/)
+  assert.match(view.text(view.root), /已保留语言选择，等待重新应用/)
+  assert.doesNotMatch(view.text(view.root), /已切换简体，可以启动游戏/)
+  emitState({ ...initial, mode: 'simplified', sourceGameVersion: '3.29.3b', resourceWarning: '资源服务暂不可用，已复用本地 3.29.3b 词库', scan: { ...initial.scan, applied: true } })
+  await Vue.nextTick()
+  assert.match(view.text(view.root), /已切换简体，可以启动游戏/)
+  assert.match(view.text(view.root), /词库来源版本3\.29\.3b/)
+  assert.match(view.text(view.root), /资源服务暂不可用，已复用本地/)
+})
+
 test('市集翻译位于语言按钮下方，开关保持后台偏好且不展示常态说明', async t => {
   const calls = []
   let emitMarket

@@ -31,6 +31,7 @@ test('汉化退出等待原生操作及词库激活完成，并拒绝新操作',
   })
   // Replace only directory selection; apply, activation and shutdown remain real.
   service.selectedGame = () => ({ gameDirectory: 'unused' })
+  service.saveSettings = () => {}
   const pending = service.apply({ gameDirectory: 'unused' })
   await flush()
   const shutdown = service.shutdown().then(() => calls.push('shutdown'))

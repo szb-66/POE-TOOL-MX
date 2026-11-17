@@ -52,7 +52,7 @@ function parsedFracturedMagicModifier() {
   ].join('\n')))
 }
 
-test('改造模式在前两次解析失败时最多补读到第三次，不重复使用通货', async () => {
+test('改造模式区分汉化错误与瞬态解析失败，补读不重复使用通货且保留停止码', async () => {
   const server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'silent' })
   try {
     const { generatePythonScript } = await server.ssrLoadModule('/src/utils/python.js')
@@ -106,6 +106,7 @@ def run(initial, queue):
     pending = list(queue)
     reads = 0
     stopped = []
+    stopped_codes = []
     def apply(currency):
         applied.append(currency)
         return True
@@ -115,18 +116,19 @@ def run(initial, queue):
         return True
     def wait(_request_id=None):
         return pending.pop(0)
-    def fail(reason, _code="ITEM_READ_FAILED"):
+    def fail(reason, code="ITEM_READ_FAILED"):
         global is_running, fatal_error_reason
         fatal_error_reason = reason
         is_running = False
         stopped.append(reason)
+        stopped_codes.append(code)
         return None
     globals()["apply_currency"] = apply
     globals()["read_clipboard_to_file"] = read
     globals()["wait_for_parse_result"] = wait
     globals()["fail_item_runtime"] = fail
     success = craft_affixes(initial)
-    return {"success": bool(success), "applied": applied, "reads": reads, "stopped": stopped}
+    return {"success": bool(success), "applied": applied, "reads": reads, "stopped": stopped, "stoppedCodes": stopped_codes}
 
 scenarios = json.loads(${JSON.stringify(JSON.stringify(scenarios))})
 print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios], ensure_ascii=False))
@@ -158,7 +160,7 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       ]
     }])
     assert.deepEqual(recovered, [
-      { success: true, applied: ['alteration', 'augmentation'], reads: 3, stopped: [] }
+      { success: true, applied: ['alteration', 'augmentation'], reads: 3, stopped: [], stoppedCodes: [] }
     ])
 
     const failed = runReadRetry([{
@@ -170,8 +172,17 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       ]
     }])
     assert.deepEqual(failed, [
-      { success: false, applied: ['alteration'], reads: 3, stopped: ['读取当前物品失败：等待超时'] }
+      { success: false, applied: ['alteration'], reads: 3, stopped: ['读取当前物品失败：等待超时'], stoppedCodes: ['ITEM_READ_FAILED'] }
     ])
+    const localizedFailure = runReadRetry([{
+      initial: plainSingle,
+      queue: [{ error: '词缀效果无法唯一确定', errorCode: 'LOCALIZATION_AMBIGUOUS' }]
+    }])[0]
+    assert.equal(localizedFailure.success, false)
+    assert.equal(localizedFailure.reads, 1)
+    assert.deepEqual(localizedFailure.applied, ['alteration'])
+    assert.deepEqual(localizedFailure.stoppedCodes, ['LOCALIZATION_AMBIGUOUS'])
+    assert.match(localizedFailure.stopped[0], /当前物品汉化解析失败/)
   } finally {
     await server.close()
   }

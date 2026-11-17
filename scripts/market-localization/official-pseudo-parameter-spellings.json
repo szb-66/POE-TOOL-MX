@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "game": "poe1",
+  "sourceEnglishSha256": "5ed9943503c37b475e531831ea52441daaf848d9103ac251fd3c44357ff9199c",
+  "sourceFrenchSha256": "4e806124516e249d36b85af6a39c4f187b0a65d34b4b198e4dd1a7c188fc503b",
+  "note": "Reviewed exact official ID/English/French triples. These 24 rows spell one numeric placeholder as X; no global substitution is permitted.",
+  "entries": [
+    {
+      "id": "pseudo.pseudo_total_mana",
+      "en": "+# total maximum Mana",
+      "fr": "+X au Mana maxi au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_energy_shield",
+      "en": "+# total maximum Energy Shield",
+      "fr": "+X au Bouclier d'énergie maxi au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_gem_levels",
+      "en": "+# total to Level of Socketed Gems",
+      "fr": "+X au Niveau des Gemmes enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_elemental_gem_levels",
+      "en": "+# total to Level of Socketed Elemental Gems",
+      "fr": "+X au Niveau des Gemmes élémentaires enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_fire_gem_levels",
+      "en": "+# total to Level of Socketed Fire Gems",
+      "fr": "+X au Niveau des Gemmes de feu enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_cold_gem_levels",
+      "en": "+# total to Level of Socketed Cold Gems",
+      "fr": "+X au Niveau des Gemmes de froid enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_lightning_gem_levels",
+      "en": "+# total to Level of Socketed Lightning Gems",
+      "fr": "+X au Niveau des Gemmes de foudre enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_chaos_gem_levels",
+      "en": "+# total to Level of Socketed Chaos Gems",
+      "fr": "+X au Niveau des Gemmes de chaos enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_spell_gem_levels",
+      "en": "+# total to Level of Socketed Spell Gems",
+      "fr": "+X au Niveau des Gemmes de sort enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_projectile_gem_levels",
+      "en": "+# total to Level of Socketed Projectile Gems",
+      "fr": "+X au Niveau des Gemmes de projectile enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_bow_gem_levels",
+      "en": "+# total to Level of Socketed Bow Gems",
+      "fr": "+X au Niveau des Gemmes d'arc enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_melee_gem_levels",
+      "en": "+# total to Level of Socketed Melee Gems",
+      "fr": "+X au Niveau des Gemmes de mêlée enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_minion_gem_levels",
+      "en": "+# total to Level of Socketed Minion Gems",
+      "fr": "+X au Niveau des Gemmes de créature enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_strength_gem_levels",
+      "en": "+# total to Level of Socketed Strength Gems",
+      "fr": "+X au Niveau des Gemmes de Force enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_dexterity_gem_levels",
+      "en": "+# total to Level of Socketed Dexterity Gems",
+      "fr": "+X au Niveau des Gemmes de Dextérité enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_intelligence_gem_levels",
+      "en": "+# total to Level of Socketed Intelligence Gems",
+      "fr": "+X au Niveau des Gemmes d'Intelligence enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_aura_gem_levels",
+      "en": "+# total to Level of Socketed Aura Gems",
+      "fr": "+X au Niveau des Gemmes d'aura enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_movement_gem_levels",
+      "en": "+# total to Level of Socketed Movement Gems",
+      "fr": "+X au Niveau des Gemmes de déplacement enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_curse_gem_levels",
+      "en": "+# total to Level of Socketed Curse Gems",
+      "fr": "+X au Niveau des Gemmes de malédiction enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_vaal_gem_levels",
+      "en": "+# total to Level of Socketed Vaal Gems",
+      "fr": "+X au Niveau des Gemmes vaal enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_support_gem_levels",
+      "en": "+# total to Level of Socketed Support Gems",
+      "fr": "+X au Niveau des Gemmes de soutien enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_skill_gem_levels",
+      "en": "+# total to Level of Socketed Skill Gems",
+      "fr": "+X au Niveau des Gemmes d'aptitude enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_warcry_gem_levels",
+      "en": "+# total to Level of Socketed Warcry Gems",
+      "fr": "+X au Niveau des Gemmes de cri de guerre enchâssées au total"
+    },
+    {
+      "id": "pseudo.pseudo_total_additional_golem_gem_levels",
+      "en": "+# total to Level of Socketed Golem Gems",
+      "fr": "+X au Niveau des Gemmes de golem enchâssées au total"
+    }
+  ]
+}

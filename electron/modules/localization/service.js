@@ -22,8 +22,18 @@ export class LocalizationService extends EventEmitter {
     this.active = null
     this.ready = serverId === 'international' ? this.downloader.load('ready.json') : null
     this.pending = null
-    this.state = { supported: serverId === 'international', busy: false, closing: false, phase: '', mode: null, targetMode: null, gameDirectory: '', games: [], scan: null, update: null, progress: null, error: '', mappingState: 'none', mappingWarning: '' }
-    try { this.state.gameDirectory = String(JSON.parse(fs.readFileSync(path.join(storageRoot, 'settings.json'), 'utf8')).gameDirectory || '') } catch { /* 首次使用不扫描、不联网 */ }
+    this.state = { supported: serverId === 'international', busy: false, closing: false, phase: '', mode: null, preferredMode: null, targetMode: null, gameDirectory: '', games: [], scan: null, update: null, progress: null, error: '', resourceWarning: '', mappingState: 'none', mappingWarning: '' }
+    let settings = {}
+    try { settings = JSON.parse(fs.readFileSync(path.join(storageRoot, 'settings.json'), 'utf8')) } catch { /* 首次使用不扫描、不联网 */ }
+    this.state.gameDirectory = String(settings.gameDirectory || '')
+    if (['simplified', 'traditional'].includes(settings.preferredMode)) this.state.preferredMode = settings.preferredMode
+    else if (settings.preferredMode === undefined && serverId === 'international') {
+      // Legacy transactions retain the user's choice even when their Steam build is no longer active.
+      try {
+        const previous = JSON.parse(fs.readFileSync(path.join(storageRoot, 'transaction-active.json'), 'utf8'))
+        if (previous.version === 1 && (previous.mode === undefined || ['simplified', 'traditional'].includes(previous.mode))) this.state.preferredMode = previous.mode || 'simplified'
+      } catch { /* 没有历史选择 */ }
+    }
     this.refreshActiveValidation()
   }
   refreshActiveValidation() {
@@ -39,7 +49,7 @@ export class LocalizationService extends EventEmitter {
   getActiveRevision() { this.refreshActiveValidation(); return this.active?.manifest.releaseId || '' }
   getStatus() {
     this.refreshActiveValidation()
-    return structuredClone({ ...this.state, helperAvailable: this.helper.available(), resourceVersion: this.getActiveRevision(), readyVersion: this.ready?.manifest.releaseId || '', sourceGameVersion: this.ready?.manifest.gameVersion || this.active?.manifest.gameVersion || '', entryCount: this.active?.entries.length || 0 })
+    return structuredClone({ ...this.state, helperAvailable: this.helper.available(), resourceVersion: this.getActiveRevision(), readyVersion: this.ready?.manifest.releaseId || '', sourceGameVersion: this.active?.manifest.gameVersion || this.ready?.manifest.gameVersion || '', entryCount: this.active?.entries.length || 0 })
   }
   publish(patch = {}) { Object.assign(this.state, patch); const state = this.getStatus(); this.emit('state', state); return state }
   requireInternational() { if (this.serverId !== 'international') throw new Error('游戏汉化仅适用于国际服 Steam 客户端') }
@@ -67,11 +77,14 @@ export class LocalizationService extends EventEmitter {
     await this.helper.waitForIdle?.()
   }
   progress = value => this.publish({ progress: value })
+  saveSettings() {
+    writeJsonAtomic(path.join(this.storageRoot, 'settings.json'), { gameDirectory: this.state.gameDirectory, preferredMode: this.state.preferredMode })
+  }
   selectedGame(input) {
     const directory = String(input?.gameDirectory || this.state.gameDirectory || '')
     const game = this.inspect(directory)
     this.state.gameDirectory = game.gameDirectory
-    writeJsonAtomic(path.join(this.storageRoot, 'settings.json'), { gameDirectory: game.gameDirectory })
+    this.saveSettings()
     return game
   }
   helperInput(game, bundle = this.ready || this.active) {
@@ -137,10 +150,11 @@ export class LocalizationService extends EventEmitter {
     })
   }
   async apply(input = {}) {
-    const mode = input?.mode === undefined ? 'simplified' : input.mode
+    const mode = input?.mode === undefined ? this.state.preferredMode || 'simplified' : input.mode
     if (!['simplified', 'traditional'].includes(mode)) throw new Error('请选择简体或繁体模式')
     return this.perform('scan', async () => {
-      this.publish({ targetMode: mode })
+      const cachedReleaseIds = [...new Set([this.ready, this.activeCandidate].filter(Boolean).map(value => value.manifest.releaseId))]
+      this.publish({ targetMode: mode, resourceWarning: '' })
       let game = await this.scanGame(input, true)
       if (this.state.scan?.recoveryNeeded) {
         this.publish({ phase: 'restore', progress: null })
@@ -153,15 +167,31 @@ export class LocalizationService extends EventEmitter {
       let bundle = gameVersion && !['unknown', 'unverified'].includes(gameVersion) ? [this.ready, this.active].find(value => value && value.manifest.gameVersion === gameVersion) || null : null
       if (mode === 'simplified') {
         this.publish({ phase: 'check', progress: null })
-        const update = await this.downloader.check()
-        this.publish({ update })
-        if (update.missingObjects > 0) this.publish({ phase: 'download', progress: null })
-        // A fully cached release still needs signature/object checks and a ready.json commit.
-        const download = await this.downloader.download(this.progress)
-        this.ready = this.downloader.load('ready.json')
-        if (!this.ready || this.ready.manifest.releaseId !== update.releaseId) throw new Error('下载的翻译资源校验失败，未应用汉化')
-        bundle = this.ready
-        this.publish({ download, update: { ...update, downloadBytes: 0, missingObjects: 0 } })
+        try {
+          const update = await this.downloader.check()
+          this.publish({ update })
+          if (update.missingObjects > 0) this.publish({ phase: 'download', progress: null })
+          // A fully cached release still needs signature/object checks and a ready.json commit.
+          const download = await this.downloader.download(this.progress)
+          this.ready = this.downloader.load('ready.json')
+          if (!this.ready || this.ready.manifest.releaseId !== update.releaseId) throw new Error('下载的翻译资源校验失败，未应用汉化')
+          bundle = this.ready
+          this.publish({ download, update: { ...update, downloadBytes: 0, missingObjects: 0 } })
+        } catch (error) {
+          if (error.code !== 'LOCALIZATION_RESOURCE_UNAVAILABLE') throw error
+          // Reload signed data from disk; a remembered in-memory bundle is not proof that its cache is intact.
+          bundle = this.downloader.load('ready.json') || this.downloader.load()
+          for (const releaseId of cachedReleaseIds) {
+            if (bundle) break
+            bundle = this.downloader.loadRevision?.(releaseId)
+          }
+          if (!bundle) throw error
+          this.ready = bundle
+          this.publish({ resourceWarning: `资源服务暂不可用，已复用本地 ${bundle.manifest.gameVersion} 词库；仅应用与当前游戏匹配的译文，未匹配内容保留繁体或英文。`, download: { releaseId: bundle.manifest.releaseId, downloadedBytes: 0, downloadedObjects: 0 }, update: null })
+        }
+        if (!this.state.resourceWarning && gameVersion && !['unknown', 'unverified', bundle.manifest.gameVersion].includes(gameVersion)) {
+          this.publish({ resourceWarning: `已复用 ${bundle.manifest.gameVersion} 词库；仅应用与当前游戏匹配的译文，未匹配内容保留繁体或英文。` })
+        }
       }
       this.publish({ phase: 'apply', progress: null })
       // Steam or the game may have started while resources were downloading.
@@ -175,6 +205,8 @@ export class LocalizationService extends EventEmitter {
         throw new Error('游戏已应用的语言模式或资源版本与本次请求不一致，请重试切换游戏语言以确认状态')
       }
       this.reconcileApplied(scan)
+      this.state.preferredMode = mode
+      this.saveSettings()
       return this.publish({ scan })
     })
   }
@@ -184,7 +216,9 @@ export class LocalizationService extends EventEmitter {
       const scan = await this.helper.run('restore', this.helperInput(game, null), this.progress)
       if (scan?.restored !== true && scan?.applied !== false) throw new Error('汉化组件未确认原版恢复完成，请重试恢复原版以确认状态')
       this.clearActive()
-      Object.assign(this.state, { mappingState: 'none', mappingWarning: '' })
+      this.state.preferredMode = null
+      this.saveSettings()
+      Object.assign(this.state, { mappingState: 'none', mappingWarning: '', resourceWarning: '' })
       return this.publish({ scan })
     })
   }

@@ -806,6 +806,8 @@ def wait_for_parse_result(request_id=None):
                 if not content:
                     time.sleep(parse_result_poll_interval_seconds)
                     wait_count += 1
+                    if wait_count > max_wait:
+                        return {"error": "等待超时，结果文件为空"}
                     continue
                 result = json.loads(content)
                 if expected_request_id is not None and result.get("requestId") != expected_request_id:
@@ -937,6 +939,7 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
     if verify_freshness is None:
         verify_freshness = not allow_unchanged_text
     last_error = "无法读取当前目标"
+    last_error_code = ""
     copied_any = False
     saw_unchanged = False
     last_dispatched = False
@@ -953,10 +956,17 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
             last_dispatched = False
             saw_unchanged = True
             last_error = "剪贴板文本未变化"
+            last_error_code = ""
         elif request_id:
             copied_any = True
             last_dispatched = True
             result = wait_for_parse_result(request_id)
+            if not isinstance(result, dict):
+                result = {"error": "无效解析结果"}
+            last_error_code = str(result.get("errorCode") or "")
+            if result.get("error") and last_error_code.startswith("LOCALIZATION_"):
+                last_error = f"当前{rolling_target_label()}汉化解析失败：{result.get('error')}"
+                break
             if not result.get("error") and item_matches_rolling_target(result):
                 if operation_logger:
                     operation_logger("confirmation", "read-current-item", "confirmed", summary=f"当前{rolling_target_label()}读取并解析成功")
@@ -971,6 +981,7 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
         else:
             last_dispatched = False
             last_error = fatal_error_reason or "复制当前目标失败"
+            last_error_code = ""
         if attempt + 1 < attempts and is_running:
             print(f"  > [重试] {last_error}，重新复制当前格（不重复使用通货）")
     if saw_unchanged and not copied_any:
@@ -983,8 +994,8 @@ def read_current_rolling_target(x, y, attempts=3, allow_unchanged_text=False, em
             operation_logger("confirmation", "read-current-item", "failed", "ROLLING_TARGET_EMPTY", "当前格没有可读取目标")
         return {"empty": True}
     if operation_logger:
-        operation_logger("confirmation", "read-current-item", "failed", "ROLLING_TARGET_READ_FAILED", last_error)
-    return {"error": last_error}
+        operation_logger("confirmation", "read-current-item", "failed", last_error_code or "ROLLING_TARGET_READ_FAILED", last_error)
+    return {"error": last_error, **({"errorCode": last_error_code} if last_error_code else {})}
 
 def update_map_recovery_checkpoint(current_col, current_row, processed_count, qualified_count, blacklist_stats, whitelist_stats):
     global current_recovery_checkpoint
@@ -1136,7 +1147,7 @@ def start_map_rolling():
             else:
                 fail_map_runtime(
                     f"当前{target_label}解析失败：{result.get('error')}",
-                    "MAP_PARSE_FAILED"
+                    result.get("errorCode") or "MAP_PARSE_FAILED"
                 )
                 break
             if result.get("error"):
@@ -1214,7 +1225,7 @@ def fill_rare_map_affixes(result, slot_x, slot_y):
         if not isinstance(next_result, dict):
             return {"ok": False, "reason": "崇高石使用后未返回可确认的物品结果", "code": "MAP_EXALTED_READ_FAILED"}
         if next_result.get("error"):
-            return {"ok": False, "reason": next_result.get("error"), "code": next_result.get("code", "MAP_EXALTED_READ_FAILED")}
+            return {"ok": False, "reason": next_result.get("error"), "code": next_result.get("errorCode") or next_result.get("code", "MAP_EXALTED_READ_FAILED")}
         if str(next_result.get("rarity", "")).replace(" ", "") != "稀有":
             return {"ok": False, "reason": "崇高石使用后物品不再是稀有品质", "code": "MAP_EXALTED_RARITY_CHANGED"}
         next_count = _explicit_affix_count(next_result)
@@ -1328,7 +1339,7 @@ def process_single_map(initial_result, slot_x, slot_y):
             if current_result.get("error"):
                 return failed_map_result(
                     f"鉴定后读取失败：{current_result.get('error')}",
-                    "MAP_IDENTIFY_READ_FAILED"
+                    current_result.get("errorCode") or "MAP_IDENTIFY_READ_FAILED"
                 )
             # 更新状态
             rarity = current_result.get("rarity", "普通").replace(" ", "")
@@ -1358,7 +1369,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                      print(f"  > [预处理] 状态{rarity}且不满足条件，使用重铸石")
                      current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                      if current_result.get("error"):
-                         return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                         return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                      continue
 
         # 混沌模式：魔法 -> 重铸 (因为要变成稀有，魔法不能直接变稀有，除了用富豪，但这里逻辑是重铸再点金)
@@ -1367,7 +1378,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                  print(f"  > [预处理] 魔法物品，使用重铸石")
                  current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                  if current_result.get("error"):
-                     return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                     return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                  continue
         
         # 更新状态
@@ -1383,7 +1394,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                 print(f"  > [操作] 使用{alchemy_currency_name}")
                 current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                 if current_result.get("error"):
-                    return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                    return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                 # 更新状态
                 rarity = current_result.get("rarity", "普通").replace(" ", "")
                 continue
@@ -1397,7 +1408,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                 print("  > [操作] 使用点金石")
                 current_result = apply_currency_and_read("alchemy", slot_x, slot_y)
                 if current_result.get("error"):
-                    return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                    return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                 # 更新状态
                 rarity = current_result.get("rarity", "普通").replace(" ", "")
                 continue
@@ -1409,7 +1420,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                     print("  > [操作] 基底不满足，使用混沌石")
                     current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
                 # 如果基底满足，继续检查词缀（在下面Step 4处理）
 
@@ -1423,14 +1434,14 @@ def process_single_map(initial_result, slot_x, slot_y):
                     print("  > [操作] 基底不满足，使用重铸石")
                     current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查基底
                     print(f"  > [操作] 基底不满足，使用{alchemy_currency_name}")
                     current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
             elif method == 'chaos':
                 # 混沌模式：使用混沌石继续洗
@@ -1438,7 +1449,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                     print("  > [操作] 基底不满足，使用混沌石")
                     current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
             continue
 
@@ -1452,14 +1463,14 @@ def process_single_map(initial_result, slot_x, slot_y):
                     print("  > [操作] 词缀不满足，使用重铸石")
                     current_result = apply_currency_and_read("scouring", slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
                 elif rarity == '普通':
                     # 普通品质，先点金变成稀有，然后下一次循环会检查词缀
                     print(f"  > [操作] 词缀不满足，使用{alchemy_currency_name}")
                     current_result = apply_currency_and_read(alchemy_currency, slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
             elif method == 'chaos':
                 # 混沌模式：使用混沌石继续洗
@@ -1467,7 +1478,7 @@ def process_single_map(initial_result, slot_x, slot_y):
                     print("  > [操作] 词缀不满足，使用混沌石")
                     current_result = apply_currency_and_read("chaos", slot_x, slot_y)
                     if current_result.get("error"):
-                        return failed_map_result(current_result.get("error"), "MAP_REREAD_FAILED")
+                        return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_REREAD_FAILED")
                     continue
             continue
 
@@ -1482,7 +1493,7 @@ def process_single_map(initial_result, slot_x, slot_y):
             print("  > [操作] 使用瓦尔宝珠")
             current_result = apply_currency_and_read("vaal", slot_x, slot_y)
             if current_result.get("error"):
-                return failed_map_result(current_result.get("error"), "MAP_VAAL_READ_FAILED")
+                return failed_map_result(current_result.get("error"), current_result.get("errorCode") or "MAP_VAAL_READ_FAILED")
             if invalid_affix_count(current_result):
                 return failed_map_result("瓦尔后地图词缀无法可靠识别或超过九条", "MAP_AFFIX_COUNT_INVALID")
             

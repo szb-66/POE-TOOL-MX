@@ -17,7 +17,6 @@ import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting = null, localizationRuntime = null) {
   const { getMainWindow, getOverlayWindow } = window
-  const { getFilePaths } = fileWatcher
   const isMapCategory = (category) => category === '异界地图' || category === '地图'
   const isRollingCategory = (category) => isMapCategory(category) || ['海图', '契约', '蓝图'].includes(category)
   const activeMapConfig = (map = {}) => {
@@ -71,7 +70,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
 
   // IPC: 获取文件通信路径
   ipcMain.handle('get-file-paths', async () => {
-    return getFilePaths()
+    return fileWatcher.getFilePaths()
   })
 
   // 监听文件变化事件，处理业务逻辑
@@ -149,7 +148,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         : { isMatch: false, matchedTargetName: '', matchedText: '' }
 
       // 读取脚本写入的地图处理数量、符合条件数量和词缀统计（如果文件中有）
-      const filePaths = getFilePaths()
+      const filePaths = fileWatcher.getFilePaths()
       let scriptProcessedCount = null
       let scriptQualifiedCount = null
       let scriptBlacklistStats = null
@@ -249,7 +248,8 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
       sendItemResult(currentResult, config)
     } catch (error) {
       writeCurrentParseResult({
-        error: error.message
+        error: error.message,
+        ...(error.code ? { errorCode: error.code } : {})
       })
     }
   })
@@ -298,7 +298,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
   // 写入解析结果
   function writeParseResult(result) {
     try {
-      const filePaths = getFilePaths()
+      const filePaths = fileWatcher.getFilePaths()
       // 读取现有文件，保留脚本写入的地图统计
       let existingData = {}
       if (fs.existsSync(filePaths.itemInfoResultFile)) {

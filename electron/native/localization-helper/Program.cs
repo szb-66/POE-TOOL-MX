@@ -110,6 +110,7 @@ public static class Program {
         Directory.CreateDirectory(stage);
         var baseline=transaction.BaselineIndexPath;
         Dictionary<string,byte[]> outputs; object counts;
+        var originalHashes = new Dictionary<string,string>(StringComparer.Ordinal);
         // Always rebuild from the same-version pre-apply backup, never stack patches.
         var prefix=typeof(BundleIndex).GetField("CUSTOM_BUNDLE_BASE_PATH",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.Public) ?? throw new UserError("原生组件未包含受管bundle路径支持");
         prefix.SetValue(null,"PoEHelper/"+generation+"/");
@@ -118,6 +119,9 @@ public static class Program {
         var candidateMemory=new MemoryStream();candidateMemory.Write(NativeBundleValidation.ReadIndex(baseline));candidateMemory.Position=0;
         using(var index=new BundleIndex(candidateMemory,false,false,factory)) {
             outputs=new ResourceEngine().Build(index,mode=="traditional" ? new JsonArray() : request["entries"]?.AsArray() ?? new JsonArray(),out counts);
+            var originals=outputs.Keys.Select(path=>index.TryGetFile(path,out var file) ? file! : throw new UserError("目标语言资源消失，请重新验证游戏")).ToArray();
+            if(BundleIndex.Extract(originals,(file,bytes)=> { if(bytes==null) throw new UserError("原始资源读取失败，未应用汉化"); originalHashes.Add(file.PathHash.ToString("x16"),Hash(bytes.Value.Span)); return false; })!=originals.Length)
+                throw new UserError("原始资源校验未完成，未应用汉化");
             int done=0;foreach(var output in outputs){ if(!index.TryGetFile(output.Key,out var record))throw new UserError("目标语言资源消失，请重新验证游戏");record.Write(output.Value);Progress("write-candidate",++done,outputs.Count); }
             index.Save();
             // Serialize completed index into a candidate file without touching original.
@@ -128,7 +132,7 @@ public static class Program {
         }
         using(var check=new BundleIndex(new MemoryStream(NativeBundleValidation.ReadIndex(candidate)),false,false,factory)) foreach(var output in outputs) if(!check.TryGetFile(output.Key,out var record)||!record.Read().Span.SequenceEqual(output.Value)) throw new InvalidDataException("Candidate readback mismatch");
         File.WriteAllText(Path.Combine(storage,"applied-coverage.json"),JsonSerializer.Serialize(new {indexHash=HashFile(candidate),counts},Json));
-        var final=transaction.Commit(candidate,Path.Combine(stage,"PoEHelper",generation),release,generation,mode);
+        var final=transaction.Commit(candidate,Path.Combine(stage,"PoEHelper",generation),release,generation,mode,originalHashes);
         var result=JsonSerializer.SerializeToNode(final,Json)!.AsObject();result["resourceVersion"]=final.ReleaseId;result["counts"]=JsonSerializer.SerializeToNode(counts,Json);return result;
     }
     private static object Restore(JsonObject request) { var snapshot=Transaction(request).Restore();var result=JsonSerializer.SerializeToNode(snapshot,Json)!.AsObject();result["restored"]=true;result["resourceVersion"]=snapshot.ReleaseId;return result; }

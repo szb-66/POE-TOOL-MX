@@ -33,6 +33,11 @@ test('市集分发检查拒绝缺件、篡改、未实测版本与错误自检�
     if (args[0] === '--market-host') { const message = JSON.parse(result.stdout); delete message.data.resumeCases; result.stdout = JSON.stringify(message) }
     return result
   } }), /控制进程自检失败/)
+  assert.throws(() => verifyMarketRuntime(root, { run: (file, args, options) => {
+    const result = successfulMarketRun(file, args, options)
+    if (args[0] === '--market-host') { const message = JSON.parse(result.stdout); delete message.data.structureCases; result.stdout = JSON.stringify(message) }
+    return result
+  } }), /控制进程自检失败/)
   metadata.minhookCommit = 'unknown'
   fs.writeFileSync(path.join(runtime, 'market-dependencies.json'), JSON.stringify(metadata))
   assert.throws(() => verifyMarketRuntime(root, { run: successfulMarketRun }), /指纹不一致/)

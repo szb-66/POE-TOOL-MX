@@ -5,9 +5,11 @@ import { createItemStructureResolver } from './itemStructure.js'
 import { sameStatPluralFamily, statNumber, statVariantApplies } from './statVariants.js'
 import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { createUniqueNameResolver } from './uniqueName.js'
+import { createSupportGemResolver } from './supportGem.js'
 
 const cjk = /[\u3400-\u9fff]/u
 const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
+const normalizeIdentity = value => compact(value).normalize('NFKC').toLocaleLowerCase('en-US')
 const displayText = value => String(value || '').replace(/\\r\\n|\\n/g, '\n').replace(/\\r/g, '\n')
   .replace(/\[([^\]|]+)\|([^\]]*)\]/g, '$2').replace(/\[([^\]]+)\]/g, '$1')
   .replace(/<[^<>]+>\{([^{}]*)\}/g, '$1')
@@ -18,6 +20,7 @@ const numeric = '([+-]?\\d+(?:\\.\\d+)?(?:[（(][+-]?\\d+(?:\\.\\d+)?[-–—][+
 const patternKey = value => compact(value).replace(placeholders, '#')
   .replace(/[+-]?\d+(?:\.\d+)?(?:[（(][+-]?\d+(?:\.\d+)?[-–—][+-]?\d+(?:\.\d+)?[）)])?/g, '#').replace(/[+-]#/g, '#')
 const abstractTemplate = value => compact(value).replace(placeholders, '#').replace(/[+-]#/g, '#')
+const itemRarityStats = new Set(['base_item_found_rarity_+%', 'item_found_rarity_+%', 'map_implicit_item_drop_rarity_+%'])
 
 // These are clipboard structure tokens, not item identities or translated stat names.
 const labels = new Map(Object.entries({
@@ -183,15 +186,19 @@ export function createLocalizationDictionary(entries = []) {
   const tradeMatcherCache = new WeakMap()
   const validated = entries.filter(entry => entry?.table && entry.id && entry.field && ['dat', 'stat'].includes(entry.kind) &&
     (!entry.sourceHash || entry.sourceHash === createHash('sha256').update(String(entry.en)).digest('hex')))
+  const modifierNames = new Set(validated.filter(entry => entry.kind === 'dat' && entry.field === 'Name' &&
+    /(?:^|[/\\])mods(?:\.datc?64)?$/i.test(entry.table))
+    .flatMap(entry => [entry.en, entry.cn, entry.tw]).filter(Boolean).map(value => compact(displayText(value))))
   const structure = createItemStructureResolver(validated,{visibleText,translate:value=>translate(value),failure})
   const uniqueName = createUniqueNameResolver(validated)
+  const supportGem = createSupportGemResolver(validated)
   const displayed = validated.flatMap(entry => {
     const normalized = { ...entry, en: visibleText(entry.en), cn: visibleText(entry.cn), tw: visibleText(entry.tw) }
     const sourceLines = normalized.en.split('\n')
     if (sourceLines.length === 1) return [normalized]
     // A line alias is safe only when its numbered parameters remain on the same line.
     const keys = text => [...String(text).matchAll(placeholders)].map(match => match[1] ?? '#').sort().join(',')
-    const lines = sourceLines.map((en, index) => ({ ...entry, en,
+    const lines = sourceLines.map((en, index) => ({ ...entry, en, fragmentOf: normalized, fragmentIndex: index,
       ...Object.fromEntries(['cn', 'tw'].map(locale => {
         const values = normalized[locale].split('\n')
         return [locale, values.length === sourceLines.length && keys(values[index]) === keys(en) ? values[index] : '']
@@ -225,6 +232,12 @@ export function createLocalizationDictionary(entries = []) {
       if (!englishPatterns.has(key)) englishPatterns.set(key, [])
       englishPatterns.get(key).push({ ...target, values, entry })
     }
+    if (!target && entry.kind === 'dat' && entry.field === 'Name' && /(?:^|[/\\])baseitemtypes(?:\.[a-z0-9]+)?$/i.test(entry.table)) {
+      for (const value of values.map(compact)) {
+        if (!bases.has(value)) bases.set(value, new Set())
+        bases.get(value).add(en)
+      }
+    }
     for (const value of [entry.tw, entry.cn]) {
       const alias = compact(value)
       if (!alias || alias === en || alias.length > 8192 || !cjk.test(alias)) continue
@@ -243,23 +256,91 @@ export function createLocalizationDictionary(entries = []) {
         if (!aliases.has(alias)) aliases.set(alias, new Map())
         if (!aliases.get(alias).has(en)) aliases.get(alias).set(en, [])
         aliases.get(alias).get(en).push(entry)
-        if (entry.kind === 'dat' && /(?:^|[/\\])?baseitemtypes(?:\.[a-z0-9]+)?$/i.test(entry.table)) {
-          if (!bases.has(alias)) bases.set(alias, new Set())
-          bases.get(alias).add(en)
-        }
       }
     }
   }
-  function translate(value, tables = null, identities = null, selectCandidate = null) {
+  const baseMatchers = [...bases].map(([alias, values]) => ({ needle: normalizeIdentity(alias), values }))
+  function resolveMagicBaseName(value, headers = [], extraBases = []) {
+    let name = normalizeIdentity(value)
+    const word = value => /[\p{Script=Latin}\p{N}_]/u.test(value || '')
+    const affixes = headers.map(line => line.trim())
+      .filter(line => line.startsWith('{') && /\b(?:Prefix|Suffix) Modifier\b/.test(line))
+      .map(line => line.match(/"([^"]+)"/)?.[1]).filter(value => modifierNames.has(compact(value)))
+      .map(normalizeIdentity).sort((a, b) => b.length - a.length)
+    while (affixes.length) {
+      const index = affixes.findIndex(affix =>
+        (name.startsWith(affix) && (!word(affix.at(-1)) || !word(name[affix.length]))) ||
+        (name.endsWith(affix) && (!word(affix[0]) || !word(name[name.length - affix.length - 1]))))
+      if (index < 0) break
+      const [affix] = affixes.splice(index, 1)
+      const atStart = name.startsWith(affix) && (!word(affix.at(-1)) || !word(name[affix.length]))
+      name = (atStart ? name.slice(affix.length) : name.slice(0, -affix.length)).trim()
+    }
+    const matches = []
+    const matchers = [...baseMatchers, ...extraBases.filter(Boolean).map(base => ({ needle: normalizeIdentity(base), values: new Set([base]) }))]
+    for (const { needle, values } of matchers) {
+      if (!needle) continue
+      for (let start = name.indexOf(needle); start >= 0; start = name.indexOf(needle, start + 1)) {
+        const end = start + needle.length
+        if ((word(needle[0]) && word(name[start - 1])) || (word(needle.at(-1)) && word(name[end]))) continue
+        matches.push({ start, end, values })
+      }
+    }
+    const maximal = matches.filter(match => !matches.some(other => other.start <= match.start && other.end >= match.end && other.end - other.start > match.end - match.start))
+    const candidates = new Map()
+    for (const candidate of maximal.flatMap(({ values }) => [...values])) {
+      const key = normalizeIdentity(candidate)
+      if (!candidates.has(key)) candidates.set(key, candidate)
+    }
+    if (candidates.size > 1) throw failure('LOCALIZATION_AMBIGUOUS', '魔法物品名称含多个底材候选，已停止解析', [value])
+    return candidates.values().next().value || value
+  }
+  function fragmentApplies(entry, context) {
+    if (!entry.fragmentOf) return true
+    if (!context) return false
+    const parent = entry.fragmentOf
+    const count = parent.en.split('\n').length
+    const start = context.index - entry.fragmentIndex
+    if (start < 0 || start + count > context.lines.length) return false
+    const alternatives = [parent.en, parent.cn, parent.tw].map(value => value.split('\n')).filter(lines => lines.length === count)
+    const captured = new Map()
+    for (let offset = 0; offset < count; offset++) {
+      const raw = compact(displayText(context.lines[start + offset]))
+        .replace(/\s*[（(](?:implicit|crafted|enchant|fractured|固定|隐式|隱式|工艺|工藝|附魔|破碎|破裂)[）)]$/i, '')
+      let matched = false
+      for (const lines of alternatives) {
+        const pattern = template(lines[offset])
+        const match = pattern && raw.match(pattern.expression)
+        const values = match && numberValues(match, pattern.tokens)
+        if (!(pattern ? values : raw === compact(lines[offset]))) continue
+        if (values && [...values].some(([key, value]) => captured.has(key) && statNumber(captured.get(key)) !== statNumber(value))) continue
+        if (values) for (const [key, value] of values) captured.set(key, value)
+        matched = true
+        break
+      }
+      if (!matched) return false
+    }
+    return statVariantApplies(parent, captured) !== false
+  }
+  function translate(value, tables = null, identities = null, selectCandidate = null, allowEntry = () => true, context = null) {
     const text = compact(displayText(value))
-    const applicable = entry => (!tables || tables.includes(String(entry.table).replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '').toLowerCase())) && statVariantApplies(entry) !== false
-    const candidates = new Set([...(aliases.get(text) || [])].filter(([, entries]) => entries.some(applicable)).map(([en]) => en))
+    const applicable = entry => fragmentApplies(entry, context) && allowEntry(entry) && (!tables || tables.includes(String(entry.table).replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '').toLowerCase())) && statVariantApplies(entry) !== false
+    const contextual = new Set()
+    let candidates = new Set()
+    for (const [en, entries] of aliases.get(text) || []) {
+      const matching = entries.filter(applicable)
+      if (matching.length) candidates.add(en)
+      if (matching.some(entry => entry.fragmentOf)) contextual.add(en)
+    }
     for (const pattern of patterns.get(patternKey(text))?.values() || []) {
       const match = text.match(pattern.expression)
       if (!match) continue
       const values = numberValues(match, pattern.tokens)
-      if (values && pattern.entries.some(entry => applicable(entry) && statVariantApplies(entry, values) !== false)) candidates.add(render(pattern.en, values))
+      const matching = values && pattern.entries.filter(entry => applicable(entry) && statVariantApplies(entry, values) !== false)
+      if (matching?.length) candidates.add(render(pattern.en, values))
+      if (matching?.some(entry => entry.fragmentOf)) contextual.add(render(pattern.en, values))
     }
+    if (contextual.size) candidates = contextual
     if (candidates.size > 1 && identities) {
       const known = [...candidates].filter(candidate => identities.has(candidate))
       if (known.length === 1) return known[0]
@@ -363,6 +444,7 @@ export function createLocalizationDictionary(entries = []) {
     return [...aliasCache.get(key)]
   }
   return {
+    resolveMagicBaseName,
     toEnglish(value, { strict = false } = {}) {
       const translated = translate(value)
       if (strict && cjk.test(translated)) throw failure('LOCALIZATION_UNRESOLVED', '文本未匹配当前汉化资源', [value])
@@ -467,6 +549,9 @@ export function createLocalizationDictionary(entries = []) {
       const uniqueNameIndex = unique ? input.findIndex((line, index) => index < headerEnd && line.trim() &&
         !knownLabels.has(labels.get(line.match(/^([^:：]+)[:：]/)?.[1]?.replace(/\s+/g, '')) || line.match(/^([^:：]+)[:：]/)?.[1])) : -1
       const chooseStat = candidates => resolveStatAmbiguity?.(candidates, { type: statType })
+      // Equipment and map implicit rarity have identical Chinese text but distinct game stats.
+      const statScope = type => entry => type !== 'implicit' || !itemClass || !itemRarityStats.has(entry.id) ||
+        (entry.id === 'map_implicit_item_drop_rarity_+%') === (itemClass === 'Maps')
       const translateLine = (raw, index) => {
         let line = raw.trim()
         const marked = line.replace(/^##\s+/, '')
@@ -523,7 +608,8 @@ export function createLocalizationDictionary(entries = []) {
         }
         const suffixType = suffix && (suffixAliases[suffix[2]] || suffix[2].toLowerCase())
         const lineType = ['implicit', 'crafted', 'enchant', 'fractured'].includes(suffixType) ? suffixType : statType
-        const translated = states.get(body) || translate(body, null, null, index > headerEnd ? candidates => resolveStatAmbiguity?.(candidates, { type: lineType }) : null)
+        const translated = states.get(body) || supportGem.resolve(body, { catalog, type: lineType }) ||
+          translate(body, null, null, index > headerEnd ? candidates => resolveStatAmbiguity?.(candidates, { type: lineType }) : null, statScope(lineType), { lines: input, index })
         return (index === uniqueNameIndex && translated === body ? uniqueName(body, translate) || translated : translated) + tail
       }
       const translated = []
@@ -536,7 +622,7 @@ export function createLocalizationDictionary(entries = []) {
         for (let stop = end; stop > index + 1; stop--) {
           const block = input.slice(index, stop).join('\n')
           if (!cjk.test(block)) continue
-          const result = canonical(translate(block, null, null, chooseStat))
+          const result = canonical(translate(block, null, null, chooseStat, statScope(statType), { lines: input, index }))
           if (result !== compact(block)) {
             translated.push(...result.split('\n'))
             lineMappings.push({ original: originalLines.slice(index, stop).join('\n'), canonical: result })
@@ -555,30 +641,18 @@ export function createLocalizationDictionary(entries = []) {
       const rarity = translated.find(line => /^Rarity:/.test(line))?.slice(7).trim()
       const nameIndexes = translated.map((line, index) => ({ line, index }))
         .filter(({ line, index }) => index < separator && line && !knownLabels.has(line.match(/^([^:]+):/)?.[1]))
+      let magicBaseName = null
       if (rarity === 'Magic' && nameIndexes.length === 1 && cjk.test(nameIndexes[0].line)) {
-        // Keep the longest base at each position; a separate base elsewhere is still ambiguous.
-        const normalize = value => compact(value).normalize('NFKC').toLocaleLowerCase('en-US')
-        const name = normalize(nameIndexes[0].line)
-        const word = value => /[\p{Script=Latin}\p{N}_]/u.test(value || '')
-        const matches = []
-        for (const [alias, values] of bases) for (const value of new Set([alias, ...values])) {
-          const needle = normalize(value)
-          if (!needle) continue
-          for (let start = name.indexOf(needle); start >= 0; start = name.indexOf(needle, start + 1)) {
-            const end = start + needle.length
-            if ((word(needle[0]) && word(name[start - 1])) || (word(needle.at(-1)) && word(name[end]))) continue
-            matches.push({ start, end, values })
-          }
+        const resolved = resolveMagicBaseName(nameIndexes[0].line, translated)
+        if (resolved !== nameIndexes[0].line) {
+          translated[nameIndexes[0].index] = resolved
+          magicBaseName = resolved
         }
-        const maximal = matches.filter(match => !matches.some(other => other.start <= match.start && other.end >= match.end && other.end - other.start > match.end - match.start))
-        const candidates = new Set(maximal.flatMap(({ values }) => [...values]))
-        if (candidates.size > 1) throw failure('LOCALIZATION_AMBIGUOUS', '魔法物品名称含多个底材候选，已阻止查询', [nameIndexes[0].line])
-        if (candidates.size === 1) translated[nameIndexes[0].index] = candidates.values().next().value
       }
       const randomName = ['Rare', 'Magic'].includes(rarity) && nameIndexes.length > 1 ? nameIndexes[0].index : -1
       const unresolved = translated.filter((line, index) => cjk.test(line) && index !== randomName && !(line.startsWith('{') && line.endsWith('}')))
       if (unresolved.length) throw failure('LOCALIZATION_UNRESOLVED', `有 ${unresolved.length} 行中文未匹配当前汉化资源，已阻止省略条件查询：${unresolved[0].slice(0, 120)}`, unresolved)
-      return { text: translated.join('\n'), localized, lineMappings }
+      return { text: translated.join('\n'), localized, lineMappings, ...(magicBaseName ? { magicBaseName } : {}) }
     }
   }
 }

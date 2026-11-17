@@ -3,6 +3,8 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { canonicalJson, sha256, verifyEnvelope, decodeObject } from '../../../shared/localizationProtocol.js'
 
+const connectionErrors = new Set(['ECONNREFUSED', 'ECONNRESET', 'ECONNABORTED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET'])
+
 export function localizationBaseUrl(value = 'http://127.0.0.1:44317', allowLoopbackHttp = true) {
   const url = new URL(value)
   const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
@@ -46,10 +48,17 @@ export class LocalizationDownloader {
     catch { throw new Error('未配置翻译资源发布公钥，无法验证更新') }
   }
   async request(relative, headers = {}, limit = 2 * 1024 * 1024) {
-    const response = await this.fetchImpl(`${this.baseUrl}${relative}`, { headers, redirect: 'error', signal: AbortSignal.timeout(45000) })
-    if (response.status === 304) return { response, bytes: null }
-    if (!response.ok) throw new Error(`翻译资源请求失败（HTTP ${response.status}）`)
-    return { response, bytes: await readBounded(response, limit) }
+    try {
+      const response = await this.fetchImpl(`${this.baseUrl}${relative}`, { headers, redirect: 'error', signal: AbortSignal.timeout(45000) })
+      if (response.status === 304) return { response, bytes: null }
+      if (!response.ok) throw Object.assign(new Error(`翻译资源请求失败（HTTP ${response.status}）`), { code: response.status >= 500 && response.status < 600 ? 'LOCALIZATION_RESOURCE_UNAVAILABLE' : 'LOCALIZATION_RESOURCE_HTTP_ERROR' })
+      return { response, bytes: await readBounded(response, limit) }
+    } catch (error) {
+      if (['TimeoutError', 'AbortError'].includes(error.name) || connectionErrors.has(error.code) || connectionErrors.has(error.cause?.code)) {
+        throw Object.assign(new Error('无法连接翻译资源服务，请检查网络或 SSH 测试隧道', { cause: error }), { code: 'LOCALIZATION_RESOURCE_UNAVAILABLE' })
+      }
+      throw error
+    }
   }
   objectPath(hash) {
     if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('翻译资源对象标识无效')

@@ -1,0 +1,56 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_random_support_gem_level local_random_support_gem_index",
+    "field": "variant:0",
+    "en": "Socketed Gems are Supported by Level {0} {1}",
+    "kind": "stat",
+    "sourceHash": "71d2c598c762b59644855b0acc6c34fb2cff7894787adb00fb32ace227ec69c3",
+    "tw": "插槽中的寶石被等級 {0} 的 {1} 輔助",
+    "cn": "插入的技能石被 {0} 级的{1}辅助",
+    "stats": {
+      "ids": [
+        "local_random_support_gem_level",
+        "local_random_support_gem_index"
+      ],
+      "variants": [
+        {
+          "condition": "# #",
+          "handlers": "display_indexable_support 2 1",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "grantedeffects",
+    "id": "SupportSpellTotem",
+    "field": "SupportName",
+    "en": "Spell Totem Support",
+    "kind": "dat",
+    "sourceHash": "68ae00b387e36d385c32471566cf0a7976ace1f8be798c498a5fca783769ead2",
+    "tw": "法術圖騰輔助"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Gems/SupportGemSpellTotem",
+    "field": "Name",
+    "en": "Spell Totem Support",
+    "kind": "dat",
+    "sourceHash": "68ae00b387e36d385c32471566cf0a7976ace1f8be798c498a5fca783769ead2",
+    "tw": "法術圖騰輔助",
+    "cn": "法术图腾(辅)"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ModGrantsSupportEffectWithLevel",
+    "field": "Text",
+    "en": "Socketed Gems are Supported by Level {1} {0}",
+    "kind": "dat",
+    "sourceHash": "e75280351d303c6790cea7ab96eecf1708d838e1c32f9df82c842622cb9ff98b",
+    "tw": "插槽中的寶石被等級 {1} 的 {0} 輔助"
+  }
+]

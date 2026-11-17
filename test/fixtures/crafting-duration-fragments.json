@@ -1,0 +1,276 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:1",
+    "en": "{0}% reduced Duration",
+    "kind": "stat",
+    "sourceHash": "5557907e97bda2f98f8361385c51c4aa0f4494a23c3296a2a5e871bb832db4c0",
+    "tw": "減少 {0}% 持續時間",
+    "cn": "生效时间缩短 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_ultimatum_survival_encounter_time_+%",
+    "field": "variant:0",
+    "en": "Ultimatum Encounters in your Maps only requiring you to Survive\\nhave {0}% increased duration",
+    "kind": "stat",
+    "sourceHash": "bacd16a1183a23fe928ea57458dac276610fc3ce097694dce5f82ee75e384d2f",
+    "tw": "你地圖中只要求你存活的通諜事件，\\n增加 {0}% 持續時間",
+    "cn": "地图内只有生存挑战的致命贪婪遭遇战\\n持续时间延长 {0}%",
+    "stats": {
+      "ids": [
+        "map_ultimatum_survival_encounter_time_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_ultimatum_survival_encounter_time_+%",
+    "field": "variant:1",
+    "en": "Ultimatum Encounters in your Maps only requiring you to Survive\\nhave {0}% reduced duration",
+    "kind": "stat",
+    "sourceHash": "9264d64b05f2392befad1e1bfdf3291ee7a8d50455497b3ba992562c67fde7eb",
+    "tw": "你地圖中只要求你存活的通諜事件，\\n減少 {0}% 持續時間",
+    "cn": "地图内只有生存挑战的致命贪婪遭遇战\\n持续时间缩短 {0}%",
+    "stats": {
+      "ids": [
+        "map_ultimatum_survival_encounter_time_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:2",
+    "en": "{0}% increased Duration. -1% to this value when used",
+    "kind": "stat",
+    "sourceHash": "b3fc4edc770bda3c160afe95d9dc419f19f622130531e31f25629df52f0a1bf3",
+    "tw": "增加 {0}% 持續時間。使用時 -1% 此數值",
+    "cn": "生效时间延长 {0}%，使用时该数值 -1%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:0",
+    "en": "{0}% increased Duration",
+    "kind": "stat",
+    "sourceHash": "2fc482eb8c296ad02cdbfde34312fca85f80fe063ecd5ba110ceeea87a074dd7",
+    "tw": "增加 {0}% 持續時間",
+    "cn": "生效时间延长 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:3",
+    "en": "{0}% reduced Duration. -1% to this value when used",
+    "kind": "stat",
+    "sourceHash": "0638c6dd7cf91167a45814f3b027d03ce867f300f8e3366aa5f2268774c78247",
+    "tw": "減少 {0}% 持續時間。使用時 -1% 此數值",
+    "cn": "生效时间缩短 {0}%，使用时该数值 -1%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  }
+]

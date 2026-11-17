@@ -10,8 +10,11 @@ test('已构建市集host验证跨提权的同用户管道权限、真实收发�
   try {
     const result = await client.request('self-test')
     assert.equal(result.passed, true)
+    assert.equal(result.buildId, '26694821', '控制组件仍绑定旧 Steam Build')
+    assert.equal(result.executableSha256, '7f762cadbe0a7315091e105121010d2f35296db8046294e0bf49aacfff67db3c')
     assert.ok(result.pipeSecurityCases >= 4, '缺少跨提权管道安全回归，请重新构建host')
     assert.ok(result.resumeCases >= 4, '缺少原会话恢复校验，请重新构建host')
+    assert.ok(result.structureCases >= 14, '缺少完整结构兼容与失败关闭回归，请重新构建host')
   } finally { await client.close() }
 })
 

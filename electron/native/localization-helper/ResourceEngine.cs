@@ -209,9 +209,8 @@ internal sealed class ResourceEngine {
         return null;
     }
     internal static void RequireOriginalExportSource(BundleIndex index) {
-        foreach(var bundle in index.Bundles.Span)
-            if(bundle.Path.StartsWith("PoEHelper/",StringComparison.OrdinalIgnoreCase) || bundle.Path.StartsWith("LibGGPK3/",StringComparison.OrdinalIgnoreCase))
-                throw new UserError("当前游戏已应用汉化，请指定同版本应用前备份作为导出来源");
+        if(ManagedPatchIndex.HasManagedReferences(index))
+            throw new UserError("当前游戏已应用汉化，请指定同版本应用前备份作为导出来源");
     }
     internal JsonObject Export(string game,string? cnGame,string? sourceIndex=null) {
         using var index = Program.Open(game,indexPath:sourceIndex);

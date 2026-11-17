@@ -5,6 +5,7 @@
     <el-alert v-if="!desktop" title="请在流放助手桌面版中使用游戏汉化" type="info" :closable="false" />
     <el-alert v-if="state.error || error" :title="state.error || error" type="error" :closable="false" />
     <el-alert v-if="state.mappingWarning" :title="state.mappingWarning" type="warning" :closable="false" />
+    <el-alert v-if="state.resourceWarning" :title="state.resourceWarning" type="warning" :closable="false" />
     <el-alert v-if="desktop && !state.helperAvailable" title="未找到游戏资源读写组件，请重启助手；仍不可用时请重新安装完整桌面版。" type="warning" :closable="false" />
     <el-card>
       <el-form label-position="top">
@@ -28,11 +29,13 @@
       <dl>
         <dt>游戏版本</dt><dd>{{ state.scan?.gameVersion || '点击切换按钮后自动检测' }}</dd>
         <dt>汉化状态</dt><dd>{{ localizationStatus }}</dd>
+        <template v-if="state.preferredMode"><dt>语言选择</dt><dd>{{ state.preferredMode === 'traditional' ? '繁体' : '简体' }}（跨版本保留）</dd></template>
+        <template v-if="state.sourceGameVersion && (appliedMode === 'simplified' || state.resourceWarning)"><dt>词库来源版本</dt><dd>{{ state.sourceGameVersion }}</dd></template>
         <template v-if="applied && appliedMode === 'simplified' && counts.simplified != null">
           <dt>简体 / 繁体 / 英文</dt><dd>{{ counts.simplified }} / {{ counts.traditional ?? 0 }} / {{ counts.english ?? 0 }}</dd>
         </template>
       </dl>
-      <p>助手会自动备份应用前的文件。游戏更新后，再点击所需的语言按钮即可。简体模式中未匹配的内容保留繁体或英文。</p>
+      <p>助手会保留语言选择并备份应用前的文件。游戏更新后，再点击所需的语言按钮即可复用兼容词库重新应用，无需每次上传新词库。简体模式中未匹配的内容保留繁体或英文。</p>
     </el-card>
   </section>
 </template>
@@ -58,7 +61,7 @@ const targetMode = computed(() => state.value.targetMode || pendingMode.value)
 const applied = computed(() => Boolean(state.value.mode || state.value.resourceVersion || state.value.scan?.applied))
 const appliedMode = computed(() => state.value.mode || state.value.scan?.mode || 'simplified')
 const counts = computed(() => state.value.scan?.counts || {})
-const localizationStatus = computed(() => state.value.mappingState === 'unavailable' ? '需要重新切换语言' : applied.value ? appliedMode.value === 'traditional' ? '已切换繁体' : '已切换简体' : state.value.scan ? '尚未切换' : '等待检测')
+const localizationStatus = computed(() => state.value.mappingState === 'unavailable' ? '需要重新切换语言' : applied.value ? appliedMode.value === 'traditional' ? '已切换繁体' : '已切换简体' : state.value.preferredMode ? '已保留语言选择，等待重新应用' : state.value.scan ? '尚未切换' : '等待检测')
 const phaseLabel = computed(() => ({ scan: '正在检测游戏版本', check: '正在检查汉化资源更新', download: '正在下载汉化资源', apply: targetMode.value === 'traditional' ? '正在切换繁体' : '正在切换简体', restore: '正在恢复原版' })[state.value.phase] || (state.value.closing ? '正在退出或重启' : '正在准备'))
 let unsubscribe = null
 let unsubscribeMarket = null

@@ -165,11 +165,11 @@ print(json.dumps({"result": result, "fatal": fatal_error_reason}, ensure_ascii=F
 
   const guarded = run(substitute(true, false), '[{"rarity": "魔法", "affixFormatUnsupported": True}]')
   assert.match(guarded.fatal, /未适配的词缀补丁格式/)
-  assert.deepEqual(guarded.result, { error: '检测到未适配的词缀补丁格式' })
+  assert.deepEqual(guarded.result, { error: '检测到未适配的词缀补丁格式', errorCode: 'AFFIX_PATCH_UNSUPPORTED' })
 
   const eldritchGuarded = run(substitute(false, true), '[{"rarity": "稀有", "affixFormatUnsupported": True}]')
   assert.match(eldritchGuarded.fatal, /未适配的词缀补丁格式/)
-  assert.deepEqual(eldritchGuarded.result, { error: '检测到未适配的词缀补丁格式' })
+  assert.deepEqual(eldritchGuarded.result, { error: '检测到未适配的词缀补丁格式', errorCode: 'AFFIX_PATCH_UNSUPPORTED' })
 
   const passthrough = run(substitute(false, false), '[{"rarity": "魔法", "affixFormatUnsupported": True, "socketsCount": 3}]')
   assert.equal(passthrough.fatal, null)

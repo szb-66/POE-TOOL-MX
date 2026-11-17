@@ -686,6 +686,14 @@ def craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_
         return False
     if affix_enabled and not craft_affixes(initial_item_result):
         return False
+    if socket_enabled and affix_enabled:
+        # 高阶点金等词缀操作会改变插槽，不能沿用制作前的达标状态。
+        latest_result = read_current_item(allow_unchanged_text=True)
+        if not isinstance(latest_result, dict) or latest_result.get("error"):
+            reason = latest_result.get("error") if isinstance(latest_result, dict) else "无效解析结果"
+            code = latest_result.get("errorCode") if isinstance(latest_result, dict) else None
+            return fail_item_runtime(f"插槽制作前无法读取当前物品：{reason}", code or "ITEM_READ_FAILED")
+        initial_item_result = latest_result
     if socket_enabled and not craft_sockets(initial_item_result):
         return False
     return True
@@ -1460,6 +1468,7 @@ def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=N
     if verify_freshness is None:
         verify_freshness = not allow_unchanged_text
     last_error = "无法读取当前物品"
+    last_error_code = ""
     last_dispatched = False
     for attempt in range(max(1, int(attempts))):
         if not is_running:
@@ -1472,23 +1481,39 @@ def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=N
         if request_id == "unchanged":
             last_dispatched = False
             last_error = "剪贴板文本未变化"
+            last_error_code = ""
         elif request_id:
             last_dispatched = True
             result = wait_for_parse_result(request_id)
+            if isinstance(result, dict) and not result.get("error"):
+                rarity = "".join(str(result.get("rarity") or "").split())
+                socket_count = result.get("socketsCount")
+                socket_only_result = (
+                    not ({{ENABLE_AFFIX}} or {{ENABLE_ELDRITCH}})
+                    and isinstance(socket_count, int) and not isinstance(socket_count, bool)
+                    and 1 <= socket_count <= 6
+                )
+                if rarity not in ("普通", "魔法", "稀有", "传奇") and not socket_only_result:
+                    result = {"error": "解析结果缺少有效物品品质", "errorCode": "ITEM_PARSE_INCOMPLETE"}
             if isinstance(result, dict) and not result.get("error"):
                 if ({{ENABLE_AFFIX}} or {{ENABLE_ELDRITCH}}) and result.get("affixFormatUnsupported"):
                     fail_item_runtime(
                         "检测到未适配的词缀补丁格式，无法识别词缀，已停止制作。请更新软件或反馈适配",
                         "AFFIX_PATCH_UNSUPPORTED"
                     )
-                    return {"error": "检测到未适配的词缀补丁格式"}
+                    return {"error": "检测到未适配的词缀补丁格式", "errorCode": "AFFIX_PATCH_UNSUPPORTED"}
                 if operation_logger:
                     operation_logger("confirmation", "read-current-item", "confirmed", summary="目标物品读取并解析成功")
                 return result
             last_error = result.get("error") if isinstance(result, dict) else "无效解析结果"
+            last_error_code = str(result.get("errorCode") or "") if isinstance(result, dict) else ""
+            if last_error_code.startswith("LOCALIZATION_"):
+                last_error = f"当前物品汉化解析失败：{last_error}"
+                break
         else:
             last_dispatched = False
             last_error = fatal_error_reason or "读取物品信息失败"
+            last_error_code = ""
         if attempt + 1 < attempts and is_running:
             print(f"[重试] {last_error}，重新复制当前物品（不重复使用通货）")
     if last_error == "剪贴板文本未变化":
@@ -1496,8 +1521,8 @@ def read_current_item(attempts=3, allow_unchanged_text=False, verify_freshness=N
             operation_logger("confirmation", "read-current-item", "confirmed", summary="目标物品状态未变化")
         return {"unchanged": True}
     if operation_logger:
-        operation_logger("confirmation", "read-current-item", "failed", "ITEM_READ_FAILED", last_error)
-    return {"error": last_error}
+        operation_logger("confirmation", "read-current-item", "failed", last_error_code or "ITEM_READ_FAILED", last_error)
+    return {"error": last_error, **({"errorCode": last_error_code} if last_error_code else {})}
 
 def fail_item_preparation(reason, code="ITEM_PREPARATION_FAILED"):
     global is_running, fatal_error_reason
@@ -1525,7 +1550,7 @@ def prepare_item_for_crafting(identify_unidentified=True):
     if result.get("error"):
         return fail_item_preparation(
             f"无法读取待制作物品：{result.get('error')}",
-            "ITEM_READ_FAILED"
+            result.get("errorCode") or "ITEM_READ_FAILED"
         )
     if "validate_affix_item_level" in globals() and not validate_affix_item_level(result):
         return None
@@ -1548,7 +1573,7 @@ def prepare_item_for_crafting(identify_unidentified=True):
     if result.get("error"):
         return fail_item_preparation(
             f"鉴定后无法重新读取物品：{result.get('error')}",
-            "ITEM_IDENTIFY_READ_FAILED"
+            result.get("errorCode") or "ITEM_IDENTIFY_READ_FAILED"
         )
     if result.get("isUnidentified", False):
         return fail_item_preparation("使用知识卷轴后物品仍为未鉴定状态", "ITEM_STILL_UNIDENTIFIED")
