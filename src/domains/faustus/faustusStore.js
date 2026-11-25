@@ -1,6 +1,8 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '@/api/electron.js'
+import { usePoeAccountStore } from '@/stores/poeAccount.js'
+import { currentServer } from '@/utils/serverContext.js'
 import { createFaustusConfigRepository, createFaustusRunSnapshot } from '@/utils/faustusConfig.js'
 import { createFaustusBandReorderTransaction, moveFaustusBand } from '@/utils/faustusBandReorder.js'
 import { FAUSTUS_CURRENCY, normalizeFaustusConfig, validateFaustusConfig } from '@/utils/faustusPricing.js'
@@ -27,10 +29,29 @@ export const useFaustusStore = defineStore('faustus', () => {
   const state = ref({ status: 'idle', reasonCode: '', processed: 0, total: 0 })
   const logs = ref([])
   const busy = ref(false)
+  const isInternational = computed(() => currentServer.id === 'international')
+  const dcRate = ref({
+    loading: false,
+    league: '',
+    leagues: [],
+    latestValue: null,
+    rawValue: null,
+    updatedAt: '',
+    source: 'poe.ninja',
+    error: ''
+  })
+  let dcRateRequestId = 0
   let unsubscribe = null
 
   const validation = computed(() => validateFaustusConfig(config.value))
   const running = computed(() => ['preparing', 'running', 'stopping'].includes(state.value.status))
+  const hasPendingAutoDcRate = computed(() => {
+    if (!isInternational.value) return false
+    const latest = dcRate.value.latestValue
+    if (!latest) return false
+    return config.value.chaosPerDivineSource === 'manual'
+      && String(config.value.chaosPerDivine || '').trim() !== String(latest)
+  })
 
   const bandReorder = createFaustusBandReorderTransaction({
     getBands: () => config.value.bands,
@@ -45,6 +66,85 @@ export const useFaustusStore = defineStore('faustus', () => {
 
   function updateConfig(patch) {
     persist(normalizeFaustusConfig({ ...config.value, ...patch }))
+  }
+
+  function updateManualChaosPerDivine(value = config.value.chaosPerDivine) {
+    const trimmed = String(value ?? '').trim()
+    updateConfig({
+      chaosPerDivine: trimmed,
+      chaosPerDivineSource: trimmed ? 'manual' : 'auto'
+    })
+  }
+
+  function resolvePreferredInternationalLeague(explicitLeague = '') {
+    const direct = String(explicitLeague || '').trim()
+    if (direct) return direct
+    const saved = String(config.value.dcRateLeague || '').trim()
+    if (saved) return saved
+    try {
+      const accountStore = usePoeAccountStore()
+      const accountLeague = String(accountStore.settings?.league || '').trim()
+      if (accountLeague) return accountLeague
+    } catch { /* account store may be unavailable in isolated tests */ }
+    return ''
+  }
+
+  async function syncInternationalDcRate({ league = '', force = false } = {}) {
+    if (!isInternational.value) return null
+    const requestId = ++dcRateRequestId
+    dcRate.value = { ...dcRate.value, loading: true, error: '' }
+    try {
+      const targetLeague = resolvePreferredInternationalLeague(league)
+      const data = unwrap(
+        await electronApi.faustus.fetchDcRate({ league: targetLeague, force: Boolean(force) }),
+        '获取国际服神圣石比例失败'
+      )
+      if (requestId !== dcRateRequestId) return data
+      const rounded = Math.max(1, Math.round(Number(data.chaosPerDivine)))
+      dcRate.value = {
+        loading: false,
+        league: String(data.league || targetLeague),
+        leagues: Array.isArray(data.leagues) ? data.leagues : [],
+        latestValue: rounded,
+        rawValue: Number(data.rawChaosPerDivine) || rounded,
+        updatedAt: String(data.updatedAt || ''),
+        source: String(data.source || 'poe.ninja'),
+        error: ''
+      }
+      const currentText = String(config.value.chaosPerDivine || '').trim()
+      const shouldAutoFill = !currentText || config.value.chaosPerDivineSource === 'auto'
+      if (shouldAutoFill) {
+        updateConfig({
+          chaosPerDivine: String(rounded),
+          chaosPerDivineSource: 'auto'
+        })
+      }
+      return data
+    } catch (error) {
+      if (requestId !== dcRateRequestId) return null
+      dcRate.value = {
+        ...dcRate.value,
+        loading: false,
+        error: error?.message || '无法从 poe.ninja 获取比例，请手动填写'
+      }
+      return null
+    }
+  }
+
+  function applyFetchedDcRate() {
+    if (!isInternational.value || !dcRate.value.latestValue) return false
+    updateConfig({
+      chaosPerDivine: String(dcRate.value.latestValue),
+      chaosPerDivineSource: 'auto'
+    })
+    return true
+  }
+
+  async function selectDcRateLeague(league) {
+    if (!isInternational.value) return null
+    const normalized = String(league || '').trim()
+    updateConfig({ dcRateLeague: normalized })
+    return syncInternationalDcRate({ league: normalized, force: false })
   }
 
   function updateBand(index, patch) {
@@ -123,7 +223,9 @@ export const useFaustusStore = defineStore('faustus', () => {
 
   return {
     config, state, logs, busy, validation, running,
-    updateConfig, updateBand, addBand, removeBand, moveBand,
+    isInternational, dcRate, hasPendingAutoDcRate,
+    updateConfig, updateManualChaosPerDivine, syncInternationalDcRate, applyFetchedDcRate, selectDcRateLeague,
+    updateBand, addBand, removeBand, moveBand,
     beginBandReorder, previewBandReorder, commitBandReorder, cancelBandReorder,
     calibrateGrid, start, stop, connect, disconnect
   }

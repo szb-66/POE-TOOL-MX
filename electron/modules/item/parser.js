@@ -1,4 +1,5 @@
 import { isUnidentifiedStateLine, normalizeItemTextLanguage } from '../../../shared/itemTextLanguage.js'
+import { stripItemNameBasePrefixes } from '../../../shared/itemNamePrefixes.js'
 import { parseHeistMetadata } from './heist.js'
 import { parseLogbookMetadata } from './logbook.js'
 import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
@@ -209,6 +210,7 @@ export function parseItemInfo(clipboardText) {
     .replace(/(?:\s*(?:\[[^\]]*\]|\([^()\]]*★[^()\]]*\)))+\s*$/g, '')
     .replace(/(-?\d+(?:\.\d+)?)[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '$1')
     .replace(/[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '')
+    .replace(/[（(](?:\.\.\.|…)[）)]/g, '')
     .trim()
 
   const flushModifier = () => {
@@ -311,6 +313,9 @@ export function parseItemInfo(clipboardText) {
     '力量:',
     '敏捷:',
     '智慧:',
+    '堆叠数量:',
+    '堆疊數量:',
+    'Stack Size:',
     '--------'
   ];
   const isClusterJewel = () => /^(?:(?:大型|中型|小型)星团珠宝|(?:Large|Medium|Small) Cluster Jewel)$/.test(itemInfo.baseName || itemInfo.name)
@@ -319,7 +324,8 @@ export function parseItemInfo(clipboardText) {
       /^Place into an allocated .+ jewel socket on the Passive Skill Tree\./.test(text))
   const isIgnoredTextLine = (text) => ignorePatterns.some(pattern => text.includes(pattern)) ||
     isClusterJewelDescriptionLine(text) ||
-    /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map|Can only (?:be used|hold)|You can only have|This item can be used)/.test(text)
+    /^(?:仅能使用|僅能使用)/.test(text) ||
+    /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map|Can only (?:be used|be modified|hold)|You can only have|This item can be used)/.test(text)
   const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
   const itemStateLines = new Set(['已腐化', '二次腐化', '二次汙染', '二次污染', 'Twice Corrupted', '未鉴定', '不可改变', '不可調整的', '已复制', '镜像复制', '已分裂', '分裂', '分化', '分裂物品',
     '分裂之物', '破裂之物', '破碎之物', '破裂物品', 'Fractured Item', '烫金传奇', '貼模傳奇', 'Foil Unique'])
@@ -378,11 +384,19 @@ export function parseItemInfo(clipboardText) {
       if (!/^物品类别:|^稀\s*有\s*度:/.test(line)) continue
     }
 
+    // Stackable currency and divination card body lines are descriptions/instructions, not equipment modifiers.
+    if (['通货', '可堆叠通货', '通貨', '可堆疊通貨', '命运卡', '命運卡'].includes(itemInfo.category) && !identityHeaderOpen) {
+      if (/^物品等级[：:]/.test(line)) itemInfo.level = Number(line.match(/\d+/)?.[0]) || 0
+      if (/^(?:##\s*)?品质[：:]/.test(line)) itemInfo.quality = Number(line.match(/\d+/)?.[0]) || 0
+      if (line === '已腐化' || line === '二次腐化' || line === '二次汙染' || line === '二次污染' || line === 'Twice Corrupted') itemInfo.isCorrupted = true
+      if (!/^物品类别:|^稀\s*有\s*度:/.test(line)) continue
+    }
+
     if (isMapCategory(itemInfo.category)) {
       const region = line.match(/^(?:##\s*)?地图区域[：:]\s*(.+)$/)
       if (region) { itemInfo.areaName = region[1].trim(); continue }
-      if (identityHeaderOpen && /^(?:菌潮灭绝\s*地图|Blight-ravaged\s+Map)/i.test(line)) itemInfo.blightType = 'uberblighted'
-      else if (identityHeaderOpen && /^(?:菌潮\s*地图|Blighted\s+Map)/i.test(line)) itemInfo.blightType = 'blighted'
+      if (identityHeaderOpen && /^(?:(?:Superior|精良的)\s+)?(?:菌潮灭绝\s*地图|Blight-ravaged\s+Map)/i.test(line)) itemInfo.blightType = 'uberblighted'
+      else if (identityHeaderOpen && /^(?:(?:Superior|精良的)\s+)?(?:菌潮\s*地图|Blighted\s+Map)/i.test(line)) itemInfo.blightType = 'blighted'
     }
 
     const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
@@ -733,6 +747,10 @@ export function parseItemInfo(clipboardText) {
   }
 
   flushModifier()
+  if (!itemInfo.baseName && itemInfo.name && (itemInfo.rarity.replace(/\s/g, '') === '普通' || itemInfo.isUnidentified)) {
+    const strippedBase = stripItemNameBasePrefixes(itemInfo.name, { isMap: isMapCategory(itemInfo.category) })
+    if (strippedBase) itemInfo.baseName = strippedBase
+  }
   itemInfo.isLegendary = itemInfo.rarity.replace(/\s/g, '') === '传奇'
   if (itemInfo.isLegendary) {
     itemInfo.uniqueModifiers = itemInfo.explicitMods.map((original) => ({

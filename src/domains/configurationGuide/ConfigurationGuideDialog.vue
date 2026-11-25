@@ -127,6 +127,7 @@ function collectOverlayConfiguration(moduleId) {
   if (moduleId === CONFIGURATION_MODULES.items) {
     return collectCraftingConfigurationIssues({
       itemPosition: settings.itemPosition,
+      inventory: settings.inventory,
       currencyPositions: settings.currencyPositions,
       stashTabSelection: settings.stashTabSelection,
       preset: presets.currentItemPreset

@@ -184,15 +184,30 @@ export function generatePythonScript(config, craftingTemplate) {
         return False
     if result.get("isFractured", False):
         return True
+    return fractured_affix_count(result) > 0
+
+def fractured_affix_count(result):
+    if not isinstance(result, dict):
+        return 0
     modifiers = result.get("modifiers", [])
-    return isinstance(modifiers, list) and any(
-        isinstance(modifier, dict) and modifier.get("type") == "fractured"
-        for modifier in modifiers
-    )
+    if isinstance(modifiers, list):
+        return sum(
+            1 for modifier in modifiers
+            if isinstance(modifier, dict) and modifier.get("type") == "fractured"
+        )
+    return 0
 
 def ensure_scouring_preprocessable(result):
     if not has_fractured_affix(result):
         return True
+    if ${mode === 'alteration' ? 'True' : 'False'} and fractured_affix_count(result) == 1 and result.get("rarity", "").replace(" ", "") == "稀有":
+        return True
+    if "fail_or_skip_item" in globals():
+        return fail_or_skip_item(
+            "检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品",
+            "FRACTURED_ITEM_PREPARATION_UNSUPPORTED",
+            skippable=True
+        )
     return fail_item_runtime(
         "检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品，已停止制作",
         "FRACTURED_ITEM_PREPARATION_UNSUPPORTED"
@@ -223,14 +238,28 @@ def augment_single_affix_if_needed(result):
         return True, result
     if not isinstance(result, dict) or result.get("rarity", "").replace(" ", "") != "魔法":
         return True, result
-    affix_count = explicit_affix_count(result)
-    if affix_count is None:
-        print("[错误] 无法从结构化解析结果确认显式词缀数量，已停止以避免错误跳过增幅石")
-        return False, result
-    if affix_count != 1:
+    if result.get("affixMatch", False):
         return True, result
+    alteration_plan = result.get("alterationPlan")
+    if isinstance(alteration_plan, dict) and "shouldAugment" in alteration_plan:
+        plan_decision = alteration_plan.get("shouldAugment")
+        if plan_decision is False:
+            if explicit_affix_count(result) == 1:
+                skip_reason = alteration_plan.get("skipAugmentReason") or "当前词缀经增幅后无法达标，跳过增幅"
+                print(f"[跳过增幅] {skip_reason}")
+            return True, result
+        if plan_decision is None:
+            print("[错误] 无法从结构化解析结果确认显式词缀数量，已停止以避免错误跳过增幅石")
+            return False, result
+    else:
+        affix_count = explicit_affix_count(result)
+        if affix_count is None:
+            print("[错误] 无法从结构化解析结果确认显式词缀数量，已停止以避免错误跳过增幅石")
+            return False, result
+        if affix_count != 1:
+            return True, result
 
-    print(f"[提示] 检测到单词缀，先使用增幅石（explicitMods: {len(result.get('explicitMods') or [])}, detailedMods: {len(result.get('detailedMods') or [])}）...")
+    print(f"[提示] 检测到单词缀且存在达标可能，先使用增幅石（explicitMods: {len(result.get('explicitMods') or [])}, detailedMods: {len(result.get('detailedMods') or [])}）...")
     if not apply_currency("augmentation"):
         print("[错误] 使用增幅石失败")
         return False, result
@@ -247,6 +276,51 @@ def augment_single_affix_if_needed(result):
         return True, result
     return True, refreshed_result
 
+def regal_magic_item_if_needed(result):
+    if not ${mode === 'alteration' && enableRegal ? 'True' : 'False'}:
+        return True, result
+    if not isinstance(result, dict) or result.get("rarity", "").replace(" ", "") != "魔法":
+        return True, result
+    if result.get("affixMatch", False):
+        return True, result
+    alteration_plan = result.get("alterationPlan")
+    if not isinstance(alteration_plan, dict) or not alteration_plan.get("shouldRegal"):
+        skip_reason = alteration_plan.get("skipRegalReason") if isinstance(alteration_plan, dict) else ""
+        if skip_reason:
+            print(f"[跳过富豪] {skip_reason}")
+        return True, result
+
+    print("[提示] 当前魔法物品距离达标仅差 1 条词缀，使用富豪石尝试达标...")
+    if not apply_currency("regal"):
+        print("[错误] 使用富豪石失败")
+        return False, result
+
+    refreshed_result = read_current_item()
+    if not isinstance(refreshed_result, dict) or refreshed_result.get("error"):
+        error_msg = refreshed_result.get("error") if isinstance(refreshed_result, dict) else "无效结果"
+        error_code = refreshed_result.get("errorCode") if isinstance(refreshed_result, dict) else None
+        fail_item_runtime(f"富豪后读取物品信息失败：{error_msg}", error_code or "ITEM_READ_FAILED")
+        return False, result
+    if refreshed_result.get("unchanged"):
+        print("[提示] 富豪后文本未变化，沿用富豪前读取结果")
+        return True, result
+    return True, refreshed_result
+
+def advance_magic_affix_state(result):
+    if not isinstance(result, dict):
+        return False, result
+    if result.get("affixMatch", False):
+        return True, result
+    augment_success, result = augment_single_affix_if_needed(result)
+    if not augment_success:
+        return False, result
+    if result.get("affixMatch", False):
+        return True, result
+    regal_success, result = regal_magic_item_if_needed(result)
+    if not regal_success:
+        return False, result
+    return True, result
+
 def finish_affix_match(result, iteration=0):
     matched_group_name = result.get("matchedGroupName", "")
     group_suffix = f" · {matched_group_name}" if matched_group_name else ""
@@ -254,15 +328,7 @@ def finish_affix_match(result, iteration=0):
     print(f"[成功] 词缀匹配成功{group_suffix}！（{stage}）")
 `
 
-    if (mode === 'alteration') {
-      if (enableRegal) {
-        finishLogic += `    print("[操作] 使用富豪石")
-    if not apply_currency("regal"):
-        print("[错误] 使用富豪石失败")
-        return False
-`
-      }
-    } else if (mode === 'chaos' && enableExalted) {
+    if (mode === 'chaos' && enableExalted) {
       finishLogic += `    print("[操作] 使用崇高石")
     if not apply_currency("exalted"):
         print("[错误] 使用崇高石失败")
@@ -271,7 +337,6 @@ def finish_affix_match(result, iteration=0):
     }
 
     finishLogic += `    print("[完成] 词缀制作完成！")
-    time.sleep(2)
     return True
 `
 
@@ -286,13 +351,24 @@ def craft_affixes(initial_result=None):
         result = initial_result
         
         if result.get("isLegendary", False):
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item("检测到传奇物品，无法制作", "ITEM_LEGENDARY", skippable=True)
             print("[停止] 检测到传奇物品，无法制作")
-            time.sleep(3)
+            return False
+        if result.get("isCorrupted", False):
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item("检测到已腐化物品，无法制作", "ITEM_CORRUPTED", skippable=True)
+            print("[停止] 检测到已腐化物品，无法制作")
+            return False
+        if result.get("isMirrored", False) or result.get("isUnmodifiable", False):
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item("检测到镜像或不可修改物品，无法制作", "ITEM_UNMODIFIABLE", skippable=True)
+            print("[停止] 检测到镜像或不可修改物品，无法制作")
             return False
 
         if ${checkInitialItem ? 'True' : 'False'}:
-            augment_success, result = augment_single_affix_if_needed(result)
-            if not augment_success:
+            advance_success, result = advance_magic_affix_state(result)
+            if not advance_success:
                 return False
             if result.get("affixMatch", False):
                 return finish_affix_match(result, 0)
@@ -383,6 +459,17 @@ def craft_affixes(initial_result=None):
         if preprocess_count >= preprocess_limit:
             print("[警告] 预处理超时，尝试直接开始...")
 `
+
+    if (mode === 'alteration') {
+      logic += `
+        if preprocess_count > 0 and result.get("rarity", "").replace(" ", "") == "魔法":
+            advance_success, result = advance_magic_affix_state(result)
+            if not advance_success:
+                return False
+            if result.get("affixMatch", False):
+                return finish_affix_match(result, 0)
+`
+    }
         
     logic += `
         # 开始制作循环
@@ -403,8 +490,9 @@ def craft_affixes(initial_result=None):
                 return False
             
             if iteration > max_iterations:
+                if "fail_or_skip_item" in globals():
+                    return fail_or_skip_item(f"达到最大循环次数 ({max_iterations})，仍未命中目标词缀", "CRAFT_MAX_ITERATIONS", skippable=True)
                 print(f"[停止] 达到最大循环次数 ({max_iterations})，停止制作")
-                time.sleep(3)
                 return False
             
             # print(f"[调试] 第 {iteration} 次循环开始，准备使用通货...")
@@ -413,11 +501,68 @@ def craft_affixes(initial_result=None):
 
     if (mode === 'alteration') {
       logic += `
-            # 使用改造石
-            print(f"[操作] 第 {iteration} 次 - 使用改造石")
-            if not apply_currency("alteration"):
-                print("[错误] 使用改造石失败，重试...")
-                continue
+            current_rarity = result.get("rarity", "").replace(" ", "")
+            if current_rarity == "魔法":
+                # 使用改造石
+                print(f"[操作] 第 {iteration} 次 - 使用改造石")
+                if not apply_currency("alteration"):
+                    print("[错误] 使用改造石失败，重试...")
+                    continue
+                read_result = read_current_item()
+                if not isinstance(read_result, dict) or read_result.get("error"):
+                    error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                    print(f"[错误] 读取当前物品失败: {error_msg}")
+                    error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                    return fail_item_runtime(f"读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
+                if read_result.get("unchanged"):
+                    if iteration % 10 == 0:
+                        print(f"[检查] 第 {iteration} 次 - 文本未变化，继续...")
+                    continue
+                result = read_result
+            else:
+                # 富豪未命中变为稀有（或普通状态）：回退至魔法品质后直接评估本次结果
+                if current_rarity != "普通":
+                    if not ensure_scouring_preprocessable(result):
+                        return False
+                    print(f"[操作] 第 {iteration} 次 - 物品为{current_rarity}，使用重铸石")
+                    if not apply_currency("scouring"):
+                        print("[错误] 使用重铸石失败，跳过本次循环")
+                        continue
+                    read_result = read_current_item()
+                    if not isinstance(read_result, dict) or read_result.get("error"):
+                        error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                        error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                        return fail_item_runtime(f"重铸后读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
+                    if read_result.get("unchanged"):
+                        print(f"[检查] 第 {iteration} 次 - 重铸后文本未变化，继续...")
+                        continue
+                    result = read_result
+                    current_rarity = result.get("rarity", "").replace(" ", "")
+                    if current_rarity == "稀有":
+                        if "fail_or_skip_item" in globals():
+                            return fail_or_skip_item(
+                                "重铸后物品仍为稀有（可能包含多条破碎词缀），无法回到魔法品质继续改造",
+                                "FRACTURED_ITEM_PREPARATION_UNSUPPORTED",
+                                skippable=True
+                            )
+                        return fail_item_runtime(
+                            "重铸后物品仍为稀有（可能包含多条破碎词缀），无法回到魔法品质继续改造，已停止制作",
+                            "FRACTURED_ITEM_PREPARATION_UNSUPPORTED"
+                        )
+                if current_rarity == "普通":
+                    print(f"[操作] 第 {iteration} 次 - 使用蜕变石")
+                    if not apply_currency("transmutation"):
+                        print("[错误] 使用蜕变石失败，跳过本次循环")
+                        continue
+                    read_result = read_current_item()
+                    if not isinstance(read_result, dict) or read_result.get("error"):
+                        error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                        error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                        return fail_item_runtime(f"蜕变后读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
+                    if read_result.get("unchanged"):
+                        print(f"[检查] 第 {iteration} 次 - 蜕变后文本未变化，继续...")
+                        continue
+                    result = read_result
 `
     } else if (mode === 'chaos') {
       logic += `
@@ -426,6 +571,17 @@ def craft_affixes(initial_result=None):
             if not apply_currency("chaos"):
                 print("[错误] 使用混沌石失败，跳过本次循环")
                 continue
+            read_result = read_current_item()
+            if not isinstance(read_result, dict) or read_result.get("error"):
+                error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
+                print(f"[错误] 读取当前物品失败: {error_msg}")
+                error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
+                return fail_item_runtime(f"读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
+            if read_result.get("unchanged"):
+                if iteration % 10 == 0:
+                    print(f"[检查] 第 {iteration} 次 - 文本未变化，继续...")
+                continue
+            result = read_result
 `
     } else if (mode === 'alchemy') {
       logic += `
@@ -445,34 +601,31 @@ def craft_affixes(initial_result=None):
             if not apply_currency("${alchemyCurrency}"):
                 print("[错误] 使用${alchemyCurrency === 'binding' ? '高阶点金石' : '点金石'}失败，跳过本次循环")
                 continue
-`
-    }
-
-    logic += `
-            # 复制物品并读取（最多三次读取，不重复使用通货）
             read_result = read_current_item()
             if not isinstance(read_result, dict) or read_result.get("error"):
                 error_msg = read_result.get("error") if isinstance(read_result, dict) else "无效解析结果"
                 print(f"[错误] 读取当前物品失败: {error_msg}")
                 error_code = read_result.get("errorCode") if isinstance(read_result, dict) else None
                 return fail_item_runtime(f"读取当前物品失败：{error_msg}", error_code or "ITEM_READ_FAILED")
-            
             if read_result.get("unchanged"):
-                # 文本未变化：匹配结论与上次一致，沿用上次结果，直接进入下一轮使用通货
                 if iteration % 10 == 0:
                     print(f"[检查] 第 {iteration} 次 - 文本未变化，继续...")
                 continue
             result = read_result
-            
-            # print(f"[调试] 第 {iteration} 次 - 解析成功，检查是否需要增幅...")
+`
+    }
+
+    logic += `
+            # print(f"[调试] 第 {iteration} 次 - 解析成功，检查达标与增幅/富豪决策...")
             
             if result.get("isLegendary", False):
+                if "fail_or_skip_item" in globals():
+                    return fail_or_skip_item("检测到传奇物品，无法制作", "ITEM_LEGENDARY", skippable=True)
                 print("[停止] 检测到传奇物品，停止制作")
-                time.sleep(3)
                 return False
             
-            augment_success, result = augment_single_affix_if_needed(result)
-            if not augment_success:
+            advance_success, result = advance_magic_affix_state(result)
+            if not advance_success:
                 return False
 
             # 检查词缀匹配
@@ -625,14 +778,12 @@ def craft_specialized(initial_result=None):
             # 颜色流程
             if craft_colors(${colorConfig.red}, ${colorConfig.green}, ${colorConfig.blue}):
                 print("[完成] 插槽制作完成！")
-                time.sleep(2)
                 return True
 `
     } else {
       logic += `
             # 跳过颜色流程
             print("[完成] 插槽制作完成！")
-            time.sleep(2)
             return True
 `
     }
@@ -653,8 +804,9 @@ def craft_socket_count(target_count):
             return False
         
         if iteration > max_iterations:
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item(f"开孔达到最大循环次数 ({max_iterations})", "CRAFT_MAX_ITERATIONS", skippable=True)
             print(f"[停止] 开孔达到最大循环次数 ({max_iterations})")
-            time.sleep(3)
             return False
         
         # 使用工匠石
@@ -692,8 +844,9 @@ def craft_links(target_links):
             return False
             
         if iteration > max_iterations:
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item(f"链接达到最大循环次数 ({max_iterations})", "CRAFT_MAX_ITERATIONS", skippable=True)
             print(f"[停止] 链接达到最大循环次数 ({max_iterations})")
-            time.sleep(3)
             return False
         
         # 使用链结石
@@ -731,8 +884,9 @@ def craft_colors(target_red, target_green, target_blue):
             return False
             
         if iteration > max_iterations:
+            if "fail_or_skip_item" in globals():
+                return fail_or_skip_item(f"颜色达到最大循环次数 ({max_iterations})", "CRAFT_MAX_ITERATIONS", skippable=True)
             print(f"[停止] 颜色达到最大循环次数 ({max_iterations})")
-            time.sleep(3)
             return False
         
         # 使用幻色石
@@ -771,7 +925,9 @@ def craft_colors(target_red, target_green, target_blue):
     const module = preset.moduleEldritch || {}
     if (!module.enabled) return 'def craft_eldritch_implicits(initial_result=None):\n    return True'
     const currency = eldritchCurrencyType(module)
-    return `def fail_eldritch_crafting(reason, code="ELDRITCH_CRAFTING_FAILED"):
+    return `def fail_eldritch_crafting(reason, code="ELDRITCH_CRAFTING_FAILED", skippable=False):
+    if skippable and "fail_or_skip_item" in globals() and globals().get("batch_config", {}).get("enabled"):
+        return fail_or_skip_item(reason, code, skippable=True)
     global is_running, fatal_error_reason
     fatal_error_reason = reason
     is_running = False
@@ -792,15 +948,15 @@ def craft_eldritch_implicits(initial_result=None):
 
         category = str(result.get("category") or "").replace(" ", "")
         if result.get("isLegendary"):
-            return fail_eldritch_crafting("传奇物品不能使用古灵直接通货", "ELDRITCH_UNSUPPORTED_RARITY")
+            return fail_eldritch_crafting("传奇物品不能使用古灵直接通货", "ELDRITCH_UNSUPPORTED_RARITY", skippable=True)
         if result.get("isCorrupted"):
-            return fail_eldritch_crafting("已腐化物品不能使用古灵直接通货", "ELDRITCH_CORRUPTED")
+            return fail_eldritch_crafting("已腐化物品不能使用古灵直接通货", "ELDRITCH_CORRUPTED", skippable=True)
         if result.get("isMirrored") or result.get("isUnmodifiable"):
-            return fail_eldritch_crafting("不可改变或镜像物品不能进行古灵制作", "ELDRITCH_UNMODIFIABLE")
+            return fail_eldritch_crafting("不可改变或镜像物品不能进行古灵制作", "ELDRITCH_UNMODIFIABLE", skippable=True)
         if category not in {"头部", "头盔", "手套", "鞋子", "胸甲", "身体护甲"}:
-            return fail_eldritch_crafting("古灵直接通货只能用于头盔、手套、鞋子或胸甲", "ELDRITCH_UNSUPPORTED_BASE")
+            return fail_eldritch_crafting("古灵直接通货只能用于头盔、手套、鞋子或胸甲", "ELDRITCH_UNSUPPORTED_BASE", skippable=True)
         if result.get("influences"):
-            return fail_eldritch_crafting("势力或忆境物品不能使用古灵直接通货", "ELDRITCH_INFLUENCED")
+            return fail_eldritch_crafting("势力或忆境物品不能使用古灵直接通货", "ELDRITCH_INFLUENCED", skippable=True)
 
         if ${checkInitialItem ? 'True' : 'False'} and result.get("eldritchImplicitMatch"):
             target = result.get("matchedEldritchTargetName") or "目标隐式"
@@ -823,7 +979,7 @@ def craft_eldritch_implicits(initial_result=None):
                 print(f"[成功] 古灵隐式命中：{target}（第 {iteration} 次）")
                 return True
 
-        return fail_eldritch_crafting("达到最大循环次数 (1000)，仍未命中目标古灵隐式", "ELDRITCH_MAX_ITERATIONS")
+        return fail_eldritch_crafting("达到最大循环次数 (1000)，仍未命中目标古灵隐式", "ELDRITCH_MAX_ITERATIONS", skippable=True)
     except Exception as error:
         return fail_eldritch_crafting(f"古灵隐式制作异常：{type(error).__name__}: {error}")
 `
@@ -858,24 +1014,48 @@ def craft_eldritch_implicits(initial_result=None):
     y: Math.floor(actionPosition?.y || 0)
   }
   const requiredCurrencyTypes = buildCraftingCurrencyPreflight(preset)
-  const safeBatchConfig = batchConfig?.enabled ? {
-    enabled: true,
-    batchId: String(batchConfig.batchId || ''),
-    scanId: String(batchConfig.scanId || ''),
-    snapshotFingerprint: String(batchConfig.snapshotFingerprint || ''),
-    recovering: Boolean(batchConfig.recovering),
-    completedIds: (batchConfig.completedIds || []).map(String),
-    targets: (batchConfig.targets || []).map((target) => ({
-      id: String(target.id || ''),
-      categoryId: String(target.categoryId || ''),
-      baseType: String(target.baseType || ''),
-      displayName: String(target.displayName || target.baseType || ''),
-      x: Number(target.x), y: Number(target.y),
-      width: Number(target.width), height: Number(target.height),
-      footprintSource: String(target.footprintSource || ''),
-      position: { x: Math.floor(target.position?.x || 0), y: Math.floor(target.position?.y || 0) }
-    }))
-  } : { enabled: false, targets: [] }
+  const safeBatchConfig = batchConfig?.enabled ? (
+    batchConfig.mode === 'auto-scan'
+      ? {
+          enabled: true,
+          mode: 'auto-scan',
+          batchId: String(batchConfig.batchId || ''),
+          categoryIds: [...new Set((batchConfig.categoryIds || []).map(String).filter(Boolean))],
+          completedIds: [],
+          skippedIds: [],
+          targets: [],
+          inventory: {
+            startPos: {
+              x: Math.floor(batchConfig.inventory?.startPos?.x || 0),
+              y: Math.floor(batchConfig.inventory?.startPos?.y || 0)
+            },
+            slotSize: {
+              w: Math.floor(batchConfig.inventory?.slotSize?.w || 0),
+              h: Math.floor(batchConfig.inventory?.slotSize?.h || 0)
+            }
+          }
+        }
+      : {
+          enabled: true,
+          mode: 'snapshot',
+          batchId: String(batchConfig.batchId || ''),
+          scanId: String(batchConfig.scanId || ''),
+          snapshotFingerprint: String(batchConfig.snapshotFingerprint || ''),
+          recovering: Boolean(batchConfig.recovering),
+          completedIds: (batchConfig.completedIds || []).map(String),
+          skippedIds: (batchConfig.skippedIds || []).map(String),
+          targets: (batchConfig.targets || []).map((target) => ({
+            id: String(target.id || ''),
+            categoryId: String(target.categoryId || ''),
+            baseType: String(target.baseType || ''),
+            displayName: String(target.displayName || target.baseType || ''),
+            x: Number(target.x), y: Number(target.y),
+            width: Number(target.width), height: Number(target.height),
+            footprintSource: String(target.footprintSource || ''),
+            position: { x: Math.floor(target.position?.x || 0), y: Math.floor(target.position?.y || 0) }
+          }))
+        }
+  ) : { enabled: false, mode: 'snapshot', targets: [] }
   safeBatchConfig.affixItemLevelRequirements = affixItemLevelRequirements
 
   // 填充模板

@@ -3,65 +3,28 @@
     <el-row class="bag-content app-grid" :gutter="16"><el-col :span="24">
       <el-tabs v-model="activeTab" class="storage-tabs" @tab-change="handleStorageTabChange">
           <el-tab-pane label="入库" name="inbound">
-            <div class="inbound-feature-grid">
-              <section class="inbound-feature">
-                <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
-                <el-card class="section-card inbound-feature-card">
-                  <el-form label-width="120px" label-position="left">
-                    <el-form-item>
-                      <template #label>
-                        <span class="label-with-help">
-                          启用功能
-                          <el-tooltip content="持续检测普通仓库与背包，并在游戏内提供自动入库按钮" placement="top">
-                            <el-icon class="help-icon" tabindex="0" aria-label="背包安全入库启用说明"><QuestionFilled /></el-icon>
-                          </el-tooltip>
-                        </span>
-                      </template>
-                      <el-switch :model-value="bagStore.moduleEnabled" @change="handleModuleToggle" />
-                    </el-form-item>
-                    <el-form-item label="检测状态">
-                      <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
-                    </el-form-item>
-                  </el-form>
-                </el-card>
-              </section>
-
-              <section class="inbound-feature">
-                <div class="section-header"><h3 class="section-title">永火接收舱一键入库</h3></div>
-                <el-card class="section-card inbound-feature-card">
-                  <el-form label-width="120px" label-position="left">
-                    <el-form-item>
-                      <template #label>
-                        <span class="label-with-help">
-                          启用功能
-                          <el-tooltip content="持续检测永火接收舱与背包，并共用游戏内自动入库按钮" placement="top">
-                            <el-icon class="help-icon" tabindex="0" aria-label="永火接收舱入库启用说明"><QuestionFilled /></el-icon>
-                          </el-tooltip>
-                        </span>
-                      </template>
-                      <el-switch :model-value="bagStore.allflameReceiverEnabled" @change="handleAllflameReceiverToggle" />
-                    </el-form-item>
-                    <el-form-item label="检测状态">
-                      <el-tag :type="allflameDetectionStatus.type">{{ allflameDetectionStatus.text }}</el-tag>
-                    </el-form-item>
-                  </el-form>
-                  <TemplateCaptureConfigurationField
-                    type="allflameReceiverTitle"
-                    region-key="allflameReceiverRegion"
-                    label="永火接收舱标题模板"
-                  />
-                </el-card>
-              </section>
-            </div>
-
-            <div class="section-header"><h3 class="section-title">共享入库运行与规则</h3></div>
+            <div class="section-header"><h3 class="section-title">背包安全入库</h3></div>
             <el-card class="section-card module-summary-card">
               <el-form label-width="120px" label-position="left" class="module-summary-grid">
                 <el-form-item class="module-summary-item">
                   <template #label>
                     <span class="label-with-help">
+                      启用功能
+                      <el-tooltip content="持续检测普通仓库与背包，并在游戏内提供自动入库按钮" placement="top">
+                        <el-icon class="help-icon" tabindex="0" aria-label="背包安全入库启用说明"><QuestionFilled /></el-icon>
+                      </el-tooltip>
+                    </span>
+                  </template>
+                  <el-switch :model-value="bagStore.moduleEnabled" @change="handleModuleToggle" />
+                </el-form-item>
+                <el-form-item label="检测状态" class="module-summary-item">
+                  <el-tag :type="detectionStatus.type">{{ detectionStatus.text }}</el-tag>
+                </el-form-item>
+                <el-form-item class="module-summary-item">
+                  <template #label>
+                    <span class="label-with-help">
                       传奇强入
-                       <el-tooltip content="两种入库共用：仅当传奇物品无法正常转移时，才会追加 Shift 强制转移到当前目标界面" placement="top">
+                      <el-tooltip content="仅当传奇物品无法正常转移时，才会追加 Shift 强制转移到当前目标界面" placement="top">
                         <el-icon class="help-icon" tabindex="0" aria-label="传奇强入说明"><QuestionFilled /></el-icon>
                       </el-tooltip>
                     </span>
@@ -457,7 +420,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { QuestionFilled, VideoPause } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
@@ -471,7 +434,6 @@ import StashGridConfigurationField from '@/components/configuration/StashGridCon
 import TemplateCaptureConfigurationField from '@/components/configuration/TemplateCaptureConfigurationField.vue'
 import {
   formatBagStopReason,
-  setAllflameReceiverEnabled,
   setBagModuleEnabled,
   stopBagStash,
   updateBagRuntimeConfig
@@ -487,7 +449,6 @@ import {
 } from '@/utils/bagConfig'
 import {
   collectBagConfigurationIssues,
-  collectAllflameReceiverConfigurationIssues,
   collectJunfengConfigurationIssues,
   collectStashPickupConfigurationIssues,
   CONFIGURATION_ACTIONS,
@@ -555,7 +516,12 @@ const excludedSlotKeys = computed(() => new Set(
 
 function handleStorageTabChange(tab) {
   activeTab.value = writePersistentTab(STORAGE_TAB_STORAGE_KEY, tab, STORAGE_TABS, 'inbound')
+  if (activeTab.value === 'pickup') void junfengStore.ensureCorrectionsLoaded().catch(() => {})
 }
+
+onMounted(() => {
+  if (activeTab.value === 'pickup') void junfengStore.ensureCorrectionsLoaded().catch(() => {})
+})
 
 function openStashPickupCorrection() {
   openConfigurationCorrectionGuide({
@@ -576,19 +542,16 @@ function openStashPickupCorrection() {
 }
 
 function openBagCorrection() {
-  const receiverIssue = bagStore.lastFailure.configurationIssueId === 'template.allflame-receiver-title' ||
-    (bagStore.allflameReceiverEnabled && !bagStore.moduleEnabled)
-  const collect = receiverIssue ? collectAllflameReceiverConfigurationIssues : collectBagConfigurationIssues
   openConfigurationCorrectionGuide({
     moduleId: CONFIGURATION_MODULES.bag,
     actionId: CONFIGURATION_ACTIONS.start,
-    title: receiverIssue ? '重新配置永火接收舱一键入库' : '重新配置背包安全入库',
+    title: '重新配置背包安全入库',
     failure: {
       failureCode: bagStore.lastFailure.failureCode,
       configurationIssueId: bagStore.lastFailure.configurationIssueId,
       message: bagStore.lastStopReason
     },
-    collect: () => collect({
+    collect: () => collectBagConfigurationIssues({
       actionId: CONFIGURATION_ACTIONS.start,
       templates: interfaceStore.templates,
       inventory: settingsStore.inventory
@@ -622,11 +585,6 @@ const detectionStatus = computed(() => {
   if (!bagStore.moduleEnabled) return { type: 'info', text: '模块未启用' }
   if (bagStore.isStashMatched) return { type: 'success', text: '仓库与背包已就绪' }
   return bagStore.isDetecting ? { type: 'warning', text: '等待仓库与背包同时打开' } : { type: 'danger', text: '检测已停止' }
-})
-const allflameDetectionStatus = computed(() => {
-  if (!bagStore.allflameReceiverEnabled) return { type: 'info', text: '模块未启用' }
-  if (bagStore.isAllflameReceiverMatched) return { type: 'success', text: '接收舱与背包已就绪' }
-  return bagStore.isDetecting ? { type: 'warning', text: '等待接收舱与背包同时打开' } : { type: 'danger', text: '检测已停止' }
 })
 const hasRunStats = computed(() => bagStore.stashStats.scannedSlots > 0)
 const stashPickupStatus = computed(() => {
@@ -669,13 +627,6 @@ async function handleModuleToggle(enabled) {
   }
 }
 
-async function handleAllflameReceiverToggle(enabled) {
-  try {
-    await setAllflameReceiverEnabled(enabled)
-  } catch (error) {
-    ElMessage.error(`操作失败：${error.message}`)
-  }
-}
 
 async function toggleStashPickup(enabled) {
   try { await stashPickupStore.setEnabled(enabled) } catch (error) { ElMessage.error(error.message) }

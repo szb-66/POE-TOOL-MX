@@ -16,6 +16,10 @@ function positiveTier(value) {
   return tier > 0 ? tier : null
 }
 
+function normalizeAffixType(value) {
+  return value === 'prefix' || value === 'suffix' ? value : ''
+}
+
 function normalizeTierOptions(values) {
   if (!Array.isArray(values)) return []
   return [...new Map(values.map((entry) => {
@@ -39,6 +43,7 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
       keyword,
       displayName: keyword,
       effectPattern: '',
+      affixType: '',
       source: '',
       sourceLabel: '',
       profileId: '',
@@ -60,6 +65,7 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
     displayName: text(input.displayName) || keyword || effectPattern,
     effectPattern: kind === 'catalog' ? effectPattern : '',
     ...(kind === 'catalog' && text(input.canonicalPattern) ? { canonicalPattern: text(input.canonicalPattern) } : {}),
+    affixType: kind === 'catalog' ? normalizeAffixType(input.affixType) : '',
     source: text(input.source),
     sourceLabel: text(input.sourceLabel),
     profileId: text(input.profileId),

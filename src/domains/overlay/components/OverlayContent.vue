@@ -59,13 +59,25 @@
     </section>
 
     <section v-if="batchProgress" class="batch-progress" aria-label="背包批量制作进度">
-      <div class="batch-progress-title">背包批量制作</div>
-      <div>已完成 {{ batchProgress.completed || 0 }}/{{ batchProgress.total || 0 }}</div>
+      <div class="batch-progress-title">
+        {{ batchProgress.mode === 'auto-scan' ? '背包批量制作（自动扫包）' : '背包批量制作' }}
+      </div>
+      <div v-if="batchProgress.mode === 'auto-scan'">
+        已完成 {{ batchProgress.completed || 0 }} 件<template v-if="batchProgress.skipped"> · 已跳过 {{ batchProgress.skipped }} 件</template>
+      </div>
+      <div v-else>
+        已完成 {{ batchProgress.completed || 0 }}/{{ batchProgress.total || 0 }}<template v-if="batchProgress.skipped"> · 已跳过 {{ batchProgress.skipped }} 件</template>
+      </div>
       <div v-if="batchProgress.currentItem" class="batch-progress-current">
         当前：{{ batchProgress.currentItem.displayName || batchProgress.currentItem.baseType }}
-        （格 {{ batchProgress.currentItem.x }}, {{ batchProgress.currentItem.y }}）
+        （格 {{ Number(batchProgress.currentItem.x) + 1 }}, {{ Number(batchProgress.currentItem.y) + 1 }}）
       </div>
-      <div>剩余 {{ batchProgress.remaining || 0 }} 件</div>
+      <div v-if="batchProgress.mode !== 'auto-scan'">剩余 {{ batchProgress.remaining || 0 }} 件</div>
+      <div v-if="batchProgress.skippedItems?.length" class="batch-skipped-list">
+        <div v-for="(entry, index) in batchProgress.skippedItems.slice(-4)" :key="`${entry.id || index}-${entry.x}-${entry.y}`" class="batch-skipped-item">
+          跳过 ({{ Number(entry.x) + 1 }},{{ Number(entry.y) + 1 }}) {{ entry.displayName }}：{{ entry.reason }}
+        </div>
+      </div>
     </section>
 
     <!-- 地图制作模式：显示统计信息 -->
@@ -1000,5 +1012,21 @@ function isModMatched(mod) {
       margin-left: 8px;
     }
   }
+}
+
+.batch-skipped-list {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(246, 195, 67, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.batch-skipped-item {
+  font-size: 10px;
+  color: #ffd27a;
+  line-height: 1.35;
+  word-break: break-all;
 }
 </style>

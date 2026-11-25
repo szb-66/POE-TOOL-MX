@@ -40,6 +40,28 @@ function discriminatorForCategory(officialCategory) {
   return IDENTITY_DISCRIMINATORS.has(category) ? category : undefined
 }
 
+function defaultDiscriminatorForIdentity(officialCategory, type) {
+  const category = officialCategory?.category
+  if (category === 'map') {
+    const normalizedType = safeText(type)
+    return !normalizedType || normalizedType === 'Map' || normalizedType === '地图' ? 'map' : undefined
+  }
+  return discriminatorForCategory(officialCategory)
+}
+
+function resolveDirectMapBaseType(item, catalog) {
+  const candidateBase = resolveNonUniqueBaseType(item, catalog)
+  if (!candidateBase || candidateBase === 'Map' || candidateBase === '地图') return ''
+  const isUnique = item.rarity?.replace(/\s/g, '') === '传奇'
+  const match = (catalog?.items || []).find((entry) => (
+    entry?.category === 'map' &&
+    !entry.discriminator &&
+    safeText(entry.baseType || entry.type) === candidateBase &&
+    (isUnique || entry.unique !== true)
+  ))
+  return match ? safeText(match.baseType || match.type) : ''
+}
+
 function resolveNonUniqueBaseType(item, catalog) {
   const fallback = safeText(item.baseName || item.name)
   if (item.baseName || item.category === '通货' || item.rarity?.replace(/\s/g, '') === '传奇') return fallback
@@ -357,10 +379,11 @@ export function createPriceCheckModel(item, catalog, options = {}, mercenaryReso
   const mercenaryWarrant = resolveMercenaryWarrantIdentity(item, catalog, mercenaryResolver)
   const specialIdentity = resolveSpecialItemIdentity(item, catalog)
   const isLogbook = officialCategory?.category === 'logbook'
+  const isMap = officialCategory?.category === 'map'
+  const directMapBaseType = isMap && !specialIdentity ? resolveDirectMapBaseType(item, catalog) : ''
   const identityDiscriminator = specialIdentity?.discriminator || (mercenaryWarrant?.type
     ? MERCENARY_WARRANT_DISCRIMINATOR
-    : discriminatorForCategory(officialCategory))
-  const isMap = officialCategory?.category === 'map'
+    : (directMapBaseType ? undefined : discriminatorForCategory(officialCategory)))
   const isChart = officialCategory?.category === 'chart'
   const chartRegion = isChart ? resolveChartRegion(catalog, item.areaName) : null
   if (isChart && !chartRegion) {
@@ -378,7 +401,7 @@ export function createPriceCheckModel(item, catalog, options = {}, mercenaryReso
   }
   const baseType = specialIdentity?.type || mercenaryWarrant?.type || visceraBaseType || (isChart
     ? chartRegion.type
-    : (isMap ? (catalog?.locale === 'en' ? 'Map' : '地图') : resolveNonUniqueBaseType(item, catalog)))
+    : (isMap ? (directMapBaseType || (catalog?.locale === 'en' ? 'Map' : '地图')) : resolveNonUniqueBaseType(item, catalog)))
   const isClusterJewel = /^(?:大型|中型|小型)星团珠宝$/.test(baseType)
   const fixedIdentity = rarity === '传奇' && (!isMap || !item.isUnidentified)
     ? resolveFoulbornUniqueName(item, catalog, baseType) : ''
@@ -670,7 +693,7 @@ export function createPriceCheckModel(item, catalog, options = {}, mercenaryReso
 
 export function resolveUnidentifiedUnique(model, catalog) {
   if (model?.item?.rarity !== '传奇' || !model.item.unidentified) return model
-  if (model.identity?.category === 'map') {
+  if (model.identity?.category === 'map' && model.identity?.discriminator === 'map') {
     const baseType = catalog?.locale === 'en' ? 'Map' : '地图'
     model.identity = { ...model.identity, name: '', type: baseType, discriminator: 'map', nameEnabled: true }
     model.identityResolution = { required: false, baseType, candidates: [] }
@@ -738,7 +761,7 @@ export function buildOfficialTradeQuery(model, options = {}) {
     baseType: !model.identityPrecision?.allowNameOnly && nameEnabled && model.identity.type ? safeText(model.identity.type) : undefined,
     discriminator: IDENTITY_DISCRIMINATORS.has(model.identity.discriminator)
       ? model.identity.discriminator
-      : discriminatorForCategory(officialCategory),
+      : defaultDiscriminatorForIdentity(officialCategory, model.identity.type),
     category: officialCategory?.category,
     rarity: model.item.rarity === '传奇' && IDENTITY_DISCRIMINATORS.has(officialCategory?.category)
       ? 'unique'
@@ -1047,6 +1070,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
   const officialCategory = resolvePriceCheckCategory(sourceCategory)
   const trustedDiscriminator = safeText(trustedModel?.identity?.discriminator, 40)
   const submittedDiscriminator = safeText(value.identity?.discriminator, 40)
+  const resolvedType = safeText(trustedModel?.identity?.type ?? value.identity?.type)
   const catalogSpecialIdentity = SPECIAL_DISCRIMINATORS.includes(submittedDiscriminator) &&
     (catalog?.items || []).some((entry) => entry.discriminator === submittedDiscriminator &&
       entry.baseType === value.identity?.type && (
@@ -1054,12 +1078,14 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
         (entry.category === 'map' && officialCategory?.category === 'map') ||
         (entry.category === 'currency' && officialCategory?.category === 'currency')
       ))
-  const discriminator = IDENTITY_DISCRIMINATORS.has(trustedDiscriminator)
-    ? trustedDiscriminator
-    : (!trustedModel && (catalogSpecialIdentity ||
-        (submittedDiscriminator === MERCENARY_WARRANT_DISCRIMINATOR && sourceCategory === '地图碎片'))
+  const discriminator = trustedModel
+    ? (IDENTITY_DISCRIMINATORS.has(trustedDiscriminator)
+        ? trustedDiscriminator
+        : defaultDiscriminatorForIdentity(officialCategory, resolvedType))
+    : (catalogSpecialIdentity ||
+        (submittedDiscriminator === MERCENARY_WARRANT_DISCRIMINATOR && sourceCategory === '地图碎片')
         ? submittedDiscriminator
-        : discriminatorForCategory(officialCategory))
+        : defaultDiscriminatorForIdentity(officialCategory, resolvedType))
   const name = safeText(trustedModel?.identity?.name ?? value.identity?.name)
   const nameEnabled = value.identity?.nameEnabled === false && officialCategory ? false : true
   const mercenarySkillGroups = sanitizeMercenarySkillGroups(value, catalog, trustedModel)
@@ -1082,7 +1108,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
     item: { ...(value.item || {}), ...(trustedModel?.item || {}), category: sourceCategory, ...flags },
     identity: {
       name,
-      type: safeText(trustedModel?.identity?.type ?? value.identity?.type),
+      type: resolvedType,
       ...((trustedModel?.identity?.displayName ?? value.identity?.displayName)
         ? { displayName: safeText(trustedModel?.identity?.displayName ?? value.identity?.displayName) }
         : {}),

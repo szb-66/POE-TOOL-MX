@@ -89,9 +89,15 @@ export function evaluateItemsStatus(input = {}) {
       ? (input.scriptMode === 'map' ? '共享脚本正被地图模块占用' : '共享脚本正在运行')
       : '配置完整，可启动',
     runningText: input.batchEnabled
-      ? `背包批量制作中 · ${input.batchProgress?.completed || 0}/${input.batchProgress?.total || input.batchCount || 0}`
+      ? (input.batchProgress?.mode === 'auto-scan' || (!input.batchHasSnapshot && !input.batchProgress?.total)
+          ? `自动扫包批量制作中 · 已完成 ${input.batchProgress?.completed || 0} 件`
+          : `背包批量制作中 · ${input.batchProgress?.completed || 0}/${input.batchProgress?.total || input.batchCount || 0}`)
       : '物品制作脚本运行中',
-    metrics: input.batchEnabled ? [{ label: '背包候选', value: `${input.batchCount || 0} 件` }] : []
+    metrics: input.batchEnabled
+      ? (input.batchHasSnapshot
+          ? [{ label: '背包候选', value: `${input.batchCount || 0} 件` }]
+          : [{ label: '批量模式', value: '自动扫包' }])
+      : []
   })
 }
 
@@ -128,7 +134,7 @@ export function evaluateBagStatus(input = {}) {
     id: 'bag',
     title: '存取',
     route: '/bag',
-    description: '管理背包与永火接收舱入库、仓库取件与君锋镇取件。',
+    description: '管理背包入库、仓库取件与君锋镇取件。',
     error: runtimeError,
     running: input.moduleEnabled && (input.isDetecting || input.isStashing),
     issues: input.configError ? [input.configError] : [],

@@ -11,14 +11,27 @@ export function resolveCraftingPython(python, requireStashTabOcr = false) {
   return python.detectPythonPathWithModules(modules)
 }
 
+export async function resolveCraftingPythonAsync(python, requireStashTabOcr = false) {
+  const modules = requireStashTabOcr
+    ? [...CRAFTING_PYTHON_MODULES, ...STASH_TAB_CRAFTING_MODULES]
+    : [...CRAFTING_PYTHON_MODULES]
+  if (typeof python?.resolvePythonRuntimeAsync === 'function') {
+    const runtime = await python.resolvePythonRuntimeAsync(modules)
+    return runtime?.path || null
+  }
+  return resolveCraftingPython(python, requireStashTabOcr)
+}
+
 export function createPythonProcess({
   pythonPath,
   scriptPath,
   args = [],
   stdin = 'ignore',
+  enableParsePipe = false,
   spawnProcess = spawn,
   env = process.env
 }) {
+  const effectiveStdin = enableParsePipe && stdin === 'ignore' ? 'pipe' : stdin
   const child = spawnProcess(pythonPath, [scriptPath, ...args], {
     shell: false,
     windowsHide: true,
@@ -26,9 +39,10 @@ export function createPythonProcess({
       ...env,
       PYTHONUNBUFFERED: '1',
       PYTHONIOENCODING: 'utf-8',
-      PYTHONUTF8: '1'
+      PYTHONUTF8: '1',
+      ...(enableParsePipe ? { POE_PARSE_TRANSPORT: 'pipe' } : {})
     },
-    stdio: [stdin, 'pipe', 'pipe']
+    stdio: [effectiveStdin, 'pipe', 'pipe']
   })
 
   const started = new Promise((resolve, reject) => {

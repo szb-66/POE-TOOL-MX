@@ -78,7 +78,7 @@ export function createCachedGameDpiDetector(detect, {
   let cached = null
   let cachedAt = 0
   let hasCached = false
-  return (...args) => {
+  const detector = (...args) => {
     const currentTime = now()
     if (hasCached && currentTime - cachedAt <= cacheDurationMs) return Promise.resolve(cached)
     if (pending) return pending
@@ -98,6 +98,12 @@ export function createCachedGameDpiDetector(detect, {
       .finally(() => { pending = null })
     return pending
   }
+  detector.invalidate = () => {
+    cached = null
+    cachedAt = 0
+    hasCached = false
+  }
+  return detector
 }
 
 const WINDOWS_DPI_PROBE = String.raw`

@@ -1695,13 +1695,29 @@ print(json.dumps({"success": bool(success), "applied": applied, "fatal": fatal},
     const expectedReason = '检测到破碎词缀，破碎物品无法通过重铸石预处理为普通物品，已停止制作'
     const expectedFailure = [{ reason: expectedReason, code: 'FRACTURED_ITEM_PREPARATION_UNSUPPORTED' }]
 
-    const structured = runAffix(generate('alteration'), {
+    const singleFracturedAlteration = runAffix(generate('alteration'), {
       rarity: '稀有', affixMatch: false,
-      modifiers: [{ type: 'fractured', text: '+100 最大生命' }]
+      modifiers: [
+        { type: 'fractured', affixType: 'prefix', text: '+100 最大生命' },
+        { type: 'suffix', text: '+30% 火焰抗性' }
+      ]
+    }, [{
+      rarity: '魔法', affixMatch: false,
+      modifiers: [{ type: 'fractured', affixType: 'prefix', text: '+100 最大生命' }]
+    }], 'alteration')
+    assert.deepEqual(singleFracturedAlteration.applied, ['scouring', 'alteration'])
+    assert.deepEqual(singleFracturedAlteration.fatal, [])
+
+    const multiFractured = runAffix(generate('alteration'), {
+      rarity: '稀有', affixMatch: false,
+      modifiers: [
+        { type: 'fractured', text: '+100 最大生命' },
+        { type: 'fractured', text: '+30% 火焰抗性' }
+      ]
     })
-    assert.equal(structured.success, false)
-    assert.deepEqual(structured.applied, [])
-    assert.deepEqual(structured.fatal, expectedFailure)
+    assert.equal(multiFractured.success, false)
+    assert.deepEqual(multiFractured.applied, [])
+    assert.deepEqual(multiFractured.fatal, expectedFailure)
 
     const flagged = runAffix(generate('alteration'), {
       rarity: '稀有', affixMatch: false, isFractured: true, modifiers: []

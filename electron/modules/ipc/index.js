@@ -47,7 +47,12 @@ export function registerIpcHandlers(dependencies) {
 
   registerWindowHandlers(window, { windowActivation, windowClose, exitDiagnostics })
   if (loadingFeedback) registerLoadingFeedbackHandlers(loadingFeedback, getMainWindow)
-  registerPythonHandlers(python, window, fileWatcher, { server: dependencies.server, localizationRuntime: dependencies.localizationRuntime })
+  registerPythonHandlers(python, window, fileWatcher, {
+    server: dependencies.server,
+    localizationRuntime: dependencies.localizationRuntime,
+    crafting,
+    shortcut
+  })
   registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting, dependencies.localizationRuntime)
   registerShortcutHandlers(shortcut, window, {

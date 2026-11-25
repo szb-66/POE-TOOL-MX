@@ -975,7 +975,7 @@ test('改造制作使用完整 preflight 清单而不是旧的部分坐标校验
   ])
 })
 
-test('背包批量制作只要求本地扫描、类别和候选，不要求账号角色或赛季', () => {
+test('背包批量制作支持免扫描按类别直跑，不要求账号角色或赛季', () => {
   const base = {
     inventory: grid,
     currencyPositions: { wisdom: point, transmutation: point, scouring: point, alteration: point },
@@ -986,7 +986,14 @@ test('背包批量制作只要求本地扫描、类别和候选，不要求账�
       moduleThree: { enabled: false }, moduleEldritch: { enabled: false }
     }
   }
-  assert.deepEqual(ids(collectCraftingConfigurationIssues(base)).slice(0, 1), ['preset.items.batch-scan'])
+  assert.equal(collectCraftingConfigurationIssues(base).ok, true)
+  const emptySnapshotCandidates = collectCraftingConfigurationIssues({
+    ...base,
+    batchSnapshot: { scanId: 'scan-1' },
+    batchSnapshotConsumed: false,
+    batchCandidateCount: 0
+  })
+  assert.deepEqual(ids(emptySnapshotCandidates).slice(0, 1), ['preset.items.batch-candidates'])
   const ready = collectCraftingConfigurationIssues({
     ...base,
     authenticated: false,

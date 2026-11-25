@@ -10,3 +10,11 @@ export function normalizeFaustusStartRequest(value) {
   assertOnlyKeys(value, ['config'])
   return { config: createFaustusRunSnapshot(value.config) }
 }
+
+export function normalizeFaustusDcRateRequest(value) {
+  if (value === undefined || value === null) return { league: '', force: false }
+  assertOnlyKeys(value, ['league', 'force'])
+  const league = value.league === undefined || value.league === null ? '' : String(value.league).trim()
+  const force = Boolean(value.force)
+  return { league, force }
+}

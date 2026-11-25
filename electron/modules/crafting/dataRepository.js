@@ -10,6 +10,7 @@ import { MANUAL_SOURCE_GROUPS } from './manualCrafting.js'
 import { getServer } from '../../../shared/serverMode.js'
 import {
   canonicalAffixPattern,
+  expandAffixPatternsForMatching,
   findEldritchPair,
   translateAffixPattern,
   translateEldritchTarget
@@ -461,6 +462,51 @@ export class CraftingDataRepository {
     return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit, { fallbackChinese })
   }
 
+  resolveCatalogAffixType(condition) {
+    if (!condition || typeof condition !== 'object') return null
+    if (condition.affixType === 'prefix' || condition.affixType === 'suffix') return condition.affixType
+    if (condition.kind !== 'catalog') return null
+    try {
+      this.refreshLocalization()
+      const dataset = this.getDataset()
+      const dictionary = this.getDictionary()
+      if (this.catalogAffixTypeCache?.dataset !== dataset || this.catalogAffixTypeCache?.dictionary !== dictionary) {
+        const index = new Map()
+        const register = (rawPattern, affixType) => {
+          const normalized = effectPattern(rawPattern)
+          if (!normalized || (affixType !== 'prefix' && affixType !== 'suffix')) return
+          let set = index.get(normalized)
+          if (!set) {
+            set = new Set()
+            index.set(normalized, set)
+          }
+          set.add(affixType)
+        }
+        for (const modifier of dataset.modifiers ?? []) {
+          const affixType = modifier?.affixType
+          if (affixType !== 'prefix' && affixType !== 'suffix') continue
+          const pattern = effectPattern(modifier.effectKey || modifier.name || modifier.tiers?.[0]?.text || '')
+          if (!pattern) continue
+          register(pattern, affixType)
+          const canonical = canonicalAffixPattern(pattern)
+          if (canonical) register(canonical, affixType)
+          const displayed = this.displayText(pattern)
+          if (displayed && displayed !== pattern) register(displayed, affixType)
+        }
+        this.catalogAffixTypeCache = { dataset, dictionary, index }
+      }
+      const types = new Set()
+      for (const candidate of expandAffixPatternsForMatching(condition)) {
+        const normalized = effectPattern(candidate)
+        const found = this.catalogAffixTypeCache.index.get(normalized)
+        if (found) found.forEach((entry) => types.add(entry))
+      }
+      return types.size === 1 ? [...types][0] : null
+    } catch {
+      return null
+    }
+  }
+
   searchEldritchImplicitSuggestions({ query = '', source = 'exarch', tier = 1, limit = 50 } = {}) {
     this.refreshLocalization()
     const dataset = this.getDataset()
@@ -511,9 +557,13 @@ export class CraftingDataRepository {
       const displayPattern = targetLanguage === 'en' && dictionary
         ? (this.displayText(translatedPattern) || translatedPattern)
         : translatedPattern
+      const resolvedAffixType = condition.affixType === 'prefix' || condition.affixType === 'suffix'
+        ? condition.affixType
+        : this.resolveCatalogAffixType(condition)
       return {
         ...condition,
         ...(canonical ? { canonicalPattern: canonical } : {}),
+        ...(resolvedAffixType ? { affixType: resolvedAffixType } : {}),
         effectPattern: displayPattern,
         keyword: displayPattern,
         displayName: displayPattern

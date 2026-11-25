@@ -42,6 +42,10 @@ export class CraftingService {
     return this.repository.affixAliasesForTexts(texts)
   }
 
+  resolveCatalogAffixType(condition) {
+    return this.repository.resolveCatalogAffixType(condition)
+  }
+
   naturalBaseImplicitTexts(baseName) {
     try {
       const name = String(baseName || '').trim()

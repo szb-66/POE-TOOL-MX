@@ -415,6 +415,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pickFaustusGridRegion: () => ipcRenderer.invoke('faustus-grid-pick'),
   startFaustusRepricing: (request) => ipcRenderer.invoke('faustus-start', request),
   stopFaustusRepricing: (reason) => ipcRenderer.invoke('faustus-stop', reason),
+  fetchFaustusDcRate: (request) => ipcRenderer.invoke('faustus-dc-rate', request),
   onFaustusEvent: (callback) => {
     const listener = (_event, payload) => callback(payload)
     ipcRenderer.on('faustus-event', listener)

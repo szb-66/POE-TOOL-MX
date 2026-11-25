@@ -17,7 +17,8 @@ import { prepareTrustedScriptRequest as _m2_prepareTrustedScriptRequest } from '
 import { getServer as _m2_getServer } from '../shared/serverMode.js'
 import { createBatchRecoveryStore as _m2_createBatchRecoveryStore } from '../electron/modules/crafting/batchRecovery.js'
 import { CraftingCurrencyUsageLedger as _m2_CraftingCurrencyUsageLedger } from '../electron/modules/python/currencyUsageLedger.js'
-import { resolveCraftingPython as _m2_resolveCraftingPython } from '../electron/modules/python/launcher.js'
+import { resolveCraftingPython as _m2_resolveCraftingPython, resolveCraftingPythonAsync as _m2_resolveCraftingPythonAsync } from '../electron/modules/python/launcher.js'
+import { handlePipeParseRequest as _m2_handlePipeParseRequest, normalizeMapStatsSnapshot as _m2_normalizeMapStatsSnapshot } from '../electron/modules/python/parsePipe.js'
 
 // === Merged from startupPerformance.test.js ===
 await (async () => {
@@ -293,8 +294,12 @@ function handlerHarness(t, { active = false, pythonAvailable = true } = {}) {
     fs, path, process, console, setTimeout: callback => queueMicrotask(callback),
     ipcMain: { handle: (name, callback) => handlers.set(name, callback) },
     prepareTrustedScriptRequest, CraftingCurrencyUsageLedger, resolveCraftingPython,
+    resolveCraftingPythonAsync: _m2_resolveCraftingPythonAsync,
+    handlePipeParseRequest: _m2_handlePipeParseRequest,
+    normalizeMapStatsSnapshot: _m2_normalizeMapStatsSnapshot,
     batchRecoveryStore: createBatchRecoveryStore(),
     prepareCraftingOverlay: async () => {},
+    createOverlayDispatcher: () => ({ readyPromise: Promise.resolve(), send() {} }),
     waitForScriptStartup: async () => ({ event: 'crafting-startup-succeeded' }),
     parseScriptEventLine: () => null,
     createPythonProcess: options => {

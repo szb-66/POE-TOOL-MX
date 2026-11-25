@@ -695,13 +695,12 @@ class FaustusAutomationTests(unittest.TestCase):
     def test_price_context_is_invalidated_between_items_and_after_close(self):
         adapter = self.make_counting_game_adapter([
             self.price_candidates("混沌石"),
-            [self.price_candidates()[0]],
-            [self.price_candidates()[1]],
+            self.price_candidates("混沌石")[:2],
         ], [])
         adapter.open_price_at(0, 0)
         first_context = adapter._price_context
         adapter.open_price_at(1, 0)
-        self.assertEqual(adapter.ocr_count, 3)
+        self.assertEqual(adapter.ocr_count, 2)
         self.assertIsNot(adapter._price_context, first_context)
 
         closing = self.make_counting_game_adapter([
@@ -721,7 +720,7 @@ class FaustusAutomationTests(unittest.TestCase):
 
     def test_layout_reuse_reads_each_items_currency_and_price_in_small_regions(self):
         first, second = self.price_candidates(), self.price_candidates("神圣石")
-        adapter = self.make_counting_game_adapter([first, [], [second[0]], [second[1]]], ["1000", "2"])
+        adapter = self.make_counting_game_adapter([first, [], second[:2]], ["1000", "2"])
         adapter.open_price_at(0, 0)
         self.assertEqual(self.mod.read_full_price(adapter), 1000)
         self.assertEqual(adapter.recognize_current_currency(), "chaos")
@@ -734,7 +733,10 @@ class FaustusAutomationTests(unittest.TestCase):
         self.assertIs(adapter._price_layout, layout)
         self.assertNotIn("currencyCode", layout)
         regions = [action[1] for action in adapter.actions if action[0] == "ocr"]
-        self.assertLess(sum(r["width"] * r["height"] for r in regions[-2:]), 800000 * 0.1)
+        # 提交快速关闭 OCR 与第二件合并局部 OCR 均远小于整弹窗区。
+        self.assertEqual(len(regions), 3)
+        self.assertLess(regions[1]["width"] * regions[1]["height"], 800000 * 0.1)
+        self.assertLess(regions[2]["width"] * regions[2]["height"], 800000 * 0.15)
         fresh = self.make_counting_game_adapter([second], [])
         fresh.open_price_at(0, 0)
         self.assertEqual(fresh.actions[1], ("ocr", fresh._popup_region()))
@@ -745,12 +747,12 @@ class FaustusAutomationTests(unittest.TestCase):
         for candidate in moved:
             candidate["box"] = [[x + 15, y + 15] for x, y in candidate["box"]]
         low = {**first[1], "score": 0.2}
-        cases = ([[]], [[moved[0]]], [[first[0]], []],
-                 [[first[0]], [low]], [[first[0]], [first[1], first[1]]],
-                 [[first[0]], [moved[1]]])
+        cases = ([], [moved[0], first[1]], [first[0]],
+                 [first[0], low], [first[0], first[1], first[1]],
+                 [first[0], moved[1]])
         for local in cases:
             with self.subTest(local=local):
-                adapter = self.make_counting_game_adapter([first, *local, moved], [])
+                adapter = self.make_counting_game_adapter([first, local, moved], [])
                 adapter.open_price_at(0, 0)
                 old_layout = adapter._price_layout
                 adapter.open_price_at(1, 0)
@@ -758,6 +760,90 @@ class FaustusAutomationTests(unittest.TestCase):
                 self.assertIsNot(adapter._price_layout, old_layout)
                 self.assertEqual(adapter._price_layout["title"]["box"], moved[0]["box"])
                 self.assertEqual(adapter.actions[-1], ("ocr", adapter._popup_region()))
+
+    def test_submission_fast_close_avoids_full_ocr_and_falls_back_on_open_window(self):
+        first = self.price_candidates("混沌石")
+        warning = {"text": "操作太频繁，请等待冷却", "score": 0.99,
+                   "box": [[100, 50], [300, 50], [300, 80], [100, 80]]}
+        # 正常关闭：仅扫极小标题框即返回 repriced，不触发整弹窗区 OCR。
+        fast = self.make_counting_game_adapter([first, []], ["100"])
+        fast.open_price_at(0, 0)
+        self.mod.execute_price_transaction(fast, {"oldCurrency": "chaos", "newCurrency": "chaos", "newPrice": 90})
+        self.assertEqual(fast.submission_result(), "repriced")
+        fast_ocr_regions = [action[1] for action in fast.actions if action[0] == "ocr"]
+        self.assertEqual(len(fast_ocr_regions), 2)
+        self.assertNotEqual(fast_ocr_regions[1], fast._popup_region())
+
+        # 提交后标题仍在：先扫局部标题框发现未关闭，随即回退全区 OCR 捕获警告。
+        fallback = self.make_counting_game_adapter([first, [first[0]], [*first, warning]], ["100"])
+        fallback.open_price_at(0, 0)
+        self.mod.execute_price_transaction(fallback, {"oldCurrency": "chaos", "newCurrency": "chaos", "newPrice": 90})
+        self.assertEqual(fallback.submission_result(), "submit_warning")
+        self.assertTrue(fallback.price_window_open())
+        fallback_ocr_regions = [action[1] for action in fallback.actions if action[0] == "ocr"]
+        self.assertEqual(len(fallback_ocr_regions), 3)
+        self.assertEqual(fallback_ocr_regions[-1], fallback._popup_region())
+
+    def test_worker_loop_resets_state_across_runs_and_exits_on_shutdown(self):
+        import tempfile
+
+        class StubWorkerAdapter:
+            def __init__(self):
+                self.resets = []
+                self.closed = False
+                self.released = 0
+                self._price_layout = {"stale": True}
+
+            def reset_run(self, config):
+                self.resets.append(config.get("chaosPerDivine"))
+                self._price_layout = None
+
+            def read_clipboard(self):
+                return "prev"
+
+            def write_clipboard(self, _value):
+                pass
+
+            def validate_page(self):
+                pass
+
+            def validate_grid_structure(self):
+                pass
+
+            def candidate_cells(self):
+                return []
+
+            def release_inputs(self):
+                self.released += 1
+
+            def close(self):
+                self.closed = True
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg1 = pathlib.Path(tmpdir) / "run1.json"
+            cfg2 = pathlib.Path(tmpdir) / "run2.json"
+            base = {
+                "bands": [{"start": "1", "end": "", "rangeCurrency": "chaos", "discountPercent": "10", "outputCurrency": "chaos"}],
+                "gridCalibration": {"left": 0, "top": 0, "right": 600, "bottom": 600, "scaleFactor": 1},
+            }
+            cfg1.write_text(json.dumps({**base, "chaosPerDivine": "200"}), encoding="utf-8")
+            cfg2.write_text(json.dumps({**base, "chaosPerDivine": "180"}), encoding="utf-8")
+            adapter = StubWorkerAdapter()
+            commands = io.StringIO(
+                json.dumps({"cmd": "run", "configPath": str(cfg1)}) + "\n"
+                + json.dumps({"cmd": "run", "configPath": str(cfg2)}) + "\n"
+                + json.dumps({"cmd": "shutdown"}) + "\n"
+            )
+            output = io.StringIO()
+            with patch.object(self.mod, "require_game_foreground", lambda: None), contextlib.redirect_stdout(output):
+                code = self.mod.run_worker_loop(stdin_stream=commands, adapter_factory=lambda: adapter)
+            self.assertEqual(code, 0)
+            self.assertEqual(adapter.resets, ["200", "180"])
+            self.assertIsNone(adapter._price_layout)
+            self.assertTrue(adapter.closed)
+            events = [json.loads(line[6:]) for line in output.getvalue().splitlines() if line.startswith("EVENT ")]
+            self.assertEqual(events[0]["event"], "worker-ready")
+            self.assertEqual(sum(1 for e in events if e["event"] == "completed"), 2)
 
     def test_popup_bounds_change_bypasses_local_layout_and_failure_never_types(self):
         adapter = self.make_counting_game_adapter([self.price_candidates(), []], [])

@@ -12,7 +12,8 @@ import { useStashPickupStore } from '@/stores/stashPickup.js'
 import { useStoryStore } from '@/stores/story.js'
 import { useFaustusStore } from '@/domains/faustus/faustusStore.js'
 import { useMapTrackerStore } from '@/stores/mapTracker.js'
-import { disposeBagAutomation, initBagAutomation } from '@/utils/bagService.js'
+import { disposeBagAutomation, initBagAutomation, suspendNormalBagRuntime } from '@/utils/bagService.js'
+import { initAllflameReceiverAutomation, suspendAllflameReceiver } from '@/domains/puzzle/allflameReceiverService.js'
 import { disposeCombatAssist, initCombatAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService.js'
 import { updateShortcuts } from '@/utils/scriptService.js'
 import { registerFeatureRuntimeAdapter, setFeatureShortcutSynchronizer } from './featureRuntime.js'
@@ -46,6 +47,15 @@ export function installFeatureRuntime({ router }) {
   const adapterDisposers = []
   const junfengConsumers = new Set()
   let junfengListenerDispose = null
+  const bagListenerConsumers = new Set()
+
+  function useBagListener(id) {
+    bagListenerConsumers.add(id)
+  }
+  function releaseBagListener(id) {
+    bagListenerConsumers.delete(id)
+    if (!bagListenerConsumers.size) disposeBagAutomation()
+  }
 
   function featureEnabled(id) { return featureStore.isEnabled(id) }
   function setFeatureDisposer(id, disposers) {
@@ -99,9 +109,10 @@ export function installFeatureRuntime({ router }) {
     if (!featureDisposers.has('bag')) {
       setFeatureDisposer('bag', stashStore.listen())
       useJunfengListener('bag')
-      await initBagAutomation({ restoreEnabled: true })
+      useBagListener('bag')
     }
     const results = await Promise.all([
+      initBagAutomation({ restoreEnabled: true }).then(() => ({ success: true })),
       stashStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: true }),
       junfengStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: true })
     ])
@@ -123,8 +134,9 @@ export function installFeatureRuntime({ router }) {
       setFeatureDisposer('puzzle', puzzleStore.listen(() => {
         if (featureEnabled('puzzle')) void router.push('/puzzle')
       }))
+      useBagListener('puzzle')
     }
-    return { success: true }
+    return initAllflameReceiverAutomation({ restoreEnabled: true })
   }
   async function attachFaustus() { return { success: true } }
   async function attachMapTracker() { if (!featureDisposers.has('map-tracker')) setFeatureDisposer('map-tracker', mapTrackerStore.listen()); await mapTrackerStore.refresh(); return { success: true } }
@@ -148,11 +160,11 @@ export function installFeatureRuntime({ router }) {
       isBusy: () => bagStore.isStashing || stashStore.running || junfengStore.running,
       suspend: async () => {
         const result = await collectResults([
-          () => electronApi.bag.stopStash(), () => electronApi.bag.stopDetection(),
+          () => suspendNormalBagRuntime({ persistDisable: false }),
           () => stashStore.stop(), () => junfengStore.stop(),
           () => stashStore.syncRuntime({ enabled: false }), () => junfengStore.sync({ enabled: false })
         ])
-        if (result.success) { disposeBagAutomation(); disposeFeature('bag'); releaseJunfengListener('bag') }
+        if (result.success) { releaseBagListener('bag'); disposeFeature('bag'); releaseJunfengListener('bag') }
         return result
       },
       resume: attachBag
@@ -174,7 +186,18 @@ export function installFeatureRuntime({ router }) {
       resume: attachPriceCheck
     },
     faustus: { isBusy: () => faustusStore.running, suspend: async () => { if (faustusStore.running) await faustusStore.stop(); faustusStore.disconnect(); return { success: true } }, resume: attachFaustus },
-    puzzle: { isBusy: () => puzzleStore.executing || puzzleStore.analyzing || puzzleStore.probingBorder, suspend: async () => { const result = await electronApi.puzzle.stopAll('module-disabled'); if (successful(result)) disposeFeature('puzzle'); return result }, resume: attachPuzzle },
+    puzzle: {
+      isBusy: () => puzzleStore.executing || puzzleStore.analyzing || puzzleStore.probingBorder || (bagStore.isStashing && bagStore.allflameReceiverEnabled && !bagStore.moduleEnabled),
+      suspend: async () => {
+        const result = await collectResults([
+          () => electronApi.puzzle.stopAll('module-disabled'),
+          () => suspendAllflameReceiver()
+        ])
+        if (result.success) { releaseBagListener('puzzle'); disposeFeature('puzzle') }
+        return result
+      },
+      resume: attachPuzzle
+    },
     'highlight-model-training': { isBusy: () => junfengStore.trainingBusy || junfengStore.trainingStatus.status === 'running', suspend: async () => { const result = await electronApi.junfeng.stopTraining?.(); if (successful(result)) releaseJunfengListener('highlight-model-training'); return result }, resume: attachTraining }
   }
 
@@ -205,6 +228,7 @@ export function installFeatureRuntime({ router }) {
   function dispose() {
     sanctumStore?.disconnect()
     for (const id of [...featureDisposers.keys()]) disposeFeature(id)
+    bagListenerConsumers.clear()
     disposeBagAutomation()
     disposeCombatAssist()
     junfengListenerDispose?.()

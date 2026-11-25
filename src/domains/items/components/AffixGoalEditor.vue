@@ -122,7 +122,7 @@ function forgetGroupCollapse(id) {
   next.delete(id)
   collapsedGroupIds.value = next
 }
-function blankCondition() { return { id: createAffixConfigId('condition'), enabled: true, kind: 'keyword', keyword: '', displayName: '', effectPattern: '', source: '', sourceLabel: '', profileId: '', applicableLabel: '', minTier: null, tiers: [] } }
+function blankCondition() { return { id: createAffixConfigId('condition'), enabled: true, kind: 'keyword', keyword: '', displayName: '', effectPattern: '', affixType: '', source: '', sourceLabel: '', profileId: '', applicableLabel: '', minTier: null, tiers: [] } }
 function addCondition(group, key) { group[key].push(blankCondition()) }
 function removeCondition(group, key, index) { group[key].splice(index, 1); if (key === 'selectedAffixes') group.selectedCount = Math.max(1, Math.min(group.selectedCount, group.selectedAffixes.length || 1)); commit() }
 function selectSuggestion(group, key, index, suggestion) { const visiblePattern = suggestion.displayPattern || suggestion.effectPattern; group[key][index] = normalizeAffixCondition({ ...suggestion, enabled: group[key][index]?.enabled !== false, id: group[key][index]?.id || createAffixConfigId('condition'), kind: 'catalog', keyword: suggestion.displayName, effectPattern: visiblePattern, minTier: null }); commit() }

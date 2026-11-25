@@ -2,9 +2,12 @@
   <div class="puzzle-page primary-page primary-page__scroll primary-page__content">
     <div class="page-heading">
       <div>
-        <h2>海图 <el-tag size="small">S30 赛季玩法</el-tag></h2>
+        <h2>过期赛季 <el-tag size="small">S30 赛季玩法归档</el-tag></h2>
       </div>
     </div>
+
+    <el-tabs v-model="activeLegacyTab" class="legacy-season-tabs" @tab-change="handleLegacyTabChange">
+      <el-tab-pane label="S30 海图" name="s30-chart">
 
     <div v-if="error" class="status-alert status-alert--action">
       <el-alert :title="error.message" type="error" show-icon :closable="false" />
@@ -407,6 +410,11 @@
         <el-button @click="calibrationDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+      </el-tab-pane>
+      <el-tab-pane label="S30 永火接收舱" name="s30-allflame">
+        <AllflameReceiverTab />
+      </el-tab-pane>
+    </el-tabs>
 
     <PageHelpDrawer :topics="helpTopics" />
   </div>
@@ -421,6 +429,8 @@ import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
 import PuzzleGlyph from './PuzzleGlyph.vue'
 import PuzzleCalibrationWizard from './PuzzleCalibrationWizard.vue'
+import AllflameReceiverTab from './AllflameReceiverTab.vue'
+import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
 import { VOYAGE_REWARD_MODE_OPTIONS } from './voyageRewards.js'
 import { BORDER_CHART_MODS } from '../../data/chartModsData.js'
 import { usePuzzleStore } from '../../stores/puzzle.js'
@@ -435,6 +445,12 @@ import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/c
 const store = usePuzzleStore()
 const settingsStore = useSettingsStore()
 const helpTopics = moduleHelpTopicsById('puzzle')
+const LEGACY_TAB_STORAGE_KEY = 'legacySeason.activeTab'
+const LEGACY_TABS = ['s30-chart', 's30-allflame']
+const activeLegacyTab = ref(readPersistentTab(LEGACY_TAB_STORAGE_KEY, LEGACY_TABS, 's30-chart'))
+function handleLegacyTabChange(tab) {
+  activeLegacyTab.value = writePersistentTab(LEGACY_TAB_STORAGE_KEY, tab, LEGACY_TABS, 's30-chart')
+}
 const {
   regionMetadata,
   inventoryRegionMetadata,
@@ -955,6 +971,7 @@ const nextSolution = store.nextSolution
 }
 
 .page-heading h2 { margin: 0; }
+.legacy-season-tabs { margin-top: 10px; }
 .status-alert { margin-top: var(--spacing-md); }
 .status-alert--action { display: flex; align-items: center; gap: 10px; }
 .status-alert--action :deep(.el-alert) { min-width: 0; flex: 1; }

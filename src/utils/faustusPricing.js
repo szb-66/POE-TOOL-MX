@@ -92,14 +92,28 @@ function normalizeGridCalibration(value) {
 }
 
 export function createDefaultFaustusConfig() {
-  return { version: FAUSTUS_CONFIG_VERSION, chaosPerDivine: '', bands: [], gridCalibration: null }
+  return {
+    version: FAUSTUS_CONFIG_VERSION,
+    chaosPerDivine: '',
+    chaosPerDivineSource: 'auto',
+    dcRateLeague: '',
+    bands: [],
+    gridCalibration: null
+  }
 }
 
 export function normalizeFaustusConfig(value = {}) {
   const bands = Array.isArray(value?.bands) ? value.bands : []
+  const chaosPerDivine = decimalText(value?.chaosPerDivine)
+  const rawSource = String(value?.chaosPerDivineSource || '').trim()
+  const chaosPerDivineSource = rawSource === 'auto' || rawSource === 'manual'
+    ? rawSource
+    : (chaosPerDivine ? 'manual' : 'auto')
   return {
     version: FAUSTUS_CONFIG_VERSION,
-    chaosPerDivine: decimalText(value?.chaosPerDivine),
+    chaosPerDivine,
+    chaosPerDivineSource,
+    dcRateLeague: String(value?.dcRateLeague || '').trim().slice(0, 80),
     bands: bands.map((item, index) => ({
       id: String(item?.id || `band-${index + 1}`),
       start: decimalText(item?.start),

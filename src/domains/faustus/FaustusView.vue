@@ -35,11 +35,45 @@
                     <p class="muted">用于换算分段边界与最终售价。</p>
                     <el-form class="exchange-form" label-position="top">
                       <el-form-item :error="fieldError('chaosPerDivine')">
-                        <el-input v-model="store.config.chaosPerDivine" aria-label="神圣石兑混沌石" :disabled="store.running" placeholder="例如 200" @change="commitConfig">
+                        <el-input v-model="store.config.chaosPerDivine" aria-label="神圣石兑混沌石" :disabled="store.running" placeholder="例如 200" @change="commitChaosPerDivine">
                           <template #prepend>1 神圣石 =</template><template #append>混沌石</template>
                         </el-input>
                       </el-form-item>
                     </el-form>
+                    <div v-if="store.isInternational" class="dc-rate-auto">
+                      <div class="dc-rate-auto__controls">
+                        <el-select
+                          :model-value="selectedDcRateLeague"
+                          class="dc-rate-auto__league"
+                          size="small"
+                          placeholder="自动识别国际服赛季"
+                          :disabled="store.running || store.dcRate.loading"
+                          @change="onSelectDcRateLeague"
+                        >
+                          <el-option v-for="item in dcRateLeagueOptions" :key="item.id" :label="item.name" :value="item.id" />
+                        </el-select>
+                        <el-button
+                          size="small"
+                          :loading="store.dcRate.loading"
+                          :disabled="store.running"
+                          @click="refreshDcRate"
+                        >刷新比例</el-button>
+                      </div>
+                      <div v-if="store.dcRate.error" class="dc-rate-auto__meta dc-rate-auto__meta--error">
+                        {{ store.dcRate.error }}
+                      </div>
+                      <div v-else-if="store.dcRate.latestValue" class="dc-rate-auto__meta">
+                        <span>poe.ninja（{{ store.dcRate.league || '当前赛季' }}）：1 神圣石 ≈ {{ store.dcRate.latestValue }} 混沌石{{ dcRateUpdatedText }}</span>
+                        <el-button
+                          v-if="store.hasPendingAutoDcRate"
+                          type="primary"
+                          link
+                          size="small"
+                          :disabled="store.running"
+                          @click="store.applyFetchedDcRate"
+                        >应用 {{ store.dcRate.latestValue }}</el-button>
+                      </div>
+                    </div>
                   </div>
                 </section>
 
@@ -166,12 +200,32 @@ const startBlockedReason = computed(() => {
   return ''
 })
 const emergencyStopShortcut = computed(() => settingsStore.globalShortcuts.end)
+const selectedDcRateLeague = computed(() => store.config.dcRateLeague || store.dcRate.league || '')
+const dcRateLeagueOptions = computed(() => {
+  const items = Array.isArray(store.dcRate.leagues) ? store.dcRate.leagues : []
+  const current = selectedDcRateLeague.value
+  if (current && !items.some(item => item.id === current)) {
+    return [{ id: current, name: current }, ...items]
+  }
+  return items
+})
+const dcRateUpdatedText = computed(() => {
+  const ts = Date.parse(store.dcRate.updatedAt || '')
+  if (!Number.isFinite(ts)) return ''
+  const date = new Date(ts)
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return ` · ${hh}:${mm}`
+})
 
 function currencyLabel(value) { return FAUSTUS_CURRENCY_LABELS[value] || value || '—' }
 function priceText(value, currency) { return value ? `${value} ${currencyLabel(currency)}` : '—' }
 function reasonLabel(code) { return formatFaustusReasonCode(code) }
 function fieldError(field) { return store.validation.errors.find(item => item.field === field) ? '请输入有效的正数比例' : '' }
 function commitConfig() { store.updateConfig(store.config) }
+function commitChaosPerDivine() { store.updateManualChaosPerDivine(store.config.chaosPerDivine) }
+function onSelectDcRateLeague(league) { void store.selectDcRateLeague(league) }
+function refreshDcRate() { void store.syncInternationalDcRate({ force: true }) }
 function startBandDrag(event, bandId) {
   if (!store.beginBandReorder(bandId)) {
     event.preventDefault()
@@ -195,7 +249,10 @@ async function runAction(action) {
   try { await action() } catch (error) { ElMessage.error(error?.message || '操作失败') }
 }
 
-onMounted(() => store.connect())
+onMounted(() => {
+  store.connect()
+  if (store.isInternational) void store.syncInternationalDcRate()
+})
 onUnmounted(() => {
   cancelBandDrag()
   store.disconnect()
@@ -224,6 +281,11 @@ h1 { margin: 0 0 6px; font-size: 25px; }
 .exchange-form { margin-top: 14px; }
 .exchange-form :deep(.el-form-item) { margin-bottom: 0; }
 .exchange-form :deep(.el-form-item__error) { position: static; padding-top: 7px; }
+.dc-rate-auto { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.dc-rate-auto__controls { display: flex; align-items: center; gap: 8px; }
+.dc-rate-auto__league { flex: 1; min-width: 0; }
+.dc-rate-auto__meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text-secondary); line-height: 1.45; }
+.dc-rate-auto__meta--error { color: var(--el-color-warning); }
 .calibration-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .calibration-actions .el-button { margin-left: 0; }
 .band-list { overflow-x: auto; }

@@ -11,7 +11,7 @@ import { ipcMain } from 'electron'
 import fs from 'fs'
 import { parseItemInfo } from '../item/parser.js'
 import { buildCraftingAffixPayload } from '../item/craftingAffixPayload.js'
-import { matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirements } from '../item/matcher.js'
+import { evaluateAlterationPlan, matchAffixes, matchEldritchImplicits, matchSockets, matchMapRequirements } from '../item/matcher.js'
 import { attachParseRequestId } from '../watcher/fileWatcher.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
@@ -113,6 +113,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         matchedGroupName: '',
         groupResults: []
       }
+      let alterationPlan = null
       if (config && config.moduleTwo && config.moduleTwo.enabled) {
         affixMatchResult = Array.isArray(config.moduleTwo.affixGroups)
           ? matchAffixes(itemInfo, config.moduleTwo.affixGroups)
@@ -122,6 +123,24 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
               config.moduleTwo.selectedAffixes || [],
               config.moduleTwo.selectedCount || 1
             )
+        if ((config.moduleTwo.mode || 'alteration') === 'alteration') {
+          const resolveAffixType = (condition) => crafting?.resolveCatalogAffixType?.(condition) ?? null
+          alterationPlan = Array.isArray(config.moduleTwo.affixGroups)
+            ? evaluateAlterationPlan(itemInfo, config.moduleTwo.affixGroups, {
+                enableAugmentation: Boolean(config.moduleTwo.enableAugmentation),
+                enableRegal: Boolean(config.moduleTwo.enableRegal),
+                resolveAffixType,
+                matchResult: affixMatchResult
+              })
+            : evaluateAlterationPlan(itemInfo, config.moduleTwo.requiredAffixes || [], {
+                selectedAffixes: config.moduleTwo.selectedAffixes || [],
+                selectedCount: config.moduleTwo.selectedCount || 1,
+                enableAugmentation: Boolean(config.moduleTwo.enableAugmentation),
+                enableRegal: Boolean(config.moduleTwo.enableRegal),
+                resolveAffixType,
+                matchResult: affixMatchResult
+              })
+        }
       }
 
       // 匹配插槽
@@ -219,6 +238,7 @@ export function registerFileHandlers(fileWatcher, itemParser, itemMatcher, windo
         matchedGroupId: affixMatchResult.matchedGroupId,
         matchedGroupName: affixMatchResult.matchedGroupName,
         affixGroupResults: affixMatchResult.groupResults,
+        ...(alterationPlan ? { alterationPlan } : {}),
         eldritchImplicitMatch: eldritchMatchResult.isMatch,
         matchedEldritchTargetName: eldritchMatchResult.matchedTargetName,
         matchedEldritchText: eldritchMatchResult.matchedText,

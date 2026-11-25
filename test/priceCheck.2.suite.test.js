@@ -44,6 +44,7 @@ import { createLocalizationTextResolver as _m5_createLocalizationTextResolver } 
 import { PriceCheckService as _m5_PriceCheckService } from '../electron/modules/priceCheck/service.js'
 import { userLifeFlask as _m5_userLifeFlask, equivalentEnglishLifeFlask as _m5_equivalentEnglishLifeFlask, equivalentTraditionalLifeFlask as _m5_equivalentTraditionalLifeFlask, userDreadMaidenFlask as _m5_userDreadMaidenFlask, userKiaraFlask as _m5_userKiaraFlask } from './fixtures/priceCheckFlask.js'
 import { statNumber as _m5_statNumber } from '../electron/modules/localization/statVariants.js'
+import { applyInternationalPseudoRules as _m5_applyInternationalPseudoRules } from '../electron/modules/priceCheck/catalog.js'
 import { createPriceCheckModel as _m5_createPriceCheckModel } from '../electron/modules/priceCheck/query.js'
 import { flaskStructures as _m5_flaskStructures } from './fixtures/priceCheckFlaskStructures.js'
 import _m6_test from 'node:test'
@@ -1050,10 +1051,120 @@ test('奇亚拉的决心保留反向范围原文与64缩短值，提交负数持
   assert.deepEqual(JSON.parse(JSON.stringify(searches[1])), JSON.parse(JSON.stringify(searches[0])))
 })
 
-test('升序与降序显示范围均按两端界定合法掷值，超界和损坏范围仍拒绝', () => {
-  for (const [text, expected] of [['64(80-60)', 64], ['64(60-80)', 64], ['60(80-60)', 60], ['80(80-60)', 80], ['-64(-60--80)', -64]]) assert.equal(statNumber(text), expected, text)
-  for (const text of ['59(80-60)', '81(80-60)', '64(80-)', '64(未知范围)', '64(80-60)7']) assert.equal(statNumber(text), null, text)
-  assert.throws(() => fixture().service.parse(userKiaraFlask.replace('64(80-60)', '81(80-60)')), /未匹配|已阻止/)
+test('升序、降序及缩放超界显示范围均正确提取掷值，损坏范围仍拒绝', () => {
+  for (const [text, expected] of [
+    ['64(80-60)', 64], ['64(60-80)', 64], ['60(80-60)', 60], ['80(80-60)', 80], ['-64(-60--80)', -64],
+    ['+90(40-44)', 90], ['41(17-19)', 41], ['-35(13-16)', -35], ['1.6(0.6-0.8)', 1.6], ['+63(25-29)', 63],
+    ['59(80-60)', 59], ['81(80-60)', 81]
+  ]) assert.equal(statNumber(text), expected, text)
+  for (const text of ['64(80-)', '64(未知范围)', '64(80-60)7']) assert.equal(statNumber(text), null, text)
+  assert.throws(() => fixture().service.parse(userKiaraFlask.replace('64(80-60)', '64(80-)')), /未匹配|已阻止/)
+})
+
+test('反射迷雾镜像项链的超界缩放与负向反转词缀均可完整匹配并保持重查一致', async () => {
+  const sourceHash = value => createHash('sha256').update(value).digest('hex')
+  const mirroredEntries = [
+    { kind: 'dat', table: 'baseitemtypes', id: 'Metadata/Items/Amulets/Amulet3', field: 'Name',
+      en: 'Amber Amulet', cn: '琥珀护身符', tw: '琥珀護身符', sourceHash: sourceHash('Amber Amulet') },
+    { kind: 'dat', table: 'remindertext', id: 'ReminderTextAttributes', field: 'Text',
+      en: '(Attributes are Strength, Dexterity, and Intelligence)',
+      cn: '(属性分为力量，敏捷和智慧三种)',
+      tw: '(能力為力量、敏捷及智慧)',
+      sourceHash: sourceHash('(Attributes are Strength, Dexterity, and Intelligence)') },
+    { kind: 'dat', table: 'remindertext', id: 'ReminderTextManaLeech', field: 'Text',
+      en: '(Leeched Mana is recovered over time. Multiple Leeches can occur simultaneously, up to a maximum rate)',
+      cn: '(吸取的魔力会随时间逐渐回复。多个吸取效果可以同时发生, 但有一个上限)',
+      tw: '(偷取魔力會隨時間逐漸回復。多個偷取可以同時發生，直至達到上限)',
+      sourceHash: sourceHash('(Leeched Mana is recovered over time. Multiple Leeches can occur simultaneously, up to a maximum rate)') },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'additional_strength', field: 'variant:0',
+      en: '{0:+d} to Strength', cn: '{0:+d} 力量', tw: '{0:+d} 力量', sourceHash: sourceHash('{0:+d} to Strength'),
+      stats: { ids: ['additional_strength'], variants: [{ condition: '#', handlers: '', placeholders: ['{0:+d}'] }] } },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'base_maximum_mana', field: 'variant:0',
+      en: '{0:+d} to maximum Mana', cn: '{0:+d} 最大魔力', tw: '{0:+d} 最大魔力', sourceHash: sourceHash('{0:+d} to maximum Mana'),
+      stats: { ids: ['base_maximum_mana'], variants: [{ condition: '#', handlers: '', placeholders: ['{0:+d}'] }] } },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'maximum_energy_shield_+%', field: 'variant:0',
+      en: '{0}% increased maximum Energy Shield', cn: '能量护盾上限提高 {0}%', tw: '增加 {0}% 最大能量護盾',
+      sourceHash: sourceHash('{0}% increased maximum Energy Shield'),
+      stats: { ids: ['maximum_energy_shield_+%'], variants: [
+        { condition: '1|#', handlers: '', placeholders: ['%', '{0}'] },
+        { condition: '#|-1', handlers: 'negate 1', placeholders: ['%', '{0}'] }
+      ] } },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'additional_all_attributes', field: 'variant:0',
+      en: '{0:+d} to all Attributes', cn: '{0:+d} 全属性', tw: '{0:+d} 全能力', sourceHash: sourceHash('{0:+d} to all Attributes'),
+      stats: { ids: ['additional_all_attributes'], variants: [{ condition: '#', handlers: 'reminderstring ReminderTextAttributes', placeholders: ['{0:+d}'] }] } },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'enemy_mana_leech_from_physical_attack_damage_permyriad', field: 'variant:0',
+      en: '{0}% of Physical Attack Damage Leeched by Enemy as Mana',
+      cn: '{0}%的物理攻击伤害被敌人吸取为魔力',
+      tw: '{0}% 物理攻擊傷害被敵人偷取為魔力',
+      sourceHash: sourceHash('{0}% of Physical Attack Damage Leeched by Enemy as Mana'),
+      stats: { ids: ['enemy_mana_leech_from_physical_attack_damage_permyriad'], variants: [{ condition: '1|#', handlers: 'divide_by_one_hundred 1 reminderstring ReminderTextManaLeech', placeholders: ['%', '{0}'] }] } },
+    { kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd', id: 'base_critical_strike_multiplier_+', field: 'variant:0',
+      en: '{0:+d}% to Global Critical Strike Multiplier', cn: '{0:+d}% 全域暴击伤害加成', tw: '{0:+d}% 全域暴擊加成',
+      sourceHash: sourceHash('{0:+d}% to Global Critical Strike Multiplier'),
+      stats: { ids: ['base_critical_strike_multiplier_+'], variants: [{ condition: '#', handlers: '', placeholders: ['%', '{0:+d}'] }] } }
+  ]
+  const text = `物品类别: 项链
+稀 有 度: 稀有
+迷途 颈饰
+琥珀护身符
+--------
+需求:
+等级: 56
+--------
+物品等级: 83
+--------
+{ 基底属性— 能力 }
++27(20-30) 力量
+--------
+{ 前缀属性 "水星的" (等阶：8)— 魔力 }
++90(40-44) 最大魔力
+{ 前缀属性 "无法征服的" (等阶：2)— 防禦,能量護盾 }
+能量护盾上限提高 41(17-19)%
+{ 后缀属性 "彗星之" (等阶：6)— 能力 }
+-35(13-16) 全属性
+(属性分为力量，敏捷和智慧三种)
+{ 后缀属性 "焦渴之"— 魔力,物理,攻擊 }
+1.6(0.6-0.8)%的物理攻击伤害被敌人吸取为魔力
+(吸取的魔力会随时间逐渐回复。多个吸取效果可以同时发生, 但有一个上限)
+{ 后缀属性 "狂暴之" (等阶：3)— 傷害,暴擊 }
++63(25-29)% 全域暴击伤害加成
+--------
+已复制`
+  const baseCatalog = (await _m6_loadTradeCatalog()).catalog
+  const mirroredCatalog = _m5_applyInternationalPseudoRules(structuredClone(catalog), baseCatalog)
+  const { service, searches } = fixture(mirroredEntries, mirroredCatalog)
+  const { model } = await service.check({ text, league: 'Covens', options: { initialSelection: 'all' } })
+  assert.equal(searches.length, 1)
+  assert.equal(model.identity.type, 'Amber Amulet')
+  assert.equal(model.flags.mirrored, true)
+  assert.deepEqual(model.unknownStats, [])
+  const byId = new Map(model.stats.map(stat => [stat.id, stat]))
+  assert.deepEqual(byId.get('implicit.stat_4080418644')?.values, [27])
+  assert.deepEqual(byId.get('explicit.stat_1050105434')?.values, [90])
+  assert.equal(byId.get('explicit.stat_1050105434')?.displayText, '+90(40-44) 最大魔力')
+  assert.deepEqual(byId.get('explicit.stat_2482852589')?.values, [41])
+  assert.equal(byId.get('explicit.stat_2482852589')?.displayText, '能量护盾上限提高 41(17-19)%')
+  assert.deepEqual(byId.get('explicit.stat_1379411836')?.values, [-35])
+  assert.equal(byId.get('explicit.stat_1379411836')?.displayText, '-35(13-16) 全属性')
+  assert.deepEqual(byId.get('explicit.stat_407390981')?.values, [1.6])
+  assert.equal(byId.get('explicit.stat_407390981')?.displayText, '1.6(0.6-0.8)%的物理攻击伤害被敌人吸取为魔力')
+  assert.deepEqual(byId.get('explicit.stat_3556824919')?.values, [63])
+  assert.equal(byId.get('explicit.stat_3556824919')?.displayText, '+63(25-29)% 全域暴击伤害加成')
+  const filters = new Map(searches[0].query.stats.flatMap(group => group.filters).map(filter => [filter.id, filter.value]))
+  assert.equal(filters.get('explicit.stat_1050105434')?.min, 90)
+  assert.equal(filters.get('explicit.stat_2482852589')?.min, 41)
+  assert.equal(filters.get('explicit.stat_1379411836')?.min, -35)
+  assert.equal(filters.get('explicit.stat_1379411836')?.max, undefined)
+  assert.equal(filters.get('explicit.stat_407390981')?.min, 1.6)
+  assert.equal(filters.get('explicit.stat_3556824919')?.min, 63)
+  assert.equal(byId.get('pseudo.pseudo_total_strength')?.valueMultiplier, -1)
+  assert.equal(filters.get('pseudo.pseudo_total_strength')?.min, -8)
+  assert.equal(filters.get('pseudo.pseudo_total_strength')?.max, undefined)
+  assert.equal(byId.get('pseudo.pseudo_total_dexterity')?.valueMultiplier, -1)
+  assert.equal(filters.get('pseudo.pseudo_total_dexterity')?.min, -35)
+  assert.equal(filters.get('pseudo.pseudo_total_dexterity')?.max, undefined)
+  await service.rerun({ model })
+  assert.deepEqual(JSON.parse(JSON.stringify(searches[1])), JSON.parse(JSON.stringify(searches[0])))
 })
 
 test('药剂十二种真实基础模板的英简繁单复数、零充能和内嵌增幅均可形成精确身份查询', async () => {
@@ -1153,6 +1264,151 @@ test('药剂结构识别严格限定类别和首属性段，未知词缀与不�
   const badRows = entries.map(entry => /^ItemDisplayFlaskLifeRecovery/.test(entry.id) ? { ...entry, sourceHash: '0'.repeat(64) } : entry)
   assert.throws(() => fixture(badRows).service.parse(userLifeFlask), /未匹配|已阻止/)
   assert.equal(searches.length, 0)
+})
+
+test('带品质或忆境前缀的普通药剂、装备与地图在简繁英查价下均精确映射底材并保留原名显示', async () => {
+  const hash = value => createHash('sha256').update(value).digest('hex')
+  const row = (table, id, field, en, cn, tw, extra = {}) => ({
+    kind: extra.kind || 'dat', table, id, field, en, cn, tw, sourceHash: hash(en), ...extra
+  })
+  const superiorEntries = [
+    ...entries,
+    row('clientstrings', 'QualityItem', 'Text', 'Superior {0}', '精良的 {0}', '精良的 {0}'),
+    row('clientstrings', 'SynthesisedItem', 'Text', 'Synthesised {0}', '忆境 {0}', '追憶之 {0}'),
+    row('baseitemtypes', 'Metadata/Items/Flasks/FlaskUtility13', 'Name', 'Sulphur Flask', '硫磺药剂', '硫磺藥劑'),
+    row('baseitemtypes', 'Metadata/Items/Rings/Ring6', 'Name', 'Sapphire Ring', '蓝玉戒指', '藍玉戒指'),
+    row('baseitemtypes', 'Metadata/Items/Maps/MapWorldsSynthesisedWorld', 'Name', 'Synthesised Map', '幻境地图', '尋夢追憶'),
+    row('remindertext', 'ReminderTextConsecratedGround', 'Text',
+      '(Allies on your Consecrated Ground Regenerate a percentage of their Maximum Life per second, and Curses have 50% reduced effect on them)',
+      '（友军在你产生的奉献地面上按照生命上限百分比每秒再生生命，并且他们身上的诅咒效果降低 50%）',
+      '（ 站在奉獻地面上的友方每秒回復他們最大生命的百分比，且減少 50% 他們身上的詛咒效果 ）'),
+    row('metadata/statdescriptions/stat_descriptions.csd', 'damage_+%', 'variant:0',
+      '{0}% increased Damage', '伤害提高 {0}%', '增加 {0}% 傷害', { kind: 'stat' }),
+    row('metadata/statdescriptions/stat_descriptions.csd', 'local_consecrate_ground_on_flask_use_radius', 'variant:0',
+      'Creates Consecrated Ground on Use', '使用时产生奉献地面', '使用時製造奉獻地面', { kind: 'stat' })
+  ]
+  const reportedSulphurCn = `物品类别: 功能药剂
+稀 有 度: 普通
+精良的 硫磺药剂
+--------
+品质: +16% (augmented)
+持续 9.30 (augmented) 秒
+每次使用会从 60 充能次数中消耗 40 次
+目前有 0 充能次数
+伤害提高 40%
+--------
+需求:
+等级: 27
+--------
+物品等级: 83
+--------
+{ 基底属性 }
+使用时产生奉献地面
+（友军在你产生的奉献地面上按照生命上限百分比每秒再生生命，并且他们身上的诅咒效果降低 50%）
+--------
+点击右键以喝下药剂。只有装备于腰带上时才会充能。击败怪物时会回复充能次数。`
+  const reportedSulphurTw = `物品種類: 功能藥劑
+稀有度: 普通
+精良的 硫磺藥劑
+--------
+品質: +16% (augmented)
+持續 9.30 (augmented) 秒
+每次使用會從 60 充能次數中消耗 40 次
+目前有 0 充能次數
+增加 40% 傷害
+--------
+需求:
+等級: 27
+--------
+物品等級: 83
+--------
+{ 固定詞綴 }
+使用時製造奉獻地面
+（ 站在奉獻地面上的友方每秒回復他們最大生命的百分比，且減少 50% 他們身上的詛咒效果 ）
+--------
+點擊右鍵以喝下藥劑。只有裝備於腰帶上時才會充能。殺死怪物時會回復充能次數。`
+  const reportedSulphurEn = `Item Class: Utility Flasks
+Rarity: Normal
+Superior Sulphur Flask
+--------
+Quality: +16% (augmented)
+Lasts 9.30 (augmented) Seconds
+Consumes 40 of 60 Charges on use
+Currently has 0 Charges
+40% increased Damage
+--------
+Requirements:
+Level: 27
+--------
+Item Level: 83
+--------
+{ Implicit Modifier }
+Creates Consecrated Ground on Use
+(Allies on your Consecrated Ground Regenerate a percentage of their Maximum Life per second, and Curses have 50% reduced effect on them)
+--------
+Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.`
+
+  const queries = []
+  for (const [language, text, originalName, localizedBase] of [
+    ['cn', reportedSulphurCn, '精良的 硫磺药剂', '硫磺药剂'],
+    ['tw', reportedSulphurTw, '精良的 硫磺藥劑', '硫磺藥劑'],
+    ['en', reportedSulphurEn, 'Superior Sulphur Flask', 'Sulphur Flask']
+  ]) {
+    const { service, searches } = fixture(superiorEntries)
+    const { model } = await service.check({ text, league: 'Covens', options: { initialSelection: 'all' } })
+    assert.equal(model.presentation.language, language)
+    assert.equal(model.item.name, 'Superior Sulphur Flask')
+    assert.equal(model.item.baseType, 'Sulphur Flask')
+    assert.equal(model.identity.type, 'Sulphur Flask')
+    assert.equal(model.item.quality, 16)
+    assert.equal(model.item.itemLevel, 83)
+    assert.equal(model.presentation.texts['Superior Sulphur Flask'], originalName)
+    assert.equal(model.presentation.texts['Sulphur Flask'], localizedBase)
+    assert.deepEqual(model.unknownStats, [])
+    assert.deepEqual(model.stats.map(stat => stat.id), ['implicit.stat_2146730404'])
+    assert.equal(searches[0].query.type, 'Sulphur Flask')
+    await service.rerun({ model })
+    assert.deepEqual(JSON.parse(JSON.stringify(searches[1])), JSON.parse(JSON.stringify(searches[0])))
+    queries.push(JSON.parse(JSON.stringify(searches[0])))
+  }
+  assert.deepEqual(queries[1], queries[0])
+  assert.deepEqual(queries[2], queries[0])
+
+  // Stacked prefixes: Quality + Synthesised
+  for (const text of [
+    '物品类别: 戒指\n稀 有 度: 普通\n精良的 忆境 蓝玉戒指\n--------\n品质: +20% (augmented)\n--------\n物品等级: 85\n--------\n忆境物品',
+    '物品種類: 戒指\n稀有度: 普通\n精良的 追憶之 藍玉戒指\n--------\n品質: +20% (augmented)\n--------\n物品等級: 85\n--------\n追憶之物',
+    'Item Class: Rings\nRarity: Normal\nSuperior Synthesised Sapphire Ring\n--------\nQuality: +20% (augmented)\n--------\nItem Level: 85\n--------\nSynthesised Item'
+  ]) {
+    const { service, searches } = fixture(superiorEntries)
+    const { model } = await service.check({ text, league: 'Covens' })
+    assert.equal(model.identity.type, 'Sapphire Ring')
+    assert.equal(model.facts.synthesised, true)
+    assert.equal(searches[0].query.type, 'Sapphire Ring')
+  }
+
+  // Quality tiered map
+  {
+    const { service, searches } = fixture(superiorEntries)
+    const { model } = await service.check({
+      text: '物品类别: 异界地图\n稀 有 度: 普通\n精良的 地图（16 阶）\n--------\n地图阶级: 16\n品质: +20% (augmented)\n--------\n物品等级: 83',
+      league: 'Covens'
+    })
+    assert.equal(model.item.mapTier, 16)
+    assert.deepEqual(searches[0].query.type, { discriminator: 'map', option: 'Map' })
+  }
+
+  // Negative & trust checks: missing/unsigned template, unknown base, duplicate prefix must reject.
+  for (const [text, dictionary] of [
+    [reportedSulphurCn, superiorEntries.filter(entry => entry.id !== 'QualityItem')],
+    [reportedSulphurCn, superiorEntries.map(entry => entry.id === 'QualityItem' ? { ...entry, sourceHash: '0'.repeat(64) } : entry)],
+    [reportedSulphurCn.replace('精良的 硫磺药剂', '精良的 未知药剂'), superiorEntries],
+    [reportedSulphurCn.replace('精良的 硫磺药剂', '精良的 精良的 硫磺药剂'), superiorEntries]
+  ]) {
+    const { service, searches } = fixture(dictionary)
+    await assert.rejects(service.check({ text, league: 'Covens' }), error => error.code === 'LOCALIZATION_UNRESOLVED')
+    assert.equal(searches.length, 0)
+  }
 })
 })()
 

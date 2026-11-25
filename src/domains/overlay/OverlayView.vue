@@ -68,14 +68,16 @@ const stopTermination = ref(null)
 const failureDetail = ref(null)
 const recoveryCheckpoint = ref(null)
 const mapStats = ref(null) // 地图统计信息
+const activeBatchMode = ref(null)
 const batchProgress = ref(null)
 const batchRecoveryCheckpoint = ref(null)
 const batchRecoveryChecked = ref(false)
 let outputLineBuffer = ''
 const isMapCategory = (category) => category === '异界地图' || category === '地图' || ['海图', '契约', '蓝图'].includes(category)
+const isAutoScanBatch = computed(() => activeBatchMode.value === 'auto-scan' || batchProgress.value?.mode === 'auto-scan')
 const canResumeBatch = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value?.recoverable))
-const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && batchRecoveryChecked.value && !batchRecoveryCheckpoint.value && !batchProgress.value)
-const canRescan = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value || batchProgress.value))
+const canRetry = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && batchRecoveryChecked.value && !batchRecoveryCheckpoint.value && (!batchProgress.value || isAutoScanBatch.value))
+const canRescan = computed(() => isStopped.value && !isCompleted.value && stopTermination.value === 'abnormal' && Boolean(batchRecoveryCheckpoint.value || batchProgress.value || activeBatchMode.value))
 const canRelocate = computed(() => canRetry.value && isCorrectableConfigurationFailure({
   moduleId: stopMode.value === 'map' ? 'map' : 'items',
   actionId: 'start',
@@ -101,7 +103,7 @@ function mergeMapStats(previousStats, incomingStats) {
   }
 }
 
-function resetOverlayState({ resetCurrencyUsage = true, resetOutputBuffer = true } = {}) {
+function resetOverlayState({ resetCurrencyUsage = true, resetOutputBuffer = true, preserveBatchState = false } = {}) {
   electronApi.window.disarmOverlayOutsideClickClose()
   itemInfo.value = null
   operationLogExpanded.value = false
@@ -118,24 +120,58 @@ function resetOverlayState({ resetCurrencyUsage = true, resetOutputBuffer = true
   recoveryCheckpoint.value = null
   failureDetail.value = null
   mapStats.value = null
-  batchProgress.value = null
-  batchRecoveryCheckpoint.value = null
-  batchRecoveryChecked.value = false
+  if (!preserveBatchState) {
+    activeBatchMode.value = null
+    batchProgress.value = null
+    batchRecoveryCheckpoint.value = null
+    batchRecoveryChecked.value = false
+  }
   if (resetOutputBuffer) outputLineBuffer = ''
+}
+
+function applyBatchProgressEvent(event) {
+  const mode = event.batchMode === 'auto-scan' ? 'auto-scan' : (batchProgress.value?.mode || activeBatchMode.value || 'snapshot')
+  activeBatchMode.value = mode
+  const skippedItems = Array.isArray(event.skippedItems)
+    ? event.skippedItems
+    : (event.event === 'crafting-batch-item-skipped' && event.currentItem
+        ? [...(batchProgress.value?.skippedItems || []), {
+            id: event.currentItem.id || '',
+            displayName: event.currentItem.displayName || event.currentItem.baseType || '未知物品',
+            x: Number(event.currentItem.x || 0),
+            y: Number(event.currentItem.y || 0),
+            reason: String(event.reason || '已跳过'),
+            code: String(event.code || '')
+          }]
+        : (batchProgress.value?.skippedItems || []))
+  batchProgress.value = {
+    mode,
+    total: event.total,
+    completed: event.completed,
+    skipped: Number(event.skipped ?? skippedItems.length ?? 0),
+    remaining: event.remaining,
+    currentItem: event.currentItem || null,
+    skippedItems
+  }
 }
 
 function applyBatchRecoveryCheckpoint(checkpoint) {
   batchRecoveryCheckpoint.value = checkpoint?.recoverable ? checkpoint : null
   if (!batchRecoveryCheckpoint.value) return
   const completedIds = new Set(batchRecoveryCheckpoint.value.completedIds || [])
-  const currentItem = batchRecoveryCheckpoint.value.targets.find(target => target.id === batchRecoveryCheckpoint.value.currentItemId && !completedIds.has(target.id))
-    || batchRecoveryCheckpoint.value.targets.find(target => !completedIds.has(target.id))
+  const skippedIds = new Set(batchRecoveryCheckpoint.value.skippedIds || [])
+  const handledIds = new Set([...completedIds, ...skippedIds])
+  const currentItem = batchRecoveryCheckpoint.value.targets.find(target => target.id === batchRecoveryCheckpoint.value.currentItemId && !handledIds.has(target.id))
+    || batchRecoveryCheckpoint.value.targets.find(target => !handledIds.has(target.id))
     || null
   batchProgress.value = {
+    mode: 'snapshot',
     total: batchRecoveryCheckpoint.value.targets.length,
     completed: completedIds.size,
-    remaining: Math.max(0, batchRecoveryCheckpoint.value.targets.length - completedIds.size),
-    currentItem
+    skipped: skippedIds.size,
+    remaining: Math.max(0, batchRecoveryCheckpoint.value.targets.length - handledIds.size),
+    currentItem,
+    skippedItems: batchProgress.value?.skippedItems || []
   }
 }
 
@@ -211,12 +247,7 @@ function applyStructuredScriptEvent(line) {
       return
     }
     if (event.event?.startsWith('crafting-batch-')) {
-      batchProgress.value = {
-        total: event.total,
-        completed: event.completed,
-        remaining: event.remaining,
-        currentItem: event.currentItem || null
-      }
+      applyBatchProgressEvent(event)
       if (event.event === 'crafting-batch-completed') {
         stopTermination.value = 'completed'
         isCompleted.value = true
@@ -268,7 +299,7 @@ const handleScriptOutput = (data) => {
         continue
       }
       if (line.includes('[开始]') && !stopReason.value) {
-        resetOverlayState({ resetCurrencyUsage: false, resetOutputBuffer: false })
+        resetOverlayState({ resetCurrencyUsage: false, resetOutputBuffer: false, preserveBatchState: true })
       }
       const isMapMode = mapStats.value !== null || isMapCategory(itemInfo.value?.category)
       if (isMapMode && line.includes('[完成]') && line.includes('地图洗练结束')) {
@@ -311,6 +342,7 @@ function stoppedSnapshot() {
     stopCraftingKind: stopCraftingKind.value,
     stopTermination: stopTermination.value,
     recovery: recoveryCheckpoint.value,
+    activeBatchMode: activeBatchMode.value,
     batchRecovery: batchRecoveryCheckpoint.value,
     batchProgress: batchProgress.value,
     failureDetail: failureDetail.value ? { ...failureDetail.value } : null,
@@ -327,6 +359,7 @@ function restoreStoppedState(snapshot, error) {
   stopCraftingKind.value = snapshot.stopCraftingKind
   stopTermination.value = snapshot.stopTermination
   recoveryCheckpoint.value = snapshot.recovery
+  activeBatchMode.value = snapshot.activeBatchMode ?? null
   batchRecoveryCheckpoint.value = snapshot.batchRecovery
   batchProgress.value = snapshot.batchProgress
   batchRecoveryChecked.value = true
@@ -370,6 +403,7 @@ async function handleRetry() {
           mode: stopMode.value === 'map' ? 'map' : 'items',
           craftingKind: stopCraftingKind.value,
           recovery: recoveryCheckpoint.value,
+          preserveBatchMode: isAutoScanBatch.value,
           usageSessionId: usageSessionId.value,
           presetStore,
           settingsStore,
@@ -462,6 +496,9 @@ onMounted(async () => {
   electronApi.events.onUpdateOverlay((data) => {
     if (data.reset) {
       resetOverlayState()
+      if (Object.prototype.hasOwnProperty.call(data, 'batchMode')) {
+        activeBatchMode.value = data.batchMode || null
+      }
       applyCurrencyUsageSnapshot(data)
       return
     }
@@ -469,12 +506,7 @@ onMounted(async () => {
     applyCurrencyUsageSnapshot(data)
 
     if (data.event?.startsWith('crafting-batch-')) {
-      batchProgress.value = {
-        total: data.total,
-        completed: data.completed,
-        remaining: data.remaining,
-        currentItem: data.currentItem || null
-      }
+      applyBatchProgressEvent(data)
     }
 
     if (data.mapStats) {
@@ -536,6 +568,9 @@ onMounted(async () => {
 
       stopMode.value = data.mode || (isMapMode ? 'map' : 'items')
       stopCraftingKind.value = data.craftingKind || stopCraftingKind.value || 'general'
+      if (Object.prototype.hasOwnProperty.call(data || {}, 'batchMode')) {
+        activeBatchMode.value = data.batchMode || activeBatchMode.value
+      }
       stopTermination.value = data.termination || 'abnormal'
       recoveryCheckpoint.value = data.recovery || recoveryCheckpoint.value
       if (data.configurationIssueId) {

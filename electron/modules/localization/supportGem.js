@@ -13,6 +13,22 @@ const simplify = value => {
 const clean = value => String(value || '').replace(/\\r\\n|\\n/g, '\n').replace(/[\u200b-\u200d\ufeff]/gu, '')
   .split(/\r?\n/).map(line => line.replace(/\s+/g, ' ').trim()).join('\n').trim()
 const compact = value => clean(value).replace(/\s+/g, ' ').trim()
+const normalizeParens = value => compact(value).replaceAll('（', '(').replaceAll('）', ')')
+const stripEllipsisAnnotation = value => compact(value).match(/^(.*?)\s*[（(](?:\.\.\.|…)[）)]$/u)
+const shortSupportAliases = entry => {
+  const candidates = [
+    [entry.en, /\s+Support$/],
+    [entry.tw, /輔助$/u],
+    [entry.tw && simplify(entry.tw), /辅助$/u],
+    [entry.cn, /(?:[（(]辅[）)]|辅助)$/u]
+  ]
+  return candidates.map(([raw, suffix]) => {
+    const text = compact(raw)
+    if (!text) return ''
+    const shortened = text.replace(suffix, '').trim()
+    return shortened && shortened !== text ? shortened : ''
+  }).filter(Boolean)
+}
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const tableName = value => String(value).replace(/^.*[/\\]/, '').replace(/\.datc?64$/i, '').toLowerCase()
 const verified = entry => typeof entry?.en === 'string' && entry.sourceHash === createHash('sha256').update(entry.en).digest('hex')
@@ -132,15 +148,24 @@ function expression(value, keys) {
 /** Expand only verified support/skill/passive templates; the active trade catalog decides the English spelling. */
 export function createSupportGemResolver(entries = []) {
   const trusted = entries.filter(entry => entry && (nameTableForEntry(entry) || templateKeys(entry)) && verified(entry))
-  const nameTables = new Map(['support', 'skill', 'passive', 'citadel', 'elderGuardian', 'minionDoubling', 'ringRadius'].map(key => [key, new Map()]))
+  const nameTables = new Map(['support', 'supportShort', 'skill', 'passive', 'citadel', 'elderGuardian', 'minionDoubling', 'ringRadius'].map(key => [key, new Map()]))
+  const addAlias = (map, raw, canonical) => {
+    const alias = compact(raw)
+    if (!alias) return
+    if (!map.has(alias)) map.set(alias, new Set())
+    map.get(alias).add(canonical)
+  }
   for (const entry of trusted) {
     const table = nameTableForEntry(entry)
     if (!table) continue
     const map = nameTables.get(table)
     for (const value of [entry.en, entry.cn, entry.tw, entry.tw && simplify(entry.tw)].filter(Boolean)) {
-      const alias = compact(value)
-      if (!map.has(alias)) map.set(alias, new Set())
-      map.get(alias).add(entry.en)
+      addAlias(map, value, entry.en)
+      if (table === 'support') addAlias(map, normalizeParens(value), entry.en)
+    }
+    if (table === 'support') {
+      const shortMap = nameTables.get('supportShort')
+      for (const alias of shortSupportAliases(entry)) addAlias(shortMap, alias, entry.en)
     }
   }
   const templates = []
@@ -162,12 +187,17 @@ export function createSupportGemResolver(entries = []) {
       for (const { pattern, keys } of templates) {
         const match = text.match(pattern)
         if (!match) continue
-        const englishNames = nameTables.get(keys.table)?.get(compact(match.groups.name))
-        if (!englishNames?.size) continue
         if (keys.kind === 'support-level') {
-          if (englishNames.size !== 1 || !Number.isSafeInteger(statNumber(match.groups.level)) || statNumber(match.groups.level) <= 0) continue
+          const ellipsis = stripEllipsisAnnotation(match.groups.name)
+          const rawName = ellipsis ? compact(ellipsis[1]) : compact(match.groups.name)
+          const fullNames = nameTables.get('support')?.get(rawName) || nameTables.get('support')?.get(normalizeParens(rawName))
+          const shortNames = nameTables.get('supportShort')?.get(rawName)
+          const indexable = Boolean(ellipsis) || (!fullNames?.size && Boolean(shortNames?.size))
+          const englishNames = indexable ? (shortNames?.size ? shortNames : fullNames) : fullNames
+          if (!englishNames?.size || englishNames.size !== 1 || !Number.isSafeInteger(statNumber(match.groups.level)) || statNumber(match.groups.level) <= 0) continue
           const name = englishNames.values().next().value
-          for (const spelling of [name, name.replace(/ Support$/, '')]) {
+          const spellings = indexable ? [name.replace(/ Support$/, '')] : [name, name.replace(/ Support$/, '')]
+          for (const spelling of spellings) {
             const matcher = `Socketed Gems are Supported by Level # ${spelling}`
             if (!catalog.stats?.some(row => row.ids?.[type] && row.matchers?.includes(matcher))) continue
             const candidate = `Socketed Gems are Supported by Level ${statNumber(match.groups.level)} ${spelling}`
@@ -181,7 +211,11 @@ export function createSupportGemResolver(entries = []) {
           continue
         }
         if (keys.kind === 'built-in-support') {
-          if (englishNames.size !== 1) continue
+          const rawName = compact(match.groups.name)
+          const englishNames = nameTables.get('support')?.get(rawName) ||
+            nameTables.get('support')?.get(normalizeParens(rawName)) ||
+            nameTables.get('supportShort')?.get(rawName)
+          if (!englishNames?.size || englishNames.size !== 1) continue
           const name = englishNames.values().next().value
           const checkType = catalog.stats?.some(row => row.ids?.[type]) ? type : 'imbued'
           for (const spelling of [name, name.replace(/ Support$/, '')]) {
@@ -193,6 +227,8 @@ export function createSupportGemResolver(entries = []) {
           }
           continue
         }
+        const englishNames = nameTables.get(keys.table)?.get(compact(match.groups.name))
+        if (!englishNames?.size) continue
         if (keys.kind === 'skill-level' || keys.kind === 'all-skill-gems-level') {
           const level = statNumber(match.groups.level)
           if (englishNames.size !== 1 || !Number.isSafeInteger(level) || level <= 0) continue

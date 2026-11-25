@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { electronApi } from '@/api/electron'
+import { electronApi } from '../api/electron.js'
 import { usePresetStore } from './preset.js'
 import { useScriptStore } from './script.js'
 
@@ -18,6 +18,8 @@ function normalizeScanOptimization(value = {}) {
 export const useBatchCraftingStore = defineStore('batchCrafting', () => {
   const presets = usePresetStore()
   const snapshot = ref(null)
+  const snapshotConsumed = ref(false)
+  const excludedItemIds = ref([])
   const busy = ref(false)
   const progress = ref({ scanned: 0, total: 60, skippedOccupied: 0, skippedModelEmpty: 0 })
   const error = ref('')
@@ -28,16 +30,43 @@ export const useBatchCraftingStore = defineStore('batchCrafting', () => {
   const selectedCategoryIds = computed(() => presets.currentItemPreset?.batchCrafting?.categoryIds || [])
   const categories = computed(() => snapshot.value?.categories || [])
   const scanOptimization = computed(() => normalizeScanOptimization(snapshot.value?.scanOptimization))
+  const hasActiveSnapshot = computed(() => Boolean(snapshot.value?.scanId && !snapshotConsumed.value))
+  const excludedSet = computed(() => new Set(excludedItemIds.value))
   const candidates = computed(() => {
     const selected = new Set(selectedCategoryIds.value)
-    return (snapshot.value?.items || []).filter(item => item.selectable !== false && selected.has(item.categoryId))
+    return (snapshot.value?.items || []).filter(item => (
+      item.selectable !== false &&
+      selected.has(item.categoryId) &&
+      !excludedSet.value.has(String(item.id))
+    ))
   })
 
   function clear() {
     useScriptStore().resetBatchRuntime()
     snapshot.value = null
+    snapshotConsumed.value = false
+    excludedItemIds.value = []
     progress.value = { scanned: 0, total: 60, skippedOccupied: 0, skippedModelEmpty: 0 }
     error.value = ''
+  }
+
+  function toggleExcludeItem(itemId) {
+    const key = String(itemId || '')
+    if (!key) return
+    if (excludedItemIds.value.includes(key)) {
+      excludedItemIds.value = excludedItemIds.value.filter(id => id !== key)
+    } else {
+      excludedItemIds.value = [...excludedItemIds.value, key]
+    }
+    if (snapshot.value?.scanId) snapshotConsumed.value = false
+  }
+
+  function isItemExcluded(itemId) {
+    return excludedSet.value.has(String(itemId || ''))
+  }
+
+  function markSnapshotConsumed() {
+    if (snapshot.value?.scanId) snapshotConsumed.value = true
   }
 
   async function scanInventory(config) {
@@ -48,9 +77,9 @@ export const useBatchCraftingStore = defineStore('batchCrafting', () => {
       busy.value = true
       error.value = ''
       snapshot.value = null
-      presets.updateCurrentItemPreset({
-        batchCrafting: { ...presets.currentItemPreset.batchCrafting, categoryIds: [] }
-      })
+      snapshotConsumed.value = false
+      excludedItemIds.value = []
+      // 重扫自动保留用户上次已勾选的物品类别，避免反复勾选。
       progress.value = { scanned: 0, total: 60, skippedOccupied: 0, skippedModelEmpty: 0 }
       try {
         const result = await electronApi.batchCrafting.scanInventory(config)
@@ -102,8 +131,8 @@ export const useBatchCraftingStore = defineStore('batchCrafting', () => {
   }
 
   return {
-    snapshot, busy, progress, error,
+    snapshot, snapshotConsumed, hasActiveSnapshot, excludedItemIds, busy, progress, error,
     enabled, selectedCategoryIds, categories, candidates, scanOptimization,
-    clear, scanInventory, stopScan, listen, dispose
+    clear, toggleExcludeItem, isItemExcluded, markSnapshotConsumed, scanInventory, stopScan, listen, dispose
   }
 })

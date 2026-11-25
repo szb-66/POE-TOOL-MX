@@ -11,14 +11,15 @@ import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { createPythonProcess, resolveCraftingPython } from '../python/launcher.js'
+import { createPythonProcess, resolveCraftingPythonAsync } from '../python/launcher.js'
 import { stopPythonProcess } from '../python/process.js'
 import { parseScriptEventLine, waitForScriptStartup } from '../python/scriptEvents.js'
 import { CraftingCurrencyUsageLedger } from '../python/currencyUsageLedger.js'
 import { resolveStashTabSelectorPath } from '../stashTabs/service.js'
 import { batchRecoveryStore } from '../crafting/batchRecovery.js'
-import { prepareCraftingOverlay } from '../window/craftingOverlayLifecycle.js'
+import { createOverlayDispatcher } from '../window/craftingOverlayLifecycle.js'
 import { prepareTrustedScriptRequest } from '../python/trustedScript.js'
+import { handlePipeParseRequest, normalizeMapStatsSnapshot } from '../python/parsePipe.js'
 
 let stopScriptHandler = null
 
@@ -27,7 +28,7 @@ export function stopCurrentScript() {
   return stopScriptHandler()
 }
 
-export function registerPythonHandlers(python, window, fileWatcher, { server, localizationRuntime } = {}) {
+export function registerPythonHandlers(python, window, fileWatcher, { server, localizationRuntime, crafting = null, shortcut = null } = {}) {
   const {
     detectPythonPath,
     resolvePythonRuntime,
@@ -41,6 +42,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
   const intentionallyStopped = new WeakSet()
   const currencyUsageLedger = new CraftingCurrencyUsageLedger()
   let activeCraftingKind = null
+  let activeBatchMode = null
 
   const sendScriptStatus = (payload) => {
     const mainWindow = getMainWindow()
@@ -103,6 +105,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         const pid = currentScriptProcess.pid
         const mode = getCurrentScriptMode()
         const craftingKind = activeCraftingKind
+        const batchMode = activeBatchMode
         intentionallyStopped.add(currentScriptProcess)
 
         const stopped = await stopPythonProcess(currentScriptProcess, { killTree: killPythonProcessTree })
@@ -151,6 +154,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
             code: null,
             mode,
             craftingKind,
+            batchMode,
             termination: 'manual',
             errorCode: null,
             error: null,
@@ -166,6 +170,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         }
         
         clearCurrentScriptProcess()
+        activeBatchMode = null
         fileWatcher.stopFileWatcher()
         sendScriptStatus({
           status: 'stopped',
@@ -259,7 +264,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), overlayWindow: getOverlayWindow(), filePaths: fileWatcher.getFilePaths(), server,
         localizationSnapshot: localizationRuntime?.snapshot() })
       // Environment validation must not interrupt a task that is already running.
-      pythonPath = resolveCraftingPython(python, trusted.requireStashTabOcr)
+      pythonPath = await resolveCraftingPythonAsync(python, trusted.requireStashTabOcr)
       if (!pythonPath) return { success: false, error: trusted.requireStashTabOcr
         ? '未找到同时具备 pynput、pyperclip、rapidocr、onnxruntime、cv2、mss、numpy 的 Python 3'
         : '未找到同时具备 pynput 和 pyperclip 的 Python 3，请先安装制作脚本依赖' }
@@ -270,6 +275,9 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       const filePaths = fileWatcher.getFilePaths()
       const mainWindow = getMainWindow()
       const { mode, craftingKind, scriptContent, scriptPath, requireStashTabOcr } = trusted
+      const batchMode = mode === 'items' && trusted.generationConfig?.batchConfig?.enabled
+        ? (trusted.generationConfig.batchConfig.mode === 'auto-scan' ? 'auto-scan' : 'snapshot')
+        : null
       
       // 如果已有脚本在运行，先停止
       const currentScriptProcess = getCurrentScriptProcess()
@@ -303,12 +311,19 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       if (config?.batchRecoveryContext) {
         const checkpoint = batchRecoveryStore.begin(config.batchRecoveryContext, config.usageSessionId)
         if (!checkpoint.valid) return { success: false, error: checkpoint.error }
+      } else if (mode === 'items') {
+        batchRecoveryStore.clear()
       }
 
-      const activation = await window.activateGameWindow('generated-automation')
-      if (!activation.success) {
-        if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: '无法激活游戏窗口', code: activation.code })
-        return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
+      const skipWindowActivation = Boolean(
+        config?.alreadyInGameForeground && shortcut?.getScopeState?.()?.gameForeground === true
+      )
+      if (!skipWindowActivation) {
+        const activation = await window.activateGameWindow('generated-automation')
+        if (!activation.success) {
+          if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: '无法激活游戏窗口', code: activation.code })
+          return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
+        }
       }
 
       const usageSnapshot = currencyUsageLedger.begin({
@@ -323,11 +338,18 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         fs.copyFileSync(resolveStashTabSelectorPath(), path.join(path.dirname(scriptPath), 'stash_tab_selector.py'))
       }
 
-      // 启动文件监听
+      // 保持文件监听配置上下文（同时兼容非管道回退与停止时的地图统计读取）
       fileWatcher.startFileWatcher(trusted.preset)
 
-      // 浮层必须先完成加载，否则启动阶段的结构化失败事件会在监听器挂载前丢失。
-      await prepareCraftingOverlay(window, getOverlayWindow, usageSnapshot)
+      // 浮窗加载与 Python 进程启动并行执行；早期事件在浮窗就绪前按序缓冲，消除首次创建串行等待。
+      const overlayDispatcher = createOverlayDispatcher(window, getOverlayWindow, { ...usageSnapshot, batchMode })
+      const sendParsedItemToUi = (result, presetConfig) => {
+        overlayDispatcher.send('update-overlay', result)
+        if (!presetConfig?.moduleEldritch?.enabled) return
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send('update-overlay', result)
+        }
+      }
 
       let stdout = ''
       let stderr = ''
@@ -335,9 +357,10 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       let runtimeError = ''
       let runtimeErrorCode = null
       let latestRecovery = null
+      let latestMapStats = null
       let scriptTermination = null
       let manualStopNotified = false
-      const launch = createPythonProcess({ pythonPath, scriptPath })
+      const launch = createPythonProcess({ pythonPath, scriptPath, enableParsePipe: true })
       const pythonProcess = launch.process
       const startupPromise = waitForScriptStartup(pythonProcess, {
         getFailureReason: (code) => runtimeError || stderr.trim() ||
@@ -346,6 +369,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
 
       setCurrentScriptProcess(pythonProcess, mode)
       activeCraftingKind = craftingKind
+      activeBatchMode = batchMode
 
       // 捕获标准输出
       // 确保输出事件在进程创建后立即绑定
@@ -355,8 +379,34 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         stdoutLineBuffer += output
         const completeLines = stdoutLineBuffer.split(/\r?\n/)
         stdoutLineBuffer = completeLines.pop() || ''
+        const forwardLines = []
         for (const line of completeLines) {
+          if (handlePipeParseRequest({
+            line,
+            config: trusted.preset,
+            localizationRuntime,
+            crafting,
+            mapStats: latestMapStats,
+            writeResponse: (payload) => {
+              if (pythonProcess.stdin && !pythonProcess.stdin.destroyed && pythonProcess.stdin.writable) {
+                pythonProcess.stdin.write(payload, 'utf8')
+              }
+            },
+            onResult: sendParsedItemToUi
+          })) {
+            continue
+          }
+          forwardLines.push(line)
           const scriptEvent = parseScriptEventLine(line)
+          if (scriptEvent?.event === 'map-stats-updated') {
+            latestMapStats = normalizeMapStatsSnapshot(scriptEvent)
+            overlayDispatcher.send('update-overlay', {
+              category: trusted.preset?.map?.targetKind === 'heist' ? '契约' : trusted.preset?.map?.targetKind === 'chart' ? '海图' : '地图',
+              rollingTarget: trusted.preset?.map?.targetKind || 'atlas',
+              mapStats: latestMapStats
+            })
+            continue
+          }
           if (scriptEvent?.event?.startsWith('crafting-batch-')) {
             batchRecoveryStore.applyEvent(scriptEvent)
           }
@@ -364,20 +414,14 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
             if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
               mainWindow.webContents.send('update-overlay', scriptEvent)
             }
-            const batchOverlayWindow = getOverlayWindow()
-            if (batchOverlayWindow && !batchOverlayWindow.isDestroyed()) {
-              batchOverlayWindow.webContents.send('update-overlay', scriptEvent)
-            }
+            overlayDispatcher.send('update-overlay', scriptEvent)
           }
           if (scriptEvent?.event === 'crafting-currency-used') {
             const updatedUsage = currencyUsageLedger.record(scriptEvent, {
               usageSessionId: usageSnapshot.usageSessionId,
               mode
             })
-            const currentOverlayWindow = getOverlayWindow()
-            if (updatedUsage && currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
-              currentOverlayWindow.webContents.send('update-overlay', updatedUsage)
-            }
+            if (updatedUsage) overlayDispatcher.send('update-overlay', updatedUsage)
             continue
           }
           if (scriptEvent?.event === 'crafting-recovery-checkpoint') {
@@ -389,20 +433,18 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
             if (mode === 'items') batchRecoveryStore.clear()
             if (!manualStopNotified) {
               manualStopNotified = true
-              const currentOverlayWindow = getOverlayWindow()
-              if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
-                currentOverlayWindow.webContents.send('script-stopped', {
-                  code: null,
-                  mode,
-                  craftingKind,
-                  termination: 'manual',
-                  errorCode: null,
-                  error: null,
-                  recovery: latestRecovery,
-                  ...currencyUsageLedger.snapshot(),
-                  mapStats: null
-                })
-              }
+              overlayDispatcher.send('script-stopped', {
+                code: null,
+                mode,
+                craftingKind,
+                batchMode,
+                termination: 'manual',
+                errorCode: null,
+                error: null,
+                recovery: latestRecovery,
+                ...currencyUsageLedger.snapshot(),
+                mapStats: latestMapStats
+              })
             }
             continue
           }
@@ -435,22 +477,21 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
           })
         }
         
+        const visibleOutput = forwardLines.length ? `${forwardLines.join('\n')}\n` : ''
+        if (!visibleOutput) return
         // 发送到渲染进程控制台
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('python-script-output', {
             type: 'stdout',
-            data: output
+            data: visibleOutput
           })
         }
 
         // 如果有覆盖层，也发送到覆盖层，以便提取进度信息
-        const currentOverlayWindow = getOverlayWindow()
-        if (currentOverlayWindow && !currentOverlayWindow.isDestroyed()) {
-          currentOverlayWindow.webContents.send('python-script-output', {
-            type: 'stdout',
-            data: output
-          })
-        }
+        overlayDispatcher.send('python-script-output', {
+          type: 'stdout',
+          data: visibleOutput
+        })
       })
 
       pythonProcess.stderr.on('data', (data) => {
@@ -471,7 +512,10 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         const errorMsg = `[错误] Python进程启动失败: ${err.message}`
         stderr += errorMsg
         const wasCurrent = getCurrentScriptProcess() === pythonProcess
-        if (wasCurrent) clearCurrentScriptProcess()
+        if (wasCurrent) {
+          clearCurrentScriptProcess()
+          activeBatchMode = null
+        }
         fileWatcher.stopFileWatcher()
         if (wasCurrent && !intentionallyStopped.has(pythonProcess)) {
           sendScriptStatus({
@@ -505,7 +549,10 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         if (mode === 'items' && termination === 'abnormal' && !wasIntentionallyStopped) {
           batchRecoveryStore.markAbnormal({ reason: runtimeError, code: runtimeErrorCode })
         }
-        if (wasCurrent) clearCurrentScriptProcess()
+        if (wasCurrent) {
+          clearCurrentScriptProcess()
+          activeBatchMode = null
+        }
         fileWatcher.stopFileWatcher()
         if (wasCurrent && !wasIntentionallyStopped) {
           const failed = termination === 'abnormal'
@@ -522,54 +569,48 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         }
         
         // 发送脚本停止事件到overlay（用于地图制作）
-        const currentOverlayWindow = getOverlayWindow()
-        const currentConfig = fileWatcher.getCurrentConfig()
+        const hasMapConfig = Boolean(trusted.preset?.map)
         
-        if (currentOverlayWindow && !currentOverlayWindow.isDestroyed() && !wasIntentionallyStopped) {
-          // 尝试读取脚本写入的统计信息
-          let finalProcessedCount = 0
-          let finalQualifiedCount = 0
-          let finalBlacklistStats = {}
-          let finalWhitelistStats = {}
-          
-          try {
-            if (fs.existsSync(filePaths.itemInfoResultFile)) {
-              const content = fs.readFileSync(filePaths.itemInfoResultFile, 'utf8')
-              if (content) {
-                const result = JSON.parse(content)
-                if (result.processed_count !== undefined && result.processed_count !== null) {
-                  finalProcessedCount = result.processed_count
-                }
-                if (result.qualified_count !== undefined && result.qualified_count !== null) {
-                  finalQualifiedCount = result.qualified_count
-                }
-                if (result.blacklist_stats !== undefined && result.blacklist_stats !== null) {
-                  finalBlacklistStats = result.blacklist_stats
-                }
-                if (result.whitelist_stats !== undefined && result.whitelist_stats !== null) {
-                  finalWhitelistStats = result.whitelist_stats
+        if (!wasIntentionallyStopped) {
+          let finalMapStats = latestMapStats
+          if (!finalMapStats && hasMapConfig) {
+            let finalProcessedCount = 0
+            let finalQualifiedCount = 0
+            let finalBlacklistStats = {}
+            let finalWhitelistStats = {}
+            try {
+              if (fs.existsSync(filePaths.itemInfoResultFile)) {
+                const content = fs.readFileSync(filePaths.itemInfoResultFile, 'utf8')
+                if (content) {
+                  const result = JSON.parse(content)
+                  if (result.processed_count !== undefined && result.processed_count !== null) finalProcessedCount = result.processed_count
+                  if (result.qualified_count !== undefined && result.qualified_count !== null) finalQualifiedCount = result.qualified_count
+                  if (result.blacklist_stats !== undefined && result.blacklist_stats !== null) finalBlacklistStats = result.blacklist_stats
+                  if (result.whitelist_stats !== undefined && result.whitelist_stats !== null) finalWhitelistStats = result.whitelist_stats
                 }
               }
+            } catch {
+              // 忽略读取错误
             }
-          } catch (e) {
-            // 忽略读取错误
+            finalMapStats = {
+              processedCount: finalProcessedCount,
+              qualifiedCount: finalQualifiedCount,
+              blacklistStats: finalBlacklistStats,
+              whitelistStats: finalWhitelistStats
+            }
           }
           
-          currentOverlayWindow.webContents.send('script-stopped', {
+          overlayDispatcher.send('script-stopped', {
             code,
             mode,
             craftingKind,
+            batchMode,
             termination,
             errorCode: termination === 'abnormal' ? runtimeErrorCode : null,
             error: termination === 'abnormal' ? runtimeError : null,
             recovery: latestRecovery,
             ...currencyUsageLedger.snapshot(),
-            mapStats: currentConfig?.map ? {
-              processedCount: finalProcessedCount,
-              qualifiedCount: finalQualifiedCount,
-              blacklistStats: finalBlacklistStats,
-              whitelistStats: finalWhitelistStats
-            } : null
+            mapStats: hasMapConfig ? finalMapStats : null
           })
         }
         
@@ -605,7 +646,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       })
 
       try {
-        await Promise.all([launch.started, startupPromise])
+        await Promise.all([launch.started, startupPromise, overlayDispatcher.readyPromise])
       } catch (error) {
         const startupError = error?.message || '制作脚本启动失败'
         if (mode === 'items') batchRecoveryStore.markAbnormal({ reason: startupError, code: 'SCRIPT_START_FAILED' })
@@ -627,20 +668,18 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
           exitCode: pythonProcess.exitCode ?? null,
           error: startupError
         })
-        const failedOverlayWindow = getOverlayWindow()
-        if (failedOverlayWindow && !failedOverlayWindow.isDestroyed()) {
-          failedOverlayWindow.webContents.send('script-stopped', {
-            code: pythonProcess.exitCode ?? null,
-            mode,
-            craftingKind,
-            termination: 'abnormal',
-            errorCode: 'PROCESS_START_FAILED',
-            error: startupError,
-            recovery: null,
-            ...currencyUsageLedger.snapshot(),
-            mapStats: null
-          })
-        }
+        overlayDispatcher.send('script-stopped', {
+          code: pythonProcess.exitCode ?? null,
+          mode,
+          craftingKind,
+          batchMode,
+          termination: 'abnormal',
+          errorCode: 'PROCESS_START_FAILED',
+          error: startupError,
+          recovery: null,
+          ...currencyUsageLedger.snapshot(),
+          mapStats: null
+        })
         return { success: false, error: startupError }
       }
 

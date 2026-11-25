@@ -51,3 +51,65 @@ export async function prepareCraftingOverlay(windowManager, getOverlayWindow, cu
   overlayWindow.showInactive()
   return overlayWindow
 }
+
+/**
+ * 并行准备制作浮窗：在浮窗 did-finish-load 完成前缓存早期 IPC 消息，
+ * 就绪后按原序一次性刷入，避免首次创建浮窗阻塞 Python 进程启动。
+ */
+export function createOverlayDispatcher(windowManager, getOverlayWindow, currencyUsageSnapshot) {
+  let ready = false
+  let failed = false
+  let overlayWindow = null
+  const queue = []
+
+  const flush = () => {
+    if (!ready || failed) return
+    const target = overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow : getOverlayWindow?.()
+    if (!target || target.isDestroyed() || target.webContents?.isDestroyed?.()) {
+      queue.length = 0
+      return
+    }
+    while (queue.length) {
+      const [channel, payload] = queue.shift()
+      target.webContents.send(channel, payload)
+    }
+  }
+
+  let readyPromise
+  try {
+    readyPromise = Promise.resolve(prepareCraftingOverlay(windowManager, getOverlayWindow, currencyUsageSnapshot))
+      .then((win) => {
+        overlayWindow = win
+        ready = true
+        flush()
+        return win
+      })
+      .catch((error) => {
+        failed = true
+        queue.length = 0
+        throw error
+      })
+  } catch (error) {
+    failed = true
+    queue.length = 0
+    readyPromise = Promise.reject(error)
+  }
+
+  // 避免调用方提前返回时触发未处理拒绝，由调用方在启动阶段显式 await。
+  readyPromise.catch(() => {})
+
+  return {
+    readyPromise,
+    send(channel, payload) {
+      if (failed) return
+      if (!ready) {
+        queue.push([channel, payload])
+        return
+      }
+      const target = overlayWindow && !overlayWindow.isDestroyed() ? overlayWindow : getOverlayWindow?.()
+      if (target && !target.isDestroyed() && !target.webContents?.isDestroyed?.()) {
+        target.webContents.send(channel, payload)
+      }
+    }
+  }
+}

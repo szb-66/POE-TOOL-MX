@@ -267,8 +267,10 @@ test('背包页面提供额外背包与逐格禁用布局，并在模块启用�
   assert.match(source, /matchMode: draftRule\.value\.matchMode,[\s\S]*enabled: true/)
 })
 
-test('存取页面并列普通与接收舱入库并共享扫描规则', () => {
+test('存取页面仅保留普通仓库入库并将永火接收舱收纳至过期赛季页', () => {
   const source = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
+  const puzzleView = readFileSync(new URL('../src/domains/puzzle/PuzzleView.vue', import.meta.url), 'utf8')
+  const allflameTab = readFileSync(new URL('../src/domains/puzzle/AllflameReceiverTab.vue', import.meta.url), 'utf8')
   assert.match(source, /传奇强入/)
   assert.match(source, /bagStore\.forceUniqueStash/)
   assert.match(source, /setForceUniqueStash\(forceUniqueStash\)[\s\S]*applyBagRuntimePatch\(\{ forceUniqueStash \}\)/)
@@ -277,11 +279,7 @@ test('存取页面并列普通与接收舱入库并共享扫描规则', () => {
   assert.match(source, /QuestionFilled/)
   assert.match(source, /content="持续检测普通仓库与背包，并在游戏内提供自动入库按钮"/)
   assert.match(source, /aria-label="背包安全入库启用说明"/)
-  assert.match(source, /永火接收舱一键入库/)
-  assert.match(source, /bagStore\.allflameReceiverEnabled/)
-  assert.match(source, /type="allflameReceiverTitle"/)
-  assert.match(source, /region-key="allflameReceiverRegion"/)
-  assert.match(source, /content="两种入库共用：仅当传奇物品无法正常转移时，才会追加 Shift 强制转移到当前目标界面"/)
+  assert.doesNotMatch(source, /永火接收舱一键入库|allflameReceiverEnabled|allflameReceiverTitle/)
   assert.match(source, /aria-label="传奇强入说明"/)
   assert.match(source, /content="点击格子可切换是否执行自动入库。"/)
   assert.match(source, /aria-label="背包格子布局说明"/)
@@ -289,6 +287,14 @@ test('存取页面并列普通与接收舱入库并共享扫描规则', () => {
   assert.match(source, /content="命中任一规则的物品会留在背包；统计按扫描格数计算。"/)
   assert.match(source, /aria-label="物品黑名单说明"/)
   assert.doesNotMatch(source, /运行中修改从下一轮入库生效|新规则从下一轮入库生效|识别模板已移动/)
+  assert.match(puzzleView, /过期赛季/)
+  assert.match(puzzleView, /S30 海图/)
+  assert.match(puzzleView, /S30 永火接收舱/)
+  assert.match(puzzleView, /AllflameReceiverTab/)
+  assert.match(allflameTab, /永火接收舱一键入库/)
+  assert.match(allflameTab, /bagStore\.allflameReceiverEnabled/)
+  assert.match(allflameTab, /type="allflameReceiverTitle"/)
+  assert.match(allflameTab, /region-key="allflameReceiverRegion"/)
 })
 
 test('Python 黑名单支持精确匹配、旧规则迁移和单项启停', () => {
@@ -1709,7 +1715,8 @@ test('完整背包运行时配置热更新检测并保留当前入库进程快�
   const apiSource = readFileSync(new URL('../src/api/electron.js', import.meta.url), 'utf8')
   const bagView = readFileSync(new URL('../src/domains/bag/BagView.vue', import.meta.url), 'utf8')
   const handler = ipcSource.match(/ipcMain\.handle\('update-bag-runtime-config'[\s\S]*?\n  \}\)/)?.[0] || ''
-  assert.match(handler, /interfaceDetection\.updateConfig\(candidate\)/)
+  assert.match(handler, /interfaceDetection\.updateConfig\(candidate, 'bag'\)/)
+  assert.match(handler, /detectionChanged/)
   assert.match(handler, /latestConfig = candidate/)
   assert.match(handler, /bagConfigRevision \+= 1/)
   assert.doesNotMatch(handler, /stopChild\(stashProcess\)|stashProcess = null/)
@@ -1854,16 +1861,17 @@ test('扫描控制只聚焦和读取既有页面，不发送背包快捷键或�
   assert.doesNotMatch(scanBody, /select_currency_stash_tab|ctrl_click|keyboard\.press|keyboard\.send|open_inventory|open_stash/)
 })
 
-test('普通入库与永火接收舱共用单一检测消费者和执行接口', () => {
+test('普通入库与永火接收舱共用单一检测消费者和执行接口并由各自模块托管启停', () => {
   const ipcSource = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
   const serviceSource = readFileSync(new URL('../src/utils/bagService.js', import.meta.url), 'utf8')
   const action = readFileSync(scriptUrl, 'utf8').slice(readFileSync(scriptUrl, 'utf8').indexOf('def run_stash'))
   assert.match(ipcSource, /config\?\.module_enabled && \(state\?\.stashReady \?\? state\?\.ready\)/)
   assert.match(ipcSource, /config\?\.allflame_receiver_enabled && state\?\.allflameReceiverReady/)
   assert.match(ipcSource, /applyDetectionState\(state\)/)
-  assert.match(serviceSource, /bagStore\.moduleEnabled \|\| bagStore\.allflameReceiverEnabled/)
-  assert.match(serviceSource, /updateBagRuntimeConfig\(\{ moduleEnabled: false \}\)/)
-  assert.match(serviceSource, /updateBagRuntimeConfig\(\{ allflameReceiverEnabled: false \}\)/)
+  assert.match(serviceSource, /suspendNormalBagRuntime/)
+  assert.match(serviceSource, /suspendAllflameReceiverRuntime/)
+  assert.match(serviceSource, /currentConfig\(\{ moduleEnabled: false \}\)/)
+  assert.match(serviceSource, /currentConfig\(\{ allflameReceiverEnabled: false \}\)/)
   assert.equal((ipcSource.match(/ipcMain\.handle\('start-bag-stash'/g) || []).length, 1)
   assert.doesNotMatch(action, /allflame|receiver|InterfaceMatcher|check_interface/)
 })
@@ -1905,7 +1913,7 @@ test('模板替换允许运行态更新并重载检测器', () => {
   const coordinatorSource = readFileSync(new URL('../electron/modules/interfaceDetection/coordinator.js', import.meta.url), 'utf8')
   assert.match(ipcSource, /reloadDetectionForTemplateChange/)
   assert.match(ipcSource, /updateRuntimeTemplate\(type, targetPath/)
-  assert.match(ipcSource, /interfaceDetection\.updateConfig\(latestConfig\)/)
+  assert.match(ipcSource, /interfaceDetection\.updateConfig\(latestConfig, 'bag'\)/)
   assert.match(coordinatorSource, /async restart\(\)[\s\S]*stopChild\(previous\)[\s\S]*return this\.start\(\)/)
   assert.match(coordinatorSource, /if \(this\.child !== child\) return/)
   assert.match(ipcSource, /reloadError/)
@@ -1915,4 +1923,39 @@ test('模板替换允许运行态更新并重载检测器', () => {
   assert.match(fieldSource, /store\.applyTemplateCapture\(props\.type, result\)/)
   assert.match(fieldSource, /if \(result\?\.canceled\) return/)
   assert.match(settingsSource, /游戏界面检测/)
+})
+
+test('背包自动存仓脚本按已签名品质前缀模板解析精良药剂与精良地图', async () => {
+  const { createHash } = await import('node:crypto')
+  const { LocalizationRuntime } = await import('../electron/modules/localization/runtime.js')
+  const hash = value => createHash('sha256').update(value).digest('hex')
+  const runtime = new LocalizationRuntime({
+    serverId: 'international',
+    revision: () => 'rev-1',
+    entries: () => [
+      { kind: 'dat', table: 'clientstrings', id: 'QualityItem', field: 'Text', en: 'Superior {0}', cn: '精良的 {0}', tw: '精良的 {0}', sourceHash: hash('Superior {0}') },
+      { kind: 'dat', table: 'clientstrings', id: 'SynthesisedItem', field: 'Text', en: 'Synthesised {0}', cn: '忆境 {0}', tw: '追憶之 {0}', sourceHash: hash('Synthesised {0}') },
+      { kind: 'dat', table: 'baseitemtypes', id: 'Metadata/Items/Flasks/FlaskUtility13', field: 'Name', en: 'Sulphur Flask', cn: '硫磺药剂', tw: '硫磺藥劑', sourceHash: hash('Sulphur Flask') },
+      { kind: 'dat', table: 'baseitemtypes', id: 'Metadata/Items/Rings/Ring6', field: 'Name', en: 'Sapphire Ring', cn: '蓝玉戒指', tw: '藍玉戒指', sourceHash: hash('Sapphire Ring') }
+    ]
+  })
+  const snapshot = runtime.snapshot()
+  const result = runPython(`
+import importlib.util, json, sys
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+module.localization_snapshot = ${JSON.stringify(snapshot)}
+flask = module.parse_item_header("物品类别: 功能药剂\\n稀 有 度: 普通\\n精良的 硫磺药剂\\n--------\\n品质: +16% (augmented)\\n--------\\n物品等级: 83")
+ring = module.parse_item_header("物品类别: 戒指\\n稀 有 度: 普通\\n精良的 忆境 蓝玉戒指\\n--------\\n物品等级: 85")
+amap = module.parse_item_header("物品类别: 异界地图\\n稀 有 度: 普通\\n精良的 地图（16 阶）\\n--------\\n地图阶级: 16\\n--------\\n物品等级: 83")
+unknown = module.parse_item_header("物品类别: 功能药剂\\n稀 有 度: 普通\\n精良的 未知药剂\\n--------\\n物品等级: 83")
+print(json.dumps({"flask": flask, "ring": ring, "map": amap, "unknown": unknown}, ensure_ascii=False))
+`)
+  assert.equal(result.flask.name, 'Superior Sulphur Flask')
+  assert.equal(result.flask.category, 'Utility Flasks')
+  assert.equal(result.ring.name, 'Superior Synthesised Sapphire Ring')
+  assert.equal(result.map.name, 'Superior Map (Tier 16)')
+  assert.equal(result.unknown, null)
 })

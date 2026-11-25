@@ -321,7 +321,12 @@ export class ChaosRecipeControlOverlay {
       this.close()
       return state
     }
-    const window = this.createWindow()
+    const existingWindow = this.window && !this.window.isDestroyed() ? this.window : null
+    if (!existingWindow && !state.visible) {
+      this.lastPerformanceRewardDetected = state.rewardDetected
+      return state
+    }
+    const window = existingWindow || this.createWindow()
     const placement = this.applyPosition()
     if (placement && this.dragSession.active && this.dragMoved) {
       this.runtime.controlOverlayOffset = placement.offset

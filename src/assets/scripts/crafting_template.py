@@ -179,6 +179,42 @@ item_info_file = r"{{ITEM_INFO_FILE}}"
 item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 parse_request_sequence = 0
 pending_parse_request_id = None
+_pipe_response_queue = None
+_pipe_reader_started = False
+
+
+def _ensure_pipe_reader():
+    global _pipe_response_queue, _pipe_reader_started
+    if _pipe_reader_started:
+        return _pipe_response_queue
+    import queue
+    import threading
+    _pipe_response_queue = queue.Queue()
+    _pipe_reader_started = True
+
+    def _reader():
+        try:
+            while True:
+                line = sys.stdin.readline()
+                if not line:
+                    _pipe_response_queue.put({"__eof__": True})
+                    break
+                text = line.strip()
+                if text.startswith("PARSE_RES "):
+                    try:
+                        _pipe_response_queue.put(json.loads(text[10:]))
+                    except Exception as exc:
+                        _pipe_response_queue.put({"error": f"管道 JSON 解析失败: {exc}"})
+        except Exception as exc:
+            _pipe_response_queue.put({"__eof__": True, "error": str(exc)})
+
+    thread = threading.Thread(target=_reader, daemon=True)
+    thread.start()
+    return _pipe_response_queue
+
+
+def _use_pipe_parse():
+    return os.environ.get("POE_PARSE_TRANSPORT") == "pipe"
 
 # 自动操作等待（生成脚本时已将毫秒转换为秒）
 mouse_move_delay = {{DELAY_MOUSE_MOVE}}
@@ -211,7 +247,11 @@ stash_tab_selection = json.loads({{STASH_TAB_SELECTION_JSON}})
 batch_config = json.loads({{BATCH_CONFIG_JSON}})
 affix_item_level_requirements = list(batch_config.get("affixItemLevelRequirements") or [])
 batch_completed_ids = list(dict.fromkeys(batch_config.get("completedIds") or []))
+batch_skipped_ids = list(dict.fromkeys(batch_config.get("skippedIds") or []))
+batch_skipped_items = []
+batch_auto_scan_total = 0
 batch_current_target = None
+last_item_skip_info = None
 stash_tab_selector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stash_tab_selector.py")
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
 _game_window_titles_cache = GAME_WINDOW_TITLES
@@ -356,20 +396,55 @@ def require_game_foreground():
     return False
 
 BATCH_CATEGORY_NAMES = {
-    "helmet": {"头盔", "头部"},
-    "bodyArmour": {"胸甲", "身体护甲"},
+    "helmet": {"头盔", "头部", "頭盔", "頭部"},
+    "bodyArmour": {"胸甲", "身体护甲", "身體護甲"},
     "gloves": {"手套"},
-    "boots": {"鞋子", "长靴"},
+    "boots": {"鞋子", "长靴", "鞋", "長靴"},
     "shield": {"盾", "盾牌"},
-    "oneHandWeapon": {"爪", "匕首", "符文匕首", "法杖", "单手剑", "细剑", "单手斧", "单手锤", "短杖", "权杖"},
-    "twoHandWeapon": {"双手剑", "双手斧", "双手锤", "长杖", "战杖"},
+    "oneHandWeapon": {"爪", "匕首", "符文匕首", "符紋匕首", "法杖", "单手剑", "單手劍", "细剑", "細劍", "单手斧", "單手斧", "单手锤", "單手錘", "短杖", "权杖", "權杖"},
+    "twoHandWeapon": {"双手剑", "雙手劍", "双手斧", "雙手斧", "双手锤", "雙手錘", "长杖", "長杖", "战杖", "戰杖", "征戰長杖"},
     "bow": {"弓"},
     "quiver": {"箭袋"},
     "ring": {"戒指"},
-    "amulet": {"项链", "护身符"},
-    "belt": {"腰带"},
-    "jewel": {"珠宝", "深渊珠宝", "星团珠宝"},
-    "flask": {"生命药剂", "魔力药剂", "复合药剂", "功能药剂"}
+    "amulet": {"项链", "护身符", "項鍊", "護身符"},
+    "belt": {"腰带", "腰帶"},
+    "jewel": {"珠宝", "深渊珠宝", "星团珠宝", "珠寶", "深淵珠寶", "星團珠寶", "jewels", "abyss jewels", "cluster jewels"},
+    "flask": {"生命药剂", "魔力药剂", "复合药剂", "混合药剂", "功能药剂", "暴击药剂", "生命藥劑", "魔力藥劑", "複合藥劑", "混合藥劑", "功能藥劑", "暴擊藥劑", "life flasks", "mana flasks", "hybrid flasks", "utility flasks", "critical utility flasks"}
+}
+
+BATCH_CANONICAL_CATEGORY_MAP = {
+    "helmets": "helmet",
+    "body armours": "bodyArmour",
+    "gloves": "gloves",
+    "boots": "boots",
+    "shields": "shield",
+    "claws": "oneHandWeapon",
+    "daggers": "oneHandWeapon",
+    "rune daggers": "oneHandWeapon",
+    "wands": "oneHandWeapon",
+    "one hand swords": "oneHandWeapon",
+    "thrusting one hand swords": "oneHandWeapon",
+    "one hand axes": "oneHandWeapon",
+    "one hand maces": "oneHandWeapon",
+    "sceptres": "oneHandWeapon",
+    "two hand swords": "twoHandWeapon",
+    "two hand axes": "twoHandWeapon",
+    "two hand maces": "twoHandWeapon",
+    "staves": "twoHandWeapon",
+    "warstaves": "twoHandWeapon",
+    "bows": "bow",
+    "quivers": "quiver",
+    "rings": "ring",
+    "amulets": "amulet",
+    "belts": "belt",
+    "jewels": "jewel",
+    "abyss jewels": "jewel",
+    "cluster jewels": "jewel",
+    "life flasks": "flask",
+    "mana flasks": "flask",
+    "hybrid flasks": "flask",
+    "utility flasks": "flask",
+    "critical utility flasks": "flask"
 }
 
 def normalized_identity_text(value):
@@ -388,16 +463,57 @@ def batch_base_type_matches(expected_base, parsed_base, parsed_name):
 def emit_batch_event(event, target=None, reason="", code=""):
     if not batch_config.get("enabled"):
         return
+    is_auto_scan = batch_config.get("mode") == "auto-scan"
     targets = list(batch_config.get("targets") or [])
     current = target or batch_current_target
+    total = batch_auto_scan_total if is_auto_scan else len(targets)
+    handled_ids = set(batch_completed_ids) | set(batch_skipped_ids)
+    remaining = 0 if is_auto_scan else max(0, len(targets) - len([item for item in targets if item.get("id") in handled_ids]))
     payload = {
-        "event": event, "mode": "items", "craftingKind": globals().get("crafting_kind", "general"), "batchId": batch_config.get("batchId", ""),
-        "total": len(targets),
+        "event": event, "mode": "items", "craftingKind": globals().get("crafting_kind", "general"),
+        "batchId": batch_config.get("batchId", ""),
+        "batchMode": "auto-scan" if is_auto_scan else "snapshot",
+        "total": total,
         "completed": len(batch_completed_ids),
-        "remaining": max(0, len(targets) - len([item for item in targets if item.get("id") in batch_completed_ids])),
-        "currentItem": current, "reason": reason, "code": code
+        "skipped": len(batch_skipped_ids),
+        "remaining": remaining,
+        "currentItem": current,
+        "skippedItems": list(batch_skipped_items[-60:]),
+        "reason": reason,
+        "code": code
     }
     print("EVENT " + json.dumps(payload, ensure_ascii=False), flush=True)
+
+
+def record_batch_skip(target, reason, code="BATCH_ITEM_SKIPPED"):
+    global batch_current_target, last_item_skip_info
+    last_item_skip_info = None
+    batch_current_target = target
+    target_id = str((target or {}).get("id") or "")
+    if target_id and target_id not in batch_skipped_ids:
+        batch_skipped_ids.append(target_id)
+    entry = {
+        "id": target_id,
+        "displayName": str((target or {}).get("displayName") or (target or {}).get("baseType") or "未知物品"),
+        "x": int((target or {}).get("x", 0)),
+        "y": int((target or {}).get("y", 0)),
+        "reason": str(reason or "单件异常已跳过"),
+        "code": str(code or "BATCH_ITEM_SKIPPED")
+    }
+    if not any(existing.get("id") == entry["id"] and entry["id"] for existing in batch_skipped_items):
+        batch_skipped_items.append(entry)
+    print(f"[跳过] {entry['displayName']} ({entry['x'] + 1}, {entry['y'] + 1})：{entry['reason']}")
+    emit_batch_event("crafting-batch-item-skipped", target, entry["reason"], entry["code"])
+
+
+def fail_or_skip_item(reason, code="ITEM_CRAFT_FAILED", skippable=False):
+    global last_item_skip_info
+    if batch_config.get("enabled") and skippable:
+        last_item_skip_info = {"reason": str(reason or "单件不可制作"), "code": str(code or "BATCH_ITEM_SKIPPED")}
+        print(f"[跳过] {last_item_skip_info['reason']}")
+        return False
+    return fail_item_runtime(reason, code)
+
 
 def fail_batch_preflight(target, reason, code="BATCH_IDENTITY_MISMATCH"):
     global is_running, fatal_error_reason, batch_current_target
@@ -429,17 +545,52 @@ def affix_item_level_issue(result, prefix=""):
         for requirement in insufficient
     )
     subject = f"{prefix} " if prefix else ""
-    return f"{subject}物品等级 {item_level} 不足：{details}，已停止制作"
+    return f"{subject}物品等级 {item_level} 不足：{details}"
 
 def validate_affix_item_level(result, prefix=""):
     issue = affix_item_level_issue(result, prefix)
     if not issue:
         return True
-    return fail_item_runtime(issue, "AFFIX_ITEM_LEVEL_INSUFFICIENT")
+    if globals().get("batch_config", {}).get("enabled") and "fail_or_skip_item" in globals():
+        return fail_or_skip_item(f"{issue}，已跳过", "AFFIX_ITEM_LEVEL_INSUFFICIENT", skippable=True)
+    return fail_item_runtime(f"{issue}，已停止制作", "AFFIX_ITEM_LEVEL_INSUFFICIENT")
 
 def batch_category_matches(category_id, actual_category):
     normalized = normalized_identity_text(actual_category)
     return normalized in {normalized_identity_text(value) for value in BATCH_CATEGORY_NAMES.get(category_id, set())}
+
+
+def resolve_batch_category_id(actual_category):
+    raw = str(actual_category or "").strip()
+    normalized = normalized_identity_text(raw)
+    if not normalized:
+        return ""
+    for category_id, names in BATCH_CATEGORY_NAMES.items():
+        if normalized in {normalized_identity_text(value) for value in names}:
+            return category_id
+    if normalized in BATCH_CANONICAL_CATEGORY_MAP:
+        return BATCH_CANONICAL_CATEGORY_MAP[normalized]
+    aliases = (globals().get("localization_snapshot") or {}).get("structureAliases") or {}
+    mapped = normalized_identity_text(aliases.get(raw, ""))
+    if mapped in BATCH_CANONICAL_CATEGORY_MAP:
+        return BATCH_CANONICAL_CATEGORY_MAP[mapped]
+    return ""
+
+
+def extract_copied_item_category(clipboard_text):
+    for raw_line in str(clipboard_text or "").replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw_line.strip()
+        if len(line) >= 4 and set(line) == {"-"}:
+            break
+        if not line:
+            continue
+        for sep in (":", "："):
+            if sep in line:
+                label, value = line.split(sep, 1)
+                if "".join(label.split()) in ("物品类别", "物品种类", "物品種類", "物品類別", "ItemClass"):
+                    return value.strip()
+                break
+    return ""
 
 def batch_target_identity_issue(target, result, prefix):
     if not isinstance(result, dict) or result.get("error") or result.get("unchanged"):
@@ -478,8 +629,7 @@ def read_batch_preflight_target(target, prefix):
     if not move_mouse(position.get("x", 0), position.get("y", 0)):
         return None, {"reason": f"{prefix} 无法定位", "code": "BATCH_POSITION_FAILED"}
     try:
-        # 批量扫描会恢复扫描前的剪贴板；正式预检必须先建立空白边界，
-        # 只接受当前格本次 Ctrl+C 产生的非空文本，不能沿用上一批残留。
+        # 每次读取新格前建立空白边界，避免沿用上一件剪贴板残留。
         pyperclip.copy("")
     except Exception:
         return None, {
@@ -489,39 +639,189 @@ def read_batch_preflight_target(target, prefix):
     result = read_current_item(allow_unchanged_text=True, verify_freshness=False)
     return result, batch_target_identity_issue(target, result, prefix)
 
+
+def is_fatal_item_error(result):
+    if not isinstance(result, dict):
+        return False
+    code = str(result.get("errorCode") or "")
+    return code.startswith("LOCALIZATION_") or code == "AFFIX_PATCH_UNSUPPORTED"
+
+
+def prepare_batch_target_just_in_time(target, eldritch_enabled=False):
+    """按件即时核对：单次移动+复制同时完成身份校验、物等校验与未鉴定处理，返回可复用结果。"""
+    grid = f"({int(target.get('x', 0)) + 1}, {int(target.get('y', 0)) + 1})"
+    prefix = f"背包格 {grid}"
+    result, issue = read_batch_preflight_target(target, prefix)
+    if not is_running:
+        return None, "fatal"
+    if is_fatal_item_error(result):
+        fail_item_runtime(f"{prefix} 解析异常：{result.get('error')}", result.get("errorCode"))
+        return None, "fatal"
+    if isinstance(result, dict) and result.get("isLegendary") and result.get("isCorrupted"):
+        record_batch_skip(target, f"{prefix} 为腐化传奇物品，已跳过", "ITEM_CORRUPTED")
+        return None, "skipped"
+    if issue:
+        record_batch_skip(target, issue["reason"], issue["code"])
+        return None, "skipped"
+    level_issue = affix_item_level_issue(result, prefix)
+    if level_issue:
+        record_batch_skip(target, level_issue, "AFFIX_ITEM_LEVEL_INSUFFICIENT")
+        return None, "skipped"
+    if result.get("isUnidentified", False):
+        if eldritch_enabled:
+            record_batch_skip(target, f"{prefix} 未鉴定，古灵隐式制作已跳过", "ITEM_UNIDENTIFIED")
+            return None, "skipped"
+        print(f"[准备] {prefix} 未鉴定，使用知识卷轴")
+        if not apply_currency("wisdom"):
+            fail_item_runtime("使用知识卷轴鉴定物品失败", "ITEM_IDENTIFY_FAILED")
+            return None, "fatal"
+        result = read_current_item()
+        if not is_running:
+            return None, "fatal"
+        if not isinstance(result, dict) or result.get("error"):
+            if is_fatal_item_error(result):
+                fail_item_runtime(f"{prefix} 鉴定后解析失败：{result.get('error')}", result.get("errorCode"))
+                return None, "fatal"
+            record_batch_skip(target, f"{prefix} 鉴定后无法读取物品", "ITEM_IDENTIFY_READ_FAILED")
+            return None, "skipped"
+        if result.get("isUnidentified", False):
+            record_batch_skip(target, f"{prefix} 鉴定后仍为未鉴定状态", "ITEM_STILL_UNIDENTIFIED")
+            return None, "skipped"
+    return result, "ok"
+
+
+def run_auto_scan_batch(affix_enabled, socket_enabled, eldritch_enabled):
+    """免切回直跑模式：在游戏内按列扫描原生 12x5 背包，命中预设类别当场制作并标记占格。"""
+    global item_position, batch_current_target, batch_auto_scan_total, last_item_skip_info
+    inventory = batch_config.get("inventory") or {}
+    start = inventory.get("startPos") or {}
+    slot = inventory.get("slotSize") or {}
+    start_x = int(start.get("x", 0))
+    start_y = int(start.get("y", 0))
+    slot_w = int(slot.get("w", 0))
+    slot_h = int(slot.get("h", 0))
+    selected_categories = set(str(cat) for cat in (batch_config.get("categoryIds") or []) if cat)
+    if min(start_x, start_y, slot_w, slot_h) <= 0 or not selected_categories:
+        return fail_item_runtime("自动扫包批量制作缺少有效的背包网格或目标类别", "BATCH_CONFIG_INVALID")
+
+    occupied = set()
+    batch_auto_scan_total = 0
+    for col in range(12):
+        for row in range(5):
+            if not is_running:
+                return False
+            if (col, row) in occupied:
+                continue
+            pos_x = start_x + col * slot_w
+            pos_y = start_y + row * slot_h
+            item_position = {"x": pos_x, "y": pos_y}
+            if not move_mouse(pos_x, pos_y):
+                if not is_running:
+                    return False
+                continue
+            try:
+                pyperclip.copy("")
+            except Exception:
+                return fail_item_runtime("无法清空剪贴板以扫描背包格", "CLIPBOARD_UNAVAILABLE")
+            copied = capture_clipboard_text(allow_unchanged_text=True)
+            if not is_running:
+                return False
+            if not copied or copied == CLIPBOARD_TEXT_UNCHANGED:
+                continue
+            req_id = _dispatch_clipboard_parse(copied)
+            if not req_id:
+                if not is_running:
+                    return False
+                continue
+            result = wait_for_parse_result(req_id)
+            if not is_running:
+                return False
+            if is_fatal_item_error(result):
+                error_code = str(result.get("errorCode") or "")
+                raw_category = extract_copied_item_category(copied)
+                raw_cat_id = resolve_batch_category_id(raw_category)
+                if error_code != "LOCALIZATION_CHANGED" and raw_category and (not raw_cat_id or raw_cat_id not in selected_categories):
+                    print(f"[跳过] 背包格 ({col + 1}, {row + 1}) 非目标类别 ({raw_category})，跳过解析异常")
+                    continue
+                return fail_item_runtime(f"背包格 ({col + 1}, {row + 1}) 解析异常：{result.get('error')}", result.get("errorCode"))
+            if not isinstance(result, dict) or result.get("error"):
+                if isinstance(result, dict) and result.get("isLegendary") and result.get("isCorrupted"):
+                    continue
+                continue
+            fp = result.get("footprint") if isinstance(result.get("footprint"), dict) else {}
+            w = max(1, int(fp.get("width") or 1))
+            h = max(1, int(fp.get("height") or 1))
+            for dx in range(w):
+                for dy in range(h):
+                    if 0 <= col + dx < 12 and 0 <= row + dy < 5:
+                        occupied.add((col + dx, row + dy))
+            cat_id = resolve_batch_category_id(result.get("category"))
+            if not cat_id or cat_id not in selected_categories:
+                continue
+            target = {
+                "id": f"auto:{col}:{row}",
+                "categoryId": cat_id,
+                "baseType": str(result.get("baseName") or result.get("name") or ""),
+                "displayName": str(result.get("name") or result.get("baseName") or f"格({col + 1},{row + 1})"),
+                "x": col, "y": row, "width": w, "height": h,
+                "position": {"x": pos_x, "y": pos_y}
+            }
+            batch_auto_scan_total += 1
+            batch_current_target = target
+            emit_batch_event("crafting-batch-item-started", target)
+            prefix = f"背包格 ({col + 1}, {row + 1})"
+            level_issue = affix_item_level_issue(result, prefix)
+            if level_issue:
+                record_batch_skip(target, level_issue, "AFFIX_ITEM_LEVEL_INSUFFICIENT")
+                continue
+            if result.get("isUnidentified", False):
+                if eldritch_enabled:
+                    record_batch_skip(target, f"{prefix} 未鉴定，古灵隐式制作已跳过", "ITEM_UNIDENTIFIED")
+                    continue
+                if not apply_currency("wisdom"):
+                    return fail_item_runtime("使用知识卷轴鉴定物品失败", "ITEM_IDENTIFY_FAILED")
+                result = read_current_item()
+                if not is_running:
+                    return False
+                if is_fatal_item_error(result):
+                    return fail_item_runtime(f"{prefix} 鉴定后解析失败：{result.get('error')}", result.get("errorCode"))
+                if not isinstance(result, dict) or result.get("error") or result.get("isUnidentified", False):
+                    record_batch_skip(target, f"{prefix} 鉴定后无法读取或仍未鉴定", "ITEM_IDENTIFY_READ_FAILED")
+                    continue
+            last_item_skip_info = None
+            if craft_one_item(result, affix_enabled, socket_enabled, eldritch_enabled):
+                if target["id"] not in batch_completed_ids:
+                    batch_completed_ids.append(target["id"])
+                emit_batch_event("crafting-batch-item-completed", target)
+            elif last_item_skip_info:
+                record_batch_skip(target, last_item_skip_info["reason"], last_item_skip_info["code"])
+            else:
+                return False
+    return True
+
+
 def preflight_batch_targets():
-    global item_position, batch_current_target
+    """保留兼容入口：按件即时核对模式下仅校验非空批次，不在启动前全批空扫。"""
     if not batch_config.get("enabled"):
         return True
+    if batch_config.get("mode") == "auto-scan":
+        return bool(batch_config.get("categoryIds"))
+    handled = set(batch_completed_ids) | set(batch_skipped_ids)
     targets = [
         target for target in list(batch_config.get("targets") or [])
-        if target.get("id") not in batch_completed_ids
+        if target.get("id") not in handled
     ]
     if not targets:
         return fail_batch_preflight(None, "当前批次没有可制作物品", "BATCH_EMPTY")
-    emit_batch_event("crafting-batch-preflight-started")
-    for target in targets:
-        if not is_running:
-            return False
-        batch_current_target = target
-        item_position = dict(target.get("position") or {})
-        grid = f"({target.get('x')}, {target.get('y')})"
-        prefix = f"背包格 {grid}"
-        _result, issue = read_batch_preflight_target(target, prefix)
-        if issue:
-            return fail_batch_preflight(target, issue["reason"], issue["code"])
-        if not validate_affix_item_level(_result, prefix):
-            return False
-        emit_batch_event("crafting-batch-preflight-item-succeeded", target)
-    batch_current_target = None
-    emit_batch_event("crafting-batch-preflight-succeeded")
     return True
 
 # 主函数
 def start_crafting():
     # 开始制作
-    global is_running, fatal_error_reason, item_position, batch_current_target
+    global is_running, fatal_error_reason, item_position, batch_current_target, last_item_skip_info
     is_running = True
+    if "verified_currency_types" in globals():
+        verified_currency_types.clear()
     
     # 注册停止快捷键监听
     try:
@@ -571,38 +871,13 @@ def start_crafting():
         print(f"[停止] {fatal_error_reason}")
         return False
     
-    # 检查物品位置是否配置
-    if item_position['x'] == 0 and item_position['y'] == 0:
+    # 检查物品位置是否配置（批量模式下由各格坐标决定）
+    if not batch_config.get("enabled") and item_position['x'] == 0 and item_position['y'] == 0:
         print("[错误] 物品位置未配置，请先在设置中配置物品位置坐标")
         is_running = False
         return
     
-    # 验证坐标是否合理（应该在屏幕范围内）
-    try:
-        # 尝试获取当前鼠标位置来估算屏幕大小
-        if use_windows_api:
-            try:
-                current_pos = get_cursor_pos_windows_api()
-                if current_pos:
-                    screen_width = current_pos[0] * 2  # 粗略估算
-                    screen_height = current_pos[1] * 2
-                else:
-                    # 如果Windows API失败，尝试使用pynput
-                    current_pos = mouse_controller.position
-                    screen_width = current_pos[0] * 2
-                    screen_height = current_pos[1] * 2
-            except Exception:
-                # 如果都失败，跳过屏幕大小检查
-                current_pos = None
-        else:
-            current_pos = mouse_controller.position
-            screen_width = current_pos[0] * 2  # 粗略估算
-            screen_height = current_pos[1] * 2
-    except Exception as e:
-        print(f"[警告] 无法获取屏幕信息: {e}")
-        current_pos = None
-    
-    if item_position['x'] > 5000 or item_position['y'] > 5000:
+    if not batch_config.get("enabled") and (item_position['x'] > 5000 or item_position['y'] > 5000):
         print(f"[警告] 物品位置坐标异常: ({item_position['x']}, {item_position['y']})")
         print("[提示] 请检查坐标配置是否正确")
     
@@ -617,12 +892,10 @@ def start_crafting():
     
     if not affix_enabled and not socket_enabled and not eldritch_enabled:
         print("[错误] 请至少启用一个制作模块")
-        time.sleep(3)
         is_running = False
         return
 
     if crafting_kind == "general":
-        # 批量模式必须先核对整批物品；在全部通过以前不会进行任何通货输入。
         if not preflight_batch_targets():
             return False
         if not select_currency_stash_tab("items"):
@@ -630,52 +903,62 @@ def start_crafting():
         if not preflight_required_currencies():
             return False
 
-    targets = list(batch_config.get("targets") or []) if batch_config.get("enabled") else [{
-        "id": "single", "displayName": "当前物品", "position": dict(item_position)
-    }]
-    pending_targets = [target for target in targets if target.get("id") not in batch_completed_ids]
-    if not pending_targets:
+    if batch_config.get("enabled"):
+        print("EVENT " + json.dumps({
+            "event": "crafting-startup-succeeded", "mode": "items", "craftingKind": crafting_kind
+        }, ensure_ascii=False), flush=True)
+
+        if batch_config.get("mode") == "auto-scan":
+            if not run_auto_scan_batch(affix_enabled, socket_enabled, eldritch_enabled):
+                is_running = False
+                return False
+        else:
+            handled = set(batch_completed_ids) | set(batch_skipped_ids)
+            pending_targets = [target for target in list(batch_config.get("targets") or []) if target.get("id") not in handled]
+            for target in pending_targets:
+                if not is_running:
+                    return False
+                batch_current_target = target
+                item_position = dict(target.get("position") or item_position)
+                emit_batch_event("crafting-batch-item-started", target)
+                initial_item_result, prep_status = prepare_batch_target_just_in_time(target, eldritch_enabled=eldritch_enabled)
+                if prep_status == "fatal":
+                    is_running = False
+                    return False
+                if prep_status == "skipped":
+                    continue
+                last_item_skip_info = None
+                if craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_enabled):
+                    if target.get("id") not in batch_completed_ids:
+                        batch_completed_ids.append(target.get("id"))
+                    emit_batch_event("crafting-batch-item-completed", target)
+                elif last_item_skip_info:
+                    record_batch_skip(target, last_item_skip_info["reason"], last_item_skip_info["code"])
+                else:
+                    is_running = False
+                    return False
+
         batch_current_target = None
         emit_batch_event("crafting-batch-completed")
-        return True
-    first_target = pending_targets[0]
-    batch_current_target = first_target if batch_config.get("enabled") else None
-    item_position = dict(first_target.get("position") or item_position)
-    initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
-    if initial_item_result is None:
-        return False
-
-    print("EVENT " + json.dumps({
-        "event": "crafting-startup-succeeded", "mode": "items", "craftingKind": crafting_kind
-    }, ensure_ascii=False), flush=True)
-
-    for target_index, target in enumerate(pending_targets):
-        if not is_running:
+    else:
+        initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
+        if initial_item_result is None:
             return False
-        batch_current_target = target if batch_config.get("enabled") else None
-        item_position = dict(target.get("position") or item_position)
-        emit_batch_event("crafting-batch-item-started", target)
-        if target_index > 0:
-            initial_item_result = prepare_item_for_crafting(identify_unidentified=not eldritch_enabled)
-            if initial_item_result is None:
-                return False
+
+        print("EVENT " + json.dumps({
+            "event": "crafting-startup-succeeded", "mode": "items", "craftingKind": crafting_kind
+        }, ensure_ascii=False), flush=True)
+
         if not craft_one_item(initial_item_result, affix_enabled, socket_enabled, eldritch_enabled):
             is_running = False
             return False
-        if batch_config.get("enabled"):
-            if target.get("id") not in batch_completed_ids:
-                batch_completed_ids.append(target.get("id"))
-            emit_batch_event("crafting-batch-item-completed", target)
 
-    batch_current_target = None
-    emit_batch_event("crafting-batch-completed")
-    
     print("[完成] 所有制作流程完成！")
     print("EVENT " + json.dumps({
         "event": "crafting-completed", "mode": "items", "craftingKind": crafting_kind, "termination": "completed"
     }, ensure_ascii=False), flush=True)
     play_success_sound()
-    time.sleep(2)
+    time.sleep(0.15)
     is_running = False
     return True
 
@@ -777,10 +1060,52 @@ def release_shift_if_held():
     is_shift_held = False
     time.sleep(RELEASE_SETTLE_SECONDS)
 
+def _quick_probe_currency_at_position(currency):
+    """快速探测单个通货坐标是否已处于通货页；命中返回 True 并记录已验，不触发失败事件。"""
+    if not currency or GetClipboardSequenceNumber is None:
+        return False
+    pos = currency_positions.get(currency)
+    if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
+        return False
+    if not move_mouse(int(pos["x"]), int(pos["y"])):
+        return False
+    try:
+        sequence_before = GetClipboardSequenceNumber()
+    except Exception:
+        return False
+    try:
+        before_text = str(pyperclip.paste() or "")
+    except Exception:
+        before_text = ""
+    clipboard_text = send_copy_command(sequence_before, before_text, allow_unchanged_text=True)
+    if not clipboard_text:
+        return False
+    try:
+        if GetClipboardSequenceNumber() == sequence_before:
+            return False
+    except Exception:
+        return False
+    actual = detected_item_name(copied_item_header(clipboard_text))
+    if currency_identity_matches(currency, actual):
+        verified_currency_types.add(currency)
+        return True
+    return False
+
+
 def select_currency_stash_tab(mode):
-    """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件。"""
+    """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件；已在通货页时跳过 OCR。"""
     global is_running, fatal_error_reason
     if not stash_tab_selection.get("enabled"):
+        return True
+    if required_currency_types and _quick_probe_currency_at_position(required_currency_types[0]):
+        print(f"[预检] 首通货 {CURRENCY_NAMES.get(required_currency_types[0], required_currency_types[0])} 已命中，跳过仓库页 OCR 切页")
+        print("EVENT " + json.dumps({
+            "event": "stash-tab-selection-succeeded", "mode": mode,
+            "craftingKind": globals().get("crafting_kind", "general"),
+            "targetName": str((stash_tab_selection.get("names") or {}).get("currency") or ""),
+            "scrollStep": 0,
+            "skippedOcr": True
+        }, ensure_ascii=False), flush=True)
         return True
     process = None
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"stash_tab_selector_{mode}.json")
@@ -972,7 +1297,10 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品", failu
     return False
 
 def preflight_required_currencies():
+    # 保留快速通货页探测已验证过的通货，避免重复移动和复制。
+    preverified = set(verified_currency_types) if globals().get("stash_tab_selection", {}).get("enabled") else set()
     verified_currency_types.clear()
+    verified_currency_types.update(preverified)
     print(f"[预检] 开始验证固定通货: {required_currency_types}")
     if required_currency_types and GetClipboardSequenceNumber is None:
         return fail_currency_preflight(
@@ -983,6 +1311,9 @@ def preflight_required_currencies():
 
     for currency in required_currency_types:
         expected = CURRENCY_NAMES.get(currency, currency)
+        if currency in verified_currency_types:
+            print(f"[预检] {expected}已在快速探测中验证通过")
+            continue
         pos = currency_positions.get(currency)
         if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
             return fail_currency_preflight(
@@ -1061,8 +1392,9 @@ def apply_currency(currency_type):
             emit_crafting_operation("input", currency_type, "failed", "ITEM_POSITION_MISSING", f"{currency_name}未使用：物品位置未配置")
             return False
             
-        # 0. 确保Shift松开 (防止之前残留)
-        release_shift_if_held()
+        # 0. 仅当曾按下 Shift 时释放，避免每次点通货都执行 9 次无用按键释放与等待
+        if globals().get("is_shift_held"):
+            release_shift_if_held()
         
         # 1. 移动到通货位置并右键点击 (Pick)
         # print(f"[操作] 获取通货: {currency_type}")
@@ -1111,40 +1443,12 @@ def move_mouse(x, y):
         if abs(x) > 10000 or abs(y) > 10000:
             print(f"[警告] 坐标值异常大: ({x}, {y})，可能配置错误")
         
-        # 获取当前鼠标位置（使用Windows API或pynput）
-        try:
-            if use_windows_api:
-                current_pos_win = get_cursor_pos_windows_api()
-                current_pos_pynput = mouse_controller.position
-                # print(f"[移动] 当前鼠标位置 (Windows API): {current_pos_win}")
-                # print(f"[移动] 当前鼠标位置 (pynput): ({current_pos_pynput[0]}, {current_pos_pynput[1]})")
-                current_pos = current_pos_win if current_pos_win else current_pos_pynput
-            else:
-                current_pos = mouse_controller.position
-                # print(f"[移动] 当前鼠标位置: ({current_pos[0]}, {current_pos[1]})")
-        except Exception as e:
-            # print(f"[警告] 获取当前鼠标位置失败: {e}")
-            # 如果获取位置失败，使用pynput
-            try:
-                current_pos = mouse_controller.position
-                # print(f"[移动] 当前鼠标位置 (pynput): ({current_pos[0]}, {current_pos[1]})")
-            except Exception:
-                current_pos = (0, 0)
-                # print(f"[警告] 无法获取鼠标位置，假设为(0,0)")
-        
-        # print(f"[移动] 目标坐标: ({x}, {y})")
-        # if isinstance(current_pos, tuple) and len(current_pos) >= 2:
-        #     print(f"[移动] 坐标差值: dx={x - current_pos[0]}, dy={y - current_pos[1]}")
-        
         # 执行移动（优先使用Windows API）
         if use_windows_api:
-            # print(f"[移动] 使用Windows API设置鼠标位置")
             success = set_cursor_pos_windows_api(x, y)
             if not success:
-                # print(f"[警告] Windows API设置失败，尝试使用pynput (应用DPI修正: {dpi_scale_factor})")
                 mouse_controller.position = (int(x / dpi_scale_factor), int(y / dpi_scale_factor))
         else:
-            # print(f"[移动] 使用pynput设置鼠标位置 (应用DPI修正: {dpi_scale_factor})")
             mouse_controller.position = (int(x / dpi_scale_factor), int(y / dpi_scale_factor))
         
         time.sleep(mouse_move_delay)
@@ -1324,7 +1628,7 @@ def wait_for_clipboard_change(before_seq, before_text, timeout_seconds, allow_un
     return clipboard_text if clipboard_text is not None else False
 
 def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
-    # 读取剪切板并写入文件；verify_freshness 用于通货后读取的过期文本退避复核。
+    # 读取剪切板并发送解析请求（优先 stdin/stdout 管道，兼容文件回退）。
     global parse_request_sequence, pending_parse_request_id
     try:
         clipboard_text = capture_clipboard_text(allow_unchanged_text)
@@ -1342,20 +1646,30 @@ def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
         if clipboard_text == CLIPBOARD_TEXT_UNCHANGED:
             return "unchanged"
 
-        parse_request_sequence += 1
-        pending_parse_request_id = parse_request_sequence
-        with open(item_info_result_file, 'w', encoding='utf-8'):
-            pass
-        with open(item_info_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                "clipboard": clipboard_text,
-                "requestId": pending_parse_request_id
-            }, f, ensure_ascii=False)
-        remember_accepted_text(clipboard_text)
-        return pending_parse_request_id
+        return _dispatch_clipboard_parse(clipboard_text)
     except Exception as e:
         print(f"[错误] 读取剪切板失败: {e}")
         return False
+
+
+def _dispatch_clipboard_parse(clipboard_text):
+    global parse_request_sequence, pending_parse_request_id
+    parse_request_sequence += 1
+    pending_parse_request_id = parse_request_sequence
+    payload = {
+        "clipboard": clipboard_text,
+        "requestId": pending_parse_request_id
+    }
+    if os.environ.get("POE_PARSE_TRANSPORT") == "pipe":
+        _ensure_pipe_reader()
+        print("PARSE_REQ " + json.dumps(payload, ensure_ascii=False), flush=True)
+    else:
+        with open(item_info_result_file, 'w', encoding='utf-8'):
+            pass
+        with open(item_info_file, 'w', encoding='utf-8') as f:
+            json.dump(payload, f, ensure_ascii=False)
+    remember_accepted_text(clipboard_text)
+    return pending_parse_request_id
 
 # 复制新鲜度验证：识别跨轮过期文本（未变化或命中历史记录），退避复核后才分发解析。
 # 说明：helpers 定义在使用方之后属模板结构约束（测试片段以函数定义为界截取）。
@@ -1386,11 +1700,34 @@ def capture_clipboard_text(allow_unchanged_text=False):
     return send_copy_command(before_seq, before_text, allow_unchanged_text)
 
 def wait_for_parse_result(request_id=None):
-    # 等待解析结果文件出现
+    # 等待解析结果：优先走 stdin/stdout 管道（事件驱动 <2ms），否则回退到结果文件轮询
+    expected_request_id = pending_parse_request_id if request_id is None else request_id
+    if os.environ.get("POE_PARSE_TRANSPORT") == "pipe":
+        import queue
+        response_queue = _ensure_pipe_reader()
+        deadline = time.monotonic() + 10.0
+        while is_running:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {"error": "等待超时，未收到解析结果"}
+            try:
+                result = response_queue.get(timeout=min(0.05, remaining))
+            except queue.Empty:
+                continue
+            if not isinstance(result, dict):
+                continue
+            if result.get("__eof__"):
+                return {"error": "解析管道已断开"}
+            if expected_request_id is not None and result.get("requestId") != expected_request_id:
+                continue
+            if result.get("error"):
+                print(f"[错误] 解析错误: {result.get('error')}")
+            return result
+        return {"error": "循环已停止"}
+
     parse_result_poll_interval_seconds = 0.02
     max_wait = 100  # 增加到10秒
     wait_count = 0
-    expected_request_id = pending_parse_request_id if request_id is None else request_id
     
     # 检查输入文件是否存在
     if not os.path.exists(item_info_file):

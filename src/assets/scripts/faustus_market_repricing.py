@@ -124,6 +124,7 @@ def _box_center(box):
 
 
 _OCR_ENGINE = None
+_OCCUPANCY_MODEL_CACHE = {}
 
 
 def _ocr_engine():
@@ -132,7 +133,10 @@ def _ocr_engine():
         import rapidocr
         from rapidocr import RapidOCR
         model_root = str(Path(rapidocr.__file__).resolve().parent / "models")
-        _OCR_ENGINE = RapidOCR(params={"Global.model_root_dir": model_root})
+        _OCR_ENGINE = RapidOCR(params={
+            "Global.model_root_dir": model_root,
+            "Global.use_cls": False,
+        })
     return _OCR_ENGINE
 
 
@@ -275,13 +279,26 @@ class OccupancyModelRuntime:
 def load_occupancy_model(config):
     manifest_path = str(config.get("manifest_path", ""))
     model_path = str(config.get("model_path", ""))
+    if not manifest_path or not model_path:
+        return None
+    if not os.path.isfile(model_path) or not os.path.isfile(manifest_path):
+        return None
+    try:
+        cache_key = (
+            manifest_path,
+            model_path,
+            os.stat(manifest_path).st_mtime_ns,
+            os.stat(model_path).st_mtime_ns,
+        )
+    except OSError:
+        cache_key = None
+    if cache_key and cache_key in _OCCUPANCY_MODEL_CACHE:
+        return _OCCUPANCY_MODEL_CACHE[cache_key]
     manifest = _load_model_json(manifest_path)
     if not isinstance(manifest, dict):
         return None
     if (manifest.get("schemaVersion") != 1 or manifest.get("architectureVersion") != 1
             or tuple(manifest.get("classes", ())) != OCCUPANCY_LABELS):
-        return None
-    if not os.path.isfile(model_path):
         return None
     if str(manifest.get("sha256", "")).lower() != _model_sha256(model_path).lower():
         return None
@@ -290,7 +307,11 @@ def load_occupancy_model(config):
         return None
     import onnxruntime as ort
     session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
-    return OccupancyModelRuntime(session, manifest)
+    runtime = OccupancyModelRuntime(session, manifest)
+    if cache_key:
+        _OCCUPANCY_MODEL_CACHE.clear()
+        _OCCUPANCY_MODEL_CACHE[cache_key] = runtime
+    return runtime
 
 
 def occupancy_grid_tiles(image):
@@ -441,11 +462,14 @@ def resolve_item_footprint(item, catalog):
     return valid_footprint(categories.get(normalize_footprint_text(category)))
 
 
-def candidate_footprint_rectangles(target, footprint, resolved_slots):
+def candidate_footprint_rectangles(target, footprint, resolved_slots, excluded_slots=None):
     if not footprint:
         return []
     column, row = target
     width, height = footprint["width"], footprint["height"]
+    blocked = set(resolved_slots or ())
+    if excluded_slots:
+        blocked.update(excluded_slots)
     rectangles = []
     for left in range(column - width + 1, column + 1):
         for top in range(row - height + 1, row + 1):
@@ -456,7 +480,7 @@ def candidate_footprint_rectangles(target, footprint, resolved_slots):
             }
             if any(x < 0 or x >= GRID_COLUMNS or y < 0 or y >= GRID_ROWS for x, y in rectangle):
                 continue
-            if rectangle.intersection(resolved_slots):
+            if rectangle.intersection(blocked):
                 continue
             rectangles.append(rectangle)
     return rectangles
@@ -476,14 +500,35 @@ def probe_item_identity(adapter, cell, probe_cache, text_cache=None):
     return identity
 
 
-def resolve_probed_footprint_slots(adapter, target, footprint, resolved_slots, probe_cache, copied_text, text_cache=None):
+def resolve_probed_footprint_slots(
+    adapter, target, footprint, resolved_slots, probe_cache, copied_text,
+    text_cache=None, excluded_slots=None
+):
     identity = normalize_item_identity(copied_text)
     if not identity:
         return set()
     probe_cache[target] = identity
+    rectangles = candidate_footprint_rectangles(target, footprint, resolved_slots, excluded_slots)
+    if not rectangles:
+        return set()
+    # 按行主序扫描时 target 通常为左上角，优先检验已缓存格以快速剪枝不匹配矩形。
+    rectangles.sort(key=lambda rect: (
+        min(cell[1] for cell in rect) != target[1] or min(cell[0] for cell in rect) != target[0],
+        min(cell[1] for cell in rect),
+        min(cell[0] for cell in rect),
+    ))
     matches = []
-    for rectangle in candidate_footprint_rectangles(target, footprint, resolved_slots):
-        if all(probe_item_identity(adapter, cell, probe_cache, text_cache) == identity for cell in rectangle):
+    for rectangle in rectangles:
+        ordered_cells = sorted(
+            rectangle,
+            key=lambda cell: (
+                0 if (cell in probe_cache and probe_cache[cell] != identity) else 1,
+                0 if cell in probe_cache else 1,
+                cell[1],
+                cell[0],
+            ),
+        )
+        if all(probe_item_identity(adapter, cell, probe_cache, text_cache) == identity for cell in ordered_cells):
             matches.append(rectangle)
     return matches[0] if len(matches) == 1 else set()
 
@@ -533,10 +578,10 @@ def validate_pricing_config(config):
     return ratio, ordered
 
 
-def build_price_plan(config, old_price, old_currency):
+def build_price_plan(config, old_price, old_currency, parsed_config=None):
     if old_currency not in CURRENCY_NAME:
         raise ItemSkip("currency_unsupported")
-    ratio, bands = validate_pricing_config(config)
+    ratio, bands = parsed_config if parsed_config is not None else validate_pricing_config(config)
     old_price = parse_positive_price(str(old_price))
     old_chaos = Decimal(old_price) * (ratio if old_currency == "divine" else Decimal(1))
     band = next((entry for entry in bands
@@ -715,7 +760,7 @@ def _grid_region(grid):
 
 
 class GameAdapter:
-    def __init__(self, config):
+    def __init__(self, config=None, shared_screen=None):
         import cv2
         import mss
         import numpy as np
@@ -731,12 +776,52 @@ class GameAdapter:
         self.Button = Button
         self.keyboard = keyboard.Controller()
         self.mouse = mouse.Controller()
-        self.config = config
-        self.grid = _grid_region(config["gridCalibration"])
+        self._screen = shared_screen
+        self._owns_screen = shared_screen is None
+        self._monitor_cache = None
+        self._monitor_grid_key = None
+        self.config = {}
+        self.grid = None
         self._price_context = None
         self._price_window_open_observation = None
         self._price_layout = None
         self._price_open_started = None
+        self._last_submit_title_region = None
+        self._last_submit_title_frame = None
+        self._expect_clipboard_copy = False
+        if config is not None:
+            self.reset_run(config)
+
+    def reset_run(self, config):
+        """重置单轮运行状态；不跨轮保留价格、通货或窗口布局缓存。"""
+        self.config = config
+        self.grid = _grid_region(config["gridCalibration"])
+        self._monitor_cache = None
+        self._monitor_grid_key = None
+        self._price_context = None
+        self._price_window_open_observation = None
+        self._price_layout = None
+        self._price_open_started = None
+        self._last_submit_title_region = None
+        self._last_submit_title_frame = None
+        self._expect_clipboard_copy = False
+
+    def close(self):
+        screen = getattr(self, "_screen", None)
+        if screen is not None and getattr(self, "_owns_screen", True):
+            try:
+                screen.close()
+            except Exception:
+                pass
+            self._screen = None
+
+    def _mss_screen(self):
+        screen = getattr(self, "_screen", None)
+        if screen is None:
+            screen = self.mss.mss()
+            self._screen = screen
+            self._owns_screen = True
+        return screen
 
     def language(self):
         return getattr(self, "config", {}).get("runtime_language") or DEFAULT_LANGUAGE
@@ -754,23 +839,36 @@ class GameAdapter:
                 **metrics,
             }), file=sys.stderr, flush=True)
 
-    def sleep(self, seconds=0.08):
+    def sleep(self, seconds=0.05):
         time.sleep(seconds)
 
     def _monitor(self):
+        grid_key = (self.grid["left"], self.grid["top"], self.grid["width"], self.grid["height"])
+        if getattr(self, "_monitor_cache", None) is not None and getattr(self, "_monitor_grid_key", None) == grid_key:
+            return dict(self._monitor_cache)
         center_x = self.grid["left"] + self.grid["width"] / 2
         center_y = self.grid["top"] + self.grid["height"] / 2
-        with self.mss.mss() as screen:
-            for monitor in screen.monitors[1:]:
-                if (monitor["left"] <= center_x < monitor["left"] + monitor["width"]
-                        and monitor["top"] <= center_y < monitor["top"] + monitor["height"]):
-                    return dict(monitor)
-            return dict(screen.monitors[1])
+        screen = self._mss_screen()
+        selected = None
+        for monitor in screen.monitors[1:]:
+            if (monitor["left"] <= center_x < monitor["left"] + monitor["width"]
+                    and monitor["top"] <= center_y < monitor["top"] + monitor["height"]):
+                selected = dict(monitor)
+                break
+        if selected is None:
+            selected = dict(screen.monitors[1])
+        self._monitor_cache = dict(selected)
+        self._monitor_grid_key = grid_key
+        return selected
 
     def capture(self, region):
-        with self.mss.mss() as screen:
-            pixels = self.np.asarray(screen.grab(region))
+        pixels = self.np.asarray(self._mss_screen().grab(region))
         return self.cv2.cvtColor(pixels, self.cv2.COLOR_BGRA2BGR)
+
+    def _frame_diff(self, before, after):
+        if before is None or after is None or getattr(before, "shape", None) != getattr(after, "shape", None):
+            return float("inf")
+        return float(self.np.mean(self.np.abs(after.astype(self.np.int16) - before.astype(self.np.int16))))
 
     def capture_ocr(self, region):
         started = time.perf_counter()
@@ -876,10 +974,27 @@ class GameAdapter:
             raise ItemSkip("currency_ocr_uncertain")
         return {"left": left, "top": top, "width": right - left, "height": region_bottom - top}
 
+    def _title_region(self, context):
+        rect = _box_rect(context["title"]["box"])
+        height = max(1, rect["bottom"] - rect["top"])
+        return self._bounded_region(rect, height * 1.75, height * 0.80, rect["bottom"] + height * 0.80)
+
     def _currency_region(self, context):
         rect = _box_rect(context["currency"]["box"])
         height = max(1, rect["bottom"] - rect["top"])
         return self._bounded_region(rect, height * 1.75, height * 0.80, rect["bottom"] + height * 0.80)
+
+    def _local_context_region(self, layout):
+        title_rect = _box_rect(layout["title"]["box"])
+        currency_rect = _box_rect(layout["currency"]["box"])
+        pad_h = max(1, title_rect["bottom"] - title_rect["top"], currency_rect["bottom"] - currency_rect["top"])
+        union_rect = {
+            "left": min(title_rect["left"], currency_rect["left"]),
+            "top": min(title_rect["top"], currency_rect["top"]),
+            "right": max(title_rect["right"], currency_rect["right"]),
+            "bottom": max(title_rect["bottom"], currency_rect["bottom"]),
+        }
+        return self._bounded_region(union_rect, pad_h * 1.50, pad_h * 0.80, union_rect["bottom"] + pad_h * 0.80)
 
     def _currency_dropdown_region(self, context):
         rect = _box_rect(context["currency"]["box"])
@@ -895,16 +1010,18 @@ class GameAdapter:
         return all(abs(rect[edge] - old[edge]) <= tolerance for edge in edges)
 
     def _local_price_context(self, layout):
-        rect = _box_rect(layout["title"]["box"])
-        height = max(1, rect["bottom"] - rect["top"])
-        region = self._bounded_region(rect, height * 1.75, height * 0.80,
-                                      rect["bottom"] + height * 0.80)
-        title = _unique_exact(self.capture_ocr(region), self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
+        region = self._local_context_region(layout)
+        popup = self._popup_region()
+        if region["width"] * region["height"] >= popup["width"] * popup["height"] * 0.35:
+            raise ItemSkip("price_window_layout_changed")
+        candidates = self.capture_ocr(region)
+        title = _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
         if not self._layout_anchor_matches(title, layout["title"]):
             raise ItemSkip("price_window_layout_changed")
-        candidates = self.capture_ocr(self._currency_region(layout))
-        currency = select_unique_currency(candidates, language=self.language())
-        candidate = _unique_exact(candidates, self.currency_aliases(currency), "currency_ocr_uncertain")
+        currency_candidates = [candidate for candidate in candidates
+                               if normalize_text(candidate.get("text")) in currency_text_map(self.language())]
+        currency = select_unique_currency(currency_candidates, language=self.language())
+        candidate = _unique_exact(currency_candidates, self.currency_aliases(currency), "currency_ocr_uncertain")
         if not self._layout_anchor_matches(candidate, layout["currency"], currency=True):
             raise ItemSkip("price_window_layout_changed")
         return {"title": title, "currency": candidate, "currencyCode": currency,
@@ -970,10 +1087,13 @@ class GameAdapter:
                 raise PageAbort("input_privilege_mismatch")
         else:
             self.mouse.position = target
-        self.sleep(0.10)
+        self.sleep(0.03)
         actual = self.mouse.position
         if abs(int(actual[0]) - target[0]) > 3 or abs(int(actual[1]) - target[1]) > 3:
-            raise PageAbort("input_privilege_mismatch")
+            self.sleep(0.03)
+            actual = self.mouse.position
+            if abs(int(actual[0]) - target[0]) > 3 or abs(int(actual[1]) - target[1]) > 3:
+                raise PageAbort("input_privilege_mismatch")
 
     def click(self, point, button=None, count=1):
         require_game_foreground()
@@ -981,9 +1101,14 @@ class GameAdapter:
         if button == self.Button.right:
             self._price_open_started = time.perf_counter()
         self.mouse.click(button or self.Button.left, count)
-        self.sleep(0.10)
+        self.sleep(0.04)
 
     def double_click_price(self):
+        if hasattr(self, "pyperclip"):
+            try:
+                self.pyperclip.copy("")
+            except Exception:
+                pass
         self.click(self._input_point(self.price_context()), self.Button.left, 2)
 
     def hotkey(self, *keys):
@@ -995,24 +1120,43 @@ class GameAdapter:
             for key in resolved:
                 self.keyboard.press(key)
                 pressed.append(key)
-            self.sleep(0.03)
+            self.sleep(0.02)
         finally:
             for key in reversed(pressed):
                 try:
                     self.keyboard.release(key)
                 except Exception:
                     pass
-        self.sleep(0.08)
+        if keys == ("ctrl", "c"):
+            self._expect_clipboard_copy = True
+            self.sleep(0.015)
+        else:
+            self.sleep(0.03)
         if keys == ("ctrl", "v"):
             self.trace_timing("right_click_to_price_written", self._price_open_started)
 
+    def _wait_clipboard(self, timeout=0.14, interval=0.015):
+        deadline = time.perf_counter() + timeout
+        max_polls = max(1, int(timeout / interval) + 1)
+        for _ in range(max_polls):
+            require_game_foreground()
+            value = str(self.pyperclip.paste() or "").strip()
+            if value:
+                return value
+            if time.perf_counter() >= deadline:
+                break
+            self.sleep(interval)
+        return str(self.pyperclip.paste() or "").strip()
+
     def read_clipboard(self):
-        self.sleep(0.05)
+        if getattr(self, "_expect_clipboard_copy", False):
+            self._expect_clipboard_copy = False
+            return self._wait_clipboard(timeout=0.14, interval=0.015)
         return str(self.pyperclip.paste() or "").strip()
 
     def write_clipboard(self, value):
         self.pyperclip.copy(str(value))
-        self.sleep(0.03)
+        self.sleep(0.015)
 
     def recognize_current_currency(self, force_refresh=False):
         context = self.price_context()
@@ -1049,8 +1193,18 @@ class GameAdapter:
 
     def click_submit_once(self):
         context = self.price_context()
+        title_region = None
+        title_frame = None
+        try:
+            title_region = self._title_region(context)
+            if hasattr(self, "capture") and hasattr(self, "np") and hasattr(self, "cv2") and hasattr(self, "mss"):
+                title_frame = self.capture(title_region)
+        except Exception:
+            title_frame = None
+        self._last_submit_title_region = title_region
+        self._last_submit_title_frame = title_frame
         self.click(_box_center(context["submit"]["box"]))
-        self.sleep(0.35)
+        self.sleep(0.05)
         self._price_context = None
         self._price_window_open_observation = None
 
@@ -1058,9 +1212,11 @@ class GameAdapter:
         require_game_foreground()
         self.keyboard.press(self.Key.esc)
         self.keyboard.release(self.Key.esc)
-        self.sleep(0.20)
+        self.sleep(0.12)
         self._price_context = None
         self._price_window_open_observation = None
+        self._last_submit_title_region = None
+        self._last_submit_title_frame = None
 
     def grid_center(self, column, row):
         return (
@@ -1107,11 +1263,11 @@ class GameAdapter:
         require_game_foreground()
         try:
             self.keyboard.press(self.Key.ctrl)
-            self.sleep(0.02)
+            self.sleep(0.015)
             self.keyboard.press("c")
-            self.sleep(0.02)
+            self.sleep(0.015)
             self.keyboard.release("c")
-            self.sleep(0.02)
+            self.sleep(0.015)
             self.keyboard.release(self.Key.ctrl)
         finally:
             try:
@@ -1119,31 +1275,92 @@ class GameAdapter:
                 self.keyboard.release(self.Key.ctrl)
             except Exception:
                 pass
-        self.sleep(0.10)
-        require_game_foreground()
-        return str(self.pyperclip.paste() or "").strip()
+        return self._wait_clipboard(timeout=0.11, interval=0.015)
 
     def open_price_at(self, column, row):
         self._price_context = None
         self._price_window_open_observation = None
+        before_title = None
+        title_region = None
+        layout = getattr(self, "_price_layout", None)
+        can_capture = hasattr(self, "capture") and hasattr(self, "np") and hasattr(self, "cv2") and hasattr(self, "mss")
+        if layout is not None and can_capture:
+            try:
+                title_region = self._title_region(layout)
+                before_title = self.capture(title_region)
+            except Exception:
+                before_title = None
         self.click(self.grid_center(column, row), self.Button.right)
-        self.sleep(0.18)
+        if before_title is not None and title_region is not None:
+            deadline = time.perf_counter() + 0.22
+            for _ in range(9):
+                self.sleep(0.025)
+                try:
+                    if self._frame_diff(before_title, self.capture(title_region)) >= 6.0:
+                        self.sleep(0.015)
+                        break
+                except Exception:
+                    break
+                if time.perf_counter() >= deadline:
+                    break
+        else:
+            self.sleep(0.11)
         self.price_context()
+
+    def _title_present(self, candidates):
+        try:
+            _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
+            return True
+        except ItemSkip:
+            return False
 
     def submission_result(self):
         started = time.perf_counter()
+        title_region = getattr(self, "_last_submit_title_region", None)
+        before_frame = getattr(self, "_last_submit_title_frame", None)
+        self._last_submit_title_region = None
+        self._last_submit_title_frame = None
+        can_capture = hasattr(self, "capture") and hasattr(self, "np") and hasattr(self, "cv2") and hasattr(self, "mss")
+
+        if title_region is not None:
+            if before_frame is not None and can_capture:
+                deadline = started + 0.45
+                last_ocr_at = -1.0
+                for step in range(13):
+                    elapsed = time.perf_counter() - started
+                    diff = float("inf")
+                    try:
+                        diff = self._frame_diff(before_frame, self.capture(title_region))
+                    except Exception:
+                        pass
+                    should_ocr = (diff >= 6.0) or (elapsed >= 0.12 and (last_ocr_at < 0 or elapsed - last_ocr_at >= 0.08)) or step == 12
+                    if should_ocr:
+                        last_ocr_at = elapsed
+                        if not self._title_present(self.capture_ocr(title_region)):
+                            self._price_window_open_observation = False
+                            self._price_context = None
+                            self.trace_timing("submission_ocr", started, path="fast_close")
+                            self.trace_timing("open_to_submission_result", self._price_open_started, path="fast_close")
+                            return "repriced"
+                    if time.perf_counter() >= deadline:
+                        break
+                    self.sleep(0.035)
+            else:
+                if not self._title_present(self.capture_ocr(title_region)):
+                    self._price_window_open_observation = False
+                    self._price_context = None
+                    self.trace_timing("submission_ocr", started, path="fast_close")
+                    self.trace_timing("open_to_submission_result", self._price_open_started, path="fast_close")
+                    return "repriced"
+
         candidates = self.capture_ocr(self._popup_region())
-        self.trace_timing("submission_ocr", started)
-        self.trace_timing("open_to_submission_result", self._price_open_started)
+        self.trace_timing("submission_ocr", started, path="full_fallback")
+        self.trace_timing("open_to_submission_result", self._price_open_started, path="full_fallback")
         warning_words = ("冷却", "频繁", "警告", "错误", "无法", "冷卻", "頻繁", "錯誤", "無法",
                          "cooldown", "toooften", "warning", "error", "cannot", "unable", "ratelimit")
         has_warning = any(any(word in normalize_text(candidate.get("text")) for word in warning_words)
                           and float(candidate.get("score", 0)) >= 0.70 for candidate in candidates)
-        try:
-            _unique_exact(candidates, self.anchor("priceTitle"), "price_window_anchor_missing", 0.75)
-            window_open = True
-        except ItemSkip:
-            window_open = False
+        window_open = self._title_present(candidates)
         self._price_window_open_observation = window_open
         self._price_context = None
         if window_open:
@@ -1204,7 +1421,7 @@ def trace_run_timing(stage, started, **metrics):
 
 
 def run_repricing(config, adapter, preflight_done=False):
-    validate_pricing_config(config)
+    parsed_config = validate_pricing_config(config)
     emit("stage", stage="scanning")
     scan_started = time.perf_counter()
     cells = (adapter.candidate_cells() if hasattr(adapter, "candidate_cells")
@@ -1213,14 +1430,20 @@ def run_repricing(config, adapter, preflight_done=False):
     trace_run_timing("occupancy_scan", scan_started)
     resolved_slots = set()
     attempted_slots = set()
+    empty_slots = set()
     probe_cache = {}
     text_cache = {}
     previous_submit_started = None
     item_footprints = config.get("item_footprints", {})
     total = len(cells)
     processed = 0
+    checked_items = 0
+    initial_recheck_needed = not preflight_done
     for column, row in cells:
-        if processed % GRID_COLUMNS == 0 and (processed > 0 or not preflight_done):
+        candidate_key = (column, row)
+        already_handled = candidate_key in resolved_slots or candidate_key in attempted_slots
+        if not already_handled and (initial_recheck_needed or (checked_items > 0 and checked_items % GRID_COLUMNS == 0)):
+            initial_recheck_needed = False
             emit("stage", stage="preflight")
             started = time.perf_counter()
             require_game_foreground()
@@ -1231,16 +1454,18 @@ def run_repricing(config, adapter, preflight_done=False):
         require_game_foreground()
         processed += 1
         grid_label = f"{column + 1},{row + 1}"
-        candidate_key = (column, row)
-        if candidate_key in resolved_slots or candidate_key in attempted_slots:
+        if already_handled:
             emit("progress", processed=processed, total=total)
             continue
+        checked_items += 1
         emit("stage", stage="probing")
         probe_started = time.perf_counter()
         cached = candidate_key in text_cache
         copied = text_cache.get(candidate_key) or adapter.copy_item_at(column, row)
         if not copied:
             attempted_slots.add(candidate_key)
+            empty_slots.add(candidate_key)
+            probe_cache[candidate_key] = ""
             emit("progress", processed=processed, total=total)
             continue
         parsed_item = parse_item_header(copied, (config.get("runtime_language") or {}).get("itemBaseAliases"))
@@ -1252,7 +1477,8 @@ def run_repricing(config, adapter, preflight_done=False):
             emit("progress", processed=processed, total=total)
             continue
         footprint_slots = resolve_probed_footprint_slots(
-            adapter, candidate_key, footprint, resolved_slots, probe_cache, copied, text_cache)
+            adapter, candidate_key, footprint, resolved_slots, probe_cache, copied,
+            text_cache, excluded_slots=empty_slots)
         trace_run_timing("footprint_probe", probe_started, cached=cached)
         if not footprint_slots:
             attempted_slots.add(candidate_key)
@@ -1275,7 +1501,7 @@ def run_repricing(config, adapter, preflight_done=False):
             emit("stage", stage="pricing")
             old_price = read_full_price(adapter)
             old_currency = adapter.recognize_current_currency()
-            plan = build_price_plan(config, old_price, old_currency)
+            plan = build_price_plan(config, old_price, old_currency, parsed_config=parsed_config)
             execute_price_transaction(adapter, plan)
             emit("stage", stage="submitting")
             previous_submit_started = time.perf_counter()
@@ -1309,28 +1535,26 @@ def load_config(path):
     return payload
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("preflight", "run"), required=True)
-    parser.add_argument("--config", required=True)
-    args = parser.parse_args(argv)
-    signal.signal(signal.SIGTERM, _signal_stop)
-    if hasattr(signal, "SIGBREAK"):
-        signal.signal(signal.SIGBREAK, _signal_stop)
-    adapter = None
+def _execute_single_run(mode, config_path, adapter=None):
+    global STOP_REQUESTED
+    STOP_REQUESTED = False
+    created_adapter = adapter is None
     previous_clipboard = None
     try:
-        config = load_config(args.config)
+        config = load_config(config_path)
         emit("stage", stage="loading")
         started = time.perf_counter()
-        adapter = GameAdapter(config)
+        if adapter is None:
+            adapter = GameAdapter(config)
+        else:
+            adapter.reset_run(config)
         trace_run_timing("adapter_load", started)
         previous_clipboard = adapter.read_clipboard()
         emit("stage", stage="preflight")
         started = time.perf_counter()
         perform_readonly_preflight(config, adapter)
         trace_run_timing("initial_preflight", started)
-        if args.mode == "preflight":
+        if mode == "preflight":
             emit("preflight-ok")
         else:
             run_repricing(config, adapter, preflight_done=True)
@@ -1353,6 +1577,70 @@ def main(argv=None):
                     adapter.write_clipboard(previous_clipboard)
                 except Exception:
                     pass
+            if created_adapter:
+                adapter.close()
+
+
+def run_worker_loop(stdin_stream=None, adapter_factory=None):
+    """常驻工作模式：预热识别组件并逐轮接受 stdin 指令，每轮清空单轮缓存。"""
+    global STOP_REQUESTED
+    stream = sys.stdin if stdin_stream is None else stdin_stream
+    adapter = None
+    try:
+        started = time.perf_counter()
+        adapter = adapter_factory() if adapter_factory is not None else GameAdapter(None)
+        if adapter_factory is None:
+            _ocr_engine()
+        trace_run_timing("worker_warmup", started)
+        emit("worker-ready")
+        for raw_line in stream:
+            if STOP_REQUESTED:
+                break
+            line = str(raw_line or "").strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except Exception:
+                emit("error", reasonCode="script_error")
+                break
+            cmd = message.get("cmd") if isinstance(message, dict) else None
+            if cmd == "shutdown":
+                break
+            if cmd != "run":
+                emit("error", reasonCode="script_error")
+                break
+            config_path = str(message.get("configPath") or "")
+            if not config_path:
+                emit("error", reasonCode="script_error")
+                break
+            exit_code = _execute_single_run("run", config_path, adapter=adapter)
+            if exit_code != 0:
+                return exit_code
+        return 0
+    except Exception:
+        emit("error", reasonCode="script_error")
+        return 1
+    finally:
+        if adapter is not None:
+            adapter.release_inputs()
+            adapter.close()
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=("preflight", "run", "worker"), required=True)
+    parser.add_argument("--config", required=False)
+    args = parser.parse_args(argv)
+    signal.signal(signal.SIGTERM, _signal_stop)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, _signal_stop)
+    if args.mode == "worker":
+        return run_worker_loop()
+    if not args.config:
+        emit("error", reasonCode="script_error")
+        return 1
+    return _execute_single_run(args.mode, args.config)
 
 
 if __name__ == "__main__":

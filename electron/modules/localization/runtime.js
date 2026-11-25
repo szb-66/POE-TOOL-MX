@@ -3,6 +3,8 @@ import { createLocalizationDictionary, localizationStructureAliases, visibleText
 import { parseItemInfo } from '../item/parser.js'
 import { applyCraftingDisplay } from '../item/craftingDisplay.js'
 import { DEFAULT_VISCERA_NAME_TEMPLATES, visceraNameTemplates } from './viscera.js'
+import { itemNamePrefixTemplates } from './itemNamePrefixes.js'
+import { DEFAULT_ITEM_NAME_PREFIX_TEMPLATES, stripItemNameBasePrefixes } from '../../../shared/itemNamePrefixes.js'
 import { resolveCatalogStat } from '../priceCheck/catalog.js'
 
 const validEntry = entry => entry?.en && (!entry.sourceHash || entry.sourceHash === createHash('sha256').update(entry.en).digest('hex'))
@@ -55,6 +57,9 @@ export class LocalizationRuntime {
         visceraNameTemplates: this.serverId === 'international'
           ? [...DEFAULT_VISCERA_NAME_TEMPLATES.map(({ grade, en }) => ({ grade, en })), ...visceraNameTemplates(entries)]
           : DEFAULT_VISCERA_NAME_TEMPLATES,
+        itemNamePrefixTemplates: this.serverId === 'international'
+          ? itemNamePrefixTemplates(entries)
+          : DEFAULT_ITEM_NAME_PREFIX_TEMPLATES,
         canonicalEssenceNames: [...canonicalEssenceNames],
         // 同一译名对应多个精华时不能作为身份依据，否则预检会放行错误精华。
         essenceNames: [...essenceNames].filter(alias => names.get(alias)?.size === 1)
@@ -92,7 +97,8 @@ export class LocalizationRuntime {
     if (this.serverId === 'international' && ['异界地图', '地图'].includes(item.category) && item.baseName === '地图') {
       const lines = canonicalText.split(/\r?\n/)
       const header = lines.slice(0, Math.max(0, lines.findIndex(line => /^-{3,}$/.test(line.trim()))))
-      item.baseName = header.filter(line => line.trim() && !/[:：]/.test(line)).at(-1)?.trim() || item.baseName
+      const mapHeader = header.filter(line => line.trim() && !/[:：]/.test(line)).at(-1)?.trim()
+      item.baseName = (mapHeader && (stripItemNameBasePrefixes(mapHeader, { isMap: true }) || mapHeader)) || item.baseName
     }
     if (this.serverId === 'international' && item.rarity === '魔法') {
       const lines = canonicalText.split(/\r?\n/)

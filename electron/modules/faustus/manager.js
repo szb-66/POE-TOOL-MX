@@ -11,6 +11,7 @@ import { createFaustusRuntimeLanguage } from './runtimeLanguage.js'
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
 const OWNER = '浮士德市集改价'
+const DEFAULT_WORKER_IDLE_TIMEOUT_MS = 60 * 1000
 const REQUIRED_MODULES = Object.freeze(['rapidocr', 'onnxruntime', 'cv2', 'mss', 'numpy', 'pynput', 'pyperclip'])
 const CURRENCIES = new Set(['chaos', 'divine'])
 const REASON_CODES = new Set([
@@ -95,7 +96,8 @@ export class FaustusManager {
     python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, foregroundState, subscribeForeground, automationLock,
     processFactory, scriptPath, fileSystem = fs, isPackaged = false, resourcesPath = process.resourcesPath,
     feedbackOverlay = null, resolveDisplayBounds = null, server = getServer(),
-    localizationProvider = () => [], localizationRevisionProvider = () => ''
+    localizationProvider = () => [], localizationRevisionProvider = () => '',
+    workerIdleTimeoutMs = DEFAULT_WORKER_IDLE_TIMEOUT_MS, dcRateService = null
   } = {}) {
     this.python = python
     this.fileWatcher = fileWatcher
@@ -112,6 +114,10 @@ export class FaustusManager {
     this.server = getServer(server.id)
     this.localizationProvider = localizationProvider
     this.localizationRevisionProvider = localizationRevisionProvider
+    this.workerIdleTimeoutMs = Number.isFinite(Number(workerIdleTimeoutMs)) && Number(workerIdleTimeoutMs) >= 0
+      ? Number(workerIdleTimeoutMs)
+      : DEFAULT_WORKER_IDLE_TIMEOUT_MS
+    this.dcRateService = dcRateService
     this.feedbackSessionId = null
     this.preparationToken = null
     this.startAttempt = null
@@ -120,6 +126,11 @@ export class FaustusManager {
       shell: false, windowsHide: true, env: { ...process.env, FAUSTUS_TIMING: this.isPackaged ? '0' : process.env.FAUSTUS_TIMING, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
     }))
     this.child = null
+    this.worker = null
+    this.workerReady = false
+    this.workerIdleTimer = null
+    this.pendingWorkerConfigPath = ''
+    this.activeRun = false
     this.lockHeld = false
     this.configPath = ''
     this.status = { status: 'idle', reasonCode: '', processed: 0, total: 0 }
@@ -202,7 +213,7 @@ export class FaustusManager {
 
   spawnMode(mode, config, onEvent, runtime) {
     const configPath = this.writeConfig(config)
-    const args = ['--mode', mode, '--config', configPath]
+    const args = mode === 'worker' ? ['--mode', 'worker'] : ['--mode', mode, '--config', configPath]
     const child = this.processFactory({ ...runtime, args, mode, configPath })
     child.stdout?.setEncoding?.('utf8')
     child.stderr?.setEncoding?.('utf8')
@@ -213,7 +224,66 @@ export class FaustusManager {
       const line = safeText(data, 300)
       if (line) console.error('[浮士德改价]', line)
     })
-    return child
+    return { child, configPath }
+  }
+
+  hasAliveIdleWorker() {
+    const worker = this.worker
+    return Boolean(
+      worker && this.workerReady && !this.activeRun
+      && worker.exitCode === null && worker.signalCode === null && !worker.killed
+      && typeof worker.stdin?.write === 'function'
+    )
+  }
+
+  clearWorkerIdleTimer() {
+    if (this.workerIdleTimer) clearTimeout(this.workerIdleTimer)
+    this.workerIdleTimer = null
+  }
+
+  scheduleWorkerIdleShutdown() {
+    this.clearWorkerIdleTimer()
+    if (!this.worker || this.activeRun) return
+    if (this.workerIdleTimeoutMs <= 0) {
+      this.disposeWorker(true)
+      return
+    }
+    this.workerIdleTimer = setTimeout(() => {
+      this.workerIdleTimer = null
+      if (!this.activeRun) this.disposeWorker(true)
+    }, this.workerIdleTimeoutMs)
+    this.workerIdleTimer.unref?.()
+  }
+
+  disposeWorker(graceful = false) {
+    this.clearWorkerIdleTimer()
+    const worker = this.worker
+    this.worker = null
+    this.workerReady = false
+    this.pendingWorkerConfigPath = ''
+    if (!worker) return
+    if (graceful && typeof worker.stdin?.write === 'function' && worker.exitCode === null && worker.signalCode === null && !worker.killed) {
+      try {
+        worker.stdin.write(JSON.stringify({ cmd: 'shutdown' }) + '\n')
+        worker.stdin.end?.()
+      } catch {}
+    }
+    terminate(worker)
+  }
+
+  sendWorkerRun(worker, configPath) {
+    try {
+      worker.stdin.write(JSON.stringify({ cmd: 'run', configPath }) + '\n')
+    } catch (error) {
+      this.fail('process_error', error?.message || '无法向浮士德常驻进程发送任务')
+    }
+  }
+
+  async fetchInternationalDcRate(options = {}) {
+    if (this.server.id !== 'international' || !this.dcRateService) {
+      throw Object.assign(new Error('自动获取 poe.ninja 比例仅支持国际服'), { code: 'SERVER_FEATURE_UNAVAILABLE' })
+    }
+    return this.dcRateService.fetchRate(options)
   }
 
   acquireLock() {
@@ -266,7 +336,7 @@ export class FaustusManager {
   }
 
   async start(request) {
-    if (this.startAttempt || this.status.status === 'running' || this.child) throw new Error('浮士德市集改价正在运行')
+    if (this.startAttempt || this.status.status === 'running' || this.activeRun) throw new Error('浮士德市集改价正在运行')
     const config = this.internalRuntimeConfig(createFaustusRunSnapshot(request?.config))
     this.assertGridCalibration(config?.gridCalibration)
     this.acquireLock()
@@ -284,11 +354,12 @@ export class FaustusManager {
       const activation = await this.windowActivation?.activateGame({ source: 'faustus-start' })
       if (this.startAttempt !== attempt) return this.getStatus()
       if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
-      this.status = { ...this.status, status: 'running', stage: 'loading' }
-      this.setStage('loading')
+      const reuseWorker = this.hasAliveIdleWorker()
+      this.status = { ...this.status, status: 'running', stage: reuseWorker ? 'preflight' : 'loading' }
+      this.setStage(reuseWorker ? 'preflight' : 'loading')
       this.beginFeedback(
         config.gridCalibration,
-        '正在加载浮士德市集识别组件',
+        reuseWorker ? '正在检查市集页面和网格' : '正在加载浮士德市集识别组件',
         () => {
           if (this.startAttempt === attempt) {
             this.traceTiming('startup_feedback_visible', started)
@@ -296,19 +367,45 @@ export class FaustusManager {
           }
         }
       )
-      const child = this.spawnMode('run', config, event => this.handleEvent(child, event), runtime)
-      this.child = child
-      child.once?.('error', error => this.fail('process_error', error.message))
-      child.once?.('close', code => {
-        if (this.child !== child) return
-        this.child = null
-        if (this.status.status === 'running') this.fail('process_exited', `改价进程异常退出（${code}）`)
-      })
+      this.activeRun = true
+      if (reuseWorker) {
+        this.clearWorkerIdleTimer()
+        const configPath = this.writeConfig(config)
+        this.child = this.worker
+        this.sendWorkerRun(this.worker, configPath)
+      } else {
+        this.disposeWorker(false)
+        const mode = this.workerIdleTimeoutMs > 0 ? 'worker' : 'run'
+        const { child, configPath } = this.spawnMode(mode, config, event => this.handleEvent(child, event), runtime)
+        this.child = child
+        const supportsWorker = mode === 'worker' && typeof child.stdin?.write === 'function'
+        if (supportsWorker) {
+          this.worker = child
+          this.workerReady = false
+          this.pendingWorkerConfigPath = configPath
+        }
+        child.once?.('error', error => {
+          if (this.worker === child) this.worker = null
+          if (this.child === child && this.activeRun) this.fail('process_error', error.message)
+        })
+        child.once?.('close', code => {
+          if (this.worker === child) {
+            this.clearWorkerIdleTimer()
+            this.worker = null
+            this.workerReady = false
+            this.pendingWorkerConfigPath = ''
+          }
+          if (this.child !== child) return
+          this.child = null
+          if (this.activeRun && this.status.status === 'running') this.fail('process_exited', `改价进程异常退出（${code}）`)
+        })
+      }
       this.publishState()
       return this.getStatus()
     } catch (error) {
       if (this.startAttempt !== attempt) return this.getStatus()
       this.startAttempt = null
+      this.activeRun = false
       this.finishPreparation()
       this.hideFeedback()
       this.removeConfig()
@@ -352,7 +449,16 @@ export class FaustusManager {
   }
 
   handleEvent(child, event = {}) {
-    if (this.child !== child) return
+    if (event.event === 'worker-ready' && this.worker === child) {
+      this.workerReady = true
+      if (this.activeRun && this.child === child && this.pendingWorkerConfigPath) {
+        const configPath = this.pendingWorkerConfigPath
+        this.pendingWorkerConfigPath = ''
+        this.sendWorkerRun(child, configPath)
+      }
+      return
+    }
+    if (this.child !== child || !this.activeRun) return
     if (!this.feedbackSessionId) this.finishPreparation({ handoff: true })
     this.handleFeedbackEvent(event)
     if (event.event === 'stage') {
@@ -378,7 +484,7 @@ export class FaustusManager {
       })
       return
     }
-    if (event.event === 'completed') this.finish('completed', 'completed')
+    if (event.event === 'completed') this.finish('completed', 'completed', { keepWorker: true })
     else if (event.event === 'aborted') this.finish('stopped', reasonCode(event.reasonCode, 'aborted'))
     else if (event.event === 'error') this.fail(reasonCode(event.reasonCode, 'script_error'), event.reason)
   }
@@ -389,12 +495,24 @@ export class FaustusManager {
     if (this.configPath === configPath) this.configPath = ''
   }
 
-  finish(status, reasonCode) {
+  finish(status, reasonCode, { keepWorker = false } = {}) {
     this.startAttempt = null
+    this.activeRun = false
+    this.pendingWorkerConfigPath = ''
     this.finishPreparation()
     const child = this.child
     this.child = null
-    terminate(child)
+    const canKeepWorker = Boolean(
+      keepWorker && child && this.worker === child && this.workerReady
+      && typeof child.stdin?.write === 'function'
+      && child.exitCode === null && child.signalCode === null && !child.killed
+    )
+    if (canKeepWorker) {
+      this.scheduleWorkerIdleShutdown()
+    } else {
+      if (this.worker === child) this.disposeWorker(false)
+      else terminate(child)
+    }
     this.stopForegroundMonitor()
     this.releaseLock()
     this.removeConfig()
@@ -423,10 +541,12 @@ export class FaustusManager {
   stop(reason = 'user') {
     this.startAttempt = null
     this.finishPreparation()
-    const wasRunning = Boolean(this.child) || ['running', 'preparing'].includes(this.status.status)
+    const wasRunning = this.activeRun || Boolean(this.child) || ['running', 'preparing'].includes(this.status.status)
+    this.activeRun = false
     const child = this.child
     this.child = null
-    terminate(child)
+    this.disposeWorker(false)
+    if (child && child !== this.worker) terminate(child)
     this.stopForegroundMonitor()
     this.releaseLock()
     this.removeConfig()

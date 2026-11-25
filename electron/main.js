@@ -90,7 +90,9 @@ import { listSanctumSamples, replaySanctumSample } from './modules/sanctum/repla
 import { StashPickupManager } from './modules/stashPickup/manager.js'
 import { JunfengHighlightManager } from './modules/junfeng/manager.js'
 import { JunfengCalibrationRepository } from './modules/junfeng/calibrationRepository.js'
+import { HighlightPickupWorker, resolveVerifiedModelStamp } from './modules/junfeng/highlightWorker.js'
 import { FaustusManager } from './modules/faustus/manager.js'
+import { InternationalDcRateService } from './modules/faustus/internationalDcRate.js'
 import { PuzzleAnalysisService } from './modules/puzzle/service.js'
 import { PuzzleCalibrationRepository } from './modules/puzzle/calibrationRepository.js'
 import { PuzzleFailureEvidenceRepository } from './modules/puzzle/failureEvidenceRepository.js'
@@ -346,6 +348,7 @@ let sanctumControlOverlay = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let junfengHighlight = null
+let highlightWorker = null
 let faustusManager = null
 let puzzleService = null
 let gameWindowTitles = null
@@ -415,6 +418,7 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.automation?.cleanup(),
     () => stashPickup?.cleanup(),
     () => junfengHighlight?.cleanup(),
+    () => highlightWorker?.cleanup(),
     () => faustusManager?.cleanup(),
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
@@ -735,7 +739,25 @@ async function startApplication() {
     automationLock
   })
   const highlightCalibration = new JunfengCalibrationRepository(serverMode.dataPath('junfeng-highlight'))
+  const highlightModelRoot = serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null
+  highlightWorker = new HighlightPickupWorker({
+    python: { ...pythonManager, ...pythonDetector },
+    scriptPath: () => stashPickup.scriptPath(),
+    fileWatcher,
+    interfaceDetection,
+    resolveWarmupConfig: () => {
+      const model = stashPickup.modelPaths()
+      return {
+        model_path: model.model,
+        manifest_path: model.manifest,
+        verified_stamp: resolveVerifiedModelStamp(model.model),
+        calibration_index: highlightCalibration.indexPath,
+        calibration_root: highlightCalibration.root
+      }
+    }
+  })
   stashPickup = new StashPickupManager({
+    highlightWorker,
     modelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
     python: { ...pythonManager, ...pythonDetector },
     fileWatcher,
@@ -748,6 +770,7 @@ async function startApplication() {
     onStatusChange: () => chaosControlOverlay?.sync()
   })
   junfengHighlight = new JunfengHighlightManager({
+    highlightWorker,
     modelRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-model') : null,
     trainingArtifactsRoot: serverMode.mode === 'international' ? serverMode.dataPath('highlight-training') : null,
     python: { ...pythonManager, ...pythonDetector },
@@ -761,6 +784,12 @@ async function startApplication() {
     onStatusChange: () => chaosControlOverlay?.sync()
   })
   faustusManager = new FaustusManager({
+    dcRateService: serverMode.mode === 'international'
+      ? new InternationalDcRateService({
+          server: serverMode.server,
+          cacheFile: serverMode.dataPath('faustus-dc-rate-cache.json')
+        })
+      : null,
     server: serverMode.server,
     localizationProvider: () => localization?.getActiveEntries() || [],
     localizationRevisionProvider: () => localization?.getActiveRevision() || '',

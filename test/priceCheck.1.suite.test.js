@@ -1601,4 +1601,80 @@ test('重跑清理从可信地图事实恢复 map 判别身份', async () => {
   assert.equal(clean.identity.discriminator, 'map')
   assert.deepEqual(buildOfficialTradeQuery(clean).query.type, { discriminator: 'map', option: '地图' })
 })
+
+test('国服梦魇、瓦尔多、塑界守卫与瓦尔密殿地图保留独立底材且不附加 map 判别身份', async () => {
+  const catalog = await catalogPromise
+  const cases = [
+    [
+      '梦魇地图',
+      `物品类别: 地图
+稀 有 度: 稀有
+梦魇地图
+--------
+物品等级: 85
+--------
+怪物等级: 83
+--------
+未鉴定
+--------
+在私人地图装置中使用该物品，前往该等阶或更低等阶的地图。只能被使用一次。
+--------
+僅能使用混沌石、瓦爾寶珠、譫妄玉和圖釘調整`
+    ],
+    [
+      '瓦尔密殿地图',
+      `物品类别: 地图
+稀 有 度: 稀有
+昏暗坚定
+瓦尔密殿地图
+--------
+物品等级: 85
+--------
+怪物等级: 83
+--------
+已腐化`
+    ],
+    [
+      '瓦尔多地图',
+      `物品类别: 地图
+稀 有 度: 稀有
+巨岩 绝境
+瓦尔多地图
+--------
+物品等级: 100
+--------
+怪物等级: 84
+--------
+不可改变`
+    ],
+    [
+      '塑界守卫地图',
+      `物品类别: 地图
+稀 有 度: 稀有
+塑界守卫地图
+--------
+物品等级: 85
+--------
+怪物等级: 83
+--------
+未鉴定`
+    ]
+  ]
+  for (const [expectedBase, text] of cases) {
+    const item = parseItemInfo(text)
+    const model = createPriceCheckModel(item, catalog)
+    assert.equal(model.identity.type, expectedBase, expectedBase)
+    assert.equal(model.identity.discriminator, undefined, expectedBase)
+    assert.deepEqual(model.unknownStats, [], expectedBase)
+    const query = buildOfficialTradeQuery(model).query
+    assert.equal(query.type, expectedBase, expectedBase)
+
+    const tampered = structuredClone(model)
+    tampered.identity.discriminator = 'map'
+    const clean = sanitizePriceCheckModel(tampered, catalog, model.facts, model.item.category, model)
+    assert.equal(clean.identity.type, expectedBase, expectedBase)
+    assert.equal(clean.identity.discriminator, undefined, expectedBase)
+    assert.equal(buildOfficialTradeQuery(clean).query.type, expectedBase, expectedBase)
+  }
+})
 })()

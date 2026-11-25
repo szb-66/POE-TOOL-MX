@@ -258,6 +258,38 @@ item_info_file = r"{{ITEM_INFO_FILE}}"
 item_info_result_file = r"{{ITEM_INFO_RESULT_FILE}}"
 parse_request_sequence = 0
 pending_parse_request_id = None
+_pipe_response_queue = None
+_pipe_reader_started = False
+
+
+def _ensure_pipe_reader():
+    global _pipe_response_queue, _pipe_reader_started
+    if _pipe_reader_started:
+        return _pipe_response_queue
+    import queue
+    import threading
+    _pipe_response_queue = queue.Queue()
+    _pipe_reader_started = True
+
+    def _reader():
+        try:
+            while True:
+                line = sys.stdin.readline()
+                if not line:
+                    _pipe_response_queue.put({"__eof__": True})
+                    break
+                text = line.strip()
+                if text.startswith("PARSE_RES "):
+                    try:
+                        _pipe_response_queue.put(json.loads(text[10:]))
+                    except Exception as exc:
+                        _pipe_response_queue.put({"error": f"管道 JSON 解析失败: {exc}"})
+        except Exception as exc:
+            _pipe_response_queue.put({"__eof__": True, "error": str(exc)})
+
+    thread = threading.Thread(target=_reader, daemon=True)
+    thread.start()
+    return _pipe_response_queue
 
 # 延迟配置
 mouse_move_delay = float({{DELAY_MOUSE_MOVE}})  # type: ignore
@@ -365,10 +397,50 @@ def release_shift_if_held():
     is_shift_held = False
     time.sleep(RELEASE_SETTLE_SECONDS)
 
+def _quick_probe_currency_at_position(currency):
+    if not currency or GetClipboardSequenceNumber is None:
+        return False
+    pos = currency_positions.get(currency)
+    if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
+        return False
+    if not move_mouse(int(pos["x"]), int(pos["y"])):
+        return False
+    try:
+        sequence_before = GetClipboardSequenceNumber()
+    except Exception:
+        return False
+    try:
+        before_text = str(pyperclip.paste() or "")
+    except Exception:
+        before_text = ""
+    clipboard_text = send_copy_command(sequence_before, before_text, allow_unchanged_text=True)
+    if not clipboard_text:
+        return False
+    try:
+        if GetClipboardSequenceNumber() == sequence_before:
+            return False
+    except Exception:
+        return False
+    actual = detected_item_name(copied_item_header(clipboard_text))
+    if currency_identity_matches(currency, actual):
+        verified_currency_types.add(currency)
+        return True
+    return False
+
+
 def select_currency_stash_tab(mode):
-    """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件。"""
+    """在任何通货/物品点击前调用独立选择器，并转发统一结构化事件；已在通货页时跳过 OCR。"""
     global is_running, fatal_error_reason
     if not stash_tab_selection.get("enabled"):
+        return True
+    if required_currency_types and _quick_probe_currency_at_position(required_currency_types[0]):
+        print(f"[预检] 首通货 {CURRENCY_NAMES.get(required_currency_types[0], required_currency_types[0])} 已命中，跳过仓库页 OCR 切页")
+        print("EVENT " + json.dumps({
+            "event": "stash-tab-selection-succeeded", "mode": mode,
+            "targetName": str((stash_tab_selection.get("names") or {}).get("currency") or ""),
+            "scrollStep": 0,
+            "skippedOcr": True
+        }, ensure_ascii=False), flush=True)
         return True
     process = None
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"stash_tab_selector_{mode}.json")
@@ -548,7 +620,9 @@ def fail_currency_preflight(currency, reason, actual="未检测到物品", failu
     return False
 
 def preflight_required_currencies():
+    preverified = set(verified_currency_types) if globals().get("stash_tab_selection", {}).get("enabled") else set()
     verified_currency_types.clear()
+    verified_currency_types.update(preverified)
     print(f"[预检] 开始验证固定通货: {required_currency_types}")
     if required_currency_types and GetClipboardSequenceNumber is None:
         return fail_currency_preflight(
@@ -559,6 +633,9 @@ def preflight_required_currencies():
 
     for currency in required_currency_types:
         expected = CURRENCY_NAMES.get(currency, currency)
+        if currency in verified_currency_types:
+            print(f"[预检] {expected}已在快速探测中验证通过")
+            continue
         pos = currency_positions.get(currency)
         if not pos or (int(pos.get("x", 0)) == 0 and int(pos.get("y", 0)) == 0):
             return fail_currency_preflight(
@@ -672,7 +749,8 @@ def apply_currency(currency_type, target_x, target_y):
     currency_name = CURRENCY_NAMES.get(currency_type, currency_type)
     emit_crafting_operation("input", currency_type, "started", summary=f"准备使用{currency_name}")
     try:
-        release_shift_if_held()
+        if globals().get("is_shift_held"):
+            release_shift_if_held()
         if not right_click_currency(currency_type):
             emit_crafting_operation("input", currency_type, "failed", "CURRENCY_PICK_FAILED", f"未能取得{currency_name}")
             return False
@@ -759,13 +837,18 @@ def read_clipboard_to_file(allow_unchanged_text=False, verify_freshness=False):
 
         parse_request_sequence += 1
         pending_parse_request_id = parse_request_sequence
-        with open(item_info_result_file, 'w', encoding='utf-8'):
-            pass
-        with open(item_info_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                "clipboard": clipboard_text,
-                "requestId": pending_parse_request_id
-            }, f, ensure_ascii=False)
+        payload = {
+            "clipboard": clipboard_text,
+            "requestId": pending_parse_request_id
+        }
+        if os.environ.get("POE_PARSE_TRANSPORT") == "pipe":
+            _ensure_pipe_reader()
+            print("PARSE_REQ " + json.dumps(payload, ensure_ascii=False), flush=True)
+        else:
+            with open(item_info_result_file, 'w', encoding='utf-8'):
+                pass
+            with open(item_info_file, 'w', encoding='utf-8') as f:
+                json.dump(payload, f, ensure_ascii=False)
         remember_accepted_text(clipboard_text)
         return pending_parse_request_id
     except Exception:
@@ -800,10 +883,31 @@ def capture_clipboard_text(allow_unchanged_text=False):
     return send_copy_command(before_seq, before_text, allow_unchanged_text=allow_unchanged_text)
 
 def wait_for_parse_result(request_id=None):
+    expected_request_id = pending_parse_request_id if request_id is None else request_id
+    if os.environ.get("POE_PARSE_TRANSPORT") == "pipe":
+        import queue
+        response_queue = _ensure_pipe_reader()
+        deadline = time.monotonic() + 10.0
+        while is_running:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {"error": "等待超时"}
+            try:
+                result = response_queue.get(timeout=min(0.05, remaining))
+            except queue.Empty:
+                continue
+            if not isinstance(result, dict):
+                continue
+            if result.get("__eof__"):
+                return {"error": "解析管道已断开"}
+            if expected_request_id is not None and result.get("requestId") != expected_request_id:
+                continue
+            return result
+        return {"error": "循环已停止"}
+
     parse_result_poll_interval_seconds = 0.02
     max_wait = 100
     wait_count = 0
-    expected_request_id = pending_parse_request_id if request_id is None else request_id
         
     while is_running:
         if os.path.exists(item_info_result_file):
@@ -863,8 +967,17 @@ def stash_item(x, y):
         return False
 
 def update_map_stats(processed_count, qualified_count, blacklist_stats, whitelist_stats):
-    # 更新地图统计信息到结果文件，供前端实时显示
+    # 管道模式下直接通过结构化事件推送统计，避免磁盘读/写/fsync/sleep 延迟
     try:
+        if os.environ.get("POE_PARSE_TRANSPORT") == "pipe":
+            print("EVENT " + json.dumps({
+                "event": "map-stats-updated",
+                "processed_count": processed_count,
+                "qualified_count": qualified_count,
+                "blacklist_stats": blacklist_stats.copy(),
+                "whitelist_stats": whitelist_stats.copy()
+            }, ensure_ascii=False), flush=True)
+            return
         current_result = {}
         if os.path.exists(item_info_result_file):
             try:
@@ -1035,6 +1148,8 @@ def start_map_rolling():
     """
     global is_running, fatal_error_reason
     is_running = True
+    if "verified_currency_types" in globals():
+        verified_currency_types.clear()
     target_kind = map_config.get("targetKind")
     target_label = "契约蓝图" if target_kind == "heist" else "航海海图" if target_kind == "chart" else "地图"
 
@@ -1201,7 +1316,7 @@ def start_map_rolling():
         "event": "crafting-completed", "mode": "map", "termination": "completed"
     }, ensure_ascii=False), flush=True)
     play_success_sound()
-    time.sleep(2)
+    time.sleep(0.15)
     is_running = False
     return True
 

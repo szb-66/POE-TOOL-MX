@@ -84,7 +84,7 @@ test('所有创建自动化进程的主入口先调用公共游戏激活', () =>
 
   const ordered = [
     ['electron/modules/ipc/python.js', /activateGameWindow\('generated-automation'\)[\s\S]*fs\.writeFileSync\(scriptPath/],
-    ['electron/modules/ipc/combat.js', /activateGameWindow\('combat-potion-start'\)[\s\S]*spawnCombatProcess/],
+    ['electron/modules/ipc/combat.js', /activateGameWindow\('combat-portal'\)[\s\S]*runOnce/],
     ['electron/modules/ipc/bag.js', /activateGameWindow\('bag-auto-stash'\)[\s\S]*writeConfig\(fileWatcher, 'bag_stash_config\.json'/],
     ['electron/modules/chaosRecipe/automation.js', /activateGame\(\{ source: 'chaos-recipe-pickup' \}\)[\s\S]*this\.plan =/],
     ['electron/modules/stashPickup/manager.js', /activateGame\(\{ source: 'stash-pickup-start' \}\)[\s\S]*this\.writeConfig\(\)/],
@@ -93,6 +93,7 @@ test('所有创建自动化进程的主入口先调用公共游戏激活', () =>
     ['electron/modules/faustus/manager.js', /activateGame\(\{ source: 'faustus-start' \}\)[\s\S]*this\.spawnMode\('run'/]
   ]
   for (const [file, pattern] of ordered) assert.match(source(file), pattern, file)
+  assert.doesNotMatch(source('electron/modules/ipc/combat.js'), /activateGameWindow\('combat-(?:potion|loop)-start'\)/)
 })
 
 test('renderer 不暴露任意窗口句柄或激活目标接口', () => {

@@ -7,8 +7,10 @@ export function statNumber(value) {
   if (!match || !Number.isFinite(Number(match[1]))) return null
   const number = Number(match[1])
   if (match[2] !== undefined) {
+    // Detailed tooltips print the unmodified base tier range in parentheses;
+    // mirrored/reflected, catalyzed, enchanted, and legacy rolls can legitimately sit outside it.
     const bounds = [Number(match[2]), Number(match[3])]
-    if (!bounds.every(Number.isFinite) || number < Math.min(...bounds) || number > Math.max(...bounds)) return null
+    if (!bounds.every(Number.isFinite)) return null
   }
   return number
 }

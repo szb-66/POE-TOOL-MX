@@ -8,6 +8,7 @@ import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { createUniqueNameResolver } from './uniqueName.js'
 import { createSupportGemResolver } from './supportGem.js'
 import { splitVisceraName, visceraNameTemplates } from './viscera.js'
+import { itemNamePrefixTemplates, resolvePrefixedItemName } from './itemNamePrefixes.js'
 
 const cjk = /[\u3400-\u9fff]/u
 const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
@@ -221,6 +222,7 @@ export function createLocalizationDictionary(entries = []) {
   const uniqueName = createUniqueNameResolver(validated)
   const supportGem = createSupportGemResolver(validated)
   const visceraNames = visceraNameTemplates(validated)
+  const itemNamePrefixes = itemNamePrefixTemplates(validated)
   const divergentPrefixes = validated
     .filter(entry => entry.kind === 'dat' && /^clientstrings(?:\.datc?64)?$/i.test(entry.table) &&
       entry.id === 'DivergentItem' && entry.field === 'Text' && entry.en === 'Vestigial {0}' &&
@@ -622,6 +624,7 @@ export function createLocalizationDictionary(entries = []) {
       const hasAbyssProperty = itemClass === 'Abyss Jewels' && propertiesEnd > headerEnd &&
         input.slice(headerEnd + 1, propertiesEnd).filter(line => line.trim()).length === 1
       const gem = ['Skill Gems', 'Active Skill Gems', 'Support Gems'].includes(itemClass)
+      const stackableItem = ['Stackable Currency', 'Divination Cards'].includes(itemClass)
       const flask = ['Life Flasks', 'Mana Flasks', 'Hybrid Flasks', 'Utility Flasks', 'Critical Utility Flasks'].includes(itemClass)
       const tincture = itemClass === 'Tinctures'
       const heistEquipment = ['Heist Tools', 'Heist Cloaks', 'Heist Brooches', 'Heist Gear'].includes(itemClass)
@@ -660,11 +663,15 @@ export function createLocalizationDictionary(entries = []) {
               return visceraNames.find(template => template.grade === graded.grade).en.replace('{0}', () => base)
             }
           }
-          const tieredMap = itemClass === 'Maps' && line.match(/^(?:(菌潮灭绝|菌潮|凋落蔓延的|凋落的)\s*)?(?:地图|地圖)[（(]\s*(\d+)\s*(?:阶|階)[）)]$/u)
-          if (tieredMap) {
+          const resolveTieredMap = value => {
+            if (itemClass !== 'Maps') return null
+            const tieredMap = value.match(/^(?:(菌潮灭绝|菌潮|凋落蔓延的|凋落的)\s*)?(?:地图|地圖)[（(]\s*(\d+)\s*(?:阶|階)[）)]$/u)
+            if (!tieredMap) return null
             const prefix = tieredMap[1] ? (/灭绝|蔓延/.test(tieredMap[1]) ? 'Blight-ravaged ' : 'Blighted ') : ''
             return `${prefix}Map (Tier ${tieredMap[2]})`
           }
+          const directTieredMap = resolveTieredMap(line)
+          if (directTieredMap) return directTieredMap
           const tryTranslate = (...args) => { try { return translate(...args) } catch { return null } }
           const tryUniqueName = value => {
             const direct = tryTranslate(value, ['words'], identities)
@@ -684,6 +691,17 @@ export function createLocalizationDictionary(entries = []) {
             : (uniqueBases?.size ? uniqueBases : identities)
           const resolved = translate(line, tables, scopedIdentities)
           if (!namedUnique && resolved === line && cjk.test(line)) {
+            const prefixed = resolvePrefixedItemName(line, itemNamePrefixes, inner => {
+              const mapName = resolveTieredMap(inner)
+              if (mapName) return mapName
+              if (itemClass === 'Maps' && /^(?:(?:Blighted|Blight-ravaged)\s+)?Map \(Tier \d+\)$/.test(inner)) return inner
+              if (cjk.test(inner)) {
+                const translatedInner = tryTranslate(inner, tables, scopedIdentities)
+                return translatedInner && translatedInner !== inner && !cjk.test(translatedInner) ? translatedInner : null
+              }
+              return bases.has(compact(inner)) ? compact(inner) : null
+            })
+            if (prefixed) return prefixed
             for (const prefix of divergentPrefixes) {
               if (!line.startsWith(prefix)) continue
               const baseName = line.slice(prefix.length).trim()
@@ -701,6 +719,9 @@ export function createLocalizationDictionary(entries = []) {
         // Gem descriptions and granted skill effects are not trade stat filters.
         if (gem && index > headerEnd && !/^-{3,}$/.test(line) && !states.has(line) && ![...states.values()].includes(line) &&
             !/^(?:##\s*)?(?:Level|Quality|Requirements|等级|等級|品质|品質|需求|需求條件)\s*[:：]/.test(line) && !/^(?:Transfigured|改造)$/.test(line)) return ''
+        // Currency and divination card descriptions/instructions are not trade stat filters.
+        if (stackableItem && index > headerEnd && !/^-{3,}$/.test(line) && !states.has(line) && ![...states.values()].includes(line) &&
+            !/^(?:##\s*)?(?:Stack Size|Item Level|Quality|Requirements|Level|Limit|堆叠数量|堆疊數量|物品等级|物品等級|品质|品質|需求|需求條件|等级|等級|限制|上限|仅限)\s*[:：]/.test(line)) return ''
         // The repeated class in the properties block is metadata, not an item identity.
         if (itemClass && index > headerEnd && index < propertiesEnd && (categories.get(line) === itemClass || line === classField?.[2])) return itemClass
         if ((flask || tincture) && index > headerEnd && index < propertiesEnd) {
@@ -797,7 +818,7 @@ export function createLocalizationDictionary(entries = []) {
       const boundary = value => !value.trim() || /^-{3,}$|^\{.*\}$|^[^:：]+[:：]/.test(value.trim())
       for (let index = 0; index < input.length; index++) {
         let end = index + 1
-        if (!gem && index > headerEnd && !boundary(input[index])) while (end < input.length && end - index < 32 && !boundary(input[end])) end++
+        if (!gem && !stackableItem && index > headerEnd && !boundary(input[index])) while (end < input.length && end - index < 32 && !boundary(input[end])) end++
         let consumed = false
         for (let stop = end; stop > index + 1; stop--) {
           const block = input.slice(index, stop).join('\n')

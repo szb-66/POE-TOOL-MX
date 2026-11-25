@@ -23,7 +23,7 @@ export const FEATURE_CATALOG = Object.freeze([
   feature({ id: 'craft-planner', label: '模拟', route: '/craft-planner', icon: 'SetUp', relatedRoutes: Object.freeze(['/craft-planner']) }),
   feature({ id: 'price-check', label: '查价', route: '/price-check', icon: 'Coin', shortcutKeys: Object.freeze(['priceCheck']), relatedRoutes: Object.freeze(['/price-check']) }),
   feature({ id: 'faustus', label: '浮士德', route: '/faustus', icon: 'PriceTag', relatedRoutes: Object.freeze(['/faustus']) }),
-  feature({ id: 'puzzle', label: '海图', route: '/puzzle', icon: 'Guide', relatedRoutes: Object.freeze(['/puzzle']) }),
+  feature({ id: 'puzzle', label: '过期赛季', route: '/puzzle', icon: 'Guide', relatedRoutes: Object.freeze(['/puzzle']) }),
   feature({ id: 'sanctum', label: '圣所', route: '/sanctum', icon: 'Guide', relatedRoutes: Object.freeze(['/sanctum']) }),
   feature({ id: 'tools', label: '工具站', route: '/tools', icon: 'Connection', relatedRoutes: Object.freeze(['/tools']) }),
   feature({ id: 'pob-export', label: 'POB', route: '/pob-export', icon: 'DocumentChecked', relatedRoutes: Object.freeze(['/pob-export']) })

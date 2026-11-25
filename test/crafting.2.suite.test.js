@@ -153,6 +153,107 @@ test('真实九头蛇之宝钻药剂不把已知后缀内部的尸体名称当�
   assert.match(item.modifiers[0].displayText, /持续时间总降 38\(39-35\)%/)
   assert.match(item.modifiers[0].displayText, /药剂持续期间免疫点燃/)
 })
+
+test('物品制作解析带精良前缀的普通药剂时保留原名并还原规范底材与占位', async () => {
+  const { createHash } = await import('node:crypto')
+  const { evaluateClipboardItem } = await import('../electron/modules/item/evaluateClipboardItem.js')
+  const { parseItemInfo } = await import('../electron/modules/item/parser.js')
+  const { parseItemInfo: parseFrontendItem } = await import('../src/utils/clipboard.js')
+  const hash = value => createHash('sha256').update(value).digest('hex')
+  const row = (table, id, field, en, cn, tw, extra = {}) => ({
+    kind: extra.kind || 'dat', table, id, field, en, cn, tw, sourceHash: hash(en), ...extra
+  })
+  const superiorEntries = [
+    ...entries,
+    row('clientstrings', 'QualityItem', 'Text', 'Superior {0}', '精良的 {0}', '精良的 {0}'),
+    row('clientstrings', 'SynthesisedItem', 'Text', 'Synthesised {0}', '忆境 {0}', '追憶之 {0}'),
+    row('baseitemtypes', 'Metadata/Items/Flasks/FlaskUtility13', 'Name', 'Sulphur Flask', '硫磺药剂', '硫磺藥劑'),
+    row('remindertext', 'ReminderTextConsecratedGround', 'Text',
+      '(Allies on your Consecrated Ground Regenerate a percentage of their Maximum Life per second, and Curses have 50% reduced effect on them)',
+      '（友军在你产生的奉献地面上按照生命上限百分比每秒再生生命，并且他们身上的诅咒效果降低 50%）',
+      '（ 站在奉獻地面上的友方每秒回復他們最大生命的百分比，且減少 50% 他們身上的詛咒效果 ）'),
+    row('metadata/statdescriptions/stat_descriptions.csd', 'damage_+%', 'variant:0',
+      '{0}% increased Damage', '伤害提高 {0}%', '增加 {0}% 傷害', { kind: 'stat' }),
+    row('metadata/statdescriptions/stat_descriptions.csd', 'local_consecrate_ground_on_flask_use_radius', 'variant:0',
+      'Creates Consecrated Ground on Use', '使用时产生奉献地面', '使用時製造奉獻地面', { kind: 'stat' })
+  ]
+  const cnText = `物品类别: 功能药剂
+稀 有 度: 普通
+精良的 硫磺药剂
+--------
+品质: +16% (augmented)
+持续 9.30 (augmented) 秒
+每次使用会从 60 充能次数中消耗 40 次
+目前有 0 充能次数
+伤害提高 40%
+--------
+需求:
+等级: 27
+--------
+物品等级: 83
+--------
+{ 基底属性 }
+使用时产生奉献地面
+（友军在你产生的奉献地面上按照生命上限百分比每秒再生生命，并且他们身上的诅咒效果降低 50%）
+--------
+点击右键以喝下药剂。只有装备于腰带上时才会充能。击败怪物时会回复充能次数。`
+  const enText = `Item Class: Utility Flasks
+Rarity: Normal
+Superior Sulphur Flask
+--------
+Quality: +16% (augmented)
+Lasts 9.30 (augmented) Seconds
+Consumes 40 of 60 Charges on use
+Currently has 0 Charges
+40% increased Damage
+--------
+Requirements:
+Level: 27
+--------
+Item Level: 83
+--------
+{ Implicit Modifier }
+Creates Consecrated Ground on Use
+(Allies on your Consecrated Ground Regenerate a percentage of their Maximum Life per second, and Curses have 50% reduced effect on them)
+--------
+Right click to drink. Can only hold charges while in belt. Refills as you kill monsters.`
+
+  const intlRuntime = new LocalizationRuntime({ serverId: 'international', entries: () => superiorEntries, revision: () => 'fixture' })
+  for (const [text, expectedDisplayName, expectedDisplayBase] of [
+    [cnText, '精良的 硫磺药剂', '硫磺药剂'],
+    [enText, 'Superior Sulphur Flask', 'Sulphur Flask']
+  ]) {
+    const { result } = evaluateClipboardItem({ clipboardText: text, localizationRuntime: intlRuntime, config: { localizationRevision: 'fixture' } })
+    assert.equal(result.error, undefined)
+    assert.equal(result.name, 'Superior Sulphur Flask')
+    assert.equal(result.baseName, 'Sulphur Flask')
+    assert.equal(result.displayName, expectedDisplayName)
+    assert.equal(result.displayBaseName, expectedDisplayBase)
+    assert.equal(result.quality, 16)
+    assert.equal(result.level, 83)
+    assert.deepEqual({ width: result.footprint.width, height: result.footprint.height }, { width: 1, height: 2 })
+  }
+
+  // Native CN server & frontend parser also populate baseName cleanly without stripping Synthesised Map.
+  for (const parse of [parseItemInfo, parseFrontendItem]) {
+    const cnParsed = parse(cnText)
+    assert.equal(cnParsed.name, '精良的 硫磺药剂')
+    assert.equal(cnParsed.baseName, '硫磺药剂')
+    const synthMap = parse('Item Class: Maps\nRarity: Unique\nCortex\nSynthesised Map\n--------\nItem Level: 85')
+    assert.equal(synthMap.baseName, 'Synthesised Map')
+    const normalSynthMap = parse('Item Class: Maps\nRarity: Normal\nSynthesised Map\n--------\nItem Level: 85')
+    assert.equal(normalSynthMap.baseName, '')
+  }
+
+  // Missing QualityItem template still blocks unresolved Chinese base line in crafting.
+  const withoutQuality = new LocalizationRuntime({
+    serverId: 'international',
+    entries: () => superiorEntries.filter(entry => entry.id !== 'QualityItem'),
+    revision: () => 'fixture'
+  })
+  const blocked = evaluateClipboardItem({ clipboardText: cnText, localizationRuntime: withoutQuality, config: { localizationRevision: 'fixture' } })
+  assert.equal(blocked.result.errorCode, 'LOCALIZATION_UNRESOLVED')
+})
 })()
 
 // === Merged from craftingModel.test.js ===
@@ -1542,10 +1643,10 @@ test('地图启动在 DPI 刷新和脚本输入前校验恢复检查点并注入
   const validation = service.indexOf('const recoveryValidation = validateMapRecovery(recovery')
   const dpiRefresh = service.indexOf('await refreshDpiForAutomation(settingsStore)', validation)
   const config = service.indexOf('const generationConfig = {', validation)
-  const generation = service.indexOf('generateMapRollingScript(generationConfig)', config)
-  assert.ok(validation >= 0 && dpiRefresh > validation && config > dpiRefresh && generation > config)
-  assert.match(service.slice(config, generation), /recovery: recoveryValidation\.value/)
-  assert.match(service.slice(generation), /generationConfig: JSON\.parse\(JSON\.stringify\(generationConfig\)\)/)
+  const execute = service.indexOf('electronApi.script.generateAndExecute({', config)
+  assert.ok(validation >= 0 && dpiRefresh > validation && config > dpiRefresh && execute > config)
+  assert.match(service.slice(config, execute), /recovery: recoveryValidation\.value/)
+  assert.match(service.slice(execute), /generationConfig: JSON\.parse\(JSON\.stringify\(generationConfig\)\)/)
   assert.match(generator, /'\{\{RECOVERY_CONFIG\}\}': jsonToPython\(JSON\.stringify\(recovery \|\| \{\}\)\)/)
 })
 })()
@@ -1652,15 +1753,16 @@ test('制作进程在启动门禁前失败或退出时不得假报成功', async
   await assert.rejects(exitedStartup, /启动完成前已退出/)
 })
 
-test('IPC 在浮层就绪后启动进程，并等待脚本启动门禁成功', () => {
+test('IPC 并行缓冲浮层与启动进程，并等待脚本启动门禁与浮层就绪', () => {
   const ipc = readFileSync(new URL('../electron/modules/ipc/python.js', import.meta.url), 'utf8')
-  const overlayReady = ipc.indexOf('await prepareCraftingOverlay(')
+  const overlayDispatcher = ipc.indexOf('const overlayDispatcher = createOverlayDispatcher(')
   const processCreated = ipc.indexOf('const launch = createPythonProcess(')
   const startupWait = ipc.indexOf('waitForScriptStartup(', processCreated)
+  const readyAll = ipc.indexOf('overlayDispatcher.readyPromise', startupWait)
   const reportsRunning = ipc.indexOf("status: 'running'", processCreated)
 
-  assert.ok(overlayReady > 0 && overlayReady < processCreated, '必须先让浮层完成加载，避免丢失启动错误')
-  assert.ok(startupWait > processCreated && startupWait < reportsRunning, '必须先通过脚本启动门禁再报告运行中')
+  assert.ok(overlayDispatcher > 0 && overlayDispatcher < processCreated, '必须在启动进程前建立浮层消息缓冲，避免丢失启动错误')
+  assert.ok(startupWait > processCreated && readyAll > startupWait && readyAll < reportsRunning, '必须先通过脚本启动门禁且浮层就绪再报告运行中')
 
   for (const filename of ['crafting_template.py', 'map_rolling_template.py']) {
     const template = readFileSync(new URL(`../src/assets/scripts/${filename}`, import.meta.url), 'utf8')

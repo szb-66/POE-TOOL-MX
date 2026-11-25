@@ -7,7 +7,6 @@
  * Errors: 执行失败时显示错误消息，不抛出异常
  */
 
-import { generatePythonScript, generateMapRollingScript } from './python.js'
 import { validateCraftingConfig, validateMapRollingConfig, validateSpecializedCraftingConfig } from './validation.js'
 import { electronApi } from '../api/electron.js'
 import { usePresetStore } from '../stores/preset'
@@ -32,7 +31,7 @@ import { normalizeItemCraftingKind, specializedPresetToExecutionPreset } from '.
 import { useBatchCraftingStore } from '../stores/batchCrafting.js'
 import { useFeatureModulesStore } from '../stores/featureModules.js'
 import { filterFeatureShortcuts, shortcutFeatureId } from '../features/featureCatalog.js'
-import { freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
+import { buildAutoScanBatchConfiguration, freezeBatchConfiguration, restoreBatchConfiguration } from '../domains/items/batchCrafting.js'
 import { runWithConfigurationGuide } from '../domains/configurationGuide/configurationGuideStore.js'
 import { currentServer, canUseGameInput } from './serverContext.js'
 import {
@@ -273,16 +272,15 @@ async function startSpecializedCrafting(craftingKind, {
       preset: effectivePreset,
       filePaths
     }
-    const scriptContent = generatePythonScript(generationConfig)
     const requestedUsageSessionId = usageSessionId || globalThis.crypto.randomUUID()
     const result = await electronApi.script.generateAndExecute({
       generationConfig: JSON.parse(JSON.stringify(generationConfig)),
-      scriptContent,
       preset: effectivePreset,
       mode: 'items',
       craftingKind,
       usageSessionId: requestedUsageSessionId,
       continueCurrencyUsage,
+      alreadyInGameForeground: (settingsStore.gameForeground ?? settingsStore.shortcutScope?.gameForeground) === true,
       requiresStashTabOcr: false
     })
     if (!isSuccessfulScriptStart(result)) {
@@ -343,7 +341,8 @@ async function startGeneralCrafting({
       currencyPositions: latestSettings.currencyPositions,
       stashTabSelection: latestSettings.stashTabSelection,
       preset: latestPreset,
-      batchSnapshot: batchStore.snapshot,
+      batchSnapshot: batchStore.hasActiveSnapshot ? batchStore.snapshot : null,
+      batchSnapshotConsumed: batchStore.snapshotConsumed,
       batchCandidateCount: batchStore.candidates.length
     })
   }
@@ -371,16 +370,27 @@ async function startGeneralCrafting({
     try {
       const buildResult = batchRecovery
         ? restoreBatchConfiguration({ checkpoint: batchRecovery, preset: effectivePreset, inventory: settingsStore.inventory })
-        : freezeBatchConfiguration({
-            snapshot: batchStore.snapshot,
-            categoryIds: effectivePreset.batchCrafting.categoryIds,
-            preset: effectivePreset,
-            inventory: settingsStore.inventory
-          })
+        : (batchStore.hasActiveSnapshot
+            ? freezeBatchConfiguration({
+                snapshot: batchStore.snapshot,
+                categoryIds: effectivePreset.batchCrafting.categoryIds,
+                excludedItemIds: batchStore.excludedItemIds,
+                preset: effectivePreset,
+                inventory: settingsStore.inventory
+              })
+            : buildAutoScanBatchConfiguration({
+                categoryIds: effectivePreset.batchCrafting.categoryIds,
+                preset: effectivePreset,
+                inventory: settingsStore.inventory
+              }))
       if (!buildResult.valid) throw new Error(buildResult.error)
       batchConfig = buildResult.config
-      const completed = new Set(batchConfig.completedIds || [])
-      effectiveItemPosition = batchConfig.targets.find(target => !completed.has(target.id))?.position || settingsStore.itemPosition
+      if (batchConfig.mode !== 'auto-scan') {
+        const handled = new Set([...(batchConfig.completedIds || []), ...(batchConfig.skippedIds || [])])
+        effectiveItemPosition = batchConfig.targets.find(target => !handled.has(target.id))?.position || settingsStore.itemPosition
+      } else {
+        effectiveItemPosition = settingsStore.inventory?.startPos || settingsStore.itemPosition
+      }
     } catch (caught) {
       const error = caught?.message || '批量制作启动检查失败'
       ElMessage.error(error)
@@ -401,9 +411,10 @@ async function startGeneralCrafting({
       stashTabSelection: latestSettings.stashTabSelection,
       inventory: latestSettings.inventory,
       preset: latestPreset,
-      batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : batchStore.snapshot,
+      batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : (batchStore.hasActiveSnapshot ? batchStore.snapshot : null),
+      batchSnapshotConsumed: batchRecovery ? false : batchStore.snapshotConsumed,
       batchCandidateCount: batchRecovery
-        ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length)
+        ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length - (batchRecovery.skippedIds || []).length)
         : batchStore.candidates.length
     })
   }
@@ -434,9 +445,10 @@ async function startGeneralCrafting({
     currencyPositions: settingsStore.currencyPositions,
     stashTabSelection: settingsStore.stashTabSelection,
     preset: effectivePreset,
-    batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : batchStore.snapshot,
+    batchSnapshot: batchRecovery ? { scanId: batchRecovery.scanId } : (batchStore.hasActiveSnapshot ? batchStore.snapshot : null),
+    batchSnapshotConsumed: batchRecovery ? false : batchStore.snapshotConsumed,
     batchCandidateCount: batchRecovery
-      ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length)
+      ? Math.max(0, (batchRecovery.targets || []).length - (batchRecovery.completedIds || []).length - (batchRecovery.skippedIds || []).length)
       : batchStore.candidates.length
   })
 
@@ -458,20 +470,19 @@ async function startGeneralCrafting({
     // 获取文件路径
     const filePaths = await electronApi.file.getPaths()
 
-    // 生成脚本内容
+    // 生成脚本参数（最终脚本由主进程可信模板生成，避免渲染进程重复拼接与大数据 IPC 传输）
     const generationConfig = {
-        globalShortcuts: settingsStore.globalShortcuts,
-        currencyPositions: settingsStore.currencyPositions,
-        operationDelayMs: settingsStore.operationDelayMs,
-        fixedTiming: settingsStore.fixedTiming,
-        itemPosition: effectiveItemPosition,
+      globalShortcuts: settingsStore.globalShortcuts,
+      currencyPositions: settingsStore.currencyPositions,
+      operationDelayMs: settingsStore.operationDelayMs,
+      fixedTiming: settingsStore.fixedTiming,
+      itemPosition: effectiveItemPosition,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       preset: effectivePreset,
       batchConfig,
       filePaths
     }
-    const scriptContent = generatePythonScript(generationConfig)
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = effectivePreset
@@ -481,13 +492,13 @@ async function startGeneralCrafting({
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       generationConfig: JSON.parse(JSON.stringify(generationConfig)),
-      scriptContent,
       preset: plainPreset,
       mode: 'items',
       craftingKind,
       usageSessionId: requestedUsageSessionId,
       continueCurrencyUsage,
-      batchRecoveryContext: batchConfig,
+      alreadyInGameForeground: (settingsStore.gameForeground ?? settingsStore.shortcutScope?.gameForeground) === true,
+      batchRecoveryContext: batchConfig && batchConfig.mode !== 'auto-scan' ? batchConfig : null,
       requiresStashTabOcr: stashValidation.config.enabled
     })
 
@@ -637,20 +648,19 @@ export async function startMapRolling({
     // 获取文件路径
     const filePaths = await electronApi.file.getPaths()
 
-    // 生成脚本内容
+    // 生成脚本参数
     const generationConfig = {
       globalShortcuts: settingsStore.globalShortcuts,
-        currencyPositions: settingsStore.currencyPositions,
-        inventory: settingsStore.inventory,
-        operationDelayMs: settingsStore.operationDelayMs,
-        fixedTiming: settingsStore.fixedTiming,
-        mapConfig: mapConfig,
+      currencyPositions: settingsStore.currencyPositions,
+      inventory: settingsStore.inventory,
+      operationDelayMs: settingsStore.operationDelayMs,
+      fixedTiming: settingsStore.fixedTiming,
+      mapConfig: mapConfig,
       recovery: recoveryValidation.value,
       dpiScale: settingsStore.dpiScale,
       stashTabSelection: stashValidation.config,
       filePaths
     }
-    const scriptContent = generateMapRollingScript(generationConfig)
 
     // Pinia 的数据是 Proxy，需要转换为普通对象才能通过 IPC 传递
     const plainPreset = JSON.parse(JSON.stringify({
@@ -663,11 +673,11 @@ export async function startMapRolling({
     // 生成并执行脚本
     const result = await electronApi.script.generateAndExecute({
       generationConfig: JSON.parse(JSON.stringify(generationConfig)),
-      scriptContent,
       preset: plainPreset,
       mode: 'map',
       usageSessionId: requestedUsageSessionId,
       continueCurrencyUsage,
+      alreadyInGameForeground: (settingsStore.gameForeground ?? settingsStore.shortcutScope?.gameForeground) === true,
       requiresStashTabOcr: stashValidation.config.enabled
     })
 

@@ -55,10 +55,15 @@ export function normalizeBatchRecoveryCheckpoint(value, { requireRecoverable = f
   if (idSet.size !== targetIds.length) return { valid: false, error: '批量恢复目标存在重复 ID' }
 
   const completedIds = [...new Set((Array.isArray(value.completedIds) ? value.completedIds : []).map(entry => safeText(entry, 120)).filter(Boolean))]
-  if (completedIds.some(id => !idSet.has(id))) return { valid: false, error: '批量恢复完成集合包含未知目标' }
+  const skippedIds = [...new Set((Array.isArray(value.skippedIds) ? value.skippedIds : []).map(entry => safeText(entry, 120)).filter(Boolean))]
+    .filter(id => !completedIds.includes(id))
+  if (completedIds.some(id => !idSet.has(id)) || skippedIds.some(id => !idSet.has(id))) {
+    return { valid: false, error: '批量恢复完成集合包含未知目标' }
+  }
   const currentItemId = safeText(value.currentItemId, 120)
   if (currentItemId && !idSet.has(currentItemId)) return { valid: false, error: '批量恢复当前目标无效' }
-  const recoverable = value.recoverable === true && completedIds.length < targets.length
+  const handledCount = completedIds.length + skippedIds.length
+  const recoverable = value.recoverable === true && handledCount < targets.length
   if (requireRecoverable && !recoverable) return { valid: false, error: '当前批次不可继续' }
   return {
     valid: true,
@@ -69,6 +74,7 @@ export function normalizeBatchRecoveryCheckpoint(value, { requireRecoverable = f
       usageSessionId,
       targets,
       completedIds,
+      skippedIds,
       currentItemId,
       recoverable,
       reason: safeText(value.reason, 300),
@@ -91,6 +97,7 @@ export function createBatchRecoveryStore() {
         ...batchConfig,
         usageSessionId,
         completedIds: batchConfig?.completedIds || [],
+        skippedIds: batchConfig?.skippedIds || [],
         currentItemId: '',
         recoverable: false
       })
@@ -105,12 +112,15 @@ export function createBatchRecoveryStore() {
       if (event.event === 'crafting-batch-item-completed' && currentId && !checkpoint.completedIds.includes(currentId)) {
         checkpoint.completedIds.push(currentId)
       }
+      if (event.event === 'crafting-batch-item-skipped' && currentId && !checkpoint.skippedIds.includes(currentId) && !checkpoint.completedIds.includes(currentId)) {
+        checkpoint.skippedIds.push(currentId)
+      }
       if (event.event === 'crafting-batch-completed') checkpoint = null
       return true
     },
     markAbnormal({ reason = '', code = '' } = {}) {
       if (!checkpoint) return null
-      checkpoint.recoverable = checkpoint.completedIds.length < checkpoint.targets.length
+      checkpoint.recoverable = (checkpoint.completedIds.length + checkpoint.skippedIds.length) < checkpoint.targets.length
       checkpoint.reason = safeText(reason, 300)
       checkpoint.code = safeText(code, 100)
       return cloneBatchRecoveryCheckpoint(checkpoint)

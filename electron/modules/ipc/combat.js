@@ -215,8 +215,6 @@ export function registerCombatHandlers(python, window, fileWatcher) {
     try {
       const config = normalizeValidPotionConfig(payload.config)
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
-      const activation = await window.activateGameWindow('combat-potion-start')
-      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const handle = spawnCombatProcess({
         mode: 'potion',
         config: combatRuntimeConfig(config),
@@ -280,8 +278,6 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
       const validation = validateLoopAssist(config)
       if (!validation.isValid) throw new Error(validation.errors[0] || '循环按键配置无效')
-      const activation = await window.activateGameWindow('combat-loop-start')
-      if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const handle = spawnCombatProcess({
         mode: 'loop',
         config: combatRuntimeConfig(config),

@@ -284,6 +284,7 @@ const mockApi = {
     pickGridRegion: () => Promise.resolve({ success: true, data: { canceled: true } }),
     start: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持浮士德改价' } }),
     stop: () => Promise.resolve({ success: true, data: { status: 'stopped' } }),
+    fetchDcRate: () => Promise.resolve({ success: false, error: { code: 'ELECTRON_REQUIRED', message: '仅 Electron 客户端支持自动获取国际服比例' } }),
     onEvent: () => () => {}
   },
   junfeng: {
@@ -709,6 +710,7 @@ export const electronApi = isElectron ? {
     pickGridRegion: () => window.electronAPI.pickFaustusGridRegion?.(),
     start: (request) => window.electronAPI.startFaustusRepricing?.(craftingIpcPayload(request)),
     stop: (reason) => window.electronAPI.stopFaustusRepricing?.(String(reason || 'user')),
+    fetchDcRate: (request) => window.electronAPI.fetchFaustusDcRate?.(craftingIpcPayload(request || {})),
     onEvent: (callback) => window.electronAPI.onFaustusEvent?.(callback) || (() => {})
   },
   junfeng: {

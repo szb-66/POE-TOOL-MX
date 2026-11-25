@@ -3,7 +3,8 @@ import _m0_assert from 'node:assert/strict'
 import { EventEmitter as _m0_EventEmitter } from 'node:events'
 import { readFileSync as _m0_readFileSync } from 'node:fs'
 import { FaustusManager as _m0_FaustusManager, sanitizeFaustusItemEvent as _m0_sanitizeFaustusItemEvent } from '../electron/modules/faustus/manager.js'
-import { normalizeFaustusStartRequest as _m0_normalizeFaustusStartRequest } from '../electron/modules/faustus/schema.js'
+import { InternationalDcRateService as _m0_InternationalDcRateService, extractDivineChaosValue as _m0_extractDivineChaosValue, pickDefaultInternationalLeague as _m0_pickDefaultInternationalLeague } from '../electron/modules/faustus/internationalDcRate.js'
+import { normalizeFaustusDcRateRequest as _m0_normalizeFaustusDcRateRequest, normalizeFaustusStartRequest as _m0_normalizeFaustusStartRequest } from '../electron/modules/faustus/schema.js'
 import { createFaustusRunSnapshot as _m0_createFaustusRunSnapshot } from '../src/utils/faustusConfig.js'
 import _m1_test from 'node:test'
 import _m1_assert from 'node:assert/strict'
@@ -217,11 +218,11 @@ test('浮士德 preload 与 IPC 只暴露固定操作且每个处理器校验主
   const manager = source('electron/modules/faustus/manager.js')
   const index = source('electron/modules/ipc/index.js')
   for (const token of [
-    'faustus-status', 'faustus-grid-pick', 'faustus-start', 'faustus-stop', 'faustus-event'
+    'faustus-status', 'faustus-grid-pick', 'faustus-start', 'faustus-stop', 'faustus-dc-rate', 'faustus-event'
   ]) assert.match(`${preload}\n${ipc}`, new RegExp(token))
   assert.doesNotMatch(`${preload}\n${ipc}\n${api}\n${schema}\n${manager}`, /faustus-price-window-test|testFaustusPriceWindow|testPriceWindow|priceRecognitionCalibrationKey|normalizeFaustusPriceWindowTestRequest/)
   assert.match(ipc, /assertMainWindowSender\(event, getMainWindow\)/)
-  assert.equal((ipc.match(/ipcMain\.handle\([^\n]+invoke\(getMainWindow/g) || []).length, 4)
+  assert.equal((ipc.match(/ipcMain\.handle\([^\n]+invoke\(getMainWindow/g) || []).length, 5)
   assert.match(index, /registerFaustusHandlers\(faustus, window, getMainWindow\)/)
   assert.doesNotMatch(preload, /faustus.*(?:scriptPath|permission|mouse|keyboard)/i)
   const main = source('electron/main.js')
@@ -266,7 +267,7 @@ test('manager 取得锁后只启动一个包含预检与输入的固定进程', 
 
   const state = await manager.start({ config: validConfig() })
   assert.equal(state.status, 'running')
-  assert.deepEqual(modes, ['run'])
+  assert.deepEqual(modes, ['worker'])
   assert.deepEqual(locks, [['acquire', '浮士德市集改价']])
   await assert.rejects(() => manager.start({ config: validConfig() }), /正在运行/)
   assert.equal(children.filter(child => !child.killed).length, 1, '只能保留一个输入进程')
@@ -465,6 +466,119 @@ test('manager 对脚本成功、跳过与终止事件只转发稳定原因码和
   assert.equal(sent.some(([, payload]) => payload?.item?.reasonCode === 'no_matching_band'), true)
   assert.equal(removed.length >= 1, true, '运行配置应在结束后清理')
 })
+
+test('常驻 worker 正常完成后可复用，空闲超时与紧急停止时立即销毁', async () => {
+  const spawned = []
+  const makeWorkerChild = () => {
+    const child = childProcess()
+    child.sentCommands = []
+    child.stdin = {
+      write: data => { child.sentCommands.push(JSON.parse(String(data).trim())); return true },
+      end: () => {}
+    }
+    return child
+  }
+  const manager = new FaustusManager({
+    python: { resolvePythonRuntimeAsync: async () => ({ ready: true, path: 'python.exe' }) },
+    fileWatcher: { getFilePaths: () => ({ tempDir: process.cwd() }) },
+    windowActivation: createActivation(),
+    foregroundState: () => ({ available: true, gameForeground: true }),
+    automationLock: { acquire: () => ({ success: true }), release: () => {} },
+    fileSystem: { existsSync: () => true, mkdirSync: () => {}, writeFileSync: () => {}, rmSync: () => {} },
+    processFactory: () => { const child = makeWorkerChild(); spawned.push(child); return child },
+    scriptPath: () => 'fixed-faustus.py',
+    workerIdleTimeoutMs: 40
+  })
+
+  await manager.start({ config: validConfig() })
+  assert.equal(spawned.length, 1)
+  const firstWorker = spawned[0]
+  firstWorker.stdout.emit('data', 'EVENT {"event":"worker-ready"}\n')
+  assert.equal(firstWorker.sentCommands.length, 1)
+  assert.equal(firstWorker.sentCommands[0].cmd, 'run')
+  firstWorker.stdout.emit('data', 'EVENT {"event":"completed","processed":1,"total":1}\n')
+  assert.equal(firstWorker.killed, false, '正常完成后空闲期应保留常驻 worker')
+
+  // 空闲期内再次启动应直接复用同一进程。
+  await manager.start({ config: validConfig() })
+  assert.equal(spawned.length, 1)
+  assert.equal(firstWorker.sentCommands.length, 2)
+  firstWorker.stdout.emit('data', 'EVENT {"event":"completed","processed":2,"total":2}\n')
+
+  // 超过空闲时间后自动发送 shutdown 并退出。
+  await new Promise(resolve => setTimeout(resolve, 70))
+  assert.equal(firstWorker.sentCommands.at(-1).cmd, 'shutdown')
+  assert.equal(firstWorker.killed, true)
+
+  // 再次启动新建进程，但遇到紧急停止时立即销毁。
+  await manager.start({ config: validConfig() })
+  assert.equal(spawned.length, 2)
+  spawned[1].stdout.emit('data', 'EVENT {"event":"worker-ready"}\n')
+  manager.stop('shortcut')
+  assert.equal(spawned[1].killed, true)
+})
+
+test('国际服 poe.ninja D/C 比例服务支持新旧响应格式、缓存与国服隔离', async () => {
+  assert.equal(_m0_pickDefaultInternationalLeague([{ id: 'Mirage' }, { id: 'Standard' }]), 'Mirage')
+  assert.equal(_m0_pickDefaultInternationalLeague([{ id: 'Hardcore' }, { id: 'Standard' }]), 'Hardcore')
+  assert.equal(_m0_extractDivineChaosValue({ lines: [{ currencyTypeName: 'Divine Orb', chaosEquivalent: 184.6 }] }), 184.6)
+  assert.equal(_m0_extractDivineChaosValue({
+    core: { primary: 'chaos' },
+    items: [{ id: 'divine', name: 'Divine Orb' }],
+    lines: [{ id: 'divine', primaryValue: 172.2 }]
+  }), 172.2)
+  assert.equal(_m0_extractDivineChaosValue({
+    core: { primary: 'divine' },
+    items: [{ id: 'chaos', name: 'Chaos Orb' }],
+    lines: [{ id: 'chaos', primaryValue: 0.005 }]
+  }), 200)
+
+  let now = 1_000_000
+  const calls = []
+  const service = new _m0_InternationalDcRateService({
+    now: () => now,
+    fetchImpl: async url => {
+      calls.push(url)
+      if (url.includes('/leagues')) {
+        return { ok: true, json: async () => [{ id: 'Mirage', name: 'Mirage' }, { id: 'Standard', name: 'Standard' }] }
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          core: { primary: 'chaos' },
+          items: [{ id: 'divine', name: 'Divine Orb' }],
+          lines: [{ id: 'divine', primaryValue: 184.6 }]
+        })
+      }
+    }
+  })
+
+  const first = await service.fetchRate()
+  assert.equal(first.league, 'Mirage')
+  assert.equal(first.chaosPerDivine, 185)
+  assert.equal(first.fromCache, false)
+  assert.equal(calls.length, 2)
+
+  // 5 分钟内命中缓存不重复请求。
+  now += 60_000
+  const second = await service.fetchRate({ league: 'Mirage' })
+  assert.equal(second.fromCache, true)
+  assert.equal(second.chaosPerDivine, 185)
+  assert.equal(calls.length, 2)
+
+  // 强制刷新超过 15 秒防抖后重新请求。
+  const third = await service.fetchRate({ league: 'Mirage', force: true })
+  assert.equal(third.fromCache, false)
+  assert.equal(calls.length, 3)
+
+  // 非法赛季名与未知字段被拒绝。
+  await assert.rejects(() => service.fetchRate({ league: '../bad' }), /赛季名称格式无效/)
+  assert.throws(() => _m0_normalizeFaustusDcRateRequest({ league: 'Mirage', scriptPath: 'x' }), /不支持的浮士德请求字段/)
+
+  // 国服 manager 拒绝自动获取国际服比例。
+  const cnManager = new FaustusManager({ server: { id: 'cn' } })
+  await assert.rejects(() => cnManager.fetchInternationalDcRate(), /仅支持国际服/)
+})
 })()
 
 // === Merged from faustusPricing.test.js ===
@@ -612,6 +726,13 @@ test('浮士德配置独立持久化且运行快照不受后续编辑影响', ()
   assert.equal(snapshot.bands[0].discountPercent, '10')
   assert.equal(Object.isFrozen(snapshot), true)
   assert.equal(Object.isFrozen(snapshot.bands[0]), true)
+  assert.equal(Object.hasOwn(snapshot, 'chaosPerDivineSource'), false)
+  assert.equal(Object.hasOwn(snapshot, 'dcRateLeague'), false)
+
+  // 旧配置已有比例时自动迁移为 manual，避免被国际服自动拉取静默覆盖；空值默认为 auto。
+  assert.equal(normalizeFaustusConfig({ chaosPerDivine: '180' }).chaosPerDivineSource, 'manual')
+  assert.equal(normalizeFaustusConfig({ chaosPerDivine: '' }).chaosPerDivineSource, 'auto')
+  assert.equal(normalizeFaustusConfig({ chaosPerDivine: '180', chaosPerDivineSource: 'auto' }).chaosPerDivineSource, 'auto')
 
   values.set(FAUSTUS_CONFIG_STORAGE_KEY, '{bad json')
   assert.deepEqual(repository.load(), createDefaultFaustusConfig())

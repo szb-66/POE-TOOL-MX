@@ -286,7 +286,7 @@ await (async () => {
 const moduleUrl = new URL('../electron/modules/ipc/combat.js', import.meta.url)
 const templateUrl = new URL('../src/assets/scripts/combat_assist_template.py', import.meta.url)
 
-function createHarness(t, controller) {
+function createHarness(t, controller = null, options = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'combat-trusted-script-'))
   t.after(() => {
     assert.equal(path.dirname(directory), path.resolve(os.tmpdir()))
@@ -295,6 +295,7 @@ function createHarness(t, controller) {
   const handlers = new Map()
   const launches = []
   const activations = []
+  const killedPids = []
   const trustedTemplate = fs.readFileSync(templateUrl, 'utf8')
   const sandbox = {
     fs, path, URL, structuredClone, process, console,
@@ -306,17 +307,20 @@ function createHarness(t, controller) {
       assert.equal(python, 'fake-python')
       assert.equal(fs.readFileSync(args[0], 'utf8'), trustedTemplate)
       const config = JSON.parse(fs.readFileSync(args[4], 'utf8'))
-      launches.push({ args, config })
       const child = new EventEmitter()
       child.stdout = new EventEmitter()
       child.stderr = new EventEmitter()
-      child.pid = launches.length
+      child.pid = launches.length + 1
       child.exitCode = null
-      queueMicrotask(() => {
-        child.stdout.emit('data', Buffer.from('{"success":true,"color":255}\n'))
-        child.exitCode = 0
-        child.emit('close', 0)
-      })
+      child.killed = false
+      launches.push({ args, config, child })
+      if (!options.keepResidentAlive || args[2] === 'sample' || args[2] === 'portal') {
+        queueMicrotask(() => {
+          child.stdout.emit('data', Buffer.from('{"success":true,"color":255}\n'))
+          child.exitCode = 0
+          child.emit('close', 0)
+        })
+      }
       return child
     }
   }
@@ -331,11 +335,26 @@ function createHarness(t, controller) {
     .replace(/\bexport\s+(?=(?:async\s+)?function)/g, '')
     .replaceAll('import.meta.url', JSON.stringify(moduleUrl.href))
   vm.runInNewContext(`${source}\nglobalThis.register = registerCombatHandlers`, sandbox)
-  sandbox.register({ detectPythonPath: () => 'fake-python' }, {
-    activateGameWindow: async reason => { activations.push(reason); return { success: true } },
+  sandbox.register({
+    detectPythonPath: () => 'fake-python',
+    killPythonProcessTree: async pid => {
+      killedPids.push(pid)
+      const launch = launches.find(item => item.child.pid === pid)
+      if (launch) {
+        launch.child.killed = true
+        launch.child.exitCode = 0
+      }
+      return true
+    }
+  }, {
+    activateGameWindow: async reason => {
+      activations.push(reason)
+      return options.activateResult || { success: true }
+    },
+    describeGameActivationFailure: code => `激活失败:${code}`,
     getMainWindow: () => null
   }, { getFilePaths: () => ({ tempDir: directory }) })
-  return { handlers, launches, activations, directory, trustedTemplate }
+  return { handlers, launches, activations, killedPids, directory, trustedTemplate }
 }
 
 function createSettingsHarness(harness) {
@@ -427,9 +446,36 @@ test('采样及三种战斗操作忽略注入的Python正文和脚本路径，�
     assert.equal(result.success, true, `${channel}: ${result.error}`)
   }
   assert.deepEqual(harness.launches.map(launch => launch.args[2]), ['sample', 'potion', 'loop', 'portal'])
+  assert.deepEqual(harness.activations, ['combat-sample-pixel', 'combat-portal'])
   assert.deepEqual(harness.launches[0].config, { point: { x: -20, y: 30 } })
   assert.equal(fs.existsSync(untrustedPath), false)
   assert.equal(fs.readFileSync(path.join(harness.directory, 'combat_assist.py'), 'utf8'), harness.trustedTemplate)
+})
+
+test('自动战斗被动喝药与主动循环开启和关闭不触发前台窗口激活', async t => {
+  const harness = createHarness(t, null, {
+    keepResidentAlive: true,
+    activateResult: { success: false, code: 'focus-refused' }
+  })
+  const config = combatConfig.createDefaultCombatAssist()
+  config.potion.health.point = { x: 20, y: 30 }
+  config.potion.health.keys = ['1']
+  config.potion.mana.enabled = false
+  config.loop.items = [{ enabled: true, key: '2', intervalMs: 1000 }]
+  const payload = { config, automationTiming: { operationDelayMs: 50 } }
+
+  const potionStart = await harness.handlers.get('combat-start-potion')({}, payload)
+  assert.equal(potionStart.success, true)
+  const loopStart = await harness.handlers.get('combat-start-loop')({}, payload)
+  assert.equal(loopStart.success, true)
+  const potionStop = await harness.handlers.get('combat-stop-potion')({})
+  assert.equal(potionStop.success, true)
+  const loopStop = await harness.handlers.get('combat-stop-loop')({})
+  assert.equal(loopStop.success, true)
+
+  assert.deepEqual(harness.activations, [])
+  assert.deepEqual(harness.launches.map(launch => launch.args[2]), ['potion', 'loop'])
+  assert.deepEqual(harness.killedPids, [1, 2])
 })
 
 test('非法采样坐标在激活窗口、写脚本和启动进程前拒绝', async t => {

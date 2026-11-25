@@ -183,13 +183,10 @@ export function collectCraftingConfigurationIssues(context = {}) {
   }
   if (batchEnabled) {
     if (!isConfiguredGrid(context.inventory)) issues.push(inventoryGridIssue(moduleId, actionId, context.inventory))
-    if (!context.batchSnapshot?.scanId) {
-      issues.push(issue(moduleId, actionId, 'preset.items.batch-scan', 'preset', '本地背包扫描', '请先打开角色背包和通货页面，然后在批量制作模块扫描背包', 'preset.items.batch-scan', 'missing'))
-    }
     if (!preset.batchCrafting.categoryIds?.length) {
       issues.push(issue(moduleId, actionId, 'preset.items.batch-categories', 'preset', '批量物品类别', '请至少选择一个背包批量制作类别', 'preset.items.batch-categories', 'missing'))
-    } else if (context.batchSnapshot?.scanId && !Number(context.batchCandidateCount || 0)) {
-      issues.push(issue(moduleId, actionId, 'preset.items.batch-candidates', 'preset', '批量制作候选', '当前扫描没有所选类别的可制作物品，请调整类别或重新扫描', 'preset.items.batch-categories', 'missing'))
+    } else if (context.batchSnapshot?.scanId && !context.batchSnapshotConsumed && !Number(context.batchCandidateCount || 0)) {
+      issues.push(issue(moduleId, actionId, 'preset.items.batch-candidates', 'preset', '批量制作候选', '当前扫描没有所选类别的可制作物品，请调整类别、取消单件排除或重新扫描', 'preset.items.batch-categories', 'missing'))
     }
   }
 
@@ -269,7 +266,7 @@ export function collectBagConfigurationIssues(context = {}) {
 }
 
 export function collectAllflameReceiverConfigurationIssues(context = {}) {
-  const moduleId = CONFIGURATION_MODULES.bag
+  const moduleId = CONFIGURATION_MODULES.puzzle
   const actionId = context.actionId || CONFIGURATION_ACTIONS.enable
   const issues = templateIssues(moduleId, actionId, context.templates, [
     { id: 'allflame-receiver-title', label: '永火接收舱标题模板', template: 'allflameReceiverTitle', region: 'allflameReceiverRegion' },

@@ -311,11 +311,11 @@ test('词缀物等要求嵌入所有制作脚本并位于制作操作之前', as
     }
 
     const generated = generatePythonScript(config('general'))
-    const batchStart = generated.indexOf('def preflight_batch_targets():')
-    const batchGuard = generated.indexOf('validate_affix_item_level(_result, prefix)', batchStart)
-    const batchSuccess = generated.indexOf('crafting-batch-preflight-item-succeeded', batchStart)
+    const jitStart = generated.indexOf('def prepare_batch_target_just_in_time(')
+    const jitGuard = generated.indexOf('affix_item_level_issue(result, prefix)', jitStart)
+    const jitIdentify = generated.indexOf('apply_currency("wisdom")', jitStart)
     const currencyPreflight = generated.indexOf('if not preflight_required_currencies():')
-    assert.ok(batchGuard > batchStart && batchSuccess > batchGuard)
+    assert.ok(jitGuard > jitStart && jitIdentify > jitGuard)
     assert.ok(currencyPreflight > generated.indexOf('if not preflight_batch_targets():'))
   } finally {
     await server.close()
@@ -631,17 +631,22 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
 `)
     }
 
-    const multilineSingle = {
+    const multilineSingleMatched = {
       ...parsedMagicModifier(['物理伤害提高 120%', '+25 最大生命']),
       affixMatch: true,
       matchedGroupName: '目标'
     }
-    assert.equal(multilineSingle.detailedMods.length, 1)
-    assert.equal(multilineSingle.explicitMods.length, 2)
+    const multilineSingleUnmatched = {
+      ...multilineSingleMatched,
+      affixMatch: false,
+      matchedGroupName: ''
+    }
+    assert.equal(multilineSingleUnmatched.detailedMods.length, 1)
+    assert.equal(multilineSingleUnmatched.explicitMods.length, 2)
     const plainSingle = {
       rarity: '魔法',
-      affixMatch: true,
-      matchedGroupName: '目标',
+      affixMatch: false,
+      matchedGroupName: '',
       modifiers: [],
       detailedMods: [],
       explicitMods: ['+80 最大生命']
@@ -671,15 +676,17 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
     }
 
     const enabledInitial = runAffixes(generate(true, true), [
-      { initial: multilineSingle, queue: [doubleAffix] },
+      { initial: multilineSingleUnmatched, queue: [doubleAffix] },
+      { initial: multilineSingleMatched, queue: [] },
       { initial: plainSingle, queue: [doubleAffix] },
       { initial: ambiguousPlainMultiline, queue: [] },
       { initial: doubleAffix, queue: [] },
       { initial: fracturedDoubleAffix, queue: [doubleAffix] },
-      { initial: multilineSingle, queue: [{ error: '增幅后解析失败' }, { error: '增幅后解析失败' }, { error: '增幅后解析失败' }] }
+      { initial: multilineSingleUnmatched, queue: [{ error: '增幅后解析失败' }, { error: '增幅后解析失败' }, { error: '增幅后解析失败' }] }
     ])
     assert.deepEqual(enabledInitial, [
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
+      { success: true, applied: [], reads: 0, remaining: 0 },
       { success: true, applied: ['augmentation'], reads: 1, remaining: 0 },
       { success: false, applied: [], reads: 0, remaining: 0 },
       { success: true, applied: [], reads: 0, remaining: 0 },
@@ -687,15 +694,14 @@ print(json.dumps([run(entry["initial"], entry["queue"]) for entry in scenarios],
       { success: false, applied: ['augmentation'], reads: 3, remaining: 0 }
     ])
 
-    const loopSingle = { ...multilineSingle, affixMatch: true }
     assert.deepEqual(runAffixes(generate(true, false), [{
-      initial: { ...multilineSingle, affixMatch: false },
-      queue: [loopSingle, doubleAffix]
+      initial: { ...multilineSingleUnmatched },
+      queue: [multilineSingleUnmatched, doubleAffix]
     }]), [
       { success: true, applied: ['alteration', 'augmentation'], reads: 2, remaining: 0 }
     ])
 
-    assert.deepEqual(runAffixes(generate(false, true), [{ initial: multilineSingle, queue: [] }]), [
+    assert.deepEqual(runAffixes(generate(false, true), [{ initial: multilineSingleMatched, queue: [] }]), [
       { success: true, applied: [], reads: 0, remaining: 0 }
     ])
   } finally {
@@ -767,6 +773,10 @@ batch_config = {
     }]
 }
 batch_completed_ids = []
+batch_skipped_ids = []
+batch_skipped_items = []
+batch_auto_scan_total = 0
+last_item_skip_info = None
 batch_current_target = None
 item_position = {}
 is_running = True
@@ -793,13 +803,12 @@ ${preflight}
 def emit_batch_event(*_args, **_kwargs):
     pass
 
-def fail_batch_preflight(_target, reason, code="BATCH_IDENTITY_MISMATCH"):
+def record_batch_skip(_target, reason, code="BATCH_IDENTITY_MISMATCH"):
     failures.append({"reason": reason, "code": code})
-    return False
 
-result = preflight_batch_targets()
+_item, status = prepare_batch_target_just_in_time(batch_config["targets"][0], eldritch_enabled=False)
 print(json.dumps({
-    "result": result, "reads": ${readResults.length} - len(reads),
+    "result": status == "ok", "reads": ${readResults.length} - len(reads),
     "moves": moves, "clipboardClears": pyperclip.clears, "failures": failures
 }, ensure_ascii=False))
 `
@@ -1042,8 +1051,8 @@ test('恢复脚本只预检和制作未完成目标并保留原总进度', async
       }, batchConfig, filePaths: { itemInfoFile: 'item.txt', itemInfoResultFile: 'result.json' }
     })
     assert.match(generated, /batch_completed_ids = list\(dict\.fromkeys\(batch_config\.get\("completedIds"\)/)
-    assert.match(generated, /targets = \[[\s\S]*target\.get\("id"\) not in batch_completed_ids/)
-    assert.match(generated, /pending_targets = \[target for target in targets if target\.get\("id"\) not in batch_completed_ids\]/)
+    assert.match(generated, /handled = set\(batch_completed_ids\) \| set\(batch_skipped_ids\)/)
+    assert.match(generated, /pending_targets = \[target for target in list\(batch_config\.get\("targets"\) or \[\]\) if target\.get\("id"\) not in handled\]/)
     assert.match(generated, /\\"completedIds\\":\[\\"[^\"]+\\"\]/)
     const startCrafting = generated.slice(generated.indexOf('def start_crafting():'), generated.indexOf('def craft_one_item('))
     assert.ok(startCrafting.indexOf('preflight_batch_targets()') < startCrafting.indexOf('preflight_required_currencies()'))
@@ -1118,11 +1127,12 @@ test('背包扫描复用取点的主窗口最小化与恢复生命周期', () =>
   assert.match(windowManager, /function preparePickerSession\(\)[\s\S]*?minimizeMainWindowForAutomation\(\)/)
 })
 
-test('每次重新扫描都会清空旧类别选择，异常批次不能直接复用', () => {
+test('每次重新扫描都会保留已选类别、重置排除项并清除异常批次恢复检查点', () => {
   const source = readFileSync(new URL('../src/stores/batchCrafting.js', import.meta.url), 'utf8')
   const scanBody = source.slice(source.indexOf('async function scanInventory'), source.indexOf('async function stopScan'))
   assert.match(scanBody, /snapshot\.value = null/)
-  assert.match(scanBody, /categoryIds: \[\]/)
+  assert.match(scanBody, /excludedItemIds\.value = \[\]/)
+  assert.doesNotMatch(scanBody, /categoryIds: \[\]/)
   assert.match(scanBody, /batchCrafting\.clearRecovery\(\)/)
 })
 

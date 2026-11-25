@@ -33,5 +33,6 @@ export function createFaustusRunSnapshot(value) {
   if (!validation.valid) {
     throw Object.assign(new Error('浮士德改价配置无效'), { code: 'INVALID_FAUSTUS_CONFIG', errors: validation.errors })
   }
-  return deepFreeze(JSON.parse(JSON.stringify(validation.config)))
+  const { version, chaosPerDivine, bands, gridCalibration } = validation.config
+  return deepFreeze(JSON.parse(JSON.stringify({ version, chaosPerDivine, bands, gridCalibration })))
 }

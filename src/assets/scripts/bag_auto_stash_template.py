@@ -56,18 +56,59 @@ import faulthandler
 
 faulthandler.enable()
 
+cv2 = mss = np = keyboard = mouse = Key = Button = None
 try:
-    import cv2
-    import mss
-    import numpy as np
     import pyperclip
-    from pynput import keyboard, mouse
-    from pynput.keyboard import Key
-    from pynput.mouse import Button
-    DEPENDENCY_ERROR = ""
-except ImportError as exc:
-    cv2 = mss = np = pyperclip = keyboard = mouse = Key = Button = None
-    DEPENDENCY_ERROR = str(exc)
+except ImportError:
+    pyperclip = None
+DEPENDENCY_ERROR = ""
+
+
+def ensure_vision_dependencies():
+    global cv2, mss, np, DEPENDENCY_ERROR
+    if cv2 is not None and mss is not None and np is not None:
+        return True
+    try:
+        if cv2 is None:
+            import cv2 as _cv2
+            cv2 = _cv2
+        if mss is None:
+            import mss as _mss
+            mss = _mss
+        if np is None:
+            import numpy as _np
+            np = _np
+        return True
+    except ImportError as exc:
+        DEPENDENCY_ERROR = str(exc)
+        return False
+
+
+def ensure_input_dependencies():
+    global pyperclip, keyboard, mouse, Key, Button, DEPENDENCY_ERROR
+    if (pyperclip is not None and keyboard is not None and mouse is not None
+            and Key is not None and Button is not None):
+        return True
+    try:
+        if pyperclip is None:
+            import pyperclip as _pyperclip
+            pyperclip = _pyperclip
+        if keyboard is None or mouse is None or Key is None or Button is None:
+            from pynput import keyboard as _keyboard, mouse as _mouse
+            from pynput.keyboard import Key as _Key
+            from pynput.mouse import Button as _Button
+            if keyboard is None:
+                keyboard = _keyboard
+            if mouse is None:
+                mouse = _mouse
+            if Key is None:
+                Key = _Key
+            if Button is None:
+                Button = _Button
+        return True
+    except ImportError as exc:
+        DEPENDENCY_ERROR = str(exc)
+        return False
 
 
 GAME_WINDOW_TITLES = ("流放之路", "Path of Exile")
@@ -197,21 +238,40 @@ def window_process_name(hwnd):
     return ""
 
 
-def window_matches_game(hwnd):
-    if not hwnd:
-        return False
+_hwnd_match_cache = {}
+HWND_MATCH_CACHE_TTL_SECONDS = 2.0
+
+
+def _window_title(hwnd):
     user32 = ctypes.windll.user32
     user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
     user32.GetWindowTextLengthW.restype = ctypes.c_int
     user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
     user32.GetWindowTextW.restype = ctypes.c_int
     length = user32.GetWindowTextLengthW(hwnd)
+    if length <= 0:
+        return ""
     buffer = ctypes.create_unicode_buffer(length + 1)
     user32.GetWindowTextW(hwnd, buffer, length + 1)
-    title = buffer.value.strip()
+    return buffer.value.strip()
+
+
+def window_matches_game(hwnd):
+    if not hwnd:
+        return False
+    title = _window_title(hwnd)
     if game_window_title_priority(title) < 0:
         return False
-    return window_process_name(hwnd) in {name.casefold() for name in game_window_process_names()}
+    process_names = tuple(name.casefold() for name in game_window_process_names())
+    now = time.monotonic()
+    cached = _hwnd_match_cache.get(int(hwnd))
+    if cached and cached[0] == title and cached[1] == process_names and (now - cached[3]) < HWND_MATCH_CACHE_TTL_SECONDS:
+        return cached[2]
+    matched = window_process_name(hwnd) in set(process_names)
+    if len(_hwnd_match_cache) > 64:
+        _hwnd_match_cache.clear()
+    _hwnd_match_cache[int(hwnd)] = (title, process_names, matched, now)
+    return matched
 is_running = True
 runtime_stop_reason = ""
 
@@ -287,6 +347,36 @@ def parse_viscera_header(lines, category, runtime):
     }
 
 
+def resolve_prefixed_item_name(name, templates, resolve_inner, used=None):
+    used = set() if used is None else used
+    results = set()
+    for template in templates or ():
+        template_id = template.get("id")
+        english = template.get("en", "")
+        if not template_id or template_id in used or "{0}" not in english:
+            continue
+        seen_inner = set()
+        for locale in ("cn", "tw"):
+            pattern = template.get(locale, "")
+            prefix, placeholder, suffix = pattern.partition("{0}")
+            if not placeholder or not (prefix or suffix):
+                continue
+            if not name.startswith(prefix) or not name.endswith(suffix):
+                continue
+            inner = name[len(prefix):len(name) - len(suffix) if suffix else None].strip()
+            if not inner or inner in seen_inner:
+                continue
+            seen_inner.add(inner)
+            direct = resolve_inner(inner)
+            if direct:
+                results.add(english.replace("{0}", direct, 1))
+                continue
+            nested = resolve_prefixed_item_name(inner, templates, resolve_inner, used | {template_id})
+            if nested:
+                results.add(english.replace("{0}", nested, 1))
+    return next(iter(results)) if len(results) == 1 else None
+
+
 def parse_item_header(text):
     runtime = globals().get("localization_snapshot", {})
     lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
@@ -333,13 +423,26 @@ def parse_item_header(text):
                         continue
                 raw_names.append(line)
                 canonical = names.get(clean_name, clean_name)
-                if category == "Maps" and canonical == clean_name:
+                def resolve_tiered_map(candidate):
+                    if category != "Maps":
+                        return None
                     tiered_map = re.fullmatch(
                         r"(菌潮灭绝|菌潮|凋落蔓延的|凋落的)?\s*(?:地图|地圖)\s*[（(]\s*([1-9][0-9]?)\s*[阶階][）)]",
-                        clean_name)
-                    if tiered_map:
-                        prefix = map_prefixes.get(tiered_map.group(1), "")
-                        canonical = f"{prefix}Map (Tier {tiered_map.group(2)})"
+                        candidate)
+                    if not tiered_map:
+                        return None
+                    prefix = map_prefixes.get(tiered_map.group(1), "")
+                    return f"{prefix}Map (Tier {tiered_map.group(2)})"
+                if canonical == clean_name:
+                    canonical = resolve_tiered_map(clean_name) or canonical
+                if canonical == clean_name and re.search(r"[\u3400-\u9fff]", clean_name):
+                    prefixed = resolve_prefixed_item_name(
+                        clean_name,
+                        runtime.get("itemNamePrefixTemplates", []),
+                        lambda inner: resolve_tiered_map(inner) or (names.get(inner) if inner in names else None)
+                    )
+                    if prefixed:
+                        canonical = prefixed
                 if rarity == "Magic" and canonical == clean_name:
                     matches = [(alias, en) for alias, en in names.items() if alias and alias in clean_name]
                     longest = max((len(alias) for alias, _ in matches), default=0)
@@ -376,6 +479,10 @@ def parse_item_header(text):
         return None
     item_level = 0
     item_tier = None
+    is_corrupted = False
+    is_mirrored = False
+    is_unmodifiable = False
+    is_unidentified = False
     for line in lines:
         tier_match = re.fullmatch(r"(?:Item Tier|物品阶级)[：:]\s*([0-9]+)\s*", line)
         if tier_match:
@@ -387,6 +494,14 @@ def parse_item_header(text):
                 item_level = int(line.split(":", 1)[1].strip())
             except (TypeError, ValueError):
                 item_level = 0
+        elif line in ("已腐化", "Corrupted"):
+            is_corrupted = True
+        elif line in ("已复制", "已複製", "Mirrored"):
+            is_mirrored = True
+        elif line in ("不可修改", "Unmodifiable"):
+            is_unmodifiable = True
+        elif line in ("未鉴定", "未鑑定", "Unidentified"):
+            is_unidentified = True
     return {
         "category": category,
         "rarity": rarity,
@@ -394,6 +509,10 @@ def parse_item_header(text):
         "baseName": header[1] if len(header) > 1 else "",
         **({"originalHeader": original_header} if original_header else {}),
         "itemLevel": item_level,
+        **({"isCorrupted": True} if is_corrupted else {}),
+        **({"isMirrored": True} if is_mirrored else {}),
+        **({"isUnmodifiable": True} if is_unmodifiable else {}),
+        **({"isUnidentified": True} if is_unidentified else {}),
         **({"itemTier": item_tier} if item_tier is not None else {})
     }
 
@@ -414,7 +533,8 @@ BATCH_CATEGORY_ALIASES = {
     "Rings": ("ring", "戒指"), "Amulets": ("amulet", "项链"), "护身符": ("amulet", "项链"),
     "Belts": ("belt", "腰带"), "Jewels": ("jewel", "珠宝"), "Abyss Jewels": ("jewel", "珠宝"),
     "Cluster Jewels": ("jewel", "珠宝"), "Life Flasks": ("flask", "药剂"),
-    "Mana Flasks": ("flask", "药剂"), "Hybrid Flasks": ("flask", "药剂"), "Utility Flasks": ("flask", "药剂"),
+    "Mana Flasks": ("flask", "药剂"), "Hybrid Flasks": ("flask", "药剂"),
+    "Utility Flasks": ("flask", "药剂"), "Critical Utility Flasks": ("flask", "药剂"),
     "头盔": ("helmet", "头盔"),
     "身体护甲": ("bodyArmour", "胸甲"), "胸甲": ("bodyArmour", "胸甲"),
     "手套": ("gloves", "手套"), "鞋子": ("boots", "鞋子"),
@@ -431,7 +551,8 @@ BATCH_CATEGORY_ALIASES = {
     "珠宝": ("jewel", "珠宝"), "深渊珠宝": ("jewel", "珠宝"),
     "星团珠宝": ("jewel", "珠宝"), "生命药剂": ("flask", "药剂"),
     "魔力药剂": ("flask", "药剂"), "复合药剂": ("flask", "药剂"),
-    "功能药剂": ("flask", "药剂")
+    "混合药剂": ("flask", "药剂"), "功能药剂": ("flask", "药剂"),
+    "暴击药剂": ("flask", "药剂")
 }
 
 
@@ -600,11 +721,40 @@ def stop_for_foreground_loss(controller=None):
     return False
 
 
+def _client_bounds_for_hwnd(hwnd):
+    if sys.platform != "win32" or not hwnd:
+        return None
+    user32 = ctypes.windll.user32
+    rect = wintypes.RECT()
+    origin = wintypes.POINT(0, 0)
+    if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
+        return None
+    if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
+        return None
+    width = max(0, int(rect.right - rect.left))
+    height = max(0, int(rect.bottom - rect.top))
+    if not (width and height):
+        return None
+    return {
+        "left": int(origin.x),
+        "top": int(origin.y),
+        "right": int(origin.x + width),
+        "bottom": int(origin.y + height),
+        "width": width,
+        "height": height,
+        "dpi": int(user32.GetDpiForWindow(hwnd))
+    }
+
+
 def get_game_client_bounds():
     if sys.platform != "win32":
         return None
     user32 = ctypes.windll.user32
     foreground = user32.GetForegroundWindow()
+    if foreground and user32.IsWindowVisible(foreground) and window_matches_game(foreground):
+        bounds = _client_bounds_for_hwnd(foreground)
+        if bounds is not None:
+            return bounds
     candidates = []
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 
@@ -612,33 +762,15 @@ def get_game_client_bounds():
     def visit(hwnd, _lparam):
         if not user32.IsWindowVisible(hwnd):
             return True
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
+        title = _window_title(hwnd)
+        if not title:
             return True
-        buffer = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buffer, length + 1)
-        title = buffer.value
         priority = game_window_title_priority(title)
         if priority < 0 or not window_matches_game(hwnd):
             return True
-        rect = wintypes.RECT()
-        origin = wintypes.POINT(0, 0)
-        if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
-            return True
-        if not user32.ClientToScreen(hwnd, ctypes.byref(origin)):
-            return True
-        width = max(0, int(rect.right - rect.left))
-        height = max(0, int(rect.bottom - rect.top))
-        if width and height:
-            candidates.append((priority, hwnd == foreground, width * height, {
-                "left": int(origin.x),
-                "top": int(origin.y),
-                "right": int(origin.x + width),
-                "bottom": int(origin.y + height),
-                "width": width,
-                "height": height,
-                "dpi": int(user32.GetDpiForWindow(hwnd))
-            }))
+        bounds = _client_bounds_for_hwnd(hwnd)
+        if bounds is not None:
+            candidates.append((priority, hwnd == foreground, bounds["width"] * bounds["height"], bounds))
         return True
 
     user32.EnumWindows(visit, 0)
@@ -659,6 +791,7 @@ def clipboard_sequence_number():
 
 def load_grayscale_image(image_path):
     """Load an image without relying on OpenCV's Windows path handling."""
+    ensure_vision_dependencies()
     try:
         encoded = np.fromfile(image_path, dtype=np.uint8)
         if not encoded.size:
@@ -671,9 +804,24 @@ def load_grayscale_image(image_path):
 
 class InterfaceMatcher:
     def __init__(self, config):
+        ensure_vision_dependencies()
         self.config = config
         self.templates = {}
+        self._sct = None
+        self._active_targets = self._resolve_active_targets(config)
         self._load_templates()
+
+    @staticmethod
+    def _resolve_active_targets(config):
+        raw = config.get("active_targets")
+        if isinstance(raw, (list, tuple, set)):
+            return set(str(item) for item in raw)
+        return None
+
+    def _is_target_active(self, name):
+        if self._active_targets is None:
+            return True
+        return name in self._active_targets
 
     def _load_templates(self):
         definitions = {
@@ -683,10 +831,20 @@ class InterfaceMatcher:
             "allflame_receiver": self.config.get("templates", {}).get("allflame_receiver_title", "")
         }
         for name, image_path in definitions.items():
+            if not self._is_target_active(name):
+                continue
             if image_path and os.path.exists(image_path):
                 image = load_grayscale_image(image_path)
                 if image is not None:
                     self.templates[name] = image
+
+    def close(self):
+        if self._sct is not None:
+            try:
+                self._sct.close()
+            except Exception:
+                pass
+            self._sct = None
 
     @property
     def valid(self):
@@ -694,24 +852,40 @@ class InterfaceMatcher:
             name in self.templates for name in ("stash", "reward", "allflame_receiver")
         ))
 
+    def _get_screen(self):
+        if self._sct is None:
+            self._sct = mss.MSS()
+        return self._sct
+
     def _capture(self, region):
         width = int(region.get("right", 0)) - int(region.get("left", 0))
         height = int(region.get("bottom", 0)) - int(region.get("top", 0))
         if width <= 0 or height <= 0:
             return None
-        with mss.MSS() as screen:
-            shot = screen.grab({
-                "left": int(region.get("left", 0)),
-                "top": int(region.get("top", 0)),
-                "width": width,
-                "height": height
-            })
-        return cv2.cvtColor(np.array(shot), cv2.COLOR_BGRA2GRAY)
+        monitor = {
+            "left": int(region.get("left", 0)),
+            "top": int(region.get("top", 0)),
+            "width": width,
+            "height": height
+        }
+        for attempt in range(2):
+            try:
+                shot = self._get_screen().grab(monitor)
+                return cv2.cvtColor(np.array(shot), cv2.COLOR_BGRA2GRAY)
+            except Exception:
+                self.close()
+                if attempt == 1:
+                    raise
+        return None
 
     def _match(self, name, region):
-        image = self._capture(region)
+        if not self._is_target_active(name):
+            return False, 0.0
         template = self.templates.get(name)
-        if image is None or template is None or template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
+        if template is None:
+            return False, 0.0
+        image = self._capture(region)
+        if image is None or template.shape[0] > image.shape[0] or template.shape[1] > image.shape[1]:
             return False, 0.0
         result = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
         score = float(cv2.minMaxLoc(result)[1])
@@ -719,11 +893,17 @@ class InterfaceMatcher:
 
     def check_interface(self):
         templates = self.config.get("templates", {})
-        stash_ok, stash_score = self._match("stash", templates.get("stash_region", {}))
         inventory_ok, inventory_score = self._match("inventory", templates.get("inventory_region", {}))
+        # 仓库与永火接收舱入库均要求背包同时打开；背包未打开时直接短路跳过对应截屏。
+        if inventory_ok:
+            stash_ok, stash_score = self._match("stash", templates.get("stash_region", {}))
+            allflame_receiver_ok, allflame_receiver_score = self._match(
+                "allflame_receiver", templates.get("allflame_receiver_region", {}))
+        else:
+            stash_ok, stash_score = False, 0.0
+            allflame_receiver_ok, allflame_receiver_score = False, 0.0
+        # 君锋镇奖励标题需要独立信号以控制浮窗显隐，不随背包短路。
         reward_ok, reward_score = self._match("reward", templates.get("junfeng_reward_region", {}))
-        allflame_receiver_ok, allflame_receiver_score = self._match(
-            "allflame_receiver", templates.get("allflame_receiver_region", {}))
         return {
             "stashMatched": stash_ok and inventory_ok,
             "rewardMatched": reward_ok,
@@ -779,6 +959,7 @@ class InterfaceMatcher:
 
 class InputController:
     def __init__(self, config):
+        ensure_input_dependencies()
         self.config = config
         self.mouse = mouse.Controller()
         self.keyboard = keyboard.Controller()
@@ -815,6 +996,8 @@ class InputController:
             self.pressed_buttons.discard(button)
 
     def release_all(self):
+        if Key is None or Button is None:
+            ensure_input_dependencies()
         released = False
         for button in tuple(self.pressed_buttons):
             try:
@@ -840,6 +1023,8 @@ class InputController:
             time.sleep(self.release_settle)
 
     def begin_ctrl(self):
+        if Key is None or Button is None:
+            ensure_input_dependencies()
         try:
             if not is_game_foreground():
                 return stop_for_foreground_loss(self)
@@ -928,6 +1113,8 @@ class InputController:
         return ("empty", "") if empty_on_no_response else ("no-response", "")
 
     def click_with_ctrl(self):
+        if Key is None or Button is None:
+            ensure_input_dependencies()
         try:
             if not self.begin_ctrl():
                 return False
@@ -952,6 +1139,8 @@ class InputController:
             return False
 
     def ctrl_shift_click(self):
+        if Key is None or Button is None:
+            ensure_input_dependencies()
         try:
             if not self.begin_ctrl():
                 return False
@@ -1101,12 +1290,15 @@ def run_detection(config):
             issue_id = "template.junfeng-reward-title"
         emit("detection-error", reason="界面标题模板无法加载",
              failureCode="TEMPLATE_INVALID", configurationIssueId=issue_id)
+        if hasattr(matcher, "close"):
+            matcher.close()
         return 2
     stash_ready = False
     allflame_receiver_ready = False
     reward_detected = False
     last_foreground = is_game_foreground()
     last_game_bounds = get_game_client_bounds()
+    last_bg_bounds_check = time.monotonic()
     last_inventory_matched = False
     stash_matched_count = stash_missed_count = 0
     allflame_receiver_matched_count = allflame_receiver_missed_count = 0
@@ -1114,54 +1306,64 @@ def run_detection(config):
     emit("detection-state", ready=False, inventoryReady=False, stashReady=False, rewardDetected=False,
          junfengReady=False, allflameReceiverReady=False,
          foreground=last_foreground, gameBounds=last_game_bounds)
-    while is_running:
-        try:
-            foreground = is_game_foreground()
-            game_bounds = get_game_client_bounds()
-            if not foreground:
-                changed = stash_ready or allflame_receiver_ready or reward_detected or foreground != last_foreground or game_bounds != last_game_bounds
-                stash_ready = allflame_receiver_ready = reward_detected = False
-                stash_matched_count = stash_missed_count = 0
-                allflame_receiver_matched_count = allflame_receiver_missed_count = 0
-                reward_matched_count = reward_missed_count = 0
-                last_inventory_matched = False
-                if changed:
-                    emit("detection-state", ready=False, inventoryReady=False, stashReady=False, rewardDetected=False,
-                         junfengReady=False, allflameReceiverReady=False,
-                         foreground=False, gameBounds=game_bounds)
+    try:
+        while is_running:
+            try:
+                foreground = is_game_foreground()
+                if not foreground:
+                    now = time.monotonic()
+                    if last_foreground or (now - last_bg_bounds_check) >= 2.0:
+                        game_bounds = get_game_client_bounds()
+                        last_bg_bounds_check = now
+                    else:
+                        game_bounds = last_game_bounds
+                    changed = stash_ready or allflame_receiver_ready or reward_detected or foreground != last_foreground or game_bounds != last_game_bounds
+                    stash_ready = allflame_receiver_ready = reward_detected = False
+                    stash_matched_count = stash_missed_count = 0
+                    allflame_receiver_matched_count = allflame_receiver_missed_count = 0
+                    reward_matched_count = reward_missed_count = 0
+                    last_inventory_matched = False
+                    if changed:
+                        emit("detection-state", ready=False, inventoryReady=False, stashReady=False, rewardDetected=False,
+                             junfengReady=False, allflameReceiverReady=False,
+                             foreground=False, gameBounds=game_bounds)
+                    last_foreground = foreground
+                    last_game_bounds = game_bounds
+                    time.sleep(0.35)
+                    continue
+
+                game_bounds = get_game_client_bounds()
+                matches, scores = matcher.check_interface()
+                if isinstance(matches, bool):
+                    matches = {"stashMatched": matches, "rewardMatched": False,
+                               "inventoryMatched": matches, "allflameReceiverMatched": False}
+                stash_ready, stash_matched_count, stash_missed_count, stash_changed = advance_detection_state(
+                    stash_ready, stash_matched_count, stash_missed_count, matches["stashMatched"])
+                reward_detected, reward_matched_count, reward_missed_count, reward_changed = advance_detection_state(
+                    reward_detected, reward_matched_count, reward_missed_count, matches["rewardMatched"])
+                allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count, allflame_receiver_changed = advance_detection_state(
+                    allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count,
+                    matches.get("allflameReceiverMatched", False))
+                junfeng_ready = reward_detected and matches["inventoryMatched"]
+                inventory_changed = matches["inventoryMatched"] != last_inventory_matched
+                if config.get("interface_titles") or stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
+                    emit("detection-state", ready=stash_ready, inventoryReady=matches["inventoryMatched"], stashReady=stash_ready,
+                         rewardDetected=reward_detected, junfengReady=junfeng_ready,
+                         allflameReceiverReady=allflame_receiver_ready,
+                         foreground=foreground, gameBounds=game_bounds,
+                         interfaces=matcher.check_titles(game_bounds) if config.get("interface_titles") else {},
+                         titleIssues=getattr(matcher, 'title_issues', {}), **scores)
                 last_foreground = foreground
                 last_game_bounds = game_bounds
+                last_inventory_matched = matches["inventoryMatched"]
                 time.sleep(0.2)
-                continue
-
-            matches, scores = matcher.check_interface()
-            if isinstance(matches, bool):
-                matches = {"stashMatched": matches, "rewardMatched": False,
-                           "inventoryMatched": matches, "allflameReceiverMatched": False}
-            stash_ready, stash_matched_count, stash_missed_count, stash_changed = advance_detection_state(
-                stash_ready, stash_matched_count, stash_missed_count, matches["stashMatched"])
-            reward_detected, reward_matched_count, reward_missed_count, reward_changed = advance_detection_state(
-                reward_detected, reward_matched_count, reward_missed_count, matches["rewardMatched"])
-            allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count, allflame_receiver_changed = advance_detection_state(
-                allflame_receiver_ready, allflame_receiver_matched_count, allflame_receiver_missed_count,
-                matches.get("allflameReceiverMatched", False))
-            junfeng_ready = reward_detected and matches["inventoryMatched"]
-            inventory_changed = matches["inventoryMatched"] != last_inventory_matched
-            if config.get("interface_titles") or stash_changed or reward_changed or allflame_receiver_changed or inventory_changed or foreground != last_foreground or game_bounds != last_game_bounds:
-                emit("detection-state", ready=stash_ready, inventoryReady=matches["inventoryMatched"], stashReady=stash_ready,
-                     rewardDetected=reward_detected, junfengReady=junfeng_ready,
-                     allflameReceiverReady=allflame_receiver_ready,
-                     foreground=foreground, gameBounds=game_bounds,
-                     interfaces=matcher.check_titles(game_bounds) if config.get("interface_titles") else {},
-                     titleIssues=getattr(matcher, 'title_issues', {}), **scores)
-            last_foreground = foreground
-            last_game_bounds = game_bounds
-            last_inventory_matched = matches["inventoryMatched"]
-            time.sleep(0.2)
-        except Exception as exc:
-            print(traceback.format_exc(), file=sys.stderr, flush=True)
-            emit("detection-error", reason=str(exc))
-            time.sleep(1)
+            except Exception as exc:
+                print(traceback.format_exc(), file=sys.stderr, flush=True)
+                emit("detection-error", reason=str(exc))
+                time.sleep(1)
+    finally:
+        if hasattr(matcher, "close"):
+            matcher.close()
     return 0
 
 
@@ -1301,6 +1503,10 @@ def _scan_item(target, parsed, fingerprint, catalog, footprint=None, selectable=
         "displayName": parsed.get("name") or parsed.get("baseName") or "未知物品",
         "baseType": resolve_catalog_base_type(parsed, catalog),
         "itemLevel": int(parsed.get("itemLevel") or 0),
+        "isCorrupted": bool(parsed.get("isCorrupted")),
+        "isMirrored": bool(parsed.get("isMirrored")),
+        "isUnmodifiable": bool(parsed.get("isUnmodifiable")),
+        "isUnidentified": bool(parsed.get("isUnidentified")),
         **({"itemTier": parsed["itemTier"]} if "itemTier" in parsed else {}),
         "x": int(target["column"]), "y": int(target["row"]),
         "width": width, "height": height,
@@ -1325,6 +1531,7 @@ def _file_sha256(file_path):
 
 
 def _capture_inventory_grid(start_x, start_y, slot_width, slot_height):
+    ensure_vision_dependencies()
     left = int(round(start_x - slot_width / 2.0))
     top = int(round(start_y - slot_height / 2.0))
     capture_width = int(round(slot_width * 12))
@@ -1371,6 +1578,7 @@ def select_high_confidence_empty_slots(probabilities, threshold):
 
 
 def classify_inventory_empty_slots(config, capture_image=None, session_factory=None):
+    ensure_vision_dependencies()
     model_config = config.get("emptySlotModel", {}) if isinstance(config, dict) else {}
     threshold = float(model_config.get("threshold", 0.995))
     summary = {
@@ -1397,7 +1605,18 @@ def classify_inventory_empty_slots(config, capture_image=None, session_factory=N
             summary["fallbackReason"] = "model-file-missing"
             return set(), summary
         expected_hash = str(manifest.get("sha256", "")).lower()
-        if not expected_hash or _file_sha256(model_path).lower() != expected_hash:
+        verified_stamp = model_config.get("verifiedStamp") if isinstance(model_config.get("verifiedStamp"), dict) else None
+        stamp_matches = False
+        if verified_stamp and expected_hash and str(verified_stamp.get("sha256", "")).lower() == expected_hash:
+            try:
+                stat = os.stat(model_path)
+                stamp_matches = (
+                    int(verified_stamp.get("size", -1)) == int(stat.st_size) and
+                    int(verified_stamp.get("mtimeMs", -1)) == int(stat.st_mtime * 1000)
+                )
+            except Exception:
+                stamp_matches = False
+        if not stamp_matches and (not expected_hash or _file_sha256(model_path).lower() != expected_hash):
             summary["fallbackReason"] = "model-checksum-mismatch"
             return set(), summary
         input_size = manifest.get("inputSize", {})
@@ -1642,7 +1861,12 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--mode", choices=("detect", "stash", "scan"), required=True)
     args = parser.parse_args()
-    if DEPENDENCY_ERROR:
+    deps_ok = (
+        ensure_vision_dependencies() if args.mode == "detect"
+        else ensure_input_dependencies() if args.mode == "stash"
+        else (ensure_vision_dependencies() and ensure_input_dependencies())
+    )
+    if not deps_ok or DEPENDENCY_ERROR:
         emit(error_event(args.mode), reason=f"Python 依赖缺失: {DEPENDENCY_ERROR}")
         return 2
     try:

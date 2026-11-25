@@ -10,6 +10,8 @@ import {
 import { useInterfaceDetectionStore } from './interfaceDetection.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '@/utils/diagnostics.js'
 
+const ALLFLAME_LEGACY_MIGRATION_KEY = 'allflameReceiverLegacyMigrated:v1'
+
 const emptyStats = () => ({
   scannedSlots: 0,
   stashedSlots: 0,
@@ -65,7 +67,15 @@ export const useBagStore = defineStore('bag', () => {
 
   function loadSettings() {
     try {
-      applySettings(JSON.parse(localStorage.getItem('bagSettings') || '{}'))
+      const raw = JSON.parse(localStorage.getItem('bagSettings') || '{}')
+      applySettings(raw)
+      // 永火接收舱已迁入过期赛季统一管理：首次升级默认关闭开关，保留已有模板配置。
+      if (!localStorage.getItem(ALLFLAME_LEGACY_MIGRATION_KEY)) {
+        if (allflameReceiverEnabled.value) {
+          allflameReceiverEnabled.value = false
+        }
+        localStorage.setItem(ALLFLAME_LEGACY_MIGRATION_KEY, '1')
+      }
     } catch (error) {
       applySettings({})
       console.error('加载背包设置失败:', error)

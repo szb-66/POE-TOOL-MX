@@ -11,6 +11,7 @@ import { getDisplayPhysicalBounds } from '../window/coordinates.js'
 import { normalizeJunfengProgress } from './progress.js'
 import { ModelAvailability } from './modelAvailability.js'
 import { highlightModelPaths, resolveHighlightModelPaths } from './modelProfile.js'
+import { resolveVerifiedModelStamp } from './highlightWorker.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -52,8 +53,10 @@ function parser(onEvent, onLog) {
 }
 
 export class JunfengHighlightManager {
-  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null, trainingArtifactsRoot = null }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null, trainingArtifactsRoot = null, highlightWorker = null }) {
     this.modelRoot = modelRoot
+    this.highlightWorker = highlightWorker
+    this.activeWorkerHandle = null
     this.trainingArtifactsRoot = trainingArtifactsRoot || (modelRoot ? path.join(path.dirname(modelRoot), 'highlight-training') : null)
     this.python = python
     this.fileWatcher = fileWatcher
@@ -113,6 +116,7 @@ export class JunfengHighlightManager {
       log: event => { if (!app.isPackaged) console.debug('[君锋镇性能]', event) }
     })
     this.modelAvailability.setEnabled(Boolean(this.runtime.enabled))
+    this.highlightWorker?.setConsumerEnabled('junfeng', Boolean(this.runtime.enabled))
   }
 
   pythonPath() {
@@ -121,10 +125,20 @@ export class JunfengHighlightManager {
     return found
   }
 
+  async resolvePythonPath() {
+    const required = ['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']
+    if (typeof this.python.resolvePythonRuntimeAsync === 'function') {
+      const resolved = await this.python.resolvePythonRuntimeAsync(required)
+      if (resolved?.path) return resolved.path
+    }
+    return this.pythonPath()
+  }
+
   setRuntime(runtime = {}) {
     const previousGrid = JSON.stringify(this.runtime.gridRegion || null)
     this.runtime = { ...this.runtime, ...structuredClone(runtime) }
     this.modelAvailability.setEnabled(Boolean(this.runtime.enabled))
+    this.highlightWorker?.setConsumerEnabled('junfeng', Boolean(this.runtime.enabled))
     if (this.status.status === 'running' && previousGrid !== JSON.stringify(this.runtime.gridRegion || null)) {
       this.stop('grid-changed')
     }
@@ -209,14 +223,15 @@ export class JunfengHighlightManager {
       calibration_root: overrides.disableCalibration ? '' : this.calibration.root,
       model_path: model.model,
       manifest_path: model.manifest,
+      verified_stamp: resolveVerifiedModelStamp(model.model),
       item_footprints: itemFootprintRegistry.snapshot(),
       ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
     return configPath
   }
 
-  spawn(args, onEvent) {
-    const child = spawn(this.pythonPath(), [this.scriptPath(), ...args], {
+  spawn(args, onEvent, pythonExe = this.pythonPath()) {
+    const child = spawn(pythonExe, [this.scriptPath(), ...args], {
       shell: false, windowsHide: true,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
     })
@@ -235,16 +250,27 @@ export class JunfengHighlightManager {
       if (!activation?.success) throw new Error(this.windowActivation?.gameFailureMessage?.(activation?.code) || `无法激活游戏窗口（${activation?.code || 'activation-unavailable'}）`)
       token = this.loadingFeedback?.begin('junfeng.preview', { owner: 'junfeng-preview' }) || null
       this.loadingFeedback?.update(token, { stage: 'model' })
+      const configPath = this.writeConfig()
+      if (this.highlightWorker) {
+        const event = await this.highlightWorker.preview(configPath)
+        if (event?.event === 'preview') {
+          this.lastPreviewId = crypto.createHash('sha256').update(String(event.imageDataUrl || '')).digest('hex').slice(0, 24)
+          this.lastPreview = new Map((event.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
+          return event
+        }
+        throw eventError(event, '君锋镇预览失败')
+      }
+      const pythonExe = await this.resolvePythonPath()
       return await new Promise((resolve, reject) => {
         let settled = false
-        const child = this.spawn(['--config', this.writeConfig(), '--preview'], event => {
+        const child = this.spawn(['--config', configPath, '--preview'], event => {
           if (event.event === 'preview') {
             settled = true
             this.lastPreviewId = crypto.createHash('sha256').update(String(event.imageDataUrl || '')).digest('hex').slice(0, 24)
             this.lastPreview = new Map((event.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
             resolve(event)
           } else if (event.event === 'error') { settled = true; reject(eventError(event, '君锋镇预览失败')) }
-        })
+        }, pythonExe)
         child.on('error', reject)
         child.on('close', code => { if (!settled) reject(new Error(`君锋镇预览进程异常退出（${code}）`)) })
       })
@@ -371,6 +397,7 @@ export class JunfengHighlightManager {
       }
       for (const entry of prepared) if (entry.existed && fs.existsSync(entry.backup)) fs.unlinkSync(entry.backup)
       this.resetModelAvailability()
+      this.highlightWorker?.invalidate('model-updated')
     } catch (error) {
       for (const entry of prepared.reverse()) {
         try {
@@ -483,10 +510,23 @@ export class JunfengHighlightManager {
     this.status = { ...this.initialStatus(), status: 'running' }
     try {
       this.loadingFeedback?.update(this.preparationToken, { stage: 'model' })
-      const child = this.spawn(['--config', this.writeConfig()], event => this.handleEvent(child, event))
-      this.child = child
-      child.on('error', error => this.fail(error.message))
-      child.on('close', code => { if (this.child === child && this.status.status === 'running') this.fail(`君锋镇取件进程异常退出（${code}）`) })
+      const configPath = this.writeConfig()
+      if (this.highlightWorker) {
+        const token = Symbol('junfeng-worker')
+        this.child = token
+        const handle = this.highlightWorker.start(configPath, event => this.handleEvent(token, event))
+        this.activeWorkerHandle = handle
+        handle.promise.catch(error => {
+          if (this.child !== token || error?.cancelled) return
+          this.fail(error?.message || '君锋镇取件 Worker 执行异常')
+        })
+      } else {
+        const pythonExe = await this.resolvePythonPath()
+        const child = this.spawn(['--config', configPath], event => this.handleEvent(child, event), pythonExe)
+        this.child = child
+        child.on('error', error => this.fail(error.message))
+        child.on('close', code => { if (this.child === child && this.status.status === 'running') this.fail(`君锋镇取件进程异常退出（${code}）`) })
+      }
       this.publish({ event: 'starting' })
       return this.getStatus()
     } catch (error) {
@@ -517,6 +557,7 @@ export class JunfengHighlightManager {
     this.publish(event)
     if (['completed', 'aborted', 'error'].includes(event.event)) {
       this.child = null
+      this.activeWorkerHandle = null
       this.automationLock?.release(OWNER)
     }
   }
@@ -530,8 +571,8 @@ export class JunfengHighlightManager {
 
   stop(reason = 'user') {
     this.finishPreparation()
-    stopChild(this.child)
-    this.child = null
+    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
+    else { if (typeof this.child !== 'symbol') stopChild(this.child); this.child = null }
     this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
     this.automationLock?.release(OWNER)
     this.publish({ event: 'stopped', reason })
@@ -540,8 +581,8 @@ export class JunfengHighlightManager {
 
   fail(reason, failure = {}) {
     this.finishPreparation()
-    stopChild(this.child)
-    this.child = null
+    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
+    else { if (typeof this.child !== 'symbol') stopChild(this.child); this.child = null }
     this.status = {
       ...this.status,
       status: 'stopped',

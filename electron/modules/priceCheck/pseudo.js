@@ -110,6 +110,7 @@ export function createPseudoStats(stats, catalog, options, valueBounds) {
       tier: null,
       tags: [],
       values: [value],
+      valueMultiplier: value < 0 ? -1 : 1,
       merge: 'sum',
       sources: sources.map((source) => ({ ...source, refs: [source.ref], values: [source.value] })),
       enabled,

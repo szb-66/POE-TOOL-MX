@@ -60,6 +60,9 @@ export function serverChannelFailure(context, channel, switching = false, args =
   if (channel === 'shortcut-triggered' && args[0] === 'end') return null
   if (['chaos-recipe-runtime-update', 'price-check-runtime-update', 'stash-pickup-runtime-update', 'junfeng-runtime-update'].includes(channel) && args[0]?.enabled === false) return null
   if (switching && !channel.startsWith('server-mode:')) return { code: 'SERVER_SWITCHING', message: '正在切换服务器，暂不接受新任务' }
+  if (context.id !== 'cn' && ['start-bag-detection', 'update-bag-runtime-config'].includes(channel) && args[0]?.allflameReceiverEnabled) {
+    return { code: 'SERVER_FEATURE_UNAVAILABLE', message: '国际服不适配过期赛季功能（永火接收舱）' }
+  }
   if (context.id === 'cn' || COMMON.test(channel) || ACCOUNT.test(channel) || SHORTCUT_SETTINGS.test(channel)) return null
   if (channel === 'generate-and-execute-script' && args[0]?.mode === 'map') {
     const profiles = [args[0]?.preset?.map, args[0]?.generationConfig?.mapConfig]

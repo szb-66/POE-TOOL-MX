@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 import { resolveHighlightModelPaths } from '../junfeng/modelProfile.js'
+import { resolveVerifiedModelStamp } from '../junfeng/highlightWorker.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
@@ -44,8 +45,10 @@ function terminate(child) {
 }
 
 export class StashPickupManager {
-  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null }) {
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null, highlightWorker = null }) {
     this.modelRoot = modelRoot
+    this.highlightWorker = highlightWorker
+    this.activeWorkerHandle = null
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
@@ -86,6 +89,15 @@ export class StashPickupManager {
     return found
   }
 
+  async resolvePythonPath() {
+    const required = ['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']
+    if (typeof this.python.resolvePythonRuntimeAsync === 'function') {
+      const resolved = await this.python.resolvePythonRuntimeAsync(required)
+      if (resolved?.path) return resolved.path
+    }
+    return this.pythonPath()
+  }
+
   modelPaths() {
     const root = app.isPackaged
       ? path.join(process.resourcesPath, 'junfeng-highlight-model')
@@ -95,6 +107,7 @@ export class StashPickupManager {
 
   setRuntime(runtime = {}) {
     this.runtime = { ...this.runtime, ...structuredClone(runtime) }
+    this.highlightWorker?.setConsumerEnabled('stash-pickup', Boolean(this.runtime.enabled))
     this.onStatusChange?.()
     return this.getStatus()
   }
@@ -107,6 +120,7 @@ export class StashPickupManager {
       layout_confidence: 1.15,
       model_path: model.model,
       manifest_path: model.manifest,
+      verified_stamp: resolveVerifiedModelStamp(model.model),
       highlight_threshold: 0.995,
       abort_on_uncertain: false,
       calibration_similarity: 0.965,
@@ -128,8 +142,8 @@ export class StashPickupManager {
     }
   }
 
-  spawnProcess(args, onEvent) {
-    const child = spawn(this.pythonPath(), [this.scriptPath(), ...args], {
+  spawnProcess(args, onEvent, pythonExe = this.pythonPath()) {
+    const child = spawn(pythonExe, [this.scriptPath(), ...args], {
       shell: false, windowsHide: true,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
     })
@@ -149,6 +163,12 @@ export class StashPickupManager {
       token = this.loadingFeedback?.begin('stash-pickup.preview', { owner: 'stash-pickup-preview' }) || null
       this.loadingFeedback?.update(token, { stage: 'model' })
       const configPath = this.writeConfig()
+      if (this.highlightWorker) {
+        const event = await this.highlightWorker.preview(configPath)
+        if (event?.event === 'preview') return this.normalizeEvent(event)
+        throw eventError(event, '检测预览失败')
+      }
+      const pythonExe = await this.resolvePythonPath()
       return await new Promise((resolve, reject) => {
         let settled = false
         const child = this.spawnProcess(['--config', configPath, '--preview'], event => {
@@ -159,7 +179,7 @@ export class StashPickupManager {
             settled = true
             reject(eventError(event, '检测预览失败'))
           }
-        })
+        }, pythonExe)
         child.on('error', reject)
         child.on('close', code => {
           if (!settled) reject(new Error(`检测预览进程异常退出（${code}）`))
@@ -190,14 +210,26 @@ export class StashPickupManager {
     try {
       this.loadingFeedback?.update(this.preparationToken, { stage: 'model' })
       const configPath = this.writeConfig()
-      const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event))
-      this.child = child
-      child.on('error', error => this.fail(error.message))
-      child.on('close', code => {
-        if (this.child !== child) return
-        this.child = null
-        if (this.status.status === 'running') this.fail(`取件进程异常退出（${code}）`)
-      })
+      if (this.highlightWorker) {
+        const token = Symbol('stash-pickup-worker')
+        this.child = token
+        const handle = this.highlightWorker.start(configPath, event => this.handleEvent(token, event))
+        this.activeWorkerHandle = handle
+        handle.promise.catch(error => {
+          if (this.child !== token || error?.cancelled) return
+          this.fail(error?.message || '取件 Worker 执行异常')
+        })
+      } else {
+        const pythonExe = await this.resolvePythonPath()
+        const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event), pythonExe)
+        this.child = child
+        child.on('error', error => this.fail(error.message))
+        child.on('close', code => {
+          if (this.child !== child) return
+          this.child = null
+          if (this.status.status === 'running') this.fail(`取件进程异常退出（${code}）`)
+        })
+      }
       this.publish({ event: 'starting' })
       return this.getStatus()
     } catch (error) {
@@ -232,6 +264,7 @@ export class StashPickupManager {
     this.publish(event)
     if (event.event === 'completed' || event.event === 'aborted' || event.event === 'error') {
       this.child = null
+      this.activeWorkerHandle = null
       this.automationLock?.release(OWNER)
     }
   }
@@ -255,8 +288,8 @@ export class StashPickupManager {
   stop(reason = 'user') {
     this.finishPreparation()
     this.allowingFocusTransition = false
-    terminate(this.child)
-    this.child = null
+    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
+    else { if (typeof this.child !== 'symbol') terminate(this.child); this.child = null }
     this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
     this.automationLock?.release(OWNER)
     this.publish({ event: 'stopped', reason })
@@ -266,8 +299,8 @@ export class StashPickupManager {
   fail(reason, failure = {}) {
     this.finishPreparation()
     this.allowingFocusTransition = false
-    terminate(this.child)
-    this.child = null
+    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
+    else { if (typeof this.child !== 'symbol') terminate(this.child); this.child = null }
     this.status = {
       ...this.status,
       status: 'stopped',

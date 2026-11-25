@@ -20,6 +20,9 @@
           {{ store.snapshot ? '重新扫描' : '扫描背包' }}
         </el-button>
         <el-button v-if="store.busy" type="danger" plain @click="store.stopScan">停止扫描</el-button>
+        <el-tag :type="store.hasActiveSnapshot ? 'success' : 'info'" effect="plain">
+          {{ launchModeHint }}
+        </el-tag>
         <span v-if="store.snapshot?.scannedAt" class="scan-time">扫描于 {{ formatTime(store.snapshot.scannedAt) }}</span>
       </div>
 
@@ -30,30 +33,48 @@
       />
       <el-alert v-if="store.error" :title="store.error" type="error" :closable="false" show-icon />
 
-      <div v-if="scriptStore.batchRuntime.total" class="batch-progress-panel">
-        <strong>批次进度：{{ scriptStore.batchRuntime.completed }}/{{ scriptStore.batchRuntime.total }}</strong>
+      <div class="category-section">
+        <strong>需要制作的物品类别（可提前预设，重扫自动保留）</strong>
+        <el-checkbox-group :model-value="categoryIds" :disabled="scriptStore.isRunning" @change="updateCategories">
+          <el-checkbox v-for="category in displayCategories" :key="category.id" :value="category.id">
+            <span class="category-dot" :style="{ background: categoryColor(category.id) }" />
+            {{ category.label }}<template v-if="store.snapshot">（{{ category.count }}）</template>
+          </el-checkbox>
+        </el-checkbox-group>
+      </div>
+
+      <div v-if="hasBatchRuntimeSummary" class="batch-progress-panel">
+        <strong>
+          <template v-if="scriptStore.batchRuntime.mode === 'auto-scan'">
+            自动扫包批量进度：已完成 {{ scriptStore.batchRuntime.completed }} 件 · 已跳过 {{ scriptStore.batchRuntime.skipped }} 件
+          </template>
+          <template v-else>
+            批次进度：已完成 {{ scriptStore.batchRuntime.completed }}/{{ scriptStore.batchRuntime.total }}
+            <template v-if="scriptStore.batchRuntime.skipped"> · 已跳过 {{ scriptStore.batchRuntime.skipped }} 件</template>
+          </template>
+        </strong>
         <span v-if="scriptStore.batchRuntime.currentItem">
-          当前 {{ scriptStore.batchRuntime.currentItem.displayName || scriptStore.batchRuntime.currentItem.baseType }}，剩余 {{ scriptStore.batchRuntime.remaining }} 件
+          当前 {{ scriptStore.batchRuntime.currentItem.displayName || scriptStore.batchRuntime.currentItem.baseType }}
+          <template v-if="scriptStore.batchRuntime.mode !== 'auto-scan'">，剩余 {{ scriptStore.batchRuntime.remaining }} 件</template>
         </span>
         <span v-if="scriptStore.batchRuntime.stopReason" class="batch-error">{{ scriptStore.batchRuntime.stopReason }}；请重新扫描后建立新批次。</span>
+        <div v-if="scriptStore.batchRuntime.skippedItems?.length" class="skipped-summary">
+          <div class="skipped-summary-title">跳过明细（{{ scriptStore.batchRuntime.skippedItems.length }} 件）</div>
+          <ul class="skipped-summary-list">
+            <li v-for="(entry, index) in scriptStore.batchRuntime.skippedItems" :key="`${entry.id || index}-${entry.x}-${entry.y}`">
+              <b>({{ entry.x + 1 }}, {{ entry.y + 1 }}) {{ entry.displayName }}</b>：{{ entry.reason }}
+            </li>
+          </ul>
+        </div>
       </div>
 
       <template v-if="store.snapshot">
-        <div class="category-section">
-          <strong>需要制作的物品类别</strong>
-          <el-checkbox-group :model-value="categoryIds" :disabled="scriptStore.isRunning" @change="updateCategories">
-            <el-checkbox v-for="category in store.categories" :key="category.id" :value="category.id">
-              <span class="category-dot" :style="{ background: categoryColor(category.id) }" />
-              {{ category.label }}（{{ category.count }}）
-            </el-checkbox>
-          </el-checkbox-group>
-          <el-empty v-if="!store.categories.length" description="当前背包没有支持批量制作的物品" :image-size="48" />
-        </div>
-
         <div class="inventory-preview">
           <div class="preview-heading">
-            <strong>原生背包预览（候选 {{ store.candidates.length }} 件）</strong>
-            <span>勾选类别后，对应物品会整体高亮。</span>
+            <strong>
+              原生背包预览（待制作 {{ store.candidates.length }} 件<template v-if="store.excludedItemIds.length"> · 已手动排除 {{ store.excludedItemIds.length }} 件</template>）
+            </strong>
+            <span>勾选类别高亮，点击单个高亮物品可切换“排除/纳入”。</span>
           </div>
           <div class="inventory-grid" role="img" aria-label="原生十二列五行背包扫描预览">
             <span v-for="cell in 60" :key="cell" class="empty-cell" />
@@ -83,22 +104,32 @@
                   <span>位置：第 {{ item.x + 1 }} 列第 {{ item.y + 1 }} 行 · {{ item.width }}×{{ item.height }}</span>
                   <span>尺寸来源：{{ footprintLabel(item.footprintSource) }}</span>
                   <span v-if="item.issue" class="tooltip-warning">{{ item.issue }}</span>
+                  <span v-else-if="itemWarning(item)" class="tooltip-warning">{{ itemWarning(item) }}</span>
+                  <span v-if="isExcluded(item)" class="tooltip-warning">已手动排除，点击可恢复纳入本次制作</span>
+                  <span v-else-if="canToggleItem(item)">点击可从本次批次中排除该物品</span>
                 </div>
               </template>
               <div
                 class="inventory-item"
                 :class="{
                   selected: isSelected(item),
-                  muted: item.selectable !== false && !isSelected(item),
+                  excluded: isExcluded(item),
+                  muted: item.selectable !== false && !isSelected(item) && !isExcluded(item),
                   blocked: item.selectable === false,
-                  completed: isCompleted(item)
+                  warning: item.selectable !== false && Boolean(itemWarning(item)),
+                  completed: isCompleted(item),
+                  skipped: isSkipped(item),
+                  clickable: canToggleItem(item)
                 }"
                 :style="itemStyle(item)"
+                @click="handleItemClick(item)"
               >
                 <span>{{ shortLabel(item) }}</span>
                 <span v-if="isCompleted(item)" class="completion-mark" aria-label="已制作完成">
                   <el-icon><Check /></el-icon>
                 </span>
+                <span v-else-if="isSkipped(item)" class="skip-mark" aria-label="已跳过">!</span>
+                <span v-else-if="isExcluded(item)" class="exclude-mark" aria-label="已排除">×</span>
               </div>
             </el-tooltip>
           </div>
@@ -121,6 +152,7 @@ import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { useScriptStore } from '@/stores/script'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { canUseGameInput } from '@/utils/serverContext.js'
+import { BATCH_CRAFTING_CATEGORIES, evaluateBatchItemWarning } from '../batchCrafting.js'
 
 const presets = usePresetStore()
 const store = useBatchCraftingStore()
@@ -138,13 +170,31 @@ const enabled = computed(() => Boolean(presets.currentItemPreset.batchCrafting?.
 const categoryIds = computed(() => presets.currentItemPreset.batchCrafting?.categoryIds || [])
 const selectedSet = computed(() => new Set(categoryIds.value))
 const completedSet = computed(() => new Set(scriptStore.batchRuntime.completedIds || []))
+const skippedSet = computed(() => new Set(scriptStore.batchRuntime.skippedIds || []))
 const scanPercentage = computed(() => Math.min(100, Math.round(store.progress.scanned / Math.max(1, store.progress.total) * 100)))
 const gridIssues = computed(() => (store.snapshot?.issues || []).filter(issue =>
   !(store.snapshot?.items || []).some(item => item.x === issue.x && item.y === issue.y && item.issueCode === issue.code)
 ))
+const displayCategories = computed(() => {
+  const counts = new Map((store.categories || []).map(entry => [entry.id, entry.count]))
+  return BATCH_CRAFTING_CATEGORIES.map(entry => ({
+    ...entry,
+    count: counts.get(entry.id) || 0
+  }))
+})
+const hasBatchRuntimeSummary = computed(() => Boolean(
+  scriptStore.batchRuntime.total ||
+  scriptStore.batchRuntime.completed ||
+  scriptStore.batchRuntime.skipped ||
+  scriptStore.batchRuntime.stopReason
+))
+const launchModeHint = computed(() => {
+  if (store.hasActiveSnapshot) return `按当前预览制作（${store.candidates.length} 件）`
+  return '免切回直跑：按快捷键自动扫包边扫边做'
+})
 const preparationDescription = computed(() => settingsStore.stashTabSelection?.enabled
-  ? '扫描不会主动打开或关闭游戏页面。正式制作时会按全局设置自动选择已配置的通货页。'
-  : '扫描不会主动打开或关闭游戏页面。全局自动选页已关闭，请保持正确的通货页处于当前页面。')
+  ? '无需每次切回重扫：勾选目标类别后可直接按快捷键边扫边做；如需精细排除单件可先扫描预览。正式制作将按全局设置自动切通货页（已在通货页时自动跳过识别）。'
+  : '无需每次切回重扫：勾选目标类别后可直接按快捷键边扫边做；全局自动选页已关闭，请保持正确的通货页处于当前页面。')
 
 function saveBatch(patch) {
   presets.updateCurrentItemPreset({ batchCrafting: { ...presets.currentItemPreset.batchCrafting, ...patch } })
@@ -192,12 +242,33 @@ function categoryColor(id) {
   return CATEGORY_COLORS[id] || '#7f8794'
 }
 
+function isExcluded(item) {
+  return store.isItemExcluded(item.id)
+}
+
+function canToggleItem(item) {
+  return !scriptStore.isRunning && item.selectable !== false && selectedSet.value.has(item.categoryId)
+}
+
+function handleItemClick(item) {
+  if (!canToggleItem(item)) return
+  store.toggleExcludeItem(item.id)
+}
+
 function isSelected(item) {
-  return item.selectable !== false && selectedSet.value.has(item.categoryId)
+  return item.selectable !== false && selectedSet.value.has(item.categoryId) && !isExcluded(item)
 }
 
 function isCompleted(item) {
   return completedSet.value.has(String(item.id))
+}
+
+function isSkipped(item) {
+  return skippedSet.value.has(String(item.id))
+}
+
+function itemWarning(item) {
+  return evaluateBatchItemWarning(item, presets.currentItemPreset)
 }
 
 function itemStyle(item) {
@@ -243,6 +314,9 @@ function formatTime(value) {
 .batch-progress-panel { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-base); border-radius: 6px; background: var(--bg-secondary); }
 .batch-progress-panel span { color: var(--text-secondary); font-size: 12px; }
 .batch-progress-panel .batch-error { color: var(--el-color-danger); }
+.skipped-summary { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border-base); }
+.skipped-summary-title { font-size: 12px; font-weight: 600; color: var(--el-color-warning); margin-bottom: 4px; }
+.skipped-summary-list { margin: 0; padding-left: 16px; max-height: 120px; overflow-y: auto; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 2px; }
 .category-section, .inventory-preview { display: flex; flex-direction: column; gap: 9px; }
 .category-section :deep(.el-checkbox-group) { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .category-section :deep(.el-checkbox) { margin-right: 0; }
@@ -251,10 +325,17 @@ function formatTime(value) {
 .inventory-grid { position: relative; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(5, 1fr); width: min(100%, 720px); aspect-ratio: 12 / 5; border: 1px solid var(--border-base); border-radius: 8px; overflow: hidden; background: var(--bg-primary); }
 .empty-cell { border-right: 1px solid color-mix(in srgb, var(--border-base) 70%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--border-base) 70%, transparent); }
 .inventory-item { position: absolute; z-index: 2; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 3px; overflow: hidden; color: #fff; font-size: 11px; font-weight: 700; text-align: center; background: var(--item-color); border: 2px solid color-mix(in srgb, var(--item-color) 70%, #fff); border-radius: 5px; transition: filter .15s ease, box-shadow .15s ease, transform .15s ease; }
+.inventory-item.clickable { cursor: pointer; }
 .inventory-item.muted { filter: saturate(.42) brightness(.72); }
+.inventory-item.excluded { opacity: .45; filter: grayscale(.65); border-style: dashed; border-color: #d6dbe3; }
+.inventory-item.warning { box-shadow: inset 0 0 0 2px #f6c343; }
 .inventory-item.selected { z-index: 3; box-shadow: 0 0 0 2px #fff, 0 0 14px color-mix(in srgb, var(--item-color) 75%, transparent); transform: scale(.97); }
 .inventory-item.completed { border-color: #8cff9b; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .7), 0 0 12px rgba(38, 214, 84, .65); }
-.completion-mark { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 20px; height: 20px; color: #fff; font-size: 16px; background: #20a83a; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.inventory-item.skipped { border-color: #f6c343; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .6), 0 0 10px rgba(246, 195, 67, .55); }
+.completion-mark, .skip-mark, .exclude-mark { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 20px; height: 20px; color: #fff; font-size: 14px; font-weight: 800; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0, 0, 0, .35); }
+.completion-mark { background: #20a83a; font-size: 16px; }
+.skip-mark { background: #d9822b; }
+.exclude-mark { background: #6b7280; }
 .inventory-item.blocked { background: repeating-linear-gradient(135deg, #8b5a16 0 8px, #c98b2e 8px 16px); border-color: #ffd27a; color: #fff7df; }
 .inventory-item.issue-region { z-index: 4; font-size: 9px; }
 .item-tooltip { display: flex; flex-direction: column; gap: 3px; max-width: 300px; }

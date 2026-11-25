@@ -29,15 +29,12 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
       throw Object.assign(new Error('请先配置背包标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' })
     }
     await interfaceDetection?.registerConsumer('stash-pickup', {
+      active_targets: ['inventory', 'stash'],
       templates: {
         stash_title: String(templates.stashTitle),
         inventory_title: String(templates.inventoryTitle),
-        junfeng_reward_title: String(templates.junfengRewardTitle || ''),
-        allflame_receiver_title: String(templates.allflameReceiverTitle || ''),
         stash_region: templates.stashRegion || {},
-        inventory_region: templates.inventoryRegion || {},
-        junfeng_reward_region: templates.junfengRewardRegion || {},
-        allflame_receiver_region: templates.allflameReceiverRegion || {}
+        inventory_region: templates.inventoryRegion || {}
       },
       match_threshold: Number(runtime.matchThreshold ?? 0.8)
     })
@@ -48,7 +45,12 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
   ipcMain.handle('stash-pickup-stop', invoke(() => manager.stop('user')))
   ipcMain.handle('stash-pickup-status', invoke(() => manager.getStatus()))
   ipcMain.handle('stash-pickup-pick-grid-region', invoke(async () => {
-    const result = await window.pickScreenRegion()
+    const result = await window.pickScreenRegion({
+      purpose: 'stash-pickup-grid',
+      title: '框选完整的仓库取件网格区域',
+      hint: '贴近目标仓库网格外边框，从左上角拖到右下角，包含全部格子，按 Esc 取消',
+      minimumSize: { width: 200, height: 200 }
+    })
     if (result?.canceled) return result
     if (result?.success === false) throw Object.assign(new Error(result.error?.message || '框选失败'), { code: result.error?.code })
     return {

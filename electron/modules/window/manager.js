@@ -425,6 +425,9 @@ export function createBagStashOverlayWindow(initialSnapshot = null) {
 export function updateBagStashOverlay(snapshot) {
   bagStashOverlaySnapshot = snapshot ? { ...snapshot } : null
   if (!snapshot) return false
+  if ((!bagStashOverlayWindow || bagStashOverlayWindow.isDestroyed()) && !snapshot.visible) {
+    return true
+  }
   const overlay = createBagStashOverlayWindow(snapshot)
   if (overlay.webContents.isLoadingMainFrame()) return true
   publishBagStashOverlayState()

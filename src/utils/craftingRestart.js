@@ -8,6 +8,7 @@ export async function retryAutomationWithLatestConfig({
   mode,
   recovery = null,
   batchRecovery = null,
+  preserveBatchMode = false,
   craftingKind = null,
   usageSessionId = null,
   presetStore,
@@ -32,6 +33,6 @@ export async function retryAutomationWithLatestConfig({
         usageSessionId,
         continueCurrencyUsage: true,
         configurationGuideBypass: true,
-        singleItemOnly: true
+        ...(preserveBatchMode ? {} : { singleItemOnly: true })
       })
 }

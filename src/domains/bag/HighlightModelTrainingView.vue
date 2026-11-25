@@ -178,12 +178,15 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useJunfengStore } from '@/stores/junfeng'
 import HighlightGridPreview from '@/components/highlight/HighlightGridPreview.vue'
 
 const junfengStore = useJunfengStore()
+onMounted(() => {
+  void Promise.allSettled([junfengStore.loadTrainingStatus(), junfengStore.loadTrainingSessions()])
+})
 const trainingDomain = ref('junfeng')
 const trainingPartition = ref('train')
 const trainingEpochs = ref(100)

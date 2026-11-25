@@ -21,7 +21,9 @@ const selection = ref(null)
 const REGION_GRIDS = {
   'puzzle-inventory': { columns: 6, rows: 10 },
   'puzzle-atlas': { columns: 3, rows: 3 },
-  'bag-inventory': { columns: 12, rows: 5 }
+  'bag-inventory': { columns: 12, rows: 5 },
+  'faustus-grid': { columns: 12, rows: 12 },
+  'junfeng-grid': { columns: 12, rows: 11 }
 }
 
 const normalizedSelection = computed(() => {
@@ -55,7 +57,9 @@ const pickerTitle = computed(() => {
   if (context.purpose === 'puzzle-inventory') return '框选完整的 6×10 碎片仓库'
   if (context.purpose === 'puzzle-atlas') return '框选完整的 3×3 海图区'
   if (context.purpose === 'bag-inventory') return '框选完整的 12×5 背包'
-  return '拖动框选标题模板'
+  if (context.purpose === 'faustus-grid') return '框选完整的 12×12 浮士德市集网格'
+  if (context.purpose === 'junfeng-grid') return '框选完整的 12×11 君锋镇奖励网格'
+  return '拖动框选目标区域'
 })
 const regionHint = computed(() => selection.value
   ? `${physicalSize.value.width} × ${physicalSize.value.height} 物理像素${selectionValid.value ? '，按 Enter 或点击确认' : `，最小 ${context.minimumSize.width} × ${context.minimumSize.height}`}`
@@ -65,7 +69,11 @@ const regionHint = computed(() => selection.value
       ? '贴近海图网格外边框，从左上角拖到右下角，包含完整九格'
       : context.purpose === 'bag-inventory'
         ? '贴近背包网格外边框，从左上角拖到右下角，包含全部 60 格'
-        : '拖动框选完整标题，按 Esc 取消'))
+        : context.purpose === 'faustus-grid'
+          ? '贴近浮士德市集网格外边框，从左上角拖到右下角，包含全部 144 格，按 Esc 取消'
+          : context.purpose === 'junfeng-grid'
+            ? '贴近君锋镇奖励网格外边框，从左上角拖到右下角，包含全部 132 格，按 Esc 取消'
+            : '拖动框选目标区域，按 Esc 取消'))
 
 const handlePick = (event) => {
   if (context.mode !== 'point') return

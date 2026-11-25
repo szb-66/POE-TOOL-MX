@@ -11,7 +11,7 @@ const classes = Object.freeze({
   'Skill Gems': '技能宝石', 'Support Gems': '辅助宝石', 'Active Skill Gems': '技能宝石',
   'Stackable Currency': '通货', Currency: '通货', 'Divination Cards': '命运卡',
   'Life Flasks': '生命药剂', 'Mana Flasks': '魔力药剂', 'Hybrid Flasks': '复合药剂',
-  'Utility Flasks': '功能药剂', 'Critical Utility Flasks': '暴击药剂', Tinctures: '酊剂', Jewels: '珠宝', 'Abyss Jewels': '深渊珠宝',
+  'Utility Flasks': '功能药剂', 'Critical Utility Flasks': '暴击药剂', Tinctures: '酊剂', Jewels: '珠宝', 'Abyss Jewels': '深渊珠宝', 'Cluster Jewels': '星团珠宝',
   Contracts: '契约', Blueprints: '蓝图', 'Heist Gear': '赏金猎人装备', 'Heist Tools': '赏金猎人工具',
   'Heist Cloaks': '赏金猎人披风', 'Heist Brooches': '赏金猎人胸针', Trinkets: '饰品',
   Charts: '海图', Chart: '海图', 'Expedition Logbooks': '探险日志',

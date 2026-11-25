@@ -43,15 +43,20 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     }
   }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(runtime()))
-    electronApi.bag.updateInterfaceConfig(runtime())?.catch(() => {})
-    electronApi.chaosRecipe.updateDetectionConfig(runtime())?.catch(() => {})
-    electronApi.stashPickup.updateRuntime({
-      ...runtime(),
-      calibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
-    })?.catch(() => {})
-    electronApi.junfeng.updateRuntime(runtime())?.catch(() => {})
+  function save({ templatesChanged = true, calibrationChanged = true } = {}) {
+    const snapshot = runtime()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
+    if (templatesChanged) {
+      electronApi.bag.updateInterfaceConfig(snapshot)?.catch(() => {})
+      electronApi.chaosRecipe.updateDetectionConfig(snapshot)?.catch(() => {})
+      electronApi.junfeng.updateRuntime(snapshot)?.catch(() => {})
+    }
+    if (templatesChanged || calibrationChanged) {
+      electronApi.stashPickup.updateRuntime({
+        ...snapshot,
+        calibration: JSON.parse(JSON.stringify(stashGridCalibration.value))
+      })?.catch(() => {})
+    }
   }
 
   function setTemplateRegion(type, region) {
@@ -92,7 +97,7 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
   function setStashGridCalibration(type, value) {
     if (!['root', 'folder'].includes(type)) return
     stashGridCalibration.value = { ...stashGridCalibration.value, [type]: normalizeStashGridRegion(value) }
-    save()
+    save({ templatesChanged: false, calibrationChanged: true })
   }
 
   function reset() {
@@ -103,7 +108,10 @@ export const useInterfaceDetectionStore = defineStore('interfaceDetection', () =
     save()
   }
 
-  save()
+  // 启动时仅确保旧键迁移落盘，避免初始化阶段无条件群发 4 次配置同步 IPC。
+  if (!localStorage.getItem(STORAGE_KEY)) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(runtime())) } catch {}
+  }
 
   return {
     templates,

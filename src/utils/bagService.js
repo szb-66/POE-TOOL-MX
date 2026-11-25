@@ -1,7 +1,9 @@
 import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
+import { currentServer } from './serverContext.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { useBagStore } from '@/stores/bag'
+import { useFeatureModulesStore } from '@/stores/featureModules.js'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from './bagConfig.js'
 import { useInterfaceDetectionStore } from '@/stores/interfaceDetection'
@@ -16,19 +18,42 @@ import {
 let initialized = false
 let disposers = []
 
+function isFeatureEnabledSafe(id) {
+  if (currentServer.capabilities?.[id]?.available === false) return false
+  try {
+    return useFeatureModulesStore().isEnabled(id)
+  } catch {
+    return true
+  }
+}
+
+function effectiveAllflameReceiverEnabled(bagStore, overrides = {}) {
+  if ('allflameReceiverEnabled' in overrides) {
+    return Boolean(overrides.allflameReceiverEnabled) && isFeatureEnabledSafe('puzzle')
+  }
+  return Boolean(bagStore.allflameReceiverEnabled) && isFeatureEnabledSafe('puzzle')
+}
+
+function effectiveNormalBagEnabled(bagStore, overrides = {}) {
+  if ('moduleEnabled' in overrides) {
+    return Boolean(overrides.moduleEnabled) && isFeatureEnabledSafe('bag')
+  }
+  return Boolean(bagStore.moduleEnabled) && isFeatureEnabledSafe('bag')
+}
+
 function currentConfig(overrides = {}) {
   const bagStore = useBagStore()
   const settingsStore = useSettingsStore()
   const { inventory, operationDelayMs, fixedTiming, ...bagOverrides } = overrides
   return buildBagRuntimeConfig({
-    moduleEnabled: bagStore.moduleEnabled,
-    allflameReceiverEnabled: bagStore.allflameReceiverEnabled,
     forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
     blacklist: bagStore.blacklist,
     inventoryLayout: bagStore.inventoryLayout,
-    ...bagOverrides
+    ...bagOverrides,
+    moduleEnabled: effectiveNormalBagEnabled(bagStore, bagOverrides),
+    allflameReceiverEnabled: effectiveAllflameReceiverEnabled(bagStore, bagOverrides)
   }, {
     inventory: inventory || settingsStore.inventory,
     operationDelayMs: operationDelayMs ?? settingsStore.operationDelayMs,
@@ -80,8 +105,7 @@ export async function startBagDetection({ silent = false, overrides = {} } = {})
   if (result?.success) {
     bagStore.setDetectionStatus(true)
     bagStore.setStopReason('')
-  }
-  else {
+  } else {
     bagStore.setStopReason(result?.error || '未知错误', result)
     if (!silent) ElMessage.error(`启动背包检测失败：${result?.error || '未知错误'}`)
   }
@@ -102,6 +126,50 @@ function collectBagConfiguration(actionId = CONFIGURATION_ACTIONS.enable, target
   })
 }
 
+export async function suspendNormalBagRuntime({ persistDisable = false } = {}) {
+  const bagStore = useBagStore()
+  const keepAllflame = effectiveAllflameReceiverEnabled(bagStore)
+  if (keepAllflame) {
+    const candidate = currentConfig({ moduleEnabled: false })
+    const result = await electronApi.bag.updateRuntimeConfig(candidate)
+    if (!result?.success) return { success: false, error: result?.error || '更新入库检测状态失败' }
+    if (persistDisable) bagStore.setModuleEnabled(false)
+    bagStore.setMatchedStatus(bagStore.isAllflameReceiverMatched, {
+      stashReady: false,
+      ready: false,
+      allflameReceiverReady: bagStore.isAllflameReceiverMatched
+    })
+    return { success: true }
+  }
+  await electronApi.bag.stopStash()
+  await electronApi.bag.stopDetection()
+  if (persistDisable) bagStore.setModuleEnabled(false)
+  bagStore.resetStates()
+  return { success: true }
+}
+
+export async function suspendAllflameReceiverRuntime({ persistDisable = false } = {}) {
+  const bagStore = useBagStore()
+  const keepNormal = effectiveNormalBagEnabled(bagStore)
+  if (keepNormal) {
+    const candidate = currentConfig({ allflameReceiverEnabled: false })
+    const result = await electronApi.bag.updateRuntimeConfig(candidate)
+    if (!result?.success) return { success: false, error: result?.error || '更新永火接收舱检测状态失败' }
+    if (persistDisable) bagStore.setAllflameReceiverEnabled(false)
+    bagStore.setMatchedStatus(bagStore.isStashMatched, {
+      stashReady: bagStore.isStashMatched,
+      ready: bagStore.isStashMatched,
+      allflameReceiverReady: false
+    })
+    return { success: true }
+  }
+  await electronApi.bag.stopStash()
+  await electronApi.bag.stopDetection()
+  if (persistDisable) bagStore.setAllflameReceiverEnabled(false)
+  bagStore.resetStates()
+  return { success: true }
+}
+
 export async function setBagModuleEnabled(enabled, { configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (enabled) {
@@ -118,20 +186,15 @@ export async function setBagModuleEnabled(enabled, { configurationGuideBypass = 
         })
       }
     }
+    ensureBagAutomationListeners()
     const result = await startBagDetection({ overrides: { moduleEnabled: true } })
     if (!result?.success) return false
     bagStore.setModuleEnabled(true)
     ElMessage.success('背包安全入库已启用')
     return true
   }
-  if (bagStore.allflameReceiverEnabled) {
-    const result = await updateBagRuntimeConfig({ moduleEnabled: false })
-    if (!result.success) return false
-  } else {
-    await electronApi.bag.stopDetection()
-    bagStore.setModuleEnabled(false)
-    bagStore.resetStates()
-  }
+  const result = await suspendNormalBagRuntime({ persistDisable: true })
+  if (!result.success) return false
   ElMessage.success('背包安全入库已关闭')
   return true
 }
@@ -139,11 +202,15 @@ export async function setBagModuleEnabled(enabled, { configurationGuideBypass = 
 export async function setAllflameReceiverEnabled(enabled, { configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (enabled) {
+    if (!isFeatureEnabledSafe('puzzle')) {
+      ElMessage.warning('过期赛季模块未启用或当前服务器未适配')
+      return false
+    }
     if (!configurationGuideBypass) {
       const check = collectBagConfiguration(CONFIGURATION_ACTIONS.enable, 'allflameReceiver')
       if (!check.ok) {
         return runWithConfigurationGuide({
-          moduleId: CONFIGURATION_MODULES.bag,
+          moduleId: CONFIGURATION_MODULES.puzzle,
           actionId: CONFIGURATION_ACTIONS.enable,
           title: '完成永火接收舱一键入库配置',
           actionLabel: '启用',
@@ -152,20 +219,15 @@ export async function setAllflameReceiverEnabled(enabled, { configurationGuideBy
         })
       }
     }
+    ensureBagAutomationListeners()
     const result = await startBagDetection({ overrides: { allflameReceiverEnabled: true } })
     if (!result?.success) return false
     bagStore.setAllflameReceiverEnabled(true)
     ElMessage.success('永火接收舱一键入库已启用')
     return true
   }
-  if (bagStore.moduleEnabled) {
-    const result = await updateBagRuntimeConfig({ allflameReceiverEnabled: false })
-    if (!result.success) return false
-  } else {
-    await electronApi.bag.stopDetection()
-    bagStore.setAllflameReceiverEnabled(false)
-    bagStore.resetStates()
-  }
+  const result = await suspendAllflameReceiverRuntime({ persistDisable: true })
+  if (!result.success) return false
   ElMessage.success('永火接收舱一键入库已关闭')
   return true
 }
@@ -174,13 +236,13 @@ export async function startBagStash({ configurationGuideBypass = false } = {}) {
   const bagStore = useBagStore()
   if (bagStore.isStashing) return { success: false, error: '入库正在进行中' }
   if (!configurationGuideBypass) {
-    const target = bagStore.allflameReceiverEnabled && bagStore.isAllflameReceiverMatched && !bagStore.isStashMatched
+    const target = effectiveAllflameReceiverEnabled(bagStore) && bagStore.isAllflameReceiverMatched && !bagStore.isStashMatched
       ? 'allflameReceiver'
       : 'stash'
     const check = collectBagConfiguration(CONFIGURATION_ACTIONS.start, target)
     if (!check.ok) {
       return runWithConfigurationGuide({
-        moduleId: CONFIGURATION_MODULES.bag,
+        moduleId: target === 'allflameReceiver' ? CONFIGURATION_MODULES.puzzle : CONFIGURATION_MODULES.bag,
         actionId: CONFIGURATION_ACTIONS.start,
         title: '完成背包入库配置',
         actionLabel: '开始入库',
@@ -215,15 +277,10 @@ export async function stopBagStash() {
   return result
 }
 
-export async function initBagAutomation({ restoreEnabled = true } = {}) {
+export function ensureBagAutomationListeners() {
   if (initialized) return
   initialized = true
   const bagStore = useBagStore()
-  if (!restoreEnabled) {
-    // 国际服每次启动须由用户手动启用；不重写保存的配置。
-    bagStore.moduleEnabled = false
-    bagStore.allflameReceiverEnabled = false
-  }
   disposers = [
     electronApi.events.onBagDetectionMatch((data) => {
       bagStore.setMatchedStatus(Boolean(data.matched), data)
@@ -252,8 +309,49 @@ export async function initBagAutomation({ restoreEnabled = true } = {}) {
       }
     })
   ].filter(Boolean)
+}
 
-  if (bagStore.moduleEnabled || bagStore.allflameReceiverEnabled) {
+export async function initBagAutomation({ restoreEnabled = true } = {}) {
+  const bagStore = useBagStore()
+  if (!initialized) {
+    initialized = true
+    disposers = [
+      electronApi.events.onBagDetectionMatch((data) => {
+        bagStore.setMatchedStatus(Boolean(data.matched), data)
+      }),
+      electronApi.events.onBagDetectionStopped((data) => {
+        bagStore.setDetectionStatus(false)
+        bagStore.setMatchedStatus(false)
+        if (data?.reason && data.reason !== 'process-ended') bagStore.setStopReason(data.reason, data)
+      }),
+      electronApi.events.onBagStashProgress((data) => {
+        if (data.progress === 0) bagStore.resetRunStats()
+        bagStore.setStashingStatus(true, data)
+      }),
+      electronApi.events.onBagStashCompleted((data) => {
+        bagStore.setStashingStatus(false, data)
+        bagStore.setStopReason('')
+        if (data.statisticsError) ElMessage.warning('入库已完成，统计保存失败')
+        else ElMessage.success(`自动入库完成：入库 ${data.stashedSlots || 0} 格，黑名单保留 ${data.blacklistedSlots || 0} 格`)
+      }),
+      electronApi.events.onBagStashStopped((data) => {
+        if (data.statisticsError) ElMessage.warning('入库已停止，统计保存失败')
+        bagStore.setStashingStatus(false, data)
+        bagStore.setStopReason(data?.reason || '未知原因', data)
+        if (data?.reason && data.reason !== 'user-stopped' && data.reason !== 'process-ended') {
+          ElMessage.warning(`入库已停止：${formatBagStopReason(data.reason)}`)
+        }
+      })
+    ].filter(Boolean)
+  }
+  if (!restoreEnabled) {
+    // 国际服每次启动须由用户手动启用；不重写保存的配置。
+    bagStore.moduleEnabled = false
+    bagStore.allflameReceiverEnabled = false
+    return
+  }
+
+  if (bagStore.moduleEnabled) {
     try {
       await startBagDetection({ silent: true })
     } catch (error) {

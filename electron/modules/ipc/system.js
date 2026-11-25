@@ -45,7 +45,10 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
       gameWindowProcessNames: gameWindowTitles?.getProcessNames?.()
     })
     return { ...result, primaryScaleFactor }
-  })
+  }, { cacheDurationMs: 15000 })
+  screen.on?.('display-metrics-changed', () => detectDpi.invalidate())
+  screen.on?.('display-added', () => detectDpi.invalidate())
+  screen.on?.('display-removed', () => detectDpi.invalidate())
   const collectEnvironment = async () => {
     const displays = displaySnapshot()
     const [administrator, runtime, gameDpi] = await Promise.all([

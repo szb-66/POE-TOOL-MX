@@ -3,6 +3,7 @@ const modifierKey = value => String(value || '')
   .replace(/(?:\s*(?:\[[^\]]*\]|\([^()\]]*★[^()\]]*\)))+\s*$/gm, '')
   .replace(/(-?\d+(?:\.\d+)?)[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '$1')
   .replace(/[（(](-?\d+(?:\.\d+)?)\s*[-–—]\s*(-?\d+(?:\.\d+)?)[）)]/g, '')
+  .replace(/[（(](?:\.\.\.|…)[）)]/g, '')
   .replace(/\s*\((?:implicit|crafted|enchant|fractured)\)\s*$/gim, '')
   .replace(/\s+/g, ' ').trim()
 

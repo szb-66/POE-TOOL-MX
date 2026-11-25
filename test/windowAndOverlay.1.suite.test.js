@@ -1493,10 +1493,18 @@ test('point/region 共用互斥会话并对关闭、取消、加载失败统一�
   assert.match(manager, /selectedSize\.width < minimumSize\.width/)
 })
 
-test('区域选框的确认按钮可点击且不会触发拖拽选区', () => {
+test('区域选框的确认按钮可点击且不会触发拖拽选区，并按功能展示对应提示与辅助网格', () => {
   const picker = readFileSync(new URL('../src/domains/settings/CoordinatePickerView.vue', import.meta.url), 'utf8')
+  const faustusIpc = readFileSync(new URL('../electron/modules/ipc/faustus.js', import.meta.url), 'utf8')
+  const junfengIpc = readFileSync(new URL('../electron/modules/ipc/junfeng.js', import.meta.url), 'utf8')
+  const bagIpc = readFileSync(new URL('../electron/modules/ipc/bag.js', import.meta.url), 'utf8')
   assert.match(picker, /button[\s\S]*@pointerdown\.stop[\s\S]*@pointerup\.stop[\s\S]*@click\.stop="confirmRegion"/)
   assert.match(picker, /\.coordinate-picker__tip button \{[\s\S]*pointer-events: auto;/)
+  assert.match(picker, /'faustus-grid': \{ columns: 12, rows: 12 \}/)
+  assert.doesNotMatch(picker, /return '拖动框选标题模板'/)
+  assert.match(faustusIpc, /pickScreenRegion\(\{[\s\S]*purpose: 'faustus-grid'[\s\S]*12×12[\s\S]*columns: 12, rows: 12/)
+  assert.match(junfengIpc, /pickScreenRegion\(\{[\s\S]*purpose: 'junfeng-grid'[\s\S]*columns: 12, rows: 11/)
+  assert.match(bagIpc, /pickScreenRegion\(\{[\s\S]*purpose: `bag-template-\$\{type\}`[\s\S]*title: `框选\$\{label\}`/)
 })
 
 test('手工区域修改仍清除对应采集元数据', () => {

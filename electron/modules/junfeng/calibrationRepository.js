@@ -24,8 +24,23 @@ function decodePng(dataUrl, message) {
   return png
 }
 
+const pngDataUrlCache = new Map()
+
 function pngDataUrl(filePath) {
-  return `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`
+  try {
+    const stat = fs.statSync(filePath)
+    const cached = pngDataUrlCache.get(filePath)
+    if (cached && cached.size === stat.size && cached.mtimeMs === stat.mtimeMs) {
+      return cached.dataUrl
+    }
+    const dataUrl = `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`
+    if (pngDataUrlCache.size > 512) pngDataUrlCache.clear()
+    pngDataUrlCache.set(filePath, { size: stat.size, mtimeMs: stat.mtimeMs, dataUrl })
+    return dataUrl
+  } catch {
+    pngDataUrlCache.delete(filePath)
+    return `data:image/png;base64,${fs.readFileSync(filePath).toString('base64')}`
+  }
 }
 
 function reconstructedGridDataUrl(root, samples, columns, rows) {

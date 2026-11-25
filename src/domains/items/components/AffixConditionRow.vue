@@ -79,6 +79,7 @@ function updateKeyword(value) {
   if (changedCatalogText) {
     props.condition.kind = 'keyword'
     props.condition.effectPattern = ''
+    props.condition.affixType = ''
     props.condition.source = ''
     props.condition.sourceLabel = ''
     props.condition.profileId = ''

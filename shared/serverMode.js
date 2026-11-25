@@ -16,7 +16,7 @@ export const SERVER_FEATURES = Object.freeze({
   account: '账号与赛季', 'price-check': '官方挂单查价', recipe: '仓库配方', 'pob-export': '角色导出',
   items: '物品制作', map: '地图制作', bag: '背包仓库', combat: '战斗辅助', story: '剧情辅助',
   regex: '搜索正则', 'craft-planner': '做装模拟', sanctum: '圣所', faustus: '浮士德市集',
-  puzzle: '海图', 'map-tracker': '地图跟踪', 'stash-pickup': '仓库取件', junfeng: '君锋镇'
+  puzzle: '过期赛季', 'map-tracker': '地图跟踪', 'stash-pickup': '仓库取件', junfeng: '君锋镇'
 })
 
 export const INTERNATIONAL_AUTOMATION_FEATURES = Object.freeze(['items', 'map', 'bag', 'stash-pickup', 'junfeng', 'combat', 'story', 'price-check', 'recipe', 'map-tracker', 'sanctum', 'faustus'])
@@ -43,7 +43,7 @@ export function featureAvailability(serverId, feature) {
   if (INTERNATIONAL_AUTOMATION_FEATURES.includes(feature)) {
     return { available: true, gameInputAvailable: true, state: 'ready', reason: '已开放，完成离线适配与验证；未进行游戏内实测' }
   }
-  return { available: false, gameInputAvailable: false, state: 'unsupported', reason: feature === 'puzzle' ? '国际服本赛季不适配海图，已有预设保留' : '国际服暂不开放做装模拟，制作词缀联想仍可使用' }
+  return { available: false, gameInputAvailable: false, state: 'unsupported', reason: feature === 'puzzle' ? '国际服不适配过期赛季功能（含海图与永火接收舱），已有预设保留' : '国际服暂不开放做装模拟，制作词缀联想仍可使用' }
 }
 
 export function serverContext(id = 'cn', options = {}) {

@@ -3,6 +3,7 @@
 import { ipcMain, nativeImage, screen } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import { createHash } from 'node:crypto'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import { fileURLToPath } from 'node:url'
@@ -93,10 +94,28 @@ export function stopBagStashAutomation(reason = 'user') {
   return { success: true, stopped }
 }
 
+function bagActiveTargets(config = {}) {
+  const targets = ['inventory']
+  if (config.module_enabled ?? config.moduleEnabled) targets.push('stash')
+  if (config.allflame_receiver_enabled ?? config.allflameReceiverEnabled) targets.push('allflame_receiver')
+  return targets
+}
+
+function detectionFingerprint(config = {}) {
+  return JSON.stringify({
+    module_enabled: Boolean(config?.module_enabled),
+    allflame_receiver_enabled: Boolean(config?.allflame_receiver_enabled),
+    active_targets: bagActiveTargets(config),
+    templates: config?.templates || {},
+    match_threshold: Number(config?.match_threshold ?? 0.8)
+  })
+}
+
 function runtimeConfig(config = {}) {
   return {
     module_enabled: Boolean(config.moduleEnabled),
     allflame_receiver_enabled: Boolean(config.allflameReceiverEnabled),
+    active_targets: bagActiveTargets(config),
     force_unique_stash: Boolean(config.forceUniqueStash),
     templates: {
       stash_title: String(config.templates?.stashTitle || ''),
@@ -211,9 +230,8 @@ function validateCaptureConfig(config) {
     if (result.warning) warnings.push(result.warning)
     const metadata = config.templates?.[captureKey]
     if (metadata) {
-      const image = nativeImage.createFromPath(String(config.templates[pathKey] || ''))
-      const size = image.getSize()
-      if (image.isEmpty() || size.width !== metadata.templateSize.width || size.height !== metadata.templateSize.height) {
+      const size = readCachedTemplateSize(String(config.templates[pathKey] || ''))
+      if (!size || size.width !== metadata.templateSize.width || size.height !== metadata.templateSize.height) {
         return { error: `${label}的模板尺寸与采集记录不一致，请重新框选`, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
       }
     }
@@ -248,19 +266,70 @@ function resolveBagScriptPath() {
   return scriptPath
 }
 
+const modelHashCache = new Map()
+const templateSizeCache = new Map()
+
+function readCachedTemplateSize(templatePath) {
+  if (!templatePath) return null
+  try {
+    const stat = fs.statSync(templatePath)
+    const size = Number(stat.size)
+    const mtimeMs = Math.trunc(stat.mtimeMs)
+    const cached = templateSizeCache.get(templatePath)
+    if (cached && cached.size === size && cached.mtimeMs === mtimeMs) return cached.dimensions
+    const image = nativeImage.createFromPath(templatePath)
+    if (image.isEmpty()) return null
+    const dimensions = image.getSize()
+    if (templateSizeCache.size > 64) templateSizeCache.clear()
+    templateSizeCache.set(templatePath, { size, mtimeMs, dimensions })
+    return dimensions
+  } catch {
+    templateSizeCache.delete(templatePath)
+    return null
+  }
+}
+
+function resolveVerifiedModelStamp(modelPath) {
+  if (!modelPath) return null
+  try {
+    const stat = fs.statSync(modelPath)
+    const size = Number(stat.size)
+    const mtimeMs = Math.trunc(stat.mtimeMs)
+    const cached = modelHashCache.get(modelPath)
+    if (cached && cached.size === size && cached.mtimeMs === mtimeMs) return cached
+    const sha256 = createHash('sha256').update(fs.readFileSync(modelPath)).digest('hex')
+    const stamp = { size, mtimeMs, sha256 }
+    modelHashCache.set(modelPath, stamp)
+    return stamp
+  } catch {
+    return null
+  }
+}
+
 function resolveHighlightModelPaths() {
   const root = app.isPackaged
     ? path.join(process.resourcesPath, 'junfeng-highlight-model')
     : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
   const model = resolveProfileModelPaths(root, highlightModelRoot)
-  return { modelPath: model.model, manifestPath: model.manifest }
+  return { modelPath: model.model, manifestPath: model.manifest, verifiedStamp: resolveVerifiedModelStamp(model.model) }
 }
 
-function spawnPython(python, mode, configPath) {
-  const requiredModules = ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
+async function resolveBagPythonPath(python, modules) {
+  if (typeof python.resolvePythonRuntimeAsync === 'function') {
+    const resolved = await python.resolvePythonRuntimeAsync(modules)
+    if (resolved?.path) return resolved.path
+  }
+  return python.detectPythonPathWithModules?.(modules) || null
+}
+
+async function spawnPython(python, mode, configPath) {
+  const requiredModules = mode === 'stash'
+    ? ['pyperclip', 'pynput']
+    : ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
   const preferredModules = mode === 'scan' ? [...requiredModules, 'onnxruntime'] : requiredModules
-  const pythonPath = python.detectPythonPathWithModules?.(preferredModules) ||
-    python.detectPythonPathWithModules?.(requiredModules) || python.detectPythonPath()
+  const pythonPath = (await resolveBagPythonPath(python, preferredModules)) ||
+    (preferredModules !== requiredModules ? await resolveBagPythonPath(python, requiredModules) : null) ||
+    python.detectPythonPath?.()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const scriptPath = resolveBagScriptPath()
   return spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
@@ -313,7 +382,7 @@ async function startStashProcess(python, fileWatcher) {
     frozenConfig.localizationSnapshot = localizationRuntime?.snapshot()
     frozenConfig.inventory.itemFootprints = itemFootprintRegistry.snapshot()
     const configPath = writeConfig(fileWatcher, 'bag_stash_config.json', frozenConfig)
-    child = spawnPython(python, 'stash', configPath)
+    child = await spawnPython(python, 'stash', configPath)
     stashProcess = child
     syncBagOverlay()
   } catch (error_) {
@@ -403,7 +472,7 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
     batchScanPreparationToken = loadingFeedback?.begin('batch-inventory.scan', { owner: '批量背包扫描' }) || null
     configPath = writeConfig(fileWatcher, `batch_inventory_scan_${Date.now()}.json`, frozenConfig)
     loadingFeedback?.update(batchScanPreparationToken, { stage: 'model' })
-    child = spawnPython(python, 'scan', configPath)
+    child = await spawnPython(python, 'scan', configPath)
     batchScanProcess = child
   } catch (error) {
     finishPreparation()
@@ -483,7 +552,7 @@ const reloadDetectionForTemplateChange = async (python, fileWatcher) => {
   session.reset()
   syncBagOverlay()
   send('bag-detection-match', { matched: false, ready: false, reloading: true })
-  await interfaceDetection.updateConfig(latestConfig)
+  await interfaceDetection.updateConfig(latestConfig, 'bag')
   return true
 }
 
@@ -522,7 +591,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       if (!interfaceDetection) throw new Error('公共界面检测服务未初始化')
       latestConfig = candidate
       let state
-      if (moduleRunning) state = await interfaceDetection.updateConfig(candidate)
+      if (moduleRunning) state = await interfaceDetection.updateConfig(candidate, 'bag')
       else {
         session.reset()
         state = await interfaceDetection.registerConsumer('bag', candidate)
@@ -534,7 +603,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       latestConfig = previousConfig
       if (wasRunning && previousConfig) {
         try {
-          const state = await interfaceDetection?.updateConfig(previousConfig)
+          const state = await interfaceDetection?.updateConfig(previousConfig, 'bag')
           if (state) applyDetectionState(state)
         } catch {}
         moduleRunning = true
@@ -593,14 +662,15 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   ipcMain.handle('update-bag-runtime-config', async (_event, config = {}) => {
     const previousConfig = latestConfig ? structuredClone(latestConfig) : null
     try {
-      const captureValidation = validateCaptureConfig(config)
-      if (captureValidation.error) throw new Error(captureValidation.error)
       const candidate = runtimeConfig(config)
+      const detectionChanged = !previousConfig || detectionFingerprint(candidate) !== detectionFingerprint(previousConfig)
+      const captureValidation = detectionChanged ? validateCaptureConfig(config) : { error: '', warnings: [] }
+      if (captureValidation.error) throw new Error(captureValidation.error)
       const error = validateConfig(candidate)
       if (error) throw new Error(error)
       latestConfig = candidate
-      if (moduleRunning && interfaceDetection) {
-        const state = await interfaceDetection.updateConfig(candidate)
+      if (moduleRunning && interfaceDetection && detectionChanged) {
+        const state = await interfaceDetection.updateConfig(candidate, 'bag')
         applyDetectionState(state)
       }
       bagConfigRevision += 1
@@ -613,7 +683,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       }
     } catch (error) {
       if (moduleRunning && interfaceDetection && previousConfig) {
-        try { await interfaceDetection.updateConfig(previousConfig) } catch {}
+        try { await interfaceDetection.updateConfig(previousConfig, 'bag') } catch {}
       }
       latestConfig = previousConfig
       syncBagOverlay()
@@ -641,7 +711,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       if (error) throw new Error(error)
       latestConfig = candidate
       if (moduleRunning && interfaceDetection) {
-        const state = await interfaceDetection.updateConfig(candidate)
+        const state = await interfaceDetection.updateConfig(candidate, 'bag')
         applyDetectionState(state)
       }
       bagConfigRevision += 1
@@ -649,7 +719,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     } catch (error) {
       latestConfig = previousConfig
       if (moduleRunning && interfaceDetection) {
-        try { await interfaceDetection.updateConfig(previousConfig) } catch {}
+        try { await interfaceDetection.updateConfig(previousConfig, 'bag') } catch {}
       }
       return { success: false, error: error.message || String(error), revision: bagConfigRevision }
     }
@@ -680,11 +750,23 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
     try {
       if (stashProcess) throw new Error('入库进行中，暂时不能替换模板')
       assertBagTemplateTarget(type)
-      const result = await window.pickScreenRegion()
+      const templateLabels = {
+        stashTitle: '仓库标题模板',
+        inventoryTitle: '背包标题模板',
+        junfengRewardTitle: '君锋镇奖励标题模板',
+        allflameReceiverTitle: '永火接收舱标题模板'
+      }
+      const label = templateLabels[type] || '标题模板'
+      const result = await window.pickScreenRegion({
+        purpose: `bag-template-${type}`,
+        title: `框选${label}`,
+        hint: `拖动框选游戏内对应的完整${label}文字，按 Esc 取消`
+      })
       if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
       if (result?.success === false) return { success: false, error: result.error?.message || '框选失败' }
       const templateDir = path.join(app.getPath('userData'), 'templates')
       const targetPath = savePngAtomically(templateDir, type, result.png, fs, app.isPackaged)
+      templateSizeCache.delete(targetPath)
       const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)
       updateRuntimeTemplate(type, targetPath, region)
       let reloaded = false

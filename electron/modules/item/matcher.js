@@ -195,6 +195,273 @@ export function matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, s
   }
 }
 
+const FLASK_CATEGORIES = new Set([
+  '生命药剂', '魔力药剂', '复合药剂', '功能药剂',
+  'Life Flasks', 'Mana Flasks', 'Hybrid Flasks', 'Utility Flasks'
+])
+const EXPLICIT_MODIFIER_TYPES = new Set(['prefix', 'suffix', 'fractured', 'crafted'])
+
+function isFlaskCategory(category = '') {
+  const text = String(category || '').trim()
+  return FLASK_CATEGORIES.has(text) || /药剂|Flask/i.test(text)
+}
+
+function modifierAffixSlot(modifier) {
+  if (!modifier || typeof modifier !== 'object') return null
+  if (modifier.affixType === 'prefix' || modifier.type === 'prefix') return 'prefix'
+  if (modifier.affixType === 'suffix' || modifier.type === 'suffix') return 'suffix'
+  return null
+}
+
+function explicitModifierInfo(itemInfo) {
+  const modifiers = Array.isArray(itemInfo?.modifiers) ? itemInfo.modifiers : []
+  const structured = modifiers.filter((modifier) => modifier && typeof modifier === 'object' && EXPLICIT_MODIFIER_TYPES.has(modifier.type))
+  if (structured.length) return { count: structured.length, entries: structured }
+  const detailedMods = Array.isArray(itemInfo?.detailedMods) ? itemInfo.detailedMods : []
+  if (detailedMods.length) return { count: detailedMods.length, entries: detailedMods }
+  const explicitMods = Array.isArray(itemInfo?.explicitMods) ? itemInfo.explicitMods : []
+  if (explicitMods.length === 1) {
+    return {
+      count: 1,
+      entries: [{ type: 'explicit', affixType: null, text: cleanEffectText(explicitMods[0]), tier: 0 }]
+    }
+  }
+  return { count: null, entries: [] }
+}
+
+function explicitCandidateModifiers(itemInfo) {
+  const { entries } = explicitModifierInfo(itemInfo)
+  return entries.map((modifier) => {
+    const text = cleanEffectText(modifier.text || modifier.lines?.join('\n') || '')
+    return {
+      name: String(modifier.name || ''),
+      text,
+      aliases: [...(modifier.textAliases || []), ...(modifier.nameAliases || []), ...(itemInfo?.modTextAliases?.[modifier.text] ?? [])],
+      tier: Math.trunc(Number(modifier.tier)) || 0,
+      slot: modifierAffixSlot(modifier)
+    }
+  })
+}
+
+function resolveConditionSlot(condition, resolveAffixType) {
+  if (!condition || condition.kind !== 'catalog') return 'any'
+  if (condition.affixType === 'prefix' || condition.affixType === 'suffix') return condition.affixType
+  const resolved = typeof resolveAffixType === 'function' ? resolveAffixType(condition) : null
+  return resolved === 'prefix' || resolved === 'suffix' ? resolved : 'any'
+}
+
+function isConditionBlockedByLowerTier(condition, conditionSlot, explicitCandidates) {
+  if (!condition || condition.kind !== 'catalog' || condition.minTier === null) return false
+  const patterns = expandAffixPatternsForMatching(condition).map(effectPatternRegex)
+  if (!patterns.length) return false
+  return explicitCandidates.some((modifier) => {
+    if (!(modifier.tier > 0 && modifier.tier > condition.minTier)) return false
+    if (conditionSlot !== 'any' && modifier.slot && modifier.slot !== conditionSlot) return false
+    const texts = [modifier.text, ...(modifier.aliases ?? [])]
+    return texts.some((text) => patterns.some((pattern) => pattern.test(text)))
+  })
+}
+
+function conditionIdentityKey(condition) {
+  if (!condition) return ''
+  return condition.kind === 'catalog'
+    ? `catalog:${cleanEffectText(condition.effectPattern).toLocaleLowerCase('zh-CN')}`
+    : `keyword:${String(condition.keyword || '').trim().toLocaleLowerCase('zh-CN')}`
+}
+
+function slotFits(conditionSlot, rollSlot) {
+  return conditionSlot === 'any' || rollSlot === 'any' || conditionSlot === rollSlot
+}
+
+export function evaluateAlterationPlan(itemInfo, affixGroupsOrRequired, options = {}) {
+  const {
+    selectedAffixes = [],
+    selectedCount = 1,
+    enableAugmentation = false,
+    enableRegal = false,
+    resolveAffixType = null,
+    matchResult = null
+  } = options
+  const canUseRegalOnItem = !isFlaskCategory(itemInfo?.category)
+  if (!itemInfo) {
+    return {
+      nextAction: 'none',
+      shouldAugment: false,
+      shouldRegal: false,
+      canUseRegalOnItem,
+      reason: 'no_item',
+      skipAugmentReason: '',
+      skipRegalReason: ''
+    }
+  }
+
+  const effectiveMatch = matchResult ?? matchAffixes(itemInfo, affixGroupsOrRequired, selectedAffixes, selectedCount)
+  if (effectiveMatch.isMatch) {
+    return {
+      nextAction: 'stop',
+      shouldAugment: false,
+      shouldRegal: false,
+      canUseRegalOnItem,
+      reason: 'already_matched',
+      skipAugmentReason: '已满足达标条件，跳过增幅',
+      skipRegalReason: '已满足达标条件，跳过富豪'
+    }
+  }
+
+  const rarity = String(itemInfo.rarity || '').replace(/\s+/g, '')
+  if (rarity !== '魔法') {
+    return {
+      nextAction: 'none',
+      shouldAugment: false,
+      shouldRegal: false,
+      canUseRegalOnItem,
+      reason: 'not_magic',
+      skipAugmentReason: '',
+      skipRegalReason: ''
+    }
+  }
+
+  const explicitInfo = explicitModifierInfo(itemInfo)
+  if (explicitInfo.count === null) {
+    return {
+      nextAction: 'unknown',
+      shouldAugment: null,
+      shouldRegal: false,
+      canUseRegalOnItem,
+      reason: 'affix_count_unknown',
+      skipAugmentReason: '',
+      skipRegalReason: ''
+    }
+  }
+
+  const canAug = Boolean(enableAugmentation) && explicitInfo.count === 1
+  const canRegal = Boolean(enableRegal) && canUseRegalOnItem && explicitInfo.count <= 2
+  const existingSlot = explicitInfo.count === 1 ? modifierAffixSlot(explicitInfo.entries[0]) : null
+  const openAugSlot = existingSlot === 'prefix' ? 'suffix' : (existingSlot === 'suffix' ? 'prefix' : 'any')
+
+  const groups = Array.isArray(affixGroupsOrRequired)
+    && affixGroupsOrRequired.some((entry) => entry && typeof entry === 'object' && ('requiredAffixes' in entry || 'selectedAffixes' in entry))
+    ? affixGroupsOrRequired
+    : legacyGroup(affixGroupsOrRequired, selectedAffixes, selectedCount)
+
+  const candidates = candidateModifiers(itemInfo)
+  const explicitCandidates = explicitCandidateModifiers(itemInfo)
+
+  const groupPlans = groups
+    .filter((group) => group && group.enabled !== false)
+    .map((group) => {
+      const required = (group.requiredAffixes ?? [])
+        .filter((condition) => condition?.enabled !== false)
+        .map((condition) => conditionValue(condition))
+        .filter(Boolean)
+      const selected = (group.selectedAffixes ?? [])
+        .filter((condition) => condition?.enabled !== false)
+        .map((condition) => conditionValue(condition))
+        .filter(Boolean)
+      if (!required.length && !selected.length) return null
+
+      const evalCondition = (condition) => {
+        const matched = Boolean(matchCondition(condition, candidates))
+        const slot = resolveConditionSlot(condition, resolveAffixType)
+        const blocked = !matched && isConditionBlockedByLowerTier(condition, slot, explicitCandidates)
+        return { condition, matched, slot, blocked, key: conditionIdentityKey(condition) }
+      }
+
+      const reqStates = required.map(evalCondition)
+      const selStates = selected.map(evalCondition)
+      const unsatReq = reqStates.filter((entry) => !entry.matched)
+      if (unsatReq.some((entry) => entry.blocked)) {
+        return { augUseful: false, regalReachable: false, failReason: 'blocked' }
+      }
+
+      const requiredSelectedCount = selected.length
+        ? Math.max(1, Math.min(selected.length, Math.trunc(Number(group.selectedCount)) || 1))
+        : 0
+      const matchedSelCount = selStates.filter((entry) => entry.matched).length
+      const rawNeedSel = Math.max(0, requiredSelectedCount - matchedSelCount)
+
+      const unsatReqKeys = new Set(unsatReq.map((entry) => entry.key).filter(Boolean))
+      const unsatAvailSel = selStates.filter((entry) => !entry.matched && !entry.blocked)
+      const overlappingSelCount = unsatAvailSel.filter((entry) => unsatReqKeys.has(entry.key)).length
+      const availSel = unsatAvailSel.filter((entry) => !unsatReqKeys.has(entry.key))
+      const needReq = unsatReq.length
+      const needSel = Math.max(0, rawNeedSel - overlappingSelCount)
+
+      if (availSel.length < needSel) {
+        return { augUseful: false, regalReachable: false, failReason: 'blocked' }
+      }
+
+      const totalNeed = needReq + needSel
+      const regalReachable = canRegal && totalNeed <= 1
+
+      let augUseful = false
+      let augFailReason = 'count'
+      if (canAug) {
+        const maxBudgetWithAug = 1 + (canRegal ? 1 : 0)
+        if (totalNeed <= maxBudgetWithAug) {
+          if (totalNeed === 1) {
+            augUseful = needReq === 1
+              ? slotFits(unsatReq[0].slot, openAugSlot)
+              : availSel.some((entry) => slotFits(entry.slot, openAugSlot))
+          } else if (totalNeed === 2) {
+            if (needReq === 2) {
+              augUseful = slotFits(unsatReq[0].slot, openAugSlot) || slotFits(unsatReq[1].slot, openAugSlot)
+            } else if (needReq === 1 && needSel === 1) {
+              augUseful = slotFits(unsatReq[0].slot, openAugSlot) || availSel.some((entry) => slotFits(entry.slot, openAugSlot))
+            } else if (needReq === 0 && needSel === 2) {
+              augUseful = availSel.length >= 2 && availSel.some((entry) => slotFits(entry.slot, openAugSlot))
+            }
+          }
+          if (!augUseful) augFailReason = 'slot'
+        }
+      }
+
+      return { augUseful, regalReachable, failReason: augFailReason }
+    })
+    .filter(Boolean)
+
+  const shouldAugment = canAug && groupPlans.some((plan) => plan.augUseful)
+  const shouldRegal = !shouldAugment && canRegal && groupPlans.some((plan) => plan.regalReachable)
+  const nextAction = shouldAugment ? 'augment' : (shouldRegal ? 'regal' : 'reroll')
+
+  let skipAugmentReason = ''
+  if (canAug && !shouldAugment) {
+    if (groupPlans.length && groupPlans.every((plan) => plan.failReason === 'blocked')) {
+      skipAugmentReason = '目标词缀已被更低 T 级占用，增幅无法达标，跳过增幅'
+    } else if (groupPlans.length && groupPlans.every((plan) => plan.failReason === 'slot')) {
+      skipAugmentReason = shouldRegal
+        ? '当前空槽位无法掷出所需前后缀，跳过增幅直接尝试富豪'
+        : '当前空槽位无法掷出所需前后缀，跳过增幅'
+    } else if (shouldRegal) {
+      skipAugmentReason = '当前增幅无法推进达标组合，跳过增幅直接尝试富豪'
+    } else {
+      skipAugmentReason = '当前缺失词缀数超过后续可增词缀数，跳过增幅'
+    }
+  }
+
+  let skipRegalReason = ''
+  if (enableRegal && !shouldRegal && !shouldAugment) {
+    if (!canUseRegalOnItem) {
+      skipRegalReason = '药剂无法使用富豪石，跳过富豪'
+    } else if (groupPlans.length && groupPlans.every((plan) => plan.failReason === 'blocked')) {
+      skipRegalReason = '目标词缀已被更低 T 级占用，富豪无法达标，跳过富豪'
+    } else {
+      skipRegalReason = '当前缺失词缀数超过 1 条，富豪无法达标，跳过富豪'
+    }
+  }
+
+  return {
+    nextAction,
+    shouldAugment,
+    shouldRegal,
+    canUseRegalOnItem,
+    openAugSlot: explicitInfo.count === 1 ? openAugSlot : null,
+    reason: nextAction,
+    skipAugmentReason,
+    skipRegalReason
+  }
+}
+
 export function matchSockets(itemInfo, socketConfig, linkConfig, colorConfig) {
   if (!itemInfo) return false
 

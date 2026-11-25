@@ -3,13 +3,48 @@ import path from 'node:path'
 import { getServer } from '../../../shared/serverMode.js'
 import { generatePythonScript, generateMapRollingScript } from '../../../src/utils/pythonScriptGenerator.js'
 import { normalizeBatchRecoveryCheckpoint } from '../crafting/batchRecovery.js'
+import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 
 const templates = {
   items: new URL('../../../src/assets/scripts/crafting_template.py', import.meta.url),
   map: new URL('../../../src/assets/scripts/map_rolling_template.py', import.meta.url)
 }
+const templateCache = new Map()
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
 const failure = message => Object.assign(new Error(message), { code: 'INVALID_SCRIPT_REQUEST' })
+
+function readCachedTemplate(mode) {
+  const url = templates[mode]
+  const stat = fs.statSync(url)
+  const cached = templateCache.get(mode)
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.content
+  }
+  const content = fs.readFileSync(url, 'utf8')
+  templateCache.set(mode, { mtimeMs: stat.mtimeMs, size: stat.size, content })
+  return content
+}
+
+function validateAutoScanBatchConfig(batchConfig) {
+  if (!record(batchConfig) || batchConfig.mode !== 'auto-scan') return null
+  const categoryIds = [...new Set((Array.isArray(batchConfig.categoryIds) ? batchConfig.categoryIds : []).map(String).filter(Boolean))]
+  if (!categoryIds.length) throw failure('自动扫包批量制作至少需要选择一个物品类别')
+  const inventory = batchConfig.inventory
+  const validGrid = [inventory?.startPos?.x, inventory?.startPos?.y, inventory?.slotSize?.w, inventory?.slotSize?.h]
+    .every(value => Number.isFinite(Number(value)) && Number(value) > 0)
+  if (!validGrid) throw failure('自动扫包批量制作需要完整的背包网格配置')
+  return {
+    enabled: true,
+    mode: 'auto-scan',
+    batchId: String(batchConfig.batchId || `auto-${Date.now()}`),
+    categoryIds,
+    inventory: {
+      startPos: { x: Math.round(Number(inventory.startPos.x)), y: Math.round(Number(inventory.startPos.y)) },
+      slotSize: { w: Math.round(Number(inventory.slotSize.w)), h: Math.round(Number(inventory.slotSize.h)) }
+    },
+    itemFootprints: itemFootprintRegistry.snapshot()
+  }
+}
 
 // Complete validation and generation before the caller stops any existing task.
 // Renderer script text, paths, language and communication files are never trusted.
@@ -37,19 +72,28 @@ export function prepareTrustedScriptRequest({ event, config, mainWindow, overlay
     preset, craftingKind: craftingKind || 'general',
     ...(config.mode === 'map' ? { mapConfig: preset.map } : {})
   }
-  const hasBatch = generationConfig.batchConfig != null
-  const hasCheckpoint = config.batchRecoveryContext != null
-  if (hasBatch !== hasCheckpoint) throw failure('批量生成目标与恢复检查点必须同时提供')
-  if (hasCheckpoint) {
-    const checkpoint = normalizeBatchRecoveryCheckpoint({
-      ...config.batchRecoveryContext, usageSessionId: config.usageSessionId,
-      completedIds: config.batchRecoveryContext.completedIds || [], currentItemId: '', recoverable: false
-    })
-    if (config.mode !== 'items' || !checkpoint.valid || JSON.stringify(config.batchRecoveryContext) !== JSON.stringify(generationConfig.batchConfig)) {
-      throw failure(checkpoint.error || '批量恢复检查点与生成目标不一致')
+  const autoScanBatch = config.mode === 'items' && generationConfig.batchConfig?.mode === 'auto-scan'
+    ? validateAutoScanBatchConfig(generationConfig.batchConfig)
+    : null
+  if (autoScanBatch) {
+    generationConfig.batchConfig = autoScanBatch
+  } else {
+    const hasBatch = generationConfig.batchConfig != null
+    const hasCheckpoint = config.batchRecoveryContext != null
+    if (hasBatch !== hasCheckpoint) throw failure('批量生成目标与恢复检查点必须同时提供')
+    if (hasCheckpoint) {
+      const checkpoint = normalizeBatchRecoveryCheckpoint({
+        ...config.batchRecoveryContext, usageSessionId: config.usageSessionId,
+        completedIds: config.batchRecoveryContext.completedIds || [],
+        skippedIds: config.batchRecoveryContext.skippedIds || [],
+        currentItemId: '', recoverable: false
+      })
+      if (config.mode !== 'items' || !checkpoint.valid || JSON.stringify(config.batchRecoveryContext) !== JSON.stringify(generationConfig.batchConfig)) {
+        throw failure(checkpoint.error || '批量恢复检查点与生成目标不一致')
+      }
     }
   }
-  const template = fs.readFileSync(templates[config.mode], 'utf8')
+  const template = readCachedTemplate(config.mode)
   const scriptContent = config.mode === 'items'
     ? generatePythonScript(generationConfig, template)
     : generateMapRollingScript(generationConfig, template)

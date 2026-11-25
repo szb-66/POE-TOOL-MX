@@ -1,4 +1,5 @@
 import { isUnidentifiedStateLine, normalizeItemTextLanguage } from '../../shared/itemTextLanguage.js'
+import { stripItemNameBasePrefixes } from '../../shared/itemNamePrefixes.js'
 /**
  * Purpose: 解析剪切板中的物品信息（前端版本，用于浏览器环境）
  * Inputs: clipboardText (string) - 剪切板文本内容
@@ -132,6 +133,10 @@ export function parseItemInfo(clipboardText) {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
+    if (/^-{3,}$/.test(line)) {
+      if (nameFound) baseNameFound = true
+      continue
+    }
     if (/^物品阶级[：:]/.test(line)) {
       const match = line.match(/^物品阶级[：:]\s*([0-9]+)\s*$/)
       const itemTier = match ? Number(match[1]) : 0
@@ -274,6 +279,11 @@ export function parseItemInfo(clipboardText) {
         itemInfo.explicitMods.push(line)
       }
     }
+  }
+
+  if (!itemInfo.baseName && itemInfo.name && (itemInfo.rarity.replace(/\s/g, '') === '普通' || itemInfo.isUnidentified)) {
+    const strippedBase = stripItemNameBasePrefixes(itemInfo.name, { isMap: isMapCategory(itemInfo.category) })
+    if (strippedBase) itemInfo.baseName = strippedBase
   }
 
   return itemInfo

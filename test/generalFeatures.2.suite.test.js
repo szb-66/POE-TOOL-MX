@@ -352,7 +352,8 @@ test('背包、战斗和剧情覆盖配置、运行与异常状态', () => {
   const bag = evaluateBagStatus({ configError: '缺少模板', stashedSlots: 12 })
   assert.equal(bag.state, 'attention')
   assert.deepEqual(bag.metrics, [])
-  assert.match(bag.description, /永火接收舱/)
+  assert.match(bag.description, /背包入库/)
+  assert.doesNotMatch(bag.description, /永火接收舱/)
   assert.equal(evaluateBagStatus({ moduleEnabled: true, isDetecting: true, isMatched: true }).state, 'running')
   assert.equal(evaluateBagStatus({
     moduleEnabled: true,
@@ -547,7 +548,7 @@ test('首页账号健康状态声明并初始化所读取的账号状态源', ()
   assert.match(dashboard, /authenticated: accountStore\.status\.authenticated/)
 })
 
-test('首页存取卡片使用四个开关分别启停入库与取件功能', () => {
+test('首页存取卡片使用三个开关分别启停入库与取件功能（永火接收舱已移入过期赛季）', () => {
   const dashboard = readFileSync(new URL('../src/domains/dashboard/useDashboard.js', import.meta.url), 'utf8')
   const card = readFileSync(
     new URL('../src/domains/dashboard/components/ModuleStatusCard.vue', import.meta.url),
@@ -561,17 +562,16 @@ test('首页存取卡片使用四个开关分别启停入库与取件功能', ()
 
   assert.match(dashboard, /useStashPickupStore/)
   assert.match(dashboard, /useJunfengStore/)
-  assert.match(dashboard, /setAllflameReceiverEnabled/)
-  for (const label of ['背包入库', '永火接收舱', '仓库取件', '君锋镇取件']) {
+  assert.doesNotMatch(dashboard, /setAllflameReceiverEnabled/)
+  for (const label of ['背包入库', '仓库取件', '君锋镇取件']) {
     assert.match(bagControls, new RegExp(`label: '${label}'`))
   }
-  assert.equal([...bagControls.matchAll(/type: 'switch'/g)].length, 4)
+  assert.doesNotMatch(bagControls, /永火接收舱/)
+  assert.equal([...bagControls.matchAll(/type: 'switch'/g)].length, 3)
   assert.match(bagControls, /value: bagStore\.moduleEnabled/)
-  assert.match(bagControls, /value: bagStore\.allflameReceiverEnabled/)
   assert.match(bagControls, /value: stashPickupStore\.settings\.enabled/)
   assert.match(bagControls, /value: junfengStore\.settings\.enabled/)
   assert.match(bagControls, /setBagModuleEnabled\(value\)/)
-  assert.match(bagControls, /setAllflameReceiverEnabled\(value\)/)
   assert.match(bagControls, /stashPickupStore\.setEnabled\(value\)/)
   assert.match(bagControls, /junfengStore\.setEnabled\(value\)/)
   assert.doesNotMatch(actionsFor, /module\.id === 'bag'/)

@@ -22,7 +22,7 @@ import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
 import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
-import { setAllflameReceiverEnabled, setBagModuleEnabled } from '@/utils/bagService'
+import { setBagModuleEnabled } from '@/utils/bagService'
 import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService'
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
@@ -107,24 +107,32 @@ export function useDashboard({ openHelp = () => {} } = {}) {
     if (!preset?.batchCrafting?.enabled) return validateCraftingConfig({
       itemPosition: settingsStore.itemPosition,
       currencyPositions: settingsStore.currencyPositions,
+      stashTabSelection: settingsStore.stashTabSelection,
       preset
     })
-    const candidates = batchCraftingStore.candidates
+    const hasActiveSnapshot = batchCraftingStore.hasActiveSnapshot
+    const candidates = hasActiveSnapshot ? batchCraftingStore.candidates : []
     const first = candidates[0]
     const base = validateCraftingConfig({
-      itemPosition: first ? inventoryItemPosition(first, settingsStore.inventory) : { x: 0, y: 0 },
+      itemPosition: first ? inventoryItemPosition(first, settingsStore.inventory) : settingsStore.inventory?.startPos || { x: 0, y: 0 },
       inventory: settingsStore.inventory,
       currencyPositions: settingsStore.currencyPositions,
-      preset
+      stashTabSelection: settingsStore.stashTabSelection,
+      preset,
+      batchSnapshot: hasActiveSnapshot ? batchCraftingStore.snapshot : null,
+      batchSnapshotConsumed: batchCraftingStore.snapshotConsumed,
+      batchCandidateCount: candidates.length
     })
     const errors = [...base.errors]
-    if (!batchCraftingStore.snapshot?.scanId) errors.unshift('请先自行打开角色背包和通货页面，然后扫描背包')
-    else if (!preset.batchCrafting.categoryIds?.length) errors.unshift('请至少选择一个背包批量制作类别')
-    else if (!candidates.length) errors.unshift('当前扫描没有所选类别的可制作物品')
-    const layout = validateBatchInventoryLayout(candidates, settingsStore.inventory)
-    if (!layout.valid) errors.unshift(layout.error)
-    const compatibility = validateBatchCategoryCompatibility(preset, candidates)
-    if (!compatibility.valid) errors.unshift(compatibility.error)
+    if (hasActiveSnapshot) {
+      const layout = validateBatchInventoryLayout(candidates, settingsStore.inventory)
+      if (!layout.valid && !errors.includes(layout.error)) errors.unshift(layout.error)
+      const compatibility = validateBatchCategoryCompatibility(preset, candidates)
+      if (!compatibility.valid && !errors.includes(compatibility.error)) errors.unshift(compatibility.error)
+    } else if (preset.batchCrafting.categoryIds?.length) {
+      const compatibility = validateBatchCategoryCompatibility(preset, preset.batchCrafting.categoryIds)
+      if (!compatibility.valid && !errors.includes(compatibility.error)) errors.unshift(compatibility.error)
+    }
     return { ...base, isValid: errors.length === 0, errors }
   })
   const activeMapConfig = computed(() => getActiveMapRollingConfig(
@@ -139,7 +147,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   }))
   const bagValidationError = computed(() => validateBagRuntimeConfig(buildBagRuntimeConfig({
     moduleEnabled: bagStore.moduleEnabled,
-    allflameReceiverEnabled: bagStore.allflameReceiverEnabled,
+    allflameReceiverEnabled: false,
     forceUniqueStash: bagStore.forceUniqueStash,
     templates: bagStore.templates,
     matchThreshold: bagStore.matchThreshold,
@@ -163,14 +171,15 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         lastError: scriptStore.lastError,
         lastMode: scriptStore.lastMode,
         batchEnabled: presetStore.itemCraftingKind === 'general' && presetStore.currentItemPreset?.batchCrafting?.enabled,
+        batchHasSnapshot: batchCraftingStore.hasActiveSnapshot,
         batchCount: batchCraftingStore.candidates.length,
         batchProgress: scriptStore.batchRuntime
       }),
       evaluateBagStatus({
         configError: bagValidationError.value,
-        moduleEnabled: bagStore.moduleEnabled || bagStore.allflameReceiverEnabled,
+        moduleEnabled: bagStore.moduleEnabled,
         isDetecting: bagStore.isDetecting,
-        isMatched: bagStore.isMatched,
+        isMatched: bagStore.isStashMatched,
         isStashing: bagStore.isStashing,
         progress: bagStore.stashProgress,
         lastStopReason: bagStore.lastStopReason
@@ -355,14 +364,6 @@ export function useDashboard({ openHelp = () => {} } = {}) {
           value: bagStore.moduleEnabled,
           disabled: modulePending,
           run: value => setBagModuleEnabled(value)
-        },
-        {
-          id: 'allflame-receiver-enabled',
-          type: 'switch',
-          label: '永火接收舱',
-          value: bagStore.allflameReceiverEnabled,
-          disabled: modulePending,
-          run: value => setAllflameReceiverEnabled(value)
         },
         {
           id: 'stash-pickup-enabled',

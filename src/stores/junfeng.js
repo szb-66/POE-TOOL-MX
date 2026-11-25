@@ -40,6 +40,8 @@ export const useJunfengStore = defineStore('junfeng', () => {
   const preview = ref(null)
   const previewLabels = ref({})
   const corrections = ref([])
+  const correctionsLoaded = ref(false)
+  let correctionsPromise = null
   const busy = ref(false)
   const trainingBusy = ref(false)
   const trainingPreview = ref(null)
@@ -182,7 +184,18 @@ export const useJunfengStore = defineStore('junfeng', () => {
   }
   async function stop() { state.value = { ...state.value, ...unwrap(await electronApi.junfeng.stop()) } }
 
-  async function loadCorrections() { corrections.value = unwrap(await electronApi.highlightCalibration.list()); return corrections.value }
+  async function loadCorrections() {
+    corrections.value = unwrap(await electronApi.highlightCalibration.list())
+    correctionsLoaded.value = true
+    return corrections.value
+  }
+  async function ensureCorrectionsLoaded() {
+    if (correctionsLoaded.value) return corrections.value
+    if (!correctionsPromise) {
+      correctionsPromise = loadCorrections().finally(() => { correctionsPromise = null })
+    }
+    return correctionsPromise
+  }
   function setPreviewLabel(cell, label) {
     previewLabels.value = { ...previewLabels.value, [`${cell.column}:${cell.row}`]: label }
   }
@@ -307,9 +320,6 @@ export const useJunfengStore = defineStore('junfeng', () => {
     if (!restoreEnabled) settings.value.enabled = false
     try {
       await sync()
-      await loadCorrections()
-      await loadTrainingStatus()
-      await loadTrainingSessions()
       return { success: true }
     } catch (error) {
       if (!preserveEnabledOnFailure) {
@@ -321,9 +331,9 @@ export const useJunfengStore = defineStore('junfeng', () => {
     }
   }
 
-  return { settings, state, preview, previewLabels, corrections, busy, running, trainingBusy, trainingPreview, trainingLabels,
+  return { settings, state, preview, previewLabels, corrections, correctionsLoaded, busy, running, trainingBusy, trainingPreview, trainingLabels,
     trainingStatus, trainingRegions, trainingSessions, reviewingSessionId, setEnabled, calibrateGrid, runPreview, start, stop,
-    loadCorrections, setPreviewLabel, savePreviewCorrections, correct,
+    loadCorrections, ensureCorrectionsLoaded, setPreviewLabel, savePreviewCorrections, correct,
     removeCorrection, resetCorrections, rebuildCorrections, pickTrainingRegion, captureTraining, setTrainingLabel,
     setAllTrainingLabels, saveTrainingSession, loadTrainingSessions, reviewTrainingSession, deleteTrainingSession,
     loadTrainingStatus, trainModel, evaluateModel, listen, initializeRuntime, sync }

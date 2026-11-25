@@ -18,6 +18,7 @@ export const validateCraftingConfig = (config = {}) => collectCraftingConfigurat
   preset: config.preset,
   stashTabSelection: config.stashTabSelection,
   batchSnapshot: config.batchSnapshot,
+  batchSnapshotConsumed: config.batchSnapshotConsumed,
   batchCandidateCount: config.batchCandidateCount
 })
 

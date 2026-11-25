@@ -13,6 +13,7 @@ import { InterfaceTitleRegistry } from './titleRegistry.js'
 import { createDetectionProcessDiagnostics } from './processDiagnostics.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
+const KNOWN_TARGETS = Object.freeze(['inventory', 'stash', 'reward', 'allflame_receiver'])
 
 function stopChild(child) {
   if (!child || child.exitCode !== null || child.signalCode) return Promise.resolve()
@@ -24,11 +25,51 @@ function stopChild(child) {
   })
 }
 
+function normalizeTemplates(templates = {}) {
+  return {
+    stash_title: String(templates.stash_title || ''),
+    inventory_title: String(templates.inventory_title || ''),
+    junfeng_reward_title: String(templates.junfeng_reward_title || ''),
+    allflame_receiver_title: String(templates.allflame_receiver_title || ''),
+    stash_region: templates.stash_region || {},
+    inventory_region: templates.inventory_region || {},
+    junfeng_reward_region: templates.junfeng_reward_region || {},
+    allflame_receiver_region: templates.allflame_receiver_region || {}
+  }
+}
+
+function inferConsumerTargets(consumerId, config = {}) {
+  if (Array.isArray(config.active_targets)) {
+    return config.active_targets.filter(target => KNOWN_TARGETS.includes(target))
+  }
+  if (config.inventory_only === true) return ['inventory']
+  if (consumerId === 'stash-pickup' || consumerId === 'chaos-recipe') return ['inventory', 'stash']
+  if (consumerId === 'junfeng-highlight') return ['inventory', 'reward']
+  if (consumerId === 'sanctum-control') return []
+  if (consumerId === 'bag') {
+    const hasExplicitFlags = Object.hasOwn(config, 'module_enabled') || Object.hasOwn(config, 'allflame_receiver_enabled')
+    if (hasExplicitFlags) {
+      const targets = ['inventory']
+      if (config.module_enabled) targets.push('stash')
+      if (config.allflame_receiver_enabled) targets.push('allflame_receiver')
+      return targets
+    }
+  }
+  const templates = config.templates || {}
+  const inferred = []
+  if (templates.inventory_title) inferred.push('inventory')
+  if (templates.stash_title) inferred.push('stash')
+  if (templates.junfeng_reward_title) inferred.push('reward')
+  if (templates.allflame_receiver_title) inferred.push('allflame_receiver')
+  return inferred
+}
+
 function stableConfig(config = {}) {
   return JSON.stringify({
-    templates: config.templates || {},
+    templates: normalizeTemplates(config.templates || {}),
     match_threshold: Number(config.match_threshold ?? config.matchThreshold ?? 0.8),
     inventory_only: config.inventory_only === true,
+    active_targets: Array.isArray(config.active_targets) ? [...new Set(config.active_targets)].sort() : [],
     interface_titles: config.interface_titles || {}
   })
 }
@@ -41,12 +82,14 @@ export class InterfaceDetectionCoordinator {
     this.childDiagnostics = new WeakMap()
     this.child = null
     this.consumers = new Set()
+    this.consumerConfigs = new Map()
     this.listeners = new Set()
     this.titleRegistry = new InterfaceTitleRegistry(path.join(app.getPath('userData'), 'interface-titles.json'))
     this.config = null
     this.configFingerprint = ''
     this.lifecycle = Promise.resolve()
     this.draining = Promise.resolve()
+    this.pendingReconcile = null
     this.state = {
       running: false,
       reloading: false,
@@ -78,10 +121,19 @@ export class InterfaceDetectionCoordinator {
   }
 
   pythonPath() {
-    const required = ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
+    const required = ['cv2', 'mss', 'numpy']
     const found = this.python.detectPythonPathWithModules?.(required) || this.python.detectPythonPath?.()
     if (!found) throw new Error('未找到具备界面检测依赖的 Python 3')
     return found
+  }
+
+  async resolvePythonPath() {
+    const required = ['cv2', 'mss', 'numpy']
+    if (typeof this.python.resolvePythonRuntimeAsync === 'function') {
+      const resolved = await this.python.resolvePythonRuntimeAsync(required)
+      if (resolved?.path) return resolved.path
+    }
+    return this.pythonPath()
   }
 
   publish(patch = {}) {
@@ -125,9 +177,65 @@ export class InterfaceDetectionCoordinator {
     return task
   }
 
+  scheduleReconcile() {
+    if (!this.pendingReconcile) {
+      this.pendingReconcile = new Promise((resolve, reject) => {
+        setImmediate(() => {
+          this.pendingReconcile = null
+          this.enqueue(() => this.reconcile()).then(resolve, reject)
+        })
+      })
+    }
+    return this.pendingReconcile
+  }
+
   effectiveConfig() {
     const map = this.titleRegistry.templates['sanctum-map']
-    return { ...this.config, interface_titles: this.consumers.has('sanctum-control') && map ? { 'sanctum-map': map } : {} }
+    const mergedTemplates = normalizeTemplates(this.config?.templates || {})
+    const activeTargets = new Set()
+    let hasNonSanctumConsumer = false
+    let allInventoryOnly = true
+
+    for (const consumerId of this.consumers) {
+      const consumerConfig = this.consumerConfigs.get(consumerId) || {}
+      const templates = consumerConfig.templates || {}
+      if (templates.stash_title && !mergedTemplates.stash_title) {
+        mergedTemplates.stash_title = String(templates.stash_title)
+        mergedTemplates.stash_region = templates.stash_region || {}
+      }
+      if (templates.inventory_title && !mergedTemplates.inventory_title) {
+        mergedTemplates.inventory_title = String(templates.inventory_title)
+        mergedTemplates.inventory_region = templates.inventory_region || {}
+      }
+      if (templates.junfeng_reward_title && !mergedTemplates.junfeng_reward_title) {
+        mergedTemplates.junfeng_reward_title = String(templates.junfeng_reward_title)
+        mergedTemplates.junfeng_reward_region = templates.junfeng_reward_region || {}
+      }
+      if (templates.allflame_receiver_title && !mergedTemplates.allflame_receiver_title) {
+        mergedTemplates.allflame_receiver_title = String(templates.allflame_receiver_title)
+        mergedTemplates.allflame_receiver_region = templates.allflame_receiver_region || {}
+      }
+      if (consumerId !== 'sanctum-control') {
+        hasNonSanctumConsumer = true
+        if (consumerConfig.inventory_only !== true) allInventoryOnly = false
+      }
+      for (const target of inferConsumerTargets(consumerId, consumerConfig)) {
+        activeTargets.add(target)
+      }
+    }
+
+    const inventoryOnly = hasNonSanctumConsumer
+      ? allInventoryOnly
+      : Boolean(this.config?.inventory_only === true)
+
+    return {
+      ...(this.config || {}),
+      templates: mergedTemplates,
+      match_threshold: Number(this.config?.match_threshold ?? this.config?.matchThreshold ?? 0.8),
+      inventory_only: inventoryOnly,
+      active_targets: [...activeTargets].sort(),
+      interface_titles: this.consumers.has('sanctum-control') && map ? { 'sanctum-map': map } : {}
+    }
   }
 
   async reconcile() {
@@ -154,28 +262,76 @@ export class InterfaceDetectionCoordinator {
     })
   }
 
+  mergeLatestTemplates(incoming = {}) {
+    const baseTemplates = normalizeTemplates(this.config?.templates || {})
+    const nextTemplates = incoming.templates || {}
+    for (const [titleKey, regionKey] of [
+      ['stash_title', 'stash_region'],
+      ['inventory_title', 'inventory_region'],
+      ['junfeng_reward_title', 'junfeng_reward_region'],
+      ['allflame_receiver_title', 'allflame_receiver_region']
+    ]) {
+      if (Object.hasOwn(nextTemplates, titleKey)) {
+        const value = String(nextTemplates[titleKey] || '')
+        if (value || !baseTemplates[titleKey]) {
+          baseTemplates[titleKey] = value
+          baseTemplates[regionKey] = nextTemplates[regionKey] || {}
+        }
+      }
+    }
+    this.config = {
+      ...(this.config || {}),
+      ...structuredClone(incoming),
+      templates: baseTemplates,
+      match_threshold: Number(incoming.match_threshold ?? incoming.matchThreshold ?? this.config?.match_threshold ?? 0.8)
+    }
+  }
+
   async registerConsumer(consumer, config = this.config || {}) {
     const id = String(consumer || '')
     if (!id) throw new Error('检测消费者不能为空')
     this.consumers.add(id)
-    this.config = structuredClone(config)
-    return this.enqueue(() => this.reconcile())
+    const cloned = structuredClone(config || {})
+    this.consumerConfigs.set(id, cloned)
+    this.mergeLatestTemplates(cloned)
+    return this.scheduleReconcile()
   }
 
   unregisterConsumer(consumer) {
-    this.consumers.delete(String(consumer || ''))
+    const id = String(consumer || '')
+    this.consumers.delete(id)
+    this.consumerConfigs.delete(id)
     if (this.consumers.size === 0) this.stop('no_consumers')
     else {
       this.publish()
-      void this.enqueue(() => this.reconcile()).catch(error => {
+      void this.scheduleReconcile().catch(error => {
         this.publish({ reason: error.message })
       })
     }
     return this.getState()
   }
 
-  async updateConfig(config) {
-    this.config = structuredClone(config)
+  async updateConfig(config, consumer = '') {
+    const cloned = structuredClone(config || {})
+    if (consumer) {
+      this.consumerConfigs.set(String(consumer), cloned)
+      this.mergeLatestTemplates(cloned)
+    } else {
+      // 全局更新（如用户修改了模板或阈值）时保留各消费者自身声明的 active_targets，同时更新共享模板与阈值。
+      const nextTemplates = normalizeTemplates(cloned.templates || {})
+      const hasAnyExplicitTargets = Object.hasOwn(cloned, 'module_enabled') ||
+        Object.hasOwn(cloned, 'allflame_receiver_enabled') ||
+        Array.isArray(cloned.active_targets)
+      if (hasAnyExplicitTargets && this.consumers.has('bag')) {
+        this.consumerConfigs.set('bag', cloned)
+      }
+      this.config = {
+        ...(this.config || {}),
+        ...cloned,
+        templates: nextTemplates,
+        match_threshold: Number(cloned.match_threshold ?? cloned.matchThreshold ?? this.config?.match_threshold ?? 0.8)
+      }
+    }
     return this.enqueue(() => this.reconcile())
   }
 
@@ -191,7 +347,9 @@ export class InterfaceDetectionCoordinator {
     diagnostic.record({ phase: 'interface-detection-start', outcome: 'started', reasonCode: 'spawn_requested' })
     let child
     try {
-      child = spawn(this.pythonPath(), [
+      const pythonExe = await this.resolvePythonPath()
+      if (this.child || this.consumers.size === 0) return this.getState()
+      child = spawn(pythonExe, [
         this.scriptPath(), '--mode', 'detect', '--config', this.writeConfig()
       ], {
         shell: false,
@@ -331,6 +489,7 @@ export class InterfaceDetectionCoordinator {
 
   cleanup() {
     this.consumers.clear()
+    this.consumerConfigs.clear()
     this.stop('application_cleanup')
     this.listeners.clear()
   }

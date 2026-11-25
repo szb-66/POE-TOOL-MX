@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 
@@ -12,20 +13,9 @@ if (!['unit', 'slow', 'all', 'list'].includes(mode)) {
 
 const ALWAYS_SLOW_FILES = new Set([
   'viteSmoke.test.js',
-  'priceCheckGems.test.js',
-  'priceCheckCatalogCoverage.test.js',
-  'internationalPseudoRules.test.js',
-  'chartModsProbe.test.js',
-  'faustusAutomation.test.js',
-  'faustusInternational.test.js',
   'junfengHighlight.test.js',
-  'puzzleRecognizer.test.js',
-  'puzzleAutoPlacement.test.js',
   'bagAutoStash.test.js',
-  'craftingParseSynchronization.test.js',
-  'craftingIntegration.test.js',
-  'localizationNative.test.js',
-  'puzzleSolver.test.js'
+  'craftingParseSynchronization.test.js'
 ])
 
 function isSlowTestFile(filename, content) {
@@ -62,10 +52,11 @@ if (mode === 'list') {
   process.exit(0)
 }
 
+const concurrency = mode === 'unit' ? Math.min(8, Math.max(4, os.cpus().length - 2)) : 4
 const selected = mode === 'all' ? allFiles.map((name) => path.join(testDir, name)) : (mode === 'slow' ? slowFiles : unitFiles)
-console.log(`[test:${mode}] Running ${selected.length} / ${allFiles.length} test files...`)
+console.log(`[test:${mode}] Running ${selected.length} / ${allFiles.length} test files (concurrency=${concurrency})...`)
 
-const result = spawnSync(process.execPath, ['--test', '--test-concurrency=4', ...selected], {
+const result = spawnSync(process.execPath, ['--test', `--test-concurrency=${concurrency}`, ...selected], {
   stdio: 'inherit'
 })
 process.exit(result.status ?? 1)
