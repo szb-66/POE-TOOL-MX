@@ -18,8 +18,13 @@ export const CONFIG_SECTION_DEFINITIONS = Object.freeze([
   { id: 'preset.essence', group: 'preset', label: '精华制作预设', itemized: true },
   { id: 'preset.harvest', group: 'preset', label: '花园工艺预设', itemized: true },
   { id: 'preset.map', group: 'preset', label: '地图预设', itemized: true, supportsDeviceGrid: true },
+  { id: 'preset.heist', group: 'preset', label: '契约蓝图预设', itemized: true },
   { id: 'preset.story', group: 'preset', label: '剧情预设', itemized: true },
   { id: 'preset.storySkill', group: 'preset', label: '剧情技能预设', itemized: true },
+  { id: 'preset.vendorRegex', group: 'preset', label: '商店正则预设', itemized: true },
+  { id: 'preset.mapRegex', group: 'preset', label: '地图正则预设', itemized: true },
+  { id: 'preset.beastRegex', group: 'preset', label: '野兽正则预设', itemized: true },
+  { id: 'settings.combatAssist', group: 'combat', label: '战斗辅助配置' },
   { id: 'settings.toolSites', group: 'tools', label: '工具站点' }
 ].map(definition => Object.freeze({ schemaVersion: CONFIG_SECTION_SCHEMA_VERSION, ...definition })))
 

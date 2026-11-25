@@ -90,10 +90,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { Check } from '@element-plus/icons-vue'
 import { useConfigurationGuideStore } from './configurationGuideStore.js'
-import ConfigurationIssueEditor from './ConfigurationIssueEditor.vue'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { usePresetStore } from '@/stores/preset'
@@ -106,6 +105,7 @@ import {
   CONFIGURATION_MODULES
 } from './configurationIssues.js'
 
+const ConfigurationIssueEditor = defineAsyncComponent(() => import('./ConfigurationIssueEditor.vue'))
 const store = useConfigurationGuideStore()
 const settings = useSettingsStore()
 const presets = usePresetStore()

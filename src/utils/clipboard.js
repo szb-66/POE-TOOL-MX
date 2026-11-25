@@ -1,4 +1,4 @@
-import { normalizeItemTextLanguage } from '../../shared/itemTextLanguage.js'
+import { isUnidentifiedStateLine, normalizeItemTextLanguage } from '../../shared/itemTextLanguage.js'
 /**
  * Purpose: 解析剪切板中的物品信息（前端版本，用于浏览器环境）
  * Inputs: clipboardText (string) - 剪切板文本内容
@@ -162,7 +162,7 @@ export function parseItemInfo(clipboardText) {
     else if (line === '已腐化' || line.includes('已腐化')) {
       itemInfo.isCorrupted = true
     }
-    else if (line === '未鉴定' || line.includes('未鉴定')) {
+    else if (isUnidentifiedStateLine(line)) {
       itemInfo.isUnidentified = true
     }
     else if (isMapCategory(itemInfo.category) && extractMapTier(line) > 0) {

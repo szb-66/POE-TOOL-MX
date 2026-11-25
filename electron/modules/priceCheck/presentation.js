@@ -17,7 +17,12 @@ export class PriceCheckOverlayPresentation {
     return true
   }
 
-  beginDisplay() {
+  beginDisplay({ focus = true } = {}) {
+    if (!focus) {
+      this.window.setFocusable(false)
+      this.window.setIgnoreMouseEvents(true)
+      this.interactive = false
+    }
     this.generation += 1
     return {
       generation: this.generation,
@@ -25,14 +30,14 @@ export class PriceCheckOverlayPresentation {
     }
   }
 
-  reveal(generation) {
+  reveal(generation, { focus = true } = {}) {
     if (this.destroyed || generation !== this.generation) return false
-    if (this.interactive) return true
-    this.window.setFocusable(true)
-    this.window.setIgnoreMouseEvents(false)
+    if (this.interactive && focus) return true
+    this.window.setFocusable(focus)
+    this.window.setIgnoreMouseEvents(!focus)
     this.window.setOpacity(1)
-    this.window.focus()
-    this.interactive = true
+    if (focus) this.window.focus()
+    this.interactive = focus
     return true
   }
 

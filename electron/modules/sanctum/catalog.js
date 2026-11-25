@@ -61,6 +61,13 @@ export function isCurrentSanctumCatalog(catalog) {
     && (catalog.server !== 'international' || catalog.versionEvidence?.patch === patch && catalog.language === 'en')
 }
 
+export function sanctumCatalogSummary(catalog, entries = catalog.entries) {
+  return { patch: catalog.patch,
+    total: entries.length, reviewed: entries.filter(entry => entry.applicability === 'current').length,
+    afflictions: entries.filter(entry => entry.kind === 'affliction' && isCurrentSanctumEntry(catalog, entry))
+      .map(entry => ({ id: entry.id, label: entry.name, descriptions: entry.descriptions || [] })) }
+}
+
 export function sanctumEntryRules(entry) {
   return entry.rules || (entry.descriptions || []).map(sanctumRule)
 }

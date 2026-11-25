@@ -138,12 +138,13 @@
               :class="{ enabled: property.enabled }"
               role="checkbox"
               :aria-checked="property.enabled"
+              :title="propertyTooltip(property)"
               tabindex="0"
               @click="toggleFilter(property)"
               @keydown.enter.prevent="toggleFilter(property)"
               @keydown.space.prevent="toggleFilter(property)"
             >
-              <span class="filter-name" :title="gameText(property.label)">{{ gameText(property.label) }}</span>
+              <span class="filter-name" :title="propertyTooltip(property)">{{ gameText(property.label) }}</span>
               <template v-if="property.options?.length">
                 <el-select v-model="property.value" class="property-option" popper-class="price-check-select-popper business-overlay-theme" @click.stop @keydown.stop>
                   <el-option v-for="option in property.options" :key="option.id" :label="gameText(option.label)" :value="option.id" />
@@ -203,7 +204,13 @@
         </section>
 
         <section v-if="statRows.length || state.model.unknownStats?.length" class="panel filter-list">
-          <h3>词缀</h3>
+          <div class="section-heading">
+            <h3>词缀</h3>
+            <div v-if="statRows.length" class="section-actions">
+              <button type="button" class="mini-action" title="按当前物品的自动预选结果恢复词缀勾选" @click="restoreAutoStats">恢复自动</button>
+              <button type="button" class="mini-action" title="取消当前物品全部词缀勾选" @click="clearAllStats">清空</button>
+            </div>
+          </div>
           <div
             v-for="stat in statRows"
             :key="stat.key"
@@ -211,6 +218,7 @@
             :class="{ enabled: stat.enabled }"
             role="checkbox"
             :aria-checked="stat.enabled"
+            :title="statTooltip(stat)"
             tabindex="0"
             @click="toggleFilter(stat)"
             @keydown.enter.prevent="toggleFilter(stat)"
@@ -218,7 +226,7 @@
           >
             <span class="stat-source" :class="statTypeClass(stat.type)">{{ typeLabel(stat.type) }}</span>
             <span class="tier" :class="{ known: stat.tier }">{{ stat.tier ? `T${stat.tier}` : '—' }}</span>
-            <span class="filter-name" :title="stat.sources?.map(source => source.displayText || gameText(source.text)).join('\n')">
+            <span class="filter-name" :title="statTooltip(stat)">
               {{ stat.displayText || gameText(stat.text) }}
               <small v-if="stat.tags?.length">{{ stat.tags.join('、') }}</small>
               <small v-if="stat.queryVariants?.length > 1" class="equivalence-hint">已合并多个官方同文案过滤项</small>
@@ -328,13 +336,14 @@ import { ArrowDown } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { PRICE_CHECK_STATE_FILTERS, PRICE_CHECK_STAT_TYPES } from '../../../shared/priceCheckMetadata.js'
+import { clearSelectionForStats, formatPropertyTooltip, formatStatTooltip, restoreAutoSelectionForStats } from './priceCheckAutoSelectionUi.js'
 
 const props = defineProps({
   previewMode: { type: Boolean, default: false },
   previewState: { type: Object, default: null },
   previewOptions: { type: Object, default: null }
 })
-const appSettings = useSettingsStore()
+const appSettings = props.previewMode ? useSettingsStore() : null
 
 function clonePreviewInput(value) {
   return value == null ? value : structuredClone(toRaw(value))
@@ -453,7 +462,11 @@ async function applySnapshot(snapshot, presentation = null) {
 async function load() {
   if (props.previewMode) return
   const response = await electronApi.priceCheck.getOverlayState()
-  if (response?.success) await applySnapshot(response.data, response.presentation)
+  if (response?.success && response.data) {
+    await applySnapshot(response.data, response.presentation)
+  } else {
+    electronApi.priceCheck.rendered(null)
+  }
 }
 async function rerun() {
   if (props.previewMode) return
@@ -523,6 +536,10 @@ function copyWhisper(text) {
   void electronApi.clipboard.writeText(text)
 }
 function toggleFilter(filter) { filter.enabled = !filter.enabled }
+function propertyTooltip(property) { return formatPropertyTooltip(property, gameText) }
+function statTooltip(stat) { return formatStatTooltip(stat, gameText) }
+function restoreAutoStats() { restoreAutoSelectionForStats(statRows.value) }
+function clearAllStats() { clearSelectionForStats(statRows.value) }
 function toggleMercenaryGroup(group) { group.enabled = !group.enabled }
 function toggleMercenarySupport(group, support) {
   support.enabled = !support.enabled
@@ -650,6 +667,10 @@ onUnmounted(() => {
 .flags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .flags span { padding: 2px 5px; color: #ffcc85; border: 1px solid #795a2d; border-radius: 4px; font-size: 10px; }
 h3 { position: sticky; top: 0; z-index: 1; margin: 0 0 var(--overlay-space-1); padding: 2px 0; font-size: var(--overlay-font-size); color: var(--text-primary); background: var(--surface-1); }
+.section-heading { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: var(--overlay-space-1); background: var(--surface-1); }
+.section-heading h3 { position: static; margin: 0; }
+.section-actions { display: flex; align-items: center; gap: 4px; }
+.mini-action { min-height: 20px; padding: 1px 6px; font-size: 10px; color: var(--text-regular); background: var(--surface-2); border: 1px solid var(--border-base); border-radius: 3px; }
 .filter-list { padding: 5px; }
 .property-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .filter-row { display: grid; gap: 5px; align-items: center; height: 32px; padding: 2px 5px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }

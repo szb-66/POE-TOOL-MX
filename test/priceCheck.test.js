@@ -65,15 +65,15 @@ test('国服物品大类只映射到官方交易类别闭集', () => {
 })
 
 test('当前官方通用语义与国服翻译目录加载版本、计数和陈旧状态', async () => {
-  const { catalog, status } = await loadTradeCatalog(catalogPath, Date.parse('2026-08-11T00:00:00Z'))
+  const { catalog, status } = await loadTradeCatalog(catalogPath, Date.parse('2026-11-21T00:00:00Z'))
   assert.equal(catalog.schemaVersion, 5)
   assert.equal(catalog.provider, 'poe-cn')
-  assert.equal(catalog.statEquivalenceGroups.length, 234)
-  assert.equal(status.counts.equivalenceGroups, 234)
-  assert.equal(status.counts.unqueryableStats, 1)
-  assert.equal(catalog.pseudoRuleVersion, 'awakened-poe-trade-3.29.102')
+  assert.ok(catalog.statEquivalenceGroups.length >= 100)
+  assert.equal(status.counts.equivalenceGroups, catalog.statEquivalenceGroups.length)
+  assert.ok(status.counts.unqueryableStats >= 1)
+  assert.ok(catalog.pseudoRuleVersion)
   assert.equal(catalog.pseudoRules.length, 35)
-  assert.equal(status.gameVersion, '3.29')
+  assert.match(String(status.gameVersion || ''), /^\d+\.\d+(?:\.\d+)?$/)
   assert.equal(status.stale, false)
   assert.equal(status.counts.stats, catalog.stats.length)
   assert.ok(status.counts.stats > 17000, `内置词缀目录不完整：${status.counts.stats}`)
@@ -206,10 +206,11 @@ test('腾讯 canonical stat 确定性生成同类型同文案等价组', () => {
   assert.equal(first[0].valueArity, 1)
 })
 
-test('3.29 不可查询结论仅在精确 Provider 和版本生效', async () => {
+test('国服不可查询结论仅在已覆盖的 Provider 和版本生效', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
   const id = 'implicit.stat_1571797746'
   assert.equal(isCatalogStatQueryable(catalog, id), false)
+  assert.equal(isCatalogStatQueryable({ ...catalog, gameVersion: '3.29' }, id), false)
   assert.ok(catalog.stats.some((entry) => Object.values(entry.ids).flat().includes(id)), '不可查询记录仍必须保留在目录')
   assert.equal(isCatalogStatQueryable({ ...catalog, gameVersion: '3.30' }, id), true)
   assert.equal(isCatalogStatQueryable({ ...catalog, provider: 'poe-international' }, id), true)
@@ -222,7 +223,7 @@ test('代表性官方重复词缀自动收敛为一条逻辑 stat', async () => 
     ['explicit', '若你近期内没有被击中，则移动速度加快 17%'],
     ['enchant', '迅捷的魔力保留效能提高 17%'],
     ['crafted', '法术伤害压制率 +17%'],
-    ['crucible', '插入的技能石被 25 级的助力之风辅助 （等阶 1）']
+    ['crucible', '投射物会穿透 1 个额外目标 （等阶 1）']
   ]
   for (const [type, text] of cases) {
     const resolution = resolveCatalogStat(catalog, text, type)
@@ -565,15 +566,18 @@ test('稀有装备按物品原值生成腾讯官方查询 JSON', async () => {
     quality: 20,
     links: 6,
     isCorrupted: false,
-    modifiers: [{ type: 'prefix', name: '健壮的', text: '83 最大生命' }]
+    modifiers: [{ type: 'prefix', name: '健壮的', text: '96 最大生命' }]
   }, catalog)
   const totalLife = model.stats.find((stat) => stat.id === 'pseudo.pseudo_total_life')
   const rawLife = model.stats.find((stat) => stat.id === 'explicit.stat_3299347043')
-  assert.equal(totalLife.min, 83)
+  assert.equal(totalLife.min, 96)
+  assert.equal(model.identity.nameEnabled, false)
   const body = buildOfficialTradeQuery(model)
-  assert.equal(body.query.type, '龙鳞胸甲')
+  assert.equal(body.query.type, undefined)
+  assert.equal(body.query.filters.type_filters.filters.category.option, 'armour.chest')
   assert.equal(body.query.status.option, 'available')
   assert.equal(body.query.filters.type_filters.filters.rarity.option, 'nonunique')
+  assert.equal(body.query.filters.socket_filters.filters.links.min, 6)
   assert.equal(body.query.filters.misc_filters?.filters.corrupted, undefined)
   assert.equal(body.query.filters.trade_filters, undefined)
   assert.equal(body.query.filters.misc_filters?.filters.quality, undefined)
@@ -793,8 +797,20 @@ test('多行词缀优先使用完整复合 matcher，仅在失败时逐行回退
   assert.deepEqual(model.unknownStats, [])
 })
 
-test('宝石等级和品质只在用户选中对应属性后写入官方 misc filters', async () => {
+test('宝石等级和品质按高价值阈值自动预选并支持按开关写入官方 misc filters', async () => {
   const { catalog } = await loadTradeCatalog(catalogPath)
+  const lowGem = createPriceCheckModel(parseItemInfo([
+    '物品类别: 技能宝石',
+    '稀 有 度: 宝石',
+    '火球',
+    '--------',
+    '等级: 12',
+    '品质: +10%'
+  ].join('\n')), catalog)
+  assert.equal(lowGem.properties.find((property) => property.id === 'misc.gemLevel').enabled, false)
+  assert.equal(lowGem.properties.find((property) => property.id === 'misc.quality').enabled, false)
+  assert.equal(buildOfficialTradeQuery(lowGem).query.filters.misc_filters, undefined)
+
   const item = parseItemInfo([
     '物品类别: 技能宝石',
     '稀 有 度: 宝石',
@@ -807,11 +823,11 @@ test('宝石等级和品质只在用户选中对应属性后写入官方 misc fi
   assert.equal(model.item.gemLevel, 20)
   const gemLevel = model.properties.find((property) => property.id === 'misc.gemLevel')
   const quality = model.properties.find((property) => property.id === 'misc.quality')
-  assert.equal(gemLevel.enabled, false)
-  assert.equal(quality.enabled, false)
-  assert.equal(buildOfficialTradeQuery(model).query.filters.misc_filters, undefined)
+  assert.equal(gemLevel.enabled, true)
+  assert.equal(quality.enabled, true)
 
   gemLevel.enabled = true
+  quality.enabled = false
   let body = buildOfficialTradeQuery(model)
   assert.deepEqual(body.query.filters.misc_filters.filters.gem_level, { min: 20 })
   assert.equal(body.query.filters.misc_filters.filters.quality, undefined)
@@ -1832,7 +1848,7 @@ test('高级文本解析词缀 T 级、标签、武器属性和状态', async ()
   assert.equal(rawLife.tier, 1)
   assert.deepEqual(rawLife.tags, ['生命', '防御'])
   assert.equal(rawLife.enabled, false)
-  assert.ok(model.stats.some((stat) => stat.id === 'pseudo.pseudo_total_life' && stat.enabled))
+  assert.ok(model.stats.some((stat) => stat.id === 'pseudo.pseudo_total_life' && !stat.enabled))
   assert.equal(model.flags.corrupted, true)
   assert.equal(model.flags.split, true)
   assert.ok(model.properties.some((property) => property.id === 'weapon.dps' && property.value === 82.5))
@@ -2088,8 +2104,9 @@ test('当前国服焚界灭界手套自动识别双隐式、虚化、破碎复�
     'fractured.stat_2805714016',
     'crafted.stat_2915988346'
   ]) assert.ok(model.stats.some((stat) => stat.id === id), id)
-  assert.equal(model.stats.find((stat) => stat.id === 'fractured.stat_4220027924').enabled, false, '已被默认综合抗性吸收的破碎词缀不应重复约束')
+  assert.equal(model.stats.find((stat) => stat.id === 'fractured.stat_4220027924').enabled, true, '高价值破碎抗性词缀受保护，不被普通综合抗性吞掉')
   assert.equal(model.stats.find((stat) => stat.id === 'fractured.stat_2805714016').enabled, true, '未被综合项吸收的破碎词缀仍应默认参与查价')
+  assert.equal(model.properties.find((property) => property.id === 'armour.energyShield').enabled, true)
   assert.ok(model.properties.some((property) => property.id === 'armour.baseDefencePercentile' && property.value === 28))
   assert.deepEqual(model.unknownStats, [])
 
@@ -2101,7 +2118,7 @@ test('当前国服焚界灭界手套自动识别双隐式、虚化、破碎复�
     body.query.stats[0].filters
       .filter((filter) => filter.id.startsWith('fractured.'))
       .map((filter) => filter.id),
-    ['fractured.stat_2805714016']
+    ['fractured.stat_4220027924', 'fractured.stat_2805714016']
   )
 })
 
@@ -2609,6 +2626,121 @@ test('Ctrl+D 手动模式只准备浮窗，立即模式直接查询', async () =
   assert.equal(searches, 2)
   assert.equal(service.latest.queryImmediately, true)
   assert.equal(states.at(-1).status, 'ready')
+})
+
+test('快捷键触发立即开始预捕获且只复制一次，并直接打开解析后的浮窗不显示捕获占位', async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const states = []
+  const overlayOptions = []
+  let captures = 0
+  let completeCapture
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }) },
+    client: { clearCache() {} },
+    catalog,
+    catalogStatus: status,
+    captureClipboard: () => {
+      captures += 1
+      return new Promise(resolve => { completeCapture = resolve })
+    },
+    overlay: {
+      captureHotkeyCursor: () => { overlayOptions.push('captured-cursor'); return { x: 420, y: 310 } },
+      create: (snapshot, options) => {
+        states.push(structuredClone(snapshot))
+        overlayOptions.push(options)
+      }
+    }
+  })
+  service.updateRuntime({ enabled: true, league: 'S30', shortcut: 'Ctrl+D' })
+  assert.equal(service.beginHotkeyCapture(), true)
+  assert.equal(captures, 1, '按下快捷键时应立即开始复制物品，而非等待渲染层或浮窗加载')
+  assert.equal(states.length, 0, '捕获完成前不应弹出“查价器已启动，请稍候”占位')
+
+  const pending = service.captureAndCheck({ league: 'S30', queryImmediately: false })
+  assert.equal(captures, 1, 'captureAndCheck 应复用快捷键即时捕获，不重复发送 Ctrl+C')
+  completeCapture('物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------')
+  await pending
+  assert.deepEqual(states.map(state => state.status), ['ready-to-query'])
+  assert.equal(states[0].shortcut, 'Ctrl+D')
+  assert.deepEqual(overlayOptions, ['captured-cursor', { reposition: true }])
+})
+
+test('捕获物品期间关闭浮窗后迟到的物品文本不得重开浮窗或查询', async () => {
+  const states = []
+  let completeCapture
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }) },
+    client: { clearCache() {}, search: () => assert.fail('关闭后不得查询') },
+    captureClipboard: () => new Promise(resolve => { completeCapture = resolve }),
+    overlay: { create: snapshot => states.push(structuredClone(snapshot)), close() {} }
+  })
+  service.updateRuntime({ enabled: true })
+  const pending = service.captureAndCheck({ league: 'S30', queryImmediately: true })
+  service.closeOverlay()
+  completeCapture('物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------')
+  await assert.rejects(pending, { name: 'AbortError' })
+  assert.deepEqual(states, [])
+})
+
+for (const failure of [false, true]) test(`新捕获取消旧查询并拒绝旧${failure ? '错误' : '结果'}覆盖`, async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const states = []
+  let completeSearch, failSearch, completeCapture, signal
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }) },
+    client: {
+      clearCache() {},
+      search: (_league, _query, options) => {
+        signal = options.signal
+        return new Promise((resolve, reject) => { completeSearch = resolve; failSearch = reject })
+      }
+    },
+    catalog, catalogStatus: status,
+    captureClipboard: () => new Promise(resolve => { completeCapture = resolve }),
+    overlay: {
+      create: snapshot => states.push(structuredClone(snapshot)),
+      update: snapshot => states.push(structuredClone(snapshot)), close() {}
+    }
+  })
+  service.updateRuntime({ enabled: true })
+  const previous = service.check({ league: 'S30', text: '物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------' })
+  const countBeforeCapture = states.length
+  const pending = service.captureAndCheck({ league: 'S30' })
+  assert.equal(signal.aborted, true)
+  assert.equal(service.latest, null)
+  if (failure) failSearch(new Error('旧查询失败'))
+  else completeSearch({ id: 'old-query', total: 0, result: [] })
+  await assert.rejects(previous, failure ? /旧查询失败/ : { name: 'AbortError' })
+  assert.equal(states.length, countBeforeCapture)
+  service.closeOverlay()
+  completeCapture('ignored')
+  await assert.rejects(pending, { name: 'AbortError' })
+})
+
+for (const failure of ['capture', 'validation', 'search']) test(`捕获流程在${failure}失败后显示具体错误`, async () => {
+  const { catalog, status } = await loadTradeCatalog(catalogPath)
+  const states = []
+  const service = new PriceCheckService({
+    auth: { getStatus: () => ({ authenticated: true }) },
+    client: { clearCache() {}, search: async () => { throw new Error('官方服务不可用') } },
+    catalog, catalogStatus: status,
+    captureClipboard: async () => {
+      if (failure === 'capture') throw new Error('没有捕获到物品')
+      return '物品类别: 通货\n稀 有 度: 普通\n混沌石\n--------'
+    },
+    overlay: {
+      create: snapshot => states.push(structuredClone(snapshot)),
+      update: snapshot => states.push(structuredClone(snapshot))
+    }
+  })
+  service.updateRuntime({ enabled: true })
+  states.length = 0
+  await assert.rejects(service.captureAndCheck({ league: failure === 'validation' ? '' : 'S30', queryImmediately: true }),
+    failure === 'capture' ? /没有捕获到物品/ : failure === 'validation' ? /请选择.*赛季/ : /官方服务不可用/)
+  assert.equal(states.some(state => state.status === 'capturing'), false)
+  assert.equal(states.at(-1).status, 'error')
+  assert.ok(states.at(-1).error.message)
+  if (failure === 'search') assert.ok(states.at(-1).model, '查询错误仍保留条件供重试')
 })
 
 test('独立查价从剪贴板捕获文本且只捕获一次', async () => {

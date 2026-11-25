@@ -16,7 +16,9 @@ context: |
   预检失败时不得产生键鼠输入，并始终保留可用的停止机制。
   不得在代码、测试、诊断或文档中暴露 POESESSID、Cookie、Authorization、账号或完整用户路径。
 
-  验证优先运行受影响的 node --test 测试文件，再运行 npm test；
+  测试规范：优先编写面向行为、协议与安全边界的纯逻辑单元测试；禁止新增仅读取 `.vue/.js/.less` 源码做 CSS 样式、排版或模板字面量正则匹配的脆弱测试（隐私与前台安全红线审计除外）。真实游戏数据快照测试必须断言结构不变量、合理下限与代表性哨兵记录，不得硬编码易变精确条数或脆弱补丁号。
+
+  验证优先运行受影响的 node --test 测试文件与 npm run test:unit，涉及慢速链路（Python/OCR/Vite）或发版前再运行 npm run test:slow 或 npm test；
   涉及 Vue 页面时验证 Vite 开发转换，涉及 OpenSpec 变更时运行严格校验。
 
 # Per-artifact rules (optional)

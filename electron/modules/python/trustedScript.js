@@ -13,9 +13,11 @@ const failure = message => Object.assign(new Error(message), { code: 'INVALID_SC
 
 // Complete validation and generation before the caller stops any existing task.
 // Renderer script text, paths, language and communication files are never trusted.
-export function prepareTrustedScriptRequest({ event, config, mainWindow, filePaths, server = getServer(), localizationSnapshot = null }) {
-  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents?.isDestroyed?.() || event?.sender !== mainWindow.webContents) {
-    throw failure('仅主窗口可启动制作或地图任务')
+export function prepareTrustedScriptRequest({ event, config, mainWindow, overlayWindow = null, filePaths, server = getServer(), localizationSnapshot = null }) {
+  const authorized = [mainWindow, overlayWindow].some(window =>
+    window && !window.isDestroyed() && window.webContents && !window.webContents.isDestroyed?.() && event?.sender === window.webContents)
+  if (!authorized) {
+    throw failure('仅主窗口或制作浮窗可启动制作或地图任务')
   }
   if (!record(config) || !['items', 'map'].includes(config.mode)) throw failure('无效的制作任务类型')
   if (!record(config.generationConfig) || !record(config.preset)) throw failure('缺少可信脚本生成参数，请重载助手后重试')

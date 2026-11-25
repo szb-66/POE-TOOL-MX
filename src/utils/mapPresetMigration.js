@@ -1,11 +1,11 @@
-export const MAP_BASE_STATS = {
-  '物品数量': 'quantity',
+export const MAP_BASE_STATS = Object.freeze({
+  '异界掉落': 'atlasDrops',
   '物品稀有度': 'rarity',
   '怪物群大小': 'packSize',
   '更多地图': 'moreMaps',
-  '更多圣甲虫': 'moreScarabs',
+  '更多丝线': 'moreThreads',
   '更多通货': 'moreCurrency'
-}
+})
 
 export const INTERNATIONAL_MAP_BASE_STATS = Object.freeze({
   '异界掉落（Atlas Drops）': 'atlasDrops',
@@ -16,7 +16,7 @@ export const INTERNATIONAL_MAP_BASE_STATS = Object.freeze({
   '更多通货': 'moreCurrency'
 })
 
-const ALL_MAP_STAT_KEYS = [...new Set([...Object.values(MAP_BASE_STATS), ...Object.values(INTERNATIONAL_MAP_BASE_STATS)])]
+const ALL_MAP_STAT_KEYS = Object.freeze([...new Set([...Object.values(MAP_BASE_STATS), ...Object.values(INTERNATIONAL_MAP_BASE_STATS)])])
 
 export const CHART_BASE_STATS = {
   '物品数量': 'quantity',
@@ -149,8 +149,8 @@ export function createDefaultMapConfig() {
 
 export function migrateMapConfig(rawMap = {}) {
   const defaults = createDefaultMapConfig()
-  // 保留两服各自字段，旧圣甲虫/数量阈值不能冒充新版丝线/异界掉落。
-  const statKeys = ALL_MAP_STAT_KEYS.filter(key => Object.values(MAP_BASE_STATS).includes(key) || rawMap.match?.mandatoryStats?.[key] || rawMap.match?.optionalStats?.[key])
+  // 国服与国际服统一采用 3.30 异界地图基底口径，老预设中的物品数量/更多圣甲虫字段自动清理。
+  const statKeys = ALL_MAP_STAT_KEYS
   const atlas = migrateRollingProfile(rawMap, statKeys)
 
   const migrated = {

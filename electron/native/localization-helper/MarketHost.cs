@@ -276,6 +276,7 @@ internal sealed partial class MarketHost : IDisposable {
         throw new UserError("游戏或汉化状态已变化，旧市集翻译已停用，请重新启用");
     }
     private static string ReadManagedIdentity(string game, string storage) {
+        storage = GameTransaction.ResolveStorage(game, storage);
         string manifest = Path.Combine(Directory.GetParent(game)!.Parent!.FullName, "appmanifest_238960.acf");
         string journal = Path.Combine(storage, "transaction.json");
         return string.Join('|', new[] {
@@ -353,6 +354,7 @@ internal sealed partial class MarketHost : IDisposable {
         RequireX64Image(executable);
         if (new FileInfo(executable).Length > 268435456) throw new UserError("市集结构无法确认兼容，游戏可执行文件大小超出支持范围");
         var compatibility = MarketCompatibility.Resolve(File.ReadAllBytes(executable), LoadCompatibilityProfile());
+        storage = GameTransaction.ResolveStorage(game, storage);
         string journal = Path.Combine(storage, "transaction.json"), activeFile = Path.Combine(storage, "transaction-active.json"), index = Path.Combine(game, "Bundles2", "_.index.bin");
         if (File.Exists(journal)) throw new UserError("汉化事务尚未完成，不能启用市集翻译");
         OrdinaryPath(activeFile); OrdinaryPath(index);

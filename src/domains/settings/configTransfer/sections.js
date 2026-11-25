@@ -1,3 +1,4 @@
+import { normalizeCombatAssist } from '../../../../shared/combatAssist.js'
 import {
   ConfigTransferError,
   cloneTransferValue,
@@ -12,13 +13,20 @@ export const SECTION_FIELD_WHITELISTS = Object.freeze({
   'preset.essence': Object.freeze(['items']),
   'preset.harvest': Object.freeze(['items']),
   'preset.map': Object.freeze(['items']),
+  'preset.heist': Object.freeze(['items']),
   'preset.story': Object.freeze(['items']),
   'preset.storySkill': Object.freeze(['items']),
+  'preset.vendorRegex': Object.freeze(['items']),
+  'preset.mapRegex': Object.freeze(['items']),
+  'preset.beastRegex': Object.freeze(['items']),
+  'settings.combatAssist': Object.freeze(['combatAssist']),
   'settings.toolSites': Object.freeze(['sites'])
 })
 
 const PRESET_SECTION_IDS = new Set([
-  'preset.item', 'preset.essence', 'preset.harvest', 'preset.map', 'preset.story', 'preset.storySkill'
+  'preset.item', 'preset.essence', 'preset.harvest', 'preset.map', 'preset.heist',
+  'preset.story', 'preset.storySkill',
+  'preset.vendorRegex', 'preset.mapRegex', 'preset.beastRegex'
 ])
 
 function clone(value) {
@@ -83,6 +91,12 @@ function normalizeToolSites(value) {
 export function normalizeSectionData(sectionId, rawValue) {
   const value = pickSectionFields(sectionId, rawValue)
   if (PRESET_SECTION_IDS.has(sectionId)) return normalizePresetItems(sectionId, value)
+  if (sectionId === 'settings.combatAssist') {
+    if (!isPlainObject(value?.combatAssist)) {
+      throw new ConfigTransferError('SECTION_DATA_INVALID', '战斗辅助配置结构无效', { sectionId })
+    }
+    return sanitizeTransferValue({ combatAssist: normalizeCombatAssist(value.combatAssist) })
+  }
   if (sectionId === 'settings.toolSites') return sanitizeTransferValue(normalizeToolSites(value))
   throw new ConfigTransferError('UNKNOWN_SECTION', `不支持配置区块：${sectionId}`, { sectionId })
 }

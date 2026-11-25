@@ -15,12 +15,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import MainLayout from './components/Layout/MainLayout.vue'
-import TitleBar from './components/Layout/TitleBar.vue'
-import ConfigurationGuideDialog from './domains/configurationGuide/ConfigurationGuideDialog.vue'
-import ContextLoadingFeedback from './components/common/ContextLoadingFeedback.vue'
+const MainLayout = defineAsyncComponent(() => import('./components/Layout/MainLayout.vue'))
+const TitleBar = defineAsyncComponent(() => import('./components/Layout/TitleBar.vue'))
+const ConfigurationGuideDialog = defineAsyncComponent(() => import('./domains/configurationGuide/ConfigurationGuideDialog.vue'))
+const ContextLoadingFeedback = defineAsyncComponent(() => import('./components/common/ContextLoadingFeedback.vue'))
 import { reportStartupEvent } from './utils/startupReporter'
 import { markMainRuntimeSettled } from './startup/readiness'
 import { resolveWindowTheme, syncMainWindowTheme } from './theme/mainWindowTheme'

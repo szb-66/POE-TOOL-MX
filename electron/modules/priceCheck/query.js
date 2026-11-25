@@ -2,7 +2,9 @@ import { isCatalogStatQueryable, isTradeStatId, resolveCatalogStat, resolveChart
 import { CHART_SHAPES, resolveChartShape } from './chartRegions.js'
 import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { createAwakenedTradeRequest } from './awakenedTrade.js'
+import { applyAutoSelection } from './autoSelect.js'
 import { createPseudoStats } from './pseudo.js'
+import { DEFAULT_VISCERA_NAME_TEMPLATES, splitVisceraName } from '../localization/viscera.js'
 import { SPECIAL_DISCRIMINATORS, resolveSpecialItemIdentity, addLogbookStats, isLogbookStat } from './specialItems.js'
 import {
   PRICE_CHECK_CLASSIC_INFLUENCES,
@@ -18,6 +20,7 @@ import {
 } from './uniqueItemSnapshot.js'
 
 const NON_UNIQUE_RARITIES = new Set(['普通', '魔法', '稀有'])
+const VALID_SOURCE_SUBTYPES = new Set(['foulborn', 'corrupted', 'searing-exarch', 'eater-of-worlds', 'enchant'])
 const MERCENARY_WARRANT_DISCRIMINATOR = 'mercenary_warrant'
 const IDENTITY_DISCRIMINATORS = new Set(['map', 'chart', MERCENARY_WARRANT_DISCRIMINATOR, ...SPECIAL_DISCRIMINATORS])
 const CLASSIC_INFLUENCE_STAT_IDS = new Set(PRICE_CHECK_CLASSIC_INFLUENCES.map(({ statId }) => statId))
@@ -77,46 +80,52 @@ function resolveNonUniqueBaseType(item, catalog) {
   return longest.length === 1 ? longest[0] : fallback
 }
 
-function resolveMercenaryWarrantIdentity(item, catalog) {
-  if (safeText(item?.category) !== '地图碎片' || safeText(item?.name) !== '佣兵凭证' || !item?.mercenary) return null
+function resolveMercenaryWarrantIdentity(item, catalog, resolver) {
+  if (!item?.mercenary || item.category !== '地图碎片' || !/^(?:佣兵凭证|傭兵契約書|Mercenary Warrant)$/.test(item.name)) return null
   const build = safeText(item.mercenary.build)
-  const displayText = `佣兵凭证（${build}）`
-  const matches = (catalog?.items || []).filter((entry) => (
-    entry?.discriminator === MERCENARY_WARRANT_DISCRIMINATOR &&
-    safeText(entry.text) === displayText &&
-    safeText(entry.baseType || entry.type)
-  ))
+  const displayText = item.name === 'Mercenary Warrant'
+    ? `Mercenary Warrant (${build})` : `${item.name}（${build}）`
+  const matches = resolver ? resolver.build(catalog, build) : (catalog?.items || [])
+    .filter(entry => entry?.discriminator === MERCENARY_WARRANT_DISCRIMINATOR && safeText(entry.text) === displayText)
+    .map(entry => safeText(entry.baseType || entry.type)).filter(Boolean)
+  const server = catalog?.locale === 'en' ? '国际服' : '国服'
   if (matches.length !== 1) {
     throw new Error(matches.length
-      ? `国服交易目录中的佣兵构建“${build || '未知'}”存在歧义`
-      : `国服交易目录中没有佣兵构建“${build || '未知'}”`)
+      ? `${server}交易目录中的佣兵构建“${build || '未知'}”存在歧义`
+      : `${server}交易目录中没有佣兵构建“${build || '未知'}”`)
   }
   return {
     build,
     displayText,
-    type: safeText(matches[0].baseType || matches[0].type)
+    type: matches[0]
   }
 }
 
-function createMercenarySkillGroups(item, catalog) {
+function createMercenarySkillGroups(item, catalog, resolver) {
+  const server = catalog?.locale === 'en' ? '国际服' : '国服'
+  const resolveId = (name, lookupText, type, tier = null) => {
+    const ids = resolver ? resolver.stat(catalog, name, type, tier) :
+      [resolveCatalogStat(catalog, lookupText, 'mercenary').match?.id].filter(id => id?.startsWith(`mercenary.${type}_`))
+    return ids.length === 1 ? ids[0] : null
+  }
   return (item?.mercenary?.skills || []).map((group, groupIndex) => {
     const skillText = safeText(group.name)
-    const skillMatch = resolveCatalogStat(catalog, skillText, 'mercenary').match
-    if (!skillMatch?.id?.startsWith('mercenary.skill_')) {
-      throw new Error(`国服交易目录无法识别佣兵主动技能“${skillText || '未知'}”`)
+    const skillId = resolveId(skillText, skillText, 'skill')
+    if (!skillId) {
+      throw new Error(`${server}交易目录无法识别佣兵主动技能“${skillText || '未知'}”`)
     }
-    const key = `mercenary-group:${groupIndex}:${skillMatch.id}`
+    const key = `mercenary-group:${groupIndex}:${skillId}`
     const supports = (group.supports || []).map((support, supportIndex) => {
       const name = safeText(support.name || support.text)
       const tier = Number.isInteger(Number(support.tier)) && Number(support.tier) > 0 ? Number(support.tier) : null
       const lookupText = tier ? `${name} （等阶 ${tier}）` : name
-      const supportMatch = resolveCatalogStat(catalog, lookupText, 'mercenary').match
-      if (!supportMatch?.id?.startsWith('mercenary.support_')) {
-        throw new Error(`国服交易目录无法识别佣兵辅助技能“${safeText(support.text) || lookupText || '未知'}”`)
+      const supportId = resolveId(name, lookupText, 'support', tier)
+      if (!supportId) {
+        throw new Error(`${server}交易目录无法识别佣兵辅助技能“${safeText(support.text) || lookupText || '未知'}”`)
       }
       return {
-        key: `${key}:support:${supportIndex}:${supportMatch.id}`,
-        id: supportMatch.id,
+        key: `${key}:support:${supportIndex}:${supportId}`,
+        id: supportId,
         type: 'mercenary',
         text: safeText(support.text) || lookupText,
         name,
@@ -129,7 +138,7 @@ function createMercenarySkillGroups(item, catalog) {
       enabled: false,
       skill: {
         key: `${key}:skill`,
-        id: skillMatch.id,
+        id: skillId,
         type: 'mercenary',
         text: skillText,
         name: skillText
@@ -302,6 +311,7 @@ export function mergeStatIntoList(stats, stat) {
   }
   existing.valueMultiplier = nextMultiplier
   if (stat.sourceSubtype === 'foulborn') existing.sourceSubtype = 'foulborn'
+  else if (!existing.sourceSubtype && VALID_SOURCE_SUBTYPES.has(stat.sourceSubtype)) existing.sourceSubtype = stat.sourceSubtype
   Object.assign(existing, originalValueBounds(existing.values))
   existing.enabled ||= stat.enabled
   return existing
@@ -313,34 +323,38 @@ export function refreshPseudoStats(model, catalog, options = {}) {
   const rewardStats = (model.stats || []).filter((stat) => MAP_REWARD_STAT_IDS.has(stat.id))
   const logbookStats = (model.stats || []).filter(isLogbookStat)
   const previous = new Map((model.stats || []).filter((stat) => stat.type === 'pseudo').map((stat) => [stat.id, stat]))
-  const foulbornKeys = new Set(rawStats.filter(stat => stat.sourceSubtype === 'foulborn').map(stat => stat.key))
+  const protectedKeys = new Set(rawStats
+    .filter((stat) => stat.sourceSubtype === 'foulborn' || stat.type === 'fractured')
+    .map((stat) => stat.key))
   const generated = createPseudoStats(rawStats, catalog, options, originalValueBounds)
   for (const stat of generated.stats) {
     const existing = previous.get(stat.id)
-    // Keep variant-defining Foulborn modifiers as direct filters by default.
+    // Keep variant-defining Foulborn and fractured modifiers as direct filters by default.
     if (!existing && (options.initialSelection || 'auto') === 'auto' &&
-        stat.sources.some(source => foulbornKeys.has(source.key))) stat.enabled = false
+        stat.sources.some((source) => protectedKeys.has(source.key))) stat.enabled = false
     if (!existing) continue
     stat.enabled = existing.enabled
     stat.min = existing.min
     stat.max = existing.max
+    if (existing.autoSelection) stat.autoSelection = existing.autoSelection
   }
   const absorbedKeys = new Set(generated.stats
     .filter((stat) => stat.enabled)
     .flatMap((stat) => stat.sources.map(({ key }) => key)))
   for (const stat of rawStats) {
-    if (absorbedKeys.has(stat.key) && !foulbornKeys.has(stat.key)) stat.enabled = false
+    if (absorbedKeys.has(stat.key) && !protectedKeys.has(stat.key)) stat.enabled = false
   }
   model.stats = [...generated.stats, ...rewardStats, ...influenceStats, ...rawStats, ...logbookStats]
   return model
 }
 
-export function createPriceCheckModel(item, catalog, options = {}) {
-  if (!item?.rarity || (!item.name && !item.baseName)) throw new Error('剪贴板中没有可识别的国服物品')
-  const rarity = item.rarity.replace(/\s/g, '')
-  const category = safeText(item.category)
+export function createPriceCheckModel(item, catalog, options = {}, mercenaryResolver = null) {
+  const rarity = safeText(item?.rarity).replace(/\s/g, '')
+  const category = safeText(item?.category)
   const officialCategory = resolvePriceCheckCategory(category)
-  const mercenaryWarrant = resolveMercenaryWarrantIdentity(item, catalog)
+  const isViscera = officialCategory?.category === 'viscera'
+  if ((!rarity && !isViscera) || (!item.name && !item.baseName)) throw new Error('剪贴板中没有可识别的物品')
+  const mercenaryWarrant = resolveMercenaryWarrantIdentity(item, catalog, mercenaryResolver)
   const specialIdentity = resolveSpecialItemIdentity(item, catalog)
   const isLogbook = officialCategory?.category === 'logbook'
   const identityDiscriminator = specialIdentity?.discriminator || (mercenaryWarrant?.type
@@ -352,7 +366,17 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   if (isChart && !chartRegion) {
     throw new Error(`无法识别海图区域“${safeText(item.areaName) || '未知'}”，已阻止按物理底材误查`)
   }
-  const baseType = specialIdentity?.type || mercenaryWarrant?.type || (isChart
+  let visceraBaseType = ''
+  if (isViscera) {
+    const copiedName = safeText(item.baseName || item.name)
+    const visceraItems = (catalog?.items || []).filter(entry => entry.category === 'viscera')
+    const locale = catalog?.locale === 'en' ? 'en' : 'cn'
+    const graded = splitVisceraName(copiedName, DEFAULT_VISCERA_NAME_TEMPLATES, [locale])
+    visceraBaseType = (visceraItems.find(entry => entry.baseType === copiedName) ||
+      visceraItems.find(entry => entry.baseType === graded?.baseName))?.baseType || ''
+    if (!visceraBaseType) throw new Error(`官方交易目录中没有内脏底材“${copiedName}”，请更新交易目录后重试`)
+  }
+  const baseType = specialIdentity?.type || mercenaryWarrant?.type || visceraBaseType || (isChart
     ? chartRegion.type
     : (isMap ? (catalog?.locale === 'en' ? 'Map' : '地图') : resolveNonUniqueBaseType(item, catalog)))
   const isClusterJewel = /^(?:大型|中型|小型)星团珠宝$/.test(baseType)
@@ -410,6 +434,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
           uniqueModifierSnapshot &&
           !matchesUniqueModifier(tradeStatText(effect.text), uniqueModifierSnapshot.matchers)
         ) continue
+        if (effect.resolution.candidates.length === 0 && /^Has \d+ Abyssal Sockets?$|^拥有\s*\d+\s*个深渊插槽/.test(safeText(effect.text).trim())) continue // 深渊插槽属于插槽信息，非交易词缀
         if (effect.text) unknownStats.push({
           key: `${type}:${unknownStats.length}:${effect.text}`,
           text: effect.text,
@@ -444,7 +469,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         text: effect.text,
         type,
         refs: [...(match.refs || [])],
-        ...(modifier.sourceSubtype === 'foulborn' ? { sourceSubtype: 'foulborn' } : {}),
+        ...(VALID_SOURCE_SUBTYPES.has(modifier.sourceSubtype) ? { sourceSubtype: modifier.sourceSubtype } : {}),
         ref: match.ref,
         tier: Number(modifier.tier) || null,
         tags: Array.isArray(modifier.tags) ? modifier.tags.map((tag) => safeText(tag, 40)).filter(Boolean) : [],
@@ -466,7 +491,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
         }],
         enabled: options.initialSelection === 'all' || (
           (options.initialSelection || 'auto') === 'auto' &&
-          (modifier.sourceSubtype === 'foulborn' || isLogbook || ((isMap || isChart)
+          (modifier.sourceSubtype === 'foulborn' || isLogbook || ((isMap || isChart || isViscera)
             ? ['base', 'implicit'].includes(modifier.type)
             : ((isClusterJewel && modifier.type === 'enchant') || modifier.type === 'fractured' || (
             ['prefix', 'suffix'].includes(modifier.type) &&
@@ -540,7 +565,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       max: undefined
     })
   }
-  const mercenarySkillGroups = mercenaryWarrant ? createMercenarySkillGroups(item, catalog) : []
+  const mercenarySkillGroups = mercenaryWarrant ? createMercenarySkillGroups(item, catalog, mercenaryResolver) : []
   const facts = {
     identified: !item.isUnidentified,
     corrupted: Boolean(item.isCorrupted),
@@ -554,12 +579,18 @@ export function createPriceCheckModel(item, catalog, options = {}) {
     crafted: modifiers.some((modifier) => modifier.type === 'crafted'),
     veiled: modifiers.some((modifier) => modifier.type === 'veiled')
   }
+  const hasCorruptedImplicit = modifiers.some((modifier) => modifier.sourceSubtype === 'corrupted')
+  const stateContext = {
+    rarity,
+    category: officialCategory?.category || '',
+    hasCorruptedImplicit
+  }
   const model = {
     item: {
       category,
       rarity,
       name: safeText(item.name),
-      baseType: safeText(mercenaryWarrant ? '佣兵凭证' : (isChart ? item.baseName : baseType)),
+      baseType: safeText(mercenaryWarrant ? item.name : (isChart ? item.baseName : baseType)),
       mercenaryBuild: mercenaryWarrant?.build || '',
       itemLevel: Number(item.level) || 0,
       gemLevel: Number(item.gemLevel) || 0,
@@ -604,7 +635,7 @@ export function createPriceCheckModel(item, catalog, options = {}) {
       fractured: Boolean(item.isFractured)
     },
     facts,
-    stateFilters: createPriceCheckStateFilters(facts),
+    stateFilters: createPriceCheckStateFilters(facts, stateContext),
     properties,
     mercenarySkillGroups,
     stats: mergedStats,
@@ -629,7 +660,8 @@ export function createPriceCheckModel(item, catalog, options = {}) {
   refreshPseudoStats(model, catalog, options)
   if (isLogbook) addLogbookStats(model, item.logbookRegions, catalog, options.initialSelection !== 'none')
   model.stats.push(...createClassicInfluenceStats(item.influences, catalog))
-  if (rarity === '传奇' && /^退化/.test(baseType)) {
+  applyAutoSelection(model, options)
+  if (rarity === '传奇' && /^(?:退化|殘存\s*|Vestigial\s+)/.test(baseType)) {
     model.identityPrecision = { requiresConsent: true, allowNameOnly: false,
       message: '当前无法精准区分退化版本。仅按传奇名称查询可能包含普通版本。' }
   }
@@ -847,10 +879,22 @@ function sanitizeMercenarySkillGroups(value, catalog, trustedModel) {
   }).filter(Boolean)
 }
 
+function sanitizeAutoSelectionMeta(value) {
+  if (!value || typeof value !== 'object') return undefined
+  return {
+    enabled: Boolean(value.enabled),
+    reason: safeText(value.reason, 120)
+  }
+}
+
 export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = null, trustedCategory = null, trustedModel = null) {
   if (!value || typeof value !== 'object') throw new Error('查价请求无效')
-  const trustedFoulbornKeys = new Set((trustedModel?.stats || [])
-    .filter(stat => stat.sourceSubtype === 'foulborn').map(stat => stat.key))
+  const trustedSubtypesByKey = new Map((trustedModel?.stats || [])
+    .filter((stat) => VALID_SOURCE_SUBTYPES.has(stat.sourceSubtype))
+    .map((stat) => [stat.key, stat.sourceSubtype]))
+  const trustedAutoMetaByKey = new Map((trustedModel?.stats || [])
+    .filter((stat) => stat.autoSelection)
+    .map((stat) => [stat.key, stat.autoSelection]))
   let stats = Array.isArray(value.stats) ? value.stats.slice(0, 24).map((stat) => {
     const id = safeText(stat.id, 80)
     const type = safeText(stat.type, 24)
@@ -859,14 +903,18 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
     )
     const values = Array.isArray(stat.values) ? stat.values.slice(0, 8).map(safeNumber).filter(Number.isFinite) : []
     const valueMultiplier = multiplierForMergedValues(values, stat.valueMultiplier)
+    const key = safeText(stat.key, 120)
+    const sourceSubtype = trustedSubtypesByKey.get(key)
+    const autoSelection = sanitizeAutoSelectionMeta(trustedAutoMetaByKey.get(key) || stat.autoSelection)
     return {
-      key: safeText(stat.key, 120),
+      key,
       id,
       label: safeText(stat.label),
       text: safeText(stat.text, 500),
       ...(stat.displayText ? { displayText: safeText(stat.displayText, 500) } : {}),
       type,
-      ...(trustedFoulbornKeys.has(stat.key) ? { sourceSubtype: 'foulborn' } : {}),
+      ...(sourceSubtype ? { sourceSubtype } : {}),
+      ...(autoSelection ? { autoSelection } : {}),
       refs,
       ref: refs.length === 1 ? refs[0] : null,
       tier: Number.isInteger(Number(stat.tier)) && Number(stat.tier) > 0 ? Number(stat.tier) : null,
@@ -958,6 +1006,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       if (min !== undefined && (!Number.isInteger(min) || min < 1 || min > 100)) min = undefined
       if (max !== undefined && (!Number.isInteger(max) || max < 1 || max > 100 || (min !== undefined && max < min))) max = undefined
     }
+    const autoSelection = sanitizeAutoSelectionMeta(trusted?.autoSelection || property.autoSelection)
     return {
       id,
       label: safeText(source.label, 80),
@@ -967,6 +1016,7 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       displayValue: safeText(source.displayValue, 40),
       options: id === 'map.shape' ? CHART_SHAPES.map(({ id, label }) => ({ id, label })) : undefined,
       enabled: Boolean(property.enabled),
+      ...(autoSelection ? { autoSelection } : {}),
       min,
       max
     }
@@ -1060,7 +1110,11 @@ export function sanitizePriceCheckModel(value, catalog = null, trustedFacts = nu
       : undefined,
     flags,
     facts,
-    stateFilters: sanitizePriceCheckStateFilters(value.stateFilters, facts),
+    stateFilters: sanitizePriceCheckStateFilters(value.stateFilters, facts, trustedModel ? {
+      rarity: safeText(trustedModel.item?.rarity).replace(/\s/g, ''),
+      category: officialCategory?.category || '',
+      hasCorruptedImplicit: (trustedModel.stats || []).some((stat) => stat.sourceSubtype === 'corrupted')
+    } : null),
     properties,
     mercenarySkillGroups,
     information: Array.isArray(value.information) ? value.information.slice(0, 12).map((entry) => ({

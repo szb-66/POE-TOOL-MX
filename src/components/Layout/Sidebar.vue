@@ -11,6 +11,9 @@
       </el-menu-item>
     </el-menu>
     <el-menu :default-active="activeMenu" class="sidebar-menu sidebar-menu--footer">
+      <el-menu-item v-if="currentServer.id === 'international'" index="/localization" @click="router.push('/localization')" @pointerenter="warmRoute('/localization')" @focusin="warmRoute('/localization')">
+        <el-icon><Switch /></el-icon><span>游戏汉化</span>
+      </el-menu-item>
       <el-menu-item index="more-features" class="more-features-entry" @click="moreDialogVisible = true">
         <el-icon><Grid /></el-icon><span>更多</span>
       </el-menu-item>
@@ -26,7 +29,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Grid, Guide, House, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, Setting, SuitcaseLine } from '@element-plus/icons-vue'
+import { Box, Coin, Connection, DataAnalysis, DocumentChecked, FirstAidKit, Grid, Guide, House, MapLocation, Notebook, Operation, PriceTag, SetUp, ShoppingBag, Setting, SuitcaseLine, Switch } from '@element-plus/icons-vue'
+import { currentServer } from '@/utils/serverContext.js'
 import { preloadPage } from '@/router/pageLoaders'
 import { useFeedbackRepliesStore } from '@/stores/feedbackReplies'
 import { useFeatureModulesStore } from '@/stores/featureModules'

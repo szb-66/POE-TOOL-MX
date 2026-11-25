@@ -45,6 +45,12 @@ export function registerCraftingHandlers(service) {
     await service.initialize()
     return service.repository.searchAffixSuggestions({ query: safeQuery(input.query), limit: Math.min(100, Number(input.limit) || 50) })
   })
+  ipcMain.handle('crafting-search-affix-aliases', async (_event, input = {}) => {
+    const texts = Array.isArray(input.texts)
+      ? input.texts.filter((text) => typeof text === 'string' && text.trim()).slice(0, 2000)
+      : []
+    return { items: service.affixAliasesForTexts(texts) }
+  })
   ipcMain.handle('crafting-search-eldritch-implicit-suggestions', async (_event, input = {}) => {
     await service.initialize()
     return service.searchEldritchImplicitSuggestions({
@@ -52,6 +58,13 @@ export function registerCraftingHandlers(service) {
       source: input.source === 'eater' ? 'eater' : 'exarch',
       tier: Math.max(1, Math.min(4, Math.trunc(Number(input.tier)) || 1)),
       limit: Math.min(100, Number(input.limit) || 50)
+    })
+  })
+  ipcMain.handle('crafting-resolve-cross-server-conditions', async (_event, input = {}) => {
+    await service.initialize()
+    return service.repository.resolveCrossServerConditions({
+      affixConditions: Array.isArray(input.affixConditions) ? input.affixConditions.slice(0, 500) : [],
+      eldritchTargets: Array.isArray(input.eldritchTargets) ? input.eldritchTargets.slice(0, 200) : []
     })
   })
   ipcMain.handle('crafting-create-manual-session', async (_event, input = {}) => { await service.initialize(); return service.createManualSession(input) })

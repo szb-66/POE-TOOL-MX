@@ -52,7 +52,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { electronApi } from '../../../api/electron.js'
 import { usePresetStore } from '../../../stores/preset.js'
 import { normalizeEldritchModule } from '../eldritchConfig.js'
@@ -62,6 +62,7 @@ const moduleEldritch = computed(() => presetStore.currentItemPreset.moduleEldrit
 const form = ref(normalizeEldritchModule(moduleEldritch.value))
 const options = ref([...form.value.targets])
 const loading = ref(false)
+let resolveSequence = 0
 const tierOptions = [
   { value: 1, label: 'T1 · 次级' },
   { value: 2, label: 'T2 · 高级' },
@@ -69,10 +70,40 @@ const tierOptions = [
   { value: 4, label: 'T4 · 卓越' }
 ]
 
+async function resolveEldritchDisplay() {
+  if (!form.value.targets.length || typeof electronApi.crafting?.resolveCrossServerConditions !== 'function') return
+  const request = ++resolveSequence
+  try {
+    const result = await electronApi.crafting.resolveCrossServerConditions({
+      eldritchTargets: form.value.targets
+    })
+    if (request !== resolveSequence || !Array.isArray(result?.eldritchTargets)) return
+    const nextTargets = result.eldritchTargets
+    const changed = nextTargets.some((item, index) => {
+      const current = form.value.targets[index]
+      return current && item && (
+        item.familyId !== current.familyId
+        || item.effectPattern !== current.effectPattern
+        || item.displayName !== current.displayName
+        || (item.canonicalKey && item.canonicalKey !== current.canonicalKey)
+      )
+    })
+    if (changed) {
+      form.value = normalizeEldritchModule({ ...form.value, targets: nextTargets })
+      options.value = mergeOptions(options.value, form.value.targets)
+      commit()
+    }
+  } catch {
+    // Keep original targets if resolution is unavailable
+  }
+}
+
 watch(moduleEldritch, (value) => {
   form.value = normalizeEldritchModule(value)
   options.value = mergeOptions(options.value, form.value.targets)
+  void resolveEldritchDisplay()
 }, { deep: true })
+onMounted(() => { void resolveEldritchDisplay() })
 
 function mergeOptions(left, right) {
   return [...new Map([...left, ...right].map((entry) => [entry.familyId, entry])).values()]
@@ -92,7 +123,8 @@ async function searchTargets(query = '') {
       tier: form.value.tier,
       limit: 100
     })
-    options.value = mergeOptions(form.value.targets, result?.items ?? [])
+    const items = (result?.items ?? []).map((item) => ({ ...item, effectPattern: item.displayPattern || item.effectPattern }))
+    options.value = mergeOptions(form.value.targets, items)
   } catch {
     options.value = [...form.value.targets]
   } finally {

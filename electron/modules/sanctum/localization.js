@@ -1,6 +1,7 @@
 import { createLocalizationDictionary } from '../localization/text.js'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { sanctumCatalogSummary } from './catalog.js'
 
 const rewardDefinitions = JSON.parse(readFileSync(new URL('../../assets/sanctum/reward-text-templates.json', import.meta.url), 'utf8')).templates
 
@@ -71,6 +72,8 @@ export function createLocalizedSanctumCatalog(base, { entriesProvider = () => []
     return unique.size === 1 && !rejected.length ? unique.values().next().value : {status:'unknown',reason:'奖励文本存在多个不一致候选'}
   }
   const result = { ...base }
+  // Status summaries only use original identities, so they do not need the translation dictionary.
+  Object.defineProperty(result, 'summary', { get() { return sanctumCatalogSummary(result, base.entries) } })
   Object.defineProperty(result, 'localizationRevision', { get() { refresh(); return revision } })
   Object.defineProperty(result, 'entries', { enumerable: true, get() { refresh(); return entries } })
   Object.defineProperty(result, 'parseReward', { value:parseReward })

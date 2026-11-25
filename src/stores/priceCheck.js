@@ -48,6 +48,8 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   const loading = ref(false)
   const error = ref('')
   const failure = ref(null)
+  const errorLog = ref({ startedAt: '', appVersion: '', server: '', count: 0, entries: [] })
+  const errorLogLoading = ref(false)
   let removeOverlayListener = null
   let removeSettingsListener = null
   let removeCatalogListener = null
@@ -57,6 +59,10 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   const authenticated = computed(() => account.status.authenticated)
   const catalog = computed(() => status.value?.catalog || null)
   const league = computed(() => account.settings.league)
+  const errorCount = computed(() => Math.max(
+    Number(status.value?.errorCount) || 0,
+    Number(errorLog.value?.count) || 0
+  ))
   const options = computed(() => ({
     status: settings.value.status,
     listed: settings.value.listed,
@@ -79,6 +85,33 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
   async function refreshStatus() {
     status.value = unwrap(await electronApi.priceCheck.getStatus())
     return status.value
+  }
+
+  function applyErrorLog(snapshot) {
+    const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : []
+    const count = Number.isFinite(Number(snapshot?.count)) ? Number(snapshot.count) : entries.length
+    errorLog.value = snapshot && typeof snapshot === 'object'
+      ? { ...snapshot, count, entries }
+      : { startedAt: '', appVersion: '', server: '', count: 0, entries: [] }
+    if (status.value && typeof status.value === 'object') {
+      status.value = { ...status.value, errorCount: errorLog.value.count }
+    }
+    return errorLog.value
+  }
+
+  async function refreshErrorLog() {
+    errorLogLoading.value = true
+    try {
+      const snapshot = unwrap(await electronApi.priceCheck.getErrorLog())
+      return applyErrorLog(snapshot)
+    } finally {
+      errorLogLoading.value = false
+    }
+  }
+
+  async function deleteErrorLogEntry(id) {
+    const snapshot = unwrap(await electronApi.priceCheck.deleteErrorLogEntry(id))
+    return applyErrorLog(snapshot)
   }
 
   async function retryCatalog() {
@@ -239,6 +272,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
         message: reason.message
       }
       void reportDiagnosticFailure('priceCheck', 'query', reason, 'request_failed')
+      void refreshErrorLog().catch(() => {})
       throw reason
     } finally {
       loading.value = false
@@ -274,6 +308,7 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
       overlayState.value = snapshot
       if (snapshot?.model) model.value = snapshot.model
       if (snapshot?.result) result.value = snapshot.result
+      if (snapshot?.status === 'error') void refreshErrorLog().catch(() => {})
     })
     removeSettingsListener = electronApi.priceCheck.onSettingsChanged((snapshot) => {
       const revision = Number(snapshot?.settingsRevision) || 0
@@ -311,8 +346,9 @@ export const usePriceCheckStore = defineStore('priceCheck', () => {
 
   return {
     status, settings, model, result, overlayState, loading, error, failure,
+    errorLog, errorLogLoading, errorCount,
     authenticated, catalog, league, options,
-    saveSettings, clearResults, refreshStatus, syncRuntime, setEnabled,
+    saveSettings, clearResults, refreshStatus, refreshErrorLog, deleteErrorLogEntry, syncRuntime, setEnabled,
     updateSetting, retryCatalog, checkHoveredItem, rerun, loadMore, loadDistribution, listenOverlay
   }
 })

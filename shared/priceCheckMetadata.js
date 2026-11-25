@@ -75,17 +75,18 @@ const PRICE_CHECK_CATEGORY_ENTRIES = Object.freeze([
   [['珠宝'], 'jewel', '珠宝'],
   [['深渊珠宝'], 'jewel.abyss', '深渊珠宝'],
   [['星团珠宝'], 'jewel.cluster', '星团珠宝'],
-  [['药剂', '生命药剂', '魔力药剂', '复合药剂', '混合药剂', '功能药剂'], 'flask', '药剂'],
+  [['药剂', '生命药剂', '魔力药剂', '复合药剂', '混合药剂', '功能药剂', '暴击药剂'], 'flask', '药剂'],
   [['地图', '异界地图'], 'map', '地图'],
   [['海图'], 'chart', '海图'],
   [['地图碎片'], 'map.fragment', '地图碎片'],
-  [['裂隙石'], 'map.breachstone', '裂隙石'],
+  [['裂隙石', '裂隙之石'], 'map.breachstone', '裂隙石'],
   [['邀请', '邀请函'], 'map.invitation', '邀请'],
   [['圣甲虫'], 'map.scarab', '圣甲虫'],
   [['命运卡'], 'card', '命运卡'],
+  [['内脏'], 'viscera', '内脏'],
   [['通货'], 'currency', '通货'],
   [['酊剂'], 'tincture', '酊剂'],
-  [['先祖秘藏日志'], 'logbook', '先祖秘藏日志'],
+  [['先祖秘藏日志', '探险日志'], 'logbook', '先祖秘藏日志'],
   [['赏金猎人装备'], 'heistequipment.heistweapon', '赏金猎人装备'],
   [['赏金猎人工具'], 'heistequipment.heisttool', '赏金猎人工具'],
   [['赏金猎人披风'], 'heistequipment.heistutility', '赏金猎人披风'],
@@ -135,18 +136,38 @@ export const PRICE_CHECK_STAT_TYPES = Object.freeze({
   ultimatum: { label: '致命贪婪', token: 'ultimatum' }
 })
 
-export function createPriceCheckStateFilters(facts = {}) {
-  return Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map((definition) => [
-    definition.key,
-    definition.key === 'identified'
-      ? (facts.identified === false ? 'false' : 'any')
-      : (facts[definition.key] === true ? 'true' : 'any')
-  ]))
+const RELAXED_DEFAULT_STATE_KEYS = new Set(['crafted', 'searing', 'tangled', 'veiled'])
+const ALWAYS_CORRUPTED_CATEGORIES = new Set(['map', 'chart', 'logbook', 'viscera'])
+
+function defaultCorruptedState(facts, context) {
+  if (facts?.corrupted !== true) return 'any'
+  if (!context) return 'true'
+  const rarity = String(context.rarity || '').replace(/\s/g, '')
+  const category = String(context.category || '')
+  if (rarity === '稀有' && !context.hasCorruptedImplicit && !ALWAYS_CORRUPTED_CATEGORIES.has(category)) {
+    return 'any'
+  }
+  return 'true'
 }
 
-export function sanitizePriceCheckStateFilters(value, fallbackFacts = {}) {
+export function createPriceCheckStateFilters(facts = {}, context = null) {
+  return Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map((definition) => {
+    if (definition.key === 'identified') {
+      return [definition.key, facts.identified === false ? 'false' : 'any']
+    }
+    if (RELAXED_DEFAULT_STATE_KEYS.has(definition.key)) {
+      return [definition.key, 'any']
+    }
+    if (definition.key === 'corrupted') {
+      return [definition.key, defaultCorruptedState(facts, context)]
+    }
+    return [definition.key, facts[definition.key] === true ? 'true' : 'any']
+  }))
+}
+
+export function sanitizePriceCheckStateFilters(value, fallbackFacts = {}, context = null) {
   const allowed = new Set(PRICE_CHECK_STATE_VALUES)
-  const defaults = createPriceCheckStateFilters(fallbackFacts)
+  const defaults = createPriceCheckStateFilters(fallbackFacts, context)
   return Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key }) => [
     key,
     allowed.has(value?.[key]) ? value[key] : defaults[key]

@@ -4,6 +4,13 @@ import { inferCatalystDisplayTags } from './catalystRules.js'
 
 const SUPPORTED_INFLUENCES = new Set(['shaper', 'elder', 'crusader', 'redeemer', 'hunter', 'warlord'])
 const SUPPORTED_SPECIAL_SOURCES = new Set(['essence', 'delve', 'incursion', 'veiled'])
+const CLUSTER_ENCHANT_TAGS = {
+  Large_Cluster_Jewel: 'expansion_jewel_large',
+  Medium_Cluster_Jewel: 'expansion_jewel_medium',
+  Small_Cluster_Jewel: 'expansion_jewel_small'
+}
+const CLUSTER_ENCHANT_MARKERS = ['Added Small Passive Skills also grant:', '增加的小天赋还获得：', '增加的小天賦還獲得：']
+const CLUSTER_ENCHANT_HEADER = /Enchantment Modifiers|附魔/i
 
 const ESSENCE_RULES = {
   Whispering: { tier: 1, minimumItemLevel: 1, randomModifierLevelCap: 35, canReforgeRare: false },
@@ -351,22 +358,96 @@ function parseStructuredModifiers($, profileId = 'structured') {
   }).get()
 }
 
+// Cluster jewels keep their "Added Small Passive Skills also grant" enchant mods
+// outside the ModsView payload. They still appear on real items and must be part
+// of the affix catalog so cluster-jewel goals can be configured.
+function parsePoedbClusterEnchantModifiers($, profileId) {
+  const requiredTag = CLUSTER_ENCHANT_TAGS[profileId]
+  if (!requiredTag) return []
+  const goals = new Map()
+  const collect = row => {
+    const cells = $(row).children('td')
+    if (cells.length < 4) return
+    const effectText = htmlText($(cells[0]).html())
+    const marker = CLUSTER_ENCHANT_MARKERS
+      .map((candidate) => effectText.indexOf(candidate))
+      .find((index) => index >= 0)
+    if (marker == null) return
+    const text = effectText.slice(marker).trim()
+    const affixTypeText = cleanText($(cells[cells.length - 1]).text()).toLowerCase()
+    const affixType = /^(?:prefix|前缀|前綴)$/.test(affixTypeText) ? 'prefix'
+      : /^(?:suffix|后缀|後綴)$/.test(affixTypeText) ? 'suffix' : ''
+    if (!affixType) return
+    const weight = Number(cleanText($(cells[cells.length - 3]).text()).replace(/,/g, ''))
+    const requiredLevel = Number(cleanText($(cells[cells.length - 2]).text()))
+    if (!text || !Number.isFinite(weight) || !Number.isFinite(requiredLevel) || requiredLevel <= 0) return
+    const effectKey = modifierEffectKey(text)
+    if (!effectKey) return
+    const key = `${affixType}\u0000${effectKey}`
+    if (!goals.has(key)) goals.set(key, { affixType, effectKey, tiers: new Map(), tags: new Map() })
+    const goal = goals.get(key)
+    goal.tiers.set(`${requiredLevel}:${weight}:${text}`, { weight, requiredLevel, text })
+    $(cells[0]).find('[data-tag]').each((_, badge) => {
+      const id = $(badge).attr('data-tag')
+      if (id) goal.tags.set(id, { id, label: cleanText($(badge).text()) || id })
+    })
+  }
+  $('h5.card-header').each((_, header) => {
+    if (!CLUSTER_ENCHANT_HEADER.test($(header).text())) return
+    $(header).closest('.card, .card-body').find('tr').each((__, row) => collect(row))
+  })
+  return [...goals.values()].map((goal) => {
+    const sourceId = `${profileId}:enchant:${goal.affixType}:${goal.effectKey}`
+    const tiers = [...goal.tiers.values()]
+      .sort((a, b) => b.requiredLevel - a.requiredLevel || b.weight - a.weight)
+      .map((tier, index) => ({
+        id: stableCraftingId('tier', `${sourceId}:${tier.requiredLevel}:${tier.weight}:${tier.text}`),
+        tier: index + 1,
+        name: `T${index + 1}`,
+        requiredLevel: tier.requiredLevel,
+        weight: tier.weight,
+        text: tier.text,
+        displayTags: [...goal.tags.values()],
+        values: numberRanges(tier.text)
+      }))
+    if (!tiers.length) return null
+    return {
+      id: stableCraftingId('modifier', sourceId),
+      goalId: stableCraftingId('goal', `${profileId}:enchant:${goal.affixType}:ClusterJewelEnchant:${goal.effectKey}`),
+      sourceId,
+      effectKey: goal.effectKey,
+      modifierProfileId: profileId,
+      groupId: 'ClusterJewelEnchant',
+      name: goal.effectKey,
+      affixType: goal.affixType,
+      source: 'enchant',
+      tags: [...goal.tags.keys()],
+      displayTags: [...goal.tags.values()],
+      spawnTags: [requiredTag, 'default'],
+      requiredTags: [requiredTag],
+      itemClasses: ['Jewel'],
+      influences: [],
+      tiers
+    }
+  }).filter(Boolean)
+}
+
 export function parsePoedbModifiers(html, { profileId = '' } = {}) {
   const $ = load(html)
   const structured = parseStructuredModifiers($, profileId || 'structured')
   if (structured.length) return structured
   const payload = extractModsViewPayload(html)
-  if (!payload) return []
-  const itemClassCode = cleanText(payload.opt?.ItemClassesCode || payload.baseitem?.cn || payload.baseitem?.href || 'unknown')
-  const baseItemName = cleanText(payload.opt?.BaseItemName || payload.baseitem?.Code)
-  const requiredTags = cleanText(payload.opt?.tags).split(/\s+/).filter((tag) => tag && tag !== 'default')
+  const itemClassCode = cleanText(payload?.opt?.ItemClassesCode || payload?.baseitem?.cn || payload?.baseitem?.href || 'unknown')
+  const baseItemName = cleanText(payload?.opt?.BaseItemName || payload?.baseitem?.Code)
+  const requiredTags = cleanText(payload?.opt?.tags).split(/\s+/).filter((tag) => tag && tag !== 'default')
   const baseScopeTags = [
     ['large cluster jewel', 'expansion_jewel_large'], ['medium cluster jewel', 'expansion_jewel_medium'], ['small cluster jewel', 'expansion_jewel_small'],
     ['murderous eye jewel', 'abyss_jewel_melee'], ['searching eye jewel', 'abyss_jewel_ranged'],
     ['hypnotic eye jewel', 'abyss_jewel_caster'], ['ghastly eye jewel', 'abyss_jewel_summoner']
   ]
   baseScopeTags.forEach(([needle, tag]) => { if (baseItemName.toLowerCase() === needle) requiredTags.push(tag) })
-  const resolvedProfileId = profileId || cleanText(payload.opt?.BaseItemName || payload.baseitem?.href || itemClassCode)
+  const resolvedProfileId = profileId || cleanText(payload?.opt?.BaseItemName || payload?.baseitem?.href || itemClassCode)
+  if (!payload) return parsePoedbClusterEnchantModifiers($, resolvedProfileId)
   const flaskReferenceProfile = /_Flasks$/.test(resolvedProfileId)
   const itemClassScope = [itemClassCode, baseItemName, ...requiredTags].filter(Boolean).join(':')
   const groups = new Map()
@@ -413,7 +494,7 @@ export function parsePoedbModifiers(html, { profileId = '' } = {}) {
     })
   }
 
-  return [...groups.values()].map((group) => {
+  const parsed = [...groups.values()].map((group) => {
     const sorted = group.records.sort((a, b) => Number(b.Level) - Number(a.Level))
     const bestText = htmlText(sorted[0].str)
     const name = bestText.replace(/[+\-]?[\d().—%]+/g, '#').replace(/#+/g, '#').trim()
@@ -451,6 +532,7 @@ export function parsePoedbModifiers(html, { profileId = '' } = {}) {
       })
     }
   })
+  return [...parsed, ...parsePoedbClusterEnchantModifiers($, resolvedProfileId)]
 }
 
 function parseCost(text) {
@@ -657,7 +739,7 @@ export function inferCraftEffectKind(name, provider) {
   if (provider === 'harvest' && /一堆|一叠|一张.*命运卡|献祭.*命运卡|碎片|催化剂|圣油|精华/.test(text)) return 'inventory_transform'
   if (provider === 'harvest' && /腐化的地图/.test(text)) return 'map_transform'
   if (/受影响.*包括一个.*影响|势力.*重铸/.test(text)) return 'reforge_influence'
-  if (provider === 'harvest' && /重铸/.test(text) && /(?:其中包括|包含).*(?:词缀|属性)/.test(text)) return 'reforge_tag'
+  if (provider === 'harvest' && /(?:重铸|重置)/.test(text) && /(?:其中包括|包含).*(?:词缀|属性)/.test(text)) return 'reforge_tag'
   if (provider === 'bench') return 'add_crafted_modifier'
   return 'unsupported'
 }

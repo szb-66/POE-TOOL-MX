@@ -1,6 +1,56 @@
 export const PSEUDO_RULE_VERSION = 'awakened-poe-trade-3.29.102'
 export const PSEUDO_RULE_COMMIT = '91b5a05b14cda3a632a306b5f606ca1cced8b4a9'
 
+// The pseudo rules themselves are provider-independent English references, but
+// the overlay shows them next to the localized item text. Keep the display
+// labels here so international Chinese/Traditional items do not fall back to
+// English aggregate rows.
+export const PSEUDO_RULE_DISPLAY_LABELS = Object.freeze({
+  '+#% total Elemental Resistance': { cn: '+#% 总元素抗性', tw: '+#% 總元素抗性' },
+  '+#% total to Fire Resistance': { cn: '+#% 总火焰抗性', tw: '+#% 總火焰抗性' },
+  '+#% total to Cold Resistance': { cn: '+#% 总冰霜抗性', tw: '+#% 總冰冷抗性' },
+  '+#% total to Lightning Resistance': { cn: '+#% 总闪电抗性', tw: '+#% 總閃電抗性' },
+  '+#% total to Chaos Resistance': { cn: '+#% 总混沌抗性', tw: '+#% 總混沌抗性' },
+  '+# total to all Attributes': { cn: '+# 总全属性', tw: '+# 總全能力' },
+  '+# total to Strength': { cn: '+# 总力量', tw: '+# 總力量' },
+  '+# total to Dexterity': { cn: '+# 总敏捷', tw: '+# 總敏捷' },
+  '+# total to Intelligence': { cn: '+# 总智慧', tw: '+# 總智慧' },
+  '+# total maximum Life': { cn: '+# 总最大生命', tw: '+# 總最大生命' },
+  '+# total maximum Mana': { cn: '+# 总最大魔力', tw: '+# 總最大魔力' },
+  '#% total increased maximum Energy Shield': { cn: '最大能量护盾总共提高 #%', tw: '增加 #% 總最大能量護盾' },
+  '+# total maximum Energy Shield': { cn: '+# 总最大能量护盾', tw: '+# 總最大能量護盾' },
+  '+#% total Attack Speed': { cn: '+#% 总攻击速度', tw: '+#% 總攻擊速度' },
+  '+#% total Cast Speed': { cn: '+#% 总施法速度', tw: '+#% 總施放速度' },
+  '#% increased Movement Speed': { cn: '移动速度提高 #%', tw: '增加 #% 移動速度' },
+  '#% total increased Physical Damage': { cn: '物理伤害总共提高 #%', tw: '增加 #% 總物理傷害' },
+  '+#% Global Critical Strike Chance': { cn: '+#% 全域暴击率', tw: '+#% 全域暴擊率' },
+  '+#% total Critical Strike Chance for Spells': { cn: '+#% 总法术暴击率', tw: '+#% 總法術暴擊率' },
+  '+#% Global Critical Strike Multiplier': { cn: '+#% 全域暴击伤害加成', tw: '+#% 全域暴擊加成' },
+  '#% increased Elemental Damage': { cn: '元素伤害提高 #%', tw: '增加 #% 元素傷害' },
+  '#% increased Lightning Damage': { cn: '闪电伤害提高 #%', tw: '增加 #% 閃電傷害' },
+  '#% increased Cold Damage': { cn: '冰霜伤害提高 #%', tw: '增加 #% 冰冷傷害' },
+  '#% increased Fire Damage': { cn: '火焰伤害提高 #%', tw: '增加 #% 火焰傷害' },
+  '#% increased Spell Damage': { cn: '法术伤害提高 #%', tw: '增加 #% 法術傷害' },
+  '#% increased Lightning Spell Damage': { cn: '#% 法术技能闪电伤害提高', tw: '#% 法術技能閃電傷害提高' },
+  '#% increased Cold Spell Damage': { cn: '#% 法术技能冰霜伤害提高', tw: '#% 法術技能冰霜傷害提高' },
+  '#% increased Fire Spell Damage': { cn: '#% 法术技能火焰伤害提高', tw: '#% 法術技能火焰傷害提高' },
+  '#% increased Elemental Damage with Attack Skills': { cn: '攻击技能的元素伤害提高 #%', tw: '攻擊技能增加 #% 元素傷害' },
+  '#% increased Burning Damage': { cn: '燃烧伤害提高 #%', tw: '增加 #% 燃燒傷害' },
+  '# Life Regenerated per Second': { cn: '# 每秒生命回复', tw: '# 每秒生命回復' },
+  '#% of Life Regenerated per Second': { cn: '#% 每秒生命回复', tw: '#% 每秒生命回復' },
+  '#% of Physical Attack Damage Leeched as Life': { cn: '物理攻击伤害的 #% 会转化为生命偷取', tw: '#% 的物理攻擊傷害偷取生命' },
+  '#% of Physical Attack Damage Leeched as Mana': { cn: '物理攻击伤害的 #% 转化为魔力偷取', tw: '#% 物理攻擊傷害偷取魔力' },
+  '#% increased Mana Regeneration Rate': { cn: '魔力再生速度提高 #%', tw: '增加 #% 魔力恢復率' }
+})
+
+export function pseudoRuleDisplayLabel(target, language) {
+  const labels = PSEUDO_RULE_DISPLAY_LABELS[target]
+  if (!labels) return ''
+  if (language === 'tw') return labels.tw || labels.cn || ''
+  if (language === 'cn') return labels.cn || ''
+  return ''
+}
+
 const resistances = [
   ['+#% to All Resistances', ['fire', 'cold', 'lightning'], true],
   ['+#% to all Elemental Resistances', ['fire', 'cold', 'lightning'], false],

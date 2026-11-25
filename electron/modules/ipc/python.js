@@ -256,7 +256,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
     let trusted
     let pythonPath
     try {
-      trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), filePaths: fileWatcher.getFilePaths(), server,
+      trusted = prepareTrustedScriptRequest({ event, config, mainWindow: getMainWindow(), overlayWindow: getOverlayWindow(), filePaths: fileWatcher.getFilePaths(), server,
         localizationSnapshot: localizationRuntime?.snapshot() })
       // Environment validation must not interrupt a task that is already running.
       pythonPath = resolveCraftingPython(python, trusted.requireStashTabOcr)

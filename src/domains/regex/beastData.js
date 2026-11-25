@@ -1,7 +1,6 @@
-// 来源：国服官方交易物品目录本地快照（catalog.json，3.29）。
+// 来源：国服官方交易物品目录本地快照（catalog.json，3.30.0）与 POEDB 传奇魔物跨服映射。
 // monster 类均为可交易的封印野兽，包括普通兽及旧版可流通野兽；不能仅按四大家族前缀筛选。
-// 名称作为稳定标识，避免依赖目录行号。
-export const BEAST_NAMES = [
+export const BEAST_NAMES = Object.freeze([
   "灰色瘟疫",
   "撼地者米福德",
   "钢铁之魂",
@@ -531,4 +530,263 @@ export const BEAST_NAMES = [
   "【腐母】露西萝丝",
   "恶灵铁匠",
   "觉醒者托尔曼"
-]
+])
+
+// 国际服 3.30.0 传奇红兽/首领 ID（PoEDB slug）与国服中文名称的一一对应表。
+export const BEAST_CROSS_SERVER_ENTRIES = Object.freeze([
+  {
+    "id": "Farric_Tiger_Alpha",
+    "enName": "Farric Tiger Alpha",
+    "cnName": "大地巨虎"
+  },
+  {
+    "id": "Farric_Flame_Hellion_Alpha",
+    "enName": "Farric Flame Hellion Alpha",
+    "cnName": "大地烈炎地狱巨犬"
+  },
+  {
+    "id": "Farric_Frost_Hellion_Alpha",
+    "enName": "Farric Frost Hellion Alpha",
+    "cnName": "大地冰霜地狱巨犬"
+  },
+  {
+    "id": "Farric_Lynx_Alpha",
+    "enName": "Farric Lynx Alpha",
+    "cnName": "大地巨型猞猁"
+  },
+  {
+    "id": "Farric_Chieftain",
+    "enName": "Farric Chieftain",
+    "cnName": "大地酋长"
+  },
+  {
+    "id": "Farric_Ape",
+    "enName": "Farric Ape",
+    "cnName": "大地巨猿"
+  },
+  {
+    "id": "Farric_Goatman",
+    "enName": "Farric Goatman",
+    "cnName": "大地羊人"
+  },
+  {
+    "id": "Farric_Wolf_Alpha",
+    "enName": "Farric Wolf Alpha",
+    "cnName": "大地巨狼"
+  },
+  {
+    "id": "Farric_Magma_Hound",
+    "enName": "Farric Magma Hound",
+    "cnName": "大地熔岩猎犬"
+  },
+  {
+    "id": "Farric_Pit_Hound",
+    "enName": "Farric Pit Hound",
+    "cnName": "大地深邃猎犬"
+  },
+  {
+    "id": "Farric_Gargantuan",
+    "enName": "Farric Gargantuan",
+    "cnName": "大地野兽"
+  },
+  {
+    "id": "Farric_Ursa",
+    "enName": "Farric Ursa",
+    "cnName": "大地巨熊"
+  },
+  {
+    "id": "Farric_Taurus",
+    "enName": "Farric Taurus",
+    "cnName": "大地石肌牛"
+  },
+  {
+    "id": "Farric_Goliath",
+    "enName": "Farric Goliath",
+    "cnName": "大地针背兽"
+  },
+  {
+    "id": "Saqawine_Retch",
+    "enName": "Saqawine Retch",
+    "cnName": "苍空反刍鸟"
+  },
+  {
+    "id": "Saqawine_Vulture",
+    "enName": "Saqawine Vulture",
+    "cnName": "苍空秃鹰"
+  },
+  {
+    "id": "Saqawine_Rhoa",
+    "enName": "Saqawine Rhoa",
+    "cnName": "苍空恐喙鸟"
+  },
+  {
+    "id": "Saqawine_Rhex",
+    "enName": "Saqawine Rhex",
+    "cnName": "苍空凶鸟"
+  },
+  {
+    "id": "Saqawine_Cobra",
+    "enName": "Saqawine Cobra",
+    "cnName": "苍空眼镜蛇"
+  },
+  {
+    "id": "Saqawine_Blood_Viper",
+    "enName": "Saqawine Blood Viper",
+    "cnName": "苍空毒血蛇"
+  },
+  {
+    "id": "Saqawine_Chimeral",
+    "enName": "Saqawine Chimeral",
+    "cnName": "苍空奇美拉"
+  },
+  {
+    "id": "Fenumal_Queen",
+    "enName": "Fenumal Queen",
+    "cnName": "暗夜女王"
+  },
+  {
+    "id": "Fenumal_Scrabbler",
+    "enName": "Fenumal Scrabbler",
+    "cnName": "暗夜收割者"
+  },
+  {
+    "id": "Fenumal_Devourer",
+    "enName": "Fenumal Devourer",
+    "cnName": "暗夜吞噬者"
+  },
+  {
+    "id": "Fenumal_Plagued_Arachnid",
+    "enName": "Fenumal Plagued Arachnid",
+    "cnName": "暗夜异蛛"
+  },
+  {
+    "id": "Fenumal_Hybrid_Arachnid",
+    "enName": "Fenumal Hybrid Arachnid",
+    "cnName": "暗夜混毒魔蛛"
+  },
+  {
+    "id": "Fenumal_Widow",
+    "enName": "Fenumal Widow",
+    "cnName": "暗夜黑寡妇"
+  },
+  {
+    "id": "Fenumal_Scorpion",
+    "enName": "Fenumal Scorpion",
+    "cnName": "暗夜毒蝎"
+  },
+  {
+    "id": "Craicic_Vassal",
+    "enName": "Craicic Vassal",
+    "cnName": "深海寄生者"
+  },
+  {
+    "id": "Craicic_Squid",
+    "enName": "Craicic Squid",
+    "cnName": "深海墨鱼"
+  },
+  {
+    "id": "Craicic_Watcher",
+    "enName": "Craicic Watcher",
+    "cnName": "深海守望者"
+  },
+  {
+    "id": "Craicic_Sand_Spitter",
+    "enName": "Craicic Sand Spitter",
+    "cnName": "深海喷砂爪蟹"
+  },
+  {
+    "id": "Craicic_Shield_Crab",
+    "enName": "Craicic Shield Crab",
+    "cnName": "深海附壳巨蟹"
+  },
+  {
+    "id": "Craicic_Savage_Crab",
+    "enName": "Craicic Savage Crab",
+    "cnName": "深海野蛮巨蟹"
+  },
+  {
+    "id": "Craicic_Spider_Crab",
+    "enName": "Craicic Spider Crab",
+    "cnName": "深海蜘蛛蟹"
+  },
+  {
+    "id": "Craicic_Maw",
+    "enName": "Craicic Maw",
+    "cnName": "深海裂齿兽"
+  },
+  {
+    "id": "Craicic_Croaker",
+    "enName": "Craicic Croaker",
+    "cnName": "深海鸣蛙"
+  },
+  {
+    "id": "Farrul,_First_of_the_Plains",
+    "enName": "Farrul, First of the Plains",
+    "cnName": "大地初子 法瑞尔"
+  },
+  {
+    "id": "Saqawal,_First_of_the_Sky",
+    "enName": "Saqawal, First of the Sky",
+    "cnName": "苍空初子 萨奇沃"
+  },
+  {
+    "id": "Fenumus,_First_of_the_Night",
+    "enName": "Fenumus, First of the Night",
+    "cnName": "暗夜初子 费努姆斯"
+  },
+  {
+    "id": "Craiceann,_First_of_the_Deep",
+    "enName": "Craiceann, First of the Deep",
+    "cnName": "深海初子 克林斯昂"
+  },
+  {
+    "id": "Wild_Brambleback",
+    "enName": "Wild Brambleback",
+    "cnName": "荒野荆背"
+  },
+  {
+    "id": "Wild_Bristle_Matron",
+    "enName": "Wild Bristle Matron",
+    "cnName": "荒野母兽"
+  },
+  {
+    "id": "Wild_Hellion_Alpha",
+    "enName": "Wild Hellion Alpha",
+    "cnName": "荒野头狼"
+  },
+  {
+    "id": "Vivid_Watcher",
+    "enName": "Vivid Watcher",
+    "cnName": "活性哨兵"
+  },
+  {
+    "id": "Vivid_Vulture",
+    "enName": "Vivid Vulture",
+    "cnName": "活性匿者"
+  },
+  {
+    "id": "Vivid_Abberarach",
+    "enName": "Vivid Abberarach",
+    "cnName": "活性纺纱"
+  },
+  {
+    "id": "Primal_Rhex_Matriarch",
+    "enName": "Primal Rhex Matriarch",
+    "cnName": "原始鸟母"
+  },
+  {
+    "id": "Primal_Crushclaw",
+    "enName": "Primal Crushclaw",
+    "cnName": "原始利爪"
+  },
+  {
+    "id": "Primal_Cystcaller",
+    "enName": "Primal Cystcaller",
+    "cnName": "原始囊行"
+  },
+  {
+    "id": "Black_Mórrigan",
+    "enName": "Black Mórrigan",
+    "cnName": "黑羽之莫丽根"
+  }
+].map(entry => Object.freeze(entry)))

@@ -10,6 +10,7 @@ import { fixedMarketRules, pseudoMarketTranslations } from './market-localizatio
 import { isFixedMarketLabel } from '../shared/marketCompatibilityProfile.js'
 import { canonicalJson, validateDataset } from '../shared/localizationProtocol.js'
 import { LocalizationDownloader } from '../electron/modules/localization/downloader.js'
+import { resolveInstalledLocalizationRoot } from '../electron/modules/localization/installedState.js'
 import { auditOfficialFilterCoverage, officialFilterSchema, officialFilterSource } from './market-localization/officialFilterTranslations.js'
 
 const runFile = promisify(execFile)
@@ -365,8 +366,15 @@ async function main() {
   let localization
   if (value('--localization-storage')) {
     const storageRoot = path.resolve(value('--localization-storage'))
-    const bundle = new LocalizationDownloader({ storageRoot, publicKeyFile: path.join(root, 'electron/assets/localization-public-key.pem') }).load()
-    const transaction = await read(path.join(storageRoot, 'transaction-active.json'))
+    let gameDirectory = value('--game-directory')
+    if (!gameDirectory) {
+      try { gameDirectory = (await read(path.join(storageRoot, 'settings.json'))).gameDirectory }
+      catch (error) { if (error.code !== 'ENOENT') throw error }
+    }
+    const transactionRoot = gameDirectory ? resolveInstalledLocalizationRoot(storageRoot, gameDirectory) : storageRoot
+    const transaction = await read(path.join(transactionRoot, 'transaction-active.json'))
+    const downloader = new LocalizationDownloader({ storageRoot, publicKeyFile: path.join(root, 'electron/assets/localization-public-key.pem') })
+    const bundle = downloader.loadRevision(transaction.releaseId) || downloader.load()
     if (!bundle || bundle.manifest.releaseId !== transaction.releaseId) throw new Error('当前受管词库验签失败或未与真实应用状态对应')
     localization = { protocolVersion: 1, engineVersion: 1, gameVersion: bundle.manifest.gameVersion, cnGameVersion: bundle.manifest.cnGameVersion,
       releaseId: bundle.manifest.releaseId, entries: bundle.entries }

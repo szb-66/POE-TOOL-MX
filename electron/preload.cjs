@@ -468,6 +468,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resolvePriceCheckIdentity: (candidateKey) => ipcRenderer.invoke('price-check-resolve-identity', candidateKey),
   resolvePriceCheckStatCandidate: (unknownKey, candidateId) => ipcRenderer.invoke('price-check-resolve-stat-candidate', unknownKey, candidateId),
   getPriceCheckOverlayState: () => ipcRenderer.invoke('price-check-overlay-state'),
+  getPriceCheckErrorLog: () => ipcRenderer.invoke('price-check-error-log'),
+  deletePriceCheckErrorLogEntry: (id) => ipcRenderer.invoke('price-check-error-log-delete', String(id || '')),
   closePriceCheckOverlay: () => ipcRenderer.invoke('price-check-overlay-close'),
   openPriceCheckOfficial: () => ipcRenderer.invoke('price-check-open-official'),
   onPriceCheckOverlayState: (callback) => {
@@ -475,6 +477,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('price-check-overlay-state', listener)
     return () => ipcRenderer.removeListener('price-check-overlay-state', listener)
   },
+  notifyPriceCheckOverlayLoadingReady: () => ipcRenderer.send('price-check-overlay-loading-ready'),
   notifyPriceCheckOverlayRendered: (generation) => ipcRenderer.send('price-check-overlay-rendered', generation),
   getClientEventsStatus: () => ipcRenderer.invoke('client-events-status'),
   updateClientEventsSettings: (input) => ipcRenderer.invoke('client-events-settings-update', input),
@@ -570,7 +573,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   searchCraftingModifiers: (input) => ipcRenderer.invoke('crafting-search-modifiers', input),
   searchCraftingModifierCatalog: (input) => ipcRenderer.invoke('crafting-search-modifier-catalog', input),
   searchCraftingAffixSuggestions: (input) => ipcRenderer.invoke('crafting-search-affix-suggestions', input),
+  searchCraftingAffixAliases: (input) => ipcRenderer.invoke('crafting-search-affix-aliases', input),
   searchCraftingEldritchImplicitSuggestions: (input) => ipcRenderer.invoke('crafting-search-eldritch-implicit-suggestions', input),
+  resolveCraftingCrossServerConditions: (input) => ipcRenderer.invoke('crafting-resolve-cross-server-conditions', input),
   createManualCraftingSession: (input) => ipcRenderer.invoke('crafting-create-manual-session', input),
   applyManualCraftingCurrency: (session, actionId) => ipcRenderer.invoke('crafting-apply-manual-currency', session, actionId),
   listManualCraftingEssences: (session) => ipcRenderer.invoke('crafting-list-manual-essences', session),

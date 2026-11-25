@@ -22,12 +22,19 @@
       ])
       const startupPath = location.hash.slice(1).split('?')[0] || '/'
       document.documentElement.dataset.startupWindow = standalonePaths.has(startupPath) ? 'standalone' : 'main'
+      document.documentElement.dataset.startupPriceCheck = String(startupPath === '/price-check-overlay')
     </script>
     <style>
       :root { --startup-bg: #F5F4F1; --startup-text: #514C43; --startup-border: #C9C4B9; --startup-brand: #806025; }
       :root[data-startup-theme="dark"] { --startup-bg: #0E1013; --startup-text: #AEB4BD; --startup-border: #2C333D; --startup-brand: #C5A46D; }
       html[data-startup-window="main"], html[data-startup-window="main"] body { background: var(--app-bg, var(--startup-bg)); }
-      html[data-startup-window="standalone"] #app-loading { display: none; }
+      html[data-startup-window="standalone"]:not([data-startup-price-check="true"]) #app-loading { display: none; }
+      html[data-startup-price-check="true"] #app-loading {
+        background: #0E1013;
+        color: #AEB4BD;
+        --startup-border: #2C333D;
+        --startup-brand: #C5A46D;
+      }
       #app-loading {
         position: fixed;
         inset: 0;
@@ -71,8 +78,16 @@
       </div>
     </div>
     <script>
-      // 覆盖层窗口与主窗口共用同一份 HTML：覆盖层路由不应显示主窗口专用加载占位。
-      if (document.documentElement.dataset.startupWindow === 'standalone') {
+      // 查价冷启动先显示静态占位，其他独立浮窗保持透明。
+      if (document.documentElement.dataset.startupPriceCheck === 'true') {
+        const loading = document.getElementById('app-loading')
+        loading.querySelector('.loading-text').textContent = '正在启动查价器…'
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (document.getElementById('app-loading') === loading) {
+            window.electronAPI?.notifyPriceCheckOverlayLoadingReady?.()
+          }
+        }))
+      } else if (document.documentElement.dataset.startupWindow === 'standalone') {
         document.getElementById('app-loading')?.remove()
       }
       // 引导失败兜底：模块加载或 bootstrap 失败时补一块匹配主题的提示，避免停留在白屏。
@@ -86,6 +101,6 @@
         document.getElementById('app')?.appendChild(fallback)
       }, 8000)
     </script>
-    <script type="module" src="/src/main.js"></script>
+    <script type="module" src="/src/startup/bootstrap.js"></script>
   </body>
 </html>

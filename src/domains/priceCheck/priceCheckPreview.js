@@ -43,8 +43,8 @@ const PREVIEW_STATE = {
     },
     stateFilters: Object.fromEntries(PRICE_CHECK_STATE_FILTERS.map(({ key }) => [key, 'any'])),
     properties: [
-      { id: 'armour', label: '护甲', enabled: true, min: 320 },
-      { id: 'energyShield', label: '能量护盾', enabled: false, min: 65 }
+      { id: 'armour', label: '护甲', enabled: true, min: 320, autoSelection: { enabled: true, reason: '高护甲防具核心属性' } },
+      { id: 'energyShield', label: '能量护盾', enabled: false, min: 65, autoSelection: { enabled: false, reason: '未达到自动预选阈值' } }
     ],
     stats: [
       {
@@ -55,6 +55,7 @@ const PREVIEW_STATE = {
         tags: ['生命'],
         tier: 1,
         enabled: true,
+        autoSelection: { enabled: true, reason: '高数值总最大生命' },
         min: 82
       },
       {
@@ -65,6 +66,7 @@ const PREVIEW_STATE = {
         tags: ['火焰', '抗性'],
         tier: 2,
         enabled: false,
+        autoSelection: { enabled: false, reason: '未达到该部位综合阈值（需 ≥ 75）' },
         min: 38
       }
     ],

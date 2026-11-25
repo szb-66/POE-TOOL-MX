@@ -515,9 +515,16 @@ def currency_identity_matches(currency, actual):
     name = normalized_copied_item_name(actual)
     return bool(expected) and name in (expected if isinstance(expected, list) else [expected])
 
+def currency_expected_label(currency):
+    primary = CURRENCY_NAMES.get(currency, currency)
+    names = globals().get("currency_expected_names", {}).get(currency)
+    names = names if isinstance(names, (list, tuple)) else [names]
+    alternatives = [str(name) for name in names if name and str(name) != primary][:3]
+    return f"{primary}（{' / '.join(alternatives)}）" if alternatives else primary
+
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
-    expected = CURRENCY_NAMES.get(currency, currency)
+    expected = currency_expected_label(currency)
     pos = currency_positions.get(currency) or {}
     fatal_error_reason = reason
     is_running = False
@@ -603,7 +610,7 @@ def preflight_required_currencies():
         if not currency_identity_matches(currency, actual):
             return fail_currency_preflight(
                 currency,
-                f"通货位置错误：需要{expected}，实际检测到{actual}",
+                f"通货位置错误：需要{currency_expected_label(currency)}，实际检测到{actual}",
                 actual,
                 failure_code="CURRENCY_TYPE_MISMATCH"
             )
@@ -1742,6 +1749,26 @@ def get_stat_value(item_data, key):
                     if extracted > 0:
                         print(f"  > [属性提取] moreScarabs: 从词缀'{mod}'提取={extracted}")
         print(f"  > [属性提取] moreScarabs: 最终值={val}")
+    elif key == 'moreThreads':
+        val = int(item_data.get('moreThreads', 0))
+        print(f"  > [属性提取] moreThreads: 从item_data获取={val}")
+        if val == 0:
+            mods = item_data.get('implicitMods', []) + item_data.get('explicitMods', [])
+            for mod in mods:
+                if '丝线' in mod:
+                    extracted = extract_number(mod)
+                    val = max(val, extracted)
+        print(f"  > [属性提取] moreThreads: 最终值={val}")
+    elif key == 'atlasDrops':
+        val = int(item_data.get('atlasDrops', 0))
+        print(f"  > [属性提取] atlasDrops: 从item_data获取={val}")
+        if val == 0:
+            mods = item_data.get('implicitMods', []) + item_data.get('explicitMods', [])
+            for mod in mods:
+                if '异界掉落' in mod or '异界图鉴掉落' in mod:
+                    extracted = extract_number(mod)
+                    val = max(val, extracted)
+        print(f"  > [属性提取] atlasDrops: 最终值={val}")
     elif key == 'moreCurrency':
         val = int(item_data.get('moreCurrency', 0))
         print(f"  > [属性提取] moreCurrency: 从item_data获取={val}")

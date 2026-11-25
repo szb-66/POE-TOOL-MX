@@ -1,6 +1,6 @@
 // Preserve each site's provenance while presenting its filters in a flat list.
 export function parseLogbookMetadata(lines) {
-  if (!lines.some((line) => /^物品类别:\s*先祖秘藏日志$/.test(line))) return null
+  if (!lines.some((line) => /^物品类别:\s*(?:先祖秘藏日志|探险日志)$/.test(line))) return null
   const regions = []
   const consumedIndexes = new Set()
   const modifierContexts = new Map()

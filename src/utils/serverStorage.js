@@ -1,6 +1,8 @@
 import { SHARED_SETTINGS_FIELDS, serverStorageKey } from '../../shared/serverMode.js'
+import { migrateCrossServerPresets } from '../../shared/crossServerPresetMigration.js'
 
 export function createServerStorage(storage, serverId = 'cn') {
+  migrateCrossServerPresets(storage)
   const readObject = key => {
     try { return JSON.parse(storage.getItem(key) || '{}') || {} } catch { return {} }
   }

@@ -12,11 +12,17 @@ import {
 import { eldritchCurrencyType } from '../domains/items/eldritchConfig.js'
 import { enabledAffixGroupItemLevelRequirements } from '../domains/items/affixConfig.js'
 import { getServer } from '../../shared/serverMode.js'
+import { CRAFTING_CURRENCY_BY_KEY } from '../../shared/craftingCurrencyCatalog.js'
 
+// 国际服客户端可能已安装汉化但助手侧词库未激活（或由其他工具汉化），复制文本仍是中文。
+// 因此通货身份始终接受助手内置的中文名，再叠加目标服规范名与当前词库别名。
 function runtimeCurrencyNames(serverId, snapshot) {
-  return Object.fromEntries(Object.entries(currencyExpectedNames(serverId)).map(([id, name]) => [id,
-    [...new Set([name, ...Object.entries(snapshot?.nameAliases || {}).filter(([, canonical]) => canonical === name).map(([alias]) => alias)])]
-  ]))
+  return Object.fromEntries(Object.entries(currencyExpectedNames(serverId)).map(([id, name]) => {
+    const aliases = Object.entries(snapshot?.nameAliases || {})
+      .filter(([, canonical]) => canonical === name)
+      .map(([alias]) => alias)
+    return [id, [...new Set([name, CRAFTING_CURRENCY_BY_KEY.get(id)?.name, ...aliases].filter(Boolean))]]
+  }))
 }
 
 function rawPathContent(value) {

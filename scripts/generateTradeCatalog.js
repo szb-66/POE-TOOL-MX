@@ -352,7 +352,12 @@ export async function refreshOfficialTradeCatalog({ baseCatalog, gameVersion, no
     now,
     cnItems
   )
-  official.catalog.currencyLabels = officialCurrencyLabels(cnStatic)
+  const currentItemNames = new Set(official.catalog.items.map(item => item.name))
+  const retainedCurrencyLabels = Object.fromEntries(Object.entries(baseCatalog.currencyLabels || {})
+    .filter(([, label]) => currentItemNames.has(label)))
+  const currencyLabels = { ...retainedCurrencyLabels, ...officialCurrencyLabels(cnStatic) }
+  official.catalog.currencyLabels = Object.fromEntries(Object.entries(currencyLabels)
+    .sort(([a], [b]) => a.localeCompare(b, 'en')))
   official.catalog.sources.push('腾讯国服官方 /api/trade/data/static')
   const OpenCC = (await import('opencc-js')).default
   const toSimplified = OpenCC.Converter({ from: 'tw', to: 'cn' })

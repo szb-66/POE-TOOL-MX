@@ -1,6 +1,5 @@
 export const SETTINGS_TABS = Object.freeze([
   'general',
-  'localization',
   'automation',
   'detection',
   'overlay',
@@ -16,6 +15,7 @@ export function resolveSettingsTab(value) {
 }
 
 export function settingsRoute(tab) {
+  if (tab === 'localization') return { path: '/localization' }
   const target = resolveSettingsTab(tab)
   return target ? { path: '/settings', query: { tab: target } } : { path: '/settings' }
 }

@@ -8,10 +8,10 @@ import json
 import os
 from pathlib import Path
 
-POB_COMMIT = 'b32759ab0f31a1c8499a0d420cb0f0633d4fe478'
+POB_COMMIT = 'a41fec6c20f822a658ae5df1273e8c69d5969bac'
 
 
-def snapshot(root, *, tree_version='3_29', commit=POB_COMMIT, version='2.67.2', lua_root=None):
+def snapshot(root, *, tree_version='3_30', commit=POB_COMMIT, version='2.68.1', lua_root=None):
     root = Path(root).resolve()
     files = sorted((root / 'Data/Bases').glob('*.lua')) + sorted((root / 'Data/Uniques').glob('*.lua'))
     files += [root / 'Data/Gems.lua', root / f'TreeData/{tree_version}/tree.lua']

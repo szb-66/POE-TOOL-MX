@@ -39,7 +39,10 @@ export class PriceCheckOverlayManager {
     this.cursorOutsideSince = 0
     this.ready = false
     this.contentRendered = false
+    this.loadingRendered = false
+    this.rendererMounted = false
     this.pendingShowCursor = null
+    this.hotkeyCursor = null
     this.displayGeneration = 0
     this.presentation = null
     this.restoreGameFocus = restoreGameFocus
@@ -122,6 +125,8 @@ export class PriceCheckOverlayManager {
     this.presentation = new PriceCheckOverlayPresentation(window)
     window.webContents.setBackgroundThrottling(false)
     this.ready = false
+    this.loadingRendered = false
+    this.rendererMounted = false
     window.on('will-resize', (_event, newBounds) => {
       this.sizeController.queueUserResize(newBounds)
     })
@@ -132,6 +137,8 @@ export class PriceCheckOverlayManager {
       if (this.window === null) this.presentation = null
       this.ready = false
       this.contentRendered = false
+      this.loadingRendered = false
+      this.rendererMounted = false
       this.pendingShowCursor = null
     })
     window.on('blur', () => {
@@ -150,7 +157,7 @@ export class PriceCheckOverlayManager {
       const finishPrime = setTimeout(() => {
         if (this.window !== window || window.isDestroyed()) return
         this.ready = true
-        if (this.contentRendered && this.pendingShowCursor) this.showPreparedWindow(this.pendingShowCursor)
+        if ((this.contentRendered || this.loadingRendered) && this.pendingShowCursor) this.showPreparedWindow(this.pendingShowCursor)
       }, NATIVE_PRIME_DELAY_MS)
       finishPrime.unref?.()
     })
@@ -169,24 +176,38 @@ export class PriceCheckOverlayManager {
     this.ensureWindow(cursor, area)
   }
 
+  captureHotkeyCursor() {
+    const cursor = screen.getCursorScreenPoint()
+    this.hotkeyCursor = { point: { ...cursor }, capturedAt: Date.now() }
+    return { ...cursor }
+  }
+
+  consumeHotkeyCursor() {
+    const anchor = this.hotkeyCursor
+    this.hotkeyCursor = null
+    if (!anchor || Date.now() - anchor.capturedAt > 3000) return null
+    return anchor.point
+  }
+
   showPreparedWindow(cursor) {
-    if (!this.window || this.window.isDestroyed() || !this.ready || !this.contentRendered) return
-    if (!this.presentation?.reveal(this.displayGeneration)) return
-    this.pendingShowCursor = null
+    if (!this.window || this.window.isDestroyed() || !this.ready || (!this.contentRendered && !this.loadingRendered)) return
+    if (!this.presentation?.reveal(this.displayGeneration, { focus: this.contentRendered })) return
+    if (this.contentRendered) this.pendingShowCursor = null
     this.startCursorMonitor(cursor)
   }
 
   create(snapshot, { reposition = true } = {}) {
     this.snapshot = structuredClone(snapshot)
     const cursor = screen.getCursorScreenPoint()
-    const area = screen.getDisplayNearestPoint(cursor).workArea
-    const created = this.ensureWindow(cursor, area)
+    const positionCursor = (reposition && this.consumeHotkeyCursor()) || cursor
+    const area = screen.getDisplayNearestPoint(positionCursor).workArea
+    const created = this.ensureWindow(positionCursor, area)
     if (!created && reposition) {
       const currentBounds = this.window.getBounds()
       const width = Math.min(currentBounds.width, area.width)
       lockPriceCheckOverlayHeight(this.window, area)
       this.window.setBounds(getPriceCheckOverlayBounds(
-        cursor,
+        positionCursor,
         area,
         width
       ))
@@ -199,12 +220,25 @@ export class PriceCheckOverlayManager {
     this.pendingShowCursor = display.needsReveal ? { ...cursor } : null
     if (!display.needsReveal) this.startCursorMonitor(cursor)
     this.publish()
+    if (this.loadingRendered && this.pendingShowCursor) this.showPreparedWindow(this.pendingShowCursor)
+    return true
+  }
+
+  markLoadingReady(contents) {
+    if (!this.window || this.window.isDestroyed() || this.window.webContents !== contents || this.rendererMounted) return false
+    this.loadingRendered = true
+    if (this.pendingShowCursor) this.showPreparedWindow(this.pendingShowCursor)
     return true
   }
 
   markRendered(contents, generation) {
     if (!this.window || this.window.isDestroyed() || this.window.webContents !== contents) return false
-    if (!Number.isSafeInteger(generation) || generation !== this.displayGeneration) return false
+    this.rendererMounted = true
+    this.loadingRendered = false
+    if (!Number.isSafeInteger(generation) || generation !== this.displayGeneration) {
+      if (!this.pendingShowCursor) contents.setBackgroundThrottling(true)
+      return false
+    }
     this.contentRendered = true
     contents.setBackgroundThrottling(true)
     if (this.pendingShowCursor) this.showPreparedWindow(this.pendingShowCursor)
@@ -244,6 +278,7 @@ export class PriceCheckOverlayManager {
     this.sizeController.flush()
     this.contentRendered = false
     this.pendingShowCursor = null
+    this.hotkeyCursor = null
     if (this.window && !this.window.isDestroyed()) {
       this.window.webContents.setBackgroundThrottling(true)
       this.presentation?.park()
@@ -264,7 +299,10 @@ export class PriceCheckOverlayManager {
     this.snapshot = null
     this.contentRendered = false
     this.pendingShowCursor = null
+    this.hotkeyCursor = null
     this.ready = false
+    this.loadingRendered = false
+    this.rendererMounted = false
     this.presentation?.destroy()
     this.presentation = null
     this.window = null

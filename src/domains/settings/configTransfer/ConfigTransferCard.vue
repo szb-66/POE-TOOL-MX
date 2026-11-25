@@ -201,12 +201,16 @@ import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
 import { usePresetStore } from '@/stores/preset'
 import { useStoryStore } from '@/stores/story'
+import { useRegexPresetStore } from '@/domains/regex/regexPresetStore.js'
+import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { createConfigTransferService } from './service.js'
 import packageConfig from '../../../../package.json'
 
 const context = {
   presetStore: usePresetStore(),
   storyStore: useStoryStore(),
+  regexPresetStore: useRegexPresetStore(),
+  settingsStore: useSettingsStore(),
   electronApi,
   storage: localStorage
 }

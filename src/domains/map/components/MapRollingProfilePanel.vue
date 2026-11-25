@@ -111,11 +111,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import MapFeasibilityNotice from './MapFeasibilityNotice.vue'
 import { Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { searchMapAffixSuggestions, affixSuggestionsForKind } from '@/utils/mapAffixSuggestions.js'
 import { useLocalizedCatalog } from '@/utils/localizedCatalog.js'
+import { electronApi } from '@/api/electron.js'
+import { currentServer } from '@/utils/serverContext.js'
 
 const props = defineProps({
   profile: { type: Object, required: true },
@@ -126,7 +128,28 @@ const props = defineProps({
 })
 
 const statCount = computed(() => Object.keys(props.statKeys).length)
-const localizedCatalog = useLocalizedCatalog(['atlas', 'heist'].flatMap(kind => affixSuggestionsForKind(kind).flatMap(entry => [entry.value, entry.example])))
+const suggestionTexts = ['atlas', 'chart', 'heist'].flatMap(kind => affixSuggestionsForKind(kind, 'en')
+  .flatMap(entry => [entry.value, entry.pattern, entry.example, ...(entry.variants || [])]).filter(Boolean))
+const localizedCatalog = useLocalizedCatalog([...new Set(suggestionTexts)])
+const fallbackCatalog = ref(new Map())
+
+onMounted(async () => {
+  if (currentServer.id !== 'international') return
+  try {
+    const result = await electronApi.crafting.searchAffixAliases({ texts: [...new Set(suggestionTexts)] })
+    const catalog = new Map()
+    for (const item of result?.items ?? []) {
+      if (item.displayText && item.displayText !== item.text) catalog.set(item.text, { displayText: item.displayText, aliases: item.aliases || [] })
+    }
+    fallbackCatalog.value = catalog
+  } catch {
+    fallbackCatalog.value = new Map()
+  }
+})
+
+function suggestionCatalog() {
+  return new Map([...fallbackCatalog.value, ...localizedCatalog.aliases.value])
+}
 
 function ensureStat(group, key) {
   if (!props.profile.match[group][key]) props.profile.match[group][key] = { enabled: false, value: 0 }
@@ -139,7 +162,7 @@ const addModifier = type => props.profile.match[type].push('')
 const removeModifier = (type, index) => props.profile.match[type].splice(index, 1)
 
 function fetchSuggestions(query, callback) {
-  callback(searchMapAffixSuggestions(props.targetKind, query, 50, undefined, localizedCatalog.aliases.value))
+  callback(searchMapAffixSuggestions(props.targetKind, query, 50, undefined, suggestionCatalog()))
 }
 
 function affixTypeLabel(type) {

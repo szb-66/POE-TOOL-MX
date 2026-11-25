@@ -1,7 +1,12 @@
 import { normalizeItemPreset } from '../../../utils/itemPreset.js'
 import { normalizeSpecializedPreset } from '../../../utils/specializedCraftingPreset.js'
-import { cleanMigratedMapConfig } from '../../../utils/mapPresetMigration.js'
+import { cleanMigratedHeistConfig, cleanMigratedMapConfig } from '../../../utils/mapPresetMigration.js'
 import { createSkillPreset, createStoryPreset } from '../../../utils/storyGuide.js'
+import { cleanVendorConfig } from '../../regex/vendorConfig.js'
+import { cleanMapRegexConfig } from '../../regex/mapRegex.js'
+import { cleanBeastRegexConfig } from '../../regex/beastRegex.js'
+import { currentServer } from '../../../utils/serverContext.js'
+import { translateMapAffixList } from '../../../utils/crossServerMapAffix.js'
 import {
   ConfigTransferError,
   createImportedPreset,
@@ -15,8 +20,12 @@ export const PRESET_SECTION_CONFIGS = Object.freeze({
   'preset.essence': Object.freeze({ collectionKey: 'essencePresets', activeKey: 'currentEssencePresetId', dataKey: '' }),
   'preset.harvest': Object.freeze({ collectionKey: 'harvestPresets', activeKey: 'currentHarvestPresetId', dataKey: '' }),
   'preset.map': Object.freeze({ collectionKey: 'mapPresets', activeKey: 'currentMapPresetId', dataKey: 'map' }),
+  'preset.heist': Object.freeze({ collectionKey: 'heistPresets', activeKey: 'currentHeistPresetId', dataKey: 'heist' }),
   'preset.story': Object.freeze({ collectionKey: 'storyPresets', activeKey: 'currentStoryPresetId', dataKey: '' }),
-  'preset.storySkill': Object.freeze({ collectionKey: 'skillPresets', activeKey: 'currentSkillPresetId', dataKey: '' })
+  'preset.storySkill': Object.freeze({ collectionKey: 'skillPresets', activeKey: 'currentSkillPresetId', dataKey: '' }),
+  'preset.vendorRegex': Object.freeze({ collectionKey: 'vendorPresets', activeKey: 'currentVendorPresetId', dataKey: 'vendor' }),
+  'preset.mapRegex': Object.freeze({ collectionKey: 'mapRegexPresets', activeKey: 'currentMapRegexPresetId', dataKey: 'mapRegex' }),
+  'preset.beastRegex': Object.freeze({ collectionKey: 'beastRegexPresets', activeKey: 'currentBeastRegexPresetId', dataKey: 'beastRegex' })
 })
 
 function configFor(sectionId) {
@@ -52,9 +61,27 @@ function importOptions(sectionId) {
     case 'preset.item': return { normalizeData: normalizeItemPreset }
     case 'preset.essence': return { normalizeData: value => normalizeSpecializedPreset('essence', value) }
     case 'preset.harvest': return { normalizeData: value => normalizeSpecializedPreset('harvest', value) }
-    case 'preset.map': return { normalizeData: cleanMigratedMapConfig }
+    case 'preset.map': return {
+      normalizeData: value => {
+        const cleaned = cleanMigratedMapConfig(value)
+        cleaned.match.blacklist = translateMapAffixList(cleaned.match.blacklist, 'atlas', currentServer.language)
+        cleaned.match.whitelist = translateMapAffixList(cleaned.match.whitelist, 'atlas', currentServer.language)
+        return cleaned
+      }
+    }
+    case 'preset.heist': return {
+      normalizeData: value => {
+        const cleaned = cleanMigratedHeistConfig(value)
+        cleaned.match.blacklist = translateMapAffixList(cleaned.match.blacklist, 'heist', currentServer.language)
+        cleaned.match.whitelist = translateMapAffixList(cleaned.match.whitelist, 'heist', currentServer.language)
+        return cleaned
+      }
+    }
     case 'preset.story': return { transformPreset: preset => createStoryPreset(preset.name, preset) }
     case 'preset.storySkill': return { transformPreset: preset => createSkillPreset(preset.name, preset) }
+    case 'preset.vendorRegex': return { normalizeData: cleanVendorConfig }
+    case 'preset.mapRegex': return { normalizeData: value => cleanMapRegexConfig(value, currentServer.language) }
+    case 'preset.beastRegex': return { normalizeData: value => cleanBeastRegexConfig(value, currentServer.language) }
     default: return {}
   }
 }

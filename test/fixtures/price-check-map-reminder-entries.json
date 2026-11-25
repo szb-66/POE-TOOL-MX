@@ -1,0 +1,737 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "light_radius_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Light Radius",
+    "kind": "stat",
+    "sourceHash": "f7707834727b64dc80c8a7e4408253622e4eb8ec853d346d84a3913be6278f8d",
+    "tw": "增加 {0}% 照亮範圍",
+    "cn": "照亮范围扩大 {0}%",
+    "stats": {
+      "ids": [
+        "light_radius_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_item_found_rarity_+%",
+    "field": "variant:0",
+    "en": "{0:+d}% to [PlayerItemRarity|Item Rarity]",
+    "kind": "stat",
+    "sourceHash": "9160f6d1df8978068b265f538e40b9897c1bb8c04db2f6e12ea7b4d289d2e91a",
+    "tw": "{0:+d}%[PlayerItemRarity|物品稀有度]",
+    "cn": "[PlayerItemRarity|物品稀有度] {0:+d}%",
+    "stats": {
+      "ids": [
+        "base_item_found_rarity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾",
+    "stats": {
+      "ids": [
+        "base_maximum_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monster_maximum_power_charges",
+    "field": "variant:0",
+    "en": "Monsters have {0:+d} to Maximum Power Charges",
+    "kind": "stat",
+    "sourceHash": "ac5074c881070a2772a9781fe81e00871031bfe4acbc16c1ba837bcebaba09b2",
+    "tw": "怪物暴擊球上限 {0:+d}",
+    "cn": "怪物的暴击球上限 {0:+d}",
+    "stats": {
+      "ids": [
+        "map_monster_maximum_power_charges"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_chance_to_blind_on_hit_%",
+    "field": "variant:1",
+    "en": "Monsters [Blind] on Hit",
+    "kind": "stat",
+    "sourceHash": "bc912e22c596357e76a4324f79b417d268a5e73f29bdc4dbc09dee05520320b4",
+    "tw": "怪物擊中時致盲",
+    "cn": "怪物击中时致盲",
+    "stats": {
+      "ids": [
+        "map_monsters_chance_to_blind_on_hit_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_add_power_charge_on_hit_%",
+    "field": "variant:0",
+    "en": "Monsters have {0}% chance to gain a Power Charge on Hit",
+    "kind": "stat",
+    "sourceHash": "707ba0bf7248f3e89bc0808b461ef48d3ba271a9e8f51918d98478bab7153002",
+    "tw": "怪物擊中時有 {0}% 機率獲得 1 顆暴擊球",
+    "cn": "怪物有 {0}% 的几率在击中时获得暴击球",
+    "stats": {
+      "ids": [
+        "map_monsters_add_power_charge_on_hit_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_heist_monster_life_+%_final_from_sextant",
+    "field": "variant:0",
+    "en": "Monsters have {0}% more Life",
+    "kind": "stat",
+    "sourceHash": "93e8405e8b51d526b2bb86d226174195164b0f8117479d374d5df5ca4beb43cf",
+    "tw": "怪物有 {0}% 更多生命",
+    "cn": "怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_heist_monster_life_+%_final_from_sextant"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_additional_elemental_resistance",
+    "field": "variant:0",
+    "en": "+{0}% Monster Elemental Resistances",
+    "kind": "stat",
+    "sourceHash": "ab0c2ebfab471a87f1d3ccf964ccb928378212feb5d8ccf6fd72ca1f6277e8b9",
+    "tw": "+{0}% 怪物的元素抗性",
+    "cn": "+{0}% 怪物的元素抗性",
+    "stats": {
+      "ids": [
+        "map_monsters_additional_elemental_resistance"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_additional_physical_damage_reduction",
+    "field": "variant:0",
+    "en": "+{0}% Monster Physical Damage Reduction",
+    "kind": "stat",
+    "sourceHash": "02758e7fcc7689d64fbbb2c4f78b1ac04d93948717158f28b06a030a9b0b580d",
+    "tw": "+{0}% 怪物物理傷害減免",
+    "cn": "怪物的物理减伤提高 {0}%",
+    "stats": {
+      "ids": [
+        "map_monsters_additional_physical_damage_reduction"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_accuracy_rating_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Accuracy Rating",
+    "kind": "stat",
+    "sourceHash": "5a3e070fe25d82c22df7517d18b189217636beaa36a735c42c679d4669740e06",
+    "tw": "增加 {0}% 命中值",
+    "cn": "命中值提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_accuracy_rating_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_chance_to_blind_on_hit_%",
+    "field": "variant:0",
+    "en": "Monsters have {0}% chance to [Blind] on Hit",
+    "kind": "stat",
+    "sourceHash": "cc0d380fdd9b4884fc378f0f2b91100c7229e3607804a26781deed256c31557f",
+    "tw": "怪物擊中時有 {0}% 機率致盲",
+    "cn": "怪物有 {0}% 的几率在击中时致盲",
+    "stats": {
+      "ids": [
+        "map_monsters_chance_to_blind_on_hit_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "accuracy_rating_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Global Accuracy Rating",
+    "kind": "stat",
+    "sourceHash": "a81b02cb8e26050b8a2669936963808fc319f7163eb5924fade578a5d59c4721",
+    "tw": "增加 {0}% 全域命中值",
+    "cn": "命中值提高 {0}%",
+    "stats": {
+      "ids": [
+        "accuracy_rating_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_cast_speed_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "0f6f156a5324343f3453b61c89e0aaddfff97d7405f6a11360cd462cfe66dd5e",
+    "tw": "增加 {0}% 施放速度",
+    "cn": "施法速度加快 {0}%",
+    "stats": {
+      "ids": [
+        "base_cast_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_zana_influence",
+    "field": "variant:0",
+    "en": "Area is Influenced by the Originator's Memories",
+    "kind": "stat",
+    "sourceHash": "7a04a5bafe8d52c168f526974f8fe1ec5b62dc8374a7c7df001860fedfebe3ff",
+    "tw": "區域受到開創者的記憶影響",
+    "cn": "区域被起源者回忆影响",
+    "stats": {
+      "ids": [
+        "map_zana_influence"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_additional_chaos_resistance",
+    "field": "variant:0",
+    "en": "+{0}% Monster Chaos Resistance",
+    "kind": "stat",
+    "sourceHash": "c72e54785c49d8817c94da49e3191118b34ec917e94840d4bed4272c72e3e6e6",
+    "tw": "+{0}% 怪物的混沌抗性",
+    "cn": "+{0}% 怪物的混沌抗性",
+    "stats": {
+      "ids": [
+        "map_monsters_additional_chaos_resistance"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_life_+%",
+    "field": "variant:0",
+    "en": "{0}% more Monster Life",
+    "kind": "stat",
+    "sourceHash": "1dfd3deeb7dda192053326ff2e5e5087e9a2b628f98c1644e58c2a486dbc6414",
+    "tw": "{0}% 更多怪物生命",
+    "cn": "怪物生命总增 {0}%",
+    "stats": {
+      "ids": [
+        "map_monsters_life_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_mana",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Mana",
+    "kind": "stat",
+    "sourceHash": "c9e51b8b0f043ab6e4a09ed4a0c452625a373722142766ee170e51ad448f31f1",
+    "tw": "{0:+d} 最大魔力",
+    "cn": "{0:+d} 最大魔力",
+    "stats": {
+      "ids": [
+        "base_maximum_mana"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_implicit_item_drop_rarity_+%",
+    "field": "variant:0",
+    "en": "{0:+d}% Item Rarity",
+    "kind": "stat",
+    "sourceHash": "99a581c381dfc2e5770fc3a9a077d055ccc75df9ae3be291d4b20b1bc5a91415",
+    "tw": "{0:+d}% 物品稀有度",
+    "cn": "物品稀有度 {0:+d}%",
+    "stats": {
+      "ids": [
+        "map_implicit_item_drop_rarity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾",
+    "stats": {
+      "ids": [
+        "local_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_add_power_charge_on_hit_%",
+    "field": "variant:1",
+    "en": "Monsters gain a Power Charge on Hit",
+    "kind": "stat",
+    "sourceHash": "3b4eeef0a82922fdb1890efb2172059b505f091e56dd699a49072bf51af0bff2",
+    "tw": "怪物擊中時獲得 1 顆暴擊球",
+    "cn": "怪物在击中时获得暴击球",
+    "stats": {
+      "ids": [
+        "map_monsters_add_power_charge_on_hit_%"
+      ],
+      "variants": [
+        {
+          "condition": "1|99",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "100|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_monsters_maximum_life_%_to_add_to_maximum_energy_shield",
+    "field": "variant:0",
+    "en": "Monsters gain {0}% of Maximum Life as Extra Maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "38ee712a5b9479d762845b7e5d5ab1a9088987f0f9f0fadcf5e85cf72325d3fc",
+    "tw": "怪物獲得 {0}% 最大生命的額外最大能量護盾",
+    "cn": "怪物将生命上限的 {0}% 转化为额外能量护盾上限",
+    "stats": {
+      "ids": [
+        "map_monsters_maximum_life_%_to_add_to_maximum_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/aura_skill_stat_descriptions.csd",
+    "id": "cast_speed_+%_granted_from_skill",
+    "field": "variant:0",
+    "en": "You and nearby allies gain {0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "c8cdb35a34193691a66016df48512cb92ea35fad0552fab6e0ea3ccf7a00c2bd",
+    "tw": "你與附近的友方獲得 {0}% 施放速度",
+    "cn": "你与周围友军的施法速度加快 {0}%",
+    "stats": {
+      "ids": [
+        "cast_speed_+%_granted_from_skill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "cast_speed_+%_granted_from_skill",
+    "field": "variant:0",
+    "en": "Grants {0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "76d4d88e0306758e83b9c69690566e97ac23c18910cf2c26f7ecd351532e0006",
+    "tw": "增加 {0}% 施放速度",
+    "cn": "施法速度加快 {0}%",
+    "stats": {
+      "ids": [
+        "cast_speed_+%_granted_from_skill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+    "id": "cast_speed_+%_granted_from_skill",
+    "field": "variant:0",
+    "en": "Grants Minions {0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "f18f9cdcbc1296c47543d8fdf4f6fb6f8c735691cc65c97cbc1a47caf1b1b02f",
+    "tw": "召喚物增加 {0}% 施放速度",
+    "cn": "召唤生物的施法速度加快 {0}%",
+    "stats": {
+      "ids": [
+        "cast_speed_+%_granted_from_skill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring4",
+    "field": "Name",
+    "en": "Gold Ring",
+    "kind": "dat",
+    "sourceHash": "17d4e730714e1fc25e2c7d95501e68c45569dbdd7d367845021132d62b2bc7fe",
+    "tw": "金光戒指",
+    "cn": "金光戒指"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionMap",
+    "field": "Text",
+    "en": "Travel to a Map of this tier or lower by using this in a personal Map Device. Maps can only be used once. ",
+    "kind": "dat",
+    "sourceHash": "f31b2a6ccebf30c1c35c1ca62d9160c32a5acc3010fca72fecadea1ef71300f3",
+    "tw": "透過個人的地圖裝置來使用這張地圖以前往這個階級或更低的該地圖。每張地圖只能被使用一次。",
+    "cn": "在私人地图装置中使用该物品，前往该等阶或更低等阶的地图。只能被使用一次。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemPopupDroppedInMaps",
+    "field": "Text",
+    "en": "Map Drop",
+    "kind": "dat",
+    "sourceHash": "8c59f41492c97a598646497d0cd5dcb51802e99d395a64c349031f5d1f67da37",
+    "tw": "掉落地圖",
+    "cn": "出售获得通货:非绑定"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextBlindNoDuration",
+    "field": "Text",
+    "en": "(Being Blinded causes 20% less Accuracy Rating and Evasion Rating)",
+    "kind": "dat",
+    "sourceHash": "79e3168fbc196dce3ff1cc55e62d554e2ccf8374a50e083ce448f5a53e1f4990",
+    "tw": "（ 被致盲有20%更少命中率和閃避值 ）",
+    "cn": "（被致盲时命中和闪避在接下来 4 秒总降 20%）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextBlind",
+    "field": "Text",
+    "en": "(Being Blinded causes 20% less Accuracy Rating and Evasion Rating, for 4 seconds)",
+    "kind": "dat",
+    "sourceHash": "85c166deeb266f24a676ab1d62292d1146fd9f58597f4ff13a782d36755989d8",
+    "tw": "（ 被致盲有20%更少命中率和閃避值，持續4秒 ）",
+    "cn": "（被致盲时命中和闪避在接下来 4 秒总降 20%）"
+  }
+]

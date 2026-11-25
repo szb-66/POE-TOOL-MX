@@ -39,18 +39,37 @@ export default defineConfig({
         './src/App.vue',
         './src/components/Layout/MainLayout.vue',
         './src/domains/dashboard/DashboardRouteView.vue',
-        './src/domains/settings/CoordinatePickerView.vue'
+        './src/domains/settings/CoordinatePickerView.vue',
+        './src/domains/priceCheck/PriceCheckOverlayView.vue'
       ]
     },
     watch: {
       ignored: [
+        '**/.agents/**',
         '**/.cache/**',
+        '**/.claude/**',
+        '**/.codex/**',
+        '**/.cursor/**',
+        '**/.github/**',
+        '**/.opencode/**',
         '**/.runtime/**',
+        '**/artifacts/**',
+        '**/build/**',
+        '**/cloudbase/**',
         '**/dist/**',
         '**/dist-electron/**',
+        '**/dist-electron-aliyun-test/**',
+        '**/docs/**',
+        '**/electron/**',
         '**/electron/assets/crafting-raw/**',
         '**/electron/assets/skill-raw/**',
         '**/electron/assets/unique-items-raw/**',
+        '**/openspec/**',
+        '**/scripts/**',
+        '**/src/assets/models/**',
+        '**/src/assets/scripts/**',
+        '**/test/**',
+        '**/test-support/**',
         '**/training-output/**'
       ]
     }
@@ -77,4 +96,3 @@ export default defineConfig({
     sourcemap: false
   }
 })
-

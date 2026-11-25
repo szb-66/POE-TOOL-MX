@@ -19,6 +19,7 @@ export const pageLoaders = Object.freeze({
   '/puzzle': () => import('../domains/puzzle/PuzzleView.vue'),
   '/tools': () => import('../domains/tools/ToolsView.vue'),
   '/pob-export': () => import('../domains/pobExport/PobExportView.vue'),
+  '/localization': () => import('../domains/localization/GameLocalizationView.vue'),
   '/settings': () => import('../domains/settings/SettingsView.vue')
 })
 

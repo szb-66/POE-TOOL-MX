@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto'
 import { ChaosRecipeError } from '../chaosRecipe/errors.js'
 import { ATLAS_MAP_CLASS_ALIASES, canonicalAtlasMapClass } from '../../../shared/mapItemClasses.js'
+import { parseUnidentifiedTier } from '../../../shared/itemTextLanguage.js'
 import { createItemStructureResolver } from './itemStructure.js'
-import { sameStatPluralFamily, statNumber, statVariantApplies } from './statVariants.js'
+import { sameGuaranteedChanceFamily, sameStatPluralFamily, sameStatPresenceFamily, statNumber, statVariantApplies } from './statVariants.js'
 import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { createUniqueNameResolver } from './uniqueName.js'
 import { createSupportGemResolver } from './supportGem.js'
+import { splitVisceraName, visceraNameTemplates } from './viscera.js'
 
 const cjk = /[\u3400-\u9fff]/u
 const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
@@ -13,13 +15,22 @@ const normalizeIdentity = value => compact(value).normalize('NFKC').toLocaleLowe
 const displayText = value => String(value || '').replace(/\\r\\n|\\n/g, '\n').replace(/\\r/g, '\n')
   .replace(/\[([^\]|]+)\|([^\]]*)\]/g, '$2').replace(/\[([^\]]+)\]/g, '$1')
   .replace(/<[^<>]+>\{([^{}]*)\}/g, '$1')
-const visibleText = value => displayText(value).split(/\r?\n/).map(compact).join('\n').trim()
+export const visibleText = value => displayText(value).split(/\r?\n/).map(compact).join('\n').trim()
 const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const placeholders = /\{(\d+)(?::([^}]+))?\}|#/g
 const numeric = '([+-]?\\d+(?:\\.\\d+)?(?:[（(][+-]?\\d+(?:\\.\\d+)?[-–—][+-]?\\d+(?:\\.\\d+)?[）)])?)'
 const patternKey = value => compact(value).replace(placeholders, '#')
   .replace(/[+-]?\d+(?:\.\d+)?(?:[（(][+-]?\d+(?:\.\d+)?[-–—][+-]?\d+(?:\.\d+)?[）)])?/g, '#').replace(/[+-]#/g, '#')
 const abstractTemplate = value => compact(value).replace(placeholders, '#').replace(/[+-]#/g, '#')
+// One stat-description line may cover several game stat IDs that share this exact
+// wording, so the sibling lookup compares the whole ID set instead of requiring one.
+const hasStatIdentifiers = entry => Array.isArray(entry?.stats?.ids) && entry.stats.ids.length > 0
+const sameStatIdentifiers = (left, right) => {
+  const ids = left?.stats?.ids
+  const other = right?.stats?.ids
+  return hasStatIdentifiers(left) && Array.isArray(other) && other.length === ids.length &&
+    other.every((id, index) => id === ids[index])
+}
 const itemRarityStats = new Set(['base_item_found_rarity_+%', 'item_found_rarity_+%', 'map_implicit_item_drop_rarity_+%'])
 
 // These are clipboard structure tokens, not item identities or translated stat names.
@@ -30,7 +41,8 @@ const labels = new Map(Object.entries({
   '力量': 'Str', '敏捷': 'Dex', '智慧': 'Int', '护甲': 'Armour', '護甲': 'Armour',
   '闪避值': 'Evasion Rating', '閃避值': 'Evasion Rating', '能量护盾': 'Energy Shield', '能量護盾': 'Energy Shield',
   '结界': 'Ward', '結界': 'Ward', '插槽': 'Sockets', '物理伤害': 'Physical Damage', '物理傷害': 'Physical Damage',
-  '元素伤害': 'Elemental Damage', '元素傷害': 'Elemental Damage', '混沌伤害': 'Chaos Damage', '混沌傷害': 'Chaos Damage',
+  '元素伤害': 'Elemental Damage', '元素傷害': 'Elemental Damage', '火焰，冰霜，闪电伤害': 'Elemental Damage', '火焰,冰霜,闪电伤害': 'Elemental Damage',
+  '混沌伤害': 'Chaos Damage', '混沌傷害': 'Chaos Damage',
   '攻击暴击率': 'Critical Strike Chance', '攻擊暴擊率': 'Critical Strike Chance', '暴擊率': 'Critical Strike Chance',
   '每秒攻击次数': 'Attacks per Second', '每秒攻擊次數': 'Attacks per Second',
   '格挡几率': 'Chance to Block', '格擋率': 'Chance to Block', '堆叠数量': 'Stack Size', '堆疊數量': 'Stack Size',
@@ -51,37 +63,48 @@ for (const [canonical, aliases] of Object.entries({
   'Wings Revealed': ['已揭露的侧厅', '已揭露的側廳'],
   'Escape Routes Revealed': ['已揭露的逃生路线', '已揭露的逃生路線'],
   'Reward Rooms Revealed': ['已揭露的奖励房间', '已揭露的獎勵房間'],
-  'Weapon Range': ['武器范围', '武器範圍', '武器距離']
+  'Weapon Range': ['武器范围', '武器範圍', '武器距離'],
+  'Talisman Tier': ['魔符阶级', '魔符階級', '魔符等级'],
+  'Limit': ['限制', '上限', '仅限'],
+  'Radius': ['范围', '範圍'],
+  'Map Area': ['地图区域', '地圖區域'],
+  'Corpse Level': ['灵柩等级', '屍體等級'],
+  'Monster Category': ['怪物类型', '怪物種類']
 })) for (const alias of aliases) labels.set(alias, canonical)
-const rarities = new Map(Object.entries({ 普通: 'Normal', 魔法: 'Magic', 稀有: 'Rare', 传奇: 'Unique', 傳奇: 'Unique', 通货: 'Currency', 通貨: 'Currency', 宝石: 'Gem', 寶石: 'Gem', 命运卡: 'Divination Card', 命運卡: 'Divination Card', 任务: 'Quest', 任務: 'Quest' }))
+const rarities = new Map(Object.entries({ 普通: 'Normal', 魔法: 'Magic', 稀有: 'Rare', 传奇: 'Unique', 傳奇: 'Unique', 通货: 'Currency', 通貨: 'Currency', 宝石: 'Gem', 寶石: 'Gem', 命运卡: 'Divination Card', 命運卡: 'Divination Card', 任务: 'Quest', 任務: 'Quest', 使命: 'Quest' }))
 const categories = new Map(Object.entries({
   戒指: 'Rings', 护身符: 'Amulets', 護身符: 'Amulets', 項鍊: 'Amulets', 项链: 'Amulets', 腰带: 'Belts', 腰帶: 'Belts',
   头部: 'Helmets', 頭部: 'Helmets', 头盔: 'Helmets', 頭盔: 'Helmets', 胸甲: 'Body Armours', 手套: 'Gloves', 鞋子: 'Boots', 鞋: 'Boots',
-  盾牌: 'Shields', 箭袋: 'Quivers', 珠宝: 'Jewels', 珠寶: 'Jewels', 深渊珠宝: 'Abyss Jewels', 深淵珠寶: 'Abyss Jewels',
-  爪: 'Claws', 匕首: 'Daggers', 符文匕首: 'Rune Daggers', 法杖: 'Wands', 权杖: 'Sceptres', 權杖: 'Sceptres',
-  单手剑: 'One Hand Swords', 單手劍: 'One Hand Swords', 单手斧: 'One Hand Axes', 單手斧: 'One Hand Axes',
+  盾牌: 'Shields', 盾: 'Shields', 箭袋: 'Quivers', 珠宝: 'Jewels', 珠寶: 'Jewels', 深渊珠宝: 'Abyss Jewels', 深淵珠寶: 'Abyss Jewels',
+  爪: 'Claws', 匕首: 'Daggers', 符文匕首: 'Rune Daggers', 符紋匕首: 'Rune Daggers', 法杖: 'Wands', 权杖: 'Sceptres', 權杖: 'Sceptres', 短杖: 'Sceptres',
+  单手剑: 'One Hand Swords', 單手劍: 'One Hand Swords', 细剑: 'Thrusting One Hand Swords', 細劍: 'Thrusting One Hand Swords', 单手斧: 'One Hand Axes', 單手斧: 'One Hand Axes',
   单手锤: 'One Hand Maces', 單手錘: 'One Hand Maces', 双手剑: 'Two Hand Swords', 雙手劍: 'Two Hand Swords',
   双手斧: 'Two Hand Axes', 雙手斧: 'Two Hand Axes', 双手锤: 'Two Hand Maces', 雙手錘: 'Two Hand Maces',
-  弓: 'Bows', 长杖: 'Staves', 長杖: 'Staves', 战杖: 'Warstaves', 戰杖: 'Warstaves',
+  弓: 'Bows', 长杖: 'Staves', 長杖: 'Staves', 战杖: 'Warstaves', 戰杖: 'Warstaves', 征戰長杖: 'Warstaves', 鱼竿: 'Fishing Rods', 魚竿: 'Fishing Rods', 钓鱼竿: 'Fishing Rods',
   异界地图: 'Maps', 異界地圖: 'Maps', 地图: 'Maps', 地圖: 'Maps', 地图碎片: 'Map Fragments', 地圖碎片: 'Map Fragments',
   通货: 'Stackable Currency', 通貨: 'Stackable Currency', 可堆疊通貨: 'Stackable Currency', 可堆叠通货: 'Stackable Currency',
   技能宝石: 'Skill Gems', 技能寶石: 'Skill Gems', 辅助宝石: 'Support Gems', 輔助寶石: 'Support Gems',
   命运卡: 'Divination Cards', 命運卡: 'Divination Cards', 生命药剂: 'Life Flasks', 生命藥劑: 'Life Flasks',
-  魔力药剂: 'Mana Flasks', 魔力藥劑: 'Mana Flasks', 混合药剂: 'Hybrid Flasks', 混合藥劑: 'Hybrid Flasks',
-  功能药剂: 'Utility Flasks', 功能藥劑: 'Utility Flasks', 裂隙之石: 'Breachstones', 远征日志: 'Expedition Logbooks', 探險日誌: 'Expedition Logbooks'
+  魔力药剂: 'Mana Flasks', 魔力藥劑: 'Mana Flasks', 混合药剂: 'Hybrid Flasks', 混合藥劑: 'Hybrid Flasks', 复合药剂: 'Hybrid Flasks', 複合藥劑: 'Hybrid Flasks',
+  功能药剂: 'Utility Flasks', 功能藥劑: 'Utility Flasks', 暴击药剂: 'Critical Utility Flasks', 暴擊藥劑: 'Critical Utility Flasks',
+  裂隙之石: 'Breachstones', 裂隙石: 'Breachstones', 裂痕石: 'Breachstones', 远征日志: 'Expedition Logbooks', 先祖秘藏日志: 'Expedition Logbooks', 探險日誌: 'Expedition Logbooks'
 }))
-const states = new Map(Object.entries({ 改造: 'Transfigured', 已腐化: 'Corrupted', 已汙染: 'Corrupted', 已污染: 'Corrupted', 未鉴定: 'Unidentified', 未鑑定: 'Unidentified', 已复制: 'Mirrored', 已複製: 'Mirrored', 已分裂: 'Split', 不可改变: 'Unmodifiable', 無法改變: 'Unmodifiable' }))
+const states = new Map(Object.entries({ 改造: 'Transfigured', 變異: 'Transfigured', 已腐化: 'Corrupted', 已汙染: 'Corrupted', 已污染: 'Corrupted', 二次腐化: 'Twice Corrupted', 二次汙染: 'Twice Corrupted', 二次污染: 'Twice Corrupted', 未鉴定: 'Unidentified', 未鑑定: 'Unidentified', 已复制: 'Mirrored', 已複製: 'Mirrored', 已分裂: 'Split', 分裂: 'Split', 分化: 'Split', 分裂物品: 'Split', 不可改变: 'Unmodifiable', 無法改變: 'Unmodifiable', 不可調整的: 'Unmodifiable', 已灌注: 'Imbued', 已注能: 'Imbued', 烫金传奇: 'Foil Unique', 貼模傳奇: 'Foil Unique' }))
 for (const [canonical, aliases] of Object.entries({
-  Contracts: ['契约', '契約'], Blueprints: ['蓝图', '藍圖'],
-  'Cluster Jewels': ['星团珠宝', '星團珠寶'], 'Warstaves': ['战杖', '戰杖']
+  Contracts: ['契约', '契約', '契約書'], Blueprints: ['蓝图', '藍圖'],
+  'Heist Tools': ['赏金猎人工具', '劫盜工具'], 'Heist Cloaks': ['赏金猎人披风', '劫盜披風'],
+  'Heist Brooches': ['赏金猎人胸针', '劫盜胸針'], 'Heist Gear': ['赏金猎人装备', '劫盜裝備'],
+  Trinkets: ['饰品', '飾品'], Tinctures: ['酊剂', '萃取物'], Viscera: ['内脏', '臟器'],
+  'Cluster Jewels': ['星团珠宝', '星團珠寶'], 'Warstaves': ['战杖', '戰杖', '征戰長杖']
 })) for (const alias of aliases) categories.set(alias, canonical)
 for (const [alias, canonical] of Object.entries(ATLAS_MAP_CLASS_ALIASES)) categories.set(alias, canonical)
 for (const [canonical, aliases] of Object.entries({
-  'Synthesised Item': ['忆境物品', '憶境物品'], 'Shaper Item': ['塑界者物品'],
-  'Elder Item': ['裂界者物品'], 'Crusader Item': ['圣战者物品', '聖戰者物品'],
-  'Redeemer Item': ['救赎者物品', '救贖者物品'], 'Hunter Item': ['狩猎者物品', '狩獵者物品'],
-  'Warlord Item': ['督军物品', '督軍物品'], 'Searing Exarch Item': ['焚界者物品'],
-  'Eater of Worlds Item': ['灭界者物品', '滅界者物品']
+  'Synthesised Item': ['忆境物品', '憶境物品', '追憶之物'], 'Shaper Item': ['塑界者物品', '塑界之器', '塑者之物'],
+  'Elder Item': ['裂界者物品', '裂界之器', '尊師之物'], 'Crusader Item': ['圣战者物品', '聖戰者物品', '圣战之器', '聖戰軍王物品'],
+  'Redeemer Item': ['救赎者物品', '救贖者物品', '救赎之器'], 'Hunter Item': ['狩猎者物品', '狩獵者物品', '狩猎之器'],
+  'Warlord Item': ['督军物品', '督軍物品', '督军之器', '總督軍物品'], 'Searing Exarch Item': ['焚界者物品', '卓烙總督物品'],
+  'Eater of Worlds Item': ['灭界者物品', '滅界者物品', '吞噬天地物品'],
+  'Fractured Item': ['分裂之物', '破裂之物', '破碎之物', '破裂物品']
 })) for (const alias of aliases) states.set(alias, canonical)
 
 function failure(code, message, lines = []) {
@@ -140,6 +163,11 @@ function normalizeHeader(line) {
     .replace(/退化基底词缀|殘存固定詞綴/g, 'Vestigial Implicit Modifier')
     .replace(/秽生传奇词缀/g, 'Foulborn Unique Modifier')
     .replace(/附魔基底属性|附魔固定詞綴/g, 'Enchantment Modifier')
+    .replace(/天灾词缀|災魘詞綴/g, 'Scourge Modifier')
+    .replace(/怪物(?:属性|詞綴)/g, 'Monster Modifier')
+    .replace(/分配熔炉天赋|配置熔火天賦/g, 'Allocated Crucible Passive Skill')
+    .replace(/稀有限定/g, 'Rare-only')
+    .replace(/亵渎的|已褻瀆/g, 'Desecrated')
     .replace(/已大師工藝|大[师師][级級]|工[艺藝](?:[属屬]性|[词詞][缀綴])?/g, 'Master Crafted')
     .replace(/已破裂|(?:破碎|破裂|分裂)的?/g, 'Fractured')
     .replace(/前[缀綴](?:[属屬]性|[词詞][缀綴])?/g, 'Prefix Modifier')
@@ -160,7 +188,7 @@ function normalizeHeader(line) {
   ])
   text = text.replace(/\(([^()]*)\)/g, (match, value) => grades.has(value.trim()) ? `(${grades.get(value.trim())})` : match)
     .replace(/\s*\(/g, ' (')
-  if (!/\b(?:Prefix|Suffix|Implicit|Base|Unique|Crafted|Enchant(?:ment)?|Fractured)\b/.test(text)) {
+  if (!/\b(?:Prefix|Suffix|Implicit|Base|Unique|Crafted|Enchant(?:ment)?|Fractured|Rare-only|Scourge|Monster|Allocated Crucible Passive Skill)\b/.test(text)) {
     throw failure('LOCALIZATION_HEADER_UNRESOLVED', '详细词缀类型无法识别，已阻止查询', [line])
   }
   const sources = [...text.matchAll(/\b(?:Searing Exarch|Eater of Worlds)\b/g)]
@@ -170,7 +198,7 @@ function normalizeHeader(line) {
   }
   const remaining = text.replace(/__NAME\d+__/g, '')
     .replace(/\((?:(?:Tier|Rank|Lvl):\s*\d+(?:,\s*(?:Tier|Rank|Lvl):\s*\d+)*|Lesser|Greater|Grand|Exceptional|Exquisite|Perfect)\)/g, '')
-    .replace(/\b(?:Searing Exarch|Eater of Worlds|Master Crafted|Fractured|Crafted|Foulborn|Corruption|Corrupted|Vestigial|Scourge|Veiled|Imbued|Mercenary|Delve|Ultimatum|Sanctum|Crucible|Prefix|Suffix|Implicit|Base|Unique|Enchant(?:ment)?|Modifier)\b/g, '')
+    .replace(/\b(?:Searing Exarch|Eater of Worlds|Master Crafted|Fractured|Crafted|Desecrated|Foulborn|Corruption|Corrupted|Vestigial|Scourge|Veiled|Imbued|Mercenary|Delve|Ultimatum|Sanctum|Crucible|Rare-only|Monster|Allocated|Passive|Skill|Prefix|Suffix|Implicit|Base|Unique|Enchant(?:ment)?|Modifier)\b/g, '')
     .replace(/[{}\s▲▽]/g, '')
   if (remaining) throw failure('LOCALIZATION_HEADER_UNRESOLVED', '详细词缀头包含未识别的结构信息，已停止解析', [line])
   return [text, ...tags].join('—').replace(/__NAME(\d+)__/g, (_, index) => quoted[Number(index)])
@@ -189,9 +217,30 @@ export function createLocalizationDictionary(entries = []) {
   const modifierNames = new Set(validated.filter(entry => entry.kind === 'dat' && entry.field === 'Name' &&
     /(?:^|[/\\])mods(?:\.datc?64)?$/i.test(entry.table))
     .flatMap(entry => [entry.en, entry.cn, entry.tw]).filter(Boolean).map(value => compact(displayText(value))))
-  const structure = createItemStructureResolver(validated,{visibleText,translate:value=>translate(value),failure})
+  const structure = createItemStructureResolver(validated,{visibleText,translate:(...args)=>translate(...args),failure})
   const uniqueName = createUniqueNameResolver(validated)
   const supportGem = createSupportGemResolver(validated)
+  const visceraNames = visceraNameTemplates(validated)
+  const divergentPrefixes = validated
+    .filter(entry => entry.kind === 'dat' && /^clientstrings(?:\.datc?64)?$/i.test(entry.table) &&
+      entry.id === 'DivergentItem' && entry.field === 'Text' && entry.en === 'Vestigial {0}' &&
+      entry.sourceHash === createHash('sha256').update('Vestigial {0}').digest('hex'))
+    .flatMap(entry => [entry.cn, entry.tw]).filter(Boolean).map(visibleText)
+    .filter(value => value.endsWith('{0}')).map(value => value.slice(0, -3).trim()).filter(Boolean)
+  const clusterSmallPassivePrefixes = validated
+    .filter(entry => entry.kind === 'dat' && /^clientstrings(?:\.datc?64)?$/i.test(entry.table) &&
+      entry.id === 'StatDescripotionTreeExpansionJewelGrantedSmallStat' && entry.field === 'Text' &&
+      entry.en === 'Added Small Passive Skills grant: {0}' &&
+      entry.sourceHash === createHash('sha256').update('Added Small Passive Skills grant: {0}').digest('hex'))
+    .flatMap(entry => [entry.cn, entry.tw, '附加的小型天賦給予：{0}', '附加的小天賦給予：{0}']).filter(Boolean).map(visibleText)
+    .filter(value => value.endsWith('{0}')).map(value => value.slice(0, -3).trim()).filter(Boolean)
+  const heistEquipmentUserHeaders = new Set(validated
+    .filter(entry => entry.kind === 'dat' && /^clientstrings(?:\.datc?64)?$/i.test(entry.table) &&
+      entry.id === 'ItemDisplayHeistEquipmentUsers' && entry.field === 'Text' &&
+      entry.en === 'This item can be equipped by:\n{0}' &&
+      entry.sourceHash === createHash('sha256').update('This item can be equipped by:\n{0}').digest('hex'))
+    .flatMap(entry => [entry.en, entry.cn, entry.tw]).filter(Boolean)
+    .map(value => visibleText(value).split('\n')[0]).filter(Boolean))
   const displayed = validated.flatMap(entry => {
     const normalized = { ...entry, en: visibleText(entry.en), cn: visibleText(entry.cn), tw: visibleText(entry.tw) }
     const sourceLines = normalized.en.split('\n')
@@ -209,6 +258,18 @@ export function createLocalizationDictionary(entries = []) {
   const usageDescriptions = new Set(validated.filter(entry => entry.kind === 'dat' && entry.table.toLowerCase() === 'clientstrings' &&
     /^ItemDescription/.test(entry.id) && !['ItemDescriptionGemQualityStatDivider', 'ItemDescriptionIncursionAccessibleRooms', 'ItemDescriptionIncursionInaccessibleRooms'].includes(entry.id))
     .flatMap(entry => [entry.en, entry.cn, entry.tw]).filter(Boolean).map(value => compact(displayText(value))))
+  const normalizeClipboardNote = value => compact(displayText(value)).replace(/^（/, '(').replace(/）$/, ')')
+  const clipboardNotes = new Set()
+  for (const entry of validated) {
+    if (entry.kind !== 'dat' || !entry.sourceHash || entry.field !== 'Text') continue
+    const reminder = /(?:^|[/\\])remindertext(?:\.datc?64)?$/i.test(entry.table)
+    const mapFooter = entry.table === 'clientstrings' && entry.id === 'ItemPopupDroppedInMaps'
+    if (!reminder && !mapFooter) continue
+    for (const value of [entry.en, entry.cn, entry.tw]) {
+      const text = normalizeClipboardNote(value)
+      if (text && (mapFooter || /^\(.+\)$/u.test(text))) clipboardNotes.add(text)
+    }
+  }
   const statGroups = new Map()
   const abstractRows = new Map()
   for (const entry of displayed) {
@@ -359,27 +420,43 @@ export function createLocalizationDictionary(entries = []) {
       if (line.startsWith('{')) type = /Fractured/.test(line) ? 'fractured' : /Crafted/.test(line) ? 'crafted' : /Enchant/.test(line) ? 'enchant' : /Implicit|Base|Corruption/.test(line) ? 'implicit' : 'explicit'
       const suffix = line.match(/\s*\((implicit|crafted|enchant|fractured)\)$/i)
       const body = suffix ? line.slice(0, suffix.index) : line
+      const bodyText = compact(body)
       const lineType = suffix?.[1]?.toLowerCase() || type
       const cached = catalog && tradeMatcherCache.get(catalog)
       if (cached && !cached.has(lineType)) cached.set(lineType, new Set((catalog.stats || []).filter(entry => entry.ids?.[lineType]).flatMap(entry => entry.matchers || []).map(abstractTemplate)))
       const matchers = cached && cached.get(lineType)
       const candidates = new Set()
-      for (const pattern of englishPatterns.get(patternKey(compact(body))) || []) {
+      const presenceCandidates = new Set()
+      if (matchers && !matchers.has(bodyText)) {
+        for (const literal of abstractRows.get(bodyText) || []) {
+          if (!literal.sourceHash) continue
+          for (const sibling of statGroups.get(`${literal.table}\0${literal.id}`) || []) {
+            if (sibling.sourceHash && matchers.has(abstractTemplate(sibling.en)) && sameGuaranteedChanceFamily(literal, sibling)) {
+              candidates.add(render(sibling.en, new Map([[0, '100']])))
+            }
+          }
+        }
+      }
+      for (const pattern of englishPatterns.get(patternKey(bodyText)) || []) {
         const entry = pattern.entry
         const variant = entry.stats?.variants?.[Number(String(entry.field).split(':')[1])]
         if (entry.kind !== 'stat' || !entry.sourceHash || (matchers && matchers.has(abstractTemplate(entry.en)))) continue
-        const match = compact(body).match(pattern.expression)
+        const match = bodyText.match(pattern.expression)
         const values = match && numberValues(match, pattern.tokens)
         if (!values || statVariantApplies(entry, values) !== true) continue
         if (matchers) for (const sibling of statGroups.get(`${entry.table}\0${entry.id}`) || []) {
-          if (sibling.sourceHash && sameStatPluralFamily(entry, sibling) && matchers.has(abstractTemplate(sibling.en))) candidates.add(render(sibling.en, values))
+          if (!sibling.sourceHash || !matchers.has(abstractTemplate(sibling.en))) continue
+          if (sameStatPluralFamily(entry, sibling)) candidates.add(render(sibling.en, values))
+          if (!matchers.has(bodyText) && sameStatPresenceFamily(entry, sibling, statNumber(values.get(0)))) {
+            presenceCandidates.add(compact(sibling.en))
+          }
         }
         const negated = /^negate 1(?: reminderstring \S+)?$/.test(variant?.handlers || '')
-        if (entry.stats?.ids?.length !== 1 ||
+        if (!hasStatIdentifiers(entry) ||
             (!negated && (!matchers || !/^(?:reminderstring \S+)?$/.test(variant?.handlers || ''))) ||
             pattern.tokens.length !== 1 || pattern.tokens[0].key !== 0) continue
         for (const positive of statGroups.get(`${entry.table}\0${entry.id}`) || []) {
-          if (positive.kind !== 'stat' || !positive.sourceHash || positive.stats?.ids?.length !== 1 || positive.stats.ids[0] !== entry.stats.ids[0]) continue
+          if (positive.kind !== 'stat' || !positive.sourceHash || !sameStatIdentifiers(entry, positive)) continue
           const own = positive.stats?.variants?.[Number(String(positive.field).split(':')[1])]
           const target = template(positive.en)
           const opposite = negated ? /^(?:reminderstring \S+)?$/ : /^negate 1(?: reminderstring \S+)?$/
@@ -389,10 +466,11 @@ export function createLocalizationDictionary(entries = []) {
           candidates.add(render(positive.en, new Map([[0, String(-statNumber(values.get(0)))]])))
         }
       }
-      return candidates.size === 1 ? candidates.values().next().value + (suffix?.[0] || '') : line
+      const resolved = candidates.size ? candidates : presenceCandidates
+      return resolved.size === 1 ? resolved.values().next().value + (suffix?.[0] || '') : line
     }).join('\n')
   }
-  function computeAliasesFor(value) {
+  function computeAliasesFor(value, resolveStatAmbiguity = null) {
     const text = compact(displayText(value))
     const result = new Set([visibleText(value)])
     if (structure.isCanonical(text)) return [...new Set([...result,...structure.aliasesFor(text),...[...labels].filter(([,canonical])=>canonical===text).map(([alias])=>alias)])]
@@ -430,12 +508,13 @@ export function createLocalizationDictionary(entries = []) {
         const family = abstractRows.get(target) || []
         return candidates.has(target) && [...candidates].every(candidate => candidate === target || (abstractRows.get(candidate) || []).some(entry => family.some(other => sameStatPluralFamily(entry, other))))
       }
-      try { return compact(translate(alias)) === text } catch { return false }
+      try { return compact(translate(alias, null, null, resolveStatAmbiguity)) === text } catch { return false }
     })
   }
   const aliasCache = new Map()
-  function aliasesFor(value) {
+  function aliasesFor(value, { resolveStatAmbiguity = null } = {}) {
     const key = visibleText(value)
+    if (resolveStatAmbiguity) return computeAliasesFor(key, resolveStatAmbiguity)
     if (!aliasCache.has(key)) {
       const result = Object.freeze(computeAliasesFor(key))
       if (aliasCache.size >= 10000) aliasCache.delete(aliasCache.keys().next().value)
@@ -494,20 +573,29 @@ export function createLocalizationDictionary(entries = []) {
       const original = String(source || '')
       let statType = 'explicit'
       const projected = original.split(/\r?\n/)
-      if (catalog) {
+      {
         let start = 0
         for (let index = 0; index <= projected.length; index++) {
           if (index < projected.length && !/^-{3,}$/.test(projected[index].trim())) continue
-          if (start > 0 && usageDescriptions.has(compact(projected.slice(start, index).join('\n')))) projected.fill('', start, index)
+          if (start > 0) {
+            const block = projected.slice(start, index).map((line, offset) => {
+              const rawNote = compact(displayText(line.trim().replace(/^##\s+/, '')))
+              if (!clipboardNotes.has(normalizeClipboardNote(rawNote))) return rawNote
+              projected[start + offset] = ''
+              return ''
+            })
+            if (catalog && usageDescriptions.has(compact(block.join('\n')))) projected.fill('', start, index)
+          }
           start = index + 1
         }
       }
       const canonical = value => normalizeStatSigns ? tradeStatText(stripFixedValueAnnotation(value), catalog, statType) : value
       const localized=cjk.test(original)
+      const heistClasses = ['Contracts', 'Blueprints', 'Heist Tools', 'Heist Cloaks', 'Heist Brooches', 'Heist Gear']
       const heistMetadata=original.split(/\r?\n/).some(line=>{
         const field=line.match(/^([^:：]+)[:：]\s*(.*)$/)
         return field && (labels.get(field[1].replace(/\s+/g,'')) || field[1])==='Item Class'
-          && ['Contracts','Blueprints'].includes(categories.get(field[2]) || translate(field[2], ['itemclasses']))
+          && heistClasses.includes(categories.get(field[2]) || translate(field[2], ['itemclasses']))
       })
       if (!localized) {
         for (const line of original.split(/\r?\n/).map(value => value.trim())) {
@@ -529,9 +617,15 @@ export function createLocalizationDictionary(entries = []) {
       const classField = input.slice(0, headerEnd).map(line => line.match(/^([^:：]+)[:：]\s*(.*)$/))
         .find(field => field && (labels.get(field[1].replace(/\s+/g, '')) || field[1]) === 'Item Class')
       const itemClass = classField && (categories.get(classField[2]) || translate(classField[2], ['itemclasses']))
+      const hasVisceraSlot = itemClass === 'Viscera' && propertiesEnd > headerEnd &&
+        input.slice(headerEnd + 1, propertiesEnd).filter(line => line.trim()).length === 1
+      const hasAbyssProperty = itemClass === 'Abyss Jewels' && propertiesEnd > headerEnd &&
+        input.slice(headerEnd + 1, propertiesEnd).filter(line => line.trim()).length === 1
       const gem = ['Skill Gems', 'Active Skill Gems', 'Support Gems'].includes(itemClass)
-      const flask = ['Life Flasks', 'Mana Flasks', 'Hybrid Flasks', 'Utility Flasks'].includes(itemClass)
+      const flask = ['Life Flasks', 'Mana Flasks', 'Hybrid Flasks', 'Utility Flasks', 'Critical Utility Flasks'].includes(itemClass)
       const tincture = itemClass === 'Tinctures'
+      const heistEquipment = ['Heist Tools', 'Heist Cloaks', 'Heist Brooches', 'Heist Gear'].includes(itemClass)
+      const logbook = itemClass === 'Expedition Logbooks'
       const identities = catalog && new Set((catalog.items || []).flatMap(entry => [entry.name, entry.baseType, entry.type, entry.text]).filter(Boolean))
       for (let index = 0; index < headerEnd; index++) {
         const field = input[index].match(/^([^:：]+)[:：]/)
@@ -558,13 +652,45 @@ export function createLocalizationDictionary(entries = []) {
         if (gem && (states.has(marked) || [...states.values()].includes(marked) || /^(?:Transfigured|改造)$/.test(marked))) line = marked
         if (identityIndexes.includes(index)) {
           if (['Rare', 'Magic'].includes(rarityValue) && identityIndexes.length > 1 && index === identityIndexes[0]) return line
-          const tieredMap = itemClass === 'Maps' && line.match(/^(?:地图|地圖)[（(]\s*(\d+)\s*(?:阶|階)[）)]$/u)
-          if (tieredMap) return `Map (Tier ${tieredMap[1]})`
+          if (itemClass === 'Viscera') {
+            const graded = splitVisceraName(line, visceraNames)
+            if (graded) {
+              const base = translate(graded.baseName, ['baseitemtypes'], identities, null,
+                entry => entry.sourceHash && /^Metadata\/Items\/Viscera\//.test(entry.id))
+              return visceraNames.find(template => template.grade === graded.grade).en.replace('{0}', () => base)
+            }
+          }
+          const tieredMap = itemClass === 'Maps' && line.match(/^(?:(菌潮灭绝|菌潮|凋落蔓延的|凋落的)\s*)?(?:地图|地圖)[（(]\s*(\d+)\s*(?:阶|階)[）)]$/u)
+          if (tieredMap) {
+            const prefix = tieredMap[1] ? (/灭绝|蔓延/.test(tieredMap[1]) ? 'Blight-ravaged ' : 'Blighted ') : ''
+            return `${prefix}Map (Tier ${tieredMap[2]})`
+          }
+          const tryTranslate = (...args) => { try { return translate(...args) } catch { return null } }
+          const tryUniqueName = value => {
+            const direct = tryTranslate(value, ['words'], identities)
+            if (direct && (direct !== value || !cjk.test(direct))) return direct
+            try { return uniqueName(value, part => translate(part, ['words'], identities)) } catch { return null }
+          }
           const namedUnique = unique && identityIndexes.length > 1 && index === uniqueNameIndex
           const tables = namedUnique ? ['words'] : gem ? ['baseitemtypes', 'activeskills', 'gemeffects'] : ['baseitemtypes', 'monstervarieties']
-          const uniqueBase = namedUnique && catalog && translate(input[identityIndexes.at(-1)], ['baseitemtypes'], identities)
-          const scopedIdentities = uniqueBase ? new Set(catalog.items.filter(entry => entry.baseType === uniqueBase).map(entry => entry.name).filter(Boolean)) : identities
+          const uniqueBase = namedUnique && catalog ? tryTranslate(input[identityIndexes.at(-1)], ['baseitemtypes'], identities) : null
+          const resolvedUnique = unique && !namedUnique && identityIndexes.length > 1 && catalog ? tryUniqueName(input[uniqueNameIndex]) : null
+          const canonicalUnique = resolvedUnique ? resolvedUnique.replace(/^Foulborn\s+/, '') : null
+          const uniqueBases = canonicalUnique ? new Set(catalog.items
+            .filter(entry => [resolvedUnique, canonicalUnique].includes(entry.name))
+            .map(entry => entry.baseType).filter(Boolean)) : null
+          const scopedIdentities = uniqueBase
+            ? new Set(catalog.items.filter(entry => entry.baseType === uniqueBase).map(entry => entry.name).filter(Boolean))
+            : (uniqueBases?.size ? uniqueBases : identities)
           const resolved = translate(line, tables, scopedIdentities)
+          if (!namedUnique && resolved === line && cjk.test(line)) {
+            for (const prefix of divergentPrefixes) {
+              if (!line.startsWith(prefix)) continue
+              const baseName = line.slice(prefix.length).trim()
+              const translatedBase = baseName && tryTranslate(baseName, ['baseitemtypes'], scopedIdentities)
+              if (translatedBase && translatedBase !== baseName && !cjk.test(translatedBase)) return `Vestigial ${translatedBase}`
+            }
+          }
           const combination = gem && resolved === line && line.match(/^(.+)\s[（(](.+)[）)]$/u)
           if (combination) {
             const name = `${translate(combination[1], tables, identities)} (${translate(combination[2], tables, identities)})`
@@ -576,39 +702,93 @@ export function createLocalizationDictionary(entries = []) {
         if (gem && index > headerEnd && !/^-{3,}$/.test(line) && !states.has(line) && ![...states.values()].includes(line) &&
             !/^(?:##\s*)?(?:Level|Quality|Requirements|等级|等級|品质|品質|需求|需求條件)\s*[:：]/.test(line) && !/^(?:Transfigured|改造)$/.test(line)) return ''
         // The repeated class in the properties block is metadata, not an item identity.
-        if (itemClass && index > headerEnd && index < propertiesEnd && categories.get(line) === itemClass) return itemClass
+        if (itemClass && index > headerEnd && index < propertiesEnd && (categories.get(line) === itemClass || line === classField?.[2])) return itemClass
         if ((flask || tincture) && index > headerEnd && index < propertiesEnd) {
           const metadata = structure.resolveLine(line, { family: tincture ? 'tincture' : 'flask' })
           if (metadata) return metadata
+        }
+        if (hasVisceraSlot && index > headerEnd && index < propertiesEnd && !/[{}:：]/u.test(line)) {
+          return translate(line, ['clientstrings'], null, null,
+            entry => entry.sourceHash && /^VisceraItem(?:Head|Torso|Arm|Leg)$/.test(entry.id))
+        }
+        if (hasAbyssProperty && index > headerEnd && index < propertiesEnd && !/[{}:：]/u.test(line)) {
+          return translate(line, ['clientstrings'], null, null,
+            entry => entry.sourceHash && entry.id === 'ItemDisplayAbyssalJewel')
+        }
+        if (heistEquipment && index > headerEnd && index < propertiesEnd) {
+          if (heistEquipmentUserHeaders.has(marked)) return 'This item can be equipped by:'
+          const allUsers = translate(marked, ['clientstrings'], null, null,
+            entry => entry.sourceHash && entry.id === 'ItemDisplayHeistEquipmentUsersAll')
+          if (allUsers !== marked) return allUsers
+          if (!/[{}:：]/u.test(marked)) {
+            const npc = translate(marked, ['npcs'], null, null,
+              entry => entry.sourceHash && /League\/Heist\//.test(entry.id))
+            if (npc !== marked) return npc
+          }
         }
         const annotatedLabel = line.match(/^##\s+([^:：]+)[:：]/u)
         if (annotatedLabel && (labels.has(annotatedLabel[1].replace(/\s+/g,'')) || structure.label(annotatedLabel[1]))) line = line.replace(/^##\s+/, '')
         const structured=heistMetadata ? structure.resolveLine(line) : null
         if (structured) return structured
-        const suffixAliases = { '固定': 'implicit', '隐式': 'implicit', '隱式': 'implicit', '工艺': 'crafted', '工藝': 'crafted', '附魔': 'enchant', '破碎': 'fractured', '破裂': 'fractured', '增幅': 'augmented', '未满足': 'unmet', '未滿足': 'unmet' }
-        const suffix = line.match(/\s*([（(](implicit|crafted|enchant|fractured|augmented|unmet|固定|隐式|隱式|工艺|工藝|附魔|破碎|破裂|增幅|未满足|未滿足)[）)])$/i)
+        const suffixAliases = { '固定': 'implicit', '隐式': 'implicit', '隱式': 'implicit', '工艺': 'crafted', '工藝': 'crafted', '附魔': 'enchant', '破碎': 'fractured', '破裂': 'fractured', '增幅': 'augmented', '未满足': 'unmet', '未滿足': 'unmet', '宝石': 'gem', '寶石': 'gem', '珠宝': 'jewel', '珠寶': 'jewel', 'gem': 'gem', 'jewel': 'jewel' }
+        const suffix = line.match(/\s*([（(](implicit|crafted|enchant|fractured|augmented|unmet|gem|jewel|固定|隐式|隱式|工艺|工藝|附魔|破碎|破裂|增幅|未满足|未滿足|宝石|寶石|珠宝|珠寶)[）)])$/i)
         const body = suffix ? line.slice(0, suffix.index) : line
         const tail = suffix ? ` (${suffixAliases[suffix[2]] || suffix[2]})` : ''
         const label = body.match(/^([^:：]+)[:：]\s*(.*)$/u)
         if (label) {
-          const staticName=labels.get(label[1].replace(/\s+/g, ''))
-          const structureName=structure.label(label[1])
-          const name = staticName || structureName || translate(label[1])
+          const staticName = labels.get(label[1].replace(/\s+/g, ''))
+          const structureName = structure.label(label[1])
+          let name = staticName || structureName
+          if (!name) {
+            try { name = translate(label[1]) } catch { name = label[1] }
+          }
           if (structure.isCanonical(name) && !staticName && !structureName) throw failure('LOCALIZATION_UNRESOLVED','物品结构标签未匹配当前有效ClientStrings',[line])
-          const range = name === 'Weapon Range' && label[2].match(/^(\d+(?:\.\d+)?)\s*米$/u)
-          const value = name === 'Rarity' ? rarities.get(label[2]) || label[2]
-            : name === 'Item Class' ? canonicalAtlasMapClass(label[2]) || categories.get(label[2]) || translate(label[2], ['itemclasses'])
-              : range ? `${range[1]} ${Number(range[1]) === 1 ? 'metre' : 'metres'}` : translate(label[2])
-          if (knownLabels.has(name) || ['Rarity', 'Item Class'].includes(name)) return `${name}: ${value}${tail}`
+          if (knownLabels.has(name) || ['Rarity', 'Item Class'].includes(name)) {
+            const normalizedValue = knownLabels.has(name)
+              ? label[2].replace(/\s*[（(](augmented|unmet|gem|jewel|增幅|未满足|未滿足|宝石|寶石|珠宝|珠寶)[）)]/gi,
+                  (_, token) => ` (${suffixAliases[token] || token.toLowerCase()})`)
+              : label[2]
+            const range = name === 'Weapon Range' && normalizedValue.match(/^(\d+(?:\.\d+)?)\s*米$/u)
+            const value = name === 'Rarity' ? rarities.get(normalizedValue) || normalizedValue
+              : name === 'Item Class' ? canonicalAtlasMapClass(normalizedValue) || categories.get(normalizedValue) || translate(normalizedValue, ['itemclasses'])
+                : name === 'Radius' ? translate(normalizedValue, ['clientstrings'], null, null,
+                    entry => entry.sourceHash && /^JewelRadius(?:Small|Medium|Large|VeryLarge|Massive|Variable)$/.test(entry.id))
+                  : name === 'Map Area' ? translate(normalizedValue, ['worldareas'], null, null,
+                      entry => entry.sourceHash && /^Map/.test(entry.id))
+                    : range ? `${range[1]} ${Number(range[1]) === 1 ? 'metre' : 'metres'}` : translate(normalizedValue)
+            return `${name}: ${value}${tail}`
+          }
         }
         const header = normalizeHeader(line)
         if (header) {
           statType = /Fractured/.test(header) ? 'fractured' : /Crafted/.test(header) ? 'crafted' : /Enchant/.test(header) ? 'enchant' : /Implicit|Base|Corruption/.test(header) ? 'implicit' : 'explicit'
           return header
         }
+        if (logbook && index > headerEnd && !/[{}:：]/u.test(body) && !suffix) {
+          try {
+            const logbookMeta = translate(body, ['expeditionfactions', 'worldareas'], null, null,
+              entry => entry.sourceHash && (String(entry.table).toLowerCase() === 'expeditionfactions' || /^Expedition/.test(entry.id)))
+            if (logbookMeta !== body && !cjk.test(logbookMeta)) return logbookMeta
+          } catch { /* fall through to stat resolution */ }
+        }
+        if (unique && index > headerEnd && /^(?:烫金传奇|貼模傳奇)\s*[（(].+[）)]$/u.test(marked)) return 'Foil Unique'
+        const unidentifiedTier = index > headerEnd && !suffix ? parseUnidentifiedTier(marked) : null
+        if (unidentifiedTier) return `Unidentified (Tier ${unidentifiedTier})`
         const suffixType = suffix && (suffixAliases[suffix[2]] || suffix[2].toLowerCase())
         const lineType = ['implicit', 'crafted', 'enchant', 'fractured'].includes(suffixType) ? suffixType : statType
-        const translated = states.get(body) || supportGem.resolve(body, { catalog, type: lineType }) ||
+        if (lineType === 'enchant' && index > headerEnd) {
+          for (const prefix of clusterSmallPassivePrefixes) {
+            if (!body.startsWith(prefix)) continue
+            const inner = body.slice(prefix.length).trim()
+            if (!inner) continue
+            const translatedInner = translate(inner, null, null, null, statScope(lineType), { lines: input, index })
+            if (translatedInner && translatedInner !== inner && !cjk.test(translatedInner)) {
+              return `Added Small Passive Skills grant: ${translatedInner}${tail}`
+            }
+          }
+        }
+        const translated = states.get(body) || (!suffix && index > headerEnd && states.get(marked)) ||
+          supportGem.resolve(body, { catalog, type: lineType }) ||
           translate(body, null, null, index > headerEnd ? candidates => resolveStatAmbiguity?.(candidates, { type: lineType }) : null, statScope(lineType), { lines: input, index })
         return (index === uniqueNameIndex && translated === body ? uniqueName(body, translate) || translated : translated) + tail
       }
@@ -622,7 +802,9 @@ export function createLocalizationDictionary(entries = []) {
         for (let stop = end; stop > index + 1; stop--) {
           const block = input.slice(index, stop).join('\n')
           if (!cjk.test(block)) continue
-          const result = canonical(translate(block, null, null, chooseStat, statScope(statType), { lines: input, index }))
+          const resolvedBlock = supportGem.resolve(block, { catalog, type: statType }) ||
+            translate(block, null, null, chooseStat, statScope(statType), { lines: input, index })
+          const result = canonical(resolvedBlock)
           if (result !== compact(block)) {
             translated.push(...result.split('\n'))
             lineMappings.push({ original: originalLines.slice(index, stop).join('\n'), canonical: result })

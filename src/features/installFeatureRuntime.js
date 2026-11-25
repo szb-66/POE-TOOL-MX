@@ -99,11 +99,11 @@ export function installFeatureRuntime({ router }) {
     if (!featureDisposers.has('bag')) {
       setFeatureDisposer('bag', stashStore.listen())
       useJunfengListener('bag')
-      await initBagAutomation({ restoreEnabled: currentServer.id === 'cn' })
+      await initBagAutomation({ restoreEnabled: true })
     }
     const results = await Promise.all([
-      stashStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: currentServer.id === 'cn' }),
-      junfengStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: currentServer.id === 'cn' })
+      stashStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: true }),
+      junfengStore.initializeRuntime({ preserveEnabledOnFailure: true, restoreEnabled: true })
     ])
     const failure = results.find(result => !successful(result))
     return failure || { success: true }
@@ -159,7 +159,7 @@ export function installFeatureRuntime({ router }) {
     },
     combat: {
       isBusy: () => combatStore.running || combatStore.loopRunning,
-      suspend: async () => { const result = await collectResults([stopPotionAssist, stopLoopAssist, () => electronApi.combat.stopPortal()]); if (result.success) disposeCombatAssist(); return result },
+      suspend: async () => { const result = await collectResults([() => stopPotionAssist({ persist: false, silent: true }), () => stopLoopAssist({ persist: false, silent: true }), () => electronApi.combat.stopPortal()]); if (result.success) disposeCombatAssist(); return result },
       resume: attachCombat
     },
     story: { isBusy: () => false, suspend: () => storyStore.hideOverlay(), resume: async () => ({ success: true }) },
@@ -183,20 +183,22 @@ export function installFeatureRuntime({ router }) {
 
   async function initialize() {
     const warnings = []
-    for (const feature of featureStore.enabledFeatures) {
-      if (currentServer.id === 'international' && currentServer.capabilities[feature.id]?.available === false) continue
-      const adapter = adapters[feature.id]
-      if (!adapter?.resume) continue
-      reportFeatureStartupEvent(feature.id, 'started')
-      try {
-        const result = await adapter.resume()
-        reportFeatureStartupEvent(feature.id, successful(result) ? 'ready' : 'failed')
-        if (!successful(result)) warnings.push({ name: feature.id, error: result?.error || '模块恢复失败' })
-      } catch (error) {
-        reportFeatureStartupEvent(feature.id, 'failed')
-        warnings.push({ name: feature.id, error: error?.message || String(error) })
-      }
-    }
+    const tasks = featureStore.enabledFeatures
+      .filter(feature => !(currentServer.id === 'international' && currentServer.capabilities[feature.id]?.available === false))
+      .map(async feature => {
+        const adapter = adapters[feature.id]
+        if (!adapter?.resume) return
+        reportFeatureStartupEvent(feature.id, 'started')
+        try {
+          const result = await adapter.resume()
+          reportFeatureStartupEvent(feature.id, successful(result) ? 'ready' : 'failed')
+          if (!successful(result)) warnings.push({ name: feature.id, error: result?.error || '模块恢复失败' })
+        } catch (error) {
+          reportFeatureStartupEvent(feature.id, 'failed')
+          warnings.push({ name: feature.id, error: error?.message || String(error) })
+        }
+      })
+    await Promise.all(tasks)
     return warnings
   }
 

@@ -38,6 +38,10 @@ export class CraftingService {
     return this.repository.searchEldritchImplicitSuggestions(input)
   }
 
+  affixAliasesForTexts(texts) {
+    return this.repository.affixAliasesForTexts(texts)
+  }
+
   naturalBaseImplicitTexts(baseName) {
     try {
       const name = String(baseName || '').trim()

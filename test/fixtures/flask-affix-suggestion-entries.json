@@ -1,0 +1,180 @@
+[
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_duration_+% local_flask_consume_flask_duration_+%_when_used",
+    "field": "variant:1",
+    "en": "{0}% reduced Duration",
+    "kind": "stat",
+    "sourceHash": "5557907e97bda2f98f8361385c51c4aa0f4494a23c3296a2a5e871bb832db4c0",
+    "tw": "減少 {0}% 持續時間",
+    "cn": "生效时间缩短 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_duration_+%",
+        "local_flask_consume_flask_duration_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_effect_+% local_flask_consume_flask_effect_+%_when_used",
+    "field": "variant:0",
+    "en": "{0}% increased effect",
+    "kind": "stat",
+    "sourceHash": "bfd2667e9a7dcee5d82a7749b1203e99140a564f071745a6718dea06e3a8043a",
+    "tw": "增加 {0}% 效果",
+    "cn": "效果提高 {0}%",
+    "stats": {
+      "ids": [
+        "local_flask_effect_+%",
+        "local_flask_consume_flask_effect_+%_when_used"
+      ],
+      "variants": [
+        {
+          "condition": "1|# 0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "1|# !0",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1 !0",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "mods",
+    "id": "FlaskEffectReducedDuration2",
+    "field": "Name",
+    "en": "Dabbler's",
+    "kind": "dat",
+    "sourceHash": "b9f33a0ea4b11cf58dd80c21d5388ee8727820531aa338a387331e749c833c7c",
+    "tw": "涉獵者的",
+    "cn": "业余者的"
+  },
+  {
+    "table": "mods",
+    "id": "FlaskEffectReducedDuration3",
+    "field": "Name",
+    "en": "Alchemist's",
+    "kind": "dat",
+    "sourceHash": "3baf2e68cea73b09e733ad57411aa06a3c327de502bea65ba4365b26fc9a687d",
+    "tw": "鍊金的",
+    "cn": "炼金的"
+  },
+  {
+    "table": "mods",
+    "id": "FlaskEffectReducedDuration1",
+    "field": "Name",
+    "en": "Abecedarian's",
+    "kind": "dat",
+    "sourceHash": "227a126713a40115d9b0185404a033bd74a03ada15345c712d581a2d76286be7",
+    "tw": "初學者的",
+    "cn": "启蒙师的"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_effect_not_removed_at_full_mana",
+    "field": "variant:0",
+    "en": "Effect is not removed when Unreserved Mana is Filled\\nEffect does not Queue",
+    "kind": "stat",
+    "sourceHash": "5a6f5cb9fbf6f9fc9407141a2f63fd5838769c8b8da14acaa967b43cada39afb",
+    "tw": "當未保留魔力滿時，效果不會被移除\\n效果不會列隊",
+    "cn": "未保留的魔力充满时，效果不会消失\\n效果不会堆叠",
+    "stats": {
+      "ids": [
+        "local_flask_effect_not_removed_at_full_mana"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextFlaskNoQueue",
+          "placeholders": []
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_flask_dispels_burning_and_ignite_immunity_during_effect",
+    "field": "variant:0",
+    "en": "Immunity to Ignite during Effect\\nRemoves Burning on use",
+    "kind": "stat",
+    "sourceHash": "655fc6cbc5bb2d10637351eba62f9f7bac284792904d2444397275c70f50201c",
+    "tw": "效果持續時間免疫點燃\\n使用時移除燃燒狀態",
+    "cn": "药剂持续期间免疫点燃\\n使用时移除燃烧效果",
+    "stats": {
+      "ids": [
+        "local_flask_dispels_burning_and_ignite_immunity_during_effect"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    }
+  }
+]

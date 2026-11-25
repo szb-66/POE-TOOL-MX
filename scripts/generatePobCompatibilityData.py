@@ -61,17 +61,46 @@ def gem_name(gem):
     return gem['en'] + ' Support' if '/SupportGem' in gem['id'] and not gem['en'].endswith(' Support') else gem['en']
 
 
+GEM_CATEGORIES = ['gemSkills', 'hybridSkills', 'transfiguredSkills']
+
+
+def gem_text(value):
+    # The CN client mixes full/half-width brackets and writes the support suffix
+    # either as （辅）/（强辅） or as 辅助; compare a single spelling.
+    text = value.replace('【', '（').replace('】', '）').replace('(', '（').replace(')', '）')
+    text = re.sub(r'\s+', '', text)
+    return re.sub(r'辅助$', '（辅）', text)
+
+
+def gem_base(value):
+    return re.sub(r'（(?:强辅|辅)）$', '', gem_text(value))
+
+
+def match_gems(base_type, data):
+    target = gem_text(base_type)
+    exact = [x for category in GEM_CATEGORIES for x in data[category] if gem_text(x['zh']) == target]
+    if exact:
+        return exact
+    base = gem_base(target)
+    loose = [x for category in GEM_CATEGORIES for x in data[category] if gem_base(x['zh']) == base]
+    if target.endswith('（强辅）'):
+        return [x for x in loose if x['en'].startswith('Awakened')]
+    if target.endswith('（辅）'):
+        return [x for x in loose if x['en'].endswith(' Support') and not x['en'].startswith('Awakened')]
+    return loose
+
+
 def refresh(args):
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from pobDataSnapshot import snapshot
+    from pobDataSnapshot import POB_COMMIT, snapshot
     if not args.pob_data:
-        raise SystemExit('--refresh requires --pob-data pointing to PoB 2.67.2')
+        raise SystemExit('--refresh requires --pob-data pointing to PoB 2.68.1')
     sources, rows = [], {}
     for name in FILES:
         data = (args.charm_data / name).read_bytes() if args.charm_data else urllib.request.urlopen(BASE + name, timeout=60).read()
         rows[name] = list(csv.reader(io.StringIO(data.decode('utf-8-sig'))))
         sources.append({'url': BASE + name, 'sha256': sha(data)})
-    pob = snapshot(args.pob_data)
+    pob = snapshot(args.pob_data, commit=POB_COMMIT, lua_root=args.lua_root or args.pob_data)
     from concurrent.futures import ThreadPoolExecutor
     def verify(entry):
         url = f"https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/{pob['commit']}/src/{entry['path']}"
@@ -371,10 +400,16 @@ def generate():
             record('cnItems', item['key'], item['name'], '', 'unsupported', 'Non-combat Heist trinket intentionally excluded by PoB import')
             continue
         if item['baseType'] == '血肉嫁接':
-            record('cnItems', item['key'], item['name'], 'Fleshgraft', 'unsupported', 'PoB 2.67.2 has no Fleshgraft base definition; export must reject this identity')
+            record('cnItems', item['key'], item['name'], 'Fleshgraft', 'unsupported', 'PoB 2.68.1 has no Fleshgraft base definition; export must reject this identity')
             continue
         if item['category'] == 'gem':
-            match = [x for k in ['gemSkills', 'hybridSkills', 'transfiguredSkills'] for x in data[k] if x['zh'] == item['baseType']]
+            match = match_gems(item['baseType'], data)
+            # Keep the client spelling translatable on its own, not only the
+            # variant already stored in the fixed baseline.
+            if match and not any(x['zh'] == item['baseType'] for x in match):
+                target = match[0]
+                category = next(k for k in GEM_CATEGORIES if any(x is target for x in data[k]))
+                add(category, {'zh': item['baseType'], 'en': target['en']}, 'CN roster gem name')
         else:
             match = [x for k in BASE_KEYS for x in data[k] if x['zh'] == item['baseType']]
             if item.get('unique'):
@@ -398,10 +433,10 @@ def generate():
     for category in sorted({x['category'] for x in ledger}):
         count = Counter(x['status'] for x in ledger if x['category'] == category)
         counts[category] = {'total': sum(count.values()), **{k: count[k] for k in ['covered', 'added', 'missing', 'conflict', 'unsupported']}}
-    report = {'schemaVersion': 1, 'gameVersion': '3.29', 'pobVersion': pob['version'], 'sources': sources, 'categories': counts, 'templateConflicts': failures, 'entries': ledger}
+    report = {'schemaVersion': 1, 'gameVersion': '3.30', 'pobVersion': pob['version'], 'sources': sources, 'categories': counts, 'templateConflicts': failures, 'entries': ledger}
     passive_conflicts = {category: sorted({row['zh'] for row in ledger if row['category'] == category and row['status'] == 'conflict'})
                          for category in ['anointed', 'ascendant', 'keystones']}
-    output = {'schemaVersion': 2, 'gameVersion': '3.29', 'commit': COMMIT, 'sources': sources,
+    output = {'schemaVersion': 2, 'gameVersion': '3.30', 'commit': COMMIT, 'sources': sources,
               'data': additions, 'pob': {'version': pob['version'], 'classes': pob['classes'], 'jewelSlots': pob['jewelSlots'],
                                        'gemNames': sorted({x['en'] for x in pob['gems']}), 'gemNameMap': {gem_name(x): x['en'] for x in pob['gems']}, 'passiveConflicts': passive_conflicts}}
     return output, report
@@ -411,6 +446,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--charm-data', type=Path)
     parser.add_argument('--pob-data', type=Path)
+    parser.add_argument('--lua-root', type=Path, help='PoB runtime directory containing lua51.dll; defaults to --pob-data')
     parser.add_argument('--refresh', action='store_true')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()

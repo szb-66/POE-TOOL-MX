@@ -10,9 +10,10 @@ export { REGEX_LENGTH_LIMIT }
 
 const RAW_MAP_STATS = [
   { id: 'rarity', label: '物品稀有度', sample: '物品稀有度: +80%' },
-  { id: 'quantity', label: '物品数量', sample: '物品数量: +80%' },
+  { id: 'atlasDrops', label: '异界掉落', sample: '异界掉落: +80%' },
   { id: 'packSize', label: '怪物群大小', sample: '怪物群大小: +80%' },
-  { id: 'scarabs', label: '更多圣甲虫', sample: '更多圣甲虫: +80%' },
+  { id: 'threads', label: '更多丝线', sample: '更多丝线: +80%' },
+  { id: 'maps', label: '更多地图', sample: '更多地图: +80%' },
   { id: 'currency', label: '更多通货', sample: '更多通货: +80%' },
   { id: 'quality', label: '地图品质', sample: '地图品质: +80%' }
 ]
@@ -24,7 +25,9 @@ const RAW_MAP_RARITIES = [
 ]
 
 const rawAffixes = ATLAS_MAP_AFFIX_SUGGESTIONS.map((entry) => ({
-    id: entry.value,
+    id: entry.canonicalId || entry.value,
+    canonicalId: entry.canonicalId || entry.value,
+    canonicalIds: entry.canonicalIds || (entry.canonicalId ? [entry.canonicalId] : [entry.value]),
     value: entry.value,
     example: entry.example,
     variants: entry.variants || [entry.example],
@@ -32,6 +35,23 @@ const rawAffixes = ATLAS_MAP_AFFIX_SUGGESTIONS.map((entry) => ({
     tags: entry.tags || [],
     regions: ['atlas']
 }))
+
+const LEGACY_MAP_REGEX_AFFIX_ID_MAP = new Map()
+for (const entry of rawAffixes) {
+  LEGACY_MAP_REGEX_AFFIX_ID_MAP.set(entry.value, entry.id)
+  LEGACY_MAP_REGEX_AFFIX_ID_MAP.set(entry.id, entry.id)
+  for (const cid of entry.canonicalIds) LEGACY_MAP_REGEX_AFFIX_ID_MAP.set(cid, entry.id)
+}
+for (const entry of internationalMapData.atlas) {
+  if (!LEGACY_MAP_REGEX_AFFIX_ID_MAP.has(entry.id)) LEGACY_MAP_REGEX_AFFIX_ID_MAP.set(entry.id, entry.id)
+  if (!LEGACY_MAP_REGEX_AFFIX_ID_MAP.has(entry.value)) LEGACY_MAP_REGEX_AFFIX_ID_MAP.set(entry.value, entry.id)
+}
+
+export function normalizeMapRegexAffixId(id) {
+  const key = String(id || '').trim()
+  if (!key) return ''
+  return LEGACY_MAP_REGEX_AFFIX_ID_MAP.get(key) || key
+}
 
 const mapCorpusEntries = [
   ...RAW_MAP_STATS.map(item => ({ id: `stat:${item.id}`, source: item.label, variants: [item.sample], fallbackExpression: item.label })),
@@ -146,10 +166,21 @@ export function createDefaultMapRegexConfig(language = currentServer.language) {
   }
 }
 
+const ALL_VALID_MAP_REGEX_AFFIX_IDS = new Set([
+  ...rawAffixes.map(item => item.id),
+  ...internationalMapData.atlas.map(item => item.id)
+])
+
+const uniqueNormalizedAffixIds = (value) => Array.isArray(value)
+  ? [...new Set(value.map(normalizeMapRegexAffixId).filter(id => ALL_VALID_MAP_REGEX_AFFIX_IDS.has(id)))]
+  : []
+
 export function cleanMapRegexConfig(value, language = currentServer.language) {
   const source = value && typeof value === 'object' ? value : {}
   const catalog = mapRegexCatalog(language)
-  const affixIds = new Set(catalog.affixes.map(item => item.id))
+  const excludeAffixIds = uniqueNormalizedAffixIds(source.excludeAffixIds)
+  const excludeSet = new Set(excludeAffixIds)
+  const includeAffixIds = uniqueNormalizedAffixIds(source.includeAffixIds).filter(id => !excludeSet.has(id))
   return {
     statMatch: source.statMatch === 'any' ? 'any' : 'all',
     numericMode: source.numericMode === 'exact' ? 'exact' : 'optimized',
@@ -168,8 +199,8 @@ export function cleanMapRegexConfig(value, language = currentServer.language) {
     // Legacy normal/t17 presets retain their conditions in the unified catalog.
     region: 'atlas',
     affixTypes: uniqueKnown(source.affixTypes, new Set(['prefix', 'suffix'])),
-    includeAffixIds: uniqueKnown(source.includeAffixIds, affixIds),
-    excludeAffixIds: uniqueKnown(source.excludeAffixIds, affixIds)
+    includeAffixIds,
+    excludeAffixIds
   }
 }
 

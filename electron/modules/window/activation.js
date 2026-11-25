@@ -100,7 +100,28 @@ def title_priority(title):
         if value.casefold() in folded: return index
     return len(titles)
 
+TokenElevation = 20
+def is_elevated(pid):
+    process = k.OpenProcess(0x1000, False, pid)
+    if not process: return None
+    token = wintypes.HANDLE()
+    try:
+        if not ctypes.windll.advapi32.OpenProcessToken(process, 0x0008, ctypes.byref(token)): return None
+        elevated = wintypes.DWORD()
+        needed = wintypes.DWORD()
+        ok = ctypes.windll.advapi32.GetTokenInformation(token, TokenElevation, ctypes.byref(elevated), ctypes.sizeof(elevated), ctypes.byref(needed))
+        return bool(elevated.value) if ok else None
+    finally:
+        if token: k.CloseHandle(token)
+        k.CloseHandle(process)
+
 foreground = u.GetForegroundWindow()
+if foreground and u.IsWindowVisible(foreground) and not u.IsIconic(foreground):
+    fg_title, fg_process, fg_pid = identity(foreground)
+    if title_priority(fg_title) < len(titles) and fg_process.casefold() in process_names:
+        if is_elevated(fg_pid) is True and is_elevated(os.getpid()) is False: sys.exit(24)
+        print(json.dumps({"title": fg_title, "processName": fg_process}, ensure_ascii=False))
+        sys.exit(0)
 candidates = []
 callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 def visit(hwnd, _lparam):
@@ -118,21 +139,6 @@ if not candidates: sys.exit(23)
 candidates.sort(key=lambda item: item[:5])
 _, _, _, _, hwnd_value, selected_title, selected_process, selected_pid = candidates[0]
 hwnd = wintypes.HWND(hwnd_value)
-
-TokenElevation = 20
-def is_elevated(pid):
-    process = k.OpenProcess(0x1000, False, pid)
-    if not process: return None
-    token = wintypes.HANDLE()
-    try:
-        if not ctypes.windll.advapi32.OpenProcessToken(process, 0x0008, ctypes.byref(token)): return None
-        elevated = wintypes.DWORD()
-        needed = wintypes.DWORD()
-        ok = ctypes.windll.advapi32.GetTokenInformation(token, TokenElevation, ctypes.byref(elevated), ctypes.sizeof(elevated), ctypes.byref(needed))
-        return bool(elevated.value) if ok else None
-    finally:
-        if token: k.CloseHandle(token)
-        k.CloseHandle(process)
 if is_elevated(selected_pid) is True and is_elevated(os.getpid()) is False: sys.exit(24)
 
 current_thread = k.GetCurrentThreadId()

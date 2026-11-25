@@ -9,7 +9,7 @@
 
 import { ipcMain } from 'electron'
 
-export function registerShortcutHandlers(shortcut, window) {
+export function registerShortcutHandlers(shortcut, window, { onTriggered = null } = {}) {
   const {
     registerConfiguredShortcut,
     unregisterConfiguredShortcut,
@@ -24,6 +24,9 @@ export function registerShortcutHandlers(shortcut, window) {
   let suspendedShortcuts = null
 
   const sendTriggered = (key) => {
+    try {
+      onTriggered?.(key)
+    } catch { /* 主进程即时钩子失败不阻断渲染层分发 */ }
     const mainWindow = getMainWindow()
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('shortcut-triggered', key)

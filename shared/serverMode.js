@@ -50,15 +50,34 @@ export function serverContext(id = 'cn', options = {}) {
   return { ...getServer(id), capabilities: Object.fromEntries(Object.keys(SERVER_FEATURES).map(key => [key, featureAvailability(id, key, options)])) }
 }
 
-// 仅显式列出的通用字段跨服共享，坐标、进程、DPI 和业务状态保持独立。
+// 显式列出的通用设置及战斗配置（含坐标）跨服共享，其余坐标、进程、DPI 和业务状态保持独立。
 export const SHARED_SETTINGS_FIELDS = Object.freeze([
   'globalShortcuts', 'shortcutScopeEnabled', 'operationDelayMs', 'operationTimingVersion', 'fixedTiming',
   'debugMode', 'updateMode', 'updateSource', 'windowCloseBehavior', 'windowClosePromptSuppressed',
-  'overlaySettings', 'backgroundHistory', 'storyOverlayWidth', 'storyOverlayLayoutVersion', 'storyOverlayOpacity'
+  'overlaySettings', 'backgroundHistory', 'storyOverlayWidth', 'storyOverlayLayoutVersion', 'storyOverlayOpacity',
+  'combatAssist'
 ])
+
+// 五大模块（制作物品、地图制作、剧情、正则）的预设库本体跨服共享；当前选中预设 ID 与剧情进度仍按服独立。
+export const SHARED_PRESET_STORAGE_KEYS = Object.freeze([
+  'itemPresets',
+  'essencePresets',
+  'harvestPresets',
+  'mapPresets',
+  'chartPresets',
+  'heistPresets',
+  'storyGuide:v1',
+  'vendorRegexPresets',
+  'mapRegexPresets',
+  'beastRegexPresets'
+])
+
+const SHARED_PRESET_KEY_SET = new Set(SHARED_PRESET_STORAGE_KEYS)
 
 export function serverStorageKey(key, serverId) {
   requireServerId(serverId)
-  return serverId === 'cn' || /^(?:mainWindowTheme|themePreference|toolSiteDirectory|featureModules)/.test(key)
+  return serverId === 'cn'
+    || SHARED_PRESET_KEY_SET.has(key)
+    || /^(?:mainWindowTheme|themePreference|toolSiteDirectory|featureModules)/.test(key)
     ? key : `server:${serverId}:${key}`
 }

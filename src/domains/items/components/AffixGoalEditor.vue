@@ -33,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, CopyDocument, Delete, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import { electronApi } from '../../../api/electron.js'
 import AffixConditionRow from './AffixConditionRow.vue'
@@ -46,9 +46,53 @@ const emit = defineEmits(['update:modelValue', 'change'])
 const cloneGroups = value => (Array.isArray(value) && value.length ? value : [createDefaultAffixGroup(0)]).map((group, index) => normalizeAffixGroup(group, index))
 const groups = ref(cloneGroups(props.modelValue))
 const collapsedGroupIds = ref(new Set())
+let resolveSequence = 0
+
+async function resolveCatalogDisplay() {
+  const catalogRefs = []
+  groups.value.forEach((group, groupIndex) => {
+    for (const key of ['requiredAffixes', 'selectedAffixes']) {
+      (group[key] || []).forEach((condition, index) => {
+        if (condition?.kind === 'catalog' && condition.effectPattern) {
+          catalogRefs.push({ groupIndex, key, index, condition })
+        }
+      })
+    }
+  })
+  if (!catalogRefs.length || typeof electronApi.crafting?.resolveCrossServerConditions !== 'function') return
+  const request = ++resolveSequence
+  try {
+    const result = await electronApi.crafting.resolveCrossServerConditions({
+      affixConditions: catalogRefs.map(item => item.condition)
+    })
+    if (request !== resolveSequence || !Array.isArray(result?.affixConditions)) return
+    let changed = false
+    catalogRefs.forEach((refItem, idx) => {
+      const resolved = result.affixConditions[idx]
+      const current = groups.value[refItem.groupIndex]?.[refItem.key]?.[refItem.index]
+      if (!resolved || !current || current.id !== refItem.condition.id) return
+      if (
+        resolved.effectPattern !== current.effectPattern
+        || resolved.keyword !== current.keyword
+        || (resolved.canonicalPattern && resolved.canonicalPattern !== current.canonicalPattern)
+      ) {
+        groups.value[refItem.groupIndex][refItem.key][refItem.index] = normalizeAffixCondition({ ...current, ...resolved })
+        changed = true
+      }
+    })
+    if (changed) commit()
+  } catch {
+    // Keep original conditions if resolution is unavailable
+  }
+}
+
 watch(() => props.modelValue, value => {
-  if (JSON.stringify(cloneGroups(value)) !== JSON.stringify(cloneGroups(groups.value))) groups.value = cloneGroups(value)
+  if (JSON.stringify(cloneGroups(value)) !== JSON.stringify(cloneGroups(groups.value))) {
+    groups.value = cloneGroups(value)
+    void resolveCatalogDisplay()
+  }
 }, { deep: true })
+onMounted(() => { void resolveCatalogDisplay() })
 function commit() {
   const normalized = cloneGroups(groups.value)
   groups.value.forEach((group, index) => { group.selectedCount = normalized[index].selectedCount })
@@ -81,7 +125,7 @@ function forgetGroupCollapse(id) {
 function blankCondition() { return { id: createAffixConfigId('condition'), enabled: true, kind: 'keyword', keyword: '', displayName: '', effectPattern: '', source: '', sourceLabel: '', profileId: '', applicableLabel: '', minTier: null, tiers: [] } }
 function addCondition(group, key) { group[key].push(blankCondition()) }
 function removeCondition(group, key, index) { group[key].splice(index, 1); if (key === 'selectedAffixes') group.selectedCount = Math.max(1, Math.min(group.selectedCount, group.selectedAffixes.length || 1)); commit() }
-function selectSuggestion(group, key, index, suggestion) { group[key][index] = normalizeAffixCondition({ ...suggestion, enabled: group[key][index]?.enabled !== false, id: group[key][index]?.id || createAffixConfigId('condition'), kind: 'catalog', keyword: suggestion.displayName, minTier: null }); commit() }
+function selectSuggestion(group, key, index, suggestion) { const visiblePattern = suggestion.displayPattern || suggestion.effectPattern; group[key][index] = normalizeAffixCondition({ ...suggestion, enabled: group[key][index]?.enabled !== false, id: group[key][index]?.id || createAffixConfigId('condition'), kind: 'catalog', keyword: suggestion.displayName, effectPattern: visiblePattern, minTier: null }); commit() }
 async function fetchSuggestions(query, callback) { const keyword = String(query || '').trim(); if (!keyword) return callback([]); try { const result = await electronApi.crafting.searchAffixSuggestions({ query: keyword, limit: 50 }); callback((result?.items ?? []).map(item => ({ ...item, value: item.displayName }))) } catch { callback([]) } }
 function addGroup() {
   groups.value.push(createDefaultAffixGroup(groups.value.length))

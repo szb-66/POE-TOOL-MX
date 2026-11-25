@@ -17065,6 +17065,46 @@
       "sourceHash": "a508f53631472fe0941f0fd3bd91cc94a163afc45c73f8b59fb646042e2e8ad5",
       "tw": "創傷輔助",
       "cn": "内伤（辅）"
+    },
+    {
+      "table": "activeskills",
+      "id": "arcane_link",
+      "field": "DisplayedName",
+      "en": "Arcane Link",
+      "kind": "dat",
+      "sourceHash": "7667d12fdf9bfea49300fa710a0d37401b0443c8c929e21bc98f4a872c3d4482",
+      "tw": "連結：秘能",
+      "cn": "奥术链接"
+    },
+    {
+      "table": "activeskills",
+      "id": "fireball_alt_x",
+      "field": "DisplayedName",
+      "en": "Fireball of Radiation",
+      "kind": "dat",
+      "sourceHash": "1c5985c4f86bf3ee29386c50d954b6d8161a933c326db6f84a8fe22a391854ef",
+      "tw": "火球．輻射",
+      "cn": "辐射之火球"
+    },
+    {
+      "table": "gemeffects",
+      "id": "FireballAltX",
+      "field": "Name",
+      "en": "Fireball of Radiation",
+      "kind": "dat",
+      "sourceHash": "1c5985c4f86bf3ee29386c50d954b6d8161a933c326db6f84a8fe22a391854ef",
+      "tw": "火球．輻射",
+      "cn": "辐射之火球"
+    },
+    {
+      "table": "baseitemtypes",
+      "id": "Metadata/Items/Gems/SkillGemArcaneLink",
+      "field": "Name",
+      "en": "Arcane Link",
+      "kind": "dat",
+      "sourceHash": "7667d12fdf9bfea49300fa710a0d37401b0443c8c929e21bc98f4a872c3d4482",
+      "tw": "連結：秘能",
+      "cn": "奥术链接"
     }
   ]
 }

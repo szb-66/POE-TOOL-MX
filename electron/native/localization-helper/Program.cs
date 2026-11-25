@@ -63,11 +63,12 @@ public static class Program {
             parsed+=table.RowCount;encodingChecks.Add(new {resource=file.Path,codeUnitSize=unit,stableIdField=table.IdField,originalTitle="Path of Exile",readbackVerified=true});
         }
         JsonObject result=JsonSerializer.SerializeToNode(new { gameVersion = GameVersion(game), indexHash = HashFile(Path.Combine(game,"Bundles2","_.index.bin")), resourceCount = names.Length, traditionalTables = tw.Length, simplifiedTables = cn, samples, codec = "ooz-0503806-raw-frame", parsedRows=parsed,encodingChecks, counts = new { simplified = 0, traditional = 0, english = 0, skipped = 0 } },Json)!.AsObject();
-        if(request["storageRoot"] is JsonValue storage) {
-            var snapshot=new GameTransaction(game,storage.GetValue<string>(),request["configPath"]?.GetValue<string>()).Inspect();
+        if(request["storageRoot"] is JsonValue) {
+            var transaction=Transaction(request);
+            var snapshot=transaction.Inspect();
             foreach(var pair in JsonSerializer.SerializeToNode(snapshot,Json)!.AsObject()) result[pair.Key]=pair.Value?.DeepClone();
             result["resourceVersion"]=snapshot.ReleaseId;
-            var coverage=Path.Combine(storage.GetValue<string>(),"applied-coverage.json");
+            var coverage=transaction.CoveragePath;
             if(snapshot.Applied && File.Exists(coverage)) { var summary=JsonNode.Parse(File.ReadAllText(coverage));if(summary?["indexHash"]?.GetValue<string>()==snapshot.IndexHash)result["counts"]=summary["counts"]?.DeepClone(); }
         } else result["baseline"]=new JsonObject{["ready"]=false,["reason"]="应用汉化时将自动检查并备份游戏资源"};
         return result;
@@ -91,7 +92,7 @@ public static class Program {
         var matches=Regex.Matches(log,@"(?:release|poe1_production2_tc)/tags/([a-zA-Z0-9._-]+)");
         return matches.Count>0 ? matches[^1].Groups[1].Value : "unverified";
     }
-    private static GameTransaction Transaction(JsonObject request) => new(request["gameDirectory"]!.GetValue<string>(),request["storageRoot"]!.GetValue<string>(),request["configPath"]?.GetValue<string>());
+    private static GameTransaction Transaction(JsonObject request) => new(request["gameDirectory"]!.GetValue<string>(),request["storageRoot"]!.GetValue<string>(),request["configPath"]?.GetValue<string>(),request["legacyGameDirectory"]?.GetValue<string>());
     private static object Export(JsonObject request) {
         string? sourceIndex=request["storageRoot"] == null ? null : Transaction(request).BaselineIndexPath;
         var result=new ResourceEngine().Export(request["gameDirectory"]!.GetValue<string>(),request["cnGameDirectory"]?.GetValue<string>(),sourceIndex);
@@ -103,10 +104,10 @@ public static class Program {
         string mode=GameTransaction.ValidateMode(requestedMode);
         transaction ??= Transaction(request); transaction.RequireWritable(); transaction.Recover();
         var snapshot=transaction.EstablishBaseline();
-        string game=request["gameDirectory"]!.GetValue<string>(),storage=request["storageRoot"]!.GetValue<string>();
+        string game=request["gameDirectory"]!.GetValue<string>();
         string release=request["manifest"]?["releaseId"]?.GetValue<string>() ?? "native-tw";
         if(snapshot.Applied && snapshot.ReleaseId==release && snapshot.Mode==mode) { var unchanged=JsonSerializer.SerializeToNode(transaction.EnsureAppliedLanguage(release,mode),Json)!.AsObject();unchanged["resourceVersion"]=release;unchanged["unchanged"]=true;return unchanged; }
-        string generation="g-"+Guid.NewGuid().ToString("N"),stage=Path.Combine(storage,"staging",generation);
+        string generation="g-"+Guid.NewGuid().ToString("N"),stage=Path.Combine(transaction.StagingRoot,generation);
         Directory.CreateDirectory(stage);
         var baseline=transaction.BaselineIndexPath;
         Dictionary<string,byte[]> outputs; object counts;
@@ -131,7 +132,7 @@ public static class Program {
             File.WriteAllBytes(candidate,((MemoryStream)backing.GetValue(bundle)!).ToArray());
         }
         using(var check=new BundleIndex(new MemoryStream(NativeBundleValidation.ReadIndex(candidate)),false,false,factory)) foreach(var output in outputs) if(!check.TryGetFile(output.Key,out var record)||!record.Read().Span.SequenceEqual(output.Value)) throw new InvalidDataException("Candidate readback mismatch");
-        File.WriteAllText(Path.Combine(storage,"applied-coverage.json"),JsonSerializer.Serialize(new {indexHash=HashFile(candidate),counts},Json));
+        File.WriteAllText(transaction.CoveragePath,JsonSerializer.Serialize(new {indexHash=HashFile(candidate),counts},Json));
         var final=transaction.Commit(candidate,Path.Combine(stage,"PoEHelper",generation),release,generation,mode,originalHashes);
         var result=JsonSerializer.SerializeToNode(final,Json)!.AsObject();result["resourceVersion"]=final.ReleaseId;result["counts"]=JsonSerializer.SerializeToNode(counts,Json);return result;
     }

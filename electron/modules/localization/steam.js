@@ -73,7 +73,7 @@ export async function discoverSteamGames({ platform = process.platform, execFile
 
 export async function probeGameProcesses({ execFileImpl = runFile } = {}) {
   try {
-    const command = "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $items=@(Get-CimInstance Win32_Process -Filter \"Name LIKE 'PathOfExile%'\" | Select-Object Name,ProcessId); ConvertTo-Json -InputObject $items -Compress"
+    const command = "$ErrorActionPreference='Stop'; [Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $items=@(Get-Process -Name 'PathOfExile*' | Select-Object @{Name='Name';Expression={$_.ProcessName+'.exe'}},@{Name='ProcessId';Expression={$_.Id}}); ConvertTo-Json -InputObject $items -Compress"
     const { stdout } = await execFileImpl('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], { windowsHide: true, timeout: 10000 })
     const items = JSON.parse(stdout)
     if (!Array.isArray(items) || items.some(item => !Number.isInteger(item?.ProcessId) || !/^PathOfExile.*\.exe$/i.test(item?.Name || ''))) return null

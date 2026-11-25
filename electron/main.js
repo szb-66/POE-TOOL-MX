@@ -1,4 +1,3 @@
-import { generateServerTradeCatalog, writeServerTradeCatalog } from '../scripts/generateServerTradeCatalog.js'
 import { loadInternationalTradeCatalog } from './modules/priceCheck/catalog.js'
 import { createEmergencyStopCoordinator } from './modules/ipc/emergencyStop.js'
 import { ServerModeController } from './modules/app/serverMode.js'
@@ -19,7 +18,6 @@ import { configureItemFootprintRegistry, itemFootprintRegistry } from './modules
  * Edge cases: 同一可执行程序使用 Electron 锁，不同开发/打包可执行程序使用命名管道锁；快捷键注册失败当前未兜底。
  */
 import { app, BrowserWindow, Menu, Tray, clipboard, crashReporter, dialog, globalShortcut, nativeImage, protocol, net, screen, shell, session, ipcMain } from 'electron'
-import electronUpdater from 'electron-updater'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -70,8 +68,11 @@ import { PriceCheckOverlayManager } from './modules/priceCheck/overlay.js'
 import {
   assertWindowsGameForeground,
   capturePoeItemText,
-  sendWindowsCopy
+  disposeWindowsClipboardHelper,
+  sendWindowsCopy,
+  warmWindowsClipboardHelper
 } from './modules/priceCheck/clipboardCapture.js'
+import { CHAOS_ERROR_CODES } from './modules/chaosRecipe/errors.js'
 import { ClientEventSettingsRepository } from './modules/clientEvents/settingsRepository.js'
 import { ClientEventsService } from './modules/clientEvents/service.js'
 import { detectRunningClientLogPath } from './modules/clientEvents/pathDetection.js'
@@ -103,6 +104,7 @@ import { createStartupLogger } from './modules/system/startupLog.js'
 import { createExitDiagnostics } from './modules/system/exitDiagnostics.js'
 import { withCalibrationGameWindow } from './modules/sanctum/calibrationWindow.js'
 import { createDevelopmentStartupTrace } from '../shared/developmentStartupTrace.js'
+import { waitForDevServerReady } from '../shared/devServerReady.js'
 import { createCrashGuard } from './modules/system/crashGuard.js'
 import { ApplicationUpdateService } from './modules/update/service.js'
 import { InstalledUpdateRepository } from './modules/update/installedUpdateRepository.js'
@@ -160,8 +162,8 @@ const serverMode = new ServerModeController({
     priceCheckService?.clear()
     const result = await createEmergencyStopCoordinator({ chaosRecipe: chaosRecipeService, stashPickup, junfeng: junfengHighlight, faustus: faustusManager, puzzle: puzzleService, mapTracker: mapTrackerService, sanctum: sanctumService }).stopAll('server-switch')
     if (!result.success) throw new Error('自动化未能停止')
-    await cleanupApplicationResources()
   },
+  finalizeCleanup: cleanupApplicationResourcesOnce,
   restart: () => {
     shutdownController.markCleanupComplete()
     if (managedDevelopmentRestart) exitApplicationImmediately(DEVELOPMENT_RESTART_EXIT_CODE)
@@ -417,6 +419,7 @@ async function cleanupApplicationResources() {
     () => chaosRecipeService?.overlay?.close(),
     () => chaosControlOverlay?.cleanup(),
     () => priceCheckService?.destroyOverlay(),
+    () => disposeWindowsClipboardHelper(),
     () => mapTrackerOverlay?.destroy(),
     () => sanctumService?.shutdown(),
     () => sanctumOverlay?.destroy(),
@@ -427,6 +430,8 @@ async function cleanupApplicationResources() {
     () => interfaceDetection?.cleanup(),
     () => craftingService?.cleanup(),
     async () => {
+      // A timed-out server switch can still occupy the current app until the user retries or exits.
+      if (serverMode.restartRequired) return
       await crossProcessInstanceLock?.release?.()
       crossProcessInstanceLock = null
     }
@@ -597,7 +602,7 @@ async function startApplication() {
         window.webContents.send('window-close-choice-requested')
       }
     },
-    isQuitting: () => applicationShuttingDown || shutdownController.state !== 'idle'
+    isQuitting: () => applicationShuttingDown || shutdownController.state !== 'idle' || serverMode.restartRequired
   })
   diagnosticEvents = new DiagnosticEventStore({
     userDataPath: app.getPath('userData'),
@@ -605,12 +610,16 @@ async function startApplication() {
   })
   const installedUpdateRepository = new InstalledUpdateRepository({ userDataPath: app.getPath('userData') })
   const installedUpdate = await startupTrace.measure('installed-update', () => installedUpdateRepository.loadForVersion(app.getVersion()))
+  const updateSupported = app.isPackaged && !feedbackInternalTest
+  const autoUpdater = updateSupported
+    ? (await import('electron-updater')).default.autoUpdater
+    : { on() {}, removeListener() {}, setFeedURL() {} }
   applicationUpdate = new ApplicationUpdateService({
     prepareCleanup: prepareLocalizationShutdown,
     exitDiagnostics,
-    updater: electronUpdater.autoUpdater,
+    updater: autoUpdater,
     currentVersion: app.getVersion(),
-    isPackaged: app.isPackaged && !feedbackInternalTest,
+    isPackaged: updateSupported,
     cleanup: cleanupApplicationResourcesOnce,
     markCleanupComplete: () => shutdownController.markCleanupComplete(),
     requestShutdown: () => app.quit(),
@@ -654,6 +663,7 @@ async function startApplication() {
 
   const localizationRuntime = new LocalizationRuntime({ serverId: serverMode.mode,
     entries: () => localization?.getActiveEntries() || [], revision: () => localization?.getActiveRevision() || '',
+    catalog: () => priceCheckService?.catalog || null,
     baseNames: () => {
       const names = Object.keys(itemFootprintRegistry.snapshot().items).map(key => key.split('\u001f')[1]).filter(Boolean)
       try { names.push(...craftingService.repository.getDataset().bases.map(base => base.name)) } catch { /* builtin footprint identities remain available before crafting initializes */ }
@@ -802,6 +812,7 @@ async function startApplication() {
   }
   // 首次查价前先用本地传奇快照增强内置目录，官方目录仍在后台刷新后替换。
   const tradeCatalogBundle = await tradeCatalogPending
+  const mercenaryReferenceCatalog = serverMode.mode === 'international' ? tradeCatalogBundle.catalog : null
   if (serverMode.mode === 'international') {
     Object.assign(tradeCatalogBundle, await loadInternationalTradeCatalog({
       baseCatalog: tradeCatalogBundle.catalog,
@@ -840,8 +851,10 @@ async function startApplication() {
     catalogPath: fileURLToPath(new URL('./assets/market-localization/catalog.json', import.meta.url))
   })
   priceCheckService = new PriceCheckService({
-    localizationProvider: () => localization.getActiveEntries(),
-    localizationRevisionProvider: () => localization.getActiveRevision(),
+    appVersion: applicationVersion,
+    localizationProvider: () => localization.getPriceCheckEntries(),
+    localizationRevisionProvider: () => localization.getPriceCheckRevision(),
+    mercenaryReferenceCatalog,
     auth: chaosAuth,
     client: priceCheckClient,
     catalog: tradeCatalogBundle.catalog,
@@ -855,6 +868,7 @@ async function startApplication() {
     allowManualQueries: serverMode.mode === 'international',
     catalogRefresher: async () => {
       if (serverMode.mode === 'international') {
+        const { generateServerTradeCatalog, writeServerTradeCatalog } = await import('../scripts/generateServerTradeCatalog.js')
         const generated = await generateServerTradeCatalog({ server: 'international', gameVersion: 'live', baseCatalog: tradeCatalogBundle.catalog, uniqueItemCatalog: uniqueItemImages.catalog, fetchImpl: (url, options) => poeCnSession.fetch(url, options) })
         await writeServerTradeCatalog(serverMode.dataPath('trade-catalog.international.json'), generated.catalog)
         return generated
@@ -871,11 +885,31 @@ async function startApplication() {
     },
     overlay: priceCheckOverlay,
     shell,
+    warmClipboardCapture: () => {
+      const pythonPath = pythonDetector.detectPythonPath()
+      if (pythonPath) warmWindowsClipboardHelper(pythonPath)
+    },
+    disposeClipboardCapture: () => disposeWindowsClipboardHelper(),
     captureClipboard: async () => {
-      const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
-      if (!activation.success) throw new Error(windowActivation.gameFailureMessage(activation.code))
+      const pythonPath = pythonDetector.detectPythonPath()
+      let foregroundReady = false
+      if (process.platform === 'win32' && pythonPath) {
+        try {
+          await assertWindowsGameForeground(pythonPath)
+          foregroundReady = true
+        } catch (error) {
+          if (error?.code !== CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND) throw error
+        }
+      }
+      if (!foregroundReady) {
+        const activation = await windowActivation.activateGame({ source: 'price-check-capture' })
+        if (!activation.success) throw new Error(windowActivation.gameFailureMessage(activation.code))
+      }
       return capturePoeItemText({
         clipboard,
+        pollMs: 10,
+        releaseDelayMs: 0,
+        retryCopyAfterMs: 180,
         assertForeground: () => assertWindowsGameForeground(pythonDetector.detectPythonPath()),
         sendCopy: () => sendWindowsCopy(pythonDetector.detectPythonPath())
       })
@@ -944,7 +978,8 @@ async function startApplication() {
   // Purpose: 组合主进程可暴露的能力并注册 IPC，渲染端通过约定频道访问
   registerLocalizationHandlers(localization, getMainWindow, localizationRuntime)
   registerMarketLocalizationHandlers(marketLocalization, getMainWindow, ipcMain)
-  void marketLocalization.initialize()
+  // Capture existing game sessions before showing the window, so games launched after it are new sessions.
+  await marketLocalization.initialize()
   let localizationRevision = localization.getActiveRevision()
   const localizationStop = createEmergencyStopCoordinator({ chaosRecipe: chaosRecipeService, stashPickup, junfeng: junfengHighlight,
     faustus: faustusManager, puzzle: puzzleService, mapTracker: mapTrackerService, sanctum: sanctumService })
@@ -1011,6 +1046,18 @@ async function startApplication() {
   })
 
   dailyUsageService?.start()
+  if (process.env.POE_DEV_SERVER_READY_FILE) {
+    try {
+      await startupTrace.measure('dev-server-ready', () => waitForDevServerReady())
+    } catch (error) {
+      if (error?.code === 'DEV_SERVER_FAILED' || error?.code === 'DEV_LAUNCHER_EXITED') {
+        exitDiagnostics.request('dev_server_unavailable')
+        app.exit(1)
+        return
+      }
+      throw error
+    }
+  }
   createApplicationWindow()
   // Register IPC before loading the window, then restore business services in the background.
   setImmediate(() => {

@@ -1,4 +1,4 @@
-import { BEAST_NAMES } from './beastData.js'
+import { BEAST_CROSS_SERVER_ENTRIES, BEAST_NAMES } from './beastData.js'
 import internationalMapData from '../../data/internationalMapData.js'
 import { currentServer } from '../../utils/serverContext.js'
 import { compileCompactExpressions, escapeRegexText } from './compactExpression.js'
@@ -6,10 +6,25 @@ import { cleanMapRegexConfig, generateMapPriceExpression } from './mapRegex.js'
 import { finalizeRegex, quotedToken } from './regexResult.js'
 import { finalizeLocalizedResult, localizedExpression } from './localizedRegex.js'
 
+const CN_NAME_TO_CANONICAL_ID = new Map(BEAST_CROSS_SERVER_ENTRIES.map(entry => [entry.cnName, entry.id]))
+const EN_NAME_TO_CANONICAL_ID = new Map(BEAST_CROSS_SERVER_ENTRIES.map(entry => [entry.enName, entry.id]))
+
+export function normalizeBeastRegexId(id) {
+  const key = String(id || '').trim()
+  if (!key) return ''
+  return CN_NAME_TO_CANONICAL_ID.get(key) || EN_NAME_TO_CANONICAL_ID.get(key) || key
+}
+
 const chineseExpressions = compileCompactExpressions(BEAST_NAMES.map(name => ({
-  id: name, source: name, variants: [name], fallbackExpression: `^${escapeRegexText(name)}$`
+  id: CN_NAME_TO_CANONICAL_ID.get(name) || name,
+  source: name,
+  variants: [name],
+  fallbackExpression: `^${escapeRegexText(name)}$`
 })), { minimumHanLength: 1 })
-const catalogs = new Map([['zh-CN', BEAST_NAMES.map(name => ({ id: name, name, expression: chineseExpressions.get(name) }))]])
+const catalogs = new Map([['zh-CN', BEAST_NAMES.map(name => {
+  const id = CN_NAME_TO_CANONICAL_ID.get(name) || name
+  return { id, name, expression: chineseExpressions.get(id) }
+})]])
 export function beastRegexOptions(language = currentServer.language) {
   if (catalogs.has(language)) return catalogs.get(language)
   if (language !== 'en') throw new Error('不支持的客户端语言')
@@ -21,7 +36,11 @@ export function beastRegexOptions(language = currentServer.language) {
   return options
 }
 export const BEAST_REGEX_OPTIONS = beastRegexOptions()
-const cleanIds = (value, knownIds) => [...new Set(Array.isArray(value) ? value.filter(id => knownIds.has(id)) : [])]
+const ALL_VALID_BEAST_IDS = new Set([
+  ...BEAST_NAMES.map(name => CN_NAME_TO_CANONICAL_ID.get(name) || name),
+  ...internationalMapData.beasts.map(beast => beast.id)
+])
+const uniqueNormalizedIds = value => [...new Set(Array.isArray(value) ? value.map(normalizeBeastRegexId).filter(id => ALL_VALID_BEAST_IDS.has(id)) : [])]
 
 export function createDefaultBeastRegexConfig() {
   return { priceRange: { min: null, max: null, currencies: [] }, includeIds: [], excludeIds: [] }
@@ -29,11 +48,10 @@ export function createDefaultBeastRegexConfig() {
 
 export function cleanBeastRegexConfig(value, language = currentServer.language) {
   const source = value && typeof value === 'object' ? value : {}
-  const knownIds = new Set(beastRegexOptions(language).map(beast => beast.id))
-  const excludeIds = cleanIds(source.excludeIds, knownIds)
+  const excludeIds = uniqueNormalizedIds(source.excludeIds)
   return {
     priceRange: cleanMapRegexConfig(source, language).priceRange,
-    includeIds: cleanIds(source.includeIds, knownIds).filter(id => !excludeIds.includes(id)),
+    includeIds: uniqueNormalizedIds(source.includeIds).filter(id => !excludeIds.includes(id)),
     excludeIds
   }
 }
@@ -62,10 +80,12 @@ export function generateBeastRegex(value, language = currentServer.language, ali
     if (aliases && !localized.mapped && [...config.includeIds, ...config.excludeIds].includes(beast.id)) missing.push(beast.name)
     return [beast.id, localized.expression]
   }))
+  const includedExprs = config.includeIds.map(id => expressions.get(id)).filter(Boolean)
+  const excludedExprs = config.excludeIds.map(id => expressions.get(id)).filter(Boolean)
   const price = generateMapPriceExpression(config.priceRange)
   return finalizeLocalizedResult(finalizeRegex([
     quotedToken(price),
-    quotedToken(config.includeIds.map(id => expressions.get(id)).join('|')),
-    quotedToken(config.excludeIds.map(id => expressions.get(id)).join('|'), true)
-  ], { includeCount: config.includeIds.length + Number(Boolean(price)), excludeCount: config.excludeIds.length }), missing, Boolean(aliases))
+    quotedToken(includedExprs.join('|')),
+    quotedToken(excludedExprs.join('|'), true)
+  ], { includeCount: includedExprs.length + Number(Boolean(price)), excludeCount: excludedExprs.length }), missing, Boolean(aliases))
 }

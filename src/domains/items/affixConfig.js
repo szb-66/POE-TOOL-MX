@@ -59,6 +59,7 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
     keyword,
     displayName: text(input.displayName) || keyword || effectPattern,
     effectPattern: kind === 'catalog' ? effectPattern : '',
+    ...(kind === 'catalog' && text(input.canonicalPattern) ? { canonicalPattern: text(input.canonicalPattern) } : {}),
     source: text(input.source),
     sourceLabel: text(input.sourceLabel),
     profileId: text(input.profileId),

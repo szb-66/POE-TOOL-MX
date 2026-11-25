@@ -1,5 +1,7 @@
 import { serverStorage as localStorage } from './serverStorage.js'
+import { resolveSkillForServer, resolveSkillSlug } from '../domains/story/skillCatalog.js'
 export const STORY_STORAGE_KEY = 'storyGuide:v1'
+export const STORY_CONTEXT_STORAGE_KEY = 'storyGuide:context:v1'
 export const STORY_VERSION = 2
 export const DEFAULT_STORY_PRESET_ID = 'default'
 export const DEFAULT_SKILL_PRESET_ID = 'default'
@@ -49,6 +51,8 @@ export function normalizeSkill(raw) {
     && ['active', 'support'].includes(raw?.kind)
   ) {
     skill.gemId = raw.gemId
+    const slug = resolveSkillSlug(raw)
+    if (slug) skill.gemSlug = slug
     skill.requiredLevel = requiredLevel
     skill.kind = raw.kind
   }
@@ -172,7 +176,33 @@ export function readStoryData(storage = localStorage) {
   if (!storage?.getItem) return createEmptyStoryData()
   try {
     const saved = storage.getItem(STORY_STORAGE_KEY)
-    return saved ? normalizeStoryData(JSON.parse(saved)) : createEmptyStoryData()
+    const base = saved ? normalizeStoryData(JSON.parse(saved)) : createEmptyStoryData()
+    const rawContext = storage.getItem(STORY_CONTEXT_STORAGE_KEY)
+    if (!rawContext) return base
+    const context = JSON.parse(rawContext)
+    if (!context || typeof context !== 'object') return base
+    const progressByPresetId = context.progressByPresetId && typeof context.progressByPresetId === 'object'
+      ? context.progressByPresetId
+      : {}
+    const storyPresets = base.storyPresets.map(preset => {
+      const progress = progressByPresetId[preset.id]
+      return progress ? normalizeStoryProgress({
+        ...preset,
+        currentChapterId: typeof progress.currentChapterId === 'string' ? progress.currentChapterId : null,
+        currentStepId: typeof progress.currentStepId === 'string' ? progress.currentStepId : null,
+        viewedChapterId: typeof progress.viewedChapterId === 'string' ? progress.viewedChapterId : null
+      }) : preset
+    })
+    return {
+      ...base,
+      storyPresets,
+      currentStoryPresetId: storyPresets.some(item => item.id === context.currentStoryPresetId)
+        ? context.currentStoryPresetId
+        : base.currentStoryPresetId,
+      currentSkillPresetId: base.skillPresets.some(item => item.id === context.currentSkillPresetId)
+        ? context.currentSkillPresetId
+        : base.currentSkillPresetId
+    }
   } catch {
     return createEmptyStoryData()
   }
@@ -181,7 +211,26 @@ export function readStoryData(storage = localStorage) {
 export function writeStoryData(data, storage = localStorage) {
   if (!storage?.setItem) return false
   try {
-    storage.setItem(STORY_STORAGE_KEY, JSON.stringify(normalizeStoryData(data)))
+    const normalized = normalizeStoryData(data)
+    const sharedStoryPresets = normalized.storyPresets.map(({ currentChapterId: _c, currentStepId: _s, viewedChapterId: _v, ...preset }) => preset)
+    storage.setItem(STORY_STORAGE_KEY, JSON.stringify({
+      version: STORY_VERSION,
+      storyPresets: sharedStoryPresets,
+      skillPresets: normalized.skillPresets
+    }))
+    const progressByPresetId = Object.fromEntries(normalized.storyPresets.map(preset => [
+      preset.id,
+      {
+        currentChapterId: preset.currentChapterId || null,
+        currentStepId: preset.currentStepId || null,
+        viewedChapterId: preset.viewedChapterId || null
+      }
+    ]))
+    storage.setItem(STORY_CONTEXT_STORAGE_KEY, JSON.stringify({
+      currentStoryPresetId: normalized.currentStoryPresetId,
+      currentSkillPresetId: normalized.currentSkillPresetId,
+      progressByPresetId
+    }))
     return true
   } catch {
     return false
@@ -282,7 +331,7 @@ export function buildStorySnapshot(
   chapters,
   currentStepId,
   currentSkillGroups = null,
-  { currentChapterId = null, showRequiredLevel = false } = {}
+  { currentChapterId = null, showRequiredLevel = false, serverId = null, aliases = null } = {}
 ) {
   const selectedContext = getStoryContext(chapters, currentStepId)
   const currentChapter = selectedContext.current?.chapter
@@ -308,14 +357,18 @@ export function buildStorySnapshot(
         name: group.name,
         skills: group.skills
           .filter(skill => skill.name.trim())
-          .map(skill => ({
-            id: skill.id,
-            name: skill.name,
-            color: skill.color,
-            ...(showRequiredLevel && skill.gemId && Number.isInteger(skill.requiredLevel)
-              ? { requiredLevel: skill.requiredLevel }
-              : {})
-          }))
+          .map(skill => {
+            const resolved = serverId ? resolveSkillForServer(skill, serverId, aliases) : skill
+            const displayName = resolved.displayName || resolved.name || skill.name
+            return {
+              id: skill.id,
+              name: displayName,
+              color: resolved.color || skill.color,
+              ...(showRequiredLevel && (resolved.gemId || skill.gemId) && Number.isInteger(resolved.requiredLevel ?? skill.requiredLevel)
+                ? { requiredLevel: resolved.requiredLevel ?? skill.requiredLevel }
+                : {})
+            }
+          })
       })).filter(group => group.skills.length)
     } : null
   }

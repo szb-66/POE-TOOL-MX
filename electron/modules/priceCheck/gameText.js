@@ -1,3 +1,5 @@
+import { pseudoRuleDisplayLabel } from './pseudoRules.js'
+
 const cjk = /[\u3400-\u9fff]/u
 const compact = value => String(value || '').replace(/\s+/g, ' ').trim()
 const equal = (left, right) => compact(left).replace(/\s/g, '') === compact(right).replace(/\s/g, '')
@@ -119,6 +121,16 @@ export function applyGameTextPresentation(model, { source = '', lineMappings = [
     remember(stat.text)
     if (stat.displayText) texts[stat.text] = stat.displayText
     remember(stat.label)
+    // Aggregate rows are generated from English Awakened PoE Trade references;
+    // present them in the same cn/tw/en language as the copied item text.
+    if (stat.type === 'pseudo') {
+      const localized = pseudoRuleDisplayLabel(stat.ref || stat.text, language)
+      if (localized) {
+        stat.displayText = localized
+        texts[stat.text] = localized
+        if (stat.label) texts[stat.label] = localized
+      }
+    }
     for (const source of stat.sources || []) {
       remember(source.text)
       if (source.displayText) texts[source.text] = source.displayText

@@ -31,10 +31,12 @@ export function resolveSpecialItemIdentity(item, catalog) {
 
 export function addLogbookStats(model, regions, catalog, enabled) {
   const seen = new Set()
+  const english = catalog?.locale === 'en'
   for (const region of regions || []) {
-    for (const [kind, text] of [['区域', region.area], ['派系', region.faction]]) {
+    for (const [kind, enKind, text] of [['区域', 'Area', region.area], ['派系', 'Faction', region.faction]]) {
       const label = `有日志${kind}：${text}`
-      const resolution = resolveCatalogStat(catalog, label, 'pseudo')
+      const lookup = english ? `Has Logbook ${enKind}: ${text}` : label
+      const resolution = resolveCatalogStat(catalog, lookup, 'pseudo')
       const match = resolution.match
       if (!match || !isLogbookStat(match)) {
         if (seen.has(label)) continue

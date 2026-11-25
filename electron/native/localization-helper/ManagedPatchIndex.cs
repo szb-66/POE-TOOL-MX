@@ -24,6 +24,13 @@ internal static class ManagedPatchIndex {
         return false;
     }
 
+    internal static bool ReferencesAnyGeneration(string indexPath, IEnumerable<string> generations) {
+        var data = Read(indexPath);
+        var prefixes = generations.Select(generation => "PoEHelper/" + generation + "/").ToArray();
+        var bundles = data.Bundles.Select(bundle => prefixes.Any(prefix => bundle.Path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))).ToArray();
+        return bundles.Contains(true) && Files(data).Any(file => bundles[file.Bundle]);
+    }
+
     internal static byte[] Rebase(string game, string currentIndexPath, string originalIndexPath, string recordedIndexPath,
         string generation, IReadOnlyDictionary<string, string>? originalHashes) {
         if (!Regex.IsMatch(generation, @"^[A-Za-z0-9_-]{1,80}$")) throw new UserError("旧汉化代际标识无效，未迁移游戏资源");

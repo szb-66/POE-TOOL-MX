@@ -24,6 +24,13 @@ export function registerPriceCheckHandlers(service) {
       if (error?.name === 'AbortError') {
         return { success: false, error: { code: 'CANCELED', message: '查价已取消', details: {} } }
       }
+      if (!error?.priceCheckErrorLogged) {
+        service.recordFailure?.('ipc', error, {
+          league: args[0]?.league,
+          options: args[0]?.options,
+          source: 'rerun'
+        })
+      }
       if (error?.code === CHAOS_ERROR_CODES.SESSION_EXPIRED) {
         await service.auth.expire?.().catch(() => service.clear())
       }
@@ -33,6 +40,9 @@ export function registerPriceCheckHandlers(service) {
 
   ipcMain.on('price-check-overlay-rendered', (event, generation) => {
     service.markOverlayRendered(event.sender, generation)
+  })
+  ipcMain.on('price-check-overlay-loading-ready', event => {
+    service.markOverlayLoadingReady(event.sender)
   })
 
   ipcMain.handle('price-check-status', invoke(() => service.getStatus()))
@@ -47,6 +57,8 @@ export function registerPriceCheckHandlers(service) {
   }))
   ipcMain.handle('price-check-settings-update', invoke((patch) => broadcastSettings(service.updateSettings(patch || {}))))
   ipcMain.handle('price-check-catalog-retry', invoke(async () => broadcastCatalog(await service.refreshCatalog())))
+  ipcMain.handle('price-check-error-log', invoke(() => service.getErrorLog()))
+  ipcMain.handle('price-check-error-log-delete', invoke((id) => service.deleteErrorLogEntry(String(id || ''))))
   ipcMain.handle('price-check-capture', invoke((request) => service.captureAndCheck({
     league: String(request?.league || ''),
     queryImmediately: request?.queryImmediately === true,
@@ -55,7 +67,7 @@ export function registerPriceCheckHandlers(service) {
   ipcMain.handle('price-check-text', invoke((request) => {
     const text = String(request?.text || '')
     if (!text || text.length > 100000) throw new Error('请粘贴有效的物品文本（不超过 100000 字符）')
-    return service.check({ text, league: String(request?.league || ''), options: request?.options || {} })
+    return service.check({ text, league: String(request?.league || ''), options: request?.options || {}, source: 'manual' })
   }))
   ipcMain.handle('price-check-rerun', invoke((request) => service.rerun(request || {})))
   ipcMain.handle('price-check-load-more', invoke(() => service.loadMore()))

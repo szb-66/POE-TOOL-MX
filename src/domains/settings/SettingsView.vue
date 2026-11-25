@@ -9,7 +9,6 @@
       </div>
       <el-tabs v-model="activeTab" class="settings-tabs" @tab-change="handleTabChange">
           <el-tab-pane label="通用" name="general" />
-          <el-tab-pane v-if="currentServer.id === 'international'" label="游戏汉化" name="localization" />
           <el-tab-pane label="自动操作" name="automation" />
           <el-tab-pane label="界面识别" name="detection" />
           <el-tab-pane label="覆盖层" name="overlay" />
@@ -32,10 +31,6 @@
     </div>
     <el-scrollbar ref="settingsScrollbar" class="primary-page__scroll">
       <div class="settings-content primary-page__content">
-        <div v-if="currentServer.id === 'international'" v-show="activeTab === 'localization'" class="settings-tab-panel settings-panel">
-          <GameLocalizationSettings />
-        </div>
-
         <div v-show="activeTab === 'general'" class="settings-tab-panel settings-panel settings-panel--general">
         <ServerModeSettings />
         <div class="section-header">
@@ -602,7 +597,6 @@
 
 <script setup>
 import ServerModeSettings from './ServerModeSettings.vue'
-import GameLocalizationSettings from './GameLocalizationSettings.vue'
 import { currentServer } from '../../utils/serverContext.js'
 import { useTheme } from '../../theme/useTheme'
 const { themePreference, setThemePreference } = useTheme()

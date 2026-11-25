@@ -1,4 +1,4 @@
-import { normalizeItemTextLanguage } from '../../../shared/itemTextLanguage.js'
+import { isUnidentifiedStateLine, normalizeItemTextLanguage } from '../../../shared/itemTextLanguage.js'
 import { parseHeistMetadata } from './heist.js'
 import { parseLogbookMetadata } from './logbook.js'
 import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetadata.js'
@@ -6,17 +6,37 @@ import { PRICE_CHECK_CLASSIC_INFLUENCES } from '../../../shared/priceCheckMetada
 const CLASSIC_INFLUENCE_LABELS = Object.freeze(Object.fromEntries(
   PRICE_CHECK_CLASSIC_INFLUENCES.flatMap(({ key, aliases }) => aliases.map((alias) => [alias, key]))
 ))
+const VISCERA_SLOTS = new Set(['Head', 'Upper Limb', 'Torso', 'Lower Limb', '头部', '頭', '上肢', '躯干', '軀幹', '下肢'])
+const VISCERA_INSTRUCTIONS = new Set([
+  'Take this to the Wickerman in a town or hideout to attach it.',
+  '将此物带到城镇或藏身处的柳条人处进行附着。',
+  '將此物帶給城鎮或藏身處中的柳條人以將其附上。'
+])
 
 const stripInjectedNameTags = (value) => String(value || '')
   .replace(/\[[^\[\]]*\]/g, '')
   .trim()
 
+const mercenaryClass = /^(?:(?:物品类别|物品种类|物品種類|物品類別)\s*[:：]\s*(?:地图碎片|地圖碎片)|Item Class\s*:\s*Map Fragments)$/
+const mercenaryName = /^(?:佣兵凭证|傭兵契約書|Mercenary Warrant)$/
+
+function mercenaryVoucherName(header) {
+  if (!header.some(line => mercenaryClass.test(line))) return ''
+  return header.map(stripInjectedNameTags).find(line => mercenaryName.test(line)) || ''
+}
+
+export function isMercenaryWarrantText(text) {
+  const lines = String(text || '').split(/\r?\n/).map(line => line.trim())
+  const separator = lines.findIndex(line => /^-{3,}$/.test(line))
+  return separator > 0 && Boolean(mercenaryVoucherName(lines.slice(0, separator)))
+}
+
 function parseMercenaryVoucher(lines) {
   const firstSeparator = lines.indexOf('--------')
   if (firstSeparator < 0) return null
   const header = lines.slice(0, firstSeparator)
-  const category = header.find((line) => line.startsWith('物品类别:'))?.replace('物品类别:', '').trim()
-  if (category !== '地图碎片' || !header.some((line) => stripInjectedNameTags(line) === '佣兵凭证')) return null
+  const name = mercenaryVoucherName(header)
+  if (!name) return null
 
   const sections = []
   let current = []
@@ -29,13 +49,12 @@ function parseMercenaryVoucher(lines) {
       current.push({ index, text })
     }
   }
-  const buildAt = sections.findIndex((section) => section.some(({ text }) => /^BD构建[：:]/.test(text)))
-  if (buildAt < 0) return null
-  const buildLine = sections[buildAt].find(({ text }) => /^BD构建[：:]/.test(text))?.text || ''
-  const levelLine = sections[buildAt].find(({ text }) => /^佣兵等级[：:]/.test(text))?.text || ''
-  const build = buildLine.replace(/^BD构建[：:]\s*/, '').trim()
-  const levelMatch = levelLine.match(/^佣兵等级[：:]\s*(\d+)$/)
-  if (!build) return null
+  const buildLabel = /^(?:BD构建|流派|Build)\s*[:：]\s*/
+  const buildAt = sections.findIndex(section => section.some(({ text }) => buildLabel.test(text)))
+  const buildLine = sections[buildAt]?.find(({ text }) => buildLabel.test(text))?.text || ''
+  const levelLine = sections[buildAt]?.find(({ text }) => /^(?:佣兵等级|傭兵等級|Mercenary Level)\s*[:：]/.test(text))?.text || ''
+  const build = buildLine.replace(buildLabel, '').trim()
+  const levelMatch = levelLine.match(/^(?:佣兵等级|傭兵等級|Mercenary Level)\s*[:：]\s*(\d+)$/)
 
   const consumedIndexes = new Set()
   for (const section of sections.slice(Math.max(0, buildAt - 1))) {
@@ -44,11 +63,11 @@ function parseMercenaryVoucher(lines) {
   const skills = []
   for (const section of sections.slice(buildAt + 1)) {
     const texts = section.map(({ text }) => text)
-    if (texts.some((text) => text.startsWith('右键点击此物品查看佣兵详情') || text.includes('个人地图装置'))) break
+    if (texts.some(text => /^(?:右键点击此物品查看佣兵详情|右鍵點擊此物品以查看傭兵細節|Right[- ]click (?:this (?:item|warrant)|to view))|个人地图装置|個人的地圖裝置|personal Map Device/i.test(text))) break
     const [name, ...supportLines] = texts
     if (!name) continue
     const supports = supportLines.map((text) => {
-      const match = text.match(/^(.*?)\s*[（(]\s*等阶\s*[：:]?\s*(\d+)\s*[）)]$/)
+      const match = text.match(/^(.*?)\s*[（(]\s*(?:等阶|等階|階層|Tier)\s*[：:]?\s*(\d+)\s*[）)]$/i)
       return {
         text,
         name: (match?.[1] || text).trim(),
@@ -58,6 +77,7 @@ function parseMercenaryVoucher(lines) {
     skills.push({ name, supports })
   }
   return {
+    name,
     consumedIndexes,
     value: {
       build,
@@ -85,6 +105,9 @@ export function parseItemInfo(clipboardText) {
 
   const lines = clipboardText.split('\n').map(line => line.trim()).filter(line => line)
     .map(line => /^-{3,}$/.test(line) ? '--------' : line)
+  const headerEnd = lines.indexOf('--------')
+  const firstSectionEnd = lines.indexOf('--------', headerEnd + 1)
+  const slotLineIndex = headerEnd >= 0 && firstSectionEnd === headerEnd + 2 ? headerEnd + 1 : -1
   const mercenaryVoucher = parseMercenaryVoucher(lines)
   const heist = parseHeistMetadata(lines)
   const logbook = parseLogbookMetadata(lines)
@@ -205,7 +228,7 @@ export function parseItemInfo(clipboardText) {
       originalLines: [...activeModifier.originalLines]
     }
     itemInfo.modifiers.push(modifier)
-    if (modifier.type === 'prefix' || modifier.type === 'suffix') {
+    if (modifier.type === 'prefix' || modifier.type === 'suffix' || modifier.type === 'explicit') {
       itemInfo.detailedMods.push(modifier)
       itemInfo.explicitMods.push(...modifier.lines)
     } else if (modifier.type === 'base' || modifier.type === 'implicit') {
@@ -269,6 +292,20 @@ export function parseItemInfo(clipboardText) {
     '闪电伤害:',
     '混沌伤害:',
     '回忆束丝',
+    '限制:',
+    '上限:',
+    '仅限:',
+    '范围:',
+    '魔符阶级:',
+    '魔符等级:',
+    '灵柩等级:',
+    '怪物类型:',
+    '该物品可以装备给',
+    'This item can be equipped by',
+    'Any Heist member can equip',
+    '烫金传奇',
+    '貼模傳奇',
+    'Foil Unique',
     '需求:',
     '等级:',
     '力量:',
@@ -284,13 +321,22 @@ export function parseItemInfo(clipboardText) {
     isClusterJewelDescriptionLine(text) ||
     /^(?:Right click (?:to|this)|Shift click to|Place (?:this|into)|Travel to this Map|Can only (?:be used|hold)|You can only have|This item can be used)/.test(text)
   const isExplanationLine = (text) => /^[（(].*[）)]$/.test(text)
-  const itemStateLines = new Set(['已腐化', '未鉴定', '不可改变', '已复制', '镜像复制', '已分裂', '分裂物品',
-    '分裂之物', '破碎之物', '破裂物品', 'Fractured Item'])
+  const itemStateLines = new Set(['已腐化', '二次腐化', '二次汙染', '二次污染', 'Twice Corrupted', '未鉴定', '不可改变', '不可調整的', '已复制', '镜像复制', '已分裂', '分裂', '分化', '分裂物品',
+    '分裂之物', '破裂之物', '破碎之物', '破裂物品', 'Fractured Item', '烫金传奇', '貼模傳奇', 'Foil Unique'])
   const influenceLabels = {
     ...CLASSIC_INFLUENCE_LABELS,
+    '塑者之物': 'shaper',
+    '尊師之物': 'elder',
+    '聖戰軍王物品': 'crusader',
+    '救贖者物品': 'redeemer',
+    '狩獵者物品': 'hunter',
+    '總督軍物品': 'warlord',
     '忆境物品': 'synthesised',
+    '追憶之物': 'synthesised',
     '焚界者物品': 'searing-exarch',
-    '灭界者物品': 'eater-of-worlds'
+    '卓烙總督物品': 'searing-exarch',
+    '灭界者物品': 'eater-of-worlds',
+    '吞噬天地物品': 'eater-of-worlds'
   }
   const parseNumber = (value) => Number(String(value || '').replace(/[+,％%]/g, ''))
   const parseRange = (line) => {
@@ -300,13 +346,15 @@ export function parseItemInfo(clipboardText) {
 
   for (let i = 0; i < lines.length; i++) {
     // Normalize only identity-header candidates, before interpreting injected punctuation or state words.
-    const line = identityHeaderOpen && itemInfo.category && itemInfo.rarity && !itemInfo.baseName
+    const line = identityHeaderOpen && itemInfo.category && (itemInfo.rarity || itemInfo.category === '内脏') && !itemInfo.baseName
       ? stripInjectedNameTags(lines[i])
       : lines[i]
 
     if (mercenaryVoucher?.consumedIndexes.has(i)) continue
     if (heist?.consumedIndexes.has(i)) { flushModifier(); continue }
     if (logbook?.consumedIndexes.has(i)) { flushModifier(); continue }
+    if (itemInfo.category === '内脏' && !identityHeaderOpen &&
+        ((i === slotLineIndex && VISCERA_SLOTS.has(line)) || VISCERA_INSTRUCTIONS.has(line))) continue
 
     if (/^物品阶级[：:]/.test(line)) {
       flushModifier()
@@ -326,15 +374,15 @@ export function parseItemInfo(clipboardText) {
       }
       if (/^(?:##\s*)?品质:/.test(line)) itemInfo.quality = Number(line.match(/\d+/)?.[0]) || 0
       if (/^(?:##\s*)?改造$/.test(line)) itemInfo.gemVariant = true
-      if (line === '已腐化') itemInfo.isCorrupted = true
+      if (line === '已腐化' || line === '二次腐化' || line === '二次汙染' || line === '二次污染' || line === 'Twice Corrupted') itemInfo.isCorrupted = true
       if (!/^物品类别:|^稀\s*有\s*度:/.test(line)) continue
     }
 
     if (isMapCategory(itemInfo.category)) {
       const region = line.match(/^(?:##\s*)?地图区域[：:]\s*(.+)$/)
       if (region) { itemInfo.areaName = region[1].trim(); continue }
-      if (identityHeaderOpen && /^菌潮灭绝\s*地图/.test(line)) itemInfo.blightType = 'uberblighted'
-      else if (identityHeaderOpen && /^菌潮\s*地图/.test(line)) itemInfo.blightType = 'blighted'
+      if (identityHeaderOpen && /^(?:菌潮灭绝\s*地图|Blight-ravaged\s+Map)/i.test(line)) itemInfo.blightType = 'uberblighted'
+      else if (identityHeaderOpen && /^(?:菌潮\s*地图|Blighted\s+Map)/i.test(line)) itemInfo.blightType = 'blighted'
     }
 
     const chartShapeMatch = line.match(/^海图形状[：:]\s*(.+)$/)
@@ -368,6 +416,7 @@ export function parseItemInfo(clipboardText) {
         [/隐式(?:属性|词缀)|\bImplicit\b/i, 'implicit'],
         [/基底(?:属性|词缀)|\bBase Modifier\b/i, 'base'],
         [/传奇(?:属性|词缀)|\bUnique Modifier\b/i, 'unique'],
+        [/稀有限定|\bRare-only\b/i, 'explicit'],
         [/影匿|解密|隐匿(?:属性|词缀)|\bVeiled\b/i, 'veiled'],
         [/灌注|\bImbued\b/i, 'imbued'],
         [/异度天灾|灾魇(?:属性|词缀)|\bScourge\b/i, 'scourge'],
@@ -427,6 +476,7 @@ export function parseItemInfo(clipboardText) {
       }
       if (isExplanationLine(line)) continue
       const boundary = isIgnoredTextLine(line) || itemStateLines.has(line) ||
+        isUnidentifiedStateLine(line) ||
         /^(?:秽生(?:物品)?|Foulborn(?: Item)?)$/i.test(line) ||
         line.includes('(implicit)') || line.includes('(fractured)') || line.includes('(crafted)') || line.includes('(enchant)') || influenceLabels[line]
       if (!boundary) {
@@ -475,22 +525,22 @@ export function parseItemInfo(clipboardText) {
     else if (line.startsWith('稀 有 度:') || line.startsWith('稀有度:')) {
       itemInfo.rarity = line.replace(/稀\s*有\s*度:/, '').trim()
     }
-    else if (line === '已腐化') {
+    else if (line === '已腐化' || line === '二次腐化' || line === '二次汙染' || line === '二次污染' || line === 'Twice Corrupted') {
       itemInfo.isCorrupted = true
     }
-    else if (line === '不可改变') {
+    else if (line === '不可改变' || line === '不可調整的') {
       itemInfo.isUnmodifiable = true
     }
-    else if (line === '未鉴定') {
+    else if (isUnidentifiedStateLine(line)) {
       itemInfo.isUnidentified = true
     }
     else if (line === '已复制' || line === '镜像复制') {
       itemInfo.isMirrored = true
     }
-    else if (line === '已分裂' || line === '分裂物品') {
+    else if (line === '已分裂' || line === '分裂' || line === '分化' || line === '分裂物品') {
       itemInfo.isSplit = true
     }
-    else if (line === '分裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {
+    else if (line === '分裂之物' || line === '破裂之物' || line === '破碎之物' || line === '破裂物品' || line === 'Fractured Item') {
       itemInfo.isFractured = true
     }
     else if (/^回忆束丝[：:]\s*\d+$/.test(line)) {
@@ -727,6 +777,10 @@ export function parseItemInfo(clipboardText) {
     : 0
   itemInfo.totalDps = Math.round((itemInfo.physicalDps + itemInfo.elementalDps + itemInfo.chaosDps) * 100) / 100
 
+  if (mercenaryVoucher) {
+    itemInfo.category = '地图碎片'
+    itemInfo.name = mercenaryVoucher.name
+  }
   if (heist) {
     itemInfo.category = heist.category
     itemInfo.heistStats = heist.heistStats

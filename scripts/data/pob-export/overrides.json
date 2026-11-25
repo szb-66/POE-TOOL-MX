@@ -1,6 +1,66 @@
 {
   "aliases": [
     {
+      "zh": "菌丝核心",
+      "en": "Mycelium Core",
+      "source": "https://poedb.tw/cn/Mycelium_Core；PoB 2.68.1 Data/Bases/jewel.lua 新增 Blightcore 珠宝底材"
+    },
+    {
+      "zh": "强迫的拥抱",
+      "en": "Unwilling Embrace",
+      "source": "https://poedb.tw/cn/Unwilling_Embrace"
+    },
+    {
+      "zh": "温迪戈之皮",
+      "en": "Hide of the Vendigo",
+      "source": "https://poedb.tw/cn/Hide_of_the_Vendigo"
+    },
+    {
+      "zh": "幻梦披风",
+      "en": "Mantle of Dreams",
+      "source": "https://poedb.tw/cn/Mantle_of_Dreams"
+    },
+    {
+      "zh": "命定秩序",
+      "en": "Ordered Fate",
+      "source": "https://poedb.tw/cn/Ordered_Fate"
+    },
+    {
+      "zh": "恐惧少女的圣礼",
+      "en": "Dreadmaidens' Sacrament",
+      "source": "https://poedb.tw/cn/Dreadmaidens_Sacrament"
+    },
+    {
+      "zh": "腐败之种",
+      "en": "Putrid Seed",
+      "source": "https://poedb.tw/cn/Putrid_Seed"
+    },
+    {
+      "zh": "亡骸玫瑰",
+      "en": "Corpse Rose",
+      "source": "https://poedb.tw/cn/Corpse_Rose"
+    },
+    {
+      "zh": "高阶多重范围施法（辅）",
+      "en": "Greater Spell Cascade Support",
+      "source": "国服交易目录 gem 条目 official-item-3233（国服改译名）；PoB 2.68.1 SkillGemSupportGreaterSpellCascade"
+    },
+    {
+      "zh": "箭矢新星（强辅）",
+      "en": "Awakened Arrow Nova Support",
+      "source": "国服交易目录 gem 条目 official-item-3123；PoB 2.68.1 SkillGemSupportAwakenedArrowNova"
+    },
+    {
+      "zh": "奥术链接",
+      "en": "Arcane Link",
+      "source": "国服交易目录 gem 条目 official-item-2768；PoB 2.68.1 Metadata/Items/Gems/SkillGemArcaneLink"
+    },
+    {
+      "zh": "辐射之火球",
+      "en": "Fireball of Radiation",
+      "source": "国服交易目录 official-item-3490（gem 条目，改造版本 text=辐射之火球）；PoB 2.68.1 SkillGemFireball variant FireballAltX"
+    },
+    {
       "zh": "暗鸦咒符",
       "en": "Corvine Charm",
       "source": "https://poedb.tw/cn/Corvine_Charm"
@@ -142,6 +202,21 @@
       "refs": {
         "1": "display_indexable_support"
       }
+    },
+    {
+      "zh": "生效期间，你受到的冻结持续时间缩短 {0}%",
+      "en": "{0}% reduced Freeze Duration on you during Effect"
+    },
+    {
+      "zh": "镶嵌的宝石被 {0} 级 {1} 辅助",
+      "en": "Socketed Gems are Supported by Level {0} {1}",
+      "refs": {
+        "1": "display_indexable_support"
+      }
+    },
+    {
+      "zh": "赞美 {0} 名被 神主多米纳斯 转化的新信徒 范围内的天赋被 圣堂武僧 抑制",
+      "en": "Carved to glorify {0} new faithful converted by High Templar Dominus\nPassives in radius are Conquered by the Templars"
     }
   ],
   "extraUniques": [

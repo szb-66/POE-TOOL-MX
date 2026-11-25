@@ -64,10 +64,17 @@ export class LocalizationDownloader {
     if (!/^[a-f0-9]{64}$/.test(hash)) throw new Error('翻译资源对象标识无效')
     return path.join(this.storageRoot, 'objects', hash)
   }
-  cachedObject(descriptor) {
+  cachedObject(descriptor, decodedObjects) {
     try {
       const bytes = fs.readFileSync(this.objectPath(descriptor.sha256))
-      return decodeObject(bytes, descriptor)
+      const cacheKey = decodedObjects && canonicalJson(descriptor)
+      // Reuse only decoding work; every read still verifies the signed object's bytes.
+      if (decodedObjects?.has(cacheKey) && bytes.length === descriptor.bytes && sha256(bytes) === descriptor.sha256) {
+        return decodedObjects.get(cacheKey)
+      }
+      const entries = decodeObject(bytes, descriptor)
+      decodedObjects?.set(cacheKey, entries)
+      return entries
     } catch { return null }
   }
   missing(manifest) { return manifest.objects.filter(object => !this.cachedObject(object)) }
@@ -77,22 +84,43 @@ export class LocalizationDownloader {
     const manifest = verifyEnvelope(envelope, this.key())
     return { envelope, manifest }
   }
-  load(file = 'active.json') {
-    try {
-      const { envelope, manifest } = this.readEnvelope(file)
-      const entries = manifest.objects.flatMap(object => {
-        const part = this.cachedObject(object)
-        if (!part) throw new Error('翻译缓存缺失或校验失败')
-        return part
-      })
-      if (entries.length !== manifest.entryCount) throw new Error('翻译条目数量不一致')
-      return { envelope, manifest, entries }
-    } catch { return null }
+  loadBundle({ envelope, manifest }, decodedObjects) {
+    const entries = manifest.objects.flatMap(object => {
+      const part = this.cachedObject(object, decodedObjects)
+      if (!part) throw new Error('翻译缓存缺失或校验失败')
+      return part
+    })
+    if (entries.length !== manifest.entryCount) throw new Error('翻译条目数量不一致')
+    return { envelope, manifest, entries }
+  }
+  load(file = 'active.json', decodedObjects) {
+    try { return this.loadBundle(this.readEnvelope(file), decodedObjects) }
+    catch { return null }
   }
   loadRevision(releaseId) {
     if (typeof releaseId !== 'string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(releaseId)) return null
     const bundle = this.load(`releases/${releaseId}.json`)
     return bundle?.manifest.releaseId === releaseId ? bundle : null
+  }
+  loadCachedHistory() {
+    let files
+    try { files = fs.readdirSync(path.join(this.storageRoot, 'releases'), { withFileTypes: true }) }
+    catch { return null }
+    const candidates = []
+    for (const file of files) {
+      if (!file.isFile() || !/^[a-zA-Z0-9._-]{1,80}\.json$/.test(file.name)) continue
+      try {
+        const candidate = this.readEnvelope(path.join('releases', file.name))
+        if (file.name === `${candidate.manifest.releaseId}.json`) candidates.push(candidate)
+      } catch { /* 跳过不可信的历史清单 */ }
+    }
+    const createdAt = candidate => Date.parse(candidate.manifest.createdAt) || 0
+    candidates.sort((a, b) => createdAt(b) - createdAt(a) || a.manifest.releaseId.localeCompare(b.manifest.releaseId))
+    for (const candidate of candidates) {
+      try { return this.loadBundle(candidate) }
+      catch { /* 缓存对象不完整，检查下一个历史版本 */ }
+    }
+    return null
   }
   async check() {
     const key = this.key()

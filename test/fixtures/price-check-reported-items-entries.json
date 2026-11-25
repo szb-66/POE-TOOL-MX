@@ -332,5 +332,2662 @@
     "sourceHash": "33e04dc417b22d44837ebf71c18754970ed30b55baec92b4fbc798313cc798e4",
     "tw": "最嚴重之過犯，讓人吃苦受難。\r\n即使事過境遷，依然陰魂不散。",
     "cn": "最严重之过犯，让人吃苦受难。\r\n即使事过境迁，依然阴魂不散。"
+  },
+  {
+    "table": "achievementitems",
+    "id": "ExpeditionCompleteExpeditionEncountersIV_9",
+    "field": "Name",
+    "en": "Breach",
+    "kind": "dat",
+    "sourceHash": "a637dd7dba81ecc17cdc43dcf1c05d863f55d111df70eadf938116640d8c1eeb",
+    "tw": "裂痕",
+    "cn": "深渊"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Gloves/GlovesInt3",
+    "field": "Name",
+    "en": "Silk Gloves",
+    "kind": "dat",
+    "sourceHash": "3e68f198cedde0f1e7774f54c561be68c1ceecddee2b28febba6b4c89acbc7b5",
+    "tw": "絲綢手套",
+    "cn": "丝绸手套"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Gloves/GlovesAtlasInt",
+    "field": "Name",
+    "en": "Fingerless Silk Gloves",
+    "kind": "dat",
+    "sourceHash": "b5645e1c89dc84ce8538ea86f97c52541dd4f8ae7c1558b9db60c3b222dcf91d",
+    "tw": "魔指手套",
+    "cn": "丝绸手套"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelAbyssSummoner",
+    "field": "Name",
+    "en": "Ghastly Eye Jewel",
+    "kind": "dat",
+    "sourceHash": "cf265c389e9c7579c61aa436a1a44694aab4cebf099b0aee0260680fc56be53d",
+    "tw": "極懼之眼珠寶",
+    "cn": "苍白之凝珠宝"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionAbyssJewel",
+    "field": "Text",
+    "en": "Place into an Abyssal Socket on an Item or into an allocated Jewel Socket on the Passive Skill Tree. Right click to remove from the Socket.",
+    "kind": "dat",
+    "sourceHash": "93d2ff2538ea8a6be02702f3c74cdfbe0114b9d79d4e9eb86a58456894ecea88",
+    "tw": "放置到一個道具的深淵珠寶插槽或一個天賦樹的珠寶插槽中以產生效果。右鍵點擊以移出插槽。",
+    "cn": "放入一个物品的深渊插槽或天赋树上的珠宝插槽中以生效。右键点击以移出插槽。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayAbyssalJewel",
+    "field": "Text",
+    "en": "Abyss",
+    "kind": "dat",
+    "sourceHash": "b7ca5de6b407cd955e504cd1df08c0a7fef48d0ba0d9143d2a65514751558adb",
+    "tw": "深淵",
+    "cn": "深渊"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemPopupDoubleCorrupted",
+    "field": "Text",
+    "en": "Twice Corrupted",
+    "kind": "dat",
+    "sourceHash": "1132843b17fdd0928de4027ebd927acc7a3266366cb869c1b6ef1793656b3bf1",
+    "tw": "二次汙染"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueGlovesInt3",
+    "field": "Text",
+    "en": "Cool the head and cool the blade.",
+    "kind": "dat",
+    "sourceHash": "59e514ea0a2f7b72b88bcbeacddbf56d3b3744d42c63040dbb5bcb88d396ebac",
+    "tw": "唯有冷靜沉著，方能殺敵不惑。",
+    "cn": "唯有冷静沉着，方能杀敌不惑。"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Gloves",
+    "field": "Name",
+    "en": "Gloves",
+    "kind": "dat",
+    "sourceHash": "5c4a86a81eca111d4f09d9c877b5e3a0c5c0a713fd4834a66112807410d633cb",
+    "tw": "手套",
+    "cn": "手套"
+  },
+  {
+    "table": "itemclasses",
+    "id": "AbyssJewel",
+    "field": "Name",
+    "en": "Abyss Jewels",
+    "kind": "dat",
+    "sourceHash": "5a25f77bc05d14e5ceb47b15a961628aa9b845249dbaca4ed76582838c1eb945",
+    "tw": "深淵珠寶",
+    "cn": "深渊珠宝"
+  },
+  {
+    "table": "mods",
+    "id": "RareGhastlyJewelEffect",
+    "field": "Name",
+    "en": "Abyssal",
+    "kind": "dat",
+    "sourceHash": "9099a6d92fe342e70099755faafb176c99de908ceedcf99cb3b2b685ae15e1c7",
+    "tw": "深淵",
+    "cn": "深渊的"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextCurseTemporalChains",
+    "field": "Text",
+    "en": "(Temporal Chains is a Hex which reduces Action Speed by 15%, or 9% on Rare or Unique targets, and makes other effects on the target expire 40% slower. It has 50% less effect on Players and lasts 5 seconds)",
+    "kind": "dat",
+    "sourceHash": "8d76c3d1ccb20f11f422f8fe70780c296577e182d533563f26c95bb00bdad9fd",
+    "tw": "（時空鎖鏈為咒術，減少 15% 行動速度或 9% 對稀有或傳奇目標，並且使目標上的效果比平常慢 40% 失效。對玩家有 50% 更少效果並持續 5 秒）",
+    "cn": "（时空锁链是一种魔蛊，可以使行动速度降低15%，或者使稀有和传奇怪物的行动速度降低9%，并使目标身上的其它效果消减速度减慢40%。它在玩家身上的总效果额外降低 50%，持续5秒）"
+  },
+  {
+    "table": "remindertext",
+    "id": "ReminderTextCurseElementalWeakness",
+    "field": "Text",
+    "en": "(Elemental Weakness is a Hex which inficts -15% to all Elemental Resistances. It lasts 8 seconds)",
+    "kind": "dat",
+    "sourceHash": "6e09bb153ea9f37e83c2b65f4c9a777ad7ec87070142e4826517eb02ad5957d8",
+    "tw": "（元素要害為咒術，減少 15% 全部元素抗性。持續 8 秒）",
+    "cn": "（元素要害是一种魔蛊，可以给目标施加-15%所有元素抗性。它持续8秒）"
+  },
+  {
+    "table": "words",
+    "id": "hash:97668ebc",
+    "field": "Text2",
+    "en": "Asenath's Gentle Touch",
+    "kind": "dat",
+    "sourceHash": "c500c9c30b02e732717be19272e5d9d261706cab25617b632d597eb7f32b0c9c",
+    "tw": "安賽娜絲的安撫之語",
+    "cn": "安赛娜丝的安抚之语"
+  },
+  {
+    "table": "words",
+    "id": "hash:251cb740",
+    "field": "Text2",
+    "en": "Black Zenith",
+    "kind": "dat",
+    "sourceHash": "8a73d6c01c40af4bbe34abf7f27f27213d0efb486a411e18fd47022109f6ac22",
+    "tw": "漆黑極頂",
+    "cn": "漆黑天顶"
+  },
+  {
+    "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+    "id": "attack_speed_+%_granted_from_skill",
+    "field": "variant:0",
+    "en": "Grants Minions {0}% increased Attack Speed",
+    "kind": "stat",
+    "sourceHash": "1fb330975418ec6ebe0380c9ab892d508f93e79caa492fef118bd71ee53e70c2",
+    "stats": {
+      "ids": [
+        "attack_speed_+%_granted_from_skill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物增加 {0}% 攻擊速度",
+    "cn": "召唤生物的攻击速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+    "id": "cast_speed_+%_granted_from_skill",
+    "field": "variant:0",
+    "en": "Grants Minions {0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "f18f9cdcbc1296c47543d8fdf4f6fb6f8c735691cc65c97cbc1a47caf1b1b02f",
+    "stats": {
+      "ids": [
+        "cast_speed_+%_granted_from_skill"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物增加 {0}% 施放速度",
+    "cn": "召唤生物的施法速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/offering_skill_stat_descriptions.csd",
+    "id": "base_resist_all_elements_%",
+    "field": "variant:0",
+    "en": "Minions gain {0:+d}% to all Elemental Resistances",
+    "kind": "stat",
+    "sourceHash": "a64af4084523041d9b3bd40d90e82778676436e7cc7be7df654e8de700753da6",
+    "stats": {
+      "ids": [
+        "base_resist_all_elements_%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物獲得 {0:+d}% 全部元素抗性",
+    "cn": "召唤生物获得 {0:+d}% 元素抗性"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "additional_intelligence",
+    "field": "variant:0",
+    "en": "{0:+d} to Intelligence",
+    "kind": "stat",
+    "sourceHash": "62eb50e582b48575cdf7e1f4dec7d4ff3e09f6326dfa31704739834239f90e6f",
+    "stats": {
+      "ids": [
+        "additional_intelligence"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0:+d} 智慧",
+    "cn": "{0:+d} 智慧"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "stats": {
+      "ids": [
+        "base_maximum_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_energy_shield",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Energy Shield",
+    "kind": "stat",
+    "sourceHash": "b1bd78c52220630768fcaa4b002baad651d08243764dd3de9880d8129ee89f52",
+    "stats": {
+      "ids": [
+        "local_energy_shield"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0:+d} 最大能量護盾",
+    "cn": "{0:+d} 最大能量护盾"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_life",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Life",
+    "kind": "stat",
+    "sourceHash": "1ce6941d397159fd1a49856855968b0c309dbed4dc2dad2d98a598a501cfb067",
+    "stats": {
+      "ids": [
+        "base_maximum_life"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0:+d} 最大生命",
+    "cn": "{0:+d} 最大生命"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "base_maximum_mana",
+    "field": "variant:0",
+    "en": "{0:+d} to maximum Mana",
+    "kind": "stat",
+    "sourceHash": "c9e51b8b0f043ab6e4a09ed4a0c452625a373722142766ee170e51ad448f31f1",
+    "stats": {
+      "ids": [
+        "base_maximum_mana"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0:+d} 最大魔力",
+    "cn": "{0:+d} 最大魔力"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "curse_on_hit_level_temporal_chains",
+    "field": "variant:0",
+    "en": "Curse Enemies with Temporal Chains on Hit",
+    "kind": "stat",
+    "sourceHash": "2eaf342a5d5d5fd87558ad4fd2ba4d49e4d389edd8ce52ff49a32fe6f9f73444",
+    "stats": {
+      "ids": [
+        "curse_on_hit_level_temporal_chains"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextCurseTemporalChains",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "擊中時使敵人受到時空鎖鏈詛咒",
+    "cn": "击中时对敌人附加时空锁链诅咒。"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "curse_on_hit_level_elemental_weakness",
+    "field": "variant:0",
+    "en": "Curse Enemies with Elemental Weakness on Hit",
+    "kind": "stat",
+    "sourceHash": "6f811d7e809fe6d6c7ace909d8a5f0ee992dfc242d5a144538c1c1eee3a012c9",
+    "stats": {
+      "ids": [
+        "curse_on_hit_level_elemental_weakness"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextCurseElementalWeakness",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "擊中時使敵人受到元素要害詛咒",
+    "cn": "击中时对敌人附加元素要害诅咒。"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "minion_attack_speed_+%",
+    "field": "variant:0",
+    "en": "Minions have {0}% increased Attack Speed",
+    "kind": "stat",
+    "sourceHash": "3d845fd1ded827cda53083036af9f52fcf57795ee2b1eabbdaf96def44180a23",
+    "stats": {
+      "ids": [
+        "minion_attack_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物增加 {0}% 攻擊速度",
+    "cn": "召唤生物的攻击速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "minion_cast_speed_+%",
+    "field": "variant:0",
+    "en": "Minions have {0}% increased Cast Speed",
+    "kind": "stat",
+    "sourceHash": "b7956643cc41a883b4794b35f664ddcedeb54264f8bee1b8c8f1fee4bdf7ccb3",
+    "stats": {
+      "ids": [
+        "minion_cast_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物增加 {0}% 施放速度",
+    "cn": "召唤生物的施法速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "minion_elemental_resistance_%",
+    "field": "variant:0",
+    "en": "Minions have {0:+d}% to all Elemental Resistances",
+    "kind": "stat",
+    "sourceHash": "f2e2e8545bb32e22141e369eab936a65c7b0a30b86bd7d4d90e469dfd8422aa0",
+    "stats": {
+      "ids": [
+        "minion_elemental_resistance_%"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0:+d}"
+          ]
+        }
+      ]
+    },
+    "tw": "召喚物有 {0:+d}% 全部元素抗性",
+    "cn": "召唤生物获得 {0:+d}% 元素抗性"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "curses_you_inflict_remain_after_death",
+    "field": "variant:0",
+    "en": "Non-Aura Curses you inflict are not removed from Dying Enemies",
+    "kind": "stat",
+    "sourceHash": "f0fd1fd902f26936ca5acd36776bdb3d9874ff8ec1c477a22c547d7be77b0245",
+    "stats": {
+      "ids": [
+        "curses_you_inflict_remain_after_death"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "你造成的非光環詛咒不會從垂死的敵人移除",
+    "cn": "你施放的非光环类诅咒不会因垂死的敌人而移除"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "enemies_near_cursed_corpses_are_blinded_and_explode_on_death_for_%_life_as_physical_damage",
+    "field": "variant:0",
+    "en": "Enemies near corpses affected by your Curses are [Blind|Blinded]\\nEnemies Killed near corpses affected by your Curses explode, dealing\\n{0}% of their Life as Physical Damage",
+    "kind": "stat",
+    "sourceHash": "0fe983fe7ff91acf0a05df22983eeeb7de5fd307b5884679e41c53bd4d015132",
+    "stats": {
+      "ids": [
+        "enemies_near_cursed_corpses_are_blinded_and_explode_on_death_for_%_life_as_physical_damage"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "敵人靠近被你詛咒的屍體時被致盲\\n敵人靠近被你詛咒的屍體被擊殺時爆炸，\\n造成 {0}% 他們生命的物理傷害",
+    "cn": "被你诅咒的灵柩周围的敌人会被致盲\\n被你诅咒的灵柩周围的敌人被击败时会爆炸，造成生命它们\\n{0}% 的物理伤害"
+  },
+  {
+    "table": "heistjobs",
+    "id": "BruteForce",
+    "field": "Name",
+    "en": "Brute Force",
+    "kind": "dat",
+    "sourceHash": "04db7833b130bb128e2b4ba657a7004cedc81cf2d61fb05e805d4b3220b53111",
+    "tw": "蠻力",
+    "cn": "凶蛮之力"
+  },
+  {
+    "table": "heistjobs",
+    "id": "BruteForce",
+    "field": "Description",
+    "en": "Begin Brute Force",
+    "kind": "dat",
+    "sourceHash": "0240789189c516b8ba87182d1b3ce5b44a5c9f9803e233ecce902e1c81d72868",
+    "tw": "開始蠻力",
+    "cn": "开始使用凶蛮之力"
+  },
+  {
+    "table": "heistjobs",
+    "id": "Deception",
+    "field": "Name",
+    "en": "Deception",
+    "kind": "dat",
+    "sourceHash": "17455029fb9994a3f2fdd256533040999bee973dc3ba05978883b20af2c9c010",
+    "tw": "詐欺",
+    "cn": "欺诈"
+  },
+  {
+    "table": "heistjobs",
+    "id": "Deception",
+    "field": "Description",
+    "en": "Begin Deception",
+    "kind": "dat",
+    "sourceHash": "ce8894fef793b4bae029279e9f301b6bf4f3f95355dd868418fa372ae3e2449a",
+    "tw": "開始詐欺",
+    "cn": "开始使用欺诈"
+  },
+  {
+    "table": "heistjobs",
+    "id": "Engineering",
+    "field": "Name",
+    "en": "Engineering",
+    "kind": "dat",
+    "sourceHash": "729bb48d0f86a9e240a9839bf8c50f62f7ed973338514432666cf53c5d30c9ca",
+    "tw": "工程",
+    "cn": "工程学"
+  },
+  {
+    "table": "heistjobs",
+    "id": "Engineering",
+    "field": "Description",
+    "en": "Begin Engineering",
+    "kind": "dat",
+    "sourceHash": "71ff300db1b4b943224d085e6c153e8a3d468342317c98b78d53d3abca6b0a58",
+    "tw": "開始工程",
+    "cn": "开始使用工程学"
+  },
+  {
+    "table": "expeditionfactions",
+    "id": "Faction1",
+    "field": "Name",
+    "en": "Druids of the Broken Circle",
+    "kind": "dat",
+    "sourceHash": "9f81d4065e7bca90d47a6bee635c10ffe378e16fc43e76ca09d10cdad88fce52",
+    "tw": "破碎環之德魯伊",
+    "cn": "裂环祭司"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/Daggers/Dagger15",
+    "field": "Name",
+    "en": "Fiend Dagger",
+    "kind": "dat",
+    "sourceHash": "f91aa2ef59d8257dbb01ac1175d1ad485b7dba28d440dc16c0f3fe5c2393edb7",
+    "tw": "妖魔短匕",
+    "cn": "兽血短匕"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/OneHandThrustingSwords/Rapier1",
+    "field": "Name",
+    "en": "Rusted Spike",
+    "kind": "dat",
+    "sourceHash": "5b0b7f96ddf1953ae34df426a29a1c4073ed0db2ab37cc74c464998416612bcb",
+    "tw": "鏽刺劍",
+    "cn": "锈刺剑"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/OneHandWeapons/OneHandMaces/Sceptre1",
+    "field": "Name",
+    "en": "Driftwood Sceptre",
+    "kind": "dat",
+    "sourceHash": "f08c4351efe44c60c34606dfa6cbb6eec0a824e551125aca6cb25a6eca56eaef",
+    "tw": "朽木權杖",
+    "cn": "朽木短杖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/TwoHandWeapons/Staves/Staff4",
+    "field": "Name",
+    "en": "Iron Staff",
+    "kind": "dat",
+    "sourceHash": "a889e4eb0f021d5709cbf039637459606d3daef749aa31f75d1fc7e3035f2445",
+    "tw": "鐵鍛長杖",
+    "cn": "铁锻长杖"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Weapons/TwoHandWeapon/FishingRods/FishingRod1",
+    "field": "Name",
+    "en": "Fishing Rod",
+    "kind": "dat",
+    "sourceHash": "89a945cde38e3b7e6ca1756f6e15ce0b496d23a877ca58074fba8a60a429469b",
+    "tw": "魚竿",
+    "cn": "鱼竿"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Rings/Ring2",
+    "field": "Name",
+    "en": "Coral Ring",
+    "kind": "dat",
+    "sourceHash": "a465be58d6c05267d6f3c4c08ea099c97d4283b6852dd020912d411cc2553003",
+    "tw": "珊瑚戒指",
+    "cn": "珊瑚戒指"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Talismans/Talisman1_1",
+    "field": "Name",
+    "en": "Black Maw Talisman",
+    "kind": "dat",
+    "sourceHash": "40b69b25be613f8dbd004b337ac02c92abcb9535a1dd455502a977964fdb9183",
+    "tw": "黑牙魔符",
+    "cn": "黑牙魔符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Talismans/TalismanBlackMaw",
+    "field": "Name",
+    "en": "Black Maw Talisman",
+    "kind": "dat",
+    "sourceHash": "40b69b25be613f8dbd004b337ac02c92abcb9535a1dd455502a977964fdb9183",
+    "tw": "黯牙魔符",
+    "cn": "黑牙魔符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/Helmets/HelmetDexInt5",
+    "field": "Name",
+    "en": "Golden Mask",
+    "kind": "dat",
+    "sourceHash": "0b60ead7f1f633588ef19b130f406af0e6be9ab724ef1cb9fc1614caf5f37b71",
+    "tw": "黃金之面",
+    "cn": "黄金之面"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelStr",
+    "field": "Name",
+    "en": "Crimson Jewel",
+    "kind": "dat",
+    "sourceHash": "99447e7cfd912b240d9244ec7750a402585db114f8ae12311ca62607bf2e90d3",
+    "tw": "赤紅珠寶",
+    "cn": "赤红珠宝"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Heist/HeistEquipmentDeception1",
+    "field": "Name",
+    "en": "Basic Disguise Kit",
+    "kind": "dat",
+    "sourceHash": "950802684f8447d775ffe4a2e84c5ef678a216e369234c3c13c32409d8f90e42",
+    "tw": "基礎偽裝套組",
+    "cn": "基础易容工具"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Heist/HeistEquipmentEngineering3",
+    "field": "Name",
+    "en": "Sulphur Blowtorch",
+    "kind": "dat",
+    "sourceHash": "b8dd3fd664532ecb541bc31bef726fc3ad7ae58bb5c33ef1f598cd132341bd4f",
+    "tw": "硫酸噴管",
+    "cn": "硫磺喷灯"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Expedition/ExpeditionLogbook",
+    "field": "Name",
+    "en": "Expedition Logbook",
+    "kind": "dat",
+    "sourceHash": "d53d2d4d396dd87bc254b4eb0f86ffceb09a067319916df8765184e7a2c1a780",
+    "tw": "探險日誌",
+    "cn": "先祖秘藏日志"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusLarge",
+    "field": "Text",
+    "en": "Large",
+    "kind": "dat",
+    "sourceHash": "ab80540d98d274565e355f59f0683df6fb23ff86f735a6f8da60020d3ce05d7b",
+    "tw": "大",
+    "cn": "大"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusMedium",
+    "field": "Text",
+    "en": "Medium",
+    "kind": "dat",
+    "sourceHash": "8e588cd187741f1cd76f5fab77b7208782a8c21d764ce7d7a4cf3ac4e0968873",
+    "tw": "中",
+    "cn": "中"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusSmall",
+    "field": "Text",
+    "en": "Small",
+    "kind": "dat",
+    "sourceHash": "5263293fc202649bdc8135573ac9cd3b0bcea4355e0d8f0a59f1ddeea8eefc15",
+    "tw": "小",
+    "cn": "小"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusVariable",
+    "field": "Text",
+    "en": "Variable",
+    "kind": "dat",
+    "sourceHash": "e57e998726030b84d971fa8bd41e1ebe0bc4cd40474e79f7e927efb00f9f348f",
+    "tw": "可變的",
+    "cn": "变量"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistAnyJob",
+    "field": "Text",
+    "en": "Any Job",
+    "kind": "dat",
+    "sourceHash": "952fb32fd507172b58e799caaa3d2ff17c85022825fe9eb7aa61ef953ed9338e",
+    "tw": "任何職務",
+    "cn": "任意任务"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistJobRequirement",
+    "field": "Text",
+    "en": "Level {0} in {1}",
+    "kind": "dat",
+    "sourceHash": "9239c039179ac1b1fd77c3fa39feb84a1a57c12ab278245522e979ea19fc78ed",
+    "tw": "等級 {0} 於 {1}",
+    "cn": "{1}（等级{0}）"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistEquipmentUsersAll",
+    "field": "Text",
+    "en": "Any Heist member can equip this item.",
+    "kind": "dat",
+    "sourceHash": "6f5449699a5a095423da9648f1ef7a5a9329edadfc4fa037e2d610c56d18d7f5",
+    "tw": "任何劫盜成員都可以裝備此物品。",
+    "cn": "任何赏金猎人都可以装备该物品。"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayHeistEquipmentUsers",
+    "field": "Text",
+    "en": "This item can be equipped by:\n{0}",
+    "kind": "dat",
+    "sourceHash": "6aa20da4fcc2349ce4874c0330a36cc89e3854f63690feaeac49bbca752458a3",
+    "tw": "此物品可以被以下人員裝備：\n{0}",
+    "cn": "该物品可以装备给：\n{0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionExpeditionLogbook",
+    "field": "Text",
+    "en": "Take this item to Dannig in your Hideout to open portals to an expedition.",
+    "kind": "dat",
+    "sourceHash": "8f3690fb1a1b7da352024ed8d63a2e7a11e4706812490cb2e27690c4c91f72f2",
+    "tw": "把此道具帶回你的藏身處給丹尼格，來開啟前往探險的傳送門。",
+    "cn": "在您的藏身处里把它交给丹宁，开启传送门开始探索先祖秘藏"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ReportWindowScamming",
+    "field": "Text",
+    "en": "Scamming",
+    "kind": "dat",
+    "sourceHash": "2d240807f371843092641f6ed6d4fa86af18160ea6d515c320d51ee19c8aac73",
+    "tw": "詐騙",
+    "cn": "欺诈"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusVeryLarge",
+    "field": "Text",
+    "en": "Very Large",
+    "kind": "dat",
+    "sourceHash": "9e4f3ad5d38637ea8dabd21de7da52570042301dfdd34ba490b7ae6d44e82a17",
+    "tw": "非常大",
+    "cn": "极大"
+  },
+  {
+    "table": "clientstrings",
+    "id": "JewelRadiusMassive",
+    "field": "Text",
+    "en": "Massive",
+    "kind": "dat",
+    "sourceHash": "ffe9a0ea220c374bda5bbfd681b9ee9007938c5501e32c8adbaa2ea770e43f8b",
+    "tw": "巨大",
+    "cn": "巨大"
+  },
+  {
+    "table": "clientstrings",
+    "id": "DivergentItem",
+    "field": "Text",
+    "en": "Vestigial {0}",
+    "kind": "dat",
+    "sourceHash": "d93c988f5931928d2574216cc206acfb71103606216204508db24ca1c0578290",
+    "tw": "殘存 {0}",
+    "cn": "退化{0}"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Amulet",
+    "field": "Name",
+    "en": "Amulets",
+    "kind": "dat",
+    "sourceHash": "a709b1d3efa929a10bd0b7f0289833c1cc2bc34e95aceed7db0a05f6d8cacafb",
+    "tw": "項鍊",
+    "cn": "项链"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Ring",
+    "field": "Name",
+    "en": "Rings",
+    "kind": "dat",
+    "sourceHash": "bab4c75d0722c872ee0bc206f672c3ae2d20219a780e3d6cf5ef0e82a2d15ec4",
+    "tw": "戒指",
+    "cn": "戒指"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Thrusting One Hand Sword",
+    "field": "Name",
+    "en": "Thrusting One Hand Swords",
+    "kind": "dat",
+    "sourceHash": "c2059547c409d310af5c690473370f908f8fdc2d7468443fac5c1d5dbee92987",
+    "tw": "細劍",
+    "cn": "细剑"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Helmet",
+    "field": "Name",
+    "en": "Helmets",
+    "kind": "dat",
+    "sourceHash": "244284e3263e10ebc6fb777042ae5850eef509cc9b72d501ae0f6a254e359e66",
+    "tw": "頭部",
+    "cn": "头部"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Sceptre",
+    "field": "Name",
+    "en": "Sceptres",
+    "kind": "dat",
+    "sourceHash": "68984c0d074dcb410a6d1279a6184dbc18e0f33772ade8d2f45cffcf62b623d8",
+    "tw": "權杖",
+    "cn": "短杖"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Map",
+    "field": "Name",
+    "en": "Maps",
+    "kind": "dat",
+    "sourceHash": "119e66d117ae8f0cfaf46ff97f0344f21ba0487574db7ea5f36d5399fe948792",
+    "tw": "異界地圖",
+    "cn": "异界地图"
+  },
+  {
+    "table": "itemclasses",
+    "id": "FishingRod",
+    "field": "Name",
+    "en": "Fishing Rods",
+    "kind": "dat",
+    "sourceHash": "a55455998fb43ff0d53b6b292b53b0d6a0ccdada151b48cdbc516d0388a5ab4e",
+    "tw": "魚竿",
+    "cn": "鱼竿"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Jewel",
+    "field": "Name",
+    "en": "Jewels",
+    "kind": "dat",
+    "sourceHash": "5e771087fd018d0b9c24ba0584855c6cd5d64f80f3ec9c9b67521391bb4a8500",
+    "tw": "珠寶",
+    "cn": "珠宝"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Rune Dagger",
+    "field": "Name",
+    "en": "Rune Daggers",
+    "kind": "dat",
+    "sourceHash": "ea82ab58a9360d6f432e0a0d4a340fee0a8671f5eb623959e4c3d378197fddb8",
+    "tw": "符紋匕首",
+    "cn": "符文匕首"
+  },
+  {
+    "table": "itemclasses",
+    "id": "Warstaff",
+    "field": "Name",
+    "en": "Warstaves",
+    "kind": "dat",
+    "sourceHash": "ec64a08c0558e8204e6dfbf34029ce6955266931c88ff82fdac82f39642f9966",
+    "tw": "征戰長杖",
+    "cn": "战杖"
+  },
+  {
+    "table": "itemclasses",
+    "id": "HeistEquipmentTool",
+    "field": "Name",
+    "en": "Heist Tools",
+    "kind": "dat",
+    "sourceHash": "04a1fee44753069660c81d632b036331797b90a371eb3c745f3ebcdf9e5df81a",
+    "tw": "劫盜工具",
+    "cn": "赏金猎人工具"
+  },
+  {
+    "table": "itemclasses",
+    "id": "ExpeditionLogbook",
+    "field": "Name",
+    "en": "Expedition Logbooks",
+    "kind": "dat",
+    "sourceHash": "651c5dd7281543c4b46011ec368fed2e9f633bb4ecf57a9f71012b44c4d705c8",
+    "tw": "探險日誌",
+    "cn": "先祖秘藏日志"
+  },
+  {
+    "table": "monstervarieties",
+    "id": "Metadata/Monsters/LeagueExpedition/BoneCultist/ExpeditionBoneCultist",
+    "field": "Name",
+    "en": "Druid of the Broken Circle",
+    "kind": "dat",
+    "sourceHash": "cc7ec0f50024bee029a56998087d6174ccf0436b1f9d5076d55f70b3bfd85b12",
+    "tw": "破碎環之德魯伊",
+    "cn": "裂环祭司"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Interrogator1",
+    "field": "Name",
+    "en": "Niles, the Interrogator",
+    "kind": "dat",
+    "sourceHash": "12f532e5ae17833544d8884c4424fb78c52a86dbe711457a437ae5a88a4f6f84",
+    "tw": "審訊專家．奈爾斯",
+    "cn": "审讯师奈尔斯"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Interrogator1",
+    "field": "ShortName",
+    "en": "Niles",
+    "kind": "dat",
+    "sourceHash": "7f62074370e9a7ab94fe81bc0eb1c43e36a27daa86c7a8fb18979e94becf4e8d",
+    "tw": "奈爾斯",
+    "cn": "奈尔斯"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Illusionist1",
+    "field": "Name",
+    "en": "Gianna, the Master of Disguise",
+    "kind": "dat",
+    "sourceHash": "2e511a4e5f05806f8010b578c9420f61b645f7ee9a5df2ac7e3531f46e3c39c8",
+    "tw": "偽裝大師．吉安娜",
+    "cn": "易容大师吉安娜"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Illusionist1",
+    "field": "ShortName",
+    "en": "Gianna",
+    "kind": "dat",
+    "sourceHash": "30598429a243d163e24a64b125e7790c8ddac4da0262dcd5e64f4ce4a803b530",
+    "tw": "吉安娜",
+    "cn": "吉安娜"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Engineer1",
+    "field": "Name",
+    "en": "Isla, the Engineer",
+    "kind": "dat",
+    "sourceHash": "46d5da24bc4e7825f9b26f644f4216ceedda3e89f480d9ee934e16867788c06f",
+    "tw": "工程師．伊絲菈",
+    "cn": "工程师伊斯拉"
+  },
+  {
+    "table": "npcs",
+    "id": "Metadata/NPC/League/Heist/Engineer1",
+    "field": "ShortName",
+    "en": "Isla",
+    "kind": "dat",
+    "sourceHash": "0eca2fb9d5fca57a4c631e5c4a2cc68e2dab595864237f907859e2b45b394197",
+    "tw": "伊絲菈",
+    "cn": "伊斯拉"
+  },
+  {
+    "table": "words",
+    "id": "hash:08886a4a",
+    "field": "Text2",
+    "en": "Thread of Hope",
+    "kind": "dat",
+    "sourceHash": "5b718d9fe6e3faadde4cd88d4d6f956ae75f6116030d84d4b77d74fdacc87a6b",
+    "tw": "希望之絃",
+    "cn": "希望之线"
+  },
+  {
+    "table": "words",
+    "id": "hash:b3d4fe63",
+    "field": "Text2",
+    "en": "Willclash",
+    "kind": "dat",
+    "sourceHash": "4ee924a26c7ea16d862090bc7ec1ccf34896e4422a7bd313dc2d587adc130919",
+    "tw": "意志衝突",
+    "cn": "意志交锋"
+  },
+  {
+    "table": "worldareas",
+    "id": "1_3_3_1",
+    "field": "Name",
+    "en": "The Crematorium",
+    "kind": "dat",
+    "sourceHash": "320dc9841104a6b0016a51b47a74168be13e03e6497f932f87b443d201d9e9a2",
+    "tw": "火葬場",
+    "cn": "火葬场"
+  },
+  {
+    "table": "worldareas",
+    "id": "MapAtlasGraveyard",
+    "field": "Name",
+    "en": "Graveyard",
+    "kind": "dat",
+    "sourceHash": "3561a4b89ed11c9871f20e3597048d2c42c16d08f79492748d66e982177ee410",
+    "tw": "墮影墓場",
+    "cn": "堕影墓场"
+  },
+  {
+    "table": "worldareas",
+    "id": "MapAtlasPit",
+    "field": "Name",
+    "en": "Pit",
+    "kind": "dat",
+    "sourceHash": "fd81159c3ee0c11a8de50d21fb5d9a563d11737191b18ce4a7da61175b481707",
+    "tw": "巨坑",
+    "cn": "巨坑"
+  },
+  {
+    "table": "worldareas",
+    "id": "ExpeditionShipwreckReef",
+    "field": "Name",
+    "en": "Shipwreck Reef",
+    "kind": "dat",
+    "sourceHash": "520a532c5324171d95048abcf156e510e857650904927b4492e676bc2984d49d",
+    "tw": "沉船岩礁",
+    "cn": "船骸礁岩"
+  },
+  {
+    "table": "worldareas",
+    "id": "ExpeditionSarnSlums",
+    "field": "Name",
+    "en": "Sarn Slums",
+    "kind": "dat",
+    "sourceHash": "f46ad2180c9ae4ee7e032494f54217273beb5d27dac2357fe8d63716eeabdb4e",
+    "tw": "薩恩貧民窟",
+    "cn": "贫民窟"
+  },
+  {
+    "table": "worldareas",
+    "id": "ExpeditionForestRuins",
+    "field": "Name",
+    "en": "Forest Ruins",
+    "kind": "dat",
+    "sourceHash": "23f0e4e9c1dbfa4cdb6729d1c6bcc123b0a6fd953764ef9e8da9b406ffc40beb",
+    "tw": "森林遺跡",
+    "cn": "森林废墟"
+  },
+  {
+    "table": "worldareas",
+    "id": "ExpeditionScrublands",
+    "field": "Name",
+    "en": "Scrublands",
+    "kind": "dat",
+    "sourceHash": "e182f31e110f43928b20c91dc25424cfa917466a69ab23b24f74795f09c93d06",
+    "tw": "灌木叢",
+    "cn": "灌木之地"
+  },
+  {
+    "table": "metadata/statdescriptions/heist_equipment_stat_descriptions.csd",
+    "id": "heist_job_deception_speed_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Deception speed",
+    "kind": "stat",
+    "sourceHash": "8c52bb917d494a69929808e758aa9c16ea6fd91bf50380cab2350cba959be3b3",
+    "stats": {
+      "ids": [
+        "heist_job_deception_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 詐欺速度",
+    "cn": "欺诈速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/heist_equipment_stat_descriptions.csd",
+    "id": "heist_job_deception_speed_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Deception speed",
+    "kind": "stat",
+    "sourceHash": "9760a2d4c4c36cc5300fa086f3ee9c3ce9c46b8c30feaa66df5bd6581caf71d4",
+    "stats": {
+      "ids": [
+        "heist_job_deception_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 詐欺速度",
+    "cn": "欺诈速度减慢 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/heist_equipment_stat_descriptions.csd",
+    "id": "heist_job_engineering_speed_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Engineering speed",
+    "kind": "stat",
+    "sourceHash": "7e5a4a6a91a4b8afda4b27662391ea5208374dda6cdf4daf2e65f9681b6040d7",
+    "stats": {
+      "ids": [
+        "heist_job_engineering_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 工程速度",
+    "cn": "工程学速度加快 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/heist_equipment_stat_descriptions.csd",
+    "id": "heist_job_engineering_speed_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Engineering speed",
+    "kind": "stat",
+    "sourceHash": "1deec3fe5637593253c886ad74010ddd9aa1ca215cf5dfaf13d16f8bd9d4158e",
+    "stats": {
+      "ids": [
+        "heist_job_engineering_speed_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 工程速度",
+    "cn": "工程学速度减慢 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_expedition_artifact_quantity_+%",
+    "field": "variant:0",
+    "en": "{0}% increased quantity of Artifacts dropped by Monsters",
+    "kind": "stat",
+    "sourceHash": "609ea35e3964f3b4de4dd4f266611d615904b30693eaf399b0e34820bcf72496",
+    "stats": {
+      "ids": [
+        "map_expedition_artifact_quantity_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 怪物掉落文物的數量",
+    "cn": "怪物掉落的神器数量提高 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_expedition_explosion_radius_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Explosive Radius",
+    "kind": "stat",
+    "sourceHash": "403035ce2dda96af661f3459f02f0d45f3cbe8cd2e4b9cf0964a27e7efa0c9e2",
+    "stats": {
+      "ids": [
+        "map_expedition_explosion_radius_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 爆炸範圍",
+    "cn": "爆炸范围扩大 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_expedition_number_of_monster_markers_+%",
+    "field": "variant:0",
+    "en": "Area contains {0}% increased number of Monster Markers",
+    "kind": "stat",
+    "sourceHash": "ec6009b34f66ad330da0a99f72dc64d162d2747a1bd5f51e66c35ca90941f49a",
+    "stats": {
+      "ids": [
+        "map_expedition_number_of_monster_markers_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "區域增加 {0}% 怪物標記的數量",
+    "cn": "区域内怪物之印的数量提高 {0}%"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDescriptionHeistItem",
+    "field": "Text",
+    "en": "Can only be equipped to Heist members.",
+    "kind": "dat",
+    "sourceHash": "176dda745589d1b118ca41746c12c0ecc5d67bf27f90f3b9e3faa1c4311ec4f1",
+    "tw": "只能裝備於劫盜成員。",
+    "cn": "只能给赏金猎人同伴装备。"
+  },
+  {
+    "table": "elderguardians",
+    "id": "Enslaver",
+    "field": "Name",
+    "en": "The Enslaver",
+    "kind": "dat",
+    "sourceHash": "907db4675279e7c169f119663437e9d90fb496298262cd8db15903a2b4ae9318",
+    "cn": "裂界守卫：奴役",
+    "tw": "異界．奴役"
+  },
+  {
+    "table": "elderguardians",
+    "id": "Eradicator",
+    "field": "Name",
+    "en": "The Eradicator",
+    "kind": "dat",
+    "sourceHash": "681082b0484131fed12a0ca64509f23d8c74cc04eec4a210669ebac88b8e227f",
+    "cn": "裂界守卫：寂灭",
+    "tw": "異界．根除"
+  },
+  {
+    "table": "elderguardians",
+    "id": "Constrictor",
+    "field": "Name",
+    "en": "The Constrictor",
+    "kind": "dat",
+    "sourceHash": "6f38d08b35a6e47f47349cbac302a499237f22bc0724701ca54fa624d0353768",
+    "cn": "裂界守卫：绞杀",
+    "tw": "異界．干擾"
+  },
+  {
+    "table": "elderguardians",
+    "id": "Purifier",
+    "field": "Name",
+    "en": "The Purifier",
+    "kind": "dat",
+    "sourceHash": "5e1634bd9416feeba91e97d98694bf30d7d89dbe4a19d75d4f6bc48c6122d10c",
+    "cn": "裂界守卫：净世",
+    "tw": "異界．淨化"
+  },
+  {
+    "table": "atlasexiles",
+    "id": "Crusader",
+    "field": "CitadelName",
+    "en": "Baran's Citadel",
+    "kind": "dat",
+    "sourceHash": "03fc6dc7a776c1ce316b40d02db2bb3bb94fd7a7700aa95a1952115fcb37c9db",
+    "cn": "巴兰要塞",
+    "tw": "巴倫的壁壘"
+  },
+  {
+    "table": "atlasexiles",
+    "id": "Eyrie",
+    "field": "CitadelName",
+    "en": "Veritania's Citadel",
+    "kind": "dat",
+    "sourceHash": "191064cfe2fa83dcfa8cbe06abe99943ca93fde14d777aebe02fe2a5f12639ac",
+    "cn": "维利塔妮娅要塞",
+    "tw": "維羅提尼亞的壁壘"
+  },
+  {
+    "table": "atlasexiles",
+    "id": "Basilisk",
+    "field": "CitadelName",
+    "en": "Al-Hezmin's Citadel",
+    "kind": "dat",
+    "sourceHash": "c82c1d7eeeba2db180006631cdcc5ca3a05df0eecb932870278ad673e7e9e7c7",
+    "cn": "阿尔赫兹敏要塞",
+    "tw": "奧赫茲明的壁壘"
+  },
+  {
+    "table": "atlasexiles",
+    "id": "Adjudicator",
+    "field": "CitadelName",
+    "en": "Drox's Citadel",
+    "kind": "dat",
+    "sourceHash": "adf6b8ad721872f0f529aa057971ec316d405b26040c7f6ec08630563ca86b9d",
+    "cn": "狄洛克斯要塞",
+    "tw": "圖拉克斯的壁壘"
+  },
+  {
+    "table": "activeskills",
+    "id": "raise_zombie",
+    "field": "DisplayedName",
+    "en": "Raise Zombie",
+    "kind": "dat",
+    "sourceHash": "1f578f7614d238f1a7f4ae100dfe765cbdc0f5cdb2fb9d4e388ff887cffa208a",
+    "cn": "魔卫复苏",
+    "tw": "殭屍復甦"
+  },
+  {
+    "table": "activeskills",
+    "id": "summon_harbinger_of_storms",
+    "field": "DisplayedName",
+    "en": "Summon Harbinger of Storms",
+    "kind": "dat",
+    "sourceHash": "cd2649a638f0566bcbe3150fc8c89eac42cb3e2560d06c17313b1c7f1ac111e9",
+    "cn": "召唤冰雷先驱者",
+    "tw": "召喚風暴神諭"
+  },
+  {
+    "table": "activeskills",
+    "id": "unhinge",
+    "field": "DisplayedName",
+    "en": "Unhinge",
+    "kind": "dat",
+    "sourceHash": "249a5444f22fab2cccf21231e12d2dfa2b0ec61cb4a04692820287f51f68b75a",
+    "cn": "精神失常",
+    "tw": "錯亂"
+  },
+  {
+    "table": "activeskills",
+    "id": "graft_skill_esh_jolt_buff",
+    "field": "DisplayedName",
+    "en": "Overcharged Sinews",
+    "kind": "dat",
+    "sourceHash": "4c21eea62e5441a5cdad01180cda34d62b8e75304184a8cb26ed973ca1a917ae",
+    "cn": "血肉过载",
+    "tw": "過載筋腱"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Amulet7",
+    "field": "Name",
+    "en": "Onyx Amulet",
+    "kind": "dat",
+    "sourceHash": "bac642dd1523f2c87e3172475dca62242ab4fb2cc66d543a6009ddca80b530bb",
+    "cn": "黑曜护身符",
+    "tw": "黑曜護身符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/Amulet9",
+    "field": "Name",
+    "en": "Agate Amulet",
+    "kind": "dat",
+    "sourceHash": "5a1fb9043f8d3c3d6524f64d086417aa9ed2e7e558d3460209c6a9a258859fbd",
+    "cn": "玛瑙护身符",
+    "tw": "瑪瑙護身符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Amulets/AmuletRoyale1",
+    "field": "Name",
+    "en": "Onyx Amulet",
+    "kind": "dat",
+    "sourceHash": "bac642dd1523f2c87e3172475dca62242ab4fb2cc66d543a6009ddca80b530bb",
+    "cn": "黑曜护身符",
+    "tw": "黑曜護身符"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Armours/BodyArmours/BodyDexInt16",
+    "field": "Name",
+    "en": "Sadist Garb",
+    "kind": "dat",
+    "sourceHash": "514741aaae3ceae55ceb489641938f4cf8dbdba05c0af7871f50c951fb5b555d",
+    "cn": "狂虐者束衣",
+    "tw": "狂虐者束衣"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelDex",
+    "field": "Name",
+    "en": "Viridian Jewel",
+    "kind": "dat",
+    "sourceHash": "1903837014ac1007d7e8c53e7b61e571d08887ca1f7ffe43b4db641328d35e90",
+    "cn": "翠绿珠宝",
+    "tw": "翠綠珠寶"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelInt",
+    "field": "Name",
+    "en": "Cobalt Jewel",
+    "kind": "dat",
+    "sourceHash": "b0484563af97f264c02a15f23385f744d39d3789bbba33453211940fc53386b0",
+    "cn": "钴蓝珠宝",
+    "tw": "鈷藍珠寶"
+  },
+  {
+    "table": "baseitemtypes",
+    "id": "Metadata/Items/Jewels/JewelPassiveTreeExpansionLarge",
+    "field": "Name",
+    "en": "Large Cluster Jewel",
+    "kind": "dat",
+    "sourceHash": "3024531f1bdc1e042d8f1cbf75fbd6f6e3fe10b9c0bba1197b8ea94e2ecc2fe0",
+    "cn": "大型星团珠宝",
+    "tw": "巨型星團珠寶"
+  },
+  {
+    "table": "clientstrings",
+    "id": "StatDescripotionTreeExpansionJewelGrantedSmallStat",
+    "field": "Text",
+    "en": "Added Small Passive Skills grant: {0}",
+    "kind": "dat",
+    "sourceHash": "ef6068ed2af5776ffd33ae226b4d54b4222aed2c2d4952c90de9d1a0e1a3980a",
+    "cn": "增加的小天赋获得：{0}",
+    "tw": "附加的小型天賦給予：{0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "BrequelGraftSkillString",
+    "field": "Text",
+    "en": "Uses level {1} {0}",
+    "kind": "dat",
+    "sourceHash": "bc968e6faa00c92921eca5c96fcdc0991491909206033e39c42185ad40c7d853",
+    "cn": "使用等级 {1} 的 {0}",
+    "tw": "使用等級 {1} {0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ItemDisplayBuiltInSupport",
+    "field": "Text",
+    "en": "Supported by Level 1 {0}",
+    "kind": "dat",
+    "sourceHash": "62376dae15567d465c760faa8257720d0b70f23a2b62372ae5788630060edb22",
+    "cn": "被等级 1 的{0}辅助",
+    "tw": "被等級1的{0}輔助"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ModGrantsEffect",
+    "field": "Text",
+    "en": "Grants {0}",
+    "kind": "dat",
+    "sourceHash": "c536862188036f93e5bbbca19473a8e85ce2d47224150498a07460594d6f71ec",
+    "cn": "赋予 {0}",
+    "tw": "賦予 {0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "ModGrantsEffectWithLevel",
+    "field": "Text",
+    "en": "Grants Level {1} {0}",
+    "kind": "dat",
+    "sourceHash": "18e82a5eaecbbeb9aebf8b1f5d2bfaf8c5ff3af594f177be9d4153dfc3dfb90a",
+    "cn": "赋予 {1} 级 {0}",
+    "tw": "賦予等級 {1} 的 {0}"
+  },
+  {
+    "table": "passiveskills",
+    "id": "eldritch_battery1142",
+    "field": "Name",
+    "en": "Eldritch Battery",
+    "kind": "dat",
+    "sourceHash": "9bcdbc178a7727892f9650a6c184ee7ead4dce33e7b6620f1f0ed0598ba15cf6",
+    "cn": "异能魔力",
+    "tw": "異能魔力"
+  },
+  {
+    "table": "passiveskills",
+    "id": "aura_effect_reservation_cost_notable1558",
+    "field": "Name",
+    "en": "Charisma",
+    "kind": "dat",
+    "sourceHash": "d0469022d3813c43d313cf0866e246c5d1f6f04a32bd781718482176891ad1c6",
+    "cn": "魅力",
+    "tw": "魅力"
+  },
+  {
+    "table": "passiveskills",
+    "id": "AscendancyAscendant32",
+    "field": "Name",
+    "en": "Berserker",
+    "kind": "dat",
+    "sourceHash": "143f40fdffa420df4a569d09f72cdb60bf2c2e5a6a8a0bd3cebb1effa8523177",
+    "cn": "暴徒",
+    "tw": "暴徒"
+  },
+  {
+    "table": "passiveskills",
+    "id": "AscendancyBerserkerStart",
+    "field": "Name",
+    "en": "Berserker",
+    "kind": "dat",
+    "sourceHash": "143f40fdffa420df4a569d09f72cdb60bf2c2e5a6a8a0bd3cebb1effa8523177",
+    "cn": "暴徒",
+    "tw": "暴徒"
+  },
+  {
+    "table": "words",
+    "id": "hash:57fa6451",
+    "field": "Text",
+    "en": "Replica Dragonfang's Flight",
+    "kind": "dat",
+    "sourceHash": "9498ca62f15f3d2d2f5deb1cd7db544276cd312f7007320e912340f8c299a679",
+    "tw": "Replica Dragonfang's Flight"
+  },
+  {
+    "table": "words",
+    "id": "hash:57fa6451",
+    "field": "Text2",
+    "en": "Replica Dragonfang's Flight",
+    "kind": "dat",
+    "sourceHash": "9498ca62f15f3d2d2f5deb1cd7db544276cd312f7007320e912340f8c299a679",
+    "cn": "龙牙之翔【仿品】",
+    "tw": "贗品．龍牙翱翔"
+  },
+  {
+    "table": "words",
+    "id": "hash:8506545b",
+    "field": "Text",
+    "en": "Doppelgänger Guise",
+    "kind": "dat",
+    "sourceHash": "1733803dd8eda808b39f4edd2a45f6d5ffea620081d01694636c093a031af707",
+    "tw": "Doppelgänger Guise"
+  },
+  {
+    "table": "words",
+    "id": "hash:8506545b",
+    "field": "Text2",
+    "en": "Doppelgänger Guise",
+    "kind": "dat",
+    "sourceHash": "1733803dd8eda808b39f4edd2a45f6d5ffea620081d01694636c093a031af707",
+    "cn": "变形者外衣",
+    "tw": "達佩爾甘格偽裝"
+  },
+  {
+    "table": "words",
+    "id": "hash:f9682c60",
+    "field": "Text",
+    "en": "Forbidden Flame",
+    "kind": "dat",
+    "sourceHash": "663675b4b171c846f5c950d64917d6b4910e6f5f85959a263e35b3bb257a4069",
+    "tw": "Forbidden Flame"
+  },
+  {
+    "table": "words",
+    "id": "hash:f9682c60",
+    "field": "Text2",
+    "en": "Forbidden Flame",
+    "kind": "dat",
+    "sourceHash": "663675b4b171c846f5c950d64917d6b4910e6f5f85959a263e35b3bb257a4069",
+    "cn": "禁断之火",
+    "tw": "禁忌烈焰"
+  },
+  {
+    "table": "words",
+    "id": "hash:75507eb2",
+    "field": "Text",
+    "en": "Forbidden Flesh",
+    "kind": "dat",
+    "sourceHash": "e1ff3e1f469f42c4644e51ade4406e15ade5e029227aee9c6a9b501dd8f3f533",
+    "tw": "Forbidden Flesh"
+  },
+  {
+    "table": "words",
+    "id": "hash:75507eb2",
+    "field": "Text2",
+    "en": "Forbidden Flesh",
+    "kind": "dat",
+    "sourceHash": "e1ff3e1f469f42c4644e51ade4406e15ade5e029227aee9c6a9b501dd8f3f533",
+    "cn": "禁断之肉",
+    "tw": "禁忌血肉"
+  },
+  {
+    "table": "words",
+    "id": "hash:e784128b",
+    "field": "Text",
+    "en": "Impossible Escape",
+    "kind": "dat",
+    "sourceHash": "130ee2a75ce1c12ccd9b5d5465607477079ee26dc8f1dd28c11c2b0042583ec8",
+    "tw": "Impossible Escape"
+  },
+  {
+    "table": "words",
+    "id": "hash:e784128b",
+    "field": "Text2",
+    "en": "Impossible Escape",
+    "kind": "dat",
+    "sourceHash": "130ee2a75ce1c12ccd9b5d5465607477079ee26dc8f1dd28c11c2b0042583ec8",
+    "cn": "无所遁形",
+    "tw": "逃脫不能"
+  },
+  {
+    "table": "miniondoublingstattypes",
+    "id": "1",
+    "field": "Name",
+    "en": "Summoned Golems",
+    "kind": "dat",
+    "sourceHash": "38d9db448f40e206f0b7847a0a65d06f19130876ecda6d2514345b504660516a",
+    "cn": "召唤的魔像",
+    "tw": "召喚魔像"
+  },
+  {
+    "table": "metadata/statdescriptions/advanced_mod_stat_descriptions.csd",
+    "id": "local_jewel_variable_ring_radius_value",
+    "field": "variant:0",
+    "en": "Only affects Passives in {0} Ring",
+    "kind": "stat",
+    "sourceHash": "2377f23a5da1df9761ec33b17274678277dfc10342cc1edf50af15458e9cb41f",
+    "stats": {
+      "ids": [
+        "local_jewel_variable_ring_radius_value"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_jewel_radius 1 reminderstring ReminderTextJewelRadiusRing",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/advanced_mod_stat_descriptions.csd",
+    "id": "maximum_number_of_X_minion_type_doubled",
+    "field": "variant:0",
+    "en": "Maximum number of {0} is Doubled\\nCannot have Minions other than {0}",
+    "kind": "stat",
+    "sourceHash": "ab2a7cb6454e8049291f5e25e597b473f7bf38bad3f7c41876765774a256da03",
+    "stats": {
+      "ids": [
+        "maximum_number_of_X_minion_type_doubled"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "minion_doubling_type 1",
+          "placeholders": [
+            "{0}",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:0",
+    "en": "Supported Skills deal {0}% increased Attack Damage",
+    "kind": "stat",
+    "sourceHash": "fbf24e38c1b1f87a6b7fac76be3ec31902d48446e9003d9ec9078fec13b3b324",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "被輔助的技能增加 {0}% 攻擊傷害",
+    "cn": "被辅助技能的攻击伤害提高 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/gem_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:1",
+    "en": "Supported Skills deal {0}% reduced Attack Damage",
+    "kind": "stat",
+    "sourceHash": "08f742d949c5dde4bc52c160e95b0824767f55f8a8b065f800e1cb38f16a9abe",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "被輔助的技能減少 {0}% 攻擊傷害",
+    "cn": "被辅助技能的攻击伤害降低 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:0",
+    "en": "Minions deal {0}% increased Attack Damage",
+    "kind": "stat",
+    "sourceHash": "e5043ca26a56d96a0f5cd041a10779d8e82281099b9c0e49418829c525e70cca",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加  {0}% 召喚物攻擊傷害",
+    "cn": "召唤生物的攻击技能伤害提高 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/minion_skill_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:1",
+    "en": "Minions deal {0}% reduced Attack Damage",
+    "kind": "stat",
+    "sourceHash": "7a947d6bafca2d60d29088be6ba80898ee66bf9ba0b07315c003c02a24223d21",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少  {0}% 召喚物攻擊傷害",
+    "cn": "召唤生物的攻击技能伤害降低 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Attack Damage",
+    "kind": "stat",
+    "sourceHash": "78e3a007e5fdf833986fb615e54a2698f547a2c9f336b7f5de94a2f26c2a019d",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 攻擊傷害",
+    "cn": "攻击伤害提高 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/skill_stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Attack Damage",
+    "kind": "stat",
+    "sourceHash": "8f7868140f8f556d5d6a69595cd91b0cb5ef962d43ef212cabf5a35997b71702",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 攻擊傷害",
+    "cn": "攻击伤害降低 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_jewel_variable_ring_radius_value",
+    "field": "variant:0",
+    "en": "Only affects Passives in {0} Ring",
+    "kind": "stat",
+    "sourceHash": "2377f23a5da1df9761ec33b17274678277dfc10342cc1edf50af15458e9cb41f",
+    "stats": {
+      "ids": [
+        "local_jewel_variable_ring_radius_value"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_jewel_radius 1 reminderstring ReminderTextJewelRadiusRing",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:0",
+    "en": "{0}% increased Attack Damage",
+    "kind": "stat",
+    "sourceHash": "78e3a007e5fdf833986fb615e54a2698f547a2c9f336b7f5de94a2f26c2a019d",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "增加 {0}% 攻擊傷害",
+    "cn": "攻击伤害提高 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "attack_damage_+%",
+    "field": "variant:1",
+    "en": "{0}% reduced Attack Damage",
+    "kind": "stat",
+    "sourceHash": "8f7868140f8f556d5d6a69595cd91b0cb5ef962d43ef212cabf5a35997b71702",
+    "stats": {
+      "ids": [
+        "attack_damage_+%"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "減少 {0}% 攻擊傷害",
+    "cn": "攻击伤害降低 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "random_skill_gem_level_+_level random_skill_gem_level_+_index",
+    "field": "variant:0",
+    "en": "+{0} to Level of all {1} Gems",
+    "kind": "stat",
+    "sourceHash": "361ec9380dd05350d69f5affb7f0102e1af32e91edacefcad40e31c08690955c",
+    "stats": {
+      "ids": [
+        "random_skill_gem_level_+_level",
+        "random_skill_gem_level_+_index"
+      ],
+      "variants": [
+        {
+          "condition": "1|# #",
+          "handlers": "display_indexable_skill 2 0",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        },
+        {
+          "condition": "#|-1 #",
+          "handlers": "display_indexable_skill 2 0",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        }
+      ]
+    },
+    "tw": "全部 {1} 寶石等級 +{0}",
+    "cn": "所有 {1} 宝石等级 +{0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "random_skill_gem_level_+_level random_skill_gem_level_+_index",
+    "field": "variant:1",
+    "en": "-{0} to Level of all {1} Gems",
+    "kind": "stat",
+    "sourceHash": "bdec880a336c9571af11aa285741e700c49c9e31bdd36638878b36f535370a7a",
+    "stats": {
+      "ids": [
+        "random_skill_gem_level_+_level",
+        "random_skill_gem_level_+_index"
+      ],
+      "variants": [
+        {
+          "condition": "1|# #",
+          "handlers": "display_indexable_skill 2 0",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        },
+        {
+          "condition": "#|-1 #",
+          "handlers": "display_indexable_skill 2 0",
+          "placeholders": [
+            "{0}",
+            "{1}"
+          ]
+        }
+      ]
+    },
+    "tw": "全部 {1} 寶石等級 -{0}",
+    "cn": "所有 {1} 宝石等级 -{0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_jewel_expansion_passive_node_count",
+    "field": "variant:0",
+    "en": "Adds 1 Passive Skill",
+    "kind": "stat",
+    "sourceHash": "26c27686e855daf81d392f69d2a15654c2f100e59852a3fe50fff008542337a5",
+    "stats": {
+      "ids": [
+        "local_jewel_expansion_passive_node_count"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "reminderstring ReminderTextAddedPassivesNoOtherJewels reminderstring ReminderTextAddedPassivesSmallDefault",
+          "placeholders": []
+        },
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextAddedPassivesNoOtherJewels reminderstring ReminderTextAddedPassivesSmallDefault canonical_line",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "附加 1 個天賦",
+    "cn": "增加 1 个天赋技能"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_jewel_expansion_passive_node_count",
+    "field": "variant:1",
+    "en": "Adds {0} Passive Skills",
+    "kind": "stat",
+    "sourceHash": "8fbd0ff1c22d8e7b36f346af6c9baaba4d719f921318dea6cd5170ca3bb7b566",
+    "stats": {
+      "ids": [
+        "local_jewel_expansion_passive_node_count"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "reminderstring ReminderTextAddedPassivesNoOtherJewels reminderstring ReminderTextAddedPassivesSmallDefault",
+          "placeholders": []
+        },
+        {
+          "condition": "#",
+          "handlers": "reminderstring ReminderTextAddedPassivesNoOtherJewels reminderstring ReminderTextAddedPassivesSmallDefault canonical_line",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "附加 {0} 個天賦",
+    "cn": "增加 {0} 个天赋技能"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%_final_while_unhinged",
+    "field": "variant:0",
+    "en": "{0}% more Critical Strike Chance while Insane",
+    "kind": "stat",
+    "sourceHash": "355d1c4836d1866f8326307e57bf248627ac9681dcc733f0aa913e7a67bda408",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%_final_while_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "瘋狂時有 {0}% 更多暴擊率",
+    "cn": "疯狂状态下，总暴击率总增 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "critical_strike_chance_+%_final_while_unhinged",
+    "field": "variant:1",
+    "en": "{0}% less Critical Strike Chance while Insane",
+    "kind": "stat",
+    "sourceHash": "dbf74f49317ab5ecc5561918f912dfa431ff6121e4294bacfa0f631c253fd614",
+    "stats": {
+      "ids": [
+        "critical_strike_chance_+%_final_while_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "瘋狂時有 {0}% 更少暴擊率",
+    "cn": "疯狂状态下，总暴击率总降 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "enemies_explode_on_kill_while_unhinged",
+    "field": "variant:0",
+    "en": "Enemies Killed by your Hits are destroyed while Insane",
+    "kind": "stat",
+    "sourceHash": "efb07ad5e89a31f12b75fcceb26bc53e4281dc19c930d534096ea66a7ab026da",
+    "stats": {
+      "ids": [
+        "enemies_explode_on_kill_while_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "瘋狂時被你的擊中擊殺的敵人會被摧毀",
+    "cn": "疯狂状态下，被你的击中击败的敌人会被毁灭"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_affliction_notable_aggressive_defence",
+    "field": "variant:0",
+    "en": "1 Added Passive Skill is Aggressive Defence",
+    "kind": "stat",
+    "sourceHash": "85d907bd03bfce8a45fbb21a7c0b37e82e10904a8bc4e15e35b5bc2bfd6e9653",
+    "stats": {
+      "ids": [
+        "local_affliction_notable_aggressive_defence"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "",
+          "placeholders": []
+        }
+      ]
+    },
+    "tw": "1 個附加天賦為積極防禦",
+    "cn": "其中 1 个增加的天赋为以攻为守"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_jewel_expansion_jewels_count",
+    "field": "variant:0",
+    "en": "1 Added Passive Skill is a Jewel Socket",
+    "kind": "stat",
+    "sourceHash": "ed472785f4ca669a954cf65c466a8ebe2597398deb883727a38a1549235168b8",
+    "stats": {
+      "ids": [
+        "local_jewel_expansion_jewels_count"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": []
+        },
+        {
+          "condition": "2|#",
+          "handlers": "canonical_line",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "1 個附加的天賦為珠寶插槽",
+    "cn": "其中 1 个增加的天赋为珠宝槽"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_jewel_expansion_jewels_count",
+    "field": "variant:1",
+    "en": "{0} Added Passive Skills are Jewel Sockets",
+    "kind": "stat",
+    "sourceHash": "8a8d7153ea6622726f7d8a5b85b2806a6b7e4de2f21aa573597d77cdd65af07c",
+    "stats": {
+      "ids": [
+        "local_jewel_expansion_jewels_count"
+      ],
+      "variants": [
+        {
+          "condition": "1",
+          "handlers": "",
+          "placeholders": []
+        },
+        {
+          "condition": "2|#",
+          "handlers": "canonical_line",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "{0} 個附加的天賦為珠寶插槽",
+    "cn": "其中 {0} 个增加的天赋为珠宝槽"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_contains_citadel",
+    "field": "variant:0",
+    "en": "Map contains {0}",
+    "kind": "stat",
+    "sourceHash": "16f3e47416bedee05e86daba7fc4df870c0df2df2c28fb05f76078ac4d277a09",
+    "stats": {
+      "ids": [
+        "map_contains_citadel"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "atlas_exile_citadel_index 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "地圖含有{0}",
+    "cn": "地图中包含 {0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "map_elder_boss_variation",
+    "field": "variant:0",
+    "en": "Map is occupied by {0}",
+    "kind": "stat",
+    "sourceHash": "5ac11f1504dfb329614f4b6f3b393c7c14e8f9a1d794b85deae0d8bdf37f7eea",
+    "stats": {
+      "ids": [
+        "map_elder_boss_variation"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "elder_guardian_index 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "maximum_number_of_X_minion_type_doubled",
+    "field": "variant:0",
+    "en": "Maximum number of {0} is Doubled\\nCannot have Minions other than {0}",
+    "kind": "stat",
+    "sourceHash": "ab2a7cb6454e8049291f5e25e597b473f7bf38bad3f7c41876765774a256da03",
+    "stats": {
+      "ids": [
+        "maximum_number_of_X_minion_type_doubled"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "minion_doubling_type 1",
+          "placeholders": [
+            "{0}",
+            "{0}"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "mod_granted_passive_hash",
+    "field": "variant:0",
+    "en": "Allocates {0}",
+    "kind": "stat",
+    "sourceHash": "e2bd193f57bea0bbd7f41f17eaba2c715221fb578ead3f2ca163c19281cebf10",
+    "stats": {
+      "ids": [
+        "mod_granted_passive_hash"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_hash 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "配置 {0}",
+    "cn": "配置 {0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "physical_and_chaos_damage_taken_+%_final_while_not_unhinged",
+    "field": "variant:0",
+    "en": "{0}% more Physical and Chaos Damage Taken while Sane",
+    "kind": "stat",
+    "sourceHash": "8ce2a24ecde5b1112469086e552d6db29681721d3f45c7c2812ee50d82fe1c3a",
+    "stats": {
+      "ids": [
+        "physical_and_chaos_damage_taken_+%_final_while_not_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "理智時，承受 {0}% 更多物理和混沌傷害",
+    "cn": "理智状态下，受到的物理和混沌伤害总增 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "physical_and_chaos_damage_taken_+%_final_while_not_unhinged",
+    "field": "variant:1",
+    "en": "{0}% less Physical and Chaos Damage Taken while Sane",
+    "kind": "stat",
+    "sourceHash": "77bbaf2c03507d5d4ce4b66f98bcb3737a4d70148f7e2daf7f13f699d4526e7c",
+    "stats": {
+      "ids": [
+        "physical_and_chaos_damage_taken_+%_final_while_not_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        },
+        {
+          "condition": "#|-1",
+          "handlers": "negate 1",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "理智時，承受 {0}% 更少物理和混沌傷害",
+    "cn": "理智状态下，受到的物理和混沌伤害总降 {0}%"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "regenerate_%_life_over_1_second_when_hit_while_not_unhinged",
+    "field": "variant:0",
+    "en": "Regenerate {0}% Life over one second when Hit while Sane",
+    "kind": "stat",
+    "sourceHash": "39e55cf80636f7f789933924c88c9d2c95cd2ecd5491138464f26be221f51e9b",
+    "stats": {
+      "ids": [
+        "regenerate_%_life_over_1_second_when_hit_while_not_unhinged"
+      ],
+      "variants": [
+        {
+          "condition": "1|#",
+          "handlers": "",
+          "placeholders": [
+            "%",
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "理智時被擊中在 1 秒內回復 {0}% 生命",
+    "cn": "理智状态下，被击中时在一秒内再生 {0}% 生命"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "unique_jewel_grants_notable_hash_part_1",
+    "field": "variant:0",
+    "en": "Allocates {0} if you have the matching modifier on Forbidden Flesh",
+    "kind": "stat",
+    "sourceHash": "306307d970ec27d94fb8ac66e820dc3e41dbf79ebea3c69f23e7cb5b9d6b8b01",
+    "stats": {
+      "ids": [
+        "unique_jewel_grants_notable_hash_part_1"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_hash 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "若禁忌血肉上有符合的詞綴，配置 {0}",
+    "cn": "禁断之肉上有匹配的词缀则配置 {0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "unique_jewel_grants_notable_hash_part_2",
+    "field": "variant:0",
+    "en": "Allocates {0} if you have the matching modifier on Forbidden Flame",
+    "kind": "stat",
+    "sourceHash": "6e1508eeada2a04bd5674321ede7e1b45ec0106e5ebe1eac42276d63a1efc074",
+    "stats": {
+      "ids": [
+        "unique_jewel_grants_notable_hash_part_2"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_hash 1",
+          "placeholders": [
+            "{0}"
+          ]
+        }
+      ]
+    },
+    "tw": "若禁忌烈焰上有符合的詞綴，配置 {0}",
+    "cn": "禁断之火上有匹配的词缀则配置 {0}"
+  },
+  {
+    "table": "metadata/statdescriptions/stat_descriptions.csd",
+    "id": "local_unique_jewel_disconnected_passives_can_be_allocated_around_keystone_hash",
+    "field": "variant:0",
+    "en": "Passive Skills in Radius of {} can be Allocated\\nwithout being connected to your tree\\nPassage",
+    "kind": "stat",
+    "sourceHash": "b6216afeff76c9ecfc477a96e80e21ae33b69aa3a207416ad5d1d05ec5998e46",
+    "stats": {
+      "ids": [
+        "local_unique_jewel_disconnected_passives_can_be_allocated_around_keystone_hash"
+      ],
+      "variants": [
+        {
+          "condition": "#",
+          "handlers": "passive_hash 1",
+          "placeholders": []
+        }
+      ]
+    },
+    "cn": "{}范围内的核心天赋技能可以在\\n未连结至天赋树的情况下配置\\n通途"
+  },
+  {
+    "table": "flavourtext",
+    "id": "UniqueBodyDexInt14",
+    "field": "Text",
+    "en": "Within each of us exists a being of pure malice,\r\nheld back only by the lies we tell ourselves.",
+    "kind": "dat",
+    "sourceHash": "3b589ee136dc253feb88aaf3421547b5c1645e1a6817060ea0e4564baf0fd8cc",
+    "cn": "我们每个人心中都有魔鬼，\r\n只能靠自我欺骗才能生存。"
   }
 ]

@@ -14,7 +14,7 @@ for (const [category, entries] of Object.entries(compatibility.data)) {
 }
 POB_DATA.tree.classes = compatibility.pob.classes
 POB_DATA.tree.jewelSlots = compatibility.pob.jewelSlots
-// Slot names and relic rarities follow PoB 2.67.2 Classes/ImportTab.lua.
+// Slot names and relic rarities follow PoB 2.68.1 Classes/ImportTab.lua.
 Object.assign(POB_DATA.slotMap, { Ring3: 'Ring 3', BrequelGrafts: 'Graft 1', BrequelGrafts2: 'Graft 2' })
 Object.assign(POB_DATA.rarityMap, { 9: 'RELIC', 10: 'RELIC' })
 

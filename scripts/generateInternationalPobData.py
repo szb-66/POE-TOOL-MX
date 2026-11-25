@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pobDataSnapshot import snapshot
 
 ROOT = Path(__file__).resolve().parents[1]
-COMMIT = 'f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea'
+COMMIT = 'a41fec6c20f822a658ae5df1273e8c69d5969bac'
 BASE = f'https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/{COMMIT}/src/'
 CACHE = ROOT / '.cache/pob-international' / COMMIT
 OUTPUT = ROOT / 'electron/assets/pob-export/international.json'
@@ -53,8 +53,8 @@ def generate(lua_root, check=False):
     paths += ['Data/Gems.lua', 'TreeData/3_30/tree.lua', 'TreeData/3_30_ruthless/tree.lua', 'lua/dkjson.lua']
     expected = {path: entries[('runtime/' if path == 'lua/dkjson.lua' else 'src/') + path] for path in paths}
     list(ThreadPoolExecutor(6).map(lambda path: fetch(path, expected[path]), paths))
-    result = snapshot(CACHE, tree_version='3_30', commit=COMMIT, version='3.30-dev', lua_root=lua_root)
-    ruthless = snapshot(CACHE, tree_version='3_30_ruthless', commit=COMMIT, version='3.30-dev', lua_root=lua_root)
+    result = snapshot(CACHE, tree_version='3_30', commit=COMMIT, version='2.68.1', lua_root=lua_root)
+    ruthless = snapshot(CACHE, tree_version='3_30_ruthless', commit=COMMIT, version='2.68.1', lua_root=lua_root)
     result['ruthless'] = {key: ruthless[key] for key in ['classes', 'jewelSlots', 'nodes']}
     sources = {entry['path']: entry for entry in result.pop('sources') + ruthless.pop('sources')}
     result.update(schemaVersion=1, server='international', locale='en', gameVersion='3.30.0', treeVersion='3_30',

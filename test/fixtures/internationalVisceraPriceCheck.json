@@ -1,0 +1,166 @@
+{
+  "aliasEntries": [
+    {
+      "table": "metadata/statdescriptions/stat_descriptions.csd",
+      "id": "chaos_damage_+%",
+      "field": "variant:0",
+      "en": "{0}% increased Chaos Damage",
+      "kind": "stat",
+      "sourceHash": "42171f984613fd3669d62ba6eac3ba648f24333218a3bf9a0a5d4dff474ccab3",
+      "tw": "增加 {0}% 混沌傷害",
+      "cn": "混沌伤害提高 {0}%",
+      "stats": {
+        "ids": [
+          "chaos_damage_+%"
+        ],
+        "variants": [
+          {
+            "condition": "1|#",
+            "handlers": "",
+            "placeholders": [
+              "%",
+              "{0}"
+            ]
+          },
+          {
+            "condition": "#|-1",
+            "handlers": "negate 1",
+            "placeholders": [
+              "%",
+              "{0}"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "table": "baseitemtypes",
+      "id": "Metadata/Items/Viscera/VisceraAidan",
+      "field": "Name",
+      "en": "Primate Foot",
+      "kind": "dat",
+      "sourceHash": "0490e924323a345abd4ab1e082c590aebdb169dc589c8a3db24888f229771238",
+      "tw": "靈長類足部",
+      "cn": "猿猴之足"
+    },
+    {
+      "table": "baseitemtypes",
+      "id": "Metadata/Items/Viscera/VisceraOozeback",
+      "field": "Name",
+      "en": "Severed Rhoa Head",
+      "kind": "dat",
+      "sourceHash": "db6819e9cb50496a4453217f7791716c0d5169b1357bbede6bb6aebb18a9453d",
+      "tw": "恐喙鳥之首",
+      "cn": "恐喙鸟头颅"
+    },
+    {
+      "table": "clientstrings",
+      "id": "VisceraDescriptionString",
+      "field": "Text",
+      "en": "Take this to the Wickerman in a town or hideout to attach it.",
+      "kind": "dat",
+      "sourceHash": "9ac5e5718462badf92cb13ef59b7c6ff5d7ee228a041612240037c15679fee42",
+      "tw": "將此物帶給城鎮或藏身處中的柳條人以將其附上。",
+      "cn": "将此物带到城镇或藏身处的柳条人处进行附着。"
+    },
+    {
+      "table": "clientstrings",
+      "id": "EssenceCategoryHelmet",
+      "field": "Text",
+      "en": "Helmet",
+      "kind": "dat",
+      "sourceHash": "a47fdf6415fc436ee65ac597251edfa2e58a5ea60b53e65d2886ea6cb17ba374",
+      "tw": "頭部",
+      "cn": "头部"
+    },
+    {
+      "table": "clientstrings",
+      "id": "VisceraItemArm",
+      "field": "Text",
+      "en": "Upper Limb",
+      "kind": "dat",
+      "sourceHash": "d02067b3330d8ffaca0be77cf0455ecbda9088510d7c4df6bf40e43dc2c2fa8a",
+      "tw": "上肢",
+      "cn": "上肢"
+    },
+    {
+      "table": "clientstrings",
+      "id": "VisceraItemHead",
+      "field": "Text",
+      "en": "Head",
+      "kind": "dat",
+      "sourceHash": "9bb0aacc6d51f1408ed983b84c42e941fca204de70ff5595a4d1b7cff8b22815",
+      "tw": "頭",
+      "cn": "头部"
+    },
+    {
+      "table": "clientstrings",
+      "id": "VisceraItemTorso",
+      "field": "Text",
+      "en": "Torso",
+      "kind": "dat",
+      "sourceHash": "5dcecdc8111f15b406c8ddfc7c2be1eeb264701796b71fcb43137abbbb772001",
+      "tw": "軀幹",
+      "cn": "躯干"
+    },
+    {
+      "table": "clientstrings",
+      "id": "VisceraItemLeg",
+      "field": "Text",
+      "en": "Lower Limb",
+      "kind": "dat",
+      "sourceHash": "8a316fbcebd1deea916f7d9f557bbf97e4e4458304667af7cab6300f1660d851",
+      "tw": "下肢",
+      "cn": "下肢"
+    },
+    {
+      "table": "itemclasses",
+      "id": "Viscera",
+      "field": "Name",
+      "en": "Viscera",
+      "kind": "dat",
+      "sourceHash": "637f3846c73875a415465bf2bc305521c90b4cd948ee348e7e1a99949b9759bf",
+      "tw": "臟器",
+      "cn": "内脏"
+    }
+  ],
+  "itemEntries": [
+    {
+      "key": "official-item-6080",
+      "name": "Primate Foot",
+      "baseType": "Primate Foot",
+      "text": "",
+      "discriminator": "",
+      "category": "viscera",
+      "unique": false,
+      "legacy": false,
+      "imageId": "placeholder",
+      "imageUrl": "price-check-image://snapshot/placeholder"
+    },
+    {
+      "key": "official-item-6185",
+      "name": "Severed Rhoa Head",
+      "baseType": "Severed Rhoa Head",
+      "text": "",
+      "discriminator": "",
+      "category": "viscera",
+      "unique": false,
+      "legacy": false,
+      "imageId": "placeholder",
+      "imageUrl": "price-check-image://snapshot/placeholder"
+    }
+  ],
+  "statEntries": [
+    {
+      "key": "official-implicit-implicit-stat-736967255",
+      "label": "数值% increased Chaos Damage",
+      "matchers": [
+        "#% increased Chaos Damage"
+      ],
+      "ids": {
+        "implicit": "implicit.stat_736967255"
+      },
+      "availability": "international"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { electronApi } from '@/api/electron'
+import { currentServer } from '@/utils/serverContext'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useStoryTimerStore } from '@/stores/storyTimer'
 import {
@@ -67,7 +68,8 @@ export const useStoryStore = defineStore('story', () => {
       currentSkillGroups.value,
       {
         currentChapterId: currentChapterId.value,
-        showRequiredLevel: settings.storyShowSkillRequiredLevel
+        showRequiredLevel: settings.storyShowSkillRequiredLevel,
+        serverId: currentServer.id
       }
     ),
     modules: {

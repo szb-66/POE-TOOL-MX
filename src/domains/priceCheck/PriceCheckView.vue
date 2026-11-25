@@ -20,7 +20,12 @@
         </div></el-col>
 
         <el-col :span="24"><el-card>
-      <template #header><strong>运行状态</strong></template>
+      <template #header>
+        <div class="card-header-row">
+          <strong>运行状态</strong>
+          <el-button size="small" plain @click="errorLogVisible = true">错误记录（{{ store.errorCount }}）</el-button>
+        </div>
+      </template>
       <el-row class="status-grid app-grid" :gutter="16">
         <el-col :xs="24" :sm="12" :md="6"><div><span>账号</span><strong>{{ authText }}</strong></div></el-col>
         <el-col :xs="24" :sm="12" :md="6"><div><span>全局赛季</span><strong>{{ leagueText }}</strong></div></el-col>
@@ -125,6 +130,7 @@
         <li v-else>当前未设置查价快捷键；可保持查价器启用，并前往设置页录入快捷键后使用。</li>
         <li>助手发送 Ctrl+C 读取物品详细文本；“立即查价”关闭时，请在浮窗确认条件后点击“搜索”。</li>
       </ol>
+      <p class="muted">查价报错会记录在“运行状态”卡片的“错误记录”入口中，可一键复制报错信息和物品完整文本。</p>
       <el-tag :type="catalogTagType">{{ catalogStateText }}</el-tag>
         </el-card></el-col>
       </el-row>
@@ -133,13 +139,15 @@
 
     <el-collapse v-if="currentServer.id === 'international'" class="manual-query-panel"><el-collapse-item title="手动粘贴物品查价" name="manual"><ManualPriceCheckPanel /></el-collapse-item></el-collapse>
     <PageHelpDrawer :topics="helpTopics" title="查价帮助" />
+    <PriceCheckErrorLogDialog v-model="errorLogVisible" />
   </div>
 </template>
 
 <script setup>
 import ManualPriceCheckPanel from './ManualPriceCheckPanel.vue'
+import PriceCheckErrorLogDialog from './PriceCheckErrorLogDialog.vue'
 import { currentServer } from '../../utils/serverContext.js'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
@@ -158,6 +166,7 @@ const helpTopics = [...moduleHelpTopicsById('price-check'), CRAFTING_PRICE_CHECK
 const store = usePriceCheckStore()
 const account = usePoeAccountStore()
 const appSettings = useSettingsStore()
+const errorLogVisible = ref(false)
 
 const authText = computed(() => account.status.authenticated ? account.status.accountName : '未登录')
 const leagueText = computed(() => account.leagues.find(item => item.id === account.settings.league)?.name || account.settings.league || '未设置')
@@ -211,7 +220,10 @@ async function retryCatalog() {
   }
 }
 
-onMounted(() => store?.refreshStatus().catch(() => {}))
+onMounted(() => {
+  store.refreshStatus().catch(() => {})
+  store.refreshErrorLog().catch(() => {})
+})
 </script>
 
 <style scoped lang="less">
@@ -221,6 +233,7 @@ onMounted(() => store?.refreshStatus().catch(() => {}))
 .page-heading__title { display: flex; align-items: center; gap: 8px; }
 .page-heading h2 { margin: 0; }
 .page-heading__help { color: var(--el-text-color-secondary); cursor: help; }
+.card-header-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .muted { color: var(--el-text-color-secondary); }
 .status-grid div { display: flex; flex-direction: column; gap: 5px; }
 .status-grid span { color: var(--el-text-color-secondary); font-size: 13px; }

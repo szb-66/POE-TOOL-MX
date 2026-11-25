@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test --test-concurrency=4",
+    "test:unit": "node scripts/runTests.js unit",
+    "test:slow": "node scripts/runTests.js slow",
     "sanctum:data": "node scripts/generateSanctumCatalog.js",
     "sanctum:data:refresh": "node scripts/generateSanctumCatalog.js --refresh",
     "crafting:data": "node scripts/generateCraftingData.js",
@@ -18,7 +20,7 @@
     "unique-items:data": "node scripts/generateUniqueItemSnapshot.js",
     "unique-items:data:missing": "node scripts/generateUniqueItemSnapshot.js --fetch-missing",
     "unique-items:data:refresh": "node scripts/generateUniqueItemSnapshot.js --live",
-    "price-check:data:refresh": "node scripts/generateTradeCatalog.js --official electron/modules/priceCheck/catalog.json 3.29",
+    "price-check:data:refresh": "node scripts/generateServerTradeCatalog.js --server cn --game-version 3.30.0",
     "item-footprints:data": "node scripts/generateItemFootprints.js --game-version 3.29",
     "runtime:prepare": "node scripts/runtime/prepare.js",
     "runtime:verify": "node scripts/runtime/verify.js",

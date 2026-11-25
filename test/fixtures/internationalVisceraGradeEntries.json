@@ -1,0 +1,22 @@
+[
+  {
+    "table": "clientstrings",
+    "id": "GreaterViscera",
+    "field": "Text",
+    "en": "Greater {0}",
+    "kind": "dat",
+    "sourceHash": "5387358f78293efc31fe364c773e2e0f8a3c03bf445a8a5ee1c3552b0fde0300",
+    "tw": "高階 {0}",
+    "cn": "高级 {0}"
+  },
+  {
+    "table": "clientstrings",
+    "id": "LesserViscera",
+    "field": "Text",
+    "en": "Lesser {0}",
+    "kind": "dat",
+    "sourceHash": "785074f7de7c771d2bcc46b0aaf5870337958cc8eff1a227882da2051d2dc141",
+    "tw": "低階 {0}",
+    "cn": "次级 {0}"
+  }
+]

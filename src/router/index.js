@@ -88,6 +88,7 @@ const routes = [
     component: pageLoaders['/tools']
   },
   { path: '/pob-export', name: 'PobExport', component: pageLoaders['/pob-export'] },
+  { path: '/localization', name: 'GameLocalization', component: pageLoaders['/localization'] },
   {
     path: '/loading-feedback-overlay',
     name: 'LoadingFeedbackOverlay',
@@ -191,6 +192,8 @@ const router = createRouter({
 const navigationTokens = new WeakMap()
 
 router.beforeEach((to, from) => {
+  if (to.path === '/settings' && to.query.tab === 'localization') return { path: '/localization', replace: true }
+  if (to.path === '/localization' && currentServer.id !== 'international') return { path: '/settings', replace: true }
   if (!import.meta.env.DEV && to.path === '/highlight-model-training') return { path: '/', replace: true }
   const capability = currentServer.capabilities[to.path.split('/')[1]]
   if (capability && !capability.available) {

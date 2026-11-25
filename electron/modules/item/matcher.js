@@ -7,6 +7,9 @@
  * Errors: 匹配失败返回不匹配结果，不抛出异常
  */
 
+import { expandMapAffixTermForMatching } from '../../../shared/crossServerMapAffix.js'
+import { expandAffixPatternsForMatching, expandEldritchPatternsForMatching } from '../crafting/crossServerMap.js'
+
 function cleanEffectText(value = '') {
   return String(value).split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')
 }
@@ -64,7 +67,7 @@ function candidateModifiers(itemInfo) {
   for (const text of [...(itemInfo.implicitMods ?? []), ...(itemInfo.explicitMods ?? []), ...(itemInfo.craftedMods ?? [])]) {
     const normalized = cleanEffectText(text)
     if (normalized && !existingTexts.has(normalized)) {
-      candidates.push({ name: '', text: normalized, tier: 0 })
+      candidates.push({ name: '', text: normalized, aliases: [...(itemInfo.modTextAliases?.[text] ?? [])], tier: 0 })
       existingTexts.add(normalized)
     }
   }
@@ -74,10 +77,13 @@ function candidateModifiers(itemInfo) {
 function matchCondition(conditionInput, candidates) {
   const condition = conditionValue(conditionInput)
   if (!condition) return null
-  const pattern = condition.kind === 'catalog' ? effectPatternRegex(condition.effectPattern) : null
+  const patterns = condition.kind === 'catalog'
+    ? expandAffixPatternsForMatching(condition).map(effectPatternRegex)
+    : []
   const candidate = candidates.find((modifier) => {
+    const texts = patterns.length ? [modifier.text, ...(modifier.aliases ?? [])] : []
     const effectMatches = condition.kind === 'catalog'
-      ? pattern.test(modifier.text)
+      ? texts.some((text) => patterns.some((pattern) => pattern.test(text)))
       : modifier.name.includes(condition.keyword) || modifier.text.includes(condition.keyword) || modifier.aliases?.some(value => value.includes(condition.keyword))
     if (!effectMatches) return false
     return condition.minTier === null || (modifier.tier > 0 && modifier.tier <= condition.minTier)
@@ -99,10 +105,14 @@ export function matchEldritchImplicits(itemInfo, targets = [], { naturalBaseImpl
     if (index >= 0) candidates.splice(index, 1)
   }
   for (const condition of conditions) {
-    const pattern = condition.kind === 'catalog' || condition.effectPattern
-      ? effectPatternRegex(condition.effectPattern)
-      : null
-      const matchedText = candidates.find((candidate) => pattern ? pattern.test(candidate) : [candidate, ...(itemInfo.modTextAliases?.[candidate] || [])].some(value => value.includes(condition.keyword)))
+    const patterns = condition.kind === 'catalog' || condition.effectPattern || condition.canonicalKey || condition.familyId
+      ? expandEldritchPatternsForMatching(condition).map(effectPatternRegex)
+      : []
+    const matchedText = candidates.find((candidate) => {
+      const structured = (itemInfo.modifiers ?? []).find((modifier) => cleanEffectText(modifier.text || modifier.lines?.join('\n') || '') === candidate)
+      const texts = [candidate, ...(itemInfo.modTextAliases?.[candidate] || []), ...(structured?.textAliases || [])]
+      return patterns.length ? texts.some((text) => patterns.some((pattern) => pattern.test(text))) : texts.some((value) => value.includes(condition.keyword))
+    })
     if (matchedText) {
       return {
         isMatch: true,
@@ -229,8 +239,11 @@ export function matchMapRequirements(itemInfo, mapConfig) {
   // 1. 检查黑名单 (Blacklist)
   const blacklist = matchConfig.blacklist || []
   for (const mod of explicitMods) {
+    const modTexts = [mod, ...(itemInfo.modTextAliases?.[mod] || [])]
     for (const blackTerm of blacklist) {
-      if (blackTerm && [mod, ...(itemInfo.modTextAliases?.[mod] || [])].some(value => matchMapTerm(value, blackTerm))) {
+      if (!blackTerm) continue
+      const expandedTerms = expandMapAffixTermForMatching(blackTerm, targetKind)
+      if (expandedTerms.some(term => modTexts.some(value => matchMapTerm(value, term)))) {
         return { isMatch: false, reason: 'blacklist' }
       }
     }
@@ -238,7 +251,14 @@ export function matchMapRequirements(itemInfo, mapConfig) {
 
   // 白名单沿用既有“任一命中即通过词缀检查”语义；基底条件仍必须满足。
   const whitelist = matchConfig.whitelist || []
-  const whitelistMatched = whitelist.some(term => term && explicitMods.some(mod => [mod, ...(itemInfo.modTextAliases?.[mod] || [])].some(value => matchMapTerm(value, term))))
+  const whitelistMatched = whitelist.some(rawTerm => {
+    if (!rawTerm) return false
+    const expandedTerms = expandMapAffixTermForMatching(rawTerm, targetKind)
+    return explicitMods.some(mod => {
+      const modTexts = [mod, ...(itemInfo.modTextAliases?.[mod] || [])]
+      return expandedTerms.some(term => modTexts.some(value => matchMapTerm(value, term)))
+    })
+  })
 
   if (targetKind === 'heist' && whitelist.some(term => term?.trim()) && !whitelistMatched) return { isMatch: false, reason: 'whitelist' }
 

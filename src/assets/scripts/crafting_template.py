@@ -939,9 +939,16 @@ def currency_identity_matches(currency, actual):
     name = normalized_copied_item_name(actual)
     return bool(expected) and name in (expected if isinstance(expected, list) else [expected])
 
+def currency_expected_label(currency):
+    primary = CURRENCY_NAMES.get(currency, currency)
+    names = globals().get("currency_expected_names", {}).get(currency)
+    names = names if isinstance(names, (list, tuple)) else [names]
+    alternatives = [str(name) for name in names if name and str(name) != primary][:3]
+    return f"{primary}（{' / '.join(alternatives)}）" if alternatives else primary
+
 def fail_currency_preflight(currency, reason, actual="未检测到物品", failure_code="CONFIGURATION_MISSING"):
     global is_running, fatal_error_reason
-    expected = CURRENCY_NAMES.get(currency, currency)
+    expected = currency_expected_label(currency)
     pos = currency_positions.get(currency) or {}
     fatal_error_reason = reason
     is_running = False
@@ -1027,7 +1034,7 @@ def preflight_required_currencies():
         if not currency_identity_matches(currency, actual):
             return fail_currency_preflight(
                 currency,
-                f"通货位置错误：需要{expected}，实际检测到{actual}",
+                f"通货位置错误：需要{currency_expected_label(currency)}，实际检测到{actual}",
                 actual,
                 failure_code="CURRENCY_TYPE_MISMATCH"
             )

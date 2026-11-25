@@ -109,12 +109,20 @@ export function searchMapAffixSuggestions(targetKind, query, limit = 50, languag
     if (!keyword) return []
     const safeLimit = Number.isFinite(Number(limit)) ? Math.max(0, Math.floor(Number(limit))) : 50
     return affixSuggestionsForKind(targetKind, language)
-      .map(entry => ({ ...entry,
-        displayText: localizedCatalog.get(entry.value)?.displayText || entry.value,
-        example: localizedCatalog.get(entry.example)?.displayText || entry.example,
-        aliases: [...(localizedCatalog.get(entry.value)?.aliases || []), ...(localizedCatalog.get(entry.example)?.aliases || [])]
-      }))
-      .filter(entry => `${entry.value} ${entry.example} ${entry.displayText} ${entry.aliases.join(' ')} ${(entry.tags || []).join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
+      .map(entry => {
+        const localized = localizedCatalog.get(entry.value) || localizedCatalog.get(entry.pattern)
+        const displayText = localized?.displayText || entry.value
+        return {
+          ...entry,
+          canonicalValue: entry.value,
+          // 联想保存用户实际看到的文本，匹配也直接使用这段文本，不再自动换算语言。
+          value: displayText,
+          displayText,
+          example: localizedCatalog.get(entry.example)?.displayText || entry.example,
+          aliases: [...(localized?.aliases || []), ...(localizedCatalog.get(entry.example)?.aliases || [])]
+        }
+      })
+      .filter(entry => `${entry.canonicalValue} ${entry.value} ${entry.example} ${(entry.variants || []).join(' ')} ${entry.displayText} ${entry.aliases.join(' ')} ${(entry.tags || []).join(' ')}`.toLocaleLowerCase('zh-CN').includes(keyword))
       .slice(0, safeLimit)
   } catch {
     return []

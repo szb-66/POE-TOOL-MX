@@ -25,6 +25,32 @@ function hashFile(filename) {
   } finally { fs.closeSync(descriptor) }
 }
 
+function directoryKey(directory) {
+  let resolved = path.resolve(directory)
+  if (process.platform !== 'win32') return resolved
+  // Read the actual spelling on disk before applying the same ASCII case map as the helper.
+  try { resolved = fs.realpathSync.native(resolved) } catch { /* An unavailable path is validated separately. */ }
+  resolved = resolved.replace(/^\\\\\?\\UNC\\/i, '\\\\').replace(/^\\\\\?\\/, '')
+  return path.resolve(resolved).replace(/[a-z]/g, unit => unit.toUpperCase())
+}
+
+export function localizationInstallationRoot(storageRoot, gameDirectory) {
+  const key = createHash('sha256').update(directoryKey(gameDirectory)).digest('hex')
+  return path.join(storageRoot, 'installations', key)
+}
+
+export function resolveInstalledLocalizationRoot(storageRoot, gameDirectory) {
+  const scoped = localizationInstallationRoot(storageRoot, gameDirectory)
+  if (fs.existsSync(scoped)) return scoped
+  const marker = path.join(storageRoot, 'transaction-installation.json')
+  if (!fs.existsSync(marker)) return storageRoot // The legacy record still needs its index hash verified.
+  ordinaryPath(marker)
+  if (fs.statSync(marker).size > 65536) throw new Error('旧版汉化事务目录记录无效')
+  const owner = JSON.parse(fs.readFileSync(marker, 'utf8')).gameDirectory
+  if (typeof owner !== 'string' || !path.isAbsolute(owner)) throw new Error('旧版汉化事务目录记录无效')
+  return directoryKey(owner) === directoryKey(gameDirectory) ? storageRoot : scoped
+}
+
 // Local reads only: verify on startup, then reuse a hash while all file identities
 // remain unchanged. A Steam update or external replacement invalidates the cache.
 export function createInstalledLocalizationVerifier({ inspect = inspectSteamGame } = {}) {
@@ -33,8 +59,9 @@ export function createInstalledLocalizationVerifier({ inspect = inspectSteamGame
     const unavailable = reason => ({ ready: false, reason })
     if (!gameDirectory || (!releaseId && !allowTraditional)) return unavailable('尚未核实已应用汉化与当前游戏的对应关系，请切换游戏语言')
     try {
-      const activeFile = path.join(storageRoot, 'transaction-active.json')
-      const journalFile = path.join(storageRoot, 'transaction.json')
+      const installationRoot = resolveInstalledLocalizationRoot(storageRoot, gameDirectory)
+      const activeFile = path.join(installationRoot, 'transaction-active.json')
+      const journalFile = path.join(installationRoot, 'transaction.json')
       if (fs.existsSync(journalFile)) return unavailable('存在未完成的汉化事务，中文手动查价暂不可用；请重新切换游戏语言以恢复')
       for (const filename of [storageRoot, gameDirectory, activeFile]) ordinaryPath(filename)
       if (fs.statSync(activeFile).size > 1024 * 1024) return unavailable('本机汉化事务记录无效，中文手动查价暂不可用')
@@ -42,7 +69,7 @@ export function createInstalledLocalizationVerifier({ inspect = inspectSteamGame
       for (const filename of [game.manifestPath, game.indexPath]) ordinaryPath(filename)
       if (game.stateFlags !== 4) return unavailable('Steam 安装或更新状态不明确，中文手动查价暂不可用')
       const before = [identity(activeFile), identity(game.manifestPath), identity(game.indexPath)].join('|')
-      const signature = `${game.gameDirectory}|${releaseId || ''}|${allowTraditional}|${before}`
+      const signature = `${game.gameDirectory}|${installationRoot}|${releaseId || ''}|${allowTraditional}|${before}`
       if (memo?.signature === signature) return memo.result
       const active = JSON.parse(fs.readFileSync(activeFile, 'utf8'))
       const mode = active.mode === undefined ? 'simplified' : active.mode
@@ -52,7 +79,7 @@ export function createInstalledLocalizationVerifier({ inspect = inspectSteamGame
       else if (hashFile(game.indexPath) !== active.outputHash) result = unavailable('游戏资源索引已改变，旧中文映射已停用；请重新切换游戏语言')
       else result = { ready: true, buildId: game.buildId, indexHash: active.outputHash, resourceVersion: active.releaseId, mode }
       const after = [identity(activeFile), identity(game.manifestPath), identity(game.indexPath)].join('|')
-      if (before !== after || fs.existsSync(journalFile)) return unavailable('核对期间游戏资源发生变化，中文手动查价暂不可用；请稍后重试切换游戏语言')
+      if (before !== after || fs.existsSync(journalFile) || resolveInstalledLocalizationRoot(storageRoot, gameDirectory) !== installationRoot) return unavailable('核对期间游戏资源发生变化，中文手动查价暂不可用；请稍后重试切换游戏语言')
       memo = { signature, result }
       return result
     } catch { return unavailable('无法核实当前 Steam 游戏与汉化事务记录，中文手动查价暂不可用；请切换游戏语言') }

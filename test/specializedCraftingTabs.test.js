@@ -140,11 +140,6 @@ test('精华与花园脚本动作顺序、安全停止、首次识别和 1000 �
   })
   try {
     const { generatePythonScript } = await server.ssrLoadModule('/src/utils/python.js')
-    await Promise.all([
-      server.transformRequest('/src/domains/items/ItemsView.vue', { ssr: true }),
-      server.transformRequest('/src/domains/items/components/SpecializedCraftingPanel.vue', { ssr: true }),
-      server.transformRequest('/src/domains/items/components/AffixGoalEditor.vue', { ssr: true })
-    ])
     const generate = (craftingKind, checkInitialItem = true) => generatePythonScript({
       globalShortcuts: { end: 'F12' },
       currencyPositions: {},

@@ -249,8 +249,52 @@ signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
 
+def parse_viscera_header(lines, category, runtime):
+    # Viscera has one base name, one body-slot line and no rarity field.
+    if len(lines) < 7 or (lines[2], lines[4], lines[6]) != ("--------",) * 3:
+        return None
+    if lines[3] not in ("Head", "Torso", "Upper Limb", "Lower Limb", "头部", "頭", "躯干", "軀幹", "上肢", "下肢"):
+        return None
+    item_level = re.fullmatch(r"(?:##\s+)?(?:Item Level|物品等级|物品等級)\s*[:：]\s*([0-9]{1,3})", lines[5])
+    if not item_level or int(item_level.group(1)) < 1:
+        return None
+    raw_name = lines[1]
+    clean_name = re.sub(r"\[[^\[\]]*\]", "", raw_name).strip()
+    if not clean_name or re.search(r"[{}:：]", clean_name):
+        return None
+    international = runtime.get("serverId") == "international"
+    graded_names = set()
+    for template in runtime.get("visceraNameTemplates", []):
+        for locale in ("en", "cn", "tw"):
+            prefix, placeholder, suffix = template.get(locale, "").partition("{0}")
+            if placeholder and (prefix or suffix) and clean_name.startswith(prefix) and clean_name.endswith(suffix):
+                base = clean_name[len(prefix):len(clean_name) - len(suffix)].strip()
+                if base:
+                    graded_names.add((base, template["en"]))
+    if len(graded_names) > 1:
+        return None
+    raw_base, english_name = next(iter(graded_names), (clean_name, "{0}"))
+    base_name = runtime.get("nameAliases", {}).get(raw_base, raw_base)
+    if international and re.search(r"[\u3400-\u9fff]", base_name):
+        return None
+    return {
+        "category": "Viscera" if international else category,
+        "rarity": "",
+        "name": english_name.replace("{0}", base_name) if international else clean_name,
+        "baseName": base_name,
+        "itemLevel": int(item_level.group(1)),
+        "originalHeader": {"category": category, "name": raw_name, "baseName": raw_base}
+    }
+
+
 def parse_item_header(text):
     runtime = globals().get("localization_snapshot", {})
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    lines = ["--------" if re.fullmatch(r"-{3,}", line) else line for line in lines]
+    if lines:
+        viscera = re.fullmatch(r"(?:Item Class|物品类别|物品种类|物品種類|物品類別)\s*[:：]\s*(Viscera|内脏|臟器)", lines[0])
+        if viscera:
+            return parse_viscera_header(lines, viscera.group(1), runtime)
     original_header = None
     if runtime.get("serverId") == "international":
         structure = runtime.get("structureAliases", {})
@@ -258,26 +302,44 @@ def parse_item_header(text):
         converted = []
         in_header = True
         rarity = ""
+        category = ""
         raw_names = []
+        canonical_names = []
         original_fields = {}
-        for raw in str(text or "").splitlines():
-            line = raw.strip()
+        map_prefixes = {"菌潮": "Blighted ", "菌潮灭绝": "Blight-ravaged ",
+                        "凋落的": "Blighted ", "凋落蔓延的": "Blight-ravaged "}
+        for line in lines:
             if line == "--------":
                 in_header = False
-            field = re.match(r"^([^:：]+)[:：]\s*(.*)$", line)
-            if field:
-                label = structure.get(field.group(1).replace(" ", ""), field.group(1))
+            field = re.match(r"^(?:##\s+)?([^:：]+)[:：]\s*(.*)$", line)
+            raw_label = field.group(1).strip() if field else ""
+            label = structure.get(raw_label.replace(" ", ""), raw_label)
+            if field and (not in_header or label in ("Item Class", "Rarity")):
                 value = structure.get(field.group(2), field.group(2))
-                if label == "Rarity":
+                if in_header and label == "Rarity":
                     rarity = value
                     original_fields["rarity"] = field.group(2)
-                if label == "Item Class":
+                if in_header and label == "Item Class":
+                    category = value
                     original_fields["category"] = field.group(2)
                 line = label + ": " + value
-            elif in_header and line:
-                raw_names.append(line)
+            elif in_header and rarity:
                 clean_name = re.sub(r"\[[^\[\]]*\]", "", line).strip()
+                if not clean_name:
+                    continue
+                if field and clean_name not in names:
+                    heist_prefix = {"Contracts": "Contract:", "Blueprints": "Blueprint:"}.get(category)
+                    if not heist_prefix or not clean_name.startswith(heist_prefix) or not field.group(2):
+                        continue
+                raw_names.append(line)
                 canonical = names.get(clean_name, clean_name)
+                if category == "Maps" and canonical == clean_name:
+                    tiered_map = re.fullmatch(
+                        r"(菌潮灭绝|菌潮|凋落蔓延的|凋落的)?\s*(?:地图|地圖)\s*[（(]\s*([1-9][0-9]?)\s*[阶階][）)]",
+                        clean_name)
+                    if tiered_map:
+                        prefix = map_prefixes.get(tiered_map.group(1), "")
+                        canonical = f"{prefix}Map (Tier {tiered_map.group(2)})"
                 if rarity == "Magic" and canonical == clean_name:
                     matches = [(alias, en) for alias, en in names.items() if alias and alias in clean_name]
                     longest = max((len(alias) for alias, _ in matches), default=0)
@@ -285,19 +347,13 @@ def parse_item_header(text):
                     if len(candidates) == 1:
                         canonical = next(iter(candidates))
                 line = canonical
+                canonical_names.append(canonical)
             converted.append(line)
         # A rare random name may remain Chinese; a base identity may not.
-        if raw_names:
-            canonical_base = names.get(re.sub(r"\[[^\[\]]*\]", "", raw_names[-1]).strip())
-            if canonical_base is None and re.search(r"[\u3400-\u9fff]", raw_names[-1]):
-                if rarity != "Magic":
-                    return None
-                candidate_lines = [line for line in converted[:next((i for i, value in enumerate(converted) if value == "--------"), len(converted))] if ":" not in line]
-                if not candidate_lines or re.search(r"[\u3400-\u9fff]", candidate_lines[-1]):
-                    return None
+        if canonical_names and re.search(r"[\u3400-\u9fff]", canonical_names[-1]):
+            return None
         original_header = {**original_fields, "name": raw_names[0] if raw_names else "", "baseName": raw_names[-1] if len(raw_names) > 1 else ""}
-        text = "\n".join(converted)
-    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+        lines = converted
     category_index = next((i for i, line in enumerate(lines)
                            if line.startswith("物品类别:") or line.startswith("Item Class:")), -1)
     rarity_index = next((i for i, line in enumerate(lines)
@@ -309,12 +365,13 @@ def parse_item_header(text):
     rarity_value = lines[rarity_index].split(":", 1)[1].strip()
     rarity_key = "".join(rarity_value.split()).casefold()
     rarity = "unique" if rarity_key in ("传奇", "unique") else rarity_value
-    header = []
-    for line in lines[rarity_index + 1:]:
-        if line == "--------":
-            break
-        if ":" not in line:
-            header.append(line)
+    header = canonical_names if original_header is not None else []
+    if original_header is None:
+        for line in lines[rarity_index + 1:]:
+            if line == "--------":
+                break
+            if ":" not in line:
+                header.append(line)
     if not category or not header:
         return None
     item_level = 0

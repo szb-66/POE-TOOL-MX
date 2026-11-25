@@ -40,7 +40,7 @@ export const useFeatureModulesStore = defineStore('featureModules', () => {
   }
 
   function disable(id) {
-    if (!catalog.some(item => item.id === id) || disabledSet.value.has(id)) return false
+    if (!isSupported(id) || disabledSet.value.has(id)) return false
     commit([...disabledFeatureIds.value, id])
     return true
   }

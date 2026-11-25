@@ -1,14 +1,17 @@
 using System.Diagnostics;
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
 
 namespace LocalizationHelper;
 
 /// <summary>Owns only the Steam index, PoEHelper bundles and the language setting.</summary>
-public sealed class GameTransaction {
+public sealed partial class GameTransaction {
     public sealed record BaselineStatus(bool Ready, string Reason);
     public sealed record Snapshot(string BuildId, string GameVersion, string IndexHash, BaselineStatus Baseline,
         bool Applied, string? ReleaseId, bool RecoveryNeeded, string? Mode = null);
@@ -19,28 +22,121 @@ public sealed class GameTransaction {
     private sealed record Journal(int Version, string Operation, string BuildId, string BeforeHash, string AfterHash,
         string BeforeIndex, string? BeforeLanguage, string? Generation, Active? BeforeActive, Active? AfterActive);
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-    private readonly string game, storage, config, steamapps, manifest, index, baselineFile, activeFile, journalFile;
+    private sealed record Installation(string GameDirectory, string ConfigPath);
+    private readonly string game, cacheRoot, config, steamapps, manifest, index;
+    private readonly string? legacyGameDirectory;
+    private string storage;
+    private string baselineFile => Path.Combine(storage, "baseline.json");
+    private string activeFile => Path.Combine(storage, "transaction-active.json");
+    private string journalFile => Path.Combine(storage, "transaction.json");
+    internal string StagingRoot => Path.Combine(storage, "staging");
+    internal string CoveragePath => Path.Combine(storage, "applied-coverage.json");
     private readonly Func<bool> gameStopped;
 
     internal static string ValidateMode(string? mode) => mode is "simplified" or "traditional" ? mode : throw new UserError("汉化模式无效，请选择简体或繁体");
 
-    public GameTransaction(string gameDirectory, string storageRoot, string? configPath = null)
+    public GameTransaction(string gameDirectory, string storageRoot, string? configPath = null, string? legacyGameDirectory = null)
         : this(gameDirectory, storageRoot, configPath ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-            "My Games", "Path of Exile", "production_Config.ini"), AreGameProcessesStopped) { }
+            "My Games", "Path of Exile", "production_Config.ini"), AreGameProcessesStopped, legacyGameDirectory) { }
 
-    private GameTransaction(string gameDirectory, string storageRoot, string configPath, Func<bool> stopped) {
-        game = Path.GetFullPath(gameDirectory).TrimEnd(Path.DirectorySeparatorChar);
-        storage = Path.GetFullPath(storageRoot).TrimEnd(Path.DirectorySeparatorChar);
+    private GameTransaction(string gameDirectory, string storageRoot, string configPath, Func<bool> stopped, string? legacyDirectory = null) {
+        game = FullDirectory(gameDirectory);
+        cacheRoot = FullDirectory(storageRoot);
         config = Path.GetFullPath(configPath);
         steamapps = Directory.GetParent(game)?.Parent?.FullName ?? throw new UserError("请选择 Steam 游戏安装目录");
         manifest = Path.Combine(steamapps, "appmanifest_238960.acf");
         index = Path.Combine(game, "Bundles2", "_.index.bin");
-        baselineFile = Path.Combine(storage, "baseline.json"); activeFile = Path.Combine(storage, "transaction-active.json");
-        journalFile = Path.Combine(storage, "transaction.json");
         gameStopped = stopped;
         if (Path.GetFileName(config) != "production_Config.ini" || Directory.GetParent(config)?.Name != "Path of Exile" ||
             Directory.GetParent(config)?.Parent?.Name != "My Games") throw new UserError("游戏语言配置路径无效");
-        if (string.Equals(game, storage, StringComparison.OrdinalIgnoreCase) || Within(game, storage) || Within(storage, game)) throw new UserError("汉化缓存必须与游戏安装目录分离");
+        if (SamePath(game, cacheRoot) || Within(game, cacheRoot) || Within(cacheRoot, game)) throw new UserError("汉化缓存必须与游戏安装目录分离");
+        legacyGameDirectory = legacyDirectory;
+        storage = ResolveStorage(game, cacheRoot, legacyGameDirectory, verifyLegacyIndex: true);
+    }
+
+    private static string FullDirectory(string directory) => Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+    // Use the spelling stored by the filesystem. Unicode case maps differ between V8 and .NET.
+    private static string DirectoryKey(string directory) {
+        string full = FullDirectory(directory);
+        if (!OperatingSystem.IsWindows()) return full;
+        const uint readAttributes = 0x80, openExisting = 3, backupSemantics = 0x02000000;
+        var share = FileShare.ReadWrite | FileShare.Delete;
+        using var handle = CreateFileW(full, readAttributes, (uint)share, IntPtr.Zero, openExisting, backupSemantics, IntPtr.Zero);
+        if (!handle.IsInvalid) full = ReadFinalPath(handle) ?? full;
+        if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) full = @"\\" + full[8..];
+        else if (full.StartsWith(@"\\?\", StringComparison.Ordinal)) full = full[4..];
+        return string.Concat(FullDirectory(full).Select(c => c is >= 'a' and <= 'z' ? (char)(c - 'a' + 'A') : c));
+    }
+
+    private static unsafe string? ReadFinalPath(SafeFileHandle handle) {
+        const uint normalizedDosPath = 0;
+        Span<char> buffer = stackalloc char[512];
+        uint length;
+        fixed (char* target = buffer) length = GetFinalPathNameByHandleW(handle, target, (uint)buffer.Length, normalizedDosPath);
+        if (length >= buffer.Length) {
+            buffer = new char[checked((int)length + 1)];
+            fixed (char* target = buffer) length = GetFinalPathNameByHandleW(handle, target, (uint)buffer.Length, normalizedDosPath);
+        }
+        return length > 0 && length < buffer.Length ? new string(buffer[..(int)length]) : null;
+    }
+
+    [LibraryImport("kernel32.dll", EntryPoint = "CreateFileW", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial SafeFileHandle CreateFileW(string fileName, uint access, uint share, IntPtr security, uint creation, uint flags, IntPtr template);
+    [LibraryImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW")]
+    private static unsafe partial uint GetFinalPathNameByHandleW(SafeFileHandle handle, char* path, uint length, uint flags);
+    private static bool SamePath(string first, string second) => DirectoryKey(first) == DirectoryKey(second);
+    private static string InstallationFile(string root) => Path.Combine(root, "transaction-installation.json");
+    private static string ScopedRoot(string game, string root) =>
+        Path.Combine(root, "installations", Program.Hash(Encoding.UTF8.GetBytes(DirectoryKey(game))));
+
+    private static string? AbsolutePath(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && Path.IsPathFullyQualified(value) ? FullDirectory(value) : null;
+
+    private static string? ReadLegacyDirectory(string root) {
+        string filename = Path.Combine(root, "settings.json");
+        try {
+            if (!File.Exists(filename) || new FileInfo(filename).Length > 65536) return null;
+            RequireOrdinaryPath(filename);
+            var settings = JsonNode.Parse(File.ReadAllText(filename))?.AsObject();
+            var value = settings?["legacyGameDirectory"] ?? settings?["gameDirectory"];
+            return value is JsonValue json && json.TryGetValue<string>(out var directory) ? AbsolutePath(directory) : null;
+        } catch (Exception error) when (error is JsonException or IOException or ArgumentException or InvalidOperationException or UserError) { return null; }
+    }
+
+    private static string? LegacyOwner(string game, string root, string? hint, bool verifyIndex) {
+        if (File.Exists(InstallationFile(root))) {
+            var marker = Read<Installation>(InstallationFile(root));
+            return AbsolutePath(marker?.GameDirectory) ?? throw new UserError("旧版汉化记录的安装目录无效");
+        }
+        var active = Read<Active>(Path.Combine(root, "transaction-active.json"));
+        var journal = Read<Journal>(Path.Combine(root, "transaction.json"));
+        if (active == null && journal == null && !File.Exists(Path.Combine(root, "baseline.json"))) return null;
+        string? configured = AbsolutePath(hint) ?? ReadLegacyDirectory(root);
+        // The old metadata lacks an installation path. Prefer a recorded patch or transaction
+        // generation proven by the actual index to a remembered directory.
+        if (verifyIndex && (active != null || journal != null)) {
+            string gameIndex = Path.Combine(game, "Bundles2", "_.index.bin");
+            if (File.Exists(gameIndex)) {
+                RequireOrdinaryPath(gameIndex);
+                string hash = Hash(gameIndex);
+                if (LegacyIndexMatches(gameIndex, hash, active, journal)) return game;
+            }
+        }
+        return configured;
+    }
+
+    private static bool LegacyIndexMatches(string gameIndex, string hash, Active? active, Journal? journal) {
+        if (hash == active?.OutputHash || hash == journal?.AfterHash) return true;
+        var generations = new[] { active?.Generation, journal?.Generation, journal?.BeforeActive?.Generation, journal?.AfterActive?.Generation }
+            .Where(generation => !string.IsNullOrEmpty(generation)).Cast<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        return generations.Length != 0 && ManagedPatchIndex.ReferencesAnyGeneration(gameIndex, generations);
+    }
+
+    internal static string ResolveStorage(string game, string root, string? legacyDirectory = null, bool verifyLegacyIndex = false) {
+        string scoped = ScopedRoot(game, root);
+        if (Directory.Exists(scoped)) return scoped;
+        string? owner = LegacyOwner(game, root, legacyDirectory, verifyLegacyIndex);
+        return owner != null && SamePath(owner, game) ? root : scoped;
     }
 
     private static string Hash(string file) { using var stream = File.OpenRead(file); return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant(); }
@@ -72,7 +168,7 @@ public sealed class GameTransaction {
         var matches = Regex.Matches(File.ReadAllText(log), @"\[HTTP2\].*?release/tags/([0-9][A-Za-z0-9.\-_]*)", RegexOptions.CultureInvariant);
         return matches.Count == 0 ? "unknown" : matches[^1].Groups[1].Value;
     }
-    private T? Read<T>(string file) where T : class {
+    private static T? Read<T>(string file) where T : class {
         if (!File.Exists(file)) return null;
         RequireOrdinaryPath(file);
         if (new FileInfo(file).Length > 1024 * 1024) throw new UserError("本机汉化事务记录损坏，请保留诊断并修复");
@@ -126,12 +222,47 @@ public sealed class GameTransaction {
         bool stopped;
         try { stopped = gameStopped(); } catch { throw new UserError("无法确认游戏进程状态，未替换任何游戏文件"); }
         if (!stopped) throw new UserError("请先退出流放之路，再应用或恢复汉化");
-        RequireOrdinaryPath(storage); RequireOrdinaryPath(config);
+        RequireOrdinaryPath(cacheRoot); RequireOrdinaryPath(storage); RequireOrdinaryPath(config);
     }
     private FileStream Lock() {
-        Directory.CreateDirectory(storage); RequireOrdinaryPath(storage);
-        try { return new FileStream(Path.Combine(storage, "transaction.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        Directory.CreateDirectory(cacheRoot); RequireOrdinaryPath(cacheRoot);
+        try { return new FileStream(Path.Combine(cacheRoot, "transaction.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
         catch (IOException) { throw new UserError("已有游戏汉化事务运行，请等待完成"); }
+    }
+    private void PrepareStorage() {
+        var scoped = ScopedRoot(game, cacheRoot);
+        var owner = LegacyOwner(game, cacheRoot, legacyGameDirectory, verifyIndex: !Directory.Exists(scoped));
+        if (owner != null && !File.Exists(InstallationFile(cacheRoot)))
+            Save(InstallationFile(cacheRoot), new Installation(owner, config));
+        storage = owner != null && SamePath(owner, game) && !Directory.Exists(scoped) ? cacheRoot : scoped;
+        var installation = Read<Installation>(InstallationFile(storage));
+        if (installation == null) Save(InstallationFile(storage), new Installation(game, config));
+        else if (AbsolutePath(installation.GameDirectory) is not { } recorded || !SamePath(recorded, game))
+            throw new UserError("汉化事务的安装目录不匹配");
+    }
+
+    private IEnumerable<Baseline> OtherManagedLanguageBaselines() {
+        var installations = Path.Combine(cacheRoot, "installations");
+        IEnumerable<string> roots = new[] { cacheRoot };
+        if (Directory.Exists(installations)) {
+            RequireOrdinaryPath(installations);
+            roots = roots.Concat(Directory.EnumerateDirectories(installations));
+        }
+        foreach (var root in roots) {
+            if (SamePath(root, storage)) continue;
+            var installation = Read<Installation>(InstallationFile(root));
+            if (AbsolutePath(installation?.ConfigPath) is not { } otherConfig || !SamePath(config, otherConfig) ||
+                AbsolutePath(installation?.GameDirectory) is not { } otherGame) continue;
+            var active = Read<Active>(Path.Combine(root, "transaction-active.json"));
+            if (active is not { Version: 1 }) continue;
+            var baseline = Read<Baseline>(Path.Combine(root, "baseline.json"));
+            if (baseline is not { Version: 1 } || baseline.BuildId != active.BuildId) continue;
+            string otherIndex = Path.Combine(otherGame, "Bundles2", "_.index.bin");
+            if (!File.Exists(otherIndex)) continue;
+            RequireOrdinaryPath(otherIndex);
+            if (Hash(otherIndex) == active.OutputHash || ManagedPatchIndex.ReferencesAnyGeneration(otherIndex, [active.Generation]))
+                yield return baseline;
+        }
     }
     private static bool AreGameProcessesStopped() {
         foreach (var process in Process.GetProcesses()) {
@@ -160,7 +291,7 @@ public sealed class GameTransaction {
     }
 
     public Snapshot EstablishBaseline() {
-        using var guard = Lock();
+        using var guard = Lock(); RequireWritable(); PrepareStorage();
         return EstablishBaselineInternal();
     }
     private Snapshot EstablishBaselineInternal() {
@@ -188,7 +319,11 @@ public sealed class GameTransaction {
         RequireWritable();
         if (Value(Manifest(), "buildid") != snapshot.BuildId || Hash(index) != snapshot.IndexHash || Hash(Stored(relative)) != baselineHash)
             throw new UserError("建立备份时游戏版本或索引发生变化，未建立备份");
-        var originalLanguage = previousActive != null && previousBaseline != null && Language() == "fr" ? previousBaseline.OriginalLanguage : Language();
+        var originalLanguage = Language();
+        if (originalLanguage == "fr") {
+            if (previousActive != null && previousBaseline != null) originalLanguage = previousBaseline.OriginalLanguage;
+            else if (OtherManagedLanguageBaselines().FirstOrDefault() is { } other) originalLanguage = other.OriginalLanguage;
+        }
         // Keep legacy metadata fields readable; automatic checks do not claim a Steam log verification.
         Save(baselineFile, new Baseline(1, snapshot.BuildId, snapshot.GameVersion, baselineHash, relative, DateTime.UtcNow, "", originalLanguage,
             baselineHash == snapshot.IndexHash ? null : snapshot.IndexHash));
@@ -198,7 +333,7 @@ public sealed class GameTransaction {
 
     public Snapshot EnsureAppliedLanguage(string releaseId, string mode = "simplified") {
         ValidateMode(mode);
-        using var guard = Lock(); RequireWritable();
+        using var guard = Lock(); RequireWritable(); PrepareStorage();
         if (File.Exists(journalFile)) throw new UserError("存在未完成汉化事务，请先恢复事务");
         var snapshot = Inspect();
         if (!snapshot.Baseline.Ready || !snapshot.Applied || snapshot.ReleaseId != releaseId || snapshot.Mode != mode)
@@ -229,8 +364,8 @@ public sealed class GameTransaction {
 
     public Snapshot Commit(string candidateIndexPath, string candidateBundleRoot, string releaseId, string generation, string mode = "simplified", Dictionary<string, string>? originalHashes = null) {
         ValidateMode(mode);
-        using var guard = Lock(); RequireWritable();
-        var staging = Path.Combine(storage, "staging"); var candidate = Path.GetFullPath(candidateIndexPath); var bundles = Path.GetFullPath(candidateBundleRoot);
+        using var guard = Lock(); RequireWritable(); PrepareStorage();
+        var staging = StagingRoot; var candidate = Path.GetFullPath(candidateIndexPath); var bundles = Path.GetFullPath(candidateBundleRoot);
         if (!Within(staging, candidate) || !Within(staging, bundles) || !File.Exists(candidate) || !Directory.Exists(bundles)) throw new UserError("补丁候选不属于受管暂存目录");
         if (!Regex.IsMatch(generation, @"^[A-Za-z0-9_-]{1,80}$") || !Regex.IsMatch(releaseId, @"^[A-Za-z0-9._-]{1,120}$")) throw new UserError("补丁版本或事务标识无效");
         RequireOrdinaryPath(candidate); RequireOrdinaryPath(bundles);
@@ -269,7 +404,7 @@ public sealed class GameTransaction {
     }
 
     public Snapshot Restore() {
-        using var guard = Lock(); RequireWritable();
+        using var guard = Lock(); RequireWritable(); PrepareStorage();
         if (File.Exists(journalFile)) RecoverInternal();
         var snapshot = Inspect(); var baseline = Read<Baseline>(baselineFile);
         if (baseline?.BuildId != snapshot.BuildId) {
@@ -280,7 +415,7 @@ public sealed class GameTransaction {
         if (!snapshot.Baseline.Ready) throw new UserError("游戏索引与受管状态不一致，禁止覆盖第三方修改");
         if (!snapshot.Applied && snapshot.IndexHash == baseline!.IndexHash) {
             // Steam validation may already have restored the index; undo our remaining language setting too.
-            if (Language() == "fr") SetLanguage(baseline.OriginalLanguage);
+            if (Language() == "fr" && !OtherManagedLanguageBaselines().Any()) SetLanguage(baseline.OriginalLanguage);
             if (File.Exists(activeFile)) File.Delete(activeFile);
             return Inspect();
         }
@@ -288,22 +423,32 @@ public sealed class GameTransaction {
         DurableWrite(Stored(before), File.ReadAllBytes(index));
         Save(journalFile, new Journal(1, "restore", snapshot.BuildId, snapshot.IndexHash, baseline!.IndexHash, before, Language(), null, Read<Active>(activeFile), null));
         try {
-            RequireWritable(); AtomicIndex(Stored(baseline.IndexFile), index, snapshot.IndexHash);
-            SetLanguage(baseline.OriginalLanguage); File.Delete(activeFile); File.Delete(journalFile);
+            RequireWritable();
+            if (Value(Manifest(), "buildid") != snapshot.BuildId) throw new UserError("Steam 版本已变化，未恢复旧版索引");
+            AtomicIndex(Stored(baseline.IndexFile), index, snapshot.IndexHash);
+            if (!OtherManagedLanguageBaselines().Any()) SetLanguage(baseline.OriginalLanguage);
+            File.Delete(activeFile); File.Delete(journalFile);
             return Inspect();
         } catch { RecoverInternal(); throw; }
     }
 
-    public Snapshot Recover() { using var guard = Lock(); RequireWritable(); RecoverInternal(); return Inspect(); }
+    public Snapshot Recover() { using var guard = Lock(); RequireWritable(); PrepareStorage(); RecoverInternal(); return Inspect(); }
     private void RecoverInternal() {
         var journal = Read<Journal>(journalFile); if (journal == null) return;
         RequireWritable();
         var build = Value(Manifest(), "buildid");
-        if (journal.Version != 1 || journal.BuildId != build) throw new UserError("未完成事务属于其他游戏版本，禁止恢复旧版索引");
+        if (journal.Version != 1) throw new UserError("本机汉化事务记录损坏，请保留诊断并修复");
+        var current = Hash(index);
+        if (journal.BuildId != build) {
+            RetireVerifiedJournal(journal, build, current);
+            return;
+        }
         var before = Stored(journal.BeforeIndex);
         if (!File.Exists(before) || Hash(before) != journal.BeforeHash) throw new UserError("事务备份损坏，未覆盖游戏资源");
-        var current = Hash(index);
-        if (current != journal.BeforeHash && current != journal.AfterHash) throw new UserError("游戏索引已被其他程序更改，请先验证 Steam 完整性");
+        if (current != journal.BeforeHash && current != journal.AfterHash) {
+            RetireVerifiedJournal(journal, build, current);
+            return;
+        }
         var temporary = index + ".poehelper-next";
         if (File.Exists(temporary)) { RequireOrdinaryPath(temporary); File.Delete(temporary); }
         if (current == journal.AfterHash) AtomicIndex(before, index, current);
@@ -311,6 +456,26 @@ public sealed class GameTransaction {
         if (journal.BeforeActive != null) Save(activeFile, journal.BeforeActive); else if (File.Exists(activeFile)) File.Delete(activeFile);
         // An interrupted generation is no longer referenced; leave it for explicit managed cache cleanup.
         File.Delete(journalFile);
+    }
+
+    private void RetireVerifiedJournal(Journal journal, string build, string current) {
+        // Steam can replace the entire patched index while a previous transaction is pending.
+        // Keep the journal and its backups as evidence, and never replay its old index.
+        var baseline = Read<Baseline>(baselineFile);
+        if (!ValidBaseline(baseline, journal.BuildId) ||
+            (journal.BuildId == build && current != baseline!.IndexHash) ||
+            ManagedPatchIndex.HasManagedReferences(game, index))
+            throw new UserError("当前游戏索引仍含受管补丁或无法核实旧事务，请先使用 Steam 验证游戏文件完整性");
+        var archived = Path.Combine(storage, "transactions", "interrupted-" + Guid.NewGuid().ToString("N") + ".json");
+        Directory.CreateDirectory(Path.GetDirectoryName(archived)!);
+        RequireOrdinaryPath(archived);
+        RequireWritable();
+        if (Value(Manifest(), "buildid") != build || Hash(index) != current)
+            throw new UserError("Steam 版本或索引已变化，请等待更新完成后重试");
+        var temporary = index + ".poehelper-next";
+        if (File.Exists(temporary)) { RequireOrdinaryPath(temporary); File.Delete(temporary); }
+        if (Language() == "fr" && !OtherManagedLanguageBaselines().Any()) SetLanguage(baseline!.OriginalLanguage);
+        File.Move(journalFile, archived);
     }
 
     public static object SelfTest(string directory) {
@@ -346,7 +511,7 @@ public sealed class GameTransaction {
         var orphaned = new GameTransaction(game, Path.Combine(root, "orphan-cache"), ini, () => true);
         if (!orphaned.EstablishBaseline().Baseline.Ready) throw new InvalidDataException("Unused patch bundle rejected as an active patch");
         File.WriteAllBytes(targetIndex, original);
-        var stage = Path.Combine(store, "staging", "g1"); Directory.CreateDirectory(stage);
+        var stage = Path.Combine(tx.StagingRoot, "g1"); Directory.CreateDirectory(stage);
         var candidate = Path.Combine(stage, "candidate.index.bin"); File.WriteAllText(candidate, "patched");
         var bundle = Path.Combine(stage, "bundles"); Directory.CreateDirectory(bundle); File.WriteAllText(Path.Combine(bundle, "0.bundle.bin"), "bundle");
         tx.Commit(candidate, bundle, "fixture-v1", "fixture1");
@@ -358,7 +523,7 @@ public sealed class GameTransaction {
         blocked = false; try { tx.Restore(); } catch (Exception error) when (error is UserError or InvalidDataException) { blocked = true; }
         if (!blocked || File.ReadAllText(targetIndex) != "patched") throw new InvalidDataException("Cross-version restore accepted");
         File.WriteAllText(acf, File.ReadAllText(acf).Replace("\"124\"", "\"123\""));
-        var baseline = tx.Read<Baseline>(tx.baselineFile)!;
+        var baseline = Read<Baseline>(tx.baselineFile)!;
         tx.SaveTestInterruptedApply(baseline);
         tx.Recover();
         if (!File.ReadAllBytes(targetIndex).AsSpan().SequenceEqual(original) || tx.Inspect().Applied || tx.Inspect().RecoveryNeeded) throw new InvalidDataException("Crash rollback failed");
@@ -384,7 +549,10 @@ public sealed class GameTransaction {
         Directory.CreateDirectory(Path.Combine(root, "library", "steamapps", "downloading", "238960"));
         blocked = false; try { tx.RequireWritable(); } catch (UserError) { blocked = true; }
         if (!blocked) throw new InvalidDataException("Steam update stage accepted");
-        return new { passed = true, cases = 18 + WorkflowSelfTest(Path.Combine(root, "workflow")) };
+        int installationCases = InstallationSelfTest(Path.Combine(root, "installations"));
+        int recoveryCases = RecoverySelfTest(Path.Combine(root, "recovery"));
+        return new { passed = true, cases = 18 + WorkflowSelfTest(Path.Combine(root, "workflow")) + installationCases + recoveryCases,
+            installationCases, recoveryCases };
         } finally {
             if (Directory.Exists(root) && Within(Path.GetFullPath(directory), root) && Path.GetFileName(root).StartsWith("transaction-fixture-", StringComparison.Ordinal)) {
                 if (OperatingSystem.IsWindows()) Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(root, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
@@ -397,6 +565,95 @@ public sealed class GameTransaction {
         var current = Inspect();
         Save(journalFile, new Journal(1, "apply", current.BuildId, baseline.IndexHash, current.IndexHash,
             baseline.IndexFile, "en", "fixture2", null, Read<Active>(activeFile)));
+    }
+
+    private static GameTransaction FixtureInstallation(string library, string store, string ini) {
+        var steamapps = Path.Combine(library, "steamapps");
+        var game = Path.Combine(steamapps, "common", "Path of Exile");
+        Directory.CreateDirectory(Path.Combine(game, "Bundles2"));
+        Directory.CreateDirectory(Path.GetDirectoryName(ini)!);
+        File.WriteAllBytes(Path.Combine(game, "PathOfExileSteam.exe"), []);
+        File.WriteAllBytes(Path.Combine(game, "Bundles2", "_.index.bin"), FixtureIndex());
+        File.WriteAllText(Path.Combine(steamapps, "appmanifest_238960.acf"),
+            "\"AppState\" { \"appid\" \"238960\" \"installdir\" \"Path of Exile\" \"buildid\" \"123\" \"StateFlags\" \"4\" }");
+        return new GameTransaction(game, store, ini, () => true);
+    }
+
+    private void ApplyFixture(string generation) {
+        EstablishBaseline();
+        var stage = Path.Combine(StagingRoot, generation);
+        var bundles = Path.Combine(stage, "bundles");
+        Directory.CreateDirectory(bundles);
+        File.WriteAllBytes(Path.Combine(bundles, "fixture.bundle.bin"), FixtureEnvelope([]));
+        var candidate = Path.Combine(stage, "candidate.index.bin");
+        File.WriteAllBytes(candidate, FixtureIndex("PoEHelper/" + generation + "/fixture", referenced: true));
+        if (!Commit(candidate, bundles, "fixture-v1", generation).Applied)
+            throw new InvalidDataException("Fixture commit did not apply");
+    }
+
+    private static int InstallationSelfTest(string root) {
+        var store = Path.Combine(root, "shared-cache");
+        var ini = Path.Combine(root, "My Games", "Path of Exile", "production_Config.ini");
+        var a = FixtureInstallation(Path.Combine(root, "library-a"), store, ini);
+        var b = FixtureInstallation(Path.Combine(root, "library-b"), store, ini);
+        File.WriteAllText(ini, "[LANGUAGE]\r\nlanguage=en\r\n");
+        a.ApplyFixture("a");
+        b.ApplyFixture("b");
+        if (a.storage == b.storage || !a.Inspect().Applied || !b.Inspect().Applied)
+            throw new InvalidDataException("Same-Build installations overwrote each other's transactions");
+        a.Restore();
+        if (a.Inspect().Applied || !b.Inspect().Applied || b.Language() != "fr")
+            throw new InvalidDataException("Restoring one installation disrupted the other");
+        b.Restore();
+        if (b.Inspect().Applied || b.Language() != "en")
+            throw new InvalidDataException("The last restore did not recover the shared original language");
+
+        var legacyStore = Path.Combine(root, "legacy-cache");
+        var legacy = FixtureInstallation(Path.Combine(root, "legacy-library"), legacyStore, ini);
+        var second = FixtureInstallation(Path.Combine(root, "other-library"), legacyStore, ini);
+        string original = Path.Combine("baselines", "123", "original.index.bin");
+        DurableWrite(Path.Combine(legacyStore, original), File.ReadAllBytes(legacy.index));
+        Save(Path.Combine(legacyStore, "baseline.json"), new Baseline(1, "123", "unknown", Hash(legacy.index), original, DateTime.UtcNow, "", "en"));
+        File.WriteAllBytes(legacy.index, FixtureIndex("PoEHelper/legacy/fixture", referenced: true));
+        Save(Path.Combine(legacyStore, "transaction-active.json"), new Active(1, "123", Hash(legacy.index), "fixture-old", "legacy"));
+        File.WriteAllText(ini, "[LANGUAGE]\r\nlanguage=fr\r\n");
+        legacy = new GameTransaction(legacy.game, legacyStore, ini, () => true, second.game);
+        if (!legacy.Inspect().Applied) throw new InvalidDataException("Legacy patch evidence did not override a conflicting remembered directory");
+        legacy.EnsureAppliedLanguage("fixture-old");
+        second.ApplyFixture("new-installation");
+        legacy.Restore();
+        second.Restore();
+        if (legacy.storage != legacyStore || second.storage == legacyStore || legacy.Language() != "en")
+            throw new InvalidDataException("Legacy transaction was not isolated and restorable");
+        return 5;
+    }
+
+    private static int RecoverySelfTest(string root) {
+        var store = Path.Combine(root, "cache");
+        var ini = Path.Combine(root, "My Games", "Path of Exile", "production_Config.ini");
+        var tx = FixtureInstallation(root, store, ini);
+        File.WriteAllText(ini, "[LANGUAGE]\r\nlanguage=en\r\n");
+        tx.ApplyFixture("old");
+        tx.SaveTestInterruptedApply(Read<Baseline>(tx.baselineFile)!);
+        var previousJournal = File.ReadAllBytes(tx.journalFile);
+        var previousIndex = File.ReadAllBytes(tx.index);
+        File.WriteAllText(tx.manifest, File.ReadAllText(tx.manifest).Replace("\"123\"", "\"124\""));
+        bool blocked = false;
+        try { tx.Restore(); } catch (UserError) { blocked = true; }
+        if (!blocked || !File.ReadAllBytes(tx.index).AsSpan().SequenceEqual(previousIndex) || !File.Exists(tx.journalFile))
+            throw new InvalidDataException("Cross-Build pending transaction retired while the old patch was still referenced");
+        byte[] cleanIndex = FixtureIndex("new-official");
+        File.WriteAllBytes(tx.index, cleanIndex);
+        var restored = tx.Restore();
+        var archived = Directory.GetFiles(Path.Combine(tx.storage, "transactions"), "interrupted-*.json");
+        if (restored.RecoveryNeeded || restored.Applied || restored.BuildId != "124" || !restored.Baseline.Ready ||
+            tx.Language() != "en" || !File.ReadAllBytes(tx.index).AsSpan().SequenceEqual(cleanIndex) ||
+            archived.Length != 1 || !File.ReadAllBytes(archived[0]).AsSpan().SequenceEqual(previousJournal))
+            throw new InvalidDataException("Clean new Build did not archive the stale journal and preserve the current index");
+        tx.ApplyFixture("retry");
+        if (!tx.Inspect().Applied || tx.Inspect().RecoveryNeeded)
+            throw new InvalidDataException("A retired transaction prevented reapplying after Steam verification");
+        return 3;
     }
 
     private static int WorkflowSelfTest(string root) {
@@ -577,12 +834,14 @@ public sealed class GameTransaction {
         return stream.ToArray();
     }
 
-    private static byte[] FixtureIndex(string? bundle = null) {
+    private static byte[] FixtureIndex(string? bundle = null, bool referenced = false) {
         using var body = new MemoryStream();
         using (var writer = new BinaryWriter(body, Encoding.UTF8, true)) {
             writer.Write(bundle == null ? 0 : 1);
             if (bundle != null) { var name = Encoding.UTF8.GetBytes(bundle); writer.Write(name.Length); writer.Write(name); writer.Write(0); }
-            writer.Write(0); writer.Write(0); writer.Write(FixtureEnvelope([]));
+            writer.Write(referenced ? 1 : 0);
+            if (referenced) { writer.Write(1UL); writer.Write(0); writer.Write(0); writer.Write(0); }
+            writer.Write(0); writer.Write(FixtureEnvelope([]));
         }
         return FixtureEnvelope(body.ToArray());
     }

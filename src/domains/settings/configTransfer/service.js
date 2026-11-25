@@ -24,7 +24,12 @@ export const CONFIG_TRANSFER_STORAGE_KEYS = Object.freeze([
   'essencePresets', 'currentEssencePresetId',
   'harvestPresets', 'currentHarvestPresetId',
   'mapPresets', 'currentMapPresetId',
-  'storyGuide:v1',
+  'heistPresets', 'currentHeistPresetId',
+  'storyGuide:v1', 'storyGuide:context:v1',
+  'vendorRegexPresets', 'currentVendorRegexPresetId',
+  'mapRegexPresets', 'currentMapRegexPresetId',
+  'beastRegexPresets', 'currentBeastRegexPresetId',
+  'settings',
   'toolSiteDirectory'
 ])
 
@@ -46,15 +51,18 @@ export function createStorageStateController(storage = localStorage) {
   }
 }
 
+const REGEX_SECTION_IDS = new Set(['preset.vendorRegex', 'preset.mapRegex', 'preset.beastRegex'])
+
 function presetStoreFor(context, sectionId) {
-  return sectionId === 'preset.story' || sectionId === 'preset.storySkill'
-    ? context.storyStore
-    : context.presetStore
+  if (sectionId === 'preset.story' || sectionId === 'preset.storySkill') return context.storyStore
+  if (REGEX_SECTION_IDS.has(sectionId)) return context.regexPresetStore
+  return context.presetStore
 }
 
 function presetCatalog(context, sectionId) {
   const config = PRESET_SECTION_CONFIGS[sectionId]
   const store = presetStoreFor(context, sectionId)
+  if (!store) return []
   const activeId = String(store[config.activeKey] || '')
   return (store[config.collectionKey] || []).map(preset => ({
     id: String(preset.id || ''),
@@ -70,10 +78,12 @@ export function createConfigTransferService({ context, appVersion = '' }) {
   })
 
   function exportCatalog() {
-    return CONFIG_SECTION_DEFINITIONS.map(definition => ({
-      ...definition,
-      presets: definition.group === 'preset' ? presetCatalog(context, definition.id) : []
-    }))
+    return CONFIG_SECTION_DEFINITIONS
+      .filter(definition => descriptors.has(definition.id))
+      .map(definition => ({
+        ...definition,
+        presets: definition.group === 'preset' ? presetCatalog(context, definition.id) : []
+      }))
   }
 
   async function exportToFile(selection = {}) {
@@ -108,13 +118,6 @@ export function createConfigTransferService({ context, appVersion = '' }) {
       throw new ConfigTransferError(result.errorCode || 'CONFIG_OPEN_FAILED', result.error || '打开配置文件失败')
     }
     const parsed = parseConfigBundle(result.content)
-    if ((parsed.bundle.server || 'cn') !== currentServer.id) {
-      parsed.sections = parsed.sections.map(section => section.id === 'settings.toolSites' ? section : {
-        ...section, selectable: false, reason: '此预设属于另一服务器，不能跨服导入'
-      })
-      parsed.compatibleSectionIds = parsed.sections.filter(section => section.selectable).map(section => section.id)
-      parsed.defaultSelectedSectionIds = [...parsed.compatibleSectionIds]
-    }
     return {
       canceled: false,
       fileName: String(result.fileName || ''),

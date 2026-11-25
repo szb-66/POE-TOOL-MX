@@ -50,7 +50,11 @@ export function registerIpcHandlers(dependencies) {
   registerPythonHandlers(python, window, fileWatcher, { server: dependencies.server, localizationRuntime: dependencies.localizationRuntime })
   registerStashTabHandlers(python, window, fileWatcher)
   registerFileHandlers(fileWatcher, itemParser, itemMatcher, window, crafting, dependencies.localizationRuntime)
-  registerShortcutHandlers(shortcut, window)
+  registerShortcutHandlers(shortcut, window, {
+    onTriggered: (key) => {
+      if (key === 'priceCheck') priceCheck?.beginHotkeyCapture?.()
+    }
+  })
   registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, highlightModelRoot: dependencies.highlightModelRoot, localizationRuntime: dependencies.localizationRuntime })
   registerCombatHandlers(python, window, fileWatcher)
   const emergencyStop = registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum, getMainWindow })

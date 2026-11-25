@@ -15,6 +15,7 @@ for (const base of snapshot.bases) {
 }
 const uniqueKeys = new Set(snapshot.uniques.map(item => `${item.en.trim()}\0${canonicalBase(item.base)}`))
 const canonicalUnique = name => ({ 'Doppelgänger Guise': 'Doppelganger Guise', 'Mjölner': 'Mjolner' }[name] || name)
+const foulbornPrefix = 'Foulborn '
 const gemNameMap = Object.fromEntries(snapshot.gems.map(gem => [gem.id.includes('/SupportGem') && !gem.en.endsWith(' Support') ? `${gem.en} Support` : gem.en, gem.en]))
 
 export function internationalPobContext(items) {
@@ -38,8 +39,12 @@ export function resolveInternationalItemIdentity(item) {
   }
   if ([3, 9, 10].includes(item.frameType)) {
     const name = canonicalUnique(item.name)
-    if (!uniqueKeys.has(`${name}\0${baseType}`)) return { error: `未识别的国际服传奇身份：${item.name || '缺失'} / ${baseType}` }
-    return { name, baseType }
+    if (uniqueKeys.has(`${name}\0${baseType}`)) return { name, baseType }
+    if (typeof name === 'string' && name.startsWith(foulbornPrefix)) {
+      const originalName = canonicalUnique(name.slice(foulbornPrefix.length))
+      if (uniqueKeys.has(`${originalName}\0${baseType}`)) return { name: `${foulbornPrefix}${originalName}`, baseType }
+    }
+    return { error: `未识别的国际服传奇身份：${item.name || '缺失'} / ${baseType}` }
   }
   return { name: item.frameType === 2 || item.name ? 'Item' : '', baseType }
 }

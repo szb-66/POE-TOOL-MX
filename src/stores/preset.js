@@ -28,6 +28,8 @@ import {
   normalizeItemCraftingKind,
   normalizeSpecializedPreset
 } from '../utils/specializedCraftingPreset.js'
+import { currentServer } from '../utils/serverContext.js'
+import { translateMapAffixList } from '../utils/crossServerMapAffix.js'
 
 let specializedPresetIdSequence = 0
 
@@ -436,7 +438,10 @@ export const usePresetStore = defineStore('preset', () => {
         const loaded = loadedMapPresets.map(preset => {
           const rawMap = preset.map || {}
           if (rawMap.chisel) delete rawMap.chisel
-          return { ...preset, map: cleanMigratedMapConfig(rawMap) }
+          const cleaned = cleanMigratedMapConfig(rawMap)
+          cleaned.match.blacklist = translateMapAffixList(cleaned.match.blacklist, 'atlas', currentServer.language)
+          cleaned.match.whitelist = translateMapAffixList(cleaned.match.whitelist, 'atlas', currentServer.language)
+          return { ...preset, map: cleaned }
         })
         mapPresets.value = loaded
       }
@@ -468,7 +473,12 @@ export const usePresetStore = defineStore('preset', () => {
       }
       const savedHeist = localStorage.getItem('heistPresets')
       const loadedHeist = savedHeist ? JSON.parse(savedHeist) : []
-      heistPresets.value = Array.isArray(loadedHeist) ? loadedHeist.map(p => ({ ...p, heist: cleanMigratedHeistConfig(p.heist) })) : []
+      heistPresets.value = Array.isArray(loadedHeist) ? loadedHeist.map(p => {
+        const cleaned = cleanMigratedHeistConfig(p.heist)
+        cleaned.match.blacklist = translateMapAffixList(cleaned.match.blacklist, 'heist', currentServer.language)
+        cleaned.match.whitelist = translateMapAffixList(cleaned.match.whitelist, 'heist', currentServer.language)
+        return { ...p, heist: cleaned }
+      }) : []
       if (!heistPresets.value.some(p => p.id === 'default')) heistPresets.value.unshift({ id: 'default', name: '默认预设', heist: createDefaultHeistConfig() })
       const savedHeistId = localStorage.getItem('currentHeistPresetId')
       currentHeistPresetId.value = heistPresets.value.some(p => p.id === savedHeistId) ? savedHeistId : 'default'

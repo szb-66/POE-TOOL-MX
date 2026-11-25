@@ -1,11 +1,19 @@
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { access, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { normalizeCraftingDataset } from './model.js'
 import { craftedOptionMatchesBase, modifierMatchesBase, validateBaseVariant } from './variantRules.js'
 import { MANUAL_SOURCE_GROUPS } from './manualCrafting.js'
 import { getServer } from '../../../shared/serverMode.js'
+import {
+  canonicalAffixPattern,
+  findEldritchPair,
+  translateAffixPattern,
+  translateEldritchTarget
+} from './crossServerMap.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 export const DEFAULT_BUILTIN_ROOT = path.resolve(dirname, '../../assets/crafting-data')
@@ -41,6 +49,7 @@ const PROFILE_LABELS = {
 const AFFIX_SOURCE_LABELS = {
   natural: '基础',
   crafted: '工艺台',
+  enchant: '附魔',
   essence: '精华',
   delve: '地心探险',
   incursion: '穿越',
@@ -61,16 +70,101 @@ function effectPattern(text = '') {
     .trim()
 }
 
-function selectAffixSuggestions(rows, query, limit) {
+function localizationFragments(value) {
+  const lines = String(value ?? '').split(/\r?\n/)
+  const fragments = []
+  // 词库中的一个译文可能覆盖连续多行，并嵌在更长的词缀中。
+  for (let start = 0; start < lines.length; start += 1) {
+    for (let end = lines.length; end > start; end -= 1) {
+      fragments.push({ start, end, text: lines.slice(start, end).join('\n') })
+    }
+  }
+  return fragments
+}
+
+const AFFIX_ALIAS_PATTERN = /[\u3400-\u9fff]/u
+const requireModule = createRequire(import.meta.url)
+let affixLanguageAliasCache = null
+let traditionalConverter = null
+
+function affixAliasKey(value = '') {
+  return String(value)
+    .replace(/\(?[+\-]?\d+(?:\.\d+)?\s*[—–-]\s*[+\-]?\d+(?:\.\d+)?\)?/g, '#')
+    .replace(/[+\-]?\d+(?:\.\d+)?/g, '#')
+    .replace(/#+/g, '#')
+    .replace(/\s+/g, '')
+    .trim()
+    .toLocaleLowerCase('zh-CN')
+}
+
+function simplifyChinese(value) {
+  if (!AFFIX_ALIAS_PATTERN.test(value)) return value
+  try {
+    if (!traditionalConverter) traditionalConverter = requireModule('opencc-js').Converter({ from: 'tw', to: 'cn' })
+    return traditionalConverter(String(value))
+  } catch {
+    return String(value)
+  }
+}
+
+// 国际服的词缀目录是英文的。价格查询目录同时保存了同一效果的英文与简繁中文写法，
+// 用它建立只读的搜索别名，词缀联想不再依赖当前是否成功应用了受管汉化。
+function internationalAffixAliases() {
+  if (affixLanguageAliasCache) return affixLanguageAliasCache
+  const aliases = new Map()
+  try {
+    const catalog = JSON.parse(readFileSync(path.resolve(dirname, '../priceCheck/catalog.json'), 'utf8'))
+    for (const stat of catalog.stats ?? []) {
+      const texts = [stat.label, ...(Array.isArray(stat.matchers) ? stat.matchers : [])]
+        .filter(value => typeof value === 'string' && value.trim())
+      const localized = texts.filter(value => AFFIX_ALIAS_PATTERN.test(value))
+      const canonical = texts.filter(value => !AFFIX_ALIAS_PATTERN.test(value))
+      if (!localized.length || !canonical.length) continue
+      for (const english of canonical) {
+        const key = affixAliasKey(english)
+        if (!key) continue
+        const bucket = aliases.get(key) ?? new Set()
+        localized.forEach(value => bucket.add(value.replace(/\s+/g, ' ').trim()))
+        aliases.set(key, bucket)
+      }
+    }
+  } catch {
+    // 目录不可用时仍保留英文与当前汉化词库的搜索结果。
+  }
+  affixLanguageAliasCache = aliases
+  return aliases
+}
+
+function selectAffixSuggestions(rows, query, limit, { fallbackChinese = false } = {}) {
   const needle = String(query).trim().toLocaleLowerCase('zh-CN')
-  const suggestions = rows.filter(row => !needle || row.searchable.includes(needle)).map(({ searchable, ...row }) => row)
+  const folded = value => value.replace(/的/g, '')
+  const needles = [...new Set([needle, simplifyChinese(needle).toLocaleLowerCase('zh-CN'), folded(needle), folded(simplifyChinese(needle).toLocaleLowerCase('zh-CN'))])].filter(Boolean)
+  const contains = values => !needle || needles.some(value => values.includes(value))
+  const starts = values => Boolean(needle) && needles.some(value => values.startsWith(value))
+  const displayName = row => fallbackChinese && row.fallbackDisplayName ? row.fallbackDisplayName : row.displayName
+  const aliasRank = values => {
+    if (!needle || !values) return Number.MAX_SAFE_INTEGER
+    let best = Number.MAX_SAFE_INTEGER
+    for (const value of needles) {
+      const index = values.indexOf(value)
+      if (index >= 0) best = Math.min(best, index)
+    }
+    return best === Number.MAX_SAFE_INTEGER ? best : 1 + best
+  }
+  const suggestions = rows.filter(row => contains(row.searchable) || contains(row.searchableFolded))
+  for (const row of suggestions) {
+    row.sortRank = starts(`${displayName(row)} ${row.effectPattern}`.toLocaleLowerCase('zh-CN')) ? 0 : aliasRank(row.aliasText)
+  }
   suggestions.sort((a, b) => {
-    const aStarts = needle && `${a.displayName} ${a.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
-    const bStarts = needle && `${b.displayName} ${b.effectPattern}`.toLocaleLowerCase('zh-CN').startsWith(needle) ? 0 : 1
-    return aStarts - bStarts || a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN')
+    return a.sortRank - b.sortRank || displayName(a).localeCompare(displayName(b), 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN')
   })
   const size = Math.max(1, Math.min(100, Number(limit) || 50))
-  return { items: suggestions.slice(0, size), total: suggestions.length }
+  const items = suggestions.slice(0, size).map(({ searchable, searchableFolded, aliasText, sortRank, fallbackDisplayName, ...row }) => {
+    const localizedName = fallbackChinese && fallbackDisplayName ? fallbackDisplayName : row.displayName
+    const displayPattern = fallbackChinese && fallbackDisplayName ? fallbackDisplayName : (row.displayPattern || '')
+    return { ...row, displayName: localizedName, displayPattern }
+  })
+  return { items, total: suggestions.length }
 }
 
 async function exists(target) {
@@ -139,16 +233,63 @@ export class CraftingDataRepository {
 
   refreshLocalization() {
     if (this.server.id !== 'international' || !this.localizationRuntime) return null
-    this.localizationRuntime.current()
-    this.localizedDictionary = this.localizationRuntime.dictionary
+    const localized = this.localizationRuntime.current()
+    this.localizedDictionary = localized?.revision ? this.localizationRuntime.dictionary : null
   }
 
   searchText(...values) {
     const dictionary = this.getDictionary()
-    return values.flatMap(value => [value, ...(dictionary?.aliasesFor(String(value || '')) || [])]).join(' ').toLocaleLowerCase('zh-CN')
+    if (!dictionary) return values.join(' ').toLocaleLowerCase('zh-CN')
+    return values.flatMap(value => localizationFragments(value)
+      .flatMap(({ text }) => [text, ...dictionary.aliasesFor(text)]))
+      .join(' ').toLocaleLowerCase('zh-CN')
   }
 
-  displayText(value) { return this.getDictionary()?.localize(value) || value }
+  displayText(value) {
+    const dictionary = this.getDictionary()
+    if (!dictionary || !value) return value
+    const result = []
+    let nextLine = 0
+    for (const { start, end, text } of localizationFragments(value)) {
+      if (start !== nextLine) continue
+      const translated = dictionary.localize(text) || text
+      if (translated === text && end > start + 1) continue
+      result.push(translated)
+      nextLine = end
+    }
+    return result.join('\n')
+  }
+
+  affixAliasText(...values) {
+    if (this.server.id !== 'international' || this.getDictionary()) return []
+    const aliases = internationalAffixAliases()
+    if (!aliases.size) return []
+    const result = []
+    for (const value of values) {
+      const text = String(value ?? '')
+      if (!text.trim()) continue
+      const keys = text.includes('\n') ? [text, ...text.split(/\r?\n/)] : [text]
+      for (const keyText of keys) {
+        const bucket = aliases.get(affixAliasKey(keyText))
+        if (bucket) result.push(...bucket)
+      }
+    }
+    return [...new Set(result)]
+  }
+
+  affixAliasesForTexts(texts = []) {
+    if (this.server.id !== 'international') return []
+    const aliases = internationalAffixAliases()
+    if (!aliases.size) return []
+    return texts.map((text) => {
+      const values = [...(aliases.get(affixAliasKey(String(text))) ?? [])]
+      return {
+        text: String(text),
+        aliases: values,
+        displayText: values.find((value) => value.includes('#')) || values[0] || String(text)
+      }
+    })
+  }
 
   getStatus() {
     const { root, dataset } = this.ensureReady()
@@ -232,8 +373,9 @@ export class CraftingDataRepository {
     this.refreshLocalization()
     const dataset = this.getDataset()
     const dictionary = this.getDictionary()
+    const fallbackChinese = this.server.id === 'international' && !dictionary && AFFIX_ALIAS_PATTERN.test(String(query))
     if (this.affixSuggestionsCache?.dataset === dataset && this.affixSuggestionsCache.dictionary === dictionary) {
-      return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit)
+      return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit, { fallbackChinese })
     }
     const profileLabels = new Map()
     dataset.bases.forEach((base) => {
@@ -258,17 +400,30 @@ export class CraftingDataRepository {
         text: tier.text
       }])).values()].filter((tier) => tier.tier > 0).sort((a, b) => a.tier - b.tier)
       const displayName = this.displayText(pattern)
+      const patternAliases = this.affixAliasText(pattern)
+      const fallbackDisplayName = patternAliases.find((alias) => alias.includes('#')) || patternAliases[0] || ''
+      const aliasText = (patternAliases.length ? patternAliases : this.affixAliasText(...tiers.map((tier) => tier.text)))
+        .join(' ').toLocaleLowerCase('zh-CN')
       const searchable = [
-        displayName, modifier.name, ...tiers.map((tier) => `${tier.name} ${tier.text}`),
-        ...(modifier.displayTags ?? []).map((tag) => tag.label),
-        AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain, applicableLabel
-      ].map(value => this.searchText(value)).join(' ')
+        ...[
+          displayName, pattern, modifier.name,
+          ...tiers.flatMap((tier) => [tier.name, String(tier.name || '').replace(/^T\d+\s*/, ''), tier.text]),
+          ...(modifier.displayTags ?? []).map((tag) => tag.label),
+          AFFIX_SOURCE_LABELS[sourceDomain] || sourceDomain, applicableLabel
+        ].map(value => this.searchText(value)),
+        aliasText
+      ].join(' ')
       rows.push({
         searchable,
+        searchableFolded: searchable.replace(/的/g, ''),
+        aliasText,
+        displayPattern: dictionary ? displayName : '',
+        fallbackDisplayName,
         id: `${modifier.id}:${sourceDomain}${suffix}`,
         modifierId: modifier.id,
         displayName,
         effectPattern: pattern,
+        canonicalPattern: canonicalAffixPattern(pattern),
         exampleText: this.displayText(tiers[0]?.text || pattern),
         canonicalDisplayName: pattern,
         affixType: modifier.affixType,
@@ -297,9 +452,13 @@ export class CraftingDataRepository {
       current.applicableLabel = [...labels].join(' / ')
       current.sourceLabel = [...new Set(`${current.sourceLabel} / ${row.sourceLabel}`.split(' / ').filter(Boolean))].join(' / ')
       current.searchable += `\n${row.searchable}`
+      current.searchableFolded += `\n${row.searchableFolded}`
+      current.aliasText = `${current.aliasText} ${row.aliasText}`.trim()
+      current.displayPattern ||= row.displayPattern
+      current.fallbackDisplayName ||= row.fallbackDisplayName
     })
     this.affixSuggestionsCache = { dataset, dictionary, rows: [...merged.values()] }
-    return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit)
+    return selectAffixSuggestions(this.affixSuggestionsCache.rows, query, limit, { fallbackChinese })
   }
 
   searchEldritchImplicitSuggestions({ query = '', source = 'exarch', tier = 1, limit = 50 } = {}) {
@@ -315,12 +474,18 @@ export class CraftingDataRepository {
       const itemClasses = family.itemClasses.filter((itemClass) => Number(tierEntry.weights?.[itemClass]) > 0)
       if (!itemClasses.length) return []
       const pattern = effectPattern(family.effectKey || tierEntry.text)
-      const displayName = this.displayText(pattern) || String(family.name || pattern.replaceAll('#', '')).replace(/\s+/g, ' ').trim()
+      const translatedName = this.displayText(pattern) || String(family.name || pattern.replaceAll('#', '')).replace(/\s+/g, ' ').trim()
+      const fallbackName = this.getDictionary() ? '' : this.affixAliasText(pattern).find((alias) => alias.includes('#')) || ''
+      const displayName = fallbackName || translatedName
+      const displayPattern = this.getDictionary() ? translatedName : fallbackName
       const applicableLabel = itemClasses.map((itemClass) => ITEM_CLASS_LABELS[itemClass] || itemClass).join(' / ')
       const searchable = this.searchText(displayName, pattern, tierEntry.text, applicableLabel)
+      const pair = findEldritchPair({ familyId: family.id, source: selectedSource, effectPattern: pattern })
       return needle && !searchable.includes(needle) ? [] : [{
         familyId: family.id,
+        ...(pair ? { canonicalKey: pair.canonicalKey } : {}),
         displayName,
+        displayPattern,
         effectPattern: pattern,
         exampleText: this.displayText(tierEntry.text),
         applicableLabel,
@@ -331,6 +496,38 @@ export class CraftingDataRepository {
     items.sort((a, b) => a.displayName.localeCompare(b.displayName, 'zh-CN') || a.applicableLabel.localeCompare(b.applicableLabel, 'zh-CN'))
     const size = Math.max(1, Math.min(100, Math.trunc(Number(limit)) || 50))
     return { items: items.slice(0, size), total: items.length }
+  }
+
+  resolveCrossServerConditions({ affixConditions = [], eldritchTargets = [] } = {}) {
+    this.refreshLocalization()
+    const targetLanguage = this.server.language
+    const dictionary = this.getDictionary()
+    const resolvedAffixConditions = (Array.isArray(affixConditions) ? affixConditions : []).map((condition) => {
+      if (!condition || typeof condition !== 'object' || condition.kind !== 'catalog') return condition
+      const sourcePattern = condition.canonicalPattern || condition.effectPattern || ''
+      const canonical = canonicalAffixPattern(sourcePattern) || condition.canonicalPattern || ''
+      const translatedPattern = translateAffixPattern(sourcePattern, targetLanguage)
+      if (!translatedPattern) return condition
+      const displayPattern = targetLanguage === 'en' && dictionary
+        ? (this.displayText(translatedPattern) || translatedPattern)
+        : translatedPattern
+      return {
+        ...condition,
+        ...(canonical ? { canonicalPattern: canonical } : {}),
+        effectPattern: displayPattern,
+        keyword: displayPattern,
+        displayName: displayPattern
+      }
+    })
+    const resolvedEldritchTargets = (Array.isArray(eldritchTargets) ? eldritchTargets : []).map((target) => {
+      if (!target || typeof target !== 'object') return target
+      return translateEldritchTarget(
+        target,
+        targetLanguage,
+        targetLanguage === 'en' && dictionary ? (pattern) => this.displayText(pattern) : null
+      )
+    })
+    return { affixConditions: resolvedAffixConditions, eldritchTargets: resolvedEldritchTargets }
   }
 
   searchModifierCatalog({ baseId, itemLevel = 100, query = '' } = {}) {

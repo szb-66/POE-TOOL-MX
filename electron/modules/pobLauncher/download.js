@@ -5,9 +5,54 @@ import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { createHash } from 'node:crypto'
 import { crc32 } from 'node:zlib'
-import yauzl from 'yauzl'
-import { load } from 'cheerio'
 import { relativePath } from './files.js'
+
+let cachedCheerioLoad = null
+async function loadHtmlParser() {
+  if (!cachedCheerioLoad) {
+    const { load } = await import('cheerio')
+    cachedCheerioLoad = load
+  }
+  return cachedCheerioLoad
+}
+
+let cachedArchiveModules = null
+async function loadArchiveModules() {
+  if (!cachedArchiveModules) {
+    const { default: yauzl } = await import('yauzl')
+    // fd-slicer 1.x marks streams destroyed before push(null). Newer Electron/Node
+    // discards that EOF, leaving yauzl's inflater waiting forever. Keep yauzl's ZIP
+    // parser but use native file streams with a normal EOF/destroy lifecycle.
+    class NativeArchiveReader extends yauzl.RandomAccessReader {
+      constructor(handle) { super(); this.handle = handle }
+      createReadStream({ start, end }) {
+        this.ref()
+        const handle = this.handle
+        let position = start
+        const stream = new Readable({ read(size) {
+          if (position === end) { this.push(null); return }
+          const buffer = Buffer.alloc(Math.min(size, end - position))
+          handle.read(buffer, 0, buffer.length, position).then(({ bytesRead }) => {
+            if (this.destroyed) return
+            if (!bytesRead) { this.destroy(new Error('安装包提前结束')); return }
+            position += bytesRead
+            this.push(buffer.subarray(0, bytesRead))
+          }, error => this.destroy(error))
+        } })
+        let released = false
+        const release = () => { if (!released) { released = true; this.unref() } }
+        stream.once('end', release); stream.once('close', release); stream.once('error', release)
+        return stream
+      }
+      read(buffer, offset, length, position, callback) {
+        this.handle.read(buffer, offset, length, position).then(({ bytesRead }) => callback(null, bytesRead), callback)
+      }
+      close(callback) { this.handle.close().then(() => callback(), callback) }
+    }
+    cachedArchiveModules = { yauzl, NativeArchiveReader }
+  }
+  return cachedArchiveModules
+}
 
 const GITHUB = 'https://github.com'
 const POB_REPO = '/PathOfBuildingCommunity/PathOfBuilding'
@@ -24,7 +69,7 @@ async function metadata(url, signal) {
 const combinedSignal = (signal, timeout) => signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout)
 export async function resolveRelease(component, { signal } = {}) {
   if (component === 'charm') {
-    const data = await metadata(CHARM_FEED, signal)
+    const [data, load] = await Promise.all([metadata(CHARM_FEED, signal), loadHtmlParser()])
     const $ = load(data.text, { xmlMode: true })
     const sha = $('feed > entry').first().children('id').text().match(/^tag:github\.com,2008:Grit::Commit\/([a-f0-9]{40})$/)?.[1]
     if (data.url !== CHARM_FEED || $('feed > id').text() !== 'tag:github.com,2008:/Chuanhsing/PoeCharm/commits/main' || !sha) {
@@ -37,7 +82,7 @@ export async function resolveRelease(component, { signal } = {}) {
   const version = new URL(latest.url).pathname.match(/^\/PathOfBuildingCommunity\/PathOfBuilding\/releases\/tag\/(v?\d+(?:\.\d+){1,3})$/)?.[1]
   if (!version) throw new Error('无法确认官方 PoB 最新稳定版本')
   const assetsUrl = `${GITHUB}${POB_REPO}/releases/expanded_assets/${version}`
-  const assets = await metadata(assetsUrl, signal)
+  const [assets, load] = await Promise.all([metadata(assetsUrl, signal), loadHtmlParser()])
   if (assets.url !== assetsUrl) throw new Error('PoB 官方安装包列表跳转地址无效')
   const $ = load(assets.text)
   const prefix = `${POB_REPO}/releases/download/${version}/`
@@ -77,6 +122,7 @@ export async function download(release, destination, onProgress = () => {}, { si
 // all contents before extraction. Streaming writes report only completed disk writes.
 export async function extractArchive(file, destination, { signal, onProgress = () => {} } = {}) {
   signal?.throwIfAborted()
+  const { yauzl, NativeArchiveReader } = await loadArchiveModules()
   const handle = await fs.open(file, 'r')
   let zip
   try {
@@ -167,36 +213,6 @@ export async function extractArchive(file, destination, { signal, onProgress = (
       })
     } finally { zip.off('error', rememberError) }
   }
-}
-
-// fd-slicer 1.x marks streams destroyed before push(null). Newer Electron/Node
-// discards that EOF, leaving yauzl's inflater waiting forever. Keep yauzl's ZIP
-// parser but use native file streams with a normal EOF/destroy lifecycle.
-class NativeArchiveReader extends yauzl.RandomAccessReader {
-  constructor(handle) { super(); this.handle = handle }
-  createReadStream({ start, end }) {
-    this.ref()
-    const handle = this.handle
-    let position = start
-    const stream = new Readable({ read(size) {
-      if (position === end) { this.push(null); return }
-      const buffer = Buffer.alloc(Math.min(size, end - position))
-      handle.read(buffer, 0, buffer.length, position).then(({ bytesRead }) => {
-        if (this.destroyed) return
-        if (!bytesRead) { this.destroy(new Error('安装包提前结束')); return }
-        position += bytesRead
-        this.push(buffer.subarray(0, bytesRead))
-      }, error => this.destroy(error))
-    } })
-    let released = false
-    const release = () => { if (!released) { released = true; this.unref() } }
-    stream.once('end', release); stream.once('close', release); stream.once('error', release)
-    return stream
-  }
-  read(buffer, offset, length, position, callback) {
-    this.handle.read(buffer, offset, length, position).then(({ bytesRead }) => callback(null, bytesRead), callback)
-  }
-  close(callback) { this.handle.close().then(() => callback(), callback) }
 }
 
 // yauzl 2's inflater wrapper overrides destroy() without emitting close. Await

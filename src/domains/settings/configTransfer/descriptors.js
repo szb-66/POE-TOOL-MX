@@ -1,3 +1,4 @@
+import { normalizeCombatAssist } from '../../../../shared/combatAssist.js'
 import {
   createToolSiteId,
   readToolSites,
@@ -17,12 +18,22 @@ import {
 
 const clone = value => cloneTransferValue(value)
 
+const REGEX_SECTION_IDS = new Set(['preset.vendorRegex', 'preset.mapRegex', 'preset.beastRegex'])
+
+function storeForPresetSection(sectionId, context) {
+  if (sectionId === 'preset.story' || sectionId === 'preset.storySkill') return context.storyStore
+  if (REGEX_SECTION_IDS.has(sectionId)) return context.regexPresetStore
+  return context.presetStore
+}
+
 function presetDescriptor(sectionId, context) {
   const config = PRESET_SECTION_CONFIGS[sectionId]
-  const store = sectionId === 'preset.story' || sectionId === 'preset.storySkill'
-    ? context.storyStore
-    : context.presetStore
-  const collection = () => store[config.collectionKey]
+  const store = storeForPresetSection(sectionId, context)
+  const collection = () => store?.[config.collectionKey] || []
+  const persistStore = () => {
+    if (store.savePresets) store.savePresets()
+    else if (store.save) store.save({ sync: false })
+  }
   return {
     id: sectionId,
     exportData(options = {}) {
@@ -54,16 +65,44 @@ function presetDescriptor(sectionId, context) {
     },
     persist(plan) {
       store[config.collectionKey] = [...collection(), ...clone(plan.candidate)]
-      if (store.savePresets) store.savePresets()
-      else store.save({ sync: false })
+      persistStore()
     },
     rollback(snapshot) {
       store[config.collectionKey] = clone(snapshot.collection)
       store[config.activeKey] = snapshot.activeId
-      if (store.savePresets) store.savePresets()
-      else store.save({ sync: false })
+      persistStore()
     }
   }
+}
+
+function readCombatAssist(context) {
+  if (context.settingsStore?.combatAssist) {
+    return normalizeCombatAssist(context.settingsStore.combatAssist)
+  }
+  try {
+    const raw = JSON.parse(context.storage?.getItem?.('settings') || '{}') || {}
+    return normalizeCombatAssist(raw.combatAssist)
+  } catch {
+    return normalizeCombatAssist()
+  }
+}
+
+async function writeCombatAssist(context, config) {
+  const normalized = normalizeCombatAssist(config)
+  if (context.settingsStore?.updateCombatAssist) {
+    const result = await context.settingsStore.updateCombatAssist(normalized)
+    if (result?.success === false) throw new Error(result.error || '战斗辅助配置保存失败')
+    return
+  }
+  if (context.settingsStore) {
+    context.settingsStore.combatAssist = normalized
+    context.settingsStore.saveSettings?.()
+    return
+  }
+  let current = {}
+  try { current = JSON.parse(context.storage?.getItem?.('settings') || '{}') || {} } catch {}
+  current.combatAssist = normalized
+  context.storage.setItem('settings', JSON.stringify(current))
 }
 
 function ensureContext(context) {
@@ -77,8 +116,25 @@ export function createSectionDescriptorRegistry(context) {
   ensureContext(context)
   const registry = new Map()
   for (const sectionId of Object.keys(PRESET_SECTION_CONFIGS)) {
+    if (REGEX_SECTION_IDS.has(sectionId) && !context.regexPresetStore) continue
     registry.set(sectionId, presetDescriptor(sectionId, context))
   }
+
+  registry.set('settings.combatAssist', {
+    id: 'settings.combatAssist',
+    exportData: () => normalizeExportSectionData('settings.combatAssist', { combatAssist: readCombatAssist(context) }),
+    planImport(rawData) {
+      const imported = normalizeSectionData('settings.combatAssist', rawData)
+      return {
+        candidate: imported.combatAssist,
+        summary: { added: 1, skipped: 0, conflicts: 0 },
+        warnings: ['将覆盖当前战斗辅助配置（含血球/蓝球/传送门坐标与按键）。']
+      }
+    },
+    snapshot: () => ({ combatAssist: readCombatAssist(context) }),
+    persist: plan => writeCombatAssist(context, plan.candidate),
+    rollback: snapshot => writeCombatAssist(context, snapshot.combatAssist)
+  })
 
   registry.set('settings.toolSites', {
     id: 'settings.toolSites',

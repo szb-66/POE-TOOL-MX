@@ -10,13 +10,14 @@ const fields = {
   ItemDisplayHeistBlueprintEscapeRooms: ['Escape Routes Revealed','Escape Routes Revealed'],
   ItemDisplayHeistMaxReinforcements: ['Maximum Alive Reinforcements','Maximum Alive Reinforcements'],
   ItemDisplayHeistAlertLevelReduction: ['Alert Level Reduction','Alert Level Reduction'],
-  ItemDisplayHeistClient: ['Client','Client']
+  ItemDisplayHeistClient: ['Client','Client'],
+  ZanaInfluencedItem: ['Memory Strands','Memory Strands']
 }
 const templates = {
   ItemDisplayHeistContractObjective: { en:'Heist Target: {0}', kinds:['text'], label:'Heist Target' },
   ItemDisplayHeistContractObjectiveWithValue: { en:'Heist Target: {0} ({1})', kinds:['text','text'], label:'Heist Target' },
-  ItemDisplayHeistContractJob: { en:'Requires {1} (Level {0})', kinds:['number','text'] },
-  ItemDisplayHeistJobRequirement: { en:'Level {0} in {1}', kinds:['number','text'], output:'Requires {1} (Level {0})' },
+  ItemDisplayHeistContractJob: { en:'Requires {1} (Level {0})', kinds:['number','text'], jobIndex: 1 },
+  ItemDisplayHeistJobRequirement: { en:'Level {0} in {1}', kinds:['number','text'], output:'Requires {1} (Level {0})', jobIndex: 1 },
   ItemDisplayHeistContractNPC: { en:'Requires {0}', kinds:['text'] },
   ItemDisplayTinctureToxicity1Second: { en: 'Inflicts Mana Burn every {0} Second', kinds: ['decimal'], family: 'tincture', plural: { index: 0, singular: true } },
   ItemDisplayTinctureToxicityNSeconds: { en: 'Inflicts Mana Burn every {0} Seconds', kinds: ['decimal'], family: 'tincture', plural: { index: 0, singular: false } },
@@ -86,9 +87,16 @@ export function createItemStructureResolver(entries,{visibleText,translate,failu
       }
     }
   }
-  function translateText(value) {
+  function translateText(value, isJob = false) {
     const raw=compact(value)
-    let translated=translate(raw)
+    let translated
+    if (isJob) {
+      try {
+        translated = translate(raw, ['heistjobs', 'clientstrings'], null, null,
+          entry => String(entry.table).toLowerCase() !== 'clientstrings' || entry.id === 'ItemDisplayHeistAnyJob')
+      } catch { translated = raw }
+    }
+    if (!translated || cjk.test(translated)) translated=translate(raw)
     if (cjk.test(translated)) {
       const quote=raw.match(/^(["'])(.*)\1$/u)
       if (quote) translated=quote[1]+translate(quote[2])+quote[1]
@@ -113,7 +121,7 @@ export function createItemStructureResolver(entries,{visibleText,translate,failu
       if (!matches.length) return null
       const specificity=Math.max(...matches.map(pattern=>pattern.specificity)),results=new Set()
       for (const pattern of matches.filter(pattern=>pattern.specificity===specificity)) {
-        const values=new Map(pattern.tokens.map((parameter,index)=>[parameter,pattern.definition.kinds[parameter]!=='text'?pattern.match[index+1].replace(/未满足|未滿足/g,'unmet').replace(/增幅/g,'augmented').replace(/（/g,'(').replace(/）/g,')'):translateText(pattern.match[index+1])]))
+        const values=new Map(pattern.tokens.map((parameter,index)=>[parameter,pattern.definition.kinds[parameter]!=='text'?pattern.match[index+1].replace(/未满足|未滿足/g,'unmet').replace(/增幅/g,'augmented').replace(/（/g,'(').replace(/）/g,')'):translateText(pattern.match[index+1],parameter===pattern.definition.jobIndex)]))
         const plural = pattern.definition.plural
         if (plural && (Number.parseFloat(values.get(plural.index)) === 1) !== plural.singular) continue
         results.add((pattern.definition.output || pattern.definition.en).replace(/\{(\d+)\}/g,(_,parameter)=>values.get(Number(parameter))))

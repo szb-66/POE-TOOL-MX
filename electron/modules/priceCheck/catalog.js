@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { enrichOfficialItemsWithImages, enrichInternationalItemsWithImages } from './uniqueItemSnapshot.js'
+import { createVersionedPseudoRules } from './pseudoRules.js'
 import {
   CHART_BASE_TYPES,
   CHART_REGION_ALIASES_VERSION,
@@ -11,14 +12,14 @@ import {
 export const TRADE_CATALOG_SCHEMA_VERSION = 5
 export const TRADE_CATALOG_STALE_MS = 180 * 24 * 60 * 60 * 1000
 
-export const VERSIONED_UNQUERYABLE_STATS = Object.freeze([
-  Object.freeze({
+export const VERSIONED_UNQUERYABLE_STATS = Object.freeze(
+  ['3.29', '3.30.0'].map(gameVersion => Object.freeze({
     provider: 'poe-cn',
-    gameVersion: '3.29',
+    gameVersion,
     id: 'implicit.stat_1571797746',
-    reason: '与有效过滤项重复，官方查询稳定返回零结果'
-  })
-])
+    reason: '与有效过滤项重复，已有官方查询稳定返回零结果的记录'
+  }))
+)
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,6 +47,9 @@ const RESOLVER_ARRAY_FIELDS = ['categories', 'modifierNames', 'tagsAny', 'tagsAl
 const catalogMatcherIndexes = new WeakMap()
 const catalogEquivalenceIndexes = new WeakMap()
 const LOCAL_ITEM_CATEGORY_PATTERN = /(?:弓|剑|斧|锤|权杖|法杖|匕首|爪|长杖|战杖|钓竿|胸甲|头盔|手套|鞋子|盾|药剂|Bow|Sword|Axe|Mace|Sceptre|Wand|Dagger|Claw|Staff|Warstaff|Fishing Rod|Body Armour|Helmet|Gloves|Boots|Shield|Flask)/i
+const SHIELD_BLOCK_STAT = 'stat_4253454700'
+const SHIELD_BLOCK_MATCHER = '+#% Chance to Block (Shields)'
+const SHIELD_CATEGORY_PATTERN = /^(?:盾|盾牌|Shields?)$/i
 
 export function isTradeStatId(id, type = '') {
   const value = compact(id)
@@ -381,6 +385,7 @@ export async function loadInternationalTradeCatalog({ baseCatalog, cacheFile, bu
           catalog.manifest?.server !== 'international' || catalog.manifest.language !== 'en' ||
           catalog.manifest.gameVersion !== catalog.gameVersion) continue
       catalog.items = enrichInternationalItemsWithImages(catalog.items, uniqueItemCatalog)
+      applyInternationalPseudoRules(catalog, baseCatalog)
       return { catalog, status: { ...status, provider, degraded: status.stale, loading: false,
         warning: status.stale ? '国际服交易目录快照已过期，请刷新官方目录' : '' } }
     } catch { /* 缓存损坏时继续读取国际服内置快照，绝不加载国服目录。 */ }
@@ -559,6 +564,45 @@ export function emptyInternationalTradeCatalog(baseCatalog) {
   }
 }
 
+/**
+ * The official international payload only contains trade matchers, while the
+ * aggregate ("综合") rules need the Awakened PoE Trade reference strings.
+ * Reuse the reference strings (English only) from the bundled CN catalog and
+ * restore the versioned pseudo rules so international price checks keep the
+ * same aggregate filters as the CN client. No localized matcher is copied.
+ */
+export function applyInternationalPseudoRules(catalog, baseCatalog = null) {
+  if (!catalog || catalog.provider !== 'poe-international') return catalog
+  const versioned = createVersionedPseudoRules()
+  catalog.pseudoRuleVersion = compact(baseCatalog?.pseudoRuleVersion) || versioned.pseudoRuleVersion
+  catalog.pseudoRuleSource = structuredClone(baseCatalog?.pseudoRuleSource || versioned.pseudoRuleSource)
+  catalog.pseudoRules = structuredClone(baseCatalog?.pseudoRules?.length ? baseCatalog.pseudoRules : versioned.pseudoRules)
+
+  const refsByIdentity = new Map()
+  const addRefs = (identity, refs) => {
+    const values = (Array.isArray(refs) ? refs : [refs]).map(compact).filter(Boolean)
+    if (!values.length) return
+    const current = refsByIdentity.get(identity) || new Set()
+    for (const ref of values) current.add(ref)
+    refsByIdentity.set(identity, current)
+  }
+  for (const entry of baseCatalog?.stats || []) {
+    for (const { type, id } of statIds(entry)) addRefs(`${type}\u0000${id}`, entry.refs)
+  }
+  for (const entry of catalog.stats || []) {
+    const refs = new Set((entry.refs || []).map(compact).filter(Boolean))
+    for (const { type, id } of statIds(entry)) {
+      const inherited = refsByIdentity.get(`${type}\u0000${id}`)
+      if (inherited) for (const ref of inherited) refs.add(ref)
+    }
+    // Official matchers are English trade references; use them only when the
+    // CN catalog had no reference for this stat so no localized text leaks.
+    if (!refs.size) for (const matcher of entry.matchers || []) refs.add(compact(matcher))
+    if (refs.size) entry.refs = [...refs]
+  }
+  return catalog
+}
+
 export function createInternationalTradeCatalog(baseCatalog, statsPayload, itemsPayload, staticPayload, gameVersion, now = Date.now(), uniqueItemCatalog = null) {
   if (!gameVersion || gameVersion === 'unverified') throw new Error('请明确指定国际服补丁版本')
   const base = emptyInternationalTradeCatalog(baseCatalog)
@@ -571,6 +615,7 @@ export function createInternationalTradeCatalog(baseCatalog, statsPayload, items
   result.catalog.stats = result.catalog.stats.map(entry => ({ ...entry, availability: 'international' }))
   result.catalog.statEquivalenceGroups = createStatEquivalenceGroups(statsPayload).map(group => ({ ...group, key: group.key.replace(/^poe-cn:/, 'poe-international:') }))
   result.catalog.currencyLabels = officialCurrencyLabels(staticPayload)
+  applyInternationalPseudoRules(result.catalog, baseCatalog)
   validateTradeCatalog(result.catalog)
   result.status = { ...result.status, ...tradeCatalogStatus(result.catalog, now) }
   return result
@@ -612,10 +657,12 @@ export function createLocalizedOfficialTradeCatalog(
   return localized
 }
 
-export function matcherToRegExp(matcher) {
-  const escaped = compact(matcher)
+export function matcherToRegExp(matcher, signedPlus = false) {
+  const number = '\\d+(?:\\.\\d+)?'
+  let escaped = compact(matcher)
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    .replaceAll('#', '([-+]?\\d+(?:\\.\\d+)?)')
+  if (signedPlus) escaped = escaped.replace(/\\\+#/g, '([+-]' + number + ')')
+  escaped = escaped.replaceAll('#', '([-+]?' + number + ')')
     .replace(/\\ /g, '\\s*')
   return new RegExp(`^${escaped}$`)
 }
@@ -624,16 +671,30 @@ function buildMatcherIndex(catalog) {
   let index = catalogMatcherIndexes.get(catalog)
   if (index) return index
   index = new Map()
+  const add = (entry, matcher, shieldBlockAlias = false) => {
+    const key = matcherIndexKey(matcher)
+    const candidates = index.get(key) || []
+    candidates.push({ entry, matcher, shieldBlockAlias })
+    index.set(key, candidates)
+  }
   for (const entry of catalog.stats || []) {
     for (const matcher of entry.matchers || []) {
-      const key = matcherIndexKey(matcher)
-      const candidates = index.get(key) || []
-      candidates.push({ entry, matcher })
-      index.set(key, candidates)
+      add(entry, matcher)
+      // The game omits the official shield qualifier in the local block description.
+      if (catalog.locale === 'en' && matcher === SHIELD_BLOCK_MATCHER) {
+        add(entry, '+#% Chance to Block', true)
+      }
     }
   }
   catalogMatcherIndexes.set(catalog, index)
   return index
+}
+
+export function warmTradeCatalogIndexes(catalog) {
+  if (!catalog || typeof catalog !== 'object') return false
+  buildMatcherIndex(catalog)
+  buildEquivalenceIndex(catalog)
+  return true
 }
 
 function candidateLabel(entry, id) {
@@ -660,9 +721,16 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
   const index = buildMatcherIndex(catalog)
   const key = matcherIndexKey(normalized)
   const candidates = []
+  const signedCandidates = []
+  const category = compact(context.category)
+  const isShield = SHIELD_CATEGORY_PATTERN.test(category)
+  const mayHaveSignedPlus = catalog.locale === 'en' && /-\d/.test(normalized)
   let textMatchedOtherType = false
-  for (const { entry, matcher } of index.get(key) || []) {
-    const match = normalized.match(matcherToRegExp(matcher))
+  for (const { entry, matcher, shieldBlockAlias } of index.get(key) || []) {
+    if (shieldBlockAlias && !isShield) continue
+    const direct = normalized.match(matcherToRegExp(matcher))
+    const match = direct || (mayHaveSignedPlus && matcher.includes('+#')
+      ? normalized.match(matcherToRegExp(matcher, true)) : null)
     if (!match) continue
     const rawIds = entry.ids?.[type]
     if (!rawIds) {
@@ -673,8 +741,10 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
     const multiplier = entry.negatedMatchers?.includes(matcher) ? -1 : 1
     const values = match.slice(1).map(Number).filter(Number.isFinite).map((value) => value * multiplier)
     for (const id of Array.isArray(rawIds) ? rawIds : [rawIds]) {
+      if (shieldBlockAlias && id !== type + '.' + SHIELD_BLOCK_STAT) continue
       if (!isCatalogStatQueryable(catalog, id)) continue
-      candidates.push({
+      const matches = direct ? candidates : signedCandidates
+      matches.push({
         key: entry.key,
         label: candidateLabel(entry, id),
         id,
@@ -686,15 +756,17 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
         ref: entry.refs?.length === 1 ? entry.refs[0] : null,
         categories: [...(entry.categories || [])],
         merge: entry.merge || null,
-        local: Boolean(entry.local)
+        local: shieldBlockAlias || Boolean(entry.local)
       })
     }
   }
-  const unique = [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()]
+  // The English trade catalog uses +# for values that can display with a minus sign.
+  // A direct matcher takes precedence whenever the catalog already supports the text.
+  const matched = candidates.length ? candidates : signedCandidates
+  const unique = [...new Map(matched.map((candidate) => [candidate.id, candidate])).values()]
     .sort((a, b) => a.id.localeCompare(b.id, 'en'))
   const hasLocalVariant = unique.some((candidate) => candidate.local)
   const hasGlobalVariant = unique.some((candidate) => !candidate.local)
-  const category = compact(context.category)
   const hasLocalContext = context.localItem != null || Boolean(category)
   const localItem = context.localItem == null
     ? LOCAL_ITEM_CATEGORY_PATTERN.test(category)
@@ -702,7 +774,17 @@ export function resolveCatalogStat(catalog, text, type = 'explicit', context = {
   const contextualCandidates = unique.length > 1 && hasLocalVariant && hasGlobalVariant && hasLocalContext
     ? unique.filter((candidate) => candidate.local === localItem)
     : []
-  const resolved = contextualCandidates.length === 1 ? contextualCandidates : unique
+  let resolved = contextualCandidates.length === 1 ? contextualCandidates : unique
+  if (resolved.length > 1 && new Set(resolved.map((candidate) => String(candidate.matcher).replace(/\+#/g, '#'))).size === 1) {
+    // "+25% X" may match both "+#% X" and "#% X"; prefer the id whose matcher's explicit
+    // plus signs agree with the copied text (considering every matcher of that id).
+    const textPlus = (normalized.match(/\+\d/g) || []).length
+    const exactIds = new Set(matched
+      .filter((candidate) => (String(candidate.matcher).match(/\+#/g) || []).length === textPlus)
+      .map((candidate) => candidate.id))
+    const signExact = resolved.filter((candidate) => exactIds.has(candidate.id))
+    if (signExact.length === 1) resolved = signExact
+  }
   let match = resolved.length === 1 ? resolved[0] : null
   if (!match && resolved.length > 1) {
     const equivalenceIndex = buildEquivalenceIndex(catalog)

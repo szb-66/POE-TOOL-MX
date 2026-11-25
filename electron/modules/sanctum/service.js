@@ -1,5 +1,5 @@
 import { SANCTUM_TIMEOUTS } from './errors.js'
-import { isCurrentSanctumEntry } from './catalog.js'
+import { sanctumCatalogSummary } from './catalog.js'
 import { observationKey, validateRunResources } from './runObservation.js'
 import { emptySanctumState, validateSanctumStrategy } from '../../../shared/sanctum.js'
 import { acceptSanctumFloor, resetSanctumRun } from './state.js'
@@ -70,10 +70,7 @@ export class SanctumService {
     captureDraining: Boolean(!this.state.running && (this.startTask || this.liveTask || this.captureTask)),
     foreground: this.foreground, observation: this.observation,
     liveEnvironment: this.liveEnvironment, publicTitles: this.calibrationEditor?.detection.getTitleConfig(),
-    catalogSummary: { patch: this.catalog.patch,
-      total: this.catalog.entries.length, reviewed: this.catalog.entries.filter(entry => entry.applicability === 'current').length,
-      afflictions: this.catalog.entries.filter(entry => entry.kind === 'affliction' && isCurrentSanctumEntry(this.catalog, entry))
-        .map(entry => ({ id: entry.id, label: entry.name, descriptions: entry.descriptions || [] })) } }) }
+    catalogSummary: this.catalog.summary || sanctumCatalogSummary(this.catalog) }) }
   subscribe(listener) { this.listeners.add(listener); return () => this.listeners.delete(listener) }
   publish() { const state = this.getState(); for (const listener of this.listeners) listener(state); return state }
   writeSnapshot(state = this.state) {

@@ -1,6 +1,6 @@
 {
-  "version": "3.30-dev",
-  "commit": "f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea",
+  "version": "2.68.1",
+  "commit": "a41fec6c20f822a658ae5df1273e8c69d5969bac",
   "bases": [
     {
       "en": "Abyssal Axe",
@@ -15,6 +15,10 @@
       "type": "Wand"
     },
     {
+      "en": "Adherent's Crown",
+      "type": "Viscera"
+    },
+    {
       "en": "Aegis Tulgraft",
       "type": "Graft"
     },
@@ -25,6 +29,10 @@
     {
       "en": "Agate Amulet",
       "type": "Amulet"
+    },
+    {
+      "en": "Al-Hezmin's Head",
+      "type": "Viscera"
     },
     {
       "en": "Alder Spiked Shield",
@@ -65,6 +73,10 @@
     {
       "en": "Anarchic Spiritblade",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Ancestor's Club",
+      "type": "Viscera"
     },
     {
       "en": "Ancestral Club",
@@ -131,6 +143,18 @@
       "type": "Flask"
     },
     {
+      "en": "Arachnid Egg Sac",
+      "type": "Viscera"
+    },
+    {
+      "en": "Arachnid Fangs",
+      "type": "Viscera"
+    },
+    {
+      "en": "Arachnid Leg",
+      "type": "Viscera"
+    },
+    {
       "en": "Arcane Vestment",
       "type": "Body Armour"
     },
@@ -155,8 +179,20 @@
       "type": "Body Armour"
     },
     {
+      "en": "Aristocrat's Torso",
+      "type": "Viscera"
+    },
+    {
       "en": "Arming Axe",
       "type": "One Handed Axe"
+    },
+    {
+      "en": "Armoured Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Artificial Appendage",
+      "type": "Viscera"
     },
     {
       "en": "Artillery Quiver",
@@ -247,8 +283,24 @@
       "type": "Claw"
     },
     {
+      "en": "Bandit Rogue's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Bandit Warrior's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Bandit Witch's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Banishing Blade",
       "type": "Two Handed Sword"
+    },
+    {
+      "en": "Baran's Head",
+      "type": "Viscera"
     },
     {
       "en": "Barbed Club",
@@ -281,6 +333,10 @@
     {
       "en": "Bastard Sword",
       "type": "Two Handed Sword"
+    },
+    {
+      "en": "Bat's Wings",
+      "type": "Viscera"
     },
     {
       "en": "Battered Foil",
@@ -319,6 +375,10 @@
       "type": "One Handed Sword"
     },
     {
+      "en": "Bear Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Behemoth Mace",
       "type": "One Handed Mace"
     },
@@ -335,6 +395,14 @@
       "type": "Amulet"
     },
     {
+      "en": "Blackened Lungs",
+      "type": "Viscera"
+    },
+    {
+      "en": "Blackguard's Leg",
+      "type": "Viscera"
+    },
+    {
       "en": "Bladed Mace",
       "type": "One Handed Mace"
     },
@@ -349,6 +417,10 @@
     {
       "en": "Blazing Arrow Quiver",
       "type": "Quiver"
+    },
+    {
+      "en": "Blazing Skull",
+      "type": "Viscera"
     },
     {
       "en": "Blinder",
@@ -375,6 +447,10 @@
       "type": "Amulet"
     },
     {
+      "en": "Bloodied Arm",
+      "type": "Viscera"
+    },
+    {
       "en": "Blue Pearl Amulet",
       "type": "Amulet"
     },
@@ -385,6 +461,10 @@
     {
       "en": "Blunt Force Condenser",
       "type": "Two Handed Mace"
+    },
+    {
+      "en": "Boar Head",
+      "type": "Viscera"
     },
     {
       "en": "Boarding Axe",
@@ -417,6 +497,10 @@
     {
       "en": "Bonespire Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Bonestalker's Ribcage",
+      "type": "Viscera"
     },
     {
       "en": "Boom Mace",
@@ -471,6 +555,10 @@
       "type": "Quiver"
     },
     {
+      "en": "Broken Bust",
+      "type": "Viscera"
+    },
+    {
       "en": "Bronze Gauntlets",
       "type": "Gloves"
     },
@@ -493,6 +581,10 @@
     {
       "en": "Bronzescale Gauntlets",
       "type": "Gloves"
+    },
+    {
+      "en": "Brute's Arm",
+      "type": "Viscera"
     },
     {
       "en": "Buckskin Tower Shield",
@@ -527,6 +619,10 @@
       "type": "Body Armour"
     },
     {
+      "en": "Calcified Leg",
+      "type": "Viscera"
+    },
+    {
       "en": "Calling Wand",
       "type": "Wand"
     },
@@ -541,6 +637,10 @@
     {
       "en": "Capricious Spiritblade",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Captain's Leg",
+      "type": "Viscera"
     },
     {
       "en": "Cardinal Round Shield",
@@ -565,6 +665,10 @@
     {
       "en": "Carrion Queen Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Carved Haunches",
+      "type": "Viscera"
     },
     {
       "en": "Carved Wand",
@@ -631,8 +735,20 @@
       "type": "Shield"
     },
     {
+      "en": "Champion's Banner",
+      "type": "Viscera"
+    },
+    {
+      "en": "Chaos Golem's Core",
+      "type": "Viscera"
+    },
+    {
       "en": "Charan's Sword",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Charred Leg",
+      "type": "Viscera"
     },
     {
       "en": "Chest Splitter",
@@ -645,6 +761,14 @@
     {
       "en": "Chieftain Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Chimera's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Chimeral Eye",
+      "type": "Viscera"
     },
     {
       "en": "Chimeral Talisman",
@@ -661,6 +785,10 @@
     {
       "en": "Chiming Spirit Shield",
       "type": "Shield"
+    },
+    {
+      "en": "Chitinous Leg",
+      "type": "Viscera"
     },
     {
       "en": "Chrysalis Talisman",
@@ -703,8 +831,16 @@
       "type": "Amulet"
     },
     {
+      "en": "Coagulated Essence",
+      "type": "Viscera"
+    },
+    {
       "en": "Cobalt Jewel",
       "type": "Jewel"
+    },
+    {
+      "en": "Cobra Tail",
+      "type": "Viscera"
     },
     {
       "en": "Cobra Talisman",
@@ -783,6 +919,10 @@
       "type": "Wand"
     },
     {
+      "en": "Conjoined Hound Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Conjurer Boots",
       "type": "Boots"
     },
@@ -809,6 +949,14 @@
     {
       "en": "Conquest Lamellar",
       "type": "Body Armour"
+    },
+    {
+      "en": "Constrictor's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Construct's Head",
+      "type": "Viscera"
     },
     {
       "en": "Convening Wand",
@@ -867,6 +1015,10 @@
       "type": "Shield"
     },
     {
+      "en": "Corrupted Carapace",
+      "type": "Viscera"
+    },
+    {
       "en": "Corsair Sword",
       "type": "One Handed Sword"
     },
@@ -883,12 +1035,20 @@
       "type": "One Handed Sword"
     },
     {
+      "en": "Coven Queen's Crown",
+      "type": "Viscera"
+    },
+    {
       "en": "Crack Mace",
       "type": "One Handed Mace"
     },
     {
       "en": "Craicic Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Crescent Blade",
+      "type": "Viscera"
     },
     {
       "en": "Crescent Staff",
@@ -947,6 +1107,10 @@
       "type": "Two Handed Mace"
     },
     {
+      "en": "Crustacean's Claw",
+      "type": "Viscera"
+    },
+    {
       "en": "Cryonic Ring",
       "type": "Ring"
     },
@@ -981,6 +1145,10 @@
     {
       "en": "Cutthroat's Garb",
       "type": "Body Armour"
+    },
+    {
+      "en": "Cutthroat's Head",
+      "type": "Viscera"
     },
     {
       "en": "Dagger Axe",
@@ -1027,6 +1195,10 @@
       "type": "Gloves"
     },
     {
+      "en": "Defaced Bust",
+      "type": "Viscera"
+    },
+    {
       "en": "Deicide Mask",
       "type": "Helmet"
     },
@@ -1047,8 +1219,24 @@
       "type": "Body Armour"
     },
     {
+      "en": "Desert Queen's Crown",
+      "type": "Viscera"
+    },
+    {
+      "en": "Desert Sword",
+      "type": "Viscera"
+    },
+    {
       "en": "Despot Axe",
       "type": "Two Handed Axe"
+    },
+    {
+      "en": "Despot's Fist",
+      "type": "Viscera"
+    },
+    {
+      "en": "Dessicated Head",
+      "type": "Viscera"
     },
     {
       "en": "Destiny Leather",
@@ -1061,6 +1249,10 @@
     {
       "en": "Devourer Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Devourer's Antenna",
+      "type": "Viscera"
     },
     {
       "en": "Devout Chainmail",
@@ -1081,6 +1273,14 @@
     {
       "en": "Disapprobation Axe",
       "type": "One Handed Axe"
+    },
+    {
+      "en": "Diseased Wing",
+      "type": "Viscera"
+    },
+    {
+      "en": "Distended Stomach",
+      "type": "Viscera"
     },
     {
       "en": "Divine Crown",
@@ -1163,6 +1363,10 @@
       "type": "Wand"
     },
     {
+      "en": "Drox's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Dusk Blade",
       "type": "One Handed Sword"
     },
@@ -1177,6 +1381,10 @@
     {
       "en": "Eagle Claw",
       "type": "Claw"
+    },
+    {
+      "en": "Eater of Worlds' Head",
+      "type": "Viscera"
     },
     {
       "en": "Ebony Tower Shield",
@@ -1203,6 +1411,10 @@
       "type": "One Handed Sword"
     },
     {
+      "en": "Elder's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Elegant Foil",
       "type": "One Handed Sword"
     },
@@ -1217,6 +1429,10 @@
     {
       "en": "Elegant Sword",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Elemental Essence",
+      "type": "Viscera"
     },
     {
       "en": "Embroidered Gloves",
@@ -1239,6 +1455,10 @@
       "type": "Two Handed Sword"
     },
     {
+      "en": "Engorged Eye",
+      "type": "Viscera"
+    },
+    {
       "en": "Engraved Greatsword",
       "type": "Two Handed Sword"
     },
@@ -1251,8 +1471,16 @@
       "type": "Wand"
     },
     {
+      "en": "Enslaver's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Enthalpic Ring",
       "type": "Ring"
+    },
+    {
+      "en": "Eradicator's Head",
+      "type": "Viscera"
     },
     {
       "en": "Erupting Xophgraft",
@@ -1427,6 +1655,18 @@
       "type": "Graft"
     },
     {
+      "en": "Flaming Furnace",
+      "type": "Viscera"
+    },
+    {
+      "en": "Flaming Goat Hoof",
+      "type": "Viscera"
+    },
+    {
+      "en": "Flaming Ribbon",
+      "type": "Viscera"
+    },
+    {
       "en": "Flanged Mace",
       "type": "One Handed Mace"
     },
@@ -1439,8 +1679,20 @@
       "type": "Dagger"
     },
     {
+      "en": "Flayed Arm",
+      "type": "Viscera"
+    },
+    {
+      "en": "Flayed Visage",
+      "type": "Viscera"
+    },
+    {
       "en": "Flaying Knife",
       "type": "Dagger"
+    },
+    {
+      "en": "Flesh-fused Lantern",
+      "type": "Viscera"
     },
     {
       "en": "Fleshripper",
@@ -1547,6 +1799,14 @@
       "type": "Helmet"
     },
     {
+      "en": "Galvanic Tentacle",
+      "type": "Viscera"
+    },
+    {
+      "en": "Gargantuan Claws",
+      "type": "Viscera"
+    },
+    {
       "en": "Gargantuan Talisman",
       "type": "Amulet"
     },
@@ -1555,8 +1815,16 @@
       "type": "One Handed Mace"
     },
     {
+      "en": "Gelid Fangs",
+      "type": "Viscera"
+    },
+    {
       "en": "Gemini Claw",
       "type": "Claw"
+    },
+    {
+      "en": "Gemling Torso",
+      "type": "Viscera"
     },
     {
       "en": "Gemstone Sword",
@@ -1565,6 +1833,10 @@
     {
       "en": "General's Brigandine",
       "type": "Body Armour"
+    },
+    {
+      "en": "General's Head",
+      "type": "Viscera"
     },
     {
       "en": "General's Helmet",
@@ -1581,6 +1853,10 @@
     {
       "en": "Ghostflame Blade",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Ghostly Claw",
+      "type": "Viscera"
     },
     {
       "en": "Giant Life Flask",
@@ -1617,6 +1893,10 @@
     {
       "en": "Gladiator Plate",
       "type": "Body Armour"
+    },
+    {
+      "en": "Gladiator's Heart",
+      "type": "Viscera"
     },
     {
       "en": "Gladius",
@@ -1663,6 +1943,10 @@
       "type": "Amulet"
     },
     {
+      "en": "Goatman's Horn",
+      "type": "Viscera"
+    },
+    {
       "en": "Gold Amulet",
       "type": "Amulet"
     },
@@ -1673,6 +1957,10 @@
     {
       "en": "Gold Ring",
       "type": "Ring"
+    },
+    {
+      "en": "Golden Ankh",
+      "type": "Viscera"
     },
     {
       "en": "Golden Bracers",
@@ -1717,6 +2005,10 @@
     {
       "en": "Golden Wreath",
       "type": "Helmet"
+    },
+    {
+      "en": "Golemic Stone",
+      "type": "Viscera"
     },
     {
       "en": "Goliath Gauntlets",
@@ -1823,6 +2115,18 @@
       "type": "Dagger"
     },
     {
+      "en": "Hag's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Hag's Stomach",
+      "type": "Viscera"
+    },
+    {
+      "en": "Hallowed Descry",
+      "type": "Viscera"
+    },
+    {
       "en": "Hallowed Hybrid Flask",
       "type": "Flask"
     },
@@ -1911,6 +2215,10 @@
       "type": "Claw"
     },
     {
+      "en": "Heretical Tome",
+      "type": "Viscera"
+    },
+    {
       "en": "Hexclaw Talisman",
       "type": "Amulet"
     },
@@ -1925,6 +2233,10 @@
     {
       "en": "Highland Blade",
       "type": "Two Handed Sword"
+    },
+    {
+      "en": "Hollowed Skull",
+      "type": "Viscera"
     },
     {
       "en": "Hollowpoint Dagger",
@@ -1965,6 +2277,10 @@
     {
       "en": "Hybrid Arachnid Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Hydra's Head",
+      "type": "Viscera"
     },
     {
       "en": "Hydrascale Boots",
@@ -2023,8 +2339,24 @@
       "type": "Staff"
     },
     {
+      "en": "Incarnation of Dread's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Incarnation of Fear's Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Incarnation of Neglect's Cube",
+      "type": "Viscera"
+    },
+    {
       "en": "Infantry Brigandine",
       "type": "Body Armour"
+    },
+    {
+      "en": "Infected Leg",
+      "type": "Viscera"
     },
     {
       "en": "Infernal Axe",
@@ -2039,12 +2371,24 @@
       "type": "Two Handed Sword"
     },
     {
+      "en": "Infested Torso",
+      "type": "Viscera"
+    },
+    {
       "en": "Infiltrator Boots",
       "type": "Boots"
     },
     {
       "en": "Infiltrator Mitts",
       "type": "Gloves"
+    },
+    {
+      "en": "Inquisitor's Claw",
+      "type": "Viscera"
+    },
+    {
+      "en": "Inquisitor's Head",
+      "type": "Viscera"
     },
     {
       "en": "Iolite Ring",
@@ -2171,6 +2515,10 @@
       "type": "Staff"
     },
     {
+      "en": "Justicar's Helm",
+      "type": "Viscera"
+    },
+    {
       "en": "Karui Axe",
       "type": "One Handed Axe"
     },
@@ -2193,6 +2541,10 @@
     {
       "en": "Kinetic Wand",
       "type": "Wand"
+    },
+    {
+      "en": "King Crab's Claw",
+      "type": "Viscera"
     },
     {
       "en": "Knight Helm",
@@ -2331,8 +2683,16 @@
       "type": "Two Handed Sword"
     },
     {
+      "en": "Lion's Claws",
+      "type": "Viscera"
+    },
+    {
       "en": "Lithe Blade",
       "type": "Two Handed Sword"
+    },
+    {
+      "en": "Lithic Haunches",
+      "type": "Viscera"
     },
     {
       "en": "Lone Antler Talisman",
@@ -2361,6 +2721,10 @@
     {
       "en": "Loricated Ringmail",
       "type": "Body Armour"
+    },
+    {
+      "en": "Lunar Bow",
+      "type": "Viscera"
     },
     {
       "en": "Lunaris Circlet",
@@ -2439,6 +2803,10 @@
       "type": "Amulet"
     },
     {
+      "en": "Mariner's Tricorne",
+      "type": "Viscera"
+    },
+    {
       "en": "Marshall's Brigandine",
       "type": "Body Armour"
     },
@@ -2449,6 +2817,10 @@
     {
       "en": "Martyr Gloves",
       "type": "Gloves"
+    },
+    {
+      "en": "Maven's Orrery",
+      "type": "Viscera"
     },
     {
       "en": "Meatgrinder",
@@ -2503,8 +2875,16 @@
       "type": "Helmet"
     },
     {
+      "en": "Minotaur's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Mirrored Spiked Shield",
       "type": "Shield"
+    },
+    {
+      "en": "Molten Core",
+      "type": "Viscera"
     },
     {
       "en": "Molten Xophgraft",
@@ -2559,6 +2939,10 @@
       "type": "Jewel"
     },
     {
+      "en": "Mycelium Core",
+      "type": "Jewel"
+    },
+    {
       "en": "Nailed Fist",
       "type": "Claw"
     },
@@ -2575,6 +2959,10 @@
       "type": "Body Armour"
     },
     {
+      "en": "Necromancer's Mask",
+      "type": "Viscera"
+    },
+    {
       "en": "Necrotic Armour",
       "type": "Body Armour"
     },
@@ -2589,6 +2977,26 @@
     {
       "en": "Nightmare Mace",
       "type": "One Handed Mace"
+    },
+    {
+      "en": "Nightmarish Book of Depravity",
+      "type": "Viscera"
+    },
+    {
+      "en": "Nightmarish Core of the Unbreakable",
+      "type": "Viscera"
+    },
+    {
+      "en": "Nightmarish Head of Uhtred",
+      "type": "Viscera"
+    },
+    {
+      "en": "Nightmarish Wings of Catarina",
+      "type": "Viscera"
+    },
+    {
+      "en": "Nightmarish Wings of Lycia",
+      "type": "Viscera"
     },
     {
       "en": "Nightweave Robe",
@@ -2609,6 +3017,10 @@
     {
       "en": "Noble Tricorne",
       "type": "Helmet"
+    },
+    {
+      "en": "Noble's Head",
+      "type": "Viscera"
     },
     {
       "en": "Nubuck Boots",
@@ -2691,8 +3103,24 @@
       "type": "Two Handed Sword"
     },
     {
+      "en": "Ornate Torso",
+      "type": "Viscera"
+    },
+    {
       "en": "Oscillating Sceptre",
       "type": "Sceptre"
+    },
+    {
+      "en": "Osseous Scythe",
+      "type": "Viscera"
+    },
+    {
+      "en": "Osseous Talon",
+      "type": "Viscera"
+    },
+    {
+      "en": "Overseer's Whip",
+      "type": "Viscera"
     },
     {
       "en": "Padded Jacket",
@@ -2779,6 +3207,10 @@
       "type": "Gloves"
     },
     {
+      "en": "Phoenix's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Pig-Faced Bascinet",
       "type": "Helmet"
     },
@@ -2793,6 +3225,10 @@
     {
       "en": "Pinnacle Tower Shield",
       "type": "Shield"
+    },
+    {
+      "en": "Pit Fighter's Helm",
+      "type": "Viscera"
     },
     {
       "en": "Pitbull Talisman",
@@ -2837,6 +3273,18 @@
     {
       "en": "Pneumatic Dagger",
       "type": "Dagger"
+    },
+    {
+      "en": "Poacher's Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Pocked Arm",
+      "type": "Viscera"
+    },
+    {
+      "en": "Pocked Leg",
+      "type": "Viscera"
     },
     {
       "en": "Poignard",
@@ -2895,6 +3343,10 @@
       "type": "Amulet"
     },
     {
+      "en": "Primate Foot",
+      "type": "Viscera"
+    },
+    {
       "en": "Prime Cleaver",
       "type": "Two Handed Axe"
     },
@@ -2939,8 +3391,16 @@
       "type": "Helmet"
     },
     {
+      "en": "Prosthetic Leg",
+      "type": "Viscera"
+    },
+    {
       "en": "Psychotic Axe",
       "type": "One Handed Axe"
+    },
+    {
+      "en": "Purifier's Head",
+      "type": "Viscera"
     },
     {
       "en": "Quarterstaff",
@@ -2985,6 +3445,10 @@
     {
       "en": "Raven Mask",
       "type": "Helmet"
+    },
+    {
+      "en": "Ravenous Skull",
+      "type": "Viscera"
     },
     {
       "en": "Rawhide Boots",
@@ -3049,6 +3513,10 @@
     {
       "en": "Replicating Eshgraft",
       "type": "Graft"
+    },
+    {
+      "en": "Resplendent Sceptre",
+      "type": "Viscera"
     },
     {
       "en": "Retch Talisman",
@@ -3347,6 +3815,10 @@
       "type": "Helmet"
     },
     {
+      "en": "Scarecrow's Pitchfork",
+      "type": "Viscera"
+    },
+    {
       "en": "Scarlet Raiment",
       "type": "Body Armour"
     },
@@ -3359,16 +3831,40 @@
       "type": "Boots"
     },
     {
+      "en": "Scholar's Arm",
+      "type": "Viscera"
+    },
+    {
+      "en": "Scholar's Leg",
+      "type": "Viscera"
+    },
+    {
       "en": "Scholar's Robe",
       "type": "Body Armour"
+    },
+    {
+      "en": "Scorched Arm",
+      "type": "Viscera"
+    },
+    {
+      "en": "Scorpion Stinger",
+      "type": "Viscera"
     },
     {
       "en": "Scorpion Talisman",
       "type": "Amulet"
     },
     {
+      "en": "Scout's Bow",
+      "type": "Viscera"
+    },
+    {
       "en": "Scrabbler Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Sea Witch's Tentacle",
+      "type": "Viscera"
     },
     {
       "en": "Seaglass Amulet",
@@ -3377,6 +3873,10 @@
     {
       "en": "Searching Eye Jewel",
       "type": "Jewel"
+    },
+    {
+      "en": "Searing Exarch's Descry",
+      "type": "Viscera"
     },
     {
       "en": "Secutor Helm",
@@ -3409,6 +3909,18 @@
     {
       "en": "Serrated Foil",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Severed Rhoa Head",
+      "type": "Viscera"
+    },
+    {
+      "en": "Severed Scythe-hand",
+      "type": "Viscera"
+    },
+    {
+      "en": "Severed Stinger",
+      "type": "Viscera"
     },
     {
       "en": "Shabby Jerkin",
@@ -3445,6 +3957,10 @@
     {
       "en": "Shagreen Tower Shield",
       "type": "Shield"
+    },
+    {
+      "en": "Shaper's Head",
+      "type": "Viscera"
     },
     {
       "en": "Sharkskin Boots",
@@ -3527,8 +4043,36 @@
       "type": "Helmet"
     },
     {
+      "en": "Siren's Tentacle",
+      "type": "Viscera"
+    },
+    {
+      "en": "Sirus' Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Skean",
       "type": "Dagger"
+    },
+    {
+      "en": "Skeletal Archer's Arm",
+      "type": "Viscera"
+    },
+    {
+      "en": "Skeletal Beast Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Skeletal Tail",
+      "type": "Viscera"
+    },
+    {
+      "en": "Skeletal Warrior's Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Skeleton Wheel",
+      "type": "Viscera"
     },
     {
       "en": "Skinning Knife",
@@ -3575,12 +4119,24 @@
       "type": "One Handed Sword"
     },
     {
+      "en": "Smouldering Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Smuggler's Hand",
+      "type": "Viscera"
+    },
+    {
       "en": "Sniper Bow",
       "type": "Bow"
     },
     {
       "en": "Solar Maul",
       "type": "Two Handed Mace"
+    },
+    {
+      "en": "Solar Shield",
+      "type": "Viscera"
     },
     {
       "en": "Solarine Bow",
@@ -3605,6 +4161,10 @@
     {
       "en": "Soldier's Brigandine",
       "type": "Body Armour"
+    },
+    {
+      "en": "Soldier's Head",
+      "type": "Viscera"
     },
     {
       "en": "Somatic Wand",
@@ -3635,12 +4195,20 @@
       "type": "One Handed Axe"
     },
     {
+      "en": "Spectral Hood",
+      "type": "Viscera"
+    },
+    {
       "en": "Spectral Sword",
       "type": "Two Handed Sword"
     },
     {
       "en": "Spider Crab Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Spider Queen's Head",
+      "type": "Viscera"
     },
     {
       "en": "Spidersilk Robe",
@@ -3653,6 +4221,10 @@
     {
       "en": "Spiked Bundle",
       "type": "Shield"
+    },
+    {
+      "en": "Spiked Carapace",
+      "type": "Viscera"
     },
     {
       "en": "Spiked Club",
@@ -3673,6 +4245,10 @@
     {
       "en": "Spine Bow",
       "type": "Bow"
+    },
+    {
+      "en": "Spined Claws",
+      "type": "Viscera"
     },
     {
       "en": "Spinefuse Talisman",
@@ -3723,8 +4299,16 @@
       "type": "Sceptre"
     },
     {
+      "en": "Stag Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Stag Sceptre",
       "type": "Sceptre"
+    },
+    {
+      "en": "Statue Leg",
+      "type": "Viscera"
     },
     {
       "en": "Stealth Boots",
@@ -3843,6 +4427,10 @@
       "type": "Body Armour"
     },
     {
+      "en": "Sun-bleached Breastplate",
+      "type": "Viscera"
+    },
+    {
       "en": "Sundering Axe",
       "type": "Two Handed Axe"
     },
@@ -3857,6 +4445,10 @@
     {
       "en": "Supreme Spiked Shield",
       "type": "Shield"
+    },
+    {
+      "en": "Swordmaster's Blade",
+      "type": "Viscera"
     },
     {
       "en": "Synaptic Ring",
@@ -3887,6 +4479,14 @@
       "type": "One Handed Sword"
     },
     {
+      "en": "Templar Banner",
+      "type": "Viscera"
+    },
+    {
+      "en": "Templar Skull",
+      "type": "Viscera"
+    },
+    {
       "en": "Tenderizer",
       "type": "One Handed Mace"
     },
@@ -3895,12 +4495,20 @@
       "type": "Ring"
     },
     {
+      "en": "Terrifying Maw",
+      "type": "Viscera"
+    },
+    {
       "en": "Terror Claw",
       "type": "Claw"
     },
     {
       "en": "Terror Maul",
       "type": "Two Handed Mace"
+    },
+    {
+      "en": "Thaumaturge's Head",
+      "type": "Viscera"
     },
     {
       "en": "Thicket Bow",
@@ -4017,6 +4625,10 @@
     {
       "en": "Totemic Maul",
       "type": "Two Handed Mace"
+    },
+    {
+      "en": "Totemic Visage",
+      "type": "Viscera"
     },
     {
       "en": "Transfer-attuned Spirit Shield",
@@ -4143,8 +4755,16 @@
       "type": "Jewel"
     },
     {
+      "en": "Ursine Flesh",
+      "type": "Viscera"
+    },
+    {
       "en": "Ursine Pelt",
       "type": "Helmet"
+    },
+    {
+      "en": "Vaal Appendage",
+      "type": "Viscera"
     },
     {
       "en": "Vaal Axe",
@@ -4227,6 +4847,18 @@
       "type": "Boots"
     },
     {
+      "en": "Venarius' Scripture",
+      "type": "Viscera"
+    },
+    {
+      "en": "Vendigo Claws",
+      "type": "Viscera"
+    },
+    {
+      "en": "Veritania's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Vermillion Ring",
       "type": "Ring"
     },
@@ -4263,8 +4895,24 @@
       "type": "Sceptre"
     },
     {
+      "en": "Voidbearer's Leg",
+      "type": "Viscera"
+    },
+    {
+      "en": "Voltaic Apparatus",
+      "type": "Viscera"
+    },
+    {
+      "en": "Voltaic Skull",
+      "type": "Viscera"
+    },
+    {
       "en": "Vulture Talisman",
       "type": "Amulet"
+    },
+    {
+      "en": "Vulture's Gut",
+      "type": "Viscera"
     },
     {
       "en": "Walnut Spirit Shield",
@@ -4289,6 +4937,10 @@
     {
       "en": "War Sword",
       "type": "One Handed Sword"
+    },
+    {
+      "en": "Warden's Arm",
+      "type": "Viscera"
     },
     {
       "en": "Warlock Boots",
@@ -4331,6 +4983,10 @@
       "type": "Helmet"
     },
     {
+      "en": "Witch's Head",
+      "type": "Viscera"
+    },
+    {
       "en": "Wolf Alpha Talisman",
       "type": "Amulet"
     },
@@ -4357,6 +5013,10 @@
     {
       "en": "Wraith Axe",
       "type": "One Handed Axe"
+    },
+    {
+      "en": "Wraith Claws",
+      "type": "Viscera"
     },
     {
       "en": "Wraith Sword",
@@ -26083,6 +26743,10 @@
       "en": "Daresso's Courage"
     },
     {
+      "base": "Basalt Flask",
+      "en": "Dreadmaidens' Sacrament"
+    },
+    {
       "base": "Basket Rapier",
       "en": "Aurumvorax"
     },
@@ -26183,6 +26847,10 @@
       "en": "Maw of Mischief"
     },
     {
+      "base": "Bone Ring",
+      "en": "Unwilling Embrace"
+    },
+    {
       "base": "Boot Blade",
       "en": "Widowmaker"
     },
@@ -26281,6 +26949,10 @@
     {
       "base": "Callous Mask",
       "en": "The Tempest's Liberation"
+    },
+    {
+      "base": "Callous Mask",
+      "en": "Veil of Flesh"
     },
     {
       "base": "Cardinal Round Shield",
@@ -27455,6 +28127,14 @@
       "en": "Skysunder"
     },
     {
+      "base": "Exquisite Blade",
+      "en": "The Sword of Ages"
+    },
+    {
+      "base": "Exquisite Leather",
+      "en": "Hide of the Vendigo"
+    },
+    {
       "base": "Exquisite Leather",
       "en": "Kintsugi"
     },
@@ -27465,6 +28145,10 @@
     {
       "base": "Eye Gouger",
       "en": "Essentia Sanguis"
+    },
+    {
+      "base": "Eye Gouger",
+      "en": "The Covetous Dark"
     },
     {
       "base": "Ezomyte Axe",
@@ -28116,6 +28800,10 @@
     },
     {
       "base": "Imbued Wand",
+      "en": "Corpse Rose"
+    },
+    {
+      "base": "Imbued Wand",
       "en": "Moonsorrow"
     },
     {
@@ -28421,6 +29109,10 @@
     {
       "base": "Judgement Staff",
       "en": "Atziri's Rule"
+    },
+    {
+      "base": "Judgement Staff",
+      "en": "Bane of the Apostate"
     },
     {
       "base": "Judgement Staff",
@@ -28873,6 +29565,10 @@
     {
       "base": "Murderous Eye Jewel",
       "en": "Tecrod's Gaze"
+    },
+    {
+      "base": "Mycelium Core",
+      "en": "Putrid Seed"
     },
     {
       "base": "Nailed Fist",
@@ -30591,6 +31287,10 @@
       "en": "Prismatic Eclipse"
     },
     {
+      "base": "Twilight Regalia",
+      "en": "Mantle of Dreams"
+    },
+    {
       "base": "Two-Point Arrow Quiver",
       "en": "Asphyxia's Wrath"
     },
@@ -31133,6 +31833,10 @@
     {
       "base": "Void Sceptre",
       "en": "Replica Nebulis"
+    },
+    {
+      "base": "Walnut Spirit Shield",
+      "en": "Ordered Fate"
     },
     {
       "base": "War Buckler",
@@ -47159,191 +47863,195 @@
   "treeVersion": "3_30",
   "sources": [
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/amulet.lua",
-      "sha256": "ccfe34f28f4ceea7aa24a9aed5d1c09abdf0be011706a388b60e0314f7cbba1b"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/amulet.lua",
+      "sha256": "8a1b934fbb7f3e8812d9edae2b0f8c85f440f68a597785c082d314b668e1022e"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/axe.lua",
-      "sha256": "78ee794e3cdde63ecb80e4f1c548504c21294d52fbe013958e8fe425dfac4071"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/axe.lua",
+      "sha256": "1d6573566cba35388aa9f2f97282253cfc2cb7a6c901f1a4c6ea295385cf2cce"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/belt.lua",
-      "sha256": "148af904a9f53ee4fc6559ac1429905f73feb5ea4b9bfdf0dd32616362bbafcf"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/belt.lua",
+      "sha256": "e0d313cd1262123fa4bef0da9a5f1b7a0dc6c7b1a382431200f4aee8784c41a0"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/body.lua",
-      "sha256": "cd18487485e5766a32356963550a5051fcf68990607bb4d57a4fde0d2ac6f2c9"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/body.lua",
+      "sha256": "5c51c0cb85cc36f02ace0ee0783ba4053598683ba3daf2925f21e06d488f3fbd"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/boots.lua",
-      "sha256": "33e169ae9b8d54c4a5d5fe70272d16fc8c8dfa5d76ae101829a286ca7f45178f"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/boots.lua",
+      "sha256": "a79944cf6624971ebc276637a0ab8eda8d0208e83d049a837bec0724842395ed"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/bow.lua",
-      "sha256": "d59b2826baa449a1de9cb6a238087dd81de152388acabee97adcd16afef4759f"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/bow.lua",
+      "sha256": "1d67834eee5d8ecb8408b40d6e47e0aaad1b9dc3e9019277289d9e2ea527e362"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/claw.lua",
-      "sha256": "337195b509fbec63b6b46fd7615c6ab5ca7a11bd18f70e92a9dc148e516b479e"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/claw.lua",
+      "sha256": "b1b85b06e87ed11f079fefd90bcaacd8d48b8dabcb789ab005d7137924ea2077"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/dagger.lua",
-      "sha256": "aa322e06dda764b7bbfe9dea16b7f43d1aaef33e162a8f2a7d498c9234f76098"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/dagger.lua",
+      "sha256": "cadf3b46d2b35f95307b9506b881a272a34a954d69573062fad76adf735eef6c"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/fishing.lua",
-      "sha256": "450ab048d23fe6df08be597fa17746ed5cbb80570e3ff01f77ef533149d2425d"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/fishing.lua",
+      "sha256": "6f759195f963a603e6a60bf01e5c96dd16c75a8be721449e28521b6fd97b8842"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/flask.lua",
-      "sha256": "061c34db552c6a2e858aaa59bcb6e3f6203f864c6705e5542e1054f95ae35326"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/flask.lua",
+      "sha256": "886ed2ba70aefcf43050d308ac35d8cef27204a9bf1c03b3965c868cb73273fe"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/gloves.lua",
-      "sha256": "f32deb0d0e55d59c4f9bf1f66f46c1f3fd511c8e77aa061472b740079a1d6e80"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/gloves.lua",
+      "sha256": "e88bf2ed0ae60118d2e97d635624a58c6828621320f1cb82716f7ed2633a2f3c"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/graft.lua",
-      "sha256": "a158a2e939459498fbe4c0a8dd5c991ba5233e103ea7f8105efc190319eff9e6"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/graft.lua",
+      "sha256": "4f1d79854092d9618c943ffbbb90909370b727d67ec81cbd889a991c61e4891a"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/helmet.lua",
-      "sha256": "f68fa4b758e9a7a94c07ba4ce315b786ea2f2f8785a9e1e9895beba820d1da28"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/helmet.lua",
+      "sha256": "b8780ca97b39b6b61bf36b3d10cbe2b0d20d83bfed9e8ebb4f2354ae9162e70a"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/jewel.lua",
-      "sha256": "187d9590996ced13f8f1c3654e84235dc90f902451739b17cfa2d44dedb02b91"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/jewel.lua",
+      "sha256": "9e602ce9b8662dea4d2e0daa615075bb16692068e3dcc67cc43cdc440e3736eb"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/mace.lua",
-      "sha256": "8043f5d61f940d9bbccb1c8f5f8a8e21e438ef2617784de535b42d3864512200"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/mace.lua",
+      "sha256": "51107c40c5c712031b19755e1467224953c5e9ea5c0c4409cb9536fbd358d965"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/quiver.lua",
-      "sha256": "49105bc6c83ef1e121c41b3455973f7f7746dae42496e880fca2440ebcc4ff16"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/quiver.lua",
+      "sha256": "42c07d705694732bac2c5aec3870642db109e024c6fe4e561737b6df455b9dc6"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/ring.lua",
-      "sha256": "fa406db820ab299c15aa8e074011714dce6abd0691b5540abc438fc41041aea8"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/ring.lua",
+      "sha256": "03d36af66b8e085c7572f44332891cdc235357217df7c1eed5424347b4b4150f"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/shield.lua",
-      "sha256": "c5b7d66636cd7b3f9ec7d87bd2ceb4290cc602f243f47622ec265959413b499c"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/shield.lua",
+      "sha256": "833921204b47db6d2699d449b7a69fa0abec7a67593370319cc55bd735ca56ab"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/staff.lua",
-      "sha256": "36a74a1d4508c5f9ac8d9fc075fed85046743db556b6094af3101b0814f15fec"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/staff.lua",
+      "sha256": "ff6b714f24082bb437eedde4e5c524ecda963f0a641608a2695a5bf4af8f7f15"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/sword.lua",
-      "sha256": "480bcca82a24908db82e93a9dd408636c97bb9c1657e2366d1f048252fc3cfe8"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/sword.lua",
+      "sha256": "d0c78f83769d91dc1e5f9bfa28b57e6310cfe26226f4ec2966076802df7655fb"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/tincture.lua",
-      "sha256": "3a72c0e7f80b0ac15ab39cd05a9c991112424b6674856c510b677004f958ca37"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/tincture.lua",
+      "sha256": "e4000c70f75ce17e132c64ade1469ae20b2068c83ad47d62d0dec4c20b64742c"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Bases/wand.lua",
-      "sha256": "1ab1e78729124826d0bccbcaa6a544d146e6403c1eacadcf5161263bbaf0ba30"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/wand.lua",
+      "sha256": "4f5d59f006252d8fdfd72b7685b7fdb93960a6a9e949938bbfb39296a4ee42af"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Gems.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Bases/wickerman.lua",
+      "sha256": "3bbe2721282e649aa181410d5d5b3f5eff84e4fd4f25e41896deb1a472346665"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Gems.lua",
       "sha256": "ac41109d85714d570765dc63c9e5926fad29e7a1682494d44397953e887ab46a"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/amulet.lua",
-      "sha256": "b74ead508f33674c39d0b4d322f602ce2c68a6cf1a274036f1327be85d659858"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/amulet.lua",
+      "sha256": "5588152c6f62cecf2c8cade86fc907ebace324a52939f9556406465c600eb8ee"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/axe.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/axe.lua",
       "sha256": "834464e2133b775ddde8c29cc37df9995f0005a710a6178303bf2cff318b94d2"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/belt.lua",
-      "sha256": "042e242e0ec2cc65f2be19f1cd0f50be5f34916224457ea75e379d9198b0202e"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/belt.lua",
+      "sha256": "5989f29079c62fc0cbc851980be783d1f4965687c4d178e90edbcad5eaeade87"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/body.lua",
-      "sha256": "056de2791cda9e2d92ecf3b2dc52f4ba8446f932b3815f7926edabf81642da3c"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/body.lua",
+      "sha256": "b2e71c64254abbdb5a514d5c2a773220c51a6167ec41599c3c1a5a4bc46cb20c"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/boots.lua",
-      "sha256": "c9e7e4a275848494b16c23146e6a2807ab65720828ef53754fa0128740e1b1ce"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/boots.lua",
+      "sha256": "cfa11dfe9b03238a9d37816f393c16ad5610a3e92482e1820c87da482ff79198"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/bow.lua",
-      "sha256": "81723bf859850f4690aca630b3dc5ed40238fab025115e0aad4edbd38d2fb7d8"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/bow.lua",
+      "sha256": "a29483393d5f8de5c90237cd786f80edb0c414705c9e5150dd025b5407f7560b"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/claw.lua",
-      "sha256": "b243acbf7eb1a36e527c9da81a040d9c6b665047a9f283c9b333312ab32b211f"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/claw.lua",
+      "sha256": "b5ee907ee826b9df4bacc384e8d4cee6fc5c29ed80e26a3fb4bede9b4fbafcfa"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/dagger.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/dagger.lua",
       "sha256": "bed5968b01efdc23048d466148b63fa98a3ee5db534545c0feae3cb651f1860e"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/fishing.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/fishing.lua",
       "sha256": "e8c7909bef398354309608bd7c47fbdb0b884a2857035bab936ebfec535ebe2f"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/flask.lua",
-      "sha256": "782df0ae0e85bc604f368b151979f21fca24db4062251978c43f91cab4c324ad"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/flask.lua",
+      "sha256": "edc8cac29441a6e712a8eaf2ca6a2637c8d6e24448ae9d3131b40353216107b1"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/gloves.lua",
-      "sha256": "31ad8b84742cdab828ea5ef38da4db609fce0ca45976be83019168ad9ce123df"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/gloves.lua",
+      "sha256": "4a3c0a10b742c96f14cdf84d8b0bd3f9f77f88d9c462b3177bc7eefa6c9d76d0"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/graft.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/graft.lua",
       "sha256": "fce873d9e292821c75cf9bdeefc0a438468777dcf23406f2e8e843b068eb4342"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/helmet.lua",
-      "sha256": "aa9d5f88e386b4c9459740ea8cf2810f8b60a1ec563dc8fc1729188919940eac"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/helmet.lua",
+      "sha256": "b09eb823489def4f62baba4e2a13a5271f9b29ee03eb2ccc5bf5449a23e4bbd0"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/jewel.lua",
-      "sha256": "eed1db9a9eba4f5c5a4474b7085e4bdceafa415c101347036091e3c958301928"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/jewel.lua",
+      "sha256": "923c3a02985ee877665e864188d8a52ff306dbb6f11febcfa800b984227f21a3"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/mace.lua",
-      "sha256": "ae781dcc5c6940d719ea6b60626c55be0a08ba7de41d4f8efe3442791b31af75"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/mace.lua",
+      "sha256": "cc179767a48bdf710cbb8d7591669b4aae75b7f0652662260559fb27e71584c4"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/quiver.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/quiver.lua",
       "sha256": "0d2a90fbcf928276d3cb491020b772135e85728f152915e7374839fa978fb770"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/ring.lua",
-      "sha256": "260eabedade6fc25c419c1b6afcec5fe66c100fb48712de050f618bf640740cd"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/ring.lua",
+      "sha256": "fef26489228eecb3273f42e59eaf4610c0930c368f8569d666087827de8cf100"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/shield.lua",
-      "sha256": "2be8acb5258115fe8c3e087d8dee72eede94de51882a2613cc1e2a1c4d191bb0"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/shield.lua",
+      "sha256": "226f65efec24434c916393d787982239d1d81b8d95b6f68ef4839a44135bf25d"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/staff.lua",
-      "sha256": "2a42a13de9cef6523f506462c1c87f805b3a73e2654c547611845bbe3b570793"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/staff.lua",
+      "sha256": "fbfa1e8004e2f9ac7fc5b26636692da58d914d16e28d3b17c926f547d3114818"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/sword.lua",
-      "sha256": "8f4e602c8e362dcdb3d299b0653bb2fa68b874d02568b3f68b0c01f0c8da97e3"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/sword.lua",
+      "sha256": "6da14e7bbf73c47304259a79e7a7cedf227f0a95bd726acc9a03172beb5e7274"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/tincture.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/tincture.lua",
       "sha256": "56acaf8f1d8f6fe2347f20db12a21feab8e12a8d5b8ab103009aad0dbf2ee84b"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/Data/Uniques/wand.lua",
-      "sha256": "27e6fa48a7eee6019dd4ba0b665cd7557bc24fee948dbf9b0102323553895276"
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/Data/Uniques/wand.lua",
+      "sha256": "61fce0c7edaf3c13f2c31a0213fef144a96eac2d6f39e83dbd4173fe99e26ba0"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/TreeData/3_30/tree.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/TreeData/3_30/tree.lua",
       "sha256": "29ab30175ed662fbfd71585fc4d353513a76efc793303a77f5a23ed0de232073"
     },
     {
-      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/f5ca0aeeeeba62d7d2c93b1fbd0704c74d54e7ea/src/TreeData/3_30_ruthless/tree.lua",
+      "url": "https://raw.githubusercontent.com/PathOfBuildingCommunity/PathOfBuilding/a41fec6c20f822a658ae5df1273e8c69d5969bac/src/TreeData/3_30_ruthless/tree.lua",
       "sha256": "3fa1e217b24ca60593f22cf05958783ad2d07fdbcc2730e0c87dbc56df902f93"
     }
   ]

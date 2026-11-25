@@ -18,14 +18,16 @@ export class LocalizationService extends EventEmitter {
     this.inspect = inspect
     this.assertWritable = assertWritable
     this.verifyInstalled = verifyInstalled
-    this.activeCandidate = serverId === 'international' ? this.downloader.load() : null
+    const startupObjects = new Map()
+    this.activeCandidate = serverId === 'international' ? this.downloader.load('active.json', startupObjects) : null
     this.active = null
-    this.ready = serverId === 'international' ? this.downloader.load('ready.json') : null
+    this.ready = serverId === 'international' ? this.downloader.load('ready.json', startupObjects) : null
     this.pending = null
     this.state = { supported: serverId === 'international', busy: false, closing: false, phase: '', mode: null, preferredMode: null, targetMode: null, gameDirectory: '', games: [], scan: null, update: null, progress: null, error: '', resourceWarning: '', mappingState: 'none', mappingWarning: '' }
     let settings = {}
     try { settings = JSON.parse(fs.readFileSync(path.join(storageRoot, 'settings.json'), 'utf8')) } catch { /* 首次使用不扫描、不联网 */ }
     this.state.gameDirectory = String(settings.gameDirectory || '')
+    this.legacyGameDirectory = String(settings.legacyGameDirectory ?? this.state.gameDirectory)
     if (['simplified', 'traditional'].includes(settings.preferredMode)) this.state.preferredMode = settings.preferredMode
     else if (settings.preferredMode === undefined && serverId === 'international') {
       // Legacy transactions retain the user's choice even when their Steam build is no longer active.
@@ -47,6 +49,27 @@ export class LocalizationService extends EventEmitter {
   }
   getActiveEntries() { this.refreshActiveValidation(); return this.active?.entries || [] }
   getActiveRevision() { this.refreshActiveValidation(); return this.active?.manifest.releaseId || '' }
+  /**
+   * 查价翻译可以复用上次已应用或已下载的已签名词库：即使当前“中文映射”被停用，
+   * 游戏里仍可能保留旧的汉化文本。这里只把词库用于文本翻译，不会重新应用或修改游戏。
+   */
+  priceCheckFallbackBundle() {
+    if (this.active?.entries?.length) return this.active
+    if (this.activeCandidate?.entries?.length) return this.activeCandidate
+    if (this.ready?.entries?.length) return this.ready
+    if (this.priceCheckHistoryBundle === undefined) {
+      this.priceCheckHistoryBundle = this.downloader?.loadCachedHistory?.() || null
+    }
+    return this.priceCheckHistoryBundle?.entries?.length ? this.priceCheckHistoryBundle : null
+  }
+  getPriceCheckEntries() {
+    this.refreshActiveValidation()
+    return this.priceCheckFallbackBundle()?.entries || []
+  }
+  getPriceCheckRevision() {
+    this.refreshActiveValidation()
+    return this.priceCheckFallbackBundle()?.manifest.releaseId || ''
+  }
   getStatus() {
     this.refreshActiveValidation()
     return structuredClone({ ...this.state, helperAvailable: this.helper.available(), resourceVersion: this.getActiveRevision(), readyVersion: this.ready?.manifest.releaseId || '', sourceGameVersion: this.active?.manifest.gameVersion || this.ready?.manifest.gameVersion || '', entryCount: this.active?.entries.length || 0 })
@@ -78,7 +101,8 @@ export class LocalizationService extends EventEmitter {
   }
   progress = value => this.publish({ progress: value })
   saveSettings() {
-    writeJsonAtomic(path.join(this.storageRoot, 'settings.json'), { gameDirectory: this.state.gameDirectory, preferredMode: this.state.preferredMode })
+    writeJsonAtomic(path.join(this.storageRoot, 'settings.json'), { gameDirectory: this.state.gameDirectory,
+      legacyGameDirectory: this.legacyGameDirectory, preferredMode: this.state.preferredMode })
   }
   selectedGame(input) {
     const directory = String(input?.gameDirectory || this.state.gameDirectory || '')
@@ -90,6 +114,7 @@ export class LocalizationService extends EventEmitter {
   helperInput(game, bundle = this.ready || this.active) {
     return {
       gameDirectory: game.gameDirectory, storageRoot: this.storageRoot, configPath: this.configPath,
+      legacyGameDirectory: this.legacyGameDirectory,
       entries: bundle?.entries || [], manifest: bundle?.manifest || null
     }
   }
@@ -185,6 +210,7 @@ export class LocalizationService extends EventEmitter {
             if (bundle) break
             bundle = this.downloader.loadRevision?.(releaseId)
           }
+          bundle ||= this.downloader.loadCachedHistory?.()
           if (!bundle) throw error
           this.ready = bundle
           this.publish({ resourceWarning: `资源服务暂不可用，已复用本地 ${bundle.manifest.gameVersion} 词库；仅应用与当前游戏匹配的译文，未匹配内容保留繁体或英文。`, download: { releaseId: bundle.manifest.releaseId, downloadedBytes: 0, downloadedObjects: 0 }, update: null })

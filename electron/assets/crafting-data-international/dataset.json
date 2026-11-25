@@ -6,8 +6,8 @@
     "locale": "en",
     "patch": "3.30.0",
     "league": "Covens of Umbra",
-    "generatedAt": "2026-11-13T21:23:30.799Z",
-    "checksum": "257b76c15f4e25cd207326165173344ded2c5de79549c18c2d1e83a8978e0870",
+    "generatedAt": "2026-11-23T12:59:05.678Z",
+    "checksum": "99e3a7bde8771f68c6ff1e9ac2f7241c24389182e228d7d84eccddc7bf7594e4",
     "sources": [
       {
         "id": "source:1041557c3e926c7a",
@@ -2079102,6 +2079102,1305 @@
       ]
     },
     {
+      "id": "family:4518948c565fe9b8",
+      "modifierProfileId": "Large_Cluster_Jewel",
+      "groupId": "ClusterJewelEnchant",
+      "affixType": "suffix",
+      "source": "enchant",
+      "influences": [],
+      "name": "Added Small Passive Skills also grant: increased Attack Speed / Added Small Passive Skills also grant: increased Cast Speed / Added Small Passive Skills also grant: increased Attack and Cast Speed with Elemental Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed with Physical Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed with Fire Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed with Lightning Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed with Cold Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed with Chaos Skills / Added Small Passive Skills also grant: Minions have increased Attack and Cast Speed",
+      "entries": [
+        {
+          "id": "goal:118c1e4128b27377",
+          "goalId": "goal:118c1e4128b27377",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Chaos Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Chaos Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Chaos Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "chaos",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "chaos",
+              "label": "Chaos"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:8fc92b80b7f5e3f5",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Chaos Skills",
+              "displayTags": [
+                {
+                  "id": "chaos",
+                  "label": "Chaos"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:9d1d9de5f9af78e8",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Chaos Skills",
+              "displayTags": [
+                {
+                  "id": "chaos",
+                  "label": "Chaos"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:bae7506e7c37dd73",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Chaos Skills",
+              "displayTags": [
+                {
+                  "id": "chaos",
+                  "label": "Chaos"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:d29458749b238ced",
+          "goalId": "goal:d29458749b238ced",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Cold Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Cold Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Cold Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "elemental",
+            "cold",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "elemental",
+              "label": "Elemental"
+            },
+            {
+              "id": "cold",
+              "label": "Cold"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:e12ee72d1ae02a36",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Cold Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:033eba8c6cb0fc86",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Cold Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:3fa659c29da3a473",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Cold Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:00f4fd304fc99b93",
+          "goalId": "goal:00f4fd304fc99b93",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Elemental Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Elemental Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Elemental Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "elemental",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "elemental",
+              "label": "Elemental"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:432325affb9658ae",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Elemental Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:48c7db54b3fb56f9",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Elemental Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:90838dff30c66d45",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Elemental Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:feb5bbce58251855",
+          "goalId": "goal:feb5bbce58251855",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Fire Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Fire Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Fire Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "elemental",
+            "fire",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "elemental",
+              "label": "Elemental"
+            },
+            {
+              "id": "fire",
+              "label": "Fire"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:eebf3beab4adc0fd",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Fire Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:332f26379cf96bef",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Fire Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:7ae1acde445fbc14",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Fire Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:d4ed3bb4d4a4781a",
+          "goalId": "goal:d4ed3bb4d4a4781a",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Lightning Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Lightning Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Lightning Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "elemental",
+            "lightning",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "elemental",
+              "label": "Elemental"
+            },
+            {
+              "id": "lightning",
+              "label": "Lightning"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:82957041156b51d8",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Lightning Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:e6b2f07cb40654fa",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Lightning Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:0682d7a8c3197b83",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Lightning Skills",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:010750eae95e5b79",
+          "goalId": "goal:010750eae95e5b79",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Physical Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Physical Skills",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed with Physical Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "physical",
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "physical",
+              "label": "Physical"
+            },
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:9663b573c80085eb",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed with Physical Skills",
+              "displayTags": [
+                {
+                  "id": "physical",
+                  "label": "Physical"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:35714cc9aaec7df5",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed with Physical Skills",
+              "displayTags": [
+                {
+                  "id": "physical",
+                  "label": "Physical"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:db05878c1816657a",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed with Physical Skills",
+              "displayTags": [
+                {
+                  "id": "physical",
+                  "label": "Physical"
+                },
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:ff57b3f71f1bf322",
+          "goalId": "goal:ff57b3f71f1bf322",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack Speed",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack Speed",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "attack",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:2b35b49bfc36e28d",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:a5e40c800b031394",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:4f9d5a877051d591",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:1f4a323b6ba43fb4",
+          "goalId": "goal:1f4a323b6ba43fb4",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Cast Speed",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Cast Speed",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Cast Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:72d5300a90b2c699",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Cast Speed",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:8a111d189a5dc291",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Cast Speed",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:db471f86565ed20e",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Cast Speed",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:47daf179ea34ebc5",
+          "goalId": "goal:47daf179ea34ebc5",
+          "sourceId": "Large_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed",
+          "effectKey": "Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed",
+          "modifierProfileId": "Large_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "attack",
+            "caster",
+            "speed",
+            "minion"
+          ],
+          "displayTags": [
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            },
+            {
+              "id": "minion",
+              "label": "Minion"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_large",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_large"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:f725bc6725d7bb92",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: Minions have 3% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:c625ce457cdc048c",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions have 2% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:d5f449ebe5c27e59",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions have 1% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        }
+      ]
+    },
+    {
       "id": "family:46191f6b14c7cd8e",
       "modifierProfileId": "Medium_Cluster_Jewel",
       "groupId": "AfflictionJewelSmallPassivesGrantLife",
@@ -2082536,6 +2083835,1693 @@
                 {
                   "min": 3,
                   "max": 5
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        }
+      ]
+    },
+    {
+      "id": "family:cf4ee003b7ec2ace",
+      "modifierProfileId": "Medium_Cluster_Jewel",
+      "groupId": "ClusterJewelEnchant",
+      "affixType": "suffix",
+      "source": "enchant",
+      "influences": [],
+      "name": "Added Small Passive Skills also grant: increased Damage over Time / Added Small Passive Skills also grant: increased Duration of Elemental Ailments on Enemies / Added Small Passive Skills also grant: increased Area of Effect of Aura Skills / Added Small Passive Skills also grant: increased Area of Effect of Hex Skills / Added Small Passive Skills also grant: increased Attack and Cast Speed while affected by a Herald / Added Small Passive Skills also grant: Minions have increased Attack and Cast Speed while you are affected by a Herald / Added Small Passive Skills also grant: increased Warcry Duration / Added Small Passive Skills also grant: to Critical Strike Multiplier / Added Small Passive Skills also grant: Minions Regenerate of Life per Second / Added Small Passive Skills also grant: increased Area of Effect / Added Small Passive Skills also grant: increased Projectile Speed / Added Small Passive Skills also grant: increased Trap and Mine Throwing Speed / Added Small Passive Skills also grant: increased Totem Placement speed / Added Small Passive Skills also grant: increased Brand Attachment range / Added Small Passive Skills also grant: Channelling Skills have increased Attack and Cast Speed / Added Small Passive Skills also grant: increased Flask Charges gained",
+      "entries": [
+        {
+          "id": "goal:46087f80db140f6c",
+          "goalId": "goal:46087f80db140f6c",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Area of Effect",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Area of Effect",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Area of Effect",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [],
+          "displayTags": [],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:908c1ff8d4c699ce",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Area of Effect",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:9de5fb3b34f6009a",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Area of Effect",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:19d6e8862729c1c5",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Area of Effect",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:37a3464c09ddb7f9",
+          "goalId": "goal:37a3464c09ddb7f9",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Area of Effect of Aura Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Area of Effect of Aura Skills",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Area of Effect of Aura Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "aura"
+          ],
+          "displayTags": [
+            {
+              "id": "aura",
+              "label": "Aura"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:dbfc3e24be9f50f0",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 6% increased Area of Effect of Aura Skills",
+              "displayTags": [
+                {
+                  "id": "aura",
+                  "label": "Aura"
+                }
+              ],
+              "values": [
+                {
+                  "min": 6,
+                  "max": 6
+                }
+              ]
+            },
+            {
+              "id": "tier:8fb43819c313b365",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 4% increased Area of Effect of Aura Skills",
+              "displayTags": [
+                {
+                  "id": "aura",
+                  "label": "Aura"
+                }
+              ],
+              "values": [
+                {
+                  "min": 4,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "tier:632bc096a2cf70c8",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Area of Effect of Aura Skills",
+              "displayTags": [
+                {
+                  "id": "aura",
+                  "label": "Aura"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:3fdcc236ec1ccd60",
+          "goalId": "goal:3fdcc236ec1ccd60",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Area of Effect of Hex Skills",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Area of Effect of Hex Skills",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Area of Effect of Hex Skills",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "caster",
+            "curse"
+          ],
+          "displayTags": [
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "curse",
+              "label": "Curse"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:32ae29fd4999b084",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Area of Effect of Hex Skills",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "curse",
+                  "label": "Curse"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:2464db44926a78f7",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Area of Effect of Hex Skills",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "curse",
+                  "label": "Curse"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:9a5bfff916702288",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Area of Effect of Hex Skills",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "curse",
+                  "label": "Curse"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:1a38df2bb166afc3",
+          "goalId": "goal:1a38df2bb166afc3",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Attack and Cast Speed while affected by a Herald",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed while affected by a Herald",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Attack and Cast Speed while affected by a Herald",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:9c63e326bd5a1e40",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Attack and Cast Speed while affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:322423278baa8f7a",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Attack and Cast Speed while affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:c19dfdafacd37035",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Attack and Cast Speed while affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:34406e2853b82bcc",
+          "goalId": "goal:34406e2853b82bcc",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Brand Attachment range",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Brand Attachment range",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Brand Attachment range",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "caster"
+          ],
+          "displayTags": [
+            {
+              "id": "caster",
+              "label": "Caster"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:f838036c23dbb329",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Brand Attachment range",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:bee77c39850c05c0",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Brand Attachment range",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:e734ead0410dba2d",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Brand Attachment range",
+              "displayTags": [
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:391fb1380baa1ad5",
+          "goalId": "goal:391fb1380baa1ad5",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Damage over Time",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Damage over Time",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Damage over Time",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "damage"
+          ],
+          "displayTags": [
+            {
+              "id": "damage",
+              "label": "Damage"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:ae70344894156437",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Damage over Time",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:6b3eb7e35c18c34b",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Damage over Time",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:391a74b3be0137ea",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Damage over Time",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:200860732909cbaa",
+          "goalId": "goal:200860732909cbaa",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Duration of Elemental Ailments on Enemies",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Duration of Elemental Ailments on Enemies",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Duration of Elemental Ailments on Enemies",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "elemental",
+            "fire",
+            "cold",
+            "lightning",
+            "ailment"
+          ],
+          "displayTags": [
+            {
+              "id": "elemental",
+              "label": "Elemental"
+            },
+            {
+              "id": "fire",
+              "label": "Fire"
+            },
+            {
+              "id": "cold",
+              "label": "Cold"
+            },
+            {
+              "id": "lightning",
+              "label": "Lightning"
+            },
+            {
+              "id": "ailment",
+              "label": "Ailment"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:1cd28b24f181911c",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 5% increased Duration of Elemental Ailments on Enemies",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "ailment",
+                  "label": "Ailment"
+                }
+              ],
+              "values": [
+                {
+                  "min": 5,
+                  "max": 5
+                }
+              ]
+            },
+            {
+              "id": "tier:571cc579de7eaa9e",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 4% increased Duration of Elemental Ailments on Enemies",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "ailment",
+                  "label": "Ailment"
+                }
+              ],
+              "values": [
+                {
+                  "min": 4,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "tier:6b59aef5595e0108",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 3% increased Duration of Elemental Ailments on Enemies",
+              "displayTags": [
+                {
+                  "id": "elemental",
+                  "label": "Elemental"
+                },
+                {
+                  "id": "fire",
+                  "label": "Fire"
+                },
+                {
+                  "id": "cold",
+                  "label": "Cold"
+                },
+                {
+                  "id": "lightning",
+                  "label": "Lightning"
+                },
+                {
+                  "id": "ailment",
+                  "label": "Ailment"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:104b499e47de06e1",
+          "goalId": "goal:104b499e47de06e1",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Flask Charges gained",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Flask Charges gained",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Flask Charges gained",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [],
+          "displayTags": [],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:9ed83fb068197182",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Flask Charges gained",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:8fafb20ac006180e",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Flask Charges gained",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:429265cdfd320b7b",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Flask Charges gained",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:b26741098f72de5c",
+          "goalId": "goal:b26741098f72de5c",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Projectile Speed",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Projectile Speed",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Projectile Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:3f3786fc4fb02942",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 4% increased Projectile Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 4,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "tier:0fac499b7dd9891e",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 3% increased Projectile Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:f02285d0c1f321b3",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Projectile Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:41690d71097cee39",
+          "goalId": "goal:41690d71097cee39",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Totem Placement speed",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Totem Placement speed",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Totem Placement speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:e10daf06d6a49a5c",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Totem Placement speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:cbcc6a4b25a325f9",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Totem Placement speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:6c0dde1679bb71db",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Totem Placement speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:033dea96149387a4",
+          "goalId": "goal:033dea96149387a4",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Trap and Mine Throwing Speed",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Trap and Mine Throwing Speed",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Trap and Mine Throwing Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:5546ae8e0adf92e2",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 3% increased Trap and Mine Throwing Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:b22de5b7ff3716e9",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Trap and Mine Throwing Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:f96ecd398bc034aa",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 1% increased Trap and Mine Throwing Speed",
+              "displayTags": [
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:92acc385bec57489",
+          "goalId": "goal:92acc385bec57489",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% increased Warcry Duration",
+          "effectKey": "Added Small Passive Skills also grant: #% increased Warcry Duration",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% increased Warcry Duration",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [],
+          "displayTags": [],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:35db67f051ced6e1",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: 4% increased Warcry Duration",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 4,
+                  "max": 4
+                }
+              ]
+            },
+            {
+              "id": "tier:496d2f4e494ecee8",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 3% increased Warcry Duration",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:371fffb3e3fb41ce",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: 2% increased Warcry Duration",
+              "displayTags": [],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:45c714a491830a9a",
+          "goalId": "goal:45c714a491830a9a",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: #% to Critical Strike Multiplier",
+          "effectKey": "Added Small Passive Skills also grant: #% to Critical Strike Multiplier",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: #% to Critical Strike Multiplier",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "damage",
+            "critical"
+          ],
+          "displayTags": [
+            {
+              "id": "damage",
+              "label": "Damage"
+            },
+            {
+              "id": "critical",
+              "label": "Critical"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:5bdf9fc36962bc6c",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: +3% to Critical Strike Multiplier",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                },
+                {
+                  "id": "critical",
+                  "label": "Critical"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:0cfd96823d614d5a",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: +2% to Critical Strike Multiplier",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                },
+                {
+                  "id": "critical",
+                  "label": "Critical"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:0e5301a6c970228b",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: +1% to Critical Strike Multiplier",
+              "displayTags": [
+                {
+                  "id": "damage",
+                  "label": "Damage"
+                },
+                {
+                  "id": "critical",
+                  "label": "Critical"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:94689dd8a1f2f474",
+          "goalId": "goal:94689dd8a1f2f474",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: Channelling Skills have #% increased Attack and Cast Speed",
+          "effectKey": "Added Small Passive Skills also grant: Channelling Skills have #% increased Attack and Cast Speed",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: Channelling Skills have #% increased Attack and Cast Speed",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "attack",
+            "caster",
+            "speed"
+          ],
+          "displayTags": [
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:01ec9e9414738594",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: Channelling Skills have 3% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:4e467e0085e344e2",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Channelling Skills have 2% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:a879493232956e9c",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Channelling Skills have 1% increased Attack and Cast Speed",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:a03a381be03482ad",
+          "goalId": "goal:a03a381be03482ad",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed while you are affected by a Herald",
+          "effectKey": "Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed while you are affected by a Herald",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: Minions have #% increased Attack and Cast Speed while you are affected by a Herald",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "attack",
+            "caster",
+            "speed",
+            "minion"
+          ],
+          "displayTags": [
+            {
+              "id": "attack",
+              "label": "Attack"
+            },
+            {
+              "id": "caster",
+              "label": "Caster"
+            },
+            {
+              "id": "speed",
+              "label": "Speed"
+            },
+            {
+              "id": "minion",
+              "label": "Minion"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:f732521c24f541f7",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: Minions have 3% increased Attack and Cast Speed while you are affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 3,
+                  "max": 3
+                }
+              ]
+            },
+            {
+              "id": "tier:7b87854b224d9b72",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions have 2% increased Attack and Cast Speed while you are affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 2,
+                  "max": 2
+                }
+              ]
+            },
+            {
+              "id": "tier:06e7268da69c3290",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions have 1% increased Attack and Cast Speed while you are affected by a Herald",
+              "displayTags": [
+                {
+                  "id": "attack",
+                  "label": "Attack"
+                },
+                {
+                  "id": "caster",
+                  "label": "Caster"
+                },
+                {
+                  "id": "speed",
+                  "label": "Speed"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 1,
+                  "max": 1
+                }
+              ]
+            }
+          ],
+          "craftedOptions": []
+        },
+        {
+          "id": "goal:3e0af7d02d9a8b62",
+          "goalId": "goal:3e0af7d02d9a8b62",
+          "sourceId": "Medium_Cluster_Jewel:enchant:suffix:Added Small Passive Skills also grant: Minions Regenerate #% of Life per Second",
+          "effectKey": "Added Small Passive Skills also grant: Minions Regenerate #% of Life per Second",
+          "modifierProfileId": "Medium_Cluster_Jewel",
+          "groupId": "ClusterJewelEnchant",
+          "name": "Added Small Passive Skills also grant: Minions Regenerate #% of Life per Second",
+          "affixType": "suffix",
+          "source": "enchant",
+          "tags": [
+            "life",
+            "minion"
+          ],
+          "displayTags": [
+            {
+              "id": "life",
+              "label": "Life"
+            },
+            {
+              "id": "minion",
+              "label": "Minion"
+            }
+          ],
+          "spawnTags": [
+            "expansion_jewel_medium",
+            "default"
+          ],
+          "requiredTags": [
+            "expansion_jewel_medium"
+          ],
+          "itemClasses": [
+            "Jewel"
+          ],
+          "influences": [],
+          "tiers": [
+            {
+              "id": "tier:e4e868a706cca6a8",
+              "tier": 1,
+              "name": "T1",
+              "requiredLevel": 84,
+              "weight": 250,
+              "text": "Added Small Passive Skills also grant: Minions Regenerate 0.2% of Life per Second",
+              "displayTags": [
+                {
+                  "id": "life",
+                  "label": "Life"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 0.2,
+                  "max": 0.2
+                }
+              ]
+            },
+            {
+              "id": "tier:4ad3d45903c77804",
+              "tier": 2,
+              "name": "T2",
+              "requiredLevel": 68,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions Regenerate 0.15% of Life per Second",
+              "displayTags": [
+                {
+                  "id": "life",
+                  "label": "Life"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 0.15,
+                  "max": 0.15
+                }
+              ]
+            },
+            {
+              "id": "tier:fd25cf50bc6750db",
+              "tier": 3,
+              "name": "T3",
+              "requiredLevel": 1,
+              "weight": 350,
+              "text": "Added Small Passive Skills also grant: Minions Regenerate 0.1% of Life per Second",
+              "displayTags": [
+                {
+                  "id": "life",
+                  "label": "Life"
+                },
+                {
+                  "id": "minion",
+                  "label": "Minion"
+                }
+              ],
+              "values": [
+                {
+                  "min": 0.1,
+                  "max": 0.1
                 }
               ]
             }

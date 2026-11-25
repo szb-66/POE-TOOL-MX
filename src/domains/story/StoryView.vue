@@ -237,6 +237,7 @@ import { currentServer, canUseGameInput } from '@/utils/serverContext.js'
 import { catalogDisplayText, useLocalizedCatalog } from '@/utils/localizedCatalog.js'
 import {
   applySkillCatalogSelection,
+  resolveSkillForServer,
   searchSkillCatalog,
   SKILL_COLOR_LABELS,
   SKILL_KIND_LABELS,
@@ -272,10 +273,10 @@ function updateSkillName(skill, value) {
 }
 
 function skillDisplayValue(skill) {
-  const canonical = skillCatalog.skills.find(item => item.id === skill.gemId)
-  const displayName = canonical?.name === skill.name ? catalogDisplayText(skill.name, skillLocalization.aliases.value) : skill.name
-  if (settings.storyShowSkillRequiredLevel && skill.gemId && Number.isInteger(skill.requiredLevel)) {
-    return skillSuggestionLabel({ ...skill, displayName })
+  const resolved = resolveSkillForServer(skill, currentServer.id, skillLocalization.aliases.value)
+  const displayName = resolved.displayName || skill.name
+  if (settings.storyShowSkillRequiredLevel && (resolved.gemId || skill.gemId) && Number.isInteger(resolved.requiredLevel ?? skill.requiredLevel)) {
+    return skillSuggestionLabel({ ...resolved, displayName })
   }
   return displayName
 }

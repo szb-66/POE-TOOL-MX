@@ -1,4 +1,5 @@
 const parameters = /\{(\d+)(?::([^}]+))?\}|#/g
+const singularize = value => value.replace(/\b([A-Za-z]{2,})s\b/g, '$1')
 
 export function statNumber(value) {
   const text = String(value).replaceAll('（', '(').replaceAll('）', ')')
@@ -98,6 +99,40 @@ export function sameStatPluralFamily(left, right) {
   if (!a || !b || left.table !== right.table || left.id !== right.id || a.variants[a.index].handlers !== b.variants[b.index].handlers) return false
   const keys = value => [...String(value).matchAll(parameters)].map((match, index) => `${match[1] ?? index}:${match[2] || ''}`).join(',')
   if (keys(left.en) !== keys(right.en)) return false
-  const stem = value => String(value).replace(parameters, '#').replace(/\b([A-Za-z]{2,})s\b/g, '$1')
+  const stem = value => singularize(String(value).replace(parameters, '#'))
   return stem(left.en) === stem(right.en)
+}
+
+// A literal trade filter can represent the same game stat without exposing its amount.
+export function sameStatPresenceFamily(source, literal, amount) {
+  const a = metadata(source), b = metadata(literal)
+  if (!a || !b || source.fragmentOf || literal.fragmentOf || source.table !== literal.table || source.id !== literal.id ||
+      a.ids.length !== 1 || b.ids.length !== 1 || a.ids[0] !== b.ids[0] || !(amount > 0)) return false
+  const from = a.variants[a.index]
+  const to = b.variants[b.index]
+  if (from.placeholders?.length !== 1 || from.placeholders[0] !== '{0}' || to.placeholders?.length !== 0 ||
+      /[{}#]/.test(literal.en)) return false
+
+  const wording = singularize(source.en)
+  const target = singularize(literal.en)
+  if (to.condition === '1000' && from.handlers === 'milliseconds_to_seconds 1' && !to.handlers) {
+    return /\b(?:every|each) \{0\} second\b/.test(wording) && wording.replace('{0} ', '') === target
+  }
+  if (to.condition !== '1' || !Number.isInteger(amount) ||
+      !/^(?:reminderstring \S+)?$/.test(from.handlers) || from.handlers !== to.handlers) return false
+  return ['a', 'an', '1'].some(one => wording.replace('{0}', one) === target)
+}
+
+// The clipboard guarantees the effect. The trade filter can express that threshold as min 100.
+export function sameGuaranteedChanceFamily(literal, numeric) {
+  const a = metadata(literal), b = metadata(numeric)
+  if (!a || !b || literal.fragmentOf || numeric.fragmentOf || literal.table !== numeric.table || literal.id !== numeric.id ||
+      a.ids.length !== 1 || b.ids.length !== 1 || a.ids[0] !== b.ids[0]) return false
+  const source = a.variants[a.index]
+  const target = b.variants[b.index]
+  if (source.condition !== '100|#' || target.condition !== '1|99' || source.handlers || target.handlers ||
+      source.placeholders?.length !== 0 || target.placeholders?.length !== 2 ||
+      !target.placeholders.includes('%') || !target.placeholders.includes('{0}')) return false
+  const wording = numeric.en.match(/^(.+) have \{0\}% chance to (.+)$/)
+  return Boolean(wording && `${wording[1]} ${wording[2]}` === literal.en)
 }

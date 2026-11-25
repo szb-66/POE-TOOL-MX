@@ -15,6 +15,7 @@ export function normalizeEldritchTarget(input = {}) {
   if (!familyId || !effectPattern) return null
   return {
     familyId,
+    ...(text(input.canonicalKey) ? { canonicalKey: text(input.canonicalKey) } : {}),
     displayName: text(input.displayName) || effectPattern.replaceAll('#', '').replace(/\s+/g, ' ').trim(),
     effectPattern,
     applicableLabel: text(input.applicableLabel),

@@ -62,16 +62,25 @@ export function normalizeAndInspect(items, passive, issues) {
         item[field] = []
       }
     }
+    const mutatedExplicitMods = []
     for (const [field, values] of Object.entries(item)) {
       if (!field.endsWith('Mods')) continue
       if (!Array.isArray(values)) { issues.push(`词缀数据格式无效：${label} / ${field}`); item[field] = []; continue }
-      item[field] = values.map(mod => {
-        if (typeof mod === 'string') return mod
-        if (typeof mod?.description === 'string') return mod.description
+      item[field] = values.flatMap(mod => {
+        if (typeof mod === 'string') return [mod]
+        if (typeof mod?.description === 'string') {
+          if (field === 'explicitMods' && (mod.flags ?? mod).mutated === true) {
+            mutatedExplicitMods.push(mod.description)
+            return []
+          }
+          return [mod.description]
+        }
         issues.push(`词缀数据格式无法识别：${label} / ${field}`)
-        return ''
+        return ['']
       })
     }
+    // The PoB serializer adds {mutated} markers from the legacy field.
+    if (mutatedExplicitMods.length) item.mutatedMods = [...(item.mutatedMods || []), ...mutatedExplicitMods]
     if (parent) {
       if (!Number.isInteger(item.socket) || !parent.sockets?.[item.socket]) issues.push(`技能或珠宝插槽数据不完整：${label}`)
       if (item.abyssJewel && parent.sockets?.[item.socket]?.sColour !== 'A') issues.push(`深渊珠宝与插槽类型不一致：${label}`)

@@ -7,6 +7,7 @@ import { transform } from 'cn-poe-utils/building'
 import { PobExportError } from './errors.js'
 import { resolveItemIdentity, normalizeAndInspect, checkTranslatedGem, preserveExtraMods, inspectBuilding, hasChinese, isEquipment } from './integrity.js'
 import { guardStatTemplates } from './templateSafety.js'
+import { withGemNameVariants, withReferenceFallback, withSupportNameVariants, clientModFallback } from './clientText.js'
 
 const factory = new TranslatorFactory()
 guardStatTemplates(factory.getBasicTranslator())
@@ -17,14 +18,19 @@ for (const [category, method] of [['anointed', 'transAnointed'], ['ascendant', '
   basic[method] = name => ambiguous.has(name) ? undefined : original(name)
 }
 const basicTranslator = factory.getBasicTranslator()
+// The client writes support gems with full-width parentheses while the fixed
+// data mostly uses half-width ones; retry the name in both forms.
+basicTranslator.transSkill = withGemNameVariants(basicTranslator.transSkill.bind(basicTranslator))
+basicTranslator.transIndexableSupports = withSupportNameVariants(basicTranslator.transIndexableSupports.bind(basicTranslator))
 const translateMod = basicTranslator.transMod.bind(basicTranslator)
-basicTranslator.transMod = text => {
+const translateModWithReferences = withReferenceFallback(text => {
   // Some upstream allocation templates embed the passive name literally, so
   // they bypass transAnointed and require the same ambiguity check here.
   const allocation = text.match(/^(?:配置|分配)\s*(.+)$/u)
   if (allocation && pobIdentities.passiveConflicts.anointed.includes(allocation[1])) return undefined
   return translateMod(text)
-}
+})
+basicTranslator.transMod = text => translateModWithReferences(text) ?? clientModFallback(text)
 const fail = (message, warnings = []) => { throw new PobExportError('CONVERSION_FAILED', message, { warnings: [...new Set(warnings)] }) }
 const escapeXml = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 
@@ -57,7 +63,7 @@ export function convertBuild(input) {
   const international = input.language === 'en' ? internationalPobContext(items) : null
   const identities = international || pobIdentities
   if (international) items.items = items.items.filter(isEquipment)
-  const warnings = international ? ['国际服导出使用独立 PoB 3.30 开发版数据，请使用支持 3.30 的 PoB 导入。'] : []
+  const warnings = international ? ['国际服导出使用独立 PoB 2.68.1 数据，请使用 PoB 2.68.1 或更高版本导入。'] : []
   const translator = factory.getJsonTranslator()
   const basic = factory.getBasicTranslator()
   // 英文 API 已是 PoB 的输入语言，只让中文片段进入翻译器，保留共用的预处理和完整性检查。
@@ -116,10 +122,10 @@ export function convertBuild(input) {
     if (!building.build.ascendClassName) building.build.ascendClassName = 'None'
     building.tree.spec.secondaryAscendClassId = passive.alternate_ascendancy ?? 0
     // The serializer defaults to 3.28; select the independently loaded realm tree.
-    if (building.tree.spec.treeVersion === '3_28') building.tree.spec.treeVersion = international?.treeVersion || '3_29'
+    if (building.tree.spec.treeVersion === '3_28') building.tree.spec.treeVersion = international?.treeVersion || '3_30'
     inspectBuilding(building, items, passive, expectedNodes, issues, identities)
     if (issues.length) fail('构筑转换后数据不完整，未生成导入码', [...issues, ...warnings])
-    if (building.tree.spec.treeVersion !== (international?.treeVersion || '3_29')) warnings.push('该角色使用特殊天赋树，请在 PoB 中核对天赋版本。')
+    if (building.tree.spec.treeVersion !== (international?.treeVersion || '3_30')) warnings.push('该角色使用特殊天赋树，请在 PoB 中核对天赋版本。')
     if (passive.hashes_ex.length) warnings.push('星团珠宝节点由官网扩展节点换算，导入后请核对星团配置。')
     if (warnings.some(w => /untranslated|未识别词缀/.test(w))) warnings.push('未识别词缀已保留原文，可能影响 PoB 计算，请在导入后核对。')
     escapeStrings(building)

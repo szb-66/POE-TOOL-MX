@@ -78,20 +78,19 @@ function assertSnapshotSentinels(loaded, live) {
 
 async function fetchText(url) {
   let lastError
-  for (let attempt = 1; attempt <= 8; attempt += 1) {
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
     try {
-      const result = process.platform === 'win32'
-        ? await fetchTextWithSystemClient(url)
-        : await (async () => {
-            const response = await fetch(url, { headers: { 'user-agent': 'ExileHelper/1.0 personal-data-refresh' }, signal: AbortSignal.timeout(60000) })
-            if (!response.ok) throw new Error(`HTTP ${response.status}`)
-            return { text: await response.text(), status: response.status }
-          })()
-      await new Promise((resolve) => setTimeout(resolve, 1800))
-      return result
+      const response = await fetch(url, {
+        headers: { 'user-agent': 'ExileHelper/1.0 personal-data-refresh', 'accept-language': 'zh-CN,zh;q=0.9' },
+        signal: AbortSignal.timeout(60000)
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const text = await response.text()
+      if (!text.includes('<html')) throw new Error('响应不是来源页面')
+      return { text, status: response.status }
     } catch (error) {
       lastError = error
-      if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, Math.min(30000, attempt * 5000)))
+      if (attempt < 6) await new Promise((resolve) => setTimeout(resolve, Math.min(15000, attempt * 2000)))
     }
   }
   throw new Error(`${url} 获取失败：${lastError?.message || '网络错误'}`, { cause: lastError })
@@ -229,6 +228,8 @@ function parseArguments(args) {
   const patchIndex = args.indexOf('--patch')
   const patch = patchIndex >= 0 ? args[patchIndex + 1] : CURRENT_PATCH
   if (!patch) throw new Error('--patch 后必须提供版本号')
+  const leagueIndex = args.indexOf('--league')
+  const league = leagueIndex >= 0 ? args[leagueIndex + 1] : (patch.startsWith('3.30') ? 'Covens of Umbra' : CURRENT_LEAGUE)
   const refresh = []
   for (let index = 0; index < args.length; index += 1) {
     if (args[index] === '--refresh') {
@@ -241,6 +242,7 @@ function parseArguments(args) {
   return {
     fixture,
     patch,
+    league,
     refresh,
     mode: args.includes('--live') ? 'full' : args.includes('--fetch-missing') ? 'missing' : refresh.length ? 'refresh' : 'offline'
   }
@@ -288,7 +290,7 @@ async function main() {
     : rawSnapshot.manifest.sources.reduce((latest, source) => source.fetchedAt > latest ? source.fetchedAt : latest, '')
   const dataset = {
     manifest: {
-      schemaVersion: CRAFTING_SCHEMA_VERSION, game: 'poe1', locale: 'zh-CN', league: options.fixture ? 'Fixture' : CURRENT_LEAGUE,
+      schemaVersion: CRAFTING_SCHEMA_VERSION, game: 'poe1', locale: 'zh-CN', league: options.fixture ? 'Fixture' : options.league,
       patch: options.fixture ? 'test' : options.patch, generatedAt, checksum: '',
       sources: sourceUrls.map((url) => ({ id: stableCraftingId('source', url), url }))
     },
