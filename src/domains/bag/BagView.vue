@@ -266,17 +266,8 @@
                   :cells="stashPickupStore.preview.cells || []"
                   :columns="stashPickupStore.preview.layout"
                   :rows="stashPickupStore.preview.layout"
-                  :labels="stashPickupStore.previewLabels"
                   decision-mode
-                  editable
-                  @change="stashPickupStore.setPreviewLabel($event.cell, $event.label)"
                 />
-                <el-button
-                  type="primary"
-                  plain
-                  :disabled="!Object.keys(stashPickupStore.previewLabels).length"
-                  @click="saveStashPreviewCorrections"
-                >保存修改的校准素材</el-button>
               </div>
                 </el-card>
               </section>
@@ -344,73 +335,14 @@
                   :cells="junfengStore.preview.cells || []"
                   :columns="12"
                   :rows="11"
-                  :labels="junfengStore.previewLabels"
                   decision-mode
-                  editable
-                  @change="junfengStore.setPreviewLabel($event.cell, $event.label)"
                 />
-                <el-button
-                  type="primary"
-                  plain
-                  :disabled="!Object.keys(junfengStore.previewLabels).length"
-                  @click="saveJunfengPreviewCorrections"
-                >保存修改的校准素材</el-button>
               </div>
                 </el-card>
               </section>
             </div>
 
-            <div class="section-header section-header--actions">
-              <h3 class="section-title">共享本机校准素材（{{ junfengStore.corrections.length }}）</h3>
-              <div class="calibration-actions">
-                <el-button
-                  plain
-                  size="small"
-                  :disabled="!junfengStore.corrections.length"
-                  @click="rebuildJunfengCorrections"
-                >重建特征</el-button>
-                <el-button
-                  type="danger"
-                  plain
-                  size="small"
-                  :disabled="!junfengStore.corrections.length"
-                  @click="resetJunfengCorrections"
-                >全部重置</el-button>
-              </div>
-            </div>
-            <el-card class="section-card shared-calibration-card">
-              <div class="shared-calibration">
-                <el-table v-if="junfengStore.corrections.length" :data="calibrationPage.items" size="small">
-                  <el-table-column label="图块" width="68">
-                    <template #default="scope"><img class="calibration-thumbnail" :src="scope.row.tileDataUrl" alt="校准图块" /></template>
-                  </el-table-column>
-                  <el-table-column label="格子" width="90">
-                    <template #default="scope">{{ scope.row.column + 1 }},{{ scope.row.row + 1 }}</template>
-                  </el-table-column>
-                  <el-table-column label="标签" width="100">
-                    <template #default="scope">{{ junfengLabel(scope.row.label) }}</template>
-                  </el-table-column>
-                  <el-table-column label="来源" width="110">
-                    <template #default="scope">{{ calibrationDomainLabel(scope.row.domain) }}</template>
-                  </el-table-column>
-                  <el-table-column prop="modelVersion" label="模型版本" />
-                  <el-table-column label="操作" width="80">
-                    <template #default="scope">
-                      <el-button link type="danger" @click="junfengStore.removeCorrection(scope.row.id)">删除</el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <el-pagination
-                  v-if="junfengStore.corrections.length > CALIBRATION_PAGE_SIZE"
-                  v-model:current-page="calibrationCurrentPage"
-                  class="calibration-pagination"
-                  layout="prev, pager, next"
-                  :page-size="CALIBRATION_PAGE_SIZE"
-                  :total="junfengStore.corrections.length"
-                  hide-on-single-page
-                />
-              </div>
-            </el-card>
+
           </el-tab-pane>
       </el-tabs>
     </el-col></el-row>
@@ -420,7 +352,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { QuestionFilled, VideoPause } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
@@ -439,7 +371,6 @@ import {
   updateBagRuntimeConfig
 } from '@/utils/bagService'
 import { readPersistentTab, writePersistentTab } from '@/utils/tabPersistence'
-import { paginateList } from '@/utils/listPagination'
 import {
   BAG_BLACKLIST_FIELDS,
   BAG_BLACKLIST_FIELD_LABELS,
@@ -470,13 +401,6 @@ const helpTopics = moduleHelpTopicsById('bag')
 const STORAGE_TAB_STORAGE_KEY = 'storage.activeTab'
 const STORAGE_TABS = ['inbound', 'pickup']
 const activeTab = ref(readPersistentTab(STORAGE_TAB_STORAGE_KEY, STORAGE_TABS, 'inbound'))
-const CALIBRATION_PAGE_SIZE = 10
-const calibrationCurrentPage = ref(1)
-const calibrationPage = computed(() => paginateList(
-  junfengStore.corrections,
-  calibrationCurrentPage.value,
-  CALIBRATION_PAGE_SIZE
-))
 const calibrationOptions = [
   { key: 'root', label: '文件夹外仓库' },
   { key: 'folder', label: '文件夹内仓库' }
@@ -516,12 +440,7 @@ const excludedSlotKeys = computed(() => new Set(
 
 function handleStorageTabChange(tab) {
   activeTab.value = writePersistentTab(STORAGE_TAB_STORAGE_KEY, tab, STORAGE_TABS, 'inbound')
-  if (activeTab.value === 'pickup') void junfengStore.ensureCorrectionsLoaded().catch(() => {})
 }
-
-onMounted(() => {
-  if (activeTab.value === 'pickup') void junfengStore.ensureCorrectionsLoaded().catch(() => {})
-})
 
 function openStashPickupCorrection() {
   openConfigurationCorrectionGuide({
@@ -576,10 +495,6 @@ function openJunfengCorrection() {
     })
   })
 }
-
-watch(() => junfengStore.corrections.length, () => {
-  calibrationCurrentPage.value = calibrationPage.value.page
-})
 
 const detectionStatus = computed(() => {
   if (!bagStore.moduleEnabled) return { type: 'info', text: '模块未启用' }
@@ -652,39 +567,7 @@ async function previewJunfeng() {
   try { await junfengStore.runPreview() } catch (error) { ElMessage.error(error.message) }
 }
 
-async function saveJunfengPreviewCorrections() {
-  try {
-    const count = await junfengStore.savePreviewCorrections()
-    ElMessage.success(`已保存 ${count} 个校准素材并立即生效`)
-  }
-  catch (error) { ElMessage.error(error.message) }
-}
 
-async function saveStashPreviewCorrections() {
-  try {
-    const count = await stashPickupStore.savePreviewCorrections()
-    await junfengStore.loadCorrections()
-    ElMessage.success(`已保存 ${count} 个校准素材并立即生效`)
-  } catch (error) { ElMessage.error(error.message) }
-}
-
-async function resetJunfengCorrections() {
-  try { await junfengStore.resetCorrections(); ElMessage.success('本机校准素材已重置') }
-  catch (error) { ElMessage.error(error.message) }
-}
-
-async function rebuildJunfengCorrections() {
-  try { await junfengStore.rebuildCorrections(); ElMessage.success('已标记为按当前模型重新提取特征') }
-  catch (error) { ElMessage.error(error.message) }
-}
-
-function junfengLabel(label) {
-  return ({ highlighted: '高亮', dimmed: '灰暗', empty: '空格', unknown: '未知' })[label] || label
-}
-
-function calibrationDomainLabel(domain) {
-  return ({ junfeng: '君锋镇', 'small-stash': '小仓库', 'large-stash': '大仓库' })[domain] || '君锋镇'
-}
 
 
 async function applyBagRuntimePatch(patch) {

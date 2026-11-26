@@ -26,9 +26,7 @@
     "runtime:verify": "node scripts/runtime/verify.js",
     "localization:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/buildLocalizationHelper.ps1",
     "market:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/buildMarketLocalization.ps1",
-    "junfeng:dataset": "python scripts/junfeng/build_dataset.py",
-    "junfeng:train": "python scripts/junfeng/train_model.py",
-    "junfeng:benchmark": "python scripts/junfeng/benchmark_model.py",
+    "slot-highlight:fit": "python scripts/slot_highlight/fit_classifier.py",
     "dev": "vite",
     "electron:dev": "node scripts/dev.js",
     "startup:benchmark": "node scripts/startupBenchmark.js",
@@ -145,8 +143,12 @@
         "to": "junfeng_highlight_pickup.py"
       },
       {
-        "from": "src/assets/models/junfeng-highlight",
-        "to": "junfeng-highlight-model"
+        "from": "src/assets/scripts/slot_highlight_classifier.py",
+        "to": "slot_highlight_classifier.py"
+      },
+      {
+        "from": "src/assets/models/slot-highlight",
+        "to": "slot-highlight"
       },
       {
         "from": "src/assets/scripts/stash_tab_selector.py",

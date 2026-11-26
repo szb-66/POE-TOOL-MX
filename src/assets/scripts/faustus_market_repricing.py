@@ -226,106 +226,12 @@ def select_market_candidate_cells(probabilities):
     return [(column, row) for _score, column, row in candidates], skipped_empty
 
 
-def _load_model_json(path):
-    try:
-        with open(path, "r", encoding="utf-8") as stream:
-            return json.load(stream)
-    except Exception:
-        return None
-
-
-def _model_sha256(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as stream:
-        while True:
-            chunk = stream.read(1024 * 1024)
-            if not chunk:
-                return digest.hexdigest()
-            digest.update(chunk)
-
-
-def _model_softmax(values, np):
-    shifted = values - np.max(values, axis=1, keepdims=True)
-    exp = np.exp(shifted)
-    return exp / np.maximum(np.sum(exp, axis=1, keepdims=True), 1e-8)
-
-
-class OccupancyModelRuntime:
-    def __init__(self, session, manifest):
-        self.session = session
-        self.width = int(manifest["inputSize"]["width"])
-        self.height = int(manifest["inputSize"]["height"])
-        outputs = manifest.get("outputs", {})
-        self.input_name = str(manifest.get("inputName") or session.get_inputs()[0].name)
-        self.logits_name = str(outputs.get("logits", "logits"))
-        self.embedding_name = str(outputs.get("embedding", "embedding"))
-
-    def infer(self, images, cv2, np):
-        tensors = []
-        for image in images:
-            resized = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_AREA)
-            rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-            tensors.append(np.transpose(rgb, (2, 0, 1)))
-        batch = np.ascontiguousarray(np.stack(tensors), dtype=np.float32)
-        logits, embeddings = self.session.run(
-            [self.logits_name, self.embedding_name], {self.input_name: batch})
-        probabilities = _model_softmax(np.asarray(logits, dtype=np.float32), np)
-        embeddings = np.asarray(embeddings, dtype=np.float32).reshape(len(images), -1)
-        if embeddings.shape[1] != 32:
-            raise RuntimeError("model-embedding-contract-invalid")
-        return probabilities
-
-
 def load_occupancy_model(config):
-    manifest_path = str(config.get("manifest_path", ""))
-    model_path = str(config.get("model_path", ""))
-    if not manifest_path or not model_path:
+    from slot_highlight_classifier import default_weights_path, load_classifier
+    weights_path = str(config.get("weights_path") or config.get("model_path") or default_weights_path())
+    if not weights_path or not os.path.isfile(weights_path):
         return None
-    if not os.path.isfile(model_path) or not os.path.isfile(manifest_path):
-        return None
-    try:
-        cache_key = (
-            manifest_path,
-            model_path,
-            os.stat(manifest_path).st_mtime_ns,
-            os.stat(model_path).st_mtime_ns,
-        )
-    except OSError:
-        cache_key = None
-    if cache_key and cache_key in _OCCUPANCY_MODEL_CACHE:
-        return _OCCUPANCY_MODEL_CACHE[cache_key]
-    manifest = _load_model_json(manifest_path)
-    if not isinstance(manifest, dict):
-        return None
-    if (manifest.get("schemaVersion") != 1 or manifest.get("architectureVersion") != 1
-            or tuple(manifest.get("classes", ())) != OCCUPANCY_LABELS):
-        return None
-    if str(manifest.get("sha256", "")).lower() != _model_sha256(model_path).lower():
-        return None
-    input_size = manifest.get("inputSize", {})
-    if int(input_size.get("width", 0)) <= 0 or int(input_size.get("height", 0)) <= 0:
-        return None
-    import onnxruntime as ort
-    session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
-    runtime = OccupancyModelRuntime(session, manifest)
-    if cache_key:
-        _OCCUPANCY_MODEL_CACHE.clear()
-        _OCCUPANCY_MODEL_CACHE[cache_key] = runtime
-    return runtime
-
-
-def occupancy_grid_tiles(image):
-    tiles = []
-    for row in range(GRID_ROWS):
-        for column in range(GRID_COLUMNS):
-            x0 = int(round(column * image.shape[1] / GRID_COLUMNS))
-            x1 = int(round((column + 1) * image.shape[1] / GRID_COLUMNS))
-            y0 = int(round(row * image.shape[0] / GRID_ROWS))
-            y1 = int(round((row + 1) * image.shape[0] / GRID_ROWS))
-            margin_x = max(1, int(round((x1 - x0) * 0.08)))
-            margin_y = max(1, int(round((y1 - y0) * 0.08)))
-            tiles.append(image[y0 + margin_y:y1 - margin_y, x0 + margin_x:x1 - margin_x].copy())
-    return tiles
+    return load_classifier(weights_path)
 
 
 def parse_positive_price(value):
@@ -916,20 +822,27 @@ class GameAdapter:
             raise PageAbort("grid_structure_invalid")
 
     def candidate_cells(self):
-        """复用通用格子模型，直接排除模型分类为 empty 的格子。"""
+        """使用纯 NumPy 格子分类器过滤空格，返回非空格子坐标。"""
         try:
-            model = load_occupancy_model(self.config)
+            classifier = load_occupancy_model(self.config)
         except Exception as exc:
             raise PageAbort("occupancy_model_validation_failed") from exc
-        if model is None:
+        if classifier is None:
             raise PageAbort("occupancy_model_validation_failed")
         try:
             image = self.capture(self.grid)
-            tiles = occupancy_grid_tiles(image)
         except Exception as exc:
             raise PageAbort("occupancy_grid_capture_failed") from exc
         try:
-            probabilities = model.infer(tiles, self.cv2, self.np)
+            from slot_highlight_classifier import classify_empty_slots
+            probabilities, _empty_slots = classify_empty_slots(
+                image,
+                GRID_COLUMNS,
+                GRID_ROWS,
+                classifier,
+                empty_threshold=EMPTY_SLOT_CONFIDENCE,
+                order="row-major",
+            )
         except Exception as exc:
             raise PageAbort("occupancy_model_inference_failed") from exc
         cells, skipped_empty = select_market_candidate_cells(probabilities)

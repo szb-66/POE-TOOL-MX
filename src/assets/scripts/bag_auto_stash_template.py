@@ -64,6 +64,23 @@ except ImportError:
 DEPENDENCY_ERROR = ""
 
 
+def ensure_scan_vision_dependencies():
+    global mss, np, DEPENDENCY_ERROR
+    if mss is not None and np is not None:
+        return True
+    try:
+        if mss is None:
+            import mss as _mss
+            mss = _mss
+        if np is None:
+            import numpy as _np
+            np = _np
+        return True
+    except ImportError as exc:
+        DEPENDENCY_ERROR = str(exc)
+        return False
+
+
 def ensure_vision_dependencies():
     global cv2, mss, np, DEPENDENCY_ERROR
     if cv2 is not None and mss is not None and np is not None:
@@ -72,13 +89,7 @@ def ensure_vision_dependencies():
         if cv2 is None:
             import cv2 as _cv2
             cv2 = _cv2
-        if mss is None:
-            import mss as _mss
-            mss = _mss
-        if np is None:
-            import numpy as _np
-            np = _np
-        return True
+        return ensure_scan_vision_dependencies()
     except ImportError as exc:
         DEPENDENCY_ERROR = str(exc)
         return False
@@ -1520,18 +1531,8 @@ def _scan_item(target, parsed, fingerprint, catalog, footprint=None, selectable=
 EMPTY_SLOT_MODEL_LABELS = ("highlighted", "dimmed", "empty")
 
 
-def _file_sha256(file_path):
-    digest = hashlib.sha256()
-    with open(file_path, "rb") as stream:
-        while True:
-            chunk = stream.read(1024 * 1024)
-            if not chunk:
-                return digest.hexdigest()
-            digest.update(chunk)
-
-
 def _capture_inventory_grid(start_x, start_y, slot_width, slot_height):
-    ensure_vision_dependencies()
+    ensure_scan_vision_dependencies()
     left = int(round(start_x - slot_width / 2.0))
     top = int(round(start_y - slot_height / 2.0))
     capture_width = int(round(slot_width * 12))
@@ -1543,27 +1544,11 @@ def _capture_inventory_grid(start_x, start_y, slot_width, slot_height):
             "left": left, "top": top,
             "width": capture_width, "height": capture_height
         })
-    image = cv2.cvtColor(np.asarray(shot), cv2.COLOR_BGRA2BGR)
+    frame = np.frombuffer(shot.bgra, dtype=np.uint8).reshape(shot.height, shot.width, 4)
+    image = np.ascontiguousarray(frame[:, :, :3])
     if image is None or not image.size:
         raise RuntimeError("inventory-capture-empty")
     return image
-
-
-def _inventory_model_tiles(image):
-    tiles = []
-    for column in range(12):
-        for row in range(5):
-            x0 = int(round(column * image.shape[1] / 12))
-            x1 = int(round((column + 1) * image.shape[1] / 12))
-            y0 = int(round(row * image.shape[0] / 5))
-            y1 = int(round((row + 1) * image.shape[0] / 5))
-            margin_x = max(1, int(round((x1 - x0) * 0.08)))
-            margin_y = max(1, int(round((y1 - y0) * 0.08)))
-            tile = image[y0 + margin_y:y1 - margin_y, x0 + margin_x:x1 - margin_x]
-            if tile is None or not tile.size:
-                raise RuntimeError("inventory-tile-empty")
-            tiles.append(((column, row), tile))
-    return tiles
 
 
 def select_high_confidence_empty_slots(probabilities, threshold):
@@ -1577,91 +1562,46 @@ def select_high_confidence_empty_slots(probabilities, threshold):
     return skipped
 
 
-def classify_inventory_empty_slots(config, capture_image=None, session_factory=None):
-    ensure_vision_dependencies()
+def classify_inventory_empty_slots(config, capture_image=None, classifier_factory=None):
+    ensure_scan_vision_dependencies()
     model_config = config.get("emptySlotModel", {}) if isinstance(config, dict) else {}
-    threshold = float(model_config.get("threshold", 0.995))
+    threshold = float(model_config.get("threshold", 0.98))
     summary = {
         "mode": "fallback", "modelVersion": "", "threshold": threshold,
         "skippedModelEmpty": 0, "skippedOccupied": 0,
         "fallbackReason": "model-config-missing"
     }
-    model_path = str(model_config.get("modelPath", ""))
-    manifest_path = str(model_config.get("manifestPath", ""))
+    weights_path = str(model_config.get("weightsPath") or model_config.get("modelPath") or "")
     try:
-        if not model_path or not manifest_path:
+        if not weights_path:
             return set(), summary
-        if not os.path.isfile(manifest_path):
-            summary["fallbackReason"] = "model-manifest-missing"
-            return set(), summary
-        with open(manifest_path, "r", encoding="utf-8") as stream:
-            manifest = json.load(stream)
-        summary["modelVersion"] = str(manifest.get("modelVersion", ""))
-        if (manifest.get("schemaVersion") != 1 or manifest.get("architectureVersion") != 1 or
-                tuple(manifest.get("classes", ())) != EMPTY_SLOT_MODEL_LABELS):
-            summary["fallbackReason"] = "model-contract-invalid"
-            return set(), summary
-        if not os.path.isfile(model_path):
+        if not os.path.isfile(weights_path):
             summary["fallbackReason"] = "model-file-missing"
             return set(), summary
-        expected_hash = str(manifest.get("sha256", "")).lower()
-        verified_stamp = model_config.get("verifiedStamp") if isinstance(model_config.get("verifiedStamp"), dict) else None
-        stamp_matches = False
-        if verified_stamp and expected_hash and str(verified_stamp.get("sha256", "")).lower() == expected_hash:
-            try:
-                stat = os.stat(model_path)
-                stamp_matches = (
-                    int(verified_stamp.get("size", -1)) == int(stat.st_size) and
-                    int(verified_stamp.get("mtimeMs", -1)) == int(stat.st_mtime * 1000)
-                )
-            except Exception:
-                stamp_matches = False
-        if not stamp_matches and (not expected_hash or _file_sha256(model_path).lower() != expected_hash):
-            summary["fallbackReason"] = "model-checksum-mismatch"
-            return set(), summary
-        input_size = manifest.get("inputSize", {})
-        input_width = int(input_size.get("width", 0))
-        input_height = int(input_size.get("height", 0))
-        if input_width <= 0 or input_height <= 0:
-            summary["fallbackReason"] = "model-input-invalid"
-            return set(), summary
-        if session_factory is None:
-            import onnxruntime as ort
-            session_factory = lambda candidate: ort.InferenceSession(candidate, providers=["CPUExecutionProvider"])
-        session = session_factory(model_path)
+        from slot_highlight_classifier import classify_empty_slots, load_classifier
+        classifier = (classifier_factory or load_classifier)(weights_path)
+        summary["modelVersion"] = str(getattr(classifier, "version", "") or "")
         inventory = config.get("inventory", {})
         start = inventory.get("startPos", {})
         slot = inventory.get("slotSize", {})
         image = (capture_image or _capture_inventory_grid)(
             int(start.get("x", 0)), int(start.get("y", 0)),
             int(slot.get("w", 0)), int(slot.get("h", 0)))
-        tensors = []
-        for _position, tile in _inventory_model_tiles(image):
-            resized = cv2.resize(tile, (input_width, input_height), interpolation=cv2.INTER_AREA)
-            rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
-            tensors.append(np.transpose(rgb, (2, 0, 1)))
-        batch = np.ascontiguousarray(np.stack(tensors), dtype=np.float32)
-        outputs = manifest.get("outputs", {})
-        input_name = str(manifest.get("inputName") or session.get_inputs()[0].name)
-        logits_name = str(outputs.get("logits", "logits"))
-        logits = np.asarray(session.run([logits_name], {input_name: batch})[0], dtype=np.float32)
-        if logits.shape != (60, 3):
-            summary["fallbackReason"] = "model-output-invalid"
-            return set(), summary
-        shifted = logits - np.max(logits, axis=1, keepdims=True)
-        exp = np.exp(shifted)
-        probabilities = exp / np.maximum(np.sum(exp, axis=1, keepdims=True), 1e-8)
-        skipped = select_high_confidence_empty_slots(probabilities, threshold)
+        _probabilities, skipped = classify_empty_slots(
+            image, 12, 5, classifier, empty_threshold=threshold, order="column-major"
+        )
         summary.update({
             "mode": "model", "skippedModelEmpty": len(skipped), "fallbackReason": ""
         })
         return skipped, summary
     except Exception as exc:
         reason = str(exc)
-        if reason.startswith("inventory-capture") or reason.startswith("inventory-tile"):
+        if reason.startswith("inventory-capture") or reason.startswith("grid-"):
             summary["fallbackReason"] = "model-capture-failed"
-        elif "onnxruntime" in reason.lower():
-            summary["fallbackReason"] = "model-runtime-missing"
+        elif "weights-contract" in reason:
+            summary["fallbackReason"] = "model-contract-invalid"
+        elif "weights-file-missing" in reason:
+            summary["fallbackReason"] = "model-file-missing"
         else:
             summary["fallbackReason"] = "model-inference-failed"
         return set(), summary
@@ -1864,7 +1804,7 @@ def main():
     deps_ok = (
         ensure_vision_dependencies() if args.mode == "detect"
         else ensure_input_dependencies() if args.mode == "stash"
-        else (ensure_vision_dependencies() and ensure_input_dependencies())
+        else (ensure_scan_vision_dependencies() and ensure_input_dependencies())
     )
     if not deps_ok or DEPENDENCY_ERROR:
         emit(error_event(args.mode), reason=f"Python 依赖缺失: {DEPENDENCY_ERROR}")

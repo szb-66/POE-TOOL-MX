@@ -427,35 +427,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   stopJunfeng: () => ipcRenderer.invoke('junfeng-stop'),
   getJunfengStatus: () => ipcRenderer.invoke('junfeng-status'),
   pickJunfengGridRegion: () => ipcRenderer.invoke('junfeng-pick-grid-region'),
-  listJunfengCorrections: () => ipcRenderer.invoke('junfeng-corrections'),
-  addJunfengCorrection: (value) => ipcRenderer.invoke('junfeng-add-correction', value),
-  removeJunfengCorrection: (id) => ipcRenderer.invoke('junfeng-remove-correction', id),
-  resetJunfengCorrections: () => ipcRenderer.invoke('junfeng-reset-corrections'),
-  rebuildJunfengCorrections: () => ipcRenderer.invoke('junfeng-rebuild-corrections'),
-  listHighlightCalibration: () => ipcRenderer.invoke('highlight-calibration-list'),
-  saveHighlightCalibration: (value) => ipcRenderer.invoke('highlight-calibration-save', value),
-  removeHighlightCalibration: (id) => ipcRenderer.invoke('highlight-calibration-remove', id),
-  resetHighlightCalibration: () => ipcRenderer.invoke('highlight-calibration-reset'),
-  pickJunfengTrainingRegion: () => ipcRenderer.invoke('junfeng-training-pick-region'),
-  previewJunfengTraining: (value) => ipcRenderer.invoke('junfeng-training-preview', value),
-  saveJunfengTrainingSession: (value) => ipcRenderer.invoke('junfeng-training-save-session', value),
-  listJunfengTrainingSessions: () => ipcRenderer.invoke('junfeng-training-sessions'),
-  getJunfengTrainingSession: (id) => ipcRenderer.invoke('junfeng-training-session', id),
-  updateJunfengTrainingSession: (value) => ipcRenderer.invoke('junfeng-training-update-session', value),
-  deleteJunfengTrainingSession: (id) => ipcRenderer.invoke('junfeng-training-delete-session', id),
-  getJunfengTrainingStatus: () => ipcRenderer.invoke('junfeng-training-status'),
-  trainJunfengModel: (value) => ipcRenderer.invoke('junfeng-training-start', value),
-  stopJunfengTraining: () => ipcRenderer.invoke('junfeng-training-stop'),
-  evaluateJunfengModel: () => ipcRenderer.invoke('junfeng-training-evaluate'),
   onJunfengEvent: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('junfeng-highlight-event', listener)
     return () => ipcRenderer.removeListener('junfeng-highlight-event', listener)
-  },
-  onJunfengTrainingEvent: (callback) => {
-    const listener = (_event, data) => callback(data)
-    ipcRenderer.on('junfeng-training-event', listener)
-    return () => ipcRenderer.removeListener('junfeng-training-event', listener)
   },
   // 国服官方挂单查价
   getPriceCheckStatus: () => ipcRenderer.invoke('price-check-status'),

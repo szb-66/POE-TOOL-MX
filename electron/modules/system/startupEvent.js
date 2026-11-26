@@ -5,7 +5,7 @@
  */
 
 const MAX_MESSAGE_LENGTH = 1024
-const FEATURE_IDS = new Set(['sanctum', 'items', 'map', 'map-tracker', 'bag', 'combat', 'story', 'recipe', 'price-check', 'faustus', 'puzzle', 'highlight-model-training'])
+const FEATURE_IDS = new Set(['sanctum', 'items', 'map', 'map-tracker', 'bag', 'combat', 'story', 'recipe', 'price-check', 'faustus', 'puzzle'])
 const FEATURE_OUTCOMES = Object.freeze({ 'feature-runtime-started': 'started', 'feature-runtime-ready': 'succeeded', 'feature-runtime-failed': 'failed' })
 const STARTUP_EVENT_TYPES = Object.freeze({
   'renderer-mounted': { phase: 'renderer', outcome: 'succeeded', reasonCode: 'none' },

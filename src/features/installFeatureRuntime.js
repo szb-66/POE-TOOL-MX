@@ -140,12 +140,6 @@ export function installFeatureRuntime({ router }) {
   }
   async function attachFaustus() { return { success: true } }
   async function attachMapTracker() { if (!featureDisposers.has('map-tracker')) setFeatureDisposer('map-tracker', mapTrackerStore.listen()); await mapTrackerStore.refresh(); return { success: true } }
-  async function attachTraining() {
-    useJunfengListener('highlight-model-training')
-    const results = await Promise.allSettled([junfengStore.loadTrainingStatus(), junfengStore.loadTrainingSessions()])
-    const failure = results.find(result => result.status === 'rejected')
-    return failure ? { success: false, error: failure.reason?.message || '模型训练状态恢复失败' } : { success: true }
-  }
 
   const adapters = {
     sanctum: { isBusy: async () => (await loadSanctumStore()).busy, suspend: async () => (await loadSanctumStore()).suspend(), resume: async () => { await (await loadSanctumStore()).initialize(); return { success: true } } },
@@ -197,8 +191,7 @@ export function installFeatureRuntime({ router }) {
         return result
       },
       resume: attachPuzzle
-    },
-    'highlight-model-training': { isBusy: () => junfengStore.trainingBusy || junfengStore.trainingStatus.status === 'running', suspend: async () => { const result = await electronApi.junfeng.stopTraining?.(); if (successful(result)) releaseJunfengListener('highlight-model-training'); return result }, resume: attachTraining }
+    }
   }
 
   for (const [id, adapter] of Object.entries(adapters)) adapterDisposers.push(registerFeatureRuntimeAdapter(id, adapter))

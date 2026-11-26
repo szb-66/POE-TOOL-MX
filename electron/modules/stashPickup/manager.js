@@ -5,11 +5,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
-import { resolveHighlightModelPaths } from '../junfeng/modelProfile.js'
-import { resolveVerifiedModelStamp } from '../junfeng/highlightWorker.js'
+import { resolveSlotHighlightWeightsPath } from './slotHighlightWeights.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '仓库自动取件'
+const REQUIRED_MODULES = Object.freeze(['mss', 'numpy', 'pynput', 'pyperclip'])
 
 function configurationError(message, failureCode, configurationIssueId) {
   return Object.assign(new Error(message), { failureCode, configurationIssueId })
@@ -45,10 +45,7 @@ function terminate(child) {
 }
 
 export class StashPickupManager {
-  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, calibration, onStatusChange, modelRoot = null, highlightWorker = null }) {
-    this.modelRoot = modelRoot
-    this.highlightWorker = highlightWorker
-    this.activeWorkerHandle = null
+  constructor({ python, fileWatcher, getMainWindow, windowActivation, loadingFeedback, interfaceDetection, automationLock, onStatusChange }) {
     this.python = python
     this.fileWatcher = fileWatcher
     this.getMainWindow = getMainWindow
@@ -56,7 +53,6 @@ export class StashPickupManager {
     this.loadingFeedback = loadingFeedback
     this.interfaceDetection = interfaceDetection
     this.automationLock = automationLock
-    this.calibration = calibration
     this.onStatusChange = onStatusChange
     this.runtime = { enabled: false, calibration: {}, operationDelayMs: OPERATION_DELAY.default }
     this.child = null
@@ -84,48 +80,41 @@ export class StashPickupManager {
   }
 
   pythonPath() {
-    const found = this.python.detectPythonPathWithModules?.(['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']) || this.python.detectPythonPath?.()
+    const found = this.python.detectPythonPathWithModules?.([...REQUIRED_MODULES]) || this.python.detectPythonPath?.()
     if (!found) throw new Error('未找到仓库高亮识别所需 Python 运行时')
     return found
   }
 
   async resolvePythonPath() {
-    const required = ['cv2', 'mss', 'numpy', 'onnxruntime', 'pynput', 'pyperclip']
     if (typeof this.python.resolvePythonRuntimeAsync === 'function') {
-      const resolved = await this.python.resolvePythonRuntimeAsync(required)
+      const resolved = await this.python.resolvePythonRuntimeAsync([...REQUIRED_MODULES])
       if (resolved?.path) return resolved.path
     }
     return this.pythonPath()
   }
 
-  modelPaths() {
-    const root = app.isPackaged
-      ? path.join(process.resourcesPath, 'junfeng-highlight-model')
-      : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-    return resolveHighlightModelPaths(root, this.modelRoot)
+  weightsPath() {
+    return resolveSlotHighlightWeightsPath({
+      isPackaged: app.isPackaged,
+      resourcesPath: process.resourcesPath
+    })
   }
 
   setRuntime(runtime = {}) {
     this.runtime = { ...this.runtime, ...structuredClone(runtime) }
-    this.highlightWorker?.setConsumerEnabled('stash-pickup', Boolean(this.runtime.enabled))
     this.onStatusChange?.()
     return this.getStatus()
   }
 
   writeConfig() {
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'stash_pickup_config.json')
-    const model = this.modelPaths()
     fs.writeFileSync(configPath, JSON.stringify({
       calibration: this.runtime.calibration || {},
       layout_confidence: 1.15,
-      model_path: model.model,
-      manifest_path: model.manifest,
-      verified_stamp: resolveVerifiedModelStamp(model.model),
-      highlight_threshold: 0.995,
+      weights_path: this.weightsPath(),
+      highlight_threshold: 0.98,
+      enable_border_boost: true,
       abort_on_uncertain: false,
-      calibration_similarity: 0.965,
-      calibration_index: this.calibration?.indexPath || '',
-      calibration_root: this.calibration?.root || '',
       item_footprints: itemFootprintRegistry.snapshot(),
       ...pythonAutomationTiming(this.runtime)
     }, null, 2), 'utf8')
@@ -163,11 +152,6 @@ export class StashPickupManager {
       token = this.loadingFeedback?.begin('stash-pickup.preview', { owner: 'stash-pickup-preview' }) || null
       this.loadingFeedback?.update(token, { stage: 'model' })
       const configPath = this.writeConfig()
-      if (this.highlightWorker) {
-        const event = await this.highlightWorker.preview(configPath)
-        if (event?.event === 'preview') return this.normalizeEvent(event)
-        throw eventError(event, '检测预览失败')
-      }
       const pythonExe = await this.resolvePythonPath()
       return await new Promise((resolve, reject) => {
         let settled = false
@@ -210,26 +194,15 @@ export class StashPickupManager {
     try {
       this.loadingFeedback?.update(this.preparationToken, { stage: 'model' })
       const configPath = this.writeConfig()
-      if (this.highlightWorker) {
-        const token = Symbol('stash-pickup-worker')
-        this.child = token
-        const handle = this.highlightWorker.start(configPath, event => this.handleEvent(token, event))
-        this.activeWorkerHandle = handle
-        handle.promise.catch(error => {
-          if (this.child !== token || error?.cancelled) return
-          this.fail(error?.message || '取件 Worker 执行异常')
-        })
-      } else {
-        const pythonExe = await this.resolvePythonPath()
-        const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event), pythonExe)
-        this.child = child
-        child.on('error', error => this.fail(error.message))
-        child.on('close', code => {
-          if (this.child !== child) return
-          this.child = null
-          if (this.status.status === 'running') this.fail(`取件进程异常退出（${code}）`)
-        })
-      }
+      const pythonExe = await this.resolvePythonPath()
+      const child = this.spawnProcess(['--config', configPath], event => this.handleEvent(child, event), pythonExe)
+      this.child = child
+      child.on('error', error => this.fail(error.message))
+      child.on('close', code => {
+        if (this.child !== child) return
+        this.child = null
+        if (this.status.status === 'running') this.fail(`取件进程异常退出（${code}）`)
+      })
       this.publish({ event: 'starting' })
       return this.getStatus()
     } catch (error) {
@@ -264,7 +237,6 @@ export class StashPickupManager {
     this.publish(event)
     if (event.event === 'completed' || event.event === 'aborted' || event.event === 'error') {
       this.child = null
-      this.activeWorkerHandle = null
       this.automationLock?.release(OWNER)
     }
   }
@@ -288,8 +260,8 @@ export class StashPickupManager {
   stop(reason = 'user') {
     this.finishPreparation()
     this.allowingFocusTransition = false
-    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
-    else { if (typeof this.child !== 'symbol') terminate(this.child); this.child = null }
+    terminate(this.child)
+    this.child = null
     this.status = { ...this.status, status: 'stopped', reason, failureCode: '', configurationIssueId: '' }
     this.automationLock?.release(OWNER)
     this.publish({ event: 'stopped', reason })
@@ -299,8 +271,8 @@ export class StashPickupManager {
   fail(reason, failure = {}) {
     this.finishPreparation()
     this.allowingFocusTransition = false
-    if (this.activeWorkerHandle) { const handle = this.activeWorkerHandle; this.activeWorkerHandle = null; this.child = null; handle.cancel(reason) }
-    else { if (typeof this.child !== 'symbol') terminate(this.child); this.child = null }
+    terminate(this.child)
+    this.child = null
     this.status = {
       ...this.status,
       status: 'stopped',

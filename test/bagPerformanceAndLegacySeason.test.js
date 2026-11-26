@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url'
 import { FEATURE_CATALOG, featureById } from '../src/features/featureCatalog.js'
 import { serverChannelFailure } from '../electron/modules/app/serverIpcPolicy.js'
 import { serverContext } from '../shared/serverMode.js'
-import { HighlightPickupWorker } from '../electron/modules/junfeng/highlightWorker.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const bagScriptPath = path.join(projectRoot, 'src/assets/scripts/bag_auto_stash_template.py')
@@ -63,18 +62,13 @@ test('永火接收舱老配置一次性迁移将开关默认关闭并保留模�
   assert.match(bagStoreSource, /localStorage\.setItem\(ALLFLAME_LEGACY_MIGRATION_KEY, '1'\)/)
 })
 
-test('启动速度优化：界面检测 store 不在启动时群发 IPC，君锋镇不在启动时全量读图与训练会话', () => {
+test('启动速度优化：界面检测 store 不在启动时群发 IPC，君锋镇精简启动无训练或校准加载', () => {
   const detectionStore = source('src/stores/interfaceDetection.js')
   const junfengStore = source('src/stores/junfeng.js')
-  const bagView = source('src/domains/bag/BagView.vue')
-  const trainingView = source('src/domains/bag/HighlightModelTrainingView.vue')
   const windowManager = source('electron/modules/window/manager.js')
 
   assert.doesNotMatch(detectionStore, /\n\s*save\(\)\s*\n\s*return \{/)
-  const initBody = junfengStore.slice(junfengStore.indexOf('async function initializeRuntime('), junfengStore.indexOf('\n  return {', junfengStore.indexOf('async function initializeRuntime(')))
-  assert.doesNotMatch(initBody, /loadCorrections|loadTrainingStatus|loadTrainingSessions/)
-  assert.match(bagView, /ensureCorrectionsLoaded/)
-  assert.match(trainingView, /onMounted\([\s\S]*loadTrainingStatus[\s\S]*loadTrainingSessions/)
+  assert.doesNotMatch(junfengStore, /loadCorrections|loadTrainingStatus|loadTrainingSessions/)
   assert.match(windowManager, /if \(\(!bagStashOverlayWindow \|\| bagStashOverlayWindow\.isDestroyed\(\)\) && !snapshot\.visible\)/)
 })
 
@@ -148,25 +142,8 @@ print(json.dumps({
   assert.equal(payload.openAllflame, false)
 })
 
-test('junfeng_highlight_pickup.py 非预览跳过 PNG 编码、复用缓存特征向量，且 --worker 支持常驻指令与优雅退出', { skip: !existsSync(bundledPython) }, () => {
-  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'poe-highlight-opt-'))
-  try {
-    const sampleDir = path.join(tempDir, 'samples')
-    fs.mkdirSync(sampleDir, { recursive: true })
-    const samplePng = path.join(sampleDir, 's1.png')
-    writeFileSync(samplePng, Buffer.from([137, 80, 78, 71])) // 非真实 PNG，仅用于验证命中特征向量缓存时不解码 PNG
-    const indexPath = path.join(tempDir, 'index.json')
-    writeFileSync(indexPath, JSON.stringify({
-      schemaVersion: 1,
-      samples: [{
-        id: 's1', label: 'highlighted', column: 0, row: 0,
-        modelVersion: 'v-test',
-        relativePath: path.join('samples', 's1.png'),
-        featureVector: Array.from({ length: 32 }, (_, i) => (i === 0 ? 1 : 0))
-      }]
-    }), 'utf8')
-
-    const code = `
+test('junfeng_highlight_pickup.py 零 cv2/ONNX 依赖、不生成逐格 tileDataUrl/embedding，且主进程零常驻 Worker', { skip: !existsSync(bundledPython) }, () => {
+  const code = `
 import importlib.util, json, sys
 import numpy as np
 sys.dont_write_bytecode = True
@@ -174,133 +151,34 @@ spec = importlib.util.spec_from_file_location("pickup", ${JSON.stringify(pickupS
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
-class DummyModel:
-    version = "v-test"
-    infer_calls = 0
-    def infer(self, images):
-        self.infer_calls += 1
-        n = len(images)
-        probs = np.zeros((n, 3), dtype=np.float32)
+class DummyClassifier:
+    version = "slot-highlight-v1"
+    def predict_proba(self, images):
+        probs = np.zeros((len(images), 3), dtype=np.float32)
         probs[:, 0] = 0.999
-        emb = np.zeros((n, 32), dtype=np.float32)
-        emb[:, 0] = 1.0
-        return probs, emb
-
-model = DummyModel()
-cal = module.load_calibration({"calibration_index": ${JSON.stringify(indexPath)}, "calibration_root": ${JSON.stringify(tempDir)}}, model)
-infer_after_cal = model.infer_calls
+        return probs
 
 img = np.zeros((40, 40, 3), dtype=np.uint8)
-cells_fast, _, _ = module.classify(img, {"grid": {"columns": 2, "rows": 2}}, model, cal, include_preview_assets=False)
-cells_preview, _, _ = module.classify(img, {"grid": {"columns": 2, "rows": 2}}, model, cal, include_preview_assets=True)
+cells, _, _ = module.classify(img, {"grid": {"columns": 2, "rows": 2}}, DummyClassifier())
 print(json.dumps({
-    "calCount": int(cal[0].shape[0]),
-    "inferAfterCal": infer_after_cal,
-    "fastHasTile": "tileDataUrl" in cells_fast[0],
-    "fastHasEmbedding": "embedding" in cells_fast[0],
-    "previewHasTile": "tileDataUrl" in cells_preview[0] and cells_preview[0]["tileDataUrl"].startswith("data:image/png;base64,"),
-    "previewHasEmbedding": "embedding" in cells_preview[0] and len(cells_preview[0]["embedding"]) == 32,
+    "hasCv2": "cv2" in sys.modules,
+    "hasOrt": "onnxruntime" in sys.modules,
+    "hasTileDataUrl": "tileDataUrl" in cells[0],
+    "hasEmbedding": "embedding" in cells[0],
+    "hasBorderBoosted": "borderBoosted" in cells[0],
 }))
 `
-    const result = spawnSync(bundledPython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
-    assert.equal(result.status, 0, result.stderr)
-    const payload = JSON.parse(result.stdout.trim())
-    assert.equal(payload.calCount, 1)
-    assert.equal(payload.inferAfterCal, 0, '命中同版本 32 维 featureVector 缓存时不应解码 PNG 或调用 ONNX 推理')
-    assert.equal(payload.fastHasTile, false, '非预览正式取件不应生成 tileDataUrl')
-    assert.equal(payload.fastHasEmbedding, false, '非预览正式取件不应序列化 embedding')
-    assert.equal(payload.previewHasTile, true)
-    assert.equal(payload.previewHasEmbedding, true)
+  const result = spawnSync(bundledPython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
+  assert.equal(result.status, 0, result.stderr)
+  const payload = JSON.parse(result.stdout.trim())
+  assert.equal(payload.hasCv2, false)
+  assert.equal(payload.hasOrt, false)
+  assert.equal(payload.hasTileDataUrl, false)
+  assert.equal(payload.hasEmbedding, false)
+  assert.equal(payload.hasBorderBoosted, true)
 
-    // 验证 --worker 常驻协议：worker-ready -> ping -> shutdown
-    const workerRun = spawnSync(
-      bundledPython,
-      [pickupScriptPath, '--worker'],
-      {
-        input: `${JSON.stringify({ cmd: 'ping', requestId: 'p1' })}\n${JSON.stringify({ cmd: 'shutdown', requestId: 's1' })}\n`,
-        encoding: 'utf8',
-        env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' }
-      }
-    )
-    assert.equal(workerRun.status, 0, workerRun.stderr)
-    const events = workerRun.stdout.trim().split(/\r?\n/).filter(l => l.startsWith('EVENT ')).map(l => JSON.parse(l.slice(6)))
-    assert.equal(events[0].event, 'worker-ready')
-    assert.equal(events[1].event, 'pong')
-    assert.equal(events[1].requestId, 'p1')
-    assert.equal(events[2].event, 'worker-shutdown')
-  } finally {
-    rmSync(tempDir, { recursive: true, force: true })
-  }
-})
-
-test('HighlightPickupWorker 支持懒预热、连续复用、闲置自动回收与全消费者停用即时回收', async () => {
-  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'poe-worker-mgr-'))
-  const fakeScript = path.join(tempDir, 'fake_worker.cjs')
-  writeFileSync(fakeScript, `
-const readline = require('node:readline');
-console.log('EVENT ' + JSON.stringify({ event: 'worker-ready', pid: process.pid }));
-const rl = readline.createInterface({ input: process.stdin });
-rl.on('line', line => {
-  const msg = JSON.parse(line);
-  if (msg.cmd === 'shutdown') {
-    console.log('EVENT ' + JSON.stringify({ event: 'worker-shutdown', requestId: msg.requestId }));
-    process.exit(0);
-  }
-  if (msg.cmd === 'warmup') {
-    console.log('EVENT ' + JSON.stringify({ event: 'warmup-done', requestId: msg.requestId, modelReady: true, modelVersion: 'v1' }));
-    return;
-  }
-  if (msg.cmd === 'preview') {
-    console.log('EVENT ' + JSON.stringify({ event: 'preview', requestId: msg.requestId, pid: process.pid, layout: 12, candidateCells: 2, cells: [] }));
-  }
-});
-`, 'utf8')
-
-  let detectionListener = null
-  const fakeDetection = {
-    subscribe: fn => { detectionListener = fn; return () => {} }
-  }
-  const worker = new HighlightPickupWorker({
-    python: { resolvePythonRuntimeAsync: async () => ({ path: process.execPath }) },
-    scriptPath: fakeScript,
-    fileWatcher: { getFilePaths: () => ({ tempDir }) },
-    interfaceDetection: fakeDetection,
-    idleTimeoutMs: 1200,
-    resolveWarmupConfig: () => ({ model_path: 'm.onnx', manifest_path: 'm.json' })
-  })
-
-  try {
-    // 消费者未启用时，即便界面就绪也不会拉起 Worker
-    detectionListener({ foreground: true, stashReady: true })
-    await new Promise(r => setTimeout(r, 80))
-    assert.equal(worker.isRunning(), false)
-
-    // 启用仓库取件且界面就绪 -> 触发懒预热
-    worker.setConsumerEnabled('stash-pickup', true)
-    detectionListener({ foreground: true, stashReady: true })
-    await new Promise(r => setTimeout(r, 250))
-    assert.equal(worker.isRunning(), true)
-
-    // 连续两次 preview 复用同一个 Worker 进程 PID
-    const cfgPath = path.join(tempDir, 'req.json')
-    writeFileSync(cfgPath, '{}', 'utf8')
-    const first = await worker.preview(cfgPath)
-    const second = await worker.preview(cfgPath)
-    assert.equal(first.pid, second.pid, '连续操作应复用同一个常驻 Worker 进程')
-
-    // 停用全部消费者 -> 立即回收
-    worker.setConsumerEnabled('stash-pickup', false)
-    await new Promise(r => setTimeout(r, 150))
-    assert.equal(worker.isRunning(), false, '全部消费者关闭后应立即回收 Worker')
-
-    // 再次启用并请求后，超过闲置时间自动回收
-    worker.setConsumerEnabled('junfeng', true)
-    await worker.preview(cfgPath)
-    assert.equal(worker.isRunning(), true)
-    await new Promise(r => setTimeout(r, 1500))
-    assert.equal(worker.isRunning(), false, '超过闲置时间后应自动退出回收内存')
-  } finally {
-    worker.cleanup()
-    rmSync(tempDir, { recursive: true, force: true })
-  }
+  const stashManager = source('electron/modules/stashPickup/manager.js')
+  const junfengManager = source('electron/modules/junfeng/manager.js')
+  assert.doesNotMatch(stashManager, /highlightWorker|onnxruntime|cv2/)
+  assert.doesNotMatch(junfengManager, /highlightWorker|ModelAvailability|onnxruntime|cv2/)
 })

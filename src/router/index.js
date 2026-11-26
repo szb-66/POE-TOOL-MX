@@ -5,13 +5,7 @@ import { pageLoaders } from './pageLoaders'
 import { routeTransition } from './transitionState'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 
-const developmentRoutes = import.meta.env.DEV ? [
-  {
-    path: '/highlight-model-training',
-    name: 'HighlightModelTraining',
-    component: pageLoaders['/highlight-model-training']
-  }
-] : []
+
 
 const routes = [
   { path: '/sanctum-control-overlay', name: 'SanctumControlOverlay', component: () => import('../domains/sanctum/SanctumControlOverlayView.vue'), meta: { noLayout: true } },
@@ -32,7 +26,6 @@ const routes = [
     name: 'Bag',
     component: pageLoaders['/bag']
   },
-  ...developmentRoutes,
   {
     path: '/map',
     name: 'Map',
@@ -194,7 +187,6 @@ const navigationTokens = new WeakMap()
 router.beforeEach((to, from) => {
   if (to.path === '/settings' && to.query.tab === 'localization') return { path: '/localization', replace: true }
   if (to.path === '/localization' && currentServer.id !== 'international') return { path: '/settings', replace: true }
-  if (!import.meta.env.DEV && to.path === '/highlight-model-training') return { path: '/', replace: true }
   const capability = currentServer.capabilities[to.path.split('/')[1]]
   if (capability && !capability.available) {
     ElMessage.warning(capability.reason)

@@ -24,7 +24,7 @@ import {
 } from '../../../src/utils/operationDelay.js'
 import { normalizeEmptySlotThreshold } from '../../../src/utils/inventorySettings.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
-import { resolveHighlightModelPaths as resolveProfileModelPaths } from '../junfeng/modelProfile.js'
+import { resolveSlotHighlightWeightsPath } from '../stashPickup/slotHighlightWeights.js'
 import { createStashStatisticsBatch } from '../bag/stashStatistics.js'
 
 let stashProcess = null
@@ -38,7 +38,6 @@ let interfaceDetection = null
 let automationLock = null
 let loadingFeedback = null
 let mapTracker = null
-let highlightModelRoot = null
 let localizationRuntime = null
 let disposeDetectionState = null
 let moduleRunning = false
@@ -266,7 +265,6 @@ function resolveBagScriptPath() {
   return scriptPath
 }
 
-const modelHashCache = new Map()
 const templateSizeCache = new Map()
 
 function readCachedTemplateSize(templatePath) {
@@ -289,29 +287,11 @@ function readCachedTemplateSize(templatePath) {
   }
 }
 
-function resolveVerifiedModelStamp(modelPath) {
-  if (!modelPath) return null
-  try {
-    const stat = fs.statSync(modelPath)
-    const size = Number(stat.size)
-    const mtimeMs = Math.trunc(stat.mtimeMs)
-    const cached = modelHashCache.get(modelPath)
-    if (cached && cached.size === size && cached.mtimeMs === mtimeMs) return cached
-    const sha256 = createHash('sha256').update(fs.readFileSync(modelPath)).digest('hex')
-    const stamp = { size, mtimeMs, sha256 }
-    modelHashCache.set(modelPath, stamp)
-    return stamp
-  } catch {
-    return null
-  }
-}
-
-function resolveHighlightModelPaths() {
-  const root = app.isPackaged
-    ? path.join(process.resourcesPath, 'junfeng-highlight-model')
-    : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-  const model = resolveProfileModelPaths(root, highlightModelRoot)
-  return { modelPath: model.model, manifestPath: model.manifest, verifiedStamp: resolveVerifiedModelStamp(model.model) }
+function resolveEmptySlotWeightsPath() {
+  return resolveSlotHighlightWeightsPath({
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath
+  })
 }
 
 async function resolveBagPythonPath(python, modules) {
@@ -325,10 +305,10 @@ async function resolveBagPythonPath(python, modules) {
 async function spawnPython(python, mode, configPath) {
   const requiredModules = mode === 'stash'
     ? ['pyperclip', 'pynput']
-    : ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
-  const preferredModules = mode === 'scan' ? [...requiredModules, 'onnxruntime'] : requiredModules
-  const pythonPath = (await resolveBagPythonPath(python, preferredModules)) ||
-    (preferredModules !== requiredModules ? await resolveBagPythonPath(python, requiredModules) : null) ||
+    : mode === 'scan'
+      ? ['mss', 'numpy', 'pyperclip', 'pynput']
+      : ['cv2', 'mss', 'numpy', 'pyperclip', 'pynput']
+  const pythonPath = (await resolveBagPythonPath(python, requiredModules)) ||
     python.detectPythonPath?.()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const scriptPath = resolveBagScriptPath()
@@ -452,8 +432,8 @@ async function startBatchInventoryScan(python, fileWatcher, config = {}) {
       itemFootprints: itemFootprintRegistry.snapshot()
     },
     emptySlotModel: {
-      ...resolveHighlightModelPaths(),
-      threshold: 0.995
+      weightsPath: resolveEmptySlotWeightsPath(),
+      threshold: 0.98
     },
     ...pythonAutomationTiming(config)
   }
@@ -563,7 +543,6 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
   automationLock = shared.automationLock
   loadingFeedback = shared.loadingFeedback
   mapTracker = shared.mapTracker
-  highlightModelRoot = shared.highlightModelRoot || null
   localizationRuntime = shared.localizationRuntime || null
   disposeDetectionState?.()
   disposeDetectionState = interfaceDetection?.subscribe((state) => {

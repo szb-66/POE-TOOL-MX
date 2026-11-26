@@ -5,9 +5,6 @@ export const pageLoaders = Object.freeze({
   '/items': () => import('../domains/items/ItemsView.vue'),
   '/bag': () => import('../domains/bag/BagView.vue'),
   '/sanctum': () => import('../domains/sanctum/SanctumView.vue'),
-  ...(import.meta.env.DEV ? {
-    '/highlight-model-training': () => import('../domains/bag/HighlightModelTrainingView.vue')
-  } : {}),
   '/map': () => import('../domains/map/MapView.vue'),
   '/combat': () => import('../domains/combat/CombatView.vue'),
   '/story': () => import('../domains/story/StoryView.vue'),

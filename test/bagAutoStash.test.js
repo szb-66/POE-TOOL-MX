@@ -1802,45 +1802,34 @@ sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
-model_file = tempfile.NamedTemporaryFile(delete=False)
-model_file.write(b"model-fixture")
-model_file.close()
-manifest_file = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".json", delete=False)
-json.dump({
-  "schemaVersion": 1, "architectureVersion": 1,
-  "modelVersion": "test-model", "classes": ["highlighted", "dimmed", "empty"],
-  "inputName": "input", "inputSize": {"width": 8, "height": 8},
-  "outputs": {"logits": "logits"},
-  "sha256": hashlib.sha256(b"model-fixture").hexdigest()
-}, manifest_file)
-manifest_file.close()
-class Input:
-    name = "input"
-class Session:
-    def get_inputs(self): return [Input()]
-    def run(self, names, values):
-        logits = module.np.zeros((60, 3), dtype=module.np.float32)
-        logits[:, 1] = 20.0
-        logits[0] = [0.0, 0.0, 20.0]
-        logits[1] = [0.0, 0.0, 5.0]
-        return [logits]
+weights_file = tempfile.NamedTemporaryFile(suffix=".npz", delete=False)
+weights_file.write(b"weights-fixture")
+weights_file.close()
+class Classifier:
+    version = "test-weights"
+    def predict_proba(self, images):
+        probs = module.np.zeros((len(images), 3), dtype=module.np.float32)
+        probs[:, 1] = 0.999
+        probs[0] = [0.001, 0.001, 0.998]
+        probs[1] = [0.05, 0.25, 0.70]
+        return probs
 config = {
   "inventory": {"startPos": {"x": 100, "y": 100}, "slotSize": {"w": 10, "h": 10}},
-  "emptySlotModel": {"modelPath": model_file.name, "manifestPath": manifest_file.name, "threshold": 0.995}
+  "emptySlotModel": {"weightsPath": weights_file.name, "threshold": 0.98}
 }
 try:
     skipped, summary = module.classify_inventory_empty_slots(
         config,
         capture_image=lambda *args: module.np.zeros((50, 120, 3), dtype=module.np.uint8),
-        session_factory=lambda path: Session())
+        classifier_factory=lambda _path: Classifier())
     fallback, fallback_summary = module.classify_inventory_empty_slots({})
     print(json.dumps({
       "skipped": sorted([list(value) for value in skipped]), "summary": summary,
-      "fallback": sorted([list(value) for value in fallback]), "fallbackSummary": fallback_summary
+      "fallback": sorted([list(value) for value in fallback]), "fallbackSummary": fallback_summary,
+      "hasCv2": "cv2" in sys.modules, "hasOrt": "onnxruntime" in sys.modules
     }))
 finally:
-    os.unlink(model_file.name)
-    os.unlink(manifest_file.name)
+    os.unlink(weights_file.name)
 `
   const result = spawnSync(runtimePython, ['-c', code], { encoding: 'utf8', env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } })
   assert.equal(result.status, 0, result.stderr)

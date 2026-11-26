@@ -40,7 +40,6 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     modelVersion: '', calibration: '', reason: '', failureCode: '', configurationIssueId: ''
   })
   const preview = ref(null)
-  const previewLabels = ref({})
   const busy = ref(false)
   let settingsRevision = 0
   let settingsCommitQueue = Promise.resolve()
@@ -143,7 +142,6 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     try {
       if (settings.value.enabled) await syncRuntime()
       preview.value = unwrap(await electronApi.stashPickup.preview())
-      previewLabels.value = {}
       void reportDiagnosticRecovery('stashPickup', 'detection')
       return preview.value
     } catch (error) {
@@ -189,25 +187,6 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
     }
   }
 
-  function setPreviewLabel(cell, label) {
-    previewLabels.value = { ...previewLabels.value, [`${cell.column}:${cell.row}`]: label }
-  }
-
-  async function savePreviewCorrections() {
-    const entries = Object.entries(previewLabels.value)
-    if (!entries.length) return 0
-    const cells = new Map((preview.value?.cells || []).map(cell => [`${cell.column}:${cell.row}`, cell]))
-    const layout = Number(preview.value?.layout || 0)
-    const domain = layout === 24 ? 'large-stash' : 'small-stash'
-    await Promise.all(entries.map(([key, label]) => {
-      const cell = cells.get(key)
-      if (!cell?.tileDataUrl) throw new Error('校准图块缺失，请重新运行检测预览')
-      return electronApi.highlightCalibration.save({ ...cell, label, domain, columns: layout, rows: layout }).then(unwrap)
-    }))
-    await runPreview()
-    return entries.length
-  }
-
   async function stop() {
     state.value = { ...state.value, ...unwrap(await electronApi.stashPickup.stop()) }
   }
@@ -239,8 +218,8 @@ export const useStashPickupStore = defineStore('stashPickup', () => {
   }
 
   return {
-    settings, state, preview, previewLabels, busy, running,
-    setEnabled, updateProfile, calibrate, runPreview, setPreviewLabel, savePreviewCorrections,
+    settings, state, preview, busy, running,
+    setEnabled, updateProfile, calibrate, runPreview,
     start, stop, listen, initializeRuntime, syncRuntime
   }
 })

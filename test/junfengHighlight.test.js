@@ -5,7 +5,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { JunfengCalibrationRepository } from '../electron/modules/junfeng/calibrationRepository.js'
 import {
   JUNFENG_GRID,
   normalizeJunfengRegion,
@@ -103,7 +102,7 @@ print(json.dumps([position,inside]))
   assert.deepEqual(runPython(code), [[-1908, 12], false])
 })
 
-test('任意行列切格、四邻域候选归并和本机近邻覆盖保持稳定', () => {
+test('任意行列切格和四邻域候选归并保持稳定', () => {
   const code = `
 import json, sys, importlib.util, numpy as np
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
@@ -115,39 +114,45 @@ groups=m.group_candidates([
  {"column":0,"row":0,"probability":.999}, {"column":1,"row":0,"probability":.998},
  {"column":3,"row":3,"probability":.997}
 ])
-prob=np.asarray([[.6,.3,.1],[.2,.7,.1]],dtype=np.float32)
-emb=np.asarray([[1,0],[0,1]],dtype=np.float32)
-samples=np.asarray([[1,0]],dtype=np.float32)
-out, overridden=m.apply_calibration(prob,emb,(samples,np.asarray([2])),.97)
-print(json.dumps([len(tiles),[len(g) for g in groups],out.tolist(),overridden.tolist()]))
+print(json.dumps([len(tiles),[len(g) for g in groups]]))
 `
   const result = runPython(code)
   assert.deepEqual(result[0], 132)
   assert.deepEqual(result[1], [2, 1])
-  assert.deepEqual(result[2][0], [0, 0, 1])
-  assert.deepEqual(result[3], [true, false])
 })
 
-test('君锋镇近似高亮纠正可覆盖临界低置信预测', () => {
+test('外缘高亮金边可安全提权非空模糊格，且对空格和无金边灰暗格保持零误取', () => {
   const code = `
 import json, sys, importlib.util, numpy as np
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-similarity=.969269
-query=np.asarray([1.0,0.0],dtype=np.float32)
-sample=np.asarray([similarity,np.sqrt(1.0-similarity**2)],dtype=np.float32)
-class Model:
+class Classifier:
  version="test"
- def infer(self, _images):
-  return np.asarray([[.838175,.12,.041825]],dtype=np.float32),np.asarray([query])
-image=np.zeros((10,10,3),dtype=np.uint8)
-cells,groups,uncertain=m.classify(image,{"grid":{"columns":1,"rows":1}},Model(),
- (np.asarray([sample]),np.asarray([0])))
-print(json.dumps({"candidateCount":sum(map(len,groups)),"uncertainCount":len(uncertain),
- "calibrated":cells[0]["calibrated"]}))
+ def predict_proba(self, _images):
+  return np.asarray([
+   [.995, .004, .001],
+   [.35,  .60,  .05],
+   [.08,  .88,  .04],
+   [.01,  .02,  .97],
+  ], dtype=np.float32)
+image = np.zeros((40, 160, 3), dtype=np.uint8)
+image[:3, 40:80] = (20, 180, 230)
+image[:3, 120:160] = (20, 180, 230)
+cells, groups, uncertain = m.classify(image, {"grid":{"columns":4,"rows":1},"highlight_threshold":.98}, Classifier())
+print(json.dumps({
+ "decisions": [c["decision"] for c in cells],
+ "boosted": [c["borderBoosted"] for c in cells],
+ "candidates": sum(map(len, groups)),
+ "uncertain": len(uncertain)
+}))
 `
-  assert.deepEqual(runPython(code), { candidateCount: 1, uncertainCount: 0, calibrated: true })
+  assert.deepEqual(runPython(code), {
+    decisions: ['candidate', 'candidate', 'classified', 'classified'],
+    boosted: [false, true, false, false],
+    candidates: 2,
+    uncertain: 0
+  })
 })
 
 test('检测结果显式区分最终候选、模糊格和普通分类', () => {
@@ -156,12 +161,12 @@ import json, sys, importlib.util, numpy as np
 sys.path.insert(0, ${JSON.stringify(pythonDir)})
 spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
-class Model:
+class Classifier:
  version="test"
- def infer(self, _images):
-  return np.asarray([[.999,.0005,.0005],[.8,.15,.05],[.1,.8,.1]],dtype=np.float32),np.eye(3,32,dtype=np.float32)
+ def predict_proba(self, _images):
+  return np.asarray([[.999,.0005,.0005],[.8,.15,.05],[.1,.8,.1]],dtype=np.float32)
 image=np.zeros((10,30,3),dtype=np.uint8)
-cells,groups,uncertain=m.classify(image,{"grid":{"columns":3,"rows":1},"highlight_threshold":.995},Model(),None)
+cells,groups,uncertain=m.classify(image,{"grid":{"columns":3,"rows":1},"highlight_threshold":.98},Classifier())
 print(json.dumps({"decisions":[cell["decision"] for cell in cells],"candidates":sum(map(len,groups)),"uncertain":len(uncertain)}))
 `
   assert.deepEqual(runPython(code), {
@@ -182,13 +187,12 @@ m.time.sleep=lambda seconds: clock.__setitem__(0,clock[0]+max(float(seconds),.00
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"test"})(), "")
 candidates=[
  {"column":column,"row":row,"probability":1.0 if (column,row)==(1,2) else 0.9}
  for row in range(3) for column in range(2)
 ]
 m.classify=lambda *_args: (candidates, [[candidates[-1],*candidates[:-1]]], [])
-m.load_calibration=lambda *_args: None
 state={"removed":False,"clicks":0,"copies":0,"releases":0,"moves":[]}
 item="Item Class: Body Armour\\nRarity: Rare\\nStorm Shell\\nAstral Plate\\n--------"
 
@@ -288,7 +292,7 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"test"})(), "")
 candidates=[{"column":column,"row":row,"probability":1.0}
             for row in range(7,11) for column in range(4,6)]
 m.classify=lambda *_args: (candidates, [[candidates[-1],*candidates[:-1]]], [])
@@ -337,7 +341,7 @@ spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonSc
 m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
-m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"shared-v1"})(), "")
 m.choose_layout=lambda *_args: {
  "columns":24,"calibration":"folder","confidence":1.8,
  "rect":{"left":20,"top":30,"width":240,"height":240},
@@ -356,7 +360,7 @@ pynput.mouse.Controller=Mouse
 events=[]
 m.emit=lambda event, **payload: events.append({"event":event, **payload})
 result=m.run({"calibration":{"folder":{"left":20,"top":30,"right":260,"bottom":270}},
- "model_path":"model.onnx","manifest_path":"manifest.json"}, True)
+ "weights_path":"weights.npz"}, True)
 print(json.dumps({"result":result,"event":events[-1]["event"],"layout":events[-1]["layout"],
  "calibration":events[-1]["calibration"],"modelVersion":events[-1]["modelVersion"]}))
 `
@@ -375,10 +379,9 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"shared-v1"})(), "")
 candidate={"column":0,"row":0,"probability":1.0}
 m.classify=lambda *_args: ([candidate], [[candidate]], [{"column":1,"row":0}])
-m.load_calibration=lambda *_args: None
 m.capture=lambda *_args: np.zeros((10,20,3),dtype=np.uint8)
 m.InterfaceMatcher=lambda _config: (_ for _ in ()).throw(RuntimeError("reward-action-must-not-match-title"))
 class Grabber:
@@ -429,10 +432,9 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"shared-v1"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"shared-v1"})(), "")
 candidate={"column":0,"row":0,"probability":1.0}
 m.classify=lambda *_args: ([candidate], [[candidate]], [{"column":1,"row":0}])
-m.load_calibration=lambda *_args: None
 m.capture=lambda *_args: np.zeros((10,20,3),dtype=np.uint8)
 class Grabber:
  def __enter__(self): return self
@@ -488,7 +490,7 @@ m.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds),
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"test"})(), "")
 candidates=[
  {"column":0,"row":0,"probability":1.0},
  {"column":1,"row":0,"probability":1.0}
@@ -559,7 +561,7 @@ m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"test"})(), "")
 candidates=[{"column":column,"row":row,"probability":1.0}
             for row in range(2) for column in range(4)]
 m.classify=lambda *_args: (candidates, [candidates], [])
@@ -615,7 +617,7 @@ m.time.sleep=lambda seconds: clock.__setitem__(0, clock[0] + max(float(seconds),
 m.is_game_foreground=lambda: True
 m.require_game_foreground=lambda: None
 shared.is_game_foreground=lambda: True
-m.validate_model=lambda _config: (type("Model", (), {"version":"test"})(), "")
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"test"})(), "")
 candidates=[{"column":0,"row":0,"probability":1.0},{"column":1,"row":0,"probability":1.0}]
 m.classify=lambda *_args: (candidates, [candidates], [])
 state={"removed":False,"clicks":0,"moves":[],"copies":0}
@@ -669,73 +671,39 @@ print(json.dumps({"result":result,"clicks":state["clicks"],"copies":state["copie
   })
 })
 
-test('本机校准保存原始图块和特征，支持删除、损坏降级与模型升级重嵌入', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'junfeng-calibration-'))
-  try {
-    const repository = new JunfengCalibrationRepository(root)
-    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
-    const saved = repository.save({ tileDataUrl: png, label: 'highlighted', column: 2, row: 3,
-      modelVersion: 'v1', previewId: 'preview-1', embedding: Array.from({ length: 32 }, (_, index) => index / 32) })
-    assert.equal(saved.previewId, 'preview-1')
-    assert.equal(saved.domain, 'junfeng')
-    assert.equal(saved.columns, 12)
-    assert.equal(saved.rows, 11)
-    assert.equal(repository.list()[0].featureVector.length, 32)
-    const rebuilt = repository.markForReembed('v2')[0]
-    assert.equal(rebuilt.featureVector.length, 0)
-    assert.match(rebuilt.tileDataUrl, /^data:image\/png;base64,/)
-    await writeFile(repository.indexPath, '{broken', 'utf8')
-    assert.deepEqual(repository.list(), [])
-    repository.save({ tileDataUrl: png, label: 'dimmed', column: 2, row: 3,
-      domain: 'large-stash', columns: 24, rows: 24 })
-    const index = JSON.parse(await readFile(repository.indexPath, 'utf8'))
-    assert.equal(index.samples.length, 1)
-    assert.equal(repository.list()[0].domain, 'large-stash')
-    assert.equal(repository.list()[0].columns, 24)
-    delete index.samples[0].domain
-    delete index.samples[0].columns
-    delete index.samples[0].rows
-    await writeFile(repository.indexPath, JSON.stringify(index), 'utf8')
-    assert.deepEqual(repository.list().map(sample => [sample.domain, sample.columns, sample.rows]), [['junfeng', 12, 11]])
-    assert.equal(repository.remove(index.samples[0].id), true)
-    assert.deepEqual(repository.list(), [])
-  } finally { await rm(root, { recursive: true, force: true }) }
-})
-
-test('通用训练仓库按来源和预览会话保存整张已核对网格', async () => {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'highlight-training-'))
-  try {
-    const repository = new JunfengCalibrationRepository(root)
-    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
-    const summary = repository.saveTrainingSession({ previewId: 'stash-preview-1', domain: 'large-stash', columns: 2, rows: 1,
-      partition: 'test', rawImageDataUrl: png,
-      cells: [{ tileDataUrl: png, label: 'highlighted', column: 0, row: 0 },
-        { tileDataUrl: png, label: 'dimmed', column: 1, row: 0 }] })
-    assert.deepEqual(summary, { samples: 2, sessions: 1, domains: { 'large-stash': 2 },
-      labels: { highlighted: 1, dimmed: 1 }, partitions: { test: 2 } })
-    assert.equal(repository.listTrainingSamples()[0].columns, 2)
-    assert.equal(repository.listTrainingSessions()[0].locked, true)
-    assert.match(repository.getTrainingSession('stash-preview-1').imageDataUrl, /^data:image\/png;base64,/)
-    repository.updateTrainingSession({ id: 'stash-preview-1', labels: { '1:0': 'empty' }, partition: 'validation' })
-    assert.deepEqual(repository.getTrainingSession('stash-preview-1').labels, { highlighted: 1, empty: 1 })
-    assert.equal(repository.listTrainingSessions()[0].revision, 2)
-    assert.deepEqual(repository.deleteTrainingSession('stash-preview-1'), {
-      samples: 0, sessions: 0, domains: {}, labels: {}, partitions: {}
-    })
-  } finally { await rm(root, { recursive: true, force: true }) }
-})
-
-test('当前模型保留质量报告且运行只依赖兼容契约和文件完整性', async () => {
-  const manifest = JSON.parse(await readFile(path.join(projectRoot, 'src/assets/models/junfeng-highlight/manifest.json'), 'utf8'))
-  assert.equal(manifest.architectureVersion, 1)
+test('轻量权重通过独立测试指标且运行脚本零 ONNX 与零 cv2 依赖', async () => {
+  const manifest = JSON.parse(await readFile(path.join(projectRoot, 'src/assets/models/slot-highlight/manifest.json'), 'utf8'))
+  assert.equal(manifest.schemaVersion, 1)
+  assert.equal(manifest.featureDim, 73)
   assert.deepEqual(manifest.classes, ['highlighted', 'dimmed', 'empty'])
-  assert.equal(manifest.benchmark.passed, false)
-  assert.equal('automationEnabled' in manifest, false)
+  assert.equal(manifest.benchmark.test.falsePositives, 0)
+  assert.ok(manifest.benchmark.test.recall >= 0.99)
   const script = await readFile(pythonScript, 'utf8')
-  assert.doesNotMatch(script, /model-not-approved|require_approved/)
-  assert.match(script, /model-checksum-mismatch/)
+  assert.doesNotMatch(script, /onnxruntime|import cv2/)
   assert.match(script, /with mss\.MSS\(\) as grabber:/)
   assert.doesNotMatch(script, /mss\.mss\(/)
+
+  const code = `
+import json, sys
+sys.path.insert(0, ${JSON.stringify(pythonDir)})
+import slot_highlight_classifier as c
+import stash_pickup_template as s
+import numpy as np
+clf = c.load_classifier()
+img = np.zeros((240, 240, 3), dtype=np.uint8)
+cells, cands, unc = c.classify_grid(img, 24, 24, clf)
+png_url = c.encode_png_data_url(img[:16, :16])
+print(json.dumps({
+  "hasCv2": "cv2" in sys.modules,
+  "hasOrt": "onnxruntime" in sys.modules,
+  "cells": len(cells),
+  "pngOk": png_url.startswith("data:image/png;base64,"),
+  "version": clf.version
+}))
+`
+  assert.deepEqual(runPython(code), {
+    hasCv2: false, hasOrt: false, cells: 576, pngOk: true, version: 'slot-highlight-v1'
+  })
 })
 
 test('内置隔离 Python 可从脚本同目录加载仓库取件公共函数', () => {

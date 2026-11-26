@@ -14,8 +14,7 @@ const READ_ONLY_CHANNELS = new Set([
   'get-file-paths', 'get-script-status', 'get-bag-stash-overlay-state',
   'combat-get-potion-status', 'combat-get-loop-status', 'combat-sample-pixel',
   'combat-update-potion-config', 'combat-update-loop-config',
-  'stash-pickup-status', 'junfeng-status', 'junfeng-corrections', 'highlight-calibration-list',
-  'junfeng-training-status', 'junfeng-training-sessions', 'junfeng-training-session',
+  'stash-pickup-status', 'junfeng-status',
   'client-events-status', 'client-events-select-log', 'get-story-overlay-state', 'get-story-overlay-divider-ratio',
   'pick-screen-coordinate', 'screen-picker-region', 'screen-picker-context', 'coordinate-picker-select',
   'screen-picker-region-select', 'coordinate-picker-cancel', 'capture-bag-template',
@@ -35,7 +34,7 @@ function channelFeature(channel, args) {
   if (/^(?:start-bag-|bag-stash-overlay-)/.test(channel)) return 'bag'
   if (/^(?:batch-crafting-|crafting-batch-|crafting-overlay-)/.test(channel)) return 'items'
   if (/^stash-pickup-/.test(channel)) return 'stash-pickup'
-  if (/^(?:junfeng-|highlight-calibration-)/.test(channel)) return 'junfeng'
+  if (/^junfeng-/.test(channel)) return 'junfeng'
   if (/^combat-/.test(channel)) return 'combat'
   if (/^price-check-/.test(channel)) return 'price-check'
   if (/^chaos-recipe-/.test(channel)) return 'recipe'

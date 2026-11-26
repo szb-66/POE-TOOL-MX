@@ -12,7 +12,7 @@ const invoke = handler => async (_event, ...args) => {
   }
 }
 
-export function registerJunfengHandlers(manager, window, { interfaceDetection, enableTraining = false } = {}) {
+export function registerJunfengHandlers(manager, window, { interfaceDetection } = {}) {
   ipcMain.handle('junfeng-runtime-update', invoke(async runtime => {
     const candidate = { ...manager.runtime, ...(runtime || {}) }
     if (!candidate.enabled) {
@@ -58,37 +58,4 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection, e
     return { canceled: false, region: result.selectedRegion, displayId: result.displayId, scaleFactor: result.scaleFactor,
       displayPhysicalBounds: result.displayPhysicalBounds, capturedAt: new Date().toISOString() }
   }))
-  ipcMain.handle('junfeng-corrections', invoke(() => manager.listCorrections()))
-  ipcMain.handle('junfeng-add-correction', invoke(value => manager.addCorrection(value || {})))
-  ipcMain.handle('junfeng-remove-correction', invoke(id => manager.removeCorrection(id)))
-  ipcMain.handle('junfeng-reset-corrections', invoke(() => manager.resetCorrections()))
-  ipcMain.handle('junfeng-rebuild-corrections', invoke(() => manager.rebuildCorrections()))
-  ipcMain.handle('highlight-calibration-list', invoke(() => manager.listCorrections()))
-  ipcMain.handle('highlight-calibration-save', invoke(value => manager.addCorrection(value || {})))
-  ipcMain.handle('highlight-calibration-remove', invoke(id => manager.removeCorrection(id)))
-  ipcMain.handle('highlight-calibration-reset', invoke(() => manager.resetCorrections()))
-  if (!enableTraining) return
-
-  ipcMain.handle('junfeng-training-pick-region', invoke(async () => {
-    const result = await window.pickScreenRegion({
-      purpose: 'junfeng-training-grid',
-      title: '框选完整的模型训练网格区域',
-      hint: '贴近目标仓库或奖励网格外边框，从左上角拖到右下角，包含全部格子，按 Esc 取消',
-      minimumSize: { width: 200, height: 200 }
-    })
-    if (result?.canceled) return result
-    if (result?.success === false) throw Object.assign(new Error(result.error?.message || '框选失败'), { code: result.error?.code })
-    return { canceled: false, region: result.selectedRegion, displayId: result.displayId, scaleFactor: result.scaleFactor,
-      displayPhysicalBounds: result.displayPhysicalBounds, capturedAt: new Date().toISOString() }
-  }))
-  ipcMain.handle('junfeng-training-preview', invoke(value => manager.previewTraining(value || {})))
-  ipcMain.handle('junfeng-training-save-session', invoke(value => manager.saveTrainingSession(value || {})))
-  ipcMain.handle('junfeng-training-sessions', invoke(() => manager.listTrainingSessions()))
-  ipcMain.handle('junfeng-training-session', invoke(id => manager.getTrainingSession(id)))
-  ipcMain.handle('junfeng-training-update-session', invoke(value => manager.updateTrainingSession(value || {})))
-  ipcMain.handle('junfeng-training-delete-session', invoke(id => manager.deleteTrainingSession(id)))
-  ipcMain.handle('junfeng-training-status', invoke(() => manager.getTrainingStatus()))
-  ipcMain.handle('junfeng-training-start', invoke(value => manager.trainModel(value || {})))
-  ipcMain.handle('junfeng-training-stop', invoke(() => manager.stopTraining('module-disabled')))
-  ipcMain.handle('junfeng-training-evaluate', invoke(() => manager.evaluateModel()))
 }

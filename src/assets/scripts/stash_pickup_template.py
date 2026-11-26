@@ -5,7 +5,6 @@ import os
 import sys
 import time
 
-import cv2
 import mss
 import numpy as np
 
@@ -160,21 +159,33 @@ def region_rect(value):
 
 def capture(rect, grabber=None):
     source = grabber or mss.mss()
-    image = np.asarray(source.grab(rect))
-    return cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+    shot = source.grab(rect)
+    if hasattr(shot, "bgra") and hasattr(shot, "height") and hasattr(shot, "width"):
+        frame = np.frombuffer(shot.bgra, dtype=np.uint8).reshape(shot.height, shot.width, 4)
+        return np.ascontiguousarray(frame[:, :, :3])
+    return np.ascontiguousarray(np.asarray(shot)[:, :, :3])
 
 
-def grid_edge_projections(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gx = np.mean(np.abs(np.diff(gray.astype(np.float32), axis=1)), axis=0)
-    gy = np.mean(np.abs(np.diff(gray.astype(np.float32), axis=0)), axis=1)
+def _to_gray_f32(image):
+    bgr = image[:, :, :3].astype(np.float32)
+    return 0.114 * bgr[:, :, 0] + 0.587 * bgr[:, :, 1] + 0.299 * bgr[:, :, 2]
+
+
+def grid_edge_projections(image, gray=None):
+    gray_f32 = _to_gray_f32(image) if gray is None else gray
+    gx = np.mean(np.abs(np.diff(gray_f32, axis=1)), axis=0)
+    gy = np.mean(np.abs(np.diff(gray_f32, axis=0)), axis=1)
     return gx, gy
 
 
-def grid_structure_projections(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(np.float32)
-    gx = np.percentile(np.abs(np.diff(gray, axis=1)), 40, axis=0)
-    gy = np.percentile(np.abs(np.diff(gray, axis=0)), 40, axis=1)
+def grid_structure_projections(image, gray=None):
+    gray_f32 = _to_gray_f32(image) if gray is None else gray
+    dx = np.abs(np.diff(gray_f32, axis=1))
+    dy = np.abs(np.diff(gray_f32, axis=0))
+    kx = min(dx.shape[0] - 1, max(0, int(round(0.40 * (dx.shape[0] - 1)))))
+    ky = min(dy.shape[1] - 1, max(0, int(round(0.40 * (dy.shape[1] - 1)))))
+    gx = np.partition(dx, kx, axis=0)[kx, :]
+    gy = np.partition(dy, ky, axis=1)[:, ky]
     return gx, gy
 
 
@@ -191,15 +202,15 @@ def axis_lag_correlation(projection, target_period, tolerance=0.1):
     return max(0.0, best)
 
 
-def fine_grid_correlation(image):
-    gx, gy = grid_structure_projections(image)
+def fine_grid_correlation(image, structure_projections=None):
+    gx, gy = grid_structure_projections(image) if structure_projections is None else structure_projections
     horizontal = axis_lag_correlation(gx, image.shape[1] / 24.0)
     vertical = axis_lag_correlation(gy, image.shape[0] / 24.0)
     return min(horizontal, vertical)
 
 
-def structure_alignment_confidence(image, columns):
-    gx, gy = grid_structure_projections(image)
+def structure_alignment_confidence(image, columns, structure_projections=None):
+    gx, gy = grid_structure_projections(image) if structure_projections is None else structure_projections
     axis_scores = []
     for projection, length in ((gx, image.shape[1]), (gy, image.shape[0])):
         radius = max(2, int(round((length / columns) * 0.06)))
@@ -235,16 +246,18 @@ def axis_periodicity_confidence(projection, length, columns):
     return best
 
 
-def grid_confidence(image, columns):
-    gx, gy = grid_edge_projections(image)
+def grid_confidence(image, columns, edge_projections=None):
+    gx, gy = grid_edge_projections(image) if edge_projections is None else edge_projections
     horizontal = axis_periodicity_confidence(gx, image.shape[1], columns)
     vertical = axis_periodicity_confidence(gy, image.shape[0], columns)
     return min(horizontal, vertical)
 
 
-def detect_grid_layout(image):
-    periodic = {columns: grid_confidence(image, columns) for columns in (12, 24)}
-    columns = 24 if fine_grid_correlation(image) >= 0.2 else 12
+def detect_grid_layout(image, edge_projections=None, structure_projections=None):
+    edge_proj = grid_edge_projections(image) if edge_projections is None else edge_projections
+    struct_proj = grid_structure_projections(image) if structure_projections is None else structure_projections
+    periodic = {columns: grid_confidence(image, columns, edge_proj) for columns in (12, 24)}
+    columns = 24 if fine_grid_correlation(image, struct_proj) >= 0.2 else 12
     return columns, periodic[columns]
 
 
@@ -255,8 +268,11 @@ def choose_layout(calibration, grabber=None, minimum_confidence=1.15):
         if not rect:
             continue
         image = capture(rect, grabber)
-        columns, confidence = detect_grid_layout(image)
-        alignment = structure_alignment_confidence(image, columns)
+        gray = _to_gray_f32(image)
+        edge_proj = grid_edge_projections(image, gray)
+        struct_proj = grid_structure_projections(image, gray)
+        columns, confidence = detect_grid_layout(image, edge_proj, struct_proj)
+        alignment = structure_alignment_confidence(image, columns, struct_proj)
         selection_score = confidence * max(alignment, 0.25)
         choices.append((selection_score, confidence, key, columns, rect, image))
     if not choices:

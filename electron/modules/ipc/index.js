@@ -42,7 +42,7 @@ export function registerIpcHandlers(dependencies) {
     window, python, fileWatcher, itemParser, itemMatcher, shortcut, crafting, chaosRecipe, priceCheck,
     poeCnAccount, stashPickup, junfeng, faustus, sanctum,
     interfaceDetection, automationLock, puzzle, gameWindowTitles, diagnostics, startupDiagnostics, exitDiagnostics,
-    applicationUpdate, feedback, failureEvidence, windowActivation, windowClose, loadingFeedback, clientEvents, mapTracker, mapTrackerOverlay, getMainWindow, enableJunfengTraining = false
+    applicationUpdate, feedback, failureEvidence, windowActivation, windowClose, loadingFeedback, clientEvents, mapTracker, mapTrackerOverlay, getMainWindow
   } = dependencies
 
   registerWindowHandlers(window, { windowActivation, windowClose, exitDiagnostics })
@@ -60,7 +60,7 @@ export function registerIpcHandlers(dependencies) {
       if (key === 'priceCheck') priceCheck?.beginHotkeyCapture?.()
     }
   })
-  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, highlightModelRoot: dependencies.highlightModelRoot, localizationRuntime: dependencies.localizationRuntime })
+  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, localizationRuntime: dependencies.localizationRuntime })
   registerCombatHandlers(python, window, fileWatcher)
   const emergencyStop = registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum, getMainWindow })
   if (sanctum) registerSanctumHandlers(sanctum, { getMainWindow, emergencyStop })
@@ -81,6 +81,6 @@ export function registerIpcHandlers(dependencies) {
   if (dependencies.pobExport) registerPobExportHandlers(dependencies.pobExport)
   if (dependencies.pobLauncher) registerPobLauncherHandlers(dependencies.pobLauncher, getMainWindow)
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
-  if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection, enableTraining: enableJunfengTraining })
+  if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection })
   if (puzzle) registerPuzzleHandlers(puzzle)
 }

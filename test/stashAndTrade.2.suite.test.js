@@ -23,7 +23,6 @@ import { mkdtemp as _m4_mkdtemp, writeFile as _m4_writeFile, rm as _m4_rm } from
 import { tmpdir as _m4_tmpdir } from 'node:os'
 import _m4_path from 'node:path'
 import { createHash as _m4_createHash } from 'node:crypto'
-import { ModelAvailability as _m4_ModelAvailability, validateModelFiles as _m4_validateModelFiles } from '../electron/modules/junfeng/modelAvailability.js'
 import _m5_test from 'node:test'
 import _m5_assert from 'node:assert/strict'
 import { readFileSync as _m5_readFileSync } from 'node:fs'
@@ -395,9 +394,8 @@ test('manager 只从固定资源注入通用格子模型和冻结占位且不接
     processFactory: () => child,
     scriptPath: () => 'fixed-faustus.py'
   })
-  await manager.start({ config: { ...validConfig(), occupancyModel: { modelPath: 'renderer-injected.onnx' } } })
-  assert.match(written.model_path, /src[\\/]assets[\\/]models[\\/]junfeng-highlight[\\/]model\.onnx$/)
-  assert.match(written.manifest_path, /src[\\/]assets[\\/]models[\\/]junfeng-highlight[\\/]manifest\.json$/)
+  await manager.start({ config: { ...validConfig(), occupancyModel: { weightsPath: 'renderer-injected.npz' } } })
+  assert.match(written.weights_path, /src[\\/]assets[\\/]models[\\/]slot-highlight[\\/]weights\.npz$/)
   assert.equal(written.item_footprints.schemaVersion, 1)
   assert.ok(Object.keys(written.item_footprints.items).length > 0)
   assert.doesNotMatch(JSON.stringify(written), /renderer-injected/)
@@ -792,17 +790,13 @@ test('君锋镇接入独立 manager、IPC、preload、store 和自动化互斥�
   assert.match(ipc, /junfeng-runtime-update/)
   assert.match(ipc, /registerConsumer\('junfeng-highlight'/)
   assert.match(preload, /onJunfengEvent/)
-  assert.match(preload, /onJunfengTrainingEvent/)
+  assert.doesNotMatch(preload, /onJunfengTrainingEvent/)
   assert.match(store, /candidateItems/)
   assert.match(manager, /acquire\(OWNER\)/)
   assert.match(manager, /release\(OWNER\)/)
-  assert.match(manager, /'small-stash': \{ columns: 12, rows: 12 \}/)
-  assert.match(manager, /'large-stash': \{ columns: 24, rows: 24 \}/)
-  assert.match(ipc, /junfeng-training-start/)
-  assert.match(ipc, /junfeng-training-update-session/)
-  assert.match(ipc, /junfeng-training-delete-session/)
-  assert.match(store, /saveTrainingSession/)
-  assert.match(store, /reviewTrainingSession/)
+  assert.match(manager, /resolveSlotHighlightWeightsPath/)
+  assert.doesNotMatch(ipc, /junfeng-training-start/)
+  assert.doesNotMatch(store, /saveTrainingSession/)
   const lock = new AutomationLock()
   assert.equal(lock.acquire('自动入库').success, true)
   assert.equal(lock.acquire('君锋镇取出高亮').success, false)
@@ -823,7 +817,7 @@ test('奖励界面优先显示取出高亮并隐藏普通仓库按钮', () => {
 test('正式取件只有一次全网格分类并使用三轮复制确认保护', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
   const shared = source('src/assets/scripts/bag_auto_stash_template.py')
-  const classifyStart = script.indexOf('cells, groups, uncertain = classify(image, config, model, calibration)')
+  const classifyStart = script.indexOf('cells, groups, uncertain = classify(image, config, classifier)')
   const loopStart = script.indexOf('for index, candidate in enumerate(candidates):')
   assert.ok(classifyStart > 0 && loopStart > classifyStart)
   assert.equal((script.slice(classifyStart, loopStart).match(/classify\(/g) || []).length, 1)
@@ -875,10 +869,9 @@ test('普通仓库和君锋镇均跳过模糊格继续取件', () => {
   assert.match(junfengManager, /abort_on_uncertain: false/)
 })
 
-test('通用训练框选的嵌套区域在写入 Python 配置前归一化为扁平物理坐标', () => {
+test('君锋镇网格区域在写入 Python 配置前归一化为扁平物理坐标', () => {
   const manager = source('electron/modules/junfeng/manager.js')
   assert.match(manager, /grid_region: normalizeJunfengRegion\(overrides\.gridRegion \|\| this\.runtime\.gridRegion\)/)
-  assert.match(manager, /previewTraining\(\{ domain, gridRegion, partition = 'train' \} = \{\}\)/)
 })
 
 test('君锋镇和仓库只在启动前校验标题，正式取件配置不再携带标题门禁', () => {
@@ -908,20 +901,13 @@ test('君锋镇可用性校验模板采集环境和网格物理边界', () => {
   assert.match(config, /分辨率或位置已变化/)
 })
 
-test('校准素材导出保留仓库与君锋镇来源域', () => {
-  const builder = source('scripts/junfeng/build_calibration_dataset.py')
-  assert.match(builder, /str\(sample\.get\("domain"\) or "junfeng"\)/)
-  assert.doesNotMatch(builder, /args\.repeat, "junfeng-calibration"/)
-})
-
-test('有效模型可直接用于正式取件且准确率报告只作为质量参考', () => {
+test('轻量权重可直接用于正式取件且不校验离线基准报告', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
   const manager = source('electron/modules/junfeng/manager.js')
-  assert.match(script, /validate_model\(config\)/)
+  assert.match(script, /validate_classifier\(config\)/)
   assert.doesNotMatch(script, /model-not-approved|require_approved/)
-  assert.doesNotMatch(manager, /!manifest\.automationEnabled|!manifest\.benchmark\?\.passed/)
-  assert.match(manager, /this\.modelAvailability\.getState\(\)/)
-  assert.doesNotMatch(source('electron/modules/junfeng/modelAvailability.js'), /!manifest\.automationEnabled|!manifest\.benchmark\?\.passed/)
+  assert.doesNotMatch(manager, /!manifest\.automationEnabled|!manifest\.benchmark\?\.passed|ModelAvailability/)
+  assert.match(manager, /fs\.existsSync\(weights\)/)
 })
 
 test('检测预览在截图前把鼠标停到当前显示器且位于网格之外', () => {
@@ -930,20 +916,13 @@ test('检测预览在截图前把鼠标停到当前显示器且位于网格之�
   assert.match(script, /mouse\.position = park_position[\s\S]*time\.sleep\(normalize_operation_delay\(config\.get\("operation_delay_ms"\)\) \/ 1000\.0\)[\s\S]*image = capture\(rect, grabber\)/)
 })
 
-test('检测与训练标注直接覆盖在原始预览截图上并支持点击循环标签', () => {
+test('只读预览网格支持切换颜色和中心圆点并展示外缘金边提示', () => {
   const script = source('src/assets/scripts/junfeng_highlight_pickup.py')
   const pickupView = source('src/domains/bag/BagView.vue')
-  const trainingView = source('src/domains/bag/HighlightModelTrainingView.vue')
   const gridPreview = source('src/components/highlight/HighlightGridPreview.vue')
-  assert.match(script, /rawImageDataUrl=data_url\(image\)/)
-  assert.match(pickupView, /<HighlightGridPreview[\s\S]*decision-mode[\s\S]*editable/)
-  assert.match(trainingView, /<HighlightGridPreview[\s\S]*:labels="junfengStore\.trainingLabels"[\s\S]*editable/)
-  assert.match(gridPreview, /highlighted: 'dimmed', dimmed: 'empty', empty: 'highlighted'/)
-  assert.match(gridPreview, /emit\('change', \{ cell, label: nextLabel\(effectiveLabel\(cell\)\) \}\)/)
-})
-
-test('训练标注网格可独立切换彩色边框和同色中心圆点', () => {
-  const gridPreview = source('src/components/highlight/HighlightGridPreview.vue')
+  assert.match(script, /rawImageDataUrl=raw_url/)
+  assert.match(pickupView, /<HighlightGridPreview[\s\S]*decision-mode/)
+  assert.doesNotMatch(pickupView, /保存修改的校准素材|共享本机校准素材/)
   assert.match(gridPreview, /const showGridColors = ref\(true\)/)
   assert.match(gridPreview, /const showCenterDots = ref\(true\)/)
   assert.match(gridPreview, /v-model="showGridColors" active-text="显示网格颜色"/)
@@ -954,76 +933,24 @@ test('训练标注网格可独立切换彩色边框和同色中心圆点', () =>
   assert.match(gridPreview, /\.is-highlighted \{ --highlight-label-color: rgba\(65, 220, 92, 0\.95\)/)
   assert.match(gridPreview, /\.is-dimmed \{ --highlight-label-color: rgba\(205, 210, 218, 0\.88\)/)
   assert.match(gridPreview, /\.is-empty \{ --highlight-label-color: rgba\(255, 255, 255, 0\.28\)/)
-  assert.match(gridPreview, /\.is-grid-color-hidden \.highlight-grid-preview__cell \{ border-color: transparent/)
-  assert.match(gridPreview, /\.is-center-dot-hidden \.highlight-grid-preview__cell::after \{ display: none/)
-})
-
-test('训练图片图例实时展示当前标注的高亮灰暗和空格数量', () => {
-  const trainingView = source('src/domains/bag/HighlightModelTrainingView.vue')
-  const gridPreview = source('src/components/highlight/HighlightGridPreview.vue')
-  assert.match(trainingView, /const trainingLabelCounts = computed\(\(\) => Object\.values\(junfengStore\.trainingLabels\)\.reduce/)
-  assert.match(trainingView, /\{ highlighted: 0, dimmed: 0, empty: 0, unknown: 0 \}/)
   assert.match(gridPreview, /高亮 \{\{ counts\.highlighted \}\}/)
   assert.match(gridPreview, /灰暗 \{\{ counts\.dimmed \}\}/)
   assert.match(gridPreview, /空格 \{\{ counts\.empty \}\}/)
-  assert.match(trainingView, /const trainingUnknownCount = computed\(\(\) => trainingLabelCounts\.value\.unknown\)/)
+  assert.match(gridPreview, /外缘金边增强/)
 })
 
-test('训练标注保存成功后关闭当前图片并退出复核状态', () => {
-  const store = source('src/stores/junfeng.js')
-  assert.match(store, /async function saveTrainingSession\(\)[\s\S]*await loadTrainingSessions\(\)[\s\S]*trainingPreview\.value = null[\s\S]*trainingLabels\.value = \{\}[\s\S]*reviewingSessionId\.value = ''[\s\S]*return summary/)
-})
-
-test('历史标注会话可按来源和用途组合筛选并保留全量测试计数', () => {
-  const view = source('src/domains/bag/HighlightModelTrainingView.vue')
-  assert.match(view, /const sessionDomainFilter = ref\(''\)/)
-  assert.match(view, /const sessionPartitionFilter = ref\(''\)/)
-  assert.match(view, /v-model="sessionDomainFilter"[\s\S]*label="全部来源" value=""/)
-  assert.match(view, /v-model="sessionPartitionFilter"[\s\S]*label="全部用途" value=""/)
-  assert.match(view, /const filteredTrainingSessions = computed\(\(\) => junfengStore\.trainingSessions\.filter\(session =>[\s\S]*!sessionDomainFilter\.value \|\| session\.domain === sessionDomainFilter\.value[\s\S]*&&[\s\S]*!sessionPartitionFilter\.value \|\| session\.partition === sessionPartitionFilter\.value/)
-  assert.match(view, /:data="filteredTrainingSessions"/)
-  assert.match(view, /filteredTrainingSessions\.length \}\} \/ \{\{ junfengStore\.trainingSessions\.length/)
-  assert.match(view, /v-else-if="junfengStore\.trainingSessions\.length"[\s\S]*description="没有符合筛选条件的历史标注会话"/)
-  assert.match(view, /const testSessionCount = computed\(\(\) => junfengStore\.trainingSessions\.filter/)
-  assert.doesNotMatch(view, /const testSessionCount = computed\(\(\) => filteredTrainingSessions/)
-})
-
-test('独立训练页面可视化复核历史会话并直接更新当前模型', () => {
+test('开发与正式版均已移除训练页面路由与训练 IPC', () => {
   const router = source('src/router/index.js')
   const pageLoaders = source('src/router/pageLoaders.js')
   const catalog = source('src/features/featureCatalog.js')
-  const bagView = source('src/domains/bag/BagView.vue')
-  const view = source('src/domains/bag/HighlightModelTrainingView.vue')
-  const repository = source('electron/modules/junfeng/calibrationRepository.js')
-  const benchmark = source('scripts/junfeng/benchmark_model.py')
-  assert.match(router, /const developmentRoutes = import\.meta\.env\.DEV \? \[/)
-  assert.match(router, /path: '\/highlight-model-training'/)
-  assert.match(router, /!import\.meta\.env\.DEV && to\.path === '\/highlight-model-training'[\s\S]*path: '\/'/)
-  assert.match(pageLoaders, /import\.meta\.env\.DEV \? \{[\s\S]*'\/highlight-model-training':[\s\S]*HighlightModelTrainingView\.vue/)
-  assert.match(catalog, /id: 'highlight-model-training'[\s\S]*developmentOnly: true/)
-  assert.doesNotMatch(bagView, /历史标注会话|GPU 训练并更新当前模型/)
-  assert.match(view, /历史标注会话/)
-  assert.match(view, /保存复核修改/)
-  assert.match(view, /全部高亮/)
-  assert.match(view, /最终测试集（质量评估）/)
-  assert.match(view, /GPU 训练并更新当前模型/)
-  assert.match(view, /运行最终测试（可选）/)
-  assert.match(view, /在原图中查看/)
-  assert.match(repository, /reconstructedGridDataUrl/)
-  assert.match(repository, /revision: Number\(previousSession\?\.revision \|\| 0\) \+ 1/)
-  assert.match(benchmark, /"errors": errors/)
-})
-
-test('正式版不注册君锋镇训练 IPC，普通取件 IPC 保持可用', () => {
-  const main = source('electron/main.js')
-  const ipcIndex = source('electron/modules/ipc/index.js')
   const ipc = source('electron/modules/ipc/junfeng.js')
-  assert.match(main, /enableJunfengTraining: !app\.isPackaged/)
-  assert.match(ipcIndex, /enableJunfengTraining = false/)
-  assert.match(ipcIndex, /enableTraining: enableJunfengTraining/)
+  const fit = source('scripts/slot_highlight/fit_classifier.py')
+  assert.doesNotMatch(router, /highlight-model-training/)
+  assert.doesNotMatch(pageLoaders, /highlight-model-training/)
+  assert.doesNotMatch(catalog, /highlight-model-training/)
   assert.match(ipc, /ipcMain\.handle\('junfeng-status'/)
-  assert.match(ipc, /if \(!enableTraining\) return[\s\S]*ipcMain\.handle\('junfeng-training-pick-region'/)
-  assert.match(ipc, /ipcMain\.handle\('junfeng-training-start'/)
+  assert.doesNotMatch(ipc, /junfeng-training-/)
+  assert.match(fit, /falsePositives/)
 })
 
 test('公共检测独立上报普通仓库与奖励状态并在背包变化时刷新君锋镇就绪状态', () => {
@@ -1038,149 +965,9 @@ test('公共检测独立上报普通仓库与奖励状态并在背包变化时�
   assert.match(coordinator, /rewardDetected: Boolean\(event\.rewardDetected\)/)
   assert.match(coordinator, /rewardScore: event\.rewardScore/)
 })
-
-test('开发训练工具按会话划分并独立评估零误报、召回率和零高亮场景', () => {
-  const train = source('scripts/junfeng/train_model.py')
-  const benchmark = source('scripts/junfeng/benchmark_model.py')
-  assert.match(train, /validation_sessions/)
-  assert.doesNotMatch(train, /random_split/)
-  assert.match(train, /output_names=\["logits", "embedding"\]/)
-  assert.match(benchmark, /false_positive == 0 and recall >= 0\.99 and zero_scene_clicks == 0/)
-  assert.doesNotMatch(benchmark, /--approve|automationEnabled/)
-  assert.match(benchmark, /最终测试集至少需要 3 个已审计独立会话/)
-  assert.match(train, /partition not in \("validation", "test"\)/)
-})
-
-test('训练先完成候选模型验证再发布当前模型并保留失败回滚', () => {
-  const manager = source('electron/modules/junfeng/manager.js')
-  const benchmark = manager.indexOf("this.publishTraining({ stage: '独立验证候选模型' })")
-  const publish = manager.indexOf('this.publishCandidateModel(candidate)', benchmark)
-  assert.ok(benchmark > 0 && publish > benchmark)
-  assert.match(manager, /candidateRoot = path\.join\(paths\.artifacts, 'workbench-candidate'\)/)
-  assert.match(manager, /backup: `\$\{target\}\.\$\{token\}\.backup`/)
-  assert.match(manager, /entry\.replaced && entry\.existed[\s\S]*copyFileSync\(entry\.backup, entry\.target\)/)
-})
 })()
 
-// === Merged from junfengModelAvailability.test.js ===
-await (async () => {
-  const test = _m4_test
-  const assert = _m4_assert
-  const mkdtemp = _m4_mkdtemp
-  const writeFile = _m4_writeFile
-  const rm = _m4_rm
-  const tmpdir = _m4_tmpdir
-  const path = _m4_path
-  const createHash = _m4_createHash
-  const ModelAvailability = _m4_ModelAvailability
-  const validateModelFiles = _m4_validateModelFiles
-async function fixture(t) {
-  const root = await mkdtemp(path.join(tmpdir(), 'junfeng-model-'))
-  t.after(() => rm(root, { recursive: true, force: true }))
-  const paths = { model: path.join(root, 'model.onnx'), manifest: path.join(root, 'manifest.json') }
-  const manifest = { schemaVersion: 1, architectureVersion: 1, classes: ['highlighted', 'dimmed', 'empty'],
-    modelVersion: 'test', sha256: createHash('sha256').update('model').digest('hex') }
-  await writeFile(paths.model, 'model')
-  await writeFile(paths.manifest, JSON.stringify(manifest))
-  return { paths, manifest }
-}
 
-test('模型异步校验保留缺失、损坏、契约和哈希错误', async t => {
-  const { paths, manifest } = await fixture(t)
-  assert.deepEqual(await validateModelFiles(paths), { ready: true, reason: '', modelVersion: 'test' })
-  await writeFile(paths.model, 'changed')
-  assert.match((await validateModelFiles(paths)).reason, /校验失败/)
-  await rm(paths.model)
-  assert.match((await validateModelFiles(paths)).reason, /文件不存在/)
-  await writeFile(paths.manifest, JSON.stringify({ ...manifest, schemaVersion: 2 }))
-  assert.match((await validateModelFiles(paths)).reason, /契约不兼容/)
-  await writeFile(paths.manifest, '{')
-  assert.match((await validateModelFiles(paths)).reason, /清单损坏/)
-  await rm(paths.manifest)
-  assert.match((await validateModelFiles(paths)).reason, /清单不存在/)
-})
-
-test('并发共用校验，刷新界面只读取缓存', async t => {
-  const { paths } = await fixture(t)
-  let calls = 0
-  const cache = new ModelAvailability(paths, { validate: async () => {
-    calls++
-    return { ready: true, reason: '', modelVersion: 'test' }
-  } })
-  t.after(() => cache.dispose())
-  cache.setEnabled(true)
-  assert.equal(cache.getState().reason, '模型准备中')
-  assert.equal(cache.refresh(), cache.refresh())
-  await cache.refresh()
-  for (let i = 0; i < 100; i++) assert.equal(cache.getState().ready, true)
-  cache.setEnabled(true)
-  assert.equal(calls, 1)
-})
-
-test('关闭功能后忽略旧结果，再启用会重新校验', async t => {
-  const { paths } = await fixture(t)
-  let finish
-  let changes = 0
-  const cache = new ModelAvailability(paths, { validate: () => new Promise(resolve => { finish = resolve }),
-    onChange: () => changes++ })
-  t.after(() => cache.dispose())
-  cache.setEnabled(true)
-  const old = cache.refresh()
-  await Promise.resolve()
-  cache.setEnabled(false)
-  finish({ ready: true, reason: '' })
-  await old
-  assert.equal(cache.getState().ready, false)
-  assert.equal(changes, 0)
-  cache.setEnabled(true)
-  const next = cache.refresh()
-  await Promise.resolve()
-  finish({ ready: true, reason: '' })
-  await next
-  assert.equal(cache.getState().ready, true)
-  assert.equal(changes, 1)
-})
-
-test('校验途中失效不会发布旧结果，并自动补一次校验', async t => {
-  const { paths } = await fixture(t)
-  const finishes = []
-  const cache = new ModelAvailability(paths, { validate: () => new Promise(resolve => finishes.push(resolve)) })
-  t.after(() => cache.dispose())
-  cache.setEnabled(true)
-  const first = cache.refresh()
-  await Promise.resolve()
-  cache.invalidate()
-  finishes[0]({ ready: true, reason: '', modelVersion: 'old' })
-  await first
-  assert.equal(cache.getState().ready, false)
-  const second = cache.refresh()
-  await Promise.resolve()
-  finishes[1]({ ready: true, reason: '', modelVersion: 'new' })
-  await second
-  assert.equal(cache.getState().modelVersion, 'new')
-})
-
-test('文件变化自动清除缓存并重新校验，缺失文件恢复后可用', async t => {
-  const { paths } = await fixture(t)
-  const cache = new ModelAvailability(paths)
-  t.after(() => cache.dispose())
-  cache.setEnabled(true)
-  await cache.refresh()
-  async function waitFor(predicate) {
-    const deadline = Date.now() + 5000
-    while (!predicate()) {
-      assert.ok(Date.now() < deadline, '等待文件监听更新超时')
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-  }
-  await rm(paths.model)
-  await waitFor(() => cache.getState().reason.includes('文件不存在'))
-  await writeFile(paths.model, 'model')
-  await waitFor(() => cache.getState().ready)
-  await writeFile(paths.manifest, '{}')
-  await waitFor(() => cache.getState().reason.includes('契约不兼容'))
-})
-})()
 
 // === Merged from junfengOverlayProgress.test.js ===
 await (async () => {
@@ -1211,7 +998,7 @@ test('候选进度使用已处理序号并钳制到归并后的候选总数', ()
 
   const pickup = source('src/assets/scripts/junfeng_highlight_pickup.py')
   assert.match(pickup, /skipped=True/)
-  assert.match(pickup, /emit\("progress", currentIndex=index \+ 1/)
+  assert.match(pickup, /emit\([\s\S]*?"progress",[\s\S]*?currentIndex=index \+ 1/)
 })
 
 test('君锋镇浮窗运行中禁用单向启动按钮并保留全局 End 停止', () => {
@@ -1291,23 +1078,20 @@ test('检测预览由主进程激活游戏，脚本只保留前台校验', () =>
   assert.match(script, /def require_game_foreground\(\):[\s\S]*raise RuntimeError\("game-not-foreground"\)/)
 })
 
-test('仓库与君锋镇共享本机校准池和统一网格预览交互', () => {
+test('仓库与君锋镇共享轻量分类权重和只读网格预览交互', () => {
   const main = source('electron/main.js')
   const manager = source('electron/modules/stashPickup/manager.js')
   const ipc = source('electron/modules/ipc/junfeng.js')
   const preload = source('electron/preload.cjs')
   const api = source('src/api/electron.js')
   const view = source('src/domains/bag/BagView.vue')
-  assert.match(main, /const highlightCalibration = new JunfengCalibrationRepository/)
-  assert.match(main, /new StashPickupManager\([\s\S]*calibration: highlightCalibration/)
-  assert.match(main, /new JunfengHighlightManager\([\s\S]*calibration: highlightCalibration/)
-  assert.match(manager, /calibration_index: this\.calibration\?\.indexPath \|\| ''/)
-  assert.match(ipc, /highlight-calibration-save/)
-  assert.match(preload, /saveHighlightCalibration/)
-  assert.match(api, /highlightCalibration:/)
+  assert.doesNotMatch(main, /JunfengCalibrationRepository|HighlightPickupWorker/)
+  assert.match(manager, /resolveSlotHighlightWeightsPath/)
+  assert.doesNotMatch(ipc, /highlight-calibration-save/)
+  assert.doesNotMatch(preload, /saveHighlightCalibration/)
+  assert.doesNotMatch(api, /highlightCalibration:/)
   assert.equal((view.match(/<HighlightGridPreview/g) || []).length, 2)
-  assert.match(view, /saveStashPreviewCorrections/)
-  assert.match(view, /保存修改的校准素材/)
+  assert.doesNotMatch(view, /saveStashPreviewCorrections|保存修改的校准素材/)
 })
 
 test('仓库按钮依赖公共标题检测，执行阶段不再匹配标题且失去前台仍立即停止', () => {

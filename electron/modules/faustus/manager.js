@@ -6,6 +6,7 @@ import { createFaustusRunSnapshot } from '../../../src/utils/faustusConfig.js'
 import { itemFootprintRegistry } from '../items/footprintRegistry.js'
 import { FAUSTUS_STAGE_LABELS } from '../../../shared/faustusStages.js'
 import { getServer } from '../../../shared/serverMode.js'
+import { resolveSlotHighlightWeightsPath } from '../stashPickup/slotHighlightWeights.js'
 import { createFaustusRuntimeLanguage } from './runtimeLanguage.js'
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
@@ -150,15 +151,17 @@ export class FaustusManager {
   }
 
   occupancyModelPaths() {
-    const root = this.isPackaged
-      ? path.join(this.resourcesPath || '', 'junfeng-highlight-model')
-      : path.resolve(moduleDir, '../../../src/assets/models/junfeng-highlight')
-    return { modelPath: path.join(root, 'model.onnx'), manifestPath: path.join(root, 'manifest.json') }
+    return {
+      weightsPath: resolveSlotHighlightWeightsPath({
+        isPackaged: this.isPackaged,
+        resourcesPath: this.resourcesPath
+      })
+    }
   }
 
   internalRuntimeConfig(config) {
     const occupancyModel = this.occupancyModelPaths()
-    if (!this.fileSystem.existsSync?.(occupancyModel.modelPath) || !this.fileSystem.existsSync?.(occupancyModel.manifestPath)) {
+    if (!this.fileSystem.existsSync?.(occupancyModel.weightsPath)) {
       throw new Error('通用格子模型文件不完整，无法开始浮士德扫描')
     }
     const footprints = itemFootprintRegistry.snapshot()
@@ -168,8 +171,7 @@ export class FaustusManager {
     return {
       ...config,
       runtime_language: language,
-      model_path: occupancyModel.modelPath,
-      manifest_path: occupancyModel.manifestPath,
+      weights_path: occupancyModel.weightsPath,
       item_footprints: footprints
     }
   }

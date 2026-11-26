@@ -34,7 +34,6 @@ import _m6_assert from 'node:assert/strict'
 import _m6_fs from 'node:fs'
 import _m6_os from 'node:os'
 import _m6_path from 'node:path'
-import { highlightModelPaths as _m6_highlightModelPaths, resolveHighlightModelPaths as _m6_resolveHighlightModelPaths } from '../electron/modules/junfeng/modelProfile.js'
 import _m7_test from 'node:test'
 import _m7_assert from 'node:assert/strict'
 import { internationalVerificationFeatures as _m7_internationalVerificationFeatures, serverContext as _m7_serverContext, INTERNATIONAL_AUTOMATION_FEATURES as _m7_INTERNATIONAL_AUTOMATION_FEATURES } from '../shared/serverMode.js'
@@ -716,12 +715,12 @@ function memoryStorage(initial = {}) {
   }
 }
 
-test('功能目录保持正式顺序并只在开发版提供模型训练', () => {
+test('功能目录保持正式顺序且开发与正式版均不保留模型训练入口', () => {
   const production = availableFeatureCatalog()
   const development = availableFeatureCatalog({ development: true })
-  assert.deepEqual(development.filter(item => item.developmentOnly).map(item => item.id), ['highlight-model-training'])
+  assert.deepEqual(development.filter(item => item.developmentOnly), [])
   assert.equal(production.some(item => item.id === 'highlight-model-training'), false)
-  assert.equal(development.some(item => item.id === 'highlight-model-training'), true)
+  assert.equal(development.some(item => item.id === 'highlight-model-training'), false)
   assert.deepEqual(production.map(item => item.route), [
     '/items', '/bag', '/map', null, '/combat', '/story', '/regex', '/recipe',
     '/craft-planner', '/price-check', '/faustus', '/puzzle', '/sanctum', '/tools', '/pob-export'
@@ -1031,7 +1030,6 @@ test('帮助内容就近分配到对应一级页面', () => {
 })
 
 test('开发页和独立浮窗不接入帮助抽屉', () => {
-  assert.doesNotMatch(source('src/domains/bag/HighlightModelTrainingView.vue'), /PageHelpDrawer/)
   for (const path of [
     'src/domains/overlay/OverlayView.vue',
     'src/domains/puzzle/PuzzleOverlayView.vue',
@@ -1083,115 +1081,7 @@ test('设置关于分类展示真实版本与项目链接', () => {
 })
 })()
 
-// === Merged from highlightModelProfile.test.js ===
-await (async () => {
-  const test = _m6_test
-  const assert = _m6_assert
-  const fs = _m6_fs
-  const os = _m6_os
-  const path = _m6_path
-  const highlightModelPaths = _m6_highlightModelPaths
-  const resolveHighlightModelPaths = _m6_resolveHighlightModelPaths
-const source = fs.readFileSync(new URL('../electron/modules/junfeng/manager.js', import.meta.url), 'utf8')
-class Availability {
-  dispose() {}
-  invalidate() {}
-  setEnabled() {}
-}
 
-function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'poe-highlight-profile-'))
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-  const moduleDir = path.join(root, 'electron/modules/junfeng')
-  const bundled = path.join(root, 'src/assets/models/junfeng-highlight')
-  const profile = path.join(root, 'servers/international/highlight-model')
-  const artifacts = path.join(root, 'servers/international/highlight-training')
-  fs.mkdirSync(bundled, { recursive: true })
-  fs.writeFileSync(path.join(bundled, 'model.onnx'), 'original-cn-model')
-  fs.writeFileSync(path.join(bundled, 'manifest.json'), JSON.stringify({ modelVersion: 'cn', sha256: 'original', benchmark: { passed: false } }))
-  fs.writeFileSync(path.join(bundled, 'split.json'), '{}')
-  const Manager = new Function('app', 'fs', 'path', 'moduleDir', 'OPERATION_DELAY', 'ModelAvailability', 'highlightModelPaths', 'resolveHighlightModelPaths',
-    `return ${source.slice(source.indexOf('export class JunfengHighlightManager')).replace('export class', 'class')}`)(
-    { isPackaged: false }, fs, path, moduleDir, { default: 40 }, Availability, highlightModelPaths, resolveHighlightModelPaths)
-  const manager = new Manager({ modelRoot: profile, trainingArtifactsRoot: artifacts,
-    calibration: { trainingSummary: () => ({ samples: 0 }), root: path.join(root, 'calibration') } })
-  return { root, bundled, profile, artifacts, manager }
-}
-
-test('国际服缺少独立模型时只读复用内置模型，部分独立文件损坏时显式失败', t => {
-  const { bundled, profile, manager } = fixture(t)
-  assert.deepEqual(manager.modelPaths(), highlightModelPaths(bundled))
-  fs.mkdirSync(profile, { recursive: true })
-  fs.writeFileSync(path.join(profile, 'manifest.json'), 'invalid')
-  assert.deepEqual(manager.modelPaths(), highlightModelPaths(profile))
-  assert.deepEqual(resolveHighlightModelPaths(bundled, null), highlightModelPaths(bundled))
-})
-
-test('国际服候选发布仅替换独立模型，国服模型与训练基础保持不变', t => {
-  const { root, bundled, profile, artifacts, manager } = fixture(t)
-  const candidate = highlightModelPaths(path.join(root, 'candidate'))
-  fs.mkdirSync(path.dirname(candidate.model))
-  fs.writeFileSync(candidate.model, 'en-model')
-  fs.writeFileSync(candidate.manifest, '{"modelVersion":"en"}')
-  candidate.split = path.join(path.dirname(candidate.model), 'split.json')
-  fs.writeFileSync(candidate.split, '{"en":true}')
-  manager.publishCandidateModel(candidate)
-  assert.equal(fs.readFileSync(path.join(profile, 'model.onnx'), 'utf8'), 'en-model')
-  assert.equal(fs.readFileSync(path.join(bundled, 'model.onnx'), 'utf8'), 'original-cn-model')
-  assert.equal(JSON.parse(fs.readFileSync(path.join(bundled, 'manifest.json'))).modelVersion, 'cn')
-  assert.equal(manager.trainingPaths().artifacts, artifacts)
-  assert.equal(manager.trainingPaths().base, path.join(root, 'artifacts/junfeng/combined.npz'))
-  assert.deepEqual(manager.modelPaths(), highlightModelPaths(profile))
-})
-
-test('候选文件缺失时不替换正在使用的国际服模型', t => {
-  const { root, profile, manager } = fixture(t)
-  fs.mkdirSync(profile, { recursive: true })
-  fs.writeFileSync(path.join(profile, 'model.onnx'), 'current-en-model')
-  fs.writeFileSync(path.join(profile, 'manifest.json'), '{}')
-  assert.throws(() => manager.publishCandidateModel({ model: path.join(root, 'missing') }), /候选模型文件缺失/)
-  assert.equal(fs.readFileSync(path.join(profile, 'model.onnx'), 'utf8'), 'current-en-model')
-  assert.deepEqual(fs.readdirSync(profile).sort(), ['manifest.json', 'model.onnx'])
-})
-
-test('国际服评估复用内置模型时将结果写入独立报告', async t => {
-  const { bundled, artifacts, manager } = fixture(t)
-  fs.mkdirSync(artifacts, { recursive: true })
-  fs.writeFileSync(manager.trainingPaths().merged, 'dataset')
-  manager.runTrainingCommand = async (_python, args) => {
-    assert.equal(args[args.indexOf('--partition') + 1], 'test')
-    const reportPath = args[args.indexOf('--manifest') + 1]
-    assert.equal(reportPath, path.join(artifacts, 'evaluation-manifest.json'))
-    fs.writeFileSync(reportPath, JSON.stringify({ benchmark: { passed: false, zeroHighlightScenes: 0 } }))
-  }
-  const result = await manager.evaluateModel()
-  assert.equal(result.report.passed, false)
-  assert.equal(JSON.parse(fs.readFileSync(path.join(bundled, 'manifest.json'))).modelVersion, 'cn')
-})
-
-test('国际服候选未通过隔离测试时保留旧模型', async t => {
-  const { root, profile, manager } = fixture(t)
-  const paths = manager.trainingPaths()
-  for (const file of [paths.python, paths.base]) {
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, '')
-  }
-  fs.mkdirSync(profile, { recursive: true })
-  fs.writeFileSync(path.join(profile, 'model.onnx'), 'current-en-model')
-  fs.writeFileSync(path.join(profile, 'manifest.json'), '{}')
-  let finalTest = false
-  manager.runTrainingCommand = async (_python, args) => {
-    if (args[0] === paths.benchmark) {
-      finalTest = args[args.indexOf('--partition') + 1] === 'test'
-      fs.writeFileSync(args[args.indexOf('--manifest') + 1], JSON.stringify({ benchmark: { passed: false } }))
-    }
-  }
-  await assert.rejects(manager.trainModel(), /未通过独立测试/)
-  assert.equal(finalTest, true)
-  assert.equal(fs.readFileSync(path.join(profile, 'model.onnx'), 'utf8'), 'current-en-model')
-  assert.equal(manager.getTrainingStatus().status, 'failed')
-})
-})()
 
 // === Merged from internationalCapabilities.test.js ===
 await (async () => {

@@ -13,7 +13,6 @@ const feature = (definition) => Object.freeze({
 export const FEATURE_CATALOG = Object.freeze([
   feature({ id: 'items', label: '制作', route: '/items', icon: 'Box', shortcutKeys: Object.freeze(['itemStart']), relatedRoutes: Object.freeze(['/items']) }),
   feature({ id: 'bag', label: '存取', route: '/bag', icon: 'SuitcaseLine', relatedRoutes: Object.freeze(['/bag']) }),
-  feature({ id: 'highlight-model-training', label: '模型训练', route: '/highlight-model-training', icon: 'DataAnalysis', developmentOnly: true, relatedRoutes: Object.freeze(['/highlight-model-training']) }),
   feature({ id: 'map', label: '地图', route: '/map', icon: 'MapLocation', shortcutKeys: Object.freeze(['mapStart']), relatedRoutes: Object.freeze(['/map']) }),
   feature({ id: 'map-tracker', label: '地图跟踪', route: null, icon: 'MapLocation', navigation: false, shortcutKeys: Object.freeze([]), relatedRoutes: Object.freeze([]) }),
   feature({ id: 'combat', label: '战斗', route: '/combat', icon: 'FirstAidKit', shortcutKeys: Object.freeze(['portal']), relatedRoutes: Object.freeze(['/combat']) }),

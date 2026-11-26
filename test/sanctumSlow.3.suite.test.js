@@ -635,7 +635,7 @@ await (async () => {
   const runPython = _m4_runPython
 test('正式路由保留圣所页面和浮窗，仅排除模型训练', () => {
   const source = fs.readFileSync('src/router/index.js', 'utf8')
-  const definitions = source.slice(source.indexOf('const developmentRoutes'), source.indexOf('const router'))
+  const definitions = source.slice(source.indexOf('const routes = ['), source.indexOf('const router'))
   const context = vm.createContext({ pageLoaders: new Proxy({}, { get: () => () => {} }) })
   const routes = vm.runInContext(definitions.replaceAll('import.meta.env.DEV', 'false') + '\nroutes', context)
   for (const route of ['/sanctum', '/sanctum-overlay', '/sanctum-control-overlay']) {
