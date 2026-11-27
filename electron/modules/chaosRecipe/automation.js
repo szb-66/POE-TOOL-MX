@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -167,10 +168,14 @@ export class ChaosRecipeAutomationManager {
     }
     const configPath = path.join(this.fileWatcher.getFilePaths().tempDir, 'chaos_recipe_pick_config.json')
     fs.writeFileSync(configPath, JSON.stringify(runtime, null, 2), 'utf8')
-    const child = spawn(this.pythonPath(), [this.scriptPath(), '--config', configPath], {
-      shell: false,
-      windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
+    const child = spawnOperationProcess({
+      operationId: 'chaos-recipe.pickup',
+      pythonPath: this.pythonPath(),
+      scriptPath: this.scriptPath(),
+      args: ['--config', configPath],
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+      stdin: 'ignore',
+      fallbackSpawn: spawn
     })
     this.child = child
     this.intentionalStop = false

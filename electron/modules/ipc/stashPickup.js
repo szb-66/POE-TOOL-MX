@@ -15,13 +15,14 @@ const invoke = handler => async (_event, ...args) => {
 export function registerStashPickupHandlers(manager, window, { interfaceDetection } = {}) {
   ipcMain.handle('stash-pickup-runtime-update', invoke(async (runtime = {}) => {
     const enabled = runtime.enabled == null ? Boolean(manager.runtime.enabled) : Boolean(runtime.enabled)
-    manager.setRuntime({ ...runtime, enabled })
+    const candidate = { ...manager.runtime, ...(runtime || {}), enabled }
     if (!enabled) {
+      manager.setRuntime(candidate)
       interfaceDetection?.unregisterConsumer('stash-pickup')
       if (manager.getStatus().status === 'running') manager.stop('disabled')
       return manager.getStatus()
     }
-    const templates = runtime.templates || {}
+    const templates = candidate.templates || {}
     if (!templates.stashTitle) {
       throw Object.assign(new Error('请先配置仓库标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' })
     }
@@ -36,8 +37,9 @@ export function registerStashPickupHandlers(manager, window, { interfaceDetectio
         stash_region: templates.stashRegion || {},
         inventory_region: templates.inventoryRegion || {}
       },
-      match_threshold: Number(runtime.matchThreshold ?? 0.8)
+      match_threshold: Number(candidate.matchThreshold ?? 0.8)
     })
+    manager.setRuntime(candidate)
     return manager.getStatus()
   }))
   ipcMain.handle('stash-pickup-preview', invoke(() => manager.preview()))

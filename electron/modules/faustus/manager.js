@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -123,8 +124,14 @@ export class FaustusManager {
     this.preparationToken = null
     this.startAttempt = null
     this.resolveScriptPath = scriptPath || (() => this.defaultScriptPath())
-    this.processFactory = processFactory || (options => spawn(options.pythonPath, [options.scriptPath, ...options.args], {
-      shell: false, windowsHide: true, env: { ...process.env, FAUSTUS_TIMING: this.isPackaged ? '0' : process.env.FAUSTUS_TIMING, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' }
+    this.processFactory = processFactory || (options => spawnOperationProcess({
+      operationId: 'faustus.repricing',
+      pythonPath: options.pythonPath,
+      scriptPath: options.scriptPath,
+      args: options.args || [],
+      env: { ...process.env, FAUSTUS_TIMING: this.isPackaged ? '0' : process.env.FAUSTUS_TIMING, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1', PYTHONUTF8: '1' },
+      stdin: 'pipe',
+      fallbackSpawn: spawn
     }))
     this.child = null
     this.worker = null

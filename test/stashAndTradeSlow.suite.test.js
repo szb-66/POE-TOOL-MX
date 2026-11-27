@@ -93,6 +93,7 @@ function loadAutomationManager() {
       ITEM_MISMATCH: 'ITEM_MISMATCH'
     },
     ChaosRecipeError: class extends Error {},
+    spawnOperationProcess({ pythonPath, scriptPath, args = [], fallbackSpawn }) { return fallbackSpawn(pythonPath, [scriptPath, ...args]) },
     resolveStashGridLayout: () => ({ region: { left: 0, top: 0, right: 120, bottom: 120 } })
   }
   vm.runInNewContext(executable, sandbox)

@@ -1,0 +1,1202 @@
+{
+  "1 Added Passive Skill is Adrenaline": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Advance Guard": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Aerialist": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Aerodynamics": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Agent of Destruction": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Aggressive Defence": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Alchemist": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Echo": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Guidance": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Inspiration": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Might": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Preservation": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Ancestral Reach": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Antifreeze": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Antivenom": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Arcane Adept": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Arcane Heroism": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Arcane Pyrotechnics": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Arcing Shot": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Assert Dominance": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Astonishing Affliction": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Basics of Pain": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Battle-Hardened": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Battlefield Dominator": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blacksmith": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blanketed Snow": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blast-Freeze": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blessed": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blessed Rebirth": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blizzard Caller": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blood Artist": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Bloodscent": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Blowback": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Bodyguards": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Born of Chaos": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Brand Loyalty": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Brewed for Potency": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Broadside": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Brush with Death": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Brutal Infamy": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Burden Projection": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Burning Bright": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Calamitous": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Call to the Slaughter": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Capacitor": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Careful Handling": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Chilling Presence": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Chip Away": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Circling Oblivion": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Clarity of Purpose": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cold Conduction": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cold to the Core": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cold-Blooded Killer": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Combat Rhythm": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Compound Injury": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Confident Combatant": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Conjured Wall": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Conservation of Energy": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cooked Alive": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Corrosive Elements": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cremator": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cry Wolf": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Cult-Leader": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Daring Ideas": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Dark Ideation": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Dark Messenger": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Darting Movements": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Deadly Repartee": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Deep Chill": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Deep Cuts": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Destructive Aspect": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Devastator": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Disciples": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Disease Vector": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Disorienting Display": {
+    "requiredLevel": 50,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Disorienting Wounds": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Distilled Perfection": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Doedre's Apathy": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Doedre's Gluttony": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Doedre's Spite": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Doryani's Lesson": {
+    "requiredLevel": 68,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Dragon Hunter": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Dread March": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Drive the Destruction": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Eldritch Inspiration": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Electric Presence": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Elegant Form": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Empowered Envoy": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Endbringer": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Enduring Composure": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Enduring Focus": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Enduring Ward": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Energy From Naught": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Essence Rush": {
+    "requiredLevel": 50,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Eternal Suffering": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Evil Eye": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Expansive Might": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Expendability": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Expert Sabotage": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Exploit Weakness": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Explosive Force": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Exposure Therapy": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Eye of the Storm": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Eye to Eye": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fan of Blades": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fan the Flames": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fasting": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fearsome Warrior": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Feast of Flesh": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Feasting Fiends": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Feed the Fury": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fettle": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fiery Aegis": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fire Attunement": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Flexible Sentry": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Flow of Life": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Follow-Through": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Forbidden Words": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Force Multiplier": {
+    "requiredLevel": 50,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Frantic Aspect": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Fuel the Fight": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Furious Assault": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Genius": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Gladiator's Fortitude": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Gladiatorial Combat": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Graceful Execution": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Grand Design": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Grim Oath": {
+    "requiredLevel": 68,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Guerilla Tactics": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Haemorrhage": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Haunting Shout": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Heart of Iron": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Heavy Hitter": {
+    "requiredLevel": 50,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Heraldry": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Hex Breaker": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Hibernator": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Hit and Run": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Holistic Health": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Holy Conquest": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Holy Word": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Hound's Mark": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Hulking Corpses": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Improvisor": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Insatiable Killer": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Inspired Oppression": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Insulated": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Intensity": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Introspection": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Invigorating Portents": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Iron Breaker": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Lasting Impression": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Lead By Example": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Life from Death": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Liquid Inspiration": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Lord of Drought": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Low Tolerance": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mage Bane": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mage Hunter": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Magnifier": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Martial Mastery": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Martial Momentum": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Martial Prowess": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Master of Command": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Master of Fear": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Master of Fire": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Master of the Maelstrom": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Master the Fundamentals": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mender's Wellspring": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Militarism": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mindfulness": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Misery Everlasting": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mob Mentality": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Molten One's Mark": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mortifying Aspect": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Mystical Ward": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Natural Vigour": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is No Witnesses": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Non-Flammable": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Numbing Elixir": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is One with the Shield": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Openness": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Opportunistic Fusilade": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Overlord": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Overshock": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Overwhelming Malice": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Paralysis": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Peace Amidst Chaos": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Peak Vigour": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Phlebotomist": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Powerful Assault": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Powerful Ward": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Practiced Caster": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Precise Focus": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Precise Retaliation": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Pressure Points": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Primordial Bond": {
+    "requiredLevel": 68,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Prismatic Carapace": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Prismatic Dance": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Prismatic Heart": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Prodigious Defence": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Provocateur": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Pure Agony": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Pure Aptitude": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Pure Guile": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Pure Might": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Purposeful Harbinger": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Quick and Deadly": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Quick Getaway": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Rattling Bellow": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Raze and Pillage": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Readiness": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Remarkable": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Rend": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Renewal": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Repeater": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Replenishing Presence": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Righteous Path": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Riot Queller": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Rot-Resistant": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Rote Reinforcement": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Rotten Claws": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Run Through": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sadist": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sage": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sap Psyche": {
+    "requiredLevel": 68,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Savage Response": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Savour the Moment": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Scintillating Idea": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Seal Mender": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Second Skin": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Seeker Runes": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Self-Control": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Self-Fulfilling Prophecy": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Septic Spells": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Set and Forget": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Shifting Shadow": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Shrieking Bolts": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Skeletal Atrophy": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Skullbreaker": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sleepless Sentries": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Smite the Weak": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Smoking Remains": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Snaring Spirits": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Snowstorm": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Special Reserve": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Spiked Concoction": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Spiteful Presence": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Spring Back": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Steady Torment": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Stoic Focus": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Storm Drinker": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Storm's Hand": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Stormrider": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Streamlined": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Strike Leader": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Stubborn Student": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Student of Decay": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sublime Form": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Sublime Sensation": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Supercharge": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Surefooted Striker": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Surging Vitality": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Surprise Sabotage": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Tempered Arrowheads": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Tempt the Storm": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Thaumophage": {
+    "requiredLevel": 50,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Thunderstruck": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Titanic Swings": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Touch of Cruelty": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Towering Threat": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Uncompromising": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Unholy Grace": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Unrestrained Focus": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Unspeakable Gifts": {
+    "requiredLevel": 75,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Untouchable": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Unwavering Focus": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Unwaveringly Evil": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vast Power": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Veteran Defender": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vicious Bite": {
+    "requiredLevel": 75,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Vicious Guard": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vicious Skewering": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Victim Maker": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vile Reinvigoration": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vital Focus": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Vivid Hues": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Volatile Presence": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wall of Muscle": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Warning Call": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wasting Affliction": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Weight Advantage": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wicked Pall": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Widespread Destruction": {
+    "requiredLevel": 1,
+    "affixType": "suffix"
+  },
+  "1 Added Passive Skill is Will Shaper": {
+    "requiredLevel": 75,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wind-up": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Winter Prowler": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wish for Death": {
+    "requiredLevel": 50,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wizardry": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wound Aggravation": {
+    "requiredLevel": 1,
+    "affixType": "prefix"
+  },
+  "1 Added Passive Skill is Wrapped in Flame": {
+    "requiredLevel": 68,
+    "affixType": "prefix"
+  }
+}

@@ -673,11 +673,18 @@ print(json.dumps({"result":result,"clicks":state["clicks"],"copies":state["copie
 
 test('轻量权重通过独立测试指标且运行脚本零 ONNX 与零 cv2 依赖', async () => {
   const manifest = JSON.parse(await readFile(path.join(projectRoot, 'src/assets/models/slot-highlight/manifest.json'), 'utf8'))
-  assert.equal(manifest.schemaVersion, 1)
-  assert.equal(manifest.featureDim, 73)
+  assert.equal(manifest.schemaVersion, 2)
+  assert.equal(manifest.modelVersion, 'slot-highlight-v2')
+  assert.equal(manifest.inputSize, 32)
+  assert.equal(manifest.cnnChannels, 5)
+  assert.equal(manifest.statsDim, 16)
   assert.deepEqual(manifest.classes, ['highlighted', 'dimmed', 'empty'])
   assert.equal(manifest.benchmark.test.falsePositives, 0)
   assert.ok(manifest.benchmark.test.recall >= 0.99)
+  assert.equal(manifest.benchmark.validation.falsePositives, 0)
+  assert.equal(manifest.benchmark.zeroHighlightAudited.clicks, 0)
+  assert.equal(manifest.benchmark.gammaRobustness['0.85'].falsePositives, 0)
+  assert.equal(manifest.benchmark.gammaRobustness['1.15'].falsePositives, 0)
   const script = await readFile(pythonScript, 'utf8')
   assert.doesNotMatch(script, /onnxruntime|import cv2/)
   assert.match(script, /with mss\.MSS\(\) as grabber:/)
@@ -702,8 +709,108 @@ print(json.dumps({
 }))
 `
   assert.deepEqual(runPython(code), {
-    hasCv2: false, hasOrt: false, cells: 576, pngOk: true, version: 'slot-highlight-v1'
+    hasCv2: false, hasOrt: false, cells: 576, pngOk: true, version: 'slot-highlight-v2'
   })
+})
+
+test('真实仓库截图上闭合金框与混合 CNN 双通道精准识别高亮且对无匹配页零误取', () => {
+  const fixtureRoot = path.join(projectRoot, 'test/fixtures/stashPickup')
+  const code = `
+import json, os, sys
+from PIL import Image
+import numpy as np
+sys.path.insert(0, ${JSON.stringify(pythonDir)})
+import slot_highlight_classifier as c
+clf = c.load_classifier()
+root = ${JSON.stringify(fixtureRoot)}
+out = {}
+for name, cols in [("normal-highlight.jpg", 12), ("quad-highlight.jpg", 24), ("normal-no-match.jpg", 12)]:
+    rgb = np.asarray(Image.open(os.path.join(root, name)).convert("RGB"), dtype=np.uint8)
+    bgr = rgb[:, :, ::-1].copy()
+    cells, cands, unc = c.classify_grid(bgr, cols, cols, clf)
+    out[name] = {"cands": len(cands), "unc": len(unc)}
+print(json.dumps(out))
+`
+  const result = runPython(code)
+  assert.deepEqual(result['normal-highlight.jpg'], { cands: 20, unc: 0 })
+  assert.deepEqual(result['quad-highlight.jpg'], { cands: 27, unc: 0 })
+  assert.equal(result['normal-no-match.jpg'].cands, 0)
+  assert.ok(result['normal-no-match.jpg'].unc <= 2)
+})
+
+test('搜索闭合金框模式下邻居单边金边串扰与无金边亮暗物均不会被误提权', () => {
+  const code = `
+import json, sys, numpy as np
+sys.path.insert(0, ${JSON.stringify(pythonDir)})
+import slot_highlight_classifier as c
+# 4x3 grid (cell 40x40), closed gold frame ONLY on (1,1) (1x1 item).
+# Neighbor (2,1) shares the gold border and has high p_hi=0.99 (simulating glowing dimmed item);
+# Distant (3,2) has p_hi=0.99 but no gold frame; (0,0) and (0,1) are dimmed.
+img = np.full((120, 160, 3), (12, 12, 24), dtype=np.uint8)
+gold = (135, 182, 222)
+img[41:43, 41:79] = gold
+img[78:80, 41:79] = gold
+img[41:80, 41:43] = gold
+img[41:80, 78:80] = gold
+class FakeClf:
+    version = "test-v2"
+    def predict_proba(self, tiles):
+        p = np.tile(np.array([0.02, 0.96, 0.02], dtype=np.float32), (len(tiles), 1))
+        # (1,1) is dark highlighted item inside gold frame (low CNN p_hi!)
+        p[1 * 4 + 1] = [0.05, 0.92, 0.03]
+        # (2,1) neighbor glowing dimmed item with high CNN p_hi
+        p[1 * 4 + 2] = [0.99, 0.005, 0.005]
+        # (3,2) distant glowing dimmed item with high CNN p_hi
+        p[2 * 4 + 3] = [0.99, 0.005, 0.005]
+        return p
+cells, cands, unc = c.classify_grid(img, 4, 3, FakeClf(), highlight_threshold=0.95, enable_border_boost=True)
+print(json.dumps({
+  "cands": [[x["column"], x["row"], x["borderBoosted"]] for x in cands],
+  "unc": len(unc)
+}))
+`
+  assert.deepEqual(runPython(code), {
+    cands: [[1, 1, true]],
+    unc: 0
+  })
+})
+
+test('仓库模式在布局检测前先将鼠标移出校准区域避免属性弹窗遮挡', () => {
+  const code = `
+import importlib.util, json, numpy as np, sys
+sys.path.insert(0, ${JSON.stringify(pythonDir)})
+spec=importlib.util.spec_from_file_location("junfeng", ${JSON.stringify(pythonScript)})
+m=importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.is_game_foreground=lambda: True
+m.require_game_foreground=lambda: None
+m.time.sleep=lambda _s: None
+m.validate_classifier=lambda _config: (type("Classifier", (), {"version":"v2"})(), "")
+order=[]
+class Mouse:
+    def __init__(self): self._pos=(50, 50)
+    @property
+    def position(self): return self._pos
+    @position.setter
+    def position(self, value):
+        self._pos = value
+        order.append(["park", list(value)])
+def fake_layout(*_args):
+    order.append(["choose_layout"])
+    return {"columns":12,"calibration":"root","confidence":2.0,"rect":{"left":20,"top":30,"width":240,"height":240},"image":np.zeros((240,240,3),dtype=np.uint8)}
+m.choose_layout=fake_layout
+m.classify=lambda *_args: ([], [], [])
+class Grabber:
+    def __enter__(self): return self
+    def __exit__(self,*_args): return False
+    def grab(self,_rect): return np.zeros((240,240,4),dtype=np.uint8)
+m.mss.MSS=lambda: Grabber()
+import pynput.mouse
+pynput.mouse.Controller=Mouse
+m.emit=lambda *_args, **_kwargs: None
+m.run({"calibration":{"root":{"left":20,"top":30,"right":260,"bottom":270}},"weights_path":"weights.npz"}, True)
+print(json.dumps([entry[0] for entry in order]))
+`
+  assert.deepEqual(runPython(code), ['park', 'choose_layout'])
 })
 
 test('内置隔离 Python 可从脚本同目录加载仓库取件公共函数', () => {

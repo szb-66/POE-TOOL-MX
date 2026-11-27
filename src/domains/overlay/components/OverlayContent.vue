@@ -176,15 +176,17 @@
       </div>
 
       <div class="status-footer">
-        <span v-if="isCompleted && itemInfo.eldritchImplicitMatch" class="match-success">古灵隐式命中：{{ itemInfo.matchedEldritchTargetName }}</span>
+        <span v-if="isCompleted && batchProgress" class="match-success">批量制作已完成</span>
+        <span v-else-if="isCompleted && itemInfo.eldritchImplicitMatch" class="match-success">古灵隐式命中：{{ itemInfo.matchedEldritchTargetName }}</span>
         <span v-else-if="isCompleted && itemInfo.affixMatch" class="match-success">词缀匹配成功</span>
         <span v-else-if="isCompleted && itemInfo.socketMatch" class="match-success">插槽匹配成功</span>
-        <span v-else-if="isStopped && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="match-stopped">已停止</span>
+        <span v-else-if="isCompleted" class="match-success">已完成</span>
+        <span v-else-if="isStopped" class="match-stopped">已停止</span>
         <span v-else class="match-pending">制作中...</span>
       </div>
 
       <!-- 制作完成后的确认按钮 -->
-      <div v-if="(itemInfo.affixMatch || itemInfo.socketMatch || itemInfo.eldritchImplicitMatch) && isCompleted" class="completion-actions">
+      <div v-if="isCompleted" class="completion-actions">
         <el-button type="primary" size="small" :loading="isRestarting" @click="$emit('restart')">
           重新开始
         </el-button>
@@ -194,15 +196,27 @@
       </div>
 
       <!-- 制作停止后的关闭按钮（制作成功时不显示） -->
-      <div v-if="isStopped && !isCompleted && !stopReason && !itemInfo.affixMatch && !itemInfo.socketMatch && !itemInfo.eldritchImplicitMatch" class="completion-actions">
+      <div v-if="isStopped && !isCompleted && !stopReason" class="completion-actions">
         <el-button type="danger" size="small" @click="$emit('close')">
           关闭
         </el-button>
       </div>
     </div>
     <div v-else class="overlay-placeholder">
-      <span class="placeholder-text">等待物品信息...</span>
-      <div v-if="!stopReason" class="placeholder-actions">
+      <div v-if="isCompleted || isStopped" class="status-footer">
+        <span v-if="isCompleted" class="match-success">{{ batchProgress ? '批量制作已完成' : '已完成' }}</span>
+        <span v-else class="match-stopped">已停止</span>
+      </div>
+      <span v-else class="placeholder-text">等待物品信息...</span>
+      <div v-if="isCompleted" class="completion-actions">
+        <el-button type="primary" size="small" :loading="isRestarting" @click="$emit('restart')">
+          重新开始
+        </el-button>
+        <el-button type="success" size="small" :disabled="isRestarting" @click="$emit('confirm')">
+          确认完成
+        </el-button>
+      </div>
+      <div v-else-if="!stopReason" class="placeholder-actions">
         <el-button type="danger" circle size="small" @click="$emit('close')" title="关闭">
           <el-icon>
             <Close />
@@ -808,6 +822,11 @@ function isModMatched(mod) {
   padding-bottom: 20px;
   pointer-events: auto;
   /* 确保可以交互 */
+
+  .status-footer,
+  .completion-actions {
+    font-style: normal;
+  }
 }
 
 .placeholder-actions {

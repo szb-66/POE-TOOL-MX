@@ -667,3 +667,206 @@ Can only be modified with Chaos Orbs, Vaal Orbs, Delirium Orbs and Chisels`
     /中文物品身份未匹配国际服交易目录/
   )
 })
+
+// --- 8. Replica Dragonfang's Flight indexable skill with (...) ---
+test('龙牙之翔【仿品】随机可索引技能带(...)标注可完整解析为 indexable_skill，未知技能与固定技能带(...)仍阻断', async () => {
+  const hash = (text) => createHash('sha256').update(text).digest('hex')
+  const dragonfangEntries = [
+    { kind: 'dat', table: 'words', id: 'hash:replica-dragonfang', field: 'Text2', en: "Replica Dragonfang's Flight", cn: '龙牙之翔【仿品】', tw: '贗品．龍牙翱翔', sourceHash: hash("Replica Dragonfang's Flight") },
+    { kind: 'dat', table: 'baseitemtypes', id: 'Metadata/Items/Amulets/Amulet7', field: 'Name', en: 'Onyx Amulet', cn: '黑曜护身符', tw: '黑曜護身符', sourceHash: hash('Onyx Amulet') },
+    { kind: 'dat', table: 'activeskills', id: 'animate_weapon', field: 'DisplayedName', en: 'Animate Weapon', cn: '幻化武器', tw: '幻化武器', sourceHash: hash('Animate Weapon') },
+    { kind: 'dat', table: 'passiveskills', id: 'undertaker', field: 'Name', en: 'Undertaker', cn: '亡灵谐曲', tw: '亡靈諧曲', sourceHash: hash('Undertaker') },
+    { kind: 'dat', table: 'clientstrings', id: 'ModGrantsEffectWithLevel', field: 'Text', en: 'Grants Level {1} {0}', cn: '赋予 {1} 级 {0}', tw: '賦予等級 {1} 的 {0}', sourceHash: hash('Grants Level {1} {0}') },
+    { kind: 'dat', table: 'clientstrings', id: 'JewelRadiusVeryLarge', field: 'Text', en: 'Very Large', cn: '极大', tw: '極大', sourceHash: hash('Very Large') },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'random_skill_gem_level_+_level random_skill_gem_level_+_index', field: 'variant:0',
+      en: '+{0} to Level of all {1} Gems', cn: '所有 {1} 宝石等级 +{0}', tw: '全部 {1} 寶石等級 +{0}',
+      sourceHash: hash('+{0} to Level of all {1} Gems'),
+      stats: { ids: ['random_skill_gem_level_+_level', 'random_skill_gem_level_+_index'], variants: [{ condition: '1|# #', handlers: 'display_indexable_skill 2 0', placeholders: ['{0}', '{1}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'mod_granted_passive_hash', field: 'variant:0',
+      en: 'Allocates {0}', cn: '配置 {0}', tw: '配置 {0}',
+      sourceHash: hash('Allocates {0}'),
+      stats: { ids: ['mod_granted_passive_hash'], variants: [{ condition: '#', handlers: 'passive_hash 1', placeholders: ['{0}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'local_jewel_variable_ring_radius_value', field: 'variant:0',
+      en: 'Only affects Passives in {0} Ring', cn: '只影响{0}环内的天赋', tw: '僅影響{0}環內的天賦',
+      sourceHash: hash('Only affects Passives in {0} Ring'),
+      stats: { ids: ['local_jewel_variable_ring_radius_value'], variants: [{ condition: '#', handlers: 'passive_jewel_radius 1 reminderstring ReminderTextJewelRadiusRing', placeholders: ['{0}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'additional_all_attributes', field: 'variant:0',
+      en: '{0:+d} to all Attributes', cn: '{0:+d} 全属性', tw: '{0:+d} 全能力',
+      sourceHash: hash('{0:+d} to all Attributes'),
+      stats: { ids: ['additional_all_attributes'], variants: [{ condition: '#', handlers: 'reminderstring ReminderTextAttributes', placeholders: ['{0:+d}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'base_resist_all_elements_%', field: 'variant:0',
+      en: '{0:+d}% to all Elemental Resistances', cn: '{0:+d}% 所有元素抗性', tw: '{0:+d}% 全部元素抗性',
+      sourceHash: hash('{0:+d}% to all Elemental Resistances'),
+      stats: { ids: ['base_resist_all_elements_%'], variants: [{ condition: '#', handlers: '', placeholders: ['%', '{0:+d}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'base_reservation_efficiency_+%', field: 'variant:0',
+      en: '{0}% increased Reservation Efficiency of Skills', cn: '技能的保留效能提高 {0}%', tw: '增加 {0}% 技能保留效率',
+      sourceHash: hash('{0}% increased Reservation Efficiency of Skills'),
+      stats: { ids: ['base_reservation_efficiency_+%'], variants: [{ condition: '1|#', handlers: '', placeholders: ['%', '{0}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'local_attribute_requirements_+%', field: 'variant:0',
+      en: 'Items and Gems have {0}% increased Attribute Requirements', cn: '装备和技能石的属性需求提高 {0}%', tw: '裝備和技能寶石的能力需求增加 {0}%',
+      sourceHash: hash('Items and Gems have {0}% increased Attribute Requirements'),
+      stats: { ids: ['local_attribute_requirements_+%'], variants: [{ condition: '1|#', handlers: '', placeholders: ['%', '{0}'] }, { condition: '#|-1', handlers: 'negate 1', placeholders: ['%', '{0}'] }] }
+    },
+    {
+      kind: 'stat', table: 'metadata/statdescriptions/stat_descriptions.csd',
+      id: 'local_attribute_requirements_+%', field: 'variant:1',
+      en: 'Items and Gems have {0}% reduced Attribute Requirements', cn: '装备和技能石的属性需求降低 {0}%', tw: '裝備和技能寶石的能力需求減少 {0}%',
+      sourceHash: hash('Items and Gems have {0}% reduced Attribute Requirements'),
+      stats: { ids: ['local_attribute_requirements_+%'], variants: [{ condition: '1|#', handlers: '', placeholders: ['%', '{0}'] }, { condition: '#|-1', handlers: 'negate 1', placeholders: ['%', '{0}'] }] }
+    },
+    { kind: 'dat', table: 'remindertext', id: 'ReminderTextAttributes', field: 'Text', en: '(Attributes are Strength, Dexterity, and Intelligence)', cn: '(属性分为力量，敏捷和智慧三种)', tw: '(能力為力量、敏捷與智慧)', sourceHash: hash('(Attributes are Strength, Dexterity, and Intelligence)') },
+    { kind: 'dat', table: 'flavourtext', id: 'UniqueAmuletReplicaDragonfang', field: 'Text', en: '"We made this? Why do we have no records of it?\nWe were warned there would be a cost..."\n- Administrator Qotra', cn: '“这是我们造的？为什么我们没有任何记录？\n我们被警告过会付出代价的……”\n——总管科塔拉', tw: '「這是我們造的？為什麼我們沒有任何紀錄？\n我們被警告過會付出代價的……」\n——總管科塔拉', sourceHash: hash('"We made this? Why do we have no records of it?\nWe were warned there would be a cost..."\n- Administrator Qotra') }
+  ]
+
+  const dragonfangCn = `物品类别: 项链
+稀 有 度: 传奇
+龙牙之翔【仿品】
+黑曜护身符
+--------
+需求:
+等级: 56
+--------
+物品等级: 85
+--------
+配置 亡灵谐曲 (enchant)
+--------
+{ 基底属性— 能力 }
++16(10-16) 全属性
+(属性分为力量，敏捷和智慧三种)
+--------
+{ 传奇属性 }
+所有 幻化武器(...) 宝石等级 +3
+{ 传奇属性— 元素,抗性 }
++5(5-10)% 所有元素抗性
+{ 传奇属性 }
+技能的保留效能提高 8(5-10)%
+{ 传奇属性 }
+装备和技能石的属性需求降低 6(10-5)%
+(属性分为力量，敏捷和智慧三种)
+--------
+“这是我们造的？为什么我们没有任何记录？
+我们被警告过会付出代价的……”
+——总管科塔拉`
+
+  const dragonfangTw = `物品種類: 項鍊
+稀有度: 傳奇
+贗品．龍牙翱翔
+黑曜護身符
+--------
+需求:
+等級: 56
+--------
+物品等級: 85
+--------
+配置 亡靈諧曲 (enchant)
+--------
+{ 固定詞綴— 能力 }
++16(10-16) 全能力
+(能力為力量、敏捷與智慧)
+--------
+{ 傳奇詞綴 }
+全部 幻化武器(...) 寶石等級 +3
+{ 傳奇詞綴— 元素,抗性 }
++5(5-10)% 全部元素抗性
+{ 傳奇詞綴 }
+增加 8(5-10)% 技能保留效率
+{ 傳奇詞綴 }
+裝備和技能寶石的能力需求減少 6(10-5)%
+(能力為力量、敏捷與智慧)
+--------
+「這是我們造的？為什麼我們沒有任何紀錄？
+我們被警告過會付出代價的……」
+——總管科塔拉`
+
+  const dragonfangEn = `Item Class: Amulets
+Rarity: Unique
+Replica Dragonfang's Flight
+Onyx Amulet
+--------
+Requirements:
+Level: 56
+--------
+Item Level: 85
+--------
+Allocates Undertaker (enchant)
+--------
+{ Implicit Modifier — Attribute }
++16(10-16) to all Attributes
+(Attributes are Strength, Dexterity, and Intelligence)
+--------
+{ Unique Modifier }
++3 to Level of all Animate Weapon(...) Gems
+{ Unique Modifier — Elemental, Resistance }
++5(5-10)% to all Elemental Resistances
+{ Unique Modifier }
+8(5-10)% increased Reservation Efficiency of Skills
+{ Unique Modifier }
+Items and Gems have 6(10-5)% reduced Attribute Requirements
+(Attributes are Strength, Dexterity, and Intelligence)`
+
+  const cnFixture = createIntlFixture(dragonfangEntries, catalog, 'dragonfang-cn')
+  const cnResult = await cnFixture.service.check({ text: dragonfangCn, league: 'Covens', options: { initialSelection: 'all' } })
+  assert.equal(cnResult.model.identity.name, "Replica Dragonfang's Flight")
+  assert.equal(cnResult.model.identity.type, 'Onyx Amulet')
+  assert.deepEqual(cnResult.model.unknownStats, [])
+  assert.deepEqual(cnResult.model.stats.map(stat => [stat.id, stat.values]), [
+    ['enchant.stat_2954116742|25439', []],
+    ['implicit.stat_1379411836', [16]],
+    ['explicit.indexable_skill_97', [3]],
+    ['explicit.stat_2901986750', [5]],
+    ['explicit.stat_2587176568', [8]],
+    ['explicit.stat_752930724', [-6]]
+  ])
+  assert.equal(cnResult.model.stats.find(stat => stat.id === 'explicit.indexable_skill_97')?.displayText, '所有 幻化武器(...) 宝石等级 +3')
+
+  const twFixture = createIntlFixture(dragonfangEntries, catalog, 'dragonfang-tw')
+  const twResult = await twFixture.service.check({ text: dragonfangTw, league: 'Covens', options: { initialSelection: 'all' } })
+  assert.deepEqual(twResult.model.unknownStats, [])
+  assert.deepEqual(twFixture.requests[0].query, cnFixture.requests[0].query)
+
+  const enFixture = createIntlFixture(dragonfangEntries, catalog, 'dragonfang-en')
+  const enResult = await enFixture.service.check({ text: dragonfangEn, league: 'Covens', options: { initialSelection: 'all' } })
+  assert.deepEqual(enResult.model.unknownStats, [])
+  assert.deepEqual(enFixture.requests[0].query, cnFixture.requests[0].query)
+
+  // 不带 (...) 的普通复制与 stat 单参数可索引词缀带 (...) 同样正确解析
+  const plainModel = createIntlFixture(dragonfangEntries, catalog, 'dragonfang-plain')
+    .service.parse(dragonfangCn.replace('所有 幻化武器(...) 宝石等级 +3', '所有 幻化武器 宝石等级 +3'))
+  assert.deepEqual(plainModel.unknownStats, [])
+  assert.ok(plainModel.stats.some(stat => stat.id === 'explicit.indexable_skill_97' && stat.values[0] === 3))
+
+  const ringRadiusModel = createIntlFixture(dragonfangEntries, catalog, 'ring-radius-ellipsis')
+    .service.parse(dragonfangCn.replace('所有 幻化武器(...) 宝石等级 +3', '只影响极大(...)环内的天赋'))
+  assert.deepEqual(ringRadiusModel.unknownStats, [])
+  assert.ok(ringRadiusModel.stats.some(stat => stat.id === 'explicit.stat_3642528642|4'))
+
+  // 未知技能带 (...) 与固定 clientstrings 技能模板带 (...) 必须继续阻断
+  await assert.rejects(
+    cnFixture.service.check({ text: dragonfangCn.replace('幻化武器(...)', '未知技能(...)'), league: 'Covens' }),
+    { code: 'LOCALIZATION_UNRESOLVED' }
+  )
+  await assert.rejects(
+    cnFixture.service.check({ text: dragonfangCn.replace('所有 幻化武器(...) 宝石等级 +3', '赋予 20 级 幻化武器(...)'), league: 'Covens' }),
+    { code: 'LOCALIZATION_UNRESOLVED' }
+  )
+})

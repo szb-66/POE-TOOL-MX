@@ -299,6 +299,8 @@ function handlerHarness(t, { active = false, pythonAvailable = true } = {}) {
     normalizeMapStatsSnapshot: _m2_normalizeMapStatsSnapshot,
     batchRecoveryStore: createBatchRecoveryStore(),
     prepareCraftingOverlay: async () => {},
+    getElevatedAutomation: () => null,
+    stopPythonProcess: async (child, { killTree }) => killTree(child.pid),
     createOverlayDispatcher: () => ({ readyPromise: Promise.resolve(), send() {} }),
     waitForScriptStartup: async () => ({ event: 'crafting-startup-succeeded' }),
     parseScriptEventLine: () => null,

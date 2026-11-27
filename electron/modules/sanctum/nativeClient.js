@@ -1,6 +1,7 @@
 import { SANCTUM_TIMEOUTS, sanctumError } from './errors.js'
 import { fileURLToPath } from 'node:url'
 import { createPythonProcess } from '../python/launcher.js'
+import { getElevatedAutomation, spawnOperationProcess } from '../elevatedAutomation/index.js'
 import { resolvePythonRuntimeAsync } from '../python/detector.js'
 import { randomUUID } from 'node:crypto'
 
@@ -28,7 +29,26 @@ export class SanctumNativeClient {
       const runtime = await this.resolveRuntime(['cv2', 'numpy', 'mss', 'rapidocr', 'onnxruntime', 'pyperclip'])
       signal?.throwIfAborted()
       if (this.closed) throw new Error('圣所原生通道已关闭')
-      const { process: child, started } = this.launch({ pythonPath: runtime.path,
+      const launchFn = (this.launch === createPythonProcess && getElevatedAutomation())
+        ? ({ pythonPath, scriptPath, stdin, env }) => {
+            const proc = spawnOperationProcess({
+              operationId: 'sanctum.native',
+              pythonPath,
+              scriptPath,
+              args: [],
+              stdin,
+              env
+            })
+            const procStarted = new Promise((resolve, reject) => {
+              const onSpawn = () => { proc.removeListener('error', onError); resolve(proc) }
+              const onError = error => { proc.removeListener('spawn', onSpawn); reject(error) }
+              proc.once('spawn', onSpawn)
+              proc.once('error', onError)
+            })
+            return { process: proc, started: procStarted }
+          }
+        : this.launch
+      const { process: child, started } = launchFn({ pythonPath: runtime.path,
         scriptPath: sanctumNativeScriptPath(), stdin: 'pipe', env: this.env })
       this.child = child
       this.configuration = null

@@ -1271,13 +1271,14 @@ print(json.dumps(cases))
   ])
 })
 
-test('传奇强制入库仅在首次点击后同一传奇仍存在时追加一次强制点击', () => {
+test('传奇强制入库仅在首次点击后同一传奇持续仍存在时追加一次强制点击', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
 spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+module.time.sleep = lambda _seconds: None
 
 unique_text = "Item Class: Rings\\nRarity: Unique\\nBlackheart\\nIron Ring\\n--------"
 other_text = "Item Class: Rings\\nRarity: Unique\\nDoedre's Damning\\nPaua Ring\\n--------"
@@ -1285,8 +1286,8 @@ unique = module.parse_item_header(unique_text)
 normal = {"category": "Currency", "rarity": "Currency", "name": "Chaos Orb", "baseName": ""}
 
 class Controller:
-    def __init__(self, status=("empty", ""), click=True, force=True):
-        self.status = status
+    def __init__(self, statuses, click=True, force=True):
+        self.statuses = list(statuses) if isinstance(statuses, list) else [statuses]
         self.click = click
         self.force = force
         self.clicks = 0
@@ -1303,18 +1304,20 @@ class Controller:
     def copy_item_text(self, ctrl_held=False, **kwargs):
         self.copies += 1
         self.copy_ctrl_held.append(ctrl_held)
-        return self.status
+        index = min(self.copies - 1, len(self.statuses) - 1)
+        return self.statuses[index]
     def ctrl_shift_click(self):
         self.forced += 1
         return self.force
     def release_all(self): self.releases += 1
 
 cases = []
-for item, enabled, status, click, force, stop_reason in (
+for item, enabled, statuses, click, force, stop_reason in (
     (normal, True, ("copied", unique_text), True, True, ""),
     (unique, False, ("copied", unique_text), True, True, ""),
     (unique, True, ("empty", ""), True, True, ""),
     (unique, True, ("copied", other_text), True, True, ""),
+    (unique, True, [("copied", unique_text), ("copied", unique_text), ("empty", "")], True, True, ""),
     (unique, True, ("copied", unique_text), True, True, ""),
     (unique, True, ("unreadable", ""), True, True, ""),
     (unique, True, ("copied", "not-an-item"), True, True, ""),
@@ -1322,25 +1325,28 @@ for item, enabled, status, click, force, stop_reason in (
     (unique, True, ("copied", unique_text), True, False, "game-not-foreground"),
 ):
     module.runtime_stop_reason = stop_reason
-    controller = Controller(status, click, force)
+    controller = Controller(statuses, click, force)
     confirmed, reason = module.transfer_stash_item(controller, item, enabled)
     cases.append([confirmed, reason, controller.clicks, controller.copies, controller.forced, controller.releases, controller.copy_ctrl_held])
-print(json.dumps(cases))
+print(json.dumps({"attempts": module.UNIQUE_TRANSFER_CONFIRM_ATTEMPTS, "cases": cases}))
 `
-  assert.deepEqual(runPython(code), [
+  const { attempts, cases } = runPython(code)
+  assert.equal(attempts, 4)
+  assert.deepEqual(cases, [
     [true, '', 1, 0, 0, 1, []],
     [true, '', 1, 0, 0, 1, []],
     [true, '', 1, 1, 0, 1, [true]],
     [true, '', 1, 1, 0, 1, [true]],
-    [true, '', 1, 1, 1, 1, [true]],
+    [true, '', 1, 3, 0, 1, [true, true, true]],
+    [true, '', 1, 4, 1, 1, [true, true, true, true]],
     [false, 'transfer-unconfirmed', 1, 1, 0, 1, [true]],
     [false, 'transfer-unconfirmed', 1, 1, 0, 1, [true]],
     [false, 'game-not-foreground', 1, 0, 0, 1, []],
-    [false, 'game-not-foreground', 1, 1, 1, 1, [true]]
+    [false, 'game-not-foreground', 1, 4, 1, 1, [true, true, true, true]]
   ])
 })
 
-test('传奇强制入库在首次点击、复制确认和强制点击之间持续持有 Ctrl', () => {
+test('传奇强制入库先等待正常放入生效再轮询确认，期间持续持有 Ctrl', () => {
   const code = `
 import importlib.util, json, sys
 sys.dont_write_bytecode = True
@@ -1350,13 +1356,14 @@ spec.loader.exec_module(module)
 
 unique_text = "Item Class: Rings\\nRarity: Unique\\nBlackheart\\nIron Ring\\n--------"
 events = []
+sleeps = []
 clipboard = {"text": "old", "sequence": 0}
 module.is_running = True
 module.runtime_stop_reason = ""
 module.is_game_foreground = lambda: True
 module.is_ctrl_pressed = lambda: True
 module.clipboard_sequence_number = lambda: clipboard["sequence"]
-module.time.sleep = lambda _seconds: None
+module.time.sleep = lambda seconds: sleeps.append(seconds)
 
 class Clipboard:
     def copy(self, value):
@@ -1388,15 +1395,29 @@ controller.pressed_buttons = set()
 
 result = module.transfer_stash_item(
     controller, module.parse_item_header(unique_text), True)
-print(json.dumps({"result": result, "events": events}))
+print(json.dumps({
+    "result": result,
+    "events": events,
+    "initialSettle": module.UNIQUE_TRANSFER_INITIAL_SETTLE_SECONDS,
+    "pollSettle": module.UNIQUE_TRANSFER_CONFIRM_POLL_SECONDS,
+    "sleeps": sleeps
+}))
 `
 
   const result = runPython(code)
   assert.deepEqual(result.result, [true, ''])
+  assert.ok(result.sleeps.includes(result.initialSettle))
+  assert.equal(result.sleeps.filter((value) => value === result.pollSettle).length, 3)
   assert.deepEqual(result.events, [
     ['key-down', 'Key.ctrl'],
     ['mouse-down', 'Button.left'],
     ['mouse-up', 'Button.left'],
+    ['key-down', 'c'],
+    ['key-up', 'c'],
+    ['key-down', 'c'],
+    ['key-up', 'c'],
+    ['key-down', 'c'],
+    ['key-up', 'c'],
     ['key-down', 'c'],
     ['key-up', 'c'],
     ['key-down', 'Key.shift'],
@@ -1947,4 +1968,60 @@ print(json.dumps({"flask": flask, "ring": ring, "map": amap, "unknown": unknown}
   assert.equal(result.ring.name, 'Superior Synthesised Sapphire Ring')
   assert.equal(result.map.name, 'Superior Map (Tier 16)')
   assert.equal(result.unknown, null)
+})
+
+test('游戏客户区与前台探测显式声明 64 位 HWND 类型且 DPI 异常时安全回退', () => {
+  const script = readFileSync(scriptUrl, 'utf8')
+  assert.match(script, /def is_game_foreground\(\):[\s\S]*?user32\.GetForegroundWindow\.restype = wintypes\.HWND/)
+  assert.match(script, /def _client_bounds_for_hwnd\(hwnd\):[\s\S]*?user32\.GetClientRect\.argtypes = \[wintypes\.HWND/)
+  assert.match(script, /def get_game_client_bounds\(\):[\s\S]*?user32\.GetForegroundWindow\.restype = wintypes\.HWND/)
+
+  const result = runPython(`
+import ctypes, importlib.util, json, sys, types
+sys.dont_write_bytecode = True
+spec = importlib.util.spec_from_file_location("bag", ${JSON.stringify(scriptPath)})
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+class FakeFn:
+    def __init__(self, impl):
+        self.impl = impl
+        self.argtypes = None
+        self.restype = None
+    def __call__(self, *args):
+        return self.impl(*args)
+
+def fake_rect(_hwnd, rect_ptr):
+    rect = ctypes.cast(rect_ptr, ctypes.POINTER(module.wintypes.RECT)).contents
+    rect.left, rect.top, rect.right, rect.bottom = 0, 0, 1920, 1080
+    return 1
+
+def fake_origin(_hwnd, point_ptr):
+    pt = ctypes.cast(point_ptr, ctypes.POINTER(module.wintypes.POINT)).contents
+    pt.x, pt.y = 100, 50
+    return 1
+
+def fake_dpi(_hwnd):
+    raise OSError("dpi unavailable")
+
+fake_user32 = types.SimpleNamespace(
+    GetClientRect=FakeFn(fake_rect),
+    ClientToScreen=FakeFn(fake_origin),
+    GetDpiForWindow=FakeFn(fake_dpi),
+)
+orig_sys_platform = module.sys.platform
+orig_user32 = module.ctypes.windll.user32
+try:
+    module.sys.platform = "win32"
+    module.ctypes.windll.user32 = fake_user32
+    bounds = module._client_bounds_for_hwnd(0x0000000180000001)
+finally:
+    module.sys.platform = orig_sys_platform
+    module.ctypes.windll.user32 = orig_user32
+print(json.dumps({"bounds": bounds, "dpiArgtypesMatched": fake_user32.GetDpiForWindow.argtypes == [module.wintypes.HWND]}))
+`)
+  assert.deepEqual(result.bounds, {
+    left: 100, top: 50, right: 2020, bottom: 1130, width: 1920, height: 1080, dpi: 96
+  })
+  assert.equal(result.dpiArgtypesMatched, true)
 })

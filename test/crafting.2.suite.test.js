@@ -1756,7 +1756,7 @@ test('制作进程在启动门禁前失败或退出时不得假报成功', async
 test('IPC 并行缓冲浮层与启动进程，并等待脚本启动门禁与浮层就绪', () => {
   const ipc = readFileSync(new URL('../electron/modules/ipc/python.js', import.meta.url), 'utf8')
   const overlayDispatcher = ipc.indexOf('const overlayDispatcher = createOverlayDispatcher(')
-  const processCreated = ipc.indexOf('const launch = createPythonProcess(')
+  const processCreated = ipc.indexOf('launch = createPythonProcess(')
   const startupWait = ipc.indexOf('waitForScriptStartup(', processCreated)
   const readyAll = ipc.indexOf('overlayDispatcher.readyPromise', startupWait)
   const reportsRunning = ipc.indexOf("status: 'running'", processCreated)

@@ -802,9 +802,20 @@ export function createLocalizationDictionary(entries = []) {
             if (!body.startsWith(prefix)) continue
             const inner = body.slice(prefix.length).trim()
             if (!inner) continue
-            const translatedInner = translate(inner, null, null, null, statScope(lineType), { lines: input, index })
+            const clusterPrefix = 'Added Small Passive Skills grant: '
+            const selectClusterInner = resolveStatAmbiguity
+              ? candidates => {
+                  const selected = resolveStatAmbiguity(
+                    candidates.map(candidate => `${clusterPrefix}${candidate}`),
+                    { type: lineType }
+                  )
+                  if (selected?.startsWith(clusterPrefix)) return selected.slice(clusterPrefix.length)
+                  return resolveStatAmbiguity(candidates, { type: 'explicit' })
+                }
+              : null
+            const translatedInner = translate(inner, null, null, selectClusterInner, statScope(lineType), { lines: input, index })
             if (translatedInner && translatedInner !== inner && !cjk.test(translatedInner)) {
-              return `Added Small Passive Skills grant: ${translatedInner}${tail}`
+              return `${clusterPrefix}${translatedInner}${tail}`
             }
           }
         }

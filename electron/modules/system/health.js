@@ -55,9 +55,9 @@ export function evaluateNetworkInterfaces(interfaces = os.networkInterfaces()) {
 }
 
 export function evaluateAdministrator(administrator) {
-  if (administrator === true) return item('administrator', '管理员权限', 'ready', '已以管理员权限运行')
-  if (administrator === false) return item('administrator', '管理员权限', 'attention', '未以管理员权限运行')
-  return item('administrator', '管理员权限', 'attention', '无法确认管理员权限')
+  if (administrator === true) return item('administrator', '运行权限', 'ready', '当前以管理员权限运行')
+  if (administrator === false) return item('administrator', '运行权限', 'ready', '普通权限运行（游戏内操作按需提权）')
+  return item('administrator', '运行权限', 'ready', '普通权限运行（游戏内操作按需提权）')
 }
 
 export function evaluateRuntime(runtime = {}) {

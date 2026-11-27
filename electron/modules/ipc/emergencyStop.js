@@ -5,6 +5,7 @@ import { EmergencyStopCoordinator } from '../automation/emergencyStop.js'
 import { stopCurrentScript } from './python.js'
 import { stopBagStashAutomation, stopBatchInventoryScan } from './bag.js'
 import { stopPotionAutomation, stopLoopAutomation, stopPortalAutomation } from './combat.js'
+import { getElevatedAutomation } from '../elevatedAutomation/index.js'
 
 function managerAction(id, label, manager, activeStatuses = ['running']) {
   return {
@@ -34,7 +35,8 @@ export function createEmergencyStopCoordinator({ chaosRecipe, stashPickup, junfe
     { id: 'portal', label: '一键回城', stop: stopPortalAutomation },
     { id: 'puzzle', label: '海图自动化', stop: reason => puzzle?.emergencyStop?.(reason) || { success: true, stopped: false } },
     { id: 'map-tracker', label: '地图跟踪增强采集', stop: () => mapTracker?.emergencyStop?.() || { success: true, stopped: false } },
-    { id: 'sanctum', label: '圣所', stop: () => sanctum?.emergencyStop?.() || { success: true, stopped: false } }
+    { id: 'sanctum', label: '圣所', stop: () => sanctum?.emergencyStop?.() || { success: true, stopped: false } },
+    { id: 'elevated-host', label: '高权限自动化 Host', stop: () => getElevatedAutomation()?.stopAll?.() || { success: true, stopped: false } }
   ])
 }
 

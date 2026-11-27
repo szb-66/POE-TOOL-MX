@@ -116,6 +116,12 @@ import { DailyUsageService } from './modules/dailyUsage/service.js'
 import { LoadingFeedbackCoordinator } from './modules/loadingFeedback/coordinator.js'
 import { LoadingFeedbackOverlayManager } from './modules/loadingFeedback/overlay.js'
 import { LOADING_FEEDBACK_CHANNEL } from '../shared/loadingFeedback.js'
+import {
+  configureElevatedAutomation,
+  createWindowsElevatedAutomation,
+  resolveElevatedHostPath,
+  resolveElevatedResourceRoot
+} from './modules/elevatedAutomation/index.js'
 
 // 降低 Chromium 底层噪声日志，避免 Windows 网络变更监听告警干扰排查
 app.commandLine.appendSwitch('log-level', '3')
@@ -208,7 +214,7 @@ try {
   startupLog.record({ phase: 'crashpad', outcome: 'failed', reasonCode: 'crashpad_start_failed', error })
 }
 
-function showStartupFailure({ reasonCode = 'startup_failed' } = {}) {
+function showStartupFailure({ reasonCode = 'startup_failed', details = null } = {}) {
   if (startupFailureShown || applicationShuttingDown) return
   startupFailureShown = true
   startupLog.record({
@@ -221,10 +227,13 @@ function showStartupFailure({ reasonCode = 'startup_failed' } = {}) {
     app.exit(2)
     return
   }
+  const extraHint = (reasonCode === 'renderer_launch_failed' && Number(details?.exitCode) === 18)
+    ? '\n\n排查建议：检测到 Chromium 渲染进程沙箱创建失败（exitCode=18）。如果您正在使用 Windows 内置 Administrator 账户、AppLocker 策略或受限目录，请尝试改用普通 Windows 用户账户登录，将软件安装到普通本地目录并将安装目录加入安全软件信任区。'
+    : ''
   try {
     dialog.showErrorBox(
       '流放助手启动失败',
-      `应用启动失败（${reasonCode}）。\n\n启动日志：${startupLog.filePath}\n崩溃转储：${crashDumpsPath}\n\n这些文件不会自动上传，请在反馈问题时主动提供。`
+      `应用启动失败（${reasonCode}）。${extraHint}\n\n启动日志：${startupLog.filePath}\n崩溃转储：${crashDumpsPath}\n\n这些文件不会自动上传，请在反馈问题时主动提供。`
     )
   } catch {
     // 原生提示不可用时仍保留已落盘日志。
@@ -346,6 +355,7 @@ let sanctumControlOverlay = null
 let crossProcessInstanceLock = null
 let stashPickup = null
 let junfengHighlight = null
+let elevatedAutomation = null
 let faustusManager = null
 let puzzleService = null
 let gameWindowTitles = null
@@ -445,6 +455,7 @@ async function cleanupApplicationResources() {
     () => foregroundWatcher?.stop(),
     () => loadingFeedback?.close(),
     pythonManager.cleanup,
+    () => elevatedAutomation?.shutdown(),
     () => fileWatcher.stopFileWatcher(),
     () => shortcutManager.unregisterAll(),
     () => globalShortcut.unregisterAll()
@@ -578,6 +589,19 @@ async function startApplication() {
   void pythonRuntimePending.catch(() => {})
   gameWindowTitles = new GameWindowTitleRegistry({ userDataPath: serverMode.dataPath(), defaultTitles: serverMode.server.windowTitles })
   gameWindowTitles.initialize()
+  elevatedAutomation = createWindowsElevatedAutomation({
+    resolveRuntime: async () => {
+      const resolved = await pythonDetector.resolvePythonRuntimeAsync().catch(() => null)
+      const pythonPath = resolved?.path || pythonDetector.detectPythonPath()
+      if (!pythonPath) return null
+      return {
+        pythonPath,
+        hostPath: resolveElevatedHostPath({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath }),
+        resourceRoot: resolveElevatedResourceRoot({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath })
+      }
+    }
+  })
+  configureElevatedAutomation(elevatedAutomation)
   windowActivation = new WindowActivationService({
     gameWindowRegistry: gameWindowTitles,
     getMainWindow,

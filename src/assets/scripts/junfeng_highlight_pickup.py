@@ -29,6 +29,7 @@ from bag_auto_stash_template import (
     transfer_pickup_item,
 )
 from slot_highlight_classifier import (
+    DEFAULT_THRESHOLD,
     LABELS,
     classify_grid,
     default_weights_path,
@@ -114,7 +115,7 @@ def classify(image, config, classifier):
     columns, rows = int(grid.get("columns", 12)), int(grid.get("rows", 11))
     if columns <= 0 or rows <= 0:
         raise RuntimeError("grid-invalid")
-    threshold = float(config.get("highlight_threshold", 0.98))
+    threshold = float(config.get("highlight_threshold", DEFAULT_THRESHOLD))
     enable_border_boost = bool(config.get("enable_border_boost", True))
     cells, candidates, uncertain = classify_grid(
         image,
@@ -156,6 +157,31 @@ def park_cursor_position(region, rect):
     return rect["left"] - 24, rect["top"] - 24
 
 
+def _calibration_union_rect(calibration):
+    if not isinstance(calibration, dict):
+        return None, None
+    rects = []
+    sample_region = None
+    for key in ("root", "folder"):
+        region = calibration.get(key)
+        rect = region_rect(region)
+        if rect:
+            rects.append(rect)
+            if sample_region is None:
+                sample_region = region
+    if not rects:
+        return None, None
+    left = min(item["left"] for item in rects)
+    top = min(item["top"] for item in rects)
+    right = max(item["left"] + item["width"] for item in rects)
+    bottom = max(item["top"] + item["height"] for item in rects)
+    return sample_region, {"left": left, "top": top, "width": right - left, "height": bottom - top}
+
+
+def _tooltip_settle_seconds(config):
+    return max(0.08, normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0)
+
+
 def run(config, preview=False):
     apply_fixed_timing({"fixed_timing": config.get("fixed_timing", {})})
     if not is_game_foreground():
@@ -168,10 +194,17 @@ def run(config, preview=False):
         grid_region = config.get("grid_region")
         rect = region_rect(grid_region)
         layout_metadata = {}
+        already_parked = False
         if rect:
             grid = config.get("grid", {})
             columns, rows = int(grid.get("columns", 12)), int(grid.get("rows", 11))
         else:
+            cal_region, union_rect = _calibration_union_rect(config.get("calibration", {}))
+            if union_rect:
+                mouse.position = park_cursor_position(cal_region, union_rect)
+                time.sleep(_tooltip_settle_seconds(config))
+                require_game_foreground()
+                already_parked = True
             layout = choose_layout(
                 config.get("calibration", {}),
                 grabber,
@@ -195,10 +228,11 @@ def run(config, preview=False):
         if columns <= 0 or rows <= 0:
             raise RuntimeError("grid-invalid")
         config = {**config, "grid_region": grid_region, "grid": {"columns": columns, "rows": rows}}
-        park_position = park_cursor_position(config.get("grid_region", {}), rect)
-        mouse.position = park_position
-        time.sleep(normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0)
-        require_game_foreground()
+        if not already_parked:
+            park_position = park_cursor_position(config.get("grid_region", {}), rect)
+            mouse.position = park_position
+            time.sleep(normalize_operation_delay(config.get("operation_delay_ms")) / 1000.0)
+            require_game_foreground()
         image = capture(rect, grabber)
         if classifier is None:
             cells = [

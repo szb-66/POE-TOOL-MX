@@ -8,10 +8,11 @@
  */
 
 import { expandMapAffixTermForMatching } from '../../../shared/crossServerMapAffix.js'
+import { stripFixedValueAnnotation } from '../../../shared/itemModifierText.js'
 import { expandAffixPatternsForMatching, expandEldritchPatternsForMatching } from '../crafting/crossServerMap.js'
 
 function cleanEffectText(value = '') {
-  return String(value).split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')
+  return stripFixedValueAnnotation(String(value)).split('\n').map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n')
 }
 
 function effectPatternRegex(pattern) {

@@ -78,6 +78,11 @@ export function normalizeAffixCondition(input, fallbackId = createAffixConfigId(
 export function affixTierItemLevelLabel(condition, minTier = null) {
   if (condition?.kind !== 'catalog') return ''
   const tiers = (condition.tiers ?? []).filter(entry => positiveTier(entry?.tier))
+  if (condition.source === 'clusterNotable') {
+    const levels = tiers.map(entry => positiveTier(entry.requiredLevel)).filter(value => value != null)
+    const level = levels.length ? Math.min(...levels) : '未知'
+    return `无阶级 (${level})`
+  }
   const selectedTier = positiveTier(minTier)
   const levels = tiers
     .filter(entry => selectedTier == null || Number(entry.tier) <= selectedTier)

@@ -301,6 +301,8 @@ function createHarness(t, controller = null, options = {}) {
     fs, path, URL, structuredClone, process, console,
     ...combatConfig, normalizeAutomationTiming, pythonAutomationTiming,
     ipcMain: { handle: (name, callback) => handlers.set(name, callback) },
+    spawnOperationProcess: ({ pythonPath, scriptPath, args = [], fallbackSpawn }) => fallbackSpawn(pythonPath, [scriptPath, ...args]),
+    stopPythonProcess: async (child, { killTree }) => killTree(child.pid),
     spawn: (python, args) => {
       // This is the execution boundary: inspect what the actual IPC handler
       // would launch, without spawning Python or sending any game input.

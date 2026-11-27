@@ -5,6 +5,7 @@ import path from 'path'
 import fs from 'fs'
 import { createHash } from 'node:crypto'
 import { spawn } from 'child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import { app } from 'electron'
 import { fileURLToPath } from 'node:url'
 import {
@@ -312,9 +313,14 @@ async function spawnPython(python, mode, configPath) {
     python.detectPythonPath?.()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const scriptPath = resolveBagScriptPath()
-  return spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
-    shell: false,
-    env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
+  return spawnOperationProcess({
+    operationId: 'bag.auto-stash',
+    pythonPath,
+    scriptPath,
+    args: ['--mode', mode, '--config', configPath],
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+    stdin: 'ignore',
+    fallbackSpawn: spawn
   })
 }
 

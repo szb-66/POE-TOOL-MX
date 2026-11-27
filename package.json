@@ -183,6 +183,18 @@
         "to": "map_tracker_loot_click.py"
       },
       {
+        "from": "src/assets/scripts/combat_assist_template.py",
+        "to": "combat_assist_template.py"
+      },
+      {
+        "from": "src/assets/scripts/price_copy_helper.py",
+        "to": "price_copy_helper.py"
+      },
+      {
+        "from": "src/assets/elevated-automation-host",
+        "to": "elevated-automation-host"
+      },
+      {
         "from": "electron/assets/puzzle/templates.json",
         "to": "puzzle_templates.json"
       },
@@ -210,7 +222,7 @@
           ]
         }
       ],
-      "requestedExecutionLevel": "requireAdministrator",
+      "requestedExecutionLevel": "asInvoker",
       "icon": "src/assets/images/LOGO-dark.png"
     },
     "nsis": {

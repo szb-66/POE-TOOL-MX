@@ -126,7 +126,7 @@ test('查价复制使用动态游戏窗口名称执行原子前台门禁', async
   assert.match(capture, /GAME_NOT_FOREGROUND/)
   assert.match(capture, /TokenElevation/)
   assert.match(capture, /sys\.exit\(24\)/)
-  assert.match(capture, /游戏以管理员权限运行，请同样以管理员权限运行流放助手/)
+  assert.match(capture, /游戏以管理员权限运行，请批准管理员授权后再执行查价/)
   assert.ok(capture.indexOf('...gameForegroundGuardLines()') < capture.indexOf('u.keybd_event(0x11'))
 })
 
@@ -694,6 +694,80 @@ test('中文映射停用但游戏仍显示旧汉化时，使用已下载词库�
   assert.ok(result.model.stats.some(stat => stat.id === 'explicit.stat_3299347043' && stat.values[0] === 120))
   assert.equal(searches.length, 1)
   assert.match(JSON.stringify(searches[0].query), /explicit\.stat_3299347043/)
+})
+
+test('星团珠宝小天赋附魔存在多个国际服英文候选时，结合目录消歧而不是抛出歧义错误', () => {
+  const hash = value => createHash('sha256').update(value).digest('hex')
+  const clusterEntries = [
+    baseEntry('Large Cluster Jewel', '大型星团珠宝'),
+    {
+      kind: 'dat',
+      table: 'clientstrings',
+      id: 'StatDescripotionTreeExpansionJewelGrantedSmallStat',
+      field: 'Text',
+      en: 'Added Small Passive Skills grant: {0}',
+      cn: '增加的小天赋获得：{0}',
+      tw: '附加的小天賦給予：{0}',
+      sourceHash: hash('Added Small Passive Skills grant: {0}')
+    },
+    statEntry('Adds {0} Passive Skills', '增加 {0} 个天赋技能'),
+    statEntry('{0} Added Passive Skills are Jewel Sockets', '其中 {0} 个增加的天赋为珠宝槽'),
+    statEntry('Minions deal {0}% increased Damage', '召唤生物的伤害提高 {0}%'),
+    {
+      kind: 'stat',
+      table: 'stat_descriptions',
+      id: 'minion_damage_ambiguous_alt',
+      field: 'variant:0',
+      en: 'Minions have {0}% increased Damage',
+      cn: '召唤生物的伤害提高 {0}%',
+      tw: '召喚物伤害提高 {0}%'
+    },
+    statEntry('Added Small Passive Skills also grant: +{0} to Maximum Life', '增加的小天赋还获得：+{0} 最大生命'),
+    statEntry('1 Added Passive Skill is Renewal', '其中 1 个增加的天赋为复兴'),
+    statEntry('Added Small Passive Skills also grant: Minions have {0}% increased Attack and Cast Speed', '增加的小天赋还获得：召唤生物的攻击和施法速度加快 {0}%'),
+    statEntry('Added Small Passive Skills also grant: +{0} to All Attributes', '增加的小天赋还获得：+{0} 所有属性')
+  ]
+  const clusterText = `物品类别: 珠宝
+稀 有 度: 稀有
+海怪光芒
+大型星团珠宝
+--------
+需求:
+等级: 54
+--------
+物品等级: 84
+--------
+增加 8 个天赋技能 (enchant)
+其中 2 个增加的天赋为珠宝槽 (enchant)
+增加的小天赋获得：召唤生物的伤害提高 10% (enchant)
+--------
+{ 前缀属性 "健壮的" (等阶：3)— 生命 }
+增加的小天赋还获得：+3(2-3) 最大生命
+{ 前缀属性 "显著的" (等阶：1)— 生命,傷害,召喚物 }
+其中 1 个增加的天赋为复兴 — 数值不可调整
+{ 后缀属性 "掠夺之" (等阶：3)— 攻擊,法術,速度,召喚物 }
+增加的小天赋还获得：召唤生物的攻击和施法速度加快 1%
+{ 后缀属性 "天空之" (等阶：2)— 能力 }
+增加的小天赋还获得：+3 所有属性`
+
+  const service = new PriceCheckService({
+    catalog,
+    manualInputOnly: true,
+    auth: { getStatus: () => ({ authenticated: true }), registerCacheClearer() {} },
+    client: {
+      server: { id: 'international', label: '国际服' },
+      search: async () => ({ id: 'fixture', total: 0, result: [] }),
+      fetch: async () => ({ result: [] }),
+      clearCache() {}
+    },
+    localizationProvider: () => clusterEntries,
+    localizationRevisionProvider: () => 'cluster-enchant-ambiguity'
+  })
+
+  const model = service.parse(clusterText)
+  assert.equal(model.identity.type, 'Large Cluster Jewel')
+  assert.ok(model.stats.some(stat => stat.id === 'enchant.stat_3948993189|17'))
+  assert.ok(model.stats.some(stat => stat.id === 'explicit.stat_3607300552'))
 })
 
 test('查价服务使用回退词库而不是仅活动映射', () => {

@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 
 const MAP_URL = new URL('../../assets/crafting-cross-server-map.json', import.meta.url)
+const PRICE_CHECK_CATALOG_URL = new URL('../priceCheck/catalog.json', import.meta.url)
+const CLUSTER_NOTABLE_CN_PATTERN = /^其中\s*1\s*个增加的天赋为/
+const CLUSTER_NOTABLE_EN_PATTERN = /^1 Added Passive Skill is /
 
 let cachedIndex = null
 
@@ -22,6 +25,26 @@ export function loadCraftingCrossServerMap() {
   }
   const cnToEn = new Map(Object.entries(raw.modifiers?.cnToEn || {}))
   const enToCn = new Map(Object.entries(raw.modifiers?.enToCn || {}))
+  try {
+    const catalog = JSON.parse(fs.readFileSync(PRICE_CHECK_CATALOG_URL, 'utf8'))
+    for (const stat of catalog.stats || []) {
+      if (!stat?.ids?.explicit || typeof stat.label !== 'string' || !CLUSTER_NOTABLE_CN_PATTERN.test(stat.label)) continue
+      const matchers = Array.isArray(stat.matchers) ? stat.matchers : []
+      const en = (Array.isArray(stat.refs) && stat.refs.find(value => CLUSTER_NOTABLE_EN_PATTERN.test(String(value || ''))))
+        || matchers.find(value => CLUSTER_NOTABLE_EN_PATTERN.test(String(value || '')))
+      if (!en) continue
+      const cnClean = cleanEffectPattern(stat.label)
+      const enClean = cleanEffectPattern(en)
+      if (cnClean && enClean) {
+        if (!cnToEn.has(cnClean)) cnToEn.set(cnClean, en)
+        if (!enToCn.has(enClean)) enToCn.set(enClean, stat.label)
+      }
+      if (!cnToEn.has(stat.label)) cnToEn.set(stat.label, en)
+      if (!enToCn.has(en)) enToCn.set(en, stat.label)
+    }
+  } catch {
+    // Fallback when priceCheck catalog is unavailable
+  }
 
   const eldritchByCanonicalKey = new Map()
   const eldritchByCnFamilyId = new Map()
@@ -57,6 +80,7 @@ export function canonicalAffixPattern(pattern) {
   const cleaned = cleanEffectPattern(pattern)
   if (!cleaned) return ''
   const map = loadCraftingCrossServerMap()
+  if (map.enToCn.has(pattern)) return pattern
   if (map.enToCn.has(cleaned)) return cleaned
   if (map.cnToEn.has(cleaned)) return map.cnToEn.get(cleaned)
   return ''
@@ -67,11 +91,13 @@ export function translateAffixPattern(pattern, targetLanguage = 'zh-CN') {
   if (!cleaned) return pattern
   const map = loadCraftingCrossServerMap()
   if (targetLanguage === 'zh-CN') {
+    if (map.cnToEn.has(pattern)) return pattern
     if (map.cnToEn.has(cleaned)) return cleaned
     if (map.enToCn.has(cleaned)) return map.enToCn.get(cleaned)
     return pattern
   }
   if (targetLanguage === 'en') {
+    if (map.enToCn.has(pattern)) return pattern
     if (map.enToCn.has(cleaned)) return cleaned
     if (map.cnToEn.has(cleaned)) return map.cnToEn.get(cleaned)
     return pattern

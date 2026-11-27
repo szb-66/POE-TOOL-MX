@@ -1618,6 +1618,7 @@ function loadAutomationManager() {
     structuredClone,
     app: { isPackaged: false, getAppPath: () => '' },
     spawn() { throw new Error('测试中禁止真实启动取件进程') },
+    spawnOperationProcess({ pythonPath, scriptPath, args = [], fallbackSpawn }) { return fallbackSpawn(pythonPath, [scriptPath, ...args]) },
     fs: { existsSync: () => true, writeFileSync: () => {} },
     path,
     moduleDir: '',

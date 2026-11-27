@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { assertRuntimeDistribution, assertApplicationDependencies } from '../runtime/distribution.js'
 import { assertScriptDistribution, scriptDistribution } from '../runtime/scriptDistribution.js'
+import { assertWindowsExecutableAsInvoker } from './windowsExecutableManifest.js'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const unpackedRoot = path.join(projectRoot, 'dist-electron', 'win-unpacked')
@@ -25,6 +26,10 @@ const required = [
   path.join(resourcesRoot, 'bag_auto_stash_template.py'),
   path.join(resourcesRoot, 'chaos_recipe_pick_template.py'),
   path.join(resourcesRoot, 'stash_pickup_template.py'),
+  path.join(resourcesRoot, 'combat_assist_template.py'),
+  path.join(resourcesRoot, 'price_copy_helper.py'),
+  path.join(resourcesRoot, 'elevated-automation-host', 'host.py'),
+  path.join(resourcesRoot, 'elevated-automation-host', 'activate_game_window.py'),
   ...globSync([
     'src/assets/scripts/sanctum_*.py',
     'src/assets/scripts/interface_titles.py',
@@ -36,6 +41,7 @@ const required = [
 ]
 const missing = required.filter((filePath) => !existsSync(filePath))
 if (missing.length) throw new Error(`正式包结构不完整: ${missing.map((entry) => path.relative(unpackedRoot, entry)).join(', ')}`)
+await assertWindowsExecutableAsInvoker(path.join(unpackedRoot, '流放助手.exe'))
 
 const probe = spawnSync(path.join(runtimeRoot, 'python.exe'), [
   '-I',

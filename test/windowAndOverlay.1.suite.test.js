@@ -95,24 +95,25 @@ await (async () => {
   const normalizeAutomationTiming = _m0_normalizeAutomationTiming
   const formatJunfengButtonLabel = _m0_formatJunfengButtonLabel
   const createOverlayDrag = _m0_createOverlayDrag
-function setup(scale = 1, left = 0) {
+function setup(scale = 1, left = 0, { loadingOnCreate = false } = {}) {
   const source = readFileSync(new URL('../electron/modules/chaosRecipe/controlOverlay.js', import.meta.url), 'utf8')
     .replace(/^import [\s\S]*? from ['"][^'"]+['"]\r?\n/gm, '')
     .replace('const moduleDir = path.dirname(fileURLToPath(import.meta.url))', "const moduleDir = '.'")
     .replace('export class ChaosRecipeControlOverlay', 'class ChaosRecipeControlOverlay')
   class Window extends EventEmitter {
     constructor(bounds) {
-      super(); this.bounds = bounds; this.updates = 0; this.destroyed = false
-      this.webContents = Object.assign(new EventEmitter(), { id: 7, send() {}, isLoadingMainFrame: () => false })
+      super(); this.bounds = bounds; this.updates = 0; this.destroyed = false; this.loading = loadingOnCreate; this.alwaysOnTopCalls = []
+      this.webContents = Object.assign(new EventEmitter(), { id: 7, send() {}, isLoadingMainFrame: () => this.loading })
     }
     getBounds() { return { ...this.bounds } }
     setBounds(bounds) { this.bounds = bounds; this.updates++ }
     isDestroyed() { return this.destroyed }
-    setAlwaysOnTop() {}
+    setAlwaysOnTop(...args) { this.alwaysOnTopCalls.push(args) }
     isVisible() { return Boolean(this.visible) }
     showInactive() { this.visible = true; this.shows = (this.shows || 0) + 1 }
     hide() { this.visible = false; this.hides = (this.hides || 0) + 1 }
     loadFile() {}
+    destroy() { this.destroyed = true }
     close() { this.emit('close'); this.destroyed = true; this.emit('closed') }
   }
   const Control = vm.runInNewContext(`${source}\nChaosRecipeControlOverlay`, {
@@ -260,6 +261,105 @@ test('未拖动保留动态默认位置，业务同步不覆盖已有保存偏�
   control.runtime.controlOverlayOffset = { x: 1500, y: 950 }
   control.sync()
   assert.deepEqual(control.runtime.controlOverlayOffset, { x: 1500, y: 950 })
+})
+
+test('懒创建控制浮窗在加载完成前不提前显示，did-finish-load 后再置顶显示或保持隐藏', () => {
+  const { control } = setup(1, 0, { loadingOnCreate: true })
+  control.enabled = false
+  control.close()
+  control.stashPickup = { runtime: { enabled: true }, getStatus: () => ({ status: 'idle' }) }
+  control.detection = {
+    foreground: true,
+    ready: true,
+    gameBounds: { left: 0, top: 0, right: 1600, bottom: 1000 }
+  }
+  const sent = []
+  control.sync()
+  assert.ok(control.window)
+  assert.equal(control.window.isVisible(), false)
+  assert.equal(control.window.shows || 0, 0)
+  control.window.webContents.send = (...args) => sent.push(args)
+
+  // 即使 did-finish-load 触发瞬间 isLoadingMainFrame() 尚未翻转，也应立即显示浮窗
+  control.window.webContents.emit('did-finish-load')
+  assert.equal(control.window.isVisible(), true)
+  assert.equal(control.window.shows, 1)
+  assert.deepEqual(control.window.alwaysOnTopCalls.at(-1), [true, 'screen-saver'])
+  assert.equal(sent.length, 1)
+
+  control.close()
+  control.sync()
+  control.detection.foreground = false
+  control.window.loading = false
+  control.window.webContents.emit('did-finish-load')
+  assert.equal(control.window.isVisible(), false)
+  assert.equal(control.window.shows || 0, 0)
+})
+
+test('仅开启仓库取件时残留 rewardDetected 不隐藏普通按钮，close 后重置 contentSize', () => {
+  const { control } = setup()
+  control.enabled = false
+  control.stashPickup = { runtime: { enabled: true }, getStatus: () => ({ status: 'idle' }) }
+  control.junfeng = { runtime: { enabled: false }, getStatus: () => ({ status: 'idle' }), getAvailability: () => ({ ready: false, reason: '未启用' }) }
+  control.detection = {
+    foreground: true,
+    ready: true,
+    rewardDetected: true,
+    gameBounds: { left: 0, top: 0, right: 1600, bottom: 1000 }
+  }
+  const state = control.computeState()
+  assert.equal(state.rewardDetected, false)
+  assert.equal(state.visible, true)
+  assert.equal(state.stashPickupEnabled, true)
+
+  control.resizeToContent({ width: 140, height: 42 })
+  assert.deepEqual(control.contentSize, { width: 140, height: 42 })
+  control.close()
+  assert.deepEqual({ ...control.contentSize }, { ...position.CHAOS_CONTROL_DIP_SIZE })
+})
+
+test('多屏混合 DPI 下控制浮窗通过 screen.screenToDipRect 保持在游戏屏幕可见区域内', () => {
+  const source = readFileSync(new URL('../electron/modules/chaosRecipe/controlOverlay.js', import.meta.url), 'utf8')
+    .replace(/^import [\s\S]*? from ['"][^'"]+['"]\r?\n/gm, '')
+    .replace('const moduleDir = path.dirname(fileURLToPath(import.meta.url))', "const moduleDir = '.'")
+    .replace('export class ChaosRecipeControlOverlay', 'class ChaosRecipeControlOverlay')
+  class Window extends EventEmitter {
+    constructor(bounds) {
+      super(); this.bounds = bounds; this.destroyed = false; this.visible = false
+      this.webContents = Object.assign(new EventEmitter(), { id: 9, send() {}, isLoadingMainFrame: () => false })
+    }
+    getBounds() { return { ...this.bounds } }
+    setBounds(bounds) { this.bounds = bounds }
+    isDestroyed() { return this.destroyed }
+    setAlwaysOnTop() {}
+    isVisible() { return this.visible }
+    showInactive() { this.visible = true }
+    hide() { this.visible = false }
+    loadFile() {}
+    destroy() { this.destroyed = true }
+    close() { this.destroyed = true; this.emit('closed') }
+  }
+  let rectCalls = 0
+  const Control = vm.runInNewContext(`${source}\nChaosRecipeControlOverlay`, {
+    ...position, ...layout, ...engine, createLoadAwarePublisher, OverlayDragSession,
+    normalizeAutomationTiming, formatJunfengButtonLabel, path, structuredClone, performance,
+    console: { debug() {} }, app: { isPackaged: false }, process: { platform: 'win32', env: {} },
+    BrowserWindow: Window,
+    screen: {
+      screenToDipPoint: ({ x, y }) => x >= 3840 ? { x: 2194 + (x - 3840), y } : { x: x / 1.75, y: y / 1.75 },
+      dipToScreenPoint: ({ x, y }) => ({ x: Math.round(x * 1.75), y: Math.round(y * 1.75) }),
+      screenToDipRect: (_win, rect) => { rectCalls++; return { x: Math.round(rect.x / 1.75), y: Math.round(rect.y / 1.75), width: Math.round(rect.width / 1.75), height: Math.round(rect.height / 1.75) } }
+    }
+  })
+  const control = new Control({ getMainWindow: () => null })
+  control.stashPickup = { runtime: { enabled: true }, getStatus: () => ({ status: 'idle' }) }
+  control.detection = { foreground: true, ready: true, gameBounds: { left: 0, top: 0, right: 3840, bottom: 2160, width: 3840, height: 2160 } }
+  control.sync()
+  assert.ok(rectCalls >= 1)
+  const bounds = control.window.getBounds()
+  assert.equal(bounds.x, position.CHAOS_CONTROL_MARGIN)
+  assert.equal(bounds.y, Math.round(2160 / 1.75) - position.CHAOS_CONTROL_DIP_SIZE.height - position.CHAOS_CONTROL_MARGIN)
+  assert.equal(control.window.isVisible(), true)
 })
 
 function pointerSetup(finalCoordinates = true) {
@@ -762,12 +862,17 @@ await (async () => {
 const source = readFileSync(new URL('../electron/modules/window/manager.js', import.meta.url), 'utf8')
 const createSource = source.slice(source.indexOf('export function createMainWindow('), source.indexOf('export function createOverlayWindow(')).replace('export function', 'function')
 
-function setup(state) {
+function setup(state, { bounds = { x: 10, y: 10, width: 1200, height: 800 }, minimized = false } = {}) {
   const calls = [], saved = []
+  let createdOptions = null
+  const setSizeCalls = []
   class Window extends EventEmitter {
     constructor(options) {
       super()
+      createdOptions = options
       this.visible = options.show !== false
+      this.minimized = minimized
+      this.bounds = { ...bounds }
       this.webContents = new EventEmitter()
       this.webContents.send = () => {}
     }
@@ -776,10 +881,15 @@ function setup(state) {
     maximize() { calls.push('maximize'); this.visible = true; this.maximized = true; this.emit('maximize') }
     setFullScreen(value) { calls.push('fullscreen'); this.fullscreen = value; this.emit('enter-full-screen') }
     setAlwaysOnTop(value) { this.alwaysOnTop = value }
+    isMinimized() { return !!this.minimized }
     isMaximized() { return !!this.maximized }
     isFullScreen() { return !!this.fullscreen }
     isAlwaysOnTop() { return !!this.alwaysOnTop }
-    getBounds() { return { x: 10, y: 10, width: 1200, height: 800 } }
+    getBounds() { return { ...this.bounds } }
+    setSize(width, height) {
+      setSizeCalls.push([width, height])
+      this.bounds = { ...this.bounds, width, height }
+    }
     loadURL() { calls.push('load') }
   }
   const context = vm.createContext({
@@ -787,10 +897,10 @@ function setup(state) {
     loadWindowState: () => state, saveWindowState: value => saved.push(value),
     nativeImage: { createFromPath: () => ({ isEmpty: () => true }) },
     process: { env: { NODE_ENV: 'development', VITE_DEV_SERVER_URL: 'http://localhost:3000' } },
-    setTimeout, clearTimeout
+    setTimeout: (fn) => { fn(); return 1 }, clearTimeout: () => {}
   })
   const window = vm.runInContext(`${createSource}\ncreateMainWindow()`, context)
-  return { window, calls, saved }
+  return { window, calls, saved, createdOptions, setSizeCalls }
 }
 
 for (const state of [{}, { isMaximized: true }, { isFullScreen: true }, { isMaximized: true, isFullScreen: true }]) {
@@ -820,6 +930,40 @@ test('首帧前销毁的窗口不恢复状态也不显示', () => {
   window.emit('ready-to-show')
   assert.deepEqual(calls, ['load'])
   assert.equal(window.visible, false)
+})
+
+test('主窗口强制最小尺寸并修复异常过小的历史状态', () => {
+  const { createdOptions } = setup({ width: 212, height: 162, isMaximized: true })
+  assert.equal(createdOptions.minWidth, 800)
+  assert.equal(createdOptions.minHeight, 600)
+  assert.equal(createdOptions.width, 1200)
+  assert.equal(createdOptions.height, 800)
+})
+
+test('主窗口最小化或尺寸异常偏小时不覆盖保存的恢复尺寸', () => {
+  const { window, saved } = setup({ width: 1280, height: 860 }, { bounds: { x: 100, y: 100, width: 212, height: 162 }, minimized: true })
+  window.emit('resize')
+  assert.equal(saved.length, 0)
+
+  window.minimized = false
+  window.emit('resize')
+  assert.equal(saved.length, 1)
+  assert.equal(saved[0].width, undefined)
+  assert.equal(saved[0].height, undefined)
+
+  window.bounds = { x: 120, y: 120, width: 1280, height: 860 }
+  window.emit('move')
+  assert.equal(saved.length, 2)
+  assert.equal(saved[1].width, 1280)
+  assert.equal(saved[1].height, 860)
+})
+
+test('取消最大化若恢复到异常过小尺寸会兜底重置为默认尺寸', () => {
+  const { window, setSizeCalls, saved } = setup({ isMaximized: true }, { bounds: { x: 200, y: 150, width: 212, height: 162 } })
+  window.emit('unmaximize')
+  assert.deepEqual(setSizeCalls, [[1200, 800]])
+  assert.equal(saved.at(-1).width, 1200)
+  assert.equal(saved.at(-1).height, 800)
 })
 })()
 

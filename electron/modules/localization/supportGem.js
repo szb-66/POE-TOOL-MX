@@ -85,34 +85,34 @@ function templateKeys(entry) {
       entry.stats.ids[0] === 'random_skill_gem_level_+_level' &&
       entry.stats.ids[1] === 'random_skill_gem_level_+_index' &&
       /^display_indexable_skill 2 [01]$/.test(handlers)) {
-    return { kind: 'all-skill-gems-level', table: 'skill', level: 0, name: 1, sign: entry.en[0] }
+    return { kind: 'all-skill-gems-level', table: 'skill', level: 0, name: 1, sign: entry.en[0], allowEllipsis: true }
   }
   if (condition === '#' && /^passive_hash 1\b/.test(handlers)) {
-    if (entry.en === 'Allocates {0}') return { kind: 'single', table: 'passive', name: 0, render: name => `Allocates ${name}` }
+    if (entry.en === 'Allocates {0}') return { kind: 'single', table: 'passive', name: 0, allowEllipsis: true, render: name => `Allocates ${name}` }
     if (entry.en === 'Allocates {0} if you have the matching modifier on Forbidden Flesh') {
-      return { kind: 'single', table: 'passive', name: 0, render: name => `Allocates ${name} if you have the matching modifier on Forbidden Flesh` }
+      return { kind: 'single', table: 'passive', name: 0, allowEllipsis: true, render: name => `Allocates ${name} if you have the matching modifier on Forbidden Flesh` }
     }
     if (entry.en === 'Allocates {0} if you have the matching modifier on Forbidden Flame') {
-      return { kind: 'single', table: 'passive', name: 0, render: name => `Allocates ${name} if you have the matching modifier on Forbidden Flame` }
+      return { kind: 'single', table: 'passive', name: 0, allowEllipsis: true, render: name => `Allocates ${name} if you have the matching modifier on Forbidden Flame` }
     }
     if (entry.en === '1 added passive skill is {0}') {
-      return { kind: 'single', table: 'passive', name: 0, render: name => `1 added passive skill is ${name}` }
+      return { kind: 'single', table: 'passive', name: 0, allowEllipsis: true, render: name => `1 added passive skill is ${name}` }
     }
     if (entry.id === 'local_unique_jewel_disconnected_passives_can_be_allocated_around_keystone_hash') {
-      return { kind: 'single', table: 'passive', name: 0, render: name => `Passive Skills in Radius of ${name} can be Allocated\nwithout being connected to your tree\nPassage` }
+      return { kind: 'single', table: 'passive', name: 0, allowEllipsis: true, render: name => `Passive Skills in Radius of ${name} can be Allocated\nwithout being connected to your tree\nPassage` }
     }
   }
   if (entry.id === 'map_contains_citadel' && entry.en === 'Map contains {0}' && handlers === 'atlas_exile_citadel_index 1') {
-    return { kind: 'single', table: 'citadel', name: 0, render: name => `Map contains ${name}` }
+    return { kind: 'single', table: 'citadel', name: 0, allowEllipsis: true, render: name => `Map contains ${name}` }
   }
   if (entry.id === 'map_elder_boss_variation' && entry.en === 'Map is occupied by {0}' && handlers === 'elder_guardian_index 1') {
-    return { kind: 'single', table: 'elderGuardian', name: 0, render: name => `Map is occupied by ${name}`, extra: ['Map is occupied by {0}'] }
+    return { kind: 'single', table: 'elderGuardian', name: 0, allowEllipsis: true, render: name => `Map is occupied by ${name}`, extra: ['Map is occupied by {0}'] }
   }
   if (entry.id === 'local_jewel_variable_ring_radius_value' && entry.en === 'Only affects Passives in {0} Ring' && /^passive_jewel_radius 1\b/.test(handlers)) {
-    return { kind: 'single', table: 'ringRadius', name: 0, render: name => `Only affects Passives in ${name} Ring`, extra: ['Only affects Passives in {0} Ring', '只影响{0}环内的天赋', '僅影響{0}環內的天賦'] }
+    return { kind: 'single', table: 'ringRadius', name: 0, allowEllipsis: true, render: name => `Only affects Passives in ${name} Ring`, extra: ['Only affects Passives in {0} Ring', '只影响{0}环内的天赋', '僅影響{0}環內的天賦'] }
   }
   if (entry.id === 'maximum_number_of_X_minion_type_doubled' && /^minion_doubling_type 1\b/.test(handlers)) {
-    return { kind: 'single', table: 'minionDoubling', name: 0, render: name => `Maximum number of ${name} is Doubled\nCannot have Minions other than ${name}`, extra: ['Maximum number of {0} is Doubled\nCannot have Minions other than {0}'] }
+    return { kind: 'single', table: 'minionDoubling', name: 0, allowEllipsis: true, render: name => `Maximum number of ${name} is Doubled\nCannot have Minions other than ${name}`, extra: ['Maximum number of {0} is Doubled\nCannot have Minions other than {0}'] }
   }
   return null
 }
@@ -227,7 +227,9 @@ export function createSupportGemResolver(entries = []) {
           }
           continue
         }
-        const englishNames = nameTables.get(keys.table)?.get(compact(match.groups.name))
+        const ellipsis = keys.allowEllipsis ? stripEllipsisAnnotation(match.groups.name) : null
+        const rawName = ellipsis ? compact(ellipsis[1]) : compact(match.groups.name)
+        const englishNames = nameTables.get(keys.table)?.get(rawName)
         if (!englishNames?.size) continue
         if (keys.kind === 'skill-level' || keys.kind === 'all-skill-gems-level') {
           const level = statNumber(match.groups.level)

@@ -10,6 +10,8 @@ import {
   validatePotionAssist
 } from '../../../shared/combatAssist.js'
 import { normalizeAutomationTiming, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
+import { stopPythonProcess } from '../python/process.js'
 
 const COMBAT_SCRIPT_TEMPLATE = new URL('../../../src/assets/scripts/combat_assist_template.py', import.meta.url)
 
@@ -40,10 +42,14 @@ function spawnCombatProcess({ mode, config, suffix, origin, onStatus, onFailed, 
   const pythonPath = processTools.python.detectPythonPath()
   if (!pythonPath) throw new Error('未找到Python可执行文件')
   const { scriptPath, configPath } = prepareFiles(processTools.fileWatcher, config, suffix)
-  const child = spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
-    shell: false,
+  const child = spawnOperationProcess({
+    operationId: 'combat.assist',
+    pythonPath,
+    scriptPath,
+    args: ['--mode', mode, '--config', configPath],
     env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
-    stdio: ['ignore', 'pipe', 'pipe']
+    stdin: 'ignore',
+    fallbackSpawn: spawn
   })
   const send = payload => onStatus(origin ? { ...payload, origin } : payload)
   let outputBuffer = ''
@@ -74,7 +80,9 @@ async function stopCombatProcess(processRef, clear, statusPayload, errorMessage)
     return { success: true, stopped: false, alreadyStopped: true }
   }
   const target = processRef
-  let success = await processTools?.python?.killPythonProcessTree?.(target.pid)
+  let success = await stopPythonProcess(target, {
+    killTree: pid => processTools?.python?.killPythonProcessTree?.(pid)
+  })
   if (!success && !isAlive(target)) success = true
   if (success) {
     clear()
@@ -181,11 +189,21 @@ function prepareFiles(fileWatcher, config, suffix) {
 
 function runOnce(pythonPath, scriptPath, mode, configPath) {
   return new Promise((resolve) => {
-    const child = spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
-      shell: false,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
-      stdio: ['ignore', 'pipe', 'pipe']
-    })
+    const child = mode === 'portal'
+      ? spawnOperationProcess({
+          operationId: 'combat.assist',
+          pythonPath,
+          scriptPath,
+          args: ['--mode', mode, '--config', configPath],
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+          stdin: 'ignore',
+          fallbackSpawn: spawn
+        })
+      : spawn(pythonPath, [scriptPath, '--mode', mode, '--config', configPath], {
+          shell: false,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+          stdio: ['ignore', 'pipe', 'pipe']
+        })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', data => { stdout += data.toString('utf8') })

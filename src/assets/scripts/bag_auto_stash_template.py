@@ -138,6 +138,9 @@ BUTTON_HOLD_SECONDS = 0.015
 RELEASE_SETTLE_SECONDS = 0.01
 CLIPBOARD_RESPONSE_MIN_SECONDS = 0.01
 STASH_SETTLE_SECONDS = 0.01
+UNIQUE_TRANSFER_INITIAL_SETTLE_SECONDS = 0.08
+UNIQUE_TRANSFER_CONFIRM_POLL_SECONDS = 0.06
+UNIQUE_TRANSFER_CONFIRM_ATTEMPTS = 4
 VK_CONTROL = 0x11
 EXTRA_INVENTORY_MAX_COLUMNS = 6
 FOCUS_ACTIVATION_MIN_SECONDS = 0.2
@@ -720,6 +723,7 @@ def is_game_foreground():
     if sys.platform != "win32":
         return False
     user32 = ctypes.windll.user32
+    user32.GetForegroundWindow.restype = wintypes.HWND
     return window_matches_game(user32.GetForegroundWindow())
 
 
@@ -736,6 +740,10 @@ def _client_bounds_for_hwnd(hwnd):
     if sys.platform != "win32" or not hwnd:
         return None
     user32 = ctypes.windll.user32
+    user32.GetClientRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+    user32.GetClientRect.restype = wintypes.BOOL
+    user32.ClientToScreen.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.POINT)]
+    user32.ClientToScreen.restype = wintypes.BOOL
     rect = wintypes.RECT()
     origin = wintypes.POINT(0, 0)
     if not user32.GetClientRect(hwnd, ctypes.byref(rect)):
@@ -746,6 +754,15 @@ def _client_bounds_for_hwnd(hwnd):
     height = max(0, int(rect.bottom - rect.top))
     if not (width and height):
         return None
+    dpi = 96
+    try:
+        user32.GetDpiForWindow.argtypes = [wintypes.HWND]
+        user32.GetDpiForWindow.restype = wintypes.UINT
+        window_dpi = int(user32.GetDpiForWindow(hwnd))
+        if window_dpi > 0:
+            dpi = window_dpi
+    except Exception:
+        dpi = 96
     return {
         "left": int(origin.x),
         "top": int(origin.y),
@@ -753,7 +770,7 @@ def _client_bounds_for_hwnd(hwnd):
         "bottom": int(origin.y + height),
         "width": width,
         "height": height,
-        "dpi": int(user32.GetDpiForWindow(hwnd))
+        "dpi": dpi
     }
 
 
@@ -761,6 +778,9 @@ def get_game_client_bounds():
     if sys.platform != "win32":
         return None
     user32 = ctypes.windll.user32
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
     foreground = user32.GetForegroundWindow()
     if foreground and user32.IsWindowVisible(foreground) and window_matches_game(foreground):
         bounds = _client_bounds_for_hwnd(foreground)
@@ -1186,27 +1206,37 @@ def transfer_item_once(controller):
 
 
 def transfer_stash_item(controller, item, force_unique_stash=False):
-    """普通入库单击一次；可选传奇在确认仍存在后追加一次 Ctrl+Shift+左键。"""
+    """普通入库单击一次；可选传奇在等待正常入库并确认仍存在后，才追加一次 Ctrl+Shift+左键。"""
     try:
         force_unique = force_unique_stash and item.get("rarity") == "unique"
         click = controller.click_with_ctrl if force_unique else controller.ctrl_click
         if not click():
             return False, runtime_stop_reason or "transfer-unconfirmed"
-        time.sleep(STASH_SETTLE_SECONDS)
         if not force_unique:
+            time.sleep(STASH_SETTLE_SECONDS)
             return True, ""
-        copy_status, copied_text = controller.copy_item_text(
-            ctrl_held=True, clear_first=True)
-        if copy_status == "empty":
-            return True, ""
-        if copy_status != "copied":
-            return False, runtime_stop_reason or "transfer-unconfirmed"
-        copied_item = parse_item_header(copied_text)
-        if copied_item is None:
-            return False, runtime_stop_reason or "transfer-unconfirmed"
+        # 传奇正常入库需要等待游戏服务端完成转移（含仓库亲和性），避免过早判仍在原格而直接触发 Shift 强入。
+        time.sleep(max(STASH_SETTLE_SECONDS, UNIQUE_TRANSFER_INITIAL_SETTLE_SECONDS))
         identity_fields = ("category", "rarity", "name", "baseName")
-        if any(copied_item.get(field) != item.get(field) for field in identity_fields):
-            return True, ""
+        attempts = max(1, int(UNIQUE_TRANSFER_CONFIRM_ATTEMPTS))
+        for attempt in range(attempts):
+            if not is_running:
+                return False, runtime_stop_reason or "user-stopped"
+            copy_status, copied_text = controller.copy_item_text(
+                ctrl_held=True, clear_first=True)
+            if not is_running:
+                return False, runtime_stop_reason or "user-stopped"
+            if copy_status == "empty":
+                return True, ""
+            if copy_status != "copied":
+                return False, runtime_stop_reason or "transfer-unconfirmed"
+            copied_item = parse_item_header(copied_text)
+            if copied_item is None:
+                return False, runtime_stop_reason or "transfer-unconfirmed"
+            if any(copied_item.get(field) != item.get(field) for field in identity_fields):
+                return True, ""
+            if attempt + 1 < attempts:
+                time.sleep(UNIQUE_TRANSFER_CONFIRM_POLL_SECONDS)
         if not controller.ctrl_shift_click():
             return False, runtime_stop_reason or "transfer-unconfirmed"
         return True, ""

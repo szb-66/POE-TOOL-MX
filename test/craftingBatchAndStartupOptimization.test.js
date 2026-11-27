@@ -2,7 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { spawn, spawnSync } from 'node:child_process'
+import { createSSRApp, h } from 'vue'
+import { renderToString } from 'vue/server-renderer'
+import { createServer } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { load } from 'cheerio'
 import { pythonPath } from './helpers/python.js'
 import { handlePipeParseRequest, PARSE_REQ_PREFIX, PARSE_RES_PREFIX } from '../electron/modules/python/parsePipe.js'
 import { createOverlayDispatcher } from '../electron/modules/window/craftingOverlayLifecycle.js'
@@ -637,4 +643,76 @@ builtins.print(json.dumps({"ok": ok, "fatalCalls": fatal_calls}, ensure_ascii=Fa
   assert.equal(failOnTarget.ok, false)
   assert.equal(failOnTarget.fatalCalls.length, 1)
   assert.equal(failOnTarget.fatalCalls[0].code, 'LOCALIZATION_UNRESOLVED')
+})
+
+test('批量制作扫完背包后即使最后格子未命中或全空也显示已完成而非制作中', async (t) => {
+  const vite = await createServer({
+    configFile: false,
+    plugins: [vue()],
+    optimizeDeps: { noDiscovery: true, include: [] },
+    resolve: { alias: { '@': fileURLToPath(new URL('../src', import.meta.url)) } },
+    server: { middlewareMode: true },
+    appType: 'custom',
+    logLevel: 'silent'
+  })
+  t.after(() => vite.close())
+  const { default: OverlayContent } = await vite.ssrLoadModule('/src/domains/overlay/components/OverlayContent.vue')
+  const render = async (props) => {
+    const app = createSSRApp(OverlayContent, { settings: { backgroundMode: 'none' }, ...props })
+    for (const name of ['el-button', 'el-icon']) app.component(name, { render() { return h('button', this.$slots.default?.()) } })
+    return load(await renderToString(app))
+  }
+
+  // 1. 扫完所有格子，最后扫描到非目标/未命中物品（affixMatch 为 false）
+  const batchDoneLastUnmatched = await render({
+    itemInfo: {
+      name: '重革腰带',
+      baseName: '重革腰带',
+      rarity: '稀有',
+      level: 86,
+      explicitMods: ['+30 最大生命'],
+      affixMatch: false,
+      socketMatch: false,
+      eldritchImplicitMatch: false
+    },
+    batchProgress: { mode: 'auto-scan', total: 1, completed: 1, skipped: 0, remaining: 0, currentItem: null, skippedItems: [] },
+    isCompleted: true,
+    isStopped: false
+  })
+  assert.equal(batchDoneLastUnmatched('.status-footer .match-success').text().trim(), '批量制作已完成')
+  assert.equal(batchDoneLastUnmatched('.status-footer .match-pending').length, 0)
+  assert.match(batchDoneLastUnmatched('.completion-actions').text(), /确认完成/)
+
+  // 2. 全空背包扫完（itemInfo 为 null）
+  const emptyBagDone = await render({
+    itemInfo: null,
+    batchProgress: { mode: 'auto-scan', total: 0, completed: 0, skipped: 0, remaining: 0, currentItem: null, skippedItems: [] },
+    isCompleted: true,
+    isStopped: false
+  })
+  assert.equal(emptyBagDone('.status-footer .match-success').text().trim(), '批量制作已完成')
+  assert.equal(emptyBagDone('.placeholder-text').length, 0)
+  assert.match(emptyBagDone('.completion-actions').text(), /确认完成/)
+
+  // 3. 批量制作中途停止但残留上一件命中标志
+  const stoppedWithPrevMatch = await render({
+    itemInfo: {
+      name: '皇家坚盔',
+      baseName: '皇家坚盔',
+      rarity: '魔法',
+      level: 85,
+      explicitMods: ['+100 最大生命'],
+      affixMatch: true
+    },
+    batchProgress: { mode: 'auto-scan', total: 2, completed: 1, skipped: 0, remaining: 1, currentItem: null, skippedItems: [] },
+    isCompleted: false,
+    isStopped: true
+  })
+  assert.equal(stoppedWithPrevMatch('.status-footer .match-stopped').text().trim(), '已停止')
+  assert.equal(stoppedWithPrevMatch('.status-footer .match-pending').length, 0)
+  assert.match(stoppedWithPrevMatch('.completion-actions').text(), /关闭/)
+
+  // 4. OverlayView 在 update-overlay 收到 crafting-batch-completed 时也同步进入完成态
+  const overlayView = readFileSync(new URL('../src/domains/overlay/OverlayView.vue', import.meta.url), 'utf8')
+  assert.match(overlayView, /if \(data\.event === 'crafting-batch-completed'\) \{[\s\S]*isCompleted\.value = true/)
 })

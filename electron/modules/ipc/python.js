@@ -20,6 +20,7 @@ import { batchRecoveryStore } from '../crafting/batchRecovery.js'
 import { createOverlayDispatcher } from '../window/craftingOverlayLifecycle.js'
 import { prepareTrustedScriptRequest } from '../python/trustedScript.js'
 import { handlePipeParseRequest, normalizeMapStatsSnapshot } from '../python/parsePipe.js'
+import { getElevatedAutomation } from '../elevatedAutomation/index.js'
 
 let stopScriptHandler = null
 
@@ -286,9 +287,7 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
         const previousProcessId = currentScriptProcess.pid
         intentionallyStopped.add(currentScriptProcess)
         try {
-          // 使用进程树终止函数确保完全终止
-          const pid = currentScriptProcess.pid
-          await killPythonProcessTree(pid)
+          await stopPythonProcess(currentScriptProcess, { killTree: killPythonProcessTree })
           await new Promise(resolve => setTimeout(resolve, 300))
         } catch (killError) {
           try {
@@ -360,7 +359,33 @@ export function registerPythonHandlers(python, window, fileWatcher, { server, lo
       let latestMapStats = null
       let scriptTermination = null
       let manualStopNotified = false
-      const launch = createPythonProcess({ pythonPath, scriptPath, enableParsePipe: true })
+      const broker = getElevatedAutomation()
+      const useElevatedHost = broker ? await broker.shouldUseElevatedHost({ pythonPath }) : false
+      let launch
+      if (useElevatedHost) {
+        const remoteChild = broker.spawnElevated({
+          operationId: mode === 'items' ? 'crafting.items' : 'crafting.maps',
+          stdin: 'pipe',
+          env: { ...process.env, POE_PARSE_TRANSPORT: 'pipe' },
+          scriptContent,
+          copyStashTabSelector: requireStashTabOcr
+        })
+        const started = new Promise((resolve, reject) => {
+          const onSpawn = () => {
+            remoteChild.removeListener('error', onStartupError)
+            resolve(remoteChild)
+          }
+          const onStartupError = error => {
+            remoteChild.removeListener('spawn', onSpawn)
+            reject(error)
+          }
+          remoteChild.once('spawn', onSpawn)
+          remoteChild.once('error', onStartupError)
+        })
+        launch = { process: remoteChild, started }
+      } else {
+        launch = createPythonProcess({ pythonPath, scriptPath, enableParsePipe: true })
+      }
       const pythonProcess = launch.process
       const startupPromise = waitForScriptStartup(pythonProcess, {
         getFailureReason: (code) => runtimeError || stderr.trim() ||

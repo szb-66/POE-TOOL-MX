@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,11 +34,21 @@ export function runStashTabSelector({ python, fileWatcher, mode, config }) {
   const configPath = path.join(filePaths.tempDir, `stash_tab_selector_${mode}.json`)
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
   return new Promise((resolve, reject) => {
-    const child = spawn(pythonPath, [resolveStashTabSelectorPath(), '--mode', mode, '--config', configPath], {
-      shell: false,
-      windowsHide: true,
-      env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
-    })
+    const child = mode === 'select'
+      ? spawnOperationProcess({
+          operationId: 'stash-tabs.select',
+          pythonPath,
+          scriptPath: resolveStashTabSelectorPath(),
+          args: ['--mode', mode, '--config', configPath],
+          env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
+          stdin: 'ignore',
+          fallbackSpawn: spawn
+        })
+      : spawn(pythonPath, [resolveStashTabSelectorPath(), '--mode', mode, '--config', configPath], {
+          shell: false,
+          windowsHide: true,
+          env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' }
+        })
     let stdout = ''
     let stderr = ''
     child.stdout.setEncoding('utf8')

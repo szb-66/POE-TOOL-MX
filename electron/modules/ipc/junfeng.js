@@ -28,7 +28,6 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection } 
     if (!templates.inventoryTitle) {
       throw Object.assign(new Error('请先配置背包标题模板'), { failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' })
     }
-    manager.setRuntime(candidate)
     await interfaceDetection?.registerConsumer('junfeng-highlight', {
       active_targets: ['inventory', 'reward'],
       templates: {
@@ -39,6 +38,7 @@ export function registerJunfengHandlers(manager, window, { interfaceDetection } 
       },
       match_threshold: Number(candidate.matchThreshold ?? 0.8)
     })
+    manager.setRuntime(candidate)
     return manager.getStatus()
   }))
   ipcMain.handle('junfeng-preview', invoke(() => manager.preview()))

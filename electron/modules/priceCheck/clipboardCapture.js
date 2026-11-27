@@ -1,6 +1,12 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { CHAOS_ERROR_CODES, ChaosRecipeError } from '../chaosRecipe/errors.js'
+import {
+  execOperationProcess,
+  getElevatedAutomation,
+  resolveBundledScriptPath,
+  spawnOperationProcess
+} from '../elevatedAutomation/index.js'
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
@@ -48,9 +54,10 @@ function gameForegroundGuardLines() {
     ' hproc = k.OpenProcess(0x1000, False, process_id)',
     ' if not hproc: return None',
     ' token = wintypes.HANDLE()',
-    ' a = ctypes.windll.advapi32',
+    ' a = ctypes.WinDLL("advapi32", use_last_error=True)',
     ' if not a.OpenProcessToken(hproc, 0x0008, ctypes.byref(token)):',
-    '  k.CloseHandle(hproc); return None',
+    '  err = ctypes.get_last_error()',
+    '  k.CloseHandle(hproc); return True if err == 5 else None',
     ' elevated = wintypes.DWORD()',
     ' needed = wintypes.DWORD()',
     ' ok = a.GetTokenInformation(token, TokenElevation, ctypes.byref(elevated), ctypes.sizeof(elevated), ctypes.byref(needed))',
@@ -63,13 +70,16 @@ function gameForegroundGuardLines() {
 }
 
 function mapGuardExitCode(code, message = '') {
-  if (Number(code) === 23) {
-    return new ChaosRecipeError(CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND, '游戏窗口当前不在前台')
+  const numericCode = Number(code)
+  if (numericCode === 23) {
+    return new ChaosRecipeError(CHAOS_ERROR_CODES.GAME_NOT_FOREGROUND, '游戏窗口当前不在前台', { exitCode: 23 })
   }
-  if (Number(code) === 24) {
-    return new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '游戏以管理员权限运行，请同样以管理员权限运行流放助手')
+  if (numericCode === 24) {
+    return new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '游戏以管理员权限运行，请批准管理员授权后再执行查价', { exitCode: 24 })
   }
-  return new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `无法向游戏发送复制按键：${message || code || 'unknown'}`)
+  return new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, `无法向游戏发送复制按键：${message || code || 'unknown'}`, {
+    ...(Number.isFinite(numericCode) ? { exitCode: numericCode } : {})
+  })
 }
 
 function runWindowsInputScript(pythonPath, lines) {
@@ -101,7 +111,7 @@ function residentWindowsInputScript() {
     'from ctypes import wintypes',
     'u = ctypes.windll.user32',
     'k = ctypes.windll.kernel32',
-    'a = ctypes.windll.advapi32',
+    'a = ctypes.WinDLL("advapi32", use_last_error=True)',
     'u.GetForegroundWindow.restype = wintypes.HWND',
     'u.GetWindowTextLengthW.argtypes = [wintypes.HWND]',
     'u.GetWindowTextLengthW.restype = ctypes.c_int',
@@ -147,7 +157,8 @@ function residentWindowsInputScript() {
     ' if not hproc: return None',
     ' token = wintypes.HANDLE()',
     ' try:',
-    '  if not a.OpenProcessToken(hproc, 0x0008, ctypes.byref(token)): return None',
+    '  if not a.OpenProcessToken(hproc, 0x0008, ctypes.byref(token)):',
+    '   return True if ctypes.get_last_error() == 5 else None',
     '  elevated = wintypes.DWORD()',
     '  needed = wintypes.DWORD()',
     '  ok = a.GetTokenInformation(token, TokenElevation, ctypes.byref(elevated), ctypes.sizeof(elevated), ctypes.byref(needed))',
@@ -343,37 +354,127 @@ export class WindowsClipboardInputHelper {
 }
 
 const sharedWindowsHelper = new WindowsClipboardInputHelper()
+let sharedElevatedHelper = null
+let sharedElevatedBroker = null
+
+function priceCopyScriptPath() {
+  return resolveBundledScriptPath('price_copy_helper.py', {
+    isPackaged: Boolean(process.resourcesPath && !process.defaultApp),
+    resourcesPath: process.resourcesPath
+  })
+}
+
+function isElevationRequiredError(error) {
+  return error instanceof ChaosRecipeError && Number(error?.details?.exitCode) === 24
+}
+
+function getSharedElevatedHelper(broker) {
+  if (!broker) return null
+  if (sharedElevatedHelper && sharedElevatedBroker === broker) return sharedElevatedHelper
+  sharedElevatedHelper?.dispose()
+  sharedElevatedBroker = broker
+  sharedElevatedHelper = new WindowsClipboardInputHelper({
+    spawnImpl: (pythonPath) => spawnOperationProcess({
+      operationId: 'price.copy-item',
+      pythonPath,
+      scriptPath: priceCopyScriptPath(),
+      args: ['resident'],
+      stdin: 'pipe',
+      forceElevated: true,
+      broker
+    })
+  })
+  return sharedElevatedHelper
+}
+
+async function runViaElevatedPriceCopy(pythonPath, mode, { forceElevated = false } = {}) {
+  const result = await execOperationProcess({
+    operationId: 'price.copy-item',
+    pythonPath,
+    scriptPath: priceCopyScriptPath(),
+    args: [mode],
+    timeoutMs: 65_000,
+    forceElevated
+  })
+  if (!result) return null
+  if (result.exitCode === 0) return true
+  if (Number(result.exitCode) === 24 && !forceElevated) {
+    return runViaElevatedPriceCopy(pythonPath, mode, { forceElevated: true })
+  }
+  throw mapGuardExitCode(result.exitCode, result.stderr)
+}
+
+async function requestElevatedClipboardAction(broker, pythonPath, action, fallbackMessage) {
+  const helper = getSharedElevatedHelper(broker)
+  const timeoutMs = broker.hasActiveConnection() ? 3000 : 65_000
+  try {
+    return await helper.request(pythonPath, action, { timeoutMs })
+  } catch (error) {
+    if (error instanceof ChaosRecipeError) throw error
+    if (['ELEVATION_CANCELLED', 'ELEVATED_BROKER_CLOSED', 'ELEVATED_RUNTIME_UNAVAILABLE'].includes(error?.code)) {
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error.message)
+    }
+    try {
+      const handled = await runViaElevatedPriceCopy(pythonPath, action, { forceElevated: true })
+      if (handled) return
+    } catch (fallbackError) {
+      if (fallbackError instanceof ChaosRecipeError) throw fallbackError
+      if (fallbackError?.code === 'ELEVATION_CANCELLED') {
+        throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, fallbackError.message)
+      }
+      throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, fallbackError?.message || fallbackMessage)
+    }
+    throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, error?.message || fallbackMessage)
+  }
+}
+
+async function requestWindowsClipboardAction(pythonPath, action, oneShotLines, fallbackMessage) {
+  if (process.platform !== 'win32' || !pythonPath) {
+    throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境无法向游戏发送复制按键')
+  }
+  const broker = getElevatedAutomation()
+  if (broker?.hasActiveConnection()) {
+    return requestElevatedClipboardAction(broker, pythonPath, action, fallbackMessage)
+  }
+  try {
+    return await sharedWindowsHelper.request(pythonPath, action)
+  } catch (error) {
+    if (broker && isElevationRequiredError(error)) {
+      return requestElevatedClipboardAction(broker, pythonPath, action, fallbackMessage)
+    }
+    if (error instanceof ChaosRecipeError) throw error
+    try {
+      return await runWindowsInputScript(pythonPath, oneShotLines)
+    } catch (fallbackError) {
+      if (broker && isElevationRequiredError(fallbackError)) {
+        return requestElevatedClipboardAction(broker, pythonPath, action, fallbackMessage)
+      }
+      throw fallbackError
+    }
+  }
+}
 
 export function warmWindowsClipboardHelper(pythonPath) {
+  const broker = getElevatedAutomation()
+  if (broker?.hasActiveConnection()) {
+    return getSharedElevatedHelper(broker).warm(pythonPath)
+  }
   return sharedWindowsHelper.warm(pythonPath)
 }
 
 export function disposeWindowsClipboardHelper() {
   sharedWindowsHelper.dispose()
+  sharedElevatedHelper?.dispose()
+  sharedElevatedHelper = null
+  sharedElevatedBroker = null
 }
 
 export async function assertWindowsGameForeground(pythonPath) {
-  if (process.platform !== 'win32' || !pythonPath) {
-    throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境无法向游戏发送复制按键')
-  }
-  try {
-    return await sharedWindowsHelper.request(pythonPath, 'check')
-  } catch (error) {
-    if (error instanceof ChaosRecipeError) throw error
-    return runWindowsInputScript(pythonPath, gameForegroundGuardLines())
-  }
+  return requestWindowsClipboardAction(pythonPath, 'check', gameForegroundGuardLines(), '无法检测游戏前景窗口')
 }
 
 export async function sendWindowsCopy(pythonPath) {
-  if (process.platform !== 'win32' || !pythonPath) {
-    throw new ChaosRecipeError(CHAOS_ERROR_CODES.INVALID_REQUEST, '当前环境无法向游戏发送复制按键')
-  }
-  try {
-    return await sharedWindowsHelper.request(pythonPath, 'copy')
-  } catch (error) {
-    if (error instanceof ChaosRecipeError) throw error
-    await runWindowsInputScript(pythonPath, buildOneShotWindowsCopyScript())
-  }
+  return requestWindowsClipboardAction(pythonPath, 'copy', buildOneShotWindowsCopyScript(), '无法向游戏发送复制按键')
 }
 
 export async function captureFreshClipboardText({

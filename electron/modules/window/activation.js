@@ -7,6 +7,7 @@
 
 import { execFile } from 'node:child_process'
 import path from 'node:path'
+import { execOperationProcess, getElevatedAutomation, resolveBundledScriptPath } from '../elevatedAutomation/index.js'
 import { selectGameWindowCandidate } from '../system/gameDpi.js'
 import { restoreWindowToForeground, restoreWindowsNativeWindowFocus } from './foregroundRestore.js'
 
@@ -35,7 +36,7 @@ const WINDOWS_EXIT_CODE_MAP = Object.freeze({
 const GAME_FAILURE_MESSAGES = Object.freeze({
   [WINDOW_ACTIVATION_CODES.GAME_NOT_FOUND]: '未找到同时匹配窗口名称和客户端进程的游戏窗口',
   [WINDOW_ACTIVATION_CODES.PYTHON_UNAVAILABLE]: '本机自动化运行环境不可用，无法激活游戏窗口',
-  [WINDOW_ACTIVATION_CODES.PRIVILEGE_MISMATCH]: '游戏权限高于助手，请以相同权限运行开发版助手',
+  [WINDOW_ACTIVATION_CODES.PRIVILEGE_MISMATCH]: '游戏以管理员权限运行，请批准管理员授权以激活游戏窗口',
   [WINDOW_ACTIVATION_CODES.FOCUS_REFUSED]: '系统拒绝将游戏窗口切换到前台',
   [WINDOW_ACTIVATION_CODES.TARGET_CHANGED]: '游戏窗口在激活过程中已关闭或身份发生变化',
   [WINDOW_ACTIVATION_CODES.ACTIVATION_ERROR]: '游戏窗口激活过程发生异常'
@@ -169,14 +170,56 @@ print(json.dumps({"title": actual_title, "processName": actual_process}, ensure_
  * Outputs: 始终 resolve 结构化结果；不抛出子进程错误。
  * Edge cases: Python 缺失、权限不匹配、目标变化、超时均失败关闭。
  */
-export function activateWindowsGameWindow({
+export async function activateWindowsGameWindow({
   pythonPath,
   titles,
   processNames,
   execFileImpl = execFile
 } = {}) {
   if (!pythonPath || typeof execFileImpl !== 'function') {
-    return Promise.resolve({ success: false, code: WINDOW_ACTIVATION_CODES.PYTHON_UNAVAILABLE })
+    return { success: false, code: WINDOW_ACTIVATION_CODES.PYTHON_UNAVAILABLE }
+  }
+  if (execFileImpl === execFile && getElevatedAutomation()) {
+    const scriptPath = resolveBundledScriptPath('activate_game_window.py', {
+      isPackaged: Boolean(process.resourcesPath && !process.defaultApp),
+      resourcesPath: process.resourcesPath
+    })
+    const args = [JSON.stringify(titles || []), JSON.stringify(processNames || [])]
+    const runViaBroker = async (forceElevated) => {
+      try {
+        const result = await execOperationProcess({
+          operationId: 'window.activate-game',
+          pythonPath,
+          scriptPath,
+          args,
+          timeoutMs: WINDOWS_GAME_ACTIVATION_TIMEOUT_MS + 60_000,
+          forceElevated
+        })
+        if (!result) return null
+        if (result.exitCode !== 0) {
+          return {
+            success: false,
+            code: WINDOWS_EXIT_CODE_MAP[Number(result.exitCode)] || WINDOW_ACTIVATION_CODES.ACTIVATION_ERROR
+          }
+        }
+        let target
+        try { target = JSON.parse(String(result.stdout).trim() || '{}') } catch {}
+        return { success: true, code: WINDOW_ACTIVATION_CODES.GAME_ACTIVATED, target }
+      } catch (error) {
+        if (error?.code === 'ELEVATION_CANCELLED') {
+          return { success: false, code: WINDOW_ACTIVATION_CODES.PRIVILEGE_MISMATCH }
+        }
+        return { success: false, code: WINDOW_ACTIVATION_CODES.ACTIVATION_ERROR }
+      }
+    }
+    const first = await runViaBroker(false)
+    if (first) {
+      if (!first.success && first.code === WINDOW_ACTIVATION_CODES.PRIVILEGE_MISMATCH) {
+        const retried = await runViaBroker(true)
+        if (retried) return retried
+      }
+      return first
+    }
   }
   return new Promise(resolve => {
     const finish = (result) => resolve(result)

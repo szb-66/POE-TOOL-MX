@@ -2,6 +2,7 @@ import { app, screen } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import { fileURLToPath } from 'node:url'
 import { OPERATION_DELAY, pythonAutomationTiming } from '../../../src/utils/operationDelay.js'
 import { normalizeJunfengRegion, validateJunfengGridEnvironment } from '../../../src/utils/junfengConfig.js'
@@ -135,7 +136,7 @@ export class JunfengHighlightManager {
     if (!fs.existsSync(weights)) {
       return { ready: false, reason: '高亮识别权重文件不存在' }
     }
-    return { ready: true, reason: '', modelVersion: 'slot-highlight-v1' }
+    return { ready: true, reason: '', modelVersion: 'slot-highlight-v2' }
   }
 
   currentDisplays() {
@@ -187,7 +188,7 @@ export class JunfengHighlightManager {
     fs.writeFileSync(configPath, JSON.stringify({
       grid_region: normalizeJunfengRegion(overrides.gridRegion || this.runtime.gridRegion),
       grid: overrides.grid || this.runtime.grid || { columns: 12, rows: 11 },
-      highlight_threshold: 0.98,
+      highlight_threshold: 0.95,
       enable_border_boost: true,
       abort_on_uncertain: false,
       weights_path: this.weightsPath(),
@@ -198,10 +199,21 @@ export class JunfengHighlightManager {
   }
 
   spawn(args, onEvent, pythonExe = this.pythonPath()) {
-    const child = spawn(pythonExe, [this.scriptPath(), ...args], {
-      shell: false, windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
-    })
+    const isPreview = Array.isArray(args) && args.includes('--preview')
+    const child = isPreview
+      ? spawn(pythonExe, [this.scriptPath(), ...args], {
+          shell: false, windowsHide: true,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
+        })
+      : spawnOperationProcess({
+          operationId: 'junfeng.pickup',
+          pythonPath: pythonExe,
+          scriptPath: this.scriptPath(),
+          args,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+          stdin: 'ignore',
+          fallbackSpawn: spawn
+        })
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
     child.stdout.on('data', parser(onEvent, line => console.log('[君锋镇高亮取件]', line)))

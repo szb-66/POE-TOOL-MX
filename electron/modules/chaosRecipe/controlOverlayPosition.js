@@ -62,16 +62,40 @@ export function placeControlInDip(gameBounds, offset, coordinateApi, size = CHAO
   if (!gameBounds) return null
   const toDip = coordinateApi?.screenToDipPoint || ((point) => point)
   const toPhysical = coordinateApi?.dipToScreenPoint || ((point) => point)
+  const toDipRect = typeof coordinateApi?.screenToDipRect === 'function'
+    ? coordinateApi.screenToDipRect
+    : null
   const normalized = normalizeControlOffset(offset)
-  const gameTopLeft = toDip({ x: gameBounds.left, y: gameBounds.top })
-  const gameBottomRight = toDip({ x: gameBounds.right, y: gameBounds.bottom })
-  const width = Math.min(size.width, Math.max(1, gameBottomRight.x - gameTopLeft.x))
-  const height = Math.min(size.height, Math.max(1, gameBottomRight.y - gameTopLeft.y))
-  const requested = normalized
-    ? toDip({
-        x: gameBounds.left + normalized.x,
-        y: gameBounds.top + normalized.y
+  const physicalWidth = Math.max(1, finite(gameBounds.width, finite(gameBounds.right, 0) - finite(gameBounds.left, 0)))
+  const physicalHeight = Math.max(1, finite(gameBounds.height, finite(gameBounds.bottom, 0) - finite(gameBounds.top, 0)))
+  const gameRect = toDipRect
+    ? toDipRect({
+        x: Math.round(gameBounds.left),
+        y: Math.round(gameBounds.top),
+        width: Math.round(physicalWidth),
+        height: Math.round(physicalHeight)
       })
+    : null
+  const gameTopLeft = gameRect
+    ? { x: gameRect.x, y: gameRect.y }
+    : toDip({ x: gameBounds.left, y: gameBounds.top })
+  const gameBottomRight = gameRect
+    ? { x: gameRect.x + Math.max(1, gameRect.width), y: gameRect.y + Math.max(1, gameRect.height) }
+    : toDip({ x: gameBounds.right, y: gameBounds.bottom })
+  const gameDipWidth = Math.max(1, gameBottomRight.x - gameTopLeft.x)
+  const gameDipHeight = Math.max(1, gameBottomRight.y - gameTopLeft.y)
+  const width = Math.min(size.width, gameDipWidth)
+  const height = Math.min(size.height, gameDipHeight)
+  const requested = normalized
+    ? (gameRect
+        ? {
+            x: gameTopLeft.x + (normalized.x * gameDipWidth) / physicalWidth,
+            y: gameTopLeft.y + (normalized.y * gameDipHeight) / physicalHeight
+          }
+        : toDip({
+            x: gameBounds.left + normalized.x,
+            y: gameBounds.top + normalized.y
+          }))
     : {
         x: Math.min(gameBottomRight.x - width, gameTopLeft.x + CHAOS_CONTROL_MARGIN),
         y: Math.max(gameTopLeft.y, gameBottomRight.y - height - CHAOS_CONTROL_MARGIN)

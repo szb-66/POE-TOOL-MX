@@ -47,6 +47,7 @@ export class ChaosRecipeControlOverlay {
     this.stashPickup = null
     this.junfeng = null
     this.window = null
+    this.windowLoaded = false
     this.dragSession = new OverlayDragSession()
     this.dragMoved = false
     this.statePublisher = createLoadAwarePublisher()
@@ -204,7 +205,7 @@ export class ChaosRecipeControlOverlay {
     const junfengEnabled = Boolean(this.junfeng?.runtime?.enabled)
     const junfengAutomation = this.junfeng?.getStatus?.() || { status: 'idle' }
     const junfengRunning = junfengAutomation.status === 'running'
-    const rewardDetected = junfengRunning || (!stashPickupRunning && !running && !paused && Boolean(this.detection.rewardDetected))
+    const rewardDetected = junfengRunning || (junfengEnabled && !stashPickupRunning && !running && !paused && Boolean(this.detection.rewardDetected))
     const junfengOccupied = lock.locked && lock.owner !== '君锋镇取出高亮'
     const junfengAvailability = this.junfeng?.getAvailability?.() || { ready: false, reason: '君锋镇模块未配置' }
     const canJunfeng = Boolean(junfengEnabled && this.detection.foreground &&
@@ -299,19 +300,32 @@ export class ChaosRecipeControlOverlay {
         webSecurity: false
       }
     })
-    this.window.setAlwaysOnTop(true, 'screen-saver')
-    this.window.on('close', () => this.finishDrag())
-    this.window.on('closed', () => { this.finishDrag(); this.window = null })
-    this.window.webContents.on('render-process-gone', () => this.finishDrag())
+    const createdWindow = this.window
+    this.windowLoaded = false
+    createdWindow.setAlwaysOnTop(true, 'screen-saver')
+    createdWindow.on('close', () => this.finishDrag())
+    createdWindow.on('closed', () => {
+      this.finishDrag()
+      if (this.window === createdWindow) { this.window = null; this.windowLoaded = false }
+    })
+    createdWindow.webContents.on('render-process-gone', () => this.finishDrag())
+    createdWindow.webContents.once('did-finish-load', () => {
+      if (this.window === createdWindow && !createdWindow.isDestroyed()) {
+        this.windowLoaded = true
+        this.sync()
+      }
+    })
     const devServerUrl = process.env.VITE_DEV_SERVER_URL
-    if (process.env.NODE_ENV === 'development' && devServerUrl) {
-      void this.window.loadURL(`${devServerUrl}#/chaos-recipe-control-overlay`)
-    } else {
-      void this.window.loadFile(path.resolve(moduleDir, '../../../dist/index.html'), {
-        hash: '/chaos-recipe-control-overlay'
-      })
-    }
-    return this.window
+    const loadPromise = process.env.NODE_ENV === 'development' && devServerUrl
+      ? createdWindow.loadURL(`${devServerUrl}#/chaos-recipe-control-overlay`)
+      : createdWindow.loadFile(path.resolve(moduleDir, '../../../dist/index.html'), {
+          hash: '/chaos-recipe-control-overlay'
+        })
+    void Promise.resolve(loadPromise).catch(() => {
+      if (!createdWindow.isDestroyed()) createdWindow.destroy()
+      if (this.window === createdWindow) { this.window = null; this.windowLoaded = false }
+    })
+    return createdWindow
   }
 
   sync() {
@@ -337,8 +351,12 @@ export class ChaosRecipeControlOverlay {
         offset: normalizeControlOffset(this.runtime.controlOverlayOffset)
       })
     })
+    const loading = !this.windowLoaded && typeof window.webContents?.isLoadingMainFrame === 'function' && window.webContents.isLoadingMainFrame()
     if (state.visible && placement) {
-      if (!window.isVisible()) window.showInactive()
+      if (!loading && !window.isVisible()) {
+        window.setAlwaysOnTop?.(true, 'screen-saver')
+        window.showInactive()
+      }
     } else { this.finishDrag(); if (window.isVisible()) window.hide() }
     if (!app.isPackaged && (state.rewardDetected !== this.lastPerformanceRewardDetected || performance.now() - started >= 16)) {
       console.debug('[君锋镇性能]', { phase: 'overlay-sync', rewardDetected: state.rewardDetected,
@@ -356,7 +374,8 @@ export class ChaosRecipeControlOverlay {
       process.platform === 'win32'
         ? {
             screenToDipPoint: (point) => screen.screenToDipPoint(point),
-            dipToScreenPoint: (point) => screen.dipToScreenPoint(point)
+            dipToScreenPoint: (point) => screen.dipToScreenPoint(point),
+            screenToDipRect: typeof screen.screenToDipRect === 'function' ? (rect) => screen.screenToDipRect(null, rect) : null
           }
         : null,
       this.contentSize
@@ -455,6 +474,8 @@ export class ChaosRecipeControlOverlay {
     this.statePublisher.dispose()
     if (this.window && !this.window.isDestroyed()) this.window.close()
     this.window = null
+    this.windowLoaded = false
+    this.contentSize = { ...CHAOS_CONTROL_DIP_SIZE }
   }
 
   cleanup() {

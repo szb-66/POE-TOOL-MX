@@ -84,10 +84,16 @@ export async function stopPythonProcess(child, {
   forceTimeoutMs = 500
 } = {}) {
   if (hasProcessExited(child)) return true
-  try {
-    if (await killTree(child.pid)) return true
-  } catch {
-    // 进程树终止失败后继续尝试当前子进程句柄。
+  if (child?.isRemoteElevated && typeof child.stop === 'function') {
+    try { await child.stop() } catch {}
+    if (await waitForProcessExit(child, Math.max(gracefulTimeoutMs, 1500))) return true
+  }
+  if (child?.pid) {
+    try {
+      if (await killTree(child.pid)) return true
+    } catch {
+      // 进程树终止失败后继续尝试当前子进程句柄。
+    }
   }
 
   try { child.kill('SIGTERM') } catch {}
@@ -132,11 +138,12 @@ export function clearCurrentScriptProcess() {
 export async function cleanup() {
   if (!currentScriptProcess) return
 
-  const pid = currentScriptProcess.pid
+  const target = currentScriptProcess
+  const pid = target.pid
   try {
-    const stopped = await killPythonProcessTree(pid)
+    const stopped = await stopPythonProcess(target, { killTree: killPythonProcessTree })
     if (!stopped) throw new Error(`无法终止 Python 进程树：${pid}`)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 200))
   } finally {
     clearCurrentScriptProcess()
   }

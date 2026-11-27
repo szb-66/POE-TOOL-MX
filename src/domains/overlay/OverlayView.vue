@@ -507,6 +507,13 @@ onMounted(async () => {
 
     if (data.event?.startsWith('crafting-batch-')) {
       applyBatchProgressEvent(data)
+      if (data.event === 'crafting-batch-completed') {
+        stopTermination.value = 'completed'
+        isCompleted.value = true
+        isStopped.value = false
+        batchRecoveryCheckpoint.value = null
+        batchRecoveryChecked.value = true
+      }
     }
 
     if (data.mapStats) {

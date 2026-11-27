@@ -1,5 +1,6 @@
 import { app, clipboard, screen } from 'electron'
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -446,11 +447,15 @@ export class PuzzleAnalysisService {
         templatesPath: this.templatesPath()
       }), 'utf8')
       pendingClipboardSnapshot = this.captureAutomationClipboard()
-      const child = spawn(this.automationPythonPath(), [this.autoScriptPath(), '--config', configPath], {
-        shell: false, windowsHide: true,
+      const child = spawnOperationProcess({
+        operationId: 'puzzle.auto-place',
+        pythonPath: this.automationPythonPath(),
+        scriptPath: this.autoScriptPath(),
+        args: ['--config', configPath],
         cwd: path.dirname(this.autoScriptPath()),
         env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdin: 'ignore',
+        fallbackSpawn: spawn
       })
       this.automationClipboardSnapshots.set(child, pendingClipboardSnapshot)
       pendingClipboardSnapshot = null
@@ -539,11 +544,14 @@ export class PuzzleAnalysisService {
     return new Promise((resolve, reject) => {
       const configPath = this.tempConfigPath()
       fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
-      const child = spawn(this.pythonPath(), [this.scriptPath(), '--config', configPath], {
-        shell: false,
-        windowsHide: true,
+      const child = spawnOperationProcess({
+        operationId: 'puzzle.analyze',
+        pythonPath: this.pythonPath(),
+        scriptPath: this.scriptPath(),
+        args: ['--config', configPath],
         env: { ...process.env, PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdin: 'ignore',
+        fallbackSpawn: spawn
       })
       this.child = child
       onStarted?.()
@@ -607,9 +615,11 @@ export class PuzzleAnalysisService {
     return new Promise((resolve, reject) => {
       const configPath = this.tempConfigPath().replace('puzzle-analysis-', 'chart-mods-probe-')
       fs.writeFileSync(configPath, JSON.stringify(config), 'utf8')
-      const child = spawn(this.modProbePythonPath(), [this.modProbeScriptPath(), '--config', configPath], {
-        shell: false,
-        windowsHide: true,
+      const child = spawnOperationProcess({
+        operationId: 'puzzle.chart-mods',
+        pythonPath: this.modProbePythonPath(),
+        scriptPath: this.modProbeScriptPath(),
+        args: ['--config', configPath],
         env: {
           ...process.env,
           PYTHONUNBUFFERED: '1',
@@ -617,7 +627,8 @@ export class PuzzleAnalysisService {
           PYTHONUTF8: '1',
           OC_DISABLE_DOT_ACCESS_WARNING: '1'
         },
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdin: 'ignore',
+        fallbackSpawn: spawn
       })
       this.modProbeChild = child
       onStarted?.()

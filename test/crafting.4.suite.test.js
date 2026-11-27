@@ -449,6 +449,67 @@ test('国际服汉化未应用或已失效时，简繁中文与英文联想仍�
   assert.ok(repository.searchAffixSuggestions({ query: 'maximum Life', limit: 100 }).items
     .some(row => row.effectPattern === '+# to maximum Life'))
 })
+
+test('词缀联想包含星团珠宝核心天赋（其中 1 个增加的天赋为XXX）且支持中英匹配与跨服转换', async () => {
+  const cnRepo = new CraftingDataRepository()
+  await cnRepo.initialize()
+  const cnSuggestion = cnRepo.searchAffixSuggestions({ query: '复兴', limit: 50 }).items
+    .find(row => row.effectPattern === '其中 1 个增加的天赋为复兴')
+  assert.ok(cnSuggestion, '国服词缀联想应包含“其中 1 个增加的天赋为复兴”')
+  assert.equal(cnSuggestion.source, 'clusterNotable')
+  assert.equal(cnSuggestion.canonicalPattern, '1 Added Passive Skill is Renewal')
+  assert.equal(cnSuggestion.affixType, 'prefix')
+  assert.equal(cnSuggestion.tiers.length, 1)
+  assert.equal(cnSuggestion.tiers[0].requiredLevel, 50)
+
+  const cnCondition = normalizeAffixCondition({ ...cnSuggestion, kind: 'catalog' })
+  assert.deepEqual(affixConditionItemLevelRequirement(cnCondition), { level: 50, hasUnknown: false, effective: true })
+  assert.equal(
+    matchAffixes({ modifiers: [{ text: '其中 1 个增加的天赋为复兴 — 数值不可调整', tier: 1 }] }, [{ requiredAffixes: [cnCondition] }]).isMatch,
+    true
+  )
+  assert.equal(
+    matchAffixes({ modifiers: [{ text: '1 Added Passive Skill is Renewal — Unscalable Value', tier: 1 }] }, [{ requiredAffixes: [cnCondition] }]).isMatch,
+    true
+  )
+
+  const runtime = new LocalizationRuntime({ serverId: 'international', entries: () => [], revision: () => '' })
+  const intRepo = new CraftingDataRepository({ server: getServer('international'), localizationRuntime: runtime })
+  await intRepo.initialize()
+  const intByZh = intRepo.searchAffixSuggestions({ query: '复兴', limit: 50 }).items
+    .find(row => row.effectPattern === '1 Added Passive Skill is Renewal')
+  assert.ok(intByZh, '国际服中文搜索应能联想到 Renewal 核心天赋')
+  assert.equal(intByZh.displayName, '其中 1 个增加的天赋为复兴')
+  assert.equal(intByZh.displayPattern, '其中 1 个增加的天赋为复兴')
+
+  const intByEn = intRepo.searchAffixSuggestions({ query: 'Renewal', limit: 50 }).items
+    .find(row => row.effectPattern === '1 Added Passive Skill is Renewal')
+  assert.ok(intByEn, '国际服英文搜索应能联想到 Renewal 核心天赋')
+  assert.equal(intByEn.displayName, '1 Added Passive Skill is Renewal')
+
+  const intChineseCondition = normalizeAffixCondition({
+    ...intByZh,
+    kind: 'catalog',
+    keyword: intByZh.displayName,
+    effectPattern: intByZh.displayPattern
+  })
+  const reloadedInt = intRepo.resolveCrossServerConditions({ affixConditions: [intChineseCondition] })
+  assert.equal(reloadedInt.affixConditions[0].effectPattern, '其中 1 个增加的天赋为复兴')
+  assert.equal(reloadedInt.affixConditions[0].displayName, '其中 1 个增加的天赋为复兴')
+  assert.equal(reloadedInt.affixConditions[0].canonicalPattern, '1 Added Passive Skill is Renewal')
+
+  const intEnglishCondition = normalizeAffixCondition({
+    ...intByEn,
+    kind: 'catalog',
+    keyword: intByEn.displayName,
+    effectPattern: intByEn.effectPattern
+  })
+  const reloadedEn = intRepo.resolveCrossServerConditions({ affixConditions: [intEnglishCondition] })
+  assert.equal(reloadedEn.affixConditions[0].effectPattern, '1 Added Passive Skill is Renewal')
+
+  const cnResolved = cnRepo.resolveCrossServerConditions({ affixConditions: [intEnglishCondition] })
+  assert.equal(cnResolved.affixConditions[0].effectPattern, '其中 1 个增加的天赋为复兴')
+})
 })()
 
 // === Merged from itemCraftingRestart.test.js ===

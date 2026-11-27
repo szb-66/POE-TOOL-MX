@@ -742,7 +742,7 @@ test('打包配置固定携带 x64 运行时并由 beforePack 强制验证', asy
     entry.from === 'src/assets/scripts/stash_tab_selector.py' && entry.to === 'stash_tab_selector.py'
   )))
   assert.deepEqual(packageConfig.build.win.target, [{ target: 'nsis', arch: ['x64'] }])
-  assert.equal(packageConfig.build.win.requestedExecutionLevel, 'requireAdministrator')
+  assert.equal(packageConfig.build.win.requestedExecutionLevel, 'asInvoker')
 })
 })()
 
@@ -1510,7 +1510,7 @@ test('网络与管理员检查只返回状态，不泄露接口地址', () => {
   assert.equal(network.status, 'ready')
   assert.equal(network.activeCount, 1)
   assert.doesNotMatch(JSON.stringify(network), /192\.0\.2\.25/)
-  assert.equal(evaluateAdministrator(false).status, 'attention')
+  assert.equal(evaluateAdministrator(false).status, 'ready')
 })
 
 test('统一启动健康检查覆盖系统、目录、权限、显示、网络、运行时和游戏窗口', async () => {

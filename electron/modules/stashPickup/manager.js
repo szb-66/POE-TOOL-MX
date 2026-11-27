@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { spawn } from 'node:child_process'
+import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -112,7 +113,7 @@ export class StashPickupManager {
       calibration: this.runtime.calibration || {},
       layout_confidence: 1.15,
       weights_path: this.weightsPath(),
-      highlight_threshold: 0.98,
+      highlight_threshold: 0.95,
       enable_border_boost: true,
       abort_on_uncertain: false,
       item_footprints: itemFootprintRegistry.snapshot(),
@@ -132,10 +133,21 @@ export class StashPickupManager {
   }
 
   spawnProcess(args, onEvent, pythonExe = this.pythonPath()) {
-    const child = spawn(pythonExe, [this.scriptPath(), ...args], {
-      shell: false, windowsHide: true,
-      env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
-    })
+    const isPreview = Array.isArray(args) && args.includes('--preview')
+    const child = isPreview
+      ? spawn(pythonExe, [this.scriptPath(), ...args], {
+          shell: false, windowsHide: true,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' }
+        })
+      : spawnOperationProcess({
+          operationId: 'stash-pickup.run',
+          pythonPath: pythonExe,
+          scriptPath: this.scriptPath(),
+          args,
+          env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUNBUFFERED: '1' },
+          stdin: 'ignore',
+          fallbackSpawn: spawn
+        })
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
     child.stdout.on('data', parseEvents(onEvent, line => console.log('[仓库自动取件]', line)))

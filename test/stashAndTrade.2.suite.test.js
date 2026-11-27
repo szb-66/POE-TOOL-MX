@@ -1134,6 +1134,83 @@ test('普通仓库与君锋镇共用三轮点击后复制确认且入库使用�
   assert.match(bag, /def transfer_pickup_item\(controller\):[\s\S]*begin_ctrl\(\)[\s\S]*for _attempt in range\(3\):[\s\S]*copy_item_text\(ctrl_held=True,\s*clear_first=True\)[\s\S]*inventory-full/)
   assert.match(bag, /def run_stash\(config\):[\s\S]*transfer_stash_item\([\s\S]*controller, item, force_unique_stash\)/)
 })
+
+test('取件运行态 IPC 在检测消费者注册成功后再提交 setRuntime，且仓库取件合并既有模板配置', async () => {
+  const { default: vm } = await import('node:vm')
+  const loadIpc = (relPath, fnName) => {
+    const handlers = new Map()
+    const code = source(relPath)
+      .replace(/^import [\s\S]*? from ['"][^'"]+['"]\r?\n/gm, '')
+      .replace(`export function ${fnName}`, `function ${fnName}`)
+    const fn = vm.runInNewContext(`${code}\n${fnName}`, {
+      ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }
+    })
+    return { register: fn, handlers }
+  }
+
+  const stash = loadIpc('electron/modules/ipc/stashPickup.js', 'registerStashPickupHandlers')
+  const stashEvents = []
+  const stashManager = {
+    runtime: { enabled: false, templates: { stashTitle: 's.png', inventoryTitle: 'i.png' }, matchThreshold: 0.85 },
+    setRuntime(next) { stashEvents.push('setRuntime'); this.runtime = { ...this.runtime, ...next } },
+    getStatus() { return { status: 'idle', enabled: this.runtime.enabled } },
+    stop() {}
+  }
+  let failRegister = true
+  stash.register(stashManager, {}, {
+    interfaceDetection: {
+      async registerConsumer(id, config) {
+        stashEvents.push(`register:${id}`)
+        if (failRegister) throw new Error('detection-failed')
+        return config
+      },
+      unregisterConsumer() {}
+    }
+  })
+  const updateStash = stash.handlers.get('stash-pickup-runtime-update')
+  const failedStash = await updateStash({}, { enabled: true })
+  assert.equal(failedStash.success, false)
+  assert.equal(stashManager.runtime.enabled, false)
+  assert.deepEqual(stashEvents, ['register:stash-pickup'])
+
+  failRegister = false
+  stashEvents.length = 0
+  const succeededStash = await updateStash({}, { enabled: true })
+  assert.equal(succeededStash.success, true)
+  assert.equal(stashManager.runtime.enabled, true)
+  assert.deepEqual(stashEvents, ['register:stash-pickup', 'setRuntime'])
+
+  const junfeng = loadIpc('electron/modules/ipc/junfeng.js', 'registerJunfengHandlers')
+  const junfengEvents = []
+  const junfengManager = {
+    runtime: { enabled: false, templates: { junfengRewardTitle: 'r.png', inventoryTitle: 'i.png' }, matchThreshold: 0.8 },
+    setRuntime(next) { junfengEvents.push('setRuntime'); this.runtime = { ...this.runtime, ...next } },
+    getStatus() { return { status: 'idle', enabled: this.runtime.enabled } },
+    stop() {}
+  }
+  failRegister = true
+  junfeng.register(junfengManager, {}, {
+    interfaceDetection: {
+      async registerConsumer(id) {
+        junfengEvents.push(`register:${id}`)
+        if (failRegister) throw new Error('detection-failed')
+      },
+      unregisterConsumer() {}
+    }
+  })
+  const updateJunfeng = junfeng.handlers.get('junfeng-runtime-update')
+  const failedJunfeng = await updateJunfeng({}, { enabled: true })
+  assert.equal(failedJunfeng.success, false)
+  assert.equal(junfengManager.runtime.enabled, false)
+  assert.deepEqual(junfengEvents, ['register:junfeng-highlight'])
+
+  failRegister = false
+  junfengEvents.length = 0
+  const succeededJunfeng = await updateJunfeng({}, { enabled: true })
+  assert.equal(succeededJunfeng.success, true)
+  assert.equal(junfengManager.runtime.enabled, true)
+  assert.deepEqual(junfengEvents, ['register:junfeng-highlight', 'setRuntime'])
+})
 })()
 
 // === Merged from vendorEnglishRegex.test.js ===

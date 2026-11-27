@@ -666,6 +666,35 @@ test('混沌控制浮窗在高 DPI 下保持固定内容尺寸并返回物理偏
   assert.deepEqual(placement.offset, { x: 50, y: 1264 })
 })
 
+test('多屏混合 DPI 下优先使用 screenToDipRect 避免右下角越界落到副屏导致浮窗跑出屏幕外', () => {
+  const game = { left: 0, top: 0, right: 3840, bottom: 2160, width: 3840, height: 2160 }
+  const mixedDpiApi = {
+    // 模拟 Windows 多屏混合 DPI：主屏 3840x2160@1.75x，右侧副屏从 x=3840 起为 1.0x
+    // screenToDipPoint({ x: 3840, y: 2160 }) 会跨过半开边界命中副屏，导致 y=2160 而非 1234
+    screenToDipPoint: ({ x, y }) => x >= 3840
+      ? { x: Math.round(3840 / 1.75) + (x - 3840), y }
+      : { x: x / 1.75, y: y / 1.75 },
+    dipToScreenPoint: ({ x, y }) => x >= Math.round(3840 / 1.75)
+      ? { x: 3840 + (x - Math.round(3840 / 1.75)), y }
+      : { x: Math.round(x * 1.75), y: Math.round(y * 1.75) },
+    screenToDipRect: (rect) => ({
+      x: Math.round(rect.x / 1.75),
+      y: Math.round(rect.y / 1.75),
+      width: Math.round(rect.width / 1.75),
+      height: Math.round(rect.height / 1.75)
+    })
+  }
+  const placement = placeControlInDip(game, null, mixedDpiApi)
+  const expectedGameDipHeight = Math.round(2160 / 1.75)
+  assert.equal(placement.x, CHAOS_CONTROL_MARGIN)
+  assert.equal(placement.y, expectedGameDipHeight - CHAOS_CONTROL_DIP_SIZE.height - CHAOS_CONTROL_MARGIN)
+  assert.ok(placement.y + placement.height <= expectedGameDipHeight)
+
+  const clamped = placeControlInDip(game, { x: 5000, y: 4000 }, mixedDpiApi)
+  assert.equal(clamped.x, Math.round(3840 / 1.75) - CHAOS_CONTROL_DIP_SIZE.width)
+  assert.equal(clamped.y, expectedGameDipHeight - CHAOS_CONTROL_DIP_SIZE.height)
+})
+
 test('按钮组浮层按渲染内容调整外窗尺寸', () => {
   assert.deepEqual(normalizeControlDipSize({ width: 173.2, height: 76.1 }), { width: 174, height: 77 })
   assert.deepEqual(normalizeControlDipSize({ width: 0, height: 9999 }), {

@@ -92,9 +92,22 @@ export function createMainWindow({
   const iconPath = path.join(__dirname, '../../../src/assets/images/LOGO-dark.png')
   const icon = nativeImage.createFromPath(iconPath)
 
+  const defaultWidth = 1200
+  const defaultHeight = 800
+  const minWidth = 800
+  const minHeight = 600
+  const initialWidth = Number.isFinite(Number(state.width)) && Number(state.width) >= minWidth
+    ? Math.round(Number(state.width))
+    : defaultWidth
+  const initialHeight = Number.isFinite(Number(state.height)) && Number(state.height) >= minHeight
+    ? Math.round(Number(state.height))
+    : defaultHeight
+
   const options = {
-    width: state.width || 1200,
-    height: state.height || 800,
+    width: initialWidth,
+    height: initialHeight,
+    minWidth,
+    minHeight,
     frame: false,
     show: false, // 等首帧启动占位已解析主题再显示，避免亮色偏好先闪深色底。
     backgroundColor: '#0E1013',
@@ -161,9 +174,12 @@ export function createMainWindow({
   // 窗口状态保存逻辑
   let resizeTimeout
   const saveState = () => {
-    if (!mainWindow) return
+    if (!mainWindow || mainWindow.isDestroyed()) return
 
     try {
+      const isMinimized = typeof mainWindow.isMinimized === 'function' && mainWindow.isMinimized()
+      if (isMinimized) return
+
       const isMaximized = mainWindow.isMaximized()
       const isFullScreen = mainWindow.isFullScreen()
       const bounds = mainWindow.getBounds()
@@ -174,8 +190,8 @@ export function createMainWindow({
         alwaysOnTop: mainWindow.isAlwaysOnTop()
       }
 
-      // 如果不是最大化也不是全屏，才保存尺寸和位置
-      if (!isMaximized && !isFullScreen) {
+      // 仅在非最大化、非全屏且尺寸不小于最小窗口尺寸时，保存尺寸和位置
+      if (!isMaximized && !isFullScreen && bounds.width >= minWidth && bounds.height >= minHeight) {
         newState.x = bounds.x
         newState.y = bounds.y
         newState.width = bounds.width
@@ -200,6 +216,14 @@ export function createMainWindow({
     saveState()
   })
   mainWindow.on('unmaximize', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    const bounds = mainWindow.getBounds()
+    if ((bounds.width < minWidth || bounds.height < minHeight) && typeof mainWindow.setSize === 'function') {
+      mainWindow.setSize(
+        bounds.width < minWidth ? defaultWidth : bounds.width,
+        bounds.height < minHeight ? defaultHeight : bounds.height
+      )
+    }
     mainWindow.webContents.send('window-maximized', false)
     saveState()
   })

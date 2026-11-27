@@ -13,22 +13,39 @@ import path from 'path'
 
 const getWindowStateFile = () => path.join(app.getPath('userData'), 'window-state.json')
 
+export const DEFAULT_MAIN_WINDOW_WIDTH = 1200
+export const DEFAULT_MAIN_WINDOW_HEIGHT = 800
+export const MIN_MAIN_WINDOW_WIDTH = 800
+export const MIN_MAIN_WINDOW_HEIGHT = 600
+
+export function normalizeMainWindowSize(state = {}) {
+  const width = Number(state?.width)
+  const height = Number(state?.height)
+  return {
+    width: Number.isFinite(width) && width >= MIN_MAIN_WINDOW_WIDTH ? Math.round(width) : DEFAULT_MAIN_WINDOW_WIDTH,
+    height: Number.isFinite(height) && height >= MIN_MAIN_WINDOW_HEIGHT ? Math.round(height) : DEFAULT_MAIN_WINDOW_HEIGHT
+  }
+}
+
 export function loadWindowState() {
   try {
     const windowStateFile = getWindowStateFile()
     if (fs.existsSync(windowStateFile)) {
       const state = JSON.parse(fs.readFileSync(windowStateFile, 'utf8'))
-      // 简单的校验，防止无效数据
-      if (typeof state === 'object') {
-        return state
+      // 校验数据结构并修复异常过小的历史窗口尺寸
+      if (state && typeof state === 'object' && !Array.isArray(state)) {
+        return {
+          ...state,
+          ...normalizeMainWindowSize(state)
+        }
       }
     }
   } catch (error) {
     // 加载窗口状态失败
   }
   return {
-    width: 1200,
-    height: 800,
+    width: DEFAULT_MAIN_WINDOW_WIDTH,
+    height: DEFAULT_MAIN_WINDOW_HEIGHT,
     isMaximized: false,
     isFullScreen: false,
     alwaysOnTop: false

@@ -249,6 +249,7 @@
     "src/assets/scripts/map_rolling_template.py",
     "src/assets/scripts/map_tracker_loot_click.py",
     "src/assets/scripts/overlay_outside_click.py",
+    "src/assets/scripts/price_copy_helper.py",
     "src/assets/scripts/puzzle_analyzer.py",
     "src/assets/scripts/puzzle_auto_place.py",
     "src/assets/scripts/sanctum_calibration_collection.py",

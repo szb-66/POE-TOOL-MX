@@ -21,7 +21,7 @@
         <div class="suggestion-option">
           <div class="suggestion-title">
             <b>{{ item.displayName }}</b>
-            <el-tag size="small" :type="item.affixType === 'prefix' ? 'success' : 'warning'">
+            <el-tag v-if="item.affixType === 'prefix' || item.affixType === 'suffix'" size="small" :type="item.affixType === 'prefix' ? 'success' : 'warning'">
               {{ item.affixType === 'prefix' ? '前缀' : '后缀' }}
             </el-tag>
             <el-tag size="small" type="info" class="suggestion-sources">{{ item.sourceLabel }}</el-tag>
@@ -33,9 +33,9 @@
     </el-autocomplete>
 
     <el-select
-      :model-value="isCatalog ? condition.minTier : null"
+      :model-value="isCatalog && !isClusterNotable ? condition.minTier : null"
       :placeholder="affixTierItemLevelLabel(condition)"
-      :disabled="!isCatalog"
+      :disabled="!isCatalog || isClusterNotable"
       clearable
       class="tier-select"
       popper-class="affix-tier-popper"
@@ -68,7 +68,8 @@ const props = defineProps({
 const emit = defineEmits(['select', 'change', 'remove'])
 
 const isCatalog = computed(() => props.condition.kind === 'catalog')
-const tierOptions = computed(() => !isCatalog.value ? [] : props.condition.tiers?.length
+const isClusterNotable = computed(() => props.condition.source === 'clusterNotable')
+const tierOptions = computed(() => !isCatalog.value || isClusterNotable.value ? [] : props.condition.tiers?.length
   ? props.condition.tiers
   : Array.from({ length: 20 }, (_, index) => ({ tier: index + 1, name: `T${index + 1}` })))
 
@@ -99,6 +100,10 @@ function updateMinTier(value) {
 }
 
 function suggestionSummary(item) {
+  if (item.source === 'clusterNotable') {
+    const level = item.tiers?.[0]?.requiredLevel
+    return level ? `${item.applicableLabel} · 无阶级 · 物等 ${level}+` : `${item.applicableLabel} · 无阶级`
+  }
   const maxTier = item.tiers.length ? Math.max(...item.tiers.map((tier) => tier.tier)) : null
   return `${item.applicableLabel} · ${maxTier ? `T1–T${maxTier}` : '无阶级'}`
 }

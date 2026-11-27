@@ -51,6 +51,7 @@ const AFFIX_SOURCE_LABELS = {
   natural: '基础',
   crafted: '工艺台',
   enchant: '附魔',
+  clusterNotable: '星团核心',
   essence: '精华',
   delve: '地心探险',
   incursion: '穿越',
@@ -84,8 +85,11 @@ function localizationFragments(value) {
 }
 
 const AFFIX_ALIAS_PATTERN = /[\u3400-\u9fff]/u
+const CLUSTER_NOTABLE_CN_PATTERN = /^其中\s*1\s*个增加的天赋为/
+const CLUSTER_NOTABLE_EN_PATTERN = /^1 Added Passive Skill is /
 const requireModule = createRequire(import.meta.url)
 let affixLanguageAliasCache = null
+let clusterNotableCatalogCache = null
 let traditionalConverter = null
 
 function affixAliasKey(value = '') {
@@ -134,6 +138,44 @@ function internationalAffixAliases() {
   }
   affixLanguageAliasCache = aliases
   return aliases
+}
+
+function clusterNotableCatalogEntries() {
+  if (clusterNotableCatalogCache) return clusterNotableCatalogCache
+  const entries = []
+  const seen = new Set()
+  let metadata = {}
+  try {
+    metadata = JSON.parse(readFileSync(path.resolve(dirname, '../../assets/cluster-notables.json'), 'utf8'))
+  } catch {
+    // 元数据不可用时退化为无等级与无前后缀限制。
+  }
+  try {
+    const catalog = JSON.parse(readFileSync(path.resolve(dirname, '../priceCheck/catalog.json'), 'utf8'))
+    for (const stat of catalog.stats ?? []) {
+      const id = stat?.ids?.explicit
+      const cn = typeof stat?.label === 'string' ? stat.label.replace(/\s+/g, ' ').trim() : ''
+      if (!id || !CLUSTER_NOTABLE_CN_PATTERN.test(cn)) continue
+      const matchers = (Array.isArray(stat.matchers) ? stat.matchers : [])
+        .filter(value => typeof value === 'string' && value.trim())
+        .map(value => value.replace(/\s+/g, ' ').trim())
+      const refs = Array.isArray(stat.refs) ? stat.refs : []
+      const en = (refs.find(value => CLUSTER_NOTABLE_EN_PATTERN.test(String(value || '')))
+        || matchers.find(value => CLUSTER_NOTABLE_EN_PATTERN.test(value))
+        || '').replace(/\s+/g, ' ').trim()
+      if (!en || seen.has(en)) continue
+      seen.add(en)
+      const aliases = [...new Set([cn, en, ...matchers])]
+      const meta = metadata[en] || {}
+      const requiredLevel = Number.isInteger(meta.requiredLevel) && meta.requiredLevel > 0 ? meta.requiredLevel : null
+      const affixType = meta.affixType === 'prefix' || meta.affixType === 'suffix' ? meta.affixType : ''
+      entries.push({ id, cn, en, aliases, requiredLevel, affixType })
+    }
+  } catch {
+    // 目录不可用时忽略星团核心天赋补充。
+  }
+  clusterNotableCatalogCache = entries
+  return entries
 }
 
 function selectAffixSuggestions(rows, query, limit, { fallbackChinese = false } = {}) {
@@ -440,6 +482,51 @@ export class CraftingDataRepository {
       addRow(modifier, modifier.tiers ?? [], modifier.source)
       if (modifier.craftedOptions?.length) addRow(modifier, modifier.craftedOptions, 'crafted', ':crafted')
     })
+    const hasClusterJewel = dataset.bases.some((base) => /Cluster_Jewel$/i.test(base.modifierProfileId || ''))
+      || dataset.modifiers.some((modifier) => /Cluster_Jewel$/i.test(modifier.modifierProfileId || ''))
+    if (hasClusterJewel) {
+      const isInternational = this.server.id === 'international'
+      for (const notable of clusterNotableCatalogEntries()) {
+        const pattern = isInternational ? notable.en : notable.cn
+        const localized = isInternational ? this.displayText(pattern) : notable.cn
+        const displayName = isInternational && dictionary && !AFFIX_ALIAS_PATTERN.test(localized)
+          ? notable.cn
+          : localized
+        const localizedAliases = notable.aliases.filter((alias) => AFFIX_ALIAS_PATTERN.test(alias))
+        const patternAliases = isInternational && !dictionary ? localizedAliases : []
+        const fallbackDisplayName = patternAliases.find((alias) => !alias.includes('【')) || patternAliases[0] || ''
+        const aliasText = (isInternational ? localizedAliases : notable.aliases).join(' ').toLocaleLowerCase('zh-CN')
+        const applicableLabel = '星团珠宝'
+        const sourceLabel = AFFIX_SOURCE_LABELS.clusterNotable
+        const searchable = [
+          ...[displayName, pattern, notable.cn, notable.en, sourceLabel, applicableLabel].map((value) => this.searchText(value)),
+          aliasText
+        ].join(' ')
+        const tiers = notable.requiredLevel
+          ? [{ tier: 1, name: '核心天赋', requiredLevel: notable.requiredLevel, text: displayName }]
+          : []
+        rows.push({
+          searchable,
+          searchableFolded: searchable.replace(/的/g, ''),
+          aliasText,
+          displayPattern: dictionary ? displayName : '',
+          fallbackDisplayName,
+          id: `cluster-notable:${notable.id}`,
+          modifierId: notable.id,
+          displayName,
+          effectPattern: pattern,
+          canonicalPattern: notable.en,
+          exampleText: displayName,
+          canonicalDisplayName: pattern,
+          affixType: notable.affixType,
+          source: 'clusterNotable',
+          sourceLabel,
+          profileId: 'Cluster_Jewel',
+          applicableLabel,
+          tiers
+        })
+      }
+    }
     const merged = new Map()
     rows.forEach((row) => {
       const tierSignature = row.tiers.map((tier) => `${tier.tier}:${tier.requiredLevel}:${effectPattern(tier.text)}`).join('|')
@@ -492,6 +579,11 @@ export class CraftingDataRepository {
           if (canonical) register(canonical, affixType)
           const displayed = this.displayText(pattern)
           if (displayed && displayed !== pattern) register(displayed, affixType)
+        }
+        for (const notable of clusterNotableCatalogEntries()) {
+          if (!notable.affixType) continue
+          register(notable.cn, notable.affixType)
+          register(notable.en, notable.affixType)
         }
         this.catalogAffixTypeCache = { dataset, dictionary, index }
       }
@@ -554,9 +646,19 @@ export class CraftingDataRepository {
       const canonical = canonicalAffixPattern(sourcePattern) || condition.canonicalPattern || ''
       const translatedPattern = translateAffixPattern(sourcePattern, targetLanguage)
       if (!translatedPattern) return condition
-      const displayPattern = targetLanguage === 'en' && dictionary
-        ? (this.displayText(translatedPattern) || translatedPattern)
-        : translatedPattern
+      let displayPattern = translatedPattern
+      if (targetLanguage === 'en') {
+        const existingPattern = String(condition.effectPattern || '').trim()
+        const localizedByDictionary = dictionary ? this.displayText(translatedPattern) : ''
+        if (localizedByDictionary && AFFIX_ALIAS_PATTERN.test(localizedByDictionary)) {
+          displayPattern = localizedByDictionary
+        } else if (AFFIX_ALIAS_PATTERN.test(existingPattern)) {
+          displayPattern = existingPattern
+        } else if (dictionary) {
+          const fallbackZh = translateAffixPattern(translatedPattern, 'zh-CN')
+          if (fallbackZh && AFFIX_ALIAS_PATTERN.test(fallbackZh)) displayPattern = fallbackZh
+        }
+      }
       const resolvedAffixType = condition.affixType === 'prefix' || condition.affixType === 'suffix'
         ? condition.affixType
         : this.resolveCatalogAffixType(condition)
