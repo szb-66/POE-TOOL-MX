@@ -16,8 +16,8 @@ const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const OWNER = '君锋镇取出高亮'
 const REQUIRED_MODULES = Object.freeze(['mss', 'numpy', 'pynput', 'pyperclip'])
 
-function configurationError(message, failureCode, configurationIssueId) {
-  return Object.assign(new Error(message), { failureCode, configurationIssueId })
+function configurationError(message, failureCode, configurationIssueId, configurationIssues = []) {
+  return Object.assign(new Error(message), { failureCode, configurationIssueId, configurationIssues })
 }
 
 function eventError(event, fallback) {
@@ -120,7 +120,12 @@ export class JunfengHighlightManager {
     if (!this.runtime.enabled) throw new Error('君锋镇模块未启用')
     const configuration = this.getConfigurationAvailability()
     if (!configuration.ready) {
-      throw configurationError(configuration.reason, configuration.failureCode, configuration.configurationIssueId)
+      throw configurationError(
+        configuration.reason,
+        configuration.failureCode,
+        configuration.configurationIssueId,
+        configuration.configurationIssues
+      )
     }
     if (requireReward && !detection.rewardDetected) throw new Error('未检测到君锋镇奖励标题')
     if (modelRequired) {
@@ -156,9 +161,14 @@ export class JunfengHighlightManager {
   }
 
   getConfigurationAvailability(runtime = this.runtime) {
+    const issues = []
     const gridAvailability = this.getGridAvailability(runtime)
     if (!gridAvailability.ready) {
-      return { ...gridAvailability, failureCode: 'REGION_INVALID', configurationIssueId: 'junfeng.grid' }
+      issues.push({
+        failureCode: 'REGION_INVALID',
+        configurationIssueId: 'junfeng.grid',
+        message: gridAvailability.reason
+      })
     }
     const templates = runtime.templates || {}
     const displays = this.currentDisplays()
@@ -174,7 +184,18 @@ export class JunfengHighlightManager {
         templates[captureKey],
         displays
       )
-      if (result.error) return { ready: false, reason: result.error, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
+      if (result.error) {
+        issues.push({ failureCode: 'TEMPLATE_INVALID', configurationIssueId, message: result.error })
+      }
+    }
+    if (issues.length > 0) {
+      return {
+        ready: false,
+        reason: issues.map(item => item.message).join('；'),
+        failureCode: issues[0].failureCode,
+        configurationIssueId: issues[0].configurationIssueId,
+        configurationIssues: issues
+      }
     }
     return { ready: true, reason: '' }
   }
@@ -331,10 +352,17 @@ export class JunfengHighlightManager {
       status: 'stopped',
       reason,
       failureCode: String(failure.failureCode || ''),
-      configurationIssueId: String(failure.configurationIssueId || '')
+      configurationIssueId: String(failure.configurationIssueId || ''),
+      configurationIssues: Array.isArray(failure.configurationIssues) ? failure.configurationIssues : []
     }
     this.automationLock?.release(OWNER)
-    this.publish({ event: 'error', reason, failureCode: this.status.failureCode, configurationIssueId: this.status.configurationIssueId })
+    this.publish({
+      event: 'error',
+      reason,
+      failureCode: this.status.failureCode,
+      configurationIssueId: this.status.configurationIssueId,
+      configurationIssues: this.status.configurationIssues
+    })
   }
 
   getStatus() { return structuredClone(this.status) }

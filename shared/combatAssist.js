@@ -1,5 +1,7 @@
+import { classifyArea } from './mapTrackerAreaCatalog.js'
+
 const DEFAULT_RESOURCE = {
-  enabled: true,
+  enabled: false,
   point: { x: 0, y: 0 },
   threshold: 60,
   keys: [],
@@ -8,8 +10,12 @@ const DEFAULT_RESOURCE = {
   instantIntervalMs: 100
 }
 
+const COMBAT_OVERRIDE_AREA_IDS = new Set(['Menagerie'])
+const SAFE_ZONE_AREA_IDS = new Set(['SanctumFoyer'])
+
 export function createDefaultCombatAssist() {
   return {
+    autoPauseInSafeZone: true,
     potion: {
       scanIntervalMs: 100,
       maxTriggersPerSecond: 5,
@@ -45,6 +51,12 @@ function positiveNumber(value, fallback, minimum = 1) {
   return Number.isFinite(parsed) && parsed >= minimum ? parsed : fallback
 }
 
+function isConfiguredPoint(point) {
+  const x = Number(point?.x)
+  const y = Number(point?.y)
+  return Number.isFinite(x) && Number.isFinite(y) && (x !== 0 || y !== 0)
+}
+
 function normalizeResource(raw, defaults) {
   return {
     ...defaults,
@@ -67,6 +79,9 @@ function normalizeResource(raw, defaults) {
 export function normalizeCombatAssist(raw = {}) {
   const defaults = createDefaultCombatAssist()
   return {
+    autoPauseInSafeZone: raw?.autoPauseInSafeZone === undefined
+      ? defaults.autoPauseInSafeZone
+      : Boolean(raw.autoPauseInSafeZone),
     potion: {
       scanIntervalMs: positiveNumber(raw.potion?.scanIntervalMs, defaults.potion.scanIntervalMs, 10),
       maxTriggersPerSecond: positiveNumber(raw.potion?.maxTriggersPerSecond, defaults.potion.maxTriggersPerSecond),
@@ -98,6 +113,123 @@ export function normalizeCombatAssist(raw = {}) {
   }
 }
 
+export function migrateLegacyCombatAssist(raw) {
+  const normalized = normalizeCombatAssist(raw)
+  // 旧版本生命/魔力默认开启；升级到统一启停后，仅关闭从未配置过坐标与按键的默认开启项，避免阻塞仅使用循环按键的用户。
+  if (raw && typeof raw === 'object' && !Object.hasOwn(raw, 'autoPauseInSafeZone')) {
+    for (const key of ['health', 'mana']) {
+      const resource = normalized.potion[key]
+      if (resource.enabled && !isConfiguredPoint(resource.point) && resource.keys.length === 0) {
+        resource.enabled = false
+      }
+    }
+  }
+  return normalized
+}
+
+export function hasEnabledPotionResource(config = {}) {
+  return Boolean(config?.potion?.health?.enabled || config?.potion?.mana?.enabled)
+}
+
+export function hasEnabledLoopItem(config = {}) {
+  return (config?.loop?.items || []).some(item => Boolean(item?.enabled && String(item?.key || '').trim()))
+}
+
+export function isCombatSafeZoneArea(areaId) {
+  const id = String(areaId || '').trim()
+  if (!id) return false
+  const compactId = id.replace(/\s+/g, '')
+  if (COMBAT_OVERRIDE_AREA_IDS.has(id) || COMBAT_OVERRIDE_AREA_IDS.has(compactId)) return false
+  if (SAFE_ZONE_AREA_IDS.has(id) || SAFE_ZONE_AREA_IDS.has(compactId)) return true
+  const area = classifyArea(id)
+  return area.type === 'town' || area.type === 'hideout'
+}
+
+export function createDefaultCombatAreaGate() {
+  return {
+    paused: false,
+    reason: 'disabled',
+    areaName: '',
+    areaId: '',
+    warning: ''
+  }
+}
+
+export function evaluateCombatAreaGate({
+  enabled = true,
+  clientState = 'stopped',
+  gameState = 'unknown',
+  areaId = ''
+} = {}) {
+  if (!enabled) {
+    return createDefaultCombatAreaGate()
+  }
+  if (!['started', 'resyncing'].includes(clientState)) {
+    return {
+      paused: false,
+      reason: 'log-unavailable',
+      areaName: '',
+      areaId: '',
+      warning: 'Client.txt 日志监听未就绪，安全区自动暂停暂未生效'
+    }
+  }
+  if (gameState === 'disconnected') {
+    return {
+      paused: true,
+      reason: 'disconnected',
+      areaName: '',
+      areaId: '',
+      warning: ''
+    }
+  }
+  if (gameState === 'loading') {
+    const area = areaId ? classifyArea(areaId) : null
+    return {
+      paused: true,
+      reason: 'loading',
+      areaName: area?.areaName || '',
+      areaId: area?.areaId || String(areaId || '').trim(),
+      warning: ''
+    }
+  }
+  if (gameState === 'in-game' && String(areaId || '').trim()) {
+    const area = classifyArea(areaId)
+    if (isCombatSafeZoneArea(area.areaId)) {
+      return {
+        paused: true,
+        reason: 'safe-zone',
+        areaName: area.areaName || '安全区',
+        areaId: area.areaId,
+        warning: ''
+      }
+    }
+    return {
+      paused: false,
+      reason: 'combat-area',
+      areaName: area.areaName || '',
+      areaId: area.areaId,
+      warning: ''
+    }
+  }
+  return {
+    paused: false,
+    reason: 'area-unknown',
+    areaName: '',
+    areaId: '',
+    warning: '尚未识别当前游戏区域，安全区自动暂停暂未生效'
+  }
+}
+
+export function formatCombatAreaGateStatus(areaGate = {}) {
+  if (!areaGate?.paused) return ''
+  if (areaGate.reason === 'safe-zone') {
+    return areaGate.areaName ? `安全区暂停（${areaGate.areaName}）` : '安全区暂停'
+  }
+  if (areaGate.reason === 'loading') return '过图加载中'
+  if (areaGate.reason === 'disconnected') return '游戏已断开'
+  return '已暂停'
+}
+
 export function validatePotionAssist(config = {}) {
   const errors = []
   const resources = [
@@ -110,7 +242,7 @@ export function validatePotionAssist(config = {}) {
 
   for (const [key, label] of enabledResources) {
     const resource = config.potion[key]
-    if (!resource.point || (Number(resource.point.x) === 0 && Number(resource.point.y) === 0)) {
+    if (!isConfiguredPoint(resource.point)) {
       errors.push(`${label}检测坐标未配置`)
     }
     if (!Array.isArray(resource.keys) || resource.keys.length === 0) {
@@ -124,22 +256,42 @@ export function validatePotionAssist(config = {}) {
 export function validateLoopAssist(config = {}) {
   const errors = []
   const enabledItems = (config.loop?.items || []).filter(item => item.enabled)
-  if (!enabledItems.length) errors.push('请至少添加一个启用的循环按键')
+  if (!enabledItems.length) {
+    errors.push('请至少添加一个启用的循环按键')
+  } else if (enabledItems.some(item => !String(item.key || '').trim())) {
+    errors.push('存在已启用但未设置按键的循环项')
+  }
   return { isValid: errors.length === 0, errors }
 }
 
 export function validatePortalAssist(config = {}) {
   const errors = []
   if (!String(config.portal?.openKey || '').trim()) errors.push('回城按键未配置')
-  const point = config.portal?.clickPoint
-  if (!point || (Number(point.x) === 0 && Number(point.y) === 0)) errors.push('回城点击坐标未配置')
+  if (!isConfiguredPoint(config.portal?.clickPoint)) errors.push('回城点击坐标未配置')
   return { isValid: errors.length === 0, errors }
 }
 
 export function validateCombatAssist(config = {}) {
-  const potion = validatePotionAssist(config)
-  if (potion.isValid) return potion
-  const loop = validateLoopAssist(config)
-  if (loop.isValid) return loop
-  return potion
+  const errors = []
+  const potionEnabled = hasEnabledPotionResource(config)
+  const enabledLoopItems = (config.loop?.items || []).filter(item => item.enabled)
+  const loopEnabled = enabledLoopItems.length > 0
+
+  if (!potionEnabled && !loopEnabled) {
+    errors.push('请至少开启一项生命/魔力药剂或循环按键')
+    return { isValid: false, errors }
+  }
+
+  if (potionEnabled) {
+    const potionValidation = validatePotionAssist(config)
+    errors.push(...potionValidation.errors)
+  }
+
+  if (loopEnabled) {
+    if (enabledLoopItems.some(item => !String(item.key || '').trim())) {
+      errors.push('存在已启用但未设置按键的循环项')
+    }
+  }
+
+  return { isValid: errors.length === 0, errors }
 }

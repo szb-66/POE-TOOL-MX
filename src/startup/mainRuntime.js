@@ -7,6 +7,7 @@ import { initShortcuts } from '../utils/scriptService'
 import { usePoeAccountStore } from '../stores/poeAccount'
 import { useApplicationUpdateStore } from '../stores/applicationUpdate'
 import { useFeedbackRepliesStore } from '../stores/feedbackReplies'
+import { useServerMismatchStore } from '../stores/serverMismatch'
 import { markMainRuntimeSettled, resetMainRuntimeReadiness } from './readiness'
 import { installFeatureRuntime } from '../features/installFeatureRuntime'
 
@@ -92,8 +93,15 @@ async function startMainRuntime({ router }) {
     }
   }))
 
+  const serverMismatchStore = useServerMismatchStore()
+  addDisposer(electronApi.system.onGameServerMismatchChanged?.((state) => {
+    serverMismatchStore.applyStatus(state)
+  }))
+
   const refreshGameWindowOnFocus = () => {
-    if (settingsStore.dpiMode === 'auto') void settingsStore.refreshDpiScale()
+    void serverMismatchStore.refresh({ force: true }).then(() => {
+      if (settingsStore.dpiMode === 'auto') void settingsStore.refreshDpiScale()
+    })
   }
   window.addEventListener('focus', refreshGameWindowOnFocus)
   addDisposer(() => window.removeEventListener('focus', refreshGameWindowOnFocus))
@@ -165,6 +173,7 @@ async function startMainRuntime({ router }) {
 
   await Promise.all([
     settleSubsystem('dpi', () => settingsStore.refreshDpiScale(), warnings),
+    settleSubsystem('server-mismatch', () => serverMismatchStore.refresh(), warnings),
     (async () => {
       // 快捷键可触发后台操作，必须在持久化功能配置恢复完成后注册。
       await backgroundReady

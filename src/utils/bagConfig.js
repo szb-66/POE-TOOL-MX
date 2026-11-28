@@ -241,15 +241,26 @@ export function captureKeyForTemplate(type) {
   throw new Error('不支持的模板目标')
 }
 
+const PHYSICAL_SIZE_ROUNDING_TOLERANCE_PX = 2
+
 function displayPhysicalSize(display) {
   return display?.physicalSize || display?.displayPhysicalSize
+}
+
+function hasCompatiblePhysicalSize(physicalSize, expectedSize, tolerance = PHYSICAL_SIZE_ROUNDING_TOLERANCE_PX) {
+  const width = Number(physicalSize?.width)
+  const height = Number(physicalSize?.height)
+  const expectedWidth = Number(expectedSize?.width)
+  const expectedHeight = Number(expectedSize?.height)
+  if (![width, height, expectedWidth, expectedHeight].every(Number.isFinite)) return false
+  return Math.abs(width - expectedWidth) <= tolerance &&
+    Math.abs(height - expectedHeight) <= tolerance
 }
 
 function hasCompatibleDisplayParameters(display, metadata, scaleTolerance = 0) {
   const physicalSize = displayPhysicalSize(display)
   return Math.abs(Number(display?.scaleFactor) - Number(metadata.scaleFactor)) <= scaleTolerance &&
-    Number(physicalSize?.width) === Number(metadata.displayPhysicalSize.width) &&
-    Number(physicalSize?.height) === Number(metadata.displayPhysicalSize.height)
+    hasCompatiblePhysicalSize(physicalSize, metadata.displayPhysicalSize)
 }
 
 function displayContainsRegion(display, region) {
@@ -277,15 +288,29 @@ export function resolveCaptureDisplay(metadata, displays, scaleTolerance = 0) {
   return null
 }
 
+function formatDisplayChangeReason(label, metadata, currentDisplay) {
+  const savedScale = Math.round(Number(metadata?.scaleFactor) * 100)
+  const currentScale = Math.round(Number(currentDisplay?.scaleFactor) * 100)
+  const sameSize = hasCompatiblePhysicalSize(displayPhysicalSize(currentDisplay), metadata?.displayPhysicalSize)
+  if (sameSize && Number.isFinite(savedScale) && Number.isFinite(currentScale) && savedScale !== currentScale) {
+    return `${label}的显示环境已变化（缩放 ${savedScale}% → ${currentScale}%），请重新框选`
+  }
+  return `${label}的显示环境已变化，请重新框选`
+}
+
 export function validateTemplateCaptureEnvironment(label, templatePath, region, metadata, displays = []) {
   if (!metadata) return templatePath ? { error: '', warning: `${label}缺少采集环境信息，无法校验采集显示环境` } : { error: '', warning: '' }
-  const exactIdExists = displays.some((item) => String(item.id) === String(metadata.displayId))
+  const exactDisplay = displays.find((item) => String(item.id) === String(metadata.displayId))
   const display = resolveCaptureDisplay(metadata, displays)
-  if (!display) return {
-    error: exactIdExists
-      ? `${label}的显示环境已变化，请重新框选`
-      : `${label}的采集显示器已不存在，请重新框选`,
-    warning: ''
+  if (!display) {
+    const regionDisplays = displays.filter((item) => displayContainsRegion(item, metadata.selectedRegion) === true)
+    const changedDisplay = exactDisplay || (regionDisplays.length === 1 ? regionDisplays[0] : null)
+    return {
+      error: changedDisplay
+        ? formatDisplayChangeReason(label, metadata, changedDisplay)
+        : `${label}的采集显示器已不存在，请重新框选`,
+      warning: ''
+    }
   }
   const regionWidth = Number(region?.right) - Number(region?.left)
   const regionHeight = Number(region?.bottom) - Number(region?.top)

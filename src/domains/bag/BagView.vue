@@ -367,6 +367,7 @@ import TemplateCaptureConfigurationField from '@/components/configuration/Templa
 import {
   formatBagStopReason,
   setBagModuleEnabled,
+  retryBagDetectionAfterTemplateChange,
   stopBagStash,
   updateBagRuntimeConfig
 } from '@/utils/bagService'
@@ -410,6 +411,7 @@ const bagCorrectionIssue = computed(() => configurationIssueFromFailure({
   actionId: CONFIGURATION_ACTIONS.start,
   failureCode: bagStore.lastFailure.failureCode,
   configurationIssueId: bagStore.lastFailure.configurationIssueId,
+  configurationIssues: bagStore.lastFailure.configurationIssues,
   message: bagStore.lastStopReason
 }))
 const stashPickupCorrectionIssue = computed(() => configurationIssueFromFailure({
@@ -468,13 +470,19 @@ function openBagCorrection() {
     failure: {
       failureCode: bagStore.lastFailure.failureCode,
       configurationIssueId: bagStore.lastFailure.configurationIssueId,
+      configurationIssues: bagStore.lastFailure.configurationIssues,
       message: bagStore.lastStopReason
     },
     collect: () => collectBagConfigurationIssues({
       actionId: CONFIGURATION_ACTIONS.start,
       templates: interfaceStore.templates,
       inventory: settingsStore.inventory
-    })
+    }),
+    execute: async () => {
+      if (!bagStore.moduleEnabled) return { success: true }
+      if (bagStore.isDetecting) return { success: true }
+      return retryBagDetectionAfterTemplateChange()
+    }
   })
 }
 
@@ -486,6 +494,7 @@ function openJunfengCorrection() {
     failure: {
       failureCode: junfengStore.state.failureCode || junfengStore.state.code,
       configurationIssueId: junfengStore.state.configurationIssueId,
+      configurationIssues: junfengStore.state.configurationIssues,
       message: junfengStore.state.reason
     },
     collect: () => collectJunfengConfigurationIssues({

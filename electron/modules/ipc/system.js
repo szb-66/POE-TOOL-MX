@@ -29,7 +29,15 @@ function healthReasonCode(item) {
   return 'unavailable'
 }
 
-export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvents = null, startupDiagnostics = null, failureEvidence = null) {
+export function registerSystemHandlers(
+  python,
+  gameWindowTitles,
+  diagnosticEvents = null,
+  startupDiagnostics = null,
+  failureEvidence = null,
+  options = {}
+) {
+  const { server = null, getMainWindow = null } = options || {}
   const displaySnapshot = () => screen.getAllDisplays().map(display => ({
     id: display.id,
     primary: display.id === screen.getPrimaryDisplay()?.id,
@@ -37,15 +45,38 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     scaleFactor: display.scaleFactor,
     rotation: display.rotation
   }))
+  let lastMismatchSignature = ''
+  const emitServerMismatch = (mismatch) => {
+    if (!mismatch || typeof mismatch !== 'object') return
+    const signature = JSON.stringify([
+      Boolean(mismatch.mismatch),
+      mismatch.currentServerId || '',
+      mismatch.detectedServerId || '',
+      mismatch.windowTitle || '',
+      mismatch.processName || ''
+    ])
+    if (signature === lastMismatchSignature) return
+    lastMismatchSignature = signature
+    const mainWindow = getMainWindow?.()
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+      mainWindow.webContents.send('game-server-mismatch-changed', mismatch)
+    }
+  }
   const detectDpi = createCachedGameDpiDetector(async () => {
     const primaryScaleFactor = Number(screen.getPrimaryDisplay()?.scaleFactor) || 1
     const result = await detectGameDpi({
       pythonPath: python.detectPythonPath?.(),
       gameWindowTitles: gameWindowTitles?.getTitles?.(),
-      gameWindowProcessNames: gameWindowTitles?.getProcessNames?.()
+      gameWindowProcessNames: gameWindowTitles?.getProcessNames?.(),
+      currentServerId: server?.id || ''
     })
+    if (result?.serverMismatch) emitServerMismatch(result.serverMismatch)
     return { ...result, primaryScaleFactor }
   }, { cacheDurationMs: 15000 })
+  const refreshGameDpi = (refreshOptions = {}) => {
+    if (refreshOptions?.force) detectDpi.invalidate()
+    return detectDpi()
+  }
   screen.on?.('display-metrics-changed', () => detectDpi.invalidate())
   screen.on?.('display-added', () => detectDpi.invalidate())
   screen.on?.('display-removed', () => detectDpi.invalidate())
@@ -115,7 +146,7 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     })
   }
 
-  ipcMain.handle('system-detect-game-dpi', detectDpi)
+  ipcMain.handle('system-detect-game-dpi', (_event, options) => refreshGameDpi(options))
   ipcMain.handle('system-update-game-window-titles', async (_event, titles) => {
     try {
       const result = gameWindowTitles.update(titles)
@@ -161,5 +192,5 @@ export function registerSystemHandlers(python, gameWindowTitles, diagnosticEvent
     showSaveDialog: options => dialog.showSaveDialog(options),
     buildSnapshot: () => snapshot(payload)
   }))
-  return { buildSnapshot: snapshot }
+  return { buildSnapshot: snapshot, refreshGameDpi }
 }

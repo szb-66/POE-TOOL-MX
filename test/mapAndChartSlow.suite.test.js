@@ -646,7 +646,8 @@ test('正负数handler、区间、!0和详细范围严格约束已适用模板',
     assert.throws(() => dictionary.toEnglish(input, { strict: true }), /未匹配/)
   }
   assert.equal(dictionary.toEnglish('攻击速度加快 90（80—99）%'), '90(80—99)% increased Attack Speed')
-  assert.throws(() => dictionary.toEnglish('攻击速度加快 79（80—99）%', { strict: true }), /未匹配/)
+  assert.equal(dictionary.toEnglish('攻击速度加快 79（80—99）%'), '79(80—99)% increased Attack Speed')
+  assert.throws(() => dictionary.toEnglish('攻击速度加快 0（80—99）%', { strict: true }), /未匹配/)
   const range = structuredClone(mapStatVariants[0])
   range.stats.variants = [{ condition: '2|5', handlers: '', placeholders: ['{0}'] }]
   for (const number of [2, 5]) assert.equal(statVariantApplies(range, new Map([['0', String(number)]])), true)

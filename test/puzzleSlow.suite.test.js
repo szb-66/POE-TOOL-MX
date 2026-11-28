@@ -467,7 +467,7 @@ test('海图服务接入自动化锁、动态状态和遮罩截图显隐', () =>
   assert.match(service, /event\.event === 'capture-end'[\s\S]*overlay\?\.show/)
   assert.match(service, /capture-series-start'[\s\S]*overlay\?\.hide\?\.\(event\.regionType\)/)
   assert.match(service, /capture-series-end'[\s\S]*overlay\?\.show\?\.\(event\.regionType\)/)
-  assert.match(service, /stdio: \['ignore', 'pipe', 'pipe'\]/)
+  assert.match(service, /spawnOperationProcess\([\s\S]*stdin: 'ignore'/)
   assert.match(service, /displayBounds: atlasRegionMetadata\?\.displayPhysicalBounds \|\| null/)
   assert.match(service, /event\.event === 'source-rotation-verification'[\s\S]*slots:/)
   assert.match(service, /stopAutoPlacement\(reason = 'user'\)/)

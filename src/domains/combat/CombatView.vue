@@ -6,12 +6,43 @@
         <div class="module-header">
           <div class="module-title">
             <strong>战斗辅助配置</strong>
-            <el-tooltip content="配置药剂检测频率和触发保护。" placement="top">
+            <el-tooltip content="统一启停已打开的被动喝药与主动喝药子项，并配置安全区自动暂停与频率保护。" placement="top">
               <el-icon class="module-help" tabindex="0" aria-label="查看战斗辅助配置说明"><QuestionFilled /></el-icon>
             </el-tooltip>
+            <el-tag :type="combatStatusTagType">{{ combatStatusLabel }}</el-tag>
+          </div>
+          <div class="module-action">
+            <el-button v-if="combatStore.active" type="danger" @click="stopCombatAssist">停止</el-button>
+            <el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startCombatAssist">开始</el-button>
           </div>
         </div>
       </template>
+
+      <div v-if="combatErrorMessage" class="module-error configuration-correction-alert">
+        <el-alert type="error" :title="combatErrorMessage" show-icon :closable="false" />
+        <el-button v-if="activeCorrectionIssue" type="warning" plain @click="openCombatCorrection(activeCorrectionAction, activeCorrectionFailure)">
+          重新配置
+        </el-button>
+      </div>
+
+      <div v-if="combatStore.active && config.autoPauseInSafeZone && combatStore.areaGate.warning" class="module-error">
+        <el-alert type="info" :title="combatStore.areaGate.warning" show-icon :closable="false" />
+      </div>
+
+      <div class="subsection-title">安全区保护</div>
+      <div class="safe-zone-row">
+        <el-switch v-model="config.autoPauseInSafeZone" />
+        <span class="safe-zone-label">进入安全区自动暂停</span>
+        <el-tooltip
+          content="进入城镇、藏身处、无怪中转区（君锋镇/黄金港/矿坑营地/圣域大厅等）或过图读条、断线时自动暂停按键，进入战斗地图（含兽园）后立即恢复；依赖 Client.txt 日志监听，日志未就绪时保持运行。"
+          placement="top"
+        >
+          <el-icon class="module-help" tabindex="0" aria-label="查看安全区自动暂停说明"><QuestionFilled /></el-icon>
+        </el-tooltip>
+        <el-tag v-if="config.autoPauseInSafeZone && areaGateBadgeText" size="small" :type="areaGateBadgeType">
+          {{ areaGateBadgeText }}
+        </el-tag>
+      </div>
 
       <div class="subsection-title">频率保护</div>
       <el-form inline class="frequency-form">
@@ -35,26 +66,12 @@
         <div class="module-header">
           <div class="module-title">
             <strong>被动喝药</strong>
-            <el-tooltip content="通过生命与魔力球像素颜色自动触发药剂，仅在游戏窗口位于前台时检测并发送输入。" placement="top">
+            <el-tooltip content="通过生命与魔力球像素颜色自动触发药剂；开启对应药剂开关并启动上方战斗辅助后生效，仅在游戏窗口位于前台时检测，按住 Alt/Ctrl/Win 时自动暂缓发键以避免误触组合快捷键。" placement="top">
               <el-icon class="module-help" tabindex="0" aria-label="查看被动喝药说明"><QuestionFilled /></el-icon>
             </el-tooltip>
-            <el-tag :type="combatStore.running ? 'success' : 'info'">
-              {{ combatStore.running ? (combatStore.focused ? '已开始' : '已开始 · 等待游戏窗口') : '已停止' }}
-            </el-tag>
-          </div>
-          <div class="module-action">
-            <el-button v-if="combatStore.running" type="danger" @click="stopPotionAssist">停止</el-button>
-            <el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startPotionAssist">开始</el-button>
           </div>
         </div>
       </template>
-
-      <div v-if="combatStore.lastError" class="module-error configuration-correction-alert">
-        <el-alert type="error" :title="combatStore.lastError" show-icon :closable="false" />
-        <el-button v-if="potionCorrectionIssue" type="warning" plain @click="openCombatCorrection(CONFIGURATION_ACTIONS.potion, combatStore.lastFailure)">
-          重新配置
-        </el-button>
-      </div>
 
       <el-row class="resource-grid app-grid" :gutter="16">
         <el-col v-for="resource in resources" :key="resource.key" :xs="24" :md="12">
@@ -128,26 +145,12 @@
         <div class="module-header">
           <div class="module-title">
             <strong>主动喝药</strong>
-            <el-tooltip content="开启后立即按下对应按键，并按各自间隔循环发送，仅在游戏窗口位于前台时发送。" placement="top">
+            <el-tooltip content="开启对应按键开关并启动上方战斗辅助后，按各自间隔循环发送按键；仅在游戏窗口位于前台时发送，按住 Alt/Ctrl/Win 时自动暂缓发键以避免误触组合快捷键。" placement="top">
               <el-icon class="module-help" tabindex="0" aria-label="查看主动喝药说明"><QuestionFilled /></el-icon>
             </el-tooltip>
-            <el-tag :type="combatStore.loopRunning ? 'success' : 'info'">
-              {{ combatStore.loopRunning ? (combatStore.loopFocused ? '已开始' : '已开始 · 等待游戏窗口') : '已停止' }}
-            </el-tag>
-          </div>
-          <div class="module-action">
-            <el-button v-if="combatStore.loopRunning" type="danger" @click="stopLoopAssist">停止</el-button>
-            <el-button v-else type="primary" :disabled="!combatInputEnabled" @click="startLoopAssist">开始</el-button>
           </div>
         </div>
       </template>
-
-      <div v-if="combatStore.loopLastError" class="module-error configuration-correction-alert">
-        <el-alert type="error" :title="combatStore.loopLastError" show-icon :closable="false" />
-        <el-button v-if="loopCorrectionIssue" type="warning" plain @click="openCombatCorrection(CONFIGURATION_ACTIONS.loop, combatStore.loopLastFailure)">
-          重新配置
-        </el-button>
-      </div>
 
       <div class="loop-list">
         <div v-for="(item, index) in config.loop.items" :key="item.id" class="loop-row">
@@ -216,6 +219,7 @@
 
 <script setup>
 import { computed, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Delete, QuestionFilled } from '@element-plus/icons-vue'
 import PageHelpDrawer from '@/domains/help/PageHelpDrawer.vue'
 import { moduleHelpTopicsById } from '@/domains/help/helpContent.js'
@@ -224,6 +228,11 @@ import { useCombatStore } from '@/stores/combat'
 import { electronApi } from '@/api/electron'
 import { canUseGameInput } from '@/utils/serverContext.js'
 import { commitGlobalShortcut } from '@/utils/scriptService'
+import {
+  formatCombatAreaGateStatus,
+  hasEnabledPotionResource,
+  validatePotionAssist
+} from '@/utils/combatConfig.js'
 import KeyCaptureInput from '@/components/common/KeyCaptureInput.vue'
 import KeySequenceCapture from '@/components/common/KeySequenceCapture.vue'
 import CoordinateConfigurationField from '@/components/configuration/CoordinateConfigurationField.vue'
@@ -233,10 +242,9 @@ import { openConfigurationCorrectionGuide } from '@/domains/configurationGuide/c
 import {
   executePortalAssist,
   sampleCombatPixel,
-  startLoopAssist,
-  startPotionAssist,
-  stopLoopAssist,
-  stopPotionAssist
+  startCombatAssist,
+  stopCombatAssist,
+  syncRunningCombatAssist
 } from '@/utils/combatService'
 
 const settingsStore = useSettingsStore()
@@ -248,6 +256,42 @@ const shortcuts = computed(() => settingsStore.globalShortcuts)
 const pickingTarget = ref('')
 const samplingTarget = ref('')
 const samples = reactive({})
+
+const combatStatusLabel = computed(() => {
+  if (!combatStore.active) return '已停止'
+  const areaPauseText = formatCombatAreaGateStatus(combatStore.areaGate)
+  if (areaPauseText) return `已开始 · ${areaPauseText}`
+  if (combatStore.running && combatStore.protectedMode) return '已开始 · 频率保护'
+  return combatStore.anyFocused ? '已开始' : '已开始 · 等待游戏窗口'
+})
+
+const combatStatusTagType = computed(() => {
+  if (!combatStore.active) return 'info'
+  if (combatStore.areaGate?.paused) return 'warning'
+  if (combatStore.running && combatStore.protectedMode) return 'warning'
+  return 'success'
+})
+
+const areaGateBadgeText = computed(() => {
+  const gate = combatStore.areaGate || {}
+  if (gate.reason === 'safe-zone') return gate.areaName ? `当前：安全区（${gate.areaName}）` : '当前：安全区'
+  if (gate.reason === 'combat-area') return gate.areaName ? `当前：战斗区（${gate.areaName}）` : '当前：战斗区'
+  if (gate.reason === 'loading') return '当前：过图加载中'
+  if (gate.reason === 'disconnected') return '当前：游戏已断开'
+  if (gate.reason === 'log-unavailable') return 'Client.txt 未就绪（保持运行）'
+  if (gate.reason === 'area-unknown') return '等待识别区域（保持运行）'
+  return ''
+})
+
+const areaGateBadgeType = computed(() => {
+  const reason = combatStore.areaGate?.reason
+  if (reason === 'safe-zone' || reason === 'loading' || reason === 'disconnected') return 'warning'
+  if (reason === 'combat-area') return 'success'
+  return 'info'
+})
+
+const combatErrorMessage = computed(() => combatStore.lastError || combatStore.loopLastError)
+
 const potionCorrectionIssue = computed(() => configurationIssueFromFailure({
   moduleId: CONFIGURATION_MODULES.combat,
   actionId: CONFIGURATION_ACTIONS.potion,
@@ -260,6 +304,10 @@ const loopCorrectionIssue = computed(() => configurationIssueFromFailure({
   ...combatStore.loopLastFailure,
   message: combatStore.loopLastError
 }))
+const activeCorrectionIssue = computed(() => (combatStore.lastError ? potionCorrectionIssue.value : loopCorrectionIssue.value))
+const activeCorrectionAction = computed(() => (combatStore.lastError ? CONFIGURATION_ACTIONS.potion : CONFIGURATION_ACTIONS.loop))
+const activeCorrectionFailure = computed(() => (combatStore.lastError ? combatStore.lastFailure : combatStore.loopLastFailure))
+
 const portalCorrectionIssue = computed(() => configurationIssueFromFailure({
   moduleId: CONFIGURATION_MODULES.combat,
   actionId: CONFIGURATION_ACTIONS.portal,
@@ -284,21 +332,62 @@ const resources = [
 
 let saveTimer = null
 let suppressConfigWatch = false
+
+function replaceLocalConfig(source) {
+  suppressConfigWatch = true
+  Object.assign(config, JSON.parse(JSON.stringify(source)))
+  suppressConfigWatch = false
+}
+
+watch(() => settingsStore.combatAssist, (next) => {
+  if (suppressConfigWatch) return
+  // 保留本地尚未填按键的临时循环行，同时同步来自仪表盘或配置向导的变更
+  const emptyRows = (config.loop?.items || []).filter(item => !String(item?.key || '').trim())
+  const merged = JSON.parse(JSON.stringify(next))
+  if (emptyRows.length) {
+    merged.loop.items = [...(merged.loop.items || []), ...emptyRows.map(row => ({ ...row }))]
+  }
+  if (JSON.stringify(merged) !== JSON.stringify(config)) {
+    replaceLocalConfig(merged)
+  }
+}, { deep: true })
+
 watch(config, () => {
   if (suppressConfigWatch) return
   clearTimeout(saveTimer)
   saveTimer = setTimeout(saveCombatConfig, 150)
 }, { deep: true, flush: 'sync' })
 
+function validateHotToggleCandidate(candidate) {
+  if (hasEnabledPotionResource(candidate)) {
+    const potionCheck = validatePotionAssist(candidate)
+    if (!potionCheck.isValid) return potionCheck.errors[0]
+  }
+  const hasEnabledBlankLoop = (candidate.loop?.items || []).some(item => item.enabled && !String(item.key || '').trim())
+  if (hasEnabledBlankLoop) return '请先选择循环按键'
+  return ''
+}
+
 async function saveCombatConfig() {
   const candidate = JSON.parse(JSON.stringify(config))
+  if (combatStore.active) {
+    const hotError = validateHotToggleCandidate(candidate)
+    if (hotError) {
+      replaceLocalConfig(settingsStore.combatAssist)
+      ElMessage.warning(`${hotError}，请先完成配置后再开启`)
+      return false
+    }
+  }
   const result = await settingsStore.updateCombatAssist(candidate)
-  if (result.success) return true
-  suppressConfigWatch = true
-  Object.assign(config, JSON.parse(JSON.stringify(settingsStore.combatAssist)))
-  suppressConfigWatch = false
-  ElMessage.error(result.error)
-  return false
+  if (!result.success) {
+    replaceLocalConfig(settingsStore.combatAssist)
+    ElMessage.error(result.error)
+    return false
+  }
+  if (combatStore.active) {
+    await syncRunningCombatAssist()
+  }
+  return true
 }
 
 async function pickCoordinate(target) {
@@ -340,7 +429,7 @@ function addLoopItem() {
     id: `loop-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     key: '',
     intervalMs: 3000,
-    enabled: true
+    enabled: !combatStore.active
   })
 }
 
@@ -366,7 +455,7 @@ async function saveShortcut(key, value) {
   background: var(--bg-secondary);
 }
 
-.module-header, .module-title, .card-title, .module-action, .position-row {
+.module-header, .module-title, .card-title, .module-action, .position-row, .safe-zone-row {
   display: flex;
   align-items: center;
 }
@@ -386,6 +475,17 @@ async function saveShortcut(key, value) {
 .module-action {
   flex: 0 0 auto;
   margin-left: auto;
+}
+
+.safe-zone-row {
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.safe-zone-label {
+  font-size: 14px;
+  color: var(--text-primary);
 }
 
 .module-help {

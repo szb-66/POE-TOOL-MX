@@ -26,6 +26,7 @@ const ISSUE_DEFINITIONS = Object.freeze({
   'template.stash-title': ['template', '仓库标题模板', 'template.stash-title'],
   'template.inventory-title': ['template', '背包标题模板', 'template.inventory-title'],
   'template.junfeng-reward-title': ['template', '君锋镇奖励标题模板', 'template.junfeng-reward-title'],
+  'template.allflame-receiver-title': ['template', '永火接收舱标题模板', 'template.allflame-receiver-title'],
   'stash-grid.any': ['region', '仓库网格校准', 'stash-grid.any'],
   'stash-grid.root': ['region', '文件夹外仓库网格', 'stash-grid.root'],
   'stash-grid.folder': ['region', '文件夹内仓库网格', 'stash-grid.folder'],
@@ -71,7 +72,7 @@ const ACTIONS_BY_MODULE = Object.freeze({
   combat: new Set(['potion', 'loop', 'portal']),
   shop: new Set(['enable', 'start']),
   'price-check': new Set(['enable', 'capture']),
-  puzzle: new Set(['analyze', 'border', 'auto-place'])
+  puzzle: new Set(['start', 'analyze', 'border', 'auto-place'])
 })
 
 function issueBelongsToAction(moduleId, actionId, issueId) {
@@ -82,7 +83,7 @@ function issueBelongsToAction(moduleId, actionId, issueId) {
   if (moduleId === 'map') {
     return issueId === 'inventory.grid' || issueId.startsWith('currency.') || issueId === 'preset.map' || issueId === 'stash-tab.currency'
   }
-  if (moduleId === 'bag') return ['template.stash-title', 'template.inventory-title', 'inventory.grid'].includes(issueId)
+  if (moduleId === 'bag') return ['template.stash-title', 'template.inventory-title', 'template.allflame-receiver-title', 'inventory.grid'].includes(issueId)
   if (moduleId === 'stash-pickup') {
     return ['template.stash-title', 'template.inventory-title', 'stash-grid.any', 'stash-grid.root', 'stash-grid.folder'].includes(issueId)
   }
@@ -93,6 +94,7 @@ function issueBelongsToAction(moduleId, actionId, issueId) {
   }
   if (moduleId === 'price-check') return ['account.poe-cn', 'account.league'].includes(issueId)
   if (moduleId === 'puzzle') {
+    if (actionId === 'start') return ['template.allflame-receiver-title', 'template.inventory-title', 'inventory.grid'].includes(issueId)
     if (actionId === 'border') return issueId === 'puzzle.atlas-region'
     if (actionId === 'analyze') return issueId === 'puzzle.inventory-region' || /^puzzle\.tab\.(1|2)$/.test(issueId)
     return issueId === 'puzzle.inventory-region' || issueId === 'puzzle.atlas-region' || /^puzzle\.tab\.(1|2)$/.test(issueId)
@@ -140,9 +142,33 @@ export function configurationIssueFromFailure({
   })
 }
 
+export function configurationIssuesFromFailure(failure = {}) {
+  const list = Array.isArray(failure?.configurationIssues) ? failure.configurationIssues : []
+  if (list.length > 0) {
+    const resolved = []
+    const seen = new Set()
+    for (const entry of list) {
+      const issue = configurationIssueFromFailure({
+        moduleId: failure.moduleId,
+        actionId: failure.actionId,
+        failureCode: entry?.failureCode || failure.failureCode,
+        configurationIssueId: entry?.configurationIssueId || entry?.id,
+        message: entry?.message || entry?.error || failure.message
+      })
+      if (issue && !seen.has(issue.id)) {
+        seen.add(issue.id)
+        resolved.push(issue)
+      }
+    }
+    if (resolved.length > 0) return resolved
+  }
+  const single = configurationIssueFromFailure(failure)
+  return single ? [single] : []
+}
+
 export function isCorrectableConfigurationFailure(failure) {
   try {
-    return Boolean(configurationIssueFromFailure(failure))
+    return configurationIssuesFromFailure(failure).length > 0
   } catch {
     return false
   }

@@ -90,7 +90,7 @@ test('所有创建自动化进程的主入口先调用公共游戏激活', () =>
     ['electron/modules/stashPickup/manager.js', /activateGame\(\{ source: 'stash-pickup-start' \}\)[\s\S]*this\.writeConfig\(\)/],
     ['electron/modules/junfeng/manager.js', /activateGame\(\{ source: 'junfeng-pickup-start' \}\)[\s\S]*this\.writeConfig\(\)/],
     ['electron/modules/puzzle/service.js', /activateGame\(\{ source: 'puzzle-auto-placement' \}\)[\s\S]*fs\.writeFileSync\(configPath/],
-    ['electron/modules/faustus/manager.js', /activateGame\(\{ source: 'faustus-start' \}\)[\s\S]*this\.spawnMode\('run'/]
+    ['electron/modules/faustus/manager.js', /activateGame\(\{ source: 'faustus-start' \}\)[\s\S]*this\.spawnMode\(/]
   ]
   for (const [file, pattern] of ordered) assert.match(source(file), pattern, file)
   assert.doesNotMatch(source('electron/modules/ipc/combat.js'), /activateGameWindow\('combat-(?:potion|loop)-start'\)/)

@@ -10,13 +10,13 @@ function finite(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback
 }
 
-function hasSamePhysicalBounds(display, saved) {
+function hasSamePhysicalBounds(display, saved, tolerance = 2) {
   const current = display?.physicalBounds || display?.displayPhysicalBounds
   if (!current) return false
-  return Number(current.x ?? current.left) === Number(saved.x ?? saved.left) &&
-    Number(current.y ?? current.top) === Number(saved.y ?? saved.top) &&
-    Number(current.width) === Number(saved.width) &&
-    Number(current.height) === Number(saved.height)
+  return Math.abs(Number(current.x ?? current.left) - Number(saved.x ?? saved.left)) <= tolerance &&
+    Math.abs(Number(current.y ?? current.top) - Number(saved.y ?? saved.top)) <= tolerance &&
+    Math.abs(Number(current.width) - Number(saved.width)) <= tolerance &&
+    Math.abs(Number(current.height) - Number(saved.height)) <= tolerance
 }
 
 export function normalizeJunfengRegion(value) {

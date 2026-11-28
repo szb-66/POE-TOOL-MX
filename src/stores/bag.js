@@ -126,10 +126,11 @@ export const useBagStore = defineStore('bag', () => {
     const metadata = Number.isFinite(exitCode) ? { exitCode } : null
     lastFailure.value = {
       failureCode: String(failure.failureCode || failure.code || ''),
-      configurationIssueId: String(failure.configurationIssueId || '')
+      configurationIssueId: String(failure.configurationIssueId || ''),
+      configurationIssues: Array.isArray(failure.configurationIssues) ? failure.configurationIssues : []
     }
     if (['', 'user-stopped', 'process-ended'].includes(lastStopReason.value)) {
-      lastFailure.value = { failureCode: '', configurationIssueId: '' }
+      lastFailure.value = { failureCode: '', configurationIssueId: '', configurationIssues: [] }
       void reportDiagnosticRecovery('bag', 'script_runtime')
     } else {
       void reportDiagnosticFailure('bag', 'script_runtime', {}, 'process_exit', metadata)

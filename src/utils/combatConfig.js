@@ -1,5 +1,12 @@
 export {
+  createDefaultCombatAreaGate,
   createDefaultCombatAssist,
+  evaluateCombatAreaGate,
+  formatCombatAreaGateStatus,
+  hasEnabledLoopItem,
+  hasEnabledPotionResource,
+  isCombatSafeZoneArea,
+  migrateLegacyCombatAssist,
   normalizeCombatAssist,
   validateCombatAssist,
   validateLoopAssist,

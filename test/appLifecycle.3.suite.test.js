@@ -700,6 +700,23 @@ test('异步运行时探测复用并发任务并返回相同缓存结果', async
   assert.strictEqual(await resolvePythonRuntimeAsync(['sys', 'json']), runtime)
 })
 
+test('非绝对路径覆盖或命令名探测会归一为固定绝对路径', async () => {
+  const relativePython = path.relative(process.cwd(), path.join(generatedRoot, 'python-runtime', 'python.exe'))
+  configurePythonRuntime({ isPackaged: false, resourcesPath: '', env: { POE_PYTHON_RUNTIME: relativePython } })
+  const syncRuntime = resolvePythonRuntime(['sys'])
+  assert.equal(syncRuntime.ready, true)
+  assert.equal(syncRuntime.source, 'override')
+  assert.equal(path.isAbsolute(syncRuntime.path), true)
+  assert.equal(syncRuntime.path.toLowerCase(), path.join(generatedRoot, 'python-runtime', 'python.exe').toLowerCase())
+
+  configurePythonRuntime({ isPackaged: false, resourcesPath: '', env: { POE_PYTHON_RUNTIME: relativePython } })
+  const asyncRuntime = await resolvePythonRuntimeAsync(['sys'])
+  assert.equal(asyncRuntime.ready, true)
+  assert.equal(asyncRuntime.source, 'override')
+  assert.equal(path.isAbsolute(asyncRuntime.path), true)
+  assert.equal(asyncRuntime.path.toLowerCase(), path.join(generatedRoot, 'python-runtime', 'python.exe').toLowerCase())
+})
+
 test('正式版只使用 resourcesPath 下的 bundled 运行时', () => {
   configurePythonRuntime({ isPackaged: true, resourcesPath: generatedRoot, env: { POE_PYTHON_RUNTIME: 'C:\\other\\python.exe' } })
   const runtime = resolvePythonRuntime(['sys', 'json'])

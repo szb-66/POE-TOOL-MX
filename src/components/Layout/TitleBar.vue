@@ -4,6 +4,13 @@
       <img :src="appLogo" alt="" class="app-logo" />
       <span class="app-title">流放助手</span>
       <button
+        class="server-badge"
+        :class="`server-badge--${currentServer.id}`"
+        type="button"
+        :title="`当前为${currentServer.label}模式，点击前往设置切换`"
+        @click="openServerSettings"
+      >{{ currentServer.label }}</button>
+      <button
         v-if="updateEntryVisible"
         class="update-entry"
         type="button"
@@ -61,12 +68,19 @@ import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Minus, FullScreen, Close } from '@element-plus/icons-vue'
 import { electronApi } from '@/api/electron'
+import { useRouter } from 'vue-router'
+import { currentServer } from '@/utils/serverContext.js'
+import { settingsRoute } from '@/router/settingsNavigation'
 import { useApplicationUpdateStore } from '@/stores/applicationUpdate'
 import { createApplicationUpdateEntryActionRunner } from '@/utils/applicationUpdateAction'
 import ReleaseNotesContent from '@/components/common/ReleaseNotesContent.vue'
 import appLogo from '@/assets/images/LOGO-dark.png'
 
+const router = useRouter()
 const isAlwaysOnTop = ref(false)
+function openServerSettings() {
+  void router.push(settingsRoute('general'))
+}
 const updateEntryActionPending = ref(false)
 const applicationUpdate = useApplicationUpdateStore()
 const { state: updateState } = storeToRefs(applicationUpdate)
@@ -183,7 +197,8 @@ onMounted(async () => {
     -webkit-app-region: no-drag;
   }
 
-  .update-entry {
+  .update-entry,
+  .server-badge {
     -webkit-app-region: no-drag;
   }
 }
@@ -205,6 +220,32 @@ onMounted(async () => {
     font-size: 12px;
     font-weight: 600;
     color: var(--text-primary, #F2EFE8);
+  }
+
+  .server-badge {
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border-base, #3c3f41);
+    background: var(--surface-2, rgba(255, 255, 255, .06));
+    color: var(--text-secondary, #AEB4BD);
+    font: inherit;
+    font-size: 11px;
+    line-height: 16px;
+    cursor: pointer;
+    transition: color .15s ease, background-color .15s ease, border-color .15s ease;
+
+    &--international {
+      border-color: color-mix(in srgb, var(--brand-color, #C5A46D) 45%, transparent);
+      background: color-mix(in srgb, var(--brand-color, #C5A46D) 14%, transparent);
+      color: var(--brand-color, #C5A46D);
+    }
+
+    &:hover {
+      color: var(--text-primary, #fff);
+      border-color: var(--brand-color, #C5A46D);
+    }
+
+    &:focus-visible { outline: 2px solid var(--brand-color, #C5A46D); outline-offset: 1px; }
   }
 
   .update-entry {

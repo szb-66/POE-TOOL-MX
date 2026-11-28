@@ -164,7 +164,7 @@ function fixture(t, spawnChild = () => fakeChild(), brokenLogger = false) {
     app: { getPath: () => directory, getAppPath: () => directory, isPackaged: false }, path,
     fs: { ...fs, existsSync: () => true }, InterfaceTitleRegistry,
     createDetectionProcessDiagnostics, createEventLineParser, waitForDetectionStartup, describeDetectionExit,
-    structuredClone, setTimeout, clearTimeout, process, console: { log() {}, error() {} },
+    structuredClone, setTimeout, clearTimeout, setImmediate, process, console: { log() {}, error() {} },
     spawn: (...args) => { const child = spawnChild(...args); children.push(child); return child }
   })
   const coordinator = new Coordinator({ python: { detectPythonPath: () => pythonPath },
@@ -343,9 +343,15 @@ test('制作和地图在零坐标下预检失败且运行路径先校验后调�
   const specializedStart = service.slice(service.indexOf('async function startSpecializedCrafting'), service.indexOf('async function startGeneralCrafting'))
   const itemStart = service.slice(service.indexOf('async function startGeneralCrafting'), service.indexOf('export async function startMapRolling'))
   const mapStart = service.slice(service.indexOf('export async function startMapRolling'), service.indexOf('export async function stopCrafting'))
-  assert.ok(specializedStart.indexOf('validateSpecializedCraftingConfig') < specializedStart.indexOf('generatePythonScript'))
-  assert.ok(itemStart.indexOf('validateCraftingConfig') < itemStart.indexOf('generatePythonScript'))
-  assert.ok(mapStart.indexOf('validateMapRollingConfig') < mapStart.indexOf('generateMapRollingScript'))
+  assert.ok(specializedStart.includes('validateSpecializedCraftingConfig'))
+  assert.ok(specializedStart.includes('electronApi.script.generateAndExecute'))
+  assert.ok(specializedStart.indexOf('validateSpecializedCraftingConfig') < specializedStart.indexOf('electronApi.script.generateAndExecute'))
+  assert.ok(itemStart.includes('validateCraftingConfig'))
+  assert.ok(itemStart.includes('electronApi.script.generateAndExecute'))
+  assert.ok(itemStart.indexOf('validateCraftingConfig') < itemStart.indexOf('electronApi.script.generateAndExecute'))
+  assert.ok(mapStart.includes('validateMapRollingConfig'))
+  assert.ok(mapStart.includes('electronApi.script.generateAndExecute'))
+  assert.ok(mapStart.indexOf('validateMapRollingConfig') < mapStart.indexOf('electronApi.script.generateAndExecute'))
 })
 
 test('批量制作公共校验保留背包网格并解除账号赛季依赖', () => {
@@ -378,7 +384,7 @@ test('批量制作公共校验保留背包网格并解除账号赛季依赖', ()
   const validationStart = service.indexOf('const validation = validateCraftingConfig({')
   const validationCall = service.slice(validationStart, service.indexOf('if (!validation.isValid)', validationStart))
   assert.match(validationCall, /inventory: settingsStore\.inventory/)
-  assert.match(validationCall, /batchSnapshot: batchRecovery \? \{ scanId: batchRecovery\.scanId \} : batchStore\.snapshot/)
+  assert.match(validationCall, /batchSnapshot: batchRecovery \? \{ scanId: batchRecovery\.scanId \} : \(batchStore\.hasActiveSnapshot \? batchStore\.snapshot : null\)/)
   assert.match(validationCall, /batchCandidateCount: batchRecovery[\s\S]*batchStore\.candidates\.length/)
   assert.doesNotMatch(validationCall, /authenticated:|accountStore|league:/)
 })
@@ -1030,7 +1036,7 @@ function coordinatorFixture() {
     app: { getPath: () => '.', getAppPath: () => '.', isPackaged: false }, path,
     fs: { existsSync: () => true, writeFileSync: (_file, value) => writes.push(JSON.parse(value)) },
     InterfaceTitleRegistry: Registry, createEventLineParser, waitForDetectionStartup, describeDetectionExit, createDetectionProcessDiagnostics,
-    structuredClone, setTimeout, clearTimeout, process: { env: {} }, console: { log() {}, error() {} },
+    structuredClone, setTimeout, clearTimeout, setImmediate, process: { env: {} }, console: { log() {}, error() {} },
     spawn: () => {
       if (fail) { fail = false; throw new Error('injected spawn failure') }
       const child = new EventEmitter()
@@ -1128,10 +1134,10 @@ test('启动尚未就绪时停止，不复活旧状态，重新注册等待旧�
 test('背包窗口重复同步无原生显隐，截图隐藏后可恢复', () => {
   const source = read('../electron/modules/window/manager.js').match(/export function updateBagStashOverlay\(snapshot\) \{[\s\S]*?\n\}/)[0].replace('export ', '')
   let visible = false, shows = 0, hides = 0, sends = 0
-  const window = { webContents: { isLoadingMainFrame: () => false }, isVisible: () => visible,
+  const window = { webContents: { isLoadingMainFrame: () => false }, isVisible: () => visible, isDestroyed: () => false,
     showInactive() { shows++; visible = true }, hide() { hides++; visible = false } }
   const sync = vm.runInNewContext(`${source}\nupdateBagStashOverlay`, {
-    bagStashOverlaySnapshot: null, createBagStashOverlayWindow: () => window, publishBagStashOverlayState: () => sends++
+    bagStashOverlayWindow: window, bagStashOverlaySnapshot: null, createBagStashOverlayWindow: () => window, publishBagStashOverlayState: () => sends++
   })
   for (let i = 0; i < 10; i++) sync({ visible: true })
   assert.equal(shows, 1); assert.equal(sends, 10)

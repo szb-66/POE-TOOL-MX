@@ -16,14 +16,15 @@ import { usePoeAccountStore } from '@/stores/poeAccount'
 import { useBatchCraftingStore } from '@/stores/batchCrafting'
 import { useFeatureModulesStore } from '@/stores/featureModules'
 import { useMapTrackerStore } from '@/stores/mapTracker'
+import { useServerMismatchStore } from '@/stores/serverMismatch'
 import { inventoryItemPosition, validateBatchInventoryLayout, validateBatchCategoryCompatibility } from '@/domains/items/batchCrafting'
 import { validateCraftingConfig, validateMapRollingConfig, validateSpecializedCraftingConfig } from '@/utils/validation'
 import { getActiveMapRollingConfig } from '@/utils/mapPresetMigration'
 import { buildBagRuntimeConfig, validateBagRuntimeConfig } from '@/utils/bagConfig'
-import { validateCombatAssist, validateLoopAssist } from '@/utils/combatConfig'
+import { validateCombatAssist, validatePotionAssist } from '@/utils/combatConfig'
 import { startCrafting, startMapRolling, stopCrafting } from '@/utils/scriptService'
 import { setBagModuleEnabled } from '@/utils/bagService'
-import { startLoopAssist, startPotionAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService'
+import { startCombatAssist, stopCombatAssist, syncRunningCombatAssist } from '@/utils/combatService'
 import { VENDOR_RECIPE_CATALOG } from '../../../electron/modules/chaosRecipe/engine.js'
 import { buildVendorRecipeOptions } from './vendorRecipeOptions.js'
 import { setRendererDiagnosticContext } from '@/utils/diagnosticContext'
@@ -88,6 +89,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const batchCraftingStore = useBatchCraftingStore()
   const featureModulesStore = useFeatureModulesStore()
   const mapTrackerStore = useMapTrackerStore()
+  const serverMismatchStore = useServerMismatchStore()
   const pending = reactive({})
   const refreshing = ref(false)
   let dashboardCombatQueue = Promise.resolve()
@@ -154,11 +156,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
     blacklist: bagStore.blacklist,
     inventoryLayout: bagStore.inventoryLayout
   }, settingsStore)))
-  const combatValidation = computed(() => {
-    const config = settingsStore.combatAssist
-    const hasLoopItems = (config.loop?.items || []).some(item => item.enabled && item.key)
-    return hasLoopItems ? validateLoopAssist(config) : validateCombatAssist(config)
-  })
+  const combatValidation = computed(() => validateCombatAssist(settingsStore.combatAssist))
   const modules = computed(() => {
     const activeRecipeId = chaosRecipeStore.settings.activeRecipeId
     const activeRecipe = chaosRecipeStore.activeRecipe
@@ -208,7 +206,8 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         loopTriggers: combatStore.loopTriggers,
         loopLastError: combatStore.loopLastError,
         healthTriggers: combatStore.healthTriggers,
-        manaTriggers: combatStore.manaTriggers
+        manaTriggers: combatStore.manaTriggers,
+        areaGate: combatStore.areaGate
       }),
       evaluateShopStatus({
         authenticated: chaosRecipeStore.auth.authenticated,
@@ -269,13 +268,15 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   const summary = computed(() => summarizeModules(modules.value))
   const healthItems = computed(() => {
     const shortcut = settingsStore.shortcutHealth
-    const dpiStatus = settingsStore.dpiMode === 'manual'
-      ? { status: 'ready', text: `手动倍率 ${settingsStore.dpiScale}` }
-      : settingsStore.dpiDetectionStatus === 'success'
-        ? { status: 'ready', text: `已识别游戏窗口 · ${settingsStore.dpiScale}` }
-        : settingsStore.dpiDetectionStatus === 'detecting'
-          ? { status: 'pending', text: '正在识别游戏窗口 DPI' }
-          : { status: 'attention', text: settingsStore.dpiDetectionError || `使用回退倍率 ${settingsStore.dpiScale}` }
+    const dpiStatus = serverMismatchStore.mismatch
+      ? { status: 'attention', text: serverMismatchStore.message }
+      : settingsStore.dpiMode === 'manual'
+        ? { status: 'ready', text: `手动倍率 ${settingsStore.dpiScale}` }
+        : settingsStore.dpiDetectionStatus === 'success'
+          ? { status: 'ready', text: `已识别游戏窗口 · ${settingsStore.dpiScale}` }
+          : settingsStore.dpiDetectionStatus === 'detecting'
+            ? { status: 'pending', text: '正在识别游戏窗口 DPI' }
+            : { status: 'attention', text: settingsStore.dpiDetectionError || `使用回退倍率 ${settingsStore.dpiScale}` }
     const shortcutStatus = evaluateShortcutHealth({
       status: shortcut.status,
       error: shortcut.error,
@@ -337,7 +338,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
   async function updateCombatResource(resourceKey, field, value) {
     const commit = async () => {
       const combatAssist = settingsStore.combatAssist
-      const result = await settingsStore.updateCombatAssist({
+      const next = {
         ...combatAssist,
         potion: {
           ...combatAssist.potion,
@@ -346,6 +347,28 @@ export function useDashboard({ openHelp = () => {} } = {}) {
             [field]: value
           }
         }
+      }
+      if ((combatStore.running || combatStore.loopRunning) && field === 'enabled' && value === true) {
+        const validation = validatePotionAssist(next)
+        if (!validation.isValid) {
+          throw new Error(`${validation.errors[0]}，请先完成配置后再开启`)
+        }
+      }
+      const result = await settingsStore.updateCombatAssist(next)
+      if (!result.success) throw new Error(result.error)
+      if (combatStore.running || combatStore.loopRunning) {
+        await syncRunningCombatAssist()
+      }
+    }
+    dashboardCombatQueue = dashboardCombatQueue.then(commit, commit)
+    return dashboardCombatQueue
+  }
+
+  async function updateCombatAutoPause(value) {
+    const commit = async () => {
+      const result = await settingsStore.updateCombatAssist({
+        ...settingsStore.combatAssist,
+        autoPauseInSafeZone: Boolean(value)
       })
       if (!result.success) throw new Error(result.error)
     }
@@ -498,6 +521,14 @@ export function useDashboard({ openHelp = () => {} } = {}) {
           value: potion.mana.enabled,
           disabled,
           run: value => updateCombatResource('mana', 'enabled', value)
+        },
+        {
+          id: 'auto-pause-safe-zone',
+          type: 'switch',
+          label: '安全区暂停',
+          value: settingsStore.combatAssist.autoPauseInSafeZone !== false,
+          disabled,
+          run: value => updateCombatAutoPause(value)
         }
       ]
     }
@@ -536,18 +567,9 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         : [{ id: 'start', label: '启动', type: 'primary', disabled: sharedScriptOccupied('map'), run: startMapRolling }]
     }
     if (module.id === 'combat') {
-      const actions = []
-      if (combatStore.running) {
-        actions.push({ id: 'stop', label: '停止被动', type: 'danger', run: stopPotionAssist })
-      } else {
-        actions.push({ id: 'start', label: '启动被动', type: 'primary', run: startPotionAssist })
-      }
-      if (combatStore.loopRunning) {
-        actions.push({ id: 'stop-loop', label: '停止循环', type: 'danger', run: stopLoopAssist })
-      } else {
-        actions.push({ id: 'start-loop', label: '启动循环', type: 'primary', run: startLoopAssist })
-      }
-      return actions
+      return (combatStore.running || combatStore.loopRunning)
+        ? [{ id: 'stop', label: '停止', type: 'danger', run: stopCombatAssist }]
+        : [{ id: 'start', label: '启动', type: 'primary', run: startCombatAssist }]
     }
     if (module.id === 'shop') {
       return [
@@ -625,6 +647,7 @@ export function useDashboard({ openHelp = () => {} } = {}) {
         electronApi.script.detectPythonPath(),
         electronApi.system.getStartupHealth(),
         mapTrackerStore.refresh(),
+        serverMismatchStore.refresh({ force: true }),
         settingsStore.refreshGameDisplayMode()
       ])
       if (scriptResult.status === 'fulfilled') scriptStore.applyStatus(scriptResult.value)

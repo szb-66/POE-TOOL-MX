@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { createDefaultCombatAreaGate } from '../utils/combatConfig.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from '../utils/diagnostics.js'
 
 export const useCombatStore = defineStore('combat', () => {
@@ -19,8 +20,25 @@ export const useCombatStore = defineStore('combat', () => {
   const loopLastFailure = ref({ failureCode: '', configurationIssueId: '' })
   const portalLastError = ref('')
   const portalLastFailure = ref({ failureCode: '', configurationIssueId: '' })
+  const areaGate = ref(createDefaultCombatAreaGate())
+
+  const active = computed(() => running.value || loopRunning.value)
+  const anyFocused = computed(() => {
+    if (running.value && loopRunning.value) return focused.value && loopFocused.value
+    if (running.value) return focused.value
+    if (loopRunning.value) return loopFocused.value
+    return false
+  })
 
   function applyStatus(status = {}) {
+    if (status.areaGate && typeof status.areaGate === 'object') {
+      areaGate.value = {
+        ...createDefaultCombatAreaGate(),
+        ...status.areaGate
+      }
+    }
+    if (status.event === 'area-gate') return
+
     const isLoop = status.origin === 'loop'
     if (status.event === 'starting' || status.event === 'started') {
       if (isLoop) {
@@ -93,6 +111,6 @@ export const useCombatStore = defineStore('combat', () => {
   return {
     running, focused, protectedMode, processId, healthTriggers, manaTriggers, lastError, lastFailure,
     loopRunning, loopFocused, loopTriggers, loopProcessId, loopLastError, loopLastFailure,
-    portalLastError, portalLastFailure, applyStatus, applyPortalFailure
+    portalLastError, portalLastFailure, areaGate, active, anyFocused, applyStatus, applyPortalFailure
   }
 })

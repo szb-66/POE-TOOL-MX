@@ -25,7 +25,8 @@ function unwrap(response) {
   throw Object.assign(new Error(response?.error?.message || '君锋镇操作失败'), {
     code: response?.error?.code || 'JUNFENG_OPERATION_FAILED',
     failureCode: response?.error?.failureCode || '',
-    configurationIssueId: response?.error?.configurationIssueId || ''
+    configurationIssueId: response?.error?.configurationIssueId || '',
+    configurationIssues: Array.isArray(response?.error?.configurationIssues) ? response.error.configurationIssues : []
   })
 }
 

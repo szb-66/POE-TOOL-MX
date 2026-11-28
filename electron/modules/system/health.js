@@ -3,7 +3,7 @@ import { constants } from 'node:fs'
 import os from 'node:os'
 import { describeGameDisplayMode } from '../../../shared/gameDisplayMode.js'
 
-const SUPPORTED_SCALE_FACTORS = new Set([1, 1.25, 1.5, 2])
+const SUPPORTED_SCALE_FACTORS = new Set([1, 1.25, 1.5, 1.75, 2])
 
 function item(id, label, status, text, details = {}) {
   return { id, label, status, text, ...details }
@@ -67,6 +67,11 @@ export function evaluateRuntime(runtime = {}) {
 }
 
 export function evaluateGameWindow(gameDpi = {}) {
+  if (gameDpi?.serverMismatch?.mismatch) {
+    return item('game', '游戏窗口 / DPI', 'attention', gameDpi.serverMismatch.message, {
+      serverMismatch: gameDpi.serverMismatch
+    })
+  }
   return gameDpi.found
     ? item('game', '游戏窗口 / DPI', 'ready', `${gameDpi.dpi || '未知'} DPI · ${gameDpi.scaleFactor || 1}x`)
     : item('game', '游戏窗口 / DPI', 'attention', gameDpi.error || '未检测到游戏窗口')

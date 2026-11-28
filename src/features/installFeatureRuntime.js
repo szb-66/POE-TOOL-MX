@@ -14,7 +14,7 @@ import { useFaustusStore } from '@/domains/faustus/faustusStore.js'
 import { useMapTrackerStore } from '@/stores/mapTracker.js'
 import { disposeBagAutomation, initBagAutomation, suspendNormalBagRuntime } from '@/utils/bagService.js'
 import { initAllflameReceiverAutomation, suspendAllflameReceiver } from '@/domains/puzzle/allflameReceiverService.js'
-import { disposeCombatAssist, initCombatAssist, stopLoopAssist, stopPotionAssist } from '@/utils/combatService.js'
+import { disposeCombatAssist, initCombatAssist, stopCombatAssist } from '@/utils/combatService.js'
 import { updateShortcuts } from '@/utils/scriptService.js'
 import { registerFeatureRuntimeAdapter, setFeatureShortcutSynchronizer } from './featureRuntime.js'
 import { reportFeatureStartupEvent } from '@/utils/startupReporter.js'
@@ -165,7 +165,7 @@ export function installFeatureRuntime({ router }) {
     },
     combat: {
       isBusy: () => combatStore.running || combatStore.loopRunning,
-      suspend: async () => { const result = await collectResults([() => stopPotionAssist({ persist: false, silent: true }), () => stopLoopAssist({ persist: false, silent: true }), () => electronApi.combat.stopPortal()]); if (result.success) disposeCombatAssist(); return result },
+      suspend: async () => { const result = await collectResults([() => stopCombatAssist({ persist: false, silent: true }), () => electronApi.combat.stopPortal()]); if (result.success) disposeCombatAssist(); return result },
       resume: attachCombat
     },
     story: { isBusy: () => false, suspend: () => storyStore.hideOverlay(), resume: async () => ({ success: true }) },

@@ -7,6 +7,7 @@ import {
   isGameWindowCandidate,
   isGameWindowTitle as matchesGameWindowTitle
 } from '../../../shared/gameWindowTitles.js'
+import { detectGameServerMismatch } from '../../../shared/gameServerMismatch.js'
 
 const execFileAsync = promisify(execFile)
 
@@ -210,6 +211,7 @@ def visit(hwnd, _lparam):
         style = 0
     dpi = int(get_dpi_for_window(hwnd)) if get_dpi_for_window else 0
     process_name = ""
+    executable_path = ""
     pid = wintypes.DWORD()
     user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
     if pid.value:
@@ -224,12 +226,14 @@ def visit(hwnd, _lparam):
             ]
             kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
             if kernel32.QueryFullProcessImageNameW(process_handle, 0, image_buffer, ctypes.byref(image_size)):
-                process_name = image_buffer.value.rsplit("\\", 1)[-1].rsplit("/", 1)[-1]
+                executable_path = image_buffer.value
+                process_name = executable_path.rsplit("\\", 1)[-1].rsplit("/", 1)[-1]
             kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
             kernel32.CloseHandle(process_handle)
     candidates.append({
         "title": title,
         "processName": process_name,
+        "executablePath": executable_path,
         "foreground": hwnd == foreground,
         "minimized": bool(user32.IsIconic(hwnd)),
         "area": area,
@@ -249,7 +253,8 @@ export async function detectGameDpi({
   pythonPath,
   platform = process.platform,
   gameWindowTitles = GAME_WINDOW_TITLE_PARTS,
-  gameWindowProcessNames = DEFAULT_GAME_WINDOW_PROCESS_NAMES
+  gameWindowProcessNames = DEFAULT_GAME_WINDOW_PROCESS_NAMES,
+  currentServerId = ''
 } = {}) {
   if (platform !== 'win32') {
     return { found: false, error: '自动识别游戏 DPI 仅支持 Windows' }
@@ -266,14 +271,35 @@ export async function detectGameDpi({
       maxBuffer: 1024 * 1024,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' }
     })
+    const candidates = JSON.parse(stdout.trim() || '[]')
+    const serverMismatch = currentServerId
+      ? detectGameServerMismatch({
+        candidates,
+        currentServerId,
+        processNames: gameWindowProcessNames
+      })
+      : null
     const selected = selectGameWindowCandidate(
-      JSON.parse(stdout.trim() || '[]'),
+      candidates,
       gameWindowTitles,
       gameWindowProcessNames
     )
     const dpi = Number(selected?.dpi)
-    if (!selected) return { found: false, error: '未找到匹配的游戏窗口' }
-    if (!Number.isFinite(dpi) || dpi <= 0) return { found: false, windowTitle: selected.title, error: '无法读取游戏窗口 DPI' }
+    if (!selected) {
+      return {
+        found: false,
+        error: serverMismatch?.mismatch ? serverMismatch.message : '未找到匹配的游戏窗口',
+        ...(serverMismatch ? { serverMismatch } : {})
+      }
+    }
+    if (!Number.isFinite(dpi) || dpi <= 0) {
+      return {
+        found: false,
+        windowTitle: selected.title,
+        error: serverMismatch?.mismatch ? serverMismatch.message : '无法读取游戏窗口 DPI',
+        ...(serverMismatch ? { serverMismatch } : {})
+      }
+    }
     const displayMode = classifyGameDisplayMode(selected)
     return {
       found: true,
@@ -281,7 +307,8 @@ export async function detectGameDpi({
       scaleFactor: Number((dpi / 96).toFixed(4)),
       windowTitle: selected.title,
       displayMode: displayMode.mode,
-      displayModeSupported: displayMode.supported
+      displayModeSupported: displayMode.supported,
+      ...(serverMismatch ? { serverMismatch } : {})
     }
   } catch (error) {
     return { found: false, error: `识别游戏窗口 DPI 失败：${error.message}` }

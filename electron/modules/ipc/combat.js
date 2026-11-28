@@ -1,9 +1,11 @@
-/** 战斗辅助 IPC：管理独立自动喝药进程、像素采样和一键回城。 */
+/** 战斗辅助 IPC：管理独立自动喝药进程、像素采样、安全区自动暂停与一键回城。 */
 import { ipcMain } from 'electron'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import {
+  createDefaultCombatAreaGate,
+  evaluateCombatAreaGate,
   normalizeCombatAssist,
   validateLoopAssist,
   validatePortalAssist,
@@ -14,11 +16,14 @@ import { spawnOperationProcess } from '../elevatedAutomation/index.js'
 import { stopPythonProcess } from '../python/process.js'
 
 const COMBAT_SCRIPT_TEMPLATE = new URL('../../../src/assets/scripts/combat_assist_template.py', import.meta.url)
+const AUTO_PAUSE_START_WAIT_MS = 800
 
 let potionProcess = null
 let loopProcess = null
 let portalProcess = null
 let processTools = null
+let clientEventsService = null
+let unsubscribeClientEvents = null
 let potionConfigPath = ''
 let potionConfigRevision = 0
 let latestPotionConfig = null
@@ -26,6 +31,8 @@ let loopConfigPath = ''
 let loopConfigRevision = 0
 let latestLoopConfig = null
 let latestAutomationTiming = pythonAutomationTiming()
+let autoPauseInSafeZone = true
+let latestAreaGate = createDefaultCombatAreaGate()
 
 function isAlive(processRef) {
   return Boolean(processRef && !processRef.killed && processRef.exitCode === null)
@@ -36,6 +43,87 @@ function sendStatus(window, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('combat-status', payload)
   }
+}
+
+function areaGatesEqual(left, right) {
+  return Boolean(left?.paused) === Boolean(right?.paused) &&
+    String(left?.reason || '') === String(right?.reason || '') &&
+    String(left?.areaId || '') === String(right?.areaId || '') &&
+    String(left?.areaName || '') === String(right?.areaName || '') &&
+    String(left?.warning || '') === String(right?.warning || '')
+}
+
+function readAreaGate(enabled = autoPauseInSafeZone) {
+  const snapshot = clientEventsService?.snapshot?.() || null
+  const context = clientEventsService?.currentContext?.() || null
+  return evaluateCombatAreaGate({
+    enabled,
+    clientState: snapshot?.state || 'stopped',
+    gameState: snapshot?.gameState || 'unknown',
+    areaId: context?.areaId || ''
+  })
+}
+
+async function ensureClientEventsForAutoPause({ waitMs = 0 } = {}) {
+  if (!autoPauseInSafeZone || !clientEventsService?.ensureStarted) return
+  const snapshot = clientEventsService.snapshot?.()
+  if (snapshot?.enabled && ['started', 'resyncing'].includes(snapshot.state)) return
+  const pending = Promise.resolve().then(() => clientEventsService.ensureStarted()).catch(() => null)
+  if (waitMs > 0) {
+    await Promise.race([
+      pending,
+      new Promise(resolve => {
+        const timer = setTimeout(resolve, waitMs)
+        timer.unref?.()
+      })
+    ])
+  }
+}
+
+function writeJsonAtomically(filePath, value) {
+  const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+  try {
+    fs.writeFileSync(temporaryPath, JSON.stringify(value, null, 2), 'utf8')
+    fs.renameSync(temporaryPath, filePath)
+  } catch (error) {
+    try { fs.unlinkSync(temporaryPath) } catch {}
+    throw error
+  }
+}
+
+function combatRuntimeConfig(config, timing = latestAutomationTiming, areaGate = latestAreaGate) {
+  return {
+    ...config,
+    ...timing,
+    paused_by_area: Boolean(areaGate?.paused)
+  }
+}
+
+function writeActiveConfigsWithAreaGate(nextGate) {
+  const targets = [
+    [potionConfigPath, latestPotionConfig],
+    [loopConfigPath, latestLoopConfig]
+  ].filter(([configPath, config]) => configPath && config)
+  for (const [configPath, config] of targets) {
+    try {
+      writeJsonAtomically(configPath, combatRuntimeConfig(config, latestAutomationTiming, nextGate))
+    } catch {
+      // 单次配置同步失败不中断主进程监听
+    }
+  }
+}
+
+function syncAreaGate({ forceEmit = false, rewriteConfigs = true } = {}) {
+  const nextGate = readAreaGate(autoPauseInSafeZone)
+  const changed = !areaGatesEqual(latestAreaGate, nextGate)
+  latestAreaGate = nextGate
+  if (changed && rewriteConfigs) {
+    writeActiveConfigsWithAreaGate(nextGate)
+  }
+  if (changed || forceEmit) {
+    sendStatus(processTools?.window, { event: 'area-gate', areaGate: nextGate })
+  }
+  return nextGate
 }
 
 function spawnCombatProcess({ mode, config, suffix, origin, onStatus, onFailed, onClosed }) {
@@ -120,21 +208,6 @@ export function stopPortalAutomation() {
   )
 }
 
-function writeJsonAtomically(filePath, value) {
-  const temporaryPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
-  try {
-    fs.writeFileSync(temporaryPath, JSON.stringify(value, null, 2), 'utf8')
-    fs.renameSync(temporaryPath, filePath)
-  } catch (error) {
-    try { fs.unlinkSync(temporaryPath) } catch {}
-    throw error
-  }
-}
-
-function combatRuntimeConfig(config, timing = latestAutomationTiming) {
-  return { ...config, ...timing }
-}
-
 export function updateCombatAutomationTiming(value = {}) {
   const normalized = normalizeAutomationTiming(value)
   const candidate = pythonAutomationTiming(normalized)
@@ -146,7 +219,7 @@ export function updateCombatAutomationTiming(value = {}) {
   ].filter(([configPath, config]) => configPath && config)
   try {
     for (const [configPath, config] of targets) {
-      writeJsonAtomically(configPath, combatRuntimeConfig(config, candidate))
+      writeJsonAtomically(configPath, combatRuntimeConfig(config, candidate, latestAreaGate))
       written.push([configPath, config])
     }
     latestAutomationTiming = candidate
@@ -155,7 +228,7 @@ export function updateCombatAutomationTiming(value = {}) {
     return normalized
   } catch (error) {
     for (const [configPath, config] of written) {
-      try { writeJsonAtomically(configPath, combatRuntimeConfig(config, previous)) } catch {}
+      try { writeJsonAtomically(configPath, combatRuntimeConfig(config, previous, latestAreaGate)) } catch {}
     }
     throw error
   }
@@ -223,21 +296,30 @@ function runOnce(pythonPath, scriptPath, mode, configPath) {
   })
 }
 
-export function registerCombatHandlers(python, window, fileWatcher) {
+export function registerCombatHandlers(python, window, fileWatcher, { clientEvents = null } = {}) {
   processTools = { python, window, fileWatcher }
+  unsubscribeClientEvents?.()
+  clientEventsService = clientEvents || null
+  unsubscribeClientEvents = clientEventsService?.onSnapshot?.(() => {
+    syncAreaGate()
+  }) || null
+  latestAreaGate = readAreaGate(autoPauseInSafeZone)
 
   ipcMain.handle('combat-start-potion', async (_event, payload) => {
     if (isAlive(potionProcess)) {
-      return { success: true, alreadyRunning: true, processId: potionProcess.pid }
+      return { success: true, alreadyRunning: true, processId: potionProcess.pid, areaGate: syncAreaGate({ rewriteConfigs: false }) }
     }
     try {
       const config = normalizeValidPotionConfig(payload.config)
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
+      autoPauseInSafeZone = config.autoPauseInSafeZone !== false
+      await ensureClientEventsForAutoPause({ waitMs: AUTO_PAUSE_START_WAIT_MS })
+      const areaGate = syncAreaGate({ forceEmit: true, rewriteConfigs: false })
       const handle = spawnCombatProcess({
         mode: 'potion',
-        config: combatRuntimeConfig(config),
+        config: combatRuntimeConfig(config, latestAutomationTiming, areaGate),
         suffix: 'potion',
-        onStatus: payload => sendStatus(window, payload),
+        onStatus: status => sendStatus(window, status),
         onFailed: error => {
           potionProcess = null
           sendStatus(window, { running: false, event: 'error', error: error.message })
@@ -251,8 +333,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       potionConfigPath = handle.configPath
       latestPotionConfig = config
       potionConfigRevision += 1
-      sendStatus(window, { running: true, event: 'starting', processId: potionProcess.pid })
-      return { success: true, processId: potionProcess.pid, config, revision: potionConfigRevision }
+      sendStatus(window, { running: true, event: 'starting', processId: potionProcess.pid, areaGate })
+      return { success: true, processId: potionProcess.pid, config, revision: potionConfigRevision, areaGate }
     } catch (error) {
       potionProcess = null
       return { success: false, error: error.message }
@@ -264,23 +346,39 @@ export function registerCombatHandlers(python, window, fileWatcher) {
   ipcMain.handle('combat-get-potion-status', async () => ({
     running: isAlive(potionProcess),
     processId: isAlive(potionProcess) ? potionProcess.pid : null,
-    revision: potionConfigRevision
+    revision: potionConfigRevision,
+    areaGate: syncAreaGate({ rewriteConfigs: false })
   }))
 
   ipcMain.handle('combat-update-potion-config', async (_event, value) => {
     try {
       const config = normalizePotionConfig(value)
+      const previousAutoPause = autoPauseInSafeZone
+      autoPauseInSafeZone = config.autoPauseInSafeZone !== false
+      if (autoPauseInSafeZone && (!previousAutoPause || isAlive(potionProcess) || isAlive(loopProcess))) {
+        void ensureClientEventsForAutoPause({ waitMs: 0 })
+      }
+      const areaGate = readAreaGate(autoPauseInSafeZone)
+      const gateChanged = !areaGatesEqual(latestAreaGate, areaGate)
+      latestAreaGate = areaGate
       const configPath = potionConfigPath || path.join(fileWatcher.getFilePaths().tempDir, 'combat_potion_config.json')
       fs.mkdirSync(path.dirname(configPath), { recursive: true })
-      writeJsonAtomically(configPath, combatRuntimeConfig(config))
+      writeJsonAtomically(configPath, combatRuntimeConfig(config, latestAutomationTiming, areaGate))
       potionConfigPath = configPath
       latestPotionConfig = config
       potionConfigRevision += 1
+      if (gateChanged && loopConfigPath && latestLoopConfig) {
+        try { writeJsonAtomically(loopConfigPath, combatRuntimeConfig(latestLoopConfig, latestAutomationTiming, areaGate)) } catch {}
+      }
+      if (gateChanged || autoPauseInSafeZone !== previousAutoPause) {
+        sendStatus(window, { event: 'area-gate', areaGate })
+      }
       return {
         success: true,
         config: structuredClone(latestPotionConfig),
         revision: potionConfigRevision,
-        running: isAlive(potionProcess)
+        running: isAlive(potionProcess),
+        areaGate
       }
     } catch (error) {
       return { success: false, error: error.message || String(error), revision: potionConfigRevision }
@@ -289,19 +387,22 @@ export function registerCombatHandlers(python, window, fileWatcher) {
 
   ipcMain.handle('combat-start-loop', async (_event, payload) => {
     if (isAlive(loopProcess)) {
-      return { success: true, alreadyRunning: true, processId: loopProcess.pid }
+      return { success: true, alreadyRunning: true, processId: loopProcess.pid, areaGate: syncAreaGate({ rewriteConfigs: false }) }
     }
     try {
       const config = normalizeValidLoopConfig(payload.config)
       latestAutomationTiming = pythonAutomationTiming(payload.automationTiming)
       const validation = validateLoopAssist(config)
       if (!validation.isValid) throw new Error(validation.errors[0] || '循环按键配置无效')
+      autoPauseInSafeZone = config.autoPauseInSafeZone !== false
+      await ensureClientEventsForAutoPause({ waitMs: AUTO_PAUSE_START_WAIT_MS })
+      const areaGate = syncAreaGate({ forceEmit: true, rewriteConfigs: false })
       const handle = spawnCombatProcess({
         mode: 'loop',
-        config: combatRuntimeConfig(config),
+        config: combatRuntimeConfig(config, latestAutomationTiming, areaGate),
         suffix: 'loop',
         origin: 'loop',
-        onStatus: payload => sendStatus(window, payload),
+        onStatus: status => sendStatus(window, status),
         onFailed: error => {
           loopProcess = null
           sendStatus(window, { running: false, origin: 'loop', event: 'error', error: error.message })
@@ -315,8 +416,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       loopConfigPath = handle.configPath
       latestLoopConfig = config
       loopConfigRevision += 1
-      sendStatus(window, { running: true, origin: 'loop', event: 'starting', processId: loopProcess.pid })
-      return { success: true, processId: loopProcess.pid, config, revision: loopConfigRevision }
+      sendStatus(window, { running: true, origin: 'loop', event: 'starting', processId: loopProcess.pid, areaGate })
+      return { success: true, processId: loopProcess.pid, config, revision: loopConfigRevision, areaGate }
     } catch (error) {
       loopProcess = null
       return { success: false, error: error.message }
@@ -328,23 +429,39 @@ export function registerCombatHandlers(python, window, fileWatcher) {
   ipcMain.handle('combat-get-loop-status', async () => ({
     running: isAlive(loopProcess),
     processId: isAlive(loopProcess) ? loopProcess.pid : null,
-    revision: loopConfigRevision
+    revision: loopConfigRevision,
+    areaGate: syncAreaGate({ rewriteConfigs: false })
   }))
 
   ipcMain.handle('combat-update-loop-config', async (_event, value) => {
     try {
       const config = normalizeValidLoopConfig(value)
+      const previousAutoPause = autoPauseInSafeZone
+      autoPauseInSafeZone = config.autoPauseInSafeZone !== false
+      if (autoPauseInSafeZone && (!previousAutoPause || isAlive(potionProcess) || isAlive(loopProcess))) {
+        void ensureClientEventsForAutoPause({ waitMs: 0 })
+      }
+      const areaGate = readAreaGate(autoPauseInSafeZone)
+      const gateChanged = !areaGatesEqual(latestAreaGate, areaGate)
+      latestAreaGate = areaGate
       const configPath = loopConfigPath || path.join(fileWatcher.getFilePaths().tempDir, 'combat_loop_config.json')
       fs.mkdirSync(path.dirname(configPath), { recursive: true })
-      writeJsonAtomically(configPath, combatRuntimeConfig(config))
+      writeJsonAtomically(configPath, combatRuntimeConfig(config, latestAutomationTiming, areaGate))
       loopConfigPath = configPath
       latestLoopConfig = config
       loopConfigRevision += 1
+      if (gateChanged && potionConfigPath && latestPotionConfig) {
+        try { writeJsonAtomically(potionConfigPath, combatRuntimeConfig(latestPotionConfig, latestAutomationTiming, areaGate)) } catch {}
+      }
+      if (gateChanged || autoPauseInSafeZone !== previousAutoPause) {
+        sendStatus(window, { event: 'area-gate', areaGate })
+      }
       return {
         success: true,
         config: structuredClone(latestLoopConfig),
         revision: loopConfigRevision,
-        running: isAlive(loopProcess)
+        running: isAlive(loopProcess),
+        areaGate
       }
     } catch (error) {
       return { success: false, error: error.message || String(error), revision: loopConfigRevision }
@@ -377,7 +494,7 @@ export function registerCombatHandlers(python, window, fileWatcher) {
       const activation = await window.activateGameWindow('combat-portal')
       if (!activation.success) return { success: false, error: window.describeGameActivationFailure(activation.code), errorCode: activation.code }
       const portalTiming = pythonAutomationTiming(payload.automationTiming)
-      const { scriptPath, configPath } = prepareFiles(fileWatcher, combatRuntimeConfig(config, portalTiming), 'portal')
+      const { scriptPath, configPath } = prepareFiles(fileWatcher, combatRuntimeConfig(config, portalTiming, createDefaultCombatAreaGate()), 'portal')
       const { child: _child, ...result } = await runOnce(pythonPath, scriptPath, 'portal', configPath)
       portalProcess = null
       return result
@@ -390,6 +507,8 @@ export function registerCombatHandlers(python, window, fileWatcher) {
 }
 
 export async function cleanupCombatProcesses() {
+  unsubscribeClientEvents?.()
+  unsubscribeClientEvents = null
   const processes = [potionProcess, loopProcess, portalProcess].filter(isAlive)
   if (!processes.length) return
   await Promise.all([

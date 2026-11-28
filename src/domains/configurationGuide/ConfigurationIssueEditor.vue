@@ -81,7 +81,7 @@
     />
 
     <div v-else-if="issue.editorId.startsWith('combat.')" class="combat-editor">
-      <template v-if="issue.actionId === 'potion'">
+      <template v-if="issue.editorId === 'combat.potion' || issue.editorId.startsWith('combat.potion.') || issue.editorId === 'combat.items'">
         <el-card v-for="resource in combatResources" :key="resource.key" shadow="never">
           <template #header>
             <div class="configuration-issue-editor__row">
@@ -113,7 +113,7 @@
         </el-card>
       </template>
 
-      <template v-else-if="issue.actionId === 'loop'">
+      <template v-if="issue.editorId === 'combat.loop' || issue.editorId.startsWith('combat.loop.') || issue.editorId === 'combat.items'">
         <div v-for="(item, index) in combatDraft.loop.items" :key="item.id" class="combat-loop-row">
           <el-switch :model-value="item.enabled" @change="value => saveLoopItem(index, { enabled: value })" />
           <KeyCaptureInput
@@ -134,7 +134,7 @@
         <el-button type="primary" plain @click="addLoopItem">添加循环按键</el-button>
       </template>
 
-      <el-form v-else label-width="130px" label-position="left">
+      <el-form v-if="issue.editorId.startsWith('combat.portal')" label-width="130px" label-position="left">
         <el-form-item label="开启传送门按键">
           <KeyCaptureInput
             :model-value="combatDraft.portal.openKey"

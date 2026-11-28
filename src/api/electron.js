@@ -70,6 +70,7 @@ const mockApi = {
   },
   system: {
     detectGameDpi: () => Promise.resolve({ found: false, primaryScaleFactor: 1, error: '非 Electron 环境' }),
+    onGameServerMismatchChanged: () => () => {},
     updateGameWindowTitles: (titles) => Promise.resolve({ success: true, titles }),
     updateGameWindowProcessNames: (processNames) => Promise.resolve({ success: true, processNames }),
     getStartupHealth: () => Promise.resolve({ checkedAt: new Date().toISOString(), items: [] }),
@@ -465,7 +466,8 @@ export const electronApi = isElectron ? {
     onRequested: (callback) => window.electronAPI.onConfigurationGuideRequested?.(callback) || (() => {})
   },
   system: {
-    detectGameDpi: () => window.electronAPI.detectGameDpi?.(),
+    detectGameDpi: (options) => window.electronAPI.detectGameDpi?.(options ? craftingIpcPayload(options) : undefined),
+    onGameServerMismatchChanged: (callback) => window.electronAPI.onGameServerMismatchChanged?.(callback) || (() => {}),
     updateGameWindowTitles: (titles) => window.electronAPI.updateGameWindowTitles?.(craftingIpcPayload(titles)),
     updateGameWindowProcessNames: (processNames) => window.electronAPI.updateGameWindowProcessNames?.(craftingIpcPayload(processNames)),
     getStartupHealth: () => window.electronAPI.getStartupHealth?.(),

@@ -2,7 +2,13 @@ import { ElMessage } from 'element-plus'
 import { electronApi } from '@/api/electron'
 import { useSettingsStore } from '@/domains/settings/settingsStore'
 import { useCombatStore } from '@/stores/combat'
-import { validateLoopAssist, validatePotionAssist } from './combatConfig.js'
+import {
+  hasEnabledLoopItem,
+  hasEnabledPotionResource,
+  validateCombatAssist,
+  validateLoopAssist,
+  validatePotionAssist
+} from './combatConfig.js'
 import { reportDiagnosticFailure, reportDiagnosticRecovery } from './diagnostics.js'
 import { runWithConfigurationGuide } from '@/domains/configurationGuide/configurationGuideStore.js'
 import { canUseGameInput } from './serverContext.js'
@@ -48,13 +54,19 @@ function combatInputAllowed(silent = false) {
 
 export async function initCombatAssist({ restoreEnabled = true } = {}) {
   const store = useCombatStore()
+  const settings = useSettingsStore()
   if (!removeStatusListener) removeStatusListener = electronApi.combat.onStatus(status => store.applyStatus(status))
   const [potionStatus, loopStatus] = await Promise.all([
     electronApi.combat.getPotionStatus(),
     electronApi.combat.getLoopStatus()
   ])
-  store.applyStatus({ ...potionStatus, event: potionStatus.running ? 'running' : 'stopped' })
-  store.applyStatus({ ...loopStatus, origin: 'loop', event: loopStatus.running ? 'running' : 'stopped' })
+  const areaGate = potionStatus?.areaGate || loopStatus?.areaGate
+  store.applyStatus({ ...potionStatus, event: potionStatus.running ? 'running' : 'stopped', areaGate })
+  store.applyStatus({ ...loopStatus, origin: 'loop', event: loopStatus.running ? 'running' : 'stopped', areaGate })
+  if (settings?.combatAssist?.autoPauseInSafeZone === false) {
+    const synced = await electronApi.combat.updatePotionConfig?.(JSON.parse(JSON.stringify(settings.combatAssist)))
+    if (synced?.areaGate) store.applyStatus({ event: 'area-gate', areaGate: synced.areaGate })
+  }
   if (!restoreEnabled || !canUseGameInput('combat')) return
   const saved = loadCombatRuntimeState()
   if (saved.potionRunning && !potionStatus?.running) {
@@ -118,7 +130,7 @@ export async function startPotionAssist({ configurationGuideBypass = false, sile
     void reportDiagnosticFailure('combat', 'script_start', result, 'process_start_failed')
     return false
   }
-  store.applyStatus({ running: true, processId: result.processId, event: 'starting' })
+  store.applyStatus({ running: true, processId: result.processId, event: 'starting', areaGate: result.areaGate })
   saveCombatRuntimeState({ potionRunning: true })
   if (!silent && !result.alreadyRunning) ElMessage.success('自动喝药已启动')
   void reportDiagnosticRecovery('combat', 'script_start')
@@ -180,7 +192,7 @@ export async function startLoopAssist({ configurationGuideBypass = false, silent
     void reportDiagnosticFailure('combat', 'script_start', result, 'process_start_failed')
     return false
   }
-  store.applyStatus({ running: true, origin: 'loop', processId: result.processId, event: 'starting' })
+  store.applyStatus({ running: true, origin: 'loop', processId: result.processId, event: 'starting', areaGate: result.areaGate })
   saveCombatRuntimeState({ loopRunning: true })
   if (!silent && !result.alreadyRunning) ElMessage.success('主动循环已启动')
   void reportDiagnosticRecovery('combat', 'script_start')
@@ -198,6 +210,118 @@ export async function stopLoopAssist({ persist = true, silent = false } = {}) {
   if (persist) saveCombatRuntimeState({ loopRunning: false })
   if (!silent && !result.alreadyStopped) ElMessage.success('主动循环已停止')
   return true
+}
+
+export async function startCombatAssist({ configurationGuideBypass = false, silent = false } = {}) {
+  if (!combatInputAllowed(silent)) return false
+  const settings = useSettingsStore()
+  const store = useCombatStore()
+  if (!configurationGuideBypass) {
+    const check = collectCombatConfiguration(CONFIGURATION_ACTIONS.start)
+    if (!check.ok) {
+      return runWithConfigurationGuide({
+        moduleId: CONFIGURATION_MODULES.combat,
+        actionId: CONFIGURATION_ACTIONS.start,
+        title: '完成战斗辅助配置',
+        actionLabel: '开始',
+        collect: () => collectCombatConfiguration(CONFIGURATION_ACTIONS.start),
+        execute: () => startCombatAssist({ configurationGuideBypass: true })
+      })
+    }
+  }
+  const validation = validateCombatAssist(settings.combatAssist)
+  if (!validation.isValid) {
+    if (!silent) ElMessage.warning(validation.errors[0])
+    return false
+  }
+
+  const needPotion = hasEnabledPotionResource(settings.combatAssist)
+  const needLoop = hasEnabledLoopItem(settings.combatAssist)
+  const hadPotionRunning = Boolean(store.running)
+
+  if (needPotion) {
+    const startedPotion = await startPotionAssist({ configurationGuideBypass: true, silent: true })
+    if (!startedPotion) {
+      if (!silent) ElMessage.error(store.lastError || '启动战斗辅助失败')
+      return false
+    }
+  } else if (store.running) {
+    await stopPotionAssist({ persist: false, silent: true })
+  }
+
+  if (needLoop) {
+    const startedLoop = await startLoopAssist({ configurationGuideBypass: true, silent: true })
+    if (!startedLoop) {
+      if (needPotion && !hadPotionRunning) {
+        await stopPotionAssist({ persist: false, silent: true })
+      }
+      if (!silent) ElMessage.error(store.loopLastError || '启动战斗辅助失败')
+      return false
+    }
+  } else if (store.loopRunning) {
+    await stopLoopAssist({ persist: false, silent: true })
+  }
+
+  saveCombatRuntimeState({ potionRunning: needPotion, loopRunning: needLoop })
+  if (!silent) ElMessage.success('战斗辅助已启动')
+  return true
+}
+
+export async function stopCombatAssist({ persist = true, silent = false } = {}) {
+  const store = useCombatStore()
+  const wasRunning = Boolean(store.running || store.loopRunning)
+  const [potionStopped, loopStopped] = await Promise.all([
+    stopPotionAssist({ persist, silent: true }),
+    stopLoopAssist({ persist, silent: true })
+  ])
+  if (!potionStopped || !loopStopped) {
+    if (!silent) ElMessage.error('停止战斗辅助失败')
+    return false
+  }
+  if (persist) saveCombatRuntimeState({ potionRunning: false, loopRunning: false })
+  if (!silent && wasRunning) ElMessage.success('战斗辅助已停止')
+  return true
+}
+
+export async function syncRunningCombatAssist({ silent = false } = {}) {
+  const store = useCombatStore()
+  if (!store.running && !store.loopRunning) return { ok: true, stopped: false }
+  const settings = useSettingsStore()
+  const config = settings.combatAssist
+  const needPotion = hasEnabledPotionResource(config)
+  const needLoop = hasEnabledLoopItem(config)
+
+  if (!needPotion && !needLoop) {
+    await stopCombatAssist({ persist: true, silent: true })
+    if (!silent) ElMessage.info('所有战斗辅助子项已关闭，战斗辅助已自动停止')
+    return { ok: true, stopped: true }
+  }
+
+  if (needPotion && !store.running) {
+    const started = await startPotionAssist({ configurationGuideBypass: true, silent: true })
+    if (!started) {
+      if (!silent) ElMessage.error(store.lastError || '启动被动喝药失败')
+      return { ok: false, stopped: false }
+    }
+  } else if (!needPotion && store.running) {
+    await stopPotionAssist({ persist: true, silent: true })
+  }
+
+  if (needLoop && !store.loopRunning) {
+    const started = await startLoopAssist({ configurationGuideBypass: true, silent: true })
+    if (!started) {
+      if (!silent) ElMessage.error(store.loopLastError || '启动主动循环失败')
+      return { ok: false, stopped: false }
+    }
+  } else if (!needLoop && store.loopRunning) {
+    await stopLoopAssist({ persist: true, silent: true })
+  }
+
+  saveCombatRuntimeState({
+    potionRunning: Boolean(needPotion && store.running),
+    loopRunning: Boolean(needLoop && store.loopRunning)
+  })
+  return { ok: true, stopped: false }
 }
 
 export async function sampleCombatPixel(point) {

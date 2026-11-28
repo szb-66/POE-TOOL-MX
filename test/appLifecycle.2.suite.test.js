@@ -430,6 +430,7 @@ test('配置同步失败显示结构化错误原文，并保留已保存的按�
 test('采样及三种战斗操作忽略注入的Python正文和脚本路径，始终执行内置模板', async t => {
   const harness = createHarness(t)
   const config = combatConfig.createDefaultCombatAssist()
+  config.potion.health.enabled = true
   config.potion.health.point = { x: 20, y: 30 }
   config.potion.health.keys = ['1']
   config.potion.mana.enabled = false
@@ -460,6 +461,7 @@ test('自动战斗被动喝药与主动循环开启和关闭不触发前台窗�
     activateResult: { success: false, code: 'focus-refused' }
   })
   const config = combatConfig.createDefaultCombatAssist()
+  config.potion.health.enabled = true
   config.potion.health.point = { x: 20, y: 30 }
   config.potion.health.keys = ['1']
   config.potion.mana.enabled = false

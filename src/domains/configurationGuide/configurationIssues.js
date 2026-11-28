@@ -306,15 +306,12 @@ export function collectJunfengConfigurationIssues(context = {}) {
 
 export function collectCombatConfigurationIssues(context = {}) {
   const moduleId = CONFIGURATION_MODULES.combat
-  const actionId = context.actionId || CONFIGURATION_ACTIONS.potion
+  const actionId = context.actionId || CONFIGURATION_ACTIONS.start
   const config = context.config || {}
   const issues = []
-  if (actionId === CONFIGURATION_ACTIONS.potion) {
-    const resources = [['health', '生命药剂'], ['mana', '魔力药剂']]
+  const resources = [['health', '生命药剂'], ['mana', '魔力药剂']]
+  const collectEnabledPotionIssues = () => {
     const enabled = resources.filter(([key]) => config.potion?.[key]?.enabled)
-    if (!enabled.length) {
-      issues.push(issue(moduleId, actionId, 'combat.potion.resources', 'selection', '药剂检测项目', '请至少启用生命或魔力检测', 'combat.potion'))
-    }
     for (const [key, label] of enabled) {
       if (!isConfiguredPoint(config.potion?.[key]?.point)) {
         issues.push(issue(moduleId, actionId, `combat.potion.${key}.position`, 'coordinate', `${label}检测坐标`, `请抓取${label}检测坐标`, `combat.potion.${key}.position`))
@@ -322,6 +319,23 @@ export function collectCombatConfigurationIssues(context = {}) {
       if (!Array.isArray(config.potion?.[key]?.keys) || config.potion[key].keys.length === 0) {
         issues.push(issue(moduleId, actionId, `combat.potion.${key}.keys`, 'key', `${label}按键序列`, `请配置${label}使用的按键序列`, `combat.potion.${key}.keys`))
       }
+    }
+    return enabled
+  }
+
+  if (actionId === CONFIGURATION_ACTIONS.start) {
+    const enabledPotions = collectEnabledPotionIssues()
+    const enabledLoop = (config.loop?.items || []).filter(item => item.enabled)
+    const missingLoopKey = enabledLoop.some(item => !text(item.key))
+    if (!enabledPotions.length && !enabledLoop.length) {
+      issues.push(issue(moduleId, actionId, 'combat.items', 'selection', '战斗辅助项目', '请至少开启一项生命/魔力药剂或循环按键', 'combat.items'))
+    } else if (missingLoopKey) {
+      issues.push(issue(moduleId, actionId, 'combat.loop.items', 'key', '循环按键', '存在已启用但未设置按键的循环项', 'combat.loop'))
+    }
+  } else if (actionId === CONFIGURATION_ACTIONS.potion) {
+    const enabled = collectEnabledPotionIssues()
+    if (!enabled.length) {
+      issues.push(issue(moduleId, actionId, 'combat.potion.resources', 'selection', '药剂检测项目', '请至少启用生命或魔力检测', 'combat.potion'))
     }
   } else if (actionId === CONFIGURATION_ACTIONS.loop) {
     const enabled = (config.loop?.items || []).filter(item => item.enabled && text(item.key))

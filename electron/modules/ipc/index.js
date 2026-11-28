@@ -60,8 +60,8 @@ export function registerIpcHandlers(dependencies) {
       if (key === 'priceCheck') priceCheck?.beginHotkeyCapture?.()
     }
   })
-  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, localizationRuntime: dependencies.localizationRuntime })
-  registerCombatHandlers(python, window, fileWatcher)
+  registerBagHandlers(python, window, fileWatcher, { interfaceDetection, automationLock, loadingFeedback, mapTracker, localizationRuntime: dependencies.localizationRuntime, templateDir: dependencies.templateDir })
+  registerCombatHandlers(python, window, fileWatcher, { clientEvents })
   const emergencyStop = registerEmergencyStopHandlers({ chaosRecipe, stashPickup, junfeng, faustus, puzzle, mapTracker, sanctum, getMainWindow })
   if (sanctum) registerSanctumHandlers(sanctum, { getMainWindow, emergencyStop })
   if (faustus) registerFaustusHandlers(faustus, window, getMainWindow)
@@ -69,7 +69,10 @@ export function registerIpcHandlers(dependencies) {
   registerConfigurationGuideHandlers(window, { windowActivation })
   registerAutomationTimingHandlers({ stashPickup, junfeng, chaosRecipe, updateCombatTiming: updateCombatAutomationTiming })
   registerClipboardHandlers()
-  const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics, failureEvidence)
+  const system = registerSystemHandlers(python, gameWindowTitles, diagnostics, startupDiagnostics, failureEvidence, {
+    server: dependencies.server,
+    getMainWindow
+  })
   registerFeedbackHandlers(feedback, { buildDiagnostics: system?.buildSnapshot, diagnostics, getMainWindow })
   if (applicationUpdate) registerApplicationUpdateHandlers(applicationUpdate, getMainWindow)
   if (crafting) registerCraftingHandlers(crafting)
@@ -83,4 +86,5 @@ export function registerIpcHandlers(dependencies) {
   if (stashPickup) registerStashPickupHandlers(stashPickup, window, { interfaceDetection })
   if (junfeng) registerJunfengHandlers(junfeng, window, { interfaceDetection })
   if (puzzle) registerPuzzleHandlers(puzzle)
+  return { system }
 }

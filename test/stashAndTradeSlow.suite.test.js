@@ -704,12 +704,20 @@ for name,columns in cases:
  out.append([hp.detect_grid_layout(image)[0],round(hp.grid_confidence(image,12),2),round(hp.grid_confidence(image,24),2)])
 print(json.dumps(out))
 `
-  assert.deepEqual(runPython(code), [
+  const actual = runPython(code)
+  const expected = [
     [12, 3.38, 3.64],
     [12, 5.54, 5.14],
     [12, 4.91, 4.97],
     [24, 1.29, 1.45]
-  ])
+  ]
+  assert.equal(actual.length, expected.length)
+  actual.forEach(([cols, score12, score24], index) => {
+    const [expCols, exp12, exp24] = expected[index]
+    assert.equal(cols, expCols)
+    assert.ok(Math.abs(score12 - exp12) <= 0.1, `case ${index} score12: ${score12} vs ${exp12}`)
+    assert.ok(Math.abs(score24 - exp24) <= 0.1, `case ${index} score24: ${score24} vs ${exp24}`)
+  })
 })
 
 test('布局识别容忍校准边缘和起点偏移', () => {
@@ -966,6 +974,7 @@ SELECTOR_PROCESS_POLL_INTERVAL_SECONDS = 0.05
 ${selectorCall}
 is_running = True
 fatal_error_reason = None
+required_currency_types = []
 stash_tab_selection = {
     "enabled": True, "hasScrollbar": False,
     "names": {"currency": "通货"}

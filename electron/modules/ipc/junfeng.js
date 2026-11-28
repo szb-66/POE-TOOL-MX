@@ -7,7 +7,8 @@ const invoke = handler => async (_event, ...args) => {
       code: error.code || 'JUNFENG_ERROR',
       message: error.message || String(error),
       failureCode: error.failureCode || '',
-      configurationIssueId: error.configurationIssueId || ''
+      configurationIssueId: error.configurationIssueId || '',
+      configurationIssues: Array.isArray(error.configurationIssues) ? error.configurationIssues : []
     } }
   }
 }

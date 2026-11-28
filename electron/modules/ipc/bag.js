@@ -148,21 +148,30 @@ function validateConfigIssue(config) {
   const normalEnabled = Boolean(config?.module_enabled)
   const allflameReceiverEnabled = Boolean(config?.allflame_receiver_enabled)
   if (!normalEnabled && !allflameReceiverEnabled) {
-    return { error: '请先启用一种入库功能', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: '' }
+    return { error: '请先启用一种入库功能', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: '', configurationIssues: [] }
   }
+  const issues = []
   if (normalEnabled && !config?.templates?.stash_title) {
-    return { error: '请先配置仓库标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' }
+    issues.push({ message: '请先配置仓库标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.stash-title' })
   }
   if (allflameReceiverEnabled && !config?.templates?.allflame_receiver_title) {
-    return { error: '请先配置永火接收舱标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.allflame-receiver-title' }
+    issues.push({ message: '请先配置永火接收舱标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.allflame-receiver-title' })
   }
   if (!config?.templates?.inventory_title) {
-    return { error: '请先配置背包标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' }
+    issues.push({ message: '请先配置背包标题模板', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'template.inventory-title' })
   }
   if (!config.inventory?.startPos || !config.inventory?.slotSize) {
-    return { error: '背包网格配置不完整', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'inventory.grid' }
+    issues.push({ message: '背包网格配置不完整', failureCode: 'CONFIGURATION_MISSING', configurationIssueId: 'inventory.grid' })
   }
-  return { error: '', failureCode: '', configurationIssueId: '' }
+  if (issues.length > 0) {
+    return {
+      error: issues.map(item => item.message).join('；'),
+      failureCode: issues[0].failureCode,
+      configurationIssueId: issues[0].configurationIssueId,
+      configurationIssues: issues
+    }
+  }
+  return { error: '', failureCode: '', configurationIssueId: '', configurationIssues: [] }
 }
 
 function isMainWindowSender(event) {
@@ -224,16 +233,33 @@ function validateCaptureConfig(config) {
   if (allflameReceiverEnabled) {
     definitions.unshift(['永火接收舱标题', 'allflameReceiverTitle', 'allflameReceiverRegion', 'allflameReceiverCapture', 'template.allflame-receiver-title'])
   }
+  const issues = []
   for (const [label, pathKey, regionKey, captureKey, configurationIssueId] of definitions) {
     const result = validateTemplateCaptureEnvironment(label, config.templates?.[pathKey], config.templates?.[regionKey], config.templates?.[captureKey], displays)
-    if (result.error) return { error: result.error, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
+    if (result.error) {
+      issues.push({ failureCode: 'TEMPLATE_INVALID', configurationIssueId, message: result.error })
+      continue
+    }
     if (result.warning) warnings.push(result.warning)
     const metadata = config.templates?.[captureKey]
     if (metadata) {
       const size = readCachedTemplateSize(String(config.templates[pathKey] || ''))
       if (!size || size.width !== metadata.templateSize.width || size.height !== metadata.templateSize.height) {
-        return { error: `${label}的模板尺寸与采集记录不一致，请重新框选`, warnings, failureCode: 'TEMPLATE_INVALID', configurationIssueId }
+        issues.push({
+          failureCode: 'TEMPLATE_INVALID',
+          configurationIssueId,
+          message: `${label}的模板尺寸与采集记录不一致，请重新框选`
+        })
       }
+    }
+  }
+  if (issues.length > 0) {
+    return {
+      error: issues.map(item => item.message).join('；'),
+      warnings,
+      failureCode: issues[0].failureCode,
+      configurationIssueId: issues[0].configurationIssueId,
+      configurationIssues: issues
     }
   }
   return { error: '', warnings }
@@ -749,7 +775,7 @@ export function registerBagHandlers(python, window, fileWatcher, shared = {}) {
       })
       if (result?.canceled) return { success: false, canceled: true, error: result.error || '' }
       if (result?.success === false) return { success: false, error: result.error?.message || '框选失败' }
-      const templateDir = path.join(app.getPath('userData'), 'templates')
+      const templateDir = shared.templateDir || path.join(app.getPath('userData'), 'templates')
       const targetPath = savePngAtomically(templateDir, type, result.png, fs, app.isPackaged)
       templateSizeCache.delete(targetPath)
       const region = expandSearchRegion(result.selectedRegion, result.displayPhysicalBounds)

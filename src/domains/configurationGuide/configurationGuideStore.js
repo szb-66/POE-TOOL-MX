@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
 import { createConfigurationCheck, createConfigurationIssue } from './configurationIssues.js'
+import { configurationIssuesFromFailure } from './configurationFailures.js'
 
 function safeLabel(value, fallback) {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback
@@ -118,6 +119,28 @@ export const useConfigurationGuideStore = defineStore('configurationGuide', () =
     try {
       const result = current.execute ? await current.execute() : { success: true }
       if (result === false || result?.success === false) {
+        const followUps = result && typeof result === 'object'
+          ? configurationIssuesFromFailure({
+            moduleId: request.value?.moduleId,
+            actionId: request.value?.actionId,
+            failureCode: result.failureCode || result.code || result.error?.failureCode || result.error?.code,
+            configurationIssueId: result.configurationIssueId || result.error?.configurationIssueId,
+            configurationIssues: result.configurationIssues || result.error?.configurationIssues,
+            message: result.error?.message || result.error || result.message
+          })
+          : []
+        if (followUps.length > 0 && pending === current) {
+          const existingById = new Map(current.forcedIssues.map(item => [item.id, item]))
+          for (const item of followUps) {
+            resolvedForcedIds.delete(item.id)
+            existingById.set(item.id, item)
+          }
+          current.forcedIssues = [...existingById.values()]
+          applyCheck(collectLatest())
+          focusedIssueId.value = followUps[0].id
+          error.value = result?.error?.message || result?.error || '仍有需要重新确认的配置项'
+          return { ...result, configurationRequired: true, issues: [...issues.value] }
+        }
         error.value = result?.error?.message || result?.error || '使用最新配置继续失败'
         return result || { success: false }
       }

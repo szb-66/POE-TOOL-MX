@@ -3,7 +3,7 @@ import { serverStorage as localStorage } from '../../utils/serverStorage.js'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { electronApi } from '@/api/electron'
-import { createDefaultCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
+import { createDefaultCombatAssist, migrateLegacyCombatAssist, normalizeCombatAssist } from '@/utils/combatConfig'
 import {
   DEFAULT_GLOBAL_SHORTCUTS,
   mergeGlobalShortcutSettings,
@@ -547,9 +547,12 @@ export const useSettingsStore = defineStore('settings', () => {
         storyOverlaySkillsEnabled.value = data.storyOverlaySkillsEnabled !== false
         storyTimerOverlayEnabled.value = data.storyTimerOverlayEnabled === true
         storyTimerPauseInBackground.value = data.storyTimerPauseInBackground !== false
-        combatAssist.value = normalizeCombatAssist(data.combatAssist)
+        const combatAssistMigrated = Boolean(
+          data.combatAssist && typeof data.combatAssist === 'object' && !Object.hasOwn(data.combatAssist, 'autoPauseInSafeZone')
+        )
+        combatAssist.value = migrateLegacyCombatAssist(data.combatAssist)
         stashTabSelection.value = normalizeStashTabSelection(data.stashTabSelection)
-        if (operationTimingMigrated || storyOverlayLayout.migrated || shortcutSettingsMigrated) saveSettings()
+        if (operationTimingMigrated || storyOverlayLayout.migrated || shortcutSettingsMigrated || combatAssistMigrated) saveSettings()
       }
     } catch (error) {
       // 加载设置失败

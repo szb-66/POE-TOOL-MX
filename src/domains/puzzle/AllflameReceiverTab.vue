@@ -115,6 +115,7 @@ const receiverCorrectionIssue = computed(() => configurationIssueFromFailure({
   actionId: CONFIGURATION_ACTIONS.start,
   failureCode: bagStore.lastFailure.failureCode,
   configurationIssueId: bagStore.lastFailure.configurationIssueId,
+  configurationIssues: bagStore.lastFailure.configurationIssues,
   message: bagStore.lastStopReason
 }))
 
@@ -142,6 +143,7 @@ function openCorrection() {
     failure: {
       failureCode: bagStore.lastFailure.failureCode,
       configurationIssueId: bagStore.lastFailure.configurationIssueId,
+      configurationIssues: bagStore.lastFailure.configurationIssues,
       message: bagStore.lastStopReason
     },
     collect: () => collectAllflameConfiguration(CONFIGURATION_ACTIONS.start)

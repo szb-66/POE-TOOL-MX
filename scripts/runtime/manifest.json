@@ -264,6 +264,7 @@
     "src/assets/scripts/sanctum_resources.py",
     "src/assets/scripts/sanctum_rewards.py",
     "src/assets/scripts/sanctum_tooltip.py",
+    "src/assets/scripts/slot_highlight_classifier.py",
     "src/assets/scripts/stash_pickup_template.py",
     "src/assets/scripts/stash_tab_selector.py"
   ],

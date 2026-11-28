@@ -1,3 +1,5 @@
+import { formatCombatAreaGateStatus } from '../../utils/combatConfig.js'
+
 export const DASHBOARD_STATES = Object.freeze({
   ERROR: 'error',
   RUNNING: 'running',
@@ -179,8 +181,10 @@ export function evaluateCombatStatus(input = {}) {
     : potionRunning
       ? Boolean(input.focused)
       : Boolean(input.loopFocused)
+  const areaPauseText = formatCombatAreaGateStatus(input.areaGate)
+  const runtimeStateText = areaPauseText || (focusOk ? '游戏窗口前台' : '等待游戏窗口')
   const runningText = parts.length
-    ? `${parts.join(' + ')} · ${focusOk ? '游戏窗口前台' : '等待游戏窗口'}`
+    ? `${parts.join(' + ')} · ${runtimeStateText}`
     : ''
   return createModuleStatus({
     id: 'combat',

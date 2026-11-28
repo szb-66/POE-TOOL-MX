@@ -113,6 +113,14 @@ export async function startBagDetection({ silent = false, overrides = {} } = {})
   return result
 }
 
+export async function retryBagDetectionAfterTemplateChange() {
+  const bagStore = useBagStore()
+  const shouldRun = effectiveNormalBagEnabled(bagStore) || effectiveAllflameReceiverEnabled(bagStore)
+  if (!shouldRun || bagStore.isDetecting) return { success: true, skipped: true }
+  ensureBagAutomationListeners()
+  return startBagDetection({ silent: true })
+}
+
 function collectBagConfiguration(actionId = CONFIGURATION_ACTIONS.enable, target = 'stash') {
   const interfaceStore = useInterfaceDetectionStore()
   const settingsStore = useSettingsStore()

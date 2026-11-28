@@ -1026,8 +1026,9 @@ async function startApplication() {
     timer.unref()
     app.once('will-quit', () => clearInterval(timer))
   }
-  registerIpcHandlers({
+  const ipcHandles = registerIpcHandlers({
     server: serverMode.server,
+    templateDir: serverMode.dataPath('templates'),
     localizationRuntime,
     window: windowManager,
     python: { ...pythonManager, ...pythonDetector },
@@ -1097,6 +1098,7 @@ async function startApplication() {
 
   // 启动游戏前台监视器：门禁开启时仅在游戏窗口位于前台注册用户全局快捷键。
   // 放到窗口创建后的下一个事件循环，避免同步探测 Python 阻塞窗口显示。
+  let lastMismatchProbeAt = 0
   setImmediate(() => {
     foregroundWatcher = startForegroundWatcher({
       pythonPath: startupPythonPath,
@@ -1107,6 +1109,17 @@ async function startApplication() {
         mapTrackerService?.setForeground(game)
         sanctumService?.setForeground(game)
         syncLoadingFeedbackForeground()
+        const normalizedTitle = String(title || '').toLocaleLowerCase()
+        if (
+          normalizedTitle.includes('流放之路')
+          || normalizedTitle.includes('path of exile')
+        ) {
+          const now = Date.now()
+          if (now - lastMismatchProbeAt >= 2000) {
+            lastMismatchProbeAt = now
+            void ipcHandles?.system?.refreshGameDpi?.({ force: true }).catch(() => {})
+          }
+        }
         const mainWindow = getMainWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('shortcut-scope-changed', {

@@ -1625,6 +1625,49 @@ test('多个兼容显示器无法由采集区域唯一确定时拒绝启动', ()
   assert.match(result.error, /采集显示器已不存在/)
 })
 
+test('非整数缩放产生 1-2px 物理尺寸舍入误差时仍匹配原显示器，且仅缩放变化时提示显示环境已变化', () => {
+  const roundedMetadata = {
+    displayId: 'old-id', scaleFactor: 1.75,
+    displayPhysicalSize: { width: 3840, height: 2160 },
+    templateSize: { width: 161, height: 89 },
+    selectedRegion: { left: 546, top: 56, right: 707, bottom: 145 },
+    capturedAt: '2026-11-21T12:52:38.864Z'
+  }
+  const roundedDisplays = [{
+    id: 'new-id', scaleFactor: 1.75,
+    physicalSize: { width: 3841, height: 2161 },
+    physicalBounds: { x: 0, y: 0, width: 3841, height: 2161 }
+  }]
+  assert.deepEqual(
+    validateTemplateCaptureEnvironment('仓库标题', 's.png', { left: 534, top: 44, right: 719, bottom: 157 }, roundedMetadata, roundedDisplays),
+    { error: '', warning: '' }
+  )
+
+  const scaledMetadata = {
+    displayId: 'old-id', scaleFactor: 1.5,
+    displayPhysicalSize: { width: 3840, height: 2160 },
+    templateSize: { width: 132, height: 89 },
+    selectedRegion: { left: 572, top: 51, right: 704, bottom: 140 },
+    capturedAt: '2026-08-29T07:17:16.731Z'
+  }
+  const changedDisplays = [
+    {
+      id: 'new-primary', scaleFactor: 1.75,
+      physicalSize: { width: 3841, height: 2161 },
+      physicalBounds: { x: 0, y: 0, width: 3841, height: 2161 }
+    },
+    {
+      id: 'new-secondary', scaleFactor: 1.5,
+      physicalSize: { width: 3840, height: 2160 },
+      physicalBounds: { x: 3840, y: 0, width: 3840, height: 2160 }
+    }
+  ]
+  const changedResult = validateTemplateCaptureEnvironment(
+    '仓库标题', 's.png', { left: 560, top: 39, right: 716, bottom: 152 }, scaledMetadata, changedDisplays
+  )
+  assert.match(changedResult.error, /显示环境已变化（缩放 150% → 175%）/)
+})
+
 test('point/region 共用互斥会话并对关闭、取消、加载失败统一单次结算', () => {
   const manager = readFileSync(new URL('../electron/modules/window/manager.js', import.meta.url), 'utf8')
   assert.match(manager, /let screenPickerSession = null/)

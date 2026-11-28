@@ -3,7 +3,8 @@
     <el-aside :width="sidebarWidth" class="sidebar-container">
       <Sidebar />
     </el-aside>
-    <el-container>
+    <el-container direction="vertical" class="main-stage">
+      <ServerMismatchBanner />
       <el-main class="main-content">
         <slot />
         <RouteLoadingOverlay />
@@ -16,6 +17,7 @@
 import { computed } from 'vue'
 import Sidebar from './Sidebar.vue'
 import RouteLoadingOverlay from '../common/RouteLoadingOverlay.vue'
+import ServerMismatchBanner from '../common/ServerMismatchBanner.vue'
 
 const sidebarWidth = computed(() => '76px')
 </script>
@@ -27,6 +29,11 @@ const sidebarWidth = computed(() => '76px')
   .sidebar-container {
     background-color: var(--nav-bg, var(--bg-primary));
     border-right: 1px solid var(--border-base);
+  }
+
+  .main-stage {
+    min-width: 0;
+    min-height: 0;
   }
 
   .main-content {

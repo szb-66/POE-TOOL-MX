@@ -247,12 +247,44 @@ def key_to_virtual_code(name):
     raise ValueError(f"不支持的按键: {name}")
 
 
-def send_sequence(keys, foreground_check=None, key_event_sender=None):
+# 按住 Alt / Ctrl / Win 时暂缓自动战斗发键，避免与游戏内 Alt 看地、Ctrl 快捷操作或全局/系统组合键冲突；
+# 不拦截 Shift，避免按住 Shift 原地攻击时影响自动喝药和循环。
+BLOCKING_MODIFIER_VIRTUAL_CODES = (
+    0x12, 0xA4, 0xA5,
+    0x11, 0xA2, 0xA3,
+    0x5B, 0x5C,
+)
+
+
+def is_blocking_modifier_pressed(key_state_reader=None):
+    if key_state_reader is None:
+        if sys.platform != "win32":
+            return False
+        user32 = ctypes.windll.user32
+        user32.GetAsyncKeyState.argtypes = [ctypes.c_int]
+        user32.GetAsyncKeyState.restype = ctypes.c_short
+        read_state = user32.GetAsyncKeyState
+    else:
+        read_state = key_state_reader
+    try:
+        return any(bool(read_state(vk) & 0x8000) for vk in BLOCKING_MODIFIER_VIRTUAL_CODES)
+    except Exception:
+        return False
+
+
+def send_sequence(keys, foreground_check=None, key_event_sender=None, modifier_check=None, abort_state=None):
     check_foreground = foreground_check or is_game_foreground
     send_key_event = key_event_sender or ctypes.windll.user32.keybd_event
+    check_modifier = modifier_check or is_blocking_modifier_pressed
     sent_count = 0
     for name in keys:
         if not check_foreground():
+            if isinstance(abort_state, dict):
+                abort_state["reason"] = "focus"
+            break
+        if check_modifier():
+            if isinstance(abort_state, dict):
+                abort_state["reason"] = "modifier"
             break
         virtual_code = key_to_virtual_code(name)
         send_key_event(virtual_code, 0, 0, 0)
@@ -330,6 +362,7 @@ def run_potion(config, config_path=None):
     )
     last_trigger = {"health": 0, "mana": 0}
     last_focus = None
+    last_area_paused = None
     emit("started")
 
     while running:
@@ -341,11 +374,15 @@ def run_potion(config, config_path=None):
             potion.get("maxTriggersPerSecond", 5),
             potion.get("protectionCooldownMs", 1000)
         )
+        paused_by_area = bool(config.get("paused_by_area", False))
+        if paused_by_area != last_area_paused:
+            emit("area_pause", paused=paused_by_area)
+            last_area_paused = paused_by_area
         focused = is_game_foreground()
         if focused != last_focus:
             emit("focus", active=focused)
             last_focus = focused
-        if not focused:
+        if paused_by_area or not focused or is_blocking_modifier_pressed():
             time.sleep(scan_interval / 1000)
             continue
 
@@ -372,6 +409,9 @@ def run_potion(config, config_path=None):
             ):
                 continue
 
+            if is_blocking_modifier_pressed():
+                break
+
             allowed, reason = limiter.allow(now_ms)
             if not allowed:
                 if reason == "limit":
@@ -385,8 +425,10 @@ def run_potion(config, config_path=None):
                 break
 
             keys = resource.get("keys", [])
-            sent_count = send_sequence(keys)
-            if sent_count < len(keys) and last_focus is not False:
+            abort_state = {}
+            sent_count = send_sequence(keys, abort_state=abort_state)
+            aborted_by_modifier = abort_state.get("reason") == "modifier" or is_blocking_modifier_pressed()
+            if sent_count < len(keys) and not aborted_by_modifier and last_focus is not False:
                 emit("focus", active=False)
                 last_focus = False
             if sent_count <= 0:
@@ -395,6 +437,8 @@ def run_potion(config, config_path=None):
             last_trigger[name] = now_ms
             emit("triggered", resource=name, value=value, color=color, keysSent=sent_count)
             if sent_count < len(keys):
+                if aborted_by_modifier:
+                    break
                 if is_game_foreground():
                     emit("error", error="药剂按键序列无法发送", failureCode="KEY_SEQUENCE_INVALID",
                          configurationIssueId=f"combat.potion.{name}.keys")
@@ -416,6 +460,7 @@ def run_loop(config, config_path=None):
     runtime_config = RuntimeConfig(config_path, config)
     last_press = {}
     last_focus = None
+    last_area_paused = None
     emit("started")
 
     while running:
@@ -423,10 +468,17 @@ def run_loop(config, config_path=None):
         apply_input_timing(config)
         loop_config = config.get("loop", {})
         tick_ms = max(10, int(loop_config.get("tickMs", 50)))
+        paused_by_area = bool(config.get("paused_by_area", False))
+        if paused_by_area != last_area_paused:
+            emit("area_pause", paused=paused_by_area)
+            last_area_paused = paused_by_area
         focused = is_game_foreground()
         if focused != last_focus:
             emit("focus", active=focused)
             last_focus = focused
+        if paused_by_area or not focused or is_blocking_modifier_pressed():
+            time.sleep(tick_ms / 1000)
+            continue
 
         now_ms = int(time.monotonic() * 1000)
         for item in loop_config.get("items", []):
@@ -439,12 +491,17 @@ def run_loop(config, config_path=None):
             interval_ms = max(1, int(item.get("intervalMs", 1000)))
             if last_press.get(item_id, 0) > 0 and now_ms - last_press[item_id] < interval_ms:
                 continue
+            if is_blocking_modifier_pressed():
+                break
             if not is_game_foreground():
                 if last_focus is not False:
                     emit("focus", active=False)
                     last_focus = False
                 break
-            if send_sequence([key]) != 1:
+            abort_state = {}
+            if send_sequence([key], abort_state=abort_state) != 1:
+                if abort_state.get("reason") == "modifier" or is_blocking_modifier_pressed():
+                    break
                 if is_game_foreground():
                     emit("error", error="循环按键无法发送", failureCode="KEY_SEQUENCE_INVALID",
                          configurationIssueId="combat.loop.items")
@@ -492,7 +549,7 @@ def run_portal(config):
                           "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2
 
-    if send_sequence([open_key]) != 1:
+    if send_sequence([open_key], modifier_check=lambda: False) != 1:
         print(json.dumps({"success": False, "error": "游戏窗口当前不在前台",
                           "failureCode": "GAME_NOT_FOREGROUND"}, ensure_ascii=False), flush=True)
         return 2

@@ -52,6 +52,15 @@ const previewUrl = computed(() => {
   return version.value ? `${url}?v=${encodeURIComponent(version.value)}` : url
 })
 
+const BAG_TEMPLATE_TYPES = new Set(['stashTitle', 'inventoryTitle', 'allflameReceiverTitle'])
+
+function syncBagDetectionAfterTemplateChange() {
+  if (!BAG_TEMPLATE_TYPES.has(props.type)) return
+  void import('@/utils/bagService')
+    .then(({ retryBagDetectionAfterTemplateChange }) => retryBagDetectionAfterTemplateChange())
+    .catch(() => {})
+}
+
 async function captureTemplate() {
   if (capturing.value) return
   capturing.value = true
@@ -62,6 +71,7 @@ async function captureTemplate() {
     store.applyTemplateCapture(props.type, result)
     version.value = result.version || Date.now()
     if (result.reloadError) ElMessage.warning(`模板已保存，但检测器重载失败：${result.reloadError}`)
+    syncBagDetectionAfterTemplateChange()
     emit('configured')
   } catch (error) {
     ElMessage.error(error?.message || '框选失败')
@@ -72,6 +82,7 @@ async function captureTemplate() {
 
 function updateRegion(key, value) {
   store.setTemplateRegion(props.type, { ...region.value, [key]: Number(value) || 0 })
+  syncBagDetectionAfterTemplateChange()
   emit('configured')
 }
 </script>

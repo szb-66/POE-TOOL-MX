@@ -544,9 +544,9 @@ test('物品制作完成浮窗提供重新开始按钮且地图完成态不受�
 test('运行中的物品和地图制作隐藏关闭按钮，停止与等待状态仍保留关闭入口', () => {
   const content = source('../src/domains/overlay/components/OverlayContent.vue')
 
-  assert.match(content, /v-if="isStopped && !isCompleted && !stopReason"/)
-  assert.match(content, /v-if="isStopped && !isCompleted && !stopReason && !itemInfo\.affixMatch/)
-  assert.match(content, /v-else class="overlay-placeholder"[\s\S]*v-if="!stopReason"/)
+  const stoppedCloseMatches = content.match(/v-if="isStopped && !isCompleted && !stopReason"/g) || []
+  assert.equal(stoppedCloseMatches.length, 2)
+  assert.match(content, /v-else class="overlay-placeholder"[\s\S]*v-else-if="!stopReason"/)
   assert.match(content, /defineEmits\(\[[^\]]*'confirm'[^\]]*'restart'[^\]]*'retry'[^\]]*'close'[^\]]*\]\)/)
   assert.match(content, /v-if="canRetry"[\s\S]*\$emit\('retry'\)/)
 })

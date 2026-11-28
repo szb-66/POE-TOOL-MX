@@ -26,7 +26,7 @@ import { ConfigTransferError as _m5_ConfigTransferError } from '../src/domains/s
 import _m6_test from 'node:test'
 import _m6_assert from 'node:assert/strict'
 import { readFileSync as _m6_readFileSync } from 'node:fs'
-import { configurationIssueFromFailure as _m6_configurationIssueFromFailure } from '../src/domains/configurationGuide/configurationFailures.js'
+import { configurationIssueFromFailure as _m6_configurationIssueFromFailure, configurationIssuesFromFailure as _m6_configurationIssuesFromFailure } from '../src/domains/configurationGuide/configurationFailures.js'
 import { sanitizeOverlayGuideRequest as _m6_sanitizeOverlayGuideRequest } from '../shared/configurationGuideRequest.js'
 import _m7_test from 'node:test'
 import _m7_assert from 'node:assert/strict'
@@ -784,6 +784,54 @@ test('账号、赛季与仓库校准的稳定错误码可直接定位配置', ()
   assert.equal(configurationIssueFromFailure({ moduleId: 'shop', actionId: 'start', failureCode: 'LEAGUE_REQUIRED' })?.id, 'account.league')
   assert.equal(configurationIssueFromFailure({ moduleId: 'shop', actionId: 'start', failureCode: 'CALIBRATION_REQUIRED' })?.id, 'stash-grid.any')
   assert.equal(configurationIssueFromFailure({ moduleId: 'shop', actionId: 'start', failureCode: 'UNSUPPORTED_TAB' })?.id, 'shop.stash-tabs')
+})
+
+test('多项模板同时失效时一次性解析全部待重新配置项并在续检时自动追加剩余项', async () => {
+  const issues = _m6_configurationIssuesFromFailure({
+    moduleId: 'bag',
+    actionId: 'start',
+    failureCode: 'TEMPLATE_INVALID',
+    configurationIssueId: 'template.stash-title',
+    configurationIssues: [
+      { failureCode: 'TEMPLATE_INVALID', configurationIssueId: 'template.stash-title', message: '仓库标题的显示环境已变化' },
+      { failureCode: 'TEMPLATE_INVALID', configurationIssueId: 'template.inventory-title', message: '背包标题的显示环境已变化' }
+    ]
+  })
+  assert.deepEqual(issues.map(item => item.id), ['template.stash-title', 'template.inventory-title'])
+
+  _m7_setActivePinia(_m7_createPinia())
+  const guide = _m7_useConfigurationGuideStore()
+  let attempt = 0
+  guide.open({
+    moduleId: 'bag',
+    actionId: 'start',
+    title: '重新配置背包安全入库',
+    focusIssueId: 'template.stash-title',
+    forcedIssues: [issues[0]],
+    collect: () => _m7_createConfigurationCheck([]),
+    execute: async () => {
+      attempt += 1
+      if (attempt === 1) {
+        return {
+          success: false,
+          error: '背包标题的显示环境已变化',
+          failureCode: 'TEMPLATE_INVALID',
+          configurationIssueId: 'template.inventory-title'
+        }
+      }
+      return { success: true }
+    }
+  })
+  guide.markIssueConfigured('template.stash-title')
+  const firstContinue = await guide.continueAction()
+  assert.equal(firstContinue.configurationRequired, true)
+  assert.equal(guide.visible, true)
+  assert.deepEqual(guide.issues.map(item => item.id), ['template.inventory-title'])
+
+  guide.markIssueConfigured('template.inventory-title')
+  const secondContinue = await guide.continueAction()
+  assert.equal(secondContinue.success, true)
+  assert.equal(guide.visible, false)
 })
 
 test('浮窗 GuideRequest 仅接受白名单模块、动作和已知问题 ID，额外字段被移除', () => {

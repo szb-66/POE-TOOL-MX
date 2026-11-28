@@ -70,16 +70,31 @@ function normalizeOverride(value) {
   return input
 }
 
-function probeRuntime(candidate, modules) {
-  const probe = [
-    'import json, platform, struct',
+function buildProbeScript(modules) {
+  return [
+    'import json, platform, struct, sys',
     ...modules.map((name) => `import ${name}`),
-    `print(json.dumps({"version": platform.python_version(), "bits": struct.calcsize("P") * 8}))`
+    'print(json.dumps({"version": platform.python_version(), "bits": struct.calcsize("P") * 8, "executable": sys.executable}))'
   ].join('; ')
+}
+
+function resolveExecutablePath(candidatePath, probedExecutable) {
+  if (typeof candidatePath === 'string' && path.isAbsolute(candidatePath)) {
+    return candidatePath
+  }
+  const executable = typeof probedExecutable === 'string' ? probedExecutable.trim() : ''
+  if (executable && path.isAbsolute(executable)) {
+    return path.normalize(executable)
+  }
+  return candidatePath
+}
+
+function probeRuntime(candidate, modules) {
+  const probe = buildProbeScript(modules)
   const output = execFileSync(candidate, ['-I', '-c', probe], {
     encoding: 'utf8',
     windowsHide: true,
-    timeout: 10000,
+    timeout: 30000,
     stdio: ['ignore', 'pipe', 'pipe']
   })
   const info = JSON.parse(output.trim().split(/\r?\n/).at(-1))
@@ -90,15 +105,11 @@ function probeRuntime(candidate, modules) {
 }
 
 async function probeRuntimeAsync(candidate, modules) {
-  const probe = [
-    'import json, platform, struct',
-    ...modules.map((name) => `import ${name}`),
-    `print(json.dumps({"version": platform.python_version(), "bits": struct.calcsize("P") * 8}))`
-  ].join('; ')
+  const probe = buildProbeScript(modules)
   const { stdout } = await execFileAsync(candidate, ['-I', '-c', probe], {
     encoding: 'utf8',
     windowsHide: true,
-    timeout: 10000,
+    timeout: 30000,
     maxBuffer: 1024 * 1024
   })
   const info = JSON.parse(String(stdout).trim().split(/\r?\n/).at(-1))
@@ -138,7 +149,7 @@ export function resolvePythonRuntime(requiredModules = []) {
         ready: true,
         found: true,
         source: candidate.source,
-        path: candidate.path,
+        path: resolveExecutablePath(candidate.path, info.executable),
         version: info.version,
         modules,
         error: null
@@ -181,7 +192,7 @@ export function resolvePythonRuntimeAsync(requiredModules = []) {
           ready: true,
           found: true,
           source: candidate.source,
-          path: candidate.path,
+          path: resolveExecutablePath(candidate.path, info.executable),
           version: info.version,
           modules,
           error: null

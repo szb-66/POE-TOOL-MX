@@ -99,7 +99,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectPythonPath: () => {
     return ipcRenderer.invoke('detect-python-path')
   },
-  detectGameDpi: () => ipcRenderer.invoke('system-detect-game-dpi'),
+  detectGameDpi: (options) => ipcRenderer.invoke('system-detect-game-dpi', options),
+  onGameServerMismatchChanged: (callback) => {
+    const listener = (_event, state) => callback(state)
+    ipcRenderer.on('game-server-mismatch-changed', listener)
+    return () => ipcRenderer.removeListener('game-server-mismatch-changed', listener)
+  },
   updateGameWindowTitles: (titles) => ipcRenderer.invoke('system-update-game-window-titles', titles),
   updateGameWindowProcessNames: (processNames) => ipcRenderer.invoke('system-update-game-window-process-names', processNames),
   getStartupHealth: () => ipcRenderer.invoke('system-get-startup-health'),
