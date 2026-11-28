@@ -22,11 +22,29 @@ if (!(Test-Path -LiteralPath (Join-Path $minhook '.git'))) {
 if ((& git -C $minhook rev-parse HEAD).Trim() -ne $commit) { throw 'MinHook source revision mismatch' }
 $jsonHeader = Join-Path $jsonRoot 'json.hpp'
 if (!(Test-Path -LiteralPath $jsonHeader)) {
-    Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp' -OutFile $jsonHeader
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/nlohmann/json/v3.11.3/single_include/nlohmann/json.hpp' -OutFile $jsonHeader
+            break
+        } catch {
+            if ($attempt -eq 3) { throw }
+            Start-Sleep -Seconds 3
+        }
+    }
 }
 if ((Get-MarketFileSha256 $jsonHeader) -ne '9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6') { throw 'JSON header revision mismatch' }
 $jsonLicense = Join-Path $jsonRoot 'LICENSE.MIT'
-if (!(Test-Path -LiteralPath $jsonLicense)) { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/nlohmann/json/v3.11.3/LICENSE.MIT' -OutFile $jsonLicense }
+if (!(Test-Path -LiteralPath $jsonLicense)) {
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/nlohmann/json/v3.11.3/LICENSE.MIT' -OutFile $jsonLicense
+            break
+        } catch {
+            if ($attempt -eq 3) { throw }
+            Start-Sleep -Seconds 3
+        }
+    }
+}
 $profilePath = Join-Path $sourceRoot 'compatibility.json'
 $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
 if ($profile.structureVersion -ne 1 -or $profile.abi -ne 'poe1-market-json16-msvc-string32-v1') { throw 'Unknown market ABI family' }
@@ -80,7 +98,7 @@ $header.Add('constexpr uintptr_t FilterOptionTextReturn = ' + $filterTexts[1].re
 $header.Add('}')
 [IO.File]::WriteAllLines((Join-Path $buildRoot 'SupportedProfile.h'),$header,[Text.UTF8Encoding]::new($false))
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-$visualStudio = (& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+$visualStudio = (& $vswhere -latest -prerelease -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1).Trim()
 $vcvars = Join-Path $visualStudio 'VC\Auxiliary\Build\vcvars64.bat'
 if (!(Test-Path -LiteralPath $vcvars)) { throw 'C++ x64 build tools not found' }
 $common = '/nologo /std:c++17 /EHsc /O2 /MT /utf-8 /I"' + (Join-Path $minhook 'include') + '" /I"' + $jsonRoot + '" /I"' + $buildRoot + '" "' + (Join-Path $sourceRoot 'MarketHook.cpp') + '" "' + (Join-Path $minhook 'src\buffer.c') + '" "' + (Join-Path $minhook 'src\hook.c') + '" "' + (Join-Path $minhook 'src\trampoline.c') + '" "' + (Join-Path $minhook 'src\hde\hde64.c') + '"'

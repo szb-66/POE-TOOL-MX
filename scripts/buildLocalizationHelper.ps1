@@ -23,7 +23,17 @@ $codecRoot = Join-Path $cacheRoot 'ooz-sources'
 New-Item -ItemType Directory -Path $codecRoot -Force | Out-Null
 foreach ($sourceName in @('kraken.cpp','stdafx.h','targetver.h','bitknit.cpp','lzna.cpp')) {
     $sourcePath = Join-Path $codecRoot $sourceName
-    if (!(Test-Path -LiteralPath $sourcePath)) { Invoke-WebRequest -Uri "https://raw.githubusercontent.com/powzix/ooz/$codecCommit/$sourceName" -OutFile $sourcePath }
+    if (!(Test-Path -LiteralPath $sourcePath)) {
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/powzix/ooz/$codecCommit/$sourceName" -OutFile $sourcePath
+                break
+            } catch {
+                if ($attempt -eq 3) { throw }
+                Start-Sleep -Seconds 3
+            }
+        }
+    }
 }
 $decoderSource = [IO.File]::ReadAllText((Join-Path $codecRoot 'kraken.cpp'))
 $decoderEnd = $decoderSource.IndexOf('// The decompressor will write outside')
@@ -31,7 +41,7 @@ if ($decoderEnd -lt 0) { throw 'ooz library source boundary changed' }
 [IO.File]::WriteAllText((Join-Path $codecRoot 'decoder.cpp'),$decoderSource.Substring(0,$decoderEnd))
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 if (!(Test-Path -LiteralPath $vswhere)) { throw 'Visual Studio C++ Build Tools are required for the codec build' }
-$visualStudio = (& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
+$visualStudio = (& $vswhere -latest -prerelease -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1).Trim()
 $vcvars = Join-Path $visualStudio 'VC\Auxiliary\Build\vcvars64.bat'
 if (!(Test-Path -LiteralPath $vcvars)) { throw 'C++ x64 build tools not found' }
 $bridge = Join-Path $helperRoot 'CodecBridge.cpp'

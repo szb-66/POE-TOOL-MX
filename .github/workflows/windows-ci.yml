@@ -28,13 +28,21 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Use .NET 8 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install dependencies
         run: npm ci
 
       - name: Prepare embedded Python
         run: npm run runtime:prepare
 
-      - name: Verify embedded Python
+      - name: Build localization helpers
+        run: npm run localization:build
+
+      - name: Verify runtimes
         run: npm run runtime:verify
 
       - name: Run tests

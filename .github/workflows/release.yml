@@ -39,15 +39,21 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Use .NET 8 SDK
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install dependencies
         run: npm ci
 
       - name: Check tag and package versions
         run: npm run release:check
 
-      - name: Prepare and verify embedded Python
+      - name: Prepare and verify runtimes
         run: |
           npm run runtime:prepare
+          npm run localization:build
           npm run runtime:verify
 
       - name: Run tests
@@ -114,15 +120,28 @@ jobs:
           if (Test-Path -LiteralPath $notesFile) {
             $notesArgs = @("--notes-file", $notesFile)
           }
-          gh release create "${{ github.ref_name }}" `
-            "${{ steps.assets.outputs.installer }}" `
-            "${{ steps.assets.outputs.blockmap }}" `
-            "${{ steps.assets.outputs.update_metadata }}" `
-            "dist-electron/SHA256SUMS.txt" `
-            "THIRD_PARTY_NOTICES.md" `
-            --verify-tag `
-            --title "流放助手 ${{ github.ref_name }}" `
-            @notesArgs
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            gh release create "${{ github.ref_name }}" `
+              "${{ steps.assets.outputs.installer }}" `
+              "${{ steps.assets.outputs.blockmap }}" `
+              "${{ steps.assets.outputs.update_metadata }}" `
+              "dist-electron/SHA256SUMS.txt" `
+              "THIRD_PARTY_NOTICES.md" `
+              --verify-tag `
+              --title "流放助手 ${{ github.ref_name }}" `
+              @notesArgs
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq $maxAttempts) {
+              throw "gh release create failed after $maxAttempts attempts"
+            }
+            $existing = gh release view "${{ github.ref_name }}" --json isDraft 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
+            if ($existing -and $existing.isDraft) {
+              gh release delete "${{ github.ref_name }}" --yes 2>$null
+            }
+            Write-Warning "gh release create failed (attempt $attempt/$maxAttempts), retrying in 10s..."
+            Start-Sleep -Seconds 10
+          }
 
       - name: Sync release tag to CNB
         shell: pwsh

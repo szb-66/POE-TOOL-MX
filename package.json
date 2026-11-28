@@ -37,7 +37,7 @@
     "release:checksum": "node scripts/release/checksum.js",
     "release:notes": "node scripts/release/injectReleaseNotes.js",
     "release:smoke": "node scripts/release/smokePackage.js",
-    "release:win": "npm run release:check && npm run runtime:prepare && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:notes && npm run release:smoke && npm run release:checksum"
+    "release:win": "npm run release:check && npm run runtime:prepare && npm run localization:build && npm run runtime:verify && npm run build && electron-builder --win nsis --x64 && npm run release:notes && npm run release:smoke && npm run release:checksum"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

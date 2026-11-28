@@ -36,6 +36,6 @@ def check(payload):
 
 
 if __name__ == '__main__':
-    errors = check(json.load(sys.stdin))
+    errors = check(json.loads(sys.stdin.buffer.read().decode('utf-8')))
     print(json.dumps(errors, ensure_ascii=True))
     sys.exit(1 if errors else 0)
